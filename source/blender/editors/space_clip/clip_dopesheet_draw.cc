@@ -279,8 +279,8 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene)
 
 void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
 {
-  ScrArea *area = CTX_wm_area(C);
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  ScrArea *area = CTX_wm_area(*C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   View2D *v2d = &region->v2d;
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const uiStyle *style = blender::ui::style_get();

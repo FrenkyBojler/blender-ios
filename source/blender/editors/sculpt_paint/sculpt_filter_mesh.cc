@@ -136,7 +136,7 @@ void cache_init(bContext *C,
                 float start_strength)
 {
   SculptSession &ss = *ob.sculpt;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
 
   ss.filter_cache = MEM_new<filter::Cache>(__func__);
@@ -2129,10 +2129,10 @@ static void sculpt_mesh_update_status_bar(bContext *C, wmOperator * /*op*/)
 
 static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op, bool is_replay = false)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
-  Object &ob = *CTX_data_active_object(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  Object &ob = *CTX_data_active_object(*C);
   SculptSession &ss = *ob.sculpt;
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
   const MeshFilterType filter_type = MeshFilterType(RNA_enum_get(op->ptr, "type"));
   const float strength = RNA_float_get(op->ptr, "strength");
 
@@ -2212,7 +2212,7 @@ static void sculpt_mesh_filter_apply_with_history(bContext *C, wmOperator *op)
     return;
   }
 
-  Object &ob = *CTX_data_active_object(C);
+  Object &ob = *CTX_data_active_object(*C);
   SculptSession &ss = *ob.sculpt;
   float2 start_mouse;
   bool first = true;
@@ -2238,7 +2238,7 @@ static void sculpt_mesh_filter_apply_with_history(bContext *C, wmOperator *op)
 
 static void sculpt_mesh_filter_end(bContext *C)
 {
-  Object &ob = *CTX_data_active_object(C);
+  Object &ob = *CTX_data_active_object(*C);
   SculptSession &ss = *ob.sculpt;
 
   MEM_delete(ss.filter_cache);
@@ -2261,8 +2261,8 @@ static wmOperatorStatus sculpt_mesh_filter_confirm(SculptSession &ss,
 
 static void sculpt_mesh_filter_cancel(bContext *C, wmOperator * /*op*/)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
-  Object &ob = *CTX_data_active_object(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  Object &ob = *CTX_data_active_object(*C);
   SculptSession *ss = ob.sculpt;
   bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
 
@@ -2277,12 +2277,12 @@ static void sculpt_mesh_filter_cancel(bContext *C, wmOperator * /*op*/)
 
 static wmOperatorStatus sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Object &ob = *CTX_data_active_object(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Object &ob = *CTX_data_active_object(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   SculptSession &ss = *ob.sculpt;
   const MeshFilterType filter_type = MeshFilterType(RNA_enum_get(op->ptr, "type"));
 
-  WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_EW_SCROLL);
+  WM_cursor_modal_set(CTX_wm_window(*C), WM_CURSOR_EW_SCROLL);
   sculpt_mesh_update_status_bar(C, op);
 
   if (event->type == EVT_MODAL_MAP) {
@@ -2302,7 +2302,7 @@ static wmOperatorStatus sculpt_mesh_filter_modal(bContext *C, wmOperator *op, co
 
     sculpt_mesh_filter_end(C);
     ED_workspace_status_text(C, nullptr); /* Clear status bar */
-    WM_cursor_modal_restore(CTX_wm_window(C));
+    WM_cursor_modal_restore(CTX_wm_window(*C));
 
     return ret;
   }
@@ -2389,13 +2389,13 @@ static void sculpt_filter_specific_init(const Depsgraph &depsgraph,
 /* Returns OPERATOR_PASS_THROUGH on success. */
 static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
 {
-  const Scene &scene = *CTX_data_scene(C);
-  Object &ob = *CTX_data_active_object(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  const Scene &scene = *CTX_data_scene(*C);
+  Object &ob = *CTX_data_active_object(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
 
-  const View3D *v3d = CTX_wm_view3d(C);
-  const Base *base = CTX_data_active_base(C);
+  const View3D *v3d = CTX_wm_view3d(*C);
+  const Base *base = CTX_data_active_base(*C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -2495,7 +2495,7 @@ static wmOperatorStatus sculpt_mesh_filter_exec(bContext *C, wmOperator *op)
     }
 
     sculpt_mesh_filter_end(C);
-    undo::push_end(*CTX_data_active_object(C));
+    undo::push_end(*CTX_data_active_object(*C));
 
     return OPERATOR_FINISHED;
   }

@@ -45,9 +45,9 @@ OBJDepsgraph::OBJDepsgraph(const bContext *C,
                            const eEvaluationMode eval_mode,
                            Collection *collection)
 {
-  Scene *scene = CTX_data_scene(C);
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   /* If a collection was provided, use it. */
   if (collection) {
@@ -63,7 +63,7 @@ OBJDepsgraph::OBJDepsgraph(const bContext *C,
     BKE_scene_graph_evaluated_ensure(depsgraph_, bmain);
   }
   else {
-    depsgraph_ = CTX_data_ensure_evaluated_depsgraph(C);
+    depsgraph_ = CTX_data_ensure_evaluated_depsgraph(*C);
     needs_free_ = false;
   }
 }
@@ -374,7 +374,7 @@ void exporter_main(bContext *C, const OBJExportParams &export_params)
 
   Collection *collection = nullptr;
   if (export_params.collection[0]) {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     collection = reinterpret_cast<Collection *>(
         BKE_libblock_find_name(bmain, ID_GR, export_params.collection));
     if (!collection) {

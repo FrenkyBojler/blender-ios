@@ -740,10 +740,10 @@ bool ABC_import(bContext *C, const AlembicImportParams *params, bool as_backgrou
   /* Using new here since MEM_* functions do not call constructor to properly initialize data. */
   ImportJobData *job = new ImportJobData();
   job->C = C;
-  job->bmain = CTX_data_main(C);
-  job->scene = CTX_data_scene(C);
-  job->view_layer = CTX_data_view_layer(C);
-  job->wm = CTX_wm_manager(C);
+  job->bmain = CTX_data_main(*C);
+  job->scene = CTX_data_scene(*C);
+  job->view_layer = CTX_data_view_layer(*C);
+  job->wm = CTX_wm_manager(*C);
   job->import_ok = false;
   job->paths = params->paths;
 
@@ -762,8 +762,8 @@ bool ABC_import(bContext *C, const AlembicImportParams *params, bool as_backgrou
 
   bool import_ok = false;
   if (as_background_job) {
-    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
-                                CTX_wm_window(C),
+    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                                CTX_wm_window(*C),
                                 job->scene,
                                 "Importing Alembic...",
                                 WM_JOB_PROGRESS,
@@ -774,7 +774,7 @@ bool ABC_import(bContext *C, const AlembicImportParams *params, bool as_backgrou
     WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_FRAME, NC_SCENE | ND_FRAME);
     WM_jobs_callbacks(wm_job, import_startjob, nullptr, nullptr, import_endjob);
 
-    WM_jobs_start(CTX_wm_manager(C), wm_job);
+    WM_jobs_start(CTX_wm_manager(*C), wm_job);
   }
   else {
     wmJobWorkerStatus worker_status = {};

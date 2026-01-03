@@ -29,7 +29,7 @@
 
 static wmOperatorStatus mask_parent_clear_exec(bContext *C, wmOperator * /*op*/)
 {
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
 
   for (MaskLayer &mask_layer : mask->masklayers) {
     if (mask_layer.visibility_flag & (MASK_HIDE_VIEW | MASK_HIDE_SELECT)) {
@@ -71,10 +71,10 @@ void MASK_OT_parent_clear(wmOperatorType *ot)
 
 static wmOperatorStatus mask_parent_set_exec(bContext *C, wmOperator * /*op*/)
 {
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
 
   /* parent info */
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTrackingTrack *track;
   MovieTrackingPlaneTrack *plane_track;

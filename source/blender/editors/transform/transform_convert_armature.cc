@@ -548,7 +548,7 @@ static void add_pose_transdata(
        * pose_grab_with_ik_add() beforehand. */
       if ((data->flag & CONSTRAINT_IK_TEMP) == 0) {
         add_temporary_ik_constraint(pchan, data);
-        Main *bmain = CTX_data_main(t->context);
+        Main *bmain = CTX_data_main(*t->context);
         update_deg_with_temporary_ik(bmain, ob);
       }
 
@@ -564,7 +564,7 @@ static void add_pose_transdata(
 
 static void createTransPose(bContext * /*C*/, TransInfo *t)
 {
-  Main *bmain = CTX_data_main(t->context);
+  Main *bmain = CTX_data_main(*t->context);
 
   t->data_len_all = 0;
 
@@ -1209,7 +1209,7 @@ static void pose_transform_mirror_update(TransInfo *t, TransDataContainer *tc, O
        * pose_grab_with_ik_add() beforehand. */
       if ((data->flag & CONSTRAINT_IK_TEMP) == 0) {
         add_temporary_ik_constraint(pchan, data);
-        Main *bmain = CTX_data_main(t->context);
+        Main *bmain = CTX_data_main(*t->context);
         update_deg_with_temporary_ik(bmain, ob);
       }
     }
@@ -1686,7 +1686,7 @@ static void special_aftertrans_update__pose(bContext *C, TransInfo *t)
       }
 
       if (t->mode == TFM_TRANSLATION) {
-        Main *bmain = CTX_data_main(t->context);
+        Main *bmain = CTX_data_main(*t->context);
         pose_grab_with_ik_clear(bmain, ob);
       }
 

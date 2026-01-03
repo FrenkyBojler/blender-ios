@@ -206,7 +206,7 @@ static void memfile_undosys_step_decode(
   ED_editors_exit(bmain, false);
   /* Ensure there's no preview job running. Unfinished previews will be scheduled for regeneration
    * via #memfile_undosys_unfinished_id_previews_restart(). */
-  ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
+  ED_preview_kill_jobs(CTX_wm_manager(*C), bmain);
 
   MemFileUndoStep *us = (MemFileUndoStep *)us_p;
   BKE_memfile_undo_decode(us->data, undo_direction, use_old_bmain_data, C);
@@ -225,7 +225,7 @@ static void memfile_undosys_step_decode(
   }
 
   /* bmain has been freed. */
-  bmain = CTX_data_main(C);
+  bmain = CTX_data_main(*C);
   ED_editors_init_for_undo(bmain);
 
   if (use_old_bmain_data) {
@@ -335,7 +335,7 @@ static void memfile_undosys_step_decode(
     FOREACH_MAIN_ID_END;
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, CTX_data_scene(C));
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, CTX_data_scene(*C));
 }
 
 static void memfile_undosys_step_free(UndoStep *us_p)

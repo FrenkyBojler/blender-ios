@@ -57,14 +57,14 @@ static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::blendfile;
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   PartialWriteContext copybuffer{*bmain};
 
-  Object *obact = CTX_data_active_object(C);
+  Object *obact = CTX_data_active_object(*C);
   Object *obact_copy = nullptr;
 
   /* context, selection, could be generalized */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     ID *ob_id_copy = copybuffer.id_add(
         &ob->id,
         PartialWriteContext::IDAddOptions{

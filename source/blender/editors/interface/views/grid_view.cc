@@ -442,7 +442,7 @@ void GridViewBuilder::build_grid_view(const bContext &C,
 {
   Block &block = *layout.block();
 
-  const ARegion *region = CTX_wm_region_popup(&C) ? CTX_wm_region_popup(&C) : CTX_wm_region(&C);
+  const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
   block_view_persistent_state_restore(*region, block, grid_view);
 
   grid_view.build_items();

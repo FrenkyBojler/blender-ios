@@ -48,7 +48,7 @@ struct CameraWidgetGroup {
 
 static bool WIDGETGROUP_camera_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_CONTEXT)) {
     return false;
   }
@@ -58,8 +58,8 @@ static bool WIDGETGROUP_camera_poll(const bContext *C, wmGizmoGroupType * /*gzgt
     return false;
   }
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
@@ -67,7 +67,7 @@ static bool WIDGETGROUP_camera_poll(const bContext *C, wmGizmoGroupType * /*gzgt
     if (ob->type == OB_CAMERA) {
       const Camera *camera = static_cast<Camera *>(ob->data);
       /* TODO: support overrides. */
-      if (BKE_id_is_editable(CTX_data_main(C), &camera->id)) {
+      if (BKE_id_is_editable(CTX_data_main(*C), &camera->id)) {
         return true;
       }
     }
@@ -77,8 +77,8 @@ static bool WIDGETGROUP_camera_poll(const bContext *C, wmGizmoGroupType * /*gzgt
 
 static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   float dir[3];
@@ -135,9 +135,9 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   }
 
   CameraWidgetGroup *cagzgroup = static_cast<CameraWidgetGroup *>(gzgroup->customdata);
-  View3D *v3d = CTX_wm_view3d(C);
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   Camera *ca = static_cast<Camera *>(ob->data);
@@ -258,9 +258,9 @@ static void WIDGETGROUP_camera_message_subscribe(const bContext *C,
                                                  wmGizmoGroup *gzgroup,
                                                  wmMsgBus *mbus)
 {
-  ARegion *region = CTX_wm_region(C);
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ARegion *region = CTX_wm_region(*C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   Camera *ca = static_cast<Camera *>(ob->data);
@@ -380,30 +380,30 @@ static void gizmo_render_border_prop_matrix_set(const wmGizmo * /*gz*/,
 
 static bool WIDGETGROUP_camera_view_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* This is just so the border isn't always in the way,
    * stealing mouse clicks from regular usage.
    * We could change the rules for when to show. */
   {
-    ViewLayer *view_layer = CTX_data_view_layer(C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     if (scene->camera != BKE_view_layer_active_object_get(view_layer)) {
       return false;
     }
   }
 
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_CONTEXT)) {
     return false;
   }
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   if (rv3d->persp == RV3D_CAMOB) {
     if (scene->r.mode & R_BORDER) {
       /* TODO: support overrides. */
-      if (BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
+      if (BKE_id_is_editable(CTX_data_main(*C), &scene->id)) {
         return true;
       }
     }
@@ -437,13 +437,13 @@ static void WIDGETGROUP_camera_view_draw_prepare(const bContext *C, wmGizmoGroup
 {
   CameraViewWidgetGroup *viewgroup = static_cast<CameraViewWidgetGroup *>(gzgroup->customdata);
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   /* Drawing code should happen with fully evaluated graph. */
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   if (rv3d->persp == RV3D_CAMOB) {
-    Scene *scene = CTX_data_scene(C);
-    View3D *v3d = CTX_wm_view3d(C);
+    Scene *scene = CTX_data_scene(*C);
+    View3D *v3d = CTX_wm_view3d(*C);
     ED_view3d_calc_camera_border(
         scene, depsgraph, region, v3d, rv3d, false, &viewgroup->state.view_border);
   }
@@ -468,10 +468,10 @@ static void WIDGETGROUP_camera_view_refresh(const bContext *C, wmGizmoGroup *gzg
 {
   CameraViewWidgetGroup *viewgroup = static_cast<CameraViewWidgetGroup *>(gzgroup->customdata);
 
-  View3D *v3d = CTX_wm_view3d(C);
-  ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   viewgroup->scene = scene;
 

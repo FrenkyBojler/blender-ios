@@ -716,7 +716,7 @@ static bool view3d_interactive_add_calc_snap(bContext * /*C*/,
 static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEvent *event)
 {
   V3DSnapCursorState *snap_state = ED_view3d_cursor_snap_state_active_get();
-  ToolSettings *tool_settings = CTX_data_tool_settings(C);
+  ToolSettings *tool_settings = CTX_data_tool_settings(*C);
 
   const int plane_axis = tool_settings->plane_axis;
 
@@ -923,10 +923,10 @@ static wmOperatorStatus view3d_interactive_add_invoke(bContext *C,
       MEM_callocN(sizeof(*ipd), __func__));
   op->customdata = ipd;
 
-  ipd->scene = CTX_data_scene(C);
-  ipd->area = CTX_wm_area(C);
-  ipd->region = CTX_wm_region(C);
-  ipd->v3d = CTX_wm_view3d(C);
+  ipd->scene = CTX_data_scene(*C);
+  ipd->area = CTX_wm_area(*C);
+  ipd->region = CTX_wm_region(*C);
+  ipd->v3d = CTX_wm_view3d(*C);
 
   if (wait_for_input) {
     ipd->wait_for_input = true;
@@ -1307,7 +1307,7 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
 
 static bool view3d_interactive_add_poll(bContext *C)
 {
-  const enum eContextObjectMode mode = CTX_data_mode_enum(C);
+  const enum eContextObjectMode mode = CTX_data_mode_enum(*C);
   return ELEM(mode, CTX_MODE_OBJECT, CTX_MODE_EDIT_MESH);
 }
 
@@ -1424,8 +1424,8 @@ static void WIDGETGROUP_placement_setup(const bContext * /*C*/, wmGizmoGroup *gz
 static bool WIDGETGROUP_placement_poll(const bContext *C, wmGizmoGroupType *gzgt)
 {
   if (ED_gizmo_poll_or_unlink_delayed_from_tool(C, gzgt)) {
-    const Scene *scene = CTX_data_scene(C);
-    if (BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
+    const Scene *scene = CTX_data_scene(*C);
+    if (BKE_id_is_editable(CTX_data_main(*C), &scene->id)) {
       return true;
     }
   }

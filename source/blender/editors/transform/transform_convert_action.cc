@@ -997,7 +997,7 @@ static void recalcData_actedit(TransInfo *t)
 
   /* Initialize relevant anim-context `context` data from #TransInfo data. */
   /* NOTE: sync this with the code in #ANIM_animdata_get_context(). */
-  ac.bmain = CTX_data_main(t->context);
+  ac.bmain = CTX_data_main(*t->context);
   ac.scene = t->scene;
   ac.view_layer = t->view_layer;
   ac.obact = BKE_view_layer_active_object_get(view_layer);
@@ -1053,7 +1053,7 @@ static void recalcData_actedit(TransInfo *t)
     if ((saction->flag & SACTION_NOREALTIMEUPDATES) == 0) {
       for (bAnimListElem &ale : anim_data) {
         /* Set refresh tags for objects using this animation. */
-        ANIM_list_elem_update(CTX_data_main(t->context), t->scene, &ale);
+        ANIM_list_elem_update(CTX_data_main(*t->context), t->scene, &ale);
       }
 
       /* Now free temp channels. */

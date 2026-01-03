@@ -74,7 +74,7 @@ void get_compositor_group_output_extra_info(blender::nodes::NodeExtraInfoParams 
     return;
   }
 
-  SpaceNode *space_node = CTX_wm_space_node(&parameters.C);
+  SpaceNode *space_node = CTX_wm_space_node(parameters.C);
   if (space_node->edittree != space_node->nodetree) {
     return;
   }

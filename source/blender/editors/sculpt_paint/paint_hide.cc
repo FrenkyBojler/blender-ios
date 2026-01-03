@@ -106,14 +106,14 @@ void sync_all_from_faces(Object &object)
 
 void tag_update_visibility(const bContext &C)
 {
-  ARegion *region = CTX_wm_region(&C);
+  ARegion *region = CTX_wm_region(C);
   ED_region_tag_redraw(region);
 
-  Object *ob = CTX_data_active_object(&C);
+  Object *ob = CTX_data_active_object(C);
   WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_SHADING);
-  const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
+  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
   if (!BKE_sculptsession_use_pbvh_draw(ob, rv3d)) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
@@ -505,9 +505,9 @@ static void partialvis_all_update_bmesh(const Depsgraph &depsgraph,
 
 static wmOperatorStatus hide_show_all_exec(bContext *C, wmOperator *op)
 {
-  const Scene &scene = *CTX_data_scene(C);
-  Object &ob = *CTX_data_active_object(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const Scene &scene = *CTX_data_scene(*C);
+  Object &ob = *CTX_data_active_object(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
   const VisAction action = VisAction(RNA_enum_get(op->ptr, "action"));
 
@@ -622,9 +622,9 @@ static void partialvis_masked_update_bmesh(const Depsgraph &depsgraph,
 
 static wmOperatorStatus hide_show_masked_exec(bContext *C, wmOperator *op)
 {
-  const Scene &scene = *CTX_data_scene(C);
-  Object &ob = *CTX_data_active_object(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const Scene &scene = *CTX_data_scene(*C);
+  Object &ob = *CTX_data_active_object(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
   const VisAction action = VisAction(RNA_enum_get(op->ptr, "action"));
 
@@ -783,9 +783,9 @@ static void invert_visibility_bmesh(const Depsgraph &depsgraph,
 
 static wmOperatorStatus visibility_invert_exec(bContext *C, wmOperator *op)
 {
-  const Scene &scene = *CTX_data_scene(C);
-  Object &object = *CTX_data_active_object(C);
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
+  const Scene &scene = *CTX_data_scene(*C);
+  Object &object = *CTX_data_active_object(*C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*C);
 
   bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(depsgraph, object);
 
@@ -1113,9 +1113,9 @@ static void grow_shrink_visibility_bmesh(const Depsgraph &depsgraph,
 
 static wmOperatorStatus visibility_filter_exec(bContext *C, wmOperator *op)
 {
-  const Scene &scene = *CTX_data_scene(C);
-  Object &object = *CTX_data_active_object(C);
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
+  const Scene &scene = *CTX_data_scene(*C);
+  Object &object = *CTX_data_active_object(*C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*C);
 
   bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(depsgraph, object);
 
@@ -1281,9 +1281,9 @@ static void partialvis_gesture_update_bmesh(gesture::GestureData &gesture_data)
 
 static void hide_show_begin(bContext &C, wmOperator &op, gesture::GestureData & /*gesture_data*/)
 {
-  const Scene &scene = *CTX_data_scene(&C);
-  Object *ob = CTX_data_active_object(&C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object *ob = CTX_data_active_object(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   undo::push_begin(scene, *ob, &op);
   bke::object::pbvh_ensure(*depsgraph, *ob);
@@ -1291,7 +1291,7 @@ static void hide_show_begin(bContext &C, wmOperator &op, gesture::GestureData & 
 
 static void hide_show_apply_for_symmetry_pass(bContext &C, gesture::GestureData &gesture_data)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
   switch (bke::object::pbvh_get(*gesture_data.vc.obact)->type()) {
     case bke::pbvh::Type::Mesh:

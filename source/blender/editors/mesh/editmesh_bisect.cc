@@ -70,8 +70,8 @@ static void mesh_bisect_interactive_calc(bContext *C,
                                          float plane_co[3],
                                          float plane_no[3])
 {
-  View3D *v3d = CTX_wm_view3d(C);
-  ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   int x_start = RNA_int_get(op->ptr, "xstart");
@@ -108,20 +108,20 @@ static void mesh_bisect_interactive_calc(bContext *C,
 
 static wmOperatorStatus mesh_bisect_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   int valid_objects = 0;
 
   /* If the properties are set or there is no rv3d,
    * skip modal and exec immediately. */
-  if ((CTX_wm_region_view3d(C) == nullptr) || (RNA_struct_property_is_set(op->ptr, "plane_co") &&
-                                               RNA_struct_property_is_set(op->ptr, "plane_no")))
+  if ((CTX_wm_region_view3d(*C) == nullptr) || (RNA_struct_property_is_set(op->ptr, "plane_co") &&
+                                                RNA_struct_property_is_set(op->ptr, "plane_no")))
   {
     return mesh_bisect_exec(C, op);
   }
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
@@ -202,7 +202,7 @@ static wmOperatorStatus mesh_bisect_modal(bContext *C, wmOperator *op, const wmE
   ret = WM_gesture_straightline_modal(C, op, event);
 
   /* update or clear modal callout */
-  WorkSpace *workspace = CTX_wm_workspace(C);
+  WorkSpace *workspace = CTX_wm_workspace(*C);
 
   if (workspace) {
     BKE_workspace_status_clear(workspace);
@@ -214,7 +214,7 @@ static wmOperatorStatus mesh_bisect_modal(bContext *C, wmOperator *op, const wmE
 #ifdef USE_GIZMO
     /* Setup gizmos */
     {
-      View3D *v3d = CTX_wm_view3d(C);
+      View3D *v3d = CTX_wm_view3d(*C);
       if (v3d && (v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0) {
         WM_gizmo_group_type_ensure("MESH_GGT_bisect");
       }
@@ -230,7 +230,7 @@ static wmOperatorStatus mesh_bisect_modal(bContext *C, wmOperator *op, const wmE
 
 static wmOperatorStatus mesh_bisect_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* both can be nullptr, fallbacks values are used */
   RegionView3D *rv3d = ED_view3d_context_rv3d(C);
@@ -291,7 +291,7 @@ static wmOperatorStatus mesh_bisect_exec(bContext *C, wmOperator *op)
   /* -------------------------------------------------------------------- */
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
+      CTX_data_scene(*C), CTX_data_view_layer(*C), CTX_wm_view3d(*C));
 
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];

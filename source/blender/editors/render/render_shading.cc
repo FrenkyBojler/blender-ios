@@ -184,7 +184,7 @@ static bool object_materials_supported_poll(bContext *C)
 
 static bool material_slot_populated_poll(bContext *C)
 {
-  const Object *ob_active = CTX_data_active_object(C);
+  const Object *ob_active = CTX_data_active_object(*C);
   if (ob_active == nullptr) {
     return false;
   }
@@ -198,7 +198,7 @@ static bool material_slot_populated_poll(bContext *C)
 
 static wmOperatorStatus material_slot_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = blender::ed::object::context_object(C);
 
   if (!ob) {
@@ -208,7 +208,7 @@ static wmOperatorStatus material_slot_add_exec(bContext *C, wmOperator * /*op*/)
   BKE_object_material_slot_add(bmain, ob);
 
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
@@ -269,10 +269,10 @@ static wmOperatorStatus material_slot_remove_exec(bContext *C, wmOperator * /*op
     return OPERATOR_CANCELLED;
   }
 
-  BKE_object_material_slot_remove(CTX_data_main(C), ob);
+  BKE_object_material_slot_remove(CTX_data_main(*C), ob);
 
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
@@ -308,10 +308,10 @@ void OBJECT_OT_material_slot_remove(wmOperatorType *ot)
 
 static wmOperatorStatus material_slot_assign_exec(bContext *C, wmOperator * /*op*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   bool changed_multi = false;
 
-  Object *obact = CTX_data_active_object(C);
+  Object *obact = CTX_data_active_object(*C);
   const Material *mat_active = obact ? BKE_object_material_get(obact, obact->actcol) : nullptr;
 
   Vector<Object *> objects = object_array_for_shading_edit_mode_enabled(C);
@@ -415,7 +415,7 @@ void OBJECT_OT_material_slot_assign(wmOperatorType *ot)
 static wmOperatorStatus material_slot_de_select(bContext *C, bool select)
 {
   bool changed_multi = false;
-  Object *obact = CTX_data_active_object(C);
+  Object *obact = CTX_data_active_object(*C);
   const Material *mat_active = obact ? BKE_object_material_get(obact, obact->actcol) : nullptr;
 
   Vector<Object *> objects = object_array_for_shading_edit_mode_enabled(C);
@@ -546,7 +546,7 @@ void OBJECT_OT_material_slot_deselect(wmOperatorType *ot)
 
 static wmOperatorStatus material_slot_copy_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = blender::ed::object::context_object(C);
   Material ***matar_obdata;
 
@@ -564,7 +564,7 @@ static wmOperatorStatus material_slot_copy_exec(bContext *C, wmOperator * /*op*/
     matar[i] = ob->matbits[i] ? (*matar_object)[i] : (*matar_obdata)[i];
   }
 
-  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob_iter, selected_editable_objects) {
     if (ob != ob_iter && BKE_object_material_array_p(ob_iter)) {
       /* If we are using the same obdata, we only assign slots in ob_iter that are using object
        * materials, and not obdata ones. */
@@ -701,7 +701,7 @@ void OBJECT_OT_material_slot_move(wmOperatorType *ot)
 
 static wmOperatorStatus material_slot_remove_unused_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   int removed = 0;
 
   Vector<Object *> objects = object_array_for_shading_edit_mode_disabled(C);
@@ -730,9 +730,9 @@ static wmOperatorStatus material_slot_remove_unused_exec(bContext *C, wmOperator
 
   BKE_reportf(op->reports, RPT_INFO, "Removed %d slots", removed);
 
-  Object *ob_active = CTX_data_active_object(C);
+  Object *ob_active = CTX_data_active_object(*C);
   if (ob_active->mode & OB_MODE_TEXTURE_PAINT) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     ED_paint_proj_mesh_data_check(*scene, *ob_active, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
@@ -762,8 +762,8 @@ void OBJECT_OT_material_slot_remove_unused(wmOperatorType *ot)
 static wmOperatorStatus material_slot_remove_all_exec(bContext *C, wmOperator *op)
 {
   /* Removing material slots in edit mode screws things up, see bug #21822. */
-  Object *ob_active = CTX_data_active_object(C);
-  Main *bmain = CTX_data_main(C);
+  Object *ob_active = CTX_data_active_object(*C);
+  Main *bmain = CTX_data_main(*C);
   int removed = 0;
 
   Vector<Object *> objects = object_array_for_shading_edit_mode_disabled(C);
@@ -793,7 +793,7 @@ static wmOperatorStatus material_slot_remove_all_exec(bContext *C, wmOperator *o
   BKE_reportf(op->reports, RPT_INFO, "Removed %d materials", removed);
 
   if (ob_active->mode == OB_MODE_TEXTURE_PAINT) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     ED_paint_proj_mesh_data_check(*scene, *ob_active, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
@@ -829,8 +829,8 @@ void OBJECT_OT_material_slot_remove_all(wmOperatorType *ot)
 static wmOperatorStatus new_material_exec(bContext *C, wmOperator * /*op*/)
 {
   Material *ma = static_cast<Material *>(
-      CTX_data_pointer_get_type(C, "material", &RNA_Material).data);
-  Main *bmain = CTX_data_main(C);
+      CTX_data_pointer_get_type(*C, "material", &RNA_Material).data);
+  Main *bmain = CTX_data_main(*C);
   PointerRNA ptr;
   PropertyRNA *prop;
 
@@ -907,8 +907,8 @@ void MATERIAL_OT_new(wmOperatorType *ot)
 
 static wmOperatorStatus new_texture_exec(bContext *C, wmOperator *op)
 {
-  Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data);
-  Main *bmain = CTX_data_main(C);
+  Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(*C, "texture", &RNA_Texture).data);
+  Main *bmain = CTX_data_main(*C);
   PointerRNA ptr;
   PropertyRNA *prop;
 
@@ -970,8 +970,8 @@ void TEXTURE_OT_new(wmOperatorType *ot)
 
 static wmOperatorStatus new_world_exec(bContext *C, wmOperator * /*op*/)
 {
-  World *wo = static_cast<World *>(CTX_data_pointer_get_type(C, "world", &RNA_World).data);
-  Main *bmain = CTX_data_main(C);
+  World *wo = static_cast<World *>(CTX_data_pointer_get_type(*C, "world", &RNA_World).data);
+  Main *bmain = CTX_data_main(*C);
   PointerRNA ptr;
   PropertyRNA *prop;
 
@@ -1030,8 +1030,8 @@ void WORLD_OT_new(wmOperatorType *ot)
 
 static wmOperatorStatus view_layer_add_exec(bContext *C, wmOperator *op)
 {
-  wmWindow *win = CTX_wm_window(C);
-  Scene *scene = CTX_data_scene(C);
+  wmWindow *win = CTX_wm_window(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   ViewLayer *view_layer_current = win ? WM_window_get_active_view_layer(win) : nullptr;
   int type = RNA_enum_get(op->ptr, "type");
@@ -1049,7 +1049,7 @@ static wmOperatorStatus view_layer_add_exec(bContext *C, wmOperator *op)
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
@@ -1092,15 +1092,15 @@ void SCENE_OT_view_layer_add(wmOperatorType *ot)
 
 static bool view_layer_remove_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   return (scene->view_layers.first != scene->view_layers.last);
 }
 
 static wmOperatorStatus view_layer_remove_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   if (!ED_scene_view_layer_delete(bmain, scene, view_layer, nullptr)) {
     return OPERATOR_CANCELLED;
@@ -1134,8 +1134,8 @@ void SCENE_OT_view_layer_remove(wmOperatorType *ot)
 
 static wmOperatorStatus view_layer_add_aov_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   BKE_view_layer_add_aov(view_layer);
 
@@ -1149,12 +1149,12 @@ static wmOperatorStatus view_layer_add_aov_exec(bContext *C, wmOperator * /*op*/
     engine = nullptr;
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   BKE_ntree_update_tag_id_changed(bmain, &scene->id);
   BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
@@ -1182,8 +1182,8 @@ void SCENE_OT_view_layer_add_aov(wmOperatorType *ot)
 
 static wmOperatorStatus view_layer_remove_aov_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   if (view_layer->active_aov == nullptr) {
     return OPERATOR_FINISHED;
@@ -1201,12 +1201,12 @@ static wmOperatorStatus view_layer_remove_aov_exec(bContext *C, wmOperator * /*o
     engine = nullptr;
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   BKE_ntree_update_tag_id_changed(bmain, &scene->id);
   BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
@@ -1234,8 +1234,8 @@ void SCENE_OT_view_layer_remove_aov(wmOperatorType *ot)
 
 static wmOperatorStatus view_layer_add_lightgroup_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   char name[MAX_NAME];
   name[0] = '\0';
@@ -1253,12 +1253,12 @@ static wmOperatorStatus view_layer_add_lightgroup_exec(bContext *C, wmOperator *
 
   BKE_view_layer_add_lightgroup(view_layer, name);
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   BKE_ntree_update_tag_id_changed(bmain, &scene->id);
   BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
@@ -1294,8 +1294,8 @@ void SCENE_OT_view_layer_add_lightgroup(wmOperatorType *ot)
 
 static wmOperatorStatus view_layer_remove_lightgroup_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   if (view_layer->active_lightgroup == nullptr) {
     return OPERATOR_FINISHED;
@@ -1303,12 +1303,12 @@ static wmOperatorStatus view_layer_remove_lightgroup_exec(bContext *C, wmOperato
 
   BKE_view_layer_remove_lightgroup(view_layer, view_layer->active_lightgroup);
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   BKE_ntree_update_tag_id_changed(bmain, &scene->id);
   BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
@@ -1354,8 +1354,8 @@ static blender::Set<blender::StringRefNull> get_used_lightgroups(Scene *scene)
 
 static wmOperatorStatus view_layer_add_used_lightgroups_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   blender::Set<blender::StringRefNull> used_lightgroups = get_used_lightgroups(scene);
   for (const blender::StringRefNull used_lightgroup : used_lightgroups) {
@@ -1367,12 +1367,12 @@ static wmOperatorStatus view_layer_add_used_lightgroups_exec(bContext *C, wmOper
     }
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   BKE_ntree_update_tag_id_changed(bmain, &scene->id);
   BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
@@ -1400,8 +1400,8 @@ void SCENE_OT_view_layer_add_used_lightgroups(wmOperatorType *ot)
 
 static wmOperatorStatus view_layer_remove_unused_lightgroups_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   blender::Set<blender::StringRefNull> used_lightgroups = get_used_lightgroups(scene);
   for (ViewLayerLightgroup &lightgroup : view_layer->lightgroups.items_mutable()) {
@@ -1410,12 +1410,12 @@ static wmOperatorStatus view_layer_remove_unused_lightgroups_exec(bContext *C, w
     }
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   BKE_ntree_update_tag_id_changed(bmain, &scene->id);
   BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
@@ -1450,8 +1450,8 @@ enum {
 static blender::Vector<Object *> lightprobe_cache_irradiance_volume_subset_get(bContext *C,
                                                                                wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   auto is_irradiance_volume = [](Object *ob) -> bool {
     return ob->type == OB_LIGHTPROBE &&
@@ -1492,7 +1492,7 @@ static blender::Vector<Object *> lightprobe_cache_irradiance_volume_subset_get(b
       break;
     }
     case LIGHTCACHE_SUBSET_ACTIVE: {
-      Object *active_ob = CTX_data_active_object(C);
+      Object *active_ob = CTX_data_active_object(*C);
       if (is_irradiance_volume(active_ob)) {
         irradiance_volume_setup(active_ob);
       }
@@ -1519,11 +1519,11 @@ static wmOperatorStatus lightprobe_cache_bake_invoke(bContext *C,
                                                      wmOperator *op,
                                                      const wmEvent * /*event*/)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   blender::Vector<Object *> probes = lightprobe_cache_irradiance_volume_subset_get(C, op);
 
@@ -1562,7 +1562,7 @@ static wmOperatorStatus lightprobe_cache_bake_modal(bContext *C,
   Scene *scene = data->scene;
 
   /* No running bake, remove handler and pass through. */
-  if (0 == WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_LIGHT_BAKE)) {
+  if (0 == WM_jobs_test(CTX_wm_manager(*C), scene, WM_JOB_TYPE_LIGHT_BAKE)) {
     std::string report = data->report;
 
     MEM_delete(data);
@@ -1588,7 +1588,7 @@ static wmOperatorStatus lightprobe_cache_bake_modal(bContext *C,
 
 static void lightprobe_cache_bake_cancel(bContext *C, wmOperator *op)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   Scene *scene = static_cast<BakeOperatorData *>(op->customdata)->scene;
 
   /* Kill on cancel, because job is using op->reports. */
@@ -1598,9 +1598,9 @@ static void lightprobe_cache_bake_cancel(bContext *C, wmOperator *op)
 /* Executes blocking bake. */
 static wmOperatorStatus lightprobe_cache_bake_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   G.is_break = false;
 
@@ -1665,10 +1665,10 @@ void OBJECT_OT_lightprobe_cache_bake(wmOperatorType *ot)
 
 static wmOperatorStatus lightprobe_cache_free_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* Kill potential bake job first (see #57011). */
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_LIGHT_BAKE);
 
   blender::Vector<Object *> probes = lightprobe_cache_irradiance_volume_subset_get(C, op);
@@ -1732,7 +1732,7 @@ void OBJECT_OT_lightprobe_cache_free(wmOperatorType *ot)
 
 static bool render_view_remove_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* don't allow user to remove "left" and "right" views */
   return scene->r.actview > 1;
@@ -1740,8 +1740,8 @@ static bool render_view_remove_poll(bContext *C)
 
 static wmOperatorStatus render_view_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   BKE_scene_add_render_view(scene, nullptr);
   scene->r.actview = BLI_listbase_count(&scene->r.views) - 1;
@@ -1776,8 +1776,8 @@ void SCENE_OT_render_view_add(wmOperatorType *ot)
 
 static wmOperatorStatus render_view_remove_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   SceneRenderView *rv = static_cast<SceneRenderView *>(
       BLI_findlink(&scene->r.views, scene->r.actview));
 
@@ -1836,7 +1836,7 @@ static bool freestyle_linestyle_check_report(FreestyleLineSet *lineset, ReportLi
 
 static bool freestyle_active_module_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "freestyle_module", &RNA_FreestyleModuleSettings);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "freestyle_module", &RNA_FreestyleModuleSettings);
   FreestyleModuleConfig *module = static_cast<FreestyleModuleConfig *>(ptr.data);
 
   return module != nullptr;
@@ -1844,8 +1844,8 @@ static bool freestyle_active_module_poll(bContext *C)
 
 static wmOperatorStatus freestyle_module_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   BKE_freestyle_module_add(&view_layer->freestyle_config);
 
@@ -1876,9 +1876,9 @@ void SCENE_OT_freestyle_module_add(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_module_remove_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "freestyle_module", &RNA_FreestyleModuleSettings);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "freestyle_module", &RNA_FreestyleModuleSettings);
   FreestyleModuleConfig *module = static_cast<FreestyleModuleConfig *>(ptr.data);
 
   BKE_freestyle_module_delete(&view_layer->freestyle_config, module);
@@ -1906,9 +1906,9 @@ void SCENE_OT_freestyle_module_remove(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_module_move_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "freestyle_module", &RNA_FreestyleModuleSettings);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "freestyle_module", &RNA_FreestyleModuleSettings);
   FreestyleModuleConfig *module = static_cast<FreestyleModuleConfig *>(ptr.data);
   int dir = RNA_enum_get(op->ptr, "direction");
 
@@ -1963,9 +1963,9 @@ void SCENE_OT_freestyle_module_move(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_lineset_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   BKE_freestyle_lineset_add(bmain, &view_layer->freestyle_config, nullptr);
 
@@ -1997,7 +1997,7 @@ void SCENE_OT_freestyle_lineset_add(wmOperatorType *ot)
 
 static bool freestyle_active_lineset_poll(bContext *C)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   if (!view_layer) {
     return false;
@@ -2008,7 +2008,7 @@ static bool freestyle_active_lineset_poll(bContext *C)
 
 static wmOperatorStatus freestyle_lineset_copy_exec(bContext *C, wmOperator * /*op*/)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   FRS_copy_active_lineset(&view_layer->freestyle_config);
 
@@ -2038,8 +2038,8 @@ void SCENE_OT_freestyle_lineset_copy(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_lineset_paste_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   FRS_paste_active_lineset(&view_layer->freestyle_config);
 
@@ -2072,8 +2072,8 @@ void SCENE_OT_freestyle_lineset_paste(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_lineset_remove_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   FRS_delete_active_lineset(&view_layer->freestyle_config);
 
@@ -2106,8 +2106,8 @@ void SCENE_OT_freestyle_lineset_remove(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_lineset_move_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   int dir = RNA_enum_get(op->ptr, "direction");
 
   if (FRS_move_active_lineset(&view_layer->freestyle_config, dir)) {
@@ -2155,8 +2155,8 @@ void SCENE_OT_freestyle_lineset_move(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_linestyle_new_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(&view_layer->freestyle_config);
 
   if (!lineset) {
@@ -2199,7 +2199,7 @@ void SCENE_OT_freestyle_linestyle_new(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_color_modifier_add_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(&view_layer->freestyle_config);
   int type = RNA_enum_get(op->ptr, "type");
 
@@ -2246,7 +2246,7 @@ void SCENE_OT_freestyle_color_modifier_add(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_alpha_modifier_add_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(&view_layer->freestyle_config);
   int type = RNA_enum_get(op->ptr, "type");
 
@@ -2293,7 +2293,7 @@ void SCENE_OT_freestyle_alpha_modifier_add(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_thickness_modifier_add_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(&view_layer->freestyle_config);
   int type = RNA_enum_get(op->ptr, "type");
 
@@ -2340,7 +2340,7 @@ void SCENE_OT_freestyle_thickness_modifier_add(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_geometry_modifier_add_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(&view_layer->freestyle_config);
   int type = RNA_enum_get(op->ptr, "type");
 
@@ -2404,9 +2404,9 @@ static int freestyle_get_modifier_type(PointerRNA *ptr)
 
 static wmOperatorStatus freestyle_modifier_remove_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(&view_layer->freestyle_config);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_LineStyleModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_LineStyleModifier);
   LineStyleModifier *modifier = static_cast<LineStyleModifier *>(ptr.data);
 
   if (!freestyle_linestyle_check_report(lineset, op->reports)) {
@@ -2460,9 +2460,9 @@ void SCENE_OT_freestyle_modifier_remove(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_modifier_copy_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(&view_layer->freestyle_config);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_LineStyleModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_LineStyleModifier);
   LineStyleModifier *modifier = static_cast<LineStyleModifier *>(ptr.data);
 
   if (!freestyle_linestyle_check_report(lineset, op->reports)) {
@@ -2516,9 +2516,9 @@ void SCENE_OT_freestyle_modifier_copy(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_modifier_move_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   FreestyleLineSet *lineset = BKE_freestyle_lineset_get_active(&view_layer->freestyle_config);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_LineStyleModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_LineStyleModifier);
   LineStyleModifier *modifier = static_cast<LineStyleModifier *>(ptr.data);
   int dir = RNA_enum_get(op->ptr, "direction");
   bool changed = false;
@@ -2591,8 +2591,8 @@ void SCENE_OT_freestyle_modifier_move(wmOperatorType *ot)
 
 static wmOperatorStatus freestyle_stroke_material_create_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   FreestyleLineStyle *linestyle = BKE_linestyle_active_from_view_layer(view_layer);
 
   if (!linestyle) {
@@ -2629,7 +2629,7 @@ void SCENE_OT_freestyle_stroke_material_create(wmOperatorType *ot)
 
 static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
 {
-  ID *id = CTX_data_pointer_get_type(C, "texture_slot", &RNA_TextureSlot).owner_id;
+  ID *id = CTX_data_pointer_get_type(*C, "texture_slot", &RNA_TextureSlot).owner_id;
 
   if (id) {
     MTex **mtex_ar, *mtexswap;
@@ -2673,7 +2673,7 @@ static wmOperatorStatus texture_slot_move_exec(bContext *C, wmOperator *op)
     }
 
     DEG_id_tag_update(id, 0);
-    WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(C));
+    WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(*C));
   }
 
   return OPERATOR_FINISHED;
@@ -2712,7 +2712,7 @@ static wmOperatorStatus copy_material_exec(bContext *C, wmOperator *op)
   using namespace blender::bke::blendfile;
 
   Material *ma = static_cast<Material *>(
-      CTX_data_pointer_get_type(C, "material", &RNA_Material).data);
+      CTX_data_pointer_get_type(*C, "material", &RNA_Material).data);
 
   if (ma == nullptr) {
     return OPERATOR_CANCELLED;
@@ -2723,7 +2723,7 @@ static wmOperatorStatus copy_material_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   PartialWriteContext copybuffer{*bmain};
 
   /* Add the material to the copybuffer (and all of its dependencies). */
@@ -2806,9 +2806,9 @@ static int paste_material_nodetree_ids_relink_or_clear(LibraryIDLinkCallbackData
 
 static wmOperatorStatus paste_material_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Material *ma = static_cast<Material *>(
-      CTX_data_pointer_get_type(C, "material", &RNA_Material).data);
+      CTX_data_pointer_get_type(*C, "material", &RNA_Material).data);
 
   if (ma == nullptr) {
     BKE_report(op->reports, RPT_WARNING, "Cannot paste without a material");
@@ -3065,7 +3065,7 @@ static void paste_mtex_copybuf(ID *id)
 
 static wmOperatorStatus copy_mtex_exec(bContext *C, wmOperator * /*op*/)
 {
-  ID *id = CTX_data_pointer_get_type(C, "texture_slot", &RNA_TextureSlot).owner_id;
+  ID *id = CTX_data_pointer_get_type(*C, "texture_slot", &RNA_TextureSlot).owner_id;
 
   if (id == nullptr) {
     /* copying empty slot */
@@ -3080,7 +3080,7 @@ static wmOperatorStatus copy_mtex_exec(bContext *C, wmOperator * /*op*/)
 
 static bool copy_mtex_poll(bContext *C)
 {
-  ID *id = CTX_data_pointer_get_type(C, "texture_slot", &RNA_TextureSlot).owner_id;
+  ID *id = CTX_data_pointer_get_type(*C, "texture_slot", &RNA_TextureSlot).owner_id;
 
   return (id != nullptr);
 }
@@ -3109,17 +3109,17 @@ void TEXTURE_OT_slot_copy(wmOperatorType *ot)
 
 static wmOperatorStatus paste_mtex_exec(bContext *C, wmOperator * /*op*/)
 {
-  ID *id = CTX_data_pointer_get_type(C, "texture_slot", &RNA_TextureSlot).owner_id;
+  ID *id = CTX_data_pointer_get_type(*C, "texture_slot", &RNA_TextureSlot).owner_id;
 
   if (id == nullptr) {
     Material *ma = static_cast<Material *>(
-        CTX_data_pointer_get_type(C, "material", &RNA_Material).data);
-    Light *la = static_cast<Light *>(CTX_data_pointer_get_type(C, "light", &RNA_Light).data);
-    World *wo = static_cast<World *>(CTX_data_pointer_get_type(C, "world", &RNA_World).data);
+        CTX_data_pointer_get_type(*C, "material", &RNA_Material).data);
+    Light *la = static_cast<Light *>(CTX_data_pointer_get_type(*C, "light", &RNA_Light).data);
+    World *wo = static_cast<World *>(CTX_data_pointer_get_type(*C, "world", &RNA_World).data);
     ParticleSystem *psys = static_cast<ParticleSystem *>(
-        CTX_data_pointer_get_type(C, "particle_system", &RNA_ParticleSystem).data);
+        CTX_data_pointer_get_type(*C, "particle_system", &RNA_ParticleSystem).data);
     FreestyleLineStyle *linestyle = static_cast<FreestyleLineStyle *>(
-        CTX_data_pointer_get_type(C, "line_style", &RNA_FreestyleLineStyle).data);
+        CTX_data_pointer_get_type(*C, "line_style", &RNA_FreestyleLineStyle).data);
 
     if (ma) {
       id = &ma->id;

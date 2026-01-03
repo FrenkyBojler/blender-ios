@@ -60,9 +60,9 @@ static Object *get_camera_with_movieclip(Scene *scene, const MovieClip *clip)
 
 static Object *get_orientation_object(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -85,10 +85,10 @@ static Object *get_orientation_object(bContext *C)
 
 static bool set_orientation_poll(bContext *C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   if (sc != nullptr) {
-    const Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
+    const Scene *scene = CTX_data_scene(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
     MovieClip *clip = ED_space_clip_get_clip(sc);
     if (clip != nullptr) {
       MovieTracking *tracking = &clip->tracking;
@@ -105,7 +105,7 @@ static bool set_orientation_poll(bContext *C)
 
 static int count_selected_bundles(bContext *C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   int tot = 0;
@@ -160,10 +160,10 @@ static Object *object_solver_camera(Scene *scene, Object *ob)
 
 static wmOperatorStatus set_origin_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Object *camera = get_camera_with_movieclip(scene, clip);
   int selected_count = count_selected_bundles(C);
 
@@ -374,9 +374,9 @@ static void set_axis(Scene *scene,
 
 static wmOperatorStatus set_plane_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   MovieTracking *tracking = &clip->tracking;
   const MovieTrackingTrack *axis_track = nullptr;
   Object *camera = get_camera_with_movieclip(scene, clip);
@@ -469,7 +469,7 @@ static wmOperatorStatus set_plane_exec(bContext *C, wmOperator *op)
     BKE_object_apply_mat4(object, mat, false, false);
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   Object *object_eval = DEG_get_evaluated(depsgraph, object);
   BKE_object_transform_copy(object_eval, object);
@@ -517,11 +517,11 @@ void CLIP_OT_set_plane(wmOperatorType *ot)
 
 static wmOperatorStatus set_axis_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Object *object;
   int axis = RNA_enum_get(op->ptr, "axis");
 
@@ -591,11 +591,11 @@ static wmOperatorStatus do_set_scale(bContext *C,
                                      bool scale_solution,
                                      bool apply_scale)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Object *object = nullptr;
   Object *camera = get_camera_with_movieclip(scene, clip);
   int tot = 0;
@@ -689,7 +689,7 @@ static wmOperatorStatus set_scale_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus set_scale_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
 
   if (!RNA_struct_property_is_set(op->ptr, "distance")) {
@@ -730,7 +730,7 @@ void CLIP_OT_set_scale(wmOperatorType *ot)
 
 static bool set_solution_scale_poll(bContext *C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   if (sc != nullptr) {
     MovieClip *clip = ED_space_clip_get_clip(sc);
     if (clip != nullptr) {
@@ -751,7 +751,7 @@ static wmOperatorStatus set_solution_scale_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent * /*event*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
 
   if (!RNA_struct_property_is_set(op->ptr, "distance")) {
@@ -794,7 +794,7 @@ void CLIP_OT_set_solution_scale(wmOperatorType *ot)
 
 static bool apply_solution_scale_poll(bContext *C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   if (sc != nullptr) {
     MovieClip *clip = ED_space_clip_get_clip(sc);
     if (clip != nullptr) {
@@ -815,7 +815,7 @@ static wmOperatorStatus apply_solution_scale_invoke(bContext *C,
                                                     wmOperator *op,
                                                     const wmEvent * /*event*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   if (!RNA_struct_property_is_set(op->ptr, "distance")) {
     RNA_float_set(op->ptr, "distance", clip->tracking.settings.dist);

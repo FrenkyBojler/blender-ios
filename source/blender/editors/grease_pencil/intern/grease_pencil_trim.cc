@@ -79,11 +79,11 @@ static bool execute_trim_on_drawing(const int layer_index,
  */
 static wmOperatorStatus stroke_trim_execute(const bContext *C, const Span<int2> mcoords)
 {
-  const Scene *scene = CTX_data_scene(C);
-  const ARegion *region = CTX_wm_region(C);
-  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
-  const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Object *obact = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(*C);
+  const ARegion *region = CTX_wm_region(*C);
+  const RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Object *obact = CTX_data_active_object(*C);
   Object *ob_eval = DEG_get_evaluated(depsgraph, obact);
 
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(obact->data);

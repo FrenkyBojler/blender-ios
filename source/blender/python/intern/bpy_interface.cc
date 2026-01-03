@@ -732,7 +732,7 @@ void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr)
 void BPY_modules_load_user(bContext *C)
 {
   PyGILState_STATE gilstate;
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Text *text;
 
   /* Can happen on file load. */
@@ -765,7 +765,7 @@ void BPY_modules_load_user(bContext *C)
         BPY_run_text(C, text, nullptr, false);
 
         /* Check if the script loaded a new file. */
-        if (bmain != CTX_data_main(C)) {
+        if (bmain != CTX_data_main(*C)) {
           break;
         }
       }
@@ -778,7 +778,7 @@ void BPY_modules_load_user(bContext *C)
 static void bpy_context_log_member_error(const bContext *C, const char *message)
 {
   const bool use_logging_info = CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_INFO);
-  const bool use_logging_member = C && CTX_member_logging_get(C);
+  const bool use_logging_member = C && CTX_member_logging_get(*C);
   if (!(use_logging_info || use_logging_member)) {
     return;
   }
@@ -810,7 +810,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   PointerRNA *ptr = nullptr;
   bool done = false;
 
-  pyctx = (PyObject *)CTX_py_dict_get(C);
+  pyctx = (PyObject *)CTX_py_dict_get(*C);
   item = PyDict_GetItemString(pyctx, member);
 
   if (item == nullptr) {

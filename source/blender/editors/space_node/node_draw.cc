@@ -185,7 +185,7 @@ float grid_size_get()
 
 void tree_update(const bContext *C)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   if (snode) {
     snode_set_context(*C);
 
@@ -301,9 +301,9 @@ static Array<ui::Block *> node_uiblocks_init(const bContext &C, const Span<bNode
   Array<ui::Block *> blocks(nodes.size());
 
   /* Add node ui::Blocks in drawing order - prevents events going to overlapping nodes. */
-  Scene *scene = CTX_data_scene(&C);
-  wmWindow *window = CTX_wm_window(&C);
-  ARegion *region = CTX_wm_region(&C);
+  Scene *scene = CTX_data_scene(C);
+  wmWindow *window = CTX_wm_window(C);
+  ARegion *region = CTX_wm_region(C);
   for (const int i : nodes.index_range()) {
     const bNode &node = *nodes[i];
     std::string block_name = "node_" + std::string(node.name);
@@ -1470,7 +1470,7 @@ static void node_socket_tooltip_set(ui::Block &block,
   button_func_tooltip_custom_set(
       but,
       [](bContext &C, ui::TooltipData &tip, ui::Button *but, void *argN) {
-        const SpaceNode &snode = *CTX_wm_space_node(&C);
+        const SpaceNode &snode = *CTX_wm_space_node(C);
         const bNodeTree &ntree = *snode.edittree;
         const int index_in_tree = POINTER_AS_INT(argN);
         ntree.ensure_topology_cache();
@@ -1532,7 +1532,7 @@ static void node_socket_add_tooltip_in_node_editor(const bNodeSocket &sock, ui::
   uiLayoutSetTooltipCustomFunc(
       &layout,
       [](bContext &C, ui::TooltipData &tip, ui::Button *but, void *argN) {
-        const SpaceNode &snode = *CTX_wm_space_node(&C);
+        const SpaceNode &snode = *CTX_wm_space_node(C);
         const bNodeTree &ntree = *snode.edittree;
         const int index_in_tree = POINTER_AS_INT(argN);
         ntree.ensure_topology_cache();
@@ -1679,7 +1679,7 @@ static void node_draw_preview(const Scene *scene, ImBuf *preview, const rctf *pr
 /* Common handle function for operator buttons that need to select the node first. */
 static void node_toggle_button_cb(bContext *C, void *node_argv, void *op_argv)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &node_tree = *snode.edittree;
   bNode &node = *node_tree.node_by_id(POINTER_AS_INT(node_argv));
   const char *opname = (const char *)op_argv;
@@ -1901,7 +1901,7 @@ static void node_draw_sockets(const bContext &C,
 
 static void node_panel_toggle_button_cb(bContext *C, void *panel_state_argv, void *ntree_argv)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bNodePanelState *panel_state = static_cast<bNodePanelState *>(panel_state_argv);
   bNodeTree *ntree = static_cast<bNodeTree *>(ntree_argv);
 
@@ -2068,7 +2068,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, ui::Block &blo
       button_func_tooltip_custom_set(
           panel_toggle_but,
           [](bContext &C, ui::TooltipData &tip, ui::Button *but, void *argN) {
-            const SpaceNode &snode = *CTX_wm_space_node(&C);
+            const SpaceNode &snode = *CTX_wm_space_node(C);
             const bNodeTree &ntree = *snode.edittree;
             const int index_in_tree = POINTER_AS_INT(argN);
             ntree.ensure_topology_cache();
@@ -2710,7 +2710,7 @@ static void node_draw_extra_info_panel(const bContext &C,
                                        ImBuf *preview,
                                        ui::Block &block)
 {
-  const Scene *scene = CTX_data_scene(&C);
+  const Scene *scene = CTX_data_scene(C);
   if (!(snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS)) {
     return;
   }
@@ -2958,7 +2958,7 @@ static void node_draw_basis(const bContext &C,
     if (show_preview) {
       Map<bNodeInstanceKey, bke::bNodePreview> *previews_compo =
           static_cast<Map<bNodeInstanceKey, bke::bNodePreview> *>(
-              CTX_data_pointer_get(&C, "node_previews").data);
+              CTX_data_pointer_get(C, "node_previews").data);
       NestedTreePreviews *previews_shader = tree_draw_ctx.nested_group_infos;
 
       if (previews_shader) {
@@ -3657,7 +3657,7 @@ static void node_update_nodetree(const bContext &C,
                                  Span<ui::Block *> blocks)
 {
   /* Make sure socket "used" tags are correct, for displaying value buttons. */
-  SpaceNode *snode = CTX_wm_space_node(&C);
+  SpaceNode *snode = CTX_wm_space_node(C);
 
   count_multi_input_socket_links(ntree, *snode);
 
@@ -4468,7 +4468,7 @@ static void draw_link_errors(const bContext &C,
                              const Span<bke::NodeLinkError> errors,
                              ui::Block &invalid_links_block)
 {
-  const ARegion &region = *CTX_wm_region(&C);
+  const ARegion &region = *CTX_wm_region(C);
   if (errors.is_empty()) {
     return;
   }
@@ -4529,9 +4529,9 @@ static void draw_link_errors(const bContext &C,
 
 static ui::Block &invalid_links_uiblock_init(const bContext &C)
 {
-  Scene *scene = CTX_data_scene(&C);
-  wmWindow *window = CTX_wm_window(&C);
-  ARegion *region = CTX_wm_region(&C);
+  Scene *scene = CTX_data_scene(C);
+  wmWindow *window = CTX_wm_window(C);
+  ARegion *region = CTX_wm_region(C);
   return *block_begin(&C, scene, window, region, "invalid_links", ui::EmbossType::None);
 }
 
@@ -4672,7 +4672,7 @@ static void draw_nodetree(const bContext &C,
                           bNodeTree &ntree,
                           bNodeInstanceKey parent_key)
 {
-  SpaceNode *snode = CTX_wm_space_node(&C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   ntree.ensure_topology_cache();
 
   Array<bNode *> nodes = tree_draw_order_calc_nodes(ntree);
@@ -4682,11 +4682,11 @@ static void draw_nodetree(const bContext &C,
   bke::ComputeContextCache compute_context_cache;
 
   TreeDrawContext tree_draw_ctx;
-  tree_draw_ctx.bmain = CTX_data_main(&C);
-  tree_draw_ctx.window = CTX_wm_window(&C);
-  tree_draw_ctx.scene = CTX_data_scene(&C);
-  tree_draw_ctx.region = CTX_wm_region(&C);
-  tree_draw_ctx.depsgraph = CTX_data_depsgraph_pointer(&C);
+  tree_draw_ctx.bmain = CTX_data_main(C);
+  tree_draw_ctx.window = CTX_wm_window(C);
+  tree_draw_ctx.scene = CTX_data_scene(C);
+  tree_draw_ctx.region = CTX_wm_region(C);
+  tree_draw_ctx.depsgraph = CTX_data_depsgraph_pointer(C);
   tree_draw_ctx.extra_info_rows_per_node.reinitialize(nodes.size());
   tree_draw_ctx.menu_switch_source_by_index_switch =
       find_menu_switch_sources_for_index_switch_nodes(*snode, ntree, compute_context_cache);
@@ -4698,7 +4698,7 @@ static void draw_nodetree(const bContext &C,
       log.ensure_node_warnings(*tree_draw_ctx.bmain);
       log.ensure_execution_times();
     });
-    const WorkSpace *workspace = CTX_wm_workspace(&C);
+    const WorkSpace *workspace = CTX_wm_workspace(C);
     tree_draw_ctx.active_geometry_nodes_viewer = viewer_path::find_geometry_nodes_viewer(
         workspace->viewer_path, *snode);
 
@@ -4708,13 +4708,13 @@ static void draw_nodetree(const bContext &C,
         C, *snode, compute_context_cache);
   }
   else if (ntree.type == NTREE_COMPOSIT) {
-    const Scene *scene = CTX_data_scene(&C);
+    const Scene *scene = CTX_data_scene(C);
     tree_draw_ctx.compositor_per_node_execution_time =
         &scene->runtime->compositor.per_node_execution_time;
   }
   else if (ntree.type == NTREE_SHADER) {
     if (USER_EXPERIMENTAL_TEST(&U, use_shader_node_previews) &&
-        BKE_scene_uses_shader_previews(CTX_data_scene(&C)) &&
+        BKE_scene_uses_shader_previews(CTX_data_scene(C)) &&
         snode->overlay.flag & SN_OVERLAY_SHOW_OVERLAYS &&
         snode->overlay.flag & SN_OVERLAY_SHOW_PREVIEWS)
     {
@@ -4762,8 +4762,8 @@ static void draw_background_color(const SpaceNode &snode)
 
 void node_draw_space(const bContext &C, ARegion &region)
 {
-  wmWindow *win = CTX_wm_window(&C);
-  SpaceNode &snode = *CTX_wm_space_node(&C);
+  wmWindow *win = CTX_wm_window(C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   View2D &v2d = region.v2d;
 
   /* Setup off-screen buffers. */
@@ -4889,7 +4889,7 @@ void node_draw_space(const bContext &C, ARegion &region)
 
   /* Hide the right scrollbar while a right-aligned region
    * is open. Otherwise we can have two scroll bars. #141225 */
-  ScrArea *area = CTX_wm_area(&C);
+  ScrArea *area = CTX_wm_area(C);
   bool sidebar = false;
   for (ARegion &region : area->regionbase) {
     if (region.alignment == RGN_ALIGN_RIGHT && region.overlap && !(region.flag & RGN_FLAG_HIDDEN))

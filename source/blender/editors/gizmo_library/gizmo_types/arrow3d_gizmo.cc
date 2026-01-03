@@ -341,7 +341,7 @@ static wmOperatorStatus gizmo_arrow_modal(bContext *C,
     return OPERATOR_RUNNING_MODAL;
   }
   ArrowGizmo3D *arrow = (ArrowGizmo3D *)gz;
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   float offset[3];

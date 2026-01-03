@@ -288,7 +288,7 @@ ConsoleLine *console_scrollback_add_str(SpaceConsole *sc, char *str, bool own)
 
 ConsoleLine *console_history_verify(const bContext *C)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
   ConsoleLine *ci = static_cast<ConsoleLine *>(sc->history.last);
   if (ci == nullptr) {
     ci = console_history_add(sc, nullptr);
@@ -378,9 +378,9 @@ static const EnumPropertyItem console_move_type_items[] = {
 
 static wmOperatorStatus console_move_exec(bContext *C, wmOperator *op)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
   ConsoleLine *ci = console_history_verify(C);
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   int type = RNA_enum_get(op->ptr, "type");
@@ -501,8 +501,8 @@ void CONSOLE_OT_move(wmOperatorType *ot)
 
 static wmOperatorStatus console_insert_exec(bContext *C, wmOperator *op)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
-  ScrArea *area = CTX_wm_area(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
   ConsoleLine *ci = console_history_verify(C);
   char *str = RNA_string_get_alloc(op->ptr, "text", nullptr, 0, nullptr);
@@ -636,9 +636,9 @@ void CONSOLE_OT_indent_or_autocomplete(wmOperatorType *ot)
 
 static wmOperatorStatus console_indent_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
   ConsoleLine *ci = console_history_verify(C);
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   int spaces;
@@ -685,9 +685,9 @@ void CONSOLE_OT_indent(wmOperatorType *ot)
 
 static wmOperatorStatus console_unindent_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
   ConsoleLine *ci = console_history_verify(C);
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   int spaces;
@@ -747,9 +747,9 @@ static const EnumPropertyItem console_delete_type_items[] = {
 
 static wmOperatorStatus console_delete_exec(bContext *C, wmOperator *op)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
   ConsoleLine *ci = console_history_verify(C);
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   int pos;
@@ -852,9 +852,9 @@ void CONSOLE_OT_delete(wmOperatorType *ot)
 
 static wmOperatorStatus console_clear_line_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
   ConsoleLine *ci = console_history_verify(C);
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   if (ci->len == 0) {
@@ -889,8 +889,8 @@ void CONSOLE_OT_clear_line(wmOperatorType *ot)
 /* the python exec operator uses this */
 static wmOperatorStatus console_clear_exec(bContext *C, wmOperator *op)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
-  ScrArea *area = CTX_wm_area(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   const bool scrollback = RNA_boolean_get(op->ptr, "scrollback");
@@ -936,8 +936,8 @@ void CONSOLE_OT_clear(wmOperatorType *ot)
 /* the python exec operator uses this */
 static wmOperatorStatus console_history_cycle_exec(bContext *C, wmOperator *op)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
-  ScrArea *area = CTX_wm_area(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   /* TODO: stupid, just prevents crashes when no command line. */
@@ -1022,8 +1022,8 @@ void CONSOLE_OT_history_cycle(wmOperatorType *ot)
 /* the python exec operator uses this */
 static wmOperatorStatus console_history_append_exec(bContext *C, wmOperator *op)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
-  ScrArea *area = CTX_wm_area(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   ConsoleLine *ci = console_history_verify(C);
@@ -1091,9 +1091,9 @@ void CONSOLE_OT_history_append(wmOperatorType *ot)
 /* the python exec operator uses this */
 static wmOperatorStatus console_scrollback_append_exec(bContext *C, wmOperator *op)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
   ConsoleLine *ci;
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   /* own this text in the new line, don't free */
@@ -1145,7 +1145,7 @@ void CONSOLE_OT_scrollback_append(wmOperatorType *ot)
 
 static wmOperatorStatus console_copy_exec(bContext *C, wmOperator *op)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
   char *buf = console_select_to_buffer(sc);
   if (buf == nullptr) {
     return OPERATOR_CANCELLED;
@@ -1155,7 +1155,7 @@ static wmOperatorStatus console_copy_exec(bContext *C, wmOperator *op)
 
   if (RNA_boolean_get(op->ptr, "delete")) {
     console_delete_editable_selection(sc);
-    ED_area_tag_redraw(CTX_wm_area(C));
+    ED_area_tag_redraw(CTX_wm_area(*C));
   }
 
   MEM_freeN(buf);
@@ -1164,7 +1164,7 @@ static wmOperatorStatus console_copy_exec(bContext *C, wmOperator *op)
 
 static bool console_copy_poll(bContext *C)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
   return ED_operator_console_active(C) && sc && (sc->sel_start != sc->sel_end);
 }
 
@@ -1191,9 +1191,9 @@ void CONSOLE_OT_copy(wmOperatorType *ot)
 static wmOperatorStatus console_paste_exec(bContext *C, wmOperator *op)
 {
   const bool selection = RNA_boolean_get(op->ptr, "selection");
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
   ConsoleLine *ci = console_history_verify(C);
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   int buf_str_len;
@@ -1302,8 +1302,8 @@ static void console_cursor_set_to_pos(SpaceConsole *sc,
 
 static void console_modal_select_apply(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
-  ScrArea *area = CTX_wm_area(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   SetConsoleCursor *scu = static_cast<SetConsoleCursor *>(op->customdata);
@@ -1319,7 +1319,7 @@ static void console_modal_select_apply(bContext *C, wmOperator *op, const wmEven
 
 static void console_cursor_set_exit(bContext *C, wmOperator *op)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
   SetConsoleCursor *scu = static_cast<SetConsoleCursor *>(op->customdata);
 
   console_select_update_primary_clipboard(sc);
@@ -1331,8 +1331,8 @@ static wmOperatorStatus console_select_set_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
-  ScrArea *area = CTX_wm_area(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   SetConsoleCursor *scu;
@@ -1374,7 +1374,7 @@ static wmOperatorStatus console_select_set_modal(bContext *C, wmOperator *op, co
       }
       else if (event->val == KM_RELEASE) {
         console_modal_select_apply(C, op, event);
-        ED_area_tag_redraw(CTX_wm_area(C));
+        ED_area_tag_redraw(CTX_wm_area(*C));
         console_cursor_set_exit(C, op);
         return OPERATOR_FINISHED;
       }
@@ -1413,8 +1413,8 @@ static wmOperatorStatus console_modal_select_all_invoke(bContext *C,
                                                         wmOperator * /*op*/,
                                                         const wmEvent * /*event*/)
 {
-  ScrArea *area = CTX_wm_area(C);
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  ScrArea *area = CTX_wm_area(*C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
 
   int offset = strlen(sc->prompt);
 
@@ -1451,8 +1451,8 @@ static wmOperatorStatus console_selectword_invoke(bContext *C,
                                                   wmOperator * /*op*/,
                                                   const wmEvent *event)
 {
-  SpaceConsole *sc = CTX_wm_space_console(C);
-  ScrArea *area = CTX_wm_area(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   ConsoleLine cl_dummy = {nullptr};

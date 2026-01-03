@@ -38,9 +38,9 @@ static void select_only_layer_shape(MaskLayer *mask_layer, MaskLayerShape *mask_
 
 static wmOperatorStatus mask_shape_key_insert_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const int frame = scene->r.cfra;
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
   bool changed = false;
 
   for (MaskLayer &mask_layer : mask->masklayers) {
@@ -83,9 +83,9 @@ void MASK_OT_shape_key_insert(wmOperatorType *ot)
 
 static wmOperatorStatus mask_shape_key_clear_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const int frame = scene->r.cfra;
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
   bool changed = false;
 
   for (MaskLayer &mask_layer : mask->masklayers) {
@@ -129,9 +129,9 @@ void MASK_OT_shape_key_clear(wmOperatorType *ot)
 
 static wmOperatorStatus mask_shape_key_feather_reset_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const int frame = scene->r.cfra;
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
   bool changed = false;
 
   for (MaskLayer &mask_layer : mask->masklayers) {
@@ -218,9 +218,9 @@ void MASK_OT_shape_key_feather_reset(wmOperatorType *ot)
  */
 static wmOperatorStatus mask_shape_key_rekey_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const int frame = scene->r.cfra;
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
   bool changed = false;
 
   const bool do_feather = RNA_boolean_get(op->ptr, "feather");

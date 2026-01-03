@@ -54,10 +54,10 @@ namespace blender::ed::sculpt_paint {
 
 void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char *undo_name)
 {
-  const Scene &scene = *CTX_data_scene(C);
-  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  const Scene &scene = *CTX_data_scene(*C);
+  Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
   SculptSession &ss = *ob.sculpt;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
   ss.init_pivot_pos = ss.pivot_pos;
   ss.init_pivot_rot = ss.pivot_rot;
@@ -537,9 +537,9 @@ static void transform_radius_elastic(const Depsgraph &depsgraph,
 
 void update_modal_transform(bContext *C, Object &ob)
 {
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
   SculptSession &ss = *ob.sculpt;
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
 
   vert_random_access_ensure(ob);
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
@@ -580,7 +580,7 @@ void cancel_modal_transform(bContext *C, Object &ob)
   /* Canceling "Elastic" transforms (due to its #TransformDisplacementMode::Incremental nature),
    * requires restoring positions from undo. For "All Vertices" there is no benefit in using the
    * transform system to update to original positions either. */
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
   undo::restore_position_from_undo_step(depsgraph, ob);
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
@@ -911,16 +911,16 @@ static float3 average_mask_border_position(const Depsgraph &depsgraph,
 
 static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
 {
-  Object &ob = *CTX_data_active_object(C);
+  Object &ob = *CTX_data_active_object(*C);
   SculptSession &ss = *ob.sculpt;
-  ARegion *region = CTX_wm_region(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ARegion *region = CTX_wm_region(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
   const PivotPositionMode mode = PivotPositionMode(RNA_enum_get(op->ptr, "mode"));
 
-  const View3D *v3d = CTX_wm_view3d(C);
-  const Base *base = CTX_data_active_base(C);
+  const View3D *v3d = CTX_wm_view3d(*C);
+  const Base *base = CTX_data_active_base(*C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }

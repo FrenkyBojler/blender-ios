@@ -164,7 +164,7 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
     }
 
     if (!slideout) {
-      ARegion *region = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(*C);
 
       if (region && region->panels.first) {
         /* For regions with panels, prefer to open to top so we can
@@ -256,7 +256,7 @@ PopupBlockHandle *popover_panel_create(bContext *C,
                                        PopoverCreateFunc popover_func,
                                        const PanelType *panel_type)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
   const uiStyle *style = style_get_dpi();
 
   /* Create popover, buttons are created from callback. */
@@ -359,7 +359,7 @@ Popover *popover_begin(bContext *C, int ui_menu_width, bool from_active_button)
   Button *but = nullptr;
 
   if (from_active_button) {
-    butregion = CTX_wm_region(C);
+    butregion = CTX_wm_region(*C);
     but = region_active_but_get(butregion);
     if (but == nullptr) {
       butregion = nullptr;
@@ -387,7 +387,7 @@ static void popover_keymap_fn(wmKeyMap * /*keymap*/, wmKeyMapItem * /*kmi*/, voi
 
 void popover_end(bContext *C, Popover *pup, wmKeyMap *keymap)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
 
   if (keymap) {
     /* Add so we get keymaps shown in the buttons. */

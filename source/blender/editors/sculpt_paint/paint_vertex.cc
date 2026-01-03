@@ -405,7 +405,7 @@ void mode_exit_generic(Object &ob, const eObjectMode mode_flag)
 
 bool mode_toggle_poll_test(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob == nullptr || ob->type != OB_MESH) {
     return false;
   }
@@ -436,7 +436,7 @@ void update_cache_invariants(
   StrokeCache *cache;
   bke::PaintRuntime &paint_runtime = *vp.paint.runtime;
   ViewContext *vc = &stroke->vc;
-  Object &ob = *CTX_data_active_object(C);
+  Object &ob = *CTX_data_active_object(*C);
   float mat[3][3];
   float view_dir[3] = {0.0f, 0.0f, 1.0f};
   int mode;
@@ -506,7 +506,7 @@ void update_cache_invariants(
 void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
 {
   using namespace blender;
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
   const PaintMode paint_mode = BKE_paintmode_get_active_from_context(C);
   SculptSession &ss = *ob.sculpt;
   StrokeCache *cache = ss.cache;
@@ -582,7 +582,7 @@ void last_stroke_update(const float location[3], Paint &paint)
 
 void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Brush *cur_brush = BKE_paint_brush(paint);
 
   /* Switch to the blur (smooth) brush if possible. */
@@ -608,7 +608,7 @@ void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
 
 bool vertex_paint_mode_poll(bContext *C)
 {
-  const Object *ob = CTX_data_active_object(C);
+  const Object *ob = CTX_data_active_object(*C);
   if (!ob) {
     return false;
   }
@@ -627,10 +627,10 @@ bool vertex_paint_mode_poll(bContext *C)
 
 static bool vertex_paint_poll_ex(bContext *C, bool check_tool)
 {
-  if (vertex_paint_mode_poll(C) && BKE_paint_brush(&CTX_data_tool_settings(C)->vpaint->paint)) {
-    ScrArea *area = CTX_wm_area(C);
+  if (vertex_paint_mode_poll(C) && BKE_paint_brush(&CTX_data_tool_settings(*C)->vpaint->paint)) {
+    ScrArea *area = CTX_wm_area(*C);
     if (area && area->spacetype == SPACE_VIEW3D) {
-      ARegion *region = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(*C);
       if (region->regiontype == RGN_TYPE_WINDOW) {
         if (!check_tool || WM_toolsystem_active_tool_is_brush(C)) {
           return true;
@@ -822,9 +822,9 @@ void ED_object_vpaintmode_enter_ex(Main &bmain, Depsgraph &depsgraph, Scene &sce
 }
 void ED_object_vpaintmode_enter(bContext *C, Depsgraph &depsgraph)
 {
-  Main &bmain = *CTX_data_main(C);
-  Scene &scene = *CTX_data_scene(C);
-  Object &ob = *CTX_data_active_object(C);
+  Main &bmain = *CTX_data_main(*C);
+  Scene &scene = *CTX_data_scene(*C);
+  Object &ob = *CTX_data_active_object(*C);
   ED_object_vpaintmode_enter_ex(bmain, depsgraph, scene, ob);
 }
 
@@ -840,7 +840,7 @@ void ED_object_vpaintmode_exit_ex(Object &ob)
 }
 void ED_object_vpaintmode_exit(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   ED_object_vpaintmode_exit_ex(*ob);
 }
 
@@ -855,12 +855,12 @@ void ED_object_vpaintmode_exit(bContext *C)
  */
 static wmOperatorStatus vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 {
-  Main &bmain = *CTX_data_main(C);
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
-  Object &ob = *CTX_data_active_object(C);
+  Main &bmain = *CTX_data_main(*C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
+  Object &ob = *CTX_data_active_object(*C);
   const int mode_flag = OB_MODE_VERTEX_PAINT;
   const bool is_mode_set = (ob.mode & mode_flag) != 0;
-  Scene &scene = *CTX_data_scene(C);
+  Scene &scene = *CTX_data_scene(*C);
   ToolSettings &ts = *scene.toolsettings;
 
   if (!is_mode_set) {
@@ -875,9 +875,9 @@ static wmOperatorStatus vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
     ED_object_vpaintmode_exit_ex(ob);
   }
   else {
-    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(*C);
     if (depsgraph) {
-      depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     }
     ED_object_vpaintmode_enter_ex(bmain, *depsgraph, scene, ob);
     BKE_paint_brushes_validate(&bmain, &ts.vpaint->paint);
@@ -1070,13 +1070,13 @@ bool VertexPaintStroke::get_location(float out[3], const float mouse[2], bool fo
 
 bool VertexPaintStroke::test_start(wmOperator *op, const float mouse[2])
 {
-  Scene &scene = *CTX_data_scene(this->evil_C);
+  Scene &scene = *CTX_data_scene(*this->evil_C);
   ToolSettings &ts = *scene.toolsettings;
   VPaint &vp = *ts.vpaint;
   Brush &brush = *BKE_paint_brush(&vp.paint);
-  Object &ob = *CTX_data_active_object(this->evil_C);
+  Object &ob = *CTX_data_active_object(*this->evil_C);
   SculptSession &ss = *ob.sculpt;
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(this->evil_C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*this->evil_C);
 
   /* context checks could be a poll() */
   Mesh *mesh = BKE_mesh_from_object(&ob);
@@ -1141,7 +1141,7 @@ static void do_vpaint_brush_blur_loops(const bContext *C,
   const StrokeCache &cache = *ss.cache;
 
   const Brush &brush = *ob.sculpt->cache->brush;
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
 
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
@@ -1296,7 +1296,7 @@ static void do_vpaint_brush_blur_verts(const bContext *C,
   const StrokeCache &cache = *ss.cache;
 
   const Brush &brush = *ss.cache->brush;
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
 
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
@@ -1445,7 +1445,7 @@ static void do_vpaint_brush_smear(const bContext *C,
   }
 
   const Brush &brush = *cache.brush;
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
   GMutableSpan g_color_curr = vpd.smear.color_curr;
   GMutableSpan g_color_prev_smear = vpd.smear.color_prev;
   GMutableSpan g_color_prev = vpd.prev_colors;
@@ -1783,7 +1783,7 @@ static void vpaint_do_draw(const bContext *C,
   SculptSession &ss = *ob.sculpt;
   const StrokeCache &cache = *ss.cache;
   const Brush &brush = *ob.sculpt->cache->brush;
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
 
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
@@ -1982,7 +1982,7 @@ static void vpaint_do_paint(bContext *C,
                             const int i,
                             const float angle)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
   SculptSession &ss = *ob.sculpt;
   ss.cache->radial_symmetry_pass = i;
   SCULPT_cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
@@ -2074,7 +2074,7 @@ static void vpaint_do_symmetrical_brush_actions(bContext *C,
 
 void VertexPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
 {
-  ToolSettings *ts = CTX_data_tool_settings(this->evil_C);
+  ToolSettings *ts = CTX_data_tool_settings(*this->evil_C);
   VPaintData &vpd = *static_cast<VPaintData *>(mode_data_.get());
   VPaint &vp = *ts->vpaint;
   ViewContext &vc = vpd.vc;
@@ -2123,7 +2123,7 @@ void VertexPaintStroke::done(bool /*is_cancel*/)
   SculptSession &ss = *ob.sculpt;
 
   if (ss.cache && ss.cache->alt_smooth) {
-    ToolSettings *ts = CTX_data_tool_settings(this->evil_C);
+    ToolSettings *ts = CTX_data_tool_settings(*this->evil_C);
     VPaint &vp = *ts->vpaint;
     vwpaint::smooth_brush_toggle_off(&vp.paint, ss.cache);
   }
@@ -2356,8 +2356,8 @@ bool object_active_color_fill(Object &ob, const float fill_color[4], bool only_s
 static wmOperatorStatus vertex_color_set_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::ed::sculpt_paint;
-  Scene &scene = *CTX_data_scene(C);
-  Object &obact = *CTX_data_active_object(C);
+  Scene &scene = *CTX_data_scene(*C);
+  Object &obact = *CTX_data_active_object(*C);
   if (!BKE_mesh_from_object(&obact)) {
     return OPERATOR_CANCELLED;
   }
@@ -2366,7 +2366,7 @@ static wmOperatorStatus vertex_color_set_exec(bContext *C, wmOperator *op)
   const bool affect_alpha = RNA_boolean_get(op->ptr, "use_alpha");
 
   /* Ensure valid sculpt state. */
-  BKE_sculpt_update_object_for_edit(CTX_data_ensure_evaluated_depsgraph(C), &obact, true);
+  BKE_sculpt_update_object_for_edit(CTX_data_ensure_evaluated_depsgraph(*C), &obact, true);
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(obact);
 

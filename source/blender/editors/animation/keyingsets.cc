@@ -51,13 +51,13 @@
 static bool keyingset_poll_default_add(bContext *C)
 {
   /* As long as there's an active Scene, it's fine. */
-  return (CTX_data_scene(C) != nullptr);
+  return (CTX_data_scene(*C) != nullptr);
 }
 
 /* Poll callback for editing active KeyingSet. */
 static bool keyingset_poll_active_edit(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   if (scene == nullptr) {
     return false;
@@ -70,7 +70,7 @@ static bool keyingset_poll_active_edit(bContext *C)
 /* poll callback for editing active KeyingSet Path */
 static bool keyingset_poll_activePath_edit(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   if (scene == nullptr) {
     return false;
@@ -90,7 +90,7 @@ static bool keyingset_poll_activePath_edit(bContext *C)
 
 static wmOperatorStatus add_default_keyingset_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* Validate flags
    * - absolute KeyingSets should be created by default.
@@ -125,7 +125,7 @@ void ANIM_OT_keying_set_add(wmOperatorType *ot)
 
 static wmOperatorStatus remove_active_keyingset_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* Verify the Keying Set to use:
    * - use the active one
@@ -172,7 +172,7 @@ void ANIM_OT_keying_set_remove(wmOperatorType *ot)
 
 static wmOperatorStatus add_empty_ks_path_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* Verify the Keying Set to use:
    * - use the active one
@@ -214,7 +214,7 @@ void ANIM_OT_keying_set_path_add(wmOperatorType *ot)
 
 static wmOperatorStatus remove_active_ks_path_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   KeyingSet *keyingset = static_cast<KeyingSet *>(
       BLI_findlink(&scene->keyingsets, scene->active_keyingset - 1));
 
@@ -273,7 +273,7 @@ static wmOperatorStatus add_keyingset_button_exec(bContext *C, wmOperator *op)
    * - add a new one if it doesn't exist
    */
   KeyingSet *keyingset = nullptr;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (scene->active_keyingset == 0) {
     /* Validate flags
      * - absolute KeyingSets should be created by default
@@ -365,7 +365,7 @@ static wmOperatorStatus remove_keyingset_button_exec(bContext *C, wmOperator *op
    * - use the active one for now (more control over this can be added later)
    * - return error if it doesn't exist
    */
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (scene->active_keyingset == 0) {
     BKE_report(op->reports, RPT_ERROR, "No active Keying Set to remove property from");
     return OPERATOR_CANCELLED;
@@ -439,7 +439,7 @@ static wmOperatorStatus keyingset_active_menu_invoke(bContext *C,
 
 static wmOperatorStatus keyingset_active_menu_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const int type = RNA_enum_get(op->ptr, "type");
 
   /* If type == 0, it will deselect any active keying set. */
@@ -458,7 +458,7 @@ static void build_keyingset_enum(bContext *C, EnumPropertyItem **item, int *toti
    */
   EnumPropertyItem item_tmp = {0};
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   KeyingSet *keyingset;
   int enum_index = 1;
   if (scene->keyingsets.first) {
@@ -508,7 +508,7 @@ static const EnumPropertyItem *keyingset_set_active_enum_itemf(bContext *C,
   /* Active Keying Set.
    * - only include entry if it exists
    */
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   EnumPropertyItem *item = nullptr, item_tmp = {0};
   int totitem = 0;
   if (scene->active_keyingset) {
@@ -595,7 +595,7 @@ static void anim_keyingset_visit_for_search_impl(
     return;
   }
 
-  Scene *scene = C ? CTX_data_scene(C) : nullptr;
+  Scene *scene = C ? CTX_data_scene(*C) : nullptr;
 
   /* Active Keying Set. */
   if (!use_poll || (scene && scene->active_keyingset)) {
@@ -664,7 +664,7 @@ const EnumPropertyItem *ANIM_keying_sets_enum_itemf(bContext *C,
   /* Active Keying Set
    * - only include entry if it exists
    */
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   EnumPropertyItem *item = nullptr, item_tmp = {0};
   int totitem = 0;
   if (scene->active_keyingset) {

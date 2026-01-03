@@ -291,7 +291,7 @@ void AssetClearHelper::reportResults(const bContext *C, ReportList &reports) con
   if (!wasSuccessful()) {
     /* Dedicated error message for when there is an active asset detected, but it's not an ID local
      * to this file. Helps users better understanding what's going on. */
-    if (asset_system::AssetRepresentation *active_asset = CTX_wm_asset(C);
+    if (asset_system::AssetRepresentation *active_asset = CTX_wm_asset(*C);
         !active_asset->is_local_id())
     {
       BKE_report(&reports,
@@ -430,7 +430,7 @@ static bool asset_library_refresh_poll(bContext *C)
 
   /* While not inside an Asset Browser, check if there's a asset list stored for the active asset
    * library (stored in the workspace, obtained via context). */
-  const AssetLibraryReference *library = CTX_wm_asset_library_ref(C);
+  const AssetLibraryReference *library = CTX_wm_asset_library_ref(*C);
   if (!library) {
     return false;
   }
@@ -441,7 +441,7 @@ static bool asset_library_refresh_poll(bContext *C)
 
 static wmOperatorStatus asset_library_refresh_exec(bContext *C, wmOperator * /*unused*/)
 {
-  const AssetLibraryReference *library = CTX_wm_asset_library_ref(C);
+  const AssetLibraryReference *library = CTX_wm_asset_library_ref(*C);
   /* Handles both global asset list storage and asset browsers. */
   list::clear(library, C);
   WM_event_add_notifier(C, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
@@ -465,7 +465,7 @@ static void ASSET_OT_library_refresh(wmOperatorType *ot)
 
 static bool asset_catalog_operator_poll(bContext *C)
 {
-  const SpaceFile *sfile = CTX_wm_space_file(C);
+  const SpaceFile *sfile = CTX_wm_space_file(*C);
   if (!sfile) {
     return false;
   }
@@ -482,7 +482,7 @@ static bool asset_catalog_operator_poll(bContext *C)
 
 static wmOperatorStatus asset_catalog_new_exec(bContext *C, wmOperator *op)
 {
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
   std::string parent_path = RNA_string_get(op->ptr, "parent_path");
 
@@ -494,7 +494,7 @@ static wmOperatorStatus asset_catalog_new_exec(bContext *C, wmOperator *op)
   }
 
   WM_event_add_notifier_ex(
-      CTX_wm_manager(C), CTX_wm_window(C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
+      CTX_wm_manager(*C), CTX_wm_window(*C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -520,7 +520,7 @@ static void ASSET_OT_catalog_new(wmOperatorType *ot)
 
 static wmOperatorStatus asset_catalog_delete_exec(bContext *C, wmOperator *op)
 {
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
   std::string catalog_id_str = RNA_string_get(op->ptr, "catalog_id");
   asset_system::CatalogID catalog_id;
@@ -531,7 +531,7 @@ static wmOperatorStatus asset_catalog_delete_exec(bContext *C, wmOperator *op)
   catalog_remove(asset_library, catalog_id);
 
   WM_event_add_notifier_ex(
-      CTX_wm_manager(C), CTX_wm_window(C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
+      CTX_wm_manager(*C), CTX_wm_window(*C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -554,7 +554,7 @@ static void ASSET_OT_catalog_delete(wmOperatorType *ot)
 
 static asset_system::AssetCatalogService *get_catalog_service(bContext *C)
 {
-  const SpaceFile *sfile = CTX_wm_space_file(C);
+  const SpaceFile *sfile = CTX_wm_space_file(*C);
   if (!sfile || ED_fileselect_is_file_browser(sfile)) {
     return nullptr;
   }
@@ -666,7 +666,7 @@ static bool asset_catalogs_save_poll(bContext *C)
     return false;
   }
 
-  const Main *bmain = CTX_data_main(C);
+  const Main *bmain = CTX_data_main(*C);
   if (!bmain->filepath[0]) {
     CTX_wm_operator_poll_msg_set(C, "Cannot save asset catalogs before the Blender file is saved");
     return false;
@@ -682,13 +682,13 @@ static bool asset_catalogs_save_poll(bContext *C)
 
 static wmOperatorStatus asset_catalogs_save_exec(bContext *C, wmOperator * /*op*/)
 {
-  const SpaceFile *sfile = CTX_wm_space_file(C);
+  const SpaceFile *sfile = CTX_wm_space_file(*C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
 
-  catalogs_save_from_main_path(asset_library, CTX_data_main(C));
+  catalogs_save_from_main_path(asset_library, CTX_data_main(*C));
 
   WM_event_add_notifier_ex(
-      CTX_wm_manager(C), CTX_wm_window(C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
+      CTX_wm_manager(*C), CTX_wm_window(*C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -718,7 +718,7 @@ static bool has_external_files(Main *bmain, ReportList *reports);
 static bool asset_bundle_install_poll(bContext *C)
 {
   /* This operator only works when the asset browser is set to Current File. */
-  const SpaceFile *sfile = CTX_wm_space_file(C);
+  const SpaceFile *sfile = CTX_wm_space_file(*C);
   if (sfile == nullptr) {
     return false;
   }
@@ -726,7 +726,7 @@ static bool asset_bundle_install_poll(bContext *C)
     return false;
   }
 
-  const Main *bmain = CTX_data_main(C);
+  const Main *bmain = CTX_data_main(*C);
   if (!could_be_asset_bundle(bmain)) {
     return false;
   }
@@ -745,7 +745,7 @@ static wmOperatorStatus asset_bundle_install_invoke(bContext *C,
                                                     wmOperator *op,
                                                     const wmEvent * /*event*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   if (has_external_files(bmain, op->reports)) {
     return OPERATOR_CANCELLED;
   }
@@ -762,7 +762,7 @@ static wmOperatorStatus asset_bundle_install_invoke(bContext *C,
 
 static wmOperatorStatus asset_bundle_install_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   if (has_external_files(bmain, op->reports)) {
     return OPERATOR_CANCELLED;
   }
@@ -1094,7 +1094,7 @@ static void generate_previewimg_from_buffer(ID *id, const ImBuf *image_buffer)
 static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
 {
   int dumprect_size[2];
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
 
   /* Clamp coordinates to window bounds. */
@@ -1122,7 +1122,7 @@ static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
 static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 {
   int2 p1, p2;
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   RNA_int_get_array(op->ptr, "p1", p1);
   RNA_int_get_array(op->ptr, "p2", p2);
 
@@ -1156,7 +1156,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
    * visible in the render. */
   bool render_offscreen = false;
   if (area_p1 == area_p2 && area_p1 != nullptr && area_p1->spacetype == SPACE_VIEW3D) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
     /* For #ED_view3d_draw_offscreen_imbuf only EEVEE only produces a good result. See #141732. */
     if (eDrawType(v3d->shading.type) == OB_RENDER) {
@@ -1179,8 +1179,8 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
     char err_out[256] = "unknown";
-    image_buffer = ED_view3d_draw_offscreen_imbuf(CTX_data_ensure_evaluated_depsgraph(C),
-                                                  CTX_data_scene(C),
+    image_buffer = ED_view3d_draw_offscreen_imbuf(CTX_data_ensure_evaluated_depsgraph(*C),
+                                                  CTX_data_scene(*C),
                                                   eDrawType(v3d->shading.type),
                                                   v3d,
                                                   region,
@@ -1210,16 +1210,16 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
     }
   }
 
-  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(C);
+  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(*C);
   BLI_assert_msg(asset_handle != nullptr, "This is ensured by poll");
   AssetWeakReference asset_reference = asset_handle->make_weak_reference();
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ID *id = bke::asset_edit_id_from_weak_reference(
       *bmain, asset_handle->get_id_type(), asset_reference);
   BLI_assert(id != nullptr);
 
-  ED_preview_kill_jobs_for_id(CTX_wm_manager(C), id);
+  ED_preview_kill_jobs_for_id(CTX_wm_manager(*C), id);
 
   generate_previewimg_from_buffer(id, image_buffer);
   IMB_freeImBuf(image_buffer);
@@ -1282,7 +1282,7 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
 
 static void screenshot_preview_exit(bContext *C, wmOperator *op)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   WM_cursor_modal_restore(win);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
   WM_draw_cb_exit(win, data->draw_handle);
@@ -1299,8 +1299,8 @@ static inline void screenshot_area_transfer_to_rna(wmOperator *op, ScreenshotOpe
 
 static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
-  wmWindow *win = CTX_wm_window(C);
+  ARegion *region = CTX_wm_region(*C);
+  wmWindow *win = CTX_wm_window(*C);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
 
   const int2 screen_space_cursor = {
@@ -1337,7 +1337,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
     case RIGHTMOUSE:
     case EVT_ESCKEY: {
       screenshot_preview_exit(C, op);
-      CTX_wm_screen(C)->do_draw = true;
+      CTX_wm_screen(*C)->do_draw = true;
       return OPERATOR_CANCELLED;
     }
 
@@ -1407,7 +1407,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
         }
       }
 
-      CTX_wm_screen(C)->do_draw = true;
+      CTX_wm_screen(*C)->do_draw = true;
       data->last_cursor = screen_space_cursor;
       break;
     }
@@ -1434,7 +1434,7 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent * /* event */)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
   op->customdata = MEM_callocN(sizeof(ScreenshotOperatorData), __func__);
@@ -1449,7 +1449,7 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   data->force_square = RNA_boolean_get(op->ptr, "force_square");
 
   WM_event_add_modal_handler(C, op);
-  CTX_wm_screen(C)->do_draw = true;
+  CTX_wm_screen(*C)->do_draw = true;
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1460,7 +1460,7 @@ static bool screenshot_preview_poll(bContext *C)
     return false;
   }
 
-  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(C);
+  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(*C);
   if (!asset_handle) {
     CTX_wm_operator_poll_msg_set(C, "No selected asset");
     return false;

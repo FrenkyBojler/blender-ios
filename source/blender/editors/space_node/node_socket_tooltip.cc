@@ -183,7 +183,7 @@ class SocketTooltipBuilder {
 
   void build_tooltip_value()
   {
-    SpaceNode *snode = CTX_wm_space_node(&C_);
+    SpaceNode *snode = CTX_wm_space_node(C_);
     geo_log::ContextualGeoTreeLogs geo_tree_logs;
     if (snode) {
       geo_tree_logs = geo_log::GeoNodesLog::get_contextual_tree_logs(*snode);

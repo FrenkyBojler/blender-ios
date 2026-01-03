@@ -100,13 +100,13 @@ void ED_editors_init_for_undo(Main *bmain)
 void ED_editors_init(bContext *C)
 {
   using namespace blender::ed;
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(*C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   /* This is called during initialization, so we don't want to store any reports */
-  ReportList *reports = CTX_wm_reports(C);
+  ReportList *reports = CTX_wm_reports(*C);
   int reports_flag_prev = reports->flag & ~RPT_STORE;
 
   std::swap(reports->flag, reports_flag_prev);
@@ -117,7 +117,7 @@ void ED_editors_init(bContext *C)
   /* toggle on modes for objects that were saved with these enabled. for
    * e.g. linked objects we have to ensure that they are actually the
    * active object in this scene. */
-  Object *obact = CTX_data_active_object(C);
+  Object *obact = CTX_data_active_object(*C);
   for (Object &ob : bmain->objects) {
     int mode = ob.mode;
     if (mode == OB_MODE_OBJECT) {
@@ -372,7 +372,7 @@ void unpack_menu(bContext *C,
                  const char *folder,
                  PackedFile *pf)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   char line[FILE_MAX + 100];
   wmOperatorType *ot = WM_operatortype_find(opname, true);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);

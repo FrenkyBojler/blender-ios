@@ -258,7 +258,7 @@ static bool object_add_drop_xy_get(bContext *C, wmOperator *op, int (*r_mval)[2]
     return false;
   }
 
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   (*r_mval)[0] = RNA_int_get(op->ptr, "drop_x") - region->winrct.xmin;
   (*r_mval)[1] = RNA_int_get(op->ptr, "drop_y") - region->winrct.ymin;
 
@@ -288,7 +288,7 @@ static wmOperatorStatus object_add_drop_xy_generic_invoke(bContext *C,
 
 void location_from_view(bContext *C, float loc[3])
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(*C);
   copy_v3_v3(loc, scene->cursor.location);
 }
 
@@ -320,7 +320,7 @@ void rotation_from_quat(float rot[3], const float viewquat[4], const char align_
 
 void rotation_from_view(bContext *C, float rot[3], const char align_axis)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   BLI_assert(align_axis >= 'X' && align_axis <= 'Z');
   if (rv3d) {
     float viewquat[4];
@@ -353,8 +353,8 @@ float new_primitive_matrix(bContext *C,
                            const float scale[3],
                            float r_primmat[4][4])
 {
-  Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   float mat[3][3], rmat[3][3], cmat[3][3], imat[3][3];
 
   unit_m4(r_primmat);
@@ -506,7 +506,7 @@ void add_generic_get_opts(bContext *C,
   }
 
   if (r_local_view_bits) {
-    View3D *v3d = CTX_wm_view3d(C);
+    View3D *v3d = CTX_wm_view3d(*C);
     *r_local_view_bits = (v3d && v3d->localvd) ? v3d->local_view_uid : 0;
   }
 
@@ -578,7 +578,7 @@ void add_generic_get_opts(bContext *C,
           RNA_float_set_array(op->ptr, "rotation", r_rot);
           break;
         case ALIGN_CURSOR: {
-          const Scene *scene = CTX_data_scene(C);
+          const Scene *scene = CTX_data_scene(*C);
           const float3x3 tmat = scene->cursor.matrix<float3x3>();
           mat3_normalized_to_eul(r_rot, tmat.ptr());
           RNA_float_set_array(op->ptr, "rotation", r_rot);
@@ -620,9 +620,9 @@ Object *add_type_with_obdata(bContext *C,
                              const ushort local_view_bits,
                              ID *obdata)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   {
     BKE_view_layer_synced_ensure(scene, view_layer);
@@ -759,9 +759,9 @@ void OBJECT_OT_add(wmOperatorType *ot)
 static std::optional<Bounds<float3>> lattice_add_to_selected_collect_targets_and_calc_bounds(
     bContext *C, const float orientation_matrix[3][3], Vector<Object *> &r_targets)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
   Bounds<float3> local_bounds;
   local_bounds.min = float3(FLT_MAX);
@@ -802,9 +802,9 @@ static std::optional<Bounds<float3>> lattice_add_to_selected_collect_targets_and
 
 static wmOperatorStatus lattice_add_to_selected_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Object *ob_active = CTX_data_active_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *ob_active = CTX_data_active_object(*C);
   ushort local_view_bits;
   bool enter_editmode;
   float location[3], rotation_euler[3];
@@ -817,7 +817,7 @@ static wmOperatorStatus lattice_add_to_selected_exec(bContext *C, wmOperator *op
   const int resolution_u = RNA_int_get(op->ptr, "resolution_u");
   const int resolution_v = RNA_int_get(op->ptr, "resolution_v");
   const int resolution_w = RNA_int_get(op->ptr, "resolution_w");
-  CTX_data_ensure_evaluated_depsgraph(C);
+  CTX_data_ensure_evaluated_depsgraph(*C);
   float orientation_matrix[3][3];
 
   if (ob_active) {
@@ -1119,8 +1119,8 @@ static wmOperatorStatus effector_add_exec(bContext *C, wmOperator *op)
 
   Object *ob;
   if (type == PFIELD_GUIDE) {
-    Main *bmain = CTX_data_main(C);
-    Scene *scene = CTX_data_scene(C);
+    Main *bmain = CTX_data_main(*C);
+    Scene *scene = CTX_data_scene(*C);
     ob = add_type(
         C, OB_CURVES_LEGACY, get_effector_defname(type), loc, rot, false, local_view_bits);
 
@@ -1179,8 +1179,8 @@ void OBJECT_OT_effector_add(wmOperatorType *ot)
 
 static wmOperatorStatus object_camera_add_exec(bContext *C, wmOperator *op)
 {
-  View3D *v3d = CTX_wm_view3d(C);
-  Scene *scene = CTX_data_scene(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* force view align for cameras */
   RNA_enum_set(op->ptr, "align", ALIGN_VIEW);
@@ -1239,9 +1239,9 @@ void OBJECT_OT_camera_add(wmOperatorType *ot)
 
 static wmOperatorStatus object_metaball_add_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   ushort local_view_bits;
   bool enter_editmode;
@@ -1310,7 +1310,7 @@ void OBJECT_OT_metaball_add(wmOperatorType *ot)
 
 static wmOperatorStatus object_add_text_exec(bContext *C, wmOperator *op)
 {
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit = CTX_data_edit_object(*C);
   bool enter_editmode;
   ushort local_view_bits;
   float loc[3], rot[3];
@@ -1355,13 +1355,13 @@ void OBJECT_OT_text_add(wmOperatorType *ot)
 
 static wmOperatorStatus object_armature_add_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
 
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   bool newob = false;
   bool enter_editmode;
   ushort local_view_bits;
@@ -1494,7 +1494,7 @@ static wmOperatorStatus object_image_add_exec(bContext *C, wmOperator *op)
     ob->empty_image_depth = OB_EMPTY_IMAGE_DEPTH_BACK;
     ob->empty_image_visibility_flag = OB_EMPTY_IMAGE_HIDE_BACK;
 
-    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    RegionView3D *rv3d = CTX_wm_region_view3d(*C);
     if (rv3d->persp != RV3D_PERSP) {
       ob->empty_image_visibility_flag |= OB_EMPTY_IMAGE_HIDE_PERSPECTIVE;
     }
@@ -1525,7 +1525,7 @@ static wmOperatorStatus object_image_add_invoke(bContext *C, wmOperator *op, con
 
   if (!RNA_struct_property_is_set(op->ptr, "background")) {
     /* Check if we should switch to "background" mode. */
-    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    RegionView3D *rv3d = CTX_wm_region_view3d(*C);
     if (rv3d->persp != RV3D_PERSP) {
       RNA_boolean_set(op->ptr, "background", true);
     }
@@ -1552,7 +1552,7 @@ static wmOperatorStatus object_image_add_invoke(bContext *C, wmOperator *op, con
   /* Handled below. */
   id_us_min(&ima->id);
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
   DEG_id_tag_update((ID *)ob_cursor, ID_RECALC_TRANSFORM);
 
@@ -1566,7 +1566,7 @@ static wmOperatorStatus object_image_add_invoke(bContext *C, wmOperator *op, con
 
 static bool object_image_add_poll(bContext *C)
 {
-  return CTX_wm_region_view3d(C);
+  return CTX_wm_region_view3d(*C);
 }
 
 void OBJECT_OT_empty_image_add(wmOperatorType *ot)
@@ -1627,9 +1627,9 @@ static EnumPropertyItem rna_enum_gpencil_add_stroke_depth_order_items[] = {
 
 static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Object *original_active_object = CTX_data_active_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *original_active_object = CTX_data_active_object(*C);
   /* TODO: For now, only support adding the 'Stroke' type. */
   const int type = RNA_enum_get(op->ptr, "type");
 
@@ -1714,7 +1714,7 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext *C, wmOperator *o
 
       if (type == GREASE_PENCIL_LINEART_COLLECTION) {
         md->source_type = LINEART_SOURCE_COLLECTION;
-        md->source_collection = CTX_data_collection(C);
+        md->source_collection = CTX_data_collection(*C);
       }
       else if (type == GREASE_PENCIL_LINEART_OBJECT) {
         md->source_type = LINEART_SOURCE_OBJECT;
@@ -1920,7 +1920,7 @@ static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext
 {
   CollectionAddInfo add_info{};
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   PropertyRNA *prop_location = RNA_struct_find_property(op->ptr, "location");
 
@@ -1936,7 +1936,7 @@ static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext
         BLI_findlink(&bmain->collections, RNA_enum_get(op->ptr, "collection")));
   }
 
-  if (update_location_if_necessary && CTX_wm_region_view3d(C)) {
+  if (update_location_if_necessary && CTX_wm_region_view3d(*C)) {
     int mval[2];
     if (!RNA_property_is_set(op->ptr, prop_location) && object_add_drop_xy_get(C, op, &mval)) {
       location_from_view(C, add_info.loc);
@@ -1959,7 +1959,7 @@ static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext
                        &add_info.local_view_bits,
                        nullptr);
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   /* Avoid dependency cycles. */
   LayerCollection *active_lc = BKE_layer_collection_get_active(view_layer);
@@ -2063,8 +2063,8 @@ void OBJECT_OT_collection_instance_add(wmOperatorType *ot)
 
 static wmOperatorStatus collection_drop_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  LayerCollection *active_collection = CTX_data_layer_collection(C);
+  Main *bmain = CTX_data_main(*C);
+  LayerCollection *active_collection = CTX_data_layer_collection(*C);
   std::optional<CollectionAddInfo> add_info = collection_add_info_get_from_op(C, op);
   if (!add_info) {
     return OPERATOR_CANCELLED;
@@ -2088,7 +2088,7 @@ static wmOperatorStatus collection_drop_exec(bContext *C, wmOperator *op)
     id_us_plus(&add_info->collection->id);
   }
   else if (ID_IS_EDITABLE(&add_info->collection->id)) {
-    ViewLayer *view_layer = CTX_data_view_layer(C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
     float delta_mat[4][4];
     unit_m4(delta_mat);
 
@@ -2158,7 +2158,7 @@ void OBJECT_OT_collection_external_asset_drop(wmOperatorType *ot)
 
 static wmOperatorStatus object_data_instance_add_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ID *id = nullptr;
   ushort local_view_bits;
   float loc[3], rot[3];
@@ -2176,7 +2176,7 @@ static wmOperatorStatus object_data_instance_add_exec(bContext *C, wmOperator *o
     return OPERATOR_CANCELLED;
   }
 
-  if (CTX_wm_region_view3d(C)) {
+  if (CTX_wm_region_view3d(*C)) {
     int mval[2];
     if (!RNA_property_is_set(op->ptr, prop_location) && object_add_drop_xy_get(C, op, &mval)) {
       location_from_view(C, loc);
@@ -2224,8 +2224,8 @@ void OBJECT_OT_data_instance_add(wmOperatorType *ot)
 
 static wmOperatorStatus object_speaker_add_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   ushort local_view_bits;
   float loc[3], rot[3];
@@ -2314,12 +2314,12 @@ void OBJECT_OT_curves_random_add(wmOperatorType *ot)
 
 static wmOperatorStatus object_curves_empty_hair_add_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   ushort local_view_bits;
   add_generic_get_opts(C, op, 'Z', nullptr, nullptr, nullptr, nullptr, &local_view_bits, nullptr);
 
-  Object *surface_ob = CTX_data_active_object(C);
+  Object *surface_ob = CTX_data_active_object(*C);
   BLI_assert(surface_ob != nullptr);
 
   Object *curves_ob = add_type(C, OB_CURVES, nullptr, nullptr, nullptr, false, local_view_bits);
@@ -2354,7 +2354,7 @@ static bool object_curves_empty_hair_add_poll(bContext *C)
   if (!ED_operator_objectmode(C)) {
     return false;
   }
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob == nullptr || ob->type != OB_MESH) {
     CTX_wm_operator_poll_msg_set(C, "No active mesh object");
     return false;
@@ -2461,21 +2461,21 @@ void base_free_and_unlink_no_indirect_check(Main *bmain, Scene *scene, Object *o
 
 static wmOperatorStatus object_delete_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   const bool use_global = RNA_boolean_get(op->ptr, "use_global");
   const bool confirm = op->flag & OP_IS_INVOKE;
   uint changed_count = 0;
   uint tagged_count = 0;
 
-  if (CTX_data_edit_object(C)) {
+  if (CTX_data_edit_object(*C)) {
     return OPERATOR_CANCELLED;
   }
 
   BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     if (ob->id.tag & ID_TAG_INDIRECT) {
       /* Can this case ever happen? */
       BKE_reportf(op->reports,
@@ -2596,9 +2596,9 @@ void OBJECT_OT_delete(wmOperatorType *ot)
 /* after copying objects, copied data should get new pointers */
 static void copy_object_set_idnew(bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     BKE_libblock_relink_to_newid(bmain, &ob->id, ID_REMAP_SKIP_USER_CLEAR);
   }
   CTX_DATA_END;
@@ -2739,8 +2739,8 @@ static void make_object_duplilist_real(bContext *C,
                                        const bool use_base_parent,
                                        const bool use_hierarchy)
 {
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   using ParentMap =
       Map<DupliObject *, Object *, 4, DefaultProbingStrategy, DupliObjectHash, DupliObjectEq>;
   using InstancerMap = Map<DupliObject *,
@@ -2929,16 +2929,16 @@ static void make_object_duplilist_real(bContext *C,
 
 static wmOperatorStatus object_duplicates_make_real_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   const bool use_base_parent = RNA_boolean_get(op->ptr, "use_base_parent");
   const bool use_hierarchy = RNA_boolean_get(op->ptr, "use_hierarchy");
 
   BKE_main_id_newptr_and_tag_clear(bmain);
 
-  CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
+  CTX_DATA_BEGIN (*C, Base *, base, selected_editable_bases) {
     make_object_duplilist_real(C, depsgraph, scene, base, use_base_parent, use_hierarchy);
 
     /* dependencies were changed */
@@ -3070,11 +3070,11 @@ static void object_data_convert_curve_to_mesh(Main *bmain, Depsgraph *depsgraph,
 
 static bool object_convert_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (!ID_IS_EDITABLE(scene)) {
     return false;
   }
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   /* Don't use `active_object` in the context, it's important this value
    * is from the view-layer as it's used to check if Blender is in object mode. */
@@ -4244,17 +4244,17 @@ static Object *convert_pointcloud(Base &base,
 
 static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   const short target = RNA_enum_get(op->ptr, "target");
   bool keep_original = RNA_boolean_get(op->ptr, "keep_original");
   const bool do_merge_customdata = RNA_boolean_get(op->ptr, "merge_customdata");
 
   Vector<PointerRNA> selected_editable_bases;
-  CTX_data_selected_editable_bases(C, &selected_editable_bases);
+  CTX_data_selected_editable_bases(*C, &selected_editable_bases);
 
   /* Too expensive to detect on poll(). */
   if (selected_editable_bases.is_empty()) {
@@ -4704,9 +4704,9 @@ Base *add_duplicate(
 /* contextual operator dupli */
 static wmOperatorStatus duplicate_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const bool linked = RNA_boolean_get(op->ptr, "linked");
   const eDupli_ID_Flags dupflag = (linked) ? (eDupli_ID_Flags)0 : (eDupli_ID_Flags)U.dupflag;
 
@@ -4724,7 +4724,7 @@ static wmOperatorStatus duplicate_exec(bContext *C, wmOperator *op)
   };
 
   Vector<DuplicateObjectLink> object_base_links;
-  CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
+  CTX_DATA_BEGIN (*C, Base *, base, selected_bases) {
     object_base_links.append(DuplicateObjectLink(base));
   }
   CTX_DATA_END;
@@ -4835,9 +4835,9 @@ void OBJECT_OT_duplicate(wmOperatorType *ot)
 
 static wmOperatorStatus object_add_named_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const bool linked = RNA_boolean_get(op->ptr, "linked");
   const eDupli_ID_Flags dupflag = (linked) ? (eDupli_ID_Flags)0 : (eDupli_ID_Flags)U.dupflag;
 
@@ -4901,7 +4901,7 @@ static wmOperatorStatus object_add_named_exec(bContext *C, wmOperator *op)
 
     DEG_id_tag_update(&ob_add->id, ID_RECALC_TRANSFORM);
   }
-  else if (CTX_wm_region_view3d(C)) {
+  else if (CTX_wm_region_view3d(*C)) {
     int mval[2];
     if (object_add_drop_xy_get(C, op, &mval)) {
       location_from_view(C, basen->object->loc);
@@ -4954,9 +4954,9 @@ void OBJECT_OT_add_named(wmOperatorType *ot)
  */
 static wmOperatorStatus object_transform_to_mouse_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   Object *ob = reinterpret_cast<Object *>(
       WM_operator_properties_id_lookup_from_name_or_session_uid(bmain, op->ptr, ID_OB));
@@ -4978,7 +4978,7 @@ static wmOperatorStatus object_transform_to_mouse_exec(bContext *C, wmOperator *
   }
 
   /* Ensure the locations are updated so snap reads the evaluated active location. */
-  CTX_data_ensure_evaluated_depsgraph(C);
+  CTX_data_ensure_evaluated_depsgraph(*C);
 
   PropertyRNA *prop_matrix = RNA_struct_find_property(op->ptr, "matrix");
   if (RNA_property_is_set(op->ptr, prop_matrix)) {
@@ -5000,7 +5000,7 @@ static wmOperatorStatus object_transform_to_mouse_exec(bContext *C, wmOperator *
 
     object_xform_array_m4(objects.data(), objects.size(), final_delta);
   }
-  else if (CTX_wm_region_view3d(C)) {
+  else if (CTX_wm_region_view3d(*C)) {
     int mval[2];
     if (object_add_drop_xy_get(C, op, &mval)) {
       float cursor[3];
@@ -5073,7 +5073,7 @@ void OBJECT_OT_transform_to_mouse(wmOperatorType *ot)
 
 static bool object_join_poll(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
 
   if (ob == nullptr || ob->data == nullptr || !ID_IS_EDITABLE(ob) || ID_IS_OVERRIDE_LIBRARY(ob) ||
       ID_IS_OVERRIDE_LIBRARY(ob->data))
@@ -5097,8 +5097,8 @@ static bool object_join_poll(bContext *C)
 
 static wmOperatorStatus object_join_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Object *ob = CTX_data_active_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Object *ob = CTX_data_active_object(*C);
 
   if (ob->mode & OB_MODE_EDIT) {
     BKE_report(op->reports, RPT_ERROR, "This data does not support joining in edit mode");
@@ -5186,7 +5186,7 @@ void OBJECT_OT_join(wmOperatorType *ot)
 
 static bool active_shape_key_editable_poll(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (!ob) {
     return false;
   }
@@ -5202,7 +5202,7 @@ static bool active_shape_key_editable_poll(bContext *C)
     CTX_wm_operator_poll_msg_set(C, "Cannot edit external library data");
     return false;
   }
-  Main &bmain = *CTX_data_main(C);
+  Main &bmain = *CTX_data_main(*C);
   if (!BKE_lib_override_library_id_is_user_deletable(&bmain, &ob->id)) {
     CTX_wm_operator_poll_msg_set(C, "Cannot edit object used by override collections");
     return false;
@@ -5246,7 +5246,7 @@ static bool object_update_shapes_poll(bContext *C)
     return false;
   }
 
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   const Key *key = BKE_key_from_object(ob);
   if (!key || BLI_listbase_is_empty(&key->block)) {
     return false;

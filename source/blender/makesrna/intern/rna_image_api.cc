@@ -60,10 +60,10 @@ static void rna_Image_save_render(Image *image,
                                   Scene *scene,
                                   const int quality)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   if (scene == nullptr) {
-    scene = CTX_data_scene(C);
+    scene = CTX_data_scene(*C);
   }
 
   ImageSaveOptions opts;
@@ -97,7 +97,7 @@ static void rna_Image_save(Image *image,
                            const int quality,
                            const bool save_copy)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ImageSaveOptions opts;
 
   if (BKE_image_save_options_init(&opts, bmain, scene, image, nullptr, false, false)) {

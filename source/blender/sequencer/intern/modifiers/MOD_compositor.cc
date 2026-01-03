@@ -268,7 +268,7 @@ static void compositor_modifier_panel_draw(const bContext *C, Panel *panel)
 
   layout.use_property_split_set(true);
 
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Strip *strip = seq::select_active_get(scene);
   bool has_existing_group = false;
   if (strip != nullptr) {

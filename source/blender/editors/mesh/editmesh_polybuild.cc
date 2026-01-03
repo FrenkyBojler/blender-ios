@@ -77,7 +77,7 @@ static void edbm_flag_disable_all_multi(const Scene *scene,
 /** When accessed as a tool, get the active edge from the pre-selection gizmo. */
 static bool edbm_preselect_or_active(bContext *C, const View3D *v3d, Base **r_base, BMElem **r_ele)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   const bool show_gizmo = !(v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_TOOL));
 
   wmGizmoMap *gzmap = show_gizmo ? region->runtime->gizmo_map : nullptr;
@@ -107,8 +107,8 @@ static bool edbm_preselect_or_active(bContext *C, const View3D *v3d, Base **r_ba
     ED_view3d_gizmo_mesh_preselect_get_active(C, gz, r_base, r_ele);
   }
   else {
-    const Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
+    const Scene *scene = CTX_data_scene(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Base *base = BKE_view_layer_active_base_get(view_layer);
     Object *obedit = base->object;

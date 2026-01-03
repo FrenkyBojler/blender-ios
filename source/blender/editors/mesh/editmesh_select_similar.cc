@@ -151,8 +151,8 @@ static void face_to_plane(const Object *ob, BMFace *face, float r_plane[4])
  */
 static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   const int type = RNA_enum_get(op->ptr, "type");
   const float thresh = RNA_float_get(op->ptr, "threshold");
@@ -161,7 +161,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
 
   int tot_faces_selected_all = 0;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
@@ -547,8 +547,8 @@ static bool edge_data_value_set(BMEdge *edge, const int hflag, int *r_value)
  */
 static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   const int type = RNA_enum_get(op->ptr, "type");
   const float thresh = RNA_float_get(op->ptr, "threshold");
@@ -557,7 +557,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 
   int tot_edges_selected_all = 0;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
@@ -934,8 +934,8 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   /* get the type from RNA */
   const int type = RNA_enum_get(op->ptr, "type");
@@ -945,7 +945,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
 
   int tot_verts_selected_all = 0;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
@@ -1252,7 +1252,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus edbm_select_similar_exec(bContext *C, wmOperator *op)
 {
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "threshold");
 
   const int type = RNA_enum_get(op->ptr, "type");
@@ -1284,7 +1284,7 @@ static const EnumPropertyItem *select_similar_type_itemf(bContext *C,
     return prop_similar_types;
   }
 
-  obedit = CTX_data_edit_object(C);
+  obedit = CTX_data_edit_object(*C);
 
   if (obedit && obedit->type == OB_MESH) {
     EnumPropertyItem *item = nullptr;

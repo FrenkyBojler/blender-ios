@@ -212,7 +212,7 @@ static void console_dropboxes()
 static void console_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
-  SpaceConsole *sc = CTX_wm_space_console(C);
+  SpaceConsole *sc = CTX_wm_space_console(*C);
   View2D *v2d = &region->v2d;
 
   if (BLI_listbase_is_empty(&sc->scrollback)) {

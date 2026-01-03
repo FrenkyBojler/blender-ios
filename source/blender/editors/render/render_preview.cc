@@ -738,13 +738,13 @@ void ED_preview_draw(
     const bContext *C, void *idp, void *parentp, void *slotp, uiPreview *ui_preview, rcti *rect)
 {
   if (idp) {
-    Scene *scene = CTX_data_scene(C);
-    wmWindowManager *wm = CTX_wm_manager(C);
+    Scene *scene = CTX_data_scene(*C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
     ID *id = (ID *)idp;
     ID *parent = (ID *)parentp;
     MTex *slot = (MTex *)slotp;
-    SpaceProperties *sbuts = CTX_wm_space_properties(C);
-    const void *owner = CTX_wm_area(C);
+    SpaceProperties *sbuts = CTX_wm_space_properties(*C);
+    const void *owner = CTX_wm_area(*C);
     ShaderPreview *sp = static_cast<ShaderPreview *>(
         WM_jobs_customdata_from_type(wm, owner, WM_JOB_TYPE_RENDER_PREVIEW));
     rcti newrect;
@@ -2010,7 +2010,7 @@ void ED_preview_icon_render(
 
   ED_preview_ensure_dbase(true);
 
-  ip.bmain = CTX_data_main(C);
+  ip.bmain = CTX_data_main(*C);
   if (GS(id->name) == ID_SCE) {
     Scene *icon_scene = reinterpret_cast<Scene *>(id);
     ip.scene = icon_scene;
@@ -2020,11 +2020,11 @@ void ED_preview_icon_render(
   }
   else {
     ip.scene = scene;
-    ip.depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    ip.depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     /* Control isn't given back to the caller until the preview is done. So we don't need to copy
      * the ID to avoid thread races. */
     ip.id_copy = duplicate_ids(id, true);
-    ip.active_object = CTX_data_active_object(C);
+    ip.active_object = CTX_data_active_object(*C);
   }
   ip.owner = BKE_previewimg_id_ensure(id);
   ip.id = id;
@@ -2054,7 +2054,7 @@ void ED_preview_icon_job(
       /* Already in the queue, don't add it again. */
       return;
     }
-    PreviewLoadJob &load_job = PreviewLoadJob::ensure_job(CTX_wm_manager(C), CTX_wm_window(C));
+    PreviewLoadJob &load_job = PreviewLoadJob::ensure_job(CTX_wm_manager(*C), CTX_wm_window(*C));
     load_job.push_load_request(prv_img, icon_size);
 
     return;
@@ -2065,8 +2065,8 @@ void ED_preview_icon_job(
   ED_preview_ensure_dbase(true);
 
   /* suspended start means it starts after 1 timer step, see WM_jobs_timer below */
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
-                              CTX_wm_window(C),
+  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                              CTX_wm_window(*C),
                               prv_img,
                               "Generating icon preview...",
                               WM_JOB_EXCL_RENDER,
@@ -2081,7 +2081,7 @@ void ED_preview_icon_job(
   }
 
   /* customdata for preview thread */
-  ip->bmain = CTX_data_main(C);
+  ip->bmain = CTX_data_main(*C);
   if (GS(id->name) == ID_SCE) {
     Scene *icon_scene = reinterpret_cast<Scene *>(id);
     ip->scene = icon_scene;
@@ -2090,10 +2090,10 @@ void ED_preview_icon_job(
     ip->active_object = nullptr;
   }
   else {
-    ip->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    ip->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     ip->scene = DEG_get_input_scene(ip->depsgraph);
     ip->id_copy = duplicate_ids(id, false);
-    ip->active_object = CTX_data_active_object(C);
+    ip->active_object = CTX_data_active_object(*C);
   }
   ip->owner = prv_img;
   ip->id = id;
@@ -2113,7 +2113,7 @@ void ED_preview_icon_job(
   WM_jobs_callbacks(
       wm_job, icon_preview_startjob_all_sizes, nullptr, nullptr, icon_preview_endjob);
 
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_jobs_start(CTX_wm_manager(*C), wm_job);
 }
 
 void ED_preview_shader_job(const bContext *C,
@@ -2125,10 +2125,10 @@ void ED_preview_shader_job(const bContext *C,
                            int sizey,
                            ePreviewRenderMethod method)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   wmJob *wm_job;
   ShaderPreview *sp;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const ID_Type id_type = GS(id->name);
 
   BLI_assert(BKE_previewimg_id_supports_jobs(id));
@@ -2142,8 +2142,8 @@ void ED_preview_shader_job(const bContext *C,
 
   ED_preview_ensure_dbase(true);
 
-  wm_job = WM_jobs_get(CTX_wm_manager(C),
-                       CTX_wm_window(C),
+  wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                       CTX_wm_window(*C),
                        owner,
                        "Generating shader preview...",
                        WM_JOB_EXCL_RENDER,
@@ -2161,7 +2161,7 @@ void ED_preview_shader_job(const bContext *C,
   sp->own_id_copy = true;
   sp->parent = parent;
   sp->slot = slot;
-  sp->bmain = CTX_data_main(C);
+  sp->bmain = CTX_data_main(*C);
   Material *ma = nullptr;
 
   /* hardcoded preview .blend for Eevee + Cycles, this should be solved
@@ -2191,7 +2191,7 @@ void ED_preview_shader_job(const bContext *C,
   WM_jobs_timer(wm_job, 0.1, NC_MATERIAL, NC_MATERIAL);
   WM_jobs_callbacks(wm_job, common_preview_startjob, nullptr, shader_preview_updatejob, nullptr);
 
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_jobs_start(CTX_wm_manager(*C), wm_job);
 }
 
 void ED_preview_kill_jobs(wmWindowManager *wm, Main * /*bmain*/)

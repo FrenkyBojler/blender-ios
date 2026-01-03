@@ -116,16 +116,16 @@ ViewContext ED_view3d_viewcontext_init(bContext *C, Depsgraph *depsgraph)
   /* TODO: should return whether there is valid context to continue. */
   ViewContext vc = {};
   vc.C = C;
-  vc.region = CTX_wm_region(C);
-  vc.bmain = CTX_data_main(C);
+  vc.region = CTX_wm_region(*C);
+  vc.bmain = CTX_data_main(*C);
   vc.depsgraph = depsgraph;
-  vc.scene = CTX_data_scene(C);
-  vc.view_layer = CTX_data_view_layer(C);
-  vc.v3d = CTX_wm_view3d(C);
-  vc.win = CTX_wm_window(C);
-  vc.rv3d = CTX_wm_region_view3d(C);
-  vc.obact = CTX_data_active_object(C);
-  vc.obedit = CTX_data_edit_object(C);
+  vc.scene = CTX_data_scene(*C);
+  vc.view_layer = CTX_data_view_layer(*C);
+  vc.v3d = CTX_wm_view3d(*C);
+  vc.win = CTX_wm_window(*C);
+  vc.rv3d = CTX_wm_region_view3d(*C);
+  vc.obact = CTX_data_active_object(*C);
+  vc.obedit = CTX_data_edit_object(*C);
   return vc;
 }
 
@@ -467,7 +467,7 @@ static bool view3d_selectable_data(bContext *C)
   if (!ED_operator_region_view3d_active(C)) {
     return false;
   }
-  if (Object *ob = CTX_data_active_object(C)) {
+  if (Object *ob = CTX_data_active_object(*C)) {
     if (ob->mode & OB_MODE_EDIT) {
       return ob->type != OB_FONT;
     }
@@ -1374,7 +1374,7 @@ static bool view3d_lasso_select(bContext *C,
                                 const eSelectOp sel_op)
 {
   using namespace blender;
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   bool changed_multi = false;
 
   wmGenericUserData wm_userdata_buf = {nullptr, nullptr, false};
@@ -1517,9 +1517,9 @@ static wmOperatorStatus view3d_lasso_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_PASS_THROUGH;
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   view3d_operator_needs_gpu(C);
-  BKE_object_update_select_id(CTX_data_main(C));
+  BKE_object_update_select_id(CTX_data_main(*C));
 
   /* setup view context for argument to callbacks */
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
@@ -1608,14 +1608,14 @@ static wmOperatorStatus object_select_menu_exec(bContext *C, wmOperator *op)
   bool changed = false;
   const char *name = object_mouse_select_menu_data[name_index].idname;
 
-  View3D *v3d = CTX_wm_view3d(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   const Base *oldbasact = BKE_view_layer_active_base_get(view_layer);
 
   Base *basact = nullptr;
-  CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
+  CTX_DATA_BEGIN (*C, Base *, base, selectable_bases) {
     /* This is a bit dodgy, there should only be ONE object with this name,
      * but library objects can mess this up. */
     if (STREQ(name, base->object->id.name + 2)) {
@@ -1666,7 +1666,7 @@ static wmOperatorStatus object_select_menu_exec(bContext *C, wmOperator *op)
 
   /* undo? */
   if (changed) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 
@@ -1744,7 +1744,7 @@ static bool object_mouse_select_menu(bContext *C,
   ListBaseT<BaseRefWithDepth> base_ref_list = {nullptr, nullptr};
 
   /* handle base->object->select_id */
-  CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
+  CTX_DATA_BEGIN (*C, Base *, base, selectable_bases) {
     bool ok = false;
     uint depth_id;
 
@@ -1837,9 +1837,9 @@ static wmOperatorStatus bone_select_menu_exec(bContext *C, wmOperator *op)
   SelectPick_Params params{};
   params.sel_op = ED_select_op_from_operator(op->ptr);
 
-  View3D *v3d = CTX_wm_view3d(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   const Base *oldbasact = BKE_view_layer_active_base_get(view_layer);
 
@@ -1971,7 +1971,7 @@ static bool bone_mouse_select_menu(bContext *C,
     const uint hit_object = select_id & 0xFFFF;
 
     /* Find the hit bone base (armature object). */
-    CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
+    CTX_DATA_BEGIN (*C, Base *, base, selectable_bases) {
       if (base->object->runtime->select_id == hit_object) {
         bone_base = base;
         break;
@@ -2453,13 +2453,13 @@ static Base *ed_view3d_give_base_under_cursor_ex(bContext *C,
                                                  const int mval[2],
                                                  int *r_material_slot)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Base *basact = nullptr;
   GPUSelectBuffer buffer;
 
   /* setup view context for argument to callbacks */
   view3d_operator_needs_gpu(C);
-  BKE_object_update_select_id(CTX_data_main(C));
+  BKE_object_update_select_id(CTX_data_main(*C));
 
   const ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
@@ -2624,7 +2624,7 @@ static bool ed_object_select_pick(bContext *C,
                                   const bool enumerate,
                                   const bool object_only)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   /* Setup view context for argument to callbacks. */
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
@@ -3040,7 +3040,7 @@ static bool ed_wpaint_vertex_select_pick(bContext *C,
                                          Object *obact)
 {
   using namespace blender;
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   const bool use_zbuf = !XRAY_ENABLED(v3d);
 
   Mesh *mesh = static_cast<Mesh *>(obact->data); /* already checked for nullptr */
@@ -3127,7 +3127,7 @@ static bool pointcloud_select_pick(bContext &C, const int2 mval, const SelectPic
 {
   using namespace blender;
   using namespace blender::ed;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(&C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   /* Setup view context for argument to callbacks. */
   const ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
 
@@ -3224,7 +3224,7 @@ struct ClosestCurveDataBlock {
 static bool ed_curves_select_pick(bContext &C, const int mval[2], const SelectPick_Params &params)
 {
   using namespace blender;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(&C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   /* Setup view context for argument to callbacks. */
   const ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
 
@@ -3369,7 +3369,7 @@ static bool ed_grease_pencil_select_pick(bContext *C,
                                          const SelectPick_Params &params)
 {
   using namespace blender;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   /* Setup view context for argument to callbacks. */
   const ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Object *object = (vc.obedit ? vc.obedit : vc.obact);
@@ -3526,11 +3526,11 @@ static bool ed_grease_pencil_select_pick(bContext *C,
 
 static wmOperatorStatus view3d_select_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  Object *obedit = CTX_data_edit_object(C);
-  Object *obact = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *obedit = CTX_data_edit_object(*C);
+  Object *obact = CTX_data_active_object(*C);
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   const ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   const SelectPick_Params params = ED_select_pick_params_from_operator(op->ptr);
@@ -3573,7 +3573,7 @@ static wmOperatorStatus view3d_select_exec(bContext *C, wmOperator *op)
   RNA_int_get_array(op->ptr, "location", mval);
 
   view3d_operator_needs_gpu(C);
-  BKE_object_update_select_id(CTX_data_main(C));
+  BKE_object_update_select_id(CTX_data_main(*C));
 
   if (obedit && object_only == false) {
     if (obedit->type == OB_MESH) {
@@ -4516,7 +4516,7 @@ static bool do_grease_pencil_box_select(const ViewContext *vc,
 static wmOperatorStatus view3d_box_select_exec(bContext *C, wmOperator *op)
 {
   using namespace blender;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   rcti rect;
   bool changed_multi = false;
 
@@ -4524,7 +4524,7 @@ static wmOperatorStatus view3d_box_select_exec(bContext *C, wmOperator *op)
   wmGenericUserData *wm_userdata = &wm_userdata_buf;
 
   view3d_operator_needs_gpu(C);
-  BKE_object_update_select_id(CTX_data_main(C));
+  BKE_object_update_select_id(CTX_data_main(*C));
 
   /* setup view context for argument to callbacks */
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
@@ -5570,7 +5570,7 @@ static bool object_circle_select(const ViewContext *vc,
 static void view3d_circle_select_recalc(void *user_data)
 {
   bContext *C = static_cast<bContext *>(user_data);
-  Object *obedit_active = CTX_data_edit_object(C);
+  Object *obedit_active = CTX_data_edit_object(*C);
 
   if (obedit_active) {
     switch (obedit_active->type) {
@@ -5588,7 +5588,7 @@ static void view3d_circle_select_recalc(void *user_data)
 
       default: {
         /* TODO: investigate if this is needed for other object types. */
-        CTX_data_ensure_evaluated_depsgraph(C);
+        CTX_data_ensure_evaluated_depsgraph(*C);
         break;
       }
     }
@@ -5614,7 +5614,7 @@ static void view3d_circle_select_cancel(bContext *C, wmOperator *op)
 
 static wmOperatorStatus view3d_circle_select_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   const int radius = RNA_int_get(op->ptr, "radius");
   const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
 
@@ -5634,7 +5634,7 @@ static wmOperatorStatus view3d_circle_select_exec(bContext *C, wmOperator *op)
   if (obedit || BKE_paint_select_elem_test(obact) || (obact && (obact->mode & OB_MODE_POSE))) {
     view3d_operator_needs_gpu(C);
     if (obedit == nullptr) {
-      BKE_object_update_select_id(CTX_data_main(C));
+      BKE_object_update_select_id(CTX_data_main(*C));
     }
     else {
       if (vc.obedit->type == OB_MESH) {

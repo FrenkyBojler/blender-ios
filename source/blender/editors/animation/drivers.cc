@@ -933,7 +933,7 @@ static wmOperatorStatus add_driver_button_none(bContext *C, wmOperator *op, shor
   if (success) {
     /* send updates */
     blender::ui::context_update_anim_flag(C);
-    DEG_relations_tag_update(CTX_data_main(C));
+    DEG_relations_tag_update(CTX_data_main(*C));
     WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
 
     return OPERATOR_FINISHED;
@@ -1031,7 +1031,7 @@ static wmOperatorStatus add_driver_button_invoke(bContext *C,
       /* send updates */
       blender::ui::context_update_anim_flag(C);
       DEG_id_tag_update(ptr.owner_id, ID_RECALC_SYNC_TO_EVAL);
-      DEG_relations_tag_update(CTX_data_main(C));
+      DEG_relations_tag_update(CTX_data_main(*C));
       WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
     }
 
@@ -1084,7 +1084,7 @@ static wmOperatorStatus remove_driver_button_exec(bContext *C, wmOperator *op)
   if (changed) {
     /* send updates */
     blender::ui::context_update_anim_flag(C);
-    DEG_relations_tag_update(CTX_data_main(C));
+    DEG_relations_tag_update(CTX_data_main(*C));
     DEG_id_tag_update(ptr.owner_id, ID_RECALC_ANIMATION);
     WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
   }
@@ -1201,7 +1201,7 @@ static wmOperatorStatus paste_driver_button_exec(bContext *C, wmOperator *op)
 
       blender::ui::context_update_anim_flag(C);
 
-      DEG_relations_tag_update(CTX_data_main(C));
+      DEG_relations_tag_update(CTX_data_main(*C));
 
       DEG_id_tag_update(ptr.owner_id, ID_RECALC_ANIMATION);
 

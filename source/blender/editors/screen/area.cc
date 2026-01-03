@@ -460,7 +460,7 @@ static bool area_is_pseudo_minimized(const ScrArea *area)
 void ED_region_do_layout(bContext *C, ARegion *region)
 {
   /* This is optional, only needed for dynamically sized regions. */
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegionType *at = region->runtime->type;
 
   if (!at->layout) {
@@ -483,8 +483,8 @@ void ED_region_do_layout(bContext *C, ARegion *region)
 void ED_region_do_draw(bContext *C, ARegion *region)
 {
   using namespace blender;
-  wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
+  wmWindow *win = CTX_wm_window(*C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegionType *at = region->runtime->type;
 
   /* see BKE_spacedata_draw_locks() */
@@ -577,10 +577,10 @@ void ED_region_do_draw(bContext *C, ARegion *region)
 
   /* We may want to detach message-subscriptions from drawing. */
   {
-    WorkSpace *workspace = CTX_wm_workspace(C);
-    wmWindowManager *wm = CTX_wm_manager(C);
+    WorkSpace *workspace = CTX_wm_workspace(*C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
     bScreen *screen = WM_window_get_active_screen(win);
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     wmMsgBus *mbus = wm->runtime->message_bus;
     WM_msgbus_clear_by_owner(mbus, region);
 
@@ -915,12 +915,12 @@ static void ed_workspace_status_space(WorkSpace *workspace, const float space_fa
 
 WorkspaceStatus::WorkspaceStatus(bContext *C)
 {
-  workspace_ = CTX_wm_workspace(C);
-  wm_ = CTX_wm_manager(C);
+  workspace_ = CTX_wm_workspace(*C);
+  wm_ = CTX_wm_manager(*C);
   if (workspace_) {
     BKE_workspace_status_clear(workspace_);
   }
-  ED_area_tag_redraw(WM_window_status_area_find(CTX_wm_window(C), CTX_wm_screen(C)));
+  ED_area_tag_redraw(WM_window_status_area_find(CTX_wm_window(*C), CTX_wm_screen(*C)));
 }
 
 /* -------------------------------------------------------------------- */
@@ -2171,7 +2171,7 @@ void ED_area_and_region_types_init(ScrArea *area)
 
 void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   WorkSpace *workspace = WM_window_get_active_workspace(win);
   const bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
   const Scene *scene = WM_window_get_active_scene(win);
@@ -2381,7 +2381,7 @@ void ED_region_visibility_change_update_ex(
   }
 
   if (do_init) {
-    ED_area_init(C, CTX_wm_window(C), area);
+    ED_area_init(C, CTX_wm_window(*C), area);
     ED_area_tag_redraw(area);
   }
 }
@@ -2395,7 +2395,7 @@ void ED_region_visibility_change_update(bContext *C, ScrArea *area, ARegion *reg
 
 void region_toggle_hidden(bContext *C, ARegion *region, const bool do_fade)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   region->flag ^= RGN_FLAG_HIDDEN;
 
@@ -2677,7 +2677,7 @@ static void region_align_info_to_area(
 void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
 {
   ScrArea *tmp = MEM_new_for_free<ScrArea>(__func__);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   ED_area_exit(C, sa1);
   ED_area_exit(C, sa2);
@@ -2694,7 +2694,7 @@ void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
   /* The areas being swapped could be between different windows,
    * so clear screen active region pointers. This is set later
    * through regular operations. #141313. */
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   for (wmWindow &win : wm->windows) {
     if (bScreen *screen = WM_window_get_active_screen(&win)) {
       screen->active_region = nullptr;
@@ -2712,7 +2712,7 @@ void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
 
 void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_region_exit)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   SpaceType *st = BKE_spacetype_from_id(type);
 
   if (area->spacetype != type) {
@@ -2838,9 +2838,9 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
    * specifying a subtype (assumed zero) and we don't want to use the old subtype. */
   area->butspacetype_subtype = 0;
 
-  if (BLI_listbase_is_single(&CTX_wm_screen(C)->areabase)) {
+  if (BLI_listbase_is_single(&CTX_wm_screen(*C)->areabase)) {
     /* If there is only one area update the window title. */
-    WM_window_title_refresh(CTX_wm_manager(C), CTX_wm_window(C));
+    WM_window_title_refresh(CTX_wm_manager(*C), CTX_wm_window(*C));
   }
 
   /* See #WM_capabilities_flag code-comments for details on the background check. */
@@ -2905,8 +2905,8 @@ void ED_area_prevspace(bContext *C, ScrArea *area)
 
 int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, int yco)
 {
-  ScrArea *area = CTX_wm_area(C);
-  bScreen *screen = CTX_wm_screen(C);
+  ScrArea *area = CTX_wm_area(*C);
+  bScreen *screen = CTX_wm_screen(*C);
   int xco = 0.4 * U.widget_unit;
 
   PointerRNA areaptr = RNA_pointer_create_discrete(&(screen->id), &RNA_Area, area);
@@ -3244,7 +3244,7 @@ void ED_region_panels_layout_ex(const bContext *C,
                                 const char *category_override)
 {
   /* collect panels to draw */
-  WorkSpace *workspace = CTX_wm_workspace(C);
+  WorkSpace *workspace = CTX_wm_workspace(*C);
   LinkNode *panel_types_stack = nullptr;
   for (PanelType &pt : paneltypes->items_reversed()) {
     if (panel_add_check(C, workspace, contexts, category_override, &pt)) {
@@ -3254,7 +3254,7 @@ void ED_region_panels_layout_ex(const bContext *C,
 
   region->runtime->category = nullptr;
 
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   View2D *v2d = &region->v2d;
 
   bool use_categories = (category_override == nullptr) &&
@@ -3595,7 +3595,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
     }
   }
 
-  ED_region_draw_overflow_indication(CTX_wm_area(C), region, use_mask ? &mask : nullptr);
+  ED_region_draw_overflow_indication(CTX_wm_area(*C), region, use_mask ? &mask : nullptr);
 
   /* Hide scrollbars below a threshold. */
   int min_width = has_category_tabs ? 60.0f * UI_SCALE_FAC / aspect :
@@ -3740,8 +3740,8 @@ bool ED_region_property_search(const bContext *C,
                                const char *contexts[],
                                const char *category_override)
 {
-  ScrArea *area = CTX_wm_area(C);
-  WorkSpace *workspace = CTX_wm_workspace(C);
+  ScrArea *area = CTX_wm_area(*C);
+  WorkSpace *workspace = CTX_wm_workspace(*C);
   const uiStyle *style = blender::ui::style_get_dpi();
   const char *search_filter = ED_area_region_search_filter_get(area, region);
 
@@ -3816,7 +3816,7 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
 {
   const uiStyle *style = blender::ui::style_get_dpi();
   bool region_layout_based = region->flag & RGN_FLAG_DYNAMIC_SIZE;
-  const ScrArea *area = CTX_wm_area(C);
+  const ScrArea *area = CTX_wm_area(*C);
   const bool is_global = area && ELEM(area->spacetype, SPACE_TOPBAR, SPACE_STATUSBAR);
   const int offset = is_global ? 4.0f * UI_SCALE_FAC : int(UI_HEADER_OFFSET);
 
@@ -3876,7 +3876,7 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
 
     if (region_layout_based && (region->sizex != new_sizex)) {
       /* region size is layout based and needs to be updated */
-      ScrArea *area = CTX_wm_area(C);
+      ScrArea *area = CTX_wm_area(*C);
 
       region->sizex = new_sizex;
       ED_area_tag_region_size_update(area, region);
@@ -3926,7 +3926,7 @@ void ED_region_header_draw(const bContext *C, ARegion *region)
   }
 
   region_draw_blocks_in_view2d(C, region);
-  ED_region_draw_overflow_indication(CTX_wm_area(C), region);
+  ED_region_draw_overflow_indication(CTX_wm_area(*C), region);
 }
 
 void ED_region_header_draw_with_button_sections(const bContext *C,
@@ -4003,8 +4003,8 @@ bool ED_area_is_global(const ScrArea *area)
 
 ScrArea *ED_area_find_under_cursor(const bContext *C, int spacetype, const int event_xy[2])
 {
-  bScreen *screen = CTX_wm_screen(C);
-  wmWindow *win = CTX_wm_window(C);
+  bScreen *screen = CTX_wm_screen(*C);
+  wmWindow *win = CTX_wm_window(*C);
 
   ScrArea *area = nullptr;
 

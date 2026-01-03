@@ -179,7 +179,7 @@ void ED_mask_select_flush_all(Mask *mask)
 
 void ED_mask_deselect_all(const bContext *C)
 {
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
   if (mask) {
     ED_mask_select_toggle_all(mask, SEL_DESELECT);
     ED_mask_select_flush_all(mask);
@@ -196,7 +196,7 @@ void ED_mask_deselect_all(const bContext *C)
 
 static wmOperatorStatus select_all_exec(bContext *C, wmOperator *op)
 {
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
   int action = RNA_enum_get(op->ptr, "action");
 
   MaskViewLockState lock_state;
@@ -239,7 +239,7 @@ void MASK_OT_select_all(wmOperatorType *ot)
 
 static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
 {
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
   MaskLayer *mask_layer;
   MaskSpline *spline;
   MaskSplinePoint *point = nullptr;
@@ -375,8 +375,8 @@ static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   float co[2];
 
@@ -428,11 +428,11 @@ void MASK_OT_select(wmOperatorType *ot)
 
 static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
-  Mask *mask_orig = CTX_data_edit_mask(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Mask *mask_orig = CTX_data_edit_mask(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   rcti rect;
@@ -525,11 +525,11 @@ void MASK_OT_select_box(wmOperatorType *ot)
 
 static bool do_lasso_select_mask(bContext *C, const Span<int2> mcoords, const eSelectOp sel_op)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
-  Mask *mask_orig = CTX_data_edit_mask(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Mask *mask_orig = CTX_data_edit_mask(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   rcti rect;
@@ -659,11 +659,11 @@ static int mask_spline_point_inside_ellipse(BezTriple *bezt,
 
 static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
-  Mask *mask_orig = CTX_data_edit_mask(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Mask *mask_orig = CTX_data_edit_mask(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   float zoomx, zoomy, offset[2], ellipse[2];
@@ -769,10 +769,10 @@ static wmOperatorStatus mask_select_linked_pick_invoke(bContext *C,
                                                        wmOperator *op,
                                                        const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
   MaskLayer *mask_layer;
   MaskSpline *spline;
   MaskSplinePoint *point = nullptr;
@@ -831,7 +831,7 @@ void MASK_OT_select_linked_pick(wmOperatorType *ot)
 
 static wmOperatorStatus mask_select_linked_exec(bContext *C, wmOperator * /*op*/)
 {
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
 
   bool changed = false;
 
@@ -884,7 +884,7 @@ void MASK_OT_select_linked(wmOperatorType *ot)
 
 static wmOperatorStatus mask_select_more_less(bContext *C, bool more)
 {
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
 
   for (MaskLayer &mask_layer : mask->masklayers) {
     if (mask_layer.visibility_flag & (MASK_HIDE_VIEW | MASK_HIDE_SELECT)) {

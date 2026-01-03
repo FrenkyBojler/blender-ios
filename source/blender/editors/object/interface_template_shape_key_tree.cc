@@ -154,7 +154,7 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
 
   bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override
   {
-    Object *ob = CTX_data_active_object(C);
+    Object *ob = CTX_data_active_object(*C);
     Key *key = BKE_key_from_object(ob);
     const KeyBlock **drag_shapekey = static_cast<const KeyBlock **>(drag_info.drag_data.poin);
 
@@ -278,7 +278,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
 
   void delete_item(bContext *C) override
   {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     BKE_object_shapekey_remove(bmain, shape_key_.object, shape_key_.kb);
     DEG_id_tag_update(&shape_key_.object->id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
@@ -321,7 +321,7 @@ void ShapeKeyTreeView::build_tree()
 
 void template_tree(ui::Layout *layout, bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob == nullptr) {
     return;
   }

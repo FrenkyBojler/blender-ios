@@ -72,7 +72,7 @@
  */
 static bool act_markers_make_local_poll(bContext *C)
 {
-  SpaceAction *sact = CTX_wm_space_action(C);
+  SpaceAction *sact = CTX_wm_space_action(*C);
 
   /* 1) */
   if (sact == nullptr) {
@@ -86,7 +86,7 @@ static bool act_markers_make_local_poll(bContext *C)
 
   /* 3) */
   bAction *active_action = ANIM_active_action_from_area(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
+      CTX_data_scene(*C), CTX_data_view_layer(*C), CTX_wm_area(*C));
   if (!active_action) {
     return false;
   }
@@ -99,7 +99,7 @@ static wmOperatorStatus act_markers_make_local_exec(bContext *C, wmOperator * /*
 {
   ListBaseT<TimeMarker> *markers = ED_context_get_markers(C);
   bAction *act = ANIM_active_action_from_area(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
+      CTX_data_scene(*C), CTX_data_view_layer(*C), CTX_wm_area(*C));
 
   TimeMarker *marker, *markern = nullptr;
 
@@ -121,7 +121,7 @@ static wmOperatorStatus act_markers_make_local_exec(bContext *C, wmOperator * /*
 
   /* Now enable the "show pose-markers only" setting,
    * so that we can see that something did happen. */
-  SpaceAction *sact = CTX_wm_space_action(C);
+  SpaceAction *sact = CTX_wm_space_action(*C);
   sact->flag |= SACTION_POSEMARKERS_SHOW;
 
   /* notifiers - both sets, as this change affects both */
@@ -424,10 +424,10 @@ static wmOperatorStatus actkeys_viewall(bContext *C, const bool only_sel)
   }
 
   /* do View2D syncing */
-  blender::ui::view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
+  blender::ui::view2d_sync(CTX_wm_screen(*C), CTX_wm_area(*C), v2d, V2D_LOCK_COPY);
 
   /* just redraw this view */
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 
   return OPERATOR_FINISHED;
 }

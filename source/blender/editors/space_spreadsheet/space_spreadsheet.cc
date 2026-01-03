@@ -213,22 +213,22 @@ ID *get_current_id(const SpaceSpreadsheet *sspreadsheet)
 static void view_active_object(const bContext *C, SpaceSpreadsheet *sspreadsheet)
 {
   BKE_viewer_path_clear(&sspreadsheet->geometry_id.viewer_path);
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob == nullptr) {
     return;
   }
   IDViewerPathElem *id_elem = BKE_viewer_path_elem_new_id();
   id_elem->id = &ob->id;
   BLI_addtail(&sspreadsheet->geometry_id.viewer_path.path, id_elem);
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 }
 
 static void spreadsheet_update_context(const bContext *C)
 {
   using blender::ed::viewer_path::ViewerPathForGeometryNodesViewer;
 
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
-  Object *active_object = CTX_data_active_object(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
+  Object *active_object = CTX_data_active_object(*C);
   Object *context_object = blender::ed::viewer_path::parse_object_only(
       sspreadsheet->geometry_id.viewer_path);
   switch (eSpaceSpreadsheet_ObjectEvalState(sspreadsheet->geometry_id.object_eval_state)) {
@@ -257,7 +257,7 @@ static void spreadsheet_update_context(const bContext *C)
       break;
     }
     case SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE: {
-      WorkSpace *workspace = CTX_wm_workspace(C);
+      WorkSpace *workspace = CTX_wm_workspace(*C);
       if (sspreadsheet->flag & SPREADSHEET_FLAG_PINNED) {
         const std::optional<ViewerPathForGeometryNodesViewer> parsed_path =
             blender::ed::viewer_path::parse_geometry_nodes_viewer(
@@ -335,8 +335,8 @@ Object *spreadsheet_get_object_eval(const SpaceSpreadsheet *sspreadsheet,
 
 std::unique_ptr<DataSource> get_data_source(const bContext &C)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(&C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
 
   Object *object_eval = spreadsheet_get_object_eval(sspreadsheet, depsgraph);
   if (object_eval) {
@@ -430,7 +430,7 @@ static void update_visible_columns(SpreadsheetTable &table, DataSource &data_sou
 
 static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
 {
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
   spreadsheet_update_context(C);
 
   std::unique_ptr<DataSource> data_source = get_data_source(*C);
@@ -511,12 +511,12 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
   rcti mask;
   ui::view2d_mask_from_win(&region->v2d, &mask);
   mask.ymax -= sspreadsheet->runtime->top_row_height;
-  ED_region_draw_overflow_indication(CTX_wm_area(C), region, &mask);
+  ED_region_draw_overflow_indication(CTX_wm_area(*C), region, &mask);
 
   /* Tag other regions for redraw, because the main region updates data for them. */
-  ARegion *footer = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_FOOTER);
+  ARegion *footer = BKE_area_find_region_type(CTX_wm_area(*C), RGN_TYPE_FOOTER);
   ED_region_tag_redraw(footer);
-  ARegion *sidebar = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_UI);
+  ARegion *sidebar = BKE_area_find_region_type(CTX_wm_area(*C), RGN_TYPE_UI);
   ED_region_tag_redraw(sidebar);
 }
 
@@ -632,7 +632,7 @@ static void spreadsheet_footer_region_init(wmWindowManager * /*wm*/, ARegion *re
 
 static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
 {
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
   SpaceSpreadsheet_Runtime *runtime = sspreadsheet->runtime;
   std::stringstream ss;
   ss << IFACE_("Rows:") << " ";

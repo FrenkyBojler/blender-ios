@@ -493,7 +493,7 @@ static int /*eContextResult*/ clip_context(const bContext *C,
                                            const char *member,
                                            bContextDataResult *result)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, clip_context_dir);
@@ -553,7 +553,7 @@ static void clip_dropboxes()
 
 static void clip_refresh(const bContext *C, ScrArea *area)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   SpaceClip *sc = (SpaceClip *)area->spacedata.first;
 
   ARegion *region_preview = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
@@ -600,7 +600,7 @@ static void clip_gizmos()
 /* sets up the fields of the View2D from zoom and offset */
 static void movieclip_main_area_set_view2d(const bContext *C, ARegion *region)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   float x1, y1, w, h, aspx, aspy;
   int width, height, winx, winy;
 
@@ -674,7 +674,7 @@ static void clip_main_region_init(wmWindowManager *wm, ARegion *region)
 static void clip_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   float aspx, aspy, zoomx, zoomy, x, y;
   int width, height;
@@ -722,12 +722,12 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   ED_space_clip_get_aspect(sc, &aspx, &aspy);
 
   if (sc->mode == SC_MODE_MASKEDIT) {
-    Mask *mask = CTX_data_edit_mask(C);
+    Mask *mask = CTX_data_edit_mask(*C);
     if (mask && clip) {
-      ScrArea *area = CTX_wm_area(C);
+      ScrArea *area = CTX_wm_area(*C);
       int mask_width, mask_height;
       ED_mask_get_size(area, &mask_width, &mask_height);
-      ED_mask_draw_region(CTX_data_expect_evaluated_depsgraph(C),
+      ED_mask_draw_region(CTX_data_expect_evaluated_depsgraph(*C),
                           mask,
                           region,
                           sc->overlay.flag & SC_SHOW_OVERLAYS,
@@ -847,8 +847,8 @@ static void clip_preview_region_init(wmWindowManager *wm, ARegion *region)
 static void graph_region_draw(const bContext *C, ARegion *region)
 {
   View2D *v2d = &region->v2d;
-  SpaceClip *sc = CTX_wm_space_clip(C);
-  Scene *scene = CTX_data_scene(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
+  Scene *scene = CTX_data_scene(*C);
   short cfra_flag = 0;
   const bool minimized = (region->winy <= HEADERY * UI_SCALE_FAC * 1.1f);
 
@@ -901,8 +901,8 @@ static void graph_region_draw(const bContext *C, ARegion *region)
 
 static void dopesheet_region_draw(const bContext *C, ARegion *region)
 {
-  Scene *scene = CTX_data_scene(C);
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  Scene *scene = CTX_data_scene(*C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   View2D *v2d = &region->v2d;
   short cfra_flag = 0;
@@ -954,7 +954,7 @@ static void dopesheet_region_draw(const bContext *C, ARegion *region)
 
 static void clip_preview_region_draw(const bContext *C, ARegion *region)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
 
   if (sc->view == SC_VIEW_GRAPH) {
     graph_region_draw(C, region);
@@ -994,7 +994,7 @@ static void clip_channels_region_init(wmWindowManager *wm, ARegion *region)
 
 static void clip_channels_region_draw(const bContext *C, ARegion *region)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   View2D *v2d = &region->v2d;
 
@@ -1144,7 +1144,7 @@ static void clip_properties_region_init(wmWindowManager *wm, ARegion *region)
 
 static void clip_properties_region_draw(const bContext *C, ARegion *region)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
 
   BKE_movieclip_update_scopes(sc->clip, &sc->user, &sc->scopes);
 

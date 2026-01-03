@@ -1609,7 +1609,7 @@ static void restore_original_state(bContext *C, Object &ob, Cache &expand_cache)
  */
 static void sculpt_expand_cancel(bContext *C, wmOperator * /*op*/)
 {
-  Object &ob = *CTX_data_active_object(C);
+  Object &ob = *CTX_data_active_object(*C);
   SculptSession &ss = *ob.sculpt;
 
   restore_original_state(C, ob, *ss.expand_cache);
@@ -1912,7 +1912,7 @@ static void face_sets_restore(Object &object, Cache &expand_cache)
 
 static void update_for_vert(bContext *C, Object &ob, const std::optional<int> vertex)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
   SculptSession &ss = *ob.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   Cache &expand_cache = *ss.expand_cache;
@@ -2045,7 +2045,7 @@ static void reposition_pivot(bContext *C, Object &ob, Cache &expand_cache)
 {
   SculptSession &ss = *ob.sculpt;
   const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
 
   const bool initial_invert_state = expand_cache.invert;
   expand_cache.invert = false;
@@ -2127,7 +2127,7 @@ static void reposition_pivot(bContext *C, Object &ob, Cache &expand_cache)
 
 static void finish(bContext *C)
 {
-  Object &ob = *CTX_data_active_object(C);
+  Object &ob = *CTX_data_active_object(*C);
   SculptSession &ss = *ob.sculpt;
   undo::push_end(ob);
 
@@ -2186,7 +2186,7 @@ static bool set_initial_components_for_mouse(bContext *C,
                                              const float mval[2])
 {
   SculptSession &ss = *ob.sculpt;
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
 
   std::optional<int> initial_vert = target_vert_update_and_get(C, ob, mval);
   if (!initial_vert) {
@@ -2235,7 +2235,7 @@ static void move_propagation_origin(bContext *C,
                                     const wmEvent *event,
                                     Cache &expand_cache)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
   float move_disp[2];
   sub_v2_v2v2(move_disp, mval_fl, expand_cache.initial_mouse_move);
@@ -2359,7 +2359,7 @@ static void sculpt_expand_status(bContext *C, wmOperator *op, Cache *expand_cach
 
 static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Object &ob = *CTX_data_active_object(C);
+  Object &ob = *CTX_data_active_object(*C);
   SculptSession &ss = *ob.sculpt;
 
   /* Skips INBETWEEN_MOUSEMOVE events and other events that may cause unnecessary updates. */
@@ -2368,7 +2368,7 @@ static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const w
   }
 
   /* Update SculptSession data. */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
   ensure_sculptsession_data(ob);
 
@@ -2645,14 +2645,14 @@ static void cache_initial_config_set(bContext *C, wmOperator *op, Cache &expand_
 
   /* Texture and color data from the active Brush. */
   const Paint *paint = BKE_paint_get_active_from_context(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
   expand_cache.paint = paint;
   expand_cache.brush = BKE_paint_brush_for_read(&sd.paint);
   BKE_curvemapping_init(expand_cache.brush->curve_distance_falloff);
   copy_v4_fl(expand_cache.fill_color, 1.0f);
   copy_v3_v3(expand_cache.fill_color, BKE_brush_color_get(paint, expand_cache.brush));
 
-  expand_cache.scene = CTX_data_scene(C);
+  expand_cache.scene = CTX_data_scene(*C);
   expand_cache.texture_distortion_strength = 0.0f;
   expand_cache.blend_mode = expand_cache.brush->blend;
 }
@@ -2723,14 +2723,14 @@ static bool any_nonzero_mask(const Object &object)
 
 static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const Scene &scene = *CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Object &ob = *CTX_data_active_object(C);
+  const Scene &scene = *CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Object &ob = *CTX_data_active_object(*C);
   SculptSession &ss = *ob.sculpt;
   Mesh *mesh = static_cast<Mesh *>(ob.data);
 
-  const View3D *v3d = CTX_wm_view3d(C);
-  const Base *base = CTX_data_active_base(C);
+  const View3D *v3d = CTX_wm_view3d(*C);
+  const Base *base = CTX_data_active_base(*C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -2746,13 +2746,13 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
     /* CTX_data_ensure_evaluated_depsgraph should be used at the end to include the updates of
      * earlier steps modifying the data. */
     BKE_sculpt_color_layer_create_if_needed(&ob);
-    depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   }
 
   if (ss.expand_cache->target == TargetType::Mask) {
-    Scene &scene = *CTX_data_scene(C);
+    Scene &scene = *CTX_data_scene(*C);
     MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
-    BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), &ob, mmd);
+    BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(*C), &ob, mmd);
 
     if (RNA_boolean_get(op->ptr, "use_auto_mask")) {
       if (any_nonzero_mask(ob)) {

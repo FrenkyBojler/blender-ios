@@ -48,7 +48,7 @@ static bool pointcloud_poll_impl(bContext *C,
                                  const bool check_editable,
                                  const bool check_edit_mode)
 {
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   if (object == nullptr || object->type != OB_POINTCLOUD) {
     return false;
   }
@@ -79,14 +79,14 @@ VectorSet<PointCloud *> get_unique_editable_pointclouds(const bContext &C)
 {
   VectorSet<PointCloud *> unique_points;
 
-  const Main &bmain = *CTX_data_main(&C);
+  const Main &bmain = *CTX_data_main(C);
 
-  Object *object = CTX_data_active_object(&C);
+  Object *object = CTX_data_active_object(C);
   if (object && object_has_editable_pointcloud(bmain, *object)) {
     unique_points.add_new(static_cast<PointCloud *>(object->data));
   }
 
-  CTX_DATA_BEGIN (&C, Object *, object, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
     if (object_has_editable_pointcloud(bmain, *object)) {
       unique_points.add(static_cast<PointCloud *>(object->data));
     }

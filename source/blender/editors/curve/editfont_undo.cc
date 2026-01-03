@@ -309,8 +309,8 @@ static void undofont_free_data(UndoFont *uf)
 
 static Object *editfont_object_from_context(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   if (obedit && obedit->type == OB_FONT) {
@@ -346,7 +346,7 @@ static bool font_undosys_poll(bContext *C)
 static bool font_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
 {
   FontUndoStep *us = (FontUndoStep *)us_p;
-  us->scene_ref.ptr = CTX_data_scene(C);
+  us->scene_ref.ptr = CTX_data_scene(*C);
   us->obedit_ref.ptr = editfont_object_from_context(C);
   Curve *cu = static_cast<Curve *>(us->obedit_ref.ptr->data);
   undofont_from_editfont(&us->data, cu);
@@ -363,12 +363,12 @@ static void font_undosys_step_decode(
 
   FontUndoStep *us = (FontUndoStep *)us_p;
   Object *obedit = us->obedit_ref.ptr;
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   /* Pass in an array of 1 (typically used for multi-object edit-mode). */
   ED_undo_object_editmode_validate_scene_from_windows(
-      CTX_wm_manager(C), us->scene_ref.ptr, &scene, &view_layer);
+      CTX_wm_manager(*C), us->scene_ref.ptr, &scene, &view_layer);
   ED_undo_object_editmode_restore_helper(scene, view_layer, &obedit, 1, sizeof(Object *));
 
   Curve *cu = static_cast<Curve *>(obedit->data);
@@ -378,7 +378,7 @@ static void font_undosys_step_decode(
   ED_undo_object_set_active_or_warn(scene, view_layer, obedit, us_p->name, &LOG);
 
   /* Check after setting active (unless undoing into another scene). */
-  BLI_assert(font_undosys_poll(C) || (scene != CTX_data_scene(C)));
+  BLI_assert(font_undosys_poll(C) || (scene != CTX_data_scene(*C)));
 
   cu->editfont->needs_flush_to_id = 1;
   bmain->is_memfile_undo_flush_needed = true;

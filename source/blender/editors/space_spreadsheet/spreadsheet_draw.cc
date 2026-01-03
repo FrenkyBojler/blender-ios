@@ -346,7 +346,7 @@ void draw_spreadsheet_in_region(const bContext *C,
                                 ARegion *region,
                                 const SpreadsheetDrawer &drawer)
 {
-  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(*C);
 
   update_view2d_tot_rect(drawer, region, drawer.tot_rows);
 

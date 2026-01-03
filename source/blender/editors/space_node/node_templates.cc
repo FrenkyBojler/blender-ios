@@ -206,7 +206,7 @@ static void node_socket_add_replace(const bContext *C,
                                     int type,
                                     NodeLinkItem *item)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bNode *node_from;
   bNodeSocket *sock_from_tmp;
   bNode *node_prev = nullptr;
@@ -602,8 +602,8 @@ static void node_menu_column_foreach_cb(void *calldata, int nclass, const String
 
 static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *but_p)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   ui::Block *block = layout->block();
   ui::Button *but = (ui::Button *)but_p;
   ui::Layout *split, *column;
@@ -971,7 +971,7 @@ static void ui_node_draw_input(ui::Layout &layout,
           break;
         case SOCK_STRING: {
           const bNodeTree *node_tree = (const bNodeTree *)nodeptr.owner_id;
-          SpaceNode *snode = CTX_wm_space_node(&C);
+          SpaceNode *snode = CTX_wm_space_node(C);
           if (node_tree->type == NTREE_GEOMETRY && snode != nullptr) {
             /* Only add the attribute search in the node editor, in other places there is not
              * enough context. */

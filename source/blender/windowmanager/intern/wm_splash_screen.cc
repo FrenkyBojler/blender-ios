@@ -56,7 +56,7 @@
 
 static void wm_block_splash_close(bContext *C, void *arg_block, void * /*arg*/)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
 }
 
@@ -252,7 +252,7 @@ static ImBuf *wm_block_splash_banner_image(int *r_width,
  */
 static void wm_block_splash_close_on_fileselect(bContext *C, void *arg1, void * /*arg2*/)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   if (!win) {
     return;
   }
@@ -309,7 +309,7 @@ static blender::ui::Block *wm_block_splash_create(bContext *C, ARegion *region, 
   block_theme_style_set(block, blender::ui::BLOCK_THEME_STYLE_POPUP);
 
   int splash_width = style->widget.points * 45 * UI_SCALE_FAC;
-  CLAMP_MAX(splash_width, WM_window_native_pixel_x(CTX_wm_window(C)) * 0.7f);
+  CLAMP_MAX(splash_width, WM_window_native_pixel_x(CTX_wm_window(*C)) * 0.7f);
   int splash_height;
 
   /* Would be nice to support caching this, so it only has to be re-read (and likely resized) on

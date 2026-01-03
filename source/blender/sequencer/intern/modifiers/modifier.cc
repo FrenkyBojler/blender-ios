@@ -141,7 +141,7 @@ static void modifier_panel_header(const bContext * /*C*/, Panel *panel)
 
 void draw_mask_input_type_settings(const bContext *C, ui::Layout &layout, PointerRNA *ptr)
 {
-  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(sequencer_scene);
 
   const int input_mask_type = RNA_enum_get(ptr, "input_mask_type");
@@ -167,7 +167,7 @@ void draw_mask_input_type_settings(const bContext *C, ui::Layout &layout, Pointe
 
 bool modifier_ui_poll(const bContext *C, PanelType * /*pt*/)
 {
-  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(*C);
   if (!sequencer_scene) {
     return false;
   }

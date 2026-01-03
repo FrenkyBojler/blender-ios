@@ -228,7 +228,7 @@ void wm_dropbox_free()
 
 static void wm_dropbox_invoke(bContext *C, wmDrag *drag)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   /* Create a bitmap flag matrix of all currently visible region and area types.
    * Everything that isn't visible in the current window should not prefetch any data. */
@@ -312,7 +312,7 @@ wmDrag *WM_drag_data_create(bContext *C, int icon, eWM_DragDataType type, void *
 
 void WM_event_start_prepared_drag(bContext *C, wmDrag *drag)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   BLI_addtail(&wm->runtime->drags, drag);
   wm_dropbox_invoke(C, drag);
@@ -347,7 +347,7 @@ void wm_drags_exit(wmWindowManager *wm, wmWindow *win)
 
 static std::unique_ptr<bContextStore> wm_drop_ui_context_create(const bContext *C)
 {
-  blender::ui::Button *active_but = blender::ui::region_active_but_get(CTX_wm_region(C));
+  blender::ui::Button *active_but = blender::ui::region_active_but_get(CTX_wm_region(*C));
   if (!active_but) {
     return nullptr;
   }
@@ -369,7 +369,7 @@ void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale)
 void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext *C, wmDrag *drag)
 {
   BLI_assert(drag->type == WM_DRAG_PATH);
-  const SpaceFile *sfile = CTX_wm_space_file(C);
+  const SpaceFile *sfile = CTX_wm_space_file(*C);
   if (!sfile) {
     return;
   }
@@ -515,7 +515,7 @@ static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *ev
     return nullptr;
   }
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   bScreen *screen = WM_window_get_active_screen(win);
   ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
   wmDropBox *drop = nullptr;
@@ -543,7 +543,7 @@ static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *ev
  */
 static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   const blender::int2 win_size = WM_window_native_pixel_size(win);
 
   /* For multi-window drags, we only do this if mouse inside. */
@@ -569,8 +569,8 @@ static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *even
       drop->on_enter(drop, drag);
     }
     drag->drop_state.active_dropbox = drop;
-    drag->drop_state.area_from = drop ? CTX_wm_area(C) : nullptr;
-    drag->drop_state.region_from = drop ? CTX_wm_region(C) : nullptr;
+    drag->drop_state.area_from = drop ? CTX_wm_area(*C) : nullptr;
+    drag->drop_state.region_from = drop ? CTX_wm_region(*C) : nullptr;
   }
 
   if (!drag->drop_state.active_dropbox) {
@@ -593,7 +593,7 @@ void wm_drop_prepare(bContext *C, wmDrag *drag, wmDropBox *drop)
     drop->copy(C, drag, drop);
   }
 
-  wm_drags_exit(CTX_wm_manager(C), CTX_wm_window(C));
+  wm_drags_exit(CTX_wm_manager(*C), CTX_wm_window(*C));
 }
 
 void wm_drop_end(bContext *C, wmDrag * /*drag*/, wmDropBox * /*drop*/)
@@ -603,7 +603,7 @@ void wm_drop_end(bContext *C, wmDrag * /*drag*/, wmDropBox * /*drop*/)
 
 void wm_drags_check_ops(bContext *C, const wmEvent *event)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   bool any_active = false;
   for (wmDrag &drag : wm->runtime->drags) {
@@ -617,7 +617,7 @@ void wm_drags_check_ops(bContext *C, const wmEvent *event)
   /* Change the cursor to display that dropping isn't possible here. But only if there is something
    * being dragged actually. Cursor will be restored in #wm_drags_exit(). */
   if (!BLI_listbase_is_empty(&wm->runtime->drags)) {
-    WM_cursor_modal_set(CTX_wm_window(C), any_active ? WM_CURSOR_DEFAULT : WM_CURSOR_STOP);
+    WM_cursor_modal_set(CTX_wm_window(*C), any_active ? WM_CURSOR_DEFAULT : WM_CURSOR_STOP);
   }
 }
 
@@ -740,18 +740,18 @@ ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, const in
   }
 
   asset::ImportInstantiateContext instantiate_context;
-  instantiate_context.scene = CTX_data_scene(C);
-  instantiate_context.view_layer = CTX_data_view_layer(C);
-  instantiate_context.view3d = CTX_wm_view3d(C);
+  instantiate_context.scene = CTX_data_scene(*C);
+  instantiate_context.view_layer = CTX_data_view_layer(*C);
+  instantiate_context.view3d = CTX_wm_view3d(*C);
 
   /* FIXME: Link/Append should happens in the operator called at the end of drop process, not from
    * here. */
-  return asset::asset_local_id_ensure_imported(*CTX_data_main(C),
+  return asset::asset_local_id_ensure_imported(*CTX_data_main(*C),
                                                *asset_drag->asset,
                                                flag,
                                                asset_drag->import_settings.method,
                                                instantiate_context,
-                                               CTX_wm_reports(C));
+                                               CTX_wm_reports(*C));
 }
 
 bool WM_drag_asset_will_import_linked(const wmDrag *drag)
@@ -1141,7 +1141,7 @@ void WM_drag_draw_item_name_fn(bContext * /*C*/, wmWindow *win, wmDrag *drag, co
 
 static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2])
 {
-  if (!CTX_wm_region(C)) {
+  if (!CTX_wm_region(*C)) {
     /* Some callbacks require the region. */
     return;
   }
@@ -1257,15 +1257,15 @@ void wm_drags_draw(bContext *C, wmWindow *win)
     xy = xy_buf;
   }
 
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
   /* To start with, use the area and region under the mouse cursor, just like event handling. The
    * operator context may still override it. */
   ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, xy);
   ARegion *region = ED_area_find_region_xy_visual(area, RGN_TYPE_ANY, xy);
   /* Will be overridden and unset eventually. */
-  BLI_assert(!CTX_wm_area(C) && !CTX_wm_region(C));
+  BLI_assert(!CTX_wm_area(*C) && !CTX_wm_region(*C));
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   /* Should we support multi-line drag draws? Maybe not, more types mixed won't work well. */
   GPU_blend(GPU_BLEND_ALPHA);

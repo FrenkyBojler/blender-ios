@@ -75,18 +75,19 @@ static void image_scopes_tag_refresh(ScrArea *area)
 static void image_user_refresh_scene(const bContext *C, SpaceImage *sima)
 {
   /* Update scene image user for acquiring render results. */
-  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(*C);
   sima->iuser.scene = (sima->iuser.flag & IMA_SHOW_SEQUENCER_SCENE) && sequencer_scene ?
                           sequencer_scene :
-                          CTX_data_scene(C);
+                          CTX_data_scene(*C);
 
   if (sima->image && sima->image->type == IMA_TYPE_R_RESULT) {
     /* While rendering, prefer scene that is being rendered. */
     Scene *render_scene = ED_render_job_get_current_scene(C);
     if (render_scene) {
       sima->iuser.scene = render_scene;
-      SET_FLAG_FROM_TEST(
-          sima->iuser.flag, render_scene == CTX_data_sequencer_scene(C), IMA_SHOW_SEQUENCER_SCENE);
+      SET_FLAG_FROM_TEST(sima->iuser.flag,
+                         render_scene == CTX_data_sequencer_scene(*C),
+                         IMA_SHOW_SEQUENCER_SCENE);
     }
   }
 
@@ -279,7 +280,7 @@ static void image_dropboxes() {}
  */
 static void image_refresh(const bContext *C, ScrArea *area)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
   Image *ima;
 
@@ -450,7 +451,7 @@ static int /*eContextResult*/ image_context(const bContext *C,
                                             const char *member,
                                             bContextDataResult *result)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, image_context_dir);
@@ -638,11 +639,11 @@ static void image_main_region_init(wmWindowManager *wm, ARegion *region)
 static void image_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
-  SpaceImage *sima = CTX_wm_space_image(C);
-  Object *obedit = CTX_data_edit_object(C);
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  Object *obedit = CTX_data_edit_object(*C);
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(*C);
   Mask *mask = nullptr;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   View2D *v2d = &region->v2d;
   Image *image = ED_space_image(sima);
   /* Typically a render result or viewer image from the compositor. */
@@ -857,12 +858,12 @@ static void image_buttons_region_init(wmWindowManager *wm, ARegion *region)
 
 static void image_buttons_region_layout(const bContext *C, ARegion *region)
 {
-  const enum eContextObjectMode mode = CTX_data_mode_enum(C);
+  const enum eContextObjectMode mode = CTX_data_mode_enum(*C);
   const char *contexts_base[3] = {nullptr};
 
   const char **contexts = contexts_base;
 
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   switch (sima->mode) {
     case SI_MODE_VIEW:
       break;
@@ -888,8 +889,8 @@ static void image_buttons_region_layout(const bContext *C, ARegion *region)
 
 static void image_buttons_region_draw(const bContext *C, ARegion *region)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
-  Scene *scene = CTX_data_scene(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  Scene *scene = CTX_data_scene(*C);
   void *lock;
   /* TODO(lukas): Support tiles in scopes? */
   ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
@@ -1022,7 +1023,7 @@ static void image_tools_region_listener(const wmRegionListenerParams *params)
 
 static void image_tools_header_region_draw(const bContext *C, ARegion *region)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
 
   image_user_refresh_scene(C, sima);
@@ -1045,7 +1046,7 @@ static void image_header_region_init(wmWindowManager * /*wm*/, ARegion *region)
 
 static void image_header_region_draw(const bContext *C, ARegion *region)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
 
   image_user_refresh_scene(C, sima);

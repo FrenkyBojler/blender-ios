@@ -310,9 +310,9 @@ static BoneCollection *join_armature_remap_collection(
 
 wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Object *ob_active = CTX_data_active_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *ob_active = CTX_data_active_object(*C);
   bArmature *arm = static_cast<bArmature *>((ob_active) ? ob_active->data : nullptr);
   bPose *pose, *opose;
   bPoseChannel *pchan, *pchann;
@@ -328,7 +328,7 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob_iter, selected_editable_objects) {
     if (ob_iter == ob_active) {
       ok = true;
       break;
@@ -346,7 +346,7 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
    * each to-be-joined Armature is unique. */
   {
     blender::Set<const bArmature *> seen_armatures;
-    CTX_DATA_BEGIN (C, const Object *, ob_iter, selected_editable_objects) {
+    CTX_DATA_BEGIN (*C, const Object *, ob_iter, selected_editable_objects) {
       if (ob_iter->type != OB_ARMATURE) {
         continue;
       }
@@ -388,7 +388,7 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
   pose = ob_active->pose;
   ob_active->mode &= ~OB_MODE_POSE;
 
-  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob_iter, selected_editable_objects) {
     if ((ob_iter->type == OB_ARMATURE) && (ob_iter != ob_active)) {
       bArmature *curarm = static_cast<bArmature *>(ob_iter->data);
 
@@ -702,16 +702,16 @@ static void separate_armature_bones(Main *bmain, Object *ob, const bool is_selec
 /* separate selected bones into their armature */
 static wmOperatorStatus separate_armature_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   bool ok = false;
 
   /* set wait cursor in case this takes a while */
   WM_cursor_wait(true);
 
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   for (Base *base_old : bases) {
     Object *ob_old = base_old->object;
@@ -897,9 +897,9 @@ static const EnumPropertyItem prop_editarm_make_parent_types[] = {
 
 static wmOperatorStatus armature_parent_set_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_edit_object(C);
+  Object *ob = CTX_data_edit_object(*C);
   bArmature *arm = static_cast<bArmature *>(ob->data);
-  EditBone *actbone = CTX_data_active_bone(C);
+  EditBone *actbone = CTX_data_active_bone(*C);
   EditBone *actmirb = nullptr;
   short val = RNA_enum_get(op->ptr, "type");
 
@@ -993,7 +993,7 @@ static wmOperatorStatus armature_parent_set_invoke(bContext *C,
   /* False when all selected bones are connected to the active bone. */
   bool enable_connect = false;
   {
-    Object *ob = CTX_data_edit_object(C);
+    Object *ob = CTX_data_edit_object(*C);
     bArmature *arm = static_cast<bArmature *>(ob->data);
     EditBone *actbone = arm->act_edbone;
     for (EditBone &ebone : *arm->edbo) {
@@ -1074,17 +1074,17 @@ static void editbone_clear_parent(EditBone *ebone, int mode)
 
 static wmOperatorStatus armature_parent_clear_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const int val = RNA_enum_get(op->ptr, "type");
 
-  CTX_DATA_BEGIN (C, EditBone *, ebone, selected_editable_bones) {
+  CTX_DATA_BEGIN (*C, EditBone *, ebone, selected_editable_bones) {
     editbone_clear_parent(ebone, val);
   }
   CTX_DATA_END;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     bool changed = false;
@@ -1117,7 +1117,7 @@ static wmOperatorStatus armature_parent_clear_invoke(bContext *C,
   /* False when no selected bones are parented to the active bone. */
   bool enable_clear = false;
   {
-    Object *ob = CTX_data_edit_object(C);
+    Object *ob = CTX_data_edit_object(*C);
     bArmature *arm = static_cast<bArmature *>(ob->data);
     for (EditBone &ebone : *arm->edbo) {
       if (!EBONE_EDITABLE(&ebone) || !(ebone.flag & BONE_SELECTED)) {

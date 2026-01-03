@@ -67,8 +67,8 @@ void ensure_surface_deformation_node_exists(bContext &C, Object &curves_ob)
     return;
   }
 
-  Main *bmain = CTX_data_main(&C);
-  Scene *scene = CTX_data_scene(&C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
 
   ModifierData *md = object::modifier_add(
       nullptr, bmain, scene, &curves_ob, DATA_("Surface Deform"), eModifierType_Nodes);

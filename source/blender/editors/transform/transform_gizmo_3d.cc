@@ -539,12 +539,12 @@ static int gizmo_3d_foreach_selected(const bContext *C,
         user_fn(co);
       };
 
-  ScrArea *area = CTX_wm_area(C);
-  Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(*C);
+  Scene *scene = CTX_data_scene(*C);
   /* TODO(sergey): This function is used from operator's modal() and from gizmo's refresh().
    * Is it fine to possibly evaluate dependency graph here? */
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   int a, totsel = 0;
 
@@ -556,7 +556,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
   { \
     invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr()); \
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode( \
-        scene, view_layer, CTX_wm_view3d(C)); \
+        scene, view_layer, CTX_wm_view3d(*C)); \
     for (Object *ob_iter : objects) { \
       const bool use_mat_local = (ob_iter != obedit);
 
@@ -982,9 +982,9 @@ int calc_gizmo_stats(const bContext *C,
                      TransformBounds *tbounds,
                      RegionView3D *rv3d)
 {
-  ScrArea *area = CTX_wm_area(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ScrArea *area = CTX_wm_area(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   int totsel = 0;
 
@@ -1089,7 +1089,7 @@ static bool gizmo_3d_calc_pos(const bContext *C,
       copy_v3_v3(r_pivot_pos, scene->cursor.location);
       return true;
     case V3D_AROUND_ACTIVE: {
-      ViewLayer *view_layer = CTX_data_view_layer(C);
+      ViewLayer *view_layer = CTX_data_view_layer(*C);
       BKE_view_layer_synced_ensure(scene, view_layer);
       Object *ob = BKE_view_layer_active_object_get(view_layer);
       if (ob != nullptr) {
@@ -1152,7 +1152,7 @@ static bool gizmo_3d_calc_pos(const bContext *C,
 
 void gizmo_prepare_mat(const bContext *C, RegionView3D *rv3d, const TransformBounds *tbounds)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   gizmo_3d_calc_pos(C, scene, tbounds, scene->toolsettings->transform_pivot_point, rv3d->twmat[3]);
 }
 
@@ -1695,7 +1695,7 @@ static wmOperatorStatus gizmo_modal(bContext *C,
     return OPERATOR_RUNNING_MODAL;
   }
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   wmGizmoGroup *gzgroup = widget->parent_gzgroup;
 
@@ -1720,7 +1720,7 @@ static wmOperatorStatus gizmo_modal(bContext *C,
     }
   }
   else {
-    wmWindow *win = CTX_wm_window(C);
+    wmWindow *win = CTX_wm_window(*C);
     wmOperator *op = nullptr;
     for (const wmGizmoOpElem &gzop : widget->op_data) {
       op = WM_operator_find_modal_by_type(win, gzop.type);
@@ -1843,7 +1843,7 @@ static void WIDGETGROUP_gizmo_setup(const bContext *C, wmGizmoGroup *gzgroup)
   gzgroup->customdata = ggd;
 
   {
-    ScrArea *area = CTX_wm_area(C);
+    ScrArea *area = CTX_wm_area(*C);
     const bToolRef *tref = area->runtime.tool;
 
     ggd->twtype = 0;
@@ -1962,10 +1962,10 @@ static void WIDGETGROUP_gizmo_refresh(const bContext *C, wmGizmoGroup *gzgroup)
     return;
   }
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   GizmoGroup *ggd = static_cast<GizmoGroup *>(gzgroup->customdata);
-  Scene *scene = CTX_data_scene(C);
-  ScrArea *area = CTX_wm_area(C);
+  Scene *scene = CTX_data_scene(*C);
+  ScrArea *area = CTX_wm_area(*C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   TransformBounds tbounds;
@@ -1998,10 +1998,10 @@ static void WIDGETGROUP_gizmo_message_subscribe(const bContext *C,
                                                 wmGizmoGroup *gzgroup,
                                                 wmMsgBus *mbus)
 {
-  Scene *scene = CTX_data_scene(C);
-  bScreen *screen = CTX_wm_screen(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(*C);
+  bScreen *screen = CTX_wm_screen(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
   gizmo_xform_message_subscribe(
       gzgroup, mbus, scene, screen, area, region, VIEW3D_GGT_xform_gizmo);
 }
@@ -2018,7 +2018,7 @@ static void WIDGETGROUP_gizmo_draw_prepare(const bContext *C, wmGizmoGroup *gzgr
 {
   GizmoGroup *ggd = static_cast<GizmoGroup *>(gzgroup->customdata);
   // ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   // View3D *v3d =static_cast< View3D *> (area->spacedata.first);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   float viewinv_m3[3][3];
@@ -2077,7 +2077,7 @@ static void WIDGETGROUP_gizmo_draw_prepare(const bContext *C, wmGizmoGroup *gzgr
   /* Refresh handled above when using view orientation. */
   if (!equals_m3m3(viewinv_m3, ggd->prev.viewinv_m3)) {
     {
-      Scene *scene = CTX_data_scene(C);
+      Scene *scene = CTX_data_scene(*C);
       const TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get_from_flag(
           scene, ggd->twtype_init);
       switch (orient_slot->type) {
@@ -2150,11 +2150,11 @@ static void WIDGETGROUP_gizmo_invoke_prepare(const bContext *C,
   const int axis_idx = BLI_array_findindex(ggd->gizmos, ARRAY_SIZE(ggd->gizmos), &gz);
 
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
-  gizmo_3d_draw_invoke(gzgroup, CTX_wm_region(C), axis_idx, mval);
+  gizmo_3d_draw_invoke(gzgroup, CTX_wm_region(*C), axis_idx, mval);
 
   /* Support gizmo specific orientation. */
   if (gz != ggd->gizmos[MAN_AXIS_ROT_T]) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     wmGizmoOpElem *gzop = WM_gizmo_operator_get(gz, 0);
     PointerRNA *ptr = &gzop->ptr;
     PropertyRNA *prop_orient_type = RNA_struct_find_property(ptr, "orient_type");
@@ -2225,7 +2225,7 @@ static bool WIDGETGROUP_gizmo_poll_generic(View3D *v3d)
 
 static bool WIDGETGROUP_gizmo_poll_context(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   if (!WIDGETGROUP_gizmo_poll_generic(v3d)) {
     return false;
@@ -2254,7 +2254,7 @@ static bool WIDGETGROUP_gizmo_poll_tool(const bContext *C, wmGizmoGroupType *gzg
     return false;
   }
 
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   if (!WIDGETGROUP_gizmo_poll_generic(v3d)) {
     return false;
@@ -2489,7 +2489,7 @@ void transform_gizmo_3d_model_from_constraint_and_mode_restore(TransInfo *t)
 
 bool calc_pivot_pos(const bContext *C, const short pivot_type, float r_pivot_pos[3])
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   return gizmo_3d_calc_pos(C, scene, nullptr, pivot_type, r_pivot_pos);
 }
 

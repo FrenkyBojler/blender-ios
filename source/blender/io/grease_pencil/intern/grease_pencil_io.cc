@@ -75,8 +75,8 @@ IOContext::IOContext(bContext &C,
       region(region),
       v3d(v3d),
       rv3d(rv3d),
-      scene(CTX_data_scene(&C)),
-      depsgraph(CTX_data_depsgraph_pointer(&C))
+      scene(CTX_data_scene(C)),
+      depsgraph(CTX_data_depsgraph_pointer(C))
 {
 }
 
@@ -108,7 +108,7 @@ int GreasePencilImporter::create_material(const StringRefNull name,
   int mat_index = BKE_grease_pencil_object_material_index_get_by_name(object_, name.c_str());
   /* Stroke and Fill material. */
   if (mat_index == -1) {
-    Main *bmain = CTX_data_main(&context_.C);
+    Main *bmain = CTX_data_main(context_.C);
     int new_idx;
     Material *mat_gp = BKE_grease_pencil_object_material_new(
         bmain, object_, name.c_str(), &new_idx);
@@ -317,8 +317,8 @@ Vector<GreasePencilExporter::ObjectInfo> GreasePencilExporter::retrieve_objects(
 {
   using SelectMode = ExportParams::SelectMode;
 
-  Scene &scene = *CTX_data_scene(&context_.C);
-  ViewLayer *view_layer = CTX_data_view_layer(&context_.C);
+  Scene &scene = *CTX_data_scene(context_.C);
+  ViewLayer *view_layer = CTX_data_view_layer(context_.C);
   const float3 camera_z_axis = float3(context_.rv3d->viewinv[2]);
 
   BKE_view_layer_synced_ensure(&scene, view_layer);

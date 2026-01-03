@@ -296,8 +296,8 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
 
 wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(scene);
 
   VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
@@ -397,11 +397,11 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
   float2 view_mval;
   View2D *v2d = ui::view2d_fromcontext(C);
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   ui::view2d_region_to_view(v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
 
   /* For checking if region type is Preview. */
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   if (bfd == nullptr) {
     BKE_report(op->reports, RPT_INFO, "No data to paste");
@@ -434,7 +434,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Scene *scene_dst = CTX_data_sequencer_scene(C);
+  Scene *scene_dst = CTX_data_sequencer_scene(*C);
   Editing *ed_dst = seq::editing_ensure(scene_dst); /* Creates "ed" if it's missing. */
   int ofs;
 
@@ -460,7 +460,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   /* Make sure we have all data IDs we need in bmain_dst. Remap the IDs if we already have them.
    * This has to happen BEFORE we move the strip over to scene_dst. their ID mapping will not be
    * correct otherwise. */
-  Main *bmain_dst = CTX_data_main(C);
+  Main *bmain_dst = CTX_data_main(*C);
   MainMergeReport merge_reports = {};
   /* NOTE: BKE_main_merge will free bmain_src! */
   BKE_main_merge(bmain_dst, &bmain_src, merge_reports);

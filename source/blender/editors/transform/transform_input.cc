@@ -432,7 +432,7 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
 
   /* Setup for the mouse cursor: either set a custom one,
    * or hide it if it will be drawn with the helpline. */
-  wmWindow *win = CTX_wm_window(t->context);
+  wmWindow *win = CTX_wm_window(*t->context);
   switch (t->helpline) {
     case HLP_NONE:
       /* INPUT_VECTOR, INPUT_CUSTOM_RATIO, INPUT_CUSTOM_RATIO_FLIP. */
@@ -446,7 +446,7 @@ void initMouseInputMode(TransInfo *t, MouseInput *mi, MouseInputMode mode)
           WM_cursor_modal_set(win, transform_seq_slide_cursor_get(t));
         }
         else {
-          SpaceSeq *sseq = CTX_wm_space_seq(t->context);
+          SpaceSeq *sseq = CTX_wm_space_seq(*t->context);
           if (sseq != nullptr) {
             sseq->flag &= ~SPACE_SEQ_DESELECT_STRIP_HANDLE;
           }

@@ -123,7 +123,7 @@ static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gz
   if ((U.uiflag & USER_SHOW_GIZMO_NAVIGATE) == 0) {
     return false;
   }
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area == nullptr) {
     return false;
   }
@@ -220,7 +220,7 @@ static void WIDGETGROUP_navigate_setup(const bContext * /*C*/, wmGizmoGroup *gzg
 static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   NavigateWidgetGroup *navgroup = static_cast<NavigateWidgetGroup *>(gzgroup->customdata);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   const rcti *rect_visible = ED_region_visible_rect(region);
 

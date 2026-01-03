@@ -65,9 +65,9 @@ static bool view3d_camera_user_poll(bContext *C)
 
 static bool view3d_lock_poll(bContext *C)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   if (v3d) {
-    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    RegionView3D *rv3d = CTX_wm_region_view3d(*C);
     if (rv3d) {
       return ED_view3d_offset_lock_check(v3d, rv3d);
     }
@@ -81,7 +81,7 @@ static bool view3d_lock_poll(bContext *C)
 
 static wmOperatorStatus view_lock_clear_exec(bContext *C, wmOperator * /*op*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   if (v3d) {
     ED_view3d_lock_clear(v3d);
@@ -118,8 +118,8 @@ void VIEW3D_OT_view_lock_clear(wmOperatorType *ot)
 
 static wmOperatorStatus view_lock_to_active_exec(bContext *C, wmOperator * /*op*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
-  Object *obact = CTX_data_active_object(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Object *obact = CTX_data_active_object(*C);
 
   if (v3d) {
     ED_view3d_lock_clear(v3d);
@@ -128,7 +128,7 @@ static wmOperatorStatus view_lock_to_active_exec(bContext *C, wmOperator * /*op*
 
     if (obact && obact->type == OB_ARMATURE) {
       if (obact->mode & OB_MODE_POSE) {
-        Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+        Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
         Object *obact_eval = DEG_get_evaluated(depsgraph, obact);
         bPoseChannel *pcham_act = BKE_pose_channel_active_if_bonecoll_visible(obact_eval);
         if (pcham_act) {
@@ -175,8 +175,8 @@ void VIEW3D_OT_view_lock_to_active(wmOperatorType *ot)
 
 static wmOperatorStatus view3d_center_camera_exec(bContext *C, wmOperator * /*op*/)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
   float xfac, yfac;
   float size[2];
 
@@ -227,11 +227,11 @@ void VIEW3D_OT_view_center_camera(wmOperatorType *ot)
 
 static wmOperatorStatus view3d_center_lock_exec(bContext *C, wmOperator * /*op*/)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
 
   zero_v2(rv3d->ofs_lock);
 
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, CTX_wm_view3d(C));
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, CTX_wm_view3d(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -259,11 +259,11 @@ void VIEW3D_OT_view_center_lock(wmOperatorType *ot)
 
 static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
 {
-  View3D *v3d = CTX_wm_view3d(C);
-  ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = ED_view3d_context_rv3d(C);
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   rcti rect;
   rctf vb, border;
@@ -274,7 +274,7 @@ static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
   /* calculate range */
 
   if (rv3d->persp == RV3D_CAMOB) {
-    const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &vb);
   }
   else {
@@ -363,10 +363,10 @@ void VIEW3D_OT_render_border(wmOperatorType *ot)
 
 static wmOperatorStatus clear_render_border_exec(bContext *C, wmOperator *op)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   RegionView3D *rv3d = ED_view3d_context_rv3d(C);
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   rctf *border = nullptr;
 
   if (rv3d->persp == RV3D_CAMOB) {
@@ -438,8 +438,8 @@ static void view3d_set_1_to_1_viewborder(Scene *scene,
 
 static wmOperatorStatus view3d_zoom_1_to_1_camera_exec(bContext *C, wmOperator * /*op*/)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   View3D *v3d;
   ARegion *region;
@@ -571,7 +571,7 @@ void VIEW3D_OT_navigate(wmOperatorType *ot)
 static Camera *background_image_camera_from_context(bContext *C)
 {
   /* Needed to support drag-and-drop & camera buttons context. */
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   if (v3d != nullptr) {
     if (v3d->camera && v3d->camera->data && v3d->camera->type == OB_CAMERA) {
       return static_cast<Camera *>(v3d->camera->data);
@@ -579,7 +579,7 @@ static Camera *background_image_camera_from_context(bContext *C)
     return nullptr;
   }
 
-  return static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
+  return static_cast<Camera *>(CTX_data_pointer_get_type(*C, "camera", &RNA_Camera).data);
 }
 
 static wmOperatorStatus camera_background_image_add_exec(bContext *C, wmOperator *op)
@@ -644,7 +644,7 @@ void VIEW3D_OT_camera_background_image_add(wmOperatorType *ot)
 
 static wmOperatorStatus camera_background_image_remove_exec(bContext *C, wmOperator *op)
 {
-  Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
+  Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(*C, "camera", &RNA_Camera).data);
   const int index = RNA_int_get(op->ptr, "index");
   CameraBGImage *bgpic_rem = static_cast<CameraBGImage *>(BLI_findlink(&cam->bg_images, index));
 
@@ -701,8 +701,8 @@ void VIEW3D_OT_camera_background_image_remove(wmOperatorType *ot)
 
 static wmOperatorStatus drop_world_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   World *world = (World *)WM_operator_properties_id_lookup_from_name_or_session_uid(
       bmain, op->ptr, ID_WO);
@@ -778,8 +778,8 @@ void ED_view3d_clipping_local(RegionView3D *rv3d, const float mat[4][4])
 
 static wmOperatorStatus view3d_clipping_exec(bContext *C, wmOperator *op)
 {
-  ARegion *region = CTX_wm_region(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  ARegion *region = CTX_wm_region(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   rcti rect;
 
   WM_operator_properties_border_to_rcti(op, &rect);
@@ -795,8 +795,8 @@ static wmOperatorStatus view3d_clipping_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus view3d_clipping_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
-  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   if (rv3d->rflag & RV3D_CLIPPING) {
     rv3d->rflag &= ~RV3D_CLIPPING;
@@ -841,8 +841,8 @@ void ED_view3d_cursor3d_position(bContext *C,
                                  const bool use_depth,
                                  float r_cursor_co[3])
 {
-  ARegion *region = CTX_wm_region(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   bool flip;
   bool depth_used = false;
@@ -863,7 +863,7 @@ void ED_view3d_cursor3d_position(bContext *C,
   }
 
   if (use_depth) { /* maybe this should be accessed some other way */
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
     view3d_operator_needs_gpu(C);
 
@@ -889,9 +889,9 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
                                           float r_cursor_co[3],
                                           float r_cursor_quat[4])
 {
-  Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   /* XXX, caller should check. */
@@ -933,7 +933,7 @@ void ED_view3d_cursor3d_position_rotation(bContext *C,
     params.occlusion_test = blender::ed::transform::SNAP_OCCLUSION_AS_SEEM;
     if (blender::ed::transform::snap_object_project_view3d_ex(
             snap_context,
-            CTX_data_ensure_evaluated_depsgraph(C),
+            CTX_data_ensure_evaluated_depsgraph(*C),
             region,
             v3d,
             SCE_SNAP_TO_FACE,
@@ -1009,9 +1009,9 @@ void ED_view3d_cursor3d_update(bContext *C,
                                const bool use_depth,
                                enum eV3DCursorOrient orientation)
 {
-  Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   View3DCursor *cursor_curr = &scene->cursor;
@@ -1069,7 +1069,7 @@ void ED_view3d_cursor3d_update(bContext *C,
   }
 
   {
-    wmMsgBus *mbus = CTX_wm_message_bus(C);
+    wmMsgBus *mbus = CTX_wm_message_bus(*C);
     wmMsgParams_RNA msg_key_params = {{}};
     msg_key_params.ptr = RNA_pointer_create_discrete(
         &scene->id, &RNA_View3DCursor, &scene->cursor);
@@ -1156,9 +1156,9 @@ static const EnumPropertyItem prop_shading_type_items[] = {
 
 static wmOperatorStatus toggle_shading_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  ScrArea *area = CTX_wm_area(C);
+  Main *bmain = CTX_data_main(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  ScrArea *area = CTX_wm_area(*C);
   int type = RNA_enum_get(op->ptr, "type");
 
   if (type == OB_SOLID) {
@@ -1218,9 +1218,9 @@ void VIEW3D_OT_toggle_shading(wmOperatorType *ot)
 
 static wmOperatorStatus toggle_xray_exec(bContext *C, wmOperator *op)
 {
-  View3D *v3d = CTX_wm_view3d(C);
-  ScrArea *area = CTX_wm_area(C);
-  Object *obact = CTX_data_active_object(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  Object *obact = CTX_data_active_object(*C);
 
   if (obact && ((obact->mode & OB_MODE_POSE) ||
                 ((obact->mode & OB_MODE_WEIGHT_PAINT) && BKE_object_pose_armature_get(obact))))

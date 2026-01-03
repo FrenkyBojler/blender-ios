@@ -1068,8 +1068,8 @@ static void setup_app_data(bContext *C,
    * and always in case of undo MEMFILE reading. */
   if (mode != LOAD_UI) {
     /* Re-use current window and screen. */
-    win = CTX_wm_window(C);
-    curscreen = CTX_wm_screen(C);
+    win = CTX_wm_window(*C);
+    curscreen = CTX_wm_screen(*C);
 
     track_undo_scene = (mode == LOAD_UNDO && curscreen && curscene && bfd->main->wm.first);
 
@@ -1107,7 +1107,7 @@ static void setup_app_data(bContext *C,
     MEM_delete(reuse_data.remapper);
     reuse_data.remapper = nullptr;
 
-    wm_data_consistency_ensure(CTX_wm_manager(C), curscene, cur_view_layer);
+    wm_data_consistency_ensure(CTX_wm_manager(*C), curscene, cur_view_layer);
   }
 
   if (mode == LOAD_UNDO) {
@@ -1120,7 +1120,7 @@ static void setup_app_data(bContext *C,
      * Another source of potential inconsistency is undoing into a step where the active camera
      * object does not exist (see e.g. #125636).
      */
-    wm_data_consistency_ensure(CTX_wm_manager(C), curscene, cur_view_layer);
+    wm_data_consistency_ensure(CTX_wm_manager(*C), curscene, cur_view_layer);
   }
 
   BLI_assert(BKE_main_namemap_validate(*bfd->main));
@@ -1171,7 +1171,7 @@ static void setup_app_data(bContext *C,
     CTX_wm_region_set(C, nullptr);
     CTX_wm_region_popup_set(C, nullptr);
   }
-  BLI_assert(CTX_wm_manager(C) == static_cast<wmWindowManager *>(bmain->wm.first));
+  BLI_assert(CTX_wm_manager(*C) == static_cast<wmWindowManager *>(bmain->wm.first));
 
   /* Keep state from preferences. */
   const int fileflags_keep = G_FILE_FLAG_ALL_RUNTIME;
@@ -1188,7 +1188,7 @@ static void setup_app_data(bContext *C,
 
 #ifdef WITH_PYTHON
   /* let python know about new main */
-  if (CTX_py_init_get(C)) {
+  if (CTX_py_init_get(*C)) {
     BPY_context_update(C);
   }
 #endif
@@ -1417,7 +1417,7 @@ BlendFileData *BKE_blendfile_read_from_memfile(Main *bmain,
 
 void BKE_blendfile_read_make_empty(bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ListBaseT<ID> *lb;
   ID *id;
 

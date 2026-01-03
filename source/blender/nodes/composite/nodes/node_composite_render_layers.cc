@@ -41,7 +41,7 @@ namespace blender::nodes::node_composite_render_layer_cc {
 
 static void node_init(const bContext *context, PointerRNA *node_pointer)
 {
-  Scene *scene = CTX_data_scene(context);
+  Scene *scene = CTX_data_scene(*context);
   bNode *node = node_pointer->data_as<bNode>();
 
   node->id = &scene->id;
@@ -232,7 +232,7 @@ static void node_draw(ui::Layout &layout, bContext *context, PointerRNA *node_po
 
 static void node_extra_info(NodeExtraInfoParams &parameters)
 {
-  SpaceNode *space_node = CTX_wm_space_node(&parameters.C);
+  SpaceNode *space_node = CTX_wm_space_node(parameters.C);
   if (space_node->node_tree_sub_type != SNODE_COMPOSITOR_SCENE) {
     NodeExtraInfoRow row;
     row.text = RPT_("Node Unsupported");
@@ -242,7 +242,7 @@ static void node_extra_info(NodeExtraInfoParams &parameters)
   }
 
   /* EEVEE supports passes. */
-  const Scene *scene = CTX_data_scene(&parameters.C);
+  const Scene *scene = CTX_data_scene(parameters.C);
   if (StringRef(scene->r.engine) == RE_engine_id_BLENDER_EEVEE) {
     return;
   }

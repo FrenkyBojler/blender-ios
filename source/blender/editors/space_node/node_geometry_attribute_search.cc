@@ -52,7 +52,7 @@ static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
 {
   using namespace nodes::geo_eval_log;
 
-  SpaceNode *snode = CTX_wm_space_node(&C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   if (!snode) {
     BLI_assert_unreachable();
     return {};
@@ -128,7 +128,7 @@ static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
 static void attribute_search_update_fn(
     const bContext *C, void *arg, const char *str, ui::SearchItems *items, const bool is_first)
 {
-  if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+  if (ED_screen_animation_playing(CTX_wm_manager(*C))) {
     return;
   }
 
@@ -173,14 +173,14 @@ static eCustomDataType data_type_in_attribute_input_node(const eCustomDataType t
 
 static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
 {
-  if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+  if (ED_screen_animation_playing(CTX_wm_manager(*C))) {
     return;
   }
   GeometryAttributeInfo *item = (GeometryAttributeInfo *)item_v;
   if (item == nullptr) {
     return;
   }
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   if (!snode) {
     BLI_assert_unreachable();
     return;
@@ -208,7 +208,7 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
       /* Make the output socket with the new type on the attribute input node active. */
       nodes::update_node_declaration_and_sockets(*node_tree, *node);
       BKE_ntree_update_tag_node_property(node_tree, node);
-      BKE_main_ensure_invariants(*CTX_data_main(C), node_tree->id);
+      BKE_main_ensure_invariants(*CTX_data_main(*C), node_tree->id);
     }
   }
 

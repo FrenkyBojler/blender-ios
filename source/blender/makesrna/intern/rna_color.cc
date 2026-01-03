@@ -585,7 +585,7 @@ static const EnumPropertyItem *rna_ColorManagedViewSettings_view_transform_itemf
     bContext *C, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
 {
   const ColorManagedDisplaySettings *display_settings = rna_display_settings_from_view_settings(
-      ptr, CTX_data_scene(C));
+      ptr, CTX_data_scene(*C));
 
   EnumPropertyItem *items = nullptr;
   int totitem = 0;

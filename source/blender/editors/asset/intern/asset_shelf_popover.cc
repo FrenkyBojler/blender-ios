@@ -223,7 +223,7 @@ static int layout_width_units_clamped(const wmWindow *win)
 
 static void popover_panel_draw(const bContext *C, Panel *panel)
 {
-  const wmWindow *win = CTX_wm_window(C);
+  const wmWindow *win = CTX_wm_window(*C);
   const int layout_width_units = layout_width_units_clamped(win);
   AssetShelfType *shelf_type = lookup_type_from_idname_in_context(C);
   BLI_assert_msg(shelf_type != nullptr, "couldn't find asset shelf type from context");
@@ -237,7 +237,7 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
     return;
   }
 
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
   PointerRNA library_ref_ptr = RNA_pointer_create_discrete(
       &screen->id, &RNA_AssetLibraryReference, &shelf->settings.asset_library_reference);
   layout.context_ptr_set("asset_library_reference", &library_ref_ptr);

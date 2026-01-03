@@ -72,7 +72,7 @@ static Scene *scene_add(Main *bmain, Scene *scene_old, eSceneCopyMethod method)
 
 Scene *ED_scene_sequencer_add(Main *bmain, bContext *C, eSceneCopyMethod method)
 {
-  Scene *active_scene = CTX_data_scene(C);
+  Scene *active_scene = CTX_data_scene(*C);
   Scene *scene_new = scene_add(bmain, active_scene, method);
 
   return scene_new;
@@ -108,7 +108,7 @@ bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene
    * called from RNA (and therefore BPY). */
 
   /* Cancel animation playback. */
-  if (bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(&C))) {
+  if (bScreen *screen = ED_screen_animation_playing(CTX_wm_manager(C))) {
     ScreenAnimData *sad = static_cast<ScreenAnimData *>(screen->animtimer->customdata);
     if (sad->scene == &scene) {
 #ifdef WITH_PYTHON
@@ -151,7 +151,7 @@ bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene
   /* In theory, the call to #WM_window_set_active_scene above should have handled this through
    * calls to #ED_screen_scene_change. But there can be unusual cases (e.g. on file opening in
    * background mode) where the state of available Windows may prevent this from happening. */
-  if (CTX_data_scene(&C) == &scene) {
+  if (CTX_data_scene(C) == &scene) {
 #ifdef WITH_PYTHON
     BPy_BEGIN_ALLOW_THREADS;
 #endif
@@ -268,8 +268,8 @@ bool ED_scene_view_layer_delete(Main *bmain, Scene *scene, ViewLayer *layer, Rep
 
 static wmOperatorStatus scene_new_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindow *win = CTX_wm_window(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindow *win = CTX_wm_window(*C);
   int type = RNA_enum_get(op->ptr, "type");
 
   ED_scene_add(bmain, C, win, eSceneCopyMethod(type));
@@ -322,9 +322,9 @@ static void SCENE_OT_new(wmOperatorType *ot)
 
 static wmOperatorStatus scene_new_sequencer_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   int type = RNA_enum_get(op->ptr, "type");
-  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(*C);
   Strip *strip = blender::seq::select_active_get(sequencer_scene);
   BLI_assert(strip != nullptr);
 
@@ -346,7 +346,7 @@ static wmOperatorStatus scene_new_sequencer_exec(bContext *C, wmOperator *op)
 
 static bool scene_new_sequencer_poll(bContext *C)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   const Strip *strip = blender::seq::select_active_get(scene);
   return (strip && (strip->type == STRIP_TYPE_SCENE));
 }
@@ -369,7 +369,7 @@ static const EnumPropertyItem *scene_new_sequencer_enum_itemf(bContext *C,
     has_scene_or_no_context = true;
   }
   else {
-    Scene *scene = CTX_data_sequencer_scene(C);
+    Scene *scene = CTX_data_sequencer_scene(*C);
     Strip *strip = blender::seq::select_active_get(scene);
     if (strip && (strip->type == STRIP_TYPE_SCENE) && (strip->scene != nullptr)) {
       has_scene_or_no_context = true;
@@ -419,10 +419,10 @@ static void SCENE_OT_new_sequencer(wmOperatorType *ot)
 
 static wmOperatorStatus new_sequencer_scene_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindow *win = CTX_wm_window(C);
-  WorkSpace *workspace = CTX_wm_workspace(C);
-  Scene *scene_old = CTX_data_sequencer_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  WorkSpace *workspace = CTX_wm_workspace(*C);
+  Scene *scene_old = CTX_data_sequencer_scene(*C);
   const int type = RNA_enum_get(op->ptr, "type");
 
   Scene *new_scene = scene_add(bmain, scene_old, eSceneCopyMethod(type));
@@ -448,7 +448,7 @@ static wmOperatorStatus new_sequencer_scene_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent *event)
 {
-  if (CTX_data_sequencer_scene(C) == nullptr) {
+  if (CTX_data_sequencer_scene(*C) == nullptr) {
     /* When there is no sequencer scene set, create a blank new one. */
     RNA_enum_set(op->ptr, "type", SCE_COPY_NEW);
     return new_sequencer_scene_exec(C, op);
@@ -484,16 +484,16 @@ static void SCENE_OT_new_sequencer_scene(wmOperatorType *ot)
 
 static bool scene_delete_poll(bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   return BKE_scene_can_be_removed(bmain, scene);
 }
 
 static wmOperatorStatus scene_delete_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
-  if (ED_scene_delete(C, CTX_data_main(C), scene) == false) {
+  if (ED_scene_delete(C, CTX_data_main(*C), scene) == false) {
     return OPERATOR_CANCELLED;
   }
 
@@ -529,14 +529,14 @@ static void SCENE_OT_delete(wmOperatorType *ot)
 
 static wmOperatorStatus drop_scene_asset_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Scene *scene_asset = reinterpret_cast<Scene *>(
       WM_operator_properties_id_lookup_from_name_or_session_uid(bmain, op->ptr, ID_SCE));
   if (!scene_asset) {
     return OPERATOR_CANCELLED;
   }
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   WM_window_set_active_scene(bmain, C, win, scene_asset);
 
   WM_event_add_notifier(C, NC_SCENE | ND_SCENEBROWSE, scene_asset);

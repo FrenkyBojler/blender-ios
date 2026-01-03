@@ -45,7 +45,7 @@ static void bpy_rna_context_temp_set_screen_for_window(bContext *C, wmWindow *wi
   }
 
   WorkSpace *workspace;
-  BKE_workspace_layout_find_global(CTX_data_main(C), screen, &workspace);
+  BKE_workspace_layout_find_global(CTX_data_main(*C), screen, &workspace);
   /* Changing workspace instead of just screen as they are tied. */
   WM_window_set_active_workspace(C, win, workspace);
   WM_window_set_active_screen(win, workspace, screen);
@@ -299,7 +299,7 @@ static bool bpy_rna_context_temp_override_enter_ok_or_error(const BPyContextTemp
 static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *self)
 {
   bContext *C = self->context;
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   /* Enable logging for this temporary override context if the user has requested it. */
   if (self->ctx_temp.use_logging) {
@@ -309,11 +309,11 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   /* It's crucial to call #CTX_py_state_pop if this function fails with an error. */
   CTX_py_state_push(C, &self->py_state, self->py_state_context_dict);
 
-  self->ctx_init.win = CTX_wm_window(C);
+  self->ctx_init.win = CTX_wm_window(*C);
   self->ctx_init.screen = self->ctx_init.win ? WM_window_get_active_screen(self->ctx_init.win) :
-                                               CTX_wm_screen(C);
-  self->ctx_init.area = CTX_wm_area(C);
-  self->ctx_init.region = CTX_wm_region(C);
+                                               CTX_wm_screen(*C);
+  self->ctx_init.area = CTX_wm_area(*C);
+  self->ctx_init.region = CTX_wm_region(*C);
 
   wmWindow *win = self->ctx_temp.win_is_set ? self->ctx_temp.win : self->ctx_init.win;
   bScreen *screen = self->ctx_temp.screen_is_set ? self->ctx_temp.screen : self->ctx_init.screen;
@@ -374,7 +374,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
 {
   bContext *C = self->context;
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   /* Manipulate the context (restore). */
   if (self->ctx_temp.screen_is_set) {
@@ -425,7 +425,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
         is_container_set = true;
       }
       else if (self->ctx_temp.win_is_set) {
-        if (self->ctx_init.win == CTX_wm_window(C)) {
+        if (self->ctx_init.win == CTX_wm_window(*C)) {
           is_container_set = true;
         }
         else {
@@ -450,7 +450,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
         is_container_set = true;
       }
       else if (self->ctx_temp.screen_is_set) {
-        if (self->ctx_init.screen == CTX_wm_screen(C)) {
+        if (self->ctx_init.screen == CTX_wm_screen(*C)) {
           is_container_set = true;
         }
         else {
@@ -475,7 +475,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
         is_container_set = true;
       }
       else if (self->ctx_temp.area_is_set) {
-        if (self->ctx_init.area == CTX_wm_area(C)) {
+        if (self->ctx_init.area == CTX_wm_area(*C)) {
           is_container_set = true;
         }
         else {
@@ -501,7 +501,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
       }
       /* Enable is there is ever data nested within the region. */
       else if (false && self->ctx_temp.region_is_set) {
-        if (self->ctx_init.region == CTX_wm_region(C)) {
+        if (self->ctx_init.region == CTX_wm_region(*C)) {
           is_container_set = true;
         }
         else {
@@ -515,7 +515,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   /* Finished restoring the context. */
 
   /* A copy may have been made when writing context members, see #BPY_context_dict_clear_members */
-  PyObject *context_dict_test = static_cast<PyObject *>(CTX_py_dict_get(C));
+  PyObject *context_dict_test = static_cast<PyObject *>(CTX_py_dict_get(*C));
   if (context_dict_test && (context_dict_test != self->py_state_context_dict)) {
     Py_DECREF(context_dict_test);
   }
@@ -774,7 +774,7 @@ static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObj
   {
     /* Merge existing keys that don't exist in the keywords passed in.
      * This makes it possible to nest context overrides. */
-    PyObject *context_dict_current = static_cast<PyObject *>(CTX_py_dict_get(C));
+    PyObject *context_dict_current = static_cast<PyObject *>(CTX_py_dict_get(*C));
     if (context_dict_current != nullptr) {
       PyDict_Merge(kwds, context_dict_current, 0);
     }

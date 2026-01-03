@@ -2642,7 +2642,7 @@ static wmOperatorStatus vertex_group_add_exec(bContext *C, wmOperator * /*op*/)
   Object *ob = context_object(C);
 
   BKE_object_defgroup_add(ob);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -2721,7 +2721,7 @@ static void grease_pencil_clear_from_all_vgroup(Scene &scene,
 static wmOperatorStatus vertex_group_remove_exec(bContext *C, wmOperator *op)
 {
   Object *ob = context_object(C);
-  Scene &scene = *CTX_data_scene(C);
+  Scene &scene = *CTX_data_scene(*C);
   const bool all_vgroup = RNA_boolean_get(op->ptr, "all");
   const bool only_unlocked = RNA_boolean_get(op->ptr, "all_unlocked");
 
@@ -2750,7 +2750,7 @@ static wmOperatorStatus vertex_group_remove_exec(bContext *C, wmOperator *op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
@@ -2790,9 +2790,9 @@ void OBJECT_OT_vertex_group_remove(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_group_assign_exec(bContext *C, wmOperator *op)
 {
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   Object *ob = context_object(C);
-  Scene &scene = *CTX_data_scene(C);
+  Scene &scene = *CTX_data_scene(*C);
 
   vgroup_assign_verts(ob, scene, ts->vgroup_weight);
 
@@ -2875,7 +2875,7 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
 {
   const bool use_all_groups = RNA_boolean_get(op->ptr, "use_all_groups");
   const bool use_all_verts = RNA_boolean_get(op->ptr, "use_all_verts");
-  Scene &scene = *CTX_data_scene(C);
+  Scene &scene = *CTX_data_scene(*C);
 
   Object *ob = context_object(C);
 
@@ -2903,7 +2903,7 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext *C, wmOperator *o
     }
   }
 
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   if (ts->auto_normalize) {
     if (ob->type == OB_GREASE_PENCIL) {
       const int current_frame = scene.r.cfra;
@@ -2955,9 +2955,9 @@ void OBJECT_OT_vertex_group_remove_from(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_group_select_exec(bContext *C, wmOperator * /*op*/)
 {
-  const ToolSettings &tool_settings = *CTX_data_scene(C)->toolsettings;
+  const ToolSettings &tool_settings = *CTX_data_scene(*C)->toolsettings;
   Object *ob = context_object(C);
-  Scene &scene = *CTX_data_scene(C);
+  Scene &scene = *CTX_data_scene(*C);
 
   if (!ob || !ID_IS_EDITABLE(ob) || ID_IS_OVERRIDE_LIBRARY(ob)) {
     return OPERATOR_CANCELLED;
@@ -2993,9 +2993,9 @@ void OBJECT_OT_vertex_group_select(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_group_deselect_exec(bContext *C, wmOperator * /*op*/)
 {
-  const ToolSettings &tool_settings = *CTX_data_scene(C)->toolsettings;
+  const ToolSettings &tool_settings = *CTX_data_scene(*C)->toolsettings;
   Object *ob = context_object(C);
-  Scene &scene = *CTX_data_scene(C);
+  Scene &scene = *CTX_data_scene(*C);
 
   vgroup_select_verts(tool_settings, ob, scene, 0);
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT);
@@ -3031,7 +3031,7 @@ static wmOperatorStatus vertex_group_copy_exec(bContext *C, wmOperator * /*op*/)
 
   vgroup_duplicate(ob);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
 
@@ -3198,7 +3198,7 @@ static wmOperatorStatus vertex_group_normalize_all_exec(bContext *C, wmOperator 
   }
   else {
     if (ob->type == OB_GREASE_PENCIL) {
-      int current_frame = CTX_data_scene(C)->r.cfra;
+      int current_frame = CTX_data_scene(*C)->r.cfra;
       changed = vgroup_normalize_all(
           ob, vgroup_validmap, vgroup_tot, lock_active, false, op->reports, current_frame);
     }
@@ -3703,7 +3703,7 @@ static wmOperatorStatus vertex_group_mirror_exec(bContext *C, wmOperator *op)
   ED_mesh_report_mirror(*op->reports, totmirr, totfail);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
@@ -3751,11 +3751,11 @@ static wmOperatorStatus vertex_group_copy_to_selected_exec(bContext *C, wmOperat
   int changed_tot = 0;
   int fail = 0;
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     if (obact != ob && BKE_object_supports_vertex_groups(ob)) {
       if (vgroup_array_copy(ob, obact)) {
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-        DEG_relations_tag_update(CTX_data_main(C));
+        DEG_relations_tag_update(CTX_data_main(*C));
         WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
         changed_tot++;
       }
@@ -4386,7 +4386,7 @@ static wmOperatorStatus vertex_weight_normalize_active_vertex_exec(bContext *C,
                                                                    wmOperator * /*op*/)
 {
   Object *ob = context_object(C);
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   eVGroupSelect subset_type = static_cast<eVGroupSelect>(ts->vgroupsubset);
   bool changed;
 
@@ -4425,7 +4425,7 @@ void OBJECT_OT_vertex_weight_normalize_active_vertex(wmOperatorType *ot)
 static wmOperatorStatus vertex_weight_copy_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *ob = context_object(C);
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   eVGroupSelect subset_type = static_cast<eVGroupSelect>(ts->vgroupsubset);
 
   vgroup_copy_active_to_sel(ob, subset_type);

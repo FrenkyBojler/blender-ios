@@ -32,7 +32,7 @@ namespace blender::ui {
 
 bool view2d_edge_pan_poll(bContext *C)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   /* Check if there's a region in context to work with. */
   if (region == nullptr) {
@@ -64,9 +64,9 @@ void view2d_edge_pan_init(bContext *C,
   }
 
   /* Set pointers to owners. */
-  vpd->screen = CTX_wm_screen(C);
-  vpd->area = CTX_wm_area(C);
-  vpd->region = CTX_wm_region(C);
+  vpd->screen = CTX_wm_screen(*C);
+  vpd->area = CTX_wm_area(*C);
+  vpd->region = CTX_wm_region(*C);
   vpd->v2d = &vpd->region->v2d;
   BLI_rctf_init(&vpd->limit, -FLT_MAX, FLT_MAX, -FLT_MAX, FLT_MAX);
 
@@ -207,7 +207,7 @@ static void edge_pan_apply_delta(bContext *C, View2DEdgePanData *vpd, float dx, 
     ED_region_tag_redraw_no_rebuild(vpd->region);
 
     /* Request updates to be done. */
-    WM_event_add_mousemove(CTX_wm_window(C));
+    WM_event_add_mousemove(CTX_wm_window(*C));
 
     view2d_sync(vpd->screen, vpd->area, v2d, V2D_LOCK_COPY);
   }
@@ -297,7 +297,7 @@ void view2d_edge_pan_cancel(bContext *C, View2DEdgePanData *vpd)
   ED_region_tag_redraw_no_rebuild(vpd->region);
 
   /* Request updates to be done. */
-  WM_event_add_mousemove(CTX_wm_window(C));
+  WM_event_add_mousemove(CTX_wm_window(*C));
 
   view2d_sync(vpd->screen, vpd->area, v2d, V2D_LOCK_COPY);
 }

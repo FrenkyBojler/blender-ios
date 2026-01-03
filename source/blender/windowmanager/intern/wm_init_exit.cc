@@ -390,13 +390,13 @@ void WM_init_splash_on_startup(bContext *C)
 
 void WM_init_splash(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   /* NOTE(@ideasman42): this should practically never happen. */
   if (UNLIKELY(BLI_listbase_is_empty(&wm->windows))) {
     return;
   }
 
-  wmWindow *prevwin = CTX_wm_window(C);
+  wmWindow *prevwin = CTX_wm_window(*C);
   CTX_wm_window_set(C, static_cast<wmWindow *>(wm->windows.first));
   WM_operator_name_call(
       C, "WM_OT_splash", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
@@ -437,7 +437,7 @@ void wm_exit_schedule_delayed(const bContext *C)
   /* What we do here is a little bit hacky, but quite simple and doesn't require bigger
    * changes: Add a handler wrapping WM_exit() to cause a delayed call of it. */
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   /* Use modal UI handler for now.
    * Could add separate WM handlers or so, but probably not worth it. */
@@ -451,7 +451,7 @@ void UV_clipboard_free();
 void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_actions)
 {
   using namespace blender;
-  wmWindowManager *wm = C ? CTX_wm_manager(C) : nullptr;
+  wmWindowManager *wm = C ? CTX_wm_manager(*C) : nullptr;
 
   /* While nothing technically prevents saving user data in background mode,
    * don't do this as not typically useful and more likely to cause problems
@@ -465,7 +465,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   if (C && wm) {
     if (do_user_exit_actions) {
       /* Save quit.blend. */
-      Main *bmain = CTX_data_main(C);
+      Main *bmain = CTX_data_main(*C);
       char filepath[FILE_MAX];
       const int fileflags = G.fileflags | G_FILE_COMPRESS | G_FILE_RECOVER_WRITE;
 
@@ -522,7 +522,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * Check `CTX_py_init_get(C)` in case this function runs before Python has been initialized.
    * Which can happen when the GPU backend fails to initialize.
    */
-  if (C && CTX_py_init_get(C)) {
+  if (C && CTX_py_init_get(*C)) {
     /* Calls `addon_utils.disable_all()` as well as unregistering all "startup" modules. */
     const char *imports[] = {"bpy", "bpy.utils", nullptr};
     BPY_run_string_eval(C, imports, "bpy.utils._on_exit()");
@@ -552,7 +552,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
   /* All non-screen and non-space stuff editors did, like edit-mode. */
   if (C) {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     ED_editors_exit(bmain, true);
   }
 
@@ -626,7 +626,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
 #ifdef WITH_PYTHON
   /* Option not to exit Python so this function can be called from 'atexit'. */
-  if ((C == nullptr) || CTX_py_init_get(C)) {
+  if ((C == nullptr) || CTX_py_init_get(*C)) {
     /* NOTE: (old note)
      * before BKE_blender_free so Python's garbage-collection happens while library still exists.
      * Needed at least for a rare crash that can happen in python-drivers.

@@ -146,7 +146,7 @@ void AssetView::build_items()
 
 bool AssetView::begin_filtering(const bContext &C) const
 {
-  const ScrArea *area = CTX_wm_area(&C);
+  const ScrArea *area = CTX_wm_area(C);
   for (ARegion &region : area->regionbase) {
     if (ui::textbutton_activate_rna(&C, &region, &shelf_, "search_filter")) {
       return true;

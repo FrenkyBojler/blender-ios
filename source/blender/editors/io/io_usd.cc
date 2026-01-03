@@ -386,7 +386,7 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
     col->prop(ptr, "root_prim_path", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     blender::ui::Layout *sub = &col->column(true, IFACE_("Include"));
-    if (CTX_wm_space_file(C)) {
+    if (CTX_wm_space_file(*C)) {
       sub->prop(ptr, "selected_objects_only", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
     sub->prop(ptr, "export_animation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -959,7 +959,7 @@ static wmOperatorStatus wm_usd_import_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "import_textures_dir", params.import_textures_dir);
 
   /* Switch out of edit mode to avoid being stuck in it (#54326). */
-  const Object *obedit = CTX_data_edit_object(C);
+  const Object *obedit = CTX_data_edit_object(*C);
   if (obedit) {
     blender::ed::object::mode_set(C, OB_MODE_EDIT);
   }

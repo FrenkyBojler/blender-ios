@@ -59,7 +59,7 @@ namespace blender::ed::transform {
 
 void BIF_clearTransformOrientation(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ListBaseT<TransformOrientation> *transform_orientations = &scene->transform_spaces;
 
   BLI_freelistN(transform_orientations);
@@ -97,7 +97,7 @@ static TransformOrientation *createViewSpace(bContext *C,
                                              const char *name,
                                              const bool overwrite)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   float mat[3][3];
 
   if (!rv3d) {
@@ -108,7 +108,7 @@ static TransformOrientation *createViewSpace(bContext *C,
   normalize_m3(mat);
 
   if (name[0] == 0) {
-    View3D *v3d = CTX_wm_view3d(C);
+    View3D *v3d = CTX_wm_view3d(*C);
     if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
       /* If an object is used as camera, then this space is the same as object space! */
       name = v3d->camera->id.name + 2;
@@ -126,7 +126,7 @@ static TransformOrientation *createObjectSpace(bContext *C,
                                                const char *name,
                                                const bool overwrite)
 {
-  Base *base = CTX_data_active_base(C);
+  Base *base = CTX_data_active_base(*C);
   Object *ob;
   float mat[3][3];
 
@@ -476,8 +476,8 @@ bool BIF_createTransformOrientation(bContext *C,
     ts = createViewSpace(C, reports, name, overwrite);
   }
   else {
-    Object *obedit = CTX_data_edit_object(C);
-    Object *ob = CTX_data_active_object(C);
+    Object *obedit = CTX_data_edit_object(*C);
+    Object *ob = CTX_data_active_object(*C);
     if (obedit) {
       if (obedit->type == OB_MESH) {
         ts = createMeshSpace(C, reports, name, overwrite);
@@ -509,7 +509,7 @@ TransformOrientation *addMatrixSpace(bContext *C,
                                      const bool overwrite)
 {
   TransformOrientation *ts = nullptr;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ListBaseT<TransformOrientation> *transform_orientations = &scene->transform_spaces;
   char name_unique[sizeof(ts->name)];
 
@@ -537,18 +537,18 @@ TransformOrientation *addMatrixSpace(bContext *C,
 
 void BIF_removeTransformOrientation(bContext *C, TransformOrientation *target)
 {
-  BKE_scene_transform_orientation_remove(CTX_data_scene(C), target);
+  BKE_scene_transform_orientation_remove(CTX_data_scene(*C), target);
 }
 
 void BIF_removeTransformOrientationIndex(bContext *C, int index)
 {
-  TransformOrientation *target = BKE_scene_transform_orientation_find(CTX_data_scene(C), index);
+  TransformOrientation *target = BKE_scene_transform_orientation_find(CTX_data_scene(*C), index);
   BIF_removeTransformOrientation(C, target);
 }
 
 void BIF_selectTransformOrientation(bContext *C, TransformOrientation *target)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   int index = BKE_scene_transform_orientation_get_index(scene, target);
 
   BLI_assert(index != -1);
@@ -559,7 +559,7 @@ void BIF_selectTransformOrientation(bContext *C, TransformOrientation *target)
 
 int BIF_countTransformOrientation(const bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ListBaseT<TransformOrientation> *transform_orientations = &scene->transform_spaces;
   return BLI_listbase_count(transform_orientations);
 }
@@ -616,11 +616,11 @@ static int armature_bone_transflags_update(Object &ob, bArmature *arm, ListBaseT
 
 void calc_orientation_from_type(const bContext *C, float r_mat[3][3])
 {
-  ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *obedit = CTX_data_edit_object(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Object *obedit = CTX_data_edit_object(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
@@ -787,8 +787,8 @@ short transform_orientation_matrix_get(bContext *C,
     }
   }
 
-  Object *ob = CTX_data_active_object(C);
-  Object *obedit = CTX_data_edit_object(C);
+  Object *ob = CTX_data_active_object(*C);
+  Object *obedit = CTX_data_edit_object(*C);
   Scene *scene = t->scene;
   View3D *v3d = nullptr;
   RegionView3D *rv3d = nullptr;
@@ -1516,15 +1516,15 @@ int getTransformOrientation_ex(const Scene *scene,
 
 int getTransformOrientation(const bContext *C, float r_normal[3], float r_plane[3])
 {
-  Object *obact = CTX_data_active_object(C);
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obact = CTX_data_active_object(*C);
+  Object *obedit = CTX_data_edit_object(*C);
 
   /* Dummy value, not #V3D_AROUND_ACTIVE and not #V3D_AROUND_LOCAL_ORIGINS. */
   short around = V3D_AROUND_CENTER_BOUNDS;
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   return getTransformOrientation_ex(
       scene, view_layer, v3d, obact, obedit, around, r_normal, r_plane);

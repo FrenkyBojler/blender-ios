@@ -727,7 +727,7 @@ static int rna_XrSessionSettings_icon_from_show_object_viewport_get(PointerRNA *
 static bool rna_XrSessionState_is_running(bContext *C)
 {
 #  ifdef WITH_XR_OPENXR
-  const wmWindowManager *wm = CTX_wm_manager(C);
+  const wmWindowManager *wm = CTX_wm_manager(*C);
   return WM_xr_session_exists(&wm->xr);
 #  else
   UNUSED_VARS(C);
@@ -738,7 +738,7 @@ static bool rna_XrSessionState_is_running(bContext *C)
 static void rna_XrSessionState_reset_to_base_pose(bContext *C)
 {
 #  ifdef WITH_XR_OPENXR
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   WM_xr_session_base_pose_reset(&wm->xr);
 #  else
   UNUSED_VARS(C);
@@ -748,7 +748,7 @@ static void rna_XrSessionState_reset_to_base_pose(bContext *C)
 static bool rna_XrSessionState_action_set_create(bContext *C, XrActionMap *actionmap)
 {
 #  ifdef WITH_XR_OPENXR
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   return WM_xr_action_set_create(&wm->xr, actionmap->name);
 #  else
   UNUSED_VARS(C, actionmap);
@@ -761,7 +761,7 @@ static bool rna_XrSessionState_action_create(bContext *C,
                                              XrActionMapItem *ami)
 {
 #  ifdef WITH_XR_OPENXR
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   if (BLI_listbase_is_empty(&ami->user_paths)) {
     return false;
   }
@@ -811,7 +811,7 @@ static bool rna_XrSessionState_action_binding_create(bContext *C,
                                                      XrActionMapBinding *amb)
 {
 #  ifdef WITH_XR_OPENXR
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   const int count_user_paths = BLI_listbase_count(&ami->user_paths);
   const int count_component_paths = BLI_listbase_count(&amb->component_paths);
   if (count_user_paths < 1 || (count_user_paths != count_component_paths)) {
@@ -856,7 +856,7 @@ static bool rna_XrSessionState_action_binding_create(bContext *C,
 bool rna_XrSessionState_active_action_set_set(bContext *C, const char *action_set_name)
 {
 #  ifdef WITH_XR_OPENXR
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   return WM_xr_active_action_set_set(&wm->xr, action_set_name, true);
 #  else
   UNUSED_VARS(C, action_set_name);
@@ -870,7 +870,7 @@ bool rna_XrSessionState_controller_pose_actions_set(bContext *C,
                                                     const char *aim_action_name)
 {
 #  ifdef WITH_XR_OPENXR
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   return WM_xr_controller_pose_actions_set(
       &wm->xr, action_set_name, grip_action_name, aim_action_name);
 #  else
@@ -886,7 +886,7 @@ void rna_XrSessionState_action_state_get(bContext *C,
                                          float r_state[2])
 {
 #  ifdef WITH_XR_OPENXR
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmXrActionState state;
   if (WM_xr_action_state_get(&wm->xr, action_set_name, action_name, user_path, &state)) {
     switch (state.type) {
@@ -922,7 +922,7 @@ bool rna_XrSessionState_haptic_action_apply(bContext *C,
                                             float amplitude)
 {
 #  ifdef WITH_XR_OPENXR
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   int64_t duration_msec = int64_t(duration * 1000.0f);
   return WM_xr_haptic_action_apply(&wm->xr,
                                    action_set_name,
@@ -943,7 +943,7 @@ void rna_XrSessionState_haptic_action_stop(bContext *C,
                                            const char *user_path)
 {
 #  ifdef WITH_XR_OPENXR
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   WM_xr_haptic_action_stop(
       &wm->xr, action_set_name, action_name, user_path[0] ? user_path : nullptr);
 #  else
@@ -956,7 +956,7 @@ static void rna_XrSessionState_controller_grip_location_get(bContext *C,
                                                             float r_values[3])
 {
 #  ifdef WITH_XR_OPENXR
-  const wmWindowManager *wm = CTX_wm_manager(C);
+  const wmWindowManager *wm = CTX_wm_manager(*C);
   WM_xr_session_state_controller_grip_location_get(&wm->xr, index, r_values);
 #  else
   UNUSED_VARS(C, index);
@@ -969,7 +969,7 @@ static void rna_XrSessionState_controller_grip_rotation_get(bContext *C,
                                                             float r_values[4])
 {
 #  ifdef WITH_XR_OPENXR
-  const wmWindowManager *wm = CTX_wm_manager(C);
+  const wmWindowManager *wm = CTX_wm_manager(*C);
   WM_xr_session_state_controller_grip_rotation_get(&wm->xr, index, r_values);
 #  else
   UNUSED_VARS(C, index);
@@ -982,7 +982,7 @@ static void rna_XrSessionState_controller_aim_location_get(bContext *C,
                                                            float r_values[3])
 {
 #  ifdef WITH_XR_OPENXR
-  const wmWindowManager *wm = CTX_wm_manager(C);
+  const wmWindowManager *wm = CTX_wm_manager(*C);
   WM_xr_session_state_controller_aim_location_get(&wm->xr, index, r_values);
 #  else
   UNUSED_VARS(C, index);
@@ -995,7 +995,7 @@ static void rna_XrSessionState_controller_aim_rotation_get(bContext *C,
                                                            float r_values[4])
 {
 #  ifdef WITH_XR_OPENXR
-  const wmWindowManager *wm = CTX_wm_manager(C);
+  const wmWindowManager *wm = CTX_wm_manager(*C);
   WM_xr_session_state_controller_aim_rotation_get(&wm->xr, index, r_values);
 #  else
   UNUSED_VARS(C, index);

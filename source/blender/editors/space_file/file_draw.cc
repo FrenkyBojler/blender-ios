@@ -640,7 +640,7 @@ static void file_draw_string_multiline(int sx,
 
 void file_calc_previews(const bContext *C, ARegion *region)
 {
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   View2D *v2d = &region->v2d;
 
   ED_fileselect_init_layout(sfile, region);
@@ -984,10 +984,10 @@ static void renamebutton_cb(bContext *C, void * /*arg1*/, char *oldname)
   char newname[FILE_MAX + 12];
   char orgname[FILE_MAX + 12];
   char filename[FILE_MAX + 12];
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-  SpaceFile *sfile = (SpaceFile *)CTX_wm_space_data(C);
-  ARegion *region = CTX_wm_region(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  SpaceFile *sfile = (SpaceFile *)CTX_wm_space_data(*C);
+  ARegion *region = CTX_wm_region(*C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
   BLI_path_join(orgname, sizeof(orgname), params->dir, oldname);
@@ -1322,9 +1322,9 @@ static rcti text_draw_rect_get(const View2D *v2d,
 
 void file_draw_list(const bContext *C, ARegion *region)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   FileLayout *layout = ED_fileselect_get_layout(sfile, region);
   View2D *v2d = &region->v2d;

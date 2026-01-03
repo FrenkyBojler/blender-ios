@@ -125,7 +125,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
   {
     using namespace blender::ed::greasepencil;
 
-    this->object = CTX_data_active_object(&C);
+    this->object = CTX_data_active_object(C);
     this->grease_pencil = static_cast<GreasePencil *>(this->object->data);
     Paint *paint = BKE_paint_get_active_from_context(&C);
     Brush *brush = BKE_paint_brush(paint);
@@ -140,7 +140,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
     BKE_curvemapping_init(brush->curve_distance_falloff);
 
     /* Auto-normalize weights is only applied when the object is deformed by an armature. */
-    const ToolSettings *ts = CTX_data_tool_settings(&C);
+    const ToolSettings *ts = CTX_data_tool_settings(C);
     this->auto_normalize = ts->auto_normalize &&
                            (BKE_modifiers_is_deformed_by_armature(this->object) != nullptr);
   }
@@ -201,10 +201,10 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
                                      const Span<ed::greasepencil::MutableDrawingInfo> &drawings,
                                      const int frame_group)
   {
-    const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
+    const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     const Object *ob_eval = DEG_get_evaluated(depsgraph, this->object);
-    const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
-    const ARegion *region = CTX_wm_region(&C);
+    const RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    const ARegion *region = CTX_wm_region(C);
 
     this->drawing_weight_data[frame_group].reinitialize(drawings.size());
 

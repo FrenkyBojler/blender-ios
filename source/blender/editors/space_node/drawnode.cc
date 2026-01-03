@@ -301,7 +301,7 @@ static void node_buts_image_user(ui::Layout &layout,
   if (source == IMA_SRC_SEQUENCE) {
     /* don't use iuser->framenr directly
      * because it may not be updated if auto-refresh is off */
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
 
     char numstr[32];
     const int framenr = BKE_image_user_frame_get(iuser, scene->r.cfra, nullptr);
@@ -1574,7 +1574,7 @@ void draw_nodespace_back_pix(const bContext &C,
                              SpaceNode &snode,
                              bNodeInstanceKey parent_key)
 {
-  Main *bmain = CTX_data_main(&C);
+  Main *bmain = CTX_data_main(C);
   bNodeInstanceKey active_viewer_key = (snode.nodetree ? snode.nodetree->active_viewer_key :
                                                          bke::NODE_INSTANCE_KEY_NONE);
   GPU_matrix_push_projection();

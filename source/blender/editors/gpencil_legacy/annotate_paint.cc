@@ -1258,11 +1258,11 @@ static void annotation_session_validatebuffer(tGPsdata *p)
 /* (re)init new painting data */
 static bool annotation_session_initdata(bContext *C, tGPsdata *p)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bGPdata **gpd_ptr = nullptr;
-  ScrArea *curarea = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ScrArea *curarea = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
 
   /* make sure the active view (at the starting time) is a 3d-view */
   if (curarea == nullptr) {
@@ -1271,10 +1271,10 @@ static bool annotation_session_initdata(bContext *C, tGPsdata *p)
   }
 
   /* pass on current scene and window */
-  p->bmain = CTX_data_main(C);
-  p->scene = CTX_data_scene(C);
-  p->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  p->win = CTX_wm_window(C);
+  p->bmain = CTX_data_main(*C);
+  p->scene = CTX_data_scene(*C);
+  p->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  p->win = CTX_wm_window(*C);
 
   unit_m4(p->imat);
   unit_m4(p->mat);
@@ -1785,7 +1785,7 @@ static void annotation_draw_stabilizer(bContext *C,
                                        const blender::float2 & /*tilt*/,
                                        void *p_ptr)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   tGPsdata *p = (tGPsdata *)p_ptr;
   bGPdata_Runtime runtime = blender::dna::shallow_copy(p->gpd->runtime);
   const tGPspoint *points = static_cast<const tGPspoint *>(runtime.sbuffer);
@@ -1858,7 +1858,7 @@ static void annotation_draw_exit(bContext *C, wmOperator *op)
   tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
 
   /* restore cursor to indicate end of drawing */
-  WM_cursor_modal_restore(CTX_wm_window(C));
+  WM_cursor_modal_restore(CTX_wm_window(*C));
 
   /* don't assume that operator data exists at all */
   if (p) {
@@ -1909,7 +1909,7 @@ static int annotation_draw_init(bContext *C, wmOperator *op, const wmEvent *even
   }
 
   /* init painting data */
-  annotation_paint_initstroke(p, paintmode, CTX_data_ensure_evaluated_depsgraph(C));
+  annotation_paint_initstroke(p, paintmode, CTX_data_ensure_evaluated_depsgraph(*C));
   if (p->status == GP_STATUS_ERROR) {
     annotation_draw_exit(C, op);
     return 0;
@@ -2191,7 +2191,7 @@ static void annotation_draw_apply_event(
 /* operator 'redo' (i.e. after changing some properties, but also for repeat last) */
 static wmOperatorStatus annotation_draw_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
   /* try to initialize context data needed while drawing */
   if (!annotation_draw_init(C, op, nullptr)) {
@@ -2318,7 +2318,7 @@ static wmOperatorStatus annotation_draw_invoke(bContext *C, wmOperator *op, cons
     p->status = GP_STATUS_PAINTING;
 
     /* handle the initial drawing - i.e. for just doing a simple dot */
-    annotation_draw_apply_event(op, event, CTX_data_ensure_evaluated_depsgraph(C), 0.0f, 0.0f);
+    annotation_draw_apply_event(op, event, CTX_data_ensure_evaluated_depsgraph(*C), 0.0f, 0.0f);
     op->flag |= OP_IS_MODAL_CURSOR_REGION;
   }
   else {
@@ -2335,7 +2335,7 @@ static wmOperatorStatus annotation_draw_invoke(bContext *C, wmOperator *op, cons
 /* gpencil modal operator stores area, which can be removed while using it (like full-screen). */
 static bool annotation_area_exists(bContext *C, ScrArea *area_test)
 {
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
   return (BLI_findindex(&screen->areabase, area_test) != -1);
 }
 
@@ -2346,7 +2346,7 @@ static tGPsdata *annotation_stroke_begin(bContext *C, wmOperator *op)
   /* we must check that we're still within the area that we're set up to work from
    * otherwise we could crash (see bug #20586)
    */
-  if (CTX_wm_area(C) != p->area) {
+  if (CTX_wm_area(*C) != p->area) {
     printf("\t\t\tGP - wrong area execution abort!\n");
     p->status = GP_STATUS_ERROR;
   }
@@ -2356,7 +2356,7 @@ static tGPsdata *annotation_stroke_begin(bContext *C, wmOperator *op)
    *      it'd be nice to allow changing paint-mode when in sketching-sessions */
 
   if (annotation_session_initdata(C, p)) {
-    annotation_paint_initstroke(p, p->paintmode, CTX_data_ensure_evaluated_depsgraph(C));
+    annotation_paint_initstroke(p, p->paintmode, CTX_data_ensure_evaluated_depsgraph(*C));
   }
 
   if (p->status != GP_STATUS_ERROR) {
@@ -2389,7 +2389,7 @@ static void annotation_add_missing_events(bContext *C,
                                           const wmEvent *event,
                                           tGPsdata *p)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   float pt[2], a[2], b[2];
   float factor = 10.0f;
 
@@ -2437,7 +2437,7 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
 #endif
 
   if (p->status == GP_STATUS_IDLING) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     p->region = region;
   }
 
@@ -2638,7 +2638,7 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
       }
 
       /* TODO(sergey): Possibly evaluating dependency graph from modal operator? */
-      annotation_draw_apply_event(op, event, CTX_data_ensure_evaluated_depsgraph(C), 0.0f, 0.0f);
+      annotation_draw_apply_event(op, event, CTX_data_ensure_evaluated_depsgraph(*C), 0.0f, 0.0f);
 
       /* finish painting operation if anything went wrong just now */
       if (p->status == GP_STATUS_ERROR) {

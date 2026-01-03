@@ -94,14 +94,14 @@ VectorSet<Curves *> get_unique_editable_curves(const bContext &C)
 {
   VectorSet<Curves *> unique_curves;
 
-  const Main &bmain = *CTX_data_main(&C);
+  const Main &bmain = *CTX_data_main(C);
 
-  Object *object = CTX_data_active_object(&C);
+  Object *object = CTX_data_active_object(C);
   if (object && object_has_editable_curves(bmain, *object)) {
     unique_curves.add_new(static_cast<Curves *>(object->data));
   }
 
-  CTX_DATA_BEGIN (&C, Object *, object, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
     if (object_has_editable_curves(bmain, *object)) {
       unique_curves.add(static_cast<Curves *>(object->data));
     }
@@ -116,7 +116,7 @@ static bool curves_poll_impl(bContext *C,
                              const bool check_surface,
                              const bool check_edit_mode)
 {
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   if (object == nullptr || object->type != OB_CURVES) {
     return false;
   }
@@ -170,7 +170,7 @@ static bool editable_curves_point_domain_poll(bContext *C)
   if (!curves::editable_curves_poll(C)) {
     return false;
   }
-  const Curves *curves_id = static_cast<const Curves *>(CTX_data_active_object(C)->data);
+  const Curves *curves_id = static_cast<const Curves *>(CTX_data_active_object(*C)->data);
   if (bke::AttrDomain(curves_id->selection_domain) != bke::AttrDomain::Point) {
     CTX_wm_operator_poll_msg_set(C, "Only available in point selection mode");
     return false;
@@ -398,15 +398,15 @@ static void try_convert_single_object(Object &curves_ob,
 
 static wmOperatorStatus curves_convert_to_particle_system_exec(bContext *C, wmOperator *op)
 {
-  Main &bmain = *CTX_data_main(C);
-  Scene &scene = *CTX_data_scene(C);
+  Main &bmain = *CTX_data_main(*C);
+  Scene &scene = *CTX_data_scene(*C);
 
   bool could_not_convert_some_curves = false;
 
-  Object &active_object = *CTX_data_active_object(C);
+  Object &active_object = *CTX_data_active_object(*C);
   try_convert_single_object(active_object, bmain, scene, &could_not_convert_some_curves);
 
-  CTX_DATA_BEGIN (C, Object *, curves_ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, curves_ob, selected_objects) {
     if (curves_ob != &active_object) {
       try_convert_single_object(*curves_ob, bmain, scene, &could_not_convert_some_curves);
     }
@@ -517,13 +517,13 @@ static bke::CurvesGeometry particles_to_curves(Object &object, ParticleSystem &p
 
 static wmOperatorStatus curves_convert_from_particle_system_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main &bmain = *CTX_data_main(C);
-  Scene &scene = *CTX_data_scene(C);
-  ViewLayer &view_layer = *CTX_data_view_layer(C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  Main &bmain = *CTX_data_main(*C);
+  Scene &scene = *CTX_data_scene(*C);
+  ViewLayer &view_layer = *CTX_data_view_layer(*C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
   Object *ob_from_orig = object::context_active_object(C);
   ParticleSystem *psys_orig = static_cast<ParticleSystem *>(
-      CTX_data_pointer_get_type(C, "particle_system", &RNA_ParticleSystem).data);
+      CTX_data_pointer_get_type(*C, "particle_system", &RNA_ParticleSystem).data);
   if (psys_orig == nullptr) {
     psys_orig = psys_get_current(ob_from_orig);
   }
@@ -706,7 +706,7 @@ static wmOperatorStatus snap_curves_to_surface_exec(bContext *C, wmOperator *op)
   bool found_invalid_uvs = false;
   bool found_missing_uvs = false;
 
-  CTX_DATA_BEGIN (C, Object *, curves_ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, curves_ob, selected_objects) {
     if (curves_ob->type != OB_CURVES) {
       continue;
     }
@@ -1137,7 +1137,7 @@ namespace split {
 
 static wmOperatorStatus split_exec(bContext *C, wmOperator * /*op*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   VectorSet<Curves *> unique_curves = get_unique_editable_curves(*C);
   for (Curves *curves_id : unique_curves) {
     CurvesGeometry &curves = curves_id->geometry.wrap();
@@ -1176,7 +1176,7 @@ namespace surface_set {
 
 static bool surface_set_poll(bContext *C)
 {
-  const Object *object = CTX_data_active_object(C);
+  const Object *object = CTX_data_active_object(*C);
   if (object == nullptr) {
     return false;
   }
@@ -1188,15 +1188,15 @@ static bool surface_set_poll(bContext *C)
 
 static wmOperatorStatus surface_set_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
-  Object &new_surface_ob = *CTX_data_active_object(C);
+  Object &new_surface_ob = *CTX_data_active_object(*C);
 
   Mesh &new_surface_mesh = *static_cast<Mesh *>(new_surface_ob.data);
   const StringRef new_uv_map_name = new_surface_mesh.active_uv_map_name();
 
-  CTX_DATA_BEGIN (C, Object *, selected_ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, selected_ob, selected_objects) {
     if (selected_ob->type != OB_CURVES) {
       continue;
     }
@@ -1641,7 +1641,7 @@ static CurvesGeometry generate_circle_primitive(const float radius)
 
 static wmOperatorStatus exec(bContext *C, wmOperator *op)
 {
-  Object *object = CTX_data_edit_object(C);
+  Object *object = CTX_data_edit_object(*C);
   Curves *active_curves_id = static_cast<Curves *>(object->data);
 
   const float radius = RNA_float_get(op->ptr, "radius");
@@ -1701,7 +1701,7 @@ static CurvesGeometry generate_bezier_primitive(const float radius)
 
 static wmOperatorStatus exec(bContext *C, wmOperator *op)
 {
-  Object *object = CTX_data_edit_object(C);
+  Object *object = CTX_data_edit_object(*C);
   Curves *active_curves_id = static_cast<Curves *>(object->data);
 
   const float radius = RNA_float_get(op->ptr, "radius");

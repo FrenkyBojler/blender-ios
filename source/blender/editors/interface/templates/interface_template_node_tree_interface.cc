@@ -153,7 +153,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
 
     socket_.name = BLI_strdup(new_name.c_str());
     nodetree_.tree_interface.tag_item_property_changed();
-    BKE_main_ensure_invariants(*CTX_data_main(&C), nodetree_.id);
+    BKE_main_ensure_invariants(*CTX_data_main(C), nodetree_.id);
     ED_undo_push(&const_cast<bContext &>(C), new_name.c_str());
     return true;
   }
@@ -164,7 +164,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
 
   void delete_item(bContext *C) override
   {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     nodetree_.tree_interface.remove_item(socket_.item);
     BKE_main_ensure_invariants(*bmain, nodetree_.id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
@@ -259,7 +259,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
 
   void delete_item(bContext *C) override
   {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     nodetree_.tree_interface.remove_item(panel_.item);
     BKE_main_ensure_invariants(*bmain, nodetree_.id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
@@ -469,7 +469,7 @@ bool on_drop_flat_item(bContext *C,
   interface.move_item_to_parent(*drag_item, parent, index);
 
   /* General update */
-  BKE_main_ensure_invariants(*CTX_data_main(C), ntree.id);
+  BKE_main_ensure_invariants(*CTX_data_main(*C), ntree.id);
   ED_undo_push(C, "Insert node group item");
   return true;
 }
@@ -551,7 +551,7 @@ bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
   interface.move_item_to_parent(*drag_item, parent, index);
 
   /* General update */
-  BKE_main_ensure_invariants(*CTX_data_main(C), nodetree.id);
+  BKE_main_ensure_invariants(*CTX_data_main(*C), nodetree.id);
   ED_undo_push(C, "Insert node group item");
   return true;
 }

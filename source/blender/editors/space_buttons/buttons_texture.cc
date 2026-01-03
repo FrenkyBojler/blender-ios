@@ -268,12 +268,12 @@ static void buttons_texture_users_from_context(ListBaseT<ButsTextureUser> *users
   }
 
   if (!scene) {
-    scene = CTX_data_scene(C);
+    scene = CTX_data_scene(*C);
   }
 
   const ID_Type id_type = ID_Type(pinid != nullptr ? GS(pinid->name) : -1);
   if (!pinid || id_type == ID_SCE) {
-    wmWindow *win = CTX_wm_window(C);
+    wmWindow *win = CTX_wm_window(*C);
     ViewLayer *view_layer = (win->scene == scene) ? WM_window_get_active_view_layer(win) :
                                                     BKE_view_layer_default_view(scene);
 
@@ -443,7 +443,7 @@ static void template_texture_select(bContext *C, void *user_p, void * /*arg*/)
 
   /* set user as active */
   if (user->node) {
-    ED_node_set_active(CTX_data_main(C), nullptr, user->ntree, user->node, nullptr);
+    ED_node_set_active(CTX_data_main(*C), nullptr, user->ntree, user->node, nullptr);
     ct->texture = nullptr;
 
     /* Not totally sure if we should also change selection? */
@@ -484,7 +484,7 @@ static void template_texture_select(bContext *C, void *user_p, void * /*arg*/)
 static void template_texture_user_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
   /* callback when opening texture user selection menu, to create buttons. */
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
   ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
   blender::ui::Block *block = layout->block();
   const char *last_category = nullptr;
@@ -542,7 +542,7 @@ void uiTemplateTextureUser(blender::ui::Layout *layout, bContext *C)
   /* Texture user selection drop-down menu. the available users have been
    * gathered before drawing in #ButsContextTexture, we merely need to
    * display the current item. */
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
   ButsContextTexture *ct = (sbuts) ? static_cast<ButsContextTexture *>(sbuts->texuser) : nullptr;
   blender::ui::Block *block = layout->block();
   blender::ui::Button *but;
@@ -591,8 +591,8 @@ void uiTemplateTextureUser(blender::ui::Layout *layout, bContext *C)
 
 static ScrArea *find_area_properties(const bContext *C)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  Object *ob = CTX_data_active_object(C);
+  bScreen *screen = CTX_wm_screen(*C);
+  Object *ob = CTX_data_active_object(*C);
 
   for (ScrArea &area : screen->areabase) {
     if (area.spacetype == SPACE_PROPERTIES) {
@@ -668,7 +668,7 @@ void uiTemplateTextureShow(blender::ui::Layout *layout,
   }
 
   /* Only show the button if we are not in the Properties Editor's texture tab. */
-  SpaceProperties *sbuts_context = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts_context = CTX_wm_space_properties(*C);
   if (sbuts_context != nullptr && sbuts_context->mainb == BCONTEXT_TEXTURE) {
     return;
   }

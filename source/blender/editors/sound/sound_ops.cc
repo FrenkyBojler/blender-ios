@@ -79,7 +79,7 @@ static wmOperatorStatus sound_open_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   bSound *sound;
   PropertyPointerRNA *pprop;
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   RNA_string_get(op->ptr, "filepath", filepath);
   sound = BKE_sound_new_file(bmain, filepath);
@@ -260,10 +260,10 @@ static void sound_update_animation_flags(Scene *scene)
 
 static wmOperatorStatus sound_update_animation_flags_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
-  BKE_main_id_tag_idcode(CTX_data_main(C), ID_SCE, ID_TAG_DOIT, false);
-  sound_update_animation_flags(CTX_data_scene(C));
+  BKE_main_id_tag_idcode(CTX_data_main(*C), ID_SCE, ID_TAG_DOIT, false);
+  sound_update_animation_flags(CTX_data_scene(*C));
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   return OPERATOR_FINISHED;
 }
@@ -293,10 +293,10 @@ static void SOUND_OT_update_animation_flags(wmOperatorType *ot)
 
 static wmOperatorStatus sound_bake_animation_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   /* NOTE: We will be forcefully evaluating dependency graph at every frame, so no need to ensure
    * current scene state is evaluated as it will be lost anyway. */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   int oldfra = scene->r.cfra;
   int cfra;
 
@@ -335,9 +335,9 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
 {
 #ifdef WITH_AUDASPACE
   char filepath[FILE_MAX];
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   int split;
 
   int bitrate, accuracy;
@@ -558,7 +558,7 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
   };
 
   blender::ui::Layout &layout = *op->layout;
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   PropertyRNA *prop_format;
   PropertyRNA *prop_codec;
   PropertyRNA *prop_bitrate;
@@ -778,7 +778,7 @@ static void SOUND_OT_mixdown(wmOperatorType *ot)
 
 static bool sound_poll(bContext *C)
 {
-  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
+  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(*C));
 
   if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND) {
     return false;
@@ -790,8 +790,8 @@ static bool sound_poll(bContext *C)
 
 static wmOperatorStatus sound_pack_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
+  Main *bmain = CTX_data_main(*C);
+  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(*C));
   bSound *sound;
 
   if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND) {
@@ -831,7 +831,7 @@ static void SOUND_OT_pack(wmOperatorType *ot)
 
 static wmOperatorStatus sound_unpack_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   int method = RNA_enum_get(op->ptr, "method");
   bSound *sound = nullptr;
 
@@ -864,7 +864,7 @@ static wmOperatorStatus sound_unpack_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus sound_unpack_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
+  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(*C));
   bSound *sound;
 
   if (RNA_struct_property_is_set(op->ptr, "id")) {

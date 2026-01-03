@@ -146,7 +146,7 @@ static bool object_mode_set_ok_or_report(ReportList *reports)
 
 Object *context_object(const bContext *C)
 {
-  return static_cast<Object *>(CTX_data_pointer_get_type(C, "object", &RNA_Object).data);
+  return static_cast<Object *>(CTX_data_pointer_get_type(*C, "object", &RNA_Object).data);
 }
 
 Object *context_active_object(const bContext *C)
@@ -155,7 +155,7 @@ Object *context_active_object(const bContext *C)
   if (C) {
     ob = context_object(C);
     if (!ob) {
-      ob = CTX_data_active_object(C);
+      ob = CTX_data_active_object(*C);
     }
   }
   return ob;
@@ -165,9 +165,9 @@ Vector<Object *> objects_in_mode_or_selected(bContext *C,
                                              bool (*filter_fn)(const Object *ob, void *user_data),
                                              void *filter_user_data)
 {
-  ScrArea *area = CTX_wm_area(C);
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ScrArea *area = CTX_wm_area(*C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob_active = BKE_view_layer_active_object_get(view_layer);
   ID *id_pin = nullptr;
@@ -290,7 +290,7 @@ Object *object_in_mode_from_index(const Scene *scene,
 
 static bool object_hide_poll(bContext *C)
 {
-  if (CTX_wm_space_outliner(C) != nullptr) {
+  if (CTX_wm_space_outliner(*C) != nullptr) {
     return ED_outliner_collections_editor_poll(C);
   }
   return ED_operator_view3d_active(C);
@@ -298,8 +298,8 @@ static bool object_hide_poll(bContext *C)
 
 static wmOperatorStatus object_hide_view_clear_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const bool select = RNA_boolean_get(op->ptr, "select");
   bool changed = false;
 
@@ -349,8 +349,8 @@ void OBJECT_OT_hide_view_clear(wmOperatorType *ot)
 
 static wmOperatorStatus object_hide_view_set_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const bool unselected = RNA_boolean_get(op->ptr, "unselected");
   bool changed = false;
   const bool confirm = op->flag & OP_IS_INVOKE;
@@ -418,14 +418,14 @@ void OBJECT_OT_hide_view_set(wmOperatorType *ot)
 
 static wmOperatorStatus object_hide_collection_exec(bContext *C, wmOperator *op)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   int index = RNA_int_get(op->ptr, "collection_index");
   const bool extend = RNA_boolean_get(op->ptr, "extend");
   const bool toggle = RNA_boolean_get(op->ptr, "toggle");
 
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   LayerCollection *lc = BKE_layer_collection_from_index(view_layer, index);
 
   if (!lc) {
@@ -459,8 +459,8 @@ static wmOperatorStatus object_hide_collection_exec(bContext *C, wmOperator *op)
 
 void collection_hide_menu_draw(const bContext *C, ui::Layout &layout)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   LayerCollection *lc_scene = static_cast<LayerCollection *>(view_layer->layer_collections.first);
 
   /* Use the "invoke" operator context so the "Shift" modifier is used to extend. */
@@ -819,9 +819,9 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
 
 bool editmode_exit(bContext *C, int flag)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Object *obedit = CTX_data_edit_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *obedit = CTX_data_edit_object(*C);
   return editmode_exit_ex(bmain, scene, obedit, flag);
 }
 
@@ -852,9 +852,9 @@ bool editmode_exit_multi_ex(Main *bmain, Scene *scene, ViewLayer *view_layer, in
 
 bool editmode_exit_multi(bContext *C, int flag)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   return editmode_exit_multi_ex(bmain, scene, view_layer, flag);
 }
 
@@ -985,26 +985,26 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
 
 bool editmode_enter(bContext *C, int flag)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* Active layer checked here for view3d,
    * callers that don't want view context can call the extended version. */
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   return editmode_enter_ex(bmain, scene, ob, flag);
 }
 
 static wmOperatorStatus editmode_toggle_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
   const int mode_flag = OB_MODE_EDIT;
   const bool is_mode_set = (obact->mode & mode_flag) != 0;
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
 
   if (!object_mode_set_ok_or_report(op->reports)) {
     return OPERATOR_CANCELLED;
@@ -1053,8 +1053,8 @@ static bool editmode_toggle_poll(bContext *C)
 {
   /* Get object the same way as in editmode_toggle_exec(). Otherwise overriding context can crash,
    * see #137998. */
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(CTX_data_scene(C), view_layer);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  BKE_view_layer_synced_ensure(CTX_data_scene(*C), view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   /* Covers liboverrides too. */
@@ -1096,11 +1096,11 @@ void OBJECT_OT_editmode_toggle(wmOperatorType *ot)
 
 static wmOperatorStatus posemode_exec(bContext *C, wmOperator *op)
 {
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Base *base = CTX_data_active_base(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Base *base = CTX_data_active_base(*C);
 
   if (!object_mode_set_ok_or_report(op->reports)) {
     return OPERATOR_CANCELLED;
@@ -1148,7 +1148,7 @@ static wmOperatorStatus posemode_exec(bContext *C, wmOperator *op)
   else {
     bool ok = ED_object_posemode_enter(C, obact);
     if (ok) {
-      const View3D *v3d = CTX_wm_view3d(C);
+      const View3D *v3d = CTX_wm_view3d(*C);
       FOREACH_SELECTED_OBJECT_BEGIN (view_layer, v3d, ob) {
         if ((ob != obact) && (ob->type == OB_ARMATURE) && (ob->mode == OB_MODE_OBJECT) &&
             BKE_id_is_editable(bmain, &ob->id))
@@ -1216,7 +1216,7 @@ void check_force_modifiers(Main *bmain, Scene *scene, Object *object)
 
 static wmOperatorStatus forcefield_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
 
   if (ob->pd == nullptr) {
     ob->pd = BKE_partdeflect_new(PFIELD_FORCE);
@@ -1230,7 +1230,7 @@ static wmOperatorStatus forcefield_toggle_exec(bContext *C, wmOperator * /*op*/)
     ob->pd->forcefield = 0;
   }
 
-  check_force_modifiers(CTX_data_main(C), CTX_data_scene(C), ob);
+  check_force_modifiers(CTX_data_main(*C), CTX_data_scene(*C), ob);
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
@@ -1277,7 +1277,7 @@ static eAnimvizCalcRange object_path_convert_range(eObjectPathCalcRange range)
 void motion_paths_recalc_selected(bContext *C, Scene *scene, eObjectPathCalcRange range)
 {
   ListBaseT<LinkData> selected_objects = {nullptr, nullptr};
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     BLI_addtail(&selected_objects, BLI_genericNodeN(ob));
   }
   CTX_DATA_END;
@@ -1290,7 +1290,7 @@ void motion_paths_recalc_selected(bContext *C, Scene *scene, eObjectPathCalcRang
 void motion_paths_recalc_visible(bContext *C, Scene *scene, eObjectPathCalcRange range)
 {
   ListBaseT<LinkData> visible_objects = {nullptr, nullptr};
-  CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, visible_objects) {
     BLI_addtail(&visible_objects, BLI_genericNodeN(ob));
   }
   CTX_DATA_END;
@@ -1320,8 +1320,8 @@ void motion_paths_recalc(bContext *C,
     return;
   }
 
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   Vector<MPathTarget *> targets;
   for (LinkData &link : *ld_objects) {
@@ -1346,7 +1346,7 @@ void motion_paths_recalc(bContext *C,
   if (range == OBJECT_PATH_CALC_RANGE_CURRENT_FRAME) {
     /* NOTE: Dependency graph will be evaluated at all the frames, but we first need to access some
      * nested pointers, like animation data. */
-    depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     free_depsgraph = false;
   }
   else {
@@ -1381,7 +1381,7 @@ static wmOperatorStatus object_calculate_paths_invoke(bContext *C,
                                                       wmOperator *op,
                                                       const wmEvent * /*event*/)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
 
   if (ob == nullptr) {
     return OPERATOR_CANCELLED;
@@ -1403,12 +1403,12 @@ static wmOperatorStatus object_calculate_paths_invoke(bContext *C,
 /* Calculate/recalculate whole paths (avs.path_sf to avs.path_ef) */
 static wmOperatorStatus object_calculate_paths_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   short path_type = RNA_enum_get(op->ptr, "display_type");
   short path_range = RNA_enum_get(op->ptr, "range");
 
   /* set up path data for objects being calculated */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     bAnimVizSettings *avs = &ob->avs;
     /* grab baking settings from operator settings */
     avs->path_type = path_type;
@@ -1480,12 +1480,12 @@ static bool object_update_paths_poll(bContext *C)
 
 static wmOperatorStatus object_update_paths_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   if (scene == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     animviz_motionpath_compute_range(ob, scene);
     /* verify that the selected object has the appropriate settings */
     animviz_verify_motionpaths(op->reports, scene, ob, nullptr);
@@ -1532,7 +1532,7 @@ static bool object_update_all_paths_poll(bContext * /*C*/)
 
 static wmOperatorStatus object_update_all_paths_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   if (scene == nullptr) {
     return OPERATOR_CANCELLED;
@@ -1583,14 +1583,14 @@ void motion_paths_clear(bContext *C, bool only_selected)
 {
   if (only_selected) {
     /* Loop over all selected + editable objects in scene. */
-    CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+    CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
       object_clear_mpath(ob);
     }
     CTX_DATA_END;
   }
   else {
     /* Loop over all editable objects in scene. */
-    CTX_DATA_BEGIN (C, Object *, ob, editable_objects) {
+    CTX_DATA_BEGIN (*C, Object *, ob, editable_objects) {
       object_clear_mpath(ob);
     }
     CTX_DATA_END;
@@ -1690,15 +1690,15 @@ static wmOperatorStatus shade_smooth_exec(bContext *C, wmOperator *op)
   const bool use_flat = STREQ(op->idname, "OBJECT_OT_shade_flat");
   const bool use_smooth = STREQ(op->idname, "OBJECT_OT_shade_smooth");
   const bool use_smooth_by_angle = STREQ(op->idname, "OBJECT_OT_shade_smooth_by_angle");
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   Vector<PointerRNA> ctx_objects;
 
   /* For modes that only use an active object, don't handle the whole selection. */
   {
-    Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
+    Scene *scene = CTX_data_scene(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
     if (obact && (obact->mode & OB_MODE_ALL_PAINT)) {
@@ -1707,7 +1707,7 @@ static wmOperatorStatus shade_smooth_exec(bContext *C, wmOperator *op)
   }
 
   if (ctx_objects.is_empty()) {
-    CTX_data_selected_editable_objects(C, &ctx_objects);
+    CTX_data_selected_editable_objects(*C, &ctx_objects);
   }
 
   Set<ID *> object_data;
@@ -1772,8 +1772,8 @@ static wmOperatorStatus shade_smooth_exec(bContext *C, wmOperator *op)
 
 static bool shade_poll(bContext *C)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
   if (obact != nullptr) {
@@ -1881,14 +1881,14 @@ static bool is_valid_smooth_by_angle_group(const bNodeTree &ntree)
 
 static wmOperatorStatus shade_auto_smooth_exec(bContext *C, wmOperator *op)
 {
-  Main &bmain = *CTX_data_main(C);
-  Scene &scene = *CTX_data_scene(C);
+  Main &bmain = *CTX_data_main(*C);
+  Scene &scene = *CTX_data_scene(*C);
 
   const bool use_auto_smooth = RNA_boolean_get(op->ptr, "use_auto_smooth");
   const float angle = RNA_float_get(op->ptr, "angle");
 
   Vector<PointerRNA> ctx_objects;
-  CTX_data_selected_editable_objects(C, &ctx_objects);
+  CTX_data_selected_editable_objects(*C, &ctx_objects);
 
   if (use_auto_smooth) {
     AssetWeakReference asset_weak_ref{};
@@ -2053,7 +2053,7 @@ static const EnumPropertyItem *object_mode_set_itemf(bContext *C,
     return rna_enum_object_mode_items;
   }
 
-  const Object *ob = CTX_data_active_object(C);
+  const Object *ob = CTX_data_active_object(*C);
   if (ob) {
     while (input->identifier) {
       if (mode_compat_test(ob, eObjectMode(input->value))) {
@@ -2077,14 +2077,14 @@ static const EnumPropertyItem *object_mode_set_itemf(bContext *C,
 static bool object_mode_set_poll(bContext *C)
 {
   /* Needed as #ED_operator_object_active_editable doesn't call use 'active_object'. */
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   return ED_operator_object_active_editable_ex(C, ob);
 }
 
 static wmOperatorStatus object_mode_set_exec(bContext *C, wmOperator *op)
 {
   const bool use_submode = STREQ(op->idname, "OBJECT_OT_mode_set_with_submode");
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   eObjectMode mode = eObjectMode(RNA_enum_get(op->ptr, "mode"));
   const bool toggle = RNA_boolean_get(op->ptr, "toggle");
 
@@ -2169,10 +2169,10 @@ static wmOperatorStatus object_mode_set_exec(bContext *C, wmOperator *op)
     }
   }
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   if (wm) {
     if (WM_autosave_is_scheduled(wm)) {
-      WM_autosave_write(wm, CTX_data_main(C));
+      WM_autosave_write(wm, CTX_data_main(*C));
     }
   }
 
@@ -2230,11 +2230,11 @@ static ListBaseT<LinkData> selected_objects_get(bContext *C)
 {
   ListBaseT<LinkData> objects = {nullptr};
 
-  if (CTX_wm_space_outliner(C) != nullptr) {
+  if (CTX_wm_space_outliner(*C) != nullptr) {
     ED_outliner_selected_objects_get(C, &objects);
   }
   else {
-    CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+    CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
       BLI_addtail(&objects, BLI_genericNodeN(ob));
     }
     CTX_DATA_END;
@@ -2245,7 +2245,7 @@ static ListBaseT<LinkData> selected_objects_get(bContext *C)
 
 static bool move_to_collection_poll(bContext *C)
 {
-  if (CTX_wm_space_outliner(C) != nullptr) {
+  if (CTX_wm_space_outliner(*C) != nullptr) {
     return ED_outliner_collections_editor_poll(C);
   }
   return ED_operator_objectmode(C);
@@ -2253,7 +2253,7 @@ static bool move_to_collection_poll(bContext *C)
 
 static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "collection_uid");
   const bool is_link = STREQ(op->idname, "OBJECT_OT_link_to_collection");
   const bool is_new = RNA_boolean_get(op->ptr, "is_new");
@@ -2262,7 +2262,7 @@ static wmOperatorStatus move_to_collection_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "No collection selected");
     return OPERATOR_CANCELLED;
   }
-  Scene *src_scene = CTX_data_scene(C);
+  Scene *src_scene = CTX_data_scene(*C);
 
   int collection_uid = RNA_property_int_get(op->ptr, prop);
   Scene *dest_scene = nullptr;
@@ -2383,7 +2383,7 @@ static wmOperatorStatus move_to_collection_invoke(bContext *C,
   }
 
   int collection_uid = RNA_property_int_get(op->ptr, prop);
-  Collection *collection = BKE_collection_from_session_uid(CTX_data_main(C), collection_uid);
+  Collection *collection = BKE_collection_from_session_uid(CTX_data_main(*C), collection_uid);
 
   if (!collection) {
     BKE_report(op->reports, RPT_ERROR, "Unexpected error, collection not found");
@@ -2458,7 +2458,7 @@ static void move_to_collection_recursive_menu_draw(const bContext * /*C*/, Menu 
 static void move_to_collection_menu_draw(const bContext *C, Menu *menu)
 {
   ui::Layout &layout = *menu->layout;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (layout.operator_context() == wm::OpCallContext::ExecRegionWin) {
     layout.operator_context_set(wm::OpCallContext::InvokeRegionWin);
     PointerRNA op_ptr = layout.op("WM_OT_search_single_menu",

@@ -260,7 +260,7 @@ static void bone_constraint_panel_id(void *md_link, char *r_idname)
 
 void template_constraints(Layout * /*layout*/, bContext *C, bool use_bone_constraints)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   Object *ob = blender::ed::object::context_active_object(C);
   ListBaseT<bConstraint> *constraints = {nullptr};

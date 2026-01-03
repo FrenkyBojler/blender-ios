@@ -34,8 +34,8 @@ class CloneOperation : public GreasePencilStrokeOperationCommon {
 
 void CloneOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
-  Main &bmain = *CTX_data_main(&C);
-  Object &object = *CTX_data_active_object(&C);
+  Main &bmain = *CTX_data_main(C);
+  Object &object = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   this->init_stroke(C, start_sample);

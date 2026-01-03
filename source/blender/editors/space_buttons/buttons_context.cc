@@ -156,7 +156,7 @@ static bool buttons_context_path_collection(const bContext *C,
     return true;
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* if we have a view layer, use the view layer's active collection */
   if (buttons_context_path_view_layer(path, window)) {
@@ -466,7 +466,7 @@ static bool buttons_context_path_brush(const bContext *C, ButsContextPath *path)
 
     Brush *br = nullptr;
     if (scene) {
-      wmWindow *window = CTX_wm_window(C);
+      wmWindow *window = CTX_wm_window(*C);
       ViewLayer *view_layer = WM_window_get_active_view_layer(window);
       br = BKE_paint_brush(BKE_paint_get_active(scene, view_layer));
     }
@@ -515,7 +515,7 @@ static bool buttons_context_path_texture(const bContext *C,
       buttons_context_path_object(path);
     }
     else if (GS(id->name) == ID_LS) {
-      buttons_context_path_linestyle(path, CTX_wm_window(C));
+      buttons_context_path_linestyle(path, CTX_wm_window(*C));
     }
   }
 
@@ -570,7 +570,7 @@ static bool buttons_context_path_strip_modifier(Scene *sequencer_scene, ButsCont
 #ifdef WITH_FREESTYLE
 static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *view_layer)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
   Scene *scene = WM_window_get_active_scene(window);
 
   /* if Freestyle is disabled in the scene */
@@ -583,7 +583,7 @@ static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *vie
     return false;
   }
   /* if the scene has already been pinned */
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
   if (sbuts->pinid && sbuts->pinid == &scene->id) {
     return false;
   }
@@ -596,7 +596,7 @@ static bool buttons_context_path(
 {
   /* Note we don't use CTX_data here, instead we get it from the window.
    * Otherwise there is a loop reading the context that we are setting. */
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
   Scene *scene = WM_window_get_active_scene(window);
   WorkSpace *workspace = WM_window_get_active_workspace(window);
   Scene *sequencer_scene = workspace->sequencer_scene;
@@ -718,7 +718,7 @@ static bool buttons_context_path(
 
 static bool buttons_shading_context(const bContext *C, int mainb)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
   const Scene *scene = WM_window_get_active_scene(window);
   ViewLayer *view_layer = WM_window_get_active_view_layer(window);
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -736,7 +736,7 @@ static bool buttons_shading_context(const bContext *C, int mainb)
 
 static int buttons_shading_new_context(const bContext *C, int flag)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
   const Scene *scene = WM_window_get_active_scene(window);
   ViewLayer *view_layer = WM_window_get_active_view_layer(window);
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -855,7 +855,7 @@ bool ED_buttons_should_sync_with_outliner(const bContext *C,
                                           const SpaceProperties *sbuts,
                                           ScrArea *area)
 {
-  ScrArea *active_area = CTX_wm_area(C);
+  ScrArea *active_area = CTX_wm_area(*C);
   const bool auto_sync = ED_area_has_shared_border(active_area, area) &&
                          sbuts->outliner_sync == PROPERTIES_SYNC_AUTO;
   return auto_sync || sbuts->outliner_sync == PROPERTIES_SYNC_ALWAYS;
@@ -923,7 +923,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
                                        const char *member,
                                        bContextDataResult *result)
 {
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
   if (sbuts && sbuts->path == nullptr) {
     /* path is cleared for #SCREEN_OT_redo_last, when global undo does a file-read which clears the
      * path (see lib_link_workspace_layout_restore). */
@@ -1253,13 +1253,13 @@ int /*eContextResult*/ buttons_context(const bContext *C,
 
 static bool buttons_panel_context_poll(const bContext *C, PanelType * /*pt*/)
 {
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
   return sbuts->mainb != BCONTEXT_TOOL;
 }
 
 static void buttons_panel_context_draw(const bContext *C, Panel *panel)
 {
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
   ButsContextPath *path = static_cast<ButsContextPath *>(sbuts->path);
 
   if (!path) {
@@ -1347,7 +1347,7 @@ void buttons_context_register(ARegionType *art)
 
 ID *buttons_context_id_path(const bContext *C)
 {
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
   ButsContextPath *path = static_cast<ButsContextPath *>(sbuts->path);
 
   if (path->len == 0) {

@@ -50,9 +50,9 @@ struct SolveCameraJob {
 static bool solve_camera_initjob(
     bContext *C, SolveCameraJob *scj, wmOperator *op, char *error_msg, int max_error)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
   int width, height;
@@ -64,7 +64,7 @@ static bool solve_camera_initjob(
   /* Could fail if footage uses images with different sizes. */
   BKE_movieclip_get_size(clip, &sc->user, &width, &height);
 
-  scj->wm = CTX_wm_manager(C);
+  scj->wm = CTX_wm_manager(*C);
   scj->clip = clip;
   scj->scene = scene;
   scj->reports = op->reports;
@@ -197,7 +197,7 @@ static wmOperatorStatus solve_camera_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   SolveCameraJob *scj;
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -205,7 +205,7 @@ static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const w
   wmJob *wm_job;
   char error_msg[256] = "\0";
 
-  if (WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
+  if (WM_jobs_test(CTX_wm_manager(*C), CTX_data_scene(*C), WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
     /* only one solve is allowed at a time */
     return OPERATOR_CANCELLED;
   }
@@ -226,9 +226,9 @@ static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const w
   WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
 
   /* Setup job. */
-  wm_job = WM_jobs_get(CTX_wm_manager(C),
-                       CTX_wm_window(C),
-                       CTX_data_scene(C),
+  wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                       CTX_wm_window(*C),
+                       CTX_data_scene(*C),
                        "Solving camera...",
                        WM_JOB_PROGRESS,
                        WM_JOB_TYPE_CLIP_SOLVE_CAMERA);
@@ -238,7 +238,7 @@ static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const w
 
   G.is_break = false;
 
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_jobs_start(CTX_wm_manager(*C), wm_job);
   WM_cursor_wait(false);
 
   /* add modal handler for ESC */
@@ -250,7 +250,7 @@ static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const w
 static wmOperatorStatus solve_camera_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   /* No running solver, remove handler and pass through. */
-  if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_wm_area(C), WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
+  if (0 == WM_jobs_test(CTX_wm_manager(*C), CTX_wm_area(*C), WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
@@ -287,7 +287,7 @@ void CLIP_OT_solve_camera(wmOperatorType *ot)
 
 static wmOperatorStatus clear_solution_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingReconstruction *reconstruction = &tracking_object->reconstruction;

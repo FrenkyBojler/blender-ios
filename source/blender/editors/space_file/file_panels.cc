@@ -41,19 +41,19 @@
 
 static bool file_panel_operator_poll(const bContext *C, PanelType * /*pt*/)
 {
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   return (sfile && sfile->op);
 }
 
 static bool file_panel_asset_browsing_poll(const bContext *C, PanelType * /*pt*/)
 {
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   return sfile && sfile->files && ED_fileselect_is_asset_browser(sfile);
 }
 
 static void file_panel_operator_header(const bContext *C, Panel *panel)
 {
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   wmOperator *op = sfile->op;
 
   const std::string opname = WM_operatortype_name(op->type, op->ptr);
@@ -62,7 +62,7 @@ static void file_panel_operator_header(const bContext *C, Panel *panel)
 
 static void file_panel_operator(const bContext *C, Panel *panel)
 {
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   wmOperator *op = sfile->op;
 
   block_func_set(panel->layout->block(), file_draw_check_cb, nullptr, nullptr);
@@ -131,8 +131,8 @@ static void file_panel_execution_execute_button(blender::ui::Layout &layout, con
 
 static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  bScreen *screen = CTX_wm_screen(*C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   blender::ui::Block *block = panel->layout->block();
 
@@ -225,8 +225,8 @@ void file_execute_region_panels_register(ARegionType *art)
 
 static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *panel)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  bScreen *screen = CTX_wm_screen(*C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   /* May be null if the library wasn't loaded yet. */
   blender::asset_system::AssetLibrary *asset_library = filelist_asset_library(sfile->files);
   FileAssetSelectParams *params = ED_fileselect_get_asset_params(sfile);
@@ -240,7 +240,7 @@ static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *pane
 
   row.prop(&params_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
   if (params->asset_library_ref.type == ASSET_LIBRARY_LOCAL) {
-    bContext *mutable_ctx = CTX_copy(C);
+    bContext *mutable_ctx = CTX_copy(*C);
     if (WM_operator_name_poll(mutable_ctx, "asset.bundle_install")) {
       col.separator();
       col.op_menu_enum(C,

@@ -116,8 +116,8 @@ static bool graph_panel_poll(const bContext *C, PanelType * /*pt*/)
 
 static void graph_panel_cursor_header(const bContext *C, Panel *panel)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  SpaceGraph *sipo = CTX_wm_space_graph(C);
+  bScreen *screen = CTX_wm_screen(*C);
+  SpaceGraph *sipo = CTX_wm_space_graph(*C);
 
   /* get RNA pointers for use when creating the UI elements */
   PointerRNA spaceptr = RNA_pointer_create_discrete(&screen->id, &RNA_SpaceGraphEditor, sipo);
@@ -129,9 +129,9 @@ static void graph_panel_cursor_header(const bContext *C, Panel *panel)
 
 static void graph_panel_cursor(const bContext *C, Panel *panel)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  SpaceGraph *sipo = CTX_wm_space_graph(C);
-  Scene *scene = CTX_data_scene(C);
+  bScreen *screen = CTX_wm_screen(*C);
+  SpaceGraph *sipo = CTX_wm_space_graph(*C);
+  Scene *scene = CTX_data_scene(*C);
   blender::ui::Layout &layout = *panel->layout;
 
   /* get RNA pointers for use when creating the UI elements */
@@ -366,7 +366,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
   BezTriple *bezt, *prevbezt;
 
   blender::ui::Layout &layout = *panel->layout;
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   /* Just a width big enough so buttons use entire layout width (will be clamped by it then). */
   const int but_max_width = region->winx;
 
@@ -616,8 +616,8 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
 
 static void do_graph_region_driver_buttons(bContext *C, void *id_v, int event)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   switch (event) {
     case B_IPO_DEPCHANGE: {
@@ -729,7 +729,7 @@ static void driver_update_flags_cb(bContext * /*C*/, void *fcu_v, void * /*arg*/
 /* drivers panel poll */
 static bool graph_panel_drivers_poll(const bContext *C, PanelType * /*pt*/)
 {
-  SpaceGraph *sipo = CTX_wm_space_graph(C);
+  SpaceGraph *sipo = CTX_wm_space_graph(*C);
 
   if (sipo->mode != SIPO_MODE_DRIVERS) {
     return false;
@@ -1299,7 +1299,7 @@ static void graph_panel_drivers_popover(const bContext *C, Panel *panel)
   blender::ui::Button *but = nullptr;
 
   /* Get active property to show driver properties for */
-  but = blender::ui::region_active_but_prop_get(CTX_wm_region(C), &ptr, &prop, &index);
+  but = blender::ui::region_active_but_prop_get(CTX_wm_region(*C), &ptr, &prop, &index);
   if (but) {
     FCurve *fcu;
     bool driven, special;

@@ -70,7 +70,7 @@ class TintOperation : public GreasePencilStrokeOperation {
 void TintOperation::on_stroke_begin(const bContext &C, const InputSample & /*start_sample*/)
 {
   using namespace blender::bke::greasepencil;
-  Scene *scene = CTX_data_scene(&C);
+  Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush *brush = BKE_paint_brush(paint);
 
@@ -94,7 +94,7 @@ void TintOperation::on_stroke_begin(const bContext &C, const InputSample & /*sta
 
   color_ = ColorGeometry4f(color_linear);
 
-  Object *obact = CTX_data_active_object(&C);
+  Object *obact = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(obact->data);
 
   if (active_layer_only_) {
@@ -115,8 +115,8 @@ void TintOperation::on_stroke_begin(const bContext &C, const InputSample & /*sta
     return;
   }
 
-  ARegion *region = CTX_wm_region(&C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
+  ARegion *region = CTX_wm_region(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Object *ob_eval = DEG_get_evaluated(depsgraph, obact);
 
   screen_positions_per_drawing_.reinitialize(drawings_.size());
@@ -250,8 +250,8 @@ void TintOperation::execute_tint(const bContext &C, const InputSample &extension
   }
 
   using namespace blender::bke::greasepencil;
-  Scene *scene = CTX_data_scene(&C);
-  Object *obact = CTX_data_active_object(&C);
+  Scene *scene = CTX_data_scene(C);
+  Object *obact = CTX_data_active_object(C);
 
   Paint *paint = &scene->toolsettings->gp_paint->paint;
   Brush *brush = BKE_paint_brush(paint);

@@ -916,10 +916,10 @@ struct EraseOperationExecutor {
   void execute(EraseOperation &self, const bContext &C, const InputSample &extension_sample)
   {
     using namespace blender::bke::greasepencil;
-    Scene *scene = CTX_data_scene(&C);
-    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
-    ARegion *region = CTX_wm_region(&C);
-    Object *obact = CTX_data_active_object(&C);
+    Scene *scene = CTX_data_scene(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    ARegion *region = CTX_wm_region(C);
+    Object *obact = CTX_data_active_object(C);
     Object *ob_eval = DEG_get_evaluated(depsgraph, obact);
 
     Paint *paint = &scene->toolsettings->gp_paint->paint;
@@ -1043,7 +1043,7 @@ void EraseOperation::on_stroke_begin(const bContext &C, const InputSample & /*st
   /* If we're using the draw tool to erase (e.g. while holding ctrl), then we should use the
    * eraser brush instead. */
   if (temp_eraser_) {
-    Object *object = CTX_data_active_object(&C);
+    Object *object = CTX_data_active_object(C);
     GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
 
     radius_ = paint->eraser_brush->size / 2.0f;
@@ -1130,7 +1130,7 @@ static void remove_points_with_low_opacity(blender::bke::CurvesGeometry &curves,
 
 void EraseOperation::on_stroke_done(const bContext &C)
 {
-  Object *object = CTX_data_active_object(&C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   if (temp_eraser_) {
     /* If we're using the draw tool to temporarily erase, then we need to reset the

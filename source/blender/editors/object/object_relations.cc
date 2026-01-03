@@ -110,12 +110,12 @@ static bool vertex_parent_set_poll(bContext *C)
 
 static wmOperatorStatus vertex_parent_set_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *obedit = CTX_data_edit_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Object *obedit = CTX_data_edit_object(*C);
   Object *par;
 
 #define INDEX_UNSET -1
@@ -249,7 +249,7 @@ static wmOperatorStatus vertex_parent_set_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     if (ob != obedit) {
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
       par = obedit->parent;
@@ -424,12 +424,12 @@ void parent_clear(Object *ob, const int type)
 /* NOTE: poll should check for editable scene. */
 static wmOperatorStatus parent_clear_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   /* Dependency graph must be evaluated for access to object's evaluated transform matrices. */
-  CTX_data_ensure_evaluated_depsgraph(C);
+  CTX_data_ensure_evaluated_depsgraph(*C);
   const int type = RNA_enum_get(op->ptr, "type");
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     parent_clear(ob, type);
   }
   CTX_DATA_END;
@@ -513,7 +513,7 @@ static bool parent_set_with_depsgraph(ReportList *reports,
                                       const bool keep_transform,
                                       const int vert_par[3])
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bPoseChannel *pchan = nullptr;
   bPoseChannel *pchan_eval = nullptr;
 
@@ -790,7 +790,7 @@ bool parent_set(ReportList *reports,
                 const bool keep_transform,
                 const int vert_par[3])
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Object *parent_eval = DEG_get_evaluated(depsgraph, par);
 
   return parent_set_with_depsgraph(reports,
@@ -843,10 +843,10 @@ struct ParentingContext {
 
 static bool parent_set_nonvertex_parent(bContext *C, ParentingContext *parenting_context)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Object *parent_eval = DEG_get_evaluated(depsgraph, parenting_context->par);
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     if (ob == parenting_context->par) {
       /* parent_set() will fail (and thus return false), but this case
        * shouldn't break this loop. It's expected that the active object is also selected. */
@@ -879,7 +879,7 @@ static bool parent_set_vertex_parent_with_kdtree(bContext *C,
 {
   int vert_par[3] = {0, 0, 0};
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     if (ob == parenting_context->par) {
       /* parent_set() will fail (and thus return false), but this case
        * shouldn't break this loop. It's expected that the active object is also selected. */
@@ -909,7 +909,7 @@ static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_co
   KDTree_3d *tree = nullptr;
   int tree_tot;
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Object *par_eval = DEG_get_evaluated(depsgraph, parenting_context->par);
 
   tree = BKE_object_as_kdtree(par_eval, &tree_tot);
@@ -931,7 +931,7 @@ static wmOperatorStatus parent_set_exec(bContext *C, wmOperator *op)
   const int partype = RNA_enum_get(op->ptr, "type");
   ParentingContext parenting_context{};
   parenting_context.reports = op->reports;
-  parenting_context.scene = CTX_data_scene(C);
+  parenting_context.scene = CTX_data_scene(*C);
   parenting_context.par = context_active_object(C);
   parenting_context.partype = partype;
   parenting_context.is_vertex_tri = partype == PAR_VERTEX_TRI;
@@ -949,7 +949,7 @@ static wmOperatorStatus parent_set_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
   WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, nullptr);
@@ -989,7 +989,7 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
     bool armature_deform, empty_groups, envelope_weights, automatic_weights, attach_surface;
   } can_support = {false};
 
-  CTX_DATA_BEGIN (C, Object *, child, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, child, selected_editable_objects) {
     if (child == parent) {
       continue;
     }
@@ -1134,7 +1134,7 @@ void OBJECT_OT_parent_set(wmOperatorType *ot)
 
 static wmOperatorStatus parent_noinv_set_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *par = context_active_object(C);
 
   const bool keep_transform = RNA_boolean_get(op->ptr, "keep_transform");
@@ -1142,7 +1142,7 @@ static wmOperatorStatus parent_noinv_set_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&par->id, ID_RECALC_TRANSFORM);
 
   /* context iterator */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     if (ob != par) {
       if (BKE_object_parent_loop_check(par, ob)) {
         BKE_report(op->reports, RPT_ERROR, "Loop in parents");
@@ -1220,14 +1220,14 @@ static const EnumPropertyItem prop_clear_track_types[] = {
 /* NOTE: poll should check for editable scene. */
 static wmOperatorStatus object_track_clear_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const int type = RNA_enum_get(op->ptr, "type");
 
-  if (CTX_data_edit_object(C)) {
+  if (CTX_data_edit_object(*C)) {
     BKE_report(op->reports, RPT_ERROR, "Operation cannot be performed in edit mode");
     return OPERATOR_CANCELLED;
   }
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     bConstraint *con, *pcon;
 
     /* remove track-object for old track */
@@ -1298,7 +1298,7 @@ static const EnumPropertyItem prop_make_track_types[] = {
 
 static wmOperatorStatus track_set_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *obact = context_active_object(C);
 
   const int type = RNA_enum_get(op->ptr, "type");
@@ -1308,7 +1308,7 @@ static wmOperatorStatus track_set_exec(bContext *C, wmOperator *op)
       bConstraint *con;
       bDampTrackConstraint *data;
 
-      CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+      CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
         if (ob != obact) {
           con = BKE_constraint_add_for_object(ob, "AutoTrack", CONSTRAINT_TYPE_DAMPTRACK);
 
@@ -1330,7 +1330,7 @@ static wmOperatorStatus track_set_exec(bContext *C, wmOperator *op)
       bConstraint *con;
       bTrackToConstraint *data;
 
-      CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+      CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
         if (ob != obact) {
           con = BKE_constraint_add_for_object(ob, "AutoTrack", CONSTRAINT_TYPE_TRACKTO);
 
@@ -1353,7 +1353,7 @@ static wmOperatorStatus track_set_exec(bContext *C, wmOperator *op)
       bConstraint *con;
       bLockTrackConstraint *data;
 
-      CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+      CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
         if (ob != obact) {
           con = BKE_constraint_add_for_object(ob, "AutoTrack", CONSTRAINT_TYPE_LOCKTRACK);
 
@@ -1432,7 +1432,7 @@ static void link_to_scene(Main * /*bmain*/, ushort /*nr*/)
 
 static wmOperatorStatus make_links_scene_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Scene *scene_to = static_cast<Scene *>(
       BLI_findlink(&bmain->scenes, RNA_enum_get(op->ptr, "scene")));
 
@@ -1441,7 +1441,7 @@ static wmOperatorStatus make_links_scene_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (scene_to == CTX_data_scene(C)) {
+  if (scene_to == CTX_data_scene(*C)) {
     BKE_report(op->reports, RPT_ERROR, "Cannot link objects into the same scene");
     return OPERATOR_CANCELLED;
   }
@@ -1452,7 +1452,7 @@ static wmOperatorStatus make_links_scene_exec(bContext *C, wmOperator *op)
   }
 
   Collection *collection_to = scene_to->master_collection;
-  CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
+  CTX_DATA_BEGIN (*C, Base *, base, selected_bases) {
     BKE_collection_object_add(bmain, collection_to, base->object);
   }
   CTX_DATA_END;
@@ -1529,8 +1529,8 @@ static bool allow_make_links_data(const int type, Object *ob_src, Object *ob_dst
 
 static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(*C);
   const int type = RNA_enum_get(op->ptr, "type");
   Object *ob_src;
   ID *obdata_id;
@@ -1548,7 +1548,7 @@ static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
     ob_collections = BKE_object_groups(bmain, scene, ob_src);
   }
 
-  CTX_DATA_BEGIN (C, Base *, base_dst, selected_editable_bases) {
+  CTX_DATA_BEGIN (*C, Base *, base_dst, selected_editable_bases) {
     Object *ob_dst = base_dst->object;
 
     if (ob_src != ob_dst) {
@@ -1683,7 +1683,7 @@ static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
 
   DEG_relations_tag_update(bmain);
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, CTX_wm_view3d(C));
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, CTX_wm_view3d(*C));
   WM_event_add_notifier(C, NC_OBJECT, nullptr);
 
   return OPERATOR_FINISHED;
@@ -2136,14 +2136,14 @@ static int tag_localizable_looper(LibraryIDLinkCallbackData *cb_data)
 
 static void tag_localizable_objects(bContext *C, const int mode)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
   /* Set ID_TAG_DOIT flag for all selected objects, so next we can check whether
    * object is gonna to become local or not.
    */
-  CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, object, selected_objects) {
     object->id.tag |= ID_TAG_DOIT;
 
     /* If obdata is also going to become local, mark it as such too. */
@@ -2258,16 +2258,16 @@ static void make_local_material_tag(Material *ma)
 
 static wmOperatorStatus make_local_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Material *ma, ***matarar;
   const int mode = RNA_enum_get(op->ptr, "type");
   int a;
 
   /* NOTE: we (ab)use ID_TAG_PRE_EXISTING to cherry pick which ID to make local... */
   if (mode == MAKE_LOCAL_ALL) {
-    const Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
-    Collection *collection = CTX_data_collection(C);
+    const Scene *scene = CTX_data_scene(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    Collection *collection = CTX_data_collection(*C);
 
     BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, false);
 
@@ -2284,7 +2284,7 @@ static wmOperatorStatus make_local_exec(bContext *C, wmOperator *op)
     BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, true);
     tag_localizable_objects(C, mode);
 
-    CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+    CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
       if ((ob->id.tag & ID_TAG_DOIT) == 0) {
         continue;
       }
@@ -2388,10 +2388,10 @@ static bool make_override_library_object_overridable_check(Main *bmain, Object *
 
 static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *obact = CTX_data_active_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Object *obact = CTX_data_active_object(*C);
   ID *id_root = nullptr;
   bool is_override_instancing_object = false;
 
@@ -2440,7 +2440,7 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
 
   /* Make already existing selected liboverrides editable. */
   bool is_active_override = false;
-  FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(C), ob_iter) {
+  FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(*C), ob_iter) {
     if (ID_IS_OVERRIDE_LIBRARY_REAL(ob_iter) && !ID_IS_LINKED(ob_iter)) {
       ob_iter->id.override_library->flag &= ~LIBOVERRIDE_FLAG_SYSTEM_DEFINED;
       is_active_override = is_active_override || (&ob_iter->id == id_root);
@@ -2468,7 +2468,7 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
   }
   else if (user_overrides_from_selected_objects) {
     /* Only selected objects can be 'user overrides'. */
-    FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(C), ob_iter) {
+    FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(*C), ob_iter) {
       user_overrides_objects_uids->add(ob_iter->id.session_uid);
     }
     FOREACH_SELECTED_OBJECT_END;
@@ -2569,7 +2569,7 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
     }
   }
 
-  DEG_id_tag_update(&CTX_data_scene(C)->id, ID_RECALC_BASE_FLAGS | ID_RECALC_SYNC_TO_EVAL);
+  DEG_id_tag_update(&CTX_data_scene(*C)->id, ID_RECALC_BASE_FLAGS | ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
   WM_event_add_notifier(C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
@@ -2582,9 +2582,9 @@ static wmOperatorStatus make_override_library_invoke(bContext *C,
                                                      wmOperator *op,
                                                      const wmEvent * /*event*/)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Object *obact = context_active_object(C);
 
   /* Sanity checks. */
@@ -2674,7 +2674,7 @@ static wmOperatorStatus make_override_library_invoke(bContext *C,
 
 static bool make_override_library_poll(bContext *C)
 {
-  Base *base_act = CTX_data_active_base(C);
+  Base *base_act = CTX_data_active_base(*C);
   /* If the active object is not selected, do nothing (operators rely on selection too, they will
    * misbehave if the active object is not also selected, see e.g. #120701. */
   if ((base_act == nullptr) || ((base_act->flag & BASE_SELECTED) == 0)) {
@@ -2731,7 +2731,7 @@ void OBJECT_OT_make_override_library(wmOperatorType *ot)
 
 static bool reset_clear_override_library_poll(bContext *C)
 {
-  Base *base_act = CTX_data_active_base(C);
+  Base *base_act = CTX_data_active_base(*C);
   /* If the active object is not selected, do nothing (operators rely on selection too, they will
    * misbehave if the active object is not also selected, see e.g. #120701. */
   if ((base_act == nullptr) || ((base_act->flag & BASE_SELECTED) == 0)) {
@@ -2746,10 +2746,10 @@ static bool reset_clear_override_library_poll(bContext *C)
 
 static wmOperatorStatus reset_override_library_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   /* Reset all selected liboverrides. */
-  FOREACH_SELECTED_OBJECT_BEGIN (CTX_data_view_layer(C), CTX_wm_view3d(C), ob_iter) {
+  FOREACH_SELECTED_OBJECT_BEGIN (CTX_data_view_layer(*C), CTX_wm_view3d(*C), ob_iter) {
     if (ID_IS_OVERRIDE_LIBRARY_REAL(ob_iter) && !ID_IS_LINKED(ob_iter)) {
       BKE_lib_override_library_id_reset(bmain, &ob_iter->id, false);
     }
@@ -2786,13 +2786,13 @@ void OBJECT_OT_reset_override_library(wmOperatorType *ot)
 
 static wmOperatorStatus clear_override_library_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(*C);
   LinkNode *todo_objects = nullptr, *todo_object_iter;
 
   /* Make already existing selected liboverrides editable. */
-  FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(C), ob_iter) {
+  FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(*C), ob_iter) {
     if (ID_IS_LINKED(ob_iter)) {
       continue;
     }
@@ -2868,10 +2868,10 @@ enum {
 
 static wmOperatorStatus make_single_user_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C); /* ok if this is nullptr */
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C); /* ok if this is nullptr */
   const int flag = (RNA_enum_get(op->ptr, "type") == MAKE_SINGLE_USER_SELECTED) ? SELECT : 0;
   const bool copy_collections = false;
   bool update_deps = false;
@@ -3000,7 +3000,7 @@ static wmOperatorStatus drop_named_material_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   int mat_slot = 0;
   Object *ob = ED_view3d_give_material_slot_under_cursor(C, event->mval, &mat_slot);
   mat_slot = max_ii(mat_slot, 1);
@@ -3020,7 +3020,7 @@ static wmOperatorStatus drop_named_material_invoke(bContext *C,
     assign_type = BKE_MAT_ASSIGN_OBJECT;
   }
 
-  BKE_object_material_assign(CTX_data_main(C), ob, ma, mat_slot, assign_type);
+  BKE_object_material_assign(CTX_data_main(*C), ob, ma, mat_slot, assign_type);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
@@ -3062,7 +3062,7 @@ std::string drop_geometry_nodes_tooltip(bContext *C, PointerRNA *properties, con
   }
 
   const uint32_t session_uid = RNA_int_get(properties, "session_uid");
-  const ID *id = BKE_libblock_find_session_uid(CTX_data_main(C), ID_NT, session_uid);
+  const ID *id = BKE_libblock_find_session_uid(CTX_data_main(*C), ID_NT, session_uid);
   if (!id) {
     return {};
   }
@@ -3100,8 +3100,8 @@ static wmOperatorStatus drop_geometry_nodes_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   const uint32_t uid = RNA_int_get(op->ptr, "session_uid");
   bNodeTree *node_tree = (bNodeTree *)BKE_libblock_find_session_uid(bmain, ID_NT, uid);

@@ -60,7 +60,7 @@ void paintface_flush_flags(bContext *C,
     bke::mesh_select_face_flush(*mesh);
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
 
   if (ob_eval == nullptr) {
@@ -419,7 +419,7 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
 {
   using namespace blender;
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   ED_view3d_select_id_validate(&vc);
 
@@ -437,7 +437,7 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
     return;
   }
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   ED_view3d_init_mats_rv3d(ob_eval, rv3d);
 
@@ -777,7 +777,7 @@ bool paintface_mouse_select(bContext *C,
     /* image window redraw */
 
     paintface_flush_flags(C, ob, true, false);
-    ED_region_tag_redraw(CTX_wm_region(C)); /* XXX: should redraw all 3D views. */
+    ED_region_tag_redraw(CTX_wm_region(*C)); /* XXX: should redraw all 3D views. */
     changed = true;
   }
   select_poly.finish();

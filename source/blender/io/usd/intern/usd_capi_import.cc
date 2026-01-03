@@ -414,10 +414,10 @@ bool USD_import(const bContext *C,
   /* Using new here since `MEM_*` functions do not call constructor to properly initialize data. */
   ImportJobData *job = new ImportJobData();
   job->C = const_cast<bContext *>(C);
-  job->bmain = CTX_data_main(C);
-  job->scene = CTX_data_scene(C);
-  job->view_layer = CTX_data_view_layer(C);
-  job->wm = CTX_wm_manager(C);
+  job->bmain = CTX_data_main(*C);
+  job->scene = CTX_data_scene(*C);
+  job->view_layer = CTX_data_view_layer(*C);
+  job->wm = CTX_wm_manager(*C);
   job->import_ok = false;
   job->is_background_job = as_background_job;
   STRNCPY(job->filepath, filepath);
@@ -432,8 +432,8 @@ bool USD_import(const bContext *C,
 
   bool import_ok = false;
   if (as_background_job) {
-    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
-                                CTX_wm_window(C),
+    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                                CTX_wm_window(*C),
                                 job->scene,
                                 "Importing USD...",
                                 WM_JOB_PROGRESS,
@@ -444,7 +444,7 @@ bool USD_import(const bContext *C,
     WM_jobs_timer(wm_job, 0.1, NC_SCENE, NC_SCENE);
     WM_jobs_callbacks(wm_job, import_startjob, nullptr, nullptr, import_endjob);
 
-    WM_jobs_start(CTX_wm_manager(C), wm_job);
+    WM_jobs_start(CTX_wm_manager(*C), wm_job);
   }
   else {
     wmJobWorkerStatus worker_status = {};

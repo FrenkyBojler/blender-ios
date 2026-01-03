@@ -50,7 +50,7 @@ static Vector<const VolumeGridInfo *> get_grid_names_from_context(const bContext
 {
   using namespace nodes::geo_eval_log;
 
-  SpaceNode *snode = CTX_wm_space_node(&C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   if (!snode) {
     BLI_assert_unreachable();
     return {};
@@ -168,7 +168,7 @@ static void volume_grid_search_add_items(const StringRef str,
 static void grid_search_update_fn(
     const bContext *C, void *arg, const char *str, ui::SearchItems *items, const bool is_first)
 {
-  if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+  if (ED_screen_animation_playing(CTX_wm_manager(*C))) {
     return;
   }
 
@@ -182,14 +182,14 @@ static void grid_search_update_fn(
 
 static void grid_search_exec_fn(bContext *C, void *data_v, void *item_v)
 {
-  if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+  if (ED_screen_animation_playing(CTX_wm_manager(*C))) {
     return;
   }
   std::string *item = static_cast<std::string *>(item_v);
   if (item == nullptr) {
     return;
   }
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   if (!snode) {
     BLI_assert_unreachable();
     return;

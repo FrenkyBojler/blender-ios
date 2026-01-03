@@ -110,9 +110,9 @@ void autokeyframe_object(bContext *C, const Scene *scene, Object *ob, Span<RNAPa
     return;
   }
 
-  ReportList *reports = CTX_wm_reports(C);
+  ReportList *reports = CTX_wm_reports(*C);
   KeyingSet *active_ks = scene_get_active_keyingset(scene);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
       depsgraph, BKE_scene_frame_get(scene));
 
@@ -133,7 +133,7 @@ void autokeyframe_object(bContext *C, const Scene *scene, Object *ob, Span<RNAPa
   }
 
   const float scene_frame = BKE_scene_frame_get(scene);
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   CombinedKeyingResult combined_result;
   for (PointerRNA ptr : sources) {
@@ -202,16 +202,16 @@ void autokeyframe_pose_channel(bContext *C,
   BLI_assert(ob != nullptr);
   BLI_assert(pose_channel != nullptr);
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ID *id = &ob->id;
 
   if (!blender::animrig::autokeyframe_cfra_can_key(scene, id)) {
     return;
   }
 
-  ReportList *reports = CTX_wm_reports(C);
+  ReportList *reports = CTX_wm_reports(*C);
   KeyingSet *active_ks = scene_get_active_keyingset(scene);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   const float scene_frame = BKE_scene_frame_get(scene);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
                                                                                     scene_frame);
@@ -266,7 +266,7 @@ bool autokeyframe_property(bContext *C,
                            const bool only_if_property_keyed)
 {
 
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
                                                                                     cfra);
   bAction *action;
@@ -293,7 +293,7 @@ bool autokeyframe_property(bContext *C,
   if (special) {
     /* NLA Strip property. */
     if (is_autokey_on(scene)) {
-      ReportList *reports = CTX_wm_reports(C);
+      ReportList *reports = CTX_wm_reports(*C);
       ToolSettings *ts = scene->toolsettings;
 
       changed = insert_keyframe_direct(reports,
@@ -309,7 +309,7 @@ bool autokeyframe_property(bContext *C,
   }
   else {
     ID *id = ptr->owner_id;
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
 
     /* TODO: this should probably respect the keyingset only option for anim */
     if (autokeyframe_cfra_can_key(scene, id)) {

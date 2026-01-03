@@ -101,7 +101,7 @@ static void script_main_region_init(wmWindowManager *wm, ARegion *region)
 static void script_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
-  SpaceScript *sscript = (SpaceScript *)CTX_wm_space_data(C);
+  SpaceScript *sscript = (SpaceScript *)CTX_wm_space_data(*C);
   View2D *v2d = &region->v2d;
 
   /* clear and setup matrix */

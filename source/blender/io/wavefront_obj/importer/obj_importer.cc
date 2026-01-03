@@ -204,9 +204,9 @@ void importer_geometry(const OBJImportParams &import_params,
 
 void importer_main(bContext *C, const OBJImportParams &import_params)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   importer_main(bmain, scene, view_layer, import_params);
 }
 

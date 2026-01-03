@@ -411,14 +411,14 @@ static void gizmo_cage3d_draw_intern(
  */
 static void gizmo_cage3d_draw_select(const bContext *C, wmGizmo *gz, int select_id)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   gizmo_cage3d_draw_intern(rv3d, gz, true, false, select_id);
 }
 
 static void gizmo_cage3d_draw(const bContext *C, wmGizmo *gz)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   const bool is_highlight = (gz->state & WM_GIZMO_STATE_HIGHLIGHT) != 0;
   gizmo_cage3d_draw_intern(rv3d, gz, false, is_highlight, -1);
@@ -589,7 +589,7 @@ static wmOperatorStatus gizmo_cage3d_modal(bContext *C,
   }
 
   /* tag the region for redraw */
-  ED_region_tag_redraw_editor_overlays(CTX_wm_region(C));
+  ED_region_tag_redraw_editor_overlays(CTX_wm_region(*C));
 
   return OPERATOR_RUNNING_MODAL;
 }

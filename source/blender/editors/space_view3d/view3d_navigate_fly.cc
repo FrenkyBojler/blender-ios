@@ -305,18 +305,18 @@ enum {
 
 static bool initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, const wmEvent *event)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
   rctf viewborder;
 
   float upvec[3];
   float mat[3][3];
 
-  fly->rv3d = CTX_wm_region_view3d(C);
-  fly->v3d = CTX_wm_view3d(C);
-  fly->region = CTX_wm_region(C);
-  fly->depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-  fly->scene = CTX_data_scene(C);
+  fly->rv3d = CTX_wm_region_view3d(*C);
+  fly->v3d = CTX_wm_view3d(*C);
+  fly->region = CTX_wm_region(*C);
+  fly->depsgraph = CTX_data_expect_evaluated_depsgraph(*C);
+  fly->scene = CTX_data_scene(*C);
 
 #ifdef NDOF_FLY_DEBUG
   puts("\n-- fly begin --");
@@ -328,7 +328,7 @@ static bool initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, const wmEvent
   }
 
   if (fly->rv3d->persp == RV3D_CAMOB &&
-      !BKE_id_is_editable(CTX_data_main(C), &fly->v3d->camera->id))
+      !BKE_id_is_editable(CTX_data_main(*C), &fly->v3d->camera->id))
   {
     BKE_report(op->reports,
                RPT_ERROR,
@@ -365,7 +365,7 @@ static bool initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, const wmEvent
 #endif
   zero_v3(fly->dvec_prev);
 
-  fly->timer = WM_event_timer_add(CTX_wm_manager(C), win, TIMER, 0.01f);
+  fly->timer = WM_event_timer_add(CTX_wm_manager(*C), win, TIMER, 0.01f);
 
   copy_v2_v2_int(fly->mval, event->mval);
 
@@ -443,12 +443,12 @@ static wmOperatorStatus flyEnd(bContext *C, FlyInfo *fly)
   puts("\n-- fly end --");
 #endif
 
-  win = CTX_wm_window(C);
+  win = CTX_wm_window(*C);
   rv3d = fly->rv3d;
 
   ED_workspace_status_text(C, nullptr);
 
-  WM_event_timer_remove(CTX_wm_manager(C), win, fly->timer);
+  WM_event_timer_remove(CTX_wm_manager(*C), win, fly->timer);
 
   ED_region_draw_cb_exit(fly->region->runtime->type, fly->draw_handle_pixel);
 
@@ -1110,7 +1110,7 @@ static void fly_draw_status(bContext *C, wmOperator *op)
 
 static wmOperatorStatus fly_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
 
   if (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) {
     return OPERATOR_CANCELLED;
@@ -1193,7 +1193,7 @@ static wmOperatorStatus fly_modal(bContext *C, wmOperator *op, const wmEvent *ev
     }
 
     // puts("redraw!"); // too frequent, commented with NDOF_FLY_DRAW_TOOMUCH for now
-    ED_region_tag_redraw(CTX_wm_region(C));
+    ED_region_tag_redraw(CTX_wm_region(*C));
   }
 
   return exit_code;

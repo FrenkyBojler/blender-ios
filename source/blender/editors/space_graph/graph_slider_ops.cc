@@ -243,7 +243,7 @@ static float slider_factor_get_and_remember(wmOperator *op)
 static void graph_slider_exit(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   /* If data exists, clear its data and exit. */
   if (gso == nullptr) {
@@ -386,7 +386,7 @@ static wmOperatorStatus graph_slider_invoke(bContext *C, wmOperator *op, const w
 {
   tGraphSliderOp *gso;
 
-  WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_EW_SCROLL);
+  WM_cursor_modal_set(CTX_wm_window(*C), WM_CURSOR_EW_SCROLL);
 
   /* Init slide-op data. */
   gso = static_cast<tGraphSliderOp *>(
@@ -399,9 +399,9 @@ static wmOperatorStatus graph_slider_invoke(bContext *C, wmOperator *op, const w
   }
   gso->ac.reports = op->reports;
 
-  gso->scene = CTX_data_scene(C);
-  gso->area = CTX_wm_area(C);
-  gso->region = CTX_wm_region(C);
+  gso->scene = CTX_data_scene(*C);
+  gso->area = CTX_wm_area(*C);
+  gso->region = CTX_wm_region(*C);
 
   store_original_bezt_arrays(gso);
 

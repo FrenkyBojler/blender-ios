@@ -65,12 +65,12 @@ static wmOperatorStatus view_axis_exec(bContext *C, wmOperator *op)
 
   if (RNA_boolean_get(op->ptr, "align_active")) {
     /* align to active object */
-    Object *obact = CTX_data_active_object(C);
+    Object *obact = CTX_data_active_object(*C);
     if (obact != nullptr) {
       float twmat[3][3];
-      const Scene *scene = CTX_data_scene(C);
-      ViewLayer *view_layer = CTX_data_view_layer(C);
-      Object *obedit = CTX_data_edit_object(C);
+      const Scene *scene = CTX_data_scene(*C);
+      ViewLayer *view_layer = CTX_data_view_layer(*C);
+      Object *obedit = CTX_data_edit_object(*C);
       /* same as transform gizmo when normal is set */
       blender::ed::transform::ED_getTransformOrientationMatrix(
           scene, view_layer, v3d, obact, obedit, V3D_AROUND_ACTIVE, twmat);

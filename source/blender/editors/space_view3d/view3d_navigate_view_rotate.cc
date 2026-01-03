@@ -306,7 +306,7 @@ static wmOperatorStatus viewrotate_modal_impl(bContext *C,
   switch (event_code) {
     case VIEW_APPLY: {
       viewrotate_apply(vod, xy);
-      if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+      if (ED_screen_animation_playing(CTX_wm_manager(*C))) {
         use_autokey = true;
       }
       break;

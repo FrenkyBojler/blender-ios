@@ -291,15 +291,15 @@ static wmOperatorStatus text_autocomplete_invoke(bContext *C,
                                                  wmOperator *op,
                                                  const wmEvent * /*event*/)
 {
-  SpaceText *st = CTX_wm_space_text(C);
-  Text *text = CTX_data_edit_text(C);
+  SpaceText *st = CTX_wm_space_text(*C);
+  Text *text = CTX_data_edit_text(*C);
 
   st->doplugins = true;
   op->customdata = text_autocomplete_build(text);
 
   if (texttool_suggest_first()) {
 
-    ED_area_tag_redraw(CTX_wm_area(C));
+    ED_area_tag_redraw(CTX_wm_area(*C));
 
     if (texttool_suggest_first() == texttool_suggest_last()) {
       ED_text_undo_push_init(C);
@@ -320,8 +320,8 @@ static wmOperatorStatus text_autocomplete_invoke(bContext *C,
 static wmOperatorStatus text_autocomplete_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* NOTE(@ideasman42): this code could be refactored or rewritten. */
-  SpaceText *st = CTX_wm_space_text(C);
-  ScrArea *area = CTX_wm_area(C);
+  SpaceText *st = CTX_wm_space_text(*C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   int draw = 0, tools = 0, swallow = 0, scroll = 1;
@@ -551,7 +551,7 @@ static void text_autocomplete_free(bContext *C, wmOperator *op)
 
   /* Other stuff. */
   {
-    SpaceText *st = CTX_wm_space_text(C);
+    SpaceText *st = CTX_wm_space_text(*C);
     st->doplugins = false;
     texttool_text_clear();
   }

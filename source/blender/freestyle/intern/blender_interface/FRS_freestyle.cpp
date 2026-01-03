@@ -103,7 +103,7 @@ void FRS_init()
 void FRS_set_context(bContext *C)
 {
   if (G.debug & G_DEBUG_FREESTYLE) {
-    cout << "FRS_set_context: context 0x" << C << " scene 0x" << CTX_data_scene(C) << endl;
+    cout << "FRS_set_context: context 0x" << C << " scene 0x" << CTX_data_scene(*C) << endl;
   }
   controller->setContext(C);
 }

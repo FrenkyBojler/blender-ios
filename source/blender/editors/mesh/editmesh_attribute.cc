@@ -132,11 +132,11 @@ static void bmesh_loop_layer_selected_values_set(BMEditMesh &em,
 
 static wmOperatorStatus mesh_set_attribute_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   Mesh *active_mesh = ED_mesh_context(C);
   AttributeOwner active_owner = AttributeOwner::from_id(&active_mesh->id);

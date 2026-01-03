@@ -187,7 +187,7 @@ static void move3d_draw_intern(const bContext *C,
 
   if (align_view) {
     float matrix_final_unit[4][4];
-    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    RegionView3D *rv3d = CTX_wm_region_view3d(*C);
     normalize_m4_m4(matrix_final_unit, matrix_final);
     mul_m4_m4m4(matrix_align, rv3d->viewmat, matrix_final_unit);
     zero_v3(matrix_align[3]);
@@ -244,10 +244,10 @@ static wmOperatorStatus gizmo_move_modal(bContext *C,
     return OPERATOR_RUNNING_MODAL;
   }
   MoveGizmo3D *move = (MoveGizmo3D *)gz;
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   float prop_delta[3];
-  if (CTX_wm_area(C)->spacetype == SPACE_VIEW3D) {
+  if (CTX_wm_area(*C)->spacetype == SPACE_VIEW3D) {
     move3d_get_translate(gz, event, region, prop_delta);
   }
   else {
@@ -283,9 +283,9 @@ static wmOperatorStatus gizmo_move_modal(bContext *C,
       params.occlusion_test = transform::SNAP_OCCLUSION_AS_SEEM;
       if (transform::snap_object_project_view3d(
               inter->snap_context_v3d,
-              CTX_data_ensure_evaluated_depsgraph(C),
+              CTX_data_ensure_evaluated_depsgraph(*C),
               region,
-              CTX_wm_view3d(C),
+              CTX_wm_view3d(*C),
               (SCE_SNAP_TO_VERTEX | SCE_SNAP_TO_EDGE | SCE_SNAP_TO_FACE),
               &params,
               nullptr,
@@ -372,12 +372,12 @@ static wmOperatorStatus gizmo_move_invoke(bContext *C, wmGizmo *gz, const wmEven
   WM_gizmo_calc_matrix_final(gz, inter->init.matrix_final);
 
   if (use_snap) {
-    ScrArea *area = CTX_wm_area(C);
+    ScrArea *area = CTX_wm_area(*C);
     if (area) {
       switch (area->spacetype) {
         case SPACE_VIEW3D: {
           inter->snap_context_v3d = blender::ed::transform::snap_object_context_create(
-              CTX_data_scene(C), 0);
+              CTX_data_scene(*C), 0);
           break;
         }
         default:

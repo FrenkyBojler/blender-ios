@@ -56,8 +56,8 @@ static bool graphview_cursor_poll(bContext *C)
 /* Set the new frame number */
 static void graphview_cursor_apply(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  SpaceGraph *sipo = CTX_wm_space_graph(C);
+  Scene *scene = CTX_data_scene(*C);
+  SpaceGraph *sipo = CTX_wm_space_graph(*C);
   /* this isn't technically "frame", but it'll do... */
   float frame = RNA_float_get(op->ptr, "frame");
 
@@ -110,7 +110,7 @@ static wmOperatorStatus graphview_cursor_exec(bContext *C, wmOperator *op)
 /* set the operator properties from the initial event */
 static void graphview_cursor_setprops(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   float viewx, viewy;
 
   /* abort if not active region (should not really be possible) */
@@ -130,7 +130,7 @@ static void graphview_cursor_setprops(bContext *C, wmOperator *op, const wmEvent
 /* Modal Operator init */
 static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
 
   /* Change to frame that mouse is over before adding modal handler,
    * as user could click on a single frame (jump to frame) as well as
@@ -152,8 +152,8 @@ static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, con
 /* Modal event handling of cursor changing */
 static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  Scene *scene = CTX_data_scene(C);
+  bScreen *screen = CTX_wm_screen(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* execute the events */
   switch (event->type) {

@@ -316,8 +316,8 @@ bool selection_update(const ViewContext *vc,
 static wmOperatorStatus select_all_exec(bContext *C, wmOperator *op)
 {
   int action = RNA_enum_get(op->ptr, "action");
-  Scene *scene = CTX_data_scene(C);
-  Object *object = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(scene->toolsettings,
                                                                            object);
@@ -364,9 +364,9 @@ static void GREASE_PENCIL_OT_select_all(wmOperatorType *ot)
 
 static wmOperatorStatus select_more_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
+  const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(*C));
 
   ed::greasepencil::selection_update(&vc,
                                      SEL_OP_ADD,
@@ -400,9 +400,9 @@ static void GREASE_PENCIL_OT_select_more(wmOperatorType *ot)
 
 static wmOperatorStatus select_less_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
+  const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(*C));
 
   ed::greasepencil::selection_update(&vc,
                                      SEL_OP_SUB,
@@ -436,8 +436,8 @@ static void GREASE_PENCIL_OT_select_less(wmOperatorType *ot)
 
 static wmOperatorStatus select_linked_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  Object *object = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -476,12 +476,12 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
   using namespace blender;
   const float ratio = RNA_float_get(op->ptr, "ratio");
   const int seed = WM_operator_properties_select_random_seed_increment_get(op);
-  Scene *scene = CTX_data_scene(C);
-  Object *object = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(scene->toolsettings,
                                                                            object);
-  const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
+  const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(*C));
 
   /* Note: For segment selection this doesn't work very well, because it is based on random point
    * selection. A segment has a high probability of getting at least one selected point and be
@@ -533,8 +533,8 @@ static void GREASE_PENCIL_OT_select_random(wmOperatorType *ot)
 static wmOperatorStatus select_alternate_exec(bContext *C, wmOperator *op)
 {
   const bool deselect_ends = RNA_boolean_get(op->ptr, "deselect_ends");
-  Scene *scene = CTX_data_scene(C);
-  Object *object = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -725,9 +725,9 @@ static wmOperatorStatus select_similar_exec(bContext *C, wmOperator *op)
 {
   const SelectSimilarMode mode = SelectSimilarMode(RNA_enum_get(op->ptr, "mode"));
   const float threshold = RNA_float_get(op->ptr, "threshold");
-  Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  Object *object = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(scene->toolsettings,
                                                                            object);
@@ -813,9 +813,9 @@ static wmOperatorStatus select_ends_exec(bContext *C, wmOperator *op)
 {
   const int amount_start = RNA_int_get(op->ptr, "amount_start");
   const int amount_end = RNA_int_get(op->ptr, "amount_end");
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
+  const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(*C));
 
   ed::greasepencil::selection_update(
       &vc,
@@ -936,8 +936,8 @@ static wmOperatorStatus select_set_mode_exec(bContext *C, wmOperator *op)
 
   /* Set new selection mode. */
   const int mode_new = RNA_enum_get(op->ptr, "mode");
-  ToolSettings *ts = CTX_data_tool_settings(C);
-  Object *ob = CTX_data_active_object(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
+  Object *ob = CTX_data_active_object(*C);
 
   bool changed = false;
   if (BKE_object_is_mode_compat(ob, OB_MODE_EDIT)) {
@@ -988,9 +988,9 @@ static void GREASE_PENCIL_OT_set_selection_mode(wmOperatorType *ot)
 
 static wmOperatorStatus grease_pencil_material_select_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  Object *object = CTX_data_active_object(C);
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  const Scene *scene = CTX_data_scene(*C);
+  Object *object = CTX_data_active_object(*C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   const bool select = !RNA_boolean_get(op->ptr, "deselect");
   const int material_index = object->actcol - 1;

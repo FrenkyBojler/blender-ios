@@ -51,8 +51,8 @@ int view3d_context(const bContext *C, const char *member, bContextDataResult *re
      * without showing the object.
      *
      * See #85532 for alternatives that were considered. */
-    const Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
+    const Scene *scene = CTX_data_scene(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Base *base = BKE_view_layer_active_base_get(view_layer);
     if (base) {
@@ -69,7 +69,7 @@ int view3d_context(const bContext *C, const char *member, bContextDataResult *re
   }
   if (CTX_data_equals(member, "selected_ids")) {
     blender::Vector<PointerRNA> selected_objects;
-    CTX_data_selected_objects(C, &selected_objects);
+    CTX_data_selected_objects(*C, &selected_objects);
     for (const PointerRNA &ptr : selected_objects) {
       ID *selected_id = ptr.owner_id;
       CTX_data_id_list_add(result, selected_id);
@@ -89,10 +89,10 @@ int view3d_context(const bContext *C, const char *member, bContextDataResult *re
 
 RegionView3D *ED_view3d_context_rv3d(bContext *C)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
 
   if (rv3d == nullptr) {
-    ScrArea *area = CTX_wm_area(C);
+    ScrArea *area = CTX_wm_area(*C);
     if (area && area->spacetype == SPACE_VIEW3D) {
       ARegion *region = BKE_area_find_region_active_win(area);
       if (region) {
@@ -105,13 +105,13 @@ RegionView3D *ED_view3d_context_rv3d(bContext *C)
 
 bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_region)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   *r_v3d = nullptr;
   *r_region = nullptr;
 
   if (area && area->spacetype == SPACE_VIEW3D) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     View3D *v3d = (View3D *)area->spacedata.first;
 
     if (region) {

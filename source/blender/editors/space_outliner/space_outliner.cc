@@ -109,7 +109,7 @@ static void outliner_main_region_draw(const bContext *C, ARegion *region)
   /* reset view matrix */
   ui::view2d_view_restore(C);
 
-  ED_region_draw_overflow_indication(CTX_wm_area(C), region);
+  ED_region_draw_overflow_indication(CTX_wm_area(*C), region);
 
   /* scrollers */
   ui::view2d_scrollers_draw(v2d, nullptr);

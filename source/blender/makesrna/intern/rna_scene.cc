@@ -826,7 +826,7 @@ static void rna_Gpencil_mask_point_update(bContext *C, PointerRNA *ptr)
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_STROKE;
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_SEGMENT;
 
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob && ob->type == OB_GREASE_PENCIL) {
     blender::ed::greasepencil::ensure_selection_domain(ts, ob);
   }
@@ -839,7 +839,7 @@ static void rna_Gpencil_mask_stroke_update(bContext *C, PointerRNA *ptr)
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_POINT;
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_SEGMENT;
 
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob && ob->type == OB_GREASE_PENCIL) {
     blender::ed::greasepencil::ensure_selection_domain(ts, ob);
   }
@@ -852,7 +852,7 @@ static void rna_Gpencil_mask_segment_update(bContext *C, PointerRNA *ptr)
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_POINT;
   ts->gpencil_selectmode_sculpt &= ~GP_SCULPT_MASK_SELECTMODE_STROKE;
 
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob && ob->type == OB_GREASE_PENCIL) {
     blender::ed::greasepencil::ensure_selection_domain(ts, ob);
   }
@@ -865,7 +865,7 @@ static void rna_Gpencil_vertex_mask_point_update(bContext *C, PointerRNA *ptr)
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_STROKE;
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_SEGMENT;
 
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob && ob->type == OB_GREASE_PENCIL) {
     blender::ed::greasepencil::ensure_selection_domain(ts, ob);
   }
@@ -878,7 +878,7 @@ static void rna_Gpencil_vertex_mask_stroke_update(bContext *C, PointerRNA *ptr)
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_POINT;
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_SEGMENT;
 
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob && ob->type == OB_GREASE_PENCIL) {
     blender::ed::greasepencil::ensure_selection_domain(ts, ob);
   }
@@ -891,7 +891,7 @@ static void rna_Gpencil_vertex_mask_segment_update(bContext *C, PointerRNA *ptr)
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_POINT;
   ts->gpencil_selectmode_vertex &= ~GP_VERTEX_MASK_SELECTMODE_STROKE;
 
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob && ob->type == OB_GREASE_PENCIL) {
     blender::ed::greasepencil::ensure_selection_domain(ts, ob);
   }
@@ -900,7 +900,7 @@ static void rna_Gpencil_vertex_mask_segment_update(bContext *C, PointerRNA *ptr)
 static void rna_all_grease_pencil_update(bContext *C, PointerRNA * /*ptr*/)
 {
   /* FIXME: We shouldn't have to tag all the Grease Pencil IDs for an update! */
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   for (GreasePencil &grease_pencil : bmain->grease_pencils) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   }
@@ -2126,8 +2126,8 @@ static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const bool *valu
 
 static void rna_Scene_editmesh_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Mesh *mesh = nullptr;
 
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -2245,16 +2245,16 @@ static void rna_Scene_simplify_update_impl(Main *bmain,
 static void rna_Scene_use_simplify_update(bContext *C, PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Main *bmain = CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   rna_Scene_simplify_update_impl(bmain, scene, false, depsgraph);
 }
 
 static void rna_Scene_simplify_volume_update(bContext *C, PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Main *bmain = CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   if (scene->r.mode & R_SIMPLIFY) {
     rna_Scene_simplify_update_impl(bmain, scene, false, depsgraph);
   }
@@ -2503,12 +2503,12 @@ static std::optional<std::string> rna_SequencerToolSettings_path(const PointerRN
 /* generic function to recalc geometry */
 static void rna_EditMesh_update(bContext *C, PointerRNA * /*ptr*/)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   for (Object *obedit : objects) {
     Mesh *mesh = BKE_mesh_from_object(obedit);
 
@@ -2529,8 +2529,8 @@ static std::optional<std::string> rna_MeshStatVis_path(const PointerRNA * /*ptr*
  * given its own notifier. */
 static void rna_Scene_update_active_object_data(bContext *C, PointerRNA * /*ptr*/)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
@@ -2914,7 +2914,7 @@ const EnumPropertyItem *rna_TransformOrientation_itemf(bContext *C,
     scene = (Scene *)ptr->owner_id;
   }
   else {
-    scene = CTX_data_scene(C);
+    scene = CTX_data_scene(*C);
   }
   return rna_TransformOrientation_impl_itemf(scene, false, r_free);
 }

@@ -130,7 +130,7 @@ static void view3d_from_minmax(bContext *C,
     }
 
     if (do_zoom) {
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
       dist_new = ED_view3d_radius_to_dist(
           v3d, region, depsgraph, persp, true, (size / 2) * VIEW3D_MARGIN);
       if (rv3d->is_persp) {
@@ -170,7 +170,7 @@ static void view3d_from_minmax_multi(bContext *C,
                                      const bool do_zoom,
                                      const int smooth_viewtx)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   for (ARegion &region : area->regionbase) {
     if (region.regiontype == RGN_TYPE_WINDOW) {
       RegionView3D *rv3d = static_cast<RegionView3D *>(region.regiondata);
@@ -434,16 +434,16 @@ bool view3d_calc_point_in_selected_bounds(Depsgraph *depsgraph,
 
 static wmOperatorStatus view3d_all_exec(bContext *C, wmOperator *op)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   const bool use_all_regions = RNA_boolean_get(op->ptr, "use_all_regions");
   const bool center = RNA_boolean_get(op->ptr, "center");
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   std::optional<blender::Bounds<float3>> bounds = view3d_calc_minmax_visible(
       depsgraph, area, region, use_all_regions, true);
   if (center) {
@@ -452,7 +452,7 @@ static wmOperatorStatus view3d_all_exec(bContext *C, wmOperator *op)
 
     cursor->set_matrix(blender::float4x4::identity(), false);
 
-    wmMsgBus *mbus = CTX_wm_message_bus(C);
+    wmMsgBus *mbus = CTX_wm_message_bus(*C);
     WM_msg_publish_rna_prop(mbus, &scene->id, &scene->cursor, View3DCursor, location);
 
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
@@ -519,14 +519,14 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
 
 static wmOperatorStatus viewselected_exec(bContext *C, wmOperator *op)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   bool do_zoom = true;
   const bool use_all_regions = RNA_boolean_get(op->ptr, "use_all_regions");
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   const std::optional<blender::Bounds<float3>> bounds = view3d_calc_minmax_selected(
       depsgraph, area, region, use_all_regions, true, &do_zoom);
 

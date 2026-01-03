@@ -408,11 +408,11 @@ bool ANIM_animdata_context_getdata(bAnimContext *ac)
 
 bool ANIM_animdata_get_context(const bContext *C, bAnimContext *ac)
 {
-  Main *bmain = CTX_data_main(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-  SpaceLink *sl = CTX_wm_space_data(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
+  SpaceLink *sl = CTX_wm_space_data(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* clear old context info */
   if (ac == nullptr) {
@@ -423,7 +423,7 @@ bool ANIM_animdata_get_context(const bContext *C, bAnimContext *ac)
   /* get useful default context settings from context */
   ac->bmain = bmain;
   ac->scene = scene;
-  ac->view_layer = CTX_data_view_layer(C);
+  ac->view_layer = CTX_data_view_layer(*C);
   if (scene) {
     /* This may be overwritten by actedit_get_context() when pose markers should be shown. */
     ac->markers = &scene->markers;
@@ -432,7 +432,7 @@ bool ANIM_animdata_get_context(const bContext *C, bAnimContext *ac)
     BKE_view_layer_synced_ensure(scene, ac->view_layer);
     ac->obact = BKE_view_layer_active_object_get(ac->view_layer);
   }
-  ac->depsgraph = CTX_data_depsgraph_pointer(C);
+  ac->depsgraph = CTX_data_depsgraph_pointer(*C);
   ac->area = area;
   ac->region = region;
   ac->sl = sl;

@@ -416,7 +416,7 @@ UpdateActiveGeometryNodesViewerResult update_active_geometry_nodes_viewer(const 
   const int32_t viewer_node_id =
       reinterpret_cast<const ViewerNodeViewerPathElem *>(last_elem)->node_id;
 
-  const Main *bmain = CTX_data_main(&C);
+  const Main *bmain = CTX_data_main(C);
   const wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   if (wm == nullptr) {
     return UpdateActiveGeometryNodesViewerResult::NotActive;

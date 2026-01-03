@@ -144,7 +144,7 @@ static bool unassigned_local_poll(const Main &bmain)
 
 static void unassigned_assets_draw(const bContext *C, Menu *menu)
 {
-  Main &bmain = *CTX_data_main(C);
+  Main &bmain = *CTX_data_main(*C);
   asset::AssetItemTree &tree = *get_static_item_tree();
   ui::Layout &layout = *menu->layout;
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_modifier_add_node_group", true);
@@ -230,7 +230,7 @@ static void root_catalogs_draw(const bContext *C, Menu *menu)
     }
   });
 
-  if (!tree.unassigned_assets.is_empty() || unassigned_local_poll(*CTX_data_main(C))) {
+  if (!tree.unassigned_assets.is_empty() || unassigned_local_poll(*CTX_data_main(*C))) {
     layout.separator();
     layout.menu(
         "OBJECT_MT_add_modifier_unassigned_assets", IFACE_("Unassigned"), ICON_FILE_HIDDEN);
@@ -241,7 +241,7 @@ static bNodeTree *get_asset_or_local_node_group(const bContext &C,
                                                 PointerRNA &ptr,
                                                 ReportList *reports)
 {
-  Main &bmain = *CTX_data_main(&C);
+  Main &bmain = *CTX_data_main(C);
   if (bNodeTree *group = reinterpret_cast<bNodeTree *>(
           WM_operator_properties_id_lookup_from_name_or_session_uid(&bmain, &ptr, ID_NT)))
   {
@@ -273,8 +273,8 @@ static bNodeTree *get_node_group(const bContext &C, PointerRNA &ptr, ReportList 
 
 static wmOperatorStatus modifier_add_asset_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   Vector<PointerRNA> objects = modifier_get_edit_objects(*C, *op);
   if (objects.is_empty()) {
@@ -324,7 +324,7 @@ static wmOperatorStatus modifier_add_asset_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event)
 {
-  if (event->modifier & KM_ALT || CTX_wm_view3d(C)) {
+  if (event->modifier & KM_ALT || CTX_wm_view3d(*C)) {
     RNA_boolean_set(op->ptr, "use_selected_objects", true);
   }
   return modifier_add_asset_exec(C, op);

@@ -4607,7 +4607,7 @@ static wmOperatorStatus knifetool_invoke(bContext *C, wmOperator *op, const wmEv
   op->flag |= OP_IS_MODAL_CURSOR_REGION;
 
   /* Add a modal handler for this operator - handles loop selection. */
-  WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_KNIFE);
+  WM_cursor_modal_set(CTX_wm_window(*C), WM_CURSOR_KNIFE);
   WM_event_add_modal_handler(C, op);
 
   if (wait_for_input == false) {

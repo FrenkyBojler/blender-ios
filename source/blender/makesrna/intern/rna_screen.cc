@@ -153,14 +153,14 @@ static void rna_Area_type_update(bContext *C, PointerRNA *ptr)
     return;
   }
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmWindow *win;
   /* XXX this call still use context, so we trick it to work in the right context */
   for (win = static_cast<wmWindow *>(wm->windows.first); win; win = win->next) {
     if (screen == WM_window_get_active_screen(win)) {
-      wmWindow *prevwin = CTX_wm_window(C);
-      ScrArea *prevsa = CTX_wm_area(C);
-      ARegion *prevar = CTX_wm_region(C);
+      wmWindow *prevwin = CTX_wm_window(*C);
+      ScrArea *prevsa = CTX_wm_area(*C);
+      ARegion *prevar = CTX_wm_region(*C);
 
       CTX_wm_window_set(C, win);
       CTX_wm_area_set(C, area);
@@ -174,7 +174,7 @@ static void rna_Area_type_update(bContext *C, PointerRNA *ptr)
 
       /* It is possible that new layers becomes visible. */
       if (area->spacetype == SPACE_VIEW3D) {
-        DEG_tag_on_visible_update(CTX_data_main(C), false);
+        DEG_tag_on_visible_update(CTX_data_main(*C), false);
       }
       else if (area->spacetype == SPACE_NODE) {
         blender::ed::space_node::snode_set_context(*C);
@@ -396,7 +396,7 @@ static void rna_View2D_view_to_region(View2D *v2d, float x, float y, bool clip, 
 
 static const char *rna_Screen_statusbar_info_get(bScreen * /*screen*/, Main *bmain, bContext *C)
 {
-  return ED_info_statusbar_string(bmain, CTX_data_scene(C), CTX_data_view_layer(C));
+  return ED_info_statusbar_string(bmain, CTX_data_scene(*C), CTX_data_view_layer(*C));
 }
 
 static void rna_Region_tag_refresh_ui(ARegion *region, ReportList *reports)

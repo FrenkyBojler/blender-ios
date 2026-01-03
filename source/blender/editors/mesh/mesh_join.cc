@@ -484,9 +484,9 @@ static void join_face_sets(const Span<const Object *> objects_to_join,
 
 wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Object *const active_object = CTX_data_active_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *const active_object = CTX_data_active_object(*C);
 
   if (active_object->mode & OB_MODE_EDIT) {
     BKE_report(op->reports, RPT_WARNING, "Cannot join while in edit mode");
@@ -499,10 +499,10 @@ wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
   Vector<Object *> objects_to_join;
-  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob_iter, selected_editable_objects) {
     if (ob_iter->type == OB_MESH) {
       objects_to_join.append(ob_iter);
     }

@@ -56,13 +56,13 @@ using blender::int2;
 
 static void gesture_modal_end(bContext *C, wmOperator *op)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
 
   WM_gesture_end(win, gesture); /* Frees gesture itself, and unregisters from window. */
   op->customdata = nullptr;
 
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 
   if (RNA_struct_find_property(op->ptr, "cursor")) {
     WM_cursor_modal_restore(win);
@@ -168,8 +168,8 @@ static bool gesture_box_apply(bContext *C, wmOperator *op)
 
 wmOperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
-  const ARegion *region = CTX_wm_region(C);
+  wmWindow *win = CTX_wm_window(*C);
+  const ARegion *region = CTX_wm_region(*C);
   const bool wait_for_input = !WM_event_is_mouse_drag_or_press(event) &&
                               RNA_boolean_get(op->ptr, "wait_for_input");
 
@@ -195,7 +195,7 @@ wmOperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEven
 
 wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   rcti *rect = static_cast<rcti *>(gesture->customdata);
 
@@ -292,11 +292,11 @@ static void gesture_circle_apply(bContext *C, wmOperator *op);
 
 wmOperatorStatus WM_gesture_circle_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   const bool wait_for_input = !WM_event_is_mouse_drag_or_press(event) &&
                               RNA_boolean_get(op->ptr, "wait_for_input");
 
-  op->customdata = WM_gesture_new(win, CTX_wm_region(C), event, WM_GESTURE_CIRCLE);
+  op->customdata = WM_gesture_new(win, CTX_wm_region(*C), event, WM_GESTURE_CIRCLE);
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   rcti *rect = static_cast<rcti *>(gesture->customdata);
 
@@ -350,7 +350,7 @@ static void gesture_circle_apply(bContext *C, wmOperator *op)
 
 wmOperatorStatus WM_gesture_circle_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   rcti *rect = static_cast<rcti *>(gesture->customdata);
 
@@ -483,10 +483,10 @@ void WM_OT_circle_gesture(wmOperatorType *ot)
 
 wmOperatorStatus WM_gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   PropertyRNA *prop;
 
-  op->customdata = WM_gesture_new(win, CTX_wm_region(C), event, WM_GESTURE_LASSO);
+  op->customdata = WM_gesture_new(win, CTX_wm_region(*C), event, WM_GESTURE_LASSO);
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   gesture->use_smooth = RNA_boolean_get(op->ptr, "use_smooth_stroke");
 
@@ -504,10 +504,10 @@ wmOperatorStatus WM_gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEv
 
 wmOperatorStatus WM_gesture_lines_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   PropertyRNA *prop;
 
-  op->customdata = WM_gesture_new(win, CTX_wm_region(C), event, WM_GESTURE_LINES);
+  op->customdata = WM_gesture_new(win, CTX_wm_region(*C), event, WM_GESTURE_LINES);
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   if ((prop = RNA_struct_find_property(op->ptr, "use_smooth_stroke"))) {
     gesture->use_smooth = RNA_property_boolean_get(op->ptr, prop);
@@ -572,7 +572,7 @@ wmOperatorStatus WM_gesture_lasso_modal(bContext *C, wmOperator *op, const wmEve
     switch (event->type) {
       case MOUSEMOVE:
       case INBETWEEN_MOUSEMOVE: {
-        wm_gesture_tag_redraw(CTX_wm_window(C));
+        wm_gesture_tag_redraw(CTX_wm_window(*C));
         gesture->mval = int2((event->xy[0] - gesture->winrct.xmin),
                              (event->xy[1] - gesture->winrct.ymin));
 
@@ -728,10 +728,10 @@ void WM_OT_lasso_gesture(wmOperatorType *ot)
  * \{ */
 wmOperatorStatus WM_gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   PropertyRNA *prop;
 
-  op->customdata = WM_gesture_new(win, CTX_wm_region(C), event, WM_GESTURE_POLYLINE);
+  op->customdata = WM_gesture_new(win, CTX_wm_region(*C), event, WM_GESTURE_POLYLINE);
 
   /* add modal handler */
   WM_event_add_modal_handler(C, op);
@@ -833,7 +833,7 @@ wmOperatorStatus WM_gesture_polyline_modal(bContext *C, wmOperator *op, const wm
         gesture->move = !gesture->move;
         break;
       case GESTURE_MODAL_SELECT: {
-        wm_gesture_tag_redraw(CTX_wm_window(C));
+        wm_gesture_tag_redraw(CTX_wm_window(*C));
         short (*border)[2] = static_cast<short int (*)[2]>(gesture->customdata);
         const short prev_x = border[gesture->points - 1][0];
         const short prev_y = border[gesture->points - 1][1];
@@ -872,7 +872,7 @@ wmOperatorStatus WM_gesture_polyline_modal(bContext *C, wmOperator *op, const wm
     switch (event->type) {
       case MOUSEMOVE:
       case INBETWEEN_MOUSEMOVE: {
-        wm_gesture_tag_redraw(CTX_wm_window(C));
+        wm_gesture_tag_redraw(CTX_wm_window(*C));
         gesture->mval = int2((event->xy[0] - gesture->winrct.xmin),
                              (event->xy[1] - gesture->winrct.ymin));
         if (gesture->points == gesture->points_alloc) {
@@ -1003,10 +1003,10 @@ static bool gesture_straightline_apply(bContext *C, wmOperator *op)
 
 wmOperatorStatus WM_gesture_straightline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   PropertyRNA *prop;
 
-  op->customdata = WM_gesture_new(win, CTX_wm_region(C), event, WM_GESTURE_STRAIGHTLINE);
+  op->customdata = WM_gesture_new(win, CTX_wm_region(*C), event, WM_GESTURE_STRAIGHTLINE);
 
   if (WM_event_is_mouse_drag_or_press(event)) {
     wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
@@ -1076,12 +1076,12 @@ static void wm_gesture_straightline_do_angle_snap(rcti *rect, float snap_angle)
 
 wmOperatorStatus WM_gesture_straightline_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(C);
-  const ScrArea *area = CTX_wm_area(C);
+  const Scene *scene = CTX_data_scene(*C);
+  const ScrArea *area = CTX_wm_area(*C);
   const SnapAngle snap_angle = get_snap_angle(*area, *scene->toolsettings);
 
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   rcti *rect = static_cast<rcti *>(gesture->customdata);
 
   if (event->type == EVT_MODAL_MAP) {
@@ -1165,12 +1165,12 @@ wmOperatorStatus WM_gesture_straightline_oneshot_modal(bContext *C,
                                                        wmOperator *op,
                                                        const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(C);
-  const ScrArea *area = CTX_wm_area(C);
+  const Scene *scene = CTX_data_scene(*C);
+  const ScrArea *area = CTX_wm_area(*C);
   const SnapAngle snap_angle = get_snap_angle(*area, *scene->toolsettings);
 
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   rcti *rect = static_cast<rcti *>(gesture->customdata);
 
   if (event->type == EVT_MODAL_MAP) {

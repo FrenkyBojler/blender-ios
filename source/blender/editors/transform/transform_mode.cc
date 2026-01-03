@@ -39,7 +39,7 @@ namespace blender::ed::transform {
 eTfmMode transform_mode_really_used(bContext *C, eTfmMode mode)
 {
   if (mode == TFM_BONESIZE) {
-    Object *ob = CTX_data_active_object(C);
+    Object *ob = CTX_data_active_object(*C);
     BLI_assert(ob);
     if (ob->type != OB_ARMATURE) {
       return TFM_RESIZE;
@@ -85,7 +85,7 @@ bool transform_mode_affect_only_locations(const TransInfo *t)
 {
   return (t->flag & T_V3D_ALIGN) && (t->options & CTX_OBJECT) &&
          (t->settings->transform_pivot_point != V3D_AROUND_CURSOR) && t->context &&
-         (CTX_DATA_COUNT(t->context, selected_editable_objects) == 1);
+         (CTX_DATA_COUNT(*t->context, selected_editable_objects) == 1);
 }
 
 /* -------------------------------------------------------------------- */

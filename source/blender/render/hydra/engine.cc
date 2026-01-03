@@ -105,7 +105,7 @@ void Engine::sync(Depsgraph *depsgraph, bContext *context)
       hydra_scene_delegate_ = std::make_unique<io::hydra::HydraSceneDelegate>(
           render_index_.get(), scene_path, free_camera_delegate_.get(), use_materialx);
     }
-    hydra_scene_delegate_->populate(depsgraph, context ? CTX_wm_view3d(context) : nullptr);
+    hydra_scene_delegate_->populate(depsgraph, context ? CTX_wm_view3d(*context) : nullptr);
   }
   else {
     /* Slow USD export for reference. */

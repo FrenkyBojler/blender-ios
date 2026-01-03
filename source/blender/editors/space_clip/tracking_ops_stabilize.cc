@@ -30,7 +30,7 @@
 static bool stabilize_2d_poll(bContext *C)
 {
   if (ED_space_clip_tracking_poll(C)) {
-    SpaceClip *sc = CTX_wm_space_clip(C);
+    SpaceClip *sc = CTX_wm_space_clip(*C);
     MovieClip *clip = ED_space_clip_get_clip(sc);
     MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
     return (tracking_object->flag & TRACKING_OBJECT_CAMERA) != 0;
@@ -40,7 +40,7 @@ static bool stabilize_2d_poll(bContext *C)
 
 static wmOperatorStatus stabilize_2d_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -82,7 +82,7 @@ void CLIP_OT_stabilize_2d_add(wmOperatorType *ot)
 
 static wmOperatorStatus stabilize_2d_remove_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
@@ -131,7 +131,7 @@ void CLIP_OT_stabilize_2d_remove(wmOperatorType *ot)
 
 static wmOperatorStatus stabilize_2d_select_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   bool update = false;
@@ -169,7 +169,7 @@ void CLIP_OT_stabilize_2d_select(wmOperatorType *ot)
 
 static wmOperatorStatus stabilize_2d_rotation_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -211,7 +211,7 @@ void CLIP_OT_stabilize_2d_rotation_add(wmOperatorType *ot)
 
 static wmOperatorStatus stabilize_2d_rotation_remove_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -260,7 +260,7 @@ void CLIP_OT_stabilize_2d_rotation_remove(wmOperatorType *ot)
 
 static wmOperatorStatus stabilize_2d_rotation_select_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   bool update = false;

@@ -81,7 +81,7 @@ static void init(const bContext *C, PointerRNA *ptr)
   NodeTrackPosData *data = MEM_new_for_free<NodeTrackPosData>(__func__);
   node->storage = data;
 
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(*C);
   if (scene->clip) {
     MovieClip *clip = scene->clip;
     MovieTracking *tracking = &clip->tracking;

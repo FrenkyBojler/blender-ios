@@ -729,7 +729,7 @@ void fileselect_file_set(bContext *C, SpaceFile *sfile, const int index)
     STRNCPY(params->file, file->relpath);
     if (sfile->op) {
       /* Update the filepath properties of the operator. */
-      Main *bmain = CTX_data_main(C);
+      Main *bmain = CTX_data_main(*C);
       file_sfile_to_operator(C, bmain, sfile->op, sfile);
     }
   }
@@ -1158,7 +1158,7 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
   SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   if (params) {
-    wmWindowManager *wm = CTX_wm_manager(C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
     ED_fileselect_clear(wm, sfile);
 
     /* Clear search string, it is very rare to want to keep that filter while changing dir,
@@ -1184,7 +1184,7 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
 
 void ED_file_change_dir(bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   ED_file_change_dir_ex(C, area);
 }
 
@@ -1224,7 +1224,7 @@ int file_select_match(SpaceFile *sfile, const char *pattern, char *matched_file)
 
 int autocomplete_directory(bContext *C, char *str, void * /*arg_v*/)
 {
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   int match = AUTOCOMPLETE_NO_MATCH;
 
   /* search if str matches the beginning of name */
@@ -1273,7 +1273,7 @@ int autocomplete_directory(bContext *C, char *str, void * /*arg_v*/)
 
 int autocomplete_file(bContext *C, char *str, void * /*arg_v*/)
 {
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   int match = AUTOCOMPLETE_NO_MATCH;
 
   /* search if str matches the beginning of name */
@@ -1473,7 +1473,7 @@ ScrArea *ED_fileselect_handler_area_find_any_with_op(const wmWindow *win)
 void ED_fileselect_ensure_default_filepath(bContext *C, wmOperator *op, const char *extension)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     char filepath[FILE_MAX];
     const char *blendfile_path = BKE_main_blendfile_path(bmain);
 

@@ -30,7 +30,7 @@ void VertexAverageOperation::on_stroke_begin(const bContext &C, const InputSampl
 void VertexAverageOperation::on_stroke_extended(const bContext &C,
                                                 const InputSample &extension_sample)
 {
-  const Scene &scene = *CTX_data_scene(&C);
+  const Scene &scene = *CTX_data_scene(C);
   Paint &paint = *BKE_paint_get_active_from_context(&C);
   const Brush &brush = *BKE_paint_brush(&paint);
   const float radius = brush_radius(paint, brush, extension_sample.pressure);

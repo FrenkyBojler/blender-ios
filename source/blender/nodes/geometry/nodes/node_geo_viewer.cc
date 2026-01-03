@@ -174,7 +174,7 @@ static bool draw_from_socket_log_value(CustomSocketDrawParams &params,
 }
 static void draw_input_socket(CustomSocketDrawParams &params)
 {
-  SpaceNode *snode = CTX_wm_space_node(&params.C);
+  SpaceNode *snode = CTX_wm_space_node(params.C);
   if (!snode) {
     params.draw_standard(params.layout);
     return;
@@ -292,8 +292,8 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       const auto *item = socket_items::add_item_with_socket_type_and_name<GeoViewerItemsAccessor>(
           params.node_tree, node, params.socket.typeinfo->type, params.socket.name);
       params.update_and_connect_available_socket(node, item->name);
-      SpaceNode *snode = CTX_wm_space_node(&params.C);
-      Main *bmain = CTX_data_main(&params.C);
+      SpaceNode *snode = CTX_wm_space_node(params.C);
+      Main *bmain = CTX_data_main(params.C);
       ed::viewer_path::activate_geometry_node(*bmain, *snode, node);
     });
     return;
@@ -398,7 +398,7 @@ static void geo_viewer_node_log_impl(const bNode &node,
 
 static void node_extra_info(NodeExtraInfoParams &params)
 {
-  SpaceNode *snode = CTX_wm_space_node(&params.C);
+  SpaceNode *snode = CTX_wm_space_node(params.C);
   if (snode) {
     if (std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =
             ed::space_node::get_modifier_for_node_editor(*snode))

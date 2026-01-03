@@ -42,8 +42,8 @@ using blender::Vector;
 
 static LinkNode *knifeproject_poly_from_object(const bContext *C, Object *ob, LinkNode *polys)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  ARegion *region = CTX_wm_region(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  ARegion *region = CTX_wm_region(*C);
   const Mesh *mesh_eval;
   bool mesh_eval_needs_free;
 
@@ -103,12 +103,12 @@ static LinkNode *knifeproject_poly_from_object(const bContext *C, Object *ob, Li
 
 static wmOperatorStatus knifeproject_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const bool cut_through = RNA_boolean_get(op->ptr, "cut_through");
 
   LinkNode *polys = nullptr;
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     if (BKE_object_is_in_editmode(ob)) {
       continue;
     }

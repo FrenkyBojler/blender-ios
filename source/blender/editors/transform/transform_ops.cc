@@ -178,7 +178,7 @@ namespace blender::ed::transform {
 
 static wmOperatorStatus select_orientation_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   int orientation = RNA_enum_get(op->ptr, "orientation");
 
@@ -187,7 +187,7 @@ static wmOperatorStatus select_orientation_exec(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
   WM_msg_publish_rna_prop(mbus, &scene->id, scene, TransformOrientationSlot, type);
 
   return OPERATOR_FINISHED;
@@ -227,13 +227,13 @@ static void TRANSFORM_OT_select_orientation(wmOperatorType *ot)
 
 static wmOperatorStatus delete_orientation_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   BIF_removeTransformOrientationIndex(C,
                                       scene->orientation_slots[SCE_ORIENT_DEFAULT].index_custom);
 
   WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
 
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
   WM_msg_publish_rna_prop(mbus, &scene->id, scene, Scene, transform_orientation_slots);
 
   return OPERATOR_FINISHED;
@@ -252,7 +252,7 @@ static bool delete_orientation_poll(bContext *C)
     return false;
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   return ((scene->orientation_slots[SCE_ORIENT_DEFAULT].type >= V3D_ORIENT_CUSTOM) &&
           (scene->orientation_slots[SCE_ORIENT_DEFAULT].index_custom != -1));
 }
@@ -277,8 +277,8 @@ static wmOperatorStatus create_orientation_exec(bContext *C, wmOperator *op)
   const bool use = RNA_boolean_get(op->ptr, "use");
   const bool overwrite = RNA_boolean_get(op->ptr, "overwrite");
   const bool use_view = RNA_boolean_get(op->ptr, "use_view");
-  View3D *v3d = CTX_wm_view3d(C);
-  Scene *scene = CTX_data_scene(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   RNA_string_get(op->ptr, "name", name);
 
@@ -295,7 +295,7 @@ static wmOperatorStatus create_orientation_exec(bContext *C, wmOperator *op)
   }
 
   if (use) {
-    wmMsgBus *mbus = CTX_wm_message_bus(C);
+    wmMsgBus *mbus = CTX_wm_message_bus(*C);
     WM_msg_publish_rna_prop(mbus, &scene->id, scene, Scene, transform_orientation_slots);
     WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
   }
@@ -348,7 +348,7 @@ static void transformops_loopsel_hack(bContext *C, wmOperator *op)
   if (op->type->idname == OP_EDGE_SLIDE) {
     if (op->opm && op->opm->opm && op->opm->opm->prev) {
       wmOperator *op_prev = op->opm->opm->prev;
-      Scene *scene = CTX_data_scene(C);
+      Scene *scene = CTX_data_scene(*C);
       bool mesh_select_mode[3];
       PropertyRNA *prop = RNA_struct_find_property(op_prev->ptr, "mesh_select_mode_init");
 
@@ -608,7 +608,7 @@ static bool transform_poll_property(const bContext *C, wmOperator *op, const Pro
 
   /* Proportional Editing. */
   if (STRPREFIX(prop_id, "proportional") || STRPREFIX(prop_id, "use_proportional")) {
-    ScrArea *area = CTX_wm_area(C);
+    ScrArea *area = CTX_wm_area(*C);
     if (area->spacetype == SPACE_NLA) {
       /* Hide properties that are not supported in some spaces. */
       return false;
@@ -641,7 +641,7 @@ static bool transform_poll_property(const bContext *C, wmOperator *op, const Pro
 
   /* #P_CORRECT_UV. */
   if (STREQ(prop_id, "correct_uv")) {
-    ScrArea *area = CTX_wm_area(C);
+    ScrArea *area = CTX_wm_area(*C);
     return area->spacetype == SPACE_VIEW3D;
   }
 
@@ -1006,7 +1006,7 @@ static void TRANSFORM_OT_rotate(wmOperatorType *ot)
 
 static bool tilt_poll(bContext *C)
 {
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit = CTX_data_edit_object(*C);
   if (!obedit) {
     return false;
   }
@@ -1078,7 +1078,7 @@ static bool transform_shear_poll(bContext *C)
     return false;
   }
 
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   return area && !ELEM(area->spacetype, SPACE_ACTION);
 }
 
@@ -1476,7 +1476,7 @@ static wmOperatorStatus transform_from_gizmo_invoke(bContext *C,
 {
   bToolRef *tref = WM_toolsystem_ref_from_context(C);
   if (tref) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     wmGizmoMap *gzmap = region->runtime->gizmo_map;
     wmGizmoGroup *gzgroup = gzmap ? WM_gizmomap_group_find(gzmap, "VIEW3D_GGT_xform_gizmo") :
                                     nullptr;

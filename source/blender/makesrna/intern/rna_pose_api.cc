@@ -128,7 +128,7 @@ static void rna_Pose_apply_pose_from_action(ID *pose_owner,
   BLI_assert(GS(pose_owner->name) == ID_OB);
   Object *pose_owner_ob = (Object *)pose_owner;
 
-  AnimationEvalContext anim_eval_context = {CTX_data_depsgraph_pointer(C), evaluation_time};
+  AnimationEvalContext anim_eval_context = {CTX_data_depsgraph_pointer(*C), evaluation_time};
   animrig::pose_apply_action({pose_owner_ob}, action->wrap(), &anim_eval_context, 1.0);
 
   /* Do NOT tag with ID_RECALC_ANIMATION, as that would overwrite the just-applied pose. */
@@ -145,7 +145,7 @@ static void rna_Pose_blend_pose_from_action(ID *pose_owner,
   BLI_assert(GS(pose_owner->name) == ID_OB);
   Object *pose_owner_ob = (Object *)pose_owner;
 
-  AnimationEvalContext anim_eval_context = {CTX_data_depsgraph_pointer(C), evaluation_time};
+  AnimationEvalContext anim_eval_context = {CTX_data_depsgraph_pointer(*C), evaluation_time};
   animrig::pose_apply_action({pose_owner_ob}, action->wrap(), &anim_eval_context, blend_factor);
 
   /* Do NOT tag with ID_RECALC_ANIMATION, as that would overwrite the just-applied pose. */

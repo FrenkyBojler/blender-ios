@@ -484,7 +484,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
   }
 
   /* Needed to get the space-data's type (below). */
-  if (CTX_wm_space_data(C) == nullptr) {
+  if (CTX_wm_space_data(*C) == nullptr) {
     return nullptr;
   }
 
@@ -499,7 +499,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
   bool has_valid_context = true;
   const char *has_valid_context_error = IFACE_("Unsupported context");
   {
-    ScrArea *area = CTX_wm_area(C);
+    ScrArea *area = CTX_wm_area(*C);
     if (area == nullptr) {
       has_valid_context = false;
     }
@@ -765,7 +765,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_tool(bContext *C,
   /* Keymap */
 
   /* This is too handy not to expose somehow, let's be sneaky for now. */
-  if ((is_quick_tip == false) && CTX_wm_window(C)->runtime->eventstate->modifier & KM_SHIFT) {
+  if ((is_quick_tip == false) && CTX_wm_window(*C)->runtime->eventstate->modifier & KM_SHIFT) {
     const char *expr_imports[] = {"bpy", "bl_ui", nullptr};
     char expr[256];
     SNPRINTF_UTF8(expr,
@@ -1379,13 +1379,13 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
                                             const float init_position[2],
                                             const rcti *init_rect_overlap)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   const int2 win_size = WM_window_native_pixel_size(win);
   rcti rect_i;
   FontFlags font_flag = BLF_NONE;
 
   /* Create area region. */
-  ARegion *region = region_temp_add(CTX_wm_screen(C));
+  ARegion *region = region_temp_add(CTX_wm_screen(*C));
 
   static ARegionType type;
   memset(&type, 0, sizeof(ARegionType));
@@ -1644,7 +1644,7 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
 ARegion *tooltip_create_from_button_or_extra_icon(
     bContext *C, ARegion *butregion, Button *but, ButtonExtraOpIcon *extra_icon, bool is_quick_tip)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   float init_position[2];
 
   if (but->drawflag & BUT_NO_TOOLTIP) {
@@ -1717,7 +1717,7 @@ ARegion *tooltip_create_from_button(bContext *C,
 
 ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   float init_position[2] = {float(win->runtime->eventstate->xy[0]),
                             float(win->runtime->eventstate->xy[1])};
 
@@ -1959,7 +1959,7 @@ ARegion *tooltip_create_from_search_item_generic(bContext *C,
     return nullptr;
   }
 
-  const wmWindow *win = CTX_wm_window(C);
+  const wmWindow *win = CTX_wm_window(*C);
   float init_position[2];
   init_position[0] = win->runtime->eventstate->xy[0];
   init_position[1] = item_rect->ymin + searchbox_region->winrct.ymin - (UI_POPUP_MARGIN / 2);

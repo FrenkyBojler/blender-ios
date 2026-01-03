@@ -122,7 +122,7 @@ static bool eyedropper_grease_pencil_init(bContext *C, wmOperator *op)
   EyedropperGreasePencil *eye = MEM_new<EyedropperGreasePencil>(__func__);
 
   op->customdata = eye;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   const char *display_device;
   display_device = scene->display_settings.display_device;
@@ -148,8 +148,8 @@ static void eyedropper_grease_pencil_exit(bContext *C, wmOperator *op)
 
 static void eyedropper_add_material(bContext *C, const float3 color, const MaterialMode mat_mode)
 {
-  Main *bmain = CTX_data_main(C);
-  Object *ob = CTX_data_active_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Object *ob = CTX_data_active_object(*C);
   Material *ma = nullptr;
 
   bool found = false;
@@ -238,8 +238,8 @@ static void eyedropper_add_material(bContext *C, const float3 color, const Mater
 /* Create a new palette color and palette if needed. */
 static void eyedropper_add_palette_color(bContext *C, const float3 color)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   ToolSettings *ts = scene->toolsettings;
   GpPaint *gp_paint = ts->gp_paint;
   GpVertexPaint *gp_vertexpaint = ts->gp_vertexpaint;
@@ -279,7 +279,7 @@ static void eyedropper_add_palette_color(bContext *C, const float3 color)
 /* Set the active brush's color. */
 static void eyedropper_set_brush_color(bContext *C, const float3 &color)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ToolSettings *ts = scene->toolsettings;
   Paint *paint = &ts->gp_paint->paint;
   Brush *brush = BKE_paint_brush(paint);
@@ -436,13 +436,13 @@ static wmOperatorStatus eyedropper_grease_pencil_exec(bContext *C, wmOperator *o
 static bool eyedropper_grease_pencil_poll(bContext *C)
 {
   /* Only valid if the current active object is grease pencil. */
-  Object *obact = CTX_data_active_object(C);
+  Object *obact = CTX_data_active_object(*C);
   if ((obact == nullptr) || (obact->type != OB_GREASE_PENCIL)) {
     return false;
   }
 
   /* Test we have a window below. */
-  return (CTX_wm_window(C) != nullptr);
+  return (CTX_wm_window(*C) != nullptr);
 }
 }  // namespace greasepencil
 

@@ -95,7 +95,7 @@ bool WM_menutype_poll(bContext *C, MenuType *mt)
 {
   /* If we're tagged, only use compatible. */
   if (mt->owner_id[0] != '\0') {
-    const WorkSpace *workspace = CTX_wm_workspace(C);
+    const WorkSpace *workspace = CTX_wm_workspace(*C);
     if (BKE_workspace_owner_id_check(workspace, mt->owner_id) == false) {
       return false;
     }

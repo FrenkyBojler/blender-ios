@@ -262,7 +262,7 @@ static bool add_vertex_subdivide(const bContext *C, Mask *mask, const float co[2
                                       &u,
                                       nullptr))
   {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     const float ctime = scene->r.cfra;
 
     MaskSplinePoint *new_point;
@@ -299,7 +299,7 @@ static bool add_vertex_extrude(const bContext *C,
                                MaskLayer *mask_layer,
                                const float co[2])
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const float ctime = scene->r.cfra;
 
   MaskSpline *spline;
@@ -399,7 +399,7 @@ static bool add_vertex_extrude(const bContext *C,
 
 static bool add_vertex_new(const bContext *C, Mask *mask, MaskLayer *mask_layer, const float co[2])
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const float ctime = scene->r.cfra;
 
   MaskSpline *spline;
@@ -442,8 +442,8 @@ static void mask_point_make_pixel_space(bContext *C,
                                         const float point_normalized[2],
                                         float point_pixel[2])
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   float scalex, scaley;
   ED_mask_pixelspace_factor(area, region, &scalex, &scaley);
@@ -519,7 +519,7 @@ static wmOperatorStatus add_vertex_exec(bContext *C, wmOperator *op)
   MaskViewLockState lock_state;
   ED_mask_view_lock_state_store(C, &lock_state);
 
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
   if (mask == nullptr) {
     /* if there's no active mask, create one */
     mask = ED_mask_new(C, nullptr);
@@ -569,8 +569,8 @@ static wmOperatorStatus add_vertex_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   float co[2];
 
@@ -617,7 +617,7 @@ void MASK_OT_add_vertex(wmOperatorType *ot)
 
 static wmOperatorStatus add_feather_vertex_exec(bContext *C, wmOperator *op)
 {
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
   MaskLayer *mask_layer;
   MaskSpline *spline;
   MaskSplinePoint *point = nullptr;
@@ -668,8 +668,8 @@ static wmOperatorStatus add_feather_vertex_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   float co[2];
 
@@ -747,7 +747,7 @@ static int create_primitive_from_points(
   MaskViewLockState lock_state;
   ED_mask_view_lock_state_store(C, &lock_state);
 
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   int size = RNA_float_get(op->ptr, "size");
 
   int width, height;
@@ -770,7 +770,7 @@ static int create_primitive_from_points(
 
   bool added_mask = false;
   MaskLayer *mask_layer = ED_mask_layer_ensure(C, &added_mask);
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
 
   ED_mask_select_toggle_all(mask, SEL_DESELECT);
 
@@ -819,7 +819,7 @@ static wmOperatorStatus primitive_add_invoke(bContext *C,
                                              wmOperator *op,
                                              const wmEvent * /*event*/)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   float cursor[2];
   int width, height;
 

@@ -577,7 +577,7 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
 {
   BLI_assert(ELEM(node.type_legacy, GEO_NODE_BAKE, GEO_NODE_SIMULATION_OUTPUT));
   r_ctx.node = &node;
-  r_ctx.snode = CTX_wm_space_node(C);
+  r_ctx.snode = CTX_wm_space_node(*C);
   if (!r_ctx.snode) {
     return false;
   }
@@ -633,7 +633,7 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
       }
     }
   }
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(*C);
   r_ctx.frame_range = bke::bake::get_node_bake_frame_range(
       *scene, *r_ctx.object, *r_ctx.nmd, r_ctx.bake->id);
   r_ctx.bake_still = node.type_legacy == GEO_NODE_BAKE &&
@@ -763,7 +763,7 @@ void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, ui::Layout &la
     ui::Layout &subsubcol = subcol.column(true);
     const bool use_custom_path = ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_PATH;
     subsubcol.active_set(use_custom_path);
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     auto bake_path = bke::bake::get_node_bake_path(*bmain, *ctx.object, *ctx.nmd, ctx.bake->id);
 
     char placeholder_path[FILE_MAX] = "";

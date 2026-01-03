@@ -44,7 +44,7 @@
 
 static wmOperatorStatus pack_libraries_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   BKE_packedfile_pack_all_libraries(bmain, op->reports);
 
@@ -69,7 +69,7 @@ void FILE_OT_pack_libraries(wmOperatorType *ot)
 
 static wmOperatorStatus unpack_libraries_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   WM_cursor_wait(true);
   BKE_packedfile_unpack_all_libraries(bmain, op->reports);
@@ -120,7 +120,7 @@ void FILE_OT_unpack_libraries(wmOperatorType *ot)
 
 static wmOperatorStatus autopack_toggle_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   if (G.fileflags & G_FILE_AUTOPACK) {
     G.fileflags &= ~G_FILE_AUTOPACK;
@@ -155,7 +155,7 @@ void FILE_OT_autopack_toggle(wmOperatorType *ot)
 
 static wmOperatorStatus pack_all_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   BKE_packedfile_pack_all(bmain, op->reports, true);
 
@@ -166,7 +166,7 @@ static wmOperatorStatus pack_all_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus pack_all_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Image *ima;
 
   /* First check for dirty images. */
@@ -238,7 +238,7 @@ static const EnumPropertyItem unpack_all_method_items[] = {
 
 static wmOperatorStatus unpack_all_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ePF_FileStatus method = ePF_FileStatus(RNA_enum_get(op->ptr, "method"));
 
   if (method != PF_KEEP) {
@@ -254,7 +254,7 @@ static wmOperatorStatus unpack_all_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus unpack_all_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   const PackedFileCount count = BKE_packedfile_count_all(bmain);
 
@@ -326,7 +326,7 @@ static const EnumPropertyItem unpack_item_method_items[] = {
 
 static wmOperatorStatus unpack_item_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ID *id;
   char idname[MAX_ID_NAME - 2];
   int type = RNA_int_get(op->ptr, "id_type");
@@ -411,7 +411,7 @@ void FILE_OT_unpack_item(wmOperatorType *ot)
 
 static wmOperatorStatus make_paths_relative_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
 
   if (blendfile_path[0] == '\0') {
@@ -451,7 +451,7 @@ void FILE_OT_make_paths_relative(wmOperatorType *ot)
 
 static wmOperatorStatus make_paths_absolute_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
 
   if (blendfile_path[0] == '\0') {
@@ -491,7 +491,7 @@ void FILE_OT_make_paths_absolute(wmOperatorType *ot)
 
 static wmOperatorStatus report_missing_files_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   /* run the missing file check */
   BKE_bpath_missing_files_check(bmain, op->reports);
@@ -523,7 +523,7 @@ void FILE_OT_report_missing_files(wmOperatorType *ot)
 
 static wmOperatorStatus find_missing_files_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const std::string searchpath = RNA_string_get(op->ptr, "directory");
   const bool find_all = RNA_boolean_get(op->ptr, "find_all");
 
@@ -594,7 +594,7 @@ static wmOperatorStatus update_reports_display_invoke(bContext *C,
                                                       wmOperator * /*op*/,
                                                       const wmEvent *event)
 {
-  ReportList *reports = CTX_wm_reports(C);
+  ReportList *reports = CTX_wm_reports(*C);
   Report *report;
 
   /* escape if not our timer */
@@ -605,7 +605,7 @@ static wmOperatorStatus update_reports_display_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   ReportTimerInfo *rti = (ReportTimerInfo *)reports->reporttimer->customdata;
   const float flash_timeout = FLASH_TIMEOUT;
   bool send_notifier = false;

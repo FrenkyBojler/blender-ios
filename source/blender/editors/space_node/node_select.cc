@@ -176,8 +176,8 @@ static bool is_position_over_node_or_socket(SpaceNode &snode, ARegion &region, c
 
 static bool is_event_over_node_or_socket(const bContext &C, const wmEvent &event)
 {
-  SpaceNode &snode = *CTX_wm_space_node(&C);
-  ARegion &region = *CTX_wm_region(&C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
+  ARegion &region = *CTX_wm_region(C);
 
   int2 mval;
   WM_event_drag_start_mval(&event, &region, mval);
@@ -417,7 +417,7 @@ enum {
 
 static wmOperatorStatus node_select_grouped_exec(bContext *C, wmOperator *op)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &node_tree = *snode.edittree;
   bNode *node_act = bke::node_get_active(*snode.edittree);
 
@@ -502,12 +502,12 @@ void NODE_OT_select_grouped(wmOperatorType *ot)
 
 void node_select_single(bContext &C, bNode &node)
 {
-  Main *bmain = CTX_data_main(&C);
-  SpaceNode &snode = *CTX_wm_space_node(&C);
+  Main *bmain = CTX_data_main(C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode.edittree;
-  const Object *ob = CTX_data_active_object(&C);
-  const Scene *scene = CTX_data_scene(&C);
-  const wmWindowManager *wm = CTX_wm_manager(&C);
+  const Object *ob = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(C);
+  const wmWindowManager *wm = CTX_wm_manager(C);
   bool active_texture_changed = false;
 
   for (bNode *node_iter : node_tree.all_nodes()) {
@@ -598,13 +598,13 @@ static bool node_mouse_select(bContext *C,
                               const int2 mval,
                               const SelectPick_Params &params)
 {
-  Main &bmain = *CTX_data_main(C);
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  Main &bmain = *CTX_data_main(*C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &node_tree = *snode.edittree;
-  ARegion &region = *CTX_wm_region(C);
-  const Object *ob = CTX_data_active_object(C);
-  const Scene *scene = CTX_data_scene(C);
-  const wmWindowManager *wm = CTX_wm_manager(C);
+  ARegion &region = *CTX_wm_region(*C);
+  const Object *ob = CTX_data_active_object(*C);
+  const Scene *scene = CTX_data_scene(*C);
+  const wmWindowManager *wm = CTX_wm_manager(*C);
   bNode *node = nullptr;
   bNodeSocket *sock = nullptr;
 
@@ -729,13 +729,13 @@ static bool node_mouse_select(bContext *C,
   if (RNA_boolean_get(op->ptr, "clear_viewer")) {
     if (node == nullptr) {
       /* Disable existing active viewer. */
-      WorkSpace *workspace = CTX_wm_workspace(C);
+      WorkSpace *workspace = CTX_wm_workspace(*C);
       if (const std::optional<viewer_path::ViewerPathForGeometryNodesViewer> parsed_path =
               viewer_path::parse_geometry_nodes_viewer(workspace->viewer_path))
       {
         /* The object needs to be reevaluated, because the viewer path is changed which means that
          * the object may generate different viewer geometry as a side effect. */
-        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
         DEG_id_tag_update_for_side_effect_request(
             depsgraph, &parsed_path->object->id, ID_RECALC_GEOMETRY);
       }
@@ -851,9 +851,9 @@ void NODE_OT_select(wmOperatorType *ot)
 
 static wmOperatorStatus node_box_select_exec(bContext *C, wmOperator *op)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &node_tree = *snode.edittree;
-  const ARegion &region = *CTX_wm_region(C);
+  const ARegion &region = *CTX_wm_region(*C);
   rctf rectf;
 
   WM_operator_properties_border_to_rctf(op, &rectf);
@@ -948,8 +948,8 @@ void NODE_OT_select_box(wmOperatorType *ot)
 
 static wmOperatorStatus node_circleselect_exec(bContext *C, wmOperator *op)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
+  ARegion *region = CTX_wm_region(*C);
   bNodeTree &node_tree = *snode->edittree;
 
   int x, y, radius;
@@ -1043,10 +1043,10 @@ static wmOperatorStatus node_lasso_select_invoke(bContext *C, wmOperator *op, co
 
 static bool do_lasso_select_node(bContext *C, const Span<int2> mcoords, eSelectOp sel_op)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNodeTree &node_tree = *snode->edittree;
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   rcti rect;
   bool changed = false;
@@ -1169,7 +1169,7 @@ static bool any_node_selected(const bNodeTree &node_tree)
 
 static wmOperatorStatus node_select_all_exec(bContext *C, wmOperator *op)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &node_tree = *snode.edittree;
 
   node_tree.ensure_topology_cache();
@@ -1232,7 +1232,7 @@ void NODE_OT_select_all(wmOperatorType *ot)
 
 static wmOperatorStatus node_select_linked_to_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &node_tree = *snode.edittree;
 
   node_tree.ensure_topology_cache();
@@ -1282,7 +1282,7 @@ void NODE_OT_select_linked_to(wmOperatorType *ot)
 
 static wmOperatorStatus node_select_linked_from_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &node_tree = *snode.edittree;
 
   node_tree.ensure_topology_cache();
@@ -1337,8 +1337,8 @@ static bool nodes_are_same_type_for_select(const bNode &a, const bNode &b)
 
 static wmOperatorStatus node_select_same_type_step_exec(bContext *C, wmOperator *op)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
+  ARegion *region = CTX_wm_region(*C);
   const bool prev = RNA_boolean_get(op->ptr, "prev");
   bNode *active_node = bke::node_get_active(*snode->edittree);
 
@@ -1448,8 +1448,8 @@ static void node_find_update_fn(const bContext *C,
                                 ui::SearchItems *items,
                                 const bool /*is_first*/)
 {
-  Main *bmain = CTX_data_main(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
+  Main *bmain = CTX_data_main(*C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   nodes::geo_eval_log::ContextualGeoTreeLogs tree_logs =
       nodes::geo_eval_log::GeoNodesLog::get_contextual_tree_logs(*snode);
   tree_logs.foreach_tree_log(
@@ -1593,11 +1593,11 @@ static void node_find_update_fn(const bContext *C,
 
 static void node_find_exec_fn(bContext *C, void * /*arg1*/, void *arg2)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *active = (bNode *)arg2;
 
   if (active) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     node_select_single(*C, *active);
 
     if (!BLI_rctf_inside_rctf(&region->v2d.cur, &active->runtime->draw_bounds)) {

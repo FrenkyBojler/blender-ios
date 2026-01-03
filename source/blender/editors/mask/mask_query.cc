@@ -48,8 +48,8 @@ bool ED_mask_find_nearest_diff_point(const bContext *C,
 {
   const float threshold_sq = threshold * threshold;
 
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   MaskLayer *point_mask_layer;
   MaskSpline *point_spline;
@@ -59,7 +59,7 @@ bool ED_mask_find_nearest_diff_point(const bContext *C,
   float u = 0.0f;
   float scalex, scaley;
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   ED_mask_get_size(area, &width, &height);
@@ -209,8 +209,8 @@ MaskSplinePoint *ED_mask_point_find_nearest(const bContext *C,
                                             eMaskWhichHandle *r_which_handle,
                                             float *r_score)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   MaskLayer *point_mask_layer = nullptr;
   MaskSpline *point_spline = nullptr;
@@ -221,7 +221,7 @@ MaskSplinePoint *ED_mask_point_find_nearest(const bContext *C,
   eMaskWhichHandle which_handle = MASK_WHICH_HANDLE_NONE;
   int width, height;
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   ED_mask_get_size(area, &width, &height);
@@ -366,8 +366,8 @@ bool ED_mask_feather_find_nearest(const bContext *C,
                                   MaskSplinePointUW **r_uw,
                                   float *r_score)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   MaskLayer *point_mask_layer = nullptr;
   MaskSpline *point_spline = nullptr;
@@ -378,7 +378,7 @@ bool ED_mask_feather_find_nearest(const bContext *C,
   float scalex, scaley;
   int width, height;
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   ED_mask_get_size(area, &width, &height);
@@ -612,8 +612,8 @@ bool ED_mask_selected_minmax(const bContext *C,
                              float max[2],
                              bool handles_as_control_point)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Mask *mask = CTX_data_edit_mask(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Mask *mask = CTX_data_edit_mask(*C);
 
   bool ok = false;
 

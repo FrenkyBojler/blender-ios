@@ -56,7 +56,7 @@ static bool operator_rigidbody_editable_poll(Scene *scene)
 
 static bool operator_rigidbody_active_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (!operator_rigidbody_editable_poll(scene)) {
     return false;
   }
@@ -71,7 +71,7 @@ static bool operator_rigidbody_active_poll(bContext *C)
 
 static bool operator_rigidbody_add_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (!operator_rigidbody_editable_poll(scene)) {
     return false;
   }
@@ -103,8 +103,8 @@ void ED_rigidbody_object_remove(Main *bmain, Scene *scene, Object *ob)
 
 static wmOperatorStatus rigidbody_object_add_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   Object *ob = blender::ed::object::context_active_object(C);
   int type = RNA_enum_get(op->ptr, "type");
   bool changed;
@@ -150,8 +150,8 @@ void RIGIDBODY_OT_object_add(wmOperatorType *ot)
 
 static wmOperatorStatus rigidbody_object_remove_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   Object *ob = blender::ed::object::context_active_object(C);
   bool changed = false;
 
@@ -196,13 +196,13 @@ void RIGIDBODY_OT_object_remove(wmOperatorType *ot)
 
 static wmOperatorStatus rigidbody_objects_add_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   int type = RNA_enum_get(op->ptr, "type");
   bool changed = false;
 
   /* create rigid body objects and add them to the world's group */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     changed |= ED_rigidbody_object_add(bmain, scene, ob, type, op->reports);
   }
   CTX_DATA_END;
@@ -245,12 +245,12 @@ void RIGIDBODY_OT_objects_add(wmOperatorType *ot)
 
 static wmOperatorStatus rigidbody_objects_remove_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   bool changed = false;
 
   /* apply this to all selected objects... */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     if (ob->rigidbody_object) {
       ED_rigidbody_object_remove(bmain, scene, ob);
       changed = true;
@@ -295,7 +295,7 @@ static wmOperatorStatus rigidbody_objects_shape_change_exec(bContext *C, wmOpera
   bool changed = false;
 
   /* apply this to all selected objects... */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     if (ob->rigidbody_object) {
       /* use RNA-system to change the property and perform all necessary changes */
       PointerRNA ptr = RNA_pointer_create_discrete(
@@ -451,7 +451,7 @@ static const EnumPropertyItem *rigidbody_materials_itemf(bContext * /*C*/,
 
 static wmOperatorStatus rigidbody_objects_calc_mass_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   int material = RNA_enum_get(op->ptr, "material");
   float density;
   bool changed = false;
@@ -472,7 +472,7 @@ static wmOperatorStatus rigidbody_objects_calc_mass_exec(bContext *C, wmOperator
   }
 
   /* Apply this to all selected objects (with rigid-bodies). */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     if (ob->rigidbody_object) {
       float volume; /* m^3 */
       float mass;   /* kg */

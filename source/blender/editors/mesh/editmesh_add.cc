@@ -46,9 +46,9 @@ static Object *make_prim_init(bContext *C,
                               ushort local_view_bits,
                               MakePrimitiveData *r_creation_data)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Object *obedit = CTX_data_edit_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *obedit = CTX_data_edit_object(*C);
 
   r_creation_data->was_editmode = false;
   if (obedit == nullptr || obedit->type != OB_MESH) {
@@ -87,7 +87,7 @@ static void make_prim_finish(bContext *C,
   /* userdef */
   if (exit_editmode) {
     blender::ed::object::editmode_exit_ex(
-        CTX_data_main(C), CTX_data_scene(C), obedit, blender::ed::object::EM_FREEDATA);
+        CTX_data_main(*C), CTX_data_scene(*C), obedit, blender::ed::object::EM_FREEDATA);
   }
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
 }

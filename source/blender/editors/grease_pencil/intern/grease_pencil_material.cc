@@ -33,7 +33,7 @@ namespace blender::ed::greasepencil {
 
 static wmOperatorStatus grease_pencil_material_reveal_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   bool changed = false;
@@ -76,7 +76,7 @@ static void GREASE_PENCIL_OT_material_reveal(wmOperatorType *ot)
 
 static wmOperatorStatus grease_pencil_material_hide_exec(bContext *C, wmOperator *op)
 {
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   const bool invert = RNA_boolean_get(op->ptr, "invert");
 
@@ -132,7 +132,7 @@ static void GREASE_PENCIL_OT_material_hide(wmOperatorType *ot)
 
 static wmOperatorStatus grease_pencil_material_lock_all_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   bool changed = false;
@@ -176,7 +176,7 @@ static void GREASE_PENCIL_OT_material_lock_all(wmOperatorType *ot)
 
 static wmOperatorStatus grease_pencil_material_unlock_all_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   bool changed = false;
@@ -219,7 +219,7 @@ static void GREASE_PENCIL_OT_material_unlock_all(wmOperatorType *ot)
 
 static wmOperatorStatus grease_pencil_material_lock_unused_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   bool changed = false;
@@ -267,8 +267,8 @@ static wmOperatorStatus grease_pencil_material_lock_unselected_exec(bContext *C,
   using namespace blender;
   using namespace blender::bke;
 
-  const Scene *scene = CTX_data_scene(C);
-  Object *object = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(*C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   bool changed = false;
@@ -343,15 +343,15 @@ static wmOperatorStatus grease_pencil_material_copy_to_object_exec(bContext *C, 
   using namespace blender;
   using namespace blender::bke;
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const bool only_active = RNA_boolean_get(op->ptr, "only_active");
-  Object *ob_src = CTX_data_active_object(C);
+  Object *ob_src = CTX_data_active_object(*C);
   Material *ma_active = BKE_object_material_get(ob_src, ob_src->actcol);
   if (ma_active == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     if ((ob == ob_src) || (ob->type != OB_GREASE_PENCIL)) {
       continue;
     }
@@ -404,7 +404,7 @@ static void GREASE_PENCIL_OT_material_copy_to_object(wmOperatorType *ot)
 
 static wmOperatorStatus material_isolate_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
   Material *active_ma = BKE_gpencil_material(ob, ob->actcol);
   MaterialGPencilStyle *active_material = BKE_gpencil_material_settings(ob, ob->actcol);

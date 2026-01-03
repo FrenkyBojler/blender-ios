@@ -329,14 +329,14 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   ViewLayer *single_layer = nullptr;
   Render *re;
   Image *ima;
-  View3D *v3d = CTX_wm_view3d(C);
-  Main *mainp = CTX_data_main(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Main *mainp = CTX_data_main(*C);
 
   const bool is_animation = RNA_boolean_get(op->ptr, "animation");
   const bool is_write_still = RNA_boolean_get(op->ptr, "write_still");
   const bool use_sequencer_scene = RNA_boolean_get(op->ptr, "use_sequencer_scene");
 
-  Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
 
   if (scene == nullptr) {
     BKE_report(op->reports,
@@ -346,7 +346,7 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   }
 
   ViewLayer *active_layer = use_sequencer_scene ? BKE_view_layer_default_render(scene) :
-                                                  CTX_data_view_layer(C);
+                                                  CTX_data_view_layer(*C);
   RenderEngineType *re_type = RE_engines_find(scene->r.engine);
   Object *camera_override = v3d ? V3D_CAMERA_LOCAL(v3d) : nullptr;
 
@@ -437,7 +437,7 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   }
 
   /* No redraw needed, we leave state as we entered it. */
-  ED_update_for_newframe(mainp, CTX_data_depsgraph_pointer(C));
+  ED_update_for_newframe(mainp, CTX_data_depsgraph_pointer(*C));
 
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, scene);
 
@@ -954,7 +954,7 @@ static wmOperatorStatus screen_render_modal(bContext *C, wmOperator *op, const w
   Scene *scene = (Scene *)op->customdata;
 
   /* no running blender, remove handler and pass through */
-  if (0 == WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_RENDER)) {
+  if (0 == WM_jobs_test(CTX_wm_manager(*C), scene, WM_JOB_TYPE_RENDER)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
@@ -964,7 +964,7 @@ static wmOperatorStatus screen_render_modal(bContext *C, wmOperator *op, const w
 
 static void screen_render_cancel(bContext *C, wmOperator *op)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   Scene *scene = (Scene *)op->customdata;
 
   /* kill on cancel, because job is using op->reports */
@@ -1020,7 +1020,7 @@ static void clean_viewport_memory(Main *bmain, Scene *scene)
 static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   /* new render clears all callbacks */
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ViewLayer *single_layer = nullptr;
   Render *re;
   wmJob *wm_job;
@@ -1033,8 +1033,8 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   const bool use_viewport = RNA_boolean_get(op->ptr, "use_viewport");
   const bool use_sequencer_scene = RNA_boolean_get(op->ptr, "use_sequencer_scene");
 
-  View3D *v3d = use_viewport ? CTX_wm_view3d(C) : nullptr;
-  Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  View3D *v3d = use_viewport ? CTX_wm_view3d(*C) : nullptr;
+  Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
 
   if (scene == nullptr) {
     BKE_report(op->reports,
@@ -1044,7 +1044,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   }
 
   ViewLayer *active_layer = use_sequencer_scene ? BKE_view_layer_default_render(scene) :
-                                                  CTX_data_view_layer(C);
+                                                  CTX_data_view_layer(*C);
   RenderEngineType *re_type = RE_engines_find(scene->r.engine);
   Object *camera_override = v3d ? V3D_CAMERA_LOCAL(v3d) : nullptr;
 
@@ -1074,7 +1074,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   }
 
   /* only one render job at a time */
-  if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_RENDER)) {
+  if (WM_jobs_test(CTX_wm_manager(*C), scene, WM_JOB_TYPE_RENDER)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1097,10 +1097,10 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   }
 
   /* stop all running jobs, except screen one. currently previews frustrate Render */
-  WM_jobs_kill_all_except(CTX_wm_manager(C), CTX_wm_screen(C));
+  WM_jobs_kill_all_except(CTX_wm_manager(*C), CTX_wm_screen(*C));
 
   /* cancel animation playback */
-  if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+  if (ED_screen_animation_playing(CTX_wm_manager(*C))) {
     ED_screen_animation_play(C, 0, 0);
   }
 
@@ -1155,7 +1155,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* Lock the user interface depending on render settings. */
   if (scene->r.use_lock_interface) {
-    WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_RENDER);
+    WM_locked_interface_set_with_flags(CTX_wm_manager(*C), REGION_DRAW_LOCK_RENDER);
 
     /* Set flag interface need to be unlocked.
      *
@@ -1180,8 +1180,8 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
     name = RPT_("Rendering...");
   }
 
-  wm_job = WM_jobs_get(CTX_wm_manager(C),
-                       CTX_wm_window(C),
+  wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                       CTX_wm_window(*C),
                        scene,
                        name,
                        WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
@@ -1219,7 +1219,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
    * several layers from compositor #31800. */
   op->customdata = scene;
 
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_jobs_start(CTX_wm_manager(*C), wm_job);
 
   WM_cursor_wait(false);
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, scene);
@@ -1332,17 +1332,17 @@ void RENDER_OT_render(wmOperatorType *ot)
 
 static RenderJobBase *render_job_get(const bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   RenderJobBase *rj;
 
   /* Try to find job tied to active scene first. */
   rj = static_cast<RenderJobBase *>(
-      WM_jobs_customdata_from_type(wm, CTX_data_scene(C), WM_JOB_TYPE_RENDER));
+      WM_jobs_customdata_from_type(wm, CTX_data_scene(*C), WM_JOB_TYPE_RENDER));
 
   /* If not found, attempt to find job tied to sequencer scene. */
   if (rj == nullptr) {
     return static_cast<RenderJobBase *>(
-        WM_jobs_customdata_from_type(wm, CTX_data_sequencer_scene(C), WM_JOB_TYPE_RENDER));
+        WM_jobs_customdata_from_type(wm, CTX_data_sequencer_scene(*C), WM_JOB_TYPE_RENDER));
   }
 
   return rj;
@@ -1364,7 +1364,7 @@ Scene *ED_render_job_get_current_scene(const bContext *C)
 
 static wmOperatorStatus render_shutter_curve_preset_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   CurveMapping *mblur_shutter_curve = &scene->r.mblur_shutter_curve;
   CurveMap *cm = mblur_shutter_curve->cm;
   int preset = RNA_enum_get(op->ptr, "shape");

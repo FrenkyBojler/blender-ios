@@ -92,12 +92,12 @@ Strip *special_preview_get()
 
 void special_preview_set(bContext *C, const int mval[2])
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   if (!seq::editing_get(scene)) {
     return;
   }
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   Strip *strip = strip_under_mouse_get(scene, &region->v2d, mval);
   if (strip != nullptr && strip->type != STRIP_TYPE_SOUND) {
     sequencer_special_update_set(strip);
@@ -111,12 +111,12 @@ void special_preview_clear()
 
 ImBuf *sequencer_ibuf_get(const bContext *C, const int timeline_frame, const char *viewname)
 {
-  Main *bmain = CTX_data_main(C);
-  ARegion *region = CTX_wm_region(C);
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_sequencer_scene(C);
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
-  bScreen *screen = CTX_wm_screen(C);
+  Main *bmain = CTX_data_main(*C);
+  ARegion *region = CTX_wm_region(*C);
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
+  bScreen *screen = CTX_wm_screen(*C);
 
   seq::RenderData context = {nullptr};
   ImBuf *ibuf;
@@ -296,11 +296,11 @@ static void sequencer_stop_running_jobs(const bContext *C, Scene *scene)
   if (G.is_rendering == false && (scene->r.seq_prev_type) == OB_RENDER) {
     /* Stop all running jobs, except screen one. Currently previews frustrate Render.
      * Need to make so sequencers rendering doesn't conflict with compositor. */
-    WM_jobs_kill_type(CTX_wm_manager(C), nullptr, WM_JOB_TYPE_COMPOSITE);
+    WM_jobs_kill_type(CTX_wm_manager(*C), nullptr, WM_JOB_TYPE_COMPOSITE);
 
     /* In case of final rendering used for preview, kill all previews,
      * otherwise threading conflict will happen in rendering module. */
-    WM_jobs_kill_type(CTX_wm_manager(C), nullptr, WM_JOB_TYPE_RENDER_PREVIEW);
+    WM_jobs_kill_type(CTX_wm_manager(*C), nullptr, WM_JOB_TYPE_RENDER_PREVIEW);
   }
 }
 
@@ -1015,7 +1015,7 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   }
 
   const float2 origin = seq::image_transform_origin_offset_pixelspace_get(
-      CTX_data_sequencer_scene(C), strip);
+      CTX_data_sequencer_scene(*C), strip);
 
   /* Origin. */
   GPU_program_point_size(true);
@@ -1034,7 +1034,7 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
 
   /* Outline. */
   const Array<float2> strip_image_quad = seq::image_transform_final_quad_get(
-      CTX_data_sequencer_scene(C), strip);
+      CTX_data_sequencer_scene(*C), strip);
 
   GPU_line_smooth(true);
   GPU_blend(GPU_BLEND_ALPHA);
@@ -1065,7 +1065,7 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
 {
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const seq::TextVarsRuntime *text = data->runtime;
-  const Scene *scene = CTX_data_sequencer_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(*C);
 
   if (data->selection_start_offset == -1 || strip_text_selection_range_get(data).is_empty()) {
     return;
@@ -1133,7 +1133,7 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
 {
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const seq::TextVarsRuntime *text = data->runtime;
-  const Scene *scene = CTX_data_sequencer_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(*C);
 
   const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
   const float view_aspect = scene->r.xasp / scene->r.yasp;
@@ -1179,7 +1179,7 @@ static void text_edit_draw(const bContext *C)
   if (!sequencer_text_editing_active_poll(const_cast<bContext *>(C))) {
     return;
   }
-  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
+  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));
   if (!seq::effects_can_render_text(strip)) {
     return;
   }
@@ -1224,7 +1224,7 @@ static void preview_draw_begin(const bContext *C,
                                ARegion &region,
                                eSpaceSeq_RegionType preview_type)
 {
-  sequencer_stop_running_jobs(C, CTX_data_sequencer_scene(C));
+  sequencer_stop_running_jobs(C, CTX_data_sequencer_scene(*C));
 
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(&region);
   BLI_assert(viewport);
@@ -1255,7 +1255,7 @@ static void preview_draw_begin(const bContext *C,
 static void preview_draw_end(const bContext *C)
 {
   ui::view2d_view_restore(C);
-  seq_prefetch_wm_notify(C, CTX_data_sequencer_scene(C));
+  seq_prefetch_wm_notify(C, CTX_data_sequencer_scene(*C));
 }
 
 /* Configure current GPU state to draw on the color render frame-buffer of the viewport. */
@@ -1351,12 +1351,12 @@ static void preview_draw_all_image_overlays(const bContext *C,
                                             const int timeline_frame)
 {
   /* do strip independent checks only once */
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
-  const ARegion *region = CTX_wm_region(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
+  const ARegion *region = CTX_wm_region(*C);
   if (region->regiontype == RGN_TYPE_PREVIEW && !sequencer_view_preview_only_poll(C)) {
     return;
   }
-  if (ED_screen_animation_no_scrub(CTX_wm_manager(C))) {
+  if (ED_screen_animation_no_scrub(CTX_wm_manager(*C))) {
     return;
   }
   if ((sseq->flag & SEQ_SHOW_OVERLAY) == 0 ||
@@ -1783,9 +1783,9 @@ static void sequencer_preview_draw_overlays(const bContext *C,
 
 void sequencer_preview_region_draw(const bContext *C, ARegion *region)
 {
-  const ScrArea *area = CTX_wm_area(C);
+  const ScrArea *area = CTX_wm_area(*C);
   const SpaceSeq &space_sequencer = *static_cast<const SpaceSeq *>(area->spacedata.first);
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
 
   /* Check if preview needs to be drawn at all. Note: do not draw preview region when
    * there is ongoing offline rendering, to avoid threading conflicts. */
@@ -1870,7 +1870,7 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
                                       reference_ibuf,
                                       show_imbuf ? reference_texture : nullptr);
   sequencer_preview_draw_overlays(C,
-                                  *CTX_wm_manager(C),
+                                  *CTX_wm_manager(*C),
                                   scene,
                                   space_sequencer,
                                   editing,

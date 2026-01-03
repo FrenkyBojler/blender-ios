@@ -172,8 +172,8 @@ static void undoarm_free_data(UndoArmature *uarm)
 
 static Object *editarm_object_from_context(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   if (obedit && obedit->type == OB_ARMATURE) {
@@ -218,8 +218,8 @@ static bool armature_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_
 
   /* Important not to use the 3D view when getting objects because all objects
    * outside of this list will be moved out of edit-mode when reading back undo steps. */
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   blender::Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(scene, view_layer);
 
   us->scene_ref.ptr = scene;
@@ -246,11 +246,11 @@ static void armature_undosys_step_decode(
     bContext *C, Main *bmain, UndoStep *us_p, const eUndoStepDir /*dir*/, bool /*is_final*/)
 {
   ArmatureUndoStep *us = reinterpret_cast<ArmatureUndoStep *>(us_p);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   ED_undo_object_editmode_validate_scene_from_windows(
-      CTX_wm_manager(C), us->scene_ref.ptr, &scene, &view_layer);
+      CTX_wm_manager(*C), us->scene_ref.ptr, &scene, &view_layer);
   ED_undo_object_editmode_restore_helper(
       scene, view_layer, &us->elems[0].obedit_ref.ptr, us->elems_len, sizeof(*us->elems));
 
@@ -278,7 +278,7 @@ static void armature_undosys_step_decode(
       scene, view_layer, us->elems[0].obedit_ref.ptr, us_p->name, &LOG);
 
   /* Check after setting active (unless undoing into another scene). */
-  BLI_assert(armature_undosys_poll(C) || (scene != CTX_data_scene(C)));
+  BLI_assert(armature_undosys_poll(C) || (scene != CTX_data_scene(*C)));
 
   bmain->is_memfile_undo_flush_needed = true;
 

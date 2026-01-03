@@ -62,7 +62,7 @@
 /* `op->poll`. */
 static bool wm_xr_operator_sessionactive(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   return WM_xr_session_is_ready(&wm->xr);
 }
 
@@ -130,10 +130,10 @@ static void wm_xr_session_update_screen_on_exit_cb(const wmXrData *xr_data)
 
 static wmOperatorStatus wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   /* Lazily-create XR context - tries to dynamic-link to the runtime,
    * reading `active_runtime.json`. */
@@ -552,7 +552,7 @@ static wmOperatorStatus wm_xr_navigation_grab_modal(bContext *C,
 
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
   XrGrabData *data = static_cast<XrGrabData *>(op->customdata);
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmXrData *xr = &wm->xr;
 
   WM_xr_session_state_vignette_activate(xr);
@@ -785,7 +785,7 @@ static wmOperatorStatus wm_xr_navigation_fly_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   wm_xr_fly_init(op, &wm->xr);
 
@@ -819,7 +819,7 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
 
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
   XrFlyData *data = static_cast<XrFlyData *>(op->customdata);
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmXrData *xr = &wm->xr;
   eXrFlyMode mode;
   bool turn, snap_turn, invert_rotation, swap_hands, locz_lock, dir_lock, speed_frame_based;
@@ -1480,8 +1480,8 @@ static XrTeleportRayResult wm_xr_navigation_teleport_arc_scene_intersect(bContex
     float3 hit_location;
     float3 hit_normal;
     const Object *ob = nullptr;
-    wm_xr_navigation_teleport_raycast(CTX_data_scene(C),
-                                      CTX_data_ensure_evaluated_depsgraph(C),
+    wm_xr_navigation_teleport_raycast(CTX_data_scene(*C),
+                                      CTX_data_ensure_evaluated_depsgraph(*C),
                                       segment_origin,
                                       segment_direction,
                                       &segment_ray_length,
@@ -1602,7 +1602,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
 
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
 
-  wmXrData *xr = &CTX_wm_manager(C)->xr;
+  wmXrData *xr = &CTX_wm_manager(*C)->xr;
   XrTeleportData *data = static_cast<XrTeleportData *>(op->customdata);
 
   wm_xr_navigation_teleport_data_update(op, xr, data, actiondata);
@@ -1754,7 +1754,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
 
 static wmOperatorStatus wm_xr_navigation_reset_exec(bContext *C, wmOperator *op)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmXrData *xr = &wm->xr;
   bool reset_loc, reset_rot, reset_scale;
 
@@ -1851,7 +1851,7 @@ static wmOperatorStatus wm_xr_navigation_swap_hands_invoke(bContext *C,
 
   WM_event_add_modal_handler(C, op);
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmXrData *xr = &wm->xr;
 
   xr->runtime->session_state.swap_hands = true;
@@ -1872,7 +1872,7 @@ static wmOperatorStatus wm_xr_navigation_swap_hands_modal(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmXrData *xr = &wm->xr;
 
   switch (event->val) {

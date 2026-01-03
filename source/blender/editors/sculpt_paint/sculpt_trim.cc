@@ -506,7 +506,7 @@ static void generate_geometry(gesture::GestureData &gesture_data)
 
 static void gesture_begin(bContext &C, wmOperator &op, gesture::GestureData &gesture_data)
 {
-  const Scene &scene = *CTX_data_scene(&C);
+  const Scene &scene = *CTX_data_scene(C);
   Object *object = gesture_data.vc.obact;
   SculptSession &ss = *object->sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(*object);
@@ -704,8 +704,8 @@ static void operator_properties(wmOperatorType *ot)
 
 static bool can_invoke(const bContext &C)
 {
-  const View3D &v3d = *CTX_wm_view3d(&C);
-  const Base &base = *CTX_data_active_base(&C);
+  const View3D &v3d = *CTX_wm_view3d(C);
+  const Base &base = *CTX_data_active_base(C);
   if (!BKE_base_is_visible(&v3d, &base)) {
     return false;
   }
@@ -728,7 +728,7 @@ static void report_invalid_mode(const blender::bke::pbvh::Type pbvh_type, Report
 
 static bool can_exec(const bContext &C, ReportList &reports)
 {
-  const Object &object = *CTX_data_active_object(&C);
+  const Object &object = *CTX_data_active_object(C);
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   if (pbvh.type() != bke::pbvh::Type::Mesh) {
     /* Not supported in Multires and Dyntopo. */
@@ -748,7 +748,7 @@ static void initialize_cursor_info(bContext &C,
                                    const wmOperator &op,
                                    gesture::GestureData &gesture_data)
 {
-  Object &ob = *CTX_data_active_object(&C);
+  Object &ob = *CTX_data_active_object(C);
 
   vert_random_access_ensure(ob);
 

@@ -247,7 +247,7 @@ void WM_gizmogroup_ensure_init(const bContext *C, wmGizmoGroup *gzgroup)
     /* Not ideal, initialize keymap here, needed for RNA runtime generated gizmos. */
     wmGizmoGroupType *gzgt = gzgroup->type;
     if (gzgt->keymap == nullptr) {
-      wmWindowManager *wm = CTX_wm_manager(C);
+      wmWindowManager *wm = CTX_wm_manager(*C);
       wm_gizmogrouptype_setup_keymap(gzgt, wm->runtime->defaultconf);
       BLI_assert(gzgt->keymap != nullptr);
     }
@@ -332,7 +332,7 @@ bool wm_gizmogroup_is_any_selected(const wmGizmoGroup *gzgroup)
 
 static wmOperatorStatus gizmo_select_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   wmGizmoMap *gzmap = region->runtime->gizmo_map;
   wmGizmoMapSelectState *msel = &gzmap->gzmap_context.select;
   wmGizmo *highlight = gzmap->gzmap_context.highlight;
@@ -421,7 +421,7 @@ static bool gizmo_tweak_start_and_finish(
 
     /* Undo/Redo. */
     if (gzop->is_redo) {
-      wmWindowManager *wm = CTX_wm_manager(C);
+      wmWindowManager *wm = CTX_wm_manager(*C);
       wmOperator *op = WM_operator_last_redo(C);
 
 /* We may want to enable this, for now the gizmo can manage its own properties. */
@@ -563,12 +563,12 @@ static wmOperatorStatus gizmo_tweak_modal(bContext *C, wmOperator *op, const wmE
 
 static wmOperatorStatus gizmo_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   wmGizmoMap *gzmap = region->runtime->gizmo_map;
   wmGizmo *gz = gzmap->gzmap_context.highlight;
 
   /* Needed for single click actions which don't enter modal state. */
-  WM_tooltip_clear(C, CTX_wm_window(C));
+  WM_tooltip_clear(C, CTX_wm_window(*C));
 
   if (!gz) {
     /* #wm_handlers_do_intern shouldn't let this happen. */
@@ -1241,7 +1241,7 @@ bool WM_gizmo_group_type_poll(const bContext *C, const wmGizmoGroupType *gzgt)
 {
   /* If we're tagged, only use compatible. */
   if (gzgt->owner_id[0] != '\0') {
-    const WorkSpace *workspace = CTX_wm_workspace(C);
+    const WorkSpace *workspace = CTX_wm_workspace(*C);
     if (BKE_workspace_owner_id_check(workspace, gzgt->owner_id) == false) {
       return false;
     }
@@ -1263,8 +1263,8 @@ void WM_gizmo_group_refresh(const bContext *C, wmGizmoGroup *gzgroup)
       gz = wm_gizmomap_highlight_get(gzmap);
     }
     if (!gz || gz->parent_gzgroup != gzgroup) {
-      wmWindow *win = CTX_wm_window(C);
-      ARegion *region = CTX_wm_region(C);
+      wmWindow *win = CTX_wm_window(*C);
+      ARegion *region = CTX_wm_region(*C);
       BLI_assert(region->runtime->gizmo_map == gzmap);
       /* Check if the tweak event originated from this region. */
       if ((win->runtime->eventstate != nullptr) && (win->event_queue_check_drag) &&

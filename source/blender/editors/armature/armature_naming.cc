@@ -451,15 +451,15 @@ void ED_armature_bones_flip_names(Main *bmain,
 
 static wmOperatorStatus armature_flip_names_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *ob_active = CTX_data_edit_object(C);
+  Main *bmain = CTX_data_main(*C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Object *ob_active = CTX_data_edit_object(*C);
 
   const bool do_strip_numbers = RNA_boolean_get(op->ptr, "do_strip_numbers");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
 
@@ -535,15 +535,15 @@ void ARMATURE_OT_flip_names(wmOperatorType *ot)
 
 static wmOperatorStatus armature_autoside_names_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Main *bmain = CTX_data_main(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(*C);
   char newname[MAXBONENAME];
   const short axis = RNA_enum_get(op->ptr, "type");
   bool changed_multi = false;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     bool changed = false;

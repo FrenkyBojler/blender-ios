@@ -75,7 +75,7 @@ namespace blender::ed::space_node {
 static bool node_group_operator_active_poll(bContext *C)
 {
   if (ED_operator_node_active(C)) {
-    SpaceNode *snode = CTX_wm_space_node(C);
+    SpaceNode *snode = CTX_wm_space_node(*C);
 
     /* Group operators only defined for standard node tree types.
      * Disabled otherwise to allow python-nodes define their own operators
@@ -95,7 +95,7 @@ static bool node_group_operator_active_poll(bContext *C)
 static bool node_group_operator_editable(bContext *C)
 {
   if (ED_operator_node_editable(C)) {
-    SpaceNode *snode = CTX_wm_space_node(C);
+    SpaceNode *snode = CTX_wm_space_node(*C);
 
     /* Group operators only defined for standard node tree types.
      * Disabled otherwise to allow python-nodes define their own operators
@@ -111,13 +111,13 @@ static bool node_group_operator_editable(bContext *C)
 
 static StringRef group_ntree_idname(bContext *C)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   return snode->tree_idname;
 }
 
 StringRef node_group_idname(const bContext *C)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
 
   if (ED_node_is_shader(snode)) {
     return ntreeType_Shader->group_idname;
@@ -137,7 +137,7 @@ StringRef node_group_idname(const bContext *C)
 
 static bNode *node_group_get_active(bContext *C, const StringRef node_idname)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   if (node && node->idname == node_idname) {
@@ -181,12 +181,12 @@ static std::string node_basepath(const bNodeTree &tree, const bNode &node)
 
 static wmOperatorStatus node_group_edit_exec(bContext *C, wmOperator *op)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
+  ARegion *region = CTX_wm_region(*C);
   const StringRef node_idname = node_group_idname(C);
   const bool exit = RNA_boolean_get(op->ptr, "exit");
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+  ED_preview_kill_jobs(CTX_wm_manager(*C), CTX_data_main(*C));
 
   bNode *gnode = node_group_get_active(C, node_idname);
 
@@ -235,8 +235,8 @@ static wmOperatorStatus node_group_enter_exit_invoke(bContext *C,
                                                      wmOperator * /*op*/,
                                                      const wmEvent *event)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
-  ARegion &region = *CTX_wm_region(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
+  ARegion &region = *CTX_wm_region(*C);
 
   /* Don't interfere when the mouse is interacting with some button. See #147282. */
   if (ISMOUSE_BUTTON(event->type) && ui::but_find_mouse_over(&region, event)) {
@@ -464,11 +464,11 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
 
 static wmOperatorStatus node_group_ungroup_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
+  Main *bmain = CTX_data_main(*C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   const StringRef node_idname = node_group_idname(C);
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
+  ED_preview_kill_jobs(CTX_wm_manager(*C), bmain);
 
   Vector<bNode *> nodes_to_ungroup;
   for (bNode *node : snode->edittree->all_nodes()) {
@@ -486,7 +486,7 @@ static wmOperatorStatus node_group_ungroup_exec(bContext *C, wmOperator * /*op*/
   for (bNode *node : nodes_to_ungroup) {
     node_group_ungroup(bmain, snode->edittree, node);
   }
-  BKE_main_ensure_invariants(*CTX_data_main(C));
+  BKE_main_ensure_invariants(*CTX_data_main(*C));
   return OPERATOR_FINISHED;
 }
 
@@ -628,12 +628,12 @@ static const EnumPropertyItem node_group_separate_types[] = {
 
 static wmOperatorStatus node_group_separate_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  ARegion *region = CTX_wm_region(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
+  Main *bmain = CTX_data_main(*C);
+  ARegion *region = CTX_wm_region(*C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   int type = RNA_enum_get(op->ptr, "type");
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
+  ED_preview_kill_jobs(CTX_wm_manager(*C), bmain);
 
   /* are we inside of a group? */
   bNodeTree *ngroup = snode->edittree;
@@ -663,7 +663,7 @@ static wmOperatorStatus node_group_separate_exec(bContext *C, wmOperator *op)
   /* switch to parent tree */
   ED_node_tree_pop(region, snode);
 
-  BKE_main_ensure_invariants(*CTX_data_main(C));
+  BKE_main_ensure_invariants(*CTX_data_main(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -930,7 +930,7 @@ static void node_group_make_insert_selected(const bContext &C,
                                             bNode *gnode,
                                             const VectorSet<bNode *> &nodes_to_move)
 {
-  Main *bmain = CTX_data_main(&C);
+  Main *bmain = CTX_data_main(C);
   bNodeTree &group = *reinterpret_cast<bNodeTree *>(gnode->id);
   BLI_assert(!nodes_to_move.contains(gnode));
 
@@ -1213,7 +1213,7 @@ static bNode *node_group_make_from_nodes(const bContext &C,
                                          const StringRef ntype,
                                          const StringRef ntreetype)
 {
-  Main *bmain = CTX_data_main(&C);
+  Main *bmain = CTX_data_main(C);
 
   float2 min, max;
   get_min_max_of_nodes(nodes_to_group, false, min, max);
@@ -1312,7 +1312,7 @@ static bNodeTree *node_group_make_wrapper(const bContext &C,
                                           const bNode &src_node,
                                           WrapperNodeGroupMapping &r_mapping)
 {
-  Main &bmain = *CTX_data_main(&C);
+  Main &bmain = *CTX_data_main(C);
 
   bNodeTree *dst_group = bke::node_tree_add_tree(
       &bmain, bke::node_label(src_tree, src_node), src_tree.idname);
@@ -1392,7 +1392,7 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
                                                     bNode &src_node,
                                                     const StringRef node_idname)
 {
-  Main &bmain = *CTX_data_main(&C);
+  Main &bmain = *CTX_data_main(C);
 
   WrapperNodeGroupMapping mapping;
   bNodeTree *wrapper_group = node_group_make_wrapper(C, ntree, src_node, mapping);
@@ -1486,14 +1486,14 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
 
 static wmOperatorStatus node_group_make_exec(bContext *C, wmOperator *op)
 {
-  ARegion &region = *CTX_wm_region(C);
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  ARegion &region = *CTX_wm_region(*C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &ntree = *snode.edittree;
   const StringRef ntree_idname = group_ntree_idname(C);
   const StringRef node_idname = node_group_idname(C);
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+  ED_preview_kill_jobs(CTX_wm_manager(*C), CTX_data_main(*C));
 
   VectorSet<bNode *> nodes_to_group = get_nodes_to_group(ntree, nullptr);
   if (!node_group_make_test_selected(ntree, nodes_to_group, ntree_idname, *op->reports)) {
@@ -1548,12 +1548,12 @@ void NODE_OT_group_make(wmOperatorType *ot)
 
 static wmOperatorStatus node_group_insert_exec(bContext *C, wmOperator *op)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
+  ARegion *region = CTX_wm_region(*C);
   bNodeTree *ntree = snode->edittree;
   const StringRef node_idname = node_group_idname(C);
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+  ED_preview_kill_jobs(CTX_wm_manager(*C), CTX_data_main(*C));
 
   bNode *gnode = node_group_get_active(C, node_idname);
   if (!gnode || !gnode->id) {
@@ -1610,7 +1610,7 @@ void NODE_OT_group_insert(wmOperatorType *ot)
 
 static bool node_default_group_width_set_poll(bContext *C)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   if (!snode) {
     return false;
   }
@@ -1631,7 +1631,7 @@ static bool node_default_group_width_set_poll(bContext *C)
 
 static wmOperatorStatus node_default_group_width_set_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNodeTree *ntree = snode->edittree;
 
   bNodeTreePath *last_path_item = static_cast<bNodeTreePath *>(snode->treepath.last);

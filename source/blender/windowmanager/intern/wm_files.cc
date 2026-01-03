@@ -233,7 +233,7 @@ static BlendFileReadWMSetupData *wm_file_read_setup_wm_init(bContext *C,
    * Code copied from `wm_init_exit.cc`. */
   WM_jobs_kill_all(wm);
 
-  wmWindow *active_win = CTX_wm_window(C);
+  wmWindow *active_win = CTX_wm_window(*C);
   for (wmWindow &win : wm->windows) {
     CTX_wm_window_set(C, &win); /* Needed by operator close callbacks. */
     WM_event_remove_handlers(C, &win.runtime->handlers);
@@ -341,14 +341,14 @@ static void wm_file_read_setup_wm_keep_old(const bContext *C,
 
   /* Old WM is being reused, but other UI data (workspaces, layouts, screens) comes from the new
    * file, so the WM needs to be updated to use these. */
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
   if (screen != nullptr) {
     for (wmWindow &win : wm->windows) {
       WorkSpace *workspace;
 
       WorkSpaceLayout *layout_ref = BKE_workspace_layout_find_global(bmain, screen, &workspace);
       BKE_workspace_active_set(win.workspace_hook, workspace);
-      win.scene = CTX_data_scene(C);
+      win.scene = CTX_data_scene(*C);
 
       /* All windows get active screen from file. */
       if (screen->winid == 0) {
@@ -694,7 +694,7 @@ static void wm_file_read_post(bContext *C,
                               const char *filepath,
                               const wmFileReadPost_Params *params)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   const bool use_data = params->use_data;
   const bool use_userdef = params->use_userdef;
@@ -717,7 +717,7 @@ static void wm_file_read_post(bContext *C,
     /* The following block handles data & preferences being reloaded
      * which requires resetting some internal variables. */
     if (!params->is_first_time) {
-      BLI_assert(CTX_py_init_get(C));
+      BLI_assert(CTX_py_init_get(*C));
       bool reset_all = use_userdef;
       if (use_userdef || reset_app_template) {
         /* Only run when we have a template path found. */
@@ -757,7 +757,7 @@ static void wm_file_read_post(bContext *C,
   UNUSED_VARS(is_startup_file, reset_app_template);
 #endif /* WITH_PYTHON */
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   if (use_userdef) {
     if (is_factory_startup) {
@@ -858,15 +858,15 @@ static void wm_read_callback_pre_wrapper(bContext *C, const char *filepath)
 {
   /* NOTE: either #BKE_CB_EVT_LOAD_POST or #BKE_CB_EVT_LOAD_POST_FAIL must run.
    * Runs at the end of this function, don't return beforehand. */
-  BKE_callback_exec_string(CTX_data_main(C), BKE_CB_EVT_LOAD_PRE, filepath);
+  BKE_callback_exec_string(CTX_data_main(*C), BKE_CB_EVT_LOAD_PRE, filepath);
 }
 
 static void wm_read_callback_post_wrapper(bContext *C, const char *filepath, const bool success)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   /* Temporarily set the window context as this was once supported, see: #107759.
    * If the window is already set, don't change it. */
-  bool has_window = CTX_wm_window(C) != nullptr;
+  bool has_window = CTX_wm_window(*C) != nullptr;
   if (!has_window) {
     wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
     wmWindow *win = static_cast<wmWindow *>(wm->windows.first);
@@ -1027,7 +1027,7 @@ bool WM_file_read(bContext *C,
 {
   /* Assume automated tasks with background, don't write recent file list. */
   const bool do_history_file_update = (G.background == false) &&
-                                      (CTX_wm_manager(C)->op_undo_depth == 0);
+                                      (CTX_wm_manager(*C)->op_undo_depth == 0);
   bool success = false;
 
   const bool use_data = true;
@@ -1036,7 +1036,7 @@ bool WM_file_read(bContext *C,
   /* NOTE: a matching #wm_read_callback_post_wrapper must be called. */
   wm_read_callback_pre_wrapper(C, filepath);
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   /* So we can get the error message. */
   errno = 0;
@@ -1078,7 +1078,7 @@ bool WM_file_read(bContext *C,
       /* Frees the current main and replaces it with the new one read from file. */
       BKE_blendfile_read_setup_readfile(
           C, bfd, &params, wm_setup_data, &bf_reports, false, nullptr);
-      bmain = CTX_data_main(C);
+      bmain = CTX_data_main(*C);
 
       /* Finalize handling of WM, using the read WM and/or the current WM depending on things like
        * whether the UI is loaded from the .blend file or not, etc. */
@@ -1151,7 +1151,7 @@ bool WM_file_read(bContext *C,
 
   wm_read_callback_post_wrapper(C, filepath, success);
 
-  BLI_assert(BKE_main_namemap_validate(*CTX_data_main(C)));
+  BLI_assert(BKE_main_namemap_validate(*CTX_data_main(*C)));
 
   return success;
 }
@@ -1283,7 +1283,7 @@ void wm_homefile_read_ex(bContext *C,
 #ifdef WITH_PYTHON
     /* This only runs once Blender has already started. */
     if (!params_homefile->is_first_time) {
-      BLI_assert(CTX_py_init_get(C));
+      BLI_assert(CTX_py_init_get(*C));
       /* This is restored by 'wm_file_read_post', disable before loading any preferences
        * so an add-on can read their own preferences when un-registering,
        * and use new preferences if/when re-registering, see #67577.
@@ -1417,7 +1417,7 @@ void wm_homefile_read_ex(bContext *C,
                                           update_defaults && use_data,
                                           app_template);
         success = true;
-        bmain = CTX_data_main(C);
+        bmain = CTX_data_main(*C);
       }
     }
     if (success) {
@@ -1453,7 +1453,7 @@ void wm_homefile_read_ex(bContext *C,
           C, bfd, &read_file_params, wm_setup_data, &read_report, true, nullptr);
       success = true;
       loaded_factory_settings = true;
-      bmain = CTX_data_main(C);
+      bmain = CTX_data_main(*C);
     }
   }
 
@@ -1849,7 +1849,7 @@ static ImBuf *blend_file_thumb_from_screenshot(bContext *C, BlendThumbnail **r_t
 {
   *r_thumb = nullptr;
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   if (G.background || (win == nullptr)) {
     return nullptr;
   }
@@ -1859,7 +1859,7 @@ static ImBuf *blend_file_thumb_from_screenshot(bContext *C, BlendThumbnail **r_t
     win = win->parent;
   }
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   int win_size[2];
   /* NOTE: always read from front-buffer as drawing a window can cause problems while saving,
    * even if this means the thumbnail from the screen-shot fails to be created, see: #98462. */
@@ -1932,7 +1932,7 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
   /* Will be scaled down, but gives some nice oversampling. */
   ImBuf *ibuf;
   BlendThumbnail *thumb;
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   const float pixelsize_old = U.pixelsize;
   wmWindow *windrawable_old = wm->runtime->windrawable;
   char err_out[256] = "unknown";
@@ -1954,7 +1954,7 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
     return nullptr;
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
   /* Note that with scaling, this ends up being 0.5,
    * as it's a thumbnail, we don't need object centers and friends to be 1:1 size. */
@@ -2102,7 +2102,7 @@ static bool wm_file_write(bContext *C,
                           bool use_save_as_copy,
                           ReportList *reports)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   BlendThumbnail *thumb = nullptr, *main_thumb = nullptr;
   ImBuf *ibuf_thumb = nullptr;
 
@@ -2178,8 +2178,8 @@ static bool wm_file_write(bContext *C,
       int file_preview_type = U.file_preview_type;
 
       if (file_preview_type == USER_FILE_PREVIEW_AUTO) {
-        Scene *scene = CTX_data_scene(C);
-        bScreen *screen = CTX_wm_screen(C);
+        Scene *scene = CTX_data_scene(*C);
+        bScreen *screen = CTX_wm_screen(*C);
         bool do_render = (scene != nullptr && scene->camera != nullptr && screen != nullptr &&
                           (BKE_screen_find_big_area(screen, SPACE_VIEW3D, 0) != nullptr));
         file_preview_type = do_render ? USER_FILE_PREVIEW_CAMERA : USER_FILE_PREVIEW_SCREENSHOT;
@@ -2192,7 +2192,7 @@ static bool wm_file_write(bContext *C,
         }
         case USER_FILE_PREVIEW_CAMERA: {
           ibuf_thumb = blend_file_thumb_from_camera(
-              C, CTX_data_scene(C), CTX_wm_screen(C), &thumb);
+              C, CTX_data_scene(*C), CTX_wm_screen(*C), &thumb);
           break;
         }
         default:
@@ -2222,7 +2222,7 @@ static bool wm_file_write(bContext *C,
 
   if (success) {
     const bool do_history_file_update = (G.background == false) &&
-                                        (CTX_wm_manager(C)->op_undo_depth == 0);
+                                        (CTX_wm_manager(*C)->op_undo_depth == 0);
 
     if (use_save_as_copy == false) {
       STRNCPY(bmain->filepath, filepath); /* Is guaranteed current file. */
@@ -2480,9 +2480,9 @@ bool wm_open_init_use_scripts(wmOperator *op, bool use_prefs)
  */
 static wmOperatorStatus wm_homefile_write_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
   char filepath[FILE_MAX];
   int fileflags;
 
@@ -2585,7 +2585,7 @@ void WM_OT_save_homefile(wmOperatorType *ot)
 /* Only save the prefs block. operator entry. */
 static wmOperatorStatus wm_userpref_write_exec(bContext *C, wmOperator *op)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   /* Update keymaps in user preferences. */
   WM_keyconfig_update(wm);
@@ -2681,7 +2681,7 @@ static void wm_userpref_update_when_changed(bContext *C,
 
 static wmOperatorStatus wm_userpref_read_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const bool use_data = false;
   const bool use_userdef = true;
   const bool use_factory_settings = STREQ(op->type->idname, "WM_OT_read_factory_userpref");
@@ -2879,7 +2879,7 @@ static wmOperatorStatus wm_homefile_read_exec(bContext *C, wmOperator *op)
   }
 
   if (use_userdef) {
-    BKE_callback_exec_null(CTX_data_main(C), BKE_CB_EVT_EXTENSION_REPOS_UPDATE_PRE);
+    BKE_callback_exec_null(CTX_data_main(*C), BKE_CB_EVT_EXTENSION_REPOS_UPDATE_PRE);
   }
 
   wmHomeFileRead_Params read_homefile_params{};
@@ -2907,7 +2907,7 @@ static wmOperatorStatus wm_homefile_read_exec(bContext *C, wmOperator *op)
   }
 
   if (use_userdef) {
-    BKE_callback_exec_null(CTX_data_main(C), BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
+    BKE_callback_exec_null(CTX_data_main(*C), BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
   }
 
   if (G.fileflags & G_FILE_NO_UI) {
@@ -3002,8 +3002,8 @@ static wmOperatorStatus wm_read_factory_settings_invoke(bContext *C,
                                                         wmOperator *op,
                                                         const wmEvent * /*event*/)
 {
-  const bool unsaved = wm_file_or_session_data_has_unsaved_changes(CTX_data_main(C),
-                                                                   CTX_wm_manager(C));
+  const bool unsaved = wm_file_or_session_data_has_unsaved_changes(CTX_data_main(*C),
+                                                                   CTX_wm_manager(*C));
   std::string title;
   const bool template_only = U.app_template[0] &&
                              RNA_boolean_get(op->ptr, "use_factory_startup_app_template_only");
@@ -3152,10 +3152,10 @@ static wmOperatorStatus wm_open_mainfile__select_file_path_exec(bContext *C, wmO
 {
   set_next_operator_state(op, OPEN_MAINFILE_STATE_OPEN);
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
 
-  if (CTX_wm_window(C) == nullptr) {
+  if (CTX_wm_window(*C) == nullptr) {
     /* In rare cases this could happen, when trying to invoke in background
      * mode on load for example. Don't use poll for this because exec()
      * can still run without a window. */
@@ -3383,7 +3383,7 @@ static wmOperatorStatus wm_revert_mainfile_invoke(bContext *C,
                                                   const wmEvent * /*event*/)
 {
   std::string message = IFACE_("Any unsaved changes will be lost.");
-  if (ED_image_should_save_modified(CTX_data_main(C))) {
+  if (ED_image_should_save_modified(CTX_data_main(*C))) {
     message += "\n";
     message += IFACE_("Warning: There are unsaved external image(s).");
   }
@@ -3399,7 +3399,7 @@ static wmOperatorStatus wm_revert_mainfile_invoke(bContext *C,
 
 static wmOperatorStatus wm_revert_mainfile_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bool success;
   char filepath[FILE_MAX];
 
@@ -3619,7 +3619,7 @@ static void save_set_compress(wmOperator *op)
 
 static void save_set_filepath(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   PropertyRNA *prop;
   char filepath[FILE_MAX];
 
@@ -3672,7 +3672,7 @@ static wmOperatorStatus wm_save_as_mainfile_invoke(bContext *C,
 /* Function used for #WM_OT_save_mainfile too. */
 static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   char filepath[FILE_MAX];
   const bool is_save_as = (op->type->invoke == wm_save_as_mainfile_invoke);
   const bool use_save_as_copy = is_save_as && RNA_boolean_get(op->ptr, "copy");
@@ -3776,7 +3776,7 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
     /* If saved file is the active one, notify WM so that saved status and window title can be
      * updated. */
     WM_event_add_notifier(C, NC_WM | ND_FILESAVE, nullptr);
-    if (wmWindowManager *wm = CTX_wm_manager(C)) {
+    if (wmWindowManager *wm = CTX_wm_manager(*C)) {
       /* Restart auto-save timer to avoid unnecessary unexpected freezing (because of auto-save)
        * when often saving manually. */
       wm_autosave_timer_end(wm);
@@ -3870,7 +3870,7 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
   wmOperatorStatus ret;
 
   /* Cancel if no active window. */
-  if (CTX_wm_window(C) == nullptr) {
+  if (CTX_wm_window(*C) == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3889,7 +3889,7 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
   }
 
   if (blendfile_path[0] != '\0') {
-    if (BKE_main_needs_overwrite_confirm(CTX_data_main(C))) {
+    if (BKE_main_needs_overwrite_confirm(CTX_data_main(*C))) {
       wm_save_file_overwrite_dialog(C, op);
       ret = OPERATOR_INTERFACE;
     }
@@ -4035,7 +4035,7 @@ void WM_OT_clear_recent_files(wmOperatorType *ot)
 
 static void wm_block_autorun_warning_ignore(bContext *C, void *arg_block, void * /*arg*/)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
 
   /* Free the data as it's no longer needed. */
@@ -4044,7 +4044,7 @@ static void wm_block_autorun_warning_ignore(bContext *C, void *arg_block, void *
 
 static void wm_block_autorun_warning_reload_with_scripts(bContext *C, blender::ui::Block *block)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   popup_block_close(C, win, block);
 
@@ -4061,8 +4061,8 @@ static void wm_block_autorun_warning_reload_with_scripts(bContext *C, blender::u
 
 static void wm_block_autorun_warning_enable_scripts(bContext *C, blender::ui::Block *block)
 {
-  wmWindow *win = CTX_wm_window(C);
-  Main *bmain = CTX_data_main(C);
+  wmWindow *win = CTX_wm_window(*C);
+  Main *bmain = CTX_data_main(*C);
 
   popup_block_close(C, win, block);
 
@@ -4084,7 +4084,7 @@ static blender::ui::Block *block_create_autorun_warning(bContext *C,
                                                         void * /*arg1*/)
 {
   const char *blendfile_path = BKE_main_blendfile_path_from_global();
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   blender::ui::Block *block = block_begin(
       C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
@@ -4250,7 +4250,7 @@ void wm_test_autorun_warning(bContext *C)
 
   G.f |= G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET;
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmWindow *win = (wm->runtime->winactive) ? wm->runtime->winactive :
                                              static_cast<wmWindow *>(wm->windows.first);
 
@@ -4260,7 +4260,7 @@ void wm_test_autorun_warning(bContext *C)
       win = win->parent;
     }
 
-    wmWindow *prevwin = CTX_wm_window(C);
+    wmWindow *prevwin = CTX_wm_window(*C);
     CTX_wm_window_set(C, win);
     blender::ui::popup_block_invoke(C, block_create_autorun_warning, nullptr, nullptr);
     CTX_wm_window_set(C, prevwin);
@@ -4275,7 +4275,7 @@ void wm_test_foreign_file_warning(bContext *C)
 
   G_MAIN->is_read_invalid = false;
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmWindow *win = (wm->runtime->winactive) ? wm->runtime->winactive :
                                              static_cast<wmWindow *>(wm->windows.first);
 
@@ -4285,7 +4285,7 @@ void wm_test_foreign_file_warning(bContext *C)
       win = win->parent;
     }
 
-    wmWindow *prevwin = CTX_wm_window(C);
+    wmWindow *prevwin = CTX_wm_window(*C);
     CTX_wm_window_set(C, win);
     alert(C,
           RPT_("Unable to Load File"),
@@ -4376,7 +4376,7 @@ static void file_overwrite_detailed_info_show(blender::ui::Layout &parent_layout
 
 static void save_file_overwrite_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
 }
 
@@ -4399,7 +4399,7 @@ static void save_file_overwrite_cancel_button(blender::ui::Block *block,
 
 static void save_file_overwrite_confirm(bContext *C, void *arg_block, void *arg_data)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   /* Re-use operator properties as defined for the initial "Save" operator,
    * which triggered this "Forward Compatibility" popup. */
@@ -4444,7 +4444,7 @@ static void save_file_overwrite_confirm_button(blender::ui::Block *block,
 
 static void save_file_overwrite_saveas(bContext *C, void *arg_block, void * /*arg_data*/)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
 
   WM_operator_name_call(
@@ -4474,7 +4474,7 @@ static blender::ui::Block *block_create_save_file_overwrite_dialog(bContext *C,
                                                                    void *arg1)
 {
   wmGenericCallback *post_action = static_cast<wmGenericCallback *>(arg1);
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   blender::ui::Block *block = block_begin(
       C, region, save_file_overwrite_dialog_name, blender::ui::EmbossType::Emboss);
@@ -4520,7 +4520,7 @@ static blender::ui::Block *block_create_save_file_overwrite_dialog(bContext *C,
   }
 
   /* Filename. */
-  const char *blendfile_path = BKE_main_blendfile_path(CTX_data_main(C));
+  const char *blendfile_path = BKE_main_blendfile_path(CTX_data_main(*C));
   char filename[FILE_MAX];
   if (blendfile_path[0] != '\0') {
     BLI_path_split_file_part(blendfile_path, filename, sizeof(filename));
@@ -4568,7 +4568,7 @@ static blender::ui::Block *block_create_save_file_overwrite_dialog(bContext *C,
 
 void wm_save_file_overwrite_dialog(bContext *C, wmOperator *op)
 {
-  if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), save_file_overwrite_dialog_name)) {
+  if (!blender::ui::popup_block_name_exists(CTX_wm_screen(*C), save_file_overwrite_dialog_name)) {
     wmGenericCallback *callback = MEM_new_for_free<wmGenericCallback>(__func__);
     callback->exec = nullptr;
     callback->user_data = IDP_CopyProperty(op->properties);
@@ -4589,7 +4589,7 @@ static char save_images_when_file_is_closed = true;
 
 static void wm_block_file_close_cancel(bContext *C, void *arg_block, void * /*arg_data*/)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
 }
 
@@ -4600,7 +4600,7 @@ static void wm_block_file_close_discard(bContext *C, void *arg_block, void *arg_
   /* Close the popup before executing the callback. Otherwise
    * the popup might be closed by the callback, which will lead
    * to a crash. */
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
 
   callback->exec(C, callback->user_data);
@@ -4609,18 +4609,18 @@ static void wm_block_file_close_discard(bContext *C, void *arg_block, void *arg_
 
 static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_data)
 {
-  const Main *bmain = CTX_data_main(C);
+  const Main *bmain = CTX_data_main(*C);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   wmGenericCallback *callback = WM_generic_callback_steal((wmGenericCallback *)arg_data);
   bool execute_callback = true;
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
 
-  int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
+  int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(*C), nullptr);
   if (modified_images_count > 0 && save_images_when_file_is_closed) {
     if (ED_image_should_save_modified(bmain)) {
-      ReportList *reports = CTX_wm_reports(C);
+      ReportList *reports = CTX_wm_reports(*C);
       ED_image_save_all_modified(C, reports);
       WM_report_banner_show(wm, win);
     }
@@ -4737,7 +4737,7 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
 {
   using namespace blender;
   wmGenericCallback *post_action = (wmGenericCallback *)arg1;
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   ui::Block *block = block_begin(C, region, close_file_dialog_name, ui::EmbossType::Emboss);
   block_flag_enable(
@@ -4753,7 +4753,7 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
   uiItemL_ex(&layout, RPT_("Save changes before closing?"), ICON_NONE, true, false);
 
   /* Filename. */
-  const char *blendfile_path = BKE_main_blendfile_path(CTX_data_main(C));
+  const char *blendfile_path = BKE_main_blendfile_path(CTX_data_main(*C));
   char filename[FILE_MAX];
   if (blendfile_path[0] != '\0') {
     BLI_path_split_file_part(blendfile_path, filename, sizeof(filename));
@@ -4903,7 +4903,7 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
 
 void wm_close_file_dialog(bContext *C, wmGenericCallback *post_action)
 {
-  if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), close_file_dialog_name)) {
+  if (!blender::ui::popup_block_name_exists(CTX_wm_screen(*C), close_file_dialog_name)) {
     save_images_when_file_is_closed = true;
 
     blender::ui::popup_block_invoke(
@@ -4919,7 +4919,7 @@ bool wm_operator_close_file_dialog_if_needed(bContext *C,
                                              wmGenericCallbackFn post_action_fn)
 {
   if (U.uiflag & USER_SAVE_PROMPT &&
-      wm_file_or_session_data_has_unsaved_changes(CTX_data_main(C), CTX_wm_manager(C)))
+      wm_file_or_session_data_has_unsaved_changes(CTX_data_main(*C), CTX_wm_manager(*C)))
   {
     wmGenericCallback *callback = MEM_new_for_free<wmGenericCallback>(__func__);
     callback->exec = post_action_fn;

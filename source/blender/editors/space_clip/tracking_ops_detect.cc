@@ -48,7 +48,7 @@ static bGPDlayer *detect_get_layer(MovieClip *clip)
 
 static wmOperatorStatus detect_features_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieClipFlag clip_flag = MovieClipFlag(clip->flag & MCLIP_TIMECODE_FLAGS);
   ImBuf *ibuf = BKE_movieclip_get_ibuf_flag(

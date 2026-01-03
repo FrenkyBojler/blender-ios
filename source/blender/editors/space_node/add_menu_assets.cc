@@ -30,7 +30,7 @@ namespace blender::ed::space_node {
 
 static bool node_add_menu_poll(const bContext *C, MenuType * /*mt*/)
 {
-  return CTX_wm_space_node(C);
+  return CTX_wm_space_node(*C);
 }
 
 static bool all_loading_finished()
@@ -159,7 +159,7 @@ static Set<StringRef> get_builtin_menus(const int tree_type)
 
 static void node_catalog_assets_draw(const bContext *C, Menu *menu)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   const bNodeTree *edit_tree = snode.edittree;
   if (!edit_tree) {
     return;
@@ -223,7 +223,7 @@ static void node_catalog_assets_draw(const bContext *C, Menu *menu)
 
 static void node_unassigned_assets_draw(const bContext *C, Menu *menu)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   const bNodeTree *edit_tree = snode.edittree;
   if (!edit_tree) {
     return;
@@ -252,7 +252,7 @@ static void node_unassigned_assets_draw(const bContext *C, Menu *menu)
 
 static void root_catalogs_draw(const bContext *C, Menu *menu, const StringRefNull operator_id)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   ui::Layout *layout = menu->layout;
   const bNodeTree *edit_tree = snode.edittree;
   if (!edit_tree) {
@@ -355,7 +355,7 @@ void ui_template_node_asset_menu_items(ui::Layout &layout,
                                        const StringRef catalog_path,
                                        const ui::NodeAssetMenuOperatorType operator_type)
 {
-  SpaceNode &snode = *CTX_wm_space_node(&C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   if (snode.runtime->assets_for_menu == nullptr) {
     return;
   }

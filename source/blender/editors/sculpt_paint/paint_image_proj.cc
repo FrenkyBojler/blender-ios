@@ -4060,7 +4060,7 @@ static void project_paint_bleed_add_face_user(const ProjPaintState *ps,
 static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *ps)
 {
   using namespace blender;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Object *ob = ps->ob;
 
   const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
@@ -5955,9 +5955,9 @@ void paint_proj_stroke(const bContext *C,
   /* clone gets special treatment here to avoid going through image initialization */
   if (ps_handle->is_clone_cursor_pick) {
     Scene *scene = ps_handle->scene;
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    View3D *v3d = CTX_wm_view3d(C);
-    ARegion *region = CTX_wm_region(C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+    View3D *v3d = CTX_wm_view3d(*C);
+    ARegion *region = CTX_wm_region(*C);
     float *cursor = scene->cursor.location;
     const int mval_i[2] = {int(pos[0]), int(pos[1])};
 
@@ -5986,7 +5986,7 @@ void paint_proj_stroke(const bContext *C,
 /* initialize project paint settings from context */
 static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int mode)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ToolSettings *settings = scene->toolsettings;
 
   /* brush */
@@ -6028,11 +6028,11 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
   BLI_assert(ps->pixel_sizeof >= sizeof(ProjPixel));
 
   /* these can be nullptr */
-  ps->v3d = CTX_wm_view3d(C);
-  ps->rv3d = CTX_wm_region_view3d(C);
-  ps->region = CTX_wm_region(C);
+  ps->v3d = CTX_wm_view3d(*C);
+  ps->rv3d = CTX_wm_region_view3d(*C);
+  ps->region = CTX_wm_region(*C);
 
-  ps->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ps->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   ps->scene = scene;
   /* allow override of active object */
   ps->ob = ob;
@@ -6098,7 +6098,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int mode)
 {
   ProjStrokeHandle *ps_handle;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ToolSettings *settings = scene->toolsettings;
   char symmetry_flag_views[BOUNDED_ARRAY_TYPE_SIZE<decltype(ps_handle->ps_views)>()] = {0};
 
@@ -6218,7 +6218,7 @@ void paint_proj_redraw(const bContext *C, void *ps_handle_p, bool final)
     WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, nullptr);
   }
   else {
-    ED_region_tag_redraw(CTX_wm_region(C));
+    ED_region_tag_redraw(CTX_wm_region(*C));
   }
 }
 
@@ -6251,11 +6251,11 @@ void paint_proj_stroke_done(void *ps_handle_p)
 /* use project paint to re-apply an image */
 static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Image *image = static_cast<Image *>(
       BLI_findlink(&bmain->images, RNA_enum_get(op->ptr, "image")));
-  Scene &scene = *CTX_data_scene(C);
-  ViewLayer &view_layer = *CTX_data_view_layer(C);
+  Scene &scene = *CTX_data_scene(*C);
+  ViewLayer &view_layer = *CTX_data_view_layer(*C);
   ProjPaintState ps = {nullptr};
   int orig_brush_size;
   IDProperty *idgroup;
@@ -6390,7 +6390,7 @@ void PAINT_OT_project_image(wmOperatorType *ot)
 
 static bool texture_paint_image_from_view_poll(bContext *C)
 {
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
   if (!(screen && BKE_screen_find_big_area(screen, SPACE_VIEW3D, 0))) {
     CTX_wm_operator_poll_msg_set(C, "No 3D viewport found to create image from");
     return false;
@@ -6408,16 +6408,16 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
   ImBuf *ibuf;
   char filepath[FILE_MAX];
 
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
   ToolSettings *settings = scene->toolsettings;
   int w = settings->imapaint.screen_grab_size[0];
   int h = settings->imapaint.screen_grab_size[1];
   int maxsize;
   char err_out[256] = "unknown";
 
-  ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_VIEW3D, 0);
+  ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(*C), SPACE_VIEW3D, 0);
   if (!area) {
     BKE_report(op->reports, RPT_ERROR, "No 3D viewport found to create image from");
     return OPERATOR_CANCELLED;
@@ -6665,7 +6665,7 @@ static Material *get_or_create_current_material(bContext *C, Object *ob)
 {
   Material *ma = BKE_object_material_get(ob, ob->actcol);
   if (!ma) {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     ma = BKE_material_add(bmain, "Material");
     BKE_object_material_assign(bmain, ob, ma, ob->actcol, BKE_MAT_ASSIGN_USERPREF);
   }
@@ -6825,7 +6825,7 @@ static void default_paint_slot_color_get(int layer_type, Material *ma, float col
 static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 {
   Object *ob = blender::ed::object::context_active_object(C);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Material *ma;
   Image *ima = nullptr;
   CustomDataLayer *layer = nullptr;
@@ -6837,7 +6837,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
   ma = get_or_create_current_material(C, ob);
 
   if (ma) {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     int type = RNA_enum_get(op->ptr, "type");
     bool is_data = (type > LAYER_BASE_COLOR);
 
@@ -6954,7 +6954,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     DEG_id_tag_update(&ntree->id, 0);
     DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
     DEG_relations_tag_update(bmain);
-    ED_area_tag_redraw(CTX_wm_area(C));
+    ED_area_tag_redraw(CTX_wm_area(*C));
 
     ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
 
@@ -7143,9 +7143,9 @@ void PAINT_OT_add_texture_paint_slot(wmOperatorType *ot)
 static wmOperatorStatus add_simple_uvs_exec(bContext *C, wmOperator * /*op*/)
 {
   /* no checks here, poll function does them for us */
-  Main *bmain = CTX_data_main(C);
-  Object *ob = CTX_data_active_object(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Object *ob = CTX_data_active_object(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   ED_uvedit_add_simple_uvs(bmain, scene, ob);
 
@@ -7159,7 +7159,7 @@ static wmOperatorStatus add_simple_uvs_exec(bContext *C, wmOperator * /*op*/)
 
 static bool add_simple_uvs_poll(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
 
   if (!ob || ob->type != OB_MESH || ob->mode != OB_MODE_TEXTURE_PAINT) {
     return false;

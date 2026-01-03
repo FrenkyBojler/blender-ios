@@ -195,8 +195,8 @@ class GeometryInstancesTreeView : public ui::AbstractTreeView {
  public:
   GeometryInstancesTreeView(bke::GeometrySet geometry_set, const bContext &C)
       : root_geometry_set_(std::move(geometry_set)),
-        sspreadsheet_(*CTX_wm_space_spreadsheet(&C)),
-        screen_(*CTX_wm_screen(&C))
+        sspreadsheet_(*CTX_wm_space_spreadsheet(C)),
+        screen_(*CTX_wm_screen(C))
   {
   }
 
@@ -537,8 +537,8 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
  public:
   GeometryDataSetTreeView(bke::GeometrySet geometry_set, const bContext &C)
       : geometry_set_(std::move(geometry_set)),
-        sspreadsheet_(*CTX_wm_space_spreadsheet(&C)),
-        screen_(*CTX_wm_screen(&C))
+        sspreadsheet_(*CTX_wm_space_spreadsheet(C)),
+        screen_(*CTX_wm_screen(C))
   {
   }
 
@@ -688,7 +688,7 @@ void InstancesTreeViewItem::on_activate(bContext &C)
   Vector<SpreadsheetInstanceID> instance_ids;
   this->get_parent_instance_ids(instance_ids);
 
-  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
 
   MEM_SAFE_FREE(sspreadsheet.geometry_id.instance_ids);
   sspreadsheet.geometry_id.instance_ids = MEM_new_array_for_free<SpreadsheetInstanceID>(
@@ -717,8 +717,8 @@ void DataSetViewItem::on_activate(bContext &C)
     }
   }
 
-  bScreen &screen = *CTX_wm_screen(&C);
-  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
+  bScreen &screen = *CTX_wm_screen(C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
 
   sspreadsheet.geometry_id.geometry_component_type = uint8_t(data_id->component_type);
   if (data_id->domain) {
@@ -922,7 +922,7 @@ class ViewerPathTreeView : public ui::AbstractTreeView {
 
  public:
   ViewerPathTreeView(const bContext &C)
-      : sspreadsheet_(*CTX_wm_space_spreadsheet(&C)), screen_(*CTX_wm_screen(&C))
+      : sspreadsheet_(*CTX_wm_space_spreadsheet(C)), screen_(*CTX_wm_screen(C))
   {
     /* This tree view contains only a flat list of items without. */
     is_flat_ = true;
@@ -990,7 +990,7 @@ class ViewerPathTreeView : public ui::AbstractTreeView {
 
 void ViewerPathTreeViewItem::on_activate(bContext &C)
 {
-  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
   sspreadsheet.active_viewer_path_index = viewer_path_index_;
   WM_main_add_notifier(NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 }
@@ -1129,7 +1129,7 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
   friend ViewerDataTreeItem;
 
  public:
-  ViewerDataTreeView(const bContext &C) : sspreadsheet_(*CTX_wm_space_spreadsheet(&C)) {}
+  ViewerDataTreeView(const bContext &C) : sspreadsheet_(*CTX_wm_space_spreadsheet(C)) {}
 
   void build_tree() override
   {
@@ -1239,8 +1239,8 @@ static void draw_viewer_data_panel(const bContext &C, ui::Layout &layout)
 
 static void draw_context_panel_content(const bContext &C, ui::Layout &layout)
 {
-  bScreen &screen = *CTX_wm_screen(&C);
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(&C);
+  bScreen &screen = *CTX_wm_screen(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
 
   ViewerPath &viewer_path = sspreadsheet->geometry_id.viewer_path;
   ID *root_id = get_current_id(sspreadsheet);
@@ -1272,7 +1272,7 @@ static void draw_context_panel_content(const bContext &C, ui::Layout &layout)
 
 static void draw_context_panel(const bContext &C, ui::Layout &layout)
 {
-  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
 
   ui::PanelLayout context_panel = layout.panel(&C, "context", false);
   context_panel.header->emboss_set(ui::EmbossType::None);
@@ -1307,7 +1307,7 @@ static void draw_context_panel(const bContext &C, ui::Layout &layout)
 
 void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
 {
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
 
   ui::Layout &layout = *panel->layout;
   ui::Block *block = layout.block();
@@ -1315,7 +1315,7 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
 
   draw_context_panel(*C, layout);
 
-  Object *object = spreadsheet_get_object_eval(sspreadsheet, CTX_data_depsgraph_pointer(C));
+  Object *object = spreadsheet_get_object_eval(sspreadsheet, CTX_data_depsgraph_pointer(*C));
   if (!object) {
     return;
   }

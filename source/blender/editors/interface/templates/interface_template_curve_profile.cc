@@ -65,7 +65,7 @@ static Block *curve_profile_presets_fn(bContext *C, ARegion *region, void *cb_v)
       BKE_curveprofile_reset(profile);
       BKE_curveprofile_update(profile, PROF_UPDATE_NONE);
       ED_undo_push(&C, "Reset Curve Profile");
-      ED_region_tag_redraw(CTX_wm_region(&C));
+      ED_region_tag_redraw(CTX_wm_region(C));
       rna_update_cb(C, cb);
     });
   }
@@ -99,7 +99,7 @@ static Block *curve_profile_tools_fn(bContext *C, ARegion *region, void *cb_v)
     button_retval_set(but, 1);
     button_func_set(but, [profile](bContext &C) {
       BKE_curveprofile_reset_view(profile);
-      ED_region_tag_redraw(CTX_wm_region(&C));
+      ED_region_tag_redraw(CTX_wm_region(C));
     });
   }
   {
@@ -118,7 +118,7 @@ static Block *curve_profile_tools_fn(bContext *C, ARegion *region, void *cb_v)
       BKE_curveprofile_reset(profile);
       BKE_curveprofile_update(profile, PROF_UPDATE_NONE);
       ED_undo_push(&C, "Reset Profile");
-      ED_region_tag_redraw(CTX_wm_region(&C));
+      ED_region_tag_redraw(CTX_wm_region(C));
       rna_update_cb(C, cb);
     });
   }
@@ -151,7 +151,7 @@ static void curve_profile_zoom_in(bContext *C, CurveProfile *profile)
     profile->view_rect.ymax -= dy;
   }
 
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
 }
 
 static void curve_profile_zoom_out(bContext *C, CurveProfile *profile)
@@ -193,7 +193,7 @@ static void curve_profile_zoom_out(bContext *C, CurveProfile *profile)
     profile->view_rect.ymax += d1;
   }
 
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
 }
 
 static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const RNAUpdateCb &cb)

@@ -131,7 +131,7 @@ static CacheFileLayer *rna_CacheFile_layer_new(CacheFile *cache_file,
     return nullptr;
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   BKE_cachefile_reload(depsgraph, cache_file);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
   return layer;
@@ -141,7 +141,7 @@ static void rna_CacheFile_layer_remove(CacheFile *cache_file, bContext *C, Point
 {
   CacheFileLayer *layer = static_cast<CacheFileLayer *>(layer_ptr->data);
   BKE_cachefile_remove_layer(cache_file, layer);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   BKE_cachefile_reload(depsgraph, cache_file);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
 }

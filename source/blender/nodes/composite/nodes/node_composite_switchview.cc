@@ -45,7 +45,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void init_switch_view(const bContext *C, PointerRNA *ptr)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   bNode *node = (bNode *)ptr->data;
 
   /* store scene for dynamic declaration */

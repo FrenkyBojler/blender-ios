@@ -186,12 +186,12 @@ Set<std::string> get_used_passes(const Scene &scene, const ViewLayer *view_layer
 
 bool is_viewport_compositor_used(const bContext &context)
 {
-  const Scene *scene = CTX_data_scene(&context);
+  const Scene *scene = CTX_data_scene(context);
   if (!scene->compositing_node_group) {
     return false;
   }
 
-  wmWindowManager *window_manager = CTX_wm_manager(&context);
+  wmWindowManager *window_manager = CTX_wm_manager(context);
   for (const wmWindow &window : window_manager->windows) {
     const bScreen *screen = WM_window_get_active_screen(&window);
     for (const ScrArea &area : screen->areabase) {

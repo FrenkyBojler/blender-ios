@@ -42,6 +42,6 @@ static void validate_viewer_paths(bContext &C, WorkSpace &workspace)
 
 void ED_workspace_do_listen(bContext *C, const wmNotifier * /*note*/)
 {
-  WorkSpace *workspace = CTX_wm_workspace(C);
+  WorkSpace *workspace = CTX_wm_workspace(*C);
   validate_viewer_paths(*C, *workspace);
 }

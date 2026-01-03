@@ -70,7 +70,7 @@ using blender::Vector;
 static bool gizmo_preselect_poll_for_draw(const bContext *C, wmGizmo *gz)
 {
   if (G.moving == false) {
-    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    RegionView3D *rv3d = CTX_wm_region_view3d(*C);
     if (!(rv3d && (rv3d->rflag & RV3D_NAVIGATING))) {
       return true;
     }
@@ -110,7 +110,7 @@ static void gizmo_preselect_elem_draw(const bContext *C, wmGizmo *gz)
 
 static int gizmo_preselect_elem_test_select(bContext *C, wmGizmo *gz, const int mval[2])
 {
-  wmEvent *event = CTX_wm_window(C)->runtime->eventstate;
+  wmEvent *event = CTX_wm_window(*C)->runtime->eventstate;
   MeshElemGizmo3D *gz_ele = (MeshElemGizmo3D *)gz;
 
   /* Hack: Switch action mode based on key input */
@@ -133,9 +133,9 @@ static int gizmo_preselect_elem_test_select(bContext *C, wmGizmo *gz, const int 
   best.dist = ED_view3d_select_dist_px();
 
   {
-    const Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
-    View3D *v3d = CTX_wm_view3d(C);
+    const Scene *scene = CTX_data_scene(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    View3D *v3d = CTX_wm_view3d(*C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     if (gz_ele->bases.is_empty() ||
         (gz_ele->bases[0] != BKE_view_layer_active_base_get(view_layer)))
@@ -241,7 +241,7 @@ static int gizmo_preselect_elem_test_select(bContext *C, wmGizmo *gz, const int 
     Span<float3> vert_positions;
     {
       Object *ob = gz_ele->bases[gz_ele->base_index]->object;
-      const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
       const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
       const Mesh *mesh_eval = BKE_object_get_editmesh_eval_cage(ob_eval);
       if (BKE_mesh_wrapper_vert_len(mesh_eval) == bm->totvert) {
@@ -262,7 +262,7 @@ static int gizmo_preselect_elem_test_select(bContext *C, wmGizmo *gz, const int 
   RNA_int_set(gz->ptr, "face_index", gz_ele->face_index);
 
   if (best.ele) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     ED_region_tag_redraw_editor_overlays(region);
   }
 
@@ -391,9 +391,9 @@ static int gizmo_preselect_edgering_test_select(bContext *C, wmGizmo *gz, const 
   prev.edge_index = gz_ring->edge_index;
 
   {
-    const Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
-    View3D *v3d = CTX_wm_view3d(C);
+    const Scene *scene = CTX_data_scene(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    View3D *v3d = CTX_wm_view3d(*C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     if (gz_ring->bases.is_empty() ||
         (gz_ring->bases[0] != BKE_view_layer_active_base_get(view_layer)))
@@ -452,7 +452,7 @@ static int gizmo_preselect_edgering_test_select(bContext *C, wmGizmo *gz, const 
     RNA_int_set(gz->ptr, "object_index", gz_ring->base_index);
     RNA_int_set(gz->ptr, "edge_index", gz_ring->edge_index);
 
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     ED_region_tag_redraw_editor_overlays(region);
   }
 
@@ -532,8 +532,8 @@ void ED_view3d_gizmo_mesh_preselect_get_active(const bContext *C,
                                                Base **r_base,
                                                BMElem **r_ele)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   const int object_index = RNA_int_get(gz->ptr, "object_index");
 
@@ -542,7 +542,7 @@ void ED_view3d_gizmo_mesh_preselect_get_active(const bContext *C,
   Object *obedit = nullptr;
   if (object_index != -1) {
     Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode(
-        scene, view_layer, CTX_wm_view3d(C));
+        scene, view_layer, CTX_wm_view3d(*C));
     if (object_index < bases.size()) {
       base = bases[object_index];
       obedit = base->object;

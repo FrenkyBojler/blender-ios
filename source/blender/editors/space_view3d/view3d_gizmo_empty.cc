@@ -94,8 +94,8 @@ static void gizmo_empty_image_prop_matrix_set(const wmGizmo *gz,
 
 static bool WIDGETGROUP_empty_image_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
 
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_CONTEXT)) {
     return false;
@@ -104,8 +104,8 @@ static bool WIDGETGROUP_empty_image_poll(const bContext *C, wmGizmoGroupType * /
     return false;
   }
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
@@ -113,7 +113,7 @@ static bool WIDGETGROUP_empty_image_poll(const bContext *C, wmGizmoGroupType * /
     if (ob->type == OB_EMPTY) {
       if (ob->empty_drawtype == OB_EMPTY_IMAGE) {
         if (BKE_object_empty_image_frame_is_visible_in_view3d(ob, rv3d)) {
-          if (BKE_id_is_editable(CTX_data_main(C), &ob->id)) {
+          if (BKE_id_is_editable(CTX_data_main(*C), &ob->id)) {
             return true;
           }
         }
@@ -147,8 +147,8 @@ static void WIDGETGROUP_empty_image_refresh(const bContext *C, wmGizmoGroup *gzg
 {
   EmptyImageWidgetGroup *igzgroup = static_cast<EmptyImageWidgetGroup *>(gzgroup->customdata);
   wmGizmo *gz = igzgroup->gizmo;
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 

@@ -207,9 +207,9 @@ struct ParticleUndoStep {
 
 static bool particle_undosys_poll(bContext *C)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   PTCacheEdit *edit = PE_get_current(depsgraph, scene, ob);
@@ -219,10 +219,10 @@ static bool particle_undosys_poll(bContext *C)
 
 static bool particle_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoStep *us_p)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   ParticleUndoStep *us = (ParticleUndoStep *)us_p;
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  us->scene_ref.ptr = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  us->scene_ref.ptr = CTX_data_scene(*C);
   BKE_view_layer_synced_ensure(us->scene_ref.ptr, view_layer);
   us->object_ref.ptr = BKE_view_layer_active_object_get(view_layer);
   PTCacheEdit *edit = PE_get_current(depsgraph, us->scene_ref.ptr, us->object_ref.ptr);
@@ -233,16 +233,16 @@ static bool particle_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoStep
 static void particle_undosys_step_decode(
     bContext *C, Main * /*bmain*/, UndoStep *us_p, const eUndoStepDir /*dir*/, bool /*is_final*/)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
 
   ParticleUndoStep *us = (ParticleUndoStep *)us_p;
   Scene *scene = us->scene_ref.ptr;
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   /* Only to correct the `view_layer` which might not match the scene
    * (in the case of undoing with multiple windows). */
   ED_undo_object_editmode_validate_scene_from_windows(
-      CTX_wm_manager(C), us->scene_ref.ptr, &scene, &view_layer);
+      CTX_wm_manager(*C), us->scene_ref.ptr, &scene, &view_layer);
 
   Object *ob = us->object_ref.ptr;
   ED_object_particle_edit_mode_enter_ex(depsgraph, scene, ob);
@@ -267,7 +267,7 @@ static void particle_undosys_step_decode(
   ED_undo_object_set_active_or_warn(scene, view_layer, ob, us_p->name, &LOG);
 
   /* Check after setting active (unless undoing into another scene). */
-  BLI_assert(particle_undosys_poll(C) || (scene != CTX_data_scene(C)));
+  BLI_assert(particle_undosys_poll(C) || (scene != CTX_data_scene(*C)));
 }
 
 static void particle_undosys_step_free(UndoStep *us_p)

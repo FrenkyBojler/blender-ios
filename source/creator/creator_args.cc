@@ -532,11 +532,11 @@ struct BlendePyContextStore {
 
 static void arg_py_context_backup(bContext *C, BlendePyContextStore *c_py)
 {
-  c_py->wm = CTX_wm_manager(C);
-  c_py->scene = CTX_data_scene(C);
+  c_py->wm = CTX_wm_manager(*C);
+  c_py->scene = CTX_data_scene(*C);
   c_py->has_win = c_py->wm && !BLI_listbase_is_empty(&c_py->wm->windows);
   if (c_py->has_win) {
-    c_py->win = CTX_wm_window(C);
+    c_py->win = CTX_wm_window(*C);
     CTX_wm_window_set(C, static_cast<wmWindow *>(c_py->wm->windows.first));
   }
   else {
@@ -2122,7 +2122,7 @@ static int arg_handle_output_set(int argc, const char **argv, void *data)
 {
   bContext *C = static_cast<bContext *>(data);
   if (argc > 1) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     if (scene) {
       STRNCPY(scene->r.pic, argv[1]);
       DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
@@ -2155,7 +2155,7 @@ static int arg_handle_engine_set(int argc, const char **argv, void *data)
       exit(0);
     }
     else {
-      Scene *scene = CTX_data_scene(C);
+      Scene *scene = CTX_data_scene(*C);
       if (scene) {
         /* Backwards compatibility. */
         if (STREQ(engine_name, "BLENDER_EEVEE_NEXT")) {
@@ -2198,7 +2198,7 @@ static int arg_handle_image_type_set(int argc, const char **argv, void *data)
   bContext *C = static_cast<bContext *>(data);
   if (argc > 1) {
     const char *imtype = argv[1];
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     if (scene) {
       const char imtype_new = BKE_imtype_from_arg(imtype);
 
@@ -2286,7 +2286,7 @@ static int arg_handle_extension_set(int argc, const char **argv, void *data)
 {
   bContext *C = static_cast<bContext *>(data);
   if (argc > 1) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     if (scene) {
       if (argv[1][0] == '0') {
         scene->r.scemode &= ~R_EXTENSION;
@@ -2330,11 +2330,11 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
 {
   const char *arg_id = "-f / --render-frame";
   bContext *C = static_cast<bContext *>(data);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (scene) {
     add_log_render_filter();
 
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
 
     if (argc > 1) {
       const char *err_msg = nullptr;
@@ -2386,11 +2386,11 @@ static const char arg_handle_render_animation_doc[] =
 static int arg_handle_render_animation(int /*argc*/, const char ** /*argv*/, void *data)
 {
   bContext *C = static_cast<bContext *>(data);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (scene) {
     add_log_render_filter();
 
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     Render *re = RE_NewSceneRender(scene);
     ReportList reports;
     BKE_reports_init(&reports, RPT_STORE);
@@ -2413,18 +2413,18 @@ static int arg_handle_scene_set(int argc, const char **argv, void *data)
 {
   if (argc > 1) {
     bContext *C = static_cast<bContext *>(data);
-    Scene *scene = BKE_scene_set_name(CTX_data_main(C), argv[1]);
+    Scene *scene = BKE_scene_set_name(CTX_data_main(*C), argv[1]);
     if (scene) {
       CTX_data_scene_set(C, scene);
 
       /* Set the scene of the first window, see: #55991,
        * otherwise scripts that run later won't get this scene back from the context. */
-      wmWindow *win = CTX_wm_window(C);
+      wmWindow *win = CTX_wm_window(*C);
       if (win == nullptr) {
-        win = static_cast<wmWindow *>(CTX_wm_manager(C)->windows.first);
+        win = static_cast<wmWindow *>(CTX_wm_manager(*C)->windows.first);
       }
       if (win != nullptr) {
-        WM_window_set_active_scene(CTX_data_main(C), C, win, scene);
+        WM_window_set_active_scene(CTX_data_main(*C), C, win, scene);
       }
     }
     return 1;
@@ -2440,7 +2440,7 @@ static int arg_handle_frame_start_set(int argc, const char **argv, void *data)
 {
   const char *arg_id = "-s / --frame-start";
   bContext *C = static_cast<bContext *>(data);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (scene) {
     if (argc > 1) {
       const char *err_msg = nullptr;
@@ -2474,7 +2474,7 @@ static int arg_handle_frame_end_set(int argc, const char **argv, void *data)
 {
   const char *arg_id = "-e / --frame-end";
   bContext *C = static_cast<bContext *>(data);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (scene) {
     if (argc > 1) {
       const char *err_msg = nullptr;
@@ -2508,7 +2508,7 @@ static int arg_handle_frame_skip_set(int argc, const char **argv, void *data)
 {
   const char *arg_id = "-j / --frame-jump";
   bContext *C = static_cast<bContext *>(data);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (scene) {
     if (argc > 1) {
       const char *err_msg = nullptr;
@@ -2569,7 +2569,7 @@ static int arg_handle_python_text_run(int argc, const char **argv, void *data)
   /* Workaround for scripts not getting a `bpy.context.scene`, causes internal errors elsewhere. */
   if (argc > 1) {
 #  ifdef WITH_PYTHON
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     /* Make the path absolute because its needed for relative linked blends to be found. */
     Text *text = (Text *)BKE_libblock_find_name(bmain, ID_TXT, argv[1]);
     bool ok;
@@ -2744,7 +2744,7 @@ static bool handle_load_file(bContext *C, const char *filepath_arg, const bool l
   const bool use_scripts_autoexec_check = true;
   const bool success = WM_file_read(C, filepath, use_scripts_autoexec_check, &reports);
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   WM_reports_from_reports_move(wm, &reports);
   BKE_reports_free(&reports);
 

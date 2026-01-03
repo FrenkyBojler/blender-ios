@@ -87,8 +87,8 @@ static void interactive_value_init(bContext *C,
                                    const float range[2])
 {
 
-  inter->context_vars.area = CTX_wm_area(C);
-  inter->context_vars.region = CTX_wm_region(C);
+  inter->context_vars.area = CTX_wm_area(*C);
+  inter->context_vars.region = CTX_wm_region(*C);
 
   inter->init.mval[0] = event->mval[0];
   inter->init.mval[1] = event->mval[1];
@@ -204,10 +204,10 @@ static wmOperatorStatus op_generic_value_invoke(bContext *C, wmOperator *op, con
     return WM_operator_call_notest(C, op);
   }
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   if (objects.is_empty()) {
     return OPERATOR_CANCELLED;
   }
@@ -257,7 +257,7 @@ static wmOperatorStatus op_generic_value_modal(bContext *C, wmOperator *op, cons
     case EVT_RIGHTSHIFTKEY: {
       float value_final;
       if (cd->is_active && interactive_value_update(&cd->inter, event, &value_final)) {
-        wmWindowManager *wm = CTX_wm_manager(C);
+        wmWindowManager *wm = CTX_wm_manager(*C);
 
         RNA_property_float_set(op->ptr, op->type->prop, value_final);
         if (cd->is_first == false) {

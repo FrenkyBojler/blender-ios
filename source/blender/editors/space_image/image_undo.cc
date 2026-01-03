@@ -1015,8 +1015,8 @@ static void image_undosys_step_decode(
   /* Ideally, we shouldn't have to tag the object as needing to be recalculated if using this paint
    * mode, however, because the image isn't connected as part of the shader nodes, the draw code
    * is unaware of the corresponding image tag. See #150957 for more details. */
-  const Scene *scene = CTX_data_scene(C);
-  Object *object = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(*C);
+  Object *object = CTX_data_active_object(*C);
   if (object && object->type == OB_MESH && scene &&
       scene->toolsettings->imapaint.mode == IMAGEPAINT_MODE_IMAGE)
   {

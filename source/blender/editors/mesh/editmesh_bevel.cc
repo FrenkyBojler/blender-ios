@@ -136,7 +136,7 @@ static float get_bevel_offset(wmOperator *op)
 
 static void edbm_bevel_update_status_text(bContext *C, wmOperator *op)
 {
-  Scene *sce = CTX_data_scene(C);
+  Scene *sce = CTX_data_scene(*C);
   BevelData *opdata = static_cast<BevelData *>(op->customdata);
 
   char offset_str[NUM_STR_REP_LEN];
@@ -165,7 +165,7 @@ static void edbm_bevel_update_status_text(bContext *C, wmOperator *op)
                                                 IFACE_("Profile Shape"),
                                                 RNA_float_get(op->ptr, "profile"));
 
-  ED_area_status_text(CTX_wm_area(C), header_status.c_str());
+  ED_area_status_text(CTX_wm_area(*C), header_status.c_str());
 
   /* Shown on Status Bar. */
 
@@ -239,10 +239,10 @@ static void edbm_bevel_update_status_text(bContext *C, wmOperator *op)
 
 static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
 {
-  Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  ToolSettings *ts = CTX_data_tool_settings(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   if (is_modal) {
     RNA_float_set(op->ptr, "offset", 0.0f);
@@ -299,7 +299,7 @@ static bool edbm_bevel_init(bContext *C, wmOperator *op, const bool is_modal)
 
   /* avoid the cost of allocating a bm copy */
   if (is_modal) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
 
     for (BevelObjectStore &ob_store : opdata->ob_store) {
       Object *obedit = ob_store.ob;
@@ -426,7 +426,7 @@ static bool edbm_bevel_calc(wmOperator *op)
 static void edbm_bevel_exit(bContext *C, wmOperator *op)
 {
   BevelData *opdata = static_cast<BevelData *>(op->customdata);
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   if (area) {
     ED_area_status_text(area, nullptr);
@@ -442,7 +442,7 @@ static void edbm_bevel_exit(bContext *C, wmOperator *op)
   }
 
   if (opdata->is_modal) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     for (BevelObjectStore &ob_store : opdata->ob_store) {
       EDBM_redo_state_free(&ob_store.mesh_backup);
     }
@@ -473,7 +473,7 @@ static void edbm_bevel_cancel(bContext *C, wmOperator *op)
   edbm_bevel_exit(C, op);
 
   /* Need to force re-display or we may still view the modified result. */
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
 }
 
 /* bevel! yay!! */
@@ -519,7 +519,7 @@ static void edbm_bevel_calc_initial_length(wmOperator *op, const wmEvent *event,
 
 static wmOperatorStatus edbm_bevel_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
 
   if (!edbm_bevel_init(C, op, true)) {
     return OPERATOR_CANCELLED;
@@ -1036,7 +1036,7 @@ static void edbm_bevel_ui(bContext *C, wmOperator *op)
   row->prop(op->ptr, "profile_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   if (profile_type == BEVEL_PROFILE_CUSTOM) {
     /* Get an RNA pointer to ToolSettings to give to the curve profile template code. */
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(
         &scene->id, &RNA_ToolSettings, scene->toolsettings);
     template_curve_profile(&layout, &toolsettings_ptr, "custom_bevel_profile_preset");

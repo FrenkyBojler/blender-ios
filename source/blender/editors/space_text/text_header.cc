@@ -58,21 +58,21 @@ static ARegion *text_has_properties_region(ScrArea *area)
 
 static bool text_properties_poll(bContext *C)
 {
-  return (CTX_wm_space_text(C) != nullptr);
+  return (CTX_wm_space_text(*C) != nullptr);
 }
 
 static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = text_has_properties_region(area);
-  SpaceText *st = CTX_wm_space_text(C);
+  SpaceText *st = CTX_wm_space_text(*C);
 
   if (region) {
     Text *text = st->text;
 
     /* Use active text selection as search query, if selection is on a single line. */
     if (text && (text->curl == text->sell) && (text->curc != text->selc)) {
-      const ARegion *active_region = CTX_wm_region(C);
+      const ARegion *active_region = CTX_wm_region(*C);
       if (active_region && active_region->regiontype == RGN_TYPE_WINDOW) {
         const char *sel_start = text->curl->line + std::min(text->curc, text->selc);
         const int sel_len = std::abs(text->curc - text->selc);

@@ -144,7 +144,7 @@ static void freeSeqData(TransInfo * /*t*/,
 
 static void createTransSeqImageData(bContext *C, TransInfo *t)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(scene);
   const SpaceSeq *sseq = static_cast<const SpaceSeq *>(t->area->spacedata.first);
   const ARegion *region = t->region;
@@ -238,7 +238,7 @@ static TransformResult transform_result_get(TransInfo *t,
                                             TransData2D *td2d,
                                             Strip *strip)
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
   float2 handle_origin = {td2d->loc[0], td2d->loc[1]};
   /* X and Y control points used to read scale and rotation. */
   float2 handle_x = float2((td2d + 1)->loc) - handle_origin;
@@ -257,7 +257,7 @@ static void image_transform_set(TransInfo *t)
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   TransData *td = nullptr;
   TransData2D *td2d = nullptr;
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
   Editing *ed = seq::editing_get(scene);
   int i;
 
@@ -321,7 +321,7 @@ static void image_transform_set(TransInfo *t)
 
 static float2 calculate_translation_offset(TransInfo *t, TransDataSeq *tdseq)
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
   Strip *strip = tdseq->strip;
   StripTransform *transform = strip->data->transform;
 
@@ -339,7 +339,7 @@ static float2 calculate_translation_offset(TransInfo *t, TransDataSeq *tdseq)
 
 static float2 calculate_new_origin_position(TransInfo *t, TransDataSeq *tdseq, TransData2D *td2d)
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
   Strip *strip = tdseq->strip;
 
   const float2 image_size = seq::transform_image_raw_size_get(scene, strip);
@@ -362,7 +362,7 @@ static void image_origin_set(TransInfo *t)
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   TransData *td = nullptr;
   TransData2D *td2d = nullptr;
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
   int i;
 
   for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i += 3, td += 3, td2d += 3) {
@@ -399,7 +399,7 @@ static void special_aftertrans_update__sequencer_image(bContext *C, TransInfo *t
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   TransData *td = nullptr;
   TransData2D *td2d = nullptr;
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   int i;
 
   for (i = 0, td = tc->data, td2d = tc->data_2d; i < tc->data_len; i += 3, td += 3, td2d += 3) {

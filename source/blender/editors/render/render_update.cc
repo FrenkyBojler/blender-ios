@@ -96,7 +96,7 @@ void ED_render_view3d_update(Depsgraph *depsgraph,
       /* NOTE: Important to pass non-updated depsgraph, This is because this function is called
        * from inside dependency graph evaluation. Additionally, if we pass fully evaluated one
        * we will lose updates stored in the graph. */
-      engine->type->view_update(engine, C, CTX_data_depsgraph_pointer(C));
+      engine->type->view_update(engine, C, CTX_data_depsgraph_pointer(*C));
 
       CTX_free(C);
     }

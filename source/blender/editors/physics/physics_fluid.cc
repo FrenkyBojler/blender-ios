@@ -147,9 +147,9 @@ static bool fluid_initjob(
     return false;
   }
 
-  job->bmain = CTX_data_main(C);
-  job->scene = CTX_data_scene(C);
-  job->depsgraph = CTX_data_depsgraph_pointer(C);
+  job->bmain = CTX_data_main(*C);
+  job->scene = CTX_data_scene(*C);
+  job->depsgraph = CTX_data_depsgraph_pointer(*C);
   job->ob = ob;
   job->fmd = fmd;
   job->type = op->type->idname;
@@ -553,7 +553,7 @@ static wmOperatorStatus fluid_bake_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus fluid_bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*_event*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   FluidJob *job = MEM_mallocN<FluidJob>("FluidJob");
   char error_msg[256] = "\0";
 
@@ -573,8 +573,8 @@ static wmOperatorStatus fluid_bake_invoke(bContext *C, wmOperator *op, const wmE
   /* Clear existing banners so that the upcoming progress bar from this job has more room. */
   WM_report_banners_cancel(job->bmain);
 
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
-                              CTX_wm_window(C),
+  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                              CTX_wm_window(*C),
                               scene,
                               "Baking fluid...",
                               WM_JOB_PROGRESS,
@@ -584,9 +584,9 @@ static wmOperatorStatus fluid_bake_invoke(bContext *C, wmOperator *op, const wmE
   WM_jobs_timer(wm_job, 0.01, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
   WM_jobs_callbacks(wm_job, fluid_bake_startjob, nullptr, nullptr, fluid_bake_endjob);
 
-  WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
+  WM_locked_interface_set_with_flags(CTX_wm_manager(*C), REGION_DRAW_LOCK_BAKING);
 
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_jobs_start(CTX_wm_manager(*C), wm_job);
   WM_event_add_modal_handler(C, op);
 
   return OPERATOR_RUNNING_MODAL;
@@ -595,7 +595,7 @@ static wmOperatorStatus fluid_bake_invoke(bContext *C, wmOperator *op, const wmE
 static wmOperatorStatus fluid_bake_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   /* no running blender, remove handler and pass through */
-  if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_OBJECT_SIM_FLUID)) {
+  if (0 == WM_jobs_test(CTX_wm_manager(*C), CTX_data_scene(*C), WM_JOB_TYPE_OBJECT_SIM_FLUID)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
@@ -614,7 +614,7 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
   FluidModifierData *fmd = nullptr;
   FluidDomainSettings *fds;
   Object *ob = blender::ed::object::context_active_object(C);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /*
    * Get modifier data
@@ -639,9 +639,9 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
   }
 
   FluidJob *job = MEM_mallocN<FluidJob>("FluidJob");
-  job->bmain = CTX_data_main(C);
+  job->bmain = CTX_data_main(*C);
   job->scene = scene;
-  job->depsgraph = CTX_data_depsgraph_pointer(C);
+  job->depsgraph = CTX_data_depsgraph_pointer(*C);
   job->ob = ob;
   job->fmd = fmd;
   job->type = op->type->idname;
@@ -655,8 +655,8 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
   /* Clear existing banners so that the upcoming progress bar from this job has more room. */
   WM_report_banners_cancel(job->bmain);
 
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
-                              CTX_wm_window(C),
+  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                              CTX_wm_window(*C),
                               scene,
                               "Freeing fluid...",
                               WM_JOB_PROGRESS,
@@ -666,10 +666,10 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
   WM_jobs_timer(wm_job, 0.01, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
   WM_jobs_callbacks(wm_job, fluid_free_startjob, nullptr, nullptr, fluid_free_endjob);
 
-  WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
+  WM_locked_interface_set_with_flags(CTX_wm_manager(*C), REGION_DRAW_LOCK_BAKING);
 
   /* Free Fluid Geometry. */
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_jobs_start(CTX_wm_manager(*C), wm_job);
 
   return OPERATOR_FINISHED;
 }

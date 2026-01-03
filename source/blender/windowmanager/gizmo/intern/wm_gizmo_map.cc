@@ -588,11 +588,11 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
                                             const int co[2],
                                             const int hotspot)
 {
-  const wmWindowManager *wm = CTX_wm_manager(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  const wmWindowManager *wm = CTX_wm_manager(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   rcti rect;
   /* Almost certainly overkill, but allow for many custom gizmos. */
   GPUSelectBuffer buffer;
@@ -601,7 +601,7 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
   BLI_rcti_init_pt_radius(&rect, co, hotspot);
 
   ED_view3d_draw_setup_view(
-      wm, CTX_wm_window(C), depsgraph, CTX_data_scene(C), region, v3d, nullptr, nullptr, &rect);
+      wm, CTX_wm_window(*C), depsgraph, CTX_data_scene(*C), region, v3d, nullptr, nullptr, &rect);
 
   bool use_select_bias = false;
 
@@ -620,8 +620,15 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
     GPU_select_end();
   }
 
-  ED_view3d_draw_setup_view(
-      wm, CTX_wm_window(C), depsgraph, CTX_data_scene(C), region, v3d, nullptr, nullptr, nullptr);
+  ED_view3d_draw_setup_view(wm,
+                            CTX_wm_window(*C),
+                            depsgraph,
+                            CTX_data_scene(*C),
+                            region,
+                            v3d,
+                            nullptr,
+                            nullptr,
+                            nullptr);
 
   const blender::Span<GPUSelectResult> hit_results = buffer.storage.as_span().take_front(hits);
   if (use_select_bias && (hits > 1)) {
@@ -709,7 +716,7 @@ static wmGizmo *gizmo_find_intersected_3d(bContext *C,
   if (has_3d) {
 
     /* The depth buffer is needed for gizmos to obscure each other. */
-    GPUViewport *viewport = WM_draw_region_get_viewport(CTX_wm_region(C));
+    GPUViewport *viewport = WM_draw_region_get_viewport(CTX_wm_region(*C));
 
     /* When switching between modes and the mouse pointer is over a gizmo, the highlight test is
      * performed before the viewport is fully initialized (region->runtime->draw_buffer = nullptr).
@@ -780,14 +787,14 @@ wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
                                     const wmEvent *event,
                                     int *r_part)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmGizmo *gz = nullptr;
   blender::Vector<wmGizmo *, 128> visible_3d_gizmos;
   bool do_step[WM_GIZMOMAP_DRAWSTEP_MAX];
 
   int mval[2];
   if (event->val == KM_PRESS_DRAG) {
-    WM_event_drag_start_mval(event, CTX_wm_region(C), mval);
+    WM_event_drag_start_mval(event, CTX_wm_region(*C), mval);
   }
   else {
     copy_v2_v2_int(mval, event->mval);
@@ -871,8 +878,8 @@ void wm_gizmomaps_handled_modal_update(bContext *C, wmEvent *event, wmEventHandl
 
   wmGizmoMap *gzmap = handler->context.region->runtime->gizmo_map;
   wmGizmo *gz = wm_gizmomap_modal_get(gzmap);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   wm_gizmomap_handler_context_op(C, handler);
 
@@ -977,7 +984,7 @@ bool WM_gizmomap_select_all(bContext *C, wmGizmoMap *gzmap, const int action)
   }
 
   if (changed) {
-    WM_event_add_mousemove(CTX_wm_window(C));
+    WM_event_add_mousemove(CTX_wm_window(*C));
   }
 
   return changed;
@@ -985,7 +992,7 @@ bool WM_gizmomap_select_all(bContext *C, wmGizmoMap *gzmap, const int action)
 
 void wm_gizmomap_handler_context_op(bContext *C, wmEventHandler_Op *handler)
 {
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
 
   if (screen) {
     ScrArea *area;
@@ -1052,7 +1059,7 @@ bool wm_gizmomap_highlight_set(wmGizmoMap *gzmap, const bContext *C, wmGizmo *gz
       }
 
       if (C && gz->type->cursor_get) {
-        wmWindow *win = CTX_wm_window(C);
+        wmWindow *win = CTX_wm_window(*C);
         if (init_last_cursor) {
           gzmap->gzmap_context.last_cursor = win->cursor;
         }
@@ -1061,7 +1068,7 @@ bool wm_gizmomap_highlight_set(wmGizmoMap *gzmap, const bContext *C, wmGizmo *gz
     }
     else {
       if (C && gzmap->gzmap_context.last_cursor != -1) {
-        wmWindow *win = CTX_wm_window(C);
+        wmWindow *win = CTX_wm_window(*C);
         WM_cursor_set(win, gzmap->gzmap_context.last_cursor);
       }
       gzmap->gzmap_context.last_cursor = -1;
@@ -1069,7 +1076,7 @@ bool wm_gizmomap_highlight_set(wmGizmoMap *gzmap, const bContext *C, wmGizmo *gz
 
     /* Tag the region for redraw. */
     if (C) {
-      ARegion *region = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(*C);
       ED_region_tag_redraw_editor_overlays(region);
     }
 
@@ -1091,7 +1098,7 @@ void wm_gizmomap_modal_set(
 
   if (enable) {
     BLI_assert(gzmap->gzmap_context.modal == nullptr);
-    wmWindow *win = CTX_wm_window(C);
+    wmWindow *win = CTX_wm_window(*C);
 
     WM_tooltip_clear(C, win);
 
@@ -1155,7 +1162,7 @@ void wm_gizmomap_modal_set(
     gzmap->gzmap_context.modal = nullptr;
 
     if (C) {
-      wmWindow *win = CTX_wm_window(C);
+      wmWindow *win = CTX_wm_window(*C);
       if (gzmap->gzmap_context.event_xy[0] != INT_MAX) {
         /* Check if some other part of Blender (typically operators)
          * have adjusted the grab mode since it was set.
@@ -1167,7 +1174,7 @@ void wm_gizmomap_modal_set(
           WM_cursor_warp(win, UNPACK2(gzmap->gzmap_context.event_xy));
         }
       }
-      ED_region_tag_redraw_editor_overlays(CTX_wm_region(C));
+      ED_region_tag_redraw_editor_overlays(CTX_wm_region(*C));
       WM_event_add_mousemove(win);
     }
 

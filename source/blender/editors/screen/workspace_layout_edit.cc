@@ -53,8 +53,8 @@ static bool workspace_layout_delete_doit(WorkSpace *workspace,
                                          WorkSpaceLayout *layout_new,
                                          bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindow *win = CTX_wm_window(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindow *win = CTX_wm_window(*C);
   bScreen *screen_new = BKE_workspace_layout_screen_get(layout_new);
 
   ED_screen_change(C, screen_new);
@@ -181,10 +181,10 @@ static bool workspace_layout_cycle_iter_cb(const WorkSpaceLayout *layout, void *
 
 bool ED_workspace_layout_cycle(WorkSpace *workspace, const short direction, bContext *C)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   WorkSpaceLayout *old_layout = BKE_workspace_active_layout_get(win->workspace_hook);
   const bScreen *old_screen = BKE_workspace_layout_screen_get(old_layout);
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   if (old_screen->temp || (area && area->full && area->full->temp)) {
     return false;

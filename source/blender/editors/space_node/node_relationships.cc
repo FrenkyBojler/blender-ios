@@ -115,8 +115,8 @@ static void pick_input_link_by_link_intersect(const bContext &C,
                                               bNodeLinkDrag &nldrag,
                                               const float2 &cursor)
 {
-  SpaceNode *snode = CTX_wm_space_node(&C);
-  ARegion *region = CTX_wm_region(&C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(C);
   bNodeTree &node_tree = *snode->edittree;
 
   float2 drag_start;
@@ -156,7 +156,7 @@ static void pick_input_link_by_link_intersect(const bContext &C,
   if (link_to_pick) {
     /* Highlight is set here and cleared in the next iteration or if the operation finishes. */
     link_to_pick->flag |= NODE_LINK_TEMP_HIGHLIGHT;
-    ED_area_tag_redraw(CTX_wm_area(&C));
+    ED_area_tag_redraw(CTX_wm_area(C));
 
     if (!node_find_indicated_socket(*snode, *region, cursor, SOCK_IN)) {
       pick_link(nldrag, *snode, &node, *link_to_pick);
@@ -592,7 +592,7 @@ static bool is_viewer_socket(const bNodeSocket &socket)
 
 static int get_default_viewer_type(const bContext *C)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   return ED_node_is_compositor(snode) ? CMP_NODE_VIEWER : GEO_NODE_VIEWER;
 }
 
@@ -689,7 +689,7 @@ static void finalize_viewer_link(const bContext &C,
                                  bNode &viewer_node,
                                  bNodeLink &viewer_link)
 {
-  Main *bmain = CTX_data_main(&C);
+  Main *bmain = CTX_data_main(C);
   remove_links_to_unavailable_viewer_sockets(*snode.edittree, viewer_node);
   viewer_link.flag &= ~NODE_LINK_MUTED;
   viewer_node.flag &= ~NODE_MUTED;
@@ -773,8 +773,8 @@ static void position_viewer_node(const bContext &C,
                                  bNode &viewer_node,
                                  const bNode &node_to_view)
 {
-  ScrArea &area = *CTX_wm_area(&C);
-  ARegion &region = *CTX_wm_region(&C);
+  ScrArea &area = *CTX_wm_area(C);
+  ARegion &region = *CTX_wm_region(C);
   ARegion &sidebar = *BKE_area_find_region_type(&area, RGN_TYPE_UI);
 
   tree.ensure_topology_cache();
@@ -927,7 +927,7 @@ static int view_socket(const bContext &C,
 
 static int node_link_viewer(const bContext &C, bNode &bnode_to_view, bNodeSocket *bsocket_to_view)
 {
-  SpaceNode &snode = *CTX_wm_space_node(&C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree *btree = snode.edittree;
   btree->ensure_topology_cache();
 
@@ -952,14 +952,14 @@ static int node_link_viewer(const bContext &C, bNode &bnode_to_view, bNodeSocket
 
 static wmOperatorStatus node_active_link_viewer_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode.edittree);
 
   if (!node) {
     return OPERATOR_CANCELLED;
   }
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+  ED_preview_kill_jobs(CTX_wm_manager(*C), CTX_data_main(*C));
 
   bNodeSocket *socket_to_view = nullptr;
   for (bNodeSocket &socket : node->outputs) {
@@ -973,7 +973,7 @@ static wmOperatorStatus node_active_link_viewer_exec(bContext *C, wmOperator * /
     return OPERATOR_CANCELLED;
   }
 
-  BKE_main_ensure_invariants(*CTX_data_main(C), snode.edittree->id);
+  BKE_main_ensure_invariants(*CTX_data_main(*C), snode.edittree->id);
 
   return OPERATOR_FINISHED;
 }
@@ -983,7 +983,7 @@ static bool node_active_link_viewer_poll(bContext *C)
   if (!ED_operator_node_editable(C)) {
     return false;
   }
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   if (ED_node_is_compositor(snode)) {
     return true;
   }
@@ -1305,9 +1305,9 @@ static void node_remove_existing_links_if_needed(bNodeLinkDrag &nldrag, bNodeTre
 
 static void add_dragged_links_to_tree(bContext &C, bNodeLinkDrag &nldrag)
 {
-  Main *bmain = CTX_data_main(&C);
-  ARegion &region = *CTX_wm_region(&C);
-  SpaceNode &snode = *CTX_wm_space_node(&C);
+  Main *bmain = CTX_data_main(C);
+  ARegion &region = *CTX_wm_region(C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
 
   /* Handle node links already occupying the socket. */
@@ -1370,20 +1370,20 @@ static void add_dragged_links_to_tree(bContext &C, bNodeLinkDrag &nldrag)
 
 static void node_link_cancel(bContext *C, wmOperator *op)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNodeLinkDrag *nldrag = (bNodeLinkDrag *)op->customdata;
-  draw_draglink_tooltip_deactivate(*CTX_wm_region(C), *nldrag);
+  draw_draglink_tooltip_deactivate(*CTX_wm_region(*C), *nldrag);
   view2d_edge_pan_cancel(C, &nldrag->pan_data);
   snode->runtime->linkdrag.reset();
   clear_picking_highlight(&snode->edittree->links);
   BKE_ntree_update_tag_link_removed(snode->edittree);
-  BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
+  BKE_main_ensure_invariants(*CTX_data_main(*C), snode->edittree->id);
 }
 
 static void node_link_find_socket(bContext &C, wmOperator &op, const float2 &cursor)
 {
-  SpaceNode &snode = *CTX_wm_space_node(&C);
-  ARegion &region = *CTX_wm_region(&C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
+  ARegion &region = *CTX_wm_region(C);
   bNodeLinkDrag &nldrag = *static_cast<bNodeLinkDrag *>(op.customdata);
 
   if (nldrag.in_out == SOCK_OUT) {
@@ -1493,8 +1493,8 @@ wmKeyMap *node_link_modal_keymap(wmKeyConfig *keyconf)
 static wmOperatorStatus node_link_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   bNodeLinkDrag &nldrag = *static_cast<bNodeLinkDrag *>(op->customdata);
-  SpaceNode &snode = *CTX_wm_space_node(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   view2d_edge_pan_apply_event(C, &nldrag.pan_data, event);
 
@@ -1651,9 +1651,9 @@ static std::unique_ptr<bNodeLinkDrag> node_link_init(ARegion &region,
 
 static wmOperatorStatus node_link_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Main &bmain = *CTX_data_main(C);
-  SpaceNode &snode = *CTX_wm_space_node(C);
-  ARegion &region = *CTX_wm_region(C);
+  Main &bmain = *CTX_data_main(*C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
+  ARegion &region = *CTX_wm_region(*C);
 
   bool detach = RNA_boolean_get(op->ptr, "detach");
 
@@ -1664,7 +1664,7 @@ static wmOperatorStatus node_link_invoke(bContext *C, wmOperator *op, const wmEv
   ui::view2d_region_to_view(&region.v2d, mval[0], mval[1], &cursor[0], &cursor[1]);
   RNA_float_set_array(op->ptr, "drag_start", cursor);
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
+  ED_preview_kill_jobs(CTX_wm_manager(*C), &bmain);
 
   std::unique_ptr<bNodeLinkDrag> nldrag = node_link_init(region, snode, cursor, detach);
   if (!nldrag) {
@@ -1675,7 +1675,7 @@ static wmOperatorStatus node_link_invoke(bContext *C, wmOperator *op, const wmEv
 
   /* Add icons at the cursor when the link is dragged in empty space. */
   if (need_drag_link_tooltip(*snode.edittree, *nldrag)) {
-    draw_draglink_tooltip_activate(*CTX_wm_region(C), *nldrag);
+    draw_draglink_tooltip_activate(*CTX_wm_region(*C), *nldrag);
   }
   snode.runtime->linkdrag = std::move(nldrag);
   op->customdata = snode.runtime->linkdrag.get();
@@ -1731,12 +1731,12 @@ void NODE_OT_link(wmOperatorType *ot)
 /* Makes a link between selected output and input sockets. */
 static wmOperatorStatus node_make_link_exec(bContext *C, wmOperator *op)
 {
-  Main &bmain = *CTX_data_main(C);
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  Main &bmain = *CTX_data_main(*C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &node_tree = *snode.edittree;
   const bool replace = RNA_boolean_get(op->ptr, "replace");
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
+  ED_preview_kill_jobs(CTX_wm_manager(*C), &bmain);
 
   snode_autoconnect(*C, snode, true, replace);
 
@@ -1776,9 +1776,9 @@ void NODE_OT_link_make(wmOperatorType *ot)
 
 static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
 {
-  Main &bmain = *CTX_data_main(C);
-  SpaceNode &snode = *CTX_wm_space_node(C);
-  const ARegion &region = *CTX_wm_region(C);
+  Main &bmain = *CTX_data_main(*C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
+  const ARegion &region = *CTX_wm_region(*C);
 
   Vector<float2> path;
   RNA_BEGIN (op->ptr, itemptr, "path") {
@@ -1799,7 +1799,7 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
 
   bool found = false;
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
+  ED_preview_kill_jobs(CTX_wm_manager(*C), &bmain);
 
   bNodeTree &node_tree = *snode.edittree;
   node_tree.ensure_topology_cache();
@@ -1814,7 +1814,7 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
 
       if (!found) {
         /* TODO(sergey): Why did we kill jobs twice? */
-        ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
+        ED_preview_kill_jobs(CTX_wm_manager(*C), &bmain);
         found = true;
       }
       links_to_remove.add(&link);
@@ -1833,7 +1833,7 @@ static wmOperatorStatus cut_links_exec(bContext *C, wmOperator *op)
     update_multi_input_indices_for_removed_links(*node);
   }
 
-  BKE_main_ensure_invariants(*CTX_data_main(C), snode.edittree->id);
+  BKE_main_ensure_invariants(*CTX_data_main(*C), snode.edittree->id);
   if (found) {
     return OPERATOR_FINISHED;
   }
@@ -1884,9 +1884,9 @@ bool all_links_muted(const bNodeSocket &socket)
 
 static wmOperatorStatus mute_links_exec(bContext *C, wmOperator *op)
 {
-  Main &bmain = *CTX_data_main(C);
-  SpaceNode &snode = *CTX_wm_space_node(C);
-  const ARegion &region = *CTX_wm_region(C);
+  Main &bmain = *CTX_data_main(*C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
+  const ARegion &region = *CTX_wm_region(*C);
   bNodeTree &ntree = *snode.edittree;
 
   Vector<float2> path;
@@ -1906,7 +1906,7 @@ static wmOperatorStatus mute_links_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), &bmain);
+  ED_preview_kill_jobs(CTX_wm_manager(*C), &bmain);
 
   ntree.ensure_topology_cache();
 
@@ -1963,7 +1963,7 @@ static wmOperatorStatus mute_links_exec(bContext *C, wmOperator *op)
     }
   }
 
-  BKE_main_ensure_invariants(*CTX_data_main(C), ntree.id);
+  BKE_main_ensure_invariants(*CTX_data_main(*C), ntree.id);
   return OPERATOR_FINISHED;
 }
 
@@ -2000,10 +2000,10 @@ void NODE_OT_links_mute(wmOperatorType *ot)
 
 static wmOperatorStatus detach_links_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &ntree = *snode.edittree;
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+  ED_preview_kill_jobs(CTX_wm_manager(*C), CTX_data_main(*C));
 
   for (bNode *node : ntree.all_nodes()) {
     if (node->flag & SELECT) {
@@ -2011,7 +2011,7 @@ static wmOperatorStatus detach_links_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
-  BKE_main_ensure_invariants(*CTX_data_main(C), ntree.id);
+  BKE_main_ensure_invariants(*CTX_data_main(*C), ntree.id);
   return OPERATOR_FINISHED;
 }
 
@@ -2037,7 +2037,7 @@ void NODE_OT_links_detach(wmOperatorType *ot)
 
 static wmOperatorStatus node_parent_set_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &ntree = *snode.edittree;
   bNode *frame = bke::node_get_active(ntree);
   if (!frame || !frame->is_frame()) {
@@ -2161,8 +2161,8 @@ static const bNode *find_common_parent_node(const Span<const bNode *> nodes)
 
 static wmOperatorStatus node_join_in_frame_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main &bmain = *CTX_data_main(C);
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  Main &bmain = *CTX_data_main(*C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &ntree = *snode.edittree;
 
   const VectorSet<bNode *> selected_nodes = get_selected_nodes(ntree);
@@ -2192,8 +2192,8 @@ static wmOperatorStatus node_join_in_frame_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(*C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
 
   /* Convert mouse coordinates to v2d space. */
   ui::view2d_region_to_view(&region->v2d,
@@ -2293,8 +2293,8 @@ static void join_group_inputs(bNodeTree &tree, VectorSet<bNode *> group_inputs, 
 
 static wmOperatorStatus node_join_nodes_exec(bContext *C, wmOperator *op)
 {
-  Main &bmain = *CTX_data_main(C);
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  Main &bmain = *CTX_data_main(*C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &ntree = *snode.edittree;
 
   bNode *active_node = bke::node_get_active(ntree);
@@ -2379,8 +2379,8 @@ static bool can_attach_node_to_frame(const bNode &node, const bNode &frame)
 
 static wmOperatorStatus node_attach_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
-  ARegion &region = *CTX_wm_region(C);
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  ARegion &region = *CTX_wm_region(*C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &ntree = *snode.edittree;
   bNode *frame = node_find_frame_to_attach(region, ntree, event->mval);
   if (frame == nullptr) {
@@ -2463,7 +2463,7 @@ static void node_detach_recursive(bNodeTree &ntree,
 /* Detach the root nodes in the current selection. */
 static wmOperatorStatus node_detach_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &ntree = *snode.edittree;
 
   Array<NodeDetachstate> detach_states(ntree.all_nodes().size(), NodeDetachstate{false, false});
@@ -2640,7 +2640,7 @@ void node_insert_on_frame_flag_set(bContext &C, SpaceNode &snode, const int2 &cu
 {
   snode.runtime->frame_identifier_to_highlight.reset();
 
-  ARegion &region = *CTX_wm_region(&C);
+  ARegion &region = *CTX_wm_region(C);
 
   snode.edittree->ensure_topology_cache();
   const bNode *frame = node_find_frame_to_attach(region, *snode.edittree, cursor);
@@ -3023,7 +3023,7 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
  */
 static wmOperatorStatus node_insert_offset_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   NodeInsertOfsData *iofsd = static_cast<NodeInsertOfsData *>(op->customdata);
   bool redraw = false;
 
@@ -3053,12 +3053,12 @@ static wmOperatorStatus node_insert_offset_modal(bContext *C, wmOperator *op, co
     }
   }
   if (redraw) {
-    ED_region_tag_redraw(CTX_wm_region(C));
+    ED_region_tag_redraw(CTX_wm_region(*C));
   }
 
   /* end timer + free insert offset data */
   if (duration > NODE_INSOFS_ANIM_DURATION) {
-    WM_event_timer_remove(CTX_wm_manager(C), nullptr, iofsd->anim_timer);
+    WM_event_timer_remove(CTX_wm_manager(*C), nullptr, iofsd->anim_timer);
 
     for (bNode *node : snode->edittree->all_nodes()) {
       node->runtime->anim_ofsx = 0.0f;
@@ -3078,7 +3078,7 @@ static wmOperatorStatus node_insert_offset_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event)
 {
-  const SpaceNode *snode = CTX_wm_space_node(C);
+  const SpaceNode *snode = CTX_wm_space_node(*C);
   NodeInsertOfsData *iofsd = snode->runtime->iofsd;
   snode->runtime->iofsd = nullptr;
   op->customdata = iofsd;
@@ -3092,14 +3092,14 @@ static wmOperatorStatus node_insert_offset_invoke(bContext *C,
   iofsd->ntree = snode->edittree;
 
   const bool offset_applied = node_link_insert_offset_ntree(
-      iofsd, CTX_wm_region(C), event->mval, (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT));
+      iofsd, CTX_wm_region(*C), event->mval, (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT));
   if (!offset_applied) {
     MEM_freeN(iofsd);
     op->customdata = nullptr;
     return OPERATOR_CANCELLED;
   }
 
-  iofsd->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
+  iofsd->anim_timer = WM_event_timer_add(CTX_wm_manager(*C), CTX_wm_window(*C), TIMER, 0.02);
 
   /* add temp handler */
   WM_event_add_modal_handler(C, op);

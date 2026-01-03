@@ -492,7 +492,7 @@ static const char *wm_context_member_from_ptr(const bContext *C,
     { \
       const char *ctx_member = member; \
       if (RNA_struct_is_a((rna_ptr)->type, &(rna_type)) && \
-          (rna_ptr)->data == (CTX_data_pointer_get_type(C, ctx_member, &(rna_type)).data)) \
+          (rna_ptr)->data == (CTX_data_pointer_get_type(*C, ctx_member, &(rna_type)).data)) \
       { \
         member_id = ctx_member; \
         break; \
@@ -522,13 +522,13 @@ static const char *wm_context_member_from_ptr(const bContext *C,
       case ID_SCE: {
         TEST_PTR_DATA_TYPE_FROM_CONTEXT("active_strip", RNA_Strip, ptr);
 
-        CTX_TEST_PTR_ID(C, "scene", ptr->owner_id);
+        CTX_TEST_PTR_ID(*C, "scene", ptr->owner_id);
         break;
       }
       case ID_OB: {
         TEST_PTR_DATA_TYPE_FROM_CONTEXT("active_pose_bone", RNA_PoseBone, ptr);
 
-        CTX_TEST_PTR_ID(C, "object", ptr->owner_id);
+        CTX_TEST_PTR_ID(*C, "object", ptr->owner_id);
         break;
       }
       /* From #rna_Main_objects_new. */
@@ -545,7 +545,7 @@ static const char *wm_context_member_from_ptr(const bContext *C,
         }
 
 #  define ID_CAST_OBDATA(id_pt) (((Object *)(id_pt))->data)
-        CTX_TEST_PTR_ID_CAST(C, "object", "object.data", ID_CAST_OBDATA, ptr->owner_id);
+        CTX_TEST_PTR_ID_CAST(*C, "object", "object.data", ID_CAST_OBDATA, ptr->owner_id);
         break;
 #  undef ID_CAST_OBDATA
       }
@@ -553,23 +553,23 @@ static const char *wm_context_member_from_ptr(const bContext *C,
 #  define ID_CAST_OBMATACT(id_pt) \
     BKE_object_material_get(((Object *)id_pt), ((Object *)id_pt)->actcol)
         CTX_TEST_PTR_ID_CAST(
-            C, "object", "object.active_material", ID_CAST_OBMATACT, ptr->owner_id);
+            *C, "object", "object.active_material", ID_CAST_OBMATACT, ptr->owner_id);
         break;
 #  undef ID_CAST_OBMATACT
       }
       case ID_WO: {
 #  define ID_CAST_SCENEWORLD(id_pt) (((Scene *)(id_pt))->world)
-        CTX_TEST_PTR_ID_CAST(C, "scene", "scene.world", ID_CAST_SCENEWORLD, ptr->owner_id);
+        CTX_TEST_PTR_ID_CAST(*C, "scene", "scene.world", ID_CAST_SCENEWORLD, ptr->owner_id);
         break;
 #  undef ID_CAST_SCENEWORLD
       }
       case ID_SCR: {
-        CTX_TEST_PTR_ID(C, "screen", ptr->owner_id);
+        CTX_TEST_PTR_ID(*C, "screen", ptr->owner_id);
 
-        TEST_PTR_DATA_TYPE("area", RNA_Area, ptr, CTX_wm_area(C));
-        TEST_PTR_DATA_TYPE("region", RNA_Region, ptr, CTX_wm_region(C));
+        TEST_PTR_DATA_TYPE("area", RNA_Area, ptr, CTX_wm_area(*C));
+        TEST_PTR_DATA_TYPE("region", RNA_Region, ptr, CTX_wm_region(*C));
 
-        SpaceLink *space_data = CTX_wm_space_data(C);
+        SpaceLink *space_data = CTX_wm_space_data(*C);
         if (space_data != nullptr) {
           TEST_PTR_DATA_TYPE("space_data", RNA_Space, ptr, space_data);
 
@@ -1048,7 +1048,7 @@ wmOperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEv
 
 wmOperatorStatus WM_generic_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   int mval[2];
   WM_event_drag_start_mval(event, region, mval);
@@ -1066,8 +1066,8 @@ wmOperatorStatus WM_generic_select_invoke(bContext *C, wmOperator *op, const wmE
 void WM_operator_view3d_unit_defaults(bContext *C, wmOperator *op)
 {
   if (op->flag & OP_IS_INVOKE) {
-    Scene *scene = CTX_data_scene(C);
-    View3D *v3d = CTX_wm_view3d(C);
+    Scene *scene = CTX_data_scene(*C);
+    View3D *v3d = CTX_wm_view3d(*C);
 
     const float dia = v3d ? ED_view3d_grid_scale(scene, v3d, nullptr) :
                             ED_scene_grid_scale(scene, nullptr);
@@ -1148,7 +1148,7 @@ struct EnumSearchMenu {
 static blender::ui::Block *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
 {
   EnumSearchMenu *search_menu = static_cast<EnumSearchMenu *>(arg);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   wmOperator *op = search_menu->op;
   /* `template_ID` uses `4 * widget_unit` for width,
    * we use a bit more, some items may have a suffix to show. */
@@ -1284,7 +1284,7 @@ bool WM_operator_filesel_ensure_ext_imtype(wmOperator *op, const ImageFormatData
 
 bool WM_operator_winactive(bContext *C)
 {
-  if (CTX_wm_window(C) == nullptr) {
+  if (CTX_wm_window(*C) == nullptr) {
     return false;
   }
   return true;
@@ -1292,15 +1292,15 @@ bool WM_operator_winactive(bContext *C)
 
 bool WM_operator_check_ui_enabled(const bContext *C, const char *idname)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  Scene *scene = CTX_data_scene(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   return !((ED_undo_is_valid(C, idname) == false) || WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY));
 }
 
 wmOperator *WM_operator_last_redo(const bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   /* Only for operators that are registered and did an undo push. */
   for (wmOperator &op : wm->runtime->operators.items_reversed()) {
@@ -1328,7 +1328,7 @@ void WM_operator_last_properties_ensure(wmOperatorType *ot, PointerRNA *ptr)
 
 ID *WM_operator_drop_load_path(bContext *C, wmOperator *op, const short idcode)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ID *id = nullptr;
 
   /* Check input variables. */
@@ -1509,7 +1509,7 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 
   /* Get context data *after* WM_operator_call_ex
    * which might have closed the current file and changed context. */
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   popup_block_close(C, win, block);
 
   WM_operator_call_ex(C, op, true);
@@ -1523,7 +1523,7 @@ static void dialog_cancel_cb(bContext *C, void *arg1, void *arg2)
   wm_operator_ui_popup_cancel(C, arg1);
   blender::ui::Block *block = static_cast<blender::ui::Block *>(arg2);
   popup_menu_retval_set(block, blender::ui::RETURN_CANCEL, true);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   popup_block_close(C, win, block);
 }
 
@@ -1924,7 +1924,7 @@ wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op)
 {
   /* `CTX_wm_reports(C)` because operator is on stack, not active in event system. */
   if ((op->type->flag & OPTYPE_REGISTER) == 0) {
-    BKE_reportf(CTX_wm_reports(C),
+    BKE_reportf(CTX_wm_reports(*C),
                 RPT_ERROR,
                 "Operator redo '%s' does not have register enabled, incorrect invoke function",
                 op->type->idname);
@@ -1932,7 +1932,7 @@ wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op)
   }
   if (op->type->poll && op->type->poll(C) == 0) {
     BKE_reportf(
-        CTX_wm_reports(C), RPT_ERROR, "Operator redo '%s': wrong context", op->type->idname);
+        CTX_wm_reports(*C), RPT_ERROR, "Operator redo '%s': wrong context", op->type->idname);
     return OPERATOR_CANCELLED;
   }
 
@@ -1954,7 +1954,7 @@ wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op)
 static wmOperatorStatus wm_debug_menu_exec(bContext *C, wmOperator *op)
 {
   G.debug_value = RNA_int_get(op->ptr, "debug_value");
-  ED_screen_refresh(C, CTX_wm_manager(C), CTX_wm_window(C));
+  ED_screen_refresh(C, CTX_wm_manager(*C), CTX_wm_window(*C));
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
@@ -1990,7 +1990,7 @@ static void WM_OT_debug_menu(wmOperatorType *ot)
 
 static wmOperatorStatus wm_operator_defaults_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "active_operator", &RNA_Operator);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "active_operator", &RNA_Operator);
 
   if (!ptr.data) {
     BKE_report(op->reports, RPT_ERROR, "No operator in context");
@@ -2099,7 +2099,7 @@ static wmOperatorStatus wm_search_menu_invoke(bContext *C, wmOperator *op, const
   /* Exception for launching via space-bar. */
   if (event->type == EVT_SPACEKEY) {
     bool ok = true;
-    ScrArea *area = CTX_wm_area(C);
+    ScrArea *area = CTX_wm_area(*C);
     if (area) {
       if (area->spacetype == SPACE_CONSOLE) {
         /* So we can use the shortcut in the console. */
@@ -2111,7 +2111,7 @@ static wmOperatorStatus wm_search_menu_invoke(bContext *C, wmOperator *op, const
       }
     }
     else {
-      Object *editob = CTX_data_edit_object(C);
+      Object *editob = CTX_data_edit_object(*C);
       if (editob && editob->type == OB_FONT) {
         /* So we can use the space-bar for entering text. */
         ok = false;
@@ -2247,7 +2247,7 @@ static wmOperatorStatus wm_call_pie_menu_exec(bContext *C, wmOperator *op)
   char idname[BKE_ST_MAXNAME];
   RNA_string_get(op->ptr, "name", idname);
 
-  return blender::ui::pie_menu_invoke(C, idname, CTX_wm_window(C)->runtime->eventstate);
+  return blender::ui::pie_menu_invoke(C, idname, CTX_wm_window(*C)->runtime->eventstate);
 }
 
 static void WM_OT_call_menu_pie(wmOperatorType *ot)
@@ -2362,7 +2362,7 @@ static void WM_OT_call_asset_shelf_popover(wmOperatorType *ot)
  */
 static bool wm_operator_winactive_normal(bContext *C)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   bScreen *screen;
 
   if (win == nullptr) {
@@ -2380,7 +2380,7 @@ static bool wm_operator_winactive_normal(bContext *C)
 
 static bool wm_operator_winactive_not_full(bContext *C)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   bScreen *screen;
 
   if (win == nullptr) {
@@ -2448,7 +2448,7 @@ static wmOperatorStatus wm_exit_blender_invoke(bContext *C,
                                                const wmEvent * /*event*/)
 {
   if (U.uiflag & USER_SAVE_PROMPT) {
-    wm_quit_with_optional_confirmation_prompt(C, CTX_wm_window(C));
+    wm_quit_with_optional_confirmation_prompt(C, CTX_wm_window(*C));
   }
   else {
     wm_exit_schedule_delayed(C);
@@ -2601,8 +2601,8 @@ static void radial_control_update_header(wmOperator *op, bContext *C)
 {
   RadialControl *rc = static_cast<RadialControl *>(op->customdata);
   char msg[UI_MAX_DRAW_STR];
-  ScrArea *area = CTX_wm_area(C);
-  Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   if (hasNumInput(&rc->num_input)) {
     char num_str[NUM_STR_REP_LEN];
@@ -3251,7 +3251,7 @@ static wmOperatorStatus radial_control_invoke(bContext *C, wmOperator *op, const
   rc->init_event = WM_userdef_event_type_from_keymap_type(event->type);
 
   /* Temporarily disable other paint cursors. */
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   rc->orig_paintcursors = wm->runtime->paintcursors;
   BLI_listbase_clear(&wm->runtime->paintcursors);
 
@@ -3282,8 +3282,8 @@ static void radial_control_set_value(RadialControl *rc, float val)
 static void radial_control_cancel(bContext *C, wmOperator *op)
 {
   RadialControl *rc = static_cast<RadialControl *>(op->customdata);
-  wmWindowManager *wm = CTX_wm_manager(C);
-  ScrArea *area = CTX_wm_area(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  ScrArea *area = CTX_wm_area(*C);
 
   if (rc->dial) {
     BLI_dial_free(rc->dial);
@@ -3545,11 +3545,11 @@ static wmOperatorStatus radial_control_modal(bContext *C, wmOperator *op, const 
     ret = OPERATOR_FINISHED;
   }
 
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
   radial_control_update_header(op, C);
 
   if (ret & OPERATOR_FINISHED) {
-    wmWindowManager *wm = CTX_wm_manager(C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
     if (wm->op_undo_depth == 0) {
       ID *id = rc->ptr.owner_id;
       if (ED_undo_is_legacy_compatible_for_property(C, id, rc->ptr)) {
@@ -3674,8 +3674,8 @@ static void WM_OT_radial_control(wmOperatorType *ot)
 
 static void redraw_timer_window_swap(bContext *C)
 {
-  wmWindow *win = CTX_wm_window(C);
-  bScreen *screen = CTX_wm_screen(C);
+  wmWindow *win = CTX_wm_window(*C);
+  bScreen *screen = CTX_wm_screen(*C);
 
   CTX_wm_region_popup_set(C, nullptr);
 
@@ -3800,11 +3800,11 @@ static bool redraw_timer_poll(bContext *C)
 
 static wmOperatorStatus redraw_timer_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
+  Scene *scene = CTX_data_scene(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   const int type = RNA_enum_get(op->ptr, "type");
   const int iter = RNA_int_get(op->ptr, "iterations");
   const double time_limit = double(RNA_float_get(op->ptr, "time_limit"));
@@ -3814,7 +3814,7 @@ static wmOperatorStatus redraw_timer_exec(bContext *C, wmOperator *op)
   /* NOTE: Depsgraph is used to update scene for a new state, so no need to ensure evaluation
    * here.
    */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
 
   RNA_enum_description(redraw_timer_type_items, type, &infostr);
 
@@ -3957,7 +3957,7 @@ static int previews_id_ensure_callback(LibraryIDLinkCallbackData *cb_data)
 
 static wmOperatorStatus previews_ensure_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ListBaseT<ID> *lb[] = {&bmain->materials.cast<ID>(),
                          &bmain->textures.cast<ID>(),
                          &bmain->images.cast<ID>(),
@@ -4086,7 +4086,7 @@ static uint preview_filter_to_idfilter(enum PreviewFilterID filter)
 
 static wmOperatorStatus previews_clear_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ListBaseT<ID> *lb[] = {
       &bmain->objects.cast<ID>(),
       &bmain->collections.cast<ID>(),
@@ -4612,7 +4612,7 @@ const EnumPropertyItem *RNA_action_itemf(bContext *C,
 {
 
   return rna_id_itemf(
-      r_free, C ? (ID *)CTX_data_main(C)->actions.first : nullptr, false, nullptr, nullptr);
+      r_free, C ? (ID *)CTX_data_main(*C)->actions.first : nullptr, false, nullptr, nullptr);
 }
 #if 0 /* UNUSED. */
 const EnumPropertyItem *RNA_action_local_itemf(bContext *C,
@@ -4630,7 +4630,7 @@ const EnumPropertyItem *RNA_collection_itemf(bContext *C,
                                              bool *r_free)
 {
   return rna_id_itemf(
-      r_free, C ? (ID *)CTX_data_main(C)->collections.first : nullptr, false, nullptr, nullptr);
+      r_free, C ? (ID *)CTX_data_main(*C)->collections.first : nullptr, false, nullptr, nullptr);
 }
 const EnumPropertyItem *RNA_collection_local_itemf(bContext *C,
                                                    PointerRNA * /*ptr*/,
@@ -4638,7 +4638,7 @@ const EnumPropertyItem *RNA_collection_local_itemf(bContext *C,
                                                    bool *r_free)
 {
   return rna_id_itemf(
-      r_free, C ? (ID *)CTX_data_main(C)->collections.first : nullptr, true, nullptr, nullptr);
+      r_free, C ? (ID *)CTX_data_main(*C)->collections.first : nullptr, true, nullptr, nullptr);
 }
 
 const EnumPropertyItem *RNA_image_itemf(bContext *C,
@@ -4647,7 +4647,7 @@ const EnumPropertyItem *RNA_image_itemf(bContext *C,
                                         bool *r_free)
 {
   return rna_id_itemf(
-      r_free, C ? (ID *)CTX_data_main(C)->images.first : nullptr, false, nullptr, nullptr);
+      r_free, C ? (ID *)CTX_data_main(*C)->images.first : nullptr, false, nullptr, nullptr);
 }
 const EnumPropertyItem *RNA_image_local_itemf(bContext *C,
                                               PointerRNA * /*ptr*/,
@@ -4655,7 +4655,7 @@ const EnumPropertyItem *RNA_image_local_itemf(bContext *C,
                                               bool *r_free)
 {
   return rna_id_itemf(
-      r_free, C ? (ID *)CTX_data_main(C)->images.first : nullptr, true, nullptr, nullptr);
+      r_free, C ? (ID *)CTX_data_main(*C)->images.first : nullptr, true, nullptr, nullptr);
 }
 
 const EnumPropertyItem *RNA_scene_itemf(bContext *C,
@@ -4664,7 +4664,7 @@ const EnumPropertyItem *RNA_scene_itemf(bContext *C,
                                         bool *r_free)
 {
   return rna_id_itemf(
-      r_free, C ? (ID *)CTX_data_main(C)->scenes.first : nullptr, false, nullptr, nullptr);
+      r_free, C ? (ID *)CTX_data_main(*C)->scenes.first : nullptr, false, nullptr, nullptr);
 }
 const EnumPropertyItem *RNA_scene_local_itemf(bContext *C,
                                               PointerRNA * /*ptr*/,
@@ -4672,16 +4672,16 @@ const EnumPropertyItem *RNA_scene_local_itemf(bContext *C,
                                               bool *r_free)
 {
   return rna_id_itemf(
-      r_free, C ? (ID *)CTX_data_main(C)->scenes.first : nullptr, true, nullptr, nullptr);
+      r_free, C ? (ID *)CTX_data_main(*C)->scenes.first : nullptr, true, nullptr, nullptr);
 }
 const EnumPropertyItem *RNA_scene_without_sequencer_scene_itemf(bContext *C,
                                                                 PointerRNA * /*ptr*/,
                                                                 PropertyRNA * /*prop*/,
                                                                 bool *r_free)
 {
-  Scene *sequencer_scene = C ? CTX_data_sequencer_scene(C) : nullptr;
+  Scene *sequencer_scene = C ? CTX_data_sequencer_scene(*C) : nullptr;
   return rna_id_itemf(r_free,
-                      C ? (ID *)CTX_data_main(C)->scenes.first : nullptr,
+                      C ? (ID *)CTX_data_main(*C)->scenes.first : nullptr,
                       false,
                       rna_id_enum_filter_single_and_assets,
                       sequencer_scene);
@@ -4692,7 +4692,7 @@ const EnumPropertyItem *RNA_movieclip_itemf(bContext *C,
                                             bool *r_free)
 {
   return rna_id_itemf(
-      r_free, C ? (ID *)CTX_data_main(C)->movieclips.first : nullptr, false, nullptr, nullptr);
+      r_free, C ? (ID *)CTX_data_main(*C)->movieclips.first : nullptr, false, nullptr, nullptr);
 }
 const EnumPropertyItem *RNA_movieclip_local_itemf(bContext *C,
                                                   PointerRNA * /*ptr*/,
@@ -4700,7 +4700,7 @@ const EnumPropertyItem *RNA_movieclip_local_itemf(bContext *C,
                                                   bool *r_free)
 {
   return rna_id_itemf(
-      r_free, C ? (ID *)CTX_data_main(C)->movieclips.first : nullptr, true, nullptr, nullptr);
+      r_free, C ? (ID *)CTX_data_main(*C)->movieclips.first : nullptr, true, nullptr, nullptr);
 }
 
 const EnumPropertyItem *RNA_mask_itemf(bContext *C,
@@ -4709,7 +4709,7 @@ const EnumPropertyItem *RNA_mask_itemf(bContext *C,
                                        bool *r_free)
 {
   return rna_id_itemf(
-      r_free, C ? (ID *)CTX_data_main(C)->masks.first : nullptr, false, nullptr, nullptr);
+      r_free, C ? (ID *)CTX_data_main(*C)->masks.first : nullptr, false, nullptr, nullptr);
 }
 const EnumPropertyItem *RNA_mask_local_itemf(bContext *C,
                                              PointerRNA * /*ptr*/,
@@ -4717,7 +4717,7 @@ const EnumPropertyItem *RNA_mask_local_itemf(bContext *C,
                                              bool *r_free)
 {
   return rna_id_itemf(
-      r_free, C ? (ID *)CTX_data_main(C)->masks.first : nullptr, true, nullptr, nullptr);
+      r_free, C ? (ID *)CTX_data_main(*C)->masks.first : nullptr, true, nullptr, nullptr);
 }
 
 /** \} */

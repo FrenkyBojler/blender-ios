@@ -57,8 +57,8 @@ static void calc_initial_placement_point_from_view(bContext *C,
                                                    float r_rotation[3][3])
 {
 
-  Scene *scene = CTX_data_scene(C);
-  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(*C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   bool use_mouse_project = true; /* TODO: make optional */
@@ -200,8 +200,8 @@ static void gizmo_mesh_placement_modal_from_setup(const bContext *C, wmGizmoGrou
 
   /* Start off dragging. */
   {
-    wmWindow *win = CTX_wm_window(C);
-    ARegion *region = CTX_wm_region(C);
+    wmWindow *win = CTX_wm_window(*C);
+    ARegion *region = CTX_wm_region(*C);
     wmGizmo *gz = ggd->cage;
 
     {
@@ -306,7 +306,7 @@ static void MESH_GGT_add_bounds(wmGizmoGroupType *gzgt)
 
 static wmOperatorStatus add_primitive_cube_gizmo_exec(bContext *C, wmOperator *op)
 {
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit = CTX_data_edit_object(*C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   float matrix[4][4];
 
@@ -359,7 +359,7 @@ static wmOperatorStatus add_primitive_cube_gizmo_invoke(bContext *C,
                                                         wmOperator *op,
                                                         const wmEvent * /*event*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   wmOperatorStatus ret = add_primitive_cube_gizmo_exec(C, op);
   if (ret & OPERATOR_FINISHED) {
@@ -367,7 +367,7 @@ static wmOperatorStatus add_primitive_cube_gizmo_invoke(bContext *C,
     if (v3d && ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0)) {
       wmGizmoGroupType *gzgt = WM_gizmogrouptype_find("MESH_GGT_add_bounds", false);
       if (!WM_gizmo_group_type_ensure_ptr(gzgt)) {
-        Main *bmain = CTX_data_main(C);
+        Main *bmain = CTX_data_main(*C);
         WM_gizmo_group_type_reinit_ptr(bmain, gzgt);
       }
     }

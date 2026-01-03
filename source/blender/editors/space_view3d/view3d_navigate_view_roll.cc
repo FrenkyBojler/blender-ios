@@ -131,7 +131,7 @@ static wmOperatorStatus viewroll_modal(bContext *C, wmOperator *op, const wmEven
   switch (event_code) {
     case VIEW_APPLY: {
       viewroll_apply(vod, event->xy[0], event->xy[1]);
-      if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+      if (ED_screen_animation_playing(CTX_wm_manager(*C))) {
         use_autokey = true;
       }
       break;
@@ -194,7 +194,7 @@ static wmOperatorStatus viewroll_exec(bContext *C, wmOperator *op)
   }
 
   if (vod->depsgraph == nullptr) {
-    vod->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    vod->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     vod->init_navigation(C, nullptr, &ViewOpsType_roll);
   }
 
@@ -248,7 +248,7 @@ static wmOperatorStatus viewroll_invoke(bContext *C, wmOperator *op, const wmEve
      * non-locked view (when in a locked view) makes sense, but modal-interaction with the locked
      * view forwarding to a different view doesn't (hence the check). */
     {
-      ARegion *region = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(*C);
       if (region->regiontype == RGN_TYPE_WINDOW) {
         const RegionView3D *rv3d = static_cast<const RegionView3D *>(region->regiondata);
         if (rv3d->viewlock & RV3D_LOCK_ROTATION) {

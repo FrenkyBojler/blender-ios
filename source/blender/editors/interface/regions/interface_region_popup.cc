@@ -415,8 +415,8 @@ static void block_region_refresh(const bContext *C, ARegion *region)
 {
   BLI_assert(region->regiontype == RGN_TYPE_TEMPORARY);
 
-  ScrArea *ctx_area = CTX_wm_area(C);
-  ARegion *ctx_region = CTX_wm_region(C);
+  ScrArea *ctx_area = CTX_wm_area(*C);
+  ARegion *ctx_region = CTX_wm_region(*C);
 
   if (region->runtime->do_draw & RGN_REFRESH_UI) {
     ScrArea *handle_ctx_area;
@@ -553,13 +553,13 @@ void popup_block_scrolltest(Block *block)
 
 static void ui_popup_block_remove(bContext *C, PopupBlockHandle *handle)
 {
-  wmWindow *ctx_win = CTX_wm_window(C);
-  ScrArea *ctx_area = CTX_wm_area(C);
-  ARegion *ctx_region = CTX_wm_region(C);
+  wmWindow *ctx_win = CTX_wm_window(*C);
+  ScrArea *ctx_area = CTX_wm_area(*C);
+  ARegion *ctx_region = CTX_wm_region(*C);
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmWindow *win = ctx_win;
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
 
   /* There may actually be a different window active than the one showing the popup, so lookup real
    * one. */
@@ -628,7 +628,7 @@ void popup_dummy_panel_set(ARegion *region, Block *block)
 Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butregion, Button *but)
 {
   const int margin = UI_POPUP_MARGIN;
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
   ARegion *region = handle->region;
 
   const BlockCreateFunc create_func = handle->popup_create_vars.create_func;
@@ -704,11 +704,11 @@ Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butre
 
   if (!block->endblock) {
     block_end_ex(C,
-                 CTX_data_main(C),
+                 CTX_data_main(*C),
                  window,
-                 CTX_data_scene(C),
+                 CTX_data_scene(*C),
                  region,
-                 CTX_data_depsgraph_pointer(C),
+                 CTX_data_depsgraph_pointer(*C),
                  block,
                  handle->popup_create_vars.event_xy,
                  handle->popup_create_vars.event_xy);
@@ -879,7 +879,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
                                      FreeArgFunc arg_free,
                                      const bool can_refresh)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
   Button *activebut = context_active_but_get(C);
 
   /* disable tooltips from buttons below */
@@ -893,8 +893,8 @@ PopupBlockHandle *popup_block_create(bContext *C,
   PopupBlockHandle *handle = MEM_new<PopupBlockHandle>(__func__);
 
   /* store context for operator */
-  handle->ctx_area = CTX_wm_area(C);
-  handle->ctx_region = CTX_wm_region(C);
+  handle->ctx_area = CTX_wm_area(*C);
+  handle->ctx_region = CTX_wm_region(*C);
   handle->can_refresh = can_refresh;
 
   /* store vars to refresh popup (RGN_REFRESH_UI) */
@@ -907,7 +907,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
   copy_v2_v2_int(handle->popup_create_vars.event_xy, window->runtime->eventstate->xy);
 
   /* create area region */
-  ARegion *region = region_temp_add(CTX_wm_screen(C));
+  ARegion *region = region_temp_add(CTX_wm_screen(*C));
   handle->region = region;
 
   static ARegionType type;
@@ -939,7 +939,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
    * only makes sense if that region supports refreshing. */
   ARegion *region_popup_prev = nullptr;
   if (can_refresh) {
-    region_popup_prev = CTX_wm_region_popup(C);
+    region_popup_prev = CTX_wm_region_popup(*C);
     CTX_wm_region_popup_set(C, region);
   }
 
@@ -1015,7 +1015,7 @@ static void ui_alert_ok_cb(bContext *C, void *arg1, void *arg2)
   MEM_delete(data);
   Block *block = static_cast<Block *>(arg2);
   popup_menu_retval_set(block, RETURN_OK, true);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   popup_block_close(C, win, block);
 }
 

@@ -98,7 +98,7 @@ static void trans_obdata_in_obmode_update_all(TransInfo *t)
     return;
   }
 
-  Main *bmain = CTX_data_main(t->context);
+  Main *bmain = CTX_data_main(*t->context);
   object::data_xform_container_update_all(tdo->xds, bmain, t->depsgraph);
 }
 
@@ -121,7 +121,7 @@ static void trans_obchild_in_obmode_update_all(TransInfo *t)
     return;
   }
 
-  Main *bmain = CTX_data_main(t->context);
+  Main *bmain = CTX_data_main(*t->context);
   object::object_xform_skip_child_container_update_all(tdo->xcs, bmain, t->depsgraph);
 }
 
@@ -378,7 +378,7 @@ static void trans_object_base_deps_flag_finish(const TransInfo *t,
  */
 static void set_trans_object_base_flags(TransInfo *t)
 {
-  Main *bmain = CTX_data_main(t->context);
+  Main *bmain = CTX_data_main(*t->context);
   ViewLayer *view_layer = t->view_layer;
   View3D *v3d = static_cast<View3D *>(t->view);
   Scene *scene = t->scene;
@@ -522,7 +522,7 @@ static void clear_trans_object_base_flags(TransInfo *t)
 
 static void createTransObject(bContext *C, TransInfo *t)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   TransData *td = nullptr;
   TransDataExtension *tx;
   const bool is_prop_edit = (t->flag & T_PROP_EDIT) != 0;
@@ -532,7 +532,7 @@ static void createTransObject(bContext *C, TransInfo *t)
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
 
   /* Count. */
-  tc->data_len = CTX_DATA_COUNT(C, selected_bases);
+  tc->data_len = CTX_DATA_COUNT(*C, selected_bases);
 
   if (!tc->data_len) {
     /* Clear here, main transform function escapes too. */
@@ -555,7 +555,7 @@ static void createTransObject(bContext *C, TransInfo *t)
     tdo->xds = object::data_xform_container_create();
   }
 
-  CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
+  CTX_DATA_BEGIN (*C, Base *, base, selected_bases) {
     Object *ob = base->object;
 
     td->flag = TD_SELECTED;
@@ -845,7 +845,7 @@ static void autokeyframe_object(bContext *C,
                                 const bool transforming_more_than_one_object)
 {
   Vector<RNAPath> rna_paths;
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const StringRef rotation_path = animrig::get_rotation_mode_path(eRotationModes(ob->rotmode));
 
   if (animrig::is_keying_flag(scene, AUTOKEY_FLAG_INSERTNEEDED)) {

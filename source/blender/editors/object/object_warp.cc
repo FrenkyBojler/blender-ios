@@ -161,8 +161,8 @@ static wmOperatorStatus object_warp_verts_exec(bContext *C, wmOperator *op)
   const float offset_angle = RNA_float_get(op->ptr, "offset_angle");
 
   TransVertStore tvs = {nullptr};
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Object *obedit = CTX_data_edit_object(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Object *obedit = CTX_data_edit_object(*C);
 
   /* typically from 'rv3d' and 3d cursor */
   float viewmat[4][4];
@@ -193,7 +193,7 @@ static wmOperatorStatus object_warp_verts_exec(bContext *C, wmOperator *op)
       RNA_property_float_get_array(op->ptr, prop_viewmat, (float *)viewmat);
     }
     else {
-      RegionView3D *rv3d = CTX_wm_region_view3d(C);
+      RegionView3D *rv3d = CTX_wm_region_view3d(*C);
 
       if (rv3d) {
         copy_m4_m4(viewmat, rv3d->viewmat);
@@ -213,7 +213,7 @@ static wmOperatorStatus object_warp_verts_exec(bContext *C, wmOperator *op)
       RNA_property_float_get_array(op->ptr, prop_center, center);
     }
     else {
-      const Scene *scene = CTX_data_scene(C);
+      const Scene *scene = CTX_data_scene(*C);
       copy_v3_v3(center, scene->cursor.location);
 
       RNA_property_float_set_array(op->ptr, prop_center, center);

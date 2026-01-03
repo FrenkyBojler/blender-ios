@@ -1843,7 +1843,7 @@ static StitchState *stitch_init(bContext *C,
   GHashIterator gh_iter;
   UvEdge *all_edges;
   StitchState *state;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ToolSettings *ts = scene->toolsettings;
 
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -2174,16 +2174,16 @@ static bool goto_next_island(StitchStateContainer *ssc)
 
 static int stitch_init_all(bContext *C, wmOperator *op)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   if (!region) {
     return 0;
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ToolSettings *ts = scene->toolsettings;
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, v3d);
 
@@ -2339,7 +2339,7 @@ static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent
 
   WM_event_add_modal_handler(C, op);
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ToolSettings *ts = scene->toolsettings;
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
@@ -2362,9 +2362,9 @@ static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent
 
 static void stitch_exit(bContext *C, wmOperator *op, int finished)
 {
-  Scene *scene = CTX_data_scene(C);
-  SpaceImage *sima = CTX_wm_space_image(C);
-  ScrArea *area = CTX_wm_area(C);
+  Scene *scene = CTX_data_scene(*C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  ScrArea *area = CTX_wm_area(*C);
 
   StitchStateContainer *ssc = (StitchStateContainer *)op->customdata;
 
@@ -2422,7 +2422,7 @@ static void stitch_exit(bContext *C, wmOperator *op, int finished)
     ED_workspace_status_text(C, nullptr);
   }
 
-  ED_region_draw_cb_exit(CTX_wm_region(C)->runtime->type, ssc->draw_handle);
+  ED_region_draw_cb_exit(CTX_wm_region(*C)->runtime->type, ssc->draw_handle);
 
   ToolSettings *ts = scene->toolsettings;
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
@@ -2452,7 +2452,7 @@ static void stitch_cancel(bContext *C, wmOperator *op)
 
 static wmOperatorStatus stitch_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   if (!stitch_init_all(C, op)) {
     return OPERATOR_CANCELLED;
@@ -2472,7 +2472,7 @@ static StitchState *stitch_select(bContext *C,
 {
   /* add uv under mouse to processed uv's */
   float co[2];
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   UvNearestHit hit = uv_nearest_hit_init_max(&region->v2d);
 
   blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
@@ -2523,7 +2523,7 @@ static StitchState *stitch_select(bContext *C,
 static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   StitchStateContainer *ssc;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   ssc = static_cast<StitchStateContainer *>(op->customdata);
   StitchState *active_state = ssc->states[ssc->active_object_index];
@@ -2676,7 +2676,7 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
 
   /* if updated settings, renew feedback message */
   stitch_update_header(ssc, C);
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
 
   return OPERATOR_RUNNING_MODAL;
 }

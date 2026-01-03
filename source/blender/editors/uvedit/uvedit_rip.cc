@@ -902,10 +902,10 @@ static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const
 
 static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
-  Scene *scene = CTX_data_scene(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  Scene *scene = CTX_data_scene(*C);
   const ToolSettings *ts = scene->toolsettings;
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   if (ts->uv_sticky == UV_STICKY_VERT) {
     /* "Rip" is logically incompatible with sync-select.
@@ -933,7 +933,7 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
   float aspx, aspy;
   {
     /* Note that we only want to run this on the active object as this defines the UV image. */
-    Object *obedit = CTX_data_edit_object(C);
+    Object *obedit = CTX_data_edit_object(*C);
     ED_uvedit_get_aspect(obedit, &aspx, &aspy);
   }
   const float aspect_y = aspx / aspy;
@@ -965,7 +965,7 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus uv_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   float co[2];
 
   blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);

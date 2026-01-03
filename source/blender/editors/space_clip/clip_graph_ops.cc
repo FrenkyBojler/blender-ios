@@ -43,7 +43,7 @@
 static bool space_clip_graph_poll(bContext *C)
 {
   if (ED_space_clip_tracking_poll(C)) {
-    SpaceClip *sc = CTX_wm_space_clip(C);
+    SpaceClip *sc = CTX_wm_space_clip(*C);
 
     return sc->view == SC_VIEW_GRAPH;
   }
@@ -54,7 +54,7 @@ static bool space_clip_graph_poll(bContext *C)
 static bool clip_graph_knots_poll(bContext *C)
 {
   if (space_clip_graph_poll(C)) {
-    SpaceClip *sc = CTX_wm_space_clip(C);
+    SpaceClip *sc = CTX_wm_space_clip(*C);
 
     return (sc->flag & (SC_SHOW_GRAPH_TRACKS_MOTION | SC_SHOW_GRAPH_TRACKS_ERROR)) != 0;
   }
@@ -163,7 +163,7 @@ static void find_nearest_tracking_knot_cb(void *userdata,
 
 static void mouse_select_init_data(bContext *C, MouseSelectUserData *userdata, const float co[2])
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   memset(userdata, 0, sizeof(MouseSelectUserData));
   userdata->sc = sc;
   userdata->min_dist_sq = FLT_MAX;
@@ -172,9 +172,9 @@ static void mouse_select_init_data(bContext *C, MouseSelectUserData *userdata, c
 
 static bool mouse_select_knot(bContext *C, const float co[2], bool extend)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   View2D *v2d = &region->v2d;
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingTrack *active_track = tracking_object->active_track;
@@ -232,7 +232,7 @@ static bool mouse_select_knot(bContext *C, const float co[2], bool extend)
 
 static bool mouse_select_curve(bContext *C, const float co[2], bool extend)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingTrack *active_track = tracking_object->active_track;
@@ -308,7 +308,7 @@ static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   float co[2];
 
   blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
@@ -397,8 +397,8 @@ static void box_select_cb(void *userdata,
 
 static wmOperatorStatus box_select_graph_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
@@ -454,7 +454,7 @@ void CLIP_OT_graph_select_box(wmOperatorType *ot)
 
 static wmOperatorStatus graph_select_all_markers_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingTrack *active_track = tracking_object->active_track;
@@ -519,7 +519,7 @@ void CLIP_OT_graph_select_all_markers(wmOperatorType *ot)
 
 static wmOperatorStatus delete_curve_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingTrack *active_track = tracking_object->active_track;
@@ -568,7 +568,7 @@ void CLIP_OT_graph_delete_curve(wmOperatorType *ot)
 
 static wmOperatorStatus delete_knot_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingTrack *active_track = tracking_object->active_track;
@@ -627,9 +627,9 @@ static void view_all_cb(void *userdata,
 
 static wmOperatorStatus view_all_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  ARegion *region = CTX_wm_region(C);
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  Scene *scene = CTX_data_scene(*C);
+  ARegion *region = CTX_wm_region(*C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   View2D *v2d = &region->v2d;
   ViewAllUserData userdata;
   float extra;
@@ -698,8 +698,8 @@ void ED_clip_graph_center_current_frame(Scene *scene, ARegion *region)
 
 static wmOperatorStatus center_current_frame_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   ED_clip_graph_center_current_frame(scene, region);
 
@@ -724,7 +724,7 @@ void CLIP_OT_graph_center_current_frame(wmOperatorType *ot)
 
 static wmOperatorStatus graph_disable_markers_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingTrack *active_track = tracking_object->active_track;

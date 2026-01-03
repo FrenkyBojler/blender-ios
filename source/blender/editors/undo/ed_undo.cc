@@ -62,7 +62,7 @@ static CLG_LogRef LOG = {"undo"};
 
 bool ED_undo_is_state_valid(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   /* Currently only checks matching begin/end calls. */
   if (wm->runtime->undo_stack == nullptr) {
@@ -85,13 +85,13 @@ bool ED_undo_is_state_valid(bContext *C)
 
 void ED_undo_group_begin(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   BKE_undosys_stack_group_begin(wm->runtime->undo_stack);
 }
 
 void ED_undo_group_end(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   BKE_undosys_stack_group_end(wm->runtime->undo_stack);
 }
 
@@ -100,7 +100,7 @@ void ED_undo_push(bContext *C, const char *str)
   CLOG_INFO(&LOG, "Push '%s'", str);
   WM_file_tag_modified();
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   int steps = U.undosteps;
 
   /* Ensure steps that have been initialized are always pushed,
@@ -161,8 +161,8 @@ static void ed_undo_step_pre(bContext *C,
 {
   BLI_assert(ELEM(undo_dir, STEP_UNDO, STEP_REDO));
 
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* undo during jobs are running can easily lead to freeing data using by jobs,
    * or they can just lead to freezing job in some other cases */
@@ -199,8 +199,8 @@ static void ed_undo_step_post(bContext *C,
   using namespace blender::ed;
   BLI_assert(ELEM(undo_dir, STEP_UNDO, STEP_REDO));
 
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* App-Handlers (post). */
   {
@@ -243,7 +243,7 @@ static wmOperatorStatus ed_undo_step_direction(bContext *C,
 
   CLOG_INFO(&LOG, "Step direction=%s", (step == STEP_UNDO) ? "STEP_UNDO" : "STEP_REDO");
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   ed_undo_step_pre(C, wm, step, reports);
 
@@ -268,7 +268,7 @@ static int ed_undo_step_by_name(bContext *C, const char *undo_name, ReportList *
 {
   BLI_assert(undo_name != nullptr);
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   UndoStep *undo_step_from_name = BKE_undosys_step_find_by_name(wm->runtime->undo_stack,
                                                                 undo_name);
   if (undo_step_from_name == nullptr) {
@@ -312,7 +312,7 @@ static int ed_undo_step_by_index(bContext *C, const int undo_index, ReportList *
 {
   BLI_assert(undo_index >= 0);
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   const int active_step_index = BLI_findindex(&wm->runtime->undo_stack->steps,
                                               wm->runtime->undo_stack->step_active);
   if (undo_index == active_step_index) {
@@ -337,7 +337,7 @@ static int ed_undo_step_by_index(bContext *C, const int undo_index, ReportList *
 void ED_undo_grouped_push(bContext *C, const char *str)
 {
   /* do nothing if previous undo task is the same as this one (or from the same undo group) */
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   const UndoStep *us = wm->runtime->undo_stack->step_active;
   if (us && STREQ(str, us->name)) {
     BKE_undosys_stack_clear_active(wm->runtime->undo_stack);
@@ -380,7 +380,7 @@ void ED_undo_pop_op(bContext *C, wmOperator *op)
 
 bool ED_undo_is_valid(const bContext *C, const char *undoname)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   return BKE_undosys_stack_has_undo(wm->runtime->undo_stack, undoname);
 }
 
@@ -388,8 +388,8 @@ bool ED_undo_is_memfile_compatible(const bContext *C)
 {
   /* Some modes don't co-exist with memfile undo, disable their use: #60593
    * (this matches 2.7x behavior). */
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   if (view_layer != nullptr) {
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
@@ -412,8 +412,8 @@ bool ED_undo_is_legacy_compatible_for_property(bContext *C, ID *id, PointerRNA &
     return false;
   }
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   if (view_layer != nullptr) {
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
@@ -456,10 +456,10 @@ UndoStack *ED_undo_stack_get()
 static void ed_undo_refresh_for_op(bContext *C)
 {
   /* The "last operator" should disappear, later we can tie this with undo stack nicer. */
-  WM_operator_stack_clear(CTX_wm_manager(C));
+  WM_operator_stack_clear(CTX_wm_manager(*C));
 
   /* Keep button under the cursor active. */
-  WM_event_add_mousemove(CTX_wm_window(C));
+  WM_event_add_mousemove(CTX_wm_window(*C));
 
   ED_outliner_select_sync_from_all_tag(C);
 }
@@ -467,7 +467,7 @@ static void ed_undo_refresh_for_op(bContext *C)
 static wmOperatorStatus ed_undo_exec(bContext *C, wmOperator *op)
 {
   /* "last operator" should disappear, later we can tie this with undo stack nicer */
-  WM_operator_stack_clear(CTX_wm_manager(C));
+  WM_operator_stack_clear(CTX_wm_manager(*C));
   wmOperatorStatus ret = ed_undo_step_direction(C, STEP_UNDO, op->reports);
   if (ret & OPERATOR_FINISHED) {
     ed_undo_refresh_for_op(C);
@@ -481,7 +481,7 @@ static wmOperatorStatus ed_undo_push_exec(bContext *C, wmOperator *op)
     /* Exception for background mode, see: #60934.
      * NOTE: since the undo stack isn't initialized on startup, background mode behavior
      * won't match regular usage, this is just for scripts to do explicit undo pushes. */
-    wmWindowManager *wm = CTX_wm_manager(C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
     if (wm->runtime->undo_stack == nullptr) {
       wm->runtime->undo_stack = BKE_undosys_stack_create();
     }
@@ -508,7 +508,7 @@ static wmOperatorStatus ed_undo_redo_exec(bContext *C, wmOperator * /*op*/)
                                                                OPERATOR_CANCELLED;
   if (ret & OPERATOR_FINISHED) {
     /* Keep button under the cursor active. */
-    WM_event_add_mousemove(CTX_wm_window(C));
+    WM_event_add_mousemove(CTX_wm_window(*C));
   }
   return ret;
 }
@@ -517,7 +517,7 @@ static wmOperatorStatus ed_undo_redo_exec(bContext *C, wmOperator * /*op*/)
 
 static bool ed_undo_is_init_poll(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   if (wm->runtime->undo_stack == nullptr) {
     /* This message is intended for Python developers,
      * it will be part of the exception when attempting to call undo in background mode. */
@@ -550,7 +550,7 @@ static bool ed_undo_poll(bContext *C)
   if (!ed_undo_is_init_and_screenactive_poll(C)) {
     return false;
   }
-  UndoStack *undo_stack = CTX_wm_manager(C)->runtime->undo_stack;
+  UndoStack *undo_stack = CTX_wm_manager(*C)->runtime->undo_stack;
   return (undo_stack->step_active != nullptr) && (undo_stack->step_active->prev != nullptr);
 }
 
@@ -593,7 +593,7 @@ static bool ed_redo_poll(bContext *C)
   if (!ed_undo_is_init_and_screenactive_poll(C)) {
     return false;
   }
-  UndoStack *undo_stack = CTX_wm_manager(C)->runtime->undo_stack;
+  UndoStack *undo_stack = CTX_wm_manager(*C)->runtime->undo_stack;
   return (undo_stack->step_active != nullptr) && (undo_stack->step_active->next != nullptr);
 }
 
@@ -633,12 +633,12 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
 
   if (op) {
     CLOG_INFO(&LOG, "Operator repeat idname='%s'", op->type->idname);
-    wmWindowManager *wm = CTX_wm_manager(C);
-    const ScrArea *area = CTX_wm_area(C);
-    Scene *scene = CTX_data_scene(C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
+    const ScrArea *area = CTX_wm_area(*C);
+    Scene *scene = CTX_data_scene(*C);
 
     /* keep in sync with logic in view3d_panel_operator_redo() */
-    ARegion *region_orig = CTX_wm_region(C);
+    ARegion *region_orig = CTX_wm_region(*C);
     /* If the redo is called from a HUD, this knows about the region type the operator was
      * initially called in, so attempt to restore that. */
     ARegion *redo_region_from_hud = (region_orig->regiontype == RGN_TYPE_HUD) ?
@@ -671,7 +671,7 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
       if (op->type->check) {
         if (op->type->check(C, op)) {
           /* check for popup and re-layout buttons */
-          ARegion *region_popup = CTX_wm_region_popup(C);
+          ARegion *region_popup = CTX_wm_region_popup(*C);
           if (region_popup) {
             ED_region_tag_refresh_ui(region_popup);
           }

@@ -930,8 +930,8 @@ static void view3d_main_region_message_subscribe(const wmRegionMessageSubscribeP
   WM_msg_subscribe_rna_anon_type(mbus, SceneDisplay, &msg_sub_value_region_tag_redraw);
   WM_msg_subscribe_rna_anon_type(mbus, ObjectDisplay, &msg_sub_value_region_tag_redraw);
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
   if (obact != nullptr) {
@@ -1139,10 +1139,10 @@ void ED_view3d_buttons_region_layout_ex(const bContext *C,
                                         ARegion *region,
                                         const char *category_override)
 {
-  const enum eContextObjectMode mode = CTX_data_mode_enum(C);
+  const enum eContextObjectMode mode = CTX_data_mode_enum(*C);
 
   const char *contexts_base[4] = {nullptr};
-  contexts_base[0] = CTX_data_mode_string(C);
+  contexts_base[0] = CTX_data_mode_string(*C);
 
   const char **contexts = &contexts_base[1];
 
@@ -1395,7 +1395,7 @@ static void view3d_tools_region_init(wmWindowManager *wm, ARegion *region)
 
 static void view3d_tools_region_draw(const bContext *C, ARegion *region)
 {
-  const char *contexts[] = {CTX_data_mode_string(C), nullptr};
+  const char *contexts[] = {CTX_data_mode_string(*C), nullptr};
   ED_region_panels_ex(C, region, blender::wm::OpCallContext::InvokeRegionWin, contexts);
 }
 
@@ -1468,13 +1468,13 @@ static void space_view3d_refresh(const bContext *C, ScrArea *area)
   ED_view3d_local_stats_free(v3d);
 
   if (v3d->localvd && v3d->localvd->runtime.flag & V3D_RUNTIME_LOCAL_MAYBE_EMPTY) {
-    ED_localview_exit_if_empty(CTX_data_ensure_evaluated_depsgraph(C),
-                               CTX_data_scene(C),
-                               CTX_data_view_layer(C),
-                               CTX_wm_manager(C),
-                               CTX_wm_window(C),
+    ED_localview_exit_if_empty(CTX_data_ensure_evaluated_depsgraph(*C),
+                               CTX_data_scene(*C),
+                               CTX_data_view_layer(*C),
+                               CTX_wm_manager(*C),
+                               CTX_wm_window(*C),
                                v3d,
-                               CTX_wm_area(C),
+                               CTX_wm_area(*C),
                                true,
                                U.smooth_viewtx);
   }

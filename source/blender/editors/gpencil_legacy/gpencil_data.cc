@@ -72,7 +72,7 @@ static wmOperatorStatus gpencil_data_add_exec(bContext *C, wmOperator *op)
   /* decrement user count and add new datablock */
   /* TODO: if a datablock exists,
    * we should make a copy of it instead of starting fresh (as in other areas) */
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   /* decrement user count of old GP datablock */
   if (*gpd_ptr) {
@@ -171,7 +171,7 @@ void GPENCIL_OT_data_unlink(wmOperatorType *ot)
 static wmOperatorStatus gpencil_layer_add_exec(bContext *C, wmOperator *op)
 {
   PointerRNA gpd_owner = {};
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bGPdata *gpd = nullptr;
 
   bGPdata **gpd_ptr = ED_annotation_data_get_pointers(C, &gpd_owner);
@@ -265,7 +265,7 @@ static wmOperatorStatus gpencil_layer_remove_exec(bContext *C, wmOperator *op)
     bGPdata **gpd_ptr = ED_annotation_data_get_pointers(C, nullptr);
     *gpd_ptr = nullptr;
 
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     BKE_id_free_us(bmain, gpd);
   }
 

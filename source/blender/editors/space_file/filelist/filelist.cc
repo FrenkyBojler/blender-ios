@@ -3367,7 +3367,7 @@ static void filelist_readjob_start_ex(FileList *filelist,
                                       const bContext *C,
                                       const bool force_blocking_read)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   wmJob *wm_job;
   FileListReadJob *flrj;
 
@@ -3411,8 +3411,8 @@ static void filelist_readjob_start_ex(FileList *filelist,
   }
 
   /* setup job */
-  wm_job = WM_jobs_get(CTX_wm_manager(C),
-                       CTX_wm_window(C),
+  wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                       CTX_wm_window(*C),
                        filelist,
                        filelist->asset_library_ref ? "Loading Asset Library..." :
                                                      "Listing directories...",
@@ -3428,7 +3428,7 @@ static void filelist_readjob_start_ex(FileList *filelist,
                     filelist_readjob_endjob);
 
   /* start the job */
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_jobs_start(CTX_wm_manager(*C), wm_job);
 }
 
 void filelist_readjob_start(FileList *filelist, const int space_notifier, const bContext *C)

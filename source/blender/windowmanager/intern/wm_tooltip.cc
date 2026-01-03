@@ -47,7 +47,7 @@ void WM_tooltip_timer_init_ex(
   WM_tooltip_timer_clear(C, win);
 
   bScreen *screen = WM_window_get_active_screen(win);
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   if (screen->tool_tip == nullptr) {
     screen->tool_tip = MEM_callocN<wmTooltipState>(__func__);
   }
@@ -69,7 +69,7 @@ void WM_tooltip_timer_init(
 
 void WM_tooltip_timer_clear(bContext *C, wmWindow *win)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   bScreen *screen = WM_window_get_active_screen(win);
   if (screen->tool_tip != nullptr) {
     if (screen->tool_tip->timer != nullptr) {
@@ -106,8 +106,8 @@ void WM_tooltip_init(bContext *C, wmWindow *win)
   double pass_delay = 0.0;
 
   {
-    ScrArea *area_prev = CTX_wm_area(C);
-    ARegion *region_prev = CTX_wm_region(C);
+    ScrArea *area_prev = CTX_wm_area(*C);
+    ARegion *region_prev = CTX_wm_region(*C);
     CTX_wm_area_set(C, screen->tool_tip->area_from);
     CTX_wm_region_set(C, screen->tool_tip->region_from);
     screen->tool_tip->region = screen->tool_tip->init(C,
@@ -122,7 +122,7 @@ void WM_tooltip_init(bContext *C, wmWindow *win)
   copy_v2_v2_int(screen->tool_tip->event_xy, win->runtime->eventstate->xy);
   if (pass_prev != screen->tool_tip->pass) {
     /* The pass changed, add timer for next pass. */
-    wmWindowManager *wm = CTX_wm_manager(C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
     screen->tool_tip->timer = WM_event_timer_add(wm, win, TIMER, pass_delay);
   }
   if (screen->tool_tip->region == nullptr) {

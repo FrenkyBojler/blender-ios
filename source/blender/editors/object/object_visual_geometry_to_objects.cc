@@ -437,13 +437,13 @@ static Vector<Collection *> find_collections_containing_object(Main &bmain,
 
 static wmOperatorStatus visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main &bmain = *CTX_data_main(C);
-  Scene &scene = *CTX_data_scene(C);
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
-  ViewLayer &active_view_layer = *CTX_data_view_layer(C);
+  Main &bmain = *CTX_data_main(*C);
+  Scene &scene = *CTX_data_scene(*C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*C);
+  ViewLayer &active_view_layer = *CTX_data_view_layer(*C);
 
   Vector<Object *> selected_objects_orig;
-  CTX_DATA_BEGIN (C, Object *, src_ob_orig, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, src_ob_orig, selected_objects) {
     selected_objects_orig.append(src_ob_orig);
   }
   CTX_DATA_END;

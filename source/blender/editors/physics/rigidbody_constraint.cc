@@ -56,7 +56,7 @@ static bool operator_rigidbody_constraints_editable_poll(Scene *scene)
 
 static bool operator_rigidbody_con_active_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (!operator_rigidbody_constraints_editable_poll(scene)) {
     return false;
   }
@@ -70,7 +70,7 @@ static bool operator_rigidbody_con_active_poll(bContext *C)
 
 static bool operator_rigidbody_con_add_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (!operator_rigidbody_constraints_editable_poll(scene)) {
     return false;
   }
@@ -121,9 +121,9 @@ void ED_rigidbody_constraint_remove(Main *bmain, Scene *scene, Object *ob)
 
 static wmOperatorStatus rigidbody_con_add_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   RigidBodyWorld *rbw = BKE_rigidbody_get_world(scene);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
@@ -175,9 +175,9 @@ void RIGIDBODY_OT_constraint_add(wmOperatorType *ot)
 
 static wmOperatorStatus rigidbody_con_remove_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 

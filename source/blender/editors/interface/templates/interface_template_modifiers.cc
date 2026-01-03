@@ -32,7 +32,7 @@ static void modifier_panel_id(void *md_link, char *r_name)
 
 void template_modifiers(Layout * /*layout*/, bContext *C)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   Object *ob = blender::ed::object::context_active_object(C);
   ListBaseT<ModifierData> *modifiers = &ob->modifiers;

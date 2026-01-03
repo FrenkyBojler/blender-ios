@@ -179,7 +179,7 @@ static void draw_spline_points(const bContext *C,
 
   uchar rgb_spline[4];
   MaskSplinePoint *points_array = BKE_mask_spline_point_array(spline);
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   bool undistort = false;
 
   int tot_feather_point;
@@ -385,7 +385,7 @@ static void mask_draw_curve_type(const bContext *C,
                                                                         GPU_PRIM_LINE_STRIP;
   const uchar rgb_black[4] = {0x00, 0x00, 0x00, 0xff};
   uchar rgb_tmp[4];
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   float (*points)[2] = orig_points;
 
   if (sc) {

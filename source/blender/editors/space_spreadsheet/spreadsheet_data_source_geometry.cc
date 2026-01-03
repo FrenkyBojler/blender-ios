@@ -1190,7 +1190,7 @@ bke::GeometrySet get_geometry_set_for_instance_ids(const bke::GeometrySet &root_
 
 std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object *object_eval)
 {
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
 
   bke::SocketValueVariant display_data = geometry_display_data_get(sspreadsheet, object_eval);
   if (display_data.is_context_dependent_field()) {

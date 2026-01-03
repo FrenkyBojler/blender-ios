@@ -398,7 +398,7 @@ static wmOperatorStatus mesh_uv_texture_add_exec(bContext *C, wmOperator *op)
   }
 
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
@@ -430,7 +430,7 @@ static wmOperatorStatus mesh_uv_texture_remove_exec(bContext *C, wmOperator *op)
   }
 
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
     WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
@@ -1027,7 +1027,7 @@ KeyBlock *ED_mesh_get_edit_shape_key(const Mesh *me)
 
 Mesh *ED_mesh_context(bContext *C)
 {
-  Mesh *mesh = static_cast<Mesh *>(CTX_data_pointer_get_type(C, "mesh", &RNA_Mesh).data);
+  Mesh *mesh = static_cast<Mesh *>(CTX_data_pointer_get_type(*C, "mesh", &RNA_Mesh).data);
   if (mesh != nullptr) {
     return mesh;
   }

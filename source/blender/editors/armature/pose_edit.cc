@@ -59,7 +59,7 @@ Object *ED_pose_object_from_context(bContext *C)
 {
   /* NOTE: matches logic with #ED_operator_posemode_context(). */
 
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   Object *ob;
 
   /* Since this call may also be used from the buttons window,
@@ -68,7 +68,7 @@ Object *ED_pose_object_from_context(bContext *C)
     ob = blender::ed::object::context_active_object(C);
   }
   else {
-    ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+    ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
   }
 
   return ob;
@@ -97,8 +97,8 @@ bool ED_object_posemode_enter_ex(Main *bmain, Object *ob)
 }
 bool ED_object_posemode_enter(bContext *C, Object *ob)
 {
-  ReportList *reports = CTX_wm_reports(C);
-  Main *bmain = CTX_data_main(C);
+  ReportList *reports = CTX_wm_reports(*C);
+  Main *bmain = CTX_data_main(*C);
   if (!BKE_id_is_editable(bmain, &ob->id)) {
     BKE_report(reports, RPT_WARNING, "Cannot pose libdata");
     return false;
@@ -125,7 +125,7 @@ bool ED_object_posemode_exit_ex(Main *bmain, Object *ob)
 }
 bool ED_object_posemode_exit(bContext *C, Object *ob)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bool ok = ED_object_posemode_exit_ex(bmain, ob);
   if (ok) {
     WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
@@ -156,8 +156,8 @@ void ED_pose_recalculate_paths(bContext *C, Scene *scene, Object *ob, ePosePathC
     return;
   }
 
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   Depsgraph *depsgraph;
   bool free_depsgraph = false;
@@ -177,7 +177,7 @@ void ED_pose_recalculate_paths(bContext *C, Scene *scene, Object *ob, ePosePathC
   if (range == POSE_PATH_CALC_RANGE_CURRENT_FRAME) {
     /* NOTE: Dependency graph will be evaluated at all the frames, but we first need to access some
      * nested pointers, like animation data. */
-    depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     free_depsgraph = false;
   }
   else {
@@ -211,7 +211,7 @@ static wmOperatorStatus pose_calculate_paths_invoke(bContext *C,
                                                     wmOperator *op,
                                                     const wmEvent * /*event*/)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
 
   if (ELEM(nullptr, ob, ob->pose)) {
     return OPERATOR_CANCELLED;
@@ -239,8 +239,8 @@ static wmOperatorStatus pose_calculate_paths_invoke(bContext *C,
  */
 static wmOperatorStatus pose_calculate_paths_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
-  Scene *scene = CTX_data_scene(C);
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
+  Scene *scene = CTX_data_scene(*C);
 
   if (ELEM(nullptr, ob, ob->pose)) {
     return OPERATOR_CANCELLED;
@@ -259,7 +259,7 @@ static wmOperatorStatus pose_calculate_paths_exec(bContext *C, wmOperator *op)
   }
 
   /* set up path data for bones being calculated */
-  CTX_DATA_BEGIN (C, bPoseChannel *, pchan, selected_pose_bones_from_active_object) {
+  CTX_DATA_BEGIN (*C, bPoseChannel *, pchan, selected_pose_bones_from_active_object) {
     /* verify makes sure that the selected bone has a bone with the appropriate settings */
     animviz_verify_motionpaths(op->reports, scene, ob, pchan);
   }
@@ -325,7 +325,7 @@ void POSE_OT_paths_calculate(wmOperatorType *ot)
 static bool pose_update_paths_poll(bContext *C)
 {
   if (ED_operator_posemode_exclusive(C)) {
-    Object *ob = CTX_data_active_object(C);
+    Object *ob = CTX_data_active_object(*C);
     return (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) != 0;
   }
 
@@ -334,8 +334,8 @@ static bool pose_update_paths_poll(bContext *C)
 
 static wmOperatorStatus pose_update_paths_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
-  Scene *scene = CTX_data_scene(C);
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
+  Scene *scene = CTX_data_scene(*C);
 
   if (ELEM(nullptr, ob, scene)) {
     return OPERATOR_CANCELLED;
@@ -343,7 +343,7 @@ static wmOperatorStatus pose_update_paths_exec(bContext *C, wmOperator *op)
   animviz_motionpath_compute_range(ob, scene);
 
   /* set up path data for bones being calculated */
-  CTX_DATA_BEGIN (C, bPoseChannel *, pchan, selected_pose_bones_from_active_object) {
+  CTX_DATA_BEGIN (*C, bPoseChannel *, pchan, selected_pose_bones_from_active_object) {
     animviz_verify_motionpaths(op->reports, scene, ob, pchan);
   }
   CTX_DATA_END;
@@ -409,7 +409,7 @@ static void pose_clear_paths(Object *ob, bool only_selected)
 /* Operator callback - wrapper for the back-end function. */
 static wmOperatorStatus pose_clear_paths_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
   bool only_selected = RNA_boolean_get(op->ptr, "only_selected");
 
   /* only continue if there's an object */
@@ -464,8 +464,8 @@ void POSE_OT_paths_clear(wmOperatorType *ot)
 
 static wmOperatorStatus pose_update_paths_range_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+  Scene *scene = CTX_data_scene(*C);
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
 
   if (ELEM(nullptr, scene, ob, ob->pose)) {
     return OPERATOR_CANCELLED;
@@ -501,10 +501,10 @@ void POSE_OT_paths_range_update(wmOperatorType *ot)
 
 static wmOperatorStatus pose_flip_names_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  Main *bmain = CTX_data_main(*C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   const bool do_strip_numbers = RNA_boolean_get(op->ptr, "do_strip_numbers");
 
   FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
@@ -557,13 +557,13 @@ void POSE_OT_flip_names(wmOperatorType *ot)
 
 static wmOperatorStatus pose_autoside_names_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   char newname[MAXBONENAME];
   short axis = RNA_enum_get(op->ptr, "axis");
   Object *ob_prev = nullptr;
 
   /* loop through selected bones, auto-naming them */
-  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     STRNCPY_UTF8(newname, pchan->name);
     if (bone_autoside_name(newname, 1, axis, pchan->bone->head[axis], pchan->bone->tail[axis])) {
@@ -620,7 +620,7 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext *C, wmOperator *op)
   Object *prev_ob = nullptr;
 
   /* Set rotation mode of selected bones. */
-  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
     /* use API Method for conversions... */
     BKE_rotMode_change_values(
         pchan->quat, pchan->eul, pchan->rotAxis, &pchan->rotAngle, pchan->rotmode, short(mode));
@@ -667,9 +667,10 @@ void POSE_OT_rotation_mode_set(wmOperatorType *ot)
 /* active object is armature in posemode, poll checked */
 static wmOperatorStatus pose_hide_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Vector<Object *> objects = BKE_object_pose_array_get_unique(scene, view_layer, CTX_wm_view3d(C));
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Vector<Object *> objects = BKE_object_pose_array_get_unique(
+      scene, view_layer, CTX_wm_view3d(*C));
   bool changed_multi = false;
 
   const int hide_select = !RNA_boolean_get(op->ptr, "unselected");
@@ -720,9 +721,10 @@ void POSE_OT_hide(wmOperatorType *ot)
 /* active object is armature in posemode, poll checked */
 static wmOperatorStatus pose_reveal_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Vector<Object *> objects = BKE_object_pose_array_get_unique(scene, view_layer, CTX_wm_view3d(C));
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Vector<Object *> objects = BKE_object_pose_array_get_unique(
+      scene, view_layer, CTX_wm_view3d(*C));
   bool changed_multi = false;
   const bool select = RNA_boolean_get(op->ptr, "select");
 
@@ -777,12 +779,12 @@ void POSE_OT_reveal(wmOperatorType *ot)
 
 static wmOperatorStatus pose_flip_quats_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   bool changed_multi = false;
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob_iter) {
     bool changed = false;
     /* loop through all selected pchans, flipping and keying (as needed) */

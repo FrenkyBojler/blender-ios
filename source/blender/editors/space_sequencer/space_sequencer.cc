@@ -206,7 +206,7 @@ static void sequencer_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static void sequencer_refresh(const bContext *C, ScrArea *area)
 {
-  const wmWindow *window = CTX_wm_window(C);
+  const wmWindow *window = CTX_wm_window(*C);
   SpaceSeq *sseq = (SpaceSeq *)area->spacedata.first;
   ARegion *region_main = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
   ARegion *region_preview = BKE_area_find_region_type(area, RGN_TYPE_PREVIEW);
@@ -310,7 +310,7 @@ static int /*eContextResult*/ sequencer_context(const bContext *C,
                                                 const char *member,
                                                 bContextDataResult *result)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, sequencer_context_dir);
@@ -458,14 +458,14 @@ static void sequencer_main_region_draw_overlay(const bContext *C, ARegion *regio
 
 static void sequencer_main_clamp_view(const bContext *C, ARegion *region)
 {
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
 
   if ((sseq->flag & SEQ_CLAMP_VIEW) == 0) {
     return;
   }
 
   View2D *v2d = &region->v2d;
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   if (!scene) {
     return;
   }
@@ -518,7 +518,7 @@ static void sequencer_main_clamp_view(const bContext *C, ARegion *region)
 
 static void sequencer_main_region_clamp_custom_set(const bContext *C, ARegion *region)
 {
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
   View2D *v2d = &region->v2d;
 
   if ((v2d->flag & V2D_IS_NAVIGATING) == 0) {
@@ -791,7 +791,7 @@ static void sequencer_tools_region_init(wmWindowManager *wm, ARegion *region)
 
 static void sequencer_tools_region_draw(const bContext *C, ARegion *region)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   wm::OpCallContext op_context = wm::OpCallContext::InvokeRegionWin;
 
   for (ARegion &ar : area->regionbase) {
@@ -849,7 +849,7 @@ static void sequencer_preview_region_init(wmWindowManager *wm, ARegion *region)
 
 static void sequencer_preview_region_layout(const bContext *C, ARegion *region)
 {
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
 
   if (sseq->flag & SEQ_ZOOM_TO_FIT) {
     View2D *v2d = &region->v2d;
@@ -859,7 +859,7 @@ static void sequencer_preview_region_layout(const bContext *C, ARegion *region)
 
 static void sequencer_preview_region_view2d_changed(const bContext *C, ARegion * /*region*/)
 {
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
   sseq->flag &= ~SEQ_ZOOM_TO_FIT;
 }
 

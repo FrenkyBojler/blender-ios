@@ -317,9 +317,9 @@ InterpolateOpData *InterpolateOpData::from_operator(const bContext &C, const wmO
   using bke::greasepencil::Drawing;
   using bke::greasepencil::Layer;
 
-  const Scene &scene = *CTX_data_scene(&C);
+  const Scene &scene = *CTX_data_scene(C);
   const int current_frame = scene.r.cfra;
-  const Object &object = *CTX_data_active_object(&C);
+  const Object &object = *CTX_data_active_object(C);
   const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   if (!grease_pencil.has_active_layer()) {
@@ -685,8 +685,8 @@ static bke::CurvesGeometry interpolate_between_curves(const GreasePencil &grease
 static void grease_pencil_interpolate_status_indicators(bContext &C,
                                                         const InterpolateOpData &opdata)
 {
-  Scene &scene = *CTX_data_scene(&C);
-  ScrArea &area = *CTX_wm_area(&C);
+  Scene &scene = *CTX_data_scene(C);
+  ScrArea &area = *CTX_wm_area(C);
 
   const StringRef msg = IFACE_("GPencil Interpolation: ");
 
@@ -742,9 +742,9 @@ static void grease_pencil_interpolate_update(bContext &C, const wmOperator &op)
   using bke::greasepencil::Layer;
 
   const auto &opdata = *static_cast<InterpolateOpData *>(op.customdata);
-  const Scene &scene = *CTX_data_scene(&C);
+  const Scene &scene = *CTX_data_scene(C);
   const int current_frame = scene.r.cfra;
-  Object &object = *CTX_data_active_object(&C);
+  Object &object = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
   const auto flip_mode = InterpolateFlipMode(RNA_enum_get(op.ptr, "flip"));
 
@@ -798,9 +798,9 @@ static void grease_pencil_interpolate_restore(bContext &C, wmOperator &op)
   }
 
   const auto &opdata = *static_cast<InterpolateOpData *>(op.customdata);
-  const Scene &scene = *CTX_data_scene(&C);
+  const Scene &scene = *CTX_data_scene(C);
   const int current_frame = scene.r.cfra;
-  Object &object = *CTX_data_active_object(&C);
+  Object &object = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   opdata.layer_mask.foreach_index([&](const int layer_index) {
@@ -836,9 +836,9 @@ static bool grease_pencil_interpolate_init(const bContext &C, wmOperator &op)
   }
   InterpolateOpData &data = *static_cast<InterpolateOpData *>(op.customdata);
 
-  const Scene &scene = *CTX_data_scene(&C);
+  const Scene &scene = *CTX_data_scene(C);
   const int current_frame = scene.r.cfra;
-  Object &object = *CTX_data_active_object(&C);
+  Object &object = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   /* Create target frames. */
@@ -855,7 +855,7 @@ static bool grease_pencil_interpolate_init(const bContext &C, wmOperator &op)
 /* Exit and free memory. */
 static void grease_pencil_interpolate_exit(bContext &C, wmOperator &op)
 {
-  ScrArea &area = *CTX_wm_area(&C);
+  ScrArea &area = *CTX_wm_area(C);
 
   if (op.customdata == nullptr) {
     return;
@@ -873,12 +873,12 @@ static bool grease_pencil_interpolate_poll(bContext *C)
   if (!ed::greasepencil::active_grease_pencil_poll(C)) {
     return false;
   }
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   if (!ts || !ts->gp_paint) {
     return false;
   }
   /* Only 3D view */
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area && area->spacetype != SPACE_VIEW3D) {
     return false;
   }
@@ -891,7 +891,7 @@ static wmOperatorStatus grease_pencil_interpolate_invoke(bContext *C,
                                                          wmOperator *op,
                                                          const wmEvent * /*event*/)
 {
-  wmWindow &win = *CTX_wm_window(C);
+  wmWindow &win = *CTX_wm_window(*C);
 
   if (!grease_pencil_interpolate_init(*C, *op)) {
     grease_pencil_interpolate_exit(*C, *op);
@@ -923,9 +923,9 @@ static wmOperatorStatus grease_pencil_interpolate_modal(bContext *C,
                                                         wmOperator *op,
                                                         const wmEvent *event)
 {
-  wmWindow &win = *CTX_wm_window(C);
-  const ARegion &region = *CTX_wm_region(C);
-  ScrArea &area = *CTX_wm_area(C);
+  wmWindow &win = *CTX_wm_window(*C);
+  const ARegion &region = *CTX_wm_region(*C);
+  ScrArea &area = *CTX_wm_area(*C);
   InterpolateOpData &opdata = *static_cast<InterpolateOpData *>(op->customdata);
   const bool has_numinput = hasNumInput(&opdata.numeric_input);
 
@@ -1258,11 +1258,11 @@ static wmOperatorStatus grease_pencil_interpolate_sequence_exec(bContext *C, wmO
   }
   InterpolateOpData &opdata = *static_cast<InterpolateOpData *>(op->customdata);
 
-  const Scene &scene = *CTX_data_scene(C);
+  const Scene &scene = *CTX_data_scene(*C);
   const int current_frame = scene.r.cfra;
-  Object &object = *CTX_data_active_object(C);
+  Object &object = *CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
-  ToolSettings &ts = *CTX_data_tool_settings(C);
+  ToolSettings &ts = *CTX_data_tool_settings(*C);
   const InterpolationType type = InterpolationType(RNA_enum_get(op->ptr, "type"));
   const eBezTriple_Easing easing = eBezTriple_Easing(RNA_enum_get(op->ptr, "easing"));
   const float back_easing = RNA_float_get(op->ptr, "back");
@@ -1348,7 +1348,7 @@ static void grease_pencil_interpolate_sequence_ui(bContext *C, wmOperator *op)
   row = &layout.row(true);
   row->prop(op->ptr, "layers", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  if (CTX_data_mode_enum(C) == CTX_MODE_EDIT_GPENCIL_LEGACY) {
+  if (CTX_data_mode_enum(*C) == CTX_MODE_EDIT_GPENCIL_LEGACY) {
     row = &layout.row(true);
     row->prop(op->ptr, "interpolate_selected_only", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
@@ -1371,7 +1371,7 @@ static void grease_pencil_interpolate_sequence_ui(bContext *C, wmOperator *op)
 
   if (type == InterpolationType::CurveMap) {
     /* Get an RNA pointer to ToolSettings to give to the custom curve. */
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     ToolSettings *ts = scene->toolsettings;
     PointerRNA gpsettings_ptr = RNA_pointer_create_discrete(
         &scene->id, &RNA_GPencilInterpolateSettings, &ts->gp_interpolate);

@@ -129,7 +129,7 @@ static void BRUSH_OT_scale_size(wmOperatorType *ot)
 static wmOperatorStatus palette_new_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Palette *palette;
 
   palette = BKE_palette_add(bmain, "Palette");
@@ -243,9 +243,9 @@ static void PALETTE_OT_color_delete(wmOperatorType *ot)
 /* --- Extract Palette from Image. */
 static bool palette_extract_img_poll(bContext *C)
 {
-  SpaceLink *sl = CTX_wm_space_data(C);
+  SpaceLink *sl = CTX_wm_space_data(*C);
   if ((sl != nullptr) && (sl->spacetype == SPACE_IMAGE)) {
-    SpaceImage *sima = CTX_wm_space_image(C);
+    SpaceImage *sima = CTX_wm_space_image(*C);
     Image *image = sima->image;
     ImageUser iuser = sima->iuser;
     return BKE_image_has_ibuf(image, &iuser);
@@ -258,10 +258,10 @@ static wmOperatorStatus palette_extract_img_exec(bContext *C, wmOperator *op)
 {
   const int threshold = RNA_int_get(op->ptr, "threshold");
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bool done = false;
 
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   Image *image = sima->image;
   ImageUser iuser = sima->iuser;
   void *lock;
@@ -470,7 +470,7 @@ static void PALETTE_OT_color_move(wmOperatorType *ot)
 /* Join Palette swatches. */
 static wmOperatorStatus palette_join_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Palette *palette = paint->palette;
   Palette *palette_join = nullptr;
@@ -606,7 +606,7 @@ static wmOperatorStatus stencil_control_invoke(bContext *C, wmOperator *op, cons
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
   const float mvalf[2] = {float(event->mval[0]), float(event->mval[1])};
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   StencilControlData *scd;
   int mask = RNA_enum_get(op->ptr, "texmode");
 
@@ -760,7 +760,7 @@ static wmOperatorStatus stencil_control_modal(bContext *C, wmOperator *op, const
       break;
   }
 
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
 
   return OPERATOR_RUNNING_MODAL;
 }

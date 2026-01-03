@@ -1074,7 +1074,7 @@ bool id_single_user(bContext *C, ID *id, PointerRNA *ptr, PropertyRNA *prop)
     /* If property isn't editable,
      * we're going to have an extra block hanging around until we save. */
     if (RNA_property_editable(ptr, prop)) {
-      Main *bmain = CTX_data_main(C);
+      Main *bmain = CTX_data_main(*C);
       /* copy animation actions too */
       newid = BKE_id_copy_ex(bmain, id, nullptr, LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ACTIONS);
       if (newid != nullptr) {

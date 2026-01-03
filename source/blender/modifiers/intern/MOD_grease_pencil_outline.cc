@@ -277,7 +277,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   layout.prop(ptr, "outline_material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (scene->camera == nullptr) {
     layout.label(RPT_("Outline requires an active camera"), ICON_ERROR);
   }

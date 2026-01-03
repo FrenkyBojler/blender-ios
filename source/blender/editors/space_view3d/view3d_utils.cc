@@ -230,7 +230,7 @@ bool ED_view3d_viewplane_get(const Depsgraph *depsgraph,
 
 void view3d_operator_needs_gpu(const bContext *C)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   view3d_region_operator_needs_gpu(region);
 }
@@ -272,8 +272,8 @@ void ED_view3d_polygon_offset(const RegionView3D *rv3d, const float dist)
 
 bool ED_view3d_context_activate(bContext *C)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  ScrArea *area = CTX_wm_area(C);
+  bScreen *screen = CTX_wm_screen(*C);
+  ScrArea *area = CTX_wm_area(*C);
 
   /* area can be nullptr when called from python */
   if (area == nullptr || area->spacetype != SPACE_VIEW3D) {
@@ -735,7 +735,7 @@ bool ED_view3d_camera_lock_autokey(
 {
   /* similar to ED_view3d_cameracontrol_update */
   if (ED_view3d_camera_lock_check(v3d, rv3d)) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     ID *id_key;
     Object *root_parent;
     if (v3d->camera->transflag & OB_TRANSFORM_ADJUST_ROOT_PARENT_FOR_VIEW_LOCK &&

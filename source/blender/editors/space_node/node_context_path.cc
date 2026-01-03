@@ -121,7 +121,7 @@ static void get_context_path_node_shader(const bContext &C,
 {
   if (snode.flag & SNODE_PIN) {
     if (snode.shaderfrom == SNODE_SHADER_WORLD) {
-      Scene *scene = CTX_data_scene(&C);
+      Scene *scene = CTX_data_scene(C);
       ui::context_path_add_generic(path, RNA_Scene, scene);
       if (scene != nullptr) {
         context_path_add_top_level_shader_node_tree(snode, path, RNA_World, scene->world);
@@ -134,7 +134,7 @@ static void get_context_path_node_shader(const bContext &C,
     }
   }
   else {
-    Object *object = CTX_data_active_object(&C);
+    Object *object = CTX_data_active_object(C);
     if (snode.shaderfrom == SNODE_SHADER_OBJECT && object != nullptr) {
       ui::context_path_add_generic(path, RNA_Object, object);
       if (!(object->matbits && object->matbits[object->actcol - 1])) {
@@ -144,7 +144,7 @@ static void get_context_path_node_shader(const bContext &C,
       context_path_add_top_level_shader_node_tree(snode, path, RNA_Material, material);
     }
     else if (snode.shaderfrom == SNODE_SHADER_WORLD) {
-      Scene *scene = CTX_data_scene(&C);
+      Scene *scene = CTX_data_scene(C);
       ui::context_path_add_generic(path, RNA_Scene, scene);
       if (scene != nullptr) {
         context_path_add_top_level_shader_node_tree(snode, path, RNA_World, scene->world);
@@ -172,7 +172,7 @@ static void get_context_path_node_compositor(const bContext &C,
   }
   else {
     if (snode.node_tree_sub_type == SNODE_COMPOSITOR_SEQUENCER) {
-      Scene *sequencer_scene = CTX_data_sequencer_scene(&C);
+      Scene *sequencer_scene = CTX_data_sequencer_scene(C);
       if (!sequencer_scene) {
         context_path_add_node_tree_and_node_groups(snode, path);
         return;
@@ -208,7 +208,7 @@ static void get_context_path_node_compositor(const bContext &C,
       context_path_add_node_tree_and_node_groups(snode, path, true);
     }
     else {
-      Scene *scene = CTX_data_scene(&C);
+      Scene *scene = CTX_data_scene(C);
       ui::context_path_add_generic(path, RNA_Scene, scene);
       context_path_add_node_tree_and_node_groups(snode, path);
     }
@@ -223,7 +223,7 @@ static void get_context_path_node_geometry(const bContext &C,
     context_path_add_node_tree_and_node_groups(snode, path);
   }
   else {
-    Object *object = CTX_data_active_object(&C);
+    Object *object = CTX_data_active_object(C);
     if (!object) {
       context_path_add_node_tree_and_node_groups(snode, path);
       return;
@@ -241,7 +241,7 @@ static void get_context_path_node_geometry(const bContext &C,
 
 Vector<ui::ContextPathItem> context_path_for_space_node(const bContext &C)
 {
-  SpaceNode *snode = CTX_wm_space_node(&C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
     return {};
   }

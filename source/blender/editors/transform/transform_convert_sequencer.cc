@@ -90,7 +90,7 @@ struct TransSeq {
  */
 static void SeqTransInfo(TransInfo *t, Strip *strip, int *r_count, int *r_flag)
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
   Editing *ed = seq::editing_get(scene);
   const ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
 
@@ -237,7 +237,7 @@ static TransData *SeqToTransData(Scene *scene,
 static int SeqToTransData_build(
     TransInfo *t, ListBaseT<Strip> *seqbase, TransData *td, TransData2D *td2d, TransDataSeq *tdsq)
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
   int count, flag;
   int tot = 0;
 
@@ -279,7 +279,7 @@ static void free_transform_custom_data(TransCustomData *custom_data)
 /* Canceled, need to update the strips display. */
 static void seq_transform_cancel(TransInfo *t, Span<Strip *> transformed_strips)
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
 
   if (t->remove_on_cancel) {
@@ -304,7 +304,7 @@ static void seq_transform_cancel(TransInfo *t, Span<Strip *> transformed_strips)
 
 static ListBaseT<Strip> *seqbase_active_get(const TransInfo *t)
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
   Editing *ed = seq::editing_get(scene);
   return seq::active_seqbase_get(ed);
 }
@@ -332,7 +332,7 @@ static VectorSet<Strip *> seq_transform_collection_from_transdata(TransDataConta
 
 static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *custom_data)
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
   Editing *ed = seq::editing_get(scene);
   if (ed == nullptr) {
     free_transform_custom_data(custom_data);
@@ -410,7 +410,7 @@ static Strip *effect_base_input_get(Strip *effect, SeqInputSide side)
 static void query_time_dependent_strips_strips(TransInfo *t,
                                                VectorSet<Strip *> &time_dependent_strips)
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
   ListBaseT<Strip> *seqbase = seqbase_active_get(t);
 
   /* Query dependent strips where used strips do not have handles selected.
@@ -561,7 +561,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
 static void createTransSeqData(bContext *C, TransInfo *t)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   if (!scene) {
     return;
   }
@@ -663,7 +663,7 @@ static void flushTransSeq(TransInfo *t)
 {
   /* Editing null check already done. */
   ListBaseT<Strip> *seqbasep = seqbase_active_get(t);
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
 
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
   TransData *td = tc->data;
@@ -788,7 +788,7 @@ static void recalcData_sequencer(TransInfo *t)
   Strip *strip_prev = nullptr;
 
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
 
   for (a = 0, td = tc->data; a < tc->data_len; a++, td++) {
     TransDataSeq *tdsq = (TransDataSeq *)td->extra;
@@ -815,7 +815,7 @@ static void recalcData_sequencer(TransInfo *t)
 
 static void special_aftertrans_update__sequencer(bContext *C, TransInfo *t)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   SpaceSeq *sseq = (SpaceSeq *)t->area->spacedata.first;
   if ((sseq->flag & SPACE_SEQ_DESELECT_STRIP_HANDLE) != 0 &&
       transform_mode_edge_seq_slide_use_restore_handle_selection(t))

@@ -524,10 +524,10 @@ static wmOperatorStatus nlaedit_viewall(bContext *C, const bool only_sel)
   }
 
   /* do View2D syncing */
-  blender::ui::view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
+  blender::ui::view2d_sync(CTX_wm_screen(*C), CTX_wm_area(*C), v2d, V2D_LOCK_COPY);
 
   /* just redraw this view */
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -650,7 +650,7 @@ static wmOperatorStatus nlaedit_add_actionclip_invoke(bContext *C,
 /* add the specified action as new strip */
 static wmOperatorStatus nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
@@ -905,7 +905,7 @@ void NLA_OT_transition_add(wmOperatorType *ot)
 
 static wmOperatorStatus nlaedit_add_sound_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
@@ -2044,7 +2044,7 @@ void NLA_OT_action_sync_length(wmOperatorType *ot)
 
 static wmOperatorStatus nlaedit_make_single_user_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
@@ -2166,7 +2166,7 @@ static short bezt_apply_nlamapping(KeyframeEditData *ked, BezTriple *bezt)
 
 static wmOperatorStatus nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};

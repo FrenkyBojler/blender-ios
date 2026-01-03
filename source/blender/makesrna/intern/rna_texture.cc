@@ -228,7 +228,7 @@ static void rna_Texture_type_set(PointerRNA *ptr, int value)
 
 void rna_TextureSlotTexture_update(bContext *C, PointerRNA *ptr)
 {
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   rna_TextureSlot_update(C, ptr);
 }
 
@@ -251,9 +251,9 @@ void rna_TextureSlot_update(bContext *C, PointerRNA *ptr)
       WM_main_add_notifier(NC_LAMP | ND_LIGHTING_DRAW, id);
       break;
     case ID_BR: {
-      Scene *scene = CTX_data_scene(C);
+      Scene *scene = CTX_data_scene(*C);
       MTex *mtex = static_cast<MTex *>(ptr->data);
-      ViewLayer *view_layer = CTX_data_view_layer(C);
+      ViewLayer *view_layer = CTX_data_view_layer(*C);
       BKE_paint_invalidate_overlay_tex(scene, view_layer, mtex->tex);
       BKE_brush_tag_unsaved_changes(reinterpret_cast<Brush *>(id));
       WM_main_add_notifier(NC_BRUSH, id);
@@ -436,7 +436,7 @@ static void rna_Texture_use_nodes_update(bContext *C, PointerRNA *ptr)
     }
   }
 
-  rna_Texture_nodes_update(CTX_data_main(C), CTX_data_scene(C), ptr);
+  rna_Texture_nodes_update(CTX_data_main(*C), CTX_data_scene(*C), ptr);
 }
 
 #else

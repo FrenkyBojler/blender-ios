@@ -45,15 +45,15 @@
 
 bool paint_curve_poll(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  Object *ob = CTX_data_active_object(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   SpaceImage *sima;
 
   if (rv3d && !(ob && ((ob->mode & (OB_MODE_ALL_PAINT | OB_MODE_SCULPT_CURVES)) != 0))) {
     return false;
   }
 
-  sima = CTX_wm_space_image(C);
+  sima = CTX_wm_space_image(*C);
 
   if (sima && sima->mode != SI_MODE_PAINT) {
     return false;
@@ -158,7 +158,7 @@ static wmOperatorStatus paintcurve_new_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   if (brush) {
     brush->paint_curve = paintcurve_for_brush_add(bmain, DATA_("PaintCurve"), brush);
@@ -189,9 +189,9 @@ static void paintcurve_point_add(bContext *C, wmOperator *op, const int loc[2])
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
-  Main *bmain = CTX_data_main(C);
-  wmWindow *window = CTX_wm_window(C);
-  ARegion *region = CTX_wm_region(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindow *window = CTX_wm_window(*C);
+  ARegion *region = CTX_wm_region(*C);
   const float vec[3] = {float(loc[0]), float(loc[1]), 0.0f};
 
   PaintCurve *pc = br->paint_curve;
@@ -305,8 +305,8 @@ static wmOperatorStatus paintcurve_delete_point_exec(bContext *C, wmOperator *op
   Brush *br = BKE_paint_brush(paint);
   PaintCurve *pc;
   PaintCurvePoint *pcp;
-  wmWindow *window = CTX_wm_window(C);
-  ARegion *region = CTX_wm_region(C);
+  wmWindow *window = CTX_wm_window(*C);
+  ARegion *region = CTX_wm_region(*C);
   int i;
   int tot_del = 0;
   pc = br->paint_curve;
@@ -382,8 +382,8 @@ void PAINTCURVE_OT_delete_point(wmOperatorType *ot)
 static bool paintcurve_point_select(
     bContext *C, wmOperator *op, const int loc[2], bool toggle, bool extend)
 {
-  wmWindow *window = CTX_wm_window(C);
-  ARegion *region = CTX_wm_region(C);
+  wmWindow *window = CTX_wm_window(*C);
+  ARegion *region = CTX_wm_region(*C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
   PaintCurve *pc;
@@ -584,8 +584,8 @@ static wmOperatorStatus paintcurve_slide_invoke(bContext *C, wmOperator *op, con
   }
 
   if (pcp) {
-    ARegion *region = CTX_wm_region(C);
-    wmWindow *window = CTX_wm_window(C);
+    ARegion *region = CTX_wm_region(*C);
+    wmWindow *window = CTX_wm_window(*C);
     PointSlideData *psd = MEM_mallocN<PointSlideData>("PointSlideData");
     copy_v2_v2_int(psd->initial_loc, event->mval);
     psd->event = event->type;
@@ -628,8 +628,8 @@ static wmOperatorStatus paintcurve_slide_modal(bContext *C, wmOperator *op, cons
 
   switch (event->type) {
     case MOUSEMOVE: {
-      ARegion *region = CTX_wm_region(C);
-      wmWindow *window = CTX_wm_window(C);
+      ARegion *region = CTX_wm_region(*C);
+      wmWindow *window = CTX_wm_window(*C);
       float diff[2] = {float(event->mval[0] - psd->initial_loc[0]),
                        float(event->mval[1] - psd->initial_loc[1])};
       if (psd->select == 1) {
@@ -736,8 +736,8 @@ static wmOperatorStatus paintcurve_cursor_invoke(bContext *C,
 
   switch (mode) {
     case PaintMode::Texture2D: {
-      ARegion *region = CTX_wm_region(C);
-      SpaceImage *sima = CTX_wm_space_image(C);
+      ARegion *region = CTX_wm_region(*C);
+      SpaceImage *sima = CTX_wm_space_image(*C);
       float location[2];
 
       if (!sima) {

@@ -37,7 +37,7 @@ int /*eContextResult*/ outliner_main_region_context(const bContext *C,
                                                     const char *member,
                                                     bContextDataResult *result)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, outliner_context_dir);

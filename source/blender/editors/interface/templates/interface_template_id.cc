@@ -212,7 +212,7 @@ static void id_search_cb_objects_from_scene(const bContext *C,
     scene = (Scene *)id_from;
   }
   else {
-    scene = CTX_data_scene(C);
+    scene = CTX_data_scene(*C);
   }
 
   BKE_main_id_flag_listbase(lb, ID_TAG_DOIT, false);
@@ -389,7 +389,7 @@ ID *template_id_liboverride_hierarchy_make(
     return nullptr;
   }
 
-  Object *object_active = CTX_data_active_object(C);
+  Object *object_active = CTX_data_active_object(*C);
   if (object_active == nullptr && GS(owner_id->name) == ID_OB) {
     object_active = (Object *)owner_id;
   }
@@ -408,7 +408,7 @@ ID *template_id_liboverride_hierarchy_make(
     }
   }
 
-  Collection *collection_active_context = CTX_data_collection(C);
+  Collection *collection_active_context = CTX_data_collection(*C);
   Collection *collection_active = collection_active_context;
   if (collection_active == nullptr && GS(owner_id->name) == ID_GR) {
     collection_active = (Collection *)owner_id;
@@ -460,8 +460,8 @@ ID *template_id_liboverride_hierarchy_make(
   }
 
   ID *id_override = nullptr;
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   switch (GS(id->name)) {
     case ID_GR:
       if (collection_active != nullptr &&
@@ -692,7 +692,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
       RNA_property_pointer_set(&template_ui->ptr, template_ui->prop, idptr, nullptr);
       RNA_property_update(C, &template_ui->ptr, template_ui->prop);
 
-      if (id && CTX_wm_window(C)->runtime->eventstate->modifier & KM_SHIFT) {
+      if (id && CTX_wm_window(*C)->runtime->eventstate->modifier & KM_SHIFT) {
         /* only way to force-remove data (on save) */
         id_us_clear_real(id);
         id_fake_user_clear(id);
@@ -720,8 +720,8 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
       break;
     case UI_ID_LOCAL:
       if (id) {
-        Main *bmain = CTX_data_main(C);
-        if (CTX_wm_window(C)->runtime->eventstate->modifier & KM_SHIFT) {
+        Main *bmain = CTX_data_main(*C);
+        if (CTX_wm_window(*C)->runtime->eventstate->modifier & KM_SHIFT) {
           template_id_liboverride_hierarchy_make(C, bmain, template_ui, &idptr, &undo_push_label);
         }
         else {
@@ -741,8 +741,8 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
       break;
     case UI_ID_OVERRIDE:
       if (id && ID_IS_OVERRIDE_LIBRARY(id)) {
-        Main *bmain = CTX_data_main(C);
-        if (CTX_wm_window(C)->runtime->eventstate->modifier & KM_SHIFT) {
+        Main *bmain = CTX_data_main(*C);
+        if (CTX_wm_window(*C)->runtime->eventstate->modifier & KM_SHIFT) {
           template_id_liboverride_hierarchy_make(C, bmain, template_ui, &idptr, &undo_push_label);
         }
         else {
@@ -762,19 +762,19 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 
         /* make copy */
         if (do_scene_obj) {
-          Main *bmain = CTX_data_main(C);
-          Scene *scene = CTX_data_scene(C);
+          Main *bmain = CTX_data_main(*C);
+          Scene *scene = CTX_data_scene(*C);
           blender::ed::object::object_single_user_make(bmain, scene, (Object *)id);
           WM_event_add_notifier(C, NC_WINDOW, nullptr);
           DEG_relations_tag_update(bmain);
         }
         else {
-          Main *bmain = CTX_data_main(C);
+          Main *bmain = CTX_data_main(*C);
           id_single_user(C, id, &template_ui->ptr, template_ui->prop);
           WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
           DEG_relations_tag_update(bmain);
         }
-        BKE_main_ensure_invariants(*CTX_data_main(C));
+        BKE_main_ensure_invariants(*CTX_data_main(*C));
         undo_push_label = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Single User");
       }
       break;
@@ -1099,7 +1099,7 @@ static void template_ID(const bContext *C,
      * code (see #ui_apply_but_undo) would not work here, as the new name is not yet applied to the
      * ID. */
     button_flag_disable(but, BUT_UNDO);
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     button_func_rename_full_set(
         but, [bmain, id](std::string &new_name) { ED_id_rename(*bmain, *id, new_name); });
     button_funcN_set(but,
@@ -1446,7 +1446,7 @@ static void template_ID_tabs(const bContext *C,
                              const char *newop,
                              const char *menu)
 {
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   const PointerRNA active_ptr = RNA_property_pointer_get(&template_id.ptr, template_id.prop);
   MenuType *mt = menu ? WM_menutype_find(menu, false) : nullptr;
 
@@ -1563,7 +1563,7 @@ static void ui_template_id(Layout &layout,
   StructRNA *type = RNA_property_pointer_type(ptr, prop);
   short idcode = RNA_type_to_ID_code(type);
   template_ui.idcode = idcode;
-  template_ui.idlb = which_libbase(CTX_data_main(C), idcode);
+  template_ui.idlb = which_libbase(CTX_data_main(*C), idcode);
 
   /* create UI elements for this template
    * - template_ID makes a copy of the template data and assigns it to the relevant buttons
@@ -1651,7 +1651,7 @@ void template_action(Layout *layout,
   }
 
   template_ui.idcode = ID_AC;
-  template_ui.idlb = which_libbase(CTX_data_main(C), ID_AC);
+  template_ui.idlb = which_libbase(CTX_data_main(*C), ID_AC);
   BLI_assert(template_ui.idlb);
 
   Layout &row = layout->row(true);

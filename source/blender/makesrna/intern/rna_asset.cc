@@ -354,7 +354,7 @@ static void rna_AssetMetaData_catalog_id_set(PointerRNA *ptr, const char *value)
 
 void rna_AssetMetaData_catalog_id_update(bContext *C, PointerRNA *ptr)
 {
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   if (sfile == nullptr) {
     /* Until there is a proper Asset Service available, it's only possible to get the asset library
      * from within the asset browser context. */

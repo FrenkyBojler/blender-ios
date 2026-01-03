@@ -72,7 +72,7 @@ void SEQUENCER_OT_sample(wmOperatorType *ot)
 void SEQ_get_timeline_region_padding(const bContext *C, float *r_pad_top, float *r_pad_bottom)
 {
   *r_pad_top = UI_TIME_SCRUB_MARGIN_Y;
-  const SpaceSeq *sseq = CTX_wm_space_seq(C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(*C);
   if (sseq->flag & SEQ_SHOW_OVERLAY && sseq->cache_overlay.flag & SEQ_CACHE_SHOW &&
       sseq->cache_overlay.flag & SEQ_CACHE_SHOW_FINAL_OUT)
   {
@@ -93,17 +93,17 @@ void SEQ_add_timeline_region_padding(const bContext *C, rctf *view_box)
   float pad_top, pad_bottom;
   SEQ_get_timeline_region_padding(C, &pad_top, &pad_bottom);
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   BLI_rctf_pad_y(view_box, region->winy, pad_bottom, pad_top);
 }
 
 static wmOperatorStatus sequencer_view_all_exec(bContext *C, wmOperator *op)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   rctf box;
 
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   const Editing *ed = seq::editing_get(scene);
 
   seq::timeline_init_boundbox(scene, &box);
@@ -174,7 +174,7 @@ static bool view_frame_preview_scope(bContext *C, wmOperator *op, ARegion *regio
   if (!region || region->regiontype != RGN_TYPE_PREVIEW) {
     return false;
   }
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
   if (!sseq) {
     return false;
   }
@@ -221,11 +221,11 @@ static bool view_frame_preview_scope(bContext *C, wmOperator *op, ARegion *regio
 
 static wmOperatorStatus sequencer_view_all_preview_exec(bContext *C, wmOperator *op)
 {
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
-  bScreen *screen = CTX_wm_screen(C);
-  ScrArea *area = CTX_wm_area(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
+  bScreen *screen = CTX_wm_screen(*C);
+  ScrArea *area = CTX_wm_area(*C);
 
-  if (view_frame_preview_scope(C, op, CTX_wm_region(C))) {
+  if (view_frame_preview_scope(C, op, CTX_wm_region(*C))) {
     return OPERATOR_FINISHED;
   }
 
@@ -269,7 +269,7 @@ static wmOperatorStatus sequencer_view_all_preview_exec(bContext *C, wmOperator 
 
   sseq->flag |= SEQ_ZOOM_TO_FIT;
 
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
   return OPERATOR_FINISHED;
 }
 
@@ -296,7 +296,7 @@ void SEQUENCER_OT_view_all_preview(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_view_zoom_ratio_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_sequencer_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(*C);
   const RenderData *rd = &scene->r;
   View2D *v2d = ui::view2d_fromcontext(C);
 
@@ -310,7 +310,7 @@ static wmOperatorStatus sequencer_view_zoom_ratio_exec(bContext *C, wmOperator *
 
   BLI_rctf_resize(&v2d->cur, ceilf(winx * facx / ratio + 0.5f), ceilf(winy * facy / ratio + 0.5f));
 
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
 
   ui::view2d_curRect_changed(C, v2d);
 
@@ -369,7 +369,7 @@ static void seq_view_collection_rect_preview(Scene *scene, Span<Strip *> strips,
 
 static void seq_view_collection_rect_timeline(const bContext *C, Span<Strip *> strips, rctf *rect)
 {
-  const Scene *scene = CTX_data_sequencer_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(*C);
   int xmin = MAXFRAME * 2;
   int xmax = -MAXFRAME * 2;
   int ymin = seq::MAX_CHANNELS + 1;
@@ -436,8 +436,8 @@ static void seq_view_collection_rect_timeline(const bContext *C, Span<Strip *> s
 
 static wmOperatorStatus sequencer_view_selected_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
-  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
+  ARegion *region = CTX_wm_region(*C);
   View2D *v2d = ui::view2d_fromcontext(C);
   rctf cur_new = v2d->cur;
 
@@ -490,7 +490,7 @@ void SEQUENCER_OT_view_selected(wmOperatorType *ot)
 
 static wmOperatorStatus view_ghost_border_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   View2D *v2d = ui::view2d_fromcontext(C);
 
   rctf rect;

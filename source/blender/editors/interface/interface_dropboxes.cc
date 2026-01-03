@@ -33,7 +33,7 @@ namespace blender::ui {
 
 static bool ui_view_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
 
   std::unique_ptr<DropTargetInterface> drop_target = region_views_find_drop_target_at(region,
                                                                                       event->xy);
@@ -55,8 +55,8 @@ static std::string ui_view_drop_tooltip(bContext *C,
                                         const int xy[2],
                                         wmDropBox * /*drop*/)
 {
-  const wmWindow *win = CTX_wm_window(C);
-  const ARegion *region = CTX_wm_region(C);
+  const wmWindow *win = CTX_wm_window(*C);
+  const ARegion *region = CTX_wm_region(*C);
   std::unique_ptr<DropTargetInterface> drop_target = region_views_find_drop_target_at(region, xy);
 
   if (drop_target == nullptr) {
@@ -93,11 +93,11 @@ static void ui_drop_name_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 
 static bool ui_drop_material_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
-  PointerRNA mat_slot = CTX_data_pointer_get_type(C, "material_slot", &RNA_MaterialSlot);
+  PointerRNA mat_slot = CTX_data_pointer_get_type(*C, "material_slot", &RNA_MaterialSlot);
   if (RNA_pointer_is_null(&mat_slot)) {
     return false;
   }
-  PointerRNA ob_ptr = CTX_data_pointer_get_type(C, "object", &RNA_Object);
+  PointerRNA ob_ptr = CTX_data_pointer_get_type(*C, "object", &RNA_Object);
   if (RNA_pointer_is_null(&ob_ptr)) {
     return false;
   }
@@ -121,11 +121,11 @@ static std::string ui_drop_material_tooltip(bContext *C,
                                             const int /*xy*/[2],
                                             wmDropBox * /*drop*/)
 {
-  PointerRNA rna_ptr = CTX_data_pointer_get_type(C, "object", &RNA_Object);
+  PointerRNA rna_ptr = CTX_data_pointer_get_type(*C, "object", &RNA_Object);
   Object *ob = (Object *)rna_ptr.data;
   BLI_assert(ob);
 
-  PointerRNA mat_slot = CTX_data_pointer_get_type(C, "material_slot", &RNA_MaterialSlot);
+  PointerRNA mat_slot = CTX_data_pointer_get_type(*C, "material_slot", &RNA_MaterialSlot);
   BLI_assert(mat_slot.data);
 
   const int target_slot = RNA_int_get(&mat_slot, "slot_index") + 1;

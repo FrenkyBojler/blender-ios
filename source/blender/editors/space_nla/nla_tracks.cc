@@ -444,7 +444,7 @@ static wmOperatorStatus nlatracks_pushdown_exec(bContext *C, wmOperator *op)
   /* 'push-down' action - only usable when not in Tweak-mode. */
   BKE_nla_action_pushdown({*id, *adt}, ID_IS_OVERRIDE_LIBRARY(id));
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   DEG_id_tag_update_ex(bmain, id, ID_RECALC_ANIMATION);
 
   /* The action needs updating too, as FCurve modifiers are to be reevaluated. They won't extend
@@ -659,7 +659,7 @@ static wmOperatorStatus nlaedit_add_tracks_exec(bContext *C, wmOperator *op)
 
   /* done? */
   if (op_done) {
-    DEG_relations_tag_update(CTX_data_main(C));
+    DEG_relations_tag_update(CTX_data_main(*C));
 
     /* set notifier that things have changed */
     WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
@@ -796,7 +796,7 @@ static wmOperatorStatus nlaedit_objects_add_exec(bContext *C, wmOperator * /*op*
   }
 
   /* operate on selected objects... */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     /* ensure that object has AnimData... that's all */
     BKE_animdata_ensure_id(&ob->id);
   }

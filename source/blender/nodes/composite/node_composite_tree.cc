@@ -41,9 +41,9 @@ static void composite_get_from_context(const bContext *C,
                                        ID **r_from)
 {
   using namespace blender;
-  const SpaceNode *snode = CTX_wm_space_node(C);
+  const SpaceNode *snode = CTX_wm_space_node(*C);
   if (snode->node_tree_sub_type == SNODE_COMPOSITOR_SEQUENCER) {
-    Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+    Scene *sequencer_scene = CTX_data_sequencer_scene(*C);
     if (!sequencer_scene) {
       *r_ntree = nullptr;
       return;
@@ -75,7 +75,7 @@ static void composite_get_from_context(const bContext *C,
     return;
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   *r_from = nullptr;
   *r_id = &scene->id;

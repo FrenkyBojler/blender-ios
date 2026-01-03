@@ -222,8 +222,8 @@ static void draw_normalization_borders(Scene *scene, View2D *v2d)
 static void graph_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
-  SpaceGraph *sipo = CTX_wm_space_graph(C);
-  Scene *scene = CTX_data_scene(C);
+  SpaceGraph *sipo = CTX_wm_space_graph(*C);
+  Scene *scene = CTX_data_scene(*C);
   bAnimContext ac;
   View2D *v2d = &region->v2d;
 
@@ -326,7 +326,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   if (sipo->mode != SIPO_MODE_DRIVERS) {
     blender::ui::view2d_view_orthoSpecial(region, v2d, true);
     int marker_draw_flag = DRAW_MARKERS_MARGIN;
-    if (ED_markers_region_visible(CTX_wm_area(C), region)) {
+    if (ED_markers_region_visible(CTX_wm_area(*C), region)) {
       ED_markers_draw(C, marker_draw_flag);
     }
   }
@@ -355,10 +355,10 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
 static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
-  const SpaceGraph *sipo = CTX_wm_space_graph(C);
+  const SpaceGraph *sipo = CTX_wm_space_graph(*C);
   const bool minimized = (region->winy < UI_ANIM_MINY);
 
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(*C);
   View2D *v2d = &region->v2d;
 
   /* Driver Editor's X axis is not time. */

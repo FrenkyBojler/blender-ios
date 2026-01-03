@@ -151,7 +151,7 @@ static NavigateGizmoInfo g_navigate_params[GZ_INDEX_TOTAL] = {
 
 static bool WIDGETGROUP_navigate_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   if ((((U.uiflag & USER_SHOW_GIZMO_NAVIGATE) == 0) &&
        (U.mini_axis_type != USER_MINI_AXIS_TYPE_GIZMO)) ||
       (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE)))
@@ -271,7 +271,7 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
     }
 
     /* When dragging an axis, use this instead. */
-    wmWindowManager *wm = CTX_wm_manager(C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
     gz->keymap = WM_gizmo_keymap_generic_press_drag(wm);
     gz->drag_part = 0;
   }
@@ -282,9 +282,9 @@ static void WIDGETGROUP_navigate_setup(const bContext *C, wmGizmoGroup *gzgroup)
 static void WIDGETGROUP_navigate_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   NavigateWidgetGroup *navgroup = static_cast<NavigateWidgetGroup *>(gzgroup->customdata);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   const RegionView3D *rv3d = static_cast<const RegionView3D *>(region->regiondata);
-  const View3D *v3d = CTX_wm_view3d(C);
+  const View3D *v3d = CTX_wm_view3d(*C);
 
   for (int i = 0; i < 3; i++) {
     copy_v3_v3(navgroup->gz_array[GZ_INDEX_ROTATE]->matrix_offset[i], rv3d->viewmat[i]);

@@ -44,7 +44,7 @@ static bool active_attribute_poll(bContext *C)
   if (!editable_curves_in_edit_mode_poll(C)) {
     return false;
   }
-  const Object *object = CTX_data_active_object(C);
+  const Object *object = CTX_data_active_object(*C);
   const ID &object_data = *static_cast<const ID *>(object->data);
   if (!geometry::attribute_set_poll(*C, object_data)) {
     return false;
@@ -91,7 +91,7 @@ static void validate_value(const bke::AttributeAccessor attributes,
 
 static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 {
-  Object *active_object = CTX_data_active_object(C);
+  Object *active_object = CTX_data_active_object(*C);
   Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
 
   AttributeOwner active_owner = AttributeOwner::from_id(&active_curves_id.id);
@@ -147,7 +147,7 @@ static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Object *active_object = CTX_data_active_object(C);
+  Object *active_object = CTX_data_active_object(*C);
   Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&active_curves_id.id);
@@ -190,7 +190,7 @@ static void set_attribute_ui(bContext *C, wmOperator *op)
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   Curves &curves_id = *static_cast<Curves *>(object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&curves_id.id);

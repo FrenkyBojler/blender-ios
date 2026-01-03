@@ -1569,7 +1569,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
     Object *ob_src = dtmd->ob_source;
 
     if (ob_src) {
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
       const Object *ob_eval = DEG_get_evaluated(depsgraph, ob_src);
       if (!ob_eval) {
         RNA_enum_item_end(&item, &totitem);
@@ -1606,7 +1606,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
                                    bke::AttrDomain::Point :
                                    bke::AttrDomain::Corner;
 
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
       const Object *ob_eval = DEG_get_evaluated(depsgraph, ob_src);
       if (!ob_eval) {
         RNA_enum_item_end(&item, &totitem);
@@ -1674,7 +1674,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_dst_itemf(
   if (STREQ(RNA_property_identifier(prop), "layers_vgroup_select_dst")) {
     /* Only list destination layers if we have a single source! */
     if (dtmd->layers_select_src[DT_MULTILAYER_INDEX_MDEFORMVERT] >= 0) {
-      Object *ob_dst = CTX_data_active_object(C); /* XXX Is this OK? */
+      Object *ob_dst = CTX_data_active_object(*C); /* XXX Is this OK? */
 
       if (ob_dst) {
         const bDeformGroup *dg;
@@ -1698,7 +1698,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_dst_itemf(
   else if (STREQ(RNA_property_identifier(prop), "layers_uv_select_dst")) {
     /* Only list destination layers if we have a single source! */
     if (dtmd->layers_select_src[DT_MULTILAYER_INDEX_UV] >= 0) {
-      Object *ob_dst = CTX_data_active_object(C); /* XXX Is this OK? */
+      Object *ob_dst = CTX_data_active_object(*C); /* XXX Is this OK? */
 
       if (ob_dst && ob_dst->data) {
         Mesh *me_dst = static_cast<Mesh *>(ob_dst->data);
@@ -1724,7 +1724,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_dst_itemf(
 
     /* Only list destination layers if we have a single source! */
     if (dtmd->layers_select_src[multilayer_index] >= 0) {
-      Object *ob_dst = CTX_data_active_object(C); /* XXX Is this OK? */
+      Object *ob_dst = CTX_data_active_object(*C); /* XXX Is this OK? */
 
       if (ob_dst && ob_dst->data) {
         eCustomDataType types[2] = {CD_PROP_COLOR, CD_PROP_BYTE_COLOR};

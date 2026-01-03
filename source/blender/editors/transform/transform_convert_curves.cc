@@ -289,7 +289,7 @@ static void createTransCurvesVerts(bContext *C, TransInfo *t)
   const bool use_connected_only = (t->flag & T_PROP_CONNECTED) != 0;
 
   /* Evaluated depsgraph is necessary for taking into account deformation from modifiers. */
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
   /* Count selected elements per object and create TransData structs. */
   for (const int i : trans_data_contrainers.index_range()) {

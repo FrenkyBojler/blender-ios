@@ -1331,7 +1331,7 @@ void transform_convert_mesh_crazyspace_detect(TransInfo *t,
     Array<float3, 0> defcos;
     int totleft = -1;
     if (BKE_modifiers_is_correctable_deformed(t->scene, tc->obedit)) {
-      BKE_scene_graph_evaluated_ensure(t->depsgraph, CTX_data_main(t->context));
+      BKE_scene_graph_evaluated_ensure(t->depsgraph, CTX_data_main(*t->context));
 
       /* Use evaluated state because we need b-bone cache. */
       Scene *scene_eval = DEG_get_evaluated(t->depsgraph, t->scene);

@@ -200,7 +200,7 @@ static void editmesh_partial_update_update_fn(
     return;
   }
 
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
   if (tfp->tag_for_update == false) {
     return;
@@ -773,7 +773,7 @@ static void v3d_editvertex_buts(
     if (ob->type == OB_GREASE_PENCIL) {
       using namespace ed::greasepencil;
       using namespace ed::curves;
-      Scene &scene = *CTX_data_scene(C);
+      Scene &scene = *CTX_data_scene(*C);
       GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
       Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
@@ -1565,7 +1565,7 @@ static void v3d_editvertex_buts(
     {
       using namespace ed::greasepencil;
       using namespace ed::curves;
-      Scene &scene = *CTX_data_scene(C);
+      Scene &scene = *CTX_data_scene(*C);
       GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
       Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
@@ -1684,8 +1684,8 @@ static void do_view3d_vgroup_buttons(bContext *C, void * /*arg*/, int event)
     return;
   }
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   blender::ed::object::vgroup_vert_active_mirror(ob, event - B_VGRP_PNL_EDIT_SINGLE);
@@ -1695,8 +1695,8 @@ static void do_view3d_vgroup_buttons(bContext *C, void * /*arg*/, int event)
 
 static bool view3d_panel_vgroup_poll(const bContext *C, PanelType * /*pt*/)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   if (ob && (BKE_object_is_in_editmode_vgroup(ob) || BKE_object_is_in_wpaint_select_vert(ob))) {
@@ -1711,9 +1711,9 @@ static bool view3d_panel_vgroup_poll(const bContext *C, PanelType * /*pt*/)
 
 static void update_active_vertex_weight(bContext *C, void *arg1, void * /*arg2*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   MDeformVert *dv = ED_mesh_active_dvert_get_only(ob);
   const int vertex_group_index = POINTER_AS_INT(arg1);
@@ -1724,11 +1724,11 @@ static void update_active_vertex_weight(bContext *C, void *arg1, void * /*arg2*/
 static void view3d_panel_vgroup(const bContext *C, Panel *panel)
 {
   blender::ui::Block *block = panel->layout->absolute().block();
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   TransformProperties *tfp = v3d_transform_props_ensure(v3d);
 
   MDeformVert *dv;
@@ -2085,16 +2085,16 @@ static void v3d_editmetaball_buts(blender::ui::Layout &layout, Object *ob)
 
 static void do_view3d_region_buttons(bContext *C, void * /*index*/, int event)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   switch (event) {
 
     case B_REDR:
-      ED_area_tag_redraw(CTX_wm_area(C));
+      ED_area_tag_redraw(CTX_wm_area(*C));
       return; /* no notifier! */
 
     case B_TRANSFORM_PANEL_MEDIAN:
@@ -2116,8 +2116,8 @@ static void do_view3d_region_buttons(bContext *C, void * /*index*/, int event)
 
 static bool view3d_panel_transform_poll(const bContext *C, PanelType * /*pt*/)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   return (BKE_view_layer_active_base_get(view_layer) != nullptr);
 }
@@ -2125,8 +2125,8 @@ static bool view3d_panel_transform_poll(const bContext *C, PanelType * /*pt*/)
 static void view3d_panel_transform(const bContext *C, Panel *panel)
 {
   blender::ui::Block *block;
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   Object *obedit = OBEDIT_FROM_OBACT(ob);
@@ -2144,7 +2144,7 @@ static void view3d_panel_transform(const bContext *C, Panel *panel)
       v3d_editmetaball_buts(col, ob);
     }
     else {
-      View3D *v3d = CTX_wm_view3d(C);
+      View3D *v3d = CTX_wm_view3d(*C);
       v3d_editvertex_buts(C, &col, v3d, ob, FLT_MAX);
     }
   }
@@ -2158,7 +2158,7 @@ static void view3d_panel_transform(const bContext *C, Panel *panel)
     /* Dimensions and editmode are mostly the same check. */
     if (OB_TYPE_SUPPORT_EDITMODE(ob->type) || ELEM(ob->type, OB_VOLUME, OB_CURVES, OB_POINTCLOUD))
     {
-      View3D *v3d = CTX_wm_view3d(C);
+      View3D *v3d = CTX_wm_view3d(*C);
       v3d_object_dimension_buts(nullptr, &col, v3d, ob);
     }
   }
@@ -2166,8 +2166,8 @@ static void view3d_panel_transform(const bContext *C, Panel *panel)
 
 static bool view3d_panel_curve_data_poll(const bContext *C, PanelType * /*pt*/)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   return (ob && ELEM(ob->type, OB_GREASE_PENCIL, OB_CURVES) && BKE_object_is_in_editmode(ob));
@@ -2181,18 +2181,18 @@ static void apply_to_active_object(
 {
   using namespace blender;
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   const TransformProperties &tfp = *v3d_transform_props_ensure(v3d);
   const CurvesDataPanelState &modified = tfp.modified;
 
   if (ob->type == OB_GREASE_PENCIL) {
     using namespace ed::greasepencil;
-    Scene &scene = *CTX_data_scene(C);
+    Scene &scene = *CTX_data_scene(*C);
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
     Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
@@ -2411,8 +2411,8 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
   using namespace blender;
   using namespace ed::curves;
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   blender::ui::Block *block = panel->layout->block();
@@ -2421,7 +2421,7 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
 
   if (ob->type == OB_GREASE_PENCIL) {
     using namespace ed::greasepencil;
-    Scene &scene = *CTX_data_scene(C);
+    Scene &scene = *CTX_data_scene(*C);
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
     Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
@@ -2459,7 +2459,7 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
     return;
   }
 
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   TransformProperties &tfp = *v3d_transform_props_ensure(v3d);
   CurvesDataPanelState &modified = tfp.modified;
   CurvesDataPanelState &current = tfp.current;
@@ -2611,7 +2611,7 @@ void view3d_buttons_register(ARegionType *art)
 
 static wmOperatorStatus view3d_object_mode_menu_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob == nullptr) {
     BKE_report(op->reports, RPT_WARNING, "No active object found");
     return OPERATOR_CANCELLED;
@@ -2622,7 +2622,7 @@ static wmOperatorStatus view3d_object_mode_menu_exec(bContext *C, wmOperator *op
   }
 
   blender::ui::pie_menu_invoke(
-      C, "VIEW3D_MT_object_mode_pie", CTX_wm_window(C)->runtime->eventstate);
+      C, "VIEW3D_MT_object_mode_pie", CTX_wm_window(*C)->runtime->eventstate);
   return OPERATOR_CANCELLED;
 }
 

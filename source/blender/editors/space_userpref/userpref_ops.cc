@@ -53,7 +53,7 @@
 
 static wmOperatorStatus preferences_reset_default_theme_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   blender::ui::theme::init_default();
   blender::ui::style_init_default();
   WM_reinit_gizmomap_all(bmain);
@@ -274,7 +274,7 @@ static wmOperatorStatus preferences_extension_repo_add_exec(bContext *C, wmOpera
   const bUserExtensionRepoAddType repo_type = bUserExtensionRepoAddType(
       RNA_enum_get(op->ptr, "type"));
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_PRE);
 
   char name[sizeof(bUserExtensionRepo::name)] = "";
@@ -672,7 +672,7 @@ static wmOperatorStatus preferences_extension_repo_remove_exec(bContext *C, wmOp
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_PRE);
 
   if (remove_files) {

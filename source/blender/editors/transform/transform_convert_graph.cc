@@ -915,7 +915,7 @@ static void recalcData_graphedit(TransInfo *t)
 
   /* Initialize relevant anim-context 'context' data from TransInfo data. */
   /* NOTE: sync this with the code in #ANIM_animdata_get_context(). */
-  ac.bmain = CTX_data_main(t->context);
+  ac.bmain = CTX_data_main(*t->context);
   ac.scene = t->scene;
   ac.view_layer = t->view_layer;
   ac.obact = BKE_view_layer_active_object_get(view_layer);
@@ -957,7 +957,7 @@ static void recalcData_graphedit(TransInfo *t)
     /* Set refresh tags for objects using this animation,
      * BUT only if realtime updates are enabled. */
     if ((sipo->flag & SIPO_NOREALTIMEUPDATES) == 0) {
-      ANIM_list_elem_update(CTX_data_main(t->context), t->scene, &ale);
+      ANIM_list_elem_update(CTX_data_main(*t->context), t->scene, &ale);
     }
   }
 

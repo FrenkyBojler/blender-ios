@@ -91,9 +91,9 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
                                                   ReportList *reports)
 {
   using namespace blender;
-  Main *bmain = CTX_data_main(C);
-  Object &active_object = *CTX_data_active_object(C);
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
+  Main *bmain = CTX_data_main(*C);
+  Object &active_object = *CTX_data_active_object(*C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*C);
   Mesh &active_mesh = *static_cast<Mesh *>(active_object.data);
 
   struct ObjectInfo {
@@ -108,7 +108,7 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
   bool found_object = false;
   bool found_non_equal_count = false;
   Vector<ObjectInfo> compatible_objects;
-  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob_iter, selected_editable_objects) {
     if (ob_iter == &active_object) {
       continue;
     }
@@ -574,7 +574,7 @@ bool ED_mesh_pick_face(bContext *C, Object *ob, const int mval[2], uint dist_px,
     return false;
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   ED_view3d_select_id_validate(&vc);
 
@@ -627,7 +627,7 @@ static void ed_mesh_pick_face_vert__mpoly_find(
 bool ED_mesh_pick_face_vert(
     bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   uint face_index;
   Mesh *mesh = static_cast<Mesh *>(ob->data);
 
@@ -639,7 +639,7 @@ bool ED_mesh_pick_face_vert(
     if (!mesh_eval) {
       return false;
     }
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
 
     int v_idx_best = ORIGINDEX_NONE;
 
@@ -700,7 +700,7 @@ bool ED_mesh_pick_face_vert(
 
 bool ED_mesh_pick_edge(bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
 
   BLI_assert(mesh && GS(mesh->id.name) == ID_ME);
@@ -789,7 +789,7 @@ bool ED_mesh_pick_vert(
     return false;
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   ED_view3d_select_id_validate(&vc);
 
@@ -944,7 +944,7 @@ static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperat
   Object *ob = blender::ed::object::context_active_object(C);
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   if (ob->mode == OB_MODE_SCULPT && mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY) {
     /* Dyntopo not supported. */

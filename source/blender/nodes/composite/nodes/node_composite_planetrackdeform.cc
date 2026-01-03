@@ -106,7 +106,7 @@ static void init(const bContext *C, PointerRNA *ptr)
   NodePlaneTrackDeformData *data = MEM_new_for_free<NodePlaneTrackDeformData>(__func__);
   node->storage = data;
 
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(*C);
   if (scene->clip) {
     MovieClip *clip = scene->clip;
     MovieTracking *tracking = &clip->tracking;

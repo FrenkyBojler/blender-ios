@@ -81,7 +81,7 @@ static void curvemap_buttons_zoom_in(bContext *C, CurveMapping *cumap)
 
   curvemap_zoom(*cumap, 0.7692f);
 
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
 }
 
 static void curvemap_buttons_zoom_out(bContext *C, CurveMapping *cumap)
@@ -92,7 +92,7 @@ static void curvemap_buttons_zoom_out(bContext *C, CurveMapping *cumap)
 
   curvemap_zoom(*cumap, 1.3f);
 
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
 }
 
 /* NOTE: this is a block-menu, needs 0 events, otherwise the menu closes */
@@ -206,7 +206,7 @@ static Block *curvemap_tools_func(
     button_retval_set(but, 1);
     button_func_set(but, [cumap](bContext &C) {
       BKE_curvemapping_reset_view(cumap);
-      ED_region_tag_redraw(CTX_wm_region(&C));
+      ED_region_tag_redraw(CTX_wm_region(C));
     });
   }
 
@@ -228,7 +228,7 @@ static Block *curvemap_tools_func(
         BKE_curvemapping_changed(cumap, false);
         rna_update_cb(C, cb);
         ED_undo_push(&C, "CurveMap tools");
-        ED_region_tag_redraw(CTX_wm_region(&C));
+        ED_region_tag_redraw(CTX_wm_region(C));
       });
     }
     {
@@ -248,7 +248,7 @@ static Block *curvemap_tools_func(
         BKE_curvemapping_changed(cumap, false);
         rna_update_cb(C, cb);
         ED_undo_push(&C, "CurveMap tools");
-        ED_region_tag_redraw(CTX_wm_region(&C));
+        ED_region_tag_redraw(CTX_wm_region(C));
       });
     }
   }
@@ -271,7 +271,7 @@ static Block *curvemap_tools_func(
       BKE_curvemapping_changed(cumap, false);
       rna_update_cb(C, cb);
       ED_undo_push(&C, "CurveMap tools");
-      ED_region_tag_redraw(CTX_wm_region(&C));
+      ED_region_tag_redraw(CTX_wm_region(C));
     });
   }
 
@@ -307,7 +307,7 @@ static Block *curvemap_brush_tools_negslope_func(bContext *C, ARegion *region, v
 
 static void curvemap_buttons_redraw(bContext &C)
 {
-  ED_region_tag_redraw(CTX_wm_region(&C));
+  ED_region_tag_redraw(CTX_wm_region(C));
 }
 
 static void add_preset_button(Block *block,

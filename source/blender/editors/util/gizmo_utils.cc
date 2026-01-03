@@ -30,7 +30,7 @@ bool ED_gizmo_poll_or_unlink_delayed_from_operator(const bContext *C,
   /* Causes selection to continue showing the last gizmo. */
   wmOperator *op = WM_operator_last_redo(C);
 #else
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmOperator *op = static_cast<wmOperator *>(wm->runtime->operators.last);
 #endif
 
@@ -47,7 +47,7 @@ bool ED_gizmo_poll_or_unlink_delayed_from_tool_ex(const bContext *C,
 {
   bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context((bContext *)C);
   if ((tref_rt == nullptr) || !STREQ(gzgt_idname, tref_rt->gizmo_group)) {
-    ScrArea *area = CTX_wm_area(C);
+    ScrArea *area = CTX_wm_area(*C);
     wmGizmoMapType *gzmap_type = WM_gizmomaptype_ensure(&gzgt->gzmap_params);
     WM_gizmo_group_unlink_delayed_ptr_from_space(gzgt, gzmap_type, area);
     if (gzgt->users == 0) {

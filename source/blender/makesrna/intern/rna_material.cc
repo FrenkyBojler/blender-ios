@@ -157,7 +157,7 @@ static void rna_Material_texpaint_begin(CollectionPropertyIterator *iter, Pointe
 static void rna_Material_active_paint_texture_index_update(bContext *C, PointerRNA *ptr)
 {
   using namespace blender;
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Material *ma = (Material *)ptr->owner_id;
 
   if (ma->nodetree) {
@@ -177,7 +177,7 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
 
     /* For compatibility reasons with vertex paint we activate the color attribute. */
     if (const char *name = slot->attribute_name) {
-      Object *ob = CTX_data_active_object(C);
+      Object *ob = CTX_data_active_object(*C);
       if (ob != nullptr && ob->type == OB_MESH) {
         Mesh *mesh = static_cast<Mesh *>(ob->data);
         if (mesh->runtime->edit_mesh) {
@@ -276,7 +276,7 @@ MTex *rna_mtex_texture_slots_add(ID *self_id, bContext *C, ReportList *reports)
   }
 
   /* for redraw only */
-  WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(C));
+  WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(*C));
 
   return mtex;
 }
@@ -293,7 +293,7 @@ MTex *rna_mtex_texture_slots_create(ID *self_id, bContext *C, ReportList *report
   mtex = BKE_texture_mtex_add_id(self_id, index);
 
   /* for redraw only */
-  WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(C));
+  WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(*C));
 
   return mtex;
 }
@@ -323,7 +323,7 @@ void rna_mtex_texture_slots_clear(ID *self_id, bContext *C, ReportList *reports,
   }
 
   /* for redraw only */
-  WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(C));
+  WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(*C));
 }
 
 static void rna_TexPaintSlot_uv_layer_get(PointerRNA *ptr, char *value)

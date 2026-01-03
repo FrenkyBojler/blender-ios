@@ -39,12 +39,12 @@
 /* check if there is an active rigid body world */
 static bool rigidbody_world_active_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   return (scene && scene->rigidbody_world);
 }
 static bool rigidbody_world_add_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   return (scene && scene->rigidbody_world == nullptr);
 }
 
@@ -55,8 +55,8 @@ static bool rigidbody_world_add_poll(bContext *C)
 
 static wmOperatorStatus rigidbody_world_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   RigidBodyWorld *rbw;
 
   rbw = BKE_rigidbody_create_world(scene);
@@ -89,8 +89,8 @@ void RIGIDBODY_OT_world_add(wmOperatorType *ot)
 
 static wmOperatorStatus rigidbody_world_remove_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   RigidBodyWorld *rbw = scene->rigidbody_world;
 
   /* sanity checks */
@@ -131,7 +131,7 @@ void RIGIDBODY_OT_world_remove(wmOperatorType *ot)
 
 static wmOperatorStatus rigidbody_world_export_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   RigidBodyWorld *rbw = scene->rigidbody_world;
   char filepath[FILE_MAX];
 

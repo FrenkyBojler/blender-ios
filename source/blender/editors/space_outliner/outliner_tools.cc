@@ -208,7 +208,7 @@ static bool outliner_operation_tree_element_poll(bContext *C)
   if (!ED_operator_outliner_active(C)) {
     return false;
   }
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   TreeElement *te = get_target_element(space_outliner);
   if (te == nullptr) {
     return false;
@@ -237,7 +237,7 @@ static void unlink_action_fn(bContext *C,
   }
 
   /* just set action to nullptr */
-  BKE_animdata_set_action(CTX_wm_reports(C), tsep->id, nullptr);
+  BKE_animdata_set_action(CTX_wm_reports(*C), tsep->id, nullptr);
   DEG_id_tag_update(tsep->id, ID_RECALC_ANIMATION);
 }
 
@@ -382,7 +382,7 @@ static void unlink_collection_fn(bContext *C,
                                  TreeStoreElem *tsep,
                                  TreeStoreElem *tselem)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Collection *collection = (Collection *)tselem->id;
 
   if (!tsep || !TSE_IS_REAL_ID(tsep)) {
@@ -443,10 +443,10 @@ static void unlink_object_fn(bContext *C,
     if (!TSE_IS_REAL_ID(tsep)) {
       return;
     }
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     Object *ob = (Object *)tselem->id;
     const eSpaceOutliner_Mode outliner_mode = eSpaceOutliner_Mode(
-        CTX_wm_space_outliner(C)->outlinevis);
+        CTX_wm_space_outliner(*C)->outlinevis);
 
     if (GS(tsep->id->name) == ID_OB) {
       /* Parented objects need to find which collection to unlink from. */
@@ -723,7 +723,7 @@ static bool scene_fn(bContext *C,
   Scene *scene = (Scene *)tselem->id;
 
   if (event == OL_SCENE_OP_DELETE) {
-    if (ED_scene_delete(C, CTX_data_main(C), scene)) {
+    if (ED_scene_delete(C, CTX_data_main(*C), scene)) {
       WM_event_add_notifier(C, NC_SCENE | NA_REMOVED, scene);
     }
     else {
@@ -736,7 +736,7 @@ static bool scene_fn(bContext *C,
 
 static wmOperatorStatus outliner_scene_operation_exec(bContext *C, wmOperator *op)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   const eOutliner_PropSceneOps event = (eOutliner_PropSceneOps)RNA_enum_get(op->ptr, "type");
 
   if (outliner_do_scene_operation(C, space_outliner, event, scene_fn) == false) {
@@ -838,7 +838,7 @@ static void merged_element_search_update_fn(const bContext * /*C*/,
 /* Activate an element from the merged element search menu */
 static void merged_element_search_exec_fn(bContext *C, void * /*arg1*/, void *element)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   TreeElement *te = (TreeElement *)element;
 
   outliner_item_select(C, space_outliner, te, OL_ITEM_SELECT | OL_ITEM_ACTIVATE);
@@ -915,8 +915,8 @@ static void object_select_fn(bContext *C,
                              TreeStoreElem * /*tsep*/,
                              TreeStoreElem *tselem)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Object *ob = (Object *)tselem->id;
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_base_find(view_layer, ob);
@@ -941,7 +941,7 @@ static void object_select_hierarchy_fn(bContext *C,
 {
   /* Don't extend because this toggles, which is nice for Ctrl-Click but not for a menu item.
    * it's especially confusing when multiple items are selected since some toggle on/off. */
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   outliner_item_select(
       C, space_outliner, te, OL_ITEM_SELECT | OL_ITEM_ACTIVATE | OL_ITEM_RECURSIVE);
 }
@@ -953,8 +953,8 @@ static void object_deselect_fn(bContext *C,
                                TreeStoreElem * /*tsep*/,
                                TreeStoreElem *tselem)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Object *ob = (Object *)tselem->id;
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_base_find(view_layer, ob);
@@ -967,7 +967,7 @@ static void object_deselect_fn(bContext *C,
 static void outliner_object_delete_fn(bContext *C, ReportList *reports, Scene *scene, Object *ob)
 {
   if (ob) {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     if (ob->id.tag & ID_TAG_INDIRECT) {
       BKE_reportf(
           reports, RPT_WARNING, "Cannot delete indirectly linked object '%s'", ob->id.name + 2);
@@ -1001,13 +1001,13 @@ static void id_local_fn(bContext *C,
                         TreeStoreElem *tselem)
 {
   if (ID_IS_LINKED(tselem->id) && (tselem->id->tag & ID_TAG_EXTERN)) {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     if (BKE_lib_id_make_local(bmain, tselem->id, LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR)) {
       BKE_id_newptr_and_tag_clear(tselem->id);
     }
   }
   else if (ID_IS_OVERRIDE_LIBRARY_REAL(tselem->id)) {
-    BKE_lib_override_library_make_local(CTX_data_main(C), tselem->id);
+    BKE_lib_override_library_make_local(CTX_data_main(*C), tselem->id);
   }
 }
 
@@ -1169,7 +1169,7 @@ static void id_override_library_create_hierarchy_pre_process(bContext *C,
     return;
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   if (do_hierarchy) {
     /* Tag all linked parents in tree hierarchy to be also overridden. */
@@ -1380,9 +1380,9 @@ static void id_override_library_create_hierarchy_process(bContext *C,
                                                          ReportList *reports,
                                                          OutlinerLibOverrideData &data)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const bool do_hierarchy = data.do_hierarchy;
 
   bool success = true;
@@ -1434,7 +1434,7 @@ static void id_override_library_reset(bContext *C,
     return;
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   if (do_hierarchy) {
     BKE_lib_override_library_id_hierarchy_reset(bmain, id_root, false);
@@ -1448,9 +1448,9 @@ static void id_override_library_clear_single_process(bContext *C,
                                                      ReportList * /*reports*/,
                                                      OutlinerLibOverrideData &data)
 {
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* TODO: At some point this likely needs to be re-written as a BKE function instead, with better
    * handling of hierarchies among other things. */
@@ -1554,8 +1554,8 @@ static void id_override_library_resync_hierarchy_process(bContext *C,
                                                          ReportList *reports,
                                                          OutlinerLibOverrideData &data)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   const bool do_hierarchy_enforce = data.do_resync_hierarchy_enforce;
 
   BlendFileReadReport report{};
@@ -1576,7 +1576,7 @@ static void id_override_library_resync_hierarchy_process(bContext *C,
   for (auto &&id_hierarchy_root : data.id_hierarchy_roots.keys()) {
     BKE_lib_override_library_resync(bmain,
                                     scene,
-                                    CTX_data_view_layer(C),
+                                    CTX_data_view_layer(*C),
                                     id_hierarchy_root,
                                     nullptr,
                                     do_hierarchy_enforce,
@@ -1609,7 +1609,7 @@ static void id_override_library_delete_hierarchy_process(bContext *C,
                                                          ReportList * /*reports*/,
                                                          OutlinerLibOverrideData &data)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   for (auto &&id_hierarchy_root : data.id_hierarchy_roots.keys()) {
     BKE_lib_override_library_delete(bmain, id_hierarchy_root);
@@ -1715,7 +1715,7 @@ void outliner_do_object_operation_ex(bContext *C,
         /* When objects selected in other scenes, don't know if that should be allowed. */
         Scene *scene_owner = (Scene *)outliner_search_back(&te, ID_SCE);
         if (scene_owner && scene_act != scene_owner) {
-          WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene_owner);
+          WM_window_set_active_scene(CTX_data_main(*C), C, CTX_wm_window(*C), scene_owner);
         }
         /* Important to use 'scene_owner' not scene_act else deleting objects can crash.
          * only use 'scene_act' when 'scene_owner' is nullptr, which can happen when the
@@ -1871,8 +1871,8 @@ static bool outliner_liboverride_operation_poll(bContext *C)
 
 static wmOperatorStatus outliner_liboverride_operation_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  Scene *scene = CTX_data_scene(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
 
   /* check for invalid states */
   if (space_outliner == nullptr) {
@@ -2266,7 +2266,7 @@ static void data_select_linked_fn(int event,
 static void constraint_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, void *C_v)
 {
   bContext *C = static_cast<bContext *>(C_v);
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bConstraint *constraint = (bConstraint *)te->directdata;
   Object *ob = (Object *)outliner_search_back(te, ID_OB);
 
@@ -2312,9 +2312,9 @@ static void modifier_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, 
 {
   ModifierFnArgs *data = static_cast<ModifierFnArgs *>(arg);
   bContext *C = data->C;
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   ModifierData *md = (ModifierData *)te->directdata;
   Object *ob = (Object *)outliner_search_back(te, ID_OB);
 
@@ -2436,15 +2436,15 @@ static void object_batch_delete_hierarchy_tag_fn(bContext *C,
     /* Object has already been processed and tagged for removal as part of another parenting
      * hierarchy. */
 #ifndef NDEBUG
-    ViewLayer *view_layer = CTX_data_view_layer(C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     BLI_assert(BKE_view_layer_base_find(view_layer, ob) == nullptr);
 #endif
     return;
   }
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *obedit = CTX_data_edit_object(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Object *obedit = CTX_data_edit_object(*C);
 
   Base *base = BKE_view_layer_base_find(view_layer, ob);
 
@@ -2460,7 +2460,7 @@ static void object_batch_delete_hierarchy_tag_fn(bContext *C,
     object::editmode_exit(C, object::EM_FREEDATA);
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   outliner_batch_delete_object_hierarchy_tag(reports, bmain, view_layer, scene, base);
 }
 
@@ -2514,10 +2514,10 @@ static const EnumPropertyItem prop_object_op_types[] = {
 
 static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  wmWindow *win = CTX_wm_window(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   int event;
   const char *str = nullptr;
   bool selection_changed = false;
@@ -2687,11 +2687,11 @@ static TreeTraversalAction outliner_collect_objects_to_delete(TreeElement *te, v
 
 static wmOperatorStatus outliner_delete_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   const Base *basact_prev = BKE_view_layer_active_base_get(view_layer);
 
@@ -2838,7 +2838,7 @@ static bool outliner_id_operation_item_poll(bContext *C,
     return false;
   }
 
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   TreeElement *te = get_target_element(space_outliner);
   TreeStoreElem *tselem = TREESTORE(te);
   if (!TSE_IS_REAL_ID(tselem)) {
@@ -2883,10 +2883,10 @@ static const EnumPropertyItem *outliner_id_operation_itemf(bContext *C,
 
 static wmOperatorStatus outliner_id_operation_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
-  Scene *scene = CTX_data_scene(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  Scene *scene = CTX_data_scene(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
 
   /* check for invalid states */
@@ -3104,9 +3104,9 @@ static const EnumPropertyItem outliner_lib_op_type_items[] = {
 
 static wmOperatorStatus outliner_lib_operation_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
 
   /* check for invalid states */
   if (space_outliner == nullptr) {
@@ -3211,8 +3211,8 @@ static void actionset_id_fn(TreeElement * /*te*/,
 
 static wmOperatorStatus outliner_action_set_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  Main *bmain = CTX_data_main(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
   bAction *act;
 
@@ -3305,8 +3305,8 @@ static const EnumPropertyItem prop_animdata_op_types[] = {
 
 static wmOperatorStatus outliner_animdata_operation_exec(bContext *C, wmOperator *op)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
   TreeElement *te = get_target_element(space_outliner);
   get_element_operation_type(te, &scenelevel, &objectlevel, &idlevel, &datalevel);
@@ -3364,7 +3364,7 @@ static wmOperatorStatus outliner_animdata_operation_exec(bContext *C, wmOperator
   }
 
   /* update dependencies */
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -3400,7 +3400,7 @@ static const EnumPropertyItem prop_constraint_op_types[] = {
 
 static wmOperatorStatus outliner_constraint_operation_exec(bContext *C, wmOperator *op)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   eOutliner_PropConstraintOps event = (eOutliner_PropConstraintOps)RNA_enum_get(op->ptr, "type");
 
   outliner_do_data_operation(space_outliner, TSE_CONSTRAINT, event, constraint_fn, C);
@@ -3448,7 +3448,7 @@ static const EnumPropertyItem prop_modifier_op_types[] = {
 
 static wmOperatorStatus outliner_modifier_operation_exec(bContext *C, wmOperator *op)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   eOutliner_PropModifierOps event = (eOutliner_PropModifierOps)RNA_enum_get(op->ptr, "type");
 
   ModifierFnArgs args{};
@@ -3493,7 +3493,7 @@ static bool outliner_data_operation_poll(bContext *C)
   if (!ED_operator_outliner_active(C)) {
     return false;
   }
-  const SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  const SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   const TreeElement *te = get_target_element(space_outliner);
 
   if (te == nullptr) {
@@ -3508,7 +3508,7 @@ static bool outliner_data_operation_poll(bContext *C)
 
 static wmOperatorStatus outliner_data_operation_exec(bContext *C, wmOperator *op)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   int scenelevel = 0, objectlevel = 0, idlevel = 0, datalevel = 0;
   TreeElement *te = get_target_element(space_outliner);
   get_element_operation_type(te, &scenelevel, &objectlevel, &idlevel, &datalevel);
@@ -3537,7 +3537,7 @@ static wmOperatorStatus outliner_data_operation_exec(bContext *C, wmOperator *op
       break;
     }
     case TSE_STRIP: {
-      Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+      Scene *sequencer_scene = CTX_data_sequencer_scene(*C);
       outliner_do_data_operation(space_outliner, datalevel, event, sequence_fn, sequencer_scene);
       WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, sequencer_scene);
       ED_undo_push(C, "Sequencer operation");
@@ -3583,7 +3583,7 @@ static const EnumPropertyItem *outliner_data_op_sets_enum_item_fn(bContext *C,
     return rna_enum_dummy_DEFAULT_items;
   }
 
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   if (space_outliner == nullptr) {
     return rna_enum_dummy_DEFAULT_items;
   }
@@ -3738,8 +3738,8 @@ static wmOperatorStatus outliner_operation_invoke(bContext *C,
                                                   wmOperator * /*op*/,
                                                   const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  ARegion *region = CTX_wm_region(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   ui::Button *but = ui::context_active_but_get(C);
   float view_mval[2];
 

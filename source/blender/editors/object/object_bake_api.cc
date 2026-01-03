@@ -142,7 +142,7 @@ static void bake_progress_update(void *bjv, float progress)
 static wmOperatorStatus bake_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   /* no running blender, remove handler and pass through */
-  if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_OBJECT_BAKE)) {
+  if (0 == WM_jobs_test(CTX_wm_manager(*C), CTX_data_scene(*C), WM_JOB_TYPE_OBJECT_BAKE)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
@@ -1875,12 +1875,12 @@ cleanup:
 
 static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
 {
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
 
-  bkr->ob = CTX_data_active_object(C);
-  bkr->main = CTX_data_main(C);
-  bkr->view_layer = CTX_data_view_layer(C);
-  bkr->scene = CTX_data_scene(C);
+  bkr->ob = CTX_data_active_object(*C);
+  bkr->main = CTX_data_main(*C);
+  bkr->view_layer = CTX_data_view_layer(*C);
+  bkr->scene = CTX_data_scene(*C);
   bkr->area = screen ? BKE_screen_find_big_area(screen, SPACE_IMAGE, 10) : nullptr;
 
   bkr->pass_type = eScenePassType(RNA_enum_get(op->ptr, "type"));
@@ -1919,7 +1919,7 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
     RNA_property_enum_identifier(C, op->ptr, prop, bkr->pass_type, &bkr->identifier);
   }
 
-  CTX_data_selected_objects(C, &bkr->selected_objects);
+  CTX_data_selected_objects(*C, &bkr->selected_objects);
 
   bkr->reports = op->reports;
 
@@ -1945,7 +1945,7 @@ static wmOperatorStatus bake_exec(bContext *C, wmOperator *op)
   Render *re;
   wmOperatorStatus result = OPERATOR_CANCELLED;
   BakeAPIRender bkr = {nullptr};
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   G.is_break = false;
   G.is_rendering = true;
@@ -2184,12 +2184,12 @@ static wmOperatorStatus bake_invoke(bContext *C, wmOperator *op, const wmEvent *
 {
   wmJob *wm_job;
   Render *re;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   bake_set_props(op, scene);
 
   /* only one render job at a time */
-  if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_OBJECT_BAKE)) {
+  if (WM_jobs_test(CTX_wm_manager(*C), scene, WM_JOB_TYPE_OBJECT_BAKE)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2197,7 +2197,7 @@ static wmOperatorStatus bake_invoke(bContext *C, wmOperator *op, const wmEvent *
 
   /* init bake render */
   bake_init_api_data(op, C, bkr);
-  BKE_callback_exec_id(CTX_data_main(C), &bkr->ob->id, BKE_CB_EVT_OBJECT_BAKE_PRE);
+  BKE_callback_exec_id(CTX_data_main(*C), &bkr->ob->id, BKE_CB_EVT_OBJECT_BAKE_PRE);
   re = bkr->render;
 
   /* setup new render */
@@ -2205,8 +2205,8 @@ static wmOperatorStatus bake_invoke(bContext *C, wmOperator *op, const wmEvent *
   RE_progress_cb(re, bkr, bake_progress_update);
 
   /* setup job */
-  wm_job = WM_jobs_get(CTX_wm_manager(C),
-                       CTX_wm_window(C),
+  wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                       CTX_wm_window(*C),
                        scene,
                        "Baking texture...",
                        WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
@@ -2221,7 +2221,7 @@ static wmOperatorStatus bake_invoke(bContext *C, wmOperator *op, const wmEvent *
   G.is_break = false;
   G.is_rendering = true;
 
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_jobs_start(CTX_wm_manager(*C), wm_job);
 
   WM_cursor_wait(false);
 

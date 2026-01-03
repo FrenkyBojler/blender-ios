@@ -93,8 +93,8 @@ class InsertCollectionDropTarget : public DropTargetInterface {
 
   bool on_drop(bContext *C, const DragInfo &drag) const override
   {
-    Main *bmain = CTX_data_main(C);
-    Scene *scene = CTX_data_scene(C);
+    Main *bmain = CTX_data_main(*C);
+    Scene *scene = CTX_data_scene(*C);
 
     for (wmDragID &drag_id : drag.drag_data.ids) {
       BKE_light_linking_add_receiver_to_collection(bmain,
@@ -151,8 +151,8 @@ class ReorderCollectionDropTarget : public TreeViewItemDropTarget {
 
   bool on_drop(bContext *C, const DragInfo &drag) const override
   {
-    Main *bmain = CTX_data_main(C);
-    Scene *scene = CTX_data_scene(C);
+    Main *bmain = CTX_data_main(*C);
+    Scene *scene = CTX_data_scene(*C);
 
     Collection &collection = collection_target_.get_collection();
     const eCollectionLightLinkingState link_state = COLLECTION_LIGHT_LINKING_STATE_INCLUDE;

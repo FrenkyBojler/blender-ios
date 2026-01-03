@@ -42,7 +42,7 @@ namespace blender::ed::transform {
 
 static void headerSeqSlide(TransInfo *t, const float val[2], char str[UI_MAX_DRAW_STR])
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
   char tvec[NUM_STR_REP_LEN * 3];
   size_t ofs = 0;
 
@@ -126,7 +126,7 @@ static void initSeqSlide(TransInfo *t, wmOperator *op)
     ssp->use_restore_handle_selection = RNA_property_boolean_get(op->ptr, prop);
   }
 
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(*t->context);
 
   initMouseInputMode(t, &t->mouse, INPUT_VECTOR);
 

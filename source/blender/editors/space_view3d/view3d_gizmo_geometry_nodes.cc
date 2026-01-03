@@ -488,7 +488,7 @@ class TransformGizmos : public NodeGizmos {
     float4x4 base_transform_from_socket = math::from_rotation<float4x4>(rotation);
     base_transform_from_socket.location() = position;
 
-    Scene &scene = *CTX_data_scene(&params.C);
+    Scene &scene = *CTX_data_scene(params.C);
     const TransformOrientationSlot &orientation_slot = scene.orientation_slots[0];
     transform_orientation_ = orientation_slot.type;
 
@@ -908,7 +908,7 @@ static std::optional<float4x4> find_gizmo_geometry_transform(const bke::Geometry
 
 static bool WIDGETGROUP_geometry_nodes_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   if (v3d->gizmo_flag & V3D_GIZMO_HIDE_MODIFIER) {
     return false;
@@ -930,16 +930,16 @@ static void WIDGETGROUP_geometry_nodes_refresh(const bContext *C, wmGizmoGroup *
 {
   auto &gzgroup_data = *static_cast<GeometryNodesGizmoGroup *>(gzgroup->customdata);
 
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   if (!v3d) {
     return;
   }
 
-  const wmWindowManager *wm = CTX_wm_manager(C);
+  const wmWindowManager *wm = CTX_wm_manager(*C);
   if (wm == nullptr) {
     return;
   }
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
 
   /* A new map containing the active gizmos is build. This is less error prone than trying to
    * update the old map in place. */
@@ -1068,7 +1068,7 @@ static void WIDGETGROUP_geometry_nodes_refresh(const bContext *C, wmGizmoGroup *
                                                   socket,
                                                   modify_value);
 
-                Main *main = CTX_data_main(C);
+                Main *main = CTX_data_main(*C);
                 BKE_main_ensure_invariants(*main);
                 WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
               };

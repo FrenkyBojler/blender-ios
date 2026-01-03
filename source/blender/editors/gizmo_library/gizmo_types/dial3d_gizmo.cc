@@ -416,7 +416,7 @@ static void dial_draw_intern(const bContext *C,
   float color[4];
 
   (void)C;
-  BLI_assert(CTX_wm_area(C)->spacetype == SPACE_VIEW3D);
+  BLI_assert(CTX_wm_area(*C)->spacetype == SPACE_VIEW3D);
 
   gizmo_color_get(gz, highlight, color);
 
@@ -424,7 +424,7 @@ static void dial_draw_intern(const bContext *C,
 
   float clip_plane[4];
   if (use_clip_plane) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
     copy_v3_v3(clip_plane, rv3d->viewinv[2]);
@@ -517,7 +517,7 @@ static wmOperatorStatus gizmo_dial_modal(bContext *C,
   float angle_ofs, angle_delta, angle_increment = 0.0f;
 
   dial_ghostarc_get_angles(
-      gz, event, CTX_wm_region(C), gz->matrix_basis, co_outer, &angle_ofs, &angle_delta);
+      gz, event, CTX_wm_region(*C), gz->matrix_basis, co_outer, &angle_ofs, &angle_delta);
 
   if (tweak_flag & WM_GIZMO_TWEAK_SNAP) {
     angle_increment = RNA_float_get(gz->ptr, "incremental_angle");

@@ -116,7 +116,7 @@ Strip *strip_under_mouse_get(const Scene *scene, const View2D *v2d, const int mv
 
 VectorSet<Strip *> all_strips_from_context(bContext *C)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
@@ -131,7 +131,7 @@ VectorSet<Strip *> all_strips_from_context(bContext *C)
 
 VectorSet<Strip *> selected_strips_from_context(bContext *C)
 {
-  const Scene *scene = CTX_data_sequencer_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
@@ -418,13 +418,13 @@ void sequencer_select_do_updates(const bContext *C, Scene *scene)
 static wmOperatorStatus sequencer_de_select_all_exec(bContext *C, wmOperator *op)
 {
   int action = RNA_enum_get(op->ptr, "action");
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
 
   if (sequencer_view_has_preview_poll(C) && !sequencer_view_preview_only_poll(C)) {
     return OPERATOR_CANCELLED;
   }
 
-  if (sequencer_retiming_mode_is_active(C) && retiming_keys_can_be_displayed(CTX_wm_space_seq(C)))
+  if (sequencer_retiming_mode_is_active(C) && retiming_keys_can_be_displayed(CTX_wm_space_seq(*C)))
   {
     return sequencer_retiming_select_all_exec(C, op);
   }
@@ -494,7 +494,7 @@ void SEQUENCER_OT_select_all(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_select_inverse_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
 
   if (sequencer_view_has_preview_poll(C) && !sequencer_view_preview_only_poll(C)) {
     return OPERATOR_CANCELLED;
@@ -564,7 +564,7 @@ static void sequencer_select_side_of_frame(const bContext *C,
   }
 
   {
-    SpaceSeq *sseq = CTX_wm_space_seq(C);
+    SpaceSeq *sseq = CTX_wm_space_seq(*C);
     if (sseq && sseq->flag & SEQ_MARKER_TRANS) {
 
       for (TimeMarker &tmarker : scene->markers) {
@@ -585,7 +585,7 @@ static void sequencer_select_linked_handle(const bContext *C,
                                            Strip *strip,
                                            const eStripHandle handle_clicked)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(scene);
   if (!ELEM(handle_clicked, STRIP_HANDLE_LEFT, STRIP_HANDLE_RIGHT)) {
     /* First click selects the strip and its adjacent handles (if valid).
@@ -692,11 +692,11 @@ static int strip_sort_for_center_select(const void *a, const void *b)
 static Strip *strip_select_from_preview(
     const bContext *C, const int mval[2], const bool toggle, const bool extend, const bool center)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
   View2D *v2d = ui::view2d_fromcontext(C);
 
   float mouseco_view[2];
@@ -1163,9 +1163,9 @@ StripSelection pick_strip_and_handle(const Scene *scene, const View2D *v2d, floa
 wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
 {
   const View2D *v2d = ui::view2d_fromcontext(C);
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(scene);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
@@ -1175,7 +1175,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
     if (!sequencer_view_preview_only_poll(C)) {
       return OPERATOR_CANCELLED;
     }
-    const SpaceSeq *sseq = CTX_wm_space_seq(C);
+    const SpaceSeq *sseq = CTX_wm_space_seq(*C);
     if (sseq->mainb != SEQ_DRAW_IMG_IMBUF) {
       return OPERATOR_CANCELLED;
     }
@@ -1190,7 +1190,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   Strip *strip_key_owner = nullptr;
   SeqRetimingKey *key = retiming_mouseover_key_get(C, mouse_co.region, &strip_key_owner);
 
-  if (strip_key_owner != nullptr && retiming_keys_can_be_displayed(CTX_wm_space_seq(C)) &&
+  if (strip_key_owner != nullptr && retiming_keys_can_be_displayed(CTX_wm_space_seq(*C)) &&
       seq::retiming_data_is_editable(strip_key_owner))
   {
     /* If no key was found, the mouse cursor may still intersect with a "fake key" that has not
@@ -1280,7 +1280,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
   const bool already_selected = element_already_selected(selection);
 
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
   if (selection.handle != STRIP_HANDLE_NONE && already_selected) {
     sseq->flag &= ~SPACE_SEQ_DESELECT_STRIP_HANDLE;
   }
@@ -1356,7 +1356,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus sequencer_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   const wmOperatorStatus retval = WM_generic_select_invoke(C, op, event);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   if (region && (region->regiontype == RGN_TYPE_PREVIEW)) {
     return WM_operator_flag_only_pass_through_on_press(retval, event);
   }
@@ -1454,7 +1454,7 @@ void SEQUENCER_OT_select(wmOperatorType *ot)
 static wmOperatorStatus sequencer_select_handle_exec(bContext *C, wmOperator *op)
 {
   const View2D *v2d = ui::view2d_fromcontext(C);
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(scene);
 
   if (ed == nullptr) {
@@ -1475,7 +1475,7 @@ static wmOperatorStatus sequencer_select_handle_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
   if (element_already_selected(selection)) {
     sseq->flag &= ~SPACE_SEQ_DESELECT_STRIP_HANDLE;
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
@@ -1508,7 +1508,7 @@ static wmOperatorStatus sequencer_select_handle_invoke(bContext *C,
                                                        wmOperator *op,
                                                        const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   int mval[2];
   WM_event_drag_start_mval(event, region, mval);
@@ -1630,7 +1630,7 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
 
 static wmOperatorStatus sequencer_select_more_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
 
   if (!select_more_less_impl(scene, true)) {
     return OPERATOR_CANCELLED;
@@ -1666,7 +1666,7 @@ void SEQUENCER_OT_select_more(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_select_less_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
 
   if (!select_more_less_impl(scene, false)) {
     return OPERATOR_CANCELLED;
@@ -1704,7 +1704,7 @@ static wmOperatorStatus sequencer_select_linked_pick_invoke(bContext *C,
                                                             wmOperator *op,
                                                             const wmEvent *event)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   const View2D *v2d = ui::view2d_fromcontext(C);
 
   bool extend = RNA_boolean_get(op->ptr, "extend");
@@ -1765,7 +1765,7 @@ void SEQUENCER_OT_select_linked_pick(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_select_linked_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   bool selected;
 
   selected = true;
@@ -1822,7 +1822,7 @@ static const EnumPropertyItem prop_select_handles_side_types[] = {
 
 static wmOperatorStatus sequencer_select_handles_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(scene);
   int sel_side = RNA_enum_get(op->ptr, "side");
   for (Strip &strip : *ed->current_strips()) {
@@ -1919,7 +1919,7 @@ void SEQUENCER_OT_select_handles(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_select_side_of_frame_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(scene);
   const bool extend = RNA_boolean_get(op->ptr, "extend");
   const int side = RNA_enum_get(op->ptr, "side");
@@ -1994,7 +1994,7 @@ void SEQUENCER_OT_select_side_of_frame(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_select_side_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(scene);
 
   const int sel_side = RNA_enum_get(op->ptr, "side");
@@ -2090,11 +2090,11 @@ static void seq_box_select_strip_from_preview(const bContext *C,
                                               const rctf *rect,
                                               const eSelectOp mode)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
 
   VectorSet strips = seq::query_rendered_strips(
       scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
@@ -2115,7 +2115,7 @@ static void seq_box_select_strip_from_preview(const bContext *C,
 
 static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   View2D *v2d = ui::view2d_fromcontext(C);
   Editing *ed = seq::editing_get(scene);
 
@@ -2123,7 +2123,7 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (sequencer_retiming_mode_is_active(C) && retiming_keys_can_be_displayed(CTX_wm_space_seq(C)))
+  if (sequencer_retiming_mode_is_active(C) && retiming_keys_can_be_displayed(CTX_wm_space_seq(*C)))
   {
     return sequencer_retiming_box_select_exec(C, op);
   }
@@ -2142,7 +2142,7 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
   WM_operator_properties_border_to_rctf(op, &rectf);
   ui::view2d_region_to_view_rctf(v2d, &rectf, &rectf);
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   if (region->regiontype == RGN_TYPE_PREVIEW) {
     if (!sequencer_view_preview_only_poll(C)) {
       return OPERATOR_CANCELLED;
@@ -2222,9 +2222,9 @@ static wmOperatorStatus sequencer_box_select_invoke(bContext *C,
                                                     wmOperator *op,
                                                     const wmEvent *event)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   const View2D *v2d = ui::view2d_fromcontext(C);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   if (region->regiontype == RGN_TYPE_PREVIEW && !sequencer_view_preview_only_poll(C)) {
     return OPERATOR_CANCELLED;
@@ -2341,7 +2341,7 @@ static bool do_lasso_select_timeline(bContext *C,
                                      ARegion *region,
                                      const eSelectOp sel_op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Editing *ed = seq::editing_get(scene);
 
   bool changed = false;
@@ -2369,8 +2369,8 @@ static bool do_lasso_select_preview(bContext *C,
                                     const Span<int2> mcoords,
                                     const eSelectOp sel_op)
 {
-  Scene *scene = CTX_data_scene(C);
-  const ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(*C);
+  const ARegion *region = CTX_wm_region(*C);
 
   bool changed = false;
   rcti rect;
@@ -2378,7 +2378,7 @@ static bool do_lasso_select_preview(bContext *C,
 
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
 
   VectorSet strips = seq::query_rendered_strips(
       scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
@@ -2401,8 +2401,8 @@ static bool do_lasso_select_preview(bContext *C,
 
 static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(*C);
+  ARegion *region = CTX_wm_region(*C);
   Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
   Editing *ed = seq::editing_get(scene);
 
@@ -2480,11 +2480,11 @@ static void seq_circle_select_strip_from_preview(bContext *C,
                                                  const float2 mval,
                                                  const eSelectOp mode)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
 
   VectorSet strips = seq::query_rendered_strips(
       scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
@@ -2533,10 +2533,10 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   View2D *v2d = ui::view2d_fromcontext(C);
   Editing *ed = seq::editing_get(scene);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   const bool use_pre_deselect = SEL_OP_USE_PRE_DESELECT(sel_op);
 
@@ -2888,7 +2888,7 @@ static bool select_grouped_effect_link(const Scene *scene,
 
 static wmOperatorStatus sequencer_select_grouped_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
   Strip *act_strip = seq::select_active_get(scene);
 

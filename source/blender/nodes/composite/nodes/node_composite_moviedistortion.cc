@@ -49,7 +49,7 @@ static void cmp_node_moviedistortion_declare(NodeDeclarationBuilder &b)
 static void init(const bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   node->id = (ID *)scene->clip;
   id_us_plus(node->id);

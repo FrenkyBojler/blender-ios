@@ -58,7 +58,7 @@ static int screenshot_data_create(bContext *C, wmOperator *op, ScrArea *area)
 {
   int dumprect_size[2];
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   /* do redraw so we don't show popups/menus */
   WM_redraw_windows(C);
@@ -106,7 +106,7 @@ static wmOperatorStatus screenshot_exec(bContext *C, wmOperator *op)
 
   if (scd == nullptr) {
     /* when running exec directly */
-    screenshot_data_create(C, op, use_crop ? CTX_wm_area(C) : nullptr);
+    screenshot_data_create(C, op, use_crop ? CTX_wm_area(*C) : nullptr);
     scd = static_cast<ScreenshotData *>(op->customdata);
   }
 
@@ -155,8 +155,8 @@ static wmOperatorStatus screenshot_invoke(bContext *C, wmOperator *op, const wmE
   const bool use_crop = STREQ(op->idname, "SCREEN_OT_screenshot_area");
   ScrArea *area = nullptr;
   if (use_crop) {
-    area = CTX_wm_area(C);
-    bScreen *screen = CTX_wm_screen(C);
+    area = CTX_wm_area(*C);
+    bScreen *screen = CTX_wm_screen(*C);
     ScrArea *area_test = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
     if (area_test != nullptr) {
       area = area_test;

@@ -224,7 +224,7 @@ static void recent_files_menu_register()
 
 static void undo_history_draw_menu(const bContext *C, Menu *menu)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   if (wm->runtime->undo_stack == nullptr) {
     return;
   }

@@ -325,8 +325,8 @@ static bool step_encode(bContext *C, Main *bmain, UndoStep *us_p)
   GreasePencilUndoStep *us = reinterpret_cast<GreasePencilUndoStep *>(us_p);
   StepEncodeStatus encode_status;
 
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(scene, view_layer);
 
   us->scene_ref.ptr = scene;
@@ -350,11 +350,11 @@ static void step_decode(
   GreasePencilUndoStep *us = reinterpret_cast<GreasePencilUndoStep *>(us_p);
   StepDecodeStatus decode_status;
 
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   ED_undo_object_editmode_validate_scene_from_windows(
-      CTX_wm_manager(C), us->scene_ref.ptr, &scene, &view_layer);
+      CTX_wm_manager(*C), us->scene_ref.ptr, &scene, &view_layer);
   ED_undo_object_editmode_restore_helper(scene,
                                          view_layer,
                                          &us->objects.first().obedit_ref.ptr,

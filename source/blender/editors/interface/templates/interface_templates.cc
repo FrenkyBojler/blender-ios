@@ -77,7 +77,7 @@ void template_add_button_search_menu(const bContext *C,
   Button *but;
 
   if (use_previews) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     /* Ugly tool header exception. */
     const bool use_big_size = (region->regiontype != RGN_TYPE_TOOL_HEADER);
     /* Ugly exception for screens here,
@@ -164,7 +164,7 @@ Block *template_common_search_menu(const bContext *C,
                                    float scale)
 {
   static char search[256];
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   Button *but;
 
   /* clear initial search string, then all items show */
@@ -304,8 +304,8 @@ void template_node_socket(Layout *layout, bContext * /*C*/, const float color[4]
 
 void template_file_select_path(Layout *layout, bContext *C, FileSelectParams *params)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  bScreen *screen = CTX_wm_screen(*C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
 
   ED_file_path_button(screen, sfile, params, layout->block());
 }

@@ -346,7 +346,7 @@ static Block *block_func_POPUP(bContext *C, PopupBlockHandle *handle, void *arg_
      * to be within the window bounds may move it away from the mouse,
      * This ensures we set an item to be active. */
     if (but_activate) {
-      ARegion *region = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(*C);
       if (region && region->regiontype == RGN_TYPE_TOOLS && but_activate->block &&
           (but_activate->block->flag & BLOCK_POPUP_HOLD))
       {
@@ -362,7 +362,7 @@ static Block *block_func_POPUP(bContext *C, PopupBlockHandle *handle, void *arg_
   else {
     /* for a header menu we set the direction automatic */
     if (!pup->slideout && flip) {
-      ARegion *region = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(*C);
       if (region) {
         if (RGN_TYPE_IS_HEADER_ANY(region->regiontype)) {
           if (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_BOTTOM) {
@@ -398,7 +398,7 @@ static PopupBlockHandle *ui_popup_menu_create_impl(
     std::function<void(bContext *, Layout *)> menu_func,
     const bool can_refresh)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
 
   PopupMenu *pup = MEM_new<PopupMenu>(__func__);
   pup->title = title;
@@ -500,7 +500,7 @@ void popup_menu_but_set(PopupMenu *pup, ARegion *butregion, Button *but)
 
 void popup_menu_end(bContext *C, PopupMenu *pup)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
 
   pup->popup = true;
   pup->mx = window->runtime->eventstate->xy[0];
@@ -552,7 +552,7 @@ void popup_menu_reports(bContext *C, ReportList *reports)
   PopupMenu *pup = nullptr;
   Layout *layout;
 
-  if (!CTX_wm_window(C)) {
+  if (!CTX_wm_window(*C)) {
     return;
   }
 
@@ -670,7 +670,7 @@ wmOperatorStatus popup_menu_invoke(bContext *C, const char *idname, ReportList *
 void popup_block_invoke_ex(
     bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free, const bool can_refresh)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
 
   PopupBlockHandle *handle = popup_block_create(
       C, nullptr, nullptr, func, nullptr, arg, arg_free, can_refresh);
@@ -698,7 +698,7 @@ void popup_block_ex(bContext *C,
                     void *arg,
                     wmOperator *op)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
 
   PopupBlockHandle *handle = popup_block_create(
       C, nullptr, nullptr, func, nullptr, arg, nullptr, true);
@@ -731,7 +731,7 @@ static void popup_block_template_close_cb(bContext *C, void *arg1, void * /*arg2
     return;
   }
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   popup_menu_retval_set(block, RETURN_CANCEL, true);
 
   if (handle->cancel_func) {

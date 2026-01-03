@@ -118,10 +118,10 @@ bContext *CTX_create()
   return C;
 }
 
-bContext *CTX_copy(const bContext *C)
+bContext *CTX_copy(const bContext &C)
 {
   bContext *newC = MEM_callocN<bContext>(__func__);
-  *newC = *C;
+  *newC = C;
 
   memset(&newC->wm.operator_poll_msg_dyn_params, 0, sizeof(newC->wm.operator_poll_msg_dyn_params));
 
@@ -193,9 +193,9 @@ bContextStore *CTX_store_add_all(Vector<std::unique_ptr<bContextStore>> &context
   return ctx;
 }
 
-const bContextStore *CTX_store_get(const bContext *C)
+const bContextStore *CTX_store_get(const bContext &C)
 {
-  return C->wm.store;
+  return C.wm.store;
 }
 
 void CTX_store_set(bContext *C, const bContextStore *store)
@@ -249,22 +249,22 @@ std::optional<int64_t> CTX_store_int_lookup(const bContextStore *store,
 
 /* is python initialized? */
 
-bool CTX_py_init_get(const bContext *C)
+bool CTX_py_init_get(const bContext &C)
 {
-  return C->data.py_init;
+  return C.data.py_init;
 }
 void CTX_py_init_set(bContext *C, bool value)
 {
   C->data.py_init = value;
 }
 
-void *CTX_py_dict_get(const bContext *C)
+void *CTX_py_dict_get(const bContext &C)
 {
-  return C->data.py_context;
+  return C.data.py_context;
 }
-void *CTX_py_dict_get_orig(const bContext *C)
+void *CTX_py_dict_get_orig(const bContext &C)
 {
-  return C->data.py_context_orig;
+  return C.data.py_context_orig;
 }
 
 void CTX_py_state_push(bContext *C, bContext_PyState *pystate, void *value)
@@ -386,7 +386,7 @@ static void ctx_member_log_access(const bContext *C,
                                   const bContextDataResult &result)
 {
   const bool use_logging = CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE) ||
-                           CTX_member_logging_get(C);
+                           CTX_member_logging_get(*C);
 
   if (!use_logging) {
     return;
@@ -398,7 +398,7 @@ static void ctx_member_log_access(const bContext *C,
 #ifdef WITH_PYTHON
   /* Get current Python location if available and Python is properly initialized. */
   std::optional<std::string> python_location;
-  if (CTX_py_init_get(C)) {
+  if (CTX_py_init_get(*C)) {
     python_location = BPY_python_current_file_and_line();
   }
   const char *location = python_location ? python_location->c_str() : "unknown:0";
@@ -411,7 +411,7 @@ static void ctx_member_log_access(const bContext *C,
   if (CLOG_CHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE)) {
     CLOG_TRACE(BKE_LOG_CONTEXT, format, location, member, value_desc);
   }
-  else if (CTX_member_logging_get(C)) {
+  else if (CTX_member_logging_get(*C)) {
     /* Force output at TRACE level even if not enabled via command line. */
     CLOG_AT_LEVEL_NOCHECK(BKE_LOG_CONTEXT, CLG_LEVEL_TRACE, format, location, member, value_desc);
   }
@@ -426,7 +426,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
   bool found_member = false;
 
 #ifdef WITH_PYTHON
-  if (UNLIKELY(CTX_py_dict_get(C))) {
+  if (UNLIKELY(CTX_py_dict_get(*C))) {
     bContextDataResult result{};
     if (BPY_context_member_get((bContext *)C, member, &result)) {
       found_member = true;
@@ -486,7 +486,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
   /* NOTE: We'll log access when we have actual results. */
 
 #ifdef WITH_PYTHON
-  if (CTX_py_dict_get(C)) {
+  if (CTX_py_dict_get(*C)) {
     if (BPY_context_member_get(C, member, result)) {
       /* Log the Python context result if we're in a temp_override. */
       ctx_member_log_access(C, member, *result);
@@ -529,7 +529,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
       done = 1;
     }
   }
-  if (done != 1 && recursion < 2 && (region = CTX_wm_region(C))) {
+  if (done != 1 && recursion < 2 && (region = CTX_wm_region(*C))) {
     C->data.recursion = 2;
     if (region->runtime->type && region->runtime->type->context) {
       ret = region->runtime->type->context(C, member, result);
@@ -538,7 +538,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
       }
     }
   }
-  if (done != 1 && recursion < 3 && (area = CTX_wm_area(C))) {
+  if (done != 1 && recursion < 3 && (area = CTX_wm_area(*C))) {
     C->data.recursion = 3;
     if (area->type && area->type->context) {
       ret = area->type->context(C, member, result);
@@ -548,7 +548,7 @@ static eContextResult ctx_data_get(bContext *C, const char *member, bContextData
     }
   }
 
-  if (done != 1 && recursion < 4 && (screen = CTX_wm_screen(C))) {
+  if (done != 1 && recursion < 4 && (screen = CTX_wm_screen(*C))) {
     bContextDataCallback cb = reinterpret_cast<bContextDataCallback>(screen->context);
     C->data.recursion = 4;
     if (cb) {
@@ -624,8 +624,8 @@ static bool ctx_data_base_collection_get(const bContext *C,
 
   bContextDataResult result{};
 
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
 
   bool ok = false;
@@ -644,10 +644,10 @@ static bool ctx_data_base_collection_get(const bContext *C,
   return ok;
 }
 
-PointerRNA CTX_data_pointer_get(const bContext *C, const char *member)
+PointerRNA CTX_data_pointer_get(const bContext &C, const char *member)
 {
   bContextDataResult result;
-  if (ctx_data_get((bContext *)C, member, &result) == CTX_RESULT_OK) {
+  if (ctx_data_get((bContext *)&C, member, &result) == CTX_RESULT_OK) {
     BLI_assert(result.type == ContextDataType::Pointer);
     return result.ptr;
   }
@@ -655,7 +655,7 @@ PointerRNA CTX_data_pointer_get(const bContext *C, const char *member)
   return PointerRNA_NULL;
 }
 
-PointerRNA CTX_data_pointer_get_type(const bContext *C, const char *member, StructRNA *type)
+PointerRNA CTX_data_pointer_get_type(const bContext &C, const char *member, StructRNA *type)
 {
   PointerRNA ptr = CTX_data_pointer_get(C, member);
 
@@ -674,7 +674,7 @@ PointerRNA CTX_data_pointer_get_type(const bContext *C, const char *member, Stru
   return PointerRNA_NULL;
 }
 
-PointerRNA CTX_data_pointer_get_type_silent(const bContext *C, const char *member, StructRNA *type)
+PointerRNA CTX_data_pointer_get_type_silent(const bContext &C, const char *member, StructRNA *type)
 {
   PointerRNA ptr = CTX_data_pointer_get(C, member);
 
@@ -812,7 +812,7 @@ ListBaseT<LinkData> CTX_data_dir_get_ex(const bContext *C,
       data_dir_add(&lb, entry.name.c_str(), use_all);
     }
   }
-  if ((region = CTX_wm_region(C)) && region->runtime->type && region->runtime->type->context) {
+  if ((region = CTX_wm_region(*C)) && region->runtime->type && region->runtime->type->context) {
     region->runtime->type->context(C, "", &result);
 
     if (result.dir) {
@@ -821,7 +821,7 @@ ListBaseT<LinkData> CTX_data_dir_get_ex(const bContext *C,
       }
     }
   }
-  if ((area = CTX_wm_area(C)) && area->type && area->type->context) {
+  if ((area = CTX_wm_area(*C)) && area->type && area->type->context) {
     area->type->context(C, "", &result);
 
     if (result.dir) {
@@ -830,7 +830,7 @@ ListBaseT<LinkData> CTX_data_dir_get_ex(const bContext *C,
       }
     }
   }
-  if ((screen = CTX_wm_screen(C)) && screen->context) {
+  if ((screen = CTX_wm_screen(*C)) && screen->context) {
     bContextDataCallback cb = reinterpret_cast<bContextDataCallback>(screen->context);
     cb(C, "", &result);
 
@@ -889,11 +889,11 @@ void CTX_data_list_add_ptr(bContextDataResult *result, const PointerRNA *ptr)
   result->list.append(*ptr);
 }
 
-int ctx_data_list_count(const bContext *C,
+int ctx_data_list_count(const bContext &C,
                         bool (*func)(const bContext *, blender::Vector<PointerRNA> *))
 {
   blender::Vector<PointerRNA> list;
-  if (func(C, &list)) {
+  if (func(&C, &list)) {
     return list.size();
   }
   return 0;
@@ -922,80 +922,80 @@ ContextDataType CTX_data_type_get(bContextDataResult *result)
 
 /* window manager context */
 
-wmWindowManager *CTX_wm_manager(const bContext *C)
+wmWindowManager *CTX_wm_manager(const bContext &C)
 {
-  return C->wm.manager;
+  return C.wm.manager;
 }
 
-bool CTX_wm_interface_locked(const bContext *C)
+bool CTX_wm_interface_locked(const bContext &C)
 {
-  return C->wm.manager->runtime->is_interface_locked;
+  return C.wm.manager->runtime->is_interface_locked;
 }
 
-wmWindow *CTX_wm_window(const bContext *C)
+wmWindow *CTX_wm_window(const bContext &C)
 {
   return static_cast<wmWindow *>(
-      ctx_wm_python_context_get(C, "window", &RNA_Window, C->wm.window));
+      ctx_wm_python_context_get(&C, "window", &RNA_Window, C.wm.window));
 }
 
-WorkSpace *CTX_wm_workspace(const bContext *C)
+WorkSpace *CTX_wm_workspace(const bContext &C)
 {
   return static_cast<WorkSpace *>(
-      ctx_wm_python_context_get(C, "workspace", &RNA_WorkSpace, C->wm.workspace));
+      ctx_wm_python_context_get(&C, "workspace", &RNA_WorkSpace, C.wm.workspace));
 }
 
-bScreen *CTX_wm_screen(const bContext *C)
+bScreen *CTX_wm_screen(const bContext &C)
 {
-  return static_cast<bScreen *>(ctx_wm_python_context_get(C, "screen", &RNA_Screen, C->wm.screen));
+  return static_cast<bScreen *>(ctx_wm_python_context_get(&C, "screen", &RNA_Screen, C.wm.screen));
 }
 
-ScrArea *CTX_wm_area(const bContext *C)
+ScrArea *CTX_wm_area(const bContext &C)
 {
-  return static_cast<ScrArea *>(ctx_wm_python_context_get(C, "area", &RNA_Area, C->wm.area));
+  return static_cast<ScrArea *>(ctx_wm_python_context_get(&C, "area", &RNA_Area, C.wm.area));
 }
 
-SpaceLink *CTX_wm_space_data(const bContext *C)
+SpaceLink *CTX_wm_space_data(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   return (area) ? static_cast<SpaceLink *>(area->spacedata.first) : nullptr;
 }
 
-ARegion *CTX_wm_region(const bContext *C)
+ARegion *CTX_wm_region(const bContext &C)
 {
-  return static_cast<ARegion *>(ctx_wm_python_context_get(C, "region", &RNA_Region, C->wm.region));
+  return static_cast<ARegion *>(ctx_wm_python_context_get(&C, "region", &RNA_Region, C.wm.region));
 }
 
-void *CTX_wm_region_data(const bContext *C)
+void *CTX_wm_region_data(const bContext &C)
 {
   ARegion *region = CTX_wm_region(C);
   return (region) ? region->regiondata : nullptr;
 }
 
-ARegion *CTX_wm_region_popup(const bContext *C)
+ARegion *CTX_wm_region_popup(const bContext &C)
 {
-  return C->wm.region_popup;
+  return C.wm.region_popup;
 }
 
-wmGizmoGroup *CTX_wm_gizmo_group(const bContext *C)
+wmGizmoGroup *CTX_wm_gizmo_group(const bContext &C)
 {
-  return C->wm.gizmo_group;
+  return C.wm.gizmo_group;
 }
 
-wmMsgBus *CTX_wm_message_bus(const bContext *C)
+wmMsgBus *CTX_wm_message_bus(const bContext &C)
 {
-  return C->wm.manager ? C->wm.manager->runtime->message_bus : nullptr;
+  return C.wm.manager ? C.wm.manager->runtime->message_bus : nullptr;
 }
 
-ReportList *CTX_wm_reports(const bContext *C)
+ReportList *CTX_wm_reports(const bContext &C)
 {
-  if (C->wm.manager) {
-    return &(C->wm.manager->runtime->reports);
+  if (C.wm.manager) {
+    return &(C.wm.manager->runtime->reports);
   }
 
   return nullptr;
 }
 
-View3D *CTX_wm_view3d(const bContext *C)
+View3D *CTX_wm_view3d(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_VIEW3D) {
@@ -1004,7 +1004,7 @@ View3D *CTX_wm_view3d(const bContext *C)
   return nullptr;
 }
 
-RegionView3D *CTX_wm_region_view3d(const bContext *C)
+RegionView3D *CTX_wm_region_view3d(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
@@ -1017,7 +1017,7 @@ RegionView3D *CTX_wm_region_view3d(const bContext *C)
   return nullptr;
 }
 
-SpaceText *CTX_wm_space_text(const bContext *C)
+SpaceText *CTX_wm_space_text(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_TEXT) {
@@ -1026,7 +1026,7 @@ SpaceText *CTX_wm_space_text(const bContext *C)
   return nullptr;
 }
 
-SpaceConsole *CTX_wm_space_console(const bContext *C)
+SpaceConsole *CTX_wm_space_console(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_CONSOLE) {
@@ -1035,7 +1035,7 @@ SpaceConsole *CTX_wm_space_console(const bContext *C)
   return nullptr;
 }
 
-SpaceImage *CTX_wm_space_image(const bContext *C)
+SpaceImage *CTX_wm_space_image(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_IMAGE) {
@@ -1044,7 +1044,7 @@ SpaceImage *CTX_wm_space_image(const bContext *C)
   return nullptr;
 }
 
-SpaceProperties *CTX_wm_space_properties(const bContext *C)
+SpaceProperties *CTX_wm_space_properties(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_PROPERTIES) {
@@ -1053,7 +1053,7 @@ SpaceProperties *CTX_wm_space_properties(const bContext *C)
   return nullptr;
 }
 
-SpaceFile *CTX_wm_space_file(const bContext *C)
+SpaceFile *CTX_wm_space_file(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_FILE) {
@@ -1062,7 +1062,7 @@ SpaceFile *CTX_wm_space_file(const bContext *C)
   return nullptr;
 }
 
-SpaceSeq *CTX_wm_space_seq(const bContext *C)
+SpaceSeq *CTX_wm_space_seq(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_SEQ) {
@@ -1071,7 +1071,7 @@ SpaceSeq *CTX_wm_space_seq(const bContext *C)
   return nullptr;
 }
 
-SpaceOutliner *CTX_wm_space_outliner(const bContext *C)
+SpaceOutliner *CTX_wm_space_outliner(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_OUTLINER) {
@@ -1080,7 +1080,7 @@ SpaceOutliner *CTX_wm_space_outliner(const bContext *C)
   return nullptr;
 }
 
-SpaceNla *CTX_wm_space_nla(const bContext *C)
+SpaceNla *CTX_wm_space_nla(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_NLA) {
@@ -1089,7 +1089,7 @@ SpaceNla *CTX_wm_space_nla(const bContext *C)
   return nullptr;
 }
 
-SpaceNode *CTX_wm_space_node(const bContext *C)
+SpaceNode *CTX_wm_space_node(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_NODE) {
@@ -1098,7 +1098,7 @@ SpaceNode *CTX_wm_space_node(const bContext *C)
   return nullptr;
 }
 
-SpaceGraph *CTX_wm_space_graph(const bContext *C)
+SpaceGraph *CTX_wm_space_graph(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_GRAPH) {
@@ -1107,7 +1107,7 @@ SpaceGraph *CTX_wm_space_graph(const bContext *C)
   return nullptr;
 }
 
-SpaceAction *CTX_wm_space_action(const bContext *C)
+SpaceAction *CTX_wm_space_action(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_ACTION) {
@@ -1116,7 +1116,7 @@ SpaceAction *CTX_wm_space_action(const bContext *C)
   return nullptr;
 }
 
-SpaceInfo *CTX_wm_space_info(const bContext *C)
+SpaceInfo *CTX_wm_space_info(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_INFO) {
@@ -1125,7 +1125,7 @@ SpaceInfo *CTX_wm_space_info(const bContext *C)
   return nullptr;
 }
 
-SpaceUserPref *CTX_wm_space_userpref(const bContext *C)
+SpaceUserPref *CTX_wm_space_userpref(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_USERPREF) {
@@ -1134,7 +1134,7 @@ SpaceUserPref *CTX_wm_space_userpref(const bContext *C)
   return nullptr;
 }
 
-SpaceClip *CTX_wm_space_clip(const bContext *C)
+SpaceClip *CTX_wm_space_clip(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_CLIP) {
@@ -1143,7 +1143,7 @@ SpaceClip *CTX_wm_space_clip(const bContext *C)
   return nullptr;
 }
 
-SpaceTopBar *CTX_wm_space_topbar(const bContext *C)
+SpaceTopBar *CTX_wm_space_topbar(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_TOPBAR) {
@@ -1152,7 +1152,7 @@ SpaceTopBar *CTX_wm_space_topbar(const bContext *C)
   return nullptr;
 }
 
-SpaceSpreadsheet *CTX_wm_space_spreadsheet(const bContext *C)
+SpaceSpreadsheet *CTX_wm_space_spreadsheet(const bContext &C)
 {
   ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype == SPACE_SPREADSHEET) {
@@ -1293,14 +1293,14 @@ const char *CTX_wm_operator_poll_msg_get(bContext *C, bool *r_free)
 
 /* data context */
 
-Main *CTX_data_main(const bContext *C)
+Main *CTX_data_main(const bContext &C)
 {
   Main *bmain;
-  if (ctx_data_pointer_verify(C, "blend_data", (void **)&bmain)) {
+  if (ctx_data_pointer_verify(&C, "blend_data", (void **)&bmain)) {
     return bmain;
   }
 
-  return C->data.main;
+  return C.data.main;
 }
 
 void CTX_data_main_set(bContext *C, Main *bmain)
@@ -1309,20 +1309,20 @@ void CTX_data_main_set(bContext *C, Main *bmain)
   BKE_sound_refresh_callback_bmain(bmain);
 }
 
-Scene *CTX_data_scene(const bContext *C)
+Scene *CTX_data_scene(const bContext &C)
 {
   Scene *scene;
-  if (ctx_data_pointer_verify(C, "scene", (void **)&scene)) {
+  if (ctx_data_pointer_verify(&C, "scene", (void **)&scene)) {
     return scene;
   }
 
-  return C->data.scene;
+  return C.data.scene;
 }
 
-Scene *CTX_data_sequencer_scene(const bContext *C)
+Scene *CTX_data_sequencer_scene(const bContext &C)
 {
   Scene *scene;
-  if (ctx_data_pointer_verify(C, "sequencer_scene", (void **)&scene)) {
+  if (ctx_data_pointer_verify(&C, "sequencer_scene", (void **)&scene)) {
     return scene;
   }
   WorkSpace *workspace = CTX_wm_workspace(C);
@@ -1332,11 +1332,11 @@ Scene *CTX_data_sequencer_scene(const bContext *C)
   return nullptr;
 }
 
-ViewLayer *CTX_data_view_layer(const bContext *C)
+ViewLayer *CTX_data_view_layer(const bContext &C)
 {
   ViewLayer *view_layer;
 
-  if (ctx_data_pointer_verify(C, "view_layer", (void **)&view_layer)) {
+  if (ctx_data_pointer_verify(&C, "view_layer", (void **)&view_layer)) {
     return view_layer;
   }
 
@@ -1352,18 +1352,18 @@ ViewLayer *CTX_data_view_layer(const bContext *C)
   return BKE_view_layer_default_view(scene);
 }
 
-RenderEngineType *CTX_data_engine_type(const bContext *C)
+RenderEngineType *CTX_data_engine_type(const bContext &C)
 {
   Scene *scene = CTX_data_scene(C);
   return RE_engines_find(scene->r.engine);
 }
 
-LayerCollection *CTX_data_layer_collection(const bContext *C)
+LayerCollection *CTX_data_layer_collection(const bContext &C)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   LayerCollection *layer_collection;
 
-  if (ctx_data_pointer_verify(C, "layer_collection", (void **)&layer_collection)) {
+  if (ctx_data_pointer_verify(&C, "layer_collection", (void **)&layer_collection)) {
     if (BKE_view_layer_has_collection(view_layer, layer_collection->collection)) {
       return layer_collection;
     }
@@ -1373,10 +1373,10 @@ LayerCollection *CTX_data_layer_collection(const bContext *C)
   return BKE_layer_collection_get_active(view_layer);
 }
 
-Collection *CTX_data_collection(const bContext *C)
+Collection *CTX_data_collection(const bContext &C)
 {
   Collection *collection;
-  if (ctx_data_pointer_verify(C, "collection", (void **)&collection)) {
+  if (ctx_data_pointer_verify(&C, "collection", (void **)&collection)) {
     return collection;
   }
 
@@ -1472,7 +1472,7 @@ enum eContextObjectMode CTX_data_mode_enum_ex(const Object *obedit,
   return CTX_MODE_OBJECT;
 }
 
-enum eContextObjectMode CTX_data_mode_enum(const bContext *C)
+enum eContextObjectMode CTX_data_mode_enum(const bContext &C)
 {
   Object *obedit = CTX_data_edit_object(C);
   Object *obact = obedit ? nullptr : CTX_data_active_object(C);
@@ -1516,7 +1516,7 @@ static const char *data_mode_strings[] = {
 };
 BLI_STATIC_ASSERT(ARRAY_SIZE(data_mode_strings) == CTX_MODE_NUM + 1,
                   "Must have a string for each context mode")
-const char *CTX_data_mode_string(const bContext *C)
+const char *CTX_data_mode_string(const bContext &C)
 {
   return data_mode_strings[CTX_data_mode_enum(C)];
 }
@@ -1533,10 +1533,10 @@ void CTX_data_scene_set(bContext *C, Scene *scene)
 #endif
 }
 
-ToolSettings *CTX_data_tool_settings(const bContext *C)
+ToolSettings *CTX_data_tool_settings(const bContext &C)
 {
   ToolSettings *toolsettings;
-  if (ctx_data_pointer_verify(C, "tool_settings", (void **)&toolsettings)) {
+  if (ctx_data_pointer_verify(&C, "tool_settings", (void **)&toolsettings)) {
     return toolsettings;
   }
 
@@ -1548,72 +1548,72 @@ ToolSettings *CTX_data_tool_settings(const bContext *C)
   return nullptr;
 }
 
-bool CTX_data_selected_ids(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_selected_ids(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "selected_ids", list);
+  return ctx_data_collection_get(&C, "selected_ids", list);
 }
 
-bool CTX_data_selected_nodes(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_selected_nodes(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "selected_nodes", list);
+  return ctx_data_collection_get(&C, "selected_nodes", list);
 }
 
-bool CTX_data_selected_editable_objects(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_selected_editable_objects(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "selected_editable_objects", list);
+  return ctx_data_collection_get(&C, "selected_editable_objects", list);
 }
 
-bool CTX_data_selected_editable_bases(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_selected_editable_bases(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_base_collection_get(C, "selected_editable_objects", list);
+  return ctx_data_base_collection_get(&C, "selected_editable_objects", list);
 }
 
-bool CTX_data_editable_objects(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_editable_objects(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "editable_objects", list);
+  return ctx_data_collection_get(&C, "editable_objects", list);
 }
 
-bool CTX_data_editable_bases(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_editable_bases(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_base_collection_get(C, "editable_objects", list);
+  return ctx_data_base_collection_get(&C, "editable_objects", list);
 }
 
-bool CTX_data_selected_objects(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_selected_objects(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "selected_objects", list);
+  return ctx_data_collection_get(&C, "selected_objects", list);
 }
 
-bool CTX_data_selected_bases(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_selected_bases(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_base_collection_get(C, "selected_objects", list);
+  return ctx_data_base_collection_get(&C, "selected_objects", list);
 }
 
-bool CTX_data_visible_objects(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_visible_objects(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "visible_objects", list);
+  return ctx_data_collection_get(&C, "visible_objects", list);
 }
 
-bool CTX_data_visible_bases(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_visible_bases(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_base_collection_get(C, "visible_objects", list);
+  return ctx_data_base_collection_get(&C, "visible_objects", list);
 }
 
-bool CTX_data_selectable_objects(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_selectable_objects(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "selectable_objects", list);
+  return ctx_data_collection_get(&C, "selectable_objects", list);
 }
 
-bool CTX_data_selectable_bases(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_selectable_bases(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_base_collection_get(C, "selectable_objects", list);
+  return ctx_data_base_collection_get(&C, "selectable_objects", list);
 }
 
-Object *CTX_data_active_object(const bContext *C)
+Object *CTX_data_active_object(const bContext &C)
 {
-  return static_cast<Object *>(ctx_data_pointer_get(C, "active_object"));
+  return static_cast<Object *>(ctx_data_pointer_get(&C, "active_object"));
 }
 
-Base *CTX_data_active_base(const bContext *C)
+Base *CTX_data_active_base(const bContext &C)
 {
   Object *ob = CTX_data_active_object(C);
 
@@ -1626,94 +1626,94 @@ Base *CTX_data_active_base(const bContext *C)
   return BKE_view_layer_base_find(view_layer, ob);
 }
 
-Object *CTX_data_edit_object(const bContext *C)
+Object *CTX_data_edit_object(const bContext &C)
 {
-  return static_cast<Object *>(ctx_data_pointer_get(C, "edit_object"));
+  return static_cast<Object *>(ctx_data_pointer_get(&C, "edit_object"));
 }
 
-Image *CTX_data_edit_image(const bContext *C)
+Image *CTX_data_edit_image(const bContext &C)
 {
-  return static_cast<Image *>(ctx_data_pointer_get(C, "edit_image"));
+  return static_cast<Image *>(ctx_data_pointer_get(&C, "edit_image"));
 }
 
-Text *CTX_data_edit_text(const bContext *C)
+Text *CTX_data_edit_text(const bContext &C)
 {
-  return static_cast<Text *>(ctx_data_pointer_get(C, "edit_text"));
+  return static_cast<Text *>(ctx_data_pointer_get(&C, "edit_text"));
 }
 
-MovieClip *CTX_data_edit_movieclip(const bContext *C)
+MovieClip *CTX_data_edit_movieclip(const bContext &C)
 {
-  return static_cast<MovieClip *>(ctx_data_pointer_get(C, "edit_movieclip"));
+  return static_cast<MovieClip *>(ctx_data_pointer_get(&C, "edit_movieclip"));
 }
 
-Mask *CTX_data_edit_mask(const bContext *C)
+Mask *CTX_data_edit_mask(const bContext &C)
 {
-  return static_cast<Mask *>(ctx_data_pointer_get(C, "edit_mask"));
+  return static_cast<Mask *>(ctx_data_pointer_get(&C, "edit_mask"));
 }
 
-EditBone *CTX_data_active_bone(const bContext *C)
+EditBone *CTX_data_active_bone(const bContext &C)
 {
-  return static_cast<EditBone *>(ctx_data_pointer_get(C, "active_bone"));
+  return static_cast<EditBone *>(ctx_data_pointer_get(&C, "active_bone"));
 }
 
-CacheFile *CTX_data_edit_cachefile(const bContext *C)
+CacheFile *CTX_data_edit_cachefile(const bContext &C)
 {
-  return static_cast<CacheFile *>(ctx_data_pointer_get(C, "edit_cachefile"));
+  return static_cast<CacheFile *>(ctx_data_pointer_get(&C, "edit_cachefile"));
 }
 
-bool CTX_data_selected_bones(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_selected_bones(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "selected_bones", list);
+  return ctx_data_collection_get(&C, "selected_bones", list);
 }
 
-bool CTX_data_selected_editable_bones(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_selected_editable_bones(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "selected_editable_bones", list);
+  return ctx_data_collection_get(&C, "selected_editable_bones", list);
 }
 
-bool CTX_data_visible_bones(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_visible_bones(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "visible_bones", list);
+  return ctx_data_collection_get(&C, "visible_bones", list);
 }
 
-bool CTX_data_editable_bones(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_editable_bones(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "editable_bones", list);
+  return ctx_data_collection_get(&C, "editable_bones", list);
 }
 
-bPoseChannel *CTX_data_active_pose_bone(const bContext *C)
+bPoseChannel *CTX_data_active_pose_bone(const bContext &C)
 {
-  return static_cast<bPoseChannel *>(ctx_data_pointer_get(C, "active_pose_bone"));
+  return static_cast<bPoseChannel *>(ctx_data_pointer_get(&C, "active_pose_bone"));
 }
 
-bool CTX_data_selected_pose_bones(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_selected_pose_bones(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "selected_pose_bones", list);
+  return ctx_data_collection_get(&C, "selected_pose_bones", list);
 }
 
-bool CTX_data_selected_pose_bones_from_active_object(const bContext *C,
+bool CTX_data_selected_pose_bones_from_active_object(const bContext &C,
                                                      blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "selected_pose_bones_from_active_object", list);
+  return ctx_data_collection_get(&C, "selected_pose_bones_from_active_object", list);
 }
 
-bool CTX_data_visible_pose_bones(const bContext *C, blender::Vector<PointerRNA> *list)
+bool CTX_data_visible_pose_bones(const bContext &C, blender::Vector<PointerRNA> *list)
 {
-  return ctx_data_collection_get(C, "visible_pose_bones", list);
+  return ctx_data_collection_get(&C, "visible_pose_bones", list);
 }
 
-const AssetLibraryReference *CTX_wm_asset_library_ref(const bContext *C)
+const AssetLibraryReference *CTX_wm_asset_library_ref(const bContext &C)
 {
-  return static_cast<AssetLibraryReference *>(ctx_data_pointer_get(C, "asset_library_reference"));
+  return static_cast<AssetLibraryReference *>(ctx_data_pointer_get(&C, "asset_library_reference"));
 }
 
-blender::asset_system::AssetRepresentation *CTX_wm_asset(const bContext *C)
+blender::asset_system::AssetRepresentation *CTX_wm_asset(const bContext &C)
 {
   return static_cast<blender::asset_system::AssetRepresentation *>(
-      ctx_data_pointer_get(C, "asset"));
+      ctx_data_pointer_get(&C, "asset"));
 }
 
-Depsgraph *CTX_data_depsgraph_pointer(const bContext *C)
+Depsgraph *CTX_data_depsgraph_pointer(const bContext &C)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1727,7 +1727,7 @@ Depsgraph *CTX_data_depsgraph_pointer(const bContext *C)
   return depsgraph;
 }
 
-Depsgraph *CTX_data_expect_evaluated_depsgraph(const bContext *C)
+Depsgraph *CTX_data_expect_evaluated_depsgraph(const bContext &C)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   /* TODO(sergey): Assert that the dependency graph is fully evaluated.
@@ -1736,7 +1736,7 @@ Depsgraph *CTX_data_expect_evaluated_depsgraph(const bContext *C)
   return depsgraph;
 }
 
-Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext *C, bool rna_write_check)
+Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext &C, bool rna_write_check)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   if (rna_write_check && !CTX_member_rna_write_check(C)) {
@@ -1749,7 +1749,7 @@ Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext *C, bool rna_write
   return depsgraph;
 }
 
-Depsgraph *CTX_data_depsgraph_on_load(const bContext *C)
+Depsgraph *CTX_data_depsgraph_on_load(const bContext &C)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1761,12 +1761,12 @@ void CTX_member_logging_set(bContext *C, bool enable)
   C->data.log_access = enable;
 }
 
-bool CTX_member_logging_get(const bContext *C)
+bool CTX_member_logging_get(const bContext &C)
 {
-  return C->data.log_access;
+  return C.data.log_access;
 }
 
-bool CTX_member_rna_write_check(const bContext *C)
+bool CTX_member_rna_write_check(const bContext &C)
 {
-  return C->data.rna_disallow_writes ? !(*C->data.rna_disallow_writes) : true;
+  return C.data.rna_disallow_writes ? !(*C.data.rna_disallow_writes) : true;
 }

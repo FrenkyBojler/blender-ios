@@ -155,8 +155,8 @@ static void image_sample_rect_color_float(ImBuf *ibuf, const rcti *rect, float r
 
 static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  ARegion *region = CTX_wm_region(*C);
   Image *image = ED_space_image(sima);
 
   float uv[2];
@@ -166,7 +166,7 @@ static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event
   void *lock;
   ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile);
   ImageSampleInfo *info = static_cast<ImageSampleInfo *>(op->customdata);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   CurveMapping *curve_mapping = scene->view_settings.curve_mapping;
 
   if (ibuf == nullptr) {
@@ -270,13 +270,13 @@ static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event
   }
 
   ED_space_image_release_buffer(sima, ibuf, lock);
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 }
 
 static void sequencer_sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
-  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
+  ARegion *region = CTX_wm_region(*C);
   ImBuf *ibuf = blender::ed::vse::sequencer_ibuf_get(C, scene->r.cfra, nullptr);
   ImageSampleInfo *info = static_cast<ImageSampleInfo *>(op->customdata);
   float fx, fy;
@@ -350,12 +350,12 @@ static void sequencer_sample_apply(bContext *C, wmOperator *op, const wmEvent *e
   }
 
   IMB_freeImBuf(ibuf);
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 }
 
 static void ed_imbuf_sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area == nullptr) {
     return;
   }
@@ -387,7 +387,7 @@ void ED_imbuf_sample_draw(const bContext *C, ARegion *region, void *arg_info)
     return;
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ED_image_draw_info(scene,
                      region,
                      info->color_manage,
@@ -400,14 +400,14 @@ void ED_imbuf_sample_draw(const bContext *C, ARegion *region, void *arg_info)
                      info->linearcol);
 
   if (info->sample_size > 1) {
-    ScrArea *area = CTX_wm_area(C);
+    ScrArea *area = CTX_wm_area(*C);
 
     if (area && area->spacetype == SPACE_IMAGE) {
 
-      const wmWindow *win = CTX_wm_window(C);
+      const wmWindow *win = CTX_wm_window(*C);
       const wmEvent *event = win->runtime->eventstate;
 
-      SpaceImage *sima = CTX_wm_space_image(C);
+      SpaceImage *sima = CTX_wm_space_image(*C);
       GPUVertFormat *format = immVertexFormat();
       uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
@@ -440,14 +440,14 @@ void ED_imbuf_sample_exit(bContext *C, wmOperator *op)
   ImageSampleInfo *info = static_cast<ImageSampleInfo *>(op->customdata);
 
   ED_region_draw_cb_exit(info->art, info->draw_handle);
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
   MEM_freeN(info);
 }
 
 wmOperatorStatus ED_imbuf_sample_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
-  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(*C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area) {
     switch (area->spacetype) {
       case SPACE_IMAGE: {
@@ -512,7 +512,7 @@ void ED_imbuf_sample_cancel(bContext *C, wmOperator *op)
 
 bool ED_imbuf_sample_poll(bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area == nullptr) {
     return false;
   }
@@ -520,7 +520,7 @@ bool ED_imbuf_sample_poll(bContext *C)
   switch (area->spacetype) {
     case SPACE_IMAGE: {
       SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
-      Object *obedit = CTX_data_edit_object(C);
+      Object *obedit = CTX_data_edit_object(*C);
       if (obedit) {
         /* Disable when UV editing so it doesn't swallow all click events
          * (use for setting cursor). */
@@ -539,10 +539,10 @@ bool ED_imbuf_sample_poll(bContext *C)
       if (sseq->mainb != SEQ_DRAW_IMG_IMBUF) {
         return false;
       }
-      if (blender::seq::editing_get(CTX_data_sequencer_scene(C)) == nullptr) {
+      if (blender::seq::editing_get(CTX_data_sequencer_scene(*C)) == nullptr) {
         return false;
       }
-      ARegion *region = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(*C);
       if (!(region && (region->regiontype == RGN_TYPE_PREVIEW))) {
         return false;
       }

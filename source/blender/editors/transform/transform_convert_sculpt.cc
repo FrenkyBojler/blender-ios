@@ -35,7 +35,7 @@ static void createTransSculpt(bContext *C, TransInfo *t)
   TransDataExtension *td_ext;
 
   Scene *scene = t->scene;
-  if (!BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
+  if (!BKE_id_is_editable(CTX_data_main(*C), &scene->id)) {
     BKE_report(t->reports, RPT_ERROR, "Cannot create transform on linked data");
     return;
   }
@@ -123,7 +123,7 @@ static void recalcData_sculpt(TransInfo *t)
 static void special_aftertrans_update__sculpt(bContext *C, TransInfo *t)
 {
   Scene *scene = t->scene;
-  if (!BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
+  if (!BKE_id_is_editable(CTX_data_main(*C), &scene->id)) {
     /* `sculpt_paint::init_transform` was not called in this case. */
     return;
   }

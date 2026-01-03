@@ -321,7 +321,7 @@ static NodeClipboard &get_node_clipboard()
 
 static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &tree = *snode.edittree;
   NodeClipboard &clipboard = get_node_clipboard();
 
@@ -389,8 +389,8 @@ void NODE_OT_clipboard_copy(wmOperatorType *ot)
 
 static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  Main *bmain = CTX_data_main(*C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &tree = *snode.edittree;
   NodeClipboard &clipboard = get_node_clipboard();
 
@@ -405,7 +405,7 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
                "Some nodes references to other IDs could not be restored, will be left empty");
   }
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+  ED_preview_kill_jobs(CTX_wm_manager(*C), CTX_data_main(*C));
 
   node_deselect_all(tree);
 
@@ -545,7 +545,7 @@ static wmOperatorStatus node_clipboard_paste_invoke(bContext *C,
                                                     wmOperator *op,
                                                     const wmEvent *event)
 {
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   float2 cursor;
   ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &cursor.x, &cursor.y);
   RNA_float_set_array(op->ptr, "offset", cursor);

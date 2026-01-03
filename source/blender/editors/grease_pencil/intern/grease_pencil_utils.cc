@@ -1668,8 +1668,8 @@ wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
                                                     wmOperator *op,
                                                     const bool use_duplicate_previous_key)
 {
-  const Scene *scene = CTX_data_scene(C);
-  const Object *object = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(*C);
+  const Object *object = CTX_data_active_object(*C);
   if (!object || object->type != OB_GREASE_PENCIL) {
     return OPERATOR_CANCELLED;
   }
@@ -1757,10 +1757,10 @@ float4x2 calculate_texture_space(const Scene *scene,
 GreasePencil *from_context(bContext &C)
 {
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(
-      CTX_data_pointer_get_type(&C, "grease_pencil", &RNA_GreasePencil).data);
+      CTX_data_pointer_get_type(C, "grease_pencil", &RNA_GreasePencil).data);
 
   if (grease_pencil == nullptr) {
-    Object *object = CTX_data_active_object(&C);
+    Object *object = CTX_data_active_object(C);
     if (object && object->type == OB_GREASE_PENCIL) {
       grease_pencil = static_cast<GreasePencil *>(object->data);
     }

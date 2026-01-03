@@ -39,15 +39,15 @@
 
 static wmOperatorStatus toggle_matcap_flip_exec(bContext *C, wmOperator * /*op*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   if (v3d) {
     v3d->shading.flag ^= V3D_SHADING_MATCAP_FLIP_X;
-    ED_view3d_shade_update(CTX_data_main(C), v3d, CTX_wm_area(C));
+    ED_view3d_shade_update(CTX_data_main(*C), v3d, CTX_wm_area(*C));
     WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
   }
   else {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     scene->display.shading.flag ^= V3D_SHADING_MATCAP_FLIP_X;
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
     WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
@@ -75,7 +75,7 @@ void VIEW3D_OT_toggle_matcap_flip(wmOperatorType *ot)
 
 void uiTemplateEditModeSelection(blender::ui::Layout *layout, bContext *C)
 {
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit = CTX_data_edit_object(*C);
   if (!obedit || obedit->type != OB_MESH) {
     return;
   }
@@ -107,8 +107,8 @@ void uiTemplateEditModeSelection(blender::ui::Layout *layout, bContext *C)
 
 static void uiTemplatePaintModeSelection(blender::ui::Layout *layout, bContext *C)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
@@ -137,11 +137,11 @@ static void uiTemplatePaintModeSelection(blender::ui::Layout *layout, bContext *
 
 void template_header3D_mode(blender::ui::Layout *layout, bContext *C)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit = CTX_data_edit_object(*C);
 
   bool is_paint = (ob && ELEM(ob->mode,
                               OB_MODE_SCULPT,

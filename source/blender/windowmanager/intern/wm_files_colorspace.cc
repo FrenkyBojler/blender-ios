@@ -64,9 +64,9 @@ static const EnumPropertyItem *working_space_itemf(bContext * /*C*/,
 
 static bool wm_set_working_space_check_safe(bContext *C, wmOperator *op)
 {
-  const wmWindowManager *wm = CTX_wm_manager(C);
-  const Main *bmain = CTX_data_main(C);
-  const Scene *scene = CTX_data_scene(C);
+  const wmWindowManager *wm = CTX_wm_manager(*C);
+  const Main *bmain = CTX_data_main(*C);
+  const Scene *scene = CTX_data_scene(*C);
 
   if (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY)) {
     BKE_report(
@@ -86,7 +86,7 @@ static bool wm_set_working_space_check_safe(bContext *C, wmOperator *op)
 
 static wmOperatorStatus wm_set_working_color_space_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const bool convert_colors = RNA_boolean_get(op->ptr, "convert_colors");
   const int working_space_index = RNA_enum_get(op->ptr, "working_space");
   const char *working_space = IMB_colormanagement_working_space_get_indexed_name(
@@ -162,7 +162,7 @@ static wmOperatorStatus wm_set_working_color_space_invoke(bContext *C,
                      IMB_colormanagement_working_space_get_default()));
   }
 
-  const Main *bmain = CTX_data_main(C);
+  const Main *bmain = CTX_data_main(*C);
   const char *working_space = IMB_colormanagement_working_space_get_indexed_name(
       RNA_enum_get(op->ptr, "working_space"));
   if (STREQ(working_space, bmain->colorspace.scene_linear_name)) {

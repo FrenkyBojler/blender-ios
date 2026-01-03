@@ -79,7 +79,7 @@ static void ui_imageuser_slot_menu(bContext *C, blender::ui::Layout *layout, voi
   /* The scene isn't expected to be null, check since it's not a requirement
    * for the value to be non-null for this function to work.
    * It's OK if `has_active_render` is false. */
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   bool has_active_render = scene && (RE_GetSceneRender(scene) != nullptr);
 
   for (const auto [slot_id, slot] : image->renderslots.enumerate()) {
@@ -421,7 +421,7 @@ static void image_multi_cb(bContext *C, void *rnd_pt, void *rr_v)
 
 static bool ui_imageuser_layer_menu_step(bContext *C, int direction, void *rnd_pt)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
@@ -468,7 +468,7 @@ static bool ui_imageuser_layer_menu_step(bContext *C, int direction, void *rnd_p
 
 static bool ui_imageuser_pass_menu_step(bContext *C, int direction, void *rnd_pt)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
   Image *image = rnd_data->image;
   ImageUser *iuser = rnd_data->iuser;
@@ -763,13 +763,13 @@ void uiTemplateImage(blender::ui::Layout *layout,
   Image *ima = static_cast<Image *>(imaptr.data);
   ImageUser *iuser = static_cast<ImageUser *>(userptr->data);
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   BKE_image_user_frame_calc(ima, iuser, scene->r.cfra);
 
   layout->context_ptr_set("edit_image", &imaptr);
   layout->context_ptr_set("edit_image_user", userptr);
 
-  SpaceImage *space_image = CTX_wm_space_image(C);
+  SpaceImage *space_image = CTX_wm_space_image(*C);
   if (!compact && (space_image == nullptr || iuser != &space_image->iuser)) {
     template_id(
         layout, C, ptr, propname, ima ? nullptr : "IMAGE_OT_new", "IMAGE_OT_open", nullptr);
@@ -1185,7 +1185,7 @@ void uiTemplateImageFormatViews(blender::ui::Layout *layout, PointerRNA *imfptr,
 
 void uiTemplateImageLayers(blender::ui::Layout *layout, bContext *C, Image *ima, ImageUser *iuser)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* render layers and passes */
   if (ima && iuser) {
@@ -1263,7 +1263,7 @@ void uiTemplateImageInfo(blender::ui::Layout *layout, bContext *C, Image *ima, I
   /* Frame number, even if we can't load the image. */
   if (ELEM(ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
     /* don't use iuser->framenr directly because it may not be updated if auto-refresh is off */
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     const int framenr = BKE_image_user_frame_get(iuser, scene->r.cfra, nullptr);
     char str[MAX_IMAGE_INFO_LEN];
     int duration = 0;
@@ -1299,14 +1299,14 @@ void uiTemplateImageInfo(blender::ui::Layout *layout, bContext *C, Image *ima, I
 
 static bool metadata_panel_context_poll(const bContext *C, PanelType * /*pt*/)
 {
-  SpaceImage *space_image = CTX_wm_space_image(C);
+  SpaceImage *space_image = CTX_wm_space_image(*C);
   return space_image != nullptr && space_image->image != nullptr;
 }
 
 static void metadata_panel_context_draw(const bContext *C, Panel *panel)
 {
   void *lock;
-  SpaceImage *space_image = CTX_wm_space_image(C);
+  SpaceImage *space_image = CTX_wm_space_image(*C);
   Image *image = space_image->image;
   ImBuf *ibuf = BKE_image_acquire_ibuf(image, &space_image->iuser, &lock);
   if (ibuf != nullptr) {

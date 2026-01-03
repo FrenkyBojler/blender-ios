@@ -839,7 +839,7 @@ static void rna_Space_bool_from_region_flag_update_by_type(bContext *C,
   if (region) {
     if (region_flag == RGN_FLAG_HIDDEN) {
       /* Only support animation when the area is in the current context. */
-      if (region->overlap && (area == CTX_wm_area(C)) && !(U.uiflag & USER_REDUCE_MOTION)) {
+      if (region->overlap && (area == CTX_wm_area(*C)) && !(U.uiflag & USER_REDUCE_MOTION)) {
         ED_region_visibility_change_update_animated(C, area, region);
       }
       else {
@@ -1618,8 +1618,8 @@ static const EnumPropertyItem *rna_3DViewShading_render_pass_itemf(bContext *C,
     return rna_enum_dummy_NULL_items;
   }
 
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   const bool aov_available = BKE_view_layer_has_valid_aov(view_layer);
   const bool eevee_active = STREQ(scene->r.engine, "BLENDER_EEVEE");
@@ -1712,9 +1712,9 @@ static void rna_3DViewShading_render_pass_set(PointerRNA *ptr, int value)
 
 static void rna_SpaceView3D_use_local_collections_update(bContext *C, PointerRNA *ptr)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   View3D *v3d = (View3D *)ptr->data;
 
   if (ED_view3d_local_collections_set(bmain, v3d)) {
@@ -1728,7 +1728,7 @@ static const EnumPropertyItem *rna_SpaceView3D_stereo3d_camera_itemf(bContext *C
                                                                      PropertyRNA * /*prop*/,
                                                                      bool * /*r_free*/)
 {
-  Scene *scene = (C) ? CTX_data_scene(C) : nullptr;
+  Scene *scene = (C) ? CTX_data_scene(*C) : nullptr;
 
   if (scene && scene->r.views_format == SCE_VIEWS_FORMAT_MULTIVIEW) {
     return multiview_camera_items;
@@ -2394,7 +2394,7 @@ static void rna_ConsoleLine_current_character_set(PointerRNA *ptr, const int ind
 static void rna_SpaceDopeSheetEditor_mode_update(bContext *C, PointerRNA *ptr)
 {
   SpaceAction *saction = (SpaceAction *)(ptr->data);
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   if (area && area->spacedata.first == saction) {
     ARegion *channels_region = BKE_area_find_region_type(area, RGN_TYPE_CHANNELS);
@@ -2467,7 +2467,7 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
   }
 
   SpaceSeq *sseq = static_cast<SpaceSeq *>(ptr->data);
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   ListBaseT<Strip> *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
 
   blender::Set<std::string> processed_paths;
@@ -2490,16 +2490,16 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
 
   if (!WM_jobs_is_running(wm_job)) {
     G.is_break = false;
-    WM_jobs_start(CTX_wm_manager(C), wm_job);
+    WM_jobs_start(CTX_wm_manager(*C), wm_job);
   }
 
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 }
 
 static void rna_SequenceEditor_render_size_update(bContext *C, PointerRNA *ptr)
 {
   seq_build_proxy(C, ptr);
-  rna_SequenceEditor_update_cache(CTX_data_main(C), CTX_data_sequencer_scene(C), ptr);
+  rna_SequenceEditor_update_cache(CTX_data_main(*C), CTX_data_sequencer_scene(*C), ptr);
 }
 
 static bool rna_SequenceEditor_clamp_view_get(PointerRNA *ptr)
@@ -2844,7 +2844,7 @@ static void rna_SpaceNodeEditor_path_clear(SpaceNode *snode, bContext *C)
 
 static ARegion *find_snode_region(SpaceNode *snode, bContext *C)
 {
-  if (wmWindowManager *wm = CTX_wm_manager(C)) {
+  if (wmWindowManager *wm = CTX_wm_manager(*C)) {
     for (wmWindow &win : wm->windows) {
       bScreen *screen = WM_window_get_active_screen(&win);
       ScrArea *area = BKE_screen_find_area_from_space(screen,
@@ -2895,7 +2895,7 @@ static void rna_SpaceNodeEditor_cursor_location_from_region(SpaceNode *snode,
                                                             int x,
                                                             int y)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   float cursor_location[2];
 

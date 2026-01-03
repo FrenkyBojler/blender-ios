@@ -30,8 +30,8 @@ struct ProjectOperation {
 
 static void gesture_begin(bContext &C, wmOperator &op, gesture::GestureData &gesture_data)
 {
-  const Scene &scene = *CTX_data_scene(&C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   BKE_sculpt_update_object_for_edit(depsgraph, gesture_data.vc.obact, false);
   undo::push_begin(scene, *gesture_data.vc.obact, &op);
 }
@@ -138,10 +138,10 @@ static void apply_projection_bmesh(const Sculpt &sd,
 
 static void gesture_apply_for_symmetry_pass(bContext &C, gesture::GestureData &gesture_data)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Object &object = *gesture_data.vc.obact;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
-  const Sculpt &sd = *CTX_data_tool_settings(&C)->sculpt;
+  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   const IndexMask &node_mask = gesture_data.node_mask;
 
   threading::EnumerableThreadSpecific<LocalData> all_tls;
@@ -224,8 +224,8 @@ static void init_operation(gesture::GestureData &gesture_data, wmOperator & /*op
 
 static wmOperatorStatus gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const View3D *v3d = CTX_wm_view3d(C);
-  const Base *base = CTX_data_active_base(C);
+  const View3D *v3d = CTX_wm_view3d(*C);
+  const Base *base = CTX_data_active_base(*C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }

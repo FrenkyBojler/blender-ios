@@ -35,9 +35,9 @@ static void strip_modifier_panel_id(void *smd_link, char *r_name)
 
 void template_strip_modifiers(Layout * /*layout*/, bContext *C)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
-  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(*C);
   if (!sequencer_scene) {
     return;
   }

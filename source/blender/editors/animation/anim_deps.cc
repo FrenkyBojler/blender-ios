@@ -479,12 +479,12 @@ void ANIM_deselect_keys_in_animation_editors(bContext *C)
 {
   using namespace blender;
 
-  wmWindow *ctx_window = CTX_wm_window(C);
-  ScrArea *ctx_area = CTX_wm_area(C);
-  ARegion *ctx_region = CTX_wm_region(C);
+  wmWindow *ctx_window = CTX_wm_window(*C);
+  ScrArea *ctx_area = CTX_wm_area(*C);
+  ARegion *ctx_region = CTX_wm_region(*C);
 
   Set<bAction *> dna_actions;
-  for (wmWindow &win : CTX_wm_manager(C)->windows) {
+  for (wmWindow &win : CTX_wm_manager(*C)->windows) {
     bScreen *screen = BKE_workspace_active_screen_get(win.workspace_hook);
 
     for (ScrArea &area : screen->areabase) {

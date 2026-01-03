@@ -766,8 +766,8 @@ void IMB_colormanagement_display_settings_from_ctx(
     ColorManagedViewSettings **r_view_settings,
     ColorManagedDisplaySettings **r_display_settings)
 {
-  Scene *scene = CTX_data_scene(C);
-  SpaceImage *sima = CTX_wm_space_image(C);
+  Scene *scene = CTX_data_scene(*C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
 
   *r_view_settings = &scene->view_settings;
   *r_display_settings = &scene->display_settings;

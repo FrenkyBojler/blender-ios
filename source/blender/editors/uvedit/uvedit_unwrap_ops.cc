@@ -1066,8 +1066,8 @@ struct MinStretch {
 
 static bool minimize_stretch_init(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   UnwrapOptions options{};
   options.topology_from_uvs = true;
@@ -1077,7 +1077,7 @@ static bool minimize_stretch_init(bContext *C, wmOperator *op)
   options.correct_aspect = true;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   if (!uvedit_have_selection_multi(scene, objects, &options)) {
     return false;
@@ -1105,8 +1105,8 @@ static bool minimize_stretch_init(bContext *C, wmOperator *op)
 static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interactive)
 {
   MinStretch *ms = static_cast<MinStretch *>(op->customdata);
-  ScrArea *area = CTX_wm_area(C);
-  const Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(*C);
+  const Scene *scene = CTX_data_scene(*C);
   ToolSettings *ts = scene->toolsettings;
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
@@ -1145,8 +1145,8 @@ static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interac
 static void minimize_stretch_exit(bContext *C, wmOperator *op, bool cancel)
 {
   MinStretch *ms = static_cast<MinStretch *>(op->customdata);
-  ScrArea *area = CTX_wm_area(C);
-  const Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(*C);
+  const Scene *scene = CTX_data_scene(*C);
   ToolSettings *ts = scene->toolsettings;
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
@@ -1154,7 +1154,7 @@ static void minimize_stretch_exit(bContext *C, wmOperator *op, bool cancel)
   ED_workspace_status_text(C, nullptr);
 
   if (ms->timer) {
-    WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), ms->timer);
+    WM_event_timer_remove(CTX_wm_manager(*C), CTX_wm_window(*C), ms->timer);
   }
 
   if (cancel) {
@@ -1211,7 +1211,7 @@ static wmOperatorStatus minimize_stretch_invoke(bContext *C,
 
   MinStretch *ms = static_cast<MinStretch *>(op->customdata);
   WM_event_add_modal_handler(C, op);
-  ms->timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
+  ms->timer = WM_event_timer_add(CTX_wm_manager(*C), CTX_wm_window(*C), TIMER, 0.01f);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1749,9 +1749,9 @@ static void pack_islands_freejob(void *pidv)
 
 static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  const Scene *scene = CTX_data_scene(C);
-  const SpaceImage *sima = CTX_wm_space_image(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(*C);
+  const SpaceImage *sima = CTX_wm_space_image(*C);
   const ToolSettings *ts = scene->toolsettings;
 
   UnwrapOptions options = unwrap_options_get(op, nullptr, scene->toolsettings);
@@ -1762,7 +1762,7 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
   options.correct_aspect = true;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   /* Early exit in case no UVs are selected. */
   if (!uvedit_have_selection_multi(scene, objects, &options)) {
@@ -1784,7 +1784,7 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
   pid->objects = std::move(objects);
   pid->sima = sima;
   pid->udim_source = udim_source;
-  pid->wm = CTX_wm_manager(C);
+  pid->wm = CTX_wm_manager(*C);
 
   if (udim_source == PACK_CUSTOM_REGION) {
     if (ts->uv_flag & UV_FLAG_CUSTOM_REGION) {
@@ -1846,14 +1846,14 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
     }
 
     wmJob *wm_job = WM_jobs_get(
-        pid->wm, CTX_wm_window(C), scene, "Packing UVs...", WM_JOB_PROGRESS, WM_JOB_TYPE_UV_PACK);
+        pid->wm, CTX_wm_window(*C), scene, "Packing UVs...", WM_JOB_PROGRESS, WM_JOB_TYPE_UV_PACK);
     WM_jobs_customdata_set(wm_job, pid, pack_islands_freejob);
     WM_jobs_timer(wm_job, 0.1, 0, 0);
     WM_locked_interface_set_with_flags(pid->wm, REGION_DRAW_LOCK_RENDER);
     WM_jobs_callbacks(wm_job, pack_islands_startjob, nullptr, nullptr, pack_islands_endjob);
 
     WM_cursor_wait(true);
-    WM_jobs_start(CTX_wm_manager(C), wm_job);
+    WM_jobs_start(CTX_wm_manager(*C), wm_job);
     return OPERATOR_FINISHED;
   }
 
@@ -2056,8 +2056,8 @@ void UV_OT_pack_islands(wmOperatorType *ot)
 
 static wmOperatorStatus average_islands_scale_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   ToolSettings *ts = scene->toolsettings;
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
@@ -2069,7 +2069,7 @@ static wmOperatorStatus average_islands_scale_exec(bContext *C, wmOperator *op)
   options.correct_aspect = true;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   if (!uvedit_have_selection_multi(scene, objects, &options)) {
     return OPERATOR_CANCELLED;
@@ -2414,8 +2414,8 @@ static void uv_map_rotation_matrix_ex(float result[4][4],
 
 static void uv_map_transform(bContext *C, wmOperator *op, float rotmat[3][3])
 {
-  Object *obedit = CTX_data_edit_object(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  Object *obedit = CTX_data_edit_object(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
 
   const int align = RNA_enum_get(op->ptr, "align");
   const int direction = RNA_enum_get(op->ptr, "direction");
@@ -2821,14 +2821,14 @@ enum {
 
 static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(*C);
   const bool sync_selection = (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   int reported_errors = 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   unwrap_options_sync_toolsettings(op, scene->toolsettings);
 
@@ -2841,7 +2841,7 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
    * has the subsurf modifier in the right place. */
   bool subsurf_error = options.use_subsurf;
 
-  if (CTX_wm_space_image(C)) {
+  if (CTX_wm_space_image(*C)) {
     /* Inside the UV Editor, only unwrap selected UVs. */
     if (sync_selection) {
       /* It's important to include unselected faces so they are taken into account
@@ -3211,14 +3211,14 @@ static blender::Vector<blender::float3> smart_uv_project_calculate_project_norma
 
 static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   /* May be nullptr. */
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   bool only_selected_uvs = false;
-  if (CTX_wm_space_image(C)) {
+  if (CTX_wm_space_image(*C)) {
     /* Inside the UV Editor, only project selected UVs. */
     only_selected_uvs = true;
   }
@@ -3469,8 +3469,8 @@ static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op);
 
 static wmOperatorStatus uv_from_view_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   const Camera *camera = ED_view3d_camera_data_get(v3d, rv3d);
   PropertyRNA *prop;
 
@@ -3488,11 +3488,11 @@ static wmOperatorStatus uv_from_view_invoke(bContext *C, wmOperator *op, const w
 
 static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  const Scene *scene = CTX_data_scene(C);
-  ARegion *region = CTX_wm_region(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(*C);
+  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   const Camera *camera = ED_view3d_camera_data_get(v3d, rv3d);
   BMFace *efa;
   BMLoop *l;
@@ -3606,7 +3606,7 @@ static wmOperatorStatus uv_from_view_exec(bContext *C, wmOperator *op)
 
 static bool uv_from_view_poll(bContext *C)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
 
   if (!ED_operator_uvmap(C)) {
     return false;
@@ -3647,9 +3647,9 @@ void UV_OT_project_from_view(wmOperatorType *ot)
 
 static wmOperatorStatus reset_exec(bContext *C, wmOperator * /*op*/)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, v3d);
@@ -3902,16 +3902,16 @@ static float uv_sphere_project(const Scene *scene,
 
 static wmOperatorStatus sphere_project_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  const Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   bool only_selected_uvs = false;
-  if (CTX_wm_space_image(C)) {
+  if (CTX_wm_space_image(*C)) {
     /* Inside the UV Editor, only project selected UVs. */
     only_selected_uvs = true;
   }
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, v3d);
   for (Object *obedit : objects) {
@@ -4080,16 +4080,16 @@ static float uv_cylinder_project(const Scene *scene,
 
 static wmOperatorStatus cylinder_project_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  const Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   bool only_selected_uvs = false;
-  if (CTX_wm_space_image(C)) {
+  if (CTX_wm_space_image(*C)) {
     /* Inside the UV Editor, only project selected UVs. */
     only_selected_uvs = true;
   }
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, v3d);
   for (Object *obedit : objects) {
@@ -4228,11 +4228,11 @@ static void uvedit_unwrap_cube_project(const Scene *scene,
 
 static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  const Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   bool only_selected_uvs = false;
-  if (CTX_wm_space_image(C)) {
+  if (CTX_wm_space_image(*C)) {
     /* Inside the UV Editor, only cube project selected UVs. */
     only_selected_uvs = true;
   }
@@ -4240,7 +4240,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
   PropertyRNA *prop_cube_size = RNA_struct_find_property(op->ptr, "cube_size");
   const float cube_size_init = RNA_property_float_get(op->ptr, prop_cube_size);
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, v3d);
   for (const int ob_index : objects.index_range()) {

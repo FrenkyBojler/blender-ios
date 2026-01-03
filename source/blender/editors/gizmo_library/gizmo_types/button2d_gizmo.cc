@@ -194,7 +194,7 @@ static void button2d_draw_intern(const bContext *C,
 
   float screen_scale = 200.0f;
   if (is_3d) {
-    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    RegionView3D *rv3d = CTX_wm_region_view3d(*C);
     float matrix_align[4][4];
     float matrix_final_unit[4][4];
     normalize_m4_m4(matrix_final_unit, matrix_final);
@@ -342,7 +342,7 @@ static int gizmo_button2d_cursor_get(wmGizmo *gz)
 #define CIRCLE_RESOLUTION_3D 32
 static bool gizmo_button2d_bounds(bContext *C, wmGizmo *gz, rcti *r_bounding_box)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   float rad = CIRCLE_RESOLUTION_3D * UI_SCALE_FAC / 2.0f;
   const float *co = nullptr;
   float matrix_final[4][4];
@@ -350,7 +350,7 @@ static bool gizmo_button2d_bounds(bContext *C, wmGizmo *gz, rcti *r_bounding_box
   WM_gizmo_calc_matrix_final(gz, matrix_final);
 
   if (gz->parent_gzgroup->type->flag & WM_GIZMOGROUPTYPE_3D) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     if (ED_view3d_project_float_global(region, matrix_final[3], co_proj, V3D_PROJ_TEST_NOP) ==
         V3D_PROJ_RET_OK)
     {

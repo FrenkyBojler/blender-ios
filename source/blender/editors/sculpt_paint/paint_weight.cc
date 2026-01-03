@@ -877,16 +877,16 @@ bool WeightPaintStroke::get_location(float out[3], const float mouse[2], bool fo
 }
 bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
 {
-  Scene &scene = *CTX_data_scene(this->evil_C);
+  Scene &scene = *CTX_data_scene(*this->evil_C);
   ToolSettings &ts = *scene.toolsettings;
-  Object &ob = *CTX_data_active_object(this->evil_C);
+  Object &ob = *CTX_data_active_object(*this->evil_C);
   Mesh &mesh = *BKE_mesh_from_object(&ob);
   WPaintVGroupIndex vgroup_index;
   int defbase_tot, defbase_tot_sel;
   bool *defbase_sel;
   SculptSession &ss = *ob.sculpt;
-  VPaint &vp = *CTX_data_tool_settings(this->evil_C)->wpaint;
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(this->evil_C);
+  VPaint &vp = *CTX_data_tool_settings(*this->evil_C)->wpaint;
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*this->evil_C);
 
   if (ED_wpaint_ensure_data(this->evil_C, op->reports, WPAINT_ENSURE_MIRROR, &vgroup_index) ==
       false)
@@ -1528,7 +1528,7 @@ static void wpaint_paint_leaves(bContext *C,
                                 const IndexMask &node_mask)
 {
   const Brush &brush = *ob.sculpt->cache->brush;
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
 
   switch ((eBrushWeightPaintType)brush.weight_brush_type) {
     case WPAINT_BRUSH_TYPE_AVERAGE: {
@@ -1575,9 +1575,9 @@ void ED_object_wpaintmode_enter_ex(Main &bmain, Depsgraph &depsgraph, Scene &sce
 }
 void ED_object_wpaintmode_enter(bContext *C, Depsgraph &depsgraph)
 {
-  Main &bmain = *CTX_data_main(C);
-  Scene &scene = *CTX_data_scene(C);
-  Object &ob = *CTX_data_active_object(C);
+  Main &bmain = *CTX_data_main(*C);
+  Scene &scene = *CTX_data_scene(*C);
+  Object &ob = *CTX_data_active_object(*C);
   ED_object_wpaintmode_enter_ex(bmain, depsgraph, scene, ob);
 }
 /** \} */
@@ -1592,7 +1592,7 @@ void ED_object_wpaintmode_exit_ex(Object &ob)
 }
 void ED_object_wpaintmode_exit(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   ED_object_wpaintmode_exit_ex(*ob);
 }
 /** \} */
@@ -1603,7 +1603,7 @@ void ED_object_wpaintmode_exit(bContext *C)
 
 bool weight_paint_mode_poll(bContext *C)
 {
-  const Object *ob = CTX_data_active_object(C);
+  const Object *ob = CTX_data_active_object(*C);
 
   return ob && ob->mode == OB_MODE_WEIGHT_PAINT && ((const Mesh *)ob->data)->faces_num;
 }
@@ -1615,14 +1615,14 @@ bool weight_paint_mode_region_view3d_poll(bContext *C)
 
 static bool weight_paint_poll_ex(bContext *C, bool check_tool)
 {
-  const Object *ob = CTX_data_active_object(C);
+  const Object *ob = CTX_data_active_object(*C);
   const ScrArea *area;
 
   if ((ob != nullptr) && (ob->mode & OB_MODE_WEIGHT_PAINT) &&
-      (BKE_paint_brush(&CTX_data_tool_settings(C)->wpaint->paint) != nullptr) &&
-      (area = CTX_wm_area(C)) && (area->spacetype == SPACE_VIEW3D))
+      (BKE_paint_brush(&CTX_data_tool_settings(*C)->wpaint->paint) != nullptr) &&
+      (area = CTX_wm_area(*C)) && (area->spacetype == SPACE_VIEW3D))
   {
-    const ARegion *region = CTX_wm_region(C);
+    const ARegion *region = CTX_wm_region(*C);
     if (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_HUD)) {
       if (!check_tool || WM_toolsystem_active_tool_is_brush(C)) {
         return true;
@@ -1647,12 +1647,12 @@ bool weight_paint_poll_ignore_tool(bContext *C)
  */
 static wmOperatorStatus wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 {
-  Main &bmain = *CTX_data_main(C);
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
-  Object &ob = *CTX_data_active_object(C);
+  Main &bmain = *CTX_data_main(*C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
+  Object &ob = *CTX_data_active_object(*C);
   const int mode_flag = OB_MODE_WEIGHT_PAINT;
   const bool is_mode_set = (ob.mode & mode_flag) != 0;
-  Scene &scene = *CTX_data_scene(C);
+  Scene &scene = *CTX_data_scene(*C);
   ToolSettings &ts = *scene.toolsettings;
 
   if (!is_mode_set) {
@@ -1667,9 +1667,9 @@ static wmOperatorStatus wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
     ED_object_wpaintmode_exit_ex(ob);
   }
   else {
-    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(*C);
     if (depsgraph) {
-      depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     }
     ED_object_wpaintmode_enter_ex(bmain, *depsgraph, scene, ob);
     BKE_paint_brushes_validate(&bmain, &ts.wpaint->paint);
@@ -1722,7 +1722,7 @@ static void wpaint_do_paint(bContext *C,
                             const int i,
                             const float angle)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
   SculptSession &ss = *ob.sculpt;
   ss.cache->radial_symmetry_pass = i;
   SCULPT_cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
@@ -1804,12 +1804,12 @@ static void wpaint_do_symmetrical_brush_actions(
 
 void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
 {
-  ToolSettings &ts = *CTX_data_tool_settings(this->evil_C);
+  ToolSettings &ts = *CTX_data_tool_settings(*this->evil_C);
   VPaint &wp = *ts.wpaint;
   const Brush &brush = *BKE_paint_brush(&wp.paint);
   WPaintData *wpd = static_cast<WPaintData *>(mode_data_.get());
   ViewContext *vc;
-  Object *ob = CTX_data_active_object(this->evil_C);
+  Object *ob = CTX_data_active_object(*this->evil_C);
 
   SculptSession &ss = *ob->sculpt;
 
@@ -1825,7 +1825,7 @@ void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
   if (wpd == nullptr) {
     /* XXX: force a redraw here, since even though we can't paint,
      * at least view won't freeze until stroke ends */
-    ED_region_tag_redraw(CTX_wm_region(this->evil_C));
+    ED_region_tag_redraw(CTX_wm_region(*this->evil_C));
     return;
   }
 
@@ -1885,12 +1885,12 @@ void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
 
 void WeightPaintStroke::done(bool /*is_cancel*/)
 {
-  Object &ob = *CTX_data_active_object(this->evil_C);
+  Object &ob = *CTX_data_active_object(*this->evil_C);
 
   SculptSession &ss = *ob.sculpt;
 
   if (ss.cache->alt_smooth) {
-    ToolSettings &ts = *CTX_data_tool_settings(this->evil_C);
+    ToolSettings &ts = *CTX_data_tool_settings(*this->evil_C);
     VPaint &vp = *ts.wpaint;
     vwpaint::smooth_brush_toggle_off(&vp.paint, ss.cache);
   }

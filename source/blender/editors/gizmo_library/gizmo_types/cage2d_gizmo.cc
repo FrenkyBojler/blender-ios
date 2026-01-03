@@ -1359,7 +1359,7 @@ static wmOperatorStatus gizmo_cage2d_modal(bContext *C,
   }
 
   /* tag the region for redraw */
-  ED_region_tag_redraw_editor_overlays(CTX_wm_region(C));
+  ED_region_tag_redraw_editor_overlays(CTX_wm_region(*C));
 
   return OPERATOR_RUNNING_MODAL;
 }

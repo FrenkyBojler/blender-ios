@@ -62,7 +62,7 @@ class Instance : public DrawEngine {
   void init() final
   {
     const DRWContext *ctx_state = DRW_context_get();
-    main_ = CTX_data_main(ctx_state->evil_C);
+    main_ = CTX_data_main(*ctx_state->evil_C);
     region = ctx_state->region;
     space_ = space_accessor_from_space(ctx_state->space_data);
     manager = DRW_manager_get();

@@ -88,8 +88,8 @@ static void applyarmature_fix_boneparents(const bContext *C, Scene *scene, Objec
    * TODO(sergey): This seems very similar to `ignore_parent_tx()`, which was now ensured to work
    * quite reliably. Can we de-duplicate the code? Or at least verify we don't need an extra logic
    * in this function. */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Main *bmain = CTX_data_main(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Main *bmain = CTX_data_main(*C);
 
   /* go through all objects in database */
   for (Object *ob = static_cast<Object *>(bmain->objects.first); ob;
@@ -390,11 +390,11 @@ static void applyarmature_reset_constraints(bPose *pose, const bool use_selected
 /* Set the current pose as the rest-pose. */
 static wmOperatorStatus apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
   /* must be active object, not edit-object */
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
   const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   bArmature *arm = BKE_armature_from_object(ob);
   bPose *pose;
@@ -422,7 +422,7 @@ static wmOperatorStatus apply_armature_pose2bones_exec(bContext *C, wmOperator *
 
   /* Find selected bones before switching to edit mode. */
   if (use_selected) {
-    CTX_data_selected_pose_bones(C, &selected_bones);
+    CTX_data_selected_pose_bones(*C, &selected_bones);
 
     if (selected_bones.is_empty()) {
       return OPERATOR_CANCELLED;
@@ -476,7 +476,7 @@ static wmOperatorStatus apply_armature_pose2bones_exec(bContext *C, wmOperator *
 static void apply_armature_pose2bones_ui(bContext *C, wmOperator *op)
 {
   blender::ui::Layout &layout = *op->layout;
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
@@ -515,12 +515,12 @@ void POSE_OT_armature_apply(wmOperatorType *ot)
 
 static wmOperatorStatus pose_visual_transform_apply_exec(bContext *C, wmOperator * /*op*/)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   /* Needed to ensure #bPoseChannel.pose_mat are up to date. */
-  CTX_data_ensure_evaluated_depsgraph(C);
+  CTX_data_ensure_evaluated_depsgraph(*C);
 
   FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
     const bArmature *arm = static_cast<const bArmature *>(ob->data);
@@ -767,8 +767,8 @@ static wmOperatorStatus pose_copy_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::blendfile;
 
-  Main *bmain = CTX_data_main(C);
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+  Main *bmain = CTX_data_main(*C);
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
 
   /* Sanity checking. */
   if (ELEM(nullptr, ob, ob->pose)) {
@@ -841,8 +841,8 @@ void POSE_OT_copy(wmOperatorType *ot)
 
 static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
-  Scene *scene = CTX_data_scene(C);
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
+  Scene *scene = CTX_data_scene(*C);
   const bool flip = RNA_boolean_get(op->ptr, "flipped");
   bool selOnly = RNA_boolean_get(op->ptr, "selected_mask");
 
@@ -886,7 +886,7 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
    * pose tools.
    */
   if (selOnly) {
-    if (CTX_DATA_COUNT(C, selected_pose_bones) == 0) {
+    if (CTX_DATA_COUNT(*C, selected_pose_bones) == 0) {
       selOnly = false;
     }
   }
@@ -1173,8 +1173,8 @@ static wmOperatorStatus pose_clear_transform_generic_exec(bContext *C,
                                                                              bPoseChannel *),
                                                           const char default_ksName[])
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
   bool changed_multi = false;
 
   /* sanity checks */
@@ -1186,8 +1186,8 @@ static wmOperatorStatus pose_clear_transform_generic_exec(bContext *C,
   }
 
   /* only clear relevant transforms for selected bones */
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob_iter) {
     /* XXX: UGLY HACK (for auto-key + clear transforms). */
     Object *ob_eval = DEG_get_evaluated(depsgraph, ob_iter);
@@ -1359,10 +1359,10 @@ void POSE_OT_transforms_clear(wmOperatorType *ot)
 
 static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
       depsgraph, float(scene->r.cfra));
   const bool only_select = RNA_boolean_get(op->ptr, "only_selected");

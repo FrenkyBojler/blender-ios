@@ -83,11 +83,11 @@ void GrabOperation::foreach_grabbed_drawing(
   using bke::greasepencil::Drawing;
   using bke::greasepencil::Layer;
 
-  const Scene &scene = *CTX_data_scene(&C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
-  ARegion &region = *CTX_wm_region(&C);
-  RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
-  Object &object = *CTX_data_active_object(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  ARegion &region = *CTX_wm_region(C);
+  RegionView3D &rv3d = *CTX_wm_region_view3d(C);
+  Object &object = *CTX_data_active_object(C);
   Object &object_eval = *DEG_get_evaluated(&depsgraph, &object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
@@ -136,13 +136,13 @@ void GrabOperation::foreach_grabbed_drawing(
 
 void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
-  const ARegion &region = *CTX_wm_region(&C);
-  const RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
-  const Scene &scene = *CTX_data_scene(&C);
+  const ARegion &region = *CTX_wm_region(C);
+  const RegionView3D &rv3d = *CTX_wm_region_view3d(C);
+  const Scene &scene = *CTX_data_scene(C);
   Paint &paint = *BKE_paint_get_active_from_context(&C);
   Brush &brush = *BKE_paint_brush(&paint);
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
-  Object &ob_orig = *CTX_data_active_object(&C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  Object &ob_orig = *CTX_data_active_object(C);
   Object &ob_eval = *DEG_get_evaluated(&depsgraph, &ob_orig);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_orig.data);
 

@@ -62,19 +62,19 @@ static std::string progress_tooltip_func(bContext * /*C*/, void *argN, const Str
 
 static void cancel_all_scene_jobs(bContext &C)
 {
-  WM_jobs_stop_all_from_owner(CTX_wm_manager(&C), CTX_data_scene(&C));
+  WM_jobs_stop_all_from_owner(CTX_wm_manager(C), CTX_data_scene(C));
 }
 
 static void set_global_break(bContext &C)
 {
-  WM_jobs_stop_all_from_owner(CTX_wm_manager(&C), CTX_data_scene(&C));
+  WM_jobs_stop_all_from_owner(CTX_wm_manager(C), CTX_data_scene(C));
 }
 
 void template_running_jobs(Layout *layout, bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
-  ScrArea *area = CTX_wm_area(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  ScrArea *area = CTX_wm_area(*C);
 
   void *owner = nullptr;
   int icon = 0;
@@ -190,7 +190,7 @@ void template_running_jobs(Layout *layout, bContext *C)
         }
         const SpaceFile *sfile = static_cast<SpaceFile *>(area.spacedata.first);
         auto tmp_cancel_fn = [sfile](bContext &C) {
-          WM_jobs_stop_all_from_owner(CTX_wm_manager(&C), sfile->files);
+          WM_jobs_stop_all_from_owner(CTX_wm_manager(C), sfile->files);
         };
 
         if (WM_jobs_test(wm, sfile->files, WM_JOB_TYPE_FILESEL_READDIR)) {

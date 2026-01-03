@@ -545,7 +545,7 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
                                                      wmOperator *op,
                                                      const wmEvent *event)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const ToolSettings *ts = scene->toolsettings;
   const char uv_selectmode = ED_uvedit_select_mode_get(scene);
 
@@ -560,14 +560,14 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
   /* Set false if we support edge tagging. */
   op_params.track_active = true;
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
   float co[2];
 
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
 
   blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
@@ -654,7 +654,7 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
 
     if (ele_src && ele_dst) {
       /* Always use the active object, not `obedit` as the active defines the UV display. */
-      const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(C));
+      const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(*C));
       uv_shortest_path_pick_ex(
           scene, depsgraph, obedit, &op_params, ele_src, ele_dst, aspect_y, offsets);
 
@@ -687,10 +687,10 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
 
 static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
   const ToolSettings *ts = scene->toolsettings;
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const char uv_selectmode = ED_uvedit_select_mode_get(scene);
 
   const int object_index = RNA_int_get(op->ptr, "object_index");
@@ -745,7 +745,7 @@ static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
   /* NOLINTEND: bugprone-assignment-in-if-condition */
 
   /* Always use the active object, not `obedit` as the active defines the UV display. */
-  const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(C));
+  const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(*C));
 
   PathSelectParams op_params;
   path_select_params_from_op(op, &op_params);
@@ -795,14 +795,14 @@ void UV_OT_shortest_path_pick(wmOperatorType *ot)
 
 static wmOperatorStatus uv_shortest_path_select_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
   const char uv_selectmode = ED_uvedit_select_mode_get(scene);
   bool found_valid_elements = false;
 
-  const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(C));
+  const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(*C));
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
   for (Object *obedit : objects) {

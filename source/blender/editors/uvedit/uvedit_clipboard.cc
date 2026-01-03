@@ -277,8 +277,8 @@ static wmOperatorStatus uv_copy_exec(bContext *C, wmOperator * /*op*/)
   UV_clipboard_free();
   uv_clipboard = new UV_ClipboardBuffer();
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -307,8 +307,8 @@ static wmOperatorStatus uv_paste_exec(bContext *C, wmOperator *op)
   if (!uv_clipboard) {
     return OPERATOR_FINISHED; /* Nothing to do. */
   }
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);

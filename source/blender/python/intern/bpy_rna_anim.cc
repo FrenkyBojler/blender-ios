@@ -283,7 +283,7 @@ static int pyrna_struct_keyframe_parse(PointerRNA *ptr,
   }
 
   if (*r_cfra == FLT_MAX) {
-    *r_cfra = CTX_data_scene(BPY_context_get())->r.cfra;
+    *r_cfra = CTX_data_scene(*BPY_context_get())->r.cfra;
   }
 
   return 0; /* success */
@@ -364,7 +364,7 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
    * The depsgraph is only used for evaluating the NLA so this might not be needed in the future.
    */
   bContext *C = BPY_context_get();
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
                                                                                     cfra);
 
@@ -638,7 +638,7 @@ PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
     bContext *context = BPY_context_get();
     WM_event_add_notifier(BPY_context_get(), NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
     DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
-    DEG_relations_tag_update(CTX_data_main(context));
+    DEG_relations_tag_update(CTX_data_main(*context));
   }
 
   MEM_freeN(path_full);
@@ -693,7 +693,7 @@ PyObject *pyrna_struct_driver_remove(BPy_StructRNA *self, PyObject *args)
   bContext *context = BPY_context_get();
   WM_event_add_notifier(context, NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
   DEG_id_tag_update(self->ptr->owner_id, ID_RECALC_ANIMATION);
-  DEG_relations_tag_update(CTX_data_main(context));
+  DEG_relations_tag_update(CTX_data_main(*context));
 
   return PyBool_FromLong(result);
 }

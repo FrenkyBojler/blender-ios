@@ -29,7 +29,7 @@ namespace blender::ed::space_node {
 
 static bool node_tree_interface_panel_poll(const bContext *C, PanelType * /*pt*/)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   if (!snode) {
     return false;
   }
@@ -114,7 +114,7 @@ void node_tree_interface_draw(bContext &C, ui::Layout &layout, bNodeTree &tree)
 
 static void node_tree_interface_panel_draw(const bContext *C, Panel *panel)
 {
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &tree = *snode.edittree;
   ui::Layout &layout = *panel->layout;
 

@@ -53,9 +53,9 @@ static void rna_RegionView3D_update(ID *id, RegionView3D *rv3d, bContext *C)
   area_region_from_regiondata(screen, rv3d, &area, &region);
 
   if (area && region && area->spacetype == SPACE_VIEW3D) {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     View3D *v3d = static_cast<View3D *>(area->spacedata.first);
-    wmWindowManager *wm = CTX_wm_manager(C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
 
     for (wmWindow &win : wm->windows) {
       if (WM_window_get_active_screen(&win) == screen) {

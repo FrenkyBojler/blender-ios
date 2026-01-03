@@ -240,7 +240,7 @@ bool button_anim_expression_set(Button *but, const char *str)
       /* this notifier should update the Graph Editor and trigger depsgraph refresh? */
       WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, nullptr);
 
-      DEG_relations_tag_update(CTX_data_main(C));
+      DEG_relations_tag_update(CTX_data_main(*C));
 
       return true;
     }
@@ -306,7 +306,7 @@ bool button_anim_expression_create(Button *but, const char *str)
 
       /* updates */
       BKE_driver_invalidate_expression(driver, true, false);
-      DEG_relations_tag_update(CTX_data_main(C));
+      DEG_relations_tag_update(CTX_data_main(*C));
       WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, nullptr);
       ok = true;
     }
@@ -336,7 +336,7 @@ void button_anim_paste_driver(bContext *C)
 
 void button_anim_decorate_cb(bContext *C, void *arg_but, void * /*arg_dummy*/)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   auto *but_decorate = static_cast<ButtonDecorator *>(arg_but);
   if (!but_decorate->toggle_keyframe_on_click) {
     return;

@@ -84,7 +84,7 @@ namespace blender::ed::outliner {
  */
 static void do_outliner_item_editmode_toggle(bContext *C, Scene *scene, Base *base)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = base->object;
 
   bool changed = false;
@@ -96,7 +96,7 @@ static void do_outliner_item_editmode_toggle(bContext *C, Scene *scene, Base *ba
     }
   }
   else {
-    changed = object::editmode_enter_ex(CTX_data_main(C), scene, ob, object::EM_NO_CONTEXT);
+    changed = object::editmode_enter_ex(CTX_data_main(*C), scene, ob, object::EM_NO_CONTEXT);
     if (changed) {
       object::base_select(base, object::BA_SELECT);
       WM_event_add_notifier(C, NC_SCENE | ND_MODE, nullptr);
@@ -117,11 +117,11 @@ static void do_outliner_item_editmode_toggle(bContext *C, Scene *scene, Base *ba
  */
 static void do_outliner_item_posemode_toggle(bContext *C, Scene *scene, Base *base)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = base->object;
 
-  if (!BKE_id_is_editable(CTX_data_main(C), &ob->id)) {
-    BKE_report(CTX_wm_reports(C), RPT_WARNING, "Cannot pose non-editable data");
+  if (!BKE_id_is_editable(CTX_data_main(*C), &ob->id)) {
+    BKE_report(CTX_wm_reports(*C), RPT_WARNING, "Cannot pose non-editable data");
     return;
   }
 
@@ -228,7 +228,7 @@ static void tree_element_viewlayer_activate(bContext *C, TreeElement *te)
   }
 
   ViewLayer *view_layer = static_cast<ViewLayer *>(te->directdata);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   Scene *scene = WM_window_get_active_scene(win);
 
   if (BLI_findindex(&scene->view_layers, view_layer) != -1) {
@@ -321,8 +321,8 @@ static void tree_element_object_activate(bContext *C,
 
   sce = (Scene *)outliner_search_back(te, ID_SCE);
   if (sce && scene != sce) {
-    WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), sce);
-    view_layer = WM_window_get_active_view_layer(CTX_wm_window(C));
+    WM_window_set_active_scene(CTX_data_main(*C), C, CTX_wm_window(*C), sce);
+    view_layer = WM_window_get_active_view_layer(CTX_wm_window(*C));
     scene = sce;
   }
 
@@ -336,8 +336,8 @@ static void tree_element_object_activate(bContext *C,
       const eObjectMode object_mode = obact ? (eObjectMode)obact->mode : OB_MODE_OBJECT;
       if (base && !BKE_object_is_mode_compat(base->object, object_mode)) {
         if (object_mode == OB_MODE_OBJECT) {
-          Main *bmain = CTX_data_main(C);
-          Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+          Main *bmain = CTX_data_main(*C);
+          Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
           object::mode_generic_exit(bmain, depsgraph, scene, base->object);
         }
         if (!BKE_object_is_mode_compat(base->object, object_mode)) {
@@ -447,7 +447,7 @@ static void tree_element_camera_activate(bContext *C, Scene *scene, TreeElement 
 
   scene->camera = ob;
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
 
   WM_windows_scene_data_sync(&wm->windows, scene);
@@ -470,7 +470,7 @@ static void tree_element_world_activate(bContext *C, Scene *scene, TreeElement *
 
   /* make new scene active */
   if (sce && scene != sce) {
-    WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), sce);
+    WM_window_set_active_scene(CTX_data_main(*C), C, CTX_wm_window(*C), sce);
   }
 }
 
@@ -508,21 +508,21 @@ static void tree_element_grease_pencil_node_activate(bContext *C,
 
   if (node.is_layer()) {
     if (grease_pencil.has_active_group()) {
-      WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+      WM_msg_publish_rna_prop(CTX_wm_message_bus(*C),
                               &grease_pencil.id,
                               &grease_pencil,
                               GreasePencilv3LayerGroup,
                               active);
     }
     WM_msg_publish_rna_prop(
-        CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+        CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
   }
   if (node.is_group()) {
     if (grease_pencil.has_active_layer()) {
       WM_msg_publish_rna_prop(
-          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+          CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
     }
-    WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+    WM_msg_publish_rna_prop(CTX_wm_message_bus(*C),
                             &grease_pencil.id,
                             &grease_pencil,
                             GreasePencilv3LayerGroup,
@@ -650,7 +650,7 @@ static void tree_element_active_ebone__sel(bContext *C, bArmature *arm, EditBone
   if (EBONE_SELECTABLE(arm, ebone)) {
     ED_armature_ebone_select_set(ebone, sel);
   }
-  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, CTX_data_edit_object(C));
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, CTX_data_edit_object(*C));
 }
 
 static void tree_element_ebone_activate(bContext *C,
@@ -795,7 +795,7 @@ static void tree_element_strip_dup_activate(WorkSpace *workspace, TreeElement * 
 
 static void tree_element_master_collection_activate(const bContext *C)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   LayerCollection *layer_collection = static_cast<LayerCollection *>(
       view_layer->layer_collections.first);
   BKE_layer_collection_activate(view_layer, layer_collection);
@@ -806,7 +806,7 @@ static void tree_element_master_collection_activate(const bContext *C)
 
 static void tree_element_layer_collection_activate(bContext *C, TreeElement *te)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   LayerCollection *layer_collection = static_cast<LayerCollection *>(te->directdata);
   ViewLayer *view_layer = BKE_view_layer_find_from_collection(scene, layer_collection);
   BKE_layer_collection_activate(view_layer, layer_collection);
@@ -1245,7 +1245,7 @@ static void outliner_sync_to_properties_editors(const bContext *C,
                                                 PointerRNA *ptr,
                                                 const int context)
 {
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
 
   for (ScrArea &area : screen->areabase) {
     if (area.spacetype != SPACE_PROPERTIES) {
@@ -1495,7 +1495,7 @@ static void do_outliner_item_activate_tree_element(bContext *C,
     }
     else if (te->idcode == ID_SCE) {
       if (tvc.scene != (Scene *)tselem->id) {
-        WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), (Scene *)tselem->id);
+        WM_window_set_active_scene(CTX_data_main(*C), C, CTX_wm_window(*C), (Scene *)tselem->id);
       }
     }
     else if ((te->idcode == ID_GR) && (space_outliner->outlinevis != SO_VIEW_LAYER)) {
@@ -1605,8 +1605,8 @@ static Collection *outliner_collection_get_for_recursive(bContext *C, TreeElemen
     parent_collection = static_cast<LayerCollection *>(te->directdata)->collection;
   }
   else if (te->store_elem->type == TSE_SOME_ID && te->idcode == ID_OB) {
-    parent_collection = BKE_collection_object_find(CTX_data_main(C),
-                                                   CTX_data_scene(C),
+    parent_collection = BKE_collection_object_find(CTX_data_main(*C),
+                                                   CTX_data_scene(*C),
                                                    nullptr,
                                                    reinterpret_cast<Object *>(te->store_elem->id));
   }
@@ -1769,8 +1769,8 @@ static bool outliner_is_co_within_active_mode_column(bContext *C,
                                                      SpaceOutliner *space_outliner,
                                                      const float view_mval[2])
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
 
@@ -1790,8 +1790,8 @@ static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
                                                               const bool deselect_all,
                                                               const bool recurse)
 {
-  ARegion *region = CTX_wm_region(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  ARegion *region = CTX_wm_region(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   TreeElement *te;
   float view_mval[2];
   bool changed = false, rebuild_tree = false;
@@ -1912,7 +1912,7 @@ static wmOperatorStatus outliner_item_activate_invoke(bContext *C,
                                                       wmOperator *op,
                                                       const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   const bool extend = RNA_boolean_get(op->ptr, "extend");
   const bool use_range = RNA_boolean_get(op->ptr, "extend_range");
@@ -1976,9 +1976,9 @@ static void outliner_box_select(bContext *C,
 
 static wmOperatorStatus outliner_box_select_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  ARegion *region = CTX_wm_region(*C);
   rctf rectf;
 
   const eSelectOp sel_op = (eSelectOp)RNA_enum_get(op->ptr, "mode");
@@ -2005,8 +2005,8 @@ static wmOperatorStatus outliner_box_select_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent *event)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  ARegion *region = CTX_wm_region(*C);
   float view_mval[2];
   const bool tweak = RNA_boolean_get(op->ptr, "tweak");
 
@@ -2237,8 +2237,8 @@ static wmOperatorStatus outliner_walk_select_invoke(bContext *C,
                                                     wmOperator *op,
                                                     const wmEvent * /*event*/)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   const short direction = RNA_enum_get(op->ptr, "direction");
   const bool extend = RNA_boolean_get(op->ptr, "extend");

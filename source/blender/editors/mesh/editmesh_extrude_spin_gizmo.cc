@@ -225,12 +225,12 @@ static void gizmo_mesh_spin_init_refresh_axis_orientation(wmGizmoGroup *gzgroup,
 static void gizmo_mesh_spin_init_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   GizmoGroupData_SpinInit *ggd = static_cast<GizmoGroupData_SpinInit *>(gzgroup->customdata);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   float viewinv_m3[3][3];
   copy_m3_m4(viewinv_m3, rv3d->viewinv);
 
   {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     const TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get(
         scene, SCE_ORIENT_ROTATE);
     switch (orient_slot->type) {
@@ -306,7 +306,7 @@ static void gizmo_mesh_spin_init_refresh(const bContext *C, wmGizmoGroup *gzgrou
   RegionView3D *rv3d = ED_view3d_context_rv3d((bContext *)C);
   const float *gizmo_center = nullptr;
   {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     const View3DCursor *cursor = &scene->cursor;
     gizmo_center = cursor->location;
   }
@@ -420,8 +420,8 @@ static void gizmo_mesh_spin_init_message_subscribe(const bContext *C,
                                                    wmMsgBus *mbus)
 {
   GizmoGroupData_SpinInit *ggd = static_cast<GizmoGroupData_SpinInit *>(gzgroup->customdata);
-  Scene *scene = CTX_data_scene(C);
-  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   /* Subscribe to view properties */
   wmMsgSubscribeValue msg_sub_value_gz_tag_refresh{};
@@ -795,7 +795,7 @@ static void gizmo_mesh_spin_redo_modal_from_setup(const bContext *C, wmGizmoGrou
 {
   /* Start off dragging. */
   GizmoGroupData_SpinRedo *ggd = static_cast<GizmoGroupData_SpinRedo *>(gzgroup->customdata);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   wmGizmo *gz = ggd->angle_z;
   wmGizmoMap *gzmap = gzgroup->parent_gzmap;
 
@@ -901,7 +901,7 @@ static void gizmo_mesh_spin_redo_setup(const bContext *C, wmGizmoGroup *gzgroup)
    * Initialize the orientation from the spin gizmo if possible.
    */
   {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     wmGizmoMap *gzmap = region->runtime->gizmo_map;
     wmGizmoGroup *gzgroup_init = WM_gizmomap_group_find(gzmap, "MESH_GGT_spin");
     /* NOTE(@ideasman42): the intention here is to initialize one gizmo from another.
@@ -926,9 +926,9 @@ static void gizmo_mesh_spin_redo_setup(const bContext *C, wmGizmoGroup *gzgroup)
 
 #ifdef USE_ANGLE_Z_ORIENT
   {
-    wmWindow *win = CTX_wm_window(C);
-    View3D *v3d = CTX_wm_view3d(C);
-    ARegion *region = CTX_wm_region(C);
+    wmWindow *win = CTX_wm_window(*C);
+    View3D *v3d = CTX_wm_view3d(*C);
+    ARegion *region = CTX_wm_region(*C);
     const wmEvent *event = win->runtime->eventstate;
     float plane_co[3], plane_no[3];
     RNA_property_float_get_array(op->ptr, ggd->data.prop_axis_co, plane_co);
@@ -1005,11 +1005,11 @@ static void gizmo_mesh_spin_redo_setup(const bContext *C, wmGizmoGroup *gzgroup)
     WM_gizmo_target_property_def_func(ggd->angle_z, "offset", &params);
   }
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   if (win && win->active) {
     bScreen *screen = WM_window_get_active_screen(win);
     if (screen->active_region) {
-      ARegion *region = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(*C);
       if (screen->active_region == region) {
         /* Become modal as soon as it's started. */
         gizmo_mesh_spin_redo_modal_from_setup(C, gzgroup);

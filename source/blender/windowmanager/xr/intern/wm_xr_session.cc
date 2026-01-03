@@ -1421,7 +1421,7 @@ void wm_xr_session_controller_data_clear(wmXrSessionState *state)
  */
 static void wm_xr_session_surface_draw(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmXrDrawData draw_data;
 
   if (!WM_xr_session_is_ready(&wm->xr)) {
@@ -1446,7 +1446,7 @@ static void wm_xr_session_surface_draw(bContext *C)
 
 static void wm_xr_session_do_depsgraph(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   if (!WM_xr_session_is_ready(&wm->xr)) {
     return;
@@ -1455,7 +1455,7 @@ static void wm_xr_session_do_depsgraph(bContext *C)
   Scene *scene;
   Depsgraph *depsgraph;
   wm_xr_session_scene_and_depsgraph_get(wm, &scene, &depsgraph);
-  BKE_scene_graph_evaluated_ensure(depsgraph, CTX_data_main(C));
+  BKE_scene_graph_evaluated_ensure(depsgraph, CTX_data_main(*C));
 }
 
 bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,

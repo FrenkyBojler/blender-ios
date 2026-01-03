@@ -40,7 +40,7 @@ static bool sequencer_grease_pencil_panel_poll(const bContext *C, PanelType * /*
 
 static bool metadata_panel_context_poll(const bContext *C, PanelType * /*pt*/)
 {
-  SpaceSeq *space_sequencer = CTX_wm_space_seq(C);
+  SpaceSeq *space_sequencer = CTX_wm_space_seq(*C);
   if (space_sequencer == nullptr) {
     return false;
   }
@@ -55,8 +55,8 @@ static void metadata_panel_context_draw(const bContext *C, Panel *panel)
     return;
   }
 
-  Scene *scene = CTX_data_sequencer_scene(C);
-  SpaceSeq *space_sequencer = CTX_wm_space_seq(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
+  SpaceSeq *space_sequencer = CTX_wm_space_seq(*C);
   if (!scene || !space_sequencer) {
     return;
   }

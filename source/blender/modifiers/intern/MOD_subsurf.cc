@@ -315,7 +315,7 @@ static void deform_matrices(ModifierData *md,
 static bool get_show_adaptive_options(const bContext *C, Panel *panel)
 {
   /* Don't show adaptive options if cycles isn't the active engine. */
-  const RenderEngineType *engine_type = CTX_data_engine_type(C);
+  const RenderEngineType *engine_type = CTX_data_engine_type(*C);
   if (!STREQ(engine_type->idname, "CYCLES")) {
     return false;
   }
@@ -349,7 +349,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   layout.prop(ptr, "show_only_control_edges", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   SubsurfModifierData *smd = static_cast<SubsurfModifierData *>(ptr->data);
   Object *ob = static_cast<Object *>(ob_ptr.data);
   if (ob->type == OB_MESH && BKE_subsurf_modifier_force_disable_gpu_evaluation_for_mesh(
@@ -381,7 +381,7 @@ static void panel_draw(const bContext *C, Panel *panel)
         "use_adaptive_subdivision",
         IFACE_("Adaptive Subdivision"));
     if (adaptive_panel.body) {
-      Scene *scene = CTX_data_scene(C);
+      Scene *scene = CTX_data_scene(*C);
       PointerRNA scene_ptr = RNA_id_pointer_create(&scene->id);
       PointerRNA cycles_ptr = RNA_pointer_get(&scene_ptr, "cycles");
       const float render_rate = RNA_float_get(&cycles_ptr, "dicing_rate");

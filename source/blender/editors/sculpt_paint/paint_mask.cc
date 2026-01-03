@@ -658,10 +658,10 @@ static void invert_mask(Main &bmain, const Scene &scene, Depsgraph &depsgraph, O
 
 static wmOperatorStatus mask_flood_fill_exec(bContext *C, wmOperator *op)
 {
-  Main &bmain = *CTX_data_main(C);
-  const Scene &scene = *CTX_data_scene(C);
-  Object &object = *CTX_data_active_object(C);
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
+  Main &bmain = *CTX_data_main(*C);
+  const Scene &scene = *CTX_data_scene(*C);
+  Object &object = *CTX_data_active_object(*C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*C);
 
   const FloodFillMode mode = FloodFillMode(RNA_enum_get(op->ptr, "mode"));
   const float value = RNA_float_get(op->ptr, "value");
@@ -731,8 +731,8 @@ struct MaskOperation {
 
 static void gesture_begin(bContext &C, wmOperator &op, gesture::GestureData &gesture_data)
 {
-  const Scene &scene = *CTX_data_scene(&C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   BKE_sculpt_update_object_for_edit(depsgraph, gesture_data.vc.obact, false);
   undo::push_begin(scene, *gesture_data.vc.obact, &op);
 }
@@ -847,7 +847,7 @@ static void gesture_apply_for_symmetry_pass(bContext & /*C*/, gesture::GestureDa
 
 static void gesture_end(bContext &C, gesture::GestureData &gesture_data)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Object &object = *gesture_data.vc.obact;
   if (bke::object::pbvh_get(object)->type() == bke::pbvh::Type::Grids) {
     multires_mark_as_modified(depsgraph, &object, MULTIRES_COORDS_MODIFIED);
@@ -865,7 +865,7 @@ static void init_operation(bContext &C, gesture::GestureData &gesture_data, wmOp
   Object *object = gesture_data.vc.obact;
   MultiresModifierData *mmd = BKE_sculpt_multires_active(gesture_data.vc.scene, object);
   BKE_sculpt_mask_layers_ensure(
-      CTX_data_depsgraph_pointer(&C), CTX_data_main(&C), gesture_data.vc.obact, mmd);
+      CTX_data_depsgraph_pointer(C), CTX_data_main(C), gesture_data.vc.obact, mmd);
 
   mask_operation->op.begin = gesture_begin;
   mask_operation->op.apply_for_symmetry_pass = gesture_apply_for_symmetry_pass;

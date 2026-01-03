@@ -35,7 +35,7 @@ void template_asset_shelf_popover(Layout &layout,
     return;
   }
 
-  const ARegion *region = CTX_wm_region(&C);
+  const ARegion *region = CTX_wm_region(C);
   Block *block = layout.block();
 
   Layout &row = layout.row(true);

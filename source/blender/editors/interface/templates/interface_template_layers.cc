@@ -22,7 +22,7 @@ static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
 {
   Button *but = static_cast<Button *>(arg1);
   const int cur = POINTER_AS_INT(arg2);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   const bool shift = win->runtime->eventstate->modifier & KM_SHIFT;
 
   if (!shift) {

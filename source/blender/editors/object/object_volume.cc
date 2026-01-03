@@ -74,7 +74,7 @@ void OBJECT_OT_volume_add(wmOperatorType *ot)
 
 static wmOperatorStatus volume_import_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const bool is_relative_path = RNA_boolean_get(op->ptr, "relative_path");
   bool imported = false;
 

@@ -76,7 +76,7 @@ static bool lattice_deselect_all_multi(const Span<Base *> bases)
 
 bool ED_lattice_deselect_all_multi(bContext *C)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
       vc.scene, vc.view_layer, vc.v3d);
@@ -95,10 +95,10 @@ static wmOperatorStatus lattice_select_random_exec(bContext *C, wmOperator *op)
   const float randfac = RNA_float_get(op->ptr, "ratio");
   const int seed = WM_operator_properties_select_random_seed_increment_get(op);
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
     Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
@@ -203,10 +203,10 @@ static wmOperatorStatus lattice_select_mirror_exec(bContext *C, wmOperator *op)
   const int axis_flag = RNA_enum_get(op->ptr, "axis");
   const bool extend = RNA_boolean_get(op->ptr, "extend");
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   for (Object *obedit : objects) {
     Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
@@ -267,12 +267,12 @@ static bool lattice_test_bitmap_uvw(
 
 static wmOperatorStatus lattice_select_more_less(bContext *C, const bool select)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   bool changed = false;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   for (Object *obedit : objects) {
     Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
     BPoint *bp;
@@ -391,12 +391,12 @@ bool ED_lattice_flags_set(Object *obedit, int flag)
 
 static wmOperatorStatus lattice_select_all_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   int action = RNA_enum_get(op->ptr, "action");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   if (action == SEL_TOGGLE) {
     action = SEL_SELECT;
@@ -476,13 +476,13 @@ void LATTICE_OT_select_all(wmOperatorType *ot)
 
 static wmOperatorStatus lattice_select_ungrouped_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const bool is_extend = RNA_boolean_get(op->ptr, "extend");
   bool changed = false;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   for (Object *obedit : objects) {
     Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
     MDeformVert *dv;
@@ -599,7 +599,7 @@ static BPoint *findnearestLattvert(ViewContext *vc, bool select, Base **r_base)
 
 bool ED_lattice_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   BPoint *bp = nullptr;
   Base *basact = nullptr;
   bool changed = false;

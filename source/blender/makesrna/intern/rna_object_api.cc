@@ -90,8 +90,8 @@ static Base *find_view_layer_base_with_synced_ensure(
     view_layer = static_cast<ViewLayer *>(view_layer_ptr->data);
   }
   else {
-    scene = CTX_data_scene(C);
-    view_layer = CTX_data_view_layer(C);
+    scene = CTX_data_scene(*C);
+    view_layer = CTX_data_view_layer(*C);
   }
   if (r_scene != nullptr) {
     *r_scene = scene;
@@ -186,7 +186,7 @@ static bool rna_Object_visible_get(Object *ob,
 {
   Base *base = find_view_layer_base_with_synced_ensure(ob, C, view_layer_ptr, nullptr, nullptr);
   if (v3d == nullptr) {
-    v3d = CTX_wm_view3d(C);
+    v3d = CTX_wm_view3d(*C);
   }
 
   if (!base) {
@@ -463,7 +463,7 @@ static void rna_Object_to_curve_clear(Object *object)
 static PointerRNA rna_Object_shape_key_add(
     Object *ob, bContext *C, ReportList *reports, const char *name, bool from_mix)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   KeyBlock *kb = nullptr;
 
   if ((kb = BKE_object_shapekey_insert(bmain, ob, name, from_mix))) {
@@ -579,7 +579,7 @@ static Object *eval_object_ensure(Object *ob,
                                static_cast<Depsgraph *>(rnaptr_depsgraph->data) :
                                nullptr;
     if (depsgraph == nullptr) {
-      depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     }
     if (depsgraph != nullptr) {
       ob = DEG_get_evaluated(depsgraph, ob);

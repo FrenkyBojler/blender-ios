@@ -212,7 +212,7 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
   {
     const NodeClosureOutput &storage = node_storage(params.node);
     if (storage.input_items.items_num == 0 && storage.output_items.items_num == 0) {
-      SpaceNode *snode = CTX_wm_space_node(params.C);
+      SpaceNode *snode = CTX_wm_space_node(*params.C);
       if (snode && snode->edittree == &params.ntree) {
         bNode *input_node = bke::zone_type_by_node_type(NODE_CLOSURE_OUTPUT)
                                 ->get_corresponding_input(params.ntree, params.node);
@@ -252,7 +252,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
     params.connect_available_socket(output_node, "Closure");
 
-    SpaceNode &snode = *CTX_wm_space_node(&params.C);
+    SpaceNode &snode = *CTX_wm_space_node(params.C);
     sync_sockets_closure(snode, input_node, output_node, nullptr);
   });
 }

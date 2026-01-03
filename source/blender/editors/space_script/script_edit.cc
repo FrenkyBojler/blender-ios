@@ -36,7 +36,7 @@ static wmOperatorStatus run_pyfile_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "filepath", filepath);
 #ifdef WITH_PYTHON
   if (BPY_run_filepath(C, filepath, op->reports)) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     if (region != nullptr) {
       ED_region_tag_redraw(region);
     }
@@ -70,7 +70,7 @@ void SCRIPT_OT_python_file_run(wmOperatorType *ot)
 #ifdef WITH_PYTHON
 static bool script_test_modal_operators(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   for (wmWindow &win : wm->windows) {
     for (wmEventHandler &handler_base : win.runtime->modalhandlers) {
       if (handler_base.type == WM_HANDLER_TYPE_OP) {

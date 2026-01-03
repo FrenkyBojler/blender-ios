@@ -2275,10 +2275,10 @@ static wmOperatorStatus sculpt_cloth_filter_modal(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event)
 {
-  Object &object = *CTX_data_active_object(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Object &object = *CTX_data_active_object(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   SculptSession &ss = *object.sculpt;
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
   const ClothFilterType filter_type = ClothFilterType(RNA_enum_get(op->ptr, "type"));
   float filter_strength = RNA_float_get(op->ptr, "strength");
 
@@ -2392,14 +2392,14 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent *event)
 {
-  const Scene &scene = *CTX_data_scene(C);
-  Object &ob = *CTX_data_active_object(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  const Scene &scene = *CTX_data_scene(*C);
+  Object &ob = *CTX_data_active_object(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
   SculptSession &ss = *ob.sculpt;
 
-  const View3D *v3d = CTX_wm_view3d(C);
-  const Base *base = CTX_data_active_base(C);
+  const View3D *v3d = CTX_wm_view3d(*C);
+  const Base *base = CTX_data_active_base(*C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }

@@ -77,7 +77,7 @@ static bool wm_link_append_poll(bContext *C)
      * but which totally confuses edit mode (i.e. it becoming not so obvious
      * to leave from edit mode and invalid tools in toolbar might be displayed)
      * so disable link/append when in edit mode. */
-    if (CTX_data_edit_object(C)) {
+    if (CTX_data_edit_object(*C)) {
       return false;
     }
 
@@ -200,10 +200,10 @@ static bool wm_link_append_item_poll(ReportList *reports,
 
 static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   PropertyRNA *prop;
   BlendfileLinkAppendContext *lapp_context;
   char filepath[FILE_MAX_LIBEXTRA], root[FILE_MAXDIR], libname[FILE_MAX_LIBEXTRA],
@@ -290,7 +290,7 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
    * Note that here, each item 'uses' one library, and only one. */
   LibraryLink_Params lapp_params;
   BLO_library_link_params_init_with_context(
-      &lapp_params, bmain, flag, 0, scene, view_layer, CTX_wm_view3d(C));
+      &lapp_params, bmain, flag, 0, scene, view_layer, CTX_wm_view3d(*C));
 
   lapp_context = BKE_blendfile_link_append_context_new(&lapp_params);
   BKE_blendfile_link_append_context_embedded_blendfile_set(
@@ -530,10 +530,10 @@ void WM_OT_append(wmOperatorType *ot)
 
 static wmOperatorStatus wm_id_linked_relocate_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BlendfileLinkAppendContext *lapp_context;
   char filepath[FILE_MAX_LIBEXTRA], root[FILE_MAXDIR], libname[FILE_MAX_LIBEXTRA],
       relname[FILE_MAX];
@@ -630,7 +630,7 @@ static wmOperatorStatus wm_id_linked_relocate_exec(bContext *C, wmOperator *op)
    * Note that here, each item 'uses' one library, and only one. */
   LibraryLink_Params lapp_params;
   BLO_library_link_params_init_with_context(
-      &lapp_params, bmain, flag, 0, scene, view_layer, CTX_wm_view3d(C));
+      &lapp_params, bmain, flag, 0, scene, view_layer, CTX_wm_view3d(*C));
 
   lapp_context = BKE_blendfile_link_append_context_new(&lapp_params);
   BKE_blendfile_link_append_context_embedded_blendfile_set(
@@ -820,7 +820,7 @@ static wmOperatorStatus wm_lib_relocate_invoke(bContext *C,
   char lib_name[MAX_NAME];
 
   RNA_string_get(op->ptr, "library", lib_name);
-  lib = (Library *)BKE_libblock_find_name(CTX_data_main(C), ID_LI, lib_name);
+  lib = (Library *)BKE_libblock_find_name(CTX_data_main(*C), ID_LI, lib_name);
 
   if (lib) {
     if (lib->runtime->parent) {
@@ -857,15 +857,15 @@ void WM_lib_reload(Library *lib, bContext *C, ReportList *reports)
     return;
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   LibraryLink_Params lapp_params;
   BLO_library_link_params_init_with_context(
       &lapp_params,
       bmain,
       (BLO_LIBLINK_USE_PLACEHOLDERS | BLO_LIBLINK_FORCE_INDIRECT | FILE_LINK),
       0,
-      CTX_data_scene(C),
-      CTX_data_view_layer(C),
+      CTX_data_scene(*C),
+      CTX_data_view_layer(*C),
       nullptr);
 
   BlendfileLinkAppendContext *lapp_context = BKE_blendfile_link_append_context_new(&lapp_params);
@@ -893,7 +893,7 @@ void WM_lib_reload(Library *lib, bContext *C, ReportList *reports)
 
 static wmOperatorStatus wm_lib_relocate_exec_do(bContext *C, wmOperator *op, bool do_reload)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
   char lib_name[MAX_NAME];
 
@@ -960,7 +960,7 @@ static wmOperatorStatus wm_lib_relocate_exec_do(bContext *C, wmOperator *op, boo
 
   LibraryLink_Params lapp_params;
   BLO_library_link_params_init_with_context(
-      &lapp_params, bmain, flag, 0, CTX_data_scene(C), CTX_data_view_layer(C), nullptr);
+      &lapp_params, bmain, flag, 0, CTX_data_scene(*C), CTX_data_view_layer(*C), nullptr);
 
   if (BLI_path_cmp(lib->runtime->filepath_abs, filepath) == 0) {
     CLOG_DEBUG(&LOG, "We are supposed to reload '%s' lib (%d)", lib->filepath, lib->id.us);

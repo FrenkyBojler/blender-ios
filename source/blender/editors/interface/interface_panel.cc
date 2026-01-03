@@ -1906,7 +1906,7 @@ static void ui_panels_size(ARegion *region, int *r_x, int *r_y)
 static void ui_do_animate(bContext *C, Panel *panel)
 {
   HandlePanelData *data = static_cast<HandlePanelData *>(panel->activedata);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   float fac = (BLI_time_now_seconds() - data->starttime) / ANIMATION_TIME;
   fac = min_ff(sqrtf(fac), 1.0f);
@@ -1950,7 +1950,7 @@ void panels_begin(const bContext * /*C*/, ARegion *region)
 
 void panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   region_panels_set_expansion_from_list_data(C, region);
 
@@ -2011,7 +2011,7 @@ void panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y)
 static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
 {
   HandlePanelData *data = static_cast<HandlePanelData *>(panel->activedata);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   /* Keep the drag position in the region with a small pad to keep the panel visible. */
   const int y = clamp_i(event->xy[1], region->winrct.ymin, region->winrct.ymax + DRAG_REGION_PAD);
@@ -2088,9 +2088,9 @@ static void ui_panel_drag_collapse(const bContext *C,
                                    const PanelDragCollapseHandle *dragcol_data,
                                    const int xy_dst[2])
 {
-  ARegion *region = CTX_wm_region_popup(C);
+  ARegion *region = CTX_wm_region_popup(*C);
   if (!region) {
-    region = CTX_wm_region(C);
+    region = CTX_wm_region(*C);
   }
   for (Block &block : region->runtime->uiblocks) {
     float xy_a_block[2] = {float(dragcol_data->xy_init[0]), float(dragcol_data->xy_init[1])};
@@ -2159,7 +2159,7 @@ static void ui_panel_drag_collapse(const bContext *C,
  */
 static int ui_panel_drag_collapse_handler(bContext *C, const wmEvent *event, void *userdata)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   PanelDragCollapseHandle *dragcol_data = static_cast<PanelDragCollapseHandle *>(userdata);
   short retval = WM_UI_HANDLER_CONTINUE;
 
@@ -2192,7 +2192,7 @@ static int ui_panel_drag_collapse_handler(bContext *C, const wmEvent *event, voi
 
 void panel_drag_collapse_handler_add(const bContext *C, const bool was_open)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   const wmEvent *event = win->runtime->eventstate;
   PanelDragCollapseHandle *dragcol_data = MEM_callocN<PanelDragCollapseHandle>(__func__);
 
@@ -2229,8 +2229,8 @@ static void ui_handle_layout_panel_header(
     return;
   }
   const bool new_state = ui_layout_panel_toggle_open(C, header);
-  ED_region_tag_redraw(CTX_wm_region(C));
-  WM_tooltip_clear(C, CTX_wm_window(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
+  WM_tooltip_clear(C, CTX_wm_window(*C));
 
   if (event_type == LEFTMOUSE) {
     panel_drag_collapse_handler_add(C, !new_state);
@@ -2251,7 +2251,7 @@ static void ui_handle_panel_header(const bContext *C,
                                    const bool shift)
 {
   Panel *panel = block->panel;
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   BLI_assert(panel->type != nullptr);
   BLI_assert(!(panel->type->flag & PANEL_TYPE_NO_HEADER));
@@ -2726,7 +2726,7 @@ PointerRNA *panel_custom_data_get(const Panel *panel)
 
 PointerRNA *region_panel_custom_data_under_cursor(const bContext *C, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   if (region) {
     for (Block &block : region->runtime->uiblocks) {
       Panel *panel = block.panel;
@@ -2820,7 +2820,7 @@ static void panel_handle_data_ensure(const bContext *C,
   /* Only create a new timer if necessary. Reuse can occur when PANEL_STATE_ANIMATION follows
    * PANEL_STATE_DRAG for example (i.e. panel->activedata was present already). */
   if (!data->animtimer) {
-    data->animtimer = WM_event_timer_add(CTX_wm_manager(C), win, TIMER, ANIMATION_INTERVAL);
+    data->animtimer = WM_event_timer_add(CTX_wm_manager(*C), win, TIMER, ANIMATION_INTERVAL);
   }
 
   data->state = state;
@@ -2841,8 +2841,8 @@ static void panel_handle_data_ensure(const bContext *C,
 static void panel_activate_state(const bContext *C, Panel *panel, const HandlePanelState state)
 {
   HandlePanelData *data = static_cast<HandlePanelData *>(panel->activedata);
-  wmWindow *win = CTX_wm_window(C);
-  ARegion *region = CTX_wm_region(C);
+  wmWindow *win = CTX_wm_window(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   if (data != nullptr && data->state == state) {
     return;
@@ -2871,7 +2871,7 @@ static void panel_activate_state(const bContext *C, Panel *panel, const HandlePa
     BLI_assert(data != nullptr);
 
     if (data->animtimer) {
-      WM_event_timer_remove(CTX_wm_manager(C), win, data->animtimer);
+      WM_event_timer_remove(CTX_wm_manager(*C), win, data->animtimer);
       data->animtimer = nullptr;
     }
 

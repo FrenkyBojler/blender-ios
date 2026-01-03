@@ -31,7 +31,7 @@ namespace blender::ed::space_node {
 
 static Vector<bNode *> get_nodes_to_sync(bContext &C, PointerRNA *ptr)
 {
-  SpaceNode &snode = *CTX_wm_space_node(&C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   if (!snode.edittree) {
     return {};
   }
@@ -62,8 +62,8 @@ static Vector<bNode *> get_nodes_to_sync(bContext &C, PointerRNA *ptr)
 
 static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator *op)
 {
-  Main &bmain = *CTX_data_main(C);
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  Main &bmain = *CTX_data_main(*C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   if (!snode.edittree) {
     return OPERATOR_CANCELLED;
   }

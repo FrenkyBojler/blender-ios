@@ -597,7 +597,7 @@ static void node_init_cryptomatte(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_init_api_cryptomatte(const bContext *C, PointerRNA *ptr)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   bNode *node = static_cast<bNode *>(ptr->data);
   BLI_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE);
   node->id = &scene->id;
@@ -642,7 +642,7 @@ static void node_extra_info(NodeExtraInfoParams &parameters)
     return;
   }
 
-  SpaceNode *space_node = CTX_wm_space_node(&parameters.C);
+  SpaceNode *space_node = CTX_wm_space_node(parameters.C);
   if (space_node->node_tree_sub_type != SNODE_COMPOSITOR_SCENE) {
     NodeExtraInfoRow row;
     row.text = RPT_("Node Unsupported");
@@ -654,7 +654,7 @@ static void node_extra_info(NodeExtraInfoParams &parameters)
   }
 
   /* EEVEE supports passes. */
-  const Scene *scene = CTX_data_scene(&parameters.C);
+  const Scene *scene = CTX_data_scene(parameters.C);
   if (StringRef(scene->r.engine) == RE_engine_id_BLENDER_EEVEE) {
     return;
   }

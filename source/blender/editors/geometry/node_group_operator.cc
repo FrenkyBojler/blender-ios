@@ -291,7 +291,7 @@ static const bNodeTree *get_asset_or_local_node_group(const bContext &C,
                                                       const wmOperatorType &ot,
                                                       ReportList *reports)
 {
-  Main &bmain = *CTX_data_main(&C);
+  Main &bmain = *CTX_data_main(C);
   const auto &type_data = static_cast<const OperatorTypeData &>(*ot.custom_data);
   return std::visit(
       [&](const auto &value) -> const bNodeTree * {
@@ -865,16 +865,16 @@ static Vector<Object *> gather_supported_objects(const bContext &C,
   };
 
   if (mode == OB_MODE_OBJECT) {
-    CTX_DATA_BEGIN (&C, Object *, object, selected_objects) {
+    CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
       handle_object(object);
     }
     CTX_DATA_END;
   }
   else {
-    Scene *scene = CTX_data_scene(&C);
-    ViewLayer *view_layer = CTX_data_view_layer(&C);
-    View3D *v3d = CTX_wm_view3d(&C);
-    Object *active_object = CTX_data_active_object(&C);
+    Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    View3D *v3d = CTX_wm_view3d(C);
+    Object *active_object = CTX_data_active_object(C);
     if (v3d && active_object) {
       FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, active_object->type, mode, ob) {
         handle_object(ob);
@@ -887,9 +887,9 @@ static Vector<Object *> gather_supported_objects(const bContext &C,
 
 static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Object *active_object = CTX_data_active_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *active_object = CTX_data_active_object(*C);
   if (!active_object) {
     return OPERATOR_CANCELLED;
   }
@@ -902,7 +902,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
 
   const Vector<Object *> objects = gather_supported_objects(*C, *bmain, mode);
 
-  Depsgraph *depsgraph_active = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph_active = CTX_data_ensure_evaluated_depsgraph(*C);
   Set<ID *> extra_ids;
   gather_node_group_ids(*node_tree_orig, extra_ids);
   const Map<StringRef, ID *> input_ids = gather_input_ids(
@@ -958,7 +958,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   find_socket_log_contexts(*bmain, socket_log_contexts);
 
   /* May be null if operator called from outside 3D view context. */
-  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  const RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   Vector<MeshState> orig_mesh_states;
 
   for (Object *object : objects) {
@@ -1026,10 +1026,10 @@ static void store_input_node_values_rna_props(const bContext &C,
                                               wmOperator &op,
                                               const wmEvent &event)
 {
-  Scene *scene = CTX_data_scene(&C);
+  Scene *scene = CTX_data_scene(C);
   /* NOTE: `region` and `rv3d` may be null when called from a script. */
-  const ARegion *region = CTX_wm_region(&C);
-  const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
+  const ARegion *region = CTX_wm_region(C);
+  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
   /* Mouse position node inputs. */
   RNA_int_set_array(op.ptr, "mouse_position", event.mval);
@@ -1074,7 +1074,7 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
   ui::Layout &layout = *op->layout;
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
 
   const bNodeTree *node_tree = get_node_group(*C, *op->type, nullptr);
@@ -1109,7 +1109,7 @@ static bool run_node_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
 static bool run_node_group_poll(bContext *C, wmOperatorType *ot)
 {
   const auto &type_data = *static_cast<const OperatorTypeData *>(ot->custom_data.get());
-  const Object *active_object = CTX_data_active_object(C);
+  const Object *active_object = CTX_data_active_object(*C);
   if (!active_object) {
     return false;
   }
@@ -1288,8 +1288,8 @@ static Vector<std::unique_ptr<OperatorTypeData>> get_node_tools_type_data(
 
 void register_node_group_operators(const bContext &C)
 {
-  wmWindowManager &wm = *CTX_wm_manager(&C);
-  Main &bmain = *CTX_data_main(&C);
+  wmWindowManager &wm = *CTX_wm_manager(C);
+  Main &bmain = *CTX_data_main(C);
 
   OperatorRegisterErrors &errors = get_registration_errors();
   OperatorRegisterErrors last_errors = errors;
@@ -1350,7 +1350,7 @@ void register_node_group_operators(const bContext &C)
   /* Don't display the same errors twice. That can be very noisy since this operator registration
    * process runs so often. */
   if (last_errors != errors) {
-    ReportList *reports = CTX_wm_reports(&C);
+    ReportList *reports = CTX_wm_reports(C);
     for (const OperatorRegisterErrors::Item &item : errors.items()) {
       if (item.value.is_builtin_operator) {
         BKE_reportf(reports,
@@ -1385,7 +1385,7 @@ void register_node_group_operators(const bContext &C)
 
 static bool asset_menu_poll(const bContext *C, MenuType * /*mt*/)
 {
-  return CTX_wm_view3d(C);
+  return CTX_wm_view3d(*C);
 }
 
 static GeometryNodeAssetTraitFlag asset_flag_for_context(const ObjectType type,
@@ -1690,7 +1690,7 @@ static void missing_tool_idname_error(ui::Layout &layout, const StringRef name)
 
 static void catalog_assets_draw(const bContext *C, Menu *menu)
 {
-  const Object *active_object = CTX_data_active_object(C);
+  const Object *active_object = CTX_data_active_object(*C);
   if (!active_object) {
     return;
   }
@@ -1762,8 +1762,8 @@ MenuType node_group_operator_assets_menu()
 
 static bool unassigned_local_poll(const bContext &C)
 {
-  Main &bmain = *CTX_data_main(&C);
-  const Object *active_object = CTX_data_active_object(&C);
+  Main &bmain = *CTX_data_main(C);
+  const Object *active_object = CTX_data_active_object(C);
   if (!active_object) {
     return false;
   }
@@ -1785,7 +1785,7 @@ static bool unassigned_local_poll(const bContext &C)
 
 static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
 {
-  const Object *active_object = CTX_data_active_object(C);
+  const Object *active_object = CTX_data_active_object(*C);
   if (!active_object) {
     return;
   }
@@ -1811,7 +1811,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
 
   bool first = true;
   bool add_separator = !tree->unassigned_assets.is_empty();
-  Main &bmain = *CTX_data_main(C);
+  Main &bmain = *CTX_data_main(*C);
   for (const bNodeTree &group : bmain.nodetrees) {
     /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
     if (group.id.library_weak_reference || group.id.asset_data) {
@@ -1862,7 +1862,7 @@ void ui_template_node_operator_asset_menu_items(ui::Layout &layout,
                                                 const bContext &C,
                                                 const StringRef catalog_path)
 {
-  const Object *active_object = CTX_data_active_object(&C);
+  const Object *active_object = CTX_data_active_object(C);
   if (!active_object) {
     return;
   }
@@ -1886,7 +1886,7 @@ void ui_template_node_operator_asset_menu_items(ui::Layout &layout,
 
 void ui_template_node_operator_asset_root_items(ui::Layout &layout, const bContext &C)
 {
-  const Object *active_object = CTX_data_active_object(&C);
+  const Object *active_object = CTX_data_active_object(C);
   if (!active_object) {
     return;
   }

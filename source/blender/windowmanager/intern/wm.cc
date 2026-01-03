@@ -323,7 +323,7 @@ static void wm_reports_free(wmWindowManager *wm)
 
 void wm_operator_register(bContext *C, wmOperator *op)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   int tot = 0;
 
   BLI_addtail(&wm->runtime->operators, op);
@@ -417,7 +417,7 @@ void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot)
 
 void WM_keyconfig_reload(bContext *C)
 {
-  if (CTX_py_init_get(C) && !G.background) {
+  if (CTX_py_init_get(*C) && !G.background) {
 #ifdef WITH_PYTHON
     const char *imports[] = {"bpy", nullptr};
     BPY_run_string_eval(C, imports, "bpy.utils.keyconfig_init()");
@@ -427,7 +427,7 @@ void WM_keyconfig_reload(bContext *C)
 
 void WM_keyconfig_init(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   /* Create standard key configuration. */
   if (wm->runtime->defaultconf == nullptr) {
@@ -442,7 +442,7 @@ void WM_keyconfig_init(bContext *C)
   }
 
   /* Initialize only after python init is done, for keymaps that use python operators. */
-  if (CTX_py_init_get(C) && (wm->init_flag & WM_INIT_FLAG_KEYCONFIG) == 0) {
+  if (CTX_py_init_get(*C) && (wm->init_flag & WM_INIT_FLAG_KEYCONFIG) == 0) {
     /* Create default key config, only initialize once,
      * it's persistent across sessions. */
     if (!(wm->runtime->defaultconf->flag & KEYCONF_INIT_DEFAULT)) {
@@ -466,8 +466,8 @@ void WM_keyconfig_init(bContext *C)
 
 void WM_check(bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   /* WM context. */
   if (wm == nullptr) {
@@ -505,11 +505,11 @@ void WM_check(bContext *C)
 
 void wm_clear_default_size(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   /* WM context. */
   if (wm == nullptr) {
-    wm = static_cast<wmWindowManager *>(CTX_data_main(C)->wm.first);
+    wm = static_cast<wmWindowManager *>(CTX_data_main(*C)->wm.first);
     CTX_wm_manager_set(C, wm);
   }
 
@@ -530,14 +530,14 @@ void wm_add_default(Main *bmain, bContext *C)
   wmWindowManager *wm = static_cast<wmWindowManager *>(
       BKE_libblock_alloc(bmain, ID_WM, "WinMan", 0));
   wmWindow *win;
-  bScreen *screen = CTX_wm_screen(C); /* XXX: from file read hrmf. */
+  bScreen *screen = CTX_wm_screen(*C); /* XXX: from file read hrmf. */
   WorkSpace *workspace;
   WorkSpaceLayout *layout = BKE_workspace_layout_find_global(bmain, screen, &workspace);
 
   CTX_wm_manager_set(C, wm);
   win = wm_window_new(bmain, wm, nullptr, false);
-  win->scene = CTX_data_scene(C);
-  STRNCPY_UTF8(win->view_layer_name, CTX_data_view_layer(C)->name);
+  win->scene = CTX_data_scene(*C);
+  STRNCPY_UTF8(win->view_layer_name, CTX_data_view_layer(*C)->name);
   BKE_workspace_active_set(win->workspace_hook, workspace);
   BKE_workspace_active_layout_set(win->workspace_hook, win->winid, workspace, layout);
   screen->winid = win->winid;
@@ -585,7 +585,7 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
 
   wm_reports_free(wm);
 
-  if (C && CTX_wm_manager(C) == wm) {
+  if (C && CTX_wm_manager(*C) == wm) {
     CTX_wm_manager_set(C, nullptr);
   }
 

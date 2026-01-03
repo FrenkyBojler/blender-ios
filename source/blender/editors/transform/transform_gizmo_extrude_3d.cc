@@ -146,7 +146,7 @@ static void gizmo_mesh_extrude_setup(const bContext *C, wmGizmoGroup *gzgroup)
     const char *op_idname = nullptr;
     /* Grease pencil does not use `obedit`. */
     /* GPXX: Remove if #OB_MODE_EDIT_GPENCIL_LEGACY is merged with #OB_MODE_EDIT. */
-    const Object *obact = CTX_data_active_object(C);
+    const Object *obact = CTX_data_active_object(*C);
     if (obact->type == OB_MESH) {
       op_idname = "MESH_OT_extrude_context_move";
       ggd->normal_axis = 2;
@@ -234,8 +234,8 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
     return;
   }
 
-  Scene *scene = CTX_data_scene(C);
-  RegionView3D *rv3d = static_cast<RegionView3D *>(CTX_wm_region_data(C));
+  Scene *scene = CTX_data_scene(*C);
+  RegionView3D *rv3d = static_cast<RegionView3D *>(CTX_wm_region_data(*C));
 
   int axis_type;
   {
@@ -282,7 +282,7 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 
   /* Adjust current operator. */
   /* Don't use 'WM_operator_last_redo' because selection actions will be ignored. */
-  wmOperator *op = static_cast<wmOperator *>(CTX_wm_manager(C)->runtime->operators.last);
+  wmOperator *op = static_cast<wmOperator *>(CTX_wm_manager(*C)->runtime->operators.last);
   bool has_redo = (op && op->type == ggd->ot_extrude);
   wmOperator *op_xform = static_cast<wmOperator *>(has_redo ? op->macro.last : nullptr);
 
@@ -379,7 +379,7 @@ static void gizmo_mesh_extrude_draw_prepare(const bContext *C, wmGizmoGroup *gzg
   GizmoExtrudeGroup *ggd = static_cast<GizmoExtrudeGroup *>(gzgroup->customdata);
   switch (ggd->data.orientation_index) {
     case V3D_ORIENT_VIEW: {
-      RegionView3D *rv3d = CTX_wm_region_view3d(C);
+      RegionView3D *rv3d = CTX_wm_region_view3d(*C);
       float mat[3][3];
       copy_m3_m4(mat, rv3d->viewinv);
       normalize_m3(mat);
@@ -390,7 +390,7 @@ static void gizmo_mesh_extrude_draw_prepare(const bContext *C, wmGizmoGroup *gzg
 
   /* Basic ordering for drawing only. */
   {
-    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    RegionView3D *rv3d = CTX_wm_region_view3d(*C);
     for (wmGizmo &gz : gzgroup->gizmos) {
       gz.temp.f = dot_v3v3(rv3d->viewinv[2], gz.matrix_offset[3]);
     }
@@ -455,7 +455,7 @@ static void gizmo_mesh_extrude_message_subscribe(const bContext *C,
                                                  wmMsgBus *mbus)
 {
   GizmoExtrudeGroup *ggd = static_cast<GizmoExtrudeGroup *>(gzgroup->customdata);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   /* Subscribe to view properties. */
   wmMsgSubscribeValue msg_sub_value_gz_tag_refresh{};
@@ -474,7 +474,7 @@ static void gizmo_mesh_extrude_message_subscribe(const bContext *C,
   WM_msg_subscribe_rna_params(mbus, &params, &msg_sub_value_gz_tag_refresh, __func__);
 
   {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(
         &scene->id, &RNA_ToolSettings, scene->toolsettings);
     const PropertyRNA *props[] = {

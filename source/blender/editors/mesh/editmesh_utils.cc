@@ -357,8 +357,8 @@ void EDBM_mesh_free_data(BMEditMesh *em)
 
 void EDBM_selectmode_to_scene(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
-  Object *obedit = CTX_data_edit_object(C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *obedit = CTX_data_edit_object(*C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
   if (!em) {
@@ -2036,7 +2036,7 @@ void EDBM_project_snap_verts(
 
   ED_view3d_init_mats_rv3d(obedit, static_cast<RegionView3D *>(region->regiondata));
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   transform::SnapObjectContext *snap_context = transform::snap_object_context_create(scene, 0);
 
   eSnapTargetOP target_op = SCE_SNAP_TARGET_NOT_ACTIVE;
@@ -2062,7 +2062,7 @@ void EDBM_project_snap_verts(
         if (transform::snap_object_project_view3d(snap_context,
                                                   depsgraph,
                                                   region,
-                                                  CTX_wm_view3d(C),
+                                                  CTX_wm_view3d(*C),
                                                   SCE_SNAP_TO_FACE,
                                                   &params,
                                                   nullptr,

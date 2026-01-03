@@ -734,8 +734,8 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
       copy_m3_m4(omat, obmat);
     }
     else {
-      ViewLayer *view_layer = CTX_data_view_layer(C);
-      BKE_view_layer_synced_ensure(CTX_data_scene(C), view_layer);
+      ViewLayer *view_layer = CTX_data_view_layer(*C);
+      BKE_view_layer_synced_ensure(CTX_data_scene(*C), view_layer);
       Object *ob = BKE_view_layer_active_object_get(view_layer);
       const int orient_index = BKE_scene_orientation_get_index(scene, SCE_ORIENT_DEFAULT);
       const int pivot_point = scene->toolsettings->transform_pivot_point;
@@ -839,18 +839,18 @@ static bool v3d_cursor_snap_poll_fn(bContext *C)
     return false;
   }
 
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area->spacetype != SPACE_VIEW3D) {
     return false;
   }
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   if (region->regiontype != RGN_TYPE_WINDOW) {
     if (!region->overlap) {
       return false;
     }
     /* Sometimes the cursor may be on an invisible part of an overlapping region. */
-    wmWindow *win = CTX_wm_window(C);
+    wmWindow *win = CTX_wm_window(*C);
     const wmEvent *event = win->runtime->eventstate;
     if (ED_region_overlap_isect_xy(region, event->xy)) {
       return false;
@@ -881,7 +881,7 @@ static void v3d_cursor_snap_draw_fn(bContext *C,
                                     void * /*customdata*/)
 {
   using namespace blender;
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
   if (region->alignment == RGN_ALIGN_QSPLIT) {
     /* Quad-View. */
@@ -896,13 +896,13 @@ static void v3d_cursor_snap_draw_fn(bContext *C,
   SnapCursorDataIntern *data_intern = &g_data_intern;
   V3DSnapCursorState *state = ED_view3d_cursor_snap_state_active_get();
   V3DSnapCursorData *snap_data = &data_intern->snap_data;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Scene *scene = DEG_get_input_scene(depsgraph);
 
-  const wmWindow *win = CTX_wm_window(C);
+  const wmWindow *win = CTX_wm_window(*C);
   const wmEvent *event = win->runtime->eventstate;
   if (event && v3d_cursor_eventstate_has_changed(data_intern, state, mval, event->modifier)) {
-    View3D *v3d = CTX_wm_view3d(C);
+    View3D *v3d = CTX_wm_view3d(*C);
     v3d_cursor_snap_update(state, C, depsgraph, scene, region, v3d, mval, event->modifier);
   }
 
@@ -1087,11 +1087,11 @@ void ED_view3d_cursor_snap_data_update(V3DSnapCursorState *state,
                                        const blender::int2 &mval)
 {
   SnapCursorDataIntern *data_intern = &g_data_intern;
-  const wmEvent *event = CTX_wm_window(C)->runtime->eventstate;
+  const wmEvent *event = CTX_wm_window(*C)->runtime->eventstate;
   if (event && v3d_cursor_eventstate_has_changed(data_intern, state, mval, event->modifier)) {
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     Scene *scene = DEG_get_input_scene(depsgraph);
-    View3D *v3d = CTX_wm_view3d(C);
+    View3D *v3d = CTX_wm_view3d(*C);
 
     if (!state) {
       state = ED_view3d_cursor_snap_state_active_get();

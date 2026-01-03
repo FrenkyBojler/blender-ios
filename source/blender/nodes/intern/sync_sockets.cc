@@ -578,7 +578,7 @@ static std::string get_closure_sync_tooltip(const nodes::ClosureSignature &old_s
 void sync_node(bContext &C, bNode &node, ReportList *reports)
 {
   const bke::bNodeZoneType &closure_zone_type = *bke::zone_type_by_node_type(NODE_CLOSURE_OUTPUT);
-  SpaceNode &snode = *CTX_wm_space_node(&C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   if (node.is_type("NodeEvaluateClosure")) {
     sync_sockets_evaluate_closure(snode, node, reports);
   }
@@ -608,7 +608,7 @@ void sync_node(bContext &C, bNode &node, ReportList *reports)
 
 std::string sync_node_description_get(const bContext &C, const bNode &node)
 {
-  const SpaceNode *snode = CTX_wm_space_node(&C);
+  const SpaceNode *snode = CTX_wm_space_node(C);
   if (!snode) {
     return "";
   }
@@ -654,7 +654,7 @@ std::string sync_node_description_get(const bContext &C, const bNode &node)
 
 bool node_can_sync_sockets(const bContext &C, const bNodeTree & /*tree*/, const bNode &node)
 {
-  SpaceNode *snode = CTX_wm_space_node(&C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   if (!snode) {
     return false;
   }

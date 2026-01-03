@@ -253,8 +253,8 @@ static void nla_main_region_init(wmWindowManager *wm, ARegion *region)
 static void nla_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
-  SpaceNla *snla = CTX_wm_space_nla(C);
-  Scene *scene = CTX_data_scene(C);
+  SpaceNla *snla = CTX_wm_space_nla(*C);
+  Scene *scene = CTX_data_scene(*C);
   bAnimContext ac;
   View2D *v2d = &region->v2d;
 
@@ -290,7 +290,7 @@ static void nla_main_region_draw(const bContext *C, ARegion *region)
   /* markers */
   blender::ui::view2d_view_orthoSpecial(region, v2d, true);
   int marker_draw_flag = DRAW_MARKERS_MARGIN;
-  if (ED_markers_region_visible(CTX_wm_area(C), region)) {
+  if (ED_markers_region_visible(CTX_wm_area(*C), region)) {
     ED_markers_draw(C, marker_draw_flag);
   }
 
@@ -312,8 +312,8 @@ static void nla_main_region_draw(const bContext *C, ARegion *region)
 static void nla_main_region_draw_overlay(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
-  const SpaceNla *snla = CTX_wm_space_nla(C);
-  const Scene *scene = CTX_data_scene(C);
+  const SpaceNla *snla = CTX_wm_space_nla(*C);
+  const Scene *scene = CTX_data_scene(*C);
   View2D *v2d = &region->v2d;
 
   /* scrubbing region */

@@ -556,7 +556,7 @@ void ED_transverts_free(TransVertStore *tvs)
 
 bool ED_transverts_poll(bContext *C)
 {
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit = CTX_data_edit_object(*C);
   if (obedit) {
     if (ED_transverts_check_obedit(obedit)) {
       return true;

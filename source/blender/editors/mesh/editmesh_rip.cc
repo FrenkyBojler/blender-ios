@@ -523,8 +523,8 @@ static void edbm_tagged_loop_pairs_do_fill_faces(BMesh *bm, UnorderedLoopPair *u
 static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obedit, bool do_fill)
 {
   UnorderedLoopPair *fill_uloop_pairs = nullptr;
-  ARegion *region = CTX_wm_region(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  ARegion *region = CTX_wm_region(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
   BMIter iter, liter;
@@ -889,8 +889,8 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
 static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obedit, bool do_fill)
 {
   UnorderedLoopPair *fill_uloop_pairs = nullptr;
-  ARegion *region = CTX_wm_region(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  ARegion *region = CTX_wm_region(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
   BMIter iter, eiter;
@@ -1021,10 +1021,10 @@ static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obed
 /* based on mouse cursor position, it defines how is being ripped */
 static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   const bool do_fill = RNA_boolean_get(op->ptr, "use_fill");
 
   bool no_vertex_selected = true;

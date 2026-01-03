@@ -33,7 +33,7 @@ static void geometry_node_tree_get_from_context(const bContext *C,
                                                 ID **r_id,
                                                 ID **r_from)
 {
-  const SpaceNode *snode = CTX_wm_space_node(C);
+  const SpaceNode *snode = CTX_wm_space_node(*C);
   if (snode->node_tree_sub_type == SNODE_GEOMETRY_TOOL) {
     if (snode->selected_node_group && snode->selected_node_group->type == NTREE_GEOMETRY) {
       *r_ntree = snode->selected_node_group;
@@ -43,8 +43,8 @@ static void geometry_node_tree_get_from_context(const bContext *C,
     return;
   }
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 

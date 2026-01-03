@@ -2016,7 +2016,7 @@ bool button_context_poll_operator_ex(bContext *C,
   bool result;
   int old_but_flag = 0;
 
-  const bContextStore *previous_ctx = CTX_store_get(C);
+  const bContextStore *previous_ctx = CTX_store_get(*C);
   if (but) {
     old_but_flag = but->flag;
 
@@ -2170,14 +2170,14 @@ void block_end_ex(const bContext *C,
 
 void block_end(const bContext *C, Block *block)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
 
   block_end_ex(C,
-               CTX_data_main(C),
+               CTX_data_main(*C),
                window,
-               CTX_data_scene(C),
-               CTX_wm_region(C),
-               CTX_data_depsgraph_pointer(C),
+               CTX_data_scene(*C),
+               CTX_wm_region(*C),
+               CTX_data_depsgraph_pointer(*C),
                block,
                window->runtime->eventstate->xy,
                nullptr);
@@ -2217,9 +2217,9 @@ void block_draw(const bContext *C, Block *block)
   uiStyle style = *style_get_dpi(); /* XXX pass on as arg */
 
   /* get menu region or area region */
-  ARegion *region = CTX_wm_region_popup(C);
+  ARegion *region = CTX_wm_region_popup(*C);
   if (!region) {
-    region = CTX_wm_region(C);
+    region = CTX_wm_region(*C);
   }
 
   if (!block->endblock) {
@@ -2930,7 +2930,7 @@ static double ui_get_but_scale_unit(Button *but, double value)
 
   /* Time unit is a bit special, not handled by #BKE_unit_value_scale() for now. */
   if (unit_type == PROP_UNIT_TIME) { /* WARNING: using evil_C :| */
-    Scene *scene = CTX_data_scene(static_cast<const bContext *>(but->block->evil_C));
+    Scene *scene = CTX_data_scene(*static_cast<const bContext *>(but->block->evil_C));
     return FRA2TIME(value);
   }
   return BKE_unit_value_scale(*unit, RNA_SUBTYPE_UNIT_VALUE(unit_type), value);
@@ -3232,7 +3232,7 @@ static bool ui_number_from_string_units(
   char *error = nullptr;
   const bool ok = user_string_to_number(C, str, *unit, unit_type, r_value, true, &error);
   if (error) {
-    ReportList *reports = CTX_wm_reports(C);
+    ReportList *reports = CTX_wm_reports(*C);
     BKE_reportf(reports, RPT_ERROR, "%s: %s", UI_NUMBER_EVAL_ERROR_PREFIX, error);
     MEM_freeN(error);
   }
@@ -3254,7 +3254,7 @@ static bool ui_number_from_string(bContext *C, const char *str, double *r_value)
   bool ok;
 #ifdef WITH_PYTHON
   BPy_RunErrInfo err_info = {};
-  err_info.reports = CTX_wm_reports(C);
+  err_info.reports = CTX_wm_reports(*C);
   err_info.report_prefix = UI_NUMBER_EVAL_ERROR_PREFIX;
   ok = BPY_run_string_as_number(C, nullptr, str, &err_info, r_value);
 #else
@@ -3445,7 +3445,7 @@ bool button_string_set(bContext *C, Button *but, const char *str)
     double value;
 
     if (button_string_eval_number(C, but, str, &value) == false) {
-      WM_report_banner_show(CTX_wm_manager(C), CTX_wm_window(C));
+      WM_report_banner_show(CTX_wm_manager(*C), CTX_wm_window(*C));
       return false;
     }
 
@@ -3772,8 +3772,8 @@ void block_listen(const Block *block, const wmRegionListenerParams *listener_par
 
 void blocklist_update_window_matrix(const bContext *C, const ListBaseT<Block> *lb)
 {
-  ARegion *region = CTX_wm_region(C);
-  wmWindow *window = CTX_wm_window(C);
+  ARegion *region = CTX_wm_region(*C);
+  wmWindow *window = CTX_wm_window(*C);
 
   for (Block &block : *lb) {
     if (block.active) {
@@ -3907,7 +3907,7 @@ Block *block_begin(const bContext *C,
 
 Block *block_begin(const bContext *C, ARegion *region, std::string name, EmbossType emboss)
 {
-  return block_begin(C, CTX_data_scene(C), CTX_wm_window(C), region, std::move(name), emboss);
+  return block_begin(C, CTX_data_scene(*C), CTX_wm_window(*C), region, std::move(name), emboss);
 }
 
 void block_add_dynamic_listener(Block *block,
@@ -4481,7 +4481,7 @@ static void ui_def_but_rna__menu(bContext *C, Layout *layout, void *but_p)
   int columns = 1;
   int rows = 0;
 
-  const wmWindow *win = CTX_wm_window(C);
+  const wmWindow *win = CTX_wm_window(*C);
 
   /* Calculate the maximum number of rows that can fit in half the height of this window. */
   const float row_height = float(UI_UNIT_Y) / but->block->aspect;
@@ -6847,7 +6847,7 @@ std::string button_string_get_rna_tooltip(bContext &C, Button &but)
   }
   else if (but.optype) {
     PointerRNA *opptr = button_operator_ptr_ensure(&but);
-    const bContextStore *previous_ctx = CTX_store_get(&C);
+    const bContextStore *previous_ctx = CTX_store_get(C);
     CTX_store_set(&C, but.context);
     std::string tmp = WM_operatortype_description(&C, but.optype, opptr);
     CTX_store_set(&C, previous_ctx);

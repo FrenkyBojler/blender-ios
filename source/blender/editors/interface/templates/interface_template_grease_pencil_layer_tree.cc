@@ -147,18 +147,18 @@ class LayerNodeDropTarget : public TreeViewItemDropTarget {
 
     if (drag_node.is_layer()) {
       WM_msg_publish_rna_prop(
-          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+          CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
       WM_msg_publish_rna_prop(
-          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
+          CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
     }
     else if (drag_node.is_group()) {
-      WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+      WM_msg_publish_rna_prop(CTX_wm_message_bus(*C),
                               &grease_pencil.id,
                               &grease_pencil,
                               GreasePencilv3LayerGroup,
                               active);
       WM_msg_publish_rna_prop(
-          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
+          CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
     }
 
     ED_undo_push(C, "Reorder Layers");
@@ -249,7 +249,7 @@ class LayerViewItem : public AbstractTreeViewItem {
     PropertyRNA *prop = RNA_struct_find_property(&layers_ptr, "active");
 
     if (grease_pencil_.has_active_group()) {
-      WM_msg_publish_rna_prop(CTX_wm_message_bus(&C),
+      WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
                               &grease_pencil_.id,
                               &grease_pencil_,
                               GreasePencilv3LayerGroup,
@@ -418,7 +418,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     PropertyRNA *prop = RNA_struct_find_property(&grease_pencil_ptr, "active");
 
     if (grease_pencil_.has_active_layer()) {
-      WM_msg_publish_rna_prop(CTX_wm_message_bus(&C),
+      WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
                               &grease_pencil_.id,
                               &grease_pencil_,
                               GreasePencilv3Layers,

@@ -68,7 +68,7 @@ namespace blender::ed::sculpt_paint {
 
 bool curves_sculpt_poll(bContext *C)
 {
-  const Object *ob = CTX_data_active_object(C);
+  const Object *ob = CTX_data_active_object(*C);
   return ob && ob->mode & OB_MODE_SCULPT_CURVES;
 }
 
@@ -77,7 +77,7 @@ bool curves_sculpt_poll_view3d(bContext *C)
   if (!curves_sculpt_poll(C)) {
     return false;
   }
-  if (CTX_wm_region_view3d(C) == nullptr) {
+  if (CTX_wm_region_view3d(*C) == nullptr) {
     return false;
   }
   return true;
@@ -235,7 +235,7 @@ static wmOperatorStatus sculpt_curves_stroke_invoke(bContext *C,
                                                     wmOperator *op,
                                                     const wmEvent *event)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Paint *paint = BKE_paint_get_active_from_paintmode(scene, PaintMode::SculptCurves);
   const Brush *brush = paint ? BKE_paint_brush_for_read(paint) : nullptr;
   if (brush == nullptr) {
@@ -306,10 +306,10 @@ static void SCULPT_CURVES_OT_brush_stroke(wmOperatorType *ot)
 
 static void curves_sculptmode_enter(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  Scene *scene = CTX_data_scene(*C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
 
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   BKE_paint_ensure(scene->toolsettings, (Paint **)&scene->toolsettings->curves_sculpt);
   CurvesSculpt *curves_sculpt = scene->toolsettings->curves_sculpt;
 
@@ -317,7 +317,7 @@ static void curves_sculptmode_enter(bContext *C)
 
   Paint *paint = BKE_paint_get_active_from_paintmode(scene, PaintMode::SculptCurves);
 
-  BKE_paint_brushes_ensure(CTX_data_main(C), paint);
+  BKE_paint_brushes_ensure(CTX_data_main(*C), paint);
 
   ED_paint_cursor_start(&curves_sculpt->paint, curves_sculpt_poll_view3d);
   paint_init_pivot(ob, scene, paint);
@@ -330,14 +330,14 @@ static void curves_sculptmode_enter(bContext *C)
 
 static void curves_sculptmode_exit(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   ob->mode = OB_MODE_OBJECT;
 }
 
 static wmOperatorStatus curves_sculptmode_toggle_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_active_object(C);
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  Object *ob = CTX_data_active_object(*C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
 
   const bool is_mode_set = ob->mode == OB_MODE_SCULPT_CURVES;
 
@@ -748,10 +748,10 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
 
 static wmOperatorStatus select_grow_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Object *active_ob = CTX_data_active_object(C);
-  ARegion *region = CTX_wm_region(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  Object *active_ob = CTX_data_active_object(*C);
+  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
 
   GrowOperatorData *op_data = MEM_new<GrowOperatorData>(__func__);
   op->customdata = op_data;
@@ -848,7 +848,7 @@ static bool min_distance_edit_poll(bContext *C)
   if (!curves::curves_with_surface_poll(C)) {
     return false;
   }
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const Brush *brush = BKE_paint_brush_for_read(&scene->toolsettings->curves_sculpt->paint);
   if (brush == nullptr) {
     return false;
@@ -968,7 +968,7 @@ static void min_distance_edit_draw(bContext *C,
 
   ARegion *region = op_data.region;
   RegionView3D *rv3d = op_data.rv3d;
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   /* It does the same as: `view3d_operator_needs_gpu(C);`. */
   wmViewport(&region->winrct);
@@ -1037,12 +1037,12 @@ static void min_distance_edit_draw(bContext *C,
 
 static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  ARegion *region = CTX_wm_region(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Scene *scene = CTX_data_scene(*C);
 
-  Object &curves_ob_orig = *CTX_data_active_object(C);
+  Object &curves_ob_orig = *CTX_data_active_object(*C);
   Curves &curves_id_orig = *static_cast<Curves *>(curves_ob_orig.data);
   Object &surface_ob_orig = *curves_id_orig.surface;
   Object *surface_ob_eval = DEG_get_evaluated(depsgraph, &surface_ob_orig);
@@ -1106,7 +1106,7 @@ static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, co
   op->customdata = op_data;
 
   /* Temporarily disable other paint cursors. */
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   op_data->orig_paintcursors = wm->runtime->paintcursors;
   BLI_listbase_clear(&wm->runtime->paintcursors);
 
@@ -1114,8 +1114,8 @@ static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, co
   op_data->cursor = WM_paint_cursor_activate(
       SPACE_TYPE_ANY, RGN_TYPE_ANY, op->type->poll, min_distance_edit_draw, op_data);
 
-  op_data->region = CTX_wm_region(C);
-  op_data->rv3d = CTX_wm_region_view3d(C);
+  op_data->region = CTX_wm_region(*C);
+  op_data->rv3d = CTX_wm_region_view3d(*C);
 
   WM_event_add_modal_handler(C, op);
   ED_region_tag_redraw(region);
@@ -1124,11 +1124,11 @@ static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, co
 
 static wmOperatorStatus min_distance_edit_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   MinDistanceEditData &op_data = *static_cast<MinDistanceEditData *>(op->customdata);
 
   auto finish = [&]() {
-    wmWindowManager *wm = CTX_wm_manager(C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
 
     /* Remove cursor. */
     WM_paint_cursor_end(static_cast<wmPaintCursor *>(op_data.cursor));

@@ -57,7 +57,7 @@ static wmOperatorStatus viewmove_modal_impl(bContext *C,
   switch (event_code) {
     case VIEW_APPLY: {
       viewmove_apply(vod, xy[0], xy[1]);
-      if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+      if (ED_screen_animation_playing(CTX_wm_manager(*C))) {
         use_autokey = true;
       }
       break;

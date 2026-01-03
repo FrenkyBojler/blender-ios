@@ -80,7 +80,7 @@ static SeqDropCoords g_drop_coords{};
 
 static void generic_poll_operations(const bContext *C, const wmEvent *event, uint8_t type)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(*C);
   const ToolSettings *ts = scene->toolsettings;
 
   g_drop_coords.type = type;
@@ -178,8 +178,8 @@ static bool sound_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 static float update_overlay_strip_position_data(bContext *C, const int mval[2])
 {
   SeqDropCoords *coords = &g_drop_coords;
-  ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_sequencer_scene(C);
+  ARegion *region = CTX_wm_region(*C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   View2D *v2d = &region->v2d;
 
   /* Update the position were we would place the strip if we complete the drag and drop action.
@@ -256,11 +256,11 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
     if (!g_drop_coords.has_read_mouse_pos) {
       /* We didn't read the mouse position, so we need to do it manually here. */
       int xy[2];
-      wmWindow *win = CTX_wm_window(C);
+      wmWindow *win = CTX_wm_window(*C);
       xy[0] = win->runtime->eventstate->xy[0];
       xy[1] = win->runtime->eventstate->xy[1];
 
-      ARegion *region = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(*C);
       int mval[2];
       /* Convert mouse coordinates to region local coordinates. */
       mval[0] = xy[0] - region->winrct.xmin;
@@ -277,11 +277,11 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
   else {
     /* We are dropped inside the preview region. Put the strip on top of the
      * current displayed frame. */
-    Scene *scene = CTX_data_sequencer_scene(C);
+    Scene *scene = CTX_data_sequencer_scene(*C);
     Editing *ed = seq::editing_ensure(scene);
     ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
     ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
-    SpaceSeq *sseq = CTX_wm_space_seq(C);
+    SpaceSeq *sseq = CTX_wm_space_seq(*C);
 
     VectorSet strips = seq::query_rendered_strips(
         scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
@@ -378,7 +378,7 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
     return;
   }
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   int mval[2];
   /* Convert mouse coordinates to region local coordinates. */
   mval[0] = xy[0] - region->winrct.xmin;
@@ -472,7 +472,7 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
       break;
     }
 
-    SpaceSeq *sseq = CTX_wm_space_seq(C);
+    SpaceSeq *sseq = CTX_wm_space_seq(*C);
     const char *text_sep = " | ";
     const char *text_array[5];
     char text_display[FILE_MAX];
@@ -489,7 +489,7 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
     }
 
     if (sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_SOURCE) {
-      Main *bmain = CTX_data_main(C);
+      Main *bmain = CTX_data_main(*C);
       BLI_path_rel(path, BKE_main_blendfile_path(bmain));
       text_array[len_text_arr++] = text_sep;
       text_array[len_text_arr++] = path;
@@ -601,7 +601,7 @@ static void start_audio_video_job(bContext *C, wmDrag *drag, bool only_audio)
   g_drop_coords.strip_len = 0;
   g_drop_coords.channel_len = 1;
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   wmJob *wm_job = WM_jobs_get(wm,
                               nullptr,

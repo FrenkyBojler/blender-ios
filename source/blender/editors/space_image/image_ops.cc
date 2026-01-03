@@ -183,14 +183,14 @@ static Image *image_from_context(const bContext *C)
 {
   /* Edit image is set by templates used throughout the interface, so image
    * operations work outside the image editor. */
-  Image *ima = static_cast<Image *>(CTX_data_pointer_get_type(C, "edit_image", &RNA_Image).data);
+  Image *ima = static_cast<Image *>(CTX_data_pointer_get_type(*C, "edit_image", &RNA_Image).data);
 
   if (ima) {
     return ima;
   }
 
   /* Image editor. */
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   return (sima) ? sima->image : nullptr;
 }
 
@@ -199,14 +199,14 @@ static ImageUser *image_user_from_context(const bContext *C)
   /* Edit image user is set by templates used throughout the interface, so
    * image operations work outside the image editor. */
   ImageUser *iuser = static_cast<ImageUser *>(
-      CTX_data_pointer_get_type(C, "edit_image_user", &RNA_ImageUser).data);
+      CTX_data_pointer_get_type(*C, "edit_image_user", &RNA_ImageUser).data);
 
   if (iuser) {
     return iuser;
   }
 
   /* Image editor. */
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   return (sima) ? &sima->iuser : nullptr;
 }
 
@@ -337,7 +337,7 @@ static void image_view_all(SpaceImage *sima, ARegion *region, wmOperator *op)
 
 bool space_image_main_region_poll(bContext *C)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   // ARegion *region = CTX_wm_region(C); /* XXX. */
 
   if (sima) {
@@ -349,9 +349,9 @@ bool space_image_main_region_poll(bContext *C)
 /** For #IMAGE_OT_curves_point_set to avoid sampling when in uv smooth mode or edit-mode. */
 static bool space_image_main_area_not_uv_brush_poll(bContext *C)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
 
-  if (sima && (CTX_data_edit_object(C) == nullptr)) {
+  if (sima && (CTX_data_edit_object(*C) == nullptr)) {
     return true;
   }
 
@@ -377,8 +377,8 @@ struct ViewPanData {
 
 static void image_view_pan_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
-  SpaceImage *sima = CTX_wm_space_image(C);
+  wmWindow *win = CTX_wm_window(*C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   ViewPanData *vpd;
 
   op->customdata = vpd = MEM_callocN<ViewPanData>("ImageViewPanData");
@@ -400,31 +400,31 @@ static void image_view_pan_init(bContext *C, wmOperator *op, const wmEvent *even
 
 static void image_view_pan_exit(bContext *C, wmOperator *op, bool cancel)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   ViewPanData *vpd = static_cast<ViewPanData *>(op->customdata);
 
   if (cancel) {
     sima->xof = vpd->xof;
     sima->yof = vpd->yof;
-    ED_region_tag_redraw(CTX_wm_region(C));
+    ED_region_tag_redraw(CTX_wm_region(*C));
   }
 
   if (vpd->own_cursor) {
-    WM_cursor_modal_restore(CTX_wm_window(C));
+    WM_cursor_modal_restore(CTX_wm_window(*C));
   }
   MEM_freeN(vpd);
 }
 
 static wmOperatorStatus image_view_pan_exec(bContext *C, wmOperator *op)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   float offset[2];
 
   RNA_float_get_array(op->ptr, "offset", offset);
   sima->xof += offset[0];
   sima->yof += offset[1];
 
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -432,7 +432,7 @@ static wmOperatorStatus image_view_pan_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus image_view_pan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (event->type == MOUSEPAN) {
-    SpaceImage *sima = CTX_wm_space_image(C);
+    SpaceImage *sima = CTX_wm_space_image(*C);
     float offset[2];
 
     offset[0] = (event->prev_xy[0] - event->xy[0]) / sima->zoom;
@@ -449,7 +449,7 @@ static wmOperatorStatus image_view_pan_invoke(bContext *C, wmOperator *op, const
 
 static wmOperatorStatus image_view_pan_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   ViewPanData *vpd = static_cast<ViewPanData *>(op->customdata);
   float offset[2];
 
@@ -537,9 +537,9 @@ struct ViewZoomData {
 
 static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
-  SpaceImage *sima = CTX_wm_space_image(C);
-  ARegion *region = CTX_wm_region(C);
+  wmWindow *win = CTX_wm_window(*C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  ARegion *region = CTX_wm_region(*C);
   ViewZoomData *vpd;
 
   op->customdata = vpd = MEM_callocN<ViewZoomData>("ImageViewZoomData");
@@ -560,12 +560,12 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
 
   if (U.viewzoom == USER_ZOOM_CONTINUE) {
     /* needs a timer to continue redrawing */
-    vpd->timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
+    vpd->timer = WM_event_timer_add(CTX_wm_manager(*C), CTX_wm_window(*C), TIMER, 0.01f);
     vpd->timer_lastdraw = BLI_time_now_seconds();
   }
 
   vpd->sima = sima;
-  vpd->area = CTX_wm_area(C);
+  vpd->area = CTX_wm_area(*C);
   vpd->region = region;
 
   WM_event_add_modal_handler(C, op);
@@ -573,31 +573,31 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
 
 static void image_view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   ViewZoomData *vpd = static_cast<ViewZoomData *>(op->customdata);
 
   if (cancel) {
     sima->zoom = vpd->zoom;
-    ED_region_tag_redraw(CTX_wm_region(C));
+    ED_region_tag_redraw(CTX_wm_region(*C));
   }
 
   ED_area_status_text(vpd->area, nullptr);
   ED_workspace_status_text(C, nullptr);
 
   if (vpd->timer) {
-    WM_event_timer_remove(CTX_wm_manager(C), vpd->timer->win, vpd->timer);
+    WM_event_timer_remove(CTX_wm_manager(*C), vpd->timer->win, vpd->timer);
   }
 
   if (vpd->own_cursor) {
-    WM_cursor_modal_restore(CTX_wm_window(C));
+    WM_cursor_modal_restore(CTX_wm_window(*C));
   }
   MEM_freeN(vpd);
 }
 
 static wmOperatorStatus image_view_zoom_exec(bContext *C, wmOperator *op)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   sima_zoom_set_factor(sima, region, RNA_float_get(op->ptr, "factor"), nullptr, false);
 
@@ -615,8 +615,8 @@ enum {
 static wmOperatorStatus image_view_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   if (ELEM(event->type, MOUSEZOOM, MOUSEPAN)) {
-    SpaceImage *sima = CTX_wm_space_image(C);
-    ARegion *region = CTX_wm_region(C);
+    SpaceImage *sima = CTX_wm_space_image(*C);
+    ARegion *region = CTX_wm_region(*C);
     float delta, factor, location[2];
 
     blender::ui::view2d_region_to_view(
@@ -826,8 +826,8 @@ static wmOperatorStatus image_view_ndof_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  SpaceImage *sima = CTX_wm_space_image(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(event->customdata);
   const float pan_speed = NDOF_PIXELS_PER_SECOND;
@@ -878,8 +878,8 @@ static wmOperatorStatus image_view_all_exec(bContext *C, wmOperator *op)
   ARegion *region;
 
   /* retrieve state */
-  sima = CTX_wm_space_image(C);
-  region = CTX_wm_region(C);
+  sima = CTX_wm_space_image(*C);
+  region = CTX_wm_region(*C);
 
   image_view_all(sima, region, op);
 
@@ -920,8 +920,8 @@ static wmOperatorStatus view_cursor_center_exec(bContext *C, wmOperator *op)
   SpaceImage *sima;
   ARegion *region;
 
-  sima = CTX_wm_space_image(C);
-  region = CTX_wm_region(C);
+  sima = CTX_wm_space_image(*C);
+  region = CTX_wm_region(*C);
 
   image_view_all(sima, region, op);
 
@@ -960,8 +960,8 @@ void IMAGE_OT_view_cursor_center(wmOperatorType *ot)
 
 static wmOperatorStatus view_center_cursor_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   ED_image_view_center_to_point(sima, sima->cursor[0], sima->cursor[1]);
 
@@ -997,11 +997,11 @@ static wmOperatorStatus image_view_selected_exec(bContext *C, wmOperator * /*op*
   Object *obedit;
 
   /* retrieve state */
-  sima = CTX_wm_space_image(C);
-  region = CTX_wm_region(C);
-  scene = CTX_data_scene(C);
-  view_layer = CTX_data_view_layer(C);
-  obedit = CTX_data_edit_object(C);
+  sima = CTX_wm_space_image(*C);
+  region = CTX_wm_region(*C);
+  scene = CTX_data_scene(*C);
+  view_layer = CTX_data_view_layer(*C);
+  obedit = CTX_data_edit_object(*C);
 
   /* get bounds */
   float min[2], max[2];
@@ -1061,8 +1061,8 @@ void IMAGE_OT_view_selected(wmOperatorType *ot)
 
 static wmOperatorStatus image_view_zoom_in_exec(bContext *C, wmOperator *op)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  ARegion *region = CTX_wm_region(*C);
   float location[2];
 
   RNA_float_get_array(op->ptr, "location", location);
@@ -1079,7 +1079,7 @@ static wmOperatorStatus image_view_zoom_in_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   float location[2];
 
   blender::ui::view2d_region_to_view(
@@ -1122,8 +1122,8 @@ void IMAGE_OT_view_zoom_in(wmOperatorType *ot)
 
 static wmOperatorStatus image_view_zoom_out_exec(bContext *C, wmOperator *op)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  ARegion *region = CTX_wm_region(*C);
   float location[2];
 
   RNA_float_get_array(op->ptr, "location", location);
@@ -1140,7 +1140,7 @@ static wmOperatorStatus image_view_zoom_out_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   float location[2];
 
   blender::ui::view2d_region_to_view(
@@ -1189,8 +1189,8 @@ void IMAGE_OT_view_zoom_out(wmOperatorType *ot)
 
 static wmOperatorStatus image_view_zoom_ratio_exec(bContext *C, wmOperator *op)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   sima_zoom_set(sima, region, RNA_float_get(op->ptr, "ratio"), nullptr, false);
 
@@ -1237,8 +1237,8 @@ void IMAGE_OT_view_zoom_ratio(wmOperatorType *ot)
 
 static wmOperatorStatus image_view_zoom_border_exec(bContext *C, wmOperator *op)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  ARegion *region = CTX_wm_region(*C);
   rctf bounds;
   const bool zoom_in = !RNA_boolean_get(op->ptr, "zoom_out");
 
@@ -1312,7 +1312,7 @@ static void image_open_init(bContext *C, wmOperator *op)
   ImageOpenData *iod;
   op->customdata = iod = MEM_new<ImageOpenData>(__func__);
   iod->iuser = static_cast<ImageUser *>(
-      CTX_data_pointer_get_type(C, "image_user", &RNA_ImageUser).data);
+      CTX_data_pointer_get_type(*C, "image_user", &RNA_ImageUser).data);
   blender::ui::context_active_but_prop_get_templateID(C, &iod->pprop.ptr, &iod->pprop.prop);
 }
 
@@ -1387,9 +1387,9 @@ static Image *image_open_single(Main *bmain,
 
 static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  ScrArea *area = CTX_wm_area(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  Scene *scene = CTX_data_scene(*C);
   ImageUser *iuser = nullptr;
   Image *ima = nullptr;
   int frame_seq_len = 0;
@@ -1454,14 +1454,14 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
     iuser = &sima->iuser;
   }
   else {
-    Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data);
+    Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(*C, "texture", &RNA_Texture).data);
     if (tex && tex->type == TEX_IMAGE) {
       iuser = &tex->iuser;
     }
 
     if (iuser == nullptr) {
       Camera *cam = static_cast<Camera *>(
-          CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
+          CTX_data_pointer_get_type(*C, "camera", &RNA_Camera).data);
       if (cam) {
         for (CameraBGImage &bgpic : cam->bg_images) {
           if (bgpic.ima == ima) {
@@ -1490,7 +1490,7 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
   }
 
   /* XXX BKE_packedfile_unpack_image frees image buffers */
-  ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
+  ED_preview_kill_jobs(CTX_wm_manager(*C), bmain);
 
   BKE_image_signal(bmain, ima, iuser, IMA_SIGNAL_RELOAD);
   WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
@@ -1503,17 +1503,17 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  SpaceImage *sima = CTX_wm_space_image(C); /* XXX other space types can call */
+  SpaceImage *sima = CTX_wm_space_image(*C); /* XXX other space types can call */
   const char *path = U.textudir;
   Image *ima = nullptr;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   if (sima) {
     ima = sima->image;
   }
 
   if (ima == nullptr) {
-    Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data);
+    Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(*C, "texture", &RNA_Texture).data);
     if (tex && tex->type == TEX_IMAGE) {
       ima = tex->ima;
     }
@@ -1655,7 +1655,7 @@ static wmOperatorStatus image_file_browse_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
   if (BLI_path_is_rel(filepath)) {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     /* Relative path created by the file-browser are always relative to the current blend-file,
      * need to be made relative to the library blend-file path in case image is an editable
      * linked data. */
@@ -1687,7 +1687,7 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   char filepath[FILE_MAX];
   STRNCPY(filepath, ima->filepath);
   BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &ima->id));
@@ -1767,13 +1767,13 @@ void IMAGE_OT_file_browse(wmOperatorType *ot)
 
 static wmOperatorStatus image_match_len_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Image *ima = image_from_context(C);
   ImageUser *iuser = image_user_from_context(C);
 
   if (!ima || !iuser) {
     /* Try to get a Texture, or a SpaceImage from context... */
-    Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(C, "texture", &RNA_Texture).data);
+    Tex *tex = static_cast<Tex *>(CTX_data_pointer_get_type(*C, "texture", &RNA_Texture).data);
     if (tex && tex->type == TEX_IMAGE) {
       ima = tex->ima;
       iuser = &tex->iuser;
@@ -1817,8 +1817,8 @@ void IMAGE_OT_match_movie_length(wmOperatorType *ot)
 
 static wmOperatorStatus image_replace_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  SpaceImage *sima = CTX_wm_space_image(C);
+  Main *bmain = CTX_data_main(*C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   char filepath[FILE_MAX];
 
   if (!sima->image) {
@@ -1843,7 +1843,7 @@ static wmOperatorStatus image_replace_exec(bContext *C, wmOperator *op)
   }
 
   /* XXX BKE_packedfile_unpack_image frees image buffers */
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+  ED_preview_kill_jobs(CTX_wm_manager(*C), CTX_data_main(*C));
 
   BKE_icon_changed(BKE_icon_id_ensure(&sima->image->id));
   BKE_image_signal(bmain, sima->image, &sima->iuser, IMA_SIGNAL_RELOAD);
@@ -1857,7 +1857,7 @@ static wmOperatorStatus image_replace_invoke(bContext *C,
                                              wmOperator *op,
                                              const wmEvent * /*event*/)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
 
   if (!sima->image) {
     return OPERATOR_CANCELLED;
@@ -1947,10 +1947,10 @@ static bool save_image_op(
 
 static ImageSaveData *image_save_as_init(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Image *image = image_from_context(C);
   ImageUser *iuser = image_user_from_context(C);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   ImageSaveData *isd = MEM_new_for_free<ImageSaveData>(__func__);
   isd->image = image;
@@ -2002,7 +2002,7 @@ static void image_save_as_free(wmOperator *op)
 
 static wmOperatorStatus image_save_as_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ImageSaveData *isd;
 
   if (op->customdata) {
@@ -2031,7 +2031,7 @@ static wmOperatorStatus image_save_as_exec(bContext *C, wmOperator *op)
 
 static bool image_save_as_check(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
 
   image_save_options_from_op(bmain, &isd->opts, op);
@@ -2229,10 +2229,10 @@ static bool image_save_poll(bContext *C)
 
 static wmOperatorStatus image_save_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Image *image = image_from_context(C);
   ImageUser *iuser = image_user_from_context(C);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ImageSaveOptions opts;
   bool ok = false;
 
@@ -2497,7 +2497,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
 
 bool ED_image_save_all_modified(const bContext *C, ReportList *reports)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   ED_image_save_all_modified_info(bmain, reports);
 
@@ -2515,7 +2515,7 @@ bool ED_image_save_all_modified(const bContext *C, ReportList *reports)
       else if (is_format_writable) {
         if (image_has_valid_path(ima)) {
           ImageSaveOptions opts;
-          Scene *scene = CTX_data_scene(C);
+          Scene *scene = CTX_data_scene(*C);
           if (BKE_image_save_options_init(&opts, bmain, scene, ima, nullptr, false, false)) {
             bool saved_successfully = BKE_image_save(reports, bmain, ima, nullptr, &opts);
             ok = ok && saved_successfully;
@@ -2530,7 +2530,7 @@ bool ED_image_save_all_modified(const bContext *C, ReportList *reports)
 
 static bool image_save_all_modified_poll(bContext *C)
 {
-  int num_files = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
+  int num_files = ED_image_save_all_modified_info(CTX_data_main(*C), nullptr);
   return num_files > 0;
 }
 
@@ -2563,7 +2563,7 @@ void IMAGE_OT_save_all_modified(wmOperatorType *ot)
 
 static wmOperatorStatus image_reload_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Image *ima = image_from_context(C);
   ImageUser *iuser = image_user_from_context(C);
 
@@ -2572,7 +2572,7 @@ static wmOperatorStatus image_reload_exec(bContext *C, wmOperator * /*op*/)
   }
 
   /* XXX BKE_packedfile_unpack_image frees image buffers */
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+  ED_preview_kill_jobs(CTX_wm_manager(*C), CTX_data_main(*C));
 
   BKE_image_signal(bmain, ima, iuser, IMA_SIGNAL_RELOAD);
   DEG_id_tag_update(&ima->id, 0);
@@ -2647,8 +2647,8 @@ static wmOperatorStatus image_new_exec(bContext *C, wmOperator *op)
   int stereo3d;
 
   /* retrieve state */
-  sima = CTX_wm_space_image(C);
-  bmain = CTX_data_main(C);
+  sima = CTX_wm_space_image(*C);
+  bmain = CTX_data_main(*C);
 
   prop = RNA_struct_find_property(op->ptr, "name");
   RNA_property_string_get(op->ptr, prop, name_buffer);
@@ -2824,7 +2824,7 @@ static wmOperatorStatus image_flip_exec(bContext *C, wmOperator *op)
   Image *ima = image_from_context(C);
   ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   const bool is_paint = ((sima != nullptr) && (sima->mode == SI_MODE_PAINT));
 
   if (ibuf == nullptr) {
@@ -2942,7 +2942,7 @@ static wmOperatorStatus image_rotate_orthogonal_exec(bContext *C, wmOperator *op
   Image *ima = image_from_context(C);
   ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   const bool is_paint = ((sima != nullptr) && (sima->mode == SI_MODE_PAINT));
 
   if (ibuf == nullptr) {
@@ -3018,7 +3018,7 @@ void IMAGE_OT_rotate_orthogonal(wmOperatorType *ot)
 
 static wmOperatorStatus image_clipboard_copy_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Image *ima = image_from_context(C);
   if (ima == nullptr) {
     return OPERATOR_CANCELLED;
@@ -3101,8 +3101,8 @@ static wmOperatorStatus image_clipboard_paste_exec(bContext *C, wmOperator *op)
   if (ibuf) {
     ED_undo_push_op(C, op);
 
-    Main *bmain = CTX_data_main(C);
-    SpaceImage *sima = CTX_wm_space_image(C);
+    Main *bmain = CTX_data_main(*C);
+    SpaceImage *sima = CTX_wm_space_image(*C);
     Image *ima = BKE_image_add_from_imbuf(bmain, ibuf, "Clipboard");
     IMB_freeImBuf(ibuf);
 
@@ -3118,7 +3118,7 @@ static wmOperatorStatus image_clipboard_paste_exec(bContext *C, wmOperator *op)
 
 static bool image_clipboard_paste_poll(bContext *C)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   if (!sima) {
     CTX_wm_operator_poll_msg_set(C, "Image Editor not found");
     return false;
@@ -3158,7 +3158,7 @@ static wmOperatorStatus image_invert_exec(bContext *C, wmOperator *op)
   Image *ima = image_from_context(C);
   ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   const bool is_paint = ((sima != nullptr) && (sima->mode == SI_MODE_PAINT));
 
   /* flags indicate if this channel should be inverted */
@@ -3294,7 +3294,7 @@ static wmOperatorStatus image_scale_exec(bContext *C, wmOperator *op)
 {
   Image *ima = image_from_context(C);
   ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   const bool is_paint = ((sima != nullptr) && (sima->mode == SI_MODE_PAINT));
 
   if (is_paint) {
@@ -3440,7 +3440,7 @@ static bool image_pack_poll(bContext *C)
 
 static wmOperatorStatus image_pack_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Image *ima = image_from_context(C);
 
   const char *error_message = nullptr;
@@ -3486,7 +3486,7 @@ void IMAGE_OT_pack(wmOperatorType *ot)
 
 static wmOperatorStatus image_unpack_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Image *ima = image_from_context(C);
   int method = RNA_enum_get(op->ptr, "method");
 
@@ -3521,9 +3521,9 @@ static wmOperatorStatus image_unpack_exec(bContext *C, wmOperator *op)
   }
 
   /* XXX BKE_packedfile_unpack_image frees image buffers */
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+  ED_preview_kill_jobs(CTX_wm_manager(*C), CTX_data_main(*C));
 
-  BKE_packedfile_unpack_image(CTX_data_main(C), op->reports, ima, ePF_FileStatus(method));
+  BKE_packedfile_unpack_image(CTX_data_main(*C), op->reports, ima, ePF_FileStatus(method));
 
   WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
 
@@ -3699,9 +3699,9 @@ void IMAGE_OT_sample(wmOperatorType *ot)
 
 static wmOperatorStatus image_sample_line_exec(bContext *C, wmOperator *op)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
-  ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  ARegion *region = CTX_wm_region(*C);
+  Scene *scene = CTX_data_scene(*C);
   Image *ima = ED_space_image(sima);
 
   int x_start = RNA_int_get(op->ptr, "xstart");
@@ -3744,14 +3744,14 @@ static wmOperatorStatus image_sample_line_exec(bContext *C, wmOperator *op)
 
   ED_space_image_release_buffer(sima, ibuf, lock);
 
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 
   return OPERATOR_FINISHED;
 }
 
 static wmOperatorStatus image_sample_line_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
 
   Histogram *hist = &sima->sample_line_hist;
   hist->flag &= ~HISTO_FLAG_SAMPLELINE;
@@ -3992,7 +3992,7 @@ static bool change_frame_poll(bContext *C)
 
 static void change_frame_apply(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* set the new frame number */
   scene->r.cfra = RNA_int_get(op->ptr, "frame");
@@ -4013,8 +4013,8 @@ static wmOperatorStatus change_frame_exec(bContext *C, wmOperator *op)
 
 static int frame_from_event(bContext *C, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
+  ARegion *region = CTX_wm_region(*C);
+  Scene *scene = CTX_data_scene(*C);
   int framenr = 0;
 
   if (region->regiontype == RGN_TYPE_WINDOW) {
@@ -4036,10 +4036,10 @@ static int frame_from_event(bContext *C, const wmEvent *event)
 
 static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   if (region->regiontype == RGN_TYPE_WINDOW) {
-    const SpaceImage *sima = CTX_wm_space_image(C);
+    const SpaceImage *sima = CTX_wm_space_image(*C);
     if (!ED_space_image_show_cache_and_mval_over(sima, region, event->mval)) {
       return OPERATOR_PASS_THROUGH;
     }
@@ -4104,9 +4104,9 @@ void IMAGE_OT_change_frame(wmOperatorType *ot)
 /* goes over all scenes, reads render layers */
 static wmOperatorStatus image_read_viewlayers_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  SpaceImage *sima = CTX_wm_space_image(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   Image *ima;
 
   ima = BKE_image_ensure_viewer(bmain, IMA_TYPE_R_RESULT, "Render Result");
@@ -4141,10 +4141,10 @@ void IMAGE_OT_read_viewlayers(wmOperatorType *ot)
 
 static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
 {
-  ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
+  ARegion *region = CTX_wm_region(*C);
+  Scene *scene = CTX_data_scene(*C);
   Render *re = RE_GetSceneRender(scene);
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
 
   if (re == nullptr) {
     /* Shouldn't happen, but better be safe close to the release. */
@@ -4229,7 +4229,7 @@ void IMAGE_OT_render_border(wmOperatorType *ot)
 
 static wmOperatorStatus clear_render_border_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   scene->r.mode &= ~R_BORDER;
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
   BLI_rctf_init(&scene->r.border, 0.0f, 1.0f, 0.0f, 1.0f);
@@ -4339,14 +4339,14 @@ static void def_fill_tile(StructOrFunctionRNA *srna)
 
 static bool tile_add_poll(bContext *C)
 {
-  Image *ima = CTX_data_edit_image(C);
+  Image *ima = CTX_data_edit_image(*C);
 
   return (ima != nullptr && ima->source == IMA_SRC_TILED && BKE_image_has_ibuf(ima, nullptr));
 }
 
 static wmOperatorStatus tile_add_exec(bContext *C, wmOperator *op)
 {
-  Image *ima = CTX_data_edit_image(C);
+  Image *ima = CTX_data_edit_image(*C);
 
   int start_tile = RNA_int_get(op->ptr, "number");
   int end_tile = start_tile + RNA_int_get(op->ptr, "count") - 1;
@@ -4388,7 +4388,7 @@ static wmOperatorStatus tile_add_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus tile_add_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  Image *ima = CTX_data_edit_image(C);
+  Image *ima = CTX_data_edit_image(*C);
 
   /* Find the first gap in tile numbers or the number after the last if
    * no gap exists. */
@@ -4474,14 +4474,14 @@ void IMAGE_OT_tile_add(wmOperatorType *ot)
 
 static bool tile_remove_poll(bContext *C)
 {
-  Image *ima = CTX_data_edit_image(C);
+  Image *ima = CTX_data_edit_image(*C);
 
   return (ima != nullptr && ima->source == IMA_SRC_TILED && !BLI_listbase_is_single(&ima->tiles));
 }
 
 static wmOperatorStatus tile_remove_exec(bContext *C, wmOperator * /*op*/)
 {
-  Image *ima = CTX_data_edit_image(C);
+  Image *ima = CTX_data_edit_image(*C);
 
   ImageTile *tile = static_cast<ImageTile *>(BLI_findlink(&ima->tiles, ima->active_tile_index));
   if (!BKE_image_remove_tile(ima, tile)) {
@@ -4519,7 +4519,7 @@ void IMAGE_OT_tile_remove(wmOperatorType *ot)
 
 static bool tile_fill_poll(bContext *C)
 {
-  Image *ima = CTX_data_edit_image(C);
+  Image *ima = CTX_data_edit_image(*C);
 
   if (ima != nullptr && ima->source == IMA_SRC_TILED) {
     /* Filling secondary tiles is only allowed if the primary tile exists. */
@@ -4530,7 +4530,7 @@ static bool tile_fill_poll(bContext *C)
 
 static wmOperatorStatus tile_fill_exec(bContext *C, wmOperator *op)
 {
-  Image *ima = CTX_data_edit_image(C);
+  Image *ima = CTX_data_edit_image(*C);
 
   ImageTile *tile = static_cast<ImageTile *>(BLI_findlink(&ima->tiles, ima->active_tile_index));
   if (!do_fill_tile(op->ptr, ima, tile)) {
@@ -4544,7 +4544,7 @@ static wmOperatorStatus tile_fill_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus tile_fill_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  tile_fill_init(op->ptr, CTX_data_edit_image(C), nullptr);
+  tile_fill_init(op->ptr, CTX_data_edit_image(*C), nullptr);
 
   return WM_operator_props_dialog_popup(C,
                                         op,

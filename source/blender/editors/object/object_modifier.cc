@@ -562,7 +562,7 @@ void modifier_link(bContext *C, Object *ob_dst, Object *ob_src)
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob_dst);
   DEG_id_tag_update(&ob_dst->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   DEG_relations_tag_update(bmain);
 }
 
@@ -1368,7 +1368,7 @@ Vector<PointerRNA> modifier_get_edit_objects(const bContext &C, const wmOperator
 {
   Vector<PointerRNA> objects;
   if (RNA_boolean_get(op.ptr, "use_selected_objects")) {
-    CTX_data_selected_editable_objects(&C, &objects);
+    CTX_data_selected_editable_objects(C, &objects);
   }
   else {
     if (Object *object = context_active_object(&C)) {
@@ -1395,8 +1395,8 @@ void modifier_register_use_selected_objects_prop(wmOperatorType *ot)
 
 static wmOperatorStatus modifier_add_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   int type = RNA_enum_get(op->ptr, "type");
 
   bool changed = false;
@@ -1417,7 +1417,7 @@ static wmOperatorStatus modifier_add_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus modifier_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  if (event->modifier & KM_ALT || CTX_wm_view3d(C)) {
+  if (event->modifier & KM_ALT || CTX_wm_view3d(*C)) {
     RNA_boolean_set(op->ptr, "use_selected_objects", true);
   }
   if (!RNA_struct_property_is_set(op->ptr, "type")) {
@@ -1513,8 +1513,8 @@ bool edit_modifier_poll_generic(bContext *C,
                                 const bool is_editmode_allowed,
                                 const bool is_liboverride_allowed)
 {
-  Main *bmain = CTX_data_main(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", rna_type);
+  Main *bmain = CTX_data_main(*C);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", rna_type);
   Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(C);
   ModifierData *mod = static_cast<ModifierData *>(ptr.data); /* May be nullptr. */
 
@@ -1538,7 +1538,7 @@ bool edit_modifier_poll_generic(bContext *C,
     return false;
   }
 
-  if (!is_editmode_allowed && CTX_data_edit_object(C) != nullptr) {
+  if (!is_editmode_allowed && CTX_data_edit_object(*C) != nullptr) {
     CTX_wm_operator_poll_msg_set(C, "This modifier operation is not allowed from Edit mode");
     return false;
   }
@@ -1586,7 +1586,7 @@ bool edit_modifier_invoke_properties(bContext *C, wmOperator *op)
     return true;
   }
 
-  PointerRNA ctx_ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+  PointerRNA ctx_ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_Modifier);
   if (ctx_ptr.data != nullptr) {
     ModifierData *md = static_cast<ModifierData *>(ctx_ptr.data);
     RNA_string_set(op->ptr, "modifier", md->name);
@@ -1617,7 +1617,7 @@ static bool edit_modifier_invoke_properties_with_hover(bContext *C,
   }
 
   /* Note that the context pointer is *not* the active modifier, it is set in UI layouts. */
-  PointerRNA ctx_ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+  PointerRNA ctx_ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_Modifier);
   if (ctx_ptr.data != nullptr) {
     ModifierData *md = static_cast<ModifierData *>(ctx_ptr.data);
     RNA_string_set(op->ptr, "modifier", md->name);
@@ -1668,9 +1668,9 @@ ModifierData *edit_modifier_property_get(wmOperator *op, Object *ob, int type)
 
 static wmOperatorStatus modifier_remove_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   char name[MAX_NAME];
   RNA_string_get(op->ptr, "modifier", name);
@@ -1742,10 +1742,10 @@ void OBJECT_OT_modifier_remove(wmOperatorType *ot)
 
 static wmOperatorStatus modifiers_clear_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
-  CTX_DATA_BEGIN (C, Object *, object, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, object, selected_editable_objects) {
     modifiers_clear(bmain, scene, object);
     WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_REMOVED, object);
   }
@@ -1946,8 +1946,8 @@ static bool modifier_apply_poll(bContext *C)
     return false;
   }
 
-  Scene *scene = CTX_data_scene(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+  Scene *scene = CTX_data_scene(*C);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_Modifier);
   Object *ob = (ptr.owner_id != nullptr) ? (Object *)ptr.owner_id : context_active_object(C);
   ModifierData *md = static_cast<ModifierData *>(ptr.data); /* May be nullptr. */
 
@@ -1972,9 +1972,9 @@ static wmOperatorStatus modifier_apply_exec_ex(bContext *C,
                                                int apply_as,
                                                bool keep_modifier)
 {
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
   Vector<PointerRNA> objects = modifier_get_edit_objects(*C, *op);
 
   char name[MAX_NAME];
@@ -2059,7 +2059,7 @@ static wmOperatorStatus modifier_apply_invoke(bContext *C, wmOperator *op, const
 {
   wmOperatorStatus retval;
   if (edit_modifier_invoke_properties_with_hover(C, op, event, &retval)) {
-    PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+    PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_Modifier);
     Object *ob = (ptr.owner_id != nullptr) ? (Object *)ptr.owner_id : context_active_object(C);
 
     if ((ob->data != nullptr) && ID_REAL_USERS(ob->data) > 1) {
@@ -2192,10 +2192,10 @@ void OBJECT_OT_modifier_apply_as_shapekey(wmOperatorType *ot)
 
 static wmOperatorStatus modifier_convert_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Object *ob = context_active_object(C);
   ModifierData *md = edit_modifier_property_get(op, ob, 0);
 
@@ -2242,8 +2242,8 @@ void OBJECT_OT_modifier_convert(wmOperatorType *ot)
 
 static wmOperatorStatus modifier_copy_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   char name[MAX_NAME];
   RNA_string_get(op->ptr, "modifier", name);
 
@@ -2348,8 +2348,8 @@ void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 
 static wmOperatorStatus modifier_copy_to_selected_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  const Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  const Scene *scene = CTX_data_scene(*C);
   Object *obact = context_active_object(C);
   ModifierData *md = edit_modifier_property_get(op, obact, 0);
   if (!md) {
@@ -2359,8 +2359,8 @@ static wmOperatorStatus modifier_copy_to_selected_exec(bContext *C, wmOperator *
   int num_copied = 0;
 
   Vector<PointerRNA> selected_objects;
-  CTX_data_selected_objects(C, &selected_objects);
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_data_selected_objects(*C, &selected_objects);
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     if (ob == obact) {
       continue;
     }
@@ -2398,7 +2398,7 @@ static wmOperatorStatus modifier_copy_to_selected_invoke(bContext *C,
 
 static bool modifier_copy_to_selected_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_Modifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_Modifier);
   Object *obact = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(C);
   ModifierData *md = static_cast<ModifierData *>(ptr.data);
 
@@ -2423,7 +2423,7 @@ static bool modifier_copy_to_selected_poll(bContext *C)
    * and none of them pass either of the checks. But that should be uncommon, and this operator is
    * only exposed in a drop-down menu anyway. */
   bool found_supported_objects = false;
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     if (ob == obact) {
       continue;
     }
@@ -2466,13 +2466,13 @@ void OBJECT_OT_modifier_copy_to_selected(wmOperatorType *ot)
 
 static wmOperatorStatus object_modifiers_copy_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  const Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  const Scene *scene = CTX_data_scene(*C);
   Object *active_object = context_active_object(C);
 
   Vector<PointerRNA> selected_objects;
-  CTX_data_selected_objects(C, &selected_objects);
-  CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
+  CTX_data_selected_objects(*C, &selected_objects);
+  CTX_DATA_BEGIN (*C, Object *, object, selected_objects) {
     if (object == active_object) {
       continue;
     }
@@ -2545,7 +2545,7 @@ static bool skin_poll(bContext *C)
 
 static bool skin_edit_poll(bContext *C)
 {
-  Object *ob = CTX_data_edit_object(C);
+  Object *ob = CTX_data_edit_object(*C);
   return (ob != nullptr &&
           edit_modifier_poll_generic(C, &RNA_SkinModifier, (1 << OB_MESH), true, false) &&
           !ID_IS_OVERRIDE_LIBRARY(ob) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
@@ -2572,7 +2572,7 @@ static void skin_root_clear(BMVert *bm_vert, Set<BMVert *> &visited, const int c
 
 static wmOperatorStatus skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = CTX_data_edit_object(C);
+  Object *ob = CTX_data_edit_object(*C);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
 
@@ -2623,7 +2623,7 @@ enum SkinLooseAction {
 
 static wmOperatorStatus skin_loose_mark_clear_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_edit_object(C);
+  Object *ob = CTX_data_edit_object(*C);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
   SkinLooseAction action = static_cast<SkinLooseAction>(RNA_enum_get(op->ptr, "action"));
@@ -2679,7 +2679,7 @@ void OBJECT_OT_skin_loose_mark_clear(wmOperatorType *ot)
 
 static wmOperatorStatus skin_radii_equalize_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = CTX_data_edit_object(C);
+  Object *ob = CTX_data_edit_object(*C);
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
 
@@ -2834,9 +2834,9 @@ static Object *modifier_skin_armature_create(Depsgraph *depsgraph, Main *bmain, 
 
 static wmOperatorStatus skin_armature_create_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Object *ob = CTX_data_active_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Object *ob = CTX_data_active_object(*C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   ModifierData *skin_md;
 
@@ -2904,8 +2904,8 @@ static bool correctivesmooth_poll(bContext *C)
 
 static wmOperatorStatus correctivesmooth_bind_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
   Object *ob = context_active_object(C);
   CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)edit_modifier_property_get(
       op, ob, eModifierType_CorrectiveSmooth);
@@ -2986,7 +2986,7 @@ static bool meshdeform_poll(bContext *C)
 static wmOperatorStatus meshdeform_bind_exec(bContext *C, wmOperator *op)
 {
   using namespace blender;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Object *ob = context_active_object(C);
   MeshDeformModifierData *mmd = (MeshDeformModifierData *)edit_modifier_property_get(
       op, ob, eModifierType_MeshDeform);
@@ -3191,11 +3191,11 @@ static void oceanbake_endjob(void *customdata)
 
 static wmOperatorStatus ocean_bake_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   OceanModifierData *omd = (OceanModifierData *)edit_modifier_property_get(
       op, ob, eModifierType_Ocean);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const bool free = RNA_boolean_get(op->ptr, "free");
 
   if (!omd) {
@@ -3225,7 +3225,7 @@ static wmOperatorStatus ocean_bake_exec(bContext *C, wmOperator *op)
 
   /* precalculate time variable before baking */
   int i = 0;
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   for (int f = omd->bakestart; f <= omd->bakeend; f++) {
     /* For now only simple animation of time value is supported, nothing else.
      * No drivers or other modifier parameters. */
@@ -3261,8 +3261,8 @@ static wmOperatorStatus ocean_bake_exec(bContext *C, wmOperator *op)
   scene->r.cfra = cfra;
 
   /* setup job */
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
-                              CTX_wm_window(C),
+  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                              CTX_wm_window(*C),
                               scene,
                               "Simulating ocean...",
                               WM_JOB_PROGRESS,
@@ -3277,7 +3277,7 @@ static wmOperatorStatus ocean_bake_exec(bContext *C, wmOperator *op)
   WM_jobs_timer(wm_job, 0.1, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
   WM_jobs_callbacks(wm_job, oceanbake_startjob, nullptr, nullptr, oceanbake_endjob);
 
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_jobs_start(CTX_wm_manager(*C), wm_job);
 
   return OPERATOR_FINISHED;
 }
@@ -3321,7 +3321,7 @@ static bool laplaciandeform_poll(bContext *C)
 static wmOperatorStatus laplaciandeform_bind_exec(bContext *C, wmOperator *op)
 {
   Object *ob = context_active_object(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)edit_modifier_property_get(
       op, ob, eModifierType_LaplacianDeform);
 
@@ -3403,7 +3403,7 @@ static bool surfacedeform_bind_poll(bContext *C)
 static wmOperatorStatus surfacedeform_bind_exec(bContext *C, wmOperator *op)
 {
   Object *ob = context_active_object(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)edit_modifier_property_get(
       op, ob, eModifierType_SurfaceDeform);
 
@@ -3527,7 +3527,7 @@ void OBJECT_OT_geometry_nodes_input_attribute_toggle(wmOperatorType *ot)
 
 static wmOperatorStatus geometry_node_tree_copy_assign_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   ModifierData *md = BKE_object_active_modifier(ob);
   if (!(md && md->type == eModifierType_Nodes)) {

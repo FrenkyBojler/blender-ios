@@ -339,14 +339,14 @@ static int insert_key_to_keying_set_path(bContext *C,
     array_length++;
   }
 
-  Main *bmain = CTX_data_main(C);
-  ReportList *reports = CTX_wm_reports(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  ReportList *reports = CTX_wm_reports(*C);
+  Scene *scene = CTX_data_scene(*C);
   const eBezTriple_KeyframeType keytype = eBezTriple_KeyframeType(
       scene->toolsettings->keyframe_type);
   /* For each possible index, perform operation
    * - Assume that array-length is greater than index. */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
                                                                                     frame);
   int keyed_channels = 0;
@@ -412,7 +412,7 @@ int apply_keyingset(bContext *C,
     return 0;
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const eInsertKeyFlags base_kflags = get_keyframing_flags(scene);
   eInsertKeyFlags kflag = INSERTKEY_NOFLAGS;
   if (mode == ModifyKeyMode::INSERT) {
@@ -434,7 +434,7 @@ int apply_keyingset(bContext *C,
     }
   }
 
-  ReportList *reports = CTX_wm_reports(C);
+  ReportList *reports = CTX_wm_reports(*C);
   int keyed_channels = 0;
 
   /* Apply the paths as specified in the KeyingSet now. */

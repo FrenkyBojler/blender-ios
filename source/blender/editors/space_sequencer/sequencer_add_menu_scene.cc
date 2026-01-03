@@ -36,7 +36,7 @@ namespace blender::ed::vse {
 static bool sequencer_add_menu_poll(const bContext *C, MenuType * /*mt*/)
 {
   /* Add menu is not accessible from the VSE preview. */
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
   return sseq && ELEM(sseq->view, SEQ_VIEW_SEQUENCE, SEQ_VIEW_SEQUENCE_PREVIEW);
 }
 
@@ -57,7 +57,7 @@ static asset::AssetItemTree build_catalog_tree(const bContext &C)
 
 static void sequencer_add_catalog_assets_draw(const bContext *C, Menu *menu)
 {
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
   if (!sseq || !ELEM(sseq->view, SEQ_VIEW_SEQUENCE, SEQ_VIEW_SEQUENCE_PREVIEW)) {
     return;
   }
@@ -109,7 +109,7 @@ static void sequencer_add_catalog_assets_draw(const bContext *C, Menu *menu)
 
 static void sequencer_add_unassigned_assets_draw(const bContext *C, Menu *menu)
 {
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
   if (!sseq || !ELEM(sseq->view, SEQ_VIEW_SEQUENCE, SEQ_VIEW_SEQUENCE_PREVIEW)) {
     return;
   }
@@ -132,7 +132,7 @@ static void sequencer_add_unassigned_assets_draw(const bContext *C, Menu *menu)
 
 static void sequencer_add_scene_draw(const bContext *C, Menu *menu)
 {
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
   if (!sseq || !ELEM(sseq->view, SEQ_VIEW_SEQUENCE, SEQ_VIEW_SEQUENCE_PREVIEW)) {
     return;
   }
@@ -179,7 +179,7 @@ static void sequencer_add_scene_draw(const bContext *C, Menu *menu)
   layout.separator();
 
   /* Show existing scenes. */
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const int scenes_len = BLI_listbase_count(&bmain->scenes);
   if (scenes_len > 10) {
     layout.op("SEQUENCER_OT_scene_strip_add",
@@ -190,7 +190,7 @@ static void sequencer_add_scene_draw(const bContext *C, Menu *menu)
   }
   else {
     layout.label(IFACE_("Scene Strip"), ICON_SCENE_DATA);
-    const Scene *active_scene = CTX_data_sequencer_scene(C);
+    const Scene *active_scene = CTX_data_sequencer_scene(*C);
 
     for (const auto [i, scene] : bmain->scenes.enumerate()) {
       if (&scene == active_scene) {

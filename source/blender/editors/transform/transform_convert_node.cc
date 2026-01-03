@@ -369,7 +369,7 @@ static void flushTransNodes(TransInfo *t)
 
 static void special_aftertrans_update__node(bContext *C, TransInfo *t)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   SpaceNode *snode = (SpaceNode *)t->area->spacedata.first;
   bNodeTree *ntree = snode->edittree;
   const TransCustomDataNode &customdata = *(TransCustomDataNode *)t->custom.type.data;

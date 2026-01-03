@@ -132,9 +132,9 @@ DRWContext::DRWContext(Mode mode_,
 
   this->evil_C = C;
 
-  this->region = (region) ? region : ((C) ? CTX_wm_region(C) : nullptr);
-  this->space_data = (C) ? CTX_wm_space_data(C) : nullptr;
-  this->v3d = (v3d) ? v3d : ((C) ? CTX_wm_view3d(C) : nullptr);
+  this->region = (region) ? region : ((C) ? CTX_wm_region(*C) : nullptr);
+  this->space_data = (C) ? CTX_wm_space_data(*C) : nullptr;
+  this->v3d = (v3d) ? v3d : ((C) ? CTX_wm_view3d(*C) : nullptr);
   if (this->v3d != nullptr && this->region != nullptr) {
     this->rv3d = static_cast<RegionView3D *>(this->region->regiondata);
   }
@@ -1498,9 +1498,9 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
 
 void DRW_draw_view(const bContext *C)
 {
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-  ARegion *region = CTX_wm_region(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(*C);
+  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
 
   DRWContext draw_ctx(DRWContext::VIEWPORT, depsgraph, viewport, C);
@@ -2152,7 +2152,7 @@ const DRWContext *DRW_context_get()
 bool DRWContext::is_playback() const
 {
   if (this->evil_C != nullptr) {
-    wmWindowManager *wm = CTX_wm_manager(this->evil_C);
+    wmWindowManager *wm = CTX_wm_manager(*this->evil_C);
     return ED_screen_animation_playing(wm) != nullptr;
   }
   return false;

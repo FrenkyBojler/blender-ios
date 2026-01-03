@@ -49,7 +49,7 @@ namespace blender::ed::sculpt_paint {
 
 static bool geometry_extract_poll(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob != nullptr && ob->mode == OB_MODE_SCULPT) {
     if (ob->sculpt->bm) {
       CTX_wm_operator_poll_msg_set(C, "The geometry cannot be extracted with dyntopo activated");
@@ -82,17 +82,17 @@ static wmOperatorStatus geometry_extract_apply(bContext *C,
                                                GeometryExtractTagMeshFunc *tag_fn,
                                                GeometryExtractParams *params)
 {
-  Main *bmain = CTX_data_main(C);
-  Object *ob = CTX_data_active_object(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_on_load(C);
+  Main *bmain = CTX_data_main(*C);
+  Object *ob = CTX_data_active_object(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_on_load(*C);
 
   blender::ed::sculpt_paint::object_sculpt_mode_exit(C, depsgraph);
 
   /* Ensures that deformation from sculpt mode is taken into account before duplicating the mesh to
    * extract the geometry. */
-  CTX_data_ensure_evaluated_depsgraph(C);
+  CTX_data_ensure_evaluated_depsgraph(*C);
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   Mesh *new_mesh = (Mesh *)BKE_id_copy(bmain, &mesh->id);
@@ -183,7 +183,7 @@ static wmOperatorStatus geometry_extract_apply(bContext *C,
   BKE_mesh_nomain_to_mesh(new_mesh, static_cast<Mesh *>(new_ob->data), new_ob);
 
   if (params->apply_shrinkwrap) {
-    BKE_shrinkwrap_mesh_nearest_surface_deform(CTX_data_depsgraph_pointer(C), scene, new_ob, ob);
+    BKE_shrinkwrap_mesh_nearest_surface_deform(CTX_data_depsgraph_pointer(*C), scene, new_ob, ob);
   }
 
   if (params->add_solidify) {
@@ -252,7 +252,7 @@ static void geometry_extract_tag_face_set(BMesh *bm, GeometryExtractParams *para
 
 static wmOperatorStatus paint_mask_extract_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   if (!mesh->attributes().contains(".sculpt_mask")) {
     return OPERATOR_CANCELLED;
@@ -341,15 +341,15 @@ void SCULPT_OT_paint_mask_extract(wmOperatorType *ot)
 static wmOperatorStatus face_set_extract_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   using namespace blender::ed;
-  if (!CTX_wm_region_view3d(C)) {
+  if (!CTX_wm_region_view3d(*C)) {
     return OPERATOR_CANCELLED;
   }
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   const float mval[2] = {float(event->xy[0] - region->winrct.xmin),
                          float(event->xy[1] - region->winrct.ymin)};
 
-  Object &ob = *CTX_data_active_object(C);
+  Object &ob = *CTX_data_active_object(*C);
   const int face_set_id = sculpt_paint::face_set::active_update_and_get(C, ob, mval);
   if (face_set_id == SCULPT_FACE_SET_NONE) {
     return OPERATOR_CANCELLED;
@@ -437,10 +437,10 @@ static wmOperatorStatus paint_mask_slice_exec(bContext *C, wmOperator *op)
 {
   using namespace blender;
   using namespace blender::ed;
-  const Scene &scene = *CTX_data_scene(C);
-  Main &bmain = *CTX_data_main(C);
-  Object &ob = *CTX_data_active_object(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  const Scene &scene = *CTX_data_scene(*C);
+  Main &bmain = *CTX_data_main(*C);
+  Object &ob = *CTX_data_active_object(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   Mesh *mesh = static_cast<Mesh *>(ob.data);
 
   if (!mesh->attributes().contains(".sculpt_mask")) {

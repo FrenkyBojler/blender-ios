@@ -520,14 +520,14 @@ static struct {
 
 static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int mval[2])
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
 
-  walk->rv3d = CTX_wm_region_view3d(C);
-  walk->v3d = CTX_wm_view3d(C);
-  walk->region = CTX_wm_region(C);
-  walk->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  walk->scene = CTX_data_scene(C);
+  walk->rv3d = CTX_wm_region_view3d(*C);
+  walk->v3d = CTX_wm_view3d(*C);
+  walk->region = CTX_wm_region(*C);
+  walk->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  walk->scene = CTX_data_scene(*C);
 
 #ifdef NDOF_WALK_DEBUG
   puts("\n-- walk begin --");
@@ -539,7 +539,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
   }
 
   if (walk->rv3d->persp == RV3D_CAMOB &&
-      !BKE_id_is_editable(CTX_data_main(C), &walk->v3d->camera->id))
+      !BKE_id_is_editable(CTX_data_main(*C), &walk->v3d->camera->id))
   {
     BKE_report(op->reports,
                RPT_ERROR,
@@ -621,7 +621,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
 #endif
   zero_v3(walk->dvec_prev);
 
-  walk->timer = WM_event_timer_add(CTX_wm_manager(C), win, TIMER, 0.01f);
+  walk->timer = WM_event_timer_add(CTX_wm_manager(*C), win, TIMER, 0.01f);
 
 #ifdef WITH_INPUT_NDOF
   walk->ndof = nullptr;
@@ -676,12 +676,12 @@ static wmOperatorStatus walkEnd(bContext *C, WalkInfo *walk)
   puts("\n-- walk end --");
 #endif
 
-  win = CTX_wm_window(C);
+  win = CTX_wm_window(*C);
   rv3d = walk->rv3d;
 
   ED_workspace_status_text(C, nullptr);
 
-  WM_event_timer_remove(CTX_wm_manager(C), win, walk->timer);
+  WM_event_timer_remove(CTX_wm_manager(*C), win, walk->timer);
 
   ED_region_draw_cb_exit(walk->region->runtime->type, walk->draw_handle_pixel);
 
@@ -1552,7 +1552,7 @@ static void walk_draw_status(bContext *C, wmOperator *op)
 
 static wmOperatorStatus walk_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   if (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) {
     return OPERATOR_CANCELLED;
   }

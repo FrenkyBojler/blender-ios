@@ -93,19 +93,19 @@ void common_node_type_base(blender::bke::bNodeType *ntype,
 
 bool line_style_shader_nodes_poll(const bContext *C)
 {
-  const SpaceNode *snode = CTX_wm_space_node(C);
+  const SpaceNode *snode = CTX_wm_space_node(*C);
   return snode->shaderfrom == SNODE_SHADER_LINESTYLE;
 }
 
 bool world_shader_nodes_poll(const bContext *C)
 {
-  const SpaceNode *snode = CTX_wm_space_node(C);
+  const SpaceNode *snode = CTX_wm_space_node(*C);
   return snode->shaderfrom == SNODE_SHADER_WORLD;
 }
 
 bool object_shader_nodes_poll(const bContext *C)
 {
-  const SpaceNode *snode = CTX_wm_space_node(C);
+  const SpaceNode *snode = CTX_wm_space_node(*C);
   return snode->shaderfrom == SNODE_SHADER_OBJECT;
 }
 
@@ -114,7 +114,7 @@ bool object_cycles_shader_nodes_poll(const bContext *C)
   if (!object_shader_nodes_poll(C)) {
     return false;
   }
-  const RenderEngineType *engine_type = CTX_data_engine_type(C);
+  const RenderEngineType *engine_type = CTX_data_engine_type(*C);
   return STREQ(engine_type->idname, "CYCLES");
 }
 
@@ -123,7 +123,7 @@ bool object_eevee_shader_nodes_poll(const bContext *C)
   if (!object_shader_nodes_poll(C)) {
     return false;
   }
-  const RenderEngineType *engine_type = CTX_data_engine_type(C);
+  const RenderEngineType *engine_type = CTX_data_engine_type(*C);
   return STREQ(engine_type->idname, "BLENDER_EEVEE") ||
          STREQ(engine_type->idname, "BLENDER_EEVEE");
 }

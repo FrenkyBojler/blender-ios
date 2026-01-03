@@ -577,7 +577,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
    * (if str is not empty!). */
   if (n->str[0]) {
     const float val_prev = n->val[idx];
-    Scene *sce = CTX_data_scene(C);
+    Scene *sce = CTX_data_scene(*C);
     char *error = nullptr;
 
     double val;
@@ -585,7 +585,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
         C, n->str, sce->unit, n->unit_type[idx], &val, false, &error);
 
     if (error) {
-      ReportList *reports = CTX_wm_reports(C);
+      ReportList *reports = CTX_wm_reports(*C);
       printf("%s\n", error);
       BKE_report(reports, RPT_ERROR, error);
       BKE_report(reports, RPT_ERROR, "Numeric input evaluation");

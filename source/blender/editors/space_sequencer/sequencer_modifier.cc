@@ -40,7 +40,7 @@ namespace blender::ed::vse {
 
 static wmOperatorStatus strip_modifier_add_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Strip *strip = seq::select_active_get(scene);
   int type = RNA_enum_get(op->ptr, "type");
 
@@ -62,7 +62,7 @@ static const EnumPropertyItem *filter_modifiers_by_sequence_type_itemf(bContext 
     return rna_enum_strip_modifier_type_items;
   }
 
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Strip *strip = seq::select_active_get(scene);
   if (strip) {
     if (ELEM(strip->type, STRIP_TYPE_SOUND)) {
@@ -102,7 +102,7 @@ void SEQUENCER_OT_strip_modifier_add(wmOperatorType *ot)
 
 static wmOperatorStatus strip_modifier_remove_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Strip *strip = seq::select_active_get(scene);
   char name[MAX_NAME];
   StripModifierData *smd;
@@ -162,7 +162,7 @@ enum {
 
 static wmOperatorStatus strip_modifier_move_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Strip *strip = seq::select_active_get(scene);
   char name[MAX_NAME];
   int direction;
@@ -243,7 +243,7 @@ enum {
 
 static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Strip *active_strip = seq::select_active_get(scene);
   const int type = RNA_enum_get(op->ptr, "type");
 
@@ -334,7 +334,7 @@ void SEQUENCER_OT_strip_modifier_copy(wmOperatorType *ot)
 
 static wmOperatorStatus strip_modifier_equalizer_redefine_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Strip *strip = seq::select_active_get(scene);
   StripModifierData *smd;
   char name[MAX_NAME];
@@ -394,7 +394,7 @@ void SEQUENCER_OT_strip_modifier_equalizer_redefine(wmOperatorType *ot)
 
 static wmOperatorStatus modifier_move_to_index_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Strip *strip = seq::select_active_get(scene);
 
   char name[MAX_NAME];
@@ -462,7 +462,7 @@ void SEQUENCER_OT_strip_modifier_move_to_index(wmOperatorType *ot)
 
 static wmOperatorStatus modifier_set_active_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   Strip *strip = seq::select_active_get(scene);
 
   char name[MAX_NAME];

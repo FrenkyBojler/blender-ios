@@ -110,7 +110,7 @@ class StripInfoOperation : public NodeOperation {
 
 static void node_extra_info(NodeExtraInfoParams &parameters)
 {
-  SpaceNode *space_node = CTX_wm_space_node(&parameters.C);
+  SpaceNode *space_node = CTX_wm_space_node(parameters.C);
   if (space_node->node_tree_sub_type != SNODE_COMPOSITOR_SEQUENCER) {
     NodeExtraInfoRow row;
     row.text = RPT_("Node Unsupported");

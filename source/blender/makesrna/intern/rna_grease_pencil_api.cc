@@ -454,7 +454,7 @@ static GreasePencilFrame *rna_GreasePencilLayer_current_frame(GreasePencilLayer 
                                                               bContext *C)
 {
   using namespace blender::bke::greasepencil;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   return static_cast<Layer *>(layer)->frame_at(scene->r.cfra);
 }
 

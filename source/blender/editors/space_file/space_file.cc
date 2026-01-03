@@ -199,9 +199,9 @@ static SpaceLink *file_duplicate(SpaceLink *sl)
 static void file_refresh(const bContext *C, ScrArea *area)
 {
   using namespace blender::ed;
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   FileSelectParams *params = ED_fileselect_ensure_active_params(sfile);
   FileAssetSelectParams *asset_params = ED_fileselect_get_asset_params(sfile);
   FSMenu *fsmenu = ED_fsmenu_get();
@@ -546,7 +546,7 @@ bool file_main_region_needs_refresh_before_draw(SpaceFile *sfile)
 static void file_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
-  SpaceFile *sfile = CTX_wm_space_file(C);
+  SpaceFile *sfile = CTX_wm_space_file(*C);
   FileSelectParams *params = ED_fileselect_ensure_active_params(sfile);
 
   View2D *v2d = &region->v2d;
@@ -593,7 +593,7 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
 
   /* on first read, find active file */
   if (params->highlight_file == -1) {
-    const wmEvent *event = CTX_wm_window(C)->runtime->eventstate;
+    const wmEvent *event = CTX_wm_window(*C)->runtime->eventstate;
     file_highlight_set(sfile, region, event->xy[0], event->xy[1]);
   }
 
@@ -609,7 +609,7 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
   ED_fileselect_layout_maskrect(sfile->layout, v2d, &view_rect);
   blender::ui::view2d_scrollers_draw(v2d, &view_rect);
 
-  ED_region_draw_overflow_indication(CTX_wm_area(C), region, &view_rect);
+  ED_region_draw_overflow_indication(CTX_wm_area(*C), region, &view_rect);
 }
 
 static void file_operatortypes()
@@ -804,7 +804,7 @@ static void file_region_listener(const wmRegionListenerParams *listener_params)
 static bool filepath_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
   if (drag->type == WM_DRAG_PATH) {
-    SpaceFile *sfile = CTX_wm_space_file(C);
+    SpaceFile *sfile = CTX_wm_space_file(*C);
     if (sfile) {
       return true;
     }

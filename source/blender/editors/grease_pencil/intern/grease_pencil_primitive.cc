@@ -730,12 +730,12 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
    * region before allowing drawing to take place. */
   op->flag |= OP_IS_MODAL_CURSOR_REGION;
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   /* Set cursor to indicate modal. */
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
-  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
+  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(*C));
 
   /* Allocate new data. */
   PrimitiveToolOperation *ptd_pointer = MEM_new<PrimitiveToolOperation>(__func__);
@@ -745,7 +745,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
 
   ptd.vc = vc;
   ptd.region = vc.region;
-  View3D *view3d = CTX_wm_view3d(C);
+  View3D *view3d = CTX_wm_view3d(*C);
   const float2 start_coords = float2(event->mval);
 
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(vc.obact->data);
@@ -754,10 +754,10 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
   DrawingPlacement placement = DrawingPlacement(
       *vc.scene, *vc.region, *view3d, *vc.obact, grease_pencil->get_active_layer());
   if (placement.use_project_to_surface()) {
-    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
+    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(*C), vc.region, view3d);
   }
   else if (placement.use_project_to_stroke()) {
-    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
+    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(*C), vc.region, view3d);
   }
 
   ptd.placement = placement;
@@ -805,7 +805,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
   }
 
   Material *material = BKE_grease_pencil_object_material_ensure_from_brush(
-      CTX_data_main(C), vc.obact, ptd.brush);
+      CTX_data_main(*C), vc.obact, ptd.brush);
   ptd.material_index = BKE_object_material_index_get(vc.obact, material);
   ptd.use_fill = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
 
@@ -869,7 +869,7 @@ static void grease_pencil_primitive_exit(bContext *C, wmOperator *op, const bool
 {
   PrimitiveToolOperation *ptd = static_cast<PrimitiveToolOperation *>(op->customdata);
 
-  const Scene &scene = *CTX_data_scene(C);
+  const Scene &scene = *CTX_data_scene(*C);
   const bool do_automerge_endpoints = (scene.toolsettings->gpencil_flags &
                                        GP_TOOL_FLAG_AUTOMERGE_STROKE) != 0;
   const bool on_back = (scene.toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
@@ -888,7 +888,7 @@ static void grease_pencil_primitive_exit(bContext *C, wmOperator *op, const bool
     const IndexMask selection = IndexRange::from_single(active_curve);
 
     drawing.strokes_for_write() = ed::greasepencil::curves_merge_endpoints_by_distance(
-        *CTX_wm_region(C), src_curves, layer_to_world, merge_distance, selection, {});
+        *CTX_wm_region(*C), src_curves, layer_to_world, merge_distance, selection, {});
     drawing.tag_topology_changed();
   }
 
@@ -1187,7 +1187,7 @@ static void grease_pencil_primitive_cursor_update(bContext *C,
                                                   PrimitiveToolOperation &ptd,
                                                   const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   if (ptd.mode != OperatorMode::Idle) {
     WM_cursor_modal_set(win, WM_CURSOR_CROSS);

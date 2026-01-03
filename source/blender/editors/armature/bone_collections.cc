@@ -298,7 +298,7 @@ static bool bone_collection_assign_mode_specific(bContext *C,
                                                  bool *made_any_changes,
                                                  bool *had_bones_to_assign)
 {
-  switch (CTX_data_mode_enum(C)) {
+  switch (CTX_data_mode_enum(*C)) {
     case CTX_MODE_POSE: {
       bone_collection_assign_pchans(
           C, ob, bcoll, assign_bone_func, made_any_changes, had_bones_to_assign);
@@ -334,7 +334,7 @@ static bool bone_collection_assign_named_mode_specific(bContext *C,
 {
   bArmature *arm = static_cast<bArmature *>(ob->data);
 
-  switch (CTX_data_mode_enum(C)) {
+  switch (CTX_data_mode_enum(*C)) {
     case CTX_MODE_POSE: {
       bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
       if (!pchan) {

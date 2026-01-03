@@ -195,7 +195,7 @@ PointTrackPick ed_tracking_pick_point_track(const TrackPickOptions *options,
                                             bContext *C,
                                             const float co[2])
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
 
   int width, height;
   ED_space_clip_get_size(space_clip, &width, &height);
@@ -384,7 +384,7 @@ PlaneTrackPick ed_tracking_pick_plane_track(const TrackPickOptions *options,
                                             bContext *C,
                                             const float co[2])
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
 
   int width, height;
   ED_space_clip_get_size(space_clip, &width, &height);
@@ -486,7 +486,7 @@ static bool tracking_should_prefer_point_track(bContext *C,
     return true;
   }
 
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
 
   /* If one of the picks can be slid prefer it. */
   const bool can_slide_point_track = ed_tracking_point_track_pick_can_slide(space_clip,
@@ -545,7 +545,7 @@ void ed_tracking_deselect_all_plane_tracks(ListBaseT<MovieTrackingPlaneTrack> *p
 
 static bool select_poll(bContext *C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
 
   if (sc) {
     return sc->clip && sc->view == SC_VIEW_CLIP;
@@ -556,7 +556,7 @@ static bool select_poll(bContext *C)
 
 static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -661,8 +661,8 @@ static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   float co[2];
   ED_clip_mouse_pos(sc, region, event->mval, co);
@@ -724,8 +724,8 @@ bool ED_clip_can_select(bContext *C)
 
 static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
@@ -826,8 +826,8 @@ void CLIP_OT_select_box(wmOperatorType *ot)
 
 static int do_lasso_select_marker(bContext *C, const Span<int2> mcoords, bool select)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
@@ -917,7 +917,7 @@ static wmOperatorStatus clip_lasso_select_exec(bContext *C, wmOperator *op)
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
   const bool select = (sel_op != SEL_OP_SUB);
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
-    SpaceClip *sc = CTX_wm_space_clip(C);
+    SpaceClip *sc = CTX_wm_space_clip(*C);
     ED_clip_select_all(sc, SEL_DESELECT, nullptr);
   }
 
@@ -972,8 +972,8 @@ static int marker_inside_ellipse(const MovieTrackingMarker *marker,
 
 static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
@@ -1086,7 +1086,7 @@ void CLIP_OT_select_circle(wmOperatorType *ot)
 
 static wmOperatorStatus select_all_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
 
@@ -1131,7 +1131,7 @@ void CLIP_OT_select_all(wmOperatorType *ot)
 
 static wmOperatorStatus select_grouped_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   const int group = RNA_enum_get(op->ptr, "group");

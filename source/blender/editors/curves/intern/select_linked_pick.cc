@@ -71,7 +71,7 @@ static ClosestCurveDataBlock find_closest_curve(const Depsgraph &depsgraph,
 
 static bool select_linked_pick(bContext &C, const int2 &mval, const SelectPick_Params &params)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(&C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
   const Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
       vc.scene, vc.view_layer, vc.v3d);

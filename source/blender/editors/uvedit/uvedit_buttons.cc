@@ -116,12 +116,12 @@ static float uvedit_old_center[2];
 
 static void uvedit_vertex_buttons(const bContext *C, blender::ui::Block *block)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
-  Scene *scene = CTX_data_scene(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  Scene *scene = CTX_data_scene(*C);
   float center[2];
   int imx, imy, step, digits;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, CTX_data_view_layer(C), CTX_wm_view3d(C));
+      scene, CTX_data_view_layer(*C), CTX_wm_view3d(*C));
 
   ED_space_image_get_size(sima, &imx, &imy);
 
@@ -192,8 +192,8 @@ static void uvedit_vertex_buttons(const bContext *C, blender::ui::Block *block)
 
 static void do_uvedit_vertex(bContext *C, void * /*arg*/, int event)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
-  Scene *scene = CTX_data_scene(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
+  Scene *scene = CTX_data_scene(*C);
   float center[2], delta[2];
   int imx, imy;
 
@@ -202,7 +202,7 @@ static void do_uvedit_vertex(bContext *C, void * /*arg*/, int event)
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, CTX_data_view_layer(C), CTX_wm_view3d(C));
+      scene, CTX_data_view_layer(*C), CTX_wm_view3d(*C));
 
   ED_space_image_get_size(sima, &imx, &imy);
   uvedit_center(scene, objects, center);
@@ -228,11 +228,11 @@ static void do_uvedit_vertex(bContext *C, void * /*arg*/, int event)
 
 static bool image_panel_uv_poll(const bContext *C, PanelType * /*pt*/)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   if (sima->mode != SI_MODE_UV) {
     return false;
   }
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit = CTX_data_edit_object(*C);
   return ED_uvedit_test(obedit);
 }
 

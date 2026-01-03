@@ -1552,8 +1552,8 @@ wmKeyMap *curve_pen_modal_keymap(wmKeyConfig *keyconf)
 
 static wmOperatorStatus curve_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Object *obedit = CTX_data_edit_object(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Object *obedit = CTX_data_edit_object(*C);
 
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Curve *cu = static_cast<Curve *>(vc.obedit->data);
@@ -1742,7 +1742,7 @@ static wmOperatorStatus curve_pen_modal(bContext *C, wmOperator *op, const wmEve
 
 static wmOperatorStatus curve_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Curve *cu = static_cast<Curve *>(vc.obedit->data);
   ListBaseT<Nurb> *nurbs = &cu->editnurb->nurbs;

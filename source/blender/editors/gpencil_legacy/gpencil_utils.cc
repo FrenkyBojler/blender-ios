@@ -144,9 +144,9 @@ bGPdata **ED_annotation_data_get_pointers_direct(ID *screen_id,
 
 bGPdata **ED_annotation_data_get_pointers(const bContext *C, PointerRNA *r_ptr)
 {
-  ID *screen_id = (ID *)CTX_wm_screen(C);
-  Scene *scene = CTX_data_scene(C);
-  ScrArea *area = CTX_wm_area(C);
+  ID *screen_id = (ID *)CTX_wm_screen(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ScrArea *area = CTX_wm_area(*C);
 
   return ED_annotation_data_get_pointers_direct(screen_id, area, scene, r_ptr);
 }

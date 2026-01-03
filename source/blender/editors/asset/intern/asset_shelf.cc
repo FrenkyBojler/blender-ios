@@ -564,7 +564,7 @@ void region_layout(const bContext *C, ARegion *region)
   ui::view2d_totRect_set(&region->v2d, region->winx - 1, layout_height - padding_y);
   ui::view2d_curRect_validate(&region->v2d);
 
-  region_resize_to_preferred(CTX_wm_area(C), region);
+  region_resize_to_preferred(CTX_wm_area(*C), region);
 
   /* View2D matrix might have changed due to dynamic sized regions.
    * Without this, tooltips jump around, see #129347. Reason is that #button_tooltip_refresh() is
@@ -605,7 +605,7 @@ void region_on_poll_success(const bContext *C, ARegion *region)
 
   const int old_region_flag = region->flag;
 
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   update_active_shelf(
       *C,
       eSpace_Type(area->spacetype),
@@ -725,10 +725,10 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
     return CTX_RESULT_OK;
   }
 
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
 
   if (CTX_data_equals(member, "asset_shelf")) {
-    AssetShelf *active_shelf = active_shelf_from_area(CTX_wm_area(C));
+    AssetShelf *active_shelf = active_shelf_from_area(CTX_wm_area(*C));
     if (!active_shelf) {
       return CTX_RESULT_NO_DATA;
     }
@@ -738,7 +738,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
   }
 
   if (CTX_data_equals(member, "asset_library_reference")) {
-    AssetShelf *active_shelf = active_shelf_from_area(CTX_wm_area(C));
+    AssetShelf *active_shelf = active_shelf_from_area(CTX_wm_area(*C));
     if (!active_shelf) {
       return CTX_RESULT_NO_DATA;
     }
@@ -751,7 +751,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
   }
 
   if (CTX_data_equals(member, "asset")) {
-    const ARegion *region = CTX_wm_region(C);
+    const ARegion *region = CTX_wm_region(*C);
     const ui::Button *but = ui::region_views_find_active_item_but(region);
     if (!but) {
       return CTX_RESULT_NO_DATA;
@@ -777,7 +777,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
 
 static PointerRNA active_shelf_ptr_from_context(const bContext *C)
 {
-  return CTX_data_pointer_get_type(C, "asset_shelf", &RNA_AssetShelf);
+  return CTX_data_pointer_get_type(*C, "asset_shelf", &RNA_AssetShelf);
 }
 
 AssetShelf *active_shelf_from_context(const bContext *C)
@@ -863,7 +863,7 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
 {
   ui::Layout &layout = *header->layout;
   ui::Block *block = layout.block();
-  const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(C);
+  const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(*C);
 
   list::storage_fetch(library_ref, C);
 
@@ -895,7 +895,7 @@ static void header_regiontype_register(ARegionType *region_type, const int space
   ht->region_type = RGN_TYPE_ASSET_SHELF_HEADER;
   ht->draw = asset_shelf_header_draw;
   ht->poll = [](const bContext *C, HeaderType *) {
-    return asset_shelf_space_poll(C, CTX_wm_space_data(C));
+    return asset_shelf_space_poll(C, CTX_wm_space_data(*C));
   };
 
   BLI_addtail(&region_type->headertypes, ht);
@@ -955,7 +955,7 @@ void type_unlink(const Main &bmain, const AssetShelfType &shelf_type)
 
 void show_catalog_in_visible_shelves(const bContext &C, const StringRefNull catalog_path)
 {
-  wmWindowManager *wm = CTX_wm_manager(&C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   for (wmWindow &win : wm->windows) {
     const bScreen *screen = WM_window_get_active_screen(&win);
     for (ScrArea &area : screen->areabase) {

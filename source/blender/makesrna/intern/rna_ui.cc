@@ -136,7 +136,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   FunctionRNA *func;
 
   PointerRNA ptr = RNA_pointer_create_discrete(
-      &CTX_wm_screen(C)->id, panel->type->rna_ext.srna, panel);
+      &CTX_wm_screen(*C)->id, panel->type->rna_ext.srna, panel);
   func = &rna_Panel_draw_func; /* RNA_struct_find_function(&ptr, "draw"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -154,7 +154,7 @@ static void panel_draw_header(const bContext *C, Panel *panel)
   FunctionRNA *func;
 
   PointerRNA ptr = RNA_pointer_create_discrete(
-      &CTX_wm_screen(C)->id, panel->type->rna_ext.srna, panel);
+      &CTX_wm_screen(*C)->id, panel->type->rna_ext.srna, panel);
   func = &rna_Panel_draw_header_func; /* RNA_struct_find_function(&ptr, "draw_header"); */
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -172,7 +172,7 @@ static void panel_draw_header_preset(const bContext *C, Panel *panel)
   FunctionRNA *func;
 
   PointerRNA ptr = RNA_pointer_create_discrete(
-      &CTX_wm_screen(C)->id, panel->type->rna_ext.srna, panel);
+      &CTX_wm_screen(*C)->id, panel->type->rna_ext.srna, panel);
   func = &rna_Panel_draw_header_preset_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
@@ -523,7 +523,7 @@ static void uilist_draw_item(uiList *ui_list,
   FunctionRNA *func;
 
   PointerRNA ul_ptr = RNA_pointer_create_discrete(
-      &CTX_wm_screen(C)->id, ui_list->type->rna_ext.srna, ui_list);
+      &CTX_wm_screen(*C)->id, ui_list->type->rna_ext.srna, ui_list);
   func = &rna_UIList_draw_item_func; /* RNA_struct_find_function(&ul_ptr, "draw_item"); */
 
   RNA_parameter_list_create(&list, &ul_ptr, func);
@@ -550,7 +550,7 @@ static void uilist_draw_filter(uiList *ui_list, const bContext *C, Layout &layou
   FunctionRNA *func;
 
   PointerRNA ul_ptr = RNA_pointer_create_discrete(
-      &CTX_wm_screen(C)->id, ui_list->type->rna_ext.srna, ui_list);
+      &CTX_wm_screen(*C)->id, ui_list->type->rna_ext.srna, ui_list);
   func = &rna_UIList_draw_filter_func; /* RNA_struct_find_function(&ul_ptr, "draw_filter"); */
 
   RNA_parameter_list_create(&list, &ul_ptr, func);
@@ -580,7 +580,7 @@ static void uilist_filter_items(uiList *ui_list,
   int len = flt_data->items_len = RNA_collection_length(dataptr, propname);
 
   PointerRNA ul_ptr = RNA_pointer_create_discrete(
-      &CTX_wm_screen(C)->id, ui_list->type->rna_ext.srna, ui_list);
+      &CTX_wm_screen(*C)->id, ui_list->type->rna_ext.srna, ui_list);
   func = &rna_UIList_filter_items_func; /* RNA_struct_find_function(&ul_ptr, "filter_items"); */
 
   RNA_parameter_list_create(&list, &ul_ptr, func);
@@ -801,7 +801,7 @@ static void header_draw(const bContext *C, Header *hdr)
   FunctionRNA *func;
 
   PointerRNA htr = RNA_pointer_create_discrete(
-      &CTX_wm_screen(C)->id, hdr->type->rna_ext.srna, hdr);
+      &CTX_wm_screen(*C)->id, hdr->type->rna_ext.srna, hdr);
   func = &rna_Header_draw_func; /* RNA_struct_find_function(&htr, "draw"); */
 
   RNA_parameter_list_create(&list, &htr, func);
@@ -962,7 +962,7 @@ static void menu_draw(const bContext *C, Menu *menu)
   FunctionRNA *func;
 
   PointerRNA mtr = RNA_pointer_create_discrete(
-      &CTX_wm_screen(C)->id, menu->type->rna_ext.srna, menu);
+      &CTX_wm_screen(*C)->id, menu->type->rna_ext.srna, menu);
   func = &rna_Menu_draw_func; /* RNA_struct_find_function(&mtr, "draw"); */
 
   RNA_parameter_list_create(&list, &mtr, func);

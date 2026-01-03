@@ -118,7 +118,7 @@ static void node_init(const bContext *C, PointerRNA *node_pointer)
       &data->format, node_pointer->owner_id, MEDIA_TYPE_MULTI_LAYER_IMAGE);
   BKE_image_format_update_color_space_for_type(&data->format);
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (scene) {
     const RenderData *render_data = &scene->r;
     STRNCPY(data->directory, render_data->pic);
@@ -231,7 +231,7 @@ static void format_layout(ui::Layout *layout,
     column->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
   }
 
-  Scene *scene = CTX_data_scene(context);
+  Scene *scene = CTX_data_scene(*context);
   const bool is_multiview = scene->r.scemode & R_MULTIVIEW;
   if (is_multiview) {
     uiTemplateImageFormatViews(layout, format_pointer, nullptr);
@@ -279,7 +279,7 @@ static void output_paths_layout(ui::Layout &layout,
   const NodeCompositorFileOutput &storage = node_storage(node);
   const StringRefNull directory = storage.directory;
   const std::string file_name = storage.file_name ? storage.file_name : "";
-  const Scene &scene = *CTX_data_scene(context);
+  const Scene &scene = *CTX_data_scene(*context);
 
   if (bool(scene.r.scemode & R_MULTIVIEW) && format.views_format == R_IMF_VIEWS_MULTIVIEW) {
     for (SceneRenderView &view : scene.r.views) {
@@ -388,7 +388,7 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 
 static void node_extra_info(NodeExtraInfoParams &parameters)
 {
-  SpaceNode *space_node = CTX_wm_space_node(&parameters.C);
+  SpaceNode *space_node = CTX_wm_space_node(parameters.C);
   if (space_node->node_tree_sub_type != SNODE_COMPOSITOR_SCENE) {
     NodeExtraInfoRow row;
     row.text = RPT_("Node Unsupported");

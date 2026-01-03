@@ -255,7 +255,7 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
     WM_event_remove_handlers(C, &win->runtime->handlers);
     WM_event_remove_handlers(C, &win->runtime->modalhandlers);
 
-    if (CTX_wm_window(C) == win) {
+    if (CTX_wm_window(*C) == win) {
       CTX_wm_window_set(C, nullptr);
     }
   }
@@ -374,15 +374,15 @@ wmWindow *wm_window_copy_test(bContext *C,
                               const bool duplicate_layout,
                               const bool child)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   wmWindow *win_dst = wm_window_copy(bmain, wm, win_src, duplicate_layout, child);
 
   WM_check(C);
 
   if (win_dst->runtime->ghostwin) {
-    WM_event_add_notifier_ex(wm, CTX_wm_window(C), NC_WINDOW | NA_ADDED, nullptr);
+    WM_event_add_notifier_ex(wm, CTX_wm_window(*C), NC_WINDOW | NA_ADDED, nullptr);
     return win_dst;
   }
   wm_window_close(C, wm, win_dst);
@@ -413,14 +413,14 @@ static void wm_confirm_quit(bContext *C)
 
 void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win)
 {
-  wmWindow *win_ctx = CTX_wm_window(C);
+  wmWindow *win_ctx = CTX_wm_window(*C);
 
   /* The popup will be displayed in the context window which may not be set
    * here (this function gets called outside of normal event handling loop). */
   CTX_wm_window_set(C, win);
 
   if (U.uiflag & USER_SAVE_PROMPT) {
-    if (wm_file_or_session_data_has_unsaved_changes(CTX_data_main(C), CTX_wm_manager(C)) &&
+    if (wm_file_or_session_data_has_unsaved_changes(CTX_data_main(*C), CTX_wm_manager(*C)) &&
         !G.background)
     {
       wm_window_raise(win);
@@ -536,7 +536,7 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
    * Also delete windows with single editor. If required, they are easy to restore, see: !132978.
    */
   if ((screen && screen->temp) || is_single_editor) {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
 
     BLI_assert(BKE_workspace_layout_screen_get(layout) == screen);
     BKE_workspace_layout_remove(bmain, workspace, layout);
@@ -1230,11 +1230,11 @@ wmWindow *WM_window_open(bContext *C,
                          void (*area_setup_fn)(bScreen *screen, ScrArea *area, void *user_data),
                          void *area_setup_user_data)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win_prev = CTX_wm_window(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win_prev = CTX_wm_window(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   int x = rect_unscaled->xmin;
   int y = rect_unscaled->ymin;
   /* Duplicated windows are created at Area size, so duplicated
@@ -1389,7 +1389,7 @@ wmWindow *WM_window_open(bContext *C,
 wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bool dialog)
 {
   rcti rect;
-  WM_window_dpi_set_userdef(CTX_wm_window(C));
+  WM_window_dpi_set_userdef(CTX_wm_window(*C));
   eWindowAlignment align;
   rctf *stored_bounds = stored_window_bounds(eSpace_Type(space_type));
   const bool bounds_valid = (stored_bounds && (BLI_rctf_size_x(stored_bounds) > 150.0f) &&
@@ -1404,7 +1404,7 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
     align = WIN_ALIGN_ABSOLUTE;
   }
   else {
-    wmWindow *win_cur = CTX_wm_window(C);
+    wmWindow *win_cur = CTX_wm_window(*C);
     const int width = int((bounds_valid ? BLI_rctf_size_x(stored_bounds) : 800.0f) * UI_SCALE_FAC);
     const int height = int((bounds_valid ? BLI_rctf_size_y(stored_bounds) : 600.0f) *
                            UI_SCALE_FAC);
@@ -1431,16 +1431,16 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
 
 wmOperatorStatus wm_window_close_exec(bContext *C, wmOperator * /*op*/)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
   wm_window_close(C, wm, win);
   return OPERATOR_FINISHED;
 }
 
 wmOperatorStatus wm_window_new_exec(bContext *C, wmOperator *op)
 {
-  wmWindow *win_src = CTX_wm_window(C);
-  ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_TYPE_ANY, 0);
+  wmWindow *win_src = CTX_wm_window(*C);
+  ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(*C), SPACE_TYPE_ANY, 0);
   const rcti window_rect = {
       /*xmin*/ 0,
       /*xmax*/ int(win_src->sizex * 0.95f),
@@ -1468,7 +1468,7 @@ wmOperatorStatus wm_window_new_exec(bContext *C, wmOperator *op)
 
 wmOperatorStatus wm_window_new_main_exec(bContext *C, wmOperator *op)
 {
-  wmWindow *win_src = CTX_wm_window(C);
+  wmWindow *win_src = CTX_wm_window(*C);
 
   bool ok = (wm_window_copy_test(C, win_src, true, false) != nullptr);
   if (!ok) {
@@ -1480,7 +1480,7 @@ wmOperatorStatus wm_window_new_main_exec(bContext *C, wmOperator *op)
 
 wmOperatorStatus wm_window_fullscreen_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
 
   if (G.background) {
     return OPERATOR_CANCELLED;
@@ -1711,7 +1711,7 @@ static void ghost_event_proc_timestamp_warning(GHOST_EventHandle ghost_event)
 static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C_void_ptr)
 {
   bContext *C = static_cast<bContext *>(C_void_ptr);
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   GHOST_TEventType type = GHOST_GetEventType(ghost_event);
 
   GHOST_WindowHandle ghostwin = GHOST_GetEventWindow(ghost_event);
@@ -2065,8 +2065,8 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
  */
 static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   const double time = BLI_time_now_seconds();
   bool has_event = false;
 
@@ -2164,7 +2164,7 @@ void wm_window_events_process(const bContext *C)
 #ifdef WITH_XR_OPENXR
   /* XR events don't use the regular window queues. So here we don't only trigger
    * processing/dispatching but also handling. */
-  has_event |= wm_xr_events_handle(CTX_wm_manager(C));
+  has_event |= wm_xr_events_handle(CTX_wm_manager(*C));
 #endif
   GPU_render_end();
 
@@ -2354,7 +2354,7 @@ void wm_test_gpu_backend_fallback(bContext *C)
   }
   G.f |= G_FLAG_GPU_BACKEND_FALLBACK_QUIET;
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmWindow *win = static_cast<wmWindow *>((wm->runtime->winactive) ? wm->runtime->winactive :
                                                                      wm->windows.first);
 
@@ -2364,7 +2364,7 @@ void wm_test_gpu_backend_fallback(bContext *C)
       win = win->parent;
     }
 
-    wmWindow *prevwin = CTX_wm_window(C);
+    wmWindow *prevwin = CTX_wm_window(*C);
     CTX_wm_window_set(C, win);
     std::string message = RPT_("Updating GPU drivers may solve this issue.");
     message += RPT_(
@@ -3213,7 +3213,7 @@ Scene *WM_window_get_active_scene(const wmWindow *win)
 
 void WM_window_set_active_scene(Main *bmain, bContext *C, wmWindow *win, Scene *scene)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmWindow *win_parent = (win->parent) ? win->parent : win;
   bool changed = false;
 
@@ -3296,7 +3296,7 @@ WorkSpace *WM_window_get_active_workspace(const wmWindow *win)
 
 void WM_window_set_active_workspace(bContext *C, wmWindow *win, WorkSpace *workspace)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmWindow *win_parent = (win->parent) ? win->parent : win;
 
   ED_workspace_change(workspace, C, wm, win);

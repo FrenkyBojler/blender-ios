@@ -138,7 +138,7 @@ static bool path_select_poll_property(const bContext *C,
 {
   const char *prop_id = RNA_property_identifier(prop);
   if (STREQ(prop_id, "edge_mode")) {
-    const Scene *scene = CTX_data_scene(C);
+    const Scene *scene = CTX_data_scene(*C);
     ToolSettings *ts = scene->toolsettings;
     if ((ts->selectmode & SCE_SELECT_EDGE) == 0) {
       return false;
@@ -786,8 +786,8 @@ static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
 
 static wmOperatorStatus edbm_shortest_path_pick_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  Object *obedit = CTX_data_edit_object(C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *obedit = CTX_data_edit_object(*C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
 
@@ -848,12 +848,12 @@ void MESH_OT_shortest_path_pick(wmOperatorType *ot)
 
 static wmOperatorStatus edbm_shortest_path_select_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   bool found_valid_elements = false;
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;

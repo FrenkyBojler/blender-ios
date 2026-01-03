@@ -183,7 +183,7 @@ void template_cache_file(Layout *layout,
     return;
   }
 
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
 
   layout->use_property_split_set(true);
 

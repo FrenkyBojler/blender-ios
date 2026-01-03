@@ -934,7 +934,7 @@ static FCurve *rna_Driver_from_existing(AnimData *adt, bContext *C, FCurve *src_
 {
   /* verify that we've got a driver to duplicate */
   if (ELEM(nullptr, src_driver, src_driver->driver)) {
-    BKE_report(CTX_wm_reports(C), RPT_ERROR, "No valid driver data to create copy of");
+    BKE_report(CTX_wm_reports(*C), RPT_ERROR, "No valid driver data to create copy of");
     return nullptr;
   }
   else {

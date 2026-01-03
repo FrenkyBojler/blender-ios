@@ -55,7 +55,7 @@
 
 bool ED_space_clip_poll(bContext *C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
 
   if (sc && sc->clip) {
     return true;
@@ -66,7 +66,7 @@ bool ED_space_clip_poll(bContext *C)
 
 bool ED_space_clip_view_clip_poll(bContext *C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
 
   if (sc) {
     return sc->view == SC_VIEW_CLIP;
@@ -77,7 +77,7 @@ bool ED_space_clip_view_clip_poll(bContext *C)
 
 bool ED_space_clip_tracking_poll(bContext *C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
 
   if (sc && sc->clip) {
     return ED_space_clip_check_show_trackedit(sc);
@@ -88,7 +88,7 @@ bool ED_space_clip_tracking_poll(bContext *C)
 
 bool ED_space_clip_maskedit_poll(bContext *C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
 
   if (sc && sc->clip) {
     return ED_space_clip_check_show_maskedit(sc);
@@ -103,7 +103,7 @@ bool ED_space_clip_maskedit_visible_splines_poll(bContext *C)
     return false;
   }
 
-  const SpaceClip *space_clip = CTX_wm_space_clip(C);
+  const SpaceClip *space_clip = CTX_wm_space_clip(*C);
   return space_clip->overlay.flag & SC_SHOW_OVERLAYS &&
          space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
 }
@@ -111,10 +111,10 @@ bool ED_space_clip_maskedit_visible_splines_poll(bContext *C)
 bool ED_space_clip_maskedit_mask_poll(bContext *C)
 {
   if (ED_space_clip_maskedit_poll(C)) {
-    MovieClip *clip = CTX_data_edit_movieclip(C);
+    MovieClip *clip = CTX_data_edit_movieclip(*C);
 
     if (clip) {
-      SpaceClip *sc = CTX_wm_space_clip(C);
+      SpaceClip *sc = CTX_wm_space_clip(*C);
 
       return sc->mask_info.mask != nullptr;
     }
@@ -129,7 +129,7 @@ bool ED_space_clip_maskedit_mask_visible_splines_poll(bContext *C)
     return false;
   }
 
-  const SpaceClip *space_clip = CTX_wm_space_clip(C);
+  const SpaceClip *space_clip = CTX_wm_space_clip(*C);
   return space_clip->overlay.flag & SC_SHOW_OVERLAYS &&
          space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
 }
@@ -370,7 +370,7 @@ bool ED_clip_view_selection(const bContext *C, const ARegion * /*region*/, bool 
     return false;
   }
 
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   sc->xof = offset_x;
   sc->yof = offset_y;
   sc->zoom = zoom;
@@ -591,7 +591,7 @@ void ED_space_clip_set_clip(bContext *C, bScreen *screen, SpaceClip *sc, MovieCl
   bool old_clip_visible = false;
 
   if (!screen && C) {
-    screen = CTX_wm_screen(C);
+    screen = CTX_wm_screen(*C);
   }
 
   old_clip = sc->clip;
@@ -1050,15 +1050,15 @@ static void prefetch_freejob(void *pjv)
 
 static int prefetch_get_content_start(const bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   return scene->r.sfra;
 }
 
 static int prefetch_get_final_frame(const bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  Scene *scene = CTX_data_scene(*C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   int end_frame;
 
@@ -1075,7 +1075,7 @@ static int prefetch_get_final_frame(const bContext *C)
 /* returns true if early out is possible */
 static bool prefetch_check_early_out(const bContext *C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   int first_uncached_frame, end_frame;
   int clip_len;
@@ -1110,15 +1110,15 @@ void clip_start_prefetch_job(const bContext *C)
 {
   wmJob *wm_job;
   PrefetchJob *pj;
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
 
   if (prefetch_check_early_out(C)) {
     return;
   }
 
-  wm_job = WM_jobs_get(CTX_wm_manager(C),
-                       CTX_wm_window(C),
-                       CTX_data_scene(C),
+  wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                       CTX_wm_window(*C),
+                       CTX_data_scene(*C),
                        "Prefetching...",
                        WM_JOB_PROGRESS,
                        WM_JOB_TYPE_CLIP_PREFETCH);
@@ -1145,12 +1145,12 @@ void clip_start_prefetch_job(const bContext *C)
   G.is_break = false;
 
   /* and finally start the job */
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_jobs_start(CTX_wm_manager(*C), wm_job);
 }
 
 void ED_clip_view_lock_state_store(const bContext *C, ClipViewLockState *state)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
   BLI_assert(space_clip != nullptr);
 
   state->offset_x = space_clip->xof;
@@ -1176,7 +1176,7 @@ void ED_clip_view_lock_state_store(const bContext *C, ClipViewLockState *state)
 
 void ED_clip_view_lock_state_restore_no_jump(const bContext *C, const ClipViewLockState *state)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
   BLI_assert(space_clip != nullptr);
 
   if ((space_clip->flag & SC_LOCK_SELECTION) == 0) {

@@ -55,7 +55,7 @@ class SmoothOperation : public GreasePencilStrokeOperationCommon {
 void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
 {
   Paint *paint = BKE_paint_get_active_from_context(&C);
-  Main *bmain = CTX_data_main(&C);
+  Main *bmain = CTX_data_main(C);
   Brush *current_brush = BKE_paint_brush(paint);
 
   if (current_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
@@ -117,7 +117,7 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
   const Brush &brush = [&]() -> const Brush & {
     if (temp_smooth_) {
       const Brush *brush = BKE_paint_brush_from_essentials(
-          CTX_data_main(&C), PaintMode::SculptGPencil, "Smooth");
+          CTX_data_main(C), PaintMode::SculptGPencil, "Smooth");
       BLI_assert(brush != nullptr);
       return *brush;
     }

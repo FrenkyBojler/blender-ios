@@ -306,7 +306,7 @@ static void menu_types_add_from_keymap_items(bContext *C,
                                              Map<MenuType *, wmKeyMapItem *> &menu_to_kmi,
                                              Set<MenuType *> &menu_tagged)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   ListBaseT<wmEventHandler> *handlers[] = {
       region ? &region->runtime->handlers : nullptr,
       area ? &area->handlers : nullptr,
@@ -418,7 +418,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
   Map<MenuType *, const char *> menu_display_name_map;
   const uiStyle *style = style_get_dpi();
 
-  const bContextStore *old_context_store = CTX_store_get(C);
+  const bContextStore *old_context_store = CTX_store_get(*C);
   BLI_SCOPED_DEFER([&]() { CTX_store_set(C, old_context_store); });
   bContextStore context_store;
   if (old_context_store) {
@@ -951,8 +951,8 @@ static void menu_search_exec_fn(bContext *C, void * /*arg1*/, void *arg2)
     return;
   }
 
-  ScrArea *area_prev = CTX_wm_area(C);
-  ARegion *region_prev = CTX_wm_region(C);
+  ScrArea *area_prev = CTX_wm_area(*C);
+  ARegion *region_prev = CTX_wm_region(*C);
 
   if (item->wm_context != nullptr) {
     CTX_wm_area_set(C, item->wm_context->area);
@@ -1050,8 +1050,8 @@ static bool ui_search_menu_create_context_menu(bContext *C,
   but->block = block;
 
   if (menu_items_to_ui_button(item, but)) {
-    ScrArea *area_prev = CTX_wm_area(C);
-    ARegion *region_prev = CTX_wm_region(C);
+    ScrArea *area_prev = CTX_wm_area(*C);
+    ARegion *region_prev = CTX_wm_region(*C);
 
     if (item->wm_context != nullptr) {
       CTX_wm_area_set(C, item->wm_context->area);
@@ -1094,7 +1094,7 @@ static ARegion *ui_search_menu_create_tooltip(
 
   /* Place the fake button at the cursor so the tool-tip is places properly. */
   float tip_init[2];
-  const wmEvent *event = CTX_wm_window(C)->runtime->eventstate;
+  const wmEvent *event = CTX_wm_window(*C)->runtime->eventstate;
   tip_init[0] = event->xy[0];
   tip_init[1] = event->xy[1] - (UI_UNIT_Y / 2);
   window_to_block_fl(region, block, &tip_init[0], &tip_init[1]);
@@ -1105,8 +1105,8 @@ static ARegion *ui_search_menu_create_tooltip(
   but->rect.ymax = tip_init[1];
 
   if (menu_items_to_ui_button(item, but)) {
-    ScrArea *area_prev = CTX_wm_area(C);
-    ARegion *region_prev = CTX_wm_region(C);
+    ScrArea *area_prev = CTX_wm_area(*C);
+    ARegion *region_prev = CTX_wm_region(*C);
 
     if (item->wm_context != nullptr) {
       CTX_wm_area_set(C, item->wm_context->area);
@@ -1134,9 +1134,9 @@ static ARegion *ui_search_menu_create_tooltip(
 void button_func_menu_search(Button *but, const char *single_menu_idname)
 {
   bContext *C = (bContext *)but->block->evil_C;
-  wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  wmWindow *win = CTX_wm_window(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
   /* When run from top-bar scan all areas in the current window. */
   const bool include_all_areas = (area && (area->spacetype == SPACE_TOPBAR)) &&
                                  !single_menu_idname;

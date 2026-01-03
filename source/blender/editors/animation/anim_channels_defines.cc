@@ -5496,7 +5496,7 @@ static void achannel_setting_widget_cb(bContext *C, void *ale_npoin, void *setti
    * As a result, `setting_post_update()` was not called yet and we need to call it here. */
   if (acf->setting_post_update) {
     const eAnimChannel_Settings setting = eAnimChannel_Settings(POINTER_AS_INT(setting_wrap));
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
 
     BLI_assert(ale_setting);
     BLI_assert(bmain);
@@ -5606,9 +5606,9 @@ static void achannel_setting_slider_cb(bContext *C, void *id_poin, void *fcu_poi
   AnimData *adt = BKE_animdata_from_id(id);
   FCurve *fcu = static_cast<FCurve *>(fcu_poin);
 
-  ReportList *reports = CTX_wm_reports(C);
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  ReportList *reports = CTX_wm_reports(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   ToolSettings *ts = scene->toolsettings;
   ListBaseT<NlaKeyframingContext> nla_cache = {nullptr, nullptr};
   PointerRNA ptr;
@@ -5664,9 +5664,9 @@ static void achannel_setting_slider_cb(bContext *C, void *id_poin, void *fcu_poi
 /* callback for shapekey widget sliders - insert keyframes */
 static void achannel_setting_slider_shapekey_cb(bContext *C, void *key_poin, void *kb_poin)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
       depsgraph, float(scene->r.cfra));
 
@@ -5706,8 +5706,8 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C, void * /*id_poin*/
   PropertyRNA *prop;
   int index;
 
-  ReportList *reports = CTX_wm_reports(C);
-  Scene *scene = CTX_data_scene(C);
+  ReportList *reports = CTX_wm_reports(*C);
+  Scene *scene = CTX_data_scene(*C);
   ToolSettings *ts = scene->toolsettings;
   eInsertKeyFlags flag = INSERTKEY_NOFLAGS;
   bool done = false;
@@ -5730,7 +5730,7 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C, void * /*id_poin*/
     }
 
     /* insert a keyframe for this F-Curve */
-    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
     const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
                                                                                       cfra);
     done = blender::animrig::insert_keyframe_direct(reports,

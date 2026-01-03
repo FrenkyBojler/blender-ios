@@ -675,9 +675,9 @@ static void rna_Brush_material_update(bContext * /*C*/, PointerRNA *ptr)
 
 static void rna_Brush_main_tex_update(bContext *C, PointerRNA *ptr)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Brush *br = static_cast<Brush *>(ptr->data);
   BKE_paint_invalidate_overlay_tex(scene, view_layer, br->mtex.tex);
   rna_Brush_update(bmain, scene, ptr);
@@ -685,9 +685,9 @@ static void rna_Brush_main_tex_update(bContext *C, PointerRNA *ptr)
 
 static void rna_Brush_secondary_tex_update(bContext *C, PointerRNA *ptr)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Brush *br = static_cast<Brush *>(ptr->data);
   BKE_paint_invalidate_overlay_tex(scene, view_layer, br->mask_mtex.tex);
   rna_Brush_update(bmain, scene, ptr);
@@ -707,11 +707,11 @@ static void rna_Brush_stroke_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 static void rna_TextureSlot_brush_angle_update(bContext *C, PointerRNA *ptr)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   MTex *mtex = static_cast<MTex *>(ptr->data);
   /* skip invalidation of overlay for stencil mode */
   if (mtex->mapping != MTEX_MAP_MODE_STENCIL) {
-    ViewLayer *view_layer = CTX_data_view_layer(C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
     BKE_paint_invalidate_overlay_tex(scene, view_layer, mtex->tex);
   }
 
@@ -981,8 +981,8 @@ static void rna_BrushGpencilSettings_update(Main * /*bmain*/, Scene * /*scene*/,
 
 static void rna_BrushGpencilSettings_use_material_pin_update(bContext *C, PointerRNA *ptr)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   Brush *brush = reinterpret_cast<Brush *>(ptr->owner_id);
@@ -995,7 +995,7 @@ static void rna_BrushGpencilSettings_use_material_pin_update(bContext *C, Pointe
     BKE_gpencil_brush_material_set(brush, nullptr);
   }
 
-  rna_BrushGpencilSettings_update(CTX_data_main(C), CTX_data_scene(C), ptr);
+  rna_BrushGpencilSettings_update(CTX_data_main(*C), CTX_data_scene(*C), ptr);
   /* number of material users changed */
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
 }
@@ -1031,13 +1031,13 @@ static void rna_GPencilBrush_pin_mode_update(bContext *C, PointerRNA *ptr)
       brush->gpencil_settings->brush_draw_mode = GP_BRUSH_MODE_ACTIVE;
     }
     else {
-      ToolSettings *ts = CTX_data_tool_settings(C);
+      ToolSettings *ts = CTX_data_tool_settings(*C);
       brush->gpencil_settings->brush_draw_mode = GPENCIL_USE_VERTEX_COLOR(ts) ?
                                                      GP_BRUSH_MODE_VERTEXCOLOR :
                                                      GP_BRUSH_MODE_MATERIAL;
     }
   }
-  rna_BrushGpencilSettings_update(CTX_data_main(C), CTX_data_scene(C), ptr);
+  rna_BrushGpencilSettings_update(CTX_data_main(*C), CTX_data_scene(*C), ptr);
 }
 
 static void rna_BrushCurvesSculptSettings_update(Main * /*bmain*/,

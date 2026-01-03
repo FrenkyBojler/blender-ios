@@ -435,9 +435,9 @@ static void slider_update_factor(tSlider *slider, const wmEvent *event)
 tSlider *ED_slider_create(bContext *C)
 {
   tSlider *slider = MEM_new<tSlider>(__func__);
-  slider->scene = CTX_data_scene(C);
-  slider->area = CTX_wm_area(C);
-  slider->region_header = CTX_wm_region(C);
+  slider->scene = CTX_data_scene(*C);
+  slider->area = CTX_wm_area(*C);
+  slider->region_header = CTX_wm_region(*C);
 
   /* Default is true, caller needs to manually set to false. */
   slider->allow_overshoot_lower = true;
@@ -668,7 +668,7 @@ void ED_slider_property_label_set(tSlider *slider, const char *property_label)
 
 void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *region, void *arg_info)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   const float *mval_src = (float *)arg_info;
   const float mval_dst[2] = {
       float(win->runtime->eventstate->xy[0] - region->winrct.xmin),

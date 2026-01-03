@@ -229,7 +229,7 @@ static int /*eContextResult*/ text_context(const bContext *C,
                                            const char *member,
                                            bContextDataResult *result)
 {
-  SpaceText *st = CTX_wm_space_text(C);
+  SpaceText *st = CTX_wm_space_text(*C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, text_context_dir);
@@ -271,7 +271,7 @@ static void text_main_region_init(wmWindowManager *wm, ARegion *region)
 static void text_main_region_draw(const bContext *C, ARegion *region)
 {
   /* Draw entirely, view changes should be handled here. */
-  SpaceText *st = CTX_wm_space_text(C);
+  SpaceText *st = CTX_wm_space_text(*C);
   // View2D *v2d = &region->v2d;
 
   /* Clear and setup matrix. */

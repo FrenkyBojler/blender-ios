@@ -102,7 +102,7 @@ static bool get_invoke_region(bContext *C,
                               View3D **r_view3d,
                               RegionView3D **r_rv3d)
 {
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
   if (screen == nullptr) {
     return false;
   }
@@ -145,7 +145,7 @@ static wmOperatorStatus grease_pencil_import_svg_exec(bContext *C, wmOperator *o
   using blender::io::grease_pencil::ImportParams;
   using blender::io::grease_pencil::IOContext;
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false) ||
       !RNA_struct_find_property(op->ptr, "directory"))
@@ -199,7 +199,7 @@ static void grease_pencil_import_svg_draw(bContext * /*C*/, wmOperator *op)
 
 static bool grease_pencil_import_svg_poll(bContext *C)
 {
-  if ((CTX_wm_window(C) == nullptr) || (CTX_data_mode_enum(C) != CTX_MODE_OBJECT)) {
+  if ((CTX_wm_window(*C) == nullptr) || (CTX_data_mode_enum(*C) != CTX_MODE_OBJECT)) {
     return false;
   }
 
@@ -297,8 +297,8 @@ static wmOperatorStatus grease_pencil_export_svg_exec(bContext *C, wmOperator *o
   using blender::io::grease_pencil::ExportStatus;
   using blender::io::grease_pencil::IOContext;
 
-  Scene *scene = CTX_data_scene(C);
-  Object *ob = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *ob = CTX_data_active_object(*C);
 
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
@@ -413,7 +413,7 @@ static void grease_pencil_export_svg_draw(bContext * /*C*/, wmOperator *op)
 
 static bool grease_pencil_export_svg_poll(bContext *C)
 {
-  if ((CTX_wm_window(C) == nullptr) || (CTX_data_mode_enum(C) != CTX_MODE_OBJECT)) {
+  if ((CTX_wm_window(*C) == nullptr) || (CTX_data_mode_enum(*C) != CTX_MODE_OBJECT)) {
     return false;
   }
 
@@ -494,8 +494,8 @@ static wmOperatorStatus grease_pencil_export_pdf_exec(bContext *C, wmOperator *o
   using blender::io::grease_pencil::ExportParams;
   using blender::io::grease_pencil::IOContext;
 
-  Scene *scene = CTX_data_scene(C);
-  Object *ob = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *ob = CTX_data_active_object(*C);
 
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
@@ -551,7 +551,7 @@ static void grease_pencil_export_pdf_draw(bContext * /*C*/, wmOperator *op)
 
 static bool grease_pencil_export_pdf_poll(bContext *C)
 {
-  if ((CTX_wm_window(C) == nullptr) || (CTX_data_mode_enum(C) != CTX_MODE_OBJECT)) {
+  if ((CTX_wm_window(*C) == nullptr) || (CTX_data_mode_enum(*C) != CTX_MODE_OBJECT)) {
     return false;
   }
 

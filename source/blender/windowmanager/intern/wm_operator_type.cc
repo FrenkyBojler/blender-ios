@@ -428,7 +428,7 @@ static wmOperatorStatus wm_macro_modal(bContext *C, wmOperator *op, const wmEven
 
       /* If new operator is modal and also added its own handler. */
       if (retval & OPERATOR_RUNNING_MODAL && op->opm != opm) {
-        wmWindow *win = CTX_wm_window(C);
+        wmWindow *win = CTX_wm_window(*C);
         wmEventHandler_Op *handler;
 
         handler = static_cast<wmEventHandler_Op *>(
@@ -457,7 +457,7 @@ static wmOperatorStatus wm_macro_modal(bContext *C, wmOperator *op, const wmEven
           }
 
           if (wrap) {
-            ARegion *region = CTX_wm_region(C);
+            ARegion *region = CTX_wm_region(*C);
             if (region) {
               wrap_region = &region->winrct;
             }

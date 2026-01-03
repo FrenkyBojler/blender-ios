@@ -314,8 +314,8 @@ struct PaintOperationExecutor {
                             const bool use_fill)
   {
     const float2 start_coords = start_sample.mouse_position;
-    const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
-    const ARegion *region = CTX_wm_region(&C);
+    const RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    const ARegion *region = CTX_wm_region(C);
 
     float3 start_location;
     if (self.placement_.use_project_to_stroke() || self.placement_.use_project_to_surface()) {
@@ -662,8 +662,8 @@ struct PaintOperationExecutor {
                                 const bContext &C,
                                 const InputSample &extension_sample)
   {
-    const RegionView3D *rv3d = CTX_wm_region_view3d(&C);
-    const ARegion *region = CTX_wm_region(&C);
+    const RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    const ARegion *region = CTX_wm_region(C);
     const bool on_back = (scene_->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
     const float2 coords = extension_sample.mouse_position;
@@ -1151,11 +1151,11 @@ void PaintOperation::toggle_fill_guides_brush_off(const bContext &C)
 
 void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start_sample)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
-  ARegion *region = CTX_wm_region(&C);
-  View3D *view3d = CTX_wm_view3d(&C);
-  scene_ = CTX_data_scene(&C);
-  object_ = CTX_data_active_object(&C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  ARegion *region = CTX_wm_region(C);
+  View3D *view3d = CTX_wm_view3d(C);
+  scene_ = CTX_data_scene(C);
+  object_ = CTX_data_active_object(C);
   Object *eval_object = DEG_get_evaluated(depsgraph, object_);
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(object_->data);
 
@@ -1211,7 +1211,7 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   }
 
   Material *material = BKE_grease_pencil_object_material_ensure_from_brush(
-      CTX_data_main(&C), object_, brush);
+      CTX_data_main(C), object_, brush);
   const int material_index = BKE_object_material_index_get(object_, material);
   const bool use_fill = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
 
@@ -1633,8 +1633,8 @@ static void append_stroke_to_multiframe_drawings(
 void PaintOperation::on_stroke_done(const bContext &C)
 {
   using namespace blender::bke;
-  RegionView3D *rv3d = CTX_wm_region_view3d(&C);
-  const ARegion *region = CTX_wm_region(&C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  const ARegion *region = CTX_wm_region(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object_->data);
 
   Paint *paint = &scene_->toolsettings->gp_paint->paint;
@@ -1688,7 +1688,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
       const float outline_radius = brush->unprojected_size / 2.0f * settings->outline_fac * 0.5f;
       const int material_index = [&]() {
         Material *material = BKE_grease_pencil_object_material_alt_ensure_from_brush(
-            CTX_data_main(&C), object_, brush);
+            CTX_data_main(C), object_, brush);
         return BKE_object_material_index_get(object_, material);
       }();
       outline_stroke(drawing,

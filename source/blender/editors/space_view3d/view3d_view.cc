@@ -59,7 +59,7 @@
 
 static wmOperatorStatus view3d_camera_to_view_exec(bContext *C, wmOperator * /*op*/)
 {
-  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   View3D *v3d;
   ARegion *region;
   RegionView3D *rv3d;
@@ -94,7 +94,7 @@ static bool view3d_camera_to_view_poll(bContext *C)
 
   if (ED_view3d_context_user_region(C, &v3d, &region)) {
     RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-    if (v3d && v3d->camera && BKE_id_is_editable(CTX_data_main(C), &v3d->camera->id)) {
+    if (v3d && v3d->camera && BKE_id_is_editable(CTX_data_main(*C), &v3d->camera->id)) {
       if (rv3d && (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) == 0) {
         if (rv3d->persp != RV3D_CAMOB) {
           return true;
@@ -133,10 +133,10 @@ void VIEW3D_OT_camera_to_view(wmOperatorType *ot)
  */
 static wmOperatorStatus view3d_camera_to_view_selected_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C); /* can be nullptr */
+  Main *bmain = CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C); /* can be nullptr */
   Object *camera_ob = v3d ? v3d->camera : scene->camera;
 
   if (camera_ob == nullptr) {
@@ -177,7 +177,7 @@ static void sync_viewport_camera_smoothview(bContext *C,
                                             Object *ob,
                                             const int smooth_viewtx)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   for (bScreen &screen : bmain->screens) {
     for (ScrArea &area : screen.areabase) {
       for (SpaceLink &space_link : area.spacedata) {
@@ -235,8 +235,8 @@ static wmOperatorStatus view3d_setobjectascamera_exec(bContext *C, wmOperator *o
   ARegion *region;
   RegionView3D *rv3d;
 
-  Scene *scene = CTX_data_scene(C);
-  Object *ob = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *ob = CTX_data_active_object(*C);
 
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
@@ -253,7 +253,7 @@ static wmOperatorStatus view3d_setobjectascamera_exec(bContext *C, wmOperator *o
     if (v3d->scenelock && scene->camera != ob) {
       scene->camera = ob;
       DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-      DEG_relations_tag_update(CTX_data_main(C));
+      DEG_relations_tag_update(CTX_data_main(*C));
     }
 
     /* unlikely but looks like a glitch when set to the same */
@@ -556,7 +556,7 @@ int view3d_gpu_select_ex(const ViewContext *vc,
                          const bool do_material_slot_selection)
 {
   blender::ui::theme::bThemeState theme_state;
-  const wmWindowManager *wm = CTX_wm_manager(vc->C);
+  const wmWindowManager *wm = CTX_wm_manager(*vc->C);
   Depsgraph *depsgraph = vc->depsgraph;
   Scene *scene = vc->scene;
   View3D *v3d = vc->v3d;
@@ -1059,15 +1059,15 @@ bool ED_localview_exit_if_empty(const Depsgraph *depsgraph,
 
 static wmOperatorStatus localview_exec(bContext *C, wmOperator *op)
 {
-  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  ScrArea *area = CTX_wm_area(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   bool frame_selected = RNA_boolean_get(op->ptr, "frame_selected");
   bool changed;
 
@@ -1129,10 +1129,10 @@ void VIEW3D_OT_localview(wmOperatorType *ot)
 
 static wmOperatorStatus localview_remove_from_exec(bContext *C, wmOperator *op)
 {
-  View3D *v3d = CTX_wm_view3d(C);
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   bool changed = false;
   BKE_view_layer_synced_ensure(scene, view_layer);
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
@@ -1149,13 +1149,13 @@ static wmOperatorStatus localview_remove_from_exec(bContext *C, wmOperator *op)
 
   /* If some object was removed from the local view, exit the local view if it is now empty. */
   if (changed) {
-    ED_localview_exit_if_empty(CTX_data_ensure_evaluated_depsgraph(C),
+    ED_localview_exit_if_empty(CTX_data_ensure_evaluated_depsgraph(*C),
                                scene,
                                view_layer,
-                               CTX_wm_manager(C),
-                               CTX_wm_window(C),
+                               CTX_wm_manager(*C),
+                               CTX_wm_window(*C),
                                v3d,
-                               CTX_wm_area(C),
+                               CTX_wm_area(*C),
                                true,
                                WM_operator_smooth_viewtx_get(op));
   }
@@ -1174,11 +1174,11 @@ static wmOperatorStatus localview_remove_from_exec(bContext *C, wmOperator *op)
 
 static bool localview_remove_from_poll(bContext *C)
 {
-  if (CTX_data_edit_object(C) != nullptr) {
+  if (CTX_data_edit_object(*C) != nullptr) {
     return false;
   }
 
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   return v3d && v3d->localvd;
 }
 
@@ -1289,7 +1289,7 @@ bool ED_view3d_local_collections_set(const Main *bmain, View3D *v3d)
 
 void ED_view3d_local_collections_reset(const bContext *C, const bool reset_all)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   uint local_view_bit = ~0;
   bool do_reset = false;
 
@@ -1319,8 +1319,8 @@ void ED_view3d_local_collections_reset(const bContext *C, const bool reset_all)
     view3d_local_collections_reset(bmain, ~0);
     View3D v3d = {};
     v3d.local_collections_uid = ~0;
-    BKE_layer_collection_local_sync(CTX_data_scene(C), CTX_data_view_layer(C), &v3d);
-    DEG_id_tag_update(&CTX_data_scene(C)->id, ID_RECALC_BASE_FLAGS);
+    BKE_layer_collection_local_sync(CTX_data_scene(*C), CTX_data_view_layer(*C), &v3d);
+    DEG_id_tag_update(&CTX_data_scene(*C)->id, ID_RECALC_BASE_FLAGS);
   }
 }
 

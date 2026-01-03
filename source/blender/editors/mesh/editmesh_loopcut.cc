@@ -276,17 +276,17 @@ static void ringsel_exit(bContext * /*C*/, wmOperator *op)
 /* called when modal loop selection gets set up... */
 static int ringsel_init(bContext *C, wmOperator *op, bool do_cut)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* alloc new customdata */
   RingSelOpData *lcd = MEM_new<RingSelOpData>(__func__);
   op->customdata = lcd;
   lcd->vc = em_setup_viewcontext(C);
 
-  lcd->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  lcd->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
   /* assign the drawing handle for drawing preview line... */
-  lcd->region = CTX_wm_region(C);
+  lcd->region = CTX_wm_region(*C);
   /* Type can be null in background mode. */
   if (lcd->region->runtime->type) {
     lcd->draw_handle = ED_region_draw_cb_activate(
@@ -372,7 +372,7 @@ static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent 
   /* Check whether both `rv3d` and `event` is present, this way we allow the loopcut operator to
    * run non-interactively no matter whether the graphical UI is present or not (e.g. from scripts
    * with UI running, or entirely in the background with `blender -b`). */
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   const bool is_interactive = (rv3d != nullptr) && (event != nullptr);
 
   /* Use for redo - intentionally wrap int to uint. */
@@ -383,11 +383,11 @@ static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent 
   exec_data.base_index = uint(RNA_int_get(op->ptr, "object_index"));
   exec_data.e_index = uint(RNA_int_get(op->ptr, "edge_index"));
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   if (is_interactive) {
     for (Base *base : bases) {
@@ -476,7 +476,7 @@ static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent 
       BLI_snprintf_utf8(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", lcd->smoothness);
     }
     SNPRINTF_UTF8(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
-    ED_area_status_text(CTX_wm_area(C), buf);
+    ED_area_status_text(CTX_wm_area(*C), buf);
 
     WorkspaceStatus status(C);
     status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
@@ -497,7 +497,7 @@ static wmOperatorStatus ringcut_invoke(bContext *C, wmOperator *op, const wmEven
 {
   /* When accessed as a tool, get the active edge from the pre-selection gizmo. */
   {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     wmGizmoMap *gzmap = region->runtime->gizmo_map;
     wmGizmoGroup *gzgroup = gzmap ? WM_gizmomap_group_find(gzmap,
                                                            "VIEW3D_GGT_mesh_preselect_edgering") :
@@ -529,7 +529,7 @@ static wmOperatorStatus loopcut_finish(RingSelOpData *lcd, bContext *C, wmOperat
   /* finish */
   ED_region_tag_redraw(lcd->region);
   ED_workspace_status_text(C, nullptr);
-  ED_area_status_text(CTX_wm_area(C), nullptr);
+  ED_area_status_text(CTX_wm_area(*C), nullptr);
 
   if (lcd->eed) {
     /* set for redo */
@@ -591,7 +591,7 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
         ED_region_tag_redraw(lcd->region);
         ringsel_exit(C, op);
         ED_workspace_status_text(C, nullptr);
-        ED_area_status_text(CTX_wm_area(C), nullptr);
+        ED_area_status_text(CTX_wm_area(*C), nullptr);
 
         return OPERATOR_CANCELLED;
       case EVT_ESCKEY:
@@ -599,7 +599,7 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
           /* cancel */
           ED_region_tag_redraw(lcd->region);
           ED_workspace_status_text(C, nullptr);
-          ED_area_status_text(CTX_wm_area(C), nullptr);
+          ED_area_status_text(CTX_wm_area(*C), nullptr);
 
           ringcut_cancel(C, op);
           return OPERATOR_CANCELLED;
@@ -700,7 +700,7 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
   }
 
   if (show_cuts) {
-    Scene *sce = CTX_data_scene(C);
+    Scene *sce = CTX_data_scene(*C);
     char buf[UI_MAX_DRAW_STR];
     char str_rep[NUM_STR_REP_LEN * 2];
     if (hasNumInput(&lcd->num)) {
@@ -711,7 +711,7 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
       BLI_snprintf_utf8(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", smoothness);
     }
     SNPRINTF_UTF8(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
-    ED_area_status_text(CTX_wm_area(C), buf);
+    ED_area_status_text(CTX_wm_area(*C), buf);
   }
 
   /* keep going until the user confirms */

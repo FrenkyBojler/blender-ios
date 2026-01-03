@@ -271,7 +271,7 @@ static PyObject *bpy_msgbus_subscribe_rna(PyObject * /*self*/, PyObject *args, P
 
   /* NOTE: we may want to have a way to pass this in. */
   bContext *C = BPY_context_get();
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
   wmMsgParams_RNA msg_key_params = {{}};
 
   wmMsgSubscribeValue msg_val_params = {nullptr};
@@ -353,7 +353,7 @@ static PyObject *bpy_msgbus_publish_rna(PyObject * /*self*/, PyObject *args, PyO
 
   /* NOTE: we may want to have a way to pass this in. */
   bContext *C = BPY_context_get();
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
   wmMsgParams_RNA msg_key_params = {{}};
 
   if (py_msgbus_rna_key_from_py(py_sub, &msg_key_params, error_prefix) == -1) {
@@ -374,7 +374,7 @@ PyDoc_STRVAR(
 static PyObject *bpy_msgbus_clear_by_owner(PyObject * /*self*/, PyObject *py_owner)
 {
   bContext *C = BPY_context_get();
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
   WM_msgbus_clear_by_owner(mbus, py_owner);
   Py_RETURN_NONE;
 }

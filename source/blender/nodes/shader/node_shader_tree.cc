@@ -55,7 +55,7 @@ using blender::Vector;
 
 static bool shader_tree_poll(const bContext *C, blender::bke::bNodeTreeType * /*treetype*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const char *engine_id = scene->r.engine;
 
   /* Allow empty engine string too,
@@ -70,9 +70,9 @@ static void shader_get_from_context(const bContext *C,
                                     ID **r_id,
                                     ID **r_from)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 

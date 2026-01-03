@@ -92,8 +92,8 @@ static TreeElement *outliner_dropzone_find(const SpaceOutliner *space_outliner,
 
 static TreeElement *outliner_drop_find(bContext *C, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  ARegion *region = CTX_wm_region(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   float fmval[2];
   ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
@@ -116,8 +116,8 @@ static TreeElement *outliner_drop_insert_find(bContext *C,
                                               const int xy[2],
                                               TreeElementInsertType *r_insert_type)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  ARegion *region = CTX_wm_region(*C);
   TreeElement *te_hovered;
   float view_mval[2];
 
@@ -327,11 +327,11 @@ static bool allow_parenting_without_modifier_key(SpaceOutliner *space_outliner)
 
 static bool parent_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
 
   bool changed = outliner_flag_set(*space_outliner, TSE_DRAG_ANY, false);
   if (changed) {
-    ED_region_tag_redraw_no_rebuild(CTX_wm_region(C));
+    ED_region_tag_redraw_no_rebuild(CTX_wm_region(*C));
   }
 
   Object *potential_child = (Object *)WM_drag_get_local_ID(drag, ID_OB);
@@ -352,7 +352,7 @@ static bool parent_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 
   if (parent_drop_allowed(te, potential_child)) {
     TREESTORE(te)->flag |= TSE_DRAG_INTO;
-    ED_region_tag_redraw_no_rebuild(CTX_wm_region(C));
+    ED_region_tag_redraw_no_rebuild(CTX_wm_region(*C));
     return true;
   }
 
@@ -366,8 +366,8 @@ static void parent_drop_set_parents(bContext *C,
                                     short parent_type,
                                     const bool keep_transform)
 {
-  Main *bmain = CTX_data_main(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  Main *bmain = CTX_data_main(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
 
   TreeElement *te = outliner_find_id(
       space_outliner, &space_outliner->tree, &parent->id, (TreeElementFlag)0);
@@ -379,7 +379,7 @@ static void parent_drop_set_parents(bContext *C,
      * active scene and parenting them is allowed (sergey)
      */
 
-    scene = CTX_data_scene(C);
+    scene = CTX_data_scene(*C);
   }
 
   bool parent_set = false;
@@ -474,7 +474,7 @@ void OUTLINER_OT_parent_drop(wmOperatorType *ot)
 
 static bool parent_clear_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
 
   if (!allow_parenting_without_modifier_key(space_outliner)) {
     if ((event->modifier & KM_SHIFT) == 0) {
@@ -514,7 +514,7 @@ static bool parent_clear_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 
 static wmOperatorStatus parent_clear_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   if (event->custom != EVT_DATA_DRAGDROP) {
     return OPERATOR_CANCELLED;
@@ -570,7 +570,7 @@ static bool scene_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 
 static wmOperatorStatus scene_drop_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Scene *scene = (Scene *)outliner_ID_drop_find(C, event, ID_SCE);
   Object *ob = (Object *)WM_drag_get_local_ID_from_event(event, ID_OB);
 
@@ -583,12 +583,12 @@ static wmOperatorStatus scene_drop_invoke(bContext *C, wmOperator * /*op*/, cons
   }
 
   Collection *collection;
-  if (scene != CTX_data_scene(C)) {
+  if (scene != CTX_data_scene(*C)) {
     /* when linking to an inactive scene link to the master collection */
     collection = scene->master_collection;
   }
   else {
-    collection = CTX_data_collection(C);
+    collection = CTX_data_collection(*C);
   }
 
   BKE_collection_object_add(bmain, collection, ob);
@@ -601,7 +601,7 @@ static wmOperatorStatus scene_drop_invoke(bContext *C, wmOperator * /*op*/, cons
     }
   }
 
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
   DEG_relations_tag_update(bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
@@ -645,7 +645,7 @@ static wmOperatorStatus material_drop_invoke(bContext *C,
                                              wmOperator * /*op*/,
                                              const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = (Object *)outliner_ID_drop_find(C, event, ID_OB);
   Material *ma = (Material *)WM_drag_get_local_ID_from_event(event, ID_MA);
 
@@ -773,7 +773,7 @@ static bool datastack_drop_init(bContext *C, const wmEvent *event, StackDropData
     ob = nullptr;
   }
 
-  if (ob && !BKE_id_is_editable(CTX_data_main(C), &ob->id)) {
+  if (ob && !BKE_id_is_editable(CTX_data_main(*C), &ob->id)) {
     return false;
   }
 
@@ -870,8 +870,8 @@ static bool datastack_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
     return false;
   }
 
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  ARegion *region = CTX_wm_region(*C);
   bool changed = outliner_flag_set(*space_outliner, TSE_HIGHLIGHTED_ANY | TSE_DRAG_ANY, false);
 
   StackDropData *drop_data = static_cast<StackDropData *>(drag->poin);
@@ -933,7 +933,7 @@ static std::string datastack_drop_tooltip(bContext * /*C*/,
 
 static void datastack_drop_link(bContext *C, StackDropData *drop_data)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   TreeStoreElem *tselem = TREESTORE(drop_data->drop_te);
   Object *ob_dst = (Object *)tselem->id;
 
@@ -975,7 +975,7 @@ static void datastack_drop_link(bContext *C, StackDropData *drop_data)
 
 static void datastack_drop_copy(bContext *C, StackDropData *drop_data)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   TreeStoreElem *tselem = TREESTORE(drop_data->drop_te);
   Object *ob_dst = (Object *)tselem->id;
@@ -984,11 +984,11 @@ static void datastack_drop_copy(bContext *C, StackDropData *drop_data)
     case TSE_MODIFIER:
       object::modifier_copy_to_object(
           bmain,
-          CTX_data_scene(C),
+          CTX_data_scene(*C),
           drop_data->ob_parent,
           static_cast<const ModifierData *>(drop_data->drag_directdata),
           ob_dst,
-          CTX_wm_reports(C));
+          CTX_wm_reports(*C));
       break;
     case TSE_CONSTRAINT:
       if (tselem->type == TSE_POSE_CHANNEL) {
@@ -1016,7 +1016,7 @@ static void datastack_drop_copy(bContext *C, StackDropData *drop_data)
 
 static void datastack_drop_reorder(bContext *C, ReportList *reports, StackDropData *drop_data)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
 
   TreeElement *drag_te = outliner_find_tree_element(&space_outliner->tree, drop_data->drag_tselem);
   if (!drag_te) {
@@ -1198,8 +1198,8 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
 
 static bool collection_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  ARegion *region = CTX_wm_region(*C);
   bool changed = outliner_flag_set(*space_outliner, TSE_HIGHLIGHTED_ANY | TSE_DRAG_ANY, false);
 
   CollectionDrop data;
@@ -1237,7 +1237,7 @@ static std::string collection_drop_tooltip(bContext *C,
                                            const int xy[2],
                                            wmDropBox * /*drop*/)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   const wmEvent *event = win ? win->runtime->eventstate : nullptr;
 
   CollectionDrop data;
@@ -1298,8 +1298,8 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
                                                wmOperator * /*op*/,
                                                const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   if (event->custom != EVT_DATA_DRAGDROP) {
     return OPERATOR_CANCELLED;
@@ -1318,7 +1318,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   bool relative_after = false;
 
   if (ELEM(data.insert_type, TE_INSERT_BEFORE, TE_INSERT_AFTER)) {
-    SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+    SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
 
     relative = data.to;
     relative_after = (data.insert_type == TE_INSERT_AFTER);
@@ -1377,7 +1377,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   /* NOTE: It is possible to drag-and-drop between different windows, which means that the source
    * window/Outliner may also need to be updated. So do not pass the current window in this
    * notifier (unless there is a way to get the drag source window as well?). */
-  WM_event_add_notifier_ex(CTX_wm_manager(C), nullptr, NC_SCENE | ND_LAYER, nullptr);
+  WM_event_add_notifier_ex(CTX_wm_manager(*C), nullptr, NC_SCENE | ND_LAYER, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1422,8 +1422,8 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
                                                        wmOperator * /*op*/,
                                                        const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  ARegion *region = CTX_wm_region(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   TreeElement *te = outliner_item_drag_element_find(space_outliner, region, event);
 
   int mval[2];
@@ -1545,7 +1545,7 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
         }
       }
       else {
-        Scene *scene = CTX_data_scene(C);
+        Scene *scene = CTX_data_scene(*C);
         parent = scene->master_collection;
       }
 

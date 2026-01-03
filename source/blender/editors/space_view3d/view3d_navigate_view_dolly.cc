@@ -56,8 +56,8 @@ void viewdolly_modal_keymap(wmKeyConfig *keyconf)
 
 static bool viewdolly_offset_lock_check(bContext *C, wmOperator *op)
 {
-  View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   if (ED_view3d_offset_lock_check(v3d, rv3d)) {
     BKE_report(op->reports, RPT_WARNING, "Cannot dolly when the view offset is locked");
     return true;
@@ -153,7 +153,7 @@ static wmOperatorStatus viewdolly_modal(bContext *C, wmOperator *op, const wmEve
   switch (event_code) {
     case VIEW_APPLY: {
       viewdolly_apply(vod, event->xy, (U.uiflag & USER_ZOOM_INVERT) != 0);
-      if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+      if (ED_screen_animation_playing(CTX_wm_manager(*C))) {
         use_autokey = true;
       }
       break;
@@ -203,8 +203,8 @@ static wmOperatorStatus viewdolly_exec(bContext *C, wmOperator *op)
     copy_v3_v3(mousevec, vod->init.mousevec);
   }
   else {
-    area = CTX_wm_area(C);
-    region = CTX_wm_region(C);
+    area = CTX_wm_area(*C);
+    region = CTX_wm_region(*C);
     negate_v3_v3(mousevec, static_cast<RegionView3D *>(region->regiondata)->viewinv[2]);
     normalize_v3(mousevec);
   }
@@ -226,7 +226,7 @@ static wmOperatorStatus viewdolly_exec(bContext *C, wmOperator *op)
     view3d_boxview_sync(area, region);
   }
 
-  ED_view3d_camera_lock_sync(CTX_data_ensure_evaluated_depsgraph(C), v3d, rv3d);
+  ED_view3d_camera_lock_sync(CTX_data_ensure_evaluated_depsgraph(*C), v3d, rv3d);
 
   ED_region_tag_redraw(region);
 
@@ -275,7 +275,7 @@ static wmOperatorStatus viewdolly_invoke(bContext *C, wmOperator *op, const wmEv
   if (vod->rv3d->persp != RV3D_PERSP) {
     if (vod->rv3d->persp == RV3D_CAMOB) {
       /* ignore rv3d->lpersp because dolly only makes sense in perspective mode */
-      const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
       ED_view3d_persp_switch_from_camera(depsgraph, vod->v3d, vod->rv3d, RV3D_PERSP);
     }
     else {

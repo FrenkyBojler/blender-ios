@@ -183,7 +183,7 @@ void Instance::begin_sync()
     const bool hide_overlay = ((draw_ctx->v3d->flag2 & V3D_HIDE_OVERLAYS) != 0);
     const bool show_onion = ((draw_ctx->v3d->gp_flag & V3D_GP_SHOW_ONION_SKIN) != 0);
     const bool playing = (draw_ctx->evil_C != nullptr) ?
-                             ED_screen_animation_playing(CTX_wm_manager(draw_ctx->evil_C)) !=
+                             ED_screen_animation_playing(CTX_wm_manager(*draw_ctx->evil_C)) !=
                                  nullptr :
                              false;
     this->do_onion = show_onion && !hide_overlay && !playing;

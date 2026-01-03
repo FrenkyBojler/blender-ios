@@ -26,7 +26,7 @@
 
 bool ED_maskedit_poll(bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area) {
     switch (area->spacetype) {
       case SPACE_CLIP:
@@ -42,7 +42,7 @@ bool ED_maskedit_poll(bContext *C)
 
 bool ED_maskedit_visible_splines_poll(bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area) {
     switch (area->spacetype) {
       case SPACE_CLIP:
@@ -58,7 +58,7 @@ bool ED_maskedit_visible_splines_poll(bContext *C)
 
 bool ED_maskedit_mask_poll(bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area) {
     switch (area->spacetype) {
       case SPACE_CLIP:
@@ -74,7 +74,7 @@ bool ED_maskedit_mask_poll(bContext *C)
 
 bool ED_maskedit_mask_visible_splines_poll(bContext *C)
 {
-  const ScrArea *area = CTX_wm_area(C);
+  const ScrArea *area = CTX_wm_area(*C);
   if (area) {
     switch (area->spacetype) {
       case SPACE_CLIP:
@@ -205,7 +205,7 @@ void ED_operatormacros_mask()
 
 void ED_mask_view_lock_state_store(const bContext *C, MaskViewLockState *state)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
   if (space_clip != nullptr) {
     ED_clip_view_lock_state_store(C, &state->space_clip_state);
   }
@@ -213,7 +213,7 @@ void ED_mask_view_lock_state_store(const bContext *C, MaskViewLockState *state)
 
 void ED_mask_view_lock_state_restore_no_jump(const bContext *C, const MaskViewLockState *state)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
   if (space_clip != nullptr) {
     if ((space_clip->flag & SC_LOCK_SELECTION) == 0) {
       /* Early output if the editor is not locked to selection.
@@ -226,7 +226,7 @@ void ED_mask_view_lock_state_restore_no_jump(const bContext *C, const MaskViewLo
      * calculation of new offset for the view for an updated state of mask to cancel the offset out
      * by modifying locked offset. In order to do such calculation mask needs to be evaluated after
      * modification by an operator. */
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     (void)depsgraph;
 
     ED_clip_view_lock_state_restore_no_jump(C, &state->space_clip_state);

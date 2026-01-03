@@ -148,7 +148,7 @@ void AssetList::fetch(const bContext &C)
   FileList *files = filelist_;
 
   if (filelist_needs_force_reset(files)) {
-    filelist_readjob_stop(files, CTX_wm_manager(&C));
+    filelist_readjob_stop(files, CTX_wm_manager(C));
     filelist_clear_from_reset_tag(files);
   }
 
@@ -501,13 +501,13 @@ void clear(const AssetLibraryReference *library_reference, wmWindowManager *wm)
 
 void clear(const AssetLibraryReference *library_reference, const bContext *C)
 {
-  clear(library_reference, CTX_wm_manager(C));
+  clear(library_reference, CTX_wm_manager(*C));
 }
 
 void clear_all_library(const bContext *C)
 {
   const AssetLibraryReference all_lib_ref = asset_system::all_library_reference();
-  clear(&all_lib_ref, CTX_wm_manager(C));
+  clear(&all_lib_ref, CTX_wm_manager(*C));
 }
 
 bool has_list_storage_for_library(const AssetLibraryReference *library_reference)
@@ -520,7 +520,7 @@ bool has_asset_browser_storage_for_library(const AssetLibraryReference *library_
 {
   bool has_asset_browser = false;
   foreach_visible_asset_browser_showing_library(
-      *library_reference, CTX_wm_manager(C), [&](SpaceFile & /*sfile*/) {
+      *library_reference, CTX_wm_manager(*C), [&](SpaceFile & /*sfile*/) {
         has_asset_browser = true;
       });
 

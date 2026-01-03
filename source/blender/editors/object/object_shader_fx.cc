@@ -253,7 +253,7 @@ static bool edit_shaderfx_poll_generic(bContext *C,
                                        int obtype_flag,
                                        const bool is_liboverride_allowed)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "shaderfx", rna_type);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "shaderfx", rna_type);
   Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(C);
   ShaderFxData *fx = static_cast<ShaderFxData *>(ptr.data); /* May be nullptr. */
 
@@ -272,7 +272,7 @@ static bool edit_shaderfx_poll_generic(bContext *C,
     CTX_wm_operator_poll_msg_set(C, "Object type is not supported");
     return false;
   }
-  if (ptr.owner_id != nullptr && !BKE_id_is_editable(CTX_data_main(C), ptr.owner_id)) {
+  if (ptr.owner_id != nullptr && !BKE_id_is_editable(CTX_data_main(*C), ptr.owner_id)) {
     CTX_wm_operator_poll_msg_set(C, "Cannot edit library or override data");
     return false;
   }
@@ -298,8 +298,8 @@ static bool edit_shaderfx_poll(bContext *C)
 
 static wmOperatorStatus shaderfx_add_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   Object *ob = context_active_object(C);
   int type = RNA_enum_get(op->ptr, "type");
 
@@ -416,7 +416,7 @@ static bool edit_shaderfx_invoke_properties(bContext *C,
     return true;
   }
 
-  PointerRNA ctx_ptr = CTX_data_pointer_get_type(C, "shaderfx", &RNA_ShaderFx);
+  PointerRNA ctx_ptr = CTX_data_pointer_get_type(*C, "shaderfx", &RNA_ShaderFx);
   if (ctx_ptr.data != nullptr) {
     ShaderFxData *fx = static_cast<ShaderFxData *>(ctx_ptr.data);
     RNA_string_set(op->ptr, "shaderfx", fx->name);
@@ -471,7 +471,7 @@ static ShaderFxData *edit_shaderfx_property_get(wmOperator *op, Object *ob, int 
 
 static wmOperatorStatus shaderfx_remove_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   ShaderFxData *fx = edit_shaderfx_property_get(op, ob, 0);
   if (!fx) {

@@ -73,8 +73,8 @@ struct InsetData {
 static void edbm_inset_update_header(wmOperator *op, bContext *C)
 {
   InsetData *opdata = static_cast<InsetData *>(op->customdata);
-  ScrArea *area = CTX_wm_area(C);
-  Scene *sce = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(*C);
+  Scene *sce = CTX_data_scene(*C);
 
   if (area) {
     char msg[UI_MAX_DRAW_STR];
@@ -114,8 +114,8 @@ static void edbm_inset_update_header(wmOperator *op, bContext *C)
 static bool edbm_inset_init(bContext *C, wmOperator *op, const bool is_modal)
 {
   InsetData *opdata;
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   if (is_modal) {
     RNA_float_set(op->ptr, "thickness", 0.0f);
@@ -130,7 +130,7 @@ static bool edbm_inset_init(bContext *C, wmOperator *op, const bool is_modal)
 
   {
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-        scene, view_layer, CTX_wm_view3d(C));
+        scene, view_layer, CTX_wm_view3d(*C));
     opdata->ob_store = static_cast<InsetObjectStore *>(
         MEM_malloc_arrayN(objects.size(), sizeof(*opdata->ob_store), __func__));
     for (uint ob_index = 0; ob_index < objects.size(); ob_index++) {
@@ -160,7 +160,7 @@ static bool edbm_inset_init(bContext *C, wmOperator *op, const bool is_modal)
   opdata->num_input.unit_type[1] = B_UNIT_LENGTH;
 
   if (is_modal) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
 
     for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
       Object *obedit = opdata->ob_store[ob_index].ob;
@@ -181,12 +181,12 @@ static bool edbm_inset_init(bContext *C, wmOperator *op, const bool is_modal)
 static void edbm_inset_exit(bContext *C, wmOperator *op)
 {
   InsetData *opdata;
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   opdata = static_cast<InsetData *>(op->customdata);
 
   if (opdata->is_modal) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
       EDBM_redo_state_free(&opdata->ob_store[ob_index].mesh_backup);
     }
@@ -223,7 +223,7 @@ static void edbm_inset_cancel(bContext *C, wmOperator *op)
   edbm_inset_exit(C, op);
 
   /* need to force redisplay or we may still view the modified result */
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
 }
 
 static bool edbm_inset_calc(wmOperator *op)
@@ -333,7 +333,7 @@ static wmOperatorStatus edbm_inset_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus edbm_inset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   InsetData *opdata;
   float mlen[2];
   float center_3d[3];

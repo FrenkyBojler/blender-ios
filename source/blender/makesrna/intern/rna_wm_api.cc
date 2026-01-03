@@ -92,18 +92,18 @@ static void rna_KeyMapItem_to_string(wmKeyMapItem *kmi, bool compact, char *resu
 
 static wmKeyMap *rna_keymap_active(wmKeyMap *km, bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   return WM_keymap_active(wm, km);
 }
 
 static void rna_keymap_restore_to_default(wmKeyMap *km, bContext *C)
 {
-  WM_keymap_restore_to_default(km, CTX_wm_manager(C));
+  WM_keymap_restore_to_default(km, CTX_wm_manager(*C));
 }
 
 static void rna_keymap_restore_item_to_default(wmKeyMap *km, bContext *C, wmKeyMapItem *kmi)
 {
-  WM_keymap_item_restore_to_default(CTX_wm_manager(C), km, kmi);
+  WM_keymap_item_restore_to_default(CTX_wm_manager(*C), km, kmi);
 }
 
 static void rna_Operator_report(wmOperator *op, int type, const char *msg)
@@ -129,14 +129,14 @@ static int rna_Operator_ui_popup(bContext *C, wmOperator *op, int width)
 
 static bool rna_event_modal_handler_add(bContext *C, ReportList *reports, wmOperator *op)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
   if (win == nullptr) {
     BKE_report(reports, RPT_ERROR, "No active window in context!");
     return false;
   }
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
   return WM_event_add_modal_handler_ex(wm, win, area, region, op) != nullptr;
 }
 
@@ -611,7 +611,7 @@ static void rna_KeyConfig_update(wmWindowManager *wm, bool keep_properties)
 /** Check the context that popup is can be used. */
 static bool rna_popup_context_ok_or_report(bContext *C, ReportList *reports)
 {
-  if (CTX_wm_window(C) == nullptr) {
+  if (CTX_wm_window(*C) == nullptr) {
     BKE_report(reports, RPT_ERROR, "context \"window\" is None");
     return false;
   }

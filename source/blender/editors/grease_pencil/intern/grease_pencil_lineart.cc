@@ -335,7 +335,7 @@ static void lineart_bake_endjob(void *customdata)
 {
   LineartBakeJob *bj = static_cast<LineartBakeJob *>(customdata);
 
-  WM_locked_interface_set(CTX_wm_manager(bj->C), false);
+  WM_locked_interface_set(CTX_wm_manager(*bj->C), false);
 
   WM_main_add_notifier(NC_SCENE | ND_FRAME, bj->scene);
 
@@ -359,7 +359,7 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
   LineartBakeJob *bj = MEM_new<LineartBakeJob>(__func__);
 
   if (!bake_all_targets) {
-    Object *ob = CTX_data_active_object(C);
+    Object *ob = CTX_data_active_object(*C);
     if (!ob || ob->type != OB_GREASE_PENCIL) {
       WM_global_report(RPT_ERROR,
                        "No active object, or active object isn't a Grease Pencil object");
@@ -369,7 +369,7 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
   }
   else {
     /* #CTX_DATA_BEGIN is not available for iterating in objects while using the job system. */
-    CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
+    CTX_DATA_BEGIN (*C, Object *, ob, visible_objects) {
       for (ModifierData &md : ob->modifiers) {
         if (md.type == eModifierType_GreasePencilLineart) {
           bj->objects.append(ob);
@@ -380,9 +380,9 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
     CTX_DATA_END;
   }
   bj->C = C;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   bj->scene = scene;
-  bj->dg = CTX_data_depsgraph_pointer(C);
+  bj->dg = CTX_data_depsgraph_pointer(*C);
   bj->frame_begin = scene->r.sfra;
   bj->frame_end = scene->r.efra;
   bj->frame_orig = scene->r.cfra;
@@ -390,8 +390,8 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
   bj->overwrite_frames = true;
 
   if (do_background) {
-    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
-                                CTX_wm_window(C),
+    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                                CTX_wm_window(*C),
                                 scene,
                                 "Baking Line Art...",
                                 WM_JOB_PROGRESS,
@@ -401,9 +401,9 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
     WM_jobs_timer(wm_job, 0.1, NC_GPENCIL | ND_DATA | NA_EDITED, NC_GPENCIL | ND_DATA | NA_EDITED);
     WM_jobs_callbacks(wm_job, lineart_bake_startjob, nullptr, nullptr, lineart_bake_endjob);
 
-    WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
+    WM_locked_interface_set_with_flags(CTX_wm_manager(*C), REGION_DRAW_LOCK_BAKING);
 
-    WM_jobs_start(CTX_wm_manager(C), wm_job);
+    WM_jobs_start(CTX_wm_manager(*C), wm_job);
 
     WM_event_add_modal_handler(C, op);
 
@@ -441,7 +441,7 @@ static wmOperatorStatus lineart_bake_strokes_common_modal(bContext *C,
   Scene *scene = static_cast<Scene *>(op->customdata);
 
   /* no running blender, remove handler and pass through. */
-  if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_LINEART) == 0) {
+  if (WM_jobs_test(CTX_wm_manager(*C), scene, WM_JOB_TYPE_LINEART) == 0) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
@@ -481,7 +481,7 @@ static wmOperatorStatus lineart_gpencil_clear_strokes_exec(bContext *C, wmOperat
   bool clear_all = RNA_boolean_get(op->ptr, "clear_all");
 
   if (clear_all) {
-    CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
+    CTX_DATA_BEGIN (*C, Object *, ob, visible_objects) {
       if (ob->type != OB_GREASE_PENCIL) {
         continue;
       }
@@ -492,7 +492,7 @@ static wmOperatorStatus lineart_gpencil_clear_strokes_exec(bContext *C, wmOperat
     BKE_report(op->reports, RPT_INFO, "All Line Art objects are now cleared of bakes");
   }
   else {
-    Object *ob = CTX_data_active_object(C);
+    Object *ob = CTX_data_active_object(*C);
     if (ob->type != OB_GREASE_PENCIL) {
       return OPERATOR_CANCELLED;
     }

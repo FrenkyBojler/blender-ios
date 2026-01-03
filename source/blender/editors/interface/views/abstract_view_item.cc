@@ -249,8 +249,8 @@ void AbstractViewItem::add_rename_button(Block &block)
   button_flag_disable(rename_but, BUT_UNDO);
 
   const bContext *evil_C = reinterpret_cast<bContext *>(block.evil_C);
-  ARegion *region = CTX_wm_region_popup(evil_C) ? CTX_wm_region_popup(evil_C) :
-                                                  CTX_wm_region(evil_C);
+  ARegion *region = CTX_wm_region_popup(*evil_C) ? CTX_wm_region_popup(*evil_C) :
+                                                   CTX_wm_region(*evil_C);
   /* Returns false if the button was removed. */
   if (button_active_only(evil_C, region, &block, rename_but) == false) {
     end_renaming();

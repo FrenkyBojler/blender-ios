@@ -181,13 +181,13 @@ static blender::animrig::Action &extract_pose(Main &bmain, const Span<Object *> 
  */
 static void ensure_asset_ui_visible(bContext &C)
 {
-  ScrArea *current_area = CTX_wm_area(&C);
+  ScrArea *current_area = CTX_wm_area(C);
   if (!current_area || current_area->type->spaceid != SPACE_VIEW3D) {
     /* Opening the asset shelf will only work from the 3D viewport. */
     return;
   }
 
-  wmWindowManager *wm = CTX_wm_manager(&C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   for (wmWindow &win : wm->windows) {
     const bScreen *screen = WM_window_get_active_screen(&win);
     for (ScrArea &area : screen->areabase) {
@@ -216,13 +216,13 @@ static void ensure_asset_ui_visible(bContext &C)
     return;
   }
   shelf_region->flag &= ~RGN_FLAG_HIDDEN;
-  ED_region_visibility_change_update(&C, CTX_wm_area(&C), shelf_region);
+  ED_region_visibility_change_update(&C, CTX_wm_area(C), shelf_region);
 }
 
 static Vector<Object *> get_selected_pose_objects(bContext *C)
 {
   Vector<PointerRNA> selected_objects;
-  CTX_data_selected_objects(C, &selected_objects);
+  CTX_data_selected_objects(*C, &selected_objects);
 
   Vector<Object *> selected_pose_objects;
   for (const PointerRNA &ptr : selected_objects) {
@@ -233,7 +233,7 @@ static Vector<Object *> get_selected_pose_objects(bContext *C)
     selected_pose_objects.append(object);
   }
 
-  Object *active_object = CTX_data_active_object(C);
+  Object *active_object = CTX_data_active_object(*C);
   /* The active object may not be selected, it should be added because you can still switch to pose
    * mode. */
   if (active_object && active_object->pose && !selected_pose_objects.contains(active_object)) {
@@ -253,7 +253,7 @@ static wmOperatorStatus create_pose_asset_local(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   /* Extract the pose into a new action. */
   blender::animrig::Action &pose_action = extract_pose(*bmain, selected_pose_objects);
   asset::mark_id(&pose_action.id);
@@ -294,7 +294,7 @@ static wmOperatorStatus create_pose_asset_user_library(bContext *C,
                                                        const AssetLibraryReference lib_ref)
 {
   BLI_assert(lib_ref.type == ASSET_LIBRARY_CUSTOM);
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   const bUserAssetLibrary *user_library = BKE_preferences_asset_library_find_index(
       &U, lib_ref.custom_library_index);
@@ -419,7 +419,7 @@ static void visit_library_prop_catalogs_catalog_for_search_fn(
   const AssetLibraryReference lib_ref = asset::library_reference_from_enum_value(enum_value);
 
   asset::visit_library_catalogs_catalog_for_search(
-      *CTX_data_main(C), lib_ref, edit_text, visit_fn);
+      *CTX_data_main(*C), lib_ref, edit_text, visit_fn);
 }
 
 void POSELIB_OT_create_pose_asset(wmOperatorType *ot)
@@ -489,7 +489,7 @@ static const EnumPropertyItem prop_asset_overwrite_modes[] = {
  */
 static bAction *get_action_of_selected_asset(bContext *C)
 {
-  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(*C);
   if (!asset) {
     return nullptr;
   }
@@ -499,7 +499,7 @@ static bAction *get_action_of_selected_asset(bContext *C)
   }
 
   AssetWeakReference asset_reference = asset->make_weak_reference();
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   return reinterpret_cast<bAction *>(
       bke::asset_edit_id_from_weak_reference(*bmain, ID_AC, asset_reference));
 }
@@ -530,7 +530,7 @@ static bool is_pose_asset_blend_editable(const bAction &action, ReportList *repo
  */
 static bool pose_asset_potentially_editable_poll(bContext *C)
 {
-  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(C);
+  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(*C);
   if (!asset_handle || asset_handle->get_id_type() != ID_AC) {
     CTX_wm_operator_poll_msg_set(C, "No selected pose asset");
     return false;
@@ -703,10 +703,10 @@ static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
 
   /* Get asset now. Asset browser might get tagged for refreshing through operations below, and not
    * allow querying items from context until refreshed, see #140781. */
-  const asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  const asset_system::AssetRepresentation *asset = CTX_wm_asset(*C);
 
-  Main *bmain = CTX_data_main(C);
-  Object *pose_object = CTX_data_active_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Object *pose_object = CTX_data_active_object(*C);
   if (!pose_object || !pose_object->pose) {
     return OPERATOR_CANCELLED;
   }
@@ -774,7 +774,7 @@ static wmOperatorStatus pose_asset_delete_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(*C);
   if (ID_IS_LINKED(action) && !is_pose_asset_blend_editable(*action, op->reports)) {
     return OPERATOR_CANCELLED;
   }
@@ -783,7 +783,7 @@ static wmOperatorStatus pose_asset_delete_exec(bContext *C, wmOperator *op)
       asset->owner_asset_library().library_reference();
 
   if (ID_IS_LINKED(action)) {
-    bke::asset_edit_id_delete(*CTX_data_main(C), action->id, *op->reports);
+    bke::asset_edit_id_delete(*CTX_data_main(*C), action->id, *op->reports);
   }
   else {
     asset::clear_id(&action->id);

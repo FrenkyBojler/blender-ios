@@ -145,8 +145,8 @@ static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*
   Object *obedit;
   Scene *scene;
 
-  scene = CTX_data_scene(C);
-  obedit = CTX_data_edit_object(C);
+  scene = CTX_data_scene(*C);
+  obedit = CTX_data_edit_object(*C);
   arm = static_cast<bArmature *>(obedit->data);
 
   /* find the active or selected bone */
@@ -247,9 +247,9 @@ static wmOperatorStatus armature_click_extrude_invoke(bContext *C,
   View3D *v3d;
   float tvec[3], oldcurs[3], mval_f[2];
 
-  scene = CTX_data_scene(C);
-  region = CTX_wm_region(C);
-  v3d = CTX_wm_view3d(C);
+  scene = CTX_data_scene(*C);
+  region = CTX_wm_region(*C);
+  v3d = CTX_wm_view3d(*C);
 
   View3DCursor *cursor = &scene->cursor;
 
@@ -951,7 +951,7 @@ static void update_duplicate_custom_bone_shapes(bContext *C, EditBone *dup_bone,
   pchan = BKE_pose_channel_ensure(ob->pose, dup_bone->name);
 
   if (pchan->custom != nullptr) {
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     char name_flip[MAX_ID_NAME - 2];
 
     /* Invert the X location */
@@ -1104,17 +1104,17 @@ EditBone *duplicateEditBone(EditBone *cur_bone,
 
 static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const bool do_flip_names = RNA_boolean_get(op->ptr, "do_flip_names");
 
   /* cancel if nothing selected */
-  if (CTX_DATA_COUNT(C, selected_bones) == 0) {
+  if (CTX_DATA_COUNT(*C, selected_bones) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   for (Object *ob : objects) {
     EditBone *ebone_iter;
     /* The beginning of the duplicated bones in the edbo list */
@@ -1278,19 +1278,19 @@ static EditBone *get_symmetrized_bone(bArmature *arm, EditBone *bone)
  */
 static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const int direction = RNA_enum_get(op->ptr, "direction");
   const bool copy_bone_colors = RNA_boolean_get(op->ptr, "copy_bone_colors");
   const int axis = 0;
 
   /* cancel if nothing selected */
-  if (CTX_DATA_COUNT(C, selected_bones) == 0) {
+  if (CTX_DATA_COUNT(*C, selected_bones) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
   for (Object *obedit : objects) {
     EditBone *ebone_iter;
     /* The beginning of the duplicated mirrored bones in the edbo list */
@@ -1560,12 +1560,12 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
 /* if forked && mirror-edit: makes two bones with flipped names */
 static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   const bool forked = RNA_boolean_get(op->ptr, "forked");
   bool changed_multi = false;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   enum ExtrudePoint {
     SKIP_EXTRUDE,
@@ -1775,15 +1775,15 @@ void ARMATURE_OT_extrude(wmOperatorType *ot)
 
 static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
-  Object *obedit = CTX_data_edit_object(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  Object *obedit = CTX_data_edit_object(*C);
   EditBone *bone;
   float obmat[3][3], curs[3], viewmat[3][3], totmat[3][3], imat[3][3];
   char name[MAXBONENAME];
 
   RNA_string_get(op->ptr, "name", name);
 
-  copy_v3_v3(curs, CTX_data_scene(C)->cursor.location);
+  copy_v3_v3(curs, CTX_data_scene(*C)->cursor.location);
 
   /* Get inverse point for head and orientation for tail */
   invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
@@ -1868,7 +1868,7 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
 
 static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
 {
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit = CTX_data_edit_object(*C);
   EditBone *newbone;
   int cuts, i;
 
@@ -1876,7 +1876,7 @@ static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
   cuts = RNA_int_get(op->ptr, "number_cuts");
 
   /* loop over all editable bones */
-  CTX_DATA_BEGIN_WITH_ID (C, EditBone *, ebone, selected_editable_bones, bArmature *, arm) {
+  CTX_DATA_BEGIN_WITH_ID (*C, EditBone *, ebone, selected_editable_bones, bArmature *, arm) {
     /* Keep track of the last bone in the editbone list. The newly created ones
      * will be appended after this one. */
     EditBone *last_bone_before_cutting = static_cast<EditBone *>(arm->edbo->last);

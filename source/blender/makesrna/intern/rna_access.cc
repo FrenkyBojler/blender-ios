@@ -2487,7 +2487,7 @@ static void rna_property_update(
     /* if C is nullptr, we're updating from animation.
      * avoid slow-down from f-curves by not publishing (for now). */
     if (C != nullptr) {
-      wmMsgBus *mbus = CTX_wm_message_bus(C);
+      wmMsgBus *mbus = CTX_wm_message_bus(*C);
       /* we could add nullptr check, for now don't */
       WM_msg_publish_rna(mbus, ptr, prop);
     }
@@ -2550,7 +2550,7 @@ bool RNA_property_update_check(PropertyRNA *prop)
 
 void RNA_property_update(bContext *C, PointerRNA *ptr, PropertyRNA *prop)
 {
-  rna_property_update(C, CTX_data_main(C), CTX_data_scene(C), ptr, prop);
+  rna_property_update(C, CTX_data_main(*C), CTX_data_scene(*C), ptr, prop);
 }
 
 void RNA_property_update_main(Main *bmain, Scene *scene, PointerRNA *ptr, PropertyRNA *prop)

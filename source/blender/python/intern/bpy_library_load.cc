@@ -251,7 +251,7 @@ PyDoc_STRVAR(
     "   :type create_liboverrides_runtime: bool\n");
 static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *kw)
 {
-  Main *bmain_base = CTX_data_main(BPY_context_get());
+  Main *bmain_base = CTX_data_main(*BPY_context_get());
   Main *bmain = static_cast<Main *>(self->ptr->data); /* Typically #G_MAIN */
   BPy_Library *ret;
   PyC_UnicodeAsBytesAndSize_Data filepath_data = {nullptr};

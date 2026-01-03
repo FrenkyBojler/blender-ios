@@ -70,13 +70,13 @@ AnimData *ED_actedit_animdata_from_context(const bContext *C, ID **r_adt_id_owne
     }
   }
 
-  SpaceLink *space_data = CTX_wm_space_data(C);
+  SpaceLink *space_data = CTX_wm_space_data(*C);
   if (!space_data || space_data->spacetype != SPACE_ACTION) {
     return nullptr;
   }
 
   SpaceAction *saction = (SpaceAction *)space_data;
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   AnimData *adt = nullptr;
 
   /* Get AnimData block to use */
@@ -118,11 +118,11 @@ static bAction *action_create_new(bContext *C, bAction *oldact)
    */
   if (oldact && GS(oldact->id.name) == ID_AC) {
     /* make a copy of the existing action */
-    action = (bAction *)BKE_id_copy(CTX_data_main(C), &oldact->id);
+    action = (bAction *)BKE_id_copy(CTX_data_main(*C), &oldact->id);
   }
   else {
     /* just make a new (empty) action */
-    action = BKE_action_add(CTX_data_main(C), DATA_("Action"));
+    action = BKE_action_add(CTX_data_main(*C), DATA_("Action"));
   }
 
   /* when creating new ID blocks, there is already 1 user (as for all new datablocks),
@@ -158,14 +158,14 @@ static bool action_new_poll(bContext *C)
     }
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* Check tweak-mode is off (as you don't want to be tampering with the action in that case) */
   /* NOTE: unlike for pushdown,
    * this operator needs to be run when creating an action from nothing... */
   if (ED_operator_action_active(C)) {
-    SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-    Object *ob = CTX_data_active_object(C);
+    SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(*C);
+    Object *ob = CTX_data_active_object(*C);
 
     /* For now, actions are only for the active object, and on object and shape-key levels... */
     if (saction->mode == SACTCONT_ACTION) {
@@ -313,7 +313,7 @@ static wmOperatorStatus action_pushdown_exec(bContext *C, wmOperator * /*op*/)
     /* action can be safely added */
     BKE_nla_action_pushdown({*adt_id_owner, *adt}, ID_IS_OVERRIDE_LIBRARY(adt_id_owner));
 
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
     DEG_id_tag_update_ex(bmain, adt_id_owner, ID_RECALC_ANIMATION);
 
     /* The action needs updating too, as FCurve modifiers are to be reevaluated. They won't extend
@@ -420,8 +420,8 @@ static bool action_stash_create_poll(bContext *C)
        * (which may not be totally valid yet if the action editor was used and things are
        * now in an inconsistent state)
        */
-      SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-      Scene *scene = CTX_data_scene(C);
+      SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(*C);
+      Scene *scene = CTX_data_scene(*C);
 
       if (!(scene->flag & SCE_NLA_EDIT_ON)) {
         /* For now, actions are only for the active object, and on object and shape-key levels...
@@ -565,7 +565,7 @@ void ED_animedit_unlink_action(
   if ((adt) && (adt->flag & ADT_NLA_EDIT_ON)) {
     BKE_nla_tweakmode_exit({*id, *adt});
 
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     if (scene != nullptr) {
       scene->flag &= ~SCE_NLA_EDIT_ON;
     }
@@ -589,7 +589,7 @@ static bool action_unlink_poll(bContext *C)
   if (!animated_id) {
     return false;
   }
-  if (!BKE_id_is_editable(CTX_data_main(C), animated_id)) {
+  if (!BKE_id_is_editable(CTX_data_main(*C), animated_id)) {
     return false;
   }
   return adt && adt->action;

@@ -140,7 +140,7 @@ bool shape_key_is_selected(const Object &object, const KeyBlock &kb, const int k
 
 static void object_shape_key_add(bContext *C, Object *ob, const bool from_mix)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   KeyBlock *kb = BKE_object_shapekey_insert(bmain, ob, nullptr, from_mix);
   if (kb) {
     /* Shapekeys created via this operator should get default value 1.0. */
@@ -341,7 +341,7 @@ static wmOperatorStatus shape_key_add_exec(bContext *C, wmOperator *op)
   object_shape_key_add(C, ob, from_mix);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -383,7 +383,7 @@ static wmOperatorStatus shape_key_copy_exec(bContext *C, wmOperator * /*op*/)
   ob->shapenr = BLI_findindex(&key->block, kb_new) + 1;
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   return OPERATOR_FINISHED;
 }
 
@@ -407,7 +407,7 @@ void OBJECT_OT_shape_key_copy(wmOperatorType *ot)
 
 static wmOperatorStatus shape_key_remove_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_object(C);
   bool changed = false;
 
@@ -472,7 +472,7 @@ static wmOperatorStatus shape_key_remove_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    DEG_relations_tag_update(CTX_data_main(C));
+    DEG_relations_tag_update(CTX_data_main(*C));
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
     return OPERATOR_FINISHED;
@@ -780,7 +780,7 @@ enum {
 
 static wmOperatorStatus shape_key_lock_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   const int action = RNA_enum_get(op->ptr, "action");
   const Key *keys = BKE_key_from_object(ob);
 
@@ -872,7 +872,7 @@ static bool shape_key_make_basis_poll(bContext *C)
 
 static wmOperatorStatus shape_key_make_basis_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   Key *key = BKE_key_from_object(ob);
   KeyBlock *old_basis_key = static_cast<KeyBlock *>(key->block.first);
 

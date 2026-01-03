@@ -112,13 +112,13 @@ void select_layer_channel(GreasePencil &grease_pencil, bke::greasepencil::Layer 
 static wmOperatorStatus grease_pencil_layer_add_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   GreasePencil &grease_pencil = *blender::ed::greasepencil::from_context(*C);
 
   std::string new_layer_name = RNA_string_get(op->ptr, "new_layer_name");
   Layer &new_layer = grease_pencil.add_layer(new_layer_name);
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
 
   if (grease_pencil.has_active_layer()) {
     grease_pencil.move_node_after(new_layer.as_node(),
@@ -126,7 +126,7 @@ static wmOperatorStatus grease_pencil_layer_add_exec(bContext *C, wmOperator *op
   }
   else if (grease_pencil.has_active_group()) {
     grease_pencil.move_node_into(new_layer.as_node(), *grease_pencil.get_active_group());
-    WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+    WM_msg_publish_rna_prop(CTX_wm_message_bus(*C),
                             &grease_pencil.id,
                             &grease_pencil,
                             GreasePencilv3LayerGroup,
@@ -135,7 +135,7 @@ static wmOperatorStatus grease_pencil_layer_add_exec(bContext *C, wmOperator *op
 
   grease_pencil.set_active_layer(&new_layer);
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
 
   grease_pencil.insert_frame(new_layer, scene->r.cfra);
 
@@ -188,9 +188,9 @@ static wmOperatorStatus grease_pencil_layer_remove_exec(bContext *C, wmOperator 
   grease_pencil.remove_layer(*grease_pencil.get_active_layer());
 
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
@@ -264,7 +264,7 @@ static wmOperatorStatus grease_pencil_layer_move_exec(bContext *C, wmOperator *o
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
 
   return OPERATOR_FINISHED;
 }
@@ -288,7 +288,7 @@ static void GREASE_PENCIL_OT_layer_move(wmOperatorType *ot)
 static wmOperatorStatus grease_pencil_layer_active_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   int layer_index = RNA_int_get(op->ptr, "layer");
 
@@ -302,7 +302,7 @@ static wmOperatorStatus grease_pencil_layer_active_exec(bContext *C, wmOperator 
   }
 
   if (grease_pencil.has_active_group()) {
-    WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+    WM_msg_publish_rna_prop(CTX_wm_message_bus(*C),
                             &grease_pencil.id,
                             &grease_pencil,
                             GreasePencilv3LayerGroup,
@@ -311,7 +311,7 @@ static wmOperatorStatus grease_pencil_layer_active_exec(bContext *C, wmOperator 
   grease_pencil.set_active_layer(&layer);
 
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
 
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
 
@@ -345,17 +345,17 @@ static wmOperatorStatus grease_pencil_layer_group_add_exec(bContext *C, wmOperat
 
   LayerGroup &new_group = grease_pencil.add_layer_group(new_layer_group_name);
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
 
   if (grease_pencil.has_active_layer()) {
     grease_pencil.move_node_after(new_group.as_node(),
                                   grease_pencil.get_active_layer()->as_node());
     WM_msg_publish_rna_prop(
-        CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+        CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
   }
   else if (grease_pencil.has_active_group()) {
     grease_pencil.move_node_into(new_group.as_node(), *grease_pencil.get_active_group());
-    WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+    WM_msg_publish_rna_prop(CTX_wm_message_bus(*C),
                             &grease_pencil.id,
                             &grease_pencil,
                             GreasePencilv3LayerGroup,
@@ -365,7 +365,7 @@ static wmOperatorStatus grease_pencil_layer_group_add_exec(bContext *C, wmOperat
   grease_pencil.set_active_node(&new_group.as_node());
 
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3LayerGroup, active);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3LayerGroup, active);
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
@@ -409,9 +409,9 @@ static wmOperatorStatus grease_pencil_layer_group_remove_exec(bContext *C, wmOpe
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
 
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3LayerGroup, active);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3LayerGroup, active);
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
 
   return OPERATOR_FINISHED;
 }
@@ -656,7 +656,7 @@ static wmOperatorStatus grease_pencil_layer_duplicate_exec(bContext *C, wmOperat
       active_layer, duplicate_frames, duplicate_drawings);
 
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
 
   grease_pencil.move_node_after(new_layer.as_node(), active_layer.as_node());
   grease_pencil.set_active_layer(&new_layer);
@@ -665,7 +665,7 @@ static wmOperatorStatus grease_pencil_layer_duplicate_exec(bContext *C, wmOperat
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, nullptr);
 
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
 
   return OPERATOR_FINISHED;
 }
@@ -697,8 +697,8 @@ enum class MergeMode : int8_t {
 static wmOperatorStatus grease_pencil_merge_layer_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
-  Main *bmain = CTX_data_main(C);
-  Object *object = CTX_data_active_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   const MergeMode mode = MergeMode(RNA_enum_get(op->ptr, "mode"));
 
@@ -776,7 +776,7 @@ static wmOperatorStatus grease_pencil_merge_layer_exec(bContext *C, wmOperator *
 
     /* Remove the active group. */
     grease_pencil.remove_group(active_group, true);
-    WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
+    WM_msg_publish_rna_prop(CTX_wm_message_bus(*C),
                             &grease_pencil.id,
                             &grease_pencil,
                             GreasePencilv3LayerGroup,
@@ -817,7 +817,7 @@ static wmOperatorStatus grease_pencil_merge_layer_exec(bContext *C, wmOperator *
   BKE_grease_pencil_nomain_to_grease_pencil(merged_grease_pencil, &grease_pencil);
 
   WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
+      CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
 
   /* Try to set the active (merged) layer. */
   TreeNode *node = grease_pencil.find_node_by_name(merged_layer_name);
@@ -826,7 +826,7 @@ static wmOperatorStatus grease_pencil_merge_layer_exec(bContext *C, wmOperator *
     grease_pencil.set_active_layer(&layer);
 
     WM_msg_publish_rna_prop(
-        CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+        CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
   }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
@@ -1134,14 +1134,14 @@ static void copy_layer_and_frames_to_target_object(
 static wmOperatorStatus grease_pencil_layer_duplicate_object_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
-  Object *src_object = CTX_data_active_object(C);
-  const Scene *scene = CTX_data_scene(C);
+  Object *src_object = CTX_data_active_object(*C);
+  const Scene *scene = CTX_data_scene(*C);
   const int current_frame = scene->r.cfra;
   const GreasePencil &src_grease_pencil = *static_cast<GreasePencil *>(src_object->data);
   const bool only_active = RNA_boolean_get(op->ptr, "only_active");
   const DuplicateCopyMode copy_frame_mode = DuplicateCopyMode(RNA_enum_get(op->ptr, "mode"));
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     if (ob == src_object || ob->type != OB_GREASE_PENCIL) {
       continue;
     }

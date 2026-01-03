@@ -173,7 +173,7 @@ static PyObject *cache_or_get_image_file_func(PyObject * /*self*/, PyObject *arg
   Image *image = static_cast<Image *>(PyLong_AsVoidPtr(pyimage));
 
   std::string image_path = io::hydra::cache_or_get_image_file(
-      CTX_data_main(context), CTX_data_scene(context), image, nullptr);
+      CTX_data_main(*context), CTX_data_scene(*context), image, nullptr);
   return PyC_UnicodeFromStdStr(image_path);
 }
 

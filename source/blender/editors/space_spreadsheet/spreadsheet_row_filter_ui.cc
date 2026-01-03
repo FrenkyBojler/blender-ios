@@ -145,7 +145,7 @@ static const SpreadsheetColumn *lookup_visible_column_for_filter(
 static void spreadsheet_filter_panel_draw_header(const bContext *C, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
   PointerRNA *filter_ptr = ui::panel_custom_data_get(panel);
   const SpreadsheetRowFilter *filter = (SpreadsheetRowFilter *)filter_ptr->data;
   const StringRef column_name = filter->column_name;
@@ -191,7 +191,7 @@ static void spreadsheet_filter_panel_draw_header(const bContext *C, Panel *panel
 static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
   PointerRNA *filter_ptr = ui::panel_custom_data_get(panel);
   SpreadsheetRowFilter *filter = (SpreadsheetRowFilter *)filter_ptr->data;
   const StringRef column_name = filter->column_name;
@@ -283,9 +283,9 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
 static void spreadsheet_row_filters_layout(const bContext *C, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
-  ARegion *region = CTX_wm_region(C);
-  bScreen *screen = CTX_wm_screen(C);
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+  ARegion *region = CTX_wm_region(*C);
+  bScreen *screen = CTX_wm_screen(*C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
   ListBaseT<SpreadsheetRowFilter> *row_filters = &sspreadsheet->row_filters;
 
   if (!(sspreadsheet->filter_flag & SPREADSHEET_FILTER_ENABLE)) {
@@ -332,7 +332,7 @@ static void spreadsheet_row_filters_layout(const bContext *C, Panel *panel)
 
 static void filter_reorder(bContext *C, Panel *panel, int new_index)
 {
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
   ListBaseT<SpreadsheetRowFilter> *row_filters = &sspreadsheet->row_filters;
   PointerRNA *filter_ptr = ui::panel_custom_data_get(panel);
   SpreadsheetRowFilter *filter = (SpreadsheetRowFilter *)filter_ptr->data;

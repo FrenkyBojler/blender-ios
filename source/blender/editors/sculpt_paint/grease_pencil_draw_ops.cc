@@ -218,7 +218,7 @@ void GreasePencilPaintStroke::update_step(wmOperator *op, PointerRNA *stroke_ele
 
 void GreasePencilPaintStroke::redraw(bool /*final*/)
 {
-  ED_region_tag_redraw(CTX_wm_region(this->evil_C));
+  ED_region_tag_redraw(CTX_wm_region(*this->evil_C));
 }
 
 bool GreasePencilPaintStroke::test_cancel()
@@ -362,8 +362,8 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
                                                           wmOperator *op,
                                                           const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(C);
-  const Object *object = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(*C);
+  const Object *object = CTX_data_active_object(*C);
   if (!object || object->type != OB_GREASE_PENCIL) {
     return OPERATOR_CANCELLED;
   }
@@ -471,8 +471,8 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_invoke(bContext *C,
                                                                  wmOperator *op,
                                                                  const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(C);
-  const Object *object = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(*C);
+  const Object *object = CTX_data_active_object(*C);
   if (!object || object->type != OB_GREASE_PENCIL) {
     return OPERATOR_CANCELLED;
   }
@@ -569,8 +569,8 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext *C,
                                                                  wmOperator *op,
                                                                  const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(C);
-  const Object *object = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(*C);
+  const Object *object = CTX_data_active_object(*C);
   if (!object || object->type != OB_GREASE_PENCIL) {
     return OPERATOR_CANCELLED;
   }
@@ -703,7 +703,7 @@ struct GreasePencilFillOpData {
   {
     using blender::bke::greasepencil::Layer;
 
-    const ToolSettings &ts = *CTX_data_tool_settings(&C);
+    const ToolSettings &ts = *CTX_data_tool_settings(C);
     const Brush &brush = *BKE_paint_brush(&ts.gp_paint->paint);
     const eGP_FillExtendModes extension_mode = eGP_FillExtendModes(
         brush.gpencil_settings->fill_extend_mode);
@@ -734,9 +734,9 @@ static void grease_pencil_fill_extension_cut(const bContext &C,
                                              Span<int> origin_drawings,
                                              Span<int> origin_points)
 {
-  const RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
-  const Scene &scene = *CTX_data_scene(&C);
-  const Object &object = *CTX_data_active_object(&C);
+  const RegionView3D &rv3d = *CTX_wm_region_view3d(C);
+  const Scene &scene = *CTX_data_scene(C);
+  const Object &object = *CTX_data_active_object(C);
   const GreasePencil &grease_pencil = *static_cast<const GreasePencil *>(object.data);
 
   const float4x4 view_matrix = float4x4(rv3d.viewmat);
@@ -896,9 +896,9 @@ static void grease_pencil_fill_extension_lines_from_circles(
     Span<int> /*origin_drawings*/,
     Span<int> /*origin_points*/)
 {
-  const RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
-  const Scene &scene = *CTX_data_scene(&C);
-  const Object &object = *CTX_data_active_object(&C);
+  const RegionView3D &rv3d = *CTX_wm_region_view3d(C);
+  const Scene &scene = *CTX_data_scene(C);
+  const Object &object = *CTX_data_active_object(C);
   const GreasePencil &grease_pencil = *static_cast<const GreasePencil *>(object.data);
 
   const float4x4 view_matrix = float4x4(rv3d.viewmat);
@@ -1004,8 +1004,8 @@ static void grease_pencil_fill_extension_lines_from_circles(
 static ed::greasepencil::ExtensionData grease_pencil_fill_get_extension_data(
     const bContext &C, const GreasePencilFillOpData &op_data)
 {
-  const Scene &scene = *CTX_data_scene(&C);
-  const Object &object = *CTX_data_active_object(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  const Object &object = *CTX_data_active_object(C);
   const GreasePencil &grease_pencil = *static_cast<const GreasePencil *>(object.data);
 
   const Vector<ed::greasepencil::DrawingInfo> drawings =
@@ -1111,10 +1111,10 @@ static void grease_pencil_fill_status_indicators(bContext &C,
 /* Draw callback for fill tool overlay. */
 static void grease_pencil_fill_overlay_cb(const bContext *C, ARegion * /*region*/, void *arg)
 {
-  const ARegion &region = *CTX_wm_region(C);
-  const RegionView3D &rv3d = *CTX_wm_region_view3d(C);
-  const Scene &scene = *CTX_data_scene(C);
-  const Object &object = *CTX_data_active_object(C);
+  const ARegion &region = *CTX_wm_region(*C);
+  const RegionView3D &rv3d = *CTX_wm_region_view3d(*C);
+  const Scene &scene = *CTX_data_scene(*C);
+  const Object &object = *CTX_data_active_object(*C);
   const GreasePencil &grease_pencil = *static_cast<const GreasePencil *>(object.data);
   auto &op_data = *static_cast<GreasePencilFillOpData *>(arg);
 
@@ -1210,7 +1210,7 @@ static void grease_pencil_fill_update_overlay(const ARegion &region,
 
 static void grease_pencil_update_extend(bContext &C, GreasePencilFillOpData &op_data)
 {
-  grease_pencil_fill_update_overlay(*CTX_wm_region(&C), op_data);
+  grease_pencil_fill_update_overlay(*CTX_wm_region(C), op_data);
   grease_pencil_fill_status_indicators(C, op_data);
   WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
 }
@@ -1387,20 +1387,20 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
   /* Debug setting: keep image data blocks for inspection. */
   constexpr const bool keep_images = false;
 
-  ARegion &region = *CTX_wm_region(&C);
+  ARegion &region = *CTX_wm_region(C);
   /* Perform bounds check. */
   const bool in_bounds = BLI_rcti_isect_pt_v(&region.winrct, event.xy);
   if (!in_bounds) {
     return false;
   }
 
-  wmWindow &win = *CTX_wm_window(&C);
-  const ViewContext view_context = ED_view3d_viewcontext_init(&C, CTX_data_depsgraph_pointer(&C));
-  const Scene &scene = *CTX_data_scene(&C);
-  Object &object = *CTX_data_active_object(&C);
+  wmWindow &win = *CTX_wm_window(C);
+  const ViewContext view_context = ED_view3d_viewcontext_init(&C, CTX_data_depsgraph_pointer(C));
+  const Scene &scene = *CTX_data_scene(C);
+  Object &object = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
   auto &op_data = *static_cast<GreasePencilFillOpData *>(op.customdata);
-  const ToolSettings &ts = *CTX_data_tool_settings(&C);
+  const ToolSettings &ts = *CTX_data_tool_settings(C);
   Brush &brush = *BKE_paint_brush(&ts.gp_paint->paint);
   const float2 mouse_position = float2(event.mval);
   const int simplify_levels = brush.gpencil_settings->fill_simplylvl;
@@ -1516,9 +1516,9 @@ static bool grease_pencil_fill_init(bContext &C, wmOperator &op)
 {
   using blender::bke::greasepencil::Layer;
 
-  Main &bmain = *CTX_data_main(&C);
-  Scene &scene = *CTX_data_scene(&C);
-  Object &ob = *CTX_data_active_object(&C);
+  Main &bmain = *CTX_data_main(C);
+  Scene &scene = *CTX_data_scene(C);
+  Object &ob = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob.data);
   Paint &paint = scene.toolsettings->gp_paint->paint;
   Brush &brush = *BKE_paint_brush(&paint);
@@ -1559,11 +1559,11 @@ static bool grease_pencil_fill_init(bContext &C, wmOperator &op)
 
 static void grease_pencil_fill_exit(bContext &C, wmOperator &op)
 {
-  const ARegion &region = *CTX_wm_region(&C);
-  Object &ob = *CTX_data_active_object(&C);
+  const ARegion &region = *CTX_wm_region(C);
+  Object &ob = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob.data);
 
-  WM_cursor_modal_restore(CTX_wm_window(&C));
+  WM_cursor_modal_restore(CTX_wm_window(C));
 
   if (op.customdata) {
     auto &op_data = *static_cast<GreasePencilFillOpData *>(op.customdata);
@@ -1590,10 +1590,10 @@ static wmOperatorStatus grease_pencil_fill_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent * /*event*/)
 {
-  const ARegion &region = *CTX_wm_region(C);
-  ToolSettings &ts = *CTX_data_tool_settings(C);
+  const ARegion &region = *CTX_wm_region(*C);
+  ToolSettings &ts = *CTX_data_tool_settings(*C);
   Brush &brush = *BKE_paint_brush(&ts.gp_paint->paint);
-  Object &ob = *CTX_data_active_object(C);
+  Object &ob = *CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob.data);
 
   /* Fill tool needs a material (cannot use default material). */
@@ -1613,7 +1613,7 @@ static wmOperatorStatus grease_pencil_fill_invoke(bContext *C,
   }
   auto &op_data = *static_cast<GreasePencilFillOpData *>(op->customdata);
 
-  WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_PAINT_BRUSH);
+  WM_cursor_modal_set(CTX_wm_window(*C), WM_CURSOR_PAINT_BRUSH);
   grease_pencil_fill_status_indicators(*C, op_data);
   grease_pencil_fill_update_overlay(region, op_data);
 
@@ -1694,10 +1694,10 @@ static wmOperatorStatus grease_pencil_fill_event_modal_map(bContext *C,
         op_data.extension_mouse_pos = (math::distance(base_pos, op_data.fill_mouse_pos) >= gap ?
                                            base_pos :
                                            base_pos - float2(gap, 0));
-        WM_cursor_set(CTX_wm_window(C), WM_CURSOR_EW_ARROW);
+        WM_cursor_set(CTX_wm_window(*C), WM_CURSOR_EW_ARROW);
       }
       if (event->val == KM_RELEASE) {
-        WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_PAINT_BRUSH);
+        WM_cursor_modal_set(CTX_wm_window(*C), WM_CURSOR_PAINT_BRUSH);
         op_data.is_extension_drag_active = false;
       }
       /* Update cursor line. */
@@ -1730,7 +1730,7 @@ static wmOperatorStatus grease_pencil_fill_event_modal_map(bContext *C,
 
 static wmOperatorStatus grease_pencil_fill_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const RegionView3D &rv3d = *CTX_wm_region_view3d(C);
+  const RegionView3D &rv3d = *CTX_wm_region_view3d(*C);
 
   auto &op_data = *static_cast<GreasePencilFillOpData *>(op->customdata);
 
@@ -1751,7 +1751,7 @@ static wmOperatorStatus grease_pencil_fill_modal(bContext *C, wmOperator *op, co
           break;
         }
 
-        const Object &ob = *CTX_data_active_object(C);
+        const Object &ob = *CTX_data_active_object(*C);
         const float pixel_size = ED_view3d_pixel_size(&rv3d, ob.loc);
         const float2 mouse_pos = float2(event->mval);
         const float initial_dist = math::distance(op_data.extension_mouse_pos,
@@ -1894,10 +1894,10 @@ static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *
 {
   using namespace bke::greasepencil;
   using namespace ed::greasepencil;
-  const Scene *scene = CTX_data_scene(C);
-  const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  const ARegion *region = CTX_wm_region(C);
-  Object *object = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(*C);
+  const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  const ARegion *region = CTX_wm_region(*C);
+  Object *object = CTX_data_active_object(*C);
   const Object *ob_eval = DEG_get_evaluated(depsgraph, object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
@@ -2005,10 +2005,10 @@ static wmOperatorStatus grease_pencil_erase_box_exec(bContext *C, wmOperator *op
 {
   using namespace bke::greasepencil;
   using namespace ed::greasepencil;
-  const Scene *scene = CTX_data_scene(C);
-  const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  const ARegion *region = CTX_wm_region(C);
-  Object *object = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(*C);
+  const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  const ARegion *region = CTX_wm_region(*C);
+  Object *object = CTX_data_active_object(*C);
   const Object *ob_eval = DEG_get_evaluated(depsgraph, object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 

@@ -300,12 +300,12 @@ static wmOperatorStatus object_clear_transform_generic_exec(bContext *C,
                                                                                const bool),
                                                             const char default_ksName[])
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   /* May be null. */
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   KeyingSet *ks;
   const bool clear_delta = RNA_boolean_get(op->ptr, "clear_delta");
 
@@ -490,7 +490,7 @@ static wmOperatorStatus object_origin_clear_exec(bContext *C, wmOperator * /*op*
   float *v1, *v3;
   float mat[3][3];
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     if (ob->parent) {
       /* vectors pointed to by v1 and v3 will get modified */
       v1 = ob->loc;
@@ -576,12 +576,12 @@ static void append_sorted_object_parent_hierarchy(Object *root_object,
 
 static Array<Object *> sorted_selected_editable_objects(bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   /* Count all objects, but also tag all the selected ones. */
   BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
   int objects_num = 0;
-  CTX_DATA_BEGIN (C, Object *, object, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, object, selected_editable_objects) {
     object->id.tag |= ID_TAG_DOIT;
     objects_num++;
   }
@@ -593,7 +593,7 @@ static Array<Object *> sorted_selected_editable_objects(bContext *C)
   /* Append all the objects. */
   Array<Object *> sorted_objects(objects_num);
   int object_index = 0;
-  CTX_DATA_BEGIN (C, Object *, object, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, object, selected_editable_objects) {
     if ((object->id.tag & ID_TAG_DOIT) == 0) {
       continue;
     }
@@ -609,7 +609,7 @@ static Array<Object *> sorted_selected_editable_objects(bContext *C)
  */
 static bool apply_objects_internal_can_multiuser(bContext *C)
 {
-  Object *obact = CTX_data_active_object(C);
+  Object *obact = CTX_data_active_object(*C);
 
   if (ELEM(nullptr, obact, obact->data)) {
     return false;
@@ -622,7 +622,7 @@ static bool apply_objects_internal_can_multiuser(bContext *C)
   bool all_objects_same_data = true;
   bool obact_selected = false;
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     if (ob->data != obact->data) {
       all_objects_same_data = false;
       break;
@@ -644,12 +644,12 @@ static bool apply_objects_internal_can_multiuser(bContext *C)
  */
 static bool apply_objects_internal_need_single_user(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   BLI_assert(apply_objects_internal_can_multiuser(C));
 
   /* Counting the number of objects is valid since it's known the
    * selection is only made up of users of the active objects data. */
-  return (ID_REAL_USERS(ob->data) > CTX_DATA_COUNT(C, selected_editable_objects));
+  return (ID_REAL_USERS(ob->data) > CTX_DATA_COUNT(*C, selected_editable_objects));
 }
 
 static wmOperatorStatus apply_objects_internal(bContext *C,
@@ -660,9 +660,9 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
                                                bool do_props,
                                                bool do_single_user)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   float rsmat[3][3], obmat[3][3], iobmat[3][3], mat[4][4], scale;
   bool changed = true;
   bool const do_multi_user = apply_objects_internal_can_multiuser(C);
@@ -673,7 +673,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
   bool make_single_user = false;
 
   if (do_multi_user) {
-    obact = CTX_data_active_object(C);
+    obact = CTX_data_active_object(*C);
     invert_m4_m4(obact_invmat, obact->object_to_world().ptr());
 
     copy_m4_m4(obact_parent, BKE_object_calc_parent(depsgraph, scene, obact).ptr());
@@ -697,7 +697,7 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
   }
 
   /* first check if we can execute */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     if (ELEM(ob->type,
              OB_MESH,
              OB_ARMATURE,
@@ -1094,11 +1094,11 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
 
 static wmOperatorStatus visual_transform_apply_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   bool changed = false;
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
     BKE_object_where_is_calc(depsgraph, scene, ob_eval);
     BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world().ptr(), true, true);
@@ -1217,7 +1217,7 @@ void OBJECT_OT_transform_apply(wmOperatorType *ot)
 
 static wmOperatorStatus object_parent_inverse_apply_exec(bContext *C, wmOperator * /*op*/)
 {
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     if (ob->parent == nullptr) {
       continue;
     }
@@ -1281,11 +1281,11 @@ static void translate_positions(MutableSpan<float3> positions, const float3 &tra
 
 static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Object *obact = CTX_data_active_object(C);
-  Object *obedit = CTX_data_edit_object(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  Object *obact = CTX_data_active_object(*C);
+  Object *obedit = CTX_data_edit_object(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   float3 cent, cent_neg, centn;
   const float *cursor = scene->cursor.location;
   int centermode = RNA_enum_get(op->ptr, "type");
@@ -2101,7 +2101,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
                                                             wmOperator *op,
                                                             const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   if (vc.obact == nullptr || !object_is_target_compat(vc.obact)) {
@@ -2148,7 +2148,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   xfd->object_data.append({});
   xfd->object_data.last().ob = xfd->vc.obact;
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     if ((ob != xfd->vc.obact) && object_is_target_compat(ob)) {
       xfd->object_data.append({});
       xfd->object_data.last().ob = ob;
@@ -2345,7 +2345,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
   }
 
   if (is_finished) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     /* Perform auto-keying for rotational changes for all objects. */
     for (XFormAxisItem &item : xfd->object_data) {
       PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, &RNA_Object, &item.ob->id);

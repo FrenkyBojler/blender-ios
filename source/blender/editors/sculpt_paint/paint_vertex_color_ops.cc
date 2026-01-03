@@ -50,7 +50,7 @@ using blender::Vector;
 
 static bool vertex_weight_paint_mode_poll(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   Mesh *mesh = BKE_mesh_from_object(ob);
   return (ob && ELEM(ob->mode, OB_MODE_VERTEX_PAINT, OB_MODE_WEIGHT_PAINT)) &&
          (mesh && mesh->faces_num && !mesh->deform_verts().is_empty());
@@ -127,7 +127,7 @@ static bool vertex_paint_from_weight(Object &ob)
 
 static wmOperatorStatus vertex_paint_from_weight_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *obact = CTX_data_active_object(C);
+  Object *obact = CTX_data_active_object(*C);
   if (vertex_paint_from_weight(*obact)) {
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obact);
     return OPERATOR_FINISHED;
@@ -221,7 +221,7 @@ static bool vertex_color_smooth(Object &ob)
 
 static wmOperatorStatus vertex_color_smooth_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *obact = CTX_data_active_object(C);
+  Object *obact = CTX_data_active_object(*C);
   if (vertex_color_smooth(*obact)) {
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obact);
     return OPERATOR_FINISHED;
@@ -305,10 +305,10 @@ static void transform_active_color(bContext *C,
 {
   using namespace blender;
   using namespace blender::ed::sculpt_paint;
-  Object &obact = *CTX_data_active_object(C);
+  Object &obact = *CTX_data_active_object(*C);
 
   /* Ensure valid sculpt state. */
-  BKE_sculpt_update_object_for_edit(CTX_data_ensure_evaluated_depsgraph(C), &obact, true);
+  BKE_sculpt_update_object_for_edit(CTX_data_ensure_evaluated_depsgraph(*C), &obact, true);
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(obact);
 
@@ -325,7 +325,7 @@ static void transform_active_color(bContext *C,
 
 static wmOperatorStatus vertex_color_brightness_contrast_exec(bContext *C, wmOperator *op)
 {
-  Object *obact = CTX_data_active_object(C);
+  Object *obact = CTX_data_active_object(*C);
 
   float gain, offset;
   {
@@ -391,7 +391,7 @@ void PAINT_OT_vertex_color_brightness_contrast(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_color_hsv_exec(bContext *C, wmOperator *op)
 {
-  Object *obact = CTX_data_active_object(C);
+  Object *obact = CTX_data_active_object(*C);
 
   const float hue = RNA_float_get(op->ptr, "h");
   const float sat = RNA_float_get(op->ptr, "s");
@@ -446,7 +446,7 @@ void PAINT_OT_vertex_color_hsv(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_color_invert_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *obact = CTX_data_active_object(C);
+  Object *obact = CTX_data_active_object(*C);
 
   Mesh *mesh;
   if (((mesh = BKE_mesh_from_object(obact)) == nullptr) ||
@@ -481,7 +481,7 @@ void PAINT_OT_vertex_color_invert(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_color_levels_exec(bContext *C, wmOperator *op)
 {
-  Object *obact = CTX_data_active_object(C);
+  Object *obact = CTX_data_active_object(*C);
 
   const float gain = RNA_float_get(op->ptr, "gain");
   const float offset = RNA_float_get(op->ptr, "offset");

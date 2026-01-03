@@ -388,7 +388,7 @@ bool ED_pose_deselect_all_multi_ex(const Span<Base *> bases,
 
 bool ED_pose_deselect_all_multi(bContext *C, int select_mode, const bool ignore_visibility)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   Vector<Base *> bases = BKE_object_pose_base_array_get_unique(vc.scene, vc.view_layer, vc.v3d);
@@ -508,7 +508,7 @@ static wmOperatorStatus pose_select_linked_exec(bContext *C, wmOperator * /*op*/
 {
   bPoseChannel *curBone, *next = nullptr;
 
-  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
     if ((pchan->flag & POSE_SELECTED) == 0) {
       continue;
     }
@@ -564,17 +564,17 @@ static wmOperatorStatus pose_de_select_all_exec(bContext *C, wmOperator *op)
 {
   int action = RNA_enum_get(op->ptr, "action");
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   int multipaint = scene->toolsettings->multipaint;
 
   if (action == SEL_TOGGLE) {
-    action = CTX_DATA_COUNT(C, selected_pose_bones) ? SEL_DESELECT : SEL_SELECT;
+    action = CTX_DATA_COUNT(*C, selected_pose_bones) ? SEL_DESELECT : SEL_SELECT;
   }
 
   Object *ob_prev = nullptr;
 
   /* Set the flags. */
-  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     pose_do_bone_select(pchan, action);
 
@@ -618,12 +618,12 @@ void POSE_OT_select_all(wmOperatorType *ot)
 
 static wmOperatorStatus pose_select_parent_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
   bArmature *arm = static_cast<bArmature *>(ob->data);
   bPoseChannel *pchan, *parent;
 
   /* Determine if there is an active bone */
-  pchan = CTX_data_active_pose_bone(C);
+  pchan = CTX_data_active_pose_bone(*C);
   if (pchan) {
     parent = pchan->parent;
     if ((parent) && !(parent->drawflag & PCHAN_DRAW_HIDDEN) &&
@@ -667,7 +667,7 @@ static wmOperatorStatus pose_select_constraint_target_exec(bContext *C, wmOperat
 {
   bool found = false;
 
-  CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones) {
+  CTX_DATA_BEGIN (*C, bPoseChannel *, pchan, visible_pose_bones) {
     if (pchan->flag & POSE_SELECTED) {
       for (bConstraint &con : pchan->constraints) {
         ListBaseT<bConstraintTarget> targets = {nullptr, nullptr};
@@ -725,7 +725,7 @@ void POSE_OT_select_constraint_target(wmOperatorType *ot)
  * selected we then keep the non-active objects untouched (selected/unselected). */
 static wmOperatorStatus pose_select_hierarchy_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
   bArmature *arm = static_cast<bArmature *>(ob->data);
   bPoseChannel *pchan_act;
   int direction = RNA_enum_get(op->ptr, "direction");
@@ -852,7 +852,7 @@ static bool pose_select_same_color(bContext *C, const bool extend)
    * CTX_DATA_END;
    */
   if (!extend) {
-    CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
+    CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
       blender::animrig::bone_deselect(pchan);
       updated_objects.add(ob);
       changed_any_selection = true;
@@ -861,12 +861,12 @@ static bool pose_select_same_color(bContext *C, const bool extend)
   }
 
   /* Use the color of the active pose bone. */
-  bPoseChannel *active_pose_bone = CTX_data_active_pose_bone(C);
+  bPoseChannel *active_pose_bone = CTX_data_active_pose_bone(*C);
   auto color = blender::animrig::ANIM_bonecolor_posebone_get(active_pose_bone);
   used_colors.add(color);
 
   /* Select all visible bones that have the same color. */
-  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
     Bone *bone = pchan->bone;
     if ((bone->flag & BONE_UNSELECTABLE) && (pchan->flag & POSE_SELECTED)) {
       /* Skip bones that are unselectable or already selected. */
@@ -900,14 +900,14 @@ static bool pose_select_same_collection(bContext *C, const bool extend)
   blender::Set<Object *> updated_objects;
 
   /* Refuse to do anything if there is no active pose bone. */
-  bPoseChannel *active_pchan = CTX_data_active_pose_bone(C);
+  bPoseChannel *active_pchan = CTX_data_active_pose_bone(*C);
   if (!active_pchan) {
     return false;
   }
 
   if (!extend) {
     /* Deselect all the bones. */
-    CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
+    CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
       blender::animrig::bone_deselect(pchan);
       updated_objects.add(ob);
       changed_any_selection = true;
@@ -922,7 +922,7 @@ static bool pose_select_same_collection(bContext *C, const bool extend)
   }
 
   /* Select all bones that match any of the collection names. */
-  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
     Bone *bone = pchan->bone;
     if ((pchan->flag & POSE_SELECTED) && bone->flag & BONE_UNSELECTABLE) {
       continue;
@@ -990,7 +990,7 @@ static void deselect_pose_bones(const blender::Set<bPoseChannel *> &pose_bones)
 static bool pose_select_children(bContext *C, const bool all, const bool extend)
 {
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
+      CTX_data_scene(*C), CTX_data_view_layer(*C), CTX_wm_view3d(*C));
 
   bool changed_any_selection = false;
 
@@ -1027,7 +1027,7 @@ static bool pose_select_children(bContext *C, const bool all, const bool extend)
 static bool pose_select_parents(bContext *C, const bool extend)
 {
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
+      CTX_data_scene(*C), CTX_data_view_layer(*C), CTX_wm_view3d(*C));
 
   bool changed_any_selection = false;
   for (Object *pose_object : objects) {
@@ -1055,7 +1055,7 @@ static bool pose_select_parents(bContext *C, const bool extend)
 static bool pose_select_siblings(bContext *C, const bool extend)
 {
   Vector<Object *> objects = BKE_object_pose_array_get_unique(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
+      CTX_data_scene(*C), CTX_data_view_layer(*C), CTX_wm_view3d(*C));
 
   bool changed_any_selection = false;
   for (Object *pose_object : objects) {
@@ -1091,10 +1091,10 @@ static bool pose_select_siblings(bContext *C, const bool extend)
 static bool pose_select_same_keyingset(bContext *C, ReportList *reports, bool extend)
 {
   using namespace blender::animrig;
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   bool changed_multi = false;
-  KeyingSet *ks = scene_get_active_keyingset(CTX_data_scene(C));
+  KeyingSet *ks = scene_get_active_keyingset(CTX_data_scene(*C));
 
   /* sanity checks: validate Keying Set and object */
   if (ks == nullptr) {
@@ -1118,7 +1118,7 @@ static bool pose_select_same_keyingset(bContext *C, ReportList *reports, bool ex
 
   /* if not extending selection, deselect all selected first */
   if (extend == false) {
-    CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones) {
+    CTX_DATA_BEGIN (*C, bPoseChannel *, pchan, visible_pose_bones) {
       if ((pchan->bone->flag & BONE_UNSELECTABLE) == 0) {
         blender::animrig::bone_deselect(pchan);
       }
@@ -1126,7 +1126,8 @@ static bool pose_select_same_keyingset(bContext *C, ReportList *reports, bool ex
     CTX_DATA_END;
   }
 
-  Vector<Object *> objects = BKE_object_pose_array_get_unique(scene, view_layer, CTX_wm_view3d(C));
+  Vector<Object *> objects = BKE_object_pose_array_get_unique(
+      scene, view_layer, CTX_wm_view3d(*C));
 
   for (const int ob_index : objects.index_range()) {
     Object *ob = BKE_object_pose_armature_get(objects[ob_index]);
@@ -1173,7 +1174,7 @@ static bool pose_select_same_keyingset(bContext *C, ReportList *reports, bool ex
 
 static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
   const SelectRelatedMode mode = SelectRelatedMode(RNA_enum_get(op->ptr, "type"));
   const bool extend = RNA_boolean_get(op->ptr, "extend");
   bool changed = false;
@@ -1305,9 +1306,9 @@ static void bone_selection_flags_set(bPoseChannel *pchan, const ePchan_Flag new_
  */
 static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *ob_active = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Object *ob_active = CTX_data_active_object(*C);
 
   const bool is_weight_paint = (ob_active->mode & OB_MODE_WEIGHT_PAINT) != 0;
   const bool active_only = RNA_boolean_get(op->ptr, "only_active");
@@ -1316,7 +1317,8 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
   const auto set_bone_selection_flags = extend ? bone_selection_flags_add :
                                                  bone_selection_flags_set;
 
-  Vector<Object *> objects = BKE_object_pose_array_get_unique(scene, view_layer, CTX_wm_view3d(C));
+  Vector<Object *> objects = BKE_object_pose_array_get_unique(
+      scene, view_layer, CTX_wm_view3d(*C));
   for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     bPoseChannel *pchan_mirror_act = nullptr;

@@ -29,9 +29,9 @@
 
 static wmOperatorStatus view3d_zoom_border_exec(bContext *C, wmOperator *op)
 {
-  ARegion *region = CTX_wm_region(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
   /* Zooms in on a border drawn by the user */
@@ -57,7 +57,7 @@ static wmOperatorStatus view3d_zoom_border_exec(bContext *C, wmOperator *op)
 
   const blender::Bounds<float> dist_range = ED_view3d_dist_soft_range_get(v3d, rv3d->is_persp);
 
-  ED_view3d_depth_override(CTX_data_ensure_evaluated_depsgraph(C),
+  ED_view3d_depth_override(CTX_data_ensure_evaluated_depsgraph(*C),
                            region,
                            v3d,
                            nullptr,
@@ -163,7 +163,7 @@ static wmOperatorStatus view3d_zoom_border_exec(bContext *C, wmOperator *op)
 
   const bool is_camera_lock = ED_view3d_camera_lock_check(v3d, rv3d);
   if (rv3d->persp == RV3D_CAMOB) {
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     if (is_camera_lock) {
       ED_view3d_camera_lock_init(depsgraph, v3d, rv3d);
     }
@@ -179,7 +179,7 @@ static wmOperatorStatus view3d_zoom_border_exec(bContext *C, wmOperator *op)
   ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview_params);
 
   if (RV3D_LOCK_FLAGS(rv3d) & RV3D_BOXVIEW) {
-    view3d_boxview_sync(CTX_wm_area(C), region);
+    view3d_boxview_sync(CTX_wm_area(*C), region);
   }
 
   return OPERATOR_FINISHED;

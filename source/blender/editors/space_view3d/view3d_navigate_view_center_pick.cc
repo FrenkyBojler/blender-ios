@@ -22,12 +22,12 @@
 
 static wmOperatorStatus viewcenter_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
-  ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   if (rv3d) {
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     float ofs_new[3];
     const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 

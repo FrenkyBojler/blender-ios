@@ -48,7 +48,7 @@ static bool WIDGETGROUP_xform_cage_poll(const bContext *C, wmGizmoGroupType *gzg
   if (!ED_gizmo_poll_or_unlink_delayed_from_tool(C, gzgt)) {
     return false;
   }
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_TOOL)) {
     return false;
   }
@@ -102,9 +102,9 @@ static void WIDGETGROUP_xform_cage_setup(const bContext * /*C*/, wmGizmoGroup *g
 
 static void WIDGETGROUP_xform_cage_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   XFormCageWidgetGroup *xgzgroup = static_cast<XFormCageWidgetGroup *>(gzgroup->customdata);
   wmGizmo *gz = xgzgroup->gizmo;
@@ -176,10 +176,10 @@ static void WIDGETGROUP_xform_cage_message_subscribe(const bContext *C,
                                                      wmGizmoGroup *gzgroup,
                                                      wmMsgBus *mbus)
 {
-  Scene *scene = CTX_data_scene(C);
-  bScreen *screen = CTX_wm_screen(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(*C);
+  bScreen *screen = CTX_wm_screen(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
   gizmo_xform_message_subscribe(gzgroup, mbus, scene, screen, area, region, VIEW3D_GGT_xform_cage);
 }
 
@@ -187,9 +187,9 @@ static void WIDGETGROUP_xform_cage_draw_prepare(const bContext *C, wmGizmoGroup 
 {
   XFormCageWidgetGroup *xgzgroup = static_cast<XFormCageWidgetGroup *>(gzgroup->customdata);
 
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     const TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get(scene,
                                                                                  SCE_ORIENT_SCALE);
     switch (orient_slot->type) {

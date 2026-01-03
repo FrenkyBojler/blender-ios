@@ -195,9 +195,9 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
   op->customdata = pso;
 
   /* Get info from context. */
-  pso->scene = CTX_data_scene(C);
-  pso->area = CTX_wm_area(C);     /* Only really needed when doing modal(). */
-  pso->region = CTX_wm_region(C); /* Only really needed when doing modal(). */
+  pso->scene = CTX_data_scene(*C);
+  pso->area = CTX_wm_area(*C);     /* Only really needed when doing modal(). */
+  pso->region = CTX_wm_region(*C); /* Only really needed when doing modal(). */
 
   pso->current_frame = pso->scene->r.cfra;
   pso->mode = mode;
@@ -221,7 +221,7 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
   /* Explicitly setting this to false because we *do* want this to work for armature instances. */
   params.no_dup_data = false;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_mode_params(
-      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C), &params);
+      CTX_data_scene(*C), CTX_data_view_layer(*C), CTX_wm_view3d(*C), &params);
   pso->ob_data_array.reinitialize(objects.size());
 
   for (const int ob_index : objects.index_range()) {
@@ -973,7 +973,7 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
  */
 static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   tPoseSlideOp *pso = static_cast<tPoseSlideOp *>(op->customdata);
 
@@ -1117,7 +1117,7 @@ static bool pose_slide_toggle_axis_locks(wmOperator *op,
 static wmOperatorStatus pose_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   tPoseSlideOp *pso = static_cast<tPoseSlideOp *>(op->customdata);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   bool do_pose_update = false;
 
   const bool has_numinput = hasNumInput(&pso->num);
@@ -1822,9 +1822,9 @@ static void get_selected_frames(ListBaseT<tPChanFCurveLink> *pflinks,
 
 static wmOperatorStatus pose_propagate_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   ListBaseT<tPChanFCurveLink> pflinks = {nullptr, nullptr};
 

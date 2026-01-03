@@ -135,7 +135,7 @@ static bool python_script_exec(
   PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
 
-  Main *bmain_old = CTX_data_main(C);
+  Main *bmain_old = CTX_data_main(*C);
   PyObject *py_dict = nullptr, *py_result = nullptr;
 
   char filepath_dummy[FILE_MAX];
@@ -197,7 +197,7 @@ static bool python_script_exec(
     if (text) {
       if (do_jump) {
         /* ensure text is valid before use, the script may have freed itself */
-        Main *bmain_new = CTX_data_main(C);
+        Main *bmain_new = CTX_data_main(*C);
         if ((bmain_old == bmain_new) && (BLI_findindex(&bmain_new->texts, text) != -1)) {
           python_script_error_jump_text(text, filepath_namespace);
         }
@@ -275,7 +275,7 @@ static bool bpy_run_string_impl(bContext *C,
 
   if (retval == nullptr) {
     ok = false;
-    if (ReportList *wm_reports = C ? CTX_wm_reports(C) : nullptr) {
+    if (ReportList *wm_reports = C ? CTX_wm_reports(*C) : nullptr) {
       BPy_errors_to_report(wm_reports);
     }
     PyErr_Print();

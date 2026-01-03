@@ -129,7 +129,7 @@ static bool copy_data_path_button_poll(bContext *C)
 
 static wmOperatorStatus copy_data_path_button_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   PointerRNA ptr;
   PropertyRNA *prop;
   int index;
@@ -218,7 +218,7 @@ static bool copy_as_driver_button_poll(bContext *C)
 
 static wmOperatorStatus copy_as_driver_button_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   PointerRNA ptr;
   PropertyRNA *prop;
   int index;
@@ -380,7 +380,7 @@ static wmOperatorStatus reset_default_button_exec(bContext *C, wmOperator *op)
     if (RNA_property_reset(&ptr, prop, array_index)) {
 
       /* Apply auto keyframe when property is successfully reset. */
-      Scene *scene = CTX_data_scene(C);
+      Scene *scene = CTX_data_scene(*C);
       animrig::autokeyframe_property(C, scene, &ptr, prop, array_index, scene->r.cfra, true);
 
       return operator_button_property_finish_with_undo(C, &ptr, prop);
@@ -526,7 +526,7 @@ static bool override_add_button_poll(bContext *C)
   context_active_but_prop_get(C, &ptr, &prop, &index);
 
   const uint override_status = RNA_property_override_library_status(
-      CTX_data_main(C), &ptr, prop, index);
+      CTX_data_main(*C), &ptr, prop, index);
 
   return (ptr.data && prop && (override_status & RNA_OVERRIDE_STATUS_OVERRIDABLE));
 }
@@ -551,7 +551,7 @@ static wmOperatorStatus override_add_button_exec(bContext *C, wmOperator *op)
   }
 
   IDOverrideLibraryPropertyOperation *opop = RNA_property_override_property_operation_get(
-      CTX_data_main(C), &ptr, prop, operation, index, true, nullptr, &created);
+      CTX_data_main(*C), &ptr, prop, operation, index, true, nullptr, &created);
 
   if (opop == nullptr) {
     /* Sometimes e.g. RNA cannot generate a path to the given property. */
@@ -596,14 +596,14 @@ static bool override_remove_button_poll(bContext *C)
   context_active_but_prop_get(C, &ptr, &prop, &index);
 
   const uint override_status = RNA_property_override_library_status(
-      CTX_data_main(C), &ptr, prop, index);
+      CTX_data_main(*C), &ptr, prop, index);
 
   return (ptr.data && ptr.owner_id && prop && (override_status & RNA_OVERRIDE_STATUS_OVERRIDDEN));
 }
 
 static wmOperatorStatus override_remove_button_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   PointerRNA ptr, src;
   PropertyRNA *prop;
   int index;
@@ -751,7 +751,7 @@ static wmOperatorStatus override_idtemplate_make_exec(bContext *C, wmOperator * 
   }
 
   ID *id_override = template_id_liboverride_hierarchy_make(
-      C, CTX_data_main(C), owner_id, id, nullptr);
+      C, CTX_data_main(*C), owner_id, id, nullptr);
 
   if (id_override == nullptr) {
     return OPERATOR_CANCELLED;
@@ -772,7 +772,7 @@ static wmOperatorStatus override_idtemplate_make_exec(bContext *C, wmOperator * 
 
   /* 'Security' extra tagging, since this process may also affect the owner ID and not only the
    * used ID, relying on the property update code only is not always enough. */
-  DEG_id_tag_update(&CTX_data_scene(C)->id, ID_RECALC_BASE_FLAGS | ID_RECALC_SYNC_TO_EVAL);
+  DEG_id_tag_update(&CTX_data_scene(*C)->id, ID_RECALC_BASE_FLAGS | ID_RECALC_SYNC_TO_EVAL);
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
   WM_event_add_notifier(C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
@@ -816,7 +816,7 @@ static wmOperatorStatus override_idtemplate_reset_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  BKE_lib_override_library_id_reset(CTX_data_main(C), id, false);
+  BKE_lib_override_library_id_reset(CTX_data_main(*C), id, false);
 
   /* `idptr` is re-assigned to owner property to ensure proper updates etc. */
   PointerRNA idptr = RNA_id_pointer_create(id);
@@ -863,9 +863,9 @@ static wmOperatorStatus override_idtemplate_clear_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(*C);
   ID *id_new = id;
 
   if (BKE_lib_override_library_is_hierarchy_leaf(bmain, id)) {
@@ -1063,7 +1063,7 @@ bool context_copy_to_selected_list(bContext *C,
     std::optional<std::string> idpath;
 
     /* First, check the active PoseBone and PoseBone->Bone. */
-    if (NOT_RNA_NULL(owner_ptr = CTX_data_pointer_get_type(C, "active_pose_bone", &RNA_PoseBone)))
+    if (NOT_RNA_NULL(owner_ptr = CTX_data_pointer_get_type(*C, "active_pose_bone", &RNA_PoseBone)))
     {
       idpath = RNA_path_from_struct_to_idproperty(&owner_ptr,
                                                   static_cast<const IDProperty *>(ptr->data));
@@ -1083,7 +1083,7 @@ bool context_copy_to_selected_list(bContext *C,
     if (!idpath) {
       /* Check the active EditBone if in edit mode. */
       if (NOT_RNA_NULL(
-              owner_ptr = CTX_data_pointer_get_type_silent(C, "active_bone", &RNA_EditBone)))
+              owner_ptr = CTX_data_pointer_get_type_silent(*C, "active_bone", &RNA_EditBone)))
       {
         idpath = RNA_path_from_struct_to_idproperty(&owner_ptr,
                                                     static_cast<const IDProperty *>(ptr->data));
@@ -1251,7 +1251,7 @@ bool context_copy_to_selected_list(bContext *C,
     CTX_data_collection_remap_property(list_of_things, "metadata");
     *r_lb = list_of_things;
   }
-  else if (CTX_wm_space_outliner(C)) {
+  else if (CTX_wm_space_outliner(*C)) {
     const ID *id = ptr->owner_id;
     if (!(id && (GS(id->name) == ID_OB))) {
       return false;
@@ -1493,7 +1493,7 @@ bool context_copy_to_selected_check(PointerRNA *ptr,
  */
 static bool copy_to_selected_button(bContext *C, bool all, bool poll)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   PointerRNA ptr, lptr;
   PropertyRNA *prop, *lprop;
   int index;
@@ -1823,7 +1823,7 @@ static wmOperatorStatus copy_driver_to_selected_button_exec(bContext *C, wmOpera
     return OPERATOR_CANCELLED;
   }
 
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
   return OPERATOR_FINISHED;
 }
@@ -1881,8 +1881,8 @@ static bool jump_to_target_ptr(bContext *C, PointerRNA ptr, const bool poll)
   }
 
   /* Find the containing Object. */
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Base *base = nullptr;
   const short id_type = GS(ptr.owner_id->name);
   if (id_type == ID_OB) {
@@ -2114,11 +2114,11 @@ static wmOperatorStatus editsource_exec(bContext *C, wmOperator *op)
   Button *but = context_active_but_get(C);
 
   if (but) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     wmOperatorStatus ret;
 
     /* needed else the active button does not get tested */
-    UI_screen_free_active_but_highlight(C, CTX_wm_screen(C));
+    UI_screen_free_active_but_highlight(C, CTX_wm_screen(*C));
 
     // printf("%s: begin\n", __func__);
 
@@ -2231,9 +2231,9 @@ static void UI_OT_reloadtranslation(wmOperatorType *ot)
 
 static wmOperatorStatus ui_button_press_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
   const bool skip_depressed = RNA_boolean_get(op->ptr, "skip_depressed");
-  ARegion *region_prev = CTX_wm_region(C);
+  ARegion *region_prev = CTX_wm_region(*C);
   ARegion *region = screen ? BKE_screen_find_region_xy(screen, RGN_TYPE_ANY, event->xy) : nullptr;
 
   if (region == nullptr) {
@@ -2263,7 +2263,7 @@ static wmOperatorStatus ui_button_press_invoke(bContext *C, wmOperator *op, cons
 
   but->optype = static_cast<wmOperatorType *>(but_optype);
 
-  WM_event_add_mousemove(CTX_wm_window(C));
+  WM_event_add_mousemove(CTX_wm_window(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -2319,8 +2319,8 @@ bool drop_color_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
   /* should only return true for regions that include buttons, for now
    * return true always */
   if (drag->type == WM_DRAG_COLOR) {
-    SpaceImage *sima = CTX_wm_space_image(C);
-    ARegion *region = CTX_wm_region(C);
+    SpaceImage *sima = CTX_wm_space_image(*C);
+    ARegion *region = CTX_wm_region(*C);
 
     if (button_active_drop_color(C)) {
       return true;
@@ -2347,7 +2347,7 @@ void drop_color_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
 
 static wmOperatorStatus drop_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   Button *but = nullptr;
 
   float color[4];
@@ -2472,11 +2472,11 @@ static void UI_OT_drop_name(wmOperatorType *ot)
 
 static bool ui_list_focused_poll(bContext *C)
 {
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   if (!region) {
     return false;
   }
-  const wmWindow *win = CTX_wm_window(C);
+  const wmWindow *win = CTX_wm_window(*C);
   const uiList *list = list_find_mouse_over(region, win->runtime->eventstate);
 
   return list != nullptr;
@@ -2501,7 +2501,7 @@ static wmOperatorStatus ui_list_start_filter_invoke(bContext *C,
                                                     wmOperator * /*op*/,
                                                     const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   uiList *list = list_find_mouse_over(region, event);
   /* Poll should check. */
   BLI_assert(list != nullptr);
@@ -2535,12 +2535,12 @@ static void UI_OT_list_start_filter(wmOperatorType *ot)
 
 static AbstractView *get_view_focused(bContext *C)
 {
-  const wmWindow *win = CTX_wm_window(C);
+  const wmWindow *win = CTX_wm_window(*C);
   if (!(win && win->runtime->eventstate)) {
     return nullptr;
   }
 
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   if (!region) {
     return nullptr;
   }
@@ -2557,7 +2557,7 @@ static wmOperatorStatus ui_view_start_filter_invoke(bContext *C,
                                                     wmOperator * /*op*/,
                                                     const wmEvent *event)
 {
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   const AbstractView *hovered_view = region_view_find_at(region, event->xy, 0);
 
   if (!hovered_view->begin_filtering(*C)) {
@@ -2587,11 +2587,11 @@ static void UI_OT_view_start_filter(wmOperatorType *ot)
 
 static bool ui_view_drop_poll(bContext *C)
 {
-  const wmWindow *win = CTX_wm_window(C);
+  const wmWindow *win = CTX_wm_window(*C);
   if (!(win && win->runtime->eventstate)) {
     return false;
   }
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   if (region == nullptr) {
     return false;
   }
@@ -2604,7 +2604,7 @@ static wmOperatorStatus ui_view_drop_invoke(bContext *C, wmOperator * /*op*/, co
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   std::unique_ptr<DropTargetInterface> drop_target = region_views_find_drop_target_at(region,
                                                                                       event->xy);
 
@@ -2653,7 +2653,7 @@ static wmOperatorStatus ui_view_scroll_invoke(bContext *C,
                                               wmOperator * /*op*/,
                                               const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   int type = event->type;
   bool invert_direction = false;
 
@@ -2719,7 +2719,7 @@ static void UI_OT_view_scroll(wmOperatorType *ot)
 
 static bool ui_view_item_rename_poll(bContext *C)
 {
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   if (region == nullptr) {
     return false;
   }
@@ -2729,7 +2729,7 @@ static bool ui_view_item_rename_poll(bContext *C)
 
 static wmOperatorStatus ui_view_item_rename_exec(bContext *C, wmOperator * /*op*/)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   AbstractViewItem *active_item = region_views_find_active_item(region);
 
   view_item_begin_rename(*active_item);
@@ -2821,7 +2821,7 @@ static std::pair<AbstractView *, AbstractViewItem *> select_operator_view_and_it
 
 static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
 {
-  ARegion &region = *CTX_wm_region(C);
+  ARegion &region = *CTX_wm_region(*C);
   auto [view, clicked_item] = select_operator_view_and_item_find_xy(region, *op);
 
   if (!view) {
@@ -2845,7 +2845,7 @@ static wmOperatorStatus ui_view_item_select_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent *event)
 {
-  const ARegion &region = *CTX_wm_region(C);
+  const ARegion &region = *CTX_wm_region(*C);
   const AbstractViewItem *clicked_item = region_views_find_item_at(region, event->xy);
 
   /* Wait with selecting to see if there's a click or drag event, if requested by the view item. */
@@ -2915,13 +2915,13 @@ static void UI_OT_view_item_delete(wmOperatorType *ot)
 
 static bool ui_drop_material_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "object", &RNA_Object);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "object", &RNA_Object);
   const Object *ob = static_cast<const Object *>(ptr.data);
   if (ob == nullptr) {
     return false;
   }
 
-  PointerRNA mat_slot = CTX_data_pointer_get_type(C, "material_slot", &RNA_MaterialSlot);
+  PointerRNA mat_slot = CTX_data_pointer_get_type(*C, "material_slot", &RNA_MaterialSlot);
   if (RNA_pointer_is_null(&mat_slot)) {
     return false;
   }
@@ -2931,7 +2931,7 @@ static bool ui_drop_material_poll(bContext *C)
 
 static wmOperatorStatus ui_drop_material_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   Material *ma = (Material *)WM_operator_properties_id_lookup_from_name_or_session_uid(
       bmain, op->ptr, ID_MA);
@@ -2939,11 +2939,11 @@ static wmOperatorStatus ui_drop_material_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "object", &RNA_Object);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "object", &RNA_Object);
   Object *ob = static_cast<Object *>(ptr.data);
   BLI_assert(ob);
 
-  PointerRNA mat_slot = CTX_data_pointer_get_type(C, "material_slot", &RNA_MaterialSlot);
+  PointerRNA mat_slot = CTX_data_pointer_get_type(*C, "material_slot", &RNA_MaterialSlot);
   BLI_assert(mat_slot.data);
   const int target_slot = RNA_int_get(&mat_slot, "slot_index") + 1;
 

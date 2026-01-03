@@ -76,7 +76,7 @@ static void drawArrow(const uint pos_id, const enum eArrowDirection dir)
 
 bool transform_draw_cursor_poll(bContext *C)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   return (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_PREVIEW)) ? true : false;
 }
 
@@ -108,8 +108,8 @@ void transform_draw_cursor_draw(bContext *C,
   float viewport_size[4];
   GPU_viewport_size_get_f(viewport_size);
 
-  Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   float fg_color[4];
   float bg_color[4];

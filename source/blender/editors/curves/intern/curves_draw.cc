@@ -585,7 +585,7 @@ static bool curve_draw_init(bContext *C, wmOperator *op, bool is_invoke)
 
   CurveDrawData *cdd = MEM_callocN<CurveDrawData>(__func__);
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
   if (is_invoke) {
     cdd->vc = ED_view3d_viewcontext_init(C, depsgraph);
@@ -596,11 +596,11 @@ static bool curve_draw_init(bContext *C, wmOperator *op, bool is_invoke)
     }
   }
   else {
-    cdd->vc.bmain = CTX_data_main(C);
+    cdd->vc.bmain = CTX_data_main(*C);
     cdd->vc.depsgraph = depsgraph;
-    cdd->vc.scene = CTX_data_scene(C);
-    cdd->vc.view_layer = CTX_data_view_layer(C);
-    cdd->vc.obedit = CTX_data_edit_object(C);
+    cdd->vc.scene = CTX_data_scene(*C);
+    cdd->vc.view_layer = CTX_data_view_layer(*C);
+    cdd->vc.obedit = CTX_data_edit_object(*C);
 
     /* Using an empty stroke complicates logic later,
      * it's simplest to disallow early on (see: #94085). */

@@ -284,8 +284,8 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
                                                           wmOperator *op,
                                                           const float mouse[2])
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
   ToolSettings *settings = scene->toolsettings;
   std::unique_ptr<PaintOperation> pop = std::make_unique<PaintOperation>();
   Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
@@ -295,12 +295,12 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
   copy_v2_v2(pop->prevmouse, mouse);
   copy_v2_v2(pop->startmouse, mouse);
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   /* initialize from context */
-  if (CTX_wm_region_view3d(C)) {
+  if (CTX_wm_region_view3d(*C)) {
     bool uvs, mat, tex, stencil;
     if (!ED_paint_proj_mesh_data_check(*scene, *ob, &uvs, &mat, &tex, &stencil)) {
       ED_paint_data_warning(op->reports, uvs, mat, tex, stencil);
@@ -396,7 +396,7 @@ void ImagePaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
   }
 
   if ((brush->flag & BRUSH_DRAG_DOT) || (brush->flag & BRUSH_ANCHORED)) {
-    UndoStack *ustack = CTX_wm_manager(this->evil_C)->runtime->undo_stack;
+    UndoStack *ustack = CTX_wm_manager(*this->evil_C)->runtime->undo_stack;
     ED_image_undo_restore(ustack->step_init);
   }
 
@@ -417,7 +417,7 @@ void ImagePaintStroke::redraw(bool final)
 
 void ImagePaintStroke::done(const bool is_cancel)
 {
-  Scene *scene = CTX_data_scene(this->evil_C);
+  Scene *scene = CTX_data_scene(*this->evil_C);
   ToolSettings *toolsettings = scene->toolsettings;
   PaintOperation *pop = static_cast<PaintOperation *>(mode_data_.get());
   const Paint *paint = BKE_paint_get_active_from_context(this->evil_C);
@@ -577,7 +577,7 @@ static wmOperatorStatus paint_modal(bContext *C, wmOperator *op, const wmEvent *
 static void paint_cancel(bContext *C, wmOperator *op)
 {
   ImagePaintStroke *stroke = static_cast<ImagePaintStroke *>(op->customdata);
-  UndoStack *ustack = CTX_wm_manager(C)->runtime->undo_stack;
+  UndoStack *ustack = CTX_wm_manager(*C)->runtime->undo_stack;
   if (ustack->step_init) {
     /* If the user cancels a stroke when none actually started, there is nothing to undo from. */
     ED_image_undo_restore(ustack->step_init);

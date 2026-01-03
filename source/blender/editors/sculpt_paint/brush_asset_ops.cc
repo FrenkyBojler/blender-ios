@@ -55,7 +55,7 @@ static wmOperatorStatus brush_asset_activate_exec(bContext *C, wmOperator *op)
   /* This operator currently covers both cases: the file/asset browser file list and the asset list
    * used for the asset-view template. Once the asset list design is used by the Asset Browser,
    * this can be simplified to just that case. */
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   if (G.background) {
     /* As asset loading can take upwards of a few minutes on production libraries, we typically
@@ -148,7 +148,7 @@ static bool brush_asset_save_as_poll(bContext *C)
 
 static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
 
@@ -344,7 +344,7 @@ static void visit_library_prop_catalogs_catalog_for_search_fn(
 {
   /* NOTE: Using the all library would also be a valid choice. */
   asset::visit_library_catalogs_catalog_for_search(
-      *CTX_data_main(C), asset::get_asset_library_ref_from_opptr(*ptr), edit_text, visit_fn);
+      *CTX_data_main(*C), asset::get_asset_library_ref_from_opptr(*ptr), edit_text, visit_fn);
 }
 
 void BRUSH_OT_asset_save_as(wmOperatorType *ot)
@@ -374,7 +374,7 @@ void BRUSH_OT_asset_save_as(wmOperatorType *ot)
 
 static wmOperatorStatus brush_asset_edit_metadata_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
   BLI_assert(ID_IS_ASSET(&brush->id));
@@ -463,7 +463,7 @@ static void visit_active_library_catalogs_catalog_for_search_fn(
 
   /* NOTE: Using the all library would also be a valid choice. */
   asset::visit_library_catalogs_catalog_for_search(
-      *CTX_data_main(C), *library.library_reference(), edit_text, visit_fn);
+      *CTX_data_main(*C), *library.library_reference(), edit_text, visit_fn);
 }
 
 static bool brush_asset_edit_metadata_poll(bContext *C)
@@ -483,7 +483,7 @@ static bool brush_asset_edit_metadata_poll(bContext *C)
     return false;
   }
   const asset_system::AssetRepresentation *asset = asset::find_asset_from_weak_ref(
-      *C, *brush_weak_ref, CTX_wm_reports(C));
+      *C, *brush_weak_ref, CTX_wm_reports(*C));
   if (!asset) {
     /* May happen if library loading hasn't finished. */
     return false;
@@ -525,7 +525,7 @@ void BRUSH_OT_asset_edit_metadata(wmOperatorType *ot)
 
 static wmOperatorStatus brush_asset_load_preview_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
   BLI_assert(ID_IS_ASSET(&brush->id));
@@ -607,7 +607,7 @@ static wmOperatorStatus brush_asset_delete_exec(bContext *C, wmOperator *op)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bUserAssetLibrary *library = (paint->brush_asset_reference) ?
                                    BKE_preferences_asset_library_find_by_name(
                                        &U,
@@ -672,7 +672,7 @@ static std::optional<AssetLibraryReference> get_asset_library_reference(const bC
     return std::nullopt;
   }
   const asset_system::AssetRepresentation *asset = asset::find_asset_from_weak_ref(
-      C, *brush_weak_ref, CTX_wm_reports(&C));
+      C, *brush_weak_ref, CTX_wm_reports(C));
   if (!asset) {
     /* May happen if library loading hasn't finished. */
     return std::nullopt;
@@ -710,7 +710,7 @@ static bool brush_asset_save_poll(bContext *C)
 
 static wmOperatorStatus brush_asset_save_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
   const AssetWeakReference *asset_weak_ref = paint->brush_asset_reference;
@@ -767,7 +767,7 @@ static bool brush_asset_revert_poll(bContext *C)
 
 static wmOperatorStatus brush_asset_revert_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
 

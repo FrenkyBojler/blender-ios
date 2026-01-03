@@ -58,7 +58,7 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel);
  */
 static ListBaseT<FModifier> *fmodifier_list_space_specific(const bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   if (area->spacetype == SPACE_GRAPH) {
     FCurve *fcu = ANIM_graph_context_fcurve(C);
@@ -87,7 +87,7 @@ static PointerRNA *fmodifier_get_pointers(const bContext *C, const Panel *panel,
     *r_owner_id = ptr->owner_id;
   }
 
-  if (C != nullptr && CTX_wm_space_graph(C)) {
+  if (C != nullptr && CTX_wm_space_graph(*C)) {
     const FCurve *fcu = ANIM_graph_context_fcurve(C);
     panel->layout->active_set(!(fcu->flag & FCURVE_MOD_OFF));
   }
@@ -576,7 +576,7 @@ static void panel_register_noise(ARegionType *region_type,
 
 static void fmod_envelope_addpoint_cb(bContext *C, void *fcm_dv, void * /*arg*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   FMod_Envelope *env = static_cast<FMod_Envelope *>(fcm_dv);
   FCM_EnvelopeData *fedn;
   FCM_EnvelopeData fed;
@@ -871,7 +871,7 @@ void ANIM_fmodifier_panels(const bContext *C,
                            ListBaseT<FModifier> *fmodifiers,
                            uiListPanelIDFromDataFunc panel_id_fn)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   bool panels_match = blender::ui::panel_list_matches_data(region, fmodifiers, panel_id_fn);
 

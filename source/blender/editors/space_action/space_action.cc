@@ -205,8 +205,8 @@ static void set_v2d_height(View2D *v2d, const size_t item_count, const bool add_
 static void action_main_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
-  SpaceAction *saction = CTX_wm_space_action(C);
-  Scene *scene = CTX_data_scene(C);
+  SpaceAction *saction = CTX_wm_space_action(*C);
+  Scene *scene = CTX_data_scene(*C);
   bAnimContext ac;
   View2D *v2d = &region->v2d;
   short marker_flag = 0;
@@ -271,7 +271,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   marker_flag = ((ac.markers && (ac.markers != &ac.scene->markers)) ? DRAW_MARKERS_LOCAL : 0) |
                 DRAW_MARKERS_MARGIN;
 
-  if (ED_markers_region_visible(CTX_wm_area(C), region)) {
+  if (ED_markers_region_visible(CTX_wm_area(*C), region)) {
     ED_markers_draw(C, marker_flag);
   }
 
@@ -299,9 +299,9 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
 static void action_main_region_draw_overlay(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
-  const SpaceAction *saction = CTX_wm_space_action(C);
-  const Scene *scene = CTX_data_scene(C);
-  const Object *obact = CTX_data_active_object(C);
+  const SpaceAction *saction = CTX_wm_space_action(*C);
+  const Scene *scene = CTX_data_scene(*C);
+  const Object *obact = CTX_data_active_object(*C);
   View2D *v2d = &region->v2d;
 
   /* caches */

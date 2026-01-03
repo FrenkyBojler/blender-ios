@@ -140,7 +140,7 @@ static IDProperty **rna_ViewLayer_system_idprops(PointerRNA *ptr)
 
 static bool rna_LayerCollection_visible_get(LayerCollection *layer_collection, bContext *C)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   if ((v3d == nullptr) || ((v3d->flag & V3D_LOCAL_COLLECTIONS) == 0)) {
     return (layer_collection->runtime_flag & LAYER_COLLECTION_VISIBLE_VIEW_LAYER) != 0;
@@ -263,8 +263,8 @@ static void rna_ObjectBase_select_update(Main * /*bmain*/, Scene * /*scene*/, Po
 
 static void rna_ObjectBase_hide_viewport_update(bContext *C, PointerRNA * /*ptr*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_need_resync_tag(view_layer);
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);

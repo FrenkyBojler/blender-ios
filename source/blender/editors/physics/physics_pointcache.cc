@@ -36,12 +36,12 @@
 
 static bool ptcache_bake_all_poll(bContext *C)
 {
-  return CTX_data_scene(C) != nullptr;
+  return CTX_data_scene(*C) != nullptr;
 }
 
 static bool ptcache_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "point_cache", &RNA_PointCache);
 
   ID *id = ptr.owner_id;
   PointCache *point_cache = static_cast<PointCache *>(ptr.data);
@@ -66,7 +66,7 @@ static bool ptcache_poll(bContext *C)
 
 static bool ptcache_add_remove_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "point_cache", &RNA_PointCache);
 
   ID *id = ptr.owner_id;
   PointCache *point_cache = static_cast<PointCache *>(ptr.data);
@@ -177,18 +177,18 @@ static PTCacheBaker *ptcache_baker_create(bContext *C, wmOperator *op, bool all)
 {
   PTCacheBaker *baker = MEM_callocN<PTCacheBaker>("PTCacheBaker");
 
-  baker->bmain = CTX_data_main(C);
-  baker->scene = CTX_data_scene(C);
-  baker->view_layer = CTX_data_view_layer(C);
+  baker->bmain = CTX_data_main(*C);
+  baker->scene = CTX_data_scene(*C);
+  baker->view_layer = CTX_data_view_layer(*C);
   /* Depsgraph is used to sweep the frame range and evaluate scene at different times. */
-  baker->depsgraph = CTX_data_depsgraph_pointer(C);
+  baker->depsgraph = CTX_data_depsgraph_pointer(*C);
   baker->bake = RNA_boolean_get(op->ptr, "bake");
   baker->render = false;
   baker->anim_init = false;
   baker->quick_step = 1;
 
   if (!all) {
-    PointerRNA ptr = CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+    PointerRNA ptr = CTX_data_pointer_get_type(*C, "point_cache", &RNA_PointCache);
     ID *id = ptr.owner_id;
     Object *ob = (GS(id->name) == ID_OB) ? (Object *)id : nullptr;
     PointCache *cache = static_cast<PointCache *>(ptr.data);
@@ -214,14 +214,14 @@ static wmOperatorStatus ptcache_bake_invoke(bContext *C, wmOperator *op, const w
   bool all = STREQ(op->type->idname, "PTCACHE_OT_bake_all");
 
   PointCacheJob *job = MEM_mallocN<PointCacheJob>("PointCacheJob");
-  job->wm = CTX_wm_manager(C);
+  job->wm = CTX_wm_manager(*C);
   job->baker = ptcache_baker_create(C, op, all);
   job->baker->bake_job = job;
   job->baker->update_progress = ptcache_job_update;
 
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
-                              CTX_wm_window(C),
-                              CTX_data_scene(C),
+  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                              CTX_wm_window(*C),
+                              CTX_data_scene(*C),
                               "Baking point cache...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_POINTCACHE);
@@ -230,9 +230,9 @@ static wmOperatorStatus ptcache_bake_invoke(bContext *C, wmOperator *op, const w
   WM_jobs_timer(wm_job, 0.1, NC_OBJECT | ND_POINTCACHE, NC_OBJECT | ND_POINTCACHE);
   WM_jobs_callbacks(wm_job, ptcache_job_startjob, nullptr, nullptr, ptcache_job_endjob);
 
-  WM_locked_interface_set(CTX_wm_manager(C), true);
+  WM_locked_interface_set(CTX_wm_manager(*C), true);
 
-  WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_jobs_start(CTX_wm_manager(*C), wm_job);
 
   WM_event_add_modal_handler(C, op);
 
@@ -247,7 +247,7 @@ static wmOperatorStatus ptcache_bake_modal(bContext *C, wmOperator *op, const wm
   Scene *scene = (Scene *)op->customdata;
 
   /* no running blender, remove handler and pass through */
-  if (0 == WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_POINTCACHE)) {
+  if (0 == WM_jobs_test(CTX_wm_manager(*C), scene, WM_JOB_TYPE_POINTCACHE)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
@@ -256,7 +256,7 @@ static wmOperatorStatus ptcache_bake_modal(bContext *C, wmOperator *op, const wm
 
 static void ptcache_bake_cancel(bContext *C, wmOperator *op)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   Scene *scene = (Scene *)op->customdata;
 
   /* kill on cancel, because job is using op->reports */
@@ -265,7 +265,7 @@ static void ptcache_bake_cancel(bContext *C, wmOperator *op)
 
 static wmOperatorStatus ptcache_free_bake_all_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ListBaseT<PTCacheID> pidlist;
 
   FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
@@ -322,7 +322,7 @@ void PTCACHE_OT_free_bake_all(wmOperatorType *ot)
 
 static wmOperatorStatus ptcache_free_bake_exec(bContext *C, wmOperator * /*op*/)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "point_cache", &RNA_PointCache);
   PointCache *cache = static_cast<PointCache *>(ptr.data);
   Object *ob = (Object *)ptr.owner_id;
 
@@ -334,7 +334,7 @@ static wmOperatorStatus ptcache_free_bake_exec(bContext *C, wmOperator * /*op*/)
 }
 static wmOperatorStatus ptcache_bake_from_cache_exec(bContext *C, wmOperator * /*op*/)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "point_cache", &RNA_PointCache);
   PointCache *cache = static_cast<PointCache *>(ptr.data);
   Object *ob = (Object *)ptr.owner_id;
 
@@ -394,8 +394,8 @@ void PTCACHE_OT_bake_from_cache(wmOperatorType *ot)
 
 static wmOperatorStatus ptcache_add_new_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+  Scene *scene = CTX_data_scene(*C);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "point_cache", &RNA_PointCache);
   Object *ob = (Object *)ptr.owner_id;
   PointCache *cache = static_cast<PointCache *>(ptr.data);
   PTCacheID pid = BKE_ptcache_id_find(ob, scene, cache);
@@ -414,8 +414,8 @@ static wmOperatorStatus ptcache_add_new_exec(bContext *C, wmOperator * /*op*/)
 }
 static wmOperatorStatus ptcache_remove_exec(bContext *C, wmOperator * /*op*/)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
-  Scene *scene = CTX_data_scene(C);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "point_cache", &RNA_PointCache);
+  Scene *scene = CTX_data_scene(*C);
   Object *ob = (Object *)ptr.owner_id;
   PointCache *cache = static_cast<PointCache *>(ptr.data);
   PTCacheID pid = BKE_ptcache_id_find(ob, scene, cache);

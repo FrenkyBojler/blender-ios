@@ -45,7 +45,7 @@ static bool multires_poll(bContext *C)
 
 static wmOperatorStatus multires_higher_levels_delete_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Object *ob = context_active_object(C);
   MultiresModifierData *mmd = (MultiresModifierData *)edit_modifier_property_get(
       op, ob, eModifierType_Multires);
@@ -56,7 +56,7 @@ static wmOperatorStatus multires_higher_levels_delete_exec(bContext *C, wmOperat
 
   multiresModifier_del_levels(mmd, scene, ob, 1);
 
-  iter_other(CTX_data_main(C), ob, true, multires_update_totlevels, &mmd->totlvl);
+  iter_other(CTX_data_main(*C), ob, true, multires_update_totlevels, &mmd->totlvl);
 
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
@@ -127,7 +127,7 @@ static wmOperatorStatus multires_subdivide_exec(bContext *C, wmOperator *op)
                                                                                            "mode");
   multiresModifier_subdivide(object, mmd, subdivide_mode);
 
-  iter_other(CTX_data_main(C), object, true, multires_update_totlevels, &mmd->totlvl);
+  iter_other(CTX_data_main(*C), object, true, multires_update_totlevels, &mmd->totlvl);
 
   DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
@@ -135,7 +135,7 @@ static wmOperatorStatus multires_subdivide_exec(bContext *C, wmOperator *op)
   if (object->mode & OB_MODE_SCULPT) {
     /* ensure that grid paint mask layer is created */
     BKE_sculpt_mask_layers_ensure(
-        CTX_data_ensure_evaluated_depsgraph(C), CTX_data_main(C), object, mmd);
+        CTX_data_ensure_evaluated_depsgraph(*C), CTX_data_main(*C), object, mmd);
   }
 
   return OPERATOR_FINISHED;
@@ -180,7 +180,7 @@ void OBJECT_OT_multires_subdivide(wmOperatorType *ot)
 
 static wmOperatorStatus multires_reshape_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Object *ob = context_active_object(C), *secondob = nullptr;
   MultiresModifierData *mmd = (MultiresModifierData *)edit_modifier_property_get(
       op, ob, eModifierType_Multires);
@@ -194,7 +194,7 @@ static wmOperatorStatus multires_reshape_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  CTX_DATA_BEGIN (C, Object *, selob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, selob, selected_editable_objects) {
     if (selob->type == OB_MESH && selob != ob) {
       secondob = selob;
       break;
@@ -251,7 +251,7 @@ void OBJECT_OT_multires_reshape(wmOperatorType *ot)
 
 static wmOperatorStatus multires_external_save_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   Mesh *mesh = (ob) ? static_cast<Mesh *>(ob->data) : static_cast<Mesh *>(op->customdata);
   char filepath[FILE_MAX];
@@ -382,7 +382,7 @@ void OBJECT_OT_multires_external_pack(wmOperatorType *ot)
 
 static wmOperatorStatus multires_base_apply_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   Object *object = context_active_object(C);
   MultiresModifierData *mmd = (MultiresModifierData *)edit_modifier_property_get(
       op, object, eModifierType_Multires);
@@ -448,7 +448,7 @@ void OBJECT_OT_multires_base_apply(wmOperatorType *ot)
 
 static wmOperatorStatus multires_unsubdivide_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   Object *object = context_active_object(C);
   MultiresModifierData *mmd = (MultiresModifierData *)edit_modifier_property_get(
       op, object, eModifierType_Multires);
@@ -502,7 +502,7 @@ void OBJECT_OT_multires_unsubdivide(wmOperatorType *ot)
 
 static wmOperatorStatus multires_rebuild_subdiv_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   Object *object = context_active_object(C);
   MultiresModifierData *mmd = (MultiresModifierData *)edit_modifier_property_get(
       op, object, eModifierType_Multires);

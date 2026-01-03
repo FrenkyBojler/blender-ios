@@ -52,8 +52,8 @@
 
 static wmOperatorStatus buttons_start_filter_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceProperties *space = CTX_wm_space_properties(C);
-  ScrArea *area = CTX_wm_area(C);
+  SpaceProperties *space = CTX_wm_space_properties(*C);
+  ScrArea *area = CTX_wm_area(*C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
   blender::ui::textbutton_activate_rna(C, region, space, "search_filter");
@@ -75,12 +75,12 @@ void BUTTONS_OT_start_filter(wmOperatorType *ot)
 
 static wmOperatorStatus buttons_clear_filter_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceProperties *space = CTX_wm_space_properties(C);
+  SpaceProperties *space = CTX_wm_space_properties(*C);
 
   space->runtime->search_string[0] = '\0';
 
-  ScrArea *area = CTX_wm_area(C);
-  ED_region_search_filter_update(area, CTX_wm_region(C));
+  ScrArea *area = CTX_wm_area(*C);
+  ED_region_search_filter_update(area, CTX_wm_region(*C));
   ED_area_tag_redraw(area);
 
   return OPERATOR_FINISHED;
@@ -106,12 +106,12 @@ void BUTTONS_OT_clear_filter(wmOperatorType *ot)
 
 static wmOperatorStatus toggle_pin_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
 
   sbuts->flag ^= SB_PIN_CONTEXT;
 
   /* Create the properties space pointer. */
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
   PointerRNA sbuts_ptr = RNA_pointer_create_discrete(&screen->id, &RNA_SpaceProperties, sbuts);
 
   /* Create the new ID pointer and set the pin ID with RNA
@@ -120,7 +120,7 @@ static wmOperatorStatus toggle_pin_exec(bContext *C, wmOperator * /*op*/)
   PointerRNA new_id_ptr = RNA_id_pointer_create(new_id);
   RNA_pointer_set(&sbuts_ptr, "pin_id", new_id_ptr);
 
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -197,7 +197,7 @@ static bool file_browse_operator_relative_paths_supported(wmOperator *op)
 
 static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   FileBrowseOp *fbo = static_cast<FileBrowseOp *>(op->customdata);
   char *path;
   const char *path_prop = RNA_struct_find_property(op->ptr, "directory") ? "directory" :
@@ -291,7 +291,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
   bool is_userdef;
   char *path;
 
-  const SpaceFile *sfile = CTX_wm_space_file(C);
+  const SpaceFile *sfile = CTX_wm_space_file(*C);
   if (sfile && sfile->op) {
     BKE_report(op->reports, RPT_ERROR, "Cannot activate a file selector dialog, one already open");
     return OPERATOR_CANCELLED;

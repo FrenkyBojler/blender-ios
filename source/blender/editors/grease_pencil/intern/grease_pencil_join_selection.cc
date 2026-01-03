@@ -496,8 +496,8 @@ wmOperatorStatus grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
 {
   using namespace bke::greasepencil;
 
-  const Scene *scene = CTX_data_scene(C);
-  Object *object = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(*C);
+  Object *object = CTX_data_active_object(*C);
   const bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(
       scene->toolsettings, object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);

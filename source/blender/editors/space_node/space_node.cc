@@ -841,7 +841,7 @@ static void node_area_refresh(const bContext *C, ScrArea *area)
 
   snode_set_context(*C);
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (snode->nodetree && snode->nodetree == scene->compositing_node_group) {
     if (snode->runtime->recalc_regular_compositing) {
       snode->runtime->recalc_regular_compositing = false;
@@ -952,7 +952,7 @@ static void node_main_region_draw(const bContext *C, ARegion *region)
 
 static bool node_group_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
 
   if (snode == nullptr) {
     return false;
@@ -1022,7 +1022,7 @@ static bool node_color_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*ev
 
 static bool node_import_file_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   if (!snode) {
     return false;
   }
@@ -1051,7 +1051,7 @@ static bool node_socket_drop_poll(bContext *C, wmDrag *drag, const wmEvent *even
   if (drag->type != WM_DRAG_NODE_TREE_INTERFACE) {
     return false;
   }
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   if (!snode || !snode->edittree) {
     return false;
   }
@@ -1091,7 +1091,7 @@ static bool node_panel_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event
   if (drag->type != WM_DRAG_NODE_TREE_INTERFACE) {
     return false;
   }
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   if (!snode || !snode->edittree) {
     return false;
   }
@@ -1412,7 +1412,7 @@ static int /*eContextResult*/ node_context(const bContext *C,
                                            const char *member,
                                            bContextDataResult *result)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, node_context_dir);

@@ -352,7 +352,7 @@ static wmOperatorStatus viewzoom_modal_impl(bContext *C,
   switch (event_code) {
     case VIEW_APPLY: {
       viewzoom_apply(vod, xy, (eViewZoom_Style)U.viewzoom, (U.uiflag & USER_ZOOM_INVERT) != 0);
-      if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+      if (ED_screen_animation_playing(CTX_wm_manager(*C))) {
         use_autokey = true;
       }
       break;
@@ -432,10 +432,10 @@ static wmOperatorStatus viewzoom_exec(bContext *C, wmOperator *op)
 {
   BLI_assert(op->customdata == nullptr);
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
@@ -507,7 +507,7 @@ static wmOperatorStatus viewzoom_invoke_impl(bContext *C,
 
   if (U.viewzoom == USER_ZOOM_CONTINUE) {
     /* needs a timer to continue redrawing */
-    vod->timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
+    vod->timer = WM_event_timer_add(CTX_wm_manager(*C), CTX_wm_window(*C), TIMER, 0.01f);
     vod->prev.time = BLI_time_now_seconds();
   }
 

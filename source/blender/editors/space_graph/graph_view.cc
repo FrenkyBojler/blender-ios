@@ -470,7 +470,7 @@ static wmOperatorStatus graphkeys_create_ghostcurves_exec(bContext *C, wmOperato
   create_ghost_curves(&ac, start, end);
 
   /* Update this editor only. */
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -520,7 +520,7 @@ static wmOperatorStatus graphkeys_clear_ghostcurves_exec(bContext *C, wmOperator
   BKE_fcurves_free(&sipo->runtime.ghost_curves);
 
   /* Update this editor only. */
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 
   return OPERATOR_FINISHED;
 }

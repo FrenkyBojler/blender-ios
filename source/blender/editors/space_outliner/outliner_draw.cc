@@ -183,7 +183,7 @@ static void restrictbutton_bone_visibility_fn(bContext *C, void *poin, void *poi
 {
   const Object *ob = (Object *)poin;
   bPoseChannel *pchan = (bPoseChannel *)poin2;
-  if (CTX_wm_window(C)->runtime->eventstate->modifier & KM_SHIFT) {
+  if (CTX_wm_window(*C)->runtime->eventstate->modifier & KM_SHIFT) {
     blender::animrig::pose_bone_descendent_iterator(
         *ob->pose, *pchan, [&](bPoseChannel &descendent) {
           if (pchan->drawflag & PCHAN_DRAW_HIDDEN) {
@@ -205,7 +205,7 @@ static void restrictbutton_bone_select_fn(bContext *C, void *poin, void *poin2)
     bone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
   }
 
-  if (CTX_wm_window(C)->runtime->eventstate->modifier & KM_SHIFT) {
+  if (CTX_wm_window(*C)->runtime->eventstate->modifier & KM_SHIFT) {
     restrictbutton_recursive_bone(bone, BONE_UNSELECTABLE, (bone->flag & BONE_UNSELECTABLE) != 0);
   }
 
@@ -222,7 +222,7 @@ static void restrictbutton_ebone_select_fn(bContext *C, void *poin, void *poin2)
     ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
   }
 
-  if (CTX_wm_window(C)->runtime->eventstate->modifier & KM_SHIFT) {
+  if (CTX_wm_window(*C)->runtime->eventstate->modifier & KM_SHIFT) {
     restrictbutton_recursive_ebone(
         arm, ebone, BONE_UNSELECTABLE, (ebone->flag & BONE_UNSELECTABLE) != 0);
   }
@@ -238,7 +238,7 @@ static void restrictbutton_ebone_visibility_fn(bContext *C, void *poin, void *po
     ebone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
   }
 
-  if (CTX_wm_window(C)->runtime->eventstate->modifier & KM_SHIFT) {
+  if (CTX_wm_window(*C)->runtime->eventstate->modifier & KM_SHIFT) {
     restrictbutton_recursive_ebone(arm, ebone, BONE_HIDDEN_A, (ebone->flag & BONE_HIDDEN_A) != 0);
   }
 
@@ -272,10 +272,10 @@ static void outliner_object_set_flag_recursive_fn(bContext *C,
                                                   Object *ob,
                                                   const char *propname)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindow *win = CTX_wm_window(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   bool extend = (win->runtime->eventstate->modifier & KM_SHIFT);
 
@@ -635,10 +635,10 @@ static void outliner_collection_set_flag_recursive_fn(bContext *C,
                                                       Collection *collection,
                                                       const char *propname)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindow *win = CTX_wm_window(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   bool do_isolate = (win->runtime->eventstate->modifier & KM_CTRL);
   bool extend = (win->runtime->eventstate->modifier & KM_SHIFT);
@@ -727,9 +727,9 @@ static void scenes__collection_set_flag_recursive_fn(bContext *C, void *poin, vo
 
 static void namebutton_fn(bContext *C, void *tsep, char *oldname)
 {
-  Main *bmain = CTX_data_main(C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  Main *bmain = CTX_data_main(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
   BLI_mempool *ts = space_outliner->treestore;
   TreeStoreElem *tselem = static_cast<TreeStoreElem *>(tsep);
 
@@ -784,13 +784,13 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
         STRNCPY(expanded, lib->filepath);
         BLI_path_abs(expanded, BKE_main_blendfile_path(bmain));
         if (!BLI_exists(expanded)) {
-          BKE_reportf(CTX_wm_reports(C),
+          BKE_reportf(CTX_wm_reports(*C),
                       RPT_ERROR,
                       "Library path '%s' does not exist, correct this before saving",
                       expanded);
         }
         else if (lib->id.tag & ID_TAG_MISSING) {
-          BKE_reportf(CTX_wm_reports(C),
+          BKE_reportf(CTX_wm_reports(*C),
                       RPT_INFO,
                       "Library path '%s' is now valid, please reload the library",
                       expanded);
@@ -2219,7 +2219,7 @@ static void outliner_buttons(const bContext *C,
 
 static void outliner_mode_toggle_fn(bContext *C, void *tselem_poin, void * /*arg2*/)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   TreeStoreElem *tselem = (TreeStoreElem *)tselem_poin;
   TreeViewContext tvc;
   outliner_viewcontext_init(C, &tvc);
@@ -2235,7 +2235,7 @@ static void outliner_mode_toggle_fn(bContext *C, void *tselem_poin, void * /*arg
   Object *ob = (Object *)tselem->id;
   const bool object_data_shared = (ob->data == tvc.obact->data);
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   const bool do_extend = (win->runtime->eventstate->modifier & KM_CTRL) && !object_data_shared;
   outliner_item_mode_toggle(C, tvc, te, do_extend);
 }
@@ -3970,11 +3970,11 @@ static void outliner_update_viewable_area(ARegion *region,
 
 void draw_outliner(const bContext *C, bool do_rebuild)
 {
-  Main *mainvar = CTX_data_main(C);
-  WorkSpace *workspace = CTX_wm_workspace(C);
-  ARegion *region = CTX_wm_region(C);
+  Main *mainvar = CTX_data_main(*C);
+  WorkSpace *workspace = CTX_wm_workspace(*C);
+  ARegion *region = CTX_wm_region(*C);
   View2D *v2d = &region->v2d;
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   ui::Block *block;
   TreeElement *te_edit = nullptr;
 

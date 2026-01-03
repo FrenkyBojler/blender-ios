@@ -100,9 +100,10 @@ ListBaseT<bConstraint> *constraint_active_list(Object *ob)
 
 ListBaseT<bConstraint> *pose_constraint_list(const bContext *C)
 {
-  bPoseChannel *pose_bone = static_cast<bPoseChannel *>(CTX_data_pointer_get(C, "pose_bone").data);
+  bPoseChannel *pose_bone = static_cast<bPoseChannel *>(
+      CTX_data_pointer_get(*C, "pose_bone").data);
   if (pose_bone == nullptr) {
-    pose_bone = static_cast<bPoseChannel *>(CTX_data_pointer_get(C, "active_pose_bone").data);
+    pose_bone = static_cast<bPoseChannel *>(CTX_data_pointer_get(*C, "active_pose_bone").data);
     if (pose_bone == nullptr) {
       return nullptr;
     }
@@ -574,7 +575,7 @@ static bool edit_constraint_poll_generic(bContext *C,
                                          StructRNA *rna_type,
                                          const bool is_liboverride_allowed)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", rna_type);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "constraint", rna_type);
   Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(C);
   bConstraint *con = static_cast<bConstraint *>(ptr.data);
 
@@ -631,7 +632,7 @@ static bool edit_constraint_invoke_properties(bContext *C,
                                               const wmEvent *event,
                                               wmOperatorStatus *r_retval)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "constraint", &RNA_Constraint);
   Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(C);
   bConstraint *con;
   ListBaseT<bConstraint> *list;
@@ -732,7 +733,7 @@ static bConstraint *edit_constraint_property_get(bContext *C, wmOperator *op, Ob
 
 static wmOperatorStatus stretchto_reset_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_STRETCHTO);
   bStretchToConstraint *data = (con) ? (bStretchToConstraint *)con->data : nullptr;
@@ -789,7 +790,7 @@ void CONSTRAINT_OT_stretchto_reset(wmOperatorType *ot)
 
 static wmOperatorStatus limitdistance_reset_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_DISTLIMIT);
   bDistLimitConstraint *data = (con) ? (bDistLimitConstraint *)con->data : nullptr;
@@ -851,7 +852,7 @@ static void force_evaluation_if_constraint_disabled(bContext *C, Object *ob, bCo
     return;
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
 
   short flag_backup = con->flag;
@@ -863,7 +864,7 @@ static void force_evaluation_if_constraint_disabled(bContext *C, Object *ob, bCo
 /* ChildOf Constraint - set inverse callback */
 static wmOperatorStatus childof_set_inverse_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_CHILDOF);
   bChildOfConstraint *data = (con) ? (bChildOfConstraint *)con->data : nullptr;
@@ -919,7 +920,7 @@ void CONSTRAINT_OT_childof_set_inverse(wmOperatorType *ot)
 /* ChildOf Constraint - clear inverse callback */
 static wmOperatorStatus childof_clear_inverse_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_CHILDOF);
   bChildOfConstraint *data = (con) ? (bChildOfConstraint *)con->data : nullptr;
@@ -954,7 +955,7 @@ static bool childof_clear_inverse_poll(bContext *C)
     return false;
   }
 
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "constraint", &RNA_Constraint);
   bConstraint *con = static_cast<bConstraint *>(ptr.data);
 
   /* Allow workflows with unset context's constraint.
@@ -1003,7 +1004,7 @@ void CONSTRAINT_OT_childof_clear_inverse(wmOperatorType *ot)
 
 static wmOperatorStatus followpath_path_animate_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_FOLLOWPATH);
   bFollowPathConstraint *data = (con) ? (bFollowPathConstraint *)con->data : nullptr;
@@ -1144,7 +1145,7 @@ void CONSTRAINT_OT_followpath_path_animate(wmOperatorType *ot)
 
 static wmOperatorStatus objectsolver_set_inverse_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_OBJECTSOLVER);
   bObjectSolverConstraint *data = (con) ? (bObjectSolverConstraint *)con->data : nullptr;
@@ -1206,7 +1207,7 @@ void CONSTRAINT_OT_objectsolver_set_inverse(wmOperatorType *ot)
 
 static wmOperatorStatus objectsolver_clear_inverse_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   bConstraint *con = edit_constraint_property_get(C, op, ob, CONSTRAINT_TYPE_OBJECTSOLVER);
   bObjectSolverConstraint *data = (con) ? (bObjectSolverConstraint *)con->data : nullptr;
@@ -1241,7 +1242,7 @@ static bool objectsolver_clear_inverse_poll(bContext *C)
     return false;
   }
 
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "constraint", &RNA_Constraint);
   bConstraint *con = static_cast<bConstraint *>(ptr.data);
   if (con == nullptr) {
     return true;
@@ -1413,7 +1414,7 @@ void constraint_copy_for_pose(Main *bmain, Object *ob_dst, bPoseChannel *pchan, 
 
 static wmOperatorStatus constraint_delete_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   bConstraint *con = edit_constraint_property_get(C, op, ob, 0);
 
@@ -1483,9 +1484,9 @@ void CONSTRAINT_OT_delete(wmOperatorType *ot)
 
 static wmOperatorStatus constraint_apply_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   bConstraint *con = edit_constraint_property_get(C, op, ob, 0);
 
@@ -1582,7 +1583,7 @@ void CONSTRAINT_OT_apply(wmOperatorType *ot)
 
 static wmOperatorStatus constraint_copy_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *ob = context_active_object(C);
   bConstraint *con = edit_constraint_property_get(C, op, ob, 0);
 
@@ -1667,7 +1668,7 @@ void CONSTRAINT_OT_copy(wmOperatorType *ot)
 
 static wmOperatorStatus constraint_copy_to_selected_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *obact = context_active_object(C);
   bConstraint *con = edit_constraint_property_get(C, op, obact, 0);
 
@@ -1688,7 +1689,7 @@ static wmOperatorStatus constraint_copy_to_selected_exec(bContext *C, wmOperator
     Object *prev_ob = nullptr;
 
     /* Copy all constraints from active pose-bone to all selected pose-bones. */
-    CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, chan, selected_pose_bones, Object *, ob) {
+    CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, chan, selected_pose_bones, Object *, ob) {
       /* If we're not handling the object we're copying from, copy all constraints over. */
       if (pchan == chan) {
         continue;
@@ -1712,7 +1713,7 @@ static wmOperatorStatus constraint_copy_to_selected_exec(bContext *C, wmOperator
   }
   else {
     /* Copy all constraints from active object to all selected objects. */
-    CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+    CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
       /* If we're not handling the object we're copying from, copy all constraints over. */
       if (obact == ob) {
         continue;
@@ -1747,7 +1748,7 @@ static wmOperatorStatus constraint_copy_to_selected_invoke(bContext *C,
 
 static bool constraint_copy_to_selected_poll(bContext *C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "constraint", &RNA_Constraint);
   Object *obact = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(C);
   bConstraint *con = static_cast<bConstraint *>(ptr.data);
   bPoseChannel *pchan;
@@ -1755,7 +1756,7 @@ static bool constraint_copy_to_selected_poll(bContext *C)
 
   if (pchan) {
     bool found = false;
-    CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, chan, selected_pose_bones, Object *, ob) {
+    CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, chan, selected_pose_bones, Object *, ob) {
       UNUSED_VARS(ob);
       if (pchan != chan) {
         /** NOTE: Can not return here, because CTX_DATA_BEGIN_WITH_ID allocated
@@ -1779,7 +1780,7 @@ static bool constraint_copy_to_selected_poll(bContext *C)
   }
 
   bool found = false;
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     if (ob != obact) {
       /** NOTE: Can not return here, because CTX_DATA_BEGIN allocated
        * a list that needs to be freed by CTX_DATA_END. */
@@ -1832,7 +1833,7 @@ static wmOperatorStatus constraint_move_down_exec(bContext *C, wmOperator *op)
     BLI_remlink(conlist, con);
     BLI_insertlinkafter(conlist, nextCon, con);
 
-    constraint_update(CTX_data_main(C), ob);
+    constraint_update(CTX_data_main(*C), ob);
     WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
 
     return OPERATOR_FINISHED;
@@ -1890,7 +1891,7 @@ static wmOperatorStatus constraint_move_up_exec(bContext *C, wmOperator *op)
     BLI_remlink(conlist, con);
     BLI_insertlinkbefore(conlist, prevCon, con);
 
-    constraint_update(CTX_data_main(C), ob);
+    constraint_update(CTX_data_main(*C), ob);
     WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
 
     return OPERATOR_FINISHED;
@@ -1944,7 +1945,7 @@ static wmOperatorStatus constraint_move_to_index_exec(bContext *C, wmOperator *o
   if (con) {
     constraint_move_to_index(ob, con, new_index);
 
-    constraint_update(CTX_data_main(C), ob);
+    constraint_update(CTX_data_main(*C), ob);
 
     return OPERATOR_FINISHED;
   }
@@ -1999,11 +2000,11 @@ void CONSTRAINT_OT_move_to_index(wmOperatorType *ot)
 
 static wmOperatorStatus pose_constraints_clear_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *prev_ob = nullptr;
 
   /* free constraints for all selected bones */
-  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
     BKE_constraints_free(&pchan->constraints);
     pchan->constflag = 0;
 
@@ -2038,10 +2039,10 @@ void POSE_OT_constraints_clear(wmOperatorType *ot)
 
 static wmOperatorStatus object_constraints_clear_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   /* do freeing */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     BKE_constraints_free(&ob->constraints);
     DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
   }
@@ -2082,8 +2083,8 @@ void OBJECT_OT_constraints_clear(wmOperatorType *ot)
 
 static wmOperatorStatus pose_constraint_copy_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  bPoseChannel *pchan = CTX_data_active_pose_bone(C);
+  Main *bmain = CTX_data_main(*C);
+  bPoseChannel *pchan = CTX_data_active_pose_bone(*C);
 
   /* don't do anything if bone doesn't exist or doesn't have any constraints */
   if (ELEM(nullptr, pchan, pchan->constraints.first)) {
@@ -2094,7 +2095,7 @@ static wmOperatorStatus pose_constraint_copy_exec(bContext *C, wmOperator *op)
   Object *prev_ob = nullptr;
 
   /* Copy all constraints from active pose-bone to all selected pose-bones. */
-  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, chan, selected_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, chan, selected_pose_bones, Object *, ob) {
     /* if we're not handling the object we're copying from, copy all constraints over */
     if (pchan != chan) {
       BKE_constraints_copy(&chan->constraints, &pchan->constraints, true);
@@ -2141,11 +2142,11 @@ void POSE_OT_constraints_copy(wmOperatorType *ot)
 
 static wmOperatorStatus object_constraint_copy_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   Object *obact = context_active_object(C);
 
   /* copy all constraints from active object to all selected objects */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
     /* if we're not handling the object we're copying from, copy all constraints over */
     if (obact != ob) {
       BKE_constraints_copy(&ob->constraints, &obact->constraints, true);
@@ -2241,7 +2242,7 @@ static bool get_new_constraint_target(
   /* if the active Object is Armature, and we can search for bones, do so... */
   if ((obact->type == OB_ARMATURE) && (only_ob == false)) {
     /* search in list of selected Pose-Channels for target */
-    CTX_DATA_BEGIN (C, bPoseChannel *, pchan, selected_pose_bones_from_active_object) {
+    CTX_DATA_BEGIN (*C, bPoseChannel *, pchan, selected_pose_bones_from_active_object) {
       /* just use the first one that we encounter, as long as it is not the active one */
       if (pchan != pchanact) {
         *tar_ob = obact;
@@ -2257,7 +2258,7 @@ static bool get_new_constraint_target(
   /* if not yet found, try selected Objects... */
   if (found == false) {
     /* search in selected objects context */
-    CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+    CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
       /* just use the first object we encounter (that isn't the active object)
        * and which fulfills the criteria for the object-target that we've got
        */
@@ -2303,9 +2304,9 @@ static bool get_new_constraint_target(
 
   /* if still not found, add a new empty to act as a target (if allowed) */
   if ((found == false) && (add)) {
-    Main *bmain = CTX_data_main(C);
-    Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
+    Main *bmain = CTX_data_main(*C);
+    Scene *scene = CTX_data_scene(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Base *base = BKE_view_layer_active_base_get(view_layer);
     Object *obt;
@@ -2349,7 +2350,7 @@ static wmOperatorStatus constraint_add_exec(bContext *C,
                                             int type,
                                             const bool setTarget)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bPoseChannel *pchan;
   bConstraint *con;
 
@@ -2614,7 +2615,7 @@ void POSE_OT_constraint_add_with_targets(wmOperatorType *ot)
 /* present menu with options + validation for targets to use */
 static wmOperatorStatus pose_ik_add_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
   bConstraint *con = nullptr;
 
@@ -2673,7 +2674,7 @@ static wmOperatorStatus pose_ik_add_invoke(bContext *C, wmOperator *op, const wm
 /* call constraint_add_exec() to add the IK constraint */
 static wmOperatorStatus pose_ik_add_exec(bContext *C, wmOperator *op)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   const bool with_targets = RNA_boolean_get(op->ptr, "with_targets");
 
   /* add the constraint - all necessary checks should have
@@ -2719,7 +2720,7 @@ static wmOperatorStatus pose_ik_clear_exec(bContext *C, wmOperator * /*op*/)
   Object *prev_ob = nullptr;
 
   /* only remove IK Constraints */
-  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
     bConstraint *con, *next;
 
     /* TODO: should we be checking if these constraints were local

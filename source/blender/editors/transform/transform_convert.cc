@@ -338,7 +338,7 @@ static bool pchan_autoik_adjust(bPoseChannel *pchan, short chainlen)
 
 void transform_autoik_update(TransInfo *t, short mode)
 {
-  Main *bmain = CTX_data_main(t->context);
+  Main *bmain = CTX_data_main(*t->context);
 
   short *chainlen = &t->settings->autoik_chainlen;
 
@@ -642,7 +642,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
     return;
   }
 
-  BLI_assert(CTX_data_main(t->context) == CTX_data_main(C));
+  BLI_assert(CTX_data_main(*t->context) == CTX_data_main(*C));
   t->data_type->special_aftertrans_update(C, t);
 }
 
@@ -1047,7 +1047,7 @@ void create_trans_data(bContext *C, TransInfo *t)
     t->options |= CTX_OBJECT;
 
     /* Needed for correct Object.obmat after duplication, see: #62135. */
-    BKE_scene_graph_evaluated_ensure(t->depsgraph, CTX_data_main(t->context));
+    BKE_scene_graph_evaluated_ensure(t->depsgraph, CTX_data_main(*t->context));
 
     if ((t->settings->transform_flag & SCE_XFORM_DATA_ORIGIN) != 0) {
       t->options |= CTX_OBMODE_XFORM_OBDATA;

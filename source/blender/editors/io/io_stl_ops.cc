@@ -93,7 +93,7 @@ static void wm_stl_export_draw(bContext *C, wmOperator *op)
     sub->prop(ptr, "ascii_format", UI_ITEM_NONE, IFACE_("ASCII"), ICON_NONE);
 
     /* The Batch mode and Selection only options only make sense when using regular export. */
-    if (CTX_wm_space_file(C)) {
+    if (CTX_wm_space_file(*C)) {
       col.prop(ptr, "use_batch", UI_ITEM_NONE, IFACE_("Batch"), ICON_NONE);
 
       sub = &col.column(false, IFACE_("Include"));
@@ -223,7 +223,7 @@ static wmOperatorStatus wm_stl_import_exec(bContext *C, wmOperator *op)
     STL_import(C, &params);
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);

@@ -169,7 +169,7 @@ static const EnumPropertyItem *dt_layers_select_src_itemf(bContext *C,
     }
   }
   else if (data_type == DT_TYPE_UV) {
-    const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     const Object *ob_src_eval = DEG_get_evaluated(depsgraph, ob_src);
     const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(ob_src_eval);
     if (!mesh_eval) {
@@ -187,7 +187,7 @@ static const EnumPropertyItem *dt_layers_select_src_itemf(bContext *C,
     }
   }
   else if (data_type & DT_TYPE_VCOL_ALL) {
-    const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     const Object *ob_src_eval = DEG_get_evaluated(depsgraph, ob_src);
     const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(ob_src_eval);
     if (!mesh_eval) {
@@ -344,7 +344,7 @@ static void data_transfer_exec_preprocess_objects(bContext *C,
                                                   Vector<PointerRNA> *ctx_objects,
                                                   const bool reverse_transfer)
 {
-  CTX_data_selected_editable_objects(C, ctx_objects);
+  CTX_data_selected_editable_objects(*C, ctx_objects);
 
   if (reverse_transfer) {
     return; /* Nothing else to do in this case... */
@@ -409,7 +409,7 @@ static bool data_transfer_exec_is_object_valid(wmOperator *op,
 static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
 {
   Object *ob_src = context_active_object(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
   Vector<PointerRNA> ctx_objects;
 
@@ -530,7 +530,7 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
   }
 
   if (changed) {
-    DEG_relations_tag_update(CTX_data_main(C));
+    DEG_relations_tag_update(CTX_data_main(*C));
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
   }
 
@@ -826,7 +826,7 @@ static bool datalayout_transfer_poll(bContext *C)
 static wmOperatorStatus datalayout_transfer_exec(bContext *C, wmOperator *op)
 {
   Object *ob_act = context_active_object(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   DataTransferModifierData *dtmd;
 
   dtmd = (DataTransferModifierData *)edit_modifier_property_get(
@@ -895,7 +895,7 @@ static wmOperatorStatus datalayout_transfer_exec(bContext *C, wmOperator *op)
     }
   }
 
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
 
   return OPERATOR_FINISHED;

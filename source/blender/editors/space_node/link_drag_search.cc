@@ -99,7 +99,7 @@ static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
   bNode &group_input = params.add_node("NodeGroupInput");
 
   /* This is necessary to create the new sockets in the other input nodes. */
-  BKE_main_ensure_invariants(*CTX_data_main(&params.C), params.node_tree.id);
+  BKE_main_ensure_invariants(*CTX_data_main(params.C), params.node_tree.id);
 
   /* Hide the new input in all other group input nodes, to avoid making them taller. */
   for (bNode *node : params.node_tree.all_nodes()) {
@@ -124,7 +124,7 @@ static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
     bke::node_add_link(params.node_tree, group_input, *socket, params.node, params.socket);
 
     bke::node_socket_move_default_value(
-        *CTX_data_main(&params.C), params.node_tree, params.socket, *socket);
+        *CTX_data_main(params.C), params.node_tree, params.socket, *socket);
   }
 }
 
@@ -201,7 +201,7 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
     search_link_ops.append(
         {asset_name + " " + UI_MENU_ARROW_SEP + socket_name,
          [&asset, &socket_property, in_out](nodes::LinkSearchOpParams &params) {
-           Main &bmain = *CTX_data_main(&params.C);
+           Main &bmain = *CTX_data_main(params.C);
 
            bNodeTree *group = reinterpret_cast<bNodeTree *>(
                asset::asset_local_id_ensure_imported(bmain, asset));
@@ -263,7 +263,7 @@ static void gather_socket_link_operations(const bContext &C,
                                           const bNodeSocket &socket,
                                           Vector<SocketLinkOperation> &search_link_ops)
 {
-  const SpaceNode &snode = *CTX_wm_space_node(&C);
+  const SpaceNode &snode = *CTX_wm_space_node(C);
   for (const bke::bNodeType *node_type : bke::node_types_get()) {
     const char *disabled_hint;
     if (node_type->poll && !node_type->poll(node_type, &node_tree, &disabled_hint)) {
@@ -327,7 +327,7 @@ static void link_drag_search_update_fn(
 {
   LinkDragSearchStorage &storage = *static_cast<LinkDragSearchStorage *>(arg);
   if (storage.update_items_tag) {
-    bNodeTree *node_tree = CTX_wm_space_node(C)->edittree;
+    bNodeTree *node_tree = CTX_wm_space_node(*C)->edittree;
     storage.search_link_ops.clear();
     gather_socket_link_operations(*C, *node_tree, storage.from_socket, storage.search_link_ops);
     storage.update_items_tag = false;
@@ -367,8 +367,8 @@ static bNode *get_new_linked_node(bNodeSocket &socket, const Span<bNode *> new_n
 
 static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
 {
-  Main &bmain = *CTX_data_main(C);
-  SpaceNode &snode = *CTX_wm_space_node(C);
+  Main &bmain = *CTX_data_main(*C);
+  SpaceNode &snode = *CTX_wm_space_node(*C);
   bNodeTree &node_tree = *snode.edittree;
   LinkDragSearchStorage &storage = *static_cast<LinkDragSearchStorage *>(arg1);
   SocketLinkOperation *item = static_cast<SocketLinkOperation *>(arg2);

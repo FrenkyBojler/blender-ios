@@ -38,8 +38,8 @@ using blender::Vector;
 
 static wmOperatorStatus edbm_spin_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   float cent[3], axis[3];
   const float d[3] = {0.0f, 0.0f, 0.0f};
 
@@ -58,7 +58,7 @@ static wmOperatorStatus edbm_spin_exec(bContext *C, wmOperator *op)
   }
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C));
+      scene, view_layer, CTX_wm_view3d(*C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -107,8 +107,8 @@ static wmOperatorStatus edbm_spin_exec(bContext *C, wmOperator *op)
 /* get center and axis, in global coords */
 static wmOperatorStatus edbm_spin_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  Scene *scene = CTX_data_scene(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   RegionView3D *rv3d = ED_view3d_context_rv3d(C);
 
   PropertyRNA *prop;
@@ -139,7 +139,7 @@ static wmOperatorStatus edbm_spin_invoke(bContext *C, wmOperator *op, const wmEv
     if (v3d && ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0)) {
       wmGizmoGroupType *gzgt = WM_gizmogrouptype_find("MESH_GGT_spin_redo", false);
       if (!WM_gizmo_group_type_ensure_ptr(gzgt)) {
-        Main *bmain = CTX_data_main(C);
+        Main *bmain = CTX_data_main(*C);
         WM_gizmo_group_type_reinit_ptr(bmain, gzgt);
       }
     }

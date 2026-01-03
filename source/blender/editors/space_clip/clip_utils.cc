@@ -323,7 +323,7 @@ void clip_delete_track(bContext *C, MovieClip *clip, MovieTrackingTrack *track)
   char rna_path[MAX_NAME * 4 + 64];
   BKE_tracking_get_rna_path_for_track(tracking, track, rna_path, sizeof(rna_path));
   if (BKE_animdata_fix_paths_remove(&clip->id, rna_path)) {
-    DEG_relations_tag_update(CTX_data_main(C));
+    DEG_relations_tag_update(CTX_data_main(*C));
   }
   /* Delete track itself. */
   BKE_tracking_track_free(track);
@@ -369,7 +369,7 @@ void clip_delete_plane_track(bContext *C, MovieClip *clip, MovieTrackingPlaneTra
   char rna_path[MAX_NAME * 4 + 64];
   BKE_tracking_get_rna_path_for_plane_track(tracking, plane_track, rna_path, sizeof(rna_path));
   if (BKE_animdata_fix_paths_remove(&clip->id, rna_path)) {
-    DEG_relations_tag_update(CTX_data_main(C));
+    DEG_relations_tag_update(CTX_data_main(*C));
   }
   /* Delete the plane track itself. */
   BKE_tracking_plane_track_free(plane_track);
@@ -463,7 +463,7 @@ static bool tracking_has_selection(SpaceClip *space_clip)
 
 static bool mask_has_selection(const bContext *C)
 {
-  Mask *mask = CTX_data_edit_mask(C);
+  Mask *mask = CTX_data_edit_mask(*C);
   if (mask == nullptr) {
     return false;
   }
@@ -505,7 +505,7 @@ static bool selected_boundbox(const bContext *C,
                               float max[2],
                               bool handles_as_control_point)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   if (sc->mode == SC_MODE_TRACKING) {
     return selected_tracking_boundbox(sc, min, max);
   }
@@ -528,7 +528,7 @@ static bool selected_boundbox(const bContext *C,
 bool clip_view_calculate_view_selection(
     const bContext *C, bool fit, float *r_offset_x, float *r_offset_y, float *r_zoom)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
 
   int frame_width, frame_height;
   ED_space_clip_get_size(sc, &frame_width, &frame_height);
@@ -562,7 +562,7 @@ bool clip_view_calculate_view_selection(
   /* set zoom to see all selection */
   *r_zoom = sc->zoom;
   if (w > 0 && h > 0) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
 
     int width, height;
     float zoomx, zoomy, newzoom, aspx, aspy;
@@ -587,7 +587,7 @@ bool clip_view_calculate_view_selection(
 
 bool clip_view_has_locked_selection(const bContext *C)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
 
   if ((space_clip->flag & SC_LOCK_SELECTION) == 0) {
     return false;

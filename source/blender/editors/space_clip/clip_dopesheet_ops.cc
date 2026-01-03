@@ -29,10 +29,10 @@
 static bool space_clip_dopesheet_poll(bContext *C)
 {
   if (ED_space_clip_tracking_poll(C)) {
-    SpaceClip *sc = CTX_wm_space_clip(C);
+    SpaceClip *sc = CTX_wm_space_clip(*C);
 
     if (sc->view == SC_VIEW_DOPESHEET) {
-      ARegion *region = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(*C);
 
       return region->regiontype == RGN_TYPE_PREVIEW;
     }
@@ -45,7 +45,7 @@ static bool space_clip_dopesheet_poll(bContext *C)
 
 static bool dopesheet_select_channel_poll(bContext *C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
 
   if (sc && sc->clip) {
     return sc->view == SC_VIEW_DOPESHEET;
@@ -56,7 +56,7 @@ static bool dopesheet_select_channel_poll(bContext *C)
 
 static wmOperatorStatus dopesheet_select_channel_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -104,7 +104,7 @@ static wmOperatorStatus dopesheet_select_channel_invoke(bContext *C,
                                                         wmOperator *op,
                                                         const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   float location[2];
 
   blender::ui::view2d_region_to_view(
@@ -151,8 +151,8 @@ void CLIP_OT_dopesheet_select_channel(wmOperatorType *ot)
 
 static wmOperatorStatus dopesheet_view_all_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
+  ARegion *region = CTX_wm_region(*C);
   View2D *v2d = &region->v2d;
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;

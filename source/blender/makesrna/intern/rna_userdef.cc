@@ -392,7 +392,7 @@ static void rna_userdef_asset_library_path_set(PointerRNA *ptr, const char *valu
 static void rna_userdef_asset_library_update(bContext *C, PointerRNA *ptr)
 {
   blender::ed::asset::list::clear_all_library(C);
-  rna_userdef_update(CTX_data_main(C), CTX_data_scene(C), ptr);
+  rna_userdef_update(CTX_data_main(*C), CTX_data_scene(*C), ptr);
 }
 
 /**
@@ -1560,8 +1560,8 @@ int rna_preference_asset_libray_import_method_default(PointerRNA * /*ptr*/, Prop
 
 static void rna_experimental_no_data_block_packing_update(bContext *C, PointerRNA *ptr)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   rna_userdef_update(bmain, scene, ptr);
   AS_asset_library_import_method_ensure_valid(*bmain);
   AS_asset_library_essential_import_method_update();

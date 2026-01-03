@@ -512,8 +512,8 @@ static RulerItem *gzgroup_ruler_item_first_get(wmGizmoGroup *gzgroup)
 static void view3d_ruler_gpencil_ensure(bContext *C)
 {
   // RulerInfo *ruler_info = gzgroup->customdata;
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   if (scene->gpd == nullptr) {
     scene->gpd = BKE_gpencil_data_addnew(bmain, "Annotations");
     DEG_id_tag_update_ex(bmain, &scene->id, ID_RECALC_SYNC_TO_EVAL);
@@ -524,7 +524,7 @@ static void view3d_ruler_gpencil_ensure(bContext *C)
 static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
 {
   // RulerInfo *ruler_info = gzgroup->customdata;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   bGPdata *gpd;
   bGPDlayer *gpl;
@@ -594,7 +594,7 @@ static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
 
 static bool view3d_ruler_from_gpencil(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   bool changed = false;
 
   if (scene->gpd) {
@@ -635,7 +635,7 @@ static bool view3d_ruler_from_gpencil(const bContext *C, wmGizmoGroup *gzgroup)
 
 void ED_view3d_gizmo_ruler_remove_by_gpencil_layer(bContext *C, bGPDlayer *gpl)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   for (wmWindow &win : wm->windows) {
     const Scene *scene = WM_window_get_active_scene(&win);
     if (!scene->gpd) {
@@ -682,7 +682,7 @@ void ED_view3d_gizmo_ruler_remove_by_gpencil_layer(bContext *C, bGPDlayer *gpl)
 
 static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const UnitSettings &unit = scene->unit;
   RulerInfo *ruler_info = static_cast<RulerInfo *>(gz->parent_gzgroup->customdata);
   RulerItem *ruler_item = (RulerItem *)gz;
@@ -1073,7 +1073,7 @@ static wmOperatorStatus gizmo_ruler_modal(bContext *C,
   wmOperatorStatus exit_code = OPERATOR_RUNNING_MODAL;
   RulerInfo *ruler_info = static_cast<RulerInfo *>(gz->parent_gzgroup->customdata);
   RulerItem *ruler_item = (RulerItem *)gz;
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   bool do_cursor_update = (event->val == KM_RELEASE) || (event->type == MOUSEMOVE);
 
   ruler_info->region = region;
@@ -1123,7 +1123,7 @@ static wmOperatorStatus gizmo_ruler_modal(bContext *C,
 
   if (do_cursor_update) {
     if (ruler_info->state == RULER_STATE_DRAG) {
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
       if (view3d_ruler_item_mousemove(
               C, depsgraph, ruler_info, ruler_item, event->mval, do_thickness, do_snap))
       {
@@ -1184,7 +1184,7 @@ static wmOperatorStatus gizmo_ruler_invoke(bContext *C, wmGizmo *gz, const wmEve
       }
 
       /* update the new location */
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
       view3d_ruler_item_mousemove(
           C, depsgraph, ruler_info, ruler_item_pick, event->mval, false, false);
     }
@@ -1317,10 +1317,10 @@ static void WIDGETGROUP_ruler_setup(const bContext *C, wmGizmoGroup *gzgroup)
     /* nop */
   }
 
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   ruler_info->wm = wm;
   ruler_info->win = win;
@@ -1358,7 +1358,7 @@ static bool view3d_ruler_poll(bContext *C)
 {
   bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context(C);
   if ((tref_rt == nullptr) || !STREQ(view3d_gzgt_ruler_id, tref_rt->gizmo_group) ||
-      CTX_wm_region_view3d(C) == nullptr)
+      CTX_wm_region_view3d(*C) == nullptr)
   {
     return false;
   }
@@ -1367,8 +1367,8 @@ static bool view3d_ruler_poll(bContext *C)
 
 static wmOperatorStatus view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_TOOL)) {
     BKE_report(op->reports, RPT_WARNING, "Gizmos hidden in this view");
@@ -1396,7 +1396,7 @@ static wmOperatorStatus view3d_ruler_add_invoke(bContext *C, wmOperator *op, con
   if (status == OPERATOR_RUNNING_MODAL) {
     RulerInfo *ruler_info = static_cast<RulerInfo *>(gzgroup->customdata);
     RulerInteraction *inter = static_cast<RulerInteraction *>(ruler_item->gz.interaction_data);
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     inter->co_index = 0;
 
 #ifndef USE_SNAP_DETECT_FROM_KEYMAP_HACK
@@ -1445,8 +1445,8 @@ static wmOperatorStatus view3d_ruler_remove_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent * /*event*/)
 {
-  ARegion *region = CTX_wm_region(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_TOOL)) {
     BKE_report(op->reports, RPT_WARNING, "Gizmos hidden in this view");

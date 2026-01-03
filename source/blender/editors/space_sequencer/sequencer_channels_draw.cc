@@ -197,7 +197,7 @@ static rctf label_rect_init(const SeqChannelDrawContext *context,
 
   /* Text input has its own margin. Prevent text jumping around and use as much space as possible.
    */
-  if (channel_is_being_renamed(CTX_wm_space_seq(context->C), channel_index)) {
+  if (channel_is_being_renamed(CTX_wm_space_seq(*context->C), channel_index)) {
     float input_box_margin = icon_width_get(context) * 0.5f;
     margin_x -= input_box_margin;
     width += input_box_margin;
@@ -213,7 +213,7 @@ static void draw_channel_labels(const SeqChannelDrawContext *context,
                                 const int channel_index,
                                 const float used_width)
 {
-  SpaceSeq *sseq = CTX_wm_space_seq(context->C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*context->C);
   rctf rect = label_rect_init(context, channel_index, used_width);
 
   if (BLI_rctf_size_y(&rect) <= 1.0f || BLI_rctf_size_x(&rect) <= 1.0f) {
@@ -305,10 +305,10 @@ void channel_draw_context_init(const bContext *C,
                                SeqChannelDrawContext *r_context)
 {
   r_context->C = C;
-  r_context->area = CTX_wm_area(C);
+  r_context->area = CTX_wm_area(*C);
   r_context->region = region;
   r_context->v2d = &region->v2d;
-  r_context->scene = CTX_data_sequencer_scene(C);
+  r_context->scene = CTX_data_sequencer_scene(*C);
   r_context->ed = seq::editing_get(r_context->scene);
   r_context->seqbase = seq::active_seqbase_get(r_context->ed);
   r_context->channels = seq::channels_displayed_get(r_context->ed);
@@ -326,7 +326,7 @@ void channel_draw_context_init(const bContext *C,
 void draw_channels(const bContext *C, ARegion *region)
 {
   draw_background();
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   if (!scene) {
     return;
   }

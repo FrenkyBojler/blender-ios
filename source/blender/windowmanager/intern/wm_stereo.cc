@@ -244,7 +244,7 @@ static bool wm_stereo3d_set_properties(bContext * /*C*/, wmOperator *op)
 
 static void wm_stereo3d_set_init(bContext *C, wmOperator *op)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   Stereo3dData *s3dd = MEM_new_for_free<Stereo3dData>(__func__);
   op->customdata = s3dd;
@@ -255,8 +255,8 @@ static void wm_stereo3d_set_init(bContext *C, wmOperator *op)
 
 wmOperatorStatus wm_stereo3d_set_exec(bContext *C, wmOperator *op)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win_src = CTX_wm_window(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win_src = CTX_wm_window(*C);
   wmWindow *win_dst = nullptr;
   const bool is_fullscreen = WM_window_is_fullscreen(win_src);
   char prev_display_mode = win_src->stereo3d_format->display_mode;

@@ -93,7 +93,7 @@ PieMenu *pie_menu_begin(bContext *C, const char *title, int icon, const wmEvent 
   const uiStyle *style = style_get_dpi();
   short event_type;
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   PieMenu *pie = MEM_callocN<PieMenu>(__func__);
 
@@ -164,7 +164,7 @@ PieMenu *pie_menu_begin(bContext *C, const char *title, int icon, const wmEvent 
 
 void pie_menu_end(bContext *C, PieMenu *pie)
 {
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
 
   PopupBlockHandle *menu = popup_block_create(
       C, nullptr, nullptr, nullptr, block_func_PIE, pie, nullptr, false);
@@ -244,7 +244,7 @@ static void ui_pie_menu_level_invoke(bContext *C, void *argN, void *arg2)
 {
   EnumPropertyItem *item_array = (EnumPropertyItem *)argN;
   PieMenuLevelData *lvl = (PieMenuLevelData *)arg2;
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   PieMenu *pie = pie_menu_begin(C, IFACE_(lvl->title), lvl->icon, win->runtime->eventstate);
   Layout &layout = pie_menu_layout(pie)->menu_pie();

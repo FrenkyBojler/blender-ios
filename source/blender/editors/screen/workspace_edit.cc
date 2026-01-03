@@ -97,8 +97,8 @@ static void workspace_scene_pinning_update(WorkSpace *workspace_new,
                                            const WorkSpace *workspace_old,
                                            bContext *C)
 {
-  wmWindow *win = CTX_wm_window(C);
-  Main *bmain = CTX_data_main(C);
+  wmWindow *win = CTX_wm_window(*C);
+  Main *bmain = CTX_data_main(*C);
   Scene *active_scene = WM_window_get_active_scene(win);
 
   const bool is_new_pinned = (workspace_new->flags & WORKSPACE_USE_PIN_SCENE);
@@ -181,7 +181,7 @@ static WorkSpaceLayout *workspace_change_get_new_layout(Main *bmain,
 
 bool ED_workspace_change(WorkSpace *workspace_new, bContext *C, wmWindowManager *wm, wmWindow *win)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   WorkSpace *workspace_old = WM_window_get_active_workspace(win);
   WorkSpaceLayout *layout_new = workspace_change_get_new_layout(bmain, workspace_new, win);
   bScreen *screen_new = BKE_workspace_layout_screen_get(layout_new);
@@ -210,12 +210,12 @@ bool ED_workspace_change(WorkSpace *workspace_new, bContext *C, wmWindowManager 
   screen_change_update(C, win, screen_new);
   workspace_change_update(workspace_new, workspace_old, C, wm);
 
-  BLI_assert(CTX_wm_workspace(C) == workspace_new);
+  BLI_assert(CTX_wm_workspace(*C) == workspace_new);
 
   /* Automatic mode switching. */
   if (workspace_new->object_mode != workspace_old->object_mode) {
     const Object *object = nullptr;
-    if (const Base *base = CTX_data_active_base(C)) {
+    if (const Base *base = CTX_data_active_base(*C)) {
       object = base->object;
       /* Behavior that depends on the active area is not expected in the context of workspace
        * switching, ignore the view-port even if it's available. */
@@ -304,7 +304,7 @@ static WorkSpace *workspace_context_get(bContext *C)
     return (WorkSpace *)id;
   }
 
-  return CTX_wm_workspace(C);
+  return CTX_wm_workspace(*C);
 }
 
 static bool workspace_context_poll(bContext *C)
@@ -314,8 +314,8 @@ static bool workspace_context_poll(bContext *C)
 
 static wmOperatorStatus workspace_new_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindow *win = CTX_wm_window(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindow *win = CTX_wm_window(*C);
   WorkSpace *workspace = workspace_context_get(C);
 
   workspace = ED_workspace_duplicate(workspace, bmain, win);
@@ -360,7 +360,7 @@ static void WORKSPACE_OT_delete(wmOperatorType *ot)
 
 static wmOperatorStatus workspace_delete_all_others_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   WorkSpace *workspace = workspace_context_get(C);
 
   for (WorkSpace &ws : bmain->workspaces) {
@@ -387,7 +387,7 @@ static void WORKSPACE_OT_delete_all_others(wmOperatorType *ot)
 
 static wmOperatorStatus workspace_append_activate_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   char idname[MAX_ID_NAME - 2], filepath[FILE_MAX];
 
   if (!RNA_struct_property_is_set(op->ptr, "idname") ||
@@ -408,15 +408,15 @@ static wmOperatorStatus workspace_append_activate_exec(bContext *C, wmOperator *
     if (appended_workspace) {
       /* Copy, to mimic behavior when appending from another file (which always creates a new copy
        * of the data). */
-      appended_workspace = ED_workspace_duplicate(appended_workspace, bmain, CTX_wm_window(C));
+      appended_workspace = ED_workspace_duplicate(appended_workspace, bmain, CTX_wm_window(*C));
     }
   }
   else {
     appended_workspace = reinterpret_cast<WorkSpace *>(
         WM_file_append_datablock(bmain,
-                                 CTX_data_scene(C),
-                                 CTX_data_view_layer(C),
-                                 CTX_wm_view3d(C),
+                                 CTX_data_scene(*C),
+                                 CTX_data_view_layer(*C),
+                                 CTX_wm_view3d(*C),
                                  filepath,
                                  ID_WS,
                                  idname,
@@ -650,7 +650,7 @@ static void WORKSPACE_OT_add(wmOperatorType *ot)
 
 static wmOperatorStatus workspace_reorder_to_back_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   WorkSpace *workspace = workspace_context_get(C);
 
   BKE_id_reorder(
@@ -674,7 +674,7 @@ static void WORKSPACE_OT_reorder_to_back(wmOperatorType *ot)
 
 static wmOperatorStatus workspace_reorder_to_front_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   WorkSpace *workspace = workspace_context_get(C);
 
   BKE_id_reorder(

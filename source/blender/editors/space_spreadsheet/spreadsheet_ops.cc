@@ -32,7 +32,7 @@ namespace blender::ed::spreadsheet {
 
 static wmOperatorStatus row_filter_add_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
 
   SpreadsheetRowFilter *row_filter = spreadsheet_row_filter_new();
   BLI_addtail(&sspreadsheet->row_filters, row_filter);
@@ -56,7 +56,7 @@ static void SPREADSHEET_OT_add_row_filter_rule(wmOperatorType *ot)
 
 static wmOperatorStatus row_filter_remove_exec(bContext *C, wmOperator *op)
 {
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
 
   SpreadsheetRowFilter *row_filter = (SpreadsheetRowFilter *)BLI_findlink(
       &sspreadsheet->row_filters, RNA_int_get(op->ptr, "index"));
@@ -93,7 +93,7 @@ static wmOperatorStatus select_component_domain_invoke(bContext *C,
   const auto component_type = bke::GeometryComponent::Type(RNA_int_get(op->ptr, "component_type"));
   bke::AttrDomain domain = bke::AttrDomain(RNA_int_get(op->ptr, "attribute_domain_type"));
 
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
   sspreadsheet->geometry_id.geometry_component_type = uint8_t(component_type);
   sspreadsheet->geometry_id.attribute_domain = uint8_t(domain);
 
@@ -134,8 +134,8 @@ struct ResizeColumnData {
 
 static wmOperatorStatus resize_column_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion &region = *CTX_wm_region(C);
-  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
+  ARegion &region = *CTX_wm_region(*C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(*C);
 
   SpreadsheetTable &table = *get_active_table(sspreadsheet);
   ResizeColumnData &data = *static_cast<ResizeColumnData *>(op->customdata);
@@ -248,8 +248,8 @@ SpreadsheetColumn *find_hovered_column_header(SpaceSpreadsheet &sspreadsheet,
 
 static wmOperatorStatus resize_column_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ARegion &region = *CTX_wm_region(C);
-  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
+  ARegion &region = *CTX_wm_region(*C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(*C);
 
   const int2 cursor_re{event->mval[0], event->mval[1]};
   SpreadsheetColumn *column_to_resize = find_hovered_column_header_edge(
@@ -282,8 +282,8 @@ static void SPREADSHEET_OT_resize_column(wmOperatorType *ot)
 
 static wmOperatorStatus fit_column_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
-  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
-  ARegion &region = *CTX_wm_region(C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(*C);
+  ARegion &region = *CTX_wm_region(*C);
 
   std::unique_ptr<DataSource> data_source = get_data_source(*C);
   if (!data_source) {
@@ -349,8 +349,8 @@ static std::optional<int> find_last_available_column_index(const SpreadsheetTabl
 
 static wmOperatorStatus reorder_columns_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
-  ARegion &region = *CTX_wm_region(C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(*C);
+  ARegion &region = *CTX_wm_region(*C);
 
   const int2 cursor_re{event->mval[0], event->mval[1]};
 
@@ -363,7 +363,7 @@ static wmOperatorStatus reorder_columns_invoke(bContext *C, wmOperator *op, cons
     return OPERATOR_PASS_THROUGH;
   }
 
-  WM_cursor_set(CTX_wm_window(C), WM_CURSOR_HAND_CLOSED);
+  WM_cursor_set(CTX_wm_window(*C), WM_CURSOR_HAND_CLOSED);
 
   SpreadsheetTable *table = get_active_table(sspreadsheet);
   const int old_index = Span{table->columns, table->num_columns}.first_index(column_to_move);
@@ -392,8 +392,8 @@ static wmOperatorStatus reorder_columns_invoke(bContext *C, wmOperator *op, cons
 
 static wmOperatorStatus reorder_columns_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
-  ARegion &region = *CTX_wm_region(C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(*C);
+  ARegion &region = *CTX_wm_region(*C);
 
   const int2 cursor_re{event->mval[0], event->mval[1]};
   ReorderColumnData &data = *static_cast<ReorderColumnData *>(op->customdata);
@@ -421,7 +421,7 @@ static wmOperatorStatus reorder_columns_modal(bContext *C, wmOperator *op, const
     sspreadsheet.runtime->reorder_column_visualization_data.reset();
     MEM_delete(&data);
     ED_region_tag_redraw(&region);
-    WM_cursor_set(CTX_wm_window(C), WM_CURSOR_DEFAULT);
+    WM_cursor_set(CTX_wm_window(*C), WM_CURSOR_DEFAULT);
   };
 
   switch (event->type) {

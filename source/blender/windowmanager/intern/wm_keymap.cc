@@ -471,7 +471,7 @@ bool WM_keymap_poll(bContext *C, wmKeyMap *keymap)
 {
   /* If we're tagged, only use compatible. */
   if (keymap->owner_id[0] != '\0') {
-    const WorkSpace *workspace = CTX_wm_workspace(C);
+    const WorkSpace *workspace = CTX_wm_workspace(*C);
     if (BKE_workspace_owner_id_check(workspace, keymap->owner_id) == false) {
       return false;
     }
@@ -1435,10 +1435,10 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
                                                const wmKeyMapItemFind_Params *params,
                                                wmKeyMap **r_keymap)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
   wmKeyMapItem *found = nullptr;
 
   /* Look into multiple handler lists to find the item. */

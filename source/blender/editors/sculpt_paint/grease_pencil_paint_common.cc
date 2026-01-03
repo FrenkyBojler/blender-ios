@@ -32,8 +32,8 @@ Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_for_stroke_operation(c
 {
   using namespace blender::bke::greasepencil;
 
-  const Scene &scene = *CTX_data_scene(&C);
-  Object &ob_orig = *CTX_data_active_object(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object &ob_orig = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_orig.data);
 
   /* Apply to all editable drawings. */
@@ -45,9 +45,9 @@ Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_with_masking_for_strok
 {
   using namespace blender::bke::greasepencil;
 
-  const Scene &scene = *CTX_data_scene(&C);
-  const ToolSettings &ts = *CTX_data_tool_settings(&C);
-  Object &ob_orig = *CTX_data_active_object(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  const ToolSettings &ts = *CTX_data_tool_settings(C);
+  Object &ob_orig = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_orig.data);
 
   const bool active_layer_masking = (ts.gp_sculpt.flag &
@@ -493,11 +493,11 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing_with_automask(
 {
   using namespace blender::bke::greasepencil;
 
-  const Scene &scene = *CTX_data_scene(&C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
-  ARegion &region = *CTX_wm_region(&C);
-  RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
-  Object &object = *CTX_data_active_object(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  ARegion &region = *CTX_wm_region(C);
+  RegionView3D &rv3d = *CTX_wm_region_view3d(C);
+  Object &object = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   std::atomic<bool> changed = false;
@@ -535,11 +535,11 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing_with_automask(
 {
   using namespace blender::bke::greasepencil;
 
-  const Scene &scene = *CTX_data_scene(&C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
-  ARegion &region = *CTX_wm_region(&C);
-  RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
-  Object &object = *CTX_data_active_object(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  ARegion &region = *CTX_wm_region(C);
+  RegionView3D &rv3d = *CTX_wm_region_view3d(C);
+  Object &object = *CTX_data_active_object(C);
   Object &object_eval = *DEG_get_evaluated(&depsgraph, &object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
@@ -577,11 +577,11 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
 {
   using namespace blender::bke::greasepencil;
 
-  const Scene &scene = *CTX_data_scene(&C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
-  ARegion &region = *CTX_wm_region(&C);
-  RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
-  Object &object = *CTX_data_active_object(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  ARegion &region = *CTX_wm_region(C);
+  RegionView3D &rv3d = *CTX_wm_region_view3d(C);
+  Object &object = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   bool changed = false;
@@ -616,11 +616,11 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
 {
   using namespace blender::bke::greasepencil;
 
-  const Scene &scene = *CTX_data_scene(&C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
-  ARegion &region = *CTX_wm_region(&C);
-  RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
-  Object &object = *CTX_data_active_object(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  ARegion &region = *CTX_wm_region(C);
+  RegionView3D &rv3d = *CTX_wm_region_view3d(C);
+  Object &object = *CTX_data_active_object(C);
   Object &object_eval = *DEG_get_evaluated(&depsgraph, &object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
@@ -659,11 +659,11 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
 {
   using namespace blender::bke::greasepencil;
 
-  const Scene &scene = *CTX_data_scene(&C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
-  ARegion &region = *CTX_wm_region(&C);
-  RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
-  Object &object = *CTX_data_active_object(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  ARegion &region = *CTX_wm_region(C);
+  RegionView3D &rv3d = *CTX_wm_region_view3d(C);
+  Object &object = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   std::atomic<bool> changed = false;
@@ -708,11 +708,11 @@ void GreasePencilStrokeOperationCommon::init_stroke(const bContext &C,
 void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
                                                           const InputSample &start_sample)
 {
-  const Scene &scene = *CTX_data_scene(&C);
-  ARegion &region = *CTX_wm_region(&C);
-  RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
-  Object &object = *CTX_data_active_object(&C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
+  const Scene &scene = *CTX_data_scene(C);
+  ARegion &region = *CTX_wm_region(C);
+  RegionView3D &rv3d = *CTX_wm_region_view3d(C);
+  Object &object = *CTX_data_active_object(C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
 
   const eGP_Sculpt_SelectMaskFlag sculpt_selection_flag = eGP_Sculpt_SelectMaskFlag(
       scene.toolsettings->gpencil_selectmode_sculpt);

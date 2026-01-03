@@ -431,7 +431,7 @@ static const EnumPropertyItem *rna_Particle_Material_itemf(bContext *C,
   Object *ob_found = nullptr;
 
   if (C) {
-    if (Object *ob_context = static_cast<Object *>(CTX_data_pointer_get(C, "object").data)) {
+    if (Object *ob_context = static_cast<Object *>(CTX_data_pointer_get(*C, "object").data)) {
       for (ParticleSystem &psys : ob_context->particlesystem) {
         if (psys.part == part) {
           ob_found = ob_context;
@@ -442,7 +442,7 @@ static const EnumPropertyItem *rna_Particle_Material_itemf(bContext *C,
 
     if (ob_found == nullptr) {
       /* Iterating over all object is slow, but no better solution exists at the moment. */
-      for (Object *ob = static_cast<Object *>(CTX_data_main(C)->objects.first);
+      for (Object *ob = static_cast<Object *>(CTX_data_main(*C)->objects.first);
            ob && (ob_found == nullptr);
            ob = static_cast<Object *>(ob->id.next))
       {

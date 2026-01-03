@@ -38,7 +38,7 @@ class AverageWeightPaintOperation : public WeightPaintOperation {
      * is just one group for the current frame. When multi-frame editing is enabled, the selected
      * keyframes are grouped per frame number. This way we can use Average on multiple layers
      * together instead of on every layer individually. */
-    const Scene *scene = CTX_data_scene(&C);
+    const Scene *scene = CTX_data_scene(C);
     Array<Vector<MutableDrawingInfo>> drawings_per_frame =
         retrieve_editable_drawings_grouped_per_frame(*scene, *this->grease_pencil);
 

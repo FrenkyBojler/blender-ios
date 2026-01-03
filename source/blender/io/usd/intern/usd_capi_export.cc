@@ -805,13 +805,13 @@ bool USD_export(const bContext *C,
     return false;
   }
 
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   blender::io::usd::ExportJobData *job = MEM_new<blender::io::usd::ExportJobData>("ExportJobData");
 
-  job->bmain = CTX_data_main(C);
-  job->wm = CTX_wm_manager(C);
+  job->bmain = CTX_data_main(*C);
+  job->wm = CTX_wm_manager(*C);
   job->scene = scene;
   job->export_ok = false;
   set_job_filepath(job, filepath);
@@ -843,7 +843,7 @@ bool USD_export(const bContext *C,
   bool export_ok = false;
   if (as_background_job) {
     wmJob *wm_job = WM_jobs_get(job->wm,
-                                CTX_wm_window(C),
+                                CTX_wm_window(*C),
                                 scene,
                                 "Exporting USD...",
                                 WM_JOB_PROGRESS,
@@ -860,7 +860,7 @@ bool USD_export(const bContext *C,
                       nullptr,
                       blender::io::usd::export_endjob);
 
-    WM_jobs_start(CTX_wm_manager(C), wm_job);
+    WM_jobs_start(CTX_wm_manager(*C), wm_job);
   }
   else {
     wmJobWorkerStatus worker_status = {};

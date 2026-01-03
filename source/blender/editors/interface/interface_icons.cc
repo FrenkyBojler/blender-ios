@@ -1227,7 +1227,7 @@ void icon_ensure_deferred(const bContext *C, const int icon_id, const bool big)
     case ICON_TYPE_BUFFER: {
       if (icon->obj_type == ICON_DATA_STUDIOLIGHT) {
         if (di->data.buffer.image == nullptr) {
-          wmWindowManager *wm = CTX_wm_manager(C);
+          wmWindowManager *wm = CTX_wm_manager(*C);
           StudioLight *sl = static_cast<StudioLight *>(icon->obj);
           BKE_studiolight_set_free_function(sl, &ui_studiolight_free_function, wm);
           IconImage *img = MEM_callocN<IconImage>(__func__);
@@ -1240,7 +1240,7 @@ void icon_ensure_deferred(const bContext *C, const int icon_id, const bool big)
           di->data.buffer.image = img;
 
           wmJob *wm_job = WM_jobs_get(wm,
-                                      CTX_wm_window(C),
+                                      CTX_wm_window(*C),
                                       icon,
                                       "Generating StudioLight icon...",
                                       eWM_JobFlag(0),
@@ -1251,7 +1251,7 @@ void icon_ensure_deferred(const bContext *C, const int icon_id, const bool big)
           WM_jobs_timer(wm_job, 0.01, 0, NC_WINDOW);
           WM_jobs_callbacks(
               wm_job, ui_studiolight_icon_job_exec, nullptr, nullptr, ui_studiolight_icon_job_end);
-          WM_jobs_start(CTX_wm_manager(C), wm_job);
+          WM_jobs_start(CTX_wm_manager(*C), wm_job);
         }
       }
       break;
@@ -1319,7 +1319,7 @@ static void icon_set_image(const bContext *C,
   }
   else {
     if (!scene) {
-      scene = CTX_data_scene(C);
+      scene = CTX_data_scene(*C);
     }
     /* Immediate version */
     ED_preview_icon_render(C, scene, prv_img, id, size);

@@ -22,12 +22,12 @@
 
 static wmOperatorStatus viewcenter_cursor_exec(bContext *C, wmOperator *op)
 {
-  View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
-  Scene *scene = CTX_data_scene(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   if (rv3d) {
-    ARegion *region = CTX_wm_region(C);
+    ARegion *region = CTX_wm_region(*C);
     const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
     ED_view3d_smooth_view_force_finish(C, v3d, region);

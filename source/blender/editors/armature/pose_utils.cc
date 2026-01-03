@@ -255,7 +255,7 @@ void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
 
   prev_ob = nullptr;
   ob_pose_armature = nullptr;
-  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
     BLI_assert(pchan != nullptr);
     if (ob != prev_ob) {
       prev_ob = ob;
@@ -280,7 +280,7 @@ void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
   if (BLI_listbase_is_empty(pfLinks)) {
     prev_ob = nullptr;
     ob_pose_armature = nullptr;
-    CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
+    CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
       BLI_assert(pchan != nullptr);
       if (ob != prev_ob) {
         prev_ob = ob;
@@ -380,8 +380,8 @@ void poseAnim_mapping_autoKeyframe(bContext *C,
                                    ListBaseT<tPChanFCurveLink> *pfLinks,
                                    float cframe)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   bool skip = true;
 
   FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {

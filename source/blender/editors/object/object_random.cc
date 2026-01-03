@@ -78,9 +78,9 @@ static bool object_rand_transverts(TransVertStore *tvs,
 
 static wmOperatorStatus object_rand_verts_exec(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *ob_active = CTX_data_edit_object(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Object *ob_active = CTX_data_edit_object(*C);
   const int ob_mode = ob_active->mode;
 
   const float offset = RNA_float_get(op->ptr, "offset");
@@ -89,9 +89,9 @@ static wmOperatorStatus object_rand_verts_exec(bContext *C, wmOperator *op)
   const uint seed = RNA_int_get(op->ptr, "seed");
 
   bool changed_multi = false;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), eObjectMode(ob_mode));
+      scene, view_layer, CTX_wm_view3d(*C), eObjectMode(ob_mode));
   for (const int ob_index : objects.index_range()) {
     Object *ob_iter = objects[ob_index];
 

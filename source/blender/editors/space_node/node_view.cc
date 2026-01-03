@@ -48,7 +48,7 @@ static bool space_node_active_view_poll(bContext *C)
   if (!ED_operator_node_active(C)) {
     return false;
   }
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
     return false;
   }
@@ -60,7 +60,7 @@ static bool space_node_composite_active_view_poll(bContext *C)
   if (!composite_node_active(C)) {
     return false;
   }
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
     return false;
   }
@@ -136,8 +136,8 @@ bool space_node_view_flag(
 
 static wmOperatorStatus node_view_all_exec(bContext *C, wmOperator *op)
 {
-  ARegion *region = CTX_wm_region(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(*C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
   /* is this really needed? */
@@ -173,8 +173,8 @@ void NODE_OT_view_all(wmOperatorType *ot)
 
 static wmOperatorStatus node_view_selected_exec(bContext *C, wmOperator *op)
 {
-  ARegion *region = CTX_wm_region(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(*C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
 
   if (space_node_view_flag(*C, *snode, *region, NODE_SELECT, smooth_viewtx)) {
@@ -213,8 +213,8 @@ struct NodeViewMove {
 
 static wmOperatorStatus snode_bg_viewmove_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
+  ARegion *region = CTX_wm_region(*C);
   NodeViewMove *nvm = (NodeViewMove *)op->customdata;
 
   switch (event->type) {
@@ -265,9 +265,9 @@ static wmOperatorStatus snode_bg_viewmove_modal(bContext *C, wmOperator *op, con
 
 static wmOperatorStatus snode_bg_viewmove_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *region = CTX_wm_region(C);
+  Main *bmain = CTX_data_main(*C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
+  ARegion *region = CTX_wm_region(*C);
   NodeViewMove *nvm;
   Image *ima;
   ImBuf *ibuf;
@@ -336,8 +336,8 @@ void NODE_OT_backimage_move(wmOperatorType *ot)
 
 static wmOperatorStatus backimage_zoom_exec(bContext *C, wmOperator *op)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
+  ARegion *region = CTX_wm_region(*C);
   float fac = RNA_float_get(op->ptr, "factor");
 
   snode->zoom *= fac;
@@ -375,9 +375,9 @@ void NODE_OT_backimage_zoom(wmOperatorType *ot)
 
 static wmOperatorStatus backimage_fit_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *region = CTX_wm_region(C);
+  Main *bmain = CTX_data_main(*C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   Image *ima;
   ImBuf *ibuf;
@@ -451,7 +451,7 @@ struct ImageSampleInfo {
 
 static void sample_draw(const bContext *C, ARegion *region, void *arg_info)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ImageSampleInfo *info = (ImageSampleInfo *)arg_info;
 
   if (info->draw) {
@@ -556,9 +556,9 @@ namespace blender::ed::space_node {
 
 static void sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *region = CTX_wm_region(C);
+  Main *bmain = CTX_data_main(*C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
+  ARegion *region = CTX_wm_region(*C);
   ImageSampleInfo *info = (ImageSampleInfo *)op->customdata;
   void *lock;
   Image *ima;
@@ -636,7 +636,7 @@ static void sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
 
   BKE_image_release_ibuf(ima, ibuf, lock);
 
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 }
 
 static void sample_exit(bContext *C, wmOperator *op)
@@ -645,14 +645,14 @@ static void sample_exit(bContext *C, wmOperator *op)
 
   ED_node_sample_set(nullptr);
   ED_region_draw_cb_exit(info->art, info->draw_handle);
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
   MEM_freeN(info);
 }
 
 static wmOperatorStatus sample_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
+  ARegion *region = CTX_wm_region(*C);
   ImageSampleInfo *info;
 
   /* Don't handle events intended for nodes (which rely on click/drag distinction).

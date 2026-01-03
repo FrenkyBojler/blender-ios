@@ -269,7 +269,7 @@ void paint_delete_blur_kernel(BlurKernel *kernel)
 
 static Brush *image_paint_brush(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ToolSettings *settings = scene->toolsettings;
 
   return BKE_paint_brush(&settings->imapaint.paint);
@@ -283,14 +283,14 @@ static bool image_paint_poll_ex(bContext *C, bool check_tool)
     return false;
   }
 
-  obact = CTX_data_active_object(C);
-  if ((obact && obact->mode & OB_MODE_TEXTURE_PAINT) && CTX_wm_region_view3d(C)) {
+  obact = CTX_data_active_object(*C);
+  if ((obact && obact->mode & OB_MODE_TEXTURE_PAINT) && CTX_wm_region_view3d(*C)) {
     if (!check_tool || WM_toolsystem_active_tool_is_brush(C)) {
       return true;
     }
   }
   else {
-    SpaceImage *sima = CTX_wm_space_image(C);
+    SpaceImage *sima = CTX_wm_space_image(*C);
 
     if (sima) {
       if (sima->image != nullptr &&
@@ -299,7 +299,7 @@ static bool image_paint_poll_ex(bContext *C, bool check_tool)
         return false;
       }
       if (sima->mode == SI_MODE_PAINT) {
-        const ARegion *region = CTX_wm_region(C);
+        const ARegion *region = CTX_wm_region(*C);
         if (region->regiontype == RGN_TYPE_WINDOW) {
           return true;
         }
@@ -322,12 +322,12 @@ bool image_paint_poll_ignore_tool(bContext *C)
 
 static bool image_paint_2d_clone_poll(bContext *C)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(*C);
   const ToolSettings *settings = scene->toolsettings;
   const ImagePaintSettings &image_paint_settings = settings->imapaint;
   Brush *brush = image_paint_brush(C);
 
-  if (!CTX_wm_region_view3d(C) && ED_image_tools_paint_poll(C)) {
+  if (!CTX_wm_region_view3d(*C) && ED_image_tools_paint_poll(C)) {
     if (brush && (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_CLONE)) {
       if (image_paint_settings.clone) {
         return true;
@@ -442,11 +442,11 @@ void paint_brush_exit_tex(Brush *brush)
 
 bool get_imapaint_zoom(bContext *C, float *zoomx, float *zoomy)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area && area->spacetype == SPACE_IMAGE) {
     SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
     if (sima->mode == SI_MODE_PAINT) {
-      ARegion *region = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(*C);
       ED_space_image_get_zoom(sima, region, zoomx, zoomy);
       return true;
     }
@@ -519,14 +519,14 @@ struct GrabClone {
 
 static void grab_clone_apply(bContext *C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(*C);
   ToolSettings *settings = scene->toolsettings;
   ImagePaintSettings &image_paint_settings = settings->imapaint;
   float delta[2];
 
   RNA_float_get_array(op->ptr, "delta", delta);
   add_v2_v2(image_paint_settings.clone_offset, delta);
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(*C));
 }
 
 static wmOperatorStatus grab_clone_exec(bContext *C, wmOperator *op)
@@ -538,7 +538,7 @@ static wmOperatorStatus grab_clone_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus grab_clone_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(*C);
   const ToolSettings *settings = scene->toolsettings;
   const ImagePaintSettings &image_paint_settings = settings->imapaint;
   GrabClone *cmv;
@@ -556,10 +556,10 @@ static wmOperatorStatus grab_clone_invoke(bContext *C, wmOperator *op, const wmE
 
 static wmOperatorStatus grab_clone_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(*C);
   ToolSettings *settings = scene->toolsettings;
   ImagePaintSettings &image_paint_settings = settings->imapaint;
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   GrabClone *cmv = static_cast<GrabClone *>(op->customdata);
   float startfx, startfy, fx, fy, delta[2];
   int xmin = region->winrct.xmin, ymin = region->winrct.ymin;
@@ -762,10 +762,10 @@ void ED_object_texture_paint_mode_enter_ex(Main &bmain,
 
 void ED_object_texture_paint_mode_enter(bContext *C)
 {
-  Main &bmain = *CTX_data_main(C);
-  Object &ob = *CTX_data_active_object(C);
-  Scene &scene = *CTX_data_scene(C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  Main &bmain = *CTX_data_main(*C);
+  Object &ob = *CTX_data_active_object(*C);
+  Scene &scene = *CTX_data_scene(*C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
 
   ED_object_texture_paint_mode_enter_ex(bmain, scene, depsgraph, ob);
 }
@@ -788,15 +788,15 @@ void ED_object_texture_paint_mode_exit_ex(Main &bmain, Scene &scene, Object &ob)
 
 void ED_object_texture_paint_mode_exit(bContext *C)
 {
-  Main &bmain = *CTX_data_main(C);
-  Object &ob = *CTX_data_active_object(C);
-  Scene &scene = *CTX_data_scene(C);
+  Main &bmain = *CTX_data_main(*C);
+  Object &ob = *CTX_data_active_object(*C);
+  Scene &scene = *CTX_data_scene(*C);
   ED_object_texture_paint_mode_exit_ex(bmain, scene, ob);
 }
 
 static bool texture_paint_toggle_poll(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (ob == nullptr || ob->type != OB_MESH) {
     return false;
   }
@@ -810,10 +810,10 @@ static bool texture_paint_toggle_poll(bContext *C)
 static wmOperatorStatus texture_paint_toggle_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::ed;
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
-  Main &bmain = *CTX_data_main(C);
-  Scene &scene = *CTX_data_scene(C);
-  Object &ob = *CTX_data_active_object(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
+  Main &bmain = *CTX_data_main(*C);
+  Scene &scene = *CTX_data_scene(*C);
+  Object &ob = *CTX_data_active_object(*C);
   const int mode_flag = OB_MODE_TEXTURE_PAINT;
   const bool is_mode_set = (ob.mode & mode_flag) != 0;
 
@@ -827,7 +827,7 @@ static wmOperatorStatus texture_paint_toggle_exec(bContext *C, wmOperator *op)
     ED_object_texture_paint_mode_exit_ex(bmain, scene, ob);
   }
   else {
-    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
     ED_object_texture_paint_mode_enter_ex(bmain, scene, *depsgraph, ob);
   }
 
@@ -892,7 +892,7 @@ static bool brush_colors_flip_poll(bContext *C)
     }
   }
   else {
-    Object *ob = CTX_data_active_object(C);
+    Object *ob = CTX_data_active_object(*C);
     if (ob != nullptr) {
       if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_TEXTURE_PAINT | OB_MODE_SCULPT)) {
         return true;
@@ -930,7 +930,7 @@ void PAINT_OT_brush_colors_flip(wmOperatorType *ot)
 
 void ED_imapaint_bucket_fill(bContext *C, float const color[3], wmOperator *op, const int mouse[2])
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
 
   if (sima && sima->image) {
     Image *ima = sima->image;
@@ -949,7 +949,7 @@ void ED_imapaint_bucket_fill(bContext *C, float const color[3], wmOperator *op, 
 static bool texture_paint_poll(bContext *C)
 {
   if (texture_paint_toggle_poll(C)) {
-    if (CTX_data_active_object(C)->mode & OB_MODE_TEXTURE_PAINT) {
+    if (CTX_data_active_object(*C)->mode & OB_MODE_TEXTURE_PAINT) {
       return true;
     }
   }
@@ -970,17 +970,17 @@ bool image_texture_paint_poll(bContext *C)
 
 bool facemask_paint_poll(bContext *C)
 {
-  return BKE_paint_select_face_test(CTX_data_active_object(C));
+  return BKE_paint_select_face_test(CTX_data_active_object(*C));
 }
 
 bool vert_paint_poll(bContext *C)
 {
-  return BKE_paint_select_vert_test(CTX_data_active_object(C));
+  return BKE_paint_select_vert_test(CTX_data_active_object(*C));
 }
 
 bool mask_paint_poll(bContext *C)
 {
-  return BKE_paint_select_elem_test(CTX_data_active_object(C));
+  return BKE_paint_select_elem_test(CTX_data_active_object(*C));
 }
 
 /** \} */

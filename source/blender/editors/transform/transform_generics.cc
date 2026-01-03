@@ -121,28 +121,28 @@ static int t_around_get(TransInfo *t)
 
 void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *event)
 {
-  Scene *sce = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *sce = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(sce, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
   const eObjectMode object_mode = eObjectMode(obact ? obact->mode : OB_MODE_OBJECT);
-  ToolSettings *ts = CTX_data_tool_settings(C);
-  ARegion *region = CTX_wm_region(C);
-  ScrArea *area = CTX_wm_area(C);
-  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  ToolSettings *ts = CTX_data_tool_settings(*C);
+  ARegion *region = CTX_wm_region(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
   if (!is_sequencer) {
     t->scene = sce;
     t->view_layer = view_layer;
   }
   else {
-    t->scene = CTX_data_sequencer_scene(C);
+    t->scene = CTX_data_sequencer_scene(*C);
     t->view_layer = t->scene ? BKE_view_layer_default_render(t->scene) : nullptr;
   }
 
   PropertyRNA *prop;
 
-  t->mbus = CTX_wm_message_bus(C);
-  t->depsgraph = CTX_data_depsgraph_pointer(C);
+  t->mbus = CTX_wm_message_bus(*C);
+  t->depsgraph = CTX_data_depsgraph_pointer(*C);
 
   t->area = area;
   t->region = region;
@@ -265,7 +265,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   }
 
   if (t->spacetype == SPACE_VIEW3D) {
-    bScreen *animscreen = ED_screen_animation_playing(CTX_wm_manager(C));
+    bScreen *animscreen = ED_screen_animation_playing(CTX_wm_manager(*C));
 
     t->animtimer = (animscreen) ? animscreen->animtimer : nullptr;
 
@@ -328,7 +328,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     t->options |= CTX_SEQUENCER_IMAGE;
 
     /* Needed for auto-keying transforms in preview during playback. */
-    bScreen *animscreen = ED_screen_animation_playing(CTX_wm_manager(C));
+    bScreen *animscreen = ED_screen_animation_playing(CTX_wm_manager(*C));
     t->animtimer = (animscreen) ? animscreen->animtimer : nullptr;
   }
 
@@ -692,7 +692,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
            TFM_EDGE_SLIDE,
            TFM_VERT_SLIDE))
   {
-    wmWindowManager *wm = CTX_wm_manager(C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
     wmKeyMap *keymap = WM_keymap_active(wm, op->type->modalkeymap);
     const wmKeyMapItem *kmi_passthrough = nullptr;
     for (const wmKeyMapItem &kmi : keymap->items) {
@@ -773,7 +773,7 @@ void postTrans(bContext *C, TransInfo *t)
   }
 
   if (t->flag & T_MODAL_CURSOR_SET) {
-    WM_cursor_modal_restore(CTX_wm_window(C));
+    WM_cursor_modal_restore(CTX_wm_window(*C));
   }
 
   /* Free all custom-data. */

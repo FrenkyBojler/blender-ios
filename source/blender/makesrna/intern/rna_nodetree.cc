@@ -1284,7 +1284,7 @@ static bNode *rna_NodeTree_node_new(bNodeTree *ntree,
     ntreeTexCheckCyclics(ntree);
   }
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   BKE_main_ensure_invariants(*bmain, ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 
@@ -1608,7 +1608,7 @@ static void rna_NodeTree_debug_lazy_function_graph(bNodeTree *tree,
   *r_str = nullptr;
   if (DEG_is_original(tree)) {
     /* The graph is only stored on the evaluated data. */
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     tree = DEG_get_evaluated(depsgraph, tree);
   };
   if (tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.is_dirty()) {
@@ -1627,7 +1627,7 @@ static void rna_NodeTree_debug_zone_body_lazy_function_graph(
   bNodeTree *tree = reinterpret_cast<bNodeTree *>(tree_id);
   if (DEG_is_original(tree)) {
     /* The graph is only stored on the evaluated data. */
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     tree = DEG_get_evaluated(depsgraph, tree);
   }
   if (tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.is_dirty()) {
@@ -1648,8 +1648,8 @@ static void rna_NodeTree_debug_zone_lazy_function_graph(
 {
   *r_len = 0;
   *r_str = nullptr;
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Main *bmain = CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   bNodeTree *tree = reinterpret_cast<bNodeTree *>(tree_id);
 
   if (tree->type != NTREE_GEOMETRY) {
@@ -1676,7 +1676,7 @@ static void rna_NodeTree_debug_zone_lazy_function_graph(
 
 static void rna_NodeTree_interface_update(bNodeTree *ntree, bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ntree->tree_interface.tag_items_changed_generic();
   BKE_main_ensure_invariants(*bmain, ntree->id);
 }
@@ -2642,7 +2642,7 @@ void rna_Node_update_relations(Main *bmain, Scene *scene, PointerRNA *ptr)
 static void rna_Node_socket_value_update(ID *id, bNode * /*node*/, bContext *C)
 {
   BKE_ntree_update_tag_all(reinterpret_cast<bNodeTree *>(id));
-  BKE_main_ensure_invariants(*CTX_data_main(C), *id);
+  BKE_main_ensure_invariants(*CTX_data_main(*C), *id);
 }
 
 static void rna_Node_select_set(PointerRNA *ptr, bool value)
@@ -3696,7 +3696,7 @@ static bool rna_Node_pair_with_output(
   output_node_id = output_node->identifier;
 
   BKE_ntree_update_tag_node_property(ntree, node);
-  BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
+  BKE_main_ensure_invariants(*CTX_data_main(*C), ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
   return true;
 }

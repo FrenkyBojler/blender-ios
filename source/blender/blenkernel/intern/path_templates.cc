@@ -249,7 +249,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
         scene = reinterpret_cast<const Scene *>(ptr->owner_id);
       }
       else {
-        scene = CTX_data_scene(C);
+        scene = CTX_data_scene(*C);
       }
 
       BKE_add_template_variables_for_render_path(variables, *scene);

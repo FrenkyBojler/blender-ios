@@ -40,13 +40,13 @@
  */
 static void bpy_op_fn_view_layer_update(bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   /* None in background mode. */
   if (view_layer) {
     /* Update the active view layer. */
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
     if (depsgraph && !DEG_is_evaluating(depsgraph)) {
       DEG_make_active(depsgraph);
@@ -124,7 +124,7 @@ static PyObject *bpy_op_fn_call(BPyOpFunction *self, PyObject *args, PyObject *k
   }
 
   /* Store the window manager before operator execution to check if it changes. */
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   /* Convert Blender format to Python format for the call. */
   char idname_py[OP_MAX_TYPENAME];
@@ -179,7 +179,7 @@ static PyObject *bpy_op_fn_call(BPyOpFunction *self, PyObject *args, PyObject *k
     if (finished_str) {
       int has_finished = PySequence_Contains(result, finished_str);
       if (has_finished == 1) {
-        if (CTX_wm_manager(C) == wm) {
+        if (CTX_wm_manager(*C) == wm) {
           bpy_op_fn_view_layer_update(C);
         }
       }

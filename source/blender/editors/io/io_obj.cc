@@ -93,7 +93,7 @@ static wmOperatorStatus wm_obj_export_exec(bContext *C, wmOperator *op)
   OBJExportParams export_params;
   export_params.file_base_for_tests[0] = '\0';
   RNA_string_get(op->ptr, "filepath", export_params.filepath);
-  export_params.blen_filepath = CTX_data_main(C)->filepath;
+  export_params.blen_filepath = CTX_data_main(*C)->filepath;
   export_params.export_animation = RNA_boolean_get(op->ptr, "export_animation");
   export_params.start_frame = RNA_int_get(op->ptr, "start_frame");
   export_params.end_frame = RNA_int_get(op->ptr, "end_frame");
@@ -149,7 +149,7 @@ static void ui_obj_export_settings(const bContext *C, blender::ui::Layout &layou
   {
     blender::ui::Layout &col = panel->column(false);
 
-    if (CTX_wm_space_file(C)) {
+    if (CTX_wm_space_file(*C)) {
       blender::ui::Layout &sub = col.column(false, IFACE_("Include"));
       sub.prop(ptr, "export_selected_objects", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
     }
@@ -229,7 +229,7 @@ static void wm_obj_export_draw(bContext *C, wmOperator *op)
 static bool wm_obj_export_check(bContext *C, wmOperator *op)
 {
   char filepath[FILE_MAX];
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   bool changed = false;
   RNA_string_get(op->ptr, "filepath", filepath);
 
@@ -461,7 +461,7 @@ static wmOperatorStatus wm_obj_import_exec(bContext *C, wmOperator *op)
     import_params.clear_selection = false;
   };
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);

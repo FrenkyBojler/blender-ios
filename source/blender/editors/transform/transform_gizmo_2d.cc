@@ -71,7 +71,7 @@ static bool gizmo2d_generic_poll(const bContext *C, wmGizmoGroupType *gzgt)
     return false;
   }
 
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area == nullptr) {
     return false;
   }
@@ -81,7 +81,7 @@ static bool gizmo2d_generic_poll(const bContext *C, wmGizmoGroupType *gzgt)
   switch (area->spacetype) {
     case SPACE_IMAGE: {
       const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
-      Object *obedit = CTX_data_edit_object(C);
+      Object *obedit = CTX_data_edit_object(*C);
       if (!(ED_space_image_show_uvedit(sima, obedit) || ED_space_image_show_mask(sima))) {
         return false;
       }
@@ -95,7 +95,7 @@ static bool gizmo2d_generic_poll(const bContext *C, wmGizmoGroupType *gzgt)
       if (sseq->mainb != SEQ_DRAW_IMG_IMBUF) {
         return false;
       }
-      Scene *scene = CTX_data_scene(C);
+      Scene *scene = CTX_data_scene(*C);
       Editing *ed = seq::editing_get(scene);
       if (ed == nullptr) {
         return false;
@@ -238,14 +238,14 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
     r_max = max_buf;
   }
 
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   bool has_select = false;
   if (area->spacetype == SPACE_IMAGE) {
     const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
     switch (sima->mode) {
       case SI_MODE_UV: {
-        Scene *scene = CTX_data_scene(C);
-        ViewLayer *view_layer = CTX_data_view_layer(C);
+        Scene *scene = CTX_data_scene(*C);
+        ViewLayer *view_layer = CTX_data_view_layer(*C);
         Vector<Object *> objects =
             BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
                 scene, view_layer, nullptr);
@@ -265,7 +265,7 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
     }
   }
   else if (area->spacetype == SPACE_SEQ) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     Editing *ed = seq::editing_get(scene);
     ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
     ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
@@ -314,12 +314,12 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
 
 static int gizmo2d_calc_transform_orientation(const bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area->spacetype != SPACE_SEQ) {
     return V3D_ORIENT_GLOBAL;
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
@@ -336,12 +336,12 @@ static int gizmo2d_calc_transform_orientation(const bContext *C)
 
 static float gizmo2d_calc_rotation(const bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   if (area->spacetype != SPACE_SEQ) {
     return 0.0f;
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
@@ -384,13 +384,13 @@ static bool seq_get_strip_pivot_median(const Scene *scene, float r_pivot[2])
 
 static bool gizmo2d_calc_transform_pivot(const bContext *C, float r_pivot[2])
 {
-  ScrArea *area = CTX_wm_area(C);
-  Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(*C);
+  Scene *scene = CTX_data_scene(*C);
   bool has_select = false;
 
   if (area->spacetype == SPACE_IMAGE) {
     const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
     switch (sima->mode) {
       case SI_MODE_UV:
         ED_uvedit_center_from_pivot_ex(
@@ -447,7 +447,7 @@ static wmOperatorStatus gizmo2d_modal(bContext *C,
                                       const wmEvent * /*event*/,
                                       eWM_GizmoFlagTweak /*tweak_flag*/)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   float origin[3];
 
   gizmo2d_calc_transform_pivot(C, origin);
@@ -618,7 +618,7 @@ static void gizmo2d_xform_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 
 static void gizmo2d_xform_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   GizmoGroup2D *ggd = static_cast<GizmoGroup2D *>(gzgroup->customdata);
   float origin[3] = {UNPACK2(ggd->origin), 0.0f};
 
@@ -638,10 +638,10 @@ static void gizmo2d_xform_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
   ggd->cage->matrix_offset[0][0] = max_ff(min_scale_axis_x, ggd->max[0] - ggd->min[0]);
   ggd->cage->matrix_offset[1][1] = max_ff(min_scale_axis_y, ggd->max[1] - ggd->min[1]);
 
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   if (area->spacetype == SPACE_SEQ) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     seq_get_strip_pivot_median(scene, origin);
 
     float matrix_rotate[4][4];
@@ -702,11 +702,11 @@ static void gizmo2d_xform_invoke_prepare(const bContext *C,
   float orient_matrix[3][3];
   unit_m3(orient_matrix);
 
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   if (ggd->rotation != 0.0f && area->spacetype == SPACE_SEQ) {
     float origin[3];
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     seq_get_strip_pivot_median(scene, origin);
     /* We need to rotate the cardinal points so they align with the rotated bounding box. */
 
@@ -780,9 +780,9 @@ static void gizmo2d_xform_no_cage_message_subscribe(const bContext *C,
                                                     wmGizmoGroup *gzgroup,
                                                     wmMsgBus *mbus)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  bScreen *screen = CTX_wm_screen(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
   gizmo2d_pivot_point_message_subscribe(gzgroup, mbus, screen, area, region);
 }
 
@@ -846,7 +846,7 @@ static void gizmo2d_resize_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 
 static void gizmo2d_resize_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   GizmoGroup_Resize2D *ggd = static_cast<GizmoGroup_Resize2D *>(gzgroup->customdata);
   float origin[3] = {UNPACK2(ggd->origin), 0.0f};
 
@@ -940,9 +940,9 @@ static void gizmo2d_resize_message_subscribe(const bContext *C,
                                              wmGizmoGroup *gzgroup,
                                              wmMsgBus *mbus)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  bScreen *screen = CTX_wm_screen(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
   gizmo2d_pivot_point_message_subscribe(gzgroup, mbus, screen, area, region);
 }
 
@@ -1001,7 +1001,7 @@ static void gizmo2d_rotate_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 
 static void gizmo2d_rotate_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   GizmoGroup_Rotate2D *ggd = static_cast<GizmoGroup_Rotate2D *>(gzgroup->customdata);
   float origin[3] = {UNPACK2(ggd->origin), 0.0f};
 
@@ -1051,9 +1051,9 @@ static void gizmo2d_rotate_message_subscribe(const bContext *C,
                                              wmGizmoGroup *gzgroup,
                                              wmMsgBus *mbus)
 {
-  bScreen *screen = CTX_wm_screen(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
+  bScreen *screen = CTX_wm_screen(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
   gizmo2d_pivot_point_message_subscribe(gzgroup, mbus, screen, area, region);
 }
 

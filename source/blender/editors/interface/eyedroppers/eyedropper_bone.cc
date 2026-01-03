@@ -132,7 +132,7 @@ static int bonedropper_init(bContext *C, wmOperator *op)
 
   SpaceType *space_type = BKE_spacetype_from_id(SPACE_VIEW3D);
   ARegionType *area_region_type = BKE_regiontype_from_id(space_type, RGN_TYPE_WINDOW);
-  bone_dropper->cursor_area = CTX_wm_area(C);
+  bone_dropper->cursor_area = CTX_wm_area(*C);
   bone_dropper->area_region_type = area_region_type;
   bone_dropper->draw_handle_pixel = ED_region_draw_cb_activate(
       area_region_type, datadropper_draw_cb, bone_dropper, REGION_DRAW_POST_PIXEL);
@@ -142,7 +142,7 @@ static int bonedropper_init(bContext *C, wmOperator *op)
 
 static void bonedropper_exit(bContext *C, wmOperator *op)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   WM_cursor_modal_restore(win);
 
   if (op->customdata) {
@@ -192,7 +192,7 @@ static BoneSampleData sample_data_from_3d_view(bContext *C,
 {
   Base *base = nullptr;
 
-  switch (CTX_data_mode_enum(C)) {
+  switch (CTX_data_mode_enum(*C)) {
     case CTX_MODE_POSE: {
       bPoseChannel *bone = ED_armature_pick_pchan(C, mval, true, &base);
       if (!bone || !base) {
@@ -321,9 +321,9 @@ static BoneSampleData bonedropper_sample_pt(
     return {};
   }
 
-  wmWindow *win_prev = CTX_wm_window(C);
-  ScrArea *area_prev = CTX_wm_area(C);
-  ARegion *region_prev = CTX_wm_region(C);
+  wmWindow *win_prev = CTX_wm_window(*C);
+  ScrArea *area_prev = CTX_wm_area(*C);
+  ARegion *region_prev = CTX_wm_region(*C);
 
   const int mval[2] = {event_xy[0] - region->winrct.xmin, event_xy[1] - region->winrct.ymin};
 
@@ -401,7 +401,7 @@ static SampleResult bonedropper_sample(bContext *C, BoneDropper &bdr, const int 
       RNA_property_string_set(&bdr.ptr, bdr.prop, sample_data.name);
       break;
     case PROP_POINTER:
-      RNA_property_pointer_set(&bdr.ptr, bdr.prop, sample_data.bone_rna, CTX_wm_reports(C));
+      RNA_property_pointer_set(&bdr.ptr, bdr.prop, sample_data.bone_rna, CTX_wm_reports(*C));
       break;
 
     default:
@@ -488,12 +488,12 @@ static wmOperatorStatus bonedropper_modal(bContext *C, wmOperator *op, const wmE
 static wmOperatorStatus bonedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   /* This is needed to ensure viewport picking works. */
-  BKE_object_update_select_id(CTX_data_main(C));
+  BKE_object_update_select_id(CTX_data_main(*C));
 
   if (bonedropper_init(C, op)) {
-    wmWindow *win = CTX_wm_window(C);
+    wmWindow *win = CTX_wm_window(*C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    context_active_but_clear(C, win, CTX_wm_region(C));
+    context_active_but_clear(C, win, CTX_wm_region(*C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     WM_event_add_modal_handler(C, op);
@@ -518,11 +518,11 @@ static bool bonedropper_poll(bContext *C)
   PropertyRNA *prop;
   int index_dummy;
 
-  if (CTX_wm_window(C) == nullptr) {
+  if (CTX_wm_window(*C) == nullptr) {
     return false;
   }
 
-  const Object *active_object = CTX_data_active_object(C);
+  const Object *active_object = CTX_data_active_object(*C);
 
   if (!active_object || active_object->type != OB_ARMATURE) {
     CTX_wm_operator_poll_msg_set(C, "The active object needs to be an armature");

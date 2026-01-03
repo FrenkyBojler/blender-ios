@@ -250,8 +250,8 @@ static void MaskPointToTransData(Scene *scene,
 
 static void createTransMaskingData(bContext *C, TransInfo *t)
 {
-  Scene *scene = CTX_data_scene(C);
-  Mask *mask = CTX_data_edit_mask(C);
+  Scene *scene = CTX_data_scene(*C);
+  Mask *mask = CTX_data_edit_mask(*C);
   TransData *td = nullptr;
   TransData2D *td2d = nullptr;
   TransDataMasking *tdm = nullptr;
@@ -418,7 +418,7 @@ static void flushTransMasking(TransInfo *t)
 
 static void recalcData_mask_common(TransInfo *t)
 {
-  Mask *mask = CTX_data_edit_mask(t->context);
+  Mask *mask = CTX_data_edit_mask(*t->context);
 
   flushTransMasking(t);
 

@@ -118,7 +118,7 @@ static AutoPropButsReturn template_operator_property_buts_draw_single(
      * We could allow #wmOperatorType.ui callback to return this, but not needed right now. */
   }
   else {
-    wmWindowManager *wm = CTX_wm_manager(C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
     uiTemplateOperatorPropertyPollParam user_data{};
     user_data.C = C;
     user_data.op = op;
@@ -191,7 +191,7 @@ static AutoPropButsReturn template_operator_property_buts_draw_single(
       if (is_popup) {
         if ((but->rnaprop == op->type->prop) && ELEM(but->type, ButtonType::Text, ButtonType::Num))
         {
-          button_focus_on_enter_event(CTX_wm_window(C), but.get());
+          button_focus_on_enter_event(CTX_wm_window(*C), but.get());
         }
       }
     }
@@ -272,7 +272,7 @@ static bool ui_layout_operator_properties_only_booleans(const bContext *C,
 void uiTemplateOperatorPropertyButs(
     const bContext *C, Layout *layout, wmOperator *op, eButLabelAlign label_align, short flag)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   /* If there are only checkbox items, don't use split layout by default. It looks weird if the
    * check-boxes only use half the width. */
@@ -406,7 +406,7 @@ static void draw_exporter_item(uiList * /*ui_list*/,
 
 void template_collection_exporters(Layout *layout, bContext *C)
 {
-  Collection *collection = CTX_data_collection(C);
+  Collection *collection = CTX_data_collection(*C);
   ListBaseT<CollectionExport> *exporters = &collection->exporters;
   const int index = collection->active_exporter_index;
 

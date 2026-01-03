@@ -442,13 +442,13 @@ void foreach_active_gizmo(const bContext &C,
                           bke::ComputeContextCache &compute_context_cache,
                           const ForeachGizmoFn fn)
 {
-  const wmWindowManager *wm = CTX_wm_manager(&C);
+  const wmWindowManager *wm = CTX_wm_manager(C);
   if (!wm) {
     return;
   }
   foreach_active_gizmo_in_open_editors(*wm, nullptr, nullptr, compute_context_cache, fn);
 
-  if (const Base *active_base = CTX_data_active_base(&C)) {
+  if (const Base *active_base = CTX_data_active_base(C)) {
     if (!(active_base->flag & BASE_SELECTED)) {
       return;
     }

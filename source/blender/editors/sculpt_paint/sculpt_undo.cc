@@ -1051,9 +1051,9 @@ static void refine_subdiv(Depsgraph *depsgraph,
 
 static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object &object = *BKE_view_layer_active_object_get(view_layer);
   if (step_data.object_name != object.id.name) {
@@ -2089,7 +2089,7 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr_ref)
     return;
   }
 
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   Mesh *mesh = BKE_object_get_original_mesh(ob);
 
   SculptAttrRef existing;
@@ -2237,12 +2237,12 @@ static void step_decode(
   /* NOTE: behavior for undo/redo closely matches image undo. */
   BLI_assert(dir != STEP_INVALID);
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
 
   /* Ensure sculpt mode. */
   {
-    Scene *scene = CTX_data_scene(C);
-    ViewLayer *view_layer = CTX_data_view_layer(C);
+    Scene *scene = CTX_data_scene(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(*C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *ob = BKE_view_layer_active_object_get(view_layer);
     if (ob && (ob->type == OB_MESH)) {
@@ -2405,7 +2405,7 @@ static bool use_multires_mesh(bContext *C)
     return false;
   }
 
-  const Object *object = CTX_data_active_object(C);
+  const Object *object = CTX_data_active_object(*C);
   const SculptSession *sculpt_session = object->sculpt;
 
   return sculpt_session->multires.active;
@@ -2417,8 +2417,8 @@ void push_multires_mesh_begin(bContext *C, const char *str)
     return;
   }
 
-  const Scene &scene = *CTX_data_scene(C);
-  Object *object = CTX_data_active_object(C);
+  const Scene &scene = *CTX_data_scene(*C);
+  Object *object = CTX_data_active_object(*C);
 
   multires_flush_sculpt_updates(object);
 
@@ -2434,7 +2434,7 @@ void push_multires_mesh_end(bContext *C, const char *str)
     return;
   }
 
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
 
   geometry_push(*object);
 

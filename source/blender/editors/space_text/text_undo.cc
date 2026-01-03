@@ -135,7 +135,7 @@ static void text_undosys_step_encode_init(bContext *C, UndoStep *us_p)
   TextUndoStep *us = (TextUndoStep *)us_p;
   BLI_assert(BLI_array_is_zeroed(us->states, ARRAY_SIZE(us->states)));
 
-  Text *text = CTX_data_edit_text(C);
+  Text *text = CTX_data_edit_text(*C);
 
   /* Avoid writing the initial state where possible,
    * failing to do this won't cause bugs, it's just inefficient. */
@@ -161,7 +161,7 @@ static bool text_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoStep *us
   TextUndoStep *us = (TextUndoStep *)us_p;
 
   Text *text = us->text_ref.ptr;
-  BLI_assert(text == CTX_data_edit_text(C));
+  BLI_assert(text == CTX_data_edit_text(*C));
   UNUSED_VARS_NDEBUG(C);
 
   us->step.data_size += text_undosys_step_encode_to_state(&us->states[1], text);
@@ -189,7 +189,7 @@ static void text_undosys_step_decode(
 
   text_state_decode(state, text);
 
-  SpaceText *st = CTX_wm_space_text(C);
+  SpaceText *st = CTX_wm_space_text(*C);
   if (st) {
     /* Not essential, always show text being undo where possible. */
     st->text = text;
@@ -249,7 +249,7 @@ void ED_text_undosys_type(UndoType *ut)
 UndoStep *ED_text_undo_push_init(bContext *C)
 {
   UndoStack *ustack = ED_undo_stack_get();
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   if (wm->op_undo_depth <= 1) {
     UndoStep *us_p = BKE_undosys_step_push_init_with_type(

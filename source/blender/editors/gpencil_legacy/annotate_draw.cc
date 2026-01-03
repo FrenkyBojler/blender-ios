@@ -779,10 +779,10 @@ static void annotation_draw_data_all(Scene *scene,
 
 void ED_annotation_draw_2dimage(const bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   int offsx, offsy, sizex, sizey;
   int dflag = GP_DRAWDATA_NOSTATUS;
@@ -848,10 +848,10 @@ void ED_annotation_draw_2dimage(const bContext *C)
 
 void ED_annotation_draw_view2d(const bContext *C, bool onlyv2d)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(*C);
+  Scene *scene = CTX_data_scene(*C);
   int dflag = 0;
 
   /* check that we have grease-pencil stuff to draw */

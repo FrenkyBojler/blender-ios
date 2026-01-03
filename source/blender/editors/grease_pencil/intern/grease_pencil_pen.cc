@@ -186,7 +186,7 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
 
     GreasePencil *grease_pencil = static_cast<GreasePencil *>(this->vc.obact->data);
     this->grease_pencil = grease_pencil;
-    View3D *view3d = CTX_wm_view3d(C);
+    View3D *view3d = CTX_wm_view3d(*C);
 
     /* Initialize helper class for projecting screen space coordinates. */
     DrawingPlacement placement = DrawingPlacement(*this->vc.scene,
@@ -195,10 +195,10 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
                                                   *this->vc.obact,
                                                   grease_pencil->get_active_layer());
     if (placement.use_project_to_surface()) {
-      placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), this->vc.region, view3d);
+      placement.cache_viewport_depths(CTX_data_depsgraph_pointer(*C), this->vc.region, view3d);
     }
     else if (placement.use_project_to_stroke()) {
-      placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), this->vc.region, view3d);
+      placement.cache_viewport_depths(CTX_data_depsgraph_pointer(*C), this->vc.region, view3d);
     }
 
     bool inserted_keyframe = false;

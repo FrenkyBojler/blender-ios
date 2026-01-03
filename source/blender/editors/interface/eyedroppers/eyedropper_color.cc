@@ -135,12 +135,12 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
   if (eye->ptr.type == &RNA_CompositorNodeCryptomatteV2) {
     eye->crypto_node = (bNode *)eye->ptr.data;
     eye->cryptomatte_session = ntreeCompositCryptomatteSession(eye->crypto_node);
-    eye->cb_win = CTX_wm_window(C);
+    eye->cb_win = CTX_wm_window(*C);
     eye->draw_handle_sample_text = WM_draw_cb_activate(eye->cb_win, eyedropper_draw_cb, eye);
   }
 
   if (prop_subtype != PROP_COLOR) {
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     const char *display_device;
 
     display_device = scene->display_settings.display_device;
@@ -159,7 +159,7 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
 static void eyedropper_exit(bContext *C, wmOperator *op)
 {
   Eyedropper *eye = static_cast<Eyedropper *>(op->customdata);
-  wmWindow *window = CTX_wm_window(C);
+  wmWindow *window = CTX_wm_window(*C);
   WM_cursor_modal_restore(window);
 
   ED_workspace_status_text(C, nullptr);
@@ -304,7 +304,7 @@ static bool eyedropper_cryptomatte_sample_image_fl(bContext *C,
   BLI_assert((image == nullptr) || (GS(image->id.name) == ID_IM));
 
   /* Compute the effective frame number of the image if it was animated. */
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   ImageUser image_user_for_frame = crypto->iuser;
   BKE_image_user_frame_calc(image, &image_user_for_frame, scene->r.cfra);
 
@@ -338,7 +338,7 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
   ScrArea *area = nullptr;
 
   int event_xy_win[2];
-  wmWindow *win = WM_window_find_under_cursor(CTX_wm_window(C), event_xy, event_xy_win);
+  wmWindow *win = WM_window_find_under_cursor(CTX_wm_window(*C), event_xy, event_xy_win);
   if (win) {
     bScreen *screen = WM_window_get_active_screen(win);
     area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event_xy_win);
@@ -351,7 +351,7 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
     WM_draw_cb_exit(eye->cb_win, eye->draw_handle_sample_text);
     eye->cb_win = win;
     eye->draw_handle_sample_text = WM_draw_cb_activate(eye->cb_win, eyedropper_draw_cb, eye);
-    ED_region_tag_redraw(CTX_wm_region(C));
+    ED_region_tag_redraw(CTX_wm_region(*C));
   }
 
   if (!area || !ELEM(area->spacetype, SPACE_IMAGE, SPACE_NODE, SPACE_CLIP, SPACE_VIEW3D)) {
@@ -376,7 +376,7 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
       break;
     }
     case SPACE_NODE: {
-      Main *bmain = CTX_data_main(C);
+      Main *bmain = CTX_data_main(*C);
       SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
       ED_space_node_get_position(bmain, snode, region, mval, fpos);
       break;
@@ -411,9 +411,9 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
   prefix[MAX_NAME] = '\0';
 
   if (area->spacetype == SPACE_VIEW3D) {
-    wmWindow *win_prev = CTX_wm_window(C);
-    ScrArea *area_prev = CTX_wm_area(C);
-    ARegion *region_prev = CTX_wm_region(C);
+    wmWindow *win_prev = CTX_wm_window(*C);
+    ScrArea *area_prev = CTX_wm_area(*C);
+    ARegion *region_prev = CTX_wm_region(*C);
 
     CTX_wm_window_set(C, win);
     CTX_wm_area_set(C, area);
@@ -444,7 +444,7 @@ bool eyedropper_color_sample_fl(bContext *C,
   ScrArea *area = nullptr;
 
   int event_xy_win[2];
-  wmWindow *win = WM_window_find_under_cursor(CTX_wm_window(C), event_xy, event_xy_win);
+  wmWindow *win = WM_window_find_under_cursor(CTX_wm_window(*C), event_xy, event_xy_win);
   if (win) {
     bScreen *screen = WM_window_get_active_screen(win);
     area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event_xy_win);
@@ -465,7 +465,7 @@ bool eyedropper_color_sample_fl(bContext *C,
       }
       else if (area->spacetype == SPACE_NODE) {
         SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
-        Main *bmain = CTX_data_main(C);
+        Main *bmain = CTX_data_main(*C);
         if (ED_space_node_color_sample(bmain, snode, region, mval, r_col)) {
           return true;
         }
@@ -496,7 +496,7 @@ bool eyedropper_color_sample_fl(bContext *C,
     if (!WM_window_pixels_read_sample(C, win, event_xy_win, r_col)) {
       WM_window_pixels_read_sample_from_offscreen(C, win, event_xy_win, r_col);
     }
-    const char *display_device = CTX_data_scene(C)->display_settings.display_device;
+    const char *display_device = CTX_data_scene(*C)->display_settings.display_device;
     const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
     IMB_colormanagement_display_to_scene_linear_v3(r_col, display);
     return true;
@@ -658,9 +658,9 @@ static wmOperatorStatus eyedropper_invoke(bContext *C, wmOperator *op, const wmE
 {
   /* init */
   if (eyedropper_init(C, op)) {
-    wmWindow *win = CTX_wm_window(C);
+    wmWindow *win = CTX_wm_window(*C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    context_active_but_clear(C, win, CTX_wm_region(C));
+    context_active_but_clear(C, win, CTX_wm_region(*C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
@@ -691,7 +691,7 @@ static bool eyedropper_poll(bContext *C)
 {
   /* Actual test for active button happens later, since we don't
    * know which one is active until mouse over. */
-  return (CTX_wm_window(C) != nullptr);
+  return (CTX_wm_window(*C) != nullptr);
 }
 
 void UI_OT_eyedropper_color(wmOperatorType *ot)

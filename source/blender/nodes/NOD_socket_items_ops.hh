@@ -28,7 +28,7 @@ inline PointerRNA get_active_node_to_operate_on(bContext *C,
                                                 wmOperator *op,
                                                 const StringRef node_idname)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   if (!snode) {
     return PointerRNA_NULL;
   }
@@ -76,13 +76,13 @@ inline void update_after_node_change(bContext *C, const PointerRNA node_ptr)
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(node_ptr.owner_id);
 
   BKE_ntree_update_tag_node_property(ntree, node);
-  BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
+  BKE_main_ensure_invariants(*CTX_data_main(*C), ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
 template<typename Accessor> inline bool editable_node_active_poll(bContext *C)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   if (!snode) {
     return false;
   }

@@ -158,8 +158,8 @@ enum {
  */
 static bool modify_key_op_poll(bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
-  Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* if no area or active scene */
   if (ELEM(nullptr, area, scene)) {
@@ -174,12 +174,12 @@ static bool modify_key_op_poll(bContext *C)
 
 static wmOperatorStatus insert_key_with_keyingset(bContext *C, wmOperator *op, KeyingSet *ks)
 {
-  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit = CTX_data_edit_object(*C);
   bool ob_edit_mode = false;
 
   const float cfra = BKE_scene_frame_get(scene);
@@ -313,14 +313,14 @@ static blender::Vector<RNAPath> construct_rna_paths(PointerRNA *ptr)
 /* Fill the list with items depending on the mode of the context. */
 static bool get_selection(bContext *C, blender::Vector<PointerRNA> *r_selection)
 {
-  const eContextObjectMode context_mode = CTX_data_mode_enum(C);
-  ScrArea *area = CTX_wm_area(C);
+  const eContextObjectMode context_mode = CTX_data_mode_enum(*C);
+  ScrArea *area = CTX_wm_area(*C);
 
   if (area && area->spacetype == SPACE_SEQ) {
     blender::VectorSet<Strip *> strips = blender::ed::vse::selected_strips_from_context(C);
     for (Strip *strip : strips) {
       PointerRNA ptr;
-      ptr = RNA_pointer_create_discrete(&CTX_data_scene(C)->id, &RNA_Strip, strip);
+      ptr = RNA_pointer_create_discrete(&CTX_data_scene(*C)->id, &RNA_Strip, strip);
       r_selection->append(ptr);
     }
     return true;
@@ -328,11 +328,11 @@ static bool get_selection(bContext *C, blender::Vector<PointerRNA> *r_selection)
 
   switch (context_mode) {
     case CTX_MODE_OBJECT: {
-      CTX_data_selected_objects(C, r_selection);
+      CTX_data_selected_objects(*C, r_selection);
       break;
     }
     case CTX_MODE_POSE: {
-      CTX_data_selected_pose_bones(C, r_selection);
+      CTX_data_selected_pose_bones(*C, r_selection);
       break;
     }
     default:
@@ -358,14 +358,14 @@ static wmOperatorStatus insert_key(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   const float scene_frame = BKE_scene_frame_get(scene);
 
   const eInsertKeyFlags insert_key_flags = animrig::get_keyframing_flags(scene);
   const eBezTriple_KeyframeType key_type = eBezTriple_KeyframeType(
       scene->toolsettings->keyframe_type);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
       depsgraph, BKE_scene_frame_get(scene));
 
@@ -416,8 +416,8 @@ static wmOperatorStatus insert_key_exec(bContext *C, wmOperator *op)
 {
   ANIM_deselect_keys_in_animation_editors(C);
 
-  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
@@ -436,7 +436,7 @@ static wmOperatorStatus insert_key_invoke(bContext *C, wmOperator *op, const wmE
    * properties are actually the values of the current frame. However we cannot do that in the exec
    * function, as that would mean every call to the operator via python has to re-evaluate the
    * depsgraph, causing performance regressions. */
-  CTX_data_ensure_evaluated_depsgraph(C);
+  CTX_data_ensure_evaluated_depsgraph(*C);
   return insert_key_exec(C, op);
 }
 
@@ -469,8 +469,8 @@ static wmOperatorStatus keyframe_insert_with_keyingset_exec(bContext *C, wmOpera
 {
   ANIM_deselect_keys_in_animation_editors(C);
 
-  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
@@ -515,8 +515,8 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
                                                wmOperator *op,
                                                const wmEvent * /*event*/)
 {
-  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
@@ -608,8 +608,8 @@ void ANIM_OT_keyframe_insert_menu(wmOperatorType *ot)
 
 static wmOperatorStatus delete_key_exec(bContext *C, wmOperator *op)
 {
-  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
@@ -623,8 +623,8 @@ static wmOperatorStatus delete_key_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *ks)
 {
-  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
@@ -760,7 +760,7 @@ static wmOperatorStatus clear_anim_v3d_exec(bContext *C, wmOperator * /*op*/)
   using namespace blender::animrig;
   bool changed = false;
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     /* just those in active action... */
     if ((ob->adt) && (ob->adt->action)) {
       AnimData *adt = ob->adt;
@@ -861,7 +861,7 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
   using namespace blender::animrig;
   bool changed = false;
 
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
 
   blender::Vector<PointerRNA> selection;
   blender::Vector<std::string> selected_strips_rna_paths;
@@ -1002,7 +1002,7 @@ static bool can_delete_scene_key(FCurve *fcu, Scene *scene, wmOperator *op)
 static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   const float cfra = BKE_scene_frame_get(scene);
 
   blender::Vector<PointerRNA> selection;
@@ -1089,7 +1089,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
 
 static wmOperatorStatus delete_key_vse_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_sequencer_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(*C);
   KeyingSet *ks = blender::animrig::scene_get_active_keyingset(scene);
 
   if (ks == nullptr) {
@@ -1136,7 +1136,7 @@ void ANIM_OT_keyframe_delete_vse(wmOperatorType *ot)
 static wmOperatorStatus delete_key_v3d_without_keying_set(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   const float cfra = BKE_scene_frame_get(scene);
 
   int selected_objects_len = 0;
@@ -1145,7 +1145,7 @@ static wmOperatorStatus delete_key_v3d_without_keying_set(bContext *C, wmOperato
 
   const bool confirm = op->flag & OP_IS_INVOKE;
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     int success = 0;
 
     selected_objects_len += 1;
@@ -1215,7 +1215,7 @@ static wmOperatorStatus delete_key_v3d_without_keying_set(bContext *C, wmOperato
 
 static wmOperatorStatus delete_key_v3d_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   KeyingSet *ks = blender::animrig::scene_get_active_keyingset(scene);
 
   if (ks == nullptr) {
@@ -1264,9 +1264,9 @@ void ANIM_OT_keyframe_delete_v3d(wmOperatorType *ot)
 static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
-  Main *bmain = CTX_data_main(C);
-  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  Main *bmain = CTX_data_main(*C);
+  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
@@ -1275,7 +1275,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
   PropertyRNA *prop = nullptr;
   blender::ui::Button *but;
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
-      CTX_data_depsgraph_pointer(C), BKE_scene_frame_get(scene));
+      CTX_data_depsgraph_pointer(*C), BKE_scene_frame_get(scene));
   bool changed = false;
   int index;
   const bool all = RNA_boolean_get(op->ptr, "all");
@@ -1325,7 +1325,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
         const float driver_frame = evaluate_driver_from_rna_pointer(
             &anim_eval_context, &ptr, prop, fcu);
         AnimationEvalContext remapped_context = BKE_animsys_eval_context_construct(
-            CTX_data_depsgraph_pointer(C), driver_frame);
+            CTX_data_depsgraph_pointer(*C), driver_frame);
         changed = insert_keyframe_direct(op->reports,
                                          ptr,
                                          prop,
@@ -1425,14 +1425,14 @@ void ANIM_OT_keyframe_insert_button(wmOperatorType *ot)
 
 static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
 {
-  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   const float cfra = BKE_scene_frame_get(scene);
   bool changed = false;
   int index;
@@ -1538,7 +1538,7 @@ static wmOperatorStatus clear_key_button_exec(bContext *C, wmOperator *op)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   bool changed = false;
   int index;
   const bool all = RNA_boolean_get(op->ptr, "all");

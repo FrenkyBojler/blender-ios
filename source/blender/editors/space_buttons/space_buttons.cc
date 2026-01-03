@@ -167,8 +167,9 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 
 void ED_buttons_visible_tabs_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
-  PointerRNA ptr = RNA_pointer_create_discrete(
-      reinterpret_cast<ID *>(CTX_wm_screen(C)), &RNA_SpaceProperties, CTX_wm_space_properties(C));
+  PointerRNA ptr = RNA_pointer_create_discrete(reinterpret_cast<ID *>(CTX_wm_screen(*C)),
+                                               &RNA_SpaceProperties,
+                                               CTX_wm_space_properties(*C));
 
   /* These can be reordered freely. */
   constexpr std::array<blender::StringRefNull, BCONTEXT_TOT> filter_items = {
@@ -404,7 +405,7 @@ static void property_search_all_tabs(const bContext *C,
 {
   /* Use local copies of the area and duplicate the region as a mainly-paranoid protection
    * against changing any of the space / region data while running the search. */
-  ScrArea *area_original = CTX_wm_area(C);
+  ScrArea *area_original = CTX_wm_area(*C);
   ScrArea area_copy = blender::dna::shallow_copy(*area_original);
   ARegion *region_copy = BKE_area_region_copy(area_copy.type, region_original);
   /* Set the region visible field. Otherwise some layout code thinks we're drawing in a popup.
@@ -554,7 +555,7 @@ static void buttons_apply_filter(SpaceProperties *sbuts)
 static void buttons_main_region_layout(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
 
   /* Needed for RNA to get the good values! */
   buttons_context_compute(C, sbuts);
@@ -625,7 +626,7 @@ static void buttons_header_region_init(wmWindowManager * /*wm*/, ARegion *region
 
 static void buttons_header_region_draw(const bContext *C, ARegion *region)
 {
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
 
   /* Needed for RNA to get the good values! */
   buttons_context_compute(C, sbuts);
@@ -674,7 +675,7 @@ static void buttons_navigation_bar_region_init(wmWindowManager *wm, ARegion *reg
 
 static void buttons_navigation_bar_region_draw(const bContext *C, ARegion *region)
 {
-  SpaceProperties *sbuts = CTX_wm_space_properties(C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
   buttons_context_compute(C, sbuts);
 
   for (PanelType &pt : region->runtime->type->paneltypes) {

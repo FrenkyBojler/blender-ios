@@ -57,7 +57,7 @@ static void node_composit_init_keyingscreen(const bContext *C, PointerRNA *ptr)
   NodeKeyingScreenData *data = MEM_new_for_free<NodeKeyingScreenData>(__func__);
   node->storage = data;
 
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(*C);
   if (scene->clip) {
     MovieClip *clip = scene->clip;
 

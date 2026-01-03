@@ -150,7 +150,7 @@ enum eContextObjectMode {
 bContext *CTX_create();
 void CTX_free(bContext *C);
 
-bContext *CTX_copy(const bContext *C);
+bContext *CTX_copy(const bContext &C);
 
 /* Stored Context */
 
@@ -165,7 +165,7 @@ bContextStore *CTX_store_add(blender::Vector<std::unique_ptr<bContextStore>> &co
                              int64_t value);
 bContextStore *CTX_store_add_all(blender::Vector<std::unique_ptr<bContextStore>> &contexts,
                                  const bContextStore *context);
-const bContextStore *CTX_store_get(const bContext *C);
+const bContextStore *CTX_store_get(const bContext &C);
 void CTX_store_set(bContext *C, const bContextStore *store);
 const PointerRNA *CTX_store_ptr_lookup(const bContextStore *store,
                                        blender::StringRef name,
@@ -178,11 +178,11 @@ std::optional<int64_t> CTX_store_int_lookup(const bContextStore *store, blender:
 void CTX_rna_disallow_write_set_p(bContext *C, const bool *rna_disallow_writes);
 
 /** Needed to store if Python is initialized or not. */
-bool CTX_py_init_get(const bContext *C);
+bool CTX_py_init_get(const bContext &C);
 void CTX_py_init_set(bContext *C, bool value);
 
-void *CTX_py_dict_get(const bContext *C);
-void *CTX_py_dict_get_orig(const bContext *C);
+void *CTX_py_dict_get(const bContext &C);
+void *CTX_py_dict_get_orig(const bContext &C);
 
 struct bContext_PyState {
   void *py_context;
@@ -193,37 +193,37 @@ void CTX_py_state_pop(bContext *C, bContext_PyState *pystate);
 
 /* Window Manager Context */
 
-wmWindowManager *CTX_wm_manager(const bContext *C);
-wmWindow *CTX_wm_window(const bContext *C);
-WorkSpace *CTX_wm_workspace(const bContext *C);
-bScreen *CTX_wm_screen(const bContext *C);
-ScrArea *CTX_wm_area(const bContext *C);
-SpaceLink *CTX_wm_space_data(const bContext *C);
-ARegion *CTX_wm_region(const bContext *C);
-void *CTX_wm_region_data(const bContext *C);
-ARegion *CTX_wm_region_popup(const bContext *C);
-wmGizmoGroup *CTX_wm_gizmo_group(const bContext *C);
-wmMsgBus *CTX_wm_message_bus(const bContext *C);
-ReportList *CTX_wm_reports(const bContext *C);
+wmWindowManager *CTX_wm_manager(const bContext &C);
+wmWindow *CTX_wm_window(const bContext &C);
+WorkSpace *CTX_wm_workspace(const bContext &C);
+bScreen *CTX_wm_screen(const bContext &C);
+ScrArea *CTX_wm_area(const bContext &C);
+SpaceLink *CTX_wm_space_data(const bContext &C);
+ARegion *CTX_wm_region(const bContext &C);
+void *CTX_wm_region_data(const bContext &C);
+ARegion *CTX_wm_region_popup(const bContext &C);
+wmGizmoGroup *CTX_wm_gizmo_group(const bContext &C);
+wmMsgBus *CTX_wm_message_bus(const bContext &C);
+ReportList *CTX_wm_reports(const bContext &C);
 
-View3D *CTX_wm_view3d(const bContext *C);
-RegionView3D *CTX_wm_region_view3d(const bContext *C);
-SpaceText *CTX_wm_space_text(const bContext *C);
-SpaceImage *CTX_wm_space_image(const bContext *C);
-SpaceConsole *CTX_wm_space_console(const bContext *C);
-SpaceProperties *CTX_wm_space_properties(const bContext *C);
-SpaceFile *CTX_wm_space_file(const bContext *C);
-SpaceSeq *CTX_wm_space_seq(const bContext *C);
-SpaceOutliner *CTX_wm_space_outliner(const bContext *C);
-SpaceNla *CTX_wm_space_nla(const bContext *C);
-SpaceNode *CTX_wm_space_node(const bContext *C);
-SpaceGraph *CTX_wm_space_graph(const bContext *C);
-SpaceAction *CTX_wm_space_action(const bContext *C);
-SpaceInfo *CTX_wm_space_info(const bContext *C);
-SpaceUserPref *CTX_wm_space_userpref(const bContext *C);
-SpaceClip *CTX_wm_space_clip(const bContext *C);
-SpaceTopBar *CTX_wm_space_topbar(const bContext *C);
-SpaceSpreadsheet *CTX_wm_space_spreadsheet(const bContext *C);
+View3D *CTX_wm_view3d(const bContext &C);
+RegionView3D *CTX_wm_region_view3d(const bContext &C);
+SpaceText *CTX_wm_space_text(const bContext &C);
+SpaceImage *CTX_wm_space_image(const bContext &C);
+SpaceConsole *CTX_wm_space_console(const bContext &C);
+SpaceProperties *CTX_wm_space_properties(const bContext &C);
+SpaceFile *CTX_wm_space_file(const bContext &C);
+SpaceSeq *CTX_wm_space_seq(const bContext &C);
+SpaceOutliner *CTX_wm_space_outliner(const bContext &C);
+SpaceNla *CTX_wm_space_nla(const bContext &C);
+SpaceNode *CTX_wm_space_node(const bContext &C);
+SpaceGraph *CTX_wm_space_graph(const bContext &C);
+SpaceAction *CTX_wm_space_action(const bContext &C);
+SpaceInfo *CTX_wm_space_info(const bContext &C);
+SpaceUserPref *CTX_wm_space_userpref(const bContext &C);
+SpaceClip *CTX_wm_space_clip(const bContext &C);
+SpaceTopBar *CTX_wm_space_topbar(const bContext &C);
+SpaceSpreadsheet *CTX_wm_space_spreadsheet(const bContext &C);
 
 void CTX_wm_manager_set(bContext *C, wmWindowManager *wm);
 void CTX_wm_window_set(bContext *C, wmWindow *win);
@@ -277,9 +277,9 @@ enum class ContextDataType : uint8_t {
   Int64,
 };
 
-PointerRNA CTX_data_pointer_get(const bContext *C, const char *member);
-PointerRNA CTX_data_pointer_get_type(const bContext *C, const char *member, StructRNA *type);
-PointerRNA CTX_data_pointer_get_type_silent(const bContext *C,
+PointerRNA CTX_data_pointer_get(const bContext &C, const char *member);
+PointerRNA CTX_data_pointer_get_type(const bContext &C, const char *member, StructRNA *type);
+PointerRNA CTX_data_pointer_get_type_silent(const bContext &C,
                                             const char *member,
                                             StructRNA *type);
 blender::Vector<PointerRNA> CTX_data_collection_get(const bContext *C, const char *member);
@@ -360,16 +360,16 @@ bool CTX_data_dir(const char *member);
   CTX_DATA_BEGIN (C, Type, instance, member) \
     Type_id instance_id = (Type_id)ctx_link.owner_id;
 
-int ctx_data_list_count(const bContext *C,
+int ctx_data_list_count(const bContext &C,
                         bool (*func)(const bContext *, blender::Vector<PointerRNA> *));
 
 #define CTX_DATA_COUNT(C, member) ctx_data_list_count(C, CTX_data_##member)
 
 /* Data Context Members */
 
-Main *CTX_data_main(const bContext *C);
-Scene *CTX_data_scene(const bContext *C);
-Scene *CTX_data_sequencer_scene(const bContext *C);
+Main *CTX_data_main(const bContext &C);
+Scene *CTX_data_scene(const bContext &C);
+Scene *CTX_data_sequencer_scene(const bContext &C);
 /**
  * This is tricky. Sometimes the user overrides the render_layer
  * but not the scene_collection. In this case what to do?
@@ -377,69 +377,69 @@ Scene *CTX_data_sequencer_scene(const bContext *C);
  * If the scene_collection is linked to the #ViewLayer we use it.
  * Otherwise we fall back to the active one of the #ViewLayer.
  */
-LayerCollection *CTX_data_layer_collection(const bContext *C);
-Collection *CTX_data_collection(const bContext *C);
-ViewLayer *CTX_data_view_layer(const bContext *C);
-RenderEngineType *CTX_data_engine_type(const bContext *C);
-ToolSettings *CTX_data_tool_settings(const bContext *C);
+LayerCollection *CTX_data_layer_collection(const bContext &C);
+Collection *CTX_data_collection(const bContext &C);
+ViewLayer *CTX_data_view_layer(const bContext &C);
+RenderEngineType *CTX_data_engine_type(const bContext &C);
+ToolSettings *CTX_data_tool_settings(const bContext &C);
 
-const char *CTX_data_mode_string(const bContext *C);
+const char *CTX_data_mode_string(const bContext &C);
 enum eContextObjectMode CTX_data_mode_enum_ex(const Object *obedit,
                                               const Object *ob,
                                               eObjectMode object_mode);
-enum eContextObjectMode CTX_data_mode_enum(const bContext *C);
+enum eContextObjectMode CTX_data_mode_enum(const bContext &C);
 
 void CTX_data_main_set(bContext *C, Main *bmain);
 void CTX_data_scene_set(bContext *C, Scene *scene);
 
 /* Only Outliner currently! */
-bool CTX_data_selected_ids(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_ids(const bContext &C, blender::Vector<PointerRNA> *list);
 
-bool CTX_data_selected_editable_objects(const bContext *C, blender::Vector<PointerRNA> *list);
-bool CTX_data_selected_editable_bases(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_editable_objects(const bContext &C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_editable_bases(const bContext &C, blender::Vector<PointerRNA> *list);
 
-bool CTX_data_editable_objects(const bContext *C, blender::Vector<PointerRNA> *list);
-bool CTX_data_editable_bases(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_editable_objects(const bContext &C, blender::Vector<PointerRNA> *list);
+bool CTX_data_editable_bases(const bContext &C, blender::Vector<PointerRNA> *list);
 
-bool CTX_data_selected_objects(const bContext *C, blender::Vector<PointerRNA> *list);
-bool CTX_data_selected_bases(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_objects(const bContext &C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_bases(const bContext &C, blender::Vector<PointerRNA> *list);
 
-bool CTX_data_visible_objects(const bContext *C, blender::Vector<PointerRNA> *list);
-bool CTX_data_visible_bases(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_visible_objects(const bContext &C, blender::Vector<PointerRNA> *list);
+bool CTX_data_visible_bases(const bContext &C, blender::Vector<PointerRNA> *list);
 
-bool CTX_data_selectable_objects(const bContext *C, blender::Vector<PointerRNA> *list);
-bool CTX_data_selectable_bases(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selectable_objects(const bContext &C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selectable_bases(const bContext &C, blender::Vector<PointerRNA> *list);
 
-Object *CTX_data_active_object(const bContext *C);
-Base *CTX_data_active_base(const bContext *C);
-Object *CTX_data_edit_object(const bContext *C);
+Object *CTX_data_active_object(const bContext &C);
+Base *CTX_data_active_base(const bContext &C);
+Object *CTX_data_edit_object(const bContext &C);
 
-Image *CTX_data_edit_image(const bContext *C);
+Image *CTX_data_edit_image(const bContext &C);
 
-Text *CTX_data_edit_text(const bContext *C);
-MovieClip *CTX_data_edit_movieclip(const bContext *C);
-Mask *CTX_data_edit_mask(const bContext *C);
+Text *CTX_data_edit_text(const bContext &C);
+MovieClip *CTX_data_edit_movieclip(const bContext &C);
+Mask *CTX_data_edit_mask(const bContext &C);
 
-CacheFile *CTX_data_edit_cachefile(const bContext *C);
+CacheFile *CTX_data_edit_cachefile(const bContext &C);
 
-bool CTX_data_selected_nodes(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_nodes(const bContext &C, blender::Vector<PointerRNA> *list);
 
-EditBone *CTX_data_active_bone(const bContext *C);
-bool CTX_data_selected_bones(const bContext *C, blender::Vector<PointerRNA> *list);
-bool CTX_data_selected_editable_bones(const bContext *C, blender::Vector<PointerRNA> *list);
-bool CTX_data_visible_bones(const bContext *C, blender::Vector<PointerRNA> *list);
-bool CTX_data_editable_bones(const bContext *C, blender::Vector<PointerRNA> *list);
+EditBone *CTX_data_active_bone(const bContext &C);
+bool CTX_data_selected_bones(const bContext &C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_editable_bones(const bContext &C, blender::Vector<PointerRNA> *list);
+bool CTX_data_visible_bones(const bContext &C, blender::Vector<PointerRNA> *list);
+bool CTX_data_editable_bones(const bContext &C, blender::Vector<PointerRNA> *list);
 
-bPoseChannel *CTX_data_active_pose_bone(const bContext *C);
-bool CTX_data_selected_pose_bones(const bContext *C, blender::Vector<PointerRNA> *list);
-bool CTX_data_selected_pose_bones_from_active_object(const bContext *C,
+bPoseChannel *CTX_data_active_pose_bone(const bContext &C);
+bool CTX_data_selected_pose_bones(const bContext &C, blender::Vector<PointerRNA> *list);
+bool CTX_data_selected_pose_bones_from_active_object(const bContext &C,
                                                      blender::Vector<PointerRNA> *list);
-bool CTX_data_visible_pose_bones(const bContext *C, blender::Vector<PointerRNA> *list);
+bool CTX_data_visible_pose_bones(const bContext &C, blender::Vector<PointerRNA> *list);
 
-const AssetLibraryReference *CTX_wm_asset_library_ref(const bContext *C);
-class blender::asset_system::AssetRepresentation *CTX_wm_asset(const bContext *C);
+const AssetLibraryReference *CTX_wm_asset_library_ref(const bContext &C);
+class blender::asset_system::AssetRepresentation *CTX_wm_asset(const bContext &C);
 
-bool CTX_wm_interface_locked(const bContext *C);
+bool CTX_wm_interface_locked(const bContext &C);
 
 /**
  * Gets pointer to the dependency graph.
@@ -450,7 +450,7 @@ bool CTX_wm_interface_locked(const bContext *C);
  *
  * \note Can not be used if access to a fully evaluated data-block is needed.
  */
-Depsgraph *CTX_data_depsgraph_pointer(const bContext *C);
+Depsgraph *CTX_data_depsgraph_pointer(const bContext &C);
 
 /**
  * Get dependency graph which is expected to be fully evaluated.
@@ -459,7 +459,7 @@ Depsgraph *CTX_data_depsgraph_pointer(const bContext *C);
  * sanity checks are done. Additionally, this provides more semantic meaning to what is exactly
  * expected to happen.
  */
-Depsgraph *CTX_data_expect_evaluated_depsgraph(const bContext *C);
+Depsgraph *CTX_data_expect_evaluated_depsgraph(const bContext &C);
 
 /**
  * Gets fully updated and evaluated dependency graph.
@@ -472,12 +472,12 @@ Depsgraph *CTX_data_expect_evaluated_depsgraph(const bContext *C);
  * \warning Returns null pointer if #rna_write_check is true and RNA writing is disallowed. If
  * #rna_write_check is false then RNA writes must be allowed when calling this function.
  */
-Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext *C, bool rna_write_check = false);
+Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext &C, bool rna_write_check = false);
 
 /* Will Return NULL if depsgraph is not allocated yet.
  * Only used by handful of operators which are run on file load.
  */
-Depsgraph *CTX_data_depsgraph_on_load(const bContext *C);
+Depsgraph *CTX_data_depsgraph_on_load(const bContext &C);
 
 /**
  * Enable or disable logging of context members.
@@ -487,7 +487,7 @@ void CTX_member_logging_set(bContext *C, bool enable);
 /**
  * Check if logging is enabled of context members.
  */
-bool CTX_member_logging_get(const bContext *C);
+bool CTX_member_logging_get(const bContext &C);
 
 /**
  * Check if writing to RNA is allowed.
@@ -495,4 +495,4 @@ bool CTX_member_logging_get(const bContext *C);
  * RNA can use this to disable writes during callbacks, such as when accessing the evaluated
  * depsgraph (#150024).
  */
-bool CTX_member_rna_write_check(const bContext *C);
+bool CTX_member_rna_write_check(const bContext &C);

@@ -127,7 +127,7 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
 
     AnimData *adt = BKE_animdata_from_id(&ob->id);
     if (adt != nullptr && adt->action != nullptr &&
-        !BKE_id_is_editable(CTX_data_main(C), &adt->action->id))
+        !BKE_id_is_editable(CTX_data_main(*C), &adt->action->id))
     {
       /* Changes to linked-in Actions are not allowed. */
       return;
@@ -203,7 +203,7 @@ static void poselib_blend_apply(bContext *C, wmOperator *op)
   }
 
   /* Perform the actual blending. */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
   AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph, 0.0f);
   blender::animrig::Action &pose_action = poselib_action_to_blend(pbd)->wrap();
   if (pose_action.slot_array_num == 0) {
@@ -306,7 +306,7 @@ static wmOperatorStatus poselib_blend_handle_event(bContext * /*C*/,
 static blender::Vector<Object *> get_poselib_objects(bContext &C)
 {
   blender::Vector<PointerRNA> selected_objects;
-  CTX_data_selected_objects(&C, &selected_objects);
+  CTX_data_selected_objects(C, &selected_objects);
 
   blender::Vector<Object *> selected_pose_objects;
   for (const PointerRNA &ptr : selected_objects) {
@@ -317,7 +317,7 @@ static blender::Vector<Object *> get_poselib_objects(bContext &C)
     selected_pose_objects.append(object);
   }
 
-  Object *active_object = CTX_data_active_object(&C);
+  Object *active_object = CTX_data_active_object(C);
   /* The active object may not be selected, it should be added because you can still switch to pose
    * mode. */
   if (active_object && active_object->pose && !selected_pose_objects.contains(active_object)) {
@@ -352,7 +352,7 @@ static bAction *poselib_blend_init_get_action(bContext *C, wmOperator *op)
   }
   else {
     /* If no explicit asset reference was passed, get asset from context. */
-    asset = CTX_wm_asset(C);
+    asset = CTX_wm_asset(*C);
     if (!asset) {
       BKE_report(op->reports, RPT_ERROR, "No asset in context");
       return nullptr;
@@ -371,7 +371,7 @@ static bAction *poselib_blend_init_get_action(bContext *C, wmOperator *op)
 
   pbd->temp_id_consumer = asset::temp_id_consumer_create(asset);
   return reinterpret_cast<bAction *>(asset::temp_id_consumer_ensure_local_id(
-      pbd->temp_id_consumer, ID_AC, CTX_data_main(C), op->reports));
+      pbd->temp_id_consumer, ID_AC, CTX_data_main(*C), op->reports));
 }
 
 static bAction *flip_pose(bContext *C, blender::Span<Object *> objects, bAction *action)
@@ -381,8 +381,8 @@ static bAction *flip_pose(bContext *C, blender::Span<Object *> objects, bAction 
 
   /* Lock the window manager while flipping the pose. Flipping requires temporarily modifying the
    * pose, which can cause unwanted visual glitches. */
-  wmWindowManager *wm = CTX_wm_manager(C);
-  const bool interface_was_locked = CTX_wm_interface_locked(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  const bool interface_was_locked = CTX_wm_interface_locked(*C);
   WM_locked_interface_set(wm, true);
 
   BKE_action_flip_with_pose(action_copy, objects);
@@ -433,8 +433,8 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
   /* Get the basic data. */
   pbd->objects = selected_pose_objects;
 
-  pbd->scene = CTX_data_scene(C);
-  pbd->area = CTX_wm_area(C);
+  pbd->scene = CTX_data_scene(*C);
+  pbd->area = CTX_wm_area(*C);
 
   pbd->state = POSE_BLEND_INIT;
   pbd->needs_redraw = true;
@@ -482,7 +482,7 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
 static void poselib_blend_cleanup(bContext *C, wmOperator *op)
 {
   PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   /* Redraw the header so that it doesn't show any of our stuff anymore. */
   ED_area_status_text(pbd->area, nullptr);
@@ -556,7 +556,7 @@ static wmOperatorStatus poselib_blend_exit(bContext *C, wmOperator *op)
   poselib_blend_cleanup(C, op);
   poselib_blend_free(op);
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   WM_cursor_modal_restore(win);
 
   if (exit_state == POSE_BLEND_CANCEL) {
@@ -631,7 +631,7 @@ static wmOperatorStatus poselib_blend_invoke(bContext *C, wmOperator *op, const 
     return OPERATOR_CANCELLED;
   }
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   WM_cursor_modal_set(win, WM_CURSOR_EW_SCROLL);
 
   /* Do initial apply to have something to look at. */

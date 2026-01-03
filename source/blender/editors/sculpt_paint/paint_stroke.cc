@@ -70,7 +70,7 @@ static void paint_draw_smooth_cursor(bContext *C,
   const Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *brush = BKE_paint_brush_for_read(paint);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   if ((mode == PaintMode::GPencil) && (paint->flags & PAINT_SHOW_BRUSH) == 0) {
     return;
@@ -237,7 +237,7 @@ bool PaintStroke::update(bContext *C,
                          float r_location[3],
                          bool *r_location_is_set)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Paint *paint = BKE_paint_get_active_from_paintmode(scene, mode);
   bke::PaintRuntime &paint_runtime = *paint->runtime;
   bool location_sampled = false;
@@ -763,7 +763,7 @@ int PaintStroke::space_stroke(bContext *C,
                               const float2 final_mouse,
                               const float final_pressure)
 {
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   bke::PaintRuntime *paint_runtime = this->paint->runtime;
   const Paint &paint = *BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
@@ -857,16 +857,16 @@ static bool print_pressure_status_enabled()
 
 PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_type_(event_type)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   this->paint = BKE_paint_get_active_from_context(C);
   this->ups = &paint->unified_paint_settings;
   bke::PaintRuntime *paint_runtime = this->paint->runtime;
   this->brush = BKE_paint_brush(this->paint);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
 
   this->evil_C = C;
   this->vc = ED_view3d_viewcontext_init(C, depsgraph);
-  this->object = CTX_data_active_object(C);
+  this->object = CTX_data_active_object(*C);
 
   stroke_mode_ = RNA_enum_get(op->ptr, "mode");
 
@@ -930,7 +930,7 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
 
 void PaintStroke::free(bContext *C, wmOperator * /*op*/)
 {
-  if (RegionView3D *rv3d = CTX_wm_region_view3d(C)) {
+  if (RegionView3D *rv3d = CTX_wm_region_view3d(*C)) {
     rv3d->rflag &= ~RV3D_PAINTING;
   }
 
@@ -941,7 +941,7 @@ void PaintStroke::free(bContext *C, wmOperator * /*op*/)
   paint_runtime->stroke_active = false;
 
   if (timer_) {
-    WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), timer_);
+    WM_event_timer_remove(CTX_wm_manager(*C), CTX_wm_window(*C), timer_);
   }
 
   if (stroke_cursor_) {
@@ -1174,7 +1174,7 @@ void PaintStroke::lines_spacing(bContext *C,
   bke::PaintRuntime *paint_runtime = paint->runtime;
   const Brush &brush = *BKE_paint_brush(paint);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
 
   const bool use_scene_spacing = paint_stroke_use_scene_spacing(brush, mode);
 
@@ -1492,7 +1492,8 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       }
 
       if (br->flag & BRUSH_AIRBRUSH) {
-        timer_ = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, this->brush->rate);
+        timer_ = WM_event_timer_add(
+            CTX_wm_manager(*C), CTX_wm_window(*C), TIMER, this->brush->rate);
       }
 
       if (br->flag & BRUSH_LINE) {
@@ -1616,8 +1617,8 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
 
   /* Don't update the paint cursor in #INBETWEEN_MOUSEMOVE events. */
   if (event->type != INBETWEEN_MOUSEMOVE) {
-    wmWindow *window = CTX_wm_window(C);
-    ARegion *region = CTX_wm_region(C);
+    wmWindow *window = CTX_wm_window(*C);
+    ARegion *region = CTX_wm_region(*C);
 
     if (region && (paint->flags & PAINT_SHOW_BRUSH)) {
       WM_paint_cursor_tag_redraw(window, region);
@@ -1718,9 +1719,9 @@ static const bToolRef *brush_tool_get(const ScrArea *area,
 bool paint_brush_tool_poll(bContext *C)
 {
   const Paint *paint = BKE_paint_get_active_from_context(C);
-  const Object *ob = CTX_data_active_object(C);
-  const ScrArea *area = CTX_wm_area(C);
-  const ARegion *region = CTX_wm_region(C);
+  const Object *ob = CTX_data_active_object(*C);
+  const ScrArea *area = CTX_wm_area(*C);
+  const ARegion *region = CTX_wm_region(*C);
   return paint_brush_tool_poll(area, region, paint, ob);
 }
 
@@ -1735,9 +1736,9 @@ bool paint_brush_tool_poll(const ScrArea *area,
 bool paint_brush_cursor_poll(bContext *C)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
-  const Object *ob = CTX_data_active_object(C);
-  const ScrArea *area = CTX_wm_area(C);
-  const ARegion *region = CTX_wm_region(C);
+  const Object *ob = CTX_data_active_object(*C);
+  const ScrArea *area = CTX_wm_area(*C);
+  const ARegion *region = CTX_wm_region(*C);
 
   const bToolRef *tref = brush_tool_get(area, region, paint, ob);
   if (!tref) {

@@ -369,8 +369,8 @@ static void sculpt_color_presmooth_init(const Mesh &mesh, Object &object)
 
 static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
   SculptSession &ss = *ob.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -434,7 +434,7 @@ static wmOperatorStatus sculpt_color_filter_modal(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event)
 {
-  Object &ob = *CTX_data_active_object(C);
+  Object &ob = *CTX_data_active_object(*C);
   SculptSession &ss = *ob.sculpt;
 
   if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
@@ -457,12 +457,12 @@ static wmOperatorStatus sculpt_color_filter_modal(bContext *C,
 
 static int sculpt_color_filter_init(bContext *C, wmOperator *op)
 {
-  const Scene &scene = *CTX_data_scene(C);
-  Object &ob = *CTX_data_active_object(C);
-  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
-  View3D *v3d = CTX_wm_view3d(C);
+  const Scene &scene = *CTX_data_scene(*C);
+  Object &ob = *CTX_data_active_object(*C);
+  Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
+  View3D *v3d = CTX_wm_view3d(*C);
 
-  const Base *base = CTX_data_active_base(C);
+  const Base *base = CTX_data_active_base(*C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -487,14 +487,14 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   }
 
   /* Ensure that we have a PBVH to be able to push changes on only visible nodes. */
-  bke::object::pbvh_ensure(*CTX_data_ensure_evaluated_depsgraph(C), ob);
+  bke::object::pbvh_ensure(*CTX_data_ensure_evaluated_depsgraph(*C), ob);
 
   undo::push_begin(scene, ob, op);
   BKE_sculpt_color_layer_create_if_needed(&ob);
 
   /* CTX_data_ensure_evaluated_depsgraph should be used at the end to include the potential
    * creation of color layer data. */
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, true);
 
   filter::cache_init(C,
@@ -516,7 +516,7 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
 
 static wmOperatorStatus sculpt_color_filter_exec(bContext *C, wmOperator *op)
 {
-  Object &ob = *CTX_data_active_object(C);
+  Object &ob = *CTX_data_active_object(*C);
 
   if (sculpt_color_filter_init(C, op) == OPERATOR_CANCELLED) {
     return OPERATOR_CANCELLED;
@@ -532,8 +532,8 @@ static wmOperatorStatus sculpt_color_filter_invoke(bContext *C,
                                                    wmOperator *op,
                                                    const wmEvent *event)
 {
-  Object &ob = *CTX_data_active_object(C);
-  View3D *v3d = CTX_wm_view3d(C);
+  Object &ob = *CTX_data_active_object(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
   if (v3d && v3d->shading.type == OB_SOLID) {
     v3d->shading.color_type = V3D_SHADING_VERTEX_COLOR;
   }

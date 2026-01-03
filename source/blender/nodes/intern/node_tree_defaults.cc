@@ -29,7 +29,7 @@ void node_tree_shader_default(const bContext *C, Main *bmain, ID *id)
 {
   if (GS(id->name) == ID_MA) {
     /* Materials */
-    Object *ob = (C) ? CTX_data_active_object(C) : nullptr;
+    Object *ob = (C) ? CTX_data_active_object(*C) : nullptr;
     Material *ma = reinterpret_cast<Material *>(id);
     Material *ma_default;
 
@@ -96,7 +96,7 @@ void node_tree_shader_default(const bContext *C, Main *bmain, ID *id)
 
 void node_tree_composit_default(const bContext *C, Scene *sce)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   /* but lets check it anyway */
   if (sce->compositing_node_group) {
@@ -162,7 +162,7 @@ void node_tree_composit_default_init(const bContext *C, bNodeTree *ntree)
                               *viewer,
                               *reinterpret_cast<bNodeSocket *>(viewer->inputs.first));
 
-  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
+  BKE_ntree_update_after_single_tree_change(*CTX_data_main(*C), *ntree);
 }
 
 }  // namespace blender::nodes

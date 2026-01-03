@@ -117,9 +117,9 @@ static bool track_markers_check_direction(int backwards, int curfra, int efra)
 
 static bool track_markers_initjob(bContext *C, TrackMarkersJob *tmj, bool backwards, bool sequence)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   MovieTrackingSettings *settings = &clip->tracking.settings;
   int frames_limit;
   int framenr = ED_space_clip_get_clip_frame_number(sc);
@@ -187,10 +187,10 @@ static bool track_markers_initjob(bContext *C, TrackMarkersJob *tmj, bool backwa
    *      animation which uses the same approach (except storing screen).
    */
   tmj->scene = scene;
-  tmj->main = CTX_data_main(C);
-  tmj->screen = CTX_wm_screen(C);
+  tmj->main = CTX_data_main(*C);
+  tmj->screen = CTX_wm_screen(*C);
 
-  tmj->wm = CTX_wm_manager(C);
+  tmj->wm = CTX_wm_manager(*C);
 
   if (!track_markers_check_direction(backwards, tmj->sfra, tmj->efra)) {
     return false;
@@ -287,14 +287,14 @@ static void track_markers_freejob(void *tmv)
 static wmOperatorStatus track_markers(bContext *C, wmOperator *op, bool use_job)
 {
   TrackMarkersJob *tmj;
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   wmJob *wm_job;
   bool backwards = RNA_boolean_get(op->ptr, "backwards");
   bool sequence = RNA_boolean_get(op->ptr, "sequence");
   int framenr = ED_space_clip_get_clip_frame_number(sc);
 
-  if (WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_ANY)) {
+  if (WM_jobs_test(CTX_wm_manager(*C), CTX_data_scene(*C), WM_JOB_TYPE_ANY)) {
     /* Only one tracking is allowed at a time. */
     return OPERATOR_CANCELLED;
   }
@@ -315,9 +315,9 @@ static wmOperatorStatus track_markers(bContext *C, wmOperator *op, bool use_job)
 
   /* Setup job. */
   if (use_job && sequence) {
-    wm_job = WM_jobs_get(CTX_wm_manager(C),
-                         CTX_wm_window(C),
-                         CTX_data_scene(C),
+    wm_job = WM_jobs_get(CTX_wm_manager(*C),
+                         CTX_wm_window(*C),
+                         CTX_data_scene(*C),
                          "Tracking markers...",
                          WM_JOB_PROGRESS,
                          WM_JOB_TYPE_CLIP_TRACK_MARKERS);
@@ -339,7 +339,7 @@ static wmOperatorStatus track_markers(bContext *C, wmOperator *op, bool use_job)
 
     G.is_break = false;
 
-    WM_jobs_start(CTX_wm_manager(C), wm_job);
+    WM_jobs_start(CTX_wm_manager(*C), wm_job);
     WM_cursor_wait(false);
 
     /* Add modal handler for ESC. */
@@ -370,7 +370,7 @@ static wmOperatorStatus track_markers_invoke(bContext *C,
 static wmOperatorStatus track_markers_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   /* No running tracking, remove handler and pass through. */
-  if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_ANY)) {
+  if (0 == WM_jobs_test(CTX_wm_manager(*C), CTX_data_scene(*C), WM_JOB_TYPE_ANY)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
@@ -441,7 +441,7 @@ void CLIP_OT_track_markers(wmOperatorType *ot)
 
 static wmOperatorStatus refine_marker_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   const bool backwards = RNA_boolean_get(op->ptr, "backwards");

@@ -654,13 +654,13 @@ void seq_prefetch_start(const RenderData *context, float timeline_frame)
 
 bool prefetch_need_redraw(const bContext *C, Scene *scene)
 {
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
   bool playing = screen->animtimer != nullptr;
   bool scrubbing = screen->scrubbing;
   bool running = seq_prefetch_job_is_running(scene);
   bool suspended = seq_prefetch_job_is_waiting(scene);
 
-  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(*C);
   bool showing_cache = sseq->cache_overlay.flag & SEQ_CACHE_SHOW;
 
   /* force redraw, when prefetching and using cache view. */

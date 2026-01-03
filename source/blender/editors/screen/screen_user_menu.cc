@@ -44,7 +44,7 @@ static const char *screen_menu_context_string(const bContext *C, const SpaceLink
     const SpaceNode *snode = (const SpaceNode *)sl;
     return snode->tree_idname;
   }
-  return CTX_data_mode_string(C);
+  return CTX_data_mode_string(*C);
 }
 
 /** \} */
@@ -55,14 +55,14 @@ static const char *screen_menu_context_string(const bContext *C, const SpaceLink
 
 bUserMenu **ED_screen_user_menus_find(const bContext *C, uint *r_len)
 {
-  SpaceLink *sl = CTX_wm_space_data(C);
+  SpaceLink *sl = CTX_wm_space_data(*C);
 
   if (sl == nullptr) {
     *r_len = 0;
     return nullptr;
   }
 
-  const char *context_mode = CTX_data_mode_string(C);
+  const char *context_mode = CTX_data_mode_string(*C);
   const char *context = screen_menu_context_string(C, sl);
   uint array_len = 3;
   bUserMenu **um_array = static_cast<bUserMenu **>(
@@ -81,7 +81,7 @@ bUserMenu **ED_screen_user_menus_find(const bContext *C, uint *r_len)
 
 bUserMenu *ED_screen_user_menu_ensure(bContext *C)
 {
-  SpaceLink *sl = CTX_wm_space_data(C);
+  SpaceLink *sl = CTX_wm_space_data(*C);
   const char *context = screen_menu_context_string(C, sl);
   return BKE_blender_user_menu_ensure(&U.user_menus, sl->spacetype, context);
 }
@@ -271,7 +271,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         if (data_path) {
           *data_path = '\0';
         }
-        PointerRNA ptr = CTX_data_pointer_get(C, umi_pr->context_data_path);
+        PointerRNA ptr = CTX_data_pointer_get(*C, umi_pr->context_data_path);
         if (ptr.type == nullptr) {
           PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, (void *)C);
           if (!RNA_path_resolve_full(&ctx_ptr, umi_pr->context_data_path, &ptr, nullptr, nullptr))

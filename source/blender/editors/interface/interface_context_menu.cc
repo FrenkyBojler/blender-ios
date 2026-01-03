@@ -164,7 +164,7 @@ static void but_shortcut_name_func(bContext *C, void *arg1, int /*event*/)
 
 static Block *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   Button *but = (Button *)arg;
   const uiStyle *style = style_get_dpi();
   IDProperty *prop;
@@ -216,7 +216,7 @@ static int g_kmi_id_hack;
 
 static Block *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   Button *but = (Button *)arg;
   const uiStyle *style = style_get_dpi();
   IDProperty *prop;
@@ -526,7 +526,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     return false;
   }
 
-  const bContextStore *previous_ctx = CTX_store_get(C);
+  const bContextStore *previous_ctx = CTX_store_get(*C);
   PopupMenu *pup = popup_menu_begin(
       C, button_context_menu_title_from_button(*but).c_str(), ICON_NONE);
   Layout &layout = *popup_menu_layout(pup);
@@ -566,7 +566,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     const bool is_whole_array = (is_array && but->rnaindex == -1);
 
     const uint override_status = RNA_property_override_library_status(
-        CTX_data_main(C), ptr, prop, -1);
+        CTX_data_main(*C), ptr, prop, -1);
     const bool is_overridable = (override_status & RNA_OVERRIDE_STATUS_OVERRIDABLE) != 0;
 
     /* Set the (button_pointer, button_prop)
@@ -967,7 +967,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   }
 
   {
-    const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
+    const ARegion *region = CTX_wm_region_popup(*C) ? CTX_wm_region_popup(*C) : CTX_wm_region(*C);
     ButtonViewItem *view_item_but = (but->type == ButtonType::ViewItem) ?
                                         static_cast<ButtonViewItem *>(but) :
                                         static_cast<ButtonViewItem *>(
@@ -975,7 +975,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     if (view_item_but) {
       BLI_assert(view_item_but->type == ButtonType::ViewItem);
 
-      const bContextStore *prev_ctx = CTX_store_get(C);
+      const bContextStore *prev_ctx = CTX_store_get(*C);
       /* Sub-layout for context override. */
       Layout &sub = layout.column(false);
       set_layout_context_from_button(C, sub, view_item_but);
@@ -995,7 +995,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   {
     /* If the button represents an id, it can set the "id" context pointer. */
     if (blender::ed::asset::can_mark_single_from_context(C)) {
-      const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(C, "id", &RNA_ID).data);
+      const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(*C, "id", &RNA_ID).data);
 
       /* Gray out items depending on if data-block is an asset. Preferably this could be done via
        * operator poll, but that doesn't work since the operator also works with "selected_ids",
@@ -1228,7 +1228,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
 
   /* Show header tools for header buttons. */
   if (block_is_popup_any(but->block) == false) {
-    const ARegion *region = CTX_wm_region(C);
+    const ARegion *region = CTX_wm_region(*C);
 
     if (!region) {
       /* skip */
@@ -1238,7 +1238,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     }
     else if (region->regiontype == RGN_TYPE_NAV_BAR) {
       layout.menu_fn(IFACE_("Navigation Bar"), ICON_NONE, ED_buttons_navbar_menu, nullptr);
-      const ScrArea *area = CTX_wm_area(C);
+      const ScrArea *area = CTX_wm_area(*C);
       if (area && area->spacetype == SPACE_PROPERTIES) {
         layout.menu_fn(IFACE_("Visible Tabs"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
       }
@@ -1249,7 +1249,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   }
 
   /* UI List item context menu. Scripts can add items to it, by default there's nothing shown. */
-  const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region_popup(*C) ? CTX_wm_region_popup(*C) : CTX_wm_region(*C);
   const bool is_inside_listbox = ui_list_find_mouse_over(region, event) != nullptr;
   const bool is_inside_listrow = is_inside_listbox ?
                                      list_row_find_mouse_over(region, event->xy) != nullptr :
@@ -1281,7 +1281,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
 
 void popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
 {
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
   const bool has_panel_category = panel_category_tabs_is_visible(region);
   const bool any_item_visible = has_panel_category;
 

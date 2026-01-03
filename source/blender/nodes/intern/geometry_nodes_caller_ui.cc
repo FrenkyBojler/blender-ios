@@ -142,7 +142,7 @@ SearchInfo SocketSearchData::info(const bContext &C) const
 {
   if (const auto *modifier_search_data = std::get_if<ModifierSearchData>(&this->search_data)) {
     const NodesModifierData *nmd = get_modifier_data(
-        *CTX_data_main(&C), *CTX_wm_manager(&C), *modifier_search_data);
+        *CTX_data_main(C), *CTX_wm_manager(C), *modifier_search_data);
     if (nmd == nullptr) {
       return {};
     }
@@ -794,7 +794,7 @@ static void draw_warnings(const bContext *C,
   if (!tree_log) {
     return;
   }
-  tree_log->ensure_node_warnings(*CTX_data_main(C));
+  tree_log->ensure_node_warnings(*CTX_data_main(*C));
   const int warnings_num = tree_log->all_warnings.size();
   if (warnings_num == 0) {
     return;
@@ -996,7 +996,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
                                      PointerRNA *modifier_ptr,
                                      ui::Layout &layout)
 {
-  Main *bmain = CTX_data_main(&C);
+  Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
   NodesModifierData &nmd = *modifier_ptr->data_as<NodesModifierData>();
   Object &object = *reinterpret_cast<Object *>(modifier_ptr->owner_id);
@@ -1079,7 +1079,7 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
                                           geo_eval_log::GeoTreeLog *tree_log)
 {
   ui::Layout &layout = *op.layout;
-  Main &bmain = *CTX_data_main(&C);
+  Main &bmain = *CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(&bmain);
 
   DrawGroupInputsContext ctx{C, &tree, tree_log, op.properties, op.ptr, &bmain_ptr};

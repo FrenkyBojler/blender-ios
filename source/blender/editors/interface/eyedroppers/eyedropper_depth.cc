@@ -120,7 +120,7 @@ static bool depthdropper_test(bContext *C, wmOperator *op)
   }
 
   /* check if there's an active button taking depth value */
-  if ((CTX_wm_window(C) != nullptr) &&
+  if ((CTX_wm_window(*C) != nullptr) &&
       (but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
       (but->type == ButtonType::Num) && (prop != nullptr))
   {
@@ -132,11 +132,11 @@ static bool depthdropper_test(bContext *C, wmOperator *op)
     }
   }
   else {
-    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    RegionView3D *rv3d = CTX_wm_region_view3d(*C);
     if (rv3d && rv3d->persp == RV3D_CAMOB) {
-      View3D *v3d = CTX_wm_view3d(C);
+      View3D *v3d = CTX_wm_view3d(*C);
       if (v3d->camera && v3d->camera->data &&
-          BKE_id_is_editable(CTX_data_main(C), static_cast<const ID *>(v3d->camera->data)))
+          BKE_id_is_editable(CTX_data_main(*C), static_cast<const ID *>(v3d->camera->data)))
       {
         return true;
       }
@@ -169,11 +169,11 @@ static int depthdropper_init(bContext *C, wmOperator *op)
     int index_dummy;
     Button *but = context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &index_dummy);
     if (ddr->prop == nullptr) {
-      RegionView3D *rv3d = CTX_wm_region_view3d(C);
+      RegionView3D *rv3d = CTX_wm_region_view3d(*C);
       if (rv3d && rv3d->persp == RV3D_CAMOB) {
-        View3D *v3d = CTX_wm_view3d(C);
+        View3D *v3d = CTX_wm_view3d(*C);
         if (v3d->camera && v3d->camera->data &&
-            BKE_id_is_editable(CTX_data_main(C), static_cast<const ID *>(v3d->camera->data)))
+            BKE_id_is_editable(CTX_data_main(*C), static_cast<const ID *>(v3d->camera->data)))
         {
           Camera *camera = (Camera *)v3d->camera->data;
           ddr->ptr = RNA_pointer_create_discrete(
@@ -210,7 +210,7 @@ static int depthdropper_init(bContext *C, wmOperator *op)
 
 static void depthdropper_exit(bContext *C, wmOperator *op)
 {
-  WM_cursor_modal_restore(CTX_wm_window(C));
+  WM_cursor_modal_restore(CTX_wm_window(*C));
 
   if (op->customdata) {
     DepthDropper *ddr = (DepthDropper *)op->customdata;
@@ -233,12 +233,12 @@ static void depthdropper_depth_sample_pt(bContext *C,
                                          float *r_depth)
 {
   /* we could use some clever */
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
   ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, m_xy);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
-  ScrArea *area_prev = CTX_wm_area(C);
-  ARegion *region_prev = CTX_wm_region(C);
+  ScrArea *area_prev = CTX_wm_area(*C);
+  ARegion *region_prev = CTX_wm_region(*C);
 
   ddr->name[0] = '\0';
 
@@ -246,7 +246,7 @@ static void depthdropper_depth_sample_pt(bContext *C,
     if (area->spacetype == SPACE_VIEW3D) {
       ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_WINDOW, m_xy);
       if (region) {
-        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
         View3D *v3d = static_cast<View3D *>(area->spacedata.first);
         RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
         /* weak, we could pass in some reference point */
@@ -402,9 +402,9 @@ static wmOperatorStatus depthdropper_invoke(bContext *C, wmOperator *op, const w
   }
   /* init */
   if (depthdropper_init(C, op)) {
-    wmWindow *win = CTX_wm_window(C);
+    wmWindow *win = CTX_wm_window(*C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    context_active_but_clear(C, win, CTX_wm_region(C));
+    context_active_but_clear(C, win, CTX_wm_region(*C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
@@ -436,7 +436,7 @@ static bool depthdropper_poll(bContext *C)
   Button *but;
 
   /* check if there's an active button taking depth value */
-  if ((CTX_wm_window(C) != nullptr) &&
+  if ((CTX_wm_window(*C) != nullptr) &&
       (but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy)))
   {
     if (but->icon == ICON_EYEDROPPER) {
@@ -456,11 +456,11 @@ static bool depthdropper_poll(bContext *C)
     }
   }
   else {
-    RegionView3D *rv3d = CTX_wm_region_view3d(C);
+    RegionView3D *rv3d = CTX_wm_region_view3d(*C);
     if (rv3d && rv3d->persp == RV3D_CAMOB) {
-      View3D *v3d = CTX_wm_view3d(C);
+      View3D *v3d = CTX_wm_view3d(*C);
       if (v3d->camera && v3d->camera->data &&
-          BKE_id_is_editable(CTX_data_main(C), static_cast<const ID *>(v3d->camera->data)))
+          BKE_id_is_editable(CTX_data_main(*C), static_cast<const ID *>(v3d->camera->data)))
       {
         return true;
       }

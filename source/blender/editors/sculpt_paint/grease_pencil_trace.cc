@@ -365,7 +365,7 @@ static void trace_free_job(void *customdata)
 /* Trace Image to Grease Pencil. */
 static bool grease_pencil_trace_image_poll(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if ((ob == nullptr) || (ob->type != OB_EMPTY) || (ob->data == nullptr)) {
     CTX_wm_operator_poll_msg_set(C, "No image empty selected");
     return false;
@@ -384,13 +384,13 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
 {
   TraceJob *job = MEM_new<TraceJob>("TraceJob");
   job->C = C;
-  job->owner = CTX_data_active_object(C);
-  job->wm = CTX_wm_manager(C);
-  job->bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  job->owner = CTX_data_active_object(*C);
+  job->wm = CTX_wm_manager(*C);
+  job->bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
   job->scene = scene;
-  job->v3d = CTX_wm_view3d(C);
-  job->base_active = CTX_data_active_base(C);
+  job->v3d = CTX_wm_view3d(*C);
+  job->base_active = CTX_data_active_base(*C);
   job->ob_active = job->base_active->object;
   job->image = static_cast<Image *>(job->ob_active->data);
   job->frame_target = scene->r.cfra;
@@ -400,7 +400,7 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
   const TargetObjectMode target = TargetObjectMode(RNA_enum_get(op->ptr, "target"));
   job->ob_grease_pencil = (target == TargetObjectMode::Selected) ?
                               BKE_view_layer_non_active_selected_object(
-                                  scene, CTX_data_view_layer(C), job->v3d) :
+                                  scene, CTX_data_view_layer(*C), job->v3d) :
                               nullptr;
 
   if (job->ob_grease_pencil != nullptr) {
@@ -441,7 +441,7 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
   }
   else {
     wmJob *wm_job = WM_jobs_get(job->wm,
-                                CTX_wm_window(C),
+                                CTX_wm_window(*C),
                                 job->scene,
                                 "Tracing image...",
                                 WM_JOB_PROGRESS,
@@ -451,7 +451,7 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
     WM_jobs_timer(wm_job, 0.1, NC_GEOM | ND_DATA, NC_GEOM | ND_DATA);
     WM_jobs_callbacks(wm_job, trace_start_job, nullptr, nullptr, trace_end_job);
 
-    WM_jobs_start(CTX_wm_manager(C), wm_job);
+    WM_jobs_start(CTX_wm_manager(*C), wm_job);
   }
 
   return OPERATOR_FINISHED;

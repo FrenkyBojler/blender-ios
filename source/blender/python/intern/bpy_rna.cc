@@ -9628,7 +9628,7 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 
   /* Annoying! We need to check if the screen gets set to nullptr which is a
    * hint that the file was actually re-loaded. */
-  const bool is_valid_wm = (CTX_wm_manager(C) != nullptr);
+  const bool is_valid_wm = (CTX_wm_manager(*C) != nullptr);
 
   if (!(is_staticmethod || is_classmethod)) {
     /* Some data-types (operator, render engine) can store PyObjects for re-use. */
@@ -9902,14 +9902,14 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
     /* Alert the user, else they won't know unless they see the console. */
     if ((!is_staticmethod) && (!is_classmethod) && (ptr->data) &&
         RNA_struct_is_a(ptr->type, &RNA_Operator) &&
-        (is_valid_wm == (CTX_wm_manager(C) != nullptr)))
+        (is_valid_wm == (CTX_wm_manager(*C) != nullptr)))
     {
       wmOperator *op = static_cast<wmOperator *>(ptr->data);
       reports = op->reports;
     }
     else {
       /* Won't alert users, but they can view in 'info' space. */
-      reports = CTX_wm_reports(C);
+      reports = CTX_wm_reports(*C);
     }
 
     if (reports) {
@@ -10271,7 +10271,7 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
 
   identifier = ((PyTypeObject *)py_class)->tp_name;
 
-  srna_new = reg(CTX_data_main(C),
+  srna_new = reg(CTX_data_main(*C),
                  &reports,
                  py_class,
                  identifier,
@@ -10517,7 +10517,7 @@ static PyObject *pyrna_unregister_class(PyObject * /*self*/, PyObject *py_class)
   C = BPY_context_get();
 
   /* Call unregister. */
-  unreg(CTX_data_main(C), srna); /* Calls bpy_class_free, this decref's py_class. */
+  unreg(CTX_data_main(*C), srna); /* Calls bpy_class_free, this decref's py_class. */
 
   /* Typically `bpy_class_free` will have removed, remove here just in case. */
   if (UNLIKELY(PyDict_Contains(((PyTypeObject *)py_class)->tp_dict, bpy_intern_str_bl_rna))) {

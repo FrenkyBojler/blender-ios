@@ -428,7 +428,7 @@ static void object_hook_from_context(
     hmd = static_cast<HookModifierData *>(ptr->data);
   }
   else { /* use the provided property */
-    ob = CTX_data_edit_object(C);
+    ob = CTX_data_edit_object(*C);
     hmd = (HookModifierData *)BLI_findlink(&ob->modifiers, num);
   }
 
@@ -466,7 +466,7 @@ static void object_hook_select(Object *ob, HookModifierData *hmd)
 /* TODO: check for properties window modifier context too as alternative? */
 static bool hook_op_edit_poll(bContext *C)
 {
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit = CTX_data_edit_object(*C);
 
   if (obedit) {
     if (ED_operator_editmesh(C)) {
@@ -515,7 +515,7 @@ static int add_hook_object(const bContext *C,
                            int mode,
                            ReportList *reports)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   HookModifierData *hmd = nullptr;
   float cent[3];
   float pose_mat[4][4];
@@ -606,15 +606,15 @@ static int add_hook_object(const bContext *C,
 
 static wmOperatorStatus object_add_hook_selob_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  Object *obedit = CTX_data_edit_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Object *obedit = CTX_data_edit_object(*C);
   Object *obsel = nullptr;
   const bool use_bone = RNA_boolean_get(op->ptr, "use_bone");
   const int mode = use_bone ? OBJECT_ADDHOOK_SELOB_BONE : OBJECT_ADDHOOK_SELOB;
 
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
     if (ob != obedit) {
       obsel = ob;
       break;
@@ -662,11 +662,11 @@ void OBJECT_OT_hook_add_selob(wmOperatorType *ot)
 
 static wmOperatorStatus object_add_hook_newob_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  View3D *v3d = CTX_wm_view3d(C);
-  Object *obedit = CTX_data_edit_object(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  Object *obedit = CTX_data_edit_object(*C);
 
   if (add_hook_object(
           C, bmain, scene, view_layer, v3d, obedit, nullptr, OBJECT_ADDHOOK_NEWOB, op->reports))
@@ -697,7 +697,7 @@ void OBJECT_OT_hook_add_newob(wmOperatorType *ot)
 static wmOperatorStatus object_hook_remove_exec(bContext *C, wmOperator *op)
 {
   int num = RNA_enum_get(op->ptr, "modifier");
-  Object *ob = CTX_data_edit_object(C);
+  Object *ob = CTX_data_edit_object(*C);
   HookModifierData *hmd = nullptr;
 
   hmd = (HookModifierData *)BLI_findlink(&ob->modifiers, num);
@@ -711,7 +711,7 @@ static wmOperatorStatus object_hook_remove_exec(bContext *C, wmOperator *op)
   BKE_modifier_remove_from_list(ob, (ModifierData *)hmd);
   BKE_modifier_free((ModifierData *)hmd);
 
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
@@ -723,7 +723,7 @@ static const EnumPropertyItem *hook_mod_itemf(bContext *C,
                                               PropertyRNA * /*prop*/,
                                               bool *r_free)
 {
-  Object *ob = (C) ? CTX_data_edit_object(C) : nullptr;
+  Object *ob = (C) ? CTX_data_edit_object(*C) : nullptr;
   EnumPropertyItem tmp = {0, "", 0, "", ""};
   EnumPropertyItem *item = nullptr;
   ModifierData *md = nullptr;
@@ -778,7 +778,7 @@ void OBJECT_OT_hook_remove(wmOperatorType *ot)
 
 static wmOperatorStatus object_hook_reset_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
@@ -826,11 +826,11 @@ void OBJECT_OT_hook_reset(wmOperatorType *ot)
 
 static wmOperatorStatus object_hook_recenter_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   float bmat[3][3], imat[3][3];
 
   object_hook_from_context(C, &ptr, num, &ob, &hmd);
@@ -881,9 +881,9 @@ void OBJECT_OT_hook_recenter(wmOperatorType *ot)
 
 static wmOperatorStatus object_hook_assign_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
@@ -948,7 +948,7 @@ void OBJECT_OT_hook_assign(wmOperatorType *ot)
 
 static wmOperatorStatus object_hook_select_exec(bContext *C, wmOperator *op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_HookModifier);
   int num = RNA_enum_get(op->ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;

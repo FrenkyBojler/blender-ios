@@ -92,7 +92,7 @@ void LinkSearchOpParams::connect_socket(bNode &new_node, bNodeSocket &new_socket
     /* If the old socket already contained a value, then transfer it to a new one, from
      * which this value will get there. */
     bke::node_socket_move_default_value(
-        *CTX_data_main(&C), this->node_tree, this->socket, new_socket);
+        *CTX_data_main(C), this->node_tree, this->socket, new_socket);
   }
 }
 

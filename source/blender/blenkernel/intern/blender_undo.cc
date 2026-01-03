@@ -51,7 +51,7 @@ bool BKE_memfile_undo_decode(MemFileUndoData *mfu,
                              const bool use_old_bmain_data,
                              bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   char mainstr[sizeof(bmain->filepath)];
   int success = 0, fileflags;
 
@@ -84,7 +84,7 @@ bool BKE_memfile_undo_decode(MemFileUndoData *mfu,
   }
 
   /* Restore, bmain has been re-allocated. */
-  bmain = CTX_data_main(C);
+  bmain = CTX_data_main(*C);
   STRNCPY(bmain->filepath, mainstr);
   G.fileflags = fileflags;
 

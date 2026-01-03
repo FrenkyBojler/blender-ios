@@ -37,11 +37,11 @@ static void node_shader_buts_normal_map(ui::Layout &layout, bContext *C, Pointer
   layout.prop(ptr, "space", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
   if (RNA_enum_get(ptr, "space") == SHD_SPACE_TANGENT) {
-    PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
+    PointerRNA obptr = CTX_data_pointer_get(*C, "active_object");
     Object *object = static_cast<Object *>(obptr.data);
 
     if (object && object->type == OB_MESH) {
-      Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+      Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
 
       if (depsgraph) {
         Object *object_eval = DEG_get_evaluated(depsgraph, object);

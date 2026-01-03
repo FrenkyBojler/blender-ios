@@ -453,7 +453,7 @@ void WM_gizmo_modal_set_while_modal(wmGizmoMap *gzmap,
 
 void wm_gizmo_calculate_scale(wmGizmo *gz, const bContext *C)
 {
-  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  const RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   float scale = UI_SCALE_FAC;
 
   if ((gz->parent_gzgroup->type->flag & WM_GIZMOGROUPTYPE_SCALE) == 0) {
@@ -732,7 +732,7 @@ bool WM_gizmo_context_check_drawstep(const bContext *C, eWM_GizmoFlagMapDrawStep
       break;
     }
     case WM_GIZMOMAP_DRAWSTEP_3D: {
-      wmWindowManager *wm = CTX_wm_manager(C);
+      wmWindowManager *wm = CTX_wm_manager(*C);
       if (ED_screen_animation_playing(wm)) {
         return false;
       }

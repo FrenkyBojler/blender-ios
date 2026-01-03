@@ -29,7 +29,7 @@ static wmOperatorStatus geometry_randomization_invoke(bContext *C,
 
 static wmOperatorStatus geometry_randomization_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   G.randomize_geometry_element_order = RNA_boolean_get(op->ptr, "value");
 

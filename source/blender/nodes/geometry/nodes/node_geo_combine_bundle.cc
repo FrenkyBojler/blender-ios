@@ -79,7 +79,7 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
   {
     const NodeCombineBundle &storage = node_storage(params.node);
     if (storage.items_num == 0) {
-      SpaceNode *snode = CTX_wm_space_node(params.C);
+      SpaceNode *snode = CTX_wm_space_node(*params.C);
       if (snode && snode->edittree == &params.ntree) {
         sync_sockets_combine_bundle(*snode, params.node, nullptr, params.link.tosock);
       }
@@ -172,7 +172,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       bNode &node = params.add_node("NodeCombineBundle");
       params.connect_available_socket(node, "Bundle");
 
-      SpaceNode &snode = *CTX_wm_space_node(&params.C);
+      SpaceNode &snode = *CTX_wm_space_node(params.C);
       sync_sockets_combine_bundle(snode, node, nullptr);
     });
   }

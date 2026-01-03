@@ -33,7 +33,7 @@
 
 static wmOperatorStatus create_plane_track_tracks_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingPlaneTrack *plane_track;
@@ -99,8 +99,8 @@ static MovieTrackingPlaneTrack *tracking_plane_marker_check_slide(bContext *C,
                                                                   const wmEvent *event,
                                                                   int *r_corner)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   float co[2];
   ED_clip_mouse_pos(space_clip, region, event->mval, co);
@@ -126,8 +126,8 @@ static MovieTrackingPlaneTrack *tracking_plane_marker_check_slide(bContext *C,
 
 static SlidePlaneMarkerData *slide_plane_marker_customdata(bContext *C, const wmEvent *event)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
+  ARegion *region = CTX_wm_region(*C);
   MovieTrackingPlaneTrack *plane_track;
   int width, height;
   float co[2];
@@ -177,7 +177,7 @@ static wmOperatorStatus slide_plane_marker_invoke(bContext *C,
   SlidePlaneMarkerData *slidedata = slide_plane_marker_customdata(C, event);
 
   if (slidedata) {
-    SpaceClip *sc = CTX_wm_space_clip(C);
+    SpaceClip *sc = CTX_wm_space_clip(*C);
     MovieClip *clip = ED_space_clip_get_clip(sc);
     MovieTracking *tracking = &clip->tracking;
     MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -217,7 +217,7 @@ static void slide_plane_marker_update_homographies(SpaceClip *sc, SlidePlaneMark
 
 static wmOperatorStatus slide_plane_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   SlidePlaneMarkerData *data = (SlidePlaneMarkerData *)op->customdata;
   float dx, dy, mdelta[2];

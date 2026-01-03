@@ -82,12 +82,12 @@ namespace blender::ed::sculpt_paint {
 
 static wmOperatorStatus set_persistent_base_exec(bContext *C, wmOperator * /*op*/)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Object &ob = *CTX_data_active_object(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Object &ob = *CTX_data_active_object(*C);
   SculptSession *ss = ob.sculpt;
 
-  const View3D *v3d = CTX_wm_view3d(C);
-  const Base *base = CTX_data_active_base(C);
+  const View3D *v3d = CTX_wm_view3d(*C);
+  const Base *base = CTX_data_active_base(*C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -163,7 +163,7 @@ static void SCULPT_OT_set_persistent_base(wmOperatorType *ot)
 
 static wmOperatorStatus optimize_exec(bContext *C, wmOperator * /*op*/)
 {
-  Object &ob = *CTX_data_active_object(C);
+  Object &ob = *CTX_data_active_object(*C);
 
   BKE_sculptsession_free_pbvh(ob);
   DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
@@ -197,7 +197,7 @@ static void SCULPT_OT_optimize(wmOperatorType *ot)
 
 static bool no_multires_poll(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
+  Object *ob = CTX_data_active_object(*C);
   if (!ob) {
     return false;
   }
@@ -213,11 +213,11 @@ static bool no_multires_poll(bContext *C)
 
 static wmOperatorStatus symmetrize_exec(bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
-  const Scene &scene = *CTX_data_scene(C);
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
-  Object &ob = *CTX_data_active_object(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  Main *bmain = CTX_data_main(*C);
+  const Scene &scene = *CTX_data_scene(*C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  Object &ob = *CTX_data_active_object(*C);
+  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
   SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
   const float dist = RNA_float_get(op->ptr, "merge_tolerance");
@@ -226,8 +226,8 @@ static wmOperatorStatus symmetrize_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const View3D *v3d = CTX_wm_view3d(C);
-  const Base *base = CTX_data_active_base(C);
+  const View3D *v3d = CTX_wm_view3d(*C);
+  const Base *base = CTX_data_active_base(*C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -470,9 +470,9 @@ void object_sculpt_mode_enter(Main &bmain,
 
 void object_sculpt_mode_enter(bContext *C, Depsgraph &depsgraph, ReportList *reports)
 {
-  Main &bmain = *CTX_data_main(C);
-  Scene &scene = *CTX_data_scene(C);
-  ViewLayer &view_layer = *CTX_data_view_layer(C);
+  Main &bmain = *CTX_data_main(*C);
+  Scene &scene = *CTX_data_scene(*C);
+  ViewLayer &view_layer = *CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(&scene, &view_layer);
   Object &ob = *BKE_view_layer_active_object_get(&view_layer);
   object_sculpt_mode_enter(bmain, depsgraph, scene, ob, false, reports);
@@ -525,9 +525,9 @@ void object_sculpt_mode_exit(Main &bmain, Depsgraph &depsgraph, Scene &scene, Ob
 
 void object_sculpt_mode_exit(bContext *C, Depsgraph &depsgraph)
 {
-  Main &bmain = *CTX_data_main(C);
-  Scene &scene = *CTX_data_scene(C);
-  ViewLayer &view_layer = *CTX_data_view_layer(C);
+  Main &bmain = *CTX_data_main(*C);
+  Scene &scene = *CTX_data_scene(*C);
+  ViewLayer &view_layer = *CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(&scene, &view_layer);
   Object &ob = *BKE_view_layer_active_object_get(&view_layer);
   object_sculpt_mode_exit(bmain, depsgraph, scene, ob);
@@ -535,12 +535,12 @@ void object_sculpt_mode_exit(bContext *C, Depsgraph &depsgraph)
 
 static wmOperatorStatus sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 {
-  wmMsgBus *mbus = CTX_wm_message_bus(C);
-  Main &bmain = *CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
-  Scene &scene = *CTX_data_scene(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(*C);
+  Main &bmain = *CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_on_load(*C);
+  Scene &scene = *CTX_data_scene(*C);
   ToolSettings &ts = *scene.toolsettings;
-  ViewLayer &view_layer = *CTX_data_view_layer(C);
+  ViewLayer &view_layer = *CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(&scene, &view_layer);
   Object &ob = *BKE_view_layer_active_object_get(&view_layer);
   const int mode_flag = OB_MODE_SCULPT;
@@ -557,7 +557,7 @@ static wmOperatorStatus sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
   }
   else {
     if (depsgraph) {
-      depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+      depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
     }
     object_sculpt_mode_enter(bmain, *depsgraph, scene, ob, false, op->reports);
     BKE_paint_brushes_validate(&bmain, &ts.sculpt->paint);
@@ -568,7 +568,7 @@ static wmOperatorStatus sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
       if ((mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY) == 0) {
         /* Without this the memfile undo step is used,
          * while it works it causes lag when undoing the first undo step, see #71564. */
-        wmWindowManager *wm = CTX_wm_manager(C);
+        wmWindowManager *wm = CTX_wm_manager(*C);
         if (wm->op_undo_depth <= 1) {
           undo::push_enter_sculpt_mode(scene, ob, op);
           undo::push_end(ob);
@@ -730,11 +730,11 @@ static void mask_by_color_full_mesh(const Depsgraph &depsgraph,
 
 static wmOperatorStatus mask_by_color(bContext *C, wmOperator *op, const float2 region_location)
 {
-  const Scene &scene = *CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Object &ob = *CTX_data_active_object(C);
+  const Scene &scene = *CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Object &ob = *CTX_data_active_object(*C);
   SculptSession &ss = *ob.sculpt;
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
 
   {
     if (v3d && v3d->shading.type == OB_SOLID) {
@@ -742,7 +742,7 @@ static wmOperatorStatus mask_by_color(bContext *C, wmOperator *op, const float2 
     }
   }
 
-  const Base *base = CTX_data_active_base(C);
+  const Base *base = CTX_data_active_base(*C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -1095,20 +1095,20 @@ static void apply_mask_from_settings(const Depsgraph &depsgraph,
 
 static wmOperatorStatus mask_from_cavity_exec(bContext *C, wmOperator *op)
 {
-  const Scene &scene = *CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Object &ob = *CTX_data_active_object(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  const Scene &scene = *CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Object &ob = *CTX_data_active_object(*C);
+  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
-  const View3D *v3d = CTX_wm_view3d(C);
-  const Base *base = CTX_data_active_base(C);
+  const View3D *v3d = CTX_wm_view3d(*C);
+  const Base *base = CTX_data_active_base(*C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
 
-  MultiresModifierData *mmd = BKE_sculpt_multires_active(CTX_data_scene(C), &ob);
-  BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), &ob, mmd);
+  MultiresModifierData *mmd = BKE_sculpt_multires_active(CTX_data_scene(*C), &ob);
+  BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(*C), &ob, mmd);
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
   vert_random_access_ensure(ob);
@@ -1207,7 +1207,7 @@ static wmOperatorStatus mask_from_cavity_exec(bContext *C, wmOperator *op)
 static void mask_from_cavity_ui(bContext *C, wmOperator *op)
 {
   ui::Layout &layout = *op->layout;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Sculpt *sd = scene->toolsettings ? scene->toolsettings->sculpt : nullptr;
 
   layout.use_property_split_set(true);
@@ -1296,20 +1296,20 @@ enum class MaskBoundaryMode : int8_t { Mesh, FaceSets };
 
 static wmOperatorStatus mask_from_boundary_exec(bContext *C, wmOperator *op)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Object &ob = *CTX_data_active_object(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
-  const Scene &scene = *CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Object &ob = *CTX_data_active_object(*C);
+  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
+  const Scene &scene = *CTX_data_scene(*C);
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
 
-  const View3D *v3d = CTX_wm_view3d(C);
-  const Base *base = CTX_data_active_base(C);
+  const View3D *v3d = CTX_wm_view3d(*C);
+  const Base *base = CTX_data_active_base(*C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
 
-  MultiresModifierData *mmd = BKE_sculpt_multires_active(CTX_data_scene(C), &ob);
-  BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), &ob, mmd);
+  MultiresModifierData *mmd = BKE_sculpt_multires_active(CTX_data_scene(*C), &ob);
+  BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(*C), &ob, mmd);
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
   vert_random_access_ensure(ob);
@@ -1396,7 +1396,7 @@ static wmOperatorStatus mask_from_boundary_exec(bContext *C, wmOperator *op)
 static void mask_from_boundary_ui(bContext *C, wmOperator *op)
 {
   ui::Layout &layout = *op->layout;
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   Sculpt *sd = scene->toolsettings ? scene->toolsettings->sculpt : nullptr;
 
   layout.use_property_split_set(true);

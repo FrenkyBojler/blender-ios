@@ -59,7 +59,7 @@ void operator_properties(wmOperatorType *ot, ShapeType shapeType)
 
 static void init_common(bContext *C, const wmOperator *op, GestureData &gesture_data)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   gesture_data.vc = ED_view3d_viewcontext_init(C, depsgraph);
   const Object &object = *gesture_data.vc.obact;
 

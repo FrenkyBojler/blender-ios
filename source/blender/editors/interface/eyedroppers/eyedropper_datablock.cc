@@ -94,7 +94,7 @@ static int datadropper_init(bContext *C, wmOperator *op)
 
   ddr->is_undo = button_flag_is_set(but, BUT_UNDO);
 
-  ddr->cursor_area = CTX_wm_area(C);
+  ddr->cursor_area = CTX_wm_area(*C);
   ddr->art = art;
   ddr->draw_handle_pixel = ED_region_draw_cb_activate(
       art, datadropper_draw_cb, ddr, REGION_DRAW_POST_PIXEL);
@@ -114,7 +114,7 @@ static int datadropper_init(bContext *C, wmOperator *op)
 
 static void datadropper_exit(bContext *C, wmOperator *op)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   WM_cursor_modal_restore(win);
 
@@ -138,9 +138,9 @@ static void datadropper_exit(bContext *C, wmOperator *op)
 static void datadropper_id_sample_pt(
     bContext *C, wmWindow *win, ScrArea *area, DataDropper *ddr, const int event_xy[2], ID **r_id)
 {
-  wmWindow *win_prev = CTX_wm_window(C);
-  ScrArea *area_prev = CTX_wm_area(C);
-  ARegion *region_prev = CTX_wm_region(C);
+  wmWindow *win_prev = CTX_wm_window(*C);
+  ScrArea *area_prev = CTX_wm_area(*C);
+  ARegion *region_prev = CTX_wm_region(*C);
 
   if (area) {
     if (ELEM(area->spacetype, SPACE_VIEW3D, SPACE_OUTLINER)) {
@@ -300,9 +300,9 @@ static wmOperatorStatus datadropper_invoke(bContext *C, wmOperator *op, const wm
 {
   /* init */
   if (datadropper_init(C, op)) {
-    wmWindow *win = CTX_wm_window(C);
+    wmWindow *win = CTX_wm_window(*C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    context_active_but_clear(C, win, CTX_wm_region(C));
+    context_active_but_clear(C, win, CTX_wm_region(*C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
@@ -334,7 +334,7 @@ static bool datadropper_poll(bContext *C)
   Button *but;
 
   /* data dropper only supports object data */
-  if ((CTX_wm_window(C) != nullptr) &&
+  if ((CTX_wm_window(*C) != nullptr) &&
       (but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
       (but->type == ButtonType::SearchMenu) && (but->flag & BUT_VALUE_CLEAR))
   {

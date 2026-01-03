@@ -253,7 +253,7 @@ static bool geometry_attributes_poll(bContext *C)
 {
   using namespace blender::bke;
   const Object *ob = object::context_object(C);
-  const Main *bmain = CTX_data_main(C);
+  const Main *bmain = CTX_data_main(*C);
   if (!ob || !BKE_id_is_editable(bmain, &ob->id)) {
     return false;
   }
@@ -561,7 +561,7 @@ static bool geometry_attribute_convert_poll(bContext *C)
   ID *data = static_cast<ID *>(ob->data);
   AttributeOwner owner = AttributeOwner::from_id(data);
   if (ob->type == OB_MESH) {
-    if (CTX_data_edit_object(C) != nullptr) {
+    if (CTX_data_edit_object(*C) != nullptr) {
       CTX_wm_operator_poll_msg_set(C, "Operation is not allowed in edit mode");
       return false;
     }
@@ -870,7 +870,7 @@ static bool geometry_color_attributes_duplicate_poll(bContext *C)
   if (!geometry_attributes_poll(C)) {
     return false;
   }
-  if (CTX_data_edit_object(C) != nullptr) {
+  if (CTX_data_edit_object(*C) != nullptr) {
     CTX_wm_operator_poll_msg_set(C, "Operation is not allowed in edit mode");
     return false;
   }
@@ -990,7 +990,7 @@ static bool geometry_color_attribute_convert_poll(bContext *C)
     return false;
   }
 
-  if (CTX_data_edit_object(C) != nullptr) {
+  if (CTX_data_edit_object(*C) != nullptr) {
     CTX_wm_operator_poll_msg_set(C, "Operation is not allowed in edit mode");
     return false;
   }

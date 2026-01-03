@@ -66,7 +66,7 @@ static bool driverdropper_init(bContext *C, wmOperator *op)
 
 static void driverdropper_exit(bContext *C, wmOperator *op)
 {
-  WM_cursor_modal_restore(CTX_wm_window(C));
+  WM_cursor_modal_restore(CTX_wm_window(*C));
 
   if (op->customdata) {
     DriverDropper *ddr = static_cast<DriverDropper *>(op->customdata);
@@ -114,7 +114,7 @@ static void driverdropper_sample(bContext *C, wmOperator *op, const wmEvent *eve
     if (success) {
       /* send updates */
       context_update_anim_flag(C);
-      DEG_relations_tag_update(CTX_data_main(C));
+      DEG_relations_tag_update(CTX_data_main(*C));
       DEG_id_tag_update(ddr->ptr.owner_id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
       WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
     }
@@ -158,9 +158,9 @@ static wmOperatorStatus driverdropper_invoke(bContext *C,
 {
   /* init */
   if (driverdropper_init(C, op)) {
-    wmWindow *win = CTX_wm_window(C);
+    wmWindow *win = CTX_wm_window(*C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    context_active_but_clear(C, win, CTX_wm_region(C));
+    context_active_but_clear(C, win, CTX_wm_region(*C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
@@ -186,7 +186,7 @@ static wmOperatorStatus driverdropper_exec(bContext *C, wmOperator *op)
 
 static bool driverdropper_poll(bContext *C)
 {
-  if (!CTX_wm_window(C)) {
+  if (!CTX_wm_window(*C)) {
     return false;
   }
   return true;

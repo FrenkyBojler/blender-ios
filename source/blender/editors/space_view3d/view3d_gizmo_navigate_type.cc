@@ -82,7 +82,7 @@ static void gizmo_axis_draw(const bContext *C, wmGizmo *gz)
 
   /* Background color of the View3D, used to mix colors. */
   float view_color[4];
-  ED_view3d_background_color_get(CTX_data_scene(C), CTX_wm_view3d(C), view_color);
+  ED_view3d_background_color_get(CTX_data_scene(*C), CTX_wm_view3d(*C), view_color);
   view_color[3] = 1.0f;
 
   float matrix_screen[4][4];
@@ -348,7 +348,7 @@ static int gizmo_axis_cursor_get(wmGizmo * /*gz*/)
 
 static bool gizmo_axis_screen_bounds_get(bContext *C, wmGizmo *gz, rcti *r_bounding_box)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   const float rad = WIDGET_RADIUS;
   r_bounding_box->xmin = gz->matrix_basis[3][0] + area->totrct.xmin - rad;
   r_bounding_box->ymin = gz->matrix_basis[3][1] + area->totrct.ymin - rad;

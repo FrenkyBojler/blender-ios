@@ -51,7 +51,7 @@
 
 static bool add_marker(const bContext *C, float x, float y)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -78,7 +78,7 @@ static bool add_marker(const bContext *C, float x, float y)
 
 static wmOperatorStatus add_marker_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   float pos[2];
 
@@ -100,8 +100,8 @@ static wmOperatorStatus add_marker_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus add_marker_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   if (!RNA_struct_property_is_set(op->ptr, "location")) {
     /* If location is not set, use mouse position as default. */
@@ -170,9 +170,9 @@ static wmOperatorStatus add_marker_at_click_modal(bContext *C,
       return OPERATOR_RUNNING_MODAL;
 
     case LEFTMOUSE: {
-      SpaceClip *sc = CTX_wm_space_clip(C);
+      SpaceClip *sc = CTX_wm_space_clip(*C);
       MovieClip *clip = ED_space_clip_get_clip(sc);
-      ARegion *region = CTX_wm_region(C);
+      ARegion *region = CTX_wm_region(*C);
       float pos[2];
 
       ED_workspace_status_text(C, nullptr);
@@ -227,7 +227,7 @@ void CLIP_OT_add_marker_at_click(wmOperatorType *ot)
 
 static wmOperatorStatus delete_track_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   bool changed = false;
@@ -294,7 +294,7 @@ void CLIP_OT_delete_track(wmOperatorType *ot)
 
 static wmOperatorStatus delete_marker_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   const int framenr = ED_space_clip_get_clip_frame_number(sc);
@@ -497,7 +497,7 @@ static bool slide_check_corners(float (*corners)[2])
 static MovieTrackingTrack *tracking_marker_check_slide(
     bContext *C, const float co[2], eTrackArea *r_area, eSlideAction *r_action, int *r_corner)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
 
   TrackPickOptions options = ed_tracking_pick_options_defaults();
   options.selected_only = true;
@@ -573,8 +573,8 @@ MovieTrackingTrack *tracking_find_slidable_track_in_proximity(bContext *C, const
 
 static SlideMarkerData *slide_marker_customdata(bContext *C, const wmEvent *event)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
-  ARegion *region = CTX_wm_region(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
+  ARegion *region = CTX_wm_region(*C);
 
   MovieTrackingTrack *track;
   int width, height;
@@ -607,7 +607,7 @@ static wmOperatorStatus slide_marker_invoke(bContext *C, wmOperator *op, const w
 {
   SlideMarkerData *slidedata = slide_marker_customdata(C, event);
   if (slidedata != nullptr) {
-    SpaceClip *sc = CTX_wm_space_clip(C);
+    SpaceClip *sc = CTX_wm_space_clip(*C);
     MovieClip *clip = ED_space_clip_get_clip(sc);
     MovieTracking *tracking = &clip->tracking;
     MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -647,7 +647,7 @@ static void cancel_mouse_slide(SlideMarkerData *data)
 static void apply_mouse_slide(bContext *C, SlideMarkerData *data)
 {
   if (data->area == TRACK_AREA_POINT) {
-    SpaceClip *sc = CTX_wm_space_clip(C);
+    SpaceClip *sc = CTX_wm_space_clip(*C);
     MovieClip *clip = ED_space_clip_get_clip(sc);
     const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
     const int framenr = ED_space_clip_get_clip_frame_number(sc);
@@ -672,7 +672,7 @@ static void free_slide_data(SlideMarkerData *data)
 
 static wmOperatorStatus slide_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
 
   SlideMarkerData *data = (SlideMarkerData *)op->customdata;
   float dx, dy, mdelta[2];
@@ -876,7 +876,7 @@ void CLIP_OT_slide_marker(wmOperatorType *ot)
 
 static wmOperatorStatus clear_track_path_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   const eTrackClearAction action = eTrackClearAction(RNA_enum_get(op->ptr, "action"));
@@ -955,7 +955,7 @@ enum {
 
 static wmOperatorStatus disable_markers_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   const int action = RNA_enum_get(op->ptr, "action");
@@ -1018,7 +1018,7 @@ void CLIP_OT_disable_markers(wmOperatorType *ot)
 
 static wmOperatorStatus hide_tracks_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1086,7 +1086,7 @@ void CLIP_OT_hide_tracks(wmOperatorType *ot)
 
 static wmOperatorStatus hide_tracks_clear_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
 
@@ -1130,14 +1130,14 @@ void CLIP_OT_hide_tracks_clear(wmOperatorType *ot)
 
 static bool frame_jump_poll(bContext *C)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
   return space_clip != nullptr;
 }
 
 static wmOperatorStatus frame_jump_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  Scene *scene = CTX_data_scene(*C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1230,7 +1230,7 @@ void CLIP_OT_frame_jump(wmOperatorType *ot)
 
 static wmOperatorStatus join_tracks_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1323,7 +1323,7 @@ void CLIP_OT_join_tracks(wmOperatorType *ot)
 
 static wmOperatorStatus average_tracks_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1376,7 +1376,7 @@ static wmOperatorStatus average_tracks_invoke(bContext *C,
 {
   PropertyRNA *prop_keep_original = RNA_struct_find_property(op->ptr, "keep_original");
   if (!RNA_property_is_set(op->ptr, prop_keep_original)) {
-    SpaceClip *space_clip = CTX_wm_space_clip(C);
+    SpaceClip *space_clip = CTX_wm_space_clip(*C);
     MovieClip *clip = ED_space_clip_get_clip(space_clip);
     MovieTracking *tracking = &clip->tracking;
 
@@ -1427,7 +1427,7 @@ enum {
 
 static wmOperatorStatus lock_tracks_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   const int action = RNA_enum_get(op->ptr, "action");
@@ -1491,7 +1491,7 @@ enum {
 
 static wmOperatorStatus set_solver_keyframe_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1542,7 +1542,7 @@ void CLIP_OT_set_solver_keyframe(wmOperatorType *ot)
 
 static wmOperatorStatus track_copy_color_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
 
@@ -1699,7 +1699,7 @@ static bool is_track_clean(MovieTrackingTrack *track, int frames, int del)
 
 static wmOperatorStatus clean_tracks_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1754,7 +1754,7 @@ static wmOperatorStatus clean_tracks_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus clean_tracks_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
 
   if (!RNA_struct_property_is_set(op->ptr, "frames")) {
@@ -1833,7 +1833,7 @@ void CLIP_OT_clean_tracks(wmOperatorType *ot)
 
 static wmOperatorStatus tracking_object_new_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
 
@@ -1868,7 +1868,7 @@ void CLIP_OT_tracking_object_new(wmOperatorType *ot)
 
 static wmOperatorStatus tracking_object_remove_exec(bContext *C, wmOperator *op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1909,7 +1909,7 @@ void CLIP_OT_tracking_object_remove(wmOperatorType *ot)
 
 static wmOperatorStatus copy_tracks_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1953,7 +1953,7 @@ static bool paste_tracks_poll(bContext *C)
 
 static wmOperatorStatus paste_tracks_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1989,7 +1989,7 @@ void CLIP_OT_paste_tracks(wmOperatorType *ot)
 
 static void keyframe_set_flag(bContext *C, bool set)
 {
-  SpaceClip *sc = CTX_wm_space_clip(C);
+  SpaceClip *sc = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   const int framenr = ED_space_clip_get_clip_frame_number(sc);
@@ -2092,7 +2092,7 @@ void CLIP_OT_keyframe_delete(wmOperatorType *ot)
 
 static ImBuf *sample_plane_marker_image_for_operator(bContext *C)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
   const int clip_frame_number = ED_space_clip_get_clip_frame_number(space_clip);
 
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
@@ -2120,7 +2120,7 @@ static bool new_image_from_plane_marker_poll(bContext *C)
     return false;
   }
 
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
   const MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -2134,7 +2134,7 @@ static bool new_image_from_plane_marker_poll(bContext *C)
 
 static wmOperatorStatus new_image_from_plane_marker_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -2145,7 +2145,7 @@ static wmOperatorStatus new_image_from_plane_marker_exec(bContext *C, wmOperator
     return OPERATOR_CANCELLED;
   }
 
-  plane_track->image = BKE_image_add_from_imbuf(CTX_data_main(C), plane_ibuf, plane_track->name);
+  plane_track->image = BKE_image_add_from_imbuf(CTX_data_main(*C), plane_ibuf, plane_track->name);
 
   IMB_freeImBuf(plane_ibuf);
 
@@ -2175,7 +2175,7 @@ static bool update_image_from_plane_marker_poll(bContext *C)
     return false;
   }
 
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
   const MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -2192,7 +2192,7 @@ static bool update_image_from_plane_marker_poll(bContext *C)
 
 static wmOperatorStatus update_image_from_plane_marker_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);

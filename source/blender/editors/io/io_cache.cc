@@ -35,7 +35,7 @@
 
 static void reload_cachefile(bContext *C, CacheFile *cache_file)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   BKE_cachefile_reload(depsgraph, cache_file);
 }
 
@@ -53,7 +53,7 @@ static wmOperatorStatus cachefile_open_invoke(bContext *C,
 {
   if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
     char filepath[FILE_MAX];
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
 
     /* Default to the same directory as the blend file. */
     BLI_path_split_dir_part(BKE_main_blendfile_path(bmain), filepath, sizeof(filepath));
@@ -86,7 +86,7 @@ static wmOperatorStatus cachefile_open_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
 
   CacheFile *cache_file = static_cast<CacheFile *>(
       BKE_libblock_alloc(bmain, ID_CF, BLI_path_basename(filepath), 0));
@@ -137,7 +137,7 @@ void CACHEFILE_OT_open(wmOperatorType *ot)
 
 static wmOperatorStatus cachefile_reload_exec(bContext *C, wmOperator * /*op*/)
 {
-  CacheFile *cache_file = CTX_data_edit_cachefile(C);
+  CacheFile *cache_file = CTX_data_edit_cachefile(*C);
 
   if (cache_file == nullptr) {
     return OPERATOR_CANCELLED;
@@ -169,7 +169,7 @@ static wmOperatorStatus cachefile_layer_open_invoke(bContext *C,
 {
   if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
     char filepath[FILE_MAX];
-    Main *bmain = CTX_data_main(C);
+    Main *bmain = CTX_data_main(*C);
 
     /* Default to the same directory as the blend file. */
     BLI_path_split_dir_part(BKE_main_blendfile_path(bmain), filepath, sizeof(filepath));
@@ -177,7 +177,7 @@ static wmOperatorStatus cachefile_layer_open_invoke(bContext *C,
   }
 
   /* There is no more CacheFile set when returning from the file selector, so store it here. */
-  op->customdata = CTX_data_edit_cachefile(C);
+  op->customdata = CTX_data_edit_cachefile(*C);
 
   WM_event_add_fileselect(C, op);
 
@@ -235,7 +235,7 @@ void CACHEFILE_OT_layer_add(wmOperatorType *ot)
 
 static wmOperatorStatus cachefile_layer_remove_exec(bContext *C, wmOperator * /*op*/)
 {
-  CacheFile *cache_file = CTX_data_edit_cachefile(C);
+  CacheFile *cache_file = CTX_data_edit_cachefile(*C);
 
   if (cache_file == nullptr) {
     return OPERATOR_CANCELLED;
@@ -266,7 +266,7 @@ void CACHEFILE_OT_layer_remove(wmOperatorType *ot)
 
 static wmOperatorStatus cachefile_layer_move_exec(bContext *C, wmOperator *op)
 {
-  CacheFile *cache_file = CTX_data_edit_cachefile(C);
+  CacheFile *cache_file = CTX_data_edit_cachefile(*C);
 
   if (cache_file == nullptr) {
     return OPERATOR_CANCELLED;

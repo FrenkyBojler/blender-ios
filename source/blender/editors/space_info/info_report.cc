@@ -112,7 +112,7 @@ static wmOperatorStatus report_replay_exec(bContext *C, wmOperator * /*op*/)
 
   sc->type = CONSOLE_TYPE_REPORT;
 #endif
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -139,10 +139,10 @@ static wmOperatorStatus select_report_pick_exec(bContext *C, wmOperator *op)
   int report_index = RNA_int_get(op->ptr, "report_index");
   bool extend = RNA_boolean_get(op->ptr, "extend");
 
-  Report *report = static_cast<Report *>(BLI_findlink(&CTX_wm_reports(C)->list, report_index));
+  Report *report = static_cast<Report *>(BLI_findlink(&CTX_wm_reports(*C)->list, report_index));
 
-  SpaceInfo *sinfo = CTX_wm_space_info(C);
-  ReportList *reports = CTX_wm_reports(C);
+  SpaceInfo *sinfo = CTX_wm_space_info(*C);
+  ReportList *reports = CTX_wm_reports(*C);
   const int report_mask = info_report_mask(sinfo);
   if (!report) {
     return OPERATOR_CANCELLED;
@@ -153,7 +153,7 @@ static wmOperatorStatus select_report_pick_exec(bContext *C, wmOperator *op)
   }
   report->flag ^= SELECT; /* toggle */
 
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -162,9 +162,9 @@ static wmOperatorStatus select_report_pick_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event)
 {
-  SpaceInfo *sinfo = CTX_wm_space_info(C);
-  ARegion *region = CTX_wm_region(C);
-  ReportList *reports = CTX_wm_reports(C);
+  SpaceInfo *sinfo = CTX_wm_space_info(*C);
+  ARegion *region = CTX_wm_region(*C);
+  ReportList *reports = CTX_wm_reports(*C);
   Report *report;
 
   report = static_cast<Report *>(info_text_pick(sinfo, region, reports, event->mval[1]));
@@ -199,14 +199,14 @@ void INFO_OT_select_pick(wmOperatorType *ot)
 
 static wmOperatorStatus report_select_all_exec(bContext *C, wmOperator *op)
 {
-  SpaceInfo *sinfo = CTX_wm_space_info(C);
-  ReportList *reports = CTX_wm_reports(C);
+  SpaceInfo *sinfo = CTX_wm_space_info(*C);
+  ReportList *reports = CTX_wm_reports(*C);
   const int report_mask = info_report_mask(sinfo);
 
   int action = RNA_enum_get(op->ptr, "action");
   reports_select_all(reports, report_mask, action);
 
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -229,9 +229,9 @@ void INFO_OT_select_all(wmOperatorType *ot)
 /* box_select operator */
 static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
 {
-  SpaceInfo *sinfo = CTX_wm_space_info(C);
-  ARegion *region = CTX_wm_region(C);
-  ReportList *reports = CTX_wm_reports(C);
+  SpaceInfo *sinfo = CTX_wm_space_info(*C);
+  ARegion *region = CTX_wm_region(*C);
+  ReportList *reports = CTX_wm_reports(*C);
   int report_mask = info_report_mask(sinfo);
   Report *report_min, *report_max;
   rcti rect;
@@ -284,7 +284,7 @@ static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
     SET_FLAG_FROM_TEST(report->flag, select, SELECT);
   }
 
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -316,8 +316,8 @@ void INFO_OT_select_box(wmOperatorType *ot)
 
 static wmOperatorStatus report_delete_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceInfo *sinfo = CTX_wm_space_info(C);
-  ReportList *reports = CTX_wm_reports(C);
+  SpaceInfo *sinfo = CTX_wm_space_info(*C);
+  ReportList *reports = CTX_wm_reports(*C);
   int report_mask = info_report_mask(sinfo);
 
   Report *report, *report_next;
@@ -334,7 +334,7 @@ static wmOperatorStatus report_delete_exec(bContext *C, wmOperator * /*op*/)
     report = report_next;
   }
 
-  ED_area_tag_redraw(CTX_wm_area(C));
+  ED_area_tag_redraw(CTX_wm_area(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -358,8 +358,8 @@ void INFO_OT_report_delete(wmOperatorType *ot)
 
 static wmOperatorStatus report_copy_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceInfo *sinfo = CTX_wm_space_info(C);
-  ReportList *reports = CTX_wm_reports(C);
+  SpaceInfo *sinfo = CTX_wm_space_info(*C);
+  ReportList *reports = CTX_wm_reports(*C);
   int report_mask = info_report_mask(sinfo);
 
   DynStr *buf_dyn = BLI_dynstr_new();

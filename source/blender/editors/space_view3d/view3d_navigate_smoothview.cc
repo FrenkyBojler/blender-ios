@@ -390,10 +390,10 @@ void ED_view3d_smooth_view(bContext *C,
                            const int smooth_viewtx,
                            const V3D_SmoothParams *sview)
 {
-  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
+  ScrArea *area = CTX_wm_area(*C);
 
   /* #ED_view3d_smooth_view_ex asserts this is not set as it doesn't support undo. */
   V3D_SmoothParams sview_no_undo = *sview;
@@ -433,7 +433,7 @@ static void view3d_smoothview_apply_with_interp(
   rv3d->dist = interpf(sms->dst.dist, sms->src.dist, factor);
   v3d->lens = interpf(sms->dst.lens, sms->src.lens, factor);
 
-  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   if (ED_view3d_camera_lock_sync(depsgraph, v3d, rv3d)) {
     if (use_autokey) {
       ED_view3d_camera_lock_autokey(v3d, rv3d, C, true, true);
@@ -461,7 +461,7 @@ static void view3d_smoothview_apply_and_finish_ex(wmWindowManager *wm,
     view3d_smooth_view_state_restore(&sms->dst, v3d, rv3d);
 
     if (C_for_camera_lock) {
-      const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C_for_camera_lock);
+      const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C_for_camera_lock);
       if (ED_view3d_camera_lock_sync(depsgraph, v3d, rv3d)) {
         ED_view3d_camera_lock_autokey(v3d, rv3d, C_for_camera_lock, true, true);
       }
@@ -492,14 +492,14 @@ static void view3d_smoothview_apply_and_finish_ex(wmWindowManager *wm,
 
 static void view3d_smoothview_apply_and_finish(bContext *C, View3D *v3d, RegionView3D *rv3d)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindow *win = CTX_wm_window(*C);
   view3d_smoothview_apply_and_finish_ex(wm, win, v3d, rv3d, C);
 }
 
 static void view3d_smoothview_apply_from_timer(bContext *C, View3D *v3d, ARegion *region)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   SmoothView3DStore *sms = rv3d->sms;
   float factor;
@@ -521,7 +521,7 @@ static void view3d_smoothview_apply_from_timer(bContext *C, View3D *v3d, ARegion
   }
 
   if (RV3D_LOCK_FLAGS(rv3d) & RV3D_BOXVIEW) {
-    view3d_boxview_copy(CTX_wm_area(C), region);
+    view3d_boxview_copy(CTX_wm_area(*C), region);
   }
 
   ED_region_tag_redraw(region);
@@ -531,8 +531,8 @@ static wmOperatorStatus view3d_smoothview_invoke(bContext *C,
                                                  wmOperator * /*op*/,
                                                  const wmEvent *event)
 {
-  View3D *v3d = CTX_wm_view3d(C);
-  ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(*C);
+  ARegion *region = CTX_wm_region(*C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   /* Escape if not our timer. */
@@ -570,10 +570,10 @@ void ED_view3d_smooth_view_force_finish(bContext *C, View3D *v3d, ARegion *regio
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   if (rv3d && rv3d->sms) {
 
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    Scene *scene = CTX_data_scene(C);
-    wmWindowManager *wm = CTX_wm_manager(C);
-    wmWindow *win = CTX_wm_window(C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+    Scene *scene = CTX_data_scene(*C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
+    wmWindow *win = CTX_wm_window(*C);
 
     view3d_smooth_view_force_finish_ex(depsgraph, wm, win, scene, v3d, region, C);
   }

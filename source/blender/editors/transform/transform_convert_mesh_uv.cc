@@ -246,7 +246,7 @@ static void uv_set_connectivity_distance(const ToolSettings *ts,
 
 static void createTransUVs(bContext *C, TransInfo *t)
 {
-  SpaceImage *sima = CTX_wm_space_image(C);
+  SpaceImage *sima = CTX_wm_space_image(*C);
   Scene *scene = t->scene;
 
   const bool is_prop_edit = (t->flag & T_PROP_EDIT) != 0;
@@ -386,7 +386,7 @@ static void createTransUVs(bContext *C, TransInfo *t)
     }
 
     if (sima->flag & SI_LIVE_UNWRAP) {
-      wmWindow *win_modal = CTX_wm_window(C);
+      wmWindow *win_modal = CTX_wm_window(*C);
       ED_uvedit_live_unwrap_begin(t->scene, tc->obedit, win_modal);
     }
 

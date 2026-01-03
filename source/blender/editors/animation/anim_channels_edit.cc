@@ -1062,11 +1062,11 @@ void ANIM_frame_channel_y_extents(bContext *C, bAnimContext *ac)
 /* poll callback for being in an Animation Editor channels list region */
 static bool animedit_poll_channels_active(bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
-  if (ELEM(nullptr, area, CTX_wm_region(C))) {
+  if (ELEM(nullptr, area, CTX_wm_region(*C))) {
     return false;
   }
   /* animation editor test */
@@ -1080,12 +1080,12 @@ static bool animedit_poll_channels_active(bContext *C)
 /* Poll callback for Animation Editor channels list region + not in NLA-tweak-mode for NLA. */
 static bool animedit_poll_channels_nla_tweakmode_off(bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
-  Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(*C);
+  Scene *scene = CTX_data_scene(*C);
 
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
-  if (ELEM(nullptr, area, CTX_wm_region(C))) {
+  if (ELEM(nullptr, area, CTX_wm_region(*C))) {
     return false;
   }
   /* animation editor test */
@@ -2298,17 +2298,17 @@ static void ANIM_OT_channels_move(wmOperatorType *ot)
 
 static bool animchannels_grouping_poll(bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   SpaceLink *sl;
 
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
-  if (ELEM(nullptr, area, CTX_wm_region(C))) {
+  if (ELEM(nullptr, area, CTX_wm_region(*C))) {
     return false;
   }
 
   /* animation editor test - must be suitable modes only */
-  sl = CTX_wm_space_data(C);
+  sl = CTX_wm_space_data(*C);
 
   switch (area->spacetype) {
     /* supported... */
@@ -2631,7 +2631,7 @@ static bool animchannels_delete_containers(const bContext *C, bAnimContext *ac)
           channelbag.fcurve_remove(*channelbag.fcurve(fcurve_range_start));
         }
 
-        DEG_id_tag_update_ex(CTX_data_main(C), &adt->action->id, ID_RECALC_ANIMATION);
+        DEG_id_tag_update_ex(CTX_data_main(*C), &adt->action->id, ID_RECALC_ANIMATION);
 
         break;
       }
@@ -2792,10 +2792,10 @@ static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*
         if (gpd->flag & GP_DATA_ANNOTATIONS && gpd->layers.first == nullptr) {
           BKE_gpencil_free_data(gpd, true);
 
-          Scene *scene = CTX_data_scene(C);
+          Scene *scene = CTX_data_scene(*C);
           scene->gpd = nullptr;
 
-          Main *bmain = CTX_data_main(C);
+          Main *bmain = CTX_data_main(*C);
           BKE_id_free_us(bmain, gpd);
         }
         break;
@@ -2869,7 +2869,7 @@ static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*
   /* send notifier that things have changed */
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
 
   return OPERATOR_FINISHED;
 }
@@ -3364,11 +3364,11 @@ static void ANIM_OT_channels_clean_empty(wmOperatorType *ot)
 
 static bool animchannels_enable_poll(bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
-  if (ELEM(nullptr, area, CTX_wm_region(C))) {
+  if (ELEM(nullptr, area, CTX_wm_region(*C))) {
     return false;
   }
 
@@ -3446,7 +3446,7 @@ static void ANIM_OT_channels_fcurves_enable(wmOperatorType *ot)
 /* XXX: make this generic? */
 static bool animchannels_select_filter_poll(bContext *C)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   if (area == nullptr) {
     return false;
@@ -3460,8 +3460,8 @@ static wmOperatorStatus animchannels_select_filter_invoke(bContext *C,
                                                           wmOperator *op,
                                                           const wmEvent * /*event*/)
 {
-  ScrArea *area = CTX_wm_area(C);
-  ARegion *region_ctx = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region_ctx = CTX_wm_region(*C);
   ARegion *region_channels = BKE_area_find_region_type(area, RGN_TYPE_CHANNELS);
 
   CTX_wm_region_set(C, region_channels);
@@ -3490,7 +3490,7 @@ static wmOperatorStatus animchannels_select_filter_modal(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   if (blender::ui::textbutton_activate_rna(C, region, ac.ads, "filter_text")) {
     /* Redraw to make sure it shows the cursor after activating */
     WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
@@ -4429,7 +4429,7 @@ static int click_select_channel_grease_pencil_layer(bContext *C,
   if (layer->is_selected() && (selectmode != SELECT_EXTEND_RANGE)) {
     grease_pencil->set_active_layer(layer);
     WM_msg_publish_rna_prop(
-        CTX_wm_message_bus(C), &grease_pencil->id, grease_pencil, GreasePencilv3Layers, active);
+        CTX_wm_message_bus(*C), &grease_pencil->id, grease_pencil, GreasePencilv3Layers, active);
     DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   }
 
@@ -4479,7 +4479,7 @@ static int mouse_anim_channels(bContext *C,
   bAnimListElem *ale;
   int filter;
   int notifierFlags = 0;
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
 
   /* get the channel that was clicked on */
   /* filter channels */
@@ -5049,7 +5049,7 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   blender::int2 frame_range;
   if (scene->r.flag & SCER_PRV_RANGE) {
@@ -5253,7 +5253,7 @@ static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOpe
   /* If multiple slots are selected they are moved to the new action together. In that case it is
    * hard to determine a name, so a constant default is used. */
   Action *target_action;
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   if (slots.size() == 1) {
     char actname[MAX_ID_NAME - 2];
     SNPRINTF_UTF8(actname, DATA_("%sAction"), slots[0].first->identifier + 2);
@@ -5281,9 +5281,9 @@ static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOpe
 
 static bool slot_channels_move_to_new_action_poll(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  ScrArea *area = CTX_wm_area(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ScrArea *area = CTX_wm_area(*C);
   bAction *action = ANIM_active_action_from_area(scene, view_layer, area);
 
   if (!action) {
@@ -5308,7 +5308,7 @@ static void ANIM_OT_slot_channels_move_to_new_action(wmOperatorType *ot)
 static wmOperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
-  Object *active_object = CTX_data_active_object(C);
+  Object *active_object = CTX_data_active_object(*C);
   /* Checked by the poll function. */
   BLI_assert(active_object != nullptr);
 
@@ -5316,7 +5316,7 @@ static wmOperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
   /* Also checked by the poll function. */
   BLI_assert(action != nullptr);
 
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   int created_actions = 0;
   while (action->slot_array_num) {
     Slot *slot = action->slot(action->slot_array_num - 1);
@@ -5337,7 +5337,7 @@ static wmOperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
               created_actions);
 
   DEG_id_tag_update(&action->id, ID_RECALC_ANIMATION_NO_FLUSH);
-  DEG_relations_tag_update(CTX_data_main(C));
+  DEG_relations_tag_update(CTX_data_main(*C));
   WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
@@ -5345,7 +5345,7 @@ static wmOperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
 
 static bool separate_slots_poll(bContext *C)
 {
-  Object *active_object = CTX_data_active_object(C);
+  Object *active_object = CTX_data_active_object(*C);
   if (!active_object) {
     CTX_wm_operator_poll_msg_set(C, "No active object");
     return false;
@@ -5382,7 +5382,7 @@ static bool context_find_graph_editor(bContext *C,
                                       ScrArea **r_area,
                                       ARegion **r_region)
 {
-  for (wmWindow &win : CTX_wm_manager(C)->windows) {
+  for (wmWindow &win : CTX_wm_manager(*C)->windows) {
     bScreen *screen = WM_window_get_active_screen(&win);
 
     for (ScrArea &area : screen->areabase) {
@@ -5604,9 +5604,9 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext *C, wmOperator 
     retval = OPERATOR_CANCELLED;
   }
   else {
-    wm_context_prev.win = CTX_wm_window(C);
-    wm_context_prev.area = CTX_wm_area(C);
-    wm_context_prev.region = CTX_wm_region(C);
+    wm_context_prev.win = CTX_wm_window(*C);
+    wm_context_prev.area = CTX_wm_area(*C);
+    wm_context_prev.region = CTX_wm_region(*C);
 
     CTX_wm_window_set(C, wm_context_temp.win);
     CTX_wm_area_set(C, wm_context_temp.area);

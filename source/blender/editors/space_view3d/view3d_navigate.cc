@@ -80,10 +80,10 @@ static eViewOpsFlag viewops_flag_from_prefs()
 void ViewOpsData::init_context(bContext *C)
 {
   /* Store data. */
-  this->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  this->scene = CTX_data_scene(C);
-  this->area = CTX_wm_area(C);
-  this->region = CTX_wm_region(C);
+  this->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  this->scene = CTX_data_scene(*C);
+  this->area = CTX_wm_area(*C);
+  this->region = CTX_wm_region(*C);
   this->v3d = static_cast<View3D *>(this->area->spacedata.first);
   this->rv3d = static_cast<RegionView3D *>(this->region->regiondata);
 }
@@ -184,7 +184,7 @@ static eViewOpsFlag navigate_pivot_get(bContext *C,
     return VIEWOPS_FLAG_ORBIT_SELECT;
   }
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   if (!(viewops_flag & VIEWOPS_FLAG_DEPTH_NAVIGATE)) {
     ED_view3d_autodist_last_clear(win);
@@ -393,7 +393,7 @@ void ViewOpsData::end_navigation(bContext *C)
   this->rv3d->rflag &= ~RV3D_NAVIGATING;
 
   if (this->timer) {
-    WM_event_timer_remove(CTX_wm_manager(C), this->timer->win, this->timer);
+    WM_event_timer_remove(CTX_wm_manager(*C), this->timer->win, this->timer);
   }
 
   if (this->init.dial) {
@@ -427,7 +427,7 @@ struct ViewOpsData_Utility : ViewOpsData {
     this->init_context(C);
 
     wmKeyMap *keymap = WM_keymap_find_all(
-        CTX_wm_manager(C), "3D View", SPACE_VIEW3D, RGN_TYPE_WINDOW);
+        CTX_wm_manager(*C), "3D View", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
     WM_keyconfig_update_suppress_begin();
 
@@ -500,7 +500,7 @@ static bool view3d_navigation_poll_impl(bContext *C, const char viewlock)
     return false;
   }
 
-  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  const RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   return !(RV3D_LOCK_FLAGS(rv3d) & viewlock);
 }
 
@@ -816,11 +816,11 @@ bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
   float3 ofs = float3(0);
   bool is_set = false;
 
-  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   Paint *paint = BKE_paint_get_active_from_context(C);
   ViewLayer *view_layer_eval = DEG_get_evaluated_view_layer(depsgraph);
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   BKE_view_layer_synced_ensure(scene_eval, view_layer_eval);
   Object *ob_act_eval = BKE_view_layer_active_object_get(view_layer_eval);
   Object *ob_act = DEG_get_original(ob_act_eval);
@@ -1001,7 +1001,7 @@ void axis_set_view(bContext *C,
     dist = rv3d->dist;
 
     /* so we animate _from_ the camera location */
-    Object *camera_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(C), v3d->camera);
+    Object *camera_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(*C), v3d->camera);
     ED_view3d_from_object(camera_eval, rv3d->ofs, nullptr, &rv3d->dist, nullptr);
 
     V3D_SmoothParams sview = {nullptr};
@@ -1110,7 +1110,7 @@ ViewOpsData *ED_view3d_navigation_init(bContext *C, const wmKeyMapItem *kmi_merg
 {
   /* Unlike #viewops_data_create, #ED_view3d_navigation_init creates a navigation context along
    * with an array of `wmKeyMapItem`s used for navigation. */
-  if (!CTX_wm_region_view3d(C)) {
+  if (!CTX_wm_region_view3d(*C)) {
     return nullptr;
   }
 

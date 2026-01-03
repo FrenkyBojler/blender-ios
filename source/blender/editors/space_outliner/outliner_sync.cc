@@ -40,44 +40,44 @@
 
 void ED_outliner_select_sync_from_object_tag(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wm->outliner_sync_select_dirty |= WM_OUTLINER_SYNC_SELECT_FROM_OBJECT;
 }
 
 void ED_outliner_select_sync_from_edit_bone_tag(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wm->outliner_sync_select_dirty |= WM_OUTLINER_SYNC_SELECT_FROM_EDIT_BONE;
 }
 
 void ED_outliner_select_sync_from_pose_bone_tag(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wm->outliner_sync_select_dirty |= WM_OUTLINER_SYNC_SELECT_FROM_POSE_BONE;
 }
 
 void ED_outliner_select_sync_from_sequence_tag(const bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wm->outliner_sync_select_dirty |= WM_OUTLINER_SYNC_SELECT_FROM_SEQUENCE;
 }
 
 void ED_outliner_select_sync_from_all_tag(bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wm->outliner_sync_select_dirty |= WM_OUTLINER_SYNC_SELECT_FROM_ALL;
 }
 
 bool ED_outliner_select_sync_is_dirty(const bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   return wm->outliner_sync_select_dirty & WM_OUTLINER_SYNC_SELECT_FROM_ALL;
 }
 
 void ED_outliner_select_sync_flag_outliners(const bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
-  wmWindowManager *wm = CTX_wm_manager(C);
+  Main *bmain = CTX_data_main(*C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
 
   for (bScreen *screen = static_cast<bScreen *>(bmain->screens.first); screen;
        screen = static_cast<bScreen *>(screen->id.next))
@@ -324,16 +324,20 @@ void ED_outliner_select_sync_from_outliner(bContext *C, SpaceOutliner *space_out
     return;
   }
 
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   SyncSelectTypes sync_types;
   outliner_sync_select_from_outliner_set_types(C, space_outliner, &sync_types);
 
   /* To store elements that have been selected to prevent linked object sync errors */
   SelectedItems selected_items;
-  outliner_sync_selection_from_outliner(
-      CTX_wm_workspace(C), scene, view_layer, &space_outliner->tree, &sync_types, &selected_items);
+  outliner_sync_selection_from_outliner(CTX_wm_workspace(*C),
+                                        scene,
+                                        view_layer,
+                                        &space_outliner->tree,
+                                        &sync_types,
+                                        &selected_items);
 
   /* Tag for updates and clear dirty flag to prevent a sync to the outliner on draw. */
   if (sync_types.object) {
@@ -349,7 +353,7 @@ void ED_outliner_select_sync_from_outliner(bContext *C, SpaceOutliner *space_out
   }
   if (sync_types.seq_strip) {
     space_outliner->sync_select_dirty &= ~WM_OUTLINER_SYNC_SELECT_FROM_SEQUENCE;
-    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, CTX_data_sequencer_scene(C));
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, CTX_data_sequencer_scene(*C));
   }
 }
 
@@ -501,13 +505,13 @@ static void outliner_sync_selection_to_outliner(const Scene *scene,
 /* Get active data from context */
 static void get_sync_select_active_data(const bContext *C, SyncSelectActiveData *active_data)
 {
-  Scene *scene = CTX_data_scene(C);
-  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   active_data->object = BKE_view_layer_active_object_get(view_layer);
-  active_data->edit_bone = CTX_data_active_bone(C);
-  active_data->pose_channel = CTX_data_active_pose_bone(C);
+  active_data->edit_bone = CTX_data_active_bone(*C);
+  active_data->pose_channel = CTX_data_active_pose_bone(*C);
   active_data->strip = sequencer_scene ? seq::select_active_get(sequencer_scene) : nullptr;
 }
 

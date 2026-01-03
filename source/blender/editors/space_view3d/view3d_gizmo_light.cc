@@ -56,8 +56,8 @@ static void gizmo_spot_blend_prop_matrix_get(const wmGizmo * /*gz*/,
   float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
 
   const bContext *C = static_cast<const bContext *>(gz_prop->custom_func.user_data);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(CTX_data_scene(C), view_layer);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  BKE_view_layer_synced_ensure(CTX_data_scene(*C), view_layer);
   Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
 
   float a = cosf(la->spotsize * 0.5f);
@@ -76,8 +76,8 @@ static void gizmo_spot_blend_foreach_rna_prop(
     const blender::FunctionRef<void(PointerRNA &ptr, PropertyRNA *prop, int index)> callback)
 {
   bContext *C = static_cast<bContext *>(gz_prop->custom_func.user_data);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
   PointerRNA light_ptr = RNA_pointer_create_discrete(&la->id, &RNA_Light, la);
@@ -94,8 +94,8 @@ static void gizmo_spot_blend_prop_matrix_set(const wmGizmo * /*gz*/,
   BLI_assert(gz_prop->type->array_length == 16);
 
   const bContext *C = static_cast<const bContext *>(gz_prop->custom_func.user_data);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
 
@@ -109,7 +109,7 @@ static void gizmo_spot_blend_prop_matrix_set(const wmGizmo * /*gz*/,
   PropertyRNA *spot_blend_prop = RNA_struct_find_property(&light_ptr, "spot_blend");
   RNA_property_float_set(&light_ptr, spot_blend_prop, spot_blend);
 
-  RNA_property_update_main(CTX_data_main(C), scene, &light_ptr, spot_blend_prop);
+  RNA_property_update_main(CTX_data_main(*C), scene, &light_ptr, spot_blend_prop);
 }
 
 /* Used by spot light and point light. */
@@ -118,8 +118,8 @@ static void gizmo_light_radius_foreach_rna_prop(
     const blender::FunctionRef<void(PointerRNA &ptr, PropertyRNA *prop, int index)> callback)
 {
   bContext *C = static_cast<bContext *>(gz_prop->custom_func.user_data);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
   PointerRNA light_ptr = RNA_pointer_create_discrete(&la->id, &RNA_Light, la);
@@ -136,8 +136,8 @@ static void gizmo_light_radius_prop_matrix_get(const wmGizmo * /*gz*/,
   float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
 
   const bContext *C = static_cast<const bContext *>(gz_prop->custom_func.user_data);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(CTX_data_scene(C), view_layer);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  BKE_view_layer_synced_ensure(CTX_data_scene(*C), view_layer);
   const Light *la = static_cast<const Light *>(BKE_view_layer_active_object_get(view_layer)->data);
 
   const float diameter = 2.0f * la->radius;
@@ -153,8 +153,8 @@ static void gizmo_light_radius_prop_matrix_set(const wmGizmo * /*gz*/,
   BLI_assert(gz_prop->type->array_length == 16);
 
   const bContext *C = static_cast<const bContext *>(gz_prop->custom_func.user_data);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
 
@@ -164,12 +164,12 @@ static void gizmo_light_radius_prop_matrix_set(const wmGizmo * /*gz*/,
   PropertyRNA *radius_prop = RNA_struct_find_property(&light_ptr, "shadow_soft_size");
   RNA_property_float_set(&light_ptr, radius_prop, radius);
 
-  RNA_property_update_main(CTX_data_main(C), scene, &light_ptr, radius_prop);
+  RNA_property_update_main(CTX_data_main(*C), scene, &light_ptr, radius_prop);
 }
 
 static bool WIDGETGROUP_light_spot_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_CONTEXT)) {
     return false;
   }
@@ -177,8 +177,8 @@ static bool WIDGETGROUP_light_spot_poll(const bContext *C, wmGizmoGroupType * /*
     return false;
   }
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
@@ -186,7 +186,7 @@ static bool WIDGETGROUP_light_spot_poll(const bContext *C, wmGizmoGroupType * /*
     if (ob->type == OB_LAMP) {
       const Light *la = static_cast<Light *>(ob->data);
       if (la->type == LA_SPOT) {
-        if (BKE_id_is_editable(CTX_data_main(C), &la->id)) {
+        if (BKE_id_is_editable(CTX_data_main(*C), &la->id)) {
           return true;
         }
       }
@@ -261,8 +261,8 @@ static void WIDGETGROUP_light_spot_setup(const bContext *C, wmGizmoGroup *gzgrou
 static void WIDGETGROUP_light_spot_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   LightSpotWidgetGroup *ls_gzgroup = static_cast<LightSpotWidgetGroup *>(gzgroup->customdata);
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   Light *la = static_cast<Light *>(ob->data);
@@ -298,15 +298,15 @@ static void WIDGETGROUP_light_spot_refresh(const bContext *C, wmGizmoGroup *gzgr
 static void WIDGETGROUP_light_spot_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   LightSpotWidgetGroup *ls_gzgroup = static_cast<LightSpotWidgetGroup *>(gzgroup->customdata);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(CTX_data_scene(C), view_layer);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  BKE_view_layer_synced_ensure(CTX_data_scene(*C), view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   /* Spot radius gizmo. */
   wmGizmo *gz = ls_gzgroup->spot_radius;
 
   /* Draw circle in the screen space. */
-  RegionView3D *rv3d = static_cast<RegionView3D *>(CTX_wm_region(C)->regiondata);
+  RegionView3D *rv3d = static_cast<RegionView3D *>(CTX_wm_region(*C)->regiondata);
   WM_gizmo_set_matrix_rotation_from_z_axis(gz, rv3d->viewinv[2]);
 
   WM_gizmo_set_matrix_location(gz, ob->object_to_world().location());
@@ -334,7 +334,7 @@ void VIEW3D_GGT_light_spot(wmGizmoGroupType *gzgt)
 
 static bool WIDGETGROUP_light_point_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  const View3D *v3d = CTX_wm_view3d(C);
+  const View3D *v3d = CTX_wm_view3d(*C);
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_CONTEXT)) {
     return false;
   }
@@ -342,8 +342,8 @@ static bool WIDGETGROUP_light_point_poll(const bContext *C, wmGizmoGroupType * /
     return false;
   }
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   const Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
@@ -351,7 +351,7 @@ static bool WIDGETGROUP_light_point_poll(const bContext *C, wmGizmoGroupType * /
     if (ob->type == OB_LAMP) {
       const Light *la = static_cast<const Light *>(ob->data);
       if (la->type == LA_LOCAL) {
-        if (BKE_id_is_editable(CTX_data_main(C), &la->id)) {
+        if (BKE_id_is_editable(CTX_data_main(*C), &la->id)) {
           return true;
         }
       }
@@ -393,15 +393,15 @@ static void WIDGETGROUP_light_point_setup(const bContext *C, wmGizmoGroup *gzgro
 static void WIDGETGROUP_light_point_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   wmGizmoWrapper *wwrapper = static_cast<wmGizmoWrapper *>(gzgroup->customdata);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(CTX_data_scene(C), view_layer);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  BKE_view_layer_synced_ensure(CTX_data_scene(*C), view_layer);
   const Object *ob = BKE_view_layer_active_object_get(view_layer);
 
   /* Point radius gizmo. */
   wmGizmo *gz = wwrapper->gizmo;
 
   /* Draw circle in the screen space. */
-  const RegionView3D *rv3d = static_cast<const RegionView3D *>(CTX_wm_region(C)->regiondata);
+  const RegionView3D *rv3d = static_cast<const RegionView3D *>(CTX_wm_region(*C)->regiondata);
   WM_gizmo_set_matrix_rotation_from_z_axis(gz, rv3d->viewinv[2]);
 
   WM_gizmo_set_matrix_location(gz, ob->object_to_world().location());
@@ -479,7 +479,7 @@ static void gizmo_area_light_prop_matrix_set(const wmGizmo * /*gz*/,
 
 static bool WIDGETGROUP_light_area_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_CONTEXT)) {
     return false;
   }
@@ -487,8 +487,8 @@ static bool WIDGETGROUP_light_area_poll(const bContext *C, wmGizmoGroupType * /*
     return false;
   }
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
@@ -496,7 +496,7 @@ static bool WIDGETGROUP_light_area_poll(const bContext *C, wmGizmoGroupType * /*
     if (ob->type == OB_LAMP) {
       const Light *la = static_cast<Light *>(ob->data);
       if (la->type == LA_AREA) {
-        if (BKE_id_is_editable(CTX_data_main(C), &la->id)) {
+        if (BKE_id_is_editable(CTX_data_main(*C), &la->id)) {
           return true;
         }
       }
@@ -528,8 +528,8 @@ static void WIDGETGROUP_light_area_setup(const bContext * /*C*/, wmGizmoGroup *g
 static void WIDGETGROUP_light_area_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   wmGizmoWrapper *wwrapper = static_cast<wmGizmoWrapper *>(gzgroup->customdata);
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   Light *la = static_cast<Light *>(ob->data);
@@ -574,7 +574,7 @@ void VIEW3D_GGT_light_area(wmGizmoGroupType *gzgt)
 
 static bool WIDGETGROUP_light_target_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_CONTEXT)) {
     return false;
   }
@@ -582,13 +582,13 @@ static bool WIDGETGROUP_light_target_poll(const bContext *C, wmGizmoGroupType * 
     return false;
   }
 
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
     const Object *ob = base->object;
-    if (BKE_id_is_editable(CTX_data_main(C), &ob->id)) {
+    if (BKE_id_is_editable(CTX_data_main(*C), &ob->id)) {
       if (ob->type == OB_LAMP) {
         /* No need to check the light is editable, only the object is transformed. */
         const Light *la = static_cast<Light *>(ob->data);
@@ -632,8 +632,8 @@ static void WIDGETGROUP_light_target_setup(const bContext * /*C*/, wmGizmoGroup 
 static void WIDGETGROUP_light_target_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   wmGizmoWrapper *wwrapper = static_cast<wmGizmoWrapper *>(gzgroup->customdata);
-  const Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   wmGizmo *gz = wwrapper->gizmo;

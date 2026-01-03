@@ -48,7 +48,7 @@ static bool WIDGETGROUP_tool_generic_poll(const bContext *C, wmGizmoGroupType *g
     return false;
   }
 
-  View3D *v3d = CTX_wm_view3d(C);
+  View3D *v3d = CTX_wm_view3d(*C);
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_CONTEXT)) {
     return false;
   }
@@ -106,7 +106,7 @@ static wmGizmo *tool_generic_create_gizmo(const bContext *C, wmGizmoGroup *gzgro
                   gzgt_ptr_is_valid ? RNA_float_get(&gzgt_ptr, "backdrop_fill_alpha") : 0.125f);
   }
 
-  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindowManager *wm = CTX_wm_manager(*C);
   wmKeyConfig *kc = wm->runtime->defaultconf;
 
   gz->keymap = WM_keymap_ensure(kc, tref->runtime->keymap, tref->space_type, RGN_TYPE_WINDOW);
@@ -127,7 +127,7 @@ static void WIDGETGROUP_tool_generic_refresh(const bContext *C, wmGizmoGroup *gz
   wmGizmoWrapper *wwrapper = static_cast<wmGizmoWrapper *>(gzgroup->customdata);
   wmGizmo *gz = wwrapper->gizmo;
 
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   if (ts->workspace_tool_type != SCE_WORKSPACE_TOOL_FALLBACK) {
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, true);
     return;
@@ -143,7 +143,7 @@ static void WIDGETGROUP_tool_generic_refresh(const bContext *C, wmGizmoGroup *gz
       orientation = V3D_ORIENT_GLOBAL; /* dummy, use view. */
     }
 
-    RegionView3D *rv3d = static_cast<RegionView3D *>(CTX_wm_region_data(C));
+    RegionView3D *rv3d = static_cast<RegionView3D *>(CTX_wm_region_data(*C));
     blender::ed::transform::TransformBounds tbounds;
     blender::ed::transform::TransformCalcParams params{};
     params.use_only_center = true;
@@ -166,7 +166,7 @@ static void WIDGETGROUP_gizmo_message_subscribe(const bContext *C,
                                                 wmGizmoGroup *gzgroup,
                                                 wmMsgBus *mbus)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
   wmMsgSubscribeValue msg_sub_value_gz_tag_refresh{};
   msg_sub_value_gz_tag_refresh.owner = region;
@@ -178,7 +178,7 @@ static void WIDGETGROUP_gizmo_message_subscribe(const bContext *C,
         &rna_ToolSettings_workspace_tool_type,
     };
 
-    Scene *scene = CTX_data_scene(C);
+    Scene *scene = CTX_data_scene(*C);
     PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(
         &scene->id, &RNA_ToolSettings, scene->toolsettings);
 

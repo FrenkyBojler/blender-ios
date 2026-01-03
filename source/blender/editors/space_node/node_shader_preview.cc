@@ -763,14 +763,14 @@ static void ensure_nodetree_previews(const bContext &C,
                                      Material &material,
                                      ListBaseT<bNodeTreePath> &treepath)
 {
-  Scene *scene = CTX_data_scene(&C);
+  Scene *scene = CTX_data_scene(C);
   if (!ED_check_engine_supports_preview(scene)) {
     return;
   }
 
   bNodeTree *displayed_nodetree = static_cast<bNodeTreePath *>(treepath.last)->nodetree;
   ePreviewType preview_type = MA_FLAT;
-  if (CTX_wm_space_node(&C)->overlay.preview_shape == SN_OVERLAY_PREVIEW_3D) {
+  if (CTX_wm_space_node(C)->overlay.preview_shape == SN_OVERLAY_PREVIEW_3D) {
     preview_type = (ePreviewType)material.pr_type;
   }
   update_needed_flag(tree_previews, *displayed_nodetree, preview_type);
@@ -778,7 +778,7 @@ static void ensure_nodetree_previews(const bContext &C,
     return;
   }
   if (tree_previews.rendering) {
-    WM_jobs_stop_type(CTX_wm_manager(&C), CTX_wm_space_node(&C), WM_JOB_TYPE_RENDER_PREVIEW);
+    WM_jobs_stop_type(CTX_wm_manager(C), CTX_wm_space_node(C), WM_JOB_TYPE_RENDER_PREVIEW);
     return;
   }
   tree_previews.rendering = true;
@@ -789,9 +789,9 @@ static void ensure_nodetree_previews(const bContext &C,
 
   ED_preview_ensure_dbase(false);
 
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(&C),
-                              CTX_wm_window(&C),
-                              CTX_wm_space_node(&C),
+  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
+                              CTX_wm_window(C),
+                              CTX_wm_space_node(C),
                               "Generating shader previews...",
                               WM_JOB_EXCL_RENDER,
                               WM_JOB_TYPE_RENDER_PREVIEW);
@@ -799,7 +799,7 @@ static void ensure_nodetree_previews(const bContext &C,
 
   job_data->scene = scene;
   job_data->tree_previews = &tree_previews;
-  job_data->bmain = CTX_data_main(&C);
+  job_data->bmain = CTX_data_main(C);
   job_data->mat_copy = duplicate_material(material);
   job_data->rendering_node = nullptr;
   job_data->rendering_AOVs = false;
@@ -830,7 +830,7 @@ static void ensure_nodetree_previews(const bContext &C,
   WM_jobs_timer(wm_job, 0.2, NC_NODE, NC_NODE);
   WM_jobs_callbacks(wm_job, shader_preview_startjob, nullptr, nullptr, nullptr);
 
-  WM_jobs_start(CTX_wm_manager(&C), wm_job);
+  WM_jobs_start(CTX_wm_manager(C), wm_job);
 }
 
 void free_previews(wmWindowManager &wm, SpaceNode &snode)

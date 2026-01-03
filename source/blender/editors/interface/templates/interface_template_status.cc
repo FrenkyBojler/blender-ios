@@ -44,7 +44,7 @@ namespace blender::ui {
 
 void uiTemplateReportsBanner(Layout *layout, bContext *C)
 {
-  ReportList *reports = CTX_wm_reports(C);
+  ReportList *reports = CTX_wm_reports(*C);
   Report *report = BKE_reports_last_displayable(reports);
   const uiStyle *style = style_get();
 
@@ -233,7 +233,7 @@ static bool uiTemplateInputStatusHeader(ARegion *region, Layout *row)
 
 static bool uiTemplateInputStatus3DView(bContext *C, Layout *row)
 {
-  const Object *ob = CTX_data_active_object(C);
+  const Object *ob = CTX_data_active_object(*C);
   if (!ob) {
     return false;
   }
@@ -266,8 +266,8 @@ static bool uiTemplateInputStatus3DView(bContext *C, Layout *row)
 
 void uiTemplateInputStatus(Layout *layout, bContext *C)
 {
-  wmWindow *win = CTX_wm_window(C);
-  WorkSpace *workspace = CTX_wm_workspace(C);
+  wmWindow *win = CTX_wm_window(*C);
+  WorkSpace *workspace = CTX_wm_workspace(*C);
 
   /* Workspace status text has priority. */
   if (!workspace->runtime->status.is_empty()) {
@@ -294,7 +294,7 @@ void uiTemplateInputStatus(Layout *layout, bContext *C)
     return;
   }
 
-  bScreen *screen = CTX_wm_screen(C);
+  bScreen *screen = CTX_wm_screen(*C);
   ARegion *region = screen->active_region;
   Layout &row = layout->row(true);
 
@@ -378,7 +378,7 @@ static std::string ui_template_status_tooltip(bContext *C,
                                               void * /*argN*/,
                                               const StringRef /*tip*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   std::string tooltip_message;
 
   if (bmain->has_forward_compatibility_issues) {
@@ -409,9 +409,9 @@ static std::string ui_template_status_tooltip(bContext *C,
 
 void uiTemplateStatusInfo(Layout *layout, bContext *C)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   Layout &row = layout->row(true);
 
   const char *status_info_txt = ED_info_statusbar_string_ex(
@@ -425,7 +425,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
   }
 
   if (U.statusbar_flag & STATUSBAR_SHOW_EXTENSIONS_UPDATES) {
-    wmWindowManager *wm = CTX_wm_manager(C);
+    wmWindowManager *wm = CTX_wm_manager(*C);
 
     /* Special case, always show an alert for any blocked extensions. */
     if (wm->extensions_blocked > 0) {

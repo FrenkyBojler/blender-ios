@@ -96,7 +96,7 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
   {
     const NodeEvaluateClosure &storage = node_storage(params.node);
     if (storage.input_items.items_num == 0 && storage.output_items.items_num == 0) {
-      SpaceNode *snode = CTX_wm_space_node(params.C);
+      SpaceNode *snode = CTX_wm_space_node(*params.C);
       if (snode && snode->edittree == &params.ntree) {
         sync_sockets_evaluate_closure(*snode, params.node, nullptr, params.link.fromsock);
       }
@@ -177,7 +177,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       bNode &node = params.add_node("NodeEvaluateClosure");
       params.connect_available_socket(node, "Closure");
 
-      SpaceNode &snode = *CTX_wm_space_node(&params.C);
+      SpaceNode &snode = *CTX_wm_space_node(params.C);
       sync_sockets_evaluate_closure(snode, node, nullptr);
     });
   }

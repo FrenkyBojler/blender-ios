@@ -68,7 +68,7 @@ static void node_gizmo_calc_matrix_space_with_image_dims(const SpaceNode *snode,
 
 static bool node_gizmo_is_set_visible(const bContext *C)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   if (snode == nullptr) {
     return false;
   }
@@ -137,7 +137,7 @@ static bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType 
     return false;
   }
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   if (node && node->is_type("CompositorNodeViewer")) {
@@ -162,9 +162,9 @@ static void WIDGETGROUP_node_transform_setup(const bContext * /*C*/, wmGizmoGrou
 
 static void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   wmGizmo *cage = ((wmGizmoWrapper *)gzgroup->customdata)->gizmo;
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
   /* center is always at the origin */
   const float origin[3] = {float(region->winx / 2), float(region->winy / 2), 0.0f};
 
@@ -185,7 +185,7 @@ static void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *
   WM_gizmo_set_flag(cage, WM_GIZMO_HIDDEN, false);
 
   /* Need to set property here for undo. TODO: would prefer to do this in _init. */
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
 #if 0
   PointerRNA nodeptr = RNA_pointer_create_discrete(snode->id, &RNA_SpaceNodeEditor, snode);
   WM_gizmo_target_property_def_rna(cage, "offset", &nodeptr, "backdrop_offset", -1);
@@ -358,7 +358,7 @@ static bool WIDGETGROUP_node_crop_poll(const bContext *C, wmGizmoGroupType * /*g
     return false;
   }
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   if (!node || !node->is_type("CompositorNodeCrop")) {
@@ -402,18 +402,18 @@ static void WIDGETGROUP_node_crop_setup(const bContext * /*C*/, wmGizmoGroup *gz
 
 static void WIDGETGROUP_node_crop_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   wmGizmo *gz = (wmGizmo *)gzgroup->gizmos.first;
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
 
   node_gizmo_calc_matrix_space(snode, region, gz->matrix_space);
 }
 
 static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  Main *bmain = CTX_data_main(C);
-  SpaceNode *snode = CTX_wm_space_node(C);
+  Main *bmain = CTX_data_main(*C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
 
   NodeBBoxWidgetGroup *crop_group = (NodeBBoxWidgetGroup *)gzgroup->customdata;
   wmGizmo *gz = crop_group->border;
@@ -565,7 +565,7 @@ static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType *
     return false;
   }
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   if (node && node->is_type("CompositorNodeBoxMask")) {
@@ -604,17 +604,17 @@ static void WIDGETGROUP_node_box_mask_setup(const bContext * /*C*/, wmGizmoGroup
 
 static void WIDGETGROUP_bbox_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   wmGizmo *gz = (wmGizmo *)gzgroup->gizmos.first;
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
 
   node_gizmo_calc_matrix_space(snode, region, gz->matrix_space);
 }
 
 static void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   NodeBBoxWidgetGroup *mask_group = (NodeBBoxWidgetGroup *)gzgroup->customdata;
   wmGizmo *gz = mask_group->border;
 
@@ -634,7 +634,7 @@ static void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgro
   RNA_float_set_array(gz->ptr, "dimensions", mask_group->state.dims);
   WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   mask_group->update_data.context = (bContext *)C;
@@ -680,7 +680,7 @@ static bool WIDGETGROUP_node_ellipse_mask_poll(const bContext *C, wmGizmoGroupTy
     return false;
   }
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   if (node && node->is_type("CompositorNodeEllipseMask")) {
@@ -752,7 +752,7 @@ static bool WIDGETGROUP_node_glare_poll(const bContext *C, wmGizmoGroupType * /*
     return false;
   }
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   if (!node || !node->is_type("CompositorNodeGlare")) {
@@ -794,10 +794,10 @@ static void WIDGETGROUP_node_glare_setup(const bContext * /*C*/, wmGizmoGroup *g
 static void WIDGETGROUP_node_glare_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   NodeGlareWidgetGroup *glare_group = (NodeGlareWidgetGroup *)gzgroup->customdata;
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   wmGizmo *gz = (wmGizmo *)gzgroup->gizmos.first;
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
 
   node_gizmo_calc_matrix_space_with_image_dims(
       snode, region, glare_group->state.dims, glare_group->state.offset, gz->matrix_space);
@@ -805,7 +805,7 @@ static void WIDGETGROUP_node_glare_draw_prepare(const bContext *C, wmGizmoGroup 
 
 static void WIDGETGROUP_node_glare_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   NodeGlareWidgetGroup *glare_group = (NodeGlareWidgetGroup *)gzgroup->customdata;
   wmGizmo *gz = glare_group->gizmo;
 
@@ -822,7 +822,7 @@ static void WIDGETGROUP_node_glare_refresh(const bContext *C, wmGizmoGroup *gzgr
   glare_group->state.dims = node_gizmo_safe_calc_dims(ibuf, GIZMO_NODE_DEFAULT_DIMS);
   copy_v2_v2(glare_group->state.offset, ima->runtime->backdrop_offset);
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   /* Need to set property here for undo. TODO: would prefer to do this in _init. */
@@ -871,7 +871,7 @@ static bool WIDGETGROUP_node_corner_pin_poll(const bContext *C, wmGizmoGroupType
     return false;
   }
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   if (node && node->is_type("CompositorNodeCornerPin")) {
@@ -901,9 +901,9 @@ static void WIDGETGROUP_node_corner_pin_setup(const bContext * /*C*/, wmGizmoGro
 static void WIDGETGROUP_node_corner_pin_draw_prepare(const bContext *C, wmGizmoGroup *gzgroup)
 {
   NodeCornerPinWidgetGroup *cpin_group = (NodeCornerPinWidgetGroup *)gzgroup->customdata;
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
 
   float matrix_space[4][4];
   node_gizmo_calc_matrix_space_with_image_dims(
@@ -917,7 +917,7 @@ static void WIDGETGROUP_node_corner_pin_draw_prepare(const bContext *C, wmGizmoG
 
 static void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   NodeCornerPinWidgetGroup *cpin_group = (NodeCornerPinWidgetGroup *)gzgroup->customdata;
 
   void *lock;
@@ -936,7 +936,7 @@ static void WIDGETGROUP_node_corner_pin_refresh(const bContext *C, wmGizmoGroup 
   cpin_group->state.dims = node_gizmo_safe_calc_dims(ibuf, GIZMO_NODE_DEFAULT_DIMS);
   copy_v2_v2(cpin_group->state.offset, ima->runtime->backdrop_offset);
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   /* need to set property here for undo. TODO: would prefer to do this in _init. */
@@ -982,7 +982,7 @@ static bool WIDGETGROUP_node_split_poll(const bContext *C, wmGizmoGroupType * /*
     return false;
   }
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   if (node && node->is_type("CompositorNodeSplit")) {
@@ -1078,7 +1078,7 @@ static void gizmo_node_split_prop_matrix_set(const wmGizmo *gz,
 
 static void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   NodeBBoxWidgetGroup *split_group = reinterpret_cast<NodeBBoxWidgetGroup *>(gzgroup->customdata);
   wmGizmo *gz = split_group->border;
 
@@ -1099,7 +1099,7 @@ static void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgr
   RNA_float_set_array(gz->ptr, "dimensions", split_group->state.dims);
   WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, false);
 
-  SpaceNode *snode = CTX_wm_space_node(C);
+  SpaceNode *snode = CTX_wm_space_node(*C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   split_group->update_data.context = (bContext *)C;

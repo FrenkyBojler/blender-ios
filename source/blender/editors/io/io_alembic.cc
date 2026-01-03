@@ -136,7 +136,7 @@ static wmOperatorStatus wm_alembic_export_exec(bContext *C, wmOperator *op)
   RNA_string_get(op->ptr, "collection", params.collection);
 
   /* Take some defaults from the scene, if not specified explicitly. */
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   if (params.frame_start == INT_MIN) {
     params.frame_start = scene->r.sfra;
   }
@@ -163,7 +163,7 @@ static void ui_alembic_export_settings(const bContext *C,
     col->prop(ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     col = &panel->column(false);
-    if (CTX_wm_space_file(C)) {
+    if (CTX_wm_space_file(*C)) {
       blender::ui::Layout &sub = col->column(true, IFACE_("Include"));
       sub.prop(ptr, "selected", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
     }
@@ -244,7 +244,7 @@ static void ui_alembic_export_settings(const bContext *C,
 static void wm_alembic_export_draw(bContext *C, wmOperator *op)
 {
   /* Conveniently set start and end frame to match the scene's frame range. */
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
 
   if (scene != nullptr && RNA_boolean_get(op->ptr, "init_scene_frame_range")) {
     RNA_int_set(op->ptr, "start", scene->r.sfra);
@@ -637,7 +637,7 @@ static wmOperatorStatus wm_alembic_import_exec(bContext *C, wmOperator *op)
   }
 
   /* Switch out of edit mode to avoid being stuck in it (#54326). */
-  Object *obedit = CTX_data_edit_object(C);
+  Object *obedit = CTX_data_edit_object(*C);
   if (obedit) {
     blender::ed::object::mode_set(C, OB_MODE_OBJECT);
   }

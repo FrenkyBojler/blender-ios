@@ -39,7 +39,7 @@ bool grease_pencil_context_poll(bContext *C)
 
 bool active_grease_pencil_poll(bContext *C)
 {
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   if (object == nullptr || object->type != OB_GREASE_PENCIL) {
     return false;
   }
@@ -48,7 +48,7 @@ bool active_grease_pencil_poll(bContext *C)
 
 bool active_grease_pencil_material_poll(bContext *C)
 {
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   if (object == nullptr || object->type != OB_GREASE_PENCIL) {
     return false;
   }
@@ -58,7 +58,7 @@ bool active_grease_pencil_material_poll(bContext *C)
 
 bool editable_grease_pencil_poll(bContext *C)
 {
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   if (object == nullptr || object->type != OB_GREASE_PENCIL) {
     return false;
   }
@@ -104,7 +104,7 @@ bool editable_grease_pencil_point_selection_poll(bContext *C)
   }
 
   /* Allowed: point and segment selection mode, not allowed: stroke selection mode. */
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   return (ts->gpencil_selectmode_edit != GP_SELECTMODE_STROKE);
 }
 
@@ -113,7 +113,7 @@ bool grease_pencil_selection_poll(bContext *C)
   if (!active_grease_pencil_poll(C)) {
     return false;
   }
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   /* Selection operators are available in multiple modes, e.g. for masking in sculpt and vertex
    * paint mode. */
   if (!ELEM(
@@ -129,11 +129,11 @@ bool grease_pencil_painting_poll(bContext *C)
   if (!active_grease_pencil_poll(C)) {
     return false;
   }
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   if ((object->mode & OB_MODE_PAINT_GREASE_PENCIL) == 0) {
     return false;
   }
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   if (!ts || !ts->gp_paint) {
     return false;
   }
@@ -145,7 +145,7 @@ bool grease_pencil_edit_poll(bContext *C)
   if (!active_grease_pencil_poll(C)) {
     return false;
   }
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   if ((object->mode & OB_MODE_EDIT) == 0) {
     return false;
   }
@@ -157,11 +157,11 @@ bool grease_pencil_sculpting_poll(bContext *C)
   if (!active_grease_pencil_poll(C)) {
     return false;
   }
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   if ((object->mode & OB_MODE_SCULPT_GREASE_PENCIL) == 0) {
     return false;
   }
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   if (!ts || !ts->gp_sculptpaint) {
     return false;
   }
@@ -173,11 +173,11 @@ bool grease_pencil_weight_painting_poll(bContext *C)
   if (!active_grease_pencil_poll(C)) {
     return false;
   }
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   if ((object->mode & OB_MODE_WEIGHT_GREASE_PENCIL) == 0) {
     return false;
   }
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   if (!ts || !ts->gp_weightpaint) {
     return false;
   }
@@ -189,11 +189,11 @@ bool grease_pencil_vertex_painting_poll(bContext *C)
   if (!active_grease_pencil_poll(C)) {
     return false;
   }
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   if ((object->mode & OB_MODE_VERTEX_GREASE_PENCIL) == 0) {
     return false;
   }
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   if (!ts || !ts->gp_vertexpaint) {
     return false;
   }
@@ -269,7 +269,7 @@ static bool keymap_grease_pencil_brush_stroke_poll(bContext *C)
     }
   }
 
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   Brush *brush = BKE_paint_brush(&ts->gp_paint->paint);
   return brush && brush->gpencil_settings && brush->gpencil_brush_type != GPAINT_BRUSH_TYPE_FILL;
 }
@@ -290,7 +290,7 @@ static bool keymap_grease_pencil_fill_tool_poll(bContext *C)
   if (!WM_toolsystem_active_tool_is_brush(C)) {
     return false;
   }
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   Brush *brush = BKE_paint_brush(&ts->gp_paint->paint);
   return brush && brush->gpencil_settings && brush->gpencil_brush_type == GPAINT_BRUSH_TYPE_FILL;
 }

@@ -127,7 +127,7 @@ void setTransformViewAspect(TransInfo *t, float r_aspect[3])
   }
   else if (t->spacetype == SPACE_SEQ) {
     if (t->options & CTX_CURSOR) {
-      Scene *scene = CTX_data_sequencer_scene(t->context);
+      Scene *scene = CTX_data_sequencer_scene(*t->context);
       const float2 aspect = seq::image_preview_unit_to_px(scene, r_aspect);
       copy_v2_v2(r_aspect, aspect);
     }
@@ -493,7 +493,7 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
   }
   else if (t->spacetype == SPACE_VIEW3D) {
     if (t->options & CTX_PAINT_CURVE) {
-      wmWindow *window = CTX_wm_window(C);
+      wmWindow *window = CTX_wm_window(*C);
       WM_paint_cursor_tag_redraw(window, t->region);
     }
     else {
@@ -534,12 +534,12 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
   }
   else if (t->spacetype == SPACE_IMAGE) {
     if (t->options & CTX_MASK) {
-      Mask *mask = CTX_data_edit_mask(C);
+      Mask *mask = CTX_data_edit_mask(*C);
 
       WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
     }
     else if (t->options & CTX_PAINT_CURVE) {
-      wmWindow *window = CTX_wm_window(C);
+      wmWindow *window = CTX_wm_window(*C);
       WM_paint_cursor_tag_redraw(window, t->region);
     }
     else if (t->options & CTX_CURSOR) {
@@ -570,7 +570,7 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
       WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
     }
     else if (ED_space_clip_check_show_maskedit(sc)) {
-      Mask *mask = CTX_data_edit_mask(C);
+      Mask *mask = CTX_data_edit_mask(*C);
 
       WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
     }
@@ -580,7 +580,7 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 static void viewRedrawPost(bContext *C, TransInfo *t)
 {
   ED_area_status_text(t->area, nullptr);
-  WorkSpace *workspace = CTX_wm_workspace(C);
+  WorkSpace *workspace = CTX_wm_workspace(*C);
   if (workspace) {
     BKE_workspace_status_clear(workspace);
   }
@@ -1480,7 +1480,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
     /* The status area is currently also tagged to update by the notifiers in
      * `viewRedrawForce`. However, this may change in the future, and tagging
      * the region twice doesn't add any overhead. */
-    WM_window_status_area_tag_redraw(CTX_wm_window(t->context));
+    WM_window_status_area_tag_redraw(CTX_wm_window(*t->context));
 
     if (!ELEM(t->helpline, HLP_ERROR, HLP_ERROR_DASH)) {
       ED_workspace_status_text(t->context, nullptr);
@@ -1720,7 +1720,7 @@ static void drawTransformPixel(const bContext * /*C*/, ARegion *region, void *ar
 
 void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
 {
-  ToolSettings *ts = CTX_data_tool_settings(C);
+  ToolSettings *ts = CTX_data_tool_settings(*C);
   PropertyRNA *prop;
 
   bool use_prop_edit = false;
@@ -2069,7 +2069,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   if (event) {
     /* Keymap for shortcut header prints. */
-    t->keymap = WM_keymap_active(CTX_wm_manager(C), op->type->modalkeymap);
+    t->keymap = WM_keymap_active(CTX_wm_manager(*C), op->type->modalkeymap);
 
     /* Stupid code to have Ctrl-Click on gizmo work ok.
      *

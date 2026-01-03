@@ -478,9 +478,10 @@ bool searchbox_event(
       if (U.flag & USER_TOOLTIPS) {
         if (is_inside) {
           if (data->active != -1) {
-            ScrArea *area = CTX_wm_area(C);
+            ScrArea *area = CTX_wm_area(*C);
             search_but->item_active = data->items.pointers[data->active];
-            WM_tooltip_timer_init(C, CTX_wm_window(C), area, butregion, wm_searchbox_tooltip_init);
+            WM_tooltip_timer_init(
+                C, CTX_wm_window(*C), area, butregion, wm_searchbox_tooltip_init);
             tooltip_timer_started = true;
           }
         }
@@ -491,7 +492,7 @@ bool searchbox_event(
   }
 
   if (handled && (tooltip_timer_started == false)) {
-    wmWindow *win = CTX_wm_window(C);
+    wmWindow *win = CTX_wm_window(*C);
     WM_tooltip_clear(C, win);
   }
 
@@ -506,7 +507,7 @@ static void searchbox_update_fn(bContext *C,
 {
   /* While the button is in text editing mode (searchbox open), remove tooltips on every update. */
   if (but->editstr) {
-    wmWindow *win = CTX_wm_window(C);
+    wmWindow *win = CTX_wm_window(*C);
     WM_tooltip_clear(C, win);
   }
   const bool is_first_search = !but->changed;
@@ -857,7 +858,7 @@ static void searchbox_region_layout_fn(const bContext *C, ARegion *region)
   ButtonSearch *but = data->search_but;
   ARegion *butregion = data->butregion;
   const int margin = UI_POPUP_MARGIN;
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   /* compute position */
   if (but->block->flag & BLOCK_SEARCH_MENU) {
@@ -971,7 +972,7 @@ static ARegion *searchbox_create_generic_ex(bContext *C,
   const float aspect = but->block->aspect;
 
   /* create area region */
-  ARegion *region = region_temp_add(CTX_wm_screen(C));
+  ARegion *region = region_temp_add(CTX_wm_screen(*C));
 
   static ARegionType type;
   memset(&type, 0, sizeof(ARegionType));
@@ -1178,7 +1179,7 @@ ARegion *searchbox_create_operator(bContext *C, ARegion *butregion, ButtonSearch
 
 void searchbox_free(bContext *C, ARegion *region)
 {
-  region_temp_remove(C, CTX_wm_screen(C), region);
+  region_temp_remove(C, CTX_wm_screen(*C), region);
 }
 
 static void searchbox_region_draw_cb__menu(const bContext * /*C*/, ARegion * /*region*/)

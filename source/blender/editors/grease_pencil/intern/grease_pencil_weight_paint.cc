@@ -450,7 +450,7 @@ static wmOperatorStatus weight_sample_invoke(bContext *C,
                                              wmOperator * /*op*/,
                                              const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   /* Get the active vertex group. */
@@ -605,8 +605,8 @@ static void GREASE_PENCIL_OT_weight_toggle_direction(wmOperatorType *ot)
 
 static wmOperatorStatus grease_pencil_weight_invert_exec(bContext *C, wmOperator *op)
 {
-  const Scene &scene = *CTX_data_scene(C);
-  Object *object = CTX_data_active_object(C);
+  const Scene &scene = *CTX_data_scene(*C);
+  Object *object = CTX_data_active_object(*C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   /* Object vgroup index. */
@@ -657,7 +657,7 @@ static bool grease_pencil_vertex_group_weight_poll(bContext *C)
     return false;
   }
 
-  const Object *ob = CTX_data_active_object(C);
+  const Object *ob = CTX_data_active_object(*C);
   if (ob == nullptr || BLI_listbase_is_empty(BKE_object_defgroup_list(ob))) {
     return false;
   }
@@ -683,7 +683,7 @@ static void GREASE_PENCIL_OT_weight_invert(wmOperatorType *ot)
 static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
 {
   /* Get the active vertex group in the Grease Pencil object. */
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   const int object_defgroup_nr = BKE_object_defgroup_active_index_get(object) - 1;
   if (object_defgroup_nr == -1) {
     return OPERATOR_CANCELLED;
@@ -699,7 +699,7 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
   const int repeat = RNA_int_get(op->ptr, "repeat");
 
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const Scene &scene = *CTX_data_scene(C);
+  const Scene &scene = *CTX_data_scene(*C);
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
   /* Smooth weights in all editable drawings. */
@@ -756,7 +756,7 @@ static void GREASE_PENCIL_OT_vertex_group_smooth(wmOperatorType *ot)
 static wmOperatorStatus vertex_group_normalize_exec(bContext *C, wmOperator *op)
 {
   /* Get the active vertex group in the Grease Pencil object. */
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   const int object_defgroup_nr = BKE_object_defgroup_active_index_get(object) - 1;
   if (object_defgroup_nr == -1) {
     return OPERATOR_CANCELLED;
@@ -770,7 +770,7 @@ static wmOperatorStatus vertex_group_normalize_exec(bContext *C, wmOperator *op)
 
   /* Get all editable drawings, grouped per frame. */
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const Scene &scene = *CTX_data_scene(C);
+  const Scene &scene = *CTX_data_scene(*C);
   Array<Vector<MutableDrawingInfo>> drawings_per_frame =
       retrieve_editable_drawings_grouped_per_frame(scene, grease_pencil);
 
@@ -871,7 +871,7 @@ static void GREASE_PENCIL_OT_vertex_group_normalize(wmOperatorType *ot)
 static wmOperatorStatus vertex_group_normalize_all_exec(bContext *C, wmOperator *op)
 {
   /* Get the active vertex group in the Grease Pencil object. */
-  Object *object = CTX_data_active_object(C);
+  Object *object = CTX_data_active_object(*C);
   const int object_defgroup_nr = BKE_object_defgroup_active_index_get(object) - 1;
   const bDeformGroup *object_defgroup = static_cast<const bDeformGroup *>(
       BLI_findlink(BKE_object_defgroup_list(object), object_defgroup_nr));
@@ -888,7 +888,7 @@ static wmOperatorStatus vertex_group_normalize_all_exec(bContext *C, wmOperator 
 
   /* Get all editable drawings. */
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const Scene &scene = *CTX_data_scene(C);
+  const Scene &scene = *CTX_data_scene(*C);
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
   /* Normalize weights in all drawings. */

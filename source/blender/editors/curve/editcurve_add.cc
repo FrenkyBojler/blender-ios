@@ -495,9 +495,9 @@ Nurb *ED_curve_add_nurbs_primitive(
 
 static wmOperatorStatus curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   ListBaseT<Nurb> *editnurb;

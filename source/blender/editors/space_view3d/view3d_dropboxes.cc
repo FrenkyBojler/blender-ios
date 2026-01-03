@@ -48,7 +48,7 @@
 
 static bool view3d_drop_in_main_region_poll(bContext *C, const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(C);
+  ScrArea *area = CTX_wm_area(*C);
   return ED_region_overlap_isect_any_xy(area, event->xy) == false;
 }
 
@@ -56,7 +56,7 @@ static ID_Type view3d_drop_id_in_main_region_poll_get_id_type(bContext *C,
                                                               wmDrag *drag,
                                                               const wmEvent *event)
 {
-  const ScrArea *area = CTX_wm_area(C);
+  const ScrArea *area = CTX_wm_area(*C);
 
   if (ED_region_overlap_isect_any_xy(area, event->xy)) {
     return ID_Type(0);
@@ -206,7 +206,7 @@ static std::string view3d_mat_drop_tooltip(bContext *C,
                                            wmDropBox * /*drop*/)
 {
   const char *name = WM_drag_get_item_name(drag);
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   const int mval[2] = {
       xy[0] - region->winrct.xmin,
       xy[1] - region->winrct.ymin,
@@ -238,7 +238,7 @@ static std::string view3d_object_data_drop_tooltip(bContext * /*C*/,
 
 static bool view3d_ima_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  if (ED_region_overlap_isect_any_xy(CTX_wm_area(C), event->xy)) {
+  if (ED_region_overlap_isect_any_xy(CTX_wm_area(*C), event->xy)) {
     return false;
   }
   return WM_drag_is_ID_type(drag, ID_IM);
@@ -246,9 +246,9 @@ static bool view3d_ima_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event
 
 static bool view3d_ima_bg_is_camera_view(bContext *C)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
   if (rv3d && (rv3d->persp == RV3D_CAMOB)) {
-    View3D *v3d = CTX_wm_view3d(C);
+    View3D *v3d = CTX_wm_view3d(*C);
     if (v3d && v3d->camera && v3d->camera->type == OB_CAMERA) {
       return true;
     }
@@ -316,7 +316,7 @@ static bool view3d_geometry_nodes_drop_poll(bContext *C, wmDrag *drag, const wmE
     if (wmDropBox *drop_box = drag->drop_state.active_dropbox) {
       const uint32_t uid = RNA_int_get(drop_box->ptr, "session_uid");
       const bNodeTree *node_tree = reinterpret_cast<const bNodeTree *>(
-          BKE_libblock_find_session_uid(CTX_data_main(C), ID_NT, uid));
+          BKE_libblock_find_session_uid(CTX_data_main(*C), ID_NT, uid));
       if (node_tree) {
         return node_tree->type == NTREE_GEOMETRY;
       }
@@ -330,7 +330,7 @@ static std::string view3d_geometry_nodes_drop_tooltip(bContext *C,
                                                       const int xy[2],
                                                       wmDropBox *drop)
 {
-  ARegion *region = CTX_wm_region(C);
+  ARegion *region = CTX_wm_region(*C);
   int mval[2] = {xy[0] - region->winrct.xmin, xy[1] - region->winrct.ymin};
   return blender::ed::object::drop_geometry_nodes_tooltip(C, drop->ptr, mval);
 }
@@ -465,9 +465,9 @@ static void view3d_ob_drop_copy_external_asset(bContext *C, wmDrag *drag, wmDrop
   BLI_assert(drag->type == WM_DRAG_ASSET);
 
   wmDragAsset *asset_drag = WM_drag_get_asset_data(drag, 0);
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   BKE_view_layer_base_deselect_all(scene, view_layer);
 
@@ -490,7 +490,7 @@ static void view3d_ob_drop_copy_external_asset(bContext *C, wmDrag *drag, wmDrop
 
   /* Make objects local so they can be transformed. */
   if (WM_drag_asset_will_import_packed(drag)) {
-    make_selected_objects_local(*bmain, *scene, *view_layer, *CTX_wm_view3d(C), false);
+    make_selected_objects_local(*bmain, *scene, *view_layer, *CTX_wm_view3d(*C), false);
 
     /* Making the IDs local might result in a new, copied ID. */
     if (id->newid) {
@@ -506,7 +506,7 @@ static void view3d_ob_drop_copy_external_asset(bContext *C, wmDrag *drag, wmDrop
   /* Make sure the depsgraph is evaluated so the new object's transforms are up-to-date.
    * The evaluated #Object::object_to_world() will be copied back to the original object
    * and used below. */
-  CTX_data_ensure_evaluated_depsgraph(C);
+  CTX_data_ensure_evaluated_depsgraph(*C);
 
   V3DSnapCursorState *snap_state = static_cast<V3DSnapCursorState *>(drop->draw_data);
   if (snap_state) {
@@ -565,9 +565,9 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
   BLI_assert(drag->type == WM_DRAG_ASSET);
 
   wmDragAsset *asset_drag = WM_drag_get_asset_data(drag, 0);
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Main *bmain = CTX_data_main(*C);
+  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   BKE_view_layer_base_deselect_all(scene, view_layer);
 
@@ -601,7 +601,7 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
 
   /* Make objects local so they can be transformed. */
   if (WM_drag_asset_will_import_packed(drag) && !use_instance_collections) {
-    make_selected_objects_local(*bmain, *scene, *view_layer, *CTX_wm_view3d(C), true);
+    make_selected_objects_local(*bmain, *scene, *view_layer, *CTX_wm_view3d(*C), true);
 
     /* Making the IDs local might result in a new, copied ID. */
     collection = blender::id_cast<Collection *>(id->newid ? id->newid : id);

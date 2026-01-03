@@ -586,7 +586,7 @@ static Layout *ui_item_local_sublayout(Layout *test, Layout *layout, bool align)
 
 static void ui_layer_but_cb(bContext *C, void *arg_but, void *arg_index)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   Button *but = static_cast<Button *>(arg_but);
   PointerRNA *ptr = &but->rnapoin;
   PropertyRNA *prop = but->rnaprop;
@@ -823,7 +823,7 @@ static void ui_item_array(Layout *layout,
 
 static void ui_item_enum_expand_handle(bContext *C, void *arg1, void *arg2)
 {
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
 
   if ((win->runtime->eventstate->modifier & KM_SHIFT) == 0) {
     Button *but = (Button *)arg1;
@@ -1020,7 +1020,7 @@ static void ui_item_enum_expand_tabs(Layout *layout,
 
   for (int i = start_size; i < block->buttons.size(); i++) {
     Button *tab = block->buttons[i].get();
-    button_drawflag_enable(tab, button_align_opposite_to_area_align_get(CTX_wm_region(C)));
+    button_drawflag_enable(tab, button_align_opposite_to_area_align_get(CTX_wm_region(*C)));
     if (icon_only) {
       button_drawflag_enable(tab, BUT_HAS_QUICK_TOOLTIP);
     }
@@ -1260,7 +1260,7 @@ void context_active_but_prop_get_filebrowser(const bContext *C,
                                              bool *r_is_undo,
                                              bool *r_is_userdef)
 {
-  ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
+  ARegion *region = CTX_wm_region_popup(*C) ? CTX_wm_region_popup(*C) : CTX_wm_region(*C);
   Button *prevbut = nullptr;
 
   *r_ptr = {};
@@ -1682,7 +1682,7 @@ void Layout::op_enum(const StringRefNull opname,
     }
     else {
       bContext *C = static_cast<bContext *>(block->evil_C);
-      const bContextStore *previous_ctx = CTX_store_get(C);
+      const bContextStore *previous_ctx = CTX_store_get(*C);
       CTX_store_set(C, context_);
       RNA_property_enum_items_gettexted(C, &ptr, prop, &item_array, &totitem, &free);
       CTX_store_set(C, previous_ctx);
@@ -2228,7 +2228,7 @@ void Layout::prop(PointerRNA *ptr,
     but = ui_item_with_label(layout, block, name, icon, ptr, prop, index, 0, 0, w, h, flag);
 
     if (is_id_name_prop) {
-      Main *bmain = CTX_data_main(static_cast<bContext *>(block->evil_C));
+      Main *bmain = CTX_data_main(*static_cast<bContext *>(block->evil_C));
       ID *id = ptr->owner_id;
       button_func_rename_full_set(
           but, [bmain, id](const std::string &new_name) { ED_id_rename(*bmain, *id, new_name); });
@@ -2994,7 +2994,7 @@ void Layout::popover(const bContext *C,
     icon = ICON_BLANK1;
   }
 
-  const bContextStore *previous_ctx = CTX_store_get(C);
+  const bContextStore *previous_ctx = CTX_store_get(*C);
   /* Set context for polling (and panel header drawing). */
   CTX_store_set(const_cast<bContext *>(C), context_);
 
@@ -4725,7 +4725,7 @@ PanelLayout Layout::panel_prop(const bContext *C,
                                PointerRNA *open_prop_owner,
                                const StringRefNull open_prop_name)
 {
-  const ARegion *region = CTX_wm_region(C);
+  const ARegion *region = CTX_wm_region(*C);
 
   const bool is_real_open = RNA_boolean_get(open_prop_owner, open_prop_name.c_str());
   const bool search_filter_active = region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE;
@@ -5795,7 +5795,7 @@ void menutype_draw(bContext *C, MenuType *mt, Layout *layout)
   if (layout->context()) {
     context_store = *layout->context();
   }
-  const bContextStore *previous_context_store = CTX_store_get(C);
+  const bContextStore *previous_context_store = CTX_store_get(*C);
   if (previous_context_store) {
     context_store.entries.extend(previous_context_store->entries);
   }

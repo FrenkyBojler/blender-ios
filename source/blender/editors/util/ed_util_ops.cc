@@ -44,7 +44,7 @@
 blender::Vector<PointerRNA> ED_operator_single_id_from_context_as_vec(const bContext *C)
 {
   blender::Vector<PointerRNA> ids;
-  PointerRNA idptr = CTX_data_pointer_get_type(C, "id", &RNA_ID);
+  PointerRNA idptr = CTX_data_pointer_get_type(*C, "id", &RNA_ID);
   if (idptr.data) {
     ids.append(idptr);
   }
@@ -56,7 +56,7 @@ blender::Vector<PointerRNA> ED_operator_get_ids_from_context_as_vec(const bConte
   blender::Vector<PointerRNA> ids;
 
   /* "selected_ids" context member. */
-  CTX_data_selected_ids(C, &ids);
+  CTX_data_selected_ids(*C, &ids);
   if (!ids.is_empty()) {
     return ids;
   }
@@ -100,7 +100,7 @@ static bool lib_id_preview_editing_poll_ex(const ID *id, const char **r_disabled
 
 static bool lib_id_preview_editing_poll(bContext *C)
 {
-  const PointerRNA idptr = CTX_data_pointer_get(C, "id");
+  const PointerRNA idptr = CTX_data_pointer_get(*C, "id");
   BLI_assert(!idptr.data || RNA_struct_is_ID(idptr.type));
 
   const ID *id = (ID *)idptr.data;
@@ -120,7 +120,7 @@ static ID *lib_id_load_custom_preview_id_get(bContext *C, const wmOperator *op)
     return static_cast<ID *>(op->customdata);
   }
 
-  PointerRNA idptr = CTX_data_pointer_get(C, "id");
+  PointerRNA idptr = CTX_data_pointer_get(*C, "id");
   return static_cast<ID *>(idptr.data);
 }
 
@@ -262,7 +262,7 @@ static wmOperatorStatus lib_id_generate_preview_exec(bContext *C, wmOperator * /
 {
   using namespace blender::ed;
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+  ED_preview_kill_jobs(CTX_wm_manager(*C), CTX_data_main(*C));
 
   lib_id_batch_edit_previews(C, [&](ID *id) {
     if (ED_preview_id_is_supported(id, nullptr)) {
@@ -306,7 +306,7 @@ static bool lib_id_generate_preview_from_object_poll(bContext *C)
 
   /* ... but we also need to check this for the active object (since this is what is being
    * rendered). */
-  Object *object_to_render = CTX_data_active_object(C);
+  Object *object_to_render = CTX_data_active_object(*C);
   if (object_to_render == nullptr) {
     return false;
   }
@@ -323,9 +323,9 @@ static wmOperatorStatus lib_id_generate_preview_from_object_exec(bContext *C, wm
 {
   using namespace blender::ed;
 
-  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+  ED_preview_kill_jobs(CTX_wm_manager(*C), CTX_data_main(*C));
 
-  Object *object_to_render = CTX_data_active_object(C);
+  Object *object_to_render = CTX_data_active_object(*C);
 
   lib_id_batch_edit_previews(C, [&](ID *id) {
     BKE_previewimg_id_free(id);
@@ -425,7 +425,7 @@ static wmOperatorStatus lib_id_fake_user_toggle_exec(bContext *C, wmOperator *op
 
   ID *id = (ID *)idptr.data;
 
-  if (!BKE_id_is_editable(CTX_data_main(C), id) ||
+  if (!BKE_id_is_editable(CTX_data_main(*C), id) ||
       ELEM(GS(id->name), ID_GR, ID_SCE, ID_SCR, ID_TXT, ID_OB, ID_WS))
   {
     BKE_report(op->reports, RPT_ERROR, "Data-block type does not support fake user");
@@ -496,7 +496,7 @@ static void ED_OT_lib_id_unlink(wmOperatorType *ot)
 
 static bool lib_id_override_editable_toggle_poll(bContext *C)
 {
-  const PointerRNA id_ptr = CTX_data_pointer_get_type(C, "id", &RNA_ID);
+  const PointerRNA id_ptr = CTX_data_pointer_get_type(*C, "id", &RNA_ID);
   const ID *id = static_cast<ID *>(id_ptr.data);
 
   return id && ID_IS_OVERRIDE_LIBRARY_REAL(id) && !ID_IS_LINKED(id);
@@ -504,8 +504,8 @@ static bool lib_id_override_editable_toggle_poll(bContext *C)
 
 static wmOperatorStatus lib_id_override_editable_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
-  const PointerRNA id_ptr = CTX_data_pointer_get_type(C, "id", &RNA_ID);
+  Main *bmain = CTX_data_main(*C);
+  const PointerRNA id_ptr = CTX_data_pointer_get_type(*C, "id", &RNA_ID);
   ID *id = static_cast<ID *>(id_ptr.data);
 
   const bool is_system_override = BKE_lib_override_library_is_system_defined(bmain, id);
@@ -549,7 +549,7 @@ static void ED_OT_lib_id_override_editable_toggle(wmOperatorType *ot)
 
 static wmOperatorStatus ed_flush_edits_exec(bContext *C, wmOperator * /*op*/)
 {
-  Main *bmain = CTX_data_main(C);
+  Main *bmain = CTX_data_main(*C);
   ED_editors_flush_edits(bmain);
   return OPERATOR_FINISHED;
 }

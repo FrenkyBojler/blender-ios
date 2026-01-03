@@ -61,7 +61,7 @@ static bool metadata_panel_context_poll(const bContext *C, PanelType * /*pt*/)
 
 static void metadata_panel_context_draw(const bContext *C, Panel *panel)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  SpaceClip *space_clip = CTX_wm_space_clip(*C);
   /* NOTE: This might not be exactly the same image buffer as shown in the
    * clip editor itself, since that might be coming from proxy, or being
    * postprocessed (stabilized or undistorted).

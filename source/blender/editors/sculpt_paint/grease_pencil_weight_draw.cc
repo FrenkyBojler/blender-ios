@@ -30,7 +30,7 @@ class DrawWeightPaintOperation : public WeightPaintOperation {
     /* Get editable drawings grouped per frame number. When multi-frame editing is disabled, this
      * is just one group for the current frame. When multi-frame editing is enabled, the selected
      * keyframes are grouped per frame number. */
-    const Scene *scene = CTX_data_scene(&C);
+    const Scene *scene = CTX_data_scene(C);
     Array<Vector<MutableDrawingInfo>> drawings_per_frame =
         retrieve_editable_drawings_grouped_per_frame(*scene, *this->grease_pencil);
 

@@ -72,7 +72,7 @@ static wmOperatorStatus wm_ply_export_exec(bContext *C, wmOperator *op)
   PLYExportParams export_params;
   export_params.file_base_for_tests[0] = '\0';
   RNA_string_get(op->ptr, "filepath", export_params.filepath);
-  export_params.blen_filepath = CTX_data_main(C)->filepath;
+  export_params.blen_filepath = CTX_data_main(*C)->filepath;
 
   export_params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
   export_params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
@@ -118,7 +118,7 @@ static void wm_ply_export_draw(bContext *C, wmOperator *op)
       sub.prop(ptr, "ascii_format", UI_ITEM_NONE, IFACE_("ASCII"), ICON_NONE);
     }
     /* The Selection only options only make sense when using regular export. */
-    if (CTX_wm_space_file(C)) {
+    if (CTX_wm_space_file(*C)) {
       blender::ui::Layout &sub = col.column(false, IFACE_("Include"));
       sub.prop(ptr, "export_selected_objects", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
     }
@@ -276,7 +276,7 @@ static wmOperatorStatus wm_ply_import_exec(bContext *C, wmOperator *op)
     PLY_import(C, params);
   };
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_scene(*C);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
   WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);

@@ -1159,11 +1159,11 @@ wmOperatorStatus PenToolOperation::invoke(bContext *C, wmOperator *op, const wmE
    * region before allowing drawing to take place. */
   op->flag |= OP_IS_MODAL_CURSOR_REGION;
 
-  wmWindow *win = CTX_wm_window(C);
+  wmWindow *win = CTX_wm_window(*C);
   /* Set cursor to indicate modal. */
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
-  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
+  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(*C));
 
   this->vc = vc;
   this->projection = ED_view3d_ob_project_mat_get(this->vc.rv3d, this->vc.obact);
@@ -1356,16 +1356,16 @@ class CurvesPenToolOperation : public PenToolOperation {
     this->active_drawing_index = std::nullopt;
     VectorSet<Curves *> unique_curves;
 
-    const Main &bmain = *CTX_data_main(C);
+    const Main &bmain = *CTX_data_main(*C);
 
-    Object *object = CTX_data_active_object(C);
+    Object *object = CTX_data_active_object(*C);
     if (object && object_has_editable_curves(bmain, *object)) {
       unique_curves.add_new(static_cast<Curves *>(object->data));
       this->layer_to_world_per_curves.append(object->object_to_world());
       this->active_drawing_index = 0;
     }
 
-    CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
+    CTX_DATA_BEGIN (*C, Object *, object, selected_objects) {
       if (object_has_editable_curves(bmain, *object)) {
         if (unique_curves.add(static_cast<Curves *>(object->data))) {
           this->layer_to_world_per_curves.append(object->object_to_world());
