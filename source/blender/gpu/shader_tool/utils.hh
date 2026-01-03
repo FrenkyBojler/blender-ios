@@ -47,7 +47,7 @@ struct IndexRange {
 
 /** Poor man's OffsetIndices. */
 struct OffsetIndices {
-  std::vector<size_t> offsets;
+  std::vector<uint32_t> offsets;
 
   IndexRange operator[](const int64_t index) const
   {
