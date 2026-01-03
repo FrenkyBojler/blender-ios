@@ -86,7 +86,7 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
     transformed_strips.add(strip);
   }
 
-  ListBase *seqbasep = seq::active_seqbase_get(ed);
+  ListBaseT<Strip> *seqbasep = seq::active_seqbase_get(ed);
   seq::iterator_set_expand(scene, seqbasep, transformed_strips, seq::query_strip_effect_chain);
 
   VectorSet<Strip *> dependant;
@@ -116,7 +116,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
   /* Prevent snaps and change in `values` past `offset_clamp` for all selected retiming keys. */
   BLI_rcti_init(&ts->offset_clamp, -INT_MAX, INT_MAX, 0, 0);
 
-  blender::Map selection = seq::retiming_selection_get(ed);
+  Map selection = seq::retiming_selection_get(ed);
   for (auto item : selection.items()) {
     SeqRetimingKey *key = item.key;
 

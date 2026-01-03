@@ -16,7 +16,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -53,10 +52,7 @@ static void uv_warp_from_mat4_pair(float uv_dst[2],
 static void init_data(ModifierData *md)
 {
   UVWarpModifierData *umd = (UVWarpModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(umd, modifier));
-
-  MEMCPY_STRUCT_AFTER(umd, DNA_struct_default_get(UVWarpModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(umd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -246,8 +242,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -255,18 +250,18 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA warp_obj_ptr;
   PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
+  layout.prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
 
-  col = &layout->column(false);
+  blender::ui::Layout *col = &layout.column(false);
   col->prop(ptr, "center", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   col->prop(ptr, "axis_u", UI_ITEM_NONE, IFACE_("Axis U"), ICON_NONE);
   col->prop(ptr, "axis_v", UI_ITEM_NONE, IFACE_("V"), ICON_NONE);
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   col->prop(ptr, "object_from", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   warp_obj_ptr = RNA_pointer_get(ptr, "object_from");
   if (!RNA_pointer_is_null(&warp_obj_ptr) && RNA_enum_get(&warp_obj_ptr, "type") == OB_ARMATURE) {
@@ -288,15 +283,15 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
 static void transform_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)

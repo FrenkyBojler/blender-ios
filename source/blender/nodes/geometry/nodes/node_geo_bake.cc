@@ -94,20 +94,21 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryBake *data = MEM_callocN<NodeGeometryBake>(__func__);
+  NodeGeometryBake *data = MEM_new_for_free<NodeGeometryBake>(__func__);
   node->storage = data;
 }
 
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<BakeItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_freeN(reinterpret_cast<NodeGeometryBake *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryBake &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_dupallocN<NodeGeometryBake>(__func__, src_storage);
+  auto *dst_storage = MEM_new_for_free<NodeGeometryBake>(__func__,
+                                                         blender::dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<BakeItemsAccessor>(*src_node, *dst_node);
@@ -472,7 +473,7 @@ static void node_layout(ui::Layout &layout, bContext *C, PointerRNA *ptr)
   {
     ui::Layout &row = col.row(true);
     row.enabled_set(!ctx.is_baked);
-    row.prop(&ctx.bake_rna, "bake_mode", UI_ITEM_R_EXPAND, IFACE_("Mode"), ICON_NONE);
+    row.prop(&ctx.bake_rna, "bake_mode", ui::ITEM_R_EXPAND, IFACE_("Mode"), ICON_NONE);
   }
   draw_bake_button_row(ctx, col);
 }
@@ -495,7 +496,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
     {
       ui::Layout &row = col.row(true);
       row.enabled_set(!ctx.is_baked);
-      row.prop(&ctx.bake_rna, "bake_mode", UI_ITEM_R_EXPAND, IFACE_("Mode"), ICON_NONE);
+      row.prop(&ctx.bake_rna, "bake_mode", ui::ITEM_R_EXPAND, IFACE_("Mode"), ICON_NONE);
     }
 
     draw_bake_button_row(ctx, col, true);
@@ -801,7 +802,7 @@ void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, ui::Layout &la
 
 static void draw_bake_data_block_list_item(uiList * /*ui_list*/,
                                            const bContext * /*C*/,
-                                           ui::Layout *layout,
+                                           ui::Layout &layout,
                                            PointerRNA * /*idataptr*/,
                                            PointerRNA *itemptr,
                                            int /*icon*/,
@@ -811,7 +812,7 @@ static void draw_bake_data_block_list_item(uiList * /*ui_list*/,
                                            int /*flt_flag*/)
 {
   auto &data_block = *static_cast<NodesModifierDataBlock *>(itemptr->data);
-  ui::Layout &row = layout->row(true);
+  ui::Layout &row = layout.row(true);
 
   std::string name;
   if (StringRef(data_block.lib_name).is_empty()) {
@@ -840,20 +841,19 @@ void draw_data_blocks(const bContext *C, ui::Layout &layout, PointerRNA &bake_rn
   if (ui::Layout *panel = layout.panel(
           C, "data_block_references", true, IFACE_("Data-Block References")))
   {
-    uiTemplateList(panel,
-                   C,
-                   data_block_list->idname,
-                   "",
-                   &bake_rna,
-                   "data_blocks",
-                   &data_blocks_ptr,
-                   "active_index",
-                   nullptr,
-                   3,
-                   5,
-                   UILST_LAYOUT_DEFAULT,
-                   0,
-                   UI_TEMPLATE_LIST_FLAG_NONE);
+    ui::template_list(panel,
+                      C,
+                      data_block_list->idname,
+                      "",
+                      &bake_rna,
+                      "data_blocks",
+                      &data_blocks_ptr,
+                      "active_index",
+                      nullptr,
+                      3,
+                      5,
+                      UILST_LAYOUT_DEFAULT,
+                      ui::TEMPLATE_LIST_FLAG_NONE);
   }
 }
 

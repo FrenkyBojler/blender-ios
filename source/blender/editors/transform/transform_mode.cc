@@ -270,7 +270,7 @@ void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransD
     /* Evaluate valid constraints. */
     for (con = td->con; con; con = con->next) {
       const bConstraintTypeInfo *cti = nullptr;
-      ListBase targets = {nullptr, nullptr};
+      ListBaseT<bConstraintTarget> targets = {nullptr, nullptr};
 
       /* Only consider constraint if enabled. */
       if (con->flag & (CONSTRAINT_DISABLE | CONSTRAINT_OFF)) {
@@ -1274,9 +1274,11 @@ void transform_mode_rotation_axis_get(const TransInfo *t, float3 &r_axis)
   }
   else {
     r_axis = t->spacemtx[t->orient_axis];
-    /* For unconstrained rotation, flip the axis so the rotation direction
+    /* For unconstrained rotation in the 3D viewport, flip the axis so the rotation direction
      * matches the mouse movement in view space. */
-    if (t->mode == TFM_ROTATION && (t->con.mode & CON_APPLY) == 0) {
+    if ((t->flag & T_MODAL) && (t->mode == TFM_ROTATION) && (t->con.mode & CON_APPLY) == 0 &&
+        (t->spacetype == SPACE_VIEW3D))
+    {
       r_axis = -r_axis;
     }
   }

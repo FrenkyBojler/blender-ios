@@ -12,7 +12,6 @@
 #include <cstring>
 
 #include "DNA_collection_types.h"
-#include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_object_types.h"
@@ -86,19 +85,19 @@ bool ED_view3d_area_user_region(const ScrArea *area, const View3D *v3d, ARegion 
   RegionView3D *rv3d = nullptr;
   ARegion *region_unlock_user = nullptr;
   ARegion *region_unlock = nullptr;
-  const ListBase *region_list = (v3d == area->spacedata.first) ? &area->regionbase :
-                                                                 &v3d->regionbase;
+  const ListBaseT<ARegion> *region_list = (v3d == area->spacedata.first) ? &area->regionbase :
+                                                                           &v3d->regionbase;
 
   BLI_assert(v3d->spacetype == SPACE_VIEW3D);
 
-  LISTBASE_FOREACH (ARegion *, region, region_list) {
+  for (ARegion &region : *region_list) {
     /* find the first unlocked rv3d */
-    if (region->regiondata && region->regiontype == RGN_TYPE_WINDOW) {
-      rv3d = static_cast<RegionView3D *>(region->regiondata);
+    if (region.regiondata && region.regiontype == RGN_TYPE_WINDOW) {
+      rv3d = static_cast<RegionView3D *>(region.regiondata);
       if ((rv3d->viewlock & RV3D_LOCK_ROTATION) == 0) {
-        region_unlock = region;
+        region_unlock = &region;
         if (ELEM(rv3d->persp, RV3D_PERSP, RV3D_CAMOB)) {
-          region_unlock_user = region;
+          region_unlock_user = &region;
           break;
         }
       }
@@ -180,9 +179,9 @@ void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *area)
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
 
   if (v3d->shading.type != OB_RENDER) {
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if ((region->regiontype == RGN_TYPE_WINDOW) && region->regiondata) {
-        ED_view3d_stop_render_preview(wm, region);
+    for (ARegion &region : area->regionbase) {
+      if ((region.regiontype == RGN_TYPE_WINDOW) && region.regiondata) {
+        ED_view3d_stop_render_preview(wm, &region);
       }
     }
   }
@@ -192,18 +191,14 @@ void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *area)
 
 static SpaceLink *view3d_create(const ScrArea * /*area*/, const Scene *scene)
 {
-  ARegion *region;
-  View3D *v3d;
-  RegionView3D *rv3d;
-
-  v3d = DNA_struct_default_alloc(View3D);
+  View3D *v3d = MEM_new_for_free<View3D>(__func__);
 
   if (scene) {
     v3d->camera = scene->camera;
   }
 
   /* header */
-  region = BKE_area_region_new();
+  ARegion *region = BKE_area_region_new();
 
   BLI_addtail(&v3d->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
@@ -253,12 +248,12 @@ static SpaceLink *view3d_create(const ScrArea * /*area*/, const Scene *scene)
   BLI_addtail(&v3d->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
 
-  region->regiondata = MEM_callocN<RegionView3D>("region view3d");
-  rv3d = static_cast<RegionView3D *>(region->regiondata);
+  RegionView3D *rv3d = MEM_new_for_free<RegionView3D>("region view3d");
   rv3d->viewquat[0] = 1.0f;
   rv3d->persp = RV3D_PERSP;
   rv3d->view = RV3D_VIEW_USER;
   rv3d->dist = 10.0;
+  region->regiondata = rv3d;
 
   return (SpaceLink *)v3d;
 }
@@ -331,7 +326,7 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
 /* add handlers, stuff you only do once or on area/region changes */
 static void view3d_main_region_init(wmWindowManager *wm, ARegion *region)
 {
-  ListBase *lb;
+  ListBaseT<wmDropBox> *lb;
   wmKeyMap *keymap;
 
   /* object ops. */
@@ -360,6 +355,10 @@ static void view3d_main_region_init(wmWindowManager *wm, ARegion *region)
 
   keymap = WM_keymap_ensure(
       wm->runtime->defaultconf, "Vertex Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
+
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Grease Pencil Weight Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   /* pose is not modal, operator poll checks for this */
@@ -416,15 +415,11 @@ static void view3d_main_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   keymap = WM_keymap_ensure(
-      wm->runtime->defaultconf, "Grease Pencil Paint Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
+      wm->runtime->defaultconf, "Grease Pencil Draw Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   keymap = WM_keymap_ensure(
       wm->runtime->defaultconf, "Grease Pencil Sculpt Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
-
-  keymap = WM_keymap_ensure(
-      wm->runtime->defaultconf, "Grease Pencil Weight Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   keymap = WM_keymap_ensure(
@@ -1254,7 +1249,7 @@ void ED_view3d_buttons_region_layout_ex(const bContext *C,
       break;
   }
 
-  ListBase *paneltypes = &region->runtime->type->paneltypes;
+  ListBaseT<PanelType> *paneltypes = &region->runtime->type->paneltypes;
 
   /* Allow drawing 3D view toolbar from non 3D view space type. */
   if (category_override != nullptr) {
@@ -1410,8 +1405,8 @@ static void view3d_tools_header_region_draw(const bContext *C, ARegion *region)
       C,
       region,
       (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) ?
-          uiButtonSectionsAlign::Top :
-          uiButtonSectionsAlign::Bottom);
+          blender::ui::ButtonSectionsAlign::Top :
+          blender::ui::ButtonSectionsAlign::Bottom);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -1507,12 +1502,12 @@ static void view3d_id_remap_v3d(ScrArea *area,
       ID_REMAP_RESULT_SOURCE_UNASSIGNED)
   {
     /* 3D view might be inactive, in that case needs to use slink->regionbase */
-    ListBase *regionbase = (slink == area->spacedata.first) ? &area->regionbase :
-                                                              &slink->regionbase;
-    LISTBASE_FOREACH (ARegion *, region, regionbase) {
-      if (region->regiontype == RGN_TYPE_WINDOW) {
-        RegionView3D *rv3d = is_local ? ((RegionView3D *)region->regiondata)->localvd :
-                                        static_cast<RegionView3D *>(region->regiondata);
+    ListBaseT<ARegion> *regionbase = (slink == area->spacedata.first) ? &area->regionbase :
+                                                                        &slink->regionbase;
+    for (ARegion &region : *regionbase) {
+      if (region.regiontype == RGN_TYPE_WINDOW) {
+        RegionView3D *rv3d = is_local ? ((RegionView3D *)region.regiondata)->localvd :
+                                        static_cast<RegionView3D *>(region.regiondata);
         if (rv3d && (rv3d->persp == RV3D_CAMOB)) {
           rv3d->persp = RV3D_PERSP;
         }
@@ -1591,10 +1586,10 @@ static void view3d_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 static void view3d_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
   View3D *v3d = (View3D *)sl;
-  BLO_write_struct(writer, View3D, v3d);
+  writer->write_struct(v3d);
 
   if (v3d->localvd) {
-    BLO_write_struct(writer, View3D, v3d->localvd);
+    writer->write_struct(v3d->localvd);
   }
 
   BKE_screen_view3d_shading_blend_write(writer, &v3d->shading);
@@ -1725,7 +1720,7 @@ void ED_spacetype_view3d()
   asset::shelf::types_register(art, SPACE_VIEW3D);
 
   /* regions: hud */
-  art = ED_area_type_hud(st->spaceid);
+  art = blender::ui::ED_area_type_hud(st->spaceid);
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: xr */

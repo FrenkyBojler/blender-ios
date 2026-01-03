@@ -18,7 +18,7 @@
 #include "GPU_matrix.hh"
 #include "GPU_platform.hh"
 
-#include "glsl_preprocess/glsl_preprocess.hh"
+#include "shader_tool/processor.hh"
 
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
@@ -234,9 +234,9 @@ std::string GPU_shader_preprocess_source(StringRefNull original,
   if (original.is_empty()) {
     return original;
   }
-  gpu::shader::Preprocessor processor;
-  gpu::shader::metadata::Source metadata;
-  std::string processed_str = processor.process(original, metadata);
+  gpu::shader::SourceProcessor processor(original, "python_shader.glsl", shader::Language::GLSL);
+  auto [processed_str, metadata] = processor.convert();
+
   for (auto builtin : metadata.builtins) {
     info.builtins(gpu::shader::convert_builtin_bit(builtin));
   }
@@ -256,8 +256,20 @@ blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateIn
       "gpu_shader_python_typedef_lib.glsl",
   };
 
+  if (!info.typedef_source_generated.empty()) {
+    info.generated_sources.append(
+        {"gpu_shader_python_typedef_lib.glsl", {}, "\n" + info.typedef_source_generated});
+  }
+  else {
+    /* Add emtpy source to avoid warning and importing the placeholder file. */
+    info.generated_sources.append({"gpu_shader_python_typedef_lib.glsl", {}, "\n"});
+  }
+
+  info.builtins_ |= BuiltinBits::NO_BUFFER_TYPE_LINTING;
+
   auto preprocess_source = [&](const std::string &input_src) {
     std::string processed_str;
+    processed_str += "\n";
     processed_str += "#ifdef CREATE_INFO_RES_PASS_pyGPU_Shader\n";
     processed_str += "CREATE_INFO_RES_PASS_pyGPU_Shader\n";
     processed_str += "#endif\n";
@@ -779,17 +791,39 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
     start_time = Clock::now();
   }
 
-  const std::string error = orig_info.check_error();
+  CLOG_INFO(&LOG, "Compiling Shader \"%s\"", orig_info.name_.c_str());
+
+  Shader *shader = GPUBackend::get()->shader_alloc(orig_info.name_.c_str());
+
+  ShaderCreateInfo specialized_info = orig_info;
+
+  if (!specialized_info.compilation_constants_.is_empty()) {
+    auto predicate = [&](const ShaderCreateInfo::Resource &res) {
+      return !res.conditions.evaluate(specialized_info.compilation_constants_);
+    };
+    specialized_info.pass_resources_.remove_if(predicate);
+    specialized_info.batch_resources_.remove_if(predicate);
+    specialized_info.geometry_resources_.remove_if(predicate);
+  }
+
+  /* We merged infos keeping duplicates because of possible different condition per definitions.
+   * Deduplicate remaining ones to avoid errors. */
+  auto cleanup_duplicates = [&](Vector<ShaderCreateInfo::Resource, 0> &resources) {
+    Vector<ShaderCreateInfo::Resource, 0> tmp = resources;
+    resources.clear();
+    resources.extend_non_duplicates(tmp);
+  };
+  cleanup_duplicates(specialized_info.pass_resources_);
+  cleanup_duplicates(specialized_info.batch_resources_);
+  cleanup_duplicates(specialized_info.geometry_resources_);
+
+  const std::string error = specialized_info.check_error();
   if (!error.empty()) {
     std::cerr << error << "\n";
     BLI_assert(false);
   }
 
-  CLOG_INFO(&LOG, "Compiling Shader \"%s\"", orig_info.name_.c_str());
-
-  Shader *shader = GPUBackend::get()->shader_alloc(orig_info.name_.c_str());
-
-  const shader::ShaderCreateInfo &info = shader->patch_create_info(orig_info);
+  const shader::ShaderCreateInfo &info = shader->patch_create_info(specialized_info);
 
   /* Needs to be called before init as GL uses the default specialization constants state to insert
    * default shader inside a map. */
@@ -804,7 +838,25 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
   std::string defines = shader->defines_declare(info);
   std::string resources = shader->resources_declare(info);
 
-  defines += info.resource_guard_defines();
+  defines += info.resource_guard_defines(info.compilation_constants_);
+
+  if (!info.compute_entry_fn_.is_empty()) {
+    defines += "#define ENTRY_POINT_" + info.compute_entry_fn_ + "\n";
+  }
+  if (!info.fragment_entry_fn_.is_empty()) {
+    defines += "#define ENTRY_POINT_" + info.fragment_entry_fn_ + "\n";
+  }
+  if (!info.vertex_entry_fn_.is_empty()) {
+    defines += "#define ENTRY_POINT_" + info.vertex_entry_fn_ + "\n";
+  }
+
+  /* Compilation constants declaration for static branches evaluation.
+   * In the future, these can be compiled using function constants on metal to reduce compilation
+   * time. */
+  for (const auto &constant : info.compilation_constants_) {
+    defines += "#define SRT_CONSTANT_" + constant.name + " " + std::to_string(constant.value.i) +
+               "\n";
+  }
 
   defines += "#define USE_GPU_SHADER_CREATE_INFO\n";
 

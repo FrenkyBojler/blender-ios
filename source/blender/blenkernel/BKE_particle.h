@@ -24,6 +24,8 @@ struct ParticleKey;
 struct ParticleSettings;
 struct ParticleSystem;
 struct ParticleSystemModifierData;
+struct ColliderCache;
+struct EffectorCache;
 
 struct BVHTreeRay;
 struct BVHTreeRayHit;
@@ -39,6 +41,7 @@ struct MTFace;
 struct Main;
 struct ModifierData;
 struct Object;
+struct ReportList;
 struct RNG;
 struct Scene;
 
@@ -69,7 +72,7 @@ typedef struct ParticleSimulationData {
   struct Object *ob;
   struct ParticleSystem *psys;
   struct ParticleSystemModifierData *psmd;
-  struct ListBase *colliders;
+  ListBaseT<ColliderCache> *colliders;
   /* Courant number. This is used to implement an adaptive time step. Only the
    * maximum value per time step is important. Only sph_integrate makes use of
    * this at the moment. Other solvers could, too. */
@@ -401,11 +404,11 @@ void psys_cache_child_paths(struct ParticleSimulationData *sim,
                             bool use_render_params);
 bool do_guides(struct Depsgraph *depsgraph,
                struct ParticleSettings *part,
-               struct ListBase *effectors,
+               ListBaseT<EffectorCache> *effectors,
                ParticleKey *state,
                int index,
                float time);
-void precalc_guides(struct ParticleSimulationData *sim, struct ListBase *effectors);
+void precalc_guides(struct ParticleSimulationData *sim, ListBaseT<EffectorCache> *effectors);
 float psys_get_timestep(struct ParticleSimulationData *sim);
 float psys_get_child_time(struct ParticleSystem *psys,
                           struct ChildParticle *cpa,
@@ -438,7 +441,7 @@ void BKE_particlesettings_clump_curve_init(struct ParticleSettings *part);
 void BKE_particlesettings_rough_curve_init(struct ParticleSettings *part);
 void BKE_particlesettings_twist_curve_init(struct ParticleSettings *part);
 void psys_apply_child_modifiers(struct ParticleThreadContext *ctx,
-                                struct ListBase *modifiers,
+                                ListBaseT<ModifierData> *modifiers,
                                 struct ChildParticle *cpa,
                                 struct ParticleTexture *ptex,
                                 const float orco[3],
@@ -663,6 +666,28 @@ void reset_particle(struct ParticleSimulationData *sim,
 
 float psys_get_current_display_percentage(struct ParticleSystem *psys, bool use_render_params);
 
+void BKE_particle_co_hair(const ParticleSystem *particlesystem,
+                          const Object *object,
+                          int particle_no,
+                          int step,
+                          float n_co[3]);
+
+void BKE_particle_uv_on_emitter(ParticleSystem *particlesystem,
+                                ReportList *reports,
+                                ParticleSystemModifierData *modifier,
+                                ParticleData *particle,
+                                int particle_no,
+                                int uv_no,
+                                float r_uv[2]);
+
+void BKE_particle_mcol_on_emitter(ParticleSystem *particlesystem,
+                                  ReportList *reports,
+                                  ParticleSystemModifierData *modifier,
+                                  ParticleData *particle,
+                                  int particle_no,
+                                  int vcol_no,
+                                  float r_mcol[3]);
+
 /* psys_reset */
 #define PSYS_RESET_ALL 1
 #define PSYS_RESET_DEPSGRAPH 2
@@ -696,10 +721,11 @@ extern void (*BKE_particle_batch_cache_free_cb)(struct ParticleSystem *psys);
 
 void BKE_particle_partdeflect_blend_read_data(struct BlendDataReader *reader,
                                               struct PartDeflect *pd);
-void BKE_particle_system_blend_write(struct BlendWriter *writer, struct ListBase *particles);
+void BKE_particle_system_blend_write(struct BlendWriter *writer,
+                                     ListBaseT<ParticleSystem> *particles);
 void BKE_particle_system_blend_read_data(struct BlendDataReader *reader,
-                                         struct ListBase *particles);
+                                         ListBaseT<ParticleSystem> *particles);
 void BKE_particle_system_blend_read_after_liblink(struct BlendLibReader *reader,
                                                   struct Object *ob,
                                                   struct ID *id,
-                                                  struct ListBase *particles);
+                                                  ListBaseT<ParticleSystem> *particles);

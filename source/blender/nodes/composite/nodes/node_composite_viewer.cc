@@ -17,7 +17,7 @@ static void cmp_node_viewer_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_viewer(bNodeTree * /*ntree*/, bNode *node)
 {
-  ImageUser *iuser = MEM_callocN<ImageUser>(__func__);
+  ImageUser *iuser = MEM_new_for_free<ImageUser>(__func__);
   node->storage = iuser;
   iuser->sfra = 1;
   node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
@@ -40,7 +40,7 @@ class ViewerOperation : public NodeOperation {
     /* Viewers are treated as composite outputs that should be in the domain of the compositing
      * region. */
     if (this->context().treat_viewer_as_compositor_output() &&
-        this->context().use_context_bounds_for_input_output())
+        this->context().use_compositing_domain_for_input_output())
     {
       return this->context().get_compositing_domain();
     }
