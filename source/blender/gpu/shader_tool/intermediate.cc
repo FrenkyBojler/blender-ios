@@ -89,6 +89,8 @@ Scope Token::attribute_after() const
 struct TokenData {
   std::vector<TokenType> types;
   OffsetIndices offsets;
+  /* Word size without whitespaces. */
+  std::vector<uint32_t> sizes;
 };
 
 void TokenStream::tokenize()
@@ -102,12 +104,10 @@ void TokenStream::tokenize()
 
   token_parse(data);
   token_merge(data);
-
+  token_types_populate(data);
   /* Convert vector of char to string for faster lookups. */
   this->token_types = std::string(reinterpret_cast<char *>(data.types.data()), data.types.size());
   this->token_offsets = std::move(data.offsets);
-
-  token_types_populate();
 }
 
 static always_inline TokenType to_type(const char c)
@@ -300,9 +300,12 @@ static always_inline bool is_whitespace(TokenType t)
 
 void TokenStream::token_merge(TokenData &tokens)
 {
+  tokens.sizes.resize(tokens.types.size());
+
   const char *str_raw = str.data();
   TokenType *types_raw = tokens.types.data();
   uint32_t *offsets_raw = tokens.offsets.offsets.data();
+  uint32_t *sizes_raw = tokens.sizes.data();
 
   /* Never merge the first token. We don't want to loose it. */
   TokenType prev = types_raw[0];
@@ -374,13 +377,16 @@ void TokenStream::token_merge(TokenData &tokens)
       case Word:
         /* Merge words that contain numbers that were split by the tokenizer. */
         if (prev == Word && !after_whitespace) {
+          sizes_raw[cursor] += tok_size;
           continue;
         }
+        sizes_raw[cursor] = tok_size;
         break;
 
       case Number:
         /* If digit is part of word. */
         if (prev == Word && !after_whitespace) {
+          sizes_raw[cursor] += tok_size;
           continue;
         }
         if (prev == Number) {
@@ -455,121 +461,165 @@ void TokenStream::token_merge(TokenData &tokens)
   tokens.offsets.offsets.resize(cursor + 1);
 }
 
-static TokenType type_lookup(std::string_view s)
+static always_inline TokenType type_lookup(std::string_view s)
 {
   switch (s.size()) {
     case 2:
-      if (s == "do") {
-        return Do;
-      }
-      if (s == "if") {
-        return If;
+      switch (s[0]) {
+        case 'd':
+          if (s == "do") {
+            return Do;
+          }
+          break;
+        case 'i':
+          if (s == "if") {
+            return If;
+          }
+          break;
       }
       break;
     case 3:
-      if (s == "for") {
-        return For;
+      switch (s[0]) {
+        case 'f':
+          if (s == "for") {
+            return For;
+          }
+          break;
       }
       break;
     case 4:
-      if (s == "case") {
-        return Case;
-      }
-      if (s == "else") {
-        return Else;
-      }
-      if (s == "enum") {
-        return Enum;
-      }
-      if (s == "this") {
-        return This;
+      switch (s[0]) {
+        case 'c':
+          if (s == "case") {
+            return Case;
+          }
+          break;
+        case 'e':
+          if (s == "else") {
+            return Else;
+          }
+          if (s == "enum") {
+            return Enum;
+          }
+          break;
+        case 't':
+          if (s == "this") {
+            return This;
+          }
+          break;
       }
       break;
     case 5:
-      if (s == "break") {
-        return Break;
-      }
-      if (s == "class") {
-        return Class;
-      }
-      if (s == "const") {
-        return Const;
-      }
-      if (s == "union") {
-        return Union;
-      }
-      if (s == "using") {
-        return Using;
-      }
-      if (s == "while") {
-        return While;
+      switch (s[0]) {
+        case 'b':
+          if (s == "break") {
+            return Break;
+          }
+          break;
+        case 'c':
+          if (s == "class") {
+            return Class;
+          }
+          if (s == "const") {
+            return Const;
+          }
+          break;
+        case 'u':
+          if (s == "union") {
+            return Union;
+          }
+          if (s == "using") {
+            return Using;
+          }
+          break;
+        case 'w':
+          if (s == "while") {
+            return While;
+          }
+          break;
       }
       break;
     case 6:
-      if (s == "inline") {
-        return Inline;
-      }
-      if (s == "public") {
-        return Public;
-      }
-      if (s == "return") {
-        return Return;
-      }
-      if (s == "static") {
-        return Static;
-      }
-      if (s == "struct") {
-        return Struct;
-      }
-      if (s == "switch") {
-        return Switch;
+      switch (s[0]) {
+        case 'i':
+          if (s == "inline") {
+            return Inline;
+          }
+          break;
+        case 'p':
+          if (s == "public") {
+            return Public;
+          }
+          break;
+        case 'r':
+          if (s == "return") [[likely]] {
+            return Return;
+          }
+          break;
+        case 's':
+          if (s == "static") {
+            return Static;
+          }
+          if (s == "struct") [[likely]] {
+            return Struct;
+          }
+          if (s == "switch") {
+            return Switch;
+          }
+          break;
       }
       break;
     case 7:
-      if (s == "private") {
-        return Private;
+      switch (s[0]) {
+        case 'p':
+          if (s == "private") {
+            return Private;
+          }
+          break;
       }
       break;
+
     case 8:
-      if (s == "continue") {
-        return Continue;
-      }
-      if (s == "template") {
-        return Template;
+      switch (s[0]) {
+        case 'c':
+          if (s == "continue") {
+            return Continue;
+          }
+          break;
+        case 't':
+          if (s == "template") {
+            return Template;
+          }
+          break;
       }
       break;
+
     case 9:
-      if (s == "constexpr") {
-        return Constexpr;
-      }
-      if (s == "namespace") {
-        return Namespace;
+      switch (s[0]) {
+        case 'c':
+          if (s == "constexpr") {
+            return Constexpr;
+          }
+          break;
+        case 'n':
+          if (s == "namespace") {
+            return Namespace;
+          }
+          break;
       }
       break;
   }
-  return Invalid;
+  return Word;
 }
 
-void TokenStream::token_types_populate()
+void TokenStream::token_types_populate(TokenData &tokens)
 {
   int tok_id = -1;
-  for (char &c : token_types) {
+  for (TokenType &type : tokens.types) {
     tok_id++;
-    if (TokenType(c) == Word) {
-      IndexRange range = token_offsets[tok_id];
-      std::string_view word(str.data() + range.start, range.size);
-
-      size_t last_non_whitespace = word.find_last_not_of(" \n");
-      if (last_non_whitespace == std::string::npos) {
-        continue;
-      }
-
-      word.remove_suffix(word.size() - last_non_whitespace - 1);
-
-      TokenType type = type_lookup(word);
-      if (type != Invalid) {
-        c = type;
-      }
+    if (type == Word) {
+      IndexRange range = tokens.offsets[tok_id];
+      type = type_lookup({str.data() + range.start, size_t(tokens.sizes[tok_id])});
     }
   }
 }

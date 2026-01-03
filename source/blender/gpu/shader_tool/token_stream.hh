@@ -40,7 +40,7 @@ struct TokenStream {
   /* TODO(fclem): Find better naming convention for these functions. */
   void token_parse(struct TokenData &tokens);
   void token_merge(struct TokenData &tokens);
-  void token_types_populate();
+  void token_types_populate(struct TokenData &tokens);
   void scope_parse(report_callback &report_error);
   void scope_token_populate();
 };
