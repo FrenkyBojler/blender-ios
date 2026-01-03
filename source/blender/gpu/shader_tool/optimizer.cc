@@ -19,6 +19,92 @@ using namespace blender::gpu::shader;
 using namespace blender::gpu::shader::parser;
 using namespace std;
 
+static void first_pass(parser::IntermediateForm &parser, unordered_map<string, Token> functions)
+{
+  unordered_set<string> defines;
+
+  auto process_disabled_scope = [&](Token start_tok) {
+    /* Search for endif with the same indentation. Assume formatted input. */
+    string end_str = start_tok.str_with_whitespace() + "endif";
+    size_t scope_end = parser.str().find(end_str, start_tok.str_index_start());
+    if (scope_end == string::npos) {
+      return;
+    }
+    /* Search for else/elif with the same indentation. Assume formatted input. */
+    string else_str = start_tok.str_with_whitespace() + "el";
+    size_t scope_else = parser.str().find(else_str, start_tok.str_index_start());
+    if (scope_else != string::npos && scope_else < scope_end) {
+      /* Only erase the content and keep the preprocessor directives. */
+      parser.erase(start_tok.line_end() + 1, scope_else - 1);
+    }
+    else {
+      /* Erase the content and the preprocessor directives. */
+      parser.erase(start_tok.str_index_start(), scope_end + end_str.size());
+    }
+  };
+
+  parser().foreach_token(Word, [&](const Token &t) {
+    if (t.prev() == '#' && t.next() == Word) {
+      /* Preprocessor. */
+      if (t.str() == "define") {
+        defines.insert(t.next().str());
+      }
+      else if (t.str() == "ifndef") {
+        if (defines.find(t.next().str()) != defines.end()) {
+          process_disabled_scope(t.prev());
+        }
+      }
+      else if (t.str() == "ifdef") {
+        if (defines.find(t.next().str()) == defines.end()) {
+          process_disabled_scope(t.prev());
+        }
+      }
+      else if (t.str() == "if") {
+        if (t.next().str() == "defined") {
+          if (defines.find(t.next().next().next().str()) == defines.end()) {
+            process_disabled_scope(t.prev());
+          }
+        }
+      }
+    }
+    else if (t.next() == '(') {
+      /* Functions. */
+      if (t.prev() == Word && t.prev().scope().type() != ScopeType::Preprocessor) {
+        /* Definition. */
+        functions.emplace(t.str(), t);
+      }
+      else {
+        auto it = functions.find(t.str());
+        if (it == functions.end()) {
+        }
+        else {
+          it->second = Token::invalid();
+        }
+      }
+    }
+  });
+}
+
+static void prune_functions(parser::IntermediateForm &parser,
+                            unordered_map<string, Token> &functions)
+{
+  for (auto [_, value] : functions) {
+    if (value.is_valid() && value.str() != "main") {
+      Token type = value.prev();
+      Token end_of_args = value.next().scope().back();
+      if (end_of_args.next() == '{') {
+        /* Full definition. */
+        Token end_of_body = end_of_args.next().scope().back();
+        parser.replace_try(type, end_of_body, "");
+      }
+      else {
+        /* Prototype. */
+        parser.replace_try(type, end_of_args, "");
+      }
+    }
+  }
+}
+
 int main(int argc, char **argv)
 {
   if (argc < 2) {
@@ -79,93 +165,16 @@ int main(int argc, char **argv)
   {
     TimeIt time_it(time);
     for (int i = 0; i < 100; i++) {
+
       parser::IntermediateForm parser(buffer.str(), report_error);
+
+      {
+        unordered_map<string, Token> functions;
+        first_pass(parser, functions);
+        prune_functions(parser, functions);
+      }
+      result = parser.result_get();
     }
-
-    parser::IntermediateForm parser(buffer.str(), report_error);
-
-    auto process_disabled_scope = [&](Token start_tok) {
-      /* Search for endif with the same indentation. Assume formatted input. */
-      string end_str = start_tok.str_with_whitespace() + "endif";
-      size_t scope_end = parser.str().find(end_str, start_tok.str_index_start());
-      if (scope_end == string::npos) {
-        return;
-      }
-      /* Search for else/elif with the same indentation. Assume formatted input. */
-      string else_str = start_tok.str_with_whitespace() + "el";
-      size_t scope_else = parser.str().find(else_str, start_tok.str_index_start());
-      if (scope_else != string::npos && scope_else < scope_end) {
-        /* Only erase the content and keep the preprocessor directives. */
-        parser.erase(start_tok.line_end() + 1, scope_else - 1);
-      }
-      else {
-        /* Erase the content and the preprocessor directives. */
-        parser.erase(start_tok.str_index_start(), scope_end + end_str.size());
-      }
-    };
-
-    {
-      unordered_set<string> defines;
-      unordered_map<string, Token> functions;
-
-      parser().foreach_token(Word, [&](const Token &t) {
-        if (t.prev() == '#' && t.next() == Word) {
-          /* Preprocessor. */
-          if (t.str() == "define") {
-            defines.insert(t.next().str());
-          }
-          else if (t.str() == "ifndef") {
-            if (defines.find(t.next().str()) != defines.end()) {
-              process_disabled_scope(t.prev());
-            }
-          }
-          else if (t.str() == "ifdef") {
-            if (defines.find(t.next().str()) == defines.end()) {
-              process_disabled_scope(t.prev());
-            }
-          }
-          else if (t.str() == "if") {
-            if (t.next().str() == "defined") {
-              if (defines.find(t.next().next().next().str()) == defines.end()) {
-                process_disabled_scope(t.prev());
-              }
-            }
-          }
-        }
-        else if (t.next() == '(') {
-          /* Functions. */
-          if (t.prev() == Word && t.prev().scope().type() != ScopeType::Preprocessor) {
-            /* Definition. */
-            functions.emplace(t.str(), t);
-          }
-          else {
-            auto it = functions.find(t.str());
-            if (it == functions.end()) {
-            }
-            else {
-              it->second = Token::invalid();
-            }
-          }
-        }
-      });
-
-      for (auto [_, value] : functions) {
-        if (value.is_valid() && value.str() != "main") {
-          Token type = value.prev();
-          Token end_of_args = value.next().scope().back();
-          if (end_of_args.next() == '{') {
-            /* Full definition. */
-            Token end_of_body = end_of_args.next().scope().back();
-            parser.replace_try(type, end_of_body, "");
-          }
-          else {
-            /* Prototype. */
-            parser.replace_try(type, end_of_args, "");
-          }
-        }
-      }
-    }
-    result = parser.result_get();
   }
 
   std::cout << "Optimize: " << time.count() << " µs" << std::endl;
