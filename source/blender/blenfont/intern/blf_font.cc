@@ -347,43 +347,6 @@ void BLF_batch_discard()
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Glyph Stepping Utilities (Internal)
- * \{ */
-
-BLI_INLINE GlyphBLF *blf_glyph_from_utf8_and_step(FontBLF *font,
-                                                  GlyphCacheBLF *gc,
-                                                  const GlyphBLF *g_prev,
-                                                  const char *str,
-                                                  const size_t str_len,
-                                                  size_t *i_p,
-                                                  int32_t *pen_x)
-{
-  uint charcode = BLI_str_utf8_as_unicode_step_safe(str, str_len, i_p);
-  /* Invalid unicode sequences return the byte value, stepping forward one.
-   * This allows `latin1` to display (which is sometimes used for file-paths). */
-  BLI_assert(charcode != BLI_UTF8_ERR);
-  GlyphBLF *g = blf_glyph_ensure(font, gc, charcode);
-  if (g && pen_x && !(font->flags & BLF_MONOSPACED)) {
-    *pen_x += g->lsb_delta - ((g_prev) ? g_prev->rsb_delta : 0);
-
-#ifdef BLF_SUBPIXEL_POSITION
-    if (!(font->flags & BLF_RENDER_SUBPIXELAA)) {
-      *pen_x = FT_PIX_ROUND(*pen_x);
-    }
-#else
-    *pen_x = FT_PIX_ROUND(*pen_x);
-#endif
-
-#ifdef BLF_SUBPIXEL_AA
-    g = blf_glyph_ensure_subpixel(font, gc, g, *pen_x);
-#endif
-  }
-  return g;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Text Drawing: GPU
  * \{ */
 
@@ -661,7 +624,6 @@ int blf_font_draw_mono(
     return 0;
   }
 
-  ft_pix cwidth_fpx = ft_pix_from_int(cwidth);
   int columns = 0;
 
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
@@ -1181,7 +1143,7 @@ int blf_str_offset_to_cursor(FontBLF *font,
   }
 
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
-  ShapingData text(font, gc, str, strlen(str));
+  ShapingData text(font, gc, str, str_len);
   blf_glyph_cache_release(font);
 
   size_t index = 0;
@@ -1270,8 +1232,8 @@ static void blf_font_wrap_apply(FontBLF *font,
                                                  void *userdata),
                                 void *userdata)
 {
-  GlyphBLF *g = nullptr;
-  const GlyphBLF *g_prev = nullptr;
+  uint codepoint = 0;
+  uint codepoint_prev = 0;
   ft_pix pen_x = 0;
   ft_pix pen_y = 0;
   size_t i = 0;
@@ -1297,11 +1259,10 @@ static void blf_font_wrap_apply(FontBLF *font,
     const size_t i_curr = i;
     bool do_draw = false;
 
-    g = blf_glyph_from_utf8_and_step(font, gc, g_prev, str, str_len, &i, &pen_x);
-
+    codepoint_prev = codepoint;
+    codepoint = BLI_str_utf8_as_unicode_step_safe(str, str_len, &i);
+    GlyphBLF *g = blf_glyph_ensure(font, gc, codepoint);
     const ft_pix advance_x = g ? g->advance_x : 0;
-    const uint codepoint = BLI_str_utf8_as_unicode_safe(&str[i_curr]);
-    const uint codepoint_prev = g_prev ? g_prev->c : 0;
 
     /**
      * Implementation Detail (UTF8).
@@ -1339,7 +1300,7 @@ static void blf_font_wrap_apply(FontBLF *font,
       clip_bytes = 1;
     }
     else if (UNLIKELY(((int(mode) & int(BLFWrapMode::Minimal)) == int(BLFWrapMode::Minimal)) &&
-                      codepoint != ' ' && (g_prev ? g_prev->c == ' ' : false)))
+                      codepoint != ' ' && codepoint_prev == ' '))
     {
       wrap.last[0] = i_curr;
       wrap.last[1] = i_curr;
@@ -1404,13 +1365,11 @@ static void blf_font_wrap_apply(FontBLF *font,
       i = wrap.last[1];
       pen_x = 0;
       pen_y -= line_height;
-      g_prev = nullptr;
       lines += 1;
       continue;
     }
 
     pen_x = pen_x_next;
-    g_prev = g;
   }
 
   // printf("done! lines: %d, width, %d\n", lines, pen_x_next);
@@ -1921,7 +1880,7 @@ bool blf_ensure_face(FontBLF *font)
   if (err) {
     err = FT_Select_Charmap(font->face, FT_ENCODING_APPLE_ROMAN);
   }
-  if (err && font->face->num_charmaps > 0) {
+  if (err && font->face && font->face->num_charmaps > 0) {
     err = FT_Select_Charmap(font->face, font->face->charmaps[0]->encoding);
   }
   if (err) {
