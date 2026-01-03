@@ -2267,7 +2267,7 @@ static float brush_strength(const Sculpt &sd,
 
     case SCULPT_BRUSH_TYPE_MASK:
       overlap = (1.0f + overlap) / 2.0f;
-      switch ((BrushMaskTool)brush.mask_tool) {
+      switch (brush.mask_tool) {
         case BRUSH_MASK_DRAW:
           return alpha * flip * pressure * overlap * feather;
         case BRUSH_MASK_SMOOTH:
@@ -3379,7 +3379,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
       brushes::do_clay_thumb_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_MASK:
-      switch ((BrushMaskTool)brush.mask_tool) {
+      switch (brush.mask_tool) {
         case BRUSH_MASK_DRAW:
           brushes::do_mask_brush(depsgraph, sd, ob, node_mask);
           break;

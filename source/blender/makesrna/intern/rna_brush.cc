@@ -858,7 +858,7 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C,
         case SCULPT_BRUSH_TYPE_SMOOTH:
           return prop_smooth_direction_items;
         case SCULPT_BRUSH_TYPE_MASK:
-          switch ((BrushMaskTool)me->mask_tool) {
+          switch (me->mask_tool) {
             case BRUSH_MASK_DRAW:
               return prop_direction_items;
 
