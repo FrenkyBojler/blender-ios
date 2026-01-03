@@ -890,10 +890,10 @@ void CTX_data_list_add_ptr(bContextDataResult *result, const PointerRNA *ptr)
 }
 
 int ctx_data_list_count(const bContext &C,
-                        bool (*func)(const bContext *, blender::Vector<PointerRNA> *))
+                        bool (*func)(const bContext &, blender::Vector<PointerRNA> *))
 {
   blender::Vector<PointerRNA> list;
-  if (func(&C, &list)) {
+  if (func(C, &list)) {
     return list.size();
   }
   return 0;

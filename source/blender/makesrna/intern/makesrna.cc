@@ -2569,7 +2569,7 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
         fprintf(f, ", ");
       }
       first = 0;
-      fprintf(f, "CTX_data_main(C)"); /* may have direct access later */
+      fprintf(f, "CTX_data_main(*C)"); /* may have direct access later */
     }
 
     if (func->flag & FUNC_USE_CONTEXT) {

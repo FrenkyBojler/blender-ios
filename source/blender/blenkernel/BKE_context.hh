@@ -361,7 +361,7 @@ bool CTX_data_dir(const char *member);
     Type_id instance_id = (Type_id)ctx_link.owner_id;
 
 int ctx_data_list_count(const bContext &C,
-                        bool (*func)(const bContext *, blender::Vector<PointerRNA> *));
+                        bool (*func)(const bContext &, blender::Vector<PointerRNA> *));
 
 #define CTX_DATA_COUNT(C, member) ctx_data_list_count(C, CTX_data_##member)
 
