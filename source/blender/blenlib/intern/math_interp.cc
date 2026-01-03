@@ -538,61 +538,38 @@ void interpolate_cubic_mitchell_fl(
 static const int MAX_PER_RADIUS = 8;
 static const int MAX_SAMPLES = 4 * MAX_PER_RADIUS + 1;
 
-/* Compute a 1-d box filter */
-BLI_INLINE int make_samples_box(int width,
-                                InterpWrapMode wrap,
-                                float u,
-                                float w,
-                                int positions[MAX_SAMPLES],
-                                float weights[MAX_SAMPLES])
+/* Compute 1-d filters and sample locations. */
+template <Sampler sampler>
+BLI_INLINE int make_samples(int width,
+                            InterpWrapMode wrap,
+                            float u,
+                            float w,
+                            int positions[MAX_SAMPLES],
+                            float weights[MAX_SAMPLES])
 {
   /* this test is written so that NaN turns into 1.0f */
   if (!(w >= 1.0f)) {
     w = 1.0f;
   }
-  float r = (w + 1.0f) / 2.0f;
-  float d = ceilf(w / MAX_PER_RADIUS);
-  float v = ceilf(u - r - 0.5f) + 0.5f; /* first non-zero pixel */
-  int count = 0;
-  float sum = 0.0f;
-  for (float x = v - u; x < r; x += d) {
-    float weight = math::min(r - math::abs(x), 1.0f);
-    sum += weight;
-    int y = wrap_coord(u + x, width, wrap);
-    if (y >= 0) {
-      positions[count] = y;
-      weights[count] = weight;
-      count++;
-    }
+  float r;
+  if constexpr (sampler == Sampler::Bspline) {
+    r = 2.0f * w;
+  } else { /* sampler == Sampler::Box */
+    r = (w + 1.0f) / 2.0f;
   }
-  float m = 1.0f / sum;
-  for (int i = 0; i < count; ++i) {
-    weights[i] *= m;
-  }
-  return count;
-}
-
-/* Compute a 1-d bspline filter */
-BLI_INLINE int make_samples_bspline(int width,
-                                    InterpWrapMode wrap,
-                                    float u,
-                                    float w,
-                                    int positions[MAX_SAMPLES],
-                                    float weights[MAX_SAMPLES])
-{
-  /* this test is written so that NaN turns into 1.0f */
-  if (!(w >= 1.0f)) {
-    w = 1.0f;
-  }
-  float r = 2.0f * w;
   float d = ceilf(w / MAX_PER_RADIUS);
   float v = ceilf(u - r - 0.5f) + 0.5f; /* first non-zero pixel */
   int count = 0;
   float sum = 0.0f;
   for (float xx = v - u; xx < r; xx += d) {
     float x = math::abs(xx / w);
-    float weight = x < 1.0f ? (0.5f * x - 1.0f) * x * x + 4.0f / 6.0f :
-                              ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
+    float weight;
+    if constexpr (sampler == Sampler::Bspline) {
+      weight = x < 1.0f ? (0.5f * x - 1.0f) * x * x + 4.0f / 6.0f :
+                          ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
+    } else { /* sampler == Sampler::Box */
+      weight = math::min(r - math::abs(xx), 1.0f);
+    }
     sum += weight;
     int y = wrap_coord(u + xx, width, wrap);
     if (y >= 0) {
@@ -608,29 +585,18 @@ BLI_INLINE int make_samples_bspline(int width,
   return count;
 }
 
-BLI_INLINE float4 _sample_rect(Sampler sampler, InterpWrapMode wrap_x, InterpWrapMode wrap_y,
+template <Sampler sampler>
+BLI_INLINE float4 _sample_rect(InterpWrapMode wrap_x, InterpWrapMode wrap_y,
                                const float* buffer, int width, int height, int components,
                                float2 uv, float2 wh)
 {
   int positions_y[MAX_SAMPLES];
   float weights_y[MAX_SAMPLES];
-  int ny;
+  const int ny = make_samples<sampler>(height, wrap_y, uv.y, wh.y, positions_y, weights_y);
+
   int positions_x[MAX_SAMPLES];
   float weights_x[MAX_SAMPLES];
-  int nx;
-  switch (sampler) {
-  default: //case Sampler::Box:
-    ny = make_samples_box(height, wrap_y, uv.y, wh.y, positions_y, weights_y);
-    nx = make_samples_box(width, wrap_x, uv.x, wh.x, positions_x, weights_x);
-    break;
-  case Sampler::Bspline:
-    ny = make_samples_bspline(height, wrap_y, uv.y, wh.y, positions_y, weights_y);
-    nx = make_samples_bspline(width, wrap_x, uv.x, wh.x, positions_x, weights_x);
-    break;
-  }
-  if (!nx || !ny) {
-    return float4(0.0f);
-  }
+  const int nx = make_samples<sampler>(width, wrap_x, uv.x, wh.x, positions_x, weights_x);
 
   switch (components) {
     default: { /* case 1: */
@@ -721,14 +687,14 @@ static float4 sample_bilinear(const SamplerSource &source, const float2 &uv, con
 
 static float4 sample_box(const SamplerSource &source, const float2 &uv, const float2 &wh)
 {
-  return _sample_rect(Sampler::Box, source.wrap_x, source.wrap_y,
+  return _sample_rect<Sampler::Box>(source.wrap_x, source.wrap_y,
                       source.buffer, source.width, source.height, source.components,
                       uv, wh);
 }
 
 static float4 sample_bspline(const SamplerSource &source, const float2 &uv, const float2 &wh)
 {
-  return _sample_rect(Sampler::Bspline, source.wrap_x, source.wrap_y,
+  return _sample_rect<Sampler::Bspline>(source.wrap_x, source.wrap_y,
                       source.buffer, source.width, source.height, source.components,
                       uv, wh);
 }
@@ -785,21 +751,21 @@ static inline float2 hypot(const float2 &a, const float2 &b)
 
 static float4 sample_box_a(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy)
 {
-  return _sample_rect(Sampler::Box, source.wrap_x, source.wrap_y,
+  return _sample_rect<Sampler::Box>(source.wrap_x, source.wrap_y,
                       source.buffer, source.width, source.height, source.components,
                       uv, hypot(dPdx, dPdy));
 }
 
 static float4 sample_box4_a(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy)
 {
-  return _sample_rect(Sampler::Box, source.wrap_x, source.wrap_y,
+  return _sample_rect<Sampler::Box>(source.wrap_x, source.wrap_y,
                       source.buffer, source.width, source.height, 4,
                       uv, hypot(dPdx, dPdy));
 }
 
 static float4 sample_bspline_a(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy)
 {
-  return _sample_rect(Sampler::Bspline, source.wrap_x, source.wrap_y,
+  return _sample_rect<Sampler::Bspline>(source.wrap_x, source.wrap_y,
                       source.buffer, source.width, source.height, source.components,
                       uv, hypot(dPdx, dPdy));
 }
