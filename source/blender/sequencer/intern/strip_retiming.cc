@@ -119,6 +119,29 @@ void retiming_data_ensure(Strip *strip)
   strip->retiming_keys_num = 2;
 }
 
+int left_fake_key_frame_get(const Scene *scene, const Strip *strip)
+{
+  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const int sound_offset = strip->rounded_sound_offset(scene_fps);
+  const int content_start = strip->content_start() + sound_offset;
+  return max_ii(content_start, strip->left_handle());
+}
+
+int right_fake_key_frame_get(const Scene *scene, const Strip *strip)
+{
+  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const int sound_offset = strip->rounded_sound_offset(scene_fps);
+  const int content_end = strip->content_end(scene) + sound_offset;
+  return min_ii(content_end, strip->right_handle(scene));
+}
+
+SeqRetimingKey *ensure_left_and_right_keys(const Scene *scene, Strip *strip)
+{
+  retiming_data_ensure(strip);
+  retiming_add_key(scene, strip, left_fake_key_frame_get(scene, strip));
+  return retiming_add_key(scene, strip, right_fake_key_frame_get(scene, strip));
+}
+
 void retiming_data_clear(Strip *strip)
 {
   if (strip->retiming_keys != nullptr) {
