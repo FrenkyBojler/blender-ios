@@ -1820,7 +1820,6 @@ class CurvatureNode : public ShaderNode {
 
   NODE_SOCKET_API(float3, color)
   NODE_SOCKET_API(float, distance)
-  NODE_SOCKET_API(float3, normal)
   NODE_SOCKET_API(int, samples)
 
   NODE_SOCKET_API(bool, only_local)

@@ -1251,10 +1251,8 @@ struct SVMNodeCurvature {
   SVMInputFloat dist;
   uint8_t flags;
   uint8_t samples;
-  SVMStackOffset normal_offset;
   SVMStackOffset out_curvature_offset;
   SVMStackOffset out_color_offset;
-  uint8_t _pad[3];
 };
 static_assert(alignof(SVMNodeCurvature) <= alignof(uint));
 static_assert(sizeof(SVMNodeCurvature) % sizeof(uint) == 0);

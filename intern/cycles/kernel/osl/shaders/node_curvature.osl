@@ -7,24 +7,12 @@
 shader node_curvature(color ColorIn = color(1.0, 1.0, 1.0),
                       int samples = 16,
                       float Distance = 1.0,
-                      normal Normal = N,
                       int only_local = 0,
                       output color ColorOut = color(1.0, 1.0, 1.0),
                       output float Curvature = 1.0)
 {
-  normal normalized_normal = normalize(Normal);
-
   /* Abuse texture call with special @curvature token. */
-  Curvature = texture("@curvature",
-                      samples,
-                      Distance,
-                      normalized_normal[0],
-                      normalized_normal[1],
-                      normalized_normal[2],
-                      0,
-                      "sblur",
-                      only_local,
-                      "tblur",
-                      0);
+  Curvature = texture(
+      "@curvature", samples, Distance, 0.0, 0.0, 1.0, 0, "sblur", only_local, "tblur", 0);
   ColorOut = ColorIn * Curvature;
 }

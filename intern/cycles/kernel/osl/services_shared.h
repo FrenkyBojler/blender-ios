@@ -792,12 +792,11 @@ ccl_device bool osl_shared_texture(KernelGlobals kg,
       if (state != nullptr) {
         const int num_samples = int(s);
         const float radius = t;
-        const float3 N = make_float3(dsdx, dtdx, dsdy);
         int flags = 0;
         if (int(options->sblur)) {
           flags |= NODE_CURVATURE_ONLY_LOCAL;
         }
-        result[0] = svm_curvature(kg, state, sd, N, radius, num_samples, flags);
+        result[0] = svm_curvature(kg, state, sd, radius, num_samples, flags);
         status = true;
       }
 #else

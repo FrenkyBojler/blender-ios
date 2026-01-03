@@ -27,7 +27,6 @@ ccl_device float svm_curvature(
     KernelGlobals kg,
     ConstIntegratorState state,
     ccl_private ShaderData *sd,
-    float3 N,
     float max_dist,
     const int num_samples,
     const int flags)
@@ -42,6 +41,7 @@ ccl_device float svm_curvature(
     return 1.0f;
   }
 
+  float3 N = sd->N;
   float3 T;
   float3 B;
   make_orthonormals(N, &T, &B);
@@ -105,13 +105,11 @@ ccl_device_noinline
   IF_KERNEL_NODES_FEATURE(RAYTRACE)
   {
     float dist = stack_load(stack, node.dist);
-    float3 normal = stack_load_float3_default(stack, node.normal_offset, sd->N);
-    normal = safe_normalize(normal);
 
 #  ifdef __KERNEL_OPTIX__
-    curvature = optixDirectCall<float>(0, kg, state, sd, normal, dist, node.samples, node.flags);
+    curvature = optixDirectCall<float>(0, kg, state, sd, dist, node.samples, node.flags);
 #  else
-    curvature = svm_curvature(kg, state, sd, normal, dist, node.samples, node.flags);
+    curvature = svm_curvature(kg, state, sd, dist, node.samples, node.flags);
 #  endif
   }
 

@@ -17,7 +17,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Color"_ustr).default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Distance"_ustr).default_value(1.0f).min(0.0f).max(1000.0f);
-  b.add_input<decl::Vector>("Normal"_ustr).min(-1.0f).max(1.0f).hide_value();
   b.add_output<decl::Color>("Color"_ustr);
   b.add_output<decl::Float>("Curvature"_ustr);
 }
@@ -34,9 +33,6 @@ static int node_shader_gpu_curvature(GPUMaterial *mat,
                                      GPUNodeStack *in,
                                      GPUNodeStack *out)
 {
-  if (!in[2].link) {
-    GPU_link(mat, "world_normals_get", &in[2].link);
-  }
 
   GPU_material_flag_set(mat, GPU_MATFLAG_CURVATURE);
 
