@@ -161,6 +161,20 @@ class MeshPattern {
    */
   SmallIntArray faces_for_centerline(const int first_anchor) const;
 
+  /** Return the vertex indices on the center line between first_anchor and the one after that.
+   * This will only be non-empty for Adj with even segments, and excludes the center polygon.
+   */
+  SmallIntArray verts_for_centerline(const int first_anchor) const;
+
+  /** Return the corners attached to \a vert, counting the first corner in the vmesh as 0.
+   * For verts at anchors there will be only one corner.
+   * For verts on the outer boundary, there will be two, and we put them in the order of going
+   * counterclockwise around the boundary.
+   * For internal verts with offsets (from anchor) of zero, start at the face towards the outer
+   * ring and go ccw. For the rest, start at the "lower left" face and go ccw.
+   */
+  SmallIntArray corners_for_vert(const int vert) const;
+
   /** Return the AdjVertKind for pattern vert \a v relative to anchor \a anchor.
    * Return Interior if not an Adj kind. */
   AdjVertKind adj_vert_kind(const int v, const int anchor) const;
@@ -2680,6 +2694,16 @@ static std::pair<int4, int4> face_vertices_and_edges(int f, int nv, int ns)
   return std::pair<int4, int4>(vertices, edges);
 }
 
+/** Return the starting corner of face f, where the first corner of the whole
+ * pattern gets the value zero. */
+static int face_start_corner(int f, int nv, int ns)
+{
+  if ((ns % 2) == 0) {
+    return f * 4;
+  }
+  return f == 0 ? 0 : nv + 4 * (f - 1);
+}
+
 [[maybe_unused]] static void print_adj_pattern(int nv, int ns)
 {
   fmt::println("\nnv = {}, ns = {}", nv, ns);
@@ -3669,7 +3693,6 @@ static void create_ngon_uvs(const int newface,
         interp_f_pos_2d, interp_f_corner_uvs, pos_2d);
   }
 }
-
 /** Are there any UV gaps between anchor and the next anchor? */
 static bool any_gaps_between_anchors(const int anchor1,
                                      const int anchor2,
@@ -3694,6 +3717,26 @@ static bool any_gaps_between_anchors(const int anchor1,
     }
   } while ((pos = bs.next_edge_pos(bv, pos)) != pos_last);
   return false;
+}
+
+/** Merge the UVs for the adj pattern when there are an even number of segments. */
+static void merge_even_adj_face_uvs(const int bv,
+                                    const int uv_map_index,
+                                    const Array<UVGapKind, 20> &gaps,
+                                    Vector<Array<float2>> &uv_attributes,
+                                    const BevelState &bs)
+{
+  fmt::println("merge_even_adj_face_uvs for bv ={}", bv);
+  const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
+  BLI_assert(pat.kind == MeshKind::Adj && (pat.num_segs % 2) == 0);
+  for (const int a : IndexRange(pat.num_anchors)) {
+    const int anext = pat.next_anchor(a);
+    if (any_gaps_between_anchors(a, anext, bv, true, gaps, bs)) {
+      continue;
+    }
+    SmallIntArray cline = pat.verts_for_centerline(a);
+    print_span(cline.as_span(), "cline");
+  }
 }
 
 /** For the face with index \a f in the adj pattern for bevvert \a bv, calculate the UV position
@@ -3772,6 +3815,16 @@ static void calculate_vertex_mesh_face_uvs(const int bevvert,
     case MeshKind::Adj: {
       for (const int f : IndexRange(nums[2])) {
         calculate_adj_face_uvs(f, bevvert, gaps, uv_map_index, uv_attributes, bs);
+      }
+      fmt::println("pattern for bevvert {}", bevvert);
+      adj::print_adj_pattern(pat.num_anchors, pat.num_segs);
+      for (const int v : IndexRange(adj::v_total_verts(pat.num_anchors, pat.num_segs))) {
+        fmt::println("corners for v={}", v);
+        SmallIntArray cs = pat.corners_for_vert(v);
+        print_span(cs.as_span(), "corners");
+      }
+      if ((pat.num_segs % 2) == 0) {
+        merge_even_adj_face_uvs(bevvert, uv_map_index, gaps, uv_attributes, bs);
       }
       break;
     }
@@ -4200,10 +4253,107 @@ SmallIntArray MeshPattern::faces_for_centerline(const int first_anchor) const
   for (int r = 1; r < num_face_rings; r++) {
     const int ring_side = adj::f_ringlen(r, num_anchors, num_segs) / num_anchors + 1;
     const int half_ring_side = ring_side / 2;
-    const int v = adj::rao_to_face(r, first_anchor, half_ring_side, num_anchors, num_segs);
+    const int f = adj::rao_to_face(r, first_anchor, half_ring_side, num_anchors, num_segs);
+    ans[r - 1] = f;
+  }
+  return ans;
+}
+
+/** Return the vertex indices on the center line between first_anchor and the one after that.
+ * This will only be non-empty for Adj with even segments, and excludes the center polygon.
+ */
+SmallIntArray MeshPattern::verts_for_centerline(const int first_anchor) const
+{
+  if (kind != MeshKind::Adj || ((num_segs % 2) == 1)) {
+    return SmallIntArray(0);
+  }
+  const int n2 = num_segs / 2;
+  const int num_vert_rings = adj::v_num_rings(num_segs);
+  SmallIntArray ans(num_vert_rings - 1);
+  for (int r = 1; r < num_vert_rings; r++) {
+    const int ring_side = adj::v_ringlen(r, num_anchors, num_segs) / num_anchors + 1;
+    const int offset = ring_side / 2;
+    const int v = adj::rao_to_vert(r, first_anchor, offset, num_anchors, num_segs);
     ans[r - 1] = v;
   }
   return ans;
+}
+
+/** Return the corners attached to \a vert, counting the first corner in the vmesh as 0.
+ * For verts at anchors there will be only one corner.
+ * For verts on the outer boundary, there will be two, and we put them in the order of going
+ * counterclockwise around the boundary.
+ * For internal verts with offsets (from anchor) of zero, start at the face towards the outer
+ * ring and go ccw. For the rest, start at the "lower left" face and go ccw.
+ */
+SmallIntArray MeshPattern::corners_for_vert(const int vert) const
+{
+  if (kind == MeshKind::Adj) {
+    const bool odd = (num_segs % 2) == 1;
+    if (vert == 0 && !odd) {
+      /* We want the corners around the center vert. */
+      SmallIntArray ans(num_anchors);
+      for (const int f : ans.index_range()) {
+        ans[f] = adj::face_start_corner(f, num_anchors, num_segs) + 2;
+      }
+      return ans;
+    }
+    const int3 rao = adj::v_ring_anchor_offset(vert, num_anchors, num_segs);
+    const int r = rao[0];
+    const int a = rao[1];
+    const int o = rao[2];
+    const int inside_face_r = odd ? r : r - 1;
+    const int outside_face_r = inside_face_r + 1;
+    const int outer_r = adj::v_num_rings(num_segs) - 1;
+    if (o == 0) {
+      if (r == outer_r) {
+        /* Only one corner: the one at the start of the corresponding face. */
+        const int f = adj::rao_to_face(inside_face_r, a, 0, num_anchors, num_segs);
+        if (odd && inside_face_r == 0) {
+          return SmallIntArray({a});
+        }
+        return SmallIntArray({adj::face_start_corner(f, num_anchors, num_segs)});
+      }
+      else {
+        /* Along the "anchor line" but not on the outer ring.
+         * Start with the face towards the outside at vert, and go ccw. */
+        const int f0 = adj::rao_to_face(outside_face_r, a, 0, num_anchors, num_segs);
+        const int f1 = f0 + 1;
+        const int f2 = adj::rao_to_face(inside_face_r, a, 0, num_anchors, num_segs);
+        const int f3 = (a == 0) ? f0 + adj::f_ringlen(outside_face_r, num_anchors, num_segs) - 1 :
+                                  f0 - 1;
+        return SmallIntArray({adj::face_start_corner(f0, num_anchors, num_segs) + 2,
+                              adj::face_start_corner(f1, num_anchors, num_segs) + 3,
+                              adj::face_start_corner(f2, num_anchors, num_segs),
+                              adj::face_start_corner(f3, num_anchors, num_segs) + 1});
+      }
+    }
+    else {
+      /* o != 0 */
+      if (r == outer_r) {
+        /* Two boundary verts only. Put them in CCW order around boundary. */
+        const int f1 = adj::rao_to_face(inside_face_r, a, 0, num_anchors, num_segs) + o;
+        const int f0 = f1 - 1;
+        return SmallIntArray({adj::face_start_corner(f0, num_anchors, num_segs) + 1,
+                              adj::face_start_corner(f1, num_anchors, num_segs)});
+      }
+      else {
+        /* Interior vert, not on "anchor line". */
+        /* Note that "o" is offset on inside face ring, so using o on the outer one gets preceding
+         * face. */
+        const int f0 = adj::rao_to_face(outside_face_r, a, 0, num_anchors, num_segs) + o;
+        const int f1 = f0 + 1;
+        const int f2 = adj::rao_to_face(inside_face_r, a, 0, num_anchors, num_segs) + o;
+        const int f3 = f2 - 1;
+        return SmallIntArray({adj::face_start_corner(f0, num_anchors, num_segs) + 2,
+                              adj::face_start_corner(f1, num_anchors, num_segs) + 3,
+                              adj::face_start_corner(f2, num_anchors, num_segs),
+                              adj::face_start_corner(f3, num_anchors, num_segs) + 1});
+      }
+    }
+  }
+  /* TODO? other kinds of Meshes if needed. */
+  return SmallIntArray(0);
 }
 
 AdjVertKind MeshPattern::adj_vert_kind(const int v, const int anchor) const
