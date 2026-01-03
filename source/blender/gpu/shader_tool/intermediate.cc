@@ -683,6 +683,9 @@ struct ScopeStack {
 
 void TokenStream::scope_parse(report_callback &report_error)
 {
+  Token error_token = Token::invalid();
+  const char *error_msg = nullptr;
+
   size_t predicted_scope_count = token_types.size() / 2;
 
   ScopeStack stack(predicted_scope_count);
@@ -828,12 +831,9 @@ void TokenStream::scope_parse(report_callback &report_error)
           stack.exit_scope(tok_id);
         }
         else {
-          Token token = Token::from_position(this, tok_id);
-          report_error(
-              token.line_number(), token.char_number(), token.line_str(), "Unexpected '}' token");
-          /* Avoid out of bound access for the rest of the processing. Empty everything. */
-          *this = {};
-          return;
+          error_token = Token::from_position(this, tok_id);
+          error_msg = "Unexpected ')' token";
+          goto error;
         }
         break;
       case ParClose:
@@ -857,12 +857,9 @@ void TokenStream::scope_parse(report_callback &report_error)
           stack.exit_scope(tok_id);
         }
         else {
-          Token token = Token::from_position(this, tok_id);
-          report_error(
-              token.line_number(), token.char_number(), token.line_str(), "Unexpected ')' token");
-          /* Avoid out of bound access for the rest of the processing. Empty everything. */
-          *this = {};
-          return;
+          error_token = Token::from_position(this, tok_id);
+          error_msg = "Unexpected ')' token";
+          goto error;
         }
         break;
       case SquareClose:
@@ -925,15 +922,9 @@ void TokenStream::scope_parse(report_callback &report_error)
   }
 
   if (stack.empty()) {
-    Token token = Token::from_position(this, tok_id);
-    report_error(token.line_number(),
-                 token.char_number(),
-                 token.line_str(),
-                 "Extraneous end of scope somewhere in that file");
-
-    /* Avoid out of bound access for the rest of the processing. Empty everything. */
-    *this = {};
-    return;
+    error_token = Token::from_position(this, tok_id);
+    error_msg = "Extraneous end of scope somewhere in that file";
+    goto error;
   }
 
   if (stack.back().type == ScopeType::Preprocessor) {
@@ -942,12 +933,9 @@ void TokenStream::scope_parse(report_callback &report_error)
 
   if (stack.back().type != ScopeType::Global) {
     ScopeStack::Item scope_item = stack.back();
-    Token token = Token::from_position(this, scope_ranges[scope_item.index].start);
-    report_error(token.line_number(), token.char_number(), token.line_str(), "Unterminated scope");
-
-    /* Avoid out of bound access for the rest of the processing. Empty everything. */
-    *this = {};
-    return;
+    error_token = Token::from_position(this, scope_ranges[scope_item.index].start);
+    error_msg = "Unterminated scope";
+    goto error;
   }
 
   stack.exit_scope(tok_id);
@@ -956,6 +944,13 @@ void TokenStream::scope_parse(report_callback &report_error)
   this->scope_types = std::string(reinterpret_cast<char *>(stack.types.data()),
                                   stack.types.size());
   this->scope_ranges = std::move(stack.ranges);
+  return;
+
+error:
+  report_error(
+      error_token.line_number(), error_token.char_number(), error_token.line_str(), error_msg);
+  /* Avoid out of bound access for the rest of the processing. Empty everything. */
+  *this = {};
 }
 
 void TokenStream::scope_token_populate()
