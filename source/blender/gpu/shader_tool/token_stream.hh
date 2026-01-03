@@ -38,7 +38,7 @@ struct TokenStream {
 
  private:
   void token_parse(struct TokenData &tokens);
-  void token_offsets_populate(struct TokenData &tokens);
+  void token_merge(struct TokenData &tokens);
   void token_types_populate();
 };
 

@@ -101,11 +101,13 @@ void TokenStream::tokenize()
   TokenData data;
 
   token_parse(data);
-  // token_offsets_populate();
-  // token_types_populate();
+  token_merge(data);
 
   /* Convert vector of char to string for faster lookups. */
   this->token_types = std::string(reinterpret_cast<char *>(data.types.data()), data.types.size());
+  this->token_offsets = std::move(data.offsets);
+
+  token_types_populate();
 }
 
 static always_inline TokenType to_type(const char c)
@@ -185,16 +187,30 @@ static always_inline TokenType to_type(const char c)
   }
 }
 
-static const std::array<TokenType, 256> token_table = [] {
-  std::array<TokenType, 256> t;
+static always_inline bool always_split_token(const TokenType c)
+{
+  switch (c) {
+    case TokenType::Number:
+    case TokenType::Word:
+    case TokenType::NewLine:
+    case TokenType::Space:
+      return false;
+    default:
+      return true;
+  }
+}
+
+static const std::array<std::pair<TokenType, bool>, 256> token_table = [] {
+  std::array<std::pair<TokenType, bool>, 256> t;
   for (int i = 0; i < 256; ++i) {
-    t[i] = to_type(i);
+    TokenType type = to_type(i);
+    t[i] = {type, always_split_token(type)};
   }
   return t;
 }();
 
 /* Table lookup variant. Much faster than switch statement.  */
-static always_inline TokenType to_type_table(const unsigned char c)
+static always_inline std::pair<TokenType, bool> to_type_table(const unsigned char c)
 {
   return token_table[c];
 }
@@ -214,17 +230,19 @@ void TokenStream::token_parse(TokenData &tokens)
   int offset = 0, cursor = 0;
   for (const char c : str) {
     const TokenType prev = type;
-    type = to_type_table(c);
+    auto [tok_type, always_split] = to_type_table(c);
+    type = tok_type;
     /* Its faster to overwrite the previous value with the same value
      * than having a condition. */
     types_raw[cursor] = type;
     offsets_raw[cursor] = offset++;
     /* Split if type mismatch. */
-    cursor += (type != prev);
+    cursor += (type != prev || always_split);
   }
+  /* Set end of last token. */
+  offsets_raw[cursor] = offset++;
+  /* Resize to the actual usage. */
   tokens.types.resize(cursor);
-
-  tokens.offsets.offsets[cursor + 1] = offset++;
   tokens.offsets.offsets.resize(cursor + 1);
 }
 
@@ -265,159 +283,176 @@ static always_inline bool is_char_part_of_number_literal(const unsigned char c)
   return num_literal_table[c];
 }
 
-void TokenStream::token_offsets_populate(TokenData &tokens)
+static always_inline bool is_word_part_of_number_literal(const std::string_view str)
 {
-  std::vector<TokenType> test_types;
-  OffsetIndices test_offsets;
+  for (char c : str) {
+    if (!is_char_part_of_number_literal(c)) {
+      return false;
+    }
+  }
+  return true;
+}
 
-  /* Reserve space inside the data structures. Allocate 1 token per char as we do not want to
-   * resize or check for size inside the hot loop. */
-  test_types.reserve(str.size());
-  test_offsets.offsets.reserve(str.size() + 1);
+static always_inline bool is_whitespace(TokenType t)
+{
+  return (t == ' ') || (t == '\n');
+}
 
-  /* When doing white-space merging, keep knowledge about whether previous char was white-space.
-   * This allows to still split words on spaces. */
-  bool curr_is_whitespace = (token_types[0] == NewLine || token_types[0] == Space);
-  bool inside_preprocessor_directive = token_types[0] == Hash;
-  bool is_escaped_char = false;
-  bool inside_string = false;
-  bool inside_number = token_types[0] == Number;
-
+void TokenStream::token_merge(TokenData &tokens)
+{
   const char *str_raw = str.data();
+  TokenType *types_raw = tokens.types.data();
+  uint32_t *offsets_raw = tokens.offsets.offsets.data();
 
-  int offset = 0, type_cursor = 0, offset_cursor = 0;
-  for (const char c : token_types) {
-    const TokenType type = TokenType(c);
+  /* Never merge the first token. We don't want to loose it. */
+  TokenType prev = types_raw[0];
+
+  /* State. */
+  bool after_whitespace = is_whitespace(prev);
+  bool inside_escaped_char = false;
+  bool inside_preprocessor_directive = false;
+  bool inside_string = false;
+  bool inside_number = false;
+
+  uint32_t cursor = 1;
+  for (uint32_t i = 1; i < tokens.types.size(); i++) {
+    bool emit = true;
+#define merge_if(a) emit &= !(a)
+
+    TokenType tok = types_raw[i];
+    uint32_t offset = offsets_raw[i];
+    uint32_t tok_size = offsets_raw[i + 1] - offset;
+
+#ifndef NDEBUG
+    std::string_view tok_str{str_raw + offset, tok_size};
+#endif
 
     /* Merge string literal. */
-    if (inside_string) {
-      if (!is_escaped_char && c == '\"') {
-        inside_string = false;
-      }
-      is_escaped_char = c == '\\';
-      continue;
+    merge_if(inside_string);
+
+    /* Flip flop inside string when finding and unescaped quote. */
+    if (tok == String && !inside_escaped_char) {
+      inside_string = !inside_string;
     }
+    inside_escaped_char = inside_string && (tok == '\\');
 
     /* Merge number literal. */
     if (inside_number) {
-      if (is_char_part_of_number_literal(c)) {
-        continue;
-      }
+      merge_if((tok == Word || tok == '.') &&
+               is_word_part_of_number_literal({str_raw + offset, tok_size}));
       /* If sign is part of float literal after exponent. */
-      if ((c == '+' || c == '-') && str_raw[offset - 1] == 'e') {
-        continue; /* Merge. */
-      }
+      merge_if((tok == '+' || tok == '-') && str_raw[offset - 1] == 'e');
+
+      /* Disable if we do not emit. */
+      inside_number = (tok == Number) || !emit;
     }
 
-    curr_is_whitespace = false;
-    inside_number = false;
-
-    switch (type) {
+    switch (tok) {
       case Hash:
         inside_preprocessor_directive = true;
         break;
 
       case NewLine:
+        after_whitespace = true;
         /* Preprocessor directives. */
         if (inside_preprocessor_directive) {
           /* Detect preprocessor directive newlines `\\\n`. */
           if (prev == Backslash) {
-            token_types[type_cursor] = PreprocessorNewline;
-            continue; /* Merge. */
+            types_raw[cursor - 1] = PreprocessorNewline;
+            continue;
           }
           inside_preprocessor_directive = false;
           /* Make sure to keep the ending newline for a preprocessor directive. */
           break;
         }
-        curr_is_whitespace = true;
-        continue; /* Merge. */
+        continue;
 
       case Space:
-        curr_is_whitespace = true;
-        continue; /* Merge. */
-
-      case String:
-        inside_string = true;
-        break;
+        after_whitespace = true;
+        continue;
 
       case Word:
-        /* Split words on white-spaces. Otherwise merge. */
-        if (prev == Word && !prev_is_whitespace) {
-          continue; /* Merge. */
+        /* Merge words that contain numbers that were split by the tokenizer. */
+        if (prev == Word && !after_whitespace) {
+          continue;
         }
+        break;
+
+      case Number:
+        /* If digit is part of word. */
+        if (prev == Word && !after_whitespace) {
+          continue;
+        }
+        if (prev == Number) {
+          continue;
+        }
+        inside_number = true;
         break;
 
       case '=':
         /* Merge '=='. */
         if (prev == '=') {
-          token_types[type_cursor] = Equal;
-          continue; /* Merge. */
+          types_raw[cursor - 1] = Equal;
+          continue;
         }
         /* Merge '!='. */
         if (prev == '!') {
-          token_types[type_cursor] = NotEqual;
-          continue; /* Merge. */
+          types_raw[cursor - 1] = NotEqual;
+          continue;
         }
         /* Merge '>='. */
         if (prev == '>') {
-          token_types[type_cursor] = GEqual;
-          continue; /* Merge. */
+          types_raw[cursor - 1] = GEqual;
+          continue;
         }
         /* Merge '<='. */
         if (prev == '<') {
-          token_types[type_cursor] = LEqual;
-          continue; /* Merge. */
+          types_raw[cursor - 1] = LEqual;
+          continue;
         }
         break;
 
       case '>':
         /* Merge '->'. */
         if (prev == '-') {
-          token_types[type_cursor] = Deref;
-          continue; /* Merge. */
+          types_raw[cursor - 1] = Deref;
+          continue;
         }
-        break;
-
-      case Number:
-        /* If digit is part of word. */
-        if (prev == Word && !prev_is_whitespace) {
-          continue; /* Merge. */
-        }
-        if (prev == Number) {
-          continue; /* Merge. */
-        }
-        inside_number = true;
         break;
 
       case '+':
         /* Detect increment. */
         if (prev == '+') {
-          token_types[type_cursor] = Increment;
-          continue; /* Merge. */
+          types_raw[cursor - 1] = Increment;
+          continue;
         }
         break;
 
       case '-':
         /* Detect decrement. */
         if (prev == '-') {
-          token_types[type_cursor] = Decrement;
-          continue; /* Merge. */
+          types_raw[cursor - 1] = Decrement;
+          continue;
         }
         break;
 
       default:
         break;
     }
+    after_whitespace = false;
 
-    token_types[type_cursor++] = type;
-    token_offsets.offsets[offset_cursor++] = offset;
+    if (emit) {
+      prev = tok;
+      types_raw[cursor] = tok;
+      offsets_raw[cursor] = offset;
+      cursor += 1;
+    }
   }
-  offset++;
-  token_offsets.offsets.emplace_back(offset);
 
-  /* Convert vector of char to string for faster lookups. */
-  this->token_types = std::string(reinterpret_cast<char *>(token_types.data()),
-                                  token_types.size());
+  tokens.types.resize(cursor);
+
+  tokens.offsets.offsets[cursor] = tokens.offsets.offsets.back();
+  tokens.offsets.offsets.resize(cursor + 1);
 }
 
 static TokenType type_lookup(std::string_view s)

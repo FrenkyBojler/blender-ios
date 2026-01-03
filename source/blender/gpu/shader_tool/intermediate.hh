@@ -55,6 +55,8 @@ struct IntermediateForm {
     Mutation(IndexRange src_range, std::string replacement)
         : src_range(src_range), replacement(replacement)
     {
+      assert(src_range.size >= 0);
+      assert(src_range.start >= 0);
     }
 
     /* Define operator in order to sort the mutation by starting position.
@@ -319,7 +321,7 @@ struct IntermediateForm {
     }
     {
       TimeIt time_it(tokenize_time);
-      // data_.parse_scopes(report_error);
+      data_.parse_scopes(report_error);
     }
   }
 
