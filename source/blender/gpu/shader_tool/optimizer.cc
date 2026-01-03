@@ -161,12 +161,16 @@ int main(int argc, char **argv)
 
   TimeIt::Duration time;
 
+  string test;
+  for (int i = 0; i < 10; i++) {
+    test += "\n" + buffer.str();
+  }
+
   string result;
   {
     TimeIt time_it(time);
-    for (int i = 0; i < 1000; i++) {
-
-      parser::IntermediateForm parser(buffer.str(), report_error);
+    for (int i = 0; i < 100; i++) {
+      parser::IntermediateForm parser(test, report_error);
 
       // {
       //   unordered_map<string, Token> functions;
