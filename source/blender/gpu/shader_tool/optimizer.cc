@@ -168,12 +168,12 @@ int main(int argc, char **argv)
 
       parser::IntermediateForm parser(buffer.str(), report_error);
 
-      {
-        unordered_map<string, Token> functions;
-        first_pass(parser, functions);
-        prune_functions(parser, functions);
-      }
-      result = parser.result_get();
+      // {
+      //   unordered_map<string, Token> functions;
+      //   first_pass(parser, functions);
+      //   prune_functions(parser, functions);
+      // }
+      // result = parser.result_get();
     }
   }
 

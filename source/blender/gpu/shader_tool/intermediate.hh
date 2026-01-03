@@ -319,7 +319,7 @@ struct IntermediateForm {
     }
     {
       TimeIt time_it(tokenize_time);
-      data_.parse_scopes(report_error);
+      // data_.parse_scopes(report_error);
     }
   }
 

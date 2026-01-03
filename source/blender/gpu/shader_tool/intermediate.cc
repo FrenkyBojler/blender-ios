@@ -94,7 +94,7 @@ void TokenStream::tokenize()
   }
 
   token_offsets_populate();
-  token_types_populate();
+  // token_types_populate();
 }
 
 static always_inline TokenType to_type(const char c)
