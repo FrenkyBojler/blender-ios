@@ -188,6 +188,43 @@ static always_inline TokenType to_type_table(const unsigned char c)
   return token_table[c];
 }
 
+static const std::array<bool, 256> num_literal_table = [] {
+  std::array<bool, 256> t;
+  for (int c = 0; c < 256; ++c) {
+    t[c] = true;
+    /* If dot is part of float literal. */
+    if (c == '.') {
+      continue; /* Merge. */
+    }
+    /* If 'A-F' is part of hex literal. */
+    if (c >= 'A' && c <= 'F') {
+      continue; /* Merge. */
+    }
+    /* If 'a-f' is part of hex literal. */
+    /* If 'f' suffix is part of float literal. */
+    /* If 'e' is part of float literal. */
+    if (c >= 'a' && c <= 'f') {
+      continue; /* Merge. */
+    }
+    /* If 'x' is part of hex literal. */
+    if (c == 'x') {
+      continue; /* Merge. */
+    }
+    /* If 'u' is part of unsigned int literal. */
+    if (c == 'u') {
+      continue; /* Merge. */
+    }
+    t[c] = false;
+  }
+  return t;
+}();
+
+/* Table lookup variant. Much faster than switch statement.  */
+static always_inline bool is_char_part_of_number_literal(const unsigned char c)
+{
+  return num_literal_table[c];
+}
+
 void TokenStream::token_offsets_populate()
 {
   std::vector<TokenType> token_types;
@@ -210,6 +247,7 @@ void TokenStream::token_offsets_populate()
   bool inside_preprocessor_directive = token_types[0] == Hash;
   bool next_character_is_escape = false;
   bool inside_string = false;
+  bool inside_number = token_types[0] == Number;
 
   const char *str_raw = str.data();
 
@@ -231,7 +269,19 @@ void TokenStream::token_offsets_populate()
       continue;
     }
 
+    /* Merge number literal. */
+    if (inside_number) {
+      if (is_char_part_of_number_literal(c)) {
+        continue;
+      }
+      /* If sign is part of float literal after exponent. */
+      if ((c == '+' || c == '-') && str_raw[offset - 1] == 'e') {
+        continue; /* Merge. */
+      }
+    }
+
     curr_is_whitespace = false;
+    inside_number = false;
 
     switch (type) {
       case Hash:
@@ -307,6 +357,7 @@ void TokenStream::token_offsets_populate()
         if (prev == Number) {
           continue; /* Merge. */
         }
+        inside_number = true;
         break;
 
       case '+':
@@ -327,35 +378,6 @@ void TokenStream::token_offsets_populate()
 
       default:
         break;
-    }
-
-    if (prev == Number) {
-      /* If dot is part of float literal. */
-      if (type == Dot) {
-        continue; /* Merge. */
-      }
-      /* If 'A-F' is part of hex literal. */
-      if (c >= 'A' && c <= 'F') {
-        continue; /* Merge. */
-      }
-      /* If 'a-f' is part of hex literal. */
-      /* If 'f' suffix is part of float literal (cases handled above). */
-      /* If 'e' is part of float literal (cases handled above). */
-      if (c >= 'a' && c <= 'f') {
-        continue; /* Merge. */
-      }
-      /* If 'x' is part of hex literal. */
-      if (c == 'x') {
-        continue; /* Merge. */
-      }
-      /* If 'u' is part of unsigned int literal. */
-      if (c == 'u') {
-        continue; /* Merge. */
-      }
-      /* If sign is part of float literal after exponent. */
-      if ((c == '+' || c == '-') && str_raw[offset - 1] == 'e') {
-        continue; /* Merge. */
-      }
     }
 
     token_types[type_cursor++] = type;
