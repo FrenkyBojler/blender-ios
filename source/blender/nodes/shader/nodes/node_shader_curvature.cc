@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2005 Blender Authors
+/* SPDX-FileCopyrightText: 2026 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -15,12 +15,17 @@ namespace nodes::node_shader_curvature_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.add_output<decl::Float>("Curvature"_ustr)
+      .description(
+          "Average curvature of the surface within the sampled radius. "
+          "Monochrome value range with concavity at the minimum, "
+          "and convexity at the maximum");
+
   b.add_input<decl::Float>("Radius"_ustr)
       .default_value(0.01f)
       .min(0.0f)
       .max(1000.0f)
       .description("Radius for sampling nearby surfaces");
-  b.add_output<decl::Float>("Curvature"_ustr);
 }
 
 static void node_shader_buts_curvature(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
@@ -52,16 +57,8 @@ static void node_shader_init_curvature(bNodeTree * /*ntree*/, bNode *node)
 NODE_SHADER_MATERIALX_BEGIN
 #ifdef WITH_MATERIALX
 {
-  /* TODO: observed crash while rendering MaterialX_v1_38_6::ExceptionShaderGenError */
-  /**
-   * \code{.cc}
-   * NodeItem radius = get_input_value("Radius", NodeItem::Type::Float);
-   * NodeItem res = create_node("curvature", NodeItem::Type::Float);
-   * res.set_input("coneangle", val(90.0f));
-   * res.set_input("radius", radius);
-   * \endcode
-   */
-  return get_output_default(socket_out_->identifier, NodeItem::Type::Any);
+  /* NOTE: This node isn't supported by MaterialX. */
+  return get_output_default(socket_out_->identifier, NodeItem::Type::Float);
 }
 #endif
 NODE_SHADER_MATERIALX_END

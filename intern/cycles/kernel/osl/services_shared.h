@@ -788,19 +788,18 @@ ccl_device bool osl_shared_texture(KernelGlobals kg,
 #if !defined(__KERNEL_GPU__) && defined(__SHADER_RAYTRACE__)
       /* Curvature shader hack. */
       ConstIntegratorState state = sg->path_state;
-      const OSL::TextureOpt *options = static_cast<const OSL::TextureOpt *>(opt_void);
       if (state != nullptr) {
         const int num_samples = int(s);
         const float radius = t;
         int flags = 0;
-        if (int(options->sblur)) {
+        if (int(dtdx)) {
           flags |= NODE_CURVATURE_ONLY_LOCAL;
         }
         result[0] = svm_curvature(kg, state, sd, radius, num_samples, flags);
         status = true;
       }
 #else
-      result[0] = 1.0f;
+      result[0] = 0.5f;
       status = true;
 #endif
       break;

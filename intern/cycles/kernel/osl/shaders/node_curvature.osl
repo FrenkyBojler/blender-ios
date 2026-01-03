@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2011-2022 Blender Foundation
+/* SPDX-FileCopyrightText: 2011-2026 Blender Foundation
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
@@ -7,9 +7,8 @@
 shader node_curvature(int samples = 16,
                       float Radius = 0.01,
                       int only_local = 0,
-                      output float Curvature = 1.0)
+                      output float Curvature = 0.5)
 {
   /* Abuse texture call with special @curvature token. */
-  Curvature = texture(
-      "@curvature", samples, Radius, 0.0, 0.0, 1.0, 0, "sblur", only_local, "tblur", 0);
+  Curvature = texture("@curvature", samples, Radius, 0, only_local, 0, 0);
 }
