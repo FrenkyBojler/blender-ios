@@ -519,6 +519,9 @@ void DRWContext::release_data()
 
   DRW_view_data_reset(this->view_data_active);
 
+  /* reset to avoid unbounded growth & stale hysteresis */
+  this->lod_state_map.clear();
+
   if (this->data != nullptr && this->viewport == nullptr) {
     DRW_viewport_data_free(this->data);
   }
