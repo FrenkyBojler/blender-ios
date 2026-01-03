@@ -350,8 +350,16 @@ struct Scope {
 
   void foreach_token(const TokenType token_type, std::function<void(const Token)> callback) const
   {
-    const char str[2] = {token_type, '\0'};
-    foreach_match(str, [&](const std::vector<Token> &tokens) { callback(tokens[0]); });
+    IndexRange index_range = data->scope_ranges[index];
+    std::string_view view(data->token_types);
+
+    size_t offset = index_range.start;
+    for (const char c : view.substr(index_range.start, index_range.size)) {
+      if (token_type == TokenType(c)) {
+        callback(Token::from_position(data, offset));
+      }
+      offset++;
+    }
   }
 
   /* Run a callback for all existing function scopes. */
