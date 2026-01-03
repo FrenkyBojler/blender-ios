@@ -648,10 +648,12 @@ void TokenStream::scope_parse(report_callback &report_error)
     };
 
     int scope_index = 0;
-    std::stack<ScopeItem> scopes;
+    std::vector<ScopeItem> scopes;
+    /* Predicted max nesting depth. */
+    scopes.reserve(128);
 
     auto enter_scope = [&](ScopeType type, size_t start_tok_id) {
-      scopes.emplace(ScopeItem{type, start_tok_id, scope_index++});
+      scopes.emplace_back(ScopeItem{type, start_tok_id, scope_index++});
       scope_ranges.emplace_back(start_tok_id, 1);
       scope_types += char(type);
     };
@@ -660,9 +662,9 @@ void TokenStream::scope_parse(report_callback &report_error)
       if (scopes.empty()) {
         return;
       }
-      ScopeItem scope = scopes.top();
+      ScopeItem scope = scopes.back();
       scope_ranges[scope.index].size = end_tok_id - scope.start + 1;
-      scopes.pop();
+      scopes.pop_back();
     };
 
     enter_scope(ScopeType::Global, 0);
@@ -673,7 +675,7 @@ void TokenStream::scope_parse(report_callback &report_error)
     for (const char &c : token_types) {
       tok_id++;
 
-      if (scopes.top().type == ScopeType::Preprocessor) {
+      if (scopes.back().type == ScopeType::Preprocessor) {
         if (TokenType(c) == NewLine) {
           exit_scope(tok_id);
         }
@@ -688,7 +690,7 @@ void TokenStream::scope_parse(report_callback &report_error)
           enter_scope(ScopeType::Preprocessor, tok_id);
           break;
         case Assign:
-          if (scopes.top().type == ScopeType::Assignment) {
+          if (scopes.back().type == ScopeType::Assignment) {
             /* Chained assignments. */
             exit_scope(tok_id - 1);
           }
@@ -722,13 +724,13 @@ void TokenStream::scope_parse(report_callback &report_error)
           else if (keyword == Namespace) {
             enter_scope(ScopeType::Namespace, tok_id);
           }
-          else if (scopes.top().type == ScopeType::Global) {
+          else if (scopes.back().type == ScopeType::Global) {
             enter_scope(ScopeType::Function, tok_id);
           }
-          else if (scopes.top().type == ScopeType::Struct) {
+          else if (scopes.back().type == ScopeType::Struct) {
             enter_scope(ScopeType::Function, tok_id);
           }
-          else if (scopes.top().type == ScopeType::Namespace) {
+          else if (scopes.back().type == ScopeType::Namespace) {
             enter_scope(ScopeType::Function, tok_id);
           }
           else {
@@ -745,15 +747,15 @@ void TokenStream::scope_parse(report_callback &report_error)
           else if (tok_id >= 1 && token_types[tok_id - 1] == Switch) {
             enter_scope(ScopeType::SwitchArg, tok_id);
           }
-          else if (scopes.top().type == ScopeType::Global) {
+          else if (scopes.back().type == ScopeType::Global) {
             enter_scope(ScopeType::FunctionArgs, tok_id);
           }
-          else if (scopes.top().type == ScopeType::Struct) {
+          else if (scopes.back().type == ScopeType::Struct) {
             enter_scope(ScopeType::FunctionArgs, tok_id);
           }
-          else if ((scopes.top().type == ScopeType::Function ||
-                    scopes.top().type == ScopeType::Local ||
-                    scopes.top().type == ScopeType::Attribute) &&
+          else if ((scopes.back().type == ScopeType::Function ||
+                    scopes.back().type == ScopeType::Local ||
+                    scopes.back().type == ScopeType::Attribute) &&
                    (tok_id >= 1 && token_types[tok_id - 1] == Word))
           {
             enter_scope(ScopeType::FunctionCall, tok_id);
@@ -783,26 +785,27 @@ void TokenStream::scope_parse(report_callback &report_error)
           }
           break;
         case AngleClose:
-          if (scopes.top().type == ScopeType::Assignment && in_template > 0) {
+          if (scopes.back().type == ScopeType::Assignment && in_template > 0) {
             exit_scope(tok_id - 1);
           }
-          if (scopes.top().type == ScopeType::TemplateArg) {
+          if (scopes.back().type == ScopeType::TemplateArg) {
             exit_scope(tok_id - 1);
           }
-          if (scopes.top().type == ScopeType::Template) {
+          if (scopes.back().type == ScopeType::Template) {
             exit_scope(tok_id);
             in_template--;
           }
           break;
         case BracketClose:
-          if (scopes.top().type == ScopeType::Assignment) {
+          if (scopes.back().type == ScopeType::Assignment) {
             exit_scope(tok_id - 1);
           }
-          if (scopes.top().type == ScopeType::Struct || scopes.top().type == ScopeType::Local ||
-              scopes.top().type == ScopeType::Namespace ||
-              scopes.top().type == ScopeType::LoopBody ||
-              scopes.top().type == ScopeType::SwitchBody ||
-              scopes.top().type == ScopeType::Function || scopes.top().type == ScopeType::Function)
+          if (scopes.back().type == ScopeType::Struct || scopes.back().type == ScopeType::Local ||
+              scopes.back().type == ScopeType::Namespace ||
+              scopes.back().type == ScopeType::LoopBody ||
+              scopes.back().type == ScopeType::SwitchBody ||
+              scopes.back().type == ScopeType::Function ||
+              scopes.back().type == ScopeType::Function)
           {
             exit_scope(tok_id);
           }
@@ -818,23 +821,23 @@ void TokenStream::scope_parse(report_callback &report_error)
           }
           break;
         case ParClose:
-          if (scopes.top().type == ScopeType::Assignment) {
+          if (scopes.back().type == ScopeType::Assignment) {
             exit_scope(tok_id - 1);
           }
-          if (scopes.top().type == ScopeType::FunctionArg) {
+          if (scopes.back().type == ScopeType::FunctionArg) {
             exit_scope(tok_id - 1);
           }
-          if (scopes.top().type == ScopeType::FunctionParam) {
+          if (scopes.back().type == ScopeType::FunctionParam) {
             exit_scope(tok_id - 1);
           }
-          if (scopes.top().type == ScopeType::LoopArg) {
+          if (scopes.back().type == ScopeType::LoopArg) {
             exit_scope(tok_id - 1);
           }
-          if (scopes.top().type == ScopeType::LoopArgs ||
-              scopes.top().type == ScopeType::SwitchArg ||
-              scopes.top().type == ScopeType::FunctionArgs ||
-              scopes.top().type == ScopeType::FunctionCall ||
-              scopes.top().type == ScopeType::Local)
+          if (scopes.back().type == ScopeType::LoopArgs ||
+              scopes.back().type == ScopeType::SwitchArg ||
+              scopes.back().type == ScopeType::FunctionArgs ||
+              scopes.back().type == ScopeType::FunctionCall ||
+              scopes.back().type == ScopeType::Local)
           {
             exit_scope(tok_id);
           }
@@ -850,30 +853,30 @@ void TokenStream::scope_parse(report_callback &report_error)
           }
           break;
         case SquareClose:
-          if (scopes.top().type == ScopeType::Attribute) {
+          if (scopes.back().type == ScopeType::Attribute) {
             exit_scope(tok_id - 1);
           }
           exit_scope(tok_id);
           break;
         case SemiColon:
-          if (scopes.top().type == ScopeType::Assignment) {
+          if (scopes.back().type == ScopeType::Assignment) {
             exit_scope(tok_id - 1);
           }
-          if (scopes.top().type == ScopeType::FunctionArg) {
+          if (scopes.back().type == ScopeType::FunctionArg) {
             exit_scope(tok_id - 1);
           }
-          if (scopes.top().type == ScopeType::TemplateArg) {
+          if (scopes.back().type == ScopeType::TemplateArg) {
             exit_scope(tok_id - 1);
           }
-          if (scopes.top().type == ScopeType::LoopArg) {
+          if (scopes.back().type == ScopeType::LoopArg) {
             exit_scope(tok_id - 1);
           }
           break;
         case Comma:
-          if (scopes.top().type == ScopeType::Assignment) {
+          if (scopes.back().type == ScopeType::Assignment) {
             exit_scope(tok_id - 1);
           }
-          switch (scopes.top().type) {
+          switch (scopes.back().type) {
             case ScopeType::FunctionArg:
             case ScopeType::FunctionParam:
             case ScopeType::TemplateArg:
@@ -885,7 +888,7 @@ void TokenStream::scope_parse(report_callback &report_error)
           }
           break;
         default:
-          switch (scopes.top().type) {
+          switch (scopes.back().type) {
             case ScopeType::Attributes:
               enter_scope(ScopeType::Attribute, tok_id);
               break;
@@ -920,12 +923,12 @@ void TokenStream::scope_parse(report_callback &report_error)
       return;
     }
 
-    if (scopes.top().type == ScopeType::Preprocessor) {
+    if (scopes.back().type == ScopeType::Preprocessor) {
       exit_scope(tok_id - 1);
     }
 
-    if (scopes.top().type != ScopeType::Global) {
-      ScopeItem scope_item = scopes.top();
+    if (scopes.back().type != ScopeType::Global) {
+      ScopeItem scope_item = scopes.back();
       Token token = Token::from_position(this, scope_ranges[scope_item.index].start);
       report_error(
           token.line_number(), token.char_number(), token.line_str(), "Unterminated scope");
