@@ -174,17 +174,17 @@ static always_inline TokenType to_type(const char c)
   }
 }
 
+static const std::array<TokenType, 256> token_table = [] {
+  std::array<TokenType, 256> t;
+  for (int i = 0; i < 256; ++i) {
+    t[i] = to_type(i);
+  }
+  return t;
+}();
+
 /* Table lookup variant. Much faster than switch statement.  */
 static always_inline TokenType to_type_table(const unsigned char c)
 {
-  static std::array<TokenType, 256> token_table = [] {
-    std::array<TokenType, 256> t;
-    for (int i = 0; i < 256; ++i) {
-      t[i] = to_type(i);
-    }
-    return t;
-  }();
-
   return token_table[c];
 }
 
