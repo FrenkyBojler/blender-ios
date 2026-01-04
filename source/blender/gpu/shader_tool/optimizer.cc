@@ -81,17 +81,20 @@ static void process_directives(parser::IntermediateForm &parser,
 }
 
 static void process_functions(parser::IntermediateForm & /*parser*/,
-                              Token t,
+                              Token par_tok,
                               unordered_map<string_view, Token> &functions)
 {
-  Token fn_name = t.prev();
-  Token fn_type = fn_name.prev();
-  /* Functions. */
-  if (fn_type == Word && fn_name.scope().type() != ScopeType::Preprocessor) {
+  ScopeType scope_type = par_tok.scope().type();
+  if (scope_type != ScopeType::FunctionArgs && scope_type != ScopeType::FunctionCall) {
+    return;
+  }
+  Token fn_name = par_tok.prev();
+  if (scope_type == ScopeType::FunctionArgs && fn_name.prev() == Word) {
     /* Definition. */
     functions.emplace(fn_name.str(), fn_name);
     return;
   }
+
   auto it = functions.find(fn_name.str());
   if (it == functions.end()) {
     /* Functions not defined: builtins, macros etc... */
@@ -134,14 +137,23 @@ static void prune_functions(parser::IntermediateForm &parser,
         Token end_of_body = end_of_args.next().scope().back();
         count++;
         // parser.erase(type, end_of_body);
-        worked += parser.replace_try(type, end_of_body, "");
+        bool success = parser.replace_try(type, end_of_body, "");
+        worked += success;
+        if (!success) {
+          // std::cout << "Failed deleting \"" << parser.substr_range_inclusive(type, end_of_body)
+          //           << "\"" << std::endl;
+        }
       }
       else {
         /* Prototype. */
         count++;
         prototypes++;
         parser.erase(type, end_of_args);
-        // worked += parser.replace_try(type, end_of_args, "");
+        // bool success = parser.replace_try(type, end_of_args, "");
+        // if (!success) {
+        //   std::cout << "Failed deleting \"" << parser.substr_range_inclusive(type, end_of_args)
+        //             << "\"" << std::endl;
+        // }
       }
     }
   }
