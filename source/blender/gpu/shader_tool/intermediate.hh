@@ -127,9 +127,15 @@ struct IntermediateForm {
   /* Replace everything from `from` to `to` (inclusive). */
   void replace(size_t from, size_t to, const std::string &replacement)
   {
-    bool success = replace_try(from, to, replacement);
-    assert(success);
-    (void)success;
+    // #ifdef NDEBUG
+    //     bool success = replace_try(from, to, replacement);
+    //     assert(success);
+    //     (void)success;
+    // #else
+    /* No check in release. */
+    IndexRange range = IndexRange(from, to + 1 - from);
+    mutations_.emplace_back(range, replacement);
+    // #endif
   }
   /* Replace everything from `from` to `to` (inclusive). */
   void replace(Token from,
