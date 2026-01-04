@@ -803,7 +803,7 @@ wmOperatorStatus popover_panel_invoke(bContext *C,
  * \param from_active_button: Use the active button for positioning,
  * use when the popover is activated from an operator instead of directly from the button.
  */
-Popover *popover_begin(bContext &C, int ui_menu_width, bool from_active_button) ATTR_NONNULL(1);
+Popover *popover_begin(bContext &C, int ui_menu_width, bool from_active_button);
 /**
  * Set the whole structure to work.
  */

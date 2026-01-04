@@ -356,7 +356,7 @@ Object *add_type(bContext &C,
                  const float loc[3],
                  const float rot[3],
                  bool enter_editmode,
-                 unsigned short local_view_bits) ATTR_NONNULL(1) ATTR_RETURNS_NONNULL;
+                 unsigned short local_view_bits) ATTR_RETURNS_NONNULL;
 
 /**
  * Not an especially efficient function, only added so the single user button can be functional.

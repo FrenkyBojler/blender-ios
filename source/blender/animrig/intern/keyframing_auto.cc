@@ -197,7 +197,6 @@ void autokeyframe_pose_channel(bContext &C,
                                Span<RNAPath> rna_paths,
                                short targetless_ik)
 {
-  BLI_assert(&C != nullptr);
   BLI_assert(scene != nullptr);
   BLI_assert(ob != nullptr);
   BLI_assert(pose_channel != nullptr);
