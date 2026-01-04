@@ -829,6 +829,14 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       draw_object_cb(ob_ref);
     }
 
+    /* Render time visibility guard */
+    if (lod_target && is_render_draw) { // This code is fine
+      const int target_vis = BKE_object_visibility(lod_target, eval_mode);
+      if ((target_vis & OB_VISIBLE_SELF) == 0) {
+        lod_target = nullptr;
+      }
+    }
+
     bool is_preview_dupli = data_.dupli_parent && data_.dupli_object_current;
     if (is_preview_dupli) {
       /* object_duplilist_preview already handled by DEG iterator */
