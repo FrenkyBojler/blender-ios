@@ -587,7 +587,8 @@ struct Object {
   float instance_faces_scale = 1;
   
   /** Distance based lod swap */
-  ListBase lod_items;
+  // ListBase lod_items;
+  ListBaseT<Lod> lod_items = {nullptr, nullptr};
   int act_lod;
   char _pad_lod[4];
 
