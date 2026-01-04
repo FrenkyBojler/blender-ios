@@ -430,7 +430,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
         hb_buf, (uint32_t *)str32.data(), int(char_count), uint(segment_start), int(segment_len));
 
     hb_buffer_guess_segment_properties(hb_buf);
-    hb_script_t script = hb_buffer_get_script(hb_buf);
+    script = hb_buffer_get_script(hb_buf);
     if (script == HB_SCRIPT_HAN) {
       hb_buffer_set_language(hb_buf, hb_language_from_string(BLT_lang_get(), -1));
     }
@@ -491,7 +491,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
 
     size_t str8_offset = 0;
 
-    for (uint i = 0; i < glyph_count; i++) {
+    for (i = 0; i < glyph_count; i++) {
       uint32_t glyph_id = hb_glyph_info[i].codepoint;
       char32_t codepoint = str32[hb_glyph_info[i].cluster];
       GlyphBLF *g = blf_glyph_ensure(segment_font, segment_gc, codepoint, glyph_id);
@@ -540,7 +540,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
 }
 
 /* Only needed if we want to list per-font user features. */
-static bool blf_font_feature_supported(FontBLF *font, const char tag[4])
+[[maybe_unused]] static bool blf_font_feature_supported(FontBLF *font, const char tag[4])
 {
   if (!font) {
     return false;
@@ -616,8 +616,11 @@ void blf_font_draw(FontBLF *font, const char *str, const size_t str_len, ResultB
   blf_glyph_cache_release(font);
 }
 
-int blf_font_draw_mono(
-    FontBLF *font, const char *str, const size_t str_len, const int cwidth, const int tab_columns)
+int blf_font_draw_mono(FontBLF *font,
+                       const char *str,
+                       const size_t str_len,
+                       const int /*cwidth*/,
+                       const int tab_columns)
 {
   if (str_len == 0 || !str || !str[0]) {
     /* Early exit, don't do any immediate-mode GPU operations. */
@@ -1146,7 +1149,7 @@ int blf_str_offset_to_cursor(FontBLF *font,
   ShapingData text(font, gc, str, str_len);
   blf_glyph_cache_release(font);
 
-  size_t index = 0;
+  int64_t index = 0;
   for (const Glyph &glyph : text.glyphs) {
     if (glyph.index_utf8 >= str_offset) {
       break;
@@ -1164,7 +1167,7 @@ int blf_str_offset_to_cursor(FontBLF *font,
 
   /* Left edge of the next character, if available. */
   rcti next = {0};
-  if (index <= size_t(text.glyphs.size() - 1)) {
+  if (index <= (text.glyphs.size() - 1)) {
     next = text.glyphs[index].bounds;
   }
 
