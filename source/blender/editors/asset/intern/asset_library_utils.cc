@@ -67,9 +67,9 @@ void refresh_asset_library(const bContext &C, const AssetLibraryReference &libra
   asset::list::clear(&all_lib_ref, C);
 }
 
-void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library)
+void refresh_asset_library(const bContext &C, const bUserAssetLibrary &user_library)
 {
-  refresh_asset_library(*C, user_library_to_library_ref(user_library));
+  refresh_asset_library(C, user_library_to_library_ref(user_library));
 }
 
 void refresh_asset_library_from_asset(const bContext *C,

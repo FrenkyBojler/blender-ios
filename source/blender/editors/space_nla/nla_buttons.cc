@@ -200,20 +200,20 @@ bool nla_panel_context(const bContext &C,
   return (found != 0);
 }
 
-bool ANIM_nla_context_track_ptr(const bContext *C, PointerRNA *r_ptr)
+bool ANIM_nla_context_track_ptr(const bContext &C, PointerRNA *r_ptr)
 {
-  return nla_panel_context(*C, nullptr, r_ptr, nullptr);
+  return nla_panel_context(C, nullptr, r_ptr, nullptr);
 }
 
-bool ANIM_nla_context_strip_ptr(const bContext *C, PointerRNA *r_ptr)
+bool ANIM_nla_context_strip_ptr(const bContext &C, PointerRNA *r_ptr)
 {
-  return nla_panel_context(*C, nullptr, nullptr, r_ptr);
+  return nla_panel_context(C, nullptr, nullptr, r_ptr);
 }
 
 NlaTrack *ANIM_nla_context_track(const bContext *C)
 {
   PointerRNA track_ptr;
-  if (!ANIM_nla_context_track_ptr(C, &track_ptr)) {
+  if (!ANIM_nla_context_track_ptr(*C, &track_ptr)) {
     return nullptr;
   }
   return static_cast<NlaTrack *>(track_ptr.data);
@@ -222,7 +222,7 @@ NlaTrack *ANIM_nla_context_track(const bContext *C)
 NlaStrip *ANIM_nla_context_strip(const bContext *C)
 {
   PointerRNA strip_ptr;
-  if (!ANIM_nla_context_strip_ptr(C, &strip_ptr)) {
+  if (!ANIM_nla_context_strip_ptr(*C, &strip_ptr)) {
     return nullptr;
   }
   return static_cast<NlaStrip *>(strip_ptr.data);

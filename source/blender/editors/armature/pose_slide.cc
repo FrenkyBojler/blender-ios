@@ -1310,21 +1310,21 @@ static void pose_slide_cancel(bContext &C, wmOperator &op)
 /**
  * Common code for exec() methods.
  */
-static wmOperatorStatus pose_slide_exec_common(bContext *C, wmOperator *op, tPoseSlideOp *pso)
+static wmOperatorStatus pose_slide_exec_common(bContext &C, wmOperator *op, tPoseSlideOp *pso)
 {
   /* Settings should have been set up ok for applying, so just apply! */
   if (!ELEM(pso->mode, POSESLIDE_BLEND_REST)) {
-    pose_slide_apply(C, pso);
+    pose_slide_apply(&C, pso);
   }
   else {
-    pose_slide_rest_pose_apply(C, pso);
+    pose_slide_rest_pose_apply(&C, pso);
   }
 
   /* Insert keyframes if needed. */
-  pose_slide_autoKeyframe(*C, pso);
+  pose_slide_autoKeyframe(C, pso);
 
   /* Cleanup and done. */
-  pose_slide_exit(C, op);
+  pose_slide_exit(&C, op);
 
   return OPERATOR_FINISHED;
 }
@@ -1418,7 +1418,7 @@ static wmOperatorStatus pose_slide_push_exec(bContext &C, wmOperator &op)
   pso = static_cast<tPoseSlideOp *>(op.customdata);
 
   /* Do common exec work. */
-  return pose_slide_exec_common(&C, &op, pso);
+  return pose_slide_exec_common(C, &op, pso);
 }
 
 void POSE_OT_push(wmOperatorType *ot)
@@ -1475,7 +1475,7 @@ static wmOperatorStatus pose_slide_relax_exec(bContext &C, wmOperator &op)
   pso = static_cast<tPoseSlideOp *>(op.customdata);
 
   /* Do common exec work. */
-  return pose_slide_exec_common(&C, &op, pso);
+  return pose_slide_exec_common(C, &op, pso);
 }
 
 void POSE_OT_relax(wmOperatorType *ot)
@@ -1537,7 +1537,7 @@ static wmOperatorStatus pose_slide_blend_rest_exec(bContext &C, wmOperator &op)
   pso = static_cast<tPoseSlideOp *>(op.customdata);
 
   /* Do common exec work. */
-  return pose_slide_exec_common(&C, &op, pso);
+  return pose_slide_exec_common(C, &op, pso);
 }
 
 void POSE_OT_blend_with_rest(wmOperatorType *ot)
@@ -1596,7 +1596,7 @@ static wmOperatorStatus pose_slide_breakdown_exec(bContext &C, wmOperator &op)
   pso = static_cast<tPoseSlideOp *>(op.customdata);
 
   /* Do common exec work. */
-  return pose_slide_exec_common(&C, &op, pso);
+  return pose_slide_exec_common(C, &op, pso);
 }
 
 void POSE_OT_breakdown(wmOperatorType *ot)
@@ -1648,7 +1648,7 @@ static wmOperatorStatus pose_slide_blend_to_neighbors_exec(bContext &C, wmOperat
   pso = static_cast<tPoseSlideOp *>(op.customdata);
 
   /* Do common exec work. */
-  return pose_slide_exec_common(&C, &op, pso);
+  return pose_slide_exec_common(C, &op, pso);
 }
 
 void POSE_OT_blend_to_neighbors(wmOperatorType *ot)

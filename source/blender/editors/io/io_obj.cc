@@ -135,7 +135,7 @@ static wmOperatorStatus wm_obj_export_exec(bContext &C, wmOperator &op)
   return OPERATOR_FINISHED;
 }
 
-static void ui_obj_export_settings(const bContext *C, blender::ui::Layout &layout, PointerRNA *ptr)
+static void ui_obj_export_settings(const bContext &C, blender::ui::Layout &layout, PointerRNA *ptr)
 {
   const bool export_animation = RNA_boolean_get(ptr, "export_animation");
   const bool export_smooth_groups = RNA_boolean_get(ptr, "export_smooth_groups");
@@ -149,7 +149,7 @@ static void ui_obj_export_settings(const bContext *C, blender::ui::Layout &layou
   {
     blender::ui::Layout &col = panel->column(false);
 
-    if (CTX_wm_space_file(*C)) {
+    if (CTX_wm_space_file(C)) {
       blender::ui::Layout &sub = col.column(false, IFACE_("Include"));
       sub.prop(ptr, "export_selected_objects", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
     }
@@ -192,7 +192,7 @@ static void ui_obj_export_settings(const bContext *C, blender::ui::Layout &layou
   }
 
   /* Material options. */
-  blender::ui::PanelLayout panel = layout.panel(*C, "OBJ_export_materials", false);
+  blender::ui::PanelLayout panel = layout.panel(C, "OBJ_export_materials", false);
   panel.header->use_property_split_set(false);
   panel.header->prop(ptr, "export_materials", UI_ITEM_NONE, "", ICON_NONE);
   panel.header->label(IFACE_("Materials"), ICON_NONE);
@@ -205,7 +205,7 @@ static void ui_obj_export_settings(const bContext *C, blender::ui::Layout &layou
   }
 
   /* Animation options. */
-  panel = layout.panel(*C, "OBJ_export_animation", true);
+  panel = layout.panel(C, "OBJ_export_animation", true);
   panel.header->use_property_split_set(false);
   panel.header->prop(ptr, "export_animation", UI_ITEM_NONE, "", ICON_NONE);
   panel.header->label(IFACE_("Animation"), ICON_NONE);
@@ -220,7 +220,7 @@ static void ui_obj_export_settings(const bContext *C, blender::ui::Layout &layou
 
 static void wm_obj_export_draw(bContext &C, wmOperator &op)
 {
-  ui_obj_export_settings(&C, *op.layout, op.ptr);
+  ui_obj_export_settings(C, *op.layout, op.ptr);
 }
 
 /**
@@ -475,7 +475,8 @@ static void ui_obj_import_settings(const bContext *C, blender::ui::Layout &layou
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  if (blender::ui::Layout *panel = layout.panel(C, "OBJ_import_general", false, IFACE_("General")))
+  if (blender::ui::Layout *panel = layout.panel(
+          *C, "OBJ_import_general", false, IFACE_("General")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -484,7 +485,8 @@ static void ui_obj_import_settings(const bContext *C, blender::ui::Layout &layou
     col.prop(ptr, "up_axis", UI_ITEM_NONE, IFACE_("Up Axis"), ICON_NONE);
   }
 
-  if (blender::ui::Layout *panel = layout.panel(C, "OBJ_import_options", false, IFACE_("Options")))
+  if (blender::ui::Layout *panel = layout.panel(
+          *C, "OBJ_import_options", false, IFACE_("Options")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "use_split_objects", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -496,7 +498,7 @@ static void ui_obj_import_settings(const bContext *C, blender::ui::Layout &layou
   }
 
   if (blender::ui::Layout *panel = layout.panel(
-          C, "OBJ_import_materials", false, IFACE_("Materials")))
+          *C, "OBJ_import_materials", false, IFACE_("Materials")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "mtl_name_collision_mode", UI_ITEM_NONE, IFACE_("Name Collision"), ICON_NONE);

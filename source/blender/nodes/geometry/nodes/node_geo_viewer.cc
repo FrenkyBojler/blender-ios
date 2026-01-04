@@ -270,7 +270,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
   bNode &node = *ptr->data_as<bNode>();
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
 
-  if (ui::Layout *panel = layout.panel(C, "viewer_items", false, IFACE_("Viewer Items"))) {
+  if (ui::Layout *panel = layout.panel(*C, "viewer_items", false, IFACE_("Viewer Items"))) {
     socket_items::ui::draw_items_list_with_operators<GeoViewerItemsAccessor>(
         C, panel, ntree, node);
     socket_items::ui::draw_active_item_props<GeoViewerItemsAccessor>(

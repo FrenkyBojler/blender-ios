@@ -3930,22 +3930,22 @@ void ED_region_header_draw(const bContext *C, ARegion *region)
   ED_region_draw_overflow_indication(CTX_wm_area(*C), region);
 }
 
-void ED_region_header_draw_with_button_sections(const bContext *C,
+void ED_region_header_draw_with_button_sections(const bContext &C,
                                                 const ARegion *region,
                                                 const blender::ui::ButtonSectionsAlign align)
 {
-  const ThemeColorID bgcolorid = region_background_color_id(C, region);
+  const ThemeColorID bgcolorid = region_background_color_id(&C, region);
 
   /* Clear and draw button sections background when using region overlap. Otherwise clear using the
    * background color like normal. */
   if (region->overlap) {
-    region_clear_fully_transparent(*C);
+    region_clear_fully_transparent(C);
     blender::ui::region_button_sections_draw(region, bgcolorid, align);
   }
   else {
-    ED_region_clear(C, region, bgcolorid);
+    ED_region_clear(&C, region, bgcolorid);
   }
-  region_draw_blocks_in_view2d(*C, region);
+  region_draw_blocks_in_view2d(C, region);
 }
 
 void ED_region_header(const bContext *C, ARegion *region)
@@ -3960,7 +3960,7 @@ void ED_region_header_with_button_sections(const bContext *C,
                                            const blender::ui::ButtonSectionsAlign align)
 {
   ED_region_header_layout(C, region);
-  ED_region_header_draw_with_button_sections(C, region, align);
+  ED_region_header_draw_with_button_sections(*C, region, align);
 }
 
 void ED_region_header_init(ARegion *region)

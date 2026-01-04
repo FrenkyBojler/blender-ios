@@ -5909,7 +5909,7 @@ static void sculpt_brush_stroke_cancel(bContext &C, wmOperator &op)
   UNUSED_VARS_NDEBUG(brush);
 
   undo::restore_from_undo_step(depsgraph, sd, ob);
-  stroke->cancel(&C, &op);
+  stroke->cancel(C, &op);
 }
 
 static wmOperatorStatus brush_stroke_modal(bContext &C, wmOperator &op, const wmEvent *event)

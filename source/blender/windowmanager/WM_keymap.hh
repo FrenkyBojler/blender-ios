@@ -220,14 +220,14 @@ std::optional<std::string> WM_keymap_item_raw_to_string(int8_t shift,
  * \param include_mask, exclude_mask:
  * Event types to include/exclude when looking up keys (#eEventType_Mask).
  */
-wmKeyMapItem *WM_key_event_operator(const bContext *C,
+wmKeyMapItem *WM_key_event_operator(const bContext &C,
                                     const char *opname,
                                     blender::wm::OpCallContext opcontext,
                                     IDProperty *properties,
                                     short include_mask,
                                     short exclude_mask,
                                     wmKeyMap **r_keymap);
-std::optional<std::string> WM_key_event_operator_string(const bContext *C,
+std::optional<std::string> WM_key_event_operator_string(const bContext &C,
                                                         const char *opname,
                                                         blender::wm::OpCallContext opcontext,
                                                         IDProperty *properties,

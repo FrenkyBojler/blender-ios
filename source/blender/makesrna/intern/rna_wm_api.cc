@@ -591,7 +591,7 @@ static PointerRNA rna_KeyConfig_find_item_from_operator(wmWindowManager *wm,
   WM_operator_bl_idname(idname_bl, idname);
 
   wmKeyMap *km = nullptr;
-  wmKeyMapItem *kmi = WM_key_event_operator(C,
+  wmKeyMapItem *kmi = WM_key_event_operator(*C,
                                             idname_bl,
                                             blender::wm::OpCallContext(opcontext),
                                             static_cast<IDProperty *>(properties->data),
@@ -649,7 +649,7 @@ static PointerRNA rna_PopoverBegin(bContext *C,
   }
 
   void *data = (void *)blender::ui::popover_begin(
-      C, U.widget_unit * ui_units_x, from_active_button);
+      *C, U.widget_unit * ui_units_x, from_active_button);
   PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPopover, data);
   return ptr_result;
 }

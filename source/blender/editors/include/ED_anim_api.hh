@@ -927,12 +927,12 @@ void ANIM_draw_action_framerange(
 /** \name UI Panel Drawing
  * \{ */
 
-bool ANIM_nla_context_track_ptr(const bContext *C, PointerRNA *r_ptr);
-bool ANIM_nla_context_strip_ptr(const bContext *C, PointerRNA *r_ptr);
+bool ANIM_nla_context_track_ptr(const bContext &C, PointerRNA *r_ptr);
+bool ANIM_nla_context_strip_ptr(const bContext &C, PointerRNA *r_ptr);
 
 NlaTrack *ANIM_nla_context_track(const bContext *C);
 NlaStrip *ANIM_nla_context_strip(const bContext *C);
-FCurve *ANIM_graph_context_fcurve(const bContext *C);
+FCurve *ANIM_graph_context_fcurve(const bContext &C);
 
 /** Needed for abstraction between the graph editor and the NLA editor. */
 using PanelTypePollFn = bool (*)(const bContext *C, PanelType *pt);
@@ -1237,7 +1237,7 @@ void ED_operatormacros_nla();
  * Action Editor - Action Management.
  * Helper function to find the active AnimData block from the Action Editor context.
  */
-AnimData *ED_actedit_animdata_from_context(const bContext *C, ID **r_adt_id_owner);
+AnimData *ED_actedit_animdata_from_context(const bContext &C, ID **r_adt_id_owner);
 void ED_animedit_unlink_action(
     bContext *C, ID *id, AnimData *adt, bAction *act, ReportList *reports, bool force_delete);
 

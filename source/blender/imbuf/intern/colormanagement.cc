@@ -4506,9 +4506,9 @@ bool IMB_colormanagement_setup_glsl_draw_from_space_ctx(const bContext &C,
       view_settings, display_settings, from_colorspace, dither, predivide, false);
 }
 
-bool IMB_colormanagement_setup_glsl_draw_ctx(const bContext *C, float dither, bool predivide)
+bool IMB_colormanagement_setup_glsl_draw_ctx(const bContext &C, float dither, bool predivide)
 {
-  return IMB_colormanagement_setup_glsl_draw_from_space_ctx(*C, nullptr, dither, predivide);
+  return IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, nullptr, dither, predivide);
 }
 
 bool IMB_colormanagement_setup_glsl_draw_to_scene_linear(const char *from_colorspace_name,

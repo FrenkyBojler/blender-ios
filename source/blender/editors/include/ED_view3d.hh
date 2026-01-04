@@ -1126,7 +1126,7 @@ void ED_view3d_draw_setup_view(const wmWindowManager *wm,
  * `mval` comes from event->mval, only use within region handlers.
  */
 Base *ED_view3d_give_base_under_cursor(bContext &C, const int mval[2]);
-Object *ED_view3d_give_object_under_cursor(bContext *C, const int mval[2]);
+Object *ED_view3d_give_object_under_cursor(bContext &C, const int mval[2]);
 Object *ED_view3d_give_material_slot_under_cursor(bContext &C,
                                                   const int mval[2],
                                                   int *r_material_slot);

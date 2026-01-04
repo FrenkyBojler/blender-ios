@@ -50,12 +50,12 @@
 /** \name Utilities
  * \{ */
 
-AnimData *ED_actedit_animdata_from_context(const bContext *C, ID **r_adt_id_owner)
+AnimData *ED_actedit_animdata_from_context(const bContext &C, ID **r_adt_id_owner)
 {
   { /* Support use from the layout.template_action() UI template. */
     PointerRNA ptr = {};
     PropertyRNA *prop = nullptr;
-    blender::ui::context_active_but_prop_get_templateID(*C, &ptr, &prop);
+    blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
     /* template_action() sets a RNA_AnimData pointer, whereas other code may set
      * other pointer types. This code here only deals with the former. */
     if (prop && ptr.type == &RNA_AnimData) {
@@ -70,13 +70,13 @@ AnimData *ED_actedit_animdata_from_context(const bContext *C, ID **r_adt_id_owne
     }
   }
 
-  SpaceLink *space_data = CTX_wm_space_data(*C);
+  SpaceLink *space_data = CTX_wm_space_data(C);
   if (!space_data || space_data->spacetype != SPACE_ACTION) {
     return nullptr;
   }
 
   SpaceAction *saction = (SpaceAction *)space_data;
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   AnimData *adt = nullptr;
 
   /* Get AnimData block to use */
@@ -219,11 +219,11 @@ static wmOperatorStatus action_new_exec(bContext &C, wmOperator & /*op*/)
       adt_id_owner = ptr.owner_id;
     }
     else if (ptr.type == &RNA_SpaceDopeSheetEditor) {
-      adt = ED_actedit_animdata_from_context(&C, &adt_id_owner);
+      adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
     }
   }
   else {
-    adt = ED_actedit_animdata_from_context(&C, &adt_id_owner);
+    adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
     oldact = adt->action;
   }
   {
@@ -290,7 +290,7 @@ static bool action_pushdown_poll(bContext &C)
     return false;
   }
 
-  AnimData *adt = ED_actedit_animdata_from_context(&C, nullptr);
+  AnimData *adt = ED_actedit_animdata_from_context(C, nullptr);
   if (!adt || !adt->action) {
     return false;
   }
@@ -304,7 +304,7 @@ static bool action_pushdown_poll(bContext &C)
 static wmOperatorStatus action_pushdown_exec(bContext &C, wmOperator & /*op*/)
 {
   ID *adt_id_owner = nullptr;
-  AnimData *adt = ED_actedit_animdata_from_context(&C, &adt_id_owner);
+  AnimData *adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
 
   /* Do the deed... */
   if (adt && adt->action) {
@@ -350,7 +350,7 @@ void ACTION_OT_push_down(wmOperatorType *ot)
 static wmOperatorStatus action_stash_exec(bContext &C, wmOperator &op)
 {
   ID *adt_id_owner = nullptr;
-  AnimData *adt = ED_actedit_animdata_from_context(&C, &adt_id_owner);
+  AnimData *adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
 
   /* Perform stashing operation */
   if (adt) {
@@ -405,7 +405,7 @@ void ACTION_OT_stash(wmOperatorType *ot)
 static bool action_stash_create_poll(bContext &C)
 {
   if (ED_operator_action_active(C)) {
-    AnimData *adt = ED_actedit_animdata_from_context(&C, nullptr);
+    AnimData *adt = ED_actedit_animdata_from_context(C, nullptr);
 
     /* Check tweak-mode is off (as you don't want to be tampering with the action in that case) */
     /* NOTE: unlike for pushdown,
@@ -438,7 +438,7 @@ static bool action_stash_create_poll(bContext &C)
 static wmOperatorStatus action_stash_create_exec(bContext &C, wmOperator &op)
 {
   ID *adt_id_owner = nullptr;
-  AnimData *adt = ED_actedit_animdata_from_context(&C, &adt_id_owner);
+  AnimData *adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
 
   /* Check for no action... */
   if (adt->action == nullptr) {
@@ -585,7 +585,7 @@ void ED_animedit_unlink_action(
 static bool action_unlink_poll(bContext &C)
 {
   ID *animated_id = nullptr;
-  AnimData *adt = ED_actedit_animdata_from_context(&C, &animated_id);
+  AnimData *adt = ED_actedit_animdata_from_context(C, &animated_id);
   if (!animated_id) {
     return false;
   }
@@ -598,7 +598,7 @@ static bool action_unlink_poll(bContext &C)
 static wmOperatorStatus action_unlink_exec(bContext &C, wmOperator &op)
 {
   ID *animated_id = nullptr;
-  AnimData *adt = ED_actedit_animdata_from_context(&C, &animated_id);
+  AnimData *adt = ED_actedit_animdata_from_context(C, &animated_id);
   bool force_delete = RNA_boolean_get(op.ptr, "force_delete");
 
   if (adt && adt->action) {

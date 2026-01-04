@@ -975,18 +975,18 @@ static void draw_named_attributes_panel(ui::Layout &layout, NodesModifierData &n
   }
 }
 
-static void draw_manage_panel(const bContext *C,
+static void draw_manage_panel(const bContext &C,
                               ui::Layout &layout,
                               PointerRNA *modifier_ptr,
                               NodesModifierData &nmd)
 {
   if (ui::Layout *panel_layout = layout.panel_prop(
-          *C, modifier_ptr, "open_bake_panel", IFACE_("Bake")))
+          C, modifier_ptr, "open_bake_panel", IFACE_("Bake")))
   {
     draw_bake_panel(*panel_layout, modifier_ptr);
   }
   if (ui::Layout *panel_layout = layout.panel_prop(
-          *C, modifier_ptr, "open_named_attributes_panel", IFACE_("Named Attributes")))
+          C, modifier_ptr, "open_named_attributes_panel", IFACE_("Named Attributes")))
   {
     draw_named_attributes_panel(*panel_layout, nmd);
   }
@@ -1068,7 +1068,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
     if (ui::Layout *panel_layout = layout.panel_prop(
             C, modifier_ptr, "open_manage_panel", IFACE_("Manage")))
     {
-      draw_manage_panel(&C, *panel_layout, modifier_ptr, nmd);
+      draw_manage_panel(C, *panel_layout, modifier_ptr, nmd);
     }
   }
 }

@@ -609,9 +609,9 @@ void ED_draw_imbuf_ctx_clipping(const bContext &C,
 }
 
 void ED_draw_imbuf_ctx(
-    const bContext *C, ImBuf *ibuf, float x, float y, bool use_filter, float zoom_x, float zoom_y)
+    const bContext &C, ImBuf *ibuf, float x, float y, bool use_filter, float zoom_x, float zoom_y)
 {
-  ED_draw_imbuf_ctx_clipping(*C, ibuf, x, y, use_filter, 0.0f, 0.0f, 0.0f, 0.0f, zoom_x, zoom_y);
+  ED_draw_imbuf_ctx_clipping(C, ibuf, x, y, use_filter, 0.0f, 0.0f, 0.0f, 0.0f, zoom_x, zoom_y);
 }
 
 int ED_draw_imbuf_method(const ImBuf *ibuf)

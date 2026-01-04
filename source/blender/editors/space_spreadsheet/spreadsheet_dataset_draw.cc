@@ -1261,10 +1261,10 @@ static void draw_context_panel_content(const bContext &C, ui::Layout &layout)
   if (sspreadsheet->geometry_id.object_eval_state == SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE &&
       viewer_path_ends_with_viewer_node(viewer_path))
   {
-    if (ui::Layout *panel = layout.panel(&C, "viewer path", true, IFACE_("Viewer Path"))) {
+    if (ui::Layout *panel = layout.panel(C, "viewer path", true, IFACE_("Viewer Path"))) {
       draw_viewer_path_panel(C, *panel);
     }
-    if (ui::Layout *panel = layout.panel(&C, "viewer data", true, IFACE_("Viewer Data"))) {
+    if (ui::Layout *panel = layout.panel(C, "viewer data", true, IFACE_("Viewer Data"))) {
       draw_viewer_data_panel(C, *panel);
     }
   }
@@ -1323,7 +1323,7 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
   if (const std::optional<bke::GeometrySet> root_geometry = root_geometry_set_get(sspreadsheet,
                                                                                   object))
   {
-    if (ui::Layout *panel = layout.panel(C, "instance tree", false, IFACE_("Geometry"))) {
+    if (ui::Layout *panel = layout.panel(*C, "instance tree", false, IFACE_("Geometry"))) {
       ui::AbstractTreeView *tree_view = block_add_view(
           *block,
           "Instances Tree View",
@@ -1331,7 +1331,7 @@ void spreadsheet_data_set_panel_draw(const bContext *C, Panel *panel)
       tree_view->set_context_menu_title("Instance");
       ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *panel, false);
     }
-    if (ui::Layout *panel = layout.panel(C, "geometry_domain_tree_view", false, IFACE_("Domain")))
+    if (ui::Layout *panel = layout.panel(*C, "geometry_domain_tree_view", false, IFACE_("Domain")))
     {
       bke::GeometrySet instance_geometry = get_geometry_set_for_instance_ids(
           *root_geometry,

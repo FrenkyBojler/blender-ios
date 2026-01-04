@@ -748,7 +748,7 @@ PopupMenu *popup_menu_begin(bContext *C, const char *title, int icon) ATTR_NONNU
  * Only return handler, and set optional title.
  * \param block_name: Assigned to Block.name (useful info for debugging).
  */
-PopupMenu *popup_menu_begin_ex(bContext *C, const char *title, const char *block_name, int icon)
+PopupMenu *popup_menu_begin_ex(bContext &C, const char *title, const char *block_name, int icon)
     ATTR_NONNULL();
 /**
  * Set the whole structure to work.
@@ -803,7 +803,7 @@ wmOperatorStatus popover_panel_invoke(bContext *C,
  * \param from_active_button: Use the active button for positioning,
  * use when the popover is activated from an operator instead of directly from the button.
  */
-Popover *popover_begin(bContext *C, int ui_menu_width, bool from_active_button) ATTR_NONNULL(1);
+Popover *popover_begin(bContext &C, int ui_menu_width, bool from_active_button) ATTR_NONNULL(1);
 /**
  * Set the whole structure to work.
  */

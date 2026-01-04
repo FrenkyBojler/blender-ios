@@ -2223,12 +2223,12 @@ static void area_move_apply_do(bContext &C, int delta, sAreaMoveData *md)
   }
 }
 
-static void area_move_apply(bContext *C, wmOperator *op)
+static void area_move_apply(bContext &C, wmOperator *op)
 {
   sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
   int delta = RNA_int_get(op->ptr, "delta");
 
-  area_move_apply_do(*C, delta, md);
+  area_move_apply_do(C, delta, md);
 }
 
 static void area_move_exit(bContext &C, wmOperator *op)
@@ -2259,7 +2259,7 @@ static wmOperatorStatus area_move_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  area_move_apply(&C, &op);
+  area_move_apply(C, &op);
   area_move_exit(C, &op);
 
   return OPERATOR_FINISHED;
@@ -2293,7 +2293,7 @@ static void area_move_cancel(bContext &C, wmOperator &op)
 {
 
   RNA_int_set(op.ptr, "delta", 0);
-  area_move_apply(&C, &op);
+  area_move_apply(C, &op);
   area_move_exit(C, &op);
 }
 
@@ -2311,7 +2311,7 @@ static wmOperatorStatus area_move_modal(bContext &C, wmOperator &op, const wmEve
       const int delta = (md->dir_axis == SCREEN_AXIS_V) ? event->xy[0] - x : event->xy[1] - y;
       RNA_int_set(op.ptr, "delta", delta);
 
-      area_move_apply(&C, &op);
+      area_move_apply(C, &op);
       break;
     }
     case RIGHTMOUSE: {

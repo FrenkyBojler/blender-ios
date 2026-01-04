@@ -469,13 +469,13 @@ static void create_title_button(Layout &layout, const char *title, int icon)
   layout.separator();
 }
 
-PopupMenu *popup_menu_begin_ex(bContext *C, const char *title, const char *block_name, int icon)
+PopupMenu *popup_menu_begin_ex(bContext &C, const char *title, const char *block_name, int icon)
 {
   PopupMenu *pup = MEM_new<PopupMenu>(__func__);
 
   pup->title = title;
 
-  ui_popup_menu_create_block(*C, pup, title, block_name);
+  ui_popup_menu_create_block(C, pup, title, block_name);
 
   /* create in advance so we can let buttons point to retval already */
   pup->block->handle = MEM_new<PopupBlockHandle>(__func__);
@@ -489,7 +489,7 @@ PopupMenu *popup_menu_begin_ex(bContext *C, const char *title, const char *block
 
 PopupMenu *popup_menu_begin(bContext *C, const char *title, int icon)
 {
-  return popup_menu_begin_ex(C, title, __func__, icon);
+  return popup_menu_begin_ex(*C, title, __func__, icon);
 }
 
 void popup_menu_but_set(PopupMenu *pup, ARegion *butregion, Button *but)
@@ -570,7 +570,7 @@ void popup_menu_reports(bContext &C, ReportList *reports)
       char title[UI_MAX_DRAW_STR];
       SNPRINTF_UTF8(title, "%s: %s", RPT_("Report"), report.typestr);
       /* popup_menu stuff does just what we need (but pass meaningful block name) */
-      pup = popup_menu_begin_ex(&C, title, __func__, ICON_NONE);
+      pup = popup_menu_begin_ex(C, title, __func__, ICON_NONE);
       layout = popup_menu_layout(pup);
     }
     else {

@@ -224,7 +224,7 @@ PointerRNA *WM_gizmo_operator_set(wmGizmo *gz,
   return &gzop.ptr;
 }
 
-wmOperatorStatus WM_gizmo_operator_invoke(bContext *C,
+wmOperatorStatus WM_gizmo_operator_invoke(bContext &C,
                                           wmGizmo *gz,
                                           wmGizmoOpElem *gzop,
                                           const wmEvent *event)
@@ -232,7 +232,7 @@ wmOperatorStatus WM_gizmo_operator_invoke(bContext *C,
   if (gz->flag & WM_GIZMO_OPERATOR_TOOL_INIT) {
     /* Merge tool-settings into the gizmo properties. */
     PointerRNA tref_ptr;
-    bToolRef *tref = WM_toolsystem_ref_from_context(*C);
+    bToolRef *tref = WM_toolsystem_ref_from_context(C);
     if (tref && WM_toolsystem_ref_properties_get_from_operator(tref, gzop->type, &tref_ptr)) {
       if (gzop->ptr.data == nullptr) {
         gzop->ptr.data = blender::bke::idprop::create_group("wmOperatorProperties").release();
@@ -243,7 +243,7 @@ wmOperatorStatus WM_gizmo_operator_invoke(bContext *C,
     }
   }
   return WM_operator_name_call_ptr(
-      *C, gzop->type, blender::wm::OpCallContext::InvokeDefault, &gzop->ptr, event);
+      C, gzop->type, blender::wm::OpCallContext::InvokeDefault, &gzop->ptr, event);
 }
 
 static void wm_gizmo_set_matrix_rotation_from_z_axis__internal(float matrix[4][4],

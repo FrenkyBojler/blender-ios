@@ -104,7 +104,7 @@ static bool wm_fbx_import_check(bContext & /*C*/, wmOperator & /*op*/)
   return false;
 }
 
-static void ui_fbx_import_settings(const bContext *C, blender::ui::Layout &layout, PointerRNA *ptr)
+static void ui_fbx_import_settings(const bContext &C, blender::ui::Layout &layout, PointerRNA *ptr)
 {
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
@@ -137,7 +137,7 @@ static void ui_fbx_import_settings(const bContext *C, blender::ui::Layout &layou
   }
 
   {
-    blender::ui::PanelLayout panel = layout.panel(*C, "FBX_import_anim", true);
+    blender::ui::PanelLayout panel = layout.panel(C, "FBX_import_anim", true);
     panel.header->use_property_split_set(false);
     panel.header->prop(ptr, "use_anim", UI_ITEM_NONE, "", ICON_NONE);
     panel.header->label(IFACE_("Animation"), ICON_NONE);
@@ -157,7 +157,7 @@ static void ui_fbx_import_settings(const bContext *C, blender::ui::Layout &layou
 
 static void wm_fbx_import_draw(bContext &C, wmOperator &op)
 {
-  ui_fbx_import_settings(&C, *op.layout, op.ptr);
+  ui_fbx_import_settings(C, *op.layout, op.ptr);
 }
 
 void WM_OT_fbx_import(wmOperatorType *ot)

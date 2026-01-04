@@ -2973,10 +2973,10 @@ void OBJECT_OT_make_single_user(wmOperatorType *ot)
 /** \name Drop Named Material on Object Operator
  * \{ */
 
-std::string drop_named_material_tooltip(bContext *C, const char *name, const int mval[2])
+std::string drop_named_material_tooltip(bContext &C, const char *name, const int mval[2])
 {
   int mat_slot = 0;
-  Object *ob = ED_view3d_give_material_slot_under_cursor(*C, mval, &mat_slot);
+  Object *ob = ED_view3d_give_material_slot_under_cursor(C, mval, &mat_slot);
   if (ob == nullptr) {
     return {};
   }
@@ -3055,7 +3055,7 @@ void OBJECT_OT_drop_named_material(wmOperatorType *ot)
 
 std::string drop_geometry_nodes_tooltip(bContext *C, PointerRNA *properties, const int mval[2])
 {
-  const Object *ob = ED_view3d_give_object_under_cursor(C, mval);
+  const Object *ob = ED_view3d_give_object_under_cursor(*C, mval);
   if (ob == nullptr) {
     return {};
   }
@@ -3094,7 +3094,7 @@ static wmOperatorStatus drop_geometry_nodes_invoke(bContext &C,
                                                    wmOperator &op,
                                                    const wmEvent *event)
 {
-  Object *ob = ED_view3d_give_object_under_cursor(&C, event->mval);
+  Object *ob = ED_view3d_give_object_under_cursor(C, event->mval);
   if (!ob) {
     return OPERATOR_CANCELLED;
   }

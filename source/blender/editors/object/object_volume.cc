@@ -38,19 +38,19 @@ namespace blender::ed::object {
 
 /* Volume Add */
 
-static Object *object_volume_add(bContext *C, wmOperator *op, const char *name)
+static Object *object_volume_add(bContext &C, wmOperator *op, const char *name)
 {
   ushort local_view_bits;
   float loc[3], rot[3];
 
-  add_generic_get_opts(C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
+  add_generic_get_opts(&C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
-  return add_type(*C, OB_VOLUME, name, loc, rot, false, local_view_bits);
+  return add_type(C, OB_VOLUME, name, loc, rot, false, local_view_bits);
 }
 
 static wmOperatorStatus object_volume_add_exec(bContext &C, wmOperator &op)
 {
-  return (object_volume_add(&C, &op, nullptr) != nullptr) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+  return (object_volume_add(C, &op, nullptr) != nullptr) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 void OBJECT_OT_volume_add(wmOperatorType *ot)
@@ -86,7 +86,7 @@ static wmOperatorStatus volume_import_exec(bContext &C, wmOperator &op)
     BLI_path_split_file_part(range.filepath, filename, sizeof(filename));
     BLI_path_extension_strip(filename);
 
-    Object *object = object_volume_add(&C, &op, filename);
+    Object *object = object_volume_add(C, &op, filename);
     Volume *volume = (Volume *)object->data;
 
     STRNCPY(volume->filepath, range.filepath);

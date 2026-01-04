@@ -1126,7 +1126,7 @@ void wm_gizmomap_modal_set(
 
     wmGizmoOpElem *gzop = WM_gizmo_operator_get(gz, gz->highlight_part);
     if (gzop && gzop->type) {
-      const wmOperatorStatus retval = WM_gizmo_operator_invoke(C, gz, gzop, event);
+      const wmOperatorStatus retval = WM_gizmo_operator_invoke(*C, gz, gzop, event);
       OPERATOR_RETVAL_CHECK(retval);
 
       if ((retval & OPERATOR_RUNNING_MODAL) == 0) {

@@ -546,13 +546,13 @@ bool ED_space_image_maskedit_mask_poll(bContext &C)
   return false;
 }
 
-bool ED_space_image_maskedit_mask_visible_splines_poll(bContext *C)
+bool ED_space_image_maskedit_mask_visible_splines_poll(bContext &C)
 {
-  if (!ED_space_image_maskedit_mask_poll(*C)) {
+  if (!ED_space_image_maskedit_mask_poll(C)) {
     return false;
   }
 
-  const SpaceImage *space_image = CTX_wm_space_image(*C);
+  const SpaceImage *space_image = CTX_wm_space_image(C);
   return space_image->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
 }
 

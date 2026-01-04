@@ -252,16 +252,16 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
 };
 
 /* Exit and free memory. */
-static void grease_pencil_pen_exit(bContext *C, wmOperator *op)
+static void grease_pencil_pen_exit(bContext &C, wmOperator *op)
 {
   GreasePencilPenToolOperation *ptd = static_cast<GreasePencilPenToolOperation *>(op->customdata);
 
   /* Clear status message area. */
-  ED_workspace_status_text(C, nullptr);
+  ED_workspace_status_text(&C, nullptr);
 
   WM_cursor_modal_restore(ptd->vc.win);
 
-  ptd->update_view(*C);
+  ptd->update_view(C);
 
   MEM_delete(ptd);
   /* Clear pointer. */
@@ -278,7 +278,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext &C, wmOperator &op, co
 
   const wmOperatorStatus result = ptd.invoke(C, &op, event);
   if (result != OPERATOR_RUNNING_MODAL) {
-    grease_pencil_pen_exit(&C, &op);
+    grease_pencil_pen_exit(C, &op);
   }
   return result;
 }
@@ -291,7 +291,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext &C, wmOperator &op, con
 
   const wmOperatorStatus result = ptd.modal(&C, &op, event);
   if (result != OPERATOR_RUNNING_MODAL) {
-    grease_pencil_pen_exit(&C, &op);
+    grease_pencil_pen_exit(C, &op);
   }
   return result;
 }

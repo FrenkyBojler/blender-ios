@@ -747,7 +747,7 @@ static wmOperatorStatus undo_history_invoke(bContext &C, wmOperator &op, const w
     return undo_history_exec(C, op);
   }
 
-  WM_menu_name_call(&C, "TOPBAR_MT_undo_history", blender::wm::OpCallContext::InvokeDefault);
+  WM_menu_name_call(C, "TOPBAR_MT_undo_history", blender::wm::OpCallContext::InvokeDefault);
   return OPERATOR_FINISHED;
 }
 

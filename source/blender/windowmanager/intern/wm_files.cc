@@ -159,7 +159,7 @@ static void wm_history_files_free();
 static void wm_history_file_update();
 static void wm_history_file_write();
 
-static void wm_test_autorun_revert_action_exec(bContext *C);
+static void wm_test_autorun_revert_action_exec(bContext &C);
 
 static CLG_LogRef LOG = {"blend"};
 
@@ -2918,7 +2918,7 @@ static wmOperatorStatus wm_homefile_read_exec(bContext &C, wmOperator &op)
 
 static void wm_homefile_read_after_dialog_callback(bContext *C, void *user_data)
 {
-  WM_operator_name_call_with_properties(C,
+  WM_operator_name_call_with_properties(*C,
                                         "WM_OT_read_homefile",
                                         blender::wm::OpCallContext::ExecDefault,
                                         (IDProperty *)user_data,
@@ -3125,7 +3125,7 @@ static wmOperatorStatus wm_open_mainfile_dispatch(bContext *C, wmOperator *op);
 
 static void wm_open_mainfile_after_dialog_callback(bContext *C, void *user_data)
 {
-  WM_operator_name_call_with_properties(C,
+  WM_operator_name_call_with_properties(*C,
                                         "WM_OT_open_mainfile",
                                         blender::wm::OpCallContext::InvokeDefault,
                                         (IDProperty *)user_data,
@@ -3440,14 +3440,14 @@ void WM_OT_revert_mainfile(wmOperatorType *ot)
 /** \name Recover Last Session Operator
  * \{ */
 
-bool WM_file_recover_last_session(bContext *C,
+bool WM_file_recover_last_session(bContext &C,
                                   const bool use_scripts_autoexec_check,
                                   ReportList *reports)
 {
   char filepath[FILE_MAX];
   BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), BLENDER_QUIT_FILE);
   G.fileflags |= G_FILE_RECOVER_READ;
-  const bool success = wm_file_read_opwrap(*C, filepath, use_scripts_autoexec_check, reports);
+  const bool success = wm_file_read_opwrap(C, filepath, use_scripts_autoexec_check, reports);
   G.fileflags &= ~G_FILE_RECOVER_READ;
   return success;
 }
@@ -3457,7 +3457,7 @@ static wmOperatorStatus wm_recover_last_session_impl(bContext *C,
                                                      const bool use_scripts_autoexec_check)
 {
   SET_FLAG_FROM_TEST(G.f, RNA_boolean_get(op->ptr, "use_scripts"), G_FLAG_SCRIPT_AUTOEXEC);
-  if (WM_file_recover_last_session(C, use_scripts_autoexec_check, op->reports)) {
+  if (WM_file_recover_last_session(*C, use_scripts_autoexec_check, op->reports)) {
     if (!G.background) {
       wmOperatorType *ot = op->type;
       PointerRNA *props_ptr = MEM_new<PointerRNA>(__func__, WM_operator_properties_create_ptr(ot));
@@ -3477,7 +3477,7 @@ static wmOperatorStatus wm_recover_last_session_exec(bContext &C, wmOperator &op
 
 static void wm_recover_last_session_after_dialog_callback(bContext *C, void *user_data)
 {
-  WM_operator_name_call_with_properties(C,
+  WM_operator_name_call_with_properties(*C,
                                         "WM_OT_recover_last_session",
                                         blender::wm::OpCallContext::ExecDefault,
                                         (IDProperty *)user_data,
@@ -4055,7 +4055,7 @@ static void wm_block_autorun_warning_reload_with_scripts(bContext &C, blender::u
 
   /* Load file again with scripts enabled.
    * The reload is necessary to allow scripts to run when the files loads. */
-  wm_test_autorun_revert_action_exec(&C);
+  wm_test_autorun_revert_action_exec(C);
 }
 
 static void wm_block_autorun_warning_enable_scripts(bContext &C, blender::ui::Block *block)
@@ -4216,7 +4216,7 @@ void wm_test_autorun_revert_action_set(wmOperatorType *ot, PointerRNA *ptr)
   wm_test_autorun_revert_action_data.ptr = ptr;
 }
 
-void wm_test_autorun_revert_action_exec(bContext *C)
+void wm_test_autorun_revert_action_exec(bContext &C)
 {
   wmOperatorType *ot = wm_test_autorun_revert_action_data.ot;
   PointerRNA *ptr = wm_test_autorun_revert_action_data.ptr;
@@ -4231,7 +4231,7 @@ void wm_test_autorun_revert_action_exec(bContext *C)
     wm_test_autorun_revert_action_set(ot, ptr);
   }
 
-  WM_operator_name_call_ptr(*C, ot, blender::wm::OpCallContext::ExecDefault, ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, ptr, nullptr);
   wm_test_autorun_revert_action_set(nullptr, nullptr);
 }
 

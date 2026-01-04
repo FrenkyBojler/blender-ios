@@ -327,7 +327,7 @@ wmOperatorStatus popover_panel_invoke(bContext *C,
     block = pup->block;
   }
   else {
-    Popover *pup = popover_begin(C, U.widget_unit * pt->ui_units_x, false);
+    Popover *pup = popover_begin(*C, U.widget_unit * pt->ui_units_x, false);
     layout = popover_layout(pup);
     blender::ui::UI_paneltype_draw(C, pt, layout);
     blender::ui::popover_end(*C, pup, nullptr);
@@ -347,7 +347,7 @@ wmOperatorStatus popover_panel_invoke(bContext *C,
 /** \name Popup Menu API with begin & end
  * \{ */
 
-Popover *popover_begin(bContext *C, int ui_menu_width, bool from_active_button)
+Popover *popover_begin(bContext &C, int ui_menu_width, bool from_active_button)
 {
   Popover *pup = MEM_new<Popover>(__func__);
   if (ui_menu_width == 0) {
@@ -359,7 +359,7 @@ Popover *popover_begin(bContext *C, int ui_menu_width, bool from_active_button)
   Button *but = nullptr;
 
   if (from_active_button) {
-    butregion = CTX_wm_region(*C);
+    butregion = CTX_wm_region(C);
     but = region_active_but_get(butregion);
     if (but == nullptr) {
       butregion = nullptr;
@@ -370,7 +370,7 @@ Popover *popover_begin(bContext *C, int ui_menu_width, bool from_active_button)
   pup->butregion = butregion;
 
   /* Operator context default same as menus, change if needed. */
-  ui_popover_create_block(*C, nullptr, pup, wm::OpCallContext::ExecRegionWin);
+  ui_popover_create_block(C, nullptr, pup, wm::OpCallContext::ExecRegionWin);
 
   /* Create in advance so we can let buttons point to #PopupBlockHandle::retvalue
    * (and other return values) already. */

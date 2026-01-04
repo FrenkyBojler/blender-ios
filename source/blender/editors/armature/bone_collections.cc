@@ -1185,11 +1185,11 @@ static wmOperatorStatus move_to_collection_regular_invoke(bContext &C, wmOperato
   return OPERATOR_INTERFACE;
 }
 
-static wmOperatorStatus move_to_new_collection_invoke(bContext *C, wmOperator *op)
+static wmOperatorStatus move_to_new_collection_invoke(bContext &C, wmOperator *op)
 {
   RNA_string_set(op->ptr, "new_collection_name", IFACE_("Bones"));
   return WM_operator_props_dialog_popup(
-      *C, op, 200, IFACE_("Move to New Bone Collection"), IFACE_("Create"));
+      C, op, 200, IFACE_("Move to New Bone Collection"), IFACE_("Create"));
 }
 
 static wmOperatorStatus move_to_collection_invoke(bContext &C,
@@ -1200,7 +1200,7 @@ static wmOperatorStatus move_to_collection_invoke(bContext &C,
    * collection as the child of this one. */
   PropertyRNA *prop = RNA_struct_find_property(op.ptr, "collection_index");
   if (RNA_property_is_set(op.ptr, prop)) {
-    return move_to_new_collection_invoke(&C, &op);
+    return move_to_new_collection_invoke(C, &op);
   }
 
   return move_to_collection_regular_invoke(C, &op);

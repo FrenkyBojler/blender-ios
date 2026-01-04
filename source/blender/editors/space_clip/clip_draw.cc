@@ -332,7 +332,7 @@ static void draw_movieclip_buffer(const bContext *C,
     use_filter = false;
   }
 
-  ED_draw_imbuf_ctx(C, ibuf, x, y, use_filter, zoomx * width / ibuf->x, zoomy * height / ibuf->y);
+  ED_draw_imbuf_ctx(*C, ibuf, x, y, use_filter, zoomx * width / ibuf->x, zoomy * height / ibuf->y);
 
   if (ibuf->planes == 32) {
     GPU_blend(GPU_BLEND_NONE);

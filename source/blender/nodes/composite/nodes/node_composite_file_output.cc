@@ -322,7 +322,7 @@ static void item_layout(ui::Layout &layout,
   PointerRNA *format_pointer = override_node_format ? &item_format_pointer : &node_format_pointer;
 
   if (override_node_format) {
-    if (ui::Layout *panel = layout.panel(context, "item_format", false, IFACE_("Item Format"))) {
+    if (ui::Layout *panel = layout.panel(*context, "item_format", false, IFACE_("Item Format"))) {
       format_layout(panel, *context, format_pointer, item_pointer);
     }
   }
@@ -336,12 +336,12 @@ static void node_layout_ex(ui::Layout &layout, bContext *context, PointerRNA *no
   const bool is_multi_layer = RNA_enum_get(&format_pointer, "file_format") ==
                               R_IMF_IMTYPE_MULTILAYER;
   layout.prop(&format_pointer, "media_type", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  if (ui::Layout *panel = layout.panel(context, "node_format", false, IFACE_("Node Format"))) {
+  if (ui::Layout *panel = layout.panel(*context, "node_format", false, IFACE_("Node Format"))) {
     format_layout(panel, *context, &format_pointer, node_pointer);
   }
 
   const char *panel_name = is_multi_layer ? IFACE_("Layers") : IFACE_("Images");
-  if (ui::Layout *panel = layout.panel(context, "file_output_items", false, panel_name)) {
+  if (ui::Layout *panel = layout.panel(*context, "file_output_items", false, panel_name)) {
     bNodeTree &tree = *reinterpret_cast<bNodeTree *>(node_pointer->owner_id);
     bNode &node = *node_pointer->data_as<bNode>();
     socket_items::ui::draw_items_list_with_operators<FileOutputItemsAccessor>(
@@ -352,7 +352,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *context, PointerRNA *no
         });
   }
 
-  if (ui::Layout *panel = layout.panel(context, "output_paths", true, IFACE_("Output Paths"))) {
+  if (ui::Layout *panel = layout.panel(*context, "output_paths", true, IFACE_("Output Paths"))) {
     const bNode &node = *node_pointer->data_as<bNode>();
     const ImageFormatData &node_format = *format_pointer.data_as<ImageFormatData>();
 

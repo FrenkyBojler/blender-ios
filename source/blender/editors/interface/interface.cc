@@ -1378,7 +1378,7 @@ static std::optional<std::string> ui_but_event_operator_string_from_operator(
                          nullptr;
 
   return WM_key_event_operator_string(
-      C, op_call_params->optype->idname, op_call_params->opcontext, prop, true);
+      *C, op_call_params->optype->idname, op_call_params->opcontext, prop, true);
 }
 
 static std::optional<std::string> ui_but_event_operator_string_from_menu(const bContext *C,
@@ -1392,7 +1392,7 @@ static std::optional<std::string> ui_but_event_operator_string_from_menu(const b
   IDP_AddToGroup(prop_menu, IDP_NewStringMaxSize(mt->idname, sizeof(mt->idname), "name"));
 
   const std::optional<std::string> result = WM_key_event_operator_string(
-      C, "WM_OT_call_menu", wm::OpCallContext::InvokeRegionWin, prop_menu, true);
+      *C, "WM_OT_call_menu", wm::OpCallContext::InvokeRegionWin, prop_menu, true);
 
   IDP_FreeProperty(prop_menu);
   return result;
@@ -1416,7 +1416,7 @@ static std::optional<std::string> ui_but_event_operator_string_from_panel(const 
     /* FIXME(@ideasman42): We can't reasonably search all configurations - long term. */
     IDP_ReplaceInGroup(prop_panel, bke::idprop::create("keep_open", i).release());
     std::optional<std::string> result = WM_key_event_operator_string(
-        C, "WM_OT_call_panel", wm::OpCallContext::InvokeRegionWin, prop_panel, true);
+        *C, "WM_OT_call_panel", wm::OpCallContext::InvokeRegionWin, prop_panel, true);
     if (result) {
       return result;
     }
@@ -1609,7 +1609,7 @@ static std::optional<std::string> ui_but_event_property_operator_string(const bC
 
       for (int i = 0; (i < opnames_len) && (opnames[i]); i++) {
         const std::optional<std::string> str = WM_key_event_operator_string(
-            C, opnames[i], wm::OpCallContext::InvokeRegionWin, prop_path, false);
+            *C, opnames[i], wm::OpCallContext::InvokeRegionWin, prop_path, false);
         if (str) {
           return str;
         }

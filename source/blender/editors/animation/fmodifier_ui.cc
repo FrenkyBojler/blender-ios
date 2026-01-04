@@ -61,7 +61,7 @@ static ListBaseT<FModifier> *fmodifier_list_space_specific(const bContext &C)
   ScrArea *area = CTX_wm_area(C);
 
   if (area->spacetype == SPACE_GRAPH) {
-    FCurve *fcu = ANIM_graph_context_fcurve(&C);
+    FCurve *fcu = ANIM_graph_context_fcurve(C);
     return &fcu->modifiers;
   }
 
@@ -88,7 +88,7 @@ static PointerRNA *fmodifier_get_pointers(const bContext *C, const Panel *panel,
   }
 
   if (C != nullptr && CTX_wm_space_graph(*C)) {
-    const FCurve *fcu = ANIM_graph_context_fcurve(C);
+    const FCurve *fcu = ANIM_graph_context_fcurve(*C);
     panel->layout->active_set(!(fcu->flag & FCURVE_MOD_OFF));
   }
 

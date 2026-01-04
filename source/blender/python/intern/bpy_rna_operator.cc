@@ -125,13 +125,13 @@ static PyObject *BPY_rna_operator_poll_message_set(PyObject * /*self*/, PyObject
     return nullptr;
   }
 
-  bContext *C = BPY_context_get();
+  bContext &C = *BPY_context_get();
   bContextPollMsgDyn_Params params{};
   params.get_fn = pyop_poll_message_get_fn;
   params.free_fn = pyop_poll_message_free_fn;
   params.user_data = Py_NewRef(args);
 
-  CTX_wm_operator_poll_msg_set_dynamic(*C, &params);
+  CTX_wm_operator_poll_msg_set_dynamic(C, &params);
 
   Py_RETURN_NONE;
 }

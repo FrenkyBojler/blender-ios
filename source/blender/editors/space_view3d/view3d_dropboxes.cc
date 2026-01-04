@@ -142,13 +142,13 @@ static void view3d_ob_drop_on_enter(wmDropBox *drop, wmDrag *drag)
   }
 }
 
-static bool view3d_ob_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+static bool view3d_ob_drop_poll(bContext &C, wmDrag *drag, const wmEvent *event)
 {
-  return view3d_drop_id_in_main_region_poll(*C, drag, event, ID_OB);
+  return view3d_drop_id_in_main_region_poll(C, drag, event, ID_OB);
 }
 static bool view3d_ob_drop_poll_external_asset(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  if (!view3d_ob_drop_poll(C, drag, event) || (drag->type != WM_DRAG_ASSET)) {
+  if (!view3d_ob_drop_poll(*C, drag, event) || (drag->type != WM_DRAG_ASSET)) {
     return false;
   }
   return true;
@@ -160,20 +160,20 @@ static bool view3d_ob_drop_poll_external_asset(bContext *C, wmDrag *drag, const 
  */
 static bool view3d_ob_drop_poll_local_id(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  if (!view3d_ob_drop_poll(C, drag, event) || (drag->type != WM_DRAG_ID)) {
+  if (!view3d_ob_drop_poll(*C, drag, event) || (drag->type != WM_DRAG_ID)) {
     return false;
   }
   return true;
 }
 
-static bool view3d_collection_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+static bool view3d_collection_drop_poll(bContext &C, wmDrag *drag, const wmEvent *event)
 {
-  return view3d_drop_id_in_main_region_poll(*C, drag, event, ID_GR);
+  return view3d_drop_id_in_main_region_poll(C, drag, event, ID_GR);
 }
 
 static bool view3d_collection_drop_poll_local_id(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  if (!view3d_collection_drop_poll(C, drag, event) || (drag->type != WM_DRAG_ID)) {
+  if (!view3d_collection_drop_poll(*C, drag, event) || (drag->type != WM_DRAG_ID)) {
     return false;
   }
   return true;
@@ -183,7 +183,7 @@ static bool view3d_collection_drop_poll_external_asset(bContext *C,
                                                        wmDrag *drag,
                                                        const wmEvent *event)
 {
-  if (!view3d_collection_drop_poll(C, drag, event) || (drag->type != WM_DRAG_ASSET)) {
+  if (!view3d_collection_drop_poll(*C, drag, event) || (drag->type != WM_DRAG_ASSET)) {
     return false;
   }
   return true;
@@ -195,7 +195,7 @@ static bool view3d_mat_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event
     return false;
   }
 
-  Object *ob = ED_view3d_give_object_under_cursor(C, event->mval);
+  Object *ob = ED_view3d_give_object_under_cursor(*C, event->mval);
 
   return (ob && ID_IS_EDITABLE(&ob->id) && !ID_IS_OVERRIDE_LIBRARY(&ob->id));
 }
@@ -211,7 +211,7 @@ static std::string view3d_mat_drop_tooltip(bContext *C,
       xy[0] - region->winrct.xmin,
       xy[1] - region->winrct.ymin,
   };
-  return blender::ed::object::drop_named_material_tooltip(C, name, mval);
+  return blender::ed::object::drop_named_material_tooltip(*C, name, mval);
 }
 
 static bool view3d_world_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
@@ -275,7 +275,7 @@ static bool view3d_ima_empty_drop_poll(bContext *C, wmDrag *drag, const wmEvent 
     return false;
   }
 
-  Object *ob = ED_view3d_give_object_under_cursor(C, event->mval);
+  Object *ob = ED_view3d_give_object_under_cursor(*C, event->mval);
 
   if (ob == nullptr) {
     return true;

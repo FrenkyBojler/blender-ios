@@ -1241,9 +1241,9 @@ static void wm_drag_draw_default(bContext &C, wmWindow *win, wmDrag *drag, const
   wm_drag_draw_tooltip(C, win, drag, xy);
 }
 
-void WM_drag_draw_default_fn(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2])
+void WM_drag_draw_default_fn(bContext &C, wmWindow *win, wmDrag *drag, const int xy[2])
 {
-  wm_drag_draw_default(*C, win, drag, xy);
+  wm_drag_draw_default(C, win, drag, xy);
 }
 
 void wm_drags_draw(bContext &C, wmWindow *win)

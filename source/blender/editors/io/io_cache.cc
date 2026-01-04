@@ -39,12 +39,12 @@ static void reload_cachefile(bContext &C, CacheFile *cache_file)
   BKE_cachefile_reload(depsgraph, cache_file);
 }
 
-static void cachefile_init(bContext *C, wmOperator *op)
+static void cachefile_init(bContext &C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
   op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
-  blender::ui::context_active_but_prop_get_templateID(*C, &pprop->ptr, &pprop->prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 static wmOperatorStatus cachefile_open_invoke(bContext &C,
@@ -60,7 +60,7 @@ static wmOperatorStatus cachefile_open_invoke(bContext &C,
     RNA_string_set(op.ptr, "filepath", filepath);
   }
 
-  cachefile_init(&C, &op);
+  cachefile_init(C, &op);
 
   WM_event_add_fileselect(&C, &op);
 

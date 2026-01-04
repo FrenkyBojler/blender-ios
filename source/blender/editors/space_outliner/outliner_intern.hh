@@ -526,7 +526,7 @@ bool outliner_has_element_warnings(const SpaceOutliner &space_outliner);
 
 /* `outliner_tools.cc` */
 
-void merged_element_search_menu_invoke(bContext *C,
+void merged_element_search_menu_invoke(bContext &C,
                                        TreeElement *parent_te,
                                        TreeElement *activate_te);
 

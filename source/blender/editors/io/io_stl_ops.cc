@@ -85,8 +85,7 @@ static void wm_stl_export_draw(bContext &C, wmOperator &op)
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  if (blender::ui::Layout *panel = layout.panel(
-          &C, "STL_export_general", false, IFACE_("General")))
+  if (blender::ui::Layout *panel = layout.panel(C, "STL_export_general", false, IFACE_("General")))
   {
     blender::ui::Layout &col = panel->column(false);
 
@@ -108,7 +107,7 @@ static void wm_stl_export_draw(bContext &C, wmOperator &op)
   }
 
   if (blender::ui::Layout *panel = layout.panel(
-          &C, "STL_export_geometry", false, IFACE_("Geometry")))
+          C, "STL_export_geometry", false, IFACE_("Geometry")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "apply_modifiers", UI_ITEM_NONE, IFACE_("Apply Modifiers"), ICON_NONE);
@@ -252,7 +251,7 @@ static void ui_stl_import_settings(const bContext *C, blender::ui::Layout *layou
   layout->use_property_decorate_set(false);
 
   if (blender::ui::Layout *panel = layout->panel(
-          C, "STL_import_general", false, IFACE_("General")))
+          *C, "STL_import_general", false, IFACE_("General")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -262,7 +261,7 @@ static void ui_stl_import_settings(const bContext *C, blender::ui::Layout *layou
   }
 
   if (blender::ui::Layout *panel = layout->panel(
-          C, "STL_import_options", false, IFACE_("Options")))
+          *C, "STL_import_options", false, IFACE_("Options")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "use_facet_normal", UI_ITEM_NONE, std::nullopt, ICON_NONE);

@@ -65,7 +65,7 @@ static void operator_search_update_fn(const bContext *C,
       if (WM_operator_poll((bContext *)C, ot)) {
         std::string name = ot_ui_name;
         if (const std::optional<std::string> kmi_str = WM_key_event_operator_string(
-                C, ot->idname, wm::OpCallContext::ExecDefault, nullptr, true))
+                *C, ot->idname, wm::OpCallContext::ExecDefault, nullptr, true))
         {
           name += UI_SEP_CHAR;
           name += *kmi_str;

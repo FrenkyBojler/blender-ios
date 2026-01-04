@@ -315,9 +315,9 @@ bool ED_image_tools_paint_poll(bContext &C)
   return image_paint_poll_ex(C, true);
 }
 
-bool image_paint_poll_ignore_tool(bContext *C)
+bool image_paint_poll_ignore_tool(bContext &C)
 {
-  return image_paint_poll_ex(*C, false);
+  return image_paint_poll_ex(C, false);
 }
 
 static bool image_paint_2d_clone_poll(bContext &C)

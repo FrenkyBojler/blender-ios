@@ -157,7 +157,8 @@ static void ui_alembic_export_settings(const bContext *C,
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  if (blender::ui::Layout *panel = layout.panel(C, "ABC_export_general", false, IFACE_("General")))
+  if (blender::ui::Layout *panel = layout.panel(
+          *C, "ABC_export_general", false, IFACE_("General")))
   {
     blender::ui::Layout *col = &panel->column(false);
     col->prop(ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -170,7 +171,7 @@ static void ui_alembic_export_settings(const bContext *C,
   }
 
   /* Scene Options */
-  if (blender::ui::Layout *panel = layout.panel(C, "ABC_export_scene", false, IFACE_("Scene"))) {
+  if (blender::ui::Layout *panel = layout.panel(*C, "ABC_export_scene", false, IFACE_("Scene"))) {
     blender::ui::Layout *col = &panel->column(false);
 
     blender::ui::Layout *sub = &col->column(true);
@@ -202,7 +203,7 @@ static void ui_alembic_export_settings(const bContext *C,
 
   /* Object Data */
   if (blender::ui::Layout *panel = layout.panel(
-          C, "ABC_export_geometry", false, IFACE_("Geometry")))
+          *C, "ABC_export_geometry", false, IFACE_("Geometry")))
   {
     blender::ui::Layout *col = &panel->column(true);
     col->prop(ptr, "uvs", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -233,7 +234,7 @@ static void ui_alembic_export_settings(const bContext *C,
 
   /* Particle Data */
   if (blender::ui::Layout *panel = layout.panel(
-          C, "ABC_export_particles", false, IFACE_("Particle Systems")))
+          *C, "ABC_export_particles", false, IFACE_("Particle Systems")))
   {
     blender::ui::Layout &col = panel->column(true);
     col.prop(ptr, "export_hair", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -573,14 +574,14 @@ static void ui_alembic_import_settings(const bContext *C,
   layout->use_property_decorate_set(false);
 
   if (blender::ui::Layout *panel = layout->panel(
-          C, "ABC_import_general", false, IFACE_("General")))
+          *C, "ABC_import_general", false, IFACE_("General")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (blender::ui::Layout *panel = layout->panel(
-          C, "ABC_import_options", false, IFACE_("Options")))
+          *C, "ABC_import_options", false, IFACE_("Options")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "relative_path", UI_ITEM_NONE, std::nullopt, ICON_NONE);

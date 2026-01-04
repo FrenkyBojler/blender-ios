@@ -150,7 +150,7 @@ static void but_shortcut_name_func(bContext *C, void *arg1, int /*event*/)
 
   /* complex code to change name of button */
   if (std::optional<std::string> shortcut_str = WM_key_event_operator_string(
-          C, idname, but->opcontext, prop, true))
+          *C, idname, but->opcontext, prop, true))
   {
     button_add_shortcut(but, shortcut_str->c_str(), true);
   }
@@ -171,7 +171,7 @@ static Block *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
   const char *idname = shortcut_get_operator_property(C, but, &prop);
 
   wmKeyMap *km;
-  wmKeyMapItem *kmi = WM_key_event_operator(C,
+  wmKeyMapItem *kmi = WM_key_event_operator(*C,
                                             idname,
                                             but->opcontext,
                                             prop,
@@ -299,7 +299,7 @@ static void remove_shortcut_func(bContext *C, Button *but)
   const char *idname = shortcut_get_operator_property(C, but, &prop);
 
   wmKeyMap *km;
-  wmKeyMapItem *kmi = WM_key_event_operator(C,
+  wmKeyMapItem *kmi = WM_key_event_operator(*C,
                                             idname,
                                             but->opcontext,
                                             prop,
@@ -1106,7 +1106,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     /* We want to know if this op has a shortcut, be it hotkey or not. */
     wmKeyMap *km;
     wmKeyMapItem *kmi = WM_key_event_operator(
-        C, idname, but->opcontext, prop, EVT_TYPE_MASK_ALL, 0, &km);
+        *C, idname, but->opcontext, prop, EVT_TYPE_MASK_ALL, 0, &km);
 
     /* We do have a shortcut, but only keyboard ones are editable that way... */
     if (kmi) {

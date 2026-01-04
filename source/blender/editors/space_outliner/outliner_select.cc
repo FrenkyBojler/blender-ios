@@ -1825,7 +1825,7 @@ static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext &C,
 
     /* If the selected icon was an aggregate of multiple elements, run the search popup */
     if (merged_elements) {
-      merged_element_search_menu_invoke(&C, te, activate_te);
+      merged_element_search_menu_invoke(C, te, activate_te);
       return OPERATOR_CANCELLED;
     }
 

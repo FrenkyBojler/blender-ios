@@ -160,7 +160,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNode &node = *static_cast<bNode *>(ptr->data);
   NodeIndexSwitch &storage = node_storage(node);
-  if (ui::Layout *panel = layout.panel(C, "index_switch_items", false, IFACE_("Items"))) {
+  if (ui::Layout *panel = layout.panel(*C, "index_switch_items", false, IFACE_("Items"))) {
     panel->op("node.index_switch_item_add", IFACE_("Add Item"), ICON_ADD);
     ui::Layout *col = &panel->column(false);
     for (const int i : IndexRange(storage.items_num)) {

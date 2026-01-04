@@ -368,13 +368,13 @@ bool append_frame_to_filename(const char *filepath,
   return BLI_path_extension_replace(r_filepath_with_frames, FILE_MAX, ".obj");
 }
 
-void exporter_main(bContext *C, const OBJExportParams &export_params)
+void exporter_main(bContext &C, const OBJExportParams &export_params)
 {
-  ed::object::mode_set(*C, OB_MODE_OBJECT);
+  ed::object::mode_set(C, OB_MODE_OBJECT);
 
   Collection *collection = nullptr;
   if (export_params.collection[0]) {
-    Main *bmain = CTX_data_main(*C);
+    Main *bmain = CTX_data_main(C);
     collection = reinterpret_cast<Collection *>(
         BKE_libblock_find_name(bmain, ID_GR, export_params.collection));
     if (!collection) {
@@ -386,7 +386,7 @@ void exporter_main(bContext *C, const OBJExportParams &export_params)
     }
   }
 
-  OBJDepsgraph obj_depsgraph(*C, export_params.export_eval_mode, collection);
+  OBJDepsgraph obj_depsgraph(C, export_params.export_eval_mode, collection);
   Scene *scene = DEG_get_input_scene(obj_depsgraph.get());
   const char *filepath = export_params.filepath;
 

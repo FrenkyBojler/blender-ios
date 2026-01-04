@@ -74,8 +74,8 @@ void geometry_end(Object &ob);
  * Undo for changes happening on a base mesh for multires sculpting.
  * if there is no multi-res sculpt active regular undo is used.
  */
-void push_multires_mesh_begin(bContext *C, const char *str);
-void push_multires_mesh_end(bContext *C, const char *str);
+void push_multires_mesh_begin(bContext &C, const char *str);
+void push_multires_mesh_end(bContext &C, const char *str);
 
 size_t step_memory_size_get(UndoStep *step);
 

@@ -1853,7 +1853,7 @@ static void nearest_key_fn(PEData *data, int point_index, int key_index, bool /*
   data->is_changed = true;
 }
 
-static bool pe_nearest_point_and_key(bContext *C,
+static bool pe_nearest_point_and_key(bContext &C,
                                      const int mval[2],
                                      PTCacheEditPoint **r_point,
                                      PTCacheEditKey **r_key)
@@ -1861,7 +1861,7 @@ static bool pe_nearest_point_and_key(bContext *C,
   NearestParticleData user_data = {nullptr};
 
   PEData data;
-  PE_set_view3d_data(*C, &data);
+  PE_set_view3d_data(C, &data);
   data.mval = mval;
   data.rad = ED_view3d_select_dist_px();
 
@@ -1891,7 +1891,7 @@ bool PE_mouse_particles(bContext &C, const int mval[2], const SelectPick_Params 
   PTCacheEditKey *key;
 
   bool changed = false;
-  bool found = pe_nearest_point_and_key(&C, mval, &point, &key);
+  bool found = pe_nearest_point_and_key(C, mval, &point, &key);
 
   if (params.sel_op == SEL_OP_SET) {
     if ((found && params.select_passthrough) && (key->flag & PEK_SELECT)) {
@@ -2357,13 +2357,13 @@ static void pe_select_cache_free_generic_userdata(void *data)
   MEM_freeN(static_cast<PEData *>(data));
 }
 
-static void pe_select_cache_init_with_generic_userdata(bContext *C, wmGenericUserData *wm_userdata)
+static void pe_select_cache_init_with_generic_userdata(bContext &C, wmGenericUserData *wm_userdata)
 {
   PEData *data = MEM_callocN<PEData>(__func__);
   wm_userdata->data = data;
   wm_userdata->free_fn = pe_select_cache_free_generic_userdata;
   wm_userdata->use_free = true;
-  PE_set_view3d_data(*C, data);
+  PE_set_view3d_data(C, data);
 }
 
 bool PE_circle_select(
@@ -2380,7 +2380,7 @@ bool PE_circle_select(
   }
 
   if (wm_userdata->data == nullptr) {
-    pe_select_cache_init_with_generic_userdata(&C, wm_userdata);
+    pe_select_cache_init_with_generic_userdata(C, wm_userdata);
   }
 
   PEData *data = static_cast<PEData *>(wm_userdata->data);

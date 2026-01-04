@@ -1543,7 +1543,7 @@ static wmOperatorStatus object_image_add_invoke(bContext &C, wmOperator &op, con
   ED_view3d_cursor3d_position(C, event->mval, false, loc);
   RNA_float_set_array(op.ptr, "location", loc);
 
-  Object *ob_cursor = ED_view3d_give_object_under_cursor(&C, event->mval);
+  Object *ob_cursor = ED_view3d_give_object_under_cursor(C, event->mval);
 
   /* Either change empty under cursor or create a new empty. */
   if (!ob_cursor || ob_cursor->type != OB_EMPTY) {

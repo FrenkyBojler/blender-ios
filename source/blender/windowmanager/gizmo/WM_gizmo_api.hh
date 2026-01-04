@@ -99,7 +99,7 @@ PointerRNA *WM_gizmo_operator_set(wmGizmo *gz,
                                   int part_index,
                                   wmOperatorType *ot,
                                   IDProperty *properties);
-wmOperatorStatus WM_gizmo_operator_invoke(bContext *C,
+wmOperatorStatus WM_gizmo_operator_invoke(bContext &C,
                                           wmGizmo *gz,
                                           wmGizmoOpElem *gzop,
                                           const wmEvent *event);

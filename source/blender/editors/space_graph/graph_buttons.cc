@@ -93,10 +93,10 @@ static bool graph_panel_context(const bContext &C, bAnimListElem **ale, FCurve *
   return true;
 }
 
-FCurve *ANIM_graph_context_fcurve(const bContext *C)
+FCurve *ANIM_graph_context_fcurve(const bContext &C)
 {
   FCurve *fcu;
-  if (!graph_panel_context(*C, nullptr, &fcu)) {
+  if (!graph_panel_context(C, nullptr, &fcu)) {
     return nullptr;
   }
 

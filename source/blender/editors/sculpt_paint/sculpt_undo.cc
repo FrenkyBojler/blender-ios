@@ -2411,14 +2411,14 @@ static bool use_multires_mesh(bContext &C)
   return sculpt_session->multires.active;
 }
 
-void push_multires_mesh_begin(bContext *C, const char *str)
+void push_multires_mesh_begin(bContext &C, const char *str)
 {
-  if (!use_multires_mesh(*C)) {
+  if (!use_multires_mesh(C)) {
     return;
   }
 
-  const Scene &scene = *CTX_data_scene(*C);
-  Object *object = CTX_data_active_object(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
 
   multires_flush_sculpt_updates(object);
 
@@ -2427,14 +2427,14 @@ void push_multires_mesh_begin(bContext *C, const char *str)
   geometry_push(*object);
 }
 
-void push_multires_mesh_end(bContext *C, const char *str)
+void push_multires_mesh_end(bContext &C, const char *str)
 {
-  if (!use_multires_mesh(*C)) {
-    ED_undo_push(*C, str);
+  if (!use_multires_mesh(C)) {
+    ED_undo_push(C, str);
     return;
   }
 
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
 
   geometry_push(*object);
 

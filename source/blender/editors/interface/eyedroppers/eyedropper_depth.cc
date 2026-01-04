@@ -308,13 +308,13 @@ static void depthdropper_depth_set(bContext &C, DepthDropper *ddr, const float d
 }
 
 /* set sample from accumulated values */
-static void depthdropper_depth_set_accum(bContext *C, DepthDropper *ddr)
+static void depthdropper_depth_set_accum(bContext &C, DepthDropper *ddr)
 {
   float depth = ddr->accum_depth;
   if (ddr->accum_tot) {
     depth /= float(ddr->accum_tot);
   }
-  depthdropper_depth_set(*C, ddr, depth);
+  depthdropper_depth_set(C, ddr, depth);
 }
 
 /* single point sample & set */
@@ -363,7 +363,7 @@ static wmOperatorStatus depthdropper_modal(bContext &C, wmOperator &op, const wm
           depthdropper_depth_sample(&C, ddr, event->xy);
         }
         else {
-          depthdropper_depth_set_accum(&C, ddr);
+          depthdropper_depth_set_accum(C, ddr);
         }
         depthdropper_exit(C, &op);
         /* Could support finished & undo-skip. */
@@ -378,7 +378,7 @@ static wmOperatorStatus depthdropper_modal(bContext &C, wmOperator &op, const wm
         ddr->accum_tot = 0;
         ddr->accum_depth = 0.0f;
         depthdropper_depth_sample_accum(C, ddr, event->xy);
-        depthdropper_depth_set_accum(&C, ddr);
+        depthdropper_depth_set_accum(C, ddr);
         break;
     }
   }
@@ -386,7 +386,7 @@ static wmOperatorStatus depthdropper_modal(bContext &C, wmOperator &op, const wm
     if (ddr->accum_start) {
       /* button is pressed so keep sampling */
       depthdropper_depth_sample_accum(C, ddr, event->xy);
-      depthdropper_depth_set_accum(&C, ddr);
+      depthdropper_depth_set_accum(C, ddr);
     }
   }
 

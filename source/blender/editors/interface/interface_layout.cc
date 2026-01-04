@@ -3425,7 +3425,7 @@ PointerRNA Layout::op_menu_enum(const bContext *C,
   /* add hotkey here, lower UI code can't detect it */
   if ((this->block()->flag & BLOCK_LOOP) && (ot->prop && ot->invoke)) {
     if (std::optional<std::string> shortcut_str = WM_key_event_operator_string(
-            C, ot->idname, root_->opcontext, nullptr, false))
+            *C, ot->idname, root_->opcontext, nullptr, false))
     {
       button_add_shortcut(but, shortcut_str->c_str(), false);
     }
@@ -4803,12 +4803,12 @@ PanelLayout Layout::panel(const bContext &C, const StringRef idname, const bool 
   return this->panel_prop(C, &state_ptr, "is_open");
 }
 
-Layout *Layout::panel(const bContext *C,
+Layout *Layout::panel(const bContext &C,
                       const StringRef idname,
                       const bool default_closed,
                       const StringRef label)
 {
-  PanelLayout panel_layout = this->panel(*C, idname, default_closed);
+  PanelLayout panel_layout = this->panel(C, idname, default_closed);
   panel_layout.header->label(label, ICON_NONE);
 
   return panel_layout.body;

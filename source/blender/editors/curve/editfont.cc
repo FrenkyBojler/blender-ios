@@ -2438,12 +2438,12 @@ void FONT_OT_case_toggle(wmOperatorType *ot)
 
 /* **************** Open Font ************** */
 
-static void font_ui_template_init(bContext *C, wmOperator *op)
+static void font_ui_template_init(bContext &C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
   op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
-  blender::ui::context_active_but_prop_get_templateID(*C, &pprop->ptr, &pprop->prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 static void font_open_cancel(bContext & /*C*/, wmOperator &op)
@@ -2470,7 +2470,7 @@ static wmOperatorStatus font_open_exec(bContext &C, wmOperator &op)
   }
 
   if (!op.customdata) {
-    font_ui_template_init(&C, &op);
+    font_ui_template_init(C, &op);
   }
 
   /* hook into UI */
@@ -2499,7 +2499,7 @@ static wmOperatorStatus open_invoke(bContext &C, wmOperator &op, const wmEvent *
   PointerRNA idptr;
   PropertyPointerRNA *pprop;
 
-  font_ui_template_init(&C, &op);
+  font_ui_template_init(C, &op);
 
   /* hook into UI */
   pprop = static_cast<PropertyPointerRNA *>(op.customdata);

@@ -380,8 +380,7 @@ static void wm_usd_export_draw(bContext &C, wmOperator &op)
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  if (blender::ui::Layout *panel = layout.panel(
-          &C, "USD_export_general", false, IFACE_("General")))
+  if (blender::ui::Layout *panel = layout.panel(C, "USD_export_general", false, IFACE_("General")))
   {
     blender::ui::Layout *col = &panel->column(false);
     col->prop(ptr, "root_prim_path", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -422,7 +421,7 @@ static void wm_usd_export_draw(bContext &C, wmOperator &op)
   }
 
   if (blender::ui::Layout *panel = layout.panel(
-          &C, "USD_export_types", false, IFACE_("Object Types")))
+          C, "USD_export_types", false, IFACE_("Object Types")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "export_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -441,7 +440,7 @@ static void wm_usd_export_draw(bContext &C, wmOperator &op)
   }
 
   if (blender::ui::Layout *panel = layout.panel(
-          &C, "USD_export_geometry", false, IFACE_("Geometry")))
+          C, "USD_export_geometry", false, IFACE_("Geometry")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "export_uvmaps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -458,7 +457,7 @@ static void wm_usd_export_draw(bContext &C, wmOperator &op)
     col.prop(ptr, "export_subdivision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  if (blender::ui::Layout *panel = layout.panel(&C, "USD_export_rigging", true, IFACE_("Rigging")))
+  if (blender::ui::Layout *panel = layout.panel(C, "USD_export_rigging", true, IFACE_("Rigging")))
   {
     blender::ui::Layout &col = panel->column(false);
 
@@ -502,7 +501,7 @@ static void wm_usd_export_draw(bContext &C, wmOperator &op)
   }
 
   if (blender::ui::Layout *panel = layout.panel(
-          &C, "USD_export_accessibility", true, IFACE_("Accessibility")))
+          C, "USD_export_accessibility", true, IFACE_("Accessibility")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "accessibility_label", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -510,7 +509,7 @@ static void wm_usd_export_draw(bContext &C, wmOperator &op)
   }
 
   if (blender::ui::Layout *panel = layout.panel(
-          &C, "USD_export_experimental", true, IFACE_("Experimental")))
+          C, "USD_export_experimental", true, IFACE_("Experimental")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "use_instancing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -983,8 +982,7 @@ static void wm_usd_import_draw(bContext &C, wmOperator &op)
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  if (blender::ui::Layout *panel = layout.panel(
-          &C, "USD_import_general", false, IFACE_("General")))
+  if (blender::ui::Layout *panel = layout.panel(C, "USD_import_general", false, IFACE_("General")))
   {
     blender::ui::Layout *col = &panel->column(false);
 
@@ -1006,7 +1004,7 @@ static void wm_usd_import_draw(bContext &C, wmOperator &op)
   }
 
   if (blender::ui::Layout *panel = layout.panel(
-          &C, "USD_import_types", false, IFACE_("Object Types")))
+          C, "USD_import_types", false, IFACE_("Object Types")))
   {
     blender::ui::Layout &obj_col = panel->column(false);
     obj_col.prop(ptr, "import_cameras", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1034,7 +1032,7 @@ static void wm_usd_import_draw(bContext &C, wmOperator &op)
   }
 
   if (blender::ui::Layout *panel = layout.panel(
-          &C, "USD_import_geometry", true, IFACE_("Geometry")))
+          C, "USD_import_geometry", true, IFACE_("Geometry")))
   {
     blender::ui::Layout *col = &panel->column(false);
     col->prop(ptr, "read_mesh_uvs", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1047,7 +1045,7 @@ static void wm_usd_import_draw(bContext &C, wmOperator &op)
     col->prop(ptr, "merge_parent_xform", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  if (blender::ui::Layout *panel = layout.panel(&C, "USD_import_rigging", true, IFACE_("Rigging")))
+  if (blender::ui::Layout *panel = layout.panel(C, "USD_import_rigging", true, IFACE_("Rigging")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "import_blendshapes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -1055,7 +1053,7 @@ static void wm_usd_import_draw(bContext &C, wmOperator &op)
   }
 
   if (blender::ui::Layout *panel = layout.panel(
-          &C, "USD_import_material", true, IFACE_("Materials")))
+          C, "USD_import_material", true, IFACE_("Materials")))
   {
     blender::ui::Layout &col = panel->column(false);
 
@@ -1069,8 +1067,7 @@ static void wm_usd_import_draw(bContext &C, wmOperator &op)
     col.prop(ptr, "mtl_name_collision_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  if (blender::ui::Layout *panel = layout.panel(
-          &C, "USD_import_texture", true, IFACE_("Textures")))
+  if (blender::ui::Layout *panel = layout.panel(C, "USD_import_texture", true, IFACE_("Textures")))
   {
     blender::ui::Layout &col = panel->column(false);
 
@@ -1087,7 +1084,7 @@ static void wm_usd_import_draw(bContext &C, wmOperator &op)
   }
 
   if (blender::ui::Layout *panel = layout.panel(
-          &C, "USD_import_instancing", true, IFACE_("Particles and Instancing")))
+          C, "USD_import_instancing", true, IFACE_("Particles and Instancing")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "support_scene_instancing", UI_ITEM_NONE, std::nullopt, ICON_NONE);

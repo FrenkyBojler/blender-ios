@@ -2483,9 +2483,9 @@ Base *ED_view3d_give_base_under_cursor(bContext &C, const int mval[2])
   return ed_view3d_give_base_under_cursor_ex(C, mval, nullptr);
 }
 
-Object *ED_view3d_give_object_under_cursor(bContext *C, const int mval[2])
+Object *ED_view3d_give_object_under_cursor(bContext &C, const int mval[2])
 {
-  Base *base = ED_view3d_give_base_under_cursor(*C, mval);
+  Base *base = ED_view3d_give_base_under_cursor(C, mval);
   if (base) {
     return base->object;
   }
@@ -2505,7 +2505,7 @@ Object *ED_view3d_give_material_slot_under_cursor(bContext &C,
 
 bool ED_view3d_is_object_under_cursor(bContext *C, const int mval[2])
 {
-  return ED_view3d_give_object_under_cursor(C, mval) != nullptr;
+  return ED_view3d_give_object_under_cursor(*C, mval) != nullptr;
 }
 
 static void deselect_all_tracks(MovieTracking *tracking)

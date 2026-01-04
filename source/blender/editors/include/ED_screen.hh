@@ -143,7 +143,7 @@ void ED_region_header_with_button_sections(const bContext *C,
                                            ARegion *region,
                                            blender::ui::ButtonSectionsAlign align);
 /** Version of #ED_region_header_draw() that draws with button sections. */
-void ED_region_header_draw_with_button_sections(const bContext *C,
+void ED_region_header_draw_with_button_sections(const bContext &C,
                                                 const ARegion *region,
                                                 blender::ui::ButtonSectionsAlign align);
 

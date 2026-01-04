@@ -496,7 +496,7 @@ bool WM_file_read(bContext &C,
                   const bool use_scripts_autoexec_check,
                   ReportList *reports);
 void WM_file_autosave_init(wmWindowManager *wm);
-bool WM_file_recover_last_session(bContext *C,
+bool WM_file_recover_last_session(bContext &C,
                                   const bool use_scripts_autoexec_check,
                                   ReportList *reports);
 void WM_file_tag_modified();
@@ -913,7 +913,7 @@ wmOperatorStatus WM_menu_invoke(bContext &C, wmOperator &op, const wmEvent *even
 /**
  * Call an existent menu. The menu can be created in C or Python.
  */
-void WM_menu_name_call(bContext *C, const char *menu_name, blender::wm::OpCallContext context);
+void WM_menu_name_call(bContext &C, const char *menu_name, blender::wm::OpCallContext context);
 
 wmOperatorStatus WM_enum_search_invoke(bContext &C, wmOperator &op, const wmEvent *event);
 
@@ -985,13 +985,13 @@ wmOperatorStatus WM_operator_ui_popup(bContext &C, wmOperator *op, int width);
 /**
  * Can't be used as an invoke directly, needs message arg (can be NULL).
  */
-wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
+wmOperatorStatus WM_operator_confirm_message_ex(bContext &C,
                                                 wmOperator *op,
                                                 const char *title,
                                                 int icon,
                                                 const char *message,
                                                 blender::wm::OpCallContext opcontext);
-wmOperatorStatus WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message);
+wmOperatorStatus WM_operator_confirm_message(bContext &C, wmOperator *op, const char *message);
 
 /* Operator API. */
 
@@ -1040,7 +1040,7 @@ bool WM_operator_poll_or_report_error(bContext &C, wmOperatorType *ot, ReportLis
  * \warning do not use this within an operator to call itself! #29537.
  */
 wmOperatorStatus WM_operator_call_ex(bContext &C, wmOperator *op, bool store);
-wmOperatorStatus WM_operator_call(bContext *C, wmOperator *op);
+wmOperatorStatus WM_operator_call(bContext &C, wmOperator *op);
 /**
  * This is intended to be used when an invoke operator wants to call exec on itself
  * and is basically like running op->type->exec() directly, no poll checks no freeing,
@@ -1082,7 +1082,7 @@ wmOperatorStatus WM_operator_name_call(bContext *C,
                                        blender::wm::OpCallContext context,
                                        PointerRNA *properties,
                                        const wmEvent *event);
-wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
+wmOperatorStatus WM_operator_name_call_with_properties(bContext &C,
                                                        const char *opstring,
                                                        blender::wm::OpCallContext context,
                                                        IDProperty *properties,
@@ -1686,7 +1686,7 @@ wmDropBox *WM_dropbox_add(ListBaseT<wmDropBox> *lb,
 void WM_dropbox_update_ot();
 
 void WM_drag_draw_item_name_fn(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);
-void WM_drag_draw_default_fn(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);
+void WM_drag_draw_default_fn(bContext &C, wmWindow *win, wmDrag *drag, const int xy[2]);
 /**
  * `spaceid` / `regionid` are zero for window drop maps.
  */

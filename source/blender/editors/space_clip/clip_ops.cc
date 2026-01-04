@@ -164,12 +164,12 @@ static void clip_filesel(bContext *C, wmOperator *op, const char *dirpath)
   WM_event_add_fileselect(C, op);
 }
 
-static void open_init(bContext *C, wmOperator *op)
+static void open_init(bContext &C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
   op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
-  blender::ui::context_active_but_prop_get_templateID(*C, &pprop->ptr, &pprop->prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 static void open_cancel(bContext & /*C*/, wmOperator &op)
@@ -236,7 +236,7 @@ static wmOperatorStatus open_exec(bContext &C, wmOperator &op)
   }
 
   if (!op.customdata) {
-    open_init(&C, &op);
+    open_init(C, &op);
   }
 
   /* hook into UI */
@@ -292,7 +292,7 @@ static wmOperatorStatus open_invoke(bContext &C, wmOperator &op, const wmEvent *
     RNA_boolean_set(op.ptr, "relative_path", (U.flag & USER_RELPATHS) != 0);
   }
 
-  open_init(&C, &op);
+  open_init(C, &op);
 
   clip_filesel(&C, &op, dirpath);
 

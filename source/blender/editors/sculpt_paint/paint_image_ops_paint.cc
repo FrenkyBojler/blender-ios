@@ -583,7 +583,7 @@ static void paint_cancel(bContext &C, wmOperator &op)
     ED_image_undo_restore(ustack->step_init);
   }
 
-  stroke->cancel(&C, &op);
+  stroke->cancel(C, &op);
 }
 }  // namespace blender::ed::sculpt_paint::image::ops::paint
 

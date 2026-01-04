@@ -185,13 +185,13 @@ static void eyedropper_exit(bContext &C, wmOperator *op)
 
 /* *** eyedropper_color_ helper functions *** */
 
-static bool eyedropper_cryptomatte_sample_view3d_fl(bContext *C,
+static bool eyedropper_cryptomatte_sample_view3d_fl(bContext &C,
                                                     const char *type_name,
                                                     const int mval[2],
                                                     float r_col[3])
 {
   int material_slot = 0;
-  Object *object = ED_view3d_give_material_slot_under_cursor(*C, mval, &material_slot);
+  Object *object = ED_view3d_give_material_slot_under_cursor(C, mval, &material_slot);
   if (!object) {
     return false;
   }
@@ -419,7 +419,7 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
     CTX_wm_area_set(*C, area);
     CTX_wm_region_set(*C, region);
 
-    const bool success = eyedropper_cryptomatte_sample_view3d_fl(C, prefix, mval, r_col);
+    const bool success = eyedropper_cryptomatte_sample_view3d_fl(*C, prefix, mval, r_col);
 
     CTX_wm_window_set(*C, win_prev);
     CTX_wm_area_set(*C, area_prev);

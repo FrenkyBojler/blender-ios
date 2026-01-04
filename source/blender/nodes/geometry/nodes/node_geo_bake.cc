@@ -126,7 +126,7 @@ static void draw_bake_items(const bContext *C, ui::Layout &layout, PointerRNA no
   bNode &node = *static_cast<bNode *>(node_ptr.data);
   NodeGeometryBake &storage = node_storage(node);
 
-  if (ui::Layout *panel = layout.panel(C, "bake_items", false, IFACE_("Bake Items"))) {
+  if (ui::Layout *panel = layout.panel(*C, "bake_items", false, IFACE_("Bake Items"))) {
     socket_items::ui::draw_items_list_with_operators<BakeItemsAccessor>(C, panel, tree, node);
     socket_items::ui::draw_active_item_props<BakeItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
@@ -839,7 +839,7 @@ void draw_data_blocks(const bContext *C, ui::Layout &layout, PointerRNA &bake_rn
       bake_rna.owner_id, &RNA_NodesModifierBakeDataBlocks, bake_rna.data);
 
   if (ui::Layout *panel = layout.panel(
-          C, "data_block_references", true, IFACE_("Data-Block References")))
+          *C, "data_block_references", true, IFACE_("Data-Block References")))
   {
     ui::template_list(panel,
                       C,

@@ -1653,7 +1653,7 @@ static bool kmi_filter_is_visible(const wmKeyMap * /*km*/,
           (IS_EVENT_ACTIONZONE(kmi->type) == false));
 }
 
-std::optional<std::string> WM_key_event_operator_string(const bContext *C,
+std::optional<std::string> WM_key_event_operator_string(const bContext &C,
                                                         const char *opname,
                                                         blender::wm::OpCallContext opcontext,
                                                         IDProperty *properties,
@@ -1663,7 +1663,7 @@ std::optional<std::string> WM_key_event_operator_string(const bContext *C,
   params.filter_fn = kmi_filter_is_visible;
   params.user_data = nullptr;
   wmKeyMapItem *kmi = wm_keymap_item_find(
-      *C, opname, opcontext, properties, is_strict, &params, nullptr);
+      C, opname, opcontext, properties, is_strict, &params, nullptr);
   if (kmi) {
     return WM_keymap_item_to_string(kmi, false);
   }
@@ -1681,7 +1681,7 @@ static bool kmi_filter_is_visible_type_mask(const wmKeyMap *km,
           kmi_filter_is_visible(km, kmi, user_data));
 }
 
-wmKeyMapItem *WM_key_event_operator(const bContext *C,
+wmKeyMapItem *WM_key_event_operator(const bContext &C,
                                     const char *opname,
                                     blender::wm::OpCallContext opcontext,
                                     IDProperty *properties,
@@ -1694,7 +1694,7 @@ wmKeyMapItem *WM_key_event_operator(const bContext *C,
   wmKeyMapItemFind_Params params{};
   params.filter_fn = use_mask ? kmi_filter_is_visible_type_mask : kmi_filter_is_visible;
   params.user_data = use_mask ? user_data_mask : nullptr;
-  return wm_keymap_item_find(*C, opname, opcontext, properties, true, &params, r_keymap);
+  return wm_keymap_item_find(C, opname, opcontext, properties, true, &params, r_keymap);
 }
 
 wmKeyMapItem *WM_key_event_operator_from_keymap(wmKeyMap *keymap,

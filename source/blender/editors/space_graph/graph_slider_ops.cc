@@ -1113,16 +1113,16 @@ static void blend_offset_graph_keys(bAnimContext *ac, const float factor)
   apply_fcu_segment_function(ac, factor, blend_offset_fcurve_segment);
 }
 
-static void blend_offset_draw_status_header(bContext *C, tGraphSliderOp *gso)
+static void blend_offset_draw_status_header(bContext &C, tGraphSliderOp *gso)
 {
-  common_draw_status_header(*C, gso);
+  common_draw_status_header(C, gso);
 }
 
 static void blend_offset_modal_update(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  blend_offset_draw_status_header(C, gso);
+  blend_offset_draw_status_header(*C, gso);
 
   /* Reset keyframes to the state at invoke. */
   reset_bezts(gso);
@@ -1142,7 +1142,7 @@ static wmOperatorStatus blend_offset_invoke(bContext &C, wmOperator &op, const w
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = blend_offset_modal_update;
   gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
-  blend_offset_draw_status_header(&C, gso);
+  blend_offset_draw_status_header(C, gso);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
 
@@ -1206,16 +1206,16 @@ static void blend_to_ease_graph_keys(bAnimContext *ac, const float factor)
   apply_fcu_segment_function(ac, factor, blend_to_ease_fcurve_segment);
 }
 
-static void blend_to_ease_draw_status_header(bContext *C, tGraphSliderOp *gso)
+static void blend_to_ease_draw_status_header(bContext &C, tGraphSliderOp *gso)
 {
-  common_draw_status_header(*C, gso);
+  common_draw_status_header(C, gso);
 }
 
 static void blend_to_ease_modal_update(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  blend_to_ease_draw_status_header(C, gso);
+  blend_to_ease_draw_status_header(*C, gso);
 
   /* Reset keyframes to the state at invoke. */
   reset_bezts(gso);
@@ -1235,7 +1235,7 @@ static wmOperatorStatus blend_to_ease_invoke(bContext &C, wmOperator &op, const 
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = blend_to_ease_modal_update;
   gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
-  blend_to_ease_draw_status_header(&C, gso);
+  blend_to_ease_draw_status_header(C, gso);
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
@@ -1330,16 +1330,16 @@ static void match_slope_graph_keys(bAnimContext *ac, const float factor)
   ANIM_animdata_freelist(&anim_data);
 }
 
-static void match_slope_draw_status_header(bContext *C, tGraphSliderOp *gso)
+static void match_slope_draw_status_header(bContext &C, tGraphSliderOp *gso)
 {
-  common_draw_status_header(*C, gso);
+  common_draw_status_header(C, gso);
 }
 
 static void match_slope_modal_update(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  match_slope_draw_status_header(C, gso);
+  match_slope_draw_status_header(*C, gso);
 
   /* Reset keyframes to the state at invoke. */
   reset_bezts(gso);
@@ -1359,7 +1359,7 @@ static wmOperatorStatus match_slope_invoke(bContext &C, wmOperator &op, const wm
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = match_slope_modal_update;
   gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
-  match_slope_draw_status_header(&C, gso);
+  match_slope_draw_status_header(C, gso);
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
@@ -1423,16 +1423,16 @@ static void time_offset_graph_keys(bAnimContext *ac, const float factor)
   apply_fcu_segment_function(ac, factor, time_offset_fcurve_segment);
 }
 
-static void time_offset_draw_status_header(bContext *C, tGraphSliderOp *gso)
+static void time_offset_draw_status_header(bContext &C, tGraphSliderOp *gso)
 {
-  common_draw_status_header(*C, gso);
+  common_draw_status_header(C, gso);
 }
 
 static void time_offset_modal_update(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  time_offset_draw_status_header(C, gso);
+  time_offset_draw_status_header(*C, gso);
 
   /* Reset keyframes to the state at invoke. */
   reset_bezts(gso);
@@ -1452,7 +1452,7 @@ static wmOperatorStatus time_offset_invoke(bContext &C, wmOperator &op, const wm
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = time_offset_modal_update;
   gso->factor_prop = RNA_struct_find_property(op.ptr, "frame_offset");
-  time_offset_draw_status_header(&C, gso);
+  time_offset_draw_status_header(C, gso);
   ED_slider_factor_bounds_set(gso->slider, -10, 10);
   ED_slider_increment_step_set(gso->slider, 1);
   ED_slider_factor_set(gso->slider, 0.0f);

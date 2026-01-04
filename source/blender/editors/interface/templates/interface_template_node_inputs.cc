@@ -96,7 +96,7 @@ static bool panel_has_used_inputs(const bNode &node,
   return false;
 }
 
-static void draw_node_inputs_recursive(bContext *C,
+static void draw_node_inputs_recursive(bContext &C,
                                        Layout &layout,
                                        bNode &node,
                                        PointerRNA *node_ptr,
@@ -104,7 +104,7 @@ static void draw_node_inputs_recursive(bContext *C,
 {
   /* TODO: Use flag on the panel state instead which is better for dynamic panel amounts. */
   const std::string panel_idname = "NodePanel" + std::to_string(panel_decl.identifier);
-  PanelLayout panel = layout.panel(*C, panel_idname, panel_decl.default_collapsed);
+  PanelLayout panel = layout.panel(C, panel_idname, panel_decl.default_collapsed);
   const bool has_used_inputs = panel_has_used_inputs(node, panel_decl);
   panel.header->active_set(has_used_inputs);
 
@@ -118,7 +118,7 @@ static void draw_node_inputs_recursive(bContext *C,
   for (const ItemDeclaration *item_decl : panel_decl.items) {
     if (const auto *socket_decl = dynamic_cast<const SocketDeclaration *>(item_decl)) {
       if (socket_decl->in_out == SOCK_IN) {
-        draw_node_input(C, *panel.body, node_ptr, node.socket_by_decl(*socket_decl));
+        draw_node_input(&C, *panel.body, node_ptr, node.socket_by_decl(*socket_decl));
       }
     }
     else if (const auto *sub_panel_decl = dynamic_cast<const PanelDeclaration *>(item_decl)) {
@@ -126,7 +126,7 @@ static void draw_node_inputs_recursive(bContext *C,
     }
     else if (const auto *layout_decl = dynamic_cast<const LayoutDeclaration *>(item_decl)) {
       if (!layout_decl->is_default) {
-        layout_decl->draw(*panel.body, C, node_ptr);
+        layout_decl->draw(*panel.body, &C, node_ptr);
       }
     }
   }
@@ -155,7 +155,7 @@ void template_node_inputs(Layout *layout, bContext *C, PointerRNA *ptr)
     const NodeDeclaration &node_decl = *node.declaration();
     for (const ItemDeclaration *item_decl : node_decl.root_items) {
       if (const auto *panel_decl = dynamic_cast<const PanelDeclaration *>(item_decl)) {
-        nodes::draw_node_inputs_recursive(C, *layout, node, ptr, *panel_decl);
+        nodes::draw_node_inputs_recursive(*C, *layout, node, ptr, *panel_decl);
       }
       else if (const auto *socket_decl = dynamic_cast<const SocketDeclaration *>(item_decl)) {
         bNodeSocket &socket = node.socket_by_decl(*socket_decl);

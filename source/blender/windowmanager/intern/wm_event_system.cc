@@ -1439,9 +1439,9 @@ wmOperatorStatus WM_operator_call_ex(bContext &C, wmOperator *op, const bool sto
   return wm_operator_exec(C, op, false, store);
 }
 
-wmOperatorStatus WM_operator_call(bContext *C, wmOperator *op)
+wmOperatorStatus WM_operator_call(bContext &C, wmOperator *op)
 {
-  return WM_operator_call_ex(*C, op, false);
+  return WM_operator_call_ex(C, op, false);
 }
 
 wmOperatorStatus WM_operator_call_notest(bContext *C, wmOperator *op)
@@ -1961,7 +1961,7 @@ bool WM_operator_name_poll(bContext *C, const char *opstring)
   return WM_operator_poll(C, ot);
 }
 
-wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
+wmOperatorStatus WM_operator_name_call_with_properties(bContext &C,
                                                        const char *opstring,
                                                        blender::wm::OpCallContext context,
                                                        IDProperty *properties,
@@ -1970,16 +1970,16 @@ wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
   wmOperatorType *ot = WM_operatortype_find(opstring, false);
   PointerRNA props_ptr = RNA_pointer_create_discrete(
       &static_cast<wmWindowManager *>(G_MAIN->wm.first)->id, ot->srna, properties);
-  return WM_operator_name_call_ptr(*C, ot, context, &props_ptr, event);
+  return WM_operator_name_call_ptr(C, ot, context, &props_ptr, event);
 }
 
-void WM_menu_name_call(bContext *C, const char *menu_name, blender::wm::OpCallContext context)
+void WM_menu_name_call(bContext &C, const char *menu_name, blender::wm::OpCallContext context)
 {
   wmOperatorType *ot = WM_operatortype_find("WM_OT_call_menu", false);
   PointerRNA ptr = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&ptr, "name", menu_name);
   WM_operator_name_call_ptr(
-      *C, ot, static_cast<blender::wm::OpCallContext>(context), &ptr, nullptr);
+      C, ot, static_cast<blender::wm::OpCallContext>(context), &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
 
@@ -4070,7 +4070,7 @@ static void wm_event_handle_xrevent(bContext *C,
         /* Execute operator. */
         wmOperator *op = wm_operator_create(
             wm, actiondata->ot, actiondata->op_properties ? &properties : nullptr, nullptr);
-        if ((WM_operator_call(C, op) & OPERATOR_HANDLED) == 0) {
+        if ((WM_operator_call(*C, op) & OPERATOR_HANDLED) == 0) {
           WM_operator_free(op);
         }
       }

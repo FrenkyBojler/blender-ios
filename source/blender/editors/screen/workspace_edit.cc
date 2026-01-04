@@ -297,26 +297,26 @@ void ED_workspace_scene_data_sync(WorkSpaceInstanceHook *hook, Scene *scene)
 /** \name Workspace Operators
  * \{ */
 
-static WorkSpace *workspace_context_get(bContext *C)
+static WorkSpace *workspace_context_get(bContext &C)
 {
-  ID *id = blender::ui::context_active_but_get_tab_ID(*C);
+  ID *id = blender::ui::context_active_but_get_tab_ID(C);
   if (id && GS(id->name) == ID_WS) {
     return (WorkSpace *)id;
   }
 
-  return CTX_wm_workspace(*C);
+  return CTX_wm_workspace(C);
 }
 
 static bool workspace_context_poll(bContext &C)
 {
-  return workspace_context_get(&C) != nullptr;
+  return workspace_context_get(C) != nullptr;
 }
 
 static wmOperatorStatus workspace_new_exec(bContext &C, wmOperator & /*op*/)
 {
   Main *bmain = CTX_data_main(C);
   wmWindow *win = CTX_wm_window(C);
-  WorkSpace *workspace = workspace_context_get(&C);
+  WorkSpace *workspace = workspace_context_get(C);
 
   workspace = ED_workspace_duplicate(workspace, bmain, win);
 
@@ -339,7 +339,7 @@ static void WORKSPACE_OT_duplicate(wmOperatorType *ot)
 
 static wmOperatorStatus workspace_delete_exec(bContext &C, wmOperator & /*op*/)
 {
-  WorkSpace *workspace = workspace_context_get(&C);
+  WorkSpace *workspace = workspace_context_get(C);
   WM_event_add_notifier(C, NC_SCREEN | ND_WORKSPACE_DELETE, workspace);
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
@@ -361,7 +361,7 @@ static void WORKSPACE_OT_delete(wmOperatorType *ot)
 static wmOperatorStatus workspace_delete_all_others_exec(bContext &C, wmOperator & /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  WorkSpace *workspace = workspace_context_get(&C);
+  WorkSpace *workspace = workspace_context_get(C);
 
   for (WorkSpace &ws : bmain->workspaces) {
     if (&ws != workspace) {
@@ -631,7 +631,7 @@ static wmOperatorStatus workspace_add_invoke(bContext &C,
                                              wmOperator & /*op*/,
                                              const wmEvent * /*event*/)
 {
-  WM_menu_name_call(&C, "WORKSPACE_MT_add", blender::wm::OpCallContext::InvokeDefault);
+  WM_menu_name_call(C, "WORKSPACE_MT_add", blender::wm::OpCallContext::InvokeDefault);
   return OPERATOR_INTERFACE;
 }
 
@@ -651,7 +651,7 @@ static void WORKSPACE_OT_add(wmOperatorType *ot)
 static wmOperatorStatus workspace_reorder_to_back_exec(bContext &C, wmOperator & /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  WorkSpace *workspace = workspace_context_get(&C);
+  WorkSpace *workspace = workspace_context_get(C);
 
   BKE_id_reorder(
       reinterpret_cast<const ListBaseT<ID> *>(&bmain->workspaces), &workspace->id, nullptr, true);
@@ -675,7 +675,7 @@ static void WORKSPACE_OT_reorder_to_back(wmOperatorType *ot)
 static wmOperatorStatus workspace_reorder_to_front_exec(bContext &C, wmOperator & /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  WorkSpace *workspace = workspace_context_get(&C);
+  WorkSpace *workspace = workspace_context_get(C);
 
   BKE_id_reorder(
       reinterpret_cast<const ListBaseT<ID> *>(&bmain->workspaces), &workspace->id, nullptr, false);
@@ -698,7 +698,7 @@ static void WORKSPACE_OT_reorder_to_front(wmOperatorType *ot)
 
 static wmOperatorStatus workspace_scene_pin_toggle_exec(bContext &C, wmOperator & /*op*/)
 {
-  WorkSpace *workspace = workspace_context_get(&C);
+  WorkSpace *workspace = workspace_context_get(C);
 
   /* Trivial. The operator is only needed to display a superimposed extra icon, which
    * requires an operator. */

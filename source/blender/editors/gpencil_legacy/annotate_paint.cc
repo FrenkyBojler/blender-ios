@@ -1895,23 +1895,23 @@ static void annotation_draw_cancel(bContext &C, wmOperator &op)
 
 /* ------------------------------- */
 
-static int annotation_draw_init(bContext *C, wmOperator *op, const wmEvent *event)
+static int annotation_draw_init(bContext &C, wmOperator *op, const wmEvent *event)
 {
   tGPsdata *p;
   eGPencil_PaintModes paintmode = eGPencil_PaintModes(RNA_enum_get(op->ptr, "mode"));
 
   /* check context */
-  p = static_cast<tGPsdata *>(op->customdata = annotation_session_initpaint(*C));
+  p = static_cast<tGPsdata *>(op->customdata = annotation_session_initpaint(C));
   if ((p == nullptr) || (p->status == GP_STATUS_ERROR)) {
     /* something wasn't set correctly in context */
-    annotation_draw_exit(*C, op);
+    annotation_draw_exit(C, op);
     return 0;
   }
 
   /* init painting data */
-  annotation_paint_initstroke(p, paintmode, CTX_data_ensure_evaluated_depsgraph(*C));
+  annotation_paint_initstroke(p, paintmode, CTX_data_ensure_evaluated_depsgraph(C));
   if (p->status == GP_STATUS_ERROR) {
-    annotation_draw_exit(*C, op);
+    annotation_draw_exit(C, op);
     return 0;
   }
 
@@ -2194,7 +2194,7 @@ static wmOperatorStatus annotation_draw_exec(bContext &C, wmOperator &op)
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   /* try to initialize context data needed while drawing */
-  if (!annotation_draw_init(&C, &op, nullptr)) {
+  if (!annotation_draw_init(C, &op, nullptr)) {
     tGPsdata *p = static_cast<tGPsdata *>(op.customdata);
     MEM_delete(p);
     op.customdata = nullptr;
@@ -2263,7 +2263,7 @@ static wmOperatorStatus annotation_draw_invoke(bContext &C, wmOperator &op, cons
   }
 
   /* try to initialize context data needed while drawing */
-  if (!annotation_draw_init(&C, &op, event)) {
+  if (!annotation_draw_init(C, &op, event)) {
     tGPsdata *p = static_cast<tGPsdata *>(op.customdata);
     MEM_delete(p);
     op.customdata = nullptr;

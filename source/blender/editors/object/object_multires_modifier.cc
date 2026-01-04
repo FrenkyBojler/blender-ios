@@ -395,11 +395,11 @@ static wmOperatorStatus multires_base_apply_exec(bContext &C, wmOperator &op)
                                  ApplyBaseMode::ForSubdivision :
                                  ApplyBaseMode::Base;
 
-  ed::sculpt_paint::undo::push_multires_mesh_begin(&C, op.type->name);
+  ed::sculpt_paint::undo::push_multires_mesh_begin(C, op.type->name);
 
   multiresModifier_base_apply(depsgraph, object, mmd, mode);
 
-  ed::sculpt_paint::undo::push_multires_mesh_end(&C, op.type->name);
+  ed::sculpt_paint::undo::push_multires_mesh_end(C, op.type->name);
 
   DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);

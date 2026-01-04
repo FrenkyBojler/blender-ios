@@ -680,11 +680,11 @@ static void UI_OT_override_remove_button(wmOperatorType *ot)
 }
 
 static void override_idtemplate_ids_get(
-    bContext *C, ID **r_owner_id, ID **r_id, PointerRNA *r_owner_ptr, PropertyRNA **r_prop)
+    bContext &C, ID **r_owner_id, ID **r_id, PointerRNA *r_owner_ptr, PropertyRNA **r_prop)
 {
   PointerRNA owner_ptr;
   PropertyRNA *prop;
-  context_active_but_prop_get_templateID(*C, &owner_ptr, &prop);
+  context_active_but_prop_get_templateID(C, &owner_ptr, &prop);
 
   if (owner_ptr.data == nullptr || prop == nullptr) {
     *r_owner_id = *r_id = nullptr;
@@ -711,7 +711,7 @@ static void override_idtemplate_ids_get(
 static bool override_idtemplate_poll(bContext *C, const bool is_create_op)
 {
   ID *owner_id, *id;
-  override_idtemplate_ids_get(C, &owner_id, &id, nullptr, nullptr);
+  override_idtemplate_ids_get(*C, &owner_id, &id, nullptr, nullptr);
 
   if (owner_id == nullptr || id == nullptr) {
     return false;
@@ -745,7 +745,7 @@ static wmOperatorStatus override_idtemplate_make_exec(bContext &C, wmOperator & 
   ID *owner_id, *id;
   PointerRNA owner_ptr;
   PropertyRNA *prop;
-  override_idtemplate_ids_get(&C, &owner_id, &id, &owner_ptr, &prop);
+  override_idtemplate_ids_get(C, &owner_id, &id, &owner_ptr, &prop);
   if (ELEM(nullptr, owner_id, id)) {
     return OPERATOR_CANCELLED;
   }
@@ -807,7 +807,7 @@ static wmOperatorStatus override_idtemplate_reset_exec(bContext &C, wmOperator &
   ID *owner_id, *id;
   PointerRNA owner_ptr;
   PropertyRNA *prop;
-  override_idtemplate_ids_get(&C, &owner_id, &id, &owner_ptr, &prop);
+  override_idtemplate_ids_get(C, &owner_id, &id, &owner_ptr, &prop);
   if (ELEM(nullptr, owner_id, id)) {
     return OPERATOR_CANCELLED;
   }
@@ -854,7 +854,7 @@ static wmOperatorStatus override_idtemplate_clear_exec(bContext &C, wmOperator &
   ID *owner_id, *id;
   PointerRNA owner_ptr;
   PropertyRNA *prop;
-  override_idtemplate_ids_get(&C, &owner_id, &id, &owner_ptr, &prop);
+  override_idtemplate_ids_get(C, &owner_id, &id, &owner_ptr, &prop);
   if (ELEM(nullptr, owner_id, id)) {
     return OPERATOR_CANCELLED;
   }
@@ -928,7 +928,7 @@ static bool override_idtemplate_menu_poll(const bContext *C_const, MenuType * /*
 {
   bContext *C = (bContext *)C_const;
   ID *owner_id, *id;
-  override_idtemplate_ids_get(C, &owner_id, &id, nullptr, nullptr);
+  override_idtemplate_ids_get(*C, &owner_id, &id, nullptr, nullptr);
 
   if (owner_id == nullptr || id == nullptr) {
     return false;
@@ -2091,7 +2091,7 @@ void editsource_active_but_test(Button *but)
   ui_editsource_info->hash.add(but, std::move(but_store));
 }
 
-static wmOperatorStatus editsource_text_edit(bContext *C,
+static wmOperatorStatus editsource_text_edit(bContext &C,
                                              wmOperator * /*op*/,
                                              const char filepath[FILE_MAX],
                                              const int line)
@@ -2104,7 +2104,7 @@ static wmOperatorStatus editsource_text_edit(bContext *C,
   RNA_int_set(&op_props, "column", 0);
 
   wmOperatorStatus result = WM_operator_name_call_ptr(
-      *C, ot, wm::OpCallContext::ExecDefault, &op_props, nullptr);
+      C, ot, wm::OpCallContext::ExecDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
   return result;
 }
@@ -2160,7 +2160,7 @@ static wmOperatorStatus editsource_exec(bContext &C, wmOperator &op)
 
     if (but_store) {
       if (but_store->py_dbg_line_number != -1) {
-        ret = editsource_text_edit(&C, &op, but_store->py_dbg_fn, but_store->py_dbg_line_number);
+        ret = editsource_text_edit(C, &op, but_store->py_dbg_fn, but_store->py_dbg_line_number);
       }
       else {
         BKE_report(

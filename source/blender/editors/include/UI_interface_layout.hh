@@ -365,7 +365,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
    * \return NULL if the panel is closed and should not be drawn, otherwise the layout where the
    * sub-panel should be inserted into.
    */
-  Layout *panel(const bContext *C, StringRef idname, bool default_closed, StringRef label);
+  Layout *panel(const bContext &C, StringRef idname, bool default_closed, StringRef label);
 
   /**
    * Add a new split sub-layout, items placed in this sub-layout are added horizontally next to

@@ -122,7 +122,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
   layout.op("node.sockets_sync", IFACE_("Sync"), ICON_FILE_REFRESH);
   layout.prop(ptr, "define_signature", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  if (ui::Layout *panel = layout.panel(C, "input_items", false, IFACE_("Input Items"))) {
+  if (ui::Layout *panel = layout.panel(*C, "input_items", false, IFACE_("Input Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureInputItemsAccessor>(
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureInputItemsAccessor>(
@@ -136,7 +136,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
           }
         });
   }
-  if (ui::Layout *panel = layout.panel(C, "output_items", false, IFACE_("Output Items"))) {
+  if (ui::Layout *panel = layout.panel(*C, "output_items", false, IFACE_("Output Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureOutputItemsAccessor>(
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureOutputItemsAccessor>(

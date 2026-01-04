@@ -964,7 +964,7 @@ static float2 calculate_center_of_mass(const PenToolOperation &ptd, const bool e
   return pos / num;
 }
 
-static void invoke_curves(PenToolOperation &ptd, bContext *C, wmOperator *op, const wmEvent *event)
+static void invoke_curves(PenToolOperation &ptd, bContext &C, wmOperator *op, const wmEvent *event)
 {
   ptd.center_of_mass_co = calculate_center_of_mass(ptd, true);
   ptd.closest_element = find_closest_element(ptd, ptd.mouse_co);
@@ -1093,9 +1093,9 @@ static void invoke_curves(PenToolOperation &ptd, bContext *C, wmOperator *op, co
   ptd.point_added = point_added;
   ptd.point_removed = point_removed;
 
-  pen_status_indicators(*C, op);
+  pen_status_indicators(C, op);
   if (changed) {
-    ptd.update_view(*C);
+    ptd.update_view(C);
   }
 }
 
@@ -1200,7 +1200,7 @@ wmOperatorStatus PenToolOperation::invoke(bContext &C, wmOperator *op, const wmE
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, op);
 
-  invoke_curves(*this, &C, op, event);
+  invoke_curves(*this, C, op, event);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1385,16 +1385,16 @@ class CurvesPenToolOperation : public PenToolOperation {
 };
 
 /* Exit and free memory. */
-static void curves_pen_exit(bContext *C, wmOperator *op)
+static void curves_pen_exit(bContext &C, wmOperator *op)
 {
   CurvesPenToolOperation *ptd = static_cast<CurvesPenToolOperation *>(op->customdata);
 
   /* Clear status message area. */
-  ED_workspace_status_text(C, nullptr);
+  ED_workspace_status_text(&C, nullptr);
 
   WM_cursor_modal_restore(ptd->vc.win);
 
-  ptd->update_view(*C);
+  ptd->update_view(C);
 
   MEM_delete(ptd);
   /* Clear pointer. */
@@ -1411,7 +1411,7 @@ static wmOperatorStatus curves_pen_invoke(bContext &C, wmOperator &op, const wmE
 
   const wmOperatorStatus result = ptd.invoke(C, &op, event);
   if (result != OPERATOR_RUNNING_MODAL) {
-    curves_pen_exit(&C, &op);
+    curves_pen_exit(C, &op);
   }
   return result;
 }
@@ -1423,7 +1423,7 @@ static wmOperatorStatus curves_pen_modal(bContext &C, wmOperator &op, const wmEv
 
   const wmOperatorStatus result = ptd.modal(&C, &op, event);
   if (result != OPERATOR_RUNNING_MODAL) {
-    curves_pen_exit(&C, &op);
+    curves_pen_exit(C, &op);
   }
   return result;
 }

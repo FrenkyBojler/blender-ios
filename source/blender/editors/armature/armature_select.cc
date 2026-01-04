@@ -364,9 +364,9 @@ bPoseChannel *ED_armature_pick_pchan(bContext &C, const int xy[2], bool findunse
       ed_armature_pick_bone_impl(is_editmode, C, xy, findunsel, r_base));
 }
 
-Bone *ED_armature_pick_bone(bContext *C, const int xy[2], bool findunsel, Base **r_base)
+Bone *ED_armature_pick_bone(bContext &C, const int xy[2], bool findunsel, Base **r_base)
 {
-  bPoseChannel *pchan = ED_armature_pick_pchan(*C, xy, findunsel, r_base);
+  bPoseChannel *pchan = ED_armature_pick_pchan(C, xy, findunsel, r_base);
   return pchan ? pchan->bone : nullptr;
 }
 

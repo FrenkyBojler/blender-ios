@@ -189,7 +189,7 @@ struct PaintStroke : NonCopyable, NonMovable {
   wmOperatorStatus modal(bContext &C, wmOperator *op, const wmEvent *event);
   wmOperatorStatus exec(bContext &C, wmOperator *op);
   /** Cancel a stroke and return to the initial state. */
-  void cancel(bContext *C, wmOperator *op);
+  void cancel(bContext &C, wmOperator *op);
   /**
    * Free internal stroke data, not a destructor due to needed parameters.
    * TODO: This might not need to be exposed, all internal code paths should end up calling this.
@@ -442,7 +442,7 @@ struct ImagePaintPartialRedraw {
 };
 
 bool image_texture_paint_poll(bContext &C);
-bool image_paint_poll_ignore_tool(bContext *C);
+bool image_paint_poll_ignore_tool(bContext &C);
 void imapaint_image_update(
     SpaceImage *sima, Image *image, ImBuf *ibuf, ImageUser *iuser, short texpaint);
 ImagePaintPartialRedraw *get_imapaintpartial();

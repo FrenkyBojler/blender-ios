@@ -29,7 +29,7 @@ static void report_duration(const char *job, const TimePoint &start_time, const 
 void OBJ_export(bContext *C, const OBJExportParams *export_params)
 {
   TimePoint start_time = Clock::now();
-  blender::io::obj::exporter_main(C, *export_params);
+  blender::io::obj::exporter_main(*C, *export_params);
   report_duration("export", start_time, export_params->filepath);
 }
 

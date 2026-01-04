@@ -84,7 +84,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
   layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 
   if (ui::Layout *panel = layout.panel(
-          C, "capture_attribute_items", false, IFACE_("Capture Items")))
+          *C, "capture_attribute_items", false, IFACE_("Capture Items")))
   {
     socket_items::ui::draw_items_list_with_operators<CaptureAttributeItemsAccessor>(
         C, panel, tree, node);

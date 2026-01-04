@@ -66,12 +66,12 @@ static void sound_open_cancel(bContext & /*C*/, wmOperator &op)
   op.customdata = nullptr;
 }
 
-static void sound_open_init(bContext *C, wmOperator *op)
+static void sound_open_init(bContext &C, wmOperator *op)
 {
   PropertyPointerRNA *pprop;
 
   op->customdata = pprop = MEM_new<PropertyPointerRNA>(__func__);
-  blender::ui::context_active_but_prop_get_templateID(*C, &pprop->ptr, &pprop->prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 #ifdef WITH_AUDASPACE
@@ -86,7 +86,7 @@ static wmOperatorStatus sound_open_exec(bContext &C, wmOperator &op)
   sound = BKE_sound_new_file(bmain, filepath);
 
   if (!op.customdata) {
-    sound_open_init(&C, &op);
+    sound_open_init(C, &op);
   }
 
   if (RNA_boolean_get(op.ptr, "mono")) {
@@ -133,7 +133,7 @@ static wmOperatorStatus sound_open_invoke(bContext &C, wmOperator &op, const wmE
     return sound_open_exec(C, op);
   }
 
-  sound_open_init(&C, &op);
+  sound_open_init(C, &op);
 
   return WM_operator_filesel(&C, &op, event);
 }

@@ -186,7 +186,7 @@ void ED_draw_imbuf_clipping(ImBuf *ibuf,
                             float zoom_y);
 
 void ED_draw_imbuf_ctx(
-    const bContext *C, ImBuf *ibuf, float x, float y, bool use_filter, float zoom_x, float zoom_y);
+    const bContext &C, ImBuf *ibuf, float x, float y, bool use_filter, float zoom_x, float zoom_y);
 void ED_draw_imbuf_ctx_clipping(const bContext &C,
                                 ImBuf *ibuf,
                                 float x,

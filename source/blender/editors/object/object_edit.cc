@@ -2372,7 +2372,7 @@ static wmOperatorStatus move_to_collection_invoke(bContext &C,
   PropertyRNA *prop = RNA_struct_find_property(op.ptr, "collection_uid");
   bool is_move = STREQ(op.type->idname, "OBJECT_OT_move_to_collection");
   if (!RNA_property_is_set(op.ptr, prop)) {
-    WM_menu_name_call(&C,
+    WM_menu_name_call(C,
                       is_move ? "OBJECT_MT_move_to_collection" : "OBJECT_MT_link_to_collection",
                       wm::OpCallContext::InvokeDefault);
     return OPERATOR_FINISHED;

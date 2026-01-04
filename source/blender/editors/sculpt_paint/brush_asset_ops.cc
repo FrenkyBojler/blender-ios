@@ -619,7 +619,7 @@ static wmOperatorStatus brush_asset_delete_exec(bContext &C, wmOperator &op)
   BKE_paint_brush_set_default(bmain, paint);
 
   if (library) {
-    asset::refresh_asset_library(&C, *library);
+    asset::refresh_asset_library(C, *library);
   }
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
@@ -726,7 +726,7 @@ static wmOperatorStatus brush_asset_save_exec(bContext &C, wmOperator &op)
   bke::asset_edit_id_save(*bmain, brush->id, *op.reports);
   brush->has_unsaved_changes = false;
 
-  asset::refresh_asset_library(&C, *user_library);
+  asset::refresh_asset_library(C, *user_library);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, brush);
 

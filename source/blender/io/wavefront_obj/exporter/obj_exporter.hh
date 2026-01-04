@@ -45,7 +45,7 @@ class OBJDepsgraph : NonMovable, NonCopyable {
 /**
  * Central internal function to call Scene update & writer functions.
  */
-void exporter_main(bContext *C, const OBJExportParams &export_params);
+void exporter_main(bContext &C, const OBJExportParams &export_params);
 
 class OBJMesh;
 class IOBJCurve;

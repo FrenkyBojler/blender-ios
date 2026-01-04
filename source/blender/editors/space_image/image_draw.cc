@@ -55,10 +55,10 @@
 #include "image_intern.hh"
 
 static void draw_render_info(
-    const bContext *C, Scene *scene, Image *ima, ARegion *region, float zoomx, float zoomy)
+    const bContext &C, Scene *scene, Image *ima, ARegion *region, float zoomx, float zoomy)
 {
   Render *re = RE_GetSceneRender(scene);
-  Scene *stats_scene = ED_render_job_get_scene(*C);
+  Scene *stats_scene = ED_render_job_get_scene(C);
   if (stats_scene == nullptr) {
     stats_scene = scene;
   }
@@ -447,7 +447,7 @@ void draw_image_main_helpers(const bContext &C, ARegion *region)
   if (ima && show_render) {
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
-    draw_render_info(&C, sima->iuser.scene, ima, region, zoomx, zoomy);
+    draw_render_info(C, sima->iuser.scene, ima, region, zoomx, zoomy);
   }
 
   if (sima->mode == SI_MODE_UV) {

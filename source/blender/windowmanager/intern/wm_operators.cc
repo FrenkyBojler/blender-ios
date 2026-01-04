@@ -1205,7 +1205,7 @@ wmOperatorStatus WM_enum_search_invoke(bContext &C, wmOperator &op, const wmEven
   return OPERATOR_INTERFACE;
 }
 
-wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
+wmOperatorStatus WM_operator_confirm_message_ex(bContext &C,
                                                 wmOperator *op,
                                                 const char *title,
                                                 const int icon,
@@ -1230,14 +1230,13 @@ wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
       alert_icon = blender::ui::AlertIcon::Info;
       break;
   }
-  return WM_operator_confirm_ex(
-      *C, op, IFACE_(title), nullptr, IFACE_(message), alert_icon, false);
+  return WM_operator_confirm_ex(C, op, IFACE_(title), nullptr, IFACE_(message), alert_icon, false);
 }
 
-wmOperatorStatus WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message)
+wmOperatorStatus WM_operator_confirm_message(bContext &C, wmOperator *op, const char *message)
 {
   return WM_operator_confirm_ex(
-      *C, op, IFACE_(message), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
+      C, op, IFACE_(message), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
 }
 
 wmOperatorStatus WM_operator_confirm(bContext &C, wmOperator &op, const wmEvent * /*event*/)

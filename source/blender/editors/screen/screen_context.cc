@@ -676,7 +676,7 @@ static eContextResult screen_ctx_pose_object(const bContext *C, bContextDataResu
 static eContextResult screen_ctx_active_nla_track(const bContext *C, bContextDataResult *result)
 {
   PointerRNA ptr;
-  if (ANIM_nla_context_track_ptr(C, &ptr)) {
+  if (ANIM_nla_context_track_ptr(*C, &ptr)) {
     CTX_data_pointer_set_ptr(result, &ptr);
     return CTX_RESULT_OK;
   }
@@ -685,7 +685,7 @@ static eContextResult screen_ctx_active_nla_track(const bContext *C, bContextDat
 static eContextResult screen_ctx_active_nla_strip(const bContext *C, bContextDataResult *result)
 {
   PointerRNA ptr;
-  if (ANIM_nla_context_strip_ptr(C, &ptr)) {
+  if (ANIM_nla_context_strip_ptr(*C, &ptr)) {
     CTX_data_pointer_set_ptr(result, &ptr);
     return CTX_RESULT_OK;
   }

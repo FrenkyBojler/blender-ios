@@ -397,12 +397,12 @@ void TEXT_OT_new(wmOperatorType *ot)
 /** \name Open Operator
  * \{ */
 
-static void text_open_init(bContext *C, wmOperator *op)
+static void text_open_init(bContext &C, wmOperator *op)
 {
   PropertyPointerRNA *pprop = MEM_new<PropertyPointerRNA>(__func__);
 
   op->customdata = pprop;
-  blender::ui::context_active_but_prop_get_templateID(*C, &pprop->ptr, &pprop->prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 static void text_open_cancel(bContext & /*C*/, wmOperator &op)
@@ -430,7 +430,7 @@ static wmOperatorStatus text_open_exec(bContext &C, wmOperator &op)
   }
 
   if (!op.customdata) {
-    text_open_init(&C, &op);
+    text_open_init(C, &op);
   }
 
   /* Hook into UI. */
@@ -481,7 +481,7 @@ static wmOperatorStatus text_open_invoke(bContext &C, wmOperator &op, const wmEv
   }
   BLI_assert(filepath != nullptr);
 
-  text_open_init(&C, &op);
+  text_open_init(C, &op);
   RNA_string_set(op.ptr, "filepath", filepath);
   WM_event_add_fileselect(&C, &op);
 

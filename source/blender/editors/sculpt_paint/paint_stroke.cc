@@ -1692,9 +1692,9 @@ wmOperatorStatus PaintStroke::exec(bContext &C, wmOperator *op)
   return ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-void PaintStroke::cancel(bContext *C, wmOperator *op)
+void PaintStroke::cancel(bContext &C, wmOperator *op)
 {
-  this->stroke_done(*C, op, true);
+  this->stroke_done(C, op, true);
 }
 
 static const bToolRef *brush_tool_get(const ScrArea *area,

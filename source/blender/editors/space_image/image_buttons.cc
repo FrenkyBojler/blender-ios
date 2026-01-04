@@ -1071,7 +1071,7 @@ void uiTemplateImageSettings(blender::ui::Layout *layout,
   /* Override color management */
   if (color_management) {
     blender::StringRef idname = panel_idname ? panel_idname : "settings_color_management";
-    if (blender::ui::Layout *panel = col.panel(C, idname, true, IFACE_("Color Management"))) {
+    if (blender::ui::Layout *panel = col.panel(*C, idname, true, IFACE_("Color Management"))) {
       panel->separator();
       panel->row(true).prop(
           imfptr, "color_management", blender::ui::ITEM_R_EXPAND, " ", ICON_NONE);
