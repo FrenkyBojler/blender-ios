@@ -155,7 +155,7 @@ bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene
 #ifdef WITH_PYTHON
     BPy_BEGIN_ALLOW_THREADS;
 #endif
-    CTX_data_scene_set(&C, scene_new);
+    CTX_data_scene_set(C, scene_new);
 #ifdef WITH_PYTHON
     BPy_END_ALLOW_THREADS;
 #endif

@@ -173,7 +173,7 @@ static void bpy_context_end(bContext *C)
   if (UNLIKELY(C == nullptr)) {
     return;
   }
-  CTX_wm_operator_poll_msg_clear(C);
+  CTX_wm_operator_poll_msg_clear(*C);
 }
 
 void BPY_context_dict_clear_members_array(void **dict_p,

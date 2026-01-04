@@ -2478,19 +2478,19 @@ static void vgroup_assign_verts(Object *ob, Scene &scene, const float weight)
 static bool vertex_group_supported_poll_ex(bContext *C, const Object *ob)
 {
   if (!ED_operator_object_active_local_editable_ex(C, ob)) {
-    CTX_wm_operator_poll_msg_set(C, "No active editable object");
+    CTX_wm_operator_poll_msg_set(*C, "No active editable object");
     return false;
   }
 
   if (!OB_TYPE_SUPPORT_VGROUP(ob->type)) {
-    CTX_wm_operator_poll_msg_set(C, "Object type does not support vertex groups");
+    CTX_wm_operator_poll_msg_set(*C, "Object type does not support vertex groups");
     return false;
   }
 
   /* Data checks. */
   const ID *data = static_cast<const ID *>(ob->data);
   if (data == nullptr || !ID_IS_EDITABLE(data) || ID_IS_OVERRIDE_LIBRARY(data)) {
-    CTX_wm_operator_poll_msg_set(C, "Object type \"%s\" does not have editable data");
+    CTX_wm_operator_poll_msg_set(*C, "Object type \"%s\" does not have editable data");
     return false;
   }
 
@@ -2511,7 +2511,7 @@ static bool vertex_group_poll_ex(bContext *C, Object *ob)
 
   const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
   if (BLI_listbase_is_empty(defbase)) {
-    CTX_wm_operator_poll_msg_set(C, "Object has no vertex groups");
+    CTX_wm_operator_poll_msg_set(*C, "Object has no vertex groups");
     return false;
   }
 
@@ -2558,7 +2558,7 @@ static bool vertex_group_vert_poll_ex(bContext *C,
       if (BKE_object_is_in_wpaint_select_vert(ob)) {
         return true;
       }
-      CTX_wm_operator_poll_msg_set(C, "Vertex select needs to be enabled in weight paint mode");
+      CTX_wm_operator_poll_msg_set(*C, "Vertex select needs to be enabled in weight paint mode");
       return false;
     }
     return true;
@@ -2608,7 +2608,7 @@ static bool vertex_group_vert_select_unlocked_poll(bContext &C)
     const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
     const bDeformGroup *dg = static_cast<const bDeformGroup *>(BLI_findlink(defbase, def_nr - 1));
     if (dg && (dg->flag & DG_LOCK_WEIGHT)) {
-      CTX_wm_operator_poll_msg_set(&C, "The active vertex group is locked");
+      CTX_wm_operator_poll_msg_set(C, "The active vertex group is locked");
       return false;
     }
   }

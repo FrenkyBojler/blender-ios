@@ -436,12 +436,12 @@ static void reorder_instanced_panel_list(bContext *C, ARegion *region, Panel *dr
   /* Set the bit to tell the interface to instanced the list. */
   drag_panel->flag |= PNL_INSTANCED_LIST_ORDER_CHANGED;
 
-  CTX_store_set(C, drag_panel->runtime->context);
+  CTX_store_set(*C, drag_panel->runtime->context);
 
   /* Finally, move this panel's list item to the new index in its list. */
   drag_panel->type->reorder(C, drag_panel, move_to_index);
 
-  CTX_store_set(C, nullptr);
+  CTX_store_set(*C, nullptr);
 }
 
 /**

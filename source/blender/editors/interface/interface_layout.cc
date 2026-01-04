@@ -1683,9 +1683,9 @@ void Layout::op_enum(const StringRefNull opname,
     else {
       bContext *C = static_cast<bContext *>(block->evil_C);
       const bContextStore *previous_ctx = CTX_store_get(*C);
-      CTX_store_set(C, context_);
+      CTX_store_set(*C, context_);
       RNA_property_enum_items_gettexted(C, &ptr, prop, &item_array, &totitem, &free);
-      CTX_store_set(C, previous_ctx);
+      CTX_store_set(*C, previous_ctx);
     }
 
     /* add items */
@@ -2996,7 +2996,7 @@ void Layout::popover(const bContext *C,
 
   const bContextStore *previous_ctx = CTX_store_get(*C);
   /* Set context for polling (and panel header drawing). */
-  CTX_store_set(const_cast<bContext *>(C), context_);
+  CTX_store_set(*const_cast<bContext *>(C), context_);
 
   const bool ok = (pt->poll == nullptr) || pt->poll(C, pt);
   if (ok && (pt->draw_header != nullptr)) {
@@ -3010,7 +3010,7 @@ void Layout::popover(const bContext *C,
     pt->draw_header(C, &panel);
   }
 
-  CTX_store_set(const_cast<bContext *>(C), previous_ctx);
+  CTX_store_set(*const_cast<bContext *>(C), previous_ctx);
 
   Button *but = ui_item_menu(
       layout, name, icon, item_paneltype_func, pt, nullptr, TIP_(pt->description), true);
@@ -5799,11 +5799,11 @@ void menutype_draw(bContext *C, MenuType *mt, Layout *layout)
   if (previous_context_store) {
     context_store.entries.extend(previous_context_store->entries);
   }
-  CTX_store_set(C, &context_store);
+  CTX_store_set(*C, &context_store);
 
   mt->draw(C, &menu);
 
-  CTX_store_set(C, previous_context_store);
+  CTX_store_set(*C, previous_context_store);
 }
 
 static bool ui_layout_has_panel_label(const Layout *layout, const PanelType *pt)
@@ -5891,13 +5891,13 @@ static void ui_paneltype_draw_impl(bContext *C, PanelType *pt, Layout *layout, b
 void UI_paneltype_draw(bContext *C, PanelType *pt, Layout *layout)
 {
   if (layout->context()) {
-    CTX_store_set(C, layout->context());
+    CTX_store_set(*C, layout->context());
   }
 
   ui_paneltype_draw_impl(C, pt, layout, false);
 
   if (layout->context()) {
-    CTX_store_set(C, nullptr);
+    CTX_store_set(*C, nullptr);
   }
 }
 

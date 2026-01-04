@@ -1697,7 +1697,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   if (!tree) {
     return;
   }
-  const std::optional<StringRefNull> menu_path = CTX_data_string_get(C, "asset_catalog_path");
+  const std::optional<StringRefNull> menu_path = CTX_data_string_get(*C, "asset_catalog_path");
   if (!menu_path) {
     return;
   }

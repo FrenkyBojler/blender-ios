@@ -210,7 +210,7 @@ bool attribute_set_poll(bContext &C, const ID &object_data)
   AttributeOwner owner = AttributeOwner::from_id(&const_cast<ID &>(object_data));
   const std::optional<StringRef> name = BKE_attributes_active_name_get(owner);
   if (!name) {
-    CTX_wm_operator_poll_msg_set(&C, "No active attribute");
+    CTX_wm_operator_poll_msg_set(C, "No active attribute");
     return false;
   }
 
@@ -223,7 +223,7 @@ bool attribute_set_poll(bContext &C, const ID &object_data)
                bke::AttrType::Float4x4,
                bke::AttrType::Quaternion))
       {
-        CTX_wm_operator_poll_msg_set(&C, "The active attribute has an unsupported type");
+        CTX_wm_operator_poll_msg_set(C, "The active attribute has an unsupported type");
         return false;
       }
       return true;
@@ -233,7 +233,7 @@ bool attribute_set_poll(bContext &C, const ID &object_data)
   bke::AttributeAccessor attributes = *owner.get_accessor();
   std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(*name);
   if (!meta_data) {
-    CTX_wm_operator_poll_msg_set(&C, "No active attribute");
+    CTX_wm_operator_poll_msg_set(C, "No active attribute");
     return false;
   }
   if (ELEM(meta_data->data_type,
@@ -241,7 +241,7 @@ bool attribute_set_poll(bContext &C, const ID &object_data)
            bke::AttrType::Float4x4,
            bke::AttrType::Quaternion))
   {
-    CTX_wm_operator_poll_msg_set(&C, "The active attribute has an unsupported type");
+    CTX_wm_operator_poll_msg_set(C, "The active attribute has an unsupported type");
     return false;
   }
   return true;
@@ -565,7 +565,7 @@ static bool geometry_attribute_convert_poll(bContext &C)
   AttributeOwner owner = AttributeOwner::from_id(data);
   if (ob->type == OB_MESH) {
     if (CTX_data_edit_object(C) != nullptr) {
-      CTX_wm_operator_poll_msg_set(&C, "Operation is not allowed in edit mode");
+      CTX_wm_operator_poll_msg_set(C, "Operation is not allowed in edit mode");
       return false;
     }
   }
@@ -874,7 +874,7 @@ static bool geometry_color_attributes_duplicate_poll(bContext &C)
     return false;
   }
   if (CTX_data_edit_object(C) != nullptr) {
-    CTX_wm_operator_poll_msg_set(&C, "Operation is not allowed in edit mode");
+    CTX_wm_operator_poll_msg_set(C, "Operation is not allowed in edit mode");
     return false;
   }
 
@@ -994,7 +994,7 @@ static bool geometry_color_attribute_convert_poll(bContext &C)
   }
 
   if (CTX_data_edit_object(C) != nullptr) {
-    CTX_wm_operator_poll_msg_set(&C, "Operation is not allowed in edit mode");
+    CTX_wm_operator_poll_msg_set(C, "Operation is not allowed in edit mode");
     return false;
   }
 

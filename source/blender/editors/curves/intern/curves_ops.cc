@@ -128,7 +128,7 @@ static bool curves_poll_impl(bContext *C,
   if (check_surface) {
     Curves &curves = *static_cast<Curves *>(object->data);
     if (curves.surface == nullptr || curves.surface->type != OB_MESH) {
-      CTX_wm_operator_poll_msg_set(C, "Curves must have a mesh surface object set");
+      CTX_wm_operator_poll_msg_set(*C, "Curves must have a mesh surface object set");
       return false;
     }
   }
@@ -172,7 +172,7 @@ static bool editable_curves_point_domain_poll(bContext &C)
   }
   const Curves *curves_id = static_cast<const Curves *>(CTX_data_active_object(C)->data);
   if (bke::AttrDomain(curves_id->selection_domain) != bke::AttrDomain::Point) {
-    CTX_wm_operator_poll_msg_set(&C, "Only available in point selection mode");
+    CTX_wm_operator_poll_msg_set(C, "Only available in point selection mode");
     return false;
   }
   return true;

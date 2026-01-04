@@ -204,7 +204,7 @@ static bool bake_simulation_poll(bContext &C)
   Object *ob = context_active_object(&C);
   const bool use_frame_cache = ob->flag & OB_FLAG_USE_SIMULATION_CACHE;
   if (!use_frame_cache) {
-    CTX_wm_operator_poll_msg_set(&C, "Cache has to be enabled");
+    CTX_wm_operator_poll_msg_set(C, "Cache has to be enabled");
     return false;
   }
   return true;

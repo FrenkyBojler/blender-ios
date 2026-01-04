@@ -189,7 +189,7 @@ bool graphop_editable_keyframes_poll(bContext &C)
   items = ANIM_animdata_filter(
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
   if (items == 0) {
-    CTX_wm_operator_poll_msg_set(&C, "There is no animation data to operate on");
+    CTX_wm_operator_poll_msg_set(C, "There is no animation data to operate on");
     return found;
   }
 

@@ -255,7 +255,7 @@ static bool image_from_context_editable_has_data_poll_active_tile(bContext &C)
   Image *ima = image_from_context(&C);
 
   if (ima && !ID_IS_EDITABLE(&ima->id)) {
-    CTX_wm_operator_poll_msg_set(&C, "Image is not editable");
+    CTX_wm_operator_poll_msg_set(C, "Image is not editable");
     return false;
   }
 
@@ -2126,7 +2126,7 @@ static bool image_save_as_poll(bContext &C)
     Image *ima = image_from_context(&C);
 
     if (ima->source == IMA_SRC_VIEWER) {
-      CTX_wm_operator_poll_msg_set(&C, "Cannot save image while rendering");
+      CTX_wm_operator_poll_msg_set(C, "Cannot save image while rendering");
       return false;
     }
   }
@@ -2215,7 +2215,7 @@ static bool image_save_poll(bContext &C)
     Image *ima = image_from_context(&C);
 
     if (ima->source == IMA_SRC_VIEWER) {
-      CTX_wm_operator_poll_msg_set(&C, "Cannot save image while rendering");
+      CTX_wm_operator_poll_msg_set(C, "Cannot save image while rendering");
       return false;
     }
   }
@@ -3065,7 +3065,7 @@ static wmOperatorStatus image_clipboard_copy_exec(bContext &C, wmOperator &op)
 static bool image_clipboard_copy_poll(bContext &C)
 {
   if (!image_from_context_has_data_poll(C)) {
-    CTX_wm_operator_poll_msg_set(&C, "No images available");
+    CTX_wm_operator_poll_msg_set(C, "No images available");
     return false;
   }
 
@@ -3121,12 +3121,12 @@ static bool image_clipboard_paste_poll(bContext &C)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
   if (!sima) {
-    CTX_wm_operator_poll_msg_set(&C, "Image Editor not found");
+    CTX_wm_operator_poll_msg_set(C, "Image Editor not found");
     return false;
   }
 
   if (!WM_clipboard_image_available()) {
-    CTX_wm_operator_poll_msg_set(&C, "No compatible images are on the clipboard");
+    CTX_wm_operator_poll_msg_set(C, "No compatible images are on the clipboard");
     return false;
   }
 
@@ -3434,7 +3434,7 @@ static bool image_pack_poll(bContext &C)
   }
 
   if (error_message) {
-    CTX_wm_operator_poll_msg_set(&C, error_message);
+    CTX_wm_operator_poll_msg_set(C, error_message);
   }
   return false;
 }

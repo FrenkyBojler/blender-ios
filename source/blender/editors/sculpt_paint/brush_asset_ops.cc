@@ -495,11 +495,11 @@ static bool brush_asset_edit_metadata_poll(bContext &C)
     return false;
   }
   if (!library_is_editable(*library_ref)) {
-    CTX_wm_operator_poll_msg_set(&C, "Asset library is not editable");
+    CTX_wm_operator_poll_msg_set(C, "Asset library is not editable");
     return false;
   }
   if (!(library_ref->type & ASSET_LIBRARY_LOCAL) && !bke::asset_edit_id_is_writable(brush->id)) {
-    CTX_wm_operator_poll_msg_set(&C, "Asset file is not editable");
+    CTX_wm_operator_poll_msg_set(C, "Asset file is not editable");
     return false;
   }
   return true;
@@ -595,7 +595,7 @@ static bool brush_asset_delete_poll(bContext &C)
   /* Linked brush, check if belongs to an editable blend file. */
   if (ID_IS_LINKED(brush)) {
     if (!bke::asset_edit_id_is_writable(brush->id)) {
-      CTX_wm_operator_poll_msg_set(&C, "Asset blend file is not editable");
+      CTX_wm_operator_poll_msg_set(C, "Asset blend file is not editable");
       return false;
     }
   }
@@ -696,12 +696,12 @@ static bool brush_asset_save_poll(bContext &C)
   }
 
   if (library_ref->type == ASSET_LIBRARY_LOCAL) {
-    CTX_wm_operator_poll_msg_set(&C, "Assets in the current file cannot be individually saved");
+    CTX_wm_operator_poll_msg_set(C, "Assets in the current file cannot be individually saved");
     return false;
   }
 
   if (!bke::asset_edit_id_is_writable(brush->id)) {
-    CTX_wm_operator_poll_msg_set(&C, "Asset blend file is not editable");
+    CTX_wm_operator_poll_msg_set(C, "Asset blend file is not editable");
     return false;
   }
 
@@ -758,7 +758,7 @@ static bool brush_asset_revert_poll(bContext &C)
     return false;
   }
   if (library_ref->type == ASSET_LIBRARY_LOCAL) {
-    CTX_wm_operator_poll_msg_set(&C, "Assets in the current file cannot be reverted");
+    CTX_wm_operator_poll_msg_set(C, "Assets in the current file cannot be reverted");
     return false;
   }
 

@@ -106,7 +106,7 @@ static bool lib_id_preview_editing_poll(bContext &C)
   const ID *id = (ID *)idptr.data;
   const char *disabled_hint = nullptr;
   if (!lib_id_preview_editing_poll_ex(id, &disabled_hint)) {
-    CTX_wm_operator_poll_msg_set(&C, disabled_hint);
+    CTX_wm_operator_poll_msg_set(C, disabled_hint);
     return false;
   }
 
@@ -218,7 +218,7 @@ static bool lib_id_batch_editing_preview_poll(
 {
   blender::Vector<PointerRNA> id_pointers = ED_operator_get_ids_from_context_as_vec(C);
   if (id_pointers.is_empty()) {
-    CTX_wm_operator_poll_msg_set(C, "No data-block selected or active");
+    CTX_wm_operator_poll_msg_set(*C, "No data-block selected or active");
     return false;
   }
 
@@ -243,10 +243,10 @@ static bool lib_id_batch_editing_preview_poll(
   /* Will only hold the first disabled hint set. That often gives some more specific information,
    * so it's more useful than a generic message. */
   if (disabled_hint) {
-    CTX_wm_operator_poll_msg_set(C, disabled_hint);
+    CTX_wm_operator_poll_msg_set(*C, disabled_hint);
   }
   else {
-    CTX_wm_operator_poll_msg_set(C, "None of the selected data-blocks supports previews");
+    CTX_wm_operator_poll_msg_set(*C, "None of the selected data-blocks supports previews");
   }
   return false;
 }
@@ -312,7 +312,7 @@ static bool lib_id_generate_preview_from_object_poll(bContext &C)
   }
   const char *disabled_hint = nullptr;
   if (!ED_preview_id_is_supported(&object_to_render->id, &disabled_hint)) {
-    CTX_wm_operator_poll_msg_set(&C, disabled_hint);
+    CTX_wm_operator_poll_msg_set(C, disabled_hint);
     return false;
   }
 
@@ -369,7 +369,7 @@ static bool lib_id_remove_preview_poll(bContext &C)
   });
 
   if (!has_any_removable) {
-    CTX_wm_operator_poll_msg_set(&C, "No preview available to remove");
+    CTX_wm_operator_poll_msg_set(C, "No preview available to remove");
     return false;
   }
 

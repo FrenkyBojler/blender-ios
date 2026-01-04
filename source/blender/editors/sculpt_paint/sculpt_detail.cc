@@ -303,8 +303,8 @@ static wmOperatorStatus sample_detail(bContext *C,
   /* Set context to 3D view. */
   ScrArea *prev_area = CTX_wm_area(*C);
   ARegion *prev_region = CTX_wm_region(*C);
-  CTX_wm_area_set(C, area);
-  CTX_wm_region_set(C, region);
+  CTX_wm_area_set(*C, area);
+  CTX_wm_region_set(*C, region);
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
@@ -334,16 +334,16 @@ static wmOperatorStatus sample_detail(bContext *C,
   switch (mode) {
     case SampleDetailModeType::Dyntopo:
       if (pbvh->type() != bke::pbvh::Type::BMesh) {
-        CTX_wm_area_set(C, prev_area);
-        CTX_wm_region_set(C, prev_region);
+        CTX_wm_area_set(*C, prev_area);
+        CTX_wm_region_set(*C, prev_region);
         return OPERATOR_CANCELLED;
       }
       sample_detail_dyntopo(C, &vc, mval);
       break;
     case SampleDetailModeType::Voxel:
       if (pbvh->type() != bke::pbvh::Type::Mesh) {
-        CTX_wm_area_set(C, prev_area);
-        CTX_wm_region_set(C, prev_region);
+        CTX_wm_area_set(*C, prev_area);
+        CTX_wm_region_set(*C, prev_region);
         return OPERATOR_CANCELLED;
       }
       if (!sample_detail_voxel(C, &vc, mval)) {
@@ -353,8 +353,8 @@ static wmOperatorStatus sample_detail(bContext *C,
   }
 
   /* Restore context. */
-  CTX_wm_area_set(C, prev_area);
-  CTX_wm_region_set(C, prev_region);
+  CTX_wm_area_set(*C, prev_area);
+  CTX_wm_region_set(*C, prev_region);
 
   return OPERATOR_FINISHED;
 }

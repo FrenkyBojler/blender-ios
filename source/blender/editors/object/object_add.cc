@@ -2364,7 +2364,7 @@ static bool object_curves_empty_hair_add_poll(bContext &C)
   }
   Object *ob = CTX_data_active_object(C);
   if (ob == nullptr || ob->type != OB_MESH) {
-    CTX_wm_operator_poll_msg_set(&C, "No active mesh object");
+    CTX_wm_operator_poll_msg_set(C, "No active mesh object");
     return false;
   }
   return true;
@@ -5200,16 +5200,16 @@ static bool active_shape_key_editable_poll(bContext &C)
   }
 
   if (ob->mode & OB_MODE_EDIT) {
-    CTX_wm_operator_poll_msg_set(&C, "This operation is not supported in edit mode");
+    CTX_wm_operator_poll_msg_set(C, "This operation is not supported in edit mode");
     return false;
   }
   if (BKE_object_obdata_is_libdata(ob)) {
-    CTX_wm_operator_poll_msg_set(&C, "Cannot edit external library data");
+    CTX_wm_operator_poll_msg_set(C, "Cannot edit external library data");
     return false;
   }
   Main &bmain = *CTX_data_main(C);
   if (!BKE_lib_override_library_id_is_user_deletable(&bmain, &ob->id)) {
-    CTX_wm_operator_poll_msg_set(&C, "Cannot edit object used by override collections");
+    CTX_wm_operator_poll_msg_set(C, "Cannot edit object used by override collections");
     return false;
   }
   return true;

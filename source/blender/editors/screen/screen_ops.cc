@@ -222,12 +222,12 @@ bool ED_operator_sequencer_scene_editable(bContext &C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   if (scene == nullptr) {
-    CTX_wm_operator_poll_msg_set(&C, "Context missing sequencer scene");
+    CTX_wm_operator_poll_msg_set(C, "Context missing sequencer scene");
     return false;
   }
 
   if (!BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
-    CTX_wm_operator_poll_msg_set(&C, "Sequencer scene not editable");
+    CTX_wm_operator_poll_msg_set(C, "Sequencer scene not editable");
     return false;
   }
   return true;
@@ -256,7 +256,7 @@ bool ED_operator_objectmode(bContext &C)
 bool ED_operator_objectmode_poll_msg(bContext &C)
 {
   if (!ED_operator_objectmode(C)) {
-    CTX_wm_operator_poll_msg_set(&C, "Only supported in object mode");
+    CTX_wm_operator_poll_msg_set(C, "Only supported in object mode");
     return false;
   }
 
@@ -294,7 +294,7 @@ bool ED_operator_region_view3d_active(bContext &C)
     return true;
   }
 
-  CTX_wm_operator_poll_msg_set(&C, "expected a view3d region");
+  CTX_wm_operator_poll_msg_set(C, "expected a view3d region");
   return false;
 }
 
@@ -320,7 +320,7 @@ bool ED_operator_animview_active(bContext &C)
     }
   }
 
-  CTX_wm_operator_poll_msg_set(&C, "expected a timeline/animation area to be active");
+  CTX_wm_operator_poll_msg_set(C, "expected a timeline/animation area to be active");
   return false;
 }
 
@@ -332,12 +332,12 @@ bool ED_operator_outliner_active(bContext &C)
 bool ED_operator_region_outliner_active(bContext &C)
 {
   if (!ED_operator_outliner_active(C)) {
-    CTX_wm_operator_poll_msg_set(&C, "Expected an active Outliner");
+    CTX_wm_operator_poll_msg_set(C, "Expected an active Outliner");
     return false;
   }
   const ARegion *region = CTX_wm_region(C);
   if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
-    CTX_wm_operator_poll_msg_set(&C, "Expected an Outliner region");
+    CTX_wm_operator_poll_msg_set(C, "Expected an Outliner region");
     return false;
   }
   return true;
@@ -470,17 +470,17 @@ bool ED_operator_object_active(bContext &C)
 bool ED_operator_object_active_editable_ex(bContext *C, const Object *ob)
 {
   if (ob == nullptr) {
-    CTX_wm_operator_poll_msg_set(C, "Context missing active object");
+    CTX_wm_operator_poll_msg_set(*C, "Context missing active object");
     return false;
   }
 
   if (!BKE_id_is_editable(CTX_data_main(*C), (ID *)ob)) {
-    CTX_wm_operator_poll_msg_set(C, "Cannot edit library linked or non-editable override object");
+    CTX_wm_operator_poll_msg_set(*C, "Cannot edit library linked or non-editable override object");
     return false;
   }
 
   if (ed_object_hidden(ob)) {
-    CTX_wm_operator_poll_msg_set(C, "Cannot edit hidden object");
+    CTX_wm_operator_poll_msg_set(*C, "Cannot edit hidden object");
     return false;
   }
 
@@ -544,7 +544,7 @@ bool ED_operator_editmesh_region_view3d(bContext &C)
     return true;
   }
 
-  CTX_wm_operator_poll_msg_set(&C, "expected a view3d region & editmesh");
+  CTX_wm_operator_poll_msg_set(C, "expected a view3d region & editmesh");
   return false;
 }
 
@@ -572,7 +572,7 @@ static bool ed_operator_posemode_exclusive_ex(bContext *C, Object *obact)
     }
   }
 
-  CTX_wm_operator_poll_msg_set(C, "No object, or not exclusively in pose mode");
+  CTX_wm_operator_poll_msg_set(*C, "No object, or not exclusively in pose mode");
   return false;
 }
 
@@ -592,7 +592,7 @@ bool ED_operator_object_active_local_editable_posemode_exclusive(bContext &C)
   }
 
   if (ID_IS_OVERRIDE_LIBRARY(obact)) {
-    CTX_wm_operator_poll_msg_set(&C, "Object is a local library override");
+    CTX_wm_operator_poll_msg_set(C, "Object is a local library override");
     return false;
   }
 
@@ -684,7 +684,7 @@ bool ED_operator_editsurfcurve_region_view3d(bContext &C)
     return true;
   }
 
-  CTX_wm_operator_poll_msg_set(&C, "expected a view3d region & editcurve");
+  CTX_wm_operator_poll_msg_set(C, "expected a view3d region & editcurve");
   return false;
 }
 
@@ -725,7 +725,7 @@ bool ED_operator_editfont(bContext &C)
       return true;
     }
   }
-  CTX_wm_operator_poll_msg_set(&C, "expected an active edit-font object");
+  CTX_wm_operator_poll_msg_set(C, "expected an active edit-font object");
   return false;
 }
 
@@ -1672,7 +1672,7 @@ static wmOperatorStatus area_close_exec(bContext &C, wmOperator &op)
    * This causes execution from the Python console fail to return to the prompt as it should.
    * This glitch could be solved in the event loop handling as other operators may also
    * destructively manipulate windowing data. */
-  CTX_wm_window_set(&C, nullptr);
+  CTX_wm_window_set(C, nullptr);
 
   WM_event_add_notifier(&C, NC_SCREEN | NA_EDITED, nullptr);
 
@@ -4260,8 +4260,8 @@ static bool area_join_apply(bContext *C, wmOperator *op)
     return false;
   }
   if (CTX_wm_area(*C) == jd->sa2) {
-    CTX_wm_area_set(C, nullptr);
-    CTX_wm_region_set(C, nullptr);
+    CTX_wm_area_set(*C, nullptr);
+    CTX_wm_region_set(*C, nullptr);
   }
 
   if (BLI_listbase_is_single(&screen->areabase)) {
@@ -4436,8 +4436,8 @@ void static area_docking_apply(bContext *C, wmOperator *op)
   }
 
   if (jd && jd->sa2 == CTX_wm_area(*C)) {
-    CTX_wm_area_set(C, nullptr);
-    CTX_wm_region_set(C, nullptr);
+    CTX_wm_area_set(*C, nullptr);
+    CTX_wm_region_set(*C, nullptr);
   }
 }
 
@@ -5561,7 +5561,7 @@ static bool region_toggle_poll(bContext &C)
 
   /* Don't flip anything around in top-bar. */
   if (area && area->spacetype == SPACE_TOPBAR) {
-    CTX_wm_operator_poll_msg_set(&C, "Toggling regions in the Top-bar is not allowed");
+    CTX_wm_operator_poll_msg_set(C, "Toggling regions in the Top-bar is not allowed");
     return false;
   }
 
@@ -5629,7 +5629,7 @@ static bool region_flip_poll(bContext &C)
 
   /* Don't flip anything around in top-bar. */
   if (area && area->spacetype == SPACE_TOPBAR) {
-    CTX_wm_operator_poll_msg_set(&C, "Flipping regions in the Top-bar is not allowed");
+    CTX_wm_operator_poll_msg_set(C, "Flipping regions in the Top-bar is not allowed");
     return false;
   }
 
@@ -6304,9 +6304,9 @@ void ED_reset_audio_device(bContext *C)
      * Otherwise we will attach the new playback timer to an other window.
      */
     wmWindow *win = CTX_wm_window(*C);
-    CTX_wm_window_set(C, timer_win);
+    CTX_wm_window_set(*C, timer_win);
     ED_screen_animation_play(C, playback_sync, play_direction);
-    CTX_wm_window_set(C, win);
+    CTX_wm_window_set(*C, win);
   }
 }
 

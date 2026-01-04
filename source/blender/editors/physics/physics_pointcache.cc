@@ -51,13 +51,13 @@ static bool ptcache_poll(bContext &C)
   }
 
   if (ID_IS_OVERRIDE_LIBRARY_REAL(id) && (point_cache->flag & PTCACHE_DISK_CACHE) == false) {
-    CTX_wm_operator_poll_msg_set(&C,
+    CTX_wm_operator_poll_msg_set(C,
                                  "Library override data-blocks only support Disk Cache storage");
     return false;
   }
 
   if (!ID_IS_EDITABLE(id) && (point_cache->flag & PTCACHE_DISK_CACHE) == false) {
-    CTX_wm_operator_poll_msg_set(&C, "Linked data-blocks do not allow editing caches");
+    CTX_wm_operator_poll_msg_set(C, "Linked data-blocks do not allow editing caches");
     return false;
   }
 
@@ -77,7 +77,7 @@ static bool ptcache_add_remove_poll(bContext &C)
 
   if (ID_IS_OVERRIDE_LIBRARY_REAL(id) || !ID_IS_EDITABLE(id)) {
     CTX_wm_operator_poll_msg_set(
-        &C, "Linked or library override data-blocks do not allow adding or removing caches");
+        C, "Linked or library override data-blocks do not allow adding or removing caches");
     return false;
   }
 

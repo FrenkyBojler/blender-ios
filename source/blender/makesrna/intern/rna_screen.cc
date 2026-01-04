@@ -162,9 +162,9 @@ static void rna_Area_type_update(bContext *C, PointerRNA *ptr)
       ScrArea *prevsa = CTX_wm_area(*C);
       ARegion *prevar = CTX_wm_region(*C);
 
-      CTX_wm_window_set(C, win);
-      CTX_wm_area_set(C, area);
-      CTX_wm_region_set(C, nullptr);
+      CTX_wm_window_set(*C, win);
+      CTX_wm_area_set(*C, area);
+      CTX_wm_region_set(*C, nullptr);
 
       ED_area_newspace(C, area, area->butspacetype, true);
       ED_area_tag_redraw(area);
@@ -180,9 +180,9 @@ static void rna_Area_type_update(bContext *C, PointerRNA *ptr)
         blender::ed::space_node::snode_set_context(*C);
       }
 
-      CTX_wm_window_set(C, prevwin);
-      CTX_wm_area_set(C, prevsa);
-      CTX_wm_region_set(C, prevar);
+      CTX_wm_window_set(*C, prevwin);
+      CTX_wm_area_set(*C, prevsa);
+      CTX_wm_region_set(*C, prevar);
       break;
     }
   }

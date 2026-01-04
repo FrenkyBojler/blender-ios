@@ -472,7 +472,7 @@ void WM_check(bContext *C)
   /* WM context. */
   if (wm == nullptr) {
     wm = static_cast<wmWindowManager *>(bmain->wm.first);
-    CTX_wm_manager_set(C, wm);
+    CTX_wm_manager_set(*C, wm);
   }
 
   if (wm == nullptr || BLI_listbase_is_empty(&wm->windows)) {
@@ -510,7 +510,7 @@ void wm_clear_default_size(bContext *C)
   /* WM context. */
   if (wm == nullptr) {
     wm = static_cast<wmWindowManager *>(CTX_data_main(*C)->wm.first);
-    CTX_wm_manager_set(C, wm);
+    CTX_wm_manager_set(*C, wm);
   }
 
   if (wm == nullptr || BLI_listbase_is_empty(&wm->windows)) {
@@ -534,7 +534,7 @@ void wm_add_default(Main *bmain, bContext *C)
   WorkSpace *workspace;
   WorkSpaceLayout *layout = BKE_workspace_layout_find_global(bmain, screen, &workspace);
 
-  CTX_wm_manager_set(C, wm);
+  CTX_wm_manager_set(*C, wm);
   win = wm_window_new(bmain, wm, nullptr, false);
   win->scene = CTX_data_scene(*C);
   STRNCPY_UTF8(win->view_layer_name, CTX_data_view_layer(*C)->name);
@@ -586,7 +586,7 @@ void wm_close_and_free(bContext *C, wmWindowManager *wm)
   wm_reports_free(wm);
 
   if (C && CTX_wm_manager(*C) == wm) {
-    CTX_wm_manager_set(C, nullptr);
+    CTX_wm_manager_set(*C, nullptr);
   }
 
   MEM_delete(wm->runtime);

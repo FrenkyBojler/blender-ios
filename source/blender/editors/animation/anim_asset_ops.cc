@@ -531,14 +531,14 @@ static bool pose_asset_potentially_editable_poll(bContext &C)
 {
   const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(C);
   if (!asset_handle || asset_handle->get_id_type() != ID_AC) {
-    CTX_wm_operator_poll_msg_set(&C, "No selected pose asset");
+    CTX_wm_operator_poll_msg_set(C, "No selected pose asset");
     return false;
   }
   if (asset_handle->is_local_id()) {
     return true;
   }
   if (!asset_handle->is_potentially_editable_asset_blend()) {
-    CTX_wm_operator_poll_msg_set(&C, "Asset blend file is not editable");
+    CTX_wm_operator_poll_msg_set(C, "Asset blend file is not editable");
     return false;
   }
   return true;
@@ -731,7 +731,7 @@ static wmOperatorStatus pose_asset_modify_exec(bContext &C, wmOperator &op)
 static bool pose_asset_modify_poll(bContext &C)
 {
   if (!ED_operator_posemode_context(&C)) {
-    CTX_wm_operator_poll_msg_set(&C, "Pose assets can only be modified from Pose Mode");
+    CTX_wm_operator_poll_msg_set(C, "Pose assets can only be modified from Pose Mode");
     return false;
   }
   return pose_asset_potentially_editable_poll(C);

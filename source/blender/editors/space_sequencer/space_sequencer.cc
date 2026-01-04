@@ -306,11 +306,11 @@ static void sequencer_listener(const wmSpaceTypeListenerParams *params)
 extern "C" const char *sequencer_context_dir[]; /* Quiet warning. */
 const char *sequencer_context_dir[] = {"edit_mask", "tool_settings", nullptr};
 
-static int /*eContextResult*/ sequencer_context(const bContext *C,
+static int /*eContextResult*/ sequencer_context(const bContext &C,
                                                 const char *member,
                                                 bContextDataResult *result)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, sequencer_context_dir);

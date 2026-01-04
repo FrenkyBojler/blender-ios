@@ -489,11 +489,11 @@ static void clip_keymap(wmKeyConfig *keyconf)
 extern "C" const char *clip_context_dir[]; /* quiet warning. */
 const char *clip_context_dir[] = {"edit_movieclip", "edit_mask", nullptr};
 
-static int /*eContextResult*/ clip_context(const bContext *C,
+static int /*eContextResult*/ clip_context(const bContext &C,
                                            const char *member,
                                            bContextDataResult *result)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, clip_context_dir);

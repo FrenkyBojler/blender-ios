@@ -259,8 +259,8 @@ static void depthdropper_depth_sample_pt(bContext *C,
 
         float co[3];
 
-        CTX_wm_area_set(C, area);
-        CTX_wm_region_set(C, region);
+        CTX_wm_area_set(*C, area);
+        CTX_wm_region_set(*C, region);
 
         /* Unfortunately it's necessary to always draw otherwise we leave stale text. */
         ED_region_tag_redraw(region);
@@ -295,8 +295,8 @@ static void depthdropper_depth_sample_pt(bContext *C,
     }
   }
 
-  CTX_wm_area_set(C, area_prev);
-  CTX_wm_region_set(C, region_prev);
+  CTX_wm_area_set(*C, area_prev);
+  CTX_wm_region_set(*C, region_prev);
 }
 
 /* sets the sample depth RGB, maintaining A */

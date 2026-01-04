@@ -447,11 +447,11 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
 
 const char *image_context_dir[] = {"edit_image", "edit_mask", nullptr};
 
-static int /*eContextResult*/ image_context(const bContext *C,
+static int /*eContextResult*/ image_context(const bContext &C,
                                             const char *member,
                                             bContextDataResult *result)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, image_context_dir);

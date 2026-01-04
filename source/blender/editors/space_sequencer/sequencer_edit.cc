@@ -209,7 +209,7 @@ bool sequencer_strip_has_path_poll(bContext &C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   if (!scene) {
-    CTX_wm_operator_poll_msg_set(&C, "Context missing sequencer scene");
+    CTX_wm_operator_poll_msg_set(C, "Context missing sequencer scene");
     return false;
   }
   Editing *ed = seq::editing_get(scene);
@@ -3768,7 +3768,7 @@ static bool sequencer_strip_is_text_poll(bContext &C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   if (!scene) {
-    CTX_wm_operator_poll_msg_set(&C, "Context missing sequencer scene");
+    CTX_wm_operator_poll_msg_set(C, "Context missing sequencer scene");
     return false;
   }
   Editing *ed = seq::editing_get(scene);

@@ -2054,10 +2054,10 @@ static bool file_os_operations_menu_poll(const bContext *C_const, MenuType * /*m
     }
 
     if (num_selected > 1) {
-      CTX_wm_operator_poll_msg_set(C, "More than one item is selected");
+      CTX_wm_operator_poll_msg_set(*C, "More than one item is selected");
     }
     else if (num_selected < 1) {
-      CTX_wm_operator_poll_msg_set(C, "No items are selected");
+      CTX_wm_operator_poll_msg_set(*C, "No items are selected");
     }
     else {
       return true;
@@ -2528,7 +2528,7 @@ static wmOperatorStatus file_smoothscroll_invoke(bContext &C,
 
   /* Temporarily set context to the main window region,
    * so that the pan operator works. */
-  CTX_wm_region_set(&C, region);
+  CTX_wm_region_set(C, region);
 
   /* scroll one step in the desired direction */
   int deltax = 0;
@@ -2577,7 +2577,7 @@ static wmOperatorStatus file_smoothscroll_invoke(bContext &C,
   ED_region_tag_redraw(region);
 
   /* and restore context */
-  CTX_wm_region_set(&C, region_ctx);
+  CTX_wm_region_set(C, region_ctx);
 
   return OPERATOR_FINISHED;
 }

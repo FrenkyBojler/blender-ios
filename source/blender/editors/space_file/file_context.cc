@@ -27,15 +27,15 @@ const char *file_context_dir[] = {
     nullptr,
 };
 
-int /*eContextResult*/ file_context(const bContext *C,
+int /*eContextResult*/ file_context(const bContext &C,
                                     const char *member,
                                     bContextDataResult *result)
 {
-  bScreen *screen = CTX_wm_screen(*C);
-  SpaceFile *sfile = CTX_wm_space_file(*C);
+  bScreen *screen = CTX_wm_screen(C);
+  SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
 
-  BLI_assert(!ED_area_is_global(CTX_wm_area(*C)));
+  BLI_assert(!ED_area_is_global(CTX_wm_area(C)));
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, file_context_dir);

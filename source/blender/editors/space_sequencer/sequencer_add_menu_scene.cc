@@ -68,7 +68,7 @@ static void sequencer_add_catalog_assets_draw(const bContext *C, Menu *menu)
   }
   asset::AssetItemTree &tree = *sseq->runtime->assets_for_menu;
 
-  const std::optional<StringRefNull> menu_path = CTX_data_string_get(C, "asset_catalog_path");
+  const std::optional<StringRefNull> menu_path = CTX_data_string_get(*C, "asset_catalog_path");
   if (!menu_path) {
     return;
   }

@@ -56,14 +56,14 @@ static bool bone_collection_add_poll(bContext &C)
   }
 
   if (!ID_IS_EDITABLE(&armature->id)) {
-    CTX_wm_operator_poll_msg_set(&C,
+    CTX_wm_operator_poll_msg_set(C,
                                  "Cannot add bone collections to a linked Armature without an "
                                  "override on the Armature Data");
     return false;
   }
 
   if (BKE_lib_override_library_is_system_defined(nullptr, &armature->id)) {
-    CTX_wm_operator_poll_msg_set(&C,
+    CTX_wm_operator_poll_msg_set(C,
                                  "Cannot add bone collections to a linked Armature with a system "
                                  "override; explicitly create an override on the Armature Data");
     return false;
@@ -81,7 +81,7 @@ static bool active_bone_collection_poll(bContext &C)
   }
 
   if (BKE_lib_override_library_is_system_defined(nullptr, &armature->id)) {
-    CTX_wm_operator_poll_msg_set(&C,
+    CTX_wm_operator_poll_msg_set(C,
                                  "Cannot update a linked Armature with a system override; "
                                  "explicitly create an override on the Armature Data");
     return false;
@@ -89,13 +89,13 @@ static bool active_bone_collection_poll(bContext &C)
 
   BoneCollection *bcoll = armature->runtime.active_collection;
   if (bcoll == nullptr) {
-    CTX_wm_operator_poll_msg_set(&C, "Armature has no active bone collection, select one first");
+    CTX_wm_operator_poll_msg_set(C, "Armature has no active bone collection, select one first");
     return false;
   }
 
   if (!ANIM_armature_bonecoll_is_editable(armature, bcoll)) {
     CTX_wm_operator_poll_msg_set(
-        &C, "Cannot edit bone collections that are linked from another blend file");
+        C, "Cannot edit bone collections that are linked from another blend file");
     return false;
   }
   return true;
@@ -378,29 +378,29 @@ static bool bone_collection_assign_poll(bContext &C)
   }
 
   if (ob->type != OB_ARMATURE) {
-    CTX_wm_operator_poll_msg_set(&C, "Bone collections can only be edited on an Armature");
+    CTX_wm_operator_poll_msg_set(C, "Bone collections can only be edited on an Armature");
     return false;
   }
 
   bArmature *armature = static_cast<bArmature *>(ob->data);
   if (armature != ED_armature_context(&C)) {
-    CTX_wm_operator_poll_msg_set(&C, "Pinned armature is not active in the 3D viewport");
+    CTX_wm_operator_poll_msg_set(C, "Pinned armature is not active in the 3D viewport");
     return false;
   }
 
   if (!ID_IS_EDITABLE(armature) && !ID_IS_OVERRIDE_LIBRARY(armature)) {
     CTX_wm_operator_poll_msg_set(
-        &C, "Cannot edit bone collections on linked Armatures without override");
+        C, "Cannot edit bone collections on linked Armatures without override");
     return false;
   }
   if (BKE_lib_override_library_is_system_defined(nullptr, &armature->id)) {
-    CTX_wm_operator_poll_msg_set(&C,
+    CTX_wm_operator_poll_msg_set(C,
                                  "Cannot edit bone collections on a linked Armature with a system "
                                  "override; explicitly create an override on the Armature Data");
     return false;
   }
 
-  CTX_wm_operator_poll_msg_set(&C, "Linked bone collections are not editable");
+  CTX_wm_operator_poll_msg_set(C, "Linked bone collections are not editable");
 
   /* The target bone collection can be specified by name in an operator property, but that's not
    * available here. So just allow in the poll function, and do the final check in the execute. */
@@ -487,18 +487,18 @@ static bool bone_collection_create_and_assign_poll(bContext &C)
   }
 
   if (ob->type != OB_ARMATURE) {
-    CTX_wm_operator_poll_msg_set(&C, "Bone collections can only be edited on an Armature");
+    CTX_wm_operator_poll_msg_set(C, "Bone collections can only be edited on an Armature");
     return false;
   }
 
   bArmature *armature = static_cast<bArmature *>(ob->data);
   if (!ID_IS_EDITABLE(armature) && !ID_IS_OVERRIDE_LIBRARY(armature)) {
     CTX_wm_operator_poll_msg_set(
-        &C, "Cannot edit bone collections on linked Armatures without override");
+        C, "Cannot edit bone collections on linked Armatures without override");
     return false;
   }
   if (BKE_lib_override_library_is_system_defined(nullptr, &armature->id)) {
-    CTX_wm_operator_poll_msg_set(&C,
+    CTX_wm_operator_poll_msg_set(C,
                                  "Cannot edit bone collections on a linked Armature with a system "
                                  "override; explicitly create an override on the Armature Data");
     return false;
@@ -739,7 +739,7 @@ static bool armature_bone_select_poll(bContext &C)
      * the selection state. */
     if (!ID_IS_EDITABLE(ob) && !ID_IS_OVERRIDE_LIBRARY(ob)) {
       CTX_wm_operator_poll_msg_set(
-          &C, "Cannot (de)select bones on linked object, that would need an override");
+          C, "Cannot (de)select bones on linked object, that would need an override");
       return false;
     }
   }
@@ -755,13 +755,13 @@ static bool armature_bone_select_poll(bContext &C)
     if (!active_object || active_object->type != OB_ARMATURE || active_object->data != armature) {
       /* There has to be an active object in order to hide a pose bone that points to the correct
        * armature. With pinning, the active object may not be an armature. */
-      CTX_wm_operator_poll_msg_set(&C, "The active object does not match the armature");
+      CTX_wm_operator_poll_msg_set(C, "The active object does not match the armature");
       return false;
     }
   }
 
   if (armature->runtime.active_collection == nullptr) {
-    CTX_wm_operator_poll_msg_set(&C, "No active bone collection");
+    CTX_wm_operator_poll_msg_set(C, "No active bone collection");
     return false;
   }
   return true;
@@ -1006,24 +1006,24 @@ static bool move_to_collection_poll(bContext &C)
   }
 
   if (ob->type != OB_ARMATURE) {
-    CTX_wm_operator_poll_msg_set(&C, "Bone collections can only be edited on an Armature");
+    CTX_wm_operator_poll_msg_set(C, "Bone collections can only be edited on an Armature");
     return false;
   }
 
   const bArmature *armature = static_cast<bArmature *>(ob->data);
   if (!ID_IS_EDITABLE(armature) && !ID_IS_OVERRIDE_LIBRARY(armature)) {
-    CTX_wm_operator_poll_msg_set(&C, "This needs a local Armature or an override");
+    CTX_wm_operator_poll_msg_set(C, "This needs a local Armature or an override");
     return false;
   }
 
   if (BKE_lib_override_library_is_system_defined(nullptr, &armature->id)) {
-    CTX_wm_operator_poll_msg_set(&C,
+    CTX_wm_operator_poll_msg_set(C,
                                  "Cannot update a linked Armature with a system override; "
                                  "explicitly create an override on the Armature Data");
     return false;
   }
 
-  CTX_wm_operator_poll_msg_set(&C, "Linked bone collections are not editable");
+  CTX_wm_operator_poll_msg_set(C, "Linked bone collections are not editable");
 
   /* Ideally this would also check the target bone collection to move/assign to.
    * However, that requires access to the operator properties, and those are not

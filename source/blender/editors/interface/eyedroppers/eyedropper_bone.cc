@@ -327,9 +327,9 @@ static BoneSampleData bonedropper_sample_pt(
 
   const int mval[2] = {event_xy[0] - region->winrct.xmin, event_xy[1] - region->winrct.ymin};
 
-  CTX_wm_window_set(C, &win);
-  CTX_wm_area_set(C, &area);
-  CTX_wm_region_set(C, region);
+  CTX_wm_window_set(*C, &win);
+  CTX_wm_area_set(*C, &area);
+  CTX_wm_region_set(*C, region);
 
   /* Unfortunately it's necessary to always draw else we leave stale text. */
   ED_region_tag_redraw(region);
@@ -355,9 +355,9 @@ static BoneSampleData bonedropper_sample_pt(
     copy_v2_v2_int(bdr.name_pos, mval);
   }
 
-  CTX_wm_window_set(C, win_prev);
-  CTX_wm_area_set(C, area_prev);
-  CTX_wm_region_set(C, region_prev);
+  CTX_wm_window_set(*C, win_prev);
+  CTX_wm_area_set(*C, area_prev);
+  CTX_wm_region_set(*C, region_prev);
 
   return sample_data;
 }
@@ -525,12 +525,12 @@ static bool bonedropper_poll(bContext &C)
   const Object *active_object = CTX_data_active_object(C);
 
   if (!active_object || active_object->type != OB_ARMATURE) {
-    CTX_wm_operator_poll_msg_set(&C, "The active object needs to be an armature");
+    CTX_wm_operator_poll_msg_set(C, "The active object needs to be an armature");
     return false;
   }
 
   if (!ELEM(active_object->mode, OB_MODE_POSE, OB_MODE_EDIT)) {
-    CTX_wm_operator_poll_msg_set(&C, "The armature needs to be in Pose mode or Edit mode");
+    CTX_wm_operator_poll_msg_set(C, "The armature needs to be in Pose mode or Edit mode");
     return false;
   }
 

@@ -36,7 +36,7 @@ bool file_main_region_needs_refresh_before_draw(SpaceFile *sfile);
 
 /* `file_context.cc` */
 
-int /*eContextResult*/ file_context(const bContext *C,
+int /*eContextResult*/ file_context(const bContext &C,
                                     const char *member,
                                     bContextDataResult *result);
 

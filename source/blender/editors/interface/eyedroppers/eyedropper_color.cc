@@ -415,15 +415,15 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
     ScrArea *area_prev = CTX_wm_area(*C);
     ARegion *region_prev = CTX_wm_region(*C);
 
-    CTX_wm_window_set(C, win);
-    CTX_wm_area_set(C, area);
-    CTX_wm_region_set(C, region);
+    CTX_wm_window_set(*C, win);
+    CTX_wm_area_set(*C, area);
+    CTX_wm_region_set(*C, region);
 
     const bool success = eyedropper_cryptomatte_sample_view3d_fl(C, prefix, mval, r_col);
 
-    CTX_wm_window_set(C, win_prev);
-    CTX_wm_area_set(C, area_prev);
-    CTX_wm_region_set(C, region_prev);
+    CTX_wm_window_set(*C, win_prev);
+    CTX_wm_area_set(*C, area_prev);
+    CTX_wm_region_set(*C, region_prev);
 
     return success;
   }

@@ -1236,9 +1236,9 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_button_or_extra_icon(
       wmOperatorCallParams call_params{};
       call_params.optype = optype;
       call_params.opcontext = opcontext;
-      CTX_wm_operator_poll_msg_clear(C);
+      CTX_wm_operator_poll_msg_clear(*C);
       button_context_poll_operator_ex(C, but, &call_params);
-      disabled_msg_orig = CTX_wm_operator_poll_msg_get(C, &disabled_msg_free);
+      disabled_msg_orig = CTX_wm_operator_poll_msg_get(*C, &disabled_msg_free);
       disabled_msg = TIP_(disabled_msg_orig);
     }
     /* Alternatively, buttons can store some reasoning too. */

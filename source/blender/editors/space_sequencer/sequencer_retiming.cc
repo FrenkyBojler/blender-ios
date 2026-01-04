@@ -156,7 +156,7 @@ static bool retiming_poll(bContext &C)
     return false;
   }
   if (!seq::retiming_is_allowed(strip)) {
-    CTX_wm_operator_poll_msg_set(&C, "This strip type cannot be retimed");
+    CTX_wm_operator_poll_msg_set(C, "This strip type cannot be retimed");
     return false;
   }
   return true;

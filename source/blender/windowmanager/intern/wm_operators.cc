@@ -3676,14 +3676,14 @@ static void redraw_timer_window_swap(bContext *C)
   wmWindow *win = CTX_wm_window(*C);
   bScreen *screen = CTX_wm_screen(*C);
 
-  CTX_wm_region_popup_set(C, nullptr);
+  CTX_wm_region_popup_set(*C, nullptr);
 
   for (ScrArea &area : screen->areabase) {
     ED_area_tag_redraw(&area);
   }
   wm_draw_update(C);
 
-  CTX_wm_window_set(C, win); /* XXX context manipulation warning! */
+  CTX_wm_window_set(*C, win); /* XXX context manipulation warning! */
 }
 
 enum {
@@ -3724,33 +3724,33 @@ static void redraw_timer_step(bContext *C,
     }
   }
   else if (type == eRTDrawRegionSwap) {
-    CTX_wm_region_popup_set(C, nullptr);
+    CTX_wm_region_popup_set(*C, nullptr);
 
     ED_region_tag_redraw(region);
     wm_draw_update(C);
 
-    CTX_wm_window_set(C, win); /* XXX context manipulation warning! */
+    CTX_wm_window_set(*C, win); /* XXX context manipulation warning! */
   }
   else if (type == eRTDrawWindow) {
     bScreen *screen = WM_window_get_active_screen(win);
 
-    CTX_wm_region_popup_set(C, nullptr);
+    CTX_wm_region_popup_set(*C, nullptr);
 
     for (ScrArea &area_iter : screen->areabase) {
-      CTX_wm_area_set(C, &area_iter);
+      CTX_wm_area_set(*C, &area_iter);
       for (ARegion &region_iter : area_iter.regionbase) {
         if (!region_iter.runtime->visible) {
           continue;
         }
-        CTX_wm_region_set(C, &region_iter);
+        CTX_wm_region_set(*C, &region_iter);
         wm_draw_region_test(C, &area_iter, &region_iter);
       }
     }
 
-    CTX_wm_window_set(C, win); /* XXX context manipulation warning! */
+    CTX_wm_window_set(*C, win); /* XXX context manipulation warning! */
 
-    CTX_wm_area_set(C, area);
-    CTX_wm_region_set(C, region);
+    CTX_wm_area_set(*C, area);
+    CTX_wm_region_set(*C, region);
   }
   else if (type == eRTDrawWindowSwap) {
     redraw_timer_window_swap(C);

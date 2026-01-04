@@ -1623,7 +1623,7 @@ static bool node_default_group_width_set_poll(bContext &C)
   }
   if (snode->nodetree == snode->edittree) {
     /* Top-level node group does not have enough context to set the node width. */
-    CTX_wm_operator_poll_msg_set(&C, "There is no parent group node in this context");
+    CTX_wm_operator_poll_msg_set(C, "There is no parent group node in this context");
     return false;
   }
   return true;

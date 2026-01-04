@@ -94,7 +94,7 @@ enum eContextResult {
 };
 
 /* Function mapping a context member name to its value. */
-using bContextDataCallback = int /*eContextResult*/ (*)(const bContext *C,
+using bContextDataCallback = int /*eContextResult*/ (*)(const bContext &C,
                                                         const char *member,
                                                         bContextDataResult *result);
 
@@ -166,7 +166,7 @@ bContextStore *CTX_store_add(blender::Vector<std::unique_ptr<bContextStore>> &co
 bContextStore *CTX_store_add_all(blender::Vector<std::unique_ptr<bContextStore>> &contexts,
                                  const bContextStore *context);
 const bContextStore *CTX_store_get(const bContext &C);
-void CTX_store_set(bContext *C, const bContextStore *store);
+void CTX_store_set(bContext &C, const bContextStore *store);
 const PointerRNA *CTX_store_ptr_lookup(const bContextStore *store,
                                        blender::StringRef name,
                                        const StructRNA *type = nullptr);
@@ -175,11 +175,11 @@ std::optional<blender::StringRefNull> CTX_store_string_lookup(const bContextStor
 std::optional<int64_t> CTX_store_int_lookup(const bContextStore *store, blender::StringRef name);
 
 /* Set a temporary flag to indicate when writing via RNA is disallowed. */
-void CTX_rna_disallow_write_set_p(bContext *C, const bool *rna_disallow_writes);
+void CTX_rna_disallow_write_set_p(bContext &C, const bool *rna_disallow_writes);
 
 /** Needed to store if Python is initialized or not. */
 bool CTX_py_init_get(const bContext &C);
-void CTX_py_init_set(bContext *C, bool value);
+void CTX_py_init_set(bContext &C, bool value);
 
 void *CTX_py_dict_get(const bContext &C);
 void *CTX_py_dict_get_orig(const bContext &C);
@@ -188,8 +188,8 @@ struct bContext_PyState {
   void *py_context;
   void *py_context_orig;
 };
-void CTX_py_state_push(bContext *C, bContext_PyState *pystate, void *value);
-void CTX_py_state_pop(bContext *C, bContext_PyState *pystate);
+void CTX_py_state_push(bContext &C, bContext_PyState *pystate, void *value);
+void CTX_py_state_pop(bContext &C, bContext_PyState *pystate);
 
 /* Window Manager Context */
 
@@ -225,13 +225,13 @@ SpaceClip *CTX_wm_space_clip(const bContext &C);
 SpaceTopBar *CTX_wm_space_topbar(const bContext &C);
 SpaceSpreadsheet *CTX_wm_space_spreadsheet(const bContext &C);
 
-void CTX_wm_manager_set(bContext *C, wmWindowManager *wm);
-void CTX_wm_window_set(bContext *C, wmWindow *win);
-void CTX_wm_screen_set(bContext *C, bScreen *screen); /* to be removed */
-void CTX_wm_area_set(bContext *C, ScrArea *area);
-void CTX_wm_region_set(bContext *C, ARegion *region);
-void CTX_wm_region_popup_set(bContext *C, ARegion *region_popup);
-void CTX_wm_gizmo_group_set(bContext *C, wmGizmoGroup *gzgroup);
+void CTX_wm_manager_set(bContext &C, wmWindowManager *wm);
+void CTX_wm_window_set(bContext &C, wmWindow *win);
+void CTX_wm_screen_set(bContext &C, bScreen *screen); /* to be removed */
+void CTX_wm_area_set(bContext &C, ScrArea *area);
+void CTX_wm_region_set(bContext &C, ARegion *region);
+void CTX_wm_region_popup_set(bContext &C, ARegion *region_popup);
+void CTX_wm_gizmo_group_set(bContext &C, wmGizmoGroup *gzgroup);
 
 /**
  * Values to create the message that describes the reason poll failed.
@@ -240,13 +240,13 @@ void CTX_wm_gizmo_group_set(bContext *C, wmGizmoGroup *gzgroup);
  */
 struct bContextPollMsgDyn_Params {
   /** The result is allocated. */
-  char *(*get_fn)(bContext *C, void *user_data);
+  char *(*get_fn)(bContext &C, void *user_data);
   /** Optionally free the user-data. */
-  void (*free_fn)(bContext *C, void *user_data);
+  void (*free_fn)(bContext &C, void *user_data);
   void *user_data;
 };
 
-const char *CTX_wm_operator_poll_msg_get(bContext *C, bool *r_free);
+const char *CTX_wm_operator_poll_msg_get(bContext &C, bool *r_free);
 
 /**
  * Set a message to be shown when the operator is disabled in the UI.
@@ -259,9 +259,9 @@ const char *CTX_wm_operator_poll_msg_get(bContext *C, bool *r_free);
  * operator is disabled because it is added to a disabled blender::ui::Layout, this message
  * will show.
  */
-void CTX_wm_operator_poll_msg_set(bContext *C, const char *msg);
-void CTX_wm_operator_poll_msg_set_dynamic(bContext *C, const bContextPollMsgDyn_Params *params);
-void CTX_wm_operator_poll_msg_clear(bContext *C);
+void CTX_wm_operator_poll_msg_set(bContext &C, const char *msg);
+void CTX_wm_operator_poll_msg_set_dynamic(bContext &C, const bContextPollMsgDyn_Params *params);
+void CTX_wm_operator_poll_msg_clear(bContext &C);
 
 /* Data Context
  *
@@ -282,7 +282,7 @@ PointerRNA CTX_data_pointer_get_type(const bContext &C, const char *member, Stru
 PointerRNA CTX_data_pointer_get_type_silent(const bContext &C,
                                             const char *member,
                                             StructRNA *type);
-blender::Vector<PointerRNA> CTX_data_collection_get(const bContext *C, const char *member);
+blender::Vector<PointerRNA> CTX_data_collection_get(const bContext &C, const char *member);
 
 /**
  * For each pointer in collection_pointers, remap it to point to `ptr->propname`.
@@ -295,8 +295,8 @@ blender::Vector<PointerRNA> CTX_data_collection_get(const bContext *C, const cha
 void CTX_data_collection_remap_property(blender::MutableSpan<PointerRNA> collection_pointers,
                                         const char *propname);
 
-std::optional<blender::StringRefNull> CTX_data_string_get(const bContext *C, const char *member);
-std::optional<int64_t> CTX_data_int_get(const bContext *C, const char *member);
+std::optional<blender::StringRefNull> CTX_data_string_get(const bContext &C, const char *member);
+std::optional<int64_t> CTX_data_int_get(const bContext &C, const char *member);
 
 /**
  * \param C: Context.
@@ -304,12 +304,12 @@ std::optional<int64_t> CTX_data_int_get(const bContext *C, const char *member);
  * \param use_rna: Use Include the properties from #RNA_Context.
  * \param use_all: Don't skip values (currently only "scene").
  */
-ListBaseT<LinkData> CTX_data_dir_get_ex(const bContext *C,
+ListBaseT<LinkData> CTX_data_dir_get_ex(const bContext &C,
                                         bool use_store,
                                         bool use_rna,
                                         bool use_all);
-ListBaseT<LinkData> CTX_data_dir_get(const bContext *C);
-int /*eContextResult*/ CTX_data_get(const bContext *C,
+ListBaseT<LinkData> CTX_data_dir_get(const bContext &C);
+int /*eContextResult*/ CTX_data_get(const bContext &C,
                                     const char *member,
                                     PointerRNA *r_ptr,
                                     blender::Vector<PointerRNA> *r_lb,
@@ -389,8 +389,8 @@ enum eContextObjectMode CTX_data_mode_enum_ex(const Object *obedit,
                                               eObjectMode object_mode);
 enum eContextObjectMode CTX_data_mode_enum(const bContext &C);
 
-void CTX_data_main_set(bContext *C, Main *bmain);
-void CTX_data_scene_set(bContext *C, Scene *scene);
+void CTX_data_main_set(bContext &C, Main *bmain);
+void CTX_data_scene_set(bContext &C, Scene *scene);
 
 /* Only Outliner currently! */
 bool CTX_data_selected_ids(const bContext &C, blender::Vector<PointerRNA> *list);
@@ -482,7 +482,7 @@ Depsgraph *CTX_data_depsgraph_on_load(const bContext &C);
 /**
  * Enable or disable logging of context members.
  */
-void CTX_member_logging_set(bContext *C, bool enable);
+void CTX_member_logging_set(bContext &C, bool enable);
 
 /**
  * Check if logging is enabled of context members.

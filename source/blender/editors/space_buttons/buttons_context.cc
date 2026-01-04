@@ -919,15 +919,15 @@ const char *buttons_context_dir[] = {
     nullptr,
 };
 
-int /*eContextResult*/ buttons_context(const bContext *C,
+int /*eContextResult*/ buttons_context(const bContext &C,
                                        const char *member,
                                        bContextDataResult *result)
 {
-  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(C);
   if (sbuts && sbuts->path == nullptr) {
     /* path is cleared for #SCREEN_OT_redo_last, when global undo does a file-read which clears the
      * path (see lib_link_workspace_layout_restore). */
-    buttons_context_compute(C, sbuts);
+    buttons_context_compute(&C, sbuts);
   }
   ButsContextPath *path = static_cast<ButsContextPath *>(sbuts ? sbuts->path : nullptr);
 
@@ -1137,7 +1137,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "particle_system_editable")) {
-    if (PE_poll(*(bContext *)C)) {
+    if (PE_poll(*(bContext *)&C)) {
       set_pointer_type(path, result, &RNA_ParticleSystem);
     }
     else {

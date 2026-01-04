@@ -81,11 +81,11 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
 {
   asset::AssetItemTree &tree = *get_static_item_tree();
 
-  const std::optional<StringRefNull> menu_path = CTX_data_string_get(C, "asset_catalog_path");
+  const std::optional<StringRefNull> menu_path = CTX_data_string_get(*C, "asset_catalog_path");
   if (!menu_path) {
     return;
   }
-  const int skip_essentials = CTX_data_int_get(C, "skip_essentials").value_or(0);
+  const int skip_essentials = CTX_data_int_get(*C, "skip_essentials").value_or(0);
   const Span<asset_system::AssetRepresentation *> assets = tree.assets_per_path.lookup(
       menu_path->data());
   const asset_system::AssetCatalogTreeItem *catalog_item = tree.catalogs.find_item(

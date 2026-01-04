@@ -838,8 +838,8 @@ void WM_toolsystem_refresh_active(bContext *C)
               context_prev.is_set = true;
             }
 
-            CTX_wm_window_set(C, &win);
-            CTX_wm_area_set(C, &area);
+            CTX_wm_window_set(*C, &win);
+            CTX_wm_area_set(*C, &area);
 
             toolsystem_reinit_ensure_toolref(C, workspace, &tkey, nullptr);
           }
@@ -849,9 +849,9 @@ void WM_toolsystem_refresh_active(bContext *C)
   }
 
   if (context_prev.is_set) {
-    CTX_wm_window_set(C, context_prev.win);
-    CTX_wm_area_set(C, context_prev.area);
-    CTX_wm_region_set(C, context_prev.region);
+    CTX_wm_window_set(*C, context_prev.win);
+    CTX_wm_area_set(*C, context_prev.area);
+    CTX_wm_region_set(*C, context_prev.region);
   }
 
   BKE_workspace_id_tag_all_visible(bmain, ID_TAG_DOIT);
@@ -1202,13 +1202,13 @@ void WM_toolsystem_update_from_context_view3d(bContext *C)
         WorkSpace *workspace_iter = WM_window_get_active_workspace(&win);
         if (workspace_iter != workspace) {
 
-          CTX_wm_window_set(C, &win);
+          CTX_wm_window_set(*C, &win);
 
           wm_toolsystem_update_from_context_view3d_impl(C, workspace_iter);
 
-          CTX_wm_window_set(C, win_prev);
-          CTX_wm_area_set(C, area_prev);
-          CTX_wm_region_set(C, region_prev);
+          CTX_wm_window_set(*C, win_prev);
+          CTX_wm_area_set(*C, area_prev);
+          CTX_wm_region_set(*C, region_prev);
         }
       }
     }

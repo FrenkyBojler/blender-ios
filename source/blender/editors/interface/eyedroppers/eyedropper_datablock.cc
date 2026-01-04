@@ -149,9 +149,9 @@ static void datadropper_id_sample_pt(
         const int mval[2] = {event_xy[0] - region->winrct.xmin, event_xy[1] - region->winrct.ymin};
         Base *base;
 
-        CTX_wm_window_set(C, win);
-        CTX_wm_area_set(C, area);
-        CTX_wm_region_set(C, region);
+        CTX_wm_window_set(*C, win);
+        CTX_wm_area_set(*C, area);
+        CTX_wm_region_set(*C, region);
 
         /* Unfortunately it's necessary to always draw else we leave stale text. */
         ED_region_tag_redraw(region);
@@ -191,9 +191,9 @@ static void datadropper_id_sample_pt(
     }
   }
 
-  CTX_wm_window_set(C, win_prev);
-  CTX_wm_area_set(C, area_prev);
-  CTX_wm_region_set(C, region_prev);
+  CTX_wm_window_set(*C, win_prev);
+  CTX_wm_area_set(*C, area_prev);
+  CTX_wm_region_set(*C, region_prev);
 }
 
 /* sets the ID, returns success */

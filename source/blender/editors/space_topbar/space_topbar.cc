@@ -191,7 +191,7 @@ static void recent_files_menu_draw(const bContext *C, Menu *menu)
 {
   blender::ui::Layout &layout = *menu->layout;
   layout.operator_context_set(blender::wm::OpCallContext::InvokeDefault);
-  const bool is_menu_search = CTX_data_int_get(C, "is_menu_search").value_or(false);
+  const bool is_menu_search = CTX_data_int_get(*C, "is_menu_search").value_or(false);
   if (is_menu_search) {
     template_recent_files(&layout, U.recent_files);
   }

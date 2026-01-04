@@ -49,7 +49,7 @@ class TestData {
 
     if (this->C == nullptr) {
       this->C = CTX_create();
-      CTX_data_main_set(this->C, this->bmain);
+      CTX_data_main_set(*this->C, this->bmain);
     }
   }
 
@@ -105,7 +105,7 @@ class WholeIDTestData : public TestData {
   WholeIDTestData()
   {
     this->scene = BKE_scene_add(this->bmain, "IDLibQueryScene");
-    CTX_data_scene_set(this->C, this->scene);
+    CTX_data_scene_set(*this->C, this->scene);
 
     this->object = BKE_object_add_only_object(this->bmain, OB_MESH, "IDLibQueryObject");
     this->target = BKE_object_add_only_object(this->bmain, OB_EMPTY, "IDLibQueryTarget");

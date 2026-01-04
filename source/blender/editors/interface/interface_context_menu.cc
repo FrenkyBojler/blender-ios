@@ -515,7 +515,7 @@ static void set_layout_context_from_button(bContext *C, Layout &layout, Button *
     return;
   }
   layout.context_copy(but->context);
-  CTX_store_set(C, layout.context_store());
+  CTX_store_set(*C, layout.context_store());
 }
 
 bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *event)
@@ -982,7 +982,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
       view_item_but->view_item->build_context_menu(*C, sub);
 
       /* Reset context. */
-      CTX_store_set(C, prev_ctx);
+      CTX_store_set(*C, prev_ctx);
 
       layout.separator();
     }
@@ -1267,7 +1267,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   }
 
   if (but->context) {
-    CTX_store_set(C, previous_ctx);
+    CTX_store_set(*C, previous_ctx);
   }
 
   return popup_menu_end_or_cancel(C, pup);

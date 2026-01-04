@@ -2025,7 +2025,7 @@ bool button_context_poll_operator_ex(bContext *C,
     const_cast<Button *>(but)->flag |= BUT_ACTIVE_OVERRIDE;
 
     if (but->context) {
-      CTX_store_set(C, but->context);
+      CTX_store_set(*C, but->context);
     }
   }
 
@@ -2038,7 +2038,7 @@ bool button_context_poll_operator_ex(bContext *C,
     const_cast<Button *>(but)->flag = old_but_flag;
 
     if (but->context) {
-      CTX_store_set(C, previous_ctx);
+      CTX_store_set(*C, previous_ctx);
     }
   }
 
@@ -6848,9 +6848,9 @@ std::string button_string_get_rna_tooltip(bContext &C, Button &but)
   else if (but.optype) {
     PointerRNA *opptr = button_operator_ptr_ensure(&but);
     const bContextStore *previous_ctx = CTX_store_get(C);
-    CTX_store_set(&C, but.context);
+    CTX_store_set(C, but.context);
     std::string tmp = WM_operatortype_description(&C, but.optype, opptr);
-    CTX_store_set(&C, previous_ctx);
+    CTX_store_set(C, previous_ctx);
     return tmp;
   }
   if (ELEM(but.type, ButtonType::Menu, ButtonType::Pulldown, ButtonType::Popover)) {

@@ -112,7 +112,7 @@ static bool wm_check_region_exists(const bScreen *screen,
  */
 static void bpy_rna_context_logging_set(bContext *C, bool enable)
 {
-  CTX_member_logging_set(C, enable);
+  CTX_member_logging_set(*C, enable);
 }
 
 /** \} */
@@ -354,16 +354,16 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
    * passing in the context override altogether. */
 
   if (self->ctx_temp.win_is_set) {
-    CTX_wm_window_set(C, self->ctx_temp.win);
+    CTX_wm_window_set(*C, self->ctx_temp.win);
   }
   if (self->ctx_temp.screen_is_set) {
-    CTX_wm_screen_set(C, self->ctx_temp.screen);
+    CTX_wm_screen_set(*C, self->ctx_temp.screen);
   }
   if (self->ctx_temp.area_is_set) {
-    CTX_wm_area_set(C, self->ctx_temp.area);
+    CTX_wm_area_set(*C, self->ctx_temp.area);
   }
   if (self->ctx_temp.region_is_set) {
-    CTX_wm_region_set(C, self->ctx_temp.region);
+    CTX_wm_region_set(*C, self->ctx_temp.region);
   }
 
   return Py_NewRef(self);
@@ -415,13 +415,13 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   /* Handle Window. */
   if (do_restore) {
     if (self->ctx_init.win && !wm_check_window_exists(bmain, self->ctx_init.win)) {
-      CTX_wm_window_set(C, nullptr);
+      CTX_wm_window_set(*C, nullptr);
       do_restore = false;
     }
 
     if (do_restore) {
       if (self->ctx_init.win_is_set) {
-        CTX_wm_window_set(C, self->ctx_init.win);
+        CTX_wm_window_set(*C, self->ctx_init.win);
         is_container_set = true;
       }
       else if (self->ctx_temp.win_is_set) {
@@ -440,13 +440,13 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   /* Handle Screen. */
   if (do_restore) {
     if (self->ctx_init.screen && !wm_check_screen_exists(bmain, self->ctx_init.screen)) {
-      CTX_wm_screen_set(C, nullptr);
+      CTX_wm_screen_set(*C, nullptr);
       do_restore = false;
     }
 
     if (do_restore) {
       if (self->ctx_init.screen_is_set || is_container_set) {
-        CTX_wm_screen_set(C, self->ctx_init.screen);
+        CTX_wm_screen_set(*C, self->ctx_init.screen);
         is_container_set = true;
       }
       else if (self->ctx_temp.screen_is_set) {
@@ -465,13 +465,13 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
     if (self->ctx_init.area &&
         !wm_check_area_exists(self->ctx_init.win, self->ctx_init.screen, self->ctx_init.area))
     {
-      CTX_wm_area_set(C, nullptr);
+      CTX_wm_area_set(*C, nullptr);
       do_restore = false;
     }
 
     if (do_restore) {
       if (self->ctx_init.area_is_set || is_container_set) {
-        CTX_wm_area_set(C, self->ctx_init.area);
+        CTX_wm_area_set(*C, self->ctx_init.area);
         is_container_set = true;
       }
       else if (self->ctx_temp.area_is_set) {
@@ -490,13 +490,13 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
     if (self->ctx_init.region &&
         !wm_check_region_exists(self->ctx_init.screen, self->ctx_init.area, self->ctx_init.region))
     {
-      CTX_wm_region_set(C, nullptr);
+      CTX_wm_region_set(*C, nullptr);
       do_restore = false;
     }
 
     if (do_restore) {
       if (self->ctx_init.region_is_set || is_container_set) {
-        CTX_wm_region_set(C, self->ctx_init.region);
+        CTX_wm_region_set(*C, self->ctx_init.region);
         is_container_set = true;
       }
       /* Enable is there is ever data nested within the region. */

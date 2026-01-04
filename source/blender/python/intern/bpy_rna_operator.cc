@@ -23,7 +23,7 @@
 /** \name Operator `poll_message_set` Method
  * \{ */
 
-static char *pyop_poll_message_get_fn(bContext * /*C*/, void *user_data)
+static char *pyop_poll_message_get_fn(bContext & /*C*/, void *user_data)
 {
   PyGILState_STATE gilstate = PyGILState_Ensure();
 
@@ -75,7 +75,7 @@ static char *pyop_poll_message_get_fn(bContext * /*C*/, void *user_data)
   return msg;
 }
 
-static void pyop_poll_message_free_fn(bContext * /*C*/, void *user_data)
+static void pyop_poll_message_free_fn(bContext & /*C*/, void *user_data)
 {
   /* Handles the GIL. */
   BPY_DECREF(user_data);
@@ -131,7 +131,7 @@ static PyObject *BPY_rna_operator_poll_message_set(PyObject * /*self*/, PyObject
   params.free_fn = pyop_poll_message_free_fn;
   params.user_data = Py_NewRef(args);
 
-  CTX_wm_operator_poll_msg_set_dynamic(C, &params);
+  CTX_wm_operator_poll_msg_set_dynamic(*C, &params);
 
   Py_RETURN_NONE;
 }

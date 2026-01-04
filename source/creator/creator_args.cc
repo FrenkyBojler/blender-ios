@@ -537,7 +537,7 @@ static void arg_py_context_backup(bContext *C, BlendePyContextStore *c_py)
   c_py->has_win = c_py->wm && !BLI_listbase_is_empty(&c_py->wm->windows);
   if (c_py->has_win) {
     c_py->win = CTX_wm_window(*C);
-    CTX_wm_window_set(C, static_cast<wmWindow *>(c_py->wm->windows.first));
+    CTX_wm_window_set(*C, static_cast<wmWindow *>(c_py->wm->windows.first));
   }
   else {
     /* NOTE: this should never happen, although it may be possible when loading
@@ -555,12 +555,12 @@ static void arg_py_context_restore(bContext *C, BlendePyContextStore *c_py)
     if ((c_py->win == nullptr) || ((BLI_findindex(&G_MAIN->wm, c_py->wm) != -1) &&
                                    (BLI_findindex(&c_py->wm->windows, c_py->win) != -1)))
     {
-      CTX_wm_window_set(C, c_py->win);
+      CTX_wm_window_set(*C, c_py->win);
     }
   }
 
   if ((c_py->scene == nullptr) || BLI_findindex(&G_MAIN->scenes, c_py->scene) != -1) {
-    CTX_data_scene_set(C, c_py->scene);
+    CTX_data_scene_set(*C, c_py->scene);
   }
 }
 
@@ -2415,7 +2415,7 @@ static int arg_handle_scene_set(int argc, const char **argv, void *data)
     bContext *C = static_cast<bContext *>(data);
     Scene *scene = BKE_scene_set_name(CTX_data_main(*C), argv[1]);
     if (scene) {
-      CTX_data_scene_set(C, scene);
+      CTX_data_scene_set(*C, scene);
 
       /* Set the scene of the first window, see: #55991,
        * otherwise scripts that run later won't get this scene back from the context. */
@@ -2751,7 +2751,7 @@ static bool handle_load_file(bContext *C, const char *filepath_arg, const bool l
   if (success) {
     if (G.background) {
       /* Ensure we use 'C->data.scene' for background render. */
-      CTX_wm_window_set(C, nullptr);
+      CTX_wm_window_set(*C, nullptr);
     }
   }
   else {

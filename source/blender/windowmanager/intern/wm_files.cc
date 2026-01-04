@@ -235,13 +235,13 @@ static BlendFileReadWMSetupData *wm_file_read_setup_wm_init(bContext *C,
 
   wmWindow *active_win = CTX_wm_window(*C);
   for (wmWindow &win : wm->windows) {
-    CTX_wm_window_set(C, &win); /* Needed by operator close callbacks. */
+    CTX_wm_window_set(*C, &win); /* Needed by operator close callbacks. */
     WM_event_remove_handlers(C, &win.runtime->handlers);
     WM_event_remove_handlers(C, &win.runtime->modalhandlers);
     ED_screen_exit(C, &win, WM_window_get_active_screen(&win));
   }
   /* Reset active window. */
-  CTX_wm_window_set(C, active_win);
+  CTX_wm_window_set(*C, active_win);
 
   /* NOTE(@ideasman42): Clear the message bus so it's always cleared on file load.
    * Otherwise it's cleared when "Load UI" is set (see #USER_FILENOUI and #wm_close_and_free).
@@ -260,7 +260,7 @@ static BlendFileReadWMSetupData *wm_file_read_setup_wm_init(bContext *C,
    * Tried solving this by always nullptr-ing context's menu when setting wm/win/etc.,
    * but it broke popups refreshing (see #47632),
    * so for now just handling this specific case here. */
-  CTX_wm_region_popup_set(C, nullptr);
+  CTX_wm_region_popup_set(*C, nullptr);
 
   ED_editors_exit(bmain, true);
 
@@ -709,7 +709,7 @@ static void wm_file_read_post(bContext *C,
       /* Remove windows which failed to be added via #WM_check. */
       wm_window_ghostwindows_remove_invalid(C, wm);
     }
-    CTX_wm_window_set(C, static_cast<wmWindow *>(wm->windows.first));
+    CTX_wm_window_set(*C, static_cast<wmWindow *>(wm->windows.first));
   }
 
 #ifdef WITH_PYTHON
@@ -843,7 +843,7 @@ static void wm_file_read_post(bContext *C,
       /* In background mode this makes it hard to load
        * a blend file and do anything since the screen
        * won't be set to a valid value again. */
-      CTX_wm_window_set(C, nullptr); /* Exits queues. */
+      CTX_wm_window_set(*C, nullptr); /* Exits queues. */
 
       /* Ensure auto-run action is not used from a previous blend file load. */
       wm_test_autorun_revert_action_set(nullptr, nullptr);
@@ -870,7 +870,7 @@ static void wm_read_callback_post_wrapper(bContext *C, const char *filepath, con
   if (!has_window) {
     wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
     wmWindow *win = static_cast<wmWindow *>(wm->windows.first);
-    CTX_wm_window_set(C, win);
+    CTX_wm_window_set(*C, win);
   }
 
   /* On success: #BKE_CB_EVT_LOAD_POST runs from #wm_file_read_post. */
@@ -880,7 +880,7 @@ static void wm_read_callback_post_wrapper(bContext *C, const char *filepath, con
 
   /* This function should leave the window null when the function entered. */
   if (!has_window) {
-    CTX_wm_window_set(C, nullptr);
+    CTX_wm_window_set(*C, nullptr);
   }
 }
 
@@ -1552,7 +1552,7 @@ void wm_homefile_read_ex(bContext *C,
       **r_params_file_read_post = params_file_read_post;
 
       /* Match #wm_file_read_post which leaves the window cleared too. */
-      CTX_wm_window_set(C, nullptr);
+      CTX_wm_window_set(*C, nullptr);
     }
   }
 }
@@ -4260,9 +4260,9 @@ void wm_test_autorun_warning(bContext *C)
     }
 
     wmWindow *prevwin = CTX_wm_window(*C);
-    CTX_wm_window_set(C, win);
+    CTX_wm_window_set(*C, win);
     blender::ui::popup_block_invoke(C, block_create_autorun_warning, nullptr, nullptr);
-    CTX_wm_window_set(C, prevwin);
+    CTX_wm_window_set(*C, prevwin);
   }
 }
 
@@ -4285,14 +4285,14 @@ void wm_test_foreign_file_warning(bContext *C)
     }
 
     wmWindow *prevwin = CTX_wm_window(*C);
-    CTX_wm_window_set(C, win);
+    CTX_wm_window_set(*C, win);
     alert(C,
           RPT_("Unable to Load File"),
           RPT_("The file is not a valid Blender file."),
           blender::ui::AlertIcon::Error,
           false);
 
-    CTX_wm_window_set(C, prevwin);
+    CTX_wm_window_set(*C, prevwin);
   }
 }
 

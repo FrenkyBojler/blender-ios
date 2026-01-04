@@ -6391,7 +6391,7 @@ static bool texture_paint_image_from_view_poll(bContext &C)
 {
   bScreen *screen = CTX_wm_screen(C);
   if (!(screen && BKE_screen_find_big_area(screen, SPACE_VIEW3D, 0))) {
-    CTX_wm_operator_poll_msg_set(&C, "No 3D viewport found to create image from");
+    CTX_wm_operator_poll_msg_set(C, "No 3D viewport found to create image from");
     return false;
   }
   if (G.background || !GPU_is_init()) {

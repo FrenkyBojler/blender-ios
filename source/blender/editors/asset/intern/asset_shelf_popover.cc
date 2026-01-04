@@ -201,7 +201,7 @@ static void catalog_tree_draw(const bContext &C, ui::Layout &layout, AssetShelf 
 
 static AssetShelfType *lookup_type_from_idname_in_context(const bContext *C)
 {
-  const std::optional<StringRefNull> idname = CTX_data_string_get(C, "asset_shelf_idname");
+  const std::optional<StringRefNull> idname = CTX_data_string_get(*C, "asset_shelf_idname");
   if (!idname) {
     return nullptr;
   }

@@ -689,8 +689,8 @@ bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area)
   ScrArea *prev_area = CTX_wm_area(*C);
   ARegion *prev_region = CTX_wm_region(*C);
 
-  CTX_wm_screen_set(C, const_cast<bScreen *>(screen));
-  CTX_wm_area_set(C, area);
+  CTX_wm_screen_set(*C, const_cast<bScreen *>(screen));
+  CTX_wm_area_set(*C, area);
 
   bool any_changed = false;
   for (ARegion &region : area->regionbase) {
@@ -698,7 +698,7 @@ bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area)
 
     region.flag &= ~RGN_FLAG_POLL_FAILED;
 
-    CTX_wm_region_set(C, &region);
+    CTX_wm_region_set(*C, &region);
     if (region_poll(C, screen, area, &region) == false) {
       region.flag |= RGN_FLAG_POLL_FAILED;
     }
@@ -720,9 +720,9 @@ bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area)
     }
   }
 
-  CTX_wm_screen_set(C, prev_screen);
-  CTX_wm_area_set(C, prev_area);
-  CTX_wm_region_set(C, prev_region);
+  CTX_wm_screen_set(*C, prev_screen);
+  CTX_wm_area_set(*C, prev_area);
+  CTX_wm_region_set(*C, prev_region);
 
   return any_changed;
 }
@@ -736,7 +736,7 @@ static bool screen_regions_poll(bContext *C, wmWindow *win, const bScreen *scree
   ScrArea *prev_area = CTX_wm_area(*C);
   ARegion *prev_region = CTX_wm_region(*C);
 
-  CTX_wm_window_set(C, win);
+  CTX_wm_window_set(*C, win);
 
   bool any_changed = false;
   ED_screen_areas_iter (win, screen, area) {
@@ -745,9 +745,9 @@ static bool screen_regions_poll(bContext *C, wmWindow *win, const bScreen *scree
     }
   }
 
-  CTX_wm_window_set(C, prev_win);
-  CTX_wm_area_set(C, prev_area);
-  CTX_wm_region_set(C, prev_region);
+  CTX_wm_window_set(*C, prev_win);
+  CTX_wm_area_set(*C, prev_area);
+  CTX_wm_region_set(*C, prev_region);
 
   return any_changed;
 }
@@ -824,11 +824,11 @@ void ED_screen_refresh(bContext *C, wmWindowManager *wm, wmWindow *win)
 void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm)
 {
   wmWindow *prev_ctx_win = CTX_wm_window(*C);
-  BLI_SCOPED_DEFER([&]() { CTX_wm_window_set(C, prev_ctx_win); });
+  BLI_SCOPED_DEFER([&]() { CTX_wm_window_set(*C, prev_ctx_win); });
 
   for (wmWindow &win : wm->windows) {
     /* Region polls may need window/screen context. */
-    CTX_wm_window_set(C, &win);
+    CTX_wm_window_set(*C, &win);
 
     if (BKE_workspace_active_get(win.workspace_hook) == nullptr) {
       BKE_workspace_active_set(win.workspace_hook,
@@ -872,7 +872,7 @@ void ED_region_exit(bContext *C, ARegion *region)
     region->runtime->type->exit(wm, region);
   }
 
-  CTX_wm_region_set(C, region);
+  CTX_wm_region_set(*C, region);
 
   WM_event_remove_handlers(C, &region->runtime->handlers);
   WM_event_modal_handler_region_replace(win, region, nullptr);
@@ -906,7 +906,7 @@ void ED_region_exit(bContext *C, ARegion *region)
 
   WM_msgbus_clear_by_owner(wm->runtime->message_bus, region);
 
-  CTX_wm_region_set(C, prevar);
+  CTX_wm_region_set(*C, prevar);
 }
 
 void ED_area_exit(bContext *C, ScrArea *area)
@@ -919,7 +919,7 @@ void ED_area_exit(bContext *C, ScrArea *area)
     area->type->exit(wm, area);
   }
 
-  CTX_wm_area_set(C, area);
+  CTX_wm_area_set(*C, area);
 
   for (ARegion &region : area->regionbase) {
     ED_region_exit(C, &region);
@@ -928,7 +928,7 @@ void ED_area_exit(bContext *C, ScrArea *area)
   WM_event_remove_handlers(C, &area->handlers);
   WM_event_modal_handler_area_replace(win, area, nullptr);
 
-  CTX_wm_area_set(C, prevsa);
+  CTX_wm_area_set(*C, prevsa);
 }
 
 void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
@@ -936,7 +936,7 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
   wmWindowManager *wm = CTX_wm_manager(*C);
   wmWindow *prevwin = CTX_wm_window(*C);
 
-  CTX_wm_window_set(C, window);
+  CTX_wm_window_set(*C, window);
 
   if (screen->animtimer) {
     WM_event_timer_remove(wm, window, screen->animtimer);
@@ -967,11 +967,11 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
 
   if (!WM_window_is_temp_screen(prevwin)) {
     /* use previous window if possible */
-    CTX_wm_window_set(C, prevwin);
+    CTX_wm_window_set(*C, prevwin);
   }
   else {
     /* none otherwise */
-    CTX_wm_window_set(C, nullptr);
+    CTX_wm_window_set(*C, nullptr);
   }
 }
 
@@ -1363,7 +1363,7 @@ void screen_change_update(bContext *C, wmWindow *win, bScreen *screen)
   WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
   WorkSpaceLayout *layout = BKE_workspace_layout_find(workspace, screen);
 
-  CTX_wm_window_set(C, win); /* stores C->wm.screen... hrmf */
+  CTX_wm_window_set(*C, win); /* stores C->wm.screen... hrmf */
 
   ED_screen_refresh(C, CTX_wm_manager(*C), win);
 
@@ -1456,7 +1456,7 @@ void ED_screen_scene_change(bContext *C,
   /* Switch scene. */
   win->scene = scene;
   if (CTX_wm_window(*C) == win) {
-    CTX_data_scene_set(C, scene);
+    CTX_data_scene_set(*C, scene);
   }
 
   /* Ensure the view layer name is updated. */
@@ -1852,7 +1852,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
    * an area after toggling full-screen for example (see: #89526).
    * NOTE: an old comment stated this was "bad code",
    * however it doesn't cause problems so leave as-is. */
-  CTX_wm_area_set(C, static_cast<ScrArea *>(screen->areabase.first));
+  CTX_wm_area_set(*C, static_cast<ScrArea *>(screen->areabase.first));
 
   return static_cast<ScrArea *>(screen->areabase.first);
 }

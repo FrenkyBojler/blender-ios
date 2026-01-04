@@ -776,8 +776,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 
   if (!ofs) {
     BKE_reportf(op->reports, RPT_ERROR, "Failed to create OpenGL off-screen buffer, %s", err_out);
-    CTX_wm_area_set(C, prev_area);
-    CTX_wm_region_set(C, prev_region);
+    CTX_wm_area_set(*C, prev_area);
+    CTX_wm_region_set(*C, prev_region);
     return false;
   }
 
@@ -870,8 +870,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
     }
   }
 
-  CTX_wm_area_set(C, prev_area);
-  CTX_wm_region_set(C, prev_region);
+  CTX_wm_area_set(*C, prev_area);
+  CTX_wm_region_set(*C, prev_region);
 
   return true;
 }

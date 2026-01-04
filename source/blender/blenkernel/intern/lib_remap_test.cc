@@ -48,7 +48,7 @@ class TestData {
 
     if (this->C == nullptr) {
       this->C = CTX_create();
-      CTX_data_main_set(this->C, this->bmain);
+      CTX_data_main_set(*this->C, this->bmain);
     }
   }
 

@@ -49,10 +49,10 @@ void region_temp_remove(bContext *C, bScreen *screen, ARegion *region)
   BLI_freelinkN(&screen->regionbase, region);
 
   if (CTX_wm_region(*C) == region) {
-    CTX_wm_region_set(C, nullptr);
+    CTX_wm_region_set(*C, nullptr);
   }
   if (CTX_wm_region_popup(*C) == region) {
-    CTX_wm_region_popup_set(C, nullptr);
+    CTX_wm_region_popup_set(*C, nullptr);
   }
 }
 

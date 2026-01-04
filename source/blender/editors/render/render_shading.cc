@@ -251,7 +251,7 @@ static bool material_slot_remove_poll(bContext &C)
 
   /* Removing material slots in edit mode screws things up, see bug #21822. */
   if (BKE_object_is_in_editmode(ob)) {
-    CTX_wm_operator_poll_msg_set(&C, "Unable to remove material slot in edit mode");
+    CTX_wm_operator_poll_msg_set(C, "Unable to remove material slot in edit mode");
     return false;
   }
   if (!material_slot_populated_poll(C)) {

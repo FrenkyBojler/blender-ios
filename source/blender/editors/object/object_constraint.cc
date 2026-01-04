@@ -584,13 +584,13 @@ static bool edit_constraint_poll_generic(bContext *C,
   }
 
   if (ptr.owner_id != nullptr && !ID_IS_EDITABLE(ptr.owner_id)) {
-    CTX_wm_operator_poll_msg_set(C, "Cannot edit library data");
+    CTX_wm_operator_poll_msg_set(*C, "Cannot edit library data");
     return false;
   }
 
   if (!is_liboverride_allowed && BKE_constraint_is_nonlocal_in_liboverride(ob, con)) {
     CTX_wm_operator_poll_msg_set(
-        C, "Cannot edit constraints coming from linked data in a library override");
+        *C, "Cannot edit constraints coming from linked data in a library override");
     return false;
   }
 
@@ -971,7 +971,7 @@ static bool childof_clear_inverse_poll(bContext &C)
   bChildOfConstraint *data = static_cast<bChildOfConstraint *>(con->data);
 
   if (is_identity_m4(data->invmat)) {
-    CTX_wm_operator_poll_msg_set(&C, "No inverse correction is set, so there is nothing to clear");
+    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set, so there is nothing to clear");
     return false;
   }
   return true;
@@ -1251,7 +1251,7 @@ static bool objectsolver_clear_inverse_poll(bContext &C)
   bObjectSolverConstraint *data = (bObjectSolverConstraint *)con->data;
 
   if (is_identity_m4(data->invmat)) {
-    CTX_wm_operator_poll_msg_set(&C, "No inverse correction is set, so there is nothing to clear");
+    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set, so there is nothing to clear");
     return false;
   }
   return true;
@@ -1769,12 +1769,12 @@ static bool constraint_copy_to_selected_poll(bContext &C)
       return true;
     }
 
-    CTX_wm_operator_poll_msg_set(&C, "No other bones are selected");
+    CTX_wm_operator_poll_msg_set(C, "No other bones are selected");
     return false;
   }
 
   if (!obact) {
-    CTX_wm_operator_poll_msg_set(&C, "No selected object to copy from");
+    CTX_wm_operator_poll_msg_set(C, "No selected object to copy from");
     return false;
   }
 
@@ -1792,7 +1792,7 @@ static bool constraint_copy_to_selected_poll(bContext &C)
     return true;
   }
 
-  CTX_wm_operator_poll_msg_set(&C, "No other objects are selected");
+  CTX_wm_operator_poll_msg_set(C, "No other objects are selected");
   return false;
 }
 

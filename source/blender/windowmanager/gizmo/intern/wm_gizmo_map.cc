@@ -911,8 +911,8 @@ void wm_gizmomaps_handled_modal_update(bContext *C, wmEvent *event, wmEventHandl
   }
 
   /* Restore the area. */
-  CTX_wm_area_set(C, area);
-  CTX_wm_region_set(C, region);
+  CTX_wm_area_set(*C, area);
+  CTX_wm_region_set(*C, region);
 }
 
 bool wm_gizmomap_deselect_all(wmGizmoMap *gzmap)
@@ -1008,7 +1008,7 @@ void wm_gizmomap_handler_context_op(bContext *C, wmEventHandler_Op *handler)
     }
     else {
       ARegion *region;
-      CTX_wm_area_set(C, area);
+      CTX_wm_area_set(*C, area);
       for (region = static_cast<ARegion *>(area->regionbase.first); region; region = region->next)
       {
         if (region == handler->context.region) {
@@ -1017,7 +1017,7 @@ void wm_gizmomap_handler_context_op(bContext *C, wmEventHandler_Op *handler)
       }
       /* XXX no warning print here, after full-area and back regions are remade. */
       if (region) {
-        CTX_wm_region_set(C, region);
+        CTX_wm_region_set(*C, region);
       }
     }
   }

@@ -256,7 +256,7 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
     WM_event_remove_handlers(C, &win->runtime->modalhandlers);
 
     if (CTX_wm_window(*C) == win) {
-      CTX_wm_window_set(C, nullptr);
+      CTX_wm_window_set(*C, nullptr);
     }
   }
 
@@ -417,7 +417,7 @@ void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win)
 
   /* The popup will be displayed in the context window which may not be set
    * here (this function gets called outside of normal event handling loop). */
-  CTX_wm_window_set(C, win);
+  CTX_wm_window_set(*C, win);
 
   if (U.uiflag & USER_SAVE_PROMPT) {
     if (wm_file_or_session_data_has_unsaved_changes(CTX_data_main(*C), CTX_wm_manager(*C)) &&
@@ -434,7 +434,7 @@ void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win)
     wm_exit_schedule_delayed(C);
   }
 
-  CTX_wm_window_set(C, win_ctx);
+  CTX_wm_window_set(*C, win_ctx);
 }
 
 /** \} */
@@ -517,7 +517,7 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 
   BLI_remlink(&wm->windows, win);
 
-  CTX_wm_window_set(C, win); /* Needed by handlers. */
+  CTX_wm_window_set(*C, win); /* Needed by handlers. */
   WM_event_remove_handlers(C, &win->runtime->handlers);
 
   WM_event_remove_handlers(C, &win->runtime->modalhandlers);
@@ -1323,7 +1323,7 @@ wmWindow *WM_window_open(bContext *C,
   screen->temp = temp;
 
   /* Make window active, and validate/resize. */
-  CTX_wm_window_set(C, win);
+  CTX_wm_window_set(*C, win);
   const bool new_window = (win->runtime->ghostwin == nullptr);
 
   if (area_setup_fn) {
@@ -1337,12 +1337,12 @@ wmWindow *WM_window_open(bContext *C,
      * window less predictable to the caller. */
     ScrArea *area = static_cast<ScrArea *>(screen->areabase.first);
     area_setup_fn(screen, area, area_setup_user_data);
-    CTX_wm_area_set(C, area);
+    CTX_wm_area_set(*C, area);
   }
   else if (space_type != SPACE_EMPTY) {
     /* Ensure it shows the right space-type editor. */
     ScrArea *area = static_cast<ScrArea *>(screen->areabase.first);
-    CTX_wm_area_set(C, area);
+    CTX_wm_area_set(*C, area);
     ED_area_newspace(C, area, space_type, false);
   }
 
@@ -1381,7 +1381,7 @@ wmWindow *WM_window_open(bContext *C,
 
   /* Very unlikely! but opening a new window can fail. */
   wm_window_close(C, wm, win);
-  CTX_wm_window_set(C, win_prev);
+  CTX_wm_window_set(*C, win_prev);
 
   return nullptr;
 }
@@ -1929,7 +1929,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
       if (path) {
         wmOperatorType *ot = WM_operatortype_find("WM_OT_open_mainfile", false);
         /* Operator needs a valid window in context, ensures it is correctly set. */
-        CTX_wm_window_set(C, win);
+        CTX_wm_window_set(*C, win);
 
         PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
         RNA_string_set(&props_ptr, "filepath", path);
@@ -1938,7 +1938,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
             C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
         WM_operator_properties_free(&props_ptr);
 
-        CTX_wm_window_set(C, nullptr);
+        CTX_wm_window_set(*C, nullptr);
       }
       break;
     }
@@ -2021,9 +2021,9 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
 
         /* Close all popups since they are positioned with the pixel
          * size baked in and it's difficult to correct them. */
-        CTX_wm_window_set(C, win);
+        CTX_wm_window_set(*C, win);
         blender::ui::popup_handlers_remove_all(C, &win->runtime->modalhandlers);
-        CTX_wm_window_set(C, nullptr);
+        CTX_wm_window_set(*C, nullptr);
 
         wm_window_make_drawable(wm, win);
 
@@ -2365,7 +2365,7 @@ void wm_test_gpu_backend_fallback(bContext *C)
     }
 
     wmWindow *prevwin = CTX_wm_window(*C);
-    CTX_wm_window_set(C, win);
+    CTX_wm_window_set(*C, win);
     std::string message = RPT_("Updating GPU drivers may solve this issue.");
     message += RPT_(
         "The graphics backend can be changed in the System section of the Preferences.");
@@ -2374,7 +2374,7 @@ void wm_test_gpu_backend_fallback(bContext *C)
           message,
           blender::ui::AlertIcon::Error,
           false);
-    CTX_wm_window_set(C, prevwin);
+    CTX_wm_window_set(*C, prevwin);
   }
 }
 

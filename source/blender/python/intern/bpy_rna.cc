@@ -471,12 +471,12 @@ void pyrna_write_set(bool val)
 
 void pyrna_context_init(bContext *C)
 {
-  CTX_rna_disallow_write_set_p(C, &rna_disallow_writes);
+  CTX_rna_disallow_write_set_p(*C, &rna_disallow_writes);
 }
 
 void pyrna_context_clear(bContext *C)
 {
-  CTX_rna_disallow_write_set_p(C, nullptr);
+  CTX_rna_disallow_write_set_p(*C, nullptr);
 }
 #else  /* USE_PEDANTIC_WRITE */
 bool pyrna_write_check()
@@ -4530,7 +4530,7 @@ static PyObject *pyrna_struct_dir(BPy_StructRNA *self)
   pyrna_dir_members_rna(ret, &self->ptr.value());
 
   if (self->ptr->type == &RNA_Context) {
-    ListBaseT<LinkData> lb = CTX_data_dir_get(static_cast<const bContext *>(self->ptr->data));
+    ListBaseT<LinkData> lb = CTX_data_dir_get(*static_cast<const bContext *>(self->ptr->data));
 
     for (LinkData &link : lb) {
       PyList_APPEND(ret, PyUnicode_FromString(static_cast<const char *>(link.data)));

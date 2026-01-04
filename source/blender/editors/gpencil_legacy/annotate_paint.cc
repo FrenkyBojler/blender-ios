@@ -217,11 +217,11 @@ static bool annotation_draw_poll(bContext &C)
       return true;
     }
     else {
-      CTX_wm_operator_poll_msg_set(&C, "Failed to find Annotation data to draw into");
+      CTX_wm_operator_poll_msg_set(C, "Failed to find Annotation data to draw into");
     }
   }
   else {
-    CTX_wm_operator_poll_msg_set(&C, "Active region not set");
+    CTX_wm_operator_poll_msg_set(C, "Active region not set");
   }
 
   return false;

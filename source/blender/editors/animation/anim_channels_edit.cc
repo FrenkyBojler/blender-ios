@@ -3464,7 +3464,7 @@ static wmOperatorStatus animchannels_select_filter_invoke(bContext &C,
   ARegion *region_ctx = CTX_wm_region(C);
   ARegion *region_channels = BKE_area_find_region_type(area, RGN_TYPE_CHANNELS);
 
-  CTX_wm_region_set(&C, region_channels);
+  CTX_wm_region_set(C, region_channels);
 
   /* Show the channel region if it's hidden. This means that direct activation of the input field
    * is impossible, as it may not exist yet. For that reason, the actual activation is deferred to
@@ -3477,7 +3477,7 @@ static wmOperatorStatus animchannels_select_filter_invoke(bContext &C,
 
   WM_event_add_modal_handler(&C, &op);
 
-  CTX_wm_region_set(&C, region_ctx);
+  CTX_wm_region_set(C, region_ctx);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -5287,7 +5287,7 @@ static bool slot_channels_move_to_new_action_poll(bContext &C)
   bAction *action = ANIM_active_action_from_area(scene, view_layer, area);
 
   if (!action) {
-    CTX_wm_operator_poll_msg_set(&C, "No active action to operate on");
+    CTX_wm_operator_poll_msg_set(C, "No active action to operate on");
     return false;
   }
   return true;
@@ -5347,13 +5347,13 @@ static bool separate_slots_poll(bContext &C)
 {
   Object *active_object = CTX_data_active_object(C);
   if (!active_object) {
-    CTX_wm_operator_poll_msg_set(&C, "No active object");
+    CTX_wm_operator_poll_msg_set(C, "No active object");
     return false;
   }
 
   blender::animrig::Action *action = blender::animrig::get_action(active_object->id);
   if (!action) {
-    CTX_wm_operator_poll_msg_set(&C, "Active object isn't animated");
+    CTX_wm_operator_poll_msg_set(C, "Active object isn't animated");
     return false;
   }
   return true;
@@ -5608,9 +5608,9 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext &C, wmOperator 
     wm_context_prev.area = CTX_wm_area(C);
     wm_context_prev.region = CTX_wm_region(C);
 
-    CTX_wm_window_set(&C, wm_context_temp.win);
-    CTX_wm_area_set(&C, wm_context_temp.area);
-    CTX_wm_region_set(&C, wm_context_temp.region);
+    CTX_wm_window_set(C, wm_context_temp.win);
+    CTX_wm_area_set(C, wm_context_temp.area);
+    CTX_wm_region_set(C, wm_context_temp.region);
 
     bAnimContext ac;
     if (!ANIM_animdata_get_context(&C, &ac)) {
@@ -5677,9 +5677,9 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext &C, wmOperator 
       }
     }
 
-    CTX_wm_window_set(&C, wm_context_prev.win);
-    CTX_wm_area_set(&C, wm_context_prev.area);
-    CTX_wm_region_set(&C, wm_context_prev.region);
+    CTX_wm_window_set(C, wm_context_prev.win);
+    CTX_wm_area_set(C, wm_context_prev.area);
+    CTX_wm_region_set(C, wm_context_prev.region);
   }
 
   return retval;

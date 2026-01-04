@@ -431,10 +431,10 @@ static void block_region_refresh(const bContext *C, ARegion *region)
         handle_ctx_region = handle->ctx_region;
 
         if (handle_ctx_area) {
-          CTX_wm_area_set((bContext *)C, handle_ctx_area);
+          CTX_wm_area_set(*(bContext *)C, handle_ctx_area);
         }
         if (handle_ctx_region) {
-          CTX_wm_region_set((bContext *)C, handle_ctx_region);
+          CTX_wm_region_set(*(bContext *)C, handle_ctx_region);
         }
 
         Button *but = handle->popup_create_vars.but;
@@ -444,8 +444,8 @@ static void block_region_refresh(const bContext *C, ARegion *region)
     }
   }
 
-  CTX_wm_area_set((bContext *)C, ctx_area);
-  CTX_wm_region_set((bContext *)C, ctx_region);
+  CTX_wm_area_set(*(bContext *)C, ctx_area);
+  CTX_wm_region_set(*(bContext *)C, ctx_region);
 }
 
 static void block_region_draw(const bContext *C, ARegion *region)
@@ -575,13 +575,13 @@ static void ui_popup_block_remove(bContext *C, PopupBlockHandle *handle)
 
   BLI_assert(win && screen);
 
-  CTX_wm_window_set(C, win);
+  CTX_wm_window_set(*C, win);
   region_temp_remove(C, screen, handle->region);
 
   /* Reset context (area and region were null'ed when changing context window). */
-  CTX_wm_window_set(C, ctx_win);
-  CTX_wm_area_set(C, ctx_area);
-  CTX_wm_region_set(C, ctx_region);
+  CTX_wm_window_set(*C, ctx_win);
+  CTX_wm_area_set(*C, ctx_area);
+  CTX_wm_region_set(*C, ctx_region);
 
   /* reset to region cursor (only if there's not another menu open) */
   if (BLI_listbase_is_empty(&screen->regionbase)) {
@@ -940,7 +940,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
   ARegion *region_popup_prev = nullptr;
   if (can_refresh) {
     region_popup_prev = CTX_wm_region_popup(*C);
-    CTX_wm_region_popup_set(C, region);
+    CTX_wm_region_popup_set(*C, region);
   }
 
   Block *block = popup_block_refresh(C, handle, butregion, but);
@@ -951,7 +951,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
   block->tooltipdisabled = true;
 
   if (can_refresh) {
-    CTX_wm_region_popup_set(C, region_popup_prev);
+    CTX_wm_region_popup_set(*C, region_popup_prev);
   }
 
   /* keep centered on window resizing */

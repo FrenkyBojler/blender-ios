@@ -253,13 +253,13 @@ static void wm_dropbox_invoke(bContext *C, wmDrag *drag)
     }
     for (wmDropBox &drop : dm.dropboxes) {
       if (drag->drop_state.ui_context) {
-        CTX_store_set(C, drag->drop_state.ui_context.get());
+        CTX_store_set(*C, drag->drop_state.ui_context.get());
       }
 
       if (drop.on_drag_start) {
         drop.on_drag_start(C, drag);
       }
-      CTX_store_set(C, nullptr);
+      CTX_store_set(*C, nullptr);
     }
   }
 }
@@ -294,7 +294,7 @@ wmDrag *WM_drag_data_create(bContext *C, int icon, eWM_DragDataType type, void *
       /* The asset-list case is special: We get multiple assets from context and attach them to the
        * drag item. */
     case WM_DRAG_ASSET_LIST: {
-      blender::Vector<PointerRNA> asset_links = CTX_data_collection_get(C, "selected_assets");
+      blender::Vector<PointerRNA> asset_links = CTX_data_collection_get(*C, "selected_assets");
       for (const PointerRNA &ptr : asset_links) {
         const blender::asset_system::AssetRepresentation *asset =
             static_cast<const blender::asset_system::AssetRepresentation *>(ptr.data);
@@ -470,7 +470,7 @@ static wmDropBox *dropbox_active(bContext *C,
       if (handler->dropboxes) {
         for (wmDropBox &drop : *handler->dropboxes) {
           if (drag->drop_state.ui_context) {
-            CTX_store_set(C, drag->drop_state.ui_context.get());
+            CTX_store_set(*C, drag->drop_state.ui_context.get());
           }
 
           if (!drop.poll(C, drag, event)) {
@@ -484,7 +484,7 @@ static wmDropBox *dropbox_active(bContext *C,
           if (drop.ot && WM_operator_poll_context(C, drop.ot, opcontext)) {
             /* Get dropbox tooltip now, #wm_drag_draw_tooltip can use a different draw context. */
             drag->drop_state.tooltip = dropbox_tooltip(C, drag, event->xy, &drop);
-            CTX_store_set(C, nullptr);
+            CTX_store_set(*C, nullptr);
             return &drop;
           }
 
@@ -502,7 +502,7 @@ static wmDropBox *dropbox_active(bContext *C,
       }
     }
   }
-  CTX_store_set(C, nullptr);
+  CTX_store_set(*C, nullptr);
   return nullptr;
 }
 
@@ -583,7 +583,7 @@ void wm_drop_prepare(bContext *C, wmDrag *drag, wmDropBox *drop)
   const blender::wm::OpCallContext opcontext = wm_drop_operator_context_get(drop);
 
   if (drag->drop_state.ui_context) {
-    CTX_store_set(C, drag->drop_state.ui_context.get());
+    CTX_store_set(*C, drag->drop_state.ui_context.get());
   }
 
   /* Optionally copy drag information to operator properties. Don't call it if the
@@ -598,7 +598,7 @@ void wm_drop_prepare(bContext *C, wmDrag *drag, wmDropBox *drop)
 
 void wm_drop_end(bContext *C, wmDrag * /*drag*/, wmDropBox * /*drop*/)
 {
-  CTX_store_set(C, nullptr);
+  CTX_store_set(*C, nullptr);
 }
 
 void wm_drags_check_ops(bContext *C, const wmEvent *event)
@@ -1271,9 +1271,9 @@ void wm_drags_draw(bContext *C, wmWindow *win)
   GPU_blend(GPU_BLEND_ALPHA);
   for (wmDrag &drag : wm->runtime->drags) {
     if (drag.drop_state.active_dropbox) {
-      CTX_wm_area_set(C, drag.drop_state.area_from);
-      CTX_wm_region_set(C, drag.drop_state.region_from);
-      CTX_store_set(C, drag.drop_state.ui_context.get());
+      CTX_wm_area_set(*C, drag.drop_state.area_from);
+      CTX_wm_region_set(*C, drag.drop_state.region_from);
+      CTX_store_set(*C, drag.drop_state.ui_context.get());
 
       if (region && drag.drop_state.active_dropbox->draw_in_view) {
         wmViewport(&region->winrct);
@@ -1289,8 +1289,8 @@ void wm_drags_draw(bContext *C, wmWindow *win)
       }
     }
     else if (region) {
-      CTX_wm_area_set(C, area);
-      CTX_wm_region_set(C, region);
+      CTX_wm_area_set(*C, area);
+      CTX_wm_region_set(*C, region);
     }
 
     /* Needs zero offset here or it looks blurry. #128112. */
@@ -1298,7 +1298,7 @@ void wm_drags_draw(bContext *C, wmWindow *win)
     wm_drag_draw_default(C, win, &drag, xy);
   }
   GPU_blend(GPU_BLEND_NONE);
-  CTX_wm_area_set(C, nullptr);
-  CTX_wm_region_set(C, nullptr);
-  CTX_store_set(C, nullptr);
+  CTX_wm_area_set(*C, nullptr);
+  CTX_wm_region_set(*C, nullptr);
+  CTX_store_set(*C, nullptr);
 }

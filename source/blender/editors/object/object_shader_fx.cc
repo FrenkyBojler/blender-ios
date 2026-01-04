@@ -264,21 +264,21 @@ static bool edit_shaderfx_poll_generic(bContext *C,
   /* NOTE: Temporary 'forbid all' for overrides, until we implement support to add shaderfx to
    * overrides. */
   if (ID_IS_OVERRIDE_LIBRARY(ob)) {
-    CTX_wm_operator_poll_msg_set(C, "Cannot edit shaderfxs in a library override");
+    CTX_wm_operator_poll_msg_set(*C, "Cannot edit shaderfxs in a library override");
     return false;
   }
 
   if (obtype_flag != 0 && ((1 << ob->type) & obtype_flag) == 0) {
-    CTX_wm_operator_poll_msg_set(C, "Object type is not supported");
+    CTX_wm_operator_poll_msg_set(*C, "Object type is not supported");
     return false;
   }
   if (ptr.owner_id != nullptr && !BKE_id_is_editable(CTX_data_main(*C), ptr.owner_id)) {
-    CTX_wm_operator_poll_msg_set(C, "Cannot edit library or override data");
+    CTX_wm_operator_poll_msg_set(*C, "Cannot edit library or override data");
     return false;
   }
   if (!is_liboverride_allowed && BKE_shaderfx_is_nonlocal_in_liboverride(ob, fx)) {
     CTX_wm_operator_poll_msg_set(
-        C, "Cannot edit shaderfxs coming from linked data in a library override");
+        *C, "Cannot edit shaderfxs coming from linked data in a library override");
     return false;
   }
 

@@ -123,12 +123,12 @@ static bool last_redo_poll(const bContext *C, short region_type, int region_inde
                                                    area, region_type, region_index_hint) :
                                                nullptr;
     ARegion *region_prev = CTX_wm_region(*C);
-    CTX_wm_region_set((bContext *)C, region_op);
+    CTX_wm_region_set(*(bContext *)C, region_op);
 
     if (WM_operator_repeat_check(C, op) && WM_operator_ui_poll(op->type, op->ptr)) {
       success = WM_operator_poll((bContext *)C, op->type);
     }
-    CTX_wm_region_set((bContext *)C, region_prev);
+    CTX_wm_region_set(*(bContext *)C, region_prev);
   }
   return success;
 }
@@ -452,14 +452,14 @@ void ED_area_type_hud_ensure(bContext *C, ScrArea *area)
   /* XXX, this is evil! - it also makes the menu show on first draw. :( */
   if (region->runtime->visible) {
     ARegion *region_prev = CTX_wm_region(*C);
-    CTX_wm_region_set(C, region);
+    CTX_wm_region_set(*C, region);
     hud_region_layout(C, region);
     if (was_hidden) {
       region->winx = region->v2d.winx;
       region->winy = region->v2d.winy;
       region->v2d.cur = region->v2d.tot = reset_rect;
     }
-    CTX_wm_region_set(C, region_prev);
+    CTX_wm_region_set(*C, region_prev);
   }
 
   region->runtime->visible = !((region->flag & RGN_FLAG_HIDDEN) ||

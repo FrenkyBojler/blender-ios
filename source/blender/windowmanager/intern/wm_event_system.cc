@@ -540,10 +540,10 @@ void wm_event_do_refresh_wm_and_depsgraph(bContext *C)
   for (wmWindow &win : wm->windows) {
     const bScreen *screen = WM_window_get_active_screen(&win);
 
-    CTX_wm_window_set(C, &win);
+    CTX_wm_window_set(*C, &win);
     for (ScrArea &area : screen->areabase) {
       if (area.do_refresh) {
-        CTX_wm_area_set(C, &area);
+        CTX_wm_area_set(*C, &area);
         ED_area_do_refresh(C, &area);
       }
     }
@@ -551,7 +551,7 @@ void wm_event_do_refresh_wm_and_depsgraph(bContext *C)
 
   wm_event_do_depsgraph(C, false);
 
-  CTX_wm_window_set(C, nullptr);
+  CTX_wm_window_set(*C, nullptr);
 }
 
 static void wm_event_timers_execute(bContext *C)
@@ -564,9 +564,9 @@ static void wm_event_timers_execute(bContext *C)
   /* Set the first window as context, so that there is some minimal context. This avoids crashes
    * when calling code that assumes that there is always a window in the context (which many
    * operators do). */
-  CTX_wm_window_set(C, static_cast<wmWindow *>(wm->windows.first));
+  CTX_wm_window_set(*C, static_cast<wmWindow *>(wm->windows.first));
   BLI_timer_execute();
-  CTX_wm_window_set(C, nullptr);
+  CTX_wm_window_set(*C, nullptr);
 }
 
 static bool notifier_refreshes_node_group_operators(const wmNotifier &note)
@@ -606,7 +606,7 @@ void wm_event_do_notifiers(bContext *C)
     bool do_anim = false;
     bool clear_info_stats = false;
 
-    CTX_wm_window_set(C, &win);
+    CTX_wm_window_set(*C, &win);
 
     BLI_assert(wm->runtime->notifier_current == nullptr);
     for (const wmNotifier *
@@ -759,7 +759,7 @@ void wm_event_do_notifiers(bContext *C)
       }
       else {
         /* XXX context in notifiers? */
-        CTX_wm_window_set(C, &win);
+        CTX_wm_window_set(*C, &win);
 
 #  if 0
         printf("notifier win %d screen %s cat %x\n",
@@ -815,10 +815,10 @@ void wm_event_do_notifiers(bContext *C)
   /* Handle message bus. */
   {
     for (wmWindow &win : wm->windows) {
-      CTX_wm_window_set(C, &win);
+      CTX_wm_window_set(*C, &win);
       WM_msgbus_handle(wm->runtime->message_bus, C);
     }
-    CTX_wm_window_set(C, nullptr);
+    CTX_wm_window_set(*C, nullptr);
   }
 
   wm_event_do_refresh_wm_and_depsgraph(C);
@@ -828,9 +828,9 @@ void wm_event_do_notifiers(bContext *C)
   /* Status bar. */
   if (wm->runtime->winactive) {
     wmWindow *win = wm->runtime->winactive;
-    CTX_wm_window_set(C, win);
+    CTX_wm_window_set(*C, win);
     WM_window_cursor_keymap_status_refresh(C, win);
-    CTX_wm_window_set(C, nullptr);
+    CTX_wm_window_set(*C, nullptr);
   }
 
   /* Auto-run warning. */
@@ -916,30 +916,30 @@ static eHandlerActionFlag wm_handler_ui_call(bContext *C,
 
   /* We set context to where UI handler came from. */
   if (handler->context.area) {
-    CTX_wm_area_set(C, handler->context.area);
+    CTX_wm_area_set(*C, handler->context.area);
   }
   if (handler->context.region) {
-    CTX_wm_region_set(C, handler->context.region);
+    CTX_wm_region_set(*C, handler->context.region);
   }
   if (handler->context.region_popup) {
     BLI_assert(screen_temp_region_exists(handler->context.region_popup));
-    CTX_wm_region_popup_set(C, handler->context.region_popup);
+    CTX_wm_region_popup_set(*C, handler->context.region_popup);
   }
 
   int retval = handler->handle_fn(C, event, handler->user_data);
 
   /* Putting back screen context. */
   if ((retval != WM_UI_HANDLER_BREAK) || always_pass) {
-    CTX_wm_area_set(C, area);
-    CTX_wm_region_set(C, region);
+    CTX_wm_area_set(*C, area);
+    CTX_wm_region_set(*C, region);
     BLI_assert((region_popup == nullptr) || screen_temp_region_exists(region_popup));
-    CTX_wm_region_popup_set(C, region_popup);
+    CTX_wm_region_popup_set(*C, region_popup);
   }
   else {
     /* This special cases is for areas and regions that get removed. */
-    CTX_wm_area_set(C, nullptr);
-    CTX_wm_region_set(C, nullptr);
-    CTX_wm_region_popup_set(C, nullptr);
+    CTX_wm_area_set(*C, nullptr);
+    CTX_wm_region_set(*C, nullptr);
+    CTX_wm_region_popup_set(*C, nullptr);
   }
 
   if (retval == WM_UI_HANDLER_BREAK) {
@@ -1122,13 +1122,13 @@ bool WM_operator_poll(bContext *C, wmOperatorType *ot)
 
 bool WM_operator_poll_or_report_error(bContext *C, wmOperatorType *ot, ReportList *reports)
 {
-  CTX_wm_operator_poll_msg_clear(C);
+  CTX_wm_operator_poll_msg_clear(*C);
   if (WM_operator_poll(C, ot)) {
     return true;
   }
   bool msg_free = false;
   const char *msg = CTX_wm_operator_poll_msg_get(C, &msg_free);
-  CTX_wm_operator_poll_msg_clear(C);
+  CTX_wm_operator_poll_msg_clear(*C);
   BKE_reportf(reports,
               RPT_ERROR,
               "Invalid context: \"%s\", %s",
@@ -1206,14 +1206,14 @@ static void wm_operator_reports(bContext *C,
       ARegion *region_prev = CTX_wm_region(*C);
 
       if (win_prev == nullptr) {
-        CTX_wm_window_set(C, static_cast<wmWindow *>(CTX_wm_manager(*C)->windows.first));
+        CTX_wm_window_set(*C, static_cast<wmWindow *>(CTX_wm_manager(*C)->windows.first));
       }
 
       blender::ui::popup_menu_reports(C, op->reports);
 
-      CTX_wm_window_set(C, win_prev);
-      CTX_wm_area_set(C, area_prev);
-      CTX_wm_region_set(C, region_prev);
+      CTX_wm_window_set(*C, win_prev);
+      CTX_wm_area_set(*C, area_prev);
+      CTX_wm_region_set(*C, region_prev);
     }
   }
 
@@ -1367,7 +1367,7 @@ static wmOperatorStatus wm_operator_exec(bContext *C,
   wmWindowManager *wm = CTX_wm_manager(*C);
   wmOperatorStatus retval = OPERATOR_CANCELLED;
 
-  CTX_wm_operator_poll_msg_clear(C);
+  CTX_wm_operator_poll_msg_clear(*C);
 
   if (op == nullptr || op->type == nullptr) {
     return retval;
@@ -1802,7 +1802,7 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
 {
   wmOperatorStatus retval;
 
-  CTX_wm_operator_poll_msg_clear(C);
+  CTX_wm_operator_poll_msg_clear(*C);
 
   /* Dummy test. */
   if (ot) {
@@ -1819,7 +1819,7 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
           /* Window is needed for invoke and cancel operators. */
           if (window == nullptr) {
             if (poll_only) {
-              CTX_wm_operator_poll_msg_set(C, "Missing 'window' in context");
+              CTX_wm_operator_poll_msg_set(*C, "Missing 'window' in context");
             }
             return wmOperatorStatus(0);
           }
@@ -1883,14 +1883,14 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
                                       BKE_area_find_region_active_win(area) :
                                       BKE_area_find_region_type(area, type);
           if (region_other) {
-            CTX_wm_region_set(C, region_other);
+            CTX_wm_region_set(*C, region_other);
           }
         }
 
         retval = wm_operator_invoke(C, ot, event, properties, reports, poll_only, true);
 
         /* Set region back. */
-        CTX_wm_region_set(C, region);
+        CTX_wm_region_set(*C, region);
 
         return retval;
       }
@@ -1899,9 +1899,9 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
         /* Remove region from context. */
         ARegion *region = CTX_wm_region(*C);
 
-        CTX_wm_region_set(C, nullptr);
+        CTX_wm_region_set(*C, nullptr);
         retval = wm_operator_invoke(C, ot, event, properties, reports, poll_only, true);
-        CTX_wm_region_set(C, region);
+        CTX_wm_region_set(*C, region);
 
         return retval;
       }
@@ -1911,11 +1911,11 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
         ARegion *region = CTX_wm_region(*C);
         ScrArea *area = CTX_wm_area(*C);
 
-        CTX_wm_region_set(C, nullptr);
-        CTX_wm_area_set(C, nullptr);
+        CTX_wm_region_set(*C, nullptr);
+        CTX_wm_area_set(*C, nullptr);
         retval = wm_operator_invoke(C, ot, event, properties, reports, poll_only, true);
-        CTX_wm_area_set(C, area);
-        CTX_wm_region_set(C, region);
+        CTX_wm_area_set(*C, area);
+        CTX_wm_region_set(*C, region);
 
         return retval;
       }
@@ -2087,13 +2087,13 @@ static int ui_handler_wait_for_input(bContext *C, const wmEvent *event, void *us
     WM_cursor_modal_restore(win);
 
     if (state == EXECUTE) {
-      CTX_store_set(C, opwait->context ? &opwait->context.value() : nullptr);
+      CTX_store_set(*C, opwait->context ? &opwait->context.value() : nullptr);
       WM_operator_name_call_ptr(C,
                                 opwait->optype_params.optype,
                                 opwait->optype_params.opcontext,
                                 opwait->optype_params.opptr,
                                 event);
-      CTX_store_set(C, nullptr);
+      CTX_store_set(*C, nullptr);
     }
 
     WM_event_remove_ui_handler(&win->runtime->modalhandlers,
@@ -2274,8 +2274,8 @@ static void wm_handler_op_context(bContext *C, wmEventHandler_Op *handler, const
   ScrArea *area = nullptr;
   ARegion *region = nullptr;
   wm_handler_op_context_get_if_valid(C, handler, event, &area, &region);
-  CTX_wm_area_set(C, area);
-  CTX_wm_region_set(C, region);
+  CTX_wm_area_set(*C, area);
+  CTX_wm_region_set(*C, region);
 }
 
 void WM_event_remove_handlers(bContext *C, ListBaseT<wmEventHandler> *handlers)
@@ -2318,8 +2318,8 @@ void WM_event_remove_handlers(bContext *C, ListBaseT<wmEventHandler> *handlers)
             wm->op_undo_depth--;
           }
 
-          CTX_wm_area_set(C, area);
-          CTX_wm_region_set(C, region);
+          CTX_wm_area_set(*C, area);
+          CTX_wm_region_set(*C, region);
         }
 
         WM_cursor_grab_disable(win, nullptr);
@@ -2341,14 +2341,14 @@ void WM_event_remove_handlers(bContext *C, ListBaseT<wmEventHandler> *handlers)
         ARegion *region_popup_prev = CTX_wm_region_popup(*C);
 
         if (handler->context.area) {
-          CTX_wm_area_set(C, handler->context.area);
+          CTX_wm_area_set(*C, handler->context.area);
         }
         if (handler->context.region) {
-          CTX_wm_region_set(C, handler->context.region);
+          CTX_wm_region_set(*C, handler->context.region);
         }
         if (handler->context.region_popup) {
           BLI_assert(screen_temp_region_exists(handler->context.region_popup));
-          CTX_wm_region_popup_set(C, handler->context.region_popup);
+          CTX_wm_region_popup_set(*C, handler->context.region_popup);
         }
 
         handler->remove_fn(C, handler->user_data);
@@ -2359,9 +2359,9 @@ void WM_event_remove_handlers(bContext *C, ListBaseT<wmEventHandler> *handlers)
           region_popup_prev = nullptr;
         }
 
-        CTX_wm_area_set(C, area_prev);
-        CTX_wm_region_set(C, region_prev);
-        CTX_wm_region_popup_set(C, region_popup_prev);
+        CTX_wm_area_set(*C, area_prev);
+        CTX_wm_region_set(*C, region_prev);
+        CTX_wm_region_popup_set(*C, region_popup_prev);
       }
     }
 
@@ -2704,13 +2704,13 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
 
         /* Putting back screen context, `reval` can pass through after modal failures! */
         if ((retval & OPERATOR_PASS_THROUGH) || wm_event_always_pass(event)) {
-          CTX_wm_area_set(C, area);
-          CTX_wm_region_set(C, region);
+          CTX_wm_area_set(*C, area);
+          CTX_wm_region_set(*C, region);
         }
         else {
           /* This special cases is for areas and regions that get removed. */
-          CTX_wm_area_set(C, nullptr);
-          CTX_wm_region_set(C, nullptr);
+          CTX_wm_area_set(*C, nullptr);
+          CTX_wm_region_set(*C, nullptr);
         }
 
         /* Update gizmos during modal handlers. */
@@ -2910,7 +2910,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
             wm_window_close(C, wm, &win);
 
             /* #wm_window_close() sets the context's window to null. */
-            CTX_wm_window_set(C, root_win);
+            CTX_wm_window_set(*C, root_win);
 
             /* Some operators expect a drawable context (for #EVT_FILESELECT_EXEC). */
             wm_window_make_drawable(wm, root_win);
@@ -2939,7 +2939,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
         }
       }
 
-      CTX_wm_window_set(C, root_win);
+      CTX_wm_window_set(*C, root_win);
       wm_handler_op_context(C, handler, eventstate);
       /* At this point context is supposed to match the root context determined by
        * #WM_event_add_fileselect(). */
@@ -2989,7 +2989,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
           ARegion *region_prev = CTX_wm_region(*C);
 
           if (win_prev == nullptr) {
-            CTX_wm_window_set(C, static_cast<wmWindow *>(CTX_wm_manager(*C)->windows.first));
+            CTX_wm_window_set(*C, static_cast<wmWindow *>(CTX_wm_manager(*C)->windows.first));
           }
 
           BKE_report_print_level_set(handler->op->reports, RPT_WARNING);
@@ -2997,9 +2997,9 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
 
           WM_reports_from_reports_move(CTX_wm_manager(*C), handler->op->reports);
 
-          CTX_wm_window_set(C, win_prev);
-          CTX_wm_area_set(C, area_prev);
-          CTX_wm_region_set(C, region_prev);
+          CTX_wm_window_set(*C, win_prev);
+          CTX_wm_area_set(*C, area_prev);
+          CTX_wm_region_set(*C, region_prev);
         }
 
         /* For #WM_operator_pystring only, custom report handling is done above. */
@@ -3028,7 +3028,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
         wm_operator_free_for_fileselect(handler->op);
       }
 
-      CTX_wm_area_set(C, nullptr);
+      CTX_wm_area_set(*C, nullptr);
 
       wm_event_free_handler(&handler->head);
 
@@ -3182,13 +3182,13 @@ static eHandlerActionFlag wm_handlers_do_keymap_with_gizmo_handler(
       if (wm_eventmatch(event, &kmi)) {
         PRINT("%s:     item matched '%s'\n", __func__, kmi.idname);
 
-        CTX_wm_gizmo_group_set(C, gzgroup);
+        CTX_wm_gizmo_group_set(*C, gzgroup);
 
         /* `handler->op` is called later, we want key-map op to be triggered here. */
         action |= wm_handler_operator_call(
             C, handlers, &handler->head, event, kmi.ptr, kmi.idname);
 
-        CTX_wm_gizmo_group_set(C, nullptr);
+        CTX_wm_gizmo_group_set(*C, nullptr);
 
         if (action & WM_HANDLER_BREAK) {
           if (G.debug & (G_DEBUG_EVENTS | G_DEBUG_HANDLERS)) {
@@ -3431,8 +3431,8 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
   }
 
   /* Restore the area. */
-  CTX_wm_area_set(C, area);
-  CTX_wm_region_set(C, region);
+  CTX_wm_area_set(*C, area);
+  CTX_wm_region_set(*C, region);
 
   return action;
 }
@@ -3888,9 +3888,9 @@ static void wm_paintcursor_test(bContext *C, const wmEvent *event)
     if (region) {
       ARegion *prev_region = CTX_wm_region(*C);
 
-      CTX_wm_region_set(C, region);
+      CTX_wm_region_set(*C, region);
       wm_paintcursor_tag(C, wm, region);
-      CTX_wm_region_set(C, prev_region);
+      CTX_wm_region_set(*C, prev_region);
     }
 
     /* If previous position was not in current region, we have to set a temp new context. */
@@ -3898,13 +3898,13 @@ static void wm_paintcursor_test(bContext *C, const wmEvent *event)
       ScrArea *prev_area = CTX_wm_area(*C);
       ARegion *prev_region = CTX_wm_region(*C);
 
-      CTX_wm_area_set(C, area_event_inside(C, event->prev_xy));
-      CTX_wm_region_set(C, region_event_inside(C, event->prev_xy));
+      CTX_wm_area_set(*C, area_event_inside(C, event->prev_xy));
+      CTX_wm_region_set(*C, region_event_inside(C, event->prev_xy));
 
       wm_paintcursor_tag(C, wm, CTX_wm_region(*C));
 
-      CTX_wm_area_set(C, prev_area);
-      CTX_wm_region_set(C, prev_region);
+      CTX_wm_area_set(*C, prev_area);
+      CTX_wm_region_set(*C, prev_region);
     }
   }
 }
@@ -4018,8 +4018,8 @@ static void wm_event_handle_xrevent(bContext *C,
   }
   BLI_assert(WM_region_use_viewport(area, region)); /* For operators using GPU-based selection. */
 
-  CTX_wm_area_set(C, area);
-  CTX_wm_region_set(C, region);
+  CTX_wm_area_set(*C, area);
+  CTX_wm_region_set(*C, region);
 
   ListBaseT<wmEventHandler> *modalhandlers = &win->runtime->modalhandlers;
 
@@ -4077,8 +4077,8 @@ static void wm_event_handle_xrevent(bContext *C,
     }
   }
 
-  CTX_wm_region_set(C, nullptr);
-  CTX_wm_area_set(C, nullptr);
+  CTX_wm_region_set(*C, nullptr);
+  CTX_wm_area_set(*C, nullptr);
 }
 #endif /* WITH_XR_OPENXR */
 
@@ -4094,7 +4094,7 @@ static eHandlerActionFlag wm_event_do_region_handlers(bContext *C, wmEvent *even
     return WM_HANDLER_BREAK;
   }
 
-  CTX_wm_region_set(C, region);
+  CTX_wm_region_set(*C, region);
 
   /* Call even on non mouse events, since the handlers may still use this value. */
   wm_region_mouse_co(C, event);
@@ -4226,7 +4226,7 @@ void wm_event_do_handlers(bContext *C)
         continue;
       }
 
-      CTX_wm_window_set(C, &win);
+      CTX_wm_window_set(*C, &win);
 
 #ifdef WITH_XR_OPENXR
       if (event->type == EVT_XR_ACTION) {
@@ -4250,8 +4250,8 @@ void wm_event_do_handlers(bContext *C)
       }
 
       /* We let modal handlers get active area/region, also wm_paintcursor_test needs it. */
-      CTX_wm_area_set(C, area_event_inside(C, event->xy));
-      CTX_wm_region_set(C, region_event_inside(C, event->xy));
+      CTX_wm_area_set(*C, area_event_inside(C, event->xy));
+      CTX_wm_region_set(*C, region_event_inside(C, event->xy));
 
       /* MVC demands to not draw in event handlers...
        * but we need to leave it for GPU selecting etc. */
@@ -4313,7 +4313,7 @@ void wm_event_do_handlers(bContext *C)
           }
 
           if (wm_event_inside_rect(event, &area->totrct)) {
-            CTX_wm_area_set(C, area);
+            CTX_wm_area_set(*C, area);
 
             action |= wm_event_do_handlers_area_regions(C, event, area);
 
@@ -4324,14 +4324,14 @@ void wm_event_do_handlers(bContext *C)
               return;
             }
 
-            CTX_wm_region_set(C, nullptr);
+            CTX_wm_region_set(*C, nullptr);
 
             if ((action & WM_HANDLER_BREAK) == 0) {
               wm_region_mouse_co(C, event); /* Only invalidates `event->mval` in this case. */
               action |= wm_handlers_do(
                   C, event, static_cast<ListBaseT<wmEventHandler> *>(&area->handlers));
             }
-            CTX_wm_area_set(C, nullptr);
+            CTX_wm_area_set(*C, nullptr);
 
             /* NOTE: do not escape on #WM_HANDLER_BREAK,
              * mouse-move needs handled for previous area. */
@@ -4340,8 +4340,8 @@ void wm_event_do_handlers(bContext *C)
 
         if ((action & WM_HANDLER_BREAK) == 0) {
           /* Also some non-modal handlers need active area/region. */
-          CTX_wm_area_set(C, area_event_inside(C, event->xy));
-          CTX_wm_region_set(C, region_event_inside(C, event->xy));
+          CTX_wm_area_set(*C, area_event_inside(C, event->xy));
+          CTX_wm_region_set(*C, region_event_inside(C, event->xy));
 
           wm_region_mouse_co(C, event);
 
@@ -4395,7 +4395,7 @@ void wm_event_do_handlers(bContext *C)
       win.addmousemove = 0;
     }
 
-    CTX_wm_window_set(C, nullptr);
+    CTX_wm_window_set(*C, nullptr);
   }
 
   /* Update key configuration after handling events. */
@@ -4544,7 +4544,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   /* Setting the context window unsets the context area & screen. Avoid doing that, so operators
    * calling the file browser can operate in the context the browser was opened in. */
   if (ctx_win != root_win) {
-    CTX_wm_window_set(C, root_win);
+    CTX_wm_window_set(*C, root_win);
   }
 
   /* The root window may already have a File Browser open. Cancel it if so, only 1 should be open
@@ -4562,7 +4562,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
       ScrArea *file_area = ED_fileselect_handler_area_find(root_win, handler->op);
 
       if (file_area) {
-        CTX_wm_area_set(C, file_area);
+        CTX_wm_area_set(*C, file_area);
         wm_handler_fileselect_do(
             C, &root_win->runtime->modalhandlers, handler, EVT_FILESELECT_CANCEL);
       }
@@ -4602,7 +4602,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   WM_event_fileselect_event(wm, op, EVT_FILESELECT_FULL_OPEN);
 
   if (ctx_win != root_win) {
-    CTX_wm_window_set(C, ctx_win);
+    CTX_wm_window_set(*C, ctx_win);
   }
 }
 
@@ -6800,9 +6800,9 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
     cd->text[button_index][1][0] = '\0';
   }
 
-  CTX_wm_window_set(C, win);
-  CTX_wm_area_set(C, area);
-  CTX_wm_region_set(C, region);
+  CTX_wm_window_set(*C, win);
+  CTX_wm_area_set(*C, area);
+  CTX_wm_region_set(*C, region);
 
   ListBaseT<wmEventHandler> *handlers[] = {
       &region->runtime->handlers,
@@ -6858,7 +6858,7 @@ void WM_window_cursor_keymap_status_refresh(bContext *C, wmWindow *win)
     ED_area_tag_redraw(area_statusbar);
   }
 
-  CTX_wm_window_set(C, nullptr);
+  CTX_wm_window_set(*C, nullptr);
 }
 
 /** \} */

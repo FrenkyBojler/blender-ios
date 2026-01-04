@@ -686,7 +686,7 @@ void outliner_sync_selection(const bContext *C,
 
 /* `outliner_context.cc` */
 
-int outliner_main_region_context(const bContext *C,
+int outliner_main_region_context(const bContext &C,
                                  const char *member,
                                  bContextDataResult *result);
 

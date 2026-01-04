@@ -338,7 +338,7 @@ wmOperatorStatus wm_stereo3d_set_exec(bContext &C, wmOperator &op)
   }
 
   /* Without this, the popup won't be freed properly, see #44688. */
-  CTX_wm_window_set(&C, win_src);
+  CTX_wm_window_set(C, win_src);
   win_src->stereo3d_format->display_mode = prev_display_mode;
   return OPERATOR_CANCELLED;
 }

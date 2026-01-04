@@ -130,7 +130,7 @@ static bool change_frame_poll(bContext &C)
     }
   }
 
-  CTX_wm_operator_poll_msg_set(&C, "Expected an animation area to be active");
+  CTX_wm_operator_poll_msg_set(C, "Expected an animation area to be active");
   return false;
 }
 
@@ -888,7 +888,7 @@ static bool anim_set_end_frames_poll(bContext &C)
     }
   }
 
-  CTX_wm_operator_poll_msg_set(&C, "Expected an animation area to be active");
+  CTX_wm_operator_poll_msg_set(C, "Expected an animation area to be active");
   return false;
 }
 
@@ -1220,12 +1220,12 @@ static bool merge_actions_selection_poll(bContext &C)
 {
   Object *object = CTX_data_active_object(C);
   if (!object) {
-    CTX_wm_operator_poll_msg_set(&C, "No active object");
+    CTX_wm_operator_poll_msg_set(C, "No active object");
     return false;
   }
   blender::animrig::Action *action = blender::animrig::get_action(object->id);
   if (!action) {
-    CTX_wm_operator_poll_msg_set(&C, "Active object has no action");
+    CTX_wm_operator_poll_msg_set(C, "Active object has no action");
     return false;
   }
   if (!BKE_id_is_editable(CTX_data_main(C), &action->id)) {

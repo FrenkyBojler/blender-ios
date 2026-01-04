@@ -61,8 +61,8 @@ class UsdExportTest : public BlendfileLoadingBaseTest {
     depsgraph_create(eval_mode);
 
     context = CTX_create();
-    CTX_data_main_set(context, bfile->main);
-    CTX_data_scene_set(context, bfile->curscene);
+    CTX_data_main_set(*context, bfile->main);
+    CTX_data_scene_set(*context, bfile->curscene);
 
     return true;
   }

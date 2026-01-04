@@ -522,7 +522,7 @@ static bool ed_undo_is_init_poll(bContext *C)
     /* This message is intended for Python developers,
      * it will be part of the exception when attempting to call undo in background mode. */
     CTX_wm_operator_poll_msg_set(
-        C,
+        *C,
         "Undo disabled at startup in background-mode "
         "(call `ed.undo_push()` to explicitly initialize the undo-system)");
     return false;
@@ -649,7 +649,7 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
                                                     BKE_area_find_region_active_win(area);
 
     if (region_repeat) {
-      CTX_wm_region_set(C, region_repeat);
+      CTX_wm_region_set(*C, region_repeat);
     }
 
     if (WM_operator_repeat_check(C, op) && WM_operator_poll(C, op->type) &&
@@ -696,7 +696,7 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
     }
 
     /* set region back */
-    CTX_wm_region_set(C, region_orig);
+    CTX_wm_region_set(*C, region_orig);
   }
   else {
     CLOG_WARN(&LOG, "called with nullptr 'op'");

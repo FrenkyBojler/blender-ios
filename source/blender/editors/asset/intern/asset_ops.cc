@@ -195,7 +195,7 @@ static bool asset_mark_poll(bContext &C, const Span<PointerRNA> ids)
   IDVecStats ctx_stats = asset_operation_get_id_vec_stats_from_ids(ids);
 
   if (!ctx_stats.has_supported_type) {
-    CTX_wm_operator_poll_msg_set(&C, asset_operation_unsupported_type_msg(ctx_stats.is_single));
+    CTX_wm_operator_poll_msg_set(C, asset_operation_unsupported_type_msg(ctx_stats.is_single));
     return false;
   }
 
@@ -344,11 +344,11 @@ static bool asset_clear_poll(bContext &C, const Span<PointerRNA> ids)
   if (!ctx_stats.has_asset) {
     const char *msg_single = N_("Data-block is not marked as asset");
     const char *msg_multiple = N_("No data-block selected that is marked as asset");
-    CTX_wm_operator_poll_msg_set(&C, ctx_stats.is_single ? msg_single : msg_multiple);
+    CTX_wm_operator_poll_msg_set(C, ctx_stats.is_single ? msg_single : msg_multiple);
     return false;
   }
   if (!ctx_stats.has_supported_type) {
-    CTX_wm_operator_poll_msg_set(&C, asset_operation_unsupported_type_msg(ctx_stats.is_single));
+    CTX_wm_operator_poll_msg_set(C, asset_operation_unsupported_type_msg(ctx_stats.is_single));
     return false;
   }
 
@@ -474,7 +474,7 @@ static bool asset_catalog_operator_poll(bContext &C)
     return false;
   }
   if (catalogs_read_only(*asset_library)) {
-    CTX_wm_operator_poll_msg_set(&C, "Asset catalogs cannot be edited in this asset library");
+    CTX_wm_operator_poll_msg_set(C, "Asset catalogs cannot be edited in this asset library");
     return false;
   }
   return true;
@@ -668,13 +668,12 @@ static bool asset_catalogs_save_poll(bContext &C)
 
   const Main *bmain = CTX_data_main(C);
   if (!bmain->filepath[0]) {
-    CTX_wm_operator_poll_msg_set(&C,
-                                 "Cannot save asset catalogs before the Blender file is saved");
+    CTX_wm_operator_poll_msg_set(C, "Cannot save asset catalogs before the Blender file is saved");
     return false;
   }
 
   if (!AS_asset_library_has_any_unsaved_catalogs()) {
-    CTX_wm_operator_poll_msg_set(&C, "No changes to be saved");
+    CTX_wm_operator_poll_msg_set(C, "No changes to be saved");
     return false;
   }
 
@@ -1463,7 +1462,7 @@ static bool screenshot_preview_poll(bContext &C)
 
   const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(C);
   if (!asset_handle) {
-    CTX_wm_operator_poll_msg_set(&C, "No selected asset");
+    CTX_wm_operator_poll_msg_set(C, "No selected asset");
     return false;
   }
   if (asset_handle->is_local_id()) {
@@ -1473,7 +1472,7 @@ static bool screenshot_preview_poll(bContext &C)
     return true;
   }
 
-  CTX_wm_operator_poll_msg_set(&C, "Asset cannot be modified from this file");
+  CTX_wm_operator_poll_msg_set(C, "Asset cannot be modified from this file");
   return false;
 }
 

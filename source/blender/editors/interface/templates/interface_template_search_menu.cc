@@ -419,13 +419,13 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
   const uiStyle *style = style_get_dpi();
 
   const bContextStore *old_context_store = CTX_store_get(*C);
-  BLI_SCOPED_DEFER([&]() { CTX_store_set(C, old_context_store); });
+  BLI_SCOPED_DEFER([&]() { CTX_store_set(*C, old_context_store); });
   bContextStore context_store;
   if (old_context_store) {
     context_store = *old_context_store;
   }
   context_store.entries.append({"is_menu_search", true});
-  CTX_store_set(C, &context_store);
+  CTX_store_set(*C, &context_store);
 
   /* Convert into non-ui structure. */
   MenuSearch_Data *data = MEM_new<MenuSearch_Data>(__func__);
@@ -581,8 +581,8 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
         area = wm_context->area;
         region = wm_context->region;
 
-        CTX_wm_area_set(C, area);
-        CTX_wm_region_set(C, region);
+        CTX_wm_area_set(*C, area);
+        CTX_wm_region_set(*C, region);
       }
     }
     else {
@@ -910,8 +910,8 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
   std::sort(data->items.begin(), data->items.end(), menu_item_sort_by_drawstr_full);
 
   if (include_all_areas) {
-    CTX_wm_area_set(C, area_init);
-    CTX_wm_region_set(C, region_init);
+    CTX_wm_area_set(*C, area_init);
+    CTX_wm_region_set(*C, region_init);
 
     if (space_type_ui_items_free) {
       MEM_freeN(space_type_ui_items);
@@ -955,15 +955,15 @@ static void menu_search_exec_fn(bContext *C, void * /*arg1*/, void *arg2)
   ARegion *region_prev = CTX_wm_region(*C);
 
   if (item->wm_context != nullptr) {
-    CTX_wm_area_set(C, item->wm_context->area);
-    CTX_wm_region_set(C, item->wm_context->region);
+    CTX_wm_area_set(*C, item->wm_context->area);
+    CTX_wm_region_set(*C, item->wm_context->region);
   }
 
   if (auto *op_data = std::get_if<MenuSearch_Item::OperatorData>(&item->data)) {
-    CTX_store_set(C, op_data->context);
+    CTX_store_set(*C, op_data->context);
     WM_operator_name_call_ptr_with_depends_on_cursor(
         C, op_data->type, op_data->opcontext, op_data->opptr, nullptr, item->drawstr);
-    CTX_store_set(C, nullptr);
+    CTX_store_set(*C, nullptr);
   }
   else if (auto *rna_data = std::get_if<MenuSearch_Item::PropertyData>(&item->data)) {
     PointerRNA *ptr = &rna_data->ptr;
@@ -995,8 +995,8 @@ static void menu_search_exec_fn(bContext *C, void * /*arg1*/, void *arg2)
   }
 
   if (item->wm_context != nullptr) {
-    CTX_wm_area_set(C, area_prev);
-    CTX_wm_region_set(C, region_prev);
+    CTX_wm_area_set(*C, area_prev);
+    CTX_wm_region_set(*C, region_prev);
   }
 }
 
@@ -1054,8 +1054,8 @@ static bool ui_search_menu_create_context_menu(bContext *C,
     ARegion *region_prev = CTX_wm_region(*C);
 
     if (item->wm_context != nullptr) {
-      CTX_wm_area_set(C, item->wm_context->area);
-      CTX_wm_region_set(C, item->wm_context->region);
+      CTX_wm_area_set(*C, item->wm_context->area);
+      CTX_wm_region_set(*C, item->wm_context->region);
     }
 
     if (popup_context_menu_for_button(C, but, event)) {
@@ -1063,8 +1063,8 @@ static bool ui_search_menu_create_context_menu(bContext *C,
     }
 
     if (item->wm_context != nullptr) {
-      CTX_wm_area_set(C, area_prev);
-      CTX_wm_region_set(C, region_prev);
+      CTX_wm_area_set(*C, area_prev);
+      CTX_wm_region_set(*C, region_prev);
     }
   }
 
@@ -1109,15 +1109,15 @@ static ARegion *ui_search_menu_create_tooltip(
     ARegion *region_prev = CTX_wm_region(*C);
 
     if (item->wm_context != nullptr) {
-      CTX_wm_area_set(C, item->wm_context->area);
-      CTX_wm_region_set(C, item->wm_context->region);
+      CTX_wm_area_set(*C, item->wm_context->area);
+      CTX_wm_region_set(*C, item->wm_context->region);
     }
 
     ARegion *region_tip = tooltip_create_from_button(C, region, but, false);
 
     if (item->wm_context != nullptr) {
-      CTX_wm_area_set(C, area_prev);
-      CTX_wm_region_set(C, region_prev);
+      CTX_wm_area_set(*C, area_prev);
+      CTX_wm_region_set(*C, region_prev);
     }
     return region_tip;
   }

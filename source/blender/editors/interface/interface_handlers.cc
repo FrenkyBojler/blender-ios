@@ -1114,7 +1114,7 @@ static void ui_apply_but_funcs_after(bContext *C)
     MEM_delete(&afterf);
 
     if (after.context) {
-      CTX_store_set(C, &after.context.value());
+      CTX_store_set(*C, &after.context.value());
     }
 
     if (after.popup_op) {
@@ -1146,7 +1146,7 @@ static void ui_apply_but_funcs_after(bContext *C)
     }
 
     if (after.context) {
-      CTX_store_set(C, nullptr);
+      CTX_store_set(*C, nullptr);
     }
 
     if (after.rename_full_func) {
@@ -2160,7 +2160,7 @@ static bool ui_but_drag_init(bContext *C,
 
       /* needed for toggle drag on popups */
       region_prev = CTX_wm_region(*C);
-      CTX_wm_region_set(C, data->region);
+      CTX_wm_region_set(*C, data->region);
 
       WM_event_add_ui_handler(C,
                               &data->window->runtime->modalhandlers,
@@ -2169,7 +2169,7 @@ static bool ui_but_drag_init(bContext *C,
                               drag_info,
                               WM_HANDLER_BLOCKING);
 
-      CTX_wm_region_set(C, region_prev);
+      CTX_wm_region_set(*C, region_prev);
 
       /* Initialize alignment for single row/column regions,
        * otherwise we use the relative position of the first other button dragged over. */
@@ -5137,10 +5137,10 @@ static void force_activate_view_item_but(bContext *C,
   /* For popups. Other abstract view instances correctly calls the select operator, see:
    * #141235. */
   if (but->context) {
-    CTX_store_set(C, but->context);
+    CTX_store_set(*C, but->context);
   }
   but->view_item->activate(*C);
-  CTX_store_set(C, nullptr);
+  CTX_store_set(*C, nullptr);
 
   ED_region_tag_redraw_no_rebuild(region);
   ED_region_tag_refresh_ui(region);
@@ -10651,19 +10651,19 @@ static int ui_handle_menu_button(bContext *C, const wmEvent *event, PopupBlockHa
     ARegion *ctx_region = CTX_wm_region(*C);
 
     if (menu->ctx_area) {
-      CTX_wm_area_set(C, menu->ctx_area);
+      CTX_wm_area_set(*C, menu->ctx_area);
     }
     if (menu->ctx_region) {
-      CTX_wm_region_set(C, menu->ctx_region);
+      CTX_wm_region_set(*C, menu->ctx_region);
     }
 
     retval = ui_handle_button_event(C, event, but);
 
     if (menu->ctx_area) {
-      CTX_wm_area_set(C, ctx_area);
+      CTX_wm_area_set(*C, ctx_area);
     }
     if (menu->ctx_region) {
-      CTX_wm_region_set(C, ctx_region);
+      CTX_wm_region_set(*C, ctx_region);
     }
   }
   else {
@@ -11867,10 +11867,10 @@ static int ui_handle_menus_recursive(bContext *C,
           ED_region_tag_refresh_ui(menu->region);
           ARegion *prev_region_popup = CTX_wm_region_popup(*C);
           /* Set the current context popup region so the handler context can access to it. */
-          CTX_wm_region_popup_set(C, menu->region);
+          CTX_wm_region_popup_set(*C, menu->region);
           panel_drag_collapse_handler_add(C, !ui_layout_panel_toggle_open(C, header));
           /* Restore previous popup region. */
-          CTX_wm_region_popup_set(C, prev_region_popup);
+          CTX_wm_region_popup_set(*C, prev_region_popup);
           retval = WM_UI_HANDLER_BREAK;
         }
       }
@@ -12202,14 +12202,14 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
   if (but && but->active && but->active->menu) {
     /* Set correct context popup-region. The handling button above breaks if we set the region
      * first, so only set it for executing the #uiAfterFunc. */
-    CTX_wm_region_popup_set(C, but->active->menu->region);
+    CTX_wm_region_popup_set(*C, but->active->menu->region);
   }
 
   /* delayed apply callbacks */
   ui_apply_but_funcs_after(C);
 
   /* Reset to previous context region. */
-  CTX_wm_region_popup_set(C, region_popup);
+  CTX_wm_region_popup_set(*C, region_popup);
 
   /* Don't handle double-click events,
    * these will be converted into regular clicks which we handle. */
@@ -12233,7 +12233,7 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
   bool reset_pie = false;
 
   ARegion *region_popup = CTX_wm_region_popup(*C);
-  CTX_wm_region_popup_set(C, menu->region);
+  CTX_wm_region_popup_set(*C, menu->region);
 
   if (event->type == EVT_DROP || event->val == KM_DBL_CLICK) {
     /* EVT_DROP:
@@ -12265,7 +12265,7 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
 
     popup_block_free(C, menu);
     popup_handlers_remove(&win->runtime->modalhandlers, menu);
-    CTX_wm_region_popup_set(C, nullptr);
+    CTX_wm_region_popup_set(*C, nullptr);
 
 #ifdef USE_DRAG_TOGGLE
     {
@@ -12308,7 +12308,7 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
     }
   }
 
-  CTX_wm_region_set(C, region_popup);
+  CTX_wm_region_set(*C, region_popup);
 
   return retval;
 }
@@ -12409,9 +12409,9 @@ bool textbutton_activate_rna(const bContext *C,
     ARegion *region_ctx = CTX_wm_region(*C);
 
     /* Temporary context override for activating the button. */
-    CTX_wm_region_set(const_cast<bContext *>(C), region);
+    CTX_wm_region_set(*const_cast<bContext *>(C), region);
     button_active_only(C, region, block_text, but_text);
-    CTX_wm_region_set(const_cast<bContext *>(C), region_ctx);
+    CTX_wm_region_set(*const_cast<bContext *>(C), region_ctx);
     return true;
   }
   return false;

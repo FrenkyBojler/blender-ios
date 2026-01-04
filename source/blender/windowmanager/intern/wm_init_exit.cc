@@ -339,7 +339,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 
   STRNCPY(G.filepath_last_library, BKE_main_blendfile_path_from_global());
 
-  CTX_py_init_set(C, true);
+  CTX_py_init_set(*C, true);
 
   /* Postpone updating the key-configuration until after add-ons have been registered,
    * needed to properly load user-configured add-on key-maps, see: #113603. */
@@ -397,10 +397,10 @@ void WM_init_splash(bContext *C)
   }
 
   wmWindow *prevwin = CTX_wm_window(*C);
-  CTX_wm_window_set(C, static_cast<wmWindow *>(wm->windows.first));
+  CTX_wm_window_set(*C, static_cast<wmWindow *>(wm->windows.first));
   WM_operator_name_call(
       C, "WM_OT_splash", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
-  CTX_wm_window_set(C, prevwin);
+  CTX_wm_window_set(*C, prevwin);
 }
 
 /** Load add-ons & app-templates once on startup. */
@@ -482,7 +482,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
     WM_jobs_kill_all(wm);
 
     for (wmWindow &win : wm->windows) {
-      CTX_wm_window_set(C, &win); /* Needed by operator close callbacks. */
+      CTX_wm_window_set(*C, &win); /* Needed by operator close callbacks. */
       WM_event_remove_handlers(C, &win.runtime->handlers);
       WM_event_remove_handlers(C, &win.runtime->modalhandlers);
       ED_screen_exit(C, &win, WM_window_get_active_screen(&win));

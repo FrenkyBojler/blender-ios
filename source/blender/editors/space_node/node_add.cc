@@ -397,7 +397,7 @@ static bool node_add_group_poll(bContext &C)
   const SpaceNode *snode = CTX_wm_space_node(C);
   if (snode->edittree->type == NTREE_CUSTOM) {
     CTX_wm_operator_poll_msg_set(
-        &C, "Adding node groups isn't supported for custom (Python defined) node trees");
+        C, "Adding node groups isn't supported for custom (Python defined) node trees");
     return false;
   }
   return true;
@@ -411,14 +411,14 @@ static bool node_swap_group_poll(bContext &C)
   const SpaceNode *snode = CTX_wm_space_node(C);
   if (snode->edittree->type == NTREE_CUSTOM) {
     CTX_wm_operator_poll_msg_set(
-        &C, "Adding node groups isn't supported for custom (Python defined) node trees");
+        C, "Adding node groups isn't supported for custom (Python defined) node trees");
     return false;
   }
   Vector<PointerRNA> selected_nodes;
-  selected_nodes = CTX_data_collection_get(&C, "selected_nodes");
+  selected_nodes = CTX_data_collection_get(C, "selected_nodes");
 
   if (selected_nodes.size() <= 0) {
-    CTX_wm_operator_poll_msg_set(&C, "No nodes selected.");
+    CTX_wm_operator_poll_msg_set(C, "No nodes selected.");
     return false;
   }
   return true;
@@ -1459,7 +1459,7 @@ static bool node_add_group_input_node_poll(bContext &C)
 
   if (auto *socket = bke::node_interface::get_item_as<bNodeTreeInterfaceSocket>(active_item)) {
     if (socket->flag & NODE_INTERFACE_SOCKET_OUTPUT) {
-      CTX_wm_operator_poll_msg_set(&C, "Cannot drag an output socket");
+      CTX_wm_operator_poll_msg_set(C, "Cannot drag an output socket");
       return false;
     }
     return true;
@@ -1475,7 +1475,7 @@ static bool node_add_group_input_node_poll(bContext &C)
     }
 
     if (!has_inputs) {
-      CTX_wm_operator_poll_msg_set(&C, "Cannot drag panel with no inputs");
+      CTX_wm_operator_poll_msg_set(C, "Cannot drag panel with no inputs");
       return false;
     }
     return true;

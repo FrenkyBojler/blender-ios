@@ -1408,11 +1408,11 @@ const char *node_context_dir[] = {
 
 namespace blender::ed::space_node {
 
-static int /*eContextResult*/ node_context(const bContext *C,
+static int /*eContextResult*/ node_context(const bContext &C,
                                            const char *member,
                                            bContextDataResult *result)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
+  SpaceNode *snode = CTX_wm_space_node(C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, node_context_dir);

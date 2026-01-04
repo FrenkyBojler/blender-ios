@@ -1148,7 +1148,7 @@ static void setup_app_data(bContext *C,
       BKE_screen_gizmo_tag_refresh(curscreen);
     }
   }
-  CTX_data_scene_set(C, curscene);
+  CTX_data_scene_set(*C, curscene);
 
   BLI_assert(BKE_main_namemap_validate(*bfd->main));
 
@@ -1156,7 +1156,7 @@ static void setup_app_data(bContext *C,
   BKE_blender_globals_main_replace(bfd->main);
   bmain = G_MAIN;
   bfd->main = nullptr;
-  CTX_data_main_set(C, bmain);
+  CTX_data_main_set(*C, bmain);
 
   BLI_assert(BKE_main_namemap_validate(*bmain));
 
@@ -1165,11 +1165,11 @@ static void setup_app_data(bContext *C,
     /* Setting a window-manger clears all other windowing members (window, screen, area, etc).
      * So only do it when effectively loading a new #wmWindowManager
      * otherwise just assert that the WM from context is still the same as in `new_bmain`. */
-    CTX_wm_manager_set(C, static_cast<wmWindowManager *>(bmain->wm.first));
-    CTX_wm_screen_set(C, bfd->curscreen);
-    CTX_wm_area_set(C, nullptr);
-    CTX_wm_region_set(C, nullptr);
-    CTX_wm_region_popup_set(C, nullptr);
+    CTX_wm_manager_set(*C, static_cast<wmWindowManager *>(bmain->wm.first));
+    CTX_wm_screen_set(*C, bfd->curscreen);
+    CTX_wm_area_set(*C, nullptr);
+    CTX_wm_region_set(*C, nullptr);
+    CTX_wm_region_popup_set(*C, nullptr);
   }
   BLI_assert(CTX_wm_manager(*C) == static_cast<wmWindowManager *>(bmain->wm.first));
 

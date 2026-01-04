@@ -1534,12 +1534,12 @@ bool edit_modifier_poll_generic(bContext *C,
 
   if (!is_liboverride_allowed && BKE_modifier_is_nonlocal_in_liboverride(ob, mod)) {
     CTX_wm_operator_poll_msg_set(
-        C, "Cannot edit modifiers coming from linked data in a library override");
+        *C, "Cannot edit modifiers coming from linked data in a library override");
     return false;
   }
 
   if (!is_editmode_allowed && CTX_data_edit_object(*C) != nullptr) {
-    CTX_wm_operator_poll_msg_set(C, "This modifier operation is not allowed from Edit mode");
+    CTX_wm_operator_poll_msg_set(*C, "This modifier operation is not allowed from Edit mode");
     return false;
   }
 
@@ -1952,7 +1952,7 @@ static bool modifier_apply_poll(bContext &C)
   ModifierData *md = static_cast<ModifierData *>(ptr.data); /* May be nullptr. */
 
   if (ID_IS_OVERRIDE_LIBRARY(ob) || ((ob->data != nullptr) && ID_IS_OVERRIDE_LIBRARY(ob->data))) {
-    CTX_wm_operator_poll_msg_set(&C, "Modifiers cannot be applied on override data");
+    CTX_wm_operator_poll_msg_set(C, "Modifiers cannot be applied on override data");
     return false;
   }
   if (md != nullptr) {
@@ -1960,7 +1960,7 @@ static bool modifier_apply_poll(bContext &C)
         (BKE_modifier_is_same_topology(md) == false))
     {
       CTX_wm_operator_poll_msg_set(
-          &C, "Constructive modifier cannot be applied to multi-res data in sculpt mode");
+          C, "Constructive modifier cannot be applied to multi-res data in sculpt mode");
       return false;
     }
   }
@@ -2405,17 +2405,17 @@ static bool modifier_copy_to_selected_poll(bContext &C)
   /* This just mirrors the check in #BKE_object_copy_modifier,
    * but there is no reasoning for it there. */
   if (md && ELEM(md->type, eModifierType_Hook, eModifierType_Collision)) {
-    CTX_wm_operator_poll_msg_set(&C, R"(Not supported for "Collision" or "Hook" modifiers)");
+    CTX_wm_operator_poll_msg_set(C, R"(Not supported for "Collision" or "Hook" modifiers)");
     return false;
   }
 
   if (!obact) {
-    CTX_wm_operator_poll_msg_set(&C, "No selected object is active");
+    CTX_wm_operator_poll_msg_set(C, "No selected object is active");
     return false;
   }
 
   if (!BKE_object_supports_modifiers(obact)) {
-    CTX_wm_operator_poll_msg_set(&C, "Object type of source object is not supported");
+    CTX_wm_operator_poll_msg_set(C, "Object type of source object is not supported");
     return false;
   }
 
@@ -2443,7 +2443,7 @@ static bool modifier_copy_to_selected_poll(bContext &C)
   CTX_DATA_END;
 
   if (!found_supported_objects) {
-    CTX_wm_operator_poll_msg_set(&C, "No supported objects were selected");
+    CTX_wm_operator_poll_msg_set(C, "No supported objects were selected");
     return false;
   }
   return true;
@@ -2503,7 +2503,7 @@ static bool modifiers_copy_to_selected_poll(bContext &C)
     return false;
   }
   if (BLI_listbase_is_empty(&active_object->modifiers)) {
-    CTX_wm_operator_poll_msg_set(&C, "Active object has no modifiers");
+    CTX_wm_operator_poll_msg_set(C, "Active object has no modifiers");
     return false;
   }
   return true;

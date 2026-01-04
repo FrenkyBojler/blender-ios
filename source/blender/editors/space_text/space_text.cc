@@ -225,11 +225,11 @@ static void text_keymap(wmKeyConfig *keyconf)
 
 const char *text_context_dir[] = {"edit_text", nullptr};
 
-static int /*eContextResult*/ text_context(const bContext *C,
+static int /*eContextResult*/ text_context(const bContext &C,
                                            const char *member,
                                            bContextDataResult *result)
 {
-  SpaceText *st = CTX_wm_space_text(*C);
+  SpaceText *st = CTX_wm_space_text(C);
 
   if (CTX_data_dir(member)) {
     CTX_data_dir_set(result, text_context_dir);

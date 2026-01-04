@@ -989,7 +989,7 @@ static PointerRNA rnapointer_pchan_to_bone(const PointerRNA &pchan_ptr)
 
 static void ui_context_selected_bones_via_pose(bContext *C, Vector<PointerRNA> *r_lb)
 {
-  Vector<PointerRNA> lb = CTX_data_collection_get(C, "selected_pose_bones");
+  Vector<PointerRNA> lb = CTX_data_collection_get(*C, "selected_pose_bones");
 
   for (PointerRNA &ptr : lb) {
     ptr = rnapointer_pchan_to_bone(ptr);
@@ -1003,7 +1003,7 @@ static void ui_context_fcurve_modifiers_via_fcurve(bContext *C,
                                                    FModifier *source)
 {
   Vector<PointerRNA> fcurve_links;
-  fcurve_links = CTX_data_collection_get(C, "selected_editable_fcurves");
+  fcurve_links = CTX_data_collection_get(*C, "selected_editable_fcurves");
   if (fcurve_links.is_empty()) {
     return;
   }
@@ -1068,7 +1068,7 @@ bool context_copy_to_selected_list(bContext *C,
       idpath = RNA_path_from_struct_to_idproperty(&owner_ptr,
                                                   static_cast<const IDProperty *>(ptr->data));
       if (idpath) {
-        *r_lb = CTX_data_collection_get(C, "selected_pose_bones");
+        *r_lb = CTX_data_collection_get(*C, "selected_pose_bones");
       }
       else {
         PointerRNA bone_ptr = rnapointer_pchan_to_bone(owner_ptr);
@@ -1088,7 +1088,7 @@ bool context_copy_to_selected_list(bContext *C,
         idpath = RNA_path_from_struct_to_idproperty(&owner_ptr,
                                                     static_cast<const IDProperty *>(ptr->data));
         if (idpath) {
-          *r_lb = CTX_data_collection_get(C, "selected_editable_bones");
+          *r_lb = CTX_data_collection_get(*C, "selected_editable_bones");
         }
       }
 
@@ -1106,14 +1106,14 @@ bool context_copy_to_selected_list(bContext *C,
      * (if the edit_bone is locked, it is not included in "selected_editable_bones"). */
     const char *prop_id = RNA_property_identifier(prop);
     if (STREQ(prop_id, "lock")) {
-      *r_lb = CTX_data_collection_get(C, "selected_bones");
+      *r_lb = CTX_data_collection_get(*C, "selected_bones");
     }
     else {
-      *r_lb = CTX_data_collection_get(C, "selected_editable_bones");
+      *r_lb = CTX_data_collection_get(*C, "selected_editable_bones");
     }
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_PoseBone)) {
-    *r_lb = CTX_data_collection_get(C, "selected_pose_bones");
+    *r_lb = CTX_data_collection_get(*C, "selected_pose_bones");
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Bone)) {
     /* "selected_bones" or "selected_editable_bones" will only yield anything in Armature Edit
@@ -1127,7 +1127,7 @@ bool context_copy_to_selected_list(bContext *C,
     Vector<PointerRNA> list_of_things = {};
     switch (GS(ptr->owner_id->name)) {
       case ID_OB:
-        list_of_things = CTX_data_collection_get(C, "selected_pose_bones");
+        list_of_things = CTX_data_collection_get(*C, "selected_pose_bones");
         break;
       case ID_AR: {
         /* Armature-owned bones can be accessed from both edit mode and pose mode.
@@ -1136,10 +1136,10 @@ bool context_copy_to_selected_list(bContext *C,
          */
         const bArmature *arm = reinterpret_cast<bArmature *>(ptr->owner_id);
         if (arm->edbo) {
-          list_of_things = CTX_data_collection_get(C, "selected_editable_bones");
+          list_of_things = CTX_data_collection_get(*C, "selected_editable_bones");
         }
         else {
-          list_of_things = CTX_data_collection_get(C, "selected_pose_bones");
+          list_of_things = CTX_data_collection_get(*C, "selected_pose_bones");
           CTX_data_collection_remap_property(list_of_things, "bone");
         }
         break;
@@ -1167,10 +1167,10 @@ bool context_copy_to_selected_list(bContext *C,
      * (if the strip is locked, it won't be in "selected_editable_strips"). */
     const char *prop_id = RNA_property_identifier(prop);
     if (STREQ(prop_id, "lock")) {
-      *r_lb = CTX_data_collection_get(C, "selected_strips");
+      *r_lb = CTX_data_collection_get(*C, "selected_strips");
     }
     else {
-      *r_lb = CTX_data_collection_get(C, "selected_editable_strips");
+      *r_lb = CTX_data_collection_get(*C, "selected_editable_strips");
     }
 
     if (is_rna) {
@@ -1179,23 +1179,23 @@ bool context_copy_to_selected_list(bContext *C,
     }
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_FCurve)) {
-    *r_lb = CTX_data_collection_get(C, "selected_editable_fcurves");
+    *r_lb = CTX_data_collection_get(*C, "selected_editable_fcurves");
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_FModifier)) {
     FModifier *mod = static_cast<FModifier *>(ptr->data);
     ui_context_fcurve_modifiers_via_fcurve(C, r_lb, mod);
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Keyframe)) {
-    *r_lb = CTX_data_collection_get(C, "selected_editable_keyframes");
+    *r_lb = CTX_data_collection_get(*C, "selected_editable_keyframes");
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Action)) {
-    *r_lb = CTX_data_collection_get(C, "selected_editable_actions");
+    *r_lb = CTX_data_collection_get(*C, "selected_editable_actions");
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_NlaStrip)) {
-    *r_lb = CTX_data_collection_get(C, "selected_nla_strips");
+    *r_lb = CTX_data_collection_get(*C, "selected_nla_strips");
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_MovieTrackingTrack)) {
-    *r_lb = CTX_data_collection_get(C, "selected_movieclip_tracks");
+    *r_lb = CTX_data_collection_get(*C, "selected_movieclip_tracks");
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_ShapeKey)) {
     ui_context_selected_key_blocks(ptr->owner_id, r_lb);
@@ -1204,7 +1204,7 @@ bool context_copy_to_selected_list(bContext *C,
                RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_PoseBone);
            RNA_struct_is_a(ptr->type, &RNA_Constraint) && path_from_bone)
   {
-    *r_lb = CTX_data_collection_get(C, "selected_pose_bones");
+    *r_lb = CTX_data_collection_get(*C, "selected_pose_bones");
     *r_path = path_from_bone;
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Node) || RNA_struct_is_a(ptr->type, &RNA_NodeSocket)) {
@@ -1232,7 +1232,7 @@ bool context_copy_to_selected_list(bContext *C,
     /* Now filter out non-matching nodes (by idname). */
     if (node) {
       const StringRef node_idname = node->idname;
-      lb = CTX_data_collection_get(C, "selected_nodes");
+      lb = CTX_data_collection_get(*C, "selected_nodes");
       lb.remove_if([&](const PointerRNA &link) {
         bNode *node_data = static_cast<bNode *>(link.data);
         if (node_data->idname != node_idname) {
@@ -1247,7 +1247,7 @@ bool context_copy_to_selected_list(bContext *C,
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_AssetMetaData)) {
     /* Remap from #AssetRepresentation to #AssetMetaData. */
-    Vector<PointerRNA> list_of_things = CTX_data_collection_get(C, "selected_assets");
+    Vector<PointerRNA> list_of_things = CTX_data_collection_get(*C, "selected_assets");
     CTX_data_collection_remap_property(list_of_things, "metadata");
     *r_lb = list_of_things;
   }
@@ -1268,14 +1268,14 @@ bool context_copy_to_selected_list(bContext *C,
     ID *id = ptr->owner_id;
 
     if (GS(id->name) == ID_OB) {
-      *r_lb = CTX_data_collection_get(C, "selected_editable_objects");
+      *r_lb = CTX_data_collection_get(*C, "selected_editable_objects");
       *r_use_path_from_id = true;
       *r_path = RNA_path_from_ID_to_property(ptr, prop);
     }
     else if (OB_DATA_SUPPORT_ID(GS(id->name))) {
       /* check we're using the active object */
       const short id_code = GS(id->name);
-      Vector<PointerRNA> lb = CTX_data_collection_get(C, "selected_editable_objects");
+      Vector<PointerRNA> lb = CTX_data_collection_get(*C, "selected_editable_objects");
       const std::optional<std::string> path = RNA_path_from_ID_to_property(ptr, prop);
 
       /* de-duplicate obdata */
@@ -1320,10 +1320,10 @@ bool context_copy_to_selected_list(bContext *C,
          * (if the strip is locked, it won't be in "selected_editable_strips"). */
         const char *prop_id = RNA_property_identifier(prop);
         if (is_rna && STREQ(prop_id, "lock")) {
-          *r_lb = CTX_data_collection_get(C, "selected_strips");
+          *r_lb = CTX_data_collection_get(*C, "selected_strips");
         }
         else {
-          *r_lb = CTX_data_collection_get(C, "selected_editable_strips");
+          *r_lb = CTX_data_collection_get(*C, "selected_editable_strips");
         }
 
         if (is_rna) {
@@ -2244,9 +2244,9 @@ static wmOperatorStatus ui_button_press_invoke(bContext &C, wmOperator &op, cons
     return OPERATOR_PASS_THROUGH;
   }
 
-  CTX_wm_region_set(&C, region);
+  CTX_wm_region_set(C, region);
   Button *but = context_active_but_get(&C);
-  CTX_wm_region_set(&C, region_prev);
+  CTX_wm_region_set(C, region_prev);
 
   if (but == nullptr) {
     return OPERATOR_PASS_THROUGH;

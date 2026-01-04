@@ -1334,7 +1334,7 @@ static bool duplicate_particle_systems_poll(bContext &C)
     return false;
   }
   if (ob->mode != OB_MODE_OBJECT) {
-    CTX_wm_operator_poll_msg_set(&C, "Object must be in object mode");
+    CTX_wm_operator_poll_msg_set(C, "Object must be in object mode");
     return false;
   }
   return true;
@@ -1386,7 +1386,7 @@ static bool remove_all_particle_systems_poll(bContext &C)
     return false;
   }
   if (ob->mode != OB_MODE_OBJECT) {
-    CTX_wm_operator_poll_msg_set(&C, "Object must be in object mode");
+    CTX_wm_operator_poll_msg_set(C, "Object must be in object mode");
     return false;
   }
   return true;

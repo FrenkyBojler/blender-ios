@@ -367,13 +367,13 @@ static bool grease_pencil_trace_image_poll(bContext &C)
 {
   Object *ob = CTX_data_active_object(C);
   if ((ob == nullptr) || (ob->type != OB_EMPTY) || (ob->data == nullptr)) {
-    CTX_wm_operator_poll_msg_set(&C, "No image empty selected");
+    CTX_wm_operator_poll_msg_set(C, "No image empty selected");
     return false;
   }
 
   Image *image = static_cast<Image *>(ob->data);
   if (!ELEM(image->source, IMA_SRC_FILE, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
-    CTX_wm_operator_poll_msg_set(&C, "No valid image format selected");
+    CTX_wm_operator_poll_msg_set(C, "No valid image format selected");
     return false;
   }
 

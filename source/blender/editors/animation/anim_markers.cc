@@ -760,7 +760,7 @@ static bool ed_markers_poll_selected_markers(bContext &C)
 
   /* check if some marker is selected */
   if (ED_markers_get_first_selected(markers) == nullptr) {
-    CTX_wm_operator_poll_msg_set(&C, "No markers are selected");
+    CTX_wm_operator_poll_msg_set(C, "No markers are selected");
     return false;
   }
 
@@ -779,13 +779,13 @@ static bool ed_markers_poll_selected_no_locked_markers(bContext &C)
   }
 
   if (ts->lock_markers) {
-    CTX_wm_operator_poll_msg_set(&C, "Markers are locked");
+    CTX_wm_operator_poll_msg_set(C, "Markers are locked");
     return false;
   }
 
   /* check if some marker is selected */
   if (ED_markers_get_first_selected(markers) == nullptr) {
-    CTX_wm_operator_poll_msg_set(&C, "No markers are selected");
+    CTX_wm_operator_poll_msg_set(C, "No markers are selected");
     return false;
   }
 

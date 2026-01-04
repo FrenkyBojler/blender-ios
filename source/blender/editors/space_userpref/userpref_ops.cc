@@ -200,7 +200,7 @@ static void PREFERENCES_OT_asset_library_add(wmOperatorType *ot)
 static bool preferences_asset_library_remove_poll(bContext &C)
 {
   if (BLI_listbase_is_empty(&U.asset_libraries)) {
-    CTX_wm_operator_poll_msg_set(&C, "There is no asset library to remove");
+    CTX_wm_operator_poll_msg_set(C, "There is no asset library to remove");
     return false;
   }
   return true;
@@ -602,7 +602,7 @@ static void PREFERENCES_OT_extension_repo_add(wmOperatorType *ot)
 static bool preferences_extension_repo_remove_poll(bContext &C)
 {
   if (BLI_listbase_is_empty(&U.extension_repos)) {
-    CTX_wm_operator_poll_msg_set(&C, "There is no extension repository to remove");
+    CTX_wm_operator_poll_msg_set(C, "There is no extension repository to remove");
     return false;
   }
   return true;

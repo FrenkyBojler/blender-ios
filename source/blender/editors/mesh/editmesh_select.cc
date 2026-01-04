@@ -87,7 +87,7 @@ static bool edbm_vert_or_edge_select_mode_poll(bContext &C)
     }
   }
 
-  CTX_wm_operator_poll_msg_set(&C, "An edit-mesh with vertex or edge selection mode is required");
+  CTX_wm_operator_poll_msg_set(C, "An edit-mesh with vertex or edge selection mode is required");
 
   return false;
 }
@@ -5509,10 +5509,10 @@ static bool edbm_select_ungrouped_poll(bContext &C)
 
     const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(obedit);
     if ((em->selectmode & SCE_SELECT_VERTEX) == 0) {
-      CTX_wm_operator_poll_msg_set(&C, "Must be in vertex selection mode");
+      CTX_wm_operator_poll_msg_set(C, "Must be in vertex selection mode");
     }
     else if (BLI_listbase_is_empty(defbase) || cd_dvert_offset == -1) {
-      CTX_wm_operator_poll_msg_set(&C, "No weights/vertex groups on object");
+      CTX_wm_operator_poll_msg_set(C, "No weights/vertex groups on object");
     }
     else {
       return true;
@@ -6056,17 +6056,17 @@ static bool edbm_select_by_attribute_poll(bContext &C)
   AttributeOwner owner = AttributeOwner::from_id(&const_cast<ID &>(mesh->id));
   const std::optional<StringRef> name = BKE_attributes_active_name_get(owner);
   if (!name) {
-    CTX_wm_operator_poll_msg_set(&C, "There must be an active attribute");
+    CTX_wm_operator_poll_msg_set(C, "There must be an active attribute");
     return false;
   }
   const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, *name);
   if (attr.type != bke::AttrType::Bool) {
-    CTX_wm_operator_poll_msg_set(&C, "The active attribute must have a boolean type");
+    CTX_wm_operator_poll_msg_set(C, "The active attribute must have a boolean type");
     return false;
   }
   if (attr.domain == bke::AttrDomain::Corner) {
     CTX_wm_operator_poll_msg_set(
-        &C, "The active attribute must be on the vertex, edge, or face domain");
+        C, "The active attribute must be on the vertex, edge, or face domain");
     return false;
   }
   return true;

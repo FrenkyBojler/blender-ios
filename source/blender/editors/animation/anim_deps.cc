@@ -497,9 +497,9 @@ void ANIM_deselect_keys_in_animation_editors(bContext *C)
         continue;
       }
 
-      CTX_wm_window_set(C, &win);
-      CTX_wm_area_set(C, &area);
-      CTX_wm_region_set(C, window_region);
+      CTX_wm_window_set(*C, &win);
+      CTX_wm_area_set(*C, &area);
+      CTX_wm_region_set(*C, window_region);
       bAnimContext ac;
       if (!ANIM_animdata_get_context(C, &ac)) {
         continue;
@@ -517,9 +517,9 @@ void ANIM_deselect_keys_in_animation_editors(bContext *C)
     }
   }
 
-  CTX_wm_window_set(C, ctx_window);
-  CTX_wm_area_set(C, ctx_area);
-  CTX_wm_region_set(C, ctx_region);
+  CTX_wm_window_set(*C, ctx_window);
+  CTX_wm_area_set(*C, ctx_area);
+  CTX_wm_region_set(*C, ctx_region);
 
   for (bAction *dna_action : dna_actions) {
     animrig::action_deselect_keys(dna_action->wrap());

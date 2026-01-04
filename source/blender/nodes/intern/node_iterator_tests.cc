@@ -86,7 +86,7 @@ class TestData {
 
     if (C == nullptr) {
       C = CTX_create();
-      CTX_data_main_set(C, bmain);
+      CTX_data_main_set(*C, bmain);
     }
   }
 

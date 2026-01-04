@@ -28,7 +28,7 @@ const char *view3d_context_dir[] = {
     nullptr,
 };
 
-int view3d_context(const bContext *C, const char *member, bContextDataResult *result)
+int view3d_context(const bContext &C, const char *member, bContextDataResult *result)
 {
   /* fall back to the scene layer,
    * allows duplicate and other object operators to run outside the 3d view */
@@ -51,8 +51,8 @@ int view3d_context(const bContext *C, const char *member, bContextDataResult *re
      * without showing the object.
      *
      * See #85532 for alternatives that were considered. */
-    const Scene *scene = CTX_data_scene(*C);
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    const Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Base *base = BKE_view_layer_active_base_get(view_layer);
     if (base) {
@@ -69,7 +69,7 @@ int view3d_context(const bContext *C, const char *member, bContextDataResult *re
   }
   if (CTX_data_equals(member, "selected_ids")) {
     blender::Vector<PointerRNA> selected_objects;
-    CTX_data_selected_objects(*C, &selected_objects);
+    CTX_data_selected_objects(C, &selected_objects);
     for (const PointerRNA &ptr : selected_objects) {
       ID *selected_id = ptr.owner_id;
       CTX_data_id_list_add(result, selected_id);

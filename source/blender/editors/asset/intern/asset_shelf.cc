@@ -711,7 +711,7 @@ AssetShelf *active_shelf_from_area(const ScrArea *area)
   return shelf_regiondata->active_shelf;
 }
 
-int context(const bContext *C, const char *member, bContextDataResult *result)
+int context(const bContext &C, const char *member, bContextDataResult *result)
 {
   static const char *context_dir[] = {
       "asset_shelf",
@@ -725,10 +725,10 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
     return CTX_RESULT_OK;
   }
 
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
 
   if (CTX_data_equals(member, "asset_shelf")) {
-    AssetShelf *active_shelf = active_shelf_from_area(CTX_wm_area(*C));
+    AssetShelf *active_shelf = active_shelf_from_area(CTX_wm_area(C));
     if (!active_shelf) {
       return CTX_RESULT_NO_DATA;
     }
@@ -738,7 +738,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
   }
 
   if (CTX_data_equals(member, "asset_library_reference")) {
-    AssetShelf *active_shelf = active_shelf_from_area(CTX_wm_area(*C));
+    AssetShelf *active_shelf = active_shelf_from_area(CTX_wm_area(C));
     if (!active_shelf) {
       return CTX_RESULT_NO_DATA;
     }
@@ -751,7 +751,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
   }
 
   if (CTX_data_equals(member, "asset")) {
-    const ARegion *region = CTX_wm_region(*C);
+    const ARegion *region = CTX_wm_region(C);
     const ui::Button *but = ui::region_views_find_active_item_but(region);
     if (!but) {
       return CTX_RESULT_NO_DATA;
