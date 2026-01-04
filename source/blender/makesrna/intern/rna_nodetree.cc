@@ -1467,9 +1467,9 @@ static bNodeLink *rna_NodeTree_link_new(bNodeTree *ntree,
       blender::bke::node_remove_socket_links(*ntree, *tosock);
     }
     if (tosock->flag & SOCK_MULTI_INPUT) {
-      LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree->links) {
-        if (link->fromsock == fromsock && link->tosock == tosock) {
-          blender::bke::node_remove_link(ntree, *link);
+      for (bNodeLink &link : ntree->links.items_mutable()) {
+        if (link.fromsock == fromsock && link.tosock == tosock) {
+          blender::bke::node_remove_link(ntree, link);
         }
       }
     }
@@ -2189,7 +2189,7 @@ static void rna_GeometryNodeTree_node_tool_idname_set(PointerRNA *ptr, const cha
 {
   bNodeTree *ntree = ptr->data_as<bNodeTree>();
   if (!ntree->geometry_node_asset_traits) {
-    ntree->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+    ntree->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
   }
   if (ntree->geometry_node_asset_traits->node_tool_idname) {
     MEM_freeN(ntree->geometry_node_asset_traits->node_tool_idname);
@@ -2208,7 +2208,7 @@ static void geometry_node_asset_trait_flag_set(PointerRNA *ptr,
 {
   bNodeTree *ntree = ptr->data_as<bNodeTree>();
   if (!ntree->geometry_node_asset_traits) {
-    ntree->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+    ntree->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
   }
   SET_FLAG_FROM_TEST(ntree->geometry_node_asset_traits->flag, value, flag);
 }
@@ -2505,8 +2505,9 @@ static IDProperty **rna_Node_system_idprops(PointerRNA *ptr)
 static void rna_Node_parent_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
 {
   bNode *node = ptr->data_as<bNode>();
-  bNode *parent = static_cast<bNode *>(value.data);
+  bNode *parent = value.data_as<bNode>();
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
+  const bNodeTree *parent_ntree = reinterpret_cast<bNodeTree *>(value.owner_id);
 
   if (!parent) {
     blender::bke::node_detach_node(*ntree, *node);
@@ -2521,6 +2522,11 @@ static void rna_Node_parent_set(PointerRNA *ptr, PointerRNA value, ReportList * 
   }
 
   if (blender::bke::node_is_parent_and_child(*node, *parent)) {
+    return;
+  }
+
+  /* Only nodes from the same tree can be used as parents. */
+  if (parent_ntree != ntree) {
     return;
   }
 
@@ -2558,20 +2564,20 @@ static bNodeSocket *find_socket_by_key(bNode &node,
                                        const eNodeSocketInOut in_out,
                                        const blender::StringRef key)
 {
-  ListBase *sockets = in_out == SOCK_IN ? &node.inputs : &node.outputs;
+  ListBaseT<bNodeSocket> *sockets = in_out == SOCK_IN ? &node.inputs : &node.outputs;
   if (allow_identifier_lookup(node)) {
-    LISTBASE_FOREACH (bNodeSocket *, socket, sockets) {
-      if (socket->is_available()) {
-        if (socket->identifier == key) {
-          return socket;
+    for (bNodeSocket &socket : *sockets) {
+      if (socket.is_available()) {
+        if (socket.identifier == key) {
+          return &socket;
         }
       }
     }
   }
-  LISTBASE_FOREACH (bNodeSocket *, socket, sockets) {
-    if (socket->is_available()) {
-      if (socket->name == key) {
-        return socket;
+  for (bNodeSocket &socket : *sockets) {
+    if (socket.is_available()) {
+      if (socket.name == key) {
+        return &socket;
       }
     }
   }
@@ -3513,11 +3519,11 @@ static void rna_NodeCryptomatte_source_set(PointerRNA *ptr, int value)
 
 static int rna_NodeCryptomatte_layer_name_get(PointerRNA *ptr)
 {
-  int index = 0;
+
   bNode *node = ptr->data_as<bNode>();
   NodeCryptomatte *storage = static_cast<NodeCryptomatte *>(node->storage);
-  LISTBASE_FOREACH_INDEX (CryptomatteLayer *, layer, &storage->runtime.layers, index) {
-    if (STREQLEN(storage->layer_name, layer->name, sizeof(storage->layer_name))) {
+  for (const auto [index, layer] : storage->runtime.layers.enumerate()) {
+    if (STREQLEN(storage->layer_name, layer.name, sizeof(storage->layer_name))) {
       return index;
     }
   }
@@ -3547,11 +3553,10 @@ static const EnumPropertyItem *rna_NodeCryptomatte_layer_name_itemf(bContext * /
   EnumPropertyItem temp = {0, "", 0, "", ""};
   int totitem = 0;
 
-  int layer_index;
-  LISTBASE_FOREACH_INDEX (CryptomatteLayer *, layer, &storage->runtime.layers, layer_index) {
+  for (const auto [layer_index, layer] : storage->runtime.layers.enumerate()) {
     temp.value = layer_index;
-    temp.identifier = layer->name;
-    temp.name = layer->name;
+    temp.identifier = layer.name;
+    temp.name = layer.name;
     RNA_enum_item_add(&item, &totitem, &temp);
   }
 
@@ -5045,7 +5050,6 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
       {SHD_SKY_HOSEK, "HOSEK_WILKIE", 0, "Hosek / Wilkie", "Hosek / Wilkie 2012 (Legacy)"},
       {0, nullptr, 0, nullptr, nullptr},
   };
-  static float default_dir[3] = {0.0f, 0.0f, 1.0f};
 
   PropertyRNA *prop;
 
@@ -5125,7 +5129,6 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
   prop = RNA_def_property(srna, "sun_direction", PROP_FLOAT, PROP_DIRECTION);
   RNA_def_property_ui_text(prop, "Sun Direction", "Direction from where the sun is shining");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_float_array_default(prop, default_dir);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "turbidity", PROP_FLOAT, PROP_NONE);
@@ -6825,7 +6828,6 @@ static void def_cmp_cryptomatte_entry(BlenderRNA *brna)
 static void def_cmp_cryptomatte_common(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
-  static float default_1[3] = {1.0f, 1.0f, 1.0f};
 
   prop = RNA_def_property(srna, "matte_id", PROP_STRING, PROP_NONE);
   RNA_def_property_string_funcs(prop,
@@ -6838,7 +6840,6 @@ static void def_cmp_cryptomatte_common(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "add", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, nullptr, "runtime.add");
-  RNA_def_property_float_array_default(prop, default_1);
   RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
   RNA_def_property_ui_text(
       prop, "Add", "Add object or material to matte, by picking a color from the Pick output");
@@ -6847,7 +6848,6 @@ static void def_cmp_cryptomatte_common(BlenderRNA * /*brna*/, StructRNA *srna)
 
   prop = RNA_def_property(srna, "remove", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, nullptr, "runtime.remove");
-  RNA_def_property_float_array_default(prop, default_1);
   RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
   RNA_def_property_ui_text(
       prop,
