@@ -212,7 +212,7 @@ int ED_mesh_uv_add(
     }
 
     if (active_set || layernum_dst == 0) {
-      mesh->uv_maps_active_set(name);
+      mesh->uv_maps_active_set(unique_name);
     }
   }
 
