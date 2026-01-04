@@ -43,9 +43,9 @@ namespace blender::gpu::shader::parser {
 /* Structure holding an intermediate form of the source code.
  * It is made for fast traversal and mutation of source code. */
 struct IntermediateForm {
- private:
   TokenStream data_;
 
+ private:
   struct Mutation {
     /* Range of the original string to replace. */
     IndexRange src_range;

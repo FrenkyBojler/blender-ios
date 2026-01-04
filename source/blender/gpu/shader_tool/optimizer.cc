@@ -19,7 +19,8 @@ using namespace blender::gpu::shader;
 using namespace blender::gpu::shader::parser;
 using namespace std;
 
-static void process_disabled_scope(parser::IntermediateForm &parser, Token start_tok)
+/* Return the next valid token index. */
+static int process_disabled_scope(parser::IntermediateForm &parser, Token start_tok)
 {
   int stack = 0;
   Token hash = start_tok;
@@ -33,16 +34,71 @@ static void process_disabled_scope(parser::IntermediateForm &parser, Token start
     if (stack == 0 && directive_str.substr(0, 2) == "el") {
       /* Only erase the content and keep the preprocessor directives. */
       parser.erase(start_tok.scope().back().next(), hash.prev());
-      return;
+      return hash.index;
     }
     if (directive_str == "endif") {
       if (stack == 0) {
         /* Erase the content and the preprocessor directives. */
         parser.erase(start_tok, directive);
-        return;
+        return directive.index + 1;
       }
       stack--;
     }
+  }
+  /* Unterminated scope? */
+  return start_tok.index + 1;
+}
+
+static void process_directives(parser::IntermediateForm &parser,
+                               Token t,
+                               unordered_set<string_view> &defines,
+                               int &cursor)
+{
+  if (t.prev() != '#' || t.next() != Word) {
+    return;
+  }
+  /* Preprocessor. */
+  if (t.str() == "define") {
+    defines.insert(t.next().str());
+  }
+  else if (t.str() == "ifndef") {
+    if (defines.find(t.next().str()) != defines.end()) {
+      cursor = process_disabled_scope(parser, t.prev());
+    }
+  }
+  else if (t.str() == "ifdef") {
+    if (defines.find(t.next().str()) == defines.end()) {
+      cursor = process_disabled_scope(parser, t.prev());
+    }
+  }
+  else if (t.str() == "if") {
+    if (t.next().str() == "defined") {
+      if (defines.find(t.next().next().next().str()) == defines.end()) {
+        cursor = process_disabled_scope(parser, t.prev());
+      }
+    }
+  }
+}
+
+static void process_functions(parser::IntermediateForm & /*parser*/,
+                              Token t,
+                              unordered_map<string_view, Token> &functions)
+{
+  Token fn_name = t.prev();
+  Token fn_type = fn_name.prev();
+  /* Functions. */
+  if (fn_type == Word && fn_name.scope().type() != ScopeType::Preprocessor) {
+    /* Definition. */
+    functions.emplace(fn_name.str(), t);
+    return;
+  }
+  auto it = functions.find(fn_name.str());
+  if (it == functions.end()) {
+    /* Functions not defined: builtins, macros etc... */
+  }
+  else {
+    /* Functions Call. */
+    it->second = Token::invalid();
   }
 }
 
@@ -51,53 +107,25 @@ static void first_pass(parser::IntermediateForm &parser,
 {
   unordered_set<string_view> defines;
 
-  parser().foreach_token(Word, [&](const Token &t) {
-    if (t.prev() == '#' && t.next() == Word) {
-      /* Preprocessor. */
-      if (t.str() == "define") {
-        defines.insert(t.next().str());
-      }
-      else if (t.str() == "ifndef") {
-        if (defines.find(t.next().str()) != defines.end()) {
-          process_disabled_scope(parser, t.prev());
-        }
-      }
-      else if (t.str() == "ifdef") {
-        if (defines.find(t.next().str()) == defines.end()) {
-          process_disabled_scope(parser, t.prev());
-        }
-      }
-      else if (t.str() == "if") {
-        if (t.next().str() == "defined") {
-          if (defines.find(t.next().next().next().str()) == defines.end()) {
-            process_disabled_scope(parser, t.prev());
-          }
-        }
-      }
+  TokenStream *data = &parser.data_;
+
+  for (int cursor = 0; cursor < data->token_types.size(); cursor++) {
+    TokenType tok_type = TokenType(data->token_types[cursor]);
+    if (tok_type == Word) {
+      /* Disabled scopes will advance the cursor so we don't parse anything in them. */
+      process_directives(parser, Token::from_position(data, cursor), defines, cursor);
     }
-  });
+    else if (tok_type == ParOpen) {
+      process_functions(parser, Token::from_position(data, cursor), functions);
+    }
+  }
+
+  parser().foreach_token(Word, [&](const Token &t) {});
 }
 
 static void prune_functions(parser::IntermediateForm &parser,
                             unordered_map<string_view, Token> &functions)
 {
-  parser().foreach_token(ParOpen, [&](const Token &t) {
-    Token fn_name = t.prev();
-    Token fn_type = fn_name.prev();
-    /* Functions. */
-    if (fn_type == Word && fn_name.scope().type() != ScopeType::Preprocessor) {
-      /* Definition. */
-      functions.emplace(fn_name.str(), t);
-      return;
-    }
-    auto it = functions.find(fn_name.str());
-    if (it == functions.end()) {
-    }
-    else {
-      it->second = Token::invalid();
-    }
-  });
-
   for (auto [_, value] : functions) {
     if (value.is_valid() && value.str() != "main") {
       Token type = value.prev();
@@ -186,7 +214,6 @@ int main(int argc, char **argv)
       {
         unordered_map<string_view, Token> functions;
         first_pass(parser, functions);
-        parser.apply_mutations();
         prune_functions(parser, functions);
       }
       result = parser.result_get();
