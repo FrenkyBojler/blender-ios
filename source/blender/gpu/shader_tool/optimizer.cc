@@ -89,7 +89,7 @@ static void process_functions(parser::IntermediateForm & /*parser*/,
   /* Functions. */
   if (fn_type == Word && fn_name.scope().type() != ScopeType::Preprocessor) {
     /* Definition. */
-    functions.emplace(fn_name.str(), t);
+    functions.emplace(fn_name.str(), fn_name);
     return;
   }
   auto it = functions.find(fn_name.str());
@@ -103,7 +103,7 @@ static void process_functions(parser::IntermediateForm & /*parser*/,
 }
 
 static void first_pass(parser::IntermediateForm &parser,
-                       unordered_map<string_view, Token> functions)
+                       unordered_map<string_view, Token> &functions)
 {
   unordered_set<string_view> defines;
 
