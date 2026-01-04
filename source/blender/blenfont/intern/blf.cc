@@ -335,12 +335,21 @@ void BLF_disable(int fontid, FontFlags flag)
   }
 }
 
-void BLF_feature(int fontid, const char tag[4], int value)
+void BLF_otf_feature_set(int fontid, const char tag[4], int value)
 {
   FontBLF *font = blf_get(fontid);
   if (font) {
-    blf_font_feature(font, tag, value);
+    blf_font_otf_feature_set(font, tag, value);
   }
+}
+
+bool BLF_otf_feature_supported(int fontid, const char tag[4])
+{
+  FontBLF *font = blf_get(fontid);
+  if (font) {
+    return blf_font_otf_feature_supported(font, tag);
+  }
+  return false;
 }
 
 bool BLF_is_builtin(int fontid)
