@@ -172,15 +172,17 @@ int main(int argc, char **argv)
     for (int i = 0; i < 100; i++) {
       parser::IntermediateForm parser(test, report_error);
 
-      // {
-      //   unordered_map<string, Token> functions;
-      //   first_pass(parser, functions);
-      //   prune_functions(parser, functions);
-      // }
-      // result = parser.result_get();
+      {
+        unordered_map<string_view, Token> functions;
+        first_pass(parser, functions);
+        // prune_functions(parser, functions);
+      }
+      result = parser.result_get();
     }
   }
 
+  std::cout << "Size: " << (test.size() * 100) / 1000000.0f << " MB" << std::endl;
+  std::cout << "Time: " << time.count() / 1000.0f << " ms" << std::endl;
   std::cout << "Throughput: " << ((buffer.str().size() * 1000.f) / float(time.count())) << " MB/s"
             << std::endl;
 
