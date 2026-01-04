@@ -446,11 +446,11 @@ struct LightLinking {
 };
 
 struct Lod {
-  struct Lod *next, *prev;
-  struct Object *target;
-  float distance;
+  struct Lod *next = nullptr, *prev = nullptr;
+  struct Object *target = nullptr;
+  float distance = 0;
 
-  int _pad;
+  int _pad = {};
 };
 
 struct Object {
@@ -587,10 +587,9 @@ struct Object {
   float instance_faces_scale = 1;
   
   /** Distance based lod swap */
-  // ListBase lod_items;
-  ListBaseT<Lod> lod_items = {nullptr, nullptr};
-  int act_lod;
-  char _pad_lod[4];
+  ListBaseT<struct Lod> lod_items = {nullptr, nullptr};
+  int act_lod = 0;
+  char _pad_lod[4] = {};
 
   /** Custom index, for render-passes. */
   short index = 0;

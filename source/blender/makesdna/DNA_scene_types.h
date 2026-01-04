@@ -1750,9 +1750,9 @@ struct MeshStatVis {
 
 
 struct SceneLod {
-  char use_viewport;
-  char use_render;
-  char _pad[6];
+  char use_viewport = true;
+  char use_render = false;
+  char _pad[6] = {};
 };
 
 /** \} */
