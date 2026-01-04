@@ -527,7 +527,10 @@ SampleRect sample_rect(const SamplerSource &source);
  * Filtered sampling based on derivatives of the sample location. Only Sampler::Anisotropic
  * does something different here, all others call sample_rect.
  */
-using SampleArea = float4 (*)(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy);
+using SampleArea = float4 (*)(const SamplerSource &source,
+                              const float2 &uv,
+                              const float2 &dPdx,
+                              const float2 &dPdy);
 /** Lookup optimized function to call for \a source. */
 SampleArea sample_area(const SamplerSource &source);
 
@@ -559,5 +562,4 @@ void BLI_ewa_filter(int width,
                     ewa_filter_read_pixel_cb read_pixel_cb,
                     void *userdata,
                     float result[4],
-                    bool clip = true
-                  );
+                    bool clip = true);

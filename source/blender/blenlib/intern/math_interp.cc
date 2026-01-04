@@ -539,7 +539,7 @@ static const int MAX_PER_RADIUS = 8;
 static const int MAX_SAMPLES = 4 * MAX_PER_RADIUS + 1;
 
 /* Compute 1-d filters and sample locations. */
-template <Sampler sampler>
+template<Sampler sampler>
 BLI_INLINE int make_samples(int width,
                             InterpWrapMode wrap,
                             float u,
@@ -554,7 +554,8 @@ BLI_INLINE int make_samples(int width,
   float r;
   if constexpr (sampler == Sampler::Bspline) {
     r = 2.0f * w;
-  } else { /* sampler == Sampler::Box */
+  }
+  else { /* sampler == Sampler::Box */
     r = (w + 1.0f) / 2.0f;
   }
   float d = ceilf(w / MAX_PER_RADIUS);
@@ -567,7 +568,8 @@ BLI_INLINE int make_samples(int width,
     if constexpr (sampler == Sampler::Bspline) {
       weight = x < 1.0f ? (0.5f * x - 1.0f) * x * x + 4.0f / 6.0f :
                           ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
-    } else { /* sampler == Sampler::Box */
+    }
+    else { /* sampler == Sampler::Box */
       weight = math::min(r - math::abs(xx), 1.0f);
     }
     sum += weight;
@@ -585,16 +587,18 @@ BLI_INLINE int make_samples(int width,
   return count;
 }
 
-template <Sampler sampler>
+template<Sampler sampler>
 static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const float2 &wh)
 {
   int positions_y[MAX_SAMPLES];
   float weights_y[MAX_SAMPLES];
-  const int ny = make_samples<sampler>(source.height, source.wrap_y, uv.y, wh.y, positions_y, weights_y);
+  const int ny = make_samples<sampler>(
+      source.height, source.wrap_y, uv.y, wh.y, positions_y, weights_y);
 
   int positions_x[MAX_SAMPLES];
   float weights_x[MAX_SAMPLES];
-  const int nx = make_samples<sampler>(source.width, source.wrap_x, uv.x, wh.x, positions_x, weights_x);
+  const int nx = make_samples<sampler>(
+      source.width, source.wrap_x, uv.x, wh.x, positions_x, weights_x);
 
 #if BLI_HAVE_SSE2
   __m128 sum = _mm_set1_ps(0.0f);
@@ -603,7 +607,7 @@ static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const 
     const float *p = source.buffer + positions_y[i] * source.width * 4;
     for (int j = 0; j < nx; j++) {
       sumx = _mm_add_ps(
-        sumx, _mm_mul_ps(_mm_loadu_ps(p + positions_x[j] * 4), _mm_set1_ps(weights_x[j])));
+          sumx, _mm_mul_ps(_mm_loadu_ps(p + positions_x[j] * 4), _mm_set1_ps(weights_x[j])));
     }
     sum = _mm_add_ps(sum, _mm_mul_ps(sumx, _mm_set1_ps(weights_y[i])));
   }
@@ -623,25 +627,70 @@ static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const 
 }
 
 template<>
-float4 _sample_rect<Sampler::Nearest>(const SamplerSource &source, const float2 &uv, const float2 &)
+float4 _sample_rect<Sampler::Nearest>(const SamplerSource &source,
+                                      const float2 &uv,
+                                      const float2 &)
 {
   const int x = wrap_coord(uv.x, source.width, source.wrap_x);
   const int y = wrap_coord(uv.y, source.height, source.wrap_y);
   if (x < 0 || y < 0) {
     return float4(0.0f);
   }
-  return *(float4*)(source.buffer + (int64_t(source.width) * y + x) * 4);
+  return *(float4 *)(source.buffer + (int64_t(source.width) * y + x) * 4);
 }
 
 template<>
-float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source, const float2 &uv, const float2 &)
+float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source,
+                                       const float2 &uv,
+                                       const float2 &)
 {
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  interpolate_bilinear_wrapmode_fl(source.buffer, pixel_value,
-                   source.width, source.height, source.components,
-                   uv.x - 0.5f, uv.y - 0.5f,
-                   source.wrap_x, source.wrap_y);
-  return pixel_value;
+  const float x = uv.x - 0.5f; /* convert to pixel-center coordinates*/
+  const int x1 = wrap_coord(x, source.width, source.wrap_x);
+  const int x2 = wrap_coord(x + 1, source.width, source.wrap_x);
+
+  const float y = uv.y - 0.5f; /* convert to pixel-center coordinates*/
+  const int y1 = wrap_coord(y, source.height, source.wrap_y);
+  const int y2 = wrap_coord(y + 1, source.height, source.wrap_y);
+
+  const float *row1 = source.buffer + (int64_t(source.width) * y1 + x1) * 4;
+  const float *row2 = source.buffer + (int64_t(source.width) * y2 + x1) * 4;
+  const float *row3 = source.buffer + (int64_t(source.width) * y1 + x2) * 4;
+  const float *row4 = source.buffer + (int64_t(source.width) * y2 + x2) * 4;
+
+  static const float empty[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  if (x1 < 0) {
+    if (x2 < 0)
+      return float4(0.0f);
+    row1 = row2 = empty;
+  }
+  else if (x2 < 0) {
+    row3 = row4 = empty;
+  }
+  if (y1 < 0) {
+    if (y2 < 0)
+      return float4(0.0f);
+    row1 = row3 = empty;
+  }
+  else if (y2 < 0) {
+    row2 = row4 = empty;
+  }
+
+  float a = x - floorf(x);
+  float b = y - floorf(y);
+  float a_b = a * b;
+  float ma_b = (1.0f - a) * b;
+  float a_mb = a * (1.0f - b);
+  float ma_mb = (1.0f - a) * (1.0f - b);
+#if BLI_HAVE_SSE2
+  __m128 sum = _mm_mul_ps(_mm_set1_ps(ma_mb), _mm_loadu_ps(row1));
+  sum = _mm_add_ps(_mm_mul_ps(_mm_set1_ps(ma_b), _mm_loadu_ps(row2)), sum);
+  sum = _mm_add_ps(_mm_mul_ps(_mm_set1_ps(a_mb), _mm_loadu_ps(row3)), sum);
+  sum = _mm_add_ps(_mm_mul_ps(_mm_set1_ps(a_b), _mm_loadu_ps(row4)), sum);
+  return *(float4 *)(&sum);  //_mm_storeu_ps(output, sum);
+#else
+  return *(float4 *)row1 * ma_mb + *(float4 *)row2 * ma_b + *(float4 *)row3 * a_mb +
+         *(float4 *)row4 * a_b;
+#endif
 }
 
 SampleRect sample_rect(const SamplerSource &source)
@@ -664,43 +713,32 @@ BLI_INLINE float2 hypot(const float2 &a, const float2 &b)
   return float2{hypotf(a.x, b.x), hypotf(a.y, b.y)};
 }
 
-template <Sampler sampler>
-static float4 _sample_area(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy)
+template<Sampler sampler>
+static float4 _sample_area(const SamplerSource &source,
+                           const float2 &uv,
+                           const float2 &dPdx,
+                           const float2 &dPdy)
 {
   return _sample_rect<sampler>(source, uv, hypot(dPdx, dPdy));
 }
 
 // specializations that skip unused computation of hypot
 template<>
-float4 _sample_area<Sampler::Nearest>(const SamplerSource &source, const float2 &uv, const float2 &, const float2 &)
+float4 _sample_area<Sampler::Nearest>(const SamplerSource &source,
+                                      const float2 &uv,
+                                      const float2 &dPdx,
+                                      const float2 &)
 {
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  interpolate_nearest_wrapmode_fl(source.buffer,
-                                  pixel_value,
-                                  source.width,
-                                  source.height,
-                                  source.components,
-                                  uv.x,
-                                  uv.y,
-                                  source.wrap_x,
-                                  source.wrap_y);
-  return pixel_value;
+  return _sample_rect<Sampler::Nearest>(source, uv, dPdx);
 }
 
 template<>
-float4 _sample_area<Sampler::Bilinear>(const SamplerSource &source, const float2 &uv, const float2 &, const float2 &)
+float4 _sample_area<Sampler::Bilinear>(const SamplerSource &source,
+                                       const float2 &uv,
+                                       const float2 &dPdx,
+                                       const float2 &)
 {
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  interpolate_bilinear_wrapmode_fl(source.buffer,
-                                   pixel_value,
-                                   source.width,
-                                   source.height,
-                                   source.components,
-                                   uv.x - 0.5f,
-                                   uv.y - 0.5f,
-                                   source.wrap_x,
-                                   source.wrap_y);
-  return pixel_value;
+  return _sample_rect<Sampler::Bilinear>(source, uv, dPdx);
 }
 
 BLI_INLINE int32_t wrap_coord_i(int32_t u, int32_t size, InterpWrapMode wrap)
@@ -723,7 +761,8 @@ BLI_INLINE int32_t wrap_coord_i(int32_t u, int32_t size, InterpWrapMode wrap)
       return 0;
     case InterpWrapMode::Repeat: {
       int32_t x = u % size;
-      return x ? x + size : 0; }
+      return x ? x + size : 0;
+    }
     case InterpWrapMode::Border:
       return -1;
   }
@@ -731,7 +770,7 @@ BLI_INLINE int32_t wrap_coord_i(int32_t u, int32_t size, InterpWrapMode wrap)
 
 static void read_callback(void *userdata, int u, int v, float result[4])
 {
-  const SamplerSource &source = *(SamplerSource*)userdata;
+  const SamplerSource &source = *(SamplerSource *)userdata;
   int x = wrap_coord_i(u, source.width, source.wrap_x);
   int y = wrap_coord_i(v, source.height, source.wrap_y);
   if (x < 0 || y < 0) {
@@ -744,46 +783,63 @@ static void read_callback(void *userdata, int u, int v, float result[4])
       result[0] = result[1] = result[2] = result[3] = *data;
       break;
     case 2:
-      result[0] = data[0]; result[1] = data[1]; result[2] = 0.0f; result[3] = 1.0f;
+      result[0] = data[0];
+      result[1] = data[1];
+      result[2] = 0.0f;
+      result[3] = 1.0f;
       break;
     case 3:
-      result[0] = data[0]; result[1] = data[1]; result[2] = data[2]; result[3] = 1.0f;
+      result[0] = data[0];
+      result[1] = data[1];
+      result[2] = data[2];
+      result[3] = 1.0f;
       break;
     case 4:
-      result[0] = data[0]; result[1] = data[1]; result[2] = data[2]; result[3] = data[3];
+      result[0] = data[0];
+      result[1] = data[1];
+      result[2] = data[2];
+      result[3] = data[3];
       break;
   }
 }
 
-static float4 sample_anisotropic(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy)
+static float4 sample_anisotropic(const SamplerSource &source,
+                                 const float2 &uv,
+                                 const float2 &dPdx,
+                                 const float2 &dPdy)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   float2 scale = 1.0f / float2(float(source.width), float(source.height));
-  BLI_ewa_filter(source.width, source.height,
+  BLI_ewa_filter(source.width,
+                 source.height,
                  false,
                  true,
                  uv * scale,
                  dPdx * scale,
                  dPdy * scale,
                  read_callback,
-                 (void*)&source,
+                 (void *)&source,
                  pixel_value,
                  false);
   return pixel_value;
 }
 
-static float4 sample_anisotropic_clip(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy)
+static float4 sample_anisotropic_clip(const SamplerSource &source,
+                                      const float2 &uv,
+                                      const float2 &dPdx,
+                                      const float2 &dPdy)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   float2 scale = 1.0f / float2(float(source.width), float(source.height));
-  BLI_ewa_filter(source.width, source.height,
+  BLI_ewa_filter(source.width,
+                 source.height,
                  false,
                  true,
                  uv * scale,
                  dPdx * scale,
                  dPdy * scale,
                  read_callback,
-                 (void*)&source,
+                 (void *)&source,
                  pixel_value,
                  true);
   return pixel_value;
@@ -803,10 +859,10 @@ SampleArea sample_area(const SamplerSource &source)
       return _sample_area<Sampler::Bspline>;
     case Sampler::Anisotropic:
       return source.wrap_x == InterpWrapMode::Border && source.wrap_y == InterpWrapMode::Border ?
-        sample_anisotropic_clip : sample_anisotropic;
+                 sample_anisotropic_clip :
+                 sample_anisotropic;
   }
 }
-
 
 }  // namespace blender::math
 

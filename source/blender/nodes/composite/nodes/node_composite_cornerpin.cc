@@ -174,7 +174,8 @@ class CornerPinOperation : public NodeOperation {
       GPU_texture_anisotropic_filter(input_image, true);
       GPU_texture_mipmap_mode(input_image, true, true);
       GPU_texture_update_mipmap_chain(input_image);
-    } else {
+    }
+    else {
       GPU_texture_filter_mode(input_image, use_bilinear);
     }
     GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
