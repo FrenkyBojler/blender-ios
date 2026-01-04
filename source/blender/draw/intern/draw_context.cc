@@ -812,6 +812,15 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       /* Base-object LOD selection probe */
       ObjectRef ob_ref_probe(ob, data_.dupli_parent, data_.dupli_object_current);
       lod_target = DRW_object_lod_select(ob_ref_probe, draw_ctx, data_.dupli_object_current);
+
+      if (lod_target) {
+        /* Guard against non-evaluated / hidden objects */
+        if (!DEG_is_evaluated(lod_target) ||
+            !DEG_iterator_object_is_visible(eval_mode, lod_target))
+        {
+          lod_target = nullptr;
+        }
+      }
     }
 
     /* Draw base object only if NO LOD is active */
