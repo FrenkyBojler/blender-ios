@@ -375,15 +375,15 @@ bool ensure_active_keyframe(const Scene &scene,
   return true;
 }
 
-static wmOperatorStatus insert_blank_frame_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus insert_blank_frame_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::bke::greasepencil;
-  Scene *scene = CTX_data_scene(*C);
-  Object *object = CTX_data_active_object(*C);
+  Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   const int current_frame = scene->r.cfra;
-  const bool all_layers = RNA_boolean_get(op->ptr, "all_layers");
-  const int duration = RNA_int_get(op->ptr, "duration");
+  const bool all_layers = RNA_boolean_get(op.ptr, "all_layers");
+  const int duration = RNA_int_get(op.ptr, "duration");
 
   bool changed = false;
   if (all_layers) {
@@ -404,8 +404,8 @@ static wmOperatorStatus insert_blank_frame_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
-    WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -505,12 +505,12 @@ static bool curves_geometry_is_equal(const bke::CurvesGeometry &curves_a,
   return true;
 }
 
-static wmOperatorStatus frame_clean_duplicate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus frame_clean_duplicate_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::bke::greasepencil;
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const bool selected = RNA_boolean_get(op->ptr, "selected");
+  const bool selected = RNA_boolean_get(op.ptr, "selected");
 
   bool changed = false;
 
@@ -560,8 +560,8 @@ static wmOperatorStatus frame_clean_duplicate_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
-    WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -796,13 +796,13 @@ bool grease_pencil_paste_keyframes(bAnimContext *ac,
   return true;
 }
 
-static wmOperatorStatus grease_pencil_frame_duplicate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_frame_duplicate_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::bke::greasepencil;
-  Scene *scene = CTX_data_scene(*C);
-  Object *object = CTX_data_active_object(*C);
+  Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const bool only_active = !RNA_boolean_get(op->ptr, "all");
+  const bool only_active = !RNA_boolean_get(op.ptr, "all");
   const int current_frame = scene->r.cfra;
   bool changed = false;
 
@@ -834,7 +834,7 @@ static wmOperatorStatus grease_pencil_frame_duplicate_exec(bContext *C, wmOperat
   }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -857,13 +857,13 @@ static void GREASE_PENCIL_OT_frame_duplicate(wmOperatorType *ot)
       ot->srna, "all", false, "Duplicate all", "Duplicate active keyframes of all layer");
 }
 
-static wmOperatorStatus grease_pencil_active_frame_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_active_frame_delete_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::bke::greasepencil;
-  Scene *scene = CTX_data_scene(*C);
-  Object *object = CTX_data_active_object(*C);
+  Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const bool only_active = !RNA_boolean_get(op->ptr, "all");
+  const bool only_active = !RNA_boolean_get(op.ptr, "all");
   const int current_frame = scene->r.cfra;
   bool changed = false;
 
@@ -892,7 +892,7 @@ static wmOperatorStatus grease_pencil_active_frame_delete_exec(bContext *C, wmOp
   }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -914,13 +914,13 @@ static void GREASE_PENCIL_OT_active_frame_delete(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "all", false, "Delete all", "Delete active keyframes of all layers");
 }
 
-static bool grease_pencil_active_breakdown_frame_poll(bContext *C)
+static bool grease_pencil_active_breakdown_frame_poll(bContext &C)
 {
   if (!active_grease_pencil_poll(C)) {
     return false;
   }
-  const Object &ob = *CTX_data_active_object(*C);
-  const Scene &scene = *CTX_data_scene(*C);
+  const Object &ob = *CTX_data_active_object(C);
+  const Scene &scene = *CTX_data_scene(C);
 
   /* Ensure that there is a breakdown keyframe visible at the current frame. */
   const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob.data);
@@ -933,11 +933,11 @@ static bool grease_pencil_active_breakdown_frame_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus grease_pencil_delete_breakdown_frames_exec(bContext *C,
-                                                                   wmOperator * /*op*/)
+static wmOperatorStatus grease_pencil_delete_breakdown_frames_exec(bContext &C,
+                                                                   wmOperator & /*op*/)
 {
-  const Object &ob = *CTX_data_active_object(*C);
-  const Scene &scene = *CTX_data_scene(*C);
+  const Object &ob = *CTX_data_active_object(C);
+  const Scene &scene = *CTX_data_scene(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob.data);
   bke::greasepencil::Layer *active_layer = grease_pencil.get_active_layer();
   const int current_frame = active_layer->start_frame_at(scene.r.cfra).value();
@@ -972,7 +972,7 @@ static wmOperatorStatus grease_pencil_delete_breakdown_frames_exec(bContext *C,
   grease_pencil.remove_frames(*active_layer, frame_numbers_to_remove);
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }

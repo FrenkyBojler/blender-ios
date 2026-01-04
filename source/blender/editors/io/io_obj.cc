@@ -74,64 +74,64 @@ static const EnumPropertyItem io_obj_mtl_name_collision_mode[] = {
      "Use existing materials with same name instead of creating new ones"},
     {0, nullptr, 0, nullptr, nullptr}};
 
-static wmOperatorStatus wm_obj_export_invoke(bContext *C,
-                                             wmOperator *op,
+static wmOperatorStatus wm_obj_export_invoke(bContext &C,
+                                             wmOperator &op,
                                              const wmEvent * /*event*/)
 {
-  ED_fileselect_ensure_default_filepath(C, op, ".obj");
+  ED_fileselect_ensure_default_filepath(&C, &op, ".obj");
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_obj_export_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_obj_export_exec(bContext &C, wmOperator &op)
 {
-  if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+  if (!RNA_struct_property_is_set_ex(op.ptr, "filepath", false)) {
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
   OBJExportParams export_params;
   export_params.file_base_for_tests[0] = '\0';
-  RNA_string_get(op->ptr, "filepath", export_params.filepath);
-  export_params.blen_filepath = CTX_data_main(*C)->filepath;
-  export_params.export_animation = RNA_boolean_get(op->ptr, "export_animation");
-  export_params.start_frame = RNA_int_get(op->ptr, "start_frame");
-  export_params.end_frame = RNA_int_get(op->ptr, "end_frame");
+  RNA_string_get(op.ptr, "filepath", export_params.filepath);
+  export_params.blen_filepath = CTX_data_main(C)->filepath;
+  export_params.export_animation = RNA_boolean_get(op.ptr, "export_animation");
+  export_params.start_frame = RNA_int_get(op.ptr, "start_frame");
+  export_params.end_frame = RNA_int_get(op.ptr, "end_frame");
 
-  export_params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
-  export_params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
-  export_params.global_scale = RNA_float_get(op->ptr, "global_scale");
-  export_params.apply_modifiers = RNA_boolean_get(op->ptr, "apply_modifiers");
-  export_params.apply_transform = RNA_boolean_get(op->ptr, "apply_transform");
-  export_params.export_eval_mode = eEvaluationMode(RNA_enum_get(op->ptr, "export_eval_mode"));
+  export_params.forward_axis = eIOAxis(RNA_enum_get(op.ptr, "forward_axis"));
+  export_params.up_axis = eIOAxis(RNA_enum_get(op.ptr, "up_axis"));
+  export_params.global_scale = RNA_float_get(op.ptr, "global_scale");
+  export_params.apply_modifiers = RNA_boolean_get(op.ptr, "apply_modifiers");
+  export_params.apply_transform = RNA_boolean_get(op.ptr, "apply_transform");
+  export_params.export_eval_mode = eEvaluationMode(RNA_enum_get(op.ptr, "export_eval_mode"));
 
-  export_params.export_selected_objects = RNA_boolean_get(op->ptr, "export_selected_objects");
-  export_params.export_uv = RNA_boolean_get(op->ptr, "export_uv");
-  export_params.export_normals = RNA_boolean_get(op->ptr, "export_normals");
-  export_params.export_colors = RNA_boolean_get(op->ptr, "export_colors");
-  export_params.export_materials = RNA_boolean_get(op->ptr, "export_materials");
-  export_params.path_mode = ePathReferenceMode(RNA_enum_get(op->ptr, "path_mode"));
-  export_params.export_triangulated_mesh = RNA_boolean_get(op->ptr, "export_triangulated_mesh");
-  export_params.export_curves_as_nurbs = RNA_boolean_get(op->ptr, "export_curves_as_nurbs");
-  export_params.export_pbr_extensions = RNA_boolean_get(op->ptr, "export_pbr_extensions");
+  export_params.export_selected_objects = RNA_boolean_get(op.ptr, "export_selected_objects");
+  export_params.export_uv = RNA_boolean_get(op.ptr, "export_uv");
+  export_params.export_normals = RNA_boolean_get(op.ptr, "export_normals");
+  export_params.export_colors = RNA_boolean_get(op.ptr, "export_colors");
+  export_params.export_materials = RNA_boolean_get(op.ptr, "export_materials");
+  export_params.path_mode = ePathReferenceMode(RNA_enum_get(op.ptr, "path_mode"));
+  export_params.export_triangulated_mesh = RNA_boolean_get(op.ptr, "export_triangulated_mesh");
+  export_params.export_curves_as_nurbs = RNA_boolean_get(op.ptr, "export_curves_as_nurbs");
+  export_params.export_pbr_extensions = RNA_boolean_get(op.ptr, "export_pbr_extensions");
 
-  export_params.export_object_groups = RNA_boolean_get(op->ptr, "export_object_groups");
-  export_params.export_material_groups = RNA_boolean_get(op->ptr, "export_material_groups");
-  export_params.export_vertex_groups = RNA_boolean_get(op->ptr, "export_vertex_groups");
-  export_params.export_smooth_groups = RNA_boolean_get(op->ptr, "export_smooth_groups");
-  export_params.smooth_groups_bitflags = RNA_boolean_get(op->ptr, "smooth_group_bitflags");
+  export_params.export_object_groups = RNA_boolean_get(op.ptr, "export_object_groups");
+  export_params.export_material_groups = RNA_boolean_get(op.ptr, "export_material_groups");
+  export_params.export_vertex_groups = RNA_boolean_get(op.ptr, "export_vertex_groups");
+  export_params.export_smooth_groups = RNA_boolean_get(op.ptr, "export_smooth_groups");
+  export_params.smooth_groups_bitflags = RNA_boolean_get(op.ptr, "smooth_group_bitflags");
 
-  export_params.reports = op->reports;
+  export_params.reports = op.reports;
 
-  RNA_string_get(op->ptr, "collection", export_params.collection);
+  RNA_string_get(op.ptr, "collection", export_params.collection);
 
-  OBJ_export(C, &export_params);
+  OBJ_export(&C, &export_params);
 
-  if (BKE_reports_contain(op->reports, RPT_ERROR)) {
+  if (BKE_reports_contain(op.reports, RPT_ERROR)) {
     return OPERATOR_CANCELLED;
   }
 
-  BKE_report(op->reports, RPT_INFO, "File exported successfully");
+  BKE_report(op.reports, RPT_INFO, "File exported successfully");
   return OPERATOR_FINISHED;
 }
 
@@ -218,30 +218,30 @@ static void ui_obj_export_settings(const bContext *C, blender::ui::Layout &layou
   }
 }
 
-static void wm_obj_export_draw(bContext *C, wmOperator *op)
+static void wm_obj_export_draw(bContext &C, wmOperator &op)
 {
-  ui_obj_export_settings(C, *op->layout, op->ptr);
+  ui_obj_export_settings(&C, *op.layout, op.ptr);
 }
 
 /**
  * Return true if any property in the UI is changed.
  */
-static bool wm_obj_export_check(bContext *C, wmOperator *op)
+static bool wm_obj_export_check(bContext &C, wmOperator &op)
 {
   char filepath[FILE_MAX];
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   bool changed = false;
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   if (!BLI_path_extension_check(filepath, ".obj")) {
     BLI_path_extension_ensure(filepath, FILE_MAX, ".obj");
-    RNA_string_set(op->ptr, "filepath", filepath);
+    RNA_string_set(op.ptr, "filepath", filepath);
     changed = true;
   }
 
   {
-    int start = RNA_int_get(op->ptr, "start_frame");
-    int end = RNA_int_get(op->ptr, "end_frame");
+    int start = RNA_int_get(op.ptr, "start_frame");
+    int end = RNA_int_get(op.ptr, "end_frame");
     /* Set the defaults. */
     if (start == INT_MIN) {
       start = scene->r.sfra;
@@ -256,8 +256,8 @@ static bool wm_obj_export_check(bContext *C, wmOperator *op)
       end = start;
       changed = true;
     }
-    RNA_int_set(op->ptr, "start_frame", start);
-    RNA_int_set(op->ptr, "end_frame", end);
+    RNA_int_set(op.ptr, "start_frame", start);
+    RNA_int_set(op.ptr, "end_frame", end);
   }
   return changed;
 }
@@ -426,46 +426,46 @@ void WM_OT_obj_export(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-static wmOperatorStatus wm_obj_import_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_obj_import_exec(bContext &C, wmOperator &op)
 {
   OBJImportParams import_params;
-  import_params.global_scale = RNA_float_get(op->ptr, "global_scale");
-  import_params.clamp_size = RNA_float_get(op->ptr, "clamp_size");
-  import_params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
-  import_params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
-  import_params.use_split_objects = RNA_boolean_get(op->ptr, "use_split_objects");
-  import_params.use_split_groups = RNA_boolean_get(op->ptr, "use_split_groups");
-  import_params.import_vertex_groups = RNA_boolean_get(op->ptr, "import_vertex_groups");
-  import_params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
-  import_params.close_spline_loops = RNA_boolean_get(op->ptr, "close_spline_loops");
+  import_params.global_scale = RNA_float_get(op.ptr, "global_scale");
+  import_params.clamp_size = RNA_float_get(op.ptr, "clamp_size");
+  import_params.forward_axis = eIOAxis(RNA_enum_get(op.ptr, "forward_axis"));
+  import_params.up_axis = eIOAxis(RNA_enum_get(op.ptr, "up_axis"));
+  import_params.use_split_objects = RNA_boolean_get(op.ptr, "use_split_objects");
+  import_params.use_split_groups = RNA_boolean_get(op.ptr, "use_split_groups");
+  import_params.import_vertex_groups = RNA_boolean_get(op.ptr, "import_vertex_groups");
+  import_params.validate_meshes = RNA_boolean_get(op.ptr, "validate_meshes");
+  import_params.close_spline_loops = RNA_boolean_get(op.ptr, "close_spline_loops");
   char separator[2] = {};
-  RNA_string_get(op->ptr, "collection_separator", separator);
+  RNA_string_get(op.ptr, "collection_separator", separator);
   import_params.collection_separator = separator[0];
   import_params.relative_paths = ((U.flag & USER_RELPATHS) != 0);
   import_params.clear_selection = true;
   import_params.mtl_name_collision_mode = eOBJMtlNameCollisionMode(
-      RNA_enum_get(op->ptr, "mtl_name_collision_mode"));
+      RNA_enum_get(op.ptr, "mtl_name_collision_mode"));
 
-  import_params.reports = op->reports;
+  import_params.reports = op.reports;
 
-  const auto paths = blender::ed::io::paths_from_operator_properties(op->ptr);
+  const auto paths = blender::ed::io::paths_from_operator_properties(op.ptr);
 
   if (paths.is_empty()) {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
   for (const auto &path : paths) {
     STRNCPY(import_params.filepath, path.c_str());
-    OBJ_import(C, &import_params);
+    OBJ_import(&C, &import_params);
     /* Only first import clears selection. */
     import_params.clear_selection = false;
   };
 
-  Scene *scene = CTX_data_scene(*C);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
-  ED_outliner_select_sync_from_object_tag(C);
+  Scene *scene = CTX_data_scene(C);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  ED_outliner_select_sync_from_object_tag(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -503,9 +503,9 @@ static void ui_obj_import_settings(const bContext *C, blender::ui::Layout &layou
   }
 }
 
-static void wm_obj_import_draw(bContext *C, wmOperator *op)
+static void wm_obj_import_draw(bContext &C, wmOperator &op)
 {
-  ui_obj_import_settings(C, *op->layout, op->ptr);
+  ui_obj_import_settings(&C, *op.layout, op.ptr);
 }
 
 void WM_OT_obj_import(wmOperatorType *ot)

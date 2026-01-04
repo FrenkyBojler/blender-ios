@@ -222,10 +222,10 @@ static void init_operation(gesture::GestureData &gesture_data, wmOperator & /*op
   project_operation->operation.end = gesture_end;
 }
 
-static wmOperatorStatus gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_line_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -233,14 +233,14 @@ static wmOperatorStatus gesture_line_invoke(bContext *C, wmOperator *op, const w
   return WM_gesture_straightline_active_side_invoke(C, op, event);
 }
 
-static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_line_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  init_operation(*gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  init_operation(*gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 

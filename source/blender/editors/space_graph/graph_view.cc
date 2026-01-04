@@ -184,14 +184,14 @@ void get_graph_keyframe_extents(bAnimContext *ac,
 /** \name Automatic Preview-Range Operator
  * \{ */
 
-static wmOperatorStatus graphkeys_previewrange_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_previewrange_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
   Scene *scene;
   float min, max;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   if (ac.scene == nullptr) {
@@ -208,7 +208,7 @@ static wmOperatorStatus graphkeys_previewrange_exec(bContext *C, wmOperator * /*
 
   /* Set notifier that things have changed. */
   /* XXX: Err... there's nothing for frame ranges yet, but this should do fine too. */
-  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, ac.scene);
 
   return OPERATOR_FINISHED;
 }
@@ -274,22 +274,22 @@ static wmOperatorStatus graphkeys_viewall(bContext *C,
 
 /* ......... */
 
-static wmOperatorStatus graphkeys_viewall_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_viewall_exec(bContext &C, wmOperator &op)
 {
-  const bool include_handles = RNA_boolean_get(op->ptr, "include_handles");
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  const bool include_handles = RNA_boolean_get(op.ptr, "include_handles");
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
   /* Whole range */
-  return graphkeys_viewall(C, false, include_handles, smooth_viewtx);
+  return graphkeys_viewall(&C, false, include_handles, smooth_viewtx);
 }
 
-static wmOperatorStatus graphkeys_view_selected_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_view_selected_exec(bContext &C, wmOperator &op)
 {
-  const bool include_handles = RNA_boolean_get(op->ptr, "include_handles");
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  const bool include_handles = RNA_boolean_get(op.ptr, "include_handles");
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
   /* Only selected. */
-  return graphkeys_viewall(C, true, include_handles, smooth_viewtx);
+  return graphkeys_viewall(&C, true, include_handles, smooth_viewtx);
 }
 
 /* ......... */
@@ -346,10 +346,10 @@ void GRAPH_OT_view_selected(wmOperatorType *ot)
 /** \name View Frame Operator
  * \{ */
 
-static wmOperatorStatus graphkeys_view_frame_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_view_frame_exec(bContext &C, wmOperator &op)
 {
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-  ANIM_center_frame(C, smooth_viewtx);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
+  ANIM_center_frame(&C, smooth_viewtx);
   return OPERATOR_FINISHED;
 }
 
@@ -449,14 +449,14 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 
 /* ------------------- */
 
-static wmOperatorStatus graphkeys_create_ghostcurves_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_create_ghostcurves_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
   View2D *v2d;
   int start, end;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -470,7 +470,7 @@ static wmOperatorStatus graphkeys_create_ghostcurves_exec(bContext *C, wmOperato
   create_ghost_curves(&ac, start, end);
 
   /* Update this editor only. */
-  ED_area_tag_redraw(CTX_wm_area(*C));
+  ED_area_tag_redraw(CTX_wm_area(C));
 
   return OPERATOR_FINISHED;
 }
@@ -501,13 +501,13 @@ void GRAPH_OT_ghost_curves_create(wmOperatorType *ot)
  * This operator clears the 'ghost curves' for the active Graph Editor.
  * \{ */
 
-static wmOperatorStatus graphkeys_clear_ghostcurves_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_clear_ghostcurves_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
   SpaceGraph *sipo;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   sipo = (SpaceGraph *)ac.sl;
@@ -520,7 +520,7 @@ static wmOperatorStatus graphkeys_clear_ghostcurves_exec(bContext *C, wmOperator
   BKE_fcurves_free(&sipo->runtime.ghost_curves);
 
   /* Update this editor only. */
-  ED_area_tag_redraw(CTX_wm_area(*C));
+  ED_area_tag_redraw(CTX_wm_area(C));
 
   return OPERATOR_FINISHED;
 }

@@ -26,14 +26,14 @@
 
 namespace blender::ed::curves {
 
-static wmOperatorStatus separate_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus separate_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   VectorSet<Curves *> src_curves;
   for (Base *base_src : bases) {
@@ -112,8 +112,8 @@ static wmOperatorStatus separate_exec(bContext *C, wmOperator * /*op*/)
 
     DEG_id_tag_update(&src->id, ID_RECALC_GEOMETRY);
     DEG_id_tag_update(&dst->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, base_src->object);
-    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, object_dst);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, base_src->object);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, object_dst);
   }
 
   DEG_relations_tag_update(bmain);

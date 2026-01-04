@@ -319,9 +319,9 @@ static NodeClipboard &get_node_clipboard()
 /** \name Copy
  * \{ */
 
-static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_clipboard_copy_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceNode &snode = *CTX_wm_space_node(*C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &tree = *snode.edittree;
   NodeClipboard &clipboard = get_node_clipboard();
 
@@ -387,25 +387,25 @@ void NODE_OT_clipboard_copy(wmOperatorType *ot)
 /** \name Paste
  * \{ */
 
-static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_clipboard_paste_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  SpaceNode &snode = *CTX_wm_space_node(*C);
+  Main *bmain = CTX_data_main(C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &tree = *snode.edittree;
   NodeClipboard &clipboard = get_node_clipboard();
 
   if (clipboard.nodes.is_empty()) {
-    BKE_report(op->reports, RPT_ERROR, "The internal clipboard is empty");
+    BKE_report(op.reports, RPT_ERROR, "The internal clipboard is empty");
     return OPERATOR_CANCELLED;
   }
 
   if (!clipboard.paste_validate_id_references(*bmain)) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_WARNING,
                "Some nodes references to other IDs could not be restored, will be left empty");
   }
 
-  ED_preview_kill_jobs(CTX_wm_manager(*C), CTX_data_main(*C));
+  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
   node_deselect_all(tree);
 
@@ -451,7 +451,7 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
     }
     else {
       if (disabled_hint) {
-        BKE_reportf(op->reports,
+        BKE_reportf(op.reports,
                     RPT_ERROR,
                     "Cannot add node %s into node tree %s: %s",
                     node.name,
@@ -459,7 +459,7 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
                     disabled_hint);
       }
       else {
-        BKE_reportf(op->reports,
+        BKE_reportf(op.reports,
                     RPT_ERROR,
                     "Cannot add node %s into node tree %s",
                     node.name,
@@ -486,8 +486,8 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
     bke::node_set_active(tree, *new_active_node);
   }
 
-  PropertyRNA *offset_prop = RNA_struct_find_property(op->ptr, "offset");
-  if (RNA_property_is_set(op->ptr, offset_prop)) {
+  PropertyRNA *offset_prop = RNA_struct_find_property(op.ptr, "offset");
+  if (RNA_property_is_set(op.ptr, offset_prop)) {
     float2 center(0);
     for (NodeClipboardItem &item : clipboard.nodes) {
       center.x += BLI_rctf_cent_x(&item.draw_rect);
@@ -497,7 +497,7 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
     center /= clipboard.nodes.size();
 
     float2 mouse_location;
-    RNA_property_float_get_array(op->ptr, offset_prop, mouse_location);
+    RNA_property_float_get_array(op.ptr, offset_prop, mouse_location);
     const float2 offset = (mouse_location - center) / UI_SCALE_FAC;
 
     for (bNode *new_node : node_map.values()) {
@@ -541,14 +541,14 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus node_clipboard_paste_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus node_clipboard_paste_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent *event)
 {
-  const ARegion *region = CTX_wm_region(*C);
+  const ARegion *region = CTX_wm_region(C);
   float2 cursor;
   ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &cursor.x, &cursor.y);
-  RNA_float_set_array(op->ptr, "offset", cursor);
+  RNA_float_set_array(op.ptr, "offset", cursor);
   return node_clipboard_paste_exec(C, op);
 }
 

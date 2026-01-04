@@ -176,14 +176,14 @@ static void solve_camera_freejob(void *scv)
   MEM_freeN(scj);
 }
 
-static wmOperatorStatus solve_camera_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus solve_camera_exec(bContext &C, wmOperator &op)
 {
   SolveCameraJob *scj;
   char error_msg[256] = "\0";
   scj = MEM_new_for_free<SolveCameraJob>("SolveCameraJob data");
-  if (!solve_camera_initjob(C, scj, op, error_msg, sizeof(error_msg))) {
+  if (!solve_camera_initjob(&C, scj, &op, error_msg, sizeof(error_msg))) {
     if (error_msg[0]) {
-      BKE_report(op->reports, RPT_ERROR, error_msg);
+      BKE_report(op.reports, RPT_ERROR, error_msg);
     }
     solve_camera_freejob(scj);
     return OPERATOR_CANCELLED;
@@ -194,10 +194,10 @@ static wmOperatorStatus solve_camera_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus solve_camera_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   SolveCameraJob *scj;
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -205,15 +205,15 @@ static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const w
   wmJob *wm_job;
   char error_msg[256] = "\0";
 
-  if (WM_jobs_test(CTX_wm_manager(*C), CTX_data_scene(*C), WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
+  if (WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
     /* only one solve is allowed at a time */
     return OPERATOR_CANCELLED;
   }
 
   scj = MEM_new_for_free<SolveCameraJob>("SolveCameraJob data");
-  if (!solve_camera_initjob(C, scj, op, error_msg, sizeof(error_msg))) {
+  if (!solve_camera_initjob(&C, scj, &op, error_msg, sizeof(error_msg))) {
     if (error_msg[0]) {
-      BKE_report(op->reports, RPT_ERROR, error_msg);
+      BKE_report(op.reports, RPT_ERROR, error_msg);
     }
     solve_camera_freejob(scj);
     return OPERATOR_CANCELLED;
@@ -223,12 +223,12 @@ static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const w
 
   /* Hide reconstruction statistics from previous solve. */
   reconstruction->flag &= ~TRACKING_RECONSTRUCTED;
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
 
   /* Setup job. */
-  wm_job = WM_jobs_get(CTX_wm_manager(*C),
-                       CTX_wm_window(*C),
-                       CTX_data_scene(*C),
+  wm_job = WM_jobs_get(CTX_wm_manager(C),
+                       CTX_wm_window(C),
+                       CTX_data_scene(C),
                        "Solving camera...",
                        WM_JOB_PROGRESS,
                        WM_JOB_TYPE_CLIP_SOLVE_CAMERA);
@@ -238,19 +238,19 @@ static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const w
 
   G.is_break = false;
 
-  WM_jobs_start(CTX_wm_manager(*C), wm_job);
+  WM_jobs_start(CTX_wm_manager(C), wm_job);
   WM_cursor_wait(false);
 
   /* add modal handler for ESC */
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus solve_camera_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus solve_camera_modal(bContext &C, wmOperator & /*op*/, const wmEvent *event)
 {
   /* No running solver, remove handler and pass through. */
-  if (0 == WM_jobs_test(CTX_wm_manager(*C), CTX_wm_area(*C), WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
+  if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_wm_area(C), WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
@@ -285,9 +285,9 @@ void CLIP_OT_solve_camera(wmOperatorType *ot)
 
 /********************** clear solution operator *********************/
 
-static wmOperatorStatus clear_solution_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus clear_solution_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingReconstruction *reconstruction = &tracking_object->reconstruction;
@@ -303,8 +303,8 @@ static wmOperatorStatus clear_solution_exec(bContext *C, wmOperator * /*op*/)
 
   DEG_id_tag_update(&clip->id, 0);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   return OPERATOR_FINISHED;
 }

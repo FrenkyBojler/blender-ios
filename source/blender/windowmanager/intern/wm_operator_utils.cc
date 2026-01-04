@@ -193,33 +193,33 @@ static void op_generic_value_restore(wmOperator *op)
   }
 }
 
-static void op_generic_value_cancel(bContext * /*C*/, wmOperator *op)
+static void op_generic_value_cancel(bContext & /*C*/, wmOperator &op)
 {
-  op_generic_value_exit(op);
+  op_generic_value_exit(&op);
 }
 
-static wmOperatorStatus op_generic_value_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus op_generic_value_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (RNA_property_is_set(op->ptr, op->type->prop)) {
-    return WM_operator_call_notest(C, op);
+  if (RNA_property_is_set(op.ptr, op.type->prop)) {
+    return WM_operator_call_notest(&C, &op);
   }
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   if (objects.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
   ObCustomData_ForEditMode *cd = MEM_new<ObCustomData_ForEditMode>(__func__);
   cd->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
-  cd->wait_for_input = RNA_boolean_get(op->ptr, "wait_for_input");
+  cd->wait_for_input = RNA_boolean_get(op.ptr, "wait_for_input");
   cd->is_active = !cd->wait_for_input;
   cd->is_first = true;
 
   if (cd->wait_for_input == false) {
-    interactive_value_init_from_property(C, &cd->inter, event, op->ptr, op->type->prop);
+    interactive_value_init_from_property(&C, &cd->inter, event, op.ptr, op.type->prop);
   }
 
   cd->objects_xform.reinitialize(objects.size());
@@ -229,22 +229,22 @@ static wmOperatorStatus op_generic_value_invoke(bContext *C, wmOperator *op, con
         static_cast<ID *>(obedit->data));
   }
 
-  op->customdata = cd;
+  op.customdata = cd;
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
   G.moving |= G_TRANSFORM_EDIT;
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus op_generic_value_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus op_generic_value_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ObCustomData_ForEditMode *cd = static_cast<ObCustomData_ForEditMode *>(op->customdata);
+  ObCustomData_ForEditMode *cd = static_cast<ObCustomData_ForEditMode *>(op.customdata);
 
   /* Special case, check if we release the event that activated this operator. */
   if ((event->type == cd->launch_event) && (event->val == KM_RELEASE)) {
     if (cd->wait_for_input == false) {
-      op_generic_value_exit(op);
+      op_generic_value_exit(&op);
       return OPERATOR_FINISHED;
     }
   }
@@ -257,22 +257,22 @@ static wmOperatorStatus op_generic_value_modal(bContext *C, wmOperator *op, cons
     case EVT_RIGHTSHIFTKEY: {
       float value_final;
       if (cd->is_active && interactive_value_update(&cd->inter, event, &value_final)) {
-        wmWindowManager *wm = CTX_wm_manager(*C);
+        wmWindowManager *wm = CTX_wm_manager(C);
 
-        RNA_property_float_set(op->ptr, op->type->prop, value_final);
+        RNA_property_float_set(op.ptr, op.type->prop, value_final);
         if (cd->is_first == false) {
-          op_generic_value_restore(op);
+          op_generic_value_restore(&op);
         }
 
         wm->op_undo_depth++;
-        const wmOperatorStatus retval = op->type->exec(C, op);
+        const wmOperatorStatus retval = op.type->exec(&C, &op);
         OPERATOR_RETVAL_CHECK(retval);
         wm->op_undo_depth--;
 
         cd->is_first = false;
 
         if ((retval & OPERATOR_FINISHED) == 0) {
-          op_generic_value_exit(op);
+          op_generic_value_exit(&op);
           return OPERATOR_CANCELLED;
         }
       }
@@ -285,19 +285,19 @@ static wmOperatorStatus op_generic_value_modal(bContext *C, wmOperator *op, cons
         if (event->val == KM_PRESS) {
           if (cd->is_active == false) {
             cd->is_active = true;
-            interactive_value_init_from_property(C, &cd->inter, event, op->ptr, op->type->prop);
+            interactive_value_init_from_property(&C, &cd->inter, event, op.ptr, op.type->prop);
           }
         }
         else if (event->val == KM_RELEASE) {
           if (cd->is_active == true) {
-            op_generic_value_exit(op);
+            op_generic_value_exit(&op);
             return OPERATOR_FINISHED;
           }
         }
       }
       else {
         if (event->val == KM_RELEASE) {
-          op_generic_value_exit(op);
+          op_generic_value_exit(&op);
           return OPERATOR_FINISHED;
         }
       }
@@ -307,9 +307,9 @@ static wmOperatorStatus op_generic_value_modal(bContext *C, wmOperator *op, cons
     case RIGHTMOUSE: {
       if (event->val == KM_PRESS) {
         if (cd->is_active == true) {
-          op_generic_value_restore(op);
+          op_generic_value_restore(&op);
         }
-        op_generic_value_exit(op);
+        op_generic_value_exit(&op);
         return OPERATOR_CANCELLED;
       }
       break;

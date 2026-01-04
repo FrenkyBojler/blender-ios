@@ -716,36 +716,36 @@ static void grease_pencil_primitive_update_view(bContext *C, PrimitiveToolOperat
 }
 
 /* Invoke handler: Initialize the operator. */
-static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
-                                                       wmOperator *op,
+static wmOperatorStatus grease_pencil_primitive_invoke(bContext &C,
+                                                       wmOperator &op,
                                                        const wmEvent *event)
 {
   const wmOperatorStatus retval = ed::greasepencil::grease_pencil_draw_operator_invoke(
-      C, op, false);
+      &C, &op, false);
   if (retval != OPERATOR_RUNNING_MODAL) {
     return retval;
   }
 
   /* If in tools region, wait till we get to the main (3D-space)
    * region before allowing drawing to take place. */
-  op->flag |= OP_IS_MODAL_CURSOR_REGION;
+  op.flag |= OP_IS_MODAL_CURSOR_REGION;
 
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
   /* Set cursor to indicate modal. */
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
-  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(*C));
+  ViewContext vc = ED_view3d_viewcontext_init(&C, CTX_data_depsgraph_pointer(C));
 
   /* Allocate new data. */
   PrimitiveToolOperation *ptd_pointer = MEM_new<PrimitiveToolOperation>(__func__);
-  op->customdata = ptd_pointer;
+  op.customdata = ptd_pointer;
 
   PrimitiveToolOperation &ptd = *ptd_pointer;
 
   ptd.vc = vc;
   ptd.region = vc.region;
-  View3D *view3d = CTX_wm_view3d(*C);
+  View3D *view3d = CTX_wm_view3d(C);
   const float2 start_coords = float2(event->mval);
 
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(vc.obact->data);
@@ -754,19 +754,19 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
   DrawingPlacement placement = DrawingPlacement(
       *vc.scene, *vc.region, *view3d, *vc.obact, grease_pencil->get_active_layer());
   if (placement.use_project_to_surface()) {
-    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(*C), vc.region, view3d);
+    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
   }
   else if (placement.use_project_to_stroke()) {
-    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(*C), vc.region, view3d);
+    placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), vc.region, view3d);
   }
 
   ptd.placement = placement;
 
-  ptd.vod = ED_view3d_navigation_init(C, nullptr);
+  ptd.vod = ED_view3d_navigation_init(&C, nullptr);
 
   ptd.start_position_2d = start_coords;
-  ptd.subdivision = RNA_int_get(op->ptr, "subdivision");
-  ptd.type = PrimitiveType(RNA_enum_get(op->ptr, "type"));
+  ptd.subdivision = RNA_int_get(op.ptr, "subdivision");
+  ptd.type = PrimitiveType(RNA_enum_get(op.ptr, "type"));
   const float3 pos = ptd.placement.project(ptd.start_position_2d);
   ptd.segments = 0;
   ptd.control_points = Vector<float3>({pos});
@@ -805,7 +805,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
   }
 
   Material *material = BKE_grease_pencil_object_material_ensure_from_brush(
-      CTX_data_main(*C), vc.obact, ptd.brush);
+      CTX_data_main(C), vc.obact, ptd.brush);
   ptd.material_index = BKE_object_material_index_get(vc.obact, material);
   ptd.use_fill = (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0;
 
@@ -850,16 +850,16 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
                                                        vc.scene->r.cfra);
 
   grease_pencil_primitive_init_curves(ptd);
-  grease_pencil_primitive_update_view(C, ptd);
+  grease_pencil_primitive_update_view(&C, ptd);
 
   ptd.draw_handle = ED_region_draw_cb_activate(
       ptd.region->runtime->type, grease_pencil_primitive_draw, ptd_pointer, REGION_DRAW_POST_VIEW);
 
   /* Updates indicator in header. */
-  grease_pencil_primitive_status_indicators(C, op, ptd);
+  grease_pencil_primitive_status_indicators(&C, &op, ptd);
 
   /* Add a modal handler for this operator. */
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1456,38 +1456,39 @@ static void grease_pencil_primitive_operator_update(PrimitiveToolOperation &ptd,
 }
 
 /* Modal handler: Events handling during interactive part. */
-static wmOperatorStatus grease_pencil_primitive_modal(bContext *C,
-                                                      wmOperator *op,
+static wmOperatorStatus grease_pencil_primitive_modal(bContext &C,
+                                                      wmOperator &op,
                                                       const wmEvent *event)
 {
-  PrimitiveToolOperation &ptd = *reinterpret_cast<PrimitiveToolOperation *>(op->customdata);
+  PrimitiveToolOperation &ptd = *reinterpret_cast<PrimitiveToolOperation *>(op.customdata);
 
   /* Check for confirm before navigation. */
   if (event->type == EVT_MODAL_MAP) {
     if (event->val == int(ModalKeyMode::Confirm)) {
-      grease_pencil_primitive_exit(C, op, false);
+      grease_pencil_primitive_exit(&C, &op, false);
 
       return OPERATOR_FINISHED;
     }
   }
 
   const float3 pos = ptd.control_points.first();
-  if (ED_view3d_navigation_do(C, ptd.vod, event, pos)) {
+  if (ED_view3d_navigation_do(&C, ptd.vod, event, pos)) {
     if (ptd.vc.rv3d->rflag & RV3D_NAVIGATING) {
       ptd.projection = ED_view3d_ob_project_mat_get(ptd.vc.rv3d, ptd.vc.obact);
 
       grease_pencil_primitive_update_curves(ptd);
-      grease_pencil_primitive_update_view(C, ptd);
+      grease_pencil_primitive_update_view(&C, ptd);
 
       return OPERATOR_RUNNING_MODAL;
     }
   }
 
   ptd.projection = ED_view3d_ob_project_mat_get(ptd.vc.rv3d, ptd.vc.obact);
-  grease_pencil_primitive_cursor_update(C, ptd, event);
+  grease_pencil_primitive_cursor_update(&C, ptd, event);
 
   if (event->type == EVT_MODAL_MAP) {
-    const wmOperatorStatus return_val = grease_pencil_primitive_event_modal_map(C, op, ptd, event);
+    const wmOperatorStatus return_val = grease_pencil_primitive_event_modal_map(
+        &C, &op, ptd, event);
     if (return_val != OPERATOR_RUNNING_MODAL) {
       return return_val;
     }
@@ -1509,7 +1510,7 @@ static wmOperatorStatus grease_pencil_primitive_modal(bContext *C,
 
       if (ptd.mode == OperatorMode::Idle) {
         grease_pencil_primitive_undo_curves(ptd);
-        grease_pencil_primitive_exit(C, op, true);
+        grease_pencil_primitive_exit(&C, &op, true);
 
         return OPERATOR_CANCELLED;
       }
@@ -1535,18 +1536,18 @@ static wmOperatorStatus grease_pencil_primitive_modal(bContext *C,
   grease_pencil_primitive_update_curves(ptd);
 
   /* Updates indicator in header. */
-  grease_pencil_primitive_status_indicators(C, op, ptd);
-  grease_pencil_primitive_update_view(C, ptd);
+  grease_pencil_primitive_status_indicators(&C, &op, ptd);
+  grease_pencil_primitive_update_view(&C, ptd);
 
   /* Still running... */
   return OPERATOR_RUNNING_MODAL;
 }
 
 /* Cancel handler. */
-static void grease_pencil_primitive_cancel(bContext *C, wmOperator *op)
+static void grease_pencil_primitive_cancel(bContext &C, wmOperator &op)
 {
   /* This is just a wrapper around exit() */
-  grease_pencil_primitive_exit(C, op, true);
+  grease_pencil_primitive_exit(&C, &op, true);
 }
 
 static void grease_pencil_primitive_common_props(wmOperatorType *ot,

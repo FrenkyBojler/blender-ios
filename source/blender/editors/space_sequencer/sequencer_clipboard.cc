@@ -294,10 +294,10 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
   return retval;
 }
 
-wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
+wmOperatorStatus sequencer_clipboard_copy_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
   VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
@@ -321,9 +321,9 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
 
   char filepath[FILE_MAX];
   sequencer_copybuffer_filepath_get(filepath, sizeof(filepath));
-  bool success = sequencer_write_copy_paste_file(bmain, scene, filepath, *op->reports);
+  bool success = sequencer_write_copy_paste_file(bmain, scene, filepath, *op.reports);
   if (!success) {
-    BKE_report(op->reports, RPT_ERROR, "Could not create the copy paste file!");
+    BKE_report(op.reports, RPT_ERROR, "Could not create the copy paste file!");
     for (Strip *strip : expanded) {
       strip->flag &= ~SEQ_SELECT;
     }
@@ -332,17 +332,17 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
 
   /* We are all done! */
   if (effect_chain.size() > selected.size()) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_INFO,
                "Copied the selected Video Sequencer strips and associated effect chain to "
                "internal clipboard");
   }
   else {
     BKE_report(
-        op->reports, RPT_INFO, "Copied the selected Video Sequencer strips to internal clipboard");
+        op.reports, RPT_INFO, "Copied the selected Video Sequencer strips to internal clipboard");
   }
-  ED_outliner_select_sync_from_sequence_tag(C);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  ED_outliner_select_sync_from_sequence_tag(&C);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
   return OPERATOR_FINISHED;
 }
 
@@ -378,33 +378,33 @@ static bool sequencer_paste_animation(Main *bmain_dst, Scene *scene_dst, Scene *
   return true;
 }
 
-wmOperatorStatus sequencer_clipboard_paste_invoke(bContext *C,
-                                                  wmOperator *op,
+wmOperatorStatus sequencer_clipboard_paste_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
-  RNA_int_set(op->ptr, "x", event->mval[0]);
-  RNA_int_set(op->ptr, "y", event->mval[1]);
+  RNA_int_set(op.ptr, "x", event->mval[0]);
+  RNA_int_set(op.ptr, "y", event->mval[1]);
   return sequencer_clipboard_paste_exec(C, op);
 }
 
-wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
+wmOperatorStatus sequencer_clipboard_paste_exec(bContext &C, wmOperator &op)
 {
   char filepath[FILE_MAX];
   sequencer_copybuffer_filepath_get(filepath, sizeof(filepath));
   const BlendFileReadParams params{};
   BlendFileReadReport bf_reports{};
   BlendFileData *bfd = BKE_blendfile_read(filepath, &params, &bf_reports);
-  const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
+  const int mval[2] = {RNA_int_get(op.ptr, "x"), RNA_int_get(op.ptr, "y")};
   float2 view_mval;
-  View2D *v2d = ui::view2d_fromcontext(C);
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  View2D *v2d = ui::view2d_fromcontext(&C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   ui::view2d_region_to_view(v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
 
   /* For checking if region type is Preview. */
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
   if (bfd == nullptr) {
-    BKE_report(op->reports, RPT_INFO, "No data to paste");
+    BKE_report(op.reports, RPT_INFO, "No data to paste");
     return OPERATOR_CANCELLED;
   }
 
@@ -422,24 +422,24 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   }
 
   if (!scene_src || !scene_src->ed) {
-    BKE_report(op->reports, RPT_ERROR, "No clipboard scene to paste Video Sequencer data from");
+    BKE_report(op.reports, RPT_ERROR, "No clipboard scene to paste Video Sequencer data from");
     BKE_main_free(bmain_src);
     return OPERATOR_CANCELLED;
   }
 
   const int num_strips_to_paste = BLI_listbase_count(&scene_src->ed->seqbase);
   if (num_strips_to_paste == 0) {
-    BKE_report(op->reports, RPT_INFO, "No strips to paste");
+    BKE_report(op.reports, RPT_INFO, "No strips to paste");
     BKE_main_free(bmain_src);
     return OPERATOR_CANCELLED;
   }
 
-  Scene *scene_dst = CTX_data_sequencer_scene(*C);
+  Scene *scene_dst = CTX_data_sequencer_scene(C);
   Editing *ed_dst = seq::editing_ensure(scene_dst); /* Creates "ed" if it's missing. */
   int ofs;
 
   deselect_all_strips(scene_dst);
-  if (RNA_boolean_get(op->ptr, "keep_offset") || (region->regiontype == RGN_TYPE_PREVIEW)) {
+  if (RNA_boolean_get(op.ptr, "keep_offset") || (region->regiontype == RGN_TYPE_PREVIEW)) {
     ofs = scene_dst->r.cfra - scene_src->r.cfra;
   }
   else {
@@ -460,7 +460,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   /* Make sure we have all data IDs we need in bmain_dst. Remap the IDs if we already have them.
    * This has to happen BEFORE we move the strip over to scene_dst. their ID mapping will not be
    * correct otherwise. */
-  Main *bmain_dst = CTX_data_main(*C);
+  Main *bmain_dst = CTX_data_main(C);
   MainMergeReport merge_reports = {};
   /* NOTE: BKE_main_merge will free bmain_src! */
   BKE_main_merge(bmain_dst, &bmain_src, merge_reports);
@@ -524,7 +524,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
 
   for (Strip &istrip : nseqbase) {
     /* Place strips that generate an image at the mouse cursor. */
-    if (region->regiontype == RGN_TYPE_PREVIEW && !RNA_boolean_get(op->ptr, "keep_offset") &&
+    if (region->regiontype == RGN_TYPE_PREVIEW && !RNA_boolean_get(op.ptr, "keep_offset") &&
         istrip.type != STRIP_TYPE_SOUND &&
         seq::must_render_strip(seq::query_all_strips(&nseqbase), &istrip))
     {
@@ -551,11 +551,11 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&scene_dst->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
   DEG_relations_tag_update(bmain_dst);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene_dst);
-  WM_event_add_notifier(C, NC_SCENE | ND_ANIMCHAN, scene_dst);
-  ED_outliner_select_sync_from_sequence_tag(C);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene_dst);
+  WM_event_add_notifier(&C, NC_SCENE | ND_ANIMCHAN, scene_dst);
+  ED_outliner_select_sync_from_sequence_tag(&C);
 
-  BKE_reportf(op->reports, RPT_INFO, "%d strips pasted", num_strips_to_paste);
+  BKE_reportf(op.reports, RPT_INFO, "%d strips pasted", num_strips_to_paste);
 
   return OPERATOR_FINISHED;
 }

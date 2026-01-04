@@ -304,17 +304,17 @@ static void MESH_GGT_add_bounds(wmGizmoGroupType *gzgt)
  * and share the same BMesh creation code.
  * \{ */
 
-static wmOperatorStatus add_primitive_cube_gizmo_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_cube_gizmo_exec(bContext &C, wmOperator &op)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   float matrix[4][4];
 
   /* Get the matrix that defines the cube bounds (as set by the gizmo cage). */
   {
-    PropertyRNA *prop_matrix = RNA_struct_find_property(op->ptr, "matrix");
-    if (RNA_property_is_set(op->ptr, prop_matrix)) {
-      RNA_property_float_get_array(op->ptr, prop_matrix, &matrix[0][0]);
+    PropertyRNA *prop_matrix = RNA_struct_find_property(op.ptr, "matrix");
+    if (RNA_property_is_set(op.ptr, prop_matrix)) {
+      RNA_property_float_get_array(op.ptr, prop_matrix, &matrix[0][0]);
       invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
       mul_m4_m4m4(matrix, obedit->world_to_object().ptr(), matrix);
     }
@@ -324,14 +324,14 @@ static wmOperatorStatus add_primitive_cube_gizmo_exec(bContext *C, wmOperator *o
     }
   }
 
-  const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
+  const bool calc_uvs = RNA_boolean_get(op.ptr, "calc_uvs");
 
   if (calc_uvs) {
     ED_mesh_uv_ensure(static_cast<Mesh *>(obedit->data), nullptr);
   }
 
   if (!EDBM_op_call_and_selectf(em,
-                                op,
+                                &op,
                                 "verts.out",
                                 false,
                                 "create_cube matrix=%m4 size=%f calc_uvs=%b",
@@ -355,11 +355,11 @@ static wmOperatorStatus add_primitive_cube_gizmo_exec(bContext *C, wmOperator *o
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus add_primitive_cube_gizmo_invoke(bContext *C,
-                                                        wmOperator *op,
+static wmOperatorStatus add_primitive_cube_gizmo_invoke(bContext &C,
+                                                        wmOperator &op,
                                                         const wmEvent * /*event*/)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   wmOperatorStatus ret = add_primitive_cube_gizmo_exec(C, op);
   if (ret & OPERATOR_FINISHED) {
@@ -367,7 +367,7 @@ static wmOperatorStatus add_primitive_cube_gizmo_invoke(bContext *C,
     if (v3d && ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0)) {
       wmGizmoGroupType *gzgt = WM_gizmogrouptype_find("MESH_GGT_add_bounds", false);
       if (!WM_gizmo_group_type_ensure_ptr(gzgt)) {
-        Main *bmain = CTX_data_main(*C);
+        Main *bmain = CTX_data_main(C);
         WM_gizmo_group_type_reinit_ptr(bmain, gzgt);
       }
     }

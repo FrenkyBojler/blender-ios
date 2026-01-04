@@ -51,28 +51,28 @@
 /* Datablock Operators */
 
 /* ******************* Add New Data ************************ */
-static bool gpencil_data_add_poll(bContext *C)
+static bool gpencil_data_add_poll(bContext &C)
 {
 
   /* the base line we have is that we have somewhere to add Grease Pencil data */
-  return ED_annotation_data_get_pointers(C, nullptr) != nullptr;
+  return ED_annotation_data_get_pointers(&C, nullptr) != nullptr;
 }
 
 /* add new datablock - wrapper around API */
-static wmOperatorStatus gpencil_data_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gpencil_data_add_exec(bContext &C, wmOperator &op)
 {
   PointerRNA gpd_owner = {};
-  bGPdata **gpd_ptr = ED_annotation_data_get_pointers(C, &gpd_owner);
+  bGPdata **gpd_ptr = ED_annotation_data_get_pointers(&C, &gpd_owner);
 
   if (gpd_ptr == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Nowhere for Grease Pencil data to go");
+    BKE_report(op.reports, RPT_ERROR, "Nowhere for Grease Pencil data to go");
     return OPERATOR_CANCELLED;
   }
 
   /* decrement user count and add new datablock */
   /* TODO: if a datablock exists,
    * we should make a copy of it instead of starting fresh (as in other areas) */
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   /* decrement user count of old GP datablock */
   if (*gpd_ptr) {
@@ -92,7 +92,7 @@ static wmOperatorStatus gpencil_data_add_exec(bContext *C, wmOperator *op)
   BKE_gpencil_layer_addnew(*gpd_ptr, DATA_("Note"), true, false);
 
   /* notifiers */
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -113,9 +113,9 @@ void GPENCIL_OT_annotation_add(wmOperatorType *ot)
 /* ******************* Unlink Data ************************ */
 
 /* poll callback for adding data/layers - special */
-static bool gpencil_data_unlink_poll(bContext *C)
+static bool gpencil_data_unlink_poll(bContext &C)
 {
-  bGPdata **gpd_ptr = ED_annotation_data_get_pointers(C, nullptr);
+  bGPdata **gpd_ptr = ED_annotation_data_get_pointers(&C, nullptr);
 
   /* only unlink annotation datablocks */
   if ((gpd_ptr != nullptr) && (*gpd_ptr != nullptr)) {
@@ -129,12 +129,12 @@ static bool gpencil_data_unlink_poll(bContext *C)
 }
 
 /* unlink datablock - wrapper around API */
-static wmOperatorStatus gpencil_data_unlink_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gpencil_data_unlink_exec(bContext &C, wmOperator &op)
 {
-  bGPdata **gpd_ptr = ED_annotation_data_get_pointers(C, nullptr);
+  bGPdata **gpd_ptr = ED_annotation_data_get_pointers(&C, nullptr);
 
   if (gpd_ptr == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Nowhere for Grease Pencil data to go");
+    BKE_report(op.reports, RPT_ERROR, "Nowhere for Grease Pencil data to go");
     return OPERATOR_CANCELLED;
   }
   /* just unlink datablock now, decreasing its user count */
@@ -144,7 +144,7 @@ static wmOperatorStatus gpencil_data_unlink_exec(bContext *C, wmOperator *op)
   *gpd_ptr = nullptr;
 
   /* notifiers */
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -168,16 +168,16 @@ void GPENCIL_OT_data_unlink(wmOperatorType *ot)
 /* ******************* Add New Layer ************************ */
 
 /* add new layer - wrapper around API */
-static wmOperatorStatus gpencil_layer_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gpencil_layer_add_exec(bContext &C, wmOperator &op)
 {
   PointerRNA gpd_owner = {};
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   bGPdata *gpd = nullptr;
 
-  bGPdata **gpd_ptr = ED_annotation_data_get_pointers(C, &gpd_owner);
+  bGPdata **gpd_ptr = ED_annotation_data_get_pointers(&C, &gpd_owner);
   /* if there's no existing Grease-Pencil data there, add some */
   if (gpd_ptr == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Nowhere for Grease Pencil data to go");
+    BKE_report(op.reports, RPT_ERROR, "Nowhere for Grease Pencil data to go");
     return OPERATOR_CANCELLED;
   }
   /* Annotations */
@@ -194,15 +194,15 @@ static wmOperatorStatus gpencil_layer_add_exec(bContext *C, wmOperator *op)
   if (gpd) {
     DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
   }
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static bool gpencil_add_annotation_poll(bContext *C)
+static bool gpencil_add_annotation_poll(bContext &C)
 {
-  return ED_annotation_data_get_pointers(C, nullptr) != nullptr;
+  return ED_annotation_data_get_pointers(&C, nullptr) != nullptr;
 }
 
 void GPENCIL_OT_layer_annotation_add(wmOperatorType *ot)
@@ -220,9 +220,9 @@ void GPENCIL_OT_layer_annotation_add(wmOperatorType *ot)
 }
 /* ******************* Remove Active Layer ************************* */
 
-static wmOperatorStatus gpencil_layer_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gpencil_layer_remove_exec(bContext &C, wmOperator &op)
 {
-  bGPdata *gpd = ED_annotation_data_get_active(C);
+  bGPdata *gpd = ED_annotation_data_get_active(&C);
   bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
   /* sanity checks */
@@ -231,7 +231,7 @@ static wmOperatorStatus gpencil_layer_remove_exec(bContext *C, wmOperator *op)
   }
 
   if (gpl->flag & GP_LAYER_LOCKED) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot delete locked layers");
+    BKE_report(op.reports, RPT_ERROR, "Cannot delete locked layers");
     return OPERATOR_CANCELLED;
   }
 
@@ -247,7 +247,7 @@ static wmOperatorStatus gpencil_layer_remove_exec(bContext *C, wmOperator *op)
   }
 
   if (gpl->flag & GP_LAYER_IS_RULER) {
-    ED_view3d_gizmo_ruler_remove_by_gpencil_layer(C, gpl);
+    ED_view3d_gizmo_ruler_remove_by_gpencil_layer(&C, gpl);
   }
 
   /* delete the layer now... */
@@ -255,26 +255,26 @@ static wmOperatorStatus gpencil_layer_remove_exec(bContext *C, wmOperator *op)
 
   /* notifiers */
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_SELECTED, nullptr);
 
   /* Free Grease Pencil data block when last annotation layer is removed, see: #112683. */
   if (gpd->layers.first == nullptr) {
     BKE_gpencil_free_data(gpd, true);
 
-    bGPdata **gpd_ptr = ED_annotation_data_get_pointers(C, nullptr);
+    bGPdata **gpd_ptr = ED_annotation_data_get_pointers(&C, nullptr);
     *gpd_ptr = nullptr;
 
-    Main *bmain = CTX_data_main(*C);
+    Main *bmain = CTX_data_main(C);
     BKE_id_free_us(bmain, gpd);
   }
 
   return OPERATOR_FINISHED;
 }
 
-static bool gpencil_active_layer_annotation_poll(bContext *C)
+static bool gpencil_active_layer_annotation_poll(bContext &C)
 {
-  bGPdata *gpd = ED_annotation_data_get_active(C);
+  bGPdata *gpd = ED_annotation_data_get_active(&C);
   bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
   return (gpl != nullptr);
@@ -300,12 +300,12 @@ enum {
   GP_LAYER_MOVE_DOWN = 1,
 };
 
-static wmOperatorStatus gpencil_layer_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gpencil_layer_move_exec(bContext &C, wmOperator &op)
 {
-  bGPdata *gpd = ED_annotation_data_get_active(C);
+  bGPdata *gpd = ED_annotation_data_get_active(&C);
   bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
-  const int direction = RNA_enum_get(op->ptr, "type") * -1;
+  const int direction = RNA_enum_get(op.ptr, "type") * -1;
 
   /* sanity checks */
   if (ELEM(nullptr, gpd, gpl)) {
@@ -315,7 +315,7 @@ static wmOperatorStatus gpencil_layer_move_exec(bContext *C, wmOperator *op)
   BLI_assert(ELEM(direction, -1, 0, 1)); /* we use value below */
   if (BLI_listbase_link_move(&gpd->layers, gpl, direction)) {
     DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;

@@ -285,9 +285,9 @@ static bool edit_shaderfx_poll_generic(bContext *C,
   return true;
 }
 
-static bool edit_shaderfx_poll(bContext *C)
+static bool edit_shaderfx_poll(bContext &C)
 {
-  return edit_shaderfx_poll_generic(C, &RNA_ShaderFx, 0, false);
+  return edit_shaderfx_poll_generic(&C, &RNA_ShaderFx, 0, false);
 }
 
 /** \} */
@@ -296,18 +296,18 @@ static bool edit_shaderfx_poll(bContext *C)
 /** \name Add Effect Operator
  * \{ */
 
-static wmOperatorStatus shaderfx_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus shaderfx_add_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob = context_active_object(C);
-  int type = RNA_enum_get(op->ptr, "type");
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = context_active_object(&C);
+  int type = RNA_enum_get(op.ptr, "type");
 
-  if (!shaderfx_add(op->reports, bmain, scene, ob, nullptr, type)) {
+  if (!shaderfx_add(op.reports, bmain, scene, ob, nullptr, type)) {
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_SHADERFX, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_SHADERFX, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -469,11 +469,11 @@ static ShaderFxData *edit_shaderfx_property_get(wmOperator *op, Object *ob, int 
 /** \name Remove ShaderFX Operator
  * \{ */
 
-static wmOperatorStatus shaderfx_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus shaderfx_remove_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Object *ob = context_active_object(C);
-  ShaderFxData *fx = edit_shaderfx_property_get(op, ob, 0);
+  Main *bmain = CTX_data_main(C);
+  Object *ob = context_active_object(&C);
+  ShaderFxData *fx = edit_shaderfx_property_get(&op, ob, 0);
   if (!fx) {
     return OPERATOR_CANCELLED;
   }
@@ -482,23 +482,23 @@ static wmOperatorStatus shaderfx_remove_exec(bContext *C, wmOperator *op)
   char name[MAX_NAME];
   STRNCPY_UTF8(name, fx->name);
 
-  if (!shaderfx_remove(op->reports, bmain, ob, fx)) {
+  if (!shaderfx_remove(op.reports, bmain, ob, fx)) {
     return OPERATOR_CANCELLED;
   }
 
-  if (RNA_boolean_get(op->ptr, "report")) {
-    BKE_reportf(op->reports, RPT_INFO, "Removed effect: %s", name);
+  if (RNA_boolean_get(op.ptr, "report")) {
+    BKE_reportf(op.reports, RPT_INFO, "Removed effect: %s", name);
   }
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_SHADERFX, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_SHADERFX, ob);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus shaderfx_remove_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus shaderfx_remove_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   wmOperatorStatus retval;
-  if (edit_shaderfx_invoke_properties(C, op, event, &retval)) {
+  if (edit_shaderfx_invoke_properties(&C, &op, event, &retval)) {
     return shaderfx_remove_exec(C, op);
   }
   return retval;
@@ -526,25 +526,25 @@ void OBJECT_OT_shaderfx_remove(wmOperatorType *ot)
 /** \name Move up ShaderFX Operator
  * \{ */
 
-static wmOperatorStatus shaderfx_move_up_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus shaderfx_move_up_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_active_object(C);
-  ShaderFxData *fx = edit_shaderfx_property_get(op, ob, 0);
+  Object *ob = context_active_object(&C);
+  ShaderFxData *fx = edit_shaderfx_property_get(&op, ob, 0);
 
-  if (!fx || !shaderfx_move_up(op->reports, ob, fx)) {
+  if (!fx || !shaderfx_move_up(op.reports, ob, fx)) {
     return OPERATOR_CANCELLED;
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_SHADERFX, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_SHADERFX, ob);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus shaderfx_move_up_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus shaderfx_move_up_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   wmOperatorStatus retval;
-  if (edit_shaderfx_invoke_properties(C, op, event, &retval)) {
+  if (edit_shaderfx_invoke_properties(&C, &op, event, &retval)) {
     return shaderfx_move_up_exec(C, op);
   }
   return retval;
@@ -571,27 +571,27 @@ void OBJECT_OT_shaderfx_move_up(wmOperatorType *ot)
 /** \name Move Down ShaderFX Operator
  * \{ */
 
-static wmOperatorStatus shaderfx_move_down_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus shaderfx_move_down_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_active_object(C);
-  ShaderFxData *fx = edit_shaderfx_property_get(op, ob, 0);
+  Object *ob = context_active_object(&C);
+  ShaderFxData *fx = edit_shaderfx_property_get(&op, ob, 0);
 
-  if (!fx || !shaderfx_move_down(op->reports, ob, fx)) {
+  if (!fx || !shaderfx_move_down(op.reports, ob, fx)) {
     return OPERATOR_CANCELLED;
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_SHADERFX, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_SHADERFX, ob);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus shaderfx_move_down_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus shaderfx_move_down_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
   wmOperatorStatus retval;
-  if (edit_shaderfx_invoke_properties(C, op, event, &retval)) {
+  if (edit_shaderfx_invoke_properties(&C, &op, event, &retval)) {
     return shaderfx_move_down_exec(C, op);
   }
   return retval;
@@ -618,25 +618,25 @@ void OBJECT_OT_shaderfx_move_down(wmOperatorType *ot)
 /** \name Move ShaderFX to Index Operator
  * \{ */
 
-static wmOperatorStatus shaderfx_move_to_index_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus shaderfx_move_to_index_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_active_object(C);
-  ShaderFxData *fx = edit_shaderfx_property_get(op, ob, 0);
-  int index = RNA_int_get(op->ptr, "index");
+  Object *ob = context_active_object(&C);
+  ShaderFxData *fx = edit_shaderfx_property_get(&op, ob, 0);
+  int index = RNA_int_get(op.ptr, "index");
 
-  if (!fx || !shaderfx_move_to_index(op->reports, ob, fx, index)) {
+  if (!fx || !shaderfx_move_to_index(op.reports, ob, fx, index)) {
     return OPERATOR_CANCELLED;
   }
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus shaderfx_move_to_index_invoke(bContext *C,
-                                                      wmOperator *op,
+static wmOperatorStatus shaderfx_move_to_index_invoke(bContext &C,
+                                                      wmOperator &op,
                                                       const wmEvent *event)
 {
   wmOperatorStatus retval;
-  if (edit_shaderfx_invoke_properties(C, op, event, &retval)) {
+  if (edit_shaderfx_invoke_properties(&C, &op, event, &retval)) {
     return shaderfx_move_to_index_exec(C, op);
   }
   return retval;
@@ -667,10 +667,10 @@ void OBJECT_OT_shaderfx_move_to_index(wmOperatorType *ot)
 /** \name Copy Shader Operator
  * \{ */
 
-static wmOperatorStatus shaderfx_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus shaderfx_copy_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_active_object(C);
-  ShaderFxData *fx = edit_shaderfx_property_get(op, ob, 0);
+  Object *ob = context_active_object(&C);
+  ShaderFxData *fx = edit_shaderfx_property_get(&op, ob, 0);
   if (!fx) {
     return OPERATOR_CANCELLED;
   }
@@ -692,10 +692,10 @@ static wmOperatorStatus shaderfx_copy_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus shaderfx_copy_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus shaderfx_copy_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   wmOperatorStatus retval;
-  if (edit_shaderfx_invoke_properties(C, op, event, &retval)) {
+  if (edit_shaderfx_invoke_properties(&C, &op, event, &retval)) {
     return shaderfx_copy_exec(C, op);
   }
   return retval;

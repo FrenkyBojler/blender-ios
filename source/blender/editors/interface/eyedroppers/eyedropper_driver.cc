@@ -121,15 +121,15 @@ static void driverdropper_sample(bContext *C, wmOperator *op, const wmEvent *eve
   }
 }
 
-static void driverdropper_cancel(bContext *C, wmOperator *op)
+static void driverdropper_cancel(bContext &C, wmOperator &op)
 {
-  driverdropper_exit(C, op);
+  driverdropper_exit(&C, &op);
 }
 
 /* main modal status check */
-static wmOperatorStatus driverdropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus driverdropper_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  DriverDropper *ddr = static_cast<DriverDropper *>(op->customdata);
+  DriverDropper *ddr = static_cast<DriverDropper *>(op.customdata);
 
   /* handle modal keymap */
   if (event->type == EVT_MODAL_MAP) {
@@ -140,8 +140,8 @@ static wmOperatorStatus driverdropper_modal(bContext *C, wmOperator *op, const w
       }
       case EYE_MODAL_SAMPLE_CONFIRM: {
         const bool is_undo = ddr->is_undo;
-        driverdropper_sample(C, op, event);
-        driverdropper_exit(C, op);
+        driverdropper_sample(&C, &op, event);
+        driverdropper_exit(&C, &op);
         /* Could support finished & undo-skip. */
         return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
       }
@@ -152,19 +152,19 @@ static wmOperatorStatus driverdropper_modal(bContext *C, wmOperator *op, const w
 }
 
 /* Modal Operator init */
-static wmOperatorStatus driverdropper_invoke(bContext *C,
-                                             wmOperator *op,
+static wmOperatorStatus driverdropper_invoke(bContext &C,
+                                             wmOperator &op,
                                              const wmEvent * /*event*/)
 {
   /* init */
-  if (driverdropper_init(C, op)) {
-    wmWindow *win = CTX_wm_window(*C);
+  if (driverdropper_init(&C, &op)) {
+    wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    context_active_but_clear(C, win, CTX_wm_region(*C));
+    context_active_but_clear(&C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -172,21 +172,21 @@ static wmOperatorStatus driverdropper_invoke(bContext *C,
 }
 
 /* Repeat operator */
-static wmOperatorStatus driverdropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus driverdropper_exec(bContext &C, wmOperator &op)
 {
   /* init */
-  if (driverdropper_init(C, op)) {
+  if (driverdropper_init(&C, &op)) {
     /* cleanup */
-    driverdropper_exit(C, op);
+    driverdropper_exit(&C, &op);
 
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
 }
 
-static bool driverdropper_poll(bContext *C)
+static bool driverdropper_poll(bContext &C)
 {
-  if (!CTX_wm_window(*C)) {
+  if (!CTX_wm_window(C)) {
     return false;
   }
   return true;

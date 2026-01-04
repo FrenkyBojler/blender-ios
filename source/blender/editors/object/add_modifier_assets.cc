@@ -271,17 +271,17 @@ static bNodeTree *get_node_group(const bContext &C, PointerRNA &ptr, ReportList 
   return node_group;
 }
 
-static wmOperatorStatus modifier_add_asset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus modifier_add_asset_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
 
-  Vector<PointerRNA> objects = modifier_get_edit_objects(*C, *op);
+  Vector<PointerRNA> objects = modifier_get_edit_objects(C, op);
   if (objects.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
-  bNodeTree *node_group = get_node_group(*C, *op->ptr, op->reports);
+  bNodeTree *node_group = get_node_group(C, *op.ptr, op.reports);
   if (!node_group) {
     return OPERATOR_CANCELLED;
   }
@@ -290,7 +290,7 @@ static wmOperatorStatus modifier_add_asset_exec(bContext *C, wmOperator *op)
   for (const PointerRNA &ptr : objects) {
     Object *object = static_cast<Object *>(ptr.data);
     NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(
-        modifier_add(op->reports, bmain, scene, object, nullptr, eModifierType_Nodes));
+        modifier_add(op.reports, bmain, scene, object, nullptr, eModifierType_Nodes));
     if (!nmd) {
       continue;
     }
@@ -310,7 +310,7 @@ static wmOperatorStatus modifier_add_asset_exec(bContext *C, wmOperator *op)
     STRNCPY_UTF8(nmd->modifier.name, DATA_(node_group->id.name + 2));
     BKE_modifier_unique_name(&object->modifiers, &nmd->modifier);
 
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, object);
   }
 
   if (!changed) {
@@ -320,22 +320,22 @@ static wmOperatorStatus modifier_add_asset_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus modifier_add_asset_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus modifier_add_asset_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
-  if (event->modifier & KM_ALT || CTX_wm_view3d(*C)) {
-    RNA_boolean_set(op->ptr, "use_selected_objects", true);
+  if (event->modifier & KM_ALT || CTX_wm_view3d(C)) {
+    RNA_boolean_set(op.ptr, "use_selected_objects", true);
   }
   return modifier_add_asset_exec(C, op);
 }
 
-static std::string modifier_add_asset_get_description(bContext *C,
-                                                      wmOperatorType * /*ot*/,
+static std::string modifier_add_asset_get_description(bContext &C,
+                                                      wmOperatorType & /*ot*/,
                                                       PointerRNA *ptr)
 {
   const asset_system::AssetRepresentation *asset =
-      asset::operator_asset_reference_props_get_asset_from_all_library(*C, *ptr, nullptr);
+      asset::operator_asset_reference_props_get_asset_from_all_library(C, *ptr, nullptr);
   if (!asset) {
     return "";
   }

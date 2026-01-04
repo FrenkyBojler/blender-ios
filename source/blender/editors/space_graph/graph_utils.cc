@@ -109,11 +109,11 @@ bAnimListElem *get_active_fcurve_channel(bAnimContext *ac)
 /** \name Operator Polling Callbacks
  * \{ */
 
-bool graphop_visible_keyframes_poll(bContext *C)
+bool graphop_visible_keyframes_poll(bContext &C)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   size_t items;
   int filter;
   bool found = false;
@@ -125,7 +125,7 @@ bool graphop_visible_keyframes_poll(bContext *C)
   }
 
   /* try to init Anim-Context stuff ourselves and check */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return found;
   }
 
@@ -161,11 +161,11 @@ bool graphop_visible_keyframes_poll(bContext *C)
   return found;
 }
 
-bool graphop_editable_keyframes_poll(bContext *C)
+bool graphop_editable_keyframes_poll(bContext &C)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   size_t items;
   int filter;
   bool found = false;
@@ -177,7 +177,7 @@ bool graphop_editable_keyframes_poll(bContext *C)
   }
 
   /* try to init Anim-Context stuff ourselves and check */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return found;
   }
 
@@ -189,7 +189,7 @@ bool graphop_editable_keyframes_poll(bContext *C)
   items = ANIM_animdata_filter(
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
   if (items == 0) {
-    CTX_wm_operator_poll_msg_set(C, "There is no animation data to operate on");
+    CTX_wm_operator_poll_msg_set(&C, "There is no animation data to operate on");
     return found;
   }
 
@@ -217,11 +217,11 @@ bool graphop_editable_keyframes_poll(bContext *C)
   return found;
 }
 
-bool graphop_active_fcurve_poll(bContext *C)
+bool graphop_active_fcurve_poll(bContext &C)
 {
   bAnimContext ac;
   bAnimListElem *ale;
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   bool has_fcurve = false;
 
   /* firstly, check if in Graph Editor */
@@ -231,7 +231,7 @@ bool graphop_active_fcurve_poll(bContext *C)
   }
 
   /* try to init Anim-Context stuff ourselves and check */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return has_fcurve;
   }
 
@@ -260,18 +260,18 @@ bool graphop_active_fcurve_poll(bContext *C)
   return has_fcurve;
 }
 
-bool graphop_active_editable_fcurve_ctx_poll(bContext *C)
+bool graphop_active_editable_fcurve_ctx_poll(bContext &C)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(*C, "active_editable_fcurve", &RNA_FCurve);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "active_editable_fcurve", &RNA_FCurve);
 
   return ptr.data != nullptr;
 }
 
-bool graphop_selected_fcurve_poll(bContext *C)
+bool graphop_selected_fcurve_poll(bContext &C)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   size_t items;
   int filter;
 
@@ -282,7 +282,7 @@ bool graphop_selected_fcurve_poll(bContext *C)
   }
 
   /* try to init Anim-Context stuff ourselves and check */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return false;
   }
 

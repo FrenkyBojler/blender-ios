@@ -126,53 +126,53 @@ static bool get_invoke_region(bContext *C,
 
 namespace blender::ed::io {
 
-static bool grease_pencil_import_svg_check(bContext * /*C*/, wmOperator *op)
+static bool grease_pencil_import_svg_check(bContext & /*C*/, wmOperator &op)
 {
   char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   if (!BLI_path_extension_check(filepath, ".svg")) {
     BLI_path_extension_ensure(filepath, FILE_MAX, ".svg");
-    RNA_string_set(op->ptr, "filepath", filepath);
+    RNA_string_set(op.ptr, "filepath", filepath);
     return true;
   }
 
   return false;
 }
 
-static wmOperatorStatus grease_pencil_import_svg_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_import_svg_exec(bContext &C, wmOperator &op)
 {
   using blender::io::grease_pencil::ImportParams;
   using blender::io::grease_pencil::IOContext;
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
-  if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false) ||
-      !RNA_struct_find_property(op->ptr, "directory"))
+  if (!RNA_struct_property_is_set_ex(op.ptr, "filepath", false) ||
+      !RNA_struct_find_property(op.ptr, "directory"))
   {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
 
   ARegion *region;
   View3D *v3d;
   RegionView3D *rv3d;
-  if (!get_invoke_region(C, &region, &v3d, &rv3d)) {
-    BKE_report(op->reports, RPT_ERROR, "Unable to find valid 3D View area");
+  if (!get_invoke_region(&C, &region, &v3d, &rv3d)) {
+    BKE_report(op.reports, RPT_ERROR, "Unable to find valid 3D View area");
     return OPERATOR_CANCELLED;
   }
 
-  const int resolution = RNA_int_get(op->ptr, "resolution");
-  const float scale = RNA_float_get(op->ptr, "scale");
-  const bool use_scene_unit = RNA_boolean_get(op->ptr, "use_scene_unit");
+  const int resolution = RNA_int_get(op.ptr, "resolution");
+  const float scale = RNA_float_get(op.ptr, "scale");
+  const bool use_scene_unit = RNA_boolean_get(op.ptr, "use_scene_unit");
   const bool recenter_bounds = true;
 
-  const IOContext io_context(*C, region, v3d, rv3d, op->reports);
+  const IOContext io_context(C, region, v3d, rv3d, op.reports);
   const ImportParams params = {scale, scene->r.cfra, resolution, use_scene_unit, recenter_bounds};
 
   /* Loop all selected files to import them. All SVG imported shared the same import
    * parameters, but they are created in separated grease pencil objects. */
-  const auto paths = blender::ed::io::paths_from_operator_properties(op->ptr);
+  const auto paths = blender::ed::io::paths_from_operator_properties(op.ptr);
   for (const auto &path : paths) {
     /* Do Import. */
     WM_cursor_wait(true);
@@ -180,26 +180,26 @@ static wmOperatorStatus grease_pencil_import_svg_exec(bContext *C, wmOperator *o
     const bool done = blender::io::grease_pencil::import_svg(io_context, params, path);
     WM_cursor_wait(false);
     if (!done) {
-      BKE_reportf(op->reports, RPT_WARNING, "Unable to import '%s'", path.c_str());
+      BKE_reportf(op.reports, RPT_WARNING, "Unable to import '%s'", path.c_str());
     }
   }
 
   return OPERATOR_FINISHED;
 }
 
-static void grease_pencil_import_svg_draw(bContext * /*C*/, wmOperator *op)
+static void grease_pencil_import_svg_draw(bContext & /*C*/, wmOperator &op)
 {
-  ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op.layout;
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
   ui::Layout &col = layout.box().column(false);
-  col.prop(op->ptr, "resolution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col.prop(op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op.ptr, "resolution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op.ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
-static bool grease_pencil_import_svg_poll(bContext *C)
+static bool grease_pencil_import_svg_poll(bContext &C)
 {
-  if ((CTX_wm_window(*C) == nullptr) || (CTX_data_mode_enum(*C) != CTX_MODE_OBJECT)) {
+  if ((CTX_wm_window(C) == nullptr) || (CTX_data_mode_enum(C) != CTX_MODE_OBJECT)) {
     return false;
   }
 
@@ -266,67 +266,67 @@ void WM_OT_grease_pencil_import_svg(wmOperatorType *ot)
 
 namespace blender::ed::io {
 
-static bool grease_pencil_export_svg_check(bContext * /*C*/, wmOperator *op)
+static bool grease_pencil_export_svg_check(bContext & /*C*/, wmOperator &op)
 {
   char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   if (!BLI_path_extension_check(filepath, ".svg")) {
     BLI_path_extension_ensure(filepath, FILE_MAX, ".svg");
-    RNA_string_set(op->ptr, "filepath", filepath);
+    RNA_string_set(op.ptr, "filepath", filepath);
     return true;
   }
 
   return false;
 }
 
-static wmOperatorStatus grease_pencil_export_svg_invoke(bContext *C,
-                                                        wmOperator *op,
+static wmOperatorStatus grease_pencil_export_svg_invoke(bContext &C,
+                                                        wmOperator &op,
                                                         const wmEvent * /*event*/)
 {
-  ED_fileselect_ensure_default_filepath(C, op, ".svg");
+  ED_fileselect_ensure_default_filepath(&C, &op, ".svg");
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus grease_pencil_export_svg_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_export_svg_exec(bContext &C, wmOperator &op)
 {
   using blender::io::grease_pencil::ExportParams;
   using blender::io::grease_pencil::ExportStatus;
   using blender::io::grease_pencil::IOContext;
 
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob = CTX_data_active_object(*C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = CTX_data_active_object(C);
 
-  if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+  if (!RNA_struct_property_is_set_ex(op.ptr, "filepath", false)) {
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
 
   ARegion *region;
   View3D *v3d;
   RegionView3D *rv3d;
-  if (!get_invoke_region(C, &region, &v3d, &rv3d)) {
-    BKE_report(op->reports, RPT_ERROR, "Unable to find valid 3D View area");
+  if (!get_invoke_region(&C, &region, &v3d, &rv3d)) {
+    BKE_report(op.reports, RPT_ERROR, "Unable to find valid 3D View area");
     return OPERATOR_CANCELLED;
   }
 
   char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   const bool export_stroke_materials = true;
-  const bool export_fill_materials = RNA_boolean_get(op->ptr, "use_fill");
-  const bool use_uniform_width = RNA_boolean_get(op->ptr, "use_uniform_width");
+  const bool export_fill_materials = RNA_boolean_get(op.ptr, "use_fill");
+  const bool use_uniform_width = RNA_boolean_get(op.ptr, "use_uniform_width");
   const ExportParams::SelectMode select_mode = ExportParams::SelectMode(
-      RNA_enum_get(op->ptr, "selected_object_type"));
+      RNA_enum_get(op.ptr, "selected_object_type"));
   const ExportParams::FrameMode frame_mode = ExportParams::FrameMode(
-      RNA_enum_get(op->ptr, "frame_mode"));
-  const bool use_clip_camera = RNA_boolean_get(op->ptr, "use_clip_camera");
-  const float stroke_sample = RNA_float_get(op->ptr, "stroke_sample");
+      RNA_enum_get(op.ptr, "frame_mode"));
+  const bool use_clip_camera = RNA_boolean_get(op.ptr, "use_clip_camera");
+  const float stroke_sample = RNA_float_get(op.ptr, "stroke_sample");
 
-  const IOContext io_context(*C, region, v3d, rv3d, op->reports);
+  const IOContext io_context(C, region, v3d, rv3d, op.reports);
   const ExportParams params = {ob,
                                select_mode,
                                frame_mode,
@@ -345,13 +345,13 @@ static wmOperatorStatus grease_pencil_export_svg_exec(bContext *C, wmOperator *o
     case ExportStatus::Ok:
       break;
     case ExportStatus::InvalidActiveObjectType:
-      BKE_report(op->reports, RPT_WARNING, "Active object is not a Grease Pencil object");
+      BKE_report(op.reports, RPT_WARNING, "Active object is not a Grease Pencil object");
       break;
     case ExportStatus::NoFramesSelected:
-      BKE_report(op->reports, RPT_WARNING, "No frames selected in the Grease Pencil object");
+      BKE_report(op.reports, RPT_WARNING, "No frames selected in the Grease Pencil object");
       break;
     case ExportStatus::FileWriteError:
-      BKE_reportf(op->reports, RPT_WARNING, "Error during file write for \"%s\"", filepath);
+      BKE_reportf(op.reports, RPT_WARNING, "Error during file write for \"%s\"", filepath);
       break;
     case ExportStatus::UnknownError:
       BLI_assert_unreachable();
@@ -406,14 +406,14 @@ static void ui_gpencil_export_settings(blender::ui::Layout &layout,
   }
 }
 
-static void grease_pencil_export_svg_draw(bContext * /*C*/, wmOperator *op)
+static void grease_pencil_export_svg_draw(bContext & /*C*/, wmOperator &op)
 {
-  ui_gpencil_export_settings(*op->layout, op->ptr, GreasePencilExportFiletype::SVG);
+  ui_gpencil_export_settings(*op.layout, op.ptr, GreasePencilExportFiletype::SVG);
 }
 
-static bool grease_pencil_export_svg_poll(bContext *C)
+static bool grease_pencil_export_svg_poll(bContext &C)
 {
-  if ((CTX_wm_window(*C) == nullptr) || (CTX_data_mode_enum(*C) != CTX_MODE_OBJECT)) {
+  if ((CTX_wm_window(C) == nullptr) || (CTX_data_mode_enum(C) != CTX_MODE_OBJECT)) {
     return false;
   }
 
@@ -463,67 +463,67 @@ void WM_OT_grease_pencil_export_svg(wmOperatorType *ot)
 
 namespace blender::ed::io {
 
-static bool grease_pencil_export_pdf_check(bContext * /*C*/, wmOperator *op)
+static bool grease_pencil_export_pdf_check(bContext & /*C*/, wmOperator &op)
 {
 
   char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   if (!BLI_path_extension_check(filepath, ".pdf")) {
     BLI_path_extension_ensure(filepath, FILE_MAX, ".pdf");
-    RNA_string_set(op->ptr, "filepath", filepath);
+    RNA_string_set(op.ptr, "filepath", filepath);
     return true;
   }
 
   return false;
 }
 
-static wmOperatorStatus grease_pencil_export_pdf_invoke(bContext *C,
-                                                        wmOperator *op,
+static wmOperatorStatus grease_pencil_export_pdf_invoke(bContext &C,
+                                                        wmOperator &op,
                                                         const wmEvent * /*event*/)
 {
-  ED_fileselect_ensure_default_filepath(C, op, ".pdf");
+  ED_fileselect_ensure_default_filepath(&C, &op, ".pdf");
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus grease_pencil_export_pdf_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_export_pdf_exec(bContext &C, wmOperator &op)
 {
   using blender::io::grease_pencil::ExportParams;
   using blender::io::grease_pencil::IOContext;
 
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob = CTX_data_active_object(*C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = CTX_data_active_object(C);
 
-  if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+  if (!RNA_struct_property_is_set_ex(op.ptr, "filepath", false)) {
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
 
   ARegion *region;
   View3D *v3d;
   RegionView3D *rv3d;
-  if (!get_invoke_region(C, &region, &v3d, &rv3d)) {
-    BKE_report(op->reports, RPT_ERROR, "Unable to find valid 3D View area");
+  if (!get_invoke_region(&C, &region, &v3d, &rv3d)) {
+    BKE_report(op.reports, RPT_ERROR, "Unable to find valid 3D View area");
     return OPERATOR_CANCELLED;
   }
 
   char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   const bool export_stroke_materials = true;
-  const bool export_fill_materials = RNA_boolean_get(op->ptr, "use_fill");
-  const bool use_uniform_width = RNA_boolean_get(op->ptr, "use_uniform_width");
+  const bool export_fill_materials = RNA_boolean_get(op.ptr, "use_fill");
+  const bool use_uniform_width = RNA_boolean_get(op.ptr, "use_uniform_width");
   const ExportParams::SelectMode select_mode = ExportParams::SelectMode(
-      RNA_enum_get(op->ptr, "selected_object_type"));
+      RNA_enum_get(op.ptr, "selected_object_type"));
   const ExportParams::FrameMode frame_mode = ExportParams::FrameMode(
-      RNA_enum_get(op->ptr, "frame_mode"));
+      RNA_enum_get(op.ptr, "frame_mode"));
   const bool use_clip_camera = false;
-  const float stroke_sample = RNA_float_get(op->ptr, "stroke_sample");
+  const float stroke_sample = RNA_float_get(op.ptr, "stroke_sample");
 
-  const IOContext io_context(*C, region, v3d, rv3d, op->reports);
+  const IOContext io_context(C, region, v3d, rv3d, op.reports);
   const ExportParams params = {ob,
                                select_mode,
                                frame_mode,
@@ -538,20 +538,20 @@ static wmOperatorStatus grease_pencil_export_pdf_exec(bContext *C, wmOperator *o
   WM_cursor_wait(false);
 
   if (!done) {
-    BKE_report(op->reports, RPT_WARNING, "Unable to export PDF");
+    BKE_report(op.reports, RPT_WARNING, "Unable to export PDF");
   }
 
   return OPERATOR_FINISHED;
 }
 
-static void grease_pencil_export_pdf_draw(bContext * /*C*/, wmOperator *op)
+static void grease_pencil_export_pdf_draw(bContext & /*C*/, wmOperator &op)
 {
-  ui_gpencil_export_settings(*op->layout, op->ptr, GreasePencilExportFiletype::PDF);
+  ui_gpencil_export_settings(*op.layout, op.ptr, GreasePencilExportFiletype::PDF);
 }
 
-static bool grease_pencil_export_pdf_poll(bContext *C)
+static bool grease_pencil_export_pdf_poll(bContext &C)
 {
-  if ((CTX_wm_window(*C) == nullptr) || (CTX_data_mode_enum(*C) != CTX_MODE_OBJECT)) {
+  if ((CTX_wm_window(C) == nullptr) || (CTX_data_mode_enum(C) != CTX_MODE_OBJECT)) {
     return false;
   }
 

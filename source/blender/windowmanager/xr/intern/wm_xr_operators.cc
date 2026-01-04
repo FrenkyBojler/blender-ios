@@ -60,9 +60,9 @@
  * \{ */
 
 /* `op->poll`. */
-static bool wm_xr_operator_sessionactive(bContext *C)
+static bool wm_xr_operator_sessionactive(bContext &C)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   return WM_xr_session_is_ready(&wm->xr);
 }
 
@@ -128,12 +128,12 @@ static void wm_xr_session_update_screen_on_exit_cb(const wmXrData *xr_data)
   wm_xr_session_update_screen(G_MAIN, xr_data);
 }
 
-static wmOperatorStatus wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus wm_xr_session_toggle_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Main *bmain = CTX_data_main(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   /* Lazily-create XR context - tries to dynamic-link to the runtime,
    * reading `active_runtime.json`. */
@@ -145,7 +145,7 @@ static wmOperatorStatus wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op
   wm_xr_session_toggle(wm, win, wm_xr_session_update_screen_on_exit_cb);
   wm_xr_session_update_screen(bmain, &wm->xr);
 
-  WM_event_add_notifier(C, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+  WM_event_add_notifier(&C, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -411,25 +411,25 @@ static void wm_xr_grab_compute_bimanual(const wmXrActionData *actiondata,
  * Navigates the scene by grabbing with XR controllers.
  * \{ */
 
-static wmOperatorStatus wm_xr_navigation_grab_invoke(bContext *C,
-                                                     wmOperator *op,
+static wmOperatorStatus wm_xr_navigation_grab_invoke(bContext &C,
+                                                     wmOperator &op,
                                                      const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
+  if (!wm_xr_operator_test_event(&op, event)) {
     return OPERATOR_PASS_THROUGH;
   }
 
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
 
-  wm_xr_grab_init(op);
-  wm_xr_grab_update(op, actiondata);
+  wm_xr_grab_init(&op);
+  wm_xr_grab_update(&op, actiondata);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_xr_navigation_grab_exec(bContext * /*C*/, wmOperator * /*op*/)
+static wmOperatorStatus wm_xr_navigation_grab_exec(bContext & /*C*/, wmOperator & /*op*/)
 {
   return OPERATOR_CANCELLED;
 }
@@ -537,33 +537,33 @@ static void wm_xr_navigation_grab_bimanual_state_update(const wmXrActionData *ac
   }
 }
 
-static void wm_xr_navigation_grab_cancel(bContext * /*C*/, wmOperator *op)
+static void wm_xr_navigation_grab_cancel(bContext & /*C*/, wmOperator &op)
 {
-  wm_xr_grab_uninit(op);
+  wm_xr_grab_uninit(&op);
 }
 
-static wmOperatorStatus wm_xr_navigation_grab_modal(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus wm_xr_navigation_grab_modal(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
+  if (!wm_xr_operator_test_event(&op, event)) {
     return OPERATOR_PASS_THROUGH;
   }
 
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
-  XrGrabData *data = static_cast<XrGrabData *>(op->customdata);
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  XrGrabData *data = static_cast<XrGrabData *>(op.customdata);
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;
 
   WM_xr_session_state_vignette_activate(xr);
 
   const bool do_bimanual = wm_xr_navigation_grab_can_do_bimanual(actiondata, data);
 
-  data->loc_lock = RNA_boolean_get(op->ptr, "lock_location");
-  data->locz_lock = RNA_boolean_get(op->ptr, "lock_location_z");
-  data->rot_lock = RNA_boolean_get(op->ptr, "lock_rotation");
-  data->rotz_lock = RNA_boolean_get(op->ptr, "lock_rotation_z");
-  data->scale_lock = RNA_boolean_get(op->ptr, "lock_scale");
+  data->loc_lock = RNA_boolean_get(op.ptr, "lock_location");
+  data->locz_lock = RNA_boolean_get(op.ptr, "lock_location_z");
+  data->rot_lock = RNA_boolean_get(op.ptr, "lock_rotation");
+  data->rotz_lock = RNA_boolean_get(op.ptr, "lock_rotation_z");
+  data->scale_lock = RNA_boolean_get(op.ptr, "lock_scale");
 
   /* Check if navigation is locked. */
   if (!wm_xr_navigation_grab_is_locked(data, do_bimanual)) {
@@ -584,11 +584,11 @@ static wmOperatorStatus wm_xr_navigation_grab_modal(bContext *C,
     case KM_PRESS:
       return OPERATOR_RUNNING_MODAL;
     case KM_RELEASE:
-      wm_xr_grab_uninit(op);
+      wm_xr_grab_uninit(&op);
       return OPERATOR_FINISHED;
     default:
       BLI_assert_unreachable();
-      wm_xr_grab_uninit(op);
+      wm_xr_grab_uninit(&op);
       return OPERATOR_CANCELLED;
   }
 }
@@ -777,49 +777,49 @@ static void wm_xr_basenav_rotation_calc(const wmXrData *xr,
   mul_qt_qtqt(r_rotation, nav_rotation, base_quatz);
 }
 
-static wmOperatorStatus wm_xr_navigation_fly_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus wm_xr_navigation_fly_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
+  if (!wm_xr_operator_test_event(&op, event)) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
 
-  wm_xr_fly_init(op, &wm->xr);
+  wm_xr_fly_init(&op, &wm->xr);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_xr_navigation_fly_exec(bContext * /*C*/, wmOperator * /*op*/)
+static wmOperatorStatus wm_xr_navigation_fly_exec(bContext & /*C*/, wmOperator & /*op*/)
 {
   return OPERATOR_CANCELLED;
 }
 
-static void wm_xr_navigation_fly_cancel(bContext * /*C*/, wmOperator *op)
+static void wm_xr_navigation_fly_cancel(bContext & /*C*/, wmOperator &op)
 {
-  wm_xr_fly_uninit(op);
+  wm_xr_fly_uninit(&op);
 }
 
-static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus wm_xr_navigation_fly_modal(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
+  if (!wm_xr_operator_test_event(&op, event)) {
     return OPERATOR_PASS_THROUGH;
   }
 
   if (event->val == KM_RELEASE) {
-    wm_xr_fly_uninit(op);
+    wm_xr_fly_uninit(&op);
     return OPERATOR_FINISHED;
   }
 
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
-  XrFlyData *data = static_cast<XrFlyData *>(op->customdata);
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  XrFlyData *data = static_cast<XrFlyData *>(op.customdata);
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;
   eXrFlyMode mode;
   bool turn, snap_turn, invert_rotation, swap_hands, locz_lock, dir_lock, speed_frame_based;
@@ -832,13 +832,13 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
   data->time_prev = time_now;
 
   swap_hands = xr->runtime->session_state.swap_hands;
-  mode = (eXrFlyMode)RNA_enum_get(op->ptr, swap_hands ? "alt_mode" : "mode");
+  mode = (eXrFlyMode)RNA_enum_get(op.ptr, swap_hands ? "alt_mode" : "mode");
   turn = ELEM(mode, XR_FLY_TURNLEFT, XR_FLY_TURNRIGHT);
   snap_turn = U.xr_navigation.flag & USER_XR_NAV_SNAP_TURN;
   invert_rotation = U.xr_navigation.flag & USER_XR_NAV_INVERT_ROTATION;
 
-  locz_lock = RNA_boolean_get(op->ptr, swap_hands ? "alt_lock_location_z" : "lock_location_z");
-  dir_lock = RNA_boolean_get(op->ptr, swap_hands ? "alt_lock_direction" : "lock_direction");
+  locz_lock = RNA_boolean_get(op.ptr, swap_hands ? "alt_lock_location_z" : "lock_location_z");
+  dir_lock = RNA_boolean_get(op.ptr, swap_hands ? "alt_lock_direction" : "lock_direction");
 
   if (turn) {
     speed_frame_based = false;
@@ -849,27 +849,27 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
     }
     else {
       speed_max = U.xr_navigation.turn_speed;
-      speed = speed_max * RNA_boolean_get(op->ptr, "turn_speed_factor");
+      speed = speed_max * RNA_boolean_get(op.ptr, "turn_speed_factor");
     }
   }
   else {
-    speed_frame_based = RNA_boolean_get(op->ptr, "speed_frame_based");
+    speed_frame_based = RNA_boolean_get(op.ptr, "speed_frame_based");
     speed_max = xr->session_settings.fly_speed;
-    speed = speed_max * RNA_float_get(op->ptr, "fly_speed_factor");
+    speed = speed_max * RNA_float_get(op.ptr, "fly_speed_factor");
   }
 
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "speed_interpolation0");
-  if (prop && RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_float_get_array(op->ptr, prop, speed_p0);
+  PropertyRNA *prop = RNA_struct_find_property(op.ptr, "speed_interpolation0");
+  if (prop && RNA_property_is_set(op.ptr, prop)) {
+    RNA_property_float_get_array(op.ptr, prop, speed_p0);
     speed_interp_cubic = true;
   }
   else {
     speed_p0[0] = speed_p0[1] = 0.0f;
   }
 
-  prop = RNA_struct_find_property(op->ptr, "speed_interpolation1");
-  if (prop && RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_float_get_array(op->ptr, prop, speed_p1);
+  prop = RNA_struct_find_property(op.ptr, "speed_interpolation1");
+  if (prop && RNA_property_is_set(op.ptr, prop)) {
+    RNA_property_float_get_array(op.ptr, prop, speed_p1);
     speed_interp_cubic = true;
   }
   else {
@@ -925,7 +925,7 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
 
   if (turn) {
     if (dir_lock || (snap_turn && data->is_finished) ||
-        (snap_turn && button_state < RNA_float_get(op->ptr, "snap_turn_threshold")))
+        (snap_turn && button_state < RNA_float_get(op.ptr, "snap_turn_threshold")))
     {
       unit_m4(delta);
     }
@@ -1016,7 +1016,7 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
 
   /* XR events currently only support press and release. */
   BLI_assert_unreachable();
-  wm_xr_fly_uninit(op);
+  wm_xr_fly_uninit(&op);
   return OPERATOR_CANCELLED;
 }
 
@@ -1562,65 +1562,65 @@ static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
   return result;
 }
 
-static wmOperatorStatus wm_xr_navigation_teleport_invoke(bContext *C,
-                                                         wmOperator *op,
+static wmOperatorStatus wm_xr_navigation_teleport_invoke(bContext &C,
+                                                         wmOperator &op,
                                                          const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
+  if (!wm_xr_operator_test_event(&op, event)) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  wm_xr_navigation_teleport_init(op);
+  wm_xr_navigation_teleport_init(&op);
 
-  const wmOperatorStatus retval = op->type->modal(C, op, event);
+  const wmOperatorStatus retval = op.type->modal(&C, &op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval & OPERATOR_RUNNING_MODAL) {
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
   }
 
   return retval;
 }
 
-static wmOperatorStatus wm_xr_navigation_teleport_exec(bContext * /*C*/, wmOperator * /*op*/)
+static wmOperatorStatus wm_xr_navigation_teleport_exec(bContext & /*C*/, wmOperator & /*op*/)
 {
   return OPERATOR_CANCELLED;
 }
 
-static void wm_xr_navigation_teleport_cancel(bContext * /*C*/, wmOperator *op)
+static void wm_xr_navigation_teleport_cancel(bContext & /*C*/, wmOperator &op)
 {
-  wm_xr_navigation_teleport_uninit(op);
+  wm_xr_navigation_teleport_uninit(&op);
 }
 
-static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
-                                                        wmOperator *op,
+static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext &C,
+                                                        wmOperator &op,
                                                         const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
+  if (!wm_xr_operator_test_event(&op, event)) {
     return OPERATOR_PASS_THROUGH;
   }
 
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
 
-  wmXrData *xr = &CTX_wm_manager(*C)->xr;
-  XrTeleportData *data = static_cast<XrTeleportData *>(op->customdata);
+  wmXrData *xr = &CTX_wm_manager(C)->xr;
+  XrTeleportData *data = static_cast<XrTeleportData *>(op.customdata);
 
-  wm_xr_navigation_teleport_data_update(op, xr, data, actiondata);
+  wm_xr_navigation_teleport_data_update(&op, xr, data, actiondata);
 
   /* Teleport using an arc, computing both the final destination and the visual curve. */
   blender::float3 nav_destination = {};
-  data->ray_result = wm_xr_navigation_teleport_main(C, op, xr, data, nav_destination);
+  data->ray_result = wm_xr_navigation_teleport_main(&C, &op, xr, data, nav_destination);
 
   /* Update ray color. */
   switch (data->ray_result) {
     case XR_TELEPORT_RAY_MISS:
-      RNA_float_get_array(op->ptr, "miss_color", data->ray_color);
+      RNA_float_get_array(op.ptr, "miss_color", data->ray_color);
       break;
     case XR_TELEPORT_RAY_HIT:
-      RNA_float_get_array(op->ptr, "hit_color", data->ray_color);
+      RNA_float_get_array(op.ptr, "hit_color", data->ray_color);
       break;
     case XR_TELEPORT_RAY_FALLBACK:
-      RNA_float_get_array(op->ptr, "fallback_color", data->ray_color);
+      RNA_float_get_array(op.ptr, "fallback_color", data->ray_color);
       break;
     default:
       BLI_assert_unreachable();
@@ -1636,13 +1636,13 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
         WM_xr_session_state_nav_location_set(xr, nav_destination);
       }
 
-      wm_xr_navigation_teleport_uninit(op);
+      wm_xr_navigation_teleport_uninit(&op);
       return OPERATOR_FINISHED;
     }
     default:
       /* XR events currently only support press and release. */
       BLI_assert_unreachable();
-      wm_xr_navigation_teleport_uninit(op);
+      wm_xr_navigation_teleport_uninit(&op);
       return OPERATOR_CANCELLED;
   }
 }
@@ -1752,15 +1752,15 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
  * Resets XR navigation deltas relative to session base pose.
  * \{ */
 
-static wmOperatorStatus wm_xr_navigation_reset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_xr_navigation_reset_exec(bContext &C, wmOperator &op)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;
   bool reset_loc, reset_rot, reset_scale;
 
-  reset_loc = RNA_boolean_get(op->ptr, "location");
-  reset_rot = RNA_boolean_get(op->ptr, "rotation");
-  reset_scale = RNA_boolean_get(op->ptr, "scale");
+  reset_loc = RNA_boolean_get(op.ptr, "location");
+  reset_rot = RNA_boolean_get(op.ptr, "rotation");
+  reset_scale = RNA_boolean_get(op.ptr, "scale");
 
   if (reset_loc) {
     float loc[3];
@@ -1841,17 +1841,17 @@ static void WM_OT_xr_navigation_reset(wmOperatorType *ot)
  * Resets XR navigation deltas relative to session base pose.
  * \{ */
 
-static wmOperatorStatus wm_xr_navigation_swap_hands_invoke(bContext *C,
-                                                           wmOperator *op,
+static wmOperatorStatus wm_xr_navigation_swap_hands_invoke(bContext &C,
+                                                           wmOperator &op,
                                                            const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
+  if (!wm_xr_operator_test_event(&op, event)) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;
 
   xr->runtime->session_state.swap_hands = true;
@@ -1859,20 +1859,20 @@ static wmOperatorStatus wm_xr_navigation_swap_hands_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_xr_navigation_swap_hands_exec(bContext * /*C*/, wmOperator * /*op*/)
+static wmOperatorStatus wm_xr_navigation_swap_hands_exec(bContext & /*C*/, wmOperator & /*op*/)
 {
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus wm_xr_navigation_swap_hands_modal(bContext *C,
-                                                          wmOperator *op,
+static wmOperatorStatus wm_xr_navigation_swap_hands_modal(bContext &C,
+                                                          wmOperator &op,
                                                           const wmEvent *event)
 {
-  if (!wm_xr_operator_test_event(op, event)) {
+  if (!wm_xr_operator_test_event(&op, event)) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;
 
   switch (event->val) {

@@ -151,11 +151,11 @@ void NLA_OT_selected_objects_add(wmOperatorType *ot);
 /**
  * Tweak-mode is NOT enabled.
  */
-bool nlaop_poll_tweakmode_off(bContext *C);
+bool nlaop_poll_tweakmode_off(bContext &C);
 /**
  * Tweak-mode IS enabled.
  */
-bool nlaop_poll_tweakmode_on(bContext *C);
+bool nlaop_poll_tweakmode_on(bContext &C);
 
 /**
  * Is tweak-mode enabled - for use in NLA operator code.

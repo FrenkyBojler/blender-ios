@@ -488,17 +488,17 @@ static void selectend_nurb(Object *obedit, eEndPoint_Types selfirst, bool doswap
   }
 }
 
-static wmOperatorStatus de_select_first_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus de_select_first_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     selectend_nurb(obedit, FIRST, true, false);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     BKE_curve_nurb_vert_active_validate(static_cast<Curve *>(obedit->data));
   }
   return OPERATOR_FINISHED;
@@ -519,17 +519,17 @@ void CURVE_OT_de_select_first(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus de_select_last_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus de_select_last_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     selectend_nurb(obedit, LAST, true, false);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     BKE_curve_nurb_vert_active_validate(static_cast<Curve *>(obedit->data));
   }
 
@@ -557,15 +557,15 @@ void CURVE_OT_de_select_last(wmOperatorType *ot)
 /** \name Select All Operator
  * \{ */
 
-static wmOperatorStatus de_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus de_select_all_exec(bContext &C, wmOperator &op)
 {
-  int action = RNA_enum_get(op->ptr, "action");
+  int action = RNA_enum_get(op.ptr, "action");
 
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   if (action == SEL_TOGGLE) {
     action = SEL_SELECT;
     for (Object *obedit : objects) {
@@ -597,7 +597,7 @@ static wmOperatorStatus de_select_all_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
       BKE_curve_nurb_vert_active_validate(cu);
     }
   }
@@ -629,14 +629,14 @@ void CURVE_OT_select_all(wmOperatorType *ot)
 /** \name Select Linked Operator
  * \{ */
 
-static wmOperatorStatus select_linked_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus select_linked_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = static_cast<Curve *>(obedit->data);
     EditNurb *editnurb = cu->editnurb;
@@ -651,15 +651,15 @@ static wmOperatorStatus select_linked_exec(bContext *C, wmOperator * /*op*/)
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus select_linked_invoke(bContext *C,
-                                             wmOperator *op,
+static wmOperatorStatus select_linked_invoke(bContext &C,
+                                             wmOperator &op,
                                              const wmEvent * /*event*/)
 {
   return select_linked_exec(C, op);
@@ -689,20 +689,20 @@ void CURVE_OT_select_linked(wmOperatorType *ot)
 /** \name Select Linked Pick Operator
  * \{ */
 
-static wmOperatorStatus select_linked_pick_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus select_linked_pick_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Nurb *nu;
   BezTriple *bezt;
   BPoint *bp;
   int a;
-  const bool select = !RNA_boolean_get(op->ptr, "deselect");
+  const bool select = !RNA_boolean_get(op.ptr, "deselect");
   Base *basact = nullptr;
 
-  view3d_operator_needs_gpu(C);
-  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  view3d_operator_needs_gpu(&C);
+  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
   copy_v2_v2_int(vc.mval, event->mval);
 
   if (!ED_curve_pick_vert(&vc, 1, &nu, &bezt, &bp, nullptr, &basact)) {
@@ -729,7 +729,7 @@ static wmOperatorStatus select_linked_pick_invoke(bContext *C,
   Object *obedit = basact->object;
 
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
 
   if (!select) {
     BKE_curve_nurb_vert_active_validate(static_cast<Curve *>(obedit->data));
@@ -766,9 +766,9 @@ void CURVE_OT_select_linked_pick(wmOperatorType *ot)
 /** \name Select Row Operator
  * \{ */
 
-static wmOperatorStatus select_row_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus select_row_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
   static BPoint *last = nullptr;
@@ -806,7 +806,7 @@ static wmOperatorStatus select_row_exec(bContext *C, wmOperator * /*op*/)
   }
 
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
 
   return OPERATOR_FINISHED;
 }
@@ -834,12 +834,12 @@ void CURVE_OT_select_row(wmOperatorType *ot)
 /** \name Select Next Operator
  * \{ */
 
-static wmOperatorStatus select_next_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus select_next_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
 
@@ -847,7 +847,7 @@ static wmOperatorStatus select_next_exec(bContext *C, wmOperator * /*op*/)
     select_adjacent_cp(editnurb, 1, false, SELECT);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
   return OPERATOR_FINISHED;
 }
@@ -873,12 +873,12 @@ void CURVE_OT_select_next(wmOperatorType *ot)
 /** \name Select Previous Operator
  * \{ */
 
-static wmOperatorStatus select_previous_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus select_previous_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
 
@@ -886,7 +886,7 @@ static wmOperatorStatus select_previous_exec(bContext *C, wmOperator * /*op*/)
     select_adjacent_cp(editnurb, -1, false, SELECT);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
   return OPERATOR_FINISHED;
 }
@@ -987,16 +987,16 @@ static void curve_select_more(Object *obedit)
   }
 }
 
-static wmOperatorStatus curve_select_more_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus curve_select_more_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     curve_select_more(obedit);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
   return OPERATOR_FINISHED;
 }
@@ -1204,16 +1204,16 @@ static void curve_select_less(Object *obedit)
   }
 }
 
-static wmOperatorStatus curve_select_less_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus curve_select_less_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     curve_select_less(obedit);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
   return OPERATOR_FINISHED;
 }
@@ -1239,16 +1239,16 @@ void CURVE_OT_select_less(wmOperatorType *ot)
 /** \name Select Random Operator
  * \{ */
 
-static wmOperatorStatus curve_select_random_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus curve_select_random_exec(bContext &C, wmOperator &op)
 {
-  const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
-  const float randfac = RNA_float_get(op->ptr, "ratio");
-  const int seed = WM_operator_properties_select_random_seed_increment_get(op);
+  const bool select = (RNA_enum_get(op.ptr, "action") == SEL_SELECT);
+  const float randfac = RNA_float_get(op.ptr, "ratio");
+  const int seed = WM_operator_properties_select_random_seed_increment_get(&op);
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
@@ -1326,7 +1326,7 @@ static wmOperatorStatus curve_select_random_exec(bContext *C, wmOperator *op)
     MEM_freeN(verts_selection_mask);
     BKE_curve_nurb_vert_active_validate(static_cast<Curve *>(obedit->data));
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -1422,19 +1422,19 @@ static bool ed_curve_select_nth(Curve *cu, const CheckerIntervalParams *params)
   return true;
 }
 
-static wmOperatorStatus select_nth_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_nth_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Object *obact = CTX_data_edit_object(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Object *obact = CTX_data_edit_object(C);
+  View3D *v3d = CTX_wm_view3d(C);
   bool changed = false;
 
   CheckerIntervalParams op_params;
-  WM_operator_properties_checker_interval_from_op(op, &op_params);
+  WM_operator_properties_checker_interval_from_op(&op, &op_params);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = static_cast<Curve *>(obedit->data);
 
@@ -1446,16 +1446,16 @@ static wmOperatorStatus select_nth_exec(bContext *C, wmOperator *op)
       changed = true;
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
   if (!changed) {
     if (obact->type == OB_SURF) {
-      BKE_report(op->reports, RPT_ERROR, "Surface(s) have no active point");
+      BKE_report(op.reports, RPT_ERROR, "Surface(s) have no active point");
     }
     else {
-      BKE_report(op->reports, RPT_ERROR, "Curve(s) have no active point");
+      BKE_report(op.reports, RPT_ERROR, "Curve(s) have no active point");
     }
     return OPERATOR_CANCELLED;
   }
@@ -1713,19 +1713,19 @@ static bool curve_nurb_select_similar_type(Object *ob,
   return changed;
 }
 
-static wmOperatorStatus curve_select_similar_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus curve_select_similar_exec(bContext &C, wmOperator &op)
 {
   /* Get props. */
-  const int optype = RNA_enum_get(op->ptr, "type");
-  const float thresh = RNA_float_get(op->ptr, "threshold");
-  const int compare = RNA_enum_get(op->ptr, "compare");
+  const int optype = RNA_enum_get(op.ptr, "type");
+  const float thresh = RNA_float_get(op.ptr, "threshold");
+  const int compare = RNA_enum_get(op.ptr, "compare");
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
   int tot_nurbs_selected_all = 0;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     Curve *cu = static_cast<Curve *>(obedit->data);
@@ -1733,7 +1733,7 @@ static wmOperatorStatus curve_select_similar_exec(bContext *C, wmOperator *op)
   }
 
   if (tot_nurbs_selected_all == 0) {
-    BKE_report(op->reports, RPT_ERROR, "No control point selected");
+    BKE_report(op.reports, RPT_ERROR, "No control point selected");
     return OPERATOR_CANCELLED;
   }
 
@@ -1808,7 +1808,7 @@ static wmOperatorStatus curve_select_similar_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -2000,11 +2000,11 @@ static void curve_select_shortest_path_surf(Nurb *nu, int vert_src, int vert_dst
   MEM_freeN(data);
 }
 
-static wmOperatorStatus edcu_shortest_path_pick_invoke(bContext *C,
-                                                       wmOperator *op,
+static wmOperatorStatus edcu_shortest_path_pick_invoke(bContext &C,
+                                                       wmOperator &op,
                                                        const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Nurb *nu_dst;
   BezTriple *bezt_dst;
   BPoint *bp_dst;
@@ -2012,8 +2012,8 @@ static wmOperatorStatus edcu_shortest_path_pick_invoke(bContext *C,
   void *vert_dst_p;
   Base *basact = nullptr;
 
-  view3d_operator_needs_gpu(C);
-  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  view3d_operator_needs_gpu(&C);
+  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
   copy_v2_v2_int(vc.mval, event->mval);
 
   if (!ED_curve_pick_vert(&vc, 1, &nu_dst, &bezt_dst, &bp_dst, nullptr, &basact)) {
@@ -2031,7 +2031,7 @@ static wmOperatorStatus edcu_shortest_path_pick_invoke(bContext *C,
   }
 
   if (nu_src != nu_dst) {
-    BKE_report(op->reports, RPT_ERROR, "Control point belongs to another spline");
+    BKE_report(op.reports, RPT_ERROR, "Control point belongs to another spline");
     return OPERATOR_CANCELLED;
   }
 
@@ -2052,11 +2052,11 @@ static wmOperatorStatus edcu_shortest_path_pick_invoke(bContext *C,
 
   BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
   if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-    blender::ed::object::base_activate(C, basact);
+    blender::ed::object::base_activate(&C, basact);
   }
 
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT | ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   return OPERATOR_FINISHED;
 }
 

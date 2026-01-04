@@ -42,30 +42,30 @@ static bool brush_cursor_poll(bContext *C)
   return false;
 }
 
-static bool paintmode_toggle_poll(bContext *C)
+static bool paintmode_toggle_poll(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   if ((ob) && ob->type == OB_GREASE_PENCIL) {
     return ob->data != nullptr;
   }
   return false;
 }
 
-static wmOperatorStatus paintmode_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paintmode_toggle_exec(bContext &C, wmOperator &op)
 {
-  const bool back = RNA_boolean_get(op->ptr, "back");
+  const bool back = RNA_boolean_get(op.ptr, "back");
 
-  wmMsgBus *mbus = CTX_wm_message_bus(*C);
-  Main *bmain = CTX_data_main(*C);
-  ToolSettings *ts = CTX_data_tool_settings(*C);
+  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  Main *bmain = CTX_data_main(C);
+  ToolSettings *ts = CTX_data_tool_settings(C);
 
   short mode;
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   BLI_assert(ob != nullptr);
 
   const bool is_mode_set = (ob->mode & OB_MODE_PAINT_GREASE_PENCIL) != 0;
   if (!is_mode_set) {
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     BKE_paint_init(bmain, scene, PaintMode::GPencil);
     Paint *paint = BKE_paint_get_active_from_paintmode(scene, PaintMode::GPencil);
     ED_paint_cursor_start(paint, brush_cursor_poll);
@@ -90,7 +90,7 @@ static wmOperatorStatus paintmode_toggle_exec(bContext *C, wmOperator *op)
     BKE_paint_brushes_ensure(bmain, &ts->gp_vertexpaint->paint);
 
     /* Ensure Palette by default. */
-    BKE_gpencil_palette_ensure(bmain, CTX_data_scene(*C));
+    BKE_gpencil_palette_ensure(bmain, CTX_data_scene(C));
 
     Paint *paint = &ts->gp_paint->paint;
     Brush *brush = BKE_paint_brush(paint);
@@ -103,13 +103,13 @@ static wmOperatorStatus paintmode_toggle_exec(bContext *C, wmOperator *op)
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
-  WM_event_add_notifier(C, NC_SCENE | ND_MODE, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, nullptr);
 
   WM_msg_publish_rna_prop(mbus, &ob->id, ob, Object, mode);
 
   if (G.background == false) {
-    WM_toolsystem_update_from_context_view3d(C);
+    WM_toolsystem_update_from_context_view3d(&C);
   }
 
   return OPERATOR_FINISHED;
@@ -139,9 +139,9 @@ static void GREASE_PENCIL_OT_paintmode_toggle(wmOperatorType *ot)
 /** \name Toggle Stroke Sculpt Mode Operator
  * \{ */
 
-static bool sculptmode_toggle_poll(bContext *C)
+static bool sculptmode_toggle_poll(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   if (ob == nullptr) {
     return false;
   }
@@ -163,23 +163,23 @@ static bool sculpt_poll_view3d(bContext *C)
   return true;
 }
 
-static wmOperatorStatus sculptmode_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculptmode_toggle_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  ToolSettings *ts = CTX_data_tool_settings(*C);
+  Main *bmain = CTX_data_main(C);
+  ToolSettings *ts = CTX_data_tool_settings(C);
 
-  const bool back = RNA_boolean_get(op->ptr, "back");
+  const bool back = RNA_boolean_get(op.ptr, "back");
 
-  wmMsgBus *mbus = CTX_wm_message_bus(*C);
+  wmMsgBus *mbus = CTX_wm_message_bus(C);
   short mode;
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   BLI_assert(ob != nullptr);
   const bool is_mode_set = (ob->mode & OB_MODE_SCULPT_GREASE_PENCIL) != 0;
   if (is_mode_set) {
     mode = OB_MODE_OBJECT;
   }
   else {
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     BKE_paint_init(bmain, scene, PaintMode::SculptGPencil);
     Paint *paint = BKE_paint_get_active_from_paintmode(scene, PaintMode::SculptGPencil);
     ED_paint_cursor_start(paint, sculpt_poll_view3d);
@@ -201,13 +201,13 @@ static wmOperatorStatus sculptmode_toggle_exec(bContext *C, wmOperator *op)
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
-  WM_event_add_notifier(C, NC_SCENE | ND_MODE, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, nullptr);
 
   WM_msg_publish_rna_prop(mbus, &ob->id, ob, Object, mode);
 
   if (G.background == false) {
-    WM_toolsystem_update_from_context_view3d(C);
+    WM_toolsystem_update_from_context_view3d(&C);
   }
 
   return OPERATOR_FINISHED;
@@ -244,26 +244,26 @@ static bool grease_pencil_poll_weight_cursor(bContext *C)
          CTX_wm_region_view3d(*C) && WM_toolsystem_active_tool_is_brush(C);
 }
 
-static bool weightmode_toggle_poll(bContext *C)
+static bool weightmode_toggle_poll(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   if ((ob) && ob->type == OB_GREASE_PENCIL) {
     return ob->data != nullptr;
   }
   return false;
 }
 
-static wmOperatorStatus weightmode_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus weightmode_toggle_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ToolSettings *ts = CTX_data_tool_settings(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ToolSettings *ts = CTX_data_tool_settings(C);
 
-  const bool back = RNA_boolean_get(op->ptr, "back");
+  const bool back = RNA_boolean_get(op.ptr, "back");
 
-  wmMsgBus *mbus = CTX_wm_message_bus(*C);
+  wmMsgBus *mbus = CTX_wm_message_bus(C);
   short mode;
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   BLI_assert(ob != nullptr);
   const bool is_mode_set = (ob->mode & OB_MODE_WEIGHT_GREASE_PENCIL) != 0;
   if (!is_mode_set) {
@@ -280,7 +280,7 @@ static wmOperatorStatus weightmode_toggle_exec(bContext *C, wmOperator *op)
   ob->mode = mode;
 
   /* Prepare armature posemode. */
-  blender::ed::object::posemode_set_for_weight_paint(C, bmain, ob, is_mode_set);
+  blender::ed::object::posemode_set_for_weight_paint(&C, bmain, ob, is_mode_set);
 
   if (mode == OB_MODE_WEIGHT_GREASE_PENCIL) {
     /* Be sure we have brushes. */
@@ -296,13 +296,13 @@ static wmOperatorStatus weightmode_toggle_exec(bContext *C, wmOperator *op)
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
-  WM_event_add_notifier(C, NC_SCENE | ND_MODE, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, nullptr);
 
   WM_msg_publish_rna_prop(mbus, &ob->id, ob, Object, mode);
 
   if (G.background == false) {
-    WM_toolsystem_update_from_context_view3d(C);
+    WM_toolsystem_update_from_context_view3d(&C);
   }
 
   return OPERATOR_FINISHED;
@@ -339,26 +339,26 @@ static bool grease_pencil_poll_vertex_cursor(bContext *C)
          CTX_wm_region_view3d(*C) && WM_toolsystem_active_tool_is_brush(C);
 }
 
-static bool vertexmode_toggle_poll(bContext *C)
+static bool vertexmode_toggle_poll(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   if ((ob) && ob->type == OB_GREASE_PENCIL) {
     return ob->data != nullptr;
   }
   return false;
 }
 
-static wmOperatorStatus vertexmode_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vertexmode_toggle_exec(bContext &C, wmOperator &op)
 {
-  const bool back = RNA_boolean_get(op->ptr, "back");
+  const bool back = RNA_boolean_get(op.ptr, "back");
 
-  wmMsgBus *mbus = CTX_wm_message_bus(*C);
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ToolSettings *ts = CTX_data_tool_settings(*C);
+  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ToolSettings *ts = CTX_data_tool_settings(C);
 
   short mode;
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   BLI_assert(ob != nullptr);
   const bool is_mode_set = (ob->mode & OB_MODE_VERTEX_GREASE_PENCIL) != 0;
   if (!is_mode_set) {
@@ -395,13 +395,13 @@ static wmOperatorStatus vertexmode_toggle_exec(bContext *C, wmOperator *op)
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
-  WM_event_add_notifier(C, NC_SCENE | ND_MODE, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, nullptr);
 
   WM_msg_publish_rna_prop(mbus, &ob->id, ob, Object, mode);
 
   if (G.background == false) {
-    WM_toolsystem_update_from_context_view3d(C);
+    WM_toolsystem_update_from_context_view3d(&C);
   }
 
   return OPERATOR_FINISHED;

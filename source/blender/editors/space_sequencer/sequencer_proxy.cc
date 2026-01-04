@@ -87,20 +87,20 @@ static void seq_proxy_build_job(const bContext *C, ReportList *reports)
   ED_area_tag_redraw(area);
 }
 
-static wmOperatorStatus sequencer_rebuild_proxy_invoke(bContext *C,
-                                                       wmOperator *op,
+static wmOperatorStatus sequencer_rebuild_proxy_invoke(bContext &C,
+                                                       wmOperator &op,
                                                        const wmEvent * /*event*/)
 {
-  seq_proxy_build_job(C, op->reports);
+  seq_proxy_build_job(&C, op.reports);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus sequencer_rebuild_proxy_exec(bContext *C, wmOperator * /*o*/)
+static wmOperatorStatus sequencer_rebuild_proxy_exec(bContext &C, wmOperator & /*o*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
   if (ed == nullptr) {
@@ -151,23 +151,23 @@ void SEQUENCER_OT_rebuild_proxy(wmOperatorType *ot)
 /** \name Set Selected Strip Proxies Operator
  * \{ */
 
-static wmOperatorStatus sequencer_enable_proxies_invoke(bContext *C,
-                                                        wmOperator *op,
+static wmOperatorStatus sequencer_enable_proxies_invoke(bContext &C,
+                                                        wmOperator &op,
                                                         const wmEvent * /*event*/)
 {
   return WM_operator_props_dialog_popup(
-      C, op, 200, IFACE_("Set Selected Strip Proxies"), IFACE_("Set"));
+      &C, &op, 200, IFACE_("Set Selected Strip Proxies"), IFACE_("Set"));
 }
 
-static wmOperatorStatus sequencer_enable_proxies_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sequencer_enable_proxies_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
-  bool proxy_25 = RNA_boolean_get(op->ptr, "proxy_25");
-  bool proxy_50 = RNA_boolean_get(op->ptr, "proxy_50");
-  bool proxy_75 = RNA_boolean_get(op->ptr, "proxy_75");
-  bool proxy_100 = RNA_boolean_get(op->ptr, "proxy_100");
-  bool overwrite = RNA_boolean_get(op->ptr, "overwrite");
+  bool proxy_25 = RNA_boolean_get(op.ptr, "proxy_25");
+  bool proxy_50 = RNA_boolean_get(op.ptr, "proxy_50");
+  bool proxy_75 = RNA_boolean_get(op.ptr, "proxy_75");
+  bool proxy_100 = RNA_boolean_get(op.ptr, "proxy_100");
+  bool overwrite = RNA_boolean_get(op.ptr, "overwrite");
   bool turnon = true;
 
   if (ed == nullptr || !(proxy_25 || proxy_50 || proxy_75 || proxy_100)) {
@@ -220,7 +220,7 @@ static wmOperatorStatus sequencer_enable_proxies_exec(bContext *C, wmOperator *o
     }
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }

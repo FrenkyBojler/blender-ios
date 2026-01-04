@@ -939,16 +939,16 @@ void EDBM_mesh_elem_index_ensure_multi(const Span<Object *> objects, const char 
     BM_mesh_elem_index_ensure_ex(bm, htype, elem_offset);
   }
 }
-static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = blender::ed::object::context_active_object(C);
+  Object *ob = blender::ed::object::context_active_object(&C);
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   if (ob->mode == OB_MODE_SCULPT && mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY) {
     /* Dyntopo not supported. */
-    BKE_report(op->reports, RPT_INFO, "Not supported in dynamic topology sculpting");
+    BKE_report(op.reports, RPT_INFO, "Not supported in dynamic topology sculpting");
     return OPERATOR_CANCELLED;
   }
 
@@ -957,7 +957,7 @@ static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperat
   }
 
   if (ob->mode == OB_MODE_SCULPT) {
-    blender::ed::sculpt_paint::undo::geometry_begin(*scene, *ob, op);
+    blender::ed::sculpt_paint::undo::geometry_begin(*scene, *ob, &op);
   }
 
   blender::bke::mesh_apply_spatial_organization(*mesh);
@@ -967,16 +967,16 @@ static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperat
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
 
-  BKE_report(op->reports, RPT_INFO, "Mesh faces and vertices reordered spatially");
+  BKE_report(op.reports, RPT_INFO, "Mesh faces and vertices reordered spatially");
 
   return OPERATOR_FINISHED;
 }
 
-static bool mesh_reorder_vertices_spatial_poll(bContext *C)
+static bool mesh_reorder_vertices_spatial_poll(bContext &C)
 {
-  Object *ob = blender::ed::object::context_active_object(C);
+  Object *ob = blender::ed::object::context_active_object(&C);
   if (!ob || ob->type != OB_MESH) {
     return false;
   }

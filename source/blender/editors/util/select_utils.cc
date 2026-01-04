@@ -160,7 +160,7 @@ SelectPick_Params ED_select_pick_params_from_operator(PointerRNA *ptr)
 /** \name Operator Naming Callbacks
  * \{ */
 
-std::string ED_select_pick_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
+std::string ED_select_pick_get_name(wmOperatorType & /*ot*/, PointerRNA *ptr)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, "enumerate");
   const bool enumerate = (prop && RNA_property_boolean_get(ptr, prop));
@@ -196,7 +196,7 @@ std::string ED_select_pick_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
   return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select");
 }
 
-std::string ED_select_circle_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
+std::string ED_select_circle_get_name(wmOperatorType & /*ot*/, PointerRNA *ptr)
 {
   /* Matches options in #WM_operator_properties_select_operation_simple */
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(ptr, "mode"));

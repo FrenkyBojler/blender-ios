@@ -766,75 +766,75 @@ static void initialize_cursor_info(bContext &C,
   }
 }
 
-static wmOperatorStatus gesture_box_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_box_exec(bContext &C, wmOperator &op)
 {
-  if (!can_exec(*C, *op->reports)) {
+  if (!can_exec(C, *op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
 
   gesture_data->operation = reinterpret_cast<gesture::Operation *>(
       MEM_callocN<TrimOperation>(__func__));
-  initialize_cursor_info(*C, *op, *gesture_data);
-  init_operation(*gesture_data, *op);
+  initialize_cursor_info(C, op, *gesture_data);
+  init_operation(*gesture_data, op);
 
-  gesture::apply(*C, *gesture_data, *op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_box_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (!can_invoke(*C)) {
+  if (!can_invoke(C)) {
     return OPERATOR_CANCELLED;
   }
 
-  RNA_int_set_array(op->ptr, "location", event->mval);
+  RNA_int_set_array(op.ptr, "location", event->mval);
 
   return WM_gesture_box_invoke(C, op, event);
 }
 
-static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_lasso_exec(bContext &C, wmOperator &op)
 {
-  if (!can_exec(*C, *op->reports)) {
+  if (!can_exec(C, *op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
 
   gesture_data->operation = reinterpret_cast<gesture::Operation *>(
       MEM_callocN<TrimOperation>(__func__));
-  initialize_cursor_info(*C, *op, *gesture_data);
-  init_operation(*gesture_data, *op);
+  initialize_cursor_info(C, op, *gesture_data);
+  init_operation(*gesture_data, op);
 
-  gesture::apply(*C, *gesture_data, *op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_lasso_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (!can_invoke(*C)) {
+  if (!can_invoke(C)) {
     return OPERATOR_CANCELLED;
   }
 
-  RNA_int_set_array(op->ptr, "location", event->mval);
+  RNA_int_set_array(op.ptr, "location", event->mval);
 
   return WM_gesture_lasso_invoke(C, op, event);
 }
 
-static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_line_exec(bContext &C, wmOperator &op)
 {
-  if (!can_exec(*C, *op->reports)) {
+  if (!can_exec(C, *op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
@@ -842,50 +842,50 @@ static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
   gesture_data->operation = reinterpret_cast<gesture::Operation *>(
       MEM_callocN<TrimOperation>(__func__));
 
-  initialize_cursor_info(*C, *op, *gesture_data);
-  init_operation(*gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  initialize_cursor_info(C, op, *gesture_data);
+  init_operation(*gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_line_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (!can_invoke(*C)) {
+  if (!can_invoke(C)) {
     return OPERATOR_CANCELLED;
   }
 
-  RNA_int_set_array(op->ptr, "location", event->mval);
+  RNA_int_set_array(op.ptr, "location", event->mval);
 
   return WM_gesture_straightline_active_side_invoke(C, op, event);
 }
 
-static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_polyline_exec(bContext &C, wmOperator &op)
 {
-  if (!can_exec(*C, *op->reports)) {
+  if (!can_exec(C, *op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
 
   gesture_data->operation = reinterpret_cast<gesture::Operation *>(
       MEM_callocN<TrimOperation>(__func__));
-  initialize_cursor_info(*C, *op, *gesture_data);
-  init_operation(*gesture_data, *op);
+  initialize_cursor_info(C, op, *gesture_data);
+  init_operation(*gesture_data, op);
 
-  gesture::apply(*C, *gesture_data, *op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_polyline_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (!can_invoke(*C)) {
+  if (!can_invoke(C)) {
     return OPERATOR_CANCELLED;
   }
 
-  RNA_int_set_array(op->ptr, "location", event->mval);
+  RNA_int_set_array(op.ptr, "location", event->mval);
 
   return WM_gesture_polyline_invoke(C, op, event);
 }

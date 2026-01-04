@@ -40,10 +40,10 @@
 
 /******************** common graph-editing utilities ********************/
 
-static bool space_clip_graph_poll(bContext *C)
+static bool space_clip_graph_poll(bContext &C)
 {
   if (ED_space_clip_tracking_poll(C)) {
-    SpaceClip *sc = CTX_wm_space_clip(*C);
+    SpaceClip *sc = CTX_wm_space_clip(C);
 
     return sc->view == SC_VIEW_GRAPH;
   }
@@ -51,10 +51,10 @@ static bool space_clip_graph_poll(bContext *C)
   return false;
 }
 
-static bool clip_graph_knots_poll(bContext *C)
+static bool clip_graph_knots_poll(bContext &C)
 {
   if (space_clip_graph_poll(C)) {
-    SpaceClip *sc = CTX_wm_space_clip(*C);
+    SpaceClip *sc = CTX_wm_space_clip(C);
 
     return (sc->flag & (SC_SHOW_GRAPH_TRACKS_MOTION | SC_SHOW_GRAPH_TRACKS_ERROR)) != 0;
   }
@@ -296,23 +296,23 @@ static wmOperatorStatus mouse_select(bContext *C, float co[2], bool extend)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_exec(bContext &C, wmOperator &op)
 {
   float co[2];
-  bool extend = RNA_boolean_get(op->ptr, "extend");
+  bool extend = RNA_boolean_get(op.ptr, "extend");
 
-  RNA_float_get_array(op->ptr, "location", co);
+  RNA_float_get_array(op.ptr, "location", co);
 
-  return mouse_select(C, co, extend);
+  return mouse_select(&C, co, extend);
 }
 
-static wmOperatorStatus select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus select_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   float co[2];
 
   blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
-  RNA_float_set_array(op->ptr, "location", co);
+  RNA_float_set_array(op.ptr, "location", co);
 
   return select_exec(C, op);
 }
@@ -395,10 +395,10 @@ static void box_select_cb(void *userdata,
   }
 }
 
-static wmOperatorStatus box_select_graph_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus box_select_graph_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
+  ARegion *region = CTX_wm_region(C);
 
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
@@ -411,18 +411,18 @@ static wmOperatorStatus box_select_graph_exec(bContext *C, wmOperator *op)
   }
 
   /* get rectangle from operator */
-  WM_operator_properties_border_to_rctf(op, &rect);
+  WM_operator_properties_border_to_rctf(&op, &rect);
   blender::ui::view2d_region_to_view_rctf(&region->v2d, &rect, &userdata.rect);
 
   userdata.changed = false;
-  userdata.select = !RNA_boolean_get(op->ptr, "deselect");
-  userdata.extend = RNA_boolean_get(op->ptr, "extend");
+  userdata.select = !RNA_boolean_get(op.ptr, "deselect");
+  userdata.extend = RNA_boolean_get(op.ptr, "extend");
 
   clip_graph_tracking_values_iterate_track(
       sc, active_track, &userdata, box_select_cb, nullptr, nullptr);
 
   if (userdata.changed) {
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
 
     return OPERATOR_FINISHED;
   }
@@ -452,13 +452,13 @@ void CLIP_OT_graph_select_box(wmOperatorType *ot)
 
 /********************** select all operator *********************/
 
-static wmOperatorStatus graph_select_all_markers_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graph_select_all_markers_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingTrack *active_track = tracking_object->active_track;
-  int action = RNA_enum_get(op->ptr, "action");
+  int action = RNA_enum_get(op.ptr, "action");
 
   if (!active_track) {
     return OPERATOR_CANCELLED;
@@ -493,7 +493,7 @@ static wmOperatorStatus graph_select_all_markers_exec(bContext *C, wmOperator *o
     }
   }
 
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
+  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -517,9 +517,9 @@ void CLIP_OT_graph_select_all_markers(wmOperatorType *ot)
 
 /******************** delete curve operator ********************/
 
-static wmOperatorStatus delete_curve_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus delete_curve_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingTrack *active_track = tracking_object->active_track;
@@ -528,16 +528,16 @@ static wmOperatorStatus delete_curve_exec(bContext *C, wmOperator * /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  clip_delete_track(C, clip, active_track);
+  clip_delete_track(&C, clip, active_track);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus delete_curve_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus delete_curve_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  if (RNA_boolean_get(op->ptr, "confirm")) {
-    return WM_operator_confirm_ex(C,
-                                  op,
+  if (RNA_boolean_get(op.ptr, "confirm")) {
+    return WM_operator_confirm_ex(&C,
+                                  &op,
                                   IFACE_("Delete track corresponding to the selected curve?"),
                                   nullptr,
                                   IFACE_("Delete"),
@@ -566,9 +566,9 @@ void CLIP_OT_graph_delete_curve(wmOperatorType *ot)
 
 /******************** delete knot operator ********************/
 
-static wmOperatorStatus delete_knot_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus delete_knot_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingTrack *active_track = tracking_object->active_track;
@@ -580,7 +580,7 @@ static wmOperatorStatus delete_knot_exec(bContext *C, wmOperator * /*op*/)
       MovieTrackingMarker *marker = &active_track->markers[a];
 
       if (marker->flag & MARKER_GRAPH_SEL) {
-        clip_delete_marker(C, clip, active_track, marker);
+        clip_delete_marker(&C, clip, active_track, marker);
       }
       else {
         a++;
@@ -625,11 +625,11 @@ static void view_all_cb(void *userdata,
   data->max = std::max(val, data->max);
 }
 
-static wmOperatorStatus view_all_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus view_all_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ARegion *region = CTX_wm_region(*C);
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  Scene *scene = CTX_data_scene(C);
+  ARegion *region = CTX_wm_region(C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   View2D *v2d = &region->v2d;
   ViewAllUserData userdata;
   float extra;
@@ -696,10 +696,10 @@ void ED_clip_graph_center_current_frame(Scene *scene, ARegion *region)
   v2d->cur.xmax = float(scene->r.cfra) + extra;
 }
 
-static wmOperatorStatus center_current_frame_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus center_current_frame_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ARegion *region = CTX_wm_region(*C);
+  Scene *scene = CTX_data_scene(C);
+  ARegion *region = CTX_wm_region(C);
 
   ED_clip_graph_center_current_frame(scene, region);
 
@@ -722,13 +722,13 @@ void CLIP_OT_graph_center_current_frame(wmOperatorType *ot)
 
 /********************** disable markers operator *********************/
 
-static wmOperatorStatus graph_disable_markers_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graph_disable_markers_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingTrack *active_track = tracking_object->active_track;
-  const int action = RNA_enum_get(op->ptr, "action");
+  const int action = RNA_enum_get(op.ptr, "action");
 
   if (!active_track || (active_track->flag & TRACK_LOCKED)) {
     return OPERATOR_CANCELLED;
@@ -752,7 +752,7 @@ static wmOperatorStatus graph_disable_markers_exec(bContext *C, wmOperator *op)
 
   DEG_id_tag_update(&clip->id, 0);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
 
   return OPERATOR_FINISHED;
 }

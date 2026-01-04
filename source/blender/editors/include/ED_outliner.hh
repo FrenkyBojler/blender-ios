@@ -17,7 +17,7 @@ struct ID;
 struct Bone;
 struct PointerRNA;
 
-bool ED_outliner_collections_editor_poll(bContext *C);
+bool ED_outliner_collections_editor_poll(bContext &C);
 
 /**
  * Populates the `objects` #ListBaseT with all the outliner selected objects

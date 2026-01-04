@@ -414,9 +414,9 @@ static void parent_drop_set_parents(bContext *C,
   }
 }
 
-static wmOperatorStatus parent_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus parent_drop_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  TreeElement *te = outliner_drop_find(C, event);
+  TreeElement *te = outliner_drop_find(&C, event);
   TreeStoreElem *tselem = te ? TREESTORE(te) : nullptr;
 
   if (!(te && (te->idcode == ID_OB) && (tselem->type == TSE_SOME_ID))) {
@@ -440,8 +440,8 @@ static wmOperatorStatus parent_drop_invoke(bContext *C, wmOperator *op, const wm
   ListBaseT<wmDrag> *lb = static_cast<ListBaseT<wmDrag> *>(event->customdata);
   wmDrag *drag = static_cast<wmDrag *>(lb->first);
 
-  parent_drop_set_parents(C,
-                          op->reports,
+  parent_drop_set_parents(&C,
+                          op.reports,
                           static_cast<wmDragID *>(drag->ids.first),
                           par,
                           object::PAR_OBJECT,
@@ -512,9 +512,9 @@ static bool parent_clear_poll(bContext *C, wmDrag *drag, const wmEvent *event)
   }
 }
 
-static wmOperatorStatus parent_clear_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus parent_clear_invoke(bContext &C, wmOperator & /*op*/, const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   if (event->custom != EVT_DATA_DRAGDROP) {
     return OPERATOR_CANCELLED;
@@ -534,8 +534,8 @@ static wmOperatorStatus parent_clear_invoke(bContext *C, wmOperator * /*op*/, co
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
-  WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_PARENT, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -568,10 +568,10 @@ static bool scene_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
   return (ob && (outliner_ID_drop_find(C, event, ID_SCE) != nullptr));
 }
 
-static wmOperatorStatus scene_drop_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus scene_drop_invoke(bContext &C, wmOperator & /*op*/, const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = (Scene *)outliner_ID_drop_find(C, event, ID_SCE);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = (Scene *)outliner_ID_drop_find(&C, event, ID_SCE);
   Object *ob = (Object *)WM_drag_get_local_ID_from_event(event, ID_OB);
 
   if (ELEM(nullptr, ob, scene) || !BKE_id_is_editable(bmain, &scene->id)) {
@@ -583,12 +583,12 @@ static wmOperatorStatus scene_drop_invoke(bContext *C, wmOperator * /*op*/, cons
   }
 
   Collection *collection;
-  if (scene != CTX_data_scene(*C)) {
+  if (scene != CTX_data_scene(C)) {
     /* when linking to an inactive scene link to the master collection */
     collection = scene->master_collection;
   }
   else {
-    collection = CTX_data_collection(*C);
+    collection = CTX_data_collection(C);
   }
 
   BKE_collection_object_add(bmain, collection, ob);
@@ -601,7 +601,7 @@ static wmOperatorStatus scene_drop_invoke(bContext *C, wmOperator * /*op*/, cons
     }
   }
 
-  ED_region_tag_redraw(CTX_wm_region(*C));
+  ED_region_tag_redraw(CTX_wm_region(C));
   DEG_relations_tag_update(bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
@@ -641,12 +641,12 @@ static bool material_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
   return (!ELEM(nullptr, ob, ma) && ID_IS_EDITABLE(&ob->id) && !ID_IS_OVERRIDE_LIBRARY(&ob->id));
 }
 
-static wmOperatorStatus material_drop_invoke(bContext *C,
-                                             wmOperator * /*op*/,
+static wmOperatorStatus material_drop_invoke(bContext &C,
+                                             wmOperator & /*op*/,
                                              const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(*C);
-  Object *ob = (Object *)outliner_ID_drop_find(C, event, ID_OB);
+  Main *bmain = CTX_data_main(C);
+  Object *ob = (Object *)outliner_ID_drop_find(&C, event, ID_OB);
   Material *ma = (Material *)WM_drag_get_local_ID_from_event(event, ID_MA);
 
   if (ELEM(nullptr, ob, ma) || !BKE_id_is_editable(bmain, &ob->id)) {
@@ -660,9 +660,9 @@ static wmOperatorStatus material_drop_invoke(bContext *C,
 
   BKE_object_material_assign(bmain, ob, ma, ob->totcol + 1, BKE_MAT_ASSIGN_USERPREF);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
-  WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_LINKS, ma);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_OB_SHADING, ob);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(&C, NC_MATERIAL | ND_SHADING_LINKS, ma);
 
   return OPERATOR_FINISHED;
 }
@@ -1058,7 +1058,7 @@ static void datastack_drop_reorder(bContext *C, ReportList *reports, StackDropDa
   }
 }
 
-static wmOperatorStatus datastack_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus datastack_drop_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   if (event->custom != EVT_DATA_DRAGDROP) {
     return OPERATOR_CANCELLED;
@@ -1070,13 +1070,13 @@ static wmOperatorStatus datastack_drop_invoke(bContext *C, wmOperator *op, const
 
   switch (drop_data->drop_action) {
     case DATA_STACK_DROP_LINK:
-      datastack_drop_link(C, drop_data);
+      datastack_drop_link(&C, drop_data);
       break;
     case DATA_STACK_DROP_COPY:
-      datastack_drop_copy(C, drop_data);
+      datastack_drop_copy(&C, drop_data);
       break;
     case DATA_STACK_DROP_REORDER:
-      datastack_drop_reorder(C, op->reports, drop_data);
+      datastack_drop_reorder(&C, op.reports, drop_data);
       break;
   }
 
@@ -1294,12 +1294,12 @@ static std::string collection_drop_tooltip(bContext *C,
   return {};
 }
 
-static wmOperatorStatus collection_drop_invoke(bContext *C,
-                                               wmOperator * /*op*/,
+static wmOperatorStatus collection_drop_invoke(bContext &C,
+                                               wmOperator & /*op*/,
                                                const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
 
   if (event->custom != EVT_DATA_DRAGDROP) {
     return OPERATOR_CANCELLED;
@@ -1309,7 +1309,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   wmDrag *drag = static_cast<wmDrag *>(lb->first);
 
   CollectionDrop data;
-  if (!collection_drop_init(C, drag, event->xy, &data)) {
+  if (!collection_drop_init(&C, drag, event->xy, &data)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1318,7 +1318,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   bool relative_after = false;
 
   if (ELEM(data.insert_type, TE_INSERT_BEFORE, TE_INSERT_AFTER)) {
-    SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+    SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
     relative = data.to;
     relative_after = (data.insert_type == TE_INSERT_AFTER);
@@ -1377,7 +1377,7 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
   /* NOTE: It is possible to drag-and-drop between different windows, which means that the source
    * window/Outliner may also need to be updated. So do not pass the current window in this
    * notifier (unless there is a way to get the drag source window as well?). */
-  WM_event_add_notifier_ex(CTX_wm_manager(*C), nullptr, NC_SCENE | ND_LAYER, nullptr);
+  WM_event_add_notifier_ex(CTX_wm_manager(C), nullptr, NC_SCENE | ND_LAYER, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1418,12 +1418,12 @@ static TreeElement *outliner_item_drag_element_find(SpaceOutliner *space_outline
   return outliner_find_item_at_y(space_outliner, &space_outliner->tree, my);
 }
 
-static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
-                                                       wmOperator * /*op*/,
+static wmOperatorStatus outliner_item_drag_drop_invoke(bContext &C,
+                                                       wmOperator & /*op*/,
                                                        const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  ARegion *region = CTX_wm_region(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   TreeElement *te = outliner_item_drag_element_find(space_outliner, region, event);
 
   int mval[2];
@@ -1454,7 +1454,7 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
     wmOperatorType *ot = WM_operatortype_find("VIEW2D_OT_edge_pan", true);
     PointerRNA op_ptr = WM_operator_properties_create_ptr(ot);
     RNA_float_set(&op_ptr, "outside_padding", OUTLINER_DRAG_SCOLL_OUTSIDE_PAD);
-    WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &op_ptr, event);
+    WM_operator_name_call_ptr(&C, ot, wm::OpCallContext::InvokeDefault, &op_ptr, event);
     WM_operator_properties_free(&op_ptr);
   }
 
@@ -1467,7 +1467,7 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
                                        TSE_GPENCIL_EFFECT_BASE);
 
   const eWM_DragDataType wm_drag_type = use_datastack_drag ? WM_DRAG_DATASTACK : WM_DRAG_ID;
-  wmDrag *drag = WM_drag_data_create(C, data.icon, wm_drag_type, nullptr, WM_DRAG_NOP);
+  wmDrag *drag = WM_drag_data_create(&C, data.icon, wm_drag_type, nullptr, WM_DRAG_NOP);
 
   if (use_datastack_drag) {
     TreeElement *te_bone = nullptr;
@@ -1545,7 +1545,7 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
         }
       }
       else {
-        Scene *scene = CTX_data_scene(*C);
+        Scene *scene = CTX_data_scene(C);
         parent = scene->master_collection;
       }
 
@@ -1559,9 +1559,9 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
     WM_drag_add_local_ID(drag, data.drag_id, data.drag_parent);
   }
 
-  WM_event_start_prepared_drag(C, drag);
+  WM_event_start_prepared_drag(&C, drag);
 
-  ED_outliner_select_sync_from_outliner(C, space_outliner);
+  ED_outliner_select_sync_from_outliner(&C, space_outliner);
 
   return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);
 }

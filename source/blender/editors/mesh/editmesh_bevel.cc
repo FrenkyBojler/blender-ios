@@ -453,9 +453,9 @@ static void edbm_bevel_exit(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 }
 
-static void edbm_bevel_cancel(bContext *C, wmOperator *op)
+static void edbm_bevel_cancel(bContext &C, wmOperator &op)
 {
-  BevelData *opdata = static_cast<BevelData *>(op->customdata);
+  BevelData *opdata = static_cast<BevelData *>(op.customdata);
   if (opdata->is_modal) {
     for (BevelObjectStore &ob_store : opdata->ob_store) {
       Object *obedit = ob_store.ob;
@@ -470,25 +470,25 @@ static void edbm_bevel_cancel(bContext *C, wmOperator *op)
     }
   }
 
-  edbm_bevel_exit(C, op);
+  edbm_bevel_exit(&C, &op);
 
   /* Need to force re-display or we may still view the modified result. */
-  ED_region_tag_redraw(CTX_wm_region(*C));
+  ED_region_tag_redraw(CTX_wm_region(C));
 }
 
 /* bevel! yay!! */
-static wmOperatorStatus edbm_bevel_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_bevel_exec(bContext &C, wmOperator &op)
 {
-  if (!edbm_bevel_init(C, op, false)) {
+  if (!edbm_bevel_init(&C, &op, false)) {
     return OPERATOR_CANCELLED;
   }
 
-  if (!edbm_bevel_calc(op)) {
+  if (!edbm_bevel_calc(&op)) {
     edbm_bevel_cancel(C, op);
     return OPERATOR_CANCELLED;
   }
 
-  edbm_bevel_exit(C, op);
+  edbm_bevel_exit(&C, &op);
 
   return OPERATOR_FINISHED;
 }
@@ -517,22 +517,22 @@ static void edbm_bevel_calc_initial_length(wmOperator *op, const wmEvent *event,
   opdata->initial_length[opdata->value_mode] = len;
 }
 
-static wmOperatorStatus edbm_bevel_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_bevel_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
-  if (!edbm_bevel_init(C, op, true)) {
+  if (!edbm_bevel_init(&C, &op, true)) {
     return OPERATOR_CANCELLED;
   }
 
-  BevelData *opdata = static_cast<BevelData *>(op->customdata);
+  BevelData *opdata = static_cast<BevelData *>(op.customdata);
 
   opdata->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
   /* initialize mouse values */
   float center_3d[3];
   if (!blender::ed::transform::calculateTransformCenter(
-          C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter))
+          &C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter))
   {
     /* in this case the tool will likely do nothing,
      * ideally this will never happen and should be checked for above */
@@ -545,17 +545,17 @@ static wmOperatorStatus edbm_bevel_invoke(bContext *C, wmOperator *op, const wmE
    * compensate for that */
   opdata->scale[OFFSET_VALUE] /= opdata->max_obj_scale;
 
-  edbm_bevel_calc_initial_length(op, event, false);
+  edbm_bevel_calc_initial_length(&op, event, false);
 
-  edbm_bevel_update_status_text(C, op);
+  edbm_bevel_update_status_text(&C, &op);
 
-  if (!edbm_bevel_calc(op)) {
+  if (!edbm_bevel_calc(&op)) {
     edbm_bevel_cancel(C, op);
-    ED_workspace_status_text(C, nullptr);
+    ED_workspace_status_text(&C, nullptr);
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -704,9 +704,9 @@ wmKeyMap *bevel_modal_keymap(wmKeyConfig *keyconf)
   return keymap;
 }
 
-static wmOperatorStatus edbm_bevel_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_bevel_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  BevelData *opdata = static_cast<BevelData *>(op->customdata);
+  BevelData *opdata = static_cast<BevelData *>(op.customdata);
   const bool has_numinput = hasNumInput(&opdata->num_input[opdata->value_mode]);
   bool handled = false;
   short etype = event->type;
@@ -714,25 +714,25 @@ static wmOperatorStatus edbm_bevel_modal(bContext *C, wmOperator *op, const wmEv
 
   /* When activated from toolbar, need to convert left-mouse release to confirm. */
   if (ELEM(etype, LEFTMOUSE, opdata->launch_event) && (eval == KM_RELEASE) &&
-      RNA_boolean_get(op->ptr, "release_confirm"))
+      RNA_boolean_get(op.ptr, "release_confirm"))
   {
     etype = EVT_MODAL_MAP;
     eval = BEV_MODAL_CONFIRM;
   }
   /* Modal numinput active, try to handle numeric inputs first... */
   if (etype != EVT_MODAL_MAP && eval == KM_PRESS && has_numinput &&
-      handleNumInput(C, &opdata->num_input[opdata->value_mode], event))
+      handleNumInput(&C, &opdata->num_input[opdata->value_mode], event))
   {
-    edbm_bevel_numinput_set_value(op);
-    edbm_bevel_calc(op);
-    edbm_bevel_update_status_text(C, op);
+    edbm_bevel_numinput_set_value(&op);
+    edbm_bevel_calc(&op);
+    edbm_bevel_update_status_text(&C, &op);
     return OPERATOR_RUNNING_MODAL;
   }
   if (etype == MOUSEMOVE) {
     if (!has_numinput) {
-      edbm_bevel_mouse_set_value(op, event);
-      edbm_bevel_calc(op);
-      edbm_bevel_update_status_text(C, op);
+      edbm_bevel_mouse_set_value(&op, event);
+      edbm_bevel_calc(&op);
+      edbm_bevel_update_status_text(&C, &op);
       handled = true;
     }
   }
@@ -744,42 +744,42 @@ static wmOperatorStatus edbm_bevel_modal(bContext *C, wmOperator *op, const wmEv
     else {
       opdata->segments += delta;
     }
-    RNA_int_set(op->ptr, "segments", int(opdata->segments));
-    edbm_bevel_calc(op);
-    edbm_bevel_update_status_text(C, op);
+    RNA_int_set(op.ptr, "segments", int(opdata->segments));
+    edbm_bevel_calc(&op);
+    edbm_bevel_update_status_text(&C, &op);
     handled = true;
   }
   else if (etype == EVT_MODAL_MAP) {
     switch (eval) {
       case BEV_MODAL_CANCEL:
         edbm_bevel_cancel(C, op);
-        ED_workspace_status_text(C, nullptr);
+        ED_workspace_status_text(&C, nullptr);
         return OPERATOR_CANCELLED;
 
       case BEV_MODAL_CONFIRM:
-        edbm_bevel_calc(op);
-        edbm_bevel_exit(C, op);
-        ED_workspace_status_text(C, nullptr);
+        edbm_bevel_calc(&op);
+        edbm_bevel_exit(&C, &op);
+        ED_workspace_status_text(&C, nullptr);
         return OPERATOR_FINISHED;
 
       case BEV_MODAL_SEGMENTS_UP:
         opdata->segments = opdata->segments + 1;
-        RNA_int_set(op->ptr, "segments", int(opdata->segments));
-        edbm_bevel_calc(op);
-        edbm_bevel_update_status_text(C, op);
+        RNA_int_set(op.ptr, "segments", int(opdata->segments));
+        edbm_bevel_calc(&op);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
 
       case BEV_MODAL_SEGMENTS_DOWN:
         opdata->segments = max_ff(opdata->segments - 1, 1);
-        RNA_int_set(op->ptr, "segments", int(opdata->segments));
-        edbm_bevel_calc(op);
-        edbm_bevel_update_status_text(C, op);
+        RNA_int_set(op.ptr, "segments", int(opdata->segments));
+        edbm_bevel_calc(&op);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
 
       case BEV_MODAL_OFFSET_MODE_CHANGE: {
-        int type = RNA_enum_get(op->ptr, "offset_type");
+        int type = RNA_enum_get(op.ptr, "offset_type");
         type++;
         if (type > BEVEL_AMT_PERCENT) {
           type = BEVEL_AMT_OFFSET;
@@ -790,77 +790,77 @@ static wmOperatorStatus edbm_bevel_modal(bContext *C, wmOperator *op, const wmEv
         else if (opdata->value_mode == OFFSET_VALUE_PERCENT && type != BEVEL_AMT_PERCENT) {
           opdata->value_mode = OFFSET_VALUE;
         }
-        RNA_enum_set(op->ptr, "offset_type", type);
+        RNA_enum_set(op.ptr, "offset_type", type);
         if (opdata->initial_length[opdata->value_mode] == -1.0f) {
-          edbm_bevel_calc_initial_length(op, event, true);
+          edbm_bevel_calc_initial_length(&op, event, true);
         }
       }
         /* Update offset accordingly to new offset_type. */
         if (!has_numinput && ELEM(opdata->value_mode, OFFSET_VALUE, OFFSET_VALUE_PERCENT)) {
-          edbm_bevel_mouse_set_value(op, event);
+          edbm_bevel_mouse_set_value(&op, event);
         }
-        edbm_bevel_calc(op);
-        edbm_bevel_update_status_text(C, op);
+        edbm_bevel_calc(&op);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
 
       case BEV_MODAL_CLAMP_OVERLAP_TOGGLE: {
-        bool clamp_overlap = RNA_boolean_get(op->ptr, "clamp_overlap");
-        RNA_boolean_set(op->ptr, "clamp_overlap", !clamp_overlap);
-        edbm_bevel_calc(op);
-        edbm_bevel_update_status_text(C, op);
+        bool clamp_overlap = RNA_boolean_get(op.ptr, "clamp_overlap");
+        RNA_boolean_set(op.ptr, "clamp_overlap", !clamp_overlap);
+        edbm_bevel_calc(&op);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
 
       case BEV_MODAL_VALUE_OFFSET:
         opdata->value_mode = OFFSET_VALUE;
-        edbm_bevel_calc_initial_length(op, event, true);
+        edbm_bevel_calc_initial_length(&op, event, true);
         break;
 
       case BEV_MODAL_VALUE_PROFILE:
         opdata->value_mode = PROFILE_VALUE;
-        edbm_bevel_calc_initial_length(op, event, true);
+        edbm_bevel_calc_initial_length(&op, event, true);
         break;
 
       case BEV_MODAL_VALUE_SEGMENTS:
         opdata->value_mode = SEGMENTS_VALUE;
-        edbm_bevel_calc_initial_length(op, event, true);
+        edbm_bevel_calc_initial_length(&op, event, true);
         break;
 
       case BEV_MODAL_AFFECT_CHANGE: {
-        int affect_type = RNA_enum_get(op->ptr, "affect");
+        int affect_type = RNA_enum_get(op.ptr, "affect");
         affect_type++;
         if (affect_type > BEVEL_AFFECT_EDGES) {
           affect_type = BEVEL_AFFECT_VERTICES;
         }
-        RNA_enum_set(op->ptr, "affect", affect_type);
-        edbm_bevel_calc(op);
-        edbm_bevel_update_status_text(C, op);
+        RNA_enum_set(op.ptr, "affect", affect_type);
+        edbm_bevel_calc(&op);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
 
       case BEV_MODAL_MARK_SEAM_TOGGLE: {
-        bool mark_seam = RNA_boolean_get(op->ptr, "mark_seam");
-        RNA_boolean_set(op->ptr, "mark_seam", !mark_seam);
-        edbm_bevel_calc(op);
-        edbm_bevel_update_status_text(C, op);
+        bool mark_seam = RNA_boolean_get(op.ptr, "mark_seam");
+        RNA_boolean_set(op.ptr, "mark_seam", !mark_seam);
+        edbm_bevel_calc(&op);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
 
       case BEV_MODAL_MARK_SHARP_TOGGLE: {
-        bool mark_sharp = RNA_boolean_get(op->ptr, "mark_sharp");
-        RNA_boolean_set(op->ptr, "mark_sharp", !mark_sharp);
-        edbm_bevel_calc(op);
-        edbm_bevel_update_status_text(C, op);
+        bool mark_sharp = RNA_boolean_get(op.ptr, "mark_sharp");
+        RNA_boolean_set(op.ptr, "mark_sharp", !mark_sharp);
+        edbm_bevel_calc(&op);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
 
       case BEV_MODAL_INNER_MITER_CHANGE: {
-        int miter_inner = RNA_enum_get(op->ptr, "miter_inner");
+        int miter_inner = RNA_enum_get(op.ptr, "miter_inner");
         miter_inner++;
         if (miter_inner == BEVEL_MITER_PATCH) {
           miter_inner++; /* no patch option for inner miter */
@@ -868,85 +868,85 @@ static wmOperatorStatus edbm_bevel_modal(bContext *C, wmOperator *op, const wmEv
         if (miter_inner > BEVEL_MITER_ARC) {
           miter_inner = BEVEL_MITER_SHARP;
         }
-        RNA_enum_set(op->ptr, "miter_inner", miter_inner);
-        edbm_bevel_calc(op);
-        edbm_bevel_update_status_text(C, op);
+        RNA_enum_set(op.ptr, "miter_inner", miter_inner);
+        edbm_bevel_calc(&op);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
 
       case BEV_MODAL_OUTER_MITER_CHANGE: {
-        int miter_outer = RNA_enum_get(op->ptr, "miter_outer");
+        int miter_outer = RNA_enum_get(op.ptr, "miter_outer");
         miter_outer++;
         if (miter_outer > BEVEL_MITER_ARC) {
           miter_outer = BEVEL_MITER_SHARP;
         }
-        RNA_enum_set(op->ptr, "miter_outer", miter_outer);
-        edbm_bevel_calc(op);
-        edbm_bevel_update_status_text(C, op);
+        RNA_enum_set(op.ptr, "miter_outer", miter_outer);
+        edbm_bevel_calc(&op);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
 
       case BEV_MODAL_HARDEN_NORMALS_TOGGLE: {
-        bool harden_normals = RNA_boolean_get(op->ptr, "harden_normals");
-        RNA_boolean_set(op->ptr, "harden_normals", !harden_normals);
-        edbm_bevel_calc(op);
-        edbm_bevel_update_status_text(C, op);
+        bool harden_normals = RNA_boolean_get(op.ptr, "harden_normals");
+        RNA_boolean_set(op.ptr, "harden_normals", !harden_normals);
+        edbm_bevel_calc(&op);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
 
       case BEV_MODAL_PROFILE_TYPE_CHANGE: {
-        int profile_type = RNA_enum_get(op->ptr, "profile_type");
+        int profile_type = RNA_enum_get(op.ptr, "profile_type");
         profile_type++;
         if (profile_type > BEVEL_PROFILE_CUSTOM) {
           profile_type = BEVEL_PROFILE_SUPERELLIPSE;
         }
-        RNA_enum_set(op->ptr, "profile_type", profile_type);
-        edbm_bevel_calc(op);
-        edbm_bevel_update_status_text(C, op);
+        RNA_enum_set(op.ptr, "profile_type", profile_type);
+        edbm_bevel_calc(&op);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
 
       case BEV_MODAL_VERTEX_MESH_CHANGE: {
-        int vmesh_method = RNA_enum_get(op->ptr, "vmesh_method");
+        int vmesh_method = RNA_enum_get(op.ptr, "vmesh_method");
         vmesh_method++;
         if (vmesh_method > BEVEL_VMESH_CUTOFF) {
           vmesh_method = BEVEL_VMESH_ADJ;
         }
-        RNA_enum_set(op->ptr, "vmesh_method", vmesh_method);
-        edbm_bevel_calc(op);
-        edbm_bevel_update_status_text(C, op);
+        RNA_enum_set(op.ptr, "vmesh_method", vmesh_method);
+        edbm_bevel_calc(&op);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
       case BEV_MODAL_PRECISION_ON: {
         opdata->use_precision = true;
-        edbm_bevel_calc_initial_length(op, event, true);
-        edbm_bevel_update_status_text(C, op);
+        edbm_bevel_calc_initial_length(&op, event, true);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
       case BEV_MODAL_PRECISION_OFF: {
         opdata->use_precision = false;
-        edbm_bevel_calc_initial_length(op, event, true);
-        edbm_bevel_update_status_text(C, op);
+        edbm_bevel_calc_initial_length(&op, event, true);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
       case BEV_MODAL_SNAP_ON: {
         opdata->use_snap = true;
-        edbm_bevel_calc_initial_length(op, event, true);
-        edbm_bevel_update_status_text(C, op);
+        edbm_bevel_calc_initial_length(&op, event, true);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
       case BEV_MODAL_SNAP_OFF: {
         opdata->use_snap = false;
-        edbm_bevel_calc_initial_length(op, event, true);
-        edbm_bevel_update_status_text(C, op);
+        edbm_bevel_calc_initial_length(&op, event, true);
+        edbm_bevel_update_status_text(&C, &op);
         handled = true;
         break;
       }
@@ -955,88 +955,88 @@ static wmOperatorStatus edbm_bevel_modal(bContext *C, wmOperator *op, const wmEv
 
   /* Modal numinput inactive, try to handle numeric inputs last... */
   if (!handled && eval == KM_PRESS &&
-      handleNumInput(C, &opdata->num_input[opdata->value_mode], event))
+      handleNumInput(&C, &opdata->num_input[opdata->value_mode], event))
   {
-    edbm_bevel_numinput_set_value(op);
-    edbm_bevel_calc(op);
-    edbm_bevel_update_status_text(C, op);
+    edbm_bevel_numinput_set_value(&op);
+    edbm_bevel_calc(&op);
+    edbm_bevel_update_status_text(&C, &op);
     return OPERATOR_RUNNING_MODAL;
   }
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void edbm_bevel_ui(bContext *C, wmOperator *op)
+static void edbm_bevel_ui(bContext &C, wmOperator &op)
 {
-  blender::ui::Layout &layout = *op->layout;
+  blender::ui::Layout &layout = *op.layout;
 
-  int profile_type = RNA_enum_get(op->ptr, "profile_type");
-  int offset_type = RNA_enum_get(op->ptr, "offset_type");
-  bool affect_type = RNA_enum_get(op->ptr, "affect");
+  int profile_type = RNA_enum_get(op.ptr, "profile_type");
+  int offset_type = RNA_enum_get(op.ptr, "offset_type");
+  bool affect_type = RNA_enum_get(op.ptr, "affect");
 
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
   blender::ui::Layout *row = &layout.row(false);
-  row->prop(op->ptr, "affect", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  row->prop(op.ptr, "affect", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   layout.separator();
 
-  layout.prop(op->ptr, "offset_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "offset_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (offset_type == BEVEL_AMT_PERCENT) {
-    layout.prop(op->ptr, "offset_pct", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op.ptr, "offset_pct", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
-    layout.prop(op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op.ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  layout.prop(op->ptr, "segments", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "segments", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (ELEM(profile_type, BEVEL_PROFILE_SUPERELLIPSE, BEVEL_PROFILE_CUSTOM)) {
-    layout.prop(op->ptr,
+    layout.prop(op.ptr,
                 "profile",
                 blender::ui::ITEM_R_SLIDER,
                 (profile_type == BEVEL_PROFILE_SUPERELLIPSE) ? IFACE_("Profile Shape") :
                                                                IFACE_("Miter Profile Shape"),
                 ICON_NONE);
   }
-  layout.prop(op->ptr, "material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "material", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   blender::ui::Layout *col = &layout.column(true);
-  col->prop(op->ptr, "harden_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "clamp_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "loop_slide", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(op.ptr, "harden_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(op.ptr, "clamp_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(op.ptr, "loop_slide", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   col = &layout.column(true, IFACE_("Mark"));
   col->active_set(affect_type == BEVEL_AFFECT_EDGES);
-  col->prop(op->ptr, "mark_seam", UI_ITEM_NONE, IFACE_("Seams"), ICON_NONE);
-  col->prop(op->ptr, "mark_sharp", UI_ITEM_NONE, IFACE_("Sharp"), ICON_NONE);
+  col->prop(op.ptr, "mark_seam", UI_ITEM_NONE, IFACE_("Seams"), ICON_NONE);
+  col->prop(op.ptr, "mark_sharp", UI_ITEM_NONE, IFACE_("Sharp"), ICON_NONE);
 
   layout.separator();
 
   col = &layout.column(false);
   col->active_set(affect_type == BEVEL_AFFECT_EDGES);
-  col->prop(op->ptr, "miter_outer", UI_ITEM_NONE, IFACE_("Miter Outer"), ICON_NONE);
-  col->prop(op->ptr, "miter_inner", UI_ITEM_NONE, IFACE_("Inner"), ICON_NONE);
-  if (RNA_enum_get(op->ptr, "miter_inner") == BEVEL_MITER_ARC) {
-    col->prop(op->ptr, "spread", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col->prop(op.ptr, "miter_outer", UI_ITEM_NONE, IFACE_("Miter Outer"), ICON_NONE);
+  col->prop(op.ptr, "miter_inner", UI_ITEM_NONE, IFACE_("Inner"), ICON_NONE);
+  if (RNA_enum_get(op.ptr, "miter_inner") == BEVEL_MITER_ARC) {
+    col->prop(op.ptr, "spread", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   layout.separator();
 
   col = &layout.column(false);
   col->active_set(affect_type == BEVEL_AFFECT_EDGES);
-  col->prop(op->ptr, "vmesh_method", UI_ITEM_NONE, IFACE_("Intersection Type"), ICON_NONE);
+  col->prop(op.ptr, "vmesh_method", UI_ITEM_NONE, IFACE_("Intersection Type"), ICON_NONE);
 
-  layout.prop(op->ptr, "face_strength_mode", UI_ITEM_NONE, IFACE_("Face Strength"), ICON_NONE);
+  layout.prop(op.ptr, "face_strength_mode", UI_ITEM_NONE, IFACE_("Face Strength"), ICON_NONE);
 
   layout.separator();
 
   row = &layout.row(false);
-  row->prop(op->ptr, "profile_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  row->prop(op.ptr, "profile_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   if (profile_type == BEVEL_PROFILE_CUSTOM) {
     /* Get an RNA pointer to ToolSettings to give to the curve profile template code. */
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(
         &scene->id, &RNA_ToolSettings, scene->toolsettings);
     template_curve_profile(&layout, &toolsettings_ptr, "custom_bevel_profile_preset");

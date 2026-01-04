@@ -1601,14 +1601,14 @@ void ED_object_wpaintmode_exit(bContext *C)
 /** \name Toggle Weight Paint Operator
  * \{ */
 
-bool weight_paint_mode_poll(bContext *C)
+bool weight_paint_mode_poll(bContext &C)
 {
-  const Object *ob = CTX_data_active_object(*C);
+  const Object *ob = CTX_data_active_object(C);
 
   return ob && ob->mode == OB_MODE_WEIGHT_PAINT && ((const Mesh *)ob->data)->faces_num;
 }
 
-bool weight_paint_mode_region_view3d_poll(bContext *C)
+bool weight_paint_mode_region_view3d_poll(bContext &C)
 {
   return weight_paint_mode_poll(C) && ED_operator_region_view3d_active(C);
 }
@@ -1632,31 +1632,31 @@ static bool weight_paint_poll_ex(bContext *C, bool check_tool)
   return false;
 }
 
-bool weight_paint_poll(bContext *C)
+bool weight_paint_poll(bContext &C)
 {
-  return weight_paint_poll_ex(C, true);
+  return weight_paint_poll_ex(&C, true);
 }
 
-bool weight_paint_poll_ignore_tool(bContext *C)
+bool weight_paint_poll_ignore_tool(bContext &C)
 {
-  return weight_paint_poll_ex(C, false);
+  return weight_paint_poll_ex(&C, false);
 }
 
 /**
  * \note Keep in sync with #vpaint_mode_toggle_exec
  */
-static wmOperatorStatus wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wpaint_mode_toggle_exec(bContext &C, wmOperator &op)
 {
-  Main &bmain = *CTX_data_main(*C);
-  wmMsgBus *mbus = CTX_wm_message_bus(*C);
-  Object &ob = *CTX_data_active_object(*C);
+  Main &bmain = *CTX_data_main(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  Object &ob = *CTX_data_active_object(C);
   const int mode_flag = OB_MODE_WEIGHT_PAINT;
   const bool is_mode_set = (ob.mode & mode_flag) != 0;
-  Scene &scene = *CTX_data_scene(*C);
+  Scene &scene = *CTX_data_scene(C);
   ToolSettings &ts = *scene.toolsettings;
 
   if (!is_mode_set) {
-    if (!blender::ed::object::mode_compat_set(C, &ob, (eObjectMode)mode_flag, op->reports)) {
+    if (!blender::ed::object::mode_compat_set(&C, &ob, (eObjectMode)mode_flag, op.reports)) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -1667,15 +1667,15 @@ static wmOperatorStatus wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
     ED_object_wpaintmode_exit_ex(ob);
   }
   else {
-    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(*C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
     if (depsgraph) {
-      depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+      depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     }
     ED_object_wpaintmode_enter_ex(bmain, *depsgraph, scene, ob);
     BKE_paint_brushes_validate(&bmain, &ts.wpaint->paint);
   }
 
-  blender::ed::object::posemode_set_for_weight_paint(C, &bmain, &ob, is_mode_set);
+  blender::ed::object::posemode_set_for_weight_paint(&C, &bmain, &ob, is_mode_set);
 
   /* Weight-paint works by overriding colors in mesh,
    * so need to make sure we recalculate on enter and
@@ -1684,11 +1684,11 @@ static wmOperatorStatus wpaint_mode_toggle_exec(bContext *C, wmOperator *op)
    */
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_MODE, &scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, &scene);
 
   WM_msg_publish_rna_prop(mbus, &ob.id, &ob, Object, mode);
 
-  WM_toolsystem_update_from_context_view3d(C);
+  WM_toolsystem_update_from_context_view3d(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -1914,45 +1914,45 @@ void WeightPaintStroke::done(bool /*is_cancel*/)
   ob.sculpt->cache = nullptr;
 }
 
-static wmOperatorStatus wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wpaint_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   if (!G.background) {
-    view3d_operator_needs_gpu(C);
+    view3d_operator_needs_gpu(&C);
   }
 
-  WeightPaintStroke *stroke = MEM_new<WeightPaintStroke>(__func__, C, op, event->type);
-  op->customdata = stroke;
+  WeightPaintStroke *stroke = MEM_new<WeightPaintStroke>(__func__, &C, &op, event->type);
+  op.customdata = stroke;
 
-  const wmOperatorStatus retval = op->type->modal(C, op, event);
+  const wmOperatorStatus retval = op.type->modal(&C, &op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
-    stroke->free(C, op);
+    stroke->free(&C, &op);
     MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wpaint_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wpaint_exec(bContext &C, wmOperator &op)
 {
-  WeightPaintStroke *stroke = MEM_new<WeightPaintStroke>(__func__, C, op, 0);
-  op->customdata = stroke;
+  WeightPaintStroke *stroke = MEM_new<WeightPaintStroke>(__func__, &C, &op, 0);
+  op.customdata = stroke;
 
-  stroke->exec(C, op);
+  stroke->exec(&C, &op);
 
   MEM_delete(stroke);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus wpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wpaint_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  WeightPaintStroke *stroke = static_cast<WeightPaintStroke *>(op->customdata);
-  const wmOperatorStatus retval = stroke->modal(C, op, event);
+  WeightPaintStroke *stroke = static_cast<WeightPaintStroke *>(op.customdata);
+  const wmOperatorStatus retval = stroke->modal(&C, &op, event);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);

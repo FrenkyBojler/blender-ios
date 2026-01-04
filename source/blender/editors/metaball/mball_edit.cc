@@ -146,14 +146,14 @@ MetaElem *ED_mball_add_primitive(
  * \{ */
 
 /* Select or deselect all MetaElements */
-static wmOperatorStatus mball_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mball_select_all_exec(bContext &C, wmOperator &op)
 {
-  int action = RNA_enum_get(op->ptr, "action");
+  int action = RNA_enum_get(op.ptr, "action");
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   if (action == SEL_TOGGLE) {
     action = BKE_mball_is_any_selected_multi(bases) ? SEL_DESELECT : SEL_SELECT;
@@ -175,7 +175,7 @@ static wmOperatorStatus mball_select_all_exec(bContext *C, wmOperator *op)
     Object *obedit = base->object;
     MetaBall *mb = (MetaBall *)obedit->data;
     DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, mb);
   }
 
   return OPERATOR_FINISHED;
@@ -328,16 +328,16 @@ static bool mball_select_similar_type(Object *obedit,
   return changed;
 }
 
-static wmOperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mball_select_similar_exec(bContext &C, wmOperator &op)
 {
-  const int type = RNA_enum_get(op->ptr, "type");
-  const float thresh = RNA_float_get(op->ptr, "threshold");
+  const int type = RNA_enum_get(op.ptr, "type");
+  const float thresh = RNA_float_get(op.ptr, "threshold");
   int tot_mball_selected_all = 0;
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   tot_mball_selected_all = BKE_mball_select_count_multi(bases);
 
@@ -418,7 +418,7 @@ static wmOperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, mb);
     }
   }
 
@@ -458,16 +458,16 @@ void MBALL_OT_select_similar(wmOperatorType *ot)
 /** \name Select Random Operator
  * \{ */
 
-static wmOperatorStatus select_random_metaelems_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_random_metaelems_exec(bContext &C, wmOperator &op)
 {
-  const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
-  const float randfac = RNA_float_get(op->ptr, "ratio");
-  const int seed = WM_operator_properties_select_random_seed_increment_get(op);
+  const bool select = (RNA_enum_get(op.ptr, "action") == SEL_SELECT);
+  const float randfac = RNA_float_get(op.ptr, "ratio");
+  const int seed = WM_operator_properties_select_random_seed_increment_get(&op);
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
     MetaBall *mb = (MetaBall *)obedit->data;
@@ -497,7 +497,7 @@ static wmOperatorStatus select_random_metaelems_exec(bContext *C, wmOperator *op
     BLI_rng_free(rng);
 
     DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, mb);
   }
   return OPERATOR_FINISHED;
 }
@@ -527,12 +527,12 @@ void MBALL_OT_select_random_metaelems(wmOperatorType *ot)
  * \{ */
 
 /* Duplicate selected MetaElements */
-static wmOperatorStatus duplicate_metaelems_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus duplicate_metaelems_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     MetaBall *mb = (MetaBall *)obedit->data;
     MetaElem *ml, *newml;
@@ -552,7 +552,7 @@ static wmOperatorStatus duplicate_metaelems_exec(bContext *C, wmOperator * /*op*
         }
         ml = ml->prev;
       }
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, mb);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mb);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     }
   }
@@ -582,12 +582,12 @@ void MBALL_OT_duplicate_metaelems(wmOperatorType *ot)
  * Delete all selected MetaElems (not MetaBall).
  * \{ */
 
-static wmOperatorStatus delete_metaelems_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus delete_metaelems_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     MetaBall *mb = (MetaBall *)obedit->data;
     MetaElem *ml, *next;
@@ -609,20 +609,20 @@ static wmOperatorStatus delete_metaelems_exec(bContext *C, wmOperator * /*op*/)
         }
         ml = next;
       }
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, mb);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mb);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     }
   }
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus delete_metaelems_invoke(bContext *C,
-                                                wmOperator *op,
+static wmOperatorStatus delete_metaelems_invoke(bContext &C,
+                                                wmOperator &op,
                                                 const wmEvent * /*event*/)
 {
-  if (RNA_boolean_get(op->ptr, "confirm")) {
-    return WM_operator_confirm_ex(C,
-                                  op,
+  if (RNA_boolean_get(op.ptr, "confirm")) {
+    return WM_operator_confirm_ex(&C,
+                                  &op,
                                   IFACE_("Delete selected metaball elements?"),
                                   nullptr,
                                   IFACE_("Delete"),
@@ -655,12 +655,12 @@ void MBALL_OT_delete_metaelems(wmOperatorType *ot)
 /** \name Hide Meta-Elements Operator
  * \{ */
 
-static wmOperatorStatus hide_metaelems_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus hide_metaelems_exec(bContext &C, wmOperator &op)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   MetaBall *mb = (MetaBall *)obedit->data;
   MetaElem *ml;
-  const bool invert = RNA_boolean_get(op->ptr, "unselected") ? SELECT : false;
+  const bool invert = RNA_boolean_get(op.ptr, "unselected") ? SELECT : false;
 
   ml = static_cast<MetaElem *>(mb->editelems->first);
 
@@ -671,7 +671,7 @@ static wmOperatorStatus hide_metaelems_exec(bContext *C, wmOperator *op)
       }
       ml = ml->next;
     }
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, mb);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mb);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -703,11 +703,11 @@ void MBALL_OT_hide_metaelems(wmOperatorType *ot)
 /** \name Un-Hide Meta-Elements Operator
  * \{ */
 
-static wmOperatorStatus reveal_metaelems_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus reveal_metaelems_exec(bContext &C, wmOperator &op)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   MetaBall *mb = (MetaBall *)obedit->data;
-  const bool select = RNA_boolean_get(op->ptr, "select");
+  const bool select = RNA_boolean_get(op.ptr, "select");
   bool changed = false;
 
   for (MetaElem &ml : *mb->editelems) {
@@ -718,7 +718,7 @@ static wmOperatorStatus reveal_metaelems_exec(bContext *C, wmOperator *op)
     }
   }
   if (changed) {
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, mb);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mb);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 

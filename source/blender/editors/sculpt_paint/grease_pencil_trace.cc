@@ -363,64 +363,64 @@ static void trace_free_job(void *customdata)
 }
 
 /* Trace Image to Grease Pencil. */
-static bool grease_pencil_trace_image_poll(bContext *C)
+static bool grease_pencil_trace_image_poll(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   if ((ob == nullptr) || (ob->type != OB_EMPTY) || (ob->data == nullptr)) {
-    CTX_wm_operator_poll_msg_set(C, "No image empty selected");
+    CTX_wm_operator_poll_msg_set(&C, "No image empty selected");
     return false;
   }
 
   Image *image = static_cast<Image *>(ob->data);
   if (!ELEM(image->source, IMA_SRC_FILE, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
-    CTX_wm_operator_poll_msg_set(C, "No valid image format selected");
+    CTX_wm_operator_poll_msg_set(&C, "No valid image format selected");
     return false;
   }
 
   return true;
 }
 
-static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_trace_image_exec(bContext &C, wmOperator &op)
 {
   TraceJob *job = MEM_new<TraceJob>("TraceJob");
-  job->C = C;
-  job->owner = CTX_data_active_object(*C);
-  job->wm = CTX_wm_manager(*C);
-  job->bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  job->C = &C;
+  job->owner = CTX_data_active_object(C);
+  job->wm = CTX_wm_manager(C);
+  job->bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
   job->scene = scene;
-  job->v3d = CTX_wm_view3d(*C);
-  job->base_active = CTX_data_active_base(*C);
+  job->v3d = CTX_wm_view3d(C);
+  job->base_active = CTX_data_active_base(C);
   job->ob_active = job->base_active->object;
   job->image = static_cast<Image *>(job->ob_active->data);
   job->frame_target = scene->r.cfra;
-  job->use_current_frame = RNA_boolean_get(op->ptr, "use_current_frame");
+  job->use_current_frame = RNA_boolean_get(op.ptr, "use_current_frame");
 
   /* Create a new grease pencil object or reuse selected. */
-  const TargetObjectMode target = TargetObjectMode(RNA_enum_get(op->ptr, "target"));
+  const TargetObjectMode target = TargetObjectMode(RNA_enum_get(op.ptr, "target"));
   job->ob_grease_pencil = (target == TargetObjectMode::Selected) ?
                               BKE_view_layer_non_active_selected_object(
-                                  scene, CTX_data_view_layer(*C), job->v3d) :
+                                  scene, CTX_data_view_layer(C), job->v3d) :
                               nullptr;
 
   if (job->ob_grease_pencil != nullptr) {
     if (job->ob_grease_pencil->type != OB_GREASE_PENCIL) {
-      BKE_report(op->reports, RPT_WARNING, "Target object not a Grease Pencil, ignoring!");
+      BKE_report(op.reports, RPT_WARNING, "Target object not a Grease Pencil, ignoring!");
       job->ob_grease_pencil = nullptr;
     }
     else if (BKE_object_obdata_is_libdata(job->ob_grease_pencil)) {
-      BKE_report(op->reports, RPT_WARNING, "Target object library-data, ignoring!");
+      BKE_report(op.reports, RPT_WARNING, "Target object library-data, ignoring!");
       job->ob_grease_pencil = nullptr;
     }
   }
 
   job->was_ob_created = false;
 
-  job->threshold = RNA_float_get(op->ptr, "threshold");
-  job->radius = RNA_float_get(op->ptr, "radius");
-  job->turnpolicy = TurnPolicy(RNA_enum_get(op->ptr, "turnpolicy"));
-  job->mode = TraceMode(RNA_enum_get(op->ptr, "mode"));
-  job->frame_number = RNA_int_get(op->ptr, "frame_number");
+  job->threshold = RNA_float_get(op.ptr, "threshold");
+  job->radius = RNA_float_get(op.ptr, "radius");
+  job->turnpolicy = TurnPolicy(RNA_enum_get(op.ptr, "turnpolicy"));
+  job->mode = TraceMode(RNA_enum_get(op.ptr, "mode"));
+  job->frame_number = RNA_int_get(op.ptr, "frame_number");
 
   job->ensure_output_object();
 
@@ -441,7 +441,7 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
   }
   else {
     wmJob *wm_job = WM_jobs_get(job->wm,
-                                CTX_wm_window(*C),
+                                CTX_wm_window(C),
                                 job->scene,
                                 "Tracing image...",
                                 WM_JOB_PROGRESS,
@@ -451,19 +451,19 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext *C, wmOperator *
     WM_jobs_timer(wm_job, 0.1, NC_GEOM | ND_DATA, NC_GEOM | ND_DATA);
     WM_jobs_callbacks(wm_job, trace_start_job, nullptr, nullptr, trace_end_job);
 
-    WM_jobs_start(CTX_wm_manager(*C), wm_job);
+    WM_jobs_start(CTX_wm_manager(C), wm_job);
   }
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus grease_pencil_trace_image_invoke(bContext *C,
-                                                         wmOperator *op,
+static wmOperatorStatus grease_pencil_trace_image_invoke(bContext &C,
+                                                         wmOperator &op,
                                                          const wmEvent * /*event*/)
 {
   /* Show popup dialog to allow editing. */
   /* FIXME: hard-coded dimensions here are just arbitrary. */
-  return WM_operator_props_dialog_popup(C, op, 250);
+  return WM_operator_props_dialog_popup(&C, &op, 250);
 }
 
 static void GREASE_PENCIL_OT_trace_image(wmOperatorType *ot)

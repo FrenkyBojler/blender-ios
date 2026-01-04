@@ -119,7 +119,7 @@ static bool rna_Operator_is_repeat(wmOperator *op, bContext *C)
 /* since event isn't needed... */
 static void rna_Operator_enum_search_invoke(bContext *C, wmOperator *op)
 {
-  WM_enum_search_invoke(C, op, nullptr);
+  WM_enum_search_invoke(*C, *op, nullptr);
 }
 
 static int rna_Operator_ui_popup(bContext *C, wmOperator *op, int width)
@@ -253,7 +253,7 @@ static int rna_Operator_confirm(bContext *C,
 
 static int rna_Operator_props_popup(bContext *C, wmOperator *op, wmEvent *event)
 {
-  return WM_operator_props_popup(C, op, event);
+  return WM_operator_props_popup(*C, *op, event);
 }
 
 static int rna_Operator_props_dialog_popup(bContext *C,

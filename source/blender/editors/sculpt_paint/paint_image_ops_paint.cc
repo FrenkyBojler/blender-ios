@@ -486,21 +486,21 @@ bool ImagePaintStroke::test_start(wmOperator *op, const float mouse[2])
   return true;
 }
 
-static wmOperatorStatus paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paint_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ImagePaintStroke *stroke = MEM_new<ImagePaintStroke>(__func__, C, op, event->type);
-  op->customdata = stroke;
+  ImagePaintStroke *stroke = MEM_new<ImagePaintStroke>(__func__, &C, &op, event->type);
+  op.customdata = stroke;
 
-  const wmOperatorStatus retval = op->type->modal(C, op, event);
+  const wmOperatorStatus retval = op.type->modal(&C, &op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
-    stroke->free(C, op);
+    stroke->free(&C, &op);
     MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
   /* add modal handler */
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
@@ -519,27 +519,27 @@ void ImagePaintStroke::update_for_exec(bContext *C,
   this->update(C, brush, mode, mouse_init, mouse, pressure, r_location, r_location_is_set);
 }
 
-static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paint_exec(bContext &C, wmOperator &op)
 {
   PropertyRNA *strokeprop;
   PointerRNA firstpoint;
   float mouse[2];
 
-  strokeprop = RNA_struct_find_property(op->ptr, "stroke");
+  strokeprop = RNA_struct_find_property(op.ptr, "stroke");
 
-  if (!RNA_property_collection_lookup_int(op->ptr, strokeprop, 0, &firstpoint)) {
+  if (!RNA_property_collection_lookup_int(op.ptr, strokeprop, 0, &firstpoint)) {
     return OPERATOR_CANCELLED;
   }
 
   RNA_float_get_array(&firstpoint, "mouse", mouse);
 
-  ImagePaintStroke *stroke = MEM_new<ImagePaintStroke>(__func__, C, op, 0);
-  op->customdata = stroke;
+  ImagePaintStroke *stroke = MEM_new<ImagePaintStroke>(__func__, &C, &op, 0);
+  op.customdata = stroke;
 
   /* Make sure we have proper coordinates for sampling (mask) textures -- these get stored in
    * #UnifiedPaintSettings -- as well as support randomness and jitter. */
-  PaintMode mode = BKE_paintmode_get_active_from_context(C);
-  Paint &paint = *BKE_paint_get_active_from_context(C);
+  PaintMode mode = BKE_paintmode_get_active_from_context(&C);
+  Paint &paint = *BKE_paint_get_active_from_context(&C);
   const Brush &brush = *BKE_paint_brush_for_read(&paint);
   float pressure;
   pressure = RNA_float_get(&firstpoint, "pressure");
@@ -547,25 +547,25 @@ static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
   bool dummy;
   float dummy_location[3];
 
-  int stroke_mode = RNA_enum_get(op->ptr, "mode");
+  int stroke_mode = RNA_enum_get(op.ptr, "mode");
   float zoomx;
   float zoomy;
-  get_imapaint_zoom(C, &zoomx, &zoomy);
+  get_imapaint_zoom(&C, &zoomx, &zoomy);
   float zoom_2d = std::max(zoomx, zoomy);
   paint_stroke_jitter_pos(&paint, mode, brush, pressure, stroke_mode, zoom_2d, mouse, mouse_out);
 
-  stroke->update_for_exec(C, brush, mode, mouse, mouse_out, pressure, dummy_location, &dummy);
-  wmOperatorStatus ret_val = stroke->exec(C, op);
+  stroke->update_for_exec(&C, brush, mode, mouse, mouse_out, pressure, dummy_location, &dummy);
+  wmOperatorStatus ret_val = stroke->exec(&C, &op);
 
   MEM_delete(stroke);
 
   return ret_val;
 }
 
-static wmOperatorStatus paint_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paint_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ImagePaintStroke *stroke = static_cast<ImagePaintStroke *>(op->customdata);
-  const wmOperatorStatus retval = stroke->modal(C, op, event);
+  ImagePaintStroke *stroke = static_cast<ImagePaintStroke *>(op.customdata);
+  const wmOperatorStatus retval = stroke->modal(&C, &op, event);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
@@ -574,16 +574,16 @@ static wmOperatorStatus paint_modal(bContext *C, wmOperator *op, const wmEvent *
   return retval;
 }
 
-static void paint_cancel(bContext *C, wmOperator *op)
+static void paint_cancel(bContext &C, wmOperator &op)
 {
-  ImagePaintStroke *stroke = static_cast<ImagePaintStroke *>(op->customdata);
-  UndoStack *ustack = CTX_wm_manager(*C)->runtime->undo_stack;
+  ImagePaintStroke *stroke = static_cast<ImagePaintStroke *>(op.customdata);
+  UndoStack *ustack = CTX_wm_manager(C)->runtime->undo_stack;
   if (ustack->step_init) {
     /* If the user cancels a stroke when none actually started, there is nothing to undo from. */
     ED_image_undo_restore(ustack->step_init);
   }
 
-  stroke->cancel(C, op);
+  stroke->cancel(&C, &op);
 }
 }  // namespace blender::ed::sculpt_paint::image::ops::paint
 

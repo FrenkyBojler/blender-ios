@@ -6249,13 +6249,12 @@ void paint_proj_stroke_done(void *ps_handle_p)
   MEM_delete(ps_handle);
 }
 /* use project paint to re-apply an image */
-static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus texture_paint_camera_project_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Image *image = static_cast<Image *>(
-      BLI_findlink(&bmain->images, RNA_enum_get(op->ptr, "image")));
-  Scene &scene = *CTX_data_scene(*C);
-  ViewLayer &view_layer = *CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  Image *image = static_cast<Image *>(BLI_findlink(&bmain->images, RNA_enum_get(op.ptr, "image")));
+  Scene &scene = *CTX_data_scene(C);
+  ViewLayer &view_layer = *CTX_data_view_layer(C);
   ProjPaintState ps = {nullptr};
   int orig_brush_size;
   IDProperty *idgroup;
@@ -6265,20 +6264,20 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
   bool uvs, mat, tex;
 
   if (ob == nullptr || ob->type != OB_MESH) {
-    BKE_report(op->reports, RPT_ERROR, "No active mesh object");
+    BKE_report(op.reports, RPT_ERROR, "No active mesh object");
     return OPERATOR_CANCELLED;
   }
 
   if (!ED_paint_proj_mesh_data_check(scene, *ob, &uvs, &mat, &tex, nullptr)) {
-    ED_paint_data_warning(op->reports, uvs, mat, tex, true);
-    WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+    ED_paint_data_warning(op.reports, uvs, mat, tex, true);
+    WM_event_add_notifier(&C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
     return OPERATOR_CANCELLED;
   }
 
-  project_state_init(C, ob, &ps, BRUSH_STROKE_NORMAL);
+  project_state_init(&C, ob, &ps, BRUSH_STROKE_NORMAL);
 
   if (image == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Image could not be found");
+    BKE_report(op.reports, RPT_ERROR, "Image could not be found");
     return OPERATOR_CANCELLED;
   }
 
@@ -6288,7 +6287,7 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
   if ((ps.reproject_ibuf == nullptr) ||
       ((ps.reproject_ibuf->byte_buffer.data || ps.reproject_ibuf->float_buffer.data) == false))
   {
-    BKE_report(op->reports, RPT_ERROR, "Image data could not be found");
+    BKE_report(op.reports, RPT_ERROR, "Image data could not be found");
     return OPERATOR_CANCELLED;
   }
 
@@ -6301,7 +6300,7 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
     if (view_data != nullptr &&
         (view_data->len != PROJ_VIEW_DATA_SIZE || view_data->subtype != IDP_FLOAT))
     {
-      BKE_report(op->reports, RPT_ERROR, "Image project data invalid");
+      BKE_report(op.reports, RPT_ERROR, "Image project data invalid");
       return OPERATOR_CANCELLED;
     }
   }
@@ -6314,7 +6313,7 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
     ps.source = PROJ_SRC_IMAGE_CAM;
 
     if (scene.camera == nullptr) {
-      BKE_report(op->reports, RPT_ERROR, "No active camera set");
+      BKE_report(op.reports, RPT_ERROR, "No active camera set");
       return OPERATOR_CANCELLED;
     }
   }
@@ -6333,15 +6332,15 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
   scene.toolsettings->imapaint.flag |= IMAGEPAINT_DRAWING;
 
   /* allocate and initialize spatial data structures */
-  project_paint_begin(C, &ps, false, 0);
+  project_paint_begin(&C, &ps, false, 0);
 
   if (ps.mesh_eval == nullptr) {
     BKE_brush_size_set(ps.paint, ps.brush, orig_brush_size);
-    BKE_report(op->reports, RPT_ERROR, "Could not get valid evaluated mesh");
+    BKE_report(op.reports, RPT_ERROR, "Could not get valid evaluated mesh");
     return OPERATOR_CANCELLED;
   }
 
-  ED_image_undo_push_begin(op->type->name, PaintMode::Texture3D);
+  ED_image_undo_push_begin(op.type->name, PaintMode::Texture3D);
 
   const float pos[2] = {0.0, 0.0};
   const float lastpos[2] = {0.0, 0.0};
@@ -6353,7 +6352,7 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext *C, wmOperato
 
   for (a = 0; a < ps.image_tot; a++) {
     BKE_image_free_gputextures(ps.projImages[a].ima);
-    WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ps.projImages[a].ima);
+    WM_event_add_notifier(&C, NC_IMAGE | NA_EDITED, ps.projImages[a].ima);
   }
 
   project_paint_end(&ps);
@@ -6388,11 +6387,11 @@ void PAINT_OT_project_image(wmOperatorType *ot)
   ot->prop = prop;
 }
 
-static bool texture_paint_image_from_view_poll(bContext *C)
+static bool texture_paint_image_from_view_poll(bContext &C)
 {
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
   if (!(screen && BKE_screen_find_big_area(screen, SPACE_VIEW3D, 0))) {
-    CTX_wm_operator_poll_msg_set(C, "No 3D viewport found to create image from");
+    CTX_wm_operator_poll_msg_set(&C, "No 3D viewport found to create image from");
     return false;
   }
   if (G.background || !GPU_is_init()) {
@@ -6401,36 +6400,36 @@ static bool texture_paint_image_from_view_poll(bContext *C)
   return true;
 }
 
-static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus texture_paint_image_from_view_exec(bContext &C, wmOperator &op)
 {
   using namespace blender;
   Image *image;
   ImBuf *ibuf;
   char filepath[FILE_MAX];
 
-  Main *bmain = CTX_data_main(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
   ToolSettings *settings = scene->toolsettings;
   int w = settings->imapaint.screen_grab_size[0];
   int h = settings->imapaint.screen_grab_size[1];
   int maxsize;
   char err_out[256] = "unknown";
 
-  ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(*C), SPACE_VIEW3D, 0);
+  ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_VIEW3D, 0);
   if (!area) {
-    BKE_report(op->reports, RPT_ERROR, "No 3D viewport found to create image from");
+    BKE_report(op.reports, RPT_ERROR, "No 3D viewport found to create image from");
     return OPERATOR_CANCELLED;
   }
 
   ARegion *region = BKE_area_find_region_active_win(area);
   if (!region) {
-    BKE_report(op->reports, RPT_ERROR, "No 3D viewport found to create image from");
+    BKE_report(op.reports, RPT_ERROR, "No 3D viewport found to create image from");
     return OPERATOR_CANCELLED;
   }
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   maxsize = GPU_max_texture_size();
 
@@ -6470,7 +6469,7 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
   if (!ibuf) {
     /* NOTE(@sergey): Mostly happens when OpenGL off-screen buffer was failed to create, */
     /* but could be other reasons. Should be handled in the future. */
-    BKE_reportf(op->reports, RPT_ERROR, "Failed to create OpenGL off-screen buffer: %s", err_out);
+    BKE_reportf(op.reports, RPT_ERROR, "Failed to create OpenGL off-screen buffer: %s", err_out);
     return OPERATOR_CANCELLED;
   }
 
@@ -6972,9 +6971,9 @@ static int get_texture_layer_type(wmOperator *op, const char *prop_name)
   return type;
 }
 
-static wmOperatorStatus texture_paint_add_texture_paint_slot_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus texture_paint_add_texture_paint_slot_exec(bContext &C, wmOperator &op)
 {
-  if (proj_paint_add_slot(C, op)) {
+  if (proj_paint_add_slot(&C, &op)) {
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -6991,66 +6990,66 @@ static void get_default_texture_layer_name_for_object(Object *ob,
       dst, dst_maxncpy, "%s %s", base_name, DATA_(layer_type_items[texture_type].name));
 }
 
-static wmOperatorStatus texture_paint_add_texture_paint_slot_invoke(bContext *C,
-                                                                    wmOperator *op,
+static wmOperatorStatus texture_paint_add_texture_paint_slot_invoke(bContext &C,
+                                                                    wmOperator &op,
                                                                     const wmEvent * /*event*/)
 {
-  Object *ob = blender::ed::object::context_active_object(C);
+  Object *ob = blender::ed::object::context_active_object(&C);
   Material *ma = BKE_object_material_get(ob, ob->actcol);
 
-  int type = get_texture_layer_type(op, "type");
+  int type = get_texture_layer_type(&op, "type");
 
   /* Set default name. */
   char imagename[MAX_ID_NAME - 2];
   get_default_texture_layer_name_for_object(ob, type, (char *)&imagename, sizeof(imagename));
-  RNA_string_set(op->ptr, "name", imagename);
+  RNA_string_set(op.ptr, "name", imagename);
 
   /* Set default color. Copy the color from nodes, so it matches the existing material.
    * Material could be null so we should have a default color. */
   float color[4];
   default_paint_slot_color_get(type, ma, color);
-  RNA_float_set_array(op->ptr, "color", color);
+  RNA_float_set_array(op.ptr, "color", color);
 
   return WM_operator_props_dialog_popup(
-      C, op, 300, IFACE_("Add Paint Slot"), CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add"));
+      &C, &op, 300, IFACE_("Add Paint Slot"), CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add"));
 }
 
-static void texture_paint_add_texture_paint_slot_ui(bContext *C, wmOperator *op)
+static void texture_paint_add_texture_paint_slot_ui(bContext &C, wmOperator &op)
 {
-  blender::ui::Layout &layout = *op->layout;
+  blender::ui::Layout &layout = *op.layout;
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
-  Object *ob = blender::ed::object::context_active_object(C);
+  Object *ob = blender::ed::object::context_active_object(&C);
   ePaintCanvasSource slot_type = PAINT_CANVAS_SOURCE_IMAGE;
 
   if (ob->mode == OB_MODE_SCULPT) {
-    slot_type = (ePaintCanvasSource)RNA_enum_get(op->ptr, "slot_type");
-    layout.prop(op->ptr, "slot_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    slot_type = (ePaintCanvasSource)RNA_enum_get(op.ptr, "slot_type");
+    layout.prop(op.ptr, "slot_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   }
 
-  layout.prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   switch (slot_type) {
     case PAINT_CANVAS_SOURCE_IMAGE: {
       blender::ui::Layout &col = layout.column(true);
-      col.prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col.prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col.prop(op.ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col.prop(op.ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-      layout.prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout.prop(op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout.prop(op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op.ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op.ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op.ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     }
     case PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE:
-      layout.prop(op->ptr, "domain", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-      layout.prop(op->ptr, "data_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      layout.prop(op.ptr, "domain", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      layout.prop(op.ptr, "data_type", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
       break;
     case PAINT_CANVAS_SOURCE_MATERIAL:
       BLI_assert_unreachable();
       break;
   }
 
-  layout.prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 #define IMA_DEF_NAME N_("Untitled")
@@ -7140,26 +7139,26 @@ void PAINT_OT_add_texture_paint_slot(wmOperatorType *ot)
                "Type of data stored in attribute");
 }
 
-static wmOperatorStatus add_simple_uvs_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus add_simple_uvs_exec(bContext &C, wmOperator & /*op*/)
 {
   /* no checks here, poll function does them for us */
-  Main *bmain = CTX_data_main(*C);
-  Object *ob = CTX_data_active_object(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Object *ob = CTX_data_active_object(C);
+  Scene *scene = CTX_data_scene(C);
 
   ED_uvedit_add_simple_uvs(bmain, scene, ob);
 
   ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
 
   DEG_id_tag_update(static_cast<ID *>(ob->data), 0);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
-  WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, scene);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+  WM_event_add_notifier(&C, NC_SCENE | ND_TOOLSETTINGS, scene);
   return OPERATOR_FINISHED;
 }
 
-static bool add_simple_uvs_poll(bContext *C)
+static bool add_simple_uvs_poll(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
 
   if (!ob || ob->type != OB_MESH || ob->mode != OB_MODE_TEXTURE_PAINT) {
     return false;

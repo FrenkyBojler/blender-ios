@@ -307,20 +307,20 @@ static WorkSpace *workspace_context_get(bContext *C)
   return CTX_wm_workspace(*C);
 }
 
-static bool workspace_context_poll(bContext *C)
+static bool workspace_context_poll(bContext &C)
 {
-  return workspace_context_get(C) != nullptr;
+  return workspace_context_get(&C) != nullptr;
 }
 
-static wmOperatorStatus workspace_new_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus workspace_new_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  WorkSpace *workspace = workspace_context_get(C);
+  Main *bmain = CTX_data_main(C);
+  wmWindow *win = CTX_wm_window(C);
+  WorkSpace *workspace = workspace_context_get(&C);
 
   workspace = ED_workspace_duplicate(workspace, bmain, win);
 
-  WM_event_add_notifier(C, NC_SCREEN | ND_WORKSPACE_SET, workspace);
+  WM_event_add_notifier(&C, NC_SCREEN | ND_WORKSPACE_SET, workspace);
 
   return OPERATOR_FINISHED;
 }
@@ -337,11 +337,11 @@ static void WORKSPACE_OT_duplicate(wmOperatorType *ot)
   ot->exec = workspace_new_exec;
 }
 
-static wmOperatorStatus workspace_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus workspace_delete_exec(bContext &C, wmOperator & /*op*/)
 {
-  WorkSpace *workspace = workspace_context_get(C);
-  WM_event_add_notifier(C, NC_SCREEN | ND_WORKSPACE_DELETE, workspace);
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WorkSpace *workspace = workspace_context_get(&C);
+  WM_event_add_notifier(&C, NC_SCREEN | ND_WORKSPACE_DELETE, workspace);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -358,15 +358,15 @@ static void WORKSPACE_OT_delete(wmOperatorType *ot)
   ot->exec = workspace_delete_exec;
 }
 
-static wmOperatorStatus workspace_delete_all_others_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus workspace_delete_all_others_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  WorkSpace *workspace = workspace_context_get(C);
+  Main *bmain = CTX_data_main(C);
+  WorkSpace *workspace = workspace_context_get(&C);
 
   for (WorkSpace &ws : bmain->workspaces) {
     if (&ws != workspace) {
-      WM_event_add_notifier(C, NC_SCREEN | ND_WORKSPACE_DELETE, &ws);
-      WM_event_add_notifier(C, NC_WINDOW, nullptr);
+      WM_event_add_notifier(&C, NC_SCREEN | ND_WORKSPACE_DELETE, &ws);
+      WM_event_add_notifier(&C, NC_WINDOW, nullptr);
     }
   }
 
@@ -385,18 +385,18 @@ static void WORKSPACE_OT_delete_all_others(wmOperatorType *ot)
   ot->exec = workspace_delete_all_others_exec;
 }
 
-static wmOperatorStatus workspace_append_activate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus workspace_append_activate_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   char idname[MAX_ID_NAME - 2], filepath[FILE_MAX];
 
-  if (!RNA_struct_property_is_set(op->ptr, "idname") ||
-      !RNA_struct_property_is_set(op->ptr, "filepath"))
+  if (!RNA_struct_property_is_set(op.ptr, "idname") ||
+      !RNA_struct_property_is_set(op.ptr, "filepath"))
   {
     return OPERATOR_CANCELLED;
   }
-  RNA_string_get(op->ptr, "idname", idname);
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "idname", idname);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   WorkSpace *appended_workspace = nullptr;
   /* NOTE: Need to check `filepath`, in the rare case where the usual source of work-spaces
@@ -408,15 +408,15 @@ static wmOperatorStatus workspace_append_activate_exec(bContext *C, wmOperator *
     if (appended_workspace) {
       /* Copy, to mimic behavior when appending from another file (which always creates a new copy
        * of the data). */
-      appended_workspace = ED_workspace_duplicate(appended_workspace, bmain, CTX_wm_window(*C));
+      appended_workspace = ED_workspace_duplicate(appended_workspace, bmain, CTX_wm_window(C));
     }
   }
   else {
     appended_workspace = reinterpret_cast<WorkSpace *>(
         WM_file_append_datablock(bmain,
-                                 CTX_data_scene(*C),
-                                 CTX_data_view_layer(*C),
-                                 CTX_wm_view3d(*C),
+                                 CTX_data_scene(C),
+                                 CTX_data_view_layer(C),
+                                 CTX_wm_view3d(C),
                                  filepath,
                                  ID_WS,
                                  idname,
@@ -440,7 +440,7 @@ static wmOperatorStatus workspace_append_activate_exec(bContext *C, wmOperator *
                    true);
 
     /* Changing workspace changes context. Do delayed! */
-    WM_event_add_notifier(C, NC_SCREEN | ND_WORKSPACE_SET, appended_workspace);
+    WM_event_add_notifier(&C, NC_SCREEN | ND_WORKSPACE_SET, appended_workspace);
 
     return OPERATOR_FINISHED;
   }
@@ -627,11 +627,11 @@ static void workspace_add_menu_register()
   WM_menutype_add(mt);
 }
 
-static wmOperatorStatus workspace_add_invoke(bContext *C,
-                                             wmOperator * /*op*/,
+static wmOperatorStatus workspace_add_invoke(bContext &C,
+                                             wmOperator & /*op*/,
                                              const wmEvent * /*event*/)
 {
-  WM_menu_name_call(C, "WORKSPACE_MT_add", blender::wm::OpCallContext::InvokeDefault);
+  WM_menu_name_call(&C, "WORKSPACE_MT_add", blender::wm::OpCallContext::InvokeDefault);
   return OPERATOR_INTERFACE;
 }
 
@@ -648,14 +648,14 @@ static void WORKSPACE_OT_add(wmOperatorType *ot)
   ot->invoke = workspace_add_invoke;
 }
 
-static wmOperatorStatus workspace_reorder_to_back_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus workspace_reorder_to_back_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  WorkSpace *workspace = workspace_context_get(C);
+  Main *bmain = CTX_data_main(C);
+  WorkSpace *workspace = workspace_context_get(&C);
 
   BKE_id_reorder(
       reinterpret_cast<const ListBaseT<ID> *>(&bmain->workspaces), &workspace->id, nullptr, true);
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
 
   return OPERATOR_INTERFACE;
 }
@@ -672,14 +672,14 @@ static void WORKSPACE_OT_reorder_to_back(wmOperatorType *ot)
   ot->exec = workspace_reorder_to_back_exec;
 }
 
-static wmOperatorStatus workspace_reorder_to_front_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus workspace_reorder_to_front_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  WorkSpace *workspace = workspace_context_get(C);
+  Main *bmain = CTX_data_main(C);
+  WorkSpace *workspace = workspace_context_get(&C);
 
   BKE_id_reorder(
       reinterpret_cast<const ListBaseT<ID> *>(&bmain->workspaces), &workspace->id, nullptr, false);
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
 
   return OPERATOR_INTERFACE;
 }
@@ -696,15 +696,15 @@ static void WORKSPACE_OT_reorder_to_front(wmOperatorType *ot)
   ot->exec = workspace_reorder_to_front_exec;
 }
 
-static wmOperatorStatus workspace_scene_pin_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus workspace_scene_pin_toggle_exec(bContext &C, wmOperator & /*op*/)
 {
-  WorkSpace *workspace = workspace_context_get(C);
+  WorkSpace *workspace = workspace_context_get(&C);
 
   /* Trivial. The operator is only needed to display a superimposed extra icon, which
    * requires an operator. */
   workspace->flags ^= WORKSPACE_USE_PIN_SCENE;
 
-  WM_event_add_notifier(C, NC_WORKSPACE, nullptr);
+  WM_event_add_notifier(&C, NC_WORKSPACE, nullptr);
 
   return OPERATOR_FINISHED;
 }

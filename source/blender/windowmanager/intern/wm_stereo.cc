@@ -253,10 +253,10 @@ static void wm_stereo3d_set_init(bContext *C, wmOperator *op)
   s3dd->stereo3d_format = *win->stereo3d_format;
 }
 
-wmOperatorStatus wm_stereo3d_set_exec(bContext *C, wmOperator *op)
+wmOperatorStatus wm_stereo3d_set_exec(bContext &C, wmOperator &op)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win_src = CTX_wm_window(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win_src = CTX_wm_window(C);
   wmWindow *win_dst = nullptr;
   const bool is_fullscreen = WM_window_is_fullscreen(win_src);
   char prev_display_mode = win_src->stereo3d_format->display_mode;
@@ -266,25 +266,25 @@ wmOperatorStatus wm_stereo3d_set_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (op->customdata == nullptr) {
+  if (op.customdata == nullptr) {
     /* No invoke means we need to set the operator properties here. */
-    wm_stereo3d_set_init(C, op);
-    wm_stereo3d_set_properties(C, op);
+    wm_stereo3d_set_init(&C, &op);
+    wm_stereo3d_set_properties(&C, &op);
   }
 
-  Stereo3dData *s3dd = static_cast<Stereo3dData *>(op->customdata);
+  Stereo3dData *s3dd = static_cast<Stereo3dData *>(op.customdata);
   *win_src->stereo3d_format = s3dd->stereo3d_format;
 
   if (prev_display_mode == S3D_DISPLAY_PAGEFLIP &&
       prev_display_mode != win_src->stereo3d_format->display_mode)
   {
     /* In case the hardware supports page-flip but not the display. */
-    if ((win_dst = wm_window_copy_test(C, win_src, false, false))) {
+    if ((win_dst = wm_window_copy_test(&C, win_src, false, false))) {
       /* Pass. */
     }
     else {
       BKE_report(
-          op->reports,
+          op.reports,
           RPT_ERROR,
           "Failed to create a window without quad-buffer support, you may experience flickering");
       ok = false;
@@ -296,23 +296,23 @@ wmOperatorStatus wm_stereo3d_set_exec(bContext *C, wmOperator *op)
     /* #ED_workspace_layout_duplicate() can't handle other cases yet #44688 */
     if (screen->state != SCREENNORMAL) {
       BKE_report(
-          op->reports, RPT_ERROR, "Failed to switch to Time Sequential mode when in fullscreen");
+          op.reports, RPT_ERROR, "Failed to switch to Time Sequential mode when in fullscreen");
       ok = false;
     }
     /* Page-flip requires a new window to be created with the proper OS flags. */
-    else if ((win_dst = wm_window_copy_test(C, win_src, false, false))) {
+    else if ((win_dst = wm_window_copy_test(&C, win_src, false, false))) {
       if (GPU_stereo_quadbuffer_support()) {
-        BKE_report(op->reports, RPT_INFO, "Quad-buffer window successfully created");
+        BKE_report(op.reports, RPT_INFO, "Quad-buffer window successfully created");
       }
       else {
-        wm_window_close(C, wm, win_dst);
+        wm_window_close(&C, wm, win_dst);
         win_dst = nullptr;
-        BKE_report(op->reports, RPT_ERROR, "Quad-buffer not supported by the system");
+        BKE_report(op.reports, RPT_ERROR, "Quad-buffer not supported by the system");
         ok = false;
       }
     }
     else {
-      BKE_report(op->reports,
+      BKE_report(op.reports,
                  RPT_ERROR,
                  "Failed to create a window compatible with the time sequential display method");
       ok = false;
@@ -321,42 +321,42 @@ wmOperatorStatus wm_stereo3d_set_exec(bContext *C, wmOperator *op)
 
   if (wm_stereo3d_is_fullscreen_required(eStereoDisplayMode(s3dd->stereo3d_format.display_mode))) {
     if (!is_fullscreen) {
-      BKE_report(op->reports, RPT_INFO, "Stereo 3D Mode requires the window to be fullscreen");
+      BKE_report(op.reports, RPT_INFO, "Stereo 3D Mode requires the window to be fullscreen");
     }
   }
 
   MEM_freeN(s3dd);
-  op->customdata = nullptr;
+  op.customdata = nullptr;
 
   if (ok) {
     if (win_dst) {
-      wm_window_close(C, wm, win_src);
+      wm_window_close(&C, wm, win_src);
     }
 
-    WM_event_add_notifier(C, NC_WINDOW, nullptr);
+    WM_event_add_notifier(&C, NC_WINDOW, nullptr);
     return OPERATOR_FINISHED;
   }
 
   /* Without this, the popup won't be freed properly, see #44688. */
-  CTX_wm_window_set(C, win_src);
+  CTX_wm_window_set(&C, win_src);
   win_src->stereo3d_format->display_mode = prev_display_mode;
   return OPERATOR_CANCELLED;
 }
 
-wmOperatorStatus wm_stereo3d_set_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+wmOperatorStatus wm_stereo3d_set_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  wm_stereo3d_set_init(C, op);
+  wm_stereo3d_set_init(&C, &op);
 
-  if (wm_stereo3d_set_properties(C, op)) {
+  if (wm_stereo3d_set_properties(&C, &op)) {
     return wm_stereo3d_set_exec(C, op);
   }
-  return WM_operator_props_dialog_popup(C, op, 300, IFACE_("Set Stereo 3D"), IFACE_("Set"));
+  return WM_operator_props_dialog_popup(&C, &op, 300, IFACE_("Set Stereo 3D"), IFACE_("Set"));
 }
 
-void wm_stereo3d_set_draw(bContext * /*C*/, wmOperator *op)
+void wm_stereo3d_set_draw(bContext & /*C*/, wmOperator &op)
 {
-  Stereo3dData *s3dd = static_cast<Stereo3dData *>(op->customdata);
-  blender::ui::Layout &layout = *op->layout;
+  Stereo3dData *s3dd = static_cast<Stereo3dData *>(op.customdata);
+  blender::ui::Layout &layout = *op.layout;
 
   PointerRNA stereo3d_format_ptr = RNA_pointer_create_discrete(
       nullptr, &RNA_Stereo3dDisplay, &s3dd->stereo3d_format);
@@ -390,7 +390,7 @@ void wm_stereo3d_set_draw(bContext * /*C*/, wmOperator *op)
   }
 }
 
-bool wm_stereo3d_set_check(bContext * /*C*/, wmOperator * /*op*/)
+bool wm_stereo3d_set_check(bContext & /*C*/, wmOperator & /*op*/)
 {
   /* The check function guarantees that the menu is updated to show the
    * sub-options when an enum change (e.g., it shows the anaglyph options
@@ -398,9 +398,9 @@ bool wm_stereo3d_set_check(bContext * /*C*/, wmOperator * /*op*/)
   return true;
 }
 
-void wm_stereo3d_set_cancel(bContext * /*C*/, wmOperator *op)
+void wm_stereo3d_set_cancel(bContext & /*C*/, wmOperator &op)
 {
-  Stereo3dData *s3dd = static_cast<Stereo3dData *>(op->customdata);
+  Stereo3dData *s3dd = static_cast<Stereo3dData *>(op.customdata);
   MEM_freeN(s3dd);
-  op->customdata = nullptr;
+  op.customdata = nullptr;
 }

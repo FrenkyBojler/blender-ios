@@ -491,12 +491,12 @@ static wmOperatorStatus multiresbake_image_exec(bContext *C, wmOperator *op)
 /* ****************** render BAKING ********************** */
 
 /** Catch escape key to cancel. */
-static wmOperatorStatus objects_bake_render_modal(bContext *C,
-                                                  wmOperator * /*op*/,
+static wmOperatorStatus objects_bake_render_modal(bContext &C,
+                                                  wmOperator & /*op*/,
                                                   const wmEvent *event)
 {
   /* no running blender, remove handler and pass through */
-  if (0 == WM_jobs_test(CTX_wm_manager(*C), CTX_data_scene(*C), WM_JOB_TYPE_OBJECT_BAKE_TEXTURE)) {
+  if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_OBJECT_BAKE_TEXTURE)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
@@ -525,23 +525,23 @@ static bool is_multires_bake(Scene *scene)
   return false;
 }
 
-static wmOperatorStatus objects_bake_render_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus objects_bake_render_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent * /*event*/)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   wmOperatorStatus result = OPERATOR_CANCELLED;
 
-  result = multiresbake_image_exec(C, op);
+  result = multiresbake_image_exec(&C, &op);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_RESULT, scene);
 
   return result;
 }
 
-static wmOperatorStatus bake_image_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bake_image_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   wmOperatorStatus result = OPERATOR_CANCELLED;
 
   if (!is_multires_bake(scene)) {
@@ -549,9 +549,9 @@ static wmOperatorStatus bake_image_exec(bContext *C, wmOperator *op)
     return result;
   }
 
-  result = multiresbake_image_exec_locked(C, op);
+  result = multiresbake_image_exec_locked(&C, &op);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_RESULT, scene);
 
   return result;
 }

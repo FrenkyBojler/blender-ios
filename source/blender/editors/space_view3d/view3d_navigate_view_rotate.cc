@@ -365,9 +365,9 @@ static wmOperatorStatus viewrotate_invoke_impl(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewrotate_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_rotate);
+  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_rotate);
 }
 
 void VIEW3D_OT_rotate(wmOperatorType *ot)

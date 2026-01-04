@@ -98,28 +98,28 @@ static void wpaint_prev_destroy(WPaintPrev *wpp)
 /** \name Weight from Bones Operator
  * \{ */
 
-static bool weight_from_bones_poll(bContext *C)
+static bool weight_from_bones_poll(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
 
   return (ob && (ob->mode & OB_MODE_WEIGHT_PAINT) && BKE_modifiers_is_deformed_by_armature(ob));
 }
 
-static wmOperatorStatus weight_from_bones_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus weight_from_bones_exec(bContext &C, wmOperator &op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob = CTX_data_active_object(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = CTX_data_active_object(C);
   Object *armob = BKE_modifiers_is_deformed_by_armature(ob);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  int type = RNA_enum_get(op->ptr, "type");
+  int type = RNA_enum_get(op.ptr, "type");
 
   ED_object_vgroup_calc_from_armature(
-      op->reports, depsgraph, scene, ob, armob, type, (mesh->symmetry & ME_SYMMETRY_X));
+      op.reports, depsgraph, scene, ob, armob, type, (mesh->symmetry & ME_SYMMETRY_X));
 
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
-  DEG_relations_tag_update(CTX_data_main(*C));
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
+  DEG_relations_tag_update(CTX_data_main(C));
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
 
   return OPERATOR_FINISHED;
 }
@@ -167,13 +167,13 @@ void PAINT_OT_weight_from_bones(wmOperatorType *ot)
  *
  * \note we can't sample front-buffer, weight colors are interpolated too unpredictable.
  */
-static wmOperatorStatus weight_sample_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus weight_sample_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Mesh *mesh;
   bool changed = false;
 
-  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
   mesh = BKE_mesh_from_object(vc.obact);
   const MDeformVert *dvert = mesh->deform_verts().data();
 
@@ -182,26 +182,28 @@ static wmOperatorStatus weight_sample_invoke(bContext *C, wmOperator *op, const 
     int v_idx_best = -1;
     uint index;
 
-    view3d_operator_needs_gpu(C);
+    view3d_operator_needs_gpu(&C);
     ED_view3d_init_mats_rv3d(vc.obact, vc.rv3d);
 
     if (use_vert_sel) {
       if (ED_mesh_pick_vert(
-              C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_VERT_DIST, true, &index))
+              &C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_VERT_DIST, true, &index))
       {
         v_idx_best = index;
       }
     }
     else {
-      if (ED_mesh_pick_face_vert(C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_FACE_DIST, &index))
+      if (ED_mesh_pick_face_vert(
+              &C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_FACE_DIST, &index))
       {
         v_idx_best = index;
       }
-      else if (ED_mesh_pick_face(C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_FACE_DIST, &index))
+      else if (ED_mesh_pick_face(
+                   &C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_FACE_DIST, &index))
       {
         /* This relies on knowing the internal workings of #ED_mesh_pick_face_vert() */
         BKE_report(
-            op->reports, RPT_WARNING, "The modifier used does not support deformed locations");
+            op.reports, RPT_WARNING, "The modifier used does not support deformed locations");
       }
     }
 
@@ -314,18 +316,18 @@ static bool weight_paint_sample_mark_groups(const MDeformVert *dvert,
   return found;
 }
 
-static wmOperatorStatus weight_sample_group_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus weight_sample_group_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
-  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
   BLI_assert(vc.v3d && vc.rv3d); /* Ensured by poll. */
 
   Mesh *mesh = BKE_mesh_from_object(vc.obact);
   const MDeformVert *dverts = mesh->deform_verts().data();
   if (BLI_listbase_is_empty(&mesh->vertex_group_names) || (dverts == nullptr)) {
-    BKE_report(op->reports, RPT_WARNING, "No vertex group data");
+    BKE_report(op.reports, RPT_WARNING, "No vertex group data");
     return OPERATOR_CANCELLED;
   }
 
@@ -334,13 +336,13 @@ static wmOperatorStatus weight_sample_group_invoke(bContext *C,
 
   bool found = false;
 
-  view3d_operator_needs_gpu(C);
+  view3d_operator_needs_gpu(&C);
   ED_view3d_init_mats_rv3d(vc.obact, vc.rv3d);
 
   if (use_vert_sel) {
     /* Extract from the vertex. */
     uint index;
-    if (ED_mesh_pick_vert(C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_VERT_DIST, true, &index))
+    if (ED_mesh_pick_vert(&C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_VERT_DIST, true, &index))
     {
       const MDeformVert *dvert = &dverts[index];
       found |= weight_paint_sample_mark_groups(dvert, groups);
@@ -351,7 +353,7 @@ static wmOperatorStatus weight_sample_group_invoke(bContext *C,
     const blender::OffsetIndices faces = mesh->faces();
     const blender::Span<int> corner_verts = mesh->corner_verts();
     uint index;
-    if (ED_mesh_pick_face(C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_FACE_DIST, &index)) {
+    if (ED_mesh_pick_face(&C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_FACE_DIST, &index)) {
       for (const int vert : corner_verts.slice(faces[index])) {
         found |= weight_paint_sample_mark_groups(&dverts[vert], groups);
       }
@@ -359,12 +361,12 @@ static wmOperatorStatus weight_sample_group_invoke(bContext *C,
   }
 
   if (found == false) {
-    BKE_report(op->reports, RPT_WARNING, "No vertex groups found");
+    BKE_report(op.reports, RPT_WARNING, "No vertex groups found");
     return OPERATOR_CANCELLED;
   }
 
   blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
-      C, WM_operatortype_name(op->type, op->ptr).c_str(), ICON_NONE);
+      &C, WM_operatortype_name(op.type, op.ptr).c_str(), ICON_NONE);
   blender::ui::Layout &layout = *popup_menu_layout(pup);
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_vertex_group_set_active", false);
   blender::wm::OpCallContext opcontext = blender::wm::OpCallContext::ExecDefault;
@@ -378,7 +380,7 @@ static wmOperatorStatus weight_sample_group_invoke(bContext *C,
         ot, dg.name, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
     RNA_property_enum_set(&op_ptr, ot->prop, i);
   }
-  popup_menu_end(C, pup);
+  popup_menu_end(&C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -494,19 +496,19 @@ static bool weight_paint_set(Object *ob, float paintweight)
   return true;
 }
 
-static wmOperatorStatus weight_paint_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus weight_paint_set_exec(bContext &C, wmOperator &op)
 {
-  Object *obact = CTX_data_active_object(*C);
-  ToolSettings *ts = CTX_data_tool_settings(*C);
+  Object *obact = CTX_data_active_object(C);
+  ToolSettings *ts = CTX_data_tool_settings(C);
   Brush *brush = BKE_paint_brush(&ts->wpaint->paint);
   float vgroup_weight = BKE_brush_weight_get(&ts->wpaint->paint, brush);
 
-  if (ED_wpaint_ensure_data(C, op->reports, WPAINT_ENSURE_MIRROR, nullptr) == false) {
+  if (ED_wpaint_ensure_data(&C, op.reports, WPAINT_ENSURE_MIRROR, nullptr) == false) {
     return OPERATOR_CANCELLED;
   }
 
   if (weight_paint_set(obact, vgroup_weight)) {
-    ED_region_tag_redraw(CTX_wm_region(*C)); /* XXX: should redraw all 3D views. */
+    ED_region_tag_redraw(CTX_wm_region(C)); /* XXX: should redraw all 3D views. */
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -694,18 +696,18 @@ static void gradientVertInit__mapFunc(void *user_data,
   gradientVert_update(grad_data, index);
 }
 
-static wmOperatorStatus paint_weight_gradient_modal(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus paint_weight_gradient_modal(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent *event)
 {
-  wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
+  wmGesture *gesture = static_cast<wmGesture *>(op.customdata);
   WPGradient_vertStoreBase *vert_cache = static_cast<WPGradient_vertStoreBase *>(
       gesture->user_data.data);
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   wmOperatorStatus ret;
 
   if (BKE_object_defgroup_active_is_locked(ob)) {
-    BKE_report(op->reports, RPT_WARNING, "Active group is locked, aborting");
+    BKE_report(op.reports, RPT_WARNING, "Active group is locked, aborting");
     ret = OPERATOR_CANCELLED;
   }
   else {
@@ -734,7 +736,7 @@ static wmOperatorStatus paint_weight_gradient_modal(bContext *C,
     }
 
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
   }
   else if (ret & OPERATOR_FINISHED) {
     wpaint_prev_destroy(&vert_cache->wpp);
@@ -744,25 +746,25 @@ static wmOperatorStatus paint_weight_gradient_modal(bContext *C,
   return ret;
 }
 
-static wmOperatorStatus paint_weight_gradient_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paint_weight_gradient_exec(bContext &C, wmOperator &op)
 {
   using namespace blender;
-  wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
+  wmGesture *gesture = static_cast<wmGesture *>(op.customdata);
   WPGradient_vertStoreBase *vert_cache;
-  ARegion *region = CTX_wm_region(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob = CTX_data_active_object(*C);
+  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = CTX_data_active_object(C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   MDeformVert *dverts = mesh->deform_verts_for_write().data();
-  int x_start = RNA_int_get(op->ptr, "xstart");
-  int y_start = RNA_int_get(op->ptr, "ystart");
-  int x_end = RNA_int_get(op->ptr, "xend");
-  int y_end = RNA_int_get(op->ptr, "yend");
+  int x_start = RNA_int_get(op.ptr, "xstart");
+  int y_start = RNA_int_get(op.ptr, "ystart");
+  int x_end = RNA_int_get(op.ptr, "xend");
+  int y_end = RNA_int_get(op.ptr, "yend");
   const float sco_start[2] = {float(x_start), float(y_start)};
   const float sco_end[2] = {float(x_end), float(y_end)};
   const bool is_interactive = (gesture != nullptr);
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   WPGradient_userData data = {nullptr};
 
@@ -786,7 +788,7 @@ static wmOperatorStatus paint_weight_gradient_exec(bContext *C, wmOperator *op)
     vert_cache = static_cast<WPGradient_vertStoreBase *>(gesture->user_data.data);
   }
   else {
-    if (ED_wpaint_ensure_data(C, op->reports, eWPaintFlag(0), nullptr) == false) {
+    if (ED_wpaint_ensure_data(&C, op.reports, eWPaintFlag(0), nullptr) == false) {
       return OPERATOR_CANCELLED;
     }
 
@@ -812,10 +814,10 @@ static wmOperatorStatus paint_weight_gradient_exec(bContext *C, wmOperator *op)
   data.use_select = (mesh->editflag & (ME_EDIT_PAINT_FACE_SEL | ME_EDIT_PAINT_VERT_SEL)) != 0;
   data.vert_cache = vert_cache;
   data.vert_visit = nullptr;
-  data.type = RNA_enum_get(op->ptr, "type");
+  data.type = RNA_enum_get(op.ptr, "type");
 
   {
-    ToolSettings *ts = CTX_data_tool_settings(*C);
+    ToolSettings *ts = CTX_data_tool_settings(C);
     VPaint *wp = ts->wpaint;
     Brush *brush = BKE_paint_brush(&wp->paint);
 
@@ -843,7 +845,7 @@ static wmOperatorStatus paint_weight_gradient_exec(bContext *C, wmOperator *op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
 
   if (is_interactive == false) {
     MEM_freeN(vert_cache);
@@ -876,23 +878,23 @@ static wmOperatorStatus paint_weight_gradient_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus paint_weight_gradient_invoke(bContext *C,
-                                                     wmOperator *op,
+static wmOperatorStatus paint_weight_gradient_invoke(bContext &C,
+                                                     wmOperator &op,
                                                      const wmEvent *event)
 {
   wmOperatorStatus ret;
 
-  if (ED_wpaint_ensure_data(C, op->reports, eWPaintFlag(0), nullptr) == false) {
+  if (ED_wpaint_ensure_data(&C, op.reports, eWPaintFlag(0), nullptr) == false) {
     return OPERATOR_CANCELLED;
   }
 
-  ret = WM_gesture_straightline_invoke(C, op, event);
+  ret = WM_gesture_straightline_invoke(&C, &op, event);
   if (ret & OPERATOR_RUNNING_MODAL) {
-    ARegion *region = CTX_wm_region(*C);
+    ARegion *region = CTX_wm_region(C);
     if (region->regiontype == RGN_TYPE_WINDOW) {
       /* TODO: hard-coded, extend `WM_gesture_straightline_*`. */
       if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-        wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
+        wmGesture *gesture = static_cast<wmGesture *>(op.customdata);
         gesture->is_active = true;
       }
     }

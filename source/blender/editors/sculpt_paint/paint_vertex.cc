@@ -403,9 +403,9 @@ void mode_exit_generic(Object &ob, const eObjectMode mode_flag)
   DEG_id_tag_update(&ob.id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-bool mode_toggle_poll_test(bContext *C)
+bool mode_toggle_poll_test(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   if (ob == nullptr || ob->type != OB_MESH) {
     return false;
   }
@@ -606,9 +606,9 @@ void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
 /** \} */
 }  // namespace blender::ed::sculpt_paint::vwpaint
 
-bool vertex_paint_mode_poll(bContext *C)
+bool vertex_paint_mode_poll(bContext &C)
 {
-  const Object *ob = CTX_data_active_object(*C);
+  const Object *ob = CTX_data_active_object(C);
   if (!ob) {
     return false;
   }
@@ -627,7 +627,7 @@ bool vertex_paint_mode_poll(bContext *C)
 
 static bool vertex_paint_poll_ex(bContext *C, bool check_tool)
 {
-  if (vertex_paint_mode_poll(C) && BKE_paint_brush(&CTX_data_tool_settings(*C)->vpaint->paint)) {
+  if (vertex_paint_mode_poll(*C) && BKE_paint_brush(&CTX_data_tool_settings(*C)->vpaint->paint)) {
     ScrArea *area = CTX_wm_area(*C);
     if (area && area->spacetype == SPACE_VIEW3D) {
       ARegion *region = CTX_wm_region(*C);
@@ -853,18 +853,18 @@ void ED_object_vpaintmode_exit(bContext *C)
 /**
  * \note Keep in sync with #wpaint_mode_toggle_exec
  */
-static wmOperatorStatus vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vpaint_mode_toggle_exec(bContext &C, wmOperator &op)
 {
-  Main &bmain = *CTX_data_main(*C);
-  wmMsgBus *mbus = CTX_wm_message_bus(*C);
-  Object &ob = *CTX_data_active_object(*C);
+  Main &bmain = *CTX_data_main(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(C);
+  Object &ob = *CTX_data_active_object(C);
   const int mode_flag = OB_MODE_VERTEX_PAINT;
   const bool is_mode_set = (ob.mode & mode_flag) != 0;
-  Scene &scene = *CTX_data_scene(*C);
+  Scene &scene = *CTX_data_scene(C);
   ToolSettings &ts = *scene.toolsettings;
 
   if (!is_mode_set) {
-    if (!blender::ed::object::mode_compat_set(C, &ob, (eObjectMode)mode_flag, op->reports)) {
+    if (!blender::ed::object::mode_compat_set(&C, &ob, (eObjectMode)mode_flag, op.reports)) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -875,9 +875,9 @@ static wmOperatorStatus vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
     ED_object_vpaintmode_exit_ex(ob);
   }
   else {
-    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(*C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_on_load(C);
     if (depsgraph) {
-      depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+      depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     }
     ED_object_vpaintmode_enter_ex(bmain, *depsgraph, scene, ob);
     BKE_paint_brushes_validate(&bmain, &ts.vpaint->paint);
@@ -888,10 +888,10 @@ static wmOperatorStatus vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
   /* update modifier stack for mapping requirements */
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_MODE, &scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, &scene);
   WM_msg_publish_rna_prop(mbus, &ob.id, &ob, Object, mode);
 
-  WM_toolsystem_update_from_context_view3d(C);
+  WM_toolsystem_update_from_context_view3d(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -2134,42 +2134,42 @@ void VertexPaintStroke::done(bool /*is_cancel*/)
   ob.sculpt->cache = nullptr;
 }
 
-static wmOperatorStatus vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus vpaint_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  VertexPaintStroke *stroke = MEM_new<VertexPaintStroke>(__func__, C, op, event->type);
-  op->customdata = stroke;
+  VertexPaintStroke *stroke = MEM_new<VertexPaintStroke>(__func__, &C, &op, event->type);
+  op.customdata = stroke;
 
-  const wmOperatorStatus retval = op->type->modal(C, op, event);
+  const wmOperatorStatus retval = op.type->modal(&C, &op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
-    stroke->free(C, op);
+    stroke->free(&C, &op);
     MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus vpaint_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vpaint_exec(bContext &C, wmOperator &op)
 {
-  VertexPaintStroke *stroke = MEM_new<VertexPaintStroke>(__func__, C, op, 0);
-  op->customdata = stroke;
+  VertexPaintStroke *stroke = MEM_new<VertexPaintStroke>(__func__, &C, &op, 0);
+  op.customdata = stroke;
 
-  stroke->exec(C, op);
+  stroke->exec(&C, &op);
 
   MEM_delete(stroke);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus vpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus vpaint_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  VertexPaintStroke *stroke = static_cast<VertexPaintStroke *>(op->customdata);
-  const wmOperatorStatus retval = stroke->modal(C, op, event);
+  VertexPaintStroke *stroke = static_cast<VertexPaintStroke *>(op.customdata);
+  const wmOperatorStatus retval = stroke->modal(&C, &op, event);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
@@ -2353,20 +2353,20 @@ bool object_active_color_fill(Object &ob, const float fill_color[4], bool only_s
 
 }  // namespace blender::ed::sculpt_paint
 
-static wmOperatorStatus vertex_color_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vertex_color_set_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::ed::sculpt_paint;
-  Scene &scene = *CTX_data_scene(*C);
-  Object &obact = *CTX_data_active_object(*C);
+  Scene &scene = *CTX_data_scene(C);
+  Object &obact = *CTX_data_active_object(C);
   if (!BKE_mesh_from_object(&obact)) {
     return OPERATOR_CANCELLED;
   }
 
   ColorPaint4f paintcol = vpaint_get_current_col(*scene.toolsettings->vpaint, false);
-  const bool affect_alpha = RNA_boolean_get(op->ptr, "use_alpha");
+  const bool affect_alpha = RNA_boolean_get(op.ptr, "use_alpha");
 
   /* Ensure valid sculpt state. */
-  BKE_sculpt_update_object_for_edit(CTX_data_ensure_evaluated_depsgraph(*C), &obact, true);
+  BKE_sculpt_update_object_for_edit(CTX_data_ensure_evaluated_depsgraph(C), &obact, true);
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(obact);
 
@@ -2379,7 +2379,7 @@ static wmOperatorStatus vertex_color_set_exec(bContext *C, wmOperator *op)
 
   pbvh.tag_attribute_changed(node_mask, mesh.active_color_attribute);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &obact);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, &obact);
   return OPERATOR_FINISHED;
 }
 

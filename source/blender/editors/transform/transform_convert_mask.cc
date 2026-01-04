@@ -263,7 +263,7 @@ static void createTransMaskingData(bContext *C, TransInfo *t)
 
   tc->data_len = 0;
 
-  if (!ED_maskedit_mask_visible_splines_poll(C)) {
+  if (!ED_maskedit_mask_visible_splines_poll(*C)) {
     return;
   }
 

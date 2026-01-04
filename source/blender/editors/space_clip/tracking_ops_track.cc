@@ -355,22 +355,22 @@ static wmOperatorStatus track_markers(bContext *C, wmOperator *op, bool use_job)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus track_markers_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus track_markers_exec(bContext &C, wmOperator &op)
 {
-  return track_markers(C, op, false);
+  return track_markers(&C, &op, false);
 }
 
-static wmOperatorStatus track_markers_invoke(bContext *C,
-                                             wmOperator *op,
+static wmOperatorStatus track_markers_invoke(bContext &C,
+                                             wmOperator &op,
                                              const wmEvent * /*event*/)
 {
-  return track_markers(C, op, true);
+  return track_markers(&C, &op, true);
 }
 
-static wmOperatorStatus track_markers_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus track_markers_modal(bContext &C, wmOperator & /*op*/, const wmEvent *event)
 {
   /* No running tracking, remove handler and pass through. */
-  if (0 == WM_jobs_test(CTX_wm_manager(*C), CTX_data_scene(*C), WM_JOB_TYPE_ANY)) {
+  if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_ANY)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
@@ -386,8 +386,8 @@ static wmOperatorStatus track_markers_modal(bContext *C, wmOperator * /*op*/, co
   return OPERATOR_PASS_THROUGH;
 }
 
-static std::string track_markers_get_description(bContext * /*C*/,
-                                                 wmOperatorType * /*ot*/,
+static std::string track_markers_get_description(bContext & /*C*/,
+                                                 wmOperatorType & /*ot*/,
                                                  PointerRNA *ptr)
 {
   const bool backwards = RNA_boolean_get(ptr, "backwards");
@@ -439,12 +439,12 @@ void CLIP_OT_track_markers(wmOperatorType *ot)
 
 /********************** Refine track position operator *********************/
 
-static wmOperatorStatus refine_marker_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus refine_marker_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
-  const bool backwards = RNA_boolean_get(op->ptr, "backwards");
+  const bool backwards = RNA_boolean_get(op.ptr, "backwards");
   const int framenr = ED_space_clip_get_clip_frame_number(sc);
 
   for (MovieTrackingTrack &track : tracking_object->tracks) {
@@ -455,7 +455,7 @@ static wmOperatorStatus refine_marker_exec(bContext *C, wmOperator *op)
   }
 
   DEG_id_tag_update(&clip->id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
 
   return OPERATOR_FINISHED;
 }

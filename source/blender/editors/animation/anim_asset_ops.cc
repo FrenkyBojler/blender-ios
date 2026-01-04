@@ -351,27 +351,27 @@ static wmOperatorStatus create_pose_asset_user_library(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus pose_asset_create_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_asset_create_exec(bContext &C, wmOperator &op)
 {
   char name[MAX_NAME] = "";
-  PropertyRNA *name_prop = RNA_struct_find_property(op->ptr, "pose_name");
-  if (RNA_property_is_set(op->ptr, name_prop)) {
-    RNA_property_string_get(op->ptr, name_prop, name);
+  PropertyRNA *name_prop = RNA_struct_find_property(op.ptr, "pose_name");
+  if (RNA_property_is_set(op.ptr, name_prop)) {
+    RNA_property_string_get(op.ptr, name_prop, name);
   }
   if (name[0] == '\0') {
-    BKE_report(op->reports, RPT_ERROR, "No name set");
+    BKE_report(op.reports, RPT_ERROR, "No name set");
     return OPERATOR_CANCELLED;
   }
 
-  const int enum_value = RNA_enum_get(op->ptr, "asset_library_reference");
+  const int enum_value = RNA_enum_get(op.ptr, "asset_library_reference");
   const AssetLibraryReference lib_ref = asset::library_reference_from_enum_value(enum_value);
 
   switch (lib_ref.type) {
     case ASSET_LIBRARY_LOCAL:
-      return create_pose_asset_local(C, op, name, lib_ref);
+      return create_pose_asset_local(&C, &op, name, lib_ref);
 
     case ASSET_LIBRARY_CUSTOM:
-      return create_pose_asset_user_library(C, op, name, lib_ref);
+      return create_pose_asset_user_library(&C, &op, name, lib_ref);
 
     default:
       /* Only local and custom libraries should be exposed in the enum. */
@@ -379,30 +379,29 @@ static wmOperatorStatus pose_asset_create_exec(bContext *C, wmOperator *op)
       break;
   }
 
-  BKE_report(op->reports, RPT_ERROR, "Unexpected library type. Failed to create pose asset");
+  BKE_report(op.reports, RPT_ERROR, "Unexpected library type. Failed to create pose asset");
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus pose_asset_create_invoke(bContext *C,
-                                                 wmOperator *op,
+static wmOperatorStatus pose_asset_create_invoke(bContext &C,
+                                                 wmOperator &op,
                                                  const wmEvent * /*event*/)
 {
   /* If the library isn't saved from the operator's last execution, use the first library. */
-  if (!RNA_struct_property_is_set_ex(op->ptr, "asset_library_reference", false)) {
+  if (!RNA_struct_property_is_set_ex(op.ptr, "asset_library_reference", false)) {
     const AssetLibraryReference first_library = asset::user_library_to_library_ref(
         *static_cast<const bUserAssetLibrary *>(U.asset_libraries.first));
-    RNA_enum_set(op->ptr,
-                 "asset_library_reference",
-                 asset::library_reference_to_enum_value(&first_library));
+    RNA_enum_set(
+        op.ptr, "asset_library_reference", asset::library_reference_to_enum_value(&first_library));
   }
 
-  return WM_operator_props_dialog_popup(C, op, 400, std::nullopt, IFACE_("Create"));
+  return WM_operator_props_dialog_popup(&C, &op, 400, std::nullopt, IFACE_("Create"));
 }
 
-static bool pose_asset_create_poll(bContext *C)
+static bool pose_asset_create_poll(bContext &C)
 {
-  if (!ED_operator_posemode_context(C)) {
+  if (!ED_operator_posemode_context(&C)) {
     return false;
   }
   return true;
@@ -528,18 +527,18 @@ static bool is_pose_asset_blend_editable(const bAction &action, ReportList *repo
  *
  * This does not load the actual asset data-block.
  */
-static bool pose_asset_potentially_editable_poll(bContext *C)
+static bool pose_asset_potentially_editable_poll(bContext &C)
 {
-  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(*C);
+  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(C);
   if (!asset_handle || asset_handle->get_id_type() != ID_AC) {
-    CTX_wm_operator_poll_msg_set(C, "No selected pose asset");
+    CTX_wm_operator_poll_msg_set(&C, "No selected pose asset");
     return false;
   }
   if (asset_handle->is_local_id()) {
     return true;
   }
   if (!asset_handle->is_potentially_editable_asset_blend()) {
-    CTX_wm_operator_poll_msg_set(C, "Asset blend file is not editable");
+    CTX_wm_operator_poll_msg_set(&C, "Asset blend file is not editable");
     return false;
   }
   return true;
@@ -692,54 +691,54 @@ static void update_pose_action_from_scene(Main *bmain,
   }
 }
 
-static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_asset_modify_exec(bContext &C, wmOperator &op)
 {
-  bAction *action = get_action_of_selected_asset(C);
+  bAction *action = get_action_of_selected_asset(&C);
   BLI_assert_msg(action, "Poll should have checked action exists");
 
-  if (ID_IS_LINKED(action) && !is_pose_asset_blend_editable(*action, op->reports)) {
+  if (ID_IS_LINKED(action) && !is_pose_asset_blend_editable(*action, op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
   /* Get asset now. Asset browser might get tagged for refreshing through operations below, and not
    * allow querying items from context until refreshed, see #140781. */
-  const asset_system::AssetRepresentation *asset = CTX_wm_asset(*C);
+  const asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
 
-  Main *bmain = CTX_data_main(*C);
-  Object *pose_object = CTX_data_active_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Object *pose_object = CTX_data_active_object(C);
   if (!pose_object || !pose_object->pose) {
     return OPERATOR_CANCELLED;
   }
 
-  AssetModifyMode mode = AssetModifyMode(RNA_enum_get(op->ptr, "mode"));
+  AssetModifyMode mode = AssetModifyMode(RNA_enum_get(op.ptr, "mode"));
   update_pose_action_from_scene(bmain, action->wrap(), *pose_object, mode);
 
   if (ID_IS_LINKED(action)) {
     /* Not needed for local assets. */
-    bke::asset_edit_id_save(*bmain, action->id, *op->reports);
+    bke::asset_edit_id_save(*bmain, action->id, *op.reports);
   }
   else {
     /* Only create undo-step for local actions. Undoing external files isn't supported. */
-    ED_undo_push_op(C, op);
+    ED_undo_push_op(&C, &op);
   }
 
-  asset::refresh_asset_library_from_asset(C, *asset);
+  asset::refresh_asset_library_from_asset(&C, *asset);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static bool pose_asset_modify_poll(bContext *C)
+static bool pose_asset_modify_poll(bContext &C)
 {
-  if (!ED_operator_posemode_context(C)) {
-    CTX_wm_operator_poll_msg_set(C, "Pose assets can only be modified from Pose Mode");
+  if (!ED_operator_posemode_context(&C)) {
+    CTX_wm_operator_poll_msg_set(&C, "Pose assets can only be modified from Pose Mode");
     return false;
   }
   return pose_asset_potentially_editable_poll(C);
 }
 
-static std::string pose_asset_modify_description(bContext * /* C */,
-                                                 wmOperatorType * /* ot */,
+static std::string pose_asset_modify_description(bContext & /* C */,
+                                                 wmOperatorType & /* ot */,
                                                  PointerRNA *ptr)
 {
   const int mode = RNA_enum_get(ptr, "mode");
@@ -767,15 +766,15 @@ void POSELIB_OT_asset_modify(wmOperatorType *ot)
                "Specify which parts of the pose asset are overwritten");
 }
 
-static wmOperatorStatus pose_asset_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_asset_delete_exec(bContext &C, wmOperator &op)
 {
-  bAction *action = get_action_of_selected_asset(C);
+  bAction *action = get_action_of_selected_asset(&C);
   if (!action) {
     return OPERATOR_CANCELLED;
   }
 
-  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(*C);
-  if (ID_IS_LINKED(action) && !is_pose_asset_blend_editable(*action, op->reports)) {
+  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  if (ID_IS_LINKED(action) && !is_pose_asset_blend_editable(*action, op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -783,43 +782,43 @@ static wmOperatorStatus pose_asset_delete_exec(bContext *C, wmOperator *op)
       asset->owner_asset_library().library_reference();
 
   if (ID_IS_LINKED(action)) {
-    bke::asset_edit_id_delete(*CTX_data_main(*C), action->id, *op->reports);
+    bke::asset_edit_id_delete(*CTX_data_main(C), action->id, *op.reports);
   }
   else {
     asset::clear_id(&action->id);
     /* Only create undo-step for local actions. Undoing external files isn't supported. */
-    ED_undo_push_op(C, op);
+    ED_undo_push_op(&C, &op);
   }
 
-  asset::refresh_asset_library(C, library_ref.value());
+  asset::refresh_asset_library(&C, library_ref.value());
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus pose_asset_delete_invoke(bContext *C,
-                                                 wmOperator *op,
+static wmOperatorStatus pose_asset_delete_invoke(bContext &C,
+                                                 wmOperator &op,
                                                  const wmEvent * /*event*/)
 {
   /* Perform some checks that the 'exec' function also does, so that when things aren't editable,
    * the user gets a message about this *before* having to confirm the deletion. */
-  bAction *action = get_action_of_selected_asset(C);
+  bAction *action = get_action_of_selected_asset(&C);
   if (!action) {
     /* TODO: if this ever happens, figure out how that happened, and see if more
      * useful information can be included in the report. After all, the poll
      * function already checks that the active asset exists and is an Action. */
-    BKE_report(op->reports, RPT_ERROR, "Could not load Action for the active asset");
+    BKE_report(op.reports, RPT_ERROR, "Could not load Action for the active asset");
     return OPERATOR_CANCELLED;
   }
 
-  if (ID_IS_LINKED(action) && !is_pose_asset_blend_editable(*action, op->reports)) {
+  if (ID_IS_LINKED(action) && !is_pose_asset_blend_editable(*action, op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
   return WM_operator_confirm_ex(
-      C,
-      op,
+      &C,
+      &op,
       IFACE_("Delete Pose Asset"),
       ID_IS_LINKED(action) ?
           IFACE_("Permanently delete pose asset blend file? This cannot be undone.") :

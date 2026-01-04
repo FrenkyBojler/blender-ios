@@ -556,8 +556,8 @@ bool ED_space_image_maskedit_mask_visible_splines_poll(bContext *C)
   return space_image->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
 }
 
-bool ED_space_image_cursor_poll(bContext *C)
+bool ED_space_image_cursor_poll(bContext &C)
 {
-  return ED_operator_uvedit_space_image(C) || ED_space_image_maskedit_poll(C) ||
-         ED_space_image_paint_curve(C);
+  return ED_operator_uvedit_space_image(C) || ED_space_image_maskedit_poll(&C) ||
+         ED_space_image_paint_curve(&C);
 }

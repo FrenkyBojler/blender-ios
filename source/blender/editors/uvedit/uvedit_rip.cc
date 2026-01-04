@@ -900,25 +900,25 @@ static bool uv_rip_object(Scene *scene, Object *obedit, const float co[2], const
 /** \name UV Rip Operator
  * \{ */
 
-static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_rip_exec(bContext &C, wmOperator &op)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
-  Scene *scene = CTX_data_scene(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
+  Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   if (ts->uv_sticky == UV_STICKY_VERT) {
     /* "Rip" is logically incompatible with sync-select.
      * Report an error instead of "poll" so this is reported when the tool is used,
      * with #131642 implemented, this can be made to work. */
-    BKE_report(op->reports, RPT_ERROR, "Rip is not compatible with vertex sticky selection");
+    BKE_report(op.reports, RPT_ERROR, "Rip is not compatible with vertex sticky selection");
     return OPERATOR_CANCELLED;
   }
 
   if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
     /* Important because in sync selection we *must* be able to de-select individual loops. */
     if (ED_uvedit_sync_uvselect_ignore(ts)) {
-      BKE_report(op->reports,
+      BKE_report(op.reports,
                  RPT_ERROR,
                  "Rip is only compatible with sync-select with vertex/edge selection");
       return OPERATOR_CANCELLED;
@@ -928,12 +928,12 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
   bool changed_multi = false;
 
   float co[2];
-  RNA_float_get_array(op->ptr, "location", co);
+  RNA_float_get_array(op.ptr, "location", co);
 
   float aspx, aspy;
   {
     /* Note that we only want to run this on the active object as this defines the UV image. */
-    Object *obedit = CTX_data_edit_object(*C);
+    Object *obedit = CTX_data_edit_object(C);
     ED_uvedit_get_aspect(obedit, &aspx, &aspy);
   }
   const float aspect_y = aspx / aspy;
@@ -952,24 +952,24 @@ static wmOperatorStatus uv_rip_exec(bContext *C, wmOperator *op)
       changed_multi = true;
       uvedit_live_unwrap_update(sima, scene, obedit);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
 
   if (!changed_multi) {
-    BKE_report(op->reports, RPT_ERROR, "Rip failed");
+    BKE_report(op.reports, RPT_ERROR, "Rip failed");
     return OPERATOR_CANCELLED;
   }
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus uv_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus uv_rip_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   float co[2];
 
   blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
-  RNA_float_set_array(op->ptr, "location", co);
+  RNA_float_set_array(op.ptr, "location", co);
 
   return uv_rip_exec(C, op);
 }

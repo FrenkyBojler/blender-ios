@@ -343,16 +343,16 @@ void paint_cursor_delete_textures();
 
 /* `paint_vertex.cc` */
 
-bool weight_paint_poll(bContext *C);
-bool weight_paint_poll_ignore_tool(bContext *C);
-bool weight_paint_mode_poll(bContext *C);
-bool weight_paint_mode_region_view3d_poll(bContext *C);
+bool weight_paint_poll(bContext &C);
+bool weight_paint_poll_ignore_tool(bContext &C);
+bool weight_paint_mode_poll(bContext &C);
+bool weight_paint_mode_region_view3d_poll(bContext &C);
 bool vertex_paint_poll(bContext *C);
 bool vertex_paint_poll_ignore_tool(bContext *C);
 /**
  * Returns true if vertex paint mode is active.
  */
-bool vertex_paint_mode_poll(bContext *C);
+bool vertex_paint_mode_poll(bContext &C);
 
 using VPaintTransform_Callback = void (*)(const float col[3],
                                           const void *user_data,
@@ -441,7 +441,7 @@ struct ImagePaintPartialRedraw {
   rcti dirty_region;
 };
 
-bool image_texture_paint_poll(bContext *C);
+bool image_texture_paint_poll(bContext &C);
 bool image_paint_poll_ignore_tool(bContext *C);
 void imapaint_image_update(
     SpaceImage *sima, Image *image, ImBuf *ibuf, ImageUser *iuser, short texpaint);
@@ -604,11 +604,11 @@ void PAINT_OT_vert_select_linked_pick(wmOperatorType *ot);
 void PAINT_OT_vert_select_more(wmOperatorType *ot);
 void PAINT_OT_vert_select_less(wmOperatorType *ot);
 
-bool vert_paint_poll(bContext *C);
+bool vert_paint_poll(bContext &C);
 bool mask_paint_poll(bContext *C);
-bool paint_curve_poll(bContext *C);
+bool paint_curve_poll(bContext &C);
 
-bool facemask_paint_poll(bContext *C);
+bool facemask_paint_poll(bContext &C);
 
 namespace blender::ed::sculpt_paint {
 
@@ -732,7 +732,7 @@ IndexMask pbvh_gather_generic(const Depsgraph &depsgraph,
 void mode_enter_generic(
     Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob, eObjectMode mode_flag);
 void mode_exit_generic(Object &ob, eObjectMode mode_flag);
-bool mode_toggle_poll_test(bContext *C);
+bool mode_toggle_poll_test(bContext &C);
 
 void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache);
 void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache);

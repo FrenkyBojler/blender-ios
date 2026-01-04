@@ -1137,7 +1137,7 @@ int /*eContextResult*/ buttons_context(const bContext *C,
     return CTX_RESULT_OK;
   }
   if (CTX_data_equals(member, "particle_system_editable")) {
-    if (PE_poll((bContext *)C)) {
+    if (PE_poll(*(bContext *)C)) {
       set_pointer_type(path, result, &RNA_ParticleSystem);
     }
     else {

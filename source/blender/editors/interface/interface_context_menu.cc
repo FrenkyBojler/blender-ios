@@ -1028,7 +1028,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     if (((prop_type == PROP_POINTER) ||
          (prop_type == PROP_STRING && but->type == ButtonType::SearchMenu &&
           ((ButtonSearch *)but)->items_update_fn == rna_collection_search_update_fn)) &&
-        jump_to_target_button_poll(C))
+        jump_to_target_button_poll(*C))
     {
       layout.op("UI_OT_jump_to_target_button",
                 CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Jump to Target"),

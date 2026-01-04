@@ -1550,12 +1550,12 @@ wmKeyMap *curve_pen_modal_keymap(wmKeyConfig *keyconf)
   return keymap;
 }
 
-static wmOperatorStatus curve_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curve_pen_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Object *obedit = CTX_data_edit_object(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Object *obedit = CTX_data_edit_object(C);
 
-  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
   Curve *cu = static_cast<Curve *>(vc.obedit->data);
   ListBaseT<Nurb> *nurbs = &cu->editnurb->nurbs;
   const float threshold_dist_px = ED_view3d_select_dist_px() * SEL_DIST_FACTOR;
@@ -1574,24 +1574,24 @@ static wmOperatorStatus curve_pen_modal(bContext *C, wmOperator *op, const wmEve
   /* Distance threshold for mouse clicks to affect the spline or its points */
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
 
-  const bool extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
-  const bool delete_point = RNA_boolean_get(op->ptr, "delete_point");
-  const bool insert_point = RNA_boolean_get(op->ptr, "insert_point");
-  const bool move_seg = RNA_boolean_get(op->ptr, "move_segment");
-  const bool select_point = RNA_boolean_get(op->ptr, "select_point");
-  const bool move_point = RNA_boolean_get(op->ptr, "move_point");
-  const bool close_spline = RNA_boolean_get(op->ptr, "close_spline");
-  const bool toggle_vector = RNA_boolean_get(op->ptr, "toggle_vector");
-  const bool cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
-  const int close_spline_method = RNA_enum_get(op->ptr, "close_spline_method");
-  const int extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
+  const bool extrude_point = RNA_boolean_get(op.ptr, "extrude_point");
+  const bool delete_point = RNA_boolean_get(op.ptr, "delete_point");
+  const bool insert_point = RNA_boolean_get(op.ptr, "insert_point");
+  const bool move_seg = RNA_boolean_get(op.ptr, "move_segment");
+  const bool select_point = RNA_boolean_get(op.ptr, "select_point");
+  const bool move_point = RNA_boolean_get(op.ptr, "move_point");
+  const bool close_spline = RNA_boolean_get(op.ptr, "close_spline");
+  const bool toggle_vector = RNA_boolean_get(op.ptr, "toggle_vector");
+  const bool cycle_handle_type = RNA_boolean_get(op.ptr, "cycle_handle_type");
+  const int close_spline_method = RNA_enum_get(op.ptr, "close_spline_method");
+  const int extrude_handle = RNA_enum_get(op.ptr, "extrude_handle");
 
   CurvePenData *cpd;
-  if (op->customdata == nullptr) {
-    op->customdata = cpd = MEM_callocN<CurvePenData>(__func__);
+  if (op.customdata == nullptr) {
+    op.customdata = cpd = MEM_callocN<CurvePenData>(__func__);
   }
   else {
-    cpd = (CurvePenData *)(op->customdata);
+    cpd = (CurvePenData *)(op.customdata);
     cpd->select_multi = event->modifier == KM_SHIFT;
   }
 
@@ -1660,7 +1660,7 @@ static wmOperatorStatus curve_pen_modal(bContext *C, wmOperator *op, const wmEve
   else if (ELEM(event->type, LEFTMOUSE)) {
     if (ELEM(event->val, KM_RELEASE, KM_DBL_CLICK)) {
       if (delete_point && !cpd->new_point && !cpd->dragging) {
-        if (ED_curve_editnurb_select_pick(C, event->mval, threshold_dist_px, params)) {
+        if (ED_curve_editnurb_select_pick(&C, event->mval, threshold_dist_px, params)) {
           cpd->changed = delete_point_under_mouse(&vc, event);
         }
       }
@@ -1721,7 +1721,7 @@ static wmOperatorStatus curve_pen_modal(bContext *C, wmOperator *op, const wmEve
           }
         }
         else if (select_point) {
-          ED_curve_editnurb_select_pick(C, event->mval, threshold_dist_px, params);
+          ED_curve_editnurb_select_pick(&C, event->mval, threshold_dist_px, params);
         }
       }
 
@@ -1733,17 +1733,17 @@ static wmOperatorStatus curve_pen_modal(bContext *C, wmOperator *op, const wmEve
     }
   }
 
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
 
   return ret;
 }
 
-static wmOperatorStatus curve_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curve_pen_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
   Curve *cu = static_cast<Curve *>(vc.obedit->data);
   ListBaseT<Nurb> *nurbs = &cu->editnurb->nurbs;
 
@@ -1752,19 +1752,19 @@ static wmOperatorStatus curve_pen_invoke(bContext *C, wmOperator *op, const wmEv
   Nurb *nu = nullptr;
 
   CurvePenData *cpd;
-  op->customdata = cpd = MEM_callocN<CurvePenData>(__func__);
+  op.customdata = cpd = MEM_callocN<CurvePenData>(__func__);
 
   /* Distance threshold for mouse clicks to affect the spline or its points */
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
   const float threshold_dist_px = ED_view3d_select_dist_px() * SEL_DIST_FACTOR;
 
-  const bool extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
-  const bool insert_point = RNA_boolean_get(op->ptr, "insert_point");
-  const bool move_seg = RNA_boolean_get(op->ptr, "move_segment");
-  const bool move_point = RNA_boolean_get(op->ptr, "move_point");
-  const bool close_spline = RNA_boolean_get(op->ptr, "close_spline");
-  const int close_spline_method = RNA_enum_get(op->ptr, "close_spline_method");
-  const int extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
+  const bool extrude_point = RNA_boolean_get(op.ptr, "extrude_point");
+  const bool insert_point = RNA_boolean_get(op.ptr, "insert_point");
+  const bool move_seg = RNA_boolean_get(op.ptr, "move_segment");
+  const bool move_point = RNA_boolean_get(op.ptr, "move_point");
+  const bool close_spline = RNA_boolean_get(op.ptr, "close_spline");
+  const int close_spline_method = RNA_enum_get(op.ptr, "close_spline_method");
+  const int extrude_handle = RNA_enum_get(op.ptr, "extrude_handle");
 
   if (ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK)) {
     /* Get the details of points selected at the start of the operation.
@@ -1808,7 +1808,7 @@ static wmOperatorStatus curve_pen_invoke(bContext *C, wmOperator *op, const wmEv
       }
     }
     else if (!cpd->changed) {
-      if (is_spline_nearby(&vc, op, event, threshold_dist_px)) {
+      if (is_spline_nearby(&vc, &op, event, threshold_dist_px)) {
         cpd->spline_nearby = true;
 
         /* If move segment is disabled, then insert point on key press and set
@@ -1824,7 +1824,7 @@ static wmOperatorStatus curve_pen_invoke(bContext *C, wmOperator *op, const wmEv
       }
     }
   }
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }

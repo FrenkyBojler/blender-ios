@@ -337,19 +337,19 @@ static void depthdropper_depth_sample_accum(bContext *C, DepthDropper *ddr, cons
   }
 }
 
-static void depthdropper_cancel(bContext *C, wmOperator *op)
+static void depthdropper_cancel(bContext &C, wmOperator &op)
 {
-  DepthDropper *ddr = static_cast<DepthDropper *>(op->customdata);
+  DepthDropper *ddr = static_cast<DepthDropper *>(op.customdata);
   if (ddr->is_set) {
-    depthdropper_depth_set(C, ddr, ddr->init_depth);
+    depthdropper_depth_set(&C, ddr, ddr->init_depth);
   }
-  depthdropper_exit(C, op);
+  depthdropper_exit(&C, &op);
 }
 
 /* main modal status check */
-static wmOperatorStatus depthdropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus depthdropper_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  DepthDropper *ddr = static_cast<DepthDropper *>(op->customdata);
+  DepthDropper *ddr = static_cast<DepthDropper *>(op.customdata);
 
   /* handle modal keymap */
   if (event->type == EVT_MODAL_MAP) {
@@ -360,33 +360,33 @@ static wmOperatorStatus depthdropper_modal(bContext *C, wmOperator *op, const wm
       case EYE_MODAL_SAMPLE_CONFIRM: {
         const bool is_undo = ddr->is_undo;
         if (ddr->accum_tot == 0) {
-          depthdropper_depth_sample(C, ddr, event->xy);
+          depthdropper_depth_sample(&C, ddr, event->xy);
         }
         else {
-          depthdropper_depth_set_accum(C, ddr);
+          depthdropper_depth_set_accum(&C, ddr);
         }
-        depthdropper_exit(C, op);
+        depthdropper_exit(&C, &op);
         /* Could support finished & undo-skip. */
         return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
       }
       case EYE_MODAL_SAMPLE_BEGIN:
         /* enable accum and make first sample */
         ddr->accum_start = true;
-        depthdropper_depth_sample_accum(C, ddr, event->xy);
+        depthdropper_depth_sample_accum(&C, ddr, event->xy);
         break;
       case EYE_MODAL_SAMPLE_RESET:
         ddr->accum_tot = 0;
         ddr->accum_depth = 0.0f;
-        depthdropper_depth_sample_accum(C, ddr, event->xy);
-        depthdropper_depth_set_accum(C, ddr);
+        depthdropper_depth_sample_accum(&C, ddr, event->xy);
+        depthdropper_depth_set_accum(&C, ddr);
         break;
     }
   }
   else if (event->type == MOUSEMOVE) {
     if (ddr->accum_start) {
       /* button is pressed so keep sampling */
-      depthdropper_depth_sample_accum(C, ddr, event->xy);
-      depthdropper_depth_set_accum(C, ddr);
+      depthdropper_depth_sample_accum(&C, ddr, event->xy);
+      depthdropper_depth_set_accum(&C, ddr);
     }
   }
 
@@ -394,21 +394,21 @@ static wmOperatorStatus depthdropper_modal(bContext *C, wmOperator *op, const wm
 }
 
 /* Modal Operator init */
-static wmOperatorStatus depthdropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus depthdropper_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  if (!depthdropper_test(C, op)) {
+  if (!depthdropper_test(&C, &op)) {
     /* If the operator can't be executed, make sure to not consume the event. */
     return OPERATOR_PASS_THROUGH;
   }
   /* init */
-  if (depthdropper_init(C, op)) {
-    wmWindow *win = CTX_wm_window(*C);
+  if (depthdropper_init(&C, &op)) {
+    wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    context_active_but_clear(C, win, CTX_wm_region(*C));
+    context_active_but_clear(&C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -416,19 +416,19 @@ static wmOperatorStatus depthdropper_invoke(bContext *C, wmOperator *op, const w
 }
 
 /* Repeat operator */
-static wmOperatorStatus depthdropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus depthdropper_exec(bContext &C, wmOperator &op)
 {
   /* init */
-  if (depthdropper_init(C, op)) {
+  if (depthdropper_init(&C, &op)) {
     /* cleanup */
-    depthdropper_exit(C, op);
+    depthdropper_exit(&C, &op);
 
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
 }
 
-static bool depthdropper_poll(bContext *C)
+static bool depthdropper_poll(bContext &C)
 {
   PointerRNA ptr;
   PropertyRNA *prop;
@@ -436,8 +436,8 @@ static bool depthdropper_poll(bContext *C)
   Button *but;
 
   /* check if there's an active button taking depth value */
-  if ((CTX_wm_window(*C) != nullptr) &&
-      (but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy)))
+  if ((CTX_wm_window(C) != nullptr) &&
+      (but = context_active_but_prop_get(&C, &ptr, &prop, &index_dummy)))
   {
     if (but->icon == ICON_EYEDROPPER) {
       return true;
@@ -456,11 +456,11 @@ static bool depthdropper_poll(bContext *C)
     }
   }
   else {
-    RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+    RegionView3D *rv3d = CTX_wm_region_view3d(C);
     if (rv3d && rv3d->persp == RV3D_CAMOB) {
-      View3D *v3d = CTX_wm_view3d(*C);
+      View3D *v3d = CTX_wm_view3d(C);
       if (v3d->camera && v3d->camera->data &&
-          BKE_id_is_editable(CTX_data_main(*C), static_cast<const ID *>(v3d->camera->data)))
+          BKE_id_is_editable(CTX_data_main(C), static_cast<const ID *>(v3d->camera->data)))
       {
         return true;
       }

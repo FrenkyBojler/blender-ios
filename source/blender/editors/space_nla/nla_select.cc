@@ -130,17 +130,17 @@ static void deselect_nla_strips(bAnimContext *ac, short test, short sel)
 
 /* ------------------- */
 
-static wmOperatorStatus nlaedit_deselectall_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_deselectall_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* 'standard' behavior - check if selected, then apply relevant selection */
-  const int action = RNA_enum_get(op->ptr, "action");
+  const int action = RNA_enum_get(op.ptr, "action");
   switch (action) {
     case SEL_TOGGLE:
       deselect_nla_strips(&ac, DESELECT_STRIPS_TEST, SELECT_ADD);
@@ -160,7 +160,7 @@ static wmOperatorStatus nlaedit_deselectall_exec(bContext *C, wmOperator *op)
   }
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -329,44 +329,44 @@ static bool nlaedit_mouse_is_over_strip(bAnimContext *ac, const int mval[2])
   return false;
 }
 
-static wmOperatorStatus nlaedit_box_select_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus nlaedit_box_select_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  bool tweak = RNA_boolean_get(op->ptr, "tweak");
+  bool tweak = RNA_boolean_get(op.ptr, "tweak");
   if (tweak && nlaedit_mouse_is_over_strip(&ac, event->mval)) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
   return WM_gesture_box_invoke(C, op, event);
 }
 
-static wmOperatorStatus nlaedit_box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_box_select_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   rcti rect;
   short mode = 0;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op.ptr, "mode"));
   const int selectmode = (sel_op != SEL_OP_SUB) ? SELECT_ADD : SELECT_SUBTRACT;
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     deselect_nla_strips(&ac, DESELECT_STRIPS_TEST, SELECT_SUBTRACT);
   }
 
   /* get settings from operator */
-  WM_operator_properties_border_to_rcti(op, &rect);
+  WM_operator_properties_border_to_rcti(&op, &rect);
 
   /* selection 'mode' depends on whether box_select region only matters on one axis */
-  if (RNA_boolean_get(op->ptr, "axis_range")) {
+  if (RNA_boolean_get(op.ptr, "axis_range")) {
     /* mode depends on which axis of the range is larger to determine which axis to use.
      * - Checking this in region-space is fine,
      *   as it's fundamentally still going to be a different rect size.
@@ -389,7 +389,7 @@ static wmOperatorStatus nlaedit_box_select_exec(bContext *C, wmOperator *op)
   box_select_nla_strips(&ac, rect, mode, selectmode);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -497,19 +497,19 @@ static void nlaedit_select_leftright(bContext *C,
 
 /* ------------------- */
 
-static wmOperatorStatus nlaedit_select_leftright_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_select_leftright_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
-  short leftright = RNA_enum_get(op->ptr, "mode");
+  short leftright = RNA_enum_get(op.ptr, "mode");
   short selectmode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* select mode is either replace (deselect all, then add) or add/extend */
-  if (RNA_boolean_get(op->ptr, "extend")) {
+  if (RNA_boolean_get(op.ptr, "extend")) {
     selectmode = SELECT_INVERT;
   }
   else {
@@ -522,24 +522,24 @@ static wmOperatorStatus nlaedit_select_leftright_exec(bContext *C, wmOperator *o
   }
 
   /* do the selecting now */
-  nlaedit_select_leftright(C, &ac, leftright, selectmode);
+  nlaedit_select_leftright(&C, &ac, leftright, selectmode);
 
   /* set notifier that keyframe selection (and tracks too) have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus nlaedit_select_leftright_invoke(bContext *C,
-                                                        wmOperator *op,
+static wmOperatorStatus nlaedit_select_leftright_invoke(bContext &C,
+                                                        wmOperator &op,
                                                         const wmEvent *event)
 {
   bAnimContext ac;
-  short leftright = RNA_enum_get(op->ptr, "mode");
+  short leftright = RNA_enum_get(op.ptr, "mode");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -553,10 +553,10 @@ static wmOperatorStatus nlaedit_select_leftright_invoke(bContext *C,
     /* determine which side of the current frame mouse is on */
     x = blender::ui::view2d_region_to_view_x(v2d, event->mval[0]);
     if (x < scene->r.cfra) {
-      RNA_enum_set(op->ptr, "mode", NLAEDIT_LRSEL_LEFT);
+      RNA_enum_set(op.ptr, "mode", NLAEDIT_LRSEL_LEFT);
     }
     else {
-      RNA_enum_set(op->ptr, "mode", NLAEDIT_LRSEL_RIGHT);
+      RNA_enum_set(op.ptr, "mode", NLAEDIT_LRSEL_RIGHT);
     }
   }
 
@@ -678,29 +678,29 @@ static wmOperatorStatus mouse_nla_strips(bContext *C,
 /* ------------------- */
 
 /* handle clicking */
-static wmOperatorStatus nlaedit_clickselect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_clickselect_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   wmOperatorStatus ret_value;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* select mode is either replace (deselect all, then add) or add/extend */
-  const short selectmode = RNA_boolean_get(op->ptr, "extend") ? SELECT_INVERT : SELECT_REPLACE;
-  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
-  const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
+  const short selectmode = RNA_boolean_get(op.ptr, "extend") ? SELECT_INVERT : SELECT_REPLACE;
+  const bool deselect_all = RNA_boolean_get(op.ptr, "deselect_all");
+  const bool wait_to_deselect_others = RNA_boolean_get(op.ptr, "wait_to_deselect_others");
   int mval[2];
-  mval[0] = RNA_int_get(op->ptr, "mouse_x");
-  mval[1] = RNA_int_get(op->ptr, "mouse_y");
+  mval[0] = RNA_int_get(op.ptr, "mouse_x");
+  mval[1] = RNA_int_get(op.ptr, "mouse_y");
 
   /* select strips based upon mouse position */
-  ret_value = mouse_nla_strips(C, &ac, mval, selectmode, deselect_all, wait_to_deselect_others);
+  ret_value = mouse_nla_strips(&C, &ac, mval, selectmode, deselect_all, wait_to_deselect_others);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_SELECTED, nullptr);
 
   /* for tweak grab to work */
   return ret_value | OPERATOR_PASS_THROUGH;

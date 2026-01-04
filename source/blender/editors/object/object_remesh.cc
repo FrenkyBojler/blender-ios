@@ -75,47 +75,47 @@ namespace blender::ed::object {
 /** \name Voxel Remesh Operator
  * \{ */
 
-static bool object_remesh_poll(bContext *C)
+static bool object_remesh_poll(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
 
   if (ob == nullptr || ob->data == nullptr) {
     return false;
   }
 
   if (!ID_IS_EDITABLE(ob) || !ID_IS_EDITABLE(ob->data) || ID_IS_OVERRIDE_LIBRARY(ob->data)) {
-    CTX_wm_operator_poll_msg_set(C, "The remesher cannot work on linked or override data");
+    CTX_wm_operator_poll_msg_set(&C, "The remesher cannot work on linked or override data");
     return false;
   }
 
   if (BKE_object_is_in_editmode(ob)) {
-    CTX_wm_operator_poll_msg_set(C, "The remesher cannot run from edit mode");
+    CTX_wm_operator_poll_msg_set(&C, "The remesher cannot run from edit mode");
     return false;
   }
 
   if (ob->mode == OB_MODE_SCULPT && ob->sculpt->bm) {
-    CTX_wm_operator_poll_msg_set(C, "The remesher cannot run with dyntopo activated");
+    CTX_wm_operator_poll_msg_set(&C, "The remesher cannot run with dyntopo activated");
     return false;
   }
 
   if (BKE_modifiers_uses_multires(ob)) {
     CTX_wm_operator_poll_msg_set(
-        C, "The remesher cannot run with a Multires modifier in the modifier stack");
+        &C, "The remesher cannot run with a Multires modifier in the modifier stack");
     return false;
   }
 
   return ED_operator_object_active_editable_mesh(C);
 }
 
-static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus voxel_remesh_exec(bContext &C, wmOperator &op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Object *ob = CTX_data_active_object(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object *ob = CTX_data_active_object(C);
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
 
   if (mesh->remesh_voxel_size <= 0.0f) {
-    BKE_report(op->reports, RPT_ERROR, "Voxel remesher cannot run with a voxel size of 0.0");
+    BKE_report(op.reports, RPT_ERROR, "Voxel remesher cannot run with a voxel size of 0.0");
     return OPERATOR_CANCELLED;
   }
 
@@ -129,15 +129,15 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   Mesh *new_mesh = BKE_mesh_remesh_voxel(
-      mesh, mesh->remesh_voxel_size, mesh->remesh_voxel_adaptivity, isovalue, op->reports);
+      mesh, mesh->remesh_voxel_size, mesh->remesh_voxel_adaptivity, isovalue, op.reports);
 
   if (!new_mesh) {
-    BKE_report(op->reports, RPT_ERROR, "Voxel remesher failed to create mesh");
+    BKE_report(op.reports, RPT_ERROR, "Voxel remesher failed to create mesh");
     return OPERATOR_CANCELLED;
   }
 
   if (ob->mode == OB_MODE_SCULPT) {
-    sculpt_paint::undo::geometry_begin(scene, *ob, op);
+    sculpt_paint::undo::geometry_begin(scene, *ob, &op);
   }
 
   if (mesh->flag & ME_REMESH_FIX_POLES && mesh->remesh_voxel_adaptivity <= 0.0f) {
@@ -169,7 +169,7 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
   }
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -347,16 +347,16 @@ static void voxel_size_edit_draw(const bContext *C, ARegion * /*region*/, void *
   GPU_line_smooth(false);
 }
 
-static void voxel_size_edit_cancel(bContext *C, wmOperator *op)
+static void voxel_size_edit_cancel(bContext &C, wmOperator &op)
 {
-  ARegion *region = CTX_wm_region(*C);
-  VoxelSizeEditCustomData *cd = static_cast<VoxelSizeEditCustomData *>(op->customdata);
+  ARegion *region = CTX_wm_region(C);
+  VoxelSizeEditCustomData *cd = static_cast<VoxelSizeEditCustomData *>(op.customdata);
 
   ED_region_draw_cb_exit(region->runtime->type, cd->draw_handle);
 
   MEM_freeN(cd);
 
-  ED_workspace_status_text(C, nullptr);
+  ED_workspace_status_text(&C, nullptr);
 }
 
 static void voxel_size_edit_update_header(wmOperator *op, bContext *C)
@@ -369,10 +369,10 @@ static void voxel_size_edit_update_header(wmOperator *op, bContext *C)
   status.item_bool(IFACE_("Precision Mode"), cd->slow_mode, ICON_EVENT_SHIFT);
 }
 
-static wmOperatorStatus voxel_size_edit_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus voxel_size_edit_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
-  VoxelSizeEditCustomData *cd = static_cast<VoxelSizeEditCustomData *>(op->customdata);
+  ARegion *region = CTX_wm_region(C);
+  VoxelSizeEditCustomData *cd = static_cast<VoxelSizeEditCustomData *>(op.customdata);
   Object *active_object = cd->active_object;
   Mesh *mesh = (Mesh *)active_object->data;
 
@@ -394,8 +394,8 @@ static wmOperatorStatus voxel_size_edit_modal(bContext *C, wmOperator *op, const
     mesh->remesh_voxel_size = cd->voxel_size;
     MEM_freeN(cd);
     ED_region_tag_redraw(region);
-    ED_workspace_status_text(C, nullptr);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, nullptr);
+    ED_workspace_status_text(&C, nullptr);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -431,14 +431,14 @@ static wmOperatorStatus voxel_size_edit_modal(bContext *C, wmOperator *op, const
 
   ED_region_tag_redraw(region);
 
-  voxel_size_edit_update_header(op, C);
+  voxel_size_edit_update_header(&op, &C);
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus voxel_size_edit_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
-  Object *active_object = CTX_data_active_object(*C);
+  ARegion *region = CTX_wm_region(C);
+  Object *active_object = CTX_data_active_object(C);
   Mesh *mesh = (Mesh *)active_object->data;
 
   VoxelSizeEditCustomData *cd = MEM_callocN<VoxelSizeEditCustomData>(
@@ -451,7 +451,7 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
   cd->init_mval[0] = event->mval[0];
   cd->init_mval[1] = event->mval[1];
   cd->slow_mode = false;
-  op->customdata = cd;
+  op.customdata = cd;
 
   /* Select the front facing face of the mesh bounding box. */
   const Bounds<float3> bounds = *mesh->bounds_min_max();
@@ -472,7 +472,7 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
   copy_v3_v3(cd->preview_plane[2], bounds_box[BB_faces[0][2]]);
   copy_v3_v3(cd->preview_plane[3], bounds_box[BB_faces[0][3]]);
 
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
   float mat[3][3];
   float current_normal[3];
@@ -597,18 +597,18 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
   scale_m4_fl(scale_mat, pixelsize * 0.5f);
   mul_m4_m4_post(cd->text_mat, scale_mat);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   ED_region_tag_redraw(region);
 
-  voxel_size_edit_update_header(op, C);
+  voxel_size_edit_update_header(&op, &C);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static bool voxel_size_edit_poll(bContext *C)
+static bool voxel_size_edit_poll(bContext &C)
 {
-  return CTX_wm_region_view3d(*C) && object_remesh_poll(C);
+  return CTX_wm_region_view3d(C) && object_remesh_poll(C);
 }
 
 void OBJECT_OT_voxel_size_edit(wmOperatorType *ot)
@@ -954,31 +954,31 @@ static void quadriflow_end_job(void *customdata)
   }
 }
 
-static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus quadriflow_remesh_exec(bContext &C, wmOperator &op)
 {
   QuadriFlowJob *job = MEM_mallocN<QuadriFlowJob>("QuadriFlowJob");
 
-  job->op = op;
-  job->owner = CTX_data_active_object(*C);
-  job->scene = CTX_data_scene(*C);
+  job->op = &op;
+  job->owner = CTX_data_active_object(C);
+  job->scene = CTX_data_scene(C);
 
-  job->target_faces = RNA_int_get(op->ptr, "target_faces");
-  job->seed = RNA_int_get(op->ptr, "seed");
+  job->target_faces = RNA_int_get(op.ptr, "target_faces");
+  job->seed = RNA_int_get(op.ptr, "seed");
 
-  job->use_mesh_symmetry = RNA_boolean_get(op->ptr, "use_mesh_symmetry");
+  job->use_mesh_symmetry = RNA_boolean_get(op.ptr, "use_mesh_symmetry");
 
-  job->use_preserve_sharp = RNA_boolean_get(op->ptr, "use_preserve_sharp");
-  job->use_preserve_boundary = RNA_boolean_get(op->ptr, "use_preserve_boundary");
+  job->use_preserve_sharp = RNA_boolean_get(op.ptr, "use_preserve_sharp");
+  job->use_preserve_boundary = RNA_boolean_get(op.ptr, "use_preserve_boundary");
 
 #ifdef USE_MESH_CURVATURE
   job->use_mesh_curvature = RNA_boolean_get(op->ptr, "use_mesh_curvature");
 #endif
 
-  job->preserve_attributes = RNA_boolean_get(op->ptr, "preserve_attributes");
-  job->smooth_normals = RNA_boolean_get(op->ptr, "smooth_normals");
+  job->preserve_attributes = RNA_boolean_get(op.ptr, "preserve_attributes");
+  job->smooth_normals = RNA_boolean_get(op.ptr, "smooth_normals");
 
   /* Update the target face count if symmetry is enabled */
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   if (ob && job->use_mesh_symmetry) {
     Mesh *mesh = BKE_mesh_from_object(ob);
     job->symmetry_axes = (eSymmetryAxes)mesh->symmetry;
@@ -995,11 +995,11 @@ static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
   }
 
   eQuadreFlowStatus status = QUADRIFLOW_STATUS_SUCCESS;
-  if ((op->flag & OP_IS_INVOKE) == 0) {
+  if ((op.flag & OP_IS_INVOKE) == 0) {
     /* This is called directly from the exec operator, this operation is now blocking */
     job->is_nonblocking_job = false;
     wmJobWorkerStatus worker_status = {};
-    worker_status.reports = op->reports;
+    worker_status.reports = op.reports;
     quadriflow_start_job(job, &worker_status);
 
     status = job->status;
@@ -1010,9 +1010,9 @@ static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
     /* Non blocking call. For when the operator has been called from the GUI. */
     job->is_nonblocking_job = true;
 
-    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
-                                CTX_wm_window(*C),
-                                CTX_data_scene(*C),
+    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
+                                CTX_wm_window(C),
+                                CTX_data_scene(C),
                                 "Remeshing with QuadriFlow...",
                                 WM_JOB_PROGRESS,
                                 WM_JOB_TYPE_QUADRIFLOW_REMESH);
@@ -1021,9 +1021,9 @@ static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
     WM_jobs_timer(wm_job, 0.1, NC_GEOM | ND_DATA, NC_GEOM | ND_DATA);
     WM_jobs_callbacks(wm_job, quadriflow_start_job, nullptr, nullptr, quadriflow_end_job);
 
-    WM_locked_interface_set(CTX_wm_manager(*C), true);
+    WM_locked_interface_set(CTX_wm_manager(C), true);
 
-    WM_jobs_start(CTX_wm_manager(*C), wm_job);
+    WM_jobs_start(CTX_wm_manager(C), wm_job);
   }
 
   if (status == QUADRIFLOW_STATUS_SUCCESS) {
@@ -1033,45 +1033,45 @@ static wmOperatorStatus quadriflow_remesh_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static bool quadriflow_check(bContext *C, wmOperator *op)
+static bool quadriflow_check(bContext &C, wmOperator &op)
 {
-  int mode = RNA_enum_get(op->ptr, "mode");
+  int mode = RNA_enum_get(op.ptr, "mode");
 
   if (mode == QUADRIFLOW_REMESH_EDGE_LENGTH) {
-    float area = RNA_float_get(op->ptr, "mesh_area");
+    float area = RNA_float_get(op.ptr, "mesh_area");
     if (area < 0.0f) {
-      Object *ob = CTX_data_active_object(*C);
+      Object *ob = CTX_data_active_object(C);
       area = BKE_mesh_calc_area(static_cast<const Mesh *>(ob->data));
-      RNA_float_set(op->ptr, "mesh_area", area);
+      RNA_float_set(op.ptr, "mesh_area", area);
     }
     int faces_num;
-    float edge_len = RNA_float_get(op->ptr, "target_edge_length");
+    float edge_len = RNA_float_get(op.ptr, "target_edge_length");
 
     faces_num = area / (edge_len * edge_len);
-    RNA_int_set(op->ptr, "target_faces", faces_num);
+    RNA_int_set(op.ptr, "target_faces", faces_num);
   }
   else if (mode == QUADRIFLOW_REMESH_RATIO) {
-    Object *ob = CTX_data_active_object(*C);
+    Object *ob = CTX_data_active_object(C);
     Mesh *mesh = static_cast<Mesh *>(ob->data);
 
     int faces_num;
-    float ratio = RNA_float_get(op->ptr, "target_ratio");
+    float ratio = RNA_float_get(op.ptr, "target_ratio");
 
     faces_num = mesh->faces_num * ratio;
 
-    RNA_int_set(op->ptr, "target_faces", faces_num);
+    RNA_int_set(op.ptr, "target_faces", faces_num);
   }
 
   return true;
 }
 
 /* Hide the target variables if they are not active */
-static bool quadriflow_poll_property(const bContext *C, wmOperator *op, const PropertyRNA *prop)
+static bool quadriflow_poll_property(const bContext &C, wmOperator &op, const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
 
   if (STRPREFIX(prop_id, "target")) {
-    int mode = RNA_enum_get(op->ptr, "mode");
+    int mode = RNA_enum_get(op.ptr, "mode");
 
     if (STREQ(prop_id, "target_edge_length") && mode != QUADRIFLOW_REMESH_EDGE_LENGTH) {
       return false;
@@ -1079,12 +1079,12 @@ static bool quadriflow_poll_property(const bContext *C, wmOperator *op, const Pr
     if (STREQ(prop_id, "target_faces")) {
       if (mode != QUADRIFLOW_REMESH_FACES) {
         /* Make sure we can edit the target_faces value even if it doesn't start as EDITABLE */
-        float area = RNA_float_get(op->ptr, "mesh_area");
+        float area = RNA_float_get(op.ptr, "mesh_area");
         if (area < -0.8f) {
           area += 0.2f;
           /* Make sure we have up to date values from the start */
           RNA_def_property_flag((PropertyRNA *)prop, PROP_EDITABLE);
-          quadriflow_check((bContext *)C, op);
+          quadriflow_check(*(bContext *)&C, op);
         }
 
         /* Only disable input */
@@ -1117,10 +1117,10 @@ static const EnumPropertyItem mode_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus quadriflow_remesh_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus quadriflow_remesh_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   return WM_operator_props_popup_confirm_ex(
-      C, op, event, IFACE_("QuadriFlow Remesh the Selected Mesh"), IFACE_("Remesh"));
+      &C, &op, event, IFACE_("QuadriFlow Remesh the Selected Mesh"), IFACE_("Remesh"));
 }
 
 void OBJECT_OT_quadriflow_remesh(wmOperatorType *ot)

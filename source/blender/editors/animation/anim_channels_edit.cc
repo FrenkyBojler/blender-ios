@@ -1060,13 +1060,13 @@ void ANIM_frame_channel_y_extents(bContext *C, bAnimContext *ac)
  * \{ */
 
 /* poll callback for being in an Animation Editor channels list region */
-static bool animedit_poll_channels_active(bContext *C)
+static bool animedit_poll_channels_active(bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
-  if (ELEM(nullptr, area, CTX_wm_region(*C))) {
+  if (ELEM(nullptr, area, CTX_wm_region(C))) {
     return false;
   }
   /* animation editor test */
@@ -1078,14 +1078,14 @@ static bool animedit_poll_channels_active(bContext *C)
 }
 
 /* Poll callback for Animation Editor channels list region + not in NLA-tweak-mode for NLA. */
-static bool animedit_poll_channels_nla_tweakmode_off(bContext *C)
+static bool animedit_poll_channels_nla_tweakmode_off(bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  Scene *scene = CTX_data_scene(*C);
+  ScrArea *area = CTX_wm_area(C);
+  Scene *scene = CTX_data_scene(C);
 
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
-  if (ELEM(nullptr, area, CTX_wm_region(*C))) {
+  if (ELEM(nullptr, area, CTX_wm_region(C))) {
     return false;
   }
   /* animation editor test */
@@ -2164,18 +2164,18 @@ static void rearrange_gpencil_channels(bAnimContext *ac, eRearrangeAnimChan_Mode
 
 /* ------------------- */
 
-static wmOperatorStatus animchannels_rearrange_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_rearrange_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   eRearrangeAnimChan_Mode mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* get mode */
-  mode = eRearrangeAnimChan_Mode(RNA_enum_get(op->ptr, "direction"));
+  mode = eRearrangeAnimChan_Mode(RNA_enum_get(op.ptr, "direction"));
 
   /* method to move channels depends on the editor */
   if (ac.datatype == ANIMCONT_GPENCIL) {
@@ -2261,8 +2261,8 @@ static wmOperatorStatus animchannels_rearrange_exec(bContext *C, wmOperator *op)
   }
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2296,19 +2296,19 @@ static void ANIM_OT_channels_move(wmOperatorType *ot)
 /** \name Group Channel Operator
  * \{ */
 
-static bool animchannels_grouping_poll(bContext *C)
+static bool animchannels_grouping_poll(bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   SpaceLink *sl;
 
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
-  if (ELEM(nullptr, area, CTX_wm_region(*C))) {
+  if (ELEM(nullptr, area, CTX_wm_region(C))) {
     return false;
   }
 
   /* animation editor test - must be suitable modes only */
-  sl = CTX_wm_space_data(*C);
+  sl = CTX_wm_space_data(C);
 
   switch (area->spacetype) {
     /* supported... */
@@ -2396,18 +2396,18 @@ static void animchannels_group_channels(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
-static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_group_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   char name[MAX_NAME];
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* get name for new group */
-  RNA_string_get(op->ptr, "name", name);
+  RNA_string_get(op.ptr, "name", name);
 
   /* XXX: name for group should never be empty... */
   if (name[0]) {
@@ -2428,7 +2428,7 @@ static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
     ANIM_animdata_freelist(&anim_data);
 
     /* Updates. */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -2466,7 +2466,7 @@ static void ANIM_OT_channels_group(wmOperatorType *ot)
 /** \name Ungroup Channels Operator
  * \{ */
 
-static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animchannels_ungroup_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
@@ -2474,7 +2474,7 @@ static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator * /*op
   int filter;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2504,7 +2504,7 @@ static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator * /*op
   ANIM_animdata_freelist(&anim_data);
 
   /* updates */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2738,14 +2738,14 @@ void ED_anim_ale_fcurve_delete(bAnimContext &ac, bAnimListElem &ale)
   tag_update_animation_element(&ale);
 }
 
-static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animchannels_delete_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2760,7 +2760,7 @@ static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*
    * the same loop. */
   if (ac.datatype != ANIMCONT_DRIVERS) {
     /* Keep deleting container-like channels until there are no more to delete. */
-    while (animchannels_delete_containers(C, &ac)) {
+    while (animchannels_delete_containers(&C, &ac)) {
       /* Pass. */
     }
   }
@@ -2792,10 +2792,10 @@ static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*
         if (gpd->flag & GP_DATA_ANNOTATIONS && gpd->layers.first == nullptr) {
           BKE_gpencil_free_data(gpd, true);
 
-          Scene *scene = CTX_data_scene(*C);
+          Scene *scene = CTX_data_scene(C);
           scene->gpd = nullptr;
 
-          Main *bmain = CTX_data_main(*C);
+          Main *bmain = CTX_data_main(C);
           BKE_id_free_us(bmain, gpd);
         }
         break;
@@ -2867,9 +2867,9 @@ static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*
   ANIM_animdata_freelist(&anim_data);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
-  DEG_relations_tag_update(CTX_data_main(*C));
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
+  DEG_relations_tag_update(CTX_data_main(C));
 
   return OPERATOR_FINISHED;
 }
@@ -3004,7 +3004,7 @@ static void setflag_anim_channels(bAnimContext *ac,
 
 /* ------------------- */
 
-static wmOperatorStatus animchannels_setflag_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_setflag_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   eAnimChannel_Settings setting;
@@ -3012,13 +3012,13 @@ static wmOperatorStatus animchannels_setflag_exec(bContext *C, wmOperator *op)
   bool flush = true;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* mode (eAnimChannels_SetFlag), setting (eAnimChannel_Settings) */
-  mode = eAnimChannels_SetFlag(RNA_enum_get(op->ptr, "mode"));
-  setting = eAnimChannel_Settings(RNA_enum_get(op->ptr, "type"));
+  mode = eAnimChannels_SetFlag(RNA_enum_get(op.ptr, "mode"));
+  setting = eAnimChannel_Settings(RNA_enum_get(op.ptr, "type"));
 
   /* check if setting is flushable */
   if (setting == ACHANNEL_SETTING_EXPAND) {
@@ -3031,7 +3031,7 @@ static wmOperatorStatus animchannels_setflag_exec(bContext *C, wmOperator *op)
   setflag_anim_channels(&ac, setting, mode, true, flush);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3147,18 +3147,18 @@ static void ANIM_OT_channels_editable_toggle(wmOperatorType *ot)
 /** \name Expand Channels Operator
  * \{ */
 
-static wmOperatorStatus animchannels_expand_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_expand_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   bool onlysel = true;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* only affect selected channels? */
-  if (RNA_boolean_get(op->ptr, "all")) {
+  if (RNA_boolean_get(op.ptr, "all")) {
     onlysel = false;
   }
 
@@ -3166,7 +3166,7 @@ static wmOperatorStatus animchannels_expand_exec(bContext *C, wmOperator *op)
   setflag_anim_channels(&ac, ACHANNEL_SETTING_EXPAND, ACHANNEL_SETFLAG_ADD, onlysel, false);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3196,18 +3196,18 @@ static void ANIM_OT_channels_expand(wmOperatorType *ot)
 /** \name Collapse Channels Operator
  * \{ */
 
-static wmOperatorStatus animchannels_collapse_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_collapse_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   bool onlysel = true;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* only affect selected channels? */
-  if (RNA_boolean_get(op->ptr, "all")) {
+  if (RNA_boolean_get(op.ptr, "all")) {
     onlysel = false;
   }
 
@@ -3215,7 +3215,7 @@ static wmOperatorStatus animchannels_collapse_exec(bContext *C, wmOperator *op)
   setflag_anim_channels(&ac, ACHANNEL_SETTING_EXPAND, ACHANNEL_SETFLAG_CLEAR, onlysel, false);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3256,7 +3256,7 @@ static void ANIM_OT_channels_collapse(wmOperatorType *ot)
  * 3) No drivers
  * \{ */
 
-static wmOperatorStatus animchannels_clean_empty_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animchannels_clean_empty_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
@@ -3264,7 +3264,7 @@ static wmOperatorStatus animchannels_clean_empty_exec(bContext *C, wmOperator * 
   int filter;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3335,8 +3335,8 @@ static wmOperatorStatus animchannels_clean_empty_exec(bContext *C, wmOperator * 
   ANIM_animdata_freelist(&anim_data);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3362,13 +3362,13 @@ static void ANIM_OT_channels_clean_empty(wmOperatorType *ot)
 /** \name Re-enable Disabled Operator
  * \{ */
 
-static bool animchannels_enable_poll(bContext *C)
+static bool animchannels_enable_poll(bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
   /* channels region test */
   /* TODO: could enhance with actually testing if channels region? */
-  if (ELEM(nullptr, area, CTX_wm_region(*C))) {
+  if (ELEM(nullptr, area, CTX_wm_region(C))) {
     return false;
   }
 
@@ -3380,7 +3380,7 @@ static bool animchannels_enable_poll(bContext *C)
   return true;
 }
 
-static wmOperatorStatus animchannels_enable_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus animchannels_enable_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
@@ -3388,7 +3388,7 @@ static wmOperatorStatus animchannels_enable_exec(bContext *C, wmOperator * /*op*
   int filter;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3417,7 +3417,7 @@ static wmOperatorStatus animchannels_enable_exec(bContext *C, wmOperator * /*op*
   ANIM_animdata_freelist(&anim_data);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3444,9 +3444,9 @@ static void ANIM_OT_channels_fcurves_enable(wmOperatorType *ot)
  * \{ */
 
 /* XXX: make this generic? */
-static bool animchannels_select_filter_poll(bContext *C)
+static bool animchannels_select_filter_poll(bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
   if (area == nullptr) {
     return false;
@@ -3456,44 +3456,44 @@ static bool animchannels_select_filter_poll(bContext *C)
   return ELEM(area->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
 }
 
-static wmOperatorStatus animchannels_select_filter_invoke(bContext *C,
-                                                          wmOperator *op,
+static wmOperatorStatus animchannels_select_filter_invoke(bContext &C,
+                                                          wmOperator &op,
                                                           const wmEvent * /*event*/)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region_ctx = CTX_wm_region(*C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region_ctx = CTX_wm_region(C);
   ARegion *region_channels = BKE_area_find_region_type(area, RGN_TYPE_CHANNELS);
 
-  CTX_wm_region_set(C, region_channels);
+  CTX_wm_region_set(&C, region_channels);
 
   /* Show the channel region if it's hidden. This means that direct activation of the input field
    * is impossible, as it may not exist yet. For that reason, the actual activation is deferred to
    * the modal callback function; by the time it runs, the screen has been redrawn and the UI
    * element is there to activate. */
   if (region_channels->flag & RGN_FLAG_HIDDEN) {
-    ED_region_toggle_hidden(C, region_channels);
+    ED_region_toggle_hidden(&C, region_channels);
     ED_region_tag_redraw(region_channels);
   }
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
-  CTX_wm_region_set(C, region_ctx);
+  CTX_wm_region_set(&C, region_ctx);
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus animchannels_select_filter_modal(bContext *C,
-                                                         wmOperator * /*op*/,
+static wmOperatorStatus animchannels_select_filter_modal(bContext &C,
+                                                         wmOperator & /*op*/,
                                                          const wmEvent * /*event*/)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  ARegion *region = CTX_wm_region(*C);
-  if (blender::ui::textbutton_activate_rna(C, region, ac.ads, "filter_text")) {
+  ARegion *region = CTX_wm_region(C);
+  if (blender::ui::textbutton_activate_rna(&C, region, ac.ads, "filter_text")) {
     /* Redraw to make sure it shows the cursor after activating */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -3520,17 +3520,17 @@ static void ANIM_OT_channels_select_filter(wmOperatorType *ot)
 /** \name Select All Operator
  * \{ */
 
-static wmOperatorStatus animchannels_selectall_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_selectall_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* 'standard' behavior - check if selected, then apply relevant selection */
-  const int action = RNA_enum_get(op->ptr, "action");
+  const int action = RNA_enum_get(op.ptr, "action");
   switch (action) {
     case SEL_TOGGLE:
       ANIM_anim_channels_select_toggle(&ac);
@@ -3550,7 +3550,7 @@ static wmOperatorStatus animchannels_selectall_exec(bContext *C, wmOperator *op)
   }
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3703,21 +3703,21 @@ static void box_select_anim_channels(bAnimContext *ac, const rcti &rect, short s
   ANIM_animdata_freelist(&anim_data);
 }
 
-static wmOperatorStatus animchannels_box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus animchannels_box_select_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   rcti rect;
   short selectmode = 0;
-  const bool select = !RNA_boolean_get(op->ptr, "deselect");
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const bool select = !RNA_boolean_get(op.ptr, "deselect");
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* get settings from operator */
-  WM_operator_properties_border_to_rcti(op, &rect);
+  WM_operator_properties_border_to_rcti(&op, &rect);
 
   if (!extend) {
     ANIM_anim_channels_select_set(&ac, ACHANNEL_SETFLAG_CLEAR);
@@ -3734,7 +3734,7 @@ static wmOperatorStatus animchannels_box_select_exec(bContext *C, wmOperator *op
   box_select_anim_channels(&ac, rect, selectmode);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3895,15 +3895,15 @@ static int animchannels_channel_get(bAnimContext *ac, const int mval[2])
   return channel_index;
 }
 
-static wmOperatorStatus animchannels_rename_invoke(bContext *C,
-                                                   wmOperator * /*op*/,
+static wmOperatorStatus animchannels_rename_invoke(bContext &C,
+                                                   wmOperator & /*op*/,
                                                    const wmEvent *event)
 {
   bAnimContext ac;
   int channel_index;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3911,7 +3911,7 @@ static wmOperatorStatus animchannels_rename_invoke(bContext *C,
 
   /* handle click */
   if (rename_anim_channels(&ac, channel_index)) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_RENAME, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_RENAME, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -4609,8 +4609,8 @@ static int mouse_anim_channels(bContext *C,
  * \{ */
 
 /** Handle picking logic. */
-static wmOperatorStatus animchannels_mouseclick_invoke(bContext *C,
-                                                       wmOperator *op,
+static wmOperatorStatus animchannels_mouseclick_invoke(bContext &C,
+                                                       wmOperator &op,
                                                        const wmEvent *event)
 {
   bAnimContext ac;
@@ -4622,7 +4622,7 @@ static wmOperatorStatus animchannels_mouseclick_invoke(bContext *C,
   float x, y;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -4631,13 +4631,13 @@ static wmOperatorStatus animchannels_mouseclick_invoke(bContext *C,
   v2d = &region->v2d;
 
   /* select mode is either replace (deselect all, then add) or add/extend */
-  if (RNA_boolean_get(op->ptr, "extend")) {
+  if (RNA_boolean_get(op.ptr, "extend")) {
     selectmode = SELECT_INVERT;
   }
-  else if (RNA_boolean_get(op->ptr, "extend_range")) {
+  else if (RNA_boolean_get(op.ptr, "extend_range")) {
     selectmode = SELECT_EXTEND_RANGE;
   }
-  else if (RNA_boolean_get(op->ptr, "children_only")) {
+  else if (RNA_boolean_get(op.ptr, "children_only")) {
     /* this is a bit of a special case for ActionGroups only...
      * should it be removed or extended to all instead? */
     selectmode = -1;
@@ -4658,10 +4658,10 @@ static wmOperatorStatus animchannels_mouseclick_invoke(bContext *C,
                                             &channel_index);
 
   /* handle mouse-click in the relevant channel then */
-  notifierFlags = mouse_anim_channels(C, &ac, channel_index, selectmode);
+  notifierFlags = mouse_anim_channels(&C, &ac, channel_index, selectmode);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | notifierFlags, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | notifierFlags, nullptr);
 
   return WM_operator_flag_only_pass_through_on_press(OPERATOR_FINISHED | OPERATOR_PASS_THROUGH,
                                                      event);
@@ -4773,16 +4773,16 @@ static bool select_anim_channel_keys(bAnimContext *ac, int channel_index, bool e
   return success;
 }
 
-static wmOperatorStatus animchannels_channel_select_keys_invoke(bContext *C,
-                                                                wmOperator *op,
+static wmOperatorStatus animchannels_channel_select_keys_invoke(bContext &C,
+                                                                wmOperator &op,
                                                                 const wmEvent *event)
 {
   bAnimContext ac;
   int channel_index;
-  bool extend = RNA_boolean_get(op->ptr, "extend");
+  bool extend = RNA_boolean_get(op.ptr, "extend");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -4790,7 +4790,7 @@ static wmOperatorStatus animchannels_channel_select_keys_invoke(bContext *C,
 
   /* handle click */
   if (select_anim_channel_keys(&ac, channel_index, extend)) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -4835,12 +4835,12 @@ static void get_view_range(Scene *scene, const bool use_preview_range, float r_r
   }
 }
 
-static wmOperatorStatus graphkeys_view_selected_channels_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_view_selected_channels_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   ARegion *window_region = BKE_area_find_region_type(ac.area, RGN_TYPE_WINDOW);
@@ -4856,12 +4856,12 @@ static wmOperatorStatus graphkeys_view_selected_channels_exec(bContext *C, wmOpe
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   if (anim_data_length == 0) {
-    BKE_report(op->reports, RPT_WARNING, "No channels to operate on");
+    BKE_report(op.reports, RPT_WARNING, "No channels to operate on");
     return OPERATOR_CANCELLED;
   }
 
   float range[2];
-  const bool use_preview_range = RNA_boolean_get(op->ptr, "use_preview_range");
+  const bool use_preview_range = RNA_boolean_get(op.ptr, "use_preview_range");
   get_view_range(ac.scene, use_preview_range, range);
 
   rctf bounds{};
@@ -4870,7 +4870,7 @@ static wmOperatorStatus graphkeys_view_selected_channels_exec(bContext *C, wmOpe
   bounds.ymin = FLT_MAX;
   bounds.ymax = -FLT_MAX;
 
-  const bool include_handles = RNA_boolean_get(op->ptr, "include_handles");
+  const bool include_handles = RNA_boolean_get(op.ptr, "include_handles");
 
   bool valid_bounds = false;
   for (bAnimListElem &ale : anim_data) {
@@ -4885,26 +4885,26 @@ static wmOperatorStatus graphkeys_view_selected_channels_exec(bContext *C, wmOpe
 
   if (!valid_bounds) {
     ANIM_animdata_freelist(&anim_data);
-    BKE_report(op->reports, RPT_WARNING, "No keyframes to focus on");
+    BKE_report(op.reports, RPT_WARNING, "No keyframes to focus on");
     return OPERATOR_CANCELLED;
   }
 
-  add_region_padding(C, window_region, &bounds);
+  add_region_padding(&C, window_region, &bounds);
 
   if (ac.spacetype == SPACE_ACTION) {
     bounds.ymin = window_region->v2d.cur.ymin;
     bounds.ymax = window_region->v2d.cur.ymax;
   }
 
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-  blender::ui::view2d_smooth_view(C, window_region, &bounds, smooth_viewtx);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
+  blender::ui::view2d_smooth_view(&C, window_region, &bounds, smooth_viewtx);
 
   ANIM_animdata_freelist(&anim_data);
 
   return OPERATOR_FINISHED;
 }
 
-static bool channel_view_poll(bContext *C)
+static bool channel_view_poll(bContext &C)
 {
   return ED_operator_action_active(C) || ED_operator_graphedit_active(C);
 }
@@ -4935,13 +4935,13 @@ static void ANIM_OT_channels_view_selected(wmOperatorType *ot)
                              "Ignore frames outside of the preview range");
 }
 
-static wmOperatorStatus graphkeys_channel_view_pick_invoke(bContext *C,
-                                                           wmOperator *op,
+static wmOperatorStatus graphkeys_channel_view_pick_invoke(bContext &C,
+                                                           wmOperator &op,
                                                            const wmEvent *event)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -4966,29 +4966,29 @@ static wmOperatorStatus graphkeys_channel_view_pick_invoke(bContext *C,
   }
 
   float range[2];
-  const bool use_preview_range = RNA_boolean_get(op->ptr, "use_preview_range");
+  const bool use_preview_range = RNA_boolean_get(op.ptr, "use_preview_range");
 
   get_view_range(ac.scene, use_preview_range, range);
 
   rctf bounds;
-  const bool include_handles = RNA_boolean_get(op->ptr, "include_handles");
+  const bool include_handles = RNA_boolean_get(op.ptr, "include_handles");
   const bool found_bounds = get_channel_bounds(&ac, ale, range, include_handles, &bounds);
 
   if (!found_bounds) {
     ANIM_animdata_freelist(&anim_data);
-    BKE_report(op->reports, RPT_WARNING, "No keyframes to focus on");
+    BKE_report(op.reports, RPT_WARNING, "No keyframes to focus on");
     return OPERATOR_CANCELLED;
   }
 
-  add_region_padding(C, window_region, &bounds);
+  add_region_padding(&C, window_region, &bounds);
 
   if (ac.spacetype == SPACE_ACTION) {
     bounds.ymin = window_region->v2d.cur.ymin;
     bounds.ymax = window_region->v2d.cur.ymax;
   }
 
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-  blender::ui::view2d_smooth_view(C, window_region, &bounds, smooth_viewtx);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
+  blender::ui::view2d_smooth_view(&C, window_region, &bounds, smooth_viewtx);
 
   ANIM_animdata_freelist(&anim_data);
 
@@ -5028,13 +5028,13 @@ static const EnumPropertyItem channel_bake_key_options[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus channels_bake_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::animrig;
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -5045,11 +5045,11 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
       &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
   if (anim_data_length == 0) {
-    BKE_report(op->reports, RPT_WARNING, "No channels to operate on");
+    BKE_report(op.reports, RPT_WARNING, "No channels to operate on");
     return OPERATOR_CANCELLED;
   }
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   blender::int2 frame_range;
   if (scene->r.flag & SCER_PRV_RANGE) {
@@ -5062,22 +5062,22 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
   /* The range property will default to the scene or preview range, but only if it hasn't been set
    * before. */
   blender::int2 rna_range;
-  RNA_int_get_array(op->ptr, "range", rna_range);
+  RNA_int_get_array(op.ptr, "range", rna_range);
   if (rna_range[0] == 0 && rna_range[1] == 0) {
-    RNA_int_set_array(op->ptr, "range", frame_range);
+    RNA_int_set_array(op.ptr, "range", frame_range);
   }
 
-  if (!RNA_boolean_get(op->ptr, "use_scene_range")) {
+  if (!RNA_boolean_get(op.ptr, "use_scene_range")) {
     frame_range = rna_range;
   }
 
   frame_range[1] = std::max(frame_range[1], frame_range[0]);
 
-  const bool remove_outside_range = RNA_boolean_get(op->ptr, "remove_outside_range");
+  const bool remove_outside_range = RNA_boolean_get(op.ptr, "remove_outside_range");
   const BakeCurveRemove remove_existing = remove_outside_range ? BakeCurveRemove::ALL :
                                                                  BakeCurveRemove::IN_RANGE;
-  const int interpolation_type = RNA_enum_get(op->ptr, "interpolation_type");
-  const bool bake_modifiers = RNA_boolean_get(op->ptr, "bake_modifiers");
+  const int interpolation_type = RNA_enum_get(op.ptr, "interpolation_type");
+  const bool bake_modifiers = RNA_boolean_get(op.ptr, "bake_modifiers");
 
   for (bAnimListElem &ale : anim_data) {
     FCurve *fcu = static_cast<FCurve *>(ale.data);
@@ -5106,7 +5106,7 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
      * changed. */
     const char segment_end_interpolation = fcu->bezt[min_ii(last_index, fcu->totvert - 1)].ipo;
 
-    const float step = RNA_float_get(op->ptr, "step");
+    const float step = RNA_float_get(op.ptr, "step");
     bake_fcurve(fcu, nla_mapped_range, step, remove_existing);
 
     if (bake_modifiers) {
@@ -5134,18 +5134,18 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
   }
 
   ANIM_animdata_freelist(&anim_data);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static bool channels_bake_poll_property(const bContext * /* C */,
-                                        wmOperator *op,
+static bool channels_bake_poll_property(const bContext & /* C */,
+                                        wmOperator &op,
                                         const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
   if (STREQ(prop_id, "range")) {
-    return !RNA_boolean_get(op->ptr, "use_scene_range");
+    return !RNA_boolean_get(op.ptr, "use_scene_range");
   }
   return true;
 }
@@ -5213,13 +5213,13 @@ static void ANIM_OT_channels_bake(wmOperatorType *ot)
                   "Bake Modifiers into keyframes and delete them after");
 }
 
-static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::animrig;
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -5230,7 +5230,7 @@ static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOpe
   size_t anim_data_length = ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 
   if (anim_data_length == 0) {
-    BKE_report(op->reports, RPT_WARNING, "No channels to operate on");
+    BKE_report(op.reports, RPT_WARNING, "No channels to operate on");
     return OPERATOR_CANCELLED;
   }
 
@@ -5246,14 +5246,14 @@ static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOpe
   ANIM_animdata_freelist(&anim_data);
 
   if (slots.size() == 0) {
-    BKE_report(op->reports, RPT_WARNING, "None of the selected channels is an Action Slot");
+    BKE_report(op.reports, RPT_WARNING, "None of the selected channels is an Action Slot");
     return OPERATOR_CANCELLED;
   }
 
   /* If multiple slots are selected they are moved to the new action together. In that case it is
    * hard to determine a name, so a constant default is used. */
   Action *target_action;
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   if (slots.size() == 1) {
     char actname[MAX_ID_NAME - 2];
     SNPRINTF_UTF8(actname, DATA_("%sAction"), slots[0].first->identifier + 2);
@@ -5274,20 +5274,20 @@ static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext *C, wmOpe
 
   DEG_id_tag_update(&target_action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static bool slot_channels_move_to_new_action_poll(bContext *C)
+static bool slot_channels_move_to_new_action_poll(bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ScrArea *area = CTX_wm_area(C);
   bAction *action = ANIM_active_action_from_area(scene, view_layer, area);
 
   if (!action) {
-    CTX_wm_operator_poll_msg_set(C, "No active action to operate on");
+    CTX_wm_operator_poll_msg_set(&C, "No active action to operate on");
     return false;
   }
   return true;
@@ -5305,10 +5305,10 @@ static void ANIM_OT_slot_channels_move_to_new_action(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus separate_slots_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::animrig;
-  Object *active_object = CTX_data_active_object(*C);
+  Object *active_object = CTX_data_active_object(C);
   /* Checked by the poll function. */
   BLI_assert(active_object != nullptr);
 
@@ -5316,7 +5316,7 @@ static wmOperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
   /* Also checked by the poll function. */
   BLI_assert(action != nullptr);
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   int created_actions = 0;
   while (action->slot_array_num) {
     Slot *slot = action->slot(action->slot_array_num - 1);
@@ -5330,30 +5330,30 @@ static wmOperatorStatus separate_slots_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&target_action.id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
 
-  BKE_reportf(op->reports,
+  BKE_reportf(op.reports,
               RPT_INFO,
               "Separated %s into %i new actions",
               action->id.name + 2,
               created_actions);
 
   DEG_id_tag_update(&action->id, ID_RECALC_ANIMATION_NO_FLUSH);
-  DEG_relations_tag_update(CTX_data_main(*C));
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE | NA_EDITED, nullptr);
+  DEG_relations_tag_update(CTX_data_main(C));
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static bool separate_slots_poll(bContext *C)
+static bool separate_slots_poll(bContext &C)
 {
-  Object *active_object = CTX_data_active_object(*C);
+  Object *active_object = CTX_data_active_object(C);
   if (!active_object) {
-    CTX_wm_operator_poll_msg_set(C, "No active object");
+    CTX_wm_operator_poll_msg_set(&C, "No active object");
     return false;
   }
 
   blender::animrig::Action *action = blender::animrig::get_action(active_object->id);
   if (!action) {
-    CTX_wm_operator_poll_msg_set(C, "Active object isn't animated");
+    CTX_wm_operator_poll_msg_set(&C, "Active object isn't animated");
     return false;
   }
   return true;
@@ -5570,14 +5570,14 @@ static rctf calculate_selection_fcurve_bounds(bAnimContext *ac,
   return bounds;
 }
 
-static wmOperatorStatus view_curve_in_graph_editor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_curve_in_graph_editor_exec(bContext &C, wmOperator &op)
 {
   PointerRNA button_ptr = {};
   PropertyRNA *button_prop = nullptr;
   blender::ui::Button *but;
   int index;
 
-  if (!(but = blender::ui::context_active_but_prop_get(C, &button_ptr, &button_prop, &index))) {
+  if (!(but = blender::ui::context_active_but_prop_get(&C, &button_ptr, &button_prop, &index))) {
     /* Pass event on if no active button found. */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -5595,33 +5595,33 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext *C, wmOperator 
   bool path_from_id;
   std::optional<std::string> id_to_prop_path;
   const bool selected_list_success = blender::ui::context_copy_to_selected_list(
-      C, &button_ptr, button_prop, &selection, &path_from_id, &id_to_prop_path);
+      &C, &button_ptr, button_prop, &selection, &path_from_id, &id_to_prop_path);
 
   if (!context_find_graph_editor(
-          C, &wm_context_temp.win, &wm_context_temp.area, &wm_context_temp.region))
+          &C, &wm_context_temp.win, &wm_context_temp.area, &wm_context_temp.region))
   {
-    BKE_report(op->reports, RPT_WARNING, "No open Graph Editor window found");
+    BKE_report(op.reports, RPT_WARNING, "No open Graph Editor window found");
     retval = OPERATOR_CANCELLED;
   }
   else {
-    wm_context_prev.win = CTX_wm_window(*C);
-    wm_context_prev.area = CTX_wm_area(*C);
-    wm_context_prev.region = CTX_wm_region(*C);
+    wm_context_prev.win = CTX_wm_window(C);
+    wm_context_prev.area = CTX_wm_area(C);
+    wm_context_prev.region = CTX_wm_region(C);
 
-    CTX_wm_window_set(C, wm_context_temp.win);
-    CTX_wm_area_set(C, wm_context_temp.area);
-    CTX_wm_region_set(C, wm_context_temp.region);
+    CTX_wm_window_set(&C, wm_context_temp.win);
+    CTX_wm_area_set(&C, wm_context_temp.area);
+    CTX_wm_region_set(&C, wm_context_temp.region);
 
     bAnimContext ac;
-    if (!ANIM_animdata_get_context(C, &ac)) {
+    if (!ANIM_animdata_get_context(&C, &ac)) {
       /* This might never be called since we are manually setting the Graph Editor just before. */
-      BKE_report(op->reports, RPT_ERROR, "Cannot create the Animation Context");
+      BKE_report(op.reports, RPT_ERROR, "Cannot create the Animation Context");
       retval = OPERATOR_CANCELLED;
     }
     else {
-      const bool isolate = RNA_boolean_get(op->ptr, "isolate");
+      const bool isolate = RNA_boolean_get(op.ptr, "isolate");
       /* The index can be less than 0 e.g. on color properties. */
-      const bool whole_array = RNA_boolean_get(op->ptr, "all") || index < 0;
+      const bool whole_array = RNA_boolean_get(op.ptr, "all") || index < 0;
 
       deselect_all_fcurves(&ac, isolate);
 
@@ -5655,31 +5655,31 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext *C, wmOperator 
       }
 
       if (filtered_fcurve_count > 0) {
-        BKE_report(op->reports,
+        BKE_report(op.reports,
                    RPT_WARNING,
                    "One or more F-Curves are not visible due to filter settings");
       }
 
       if (!BLI_rctf_is_valid(&bounds)) {
-        BKE_report(op->reports, RPT_ERROR, "F-Curves have no valid size");
+        BKE_report(op.reports, RPT_ERROR, "F-Curves have no valid size");
         retval = OPERATOR_CANCELLED;
       }
       else {
         ARegion *region = wm_context_temp.region;
         ScrArea *area = wm_context_temp.area;
-        add_region_padding(C, region, &bounds);
+        add_region_padding(&C, region, &bounds);
 
-        const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-        blender::ui::view2d_smooth_view(C, region, &bounds, smooth_viewtx);
+        const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
+        blender::ui::view2d_smooth_view(&C, region, &bounds, smooth_viewtx);
 
         /* This ensures the channel list updates. */
         ED_area_tag_redraw(area);
       }
     }
 
-    CTX_wm_window_set(C, wm_context_prev.win);
-    CTX_wm_area_set(C, wm_context_prev.area);
-    CTX_wm_region_set(C, wm_context_prev.region);
+    CTX_wm_window_set(&C, wm_context_prev.win);
+    CTX_wm_area_set(&C, wm_context_prev.area);
+    CTX_wm_region_set(&C, wm_context_prev.region);
   }
 
   return retval;

@@ -550,110 +550,110 @@ void ED_operatortypes_workspace();
 
 /* operators; context poll callbacks */
 
-bool ED_operator_screenactive(bContext *C);
-bool ED_operator_active_screen_and_scene(bContext *C);
-bool ED_operator_screenactive_nobackground(bContext *C);
+bool ED_operator_screenactive(bContext &C);
+bool ED_operator_active_screen_and_scene(bContext &C);
+bool ED_operator_screenactive_nobackground(bContext &C);
 /**
  * When mouse is over area-edge.
  */
-bool ED_operator_screen_mainwinactive(bContext *C);
-bool ED_operator_areaactive(bContext *C);
-bool ED_operator_regionactive(bContext *C);
+bool ED_operator_screen_mainwinactive(bContext &C);
+bool ED_operator_areaactive(bContext &C);
+bool ED_operator_regionactive(bContext &C);
 
-bool ED_operator_scene(bContext *C);
-bool ED_operator_scene_editable(bContext *C);
+bool ED_operator_scene(bContext &C);
+bool ED_operator_scene_editable(bContext &C);
 bool ED_operator_sequencer_scene(bContext *C);
-bool ED_operator_sequencer_scene_editable(bContext *C);
+bool ED_operator_sequencer_scene_editable(bContext &C);
 
-bool ED_operator_objectmode(bContext *C);
+bool ED_operator_objectmode(bContext &C);
 /**
  * Same as #ED_operator_objectmode() but additionally sets a "disabled hint". That is, a message
  * to be displayed to the user explaining why the operator can't be used in current context.
  */
-bool ED_operator_objectmode_poll_msg(bContext *C);
-bool ED_operator_objectmode_with_view3d_poll_msg(bContext *C);
+bool ED_operator_objectmode_poll_msg(bContext &C);
+bool ED_operator_objectmode_with_view3d_poll_msg(bContext &C);
 
-bool ED_operator_view3d_active(bContext *C);
-bool ED_operator_region_view3d_active(bContext *C);
-bool ED_operator_region_gizmo_active(bContext *C);
+bool ED_operator_view3d_active(bContext &C);
+bool ED_operator_region_view3d_active(bContext &C);
+bool ED_operator_region_gizmo_active(bContext &C);
 
 /**
  * Generic for any view2d which uses anim_ops.
  */
-bool ED_operator_animview_active(bContext *C);
-bool ED_operator_outliner_active(bContext *C);
-bool ED_operator_region_outliner_active(bContext *C);
+bool ED_operator_animview_active(bContext &C);
+bool ED_operator_outliner_active(bContext &C);
+bool ED_operator_region_outliner_active(bContext &C);
 bool ED_operator_outliner_active_no_editobject(bContext *C);
 /**
  * \note Will return true for file spaces in either file or asset browsing mode! See
  * #ED_operator_file_browsing_active() (file browsing only) and
  * #ED_operator_asset_browsing_active() (asset browsing only).
  */
-bool ED_operator_file_active(bContext *C);
+bool ED_operator_file_active(bContext &C);
 /**
  * \note Will only return true if the file space is in file browsing mode, not asset browsing! See
  * #ED_operator_file_active() (file or asset browsing) and
  * #ED_operator_asset_browsing_active() (asset browsing only).
  */
-bool ED_operator_file_browsing_active(bContext *C);
+bool ED_operator_file_browsing_active(bContext &C);
 bool ED_operator_asset_browsing_active(bContext *C);
-bool ED_operator_spreadsheet_active(bContext *C);
-bool ED_operator_action_active(bContext *C);
-bool ED_operator_buttons_active(bContext *C);
-bool ED_operator_node_active(bContext *C);
-bool ED_operator_node_editable(bContext *C);
-bool ED_operator_graphedit_active(bContext *C);
-bool ED_operator_sequencer_active(bContext *C);
-bool ED_operator_sequencer_active_editable(bContext *C);
-bool ED_operator_image_active(bContext *C);
-bool ED_operator_nla_active(bContext *C);
-bool ED_operator_info_active(bContext *C);
-bool ED_operator_console_active(bContext *C);
+bool ED_operator_spreadsheet_active(bContext &C);
+bool ED_operator_action_active(bContext &C);
+bool ED_operator_buttons_active(bContext &C);
+bool ED_operator_node_active(bContext &C);
+bool ED_operator_node_editable(bContext &C);
+bool ED_operator_graphedit_active(bContext &C);
+bool ED_operator_sequencer_active(bContext &C);
+bool ED_operator_sequencer_active_editable(bContext &C);
+bool ED_operator_image_active(bContext &C);
+bool ED_operator_nla_active(bContext &C);
+bool ED_operator_info_active(bContext &C);
+bool ED_operator_console_active(bContext &C);
 
 /** Only check there is an active object (no visibility check). */
-bool ED_operator_object_active_only(bContext *C);
-bool ED_operator_object_active(bContext *C);
+bool ED_operator_object_active_only(bContext &C);
+bool ED_operator_object_active(bContext &C);
 bool ED_operator_object_active_editable_ex(bContext *C, const Object *ob);
-bool ED_operator_object_active_editable(bContext *C);
+bool ED_operator_object_active_editable(bContext &C);
 /**
  * Object must be editable and fully local (i.e. not an override).
  */
 bool ED_operator_object_active_local_editable_ex(bContext *C, const Object *ob);
-bool ED_operator_object_active_local_editable(bContext *C);
-bool ED_operator_object_active_editable_mesh(bContext *C);
-bool ED_operator_object_active_editable_font(bContext *C);
-bool ED_operator_editable_mesh(bContext *C);
-bool ED_operator_editmesh(bContext *C);
-bool ED_operator_editmesh_view3d(bContext *C);
-bool ED_operator_editmesh_region_view3d(bContext *C);
-bool ED_operator_editarmature(bContext *C);
-bool ED_operator_editcurve(bContext *C);
+bool ED_operator_object_active_local_editable(bContext &C);
+bool ED_operator_object_active_editable_mesh(bContext &C);
+bool ED_operator_object_active_editable_font(bContext &C);
+bool ED_operator_editable_mesh(bContext &C);
+bool ED_operator_editmesh(bContext &C);
+bool ED_operator_editmesh_view3d(bContext &C);
+bool ED_operator_editmesh_region_view3d(bContext &C);
+bool ED_operator_editarmature(bContext &C);
+bool ED_operator_editcurve(bContext &C);
 bool ED_operator_editcurve_3d(bContext *C);
-bool ED_operator_editsurf(bContext *C);
-bool ED_operator_editsurfcurve(bContext *C);
-bool ED_operator_editsurfcurve_region_view3d(bContext *C);
-bool ED_operator_editfont(bContext *C);
-bool ED_operator_editlattice(bContext *C);
-bool ED_operator_editmball(bContext *C);
+bool ED_operator_editsurf(bContext &C);
+bool ED_operator_editsurfcurve(bContext &C);
+bool ED_operator_editsurfcurve_region_view3d(bContext &C);
+bool ED_operator_editfont(bContext &C);
+bool ED_operator_editlattice(bContext &C);
+bool ED_operator_editmball(bContext &C);
 /**
  * Wrapper for #ED_space_image_show_uvedit.
  */
-bool ED_operator_uvedit(bContext *C);
-bool ED_operator_uvedit_space_image(bContext *C);
-bool ED_operator_uvmap(bContext *C);
-bool ED_operator_posemode_exclusive(bContext *C);
+bool ED_operator_uvedit(bContext &C);
+bool ED_operator_uvedit_space_image(bContext &C);
+bool ED_operator_uvmap(bContext &C);
+bool ED_operator_posemode_exclusive(bContext &C);
 /**
  * Object must be editable, fully local (i.e. not an override), and exclusively in Pose mode.
  */
-bool ED_operator_object_active_local_editable_posemode_exclusive(bContext *C);
+bool ED_operator_object_active_local_editable_posemode_exclusive(bContext &C);
 /**
  * Allows for pinned pose objects to be used in the object buttons
  * and the non-active pose object to be used in the 3D view.
  */
 bool ED_operator_posemode_context(bContext *C);
-bool ED_operator_posemode(bContext *C);
-bool ED_operator_posemode_local(bContext *C);
-bool ED_operator_camera_poll(bContext *C);
+bool ED_operator_posemode(bContext &C);
+bool ED_operator_posemode_local(bContext &C);
+bool ED_operator_camera_poll(bContext &C);
 
 /* `screen_user_menu.cc` */
 

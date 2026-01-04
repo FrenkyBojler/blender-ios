@@ -103,19 +103,19 @@ namespace blender::ed::object {
 /** \name Make Vertex Parent Operator
  * \{ */
 
-static bool vertex_parent_set_poll(bContext *C)
+static bool vertex_parent_set_poll(bContext &C)
 {
   return ED_operator_editmesh(C) || ED_operator_editsurfcurve(C) || ED_operator_editlattice(C);
 }
 
-static wmOperatorStatus vertex_parent_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vertex_parent_set_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Object *obedit = CTX_data_edit_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Object *obedit = CTX_data_edit_object(C);
   Object *par;
 
 #define INDEX_UNSET -1
@@ -245,17 +245,17 @@ static wmOperatorStatus vertex_parent_set_exec(bContext *C, wmOperator *op)
   }
 
   if (par4 != INDEX_UNSET || par1 == INDEX_UNSET || (par2 != INDEX_UNSET && par3 == INDEX_UNSET)) {
-    BKE_report(op->reports, RPT_ERROR, "Select either 1 or 3 vertices to parent to");
+    BKE_report(op.reports, RPT_ERROR, "Select either 1 or 3 vertices to parent to");
     return OPERATOR_CANCELLED;
   }
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if (ob != obedit) {
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
       par = obedit->parent;
 
       if (BKE_object_parent_loop_check(par, ob)) {
-        BKE_report(op->reports, RPT_ERROR, "Loop in parents");
+        BKE_report(op.reports, RPT_ERROR, "Loop in parents");
       }
       else {
         BKE_view_layer_synced_ensure(scene, view_layer);
@@ -283,7 +283,7 @@ static wmOperatorStatus vertex_parent_set_exec(bContext *C, wmOperator *op)
 
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(C, NC_OBJECT, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT, nullptr);
 
   return OPERATOR_FINISHED;
 
@@ -422,21 +422,21 @@ void parent_clear(Object *ob, const int type)
 }
 
 /* NOTE: poll should check for editable scene. */
-static wmOperatorStatus parent_clear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus parent_clear_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   /* Dependency graph must be evaluated for access to object's evaluated transform matrices. */
-  CTX_data_ensure_evaluated_depsgraph(*C);
-  const int type = RNA_enum_get(op->ptr, "type");
+  CTX_data_ensure_evaluated_depsgraph(C);
+  const int type = RNA_enum_get(op.ptr, "type");
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     parent_clear(ob, type);
   }
   CTX_DATA_END;
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
-  WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_PARENT, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -926,33 +926,33 @@ static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_co
   return ok;
 }
 
-static wmOperatorStatus parent_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus parent_set_exec(bContext &C, wmOperator &op)
 {
-  const int partype = RNA_enum_get(op->ptr, "type");
+  const int partype = RNA_enum_get(op.ptr, "type");
   ParentingContext parenting_context{};
-  parenting_context.reports = op->reports;
-  parenting_context.scene = CTX_data_scene(*C);
-  parenting_context.par = context_active_object(C);
+  parenting_context.reports = op.reports;
+  parenting_context.scene = CTX_data_scene(C);
+  parenting_context.par = context_active_object(&C);
   parenting_context.partype = partype;
   parenting_context.is_vertex_tri = partype == PAR_VERTEX_TRI;
-  parenting_context.xmirror = RNA_boolean_get(op->ptr, "xmirror");
-  parenting_context.keep_transform = RNA_boolean_get(op->ptr, "keep_transform");
+  parenting_context.xmirror = RNA_boolean_get(op.ptr, "xmirror");
+  parenting_context.keep_transform = RNA_boolean_get(op.ptr, "keep_transform");
 
   bool ok;
   if (ELEM(parenting_context.partype, PAR_VERTEX, PAR_VERTEX_TRI)) {
-    ok = parent_set_vertex_parent(C, &parenting_context);
+    ok = parent_set_vertex_parent(&C, &parenting_context);
   }
   else {
-    ok = parent_set_nonvertex_parent(C, &parenting_context);
+    ok = parent_set_nonvertex_parent(&C, &parenting_context);
   }
   if (!ok) {
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
-  WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_PARENT, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1070,23 +1070,23 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
   return OPERATOR_INTERFACE;
 }
 
-static wmOperatorStatus parent_set_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus parent_set_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  if (RNA_property_is_set(op->ptr, op->type->prop)) {
+  if (RNA_property_is_set(op.ptr, op.type->prop)) {
     return parent_set_exec(C, op);
   }
-  return parent_set_invoke_menu(C, op->type);
+  return parent_set_invoke_menu(&C, op.type);
 }
 
-static bool parent_set_poll_property(const bContext * /*C*/,
-                                     wmOperator *op,
+static bool parent_set_poll_property(const bContext & /*C*/,
+                                     wmOperator &op,
                                      const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
 
   /* Only show XMirror for PAR_ARMATURE_ENVELOPE and PAR_ARMATURE_AUTO! */
   if (STREQ(prop_id, "xmirror")) {
-    const int type = RNA_enum_get(op->ptr, "type");
+    const int type = RNA_enum_get(op.ptr, "type");
     if (ELEM(type, PAR_ARMATURE_ENVELOPE, PAR_ARMATURE_AUTO)) {
       return true;
     }
@@ -1132,20 +1132,20 @@ void OBJECT_OT_parent_set(wmOperatorType *ot)
 /** \name Make Parent Without Inverse Operator
  * \{ */
 
-static wmOperatorStatus parent_noinv_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus parent_noinv_set_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Object *par = context_active_object(C);
+  Main *bmain = CTX_data_main(C);
+  Object *par = context_active_object(&C);
 
-  const bool keep_transform = RNA_boolean_get(op->ptr, "keep_transform");
+  const bool keep_transform = RNA_boolean_get(op.ptr, "keep_transform");
 
   DEG_id_tag_update(&par->id, ID_RECALC_TRANSFORM);
 
   /* context iterator */
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if (ob != par) {
       if (BKE_object_parent_loop_check(par, ob)) {
-        BKE_report(op->reports, RPT_ERROR, "Loop in parents");
+        BKE_report(op.reports, RPT_ERROR, "Loop in parents");
       }
       else {
         /* set recalc flags */
@@ -1169,8 +1169,8 @@ static wmOperatorStatus parent_noinv_set_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
-  WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_PARENT, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1218,16 +1218,16 @@ static const EnumPropertyItem prop_clear_track_types[] = {
 };
 
 /* NOTE: poll should check for editable scene. */
-static wmOperatorStatus object_track_clear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_track_clear_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  const int type = RNA_enum_get(op->ptr, "type");
+  Main *bmain = CTX_data_main(C);
+  const int type = RNA_enum_get(op.ptr, "type");
 
-  if (CTX_data_edit_object(*C)) {
-    BKE_report(op->reports, RPT_ERROR, "Operation cannot be performed in edit mode");
+  if (CTX_data_edit_object(C)) {
+    BKE_report(op.reports, RPT_ERROR, "Operation cannot be performed in edit mode");
     return OPERATOR_CANCELLED;
   }
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     bConstraint *con, *pcon;
 
     /* remove track-object for old track */
@@ -1253,7 +1253,7 @@ static wmOperatorStatus object_track_clear_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1296,19 +1296,19 @@ static const EnumPropertyItem prop_make_track_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus track_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus track_set_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Object *obact = context_active_object(C);
+  Main *bmain = CTX_data_main(C);
+  Object *obact = context_active_object(&C);
 
-  const int type = RNA_enum_get(op->ptr, "type");
+  const int type = RNA_enum_get(op.ptr, "type");
 
   switch (type) {
     case CREATE_TRACK_DAMPTRACK: {
       bConstraint *con;
       bDampTrackConstraint *data;
 
-      CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+      CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
         if (ob != obact) {
           con = BKE_constraint_add_for_object(ob, "AutoTrack", CONSTRAINT_TYPE_DAMPTRACK);
 
@@ -1330,7 +1330,7 @@ static wmOperatorStatus track_set_exec(bContext *C, wmOperator *op)
       bConstraint *con;
       bTrackToConstraint *data;
 
-      CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+      CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
         if (ob != obact) {
           con = BKE_constraint_add_for_object(ob, "AutoTrack", CONSTRAINT_TYPE_TRACKTO);
 
@@ -1353,7 +1353,7 @@ static wmOperatorStatus track_set_exec(bContext *C, wmOperator *op)
       bConstraint *con;
       bLockTrackConstraint *data;
 
-      CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+      CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
         if (ob != obact) {
           con = BKE_constraint_add_for_object(ob, "AutoTrack", CONSTRAINT_TYPE_LOCKTRACK);
 
@@ -1375,7 +1375,7 @@ static wmOperatorStatus track_set_exec(bContext *C, wmOperator *op)
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1430,29 +1430,29 @@ static void link_to_scene(Main * /*bmain*/, ushort /*nr*/)
 }
 #endif
 
-static wmOperatorStatus make_links_scene_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus make_links_scene_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   Scene *scene_to = static_cast<Scene *>(
-      BLI_findlink(&bmain->scenes, RNA_enum_get(op->ptr, "scene")));
+      BLI_findlink(&bmain->scenes, RNA_enum_get(op.ptr, "scene")));
 
   if (scene_to == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Could not find scene");
+    BKE_report(op.reports, RPT_ERROR, "Could not find scene");
     return OPERATOR_CANCELLED;
   }
 
-  if (scene_to == CTX_data_scene(*C)) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot link objects into the same scene");
+  if (scene_to == CTX_data_scene(C)) {
+    BKE_report(op.reports, RPT_ERROR, "Cannot link objects into the same scene");
     return OPERATOR_CANCELLED;
   }
 
   if (!BKE_id_is_editable(bmain, &scene_to->id)) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot link objects into a linked scene");
+    BKE_report(op.reports, RPT_ERROR, "Cannot link objects into a linked scene");
     return OPERATOR_CANCELLED;
   }
 
   Collection *collection_to = scene_to->master_collection;
-  CTX_DATA_BEGIN (*C, Base *, base, selected_bases) {
+  CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
     BKE_collection_object_add(bmain, collection_to, base->object);
   }
   CTX_DATA_END;
@@ -1462,7 +1462,7 @@ static wmOperatorStatus make_links_scene_exec(bContext *C, wmOperator *op)
   DEG_relations_tag_update(bmain);
 
   /* redraw the 3D view because the object center points are colored differently */
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
 
   /* one day multiple scenes will be visible, then we should have some update function for them
    */
@@ -1527,11 +1527,11 @@ static bool allow_make_links_data(const int type, Object *ob_src, Object *ob_dst
   return false;
 }
 
-static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus make_links_data_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  Main *bmain = CTX_data_main(*C);
-  const int type = RNA_enum_get(op->ptr, "type");
+  Scene *scene = CTX_data_scene(C);
+  Main *bmain = CTX_data_main(C);
+  const int type = RNA_enum_get(op.ptr, "type");
   Object *ob_src;
   ID *obdata_id;
   int a;
@@ -1541,14 +1541,14 @@ static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
   bool is_cycle = false;
   bool is_lib = false;
 
-  ob_src = context_active_object(C);
+  ob_src = context_active_object(&C);
 
   /* avoid searching all collections in source object each time */
   if (type == MAKE_LINKS_GROUP) {
     ob_collections = BKE_object_groups(bmain, scene, ob_src);
   }
 
-  CTX_DATA_BEGIN (*C, Base *, base_dst, selected_editable_bases) {
+  CTX_DATA_BEGIN (C, Base *, base_dst, selected_editable_bases) {
     Object *ob_dst = base_dst->object;
 
     if (ob_src != ob_dst) {
@@ -1673,18 +1673,18 @@ static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
     }
 
     if (is_cycle) {
-      BKE_report(op->reports, RPT_WARNING, "Skipped some collections because of cycle detected");
+      BKE_report(op.reports, RPT_WARNING, "Skipped some collections because of cycle detected");
     }
   }
 
   if (is_lib) {
-    BKE_report(op->reports, RPT_WARNING, "Skipped editing library object data");
+    BKE_report(op.reports, RPT_WARNING, "Skipped editing library object data");
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, CTX_wm_view3d(*C));
-  WM_event_add_notifier(C, NC_OBJECT, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE, CTX_wm_view3d(C));
+  WM_event_add_notifier(&C, NC_OBJECT, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2256,18 +2256,18 @@ static void make_local_material_tag(Material *ma)
   }
 }
 
-static wmOperatorStatus make_local_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus make_local_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   Material *ma, ***matarar;
-  const int mode = RNA_enum_get(op->ptr, "type");
+  const int mode = RNA_enum_get(op.ptr, "type");
   int a;
 
   /* NOTE: we (ab)use ID_TAG_PRE_EXISTING to cherry pick which ID to make local... */
   if (mode == MAKE_LOCAL_ALL) {
-    const Scene *scene = CTX_data_scene(*C);
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
-    Collection *collection = CTX_data_collection(*C);
+    const Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    Collection *collection = CTX_data_collection(C);
 
     BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, false);
 
@@ -2275,16 +2275,15 @@ static wmOperatorStatus make_local_exec(bContext *C, wmOperator *op)
     BKE_view_layer_base_deselect_all(scene, view_layer);
 
     if (make_local_all__instance_indirect_unused(bmain, scene, view_layer, collection)) {
-      BKE_report(op->reports,
-                 RPT_INFO,
-                 "Orphan library objects added to the current scene to avoid loss");
+      BKE_report(
+          op.reports, RPT_INFO, "Orphan library objects added to the current scene to avoid loss");
     }
   }
   else {
     BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, true);
-    tag_localizable_objects(C, mode);
+    tag_localizable_objects(&C, mode);
 
-    CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+    CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
       if ((ob->id.tag & ID_TAG_DOIT) == 0) {
         continue;
       }
@@ -2328,7 +2327,7 @@ static wmOperatorStatus make_local_exec(bContext *C, wmOperator *op)
   BKE_library_make_local(
       bmain, nullptr, nullptr, true, false, true); /* nullptr is all libraries. */
 
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -2386,12 +2385,12 @@ static bool make_override_library_object_overridable_check(Main *bmain, Object *
   return false;
 }
 
-static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus make_override_library_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Object *obact = CTX_data_active_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Object *obact = CTX_data_active_object(C);
   ID *id_root = nullptr;
   bool is_override_instancing_object = false;
 
@@ -2401,7 +2400,7 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
       ID_IS_LINKED(obact->instance_collection))
   {
     if (!ID_IS_OVERRIDABLE_LIBRARY(obact->instance_collection)) {
-      BKE_reportf(op->reports,
+      BKE_reportf(op.reports,
                   RPT_ERROR_INVALID_INPUT,
                   "Collection '%s' (instantiated by the active object) is not overridable",
                   obact->instance_collection->id.name + 2);
@@ -2413,10 +2412,10 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
     user_overrides_from_selected_objects = false;
   }
   else if (!make_override_library_object_overridable_check(bmain, obact)) {
-    const int i = RNA_property_int_get(op->ptr, op->type->prop);
+    const int i = RNA_property_int_get(op.ptr, op.type->prop);
     const uint collection_session_uid = *((const uint *)&i);
     if (collection_session_uid == MAIN_ID_SESSION_UID_UNSET) {
-      BKE_reportf(op->reports,
+      BKE_reportf(op.reports,
                   RPT_ERROR_INVALID_INPUT,
                   "Could not find an overridable root hierarchy for object '%s'",
                   obact->id.name + 2);
@@ -2440,7 +2439,7 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
 
   /* Make already existing selected liboverrides editable. */
   bool is_active_override = false;
-  FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(*C), ob_iter) {
+  FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(C), ob_iter) {
     if (ID_IS_OVERRIDE_LIBRARY_REAL(ob_iter) && !ID_IS_LINKED(ob_iter)) {
       ob_iter->id.override_library->flag &= ~LIBOVERRIDE_FLAG_SYSTEM_DEFINED;
       is_active_override = is_active_override || (&ob_iter->id == id_root);
@@ -2468,7 +2467,7 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
   }
   else if (user_overrides_from_selected_objects) {
     /* Only selected objects can be 'user overrides'. */
-    FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(*C), ob_iter) {
+    FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(C), ob_iter) {
       user_overrides_objects_uids->add(ob_iter->id.session_uid);
     }
     FOREACH_SELECTED_OBJECT_END;
@@ -2569,23 +2568,23 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
     }
   }
 
-  DEG_id_tag_update(&CTX_data_scene(*C)->id, ID_RECALC_BASE_FLAGS | ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
-  WM_event_add_notifier(C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  DEG_id_tag_update(&CTX_data_scene(C)->id, ID_RECALC_BASE_FLAGS | ID_RECALC_SYNC_TO_EVAL);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(&C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   return success ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 /* Set the object to override. */
-static wmOperatorStatus make_override_library_invoke(bContext *C,
-                                                     wmOperator *op,
+static wmOperatorStatus make_override_library_invoke(bContext &C,
+                                                     wmOperator &op,
                                                      const wmEvent * /*event*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Object *obact = context_active_object(C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Object *obact = context_active_object(&C);
 
   /* Sanity checks. */
   if (!scene || ID_IS_LINKED(scene) || !obact) {
@@ -2603,7 +2602,7 @@ static wmOperatorStatus make_override_library_invoke(bContext *C,
     if (ID_IS_OVERRIDE_LIBRARY_REAL(obact)) {
       return make_override_library_exec(C, op);
     }
-    BKE_report(op->reports, RPT_ERROR, "Cannot make library override from a local object");
+    BKE_report(op.reports, RPT_ERROR, "Cannot make library override from a local object");
     return OPERATOR_CANCELLED;
   }
 
@@ -2655,16 +2654,16 @@ static wmOperatorStatus make_override_library_invoke(bContext *C,
   }
 
   if (potential_root_collections.is_empty()) {
-    RNA_property_int_set(op->ptr, op->type->prop, MAIN_ID_SESSION_UID_UNSET);
+    RNA_property_int_set(op.ptr, op.type->prop, MAIN_ID_SESSION_UID_UNSET);
     return make_override_library_exec(C, op);
   }
   if (potential_root_collections.size() == 1) {
     Collection *collection_root = potential_root_collections.pop();
-    RNA_property_int_set(op->ptr, op->type->prop, *((int *)&collection_root->id.session_uid));
+    RNA_property_int_set(op.ptr, op.type->prop, *((int *)&collection_root->id.session_uid));
     return make_override_library_exec(C, op);
   }
 
-  BKE_reportf(op->reports,
+  BKE_reportf(op.reports,
               RPT_ERROR,
               "Too many potential root collections (%d) for the override hierarchy, "
               "please use the Outliner instead",
@@ -2672,9 +2671,9 @@ static wmOperatorStatus make_override_library_invoke(bContext *C,
   return OPERATOR_CANCELLED;
 }
 
-static bool make_override_library_poll(bContext *C)
+static bool make_override_library_poll(bContext &C)
 {
-  Base *base_act = CTX_data_active_base(*C);
+  Base *base_act = CTX_data_active_base(C);
   /* If the active object is not selected, do nothing (operators rely on selection too, they will
    * misbehave if the active object is not also selected, see e.g. #120701. */
   if ((base_act == nullptr) || ((base_act->flag & BASE_SELECTED) == 0)) {
@@ -2729,9 +2728,9 @@ void OBJECT_OT_make_override_library(wmOperatorType *ot)
 /** \name Reset Library Override Operator
  * \{ */
 
-static bool reset_clear_override_library_poll(bContext *C)
+static bool reset_clear_override_library_poll(bContext &C)
 {
-  Base *base_act = CTX_data_active_base(*C);
+  Base *base_act = CTX_data_active_base(C);
   /* If the active object is not selected, do nothing (operators rely on selection too, they will
    * misbehave if the active object is not also selected, see e.g. #120701. */
   if ((base_act == nullptr) || ((base_act->flag & BASE_SELECTED) == 0)) {
@@ -2744,21 +2743,21 @@ static bool reset_clear_override_library_poll(bContext *C)
           ID_IS_OVERRIDE_LIBRARY(obact));
 }
 
-static wmOperatorStatus reset_override_library_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus reset_override_library_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   /* Reset all selected liboverrides. */
-  FOREACH_SELECTED_OBJECT_BEGIN (CTX_data_view_layer(*C), CTX_wm_view3d(*C), ob_iter) {
+  FOREACH_SELECTED_OBJECT_BEGIN (CTX_data_view_layer(C), CTX_wm_view3d(C), ob_iter) {
     if (ID_IS_OVERRIDE_LIBRARY_REAL(ob_iter) && !ID_IS_LINKED(ob_iter)) {
       BKE_lib_override_library_id_reset(bmain, &ob_iter->id, false);
     }
   }
   FOREACH_SELECTED_OBJECT_END;
 
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
-  WM_event_add_notifier(C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(&C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2784,15 +2783,15 @@ void OBJECT_OT_reset_override_library(wmOperatorType *ot)
 /** \name Clear Library Override Operator
  * \{ */
 
-static wmOperatorStatus clear_override_library_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus clear_override_library_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(C);
   LinkNode *todo_objects = nullptr, *todo_object_iter;
 
   /* Make already existing selected liboverrides editable. */
-  FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(*C), ob_iter) {
+  FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(C), ob_iter) {
     if (ID_IS_LINKED(ob_iter)) {
       continue;
     }
@@ -2831,9 +2830,9 @@ static wmOperatorStatus clear_override_library_exec(bContext *C, wmOperator * /*
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS | ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
-  WM_event_add_notifier(C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(&C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2866,17 +2865,17 @@ enum {
   MAKE_SINGLE_USER_SELECTED = 2,
 };
 
-static wmOperatorStatus make_single_user_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus make_single_user_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C); /* ok if this is nullptr */
-  const int flag = (RNA_enum_get(op->ptr, "type") == MAKE_SINGLE_USER_SELECTED) ? SELECT : 0;
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C); /* ok if this is nullptr */
+  const int flag = (RNA_enum_get(op.ptr, "type") == MAKE_SINGLE_USER_SELECTED) ? SELECT : 0;
   const bool copy_collections = false;
   bool update_deps = false;
 
-  if (RNA_boolean_get(op->ptr, "object")) {
+  if (RNA_boolean_get(op.ptr, "object")) {
     if (flag == SELECT) {
       BKE_view_layer_selected_objects_tag(scene, view_layer, OB_DONE);
       single_object_users(bmain, scene, v3d, OB_DONE, copy_collections);
@@ -2889,28 +2888,28 @@ static wmOperatorStatus make_single_user_exec(bContext *C, wmOperator *op)
     update_deps = true;
   }
 
-  if (RNA_boolean_get(op->ptr, "obdata")) {
+  if (RNA_boolean_get(op.ptr, "obdata")) {
     single_obdata_users(bmain, scene, view_layer, v3d, flag);
 
     /* Needed since some IDs were remapped? (incl. mesh->texcomesh, see #73797). */
     update_deps = true;
   }
 
-  if (RNA_boolean_get(op->ptr, "material")) {
+  if (RNA_boolean_get(op.ptr, "material")) {
     single_mat_users(bmain, scene, view_layer, v3d, flag);
   }
 
-  if (RNA_boolean_get(op->ptr, "animation")) {
+  if (RNA_boolean_get(op.ptr, "animation")) {
     single_object_action_users(bmain, scene, view_layer, v3d, flag);
   }
 
-  if (RNA_boolean_get(op->ptr, "obdata_animation")) {
+  if (RNA_boolean_get(op.ptr, "obdata_animation")) {
     single_objectdata_action_users(bmain, scene, view_layer, v3d, flag);
   }
 
   BKE_main_id_newptr_and_tag_clear(bmain);
 
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
 
   if (update_deps) {
     DEG_relations_tag_update(bmain);
@@ -2919,10 +2918,10 @@ static wmOperatorStatus make_single_user_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus make_single_user_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus make_single_user_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   return WM_operator_props_popup_confirm_ex(
-      C, op, event, IFACE_("Make Selected Objects Single-User"), IFACE_("Make Single"));
+      &C, &op, event, IFACE_("Make Selected Objects Single-User"), IFACE_("Make Single"));
 }
 
 void OBJECT_OT_make_single_user(wmOperatorType *ot)
@@ -2996,17 +2995,17 @@ std::string drop_named_material_tooltip(bContext *C, const char *name, const int
       fmt::runtime(TIP_("Drop {} on {} (slot {})")), name, ob->id.name + 2, mat_slot);
 }
 
-static wmOperatorStatus drop_named_material_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus drop_named_material_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   int mat_slot = 0;
-  Object *ob = ED_view3d_give_material_slot_under_cursor(C, event->mval, &mat_slot);
+  Object *ob = ED_view3d_give_material_slot_under_cursor(&C, event->mval, &mat_slot);
   mat_slot = max_ii(mat_slot, 1);
 
   Material *ma = (Material *)WM_operator_properties_id_lookup_from_name_or_session_uid(
-      bmain, op->ptr, ID_MA);
+      bmain, op.ptr, ID_MA);
 
   if (ob == nullptr || ma == nullptr) {
     return OPERATOR_CANCELLED;
@@ -3020,13 +3019,13 @@ static wmOperatorStatus drop_named_material_invoke(bContext *C,
     assign_type = BKE_MAT_ASSIGN_OBJECT;
   }
 
-  BKE_object_material_assign(CTX_data_main(*C), ob, ma, mat_slot, assign_type);
+  BKE_object_material_assign(CTX_data_main(C), ob, ma, mat_slot, assign_type);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
-  WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_LINKS, ma);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_OB_SHADING, ob);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(&C, NC_MATERIAL | ND_SHADING_LINKS, ma);
 
   return OPERATOR_FINISHED;
 }
@@ -3091,40 +3090,40 @@ static bool check_geometry_node_group_sockets(wmOperator *op, const bNodeTree *t
   return true;
 }
 
-static wmOperatorStatus drop_geometry_nodes_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus drop_geometry_nodes_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
-  Object *ob = ED_view3d_give_object_under_cursor(C, event->mval);
+  Object *ob = ED_view3d_give_object_under_cursor(&C, event->mval);
   if (!ob) {
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
 
-  const uint32_t uid = RNA_int_get(op->ptr, "session_uid");
+  const uint32_t uid = RNA_int_get(op.ptr, "session_uid");
   bNodeTree *node_tree = (bNodeTree *)BKE_libblock_find_session_uid(bmain, ID_NT, uid);
   if (!node_tree) {
     return OPERATOR_CANCELLED;
   }
   if (node_tree->type != NTREE_GEOMETRY) {
-    BKE_report(op->reports, RPT_ERROR, "Node group must be a geometry node tree");
+    BKE_report(op.reports, RPT_ERROR, "Node group must be a geometry node tree");
     return OPERATOR_CANCELLED;
   }
 
-  if (!check_geometry_node_group_sockets(op, node_tree)) {
+  if (!check_geometry_node_group_sockets(&op, node_tree)) {
     return OPERATOR_CANCELLED;
   }
 
   NodesModifierData *nmd = (NodesModifierData *)modifier_add(
-      op->reports, bmain, scene, ob, node_tree->id.name + 2, eModifierType_Nodes);
+      op.reports, bmain, scene, ob, node_tree->id.name + 2, eModifierType_Nodes);
   if (!nmd) {
-    BKE_report(op->reports, RPT_ERROR, "Could not add geometry nodes modifier");
+    BKE_report(op.reports, RPT_ERROR, "Could not add geometry nodes modifier");
     return OPERATOR_CANCELLED;
   }
 
-  if (!RNA_boolean_get(op->ptr, "show_datablock_in_modifier")) {
+  if (!RNA_boolean_get(op.ptr, "show_datablock_in_modifier")) {
     nmd->flag |= NODES_MODIFIER_HIDE_DATABLOCK_SELECTOR;
   }
   SET_FLAG_FROM_TEST(nmd->flag,
@@ -3138,7 +3137,7 @@ static wmOperatorStatus drop_geometry_nodes_invoke(bContext *C,
   MOD_nodes_update_interface(ob, nmd);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3176,15 +3175,15 @@ void OBJECT_OT_drop_geometry_nodes(wmOperatorType *ot)
 /** \name Unlink Object Operator
  * \{ */
 
-static wmOperatorStatus object_unlink_data_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_unlink_data_exec(bContext &C, wmOperator &op)
 {
   ID *id;
   PropertyPointerRNA pprop;
 
-  ui::context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
+  ui::context_active_but_prop_get_templateID(&C, &pprop.ptr, &pprop.prop);
 
   if (pprop.prop == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Incorrect context for running object data unlink");
+    BKE_report(op.reports, RPT_ERROR, "Incorrect context for running object data unlink");
     return OPERATOR_CANCELLED;
   }
 
@@ -3200,13 +3199,13 @@ static wmOperatorStatus object_unlink_data_exec(bContext *C, wmOperator *op)
         ob->data = nullptr;
       }
       else {
-        BKE_report(op->reports, RPT_ERROR, "Cannot unlink this object data");
+        BKE_report(op.reports, RPT_ERROR, "Cannot unlink this object data");
         return OPERATOR_CANCELLED;
       }
     }
   }
 
-  RNA_property_update(C, &pprop.ptr, pprop.prop);
+  RNA_property_update(&C, &pprop.ptr, pprop.prop);
 
   return OPERATOR_FINISHED;
 }

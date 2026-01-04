@@ -94,9 +94,9 @@ struct SnapTarget {
 };
 
 /* Check if the operator can be run from the current context */
-static bool change_frame_poll(bContext *C)
+static bool change_frame_poll(bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
   /* XXX temp? prevent changes during render */
   if (G.is_rendering) {
@@ -111,12 +111,12 @@ static bool change_frame_poll(bContext *C)
       return true;
     }
     if (area->spacetype == SPACE_SEQ) {
-      if (!CTX_data_sequencer_scene(*C)) {
+      if (!CTX_data_sequencer_scene(C)) {
         return false;
       }
       /* Check the region type so tools (which are shared between preview/strip view)
        * don't conflict with actions which can have the same key bound (2D cursor for example). */
-      const ARegion *region = CTX_wm_region(*C);
+      const ARegion *region = CTX_wm_region(C);
       if (region && region->regiontype == RGN_TYPE_WINDOW) {
         return true;
       }
@@ -130,7 +130,7 @@ static bool change_frame_poll(bContext *C)
     }
   }
 
-  CTX_wm_operator_poll_msg_set(C, "Expected an animation area to be active");
+  CTX_wm_operator_poll_msg_set(&C, "Expected an animation area to be active");
   return false;
 }
 
@@ -582,9 +582,9 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
 /* ---- */
 
 /* Non-modal callback for running operator without user input */
-static wmOperatorStatus change_frame_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus change_frame_exec(bContext &C, wmOperator &op)
 {
-  change_frame_apply(C, op, true);
+  change_frame_apply(&C, &op, true);
 
   return OPERATOR_FINISHED;
 }
@@ -670,17 +670,17 @@ static bool sequencer_is_mouse_over_handle(const bContext *C, const wmEvent *eve
 }
 
 /* Modal Operator init */
-static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus change_frame_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
   FrameChangeModalData *op_data = MEM_new<FrameChangeModalData>(__func__);
-  op->customdata = op_data;
+  op.customdata = op_data;
 
   /* This check is done in case scrubbing and strip tweaking in the sequencer are bound to the same
    * event (e.g. RCS keymap where both are activated on left mouse press). Tweaking should take
    * precedence. */
-  if (RNA_boolean_get(op->ptr, "pass_through_on_strip_handles") && CTX_wm_space_seq(*C) &&
-      sequencer_is_mouse_over_handle(C, event))
+  if (RNA_boolean_get(op.ptr, "pass_through_on_strip_handles") && CTX_wm_space_seq(C) &&
+      sequencer_is_mouse_over_handle(&C, event))
   {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
@@ -689,25 +689,25 @@ static wmOperatorStatus change_frame_invoke(bContext *C, wmOperator *op, const w
    * as user could click on a single frame (jump to frame) as well as
    * click-dragging over a range (modal scrubbing).
    */
-  RNA_float_set(op->ptr, "frame", frame_from_event(C, event));
+  RNA_float_set(op.ptr, "frame", frame_from_event(&C, event));
 
-  if (use_playhead_snapping(C)) {
-    RNA_boolean_set(op->ptr, "snap", true);
+  if (use_playhead_snapping(&C)) {
+    RNA_boolean_set(op.ptr, "snap", true);
   }
 
   screen->scrubbing = true;
 
-  if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
-    SpaceSeq *sseq = CTX_wm_space_seq(*C);
+  if (RNA_boolean_get(op.ptr, "seq_solo_preview")) {
+    SpaceSeq *sseq = CTX_wm_space_seq(C);
     if (sseq) {
-      change_frame_seq_preview_begin(C, event, sseq);
+      change_frame_seq_preview_begin(&C, event, sseq);
     }
   }
 
-  change_frame_apply(C, op, true);
+  change_frame_apply(&C, &op, true);
 
   /* add temp handler */
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -726,26 +726,26 @@ static bool need_extra_redraw_after_scrubbing_ends(bContext *C)
   return false;
 }
 
-static void change_frame_cancel(bContext *C, wmOperator *op)
+static void change_frame_cancel(bContext &C, wmOperator &op)
 {
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
   screen->scrubbing = false;
 
-  if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
-    SpaceSeq *sseq = CTX_wm_space_seq(*C);
+  if (RNA_boolean_get(op.ptr, "seq_solo_preview")) {
+    SpaceSeq *sseq = CTX_wm_space_seq(C);
     if (sseq != nullptr) {
       change_frame_seq_preview_end(sseq);
     }
   }
 
-  if (need_extra_redraw_after_scrubbing_ends(C)) {
-    Scene *scene = CTX_data_scene(*C);
-    WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+  if (need_extra_redraw_after_scrubbing_ends(&C)) {
+    Scene *scene = CTX_data_scene(C);
+    WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
   }
 }
 
 /* Modal event handling of frame changing */
-static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus change_frame_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
   /* execute the events */
@@ -755,8 +755,8 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
       break;
 
     case MOUSEMOVE:
-      RNA_float_set(op->ptr, "frame", frame_from_event(C, event));
-      change_frame_apply(C, op, false);
+      RNA_float_set(op.ptr, "frame", frame_from_event(&C, event));
+      change_frame_apply(&C, &op, false);
       break;
 
     case LEFTMOUSE:
@@ -771,20 +771,20 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
     case EVT_LEFTCTRLKEY:
     case EVT_RIGHTCTRLKEY:
       /* Use Ctrl key to invert snapping in sequencer. */
-      if (use_playhead_snapping(C)) {
+      if (use_playhead_snapping(&C)) {
         if (event->val == KM_RELEASE) {
-          RNA_boolean_set(op->ptr, "snap", true);
+          RNA_boolean_set(op.ptr, "snap", true);
         }
         else if (event->val == KM_PRESS) {
-          RNA_boolean_set(op->ptr, "snap", false);
+          RNA_boolean_set(op.ptr, "snap", false);
         }
       }
       else {
         if (event->val == KM_RELEASE) {
-          RNA_boolean_set(op->ptr, "snap", false);
+          RNA_boolean_set(op.ptr, "snap", false);
         }
         else if (event->val == KM_PRESS) {
-          RNA_boolean_set(op->ptr, "snap", true);
+          RNA_boolean_set(op.ptr, "snap", true);
         }
       }
       break;
@@ -793,35 +793,35 @@ static wmOperatorStatus change_frame_modal(bContext *C, wmOperator *op, const wm
     }
   }
 
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(&C);
   status.item(IFACE_("Toggle Snapping"), ICON_EVENT_CTRL);
 
   if (ret != OPERATOR_RUNNING_MODAL) {
-    ED_workspace_status_text(C, nullptr);
-    bScreen *screen = CTX_wm_screen(*C);
+    ED_workspace_status_text(&C, nullptr);
+    bScreen *screen = CTX_wm_screen(C);
     screen->scrubbing = false;
 
-    FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op->customdata);
+    FrameChangeModalData *op_data = static_cast<FrameChangeModalData *>(op.customdata);
     MEM_delete(op_data);
-    op->customdata = nullptr;
+    op.customdata = nullptr;
 
-    if (RNA_boolean_get(op->ptr, "seq_solo_preview")) {
-      SpaceSeq *sseq = CTX_wm_space_seq(*C);
+    if (RNA_boolean_get(op.ptr, "seq_solo_preview")) {
+      SpaceSeq *sseq = CTX_wm_space_seq(C);
       if (sseq != nullptr) {
         change_frame_seq_preview_end(sseq);
       }
     }
 
-    if (need_extra_redraw_after_scrubbing_ends(C)) {
-      Scene *scene = CTX_data_scene(*C);
-      WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+    if (need_extra_redraw_after_scrubbing_ends(&C)) {
+      Scene *scene = CTX_data_scene(C);
+      WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
     }
   }
 
   return ret;
 }
 
-static std::string change_frame_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
+static std::string change_frame_get_name(wmOperatorType & /*ot*/, PointerRNA *ptr)
 {
   if (RNA_boolean_get(ptr, "seq_solo_preview")) {
     return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Set Frame (Strip Preview)");
@@ -870,9 +870,9 @@ static void ANIM_OT_change_frame(wmOperatorType *ot)
 /** \name Start/End Frame Operators
  * \{ */
 
-static bool anim_set_end_frames_poll(bContext *C)
+static bool anim_set_end_frames_poll(bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
   /* XXX temp? prevent changes during render */
   if (G.is_rendering) {
@@ -888,14 +888,14 @@ static bool anim_set_end_frames_poll(bContext *C)
     }
   }
 
-  CTX_wm_operator_poll_msg_set(C, "Expected an animation area to be active");
+  CTX_wm_operator_poll_msg_set(&C, "Expected an animation area to be active");
   return false;
 }
 
-static wmOperatorStatus anim_set_sfra_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus anim_set_sfra_exec(bContext &C, wmOperator &op)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   int frame;
 
   if (scene == nullptr) {
@@ -913,7 +913,7 @@ static wmOperatorStatus anim_set_sfra_exec(bContext *C, wmOperator *op)
     int frame_clamped = frame;
     CLAMP(frame_clamped, MINFRAME, MAXFRAME);
     if (frame_clamped != frame) {
-      BKE_report(op->reports, RPT_WARNING, "Start frame clamped to valid rendering range");
+      BKE_report(op.reports, RPT_WARNING, "Start frame clamped to valid rendering range");
     }
     frame = frame_clamped;
     scene->r.sfra = frame;
@@ -928,7 +928,7 @@ static wmOperatorStatus anim_set_sfra_exec(bContext *C, wmOperator *op)
     }
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -948,10 +948,10 @@ static void ANIM_OT_start_frame_set(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus anim_set_efra_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus anim_set_efra_exec(bContext &C, wmOperator &op)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   int frame;
 
   if (scene == nullptr) {
@@ -969,7 +969,7 @@ static wmOperatorStatus anim_set_efra_exec(bContext *C, wmOperator *op)
     int frame_clamped = frame;
     CLAMP(frame_clamped, MINFRAME, MAXFRAME);
     if (frame_clamped != frame) {
-      BKE_report(op->reports, RPT_WARNING, "End frame clamped to valid rendering range");
+      BKE_report(op.reports, RPT_WARNING, "End frame clamped to valid rendering range");
     }
     frame = frame_clamped;
     scene->r.efra = frame;
@@ -984,7 +984,7 @@ static wmOperatorStatus anim_set_efra_exec(bContext *C, wmOperator *op)
     }
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1010,19 +1010,19 @@ static void ANIM_OT_end_frame_set(wmOperatorType *ot)
 /** \name Set Preview Range Operator
  * \{ */
 
-static wmOperatorStatus previewrange_define_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus previewrange_define_exec(bContext &C, wmOperator &op)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   float sfra, efra;
   rcti rect;
 
   /* get min/max values from box select rect (already in region coordinates, not screen) */
-  WM_operator_properties_border_to_rcti(op, &rect);
+  WM_operator_properties_border_to_rcti(&op, &rect);
 
   /* convert min/max values to frames (i.e. region to 'tot' rect) */
   sfra = blender::ui::view2d_region_to_view_x(&region->v2d, rect.xmin);
@@ -1041,7 +1041,7 @@ static wmOperatorStatus previewrange_define_exec(bContext *C, wmOperator *op)
   scene->r.pefra = round_fl_to_int(efra);
 
   /* send notifiers */
-  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1078,11 +1078,11 @@ static void ANIM_OT_previewrange_set(wmOperatorType *ot)
 /** \name Clear Preview Range Operator
  * \{ */
 
-static wmOperatorStatus previewrange_clear_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus previewrange_clear_exec(bContext &C, wmOperator & /*op*/)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
-  ScrArea *curarea = CTX_wm_area(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  ScrArea *curarea = CTX_wm_area(C);
 
   /* sanity checks */
   if (ELEM(nullptr, scene, curarea)) {
@@ -1097,7 +1097,7 @@ static wmOperatorStatus previewrange_clear_exec(bContext *C, wmOperator * /*op*/
   ED_area_tag_redraw(curarea);
 
   /* send notifiers */
-  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1125,10 +1125,10 @@ static void ANIM_OT_previewrange_clear(wmOperatorType *ot)
  * \{ */
 
 #ifndef NDEBUG
-static wmOperatorStatus debug_channel_list_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus debug_channel_list_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1174,14 +1174,14 @@ static void ANIM_OT_debug_channel_list(wmOperatorType *ot)
 /** \name Frame Scene/Preview Range Operator
  * \{ */
 
-static wmOperatorStatus scene_range_frame_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus scene_range_frame_exec(bContext &C, wmOperator & /*op*/)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  const Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  const Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   BLI_assert(region);
 
   View2D &v2d = region->v2d;
@@ -1190,8 +1190,8 @@ static wmOperatorStatus scene_range_frame_exec(bContext *C, wmOperator * /*op*/)
 
   v2d.cur = ANIM_frame_range_view2d_add_xmargin(v2d, v2d.cur);
 
-  blender::ui::view2d_sync(CTX_wm_screen(*C), CTX_wm_area(*C), &v2d, V2D_LOCK_COPY);
-  ED_area_tag_redraw(CTX_wm_area(*C));
+  blender::ui::view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), &v2d, V2D_LOCK_COPY);
+  ED_area_tag_redraw(CTX_wm_area(C));
 
   return OPERATOR_FINISHED;
 }
@@ -1216,28 +1216,28 @@ static void ANIM_OT_scene_range_frame(wmOperatorType *ot)
 /** \name Conversion
  * \{ */
 
-static bool merge_actions_selection_poll(bContext *C)
+static bool merge_actions_selection_poll(bContext &C)
 {
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   if (!object) {
-    CTX_wm_operator_poll_msg_set(C, "No active object");
+    CTX_wm_operator_poll_msg_set(&C, "No active object");
     return false;
   }
   blender::animrig::Action *action = blender::animrig::get_action(object->id);
   if (!action) {
-    CTX_wm_operator_poll_msg_set(C, "Active object has no action");
+    CTX_wm_operator_poll_msg_set(&C, "Active object has no action");
     return false;
   }
-  if (!BKE_id_is_editable(CTX_data_main(*C), &action->id)) {
+  if (!BKE_id_is_editable(CTX_data_main(C), &action->id)) {
     return false;
   }
   return true;
 }
 
-static wmOperatorStatus merge_actions_selection_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus merge_actions_selection_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::animrig;
-  Object *active_object = CTX_data_active_object(*C);
+  Object *active_object = CTX_data_active_object(C);
   /* Those cases are caught by the poll. */
   BLI_assert(active_object != nullptr);
   BLI_assert(active_object->adt->action != nullptr);
@@ -1245,11 +1245,11 @@ static wmOperatorStatus merge_actions_selection_exec(bContext *C, wmOperator *op
   Action &active_action = active_object->adt->action->wrap();
 
   blender::Vector<PointerRNA> selection;
-  if (!CTX_data_selected_objects(*C, &selection)) {
+  if (!CTX_data_selected_objects(C, &selection)) {
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   int moved_slots_count = 0;
   for (const PointerRNA &ptr : selection) {
     blender::Vector<ID *> related_ids = find_related_ids(*bmain, *ptr.owner_id);
@@ -1263,7 +1263,7 @@ static wmOperatorStatus merge_actions_selection_exec(bContext *C, wmOperator *op
         continue;
       }
       if (!BKE_id_is_editable(bmain, &action->id)) {
-        BKE_reportf(op->reports, RPT_WARNING, "The action %s is not editable", action->id.name);
+        BKE_reportf(op.reports, RPT_WARNING, "The action %s is not editable", action->id.name);
         continue;
       }
       AnimData *id_anim_data = BKE_animdata_ensure_id(related_id);
@@ -1281,13 +1281,13 @@ static wmOperatorStatus merge_actions_selection_exec(bContext *C, wmOperator *op
   }
 
   if (moved_slots_count > 0) {
-    BKE_reportf(op->reports,
+    BKE_reportf(op.reports,
                 RPT_INFO,
                 "Moved %i slot(s) into the action of the active object",
                 moved_slots_count);
   }
   else {
-    BKE_reportf(op->reports,
+    BKE_reportf(op.reports,
                 RPT_ERROR,
                 "Failed to merge any animation. Note that NLA strips cannot be merged");
   }

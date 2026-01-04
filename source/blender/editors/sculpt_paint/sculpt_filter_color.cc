@@ -430,15 +430,15 @@ static void sculpt_color_filter_end(bContext *C, Object &ob)
   flush_update_done(C, ob, UpdateType::Color);
 }
 
-static wmOperatorStatus sculpt_color_filter_modal(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus sculpt_color_filter_modal(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
-  Object &ob = *CTX_data_active_object(*C);
+  Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
 
   if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
-    sculpt_color_filter_end(C, ob);
+    sculpt_color_filter_end(&C, ob);
     return OPERATOR_FINISHED;
   }
 
@@ -448,9 +448,9 @@ static wmOperatorStatus sculpt_color_filter_modal(bContext *C,
 
   const float len = (event->prev_press_xy[0] - event->xy[0]) * 0.001f;
   float filter_strength = ss.filter_cache->start_filter_strength * -len;
-  RNA_float_set(op->ptr, "strength", filter_strength);
+  RNA_float_set(op.ptr, "strength", filter_strength);
 
-  sculpt_color_filter_apply(C, op, ob);
+  sculpt_color_filter_apply(&C, &op, ob);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -514,43 +514,43 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   return OPERATOR_PASS_THROUGH;
 }
 
-static wmOperatorStatus sculpt_color_filter_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_color_filter_exec(bContext &C, wmOperator &op)
 {
-  Object &ob = *CTX_data_active_object(*C);
+  Object &ob = *CTX_data_active_object(C);
 
-  if (sculpt_color_filter_init(C, op) == OPERATOR_CANCELLED) {
+  if (sculpt_color_filter_init(&C, &op) == OPERATOR_CANCELLED) {
     return OPERATOR_CANCELLED;
   }
 
-  sculpt_color_filter_apply(C, op, ob);
-  sculpt_color_filter_end(C, ob);
+  sculpt_color_filter_apply(&C, &op, ob);
+  sculpt_color_filter_end(&C, ob);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus sculpt_color_filter_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus sculpt_color_filter_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
-  Object &ob = *CTX_data_active_object(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Object &ob = *CTX_data_active_object(C);
+  View3D *v3d = CTX_wm_view3d(C);
   if (v3d && v3d->shading.type == OB_SOLID) {
     v3d->shading.color_type = V3D_SHADING_VERTEX_COLOR;
   }
 
-  RNA_int_set_array(op->ptr, "start_mouse", event->mval);
+  RNA_int_set_array(op.ptr, "start_mouse", event->mval);
 
-  if (sculpt_color_filter_init(C, op) == OPERATOR_CANCELLED) {
+  if (sculpt_color_filter_init(&C, &op) == OPERATOR_CANCELLED) {
     return OPERATOR_CANCELLED;
   }
 
-  ED_paint_brush_type_update_sticky_shading_color(C, &ob);
+  ED_paint_brush_type_update_sticky_shading_color(&C, &ob);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
-static std::string sculpt_color_filter_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
+static std::string sculpt_color_filter_get_name(wmOperatorType & /*ot*/, PointerRNA *ptr)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, "type");
   const int value = RNA_property_enum_get(ptr, prop);
@@ -560,14 +560,14 @@ static std::string sculpt_color_filter_get_name(wmOperatorType * /*ot*/, Pointer
   return ui_name;
 }
 
-static void sculpt_color_filter_ui(bContext * /*C*/, wmOperator *op)
+static void sculpt_color_filter_ui(bContext & /*C*/, wmOperator &op)
 {
-  ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op.layout;
 
-  layout.prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  if (FilterType(RNA_enum_get(op->ptr, "type")) == FilterType::Fill) {
-    layout.prop(op->ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (FilterType(RNA_enum_get(op.ptr, "type")) == FilterType::Fill) {
+    layout.prop(op.ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 

@@ -370,17 +370,17 @@ static void deselect_action_keys(bAnimContext *ac, short test, eEditKeyframes_Se
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_deselectall_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_deselectall_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* 'standard' behavior - check if selected, then apply relevant selection */
-  const int action = RNA_enum_get(op->ptr, "action");
+  const int action = RNA_enum_get(op.ptr, "action");
   switch (action) {
     case SEL_TOGGLE:
       deselect_action_keys(&ac, 1, SELECT_ADD);
@@ -400,9 +400,9 @@ static wmOperatorStatus actkeys_deselectall_exec(bContext *C, wmOperator *op)
   }
 
   /* set notifier that keyframe selection have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
   if (ANIM_animdata_can_have_greasepencil(eAnimCont_Types(eAnimCont_Types(ac.datatype)))) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -600,16 +600,16 @@ static void box_select_action(bAnimContext *ac,
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_box_select_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus actkeys_box_select_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  bool tweak = RNA_boolean_get(op->ptr, "tweak");
+  bool tweak = RNA_boolean_get(op.ptr, "tweak");
   if (tweak) {
     int mval[2];
     WM_event_drag_start_mval(event, ac.region, mval);
@@ -621,28 +621,28 @@ static wmOperatorStatus actkeys_box_select_invoke(bContext *C,
   return WM_gesture_box_invoke(C, op, event);
 }
 
-static wmOperatorStatus actkeys_box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_box_select_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   rcti rect;
   short mode = 0;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op.ptr, "mode"));
   const eEditKeyframes_Select selectmode = (sel_op != SEL_OP_SUB) ? SELECT_ADD : SELECT_SUBTRACT;
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     deselect_action_keys(&ac, 1, SELECT_SUBTRACT);
   }
 
   /* get settings from operator */
-  WM_operator_properties_border_to_rcti(op, &rect);
+  WM_operator_properties_border_to_rcti(&op, &rect);
 
   /* selection 'mode' depends on whether box_select region only matters on one axis */
-  if (RNA_boolean_get(op->ptr, "axis_range")) {
+  if (RNA_boolean_get(op.ptr, "axis_range")) {
     /* Mode depends on which axis of the range is larger to determine which axis to use:
      * - checking this in region-space is fine,
      *   as it's fundamentally still going to be a different rect size.
@@ -665,9 +665,9 @@ static wmOperatorStatus actkeys_box_select_exec(bContext *C, wmOperator *op)
   box_select_action(&ac, rect, mode, selectmode);
 
   /* set notifier that keyframe selection have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
   if (ANIM_animdata_can_have_greasepencil(eAnimCont_Types(ac.datatype))) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -900,7 +900,7 @@ static void region_select_action_keys(bAnimContext *ac,
 
 /* ----------------------------------- */
 
-static wmOperatorStatus actkeys_lassoselect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_lassoselect_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
@@ -909,17 +909,17 @@ static wmOperatorStatus actkeys_lassoselect_exec(bContext *C, wmOperator *op)
   rctf rect_fl;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   data_lasso.rectf_view = &rect_fl;
-  data_lasso.mcoords = WM_gesture_lasso_path_to_array(C, op);
+  data_lasso.mcoords = WM_gesture_lasso_path_to_array(&C, &op);
   if (data_lasso.mcoords.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op.ptr, "mode"));
   const eEditKeyframes_Select selectmode = (sel_op != SEL_OP_SUB) ? SELECT_ADD : SELECT_SUBTRACT;
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     deselect_action_keys(&ac, 1, SELECT_SUBTRACT);
@@ -933,9 +933,9 @@ static wmOperatorStatus actkeys_lassoselect_exec(bContext *C, wmOperator *op)
   region_select_action_keys(&ac, &rect_fl, BEZT_OK_CHANNEL_LASSO, selectmode, &data_lasso);
 
   /* send notifier that keyframe selection has changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
   if (ANIM_animdata_can_have_greasepencil(eAnimCont_Types(ac.datatype))) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -964,25 +964,25 @@ void ACTION_OT_select_lasso(wmOperatorType *ot)
 
 /* ------------------- */
 
-static wmOperatorStatus action_circle_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus action_circle_select_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   KeyframeEdit_CircleData data = {nullptr};
   rctf rect_fl;
 
-  float x = RNA_int_get(op->ptr, "x");
-  float y = RNA_int_get(op->ptr, "y");
-  float radius = RNA_int_get(op->ptr, "radius");
+  float x = RNA_int_get(op.ptr, "x");
+  float y = RNA_int_get(op.ptr, "y");
+  float radius = RNA_int_get(op.ptr, "radius");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   const eSelectOp sel_op = ED_select_op_modal(
-      eSelectOp(RNA_enum_get(op->ptr, "mode")),
-      WM_gesture_is_modal_first(static_cast<wmGesture *>(op->customdata)));
+      eSelectOp(RNA_enum_get(op.ptr, "mode")),
+      WM_gesture_is_modal_first(static_cast<wmGesture *>(op.customdata)));
   const eEditKeyframes_Select selectmode = (sel_op != SEL_OP_SUB) ? SELECT_ADD : SELECT_SUBTRACT;
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     deselect_action_keys(&ac, 0, SELECT_SUBTRACT);
@@ -1002,9 +1002,9 @@ static wmOperatorStatus action_circle_select_exec(bContext *C, wmOperator *op)
   region_select_action_keys(&ac, &rect_fl, BEZT_OK_CHANNEL_CIRCLE, selectmode, &data);
 
   /* send notifier that keyframe selection has changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
   if (ANIM_animdata_can_have_greasepencil(eAnimCont_Types(ac.datatype))) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -1238,18 +1238,18 @@ static void columnselect_action_keys(bAnimContext *ac, short mode)
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_columnselect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_columnselect_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* action to take depends on the mode */
-  mode = RNA_enum_get(op->ptr, "mode");
+  mode = RNA_enum_get(op.ptr, "mode");
 
   if (mode == ACTKEYS_COLUMNSEL_MARKERS_BETWEEN) {
     markers_selectkeys_between(&ac);
@@ -1259,9 +1259,9 @@ static wmOperatorStatus actkeys_columnselect_exec(bContext *C, wmOperator *op)
   }
 
   /* set notifier that keyframe selection have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
   if (ANIM_animdata_can_have_greasepencil(eAnimCont_Types(ac.datatype))) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -1291,7 +1291,7 @@ void ACTION_OT_select_column(wmOperatorType *ot)
 /** \name Select Linked Operator
  * \{ */
 
-static wmOperatorStatus actkeys_select_linked_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus actkeys_select_linked_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
@@ -1302,7 +1302,7 @@ static wmOperatorStatus actkeys_select_linked_exec(bContext *C, wmOperator * /*o
   KeyframeEditFunc sel_cb = ANIM_editkeyframes_select(SELECT_ADD);
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1325,9 +1325,9 @@ static wmOperatorStatus actkeys_select_linked_exec(bContext *C, wmOperator * /*o
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that keyframe selection has changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
   if (ANIM_animdata_can_have_greasepencil(eAnimCont_Types(ac.datatype))) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -1401,12 +1401,12 @@ static void select_moreless_action_keys(bAnimContext *ac, short mode)
 
 /* ----------------- */
 
-static wmOperatorStatus actkeys_select_more_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus actkeys_select_more_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1414,9 +1414,9 @@ static wmOperatorStatus actkeys_select_more_exec(bContext *C, wmOperator * /*op*
   select_moreless_action_keys(&ac, SELMAP_MORE);
 
   /* set notifier that keyframe selection has changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
   if (ANIM_animdata_can_have_greasepencil(eAnimCont_Types(ac.datatype))) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -1438,12 +1438,12 @@ void ACTION_OT_select_more(wmOperatorType *ot)
 
 /* ----------------- */
 
-static wmOperatorStatus actkeys_select_less_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus actkeys_select_less_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1451,9 +1451,9 @@ static wmOperatorStatus actkeys_select_less_exec(bContext *C, wmOperator * /*op*
   select_moreless_action_keys(&ac, SELMAP_LESS);
 
   /* set notifier that keyframe selection has changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
   if (ANIM_animdata_can_have_greasepencil(eAnimCont_Types(ac.datatype))) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -1589,19 +1589,19 @@ static void actkeys_select_leftright(bAnimContext *ac,
 
 /* ----------------- */
 
-static wmOperatorStatus actkeys_select_leftright_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_select_leftright_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
-  short leftright = RNA_enum_get(op->ptr, "mode");
+  short leftright = RNA_enum_get(op.ptr, "mode");
   eEditKeyframes_Select selectmode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* select mode is either replace (deselect all, then add) or add/extend */
-  if (RNA_boolean_get(op->ptr, "extend")) {
+  if (RNA_boolean_get(op.ptr, "extend")) {
     selectmode = SELECT_INVERT;
   }
   else {
@@ -1617,21 +1617,21 @@ static wmOperatorStatus actkeys_select_leftright_exec(bContext *C, wmOperator *o
   actkeys_select_leftright(&ac, leftright, selectmode);
 
   /* set notifier that keyframe selection (and channels too) have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus actkeys_select_leftright_invoke(bContext *C,
-                                                        wmOperator *op,
+static wmOperatorStatus actkeys_select_leftright_invoke(bContext &C,
+                                                        wmOperator &op,
                                                         const wmEvent *event)
 {
   bAnimContext ac;
-  short leftright = RNA_enum_get(op->ptr, "mode");
+  short leftright = RNA_enum_get(op.ptr, "mode");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1645,10 +1645,10 @@ static wmOperatorStatus actkeys_select_leftright_invoke(bContext *C,
     /* determine which side of the current frame mouse is on */
     x = blender::ui::view2d_region_to_view_x(v2d, event->mval[0]);
     if (x < scene->r.cfra) {
-      RNA_enum_set(op->ptr, "mode", ACTKEYS_LRSEL_LEFT);
+      RNA_enum_set(op.ptr, "mode", ACTKEYS_LRSEL_LEFT);
     }
     else {
-      RNA_enum_set(op->ptr, "mode", ACTKEYS_LRSEL_RIGHT);
+      RNA_enum_set(op.ptr, "mode", ACTKEYS_LRSEL_RIGHT);
     }
   }
 
@@ -2047,13 +2047,13 @@ static wmOperatorStatus mouse_action_keys(bAnimContext *ac,
 }
 
 /* handle clicking */
-static wmOperatorStatus actkeys_clickselect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_clickselect_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   wmOperatorStatus ret_value;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2061,26 +2061,26 @@ static wmOperatorStatus actkeys_clickselect_exec(bContext *C, wmOperator *op)
   // region = ac.region; /* UNUSED. */
 
   /* select mode is either replace (deselect all, then add) or add/extend */
-  const eEditKeyframes_Select selectmode = RNA_boolean_get(op->ptr, "extend") ? SELECT_INVERT :
-                                                                                SELECT_REPLACE;
-  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
-  const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
+  const eEditKeyframes_Select selectmode = RNA_boolean_get(op.ptr, "extend") ? SELECT_INVERT :
+                                                                               SELECT_REPLACE;
+  const bool deselect_all = RNA_boolean_get(op.ptr, "deselect_all");
+  const bool wait_to_deselect_others = RNA_boolean_get(op.ptr, "wait_to_deselect_others");
   int mval[2];
 
   /* column selection */
-  const bool column = RNA_boolean_get(op->ptr, "column");
-  const bool channel = RNA_boolean_get(op->ptr, "channel");
+  const bool column = RNA_boolean_get(op.ptr, "column");
+  const bool channel = RNA_boolean_get(op.ptr, "channel");
 
-  mval[0] = RNA_int_get(op->ptr, "mouse_x");
-  mval[1] = RNA_int_get(op->ptr, "mouse_y");
+  mval[0] = RNA_int_get(op.ptr, "mouse_x");
+  mval[1] = RNA_int_get(op.ptr, "mouse_y");
 
   /* Select keyframe(s) based upon mouse position. */
   ret_value = mouse_action_keys(
       &ac, mval, selectmode, deselect_all, column, channel, wait_to_deselect_others);
 
   /* set notifier that keyframe selection (and channels too) have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
 
   /* for tweak grab to work */
   return ret_value | OPERATOR_PASS_THROUGH;

@@ -62,9 +62,9 @@ static wmOperatorStatus viewpan_invoke_impl(bContext * /*C*/,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus viewpan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewpan_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_pan);
+  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_pan);
 }
 
 void VIEW3D_OT_view_pan(wmOperatorType *ot)

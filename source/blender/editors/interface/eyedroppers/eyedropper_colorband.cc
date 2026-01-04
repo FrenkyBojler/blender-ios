@@ -177,24 +177,24 @@ static void eyedropper_colorband_apply(bContext *C, wmOperator *op)
   }
 }
 
-static void eyedropper_colorband_cancel(bContext *C, wmOperator *op)
+static void eyedropper_colorband_cancel(bContext &C, wmOperator &op)
 {
-  EyedropperColorband *eye = static_cast<EyedropperColorband *>(op->customdata);
+  EyedropperColorband *eye = static_cast<EyedropperColorband *>(op.customdata);
   if (eye->is_set) {
     *eye->color_band = eye->init_color_band;
     if (eye->prop) {
-      RNA_property_update(C, &eye->ptr, eye->prop);
+      RNA_property_update(&C, &eye->ptr, eye->prop);
     }
   }
-  eyedropper_colorband_exit(C, op);
+  eyedropper_colorband_exit(&C, &op);
 }
 
 /* main modal status check */
-static wmOperatorStatus eyedropper_colorband_modal(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus eyedropper_colorband_modal(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
-  EyedropperColorband *eye = static_cast<EyedropperColorband *>(op->customdata);
+  EyedropperColorband *eye = static_cast<EyedropperColorband *>(op.customdata);
   /* handle modal keymap */
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
@@ -203,17 +203,17 @@ static wmOperatorStatus eyedropper_colorband_modal(bContext *C,
         return OPERATOR_CANCELLED;
       case EYE_MODAL_SAMPLE_CONFIRM: {
         const bool is_undo = eye->is_undo;
-        eyedropper_colorband_sample_segment(C, eye, event->xy);
-        eyedropper_colorband_apply(C, op);
-        eyedropper_colorband_exit(C, op);
+        eyedropper_colorband_sample_segment(&C, eye, event->xy);
+        eyedropper_colorband_apply(&C, &op);
+        eyedropper_colorband_exit(&C, &op);
         /* Could support finished & undo-skip. */
         return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
       }
       case EYE_MODAL_SAMPLE_BEGIN:
         /* Enable accumulate and make first sample. */
         eye->sample_start = true;
-        eyedropper_colorband_sample_point(C, eye, event->xy);
-        eyedropper_colorband_apply(C, op);
+        eyedropper_colorband_sample_point(&C, eye, event->xy);
+        eyedropper_colorband_apply(&C, &op);
         copy_v2_v2_int(eye->event_xy_last, event->xy);
         break;
       case EYE_MODAL_SAMPLE_RESET:
@@ -222,18 +222,18 @@ static wmOperatorStatus eyedropper_colorband_modal(bContext *C,
   }
   else if (event->type == MOUSEMOVE) {
     if (eye->sample_start) {
-      eyedropper_colorband_sample_segment(C, eye, event->xy);
-      eyedropper_colorband_apply(C, op);
+      eyedropper_colorband_sample_segment(&C, eye, event->xy);
+      eyedropper_colorband_apply(&C, &op);
     }
   }
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus eyedropper_colorband_point_modal(bContext *C,
-                                                         wmOperator *op,
+static wmOperatorStatus eyedropper_colorband_point_modal(bContext &C,
+                                                         wmOperator &op,
                                                          const wmEvent *event)
 {
-  EyedropperColorband *eye = static_cast<EyedropperColorband *>(op->customdata);
+  EyedropperColorband *eye = static_cast<EyedropperColorband *>(op.customdata);
   /* handle modal keymap */
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
@@ -241,27 +241,27 @@ static wmOperatorStatus eyedropper_colorband_point_modal(bContext *C,
         eyedropper_colorband_cancel(C, op);
         return OPERATOR_CANCELLED;
       case EYE_MODAL_POINT_CONFIRM:
-        eyedropper_colorband_apply(C, op);
-        eyedropper_colorband_exit(C, op);
+        eyedropper_colorband_apply(&C, &op);
+        eyedropper_colorband_exit(&C, &op);
         return OPERATOR_FINISHED;
       case EYE_MODAL_POINT_REMOVE_LAST:
         if (!eye->color_buffer.is_empty()) {
           eye->color_buffer.pop_last();
-          eyedropper_colorband_apply(C, op);
+          eyedropper_colorband_apply(&C, &op);
         }
         break;
       case EYE_MODAL_POINT_SAMPLE:
-        eyedropper_colorband_sample_point(C, eye, event->xy);
-        eyedropper_colorband_apply(C, op);
+        eyedropper_colorband_sample_point(&C, eye, event->xy);
+        eyedropper_colorband_apply(&C, &op);
         if (eye->color_buffer.size() == MAXCOLORBAND) {
-          eyedropper_colorband_exit(C, op);
+          eyedropper_colorband_exit(&C, &op);
           return OPERATOR_FINISHED;
         }
         break;
       case EYE_MODAL_SAMPLE_RESET:
         *eye->color_band = eye->init_color_band;
         if (eye->prop) {
-          RNA_property_update(C, &eye->ptr, eye->prop);
+          RNA_property_update(&C, &eye->ptr, eye->prop);
         }
         eye->color_buffer.clear();
         break;
@@ -271,19 +271,19 @@ static wmOperatorStatus eyedropper_colorband_point_modal(bContext *C,
 }
 
 /* Modal Operator init */
-static wmOperatorStatus eyedropper_colorband_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus eyedropper_colorband_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent * /*event*/)
 {
   /* init */
-  if (eyedropper_colorband_init(C, op)) {
-    wmWindow *win = CTX_wm_window(*C);
+  if (eyedropper_colorband_init(&C, &op)) {
+    wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    context_active_but_clear(C, win, CTX_wm_region(*C));
+    context_active_but_clear(&C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -291,28 +291,28 @@ static wmOperatorStatus eyedropper_colorband_invoke(bContext *C,
 }
 
 /* Repeat operator */
-static wmOperatorStatus eyedropper_colorband_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus eyedropper_colorband_exec(bContext &C, wmOperator &op)
 {
   /* init */
-  if (eyedropper_colorband_init(C, op)) {
+  if (eyedropper_colorband_init(&C, &op)) {
 
     /* do something */
 
     /* cleanup */
-    eyedropper_colorband_exit(C, op);
+    eyedropper_colorband_exit(&C, &op);
 
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
 }
 
-static bool eyedropper_colorband_poll(bContext *C)
+static bool eyedropper_colorband_poll(bContext &C)
 {
-  Button *but = context_active_but_get(C);
+  Button *but = context_active_but_get(&C);
   if (but && but->type == ButtonType::ColorBand) {
     return true;
   }
-  const PointerRNA ptr = CTX_data_pointer_get_type(*C, "color_ramp", &RNA_ColorRamp);
+  const PointerRNA ptr = CTX_data_pointer_get_type(C, "color_ramp", &RNA_ColorRamp);
   if (ptr.data != nullptr) {
     return true;
   }

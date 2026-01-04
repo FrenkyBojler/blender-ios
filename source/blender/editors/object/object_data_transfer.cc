@@ -321,16 +321,16 @@ static const EnumPropertyItem *dt_mix_mode_itemf(bContext *C,
   return item;
 }
 
-static bool data_transfer_check(bContext * /*C*/, wmOperator *op)
+static bool data_transfer_check(bContext & /*C*/, wmOperator &op)
 {
-  const int layers_select_src = RNA_enum_get(op->ptr, "layers_select_src");
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "layers_select_dst");
-  const int layers_select_dst = RNA_property_enum_get(op->ptr, prop);
+  const int layers_select_src = RNA_enum_get(op.ptr, "layers_select_src");
+  PropertyRNA *prop = RNA_struct_find_property(op.ptr, "layers_select_dst");
+  const int layers_select_dst = RNA_property_enum_get(op.ptr, prop);
 
   /* TODO: check for invalid layers_src select modes too! */
 
   if ((layers_select_src != DT_LAYERS_ACTIVE_SRC) && (layers_select_dst == DT_LAYERS_ACTIVE_DST)) {
-    RNA_property_enum_set(op->ptr, prop, DT_LAYERS_NAME_DST);
+    RNA_property_enum_set(op.ptr, prop, DT_LAYERS_NAME_DST);
     return true;
   }
 
@@ -406,42 +406,42 @@ static bool data_transfer_exec_is_object_valid(wmOperator *op,
   return false;
 }
 
-static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus data_transfer_exec(bContext &C, wmOperator &op)
 {
-  Object *ob_src = context_active_object(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Object *ob_src = context_active_object(&C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   Vector<PointerRNA> ctx_objects;
 
   bool changed = false;
 
-  const bool is_frozen = RNA_boolean_get(op->ptr, "use_freeze");
+  const bool is_frozen = RNA_boolean_get(op.ptr, "use_freeze");
 
-  const bool reverse_transfer = RNA_boolean_get(op->ptr, "use_reverse_transfer");
+  const bool reverse_transfer = RNA_boolean_get(op.ptr, "use_reverse_transfer");
 
-  const int data_type = RNA_enum_get(op->ptr, "data_type");
-  const bool use_create = RNA_boolean_get(op->ptr, "use_create");
+  const int data_type = RNA_enum_get(op.ptr, "data_type");
+  const bool use_create = RNA_boolean_get(op.ptr, "use_create");
 
-  const int map_vert_mode = RNA_enum_get(op->ptr, "vert_mapping");
-  const int map_edge_mode = RNA_enum_get(op->ptr, "edge_mapping");
-  const int map_loop_mode = RNA_enum_get(op->ptr, "loop_mapping");
-  const int map_poly_mode = RNA_enum_get(op->ptr, "poly_mapping");
+  const int map_vert_mode = RNA_enum_get(op.ptr, "vert_mapping");
+  const int map_edge_mode = RNA_enum_get(op.ptr, "edge_mapping");
+  const int map_loop_mode = RNA_enum_get(op.ptr, "loop_mapping");
+  const int map_poly_mode = RNA_enum_get(op.ptr, "poly_mapping");
 
-  const bool use_auto_transform = RNA_boolean_get(op->ptr, "use_auto_transform");
-  const bool use_object_transform = RNA_boolean_get(op->ptr, "use_object_transform");
-  const bool use_max_distance = RNA_boolean_get(op->ptr, "use_max_distance");
-  const float max_distance = use_max_distance ? RNA_float_get(op->ptr, "max_distance") : FLT_MAX;
-  const float ray_radius = RNA_float_get(op->ptr, "ray_radius");
-  const float islands_precision = RNA_float_get(op->ptr, "islands_precision");
+  const bool use_auto_transform = RNA_boolean_get(op.ptr, "use_auto_transform");
+  const bool use_object_transform = RNA_boolean_get(op.ptr, "use_object_transform");
+  const bool use_max_distance = RNA_boolean_get(op.ptr, "use_max_distance");
+  const float max_distance = use_max_distance ? RNA_float_get(op.ptr, "max_distance") : FLT_MAX;
+  const float ray_radius = RNA_float_get(op.ptr, "ray_radius");
+  const float islands_precision = RNA_float_get(op.ptr, "islands_precision");
 
-  int layers_src = RNA_enum_get(op->ptr, "layers_select_src");
-  int layers_dst = RNA_enum_get(op->ptr, "layers_select_dst");
+  int layers_src = RNA_enum_get(op.ptr, "layers_select_src");
+  int layers_dst = RNA_enum_get(op.ptr, "layers_select_dst");
   int layers_select_src[DT_MULTILAYER_INDEX_MAX] = {0};
   int layers_select_dst[DT_MULTILAYER_INDEX_MAX] = {0};
   const int fromto_idx = BKE_object_data_transfer_dttype_to_srcdst_index(data_type);
 
-  const int mix_mode = RNA_enum_get(op->ptr, "mix_mode");
-  const float mix_factor = RNA_float_get(op->ptr, "mix_factor");
+  const int mix_mode = RNA_enum_get(op.ptr, "mix_mode");
+  const float mix_factor = RNA_float_get(op.ptr, "mix_factor");
 
   SpaceTransform space_transform_data;
   SpaceTransform *space_transform = (use_object_transform && !use_auto_transform) ?
@@ -450,7 +450,7 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
 
   if (is_frozen) {
     BKE_report(
-        op->reports,
+        op.reports,
         RPT_INFO,
         "Operator is frozen, changes to its settings won't take effect until you unfreeze it");
     return OPERATOR_FINISHED;
@@ -471,7 +471,7 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
     layers_select_dst[fromto_idx] = layers_dst;
   }
 
-  data_transfer_exec_preprocess_objects(C, op, ob_src, &ctx_objects, reverse_transfer);
+  data_transfer_exec_preprocess_objects(&C, &op, ob_src, &ctx_objects, reverse_transfer);
 
   int invalid_count = 0;
 
@@ -482,7 +482,7 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
       std::swap(ob_src, ob_dst);
     }
 
-    if (data_transfer_exec_is_object_valid(op, ob_src, ob_dst, reverse_transfer)) {
+    if (data_transfer_exec_is_object_valid(&op, ob_src, ob_dst, reverse_transfer)) {
       Object *ob_src_eval = DEG_get_evaluated(depsgraph, ob_src);
 
       if (space_transform) {
@@ -510,7 +510,7 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
                                         mix_factor,
                                         nullptr,
                                         false,
-                                        op->reports))
+                                        op.reports))
       {
         DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY);
         changed = true;
@@ -530,13 +530,13 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
   }
 
   if (changed) {
-    DEG_relations_tag_update(CTX_data_main(*C));
-    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+    DEG_relations_tag_update(CTX_data_main(C));
+    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
   }
 
   if (invalid_count > 0) {
     BKE_reportf(
-        op->reports, RPT_WARNING, "Failed to transfer mesh data to %d objects", invalid_count);
+        op.reports, RPT_WARNING, "Failed to transfer mesh data to %d objects", invalid_count);
   }
 
 #if 0 /* TODO */
@@ -548,22 +548,22 @@ static wmOperatorStatus data_transfer_exec(bContext *C, wmOperator *op)
 }
 
 /** Used by both #OBJECT_OT_data_transfer and #OBJECT_OT_datalayout_transfer. */
-static bool data_transfer_poll(bContext *C)
+static bool data_transfer_poll(bContext &C)
 {
   /* Note this context poll is only really partial,
    * it cannot check for all possible invalid cases. */
 
-  Object *ob = context_active_object(C);
+  Object *ob = context_active_object(&C);
   ID *data = static_cast<ID *>((ob) ? ob->data : nullptr);
   return (ob != nullptr && ob->type == OB_MESH && data != nullptr);
 }
 
 /** Used by both #OBJECT_OT_data_transfer and #OBJECT_OT_datalayout_transfer. */
-static bool data_transfer_poll_property(const bContext * /*C*/,
-                                        wmOperator *op,
+static bool data_transfer_poll_property(const bContext & /*C*/,
+                                        wmOperator &op,
                                         const PropertyRNA *prop)
 {
-  PointerRNA *ptr = op->ptr;
+  PointerRNA *ptr = op.ptr;
   PropertyRNA *prop_other;
 
   const char *prop_id = RNA_property_identifier(prop);
@@ -636,8 +636,8 @@ static bool data_transfer_poll_property(const bContext * /*C*/,
   return true;
 }
 
-static std::string data_transfer_get_description(bContext * /*C*/,
-                                                 wmOperatorType * /*ot*/,
+static std::string data_transfer_get_description(bContext & /*C*/,
+                                                 wmOperatorType & /*ot*/,
                                                  PointerRNA *ptr)
 {
   const bool reverse_transfer = RNA_boolean_get(ptr, "use_reverse_transfer");
@@ -817,20 +817,20 @@ void OBJECT_OT_data_transfer(wmOperatorType *ot)
  *       or as a DataTransfer modifier tool.
  */
 
-static bool datalayout_transfer_poll(bContext *C)
+static bool datalayout_transfer_poll(bContext &C)
 {
-  return (edit_modifier_poll_generic(C, &RNA_DataTransferModifier, (1 << OB_MESH), true, false) ||
+  return (edit_modifier_poll_generic(&C, &RNA_DataTransferModifier, (1 << OB_MESH), true, false) ||
           data_transfer_poll(C));
 }
 
-static wmOperatorStatus datalayout_transfer_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus datalayout_transfer_exec(bContext &C, wmOperator &op)
 {
-  Object *ob_act = context_active_object(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Object *ob_act = context_active_object(&C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   DataTransferModifierData *dtmd;
 
   dtmd = (DataTransferModifierData *)edit_modifier_property_get(
-      op, ob_act, eModifierType_DataTransfer);
+      &op, ob_act, eModifierType_DataTransfer);
 
   /* If we have a modifier, we transfer data layout from this modifier's source object to
    * active one. Else, we transfer data layout from active object to all selected ones. */
@@ -861,11 +861,11 @@ static wmOperatorStatus datalayout_transfer_exec(bContext *C, wmOperator *op)
 
     Vector<PointerRNA> ctx_objects;
 
-    const int data_type = RNA_enum_get(op->ptr, "data_type");
-    const bool use_delete = RNA_boolean_get(op->ptr, "use_delete");
+    const int data_type = RNA_enum_get(op.ptr, "data_type");
+    const bool use_delete = RNA_boolean_get(op.ptr, "use_delete");
 
-    const int layers_src = RNA_enum_get(op->ptr, "layers_select_src");
-    const int layers_dst = RNA_enum_get(op->ptr, "layers_select_dst");
+    const int layers_src = RNA_enum_get(op.ptr, "layers_select_src");
+    const int layers_dst = RNA_enum_get(op.ptr, "layers_select_dst");
     int layers_select_src[DT_MULTILAYER_INDEX_MAX] = {0};
     int layers_select_dst[DT_MULTILAYER_INDEX_MAX] = {0};
     const int fromto_idx = BKE_object_data_transfer_dttype_to_srcdst_index(data_type);
@@ -877,11 +877,11 @@ static wmOperatorStatus datalayout_transfer_exec(bContext *C, wmOperator *op)
 
     Object *ob_src_eval = DEG_get_evaluated(depsgraph, ob_src);
 
-    data_transfer_exec_preprocess_objects(C, op, ob_src, &ctx_objects, false);
+    data_transfer_exec_preprocess_objects(&C, &op, ob_src, &ctx_objects, false);
 
     for (const PointerRNA &ptr : ctx_objects) {
       Object *ob_dst = static_cast<Object *>(ptr.data);
-      if (data_transfer_exec_is_object_valid(op, ob_src, ob_dst, false)) {
+      if (data_transfer_exec_is_object_valid(&op, ob_src, ob_dst, false)) {
         BKE_object_data_transfer_layout(depsgraph,
                                         ob_src_eval,
                                         ob_dst,
@@ -895,17 +895,17 @@ static wmOperatorStatus datalayout_transfer_exec(bContext *C, wmOperator *op)
     }
   }
 
-  DEG_relations_tag_update(CTX_data_main(*C));
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+  DEG_relations_tag_update(CTX_data_main(C));
+  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus datalayout_transfer_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus datalayout_transfer_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
-  if (edit_modifier_invoke_properties(C, op)) {
+  if (edit_modifier_invoke_properties(&C, &op)) {
     return datalayout_transfer_exec(C, op);
   }
   return WM_menu_invoke(C, op, event);

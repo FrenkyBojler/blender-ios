@@ -82,9 +82,9 @@ static void viewroll_apply(ViewOpsData *vod, int x, int y)
   ED_region_tag_redraw(vod->region);
 }
 
-static wmOperatorStatus viewroll_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewroll_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ViewOpsData *vod = static_cast<ViewOpsData *>(op->customdata);
+  ViewOpsData *vod = static_cast<ViewOpsData *>(op.customdata);
   short event_code = VIEW_PASS;
   bool use_autokey = false;
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
@@ -100,12 +100,12 @@ static wmOperatorStatus viewroll_modal(bContext *C, wmOperator *op, const wmEven
         break;
       case VIEWROT_MODAL_SWITCH_MOVE:
         WM_operator_name_call(
-            C, "VIEW3D_OT_move", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
+            &C, "VIEW3D_OT_move", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
         event_code = VIEW_CONFIRM;
         break;
       case VIEWROT_MODAL_SWITCH_ROTATE:
         WM_operator_name_call(
-            C, "VIEW3D_OT_rotate", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
+            &C, "VIEW3D_OT_rotate", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
         event_code = VIEW_CONFIRM;
         break;
     }
@@ -131,7 +131,7 @@ static wmOperatorStatus viewroll_modal(bContext *C, wmOperator *op, const wmEven
   switch (event_code) {
     case VIEW_APPLY: {
       viewroll_apply(vod, event->xy[0], event->xy[1]);
-      if (ED_screen_animation_playing(CTX_wm_manager(*C))) {
+      if (ED_screen_animation_playing(CTX_wm_manager(C))) {
         use_autokey = true;
       }
       break;
@@ -149,12 +149,12 @@ static wmOperatorStatus viewroll_modal(bContext *C, wmOperator *op, const wmEven
   }
 
   if (use_autokey) {
-    ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, false);
+    ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, &C, true, false);
   }
 
   if ((ret & OPERATOR_RUNNING_MODAL) == 0) {
-    viewops_data_free(C, static_cast<ViewOpsData *>(op->customdata));
-    op->customdata = nullptr;
+    viewops_data_free(&C, static_cast<ViewOpsData *>(op.customdata));
+    op.customdata = nullptr;
   }
 
   return ret;
@@ -172,38 +172,38 @@ static const EnumPropertyItem prop_view_roll_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus viewroll_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus viewroll_exec(bContext &C, wmOperator &op)
 {
   ViewOpsData *vod;
-  if (op->customdata) {
-    vod = static_cast<ViewOpsData *>(op->customdata);
+  if (op.customdata) {
+    vod = static_cast<ViewOpsData *>(op.customdata);
   }
   else {
     vod = new ViewOpsData();
-    ED_view3d_context_user_region(C, &vod->v3d, &vod->region);
+    ED_view3d_context_user_region(&C, &vod->v3d, &vod->region);
     vod->rv3d = static_cast<RegionView3D *>(vod->region->regiondata);
   }
 
-  ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->region);
+  ED_view3d_smooth_view_force_finish(&C, vod->v3d, vod->region);
 
   const bool is_camera_lock = ED_view3d_camera_lock_check(vod->v3d, vod->rv3d);
   if (vod->rv3d->persp == RV3D_CAMOB && !is_camera_lock) {
-    viewops_data_free(C, vod);
-    op->customdata = nullptr;
+    viewops_data_free(&C, vod);
+    op.customdata = nullptr;
     return OPERATOR_CANCELLED;
   }
 
   if (vod->depsgraph == nullptr) {
-    vod->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-    vod->init_navigation(C, nullptr, &ViewOpsType_roll);
+    vod->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+    vod->init_navigation(&C, nullptr, &ViewOpsType_roll);
   }
 
-  int type = RNA_enum_get(op->ptr, "type");
-  float angle = (type == 0) ? RNA_float_get(op->ptr, "angle") : DEG2RADF(U.pad_rot_angle);
+  int type = RNA_enum_get(op.ptr, "type");
+  float angle = (type == 0) ? RNA_float_get(op.ptr, "angle") : DEG2RADF(U.pad_rot_angle);
   float mousevec[3];
   float quat_new[4];
 
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
   if (type == V3D_VIEW_STEPLEFT) {
     angle = -angle;
@@ -216,27 +216,27 @@ static wmOperatorStatus viewroll_exec(bContext *C, wmOperator *op)
   V3D_SmoothParams sview_params = {};
   sview_params.quat = quat_new;
   /* Group as successive roll may run by holding a key. */
-  sview_params.undo_str = op->type->name;
+  sview_params.undo_str = op.type->name;
   sview_params.undo_grouped = true;
 
   if (vod->use_dyn_ofs) {
     sview_params.dyn_ofs = vod->dyn_ofs;
   }
 
-  ED_view3d_smooth_view(C, vod->v3d, vod->region, smooth_viewtx, &sview_params);
+  ED_view3d_smooth_view(&C, vod->v3d, vod->region, smooth_viewtx, &sview_params);
 
-  viewops_data_free(C, vod);
-  op->customdata = nullptr;
+  viewops_data_free(&C, vod);
+  op.customdata = nullptr;
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus viewroll_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewroll_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   ViewOpsData *vod;
 
-  bool use_angle = RNA_enum_get(op->ptr, "type") != 0;
+  bool use_angle = RNA_enum_get(op.ptr, "type") != 0;
 
-  if (use_angle || RNA_struct_property_is_set(op->ptr, "angle")) {
+  if (use_angle || RNA_struct_property_is_set(op.ptr, "angle")) {
     viewroll_exec(C, op);
   }
   else {
@@ -248,7 +248,7 @@ static wmOperatorStatus viewroll_invoke(bContext *C, wmOperator *op, const wmEve
      * non-locked view (when in a locked view) makes sense, but modal-interaction with the locked
      * view forwarding to a different view doesn't (hence the check). */
     {
-      ARegion *region = CTX_wm_region(*C);
+      ARegion *region = CTX_wm_region(C);
       if (region->regiontype == RGN_TYPE_WINDOW) {
         const RegionView3D *rv3d = static_cast<const RegionView3D *>(region->regiondata);
         if (rv3d->viewlock & RV3D_LOCK_ROTATION) {
@@ -258,14 +258,14 @@ static wmOperatorStatus viewroll_invoke(bContext *C, wmOperator *op, const wmEve
     }
 
     /* makes op->customdata */
-    vod = viewops_data_create(C, event, &ViewOpsType_roll, false);
+    vod = viewops_data_create(&C, event, &ViewOpsType_roll, false);
 
     const float start_position[2] = {float(BLI_rcti_cent_x(&vod->region->winrct)),
                                      float(BLI_rcti_cent_y(&vod->region->winrct))};
     vod->init.dial = BLI_dial_init(start_position, FLT_EPSILON);
-    op->customdata = vod;
+    op.customdata = vod;
 
-    ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->region);
+    ED_view3d_smooth_view_force_finish(&C, vod->v3d, vod->region);
 
     /* overwrite the mouse vector with the view direction */
     normalize_v3_v3(vod->init.mousevec, vod->rv3d->viewinv[2]);
@@ -275,13 +275,13 @@ static wmOperatorStatus viewroll_invoke(bContext *C, wmOperator *op, const wmEve
       vod->init.event_xy[0] = vod->prev.event_xy[0] = event->xy[0];
       viewroll_apply(vod, event->prev_xy[0], event->prev_xy[1]);
 
-      viewops_data_free(C, static_cast<ViewOpsData *>(op->customdata));
-      op->customdata = nullptr;
+      viewops_data_free(&C, static_cast<ViewOpsData *>(op.customdata));
+      op.customdata = nullptr;
       return OPERATOR_FINISHED;
     }
 
     /* add temp handler */
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
     return OPERATOR_RUNNING_MODAL;
   }
   return OPERATOR_FINISHED;

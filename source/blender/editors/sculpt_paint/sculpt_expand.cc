@@ -1607,17 +1607,17 @@ static void restore_original_state(bContext *C, Object &ob, Cache &expand_cache)
 /**
  * Cancel operator callback.
  */
-static void sculpt_expand_cancel(bContext *C, wmOperator * /*op*/)
+static void sculpt_expand_cancel(bContext &C, wmOperator & /*op*/)
 {
-  Object &ob = *CTX_data_active_object(*C);
+  Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
 
-  restore_original_state(C, ob, *ss.expand_cache);
+  restore_original_state(&C, ob, *ss.expand_cache);
 
   undo::push_end(ob);
   expand_cache_free(ss);
 
-  ED_workspace_status_text(C, nullptr);
+  ED_workspace_status_text(&C, nullptr);
 }
 
 /* Functions to update the sculpt mesh data. */
@@ -2357,9 +2357,9 @@ static void sculpt_expand_status(bContext *C, wmOperator *op, Cache *expand_cach
   }
 }
 
-static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_expand_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Object &ob = *CTX_data_active_object(*C);
+  Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
 
   /* Skips INBETWEEN_MOUSEMOVE events and other events that may cause unnecessary updates. */
@@ -2368,13 +2368,13 @@ static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const w
   }
 
   /* Update SculptSession data. */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
   ensure_sculptsession_data(ob);
 
   /* Update and get the active vertex (and face) from the cursor. */
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  const std::optional<int> target_expand_vertex = target_vert_update_and_get(C, ob, mval_fl);
+  const std::optional<int> target_expand_vertex = target_vert_update_and_get(&C, ob, mval_fl);
 
   /* Handle the modal keymap state changes. */
   Cache &expand_cache = *ss.expand_cache;
@@ -2452,13 +2452,13 @@ static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const w
         break;
       }
       case SCULPT_EXPAND_MODAL_CONFIRM: {
-        update_for_vert(C, ob, target_expand_vertex);
+        update_for_vert(&C, ob, target_expand_vertex);
 
         if (expand_cache.reposition_pivot) {
-          reposition_pivot(C, ob, expand_cache);
+          reposition_pivot(&C, ob, expand_cache);
         }
 
-        finish(C);
+        finish(&C);
         return OPERATOR_FINISHED;
       }
       case SCULPT_EXPAND_MODAL_FALLOFF_GEODESIC: {
@@ -2504,13 +2504,13 @@ static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const w
         if (expand_cache.texture_distortion_strength == 0.0f) {
           const MTex *mask_tex = BKE_brush_mask_texture_get(expand_cache.brush, OB_MODE_SCULPT);
           if (mask_tex->tex == nullptr) {
-            BKE_report(op->reports,
+            BKE_report(op.reports,
                        RPT_WARNING,
                        "Active brush does not contain any texture to distort the expand boundary");
             break;
           }
           if (mask_tex->brush_map_mode != MTEX_MAP_MODE_3D) {
-            BKE_report(op->reports,
+            BKE_report(op.reports,
                        RPT_WARNING,
                        "Texture mapping not set to 3D, results may be unpredictable");
           }
@@ -2529,7 +2529,7 @@ static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const w
 
   /* Handle expand origin movement if enabled. */
   if (expand_cache.move) {
-    move_propagation_origin(C, ob, event, expand_cache);
+    move_propagation_origin(&C, ob, event, expand_cache);
   }
 
   /* Add new face set IDs to the snapping set if enabled. */
@@ -2540,9 +2540,9 @@ static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const w
   }
 
   /* Update the sculpt data with the current state of the #Cache. */
-  update_for_vert(C, ob, target_expand_vertex);
+  update_for_vert(&C, ob, target_expand_vertex);
 
-  sculpt_expand_status(C, op, &expand_cache);
+  sculpt_expand_status(&C, &op, &expand_cache);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2721,23 +2721,23 @@ static bool any_nonzero_mask(const Object &object)
   return false;
 }
 
-static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_expand_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Object &ob = *CTX_data_active_object(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
   Mesh *mesh = static_cast<Mesh *>(ob.data);
 
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
 
   /* Create and configure the Expand Cache. */
   ss.expand_cache = MEM_new<Cache>(__func__);
-  cache_initial_config_set(C, op, *ss.expand_cache);
+  cache_initial_config_set(&C, &op, *ss.expand_cache);
 
   /* Update object. */
   const bool needs_colors = ss.expand_cache->target == TargetType::Colors;
@@ -2746,15 +2746,15 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
     /* CTX_data_ensure_evaluated_depsgraph should be used at the end to include the updates of
      * earlier steps modifying the data. */
     BKE_sculpt_color_layer_create_if_needed(&ob);
-    depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+    depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   }
 
   if (ss.expand_cache->target == TargetType::Mask) {
-    Scene &scene = *CTX_data_scene(*C);
+    Scene &scene = *CTX_data_scene(C);
     MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
-    BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(*C), &ob, mmd);
+    BKE_sculpt_mask_layers_ensure(depsgraph, CTX_data_main(C), &ob, mmd);
 
-    if (RNA_boolean_get(op->ptr, "use_auto_mask")) {
+    if (RNA_boolean_get(op.ptr, "use_auto_mask")) {
       if (any_nonzero_mask(ob)) {
         write_mask_data(ob, Array<float>(SCULPT_vertex_count_get(ob), 1.0f));
       }
@@ -2785,13 +2785,13 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
   /* When getting the initial active vert, in cases where the cursor is not over the mesh and
    * the mesh type has changed, we cannot proceed with the expand operator, as there is no
    * sensible last active vertex when switching between backing implementations. */
-  if (!set_initial_components_for_mouse(C, ob, *ss.expand_cache, mouse)) {
+  if (!set_initial_components_for_mouse(&C, ob, *ss.expand_cache, mouse)) {
     expand_cache_free(ss);
     return OPERATOR_CANCELLED;
   }
 
   /* Initialize undo. */
-  undo::push_begin(scene, ob, op);
+  undo::push_begin(scene, ob, &op);
   undo_push(*depsgraph, ob, *ss.expand_cache);
 
   /* Cache bke::pbvh::Tree nodes. */
@@ -2811,7 +2811,7 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
   const int initial_vert = ss.expand_cache->initial_active_vert;
 
   /* Initialize the falloff. */
-  FalloffType falloff_type = FalloffType(RNA_enum_get(op->ptr, "falloff_type"));
+  FalloffType falloff_type = FalloffType(RNA_enum_get(op.ptr, "falloff_type"));
 
   /* When starting from a boundary vertex, set the initial falloff to boundary. */
   switch (pbvh.type()) {
@@ -2863,11 +2863,11 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
   check_topology_islands(ob, falloff_type);
 
   /* Initial mesh data update, resets all target data in the sculpt mesh. */
-  update_for_vert(C, ob, initial_vert);
+  update_for_vert(&C, ob, initial_vert);
 
-  sculpt_expand_status(C, op, ss.expand_cache);
+  sculpt_expand_status(&C, &op, ss.expand_cache);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 

@@ -355,8 +355,8 @@ static bool asset_clear_poll(bContext *C, const Span<PointerRNA> ids)
   return true;
 }
 
-static std::string asset_clear_get_description(bContext * /*C*/,
-                                               wmOperatorType * /*ot*/,
+static std::string asset_clear_get_description(bContext & /*C*/,
+                                               wmOperatorType & /*ot*/,
                                                PointerRNA *ptr)
 {
   const bool set_fake_user = RNA_boolean_get(ptr, "set_fake_user");
@@ -422,29 +422,29 @@ static void ASSET_OT_clear_single(wmOperatorType *ot)
 
 /* -------------------------------------------------------------------- */
 
-static bool asset_library_refresh_poll(bContext *C)
+static bool asset_library_refresh_poll(bContext &C)
 {
-  if (ED_operator_asset_browsing_active(C)) {
+  if (ED_operator_asset_browsing_active(&C)) {
     return true;
   }
 
   /* While not inside an Asset Browser, check if there's a asset list stored for the active asset
    * library (stored in the workspace, obtained via context). */
-  const AssetLibraryReference *library = CTX_wm_asset_library_ref(*C);
+  const AssetLibraryReference *library = CTX_wm_asset_library_ref(C);
   if (!library) {
     return false;
   }
 
   return list::has_list_storage_for_library(library) ||
-         list::has_asset_browser_storage_for_library(library, C);
+         list::has_asset_browser_storage_for_library(library, &C);
 }
 
-static wmOperatorStatus asset_library_refresh_exec(bContext *C, wmOperator * /*unused*/)
+static wmOperatorStatus asset_library_refresh_exec(bContext &C, wmOperator & /*unused*/)
 {
-  const AssetLibraryReference *library = CTX_wm_asset_library_ref(*C);
+  const AssetLibraryReference *library = CTX_wm_asset_library_ref(C);
   /* Handles both global asset list storage and asset browsers. */
-  list::clear(library, C);
-  WM_event_add_notifier(C, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
+  list::clear(library, &C);
+  WM_event_add_notifier(&C, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -463,9 +463,9 @@ static void ASSET_OT_library_refresh(wmOperatorType *ot)
 
 /* -------------------------------------------------------------------- */
 
-static bool asset_catalog_operator_poll(bContext *C)
+static bool asset_catalog_operator_poll(bContext &C)
 {
-  const SpaceFile *sfile = CTX_wm_space_file(*C);
+  const SpaceFile *sfile = CTX_wm_space_file(C);
   if (!sfile) {
     return false;
   }
@@ -474,17 +474,17 @@ static bool asset_catalog_operator_poll(bContext *C)
     return false;
   }
   if (catalogs_read_only(*asset_library)) {
-    CTX_wm_operator_poll_msg_set(C, "Asset catalogs cannot be edited in this asset library");
+    CTX_wm_operator_poll_msg_set(&C, "Asset catalogs cannot be edited in this asset library");
     return false;
   }
   return true;
 }
 
-static wmOperatorStatus asset_catalog_new_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus asset_catalog_new_exec(bContext &C, wmOperator &op)
 {
-  SpaceFile *sfile = CTX_wm_space_file(*C);
+  SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
-  std::string parent_path = RNA_string_get(op->ptr, "parent_path");
+  std::string parent_path = RNA_string_get(op.ptr, "parent_path");
 
   asset_system::AssetCatalog *new_catalog = catalog_add(
       asset_library, DATA_("Catalog"), parent_path);
@@ -494,7 +494,7 @@ static wmOperatorStatus asset_catalog_new_exec(bContext *C, wmOperator *op)
   }
 
   WM_event_add_notifier_ex(
-      CTX_wm_manager(*C), CTX_wm_window(*C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
+      CTX_wm_manager(C), CTX_wm_window(C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -518,11 +518,11 @@ static void ASSET_OT_catalog_new(wmOperatorType *ot)
                  "Optional path defining the location to put the new catalog under");
 }
 
-static wmOperatorStatus asset_catalog_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus asset_catalog_delete_exec(bContext &C, wmOperator &op)
 {
-  SpaceFile *sfile = CTX_wm_space_file(*C);
+  SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
-  std::string catalog_id_str = RNA_string_get(op->ptr, "catalog_id");
+  std::string catalog_id_str = RNA_string_get(op.ptr, "catalog_id");
   asset_system::CatalogID catalog_id;
   if (!BLI_uuid_parse_string(&catalog_id, catalog_id_str.c_str())) {
     return OPERATOR_CANCELLED;
@@ -531,7 +531,7 @@ static wmOperatorStatus asset_catalog_delete_exec(bContext *C, wmOperator *op)
   catalog_remove(asset_library, catalog_id);
 
   WM_event_add_notifier_ex(
-      CTX_wm_manager(*C), CTX_wm_window(*C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
+      CTX_wm_manager(C), CTX_wm_window(C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -567,21 +567,21 @@ static asset_system::AssetCatalogService *get_catalog_service(bContext *C)
   return nullptr;
 }
 
-static wmOperatorStatus asset_catalog_undo_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus asset_catalog_undo_exec(bContext &C, wmOperator & /*op*/)
 {
-  asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
+  asset_system::AssetCatalogService *catalog_service = get_catalog_service(&C);
   if (!catalog_service) {
     return OPERATOR_CANCELLED;
   }
 
   catalog_service->undo();
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
   return OPERATOR_FINISHED;
 }
 
-static bool asset_catalog_undo_poll(bContext *C)
+static bool asset_catalog_undo_poll(bContext &C)
 {
-  const asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
+  const asset_system::AssetCatalogService *catalog_service = get_catalog_service(&C);
   return catalog_service && catalog_service->is_undo_possbile();
 }
 
@@ -597,21 +597,21 @@ static void ASSET_OT_catalog_undo(wmOperatorType *ot)
   ot->poll = asset_catalog_undo_poll;
 }
 
-static wmOperatorStatus asset_catalog_redo_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus asset_catalog_redo_exec(bContext &C, wmOperator & /*op*/)
 {
-  asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
+  asset_system::AssetCatalogService *catalog_service = get_catalog_service(&C);
   if (!catalog_service) {
     return OPERATOR_CANCELLED;
   }
 
   catalog_service->redo();
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
   return OPERATOR_FINISHED;
 }
 
-static bool asset_catalog_redo_poll(bContext *C)
+static bool asset_catalog_redo_poll(bContext &C)
 {
-  const asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
+  const asset_system::AssetCatalogService *catalog_service = get_catalog_service(&C);
   return catalog_service && catalog_service->is_redo_possbile();
 }
 
@@ -627,9 +627,9 @@ static void ASSET_OT_catalog_redo(wmOperatorType *ot)
   ot->poll = asset_catalog_redo_poll;
 }
 
-static wmOperatorStatus asset_catalog_undo_push_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus asset_catalog_undo_push_exec(bContext &C, wmOperator & /*op*/)
 {
-  asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
+  asset_system::AssetCatalogService *catalog_service = get_catalog_service(&C);
   if (!catalog_service) {
     return OPERATOR_CANCELLED;
   }
@@ -638,9 +638,9 @@ static wmOperatorStatus asset_catalog_undo_push_exec(bContext *C, wmOperator * /
   return OPERATOR_FINISHED;
 }
 
-static bool asset_catalog_undo_push_poll(bContext *C)
+static bool asset_catalog_undo_push_poll(bContext &C)
 {
-  return get_catalog_service(C) != nullptr;
+  return get_catalog_service(&C) != nullptr;
 }
 
 static void ASSET_OT_catalog_undo_push(wmOperatorType *ot)
@@ -660,35 +660,36 @@ static void ASSET_OT_catalog_undo_push(wmOperatorType *ot)
 
 /* -------------------------------------------------------------------- */
 
-static bool asset_catalogs_save_poll(bContext *C)
+static bool asset_catalogs_save_poll(bContext &C)
 {
   if (!asset_catalog_operator_poll(C)) {
     return false;
   }
 
-  const Main *bmain = CTX_data_main(*C);
+  const Main *bmain = CTX_data_main(C);
   if (!bmain->filepath[0]) {
-    CTX_wm_operator_poll_msg_set(C, "Cannot save asset catalogs before the Blender file is saved");
+    CTX_wm_operator_poll_msg_set(&C,
+                                 "Cannot save asset catalogs before the Blender file is saved");
     return false;
   }
 
   if (!AS_asset_library_has_any_unsaved_catalogs()) {
-    CTX_wm_operator_poll_msg_set(C, "No changes to be saved");
+    CTX_wm_operator_poll_msg_set(&C, "No changes to be saved");
     return false;
   }
 
   return true;
 }
 
-static wmOperatorStatus asset_catalogs_save_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus asset_catalogs_save_exec(bContext &C, wmOperator & /*op*/)
 {
-  const SpaceFile *sfile = CTX_wm_space_file(*C);
+  const SpaceFile *sfile = CTX_wm_space_file(C);
   asset_system::AssetLibrary *asset_library = ED_fileselect_active_asset_library_get(sfile);
 
-  catalogs_save_from_main_path(asset_library, CTX_data_main(*C));
+  catalogs_save_from_main_path(asset_library, CTX_data_main(C));
 
   WM_event_add_notifier_ex(
-      CTX_wm_manager(*C), CTX_wm_window(*C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
+      CTX_wm_manager(C), CTX_wm_window(C), NC_ASSET | ND_ASSET_CATALOGS, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -715,10 +716,10 @@ static bool is_contained_in_selected_asset_library(wmOperator *op, const char *f
 static bool set_filepath_for_asset_lib(const Main *bmain, wmOperator *op);
 static bool has_external_files(Main *bmain, ReportList *reports);
 
-static bool asset_bundle_install_poll(bContext *C)
+static bool asset_bundle_install_poll(bContext &C)
 {
   /* This operator only works when the asset browser is set to Current File. */
-  const SpaceFile *sfile = CTX_wm_space_file(*C);
+  const SpaceFile *sfile = CTX_wm_space_file(C);
   if (sfile == nullptr) {
     return false;
   }
@@ -726,7 +727,7 @@ static bool asset_bundle_install_poll(bContext *C)
     return false;
   }
 
-  const Main *bmain = CTX_data_main(*C);
+  const Main *bmain = CTX_data_main(C);
   if (!could_be_asset_bundle(bmain)) {
     return false;
   }
@@ -741,62 +742,62 @@ static bool asset_bundle_install_poll(bContext *C)
   return true;
 }
 
-static wmOperatorStatus asset_bundle_install_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus asset_bundle_install_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent * /*event*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  if (has_external_files(bmain, op->reports)) {
+  Main *bmain = CTX_data_main(C);
+  if (has_external_files(bmain, op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
 
   /* Make the "Save As" dialog box default to "${ASSET_LIB_ROOT}/${CURRENT_FILE}.blend". */
-  if (!set_filepath_for_asset_lib(bmain, op)) {
+  if (!set_filepath_for_asset_lib(bmain, &op)) {
     return OPERATOR_CANCELLED;
   }
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus asset_bundle_install_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus asset_bundle_install_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  if (has_external_files(bmain, op->reports)) {
+  Main *bmain = CTX_data_main(C);
+  if (has_external_files(bmain, op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
   /* Check file path, copied from #wm_file_write(). */
   char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
   const size_t len = strlen(filepath);
 
   if (len == 0) {
-    BKE_report(op->reports, RPT_ERROR, "Path is empty, cannot save");
+    BKE_report(op.reports, RPT_ERROR, "Path is empty, cannot save");
     return OPERATOR_CANCELLED;
   }
 
   if (len >= FILE_MAX) {
-    BKE_report(op->reports, RPT_ERROR, "Path too long, cannot save");
+    BKE_report(op.reports, RPT_ERROR, "Path too long, cannot save");
     return OPERATOR_CANCELLED;
   }
 
   /* Check that the destination is actually contained in the selected asset library. */
-  if (!is_contained_in_selected_asset_library(op, filepath)) {
-    BKE_reportf(op->reports, RPT_ERROR, "Selected path is outside of the selected asset library");
+  if (!is_contained_in_selected_asset_library(&op, filepath)) {
+    BKE_reportf(op.reports, RPT_ERROR, "Selected path is outside of the selected asset library");
     return OPERATOR_CANCELLED;
   }
 
   WM_cursor_wait(true);
-  asset_system::AssetCatalogService *cat_service = get_catalog_service(C);
+  asset_system::AssetCatalogService *cat_service = get_catalog_service(&C);
   /* Store undo step, such that on a failed save the 'prepare_to_merge_on_write' call can be
    * un-done. */
   cat_service->undo_push();
   cat_service->prepare_to_merge_on_write();
 
   const wmOperatorStatus operator_result = WM_operator_name_call(
-      C, "WM_OT_save_mainfile", wm::OpCallContext::ExecDefault, op->ptr, nullptr);
+      &C, "WM_OT_save_mainfile", wm::OpCallContext::ExecDefault, op.ptr, nullptr);
   WM_cursor_wait(false);
 
   if (operator_result != OPERATOR_FINISHED) {
@@ -804,9 +805,9 @@ static wmOperatorStatus asset_bundle_install_exec(bContext *C, wmOperator *op)
     return operator_result;
   }
 
-  const bUserAssetLibrary *lib = selected_asset_library(op);
+  const bUserAssetLibrary *lib = selected_asset_library(&op);
   BLI_assert_msg(lib, "If the asset library is not known, how did we get here?");
-  BKE_reportf(op->reports,
+  BKE_reportf(op.reports,
               RPT_INFO,
               R"(Saved "%s" to asset library "%s")",
               BLI_path_basename(bmain->filepath),
@@ -1119,12 +1120,12 @@ static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
   return image_buffer;
 }
 
-static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus screenshot_preview_exec(bContext &C, wmOperator &op)
 {
   int2 p1, p2;
-  wmWindow *win = CTX_wm_window(*C);
-  RNA_int_get_array(op->ptr, "p1", p1);
-  RNA_int_get_array(op->ptr, "p2", p2);
+  wmWindow *win = CTX_wm_window(C);
+  RNA_int_get_array(op.ptr, "p1", p1);
+  RNA_int_get_array(op.ptr, "p2", p2);
 
   /* Clamp points to window bounds, so the screenshot area is always valid. */
   p1 = clamp_point_to_window(p1, win);
@@ -1132,7 +1133,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 
   /* Squaring has to happen before sorting so the area is squared from the point where
    * dragging started. */
-  if (RNA_boolean_get(op->ptr, "force_square")) {
+  if (RNA_boolean_get(op.ptr, "force_square")) {
     square_points_clamp_to_window(p1, p2, win);
   }
 
@@ -1142,21 +1143,21 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
   constexpr int min_side = 16;
   if (p2.x - p1.x < min_side || p2.y - p1.y < min_side) {
     BKE_reportf(
-        op->reports, RPT_ERROR, "Screenshot cannot be smaller than %i pixels on a side", min_side);
+        op.reports, RPT_ERROR, "Screenshot cannot be smaller than %i pixels on a side", min_side);
     return OPERATOR_CANCELLED;
   }
 
   ImBuf *image_buffer;
 
-  ScrArea *area_p1 = ED_area_find_under_cursor(C, SPACE_TYPE_ANY, p1);
-  ScrArea *area_p2 = ED_area_find_under_cursor(C, SPACE_TYPE_ANY, p2);
+  ScrArea *area_p1 = ED_area_find_under_cursor(&C, SPACE_TYPE_ANY, p1);
+  ScrArea *area_p2 = ED_area_find_under_cursor(&C, SPACE_TYPE_ANY, p2);
   /* Special case for taking a screenshot from a 3D viewport. In that case we do an offscreen
    * render to support transparency. Render settings are used as currently set up in the viewport
    * to comply with WYSIWYG as much as possible. One limitation is that GUI elements will not be
    * visible in the render. */
   bool render_offscreen = false;
   if (area_p1 == area_p2 && area_p1 != nullptr && area_p1->spacetype == SPACE_VIEW3D) {
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
     /* For #ED_view3d_draw_offscreen_imbuf only EEVEE only produces a good result. See #141732. */
     if (eDrawType(v3d->shading.type) == OB_RENDER) {
@@ -1179,8 +1180,8 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
     char err_out[256] = "unknown";
-    image_buffer = ED_view3d_draw_offscreen_imbuf(CTX_data_ensure_evaluated_depsgraph(*C),
-                                                  CTX_data_scene(*C),
+    image_buffer = ED_view3d_draw_offscreen_imbuf(CTX_data_ensure_evaluated_depsgraph(C),
+                                                  CTX_data_scene(C),
                                                   eDrawType(v3d->shading.type),
                                                   v3d,
                                                   region,
@@ -1203,36 +1204,36 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
   }
   else {
     const rcti crop_rect = {p1.x, p2.x, p1.y, p2.y};
-    image_buffer = take_screenshot_crop(C, crop_rect);
+    image_buffer = take_screenshot_crop(&C, crop_rect);
     if (!image_buffer) {
-      BKE_report(op->reports, RPT_ERROR, "Invalid screenshot area selection");
+      BKE_report(op.reports, RPT_ERROR, "Invalid screenshot area selection");
       return OPERATOR_CANCELLED;
     }
   }
 
-  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(*C);
+  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(C);
   BLI_assert_msg(asset_handle != nullptr, "This is ensured by poll");
   AssetWeakReference asset_reference = asset_handle->make_weak_reference();
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   ID *id = bke::asset_edit_id_from_weak_reference(
       *bmain, asset_handle->get_id_type(), asset_reference);
   BLI_assert(id != nullptr);
 
-  ED_preview_kill_jobs_for_id(CTX_wm_manager(*C), id);
+  ED_preview_kill_jobs_for_id(CTX_wm_manager(C), id);
 
   generate_previewimg_from_buffer(id, image_buffer);
   IMB_freeImBuf(image_buffer);
 
   if (bke::asset_edit_id_is_writable(*id)) {
-    const bool saved = bke::asset_edit_id_save(*bmain, *id, *op->reports);
+    const bool saved = bke::asset_edit_id_save(*bmain, *id, *op.reports);
     if (!saved) {
-      BKE_report(op->reports, RPT_ERROR, "Saving failed");
+      BKE_report(op.reports, RPT_ERROR, "Saving failed");
     }
   }
 
   asset::list::storage_tag_main_data_dirty();
-  asset::refresh_asset_library_from_asset(C, *asset_handle);
+  asset::refresh_asset_library_from_asset(&C, *asset_handle);
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
@@ -1297,11 +1298,11 @@ static inline void screenshot_area_transfer_to_rna(wmOperator *op, ScreenshotOpe
   RNA_int_set_array(op->ptr, "p2", data->p2);
 }
 
-static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screenshot_preview_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
+  ARegion *region = CTX_wm_region(C);
+  wmWindow *win = CTX_wm_window(C);
+  ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op.customdata);
 
   const int2 screen_space_cursor = {
       event->mval[0] + region->winrct.xmin,
@@ -1318,9 +1319,9 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
         case KM_RELEASE:
           data->is_mouse_down = false;
           data->drag_end = clamp_point_to_window(screen_space_cursor, win);
-          screenshot_area_transfer_to_rna(op, data);
+          screenshot_area_transfer_to_rna(&op, data);
           screenshot_preview_exec(C, op);
-          screenshot_preview_exit(C, op);
+          screenshot_preview_exit(&C, &op);
           return OPERATOR_FINISHED;
       }
       break;
@@ -1328,16 +1329,16 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
 
     case EVT_PADENTER:
     case EVT_RETKEY: {
-      screenshot_area_transfer_to_rna(op, data);
+      screenshot_area_transfer_to_rna(&op, data);
       screenshot_preview_exec(C, op);
-      screenshot_preview_exit(C, op);
+      screenshot_preview_exit(&C, &op);
       return OPERATOR_FINISHED;
     }
 
     case RIGHTMOUSE:
     case EVT_ESCKEY: {
-      screenshot_preview_exit(C, op);
-      CTX_wm_screen(*C)->do_draw = true;
+      screenshot_preview_exit(&C, &op);
+      CTX_wm_screen(C)->do_draw = true;
       return OPERATOR_CANCELLED;
     }
 
@@ -1407,7 +1408,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
         }
       }
 
-      CTX_wm_screen(*C)->do_draw = true;
+      CTX_wm_screen(C)->do_draw = true;
       data->last_cursor = screen_space_cursor;
       break;
     }
@@ -1416,7 +1417,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
       break;
   }
 
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(&C);
   if (data->is_mouse_down) {
     status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
   }
@@ -1430,39 +1431,39 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus screenshot_preview_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus screenshot_preview_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent * /* event */)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
-  op->customdata = MEM_callocN(sizeof(ScreenshotOperatorData), __func__);
-  ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
+  op.customdata = MEM_callocN(sizeof(ScreenshotOperatorData), __func__);
+  ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op.customdata);
   data->draw_handle = WM_draw_cb_activate(win, screenshot_preview_draw, data);
   data->is_mouse_down = false;
-  RNA_int_get_array(op->ptr, "p1", data->p1);
-  RNA_int_get_array(op->ptr, "p2", data->p2);
+  RNA_int_get_array(op.ptr, "p1", data->p1);
+  RNA_int_get_array(op.ptr, "p2", data->p2);
   data->last_cursor = data->p1;
   data->shift_area = false;
   data->crossed_threshold = false;
-  data->force_square = RNA_boolean_get(op->ptr, "force_square");
+  data->force_square = RNA_boolean_get(op.ptr, "force_square");
 
-  WM_event_add_modal_handler(C, op);
-  CTX_wm_screen(*C)->do_draw = true;
+  WM_event_add_modal_handler(&C, &op);
+  CTX_wm_screen(C)->do_draw = true;
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static bool screenshot_preview_poll(bContext *C)
+static bool screenshot_preview_poll(bContext &C)
 {
   if (G.background) {
     return false;
   }
 
-  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(*C);
+  const asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(C);
   if (!asset_handle) {
-    CTX_wm_operator_poll_msg_set(C, "No selected asset");
+    CTX_wm_operator_poll_msg_set(&C, "No selected asset");
     return false;
   }
   if (asset_handle->is_local_id()) {
@@ -1472,7 +1473,7 @@ static bool screenshot_preview_poll(bContext *C)
     return true;
   }
 
-  CTX_wm_operator_poll_msg_set(C, "Asset cannot be modified from this file");
+  CTX_wm_operator_poll_msg_set(&C, "Asset cannot be modified from this file");
   return false;
 }
 

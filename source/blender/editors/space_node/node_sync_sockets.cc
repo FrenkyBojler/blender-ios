@@ -60,34 +60,34 @@ static Vector<bNode *> get_nodes_to_sync(bContext &C, PointerRNA *ptr)
   return nodes_to_sync;
 }
 
-static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sockets_sync_exec(bContext &C, wmOperator &op)
 {
-  Main &bmain = *CTX_data_main(*C);
-  SpaceNode &snode = *CTX_wm_space_node(*C);
+  Main &bmain = *CTX_data_main(C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   if (!snode.edittree) {
     return OPERATOR_CANCELLED;
   }
-  Vector<bNode *> nodes_to_sync = get_nodes_to_sync(*C, op->ptr);
+  Vector<bNode *> nodes_to_sync = get_nodes_to_sync(C, op.ptr);
   if (nodes_to_sync.is_empty()) {
     return OPERATOR_CANCELLED;
   }
   for (bNode *node : nodes_to_sync) {
-    nodes::sync_node(*C, *node, op->reports);
+    nodes::sync_node(C, *node, op.reports);
   }
   BKE_main_ensure_invariants(bmain, snode.edittree->id);
   return OPERATOR_FINISHED;
 }
 
-static std::string sockets_sync_get_description(bContext *C, wmOperatorType *ot, PointerRNA *ptr)
+static std::string sockets_sync_get_description(bContext &C, wmOperatorType &ot, PointerRNA *ptr)
 {
-  Vector<bNode *> nodes_to_sync = get_nodes_to_sync(*C, ptr);
+  Vector<bNode *> nodes_to_sync = get_nodes_to_sync(C, ptr);
   if (nodes_to_sync.size() != 1) {
-    return TIP_(ot->description);
+    return TIP_(ot.description);
   }
   const bNode &node = *nodes_to_sync.first();
-  std::string description = nodes::sync_node_description_get(*C, node);
+  std::string description = nodes::sync_node_description_get(C, node);
   if (description.empty()) {
-    return TIP_(ot->description);
+    return TIP_(ot.description);
   }
   return description;
 }

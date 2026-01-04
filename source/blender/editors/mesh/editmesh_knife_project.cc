@@ -101,29 +101,29 @@ static LinkNode *knifeproject_poly_from_object(const bContext *C, Object *ob, Li
   return polys;
 }
 
-static wmOperatorStatus knifeproject_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus knifeproject_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  const bool cut_through = RNA_boolean_get(op->ptr, "cut_through");
+  Scene *scene = CTX_data_scene(C);
+  const bool cut_through = RNA_boolean_get(op.ptr, "cut_through");
 
   LinkNode *polys = nullptr;
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     if (BKE_object_is_in_editmode(ob)) {
       continue;
     }
-    polys = knifeproject_poly_from_object(C, ob, polys);
+    polys = knifeproject_poly_from_object(&C, ob, polys);
   }
   CTX_DATA_END;
 
   if (polys == nullptr) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_ERROR,
                "No other selected objects have wire or boundary edges to use for projection");
     return OPERATOR_CANCELLED;
   }
 
-  ViewContext vc = em_setup_viewcontext(C);
+  ViewContext vc = em_setup_viewcontext(&C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       vc.scene, vc.view_layer, vc.v3d);

@@ -48,12 +48,12 @@
 #include "view3d_navigate.hh"
 
 /* test for unlocked camera view in quad view */
-static bool view3d_camera_user_poll(bContext *C)
+static bool view3d_camera_user_poll(bContext &C)
 {
   View3D *v3d;
   ARegion *region;
 
-  if (ED_view3d_context_user_region(C, &v3d, &region)) {
+  if (ED_view3d_context_user_region(&C, &v3d, &region)) {
     RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
     if ((rv3d->persp == RV3D_CAMOB) && !(RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM)) {
       return true;
@@ -63,11 +63,11 @@ static bool view3d_camera_user_poll(bContext *C)
   return false;
 }
 
-static bool view3d_lock_poll(bContext *C)
+static bool view3d_lock_poll(bContext &C)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
+  View3D *v3d = CTX_wm_view3d(C);
   if (v3d) {
-    RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+    RegionView3D *rv3d = CTX_wm_region_view3d(C);
     if (rv3d) {
       return ED_view3d_offset_lock_check(v3d, rv3d);
     }
@@ -79,14 +79,14 @@ static bool view3d_lock_poll(bContext *C)
 /** \name View Lock Clear Operator
  * \{ */
 
-static wmOperatorStatus view_lock_clear_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus view_lock_clear_exec(bContext &C, wmOperator & /*op*/)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   if (v3d) {
     ED_view3d_lock_clear(v3d);
 
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
+    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
 
     return OPERATOR_FINISHED;
   }
@@ -116,10 +116,10 @@ void VIEW3D_OT_view_lock_clear(wmOperatorType *ot)
 /** \name View Lock to Active Operator
  * \{ */
 
-static wmOperatorStatus view_lock_to_active_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus view_lock_to_active_exec(bContext &C, wmOperator & /*op*/)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  Object *obact = CTX_data_active_object(*C);
+  View3D *v3d = CTX_wm_view3d(C);
+  Object *obact = CTX_data_active_object(C);
 
   if (v3d) {
     ED_view3d_lock_clear(v3d);
@@ -128,7 +128,7 @@ static wmOperatorStatus view_lock_to_active_exec(bContext *C, wmOperator * /*op*
 
     if (obact && obact->type == OB_ARMATURE) {
       if (obact->mode & OB_MODE_POSE) {
-        Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+        Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
         Object *obact_eval = DEG_get_evaluated(depsgraph, obact);
         bPoseChannel *pcham_act = BKE_pose_channel_active_if_bonecoll_visible(obact_eval);
         if (pcham_act) {
@@ -143,7 +143,7 @@ static wmOperatorStatus view_lock_to_active_exec(bContext *C, wmOperator * /*op*
       }
     }
 
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
+    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
 
     return OPERATOR_FINISHED;
   }
@@ -173,10 +173,10 @@ void VIEW3D_OT_view_lock_to_active(wmOperatorType *ot)
 /** \name Frame Camera Bounds Operator
  * \{ */
 
-static wmOperatorStatus view3d_center_camera_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus view3d_center_camera_exec(bContext &C, wmOperator & /*op*/)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
   float xfac, yfac;
   float size[2];
 
@@ -185,7 +185,7 @@ static wmOperatorStatus view3d_center_camera_exec(bContext *C, wmOperator * /*op
   RegionView3D *rv3d;
 
   /* no nullptr check is needed, poll checks */
-  ED_view3d_context_user_region(C, &v3d, &region);
+  ED_view3d_context_user_region(&C, &v3d, &region);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   rv3d->camdx = rv3d->camdy = 0.0f;
@@ -199,7 +199,7 @@ static wmOperatorStatus view3d_center_camera_exec(bContext *C, wmOperator * /*op
   rv3d->camzoom = BKE_screen_view3d_zoom_from_fac(min_ff(xfac, yfac));
   CLAMP(rv3d->camzoom, RV3D_CAMZOOM_MIN, RV3D_CAMZOOM_MAX);
 
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
 
   return OPERATOR_FINISHED;
 }
@@ -225,13 +225,13 @@ void VIEW3D_OT_view_center_camera(wmOperatorType *ot)
 /** \name View Lock Center Operator
  * \{ */
 
-static wmOperatorStatus view3d_center_lock_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus view3d_center_lock_exec(bContext &C, wmOperator & /*op*/)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
   zero_v2(rv3d->ofs_lock);
 
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, CTX_wm_view3d(*C));
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, CTX_wm_view3d(C));
 
   return OPERATOR_FINISHED;
 }
@@ -257,24 +257,24 @@ void VIEW3D_OT_view_center_lock(wmOperatorType *ot)
 /** \name Set Render Border Operator
  * \{ */
 
-static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus render_border_exec(bContext &C, wmOperator &op)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  ARegion *region = CTX_wm_region(*C);
-  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(&C);
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   rcti rect;
   rctf vb, border;
 
   /* get box select values using rna */
-  WM_operator_properties_border_to_rcti(op, &rect);
+  WM_operator_properties_border_to_rcti(&op, &rect);
 
   /* calculate range */
 
   if (rv3d->persp == RV3D_CAMOB) {
-    const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+    const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     ED_view3d_calc_camera_border(scene, depsgraph, region, v3d, rv3d, false, &vb);
   }
   else {
@@ -298,12 +298,12 @@ static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
   if (rv3d->persp == RV3D_CAMOB) {
     scene->r.border = border;
 
-    WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+    WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
   }
   else {
     v3d->render_border = border;
 
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
   }
 
   /* drawing a border outside the camera view switches off border rendering */
@@ -326,7 +326,7 @@ static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
 
   if (rv3d->persp == RV3D_CAMOB) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-    ED_undo_push(C, op->type->name);
+    ED_undo_push(&C, op.type->name);
   }
   return OPERATOR_FINISHED;
 }
@@ -361,25 +361,25 @@ void VIEW3D_OT_render_border(wmOperatorType *ot)
 /** \name Clear Render Border Operator
  * \{ */
 
-static wmOperatorStatus clear_render_border_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus clear_render_border_exec(bContext &C, wmOperator &op)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(&C);
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   rctf *border = nullptr;
 
   if (rv3d->persp == RV3D_CAMOB) {
     scene->r.mode &= ~R_BORDER;
     border = &scene->r.border;
 
-    WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+    WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
   }
   else {
     v3d->flag2 &= ~V3D_RENDER_BORDER;
     border = &v3d->render_border;
 
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
   }
 
   border->xmin = 0.0f;
@@ -389,7 +389,7 @@ static wmOperatorStatus clear_render_border_exec(bContext *C, wmOperator *op)
 
   if (rv3d->persp == RV3D_CAMOB) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-    ED_undo_push(C, op->type->name);
+    ED_undo_push(&C, op.type->name);
   }
   return OPERATOR_FINISHED;
 }
@@ -436,23 +436,23 @@ static void view3d_set_1_to_1_viewborder(Scene *scene,
   CLAMP(rv3d->camzoom, RV3D_CAMZOOM_MIN, RV3D_CAMZOOM_MAX);
 }
 
-static wmOperatorStatus view3d_zoom_1_to_1_camera_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus view3d_zoom_1_to_1_camera_exec(bContext &C, wmOperator & /*op*/)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
 
   View3D *v3d;
   ARegion *region;
 
   /* no nullptr check is needed, poll checks */
-  ED_view3d_context_user_region(C, &v3d, &region);
+  ED_view3d_context_user_region(&C, &v3d, &region);
 
   /* NOTE: don't call #ED_view3d_smooth_view_force_finish as the camera zoom
    * isn't controlled by smooth-view, there is no need to "finish". */
 
   view3d_set_1_to_1_viewborder(scene, depsgraph, region, v3d);
 
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
 
   return OPERATOR_FINISHED;
 }
@@ -478,15 +478,15 @@ void VIEW3D_OT_zoom_camera_1_to_1(wmOperatorType *ot)
 /** \name View Toggle Perspective/Orthographic Operator
  * \{ */
 
-static wmOperatorStatus viewpersportho_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus viewpersportho_exec(bContext &C, wmOperator & /*op*/)
 {
   View3D *v3d;
   ARegion *region;
   RegionView3D *rv3d;
 
   /* no nullptr check is needed, poll checks */
-  ED_view3d_context_user_region(C, &v3d, &region);
-  ED_view3d_smooth_view_force_finish(C, v3d, region);
+  ED_view3d_context_user_region(&C, &v3d, &region);
+  ED_view3d_smooth_view_force_finish(&C, v3d, region);
 
   rv3d = static_cast<RegionView3D *>(region->regiondata);
 
@@ -528,8 +528,8 @@ void VIEW3D_OT_view_persportho(wmOperatorType *ot)
  * Wraps walk/fly modes.
  * \{ */
 
-static wmOperatorStatus view3d_navigate_invoke(bContext *C,
-                                               wmOperator * /*op*/,
+static wmOperatorStatus view3d_navigate_invoke(bContext &C,
+                                               wmOperator & /*op*/,
                                                const wmEvent *event)
 {
   eViewNavigation_Method mode = eViewNavigation_Method(U.navigation_mode);
@@ -537,12 +537,12 @@ static wmOperatorStatus view3d_navigate_invoke(bContext *C,
   switch (mode) {
     case VIEW_NAVIGATION_FLY:
       WM_operator_name_call(
-          C, "VIEW3D_OT_fly", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
+          &C, "VIEW3D_OT_fly", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
       break;
     case VIEW_NAVIGATION_WALK:
     default:
       WM_operator_name_call(
-          C, "VIEW3D_OT_walk", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
+          &C, "VIEW3D_OT_walk", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
       break;
   }
 
@@ -582,13 +582,13 @@ static Camera *background_image_camera_from_context(bContext *C)
   return static_cast<Camera *>(CTX_data_pointer_get_type(*C, "camera", &RNA_Camera).data);
 }
 
-static wmOperatorStatus camera_background_image_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus camera_background_image_add_exec(bContext &C, wmOperator &op)
 {
-  Camera *cam = background_image_camera_from_context(C);
+  Camera *cam = background_image_camera_from_context(&C);
   Image *ima;
   CameraBGImage *bgpic;
 
-  ima = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
+  ima = (Image *)WM_operator_drop_load_path(&C, &op, ID_IM);
   /* may be nullptr, continue anyway */
 
   bgpic = BKE_camera_background_image_new(cam);
@@ -596,15 +596,15 @@ static wmOperatorStatus camera_background_image_add_exec(bContext *C, wmOperator
 
   cam->flag |= CAM_SHOW_BG_IMAGE;
 
-  WM_event_add_notifier(C, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, cam);
+  WM_event_add_notifier(&C, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, cam);
   DEG_id_tag_update(&cam->id, ID_RECALC_SYNC_TO_EVAL);
 
   return OPERATOR_FINISHED;
 }
 
-static bool camera_background_image_add_poll(bContext *C)
+static bool camera_background_image_add_poll(bContext &C)
 {
-  return background_image_camera_from_context(C) != nullptr;
+  return background_image_camera_from_context(&C) != nullptr;
 }
 
 void VIEW3D_OT_camera_background_image_add(wmOperatorType *ot)
@@ -642,17 +642,17 @@ void VIEW3D_OT_camera_background_image_add(wmOperatorType *ot)
 /** \name Background Image Remove Operator
  * \{ */
 
-static wmOperatorStatus camera_background_image_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus camera_background_image_remove_exec(bContext &C, wmOperator &op)
 {
-  Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(*C, "camera", &RNA_Camera).data);
-  const int index = RNA_int_get(op->ptr, "index");
+  Camera *cam = static_cast<Camera *>(CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
+  const int index = RNA_int_get(op.ptr, "index");
   CameraBGImage *bgpic_rem = static_cast<CameraBGImage *>(BLI_findlink(&cam->bg_images, index));
 
   if (bgpic_rem) {
     if (ID_IS_OVERRIDE_LIBRARY(cam) &&
         (bgpic_rem->flag & CAM_BGIMG_FLAG_OVERRIDE_LIBRARY_LOCAL) == 0)
     {
-      BKE_reportf(op->reports,
+      BKE_reportf(op.reports,
                   RPT_WARNING,
                   "Cannot remove background image %d from camera '%s', as it is from the linked "
                   "reference data",
@@ -666,7 +666,7 @@ static wmOperatorStatus camera_background_image_remove_exec(bContext *C, wmOpera
 
     BKE_camera_background_image_remove(cam, bgpic_rem);
 
-    WM_event_add_notifier(C, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, cam);
+    WM_event_add_notifier(&C, NC_CAMERA | ND_DRAW_RENDER_VIEWPORT, cam);
     DEG_id_tag_update(&cam->id, ID_RECALC_SYNC_TO_EVAL);
 
     return OPERATOR_FINISHED;
@@ -699,13 +699,13 @@ void VIEW3D_OT_camera_background_image_remove(wmOperatorType *ot)
 /** \name Drop World Operator
  * \{ */
 
-static wmOperatorStatus drop_world_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus drop_world_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
 
   World *world = (World *)WM_operator_properties_id_lookup_from_name_or_session_uid(
-      bmain, op->ptr, ID_WO);
+      bmain, op.ptr, ID_WO);
   if (world == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -717,12 +717,12 @@ static wmOperatorStatus drop_world_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_WORLD, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_WORLD, scene);
 
   return OPERATOR_FINISHED;
 }
 
-static bool drop_world_poll(bContext *C)
+static bool drop_world_poll(bContext &C)
 {
   return ED_operator_scene_editable(C);
 }
@@ -776,13 +776,13 @@ void ED_view3d_clipping_local(RegionView3D *rv3d, const float mat[4][4])
   }
 }
 
-static wmOperatorStatus view3d_clipping_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_clipping_exec(bContext &C, wmOperator &op)
 {
-  ARegion *region = CTX_wm_region(*C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   rcti rect;
 
-  WM_operator_properties_border_to_rcti(op, &rect);
+  WM_operator_properties_border_to_rcti(&op, &rect);
 
   rv3d->rflag |= RV3D_CLIPPING;
   rv3d->clipbb = MEM_new_for_free<BoundBox>("clipbb");
@@ -793,10 +793,10 @@ static wmOperatorStatus view3d_clipping_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus view3d_clipping_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus view3d_clipping_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
-  ARegion *region = CTX_wm_region(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  ARegion *region = CTX_wm_region(C);
 
   if (rv3d->rflag & RV3D_CLIPPING) {
     rv3d->rflag &= ~RV3D_CLIPPING;
@@ -1079,20 +1079,20 @@ void ED_view3d_cursor3d_update(bContext *C,
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-static wmOperatorStatus view3d_cursor3d_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus view3d_cursor3d_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   bool use_depth = (U.uiflag & USER_DEPTH_CURSOR);
   {
-    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_depth");
-    if (RNA_property_is_set(op->ptr, prop)) {
-      use_depth = RNA_property_boolean_get(op->ptr, prop);
+    PropertyRNA *prop = RNA_struct_find_property(op.ptr, "use_depth");
+    if (RNA_property_is_set(op.ptr, prop)) {
+      use_depth = RNA_property_boolean_get(op.ptr, prop);
     }
     else {
-      RNA_property_boolean_set(op->ptr, prop, use_depth);
+      RNA_property_boolean_set(op.ptr, prop, use_depth);
     }
   }
-  const enum eV3DCursorOrient orientation = eV3DCursorOrient(RNA_enum_get(op->ptr, "orientation"));
-  ED_view3d_cursor3d_update(C, event->mval, use_depth, orientation);
+  const enum eV3DCursorOrient orientation = eV3DCursorOrient(RNA_enum_get(op.ptr, "orientation"));
+  ED_view3d_cursor3d_update(&C, event->mval, use_depth, orientation);
 
   /* Use pass-through to allow click-drag to transform the cursor. */
   return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
@@ -1154,12 +1154,12 @@ static const EnumPropertyItem prop_shading_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus toggle_shading_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus toggle_shading_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  ScrArea *area = CTX_wm_area(*C);
-  int type = RNA_enum_get(op->ptr, "type");
+  Main *bmain = CTX_data_main(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  ScrArea *area = CTX_wm_area(C);
+  int type = RNA_enum_get(op.ptr, "type");
 
   if (type == OB_SOLID) {
     if (v3d->shading.type != type) {
@@ -1187,7 +1187,7 @@ static wmOperatorStatus toggle_shading_exec(bContext *C, wmOperator *op)
   }
 
   ED_view3d_shade_update(bmain, v3d, area);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D | NS_VIEW3D_SHADING, v3d);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D | NS_VIEW3D_SHADING, v3d);
 
   return OPERATOR_FINISHED;
 }
@@ -1216,11 +1216,11 @@ void VIEW3D_OT_toggle_shading(wmOperatorType *ot)
 /** \name Toggle XRay
  * \{ */
 
-static wmOperatorStatus toggle_xray_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus toggle_xray_exec(bContext &C, wmOperator &op)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  ScrArea *area = CTX_wm_area(*C);
-  Object *obact = CTX_data_active_object(*C);
+  View3D *v3d = CTX_wm_view3d(C);
+  ScrArea *area = CTX_wm_area(C);
+  Object *obact = CTX_data_active_object(C);
 
   if (obact && ((obact->mode & OB_MODE_POSE) ||
                 ((obact->mode & OB_MODE_WEIGHT_PAINT) && BKE_object_pose_armature_get(obact))))
@@ -1238,12 +1238,12 @@ static wmOperatorStatus toggle_xray_exec(bContext *C, wmOperator *op)
       v3d->shading.flag ^= V3D_SHADING_XRAY;
     }
     if (!xray_active) {
-      BKE_report(op->reports, RPT_INFO, "X-Ray not available in current mode");
+      BKE_report(op.reports, RPT_INFO, "X-Ray not available in current mode");
     }
   }
 
   ED_area_tag_redraw(area);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D | NS_VIEW3D_SHADING, v3d);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D | NS_VIEW3D_SHADING, v3d);
 
   return OPERATOR_FINISHED;
 }

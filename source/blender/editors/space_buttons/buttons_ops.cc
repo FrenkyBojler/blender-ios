@@ -50,13 +50,13 @@
  * \note Almost a duplicate of the file browser operator #FILE_OT_start_filter.
  * \{ */
 
-static wmOperatorStatus buttons_start_filter_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus buttons_start_filter_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceProperties *space = CTX_wm_space_properties(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  SpaceProperties *space = CTX_wm_space_properties(C);
+  ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
-  blender::ui::textbutton_activate_rna(C, region, space, "search_filter");
+  blender::ui::textbutton_activate_rna(&C, region, space, "search_filter");
 
   return OPERATOR_FINISHED;
 }
@@ -73,14 +73,14 @@ void BUTTONS_OT_start_filter(wmOperatorType *ot)
   ot->poll = ED_operator_buttons_active;
 }
 
-static wmOperatorStatus buttons_clear_filter_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus buttons_clear_filter_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceProperties *space = CTX_wm_space_properties(*C);
+  SpaceProperties *space = CTX_wm_space_properties(C);
 
   space->runtime->search_string[0] = '\0';
 
-  ScrArea *area = CTX_wm_area(*C);
-  ED_region_search_filter_update(area, CTX_wm_region(*C));
+  ScrArea *area = CTX_wm_area(C);
+  ED_region_search_filter_update(area, CTX_wm_region(C));
   ED_area_tag_redraw(area);
 
   return OPERATOR_FINISHED;
@@ -104,23 +104,23 @@ void BUTTONS_OT_clear_filter(wmOperatorType *ot)
 /** \name Pin ID Operator
  * \{ */
 
-static wmOperatorStatus toggle_pin_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus toggle_pin_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(C);
 
   sbuts->flag ^= SB_PIN_CONTEXT;
 
   /* Create the properties space pointer. */
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
   PointerRNA sbuts_ptr = RNA_pointer_create_discrete(&screen->id, &RNA_SpaceProperties, sbuts);
 
   /* Create the new ID pointer and set the pin ID with RNA
    * so we can use the property's RNA update functionality. */
-  ID *new_id = (sbuts->flag & SB_PIN_CONTEXT) ? buttons_context_id_path(C) : nullptr;
+  ID *new_id = (sbuts->flag & SB_PIN_CONTEXT) ? buttons_context_id_path(&C) : nullptr;
   PointerRNA new_id_ptr = RNA_id_pointer_create(new_id);
   RNA_pointer_set(&sbuts_ptr, "pin_id", new_id_ptr);
 
-  ED_area_tag_redraw(CTX_wm_area(*C));
+  ED_area_tag_redraw(CTX_wm_area(C));
 
   return OPERATOR_FINISHED;
 }
@@ -143,16 +143,16 @@ void BUTTONS_OT_toggle_pin(wmOperatorType *ot)
 /** \name Context Menu Operator
  * \{ */
 
-static wmOperatorStatus context_menu_invoke(bContext *C,
-                                            wmOperator * /*op*/,
+static wmOperatorStatus context_menu_invoke(bContext &C,
+                                            wmOperator & /*op*/,
                                             const wmEvent * /*event*/)
 {
   blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
-      C, IFACE_("Context Menu"), ICON_NONE);
+      &C, IFACE_("Context Menu"), ICON_NONE);
   blender::ui::Layout &layout = *popup_menu_layout(pup);
 
   layout.menu("INFO_MT_area", std::nullopt, ICON_NONE);
-  popup_menu_end(C, pup);
+  popup_menu_end(&C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -195,23 +195,22 @@ static bool file_browse_operator_relative_paths_supported(wmOperator *op)
   return true;
 }
 
-static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus file_browse_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  FileBrowseOp *fbo = static_cast<FileBrowseOp *>(op->customdata);
+  Main *bmain = CTX_data_main(C);
+  FileBrowseOp *fbo = static_cast<FileBrowseOp *>(op.customdata);
   char *path;
-  const char *path_prop = RNA_struct_find_property(op->ptr, "directory") ? "directory" :
-                                                                           "filepath";
+  const char *path_prop = RNA_struct_find_property(op.ptr, "directory") ? "directory" : "filepath";
 
   if (fbo == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  if (RNA_struct_property_is_set(op->ptr, path_prop) == 0) {
+  if (RNA_struct_property_is_set(op.ptr, path_prop) == 0) {
     MEM_delete(fbo);
     return OPERATOR_CANCELLED;
   }
 
-  path = RNA_string_get_alloc(op->ptr, path_prop, nullptr, 0, nullptr);
+  path = RNA_string_get_alloc(op.ptr, path_prop, nullptr, 0, nullptr);
 
   if (path[0]) {
     /* Check relative paths are supported here as this option will be hidden
@@ -220,8 +219,8 @@ static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
      * Either way, don't use the blend-file relative prefix when it's not supported. */
     const PropertySubType prop_subtype = RNA_property_subtype(fbo->prop);
     const bool is_relative = BLI_path_is_rel(path);
-    const bool make_relative = RNA_boolean_get(op->ptr, "relative_path") &&
-                               file_browse_operator_relative_paths_supported(op);
+    const bool make_relative = RNA_boolean_get(op.ptr, "relative_path") &&
+                               file_browse_operator_relative_paths_supported(&op);
 
     /* Add slash for directories, important for some properties. */
     if ((prop_subtype == PROP_DIRPATH) || (is_relative || make_relative)) {
@@ -247,20 +246,20 @@ static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
   }
 
   RNA_property_string_set(&fbo->ptr, fbo->prop, path);
-  RNA_property_update(C, &fbo->ptr, fbo->prop);
+  RNA_property_update(&C, &fbo->ptr, fbo->prop);
   MEM_freeN(path);
 
   if (fbo->is_undo) {
     const char *undostr = RNA_property_identifier(fbo->prop);
-    ED_undo_push(C, undostr);
+    ED_undo_push(&C, undostr);
   }
 
   /* Special annoying exception, filesel on redo panel #26618. */
   {
-    wmOperator *redo_op = WM_operator_last_redo(C);
+    wmOperator *redo_op = WM_operator_last_redo(&C);
     if (redo_op) {
       if (fbo->ptr.data == redo_op->ptr->data) {
-        ED_undo_operator_repeat(C, redo_op);
+        ED_undo_operator_repeat(&C, redo_op);
       }
     }
   }
@@ -270,20 +269,20 @@ static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
     U.runtime.is_dirty = true;
   }
 
-  BLI_assert(fbo == op->customdata);
+  BLI_assert(fbo == op.customdata);
   MEM_delete(fbo);
 
   return OPERATOR_FINISHED;
 }
 
-static void file_browse_cancel(bContext * /*C*/, wmOperator *op)
+static void file_browse_cancel(bContext & /*C*/, wmOperator &op)
 {
-  FileBrowseOp *fbo = static_cast<FileBrowseOp *>(op->customdata);
+  FileBrowseOp *fbo = static_cast<FileBrowseOp *>(op.customdata);
   MEM_delete(fbo);
-  op->customdata = nullptr;
+  op.customdata = nullptr;
 }
 
-static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus file_browse_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   PointerRNA ptr;
   PropertyRNA *prop;
@@ -291,13 +290,13 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
   bool is_userdef;
   char *path;
 
-  const SpaceFile *sfile = CTX_wm_space_file(*C);
+  const SpaceFile *sfile = CTX_wm_space_file(C);
   if (sfile && sfile->op) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot activate a file selector dialog, one already open");
+    BKE_report(op.reports, RPT_ERROR, "Cannot activate a file selector dialog, one already open");
     return OPERATOR_CANCELLED;
   }
 
-  blender::ui::context_active_but_prop_get_filebrowser(C, &ptr, &prop, &is_undo, &is_userdef);
+  blender::ui::context_active_but_prop_get_filebrowser(&C, &ptr, &prop, &is_undo, &is_userdef);
 
   if (!prop) {
     return OPERATOR_CANCELLED;
@@ -307,13 +306,13 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
 
   if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
     const std::optional<blender::bke::path_templates::VariableMap> variables =
-        BKE_build_template_variables_for_prop(C, &ptr, prop);
+        BKE_build_template_variables_for_prop(&C, &ptr, prop);
     BLI_assert(variables.has_value());
 
     const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
         path, FILE_MAX, *variables);
     if (!errors.is_empty()) {
-      BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
+      BKE_report_path_template_errors(op.reports, RPT_ERROR, path, errors);
       return OPERATOR_CANCELLED;
     }
   }
@@ -332,7 +331,8 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
 
     PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     RNA_string_set(&props_ptr, "filepath", path);
-    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(
+        &C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
     MEM_freeN(path);
@@ -343,10 +343,10 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
     const char *info;
     if (!RNA_property_editable_info(&ptr, prop, &info)) {
       if (info[0]) {
-        BKE_reportf(op->reports, RPT_ERROR, "Property is not editable: %s", info);
+        BKE_reportf(op.reports, RPT_ERROR, "Property is not editable: %s", info);
       }
       else {
-        BKE_report(op->reports, RPT_ERROR, "Property is not editable");
+        BKE_report(op.reports, RPT_ERROR, "Property is not editable");
       }
       MEM_freeN(path);
       return OPERATOR_CANCELLED;
@@ -354,20 +354,19 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
   }
 
   PropertyRNA *prop_relpath;
-  const char *path_prop = RNA_struct_find_property(op->ptr, "directory") ? "directory" :
-                                                                           "filepath";
+  const char *path_prop = RNA_struct_find_property(op.ptr, "directory") ? "directory" : "filepath";
   FileBrowseOp *fbo = MEM_new<FileBrowseOp>(__func__);
   fbo->ptr = ptr;
   fbo->prop = prop;
   fbo->is_undo = is_undo;
   fbo->is_userdef = is_userdef;
 
-  op->customdata = fbo;
+  op.customdata = fbo;
 
   /* NOTE(@ideasman42): Normally #ED_fileselect_get_params would handle this
    * but we need to because of stupid user-preferences exception. */
-  if ((prop_relpath = RNA_struct_find_property(op->ptr, "relative_path"))) {
-    if (!RNA_property_is_set(op->ptr, prop_relpath)) {
+  if ((prop_relpath = RNA_struct_find_property(op.ptr, "relative_path"))) {
+    if (!RNA_property_is_set(op.ptr, prop_relpath)) {
       bool is_relative = (U.flag & USER_RELPATHS) != 0;
 
       /* While we want to follow the defaults,
@@ -382,7 +381,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
 
       /* Annoying exception!, if we're dealing with the user preferences,
        * default relative to be off. */
-      RNA_property_boolean_set(op->ptr, prop_relpath, is_relative);
+      RNA_property_boolean_set(op.ptr, prop_relpath, is_relative);
     }
   }
 
@@ -391,10 +390,10 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
   /* NOTE: relying on built-in names isn't useful for add-on authors.
    * The property itself should support this kind of meta-data. */
   if (STR_ELEM(prop_id, "font_path_ui", "font_path_ui_mono", "font_directory")) {
-    RNA_boolean_set(op->ptr, "filter_font", true);
-    RNA_boolean_set(op->ptr, "filter_folder", true);
-    RNA_enum_set(op->ptr, "display_type", FILE_IMGDISPLAY);
-    RNA_enum_set(op->ptr, "sort_method", FILE_SORT_ALPHA);
+    RNA_boolean_set(op.ptr, "filter_font", true);
+    RNA_boolean_set(op.ptr, "filter_folder", true);
+    RNA_enum_set(op.ptr, "display_type", FILE_IMGDISPLAY);
+    RNA_enum_set(op.ptr, "sort_method", FILE_SORT_ALPHA);
     if (!path[0]) {
       char fonts_path[FILE_MAX] = {0};
       if (U.fontdir[0]) {
@@ -419,30 +418,30 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
     path = BLI_strdup(default_path);
   }
 
-  RNA_string_set(op->ptr, path_prop, path);
+  RNA_string_set(op.ptr, path_prop, path);
   MEM_freeN(path);
 
-  PropertyRNA *prop_check_existing = RNA_struct_find_property(op->ptr, "check_existing");
-  if (!RNA_property_is_set(op->ptr, prop_check_existing)) {
+  PropertyRNA *prop_check_existing = RNA_struct_find_property(op.ptr, "check_existing");
+  if (!RNA_property_is_set(op.ptr, prop_check_existing)) {
     const bool is_output_path = (RNA_property_flag(prop) & PROP_PATH_OUTPUT) != 0;
-    RNA_property_boolean_set(op->ptr, prop_check_existing, is_output_path);
+    RNA_property_boolean_set(op.ptr, prop_check_existing, is_output_path);
   }
-  if (std::optional<std::string> filter = RNA_property_string_path_filter(C, &ptr, prop)) {
-    RNA_string_set(op->ptr, "filter_glob", filter->c_str());
+  if (std::optional<std::string> filter = RNA_property_string_path_filter(&C, &ptr, prop)) {
+    RNA_string_set(op.ptr, "filter_glob", filter->c_str());
   }
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static bool file_browse_poll_property(const bContext * /*C*/,
-                                      wmOperator *op,
+static bool file_browse_poll_property(const bContext & /*C*/,
+                                      wmOperator &op,
                                       const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
   if (STREQ(prop_id, "relative_path")) {
-    if (!file_browse_operator_relative_paths_supported(op)) {
+    if (!file_browse_operator_relative_paths_supported(&op)) {
       return false;
     }
   }

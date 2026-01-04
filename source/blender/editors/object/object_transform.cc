@@ -383,9 +383,9 @@ static wmOperatorStatus object_clear_transform_generic_exec(bContext *C,
 /** \name Clear Location Operator
  * \{ */
 
-static wmOperatorStatus object_location_clear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_location_clear_exec(bContext &C, wmOperator &op)
 {
-  return object_clear_transform_generic_exec(C, op, object_clear_loc, ANIM_KS_LOCATION_ID);
+  return object_clear_transform_generic_exec(&C, &op, object_clear_loc, ANIM_KS_LOCATION_ID);
 }
 
 void OBJECT_OT_location_clear(wmOperatorType *ot)
@@ -417,9 +417,9 @@ void OBJECT_OT_location_clear(wmOperatorType *ot)
 /** \name Clear Rotation Operator
  * \{ */
 
-static wmOperatorStatus object_rotation_clear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_rotation_clear_exec(bContext &C, wmOperator &op)
 {
-  return object_clear_transform_generic_exec(C, op, object_clear_rot, ANIM_KS_ROTATION_ID);
+  return object_clear_transform_generic_exec(&C, &op, object_clear_rot, ANIM_KS_ROTATION_ID);
 }
 
 void OBJECT_OT_rotation_clear(wmOperatorType *ot)
@@ -451,9 +451,9 @@ void OBJECT_OT_rotation_clear(wmOperatorType *ot)
 /** \name Clear Scale Operator
  * \{ */
 
-static wmOperatorStatus object_scale_clear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_scale_clear_exec(bContext &C, wmOperator &op)
 {
-  return object_clear_transform_generic_exec(C, op, object_clear_scale, ANIM_KS_SCALING_ID);
+  return object_clear_transform_generic_exec(&C, &op, object_clear_scale, ANIM_KS_SCALING_ID);
 }
 
 void OBJECT_OT_scale_clear(wmOperatorType *ot)
@@ -485,12 +485,12 @@ void OBJECT_OT_scale_clear(wmOperatorType *ot)
 /** \name Clear Origin Operator
  * \{ */
 
-static wmOperatorStatus object_origin_clear_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus object_origin_clear_exec(bContext &C, wmOperator & /*op*/)
 {
   float *v1, *v3;
   float mat[3][3];
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if (ob->parent) {
       /* vectors pointed to by v1 and v3 will get modified */
       v1 = ob->loc;
@@ -505,7 +505,7 @@ static wmOperatorStatus object_origin_clear_exec(bContext *C, wmOperator * /*op*
   }
   CTX_DATA_END;
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1092,13 +1092,13 @@ static wmOperatorStatus apply_objects_internal(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus visual_transform_apply_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus visual_transform_apply_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   bool changed = false;
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
     BKE_object_where_is_calc(depsgraph, scene, ob_eval);
     BKE_object_apply_mat4(ob_eval, ob_eval->object_to_world().ptr(), true, true);
@@ -1115,7 +1115,7 @@ static wmOperatorStatus visual_transform_apply_exec(bContext *C, wmOperator * /*
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -1134,38 +1134,38 @@ void OBJECT_OT_visual_transform_apply(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus object_transform_apply_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_transform_apply_exec(bContext &C, wmOperator &op)
 {
-  const bool loc = RNA_boolean_get(op->ptr, "location");
-  const bool rot = RNA_boolean_get(op->ptr, "rotation");
-  const bool sca = RNA_boolean_get(op->ptr, "scale");
-  const bool do_props = RNA_boolean_get(op->ptr, "properties");
-  const bool do_single_user = RNA_boolean_get(op->ptr, "isolate_users");
+  const bool loc = RNA_boolean_get(op.ptr, "location");
+  const bool rot = RNA_boolean_get(op.ptr, "rotation");
+  const bool sca = RNA_boolean_get(op.ptr, "scale");
+  const bool do_props = RNA_boolean_get(op.ptr, "properties");
+  const bool do_single_user = RNA_boolean_get(op.ptr, "isolate_users");
 
   if (loc || rot || sca) {
-    return apply_objects_internal(C, op->reports, loc, rot, sca, do_props, do_single_user);
+    return apply_objects_internal(&C, op.reports, loc, rot, sca, do_props, do_single_user);
   }
   /* allow for redo */
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus object_transform_apply_invoke(bContext *C,
-                                                      wmOperator *op,
+static wmOperatorStatus object_transform_apply_invoke(bContext &C,
+                                                      wmOperator &op,
                                                       const wmEvent * /*event*/)
 {
-  Object *ob = context_active_object(C);
+  Object *ob = context_active_object(&C);
 
-  bool can_handle_multiuser = apply_objects_internal_can_multiuser(C);
-  bool need_single_user = can_handle_multiuser && apply_objects_internal_need_single_user(C);
+  bool can_handle_multiuser = apply_objects_internal_can_multiuser(&C);
+  bool need_single_user = can_handle_multiuser && apply_objects_internal_need_single_user(&C);
 
   if ((ob != nullptr) && (ob->data != nullptr) && need_single_user) {
-    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "isolate_users");
-    if (!RNA_property_is_set(op->ptr, prop)) {
-      RNA_property_boolean_set(op->ptr, prop, true);
+    PropertyRNA *prop = RNA_struct_find_property(op.ptr, "isolate_users");
+    if (!RNA_property_is_set(op.ptr, prop)) {
+      RNA_property_boolean_set(op.ptr, prop, true);
     }
-    if (RNA_property_boolean_get(op->ptr, prop)) {
-      return WM_operator_confirm_ex(C,
-                                    op,
+    if (RNA_property_boolean_get(op.ptr, prop)) {
+      return WM_operator_confirm_ex(&C,
+                                    &op,
                                     IFACE_("Apply Object Transformations"),
                                     IFACE_("Warning: Multiple objects share the same data.\nMake "
                                            "single user and then apply transformations?"),
@@ -1215,9 +1215,9 @@ void OBJECT_OT_transform_apply(wmOperatorType *ot)
 /** \name Apply Parent Inverse Operator
  * \{ */
 
-static wmOperatorStatus object_parent_inverse_apply_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus object_parent_inverse_apply_exec(bContext &C, wmOperator & /*op*/)
 {
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if (ob->parent == nullptr) {
       continue;
     }
@@ -1227,7 +1227,7 @@ static wmOperatorStatus object_parent_inverse_apply_exec(bContext *C, wmOperator
   }
   CTX_DATA_END;
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1279,30 +1279,30 @@ static void translate_positions(MutableSpan<float3> positions, const float3 &tra
   });
 }
 
-static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_origin_set_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *obact = CTX_data_active_object(*C);
-  Object *obedit = CTX_data_edit_object(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *obact = CTX_data_active_object(C);
+  Object *obedit = CTX_data_edit_object(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   float3 cent, cent_neg, centn;
   const float *cursor = scene->cursor.location;
-  int centermode = RNA_enum_get(op->ptr, "type");
+  int centermode = RNA_enum_get(op.ptr, "type");
 
   /* keep track of what is changed */
   int tot_change = 0, tot_lib_error = 0, tot_multiuser_arm_error = 0;
 
   if (obedit && centermode != GEOMETRY_TO_ORIGIN) {
-    BKE_report(op->reports, RPT_ERROR, "Operation cannot be performed in edit mode");
+    BKE_report(op.reports, RPT_ERROR, "Operation cannot be performed in edit mode");
     return OPERATOR_CANCELLED;
   }
 
   int around;
   {
-    PropertyRNA *prop_center = RNA_struct_find_property(op->ptr, "center");
-    if (RNA_property_is_set(op->ptr, prop_center)) {
-      around = RNA_property_enum_get(op->ptr, prop_center);
+    PropertyRNA *prop_center = RNA_struct_find_property(op.ptr, "center");
+    if (RNA_property_is_set(op.ptr, prop_center)) {
+      around = RNA_property_enum_get(op.ptr, prop_center);
     }
     else {
       if (scene->toolsettings->transform_pivot_point == V3D_AROUND_CENTER_BOUNDS) {
@@ -1311,7 +1311,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       else {
         around = V3D_AROUND_CENTER_MEDIAN;
       }
-      RNA_property_enum_set(op->ptr, prop_center, around);
+      RNA_property_enum_set(op.ptr, prop_center, around);
     }
   }
 
@@ -1358,7 +1358,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     }
   }
 
-  Array<Object *> objects = sorted_selected_editable_objects(C);
+  Array<Object *> objects = sorted_selected_editable_objects(&C);
   if (objects.is_empty()) {
     return OPERATOR_CANCELLED;
   }
@@ -1432,7 +1432,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
         BLI_assert(ob->type == OB_EMPTY);
         if (!reported_empty) {
           reported_empty = true;
-          BKE_report(op->reports, RPT_INFO, "Set Origin not supported for Empty object(s)");
+          BKE_report(op.reports, RPT_INFO, "Set Origin not supported for Empty object(s)");
         }
       }
     }
@@ -1621,7 +1621,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
           !ELEM(around, V3D_AROUND_CENTER_BOUNDS, V3D_AROUND_CENTER_MEDIAN))
       {
         BKE_report(
-            op->reports, RPT_WARNING, "Curves Object does not support this set origin operation");
+            op.reports, RPT_WARNING, "Curves Object does not support this set origin operation");
         continue;
       }
 
@@ -1650,7 +1650,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       if (ELEM(centermode, ORIGIN_TO_CENTER_OF_MASS_SURFACE, ORIGIN_TO_CENTER_OF_MASS_VOLUME) ||
           !ELEM(around, V3D_AROUND_CENTER_BOUNDS, V3D_AROUND_CENTER_MEDIAN))
       {
-        BKE_report(op->reports,
+        BKE_report(op.reports,
                    RPT_WARNING,
                    "Grease Pencil Object does not support this set origin operation");
         continue;
@@ -1724,7 +1724,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       if (ELEM(centermode, ORIGIN_TO_CENTER_OF_MASS_SURFACE, ORIGIN_TO_CENTER_OF_MASS_VOLUME) ||
           !ELEM(around, V3D_AROUND_CENTER_BOUNDS, V3D_AROUND_CENTER_MEDIAN))
       {
-        BKE_report(op->reports,
+        BKE_report(op.reports,
                    RPT_WARNING,
                    "Point cloud object does not support this set origin operation");
         continue;
@@ -1755,7 +1755,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
 
       if (!reported[id_index]) {
         reported[id_index] = true;
-        BKE_reportf(op->reports,
+        BKE_reportf(op.reports,
                     RPT_INFO,
                     "Set Origin not supported for %s object(s)",
                     BKE_idtype_idcode_to_name(idcode));
@@ -1834,22 +1834,22 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
   }
 
   if (tot_change) {
-    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
   }
 
   /* Warn if any errors occurred */
   if (tot_lib_error + tot_multiuser_arm_error) {
-    BKE_reportf(op->reports,
+    BKE_reportf(op.reports,
                 RPT_WARNING,
                 "%i object(s) not centered, %i changed:",
                 tot_lib_error + tot_multiuser_arm_error,
                 tot_change);
     if (tot_lib_error) {
-      BKE_reportf(op->reports, RPT_WARNING, "|%i linked library object(s)", tot_lib_error);
+      BKE_reportf(op.reports, RPT_WARNING, "|%i linked library object(s)", tot_lib_error);
     }
     if (tot_multiuser_arm_error) {
       BKE_reportf(
-          op->reports, RPT_WARNING, "|%i multiuser armature object(s)", tot_multiuser_arm_error);
+          op.reports, RPT_WARNING, "|%i multiuser armature object(s)", tot_multiuser_arm_error);
     }
   }
 
@@ -2085,24 +2085,24 @@ static bool object_orient_to_location(Object *ob,
   return false;
 }
 
-static void object_transform_axis_target_cancel(bContext *C, wmOperator *op)
+static void object_transform_axis_target_cancel(bContext &C, wmOperator &op)
 {
-  XFormAxisData *xfd = static_cast<XFormAxisData *>(op->customdata);
+  XFormAxisData *xfd = static_cast<XFormAxisData *>(op.customdata);
   for (XFormAxisItem &item : xfd->object_data) {
     BKE_object_tfm_restore(item.ob, item.obtfm);
     DEG_id_tag_update(&item.ob->id, ID_RECALC_TRANSFORM);
-    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, item.ob);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, item.ob);
   }
 
-  object_transform_axis_target_free_data(op);
+  object_transform_axis_target_free_data(&op);
 }
 
-static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
-                                                            wmOperator *op,
+static wmOperatorStatus object_transform_axis_target_invoke(bContext &C,
+                                                            wmOperator &op,
                                                             const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
 
   if (vc.obact == nullptr || !object_is_target_compat(vc.obact)) {
     /* Falls back to texture space transform. */
@@ -2123,14 +2123,14 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
 #endif
 
   if (depths == nullptr) {
-    BKE_report(op->reports, RPT_WARNING, "Unable to access depth buffer, using view plane");
+    BKE_report(op.reports, RPT_WARNING, "Unable to access depth buffer, using view plane");
     return OPERATOR_CANCELLED;
   }
 
   ED_region_tag_redraw(vc.region);
 
   XFormAxisData *xfd = MEM_new<XFormAxisData>(__func__);
-  op->customdata = xfd;
+  op.customdata = xfd;
 
   /* Don't change this at runtime. */
   xfd->vc = vc;
@@ -2148,7 +2148,7 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
   xfd->object_data.append({});
   xfd->object_data.last().ob = xfd->vc.obact;
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if ((ob != xfd->vc.obact) && object_is_target_compat(ob)) {
       xfd->object_data.append({});
       xfd->object_data.last().ob = ob;
@@ -2166,19 +2166,19 @@ static wmOperatorStatus object_transform_axis_target_invoke(bContext *C,
     item.is_z_flip = dot_v3v3(item.rot_mat[2], full_mat3[2]) < 0.0f;
   }
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
-                                                           wmOperator *op,
+static wmOperatorStatus object_transform_axis_target_modal(bContext &C,
+                                                           wmOperator &op,
                                                            const wmEvent *event)
 {
-  XFormAxisData *xfd = static_cast<XFormAxisData *>(op->customdata);
+  XFormAxisData *xfd = static_cast<XFormAxisData *>(op.customdata);
   ARegion *region = xfd->vc.region;
 
-  view3d_operator_needs_gpu(C);
+  view3d_operator_needs_gpu(&C);
 
   const bool is_translate = event->modifier & KM_CTRL;
   const bool is_translate_init = is_translate && (xfd->is_translate != is_translate);
@@ -2304,7 +2304,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                     item.ob, item.rot_mat, item.rot_mat[2], location_world, item.is_z_flip);
 
                 DEG_id_tag_update(&item.ob->id, ID_RECALC_TRANSFORM);
-                WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, item.ob);
+                WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, item.ob);
               }
               if (normal_found) {
                 copy_v3_v3(xfd->prev.normal, normal);
@@ -2318,7 +2318,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
                       item.ob, item.rot_mat, item.rot_mat[2], location_world, item.is_z_flip))
               {
                 DEG_id_tag_update(&item.ob->id, ID_RECALC_TRANSFORM);
-                WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, item.ob);
+                WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, item.ob);
               }
             }
             xfd->prev.is_normal_valid = false;
@@ -2345,7 +2345,7 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
   }
 
   if (is_finished) {
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     /* Perform auto-keying for rotational changes for all objects. */
     for (XFormAxisItem &item : xfd->object_data) {
       PointerRNA ptr = RNA_pointer_create_discrete(&item.ob->id, &RNA_Object, &item.ob->id);
@@ -2361,10 +2361,10 @@ static wmOperatorStatus object_transform_axis_target_modal(bContext *C,
           break;
       }
       PropertyRNA *prop = RNA_struct_find_property(&ptr, rotation_property);
-      animrig::autokeyframe_property(C, scene, &ptr, prop, -1, scene->r.cfra, true);
+      animrig::autokeyframe_property(&C, scene, &ptr, prop, -1, scene->r.cfra, true);
     }
 
-    object_transform_axis_target_free_data(op);
+    object_transform_axis_target_free_data(&op);
     return OPERATOR_FINISHED;
   }
   if (ELEM(event->type, EVT_ESCKEY, RIGHTMOUSE)) {

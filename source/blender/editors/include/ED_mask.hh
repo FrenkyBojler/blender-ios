@@ -31,7 +31,7 @@ struct wmKeyConfig;
  *
  * It is not required to have mask opened for editing.
  */
-bool ED_maskedit_poll(bContext *C);
+bool ED_maskedit_poll(bContext &C);
 
 /**
  * Returns true when the following conditions are met:
@@ -41,7 +41,7 @@ bool ED_maskedit_poll(bContext *C);
  *
  * It is not required to have mask opened for editing.
  */
-bool ED_maskedit_visible_splines_poll(bContext *C);
+bool ED_maskedit_visible_splines_poll(bContext &C);
 
 /**
  * Returns true when the following conditions are met:
@@ -49,7 +49,7 @@ bool ED_maskedit_visible_splines_poll(bContext *C);
  * - The space is configured to interact with mask.
  * - The space has mask open for editing.
  */
-bool ED_maskedit_mask_poll(bContext *C);
+bool ED_maskedit_mask_poll(bContext &C);
 
 /**
  * Returns true when the following conditions are met:
@@ -58,7 +58,7 @@ bool ED_maskedit_mask_poll(bContext *C);
  * - The space has mask opened.
  * - Mask has visible and editable splines.
  */
-bool ED_maskedit_mask_visible_splines_poll(bContext *C);
+bool ED_maskedit_mask_visible_splines_poll(bContext &C);
 
 void ED_mask_deselect_all(const bContext *C);
 

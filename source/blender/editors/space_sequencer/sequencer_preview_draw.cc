@@ -1176,7 +1176,7 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
 
 static void text_edit_draw(const bContext *C)
 {
-  if (!sequencer_text_editing_active_poll(const_cast<bContext *>(C))) {
+  if (!sequencer_text_editing_active_poll(*const_cast<bContext *>(C))) {
     return;
   }
   const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));

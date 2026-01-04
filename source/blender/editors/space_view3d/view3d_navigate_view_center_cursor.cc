@@ -20,17 +20,17 @@
 /** \name View Center Cursor Operator
  * \{ */
 
-static wmOperatorStatus viewcenter_cursor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus viewcenter_cursor_exec(bContext &C, wmOperator &op)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
-  Scene *scene = CTX_data_scene(*C);
+  View3D *v3d = CTX_wm_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  Scene *scene = CTX_data_scene(C);
 
   if (rv3d) {
-    ARegion *region = CTX_wm_region(*C);
-    const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+    ARegion *region = CTX_wm_region(C);
+    const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
-    ED_view3d_smooth_view_force_finish(C, v3d, region);
+    ED_view3d_smooth_view_force_finish(&C, v3d, region);
 
     /* non camera center */
     float ofs_new[3];
@@ -38,8 +38,8 @@ static wmOperatorStatus viewcenter_cursor_exec(bContext *C, wmOperator *op)
 
     V3D_SmoothParams sview = {nullptr};
     sview.ofs = ofs_new;
-    sview.undo_str = op->type->name;
-    ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview);
+    sview.undo_str = op.type->name;
+    ED_view3d_smooth_view(&C, v3d, region, smooth_viewtx, &sview);
 
     /* Smooth view does view-lock #RV3D_BOXVIEW copy. */
   }

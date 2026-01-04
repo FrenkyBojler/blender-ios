@@ -136,7 +136,7 @@ EditBone *ED_armature_ebone_add_primitive(Object *obedit_arm,
  * If we want the support to be expanded we should something like the
  * offset we do for mesh click extrude.
  */
-static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus armature_click_extrude_exec(bContext &C, wmOperator & /*op*/)
 {
   bArmature *arm;
   EditBone *ebone, *newbone, *flipbone;
@@ -145,8 +145,8 @@ static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*
   Object *obedit;
   Scene *scene;
 
-  scene = CTX_data_scene(*C);
-  obedit = CTX_data_edit_object(*C);
+  scene = CTX_data_scene(C);
+  obedit = CTX_data_edit_object(C);
   arm = static_cast<bArmature *>(obedit->data);
 
   /* find the active or selected bone */
@@ -227,15 +227,15 @@ static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*
 
   ED_armature_edit_sync_selection(arm->edbo);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, obedit);
   DEG_id_tag_update(&obedit->id, ID_RECALC_SELECT);
-  ED_outliner_select_sync_from_edit_bone_tag(C);
+  ED_outliner_select_sync_from_edit_bone_tag(&C);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus armature_click_extrude_invoke(bContext *C,
-                                                      wmOperator *op,
+static wmOperatorStatus armature_click_extrude_invoke(bContext &C,
+                                                      wmOperator &op,
                                                       const wmEvent *event)
 {
   /* TODO: most of this code is copied from set3dcursor_invoke,
@@ -247,9 +247,9 @@ static wmOperatorStatus armature_click_extrude_invoke(bContext *C,
   View3D *v3d;
   float tvec[3], oldcurs[3], mval_f[2];
 
-  scene = CTX_data_scene(*C);
-  region = CTX_wm_region(*C);
-  v3d = CTX_wm_view3d(*C);
+  scene = CTX_data_scene(C);
+  region = CTX_wm_region(C);
+  v3d = CTX_wm_view3d(C);
 
   View3DCursor *cursor = &scene->cursor;
 
@@ -1102,19 +1102,19 @@ EditBone *duplicateEditBone(EditBone *cur_bone,
   return duplicateEditBoneObjects(cur_bone, name, editbones, ob, ob);
 }
 
-static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_duplicate_selected_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const bool do_flip_names = RNA_boolean_get(op->ptr, "do_flip_names");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool do_flip_names = RNA_boolean_get(op.ptr, "do_flip_names");
 
   /* cancel if nothing selected */
-  if (CTX_DATA_COUNT(*C, selected_bones) == 0) {
+  if (CTX_DATA_COUNT(C, selected_bones) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *ob : objects) {
     EditBone *ebone_iter;
     /* The beginning of the duplicated bones in the edbo list */
@@ -1227,11 +1227,11 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
 
     post_edit_bone_duplicate(arm->edbo, ob);
 
-    WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
     DEG_id_tag_update(&ob->id, ID_RECALC_SELECT);
   }
 
-  ED_outliner_select_sync_from_edit_bone_tag(C);
+  ED_outliner_select_sync_from_edit_bone_tag(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -1276,21 +1276,21 @@ static EditBone *get_symmetrized_bone(bArmature *arm, EditBone *bone)
  * near duplicate of #armature_duplicate_selected_exec,
  * except for parenting part (keep in sync)
  */
-static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_symmetrize_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const int direction = RNA_enum_get(op->ptr, "direction");
-  const bool copy_bone_colors = RNA_boolean_get(op->ptr, "copy_bone_colors");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const int direction = RNA_enum_get(op.ptr, "direction");
+  const bool copy_bone_colors = RNA_boolean_get(op.ptr, "copy_bone_colors");
   const int axis = 0;
 
   /* cancel if nothing selected */
-  if (CTX_DATA_COUNT(*C, selected_bones) == 0) {
+  if (CTX_DATA_COUNT(C, selected_bones) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     EditBone *ebone_iter;
     /* The beginning of the duplicated mirrored bones in the edbo list */
@@ -1473,7 +1473,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
          * (need to supply bone_iter as well in case we are working with existing bones) */
         update_duplicate_constraint_settings(ebone, ebone_iter, obedit);
         /* Mirror bone shapes if possible */
-        update_duplicate_custom_bone_shapes(C, ebone, obedit);
+        update_duplicate_custom_bone_shapes(&C, ebone, obedit);
         /* Mirror any settings on the pose bone. */
         mirror_pose_bone(*obedit, *ebone);
         mirror_bone_collection_assignments(*arm, *ebone_iter, *ebone);
@@ -1513,7 +1513,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
 
     post_edit_bone_duplicate(arm->edbo, obedit);
 
-    WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, obedit);
     DEG_id_tag_update(&obedit->id, ID_RECALC_SELECT);
   }
 
@@ -1558,14 +1558,14 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
 /* previously extrude_armature */
 /* context; editmode armature */
 /* if forked && mirror-edit: makes two bones with flipped names */
-static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_extrude_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const bool forked = RNA_boolean_get(op->ptr, "forked");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool forked = RNA_boolean_get(op.ptr, "forked");
   bool changed_multi = false;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   enum ExtrudePoint {
     SKIP_EXTRUDE,
@@ -1738,7 +1738,7 @@ static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
     /* Transform the endpoints */
     ED_armature_edit_sync_selection(arm->edbo);
 
-    WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
     DEG_id_tag_update(&ob->id, ID_RECALC_SELECT);
   }
 
@@ -1746,7 +1746,7 @@ static wmOperatorStatus armature_extrude_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  ED_outliner_select_sync_from_edit_bone_tag(C);
+  ED_outliner_select_sync_from_edit_bone_tag(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -1773,17 +1773,17 @@ void ARMATURE_OT_extrude(wmOperatorType *ot)
 
 /* Op makes a new bone and returns it with its tip selected. */
 
-static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_bone_primitive_add_exec(bContext &C, wmOperator &op)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
-  Object *obedit = CTX_data_edit_object(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  Object *obedit = CTX_data_edit_object(C);
   EditBone *bone;
   float obmat[3][3], curs[3], viewmat[3][3], totmat[3][3], imat[3][3];
   char name[MAXBONENAME];
 
-  RNA_string_get(op->ptr, "name", name);
+  RNA_string_get(op.ptr, "name", name);
 
-  copy_v3_v3(curs, CTX_data_scene(*C)->cursor.location);
+  copy_v3_v3(curs, CTX_data_scene(C)->cursor.location);
 
   /* Get inverse point for head and orientation for tail */
   invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
@@ -1808,7 +1808,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
 
   bArmature *arm = static_cast<bArmature *>(obedit->data);
   if (BLI_listbase_is_empty(&bone->bone_collections) && (arm->flag & ARM_BCOLL_SOLO_ACTIVE)) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_WARNING,
                "Bone not added to a collection and hidden because solo bone collection(s) exist.");
   }
@@ -1818,7 +1818,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
     BLI_assert_msg(bcoll_ref,
                    "Bone that is not visible due to its bone collections MUST be assigned to at "
                    "least one of them.");
-    BKE_reportf(op->reports,
+    BKE_reportf(op.reports,
                 RPT_WARNING,
                 "Bone was added to a hidden collection '%s'",
                 bcoll_ref->bcoll->name);
@@ -1834,9 +1834,9 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   }
 
   /* NOTE: notifier might evolve. */
-  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, obedit);
   DEG_id_tag_update(&obedit->id, ID_RECALC_SELECT);
-  ED_outliner_select_sync_from_edit_bone_tag(C);
+  ED_outliner_select_sync_from_edit_bone_tag(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -1866,17 +1866,17 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
  * appropriate ways), and two separate ones.
  */
 
-static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_subdivide_exec(bContext &C, wmOperator &op)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   EditBone *newbone;
   int cuts, i;
 
   /* there may not be a number_cuts property defined (for 'simple' subdivide) */
-  cuts = RNA_int_get(op->ptr, "number_cuts");
+  cuts = RNA_int_get(op.ptr, "number_cuts");
 
   /* loop over all editable bones */
-  CTX_DATA_BEGIN_WITH_ID (*C, EditBone *, ebone, selected_editable_bones, bArmature *, arm) {
+  CTX_DATA_BEGIN_WITH_ID (C, EditBone *, ebone, selected_editable_bones, bArmature *, arm) {
     /* Keep track of the last bone in the editbone list. The newly created ones
      * will be appended after this one. */
     EditBone *last_bone_before_cutting = static_cast<EditBone *>(arm->edbo->last);
@@ -1949,9 +1949,9 @@ static wmOperatorStatus armature_subdivide_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   /* NOTE: notifier might evolve. */
-  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, obedit);
   DEG_id_tag_update(&obedit->id, ID_RECALC_SELECT);
-  ED_outliner_select_sync_from_edit_bone_tag(C);
+  ED_outliner_select_sync_from_edit_bone_tag(&C);
 
   return OPERATOR_FINISHED;
 }

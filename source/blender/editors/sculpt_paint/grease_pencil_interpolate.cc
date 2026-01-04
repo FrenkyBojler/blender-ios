@@ -868,17 +868,17 @@ static void grease_pencil_interpolate_exit(bContext &C, wmOperator &op)
   op.customdata = nullptr;
 }
 
-static bool grease_pencil_interpolate_poll(bContext *C)
+static bool grease_pencil_interpolate_poll(bContext &C)
 {
   if (!ed::greasepencil::active_grease_pencil_poll(C)) {
     return false;
   }
-  ToolSettings *ts = CTX_data_tool_settings(*C);
+  ToolSettings *ts = CTX_data_tool_settings(C);
   if (!ts || !ts->gp_paint) {
     return false;
   }
   /* Only 3D view */
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   if (area && area->spacetype != SPACE_VIEW3D) {
     return false;
   }
@@ -887,26 +887,26 @@ static bool grease_pencil_interpolate_poll(bContext *C)
 }
 
 /* Invoke handler: Initialize the operator */
-static wmOperatorStatus grease_pencil_interpolate_invoke(bContext *C,
-                                                         wmOperator *op,
+static wmOperatorStatus grease_pencil_interpolate_invoke(bContext &C,
+                                                         wmOperator &op,
                                                          const wmEvent * /*event*/)
 {
-  wmWindow &win = *CTX_wm_window(*C);
+  wmWindow &win = *CTX_wm_window(C);
 
-  if (!grease_pencil_interpolate_init(*C, *op)) {
-    grease_pencil_interpolate_exit(*C, *op);
+  if (!grease_pencil_interpolate_init(C, op)) {
+    grease_pencil_interpolate_exit(C, op);
     return OPERATOR_CANCELLED;
   }
-  InterpolateOpData &opdata = *static_cast<InterpolateOpData *>(op->customdata);
+  InterpolateOpData &opdata = *static_cast<InterpolateOpData *>(op.customdata);
 
   /* Set cursor to indicate modal operator. */
   WM_cursor_modal_set(&win, WM_CURSOR_EW_SCROLL);
 
-  grease_pencil_interpolate_status_indicators(*C, opdata);
+  grease_pencil_interpolate_status_indicators(C, opdata);
 
-  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -919,14 +919,14 @@ enum class InterpolateToolModalEvent : int8_t {
 };
 
 /* Modal handler: Events handling during interactive part */
-static wmOperatorStatus grease_pencil_interpolate_modal(bContext *C,
-                                                        wmOperator *op,
+static wmOperatorStatus grease_pencil_interpolate_modal(bContext &C,
+                                                        wmOperator &op,
                                                         const wmEvent *event)
 {
-  wmWindow &win = *CTX_wm_window(*C);
-  const ARegion &region = *CTX_wm_region(*C);
-  ScrArea &area = *CTX_wm_area(*C);
-  InterpolateOpData &opdata = *static_cast<InterpolateOpData *>(op->customdata);
+  wmWindow &win = *CTX_wm_window(C);
+  const ARegion &region = *CTX_wm_region(C);
+  ScrArea &area = *CTX_wm_area(C);
+  InterpolateOpData &opdata = *static_cast<InterpolateOpData *>(op.customdata);
   const bool has_numinput = hasNumInput(&opdata.numeric_input);
 
   switch (event->type) {
@@ -934,35 +934,35 @@ static wmOperatorStatus grease_pencil_interpolate_modal(bContext *C,
       switch (InterpolateToolModalEvent(event->val)) {
         case InterpolateToolModalEvent::Cancel:
           ED_area_status_text(&area, nullptr);
-          ED_workspace_status_text(C, nullptr);
+          ED_workspace_status_text(&C, nullptr);
           WM_cursor_modal_restore(&win);
 
-          grease_pencil_interpolate_restore(*C, *op);
-          grease_pencil_interpolate_exit(*C, *op);
+          grease_pencil_interpolate_restore(C, op);
+          grease_pencil_interpolate_exit(C, op);
           return OPERATOR_CANCELLED;
         case InterpolateToolModalEvent::Confirm:
           ED_area_status_text(&area, nullptr);
-          ED_workspace_status_text(C, nullptr);
+          ED_workspace_status_text(&C, nullptr);
           WM_cursor_modal_restore(&win);
 
           /* Write current factor to properties for the next execution. */
-          RNA_float_set(op->ptr, "shift", opdata.shift);
+          RNA_float_set(op.ptr, "shift", opdata.shift);
 
-          grease_pencil_interpolate_exit(*C, *op);
+          grease_pencil_interpolate_exit(C, op);
           return OPERATOR_FINISHED;
         case InterpolateToolModalEvent::Increase:
           opdata.shift = std::clamp(opdata.init_factor + opdata.shift + 0.01f,
                                     interpolate_factor_min,
                                     interpolate_factor_max) -
                          opdata.init_factor;
-          grease_pencil_interpolate_update(*C, *op);
+          grease_pencil_interpolate_update(C, op);
           break;
         case InterpolateToolModalEvent::Decrease:
           opdata.shift = std::clamp(opdata.init_factor + opdata.shift - 0.01f,
                                     interpolate_factor_min,
                                     interpolate_factor_max) -
                          opdata.init_factor;
-          grease_pencil_interpolate_update(*C, *op);
+          grease_pencil_interpolate_update(C, op);
           break;
       }
       break;
@@ -975,17 +975,17 @@ static wmOperatorStatus grease_pencil_interpolate_modal(bContext *C,
             mouse_pos / region.winx, interpolate_factor_min, interpolate_factor_max);
         opdata.shift = factor - opdata.init_factor;
 
-        grease_pencil_interpolate_update(*C, *op);
+        grease_pencil_interpolate_update(C, op);
       }
       break;
     default: {
-      if ((event->val == KM_PRESS) && handleNumInput(C, &opdata.numeric_input, event)) {
+      if ((event->val == KM_PRESS) && handleNumInput(&C, &opdata.numeric_input, event)) {
         float value = (opdata.init_factor + opdata.shift) * 100.0f;
         applyNumInput(&opdata.numeric_input, &value);
         opdata.shift = std::clamp(value * 0.01f, interpolate_factor_min, interpolate_factor_max) -
                        opdata.init_factor;
 
-        grease_pencil_interpolate_update(*C, *op);
+        grease_pencil_interpolate_update(C, op);
         break;
       }
       /* Unhandled event, allow to pass through. */
@@ -996,10 +996,10 @@ static wmOperatorStatus grease_pencil_interpolate_modal(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void grease_pencil_interpolate_cancel(bContext *C, wmOperator *op)
+static void grease_pencil_interpolate_cancel(bContext &C, wmOperator &op)
 {
-  grease_pencil_interpolate_restore(*C, *op);
-  grease_pencil_interpolate_exit(*C, *op);
+  grease_pencil_interpolate_restore(C, op);
+  grease_pencil_interpolate_exit(C, op);
 }
 
 static void GREASE_PENCIL_OT_interpolate(wmOperatorType *ot)
@@ -1247,28 +1247,28 @@ static float grease_pencil_interpolate_sequence_easing_calc(const eBezTriple_Eas
   return time;
 }
 
-static wmOperatorStatus grease_pencil_interpolate_sequence_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_interpolate_sequence_exec(bContext &C, wmOperator &op)
 {
   using bke::greasepencil::Drawing;
   using bke::greasepencil::Layer;
 
-  op->customdata = InterpolateOpData::from_operator(*C, *op);
-  if (op->customdata == nullptr) {
+  op.customdata = InterpolateOpData::from_operator(C, op);
+  if (op.customdata == nullptr) {
     return OPERATOR_FINISHED;
   }
-  InterpolateOpData &opdata = *static_cast<InterpolateOpData *>(op->customdata);
+  InterpolateOpData &opdata = *static_cast<InterpolateOpData *>(op.customdata);
 
-  const Scene &scene = *CTX_data_scene(*C);
+  const Scene &scene = *CTX_data_scene(C);
   const int current_frame = scene.r.cfra;
-  Object &object = *CTX_data_active_object(*C);
+  Object &object = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
-  ToolSettings &ts = *CTX_data_tool_settings(*C);
-  const InterpolationType type = InterpolationType(RNA_enum_get(op->ptr, "type"));
-  const eBezTriple_Easing easing = eBezTriple_Easing(RNA_enum_get(op->ptr, "easing"));
-  const float back_easing = RNA_float_get(op->ptr, "back");
-  const float amplitude = RNA_float_get(op->ptr, "amplitude");
-  const float period = RNA_float_get(op->ptr, "period");
-  const int step = RNA_int_get(op->ptr, "step");
+  ToolSettings &ts = *CTX_data_tool_settings(C);
+  const InterpolationType type = InterpolationType(RNA_enum_get(op.ptr, "type"));
+  const eBezTriple_Easing easing = eBezTriple_Easing(RNA_enum_get(op.ptr, "easing"));
+  const float back_easing = RNA_float_get(op.ptr, "back");
+  const float amplitude = RNA_float_get(op.ptr, "amplitude");
+  const float period = RNA_float_get(op.ptr, "period");
+  const int step = RNA_int_get(op.ptr, "step");
 
   GP_Interpolate_Settings &ipo_settings = ts.gp_interpolate;
   if (ipo_settings.custom_ipo == nullptr) {
@@ -1326,52 +1326,52 @@ static wmOperatorStatus grease_pencil_interpolate_sequence_exec(bContext *C, wmO
 
   /* Notifiers */
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 
-  MEM_delete(static_cast<InterpolateOpData *>(op->customdata));
-  op->customdata = nullptr;
+  MEM_delete(static_cast<InterpolateOpData *>(op.customdata));
+  op.customdata = nullptr;
 
   return OPERATOR_FINISHED;
 }
 
-static void grease_pencil_interpolate_sequence_ui(bContext *C, wmOperator *op)
+static void grease_pencil_interpolate_sequence_ui(bContext &C, wmOperator &op)
 {
-  ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op.layout;
 
-  const InterpolationType type = InterpolationType(RNA_enum_get(op->ptr, "type"));
+  const InterpolationType type = InterpolationType(RNA_enum_get(op.ptr, "type"));
 
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
   ui::Layout *row = &layout.row(true);
-  row->prop(op->ptr, "step", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row->prop(op.ptr, "step", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = &layout.row(true);
-  row->prop(op->ptr, "layers", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row->prop(op.ptr, "layers", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  if (CTX_data_mode_enum(*C) == CTX_MODE_EDIT_GPENCIL_LEGACY) {
+  if (CTX_data_mode_enum(C) == CTX_MODE_EDIT_GPENCIL_LEGACY) {
     row = &layout.row(true);
-    row->prop(op->ptr, "interpolate_selected_only", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    row->prop(op.ptr, "interpolate_selected_only", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   row = &layout.row(true);
-  row->prop(op->ptr, "exclude_breakdowns", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row->prop(op.ptr, "exclude_breakdowns", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = &layout.row(true);
-  row->prop(op->ptr, "use_selection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row->prop(op.ptr, "use_selection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = &layout.row(true);
-  row->prop(op->ptr, "flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row->prop(op.ptr, "flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   ui::Layout &col = layout.column(true);
-  col.prop(op->ptr, "smooth_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col.prop(op->ptr, "smooth_steps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op.ptr, "smooth_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op.ptr, "smooth_steps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = &layout.row(true);
-  row->prop(op->ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row->prop(op.ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (type == InterpolationType::CurveMap) {
     /* Get an RNA pointer to ToolSettings to give to the custom curve. */
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     ToolSettings *ts = scene->toolsettings;
     PointerRNA gpsettings_ptr = RNA_pointer_create_discrete(
         &scene->id, &RNA_GPencilInterpolateSettings, &ts->gp_interpolate);
@@ -1380,16 +1380,16 @@ static void grease_pencil_interpolate_sequence_ui(bContext *C, wmOperator *op)
   }
   else if (type != InterpolationType::Linear) {
     row = &layout.row(false);
-    row->prop(op->ptr, "easing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    row->prop(op.ptr, "easing", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     if (type == InterpolationType::Back) {
       row = &layout.row(false);
-      row->prop(op->ptr, "back", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row->prop(op.ptr, "back", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
     else if (type == InterpolationType::Elastic) {
       row = &layout.row(false);
-      row->prop(op->ptr, "amplitude", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row->prop(op.ptr, "amplitude", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       row = &layout.row(false);
-      row->prop(op->ptr, "period", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      row->prop(op.ptr, "period", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
   }
 }

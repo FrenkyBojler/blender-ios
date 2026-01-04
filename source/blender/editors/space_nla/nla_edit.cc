@@ -99,18 +99,18 @@ void ED_nla_postop_refresh(bAnimContext *ac)
 /** \name Enable Tweak-Mode Operator
  * \{ */
 
-static wmOperatorStatus nlaedit_enable_tweakmode_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_enable_tweakmode_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
-  const bool do_solo = RNA_boolean_get(op->ptr, "isolate_action");
-  const bool use_upper_stack_evaluation = RNA_boolean_get(op->ptr, "use_upper_stack_evaluation");
+  const bool do_solo = RNA_boolean_get(op.ptr, "isolate_action");
+  const bool use_upper_stack_evaluation = RNA_boolean_get(op.ptr, "use_upper_stack_evaluation");
   bool ok = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -121,7 +121,7 @@ static wmOperatorStatus nlaedit_enable_tweakmode_exec(bContext *C, wmOperator *o
 
   /* if no blocks, popup error? */
   if (BLI_listbase_is_empty(&anim_data)) {
-    BKE_report(op->reports, RPT_ERROR, "No AnimData blocks to enter tweak mode for");
+    BKE_report(op.reports, RPT_ERROR, "No AnimData blocks to enter tweak mode for");
     return OPERATOR_CANCELLED;
   }
 
@@ -166,10 +166,10 @@ static wmOperatorStatus nlaedit_enable_tweakmode_exec(bContext *C, wmOperator *o
     ac.scene->flag |= SCE_NLA_EDIT_ON;
 
     /* set notifier that things have changed */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   }
   else {
-    BKE_report(op->reports, RPT_ERROR, "No active strip(s) to enter tweak mode on");
+    BKE_report(op.reports, RPT_ERROR, "No active strip(s) to enter tweak mode on");
     return OPERATOR_CANCELLED;
   }
 
@@ -265,15 +265,15 @@ bool nlaedit_disable_tweakmode(bAnimContext *ac, bool do_solo)
 }
 
 /* Exit tweak-mode operator callback. */
-static wmOperatorStatus nlaedit_disable_tweakmode_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_disable_tweakmode_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  const bool do_solo = RNA_boolean_get(op->ptr, "isolate_action");
+  const bool do_solo = RNA_boolean_get(op.ptr, "isolate_action");
   bool ok = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -377,14 +377,14 @@ static void get_nlastrip_extents(bAnimContext *ac, float *min, float *max, const
 /** \name Automatic Preview-Range Operator
  * \{ */
 
-static wmOperatorStatus nlaedit_previewrange_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_previewrange_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
   Scene *scene;
   float min, max;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -402,7 +402,7 @@ static wmOperatorStatus nlaedit_previewrange_exec(bContext *C, wmOperator * /*op
 
   /* set notifier that things have changed */
   /* XXX err... there's nothing for frame ranges yet, but this should do fine too */
-  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, ac.scene);
 
   return OPERATOR_FINISHED;
 }
@@ -534,16 +534,16 @@ static wmOperatorStatus nlaedit_viewall(bContext *C, const bool only_sel)
 
 /* ......... */
 
-static wmOperatorStatus nlaedit_viewall_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_viewall_exec(bContext &C, wmOperator & /*op*/)
 {
   /* whole range */
-  return nlaedit_viewall(C, false);
+  return nlaedit_viewall(&C, false);
 }
 
-static wmOperatorStatus nlaedit_viewsel_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_viewsel_exec(bContext &C, wmOperator & /*op*/)
 {
   /* only selected */
-  return nlaedit_viewall(C, true);
+  return nlaedit_viewall(&C, true);
 }
 
 void NLA_OT_view_all(wmOperatorType *ot)
@@ -582,10 +582,10 @@ void NLA_OT_view_selected(wmOperatorType *ot)
 /** \name View-Frame Operator
  * \{ */
 
-static wmOperatorStatus nlaedit_viewframe_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_viewframe_exec(bContext &C, wmOperator &op)
 {
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-  ANIM_center_frame(C, smooth_viewtx);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
+  ANIM_center_frame(&C, smooth_viewtx);
   return OPERATOR_FINISHED;
 }
 
@@ -623,13 +623,13 @@ static int nlaedit_get_editable_tracks(bAnimContext *ac, ListBaseT<bAnimListElem
   return ANIM_animdata_filter(ac, anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
 }
 
-static wmOperatorStatus nlaedit_add_actionclip_invoke(bContext *C,
-                                                      wmOperator *op,
+static wmOperatorStatus nlaedit_add_actionclip_invoke(bContext &C,
+                                                      wmOperator &op,
                                                       const wmEvent *event)
 {
   /* Get editor data. */
   bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -637,7 +637,7 @@ static wmOperatorStatus nlaedit_add_actionclip_invoke(bContext *C,
   const size_t items = nlaedit_get_editable_tracks(&ac, &anim_data);
 
   if (items == 0) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_ERROR,
                "No active track(s) to add strip to, select an existing track or add one before "
                "trying again");
@@ -648,15 +648,15 @@ static wmOperatorStatus nlaedit_add_actionclip_invoke(bContext *C,
 }
 
 /* add the specified action as new strip */
-static wmOperatorStatus nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_add_actionclip_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -665,10 +665,10 @@ static wmOperatorStatus nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
 
   /* get action to use */
   bAction *act = static_cast<bAction *>(
-      BLI_findlink(&bmain->actions, RNA_enum_get(op->ptr, "action")));
+      BLI_findlink(&bmain->actions, RNA_enum_get(op.ptr, "action")));
 
   if (act == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "No valid action to add");
+    BKE_report(op.reports, RPT_ERROR, "No valid action to add");
     // printf("Add strip - actname = '%s'\n", actname);
     return OPERATOR_CANCELLED;
   }
@@ -695,7 +695,7 @@ static wmOperatorStatus nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
      */
     if ((act->idroot) && (act->idroot != GS(ale.id->name))) {
       BKE_reportf(
-          op->reports,
+          op.reports,
           RPT_ERROR,
           "Could not add action '%s' as it cannot be used relative to ID-blocks of type '%s'",
           act->id.name + 2,
@@ -736,7 +736,7 @@ static wmOperatorStatus nlaedit_add_actionclip_exec(bContext *C, wmOperator *op)
   DEG_relations_tag_update(ac.bmain);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -776,7 +776,7 @@ void NLA_OT_actionclip_add(wmOperatorType *ot)
  * Add a new transition strip between selected strips.
  * \{ */
 
-static wmOperatorStatus nlaedit_add_transition_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_add_transition_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
@@ -785,7 +785,7 @@ static wmOperatorStatus nlaedit_add_transition_exec(bContext *C, wmOperator *op)
   bool done = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -870,13 +870,13 @@ static wmOperatorStatus nlaedit_add_transition_exec(bContext *C, wmOperator *op)
     ED_nla_postop_refresh(&ac);
 
     /* set notifier that things have changed */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
   }
 
-  BKE_report(op->reports,
+  BKE_report(op.reports,
              RPT_ERROR,
              "Needs at least a pair of adjacent selected strips with a gap between them");
   return OPERATOR_CANCELLED;
@@ -903,15 +903,15 @@ void NLA_OT_transition_add(wmOperatorType *ot)
 /** \name Add Sound Clip Operator
  * \{ */
 
-static wmOperatorStatus nlaedit_add_sound_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_add_sound_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -966,7 +966,7 @@ static wmOperatorStatus nlaedit_add_sound_exec(bContext *C, wmOperator * /*op*/)
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -996,14 +996,14 @@ void NLA_OT_soundclip_add(wmOperatorType *ot)
  * \{ */
 
 /* add the specified action as new strip */
-static wmOperatorStatus nlaedit_add_meta_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_add_meta_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1041,7 +1041,7 @@ static wmOperatorStatus nlaedit_add_meta_exec(bContext *C, wmOperator * /*op*/)
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1070,14 +1070,14 @@ void NLA_OT_meta_add(wmOperatorType *ot)
  * Separate out the strips held by the selected meta-strips.
  * \{ */
 
-static wmOperatorStatus nlaedit_remove_meta_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_remove_meta_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1106,7 +1106,7 @@ static wmOperatorStatus nlaedit_remove_meta_exec(bContext *C, wmOperator * /*op*
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1136,17 +1136,17 @@ void NLA_OT_meta_remove(wmOperatorType *ot)
  * putting them on new tracks above the one the originals were housed in.
  * \{ */
 
-static wmOperatorStatus nlaedit_duplicate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_duplicate_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
-  bool linked = RNA_boolean_get(op->ptr, "linked");
+  bool linked = RNA_boolean_get(op.ptr, "linked");
   bool done = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1208,7 +1208,7 @@ static wmOperatorStatus nlaedit_duplicate_exec(bContext *C, wmOperator *op)
     }
 
     /* set notifier that things have changed */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -1217,8 +1217,8 @@ static wmOperatorStatus nlaedit_duplicate_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus nlaedit_duplicate_invoke(bContext *C,
-                                                 wmOperator *op,
+static wmOperatorStatus nlaedit_duplicate_invoke(bContext &C,
+                                                 wmOperator &op,
                                                  const wmEvent * /*event*/)
 {
   nlaedit_duplicate_exec(C, op);
@@ -1257,14 +1257,14 @@ void NLA_OT_duplicate(wmOperatorType *ot)
  * Deletes the selected NLA-Strips.
  * \{ */
 
-static wmOperatorStatus nlaedit_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_delete_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1318,7 +1318,7 @@ static wmOperatorStatus nlaedit_delete_exec(bContext *C, wmOperator * /*op*/)
   DEG_relations_tag_update(ac.bmain);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1425,14 +1425,14 @@ static void nlaedit_split_strip_meta(NlaTrack *nlt, NlaStrip *strip)
 
 /* ----- */
 
-static wmOperatorStatus nlaedit_split_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_split_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1481,7 +1481,7 @@ static wmOperatorStatus nlaedit_split_exec(bContext *C, wmOperator * /*op*/)
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1512,14 +1512,14 @@ void NLA_OT_split(wmOperatorType *ot)
  * Toggles whether strips are muted or not.
  * \{ */
 
-static wmOperatorStatus nlaedit_toggle_mute_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_toggle_mute_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1550,7 +1550,7 @@ static wmOperatorStatus nlaedit_toggle_mute_exec(bContext *C, wmOperator * /*op*
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1579,14 +1579,14 @@ void NLA_OT_mute_toggle(wmOperatorType *ot)
  * Tries to exchange strips within their owner tracks.
  * \{ */
 
-static wmOperatorStatus nlaedit_swap_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_swap_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1652,7 +1652,7 @@ static wmOperatorStatus nlaedit_swap_exec(bContext *C, wmOperator *op)
     if (strip) {
       /* too many selected warning */
       BKE_reportf(
-          op->reports,
+          op.reports,
           RPT_WARNING,
           "Too many clusters of strips selected in NLA Track (%s): needs exactly 2 to be selected",
           nlt->name);
@@ -1664,7 +1664,7 @@ static wmOperatorStatus nlaedit_swap_exec(bContext *C, wmOperator *op)
     else if (sb == nullptr) {
       /* too few selected warning */
       BKE_reportf(
-          op->reports,
+          op.reports,
           RPT_WARNING,
           "Too few clusters of strips selected in NLA Track (%s): needs exactly 2 to be selected",
           nlt->name);
@@ -1701,19 +1701,19 @@ static wmOperatorStatus nlaedit_swap_exec(bContext *C, wmOperator *op)
       else {
         /* not enough room to swap, so show message */
         if (nsb[1] > nsa[0]) {
-          BKE_report(op->reports,
+          BKE_report(op.reports,
                      RPT_WARNING,
                      "Cannot swap selected strips because they will overlap each other in their "
                      "new places");
         }
         else if ((area->flag & NLASTRIP_FLAG_TEMP_META) || (sb->flag & NLASTRIP_FLAG_TEMP_META)) {
           BKE_report(
-              op->reports,
+              op.reports,
               RPT_WARNING,
               "Cannot swap selected strips as they will not be able to fit in their new places");
         }
         else {
-          BKE_reportf(op->reports,
+          BKE_reportf(op.reports,
                       RPT_WARNING,
                       "Cannot swap '%s' and '%s' as one or both will not be able to fit in their "
                       "new places",
@@ -1738,8 +1738,8 @@ static wmOperatorStatus nlaedit_swap_exec(bContext *C, wmOperator *op)
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1768,14 +1768,14 @@ void NLA_OT_swap(wmOperatorType *ot)
  * Tries to move the selected strips into the track above if possible.
  * \{ */
 
-static wmOperatorStatus nlaedit_move_up_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_move_up_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1829,8 +1829,8 @@ static wmOperatorStatus nlaedit_move_up_exec(bContext *C, wmOperator * /*op*/)
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1859,14 +1859,14 @@ void NLA_OT_move_up(wmOperatorType *ot)
  * Tries to move the selected strips into the track above if possible.
  * \{ */
 
-static wmOperatorStatus nlaedit_move_down_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_move_down_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1920,8 +1920,8 @@ static wmOperatorStatus nlaedit_move_down_exec(bContext *C, wmOperator * /*op*/)
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1950,15 +1950,15 @@ void NLA_OT_move_down(wmOperatorType *ot)
  * Recalculate the extents of the action ranges used for the selected strips.
  * \{ */
 
-static wmOperatorStatus nlaedit_sync_actlen_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_sync_actlen_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-  const bool active_only = RNA_boolean_get(op->ptr, "active");
+  const bool active_only = RNA_boolean_get(op.ptr, "active");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2005,7 +2005,7 @@ static wmOperatorStatus nlaedit_sync_actlen_exec(bContext *C, wmOperator *op)
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -2042,16 +2042,16 @@ void NLA_OT_action_sync_length(wmOperatorType *ot)
  * Ensure that each strip has its own action.
  * \{ */
 
-static wmOperatorStatus nlaedit_make_single_user_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_make_single_user_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   bool copied = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2101,20 +2101,20 @@ static wmOperatorStatus nlaedit_make_single_user_exec(bContext *C, wmOperator * 
   }
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus nlaedit_make_single_user_invoke(bContext *C,
-                                                        wmOperator *op,
+static wmOperatorStatus nlaedit_make_single_user_invoke(bContext &C,
+                                                        wmOperator &op,
                                                         const wmEvent * /*event*/)
 {
-  if (RNA_boolean_get(op->ptr, "confirm")) {
+  if (RNA_boolean_get(op.ptr, "confirm")) {
     return WM_operator_confirm_ex(
-        C,
-        op,
+        &C,
+        &op,
         IFACE_("Make Selected Strips Single-User"),
         IFACE_("Linked actions will be duplicated for each selected strip."),
         IFACE_("Make Single"),
@@ -2164,9 +2164,9 @@ static short bezt_apply_nlamapping(KeyframeEditData *ked, BezTriple *bezt)
   return 0;
 }
 
-static wmOperatorStatus nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_apply_scale_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
@@ -2175,7 +2175,7 @@ static wmOperatorStatus nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*
   KeyframeEditData ked = {{nullptr}};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2259,7 +2259,7 @@ static wmOperatorStatus nlaedit_apply_scale_exec(bContext *C, wmOperator * /*op*
   }
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -2288,14 +2288,14 @@ void NLA_OT_apply_scale(wmOperatorType *ot)
  * Reset the scaling of the selected strips to 1.0f.
  * \{ */
 
-static wmOperatorStatus nlaedit_clear_scale_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_clear_scale_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2325,7 +2325,7 @@ static wmOperatorStatus nlaedit_clear_scale_exec(bContext *C, wmOperator * /*op*
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -2365,18 +2365,18 @@ static const EnumPropertyItem prop_nlaedit_snap_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus nlaedit_snap_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_snap_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   Scene *scene;
-  int mode = RNA_enum_get(op->ptr, "type");
+  int mode = RNA_enum_get(op.ptr, "type");
   float secf;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2485,9 +2485,9 @@ static wmOperatorStatus nlaedit_snap_exec(bContext *C, wmOperator *op)
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
   if (any_added) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
   }
 
   /* done */
@@ -2559,18 +2559,18 @@ static const EnumPropertyItem *nla_fmodifier_itemf(bContext *C,
   return item;
 }
 
-static wmOperatorStatus nla_fmodifier_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nla_fmodifier_add_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   FModifier *fcm;
-  int type = RNA_enum_get(op->ptr, "type");
-  const bool active_only = RNA_boolean_get(op->ptr, "only_active");
+  int type = RNA_enum_get(op.ptr, "type");
+  const bool active_only = RNA_boolean_get(op.ptr, "only_active");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2616,7 +2616,7 @@ static wmOperatorStatus nla_fmodifier_add_exec(bContext *C, wmOperator *op)
         ale.update |= ANIM_UPDATE_DEPS;
       }
       else {
-        BKE_reportf(op->reports,
+        BKE_reportf(op.reports,
                     RPT_ERROR,
                     "Modifier could not be added to (%s : %s) (see console for details)",
                     nlt->name,
@@ -2630,7 +2630,7 @@ static wmOperatorStatus nla_fmodifier_add_exec(bContext *C, wmOperator *op)
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -2672,14 +2672,14 @@ void NLA_OT_fmodifier_add(wmOperatorType *ot)
 /** \name Copy F-Modifiers Operator
  * \{ */
 
-static wmOperatorStatus nla_fmodifier_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nla_fmodifier_copy_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   bool ok = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2711,7 +2711,7 @@ static wmOperatorStatus nla_fmodifier_copy_exec(bContext *C, wmOperator *op)
 
   /* successful or not? */
   if (ok == 0) {
-    BKE_report(op->reports, RPT_ERROR, "No F-Modifiers available to be copied");
+    BKE_report(op.reports, RPT_ERROR, "No F-Modifiers available to be copied");
     return OPERATOR_CANCELLED;
   }
 
@@ -2749,17 +2749,17 @@ void NLA_OT_fmodifier_copy(wmOperatorType *ot)
 /** \name Paste F-Modifiers Operator
  * \{ */
 
-static wmOperatorStatus nla_fmodifier_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nla_fmodifier_paste_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int ok = 0;
 
-  const bool active_only = RNA_boolean_get(op->ptr, "only_active");
-  const bool replace = RNA_boolean_get(op->ptr, "replace");
+  const bool active_only = RNA_boolean_get(op.ptr, "only_active");
+  const bool replace = RNA_boolean_get(op.ptr, "replace");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2804,11 +2804,11 @@ static wmOperatorStatus nla_fmodifier_paste_exec(bContext *C, wmOperator *op)
 
   /* successful or not? */
   if (ok) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
     return OPERATOR_FINISHED;
   }
 
-  BKE_report(op->reports, RPT_ERROR, "No F-Modifiers to paste");
+  BKE_report(op.reports, RPT_ERROR, "No F-Modifiers to paste");
   return OPERATOR_CANCELLED;
 }
 

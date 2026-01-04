@@ -269,29 +269,29 @@ static void grease_pencil_pen_exit(bContext *C, wmOperator *op)
 }
 
 /* Invoke handler: Initialize the operator. */
-static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus grease_pencil_pen_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   /* Allocate new data. */
   GreasePencilPenToolOperation *ptd_pointer = MEM_new<GreasePencilPenToolOperation>(__func__);
-  op->customdata = ptd_pointer;
+  op.customdata = ptd_pointer;
   GreasePencilPenToolOperation &ptd = *ptd_pointer;
 
-  const wmOperatorStatus result = ptd.invoke(C, op, event);
+  const wmOperatorStatus result = ptd.invoke(&C, &op, event);
   if (result != OPERATOR_RUNNING_MODAL) {
-    grease_pencil_pen_exit(C, op);
+    grease_pencil_pen_exit(&C, &op);
   }
   return result;
 }
 
 /* Modal handler: Events handling during interactive part. */
-static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus grease_pencil_pen_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   GreasePencilPenToolOperation &ptd = *reinterpret_cast<GreasePencilPenToolOperation *>(
-      op->customdata);
+      op.customdata);
 
-  const wmOperatorStatus result = ptd.modal(C, op, event);
+  const wmOperatorStatus result = ptd.modal(&C, &op, event);
   if (result != OPERATOR_RUNNING_MODAL) {
-    grease_pencil_pen_exit(C, op);
+    grease_pencil_pen_exit(&C, &op);
   }
   return result;
 }

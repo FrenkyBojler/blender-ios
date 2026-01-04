@@ -915,55 +915,55 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   return static_cast<UvSculptData *>(op->customdata);
 }
 
-static wmOperatorStatus uv_sculpt_stroke_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus uv_sculpt_stroke_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   UvSculptData *data;
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
 
-  if (!(data = uv_sculpt_stroke_init(C, op, event))) {
+  if (!(data = uv_sculpt_stroke_init(&C, &op, event))) {
     return OPERATOR_CANCELLED;
   }
 
-  uv_sculpt_stroke_apply(C, op, event, obedit);
+  uv_sculpt_stroke_apply(&C, &op, event, obedit);
 
-  data->timer = WM_event_timer_add(CTX_wm_manager(*C), CTX_wm_window(*C), TIMER, 0.001f);
+  data->timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.001f);
 
   if (!data->timer) {
-    uv_sculpt_stroke_exit(C, op);
+    uv_sculpt_stroke_exit(&C, &op);
     return OPERATOR_CANCELLED;
   }
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus uv_sculpt_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus uv_sculpt_stroke_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  UvSculptData *data = (UvSculptData *)op->customdata;
-  Object *obedit = CTX_data_edit_object(*C);
+  UvSculptData *data = (UvSculptData *)op.customdata;
+  Object *obedit = CTX_data_edit_object(C);
 
   switch (event->type) {
     case LEFTMOUSE:
     case MIDDLEMOUSE:
     case RIGHTMOUSE:
-      uv_sculpt_stroke_exit(C, op);
+      uv_sculpt_stroke_exit(&C, &op);
       return OPERATOR_FINISHED;
 
     case MOUSEMOVE:
     case INBETWEEN_MOUSEMOVE:
-      uv_sculpt_stroke_apply(C, op, event, obedit);
+      uv_sculpt_stroke_apply(&C, &op, event, obedit);
       break;
     case TIMER:
       if (event->customdata == data->timer) {
-        uv_sculpt_stroke_apply(C, op, event, obedit);
+        uv_sculpt_stroke_apply(&C, &op, event, obedit);
       }
       break;
     default:
       return OPERATOR_RUNNING_MODAL;
   }
 
-  ED_region_tag_redraw(CTX_wm_region(*C));
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+  ED_region_tag_redraw(CTX_wm_region(C));
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
   return OPERATOR_RUNNING_MODAL;
 }

@@ -30,13 +30,13 @@
 #  include "BPY_extern_run.hh"
 #endif
 
-static wmOperatorStatus run_pyfile_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus run_pyfile_exec(bContext &C, wmOperator &op)
 {
   char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 #ifdef WITH_PYTHON
-  if (BPY_run_filepath(C, filepath, op->reports)) {
-    ARegion *region = CTX_wm_region(*C);
+  if (BPY_run_filepath(&C, filepath, op.reports)) {
+    ARegion *region = CTX_wm_region(C);
     if (region != nullptr) {
       ED_region_tag_redraw(region);
     }
@@ -89,14 +89,14 @@ static bool script_test_modal_operators(bContext *C)
 }
 #endif
 
-static wmOperatorStatus script_reload_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus script_reload_exec(bContext &C, wmOperator &op)
 {
 
 #ifdef WITH_PYTHON
 
   /* clear running operators */
-  if (script_test_modal_operators(C)) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot reload with running modal operators");
+  if (script_test_modal_operators(&C)) {
+    BKE_report(op.reports, RPT_ERROR, "Cannot reload with running modal operators");
     return OPERATOR_CANCELLED;
   }
 
@@ -110,7 +110,7 @@ static wmOperatorStatus script_reload_exec(bContext *C, wmOperator *op)
      * that might be re-registered, crashing Blender when we try to read from the
      * freed operator type which, see #80694. */
     const char *imports[] = {"bpy", nullptr};
-    BPY_run_string_exec(C,
+    BPY_run_string_exec(&C,
                         imports,
                         "def fn():\n"
                         "    bpy.utils.load_scripts(reload_scripts=True)\n"
@@ -120,7 +120,7 @@ static wmOperatorStatus script_reload_exec(bContext *C, wmOperator *op)
   else {
     WM_cursor_wait(true);
     const char *imports[] = {"bpy", nullptr};
-    BPY_run_string_eval(C, imports, "bpy.utils.load_scripts(reload_scripts=True)");
+    BPY_run_string_eval(&C, imports, "bpy.utils.load_scripts(reload_scripts=True)");
     WM_cursor_wait(false);
   }
 

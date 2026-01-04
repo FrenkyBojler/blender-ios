@@ -1429,18 +1429,18 @@ wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bo
 /** \name Operators
  * \{ */
 
-wmOperatorStatus wm_window_close_exec(bContext *C, wmOperator * /*op*/)
+wmOperatorStatus wm_window_close_exec(bContext &C, wmOperator & /*op*/)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  wm_window_close(C, wm, win);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  wm_window_close(&C, wm, win);
   return OPERATOR_FINISHED;
 }
 
-wmOperatorStatus wm_window_new_exec(bContext *C, wmOperator *op)
+wmOperatorStatus wm_window_new_exec(bContext &C, wmOperator &op)
 {
-  wmWindow *win_src = CTX_wm_window(*C);
-  ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(*C), SPACE_TYPE_ANY, 0);
+  wmWindow *win_src = CTX_wm_window(C);
+  ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_TYPE_ANY, 0);
   const rcti window_rect = {
       /*xmin*/ 0,
       /*xmax*/ int(win_src->sizex * 0.95f),
@@ -1448,7 +1448,7 @@ wmOperatorStatus wm_window_new_exec(bContext *C, wmOperator *op)
       /*ymax*/ int(win_src->sizey * 0.9f),
   };
 
-  bool ok = (WM_window_open(C,
+  bool ok = (WM_window_open(&C,
                             nullptr,
                             &window_rect,
                             area->spacetype,
@@ -1460,27 +1460,27 @@ wmOperatorStatus wm_window_new_exec(bContext *C, wmOperator *op)
                             nullptr) != nullptr);
 
   if (!ok) {
-    BKE_report(op->reports, RPT_ERROR, "Failed to create window");
+    BKE_report(op.reports, RPT_ERROR, "Failed to create window");
     return OPERATOR_CANCELLED;
   }
   return OPERATOR_FINISHED;
 }
 
-wmOperatorStatus wm_window_new_main_exec(bContext *C, wmOperator *op)
+wmOperatorStatus wm_window_new_main_exec(bContext &C, wmOperator &op)
 {
-  wmWindow *win_src = CTX_wm_window(*C);
+  wmWindow *win_src = CTX_wm_window(C);
 
-  bool ok = (wm_window_copy_test(C, win_src, true, false) != nullptr);
+  bool ok = (wm_window_copy_test(&C, win_src, true, false) != nullptr);
   if (!ok) {
-    BKE_report(op->reports, RPT_ERROR, "Failed to create window");
+    BKE_report(op.reports, RPT_ERROR, "Failed to create window");
     return OPERATOR_CANCELLED;
   }
   return OPERATOR_FINISHED;
 }
 
-wmOperatorStatus wm_window_fullscreen_toggle_exec(bContext *C, wmOperator * /*op*/)
+wmOperatorStatus wm_window_fullscreen_toggle_exec(bContext &C, wmOperator & /*op*/)
 {
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
 
   if (G.background) {
     return OPERATOR_CANCELLED;

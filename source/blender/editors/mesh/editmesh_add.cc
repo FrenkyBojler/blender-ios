@@ -92,7 +92,7 @@ static void make_prim_finish(bContext *C,
   WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
 }
 
-static wmOperatorStatus add_primitive_plane_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_plane_exec(bContext &C, wmOperator &op)
 {
   MakePrimitiveData creation_data;
   Object *obedit;
@@ -100,12 +100,12 @@ static wmOperatorStatus add_primitive_plane_exec(bContext *C, wmOperator *op)
   float loc[3], rot[3];
   bool enter_editmode;
   ushort local_view_bits;
-  const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
+  const bool calc_uvs = RNA_boolean_get(op.ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
-      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(C,
+      &C, &op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+  obedit = make_prim_init(&C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Plane"),
                           loc,
                           rot,
@@ -121,20 +121,20 @@ static wmOperatorStatus add_primitive_plane_exec(bContext *C, wmOperator *op)
 
   if (!EDBM_op_call_and_selectf(
           em,
-          op,
+          &op,
           "verts.out",
           false,
           "create_grid x_segments=%i y_segments=%i size=%f matrix=%m4 calc_uvs=%b",
           0,
           0,
-          RNA_float_get(op->ptr, "size") / 2.0f,
+          RNA_float_get(op.ptr, "size") / 2.0f,
           creation_data.mat,
           calc_uvs))
   {
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -158,7 +158,7 @@ void MESH_OT_primitive_plane_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_cube_exec(bContext &C, wmOperator &op)
 {
   MakePrimitiveData creation_data;
   Object *obedit;
@@ -166,12 +166,12 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
   float loc[3], rot[3], scale[3];
   bool enter_editmode;
   ushort local_view_bits;
-  const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
+  const bool calc_uvs = RNA_boolean_get(op.ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
-      C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(C,
+      &C, &op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
+  obedit = make_prim_init(&C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cube"),
                           loc,
                           rot,
@@ -186,19 +186,19 @@ static wmOperatorStatus add_primitive_cube_exec(bContext *C, wmOperator *op)
   }
 
   if (!EDBM_op_call_and_selectf(em,
-                                op,
+                                &op,
                                 "verts.out",
                                 false,
                                 "create_cube matrix=%m4 size=%f calc_uvs=%b",
                                 creation_data.mat,
-                                RNA_float_get(op->ptr, "size"),
+                                RNA_float_get(op.ptr, "size"),
                                 calc_uvs))
   {
     return OPERATOR_CANCELLED;
   }
 
   /* BMESH_TODO make plane side this: M_SQRT2 - plane (diameter of 1.41 makes it unit size) */
-  make_prim_finish(C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -229,7 +229,7 @@ static const EnumPropertyItem fill_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus add_primitive_circle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_circle_exec(bContext &C, wmOperator &op)
 {
   MakePrimitiveData creation_data;
   Object *obedit;
@@ -238,15 +238,15 @@ static wmOperatorStatus add_primitive_circle_exec(bContext *C, wmOperator *op)
   bool enter_editmode;
   ushort local_view_bits;
   int cap_end, cap_tri;
-  const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
+  const bool calc_uvs = RNA_boolean_get(op.ptr, "calc_uvs");
 
-  cap_end = RNA_enum_get(op->ptr, "fill_type");
+  cap_end = RNA_enum_get(op.ptr, "fill_type");
   cap_tri = (cap_end == 2);
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
-      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(C,
+      &C, &op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+  obedit = make_prim_init(&C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Circle"),
                           loc,
                           rot,
@@ -262,12 +262,12 @@ static wmOperatorStatus add_primitive_circle_exec(bContext *C, wmOperator *op)
 
   if (!EDBM_op_call_and_selectf(
           em,
-          op,
+          &op,
           "verts.out",
           false,
           "create_circle segments=%i radius=%f cap_ends=%b cap_tris=%b matrix=%m4 calc_uvs=%b",
-          RNA_int_get(op->ptr, "vertices"),
-          RNA_float_get(op->ptr, "radius"),
+          RNA_int_get(op.ptr, "vertices"),
+          RNA_float_get(op.ptr, "radius"),
           cap_end,
           cap_tri,
           creation_data.mat,
@@ -276,7 +276,7 @@ static wmOperatorStatus add_primitive_circle_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -304,7 +304,7 @@ void MESH_OT_primitive_circle_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_cylinder_exec(bContext &C, wmOperator &op)
 {
   MakePrimitiveData creation_data;
   Object *obedit;
@@ -312,15 +312,15 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
   float loc[3], rot[3], scale[3];
   bool enter_editmode;
   ushort local_view_bits;
-  const int end_fill_type = RNA_enum_get(op->ptr, "end_fill_type");
+  const int end_fill_type = RNA_enum_get(op.ptr, "end_fill_type");
   const bool cap_end = (end_fill_type != 0);
   const bool cap_tri = (end_fill_type == 2);
-  const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
+  const bool calc_uvs = RNA_boolean_get(op.ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
-      C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(C,
+      &C, &op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
+  obedit = make_prim_init(&C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cylinder"),
                           loc,
                           rot,
@@ -334,24 +334,24 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext *C, wmOperator *op)
   }
 
   if (!EDBM_op_call_and_selectf(em,
-                                op,
+                                &op,
                                 "verts.out",
                                 false,
                                 "create_cone segments=%i radius1=%f radius2=%f cap_ends=%b "
                                 "cap_tris=%b depth=%f matrix=%m4 calc_uvs=%b",
-                                RNA_int_get(op->ptr, "vertices"),
-                                RNA_float_get(op->ptr, "radius"),
-                                RNA_float_get(op->ptr, "radius"),
+                                RNA_int_get(op.ptr, "vertices"),
+                                RNA_float_get(op.ptr, "radius"),
+                                RNA_float_get(op.ptr, "radius"),
                                 cap_end,
                                 cap_tri,
-                                RNA_float_get(op->ptr, "depth"),
+                                RNA_float_get(op.ptr, "depth"),
                                 creation_data.mat,
                                 calc_uvs))
   {
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -381,7 +381,7 @@ void MESH_OT_primitive_cylinder_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_cone_exec(bContext &C, wmOperator &op)
 {
   MakePrimitiveData creation_data;
   Object *obedit;
@@ -389,15 +389,15 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
   float loc[3], rot[3], scale[3];
   bool enter_editmode;
   ushort local_view_bits;
-  const int end_fill_type = RNA_enum_get(op->ptr, "end_fill_type");
+  const int end_fill_type = RNA_enum_get(op.ptr, "end_fill_type");
   const bool cap_end = (end_fill_type != 0);
   const bool cap_tri = (end_fill_type == 2);
-  const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
+  const bool calc_uvs = RNA_boolean_get(op.ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
-      C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(C,
+      &C, &op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
+  obedit = make_prim_init(&C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cone"),
                           loc,
                           rot,
@@ -411,24 +411,24 @@ static wmOperatorStatus add_primitive_cone_exec(bContext *C, wmOperator *op)
   }
 
   if (!EDBM_op_call_and_selectf(em,
-                                op,
+                                &op,
                                 "verts.out",
                                 false,
                                 "create_cone segments=%i radius1=%f radius2=%f cap_ends=%b "
                                 "cap_tris=%b depth=%f matrix=%m4 calc_uvs=%b",
-                                RNA_int_get(op->ptr, "vertices"),
-                                RNA_float_get(op->ptr, "radius1"),
-                                RNA_float_get(op->ptr, "radius2"),
+                                RNA_int_get(op.ptr, "vertices"),
+                                RNA_float_get(op.ptr, "radius1"),
+                                RNA_float_get(op.ptr, "radius2"),
                                 cap_end,
                                 cap_tri,
-                                RNA_float_get(op->ptr, "depth"),
+                                RNA_float_get(op.ptr, "depth"),
                                 creation_data.mat,
                                 calc_uvs))
   {
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -461,7 +461,7 @@ void MESH_OT_primitive_cone_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_grid_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_grid_exec(bContext &C, wmOperator &op)
 {
   MakePrimitiveData creation_data;
   Object *obedit;
@@ -469,12 +469,12 @@ static wmOperatorStatus add_primitive_grid_exec(bContext *C, wmOperator *op)
   float loc[3], rot[3];
   bool enter_editmode;
   ushort local_view_bits;
-  const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
+  const bool calc_uvs = RNA_boolean_get(op.ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
-      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(C,
+      &C, &op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+  obedit = make_prim_init(&C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Grid"),
                           loc,
                           rot,
@@ -489,20 +489,20 @@ static wmOperatorStatus add_primitive_grid_exec(bContext *C, wmOperator *op)
 
   if (!EDBM_op_call_and_selectf(
           em,
-          op,
+          &op,
           "verts.out",
           false,
           "create_grid x_segments=%i y_segments=%i size=%f matrix=%m4 calc_uvs=%b",
-          RNA_int_get(op->ptr, "x_subdivisions"),
-          RNA_int_get(op->ptr, "y_subdivisions"),
-          RNA_float_get(op->ptr, "size") / 2.0f,
+          RNA_int_get(op.ptr, "x_subdivisions"),
+          RNA_int_get(op.ptr, "y_subdivisions"),
+          RNA_float_get(op.ptr, "size") / 2.0f,
           creation_data.mat,
           calc_uvs))
   {
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -534,7 +534,7 @@ void MESH_OT_primitive_grid_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_monkey_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_monkey_exec(bContext &C, wmOperator &op)
 {
   MakePrimitiveData creation_data;
   Object *obedit;
@@ -543,20 +543,20 @@ static wmOperatorStatus add_primitive_monkey_exec(bContext *C, wmOperator *op)
   float dia;
   bool enter_editmode;
   ushort local_view_bits;
-  const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
+  const bool calc_uvs = RNA_boolean_get(op.ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
-      C, op, 'Y', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+      &C, &op, 'Y', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
-  obedit = make_prim_init(C,
+  obedit = make_prim_init(&C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Suzanne"),
                           loc,
                           rot,
                           nullptr,
                           local_view_bits,
                           &creation_data);
-  dia = RNA_float_get(op->ptr, "size") / 2.0f;
+  dia = RNA_float_get(op.ptr, "size") / 2.0f;
   mul_mat3_m4_fl(creation_data.mat, dia);
 
   em = BKE_editmesh_from_object(obedit);
@@ -566,7 +566,7 @@ static wmOperatorStatus add_primitive_monkey_exec(bContext *C, wmOperator *op)
   }
 
   if (!EDBM_op_call_and_selectf(em,
-                                op,
+                                &op,
                                 "verts.out",
                                 false,
                                 "create_monkey matrix=%m4 calc_uvs=%b",
@@ -576,7 +576,7 @@ static wmOperatorStatus add_primitive_monkey_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -601,7 +601,7 @@ void MESH_OT_primitive_monkey_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_uvsphere_exec(bContext &C, wmOperator &op)
 {
   MakePrimitiveData creation_data;
   Object *obedit;
@@ -609,12 +609,12 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
   float loc[3], rot[3], scale[3];
   bool enter_editmode;
   ushort local_view_bits;
-  const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
+  const bool calc_uvs = RNA_boolean_get(op.ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
-      C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(C,
+      &C, &op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
+  obedit = make_prim_init(&C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Sphere"),
                           loc,
                           rot,
@@ -629,20 +629,20 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext *C, wmOperator *op)
 
   if (!EDBM_op_call_and_selectf(
           em,
-          op,
+          &op,
           "verts.out",
           false,
           "create_uvsphere u_segments=%i v_segments=%i radius=%f matrix=%m4 calc_uvs=%b",
-          RNA_int_get(op->ptr, "segments"),
-          RNA_int_get(op->ptr, "ring_count"),
-          RNA_float_get(op->ptr, "radius"),
+          RNA_int_get(op.ptr, "segments"),
+          RNA_int_get(op.ptr, "ring_count"),
+          RNA_float_get(op.ptr, "radius"),
           creation_data.mat,
           calc_uvs))
   {
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -672,7 +672,7 @@ void MESH_OT_primitive_uv_sphere_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_icosphere_exec(bContext &C, wmOperator &op)
 {
   MakePrimitiveData creation_data;
   Object *obedit;
@@ -680,12 +680,12 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
   float loc[3], rot[3], scale[3];
   bool enter_editmode;
   ushort local_view_bits;
-  const bool calc_uvs = RNA_boolean_get(op->ptr, "calc_uvs");
+  const bool calc_uvs = RNA_boolean_get(op.ptr, "calc_uvs");
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
-      C, op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(C,
+      &C, &op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
+  obedit = make_prim_init(&C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Icosphere"),
                           loc,
                           rot,
@@ -700,19 +700,19 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext *C, wmOperator *op
 
   if (!EDBM_op_call_and_selectf(
           em,
-          op,
+          &op,
           "verts.out",
           false,
           "create_icosphere subdivisions=%i radius=%f matrix=%m4 calc_uvs=%b",
-          RNA_int_get(op->ptr, "subdivisions"),
-          RNA_float_get(op->ptr, "radius"),
+          RNA_int_get(op.ptr, "subdivisions"),
+          RNA_float_get(op.ptr, "radius"),
           creation_data.mat,
           calc_uvs))
   {
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }

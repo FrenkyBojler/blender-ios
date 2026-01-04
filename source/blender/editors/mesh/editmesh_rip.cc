@@ -1019,13 +1019,13 @@ static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obed
  * \{ */
 
 /* based on mouse cursor position, it defines how is being ripped */
-static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_rip_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
-  const bool do_fill = RNA_boolean_get(op->ptr, "use_fill");
+      scene, view_layer, CTX_wm_view3d(C));
+  const bool do_fill = RNA_boolean_get(op.ptr, "use_fill");
 
   bool no_vertex_selected = true;
   bool error_face_selected = true;
@@ -1081,10 +1081,10 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
 
     /* split 2 main parts of this operator out into vertex and edge ripping */
     if (singlesel) {
-      ret = edbm_rip_invoke__vert(C, event, obedit, do_fill);
+      ret = edbm_rip_invoke__vert(&C, event, obedit, do_fill);
     }
     else {
-      ret = edbm_rip_invoke__edge(C, event, obedit, do_fill);
+      ret = edbm_rip_invoke__edge(&C, event, obedit, do_fill);
     }
 
     if (ret != OPERATOR_FINISHED) {
@@ -1112,15 +1112,15 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
     return OPERATOR_CANCELLED;
   }
   if (error_face_selected) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot rip faces");
+    BKE_report(op.reports, RPT_ERROR, "Cannot rip faces");
     return OPERATOR_CANCELLED;
   }
   if (error_disconnected_vertices) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot rip multiple disconnected vertices");
+    BKE_report(op.reports, RPT_ERROR, "Cannot rip multiple disconnected vertices");
     return OPERATOR_CANCELLED;
   }
   if (error_rip_failed) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot rip non-manifold vertices or edges");
+    BKE_report(op.reports, RPT_ERROR, "Cannot rip non-manifold vertices or edges");
     return OPERATOR_CANCELLED;
   }
   /* No errors, everything went fine. */

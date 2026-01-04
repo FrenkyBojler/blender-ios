@@ -78,7 +78,7 @@ struct PaintCurveUndoStep {
 
 static bool paintcurve_undosys_poll(bContext *C)
 {
-  if (C == nullptr || !paint_curve_poll(C)) {
+  if (C == nullptr || !paint_curve_poll(*C)) {
     return false;
   }
   Paint *paint = BKE_paint_get_active_from_context(C);
@@ -96,7 +96,7 @@ static bool paintcurve_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoSt
 {
   /* FIXME Double check this, it should not be needed here at all? undo system is supposed to
    * ensure that. */
-  if (!paint_curve_poll(C)) {
+  if (!paint_curve_poll(*C)) {
     return false;
   }
 

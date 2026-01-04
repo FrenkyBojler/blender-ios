@@ -1380,12 +1380,12 @@ void ED_curve_editnurb_free(Object *obedit)
 /** \name Separate Operator
  * \{ */
 
-static wmOperatorStatus separate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus separate_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   struct {
     int changed;
@@ -1397,7 +1397,7 @@ static wmOperatorStatus separate_exec(bContext *C, wmOperator *op)
   WM_cursor_wait(true);
 
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Base *oldbase : bases) {
     Base *newbase;
     Object *oldob, *newob;
@@ -1454,14 +1454,14 @@ static wmOperatorStatus separate_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&oldob->id, ID_RECALC_GEOMETRY); /* This is the original one. */
     DEG_id_tag_update(&newob->id, ID_RECALC_GEOMETRY); /* This is the separated one. */
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, oldob->data);
-    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, newob);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, oldob->data);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, newob);
     status.changed++;
   }
   WM_cursor_wait(false);
 
   if (status.unselected == bases.size()) {
-    BKE_report(op->reports, RPT_ERROR, "No point was selected");
+    BKE_report(op.reports, RPT_ERROR, "No point was selected");
     return OPERATOR_CANCELLED;
   }
 
@@ -1470,27 +1470,27 @@ static wmOperatorStatus separate_exec(bContext *C, wmOperator *op)
 
     /* Some curves changed, but some curves failed: don't explain why it failed. */
     if (status.changed) {
-      BKE_reportf(op->reports, RPT_INFO, "%d curve(s) could not be separated", tot_errors);
+      BKE_reportf(op.reports, RPT_INFO, "%d curve(s) could not be separated", tot_errors);
       return OPERATOR_FINISHED;
     }
 
     /* All curves failed: If there is more than one error give a generic error report. */
     if (((status.error_vertex_keys ? 1 : 0) + (status.error_generic ? 1 : 0)) > 1) {
-      BKE_report(op->reports, RPT_ERROR, "Could not separate selected curve(s)");
+      BKE_report(op.reports, RPT_ERROR, "Could not separate selected curve(s)");
     }
 
     /* All curves failed due to the same error. */
     if (status.error_vertex_keys) {
-      BKE_report(op->reports, RPT_ERROR, "Cannot separate curves with shape keys");
+      BKE_report(op.reports, RPT_ERROR, "Cannot separate curves with shape keys");
     }
     else {
       BLI_assert(status.error_generic);
-      BKE_report(op->reports, RPT_ERROR, "Cannot separate current selection");
+      BKE_report(op.reports, RPT_ERROR, "Cannot separate current selection");
     }
     return OPERATOR_CANCELLED;
   }
 
-  ED_outliner_select_sync_from_object_tag(C);
+  ED_outliner_select_sync_from_object_tag(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -1516,17 +1516,17 @@ void CURVE_OT_separate(wmOperatorType *ot)
 /** \name Split Operator
  * \{ */
 
-static wmOperatorStatus curve_split_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus curve_split_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Main *bmain = CTX_data_main(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
   bool changed = false;
   int count_failed = 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = static_cast<Curve *>(obedit->data);
 
@@ -1551,17 +1551,17 @@ static wmOperatorStatus curve_split_exec(bContext *C, wmOperator *op)
     BLI_movelisttolist(editnurb, &newnurb);
 
     if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
     }
 
     changed = true;
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
   if (changed == false) {
     if (count_failed != 0) {
-      BKE_report(op->reports, RPT_ERROR, "Cannot split current selection");
+      BKE_report(op.reports, RPT_ERROR, "Cannot split current selection");
     }
     return OPERATOR_CANCELLED;
   }
@@ -2600,15 +2600,15 @@ static void adduplicateflagNurb(
 /** \name Switch Direction Operator
  * \{ */
 
-static wmOperatorStatus switch_direction_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus switch_direction_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Main *bmain = CTX_data_main(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = static_cast<Curve *>(obedit->data);
 
@@ -2629,11 +2629,11 @@ static wmOperatorStatus switch_direction_exec(bContext *C, wmOperator * /*op*/)
     }
 
     if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
   }
   return OPERATOR_FINISHED;
 }
@@ -2659,18 +2659,18 @@ void CURVE_OT_switch_direction(wmOperatorType *ot)
 /** \name Set Weight Operator
  * \{ */
 
-static wmOperatorStatus set_goal_weight_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_goal_weight_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     BezTriple *bezt;
     BPoint *bp;
-    float weight = RNA_float_get(op->ptr, "weight");
+    float weight = RNA_float_get(op.ptr, "weight");
     int a;
 
     for (Nurb &nu : *editnurb) {
@@ -2691,7 +2691,7 @@ static wmOperatorStatus set_goal_weight_exec(bContext *C, wmOperator *op)
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -2722,18 +2722,18 @@ void CURVE_OT_spline_weight_set(wmOperatorType *ot)
 /** \name Set Radius Operator
  * \{ */
 
-static wmOperatorStatus set_radius_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_radius_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   int totobjects = 0;
 
   for (Object *obedit : objects) {
 
-    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op.reports)) {
       continue;
     }
 
@@ -2742,7 +2742,7 @@ static wmOperatorStatus set_radius_exec(bContext *C, wmOperator *op)
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     BezTriple *bezt;
     BPoint *bp;
-    float radius = RNA_float_get(op->ptr, "radius");
+    float radius = RNA_float_get(op.ptr, "radius");
     int a;
 
     for (Nurb &nu : *editnurb) {
@@ -2762,7 +2762,7 @@ static wmOperatorStatus set_radius_exec(bContext *C, wmOperator *op)
       }
     }
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -2838,19 +2838,19 @@ static void smooth_single_bp(BPoint *bp,
   }
 }
 
-static wmOperatorStatus smooth_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus smooth_exec(bContext &C, wmOperator &op)
 {
   const float factor = 1.0f / 6.0f;
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   int totobjects = 0;
 
   for (Object *obedit : objects) {
 
-    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op.reports)) {
       continue;
     }
 
@@ -2926,7 +2926,7 @@ static wmOperatorStatus smooth_exec(bContext *C, wmOperator *op)
       }
     }
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -3142,19 +3142,19 @@ static void curve_smooth_value(ListBaseT<Nurb> *editnurb,
 /** \name Smooth Weight Operator
  * \{ */
 
-static wmOperatorStatus curve_smooth_weight_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus curve_smooth_weight_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
 
     curve_smooth_value(editnurb, offsetof(BezTriple, weight), offsetof(BPoint, weight));
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -3182,19 +3182,19 @@ void CURVE_OT_smooth_weight(wmOperatorType *ot)
 /** \name Smooth Radius Operator
  * \{ */
 
-static wmOperatorStatus curve_smooth_radius_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus curve_smooth_radius_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   int totobjects = 0;
 
   for (Object *obedit : objects) {
 
-    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op.reports)) {
       continue;
     }
 
@@ -3204,7 +3204,7 @@ static wmOperatorStatus curve_smooth_radius_exec(bContext *C, wmOperator *op)
 
     curve_smooth_value(editnurb, offsetof(BezTriple, radius), offsetof(BPoint, radius));
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -3232,18 +3232,18 @@ void CURVE_OT_smooth_radius(wmOperatorType *ot)
 /** \name Smooth Tilt Operator
  * \{ */
 
-static wmOperatorStatus curve_smooth_tilt_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus curve_smooth_tilt_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   int totobjects = 0;
 
   for (Object *obedit : objects) {
 
-    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op.reports)) {
       continue;
     }
 
@@ -3253,7 +3253,7 @@ static wmOperatorStatus curve_smooth_tilt_exec(bContext *C, wmOperator *op)
 
     curve_smooth_value(editnurb, offsetof(BezTriple, tilt), offsetof(BPoint, tilt));
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -3281,16 +3281,16 @@ void CURVE_OT_smooth_tilt(wmOperatorType *ot)
 /** \name Hide Operator
  * \{ */
 
-static wmOperatorStatus hide_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus hide_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
-  const bool invert = RNA_boolean_get(op->ptr, "unselected");
+  const bool invert = RNA_boolean_get(op.ptr, "unselected");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = static_cast<Curve *>(obedit->data);
 
@@ -3351,7 +3351,7 @@ static wmOperatorStatus hide_exec(bContext *C, wmOperator *op)
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     BKE_curve_nurb_vert_active_validate(static_cast<Curve *>(obedit->data));
   }
   return OPERATOR_FINISHED;
@@ -3382,15 +3382,15 @@ void CURVE_OT_hide(wmOperatorType *ot)
 /** \name Reveal Operator
  * \{ */
 
-static wmOperatorStatus reveal_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus reveal_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const bool select = RNA_boolean_get(op->ptr, "select");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool select = RNA_boolean_get(op.ptr, "select");
   bool changed_multi = false;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     BPoint *bp;
@@ -3429,7 +3429,7 @@ static wmOperatorStatus reveal_exec(bContext *C, wmOperator *op)
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data),
                         ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT | ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
       changed_multi = true;
     }
   }
@@ -3868,17 +3868,17 @@ static void subdividenurb(Object *obedit, View3D *v3d, int number_cuts)
   }
 }
 
-static wmOperatorStatus subdivide_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus subdivide_exec(bContext &C, wmOperator &op)
 {
-  const int number_cuts = RNA_int_get(op->ptr, "number_cuts");
+  const int number_cuts = RNA_int_get(op.ptr, "number_cuts");
 
-  Main *bmain = CTX_data_main(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Main *bmain = CTX_data_main(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = static_cast<Curve *>(obedit->data);
 
@@ -3889,10 +3889,10 @@ static wmOperatorStatus subdivide_exec(bContext *C, wmOperator *op)
     subdividenurb(obedit, v3d, number_cuts);
 
     if (ED_curve_updateAnimPaths(bmain, cu)) {
-      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
     }
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, cu);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, cu);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -3927,22 +3927,22 @@ void CURVE_OT_subdivide(wmOperatorType *ot)
 /** \name Set Spline Type Operator
  * \{ */
 
-static wmOperatorStatus set_spline_type_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_spline_type_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   wmOperatorStatus ret_value = OPERATOR_CANCELLED;
 
   for (Object *obedit : objects) {
-    Main *bmain = CTX_data_main(*C);
-    View3D *v3d = CTX_wm_view3d(*C);
+    Main *bmain = CTX_data_main(C);
+    View3D *v3d = CTX_wm_view3d(C);
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     bool changed = false;
     bool changed_size = false;
-    const bool use_handles = RNA_boolean_get(op->ptr, "use_handles");
-    const int type = RNA_enum_get(op->ptr, "type");
+    const bool use_handles = RNA_boolean_get(op.ptr, "use_handles");
+    const int type = RNA_enum_get(op.ptr, "type");
 
     for (Nurb &nu : *editnurb) {
       if (ED_curve_nurb_select_check(v3d, &nu)) {
@@ -3955,18 +3955,18 @@ static wmOperatorStatus set_spline_type_exec(bContext *C, wmOperator *op)
           }
         }
         else {
-          BKE_report(op->reports, RPT_ERROR, err_msg);
+          BKE_report(op.reports, RPT_ERROR, err_msg);
         }
       }
     }
 
     if (changed) {
       if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-        WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+        WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
       }
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
 
       if (changed_size) {
         Curve *cu = static_cast<Curve *>(obedit->data);
@@ -4017,18 +4017,18 @@ void CURVE_OT_spline_type_set(wmOperatorType *ot)
 /** \name Set Handle Type Operator
  * \{ */
 
-static wmOperatorStatus set_handle_type_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_handle_type_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  const int handle_type = RNA_enum_get(op->ptr, "type");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  const int handle_type = RNA_enum_get(op.ptr, "type");
   const bool hide_handles = (v3d && (v3d->overlay.handle_display == CURVE_HANDLE_NONE));
   const eNurbHandleTest_Mode handle_mode = hide_handles ? NURB_HANDLE_TEST_KNOT_ONLY :
                                                           NURB_HANDLE_TEST_KNOT_OR_EACH;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = static_cast<Curve *>(obedit->data);
 
@@ -4039,7 +4039,7 @@ static wmOperatorStatus set_handle_type_exec(bContext *C, wmOperator *op)
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     BKE_nurbList_handles_set(editnurb, handle_mode, handle_type);
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
   return OPERATOR_FINISHED;
@@ -4080,16 +4080,16 @@ void CURVE_OT_handle_type_set(wmOperatorType *ot)
 /** \name Recalculate Handles Operator
  * \{ */
 
-static wmOperatorStatus curve_normals_make_consistent_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus curve_normals_make_consistent_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
-  const bool calc_length = RNA_boolean_get(op->ptr, "calc_length");
+  const bool calc_length = RNA_boolean_get(op.ptr, "calc_length");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   int totobjects = 0;
 
@@ -4100,7 +4100,7 @@ static wmOperatorStatus curve_normals_make_consistent_exec(bContext *C, wmOperat
       continue;
     }
 
-    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op.reports)) {
       continue;
     }
 
@@ -4109,7 +4109,7 @@ static wmOperatorStatus curve_normals_make_consistent_exec(bContext *C, wmOperat
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     BKE_nurbList_handles_recalculate(editnurb, calc_length, SELECT);
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
   return totobjects ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -4528,12 +4528,12 @@ static int merge_nurb(View3D *v3d, Object *obedit)
   return ok ? CURVE_MERGE_OK : CURVE_MERGE_ERR_RESOLUTION_SOME;
 }
 
-static wmOperatorStatus make_segment_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus make_segment_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Main *bmain = CTX_data_main(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   struct {
     int changed;
@@ -4544,7 +4544,7 @@ static wmOperatorStatus make_segment_exec(bContext *C, wmOperator *op)
   } status = {0};
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = static_cast<Curve *>(obedit->data);
 
@@ -4766,18 +4766,18 @@ static wmOperatorStatus make_segment_exec(bContext *C, wmOperator *op)
     }
 
     if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
     }
 
     status.changed++;
 
   curve_merge_tag_object:
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
   if (status.unselected == objects.size()) {
-    BKE_report(op->reports, RPT_ERROR, "No points were selected");
+    BKE_report(op.reports, RPT_ERROR, "No points were selected");
     return OPERATOR_CANCELLED;
   }
 
@@ -4786,7 +4786,7 @@ static wmOperatorStatus make_segment_exec(bContext *C, wmOperator *op)
   if (tot_errors > 0) {
     /* Some curves changed, but some curves failed: don't explain why it failed. */
     if (status.changed) {
-      BKE_reportf(op->reports, RPT_INFO, "%d curves could not make segments", tot_errors);
+      BKE_reportf(op.reports, RPT_INFO, "%d curves could not make segments", tot_errors);
       return OPERATOR_FINISHED;
     }
 
@@ -4794,19 +4794,19 @@ static wmOperatorStatus make_segment_exec(bContext *C, wmOperator *op)
     if (((status.error_selected_few ? 1 : 0) + (status.error_resolution ? 1 : 0) +
          (status.error_generic ? 1 : 0)) > 1)
     {
-      BKE_report(op->reports, RPT_ERROR, "Could not make new segments");
+      BKE_report(op.reports, RPT_ERROR, "Could not make new segments");
     }
 
     /* All curves failed due to the same error. */
     if (status.error_selected_few) {
-      BKE_report(op->reports, RPT_ERROR, "Too few selections to merge");
+      BKE_report(op.reports, RPT_ERROR, "Too few selections to merge");
     }
     else if (status.error_resolution) {
-      BKE_report(op->reports, RPT_ERROR, "Resolution does not match");
+      BKE_report(op.reports, RPT_ERROR, "Resolution does not match");
     }
     else {
       BLI_assert(status.error_generic);
-      BKE_report(op->reports, RPT_ERROR, "Cannot make segment");
+      BKE_report(op.reports, RPT_ERROR, "Cannot make segment");
     }
     return OPERATOR_CANCELLED;
   }
@@ -5124,19 +5124,19 @@ bool ed_editnurb_spin(
   return changed;
 }
 
-static wmOperatorStatus spin_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus spin_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
+  Main *bmain = CTX_data_main(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(&C);
   float cent[3], axis[3], viewmat[4][4];
   bool changed = false;
   int count_failed = 0;
 
-  RNA_float_get_array(op->ptr, "center", cent);
-  RNA_float_get_array(op->ptr, "axis", axis);
+  RNA_float_get_array(op.ptr, "center", cent);
+  RNA_float_get_array(op.ptr, "axis", axis);
 
   if (rv3d) {
     copy_m4_m4(viewmat, rv3d->viewmat);
@@ -5146,7 +5146,7 @@ static wmOperatorStatus spin_exec(bContext *C, wmOperator *op)
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = (Curve *)obedit->data;
 
@@ -5164,34 +5164,34 @@ static wmOperatorStatus spin_exec(bContext *C, wmOperator *op)
 
     changed = true;
     if (ED_curve_updateAnimPaths(bmain, cu)) {
-      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
     }
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
   if (changed == false) {
     if (count_failed != 0) {
-      BKE_report(op->reports, RPT_ERROR, "Cannot spin");
+      BKE_report(op.reports, RPT_ERROR, "Cannot spin");
     }
     return OPERATOR_CANCELLED;
   }
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus spin_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus spin_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
+  Scene *scene = CTX_data_scene(C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(&C);
   float axis[3] = {0.0f, 0.0f, 1.0f};
 
   if (rv3d) {
     copy_v3_v3(axis, rv3d->viewinv[2]);
   }
 
-  RNA_float_set_array(op->ptr, "center", scene->cursor.location);
-  RNA_float_set_array(op->ptr, "axis", axis);
+  RNA_float_set_array(op.ptr, "center", scene->cursor.location);
+  RNA_float_set_array(op.ptr, "axis", axis);
 
   return spin_exec(C, op);
 }
@@ -5620,28 +5620,28 @@ int ed_editcurve_addvert(Curve *cu, EditNurb *editnurb, View3D *v3d, const float
   return changed;
 }
 
-static wmOperatorStatus add_vertex_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_vertex_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Object *obedit = CTX_data_edit_object(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Main *bmain = CTX_data_main(C);
+  Object *obedit = CTX_data_edit_object(C);
+  View3D *v3d = CTX_wm_view3d(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditNurb *editnurb = cu->editnurb;
   float location[3];
   float imat[4][4];
 
-  RNA_float_get_array(op->ptr, "location", location);
+  RNA_float_get_array(op.ptr, "location", location);
 
   invert_m4_m4(imat, obedit->object_to_world().ptr());
   mul_m4_v3(imat, location);
 
   if (ed_editcurve_addvert(cu, editnurb, v3d, location)) {
     if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
     }
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
 
@@ -5650,12 +5650,12 @@ static wmOperatorStatus add_vertex_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus add_vertex_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
 
-  if (vc.rv3d && !RNA_struct_property_is_set(op->ptr, "location")) {
+  if (vc.rv3d && !RNA_struct_property_is_set(op.ptr, "location")) {
     Curve *cu;
     float location[3];
     const bool use_proj = ((vc.scene->toolsettings->snap_flag & SCE_SNAP) &&
@@ -5739,7 +5739,7 @@ static wmOperatorStatus add_vertex_invoke(bContext *C, wmOperator *op, const wmE
       }
     }
 
-    RNA_float_set_array(op->ptr, "location", location);
+    RNA_float_set_array(op.ptr, "location", location);
   }
 
   /* Support dragging to move after extrude, see: #114282. */
@@ -5784,15 +5784,15 @@ void CURVE_OT_vertex_add(wmOperatorType *ot)
 /** \name Extrude Operator
  * \{ */
 
-static wmOperatorStatus curve_extrude_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus curve_extrude_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Main *bmain = CTX_data_main(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = static_cast<Curve *>(obedit->data);
     EditNurb *editnurb = cu->editnurb;
@@ -5811,10 +5811,10 @@ static wmOperatorStatus curve_extrude_exec(bContext *C, wmOperator * /*op*/)
 
     if (changed) {
       if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-        WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+        WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
       }
 
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     }
   }
@@ -5928,16 +5928,16 @@ bool curve_toggle_cyclic(View3D *v3d, ListBaseT<Nurb> *editnurb, int direction)
   return changed;
 }
 
-static wmOperatorStatus toggle_cyclic_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus toggle_cyclic_exec(bContext &C, wmOperator &op)
 {
-  const int direction = RNA_enum_get(op->ptr, "direction");
-  View3D *v3d = CTX_wm_view3d(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const int direction = RNA_enum_get(op.ptr, "direction");
+  View3D *v3d = CTX_wm_view3d(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   bool changed_multi = false;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = static_cast<Curve *>(obedit->data);
 
@@ -5948,7 +5948,7 @@ static wmOperatorStatus toggle_cyclic_exec(bContext *C, wmOperator *op)
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     if (curve_toggle_cyclic(v3d, editnurb, direction)) {
       changed_multi = true;
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     }
   }
@@ -5956,11 +5956,11 @@ static wmOperatorStatus toggle_cyclic_exec(bContext *C, wmOperator *op)
   return changed_multi ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus toggle_cyclic_invoke(bContext *C,
-                                             wmOperator *op,
+static wmOperatorStatus toggle_cyclic_invoke(bContext &C,
+                                             wmOperator &op,
                                              const wmEvent * /*event*/)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
 
   if (obedit->type == OB_SURF) {
@@ -5968,10 +5968,10 @@ static wmOperatorStatus toggle_cyclic_invoke(bContext *C,
       if (nu.pntsu > 1 || nu.pntsv > 1) {
         if (nu.type == CU_NURBS) {
           blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
-              C, IFACE_("Direction"), ICON_NONE);
+              &C, IFACE_("Direction"), ICON_NONE);
           blender::ui::Layout &layout = *popup_menu_layout(pup);
-          layout.op_enum(op->type->idname, "direction");
-          popup_menu_end(C, pup);
+          layout.op_enum(op.type->idname, "direction");
+          popup_menu_end(&C, pup);
           return OPERATOR_INTERFACE;
         }
       }
@@ -6017,17 +6017,17 @@ void CURVE_OT_cyclic_toggle(wmOperatorType *ot)
 /** \name Add Duplicate Operator
  * \{ */
 
-static wmOperatorStatus duplicate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus duplicate_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   bool changed = false;
   int count_failed = 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = static_cast<Curve *>(obedit->data);
 
@@ -6046,12 +6046,12 @@ static wmOperatorStatus duplicate_exec(bContext *C, wmOperator *op)
     changed = true;
     BLI_movelisttolist(object_editcurve_get(obedit), &newnurb);
     DEG_id_tag_update(&cu->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, &cu->id);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, &cu->id);
   }
 
   if (changed == false) {
     if (count_failed != 0) {
-      BKE_report(op->reports, RPT_ERROR, "Cannot duplicate current selection");
+      BKE_report(op.reports, RPT_ERROR, "Cannot duplicate current selection");
     }
     return OPERATOR_CANCELLED;
   }
@@ -6521,15 +6521,15 @@ static bool curve_delete_segments(Object *obedit, View3D *v3d, const bool split)
   return true;
 }
 
-static wmOperatorStatus curve_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus curve_delete_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  eCurveElem_Types type = eCurveElem_Types(RNA_enum_get(op->ptr, "type"));
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  eCurveElem_Types type = eCurveElem_Types(RNA_enum_get(op.ptr, "type"));
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   bool changed_multi = false;
 
   for (Object *obedit : objects) {
@@ -6556,10 +6556,10 @@ static wmOperatorStatus curve_delete_exec(bContext *C, wmOperator *op)
       cu->actvert = CU_ACT_NONE;
 
       if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-        WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+        WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
       }
 
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     }
   }
@@ -6698,15 +6698,15 @@ void ed_dissolve_bez_segment(BezTriple *bezt_prev,
   MEM_freeN(points);
 }
 
-static wmOperatorStatus curve_dissolve_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus curve_dissolve_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Main *bmain = CTX_data_main(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = (Curve *)obedit->data;
 
@@ -6743,10 +6743,10 @@ static wmOperatorStatus curve_dissolve_exec(bContext *C, wmOperator * /*op*/)
     cu->actnu = cu->actvert = CU_ACT_NONE;
 
     if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
     }
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
   return OPERATOR_FINISHED;
@@ -6787,17 +6787,17 @@ static bool nurb_bezt_flag_any(const Nurb *nu, const char flag_test)
   return false;
 }
 
-static wmOperatorStatus curve_decimate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus curve_decimate_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   const float error_sq_max = FLT_MAX;
-  float ratio = RNA_float_get(op->ptr, "ratio");
+  float ratio = RNA_float_get(op.ptr, "ratio");
   bool all_supported_multi = true;
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Curve *cu = (Curve *)obedit->data;
     bool all_supported = true;
@@ -6829,16 +6829,16 @@ static wmOperatorStatus curve_decimate_exec(bContext *C, wmOperator *op)
     if (changed) {
       cu->actnu = cu->actvert = CU_ACT_NONE;
       if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-        WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
+        WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
       }
 
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     }
   }
 
   if (all_supported_multi == false) {
-    BKE_report(op->reports, RPT_WARNING, "Only Bézier curves are supported");
+    BKE_report(op.reports, RPT_WARNING, "Only Bézier curves are supported");
   }
 
   return OPERATOR_FINISHED;
@@ -6868,14 +6868,14 @@ void CURVE_OT_decimate(wmOperatorType *ot)
 /** \name Shade Smooth/Flat Operator
  * \{ */
 
-static wmOperatorStatus shade_smooth_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus shade_smooth_exec(bContext &C, wmOperator &op)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  int clear = STREQ(op->idname, "CURVE_OT_shade_flat");
+  View3D *v3d = CTX_wm_view3d(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  int clear = STREQ(op.idname, "CURVE_OT_shade_flat");
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   wmOperatorStatus ret_value = OPERATOR_CANCELLED;
 
   for (Object *obedit : objects) {
@@ -6896,7 +6896,7 @@ static wmOperatorStatus shade_smooth_exec(bContext *C, wmOperator *op)
       }
     }
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     ret_value = OPERATOR_FINISHED;
   }
@@ -7059,14 +7059,14 @@ wmOperatorStatus ED_curve_join_objects_exec(bContext *C, wmOperator *op)
 /** \name Clear Tilt Operator
  * \{ */
 
-static wmOperatorStatus clear_tilt_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus clear_tilt_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   int totobjects = 0;
 
@@ -7077,7 +7077,7 @@ static wmOperatorStatus clear_tilt_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op.reports)) {
       continue;
     }
 
@@ -7111,7 +7111,7 @@ static wmOperatorStatus clear_tilt_exec(bContext *C, wmOperator *op)
       }
     }
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
   return totobjects ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -7150,21 +7150,21 @@ void ED_curve_bpcpy(EditNurb *editnurb, BPoint *dst, BPoint *src, int count)
 /** \name Match Texture Space Operator
  * \{ */
 
-static bool match_texture_space_poll(bContext *C)
+static bool match_texture_space_poll(bContext &C)
 {
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
 
   return object && ELEM(object->type, OB_CURVES_LEGACY, OB_SURF, OB_FONT);
 }
 
-static wmOperatorStatus match_texture_space_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus match_texture_space_exec(bContext &C, wmOperator & /*op*/)
 {
   /* Need to ensure the dependency graph is fully evaluated, so the display list is at a correct
    * state. */
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   (void)depsgraph;
 
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   Object *object_eval = DEG_get_evaluated(depsgraph, object);
   Curve *curve = (Curve *)object->data;
   float min[3], max[3], texspace_size[3], texspace_location[3];
@@ -7198,7 +7198,7 @@ static wmOperatorStatus match_texture_space_exec(bContext *C, wmOperator * /*op*
 
   curve->texspace_flag &= ~CU_TEXSPACE_FLAG_AUTO;
 
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, curve);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curve);
   DEG_id_tag_update(&curve->id, ID_RECALC_GEOMETRY);
 
   return OPERATOR_FINISHED;

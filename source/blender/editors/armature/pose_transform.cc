@@ -388,33 +388,33 @@ static void applyarmature_reset_constraints(bPose *pose, const bool use_selected
 }
 
 /* Set the current pose as the rest-pose. */
-static wmOperatorStatus apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus apply_armature_pose2bones_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
   /* must be active object, not edit-object */
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
   const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   bArmature *arm = BKE_armature_from_object(ob);
   bPose *pose;
   blender::Vector<PointerRNA> selected_bones;
 
-  const bool use_selected = RNA_boolean_get(op->ptr, "selected");
+  const bool use_selected = RNA_boolean_get(op.ptr, "selected");
 
   /* don't check if editmode (should be done by caller) */
   if (ob->type != OB_ARMATURE) {
     return OPERATOR_CANCELLED;
   }
   if (BKE_object_obdata_is_libdata(ob)) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot apply pose to lib-linked armature");
+    BKE_report(op.reports, RPT_ERROR, "Cannot apply pose to lib-linked armature");
     return OPERATOR_CANCELLED;
   }
 
   /* helpful warnings... */
   /* TODO: add warnings to be careful about actions, applying deforms first, etc. */
   if (ob->adt && ob->adt->action) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_WARNING,
                "Actions on this armature will be destroyed by this new rest pose as the "
                "transforms stored are relative to the old rest pose");
@@ -422,7 +422,7 @@ static wmOperatorStatus apply_armature_pose2bones_exec(bContext *C, wmOperator *
 
   /* Find selected bones before switching to edit mode. */
   if (use_selected) {
-    CTX_data_selected_pose_bones(*C, &selected_bones);
+    CTX_data_selected_pose_bones(C, &selected_bones);
 
     if (selected_bones.is_empty()) {
       return OPERATOR_CANCELLED;
@@ -461,24 +461,24 @@ static wmOperatorStatus apply_armature_pose2bones_exec(bContext *C, wmOperator *
   BKE_pose_where_is(depsgraph, scene, ob);
 
   /* fix parenting of objects which are bone-parented */
-  applyarmature_fix_boneparents(C, scene, ob);
+  applyarmature_fix_boneparents(&C, scene, ob);
 
   /* For the affected bones, reset specific constraints that are now known to be invalid. */
   applyarmature_reset_constraints(pose, use_selected);
 
   /* NOTE: notifier might evolve. */
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
 
   return OPERATOR_FINISHED;
 }
 
-static void apply_armature_pose2bones_ui(bContext *C, wmOperator *op)
+static void apply_armature_pose2bones_ui(bContext &C, wmOperator &op)
 {
-  blender::ui::Layout &layout = *op->layout;
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  blender::ui::Layout &layout = *op.layout;
+  wmWindowManager *wm = CTX_wm_manager(C);
 
-  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op.type->srna, op.properties);
 
   layout.prop(&ptr, "selected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -513,14 +513,14 @@ void POSE_OT_armature_apply(wmOperatorType *ot)
  * Set the current pose as the rest-pose.
  * \{ */
 
-static wmOperatorStatus pose_visual_transform_apply_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus pose_visual_transform_apply_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   /* Needed to ensure #bPoseChannel.pose_mat are up to date. */
-  CTX_data_ensure_evaluated_depsgraph(*C);
+  CTX_data_ensure_evaluated_depsgraph(C);
 
   FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
     const bArmature *arm = static_cast<const bArmature *>(ob->data);
@@ -567,7 +567,7 @@ static wmOperatorStatus pose_visual_transform_apply_exec(bContext *C, wmOperator
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
       /* NOTE: notifier might evolve. */
-      WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+      WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
     }
 
     MEM_freeN(pchan_xform_array);
@@ -763,22 +763,22 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
 /** \name Copy Pose Operator
  * \{ */
 
-static wmOperatorStatus pose_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_copy_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::bke::blendfile;
 
-  Main *bmain = CTX_data_main(*C);
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
+  Main *bmain = CTX_data_main(C);
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
 
   /* Sanity checking. */
   if (ELEM(nullptr, ob, ob->pose)) {
-    BKE_report(op->reports, RPT_ERROR, "No pose to copy");
+    BKE_report(op.reports, RPT_ERROR, "No pose to copy");
     return OPERATOR_CANCELLED;
   }
   if (ID_IS_PACKED(&ob->id)) {
     /* Direct link/append of packed IDs is not supported currently, so neither is their
      * copy/pasting. */
-    BKE_report(op->reports, RPT_ERROR, "Cannot copy/paste packed data");
+    BKE_report(op.reports, RPT_ERROR, "Cannot copy/paste packed data");
     return OPERATOR_CANCELLED;
   }
 
@@ -811,10 +811,10 @@ static wmOperatorStatus pose_copy_exec(bContext *C, wmOperator *op)
 
   char filepath[FILE_MAX];
   pose_copybuffer_filepath_get(filepath, sizeof(filepath));
-  copybuffer.write(filepath, *op->reports);
+  copybuffer.write(filepath, *op.reports);
 
   /* We are all done! */
-  BKE_report(op->reports, RPT_INFO, "Copied pose to internal clipboard");
+  BKE_report(op.reports, RPT_INFO, "Copied pose to internal clipboard");
   return OPERATOR_FINISHED;
 }
 
@@ -839,12 +839,12 @@ void POSE_OT_copy(wmOperatorType *ot)
 /** \name Paste Pose Operator
  * \{ */
 
-static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_paste_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
-  Scene *scene = CTX_data_scene(*C);
-  const bool flip = RNA_boolean_get(op->ptr, "flipped");
-  bool selOnly = RNA_boolean_get(op->ptr, "selected_mask");
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+  Scene *scene = CTX_data_scene(C);
+  const bool flip = RNA_boolean_get(op.ptr, "flipped");
+  bool selOnly = RNA_boolean_get(op.ptr, "selected_mask");
 
   /* Get KeyingSet to use. */
   KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene,
@@ -861,14 +861,14 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
   STRNCPY(temp_bmain->filepath, BKE_main_blendfile_path_from_global());
 
   pose_copybuffer_filepath_get(filepath, sizeof(filepath));
-  if (!BKE_copybuffer_read(temp_bmain, filepath, op->reports, FILTER_ID_OB)) {
-    BKE_report(op->reports, RPT_ERROR, "Internal clipboard is empty");
+  if (!BKE_copybuffer_read(temp_bmain, filepath, op.reports, FILTER_ID_OB)) {
+    BKE_report(op.reports, RPT_ERROR, "Internal clipboard is empty");
     BKE_main_free(temp_bmain);
     return OPERATOR_CANCELLED;
   }
   /* Make sure data from this file is usable for pose paste. */
   if (!BLI_listbase_is_single(&temp_bmain->objects)) {
-    BKE_report(op->reports, RPT_ERROR, "Internal clipboard is not from pose mode");
+    BKE_report(op.reports, RPT_ERROR, "Internal clipboard is not from pose mode");
     BKE_main_free(temp_bmain);
     return OPERATOR_CANCELLED;
   }
@@ -876,7 +876,7 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
   Object *object_from = static_cast<Object *>(temp_bmain->objects.first);
   bPose *pose_from = object_from->pose;
   if (pose_from == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Internal clipboard has no pose");
+    BKE_report(op.reports, RPT_ERROR, "Internal clipboard has no pose");
     BKE_main_free(temp_bmain);
     return OPERATOR_CANCELLED;
   }
@@ -886,7 +886,7 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
    * pose tools.
    */
   if (selOnly) {
-    if (CTX_DATA_COUNT(*C, selected_pose_bones) == 0) {
+    if (CTX_DATA_COUNT(C, selected_pose_bones) == 0) {
       selOnly = false;
     }
   }
@@ -900,7 +900,7 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
       bPoseChannel *pchan = pose_bone_do_paste(ob, &chan, selOnly, flip);
       if (pchan != nullptr) {
         /* Keyframing tagging for successful paste, */
-        blender::animrig::autokeyframe_pchan(C, scene, ob, pchan, ks);
+        blender::animrig::autokeyframe_pchan(&C, scene, ob, pchan, ks);
       }
     }
   }
@@ -911,11 +911,11 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
 
   /* Recalculate paths if any of the bones have paths... */
   if (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) {
-    ED_pose_recalculate_paths(C, scene, ob, POSE_PATH_CALC_RANGE_FULL);
+    ED_pose_recalculate_paths(&C, scene, ob, POSE_PATH_CALC_RANGE_FULL);
   }
 
   /* Notifiers for updates, */
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -1248,10 +1248,10 @@ static wmOperatorStatus pose_clear_transform_generic_exec(bContext *C,
 /** \name Clear Pose Scale Operator
  * \{ */
 
-static wmOperatorStatus pose_clear_scale_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_clear_scale_exec(bContext &C, wmOperator &op)
 {
   return pose_clear_transform_generic_exec(
-      C, op, pchan_clear_scale_with_mirrored, ANIM_KS_SCALING_ID);
+      &C, &op, pchan_clear_scale_with_mirrored, ANIM_KS_SCALING_ID);
 }
 
 void POSE_OT_scale_clear(wmOperatorType *ot)
@@ -1275,10 +1275,10 @@ void POSE_OT_scale_clear(wmOperatorType *ot)
 /** \name Clear Pose Rotation Operator
  * \{ */
 
-static wmOperatorStatus pose_clear_rot_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_clear_rot_exec(bContext &C, wmOperator &op)
 {
   return pose_clear_transform_generic_exec(
-      C, op, pchan_clear_rot_with_mirrored, ANIM_KS_ROTATION_ID);
+      &C, &op, pchan_clear_rot_with_mirrored, ANIM_KS_ROTATION_ID);
 }
 
 void POSE_OT_rot_clear(wmOperatorType *ot)
@@ -1302,10 +1302,10 @@ void POSE_OT_rot_clear(wmOperatorType *ot)
 /** \name Clear Pose Location Operator
  * \{ */
 
-static wmOperatorStatus pose_clear_loc_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_clear_loc_exec(bContext &C, wmOperator &op)
 {
   return pose_clear_transform_generic_exec(
-      C, op, pchan_clear_loc_with_mirrored, ANIM_KS_LOCATION_ID);
+      &C, &op, pchan_clear_loc_with_mirrored, ANIM_KS_LOCATION_ID);
 }
 
 void POSE_OT_loc_clear(wmOperatorType *ot)
@@ -1329,10 +1329,10 @@ void POSE_OT_loc_clear(wmOperatorType *ot)
 /** \name Clear Pose Transforms Operator
  * \{ */
 
-static wmOperatorStatus pose_clear_transforms_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_clear_transforms_exec(bContext &C, wmOperator &op)
 {
   return pose_clear_transform_generic_exec(
-      C, op, pchan_clear_transforms, ANIM_KS_LOC_ROT_SCALE_ID);
+      &C, &op, pchan_clear_transforms, ANIM_KS_LOC_ROT_SCALE_ID);
 }
 
 void POSE_OT_transforms_clear(wmOperatorType *ot)
@@ -1357,15 +1357,15 @@ void POSE_OT_transforms_clear(wmOperatorType *ot)
 /** \name Clear User Transforms Operator
  * \{ */
 
-static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_clear_user_transforms_exec(bContext &C, wmOperator &op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
       depsgraph, float(scene->r.cfra));
-  const bool only_select = RNA_boolean_get(op->ptr, "only_selected");
+  const bool only_select = RNA_boolean_get(op.ptr, "only_selected");
 
   FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
     if ((ob->adt) && (ob->adt->action)) {
@@ -1413,7 +1413,7 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator 
 
     /* notifiers and updates */
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, ob);
   }
   FOREACH_OBJECT_IN_MODE_END;
 

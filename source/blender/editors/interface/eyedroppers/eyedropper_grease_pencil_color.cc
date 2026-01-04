@@ -342,18 +342,18 @@ static void eyedropper_grease_pencil_color_sample(bContext *C,
   }
 }
 
-static void eyedropper_grease_pencil_cancel(bContext *C, wmOperator *op)
+static void eyedropper_grease_pencil_cancel(bContext &C, wmOperator &op)
 {
-  eyedropper_grease_pencil_exit(C, op);
+  eyedropper_grease_pencil_exit(&C, &op);
 }
 
 /* Main modal status check. */
-static wmOperatorStatus eyedropper_grease_pencil_modal(bContext *C,
-                                                       wmOperator *op,
+static wmOperatorStatus eyedropper_grease_pencil_modal(bContext &C,
+                                                       wmOperator &op,
                                                        const wmEvent *event)
 {
-  eyedropper_grease_pencil_status_indicators(C, op, event);
-  EyedropperGreasePencil *eye = static_cast<EyedropperGreasePencil *>(op->customdata);
+  eyedropper_grease_pencil_status_indicators(&C, &op, event);
+  EyedropperGreasePencil *eye = static_cast<EyedropperGreasePencil *>(op.customdata);
 
   /* Handle modal keymap */
   switch (event->type) {
@@ -362,25 +362,25 @@ static wmOperatorStatus eyedropper_grease_pencil_modal(bContext *C,
         case EYE_MODAL_SAMPLE_BEGIN:
           /* enable accum and make first sample */
           eye->accum_start = true;
-          eyedropper_grease_pencil_color_sample(C, eye, event->xy);
+          eyedropper_grease_pencil_color_sample(&C, eye, event->xy);
           break;
         case EYE_MODAL_SAMPLE_RESET:
           eye->accum_tot = 0;
           eye->accum_col = float3(0.0f, 0.0f, 0.0f);
-          eyedropper_grease_pencil_color_sample(C, eye, event->xy);
+          eyedropper_grease_pencil_color_sample(&C, eye, event->xy);
           break;
         case EYE_MODAL_CANCEL: {
           eyedropper_grease_pencil_cancel(C, op);
           return OPERATOR_CANCELLED;
         }
         case EYE_MODAL_SAMPLE_CONFIRM: {
-          eyedropper_grease_pencil_color_sample(C, eye, event->xy);
+          eyedropper_grease_pencil_color_sample(&C, eye, event->xy);
 
           /* Create material. */
-          eyedropper_grease_pencil_color_set(C, event, eye);
+          eyedropper_grease_pencil_color_set(&C, event, eye);
           WM_main_add_notifier(NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 
-          eyedropper_grease_pencil_exit(C, op);
+          eyedropper_grease_pencil_exit(&C, &op);
           return OPERATOR_FINISHED;
         }
         default: {
@@ -393,7 +393,7 @@ static wmOperatorStatus eyedropper_grease_pencil_modal(bContext *C,
     case INBETWEEN_MOUSEMOVE: {
       if (eye->accum_start) {
         /* button is pressed so keep sampling */
-        eyedropper_grease_pencil_color_sample(C, eye, event->xy);
+        eyedropper_grease_pencil_color_sample(&C, eye, event->xy);
       }
       break;
     }
@@ -405,15 +405,15 @@ static wmOperatorStatus eyedropper_grease_pencil_modal(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus eyedropper_grease_pencil_invoke(bContext *C,
-                                                        wmOperator *op,
+static wmOperatorStatus eyedropper_grease_pencil_invoke(bContext &C,
+                                                        wmOperator &op,
                                                         const wmEvent *event)
 {
-  if (eyedropper_grease_pencil_init(C, op)) {
+  if (eyedropper_grease_pencil_init(&C, &op)) {
     /* Add modal temp handler. */
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
     /* Status message. */
-    eyedropper_grease_pencil_status_indicators(C, op, event);
+    eyedropper_grease_pencil_status_indicators(&C, &op, event);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -421,28 +421,28 @@ static wmOperatorStatus eyedropper_grease_pencil_invoke(bContext *C,
 }
 
 /* Repeat operator */
-static wmOperatorStatus eyedropper_grease_pencil_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus eyedropper_grease_pencil_exec(bContext &C, wmOperator &op)
 {
-  if (eyedropper_grease_pencil_init(C, op)) {
+  if (eyedropper_grease_pencil_init(&C, &op)) {
 
     /* cleanup */
-    eyedropper_grease_pencil_exit(C, op);
+    eyedropper_grease_pencil_exit(&C, &op);
 
     return OPERATOR_FINISHED;
   }
   return OPERATOR_PASS_THROUGH;
 }
 
-static bool eyedropper_grease_pencil_poll(bContext *C)
+static bool eyedropper_grease_pencil_poll(bContext &C)
 {
   /* Only valid if the current active object is grease pencil. */
-  Object *obact = CTX_data_active_object(*C);
+  Object *obact = CTX_data_active_object(C);
   if ((obact == nullptr) || (obact->type != OB_GREASE_PENCIL)) {
     return false;
   }
 
   /* Test we have a window below. */
-  return (CTX_wm_window(*C) != nullptr);
+  return (CTX_wm_window(C) != nullptr);
 }
 }  // namespace greasepencil
 

@@ -121,7 +121,7 @@ VectorSet<Strip *> all_strips_from_context(bContext *C)
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
 
-  const bool is_preview = sequencer_view_has_preview_poll(C);
+  const bool is_preview = sequencer_view_has_preview_poll(*C);
   if (is_preview) {
     return seq::query_rendered_strips(scene, channels, seqbase, scene->r.cfra, 0);
   }
@@ -136,7 +136,7 @@ VectorSet<Strip *> selected_strips_from_context(bContext *C)
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
 
-  const bool is_preview = sequencer_view_has_preview_poll(C);
+  const bool is_preview = sequencer_view_has_preview_poll(*C);
 
   if (is_preview) {
     VectorSet strips = seq::query_rendered_strips(scene, channels, seqbase, scene->r.cfra, 0);
@@ -415,21 +415,21 @@ void sequencer_select_do_updates(const bContext *C, Scene *scene)
 /** \name (De)select All Operator
  * \{ */
 
-static wmOperatorStatus sequencer_de_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sequencer_de_select_all_exec(bContext &C, wmOperator &op)
 {
-  int action = RNA_enum_get(op->ptr, "action");
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  int action = RNA_enum_get(op.ptr, "action");
+  Scene *scene = CTX_data_sequencer_scene(C);
 
-  if (sequencer_view_has_preview_poll(C) && !sequencer_view_preview_only_poll(C)) {
+  if (sequencer_view_has_preview_poll(C) && !sequencer_view_preview_only_poll(&C)) {
     return OPERATOR_CANCELLED;
   }
 
-  if (sequencer_retiming_mode_is_active(C) && retiming_keys_can_be_displayed(CTX_wm_space_seq(*C)))
+  if (sequencer_retiming_mode_is_active(&C) && retiming_keys_can_be_displayed(CTX_wm_space_seq(C)))
   {
-    return sequencer_retiming_select_all_exec(C, op);
+    return sequencer_retiming_select_all_exec(&C, &op);
   }
 
-  VectorSet strips = all_strips_from_context(C);
+  VectorSet strips = all_strips_from_context(&C);
 
   if (action == SEL_TOGGLE) {
     action = SEL_SELECT;
@@ -463,8 +463,8 @@ static wmOperatorStatus sequencer_de_select_all_exec(bContext *C, wmOperator *op
         break;
     }
   }
-  ED_outliner_select_sync_from_sequence_tag(C);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  ED_outliner_select_sync_from_sequence_tag(&C);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -492,15 +492,15 @@ void SEQUENCER_OT_select_all(wmOperatorType *ot)
 /** \name Select Inverse Operator
  * \{ */
 
-static wmOperatorStatus sequencer_select_inverse_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_select_inverse_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
-  if (sequencer_view_has_preview_poll(C) && !sequencer_view_preview_only_poll(C)) {
+  if (sequencer_view_has_preview_poll(C) && !sequencer_view_preview_only_poll(&C)) {
     return OPERATOR_CANCELLED;
   }
 
-  VectorSet strips = all_strips_from_context(C);
+  VectorSet strips = all_strips_from_context(&C);
 
   for (Strip *strip : strips) {
     if (strip->flag & SEQ_SELECT) {
@@ -512,8 +512,8 @@ static wmOperatorStatus sequencer_select_inverse_exec(bContext *C, wmOperator * 
     }
   }
 
-  ED_outliner_select_sync_from_sequence_tag(C);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  ED_outliner_select_sync_from_sequence_tag(&C);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1160,43 +1160,43 @@ StripSelection pick_strip_and_handle(const Scene *scene, const View2D *v2d, floa
   return selection;
 }
 
-wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
+wmOperatorStatus sequencer_select_exec(bContext &C, wmOperator &op)
 {
-  const View2D *v2d = ui::view2d_fromcontext(C);
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  const View2D *v2d = ui::view2d_fromcontext(&C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
   if (region->regiontype == RGN_TYPE_PREVIEW) {
-    if (!sequencer_view_preview_only_poll(C)) {
+    if (!sequencer_view_preview_only_poll(&C)) {
       return OPERATOR_CANCELLED;
     }
-    const SpaceSeq *sseq = CTX_wm_space_seq(*C);
+    const SpaceSeq *sseq = CTX_wm_space_seq(C);
     if (sseq->mainb != SEQ_DRAW_IMG_IMBUF) {
       return OPERATOR_CANCELLED;
     }
   }
 
-  const bool was_retiming = sequencer_retiming_mode_is_active(C);
+  const bool was_retiming = sequencer_retiming_mode_is_active(&C);
 
-  MouseCoords mouse_co(v2d, RNA_int_get(op->ptr, "mouse_x"), RNA_int_get(op->ptr, "mouse_y"));
+  MouseCoords mouse_co(v2d, RNA_int_get(op.ptr, "mouse_x"), RNA_int_get(op.ptr, "mouse_y"));
 
   /* Check to see if the mouse cursor intersects with the retiming box; if so, `strip_key_owner` is
    * set. If the cursor intersects with a retiming key, `key` will be set too. */
   Strip *strip_key_owner = nullptr;
-  SeqRetimingKey *key = retiming_mouseover_key_get(C, mouse_co.region, &strip_key_owner);
+  SeqRetimingKey *key = retiming_mouseover_key_get(&C, mouse_co.region, &strip_key_owner);
 
-  if (strip_key_owner != nullptr && retiming_keys_can_be_displayed(CTX_wm_space_seq(*C)) &&
+  if (strip_key_owner != nullptr && retiming_keys_can_be_displayed(CTX_wm_space_seq(C)) &&
       seq::retiming_data_is_editable(strip_key_owner))
   {
     /* If no key was found, the mouse cursor may still intersect with a "fake key" that has not
      * been realized yet. */
     if (key == nullptr) {
-      key = try_to_realize_fake_keys(C, strip_key_owner, mouse_co.region);
+      key = try_to_realize_fake_keys(&C, strip_key_owner, mouse_co.region);
     }
     else {
       /* There may be fake key on either side of strip. It must be realized. */
@@ -1206,39 +1206,39 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
     if (key != nullptr) {
       if (!was_retiming) {
         deselect_all_strips(scene);
-        sequencer_select_do_updates(C, scene);
+        sequencer_select_do_updates(&C, scene);
       }
       /* Attempt to realize any other connected strips' fake keys. */
       if (seq::is_strip_connected(strip_key_owner)) {
         const int key_frame = seq::retiming_key_timeline_frame_get(scene, strip_key_owner, key);
         VectorSet<Strip *> connections = seq::connected_strips_get(strip_key_owner);
         for (Strip *connection : connections) {
-          if (key_frame == left_fake_key_frame_get(C, connection) ||
-              key_frame == right_fake_key_frame_get(C, connection))
+          if (key_frame == left_fake_key_frame_get(&C, connection) ||
+              key_frame == right_fake_key_frame_get(&C, connection))
           {
             realize_fake_keys(scene, connection);
           }
         }
       }
-      return sequencer_retiming_key_select_exec(C, op, key, strip_key_owner);
+      return sequencer_retiming_key_select_exec(&C, &op, key, strip_key_owner);
     }
   }
 
   /* We should only reach here if no retiming selection is happening. */
   if (was_retiming) {
     seq::retiming_selection_clear(ed);
-    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+    WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
   }
 
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const bool deselect = RNA_boolean_get(op->ptr, "deselect");
-  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
-  const bool toggle = RNA_boolean_get(op->ptr, "toggle");
-  const bool center = RNA_boolean_get(op->ptr, "center");
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
+  const bool deselect = RNA_boolean_get(op.ptr, "deselect");
+  const bool deselect_all = RNA_boolean_get(op.ptr, "deselect_all");
+  const bool toggle = RNA_boolean_get(op.ptr, "toggle");
+  const bool center = RNA_boolean_get(op.ptr, "center");
 
   StripSelection selection;
   if (region->regiontype == RGN_TYPE_PREVIEW) {
-    selection.strip1 = strip_select_from_preview(C, mouse_co.region, toggle, extend, center);
+    selection.strip1 = strip_select_from_preview(&C, mouse_co.region, toggle, extend, center);
   }
   else {
     selection = pick_strip_and_handle(scene, v2d, mouse_co.view);
@@ -1246,48 +1246,48 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
 
   /* NOTE: `side_of_frame` and `linked_time` functionality is designed to be shared on one
    * keymap, therefore both properties can be true at the same time. */
-  if (selection.strip1 && RNA_boolean_get(op->ptr, "linked_time")) {
+  if (selection.strip1 && RNA_boolean_get(op.ptr, "linked_time")) {
     if (!extend && !toggle) {
       deselect_all_strips(scene);
     }
     select_linked_time(scene, selection, extend, deselect, toggle);
-    sequencer_select_do_updates(C, scene);
+    sequencer_select_do_updates(&C, scene);
     sequencer_select_set_active(scene, selection.strip1);
     return OPERATOR_FINISHED;
   }
 
   /* Select left, right or overlapping the current frame. */
-  if (RNA_boolean_get(op->ptr, "side_of_frame")) {
+  if (RNA_boolean_get(op.ptr, "side_of_frame")) {
     if (!extend && !toggle) {
       deselect_all_strips(scene);
     }
-    sequencer_select_side_of_frame(C, v2d, mouse_co.region, scene);
-    sequencer_select_do_updates(C, scene);
+    sequencer_select_side_of_frame(&C, v2d, mouse_co.region, scene);
+    sequencer_select_do_updates(&C, scene);
     return OPERATOR_FINISHED;
   }
 
   /* On Alt selection, select the strip and bordering handles. */
-  if (selection.strip1 && RNA_boolean_get(op->ptr, "linked_handle")) {
+  if (selection.strip1 && RNA_boolean_get(op.ptr, "linked_handle")) {
     if (!extend && !toggle) {
       deselect_all_strips(scene);
     }
-    sequencer_select_linked_handle(C, selection.strip1, selection.handle);
-    sequencer_select_do_updates(C, scene);
+    sequencer_select_linked_handle(&C, selection.strip1, selection.handle);
+    sequencer_select_do_updates(&C, scene);
     sequencer_select_set_active(scene, selection.strip1);
     return OPERATOR_FINISHED;
   }
 
-  const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
+  const bool wait_to_deselect_others = RNA_boolean_get(op.ptr, "wait_to_deselect_others");
   const bool already_selected = element_already_selected(selection);
 
-  SpaceSeq *sseq = CTX_wm_space_seq(*C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
   if (selection.handle != STRIP_HANDLE_NONE && already_selected) {
     sseq->flag &= ~SPACE_SEQ_DESELECT_STRIP_HANDLE;
   }
   else {
     sseq->flag |= SPACE_SEQ_DESELECT_STRIP_HANDLE;
   }
-  const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
+  const bool ignore_connections = RNA_boolean_get(op.ptr, "ignore_connections");
 
   /* Clicking on already selected element falls on modal operation.
    * All strips are deselected on mouse button release unless extend mode is used. */
@@ -1324,7 +1324,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   /* Nothing to select, but strips might have been deselected, in which case we should update. */
   if (!selection.strip1) {
     if (changed) {
-      sequencer_select_do_updates(C, scene);
+      sequencer_select_do_updates(&C, scene);
     }
     return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
   }
@@ -1348,22 +1348,22 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
     sequencer_select_connected_strips(selection);
   }
 
-  sequencer_select_do_updates(C, scene);
+  sequencer_select_do_updates(&C, scene);
   sequencer_select_set_active(scene, selection.strip1);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus sequencer_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sequencer_select_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   const wmOperatorStatus retval = WM_generic_select_invoke(C, op, event);
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   if (region && (region->regiontype == RGN_TYPE_PREVIEW)) {
     return WM_operator_flag_only_pass_through_on_press(retval, event);
   }
   return retval;
 }
 
-static std::string sequencer_select_get_name(wmOperatorType *ot, PointerRNA *ptr)
+static std::string sequencer_select_get_name(wmOperatorType &ot, PointerRNA *ptr)
 {
   if (RNA_boolean_get(ptr, "ignore_connections")) {
     return CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select (Unconnected)");
@@ -1451,17 +1451,17 @@ void SEQUENCER_OT_select(wmOperatorType *ot)
  * \{ */
 
 /** This operator is only used in the RCS keymap by default and is not exposed in any menus. */
-static wmOperatorStatus sequencer_select_handle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sequencer_select_handle_exec(bContext &C, wmOperator &op)
 {
-  const View2D *v2d = ui::view2d_fromcontext(C);
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  const View2D *v2d = ui::view2d_fromcontext(&C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  MouseCoords mouse_co(v2d, RNA_int_get(op->ptr, "mouse_x"), RNA_int_get(op->ptr, "mouse_y"));
+  MouseCoords mouse_co(v2d, RNA_int_get(op.ptr, "mouse_x"), RNA_int_get(op.ptr, "mouse_y"));
 
   StripSelection selection = pick_strip_and_handle(scene, v2d, mouse_co.view);
   if (selection.strip1 == nullptr || selection.handle == STRIP_HANDLE_NONE) {
@@ -1470,12 +1470,12 @@ static wmOperatorStatus sequencer_select_handle_exec(bContext *C, wmOperator *op
 
   /* Ignore clicks on retiming keys. */
   Strip *strip_key_test = nullptr;
-  SeqRetimingKey *key = retiming_mouseover_key_get(C, mouse_co.region, &strip_key_test);
+  SeqRetimingKey *key = retiming_mouseover_key_get(&C, mouse_co.region, &strip_key_test);
   if (key != nullptr) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  SpaceSeq *sseq = CTX_wm_space_seq(*C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
   if (element_already_selected(selection)) {
     sseq->flag &= ~SPACE_SEQ_DESELECT_STRIP_HANDLE;
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
@@ -1493,28 +1493,28 @@ static wmOperatorStatus sequencer_select_handle_exec(bContext *C, wmOperator *op
     sequencer_select_strip_impl(ed, selection.strip2, strip2_handle_clicked, false, false, false);
   }
 
-  const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
+  const bool ignore_connections = RNA_boolean_get(op.ptr, "ignore_connections");
   if (!ignore_connections) {
     sequencer_select_connected_strips(selection);
   }
 
   seq::retiming_selection_clear(ed);
-  sequencer_select_do_updates(C, scene);
+  sequencer_select_do_updates(&C, scene);
   sequencer_select_set_active(scene, selection.strip1);
   return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
 }
 
-static wmOperatorStatus sequencer_select_handle_invoke(bContext *C,
-                                                       wmOperator *op,
+static wmOperatorStatus sequencer_select_handle_invoke(bContext &C,
+                                                       wmOperator &op,
                                                        const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
   int mval[2];
   WM_event_drag_start_mval(event, region, mval);
 
-  RNA_int_set(op->ptr, "mouse_x", mval[0]);
-  RNA_int_set(op->ptr, "mouse_y", mval[1]);
+  RNA_int_set(op.ptr, "mouse_x", mval[0]);
+  RNA_int_set(op.ptr, "mouse_y", mval[1]);
 
   return sequencer_select_handle_exec(C, op);
 }
@@ -1628,17 +1628,17 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
   return changed;
 }
 
-static wmOperatorStatus sequencer_select_more_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_select_more_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   if (!select_more_less_impl(scene, true)) {
     return OPERATOR_CANCELLED;
   }
 
-  ED_outliner_select_sync_from_sequence_tag(C);
+  ED_outliner_select_sync_from_sequence_tag(&C);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1664,17 +1664,17 @@ void SEQUENCER_OT_select_more(wmOperatorType *ot)
 /** \name Select Less Operator
  * \{ */
 
-static wmOperatorStatus sequencer_select_less_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_select_less_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   if (!select_more_less_impl(scene, false)) {
     return OPERATOR_CANCELLED;
   }
 
-  ED_outliner_select_sync_from_sequence_tag(C);
+  ED_outliner_select_sync_from_sequence_tag(&C);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1700,14 +1700,14 @@ void SEQUENCER_OT_select_less(wmOperatorType *ot)
 /** \name Select Pick Linked Operator
  * \{ */
 
-static wmOperatorStatus sequencer_select_linked_pick_invoke(bContext *C,
-                                                            wmOperator *op,
+static wmOperatorStatus sequencer_select_linked_pick_invoke(bContext &C,
+                                                            wmOperator &op,
                                                             const wmEvent *event)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
-  const View2D *v2d = ui::view2d_fromcontext(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  const View2D *v2d = ui::view2d_fromcontext(&C);
 
-  bool extend = RNA_boolean_get(op->ptr, "extend");
+  bool extend = RNA_boolean_get(op.ptr, "extend");
 
   float mouse_co[2];
   ui::view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouse_co[0], &mouse_co[1]);
@@ -1730,9 +1730,9 @@ static wmOperatorStatus sequencer_select_linked_pick_invoke(bContext *C,
     selected = select_linked_internal(scene);
   }
 
-  ED_outliner_select_sync_from_sequence_tag(C);
+  ED_outliner_select_sync_from_sequence_tag(&C);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1763,9 +1763,9 @@ void SEQUENCER_OT_select_linked_pick(wmOperatorType *ot)
 /** \name Select Linked Operator
  * \{ */
 
-static wmOperatorStatus sequencer_select_linked_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_select_linked_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   bool selected;
 
   selected = true;
@@ -1773,9 +1773,9 @@ static wmOperatorStatus sequencer_select_linked_exec(bContext *C, wmOperator * /
     selected = select_linked_internal(scene);
   }
 
-  ED_outliner_select_sync_from_sequence_tag(C);
+  ED_outliner_select_sync_from_sequence_tag(&C);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1820,11 +1820,11 @@ static const EnumPropertyItem prop_select_handles_side_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus sequencer_select_handles_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sequencer_select_handles_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
-  int sel_side = RNA_enum_get(op->ptr, "side");
+  int sel_side = RNA_enum_get(op.ptr, "side");
   for (Strip &strip : *ed->current_strips()) {
     if (strip.flag & SEQ_SELECT) {
       Strip *l_neighbor = find_neighboring_strip(scene, &strip, seq::SIDE_LEFT, -1);
@@ -1881,9 +1881,9 @@ static wmOperatorStatus sequencer_select_handles_exec(bContext *C, wmOperator *o
     }
   }
 
-  ED_outliner_select_sync_from_sequence_tag(C);
+  ED_outliner_select_sync_from_sequence_tag(&C);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1917,12 +1917,12 @@ void SEQUENCER_OT_select_handles(wmOperatorType *ot)
 /** \name Select Side of Frame Operator
  * \{ */
 
-static wmOperatorStatus sequencer_select_side_of_frame_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sequencer_select_side_of_frame_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const int side = RNA_enum_get(op->ptr, "side");
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
+  const int side = RNA_enum_get(op.ptr, "side");
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
@@ -1951,9 +1951,9 @@ static wmOperatorStatus sequencer_select_side_of_frame_exec(bContext *C, wmOpera
     }
   }
 
-  ED_outliner_select_sync_from_sequence_tag(C);
+  ED_outliner_select_sync_from_sequence_tag(&C);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1992,12 +1992,12 @@ void SEQUENCER_OT_select_side_of_frame(wmOperatorType *ot)
 /** \name Select Side Operator
  * \{ */
 
-static wmOperatorStatus sequencer_select_side_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sequencer_select_side_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
-  const int sel_side = RNA_enum_get(op->ptr, "side");
+  const int sel_side = RNA_enum_get(op.ptr, "side");
   const int frame_init = sel_side == seq::SIDE_LEFT ? INT_MIN : INT_MAX;
   int frame_ranges[seq::MAX_CHANNELS];
   bool selected = false;
@@ -2026,9 +2026,9 @@ static wmOperatorStatus sequencer_select_side_exec(bContext *C, wmOperator *op)
 
   select_active_side_range(ed->current_strips(), sel_side, frame_ranges, frame_init);
 
-  ED_outliner_select_sync_from_sequence_tag(C);
+  ED_outliner_select_sync_from_sequence_tag(&C);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -2113,23 +2113,23 @@ static void seq_box_select_strip_from_preview(const bContext *C,
   }
 }
 
-static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sequencer_box_select_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
-  View2D *v2d = ui::view2d_fromcontext(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  View2D *v2d = ui::view2d_fromcontext(&C);
   Editing *ed = seq::editing_get(scene);
 
   if (ed == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  if (sequencer_retiming_mode_is_active(C) && retiming_keys_can_be_displayed(CTX_wm_space_seq(*C)))
+  if (sequencer_retiming_mode_is_active(&C) && retiming_keys_can_be_displayed(CTX_wm_space_seq(C)))
   {
-    return sequencer_retiming_box_select_exec(C, op);
+    return sequencer_retiming_box_select_exec(&C, &op);
   }
 
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
-  const bool handles = RNA_boolean_get(op->ptr, "include_handles");
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op.ptr, "mode"));
+  const bool handles = RNA_boolean_get(op.ptr, "include_handles");
   const bool select = (sel_op != SEL_OP_SUB);
 
   bool changed = false;
@@ -2139,16 +2139,16 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
   }
 
   rctf rectf;
-  WM_operator_properties_border_to_rctf(op, &rectf);
+  WM_operator_properties_border_to_rctf(&op, &rectf);
   ui::view2d_region_to_view_rctf(v2d, &rectf, &rectf);
 
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   if (region->regiontype == RGN_TYPE_PREVIEW) {
-    if (!sequencer_view_preview_only_poll(C)) {
+    if (!sequencer_view_preview_only_poll(&C)) {
       return OPERATOR_CANCELLED;
     }
-    seq_box_select_strip_from_preview(C, &rectf, sel_op);
-    sequencer_select_do_updates(C, scene);
+    seq_box_select_strip_from_preview(&C, &rectf, sel_op);
+    sequencer_select_do_updates(&C, scene);
     return OPERATOR_FINISHED;
   }
 
@@ -2199,7 +2199,7 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
         changed = true;
       }
 
-      const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
+      const bool ignore_connections = RNA_boolean_get(op.ptr, "ignore_connections");
       if (!ignore_connections) {
         /* Propagate selection to connected strips. */
         StripSelection selection;
@@ -2213,24 +2213,24 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  sequencer_select_do_updates(C, scene);
+  sequencer_select_do_updates(&C, scene);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus sequencer_box_select_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus sequencer_box_select_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent *event)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
-  const View2D *v2d = ui::view2d_fromcontext(C);
-  ARegion *region = CTX_wm_region(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  const View2D *v2d = ui::view2d_fromcontext(&C);
+  ARegion *region = CTX_wm_region(C);
 
-  if (region->regiontype == RGN_TYPE_PREVIEW && !sequencer_view_preview_only_poll(C)) {
+  if (region->regiontype == RGN_TYPE_PREVIEW && !sequencer_view_preview_only_poll(&C)) {
     return OPERATOR_CANCELLED;
   }
 
-  const bool tweak = RNA_boolean_get(op->ptr, "tweak");
+  const bool tweak = RNA_boolean_get(op.ptr, "tweak");
 
   if (tweak) {
     int mval[2];
@@ -2399,11 +2399,11 @@ static bool do_lasso_select_preview(bContext *C,
   return changed;
 }
 
-static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vse_lasso_select_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ARegion *region = CTX_wm_region(*C);
-  Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
+  Scene *scene = CTX_data_scene(C);
+  ARegion *region = CTX_wm_region(C);
+  Array<int2> mcoords = WM_gesture_lasso_path_to_array(&C, &op);
   Editing *ed = seq::editing_get(scene);
 
   if (ed == nullptr) {
@@ -2414,7 +2414,7 @@ static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_PASS_THROUGH;
   }
 
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op.ptr, "mode"));
   const bool use_pre_deselect = SEL_OP_USE_PRE_DESELECT(sel_op);
   bool changed = false;
 
@@ -2423,14 +2423,14 @@ static wmOperatorStatus vse_lasso_select_exec(bContext *C, wmOperator *op)
   }
 
   if (region->regiontype == RGN_TYPE_PREVIEW) {
-    changed = do_lasso_select_preview(C, ed, mcoords, sel_op);
+    changed = do_lasso_select_preview(&C, ed, mcoords, sel_op);
   }
   else {
-    changed = do_lasso_select_timeline(C, mcoords, region, sel_op);
+    changed = do_lasso_select_timeline(&C, mcoords, region, sel_op);
   }
 
   if (changed) {
-    sequencer_select_do_updates(C, scene);
+    sequencer_select_do_updates(&C, scene);
     return OPERATOR_FINISHED;
   }
 
@@ -2526,23 +2526,23 @@ static bool check_circle_intersection_in_timeline(const rctf *rect,
 
   return ((dx * dx) / (x_radius * x_radius) + (dy * dy) / (y_radius * y_radius) <= 1.0f);
 }
-static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vse_circle_select_exec(bContext &C, wmOperator &op)
 {
-  const int radius = RNA_int_get(op->ptr, "radius");
-  const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
-  wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  const int radius = RNA_int_get(op.ptr, "radius");
+  const int mval[2] = {RNA_int_get(op.ptr, "x"), RNA_int_get(op.ptr, "y")};
+  wmGesture *gesture = static_cast<wmGesture *>(op.customdata);
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op.ptr, "mode"));
 
-  Scene *scene = CTX_data_scene(*C);
-  View2D *v2d = ui::view2d_fromcontext(C);
+  Scene *scene = CTX_data_scene(C);
+  View2D *v2d = ui::view2d_fromcontext(&C);
   Editing *ed = seq::editing_get(scene);
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
   const bool use_pre_deselect = SEL_OP_USE_PRE_DESELECT(sel_op);
 
   if (use_pre_deselect && WM_gesture_is_modal_first(gesture)) {
     deselect_all_strips(scene);
-    sequencer_select_do_updates(C, scene);
+    sequencer_select_do_updates(&C, scene);
   }
 
   if (ed == nullptr) {
@@ -2554,8 +2554,8 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
   float pixel_radius = radius / ui::view2d_scale_get_x(v2d);
 
   if (region->regiontype == RGN_TYPE_PREVIEW) {
-    seq_circle_select_strip_from_preview(C, pixel_radius, view_mval, sel_op);
-    sequencer_select_do_updates(C, scene);
+    seq_circle_select_strip_from_preview(&C, pixel_radius, view_mval, sel_op);
+    sequencer_select_do_updates(&C, scene);
     return OPERATOR_FINISHED;
   }
 
@@ -2576,7 +2576,7 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
       }
       changed = true;
 
-      const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
+      const bool ignore_connections = RNA_boolean_get(op.ptr, "ignore_connections");
       if (!ignore_connections) {
         /* Propagate selection to connected strips. */
         StripSelection selection;
@@ -2586,7 +2586,7 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
     }
   }
   if (changed) {
-    sequencer_select_do_updates(C, scene);
+    sequencer_select_do_updates(&C, scene);
   }
   return OPERATOR_FINISHED;
 }
@@ -2886,27 +2886,27 @@ static bool select_grouped_effect_link(const Scene *scene,
 #undef STRIP_IS_SOUND
 #undef STRIP_USE_DATA
 
-static wmOperatorStatus sequencer_select_grouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sequencer_select_grouped_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
   Strip *act_strip = seq::select_active_get(scene);
 
   const bool is_preview = sequencer_view_has_preview_poll(C);
-  if (is_preview && !sequencer_view_preview_only_poll(C)) {
+  if (is_preview && !sequencer_view_preview_only_poll(&C)) {
     return OPERATOR_CANCELLED;
   }
 
-  VectorSet strips = all_strips_from_context(C);
+  VectorSet strips = all_strips_from_context(&C);
 
   if (act_strip == nullptr || (is_preview && !strips.contains(act_strip))) {
-    BKE_report(op->reports, RPT_ERROR, "No active strip!");
+    BKE_report(op.reports, RPT_ERROR, "No active strip!");
     return OPERATOR_CANCELLED;
   }
 
-  const int type = RNA_enum_get(op->ptr, "type");
-  const int channel = RNA_boolean_get(op->ptr, "use_active_channel") ? act_strip->channel : 0;
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const int type = RNA_enum_get(op.ptr, "type");
+  const int channel = RNA_boolean_get(op.ptr, "use_active_channel") ? act_strip->channel : 0;
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
 
   bool changed = false;
 
@@ -2945,8 +2945,8 @@ static wmOperatorStatus sequencer_select_grouped_exec(bContext *C, wmOperator *o
   }
 
   if (changed) {
-    ED_outliner_select_sync_from_sequence_tag(C);
-    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+    ED_outliner_select_sync_from_sequence_tag(&C);
+    WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
     return OPERATOR_FINISHED;
   }
 

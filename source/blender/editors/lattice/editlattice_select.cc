@@ -89,16 +89,16 @@ bool ED_lattice_deselect_all_multi(bContext *C)
 /** \name Select Random Operator
  * \{ */
 
-static wmOperatorStatus lattice_select_random_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lattice_select_random_exec(bContext &C, wmOperator &op)
 {
-  const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
-  const float randfac = RNA_float_get(op->ptr, "ratio");
-  const int seed = WM_operator_properties_select_random_seed_increment_get(op);
+  const bool select = (RNA_enum_get(op.ptr, "action") == SEL_SELECT);
+  const float randfac = RNA_float_get(op.ptr, "ratio");
+  const int seed = WM_operator_properties_select_random_seed_increment_get(&op);
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
     Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
@@ -133,7 +133,7 @@ static wmOperatorStatus lattice_select_random_exec(bContext *C, wmOperator *op)
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -198,15 +198,15 @@ static void ed_lattice_select_mirrored(Lattice *lt, const int axis, const bool e
   MEM_freeN(selpoints);
 }
 
-static wmOperatorStatus lattice_select_mirror_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lattice_select_mirror_exec(bContext &C, wmOperator &op)
 {
-  const int axis_flag = RNA_enum_get(op->ptr, "axis");
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const int axis_flag = RNA_enum_get(op.ptr, "axis");
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
@@ -219,7 +219,7 @@ static wmOperatorStatus lattice_select_mirror_exec(bContext *C, wmOperator *op)
 
     /* TODO: only notify changes. */
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -315,14 +315,14 @@ static wmOperatorStatus lattice_select_more_less(bContext *C, const bool select)
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus lattice_select_more_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus lattice_select_more_exec(bContext &C, wmOperator & /*op*/)
 {
-  return lattice_select_more_less(C, true);
+  return lattice_select_more_less(&C, true);
 }
 
-static wmOperatorStatus lattice_select_less_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus lattice_select_less_exec(bContext &C, wmOperator & /*op*/)
 {
-  return lattice_select_more_less(C, false);
+  return lattice_select_more_less(&C, false);
 }
 
 void LATTICE_OT_select_more(wmOperatorType *ot)
@@ -389,14 +389,14 @@ bool ED_lattice_flags_set(Object *obedit, int flag)
   return changed;
 }
 
-static wmOperatorStatus lattice_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lattice_select_all_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  int action = RNA_enum_get(op->ptr, "action");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  int action = RNA_enum_get(op.ptr, "action");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   if (action == SEL_TOGGLE) {
     action = SEL_SELECT;
@@ -441,7 +441,7 @@ static wmOperatorStatus lattice_select_all_exec(bContext *C, wmOperator *op)
     if (changed) {
       changed_multi = true;
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -474,15 +474,15 @@ void LATTICE_OT_select_all(wmOperatorType *ot)
 /** \name Select Ungrouped Verts Operator
  * \{ */
 
-static wmOperatorStatus lattice_select_ungrouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lattice_select_ungrouped_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const bool is_extend = RNA_boolean_get(op->ptr, "extend");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool is_extend = RNA_boolean_get(op.ptr, "extend");
   bool changed = false;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
     MDeformVert *dv;
@@ -510,11 +510,11 @@ static wmOperatorStatus lattice_select_ungrouped_exec(bContext *C, wmOperator *o
 
     changed = true;
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   if (!changed) {
-    BKE_report(op->reports, RPT_ERROR, "No weights/vertex groups on object(s)");
+    BKE_report(op.reports, RPT_ERROR, "No weights/vertex groups on object(s)");
     return OPERATOR_CANCELLED;
   }
   return OPERATOR_FINISHED;

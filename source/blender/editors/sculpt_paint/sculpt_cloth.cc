@@ -2271,22 +2271,22 @@ static void apply_filter_forces_bmesh(const Depsgraph &depsgraph,
   }
 }
 
-static wmOperatorStatus sculpt_cloth_filter_modal(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus sculpt_cloth_filter_modal(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
-  Object &object = *CTX_data_active_object(*C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Object &object = *CTX_data_active_object(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   SculptSession &ss = *object.sculpt;
-  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
-  const ClothFilterType filter_type = ClothFilterType(RNA_enum_get(op->ptr, "type"));
-  float filter_strength = RNA_float_get(op->ptr, "strength");
+  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  const ClothFilterType filter_type = ClothFilterType(RNA_enum_get(op.ptr, "type"));
+  float filter_strength = RNA_float_get(op.ptr, "strength");
 
   if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
     MEM_delete(ss.filter_cache);
     ss.filter_cache = nullptr;
     undo::push_end(object);
-    flush_update_done(C, object, UpdateType::Position);
+    flush_update_done(&C, object, UpdateType::Position);
     return OPERATOR_FINISHED;
   }
 
@@ -2384,56 +2384,56 @@ static wmOperatorStatus sculpt_cloth_filter_modal(bContext *C,
   /* Update and write the simulation to the nodes. */
   do_simulation_step(*depsgraph, sd, object, *ss.filter_cache->cloth_sim, node_mask);
 
-  flush_update_step(C, UpdateType::Position);
+  flush_update_step(&C, UpdateType::Position);
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus sculpt_cloth_filter_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Object &ob = *CTX_data_active_object(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
+  const Scene &scene = *CTX_data_scene(C);
+  Object &ob = *CTX_data_active_object(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   SculptSession &ss = *ob.sculpt;
 
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
 
-  const ClothFilterType filter_type = ClothFilterType(RNA_enum_get(op->ptr, "type"));
+  const ClothFilterType filter_type = ClothFilterType(RNA_enum_get(op.ptr, "type"));
 
   /* Update the active vertex */
   float2 mval_fl{float(event->mval[0]), float(event->mval[1])};
   CursorGeometryInfo cgi;
-  cursor_geometry_info_update(C, &cgi, mval_fl, false);
+  cursor_geometry_info_update(&C, &cgi, mval_fl, false);
 
   /* Needs mask data to be available as it is used when solving the constraints. */
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
-  if (report_if_shape_key_is_locked(ob, op->reports)) {
+  if (report_if_shape_key_is_locked(ob, op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
-  undo::push_begin(scene, ob, op);
-  filter::cache_init(C,
+  undo::push_begin(scene, ob, &op);
+  filter::cache_init(&C,
                      ob,
                      sd,
                      undo::Type::Position,
                      mval_fl,
-                     RNA_float_get(op->ptr, "area_normal_radius"),
-                     RNA_float_get(op->ptr, "strength"));
+                     RNA_float_get(op.ptr, "area_normal_radius"),
+                     RNA_float_get(op.ptr, "strength"));
 
   if (auto_mask::is_enabled(sd, ob, nullptr)) {
     auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
   }
 
-  const float cloth_mass = RNA_float_get(op->ptr, "cloth_mass");
-  const float cloth_damping = RNA_float_get(op->ptr, "cloth_damping");
-  const bool use_collisions = RNA_boolean_get(op->ptr, "use_collisions");
+  const float cloth_mass = RNA_float_get(op.ptr, "cloth_mass");
+  const float cloth_damping = RNA_float_get(op.ptr, "cloth_damping");
+  const bool use_collisions = RNA_boolean_get(op.ptr, "use_collisions");
   ss.filter_cache->cloth_sim = brush_simulation_create(
       *depsgraph,
       ob,
@@ -2449,7 +2449,7 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
   ensure_nodes_constraints(
       sd, ob, ss.filter_cache->node_mask, *ss.filter_cache->cloth_sim, origin, FLT_MAX);
 
-  const bool use_face_sets = RNA_boolean_get(op->ptr, "use_face_sets");
+  const bool use_face_sets = RNA_boolean_get(op.ptr, "use_face_sets");
   if (use_face_sets) {
     ss.filter_cache->active_face_set = face_set::active_face_set_get(ob);
   }
@@ -2457,14 +2457,14 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
     ss.filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
   }
 
-  const int force_axis = RNA_enum_get(op->ptr, "force_axis");
+  const int force_axis = RNA_enum_get(op.ptr, "force_axis");
   ss.filter_cache->enabled_axis[0] = force_axis & CLOTH_FILTER_FORCE_X;
   ss.filter_cache->enabled_axis[1] = force_axis & CLOTH_FILTER_FORCE_Y;
   ss.filter_cache->enabled_axis[2] = force_axis & CLOTH_FILTER_FORCE_Z;
 
-  ss.filter_cache->orientation = filter::FilterOrientation(RNA_enum_get(op->ptr, "orientation"));
+  ss.filter_cache->orientation = filter::FilterOrientation(RNA_enum_get(op.ptr, "orientation"));
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 

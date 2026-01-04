@@ -314,10 +314,10 @@ static int ringsel_init(bContext *C, wmOperator *op, bool do_cut)
   return 1;
 }
 
-static void ringcut_cancel(bContext *C, wmOperator *op)
+static void ringcut_cancel(bContext &C, wmOperator &op)
 {
   /* this is just a wrapper around exit() */
-  ringsel_exit(C, op);
+  ringsel_exit(&C, &op);
 }
 
 static void loopcut_update_edge(RingSelOpData *lcd,
@@ -493,11 +493,11 @@ static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus ringcut_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus ringcut_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   /* When accessed as a tool, get the active edge from the pre-selection gizmo. */
   {
-    ARegion *region = CTX_wm_region(*C);
+    ARegion *region = CTX_wm_region(C);
     wmGizmoMap *gzmap = region->runtime->gizmo_map;
     wmGizmoGroup *gzgroup = gzmap ? WM_gizmomap_group_find(gzmap,
                                                            "VIEW3D_GGT_mesh_preselect_edgering") :
@@ -508,20 +508,20 @@ static wmOperatorStatus ringcut_invoke(bContext *C, wmOperator *op, const wmEven
       const int edge_index = RNA_int_get(gz->ptr, "edge_index");
 
       if (object_index != -1 && edge_index != -1) {
-        RNA_int_set(op->ptr, "object_index", object_index);
-        RNA_int_set(op->ptr, "edge_index", edge_index);
-        return loopcut_init(C, op, nullptr);
+        RNA_int_set(op.ptr, "object_index", object_index);
+        RNA_int_set(op.ptr, "edge_index", edge_index);
+        return loopcut_init(&C, &op, nullptr);
       }
       return OPERATOR_CANCELLED;
     }
   }
 
-  return loopcut_init(C, op, event);
+  return loopcut_init(&C, &op, event);
 }
 
-static wmOperatorStatus loopcut_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus loopcut_exec(bContext &C, wmOperator &op)
 {
-  return loopcut_init(C, op, nullptr);
+  return loopcut_init(&C, &op, nullptr);
 }
 
 static wmOperatorStatus loopcut_finish(RingSelOpData *lcd, bContext *C, wmOperator *op)
@@ -542,33 +542,33 @@ static wmOperatorStatus loopcut_finish(RingSelOpData *lcd, bContext *C, wmOperat
     ringsel_exit(C, op);
   }
   else {
-    ringcut_cancel(C, op);
+    ringcut_cancel(*C, *op);
     return OPERATOR_CANCELLED;
   }
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus loopcut_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   if (event->type == NDOF_MOTION) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  RingSelOpData *lcd = static_cast<RingSelOpData *>(op->customdata);
+  RingSelOpData *lcd = static_cast<RingSelOpData *>(op.customdata);
   float cuts = lcd->cuts;
   float smoothness = lcd->smoothness;
   bool show_cuts = false;
   const bool has_numinput = hasNumInput(&lcd->num);
 
-  lcd->vc = em_setup_viewcontext(C);
+  lcd->vc = em_setup_viewcontext(&C);
   lcd->region = lcd->vc.region;
 
-  view3d_operator_needs_gpu(C);
+  view3d_operator_needs_gpu(&C);
 
   /* using the keyboard to input the number of cuts */
   /* Modal numinput active, try to handle numeric inputs first... */
-  if (event->val == KM_PRESS && has_numinput && handleNumInput(C, &lcd->num, event)) {
+  if (event->val == KM_PRESS && has_numinput && handleNumInput(&C, &lcd->num, event)) {
     float values[2] = {cuts, smoothness};
     applyNumInput(&lcd->num, values);
     cuts = values[0];
@@ -581,7 +581,7 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
       case EVT_PADENTER:
       case LEFTMOUSE: /* confirm */ /* XXX hardcoded */
         if (event->val == KM_PRESS) {
-          return loopcut_finish(lcd, C, op);
+          return loopcut_finish(lcd, &C, &op);
         }
 
         ED_region_tag_redraw(lcd->region);
@@ -589,17 +589,17 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
         break;
       case RIGHTMOUSE: /* abort */ /* XXX hardcoded */
         ED_region_tag_redraw(lcd->region);
-        ringsel_exit(C, op);
-        ED_workspace_status_text(C, nullptr);
-        ED_area_status_text(CTX_wm_area(*C), nullptr);
+        ringsel_exit(&C, &op);
+        ED_workspace_status_text(&C, nullptr);
+        ED_area_status_text(CTX_wm_area(C), nullptr);
 
         return OPERATOR_CANCELLED;
       case EVT_ESCKEY:
         if (event->val == KM_RELEASE) {
           /* cancel */
           ED_region_tag_redraw(lcd->region);
-          ED_workspace_status_text(C, nullptr);
-          ED_area_status_text(CTX_wm_area(*C), nullptr);
+          ED_workspace_status_text(&C, nullptr);
+          ED_area_status_text(CTX_wm_area(C), nullptr);
 
           ringcut_cancel(C, op);
           return OPERATOR_CANCELLED;
@@ -674,7 +674,7 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
     }
 
     /* Modal numinput inactive, try to handle numeric inputs last... */
-    if (!handled && event->val == KM_PRESS && handleNumInput(C, &lcd->num, event)) {
+    if (!handled && event->val == KM_PRESS && handleNumInput(&C, &lcd->num, event)) {
       float values[2] = {cuts, smoothness};
       applyNumInput(&lcd->num, values);
       cuts = values[0];
@@ -686,7 +686,7 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
     /* allow zero so you can backspace and type in a value
      * otherwise 1 as minimum would make more sense */
     lcd->cuts = clamp_f(cuts, 0, SUBD_CUTS_MAX);
-    RNA_int_set(op->ptr, "number_cuts", int(lcd->cuts));
+    RNA_int_set(op.ptr, "number_cuts", int(lcd->cuts));
     ringsel_find_edge(lcd, int(lcd->cuts));
     show_cuts = true;
     ED_region_tag_redraw(lcd->region);
@@ -694,13 +694,13 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
 
   if (smoothness != lcd->smoothness) {
     lcd->smoothness = clamp_f(smoothness, -SUBD_SMOOTH_MAX, SUBD_SMOOTH_MAX);
-    RNA_float_set(op->ptr, "smoothness", lcd->smoothness);
+    RNA_float_set(op.ptr, "smoothness", lcd->smoothness);
     show_cuts = true;
     ED_region_tag_redraw(lcd->region);
   }
 
   if (show_cuts) {
-    Scene *sce = CTX_data_scene(*C);
+    Scene *sce = CTX_data_scene(C);
     char buf[UI_MAX_DRAW_STR];
     char str_rep[NUM_STR_REP_LEN * 2];
     if (hasNumInput(&lcd->num)) {
@@ -711,7 +711,7 @@ static wmOperatorStatus loopcut_modal(bContext *C, wmOperator *op, const wmEvent
       BLI_snprintf_utf8(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", smoothness);
     }
     SNPRINTF_UTF8(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
-    ED_area_status_text(CTX_wm_area(*C), buf);
+    ED_area_status_text(CTX_wm_area(C), buf);
   }
 
   /* keep going until the user confirms */

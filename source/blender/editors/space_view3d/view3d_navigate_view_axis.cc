@@ -42,7 +42,7 @@ static const EnumPropertyItem prop_view_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus view_axis_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_axis_exec(bContext &C, wmOperator &op)
 {
   View3D *v3d;
   ARegion *region;
@@ -50,27 +50,27 @@ static wmOperatorStatus view_axis_exec(bContext *C, wmOperator *op)
   static int perspo = RV3D_PERSP;
   int viewnum;
   int view_axis_roll = RV3D_VIEW_AXIS_ROLL_0;
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
   /* no nullptr check is needed, poll checks */
-  ED_view3d_context_user_region(C, &v3d, &region);
+  ED_view3d_context_user_region(&C, &v3d, &region);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  ED_view3d_smooth_view_force_finish(C, v3d, region);
+  ED_view3d_smooth_view_force_finish(&C, v3d, region);
 
-  viewnum = RNA_enum_get(op->ptr, "type");
+  viewnum = RNA_enum_get(op.ptr, "type");
 
   float align_quat_buf[4];
   float *align_quat = nullptr;
 
-  if (RNA_boolean_get(op->ptr, "align_active")) {
+  if (RNA_boolean_get(op.ptr, "align_active")) {
     /* align to active object */
-    Object *obact = CTX_data_active_object(*C);
+    Object *obact = CTX_data_active_object(C);
     if (obact != nullptr) {
       float twmat[3][3];
-      const Scene *scene = CTX_data_scene(*C);
-      ViewLayer *view_layer = CTX_data_view_layer(*C);
-      Object *obedit = CTX_data_edit_object(*C);
+      const Scene *scene = CTX_data_scene(C);
+      ViewLayer *view_layer = CTX_data_view_layer(C);
+      Object *obedit = CTX_data_edit_object(C);
       /* same as transform gizmo when normal is set */
       blender::ed::transform::ED_getTransformOrientationMatrix(
           scene, view_layer, v3d, obact, obedit, V3D_AROUND_ACTIVE, twmat);
@@ -80,7 +80,7 @@ static wmOperatorStatus view_axis_exec(bContext *C, wmOperator *op)
     }
   }
 
-  if (RNA_boolean_get(op->ptr, "relative")) {
+  if (RNA_boolean_get(op.ptr, "relative")) {
     float quat_rotate[4];
     float quat_test[4];
 
@@ -148,7 +148,7 @@ static wmOperatorStatus view_axis_exec(bContext *C, wmOperator *op)
   float quat[4];
   ED_view3d_quat_from_axis_view(viewnum, view_axis_roll, quat);
   axis_set_view(
-      C, v3d, region, quat, viewnum, view_axis_roll, nextperspo, align_quat, smooth_viewtx);
+      &C, v3d, region, quat, viewnum, view_axis_roll, nextperspo, align_quat, smooth_viewtx);
 
   perspo = rv3d->persp;
 

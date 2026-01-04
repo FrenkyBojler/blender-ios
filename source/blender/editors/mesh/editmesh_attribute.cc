@@ -61,13 +61,13 @@ static char domain_to_htype(const bke::AttrDomain domain)
   }
 }
 
-static bool mesh_active_attribute_poll(bContext *C)
+static bool mesh_active_attribute_poll(bContext &C)
 {
   if (!ED_operator_editmesh(C)) {
     return false;
   }
-  const Mesh *mesh = ED_mesh_context(C);
-  if (!geometry::attribute_set_poll(*C, mesh->id)) {
+  const Mesh *mesh = ED_mesh_context(&C);
+  if (!geometry::attribute_set_poll(C, mesh->id)) {
     return false;
   }
   return true;
@@ -130,15 +130,15 @@ static void bmesh_loop_layer_selected_values_set(BMEditMesh &em,
   }
 }
 
-static wmOperatorStatus mesh_set_attribute_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mesh_set_attribute_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
-  Mesh *active_mesh = ED_mesh_context(C);
+  Mesh *active_mesh = ED_mesh_context(&C);
   AttributeOwner active_owner = AttributeOwner::from_id(&active_mesh->id);
   const StringRef name = *BKE_attributes_active_name_get(active_owner);
   const BMDataLayerLookup active_attr = BM_data_layer_lookup(*active_mesh->runtime->edit_mesh->bm,
@@ -149,7 +149,7 @@ static wmOperatorStatus mesh_set_attribute_exec(bContext *C, wmOperator *op)
   BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
   BLI_SCOPED_DEFER([&]() { type.destruct(buffer); });
   const GPointer value = geometry::rna_property_for_attribute_type_retrieve_value(
-      *op->ptr, active_type, buffer);
+      *op.ptr, active_type, buffer);
 
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
 
@@ -204,11 +204,11 @@ static wmOperatorStatus mesh_set_attribute_exec(bContext *C, wmOperator *op)
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus mesh_set_attribute_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus mesh_set_attribute_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
-  Mesh *mesh = ED_mesh_context(C);
+  Mesh *mesh = ED_mesh_context(&C);
   BMesh *bm = mesh->runtime->edit_mesh->bm;
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
 
@@ -230,26 +230,26 @@ static wmOperatorStatus mesh_set_attribute_invoke(bContext *C,
   const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
   const GPointer active_value(type, POINTER_OFFSET(active_elem->head.data, attr.offset));
 
-  PropertyRNA *prop = geometry::rna_property_for_type(*op->ptr, data_type);
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    geometry::rna_property_for_attribute_type_set_value(*op->ptr, *prop, active_value);
+  PropertyRNA *prop = geometry::rna_property_for_type(*op.ptr, data_type);
+  if (!RNA_property_is_set(op.ptr, prop)) {
+    geometry::rna_property_for_attribute_type_set_value(*op.ptr, *prop, active_value);
   }
 
   return WM_operator_props_popup(C, op, event);
 }
 
-static void mesh_set_attribute_ui(bContext *C, wmOperator *op)
+static void mesh_set_attribute_ui(bContext &C, wmOperator &op)
 {
-  ui::Layout &layout = op->layout->column(true);
+  ui::Layout &layout = op.layout->column(true);
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  Mesh *mesh = ED_mesh_context(C);
+  Mesh *mesh = ED_mesh_context(&C);
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
   const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, name);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(attr.type);
-  layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
+  layout.prop(op.ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
 }
 
 }  // namespace set_attribute

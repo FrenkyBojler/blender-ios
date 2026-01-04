@@ -98,16 +98,16 @@ static void screenshot_data_free(wmOperator *op)
   }
 }
 
-static wmOperatorStatus screenshot_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus screenshot_exec(bContext &C, wmOperator &op)
 {
-  const bool use_crop = STREQ(op->idname, "SCREEN_OT_screenshot_area");
-  ScreenshotData *scd = static_cast<ScreenshotData *>(op->customdata);
+  const bool use_crop = STREQ(op.idname, "SCREEN_OT_screenshot_area");
+  ScreenshotData *scd = static_cast<ScreenshotData *>(op.customdata);
   bool ok = false;
 
   if (scd == nullptr) {
     /* when running exec directly */
-    screenshot_data_create(C, op, use_crop ? CTX_wm_area(*C) : nullptr);
-    scd = static_cast<ScreenshotData *>(op->customdata);
+    screenshot_data_create(&C, &op, use_crop ? CTX_wm_area(C) : nullptr);
+    scd = static_cast<ScreenshotData *>(op.customdata);
   }
 
   if (scd) {
@@ -115,7 +115,7 @@ static wmOperatorStatus screenshot_exec(bContext *C, wmOperator *op)
       ImBuf *ibuf;
       char filepath[FILE_MAX];
 
-      RNA_string_get(op->ptr, "filepath", filepath);
+      RNA_string_get(op.ptr, "filepath", filepath);
       BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
       /* operator ensures the extension */
@@ -138,33 +138,33 @@ static wmOperatorStatus screenshot_exec(bContext *C, wmOperator *op)
         ok = true;
       }
       else {
-        BKE_reportf(op->reports, RPT_ERROR, "Could not write image: %s", strerror(errno));
+        BKE_reportf(op.reports, RPT_ERROR, "Could not write image: %s", strerror(errno));
       }
 
       IMB_freeImBuf(ibuf);
     }
   }
 
-  screenshot_data_free(op);
+  screenshot_data_free(&op);
 
   return ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus screenshot_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus screenshot_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const bool use_crop = STREQ(op->idname, "SCREEN_OT_screenshot_area");
+  const bool use_crop = STREQ(op.idname, "SCREEN_OT_screenshot_area");
   ScrArea *area = nullptr;
   if (use_crop) {
-    area = CTX_wm_area(*C);
-    bScreen *screen = CTX_wm_screen(*C);
+    area = CTX_wm_area(C);
+    bScreen *screen = CTX_wm_screen(C);
     ScrArea *area_test = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
     if (area_test != nullptr) {
       area = area_test;
     }
   }
 
-  if (screenshot_data_create(C, op, area)) {
-    if (RNA_struct_property_is_set(op->ptr, "filepath")) {
+  if (screenshot_data_create(&C, &op, area)) {
+    if (RNA_struct_property_is_set(op.ptr, "filepath")) {
       return screenshot_exec(C, op);
     }
 
@@ -179,24 +179,24 @@ static wmOperatorStatus screenshot_invoke(bContext *C, wmOperator *op, const wmE
       /* As the file isn't saved, only set the name and let the file selector pick a directory. */
       STRNCPY_UTF8(filepath, DATA_("screen"));
     }
-    RNA_string_set(op->ptr, "filepath", filepath);
+    RNA_string_set(op.ptr, "filepath", filepath);
 
-    WM_event_add_fileselect(C, op);
+    WM_event_add_fileselect(&C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
   return OPERATOR_CANCELLED;
 }
 
-static bool screenshot_check(bContext * /*C*/, wmOperator *op)
+static bool screenshot_check(bContext & /*C*/, wmOperator &op)
 {
-  ScreenshotData *scd = static_cast<ScreenshotData *>(op->customdata);
-  return WM_operator_filesel_ensure_ext_imtype(op, &scd->im_format);
+  ScreenshotData *scd = static_cast<ScreenshotData *>(op.customdata);
+  return WM_operator_filesel_ensure_ext_imtype(&op, &scd->im_format);
 }
 
-static void screenshot_cancel(bContext * /*C*/, wmOperator *op)
+static void screenshot_cancel(bContext & /*C*/, wmOperator &op)
 {
-  screenshot_data_free(op);
+  screenshot_data_free(&op);
 }
 
 static bool screenshot_draw_check_prop(PointerRNA * /*ptr*/,
@@ -208,21 +208,21 @@ static bool screenshot_draw_check_prop(PointerRNA * /*ptr*/,
   return !STREQ(prop_id, "filepath");
 }
 
-static void screenshot_draw(bContext *C, wmOperator *op)
+static void screenshot_draw(bContext &C, wmOperator &op)
 {
-  blender::ui::Layout &layout = *op->layout;
-  ScreenshotData *scd = static_cast<ScreenshotData *>(op->customdata);
+  blender::ui::Layout &layout = *op.layout;
+  ScreenshotData *scd = static_cast<ScreenshotData *>(op.customdata);
 
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
   /* image template */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImageFormatSettings, &scd->im_format);
-  uiTemplateImageSettings(&layout, C, &ptr, false);
+  uiTemplateImageSettings(&layout, &C, &ptr, false);
 
   /* main draw call */
   uiDefAutoButsRNA(&layout,
-                   op->ptr,
+                   op.ptr,
                    screenshot_draw_check_prop,
                    nullptr,
                    nullptr,
@@ -230,7 +230,7 @@ static void screenshot_draw(bContext *C, wmOperator *op)
                    false);
 }
 
-static bool screenshot_poll(bContext *C)
+static bool screenshot_poll(bContext &C)
 {
   if (G.background) {
     return false;

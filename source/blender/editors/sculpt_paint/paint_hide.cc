@@ -503,13 +503,13 @@ static void partialvis_all_update_bmesh(const Depsgraph &depsgraph,
       depsgraph, ob, node_mask, action, [](const BMVert * /*vert*/) { return true; });
 }
 
-static wmOperatorStatus hide_show_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus hide_show_all_exec(bContext &C, wmOperator &op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Object &ob = *CTX_data_active_object(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object &ob = *CTX_data_active_object(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
-  const VisAction action = VisAction(RNA_enum_get(op->ptr, "action"));
+  const VisAction action = VisAction(RNA_enum_get(op.ptr, "action"));
 
   bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(*depsgraph, ob);
 
@@ -542,7 +542,7 @@ static wmOperatorStatus hide_show_all_exec(bContext *C, wmOperator *op)
   undo::push_end(ob);
 
   islands::invalidate(*ob.sculpt);
-  tag_update_visibility(*C);
+  tag_update_visibility(C);
 
   return OPERATOR_FINISHED;
 }
@@ -620,13 +620,13 @@ static void partialvis_masked_update_bmesh(const Depsgraph &depsgraph,
   partialvis_update_bmesh_nodes(depsgraph, ob, node_mask, action, mask_test_fn);
 }
 
-static wmOperatorStatus hide_show_masked_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus hide_show_masked_exec(bContext &C, wmOperator &op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Object &ob = *CTX_data_active_object(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object &ob = *CTX_data_active_object(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
-  const VisAction action = VisAction(RNA_enum_get(op->ptr, "action"));
+  const VisAction action = VisAction(RNA_enum_get(op.ptr, "action"));
 
   bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(*depsgraph, ob);
 
@@ -659,7 +659,7 @@ static wmOperatorStatus hide_show_masked_exec(bContext *C, wmOperator *op)
   undo::push_end(ob);
 
   islands::invalidate(*ob.sculpt);
-  tag_update_visibility(*C);
+  tag_update_visibility(C);
 
   return OPERATOR_FINISHED;
 }
@@ -781,17 +781,17 @@ static void invert_visibility_bmesh(const Depsgraph &depsgraph,
   pbvh.tag_visibility_changed(node_mask);
 }
 
-static wmOperatorStatus visibility_invert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus visibility_invert_exec(bContext &C, wmOperator &op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Object &object = *CTX_data_active_object(*C);
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object &object = *CTX_data_active_object(C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
 
   bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(depsgraph, object);
 
   IndexMaskMemory memory;
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
-  undo::push_begin(scene, object, op);
+  undo::push_begin(scene, object, &op);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh:
       invert_visibility_mesh(depsgraph, object, node_mask);
@@ -807,7 +807,7 @@ static wmOperatorStatus visibility_invert_exec(bContext *C, wmOperator *op)
   undo::push_end(object);
 
   islands::invalidate(*object.sculpt);
-  tag_update_visibility(*C);
+  tag_update_visibility(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1111,30 +1111,30 @@ static void grow_shrink_visibility_bmesh(const Depsgraph &depsgraph,
   }
 }
 
-static wmOperatorStatus visibility_filter_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus visibility_filter_exec(bContext &C, wmOperator &op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Object &object = *CTX_data_active_object(*C);
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object &object = *CTX_data_active_object(C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
 
   bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(depsgraph, object);
 
-  const VisAction mode = VisAction(RNA_enum_get(op->ptr, "action"));
+  const VisAction mode = VisAction(RNA_enum_get(op.ptr, "action"));
 
   IndexMaskMemory memory;
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
 
   int num_verts = SCULPT_vertex_count_get(object);
 
-  int iterations = RNA_int_get(op->ptr, "iterations");
+  int iterations = RNA_int_get(op.ptr, "iterations");
 
-  if (RNA_boolean_get(op->ptr, "auto_iteration_count")) {
+  if (RNA_boolean_get(op.ptr, "auto_iteration_count")) {
     /* Automatically adjust the number of iterations based on the number
      * of vertices in the mesh. */
     iterations = int(num_verts / VERTEX_ITERATION_THRESHOLD) + 1;
   }
 
-  undo::push_begin(scene, object, op);
+  undo::push_begin(scene, object, &op);
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh:
       grow_shrink_visibility_mesh(depsgraph, object, node_mask, mode, iterations);
@@ -1149,7 +1149,7 @@ static wmOperatorStatus visibility_filter_exec(bContext *C, wmOperator *op)
   undo::push_end(object);
 
   islands::invalidate(*object.sculpt);
-  tag_update_visibility(*C);
+  tag_update_visibility(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1329,47 +1329,47 @@ static void hide_show_init_properties(bContext & /*C*/,
   gesture_data.selection_type = gesture::SelectionType(RNA_enum_get(op.ptr, "area"));
 }
 
-static wmOperatorStatus hide_show_gesture_box_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus hide_show_gesture_box_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  hide_show_init_properties(*C, *gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  hide_show_init_properties(C, *gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus hide_show_gesture_lasso_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus hide_show_gesture_lasso_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  hide_show_init_properties(*C, *gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  hide_show_init_properties(C, *gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus hide_show_gesture_line_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus hide_show_gesture_line_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  hide_show_init_properties(*C, *gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  hide_show_init_properties(C, *gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus hide_show_gesture_polyline_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus hide_show_gesture_polyline_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  hide_show_init_properties(*C, *gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  hide_show_init_properties(C, *gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 

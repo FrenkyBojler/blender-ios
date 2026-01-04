@@ -24,7 +24,7 @@ struct bScreen;
  * - Current space is Space Clip.
  * - There is a movie clip opened in it.
  */
-bool ED_space_clip_poll(bContext *C);
+bool ED_space_clip_poll(bContext &C);
 
 /**
  * Returns true when the following conditions are met:
@@ -33,7 +33,7 @@ bool ED_space_clip_poll(bContext *C);
  *
  * It is not required to have movie clip opened for editing.
  */
-bool ED_space_clip_view_clip_poll(bContext *C);
+bool ED_space_clip_view_clip_poll(bContext &C);
 
 /**
  * Returns true when the following conditions are met:
@@ -42,7 +42,7 @@ bool ED_space_clip_view_clip_poll(bContext *C);
  *
  * It is not required to have movie clip opened for editing.
  */
-bool ED_space_clip_tracking_poll(bContext *C);
+bool ED_space_clip_tracking_poll(bContext &C);
 
 /**
  * Returns true when the following conditions are met:
@@ -51,7 +51,7 @@ bool ED_space_clip_tracking_poll(bContext *C);
  *
  * It is not required to have mask opened for editing.
  */
-bool ED_space_clip_maskedit_poll(bContext *C);
+bool ED_space_clip_maskedit_poll(bContext &C);
 
 /**
  * Returns true when the following conditions are met:
@@ -69,7 +69,7 @@ bool ED_space_clip_maskedit_visible_splines_poll(bContext *C);
  * - It is set to Mask mode.
  * - The space has mask opened.
  */
-bool ED_space_clip_maskedit_mask_poll(bContext *C);
+bool ED_space_clip_maskedit_mask_poll(bContext &C);
 
 /**
  * Returns true when the following conditions are met:

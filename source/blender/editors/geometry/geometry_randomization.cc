@@ -19,24 +19,24 @@
 
 namespace blender::ed::geometry {
 
-static wmOperatorStatus geometry_randomization_invoke(bContext *C,
-                                                      wmOperator *op,
+static wmOperatorStatus geometry_randomization_invoke(bContext &C,
+                                                      wmOperator &op,
                                                       const wmEvent *event)
 {
-  RNA_boolean_set(op->ptr, "value", G.randomize_geometry_element_order);
+  RNA_boolean_set(op.ptr, "value", G.randomize_geometry_element_order);
   return WM_operator_props_popup(C, op, event);
 }
 
-static wmOperatorStatus geometry_randomization_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus geometry_randomization_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
-  G.randomize_geometry_element_order = RNA_boolean_get(op->ptr, "value");
+  G.randomize_geometry_element_order = RNA_boolean_get(op.ptr, "value");
 
   for (Object &object : bmain->objects) {
     DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
   }
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
   return OPERATOR_FINISHED;
 }
 

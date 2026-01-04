@@ -37,20 +37,20 @@
 /** \name Toggle Matcap Flip Operator
  * \{ */
 
-static wmOperatorStatus toggle_matcap_flip_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus toggle_matcap_flip_exec(bContext &C, wmOperator & /*op*/)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   if (v3d) {
     v3d->shading.flag ^= V3D_SHADING_MATCAP_FLIP_X;
-    ED_view3d_shade_update(CTX_data_main(*C), v3d, CTX_wm_area(*C));
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
+    ED_view3d_shade_update(CTX_data_main(C), v3d, CTX_wm_area(C));
+    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
   }
   else {
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     scene->display.shading.flag ^= V3D_SHADING_MATCAP_FLIP_X;
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-    WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+    WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, scene);
   }
 
   return OPERATOR_FINISHED;

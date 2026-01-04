@@ -249,11 +249,11 @@ bool attribute_set_poll(bContext &C, const ID &object_data)
 
 /*********************** Attribute Operators ************************/
 
-static bool geometry_attributes_poll(bContext *C)
+static bool geometry_attributes_poll(bContext &C)
 {
   using namespace blender::bke;
-  const Object *ob = object::context_object(C);
-  const Main *bmain = CTX_data_main(*C);
+  const Object *ob = object::context_object(&C);
+  const Main *bmain = CTX_data_main(C);
   if (!ob || !BKE_id_is_editable(bmain, &ob->id)) {
     return false;
   }
@@ -264,13 +264,13 @@ static bool geometry_attributes_poll(bContext *C)
   return AttributeAccessor::from_id(*data).has_value();
 }
 
-static bool geometry_attributes_remove_poll(bContext *C)
+static bool geometry_attributes_remove_poll(bContext &C)
 {
   if (!geometry_attributes_poll(C)) {
     return false;
   }
 
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   ID *data = (ob) ? static_cast<ID *>(ob->data) : nullptr;
   AttributeOwner owner = AttributeOwner::from_id(data);
   if (BKE_attributes_active_name_get(owner) != std::nullopt) {
@@ -322,21 +322,21 @@ static void set_active_default_status_on_add(Mesh &mesh,
   }
 }
 
-static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus geometry_attribute_add_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   ID *id = static_cast<ID *>(ob->data);
 
   char name[MAX_NAME];
-  RNA_string_get(op->ptr, "name", name);
-  const eCustomDataType cd_type = eCustomDataType(RNA_enum_get(op->ptr, "data_type"));
+  RNA_string_get(op.ptr, "name", name);
+  const eCustomDataType cd_type = eCustomDataType(RNA_enum_get(op.ptr, "data_type"));
   const bke::AttrType type = *bke::custom_data_type_to_attr_type(cd_type);
-  const bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
+  const bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op.ptr, "domain"));
   AttributeOwner owner = AttributeOwner::from_id(id);
 
   if (owner.type() == AttributeOwnerType::Mesh) {
     Mesh &mesh = *id_cast<Mesh *>(id);
-    CustomDataLayer *layer = BKE_attribute_new(owner, name, cd_type, domain, op->reports);
+    CustomDataLayer *layer = BKE_attribute_new(owner, name, cd_type, domain, op.reports);
     if (layer == nullptr) {
       return OPERATOR_CANCELLED;
     }
@@ -353,7 +353,7 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
 
   bke::MutableAttributeAccessor accessor = *owner.get_accessor();
   if (!accessor.domain_supported(bke::AttrDomain(domain))) {
-    BKE_report(op->reports, RPT_ERROR, "Attribute domain not supported by this geometry type");
+    BKE_report(op.reports, RPT_ERROR, "Attribute domain not supported by this geometry type");
     return OPERATOR_CANCELLED;
   }
   bke::AttributeStorage &attributes = *owner.get_storage();
@@ -374,32 +374,35 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus geometry_attribute_add_invoke(bContext *C,
-                                                      wmOperator *op,
+static wmOperatorStatus geometry_attribute_add_invoke(bContext &C,
+                                                      wmOperator &op,
                                                       const wmEvent *event)
 {
   PropertyRNA *prop;
-  prop = RNA_struct_find_property(op->ptr, "name");
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_string_set(op->ptr, prop, DATA_("Attribute"));
+  prop = RNA_struct_find_property(op.ptr, "name");
+  if (!RNA_property_is_set(op.ptr, prop)) {
+    RNA_property_string_set(op.ptr, prop, DATA_("Attribute"));
   }
   /* Set a valid default domain, in case Point domain is not supported. */
-  prop = RNA_struct_find_property(op->ptr, "domain");
-  if (!RNA_property_is_set(op->ptr, prop)) {
+  prop = RNA_struct_find_property(op.ptr, "domain");
+  if (!RNA_property_is_set(op.ptr, prop)) {
     EnumPropertyItem *items;
     int totitems;
     bool free;
     RNA_property_enum_items(
-        C, op->ptr, prop, const_cast<const EnumPropertyItem **>(&items), &totitems, &free);
+        &C, op.ptr, prop, const_cast<const EnumPropertyItem **>(&items), &totitems, &free);
     if (totitems > 0) {
-      RNA_property_enum_set(op->ptr, prop, items[0].value);
+      RNA_property_enum_set(op.ptr, prop, items[0].value);
     }
     if (free) {
       MEM_freeN(items);
     }
   }
-  return WM_operator_props_popup_confirm_ex(
-      C, op, event, IFACE_("Add Attribute"), CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add"));
+  return WM_operator_props_popup_confirm_ex(&C,
+                                            &op,
+                                            event,
+                                            IFACE_("Add Attribute"),
+                                            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add"));
 }
 
 void GEOMETRY_OT_attribute_add(wmOperatorType *ot)
@@ -444,14 +447,14 @@ void GEOMETRY_OT_attribute_add(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static wmOperatorStatus geometry_attribute_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus geometry_attribute_remove_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   ID *id = static_cast<ID *>(ob->data);
   AttributeOwner owner = AttributeOwner::from_id(id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
 
-  if (!BKE_attribute_remove(owner, name, op->reports)) {
+  if (!BKE_attribute_remove(owner, name, op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -481,24 +484,24 @@ void GEOMETRY_OT_attribute_remove(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus geometry_color_attribute_add_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   ID *id = static_cast<ID *>(ob->data);
 
   char name[MAX_NAME];
-  RNA_string_get(op->ptr, "name", name);
-  eCustomDataType type = eCustomDataType(RNA_enum_get(op->ptr, "data_type"));
-  bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
+  RNA_string_get(op.ptr, "name", name);
+  eCustomDataType type = eCustomDataType(RNA_enum_get(op.ptr, "data_type"));
+  bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op.ptr, "domain"));
 
   float color[4];
-  RNA_float_get_array(op->ptr, "color", color);
+  RNA_float_get_array(op.ptr, "color", color);
 
   AttributeOwner owner = AttributeOwner::from_id(id);
   const std::string unique_name = BKE_attribute_calc_unique_name(owner, name);
 
   if (owner.type() == AttributeOwnerType::Mesh) {
-    CustomDataLayer *layer = BKE_attribute_new(owner, unique_name, type, domain, op->reports);
+    CustomDataLayer *layer = BKE_attribute_new(owner, unique_name, type, domain, op.reports);
     if (layer == nullptr) {
       return OPERATOR_CANCELLED;
     }
@@ -530,17 +533,17 @@ static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperato
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus geometry_color_attribute_add_invoke(bContext *C,
-                                                            wmOperator *op,
+static wmOperatorStatus geometry_color_attribute_add_invoke(bContext &C,
+                                                            wmOperator &op,
                                                             const wmEvent *event)
 {
   PropertyRNA *prop;
-  prop = RNA_struct_find_property(op->ptr, "name");
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_string_set(op->ptr, prop, DATA_("Color"));
+  prop = RNA_struct_find_property(op.ptr, "name");
+  if (!RNA_property_is_set(op.ptr, prop)) {
+    RNA_property_string_set(op.ptr, prop, DATA_("Color"));
   }
-  return WM_operator_props_popup_confirm_ex(C,
-                                            op,
+  return WM_operator_props_popup_confirm_ex(&C,
+                                            &op,
                                             event,
                                             IFACE_("Add Color Attribute"),
                                             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add"));
@@ -551,18 +554,18 @@ enum class ConvertAttributeMode {
   VertexGroup = 1,
 };
 
-static bool geometry_attribute_convert_poll(bContext *C)
+static bool geometry_attribute_convert_poll(bContext &C)
 {
   if (!geometry_attributes_poll(C)) {
     return false;
   }
 
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   ID *data = static_cast<ID *>(ob->data);
   AttributeOwner owner = AttributeOwner::from_id(data);
   if (ob->type == OB_MESH) {
-    if (CTX_data_edit_object(*C) != nullptr) {
-      CTX_wm_operator_poll_msg_set(C, "Operation is not allowed in edit mode");
+    if (CTX_data_edit_object(C) != nullptr) {
+      CTX_wm_operator_poll_msg_set(&C, "Operation is not allowed in edit mode");
       return false;
     }
   }
@@ -610,15 +613,15 @@ bool convert_attribute(AttributeOwner &owner,
   return true;
 }
 
-static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus geometry_attribute_convert_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   ID *ob_data = static_cast<ID *>(ob->data);
   AttributeOwner owner = AttributeOwner::from_id(ob_data);
-  const ConvertAttributeMode mode = ConvertAttributeMode(RNA_enum_get(op->ptr, "mode"));
-  const eCustomDataType cd_type = eCustomDataType(RNA_enum_get(op->ptr, "data_type"));
+  const ConvertAttributeMode mode = ConvertAttributeMode(RNA_enum_get(op.ptr, "mode"));
+  const eCustomDataType cd_type = eCustomDataType(RNA_enum_get(op.ptr, "data_type"));
   const bke::AttrType type = *bke::custom_data_type_to_attr_type(cd_type);
-  const bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
+  const bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op.ptr, "domain"));
   const std::string name = *BKE_attributes_active_name_get(owner);
 
   if (ob->type == OB_MESH) {
@@ -626,7 +629,7 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
     bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
     switch (mode) {
       case ConvertAttributeMode::Generic: {
-        if (!convert_attribute(owner, attributes, name, domain, type, op->reports)) {
+        if (!convert_attribute(owner, attributes, name, domain, type, op.reports)) {
           return OPERATOR_CANCELLED;
         }
         BKE_attributes_active_set(owner, name);
@@ -662,7 +665,7 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
     return OPERATOR_FINISHED;
   }
 
-  if (!convert_attribute(owner, *owner.get_accessor(), name, domain, type, op->reports)) {
+  if (!convert_attribute(owner, *owner.get_accessor(), name, domain, type, op.reports)) {
     return OPERATOR_CANCELLED;
   }
   BKE_attributes_active_set(owner, name);
@@ -672,16 +675,16 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
   return OPERATOR_FINISHED;
 }
 
-static void geometry_color_attribute_add_ui(bContext * /*C*/, wmOperator *op)
+static void geometry_color_attribute_add_ui(bContext & /*C*/, wmOperator &op)
 {
-  ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op.layout;
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  layout.prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "domain", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "data_type", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "domain", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "data_type", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void GEOMETRY_OT_color_attribute_add(wmOperatorType *ot)
@@ -732,13 +735,13 @@ void GEOMETRY_OT_color_attribute_add(wmOperatorType *ot)
   RNA_def_property_float_array_default(prop, default_color);
 }
 
-static wmOperatorStatus geometry_color_attribute_set_render_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus geometry_color_attribute_set_render_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   ID *id = static_cast<ID *>(ob->data);
 
   char name[MAX_NAME];
-  RNA_string_get(op->ptr, "name", name);
+  RNA_string_get(op.ptr, "name", name);
   Mesh *mesh = id_cast<Mesh *>(id);
   if (mesh->runtime->edit_mesh) {
     const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, name);
@@ -786,16 +789,16 @@ void GEOMETRY_OT_color_attribute_render_set(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static wmOperatorStatus geometry_color_attribute_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus geometry_color_attribute_remove_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   ID *id = static_cast<ID *>(ob->data);
   const std::string active_name = BKE_id_attributes_active_color_name(id).value_or("");
   if (active_name.empty()) {
     return OPERATOR_CANCELLED;
   }
   AttributeOwner owner = AttributeOwner::from_id(id);
-  if (!BKE_attribute_remove(owner, active_name, op->reports)) {
+  if (!BKE_attribute_remove(owner, active_name, op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -805,13 +808,13 @@ static wmOperatorStatus geometry_color_attribute_remove_exec(bContext *C, wmOper
   return OPERATOR_FINISHED;
 }
 
-static bool geometry_color_attributes_remove_poll(bContext *C)
+static bool geometry_color_attributes_remove_poll(bContext &C)
 {
   if (!geometry_attributes_poll(C)) {
     return false;
   }
 
-  const Object *ob = object::context_object(C);
+  const Object *ob = object::context_object(&C);
   const ID *data = static_cast<ID *>(ob->data);
 
   if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data).value_or(""))) {
@@ -836,9 +839,9 @@ void GEOMETRY_OT_color_attribute_remove(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus geometry_color_attribute_duplicate_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus geometry_color_attribute_duplicate_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   ID *id = static_cast<ID *>(ob->data);
   const std::optional<StringRef> active_name = BKE_id_attributes_active_color_name(id);
   if (!active_name) {
@@ -865,17 +868,17 @@ static wmOperatorStatus geometry_color_attribute_duplicate_exec(bContext *C, wmO
   return OPERATOR_FINISHED;
 }
 
-static bool geometry_color_attributes_duplicate_poll(bContext *C)
+static bool geometry_color_attributes_duplicate_poll(bContext &C)
 {
   if (!geometry_attributes_poll(C)) {
     return false;
   }
-  if (CTX_data_edit_object(*C) != nullptr) {
-    CTX_wm_operator_poll_msg_set(C, "Operation is not allowed in edit mode");
+  if (CTX_data_edit_object(C) != nullptr) {
+    CTX_wm_operator_poll_msg_set(&C, "Operation is not allowed in edit mode");
     return false;
   }
 
-  const Object *ob = object::context_object(C);
+  const Object *ob = object::context_object(&C);
   const ID *data = static_cast<ID *>(ob->data);
 
   if (BKE_id_attributes_color_find(data, BKE_id_attributes_active_color_name(data).value_or(""))) {
@@ -900,50 +903,50 @@ void GEOMETRY_OT_color_attribute_duplicate(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus geometry_attribute_convert_invoke(bContext *C,
-                                                          wmOperator *op,
+static wmOperatorStatus geometry_attribute_convert_invoke(bContext &C,
+                                                          wmOperator &op,
                                                           const wmEvent * /*event*/)
 {
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   ID *id = static_cast<ID *>(ob->data);
   AttributeOwner owner = AttributeOwner::from_id(id);
   const bke::AttributeAccessor accessor = *bke::AttributeAccessor::from_id(*id);
   const bke::AttributeMetaData meta_data = *accessor.lookup_meta_data(
       *BKE_attributes_active_name_get(owner));
 
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "domain");
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_enum_set(op->ptr, prop, int(meta_data.domain));
+  PropertyRNA *prop = RNA_struct_find_property(op.ptr, "domain");
+  if (!RNA_property_is_set(op.ptr, prop)) {
+    RNA_property_enum_set(op.ptr, prop, int(meta_data.domain));
   }
-  prop = RNA_struct_find_property(op->ptr, "data_type");
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_enum_set(op->ptr, prop, *bke::attr_type_to_custom_data_type(meta_data.data_type));
+  prop = RNA_struct_find_property(op.ptr, "data_type");
+  if (!RNA_property_is_set(op.ptr, prop)) {
+    RNA_property_enum_set(op.ptr, prop, *bke::attr_type_to_custom_data_type(meta_data.data_type));
   }
 
   return WM_operator_props_dialog_popup(
-      C, op, 300, IFACE_("Convert Attribute Domain"), IFACE_("Convert"));
+      &C, &op, 300, IFACE_("Convert Attribute Domain"), IFACE_("Convert"));
 }
 
-static void geometry_attribute_convert_ui(bContext *C, wmOperator *op)
+static void geometry_attribute_convert_ui(bContext &C, wmOperator &op)
 {
-  ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op.layout;
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   if (ob->type == OB_MESH) {
-    layout.prop(op->ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op.ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   const ConvertAttributeMode mode = ob->type == OB_MESH ?
-                                        ConvertAttributeMode(RNA_enum_get(op->ptr, "mode")) :
+                                        ConvertAttributeMode(RNA_enum_get(op.ptr, "mode")) :
                                         ConvertAttributeMode::Generic;
 
   if (mode == ConvertAttributeMode::Generic) {
     if (ob->type != OB_POINTCLOUD) {
-      layout.prop(op->ptr, "domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op.ptr, "domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
-    layout.prop(op->ptr, "data_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op.ptr, "data_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -984,18 +987,18 @@ static const EnumPropertyItem *geometry_attribute_convert_mode_itemf(bContext *C
   return items;
 }
 
-static bool geometry_color_attribute_convert_poll(bContext *C)
+static bool geometry_color_attribute_convert_poll(bContext &C)
 {
   if (!geometry_attributes_poll(C)) {
     return false;
   }
 
-  if (CTX_data_edit_object(*C) != nullptr) {
-    CTX_wm_operator_poll_msg_set(C, "Operation is not allowed in edit mode");
+  if (CTX_data_edit_object(C) != nullptr) {
+    CTX_wm_operator_poll_msg_set(&C, "Operation is not allowed in edit mode");
     return false;
   }
 
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   ID *id = static_cast<ID *>(ob->data);
   if (GS(id->name) != ID_ME) {
     return false;
@@ -1010,53 +1013,53 @@ static bool geometry_color_attribute_convert_poll(bContext *C)
   return true;
 }
 
-static wmOperatorStatus geometry_color_attribute_convert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus geometry_color_attribute_convert_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
   convert_attribute(
       owner,
       mesh->attributes_for_write(),
       mesh->active_color_attribute,
-      bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
-      *bke::custom_data_type_to_attr_type(eCustomDataType(RNA_enum_get(op->ptr, "data_type"))),
-      op->reports);
+      bke::AttrDomain(RNA_enum_get(op.ptr, "domain")),
+      *bke::custom_data_type_to_attr_type(eCustomDataType(RNA_enum_get(op.ptr, "data_type"))),
+      op.reports);
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, &mesh->id);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus geometry_color_attribute_convert_invoke(bContext *C,
-                                                                wmOperator *op,
+static wmOperatorStatus geometry_color_attribute_convert_invoke(bContext &C,
+                                                                wmOperator &op,
                                                                 const wmEvent * /*event*/)
 {
-  Object *ob = object::context_object(C);
+  Object *ob = object::context_object(&C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   const char *name = mesh->active_color_attribute;
   const bke::AttributeMetaData meta_data = *mesh->attributes().lookup_meta_data(name);
 
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "domain");
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_enum_set(op->ptr, prop, int(meta_data.domain));
+  PropertyRNA *prop = RNA_struct_find_property(op.ptr, "domain");
+  if (!RNA_property_is_set(op.ptr, prop)) {
+    RNA_property_enum_set(op.ptr, prop, int(meta_data.domain));
   }
-  prop = RNA_struct_find_property(op->ptr, "data_type");
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_enum_set(op->ptr, prop, *bke::attr_type_to_custom_data_type(meta_data.data_type));
+  prop = RNA_struct_find_property(op.ptr, "data_type");
+  if (!RNA_property_is_set(op.ptr, prop)) {
+    RNA_property_enum_set(op.ptr, prop, *bke::attr_type_to_custom_data_type(meta_data.data_type));
   }
 
   return WM_operator_props_dialog_popup(
-      C, op, 300, IFACE_("Convert Color Attribute Domain"), IFACE_("Convert"));
+      &C, &op, 300, IFACE_("Convert Color Attribute Domain"), IFACE_("Convert"));
 }
 
-static void geometry_color_attribute_convert_ui(bContext * /*C*/, wmOperator *op)
+static void geometry_color_attribute_convert_ui(bContext & /*C*/, wmOperator &op)
 {
-  ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op.layout;
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  layout.prop(op->ptr, "domain", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "data_type", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "domain", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "data_type", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void GEOMETRY_OT_color_attribute_convert(wmOperatorType *ot)

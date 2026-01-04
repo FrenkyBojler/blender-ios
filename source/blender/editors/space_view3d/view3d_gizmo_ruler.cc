@@ -1354,24 +1354,24 @@ void VIEW3D_GGT_ruler(wmGizmoGroupType *gzgt)
 /** \name Add Ruler Operator
  * \{ */
 
-static bool view3d_ruler_poll(bContext *C)
+static bool view3d_ruler_poll(bContext &C)
 {
-  bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context(C);
+  bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context(&C);
   if ((tref_rt == nullptr) || !STREQ(view3d_gzgt_ruler_id, tref_rt->gizmo_group) ||
-      CTX_wm_region_view3d(*C) == nullptr)
+      CTX_wm_region_view3d(C) == nullptr)
   {
     return false;
   }
   return true;
 }
 
-static wmOperatorStatus view3d_ruler_add_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus view3d_ruler_add_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_TOOL)) {
-    BKE_report(op->reports, RPT_WARNING, "Gizmos hidden in this view");
+    BKE_report(op.reports, RPT_WARNING, "Gizmos hidden in this view");
     return OPERATOR_CANCELLED;
   }
 
@@ -1392,11 +1392,15 @@ static wmOperatorStatus view3d_ruler_add_invoke(bContext *C, wmOperator *op, con
   /* This is a little weak, but there is no real good way to tweak directly. */
   WM_gizmo_highlight_set(gzmap, &ruler_item->gz);
   const wmOperatorStatus status = WM_operator_name_call(
-      C, "GIZMOGROUP_OT_gizmo_tweak", blender::wm::OpCallContext::InvokeRegionWin, nullptr, event);
+      &C,
+      "GIZMOGROUP_OT_gizmo_tweak",
+      blender::wm::OpCallContext::InvokeRegionWin,
+      nullptr,
+      event);
   if (status == OPERATOR_RUNNING_MODAL) {
     RulerInfo *ruler_info = static_cast<RulerInfo *>(gzgroup->customdata);
     RulerInteraction *inter = static_cast<RulerInteraction *>(ruler_item->gz.interaction_data);
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     inter->co_index = 0;
 
 #ifndef USE_SNAP_DETECT_FROM_KEYMAP_HACK
@@ -1406,7 +1410,7 @@ static wmOperatorStatus view3d_ruler_add_invoke(bContext *C, wmOperator *op, con
     const bool do_snap = ED_gizmotypes_snap_3d_is_enabled(ruler_info->snap_data.gizmo);
 #endif
 
-    view3d_ruler_item_mousemove(C, depsgraph, ruler_info, ruler_item, mval, false, do_snap);
+    view3d_ruler_item_mousemove(&C, depsgraph, ruler_info, ruler_item, mval, false, do_snap);
     copy_v3_v3(inter->drag_start_co, ruler_item->co[inter->co_index]);
     RNA_property_float_set_array(ruler_info->snap_data.gizmo->ptr,
                                  ruler_info->snap_data.prop_prevpoint,
@@ -1441,15 +1445,15 @@ void VIEW3D_OT_ruler_add(wmOperatorType *ot)
 /** \name Remove Ruler Operator
  * \{ */
 
-static wmOperatorStatus view3d_ruler_remove_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus view3d_ruler_remove_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent * /*event*/)
 {
-  ARegion *region = CTX_wm_region(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_TOOL)) {
-    BKE_report(op->reports, RPT_WARNING, "Gizmos hidden in this view");
+    BKE_report(op.reports, RPT_WARNING, "Gizmos hidden in this view");
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -1468,12 +1472,12 @@ static wmOperatorStatus view3d_ruler_remove_invoke(bContext *C,
         ruler_item->flag &= ~(RULERITEM_USE_ANGLE | RULERITEM_USE_ANGLE_ACTIVE);
       }
       else {
-        ruler_item_remove(C, gzgroup, ruler_item);
+        ruler_item_remove(&C, gzgroup, ruler_item);
       }
 
       /* Update the annotation layer. */
-      view3d_ruler_gpencil_ensure(C);
-      view3d_ruler_to_gpencil(C, gzgroup);
+      view3d_ruler_gpencil_ensure(&C);
+      view3d_ruler_to_gpencil(&C, gzgroup);
 
       ED_region_tag_redraw_editor_overlays(region);
       return OPERATOR_FINISHED;

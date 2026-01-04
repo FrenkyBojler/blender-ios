@@ -478,7 +478,7 @@ static int mouse_mesh_uv_shortest_path_face(Scene *scene,
 /** \name Main Operator for vert/edge/face tag
  * \{ */
 
-static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op);
+static wmOperatorStatus uv_shortest_path_pick_exec(bContext &C, wmOperator &op);
 
 static bool uv_shortest_path_pick_ex(Scene *scene,
                                      Depsgraph *depsgraph,
@@ -541,33 +541,33 @@ static bool uv_shortest_path_pick_ex(Scene *scene,
   return ok;
 }
 
-static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
-                                                     wmOperator *op,
+static wmOperatorStatus uv_shortest_path_pick_invoke(bContext &C,
+                                                     wmOperator &op,
                                                      const wmEvent *event)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
   const char uv_selectmode = ED_uvedit_select_mode_get(scene);
 
   /* We could support this, it needs further testing. */
-  if (RNA_struct_property_is_set(op->ptr, "index")) {
+  if (RNA_struct_property_is_set(op.ptr, "index")) {
     return uv_shortest_path_pick_exec(C, op);
   }
 
   PathSelectParams op_params;
-  path_select_params_from_op(op, &op_params);
+  path_select_params_from_op(&op, &op_params);
 
   /* Set false if we support edge tagging. */
   op_params.track_active = true;
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
   float co[2];
 
-  const ARegion *region = CTX_wm_region(*C);
+  const ARegion *region = CTX_wm_region(C);
 
   blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
@@ -654,7 +654,7 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
 
     if (ele_src && ele_dst) {
       /* Always use the active object, not `obedit` as the active defines the UV display. */
-      const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(*C));
+      const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(C));
       uv_shortest_path_pick_ex(
           scene, depsgraph, obedit, &op_params, ele_src, ele_dst, aspect_y, offsets);
 
@@ -676,8 +676,8 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
       const int object_index = blender::ed::object::object_in_mode_to_index(
           scene, view_layer, OB_MODE_EDIT, obedit);
       BLI_assert(object_index != -1);
-      RNA_int_set(op->ptr, "object_index", object_index);
-      RNA_int_set(op->ptr, "index", index);
+      RNA_int_set(op.ptr, "object_index", object_index);
+      RNA_int_set(op.ptr, "index", index);
       changed = true;
     }
   }
@@ -685,16 +685,16 @@ static wmOperatorStatus uv_shortest_path_pick_invoke(bContext *C,
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_shortest_path_pick_exec(bContext &C, wmOperator &op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const char uv_selectmode = ED_uvedit_select_mode_get(scene);
 
-  const int object_index = RNA_int_get(op->ptr, "object_index");
-  const int index = RNA_int_get(op->ptr, "index");
+  const int object_index = RNA_int_get(op.ptr, "object_index");
+  const int index = RNA_int_get(op.ptr, "index");
   if (object_index == -1) {
     return OPERATOR_CANCELLED;
   }
@@ -745,10 +745,10 @@ static wmOperatorStatus uv_shortest_path_pick_exec(bContext *C, wmOperator *op)
   /* NOLINTEND: bugprone-assignment-in-if-condition */
 
   /* Always use the active object, not `obedit` as the active defines the UV display. */
-  const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(*C));
+  const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(C));
 
   PathSelectParams op_params;
-  path_select_params_from_op(op, &op_params);
+  path_select_params_from_op(&op, &op_params);
   op_params.track_active = true;
 
   if (!uv_shortest_path_pick_ex(
@@ -793,16 +793,16 @@ void UV_OT_shortest_path_pick(wmOperatorType *ot)
 /** \name Select Path Between Existing Selection
  * \{ */
 
-static wmOperatorStatus uv_shortest_path_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_shortest_path_select_exec(bContext &C, wmOperator &op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
   const char uv_selectmode = ED_uvedit_select_mode_get(scene);
   bool found_valid_elements = false;
 
-  const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(*C));
+  const float aspect_y = ED_uvedit_get_aspect_y(CTX_data_edit_object(C));
 
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
   for (Object *obedit : objects) {
@@ -835,7 +835,7 @@ static wmOperatorStatus uv_shortest_path_select_exec(bContext *C, wmOperator *op
 
     if (ele_src && ele_dst) {
       PathSelectParams op_params;
-      path_select_params_from_op(op, &op_params);
+      path_select_params_from_op(&op, &op_params);
 
       uv_shortest_path_pick_ex(
           scene, depsgraph, obedit, &op_params, ele_src, ele_dst, aspect_y, offsets);
@@ -846,7 +846,7 @@ static wmOperatorStatus uv_shortest_path_select_exec(bContext *C, wmOperator *op
 
   if (!found_valid_elements) {
     BKE_report(
-        op->reports, RPT_WARNING, "Path selection requires two matching elements to be selected");
+        op.reports, RPT_WARNING, "Path selection requires two matching elements to be selected");
     return OPERATOR_CANCELLED;
   }
 

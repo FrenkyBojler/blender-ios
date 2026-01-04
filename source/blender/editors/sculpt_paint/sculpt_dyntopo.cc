@@ -192,12 +192,12 @@ static void enable_with_undo(Main &bmain, Depsgraph &depsgraph, const Scene &sce
   }
 }
 
-static wmOperatorStatus sculpt_dynamic_topology_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sculpt_dynamic_topology_toggle_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main &bmain = *CTX_data_main(*C);
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene &scene = *CTX_data_scene(*C);
-  Object &ob = *CTX_data_active_object(*C);
+  Main &bmain = *CTX_data_main(C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
+  Scene &scene = *CTX_data_scene(C);
+  Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
 
   WM_cursor_wait(true);
@@ -261,21 +261,21 @@ WarnFlag check_attribute_warning(Scene &scene, Object &ob)
   return flag;
 }
 
-static wmOperatorStatus sculpt_dynamic_topology_toggle_invoke(bContext *C,
-                                                              wmOperator *op,
+static wmOperatorStatus sculpt_dynamic_topology_toggle_invoke(bContext &C,
+                                                              wmOperator &op,
                                                               const wmEvent * /*event*/)
 {
-  Object &ob = *CTX_data_active_object(*C);
+  Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
 
   if (!ss.bm) {
-    Scene &scene = *CTX_data_scene(*C);
+    Scene &scene = *CTX_data_scene(C);
     const WarnFlag flag = check_attribute_warning(scene, ob);
 
     if (flag & ATTRIBUTES) {
       return WM_operator_confirm_ex(
-          C,
-          op,
+          &C,
+          &op,
           RPT_("Attribute Data Detected"),
           RPT_("Dyntopo will not preserve colors, UVs, or other attributes"),
           IFACE_("Enable"),
@@ -285,8 +285,8 @@ static wmOperatorStatus sculpt_dynamic_topology_toggle_invoke(bContext *C,
 
     if (flag & MODIFIER) {
       return WM_operator_confirm_ex(
-          C,
-          op,
+          &C,
+          &op,
           RPT_("Generative Modifiers Detected!"),
           RPT_("Keeping the modifiers will increase polycount when returning to object mode"),
           IFACE_("Enable"),

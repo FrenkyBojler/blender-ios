@@ -285,8 +285,8 @@ static int mouse_nla_tracks(bContext *C, bAnimContext *ac, int track_index, shor
 /* ------------------- */
 
 /* handle clicking */
-static wmOperatorStatus nlatracks_mouseclick_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus nlatracks_mouseclick_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent *event)
 {
   bAnimContext ac;
@@ -298,7 +298,7 @@ static wmOperatorStatus nlatracks_mouseclick_invoke(bContext *C,
   float x, y;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -308,7 +308,7 @@ static wmOperatorStatus nlatracks_mouseclick_invoke(bContext *C,
   v2d = &region->v2d;
 
   /* select mode is either replace (deselect all, then add) or add/extend */
-  if (RNA_boolean_get(op->ptr, "extend")) {
+  if (RNA_boolean_get(op.ptr, "extend")) {
     selectmode = SELECT_INVERT;
   }
   else {
@@ -327,10 +327,10 @@ static wmOperatorStatus nlatracks_mouseclick_invoke(bContext *C,
                                             &track_index);
 
   /* handle mouse-click in the relevant track then */
-  notifierFlags = mouse_nla_tracks(C, &ac, track_index, selectmode);
+  notifierFlags = mouse_nla_tracks(&C, &ac, track_index, selectmode);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | notifierFlags, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | notifierFlags, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -361,15 +361,15 @@ void NLA_OT_channels_click(wmOperatorType *ot)
 
 /* ******************** Action Push Down ******************************** */
 
-static wmOperatorStatus nlatracks_pushdown_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlatracks_pushdown_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   ID *id = nullptr;
   AnimData *adt = nullptr;
-  int track_index = RNA_int_get(op->ptr, "track_index");
+  int track_index = RNA_int_get(op.ptr, "track_index");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -378,8 +378,8 @@ static wmOperatorStatus nlatracks_pushdown_exec(bContext *C, wmOperator *op)
     PointerRNA adt_ptr = {};
 
     /* active animdata block */
-    if (nla_panel_context(C, &adt_ptr, nullptr, nullptr) == 0 || (adt_ptr.data == nullptr)) {
-      BKE_report(op->reports,
+    if (nla_panel_context(&C, &adt_ptr, nullptr, nullptr) == 0 || (adt_ptr.data == nullptr)) {
+      BKE_report(op.reports,
                  RPT_ERROR,
                  "No active AnimData block to use "
                  "(select a data-block expander first or set the appropriate flags on an AnimData "
@@ -402,12 +402,12 @@ static wmOperatorStatus nlatracks_pushdown_exec(bContext *C, wmOperator *op)
     /* get track from index */
     bAnimListElem *ale = static_cast<bAnimListElem *>(BLI_findlink(&anim_data, track_index));
     if (ale == nullptr) {
-      BKE_reportf(op->reports, RPT_ERROR, "No animation track found at index %d", track_index);
+      BKE_reportf(op.reports, RPT_ERROR, "No animation track found at index %d", track_index);
       ANIM_animdata_freelist(&anim_data);
       return OPERATOR_CANCELLED;
     }
     if (ale->type != ANIMTYPE_NLAACTION) {
-      BKE_reportf(op->reports,
+      BKE_reportf(op.reports,
                   RPT_ERROR,
                   "Animation track at index %d is not a NLA 'Active Action' track",
                   track_index);
@@ -425,11 +425,11 @@ static wmOperatorStatus nlatracks_pushdown_exec(bContext *C, wmOperator *op)
 
   /* double-check that we are free to push down here... */
   if (adt == nullptr) {
-    BKE_report(op->reports, RPT_WARNING, "Internal Error - AnimData block is not valid");
+    BKE_report(op.reports, RPT_WARNING, "Internal Error - AnimData block is not valid");
     return OPERATOR_CANCELLED;
   }
   if (nlaedit_is_tweakmode_on(&ac)) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_WARNING,
                "Cannot push down actions while tweaking a strip's action, exit tweak mode first");
     return OPERATOR_CANCELLED;
@@ -437,14 +437,14 @@ static wmOperatorStatus nlatracks_pushdown_exec(bContext *C, wmOperator *op)
 
   bAction *action_to_push_down = adt->action;
   if (!action_to_push_down) {
-    BKE_report(op->reports, RPT_WARNING, "No active action to push down");
+    BKE_report(op.reports, RPT_WARNING, "No active action to push down");
     return OPERATOR_CANCELLED;
   }
 
   /* 'push-down' action - only usable when not in Tweak-mode. */
   BKE_nla_action_pushdown({*id, *adt}, ID_IS_OVERRIDE_LIBRARY(id));
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   DEG_id_tag_update_ex(bmain, id, ID_RECALC_ANIMATION);
 
   /* The action needs updating too, as FCurve modifiers are to be reevaluated. They won't extend
@@ -452,7 +452,7 @@ static wmOperatorStatus nlatracks_pushdown_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update_ex(bmain, &action_to_push_down->id, ID_RECALC_ANIMATION);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -485,23 +485,23 @@ void NLA_OT_action_pushdown(wmOperatorType *ot)
 
 /* ******************** Action Unlink ******************************** */
 
-static bool nla_action_unlink_poll(bContext *C)
+static bool nla_action_unlink_poll(bContext &C)
 {
   if (ED_operator_nla_active(C)) {
     PointerRNA adt_ptr;
-    return (nla_panel_context(C, &adt_ptr, nullptr, nullptr) && (adt_ptr.data != nullptr));
+    return (nla_panel_context(&C, &adt_ptr, nullptr, nullptr) && (adt_ptr.data != nullptr));
   }
 
   /* something failed... */
   return false;
 }
 
-static wmOperatorStatus nla_action_unlink_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nla_action_unlink_exec(bContext &C, wmOperator &op)
 {
   PointerRNA adt_ptr;
 
   /* check context and also validity of pointer */
-  if (!nla_panel_context(C, &adt_ptr, nullptr, nullptr)) {
+  if (!nla_panel_context(&C, &adt_ptr, nullptr, nullptr)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -513,18 +513,18 @@ static wmOperatorStatus nla_action_unlink_exec(bContext *C, wmOperator *op)
 
   /* do unlinking */
   if (adt->action) {
-    bool force_delete = RNA_boolean_get(op->ptr, "force_delete");
-    ED_animedit_unlink_action(C, adt_ptr.owner_id, adt, adt->action, op->reports, force_delete);
+    bool force_delete = RNA_boolean_get(op.ptr, "force_delete");
+    ED_animedit_unlink_action(&C, adt_ptr.owner_id, adt, adt->action, op.reports, force_delete);
   }
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus nla_action_unlink_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus nla_action_unlink_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   /* NOTE: this is hardcoded to match the behavior for the unlink button
    * (in `interface_templates.cc`). */
-  RNA_boolean_set(op->ptr, "force_delete", event->modifier & KM_SHIFT);
+  RNA_boolean_set(op.ptr, "force_delete", event->modifier & KM_SHIFT);
   return nla_action_unlink_exec(C, op);
 }
 
@@ -642,14 +642,14 @@ bool nlaedit_add_tracks_empty(bAnimContext *ac)
 
 /* ----- */
 
-static wmOperatorStatus nlaedit_add_tracks_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus nlaedit_add_tracks_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
-  bool above_sel = RNA_boolean_get(op->ptr, "above_selected");
+  bool above_sel = RNA_boolean_get(op.ptr, "above_selected");
   bool op_done = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -659,10 +659,10 @@ static wmOperatorStatus nlaedit_add_tracks_exec(bContext *C, wmOperator *op)
 
   /* done? */
   if (op_done) {
-    DEG_relations_tag_update(CTX_data_main(*C));
+    DEG_relations_tag_update(CTX_data_main(C));
 
     /* set notifier that things have changed */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -670,7 +670,7 @@ static wmOperatorStatus nlaedit_add_tracks_exec(bContext *C, wmOperator *op)
 
   /* failed to add any tracks */
   BKE_report(
-      op->reports, RPT_WARNING, "Select an existing NLA Track or an empty action line first");
+      op.reports, RPT_WARNING, "Select an existing NLA Track or an empty action line first");
 
   /* not done */
   return OPERATOR_CANCELLED;
@@ -701,14 +701,14 @@ void NLA_OT_tracks_add(wmOperatorType *ot)
 /* ******************** Delete Tracks Operator ***************************** */
 /* Delete selected NLA Tracks */
 
-static wmOperatorStatus nlaedit_delete_tracks_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_delete_tracks_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -748,7 +748,7 @@ static wmOperatorStatus nlaedit_delete_tracks_exec(bContext *C, wmOperator * /*o
   DEG_relations_tag_update(ac.bmain);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -780,12 +780,12 @@ void NLA_OT_tracks_delete(wmOperatorType *ot)
  *       common use case, we now have a nice shortcut again.
  */
 
-static wmOperatorStatus nlaedit_objects_add_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus nlaedit_objects_add_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -796,14 +796,14 @@ static wmOperatorStatus nlaedit_objects_add_exec(bContext *C, wmOperator * /*op*
   }
 
   /* operate on selected objects... */
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     /* ensure that object has AnimData... that's all */
     BKE_animdata_ensure_id(&ob->id);
   }
   CTX_DATA_END;
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;

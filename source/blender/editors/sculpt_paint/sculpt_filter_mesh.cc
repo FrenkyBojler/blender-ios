@@ -2259,10 +2259,10 @@ static wmOperatorStatus sculpt_mesh_filter_confirm(SculptSession &ss,
   return OPERATOR_FINISHED;
 }
 
-static void sculpt_mesh_filter_cancel(bContext *C, wmOperator * /*op*/)
+static void sculpt_mesh_filter_cancel(bContext &C, wmOperator & /*op*/)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
-  Object &ob = *CTX_data_active_object(*C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  Object &ob = *CTX_data_active_object(C);
   SculptSession *ss = ob.sculpt;
   bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
 
@@ -2275,15 +2275,15 @@ static void sculpt_mesh_filter_cancel(bContext *C, wmOperator * /*op*/)
   pbvh->update_bounds(depsgraph, ob);
 }
 
-static wmOperatorStatus sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_mesh_filter_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Object &ob = *CTX_data_active_object(*C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Object &ob = *CTX_data_active_object(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   SculptSession &ss = *ob.sculpt;
-  const MeshFilterType filter_type = MeshFilterType(RNA_enum_get(op->ptr, "type"));
+  const MeshFilterType filter_type = MeshFilterType(RNA_enum_get(op.ptr, "type"));
 
-  WM_cursor_modal_set(CTX_wm_window(*C), WM_CURSOR_EW_SCROLL);
-  sculpt_mesh_update_status_bar(C, op);
+  WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_EW_SCROLL);
+  sculpt_mesh_update_status_bar(&C, &op);
 
   if (event->type == EVT_MODAL_MAP) {
     wmOperatorStatus ret = OPERATOR_FINISHED;
@@ -2295,14 +2295,14 @@ static wmOperatorStatus sculpt_mesh_filter_modal(bContext *C, wmOperator *op, co
         break;
 
       case FILTER_MESH_MODAL_CONFIRM:
-        ret = sculpt_mesh_filter_confirm(ss, op, filter_type);
+        ret = sculpt_mesh_filter_confirm(ss, &op, filter_type);
         undo::push_end_ex(ob, false);
         break;
     }
 
-    sculpt_mesh_filter_end(C);
-    ED_workspace_status_text(C, nullptr); /* Clear status bar */
-    WM_cursor_modal_restore(CTX_wm_window(*C));
+    sculpt_mesh_filter_end(&C);
+    ED_workspace_status_text(&C, nullptr); /* Clear status bar */
+    WM_cursor_modal_restore(CTX_wm_window(C));
 
     return ret;
   }
@@ -2316,17 +2316,17 @@ static wmOperatorStatus sculpt_mesh_filter_modal(bContext *C, wmOperator *op, co
    * This way the user can tweak the last operator properties
    * or repeat the op and get expected results. */
   if (sculpt_mesh_filter_is_continuous(filter_type)) {
-    if (RNA_collection_length(op->ptr, "event_history") == 0) {
+    if (RNA_collection_length(op.ptr, "event_history") == 0) {
       /* First entry is the start mouse position, event->prev_press_xy. */
       PointerRNA startptr;
-      RNA_collection_add(op->ptr, "event_history", &startptr);
+      RNA_collection_add(op.ptr, "event_history", &startptr);
 
       float2 mouse_start(float(event->prev_press_xy[0]), float(event->prev_press_xy[1]));
       RNA_float_set_array(&startptr, "mouse_event", mouse_start);
     }
 
     PointerRNA itemptr;
-    RNA_collection_add(op->ptr, "event_history", &itemptr);
+    RNA_collection_add(op.ptr, "event_history", &itemptr);
 
     float2 mouse(float(event->xy[0]), float(event->xy[1]));
     RNA_float_set_array(&itemptr, "mouse_event", mouse);
@@ -2339,11 +2339,11 @@ static wmOperatorStatus sculpt_mesh_filter_modal(bContext *C, wmOperator *op, co
   float2 prev_mval(float(event->prev_press_xy[0]), float(event->prev_press_xy[1]));
   float2 mval(float(event->xy[0]), float(event->xy[1]));
 
-  sculpt_mesh_update_strength(op, ss, prev_mval, mval);
+  sculpt_mesh_update_strength(&op, ss, prev_mval, mval);
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
-  sculpt_mesh_filter_apply(C, op);
+  sculpt_mesh_filter_apply(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2468,34 +2468,34 @@ static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
   return OPERATOR_PASS_THROUGH;
 }
 
-static wmOperatorStatus sculpt_mesh_filter_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus sculpt_mesh_filter_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
-  RNA_int_set_array(op->ptr, "start_mouse", event->mval);
-  wmOperatorStatus ret = sculpt_mesh_filter_start(C, op);
+  RNA_int_set_array(op.ptr, "start_mouse", event->mval);
+  wmOperatorStatus ret = sculpt_mesh_filter_start(&C, &op);
 
   if (ret == OPERATOR_PASS_THROUGH) {
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
     return OPERATOR_RUNNING_MODAL;
   }
 
   return ret;
 }
 
-static wmOperatorStatus sculpt_mesh_filter_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_mesh_filter_exec(bContext &C, wmOperator &op)
 {
-  wmOperatorStatus ret = sculpt_mesh_filter_start(C, op);
+  wmOperatorStatus ret = sculpt_mesh_filter_start(&C, &op);
 
   if (ret == OPERATOR_PASS_THROUGH) {
-    int iterations = RNA_int_get(op->ptr, "iteration_count");
+    int iterations = RNA_int_get(op.ptr, "iteration_count");
 
     for (int i = 0; i < iterations; i++) {
-      sculpt_mesh_filter_apply_with_history(C, op);
+      sculpt_mesh_filter_apply_with_history(&C, &op);
     }
 
-    sculpt_mesh_filter_end(C);
-    undo::push_end(*CTX_data_active_object(*C));
+    sculpt_mesh_filter_end(&C);
+    undo::push_end(*CTX_data_active_object(C));
 
     return OPERATOR_FINISHED;
   }
@@ -2536,15 +2536,15 @@ void register_operator_props(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
-static void sculpt_mesh_ui_exec(bContext * /*C*/, wmOperator *op)
+static void sculpt_mesh_ui_exec(bContext & /*C*/, wmOperator &op)
 {
-  ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op.layout;
 
-  layout.prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   ui::Layout &row = layout.row(true);
-  row.prop(op->ptr, "deform_axis", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  row.prop(op.ptr, "deform_axis", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void SCULPT_OT_mesh_filter(wmOperatorType *ot)

@@ -106,14 +106,14 @@ static void file_handler_import_operator_write_ptr(
   }
 }
 
-static wmOperatorStatus wm_drop_import_file_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_drop_import_file_exec(bContext &C, wmOperator &op)
 {
-  const auto paths = blender::ed::io::paths_from_operator_properties(op->ptr);
+  const auto paths = blender::ed::io::paths_from_operator_properties(op.ptr);
   if (paths.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
-  auto file_handlers = drop_import_file_poll_file_handlers(C, paths, false);
+  auto file_handlers = drop_import_file_poll_file_handlers(&C, paths, false);
   if (file_handlers.is_empty()) {
     return OPERATOR_CANCELLED;
   }
@@ -123,21 +123,21 @@ static wmOperatorStatus wm_drop_import_file_exec(bContext *C, wmOperator *op)
   file_handler_import_operator_write_ptr(file_handlers[0], file_props, paths);
 
   WM_operator_name_call_ptr(
-      C, ot, blender::wm::OpCallContext::InvokeDefault, &file_props, nullptr);
+      &C, ot, blender::wm::OpCallContext::InvokeDefault, &file_props, nullptr);
   WM_operator_properties_free(&file_props);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus wm_drop_import_file_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus wm_drop_import_file_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent * /*event*/)
 {
-  const auto paths = blender::ed::io::paths_from_operator_properties(op->ptr);
+  const auto paths = blender::ed::io::paths_from_operator_properties(op.ptr);
   if (paths.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
-  auto file_handlers = drop_import_file_poll_file_handlers(C, paths, false);
+  auto file_handlers = drop_import_file_poll_file_handlers(&C, paths, false);
   if (file_handlers.size() == 1) {
     return wm_drop_import_file_exec(C, op);
   }
@@ -146,7 +146,7 @@ static wmOperatorStatus wm_drop_import_file_invoke(bContext *C,
    * Create a menu with all file handler import operators that can support any files in paths and
    * let user decide which to use.
    */
-  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(C, "", ICON_NONE);
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(&C, "", ICON_NONE);
   blender::ui::Layout &layout = *popup_menu_layout(pup);
   layout.operator_context_set(blender::wm::OpCallContext::InvokeDefault);
 
@@ -160,7 +160,7 @@ static wmOperatorStatus wm_drop_import_file_invoke(bContext *C,
     file_handler_import_operator_write_ptr(file_handler, file_props, paths);
   }
 
-  popup_menu_end(C, pup);
+  popup_menu_end(&C, pup);
   return OPERATOR_INTERFACE;
 }
 

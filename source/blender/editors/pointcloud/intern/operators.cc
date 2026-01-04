@@ -65,14 +65,14 @@ static bool pointcloud_poll_impl(bContext *C,
   return true;
 }
 
-static bool editable_pointcloud_poll(bContext *C)
+static bool editable_pointcloud_poll(bContext &C)
 {
-  return pointcloud_poll_impl(C, false, false);
+  return pointcloud_poll_impl(&C, false, false);
 }
 
-bool editable_pointcloud_in_edit_mode_poll(bContext *C)
+bool editable_pointcloud_in_edit_mode_poll(bContext &C)
 {
-  return pointcloud_poll_impl(C, true, true);
+  return pointcloud_poll_impl(&C, true, true);
 }
 
 VectorSet<PointCloud *> get_unique_editable_pointclouds(const bContext &C)
@@ -103,11 +103,11 @@ static bool has_anything_selected(const Span<PointCloud *> pointclouds)
   });
 }
 
-static wmOperatorStatus select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_all_exec(bContext &C, wmOperator &op)
 {
-  int action = RNA_enum_get(op->ptr, "action");
+  int action = RNA_enum_get(op.ptr, "action");
 
-  VectorSet<PointCloud *> unique_pointcloud = get_unique_editable_pointclouds(*C);
+  VectorSet<PointCloud *> unique_pointcloud = get_unique_editable_pointclouds(C);
 
   if (action == SEL_TOGGLE) {
     action = has_anything_selected(unique_pointcloud) ? SEL_DESELECT : SEL_SELECT;
@@ -120,7 +120,7 @@ static wmOperatorStatus select_all_exec(bContext *C, wmOperator *op)
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&pointcloud->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, pointcloud);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, pointcloud);
   }
 
   return OPERATOR_FINISHED;
@@ -140,12 +140,12 @@ static void POINTCLOUD_OT_select_all(wmOperatorType *ot)
   WM_operator_properties_select_all(ot);
 }
 
-static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_random_exec(bContext &C, wmOperator &op)
 {
-  const int seed = RNA_int_get(op->ptr, "seed");
-  const float probability = RNA_float_get(op->ptr, "probability");
+  const int seed = RNA_int_get(op.ptr, "seed");
+  const float probability = RNA_float_get(op.ptr, "probability");
 
-  for (PointCloud *pointcloud : get_unique_editable_pointclouds(*C)) {
+  for (PointCloud *pointcloud : get_unique_editable_pointclouds(C)) {
     IndexMaskMemory memory;
     const IndexMask inv_random_elements = random_mask(
                                               pointcloud->totpoint, seed, probability, memory)
@@ -164,17 +164,17 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&pointcloud->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, pointcloud);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, pointcloud);
   }
   return OPERATOR_FINISHED;
 }
 
-static void select_random_ui(bContext * /*C*/, wmOperator *op)
+static void select_random_ui(bContext & /*C*/, wmOperator &op)
 {
-  ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op.layout;
 
-  layout.prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "probability", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "probability", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 }
 
 static void POINTCLOUD_OT_select_random(wmOperatorType *ot)
@@ -211,12 +211,12 @@ static void POINTCLOUD_OT_select_random(wmOperatorType *ot)
 
 namespace pointcloud_delete {
 
-static wmOperatorStatus delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus delete_exec(bContext &C, wmOperator & /*op*/)
 {
-  for (PointCloud *pointcloud : get_unique_editable_pointclouds(*C)) {
+  for (PointCloud *pointcloud : get_unique_editable_pointclouds(C)) {
     if (remove_selection(*pointcloud)) {
       DEG_id_tag_update(&pointcloud->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, &pointcloud);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &pointcloud);
     }
   }
 

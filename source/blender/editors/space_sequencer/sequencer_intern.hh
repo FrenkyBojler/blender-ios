@@ -179,14 +179,14 @@ VectorSet<Strip *> strip_effect_get_new_inputs(const Scene *scene,
 StringRef effect_inputs_validate(const VectorSet<Strip *> &inputs, int num_inputs);
 
 /* Operator helpers. */
-bool sequencer_edit_poll(bContext *C);
-bool sequencer_edit_with_channel_region_poll(bContext *C);
-bool sequencer_editing_initialized_and_active(bContext *C);
+bool sequencer_edit_poll(bContext &C);
+bool sequencer_edit_with_channel_region_poll(bContext &C);
+bool sequencer_editing_initialized_and_active(bContext &C);
 /* UNUSED */
 // bool sequencer_strip_poll( bContext *C);
-bool sequencer_strip_editable_poll(bContext *C);
-bool sequencer_strip_has_path_poll(bContext *C);
-bool sequencer_view_has_preview_poll(bContext *C);
+bool sequencer_strip_editable_poll(bContext &C);
+bool sequencer_strip_has_path_poll(bContext &C);
+bool sequencer_view_has_preview_poll(bContext &C);
 bool sequencer_view_preview_only_poll(const bContext *C);
 bool sequencer_view_strips_poll(bContext *C);
 
@@ -374,7 +374,7 @@ wmOperatorStatus sequencer_retiming_select_linked_time(bContext *C,
                                                        wmOperator *op,
                                                        SeqRetimingKey *key,
                                                        const Strip *key_owner);
-wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op);
+wmOperatorStatus sequencer_select_exec(bContext &C, wmOperator &op);
 wmOperatorStatus sequencer_retiming_select_all_exec(bContext *C, wmOperator *op);
 wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op);
 
@@ -393,7 +393,7 @@ bool retiming_keys_can_be_displayed(const SpaceSeq *sseq);
 rctf strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip);
 
 /* `sequencer_text_edit.cc` */
-bool sequencer_text_editing_active_poll(bContext *C);
+bool sequencer_text_editing_active_poll(bContext &C);
 void SEQUENCER_OT_text_cursor_move(wmOperatorType *ot);
 void SEQUENCER_OT_text_insert(wmOperatorType *ot);
 void SEQUENCER_OT_text_delete(wmOperatorType *ot);
@@ -413,8 +413,8 @@ Vector<Strip *> sequencer_visible_strips_get(const bContext *C);
 Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v2d);
 
 /* `sequencer_clipboard.cc` */
-wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op);
-wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op);
+wmOperatorStatus sequencer_clipboard_copy_exec(bContext &C, wmOperator &op);
+wmOperatorStatus sequencer_clipboard_paste_exec(bContext &C, wmOperator &op);
 wmOperatorStatus sequencer_clipboard_paste_invoke(bContext *C,
                                                   wmOperator *op,
                                                   const wmEvent *event);

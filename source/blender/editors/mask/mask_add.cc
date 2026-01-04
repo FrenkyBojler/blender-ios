@@ -514,15 +514,15 @@ static wmOperatorStatus add_vertex_handle_cyclic(
 /** \name Add Vertex Operator
  * \{ */
 
-static wmOperatorStatus add_vertex_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_vertex_exec(bContext &C, wmOperator &op)
 {
   MaskViewLockState lock_state;
-  ED_mask_view_lock_state_store(C, &lock_state);
+  ED_mask_view_lock_state_store(&C, &lock_state);
 
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   if (mask == nullptr) {
     /* if there's no active mask, create one */
-    mask = ED_mask_new(C, nullptr);
+    mask = ED_mask_new(&C, nullptr);
   }
 
   MaskLayer *mask_layer = BKE_mask_layer_active(mask);
@@ -532,7 +532,7 @@ static wmOperatorStatus add_vertex_exec(bContext *C, wmOperator *op)
   }
 
   float co[2];
-  RNA_float_get_array(op->ptr, "location", co);
+  RNA_float_get_array(op.ptr, "location", co);
 
   /* TODO: having an active point but no active spline is possible, why? */
   if (mask_layer && mask_layer->act_spline && mask_layer->act_point &&
@@ -541,20 +541,20 @@ static wmOperatorStatus add_vertex_exec(bContext *C, wmOperator *op)
     MaskSpline *spline = mask_layer->act_spline;
     MaskSplinePoint *active_point = mask_layer->act_point;
     const wmOperatorStatus cyclic_result = add_vertex_handle_cyclic(
-        C, mask, spline, active_point, co);
+        &C, mask, spline, active_point, co);
     if (cyclic_result != OPERATOR_PASS_THROUGH) {
       return cyclic_result;
     }
 
-    if (!add_vertex_subdivide(C, mask, co)) {
-      if (!add_vertex_extrude(C, mask, mask_layer, co)) {
+    if (!add_vertex_subdivide(&C, mask, co)) {
+      if (!add_vertex_extrude(&C, mask, mask_layer, co)) {
         return OPERATOR_CANCELLED;
       }
     }
   }
   else {
-    if (!add_vertex_subdivide(C, mask, co)) {
-      if (!add_vertex_new(C, mask, mask_layer, co)) {
+    if (!add_vertex_subdivide(&C, mask, co)) {
+      if (!add_vertex_new(&C, mask, mask_layer, co)) {
         return OPERATOR_CANCELLED;
       }
     }
@@ -562,21 +562,21 @@ static wmOperatorStatus add_vertex_exec(bContext *C, wmOperator *op)
 
   DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
-  ED_mask_view_lock_state_restore_no_jump(C, &lock_state);
+  ED_mask_view_lock_state_restore_no_jump(&C, &lock_state);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus add_vertex_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus add_vertex_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
 
   float co[2];
 
   ED_mask_mouse_pos(area, region, event->mval, co);
 
-  RNA_float_set_array(op->ptr, "location", co);
+  RNA_float_set_array(op.ptr, "location", co);
 
   return add_vertex_exec(C, op);
 }
@@ -615,23 +615,23 @@ void MASK_OT_add_vertex(wmOperatorType *ot)
 /** \name Add Feather Vertex Operator
  * \{ */
 
-static wmOperatorStatus add_feather_vertex_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_feather_vertex_exec(bContext &C, wmOperator &op)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   MaskLayer *mask_layer;
   MaskSpline *spline;
   MaskSplinePoint *point = nullptr;
   const float threshold = 12;
   float co[2], u;
 
-  RNA_float_get_array(op->ptr, "location", co);
+  RNA_float_get_array(op.ptr, "location", co);
 
-  point = ED_mask_point_find_nearest(C, mask, co, threshold, nullptr, nullptr, nullptr, nullptr);
+  point = ED_mask_point_find_nearest(&C, mask, co, threshold, nullptr, nullptr, nullptr, nullptr);
   if (point) {
     return OPERATOR_FINISHED;
   }
 
-  if (ED_mask_find_nearest_diff_point(C,
+  if (ED_mask_find_nearest_diff_point(&C,
                                       mask,
                                       co,
                                       threshold,
@@ -656,7 +656,7 @@ static wmOperatorStatus add_feather_vertex_exec(bContext *C, wmOperator *op)
 
     DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
-    WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+    WM_event_add_notifier(&C, NC_MASK | NA_EDITED, mask);
 
     return OPERATOR_FINISHED;
   }
@@ -664,18 +664,18 @@ static wmOperatorStatus add_feather_vertex_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus add_feather_vertex_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus add_feather_vertex_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
 
   float co[2];
 
   ED_mask_mouse_pos(area, region, event->mval, co);
 
-  RNA_float_set_array(op->ptr, "location", co);
+  RNA_float_set_array(op.ptr, "location", co);
 
   return add_feather_vertex_exec(C, op);
 }
@@ -815,11 +815,11 @@ static int create_primitive_from_points(
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus primitive_add_invoke(bContext *C,
-                                             wmOperator *op,
+static wmOperatorStatus primitive_add_invoke(bContext &C,
+                                             wmOperator &op,
                                              const wmEvent * /*event*/)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   float cursor[2];
   int width, height;
 
@@ -829,9 +829,9 @@ static wmOperatorStatus primitive_add_invoke(bContext *C,
   cursor[0] *= width;
   cursor[1] *= height;
 
-  RNA_float_set_array(op->ptr, "location", cursor);
+  RNA_float_set_array(op.ptr, "location", cursor);
 
-  return op->type->exec(C, op);
+  return op.type->exec(&C, &op);
 }
 
 static void define_primitive_add_properties(wmOperatorType *ot)
@@ -856,12 +856,12 @@ static void define_primitive_add_properties(wmOperatorType *ot)
 /** \name Primitive Add Circle Operator
  * \{ */
 
-static wmOperatorStatus primitive_circle_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus primitive_circle_add_exec(bContext &C, wmOperator &op)
 {
   const float points[4][2] = {{0.0f, 0.5f}, {0.5f, 1.0f}, {1.0f, 0.5f}, {0.5f, 0.0f}};
   int num_points = ARRAY_SIZE(points);
 
-  create_primitive_from_points(C, op, points, num_points, HD_AUTO);
+  create_primitive_from_points(&C, &op, points, num_points, HD_AUTO);
 
   return OPERATOR_FINISHED;
 }
@@ -891,12 +891,12 @@ void MASK_OT_primitive_circle_add(wmOperatorType *ot)
 /** \name Primitive Add Square Operator
  * \{ */
 
-static wmOperatorStatus primitive_square_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus primitive_square_add_exec(bContext &C, wmOperator &op)
 {
   const float points[4][2] = {{0.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}};
   int num_points = ARRAY_SIZE(points);
 
-  create_primitive_from_points(C, op, points, num_points, HD_VECT);
+  create_primitive_from_points(&C, &op, points, num_points, HD_VECT);
 
   return OPERATOR_FINISHED;
 }

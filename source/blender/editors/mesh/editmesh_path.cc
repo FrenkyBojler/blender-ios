@@ -132,13 +132,13 @@ static void path_select_params_from_op(wmOperator *op,
   WM_operator_properties_checker_interval_from_op(op, &op_params->interval_params);
 }
 
-static bool path_select_poll_property(const bContext *C,
-                                      wmOperator * /*op*/,
+static bool path_select_poll_property(const bContext &C,
+                                      wmOperator & /*op*/,
                                       const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
   if (STREQ(prop_id, "edge_mode")) {
-    const Scene *scene = CTX_data_scene(*C);
+    const Scene *scene = CTX_data_scene(C);
     ToolSettings *ts = scene->toolsettings;
     if ((ts->selectmode & SCE_SELECT_EDGE) == 0) {
       return false;
@@ -668,7 +668,7 @@ static bool edbm_shortest_path_pick_ex(Scene *scene,
   return ok;
 }
 
-static wmOperatorStatus edbm_shortest_path_pick_exec(bContext *C, wmOperator *op);
+static wmOperatorStatus edbm_shortest_path_pick_exec(bContext &C, wmOperator &op);
 
 static BMElem *edbm_elem_find_nearest(ViewContext *vc, const char htype)
 {
@@ -699,11 +699,11 @@ static BMElem *edbm_elem_active_elem_or_face_get(BMesh *bm)
   return ele;
 }
 
-static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
-                                                       wmOperator *op,
+static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext &C,
+                                                       wmOperator &op,
                                                        const wmEvent *event)
 {
-  if (RNA_struct_property_is_set(op->ptr, "index")) {
+  if (RNA_struct_property_is_set(op.ptr, "index")) {
     return edbm_shortest_path_pick_exec(C, op);
   }
 
@@ -713,13 +713,13 @@ static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
 
   bool track_active = true;
 
-  ViewContext vc = em_setup_viewcontext(C);
+  ViewContext vc = em_setup_viewcontext(&C);
   copy_v2_v2_int(vc.mval, event->mval);
   BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
   Base *basact = BKE_view_layer_active_base_get(vc.view_layer);
   BMEditMesh *em = vc.em;
 
-  view3d_operator_needs_gpu(C);
+  view3d_operator_needs_gpu(&C);
 
   {
     int base_index = -1;
@@ -740,12 +740,12 @@ static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
     const SelectPick_Params params = {
         /*sel_op*/ SEL_OP_ADD,
     };
-    EDBM_select_pick(C, event->mval, params);
+    EDBM_select_pick(&C, event->mval, params);
     return OPERATOR_FINISHED;
   }
 
   PathSelectParams op_params;
-  path_select_params_from_op(op, vc.scene->toolsettings, &op_params);
+  path_select_params_from_op(&op, vc.scene->toolsettings, &op_params);
 
   BMElem *ele_src, *ele_dst;
   if (!(ele_src = edbm_elem_active_elem_or_face_get(em->bm)) ||
@@ -772,26 +772,26 @@ static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext *C,
 
   BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
   if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-    blender::ed::object::base_activate(C, basact);
+    blender::ed::object::base_activate(&C, basact);
   }
 
   /* to support redo */
   BM_mesh_elem_index_ensure(em->bm, ele_dst->head.htype);
   int index = EDBM_elem_to_index_any(em, ele_dst);
 
-  RNA_int_set(op->ptr, "index", index);
+  RNA_int_set(op.ptr, "index", index);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus edbm_shortest_path_pick_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_shortest_path_pick_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  Object *obedit = CTX_data_edit_object(*C);
+  Scene *scene = CTX_data_scene(C);
+  Object *obedit = CTX_data_edit_object(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
 
-  const int index = RNA_int_get(op->ptr, "index");
+  const int index = RNA_int_get(op.ptr, "index");
   if (index < 0 || index >= (bm->totvert + bm->totedge + bm->totface)) {
     return OPERATOR_CANCELLED;
   }
@@ -804,7 +804,7 @@ static wmOperatorStatus edbm_shortest_path_pick_exec(bContext *C, wmOperator *op
   }
 
   PathSelectParams op_params;
-  path_select_params_from_op(op, scene->toolsettings, &op_params);
+  path_select_params_from_op(&op, scene->toolsettings, &op_params);
   op_params.track_active = true;
 
   if (!edbm_shortest_path_pick_ex(scene, obedit, &op_params, ele_src, ele_dst)) {
@@ -846,14 +846,14 @@ void MESH_OT_shortest_path_pick(wmOperatorType *ot)
 /** \name Select Path Between Existing Selection
  * \{ */
 
-static wmOperatorStatus edbm_shortest_path_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_shortest_path_select_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   bool found_valid_elements = false;
 
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
@@ -927,7 +927,7 @@ static wmOperatorStatus edbm_shortest_path_select_exec(bContext *C, wmOperator *
 
     if (ele_src && ele_dst) {
       PathSelectParams op_params;
-      path_select_params_from_op(op, scene->toolsettings, &op_params);
+      path_select_params_from_op(&op, scene->toolsettings, &op_params);
 
       edbm_shortest_path_pick_ex(scene, obedit, &op_params, ele_src, ele_dst);
 
@@ -937,7 +937,7 @@ static wmOperatorStatus edbm_shortest_path_select_exec(bContext *C, wmOperator *
 
   if (!found_valid_elements) {
     BKE_report(
-        op->reports, RPT_WARNING, "Path selection requires two matching elements to be selected");
+        op.reports, RPT_WARNING, "Path selection requires two matching elements to be selected");
     return OPERATOR_CANCELLED;
   }
 

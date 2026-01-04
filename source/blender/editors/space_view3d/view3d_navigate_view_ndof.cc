@@ -844,13 +844,13 @@ static wmOperatorStatus ndof_orbit_invoke_impl(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus ndof_orbit_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus ndof_orbit_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   if (event->type != NDOF_MOTION) {
     return OPERATOR_CANCELLED;
   }
 
-  return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_ndof_orbit);
+  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_ndof_orbit);
 }
 
 void VIEW3D_OT_ndof_orbit(wmOperatorType *ot)
@@ -982,13 +982,13 @@ static wmOperatorStatus ndof_orbit_zoom_invoke_impl(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus ndof_orbit_zoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus ndof_orbit_zoom_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   if (event->type != NDOF_MOTION) {
     return OPERATOR_CANCELLED;
   }
 
-  return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_ndof_orbit_zoom);
+  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_ndof_orbit_zoom);
 }
 
 void VIEW3D_OT_ndof_orbit_zoom(wmOperatorType *ot)
@@ -1067,13 +1067,13 @@ static wmOperatorStatus ndof_pan_invoke_impl(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus ndof_pan_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus ndof_pan_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   if (event->type != NDOF_MOTION) {
     return OPERATOR_CANCELLED;
   }
 
-  return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_ndof_pan);
+  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_ndof_pan);
 }
 
 void VIEW3D_OT_ndof_pan(wmOperatorType *ot)
@@ -1119,13 +1119,13 @@ static wmOperatorStatus ndof_all_invoke_impl(bContext *C,
   return ret;
 }
 
-static wmOperatorStatus ndof_all_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus ndof_all_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   if (event->type != NDOF_MOTION) {
     return OPERATOR_CANCELLED;
   }
 
-  return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_ndof_all);
+  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_ndof_all);
 }
 
 void VIEW3D_OT_ndof_all(wmOperatorType *ot)

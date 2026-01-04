@@ -38,17 +38,17 @@ namespace blender::ed::vse {
 /** \name Add modifier operator
  * \{ */
 
-static wmOperatorStatus strip_modifier_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus strip_modifier_add_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
-  int type = RNA_enum_get(op->ptr, "type");
+  int type = RNA_enum_get(op.ptr, "type");
 
   StripModifierData *smd = seq::modifier_new(strip, nullptr, type);
   seq::modifier_persistent_uid_init(*strip, *smd);
 
   seq::relations_invalidate_cache(scene, strip);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -100,14 +100,14 @@ void SEQUENCER_OT_strip_modifier_add(wmOperatorType *ot)
 /** \name Remove Modifier Operator
  * \{ */
 
-static wmOperatorStatus strip_modifier_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus strip_modifier_remove_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
   char name[MAX_NAME];
   StripModifierData *smd;
 
-  RNA_string_get(op->ptr, "name", name);
+  RNA_string_get(op.ptr, "name", name);
 
   smd = seq::modifier_find_by_name(strip, name);
   if (!smd) {
@@ -123,7 +123,7 @@ static wmOperatorStatus strip_modifier_remove_exec(bContext *C, wmOperator *op)
   else {
     seq::relations_invalidate_cache(scene, strip);
   }
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -160,16 +160,16 @@ enum {
   SEQ_MODIFIER_MOVE_DOWN,
 };
 
-static wmOperatorStatus strip_modifier_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus strip_modifier_move_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
   char name[MAX_NAME];
   int direction;
   StripModifierData *smd;
 
-  RNA_string_get(op->ptr, "name", name);
-  direction = RNA_enum_get(op->ptr, "direction");
+  RNA_string_get(op.ptr, "name", name);
+  direction = RNA_enum_get(op.ptr, "direction");
 
   smd = seq::modifier_find_by_name(strip, name);
   if (!smd) {
@@ -196,7 +196,7 @@ static wmOperatorStatus strip_modifier_move_exec(bContext *C, wmOperator *op)
     seq::relations_invalidate_cache(scene, strip);
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -241,11 +241,11 @@ enum {
   SEQ_MODIFIER_COPY_APPEND = 1,
 };
 
-static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus strip_modifier_copy_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Strip *active_strip = seq::select_active_get(scene);
-  const int type = RNA_enum_get(op->ptr, "type");
+  const int type = RNA_enum_get(op.ptr, "type");
 
   if (!active_strip || !active_strip->modifiers.first) {
     return OPERATOR_CANCELLED;
@@ -253,7 +253,7 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
 
   int isSound = ELEM(active_strip->type, STRIP_TYPE_SOUND);
 
-  VectorSet<Strip *> selected = selected_strips_from_context(C);
+  VectorSet<Strip *> selected = selected_strips_from_context(&C);
   selected.remove(active_strip);
 
   for (Strip *strip_iter : selected) {
@@ -292,7 +292,7 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
     seq::relations_invalidate_cache(scene, active_strip);
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -332,14 +332,14 @@ void SEQUENCER_OT_strip_modifier_copy(wmOperatorType *ot)
 /** \name Redefine Equalizer Graphs Operator
  * \{ */
 
-static wmOperatorStatus strip_modifier_equalizer_redefine_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus strip_modifier_equalizer_redefine_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
   StripModifierData *smd;
   char name[MAX_NAME];
-  RNA_string_get(op->ptr, "name", name);
-  int number = RNA_enum_get(op->ptr, "graphs");
+  RNA_string_get(op.ptr, "name", name);
+  int number = RNA_enum_get(op.ptr, "graphs");
 
   smd = seq::modifier_find_by_name(strip, name);
   if (!smd) {
@@ -349,7 +349,7 @@ static wmOperatorStatus strip_modifier_equalizer_redefine_exec(bContext *C, wmOp
   seq::sound_equalizermodifier_set_graphs((SoundEqualizerModifierData *)smd, number);
 
   seq::relations_invalidate_cache(scene, strip);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -392,14 +392,14 @@ void SEQUENCER_OT_strip_modifier_equalizer_redefine(wmOperatorType *ot)
 /** \name Move to Index Modifier Operator
  * \{ */
 
-static wmOperatorStatus modifier_move_to_index_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus modifier_move_to_index_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
 
   char name[MAX_NAME];
-  RNA_string_get(op->ptr, "modifier", name);
-  const int index = RNA_int_get(op->ptr, "index");
+  RNA_string_get(op.ptr, "modifier", name);
+  const int index = RNA_int_get(op.ptr, "index");
 
   StripModifierData *smd = seq::modifier_find_by_name(strip, name);
   if (!smd) {
@@ -417,16 +417,16 @@ static wmOperatorStatus modifier_move_to_index_exec(bContext *C, wmOperator *op)
     seq::relations_invalidate_cache(scene, strip);
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus modifier_move_to_index_invoke(bContext *C,
-                                                      wmOperator *op,
+static wmOperatorStatus modifier_move_to_index_invoke(bContext &C,
+                                                      wmOperator &op,
                                                       const wmEvent * /*event*/)
 {
-  BLI_assert(RNA_struct_property_is_set(op->ptr, "modifier"));
+  BLI_assert(RNA_struct_property_is_set(op.ptr, "modifier"));
   return modifier_move_to_index_exec(C, op);
 }
 
@@ -460,13 +460,13 @@ void SEQUENCER_OT_strip_modifier_move_to_index(wmOperatorType *ot)
 /** \name Set Active Modifier Operator
  * \{ */
 
-static wmOperatorStatus modifier_set_active_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus modifier_set_active_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
 
   char name[MAX_NAME];
-  RNA_string_get(op->ptr, "modifier", name);
+  RNA_string_get(op.ptr, "modifier", name);
 
   StripModifierData *smd = seq::modifier_find_by_name(strip, name);
   /* If there is no modifier set for this operator, clear the active modifier field. */
@@ -477,11 +477,11 @@ static wmOperatorStatus modifier_set_active_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus modifier_set_active_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus modifier_set_active_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent * /*event*/)
 {
-  BLI_assert(RNA_struct_property_is_set(op->ptr, "modifier"));
+  BLI_assert(RNA_struct_property_is_set(op.ptr, "modifier"));
   return modifier_set_active_exec(C, op);
 }
 

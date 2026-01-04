@@ -24,10 +24,10 @@ namespace blender::ed::object {
 /** \name Custom Camera Update
  * \{ */
 
-static bool object_camera_custom_update_poll(bContext *C)
+static bool object_camera_custom_update_poll(bContext &C)
 {
-  Object *ob = context_active_object(C);
-  RenderEngineType *type = CTX_data_engine_type(*C);
+  Object *ob = context_active_object(&C);
+  RenderEngineType *type = CTX_data_engine_type(C);
 
   /* Test if we have a render engine that supports custom cameras. */
   if (!(type && type->update_custom_camera)) {
@@ -51,15 +51,15 @@ static bool object_camera_custom_update_poll(bContext *C)
   }
 }
 
-static wmOperatorStatus object_camera_custom_update_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_camera_custom_update_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_active_object(C);
-  RenderEngineType *type = CTX_data_engine_type(*C);
+  Object *ob = context_active_object(&C);
+  RenderEngineType *type = CTX_data_engine_type(C);
   Camera *cam = static_cast<Camera *>(ob->data);
 
   /* setup render engine */
   RenderEngine *engine = RE_engine_create(type);
-  engine->reports = op->reports;
+  engine->reports = op.reports;
 
   type->update_custom_camera(engine, cam);
 

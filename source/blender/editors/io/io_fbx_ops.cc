@@ -61,45 +61,45 @@ static const EnumPropertyItem fbx_vertex_colors_mode[] = {
      "Vertex colors in the file are in linear color space"},
     {0, nullptr, 0, nullptr, nullptr}};
 
-static wmOperatorStatus wm_fbx_import_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_fbx_import_exec(bContext &C, wmOperator &op)
 {
   FBXImportParams params;
-  params.global_scale = RNA_float_get(op->ptr, "global_scale");
-  params.use_custom_normals = RNA_boolean_get(op->ptr, "use_custom_normals");
-  params.use_custom_props = RNA_boolean_get(op->ptr, "use_custom_props");
-  params.props_enum_as_string = RNA_boolean_get(op->ptr, "use_custom_props_enum_as_string");
-  params.ignore_leaf_bones = RNA_boolean_get(op->ptr, "ignore_leaf_bones");
-  params.import_subdivision = RNA_boolean_get(op->ptr, "import_subdivision");
-  params.validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
-  params.use_anim = RNA_boolean_get(op->ptr, "use_anim");
-  params.anim_offset = RNA_float_get(op->ptr, "anim_offset");
-  params.vertex_colors = eFBXVertexColorMode(RNA_enum_get(op->ptr, "import_colors"));
+  params.global_scale = RNA_float_get(op.ptr, "global_scale");
+  params.use_custom_normals = RNA_boolean_get(op.ptr, "use_custom_normals");
+  params.use_custom_props = RNA_boolean_get(op.ptr, "use_custom_props");
+  params.props_enum_as_string = RNA_boolean_get(op.ptr, "use_custom_props_enum_as_string");
+  params.ignore_leaf_bones = RNA_boolean_get(op.ptr, "ignore_leaf_bones");
+  params.import_subdivision = RNA_boolean_get(op.ptr, "import_subdivision");
+  params.validate_meshes = RNA_boolean_get(op.ptr, "validate_meshes");
+  params.use_anim = RNA_boolean_get(op.ptr, "use_anim");
+  params.anim_offset = RNA_float_get(op.ptr, "anim_offset");
+  params.vertex_colors = eFBXVertexColorMode(RNA_enum_get(op.ptr, "import_colors"));
   params.mtl_name_collision_mode = eFBXMtlNameCollisionMode(
-      RNA_enum_get(op->ptr, "mtl_name_collision_mode"));
+      RNA_enum_get(op.ptr, "mtl_name_collision_mode"));
 
-  params.reports = op->reports;
+  params.reports = op.reports;
 
-  const auto paths = blender::ed::io::paths_from_operator_properties(op->ptr);
+  const auto paths = blender::ed::io::paths_from_operator_properties(op.ptr);
 
   if (paths.is_empty()) {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
   for (const auto &path : paths) {
     STRNCPY(params.filepath, path.c_str());
-    FBX_import(C, params);
+    FBX_import(&C, params);
   }
 
-  Scene *scene = CTX_data_scene(*C);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
-  ED_outliner_select_sync_from_object_tag(C);
+  Scene *scene = CTX_data_scene(C);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  ED_outliner_select_sync_from_object_tag(&C);
 
   return OPERATOR_FINISHED;
 }
 
-static bool wm_fbx_import_check(bContext * /*C*/, wmOperator * /*op*/)
+static bool wm_fbx_import_check(bContext & /*C*/, wmOperator & /*op*/)
 {
   return false;
 }
@@ -155,9 +155,9 @@ static void ui_fbx_import_settings(const bContext *C, blender::ui::Layout &layou
   }
 }
 
-static void wm_fbx_import_draw(bContext *C, wmOperator *op)
+static void wm_fbx_import_draw(bContext &C, wmOperator &op)
 {
-  ui_fbx_import_settings(C, *op->layout, op->ptr);
+  ui_fbx_import_settings(&C, *op.layout, op.ptr);
 }
 
 void WM_OT_fbx_import(wmOperatorType *ot)

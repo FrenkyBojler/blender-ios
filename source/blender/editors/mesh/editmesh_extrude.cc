@@ -261,16 +261,16 @@ static bool edbm_extrude_ex(Object *obedit,
 /** \name Extrude Repeat Operator
  * \{ */
 
-static wmOperatorStatus edbm_extrude_repeat_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_extrude_repeat_exec(bContext &C, wmOperator &op)
 {
 
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "offset");
-  const int steps = RNA_int_get(op->ptr, "steps");
-  const float scale_offset = RNA_float_get(op->ptr, "scale_offset");
+  PropertyRNA *prop = RNA_struct_find_property(op.ptr, "offset");
+  const int steps = RNA_int_get(op.ptr, "steps");
+  const float scale_offset = RNA_float_get(op.ptr, "scale_offset");
   float offset[3];
 
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  if (!RNA_property_is_set(op.ptr, prop)) {
+    RegionView3D *rv3d = CTX_wm_region_view3d(C);
     if (rv3d != nullptr) {
       normalize_v3_v3(offset, rv3d->persinv[2]);
     }
@@ -278,18 +278,18 @@ static wmOperatorStatus edbm_extrude_repeat_exec(bContext *C, wmOperator *op)
       const float up[3] = {0, 0, 1};
       copy_v3_v3(offset, up);
     }
-    RNA_property_float_set_array(op->ptr, prop, offset);
+    RNA_property_float_set_array(op.ptr, prop, offset);
   }
   else {
-    RNA_property_float_get_array(op->ptr, prop, offset);
+    RNA_property_float_get_array(op.ptr, prop, offset);
   }
 
   mul_v3_fl(offset, scale_offset);
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     float offset_local[3], tmat[3][3];
@@ -425,12 +425,12 @@ static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
 }
 
 /* extrude without transform */
-static wmOperatorStatus edbm_extrude_region_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_extrude_region_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -438,7 +438,7 @@ static wmOperatorStatus edbm_extrude_region_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    if (!edbm_extrude_mesh(obedit, em, op)) {
+    if (!edbm_extrude_mesh(obedit, em, &op)) {
       continue;
     }
     /* This normally happens when pushing undo but modal operators
@@ -481,12 +481,12 @@ void MESH_OT_extrude_region(wmOperatorType *ot)
  * \{ */
 
 /* extrude without transform */
-static wmOperatorStatus edbm_extrude_context_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_extrude_context_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -494,7 +494,7 @@ static wmOperatorStatus edbm_extrude_context_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    edbm_extrude_mesh(obedit, em, op);
+    edbm_extrude_mesh(obedit, em, &op);
 
     /* This normally happens when pushing undo but modal operators
      * like this one don't push undo data until after modal mode is done. */
@@ -532,12 +532,12 @@ void MESH_OT_extrude_context(wmOperatorType *ot)
 /** \name Extrude Verts Operator
  * \{ */
 
-static wmOperatorStatus edbm_extrude_verts_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_extrude_verts_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -545,7 +545,7 @@ static wmOperatorStatus edbm_extrude_verts_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    edbm_extrude_verts_indiv(em, op, BM_ELEM_SELECT);
+    edbm_extrude_verts_indiv(em, &op, BM_ELEM_SELECT);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -581,13 +581,13 @@ void MESH_OT_extrude_verts_indiv(wmOperatorType *ot)
 /** \name Extrude Edges Operator
  * \{ */
 
-static wmOperatorStatus edbm_extrude_edges_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_extrude_edges_exec(bContext &C, wmOperator &op)
 {
-  const bool use_normal_flip = RNA_boolean_get(op->ptr, "use_normal_flip");
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const bool use_normal_flip = RNA_boolean_get(op.ptr, "use_normal_flip");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -595,7 +595,7 @@ static wmOperatorStatus edbm_extrude_edges_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    EDBM_extrude_edges_indiv(em, op, BM_ELEM_SELECT, use_normal_flip);
+    EDBM_extrude_edges_indiv(em, &op, BM_ELEM_SELECT, use_normal_flip);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -632,12 +632,12 @@ void MESH_OT_extrude_edges_indiv(wmOperatorType *ot)
 /** \name Extrude Faces Operator
  * \{ */
 
-static wmOperatorStatus edbm_extrude_faces_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_extrude_faces_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -645,7 +645,7 @@ static wmOperatorStatus edbm_extrude_faces_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    edbm_extrude_discrete_faces(em, op, BM_ELEM_SELECT);
+    edbm_extrude_discrete_faces(em, &op, BM_ELEM_SELECT);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -682,20 +682,20 @@ void MESH_OT_extrude_faces_indiv(wmOperatorType *ot)
  * Add-click-mesh (extrude) operator.
  * \{ */
 
-static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
-                                                         wmOperator *op,
+static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext &C,
+                                                         wmOperator &op,
                                                          const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   BMVert *v1;
   BMIter iter;
   float center[3];
   uint verts_len;
 
-  ViewContext vc = em_setup_viewcontext(C);
+  ViewContext vc = em_setup_viewcontext(&C);
   const Object *object_active = vc.obact;
 
-  const bool rot_src = RNA_boolean_get(op->ptr, "rotate_source");
+  const bool rot_src = RNA_boolean_get(op.ptr, "rotate_source");
   const bool use_proj = ((vc.scene->toolsettings->snap_flag & SCE_SNAP) &&
                          (vc.scene->toolsettings->snap_mode &
                           (SCE_SNAP_TO_FACE | SCE_SNAP_INDIVIDUAL_PROJECT)));
@@ -842,18 +842,18 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
 
       if (rot_src) {
         EDBM_op_callf(
-            vc.em, op, "rotate verts=%hv cent=%v matrix=%m3", BM_ELEM_SELECT, local_center, mat);
+            vc.em, &op, "rotate verts=%hv cent=%v matrix=%m3", BM_ELEM_SELECT, local_center, mat);
 
         /* Also project the source, for retopology workflow. */
         if (use_proj) {
-          EDBM_project_snap_verts(C, depsgraph, vc.region, vc.obedit, vc.em);
+          EDBM_project_snap_verts(&C, depsgraph, vc.region, vc.obedit, vc.em);
         }
       }
 
       edbm_extrude_ex(vc.obedit, vc.em, extrude_htype, BM_ELEM_SELECT, false, false, true, true);
       EDBM_op_callf(
-          vc.em, op, "rotate verts=%hv cent=%v matrix=%m3", BM_ELEM_SELECT, local_center, mat);
-      EDBM_op_callf(vc.em, op, "translate verts=%hv vec=%v", BM_ELEM_SELECT, ofs);
+          vc.em, &op, "rotate verts=%hv cent=%v matrix=%m3", BM_ELEM_SELECT, local_center, mat);
+      EDBM_op_callf(vc.em, &op, "translate verts=%hv vec=%v", BM_ELEM_SELECT, ofs);
     }
     else {
       /* This only runs for the active object. */
@@ -866,20 +866,20 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
 
       mul_m4_v3(vc.obedit->world_to_object().ptr(), local_center); /* back in object space */
 
-      EDBM_op_init(vc.em, &bmop, op, "create_vert co=%v", local_center);
+      EDBM_op_init(vc.em, &bmop, &op, "create_vert co=%v", local_center);
       BMO_op_exec(vc.em->bm, &bmop);
 
       BMO_ITER (v1, &oiter, bmop.slots_out, "vert.out", BM_VERT) {
         BM_vert_select_set(vc.em->bm, v1, true);
       }
 
-      if (!EDBM_op_finish(vc.em, &bmop, op, true)) {
+      if (!EDBM_op_finish(vc.em, &bmop, &op, true)) {
         continue;
       }
     }
 
     if (use_proj) {
-      EDBM_project_snap_verts(C, depsgraph, vc.region, vc.obedit, vc.em);
+      EDBM_project_snap_verts(&C, depsgraph, vc.region, vc.obedit, vc.em);
     }
 
     /* This normally happens when pushing undo but modal operators
@@ -890,8 +890,8 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
     params.is_destructive = true;
     EDBM_update(static_cast<Mesh *>(vc.obedit->data), &params);
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   /* Support dragging to move after extrude, see: #114282. */

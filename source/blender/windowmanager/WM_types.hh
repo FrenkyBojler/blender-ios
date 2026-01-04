@@ -1066,7 +1066,7 @@ struct wmOperatorType {
    * any interface code or input device state.
    * See defines below for return values.
    */
-  wmOperatorStatus (*exec)(bContext *C, wmOperator *op) ATTR_WARN_UNUSED_RESULT = nullptr;
+  wmOperatorStatus (*exec)(bContext &C, wmOperator &op) ATTR_WARN_UNUSED_RESULT = nullptr;
 
   /**
    * This callback executes on a running operator whenever as property
@@ -1074,7 +1074,7 @@ struct wmOperatorType {
    * invalid settings in exceptional cases.
    * Boolean return value, True denotes a change has been made and to redraw.
    */
-  bool (*check)(bContext *C, wmOperator *op) = nullptr;
+  bool (*check)(bContext &C, wmOperator &op) = nullptr;
 
   /**
    * For modal temporary operators, initially invoke is called, then
@@ -1082,15 +1082,15 @@ struct wmOperatorType {
    * canceled due to some external reason, cancel is called
    * See defines below for return values.
    */
-  wmOperatorStatus (*invoke)(bContext *C,
-                             wmOperator *op,
+  wmOperatorStatus (*invoke)(bContext &C,
+                             wmOperator &op,
                              const wmEvent *event) ATTR_WARN_UNUSED_RESULT = nullptr;
 
   /**
    * Called when a modal operator is canceled (not used often).
    * Internal cleanup can be done here if needed.
    */
-  void (*cancel)(bContext *C, wmOperator *op) = nullptr;
+  void (*cancel)(bContext &C, wmOperator &op) = nullptr;
 
   /**
    * Modal is used for operators which continuously run. Fly mode, knife tool, circle select are
@@ -1098,31 +1098,31 @@ struct wmOperatorType {
    * or execute other operators. They keep running until they don't return
    * `OPERATOR_RUNNING_MODAL`.
    */
-  wmOperatorStatus (*modal)(bContext *C,
-                            wmOperator *op,
+  wmOperatorStatus (*modal)(bContext &C,
+                            wmOperator &op,
                             const wmEvent *event) ATTR_WARN_UNUSED_RESULT = nullptr;
 
   /**
    * Verify if the operator can be executed in the current context. Note
    * that the operator may still fail to execute even if this returns true.
    */
-  bool (*poll)(bContext *C) ATTR_WARN_UNUSED_RESULT = nullptr;
+  bool (*poll)(bContext &C) ATTR_WARN_UNUSED_RESULT = nullptr;
 
   /**
    * Used to check if properties should be displayed in auto-generated UI.
    * Use 'check' callback to enforce refreshing.
    */
-  bool (*poll_property)(const bContext *C,
-                        wmOperator *op,
+  bool (*poll_property)(const bContext &C,
+                        wmOperator &op,
                         const PropertyRNA *prop) ATTR_WARN_UNUSED_RESULT = nullptr;
 
   /** Optional panel for redo and repeat, auto-generated if not set. */
-  void (*ui)(bContext *C, wmOperator *op) = nullptr;
+  void (*ui)(bContext &C, wmOperator &op) = nullptr;
   /**
    * Optional check for whether the #ui callback should be called (usually to create the redo
    * panel interface).
    */
-  bool (*ui_poll)(wmOperatorType *ot, PointerRNA *ptr) = nullptr;
+  bool (*ui_poll)(wmOperatorType &ot, PointerRNA *ptr) = nullptr;
 
   /**
    * Return a different name to use in the user interface, based on property values.
@@ -1132,13 +1132,13 @@ struct wmOperatorType {
    * any definition of an operator button through the layout API will fail to execute it). See
    * #112253 for details.
    */
-  std::string (*get_name)(wmOperatorType *ot, PointerRNA *ptr) = nullptr;
+  std::string (*get_name)(wmOperatorType &ot, PointerRNA *ptr) = nullptr;
 
   /**
    * Return a different description to use in the user interface, based on property values.
    * The returned string is expected to be translated if needed.
    */
-  std::string (*get_description)(bContext *C, wmOperatorType *ot, PointerRNA *ptr) = nullptr;
+  std::string (*get_description)(bContext &C, wmOperatorType &ot, PointerRNA *ptr) = nullptr;
 
   /** A dynamic version of #OPTYPE_DEPENDS_ON_CURSOR which can depend on operator properties. */
   bool (*depends_on_cursor)(bContext &C, wmOperatorType &ot, PointerRNA *ptr) = nullptr;
@@ -1165,7 +1165,7 @@ struct wmOperatorType {
   wmKeyMap *modalkeymap = nullptr;
 
   /** Python needs the operator type as well. */
-  bool (*pyop_poll)(bContext *C, wmOperatorType *ot) ATTR_WARN_UNUSED_RESULT = nullptr;
+  bool (*pyop_poll)(bContext &C, wmOperatorType &ot) ATTR_WARN_UNUSED_RESULT = nullptr;
 
   /** Extra information used statically for this operator type. */
   std::unique_ptr<TypeData> custom_data;

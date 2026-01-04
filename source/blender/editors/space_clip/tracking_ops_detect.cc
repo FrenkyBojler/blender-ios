@@ -46,25 +46,25 @@ static bGPDlayer *detect_get_layer(MovieClip *clip)
   return nullptr;
 }
 
-static wmOperatorStatus detect_features_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus detect_features_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieClipFlag clip_flag = MovieClipFlag(clip->flag & MCLIP_TIMECODE_FLAGS);
   ImBuf *ibuf = BKE_movieclip_get_ibuf_flag(
       clip, &sc->user, clip_flag, MovieClipCacheFlag::SkipCache);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-  const int placement = RNA_enum_get(op->ptr, "placement");
-  const int margin = RNA_int_get(op->ptr, "margin");
-  const int min_distance = RNA_int_get(op->ptr, "min_distance");
-  const float threshold = RNA_float_get(op->ptr, "threshold");
+  const int placement = RNA_enum_get(op.ptr, "placement");
+  const int margin = RNA_int_get(op.ptr, "margin");
+  const int min_distance = RNA_int_get(op.ptr, "min_distance");
+  const float threshold = RNA_float_get(op.ptr, "threshold");
   const int framenr = ED_space_clip_get_clip_frame_number(sc);
   bGPDlayer *layer = nullptr;
   int place_outside_layer = 0;
 
   if (!ibuf) {
-    BKE_report(op->reports, RPT_ERROR, "Feature detection requires valid clip frame");
+    BKE_report(op.reports, RPT_ERROR, "Feature detection requires valid clip frame");
     return OPERATOR_CANCELLED;
   }
 
@@ -90,7 +90,7 @@ static wmOperatorStatus detect_features_exec(bContext *C, wmOperator *op)
   IMB_freeImBuf(ibuf);
 
   BKE_tracking_dopesheet_tag_update(tracking);
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }

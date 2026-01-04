@@ -39,14 +39,14 @@
 
 namespace blender::ed::curves {
 
-static bool active_attribute_poll(bContext *C)
+static bool active_attribute_poll(bContext &C)
 {
   if (!editable_curves_in_edit_mode_poll(C)) {
     return false;
   }
-  const Object *object = CTX_data_active_object(*C);
+  const Object *object = CTX_data_active_object(C);
   const ID &object_data = *static_cast<const ID *>(object->data);
-  if (!geometry::attribute_set_poll(*C, object_data)) {
+  if (!geometry::attribute_set_poll(C, object_data)) {
     return false;
   }
   return true;
@@ -89,9 +89,9 @@ static void validate_value(const bke::AttributeAccessor attributes,
   type.copy_assign(validated_buffer, buffer);
 }
 
-static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_attribute_exec(bContext &C, wmOperator &op)
 {
-  Object *active_object = CTX_data_active_object(*C);
+  Object *active_object = CTX_data_active_object(C);
   Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
 
   AttributeOwner active_owner = AttributeOwner::from_id(&active_curves_id.id);
@@ -104,11 +104,11 @@ static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
   BUFFER_FOR_CPP_TYPE_VALUE(type, buffer);
   BLI_SCOPED_DEFER([&]() { type.destruct(buffer); });
   const GPointer value = geometry::rna_property_for_attribute_type_retrieve_value(
-      *op->ptr, active_type, buffer);
+      *op.ptr, active_type, buffer);
 
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
 
-  for (Curves *curves_id : get_unique_editable_curves(*C)) {
+  for (Curves *curves_id : get_unique_editable_curves(C)) {
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(name);
@@ -139,15 +139,15 @@ static wmOperatorStatus set_attribute_exec(bContext *C, wmOperator *op)
     attribute.finish();
 
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
   }
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus set_attribute_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Object *active_object = CTX_data_active_object(*C);
+  Object *active_object = CTX_data_active_object(C);
   Curves &active_curves_id = *static_cast<Curves *>(active_object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&active_curves_id.id);
@@ -162,9 +162,9 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
 
   const CPPType &type = attribute.varray.type();
 
-  PropertyRNA *prop = geometry::rna_property_for_type(*op->ptr,
+  PropertyRNA *prop = geometry::rna_property_for_type(*op.ptr,
                                                       bke::cpp_type_to_attribute_type(type));
-  if (RNA_property_is_set(op->ptr, prop)) {
+  if (RNA_property_is_set(op.ptr, prop)) {
     return WM_operator_props_popup(C, op, event);
   }
 
@@ -179,18 +179,18 @@ static wmOperatorStatus set_attribute_invoke(bContext *C, wmOperator *op, const 
     mixer.finalize();
   });
 
-  geometry::rna_property_for_attribute_type_set_value(*op->ptr, *prop, GPointer(type, buffer));
+  geometry::rna_property_for_attribute_type_set_value(*op.ptr, *prop, GPointer(type, buffer));
 
   return WM_operator_props_popup(C, op, event);
 }
 
-static void set_attribute_ui(bContext *C, wmOperator *op)
+static void set_attribute_ui(bContext &C, wmOperator &op)
 {
-  ui::Layout &layout = op->layout->column(true);
+  ui::Layout &layout = op.layout->column(true);
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   Curves &curves_id = *static_cast<Curves *>(object->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&curves_id.id);
@@ -198,7 +198,7 @@ static void set_attribute_ui(bContext *C, wmOperator *op)
   const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
   const bke::AttributeMetaData meta_data = *curves.attributes().lookup_meta_data(name);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(meta_data.data_type);
-  layout.prop(op->ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
+  layout.prop(op.ptr, prop_name, UI_ITEM_NONE, name, ICON_NONE);
 }
 
 void CURVES_OT_attribute_set(wmOperatorType *ot)

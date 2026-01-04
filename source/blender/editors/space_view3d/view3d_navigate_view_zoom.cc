@@ -428,33 +428,33 @@ static void view_zoom_apply_step(bContext *C,
   ED_region_tag_redraw(region);
 }
 
-static wmOperatorStatus viewzoom_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus viewzoom_exec(bContext &C, wmOperator &op)
 {
-  BLI_assert(op->customdata == nullptr);
+  BLI_assert(op.customdata == nullptr);
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  const int delta = RNA_int_get(op->ptr, "delta");
-  const bool use_cursor_init = RNA_boolean_get(op->ptr, "use_cursor_init");
+  const int delta = RNA_int_get(op.ptr, "delta");
+  const bool use_cursor_init = RNA_boolean_get(op.ptr, "use_cursor_init");
 
   int zoom_xy_buf[2];
   const int *zoom_xy = nullptr;
   const bool do_zoom_to_mouse_pos = (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS));
   if (do_zoom_to_mouse_pos) {
-    zoom_xy_buf[0] = RNA_struct_property_is_set(op->ptr, "mx") ? RNA_int_get(op->ptr, "mx") :
-                                                                 region->winx / 2;
-    zoom_xy_buf[1] = RNA_struct_property_is_set(op->ptr, "my") ? RNA_int_get(op->ptr, "my") :
-                                                                 region->winy / 2;
+    zoom_xy_buf[0] = RNA_struct_property_is_set(op.ptr, "mx") ? RNA_int_get(op.ptr, "mx") :
+                                                                region->winx / 2;
+    zoom_xy_buf[1] = RNA_struct_property_is_set(op.ptr, "my") ? RNA_int_get(op.ptr, "my") :
+                                                                region->winy / 2;
     zoom_xy = zoom_xy_buf;
   }
 
-  view_zoom_apply_step(C, depsgraph, scene, area, region, delta, zoom_xy);
-  ED_view3d_camera_lock_undo_grouped_push(op->type->name, v3d, rv3d, C);
+  view_zoom_apply_step(&C, depsgraph, scene, area, region, delta, zoom_xy);
+  ED_view3d_camera_lock_undo_grouped_push(op.type->name, v3d, rv3d, &C);
 
   return OPERATOR_FINISHED;
 }
@@ -514,10 +514,10 @@ static wmOperatorStatus viewzoom_invoke_impl(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus viewzoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewzoom_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   /* Near duplicate logic in #viewdolly_invoke(), changes here may apply there too. */
-  return view3d_navigate_invoke_impl(C, op, event, &ViewOpsType_zoom);
+  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_zoom);
 }
 
 void VIEW3D_OT_zoom(wmOperatorType *ot)

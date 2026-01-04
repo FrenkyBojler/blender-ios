@@ -41,20 +41,19 @@ static const EnumPropertyItem prop_view_orbit_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus vieworbit_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vieworbit_exec(bContext &C, wmOperator &op)
 {
   float angle;
   {
-    PropertyRNA *prop_angle = RNA_struct_find_property(op->ptr, "angle");
-    angle = RNA_property_is_set(op->ptr, prop_angle) ?
-                RNA_property_float_get(op->ptr, prop_angle) :
-                DEG2RADF(U.pad_rot_angle);
+    PropertyRNA *prop_angle = RNA_struct_find_property(op.ptr, "angle");
+    angle = RNA_property_is_set(op.ptr, prop_angle) ? RNA_property_float_get(op.ptr, prop_angle) :
+                                                      DEG2RADF(U.pad_rot_angle);
   }
 
   ViewOpsData vod = {};
-  vod.init_context(C);
+  vod.init_context(&C);
 
-  ED_view3d_smooth_view_force_finish(C, vod.v3d, vod.region);
+  ED_view3d_smooth_view_force_finish(&C, vod.v3d, vod.region);
 
   /* support for switching to the opposite view (even when in locked views) */
   char view_opposite = (fabsf(angle) == float(M_PI)) ?
@@ -63,10 +62,10 @@ static wmOperatorStatus vieworbit_exec(bContext *C, wmOperator *op)
 
   if ((RV3D_LOCK_FLAGS(vod.rv3d) & RV3D_LOCK_ROTATION) && (view_opposite == RV3D_VIEW_USER)) {
     /* no nullptr check is needed, poll checks */
-    ED_view3d_context_user_region(C, &vod.v3d, &vod.region);
+    ED_view3d_context_user_region(&C, &vod.v3d, &vod.region);
     vod.rv3d = static_cast<RegionView3D *>(vod.region->regiondata);
 
-    ED_view3d_smooth_view_force_finish(C, vod.v3d, vod.region);
+    ED_view3d_smooth_view_force_finish(&C, vod.v3d, vod.region);
   }
 
   if ((RV3D_LOCK_FLAGS(vod.rv3d) & RV3D_LOCK_ROTATION) && (view_opposite == RV3D_VIEW_USER)) {
@@ -78,13 +77,13 @@ static wmOperatorStatus vieworbit_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  vod.init_navigation(C, nullptr, &ViewOpsType_orbit, nullptr, false);
+  vod.init_navigation(&C, nullptr, &ViewOpsType_orbit, nullptr, false);
 
-  int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
   float quat_mul[4];
   float quat_new[4];
 
-  int orbitdir = RNA_enum_get(op->ptr, "type");
+  int orbitdir = RNA_enum_get(op.ptr, "type");
   if (ELEM(orbitdir, V3D_VIEW_STEPLEFT, V3D_VIEW_STEPRIGHT)) {
     if (orbitdir == V3D_VIEW_STEPRIGHT) {
       angle = -angle;
@@ -120,16 +119,16 @@ static wmOperatorStatus vieworbit_exec(bContext *C, wmOperator *op)
   sview.quat = quat_new;
   sview.lens = &vod.v3d->lens;
   /* Group as successive orbit may run by holding a key. */
-  sview.undo_str = op->type->name;
+  sview.undo_str = op.type->name;
   sview.undo_grouped = true;
 
   if (vod.use_dyn_ofs) {
     sview.dyn_ofs = vod.dyn_ofs;
   }
 
-  ED_view3d_smooth_view(C, vod.v3d, vod.region, smooth_viewtx, &sview);
+  ED_view3d_smooth_view(&C, vod.v3d, vod.region, smooth_viewtx, &sview);
 
-  vod.end_navigation(C);
+  vod.end_navigation(&C);
 
   return OPERATOR_FINISHED;
 }

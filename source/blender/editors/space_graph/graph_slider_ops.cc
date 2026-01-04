@@ -292,15 +292,15 @@ static void update_depsgraph(tGraphSliderOp *gso)
   ANIM_animdata_freelist(&anim_data);
 }
 
-static wmOperatorStatus graph_slider_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus graph_slider_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
 
   const bool has_numinput = hasNumInput(&gso->num);
 
   ED_slider_property_label_set(gso->slider,
                                fmt::format("{} ({})",
-                                           WM_operatortype_name(op->type, op->ptr),
+                                           WM_operatortype_name(op.type, op.ptr),
                                            RNA_property_ui_name(gso->factor_prop))
                                    .c_str());
 
@@ -312,7 +312,7 @@ static wmOperatorStatus graph_slider_modal(bContext *C, wmOperator *op, const wm
     case EVT_RETKEY:
     case EVT_PADENTER: {
       if (event->val == KM_PRESS) {
-        graph_slider_exit(C, op);
+        graph_slider_exit(&C, &op);
 
         return OPERATOR_FINISHED;
       }
@@ -329,9 +329,9 @@ static wmOperatorStatus graph_slider_modal(bContext *C, wmOperator *op, const wm
          * the state prior to calling reset_bezt. */
         update_depsgraph(gso);
 
-        WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+        WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
-        graph_slider_exit(C, op);
+        graph_slider_exit(&C, &op);
 
         return OPERATOR_CANCELLED;
       }
@@ -348,14 +348,14 @@ static wmOperatorStatus graph_slider_modal(bContext *C, wmOperator *op, const wm
     case MOUSEMOVE: {
       if (has_numinput == false) {
         /* Do the update as specified by the operator. */
-        gso->modal_update(C, op);
+        gso->modal_update(&C, &op);
       }
       break;
     }
     default: {
       if ((event->val == KM_PRESS) || (ISKEYMODIFIER(event->type) && event->val == KM_RELEASE)) {
 
-        if (handleNumInput(C, &gso->num, event)) {
+        if (handleNumInput(&C, &gso->num, event)) {
           float value;
           applyNumInput(&gso->num, &value);
 
@@ -365,10 +365,10 @@ static wmOperatorStatus graph_slider_modal(bContext *C, wmOperator *op, const wm
             value = value / 100.0f;
           }
           ED_slider_factor_set(gso->slider, value);
-          RNA_property_float_set(op->ptr, gso->factor_prop, value);
+          RNA_property_float_set(op.ptr, gso->factor_prop, value);
         }
 
-        gso->modal_update(C, op);
+        gso->modal_update(&C, &op);
         break;
       }
 
@@ -487,32 +487,32 @@ static void decimate_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus decimate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus decimate_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return OPERATOR_CANCELLED;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
   gso->modal_update = decimate_modal_update;
   ED_slider_allow_overshoot_set(gso->slider, false, false);
 
   return invoke_result;
 }
 
-static wmOperatorStatus decimate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus decimate_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  tDecimModes mode = tDecimModes(RNA_enum_get(op->ptr, "mode"));
+  tDecimModes mode = tDecimModes(RNA_enum_get(op.ptr, "mode"));
   /* We want to be able to work on all available keyframes. */
   float factor = 1.0f;
   /* We don't want to limit the decimation to a certain error margin. */
@@ -520,10 +520,10 @@ static wmOperatorStatus decimate_exec(bContext *C, wmOperator *op)
 
   switch (mode) {
     case DECIM_RATIO:
-      factor = RNA_float_get(op->ptr, "factor");
+      factor = RNA_float_get(op.ptr, "factor");
       break;
     case DECIM_ERROR:
-      error_sq_max = RNA_float_get(op->ptr, "remove_error_margin");
+      error_sq_max = RNA_float_get(op.ptr, "remove_error_margin");
       /* The decimate algorithm expects the error to be squared. */
       error_sq_max *= error_sq_max;
 
@@ -538,15 +538,15 @@ static wmOperatorStatus decimate_exec(bContext *C, wmOperator *op)
   decimate_graph_keys(&ac, factor, error_sq_max);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static bool decimate_poll_property(const bContext * /*C*/, wmOperator *op, const PropertyRNA *prop)
+static bool decimate_poll_property(const bContext & /*C*/, wmOperator &op, const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
-  const int mode = RNA_enum_get(op->ptr, "mode");
+  const int mode = RNA_enum_get(op.ptr, "mode");
 
   if (STREQ(prop_id, "factor") && mode != DECIM_RATIO) {
     return false;
@@ -558,8 +558,8 @@ static bool decimate_poll_property(const bContext * /*C*/, wmOperator *op, const
   return true;
 }
 
-static std::string decimate_get_description(bContext * /*C*/,
-                                            wmOperatorType * /*ot*/,
+static std::string decimate_get_description(bContext & /*C*/,
+                                            wmOperatorType & /*ot*/,
                                             PointerRNA *ptr)
 {
 
@@ -660,38 +660,38 @@ static void blend_to_neighbor_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus blend_to_neighbor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus blend_to_neighbor_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = blend_to_neighbor_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
-  common_draw_status_header(C, gso);
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
+  common_draw_status_header(&C, gso);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
 
   return invoke_result;
 }
 
-static wmOperatorStatus blend_to_neighbor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus blend_to_neighbor_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const float factor = RNA_float_get(op->ptr, "factor");
+  const float factor = RNA_float_get(op.ptr, "factor");
 
   blend_to_neighbor_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -747,38 +747,38 @@ static void breakdown_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus breakdown_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus breakdown_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = breakdown_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
-  common_draw_status_header(C, gso);
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
+  common_draw_status_header(&C, gso);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
 
   return invoke_result;
 }
 
-static wmOperatorStatus breakdown_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus breakdown_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const float factor = RNA_float_get(op->ptr, "factor");
+  const float factor = RNA_float_get(op.ptr, "factor");
 
   breakdown_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -854,37 +854,37 @@ static void blend_to_default_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus blend_to_default_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus blend_to_default_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = blend_to_default_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
-  common_draw_status_header(C, gso);
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
+  common_draw_status_header(&C, gso);
   ED_slider_factor_set(gso->slider, 0.0f);
 
   return invoke_result;
 }
 
-static wmOperatorStatus blend_to_default_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus blend_to_default_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const float factor = RNA_float_get(op->ptr, "factor");
+  const float factor = RNA_float_get(op.ptr, "factor");
 
   blend_to_default_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -990,7 +990,7 @@ static void ease_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus ease_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus ease_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   if (event->val != KM_PRESS) {
     return graph_slider_modal(C, op, event);
@@ -998,26 +998,26 @@ static wmOperatorStatus ease_modal(bContext *C, wmOperator *op, const wmEvent *e
 
   switch (event->type) {
     case EVT_TABKEY: {
-      tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+      tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
       if (STREQ(RNA_property_identifier(gso->factor_prop), "factor")) {
         /* Switch to sharpness. */
         ED_slider_allow_overshoot_set(gso->slider, false, true);
         ED_slider_factor_bounds_set(gso->slider, 0.001f, 10);
-        ED_slider_factor_set(gso->slider, RNA_float_get(op->ptr, "sharpness"));
+        ED_slider_factor_set(gso->slider, RNA_float_get(op.ptr, "sharpness"));
         ED_slider_mode_set(gso->slider, SLIDER_MODE_FLOAT);
         ED_slider_unit_set(gso->slider, "");
-        gso->factor_prop = RNA_struct_find_property(op->ptr, "sharpness");
+        gso->factor_prop = RNA_struct_find_property(op.ptr, "sharpness");
       }
       else {
         ED_slider_allow_overshoot_set(gso->slider, false, false);
         ED_slider_factor_bounds_set(gso->slider, -1, 1);
         ED_slider_factor_set(gso->slider, 0.0f);
-        ED_slider_factor_set(gso->slider, RNA_float_get(op->ptr, "factor"));
+        ED_slider_factor_set(gso->slider, RNA_float_get(op.ptr, "factor"));
         ED_slider_mode_set(gso->slider, SLIDER_MODE_PERCENT);
         ED_slider_unit_set(gso->slider, "%");
-        gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
+        gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
       }
-      ease_modal_update(C, op);
+      ease_modal_update(&C, &op);
       break;
     }
 
@@ -1027,18 +1027,18 @@ static wmOperatorStatus ease_modal(bContext *C, wmOperator *op, const wmEvent *e
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus ease_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus ease_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = ease_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
-  ease_draw_status_header(C, op);
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
+  ease_draw_status_header(&C, &op);
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
@@ -1047,20 +1047,20 @@ static wmOperatorStatus ease_invoke(bContext *C, wmOperator *op, const wmEvent *
   return invoke_result;
 }
 
-static wmOperatorStatus ease_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus ease_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const float factor = RNA_float_get(op->ptr, "factor");
-  const float width = RNA_float_get(op->ptr, "sharpness");
+  const float factor = RNA_float_get(op.ptr, "factor");
+  const float width = RNA_float_get(op.ptr, "sharpness");
 
   ease_graph_keys(&ac, factor, width);
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1131,39 +1131,39 @@ static void blend_offset_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus blend_offset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus blend_offset_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = blend_offset_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
-  blend_offset_draw_status_header(C, gso);
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
+  blend_offset_draw_status_header(&C, gso);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
 
   return invoke_result;
 }
 
-static wmOperatorStatus blend_offset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus blend_offset_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const float factor = RNA_float_get(op->ptr, "factor");
+  const float factor = RNA_float_get(op.ptr, "factor");
 
   blend_offset_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1224,18 +1224,18 @@ static void blend_to_ease_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus blend_to_ease_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus blend_to_ease_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = blend_to_ease_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
-  blend_to_ease_draw_status_header(C, gso);
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
+  blend_to_ease_draw_status_header(&C, gso);
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
@@ -1243,21 +1243,21 @@ static wmOperatorStatus blend_to_ease_invoke(bContext *C, wmOperator *op, const 
   return invoke_result;
 }
 
-static wmOperatorStatus blend_to_ease_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus blend_to_ease_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const float factor = RNA_float_get(op->ptr, "factor");
+  const float factor = RNA_float_get(op.ptr, "factor");
 
   blend_to_ease_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1348,18 +1348,18 @@ static void match_slope_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus match_slope_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus match_slope_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = match_slope_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
-  match_slope_draw_status_header(C, gso);
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
+  match_slope_draw_status_header(&C, gso);
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
@@ -1367,22 +1367,22 @@ static wmOperatorStatus match_slope_invoke(bContext *C, wmOperator *op, const wm
   return invoke_result;
 }
 
-static wmOperatorStatus match_slope_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus match_slope_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
-  ac.reports = op->reports;
+  ac.reports = op.reports;
 
-  const float factor = RNA_float_get(op->ptr, "factor");
+  const float factor = RNA_float_get(op.ptr, "factor");
 
   match_slope_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1441,18 +1441,18 @@ static void time_offset_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus time_offset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus time_offset_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = time_offset_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "frame_offset");
-  time_offset_draw_status_header(C, gso);
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "frame_offset");
+  time_offset_draw_status_header(&C, gso);
   ED_slider_factor_bounds_set(gso->slider, -10, 10);
   ED_slider_increment_step_set(gso->slider, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
@@ -1462,21 +1462,21 @@ static wmOperatorStatus time_offset_invoke(bContext *C, wmOperator *op, const wm
   return invoke_result;
 }
 
-static wmOperatorStatus time_offset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus time_offset_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const float factor = RNA_float_get(op->ptr, "frame_offset");
+  const float factor = RNA_float_get(op.ptr, "frame_offset");
 
   time_offset_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1586,7 +1586,7 @@ static void shear_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus shear_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus shear_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   if (event->val != KM_PRESS) {
     return graph_slider_modal(C, op, event);
@@ -1594,11 +1594,11 @@ static wmOperatorStatus shear_modal(bContext *C, wmOperator *op, const wmEvent *
 
   switch (event->type) {
     case EVT_DKEY: {
-      tShearDirection direction = tShearDirection(RNA_enum_get(op->ptr, "direction"));
-      RNA_enum_set(op->ptr,
+      tShearDirection direction = tShearDirection(RNA_enum_get(op.ptr, "direction"));
+      RNA_enum_set(op.ptr,
                    "direction",
                    (direction == SHEAR_FROM_LEFT) ? SHEAR_FROM_RIGHT : SHEAR_FROM_LEFT);
-      shear_modal_update(C, op);
+      shear_modal_update(&C, &op);
       break;
     }
 
@@ -1609,42 +1609,42 @@ static wmOperatorStatus shear_modal(bContext *C, wmOperator *op, const wmEvent *
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus shear_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus shear_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = shear_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
-  const tShearDirection direction = tShearDirection(RNA_enum_get(op->ptr, "direction"));
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
+  const tShearDirection direction = tShearDirection(RNA_enum_get(op.ptr, "direction"));
 
-  shear_draw_status_header(C, gso, direction);
+  shear_draw_status_header(&C, gso, direction);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
 
   return invoke_result;
 }
 
-static wmOperatorStatus shear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus shear_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const float factor = RNA_float_get(op->ptr, "factor");
-  const tShearDirection direction = tShearDirection(RNA_enum_get(op->ptr, "direction"));
+  const float factor = RNA_float_get(op.ptr, "factor");
+  const tShearDirection direction = tShearDirection(RNA_enum_get(op.ptr, "direction"));
 
   shear_graph_keys(&ac, factor, direction);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1707,39 +1707,39 @@ static void scale_average_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus scale_average_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus scale_average_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = scale_average_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
-  common_draw_status_header(C, gso);
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
+  common_draw_status_header(&C, gso);
   ED_slider_factor_bounds_set(gso->slider, 0, 2);
   ED_slider_factor_set(gso->slider, 1.0f);
 
   return invoke_result;
 }
 
-static wmOperatorStatus scale_average_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus scale_average_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const float factor = RNA_float_get(op->ptr, "factor");
+  const float factor = RNA_float_get(op.ptr, "factor");
 
   scale_average_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1899,27 +1899,27 @@ static void gaussian_smooth_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus gaussian_smooth_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gaussian_smooth_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = gaussian_smooth_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
 
-  const float sigma = RNA_float_get(op->ptr, "sigma");
-  const int filter_width = RNA_int_get(op->ptr, "filter_width");
+  const float sigma = RNA_float_get(op.ptr, "sigma");
+  const int filter_width = RNA_int_get(op.ptr, "filter_width");
 
   gaussian_smooth_allocate_operator_data(gso, filter_width, sigma);
   gso->free_operator_data = gaussian_smooth_free_operator_data;
 
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_factor_set(gso->slider, 0.0f);
-  common_draw_status_header(C, gso);
+  common_draw_status_header(&C, gso);
 
   return invoke_result;
 }
@@ -1960,25 +1960,25 @@ static void gaussian_smooth_graph_keys(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
-static wmOperatorStatus gaussian_smooth_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gaussian_smooth_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
-  const float factor = RNA_float_get(op->ptr, "factor");
-  const int filter_width = RNA_int_get(op->ptr, "filter_width");
+  const float factor = RNA_float_get(op.ptr, "factor");
+  const int filter_width = RNA_int_get(op.ptr, "filter_width");
   const int kernel_size = filter_width + 1;
   double *kernel = MEM_calloc_arrayN<double>(kernel_size, "Gauss Kernel");
-  ED_ANIM_get_1d_gauss_kernel(RNA_float_get(op->ptr, "sigma"), kernel_size, kernel);
+  ED_ANIM_get_1d_gauss_kernel(RNA_float_get(op.ptr, "sigma"), kernel_size, kernel);
 
   gaussian_smooth_graph_keys(&ac, factor, kernel, filter_width);
 
   MEM_freeN(kernel);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2151,20 +2151,20 @@ static void btw_smooth_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus btw_smooth_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus btw_smooth_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = btw_smooth_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "cutoff_frequency");
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "cutoff_frequency");
 
-  const int filter_order = RNA_int_get(op->ptr, "filter_order");
-  const int samples_per_frame = RNA_int_get(op->ptr, "samples_per_frame");
+  const int filter_order = RNA_int_get(op.ptr, "filter_order");
+  const int samples_per_frame = RNA_int_get(op.ptr, "samples_per_frame");
 
   btw_smooth_allocate_operator_data(gso, filter_order, samples_per_frame);
   gso->free_operator_data = btw_smooth_free_operator_data;
@@ -2173,11 +2173,11 @@ static wmOperatorStatus btw_smooth_invoke(bContext *C, wmOperator *op, const wmE
   const float sampling_frequency = frame_rate * samples_per_frame;
   ED_slider_factor_bounds_set(gso->slider, 0, sampling_frequency / 2);
   ED_slider_increment_step_set(gso->slider, sampling_frequency / 20);
-  ED_slider_factor_set(gso->slider, RNA_float_get(op->ptr, "cutoff_frequency"));
+  ED_slider_factor_set(gso->slider, RNA_float_get(op.ptr, "cutoff_frequency"));
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_mode_set(gso->slider, SLIDER_MODE_FLOAT);
   ED_slider_unit_set(gso->slider, "Hz");
-  common_draw_status_header(C, gso);
+  common_draw_status_header(&C, gso);
 
   return invoke_result;
 }
@@ -2227,23 +2227,23 @@ static void btw_smooth_graph_keys(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
-static wmOperatorStatus btw_smooth_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus btw_smooth_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
-  const float blend = RNA_float_get(op->ptr, "blend");
-  const float cutoff_frequency = RNA_float_get(op->ptr, "cutoff_frequency");
-  const int filter_order = RNA_int_get(op->ptr, "filter_order");
-  const int samples_per_frame = RNA_int_get(op->ptr, "samples_per_frame");
-  const int blend_in_out = RNA_int_get(op->ptr, "blend_in_out");
+  const float blend = RNA_float_get(op.ptr, "blend");
+  const float cutoff_frequency = RNA_float_get(op.ptr, "cutoff_frequency");
+  const int filter_order = RNA_int_get(op.ptr, "filter_order");
+  const int samples_per_frame = RNA_int_get(op.ptr, "samples_per_frame");
+  const int blend_in_out = RNA_int_get(op.ptr, "blend_in_out");
   btw_smooth_graph_keys(
       &ac, blend, blend_in_out, cutoff_frequency, filter_order, samples_per_frame);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2338,39 +2338,39 @@ static void push_pull_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus push_pull_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus push_pull_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = push_pull_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
   ED_slider_factor_bounds_set(gso->slider, 0, 2);
   ED_slider_factor_set(gso->slider, 1);
-  common_draw_status_header(C, gso);
+  common_draw_status_header(&C, gso);
 
   return invoke_result;
 }
 
-static wmOperatorStatus push_pull_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus push_pull_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const float factor = RNA_float_get(op->ptr, "factor");
+  const float factor = RNA_float_get(op.ptr, "factor");
 
   push_pull_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2477,8 +2477,8 @@ static void scale_from_neighbor_modal_update(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
-static wmOperatorStatus scale_from_neighbor_modal(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus scale_from_neighbor_modal(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
   if (event->val != KM_PRESS) {
@@ -2487,17 +2487,17 @@ static wmOperatorStatus scale_from_neighbor_modal(bContext *C,
 
   switch (event->type) {
     case EVT_DKEY: {
-      FCurveSegmentAnchor anchor = FCurveSegmentAnchor(RNA_enum_get(op->ptr, "anchor"));
+      FCurveSegmentAnchor anchor = FCurveSegmentAnchor(RNA_enum_get(op.ptr, "anchor"));
       switch (anchor) {
         case FCurveSegmentAnchor::LEFT:
-          RNA_enum_set(op->ptr, "anchor", int(FCurveSegmentAnchor::RIGHT));
+          RNA_enum_set(op.ptr, "anchor", int(FCurveSegmentAnchor::RIGHT));
           break;
 
         case FCurveSegmentAnchor::RIGHT:
-          RNA_enum_set(op->ptr, "anchor", int(FCurveSegmentAnchor::LEFT));
+          RNA_enum_set(op.ptr, "anchor", int(FCurveSegmentAnchor::LEFT));
           break;
       }
-      scale_from_neighbor_modal_update(C, op);
+      scale_from_neighbor_modal_update(&C, &op);
       break;
     }
 
@@ -2507,42 +2507,42 @@ static wmOperatorStatus scale_from_neighbor_modal(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus scale_from_neighbor_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus scale_from_neighbor_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(C, op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return OPERATOR_CANCELLED;
   }
 
-  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
+  tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = scale_from_neighbor_modal_update;
-  gso->factor_prop = RNA_struct_find_property(op->ptr, "factor");
-  scale_from_neighbor_draw_status_header(C, op);
+  gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
+  scale_from_neighbor_draw_status_header(&C, &op);
   ED_slider_factor_bounds_set(gso->slider, 0, 2);
   ED_slider_factor_set(gso->slider, 1.0f);
 
   return invoke_result;
 }
 
-static wmOperatorStatus scale_from_neighbor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus scale_from_neighbor_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const float factor = RNA_float_get(op->ptr, "factor");
+  const float factor = RNA_float_get(op.ptr, "factor");
 
-  const FCurveSegmentAnchor anchor = FCurveSegmentAnchor(RNA_enum_get(op->ptr, "anchor"));
+  const FCurveSegmentAnchor anchor = FCurveSegmentAnchor(RNA_enum_get(op.ptr, "anchor"));
   scale_from_neighbor_graph_keys(&ac, factor, anchor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }

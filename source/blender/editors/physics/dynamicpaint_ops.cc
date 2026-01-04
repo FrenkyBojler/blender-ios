@@ -50,10 +50,10 @@
 
 #include "physics_intern.hh" /* own include */
 
-static wmOperatorStatus surface_slot_add_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus surface_slot_add_exec(bContext &C, wmOperator & /*op*/)
 {
   DynamicPaintModifierData *pmd = nullptr;
-  Object *cObject = blender::ed::object::context_active_object(C);
+  Object *cObject = blender::ed::object::context_active_object(&C);
   DynamicPaintCanvasSettings *canvas;
   DynamicPaintSurface *surface;
 
@@ -64,7 +64,7 @@ static wmOperatorStatus surface_slot_add_exec(bContext *C, wmOperator * /*op*/)
   }
 
   canvas = pmd->canvas;
-  surface = dynamicPaint_createNewSurface(canvas, CTX_data_scene(*C));
+  surface = dynamicPaint_createNewSurface(canvas, CTX_data_scene(C));
 
   if (!surface) {
     return OPERATOR_CANCELLED;
@@ -93,10 +93,10 @@ void DPAINT_OT_surface_slot_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus surface_slot_remove_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus surface_slot_remove_exec(bContext &C, wmOperator & /*op*/)
 {
   DynamicPaintModifierData *pmd = nullptr;
-  Object *obj_ctx = blender::ed::object::context_active_object(C);
+  Object *obj_ctx = blender::ed::object::context_active_object(&C);
   DynamicPaintCanvasSettings *canvas;
   DynamicPaintSurface *surface;
   int id = 0;
@@ -121,7 +121,7 @@ static wmOperatorStatus surface_slot_remove_exec(bContext *C, wmOperator * /*op*
   }
 
   DEG_id_tag_update(&obj_ctx->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, obj_ctx);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, obj_ctx);
 
   return OPERATOR_FINISHED;
 }
@@ -141,14 +141,14 @@ void DPAINT_OT_surface_slot_remove(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus type_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus type_toggle_exec(bContext &C, wmOperator &op)
 {
 
-  Object *cObject = blender::ed::object::context_active_object(C);
-  Scene *scene = CTX_data_scene(*C);
+  Object *cObject = blender::ed::object::context_active_object(&C);
+  Scene *scene = CTX_data_scene(C);
   DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)BKE_modifiers_findby_type(
       cObject, eModifierType_DynamicPaint);
-  int type = RNA_enum_get(op->ptr, "type");
+  int type = RNA_enum_get(op.ptr, "type");
 
   if (!pmd) {
     return OPERATOR_CANCELLED;
@@ -170,8 +170,8 @@ static wmOperatorStatus type_toggle_exec(bContext *C, wmOperator *op)
 
   /* update dependency */
   DEG_id_tag_update(&cObject->id, ID_RECALC_GEOMETRY);
-  DEG_relations_tag_update(CTX_data_main(*C));
-  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, cObject);
+  DEG_relations_tag_update(CTX_data_main(C));
+  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, cObject);
 
   return OPERATOR_FINISHED;
 }
@@ -203,13 +203,13 @@ void DPAINT_OT_type_toggle(wmOperatorType *ot)
   ot->prop = prop;
 }
 
-static wmOperatorStatus output_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus output_toggle_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = blender::ed::object::context_active_object(C);
+  Object *ob = blender::ed::object::context_active_object(&C);
   DynamicPaintSurface *surface;
   DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)BKE_modifiers_findby_type(
       ob, eModifierType_DynamicPaint);
-  int output = RNA_enum_get(op->ptr, "output"); /* currently only 1/0 */
+  int output = RNA_enum_get(op.ptr, "output"); /* currently only 1/0 */
 
   if (!pmd || !pmd->canvas) {
     return OPERATOR_CANCELLED;
@@ -231,7 +231,7 @@ static wmOperatorStatus output_toggle_exec(bContext *C, wmOperator *op)
     /* Vertex Color Layer */
     if (surface->type == MOD_DPAINT_SURFACE_T_PAINT) {
       if (!exists) {
-        ED_mesh_color_add(static_cast<Mesh *>(ob->data), name, true, true, op->reports);
+        ED_mesh_color_add(static_cast<Mesh *>(ob->data), name, true, true, op.reports);
       }
       else {
         AttributeOwner owner = AttributeOwner::from_id(static_cast<ID *>(ob->data));
@@ -242,13 +242,13 @@ static wmOperatorStatus output_toggle_exec(bContext *C, wmOperator *op)
     else if (surface->type == MOD_DPAINT_SURFACE_T_WEIGHT) {
       if (!exists) {
         BKE_object_defgroup_add_name(ob, name);
-        DEG_relations_tag_update(CTX_data_main(*C));
+        DEG_relations_tag_update(CTX_data_main(C));
       }
       else {
         bDeformGroup *defgroup = BKE_object_defgroup_find_name(ob, name);
         if (defgroup) {
           BKE_object_defgroup_remove(ob, defgroup);
-          DEG_relations_tag_update(CTX_data_main(*C));
+          DEG_relations_tag_update(CTX_data_main(C));
         }
       }
     }
@@ -456,10 +456,10 @@ static void dpaint_bake_startjob(void *customdata, wmJobWorkerStatus *worker_sta
 /*
  * Bake Dynamic Paint image sequence surface
  */
-static wmOperatorStatus dynamicpaint_bake_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus dynamicpaint_bake_exec(bContext &C, wmOperator &op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Object *ob_ = blender::ed::object::context_active_object(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Object *ob_ = blender::ed::object::context_active_object(&C);
   Object *object_eval = DEG_get_evaluated(depsgraph, ob_);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 
@@ -471,14 +471,14 @@ static wmOperatorStatus dynamicpaint_bake_exec(bContext *C, wmOperator *op)
   DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)BKE_modifiers_findby_type(
       object_eval, eModifierType_DynamicPaint);
   if (pmd == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Bake failed: no Dynamic Paint modifier found");
+    BKE_report(op.reports, RPT_ERROR, "Bake failed: no Dynamic Paint modifier found");
     return OPERATOR_CANCELLED;
   }
 
   /* Make sure we're dealing with a canvas */
   DynamicPaintCanvasSettings *canvas = pmd->canvas;
   if (canvas == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Bake failed: invalid canvas");
+    BKE_report(op.reports, RPT_ERROR, "Bake failed: invalid canvas");
     return OPERATOR_CANCELLED;
   }
   surface = get_activeSurface(canvas);
@@ -488,16 +488,16 @@ static wmOperatorStatus dynamicpaint_bake_exec(bContext *C, wmOperator *op)
   canvas->flags |= MOD_DPAINT_BAKING;
 
   DynamicPaintBakeJob *job = MEM_mallocN<DynamicPaintBakeJob>("DynamicPaintBakeJob");
-  job->bmain = CTX_data_main(*C);
+  job->bmain = CTX_data_main(C);
   job->scene = scene_eval;
   job->depsgraph = depsgraph;
   job->ob = object_eval;
   job->canvas = canvas;
   job->surface = surface;
 
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
-                              CTX_wm_window(*C),
-                              CTX_data_scene(*C),
+  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
+                              CTX_wm_window(C),
+                              CTX_data_scene(C),
                               "Baking Dynamic Paint...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_DPAINT_BAKE);
@@ -506,10 +506,10 @@ static wmOperatorStatus dynamicpaint_bake_exec(bContext *C, wmOperator *op)
   WM_jobs_timer(wm_job, 0.1, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
   WM_jobs_callbacks(wm_job, dpaint_bake_startjob, nullptr, nullptr, dpaint_bake_endjob);
 
-  WM_locked_interface_set_with_flags(CTX_wm_manager(*C), REGION_DRAW_LOCK_BAKING);
+  WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
 
   /* Bake Dynamic Paint */
-  WM_jobs_start(CTX_wm_manager(*C), wm_job);
+  WM_jobs_start(CTX_wm_manager(C), wm_job);
 
   return OPERATOR_FINISHED;
 }

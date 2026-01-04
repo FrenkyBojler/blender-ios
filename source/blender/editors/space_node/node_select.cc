@@ -415,9 +415,9 @@ enum {
   NODE_SELECT_GROUPED_SUFIX = 3,
 };
 
-static wmOperatorStatus node_select_grouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_select_grouped_exec(bContext &C, wmOperator &op)
 {
-  SpaceNode &snode = *CTX_wm_space_node(*C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode.edittree;
   bNode *node_act = bke::node_get_active(*snode.edittree);
 
@@ -426,8 +426,8 @@ static wmOperatorStatus node_select_grouped_exec(bContext *C, wmOperator *op)
   }
 
   bool changed = false;
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const int type = RNA_enum_get(op->ptr, "type");
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
+  const int type = RNA_enum_get(op.ptr, "type");
 
   if (!extend) {
     node_deselect_all(node_tree);
@@ -453,7 +453,7 @@ static wmOperatorStatus node_select_grouped_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     tree_draw_order_update(node_tree);
-    WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
+    WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -774,16 +774,16 @@ static bool node_mouse_select(bContext *C,
   return true;
 }
 
-static wmOperatorStatus node_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_select_exec(bContext &C, wmOperator &op)
 {
   /* Get settings from RNA properties for operator. */
   int2 mval;
-  RNA_int_get_array(op->ptr, "location", mval);
+  RNA_int_get_array(op.ptr, "location", mval);
 
-  const SelectPick_Params params = ED_select_pick_params_from_operator(op->ptr);
+  const SelectPick_Params params = ED_select_pick_params_from_operator(op.ptr);
 
   /* Perform the selection. */
-  const bool changed = node_mouse_select(C, op, mval, params);
+  const bool changed = node_mouse_select(&C, &op, mval, params);
 
   if (changed) {
     return OPERATOR_PASS_THROUGH | OPERATOR_FINISHED;
@@ -792,9 +792,9 @@ static wmOperatorStatus node_select_exec(bContext *C, wmOperator *op)
   return OPERATOR_PASS_THROUGH | OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus node_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_select_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  RNA_int_set_array(op->ptr, "location", event->mval);
+  RNA_int_set_array(op.ptr, "location", event->mval);
 
   const wmOperatorStatus retval = node_select_exec(C, op);
 
@@ -849,17 +849,17 @@ void NODE_OT_select(wmOperatorType *ot)
 /** \name Box Select Operator
  * \{ */
 
-static wmOperatorStatus node_box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_box_select_exec(bContext &C, wmOperator &op)
 {
-  SpaceNode &snode = *CTX_wm_space_node(*C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode.edittree;
-  const ARegion &region = *CTX_wm_region(*C);
+  const ARegion &region = *CTX_wm_region(C);
   rctf rectf;
 
-  WM_operator_properties_border_to_rctf(op, &rectf);
+  WM_operator_properties_border_to_rctf(&op, &rectf);
   ui::view2d_region_to_view_rctf(&region.v2d, &rectf, &rectf);
 
-  const eSelectOp sel_op = (eSelectOp)RNA_enum_get(op->ptr, "mode");
+  const eSelectOp sel_op = (eSelectOp)RNA_enum_get(op.ptr, "mode");
   const bool select = (sel_op != SEL_OP_SUB);
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     node_deselect_all(node_tree);
@@ -894,17 +894,17 @@ static wmOperatorStatus node_box_select_exec(bContext *C, wmOperator *op)
 
   tree_draw_order_update(node_tree);
 
-  WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
-  WM_event_add_notifier(C, NC_NODE | ND_NODE_GIZMO, nullptr);
+  WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus node_box_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_box_select_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const bool tweak = RNA_boolean_get(op->ptr, "tweak");
+  const bool tweak = RNA_boolean_get(op.ptr, "tweak");
 
-  if (tweak && is_event_over_node_or_socket(*C, *event)) {
+  if (tweak && is_event_over_node_or_socket(C, *event)) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
@@ -946,10 +946,10 @@ void NODE_OT_select_box(wmOperatorType *ot)
 /** \name Circle Select Operator
  * \{ */
 
-static wmOperatorStatus node_circleselect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_circleselect_exec(bContext &C, wmOperator &op)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(C);
   bNodeTree &node_tree = *snode->edittree;
 
   int x, y, radius;
@@ -958,17 +958,17 @@ static wmOperatorStatus node_circleselect_exec(bContext *C, wmOperator *op)
   float zoom = float(BLI_rcti_size_x(&region->winrct)) / BLI_rctf_size_x(&region->v2d.cur);
 
   const eSelectOp sel_op = ED_select_op_modal(
-      (eSelectOp)RNA_enum_get(op->ptr, "mode"),
-      WM_gesture_is_modal_first((const wmGesture *)op->customdata));
+      (eSelectOp)RNA_enum_get(op.ptr, "mode"),
+      WM_gesture_is_modal_first((const wmGesture *)op.customdata));
   const bool select = (sel_op != SEL_OP_SUB);
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     node_deselect_all(node_tree);
   }
 
   /* get operator properties */
-  x = RNA_int_get(op->ptr, "x");
-  y = RNA_int_get(op->ptr, "y");
-  radius = RNA_int_get(op->ptr, "radius");
+  x = RNA_int_get(op.ptr, "x");
+  y = RNA_int_get(op.ptr, "y");
+  radius = RNA_int_get(op.ptr, "radius");
 
   ui::view2d_region_to_view(&region->v2d, x, y, &offset.x, &offset.y);
 
@@ -996,8 +996,8 @@ static wmOperatorStatus node_circleselect_exec(bContext *C, wmOperator *op)
     }
   }
 
-  WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
-  WM_event_add_notifier(C, NC_NODE | ND_NODE_GIZMO, nullptr);
+  WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1030,11 +1030,11 @@ void NODE_OT_select_circle(wmOperatorType *ot)
 /** \name Lasso Select Operator
  * \{ */
 
-static wmOperatorStatus node_lasso_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_lasso_select_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const bool tweak = RNA_boolean_get(op->ptr, "tweak");
+  const bool tweak = RNA_boolean_get(op.ptr, "tweak");
 
-  if (tweak && is_event_over_node_or_socket(*C, *event)) {
+  if (tweak && is_event_over_node_or_socket(C, *event)) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
@@ -1108,17 +1108,17 @@ static bool do_lasso_select_node(bContext *C, const Span<int2> mcoords, eSelectO
   return changed;
 }
 
-static wmOperatorStatus node_lasso_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_lasso_select_exec(bContext &C, wmOperator &op)
 {
-  const Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
+  const Array<int2> mcoords = WM_gesture_lasso_path_to_array(&C, &op);
 
   if (mcoords.is_empty()) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  const eSelectOp sel_op = (eSelectOp)RNA_enum_get(op->ptr, "mode");
+  const eSelectOp sel_op = (eSelectOp)RNA_enum_get(op.ptr, "mode");
 
-  do_lasso_select_node(C, mcoords, sel_op);
+  do_lasso_select_node(&C, mcoords, sel_op);
 
   return OPERATOR_FINISHED;
 }
@@ -1167,14 +1167,14 @@ static bool any_node_selected(const bNodeTree &node_tree)
   return false;
 }
 
-static wmOperatorStatus node_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_select_all_exec(bContext &C, wmOperator &op)
 {
-  SpaceNode &snode = *CTX_wm_space_node(*C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode.edittree;
 
   node_tree.ensure_topology_cache();
 
-  int action = RNA_enum_get(op->ptr, "action");
+  int action = RNA_enum_get(op.ptr, "action");
   if (action == SEL_TOGGLE) {
     if (any_node_selected(node_tree)) {
       action = SEL_DESELECT;
@@ -1202,8 +1202,8 @@ static wmOperatorStatus node_select_all_exec(bContext *C, wmOperator *op)
 
   tree_draw_order_update(node_tree);
 
-  WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
-  WM_event_add_notifier(C, NC_NODE | ND_NODE_GIZMO, nullptr);
+  WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -1230,9 +1230,9 @@ void NODE_OT_select_all(wmOperatorType *ot)
 /** \name Select Linked To Operator
  * \{ */
 
-static wmOperatorStatus node_select_linked_to_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_select_linked_to_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceNode &snode = *CTX_wm_space_node(*C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode.edittree;
 
   node_tree.ensure_topology_cache();
@@ -1255,7 +1255,7 @@ static wmOperatorStatus node_select_linked_to_exec(bContext *C, wmOperator * /*o
 
   tree_draw_order_update(node_tree);
 
-  WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -1280,9 +1280,9 @@ void NODE_OT_select_linked_to(wmOperatorType *ot)
 /** \name Select Linked From Operator
  * \{ */
 
-static wmOperatorStatus node_select_linked_from_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_select_linked_from_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceNode &snode = *CTX_wm_space_node(*C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode.edittree;
 
   node_tree.ensure_topology_cache();
@@ -1305,7 +1305,7 @@ static wmOperatorStatus node_select_linked_from_exec(bContext *C, wmOperator * /
 
   tree_draw_order_update(node_tree);
 
-  WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -1335,11 +1335,11 @@ static bool nodes_are_same_type_for_select(const bNode &a, const bNode &b)
   return a.type_legacy == b.type_legacy;
 }
 
-static wmOperatorStatus node_select_same_type_step_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_select_same_type_step_exec(bContext &C, wmOperator &op)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
-  ARegion *region = CTX_wm_region(*C);
-  const bool prev = RNA_boolean_get(op->ptr, "prev");
+  SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(C);
+  const bool prev = RNA_boolean_get(op.ptr, "prev");
   bNode *active_node = bke::node_get_active(*snode->edittree);
 
   if (active_node == nullptr) {
@@ -1371,11 +1371,11 @@ static wmOperatorStatus node_select_same_type_step_exec(bContext *C, wmOperator 
     return OPERATOR_CANCELLED;
   }
 
-  node_select_single(*C, *new_active_node);
+  node_select_single(C, *new_active_node);
 
   if (!BLI_rctf_inside_rctf(&region->v2d.cur, &new_active_node->runtime->draw_bounds)) {
-    const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-    space_node_view_flag(*C, *snode, *region, NODE_SELECT, smooth_viewtx);
+    const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
+    space_node_view_flag(C, *snode, *region, NODE_SELECT, smooth_viewtx);
   }
 
   return OPERATOR_FINISHED;
@@ -1646,11 +1646,11 @@ static ui::Block *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   return block;
 }
 
-static wmOperatorStatus node_find_node_invoke(bContext *C,
-                                              wmOperator *op,
+static wmOperatorStatus node_find_node_invoke(bContext &C,
+                                              wmOperator &op,
                                               const wmEvent * /*event*/)
 {
-  ui::popup_block_invoke(C, node_find_menu, op->type, nullptr);
+  ui::popup_block_invoke(&C, node_find_menu, op.type, nullptr);
   return OPERATOR_CANCELLED;
 }
 

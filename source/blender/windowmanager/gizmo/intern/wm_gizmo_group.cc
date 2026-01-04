@@ -330,16 +330,16 @@ bool wm_gizmogroup_is_any_selected(const wmGizmoGroup *gzgroup)
  * Basic operators for gizmo interaction with user configurable keymaps.
  * \{ */
 
-static wmOperatorStatus gizmo_select_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus gizmo_select_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   wmGizmoMap *gzmap = region->runtime->gizmo_map;
   wmGizmoMapSelectState *msel = &gzmap->gzmap_context.select;
   wmGizmo *highlight = gzmap->gzmap_context.highlight;
 
-  bool extend = RNA_boolean_get(op->ptr, "extend");
-  bool deselect = RNA_boolean_get(op->ptr, "deselect");
-  bool toggle = RNA_boolean_get(op->ptr, "toggle");
+  bool extend = RNA_boolean_get(op.ptr, "extend");
+  bool deselect = RNA_boolean_get(op.ptr, "deselect");
+  bool toggle = RNA_boolean_get(op.ptr, "toggle");
 
   /* Deselect all first. */
   if (extend == false && deselect == false && toggle == false) {
@@ -362,7 +362,7 @@ static wmOperatorStatus gizmo_select_invoke(bContext *C, wmOperator *op, const w
         redraw = true;
       }
     }
-    else if (wm_gizmo_select_and_highlight(C, gzmap, highlight)) {
+    else if (wm_gizmo_select_and_highlight(&C, gzmap, highlight)) {
       redraw = true;
     }
 
@@ -476,9 +476,9 @@ static void gizmo_tweak_finish(bContext *C, wmOperator *op, const bool cancel, b
   MEM_freeN(mtweak);
 }
 
-static wmOperatorStatus gizmo_tweak_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gizmo_tweak_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  GizmoTweakData *mtweak = static_cast<GizmoTweakData *>(op->customdata);
+  GizmoTweakData *mtweak = static_cast<GizmoTweakData *>(op.customdata);
   wmGizmo *gz = mtweak->gz_modal;
   wmOperatorStatus retval = OPERATOR_PASS_THROUGH;
   bool clear_modal = true;
@@ -519,7 +519,7 @@ static wmOperatorStatus gizmo_tweak_modal(bContext *C, wmOperator *op, const wmE
   }
 
   if (retval != OPERATOR_PASS_THROUGH) {
-    gizmo_tweak_finish(C, op, retval != OPERATOR_FINISHED, clear_modal);
+    gizmo_tweak_finish(&C, &op, retval != OPERATOR_FINISHED, clear_modal);
     return retval;
   }
 
@@ -538,7 +538,8 @@ static wmOperatorStatus gizmo_tweak_modal(bContext *C, wmOperator *op, const wmE
       evil_event->val = evil_event->prev_val;
     }
 
-    const wmOperatorStatus modal_retval = modal_fn(C, gz, event, eWM_GizmoFlagTweak(mtweak->flag));
+    const wmOperatorStatus modal_retval = modal_fn(
+        &C, gz, event, eWM_GizmoFlagTweak(mtweak->flag));
     OPERATOR_RETVAL_CHECK(modal_retval);
 
     if (event_modal_val != 0) {
@@ -547,7 +548,7 @@ static wmOperatorStatus gizmo_tweak_modal(bContext *C, wmOperator *op, const wmE
     }
 
     if ((modal_retval & OPERATOR_RUNNING_MODAL) == 0) {
-      gizmo_tweak_finish(C, op, (modal_retval & OPERATOR_CANCELLED) != 0, true);
+      gizmo_tweak_finish(&C, &op, (modal_retval & OPERATOR_CANCELLED) != 0, true);
       return OPERATOR_FINISHED;
     }
 
@@ -561,14 +562,14 @@ static wmOperatorStatus gizmo_tweak_modal(bContext *C, wmOperator *op, const wmE
   return OPERATOR_PASS_THROUGH;
 }
 
-static wmOperatorStatus gizmo_tweak_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gizmo_tweak_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   wmGizmoMap *gzmap = region->runtime->gizmo_map;
   wmGizmo *gz = gzmap->gzmap_context.highlight;
 
   /* Needed for single click actions which don't enter modal state. */
-  WM_tooltip_clear(C, CTX_wm_window(*C));
+  WM_tooltip_clear(&C, CTX_wm_window(C));
 
   if (!gz) {
     /* #wm_handlers_do_intern shouldn't let this happen. */
@@ -576,7 +577,7 @@ static wmOperatorStatus gizmo_tweak_invoke(bContext *C, wmOperator *op, const wm
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  if (!WM_gizmo_group_type_poll(C, gz->parent_gzgroup->type)) {
+  if (!WM_gizmo_group_type_poll(&C, gz->parent_gzgroup->type)) {
     /* The event-system should prevent this from happening, see: #137146.
      * May be caused by the context changing without tagging #wmGizmoMap::tag_highlight_pending,
      * typically via #WM_gizmomap_tag_refresh. */
@@ -592,11 +593,11 @@ static wmOperatorStatus gizmo_tweak_invoke(bContext *C, wmOperator *op, const wm
     }
   }
 
-  if (gizmo_tweak_start_and_finish(C, gzmap, gz, event, nullptr)) {
+  if (gizmo_tweak_start_and_finish(&C, gzmap, gz, event, nullptr)) {
     return OPERATOR_FINISHED;
   }
 
-  if (!gizmo_tweak_start(C, gzmap, gz, event)) {
+  if (!gizmo_tweak_start(&C, gzmap, gz, event)) {
     /* Failed to start. */
     gz->highlight_part = highlight_part_init;
     return OPERATOR_PASS_THROUGH;
@@ -610,9 +611,9 @@ static wmOperatorStatus gizmo_tweak_invoke(bContext *C, wmOperator *op, const wm
   mtweak->gzmap = gzmap;
   mtweak->flag = 0;
 
-  op->customdata = mtweak;
+  op.customdata = mtweak;
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }

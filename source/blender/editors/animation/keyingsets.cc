@@ -48,16 +48,16 @@
  */
 
 /* poll callback for adding default KeyingSet */
-static bool keyingset_poll_default_add(bContext *C)
+static bool keyingset_poll_default_add(bContext &C)
 {
   /* As long as there's an active Scene, it's fine. */
-  return (CTX_data_scene(*C) != nullptr);
+  return (CTX_data_scene(C) != nullptr);
 }
 
 /* Poll callback for editing active KeyingSet. */
-static bool keyingset_poll_active_edit(bContext *C)
+static bool keyingset_poll_active_edit(bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   if (scene == nullptr) {
     return false;
@@ -68,9 +68,9 @@ static bool keyingset_poll_active_edit(bContext *C)
 }
 
 /* poll callback for editing active KeyingSet Path */
-static bool keyingset_poll_activePath_edit(bContext *C)
+static bool keyingset_poll_activePath_edit(bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   if (scene == nullptr) {
     return false;
@@ -88,9 +88,9 @@ static bool keyingset_poll_activePath_edit(bContext *C)
 
 /* Add a Default (Empty) Keying Set ------------------------- */
 
-static wmOperatorStatus add_default_keyingset_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus add_default_keyingset_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   /* Validate flags
    * - absolute KeyingSets should be created by default.
@@ -104,7 +104,7 @@ static wmOperatorStatus add_default_keyingset_exec(bContext *C, wmOperator * /*o
 
   scene->active_keyingset = BLI_listbase_count(&scene->keyingsets);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_KEYINGSET, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -123,21 +123,21 @@ void ANIM_OT_keying_set_add(wmOperatorType *ot)
 
 /* Remove 'Active' Keying Set ------------------------- */
 
-static wmOperatorStatus remove_active_keyingset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus remove_active_keyingset_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   /* Verify the Keying Set to use:
    * - use the active one
    * - return error if it doesn't exist
    */
   if (scene->active_keyingset == 0) {
-    BKE_report(op->reports, RPT_ERROR, "No active Keying Set to remove");
+    BKE_report(op.reports, RPT_ERROR, "No active Keying Set to remove");
     return OPERATOR_CANCELLED;
   }
 
   if (scene->active_keyingset < 0) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot remove built in keying set");
+    BKE_report(op.reports, RPT_ERROR, "Cannot remove built in keying set");
     return OPERATOR_CANCELLED;
   }
 
@@ -151,7 +151,7 @@ static wmOperatorStatus remove_active_keyingset_exec(bContext *C, wmOperator *op
   /* The active one should now be the previously second-to-last one. */
   scene->active_keyingset--;
 
-  WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_KEYINGSET, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -170,16 +170,16 @@ void ANIM_OT_keying_set_remove(wmOperatorType *ot)
 
 /* Add Empty Keying Set Path ------------------------- */
 
-static wmOperatorStatus add_empty_ks_path_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_empty_ks_path_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   /* Verify the Keying Set to use:
    * - use the active one
    * - return error if it doesn't exist
    */
   if (scene->active_keyingset == 0) {
-    BKE_report(op->reports, RPT_ERROR, "No active Keying Set to add empty path to");
+    BKE_report(op.reports, RPT_ERROR, "No active Keying Set to add empty path to");
     return OPERATOR_CANCELLED;
   }
 
@@ -212,22 +212,22 @@ void ANIM_OT_keying_set_path_add(wmOperatorType *ot)
 
 /* Remove Active Keying Set Path ------------------------- */
 
-static wmOperatorStatus remove_active_ks_path_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus remove_active_ks_path_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   KeyingSet *keyingset = static_cast<KeyingSet *>(
       BLI_findlink(&scene->keyingsets, scene->active_keyingset - 1));
 
   /* If there is a KeyingSet, find the nominated path to remove. */
   if (!keyingset) {
-    BKE_report(op->reports, RPT_ERROR, "No active Keying Set to remove a path from");
+    BKE_report(op.reports, RPT_ERROR, "No active Keying Set to remove a path from");
     return OPERATOR_CANCELLED;
   }
 
   KS_Path *keyingset_path = static_cast<KS_Path *>(
       BLI_findlink(&keyingset->paths, keyingset->active_path - 1));
   if (!keyingset_path) {
-    BKE_report(op->reports, RPT_ERROR, "No active Keying Set path to remove");
+    BKE_report(op.reports, RPT_ERROR, "No active Keying Set path to remove");
     return OPERATOR_CANCELLED;
   }
 
@@ -257,13 +257,13 @@ void ANIM_OT_keying_set_path_remove(wmOperatorType *ot)
 
 /* Add to KeyingSet Button Operator ------------------------ */
 
-static wmOperatorStatus add_keyingset_button_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_keyingset_button_exec(bContext &C, wmOperator &op)
 {
   PropertyRNA *prop = nullptr;
   PointerRNA ptr = {};
   int index = 0, pflag = 0;
 
-  if (!blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
+  if (!blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index)) {
     /* Pass event on if no active button found. */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -273,7 +273,7 @@ static wmOperatorStatus add_keyingset_button_exec(bContext *C, wmOperator *op)
    * - add a new one if it doesn't exist
    */
   KeyingSet *keyingset = nullptr;
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   if (scene->active_keyingset == 0) {
     /* Validate flags
      * - absolute KeyingSets should be created by default
@@ -289,7 +289,7 @@ static wmOperatorStatus add_keyingset_button_exec(bContext *C, wmOperator *op)
     scene->active_keyingset = BLI_listbase_count(&scene->keyingsets);
   }
   else if (scene->active_keyingset < 0) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot add property to built in keying set");
+    BKE_report(op.reports, RPT_ERROR, "Cannot add property to built in keying set");
     return OPERATOR_CANCELLED;
   }
   else {
@@ -298,7 +298,7 @@ static wmOperatorStatus add_keyingset_button_exec(bContext *C, wmOperator *op)
   }
 
   /* Check if property is able to be added. */
-  const bool all = RNA_boolean_get(op->ptr, "all");
+  const bool all = RNA_boolean_get(op.ptr, "all");
   bool changed = false;
   if (ptr.owner_id && ptr.data && prop && RNA_property_anim_editable(&ptr, prop)) {
     if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
@@ -321,10 +321,10 @@ static wmOperatorStatus add_keyingset_button_exec(bContext *C, wmOperator *op)
   }
 
   if (changed) {
-    WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, nullptr);
+    WM_event_add_notifier(&C, NC_SCENE | ND_KEYINGSET, nullptr);
 
     /* Show notification/report header, so that users notice that something changed. */
-    BKE_reportf(op->reports, RPT_INFO, "Property added to Keying Set: '%s'", keyingset->name);
+    BKE_reportf(op.reports, RPT_INFO, "Property added to Keying Set: '%s'", keyingset->name);
   }
 
   return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -350,13 +350,13 @@ void ANIM_OT_keyingset_button_add(wmOperatorType *ot)
 
 /* Remove from KeyingSet Button Operator ------------------------ */
 
-static wmOperatorStatus remove_keyingset_button_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus remove_keyingset_button_exec(bContext &C, wmOperator &op)
 {
   PropertyRNA *prop = nullptr;
   PointerRNA ptr = {};
   int index = 0;
 
-  if (!blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
+  if (!blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index)) {
     /* Pass event on if no active button found. */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -365,14 +365,14 @@ static wmOperatorStatus remove_keyingset_button_exec(bContext *C, wmOperator *op
    * - use the active one for now (more control over this can be added later)
    * - return error if it doesn't exist
    */
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   if (scene->active_keyingset == 0) {
-    BKE_report(op->reports, RPT_ERROR, "No active Keying Set to remove property from");
+    BKE_report(op.reports, RPT_ERROR, "No active Keying Set to remove property from");
     return OPERATOR_CANCELLED;
   }
 
   if (scene->active_keyingset < 0) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot remove property from built in keying set");
+    BKE_report(op.reports, RPT_ERROR, "Cannot remove property from built in keying set");
     return OPERATOR_CANCELLED;
   }
 
@@ -394,10 +394,10 @@ static wmOperatorStatus remove_keyingset_button_exec(bContext *C, wmOperator *op
   }
 
   if (changed) {
-    WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, nullptr);
+    WM_event_add_notifier(&C, NC_SCENE | ND_KEYINGSET, nullptr);
 
     /* Show warning. */
-    BKE_report(op->reports, RPT_INFO, "Property removed from keying set");
+    BKE_report(op.reports, RPT_INFO, "Property removed from keying set");
   }
 
   return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -424,28 +424,28 @@ void ANIM_OT_keyingset_button_remove(wmOperatorType *ot)
 /* This operator checks if a menu should be shown
  * for choosing the KeyingSet to make the active one. */
 
-static wmOperatorStatus keyingset_active_menu_invoke(bContext *C,
-                                                     wmOperator *op,
+static wmOperatorStatus keyingset_active_menu_invoke(bContext &C,
+                                                     wmOperator &op,
                                                      const wmEvent * /*event*/)
 {
   /* Call the menu, which will call this operator again, hence the canceled. */
-  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(C, op->type->name, ICON_NONE);
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(&C, op.type->name, ICON_NONE);
   blender::ui::Layout &layout = *popup_menu_layout(pup);
   layout.op_enum("ANIM_OT_keying_set_active_set", "type");
-  popup_menu_end(C, pup);
+  popup_menu_end(&C, pup);
 
   return OPERATOR_INTERFACE;
 }
 
-static wmOperatorStatus keyingset_active_menu_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus keyingset_active_menu_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  const int type = RNA_enum_get(op->ptr, "type");
+  Scene *scene = CTX_data_scene(C);
+  const int type = RNA_enum_get(op.ptr, "type");
 
   /* If type == 0, it will deselect any active keying set. */
   scene->active_keyingset = type;
 
-  WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_KEYINGSET, nullptr);
 
   return OPERATOR_FINISHED;
 }

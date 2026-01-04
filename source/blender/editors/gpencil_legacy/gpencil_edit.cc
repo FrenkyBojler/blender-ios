@@ -51,9 +51,9 @@
 /** \name Delete Active Frame Operator
  * \{ */
 
-static bool annotation_actframe_delete_poll(bContext *C)
+static bool annotation_actframe_delete_poll(bContext &C)
 {
-  bGPdata *gpd = ED_annotation_data_get_active(C);
+  bGPdata *gpd = ED_annotation_data_get_active(&C);
   bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
   /* only if there's an active layer with an active frame */
@@ -61,22 +61,22 @@ static bool annotation_actframe_delete_poll(bContext *C)
 }
 
 /* delete active frame - wrapper around API calls */
-static wmOperatorStatus gpencil_actframe_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gpencil_actframe_delete_exec(bContext &C, wmOperator &op)
 {
-  bGPdata *gpd = ED_annotation_data_get_active(C);
+  bGPdata *gpd = ED_annotation_data_get_active(&C);
   bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   bGPDframe *gpf = BKE_gpencil_layer_frame_get(gpl, scene->r.cfra, GP_GETFRAME_USE_PREV);
 
   /* if there's no existing Grease-Pencil data there, add some */
   if (gpd == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "No Grease Pencil data");
+    BKE_report(op.reports, RPT_ERROR, "No Grease Pencil data");
     return OPERATOR_CANCELLED;
   }
   if (ELEM(nullptr, gpl, gpf)) {
-    BKE_report(op->reports, RPT_ERROR, "No active frame to delete");
+    BKE_report(op.reports, RPT_ERROR, "No active frame to delete");
     return OPERATOR_CANCELLED;
   }
 
@@ -85,7 +85,7 @@ static wmOperatorStatus gpencil_actframe_delete_exec(bContext *C, wmOperator *op
 
   /* notifiers */
   DEG_id_tag_update(&gpd->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }

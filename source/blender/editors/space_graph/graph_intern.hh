@@ -226,23 +226,23 @@ bAnimListElem *get_active_fcurve_channel(bAnimContext *ac);
 /**
  * Check if there are any visible keyframes (for selection tools).
  */
-bool graphop_visible_keyframes_poll(bContext *C);
+bool graphop_visible_keyframes_poll(bContext &C);
 /**
  * Check if there are any visible + editable keyframes (for editing tools).
  */
-bool graphop_editable_keyframes_poll(bContext *C);
+bool graphop_editable_keyframes_poll(bContext &C);
 /**
  * Has active F-Curve that's editable.
  */
-bool graphop_active_fcurve_poll(bContext *C);
+bool graphop_active_fcurve_poll(bContext &C);
 /**
  * Has active F-Curve in the context that's editable.
  */
-bool graphop_active_editable_fcurve_ctx_poll(bContext *C);
+bool graphop_active_editable_fcurve_ctx_poll(bContext &C);
 /**
  * Has selected F-Curve that's editable.
  */
-bool graphop_selected_fcurve_poll(bContext *C);
+bool graphop_selected_fcurve_poll(bContext &C);
 
 /* ***************************************** */
 /* `graph_ops.cc` */

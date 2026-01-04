@@ -224,11 +224,11 @@ static bool datadropper_id_sample(bContext *C, DataDropper *ddr, const int event
   return datadropper_id_set(C, ddr, id);
 }
 
-static void datadropper_cancel(bContext *C, wmOperator *op)
+static void datadropper_cancel(bContext &C, wmOperator &op)
 {
-  DataDropper *ddr = static_cast<DataDropper *>(op->customdata);
-  datadropper_id_set(C, ddr, ddr->init_id);
-  datadropper_exit(C, op);
+  DataDropper *ddr = static_cast<DataDropper *>(op.customdata);
+  datadropper_id_set(&C, ddr, ddr->init_id);
+  datadropper_exit(&C, &op);
 }
 
 /* To switch the draw callback when region under mouse event changes */
@@ -255,9 +255,9 @@ static void datadropper_set_draw_callback_region(ScrArea *area, DataDropper *ddr
 }
 
 /* main modal status check */
-static wmOperatorStatus datadropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus datadropper_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  DataDropper *ddr = (DataDropper *)op->customdata;
+  DataDropper *ddr = (DataDropper *)op.customdata;
 
   /* handle modal keymap */
   if (event->type == EVT_MODAL_MAP) {
@@ -267,13 +267,13 @@ static wmOperatorStatus datadropper_modal(bContext *C, wmOperator *op, const wmE
         return OPERATOR_CANCELLED;
       case EYE_MODAL_SAMPLE_CONFIRM: {
         const bool is_undo = ddr->is_undo;
-        const bool success = datadropper_id_sample(C, ddr, event->xy);
-        datadropper_exit(C, op);
+        const bool success = datadropper_id_sample(&C, ddr, event->xy);
+        datadropper_exit(&C, &op);
         if (success) {
           /* Could support finished & undo-skip. */
           return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
         }
-        BKE_report(op->reports, RPT_WARNING, "Failed to set value");
+        BKE_report(op.reports, RPT_WARNING, "Failed to set value");
         return OPERATOR_CANCELLED;
       }
     }
@@ -284,29 +284,29 @@ static wmOperatorStatus datadropper_modal(bContext *C, wmOperator *op, const wmE
     int event_xy_win[2];
     wmWindow *win;
     ScrArea *area;
-    eyedropper_win_area_find(C, event->xy, event_xy_win, &win, &area);
+    eyedropper_win_area_find(&C, event->xy, event_xy_win, &win, &area);
 
     /* Set the region for eyedropper cursor text drawing */
     datadropper_set_draw_callback_region(area, ddr);
 
-    datadropper_id_sample_pt(C, win, area, ddr, event_xy_win, &id);
+    datadropper_id_sample_pt(&C, win, area, ddr, event_xy_win, &id);
   }
 
   return OPERATOR_RUNNING_MODAL;
 }
 
 /* Modal Operator init */
-static wmOperatorStatus datadropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus datadropper_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   /* init */
-  if (datadropper_init(C, op)) {
-    wmWindow *win = CTX_wm_window(*C);
+  if (datadropper_init(&C, &op)) {
+    wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    context_active_but_clear(C, win, CTX_wm_region(*C));
+    context_active_but_clear(&C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -314,19 +314,19 @@ static wmOperatorStatus datadropper_invoke(bContext *C, wmOperator *op, const wm
 }
 
 /* Repeat operator */
-static wmOperatorStatus datadropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus datadropper_exec(bContext &C, wmOperator &op)
 {
   /* init */
-  if (datadropper_init(C, op)) {
+  if (datadropper_init(&C, &op)) {
     /* cleanup */
-    datadropper_exit(C, op);
+    datadropper_exit(&C, &op);
 
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
 }
 
-static bool datadropper_poll(bContext *C)
+static bool datadropper_poll(bContext &C)
 {
   PointerRNA ptr;
   PropertyRNA *prop;
@@ -334,8 +334,8 @@ static bool datadropper_poll(bContext *C)
   Button *but;
 
   /* data dropper only supports object data */
-  if ((CTX_wm_window(*C) != nullptr) &&
-      (but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
+  if ((CTX_wm_window(C) != nullptr) &&
+      (but = context_active_but_prop_get(&C, &ptr, &prop, &index_dummy)) &&
       (but->type == ButtonType::SearchMenu) && (but->flag & BUT_VALUE_CLEAR))
   {
     if (prop && RNA_property_type(prop) == PROP_POINTER) {

@@ -70,9 +70,9 @@
  * 3) that the mode will have an active action available
  * 4) that there are some selected markers
  */
-static bool act_markers_make_local_poll(bContext *C)
+static bool act_markers_make_local_poll(bContext &C)
 {
-  SpaceAction *sact = CTX_wm_space_action(*C);
+  SpaceAction *sact = CTX_wm_space_action(C);
 
   /* 1) */
   if (sact == nullptr) {
@@ -86,20 +86,20 @@ static bool act_markers_make_local_poll(bContext *C)
 
   /* 3) */
   bAction *active_action = ANIM_active_action_from_area(
-      CTX_data_scene(*C), CTX_data_view_layer(*C), CTX_wm_area(*C));
+      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
   if (!active_action) {
     return false;
   }
 
   /* 4) */
-  return ED_markers_get_first_selected(ED_context_get_markers(C)) != nullptr;
+  return ED_markers_get_first_selected(ED_context_get_markers(&C)) != nullptr;
 }
 
-static wmOperatorStatus act_markers_make_local_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus act_markers_make_local_exec(bContext &C, wmOperator & /*op*/)
 {
-  ListBaseT<TimeMarker> *markers = ED_context_get_markers(C);
+  ListBaseT<TimeMarker> *markers = ED_context_get_markers(&C);
   bAction *act = ANIM_active_action_from_area(
-      CTX_data_scene(*C), CTX_data_view_layer(*C), CTX_wm_area(*C));
+      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
 
   TimeMarker *marker, *markern = nullptr;
 
@@ -121,12 +121,12 @@ static wmOperatorStatus act_markers_make_local_exec(bContext *C, wmOperator * /*
 
   /* Now enable the "show pose-markers only" setting,
    * so that we can see that something did happen. */
-  SpaceAction *sact = CTX_wm_space_action(*C);
+  SpaceAction *sact = CTX_wm_space_action(C);
   sact->flag |= SACTION_POSEMARKERS_SHOW;
 
   /* notifiers - both sets, as this change affects both */
-  WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_MARKERS, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_MARKERS, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -257,14 +257,14 @@ static bool get_keyframe_extents(bAnimContext *ac, float *min, float *max, const
 /** \name View: Automatic Preview-Range Operator
  * \{ */
 
-static wmOperatorStatus actkeys_previewrange_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus actkeys_previewrange_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
   Scene *scene;
   float min, max;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   if (ac.scene == nullptr) {
@@ -286,7 +286,7 @@ static wmOperatorStatus actkeys_previewrange_exec(bContext *C, wmOperator * /*op
 
   /* set notifier that things have changed */
   /* XXX err... there's nothing for frame ranges yet, but this should do fine too */
-  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, ac.scene);
 
   return OPERATOR_FINISHED;
 }
@@ -434,16 +434,16 @@ static wmOperatorStatus actkeys_viewall(bContext *C, const bool only_sel)
 
 /* ......... */
 
-static wmOperatorStatus actkeys_viewall_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus actkeys_viewall_exec(bContext &C, wmOperator & /*op*/)
 {
   /* whole range */
-  return actkeys_viewall(C, false);
+  return actkeys_viewall(&C, false);
 }
 
-static wmOperatorStatus actkeys_viewsel_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus actkeys_viewsel_exec(bContext &C, wmOperator & /*op*/)
 {
   /* only selected */
-  return actkeys_viewall(C, true);
+  return actkeys_viewall(&C, true);
 }
 
 /* ......... */
@@ -484,10 +484,10 @@ void ACTION_OT_view_selected(wmOperatorType *ot)
 /** \name View: Frame Operator
  * \{ */
 
-static wmOperatorStatus actkeys_view_frame_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_view_frame_exec(bContext &C, wmOperator &op)
 {
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-  ANIM_center_frame(C, smooth_viewtx);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
+  ANIM_center_frame(&C, smooth_viewtx);
 
   return OPERATOR_FINISHED;
 }
@@ -600,12 +600,12 @@ static blender::ed::greasepencil::KeyframeClipboard &get_grease_pencil_keyframe_
   return clipboard;
 }
 
-static wmOperatorStatus actkeys_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_copy_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -616,13 +616,13 @@ static wmOperatorStatus actkeys_copy_exec(bContext *C, wmOperator *op)
             &ac, get_grease_pencil_keyframe_clipboard()) == false)
     {
       /* check if anything ended up in the buffer */
-      BKE_report(op->reports, RPT_ERROR, "No keyframes copied to the internal clipboard");
+      BKE_report(op.reports, RPT_ERROR, "No keyframes copied to the internal clipboard");
       return OPERATOR_CANCELLED;
     }
   }
   else if (ac.datatype == ANIMCONT_MASK) {
     /* FIXME: support this case. */
-    BKE_report(op->reports, RPT_ERROR, "Keyframe pasting is not available for mask mode");
+    BKE_report(op.reports, RPT_ERROR, "Keyframe pasting is not available for mask mode");
     return OPERATOR_CANCELLED;
   }
   else {
@@ -633,7 +633,7 @@ static wmOperatorStatus actkeys_copy_exec(bContext *C, wmOperator *op)
                             &ac, get_grease_pencil_keyframe_clipboard());
 
     if (!kf_ok && !gpf_ok) {
-      BKE_report(op->reports, RPT_ERROR, "No keyframes copied to the internal clipboard");
+      BKE_report(op.reports, RPT_ERROR, "No keyframes copied to the internal clipboard");
       return OPERATOR_CANCELLED;
     }
   }
@@ -656,23 +656,23 @@ void ACTION_OT_copy(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus actkeys_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_paste_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  const eKeyPasteOffset offset_mode = eKeyPasteOffset(RNA_enum_get(op->ptr, "offset"));
-  const eKeyMergeMode merge_mode = eKeyMergeMode(RNA_enum_get(op->ptr, "merge"));
-  const bool flipped = RNA_boolean_get(op->ptr, "flipped");
+  const eKeyPasteOffset offset_mode = eKeyPasteOffset(RNA_enum_get(op.ptr, "offset"));
+  const eKeyMergeMode merge_mode = eKeyMergeMode(RNA_enum_get(op.ptr, "merge"));
+  const bool flipped = RNA_boolean_get(op.ptr, "flipped");
 
   bool gpframes_inbuf = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* ac.reports by default will be the global reports list, which won't show warnings */
-  ac.reports = op->reports;
+  ac.reports = op.reports;
 
   /* paste keyframes */
   if (ac.datatype == ANIMCONT_GPENCIL) {
@@ -680,15 +680,14 @@ static wmOperatorStatus actkeys_paste_exec(bContext *C, wmOperator *op)
         blender::ed::greasepencil::grease_pencil_paste_keyframes(
             &ac, offset_mode, merge_mode, get_grease_pencil_keyframe_clipboard()) == false)
     {
-      BKE_report(op->reports, RPT_ERROR, "No data in the internal clipboard to paste");
+      BKE_report(op.reports, RPT_ERROR, "No data in the internal clipboard to paste");
       return OPERATOR_CANCELLED;
     }
   }
   else if (ac.datatype == ANIMCONT_MASK) {
     /* FIXME: support this case. */
-    BKE_report(op->reports,
-               RPT_ERROR,
-               "Keyframe pasting is not available for Grease Pencil or mask mode");
+    BKE_report(
+        op.reports, RPT_ERROR, "Keyframe pasting is not available for Grease Pencil or mask mode");
     return OPERATOR_CANCELLED;
   }
   else {
@@ -707,11 +706,11 @@ static wmOperatorStatus actkeys_paste_exec(bContext *C, wmOperator *op)
           break;
 
         case KEYFRAME_PASTE_NOWHERE_TO_PASTE:
-          BKE_report(op->reports, RPT_ERROR, "No selected F-Curves to paste into");
+          BKE_report(op.reports, RPT_ERROR, "No selected F-Curves to paste into");
           return OPERATOR_CANCELLED;
 
         case KEYFRAME_PASTE_NOTHING_TO_PASTE:
-          BKE_report(op->reports, RPT_ERROR, "No data in the internal clipboard to paste");
+          BKE_report(op.reports, RPT_ERROR, "No data in the internal clipboard to paste");
           return OPERATOR_CANCELLED;
       }
     }
@@ -719,16 +718,16 @@ static wmOperatorStatus actkeys_paste_exec(bContext *C, wmOperator *op)
 
   /* Grease Pencil needs extra update to refresh the added keyframes. */
   if (ac.datatype == ANIMCONT_GPENCIL || gpframes_inbuf) {
-    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA, nullptr);
+    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA, nullptr);
   }
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static std::string actkeys_paste_get_description(bContext * /*C*/,
-                                                 wmOperatorType * /*ot*/,
+static std::string actkeys_paste_get_description(bContext & /*C*/,
+                                                 wmOperatorType & /*ot*/,
                                                  PointerRNA *ptr)
 {
   /* Custom description if the 'flipped' option is used. */
@@ -972,34 +971,34 @@ static void insert_action_keys(bAnimContext *ac, short mode)
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_insertkey_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_insertkey_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   if (ac.datatype == ANIMCONT_MASK) {
-    BKE_report(op->reports, RPT_ERROR, "Insert Keyframes is not yet implemented for this mode");
+    BKE_report(op.reports, RPT_ERROR, "Insert Keyframes is not yet implemented for this mode");
     return OPERATOR_CANCELLED;
   }
 
   /* what channels to affect? */
-  mode = RNA_enum_get(op->ptr, "type");
+  mode = RNA_enum_get(op.ptr, "type");
 
-  ANIM_deselect_keys_in_animation_editors(C);
+  ANIM_deselect_keys_in_animation_editors(&C);
 
   /* insert keyframes */
   insert_action_keys(&ac, mode);
 
   /* set notifier that keyframes have changed */
   if (ac.datatype == ANIMCONT_GPENCIL) {
-    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   }
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1072,12 +1071,12 @@ static bool duplicate_action_keys(bAnimContext *ac)
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_duplicate_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus actkeys_duplicate_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1087,7 +1086,7 @@ static wmOperatorStatus actkeys_duplicate_exec(bContext *C, wmOperator * /*op*/)
   }
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1167,12 +1166,12 @@ static bool delete_action_keys(bAnimContext *ac)
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus actkeys_delete_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1182,18 +1181,18 @@ static wmOperatorStatus actkeys_delete_exec(bContext *C, wmOperator * /*op*/)
   }
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus actkeys_delete_invoke(bContext *C,
-                                              wmOperator *op,
+static wmOperatorStatus actkeys_delete_invoke(bContext &C,
+                                              wmOperator &op,
                                               const wmEvent * /*event*/)
 {
-  if (RNA_boolean_get(op->ptr, "confirm")) {
-    return WM_operator_confirm_ex(C,
-                                  op,
+  if (RNA_boolean_get(op.ptr, "confirm")) {
+    return WM_operator_confirm_ex(&C,
+                                  &op,
                                   IFACE_("Delete selected keyframes?"),
                                   nullptr,
                                   IFACE_("Delete"),
@@ -1255,31 +1254,31 @@ static void clean_action_keys(bAnimContext *ac, float thresh, bool clean_chan)
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_clean_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_clean_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   float thresh;
   bool clean_chan;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
-    BKE_report(op->reports, RPT_ERROR, "Not implemented");
+    BKE_report(op.reports, RPT_ERROR, "Not implemented");
     return OPERATOR_PASS_THROUGH;
   }
 
   /* get cleaning threshold */
-  thresh = RNA_float_get(op->ptr, "threshold");
-  clean_chan = RNA_boolean_get(op->ptr, "channels");
+  thresh = RNA_float_get(op.ptr, "threshold");
+  clean_chan = RNA_boolean_get(op.ptr, "channels");
 
   /* clean keyframes */
   clean_action_keys(&ac, thresh, clean_chan);
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1335,17 +1334,17 @@ static void bake_action_keys(bAnimContext *ac)
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_bake_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_bake_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
-    BKE_report(op->reports, RPT_ERROR, "Not implemented");
+    BKE_report(op.reports, RPT_ERROR, "Not implemented");
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -1353,7 +1352,7 @@ static wmOperatorStatus actkeys_bake_exec(bContext *C, wmOperator *op)
   bake_action_keys(&ac);
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1462,29 +1461,29 @@ static void setexpo_action_keys(bAnimContext *ac, short mode)
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_expo_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_expo_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
-    BKE_report(op->reports, RPT_ERROR, "Not implemented");
+    BKE_report(op.reports, RPT_ERROR, "Not implemented");
     return OPERATOR_PASS_THROUGH;
   }
 
   /* get handle setting mode */
-  mode = RNA_enum_get(op->ptr, "type");
+  mode = RNA_enum_get(op.ptr, "type");
 
   /* set handle type */
   setexpo_action_keys(&ac, mode);
 
   /* set notifier that keyframe properties have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1514,23 +1513,23 @@ void ACTION_OT_extrapolation_type(wmOperatorType *ot)
 /** \name Settings: Set Interpolation-Type Operator
  * \{ */
 
-static wmOperatorStatus actkeys_ipo_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_ipo_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
-    BKE_report(op->reports, RPT_ERROR, "Not implemented");
+    BKE_report(op.reports, RPT_ERROR, "Not implemented");
     return OPERATOR_PASS_THROUGH;
   }
 
   /* get handle setting mode */
-  mode = RNA_enum_get(op->ptr, "type");
+  mode = RNA_enum_get(op.ptr, "type");
 
   /* set handle type */
   ANIM_animdata_keyframe_callback(&ac,
@@ -1540,7 +1539,7 @@ static wmOperatorStatus actkeys_ipo_exec(bContext *C, wmOperator *op)
                                   ANIM_editkeyframes_ipo(mode));
 
   /* set notifier that keyframe properties have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1573,18 +1572,18 @@ void ACTION_OT_interpolation_type(wmOperatorType *ot)
 /** \name Settings: Set Easing Operator
  * \{ */
 
-static wmOperatorStatus actkeys_easing_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_easing_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* get handle setting mode */
-  mode = RNA_enum_get(op->ptr, "type");
+  mode = RNA_enum_get(op.ptr, "type");
 
   /* set handle type */
   ANIM_animdata_keyframe_callback(&ac,
@@ -1594,7 +1593,7 @@ static wmOperatorStatus actkeys_easing_exec(bContext *C, wmOperator *op)
                                   ANIM_editkeyframes_easing(mode));
 
   /* set notifier that keyframe properties have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1662,29 +1661,29 @@ static void sethandles_action_keys(bAnimContext *ac, short mode)
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_handletype_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_handletype_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
-    BKE_report(op->reports, RPT_ERROR, "Not implemented");
+    BKE_report(op.reports, RPT_ERROR, "Not implemented");
     return OPERATOR_PASS_THROUGH;
   }
 
   /* get handle setting mode */
-  mode = RNA_enum_get(op->ptr, "type");
+  mode = RNA_enum_get(op.ptr, "type");
 
   /* set handle type */
   sethandles_action_keys(&ac, mode);
 
   /* set notifier that keyframe properties have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1760,25 +1759,25 @@ static void setkeytype_action_keys(bAnimContext *ac, eBezTriple_KeyframeType mod
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_keytype_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_keytype_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   if (ac.datatype == ANIMCONT_MASK) {
-    BKE_report(op->reports, RPT_ERROR, "Not implemented for Masks");
+    BKE_report(op.reports, RPT_ERROR, "Not implemented for Masks");
     return OPERATOR_PASS_THROUGH;
   }
 
-  const int mode = RNA_enum_get(op->ptr, "type");
+  const int mode = RNA_enum_get(op.ptr, "type");
   setkeytype_action_keys(&ac, eBezTriple_KeyframeType(mode));
 
   /* set notifier that keyframe properties have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1808,7 +1807,7 @@ void ACTION_OT_keyframe_type(wmOperatorType *ot)
 /** \name Transform: Jump to Selected Frames Operator
  * \{ */
 
-static bool actkeys_framejump_poll(bContext *C)
+static bool actkeys_framejump_poll(bContext &C)
 {
   /* prevent changes during render */
   if (G.is_rendering) {
@@ -1819,7 +1818,7 @@ static bool actkeys_framejump_poll(bContext *C)
 }
 
 /* snap current-frame indicator to 'average time' of selected keyframe */
-static wmOperatorStatus actkeys_framejump_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus actkeys_framejump_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
@@ -1827,7 +1826,7 @@ static wmOperatorStatus actkeys_framejump_exec(bContext *C, wmOperator * /*op*/)
   KeyframeEditData ked = {{nullptr}};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1891,7 +1890,7 @@ static wmOperatorStatus actkeys_framejump_exec(bContext *C, wmOperator * /*op*/)
   }
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, ac.scene);
 
   return OPERATOR_FINISHED;
 }
@@ -2008,24 +2007,24 @@ static void snap_action_keys(bAnimContext *ac, short mode)
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_snap_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_snap_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* get snapping mode */
-  mode = RNA_enum_get(op->ptr, "type");
+  mode = RNA_enum_get(op.ptr, "type");
 
   /* snap keyframes */
   snap_action_keys(&ac, mode);
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2142,24 +2141,24 @@ static void mirror_action_keys(bAnimContext *ac, short mode)
 
 /* ------------------- */
 
-static wmOperatorStatus actkeys_mirror_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus actkeys_mirror_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* get mirroring mode */
-  mode = RNA_enum_get(op->ptr, "type");
+  mode = RNA_enum_get(op.ptr, "type");
 
   /* mirror keyframes */
   mirror_action_keys(&ac, mode);
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }

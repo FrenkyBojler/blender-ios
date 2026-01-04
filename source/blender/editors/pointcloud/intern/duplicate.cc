@@ -32,9 +32,9 @@ static void duplicate_points(PointCloud &pointcloud, const IndexMask &mask)
   BKE_pointcloud_nomain_to_pointcloud(new_pointcloud, &pointcloud);
 }
 
-static wmOperatorStatus duplicate_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus duplicate_exec(bContext &C, wmOperator & /*op*/)
 {
-  for (PointCloud *pointcloud : get_unique_editable_pointclouds(*C)) {
+  for (PointCloud *pointcloud : get_unique_editable_pointclouds(C)) {
     IndexMaskMemory memory;
     const IndexMask selection = retrieve_selected_points(*pointcloud, memory);
     if (selection.is_empty()) {
@@ -52,7 +52,7 @@ static wmOperatorStatus duplicate_exec(bContext *C, wmOperator * /*op*/)
     selection_attr.finish();
 
     DEG_id_tag_update(&pointcloud->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, pointcloud);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, pointcloud);
   }
   return OPERATOR_FINISHED;
 }

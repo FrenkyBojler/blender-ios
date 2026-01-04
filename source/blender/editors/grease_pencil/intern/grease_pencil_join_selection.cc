@@ -492,22 +492,22 @@ void append_strokes_from(bke::CurvesGeometry &&other, bke::CurvesGeometry &dst)
  * This operator builds a new stroke from the points/curves selected. It makes a copy of all the
  * selected points and joins them in a single stroke, which is added to the active layer.
  */
-wmOperatorStatus grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
+wmOperatorStatus grease_pencil_join_selection_exec(bContext &C, wmOperator &op)
 {
   using namespace bke::greasepencil;
 
-  const Scene *scene = CTX_data_scene(*C);
-  Object *object = CTX_data_active_object(*C);
+  const Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
   const bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(
       scene->toolsettings, object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   if (!grease_pencil.has_active_layer()) {
-    BKE_report(op->reports, RPT_ERROR, "No active layer");
+    BKE_report(op.reports, RPT_ERROR, "No active layer");
     return OPERATOR_CANCELLED;
   }
 
   const ActiveLayerBehavior active_layer_behavior = static_cast<ActiveLayerBehavior>(
-      RNA_enum_get(op->ptr, "type"));
+      RNA_enum_get(op.ptr, "type"));
   const Layer &active_layer = *grease_pencil.get_active_layer();
 
   Drawing *dst_drawing = grease_pencil.get_editable_drawing_at(active_layer, scene->r.cfra);
@@ -569,7 +569,7 @@ wmOperatorStatus grease_pencil_join_selection_exec(bContext *C, wmOperator *op)
   dst_drawing->tag_topology_changed();
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }

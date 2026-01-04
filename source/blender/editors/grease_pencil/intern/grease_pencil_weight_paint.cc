@@ -446,12 +446,12 @@ struct ClosestGreasePencilDrawing {
   ed::curves::FindClosestData elem;
 };
 
-static wmOperatorStatus weight_sample_invoke(bContext *C,
-                                             wmOperator * /*op*/,
+static wmOperatorStatus weight_sample_invoke(bContext &C,
+                                             wmOperator & /*op*/,
                                              const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
 
   /* Get the active vertex group. */
   const int object_defgroup_nr = BKE_object_defgroup_active_index_get(vc.obact) - 1;
@@ -556,9 +556,9 @@ static void GREASE_PENCIL_OT_weight_sample(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 }
 
-static wmOperatorStatus toggle_weight_tool_direction_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus toggle_weight_tool_direction_exec(bContext &C, wmOperator & /*op*/)
 {
-  Paint *paint = BKE_paint_get_active_from_context(C);
+  Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush *brush = BKE_paint_brush(paint);
 
   /* Toggle direction flag. */
@@ -571,13 +571,13 @@ static wmOperatorStatus toggle_weight_tool_direction_exec(bContext *C, wmOperato
   return OPERATOR_FINISHED;
 }
 
-static bool toggle_weight_tool_direction_poll(bContext *C)
+static bool toggle_weight_tool_direction_poll(bContext &C)
 {
   if (!grease_pencil_weight_painting_poll(C)) {
     return false;
   }
 
-  Paint *paint = BKE_paint_get_active_from_context(C);
+  Paint *paint = BKE_paint_get_active_from_context(&C);
   if (paint == nullptr) {
     return false;
   }
@@ -603,10 +603,10 @@ static void GREASE_PENCIL_OT_weight_toggle_direction(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus grease_pencil_weight_invert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_weight_invert_exec(bContext &C, wmOperator &op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Object *object = CTX_data_active_object(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   /* Object vgroup index. */
@@ -619,7 +619,7 @@ static wmOperatorStatus grease_pencil_weight_invert_exec(bContext *C, wmOperator
       BLI_findlink(BKE_object_defgroup_list(object), active_index));
 
   if (active_defgroup->flag & DG_LOCK_WEIGHT) {
-    BKE_report(op->reports, RPT_WARNING, "Active Vertex Group is locked");
+    BKE_report(op.reports, RPT_WARNING, "Active Vertex Group is locked");
     return OPERATOR_CANCELLED;
   }
 
@@ -647,17 +647,17 @@ static wmOperatorStatus grease_pencil_weight_invert_exec(bContext *C, wmOperator
   });
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
   return OPERATOR_FINISHED;
 }
 
-static bool grease_pencil_vertex_group_weight_poll(bContext *C)
+static bool grease_pencil_vertex_group_weight_poll(bContext &C)
 {
   if (!grease_pencil_weight_painting_poll(C)) {
     return false;
   }
 
-  const Object *ob = CTX_data_active_object(*C);
+  const Object *ob = CTX_data_active_object(C);
   if (ob == nullptr || BLI_listbase_is_empty(BKE_object_defgroup_list(ob))) {
     return false;
   }
@@ -680,10 +680,10 @@ static void GREASE_PENCIL_OT_weight_invert(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
 }
 
-static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vertex_group_smooth_exec(bContext &C, wmOperator &op)
 {
   /* Get the active vertex group in the Grease Pencil object. */
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   const int object_defgroup_nr = BKE_object_defgroup_active_index_get(object) - 1;
   if (object_defgroup_nr == -1) {
     return OPERATOR_CANCELLED;
@@ -691,15 +691,15 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
   const bDeformGroup *object_defgroup = static_cast<const bDeformGroup *>(
       BLI_findlink(BKE_object_defgroup_list(object), object_defgroup_nr));
   if (object_defgroup->flag & DG_LOCK_WEIGHT) {
-    BKE_report(op->reports, RPT_WARNING, "Active vertex group is locked");
+    BKE_report(op.reports, RPT_WARNING, "Active vertex group is locked");
     return OPERATOR_CANCELLED;
   }
 
-  const float smooth_factor = RNA_float_get(op->ptr, "factor");
-  const int repeat = RNA_int_get(op->ptr, "repeat");
+  const float smooth_factor = RNA_float_get(op.ptr, "factor");
+  const int repeat = RNA_int_get(op.ptr, "repeat");
 
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const Scene &scene = *CTX_data_scene(*C);
+  const Scene &scene = *CTX_data_scene(C);
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
   /* Smooth weights in all editable drawings. */
@@ -729,7 +729,7 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
   });
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -753,10 +753,10 @@ static void GREASE_PENCIL_OT_vertex_group_smooth(wmOperatorType *ot)
   RNA_def_int(ot->srna, "repeat", 1, 1, 10000, "Iterations", "", 1, 200);
 }
 
-static wmOperatorStatus vertex_group_normalize_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vertex_group_normalize_exec(bContext &C, wmOperator &op)
 {
   /* Get the active vertex group in the Grease Pencil object. */
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   const int object_defgroup_nr = BKE_object_defgroup_active_index_get(object) - 1;
   if (object_defgroup_nr == -1) {
     return OPERATOR_CANCELLED;
@@ -764,13 +764,13 @@ static wmOperatorStatus vertex_group_normalize_exec(bContext *C, wmOperator *op)
   const bDeformGroup *object_defgroup = static_cast<const bDeformGroup *>(
       BLI_findlink(BKE_object_defgroup_list(object), object_defgroup_nr));
   if (object_defgroup->flag & DG_LOCK_WEIGHT) {
-    BKE_report(op->reports, RPT_WARNING, "Active vertex group is locked");
+    BKE_report(op.reports, RPT_WARNING, "Active vertex group is locked");
     return OPERATOR_CANCELLED;
   }
 
   /* Get all editable drawings, grouped per frame. */
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const Scene &scene = *CTX_data_scene(*C);
+  const Scene &scene = *CTX_data_scene(C);
   Array<Vector<MutableDrawingInfo>> drawings_per_frame =
       retrieve_editable_drawings_grouped_per_frame(scene, grease_pencil);
 
@@ -847,7 +847,7 @@ static wmOperatorStatus vertex_group_normalize_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -868,10 +868,10 @@ static void GREASE_PENCIL_OT_vertex_group_normalize(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus vertex_group_normalize_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vertex_group_normalize_all_exec(bContext &C, wmOperator &op)
 {
   /* Get the active vertex group in the Grease Pencil object. */
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   const int object_defgroup_nr = BKE_object_defgroup_active_index_get(object) - 1;
   const bDeformGroup *object_defgroup = static_cast<const bDeformGroup *>(
       BLI_findlink(BKE_object_defgroup_list(object), object_defgroup_nr));
@@ -884,11 +884,11 @@ static wmOperatorStatus vertex_group_normalize_all_exec(bContext *C, wmOperator 
       object_locked_defgroups.add(dg.name);
     }
   }
-  const bool lock_active_group = RNA_boolean_get(op->ptr, "lock_active");
+  const bool lock_active_group = RNA_boolean_get(op.ptr, "lock_active");
 
   /* Get all editable drawings. */
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const Scene &scene = *CTX_data_scene(*C);
+  const Scene &scene = *CTX_data_scene(C);
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
   /* Normalize weights in all drawings. */
@@ -927,7 +927,7 @@ static wmOperatorStatus vertex_group_normalize_all_exec(bContext *C, wmOperator 
   });
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }

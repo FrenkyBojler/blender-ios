@@ -132,13 +132,13 @@ static ViewContext edbm_preselect_or_active_init_viewcontext(bContext *C,
   return vc;
 }
 
-static wmOperatorStatus edbm_polybuild_transform_at_cursor_invoke(bContext *C,
-                                                                  wmOperator * /*op*/,
+static wmOperatorStatus edbm_polybuild_transform_at_cursor_invoke(bContext &C,
+                                                                  wmOperator & /*op*/,
                                                                   const wmEvent * /*event*/)
 {
   Base *basact = nullptr;
   BMElem *ele_act = nullptr;
-  ViewContext vc = edbm_preselect_or_active_init_viewcontext(C, &basact, &ele_act);
+  ViewContext vc = edbm_preselect_or_active_init_viewcontext(&C, &basact, &ele_act);
   BMEditMesh *em = vc.em;
   BMesh *bm = em->bm;
 
@@ -171,7 +171,7 @@ static wmOperatorStatus edbm_polybuild_transform_at_cursor_invoke(bContext *C,
   if (basact != nullptr) {
     BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
     if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-      blender::ed::object::base_activate(C, basact);
+      blender::ed::object::base_activate(&C, basact);
     }
   }
   BM_select_history_store(bm, ele_act);
@@ -196,14 +196,14 @@ void MESH_OT_polybuild_transform_at_cursor(wmOperatorType *ot)
   blender::ed::transform::properties_register(ot, P_PROPORTIONAL | P_MIRROR_DUMMY);
 }
 
-static wmOperatorStatus edbm_polybuild_delete_at_cursor_invoke(bContext *C,
-                                                               wmOperator *op,
+static wmOperatorStatus edbm_polybuild_delete_at_cursor_invoke(bContext &C,
+                                                               wmOperator &op,
                                                                const wmEvent * /*event*/)
 {
   bool changed = false;
   Base *basact = nullptr;
   BMElem *ele_act = nullptr;
-  ViewContext vc = edbm_preselect_or_active_init_viewcontext(C, &basact, &ele_act);
+  ViewContext vc = edbm_preselect_or_active_init_viewcontext(&C, &basact, &ele_act);
   BMEditMesh *em = vc.em;
   BMesh *bm = em->bm;
 
@@ -220,7 +220,7 @@ static wmOperatorStatus edbm_polybuild_delete_at_cursor_invoke(bContext *C,
     BMFace *f_act = (BMFace *)ele_act;
     EDBM_flag_disable_all(em, BM_ELEM_TAG);
     BM_elem_flag_enable(f_act, BM_ELEM_TAG);
-    if (!EDBM_op_callf(em, op, "delete geom=%hf context=%i", BM_ELEM_TAG, DEL_FACES)) {
+    if (!EDBM_op_callf(em, &op, "delete geom=%hf context=%i", BM_ELEM_TAG, DEL_FACES)) {
       return OPERATOR_CANCELLED;
     }
     changed = true;
@@ -236,7 +236,7 @@ static wmOperatorStatus edbm_polybuild_delete_at_cursor_invoke(bContext *C,
       BM_elem_flag_enable(v_act, BM_ELEM_TAG);
 
       if (!EDBM_op_callf(em,
-                         op,
+                         &op,
                          "dissolve_verts verts=%hv use_face_split=%b use_boundary_tear=%b",
                          BM_ELEM_TAG,
                          false,
@@ -257,7 +257,7 @@ static wmOperatorStatus edbm_polybuild_delete_at_cursor_invoke(bContext *C,
     if (basact != nullptr) {
       BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
       if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-        blender::ed::object::base_activate(C, basact);
+        blender::ed::object::base_activate(&C, basact);
       }
     }
     WM_event_add_mousemove(vc.win);
@@ -289,8 +289,8 @@ void MESH_OT_polybuild_delete_at_cursor(wmOperatorType *ot)
 /** \name Face at Cursor
  * \{ */
 
-static wmOperatorStatus edbm_polybuild_face_at_cursor_invoke(bContext *C,
-                                                             wmOperator *op,
+static wmOperatorStatus edbm_polybuild_face_at_cursor_invoke(bContext &C,
+                                                             wmOperator &op,
                                                              const wmEvent *event)
 {
   float center[3];
@@ -298,7 +298,7 @@ static wmOperatorStatus edbm_polybuild_face_at_cursor_invoke(bContext *C,
 
   Base *basact = nullptr;
   BMElem *ele_act = nullptr;
-  ViewContext vc = edbm_preselect_or_active_init_viewcontext(C, &basact, &ele_act);
+  ViewContext vc = edbm_preselect_or_active_init_viewcontext(&C, &basact, &ele_act);
   BMEditMesh *em = vc.em;
   BMesh *bm = em->bm;
 
@@ -328,7 +328,7 @@ static wmOperatorStatus edbm_polybuild_face_at_cursor_invoke(bContext *C,
     mul_m4_v3(vc.obedit->object_to_world().ptr(), center);
     ED_view3d_win_to_3d_int(vc.v3d, vc.region, center, event->mval, center);
     mul_m4_v3(vc.obedit->world_to_object().ptr(), center);
-    if (f_reference->len == 3 && RNA_boolean_get(op->ptr, "create_quads")) {
+    if (f_reference->len == 3 && RNA_boolean_get(op.ptr, "create_quads")) {
       const float fac = line_point_factor_v3(center, e_act->v1->co, e_act->v2->co);
       BMVert *v_new = BM_edge_split(bm, e_act, e_act->v1, nullptr, std::clamp(fac, 0.0f, 1.0f));
       copy_v3_v3(v_new->co, center);
@@ -427,7 +427,7 @@ static wmOperatorStatus edbm_polybuild_face_at_cursor_invoke(bContext *C,
     if (basact != nullptr) {
       BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
       if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-        blender::ed::object::base_activate(C, basact);
+        blender::ed::object::base_activate(&C, basact);
       }
     }
 
@@ -466,8 +466,8 @@ void MESH_OT_polybuild_face_at_cursor(wmOperatorType *ot)
 /** \name Split at Cursor
  * \{ */
 
-static wmOperatorStatus edbm_polybuild_split_at_cursor_invoke(bContext *C,
-                                                              wmOperator * /*op*/,
+static wmOperatorStatus edbm_polybuild_split_at_cursor_invoke(bContext &C,
+                                                              wmOperator & /*op*/,
                                                               const wmEvent *event)
 {
   float center[3];
@@ -475,7 +475,7 @@ static wmOperatorStatus edbm_polybuild_split_at_cursor_invoke(bContext *C,
 
   Base *basact = nullptr;
   BMElem *ele_act = nullptr;
-  ViewContext vc = edbm_preselect_or_active_init_viewcontext(C, &basact, &ele_act);
+  ViewContext vc = edbm_preselect_or_active_init_viewcontext(&C, &basact, &ele_act);
   BMEditMesh *em = vc.em;
   BMesh *bm = em->bm;
 
@@ -519,7 +519,7 @@ static wmOperatorStatus edbm_polybuild_split_at_cursor_invoke(bContext *C,
 
     BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
     if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-      blender::ed::object::base_activate(C, basact);
+      blender::ed::object::base_activate(&C, basact);
     }
 
     return OPERATOR_FINISHED;
@@ -550,15 +550,15 @@ void MESH_OT_polybuild_split_at_cursor(wmOperatorType *ot)
 /** \name Dissolve at Cursor
  * \{ */
 
-static wmOperatorStatus edbm_polybuild_dissolve_at_cursor_invoke(bContext *C,
-                                                                 wmOperator *op,
+static wmOperatorStatus edbm_polybuild_dissolve_at_cursor_invoke(bContext &C,
+                                                                 wmOperator &op,
                                                                  const wmEvent * /*event*/)
 {
   bool changed = false;
 
   Base *basact = nullptr;
   BMElem *ele_act = nullptr;
-  ViewContext vc = edbm_preselect_or_active_init_viewcontext(C, &basact, &ele_act);
+  ViewContext vc = edbm_preselect_or_active_init_viewcontext(&C, &basact, &ele_act);
   BMEditMesh *em = vc.em;
   BMesh *bm = em->bm;
 
@@ -593,7 +593,7 @@ static wmOperatorStatus edbm_polybuild_dissolve_at_cursor_invoke(bContext *C,
       BM_elem_flag_enable(v_act, BM_ELEM_TAG);
 
       if (!EDBM_op_callf(em,
-                         op,
+                         &op,
                          "dissolve_verts verts=%hv use_face_split=%b use_boundary_tear=%b",
                          BM_ELEM_TAG,
                          false,
@@ -613,7 +613,7 @@ static wmOperatorStatus edbm_polybuild_dissolve_at_cursor_invoke(bContext *C,
 
     BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
     if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-      blender::ed::object::base_activate(C, basact);
+      blender::ed::object::base_activate(&C, basact);
     }
 
     WM_event_add_mousemove(vc.win);

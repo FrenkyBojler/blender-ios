@@ -147,25 +147,25 @@ static bAction *action_create_new(bContext *C, bAction *oldact)
  * 2) The associated #AnimData block must not be in tweak-mode.
  * \{ */
 
-static bool action_new_poll(bContext *C)
+static bool action_new_poll(bContext &C)
 {
   { /* Support use from the layout.template_action() UI template. */
     PointerRNA ptr = {};
     PropertyRNA *prop = nullptr;
-    blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
+    blender::ui::context_active_but_prop_get_templateID(&C, &ptr, &prop);
     if (prop) {
       return RNA_property_editable(&ptr, prop);
     }
   }
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   /* Check tweak-mode is off (as you don't want to be tampering with the action in that case) */
   /* NOTE: unlike for pushdown,
    * this operator needs to be run when creating an action from nothing... */
   if (ED_operator_action_active(C)) {
-    SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(*C);
-    Object *ob = CTX_data_active_object(*C);
+    SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
+    Object *ob = CTX_data_active_object(C);
 
     /* For now, actions are only for the active object, and on object and shape-key levels... */
     if (saction->mode == SACTCONT_ACTION) {
@@ -195,7 +195,7 @@ static bool action_new_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus action_new_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus action_new_exec(bContext &C, wmOperator & /*op*/)
 {
   PointerRNA ptr;
   PropertyRNA *prop;
@@ -204,7 +204,7 @@ static wmOperatorStatus action_new_exec(bContext *C, wmOperator * /*op*/)
   AnimData *adt = nullptr;
   ID *adt_id_owner = nullptr;
   /* hook into UI */
-  blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
+  blender::ui::context_active_but_prop_get_templateID(&C, &ptr, &prop);
 
   if (prop) {
     /* The operator was called from a button. */
@@ -219,11 +219,11 @@ static wmOperatorStatus action_new_exec(bContext *C, wmOperator * /*op*/)
       adt_id_owner = ptr.owner_id;
     }
     else if (ptr.type == &RNA_SpaceDopeSheetEditor) {
-      adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
+      adt = ED_actedit_animdata_from_context(&C, &adt_id_owner);
     }
   }
   else {
-    adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
+    adt = ED_actedit_animdata_from_context(&C, &adt_id_owner);
     oldact = adt->action;
   }
   {
@@ -242,18 +242,18 @@ static wmOperatorStatus action_new_exec(bContext *C, wmOperator * /*op*/)
     }
 
     /* create action */
-    action = action_create_new(C, oldact);
+    action = action_create_new(&C, oldact);
 
     if (prop) {
       /* set this new action */
       PointerRNA idptr = RNA_id_pointer_create(&action->id);
       RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
-      RNA_property_update(C, &ptr, prop);
+      RNA_property_update(&C, &ptr, prop);
     }
   }
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -284,13 +284,13 @@ void ACTION_OT_new(wmOperatorType *ot)
  * 3) The associated #AnimData block must not be in tweak-mode.
  * \{ */
 
-static bool action_pushdown_poll(bContext *C)
+static bool action_pushdown_poll(bContext &C)
 {
   if (!ED_operator_action_active(C)) {
     return false;
   }
 
-  AnimData *adt = ED_actedit_animdata_from_context(C, nullptr);
+  AnimData *adt = ED_actedit_animdata_from_context(&C, nullptr);
   if (!adt || !adt->action) {
     return false;
   }
@@ -301,10 +301,10 @@ static bool action_pushdown_poll(bContext *C)
   return (adt->flag & ADT_NLA_EDIT_ON) == 0;
 }
 
-static wmOperatorStatus action_pushdown_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus action_pushdown_exec(bContext &C, wmOperator & /*op*/)
 {
   ID *adt_id_owner = nullptr;
-  AnimData *adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
+  AnimData *adt = ED_actedit_animdata_from_context(&C, &adt_id_owner);
 
   /* Do the deed... */
   if (adt && adt->action) {
@@ -313,7 +313,7 @@ static wmOperatorStatus action_pushdown_exec(bContext *C, wmOperator * /*op*/)
     /* action can be safely added */
     BKE_nla_action_pushdown({*adt_id_owner, *adt}, ID_IS_OVERRIDE_LIBRARY(adt_id_owner));
 
-    Main *bmain = CTX_data_main(*C);
+    Main *bmain = CTX_data_main(C);
     DEG_id_tag_update_ex(bmain, adt_id_owner, ID_RECALC_ANIMATION);
 
     /* The action needs updating too, as FCurve modifiers are to be reevaluated. They won't extend
@@ -322,7 +322,7 @@ static wmOperatorStatus action_pushdown_exec(bContext *C, wmOperator * /*op*/)
   }
 
   /* Send notifiers that stuff has changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -347,26 +347,26 @@ void ACTION_OT_push_down(wmOperatorType *ot)
 /** \name Action Stash Operator
  * \{ */
 
-static wmOperatorStatus action_stash_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus action_stash_exec(bContext &C, wmOperator &op)
 {
   ID *adt_id_owner = nullptr;
-  AnimData *adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
+  AnimData *adt = ED_actedit_animdata_from_context(&C, &adt_id_owner);
 
   /* Perform stashing operation */
   if (adt) {
     /* stash the action */
     if (!BKE_nla_action_stash({*adt_id_owner, *adt}, ID_IS_OVERRIDE_LIBRARY(adt_id_owner))) {
       /* action has already been added - simply warn about this, and clear */
-      BKE_report(op->reports, RPT_ERROR, "Action+Slot has already been stashed");
+      BKE_report(op.reports, RPT_ERROR, "Action+Slot has already been stashed");
     }
 
     if (!blender::animrig::unassign_action({*adt_id_owner, *adt})) {
-      BKE_report(op->reports, RPT_ERROR, "Could not unassign the active Action");
+      BKE_report(op.reports, RPT_ERROR, "Could not unassign the active Action");
     }
   }
 
   /* Send notifiers that stuff has changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -402,10 +402,10 @@ void ACTION_OT_stash(wmOperatorType *ot)
  * 2) The associated #AnimData block must not be in tweak-mode.
  * \{ */
 
-static bool action_stash_create_poll(bContext *C)
+static bool action_stash_create_poll(bContext &C)
 {
   if (ED_operator_action_active(C)) {
-    AnimData *adt = ED_actedit_animdata_from_context(C, nullptr);
+    AnimData *adt = ED_actedit_animdata_from_context(&C, nullptr);
 
     /* Check tweak-mode is off (as you don't want to be tampering with the action in that case) */
     /* NOTE: unlike for pushdown,
@@ -420,8 +420,8 @@ static bool action_stash_create_poll(bContext *C)
        * (which may not be totally valid yet if the action editor was used and things are
        * now in an inconsistent state)
        */
-      SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(*C);
-      Scene *scene = CTX_data_scene(*C);
+      SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
+      Scene *scene = CTX_data_scene(C);
 
       if (!(scene->flag & SCE_NLA_EDIT_ON)) {
         /* For now, actions are only for the active object, and on object and shape-key levels...
@@ -435,18 +435,18 @@ static bool action_stash_create_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus action_stash_create_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus action_stash_create_exec(bContext &C, wmOperator &op)
 {
   ID *adt_id_owner = nullptr;
-  AnimData *adt = ED_actedit_animdata_from_context(C, &adt_id_owner);
+  AnimData *adt = ED_actedit_animdata_from_context(&C, &adt_id_owner);
 
   /* Check for no action... */
   if (adt->action == nullptr) {
     /* just create a new action */
-    bAction *action = action_create_new(C, nullptr);
+    bAction *action = action_create_new(&C, nullptr);
     if (!blender::animrig::assign_action(action, {*adt_id_owner, *adt})) {
       BKE_reportf(
-          op->reports, RPT_ERROR, "Could not assign a new Action to %s", adt_id_owner->name + 2);
+          op.reports, RPT_ERROR, "Could not assign a new Action to %s", adt_id_owner->name + 2);
     }
   }
   else if (adt) {
@@ -456,24 +456,24 @@ static wmOperatorStatus action_stash_create_exec(bContext *C, wmOperator *op)
 
       /* Create new action not based on the old one
        * (since the "new" operator already does that). */
-      new_action = action_create_new(C, nullptr);
+      new_action = action_create_new(&C, nullptr);
       if (!blender::animrig::assign_action(new_action, {*adt_id_owner, *adt})) {
         BKE_reportf(
-            op->reports, RPT_ERROR, "Could not assign a new Action to %s", adt_id_owner->name + 2);
+            op.reports, RPT_ERROR, "Could not assign a new Action to %s", adt_id_owner->name + 2);
       }
     }
     else {
       /* action has already been added - simply warn about this, and clear */
-      BKE_report(op->reports, RPT_ERROR, "Action+Slot has already been stashed");
+      BKE_report(op.reports, RPT_ERROR, "Action+Slot has already been stashed");
       if (!blender::animrig::unassign_action({*adt_id_owner, *adt})) {
         BKE_reportf(
-            op->reports, RPT_ERROR, "Could not un-assign Action from %s", adt_id_owner->name + 2);
+            op.reports, RPT_ERROR, "Could not un-assign Action from %s", adt_id_owner->name + 2);
       }
     }
   }
 
   /* Send notifiers that stuff has changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -582,27 +582,27 @@ void ED_animedit_unlink_action(
 
 /* -------------------------- */
 
-static bool action_unlink_poll(bContext *C)
+static bool action_unlink_poll(bContext &C)
 {
   ID *animated_id = nullptr;
-  AnimData *adt = ED_actedit_animdata_from_context(C, &animated_id);
+  AnimData *adt = ED_actedit_animdata_from_context(&C, &animated_id);
   if (!animated_id) {
     return false;
   }
-  if (!BKE_id_is_editable(CTX_data_main(*C), animated_id)) {
+  if (!BKE_id_is_editable(CTX_data_main(C), animated_id)) {
     return false;
   }
   return adt && adt->action;
 }
 
-static wmOperatorStatus action_unlink_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus action_unlink_exec(bContext &C, wmOperator &op)
 {
   ID *animated_id = nullptr;
-  AnimData *adt = ED_actedit_animdata_from_context(C, &animated_id);
-  bool force_delete = RNA_boolean_get(op->ptr, "force_delete");
+  AnimData *adt = ED_actedit_animdata_from_context(&C, &animated_id);
+  bool force_delete = RNA_boolean_get(op.ptr, "force_delete");
 
   if (adt && adt->action) {
-    ED_animedit_unlink_action(C, animated_id, adt, adt->action, op->reports, force_delete);
+    ED_animedit_unlink_action(&C, animated_id, adt, adt->action, op.reports, force_delete);
   }
 
   /* Unlink is also abused to exit NLA tweak mode. */
@@ -611,11 +611,11 @@ static wmOperatorStatus action_unlink_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus action_unlink_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus action_unlink_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   /* NOTE: this is hardcoded to match the behavior for the unlink button
    * (in `interface_templates.cc`). */
-  RNA_boolean_set(op->ptr, "force_delete", event->modifier & KM_SHIFT);
+  RNA_boolean_set(op.ptr, "force_delete", event->modifier & KM_SHIFT);
   return action_unlink_exec(C, op);
 }
 

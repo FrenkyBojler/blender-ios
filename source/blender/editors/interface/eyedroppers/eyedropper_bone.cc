@@ -159,9 +159,9 @@ static void bonedropper_exit(bContext *C, wmOperator *op)
   WM_event_add_mousemove(win);
 }
 
-static void bonedropper_cancel(bContext *C, wmOperator *op)
+static void bonedropper_cancel(bContext &C, wmOperator &op)
 {
-  bonedropper_exit(C, op);
+  bonedropper_exit(&C, &op);
 }
 
 /* To switch the draw callback when region under mouse event changes */
@@ -445,9 +445,9 @@ static void generate_sample_warning(SampleResult result, wmOperator *op)
   }
 }
 
-static wmOperatorStatus bonedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus bonedropper_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  BoneDropper *bdr = (BoneDropper *)op->customdata;
+  BoneDropper *bdr = (BoneDropper *)op.customdata;
   if (!bdr) {
     return OPERATOR_CANCELLED;
   }
@@ -459,13 +459,13 @@ static wmOperatorStatus bonedropper_modal(bContext *C, wmOperator *op, const wmE
         return OPERATOR_CANCELLED;
       case EYE_MODAL_SAMPLE_CONFIRM: {
         const bool is_undo = bdr->is_undo;
-        const SampleResult result = bonedropper_sample(C, *bdr, event->xy);
-        bonedropper_exit(C, op);
+        const SampleResult result = bonedropper_sample(&C, *bdr, event->xy);
+        bonedropper_exit(&C, &op);
         if (result == SampleResult::SUCCESS) {
           /* Could support finished & undo-skip. */
           return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
         }
-        generate_sample_warning(result, op);
+        generate_sample_warning(result, &op);
       }
     }
   }
@@ -474,67 +474,67 @@ static wmOperatorStatus bonedropper_modal(bContext *C, wmOperator *op, const wmE
     int event_xy_win[2];
     wmWindow *win = nullptr;
     ScrArea *area = nullptr;
-    eyedropper_win_area_find(C, event->xy, event_xy_win, &win, &area);
+    eyedropper_win_area_find(&C, event->xy, event_xy_win, &win, &area);
 
     if (win && area) {
       /* Set the region for eyedropper cursor text drawing */
       bonedropper_set_draw_callback_region(*area, *bdr);
-      bonedropper_sample_pt(C, *win, *area, *bdr, event->xy);
+      bonedropper_sample_pt(&C, *win, *area, *bdr, event->xy);
     }
   }
 
   return OPERATOR_RUNNING_MODAL;
 }
-static wmOperatorStatus bonedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus bonedropper_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   /* This is needed to ensure viewport picking works. */
-  BKE_object_update_select_id(CTX_data_main(*C));
+  BKE_object_update_select_id(CTX_data_main(C));
 
-  if (bonedropper_init(C, op)) {
-    wmWindow *win = CTX_wm_window(*C);
+  if (bonedropper_init(&C, &op)) {
+    wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    context_active_but_clear(C, win, CTX_wm_region(*C));
+    context_active_but_clear(&C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
     return OPERATOR_RUNNING_MODAL;
   }
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus bonedropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bonedropper_exec(bContext &C, wmOperator &op)
 {
-  if (bonedropper_init(C, op)) {
-    bonedropper_exit(C, op);
+  if (bonedropper_init(&C, &op)) {
+    bonedropper_exit(&C, &op);
 
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
 }
 
-static bool bonedropper_poll(bContext *C)
+static bool bonedropper_poll(bContext &C)
 {
   PointerRNA ptr;
   PropertyRNA *prop;
   int index_dummy;
 
-  if (CTX_wm_window(*C) == nullptr) {
+  if (CTX_wm_window(C) == nullptr) {
     return false;
   }
 
-  const Object *active_object = CTX_data_active_object(*C);
+  const Object *active_object = CTX_data_active_object(C);
 
   if (!active_object || active_object->type != OB_ARMATURE) {
-    CTX_wm_operator_poll_msg_set(C, "The active object needs to be an armature");
+    CTX_wm_operator_poll_msg_set(&C, "The active object needs to be an armature");
     return false;
   }
 
   if (!ELEM(active_object->mode, OB_MODE_POSE, OB_MODE_EDIT)) {
-    CTX_wm_operator_poll_msg_set(C, "The armature needs to be in Pose mode or Edit mode");
+    CTX_wm_operator_poll_msg_set(&C, "The armature needs to be in Pose mode or Edit mode");
     return false;
   }
 
-  Button *but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy);
+  Button *but = context_active_but_prop_get(&C, &ptr, &prop, &index_dummy);
 
   if (!but) {
     return false;

@@ -75,9 +75,9 @@ using blender::Vector;
 /** \name Generic Poll Functions
  * \{ */
 
-static bool edbm_vert_or_edge_select_mode_poll(bContext *C)
+static bool edbm_vert_or_edge_select_mode_poll(bContext &C)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   if (obedit && obedit->type == OB_MESH) {
     const BMEditMesh *em = BKE_editmesh_from_object(obedit);
     if (em) {
@@ -87,7 +87,7 @@ static bool edbm_vert_or_edge_select_mode_poll(bContext *C)
     }
   }
 
-  CTX_wm_operator_poll_msg_set(C, "An edit-mesh with vertex or edge selection mode is required");
+  CTX_wm_operator_poll_msg_set(&C, "An edit-mesh with vertex or edge selection mode is required");
 
   return false;
 }
@@ -1451,9 +1451,9 @@ bool EDBM_unified_findnearest_from_raycast(ViewContext *vc,
 /** \name Select Similar Region Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_similar_region_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_similar_region_exec(bContext &C, wmOperator &op)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
   bool changed = false;
@@ -1464,7 +1464,7 @@ static wmOperatorStatus edbm_select_similar_region_exec(bContext *C, wmOperator 
   int i;
 
   if (bm->totfacesel < 2) {
-    BKE_report(op->reports, RPT_ERROR, "No face regions selected");
+    BKE_report(op.reports, RPT_ERROR, "No face regions selected");
     return OPERATOR_CANCELLED;
   }
 
@@ -1510,10 +1510,10 @@ static wmOperatorStatus edbm_select_similar_region_exec(bContext *C, wmOperator 
 
   if (changed) {
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
   else {
-    BKE_report(op->reports, RPT_WARNING, "No matching face regions found");
+    BKE_report(op.reports, RPT_WARNING, "No matching face regions found");
   }
 
   return OPERATOR_FINISHED;
@@ -1540,47 +1540,47 @@ void MESH_OT_select_similar_region(wmOperatorType *ot)
 /** \name Select Mode Vert/Edge/Face Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_mode_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_mode_exec(bContext &C, wmOperator &op)
 {
-  const int type = RNA_enum_get(op->ptr, "type");
-  const int action = RNA_enum_get(op->ptr, "action");
-  const bool use_extend = RNA_boolean_get(op->ptr, "use_extend");
-  const bool use_expand = RNA_boolean_get(op->ptr, "use_expand");
+  const int type = RNA_enum_get(op.ptr, "type");
+  const int action = RNA_enum_get(op.ptr, "action");
+  const bool use_extend = RNA_boolean_get(op.ptr, "use_extend");
+  const bool use_expand = RNA_boolean_get(op.ptr, "use_expand");
 
-  if (EDBM_selectmode_toggle_multi(C, type, action, use_extend, use_expand)) {
+  if (EDBM_selectmode_toggle_multi(&C, type, action, use_extend, use_expand)) {
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus edbm_select_mode_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_select_mode_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   /* Bypass when in UV non sync-select mode, fall through to keymap that edits. */
-  if (CTX_wm_space_image(*C)) {
-    ToolSettings *ts = CTX_data_tool_settings(*C);
+  if (CTX_wm_space_image(C)) {
+    ToolSettings *ts = CTX_data_tool_settings(C);
     if ((ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0) {
       return OPERATOR_PASS_THROUGH;
     }
     /* Bypass when no action is needed. */
-    if (!RNA_struct_property_is_set(op->ptr, "type")) {
+    if (!RNA_struct_property_is_set(op.ptr, "type")) {
       return OPERATOR_CANCELLED;
     }
   }
 
   /* Detecting these options based on shift/control here is weak, but it's done
    * to make this work when clicking buttons or menus. */
-  if (!RNA_struct_property_is_set(op->ptr, "use_extend")) {
-    RNA_boolean_set(op->ptr, "use_extend", event->modifier & KM_SHIFT);
+  if (!RNA_struct_property_is_set(op.ptr, "use_extend")) {
+    RNA_boolean_set(op.ptr, "use_extend", event->modifier & KM_SHIFT);
   }
-  if (!RNA_struct_property_is_set(op->ptr, "use_expand")) {
-    RNA_boolean_set(op->ptr, "use_expand", event->modifier & KM_CTRL);
+  if (!RNA_struct_property_is_set(op.ptr, "use_expand")) {
+    RNA_boolean_set(op.ptr, "use_expand", event->modifier & KM_CTRL);
   }
 
   return edbm_select_mode_exec(C, op);
 }
 
-static std::string edbm_select_mode_get_description(bContext * /*C*/,
-                                                    wmOperatorType * /*ot*/,
+static std::string edbm_select_mode_get_description(bContext & /*C*/,
+                                                    wmOperatorType & /*ot*/,
                                                     PointerRNA *ptr)
 {
   const int type = RNA_enum_get(ptr, "type");
@@ -1717,13 +1717,13 @@ static bool walker_select(BMEditMesh *em, int walkercode, void *start, const boo
   return changed;
 }
 
-static wmOperatorStatus edbm_loop_multiselect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_loop_multiselect_exec(bContext &C, wmOperator &op)
 {
-  const bool is_ring = RNA_boolean_get(op->ptr, "ring");
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const bool is_ring = RNA_boolean_get(op.ptr, "ring");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
@@ -1783,7 +1783,7 @@ static wmOperatorStatus edbm_loop_multiselect_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -2038,17 +2038,17 @@ static bool mouse_mesh_loop(
   return true;
 }
 
-static wmOperatorStatus edbm_select_loop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_select_loop_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
 
-  view3d_operator_needs_gpu(C);
+  view3d_operator_needs_gpu(&C);
 
-  if (mouse_mesh_loop(C,
+  if (mouse_mesh_loop(&C,
                       event->mval,
-                      RNA_boolean_get(op->ptr, "extend"),
-                      RNA_boolean_get(op->ptr, "deselect"),
-                      RNA_boolean_get(op->ptr, "toggle"),
-                      RNA_boolean_get(op->ptr, "ring")))
+                      RNA_boolean_get(op.ptr, "extend"),
+                      RNA_boolean_get(op.ptr, "deselect"),
+                      RNA_boolean_get(op.ptr, "toggle"),
+                      RNA_boolean_get(op.ptr, "ring")))
   {
     return OPERATOR_FINISHED;
   }
@@ -2114,14 +2114,14 @@ void MESH_OT_edgering_select(wmOperatorType *ot)
 /** \name (De)Select All Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_all_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  int action = RNA_enum_get(op->ptr, "action");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  int action = RNA_enum_get(op.ptr, "action");
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   if (action == SEL_TOGGLE) {
     action = SEL_SELECT;
@@ -2155,7 +2155,7 @@ static wmOperatorStatus edbm_select_all_exec(bContext *C, wmOperator *op)
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -2184,12 +2184,12 @@ void MESH_OT_select_all(wmOperatorType *ot)
 /** \name Select Interior Faces Operator
  * \{ */
 
-static wmOperatorStatus edbm_faces_select_interior_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus edbm_faces_select_interior_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -2199,7 +2199,7 @@ static wmOperatorStatus edbm_faces_select_interior_exec(bContext *C, wmOperator 
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -3533,20 +3533,20 @@ static void select_linked_delimit_end(BMEditMesh *em)
   BM_mesh_elem_toolflags_clear(bm);
 }
 
-static wmOperatorStatus edbm_select_linked_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_linked_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
 #ifdef USE_LINKED_SELECT_DEFAULT_HACK
-  const int delimit_init = select_linked_delimit_default_from_op(op,
+  const int delimit_init = select_linked_delimit_default_from_op(&op,
                                                                  scene->toolsettings->selectmode);
 #else
   const int delimit_init = RNA_enum_get(op->ptr, "delimit");
 #endif
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
 
@@ -3733,7 +3733,7 @@ static wmOperatorStatus edbm_select_linked_exec(bContext *C, wmOperator *op)
     EDBM_uvselect_clear(em);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -3774,7 +3774,7 @@ void MESH_OT_select_linked(wmOperatorType *ot)
 /** \name Select Linked (Cursor Pick) Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_linked_pick_exec(bContext *C, wmOperator *op);
+static wmOperatorStatus edbm_select_linked_pick_exec(bContext &C, wmOperator &op);
 
 static void edbm_select_linked_pick_ex(BMEditMesh *em, BMElem *ele, bool sel, int delimit)
 {
@@ -3893,26 +3893,26 @@ static void edbm_select_linked_pick_ex(BMEditMesh *em, BMElem *ele, bool sel, in
   }
 }
 
-static wmOperatorStatus edbm_select_linked_pick_invoke(bContext *C,
-                                                       wmOperator *op,
+static wmOperatorStatus edbm_select_linked_pick_invoke(bContext &C,
+                                                       wmOperator &op,
                                                        const wmEvent *event)
 {
   Base *basact = nullptr;
   BMVert *eve;
   BMEdge *eed;
   BMFace *efa;
-  const bool sel = !RNA_boolean_get(op->ptr, "deselect");
+  const bool sel = !RNA_boolean_get(op.ptr, "deselect");
   int index;
 
-  if (RNA_struct_property_is_set(op->ptr, "index")) {
+  if (RNA_struct_property_is_set(op.ptr, "index")) {
     return edbm_select_linked_pick_exec(C, op);
   }
 
   /* #unified_findnearest needs OpenGL. */
-  view3d_operator_needs_gpu(C);
+  view3d_operator_needs_gpu(&C);
 
   /* Setup view context for argument to callbacks. */
-  ViewContext vc = em_setup_viewcontext(C);
+  ViewContext vc = em_setup_viewcontext(&C);
 
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode(
       vc.scene, vc.view_layer, vc.v3d);
@@ -3949,7 +3949,7 @@ static wmOperatorStatus edbm_select_linked_pick_invoke(bContext *C,
   BMesh *bm = em->bm;
 
 #ifdef USE_LINKED_SELECT_DEFAULT_HACK
-  int delimit = select_linked_delimit_default_from_op(op, vc.scene->toolsettings->selectmode);
+  int delimit = select_linked_delimit_default_from_op(&op, vc.scene->toolsettings->selectmode);
 #else
   int delimit = RNA_enum_get(op->ptr, "delimit");
 #endif
@@ -3966,27 +3966,27 @@ static wmOperatorStatus edbm_select_linked_pick_invoke(bContext *C,
     int object_index;
     index = EDBM_elem_to_index_any_multi(vc.scene, vc.view_layer, em, ele, &object_index);
     BLI_assert(object_index >= 0);
-    RNA_int_set(op->ptr, "object_index", object_index);
-    RNA_int_set(op->ptr, "index", index);
+    RNA_int_set(op.ptr, "object_index", object_index);
+    RNA_int_set(op.ptr, "index", index);
   }
 
   DEG_id_tag_update(static_cast<ID *>(basact->object->data), ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, basact->object->data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, basact->object->data);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus edbm_select_linked_pick_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_linked_pick_exec(bContext &C, wmOperator &op)
 {
   Object *obedit = nullptr;
   BMElem *ele;
 
   {
-    const Scene *scene = CTX_data_scene(*C);
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    const Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
     /* Intentionally wrap negative values so the lookup fails. */
-    const uint object_index = uint(RNA_int_get(op->ptr, "object_index"));
-    const uint index = uint(RNA_int_get(op->ptr, "index"));
+    const uint object_index = uint(RNA_int_get(op.ptr, "object_index"));
+    const uint index = uint(RNA_int_get(op.ptr, "index"));
     ele = EDBM_elem_from_index_any_multi(scene, view_layer, object_index, index, &obedit);
   }
 
@@ -3995,10 +3995,10 @@ static wmOperatorStatus edbm_select_linked_pick_exec(bContext *C, wmOperator *op
   }
 
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
-  const bool sel = !RNA_boolean_get(op->ptr, "deselect");
+  const bool sel = !RNA_boolean_get(op.ptr, "deselect");
 
 #ifdef USE_LINKED_SELECT_DEFAULT_HACK
-  int delimit = select_linked_delimit_default_from_op(op, em->selectmode);
+  int delimit = select_linked_delimit_default_from_op(&op, em->selectmode);
 #else
   int delimit = RNA_enum_get(op->ptr, "delimit");
 #endif
@@ -4006,7 +4006,7 @@ static wmOperatorStatus edbm_select_linked_pick_exec(bContext *C, wmOperator *op
   edbm_select_linked_pick_ex(em, ele, sel, delimit);
 
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
 
   return OPERATOR_FINISHED;
 }
@@ -4052,16 +4052,16 @@ void MESH_OT_select_linked_pick(wmOperatorType *ot)
 /** \name Select by Pole Count Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_by_pole_count_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_by_pole_count_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const bool exclude_nonmanifold = RNA_boolean_get(op->ptr, "exclude_nonmanifold");
-  const int pole_count = RNA_int_get(op->ptr, "pole_count");
-  const eElemCountType type = eElemCountType(RNA_enum_get(op->ptr, "type"));
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
+  const bool exclude_nonmanifold = RNA_boolean_get(op.ptr, "exclude_nonmanifold");
+  const int pole_count = RNA_int_get(op.ptr, "pole_count");
+  const eElemCountType type = eElemCountType(RNA_enum_get(op.ptr, "type"));
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -4140,7 +4140,7 @@ static wmOperatorStatus edbm_select_by_pole_count_exec(bContext *C, wmOperator *
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -4182,15 +4182,15 @@ void MESH_OT_select_by_pole_count(wmOperatorType *ot)
 /** \name Select Face by Sides Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_face_by_sides_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_face_by_sides_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const int numverts = RNA_int_get(op->ptr, "number");
-  const eElemCountType type = eElemCountType(RNA_enum_get(op->ptr, "type"));
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
+  const int numverts = RNA_int_get(op.ptr, "number");
+  const eElemCountType type = eElemCountType(RNA_enum_get(op.ptr, "type"));
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -4220,7 +4220,7 @@ static wmOperatorStatus edbm_select_face_by_sides_exec(bContext *C, wmOperator *
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -4259,14 +4259,14 @@ void MESH_OT_select_face_by_sides(wmOperatorType *ot)
 /** \name Select Loose Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_loose_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_loose_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -4333,7 +4333,7 @@ static wmOperatorStatus edbm_select_loose_exec(bContext *C, wmOperator *op)
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -4364,19 +4364,19 @@ void MESH_OT_select_loose(wmOperatorType *ot)
 /** \name Select Mirror Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_mirror_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_mirror_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const int axis_flag = RNA_enum_get(op->ptr, "axis");
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  Object *obedit_active = CTX_data_edit_object(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const int axis_flag = RNA_enum_get(op.ptr, "axis");
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
+  Object *obedit_active = CTX_data_edit_object(C);
   BMEditMesh *em_active = BKE_editmesh_from_object(obedit_active);
   const int select_mode = em_active->bm->selectmode;
   int tot_mirr = 0, tot_fail = 0;
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -4403,7 +4403,7 @@ static wmOperatorStatus edbm_select_mirror_exec(bContext *C, wmOperator *op)
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     }
 
     tot_fail += tot_fail_iter;
@@ -4411,7 +4411,7 @@ static wmOperatorStatus edbm_select_mirror_exec(bContext *C, wmOperator *op)
   }
 
   if (tot_mirr || tot_fail) {
-    ED_mesh_report_mirror_ex(*op->reports, tot_mirr, tot_fail, select_mode);
+    ED_mesh_report_mirror_ex(*op.reports, tot_mirr, tot_fail, select_mode);
   }
   return OPERATOR_FINISHED;
 }
@@ -4442,14 +4442,14 @@ void MESH_OT_select_mirror(wmOperatorType *ot)
 /** \name Select More Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_more_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_more_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const bool use_face_step = RNA_boolean_get(op->ptr, "use_face_step");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool use_face_step = RNA_boolean_get(op.ptr, "use_face_step");
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
@@ -4460,7 +4460,7 @@ static wmOperatorStatus edbm_select_more_exec(bContext *C, wmOperator *op)
 
     EDBM_select_more(em, use_face_step);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -4490,14 +4490,14 @@ void MESH_OT_select_more(wmOperatorType *ot)
 /** \name Select More Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_less_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_less_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const bool use_face_step = RNA_boolean_get(op->ptr, "use_face_step");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool use_face_step = RNA_boolean_get(op.ptr, "use_face_step");
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
@@ -4508,7 +4508,7 @@ static wmOperatorStatus edbm_select_less_exec(bContext *C, wmOperator *op)
 
     EDBM_select_less(em, use_face_step);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -5018,16 +5018,16 @@ static bool edbm_deselect_nth(BMEditMesh *em, const CheckerIntervalParams *op_pa
   return false;
 }
 
-static wmOperatorStatus edbm_select_nth_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_nth_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   CheckerIntervalParams op_params;
-  WM_operator_properties_checker_interval_from_op(op, &op_params);
+  WM_operator_properties_checker_interval_from_op(&op, &op_params);
   bool found_active_elt = false;
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -5049,7 +5049,7 @@ static wmOperatorStatus edbm_select_nth_exec(bContext *C, wmOperator *op)
   }
 
   if (!found_active_elt) {
-    BKE_report(op->reports, RPT_ERROR, "Mesh object(s) have no active vertex/edge/face");
+    BKE_report(op.reports, RPT_ERROR, "Mesh object(s) have no active vertex/edge/face");
     return OPERATOR_CANCELLED;
   }
 
@@ -5090,17 +5090,17 @@ ViewContext em_setup_viewcontext(bContext *C)
 /** \name Select Sharp Edges Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_sharp_edges_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_sharp_edges_exec(bContext &C, wmOperator &op)
 {
   /* Find edges that have exactly two neighboring faces,
    * check the angle between those faces, and if angle is
    * small enough, select the edge. */
-  const float angle_limit_cos = cosf(RNA_float_get(op->ptr, "sharpness"));
+  const float angle_limit_cos = cosf(RNA_float_get(op.ptr, "sharpness"));
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -5133,7 +5133,7 @@ static wmOperatorStatus edbm_select_sharp_edges_exec(bContext *C, wmOperator *op
     EDBM_uvselect_clear(em);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -5175,13 +5175,13 @@ void MESH_OT_edges_select_sharp(wmOperatorType *ot)
 /** \name Select Linked Flat Faces Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_linked_flat_faces_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_linked_flat_faces_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
-  const float angle_limit_cos = cosf(RNA_float_get(op->ptr, "sharpness"));
+      scene, view_layer, CTX_wm_view3d(C));
+  const float angle_limit_cos = cosf(RNA_float_get(op.ptr, "sharpness"));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -5233,7 +5233,7 @@ static wmOperatorStatus edbm_select_linked_flat_faces_exec(bContext *C, wmOperat
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -5275,19 +5275,19 @@ void MESH_OT_faces_select_linked_flat(wmOperatorType *ot)
 /** \name Select Non-Manifold Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_non_manifold_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_non_manifold_exec(bContext &C, wmOperator &op)
 {
-  const bool use_extend = RNA_boolean_get(op->ptr, "extend");
-  const bool use_wire = RNA_boolean_get(op->ptr, "use_wire");
-  const bool use_boundary = RNA_boolean_get(op->ptr, "use_boundary");
-  const bool use_multi_face = RNA_boolean_get(op->ptr, "use_multi_face");
-  const bool use_non_contiguous = RNA_boolean_get(op->ptr, "use_non_contiguous");
-  const bool use_verts = RNA_boolean_get(op->ptr, "use_verts");
+  const bool use_extend = RNA_boolean_get(op.ptr, "extend");
+  const bool use_wire = RNA_boolean_get(op.ptr, "use_wire");
+  const bool use_boundary = RNA_boolean_get(op.ptr, "use_boundary");
+  const bool use_multi_face = RNA_boolean_get(op.ptr, "use_multi_face");
+  const bool use_non_contiguous = RNA_boolean_get(op.ptr, "use_non_contiguous");
+  const bool use_verts = RNA_boolean_get(op.ptr, "use_verts");
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   edbm_selectmode_sync_multi_ex(objects);
 
@@ -5338,7 +5338,7 @@ static wmOperatorStatus edbm_select_non_manifold_exec(bContext *C, wmOperator *o
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
 
       EDBM_selectmode_flush(em);
       EDBM_uvselect_clear(em);
@@ -5385,17 +5385,17 @@ void MESH_OT_select_non_manifold(wmOperatorType *ot)
 /** \name Select Random Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_random_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_random_exec(bContext &C, wmOperator &op)
 {
-  const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
-  const float randfac = RNA_float_get(op->ptr, "ratio");
-  const int seed = WM_operator_properties_select_random_seed_increment_get(op);
+  const bool select = (RNA_enum_get(op.ptr, "action") == SEL_SELECT);
+  const float randfac = RNA_float_get(op.ptr, "ratio");
+  const int seed = WM_operator_properties_select_random_seed_increment_get(&op);
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -5470,7 +5470,7 @@ static wmOperatorStatus edbm_select_random_exec(bContext *C, wmOperator *op)
     EDBM_uvselect_clear(em);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -5500,19 +5500,19 @@ void MESH_OT_select_random(wmOperatorType *ot)
 /** \name Select Ungrouped Operator
  * \{ */
 
-static bool edbm_select_ungrouped_poll(bContext *C)
+static bool edbm_select_ungrouped_poll(bContext &C)
 {
   if (ED_operator_editmesh(C)) {
-    Object *obedit = CTX_data_edit_object(*C);
+    Object *obedit = CTX_data_edit_object(C);
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     const int cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
 
     const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(obedit);
     if ((em->selectmode & SCE_SELECT_VERTEX) == 0) {
-      CTX_wm_operator_poll_msg_set(C, "Must be in vertex selection mode");
+      CTX_wm_operator_poll_msg_set(&C, "Must be in vertex selection mode");
     }
     else if (BLI_listbase_is_empty(defbase) || cd_dvert_offset == -1) {
-      CTX_wm_operator_poll_msg_set(C, "No weights/vertex groups on object");
+      CTX_wm_operator_poll_msg_set(&C, "No weights/vertex groups on object");
     }
     else {
       return true;
@@ -5521,14 +5521,14 @@ static bool edbm_select_ungrouped_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus edbm_select_ungrouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_ungrouped_exec(bContext &C, wmOperator &op)
 {
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -5567,7 +5567,7 @@ static wmOperatorStatus edbm_select_ungrouped_exec(bContext *C, wmOperator *op)
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
   return OPERATOR_FINISHED;
@@ -5602,24 +5602,23 @@ enum {
   SELECT_AXIS_ALIGN = 2,
 };
 
-static wmOperatorStatus edbm_select_axis_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_axis_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Object *obedit = CTX_data_edit_object(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Object *obedit = CTX_data_edit_object(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMVert *v_act = BM_mesh_active_vert_get(em->bm);
-  const int orientation = RNA_enum_get(op->ptr, "orientation");
-  const int axis = RNA_enum_get(op->ptr, "axis");
-  const int sign = RNA_enum_get(op->ptr, "sign");
+  const int orientation = RNA_enum_get(op.ptr, "orientation");
+  const int axis = RNA_enum_get(op.ptr, "axis");
+  const int sign = RNA_enum_get(op.ptr, "sign");
 
   if (v_act == nullptr) {
-    BKE_report(
-        op->reports, RPT_WARNING, "This operator requires an active vertex (last selected)");
+    BKE_report(op.reports, RPT_WARNING, "This operator requires an active vertex (last selected)");
     return OPERATOR_CANCELLED;
   }
 
-  const float limit = RNA_float_get(op->ptr, "threshold");
+  const float limit = RNA_float_get(op.ptr, "threshold");
 
   float value;
   float axis_mat[3][3];
@@ -5627,8 +5626,8 @@ static wmOperatorStatus edbm_select_axis_exec(bContext *C, wmOperator *op)
   /* 3D view variables may be nullptr, (no need to check in poll function). */
   blender::ed::transform::calc_orientation_from_type_ex(scene,
                                                         view_layer,
-                                                        CTX_wm_view3d(*C),
-                                                        CTX_wm_region_view3d(*C),
+                                                        CTX_wm_view3d(C),
+                                                        CTX_wm_region_view3d(C),
                                                         obedit,
                                                         obedit,
                                                         orientation,
@@ -5651,7 +5650,7 @@ static wmOperatorStatus edbm_select_axis_exec(bContext *C, wmOperator *op)
   }
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit_iter : objects) {
     BMEditMesh *em_iter = BKE_editmesh_from_object(obedit_iter);
     BMesh *bm = em_iter->bm;
@@ -5695,7 +5694,7 @@ static wmOperatorStatus edbm_select_axis_exec(bContext *C, wmOperator *op)
       EDBM_selectmode_flush(em_iter);
       EDBM_uvselect_clear(em);
 
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit_iter->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit_iter->data);
       DEG_id_tag_update(static_cast<ID *>(obedit_iter->data), ID_RECALC_SELECT);
     }
   }
@@ -5747,12 +5746,12 @@ void MESH_OT_select_axis(wmOperatorType *ot)
 /** \name Select Region to Loop Operator
  * \{ */
 
-static wmOperatorStatus edbm_region_to_loop_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus edbm_region_to_loop_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   bool changed = false;
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -5794,14 +5793,14 @@ static wmOperatorStatus edbm_region_to_loop_exec(bContext *C, wmOperator * /*op*
     }
 
     DEG_id_tag_update(&obedit->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   if (changed) {
     /* If in face-only select mode, switch to edge select mode so that
      * an edge-only selection is not inconsistent state. Do this for all meshes in multi-object
      * editmode so their selectmode is in sync for following operators. */
-    EDBM_selectmode_disable_multi(C, SCE_SELECT_FACE, SCE_SELECT_EDGE);
+    EDBM_selectmode_disable_multi(&C, SCE_SELECT_FACE, SCE_SELECT_EDGE);
   }
 
   return OPERATOR_FINISHED;
@@ -5974,14 +5973,14 @@ static int loop_find_regions(BMEditMesh *em, const bool selbigger)
   return count;
 }
 
-static wmOperatorStatus edbm_loop_to_region_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_loop_to_region_exec(bContext &C, wmOperator &op)
 {
-  const bool select_bigger = RNA_boolean_get(op->ptr, "select_bigger");
+  const bool select_bigger = RNA_boolean_get(op.ptr, "select_bigger");
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
@@ -6018,7 +6017,7 @@ static wmOperatorStatus edbm_loop_to_region_exec(bContext *C, wmOperator *op)
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -6046,28 +6045,28 @@ void MESH_OT_loop_to_region(wmOperatorType *ot)
                   "Select bigger regions instead of smaller ones");
 }
 
-static bool edbm_select_by_attribute_poll(bContext *C)
+static bool edbm_select_by_attribute_poll(bContext &C)
 {
   using namespace blender;
   if (!ED_operator_editmesh(C)) {
     return false;
   }
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   const Mesh *mesh = static_cast<const Mesh *>(obedit->data);
   AttributeOwner owner = AttributeOwner::from_id(&const_cast<ID &>(mesh->id));
   const std::optional<StringRef> name = BKE_attributes_active_name_get(owner);
   if (!name) {
-    CTX_wm_operator_poll_msg_set(C, "There must be an active attribute");
+    CTX_wm_operator_poll_msg_set(&C, "There must be an active attribute");
     return false;
   }
   const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, *name);
   if (attr.type != bke::AttrType::Bool) {
-    CTX_wm_operator_poll_msg_set(C, "The active attribute must have a boolean type");
+    CTX_wm_operator_poll_msg_set(&C, "The active attribute must have a boolean type");
     return false;
   }
   if (attr.domain == bke::AttrDomain::Corner) {
     CTX_wm_operator_poll_msg_set(
-        C, "The active attribute must be on the vertex, edge, or face domain");
+        &C, "The active attribute must be on the vertex, edge, or face domain");
     return false;
   }
   return true;
@@ -6088,13 +6087,13 @@ static std::optional<BMIterType> domain_to_iter_type(const blender::bke::AttrDom
   }
 }
 
-static wmOperatorStatus edbm_select_by_attribute_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus edbm_select_by_attribute_exec(bContext &C, wmOperator & /*op*/)
 {
   using namespace blender;
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Mesh *mesh = static_cast<Mesh *>(obedit->data);
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -6137,7 +6136,7 @@ static wmOperatorStatus edbm_select_by_attribute_exec(bContext *C, wmOperator * 
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 

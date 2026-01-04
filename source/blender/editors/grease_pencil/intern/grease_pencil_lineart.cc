@@ -422,26 +422,26 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus lineart_bake_strokes_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus lineart_bake_strokes_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent * /*event*/)
 {
-  bool bake_all = RNA_boolean_get(op->ptr, "bake_all");
-  return lineart_bake_common(C, op, bake_all, true);
+  bool bake_all = RNA_boolean_get(op.ptr, "bake_all");
+  return lineart_bake_common(&C, &op, bake_all, true);
 }
-static wmOperatorStatus lineart_bake_strokes_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lineart_bake_strokes_exec(bContext &C, wmOperator &op)
 {
-  bool bake_all = RNA_boolean_get(op->ptr, "bake_all");
-  return lineart_bake_common(C, op, bake_all, false);
+  bool bake_all = RNA_boolean_get(op.ptr, "bake_all");
+  return lineart_bake_common(&C, &op, bake_all, false);
 }
-static wmOperatorStatus lineart_bake_strokes_common_modal(bContext *C,
-                                                          wmOperator *op,
+static wmOperatorStatus lineart_bake_strokes_common_modal(bContext &C,
+                                                          wmOperator &op,
                                                           const wmEvent * /*event*/)
 {
-  Scene *scene = static_cast<Scene *>(op->customdata);
+  Scene *scene = static_cast<Scene *>(op.customdata);
 
   /* no running blender, remove handler and pass through. */
-  if (WM_jobs_test(CTX_wm_manager(*C), scene, WM_JOB_TYPE_LINEART) == 0) {
+  if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_LINEART) == 0) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
@@ -476,29 +476,29 @@ static void lineart_gpencil_clear_strokes_exec_common(Object *ob)
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
 }
 
-static wmOperatorStatus lineart_gpencil_clear_strokes_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lineart_gpencil_clear_strokes_exec(bContext &C, wmOperator &op)
 {
-  bool clear_all = RNA_boolean_get(op->ptr, "clear_all");
+  bool clear_all = RNA_boolean_get(op.ptr, "clear_all");
 
   if (clear_all) {
-    CTX_DATA_BEGIN (*C, Object *, ob, visible_objects) {
+    CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
       if (ob->type != OB_GREASE_PENCIL) {
         continue;
       }
       lineart_gpencil_clear_strokes_exec_common(ob);
-      WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, ob);
+      WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, ob);
     }
     CTX_DATA_END;
-    BKE_report(op->reports, RPT_INFO, "All Line Art objects are now cleared of bakes");
+    BKE_report(op.reports, RPT_INFO, "All Line Art objects are now cleared of bakes");
   }
   else {
-    Object *ob = CTX_data_active_object(*C);
+    Object *ob = CTX_data_active_object(C);
     if (ob->type != OB_GREASE_PENCIL) {
       return OPERATOR_CANCELLED;
     }
     lineart_gpencil_clear_strokes_exec_common(ob);
-    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, ob);
-    BKE_report(op->reports, RPT_INFO, "Baked strokes are cleared");
+    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, ob);
+    BKE_report(op.reports, RPT_INFO, "Baked strokes are cleared");
   }
 
   return OPERATOR_FINISHED;

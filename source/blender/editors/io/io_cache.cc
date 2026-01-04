@@ -47,46 +47,46 @@ static void cachefile_init(bContext *C, wmOperator *op)
   blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
-static wmOperatorStatus cachefile_open_invoke(bContext *C,
-                                              wmOperator *op,
+static wmOperatorStatus cachefile_open_invoke(bContext &C,
+                                              wmOperator &op,
                                               const wmEvent * /*event*/)
 {
-  if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
+  if (!RNA_struct_property_is_set(op.ptr, "filepath")) {
     char filepath[FILE_MAX];
-    Main *bmain = CTX_data_main(*C);
+    Main *bmain = CTX_data_main(C);
 
     /* Default to the same directory as the blend file. */
     BLI_path_split_dir_part(BKE_main_blendfile_path(bmain), filepath, sizeof(filepath));
-    RNA_string_set(op->ptr, "filepath", filepath);
+    RNA_string_set(op.ptr, "filepath", filepath);
   }
 
-  cachefile_init(C, op);
+  cachefile_init(&C, &op);
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void open_cancel(bContext * /*C*/, wmOperator *op)
+static void open_cancel(bContext & /*C*/, wmOperator &op)
 {
-  if (op->customdata) {
-    PropertyPointerRNA *prop_ptr = static_cast<PropertyPointerRNA *>(op->customdata);
-    op->customdata = nullptr;
+  if (op.customdata) {
+    PropertyPointerRNA *prop_ptr = static_cast<PropertyPointerRNA *>(op.customdata);
+    op.customdata = nullptr;
     MEM_delete(prop_ptr);
   }
 }
 
-static wmOperatorStatus cachefile_open_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus cachefile_open_exec(bContext &C, wmOperator &op)
 {
-  if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+  if (!RNA_struct_property_is_set(op.ptr, "filepath")) {
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
 
   char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   CacheFile *cache_file = static_cast<CacheFile *>(
       BKE_libblock_alloc(bmain, ID_CF, BLI_path_basename(filepath), 0));
@@ -94,9 +94,9 @@ static wmOperatorStatus cachefile_open_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&cache_file->id, ID_RECALC_SYNC_TO_EVAL);
 
   /* Will be set when running invoke, not exec directly. */
-  if (op->customdata != nullptr) {
+  if (op.customdata != nullptr) {
     /* hook into UI */
-    PropertyPointerRNA *pprop = static_cast<PropertyPointerRNA *>(op->customdata);
+    PropertyPointerRNA *pprop = static_cast<PropertyPointerRNA *>(op.customdata);
     if (pprop->prop != nullptr) {
       /* When creating new ID blocks, use is already 1, but RNA
        * pointer see also increases user, so this compensates it. */
@@ -104,10 +104,10 @@ static wmOperatorStatus cachefile_open_exec(bContext *C, wmOperator *op)
 
       PointerRNA idptr = RNA_id_pointer_create(&cache_file->id);
       RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
-      RNA_property_update(C, &pprop->ptr, pprop->prop);
+      RNA_property_update(&C, &pprop->ptr, pprop->prop);
     }
 
-    op->customdata = nullptr;
+    op.customdata = nullptr;
     MEM_delete(pprop);
   }
 
@@ -135,15 +135,15 @@ void CACHEFILE_OT_open(wmOperatorType *ot)
 
 /* ***************************** Reload Operator **************************** */
 
-static wmOperatorStatus cachefile_reload_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus cachefile_reload_exec(bContext &C, wmOperator & /*op*/)
 {
-  CacheFile *cache_file = CTX_data_edit_cachefile(*C);
+  CacheFile *cache_file = CTX_data_edit_cachefile(C);
 
   if (cache_file == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  reload_cachefile(C, cache_file);
+  reload_cachefile(&C, cache_file);
 
   return OPERATOR_FINISHED;
 }
@@ -163,42 +163,42 @@ void CACHEFILE_OT_reload(wmOperatorType *ot)
 
 /* ***************************** Add Layer Operator **************************** */
 
-static wmOperatorStatus cachefile_layer_open_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus cachefile_layer_open_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent * /*event*/)
 {
-  if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
+  if (!RNA_struct_property_is_set(op.ptr, "filepath")) {
     char filepath[FILE_MAX];
-    Main *bmain = CTX_data_main(*C);
+    Main *bmain = CTX_data_main(C);
 
     /* Default to the same directory as the blend file. */
     BLI_path_split_dir_part(BKE_main_blendfile_path(bmain), filepath, sizeof(filepath));
-    RNA_string_set(op->ptr, "filepath", filepath);
+    RNA_string_set(op.ptr, "filepath", filepath);
   }
 
   /* There is no more CacheFile set when returning from the file selector, so store it here. */
-  op->customdata = CTX_data_edit_cachefile(*C);
+  op.customdata = CTX_data_edit_cachefile(C);
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus cachefile_layer_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus cachefile_layer_add_exec(bContext &C, wmOperator &op)
 {
-  if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+  if (!RNA_struct_property_is_set(op.ptr, "filepath")) {
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
 
-  CacheFile *cache_file = static_cast<CacheFile *>(op->customdata);
+  CacheFile *cache_file = static_cast<CacheFile *>(op.customdata);
 
   if (cache_file == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
   char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   CacheFileLayer *layer = BKE_cachefile_add_layer(cache_file, filepath);
 
@@ -207,7 +207,7 @@ static wmOperatorStatus cachefile_layer_add_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  reload_cachefile(C, cache_file);
+  reload_cachefile(&C, cache_file);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
   return OPERATOR_FINISHED;
 }
@@ -233,9 +233,9 @@ void CACHEFILE_OT_layer_add(wmOperatorType *ot)
 
 /* ***************************** Remove Layer Operator **************************** */
 
-static wmOperatorStatus cachefile_layer_remove_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus cachefile_layer_remove_exec(bContext &C, wmOperator & /*op*/)
 {
-  CacheFile *cache_file = CTX_data_edit_cachefile(*C);
+  CacheFile *cache_file = CTX_data_edit_cachefile(C);
 
   if (cache_file == nullptr) {
     return OPERATOR_CANCELLED;
@@ -244,7 +244,7 @@ static wmOperatorStatus cachefile_layer_remove_exec(bContext *C, wmOperator * /*
   CacheFileLayer *layer = BKE_cachefile_get_active_layer(cache_file);
   BKE_cachefile_remove_layer(cache_file, layer);
 
-  reload_cachefile(C, cache_file);
+  reload_cachefile(&C, cache_file);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
   return OPERATOR_FINISHED;
 }
@@ -264,9 +264,9 @@ void CACHEFILE_OT_layer_remove(wmOperatorType *ot)
 
 /* ***************************** Move Layer Operator **************************** */
 
-static wmOperatorStatus cachefile_layer_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus cachefile_layer_move_exec(bContext &C, wmOperator &op)
 {
-  CacheFile *cache_file = CTX_data_edit_cachefile(*C);
+  CacheFile *cache_file = CTX_data_edit_cachefile(C);
 
   if (cache_file == nullptr) {
     return OPERATOR_CANCELLED;
@@ -278,12 +278,12 @@ static wmOperatorStatus cachefile_layer_move_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const int dir = RNA_enum_get(op->ptr, "direction");
+  const int dir = RNA_enum_get(op.ptr, "direction");
 
   if (BLI_listbase_link_move(&cache_file->layers, layer, dir)) {
     cache_file->active_layer = BLI_findindex(&cache_file->layers, layer) + 1;
     /* Only reload if something moved, might be expensive. */
-    reload_cachefile(C, cache_file);
+    reload_cachefile(&C, cache_file);
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
   }
 

@@ -95,15 +95,15 @@ MaskLayer *ED_mask_layer_ensure(bContext *C, bool *r_added_mask)
   return mask_layer;
 }
 
-static wmOperatorStatus mask_new_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mask_new_exec(bContext &C, wmOperator &op)
 {
   char name[MAX_ID_NAME - 2];
 
-  RNA_string_get(op->ptr, "name", name);
+  RNA_string_get(op.ptr, "name", name);
 
-  ED_mask_new(C, name);
+  ED_mask_new(&C, name);
 
-  WM_event_add_notifier(C, NC_MASK | NA_ADDED, nullptr);
+  WM_event_add_notifier(&C, NC_MASK | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -128,17 +128,17 @@ void MASK_OT_new(wmOperatorType *ot)
 
 /******************** create new mask layer *********************/
 
-static wmOperatorStatus mask_layer_new_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mask_layer_new_exec(bContext &C, wmOperator &op)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   char name[MAX_ID_NAME - 2];
 
-  RNA_string_get(op->ptr, "name", name);
+  RNA_string_get(op.ptr, "name", name);
 
   BKE_mask_layer_new(mask, name);
   mask->masklay_act = mask->masklay_tot - 1;
 
-  WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+  WM_event_add_notifier(&C, NC_MASK | NA_EDITED, mask);
   DEG_id_tag_update(&mask->id, ID_RECALC_SYNC_TO_EVAL);
 
   return OPERATOR_FINISHED;
@@ -164,15 +164,15 @@ void MASK_OT_layer_new(wmOperatorType *ot)
 
 /******************** remove mask layer *********************/
 
-static wmOperatorStatus mask_layer_remove_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_layer_remove_exec(bContext &C, wmOperator & /*op*/)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   MaskLayer *mask_layer = BKE_mask_layer_active(mask);
 
   if (mask_layer) {
     BKE_mask_layer_remove(mask, mask_layer);
 
-    WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+    WM_event_add_notifier(&C, NC_MASK | NA_EDITED, mask);
     DEG_id_tag_update(&mask->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
@@ -558,26 +558,26 @@ static SlidePointData *slide_point_customdata(bContext *C, wmOperator *op, const
   return customdata;
 }
 
-static wmOperatorStatus slide_point_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus slide_point_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   SlidePointData *slidedata;
 
   if (mask == nullptr) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  slidedata = slide_point_customdata(C, op, event);
+  slidedata = slide_point_customdata(&C, &op, event);
 
   if (slidedata) {
-    op->customdata = slidedata;
+    op.customdata = slidedata;
 
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
 
     slidedata->mask_layer->act_spline = slidedata->spline;
     slidedata->mask_layer->act_point = slidedata->point;
 
-    WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_SELECT, mask);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -643,9 +643,9 @@ static void free_slide_point_data(SlidePointData *data)
   MEM_freeN(data);
 }
 
-static wmOperatorStatus slide_point_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus slide_point_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  SlidePointData *data = (SlidePointData *)op->customdata;
+  SlidePointData *data = (SlidePointData *)op.customdata;
   BezTriple *bezt = &data->point->bezt;
   float co[2];
 
@@ -669,8 +669,8 @@ static wmOperatorStatus slide_point_modal(bContext *C, wmOperator *op, const wmE
 
       ATTR_FALLTHROUGH; /* update CV position */
     case MOUSEMOVE: {
-      ScrArea *area = CTX_wm_area(*C);
-      ARegion *region = CTX_wm_region(*C);
+      ScrArea *area = CTX_wm_area(C);
+      ARegion *region = CTX_wm_region(C);
       blender::float2 delta;
 
       ED_mask_mouse_pos(area, region, event->mval, co);
@@ -857,7 +857,7 @@ static wmOperatorStatus slide_point_modal(bContext *C, wmOperator *op, const wmE
         }
       }
 
-      WM_event_add_notifier(C, NC_MASK | NA_EDITED, data->mask);
+      WM_event_add_notifier(&C, NC_MASK | NA_EDITED, data->mask);
       DEG_id_tag_update(&data->mask->id, 0);
 
       break;
@@ -866,7 +866,7 @@ static wmOperatorStatus slide_point_modal(bContext *C, wmOperator *op, const wmE
     case LEFTMOUSE:
     case RIGHTMOUSE:
       if (event->type == data->event_invoke_type && event->val == KM_RELEASE) {
-        Scene *scene = CTX_data_scene(*C);
+        Scene *scene = CTX_data_scene(C);
 
         /* Don't key sliding feather UW's. */
         if ((data->action == SLIDE_ACTION_FEATHER && data->uw) == false) {
@@ -884,7 +884,7 @@ static wmOperatorStatus slide_point_modal(bContext *C, wmOperator *op, const wmE
           }
         }
 
-        WM_event_add_notifier(C, NC_MASK | NA_EDITED, data->mask);
+        WM_event_add_notifier(&C, NC_MASK | NA_EDITED, data->mask);
         DEG_id_tag_update(&data->mask->id, 0);
 
         free_slide_point_data(data); /* keep this last! */
@@ -901,7 +901,7 @@ static wmOperatorStatus slide_point_modal(bContext *C, wmOperator *op, const wmE
     case EVT_ESCKEY:
       cancel_slide_point(data);
 
-      WM_event_add_notifier(C, NC_MASK | NA_EDITED, data->mask);
+      WM_event_add_notifier(&C, NC_MASK | NA_EDITED, data->mask);
       DEG_id_tag_update(&data->mask->id, 0);
 
       free_slide_point_data(data); /* keep this last! */
@@ -1099,11 +1099,11 @@ static SlideSplineCurvatureData *slide_spline_curvature_customdata(bContext *C,
   return slide_data;
 }
 
-static wmOperatorStatus slide_spline_curvature_invoke(bContext *C,
-                                                      wmOperator *op,
+static wmOperatorStatus slide_spline_curvature_invoke(bContext &C,
+                                                      wmOperator &op,
                                                       const wmEvent *event)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   SlideSplineCurvatureData *slide_data;
 
   if (mask == nullptr) {
@@ -1111,15 +1111,15 @@ static wmOperatorStatus slide_spline_curvature_invoke(bContext *C,
   }
 
   /* Be sure we don't conflict with point slide here. */
-  if (!slide_spline_curvature_check(C, event)) {
+  if (!slide_spline_curvature_check(&C, event)) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  slide_data = slide_spline_curvature_customdata(C, event);
+  slide_data = slide_spline_curvature_customdata(&C, event);
   if (slide_data != nullptr) {
-    op->customdata = slide_data;
-    WM_event_add_modal_handler(C, op);
-    WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
+    op.customdata = slide_data;
+    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_notifier(&C, NC_MASK | ND_SELECT, mask);
     return OPERATOR_RUNNING_MODAL;
   }
 
@@ -1158,13 +1158,13 @@ static void slide_spline_solve_P2(const float u,
   solution[1] = -(v3 * P0[1] + t * P1[1] + u3 * P3[1] - B[1]) * inv_divider;
 }
 
-static wmOperatorStatus slide_spline_curvature_modal(bContext *C,
-                                                     wmOperator *op,
+static wmOperatorStatus slide_spline_curvature_modal(bContext &C,
+                                                     wmOperator &op,
                                                      const wmEvent *event)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   const float margin = 0.2f;
-  SlideSplineCurvatureData *slide_data = (SlideSplineCurvatureData *)op->customdata;
+  SlideSplineCurvatureData *slide_data = (SlideSplineCurvatureData *)op.customdata;
   float u = slide_data->u;
 
   switch (event->type) {
@@ -1205,7 +1205,7 @@ static wmOperatorStatus slide_spline_curvature_modal(bContext *C,
       float B[2], mouse_coord[2], delta[2];
 
       /* Get coordinate spline is expected to go through. */
-      ED_mask_mouse_pos(CTX_wm_area(*C), CTX_wm_region(*C), event->mval, mouse_coord);
+      ED_mask_mouse_pos(CTX_wm_area(C), CTX_wm_region(C), event->mval, mouse_coord);
       sub_v2_v2v2(delta, mouse_coord, slide_data->prev_mouse_coord);
       if (slide_data->accurate) {
         mul_v2_fl(delta, 0.2f);
@@ -1277,7 +1277,7 @@ static wmOperatorStatus slide_spline_curvature_modal(bContext *C,
         }
       }
 
-      WM_event_add_notifier(C, NC_MASK | NA_EDITED, slide_data->mask);
+      WM_event_add_notifier(&C, NC_MASK | NA_EDITED, slide_data->mask);
       DEG_id_tag_update(&slide_data->mask->id, 0);
 
       break;
@@ -1291,7 +1291,7 @@ static wmOperatorStatus slide_spline_curvature_modal(bContext *C,
           ED_mask_layer_shape_auto_key(slide_data->mask_layer, scene->r.cfra);
         }
 
-        WM_event_add_notifier(C, NC_MASK | NA_EDITED, slide_data->mask);
+        WM_event_add_notifier(&C, NC_MASK | NA_EDITED, slide_data->mask);
         DEG_id_tag_update(&slide_data->mask->id, 0);
 
         free_slide_spline_curvature_data(slide_data); /* keep this last! */
@@ -1303,7 +1303,7 @@ static wmOperatorStatus slide_spline_curvature_modal(bContext *C,
     case EVT_ESCKEY:
       cancel_slide_spline_curvature(slide_data);
 
-      WM_event_add_notifier(C, NC_MASK | NA_EDITED, slide_data->mask);
+      WM_event_add_notifier(&C, NC_MASK | NA_EDITED, slide_data->mask);
       DEG_id_tag_update(&slide_data->mask->id, 0);
 
       free_slide_spline_curvature_data(slide_data); /* keep this last! */
@@ -1334,9 +1334,9 @@ void MASK_OT_slide_spline_curvature(wmOperatorType *ot)
 
 /******************** toggle cyclic *********************/
 
-static wmOperatorStatus cyclic_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus cyclic_toggle_exec(bContext &C, wmOperator & /*op*/)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
 
   for (MaskLayer &mask_layer : mask->masklayers) {
     if (mask_layer.visibility_flag & (MASK_HIDE_VIEW | MASK_HIDE_SELECT)) {
@@ -1351,7 +1351,7 @@ static wmOperatorStatus cyclic_toggle_exec(bContext *C, wmOperator * /*op*/)
   }
 
   DEG_id_tag_update(&mask->id, 0);
-  WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+  WM_event_add_notifier(&C, NC_MASK | NA_EDITED, mask);
 
   return OPERATOR_FINISHED;
 }
@@ -1411,9 +1411,9 @@ static void delete_feather_points(MaskSplinePoint *point)
   }
 }
 
-static wmOperatorStatus delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus delete_exec(bContext &C, wmOperator & /*op*/)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   bool changed = false;
 
   for (MaskLayer &mask_layer : mask->masklayers) {
@@ -1513,16 +1513,16 @@ static wmOperatorStatus delete_exec(bContext *C, wmOperator * /*op*/)
 
   DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+  WM_event_add_notifier(&C, NC_MASK | NA_EDITED, mask);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus delete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus delete_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  if (RNA_boolean_get(op->ptr, "confirm")) {
-    return WM_operator_confirm_ex(C,
-                                  op,
+  if (RNA_boolean_get(op.ptr, "confirm")) {
+    return WM_operator_confirm_ex(&C,
+                                  &op,
                                   IFACE_("Delete selected control points and splines?"),
                                   nullptr,
                                   IFACE_("Delete"),
@@ -1550,10 +1550,10 @@ void MASK_OT_delete(wmOperatorType *ot)
 }
 
 /* *** switch direction *** */
-static wmOperatorStatus mask_switch_direction_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_switch_direction_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  Mask *mask = CTX_data_edit_mask(*C);
+  Scene *scene = CTX_data_scene(C);
+  Mask *mask = CTX_data_edit_mask(C);
 
   bool changed = false;
 
@@ -1583,8 +1583,8 @@ static wmOperatorStatus mask_switch_direction_exec(bContext *C, wmOperator * /*o
   if (changed) {
     DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
-    WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
-    WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_SELECT, mask);
+    WM_event_add_notifier(&C, NC_MASK | NA_EDITED, mask);
 
     return OPERATOR_FINISHED;
   }
@@ -1608,10 +1608,10 @@ void MASK_OT_switch_direction(wmOperatorType *ot)
 }
 
 /* *** recalc normals *** */
-static wmOperatorStatus mask_normals_make_consistent_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_normals_make_consistent_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  Mask *mask = CTX_data_edit_mask(*C);
+  Scene *scene = CTX_data_scene(C);
+  Mask *mask = CTX_data_edit_mask(C);
 
   bool changed = false;
 
@@ -1645,8 +1645,8 @@ static wmOperatorStatus mask_normals_make_consistent_exec(bContext *C, wmOperato
   if (changed) {
     DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
-    WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
-    WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_SELECT, mask);
+    WM_event_add_notifier(&C, NC_MASK | NA_EDITED, mask);
 
     return OPERATOR_FINISHED;
   }
@@ -1671,10 +1671,10 @@ void MASK_OT_normals_make_consistent(wmOperatorType *ot)
 
 /******************** set handle type *********************/
 
-static wmOperatorStatus set_handle_type_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_handle_type_exec(bContext &C, wmOperator &op)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
-  int handle_type = RNA_enum_get(op->ptr, "type");
+  Mask *mask = CTX_data_edit_mask(C);
+  int handle_type = RNA_enum_get(op.ptr, "type");
 
   bool changed = false;
 
@@ -1716,7 +1716,7 @@ static wmOperatorStatus set_handle_type_exec(bContext *C, wmOperator *op)
   }
 
   if (changed) {
-    WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_DATA, mask);
     DEG_id_tag_update(&mask->id, 0);
 
     return OPERATOR_FINISHED;
@@ -1753,11 +1753,11 @@ void MASK_OT_handle_type_set(wmOperatorType *ot)
 }
 
 /* ********* clear/set restrict view *********/
-static wmOperatorStatus mask_hide_view_clear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mask_hide_view_clear_exec(bContext &C, wmOperator &op)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   bool changed = false;
-  const bool select = RNA_boolean_get(op->ptr, "select");
+  const bool select = RNA_boolean_get(op.ptr, "select");
 
   for (MaskLayer &mask_layer : mask->masklayers) {
 
@@ -1769,7 +1769,7 @@ static wmOperatorStatus mask_hide_view_clear_exec(bContext *C, wmOperator *op)
   }
 
   if (changed) {
-    WM_event_add_notifier(C, NC_MASK | ND_DRAW, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_DRAW, mask);
     DEG_id_tag_update(&mask->id, 0);
 
     return OPERATOR_FINISHED;
@@ -1795,10 +1795,10 @@ void MASK_OT_hide_view_clear(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "select", true, "Select", "");
 }
 
-static wmOperatorStatus mask_hide_view_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mask_hide_view_set_exec(bContext &C, wmOperator &op)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
-  const bool unselected = RNA_boolean_get(op->ptr, "unselected");
+  Mask *mask = CTX_data_edit_mask(C);
+  const bool unselected = RNA_boolean_get(op.ptr, "unselected");
   bool changed = false;
 
   for (MaskLayer &mask_layer : mask->masklayers) {
@@ -1830,7 +1830,7 @@ static wmOperatorStatus mask_hide_view_set_exec(bContext *C, wmOperator *op)
   }
 
   if (changed) {
-    WM_event_add_notifier(C, NC_MASK | ND_DRAW, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_DRAW, mask);
     DEG_id_tag_update(&mask->id, 0);
 
     return OPERATOR_FINISHED;
@@ -1856,9 +1856,9 @@ void MASK_OT_hide_view_set(wmOperatorType *ot)
       ot->srna, "unselected", false, "Unselected", "Hide unselected rather than selected layers");
 }
 
-static wmOperatorStatus mask_feather_weight_clear_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_feather_weight_clear_exec(bContext &C, wmOperator & /*op*/)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   bool changed = false;
 
   for (MaskLayer &mask_layer : mask->masklayers) {
@@ -1882,7 +1882,7 @@ static wmOperatorStatus mask_feather_weight_clear_exec(bContext *C, wmOperator *
   if (changed) {
     DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
-    WM_event_add_notifier(C, NC_MASK | ND_DRAW, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_DRAW, mask);
     DEG_id_tag_update(&mask->id, 0);
 
     return OPERATOR_FINISHED;
@@ -1907,10 +1907,10 @@ void MASK_OT_feather_weight_clear(wmOperatorType *ot)
 
 /******************** move mask layer operator *********************/
 
-static bool mask_layer_move_poll(bContext *C)
+static bool mask_layer_move_poll(bContext &C)
 {
   if (ED_maskedit_mask_poll(C)) {
-    Mask *mask = CTX_data_edit_mask(*C);
+    Mask *mask = CTX_data_edit_mask(C);
 
     return mask->masklay_tot > 0;
   }
@@ -1918,13 +1918,13 @@ static bool mask_layer_move_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus mask_layer_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mask_layer_move_exec(bContext &C, wmOperator &op)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   MaskLayer *mask_layer = static_cast<MaskLayer *>(
       BLI_findlink(&mask->masklayers, mask->masklay_act));
   MaskLayer *mask_layer_other;
-  int direction = RNA_enum_get(op->ptr, "direction");
+  int direction = RNA_enum_get(op.ptr, "direction");
 
   if (!mask_layer) {
     return OPERATOR_CANCELLED;
@@ -1953,7 +1953,7 @@ static wmOperatorStatus mask_layer_move_exec(bContext *C, wmOperator *op)
     mask->masklay_act++;
   }
 
-  WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+  WM_event_add_notifier(&C, NC_MASK | NA_EDITED, mask);
   DEG_id_tag_update(&mask->id, ID_RECALC_SYNC_TO_EVAL);
 
   return OPERATOR_FINISHED;
@@ -1990,9 +1990,9 @@ void MASK_OT_layer_move(wmOperatorType *ot)
 
 /******************** duplicate *********************/
 
-static wmOperatorStatus mask_duplicate_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_duplicate_exec(bContext &C, wmOperator & /*op*/)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
 
   for (MaskLayer &mask_layer : mask->masklayers) {
     for (MaskSpline &spline : mask_layer.splines.items_reversed()) {
@@ -2103,7 +2103,7 @@ static wmOperatorStatus mask_duplicate_exec(bContext *C, wmOperator * /*op*/)
 
   DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+  WM_event_add_notifier(&C, NC_MASK | NA_EDITED, mask);
 
   return OPERATOR_FINISHED;
 }
@@ -2125,9 +2125,9 @@ void MASK_OT_duplicate(wmOperatorType *ot)
 
 /********************** copy splines to clipboard operator *********************/
 
-static wmOperatorStatus copy_splines_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus copy_splines_exec(bContext &C, wmOperator & /*op*/)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   MaskLayer *mask_layer = BKE_mask_layer_active(mask);
 
   if (mask_layer == nullptr) {
@@ -2156,7 +2156,7 @@ void MASK_OT_copy_splines(wmOperatorType *ot)
 
 /********************** paste tracks from clipboard operator *********************/
 
-static bool paste_splines_poll(bContext *C)
+static bool paste_splines_poll(bContext &C)
 {
   if (ED_maskedit_mask_visible_splines_poll(C)) {
     return BKE_mask_clipboard_is_empty() == false;
@@ -2165,20 +2165,20 @@ static bool paste_splines_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus paste_splines_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus paste_splines_exec(bContext &C, wmOperator & /*op*/)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   MaskLayer *mask_layer = BKE_mask_layer_active(mask);
 
   if (mask_layer == nullptr) {
     mask_layer = BKE_mask_layer_new(mask, "");
   }
 
-  BKE_mask_clipboard_paste_to_layer(CTX_data_main(*C), mask_layer);
+  BKE_mask_clipboard_paste_to_layer(CTX_data_main(C), mask_layer);
 
   DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+  WM_event_add_notifier(&C, NC_MASK | NA_EDITED, mask);
 
   return OPERATOR_FINISHED;
 }

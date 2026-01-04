@@ -767,15 +767,15 @@ static void curve_draw_exec_precalc(wmOperator *op)
   }
 }
 
-static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus curve_draw_exec(bContext &C, wmOperator &op)
 {
-  if (op->customdata == nullptr) {
-    if (!curve_draw_init(C, op, false)) {
+  if (op.customdata == nullptr) {
+    if (!curve_draw_init(&C, &op, false)) {
       return OPERATOR_CANCELLED;
     }
   }
 
-  CurveDrawData *cdd = static_cast<CurveDrawData *>(op->customdata);
+  CurveDrawData *cdd = static_cast<CurveDrawData *>(op.customdata);
 
   const CurvePaintSettings *cps = &cdd->vc.scene->toolsettings->curve_paint_settings;
   Object *obedit = cdd->vc.obedit;
@@ -788,12 +788,12 @@ static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
   invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
 
   if (BLI_mempool_len(cdd->stroke_elem_pool) == 0) {
-    curve_draw_stroke_from_operator(op);
+    curve_draw_stroke_from_operator(&op);
     stroke_len = BLI_mempool_len(cdd->stroke_elem_pool);
   }
 
   /* Deselect all existing curves. */
-  ED_curve_deselect_all_multi(C);
+  ED_curve_deselect_all_multi(&C);
 
   const float radius_min = cps->radius_min;
   const float radius_max = cps->radius_max;
@@ -827,10 +827,10 @@ static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
     uint cubic_spline_len = 0;
 
     /* error in object local space */
-    const int fit_method = RNA_enum_get(op->ptr, "fit_method");
-    const float error_threshold = RNA_float_get(op->ptr, "error_threshold");
-    const float corner_angle = RNA_float_get(op->ptr, "corner_angle");
-    const bool use_cyclic = RNA_boolean_get(op->ptr, "use_cyclic");
+    const int fit_method = RNA_enum_get(op.ptr, "fit_method");
+    const float error_threshold = RNA_float_get(op.ptr, "error_threshold");
+    const float corner_angle = RNA_float_get(op.ptr, "corner_angle");
+    const bool use_cyclic = RNA_boolean_get(op.ptr, "use_cyclic");
 
     {
       BLI_mempool_iter iter;
@@ -1055,29 +1055,29 @@ static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
   BKE_curve_nurb_active_set(cu, nu);
   cu->actvert = nu->pntsu - 1;
 
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
   DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
 
-  curve_draw_exit(op);
+  curve_draw_exit(&op);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus curve_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curve_draw_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (RNA_struct_property_is_set(op->ptr, "stroke")) {
+  if (RNA_struct_property_is_set(op.ptr, "stroke")) {
     return curve_draw_exec(C, op);
   }
 
-  if (!curve_draw_init(C, op, true)) {
+  if (!curve_draw_init(&C, &op, true)) {
     return OPERATOR_CANCELLED;
   }
 
-  CurveDrawData *cdd = static_cast<CurveDrawData *>(op->customdata);
+  CurveDrawData *cdd = static_cast<CurveDrawData *>(op.customdata);
 
   const CurvePaintSettings *cps = &cdd->vc.scene->toolsettings->curve_paint_settings;
 
-  const bool is_modal = RNA_boolean_get(op->ptr, "wait_for_input");
+  const bool is_modal = RNA_boolean_get(op.ptr, "wait_for_input");
 
   /* Fallback (in case we can't find the depth on first test). */
   {
@@ -1089,7 +1089,7 @@ static wmOperatorStatus curve_draw_invoke(bContext *C, wmOperator *op, const wmE
   }
 
   cdd->draw_handle_view = ED_region_draw_cb_activate(
-      cdd->vc.region->runtime->type, curve_draw_stroke_3d, op, REGION_DRAW_POST_VIEW);
+      cdd->vc.region->runtime->type, curve_draw_stroke_3d, &op, REGION_DRAW_POST_VIEW);
   WM_cursor_modal_set(cdd->vc.win, WM_CURSOR_PAINT_BRUSH);
 
   {
@@ -1110,7 +1110,7 @@ static wmOperatorStatus curve_draw_invoke(bContext *C, wmOperator *op, const wmE
     else {
       if ((cps->depth_mode == CURVE_PAINT_PROJECT_SURFACE) && (v3d->shading.type > OB_WIRE)) {
         /* needed or else the draw matrix can be incorrect */
-        view3d_operator_needs_gpu(C);
+        view3d_operator_needs_gpu(&C);
 
         eV3DDepthOverrideMode depth_mode = V3D_DEPTH_ALL;
         if (cps->flag & CURVE_PAINT_FLAG_DEPTH_ONLY_SELECTED) {
@@ -1129,7 +1129,7 @@ static wmOperatorStatus curve_draw_invoke(bContext *C, wmOperator *op, const wmE
           cdd->project.use_depth = true;
         }
         else {
-          BKE_report(op->reports, RPT_WARNING, "Unable to access depth buffer, using view plane");
+          BKE_report(op.reports, RPT_WARNING, "Unable to access depth buffer, using view plane");
           cdd->project.use_depth = false;
         }
       }
@@ -1153,35 +1153,35 @@ static wmOperatorStatus curve_draw_invoke(bContext *C, wmOperator *op, const wmE
   }
 
   if (is_modal == false) {
-    curve_draw_event_add_first(op, event);
+    curve_draw_event_add_first(&op, event);
   }
 
   /* add temp handler */
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void curve_draw_cancel(bContext * /*C*/, wmOperator *op)
+static void curve_draw_cancel(bContext & /*C*/, wmOperator &op)
 {
-  curve_draw_exit(op);
+  curve_draw_exit(&op);
 }
 
 /* Modal event handling of frame changing */
-static wmOperatorStatus curve_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curve_draw_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
-  CurveDrawData *cdd = static_cast<CurveDrawData *>(op->customdata);
+  CurveDrawData *cdd = static_cast<CurveDrawData *>(op.customdata);
 
-  UNUSED_VARS(C, op);
+  UNUSED_VARS(&C, &op);
 
   if (event->type == cdd->init_event_type) {
     if (event->val == KM_RELEASE) {
       ED_region_tag_redraw(cdd->vc.region);
 
-      curve_draw_exec_precalc(op);
+      curve_draw_exec_precalc(&op);
 
-      curve_draw_stroke_to_operator(op);
+      curve_draw_stroke_to_operator(&op);
 
       curve_draw_exec(C, op);
 
@@ -1195,14 +1195,14 @@ static wmOperatorStatus curve_draw_modal(bContext *C, wmOperator *op, const wmEv
   }
   else if (ELEM(event->type, LEFTMOUSE)) {
     if (event->val == KM_PRESS) {
-      curve_draw_event_add_first(op, event);
+      curve_draw_event_add_first(&op, event);
     }
   }
   else if (ISMOUSE_MOTION(event->type)) {
     if (cdd->state == CURVE_DRAW_PAINTING) {
       const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
       if (len_squared_v2v2(mval_fl, cdd->prev.mval) > square_f(STROKE_SAMPLE_DIST_MIN_PX)) {
-        curve_draw_event_add(op, event);
+        curve_draw_event_add(&op, event);
       }
     }
   }

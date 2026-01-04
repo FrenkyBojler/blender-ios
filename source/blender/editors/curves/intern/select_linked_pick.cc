@@ -108,16 +108,16 @@ static bool select_linked_pick(bContext &C, const int2 &mval, const SelectPick_P
   return true;
 }
 
-static wmOperatorStatus select_linked_pick_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus select_linked_pick_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
   SelectPick_Params params{};
-  params.sel_op = RNA_boolean_get(op->ptr, "deselect") ? SEL_OP_SUB : SEL_OP_ADD;
+  params.sel_op = RNA_boolean_get(op.ptr, "deselect") ? SEL_OP_SUB : SEL_OP_ADD;
   params.deselect_all = false;
   params.select_passthrough = false;
 
-  if (!select_linked_pick(*C, event->mval, params)) {
+  if (!select_linked_pick(C, event->mval, params)) {
     return OPERATOR_CANCELLED;
   }
 

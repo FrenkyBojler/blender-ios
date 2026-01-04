@@ -1646,7 +1646,7 @@ void rna_collection_search_update_fn(
 
 /* `interface_ops.cc` */
 
-bool jump_to_target_button_poll(bContext *C);
+bool jump_to_target_button_poll(bContext &C);
 
 /* `interface_query.cc` */
 

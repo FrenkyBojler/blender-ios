@@ -608,28 +608,28 @@ static wmOperatorStatus paste_from_file(bContext *C, ReportList *reports, const 
   return retval;
 }
 
-static wmOperatorStatus paste_from_file_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paste_from_file_exec(bContext &C, wmOperator &op)
 {
-  if (op->flag & OP_IS_INVOKE) {
-    if (!WM_operator_poll_or_report_error(C, op->type, op->reports)) {
+  if (op.flag & OP_IS_INVOKE) {
+    if (!WM_operator_poll_or_report_error(&C, op.type, op.reports)) {
       return OPERATOR_CANCELLED;
     }
   }
 
-  std::string filepath = RNA_string_get(op->ptr, "filepath");
-  wmOperatorStatus retval = paste_from_file(C, op->reports, filepath.c_str());
+  std::string filepath = RNA_string_get(op.ptr, "filepath");
+  wmOperatorStatus retval = paste_from_file(&C, op.reports, filepath.c_str());
   return retval;
 }
 
-static wmOperatorStatus paste_from_file_invoke(bContext *C,
-                                               wmOperator *op,
+static wmOperatorStatus paste_from_file_invoke(bContext &C,
+                                               wmOperator &op,
                                                const wmEvent * /*event*/)
 {
-  if (RNA_struct_property_is_set(op->ptr, "filepath")) {
+  if (RNA_struct_property_is_set(op.ptr, "filepath")) {
     return paste_from_file_exec(C, op);
   }
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -807,13 +807,13 @@ static blender::ui::Block *wm_block_insert_unicode_create(bContext *C,
   return block;
 }
 
-static wmOperatorStatus text_insert_unicode_invoke(bContext *C,
-                                                   wmOperator * /*op*/,
+static wmOperatorStatus text_insert_unicode_invoke(bContext &C,
+                                                   wmOperator & /*op*/,
                                                    const wmEvent * /*event*/)
 {
   char *edit_string = MEM_malloc_arrayN<char>(24, __func__);
   edit_string[0] = 0;
-  popup_block_invoke_ex(C, wm_block_insert_unicode_create, edit_string, MEM_freeN, false);
+  popup_block_invoke_ex(&C, wm_block_insert_unicode_create, edit_string, MEM_freeN, false);
   return OPERATOR_FINISHED;
 }
 
@@ -1004,12 +1004,12 @@ static wmOperatorStatus set_style(bContext *C, const int style, const bool clear
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus set_style_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_style_exec(bContext &C, wmOperator &op)
 {
-  const int style = RNA_enum_get(op->ptr, "style");
-  const bool clear = RNA_boolean_get(op->ptr, "clear");
+  const int style = RNA_enum_get(op.ptr, "style");
+  const bool clear = RNA_boolean_get(op.ptr, "clear");
 
-  return set_style(C, style, clear);
+  return set_style(&C, style, clear);
 }
 
 void FONT_OT_style_set(wmOperatorType *ot)
@@ -1038,17 +1038,17 @@ void FONT_OT_style_set(wmOperatorType *ot)
 /** \name Toggle Style Operator
  * \{ */
 
-static wmOperatorStatus toggle_style_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus toggle_style_exec(bContext &C, wmOperator &op)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   int style, clear, selstart, selend;
 
-  style = RNA_enum_get(op->ptr, "style");
+  style = RNA_enum_get(op.ptr, "style");
   cu->curinfo.flag ^= style;
   if (BKE_vfont_select_get(cu, &selstart, &selend)) {
     clear = (cu->curinfo.flag & style) == 0;
-    return set_style(C, style, clear);
+    return set_style(&C, style, clear);
   }
   return OPERATOR_CANCELLED;
 }
@@ -1078,9 +1078,9 @@ void FONT_OT_style_toggle(wmOperatorType *ot)
 /** \name Select All Operator
  * \{ */
 
-static wmOperatorStatus font_select_all_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus font_select_all_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
 
@@ -1089,7 +1089,7 @@ static wmOperatorStatus font_select_all_exec(bContext *C, wmOperator * /*op*/)
     ef->selend = ef->len;
     ef->pos = ef->len;
 
-    text_update_edited(C, obedit, FO_SELCHANGE);
+    text_update_edited(&C, obedit, FO_SELCHANGE);
     font_select_update_primary_clipboard(obedit);
 
     return OPERATOR_FINISHED;
@@ -1144,9 +1144,9 @@ static void copy_selection(Object *obedit)
   }
 }
 
-static wmOperatorStatus copy_text_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus copy_text_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
 
   copy_selection(obedit);
 
@@ -1171,9 +1171,9 @@ void FONT_OT_text_copy(wmOperatorType *ot)
 /** \name Cut Text Operator
  * \{ */
 
-static wmOperatorStatus cut_text_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus cut_text_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   int selstart, selend;
 
@@ -1184,7 +1184,7 @@ static wmOperatorStatus cut_text_exec(bContext *C, wmOperator * /*op*/)
   copy_selection(obedit);
   kill_selection(obedit, 0);
 
-  text_update_edited(C, obedit, FO_EDIT);
+  text_update_edited(&C, obedit, FO_EDIT);
 
   return OPERATOR_FINISHED;
 }
@@ -1226,10 +1226,10 @@ static bool paste_selection(Object *obedit, ReportList *reports)
   return false;
 }
 
-static wmOperatorStatus paste_text_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paste_text_exec(bContext &C, wmOperator &op)
 {
-  const bool selection = RNA_boolean_get(op->ptr, "selection");
-  Object *obedit = CTX_data_edit_object(*C);
+  const bool selection = RNA_boolean_get(op.ptr, "selection");
+  Object *obedit = CTX_data_edit_object(C);
   wmOperatorStatus retval;
   size_t len_utf8;
   char32_t *text_buf;
@@ -1263,17 +1263,17 @@ static wmOperatorStatus paste_text_exec(bContext *C, wmOperator *op)
   }
 
   if (clipboard_vfont.buf && STREQ(clipboard_vfont.buf, clipboard_system.buf)) {
-    retval = paste_selection(obedit, op->reports) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
+    retval = paste_selection(obedit, op.reports) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
   }
   else {
     if ((clipboard_system.len <= MAXTEXT) &&
-        font_paste_utf8(C, clipboard_system.buf, clipboard_system.len))
+        font_paste_utf8(&C, clipboard_system.buf, clipboard_system.len))
     {
-      text_update_edited(C, obedit, FO_EDIT);
+      text_update_edited(&C, obedit, FO_EDIT);
       retval = OPERATOR_FINISHED;
     }
     else {
-      BKE_report(op->reports, RPT_ERROR, "Clipboard too long");
+      BKE_report(op.reports, RPT_ERROR, "Clipboard too long");
       retval = OPERATOR_CANCELLED;
     }
 
@@ -1282,7 +1282,7 @@ static wmOperatorStatus paste_text_exec(bContext *C, wmOperator *op)
   }
 
   if (retval != OPERATOR_CANCELLED) {
-    text_update_edited(C, obedit, FO_EDIT);
+    text_update_edited(&C, obedit, FO_EDIT);
   }
 
   /* cleanup */
@@ -1502,11 +1502,11 @@ static wmOperatorStatus move_cursor(bContext *C, int type, const bool select)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus move_exec(bContext &C, wmOperator &op)
 {
-  int type = RNA_enum_get(op->ptr, "type");
+  int type = RNA_enum_get(op.ptr, "type");
 
-  return move_cursor(C, type, false);
+  return move_cursor(&C, type, false);
 }
 
 void FONT_OT_move(wmOperatorType *ot)
@@ -1533,11 +1533,11 @@ void FONT_OT_move(wmOperatorType *ot)
 /** \name Move Select Operator
  * \{ */
 
-static wmOperatorStatus move_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus move_select_exec(bContext &C, wmOperator &op)
 {
-  int type = RNA_enum_get(op->ptr, "type");
+  int type = RNA_enum_get(op.ptr, "type");
 
-  return move_cursor(C, type, true);
+  return move_cursor(&C, type, true);
 }
 
 void FONT_OT_move_select(wmOperatorType *ot)
@@ -1569,12 +1569,12 @@ void FONT_OT_move_select(wmOperatorType *ot)
 /** \name Change Spacing
  * \{ */
 
-static wmOperatorStatus change_spacing_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus change_spacing_exec(bContext &C, wmOperator &op)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
-  float kern, delta = RNA_float_get(op->ptr, "delta");
+  float kern, delta = RNA_float_get(op.ptr, "delta");
   int selstart, selend;
   bool changed = false;
 
@@ -1597,7 +1597,7 @@ static wmOperatorStatus change_spacing_exec(bContext *C, wmOperator *op)
   }
 
   if (changed) {
-    text_update_edited(C, obedit, FO_EDIT);
+    text_update_edited(&C, obedit, FO_EDIT);
 
     return OPERATOR_FINISHED;
   }
@@ -1636,12 +1636,12 @@ void FONT_OT_change_spacing(wmOperatorType *ot)
 /** \name Change Character
  * \{ */
 
-static wmOperatorStatus change_character_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus change_character_exec(bContext &C, wmOperator &op)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
-  int character, delta = RNA_int_get(op->ptr, "delta");
+  int character, delta = RNA_int_get(op.ptr, "delta");
 
   if (ef->pos <= 0) {
     return OPERATOR_CANCELLED;
@@ -1657,7 +1657,7 @@ static wmOperatorStatus change_character_exec(bContext *C, wmOperator *op)
 
   ef->textbuf[ef->pos - 1] = character;
 
-  text_update_edited(C, obedit, FO_EDIT);
+  text_update_edited(&C, obedit, FO_EDIT);
 
   return OPERATOR_FINISHED;
 }
@@ -1694,9 +1694,9 @@ void FONT_OT_change_character(wmOperatorType *ot)
 /** \name Line Break Operator
  * \{ */
 
-static wmOperatorStatus line_break_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus line_break_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
 
@@ -1704,7 +1704,7 @@ static wmOperatorStatus line_break_exec(bContext *C, wmOperator * /*op*/)
 
   ef->selstart = ef->selend = 0;
 
-  text_update_edited(C, obedit, FO_EDIT);
+  text_update_edited(&C, obedit, FO_EDIT);
 
   return OPERATOR_FINISHED;
 }
@@ -1741,12 +1741,12 @@ static const EnumPropertyItem delete_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus delete_exec(bContext &C, wmOperator &op)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
-  int selstart, selend, type = RNA_enum_get(op->ptr, "type");
+  int selstart, selend, type = RNA_enum_get(op.ptr, "type");
   int range[2] = {0, 0};
   bool has_select = false;
 
@@ -1850,7 +1850,7 @@ static wmOperatorStatus delete_exec(bContext *C, wmOperator *op)
     BKE_vfont_select_clamp(cu);
   }
 
-  text_update_edited(C, obedit, FO_EDIT);
+  text_update_edited(&C, obedit, FO_EDIT);
 
   return OPERATOR_FINISHED;
 }
@@ -1884,17 +1884,17 @@ void FONT_OT_delete(wmOperatorType *ot)
 /** \name Insert Text Operator
  * \{ */
 
-static wmOperatorStatus insert_text_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus insert_text_exec(bContext &C, wmOperator &op)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   char32_t *inserted_text;
   int a, len;
 
-  if (!RNA_struct_property_is_set(op->ptr, "text")) {
+  if (!RNA_struct_property_is_set(op.ptr, "text")) {
     return OPERATOR_CANCELLED;
   }
 
-  std::string inserted_utf8 = RNA_string_get(op->ptr, "text");
+  std::string inserted_utf8 = RNA_string_get(op.ptr, "text");
   len = BLI_strlen_utf8(inserted_utf8.c_str());
 
   inserted_text = MEM_calloc_arrayN<char32_t>((len + 1), "FONT_insert_text");
@@ -1907,14 +1907,14 @@ static wmOperatorStatus insert_text_exec(bContext *C, wmOperator *op)
   MEM_freeN(inserted_text);
 
   kill_selection(obedit, len);
-  text_update_edited(C, obedit, FO_EDIT);
+  text_update_edited(&C, obedit, FO_EDIT);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus insert_text_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus insert_text_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
   static bool accentcode = false;
@@ -1924,11 +1924,11 @@ static wmOperatorStatus insert_text_invoke(bContext *C, wmOperator *op, const wm
   char32_t insert_char_override = 0;
   char32_t inserted_text[2] = {0};
 
-  if (RNA_struct_property_is_set(op->ptr, "text")) {
+  if (RNA_struct_property_is_set(op.ptr, "text")) {
     return insert_text_exec(C, op);
   }
 
-  if (RNA_struct_property_is_set(op->ptr, "accent")) {
+  if (RNA_struct_property_is_set(op.ptr, "accent")) {
     if (ef->len != 0 && ef->pos > 0) {
       accentcode = true;
     }
@@ -1955,7 +1955,7 @@ static wmOperatorStatus insert_text_invoke(bContext *C, wmOperator *op, const wm
       /* Handle case like TAB ('\t'). */
       inserted_text[0] = insert_char_override;
       insert_into_textbuf(obedit, insert_char_override);
-      text_update_edited(C, obedit, FO_EDIT);
+      text_update_edited(&C, obedit, FO_EDIT);
     }
     else {
       BLI_assert(event->utf8_buf[0]);
@@ -1977,7 +1977,7 @@ static wmOperatorStatus insert_text_invoke(bContext *C, wmOperator *op, const wm
       }
 
       kill_selection(obedit, 1);
-      text_update_edited(C, obedit, FO_EDIT);
+      text_update_edited(&C, obedit, FO_EDIT);
     }
   }
   else {
@@ -1989,7 +1989,7 @@ static wmOperatorStatus insert_text_invoke(bContext *C, wmOperator *op, const wm
     char inserted_utf8[8] = {0};
 
     BLI_str_utf32_as_utf8(inserted_utf8, inserted_text, sizeof(inserted_utf8));
-    RNA_string_set(op->ptr, "text", inserted_utf8);
+    RNA_string_set(op.ptr, "text", inserted_utf8);
   }
 
   return OPERATOR_FINISHED;
@@ -2078,30 +2078,30 @@ static void font_cursor_set_apply(bContext *C, const wmEvent *event)
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 }
 
-static wmOperatorStatus font_selection_set_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus font_selection_set_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
-  Object *obedit = CTX_data_active_object(*C);
+  Object *obedit = CTX_data_active_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
 
-  font_cursor_set_apply(C, event);
+  font_cursor_set_apply(&C, event);
   ef->selstart = 0;
   ef->selend = 0;
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus font_selection_set_modal(bContext *C,
-                                                 wmOperator * /*op*/,
+static wmOperatorStatus font_selection_set_modal(bContext &C,
+                                                 wmOperator & /*op*/,
                                                  const wmEvent *event)
 {
   switch (event->type) {
     case LEFTMOUSE:
       if (event->val == KM_RELEASE) {
-        font_cursor_set_apply(C, event);
+        font_cursor_set_apply(&C, event);
         return OPERATOR_FINISHED;
       }
       break;
@@ -2109,7 +2109,7 @@ static wmOperatorStatus font_selection_set_modal(bContext *C,
     case RIGHTMOUSE:
       return OPERATOR_FINISHED;
     case MOUSEMOVE:
-      font_cursor_set_apply(C, event);
+      font_cursor_set_apply(&C, event);
       break;
     default: {
       break;
@@ -2137,9 +2137,9 @@ void FONT_OT_selection_set(wmOperatorType *ot)
 /** \name Select Word Operator
  * \{ */
 
-static wmOperatorStatus font_select_word_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus font_select_word_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
 
@@ -2150,7 +2150,7 @@ static wmOperatorStatus font_select_word_exec(bContext *C, wmOperator * /*op*/)
   ef->selstart += 1;
 
   font_select_update_primary_clipboard(obedit);
-  text_update_edited(C, obedit, FO_CURS);
+  text_update_edited(&C, obedit, FO_CURS);
 
   return OPERATOR_FINISHED;
 }
@@ -2173,9 +2173,9 @@ void FONT_OT_select_word(wmOperatorType *ot)
 /** \name Text-Box Add Operator
  * \{ */
 
-static wmOperatorStatus textbox_add_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus textbox_add_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *obedit = CTX_data_active_object(*C);
+  Object *obedit = CTX_data_active_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   int i;
 
@@ -2189,7 +2189,7 @@ static wmOperatorStatus textbox_add_exec(bContext *C, wmOperator * /*op*/)
   }
 
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY_ALL_MODES);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
   return OPERATOR_FINISHED;
 }
 
@@ -2214,12 +2214,12 @@ void FONT_OT_textbox_add(wmOperatorType *ot)
 /** \name Text-Box Remove Operator
  * \{ */
 
-static wmOperatorStatus textbox_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus textbox_remove_exec(bContext &C, wmOperator &op)
 {
-  Object *obedit = CTX_data_active_object(*C);
+  Object *obedit = CTX_data_active_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   int i;
-  int index = RNA_int_get(op->ptr, "index");
+  int index = RNA_int_get(op.ptr, "index");
 
   if (cu->totbox > 1) {
     for (i = index; i < cu->totbox; i++) {
@@ -2232,7 +2232,7 @@ static wmOperatorStatus textbox_remove_exec(bContext *C, wmOperator *op)
   }
 
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY_ALL_MODES);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
 
   return OPERATOR_FINISHED;
 }
@@ -2369,9 +2369,9 @@ static wmOperatorStatus set_case(bContext *C, int ccase)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus set_case_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_case_exec(bContext &C, wmOperator &op)
 {
-  return set_case(C, RNA_enum_get(op->ptr, "case"));
+  return set_case(&C, RNA_enum_get(op.ptr, "case"));
 }
 
 void FONT_OT_case_set(wmOperatorType *ot)
@@ -2401,9 +2401,9 @@ void FONT_OT_case_set(wmOperatorType *ot)
 /** \name Toggle Case Operator
  * \{ */
 
-static wmOperatorStatus toggle_case_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus toggle_case_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   Curve *cu = static_cast<Curve *>(obedit->data);
   EditFont *ef = cu->editfont;
   int ccase = CASE_UPPER;
@@ -2418,7 +2418,7 @@ static wmOperatorStatus toggle_case_exec(bContext *C, wmOperator * /*op*/)
     str++;
   }
 
-  return set_case(C, ccase);
+  return set_case(&C, ccase);
 }
 
 void FONT_OT_case_toggle(wmOperatorType *ot)
@@ -2446,35 +2446,35 @@ static void font_ui_template_init(bContext *C, wmOperator *op)
   blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
-static void font_open_cancel(bContext * /*C*/, wmOperator *op)
+static void font_open_cancel(bContext & /*C*/, wmOperator &op)
 {
-  MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
-  op->customdata = nullptr;
+  MEM_delete(static_cast<PropertyPointerRNA *>(op.customdata));
+  op.customdata = nullptr;
 }
 
-static wmOperatorStatus font_open_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus font_open_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   VFont *font;
   PropertyPointerRNA *pprop;
   char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   font = BKE_vfont_load(bmain, filepath);
 
   if (!font) {
-    if (op->customdata) {
-      MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
+    if (op.customdata) {
+      MEM_delete(static_cast<PropertyPointerRNA *>(op.customdata));
     }
     return OPERATOR_CANCELLED;
   }
 
-  if (!op->customdata) {
-    font_ui_template_init(C, op);
+  if (!op.customdata) {
+    font_ui_template_init(&C, &op);
   }
 
   /* hook into UI */
-  pprop = static_cast<PropertyPointerRNA *>(op->customdata);
+  pprop = static_cast<PropertyPointerRNA *>(op.customdata);
 
   if (pprop->prop) {
     /* when creating new ID blocks, use is already 1, but RNA
@@ -2483,15 +2483,15 @@ static wmOperatorStatus font_open_exec(bContext *C, wmOperator *op)
 
     PointerRNA idptr = RNA_id_pointer_create(&font->id);
     RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
-    RNA_property_update(C, &pprop->ptr, pprop->prop);
+    RNA_property_update(&C, &pprop->ptr, pprop->prop);
   }
 
-  MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
+  MEM_delete(static_cast<PropertyPointerRNA *>(op.customdata));
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus open_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus open_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   VFont *vfont = nullptr;
   char filepath[FILE_MAX];
@@ -2499,18 +2499,18 @@ static wmOperatorStatus open_invoke(bContext *C, wmOperator *op, const wmEvent *
   PointerRNA idptr;
   PropertyPointerRNA *pprop;
 
-  font_ui_template_init(C, op);
+  font_ui_template_init(&C, &op);
 
   /* hook into UI */
-  pprop = static_cast<PropertyPointerRNA *>(op->customdata);
+  pprop = static_cast<PropertyPointerRNA *>(op.customdata);
 
   if (pprop->prop) {
     idptr = RNA_property_pointer_get((PointerRNA *)pprop, pprop->prop);
     vfont = (VFont *)idptr.owner_id;
   }
 
-  PropertyRNA *prop_filepath = RNA_struct_find_property(op->ptr, "filepath");
-  if (RNA_property_is_set(op->ptr, prop_filepath)) {
+  PropertyRNA *prop_filepath = RNA_struct_find_property(op.ptr, "filepath");
+  if (RNA_property_is_set(op.ptr, prop_filepath)) {
     return font_open_exec(C, op);
   }
 
@@ -2523,9 +2523,9 @@ static wmOperatorStatus open_invoke(bContext *C, wmOperator *op, const wmEvent *
     BLI_path_slash_ensure(filepath, sizeof(filepath));
     /* The file selector will expand the blend-file relative prefix. */
   }
-  RNA_property_string_set(op->ptr, prop_filepath, filepath);
+  RNA_property_string_set(op.ptr, prop_filepath, filepath);
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2561,16 +2561,16 @@ void FONT_OT_open(wmOperatorType *ot)
 /** \name Delete Operator
  * \{ */
 
-static wmOperatorStatus font_unlink_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus font_unlink_exec(bContext &C, wmOperator &op)
 {
   VFont *builtin_font;
 
   PropertyPointerRNA pprop;
 
-  blender::ui::context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
+  blender::ui::context_active_but_prop_get_templateID(&C, &pprop.ptr, &pprop.prop);
 
   if (pprop.prop == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Incorrect context for running font unlink");
+    BKE_report(op.reports, RPT_ERROR, "Incorrect context for running font unlink");
     return OPERATOR_CANCELLED;
   }
 
@@ -2578,7 +2578,7 @@ static wmOperatorStatus font_unlink_exec(bContext *C, wmOperator *op)
 
   PointerRNA idptr = RNA_id_pointer_create(&builtin_font->id);
   RNA_property_pointer_set(&pprop.ptr, pprop.prop, idptr, nullptr);
-  RNA_property_update(C, &pprop.ptr, pprop.prop);
+  RNA_property_update(&C, &pprop.ptr, pprop.prop);
 
   return OPERATOR_FINISHED;
 }

@@ -53,9 +53,9 @@
 /** \name Operator Poll Functions
  * \{ */
 
-bool ED_space_clip_poll(bContext *C)
+bool ED_space_clip_poll(bContext &C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
 
   if (sc && sc->clip) {
     return true;
@@ -64,9 +64,9 @@ bool ED_space_clip_poll(bContext *C)
   return false;
 }
 
-bool ED_space_clip_view_clip_poll(bContext *C)
+bool ED_space_clip_view_clip_poll(bContext &C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
 
   if (sc) {
     return sc->view == SC_VIEW_CLIP;
@@ -75,9 +75,9 @@ bool ED_space_clip_view_clip_poll(bContext *C)
   return false;
 }
 
-bool ED_space_clip_tracking_poll(bContext *C)
+bool ED_space_clip_tracking_poll(bContext &C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
 
   if (sc && sc->clip) {
     return ED_space_clip_check_show_trackedit(sc);
@@ -86,9 +86,9 @@ bool ED_space_clip_tracking_poll(bContext *C)
   return false;
 }
 
-bool ED_space_clip_maskedit_poll(bContext *C)
+bool ED_space_clip_maskedit_poll(bContext &C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
 
   if (sc && sc->clip) {
     return ED_space_clip_check_show_maskedit(sc);
@@ -99,7 +99,7 @@ bool ED_space_clip_maskedit_poll(bContext *C)
 
 bool ED_space_clip_maskedit_visible_splines_poll(bContext *C)
 {
-  if (!ED_space_clip_maskedit_poll(C)) {
+  if (!ED_space_clip_maskedit_poll(*C)) {
     return false;
   }
 
@@ -108,13 +108,13 @@ bool ED_space_clip_maskedit_visible_splines_poll(bContext *C)
          space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
 }
 
-bool ED_space_clip_maskedit_mask_poll(bContext *C)
+bool ED_space_clip_maskedit_mask_poll(bContext &C)
 {
   if (ED_space_clip_maskedit_poll(C)) {
-    MovieClip *clip = CTX_data_edit_movieclip(*C);
+    MovieClip *clip = CTX_data_edit_movieclip(C);
 
     if (clip) {
-      SpaceClip *sc = CTX_wm_space_clip(*C);
+      SpaceClip *sc = CTX_wm_space_clip(C);
 
       return sc->mask_info.mask != nullptr;
     }
@@ -125,7 +125,7 @@ bool ED_space_clip_maskedit_mask_poll(bContext *C)
 
 bool ED_space_clip_maskedit_mask_visible_splines_poll(bContext *C)
 {
-  if (!ED_space_clip_maskedit_mask_poll(C)) {
+  if (!ED_space_clip_maskedit_mask_poll(*C)) {
     return false;
   }
 

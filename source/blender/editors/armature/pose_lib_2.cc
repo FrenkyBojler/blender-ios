@@ -566,26 +566,26 @@ static wmOperatorStatus poselib_blend_exit(bContext *C, wmOperator *op)
 }
 
 /* Cancel previewing operation (called when exiting Blender) */
-static void poselib_blend_cancel(bContext *C, wmOperator *op)
+static void poselib_blend_cancel(bContext &C, wmOperator &op)
 {
-  PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
+  PoseBlendData *pbd = static_cast<PoseBlendData *>(op.customdata);
   pbd->state = POSE_BLEND_CANCEL;
-  poselib_blend_exit(C, op);
+  poselib_blend_exit(&C, &op);
 }
 
 /* Main modal status check. */
-static wmOperatorStatus poselib_blend_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus poselib_blend_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus operator_result = poselib_blend_handle_event(C, op, event);
+  const wmOperatorStatus operator_result = poselib_blend_handle_event(&C, &op, event);
 
-  const PoseBlendData *pbd = static_cast<const PoseBlendData *>(op->customdata);
+  const PoseBlendData *pbd = static_cast<const PoseBlendData *>(op.customdata);
   if (ELEM(pbd->state, POSE_BLEND_CONFIRM, POSE_BLEND_CANCEL)) {
-    return poselib_blend_exit(C, op);
+    return poselib_blend_exit(&C, &op);
   }
 
   if (pbd->needs_redraw) {
 
-    WorkspaceStatus status(C);
+    WorkspaceStatus status(&C);
 
     if (pbd->state == POSE_BLEND_BLENDING) {
       status.item(IFACE_("Show Original Pose"), ICON_EVENT_TAB);
@@ -598,59 +598,59 @@ static wmOperatorStatus poselib_blend_modal(bContext *C, wmOperator *op, const w
 
     status.item_bool(IFACE_("Flip Pose"), pbd->is_flipped, ICON_EVENT_CTRL);
 
-    poselib_blend_apply(C, op);
+    poselib_blend_apply(&C, &op);
   }
 
   return operator_result;
 }
 
-static wmOperatorStatus poselib_apply_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus poselib_apply_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (!poselib_blend_init_data(C, op, event)) {
-    poselib_blend_free(op);
+  if (!poselib_blend_init_data(&C, &op, event)) {
+    poselib_blend_free(&op);
     return OPERATOR_CANCELLED;
   }
 
-  poselib_blend_apply(C, op);
+  poselib_blend_apply(&C, &op);
 
-  PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
+  PoseBlendData *pbd = static_cast<PoseBlendData *>(op.customdata);
   pbd->state = POSE_BLEND_CONFIRM;
-  return poselib_blend_exit(C, op);
+  return poselib_blend_exit(&C, &op);
 }
 
-static wmOperatorStatus poselib_apply_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus poselib_apply_exec(bContext &C, wmOperator &op)
 {
   return poselib_apply_invoke(C, op, nullptr);
 }
 
 /* Modal Operator init. */
-static wmOperatorStatus poselib_blend_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus poselib_blend_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (!poselib_blend_init_data(C, op, event)) {
-    poselib_blend_free(op);
+  if (!poselib_blend_init_data(&C, &op, event)) {
+    poselib_blend_free(&op);
     return OPERATOR_CANCELLED;
   }
 
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   WM_cursor_modal_set(win, WM_CURSOR_EW_SCROLL);
 
   /* Do initial apply to have something to look at. */
-  poselib_blend_apply(C, op);
+  poselib_blend_apply(&C, &op);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
 /* Single-shot apply. */
-static wmOperatorStatus poselib_blend_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus poselib_blend_exec(bContext &C, wmOperator &op)
 {
   return poselib_apply_invoke(C, op, nullptr);
 }
 
 /* Poll callback for operators that require existing PoseLib data (with poses) to work. */
-static bool poselib_blend_poll(bContext *C)
+static bool poselib_blend_poll(bContext &C)
 {
-  blender::Span<Object *> selected_pose_objects = get_poselib_objects(*C);
+  blender::Span<Object *> selected_pose_objects = get_poselib_objects(C);
   if (selected_pose_objects.is_empty()) {
     /* Pose lib is only for armatures in pose mode. */
     return false;

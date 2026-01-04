@@ -109,9 +109,9 @@ static void viewdolly_apply(ViewOpsData *vod, const int xy[2], const bool zoom_i
   ED_region_tag_redraw(vod->region);
 }
 
-static wmOperatorStatus viewdolly_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewdolly_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ViewOpsData *vod = static_cast<ViewOpsData *>(op->customdata);
+  ViewOpsData *vod = static_cast<ViewOpsData *>(op.customdata);
   short event_code = VIEW_PASS;
   bool use_autokey = false;
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
@@ -124,12 +124,12 @@ static wmOperatorStatus viewdolly_modal(bContext *C, wmOperator *op, const wmEve
         break;
       case VIEWROT_MODAL_SWITCH_MOVE:
         WM_operator_name_call(
-            C, "VIEW3D_OT_move", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
+            &C, "VIEW3D_OT_move", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
         event_code = VIEW_CONFIRM;
         break;
       case VIEWROT_MODAL_SWITCH_ROTATE:
         WM_operator_name_call(
-            C, "VIEW3D_OT_rotate", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
+            &C, "VIEW3D_OT_rotate", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
         event_code = VIEW_CONFIRM;
         break;
     }
@@ -153,7 +153,7 @@ static wmOperatorStatus viewdolly_modal(bContext *C, wmOperator *op, const wmEve
   switch (event_code) {
     case VIEW_APPLY: {
       viewdolly_apply(vod, event->xy, (U.uiflag & USER_ZOOM_INVERT) != 0);
-      if (ED_screen_animation_playing(CTX_wm_manager(*C))) {
+      if (ED_screen_animation_playing(CTX_wm_manager(C))) {
         use_autokey = true;
       }
       break;
@@ -171,21 +171,21 @@ static wmOperatorStatus viewdolly_modal(bContext *C, wmOperator *op, const wmEve
   }
 
   if (use_autokey) {
-    ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
+    ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, &C, false, true);
   }
 
   if ((ret & OPERATOR_RUNNING_MODAL) == 0) {
     if (ret & OPERATOR_FINISHED) {
-      ED_view3d_camera_lock_undo_push(op->type->name, vod->v3d, vod->rv3d, C);
+      ED_view3d_camera_lock_undo_push(op.type->name, vod->v3d, vod->rv3d, &C);
     }
-    viewops_data_free(C, vod);
-    op->customdata = nullptr;
+    viewops_data_free(&C, vod);
+    op.customdata = nullptr;
   }
 
   return ret;
 }
 
-static wmOperatorStatus viewdolly_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus viewdolly_exec(bContext &C, wmOperator &op)
 {
   View3D *v3d;
   RegionView3D *rv3d;
@@ -193,18 +193,18 @@ static wmOperatorStatus viewdolly_exec(bContext *C, wmOperator *op)
   ARegion *region;
   float mousevec[3];
 
-  const int delta = RNA_int_get(op->ptr, "delta");
+  const int delta = RNA_int_get(op.ptr, "delta");
 
-  if (op->customdata) {
-    ViewOpsData *vod = static_cast<ViewOpsData *>(op->customdata);
+  if (op.customdata) {
+    ViewOpsData *vod = static_cast<ViewOpsData *>(op.customdata);
 
     area = vod->area;
     region = vod->region;
     copy_v3_v3(mousevec, vod->init.mousevec);
   }
   else {
-    area = CTX_wm_area(*C);
-    region = CTX_wm_region(*C);
+    area = CTX_wm_area(C);
+    region = CTX_wm_region(C);
     negate_v3_v3(mousevec, static_cast<RegionView3D *>(region->regiondata)->viewinv[2]);
     normalize_v3(mousevec);
   }
@@ -212,7 +212,7 @@ static wmOperatorStatus viewdolly_exec(bContext *C, wmOperator *op)
   v3d = static_cast<View3D *>(area->spacedata.first);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  const bool use_cursor_init = RNA_boolean_get(op->ptr, "use_cursor_init");
+  const bool use_cursor_init = RNA_boolean_get(op.ptr, "use_cursor_init");
 
   /* overwrite the mouse vector with the view direction (zoom into the center) */
   if ((use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)) == 0) {
@@ -226,32 +226,32 @@ static wmOperatorStatus viewdolly_exec(bContext *C, wmOperator *op)
     view3d_boxview_sync(area, region);
   }
 
-  ED_view3d_camera_lock_sync(CTX_data_ensure_evaluated_depsgraph(*C), v3d, rv3d);
+  ED_view3d_camera_lock_sync(CTX_data_ensure_evaluated_depsgraph(C), v3d, rv3d);
 
   ED_region_tag_redraw(region);
 
-  viewops_data_free(C, static_cast<ViewOpsData *>(op->customdata));
-  op->customdata = nullptr;
+  viewops_data_free(&C, static_cast<ViewOpsData *>(op.customdata));
+  op.customdata = nullptr;
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus viewdolly_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewdolly_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   /* Near duplicate logic in #viewzoom_invoke(), changes here may apply there too. */
 
   ViewOpsData *vod;
 
-  if (viewdolly_offset_lock_check(C, op)) {
+  if (viewdolly_offset_lock_check(&C, &op)) {
     return OPERATOR_CANCELLED;
   }
 
-  const bool use_cursor_init = RNA_boolean_get(op->ptr, "use_cursor_init");
+  const bool use_cursor_init = RNA_boolean_get(op.ptr, "use_cursor_init");
 
-  vod = viewops_data_create(C, event, &ViewOpsType_dolly, use_cursor_init);
-  op->customdata = vod;
+  vod = viewops_data_create(&C, event, &ViewOpsType_dolly, use_cursor_init);
+  op.customdata = vod;
 
-  ED_view3d_smooth_view_force_finish(C, vod->v3d, vod->region);
+  ED_view3d_smooth_view_force_finish(&C, vod->v3d, vod->region);
 
   /* Rationale for enforcing a perspective projection:
    *
@@ -275,7 +275,7 @@ static wmOperatorStatus viewdolly_invoke(bContext *C, wmOperator *op, const wmEv
   if (vod->rv3d->persp != RV3D_PERSP) {
     if (vod->rv3d->persp == RV3D_CAMOB) {
       /* ignore rv3d->lpersp because dolly only makes sense in perspective mode */
-      const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+      const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
       ED_view3d_persp_switch_from_camera(depsgraph, vod->v3d, vod->rv3d, RV3D_PERSP);
     }
     else {
@@ -285,12 +285,12 @@ static wmOperatorStatus viewdolly_invoke(bContext *C, wmOperator *op, const wmEv
   }
 
   /* if one or the other zoom position aren't set, set from event */
-  if (!RNA_struct_property_is_set(op->ptr, "mx") || !RNA_struct_property_is_set(op->ptr, "my")) {
-    RNA_int_set(op->ptr, "mx", event->xy[0]);
-    RNA_int_set(op->ptr, "my", event->xy[1]);
+  if (!RNA_struct_property_is_set(op.ptr, "mx") || !RNA_struct_property_is_set(op.ptr, "my")) {
+    RNA_int_set(op.ptr, "mx", event->xy[0]);
+    RNA_int_set(op.ptr, "my", event->xy[1]);
   }
 
-  if (RNA_struct_property_is_set(op->ptr, "delta")) {
+  if (RNA_struct_property_is_set(op.ptr, "delta")) {
     viewdolly_exec(C, op);
   }
   else {
@@ -313,13 +313,13 @@ static wmOperatorStatus viewdolly_invoke(bContext *C, wmOperator *op, const wmEv
       }
       viewdolly_apply(vod, event->prev_xy, (U.uiflag & USER_ZOOM_INVERT) == 0);
 
-      viewops_data_free(C, static_cast<ViewOpsData *>(op->customdata));
-      op->customdata = nullptr;
+      viewops_data_free(&C, static_cast<ViewOpsData *>(op.customdata));
+      op.customdata = nullptr;
       return OPERATOR_FINISHED;
     }
 
     /* add temp handler */
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
     return OPERATOR_RUNNING_MODAL;
   }
   return OPERATOR_FINISHED;

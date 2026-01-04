@@ -324,9 +324,9 @@ void operatormacros_object()
   }
 }
 
-static bool object_mode_poll(bContext *C)
+static bool object_mode_poll(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   return (!ob || ob->mode == OB_MODE_OBJECT);
 }
 

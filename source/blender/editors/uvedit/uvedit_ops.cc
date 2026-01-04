@@ -339,17 +339,17 @@ enum class UVMoveDirection {
   Y = 1,
 };
 
-static wmOperatorStatus uv_move_on_axis_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_move_on_axis_exec(bContext &C, wmOperator &op)
 
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
-  UVMoveType type = UVMoveType(RNA_enum_get(op->ptr, "type"));
-  UVMoveDirection axis = UVMoveDirection(RNA_enum_get(op->ptr, "axis"));
-  int distance = RNA_int_get(op->ptr, "distance");
+  UVMoveType type = UVMoveType(RNA_enum_get(op.ptr, "type"));
+  UVMoveDirection axis = UVMoveDirection(RNA_enum_get(op.ptr, "axis"));
+  int distance = RNA_int_get(op.ptr, "distance");
 
   int size[2];
   ED_space_image_get_size(sima, &size[0], &size[1]);
@@ -379,7 +379,7 @@ static wmOperatorStatus uv_move_on_axis_exec(bContext *C, wmOperator *op)
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
   return OPERATOR_FINISHED;
@@ -714,21 +714,21 @@ static bool uvedit_uv_islands_arrange(const Scene *scene,
   return changed;
 }
 
-static wmOperatorStatus uv_arrange_islands_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_arrange_islands_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
   const UVAlignInitialPosition initial_position = UVAlignInitialPosition(
-      RNA_enum_get(op->ptr, "initial_position"));
-  const UVAlignIslandAxis axis = UVAlignIslandAxis(RNA_enum_get(op->ptr, "axis"));
-  const UVAlignIslandMode align = UVAlignIslandMode(RNA_enum_get(op->ptr, "align"));
-  const UVAlignIslandOrder order = UVAlignIslandOrder(RNA_enum_get(op->ptr, "order"));
-  const float margin = RNA_float_get(op->ptr, "margin");
+      RNA_enum_get(op.ptr, "initial_position"));
+  const UVAlignIslandAxis axis = UVAlignIslandAxis(RNA_enum_get(op.ptr, "axis"));
+  const UVAlignIslandMode align = UVAlignIslandMode(RNA_enum_get(op.ptr, "align"));
+  const UVAlignIslandOrder order = UVAlignIslandOrder(RNA_enum_get(op.ptr, "order"));
+  const float margin = RNA_float_get(op.ptr, "margin");
   const uint other_axis = (uint(axis) + 1) % 2;
 
   float2 position = {0.0f, 0.0f};
@@ -787,7 +787,7 @@ static wmOperatorStatus uv_arrange_islands_exec(bContext *C, wmOperator *op)
     if (uvedit_uv_islands_arrange(scene, em->bm, axis, align, order, margin, position)) {
       uvedit_live_unwrap_update(sima, scene, obedit);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
   return OPERATOR_FINISHED;
@@ -982,21 +982,21 @@ static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPositionMode positio
     }
   }
 }
-static wmOperatorStatus uv_align_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_align_exec(bContext &C, wmOperator &op)
 {
-  uv_align(C,
-           eUVWeldAlign(RNA_enum_get(op->ptr, "axis")),
-           UVAlignPositionMode(RNA_enum_get(op->ptr, "position_mode")));
+  uv_align(&C,
+           eUVWeldAlign(RNA_enum_get(op.ptr, "axis")),
+           UVAlignPositionMode(RNA_enum_get(op.ptr, "position_mode")));
 
   return OPERATOR_FINISHED;
 }
 
-static bool uv_align_poll_property(const bContext * /*C*/, wmOperator *op, const PropertyRNA *prop)
+static bool uv_align_poll_property(const bContext & /*C*/, wmOperator &op, const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
 
   if (STREQ(prop_id, "position_mode")) {
-    int axis = RNA_enum_get(op->ptr, "axis");
+    int axis = RNA_enum_get(op.ptr, "axis");
     if (!ELEM(axis, UV_ALIGN_X, UV_ALIGN_Y)) {
       return false;
     }
@@ -1350,15 +1350,15 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus uv_remove_doubles_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_remove_doubles_exec(bContext &C, wmOperator &op)
 {
-  if (RNA_boolean_get(op->ptr, "use_unselected")) {
-    return uv_remove_doubles_to_unselected(C, op);
+  if (RNA_boolean_get(op.ptr, "use_unselected")) {
+    return uv_remove_doubles_to_unselected(&C, &op);
   }
-  if (RNA_boolean_get(op->ptr, "use_shared_vertex")) {
-    return uv_remove_doubles_to_selected_shared_vertex(C, op);
+  if (RNA_boolean_get(op.ptr, "use_shared_vertex")) {
+    return uv_remove_doubles_to_selected_shared_vertex(&C, &op);
   }
-  return uv_remove_doubles_to_selected(C, op);
+  return uv_remove_doubles_to_selected(&C, &op);
 }
 
 static void UV_OT_remove_doubles(wmOperatorType *ot)
@@ -1398,9 +1398,9 @@ static void UV_OT_remove_doubles(wmOperatorType *ot)
 /** \name Weld Near Operator
  * \{ */
 
-static wmOperatorStatus uv_weld_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus uv_weld_exec(bContext &C, wmOperator & /*op*/)
 {
-  uv_weld(C);
+  uv_weld(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -1451,20 +1451,20 @@ static void uv_snap_cursor_to_origin(float uvco[2])
   uvco[1] = 0;
 }
 
-static wmOperatorStatus uv_snap_cursor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_snap_cursor_exec(bContext &C, wmOperator &op)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
 
   bool changed = false;
 
-  switch (RNA_enum_get(op->ptr, "target")) {
+  switch (RNA_enum_get(op.ptr, "target")) {
     case 0:
       uv_snap_cursor_to_pixels(sima);
       changed = true;
       break;
     case 1: {
-      Scene *scene = CTX_data_scene(*C);
-      ViewLayer *view_layer = CTX_data_view_layer(*C);
+      Scene *scene = CTX_data_scene(C);
+      ViewLayer *view_layer = CTX_data_view_layer(C);
 
       Vector<Object *> objects =
           BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
@@ -1482,7 +1482,7 @@ static wmOperatorStatus uv_snap_cursor_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, sima);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_IMAGE, sima);
 
   return OPERATOR_FINISHED;
 }
@@ -1617,12 +1617,12 @@ static bool uv_snap_uvs_to_pixels(SpaceImage *sima, Scene *scene, Object *obedit
   return changed;
 }
 
-static wmOperatorStatus uv_snap_selection_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_snap_selection_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceImage *sima = CTX_wm_space_image(*C);
-  const int target = RNA_enum_get(op->ptr, "target");
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
+  const int target = RNA_enum_get(op.ptr, "target");
   float offset[2] = {0};
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
@@ -1664,7 +1664,7 @@ static wmOperatorStatus uv_snap_selection_exec(bContext *C, wmOperator *op)
       changed_multi = true;
       uvedit_live_unwrap_update(sima, scene, obedit);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
 
@@ -1702,15 +1702,15 @@ static void UV_OT_snap_selected(wmOperatorType *ot)
 /** \name Pin UVs Operator
  * \{ */
 
-static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_pin_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   BMFace *efa;
   BMLoop *l;
   BMIter iter, liter;
-  const bool clear = RNA_boolean_get(op->ptr, "clear");
-  const bool invert = RNA_boolean_get(op->ptr, "invert");
+  const bool clear = RNA_boolean_get(op.ptr, "clear");
+  const bool invert = RNA_boolean_get(op.ptr, "invert");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -1753,7 +1753,7 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
     }
 
     if (changed) {
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SYNC_TO_EVAL);
     }
   }
@@ -1942,12 +1942,12 @@ static bool uv_mesh_hide_sync_select(const ToolSettings *ts, Object *ob, BMEditM
   return changed;
 }
 
-static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_hide_exec(bContext &C, wmOperator &op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
-  const bool swap = RNA_boolean_get(op->ptr, "unselected");
+  const bool swap = RNA_boolean_get(op.ptr, "unselected");
   const bool use_face_center = (ts->uv_selectmode == UV_SELECT_FACE);
   const bool use_select_linked = ED_uvedit_select_island_check(ts);
 
@@ -2070,7 +2070,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
     BM_select_history_validate(em->bm);
 
     DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, ob->data);
   }
 
   return OPERATOR_FINISHED;
@@ -2102,14 +2102,14 @@ static void UV_OT_hide(wmOperatorType *ot)
 /** \name Reveal Operator
  * \{ */
 
-static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_reveal_exec(bContext &C, wmOperator &op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
 
   const bool use_face_center = (ts->uv_selectmode == UV_SELECT_FACE);
-  const bool select = RNA_boolean_get(op->ptr, "select");
+  const bool select = RNA_boolean_get(op.ptr, "select");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -2218,7 +2218,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
     BM_mesh_elem_hflag_enable_test(em->bm, BM_FACE, BM_ELEM_SELECT, true, false, BM_ELEM_TAG);
 
     DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, ob->data);
   }
 
   return OPERATOR_FINISHED;
@@ -2245,35 +2245,35 @@ static void UV_OT_reveal(wmOperatorType *ot)
 /** \name Set 2D Cursor Operator
  * \{ */
 
-static wmOperatorStatus uv_set_2d_cursor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_set_2d_cursor_exec(bContext &C, wmOperator &op)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
 
   if (!sima) {
     return OPERATOR_CANCELLED;
   }
 
-  RNA_float_get_array(op->ptr, "location", sima->cursor);
+  RNA_float_get_array(op.ptr, "location", sima->cursor);
 
   {
-    wmMsgBus *mbus = CTX_wm_message_bus(*C);
-    bScreen *screen = CTX_wm_screen(*C);
+    wmMsgBus *mbus = CTX_wm_message_bus(C);
+    bScreen *screen = CTX_wm_screen(C);
     WM_msg_publish_rna_prop(mbus, &screen->id, sima, SpaceImageEditor, cursor_location);
   }
 
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
   /* Use pass-through to allow click-drag to transform the cursor. */
   return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
 }
 
-static wmOperatorStatus uv_set_2d_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus uv_set_2d_cursor_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   float location[2];
 
   if (region->regiontype == RGN_TYPE_WINDOW) {
-    SpaceImage *sima = CTX_wm_space_image(*C);
+    SpaceImage *sima = CTX_wm_space_image(C);
     if (sima && ED_space_image_show_cache_and_mval_over(sima, region, event->mval)) {
       return OPERATOR_PASS_THROUGH;
     }
@@ -2281,7 +2281,7 @@ static wmOperatorStatus uv_set_2d_cursor_invoke(bContext *C, wmOperator *op, con
 
   blender::ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
-  RNA_float_set_array(op->ptr, "location", location);
+  RNA_float_set_array(op.ptr, "location", location);
 
   return uv_set_2d_cursor_exec(C, op);
 }
@@ -2317,12 +2317,12 @@ static void UV_OT_cursor_set(wmOperatorType *ot)
 /** \name Seam from UV Islands Operator
  * \{ */
 
-static wmOperatorStatus uv_seams_from_islands_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_seams_from_islands_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const bool mark_seams = RNA_boolean_get(op->ptr, "mark_seams");
-  const bool mark_sharp = RNA_boolean_get(op->ptr, "mark_sharp");
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const bool mark_seams = RNA_boolean_get(op.ptr, "mark_seams");
+  const bool mark_sharp = RNA_boolean_get(op.ptr, "mark_sharp");
   bool changed_multi = false;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
@@ -2383,7 +2383,7 @@ static wmOperatorStatus uv_seams_from_islands_exec(bContext *C, wmOperator *op)
     if (changed) {
       changed_multi = true;
       DEG_id_tag_update(&mesh->id, 0);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
     }
   }
 
@@ -2414,17 +2414,17 @@ static void UV_OT_seams_from_islands(wmOperatorType *ot)
 /** \name Mark Seam Operator
  * \{ */
 
-static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_mark_seam_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const ToolSettings *ts = scene->toolsettings;
 
   BMFace *efa;
   BMLoop *loop;
   BMIter iter, liter;
 
-  const bool flag_set = !RNA_boolean_get(op->ptr, "clear");
+  const bool flag_set = !RNA_boolean_get(op.ptr, "clear");
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
@@ -2456,7 +2456,7 @@ static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       DEG_id_tag_update(&mesh->id, 0);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
     }
   }
 
@@ -2467,24 +2467,24 @@ static wmOperatorStatus uv_mark_seam_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus uv_mark_seam_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus uv_mark_seam_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  if (RNA_struct_property_is_set(op->ptr, "clear")) {
+  if (RNA_struct_property_is_set(op.ptr, "clear")) {
     return uv_mark_seam_exec(C, op);
   }
 
-  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(C, IFACE_("Edges"), ICON_NONE);
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(&C, IFACE_("Edges"), ICON_NONE);
   blender::ui::Layout &layout = *popup_menu_layout(pup);
 
   layout.operator_context_set(blender::wm::OpCallContext::ExecDefault);
   PointerRNA op_ptr = layout.op(
-      op->type->idname, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark Seam"), ICON_NONE);
+      op.type->idname, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Mark Seam"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "clear", false);
   op_ptr = layout.op(
-      op->type->idname, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Seam"), ICON_NONE);
+      op.type->idname, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Seam"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "clear", true);
 
-  popup_menu_end(C, pup);
+  popup_menu_end(&C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -2635,14 +2635,14 @@ static bool uv_copy_mirrored_faces(
   return changed;
 }
 
-static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
-  const int direction = RNA_enum_get(op->ptr, "direction");
-  const int precision = RNA_int_get(op->ptr, "precision");
+  const int direction = RNA_enum_get(op.ptr, "direction");
+  const int precision = RNA_int_get(op.ptr, "precision");
 
   int total_duplicates = 0;
   int meshes_with_duplicates = 0;
@@ -2661,12 +2661,12 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext *C, wmOperator *op)
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
 
   if (total_duplicates) {
-    BKE_reportf(op->reports,
+    BKE_reportf(op.reports,
                 RPT_WARNING,
                 "%d duplicates found in %d mesh(es), mirror may be incomplete",
                 total_duplicates,

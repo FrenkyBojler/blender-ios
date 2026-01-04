@@ -464,9 +464,9 @@ static void object_hook_select(Object *ob, HookModifierData *hmd)
 
 /* special poll operators for hook operators */
 /* TODO: check for properties window modifier context too as alternative? */
-static bool hook_op_edit_poll(bContext *C)
+static bool hook_op_edit_poll(bContext &C)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
 
   if (obedit) {
     if (ED_operator_editmesh(C)) {
@@ -604,17 +604,17 @@ static int add_hook_object(const bContext *C,
   return true;
 }
 
-static wmOperatorStatus object_add_hook_selob_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_add_hook_selob_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Object *obedit = CTX_data_edit_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Object *obedit = CTX_data_edit_object(C);
   Object *obsel = nullptr;
-  const bool use_bone = RNA_boolean_get(op->ptr, "use_bone");
+  const bool use_bone = RNA_boolean_get(op.ptr, "use_bone");
   const int mode = use_bone ? OBJECT_ADDHOOK_SELOB_BONE : OBJECT_ADDHOOK_SELOB;
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     if (ob != obedit) {
       obsel = ob;
       break;
@@ -623,17 +623,17 @@ static wmOperatorStatus object_add_hook_selob_exec(bContext *C, wmOperator *op)
   CTX_DATA_END;
 
   if (!obsel) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot add hook with no other selected objects");
+    BKE_report(op.reports, RPT_ERROR, "Cannot add hook with no other selected objects");
     return OPERATOR_CANCELLED;
   }
 
   if (use_bone && obsel->type != OB_ARMATURE) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot add hook bone for a non armature object");
+    BKE_report(op.reports, RPT_ERROR, "Cannot add hook bone for a non armature object");
     return OPERATOR_CANCELLED;
   }
 
-  if (add_hook_object(C, bmain, scene, view_layer, nullptr, obedit, obsel, mode, op->reports)) {
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, obedit);
+  if (add_hook_object(&C, bmain, scene, view_layer, nullptr, obedit, obsel, mode, op.reports)) {
+    WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, obedit);
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -660,20 +660,20 @@ void OBJECT_OT_hook_add_selob(wmOperatorType *ot)
                   "Assign the hook to the hook object's active bone");
 }
 
-static wmOperatorStatus object_add_hook_newob_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_add_hook_newob_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  Object *obedit = CTX_data_edit_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  Object *obedit = CTX_data_edit_object(C);
 
   if (add_hook_object(
-          C, bmain, scene, view_layer, v3d, obedit, nullptr, OBJECT_ADDHOOK_NEWOB, op->reports))
+          &C, bmain, scene, view_layer, v3d, obedit, nullptr, OBJECT_ADDHOOK_NEWOB, op.reports))
   {
     DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, obedit);
+    WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, obedit);
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -694,15 +694,15 @@ void OBJECT_OT_hook_add_newob(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus object_hook_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_hook_remove_exec(bContext &C, wmOperator &op)
 {
-  int num = RNA_enum_get(op->ptr, "modifier");
-  Object *ob = CTX_data_edit_object(*C);
+  int num = RNA_enum_get(op.ptr, "modifier");
+  Object *ob = CTX_data_edit_object(C);
   HookModifierData *hmd = nullptr;
 
   hmd = (HookModifierData *)BLI_findlink(&ob->modifiers, num);
   if (!hmd) {
-    BKE_report(op->reports, RPT_ERROR, "Could not find hook modifier");
+    BKE_report(op.reports, RPT_ERROR, "Could not find hook modifier");
     return OPERATOR_CANCELLED;
   }
 
@@ -711,9 +711,9 @@ static wmOperatorStatus object_hook_remove_exec(bContext *C, wmOperator *op)
   BKE_modifier_remove_from_list(ob, (ModifierData *)hmd);
   BKE_modifier_free((ModifierData *)hmd);
 
-  DEG_relations_tag_update(CTX_data_main(*C));
+  DEG_relations_tag_update(CTX_data_main(C));
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -776,23 +776,23 @@ void OBJECT_OT_hook_remove(wmOperatorType *ot)
   ot->prop = prop;
 }
 
-static wmOperatorStatus object_hook_reset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_hook_reset_exec(bContext &C, wmOperator &op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_HookModifier);
-  int num = RNA_enum_get(op->ptr, "modifier");
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  int num = RNA_enum_get(op.ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
 
-  object_hook_from_context(C, &ptr, num, &ob, &hmd);
+  object_hook_from_context(&C, &ptr, num, &ob, &hmd);
   if (hmd == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Could not find hook modifier");
+    BKE_report(op.reports, RPT_ERROR, "Could not find hook modifier");
     return OPERATOR_CANCELLED;
   }
 
   BKE_object_modifier_hook_reset(ob, hmd);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -824,18 +824,18 @@ void OBJECT_OT_hook_reset(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
 
-static wmOperatorStatus object_hook_recenter_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_hook_recenter_exec(bContext &C, wmOperator &op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_HookModifier);
-  int num = RNA_enum_get(op->ptr, "modifier");
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  int num = RNA_enum_get(op.ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   float bmat[3][3], imat[3][3];
 
-  object_hook_from_context(C, &ptr, num, &ob, &hmd);
+  object_hook_from_context(&C, &ptr, num, &ob, &hmd);
   if (hmd == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Could not find hook modifier");
+    BKE_report(op.reports, RPT_ERROR, "Could not find hook modifier");
     return OPERATOR_CANCELLED;
   }
 
@@ -847,7 +847,7 @@ static wmOperatorStatus object_hook_recenter_exec(bContext *C, wmOperator *op)
   mul_m3_v3(imat, hmd->cent);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -879,28 +879,28 @@ void OBJECT_OT_hook_recenter(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
 
-static wmOperatorStatus object_hook_assign_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_hook_assign_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_HookModifier);
-  int num = RNA_enum_get(op->ptr, "modifier");
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  int num = RNA_enum_get(op.ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
   float cent[3];
   char name[MAX_NAME];
   int *indexar, indexar_num;
 
-  object_hook_from_context(C, &ptr, num, &ob, &hmd);
+  object_hook_from_context(&C, &ptr, num, &ob, &hmd);
   if (hmd == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Could not find hook modifier");
+    BKE_report(op.reports, RPT_ERROR, "Could not find hook modifier");
     return OPERATOR_CANCELLED;
   }
 
   /* assign functionality */
 
   if (!object_hook_index_array(bmain, scene, ob, &indexar, &indexar_num, name, cent)) {
-    BKE_report(op->reports, RPT_WARNING, "Requires selected vertices or active vertex group");
+    BKE_report(op.reports, RPT_WARNING, "Requires selected vertices or active vertex group");
     return OPERATOR_CANCELLED;
   }
   if (hmd->indexar) {
@@ -912,7 +912,7 @@ static wmOperatorStatus object_hook_assign_exec(bContext *C, wmOperator *op)
   hmd->indexar_num = indexar_num;
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -946,16 +946,16 @@ void OBJECT_OT_hook_assign(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
 
-static wmOperatorStatus object_hook_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_hook_select_exec(bContext &C, wmOperator &op)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", &RNA_HookModifier);
-  int num = RNA_enum_get(op->ptr, "modifier");
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", &RNA_HookModifier);
+  int num = RNA_enum_get(op.ptr, "modifier");
   Object *ob = nullptr;
   HookModifierData *hmd = nullptr;
 
-  object_hook_from_context(C, &ptr, num, &ob, &hmd);
+  object_hook_from_context(&C, &ptr, num, &ob, &hmd);
   if (hmd == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Could not find hook modifier");
+    BKE_report(op.reports, RPT_ERROR, "Could not find hook modifier");
     return OPERATOR_CANCELLED;
   }
 
@@ -963,7 +963,7 @@ static wmOperatorStatus object_hook_select_exec(bContext *C, wmOperator *op)
   object_hook_select(ob, hmd);
 
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, ob->data);
 
   return OPERATOR_FINISHED;
 }

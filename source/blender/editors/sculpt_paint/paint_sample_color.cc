@@ -383,19 +383,19 @@ static void sample_color_update_header(SampleColorData *data, bContext *C)
   }
 }
 
-static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sample_color_exec(bContext &C, wmOperator &op)
 {
-  Scene &scene = *CTX_data_scene(*C);
-  Object &object = *CTX_data_active_object(*C);
-  Paint *paint = BKE_paint_get_active_from_context(C);
+  Scene &scene = *CTX_data_scene(C);
+  Object &object = *CTX_data_active_object(C);
+  Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush *brush = BKE_paint_brush(paint);
-  ARegion *region = CTX_wm_region(*C);
-  wmWindow *win = CTX_wm_window(*C);
+  ARegion *region = CTX_wm_region(C);
+  wmWindow *win = CTX_wm_window(C);
 
-  const bool use_merged_texture = RNA_boolean_get(op->ptr, "merged");
+  const bool use_merged_texture = RNA_boolean_get(op.ptr, "merged");
   const PaintMode mode = paint->runtime->paint_mode;
   if (ELEM(mode, PaintMode::Vertex, PaintMode::Sculpt) && !use_merged_texture) {
-    if (!color_supported_check(scene, object, op->reports)) {
+    if (!color_supported_check(scene, object, op.reports)) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -405,40 +405,40 @@ static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
 
   /* force redraw without cursor */
   WM_paint_cursor_tag_redraw(win, region);
-  WM_redraw_windows(C);
+  WM_redraw_windows(&C);
 
   int2 location;
-  RNA_int_get_array(op->ptr, "location", location);
+  RNA_int_get_array(op.ptr, "location", location);
   location.x = std::clamp(location.x, 0, (int)region->winx);
   location.y = std::clamp(location.y, 0, (int)region->winy);
 
-  const bool use_palette = RNA_boolean_get(op->ptr, "palette");
+  const bool use_palette = RNA_boolean_get(op.ptr, "palette");
 
-  const float3 sampled_color = paint_sample_color(C, region, location, use_merged_texture);
-  apply_sampled_color(*CTX_data_main(*C), *paint, sampled_color, use_palette);
+  const float3 sampled_color = paint_sample_color(&C, region, location, use_merged_texture);
+  apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, use_palette);
 
   if (show_cursor) {
     paint->flags |= PAINT_SHOW_BRUSH;
   }
 
-  WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
+  WM_event_add_notifier(&C, NC_BRUSH | NA_EDITED, brush);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sample_color_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Scene &scene = *CTX_data_scene(*C);
-  Object &object = *CTX_data_active_object(*C);
-  Paint *paint = BKE_paint_get_active_from_context(C);
+  Scene &scene = *CTX_data_scene(C);
+  Object &object = *CTX_data_active_object(C);
+  Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush *brush = BKE_paint_brush(paint);
-  ARegion *region = CTX_wm_region(*C);
-  wmWindow *win = CTX_wm_window(*C);
+  ARegion *region = CTX_wm_region(C);
+  wmWindow *win = CTX_wm_window(C);
 
-  const bool use_merged_texture = RNA_boolean_get(op->ptr, "merged");
+  const bool use_merged_texture = RNA_boolean_get(op.ptr, "merged");
   const PaintMode mode = paint->runtime->paint_mode;
   if (ELEM(mode, PaintMode::Vertex, PaintMode::Sculpt) && !use_merged_texture) {
-    if (!color_supported_check(scene, object, op->reports)) {
+    if (!color_supported_check(scene, object, op.reports)) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -449,36 +449,36 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
   data->show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
   data->initial_color = BKE_brush_color_get(paint, brush);
   data->sample_palette = false;
-  op->customdata = data;
+  op.customdata = data;
   paint->flags &= ~PAINT_SHOW_BRUSH;
 
-  sample_color_update_header(data, C);
+  sample_color_update_header(data, &C);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   /* force redraw without cursor */
   WM_paint_cursor_tag_redraw(win, region);
-  WM_redraw_windows(C);
+  WM_redraw_windows(&C);
 
-  RNA_int_set_array(op->ptr, "location", event->mval);
+  RNA_int_set_array(op.ptr, "location", event->mval);
 
   int2 mval(std::clamp(event->mval[0], 0, (int)region->winx),
             std::clamp(event->mval[1], 0, (int)region->winy));
-  const float3 sampled_color = paint_sample_color(C, region, mval, use_merged_texture);
+  const float3 sampled_color = paint_sample_color(&C, region, mval, use_merged_texture);
   /* On initial invoke, we never sample to the palette. */
-  apply_sampled_color(*CTX_data_main(*C), *paint, sampled_color, false);
+  apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, false);
 
   WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
-  WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
+  WM_event_add_notifier(&C, NC_BRUSH | NA_EDITED, brush);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sample_color_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  SampleColorData *data = static_cast<SampleColorData *>(op->customdata);
-  Paint *paint = BKE_paint_get_active_from_context(C);
+  SampleColorData *data = static_cast<SampleColorData *>(op.customdata);
+  Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush *brush = BKE_paint_brush(paint);
 
   if ((event->type == data->launch_event) && (event->val == KM_RELEASE)) {
@@ -489,41 +489,41 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
     if (data->sample_palette) {
       /* If we sampled any colors to the palette, reset the brush to its initial color */
       BKE_brush_color_set(paint, brush, data->initial_color);
-      RNA_boolean_set(op->ptr, "palette", true);
-      WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
+      RNA_boolean_set(op.ptr, "palette", true);
+      WM_event_add_notifier(&C, NC_BRUSH | NA_EDITED, brush);
     }
-    WM_cursor_modal_restore(CTX_wm_window(*C));
+    WM_cursor_modal_restore(CTX_wm_window(C));
     MEM_delete(data);
-    ED_workspace_status_text(C, nullptr);
+    ED_workspace_status_text(&C, nullptr);
 
     return OPERATOR_FINISHED;
   }
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   int2 mval(std::clamp(event->mval[0], 0, (int)region->winx),
             std::clamp(event->mval[1], 0, (int)region->winy));
 
-  const bool use_merged_texture = RNA_boolean_get(op->ptr, "merged");
+  const bool use_merged_texture = RNA_boolean_get(op.ptr, "merged");
 
   switch (event->type) {
     case MOUSEMOVE: {
-      RNA_int_set_array(op->ptr, "location", event->mval);
-      const float3 sampled_color = paint_sample_color(C, region, mval, use_merged_texture);
-      apply_sampled_color(*CTX_data_main(*C), *paint, sampled_color, false);
-      WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
+      RNA_int_set_array(op.ptr, "location", event->mval);
+      const float3 sampled_color = paint_sample_color(&C, region, mval, use_merged_texture);
+      apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, false);
+      WM_event_add_notifier(&C, NC_BRUSH | NA_EDITED, brush);
       break;
     }
 
     case LEFTMOUSE:
       if (event->val == KM_PRESS) {
-        RNA_int_set_array(op->ptr, "location", event->mval);
-        const float3 sampled_color = paint_sample_color(C, region, mval, use_merged_texture);
-        apply_sampled_color(*CTX_data_main(*C), *paint, sampled_color, true);
+        RNA_int_set_array(op.ptr, "location", event->mval);
+        const float3 sampled_color = paint_sample_color(&C, region, mval, use_merged_texture);
+        apply_sampled_color(*CTX_data_main(C), *paint, sampled_color, true);
         if (!data->sample_palette) {
           data->sample_palette = true;
-          sample_color_update_header(data, C);
-          BKE_report(op->reports, RPT_INFO, "Sampling color for palette");
+          sample_color_update_header(data, &C);
+          BKE_report(op.reports, RPT_INFO, "Sampling color for palette");
         }
-        WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
+        WM_event_add_notifier(&C, NC_BRUSH | NA_EDITED, brush);
       }
       break;
     default: {
@@ -534,9 +534,9 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
   return OPERATOR_RUNNING_MODAL;
 }
 
-static bool sample_color_poll(bContext *C)
+static bool sample_color_poll(bContext &C)
 {
-  return (image_paint_poll_ignore_tool(C) || vertex_paint_poll_ignore_tool(C) ||
+  return (image_paint_poll_ignore_tool(&C) || vertex_paint_poll_ignore_tool(&C) ||
           SCULPT_mode_poll(C) || blender::ed::greasepencil::grease_pencil_painting_poll(C) ||
           blender::ed::greasepencil::grease_pencil_vertex_painting_poll(C));
 }

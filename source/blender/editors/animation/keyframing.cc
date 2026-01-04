@@ -156,10 +156,10 @@ enum {
  * This is based on the standard ED_operator_areaactive callback,
  * except that it does special checks for a few space-types too.
  */
-static bool modify_key_op_poll(bContext *C)
+static bool modify_key_op_poll(bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  Scene *scene = CTX_data_scene(*C);
+  ScrArea *area = CTX_wm_area(C);
+  Scene *scene = CTX_data_scene(C);
 
   /* if no area or active scene */
   if (ELEM(nullptr, area, scene)) {
@@ -412,31 +412,31 @@ static wmOperatorStatus insert_key(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus insert_key_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus insert_key_exec(bContext &C, wmOperator &op)
 {
-  ANIM_deselect_keys_in_animation_editors(C);
+  ANIM_deselect_keys_in_animation_editors(&C);
 
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
   /* Use the active keying set if there is one. */
-  const int type = RNA_enum_get(op->ptr, "type");
+  const int type = RNA_enum_get(op.ptr, "type");
   KeyingSet *ks = ANIM_keyingset_get_from_enum_type(scene, type);
   if (ks) {
-    return insert_key_with_keyingset(C, op, ks);
+    return insert_key_with_keyingset(&C, &op, ks);
   }
-  return insert_key(C, op);
+  return insert_key(&C, &op);
 }
 
-static wmOperatorStatus insert_key_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus insert_key_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   /* The depsgraph needs to be in an evaluated state to ensure the values we get from the
    * properties are actually the values of the current frame. However we cannot do that in the exec
    * function, as that would mean every call to the operator via python has to re-evaluate the
    * depsgraph, causing performance regressions. */
-  CTX_data_ensure_evaluated_depsgraph(*C);
+  CTX_data_ensure_evaluated_depsgraph(C);
   return insert_key_exec(C, op);
 }
 
@@ -465,20 +465,20 @@ void ANIM_OT_keyframe_insert(wmOperatorType *ot)
   ot->prop = prop;
 }
 
-static wmOperatorStatus keyframe_insert_with_keyingset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus keyframe_insert_with_keyingset_exec(bContext &C, wmOperator &op)
 {
-  ANIM_deselect_keys_in_animation_editors(C);
+  ANIM_deselect_keys_in_animation_editors(&C);
 
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
-  KeyingSet *ks = keyingset_get_from_op_with_error(op, op->type->prop, scene);
+  KeyingSet *ks = keyingset_get_from_op_with_error(&op, op.type->prop, scene);
   if (ks == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  return insert_key_with_keyingset(C, op, ks);
+  return insert_key_with_keyingset(&C, &op, ks);
 }
 
 void ANIM_OT_keyframe_insert_by_name(wmOperatorType *ot)
@@ -511,21 +511,21 @@ void ANIM_OT_keyframe_insert_by_name(wmOperatorType *ot)
  * then calls the menu if necessary before
  */
 
-static wmOperatorStatus insert_key_menu_invoke(bContext *C,
-                                               wmOperator *op,
+static wmOperatorStatus insert_key_menu_invoke(bContext &C,
+                                               wmOperator &op,
                                                const wmEvent * /*event*/)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
 
   /* When there is an active keying set and no request to prompt, keyframe immediately. */
-  if ((scene->active_keyingset != 0) && !RNA_boolean_get(op->ptr, "always_prompt")) {
+  if ((scene->active_keyingset != 0) && !RNA_boolean_get(op.ptr, "always_prompt")) {
     /* Just call the exec() on the active keying-set. */
-    RNA_enum_set(op->ptr, "type", 0);
-    return op->type->exec(C, op);
+    RNA_enum_set(op.ptr, "type", 0);
+    return op.type->exec(&C, &op);
   }
 
   /* Show a menu listing all keying-sets, the enum is expanded here to make use of the
@@ -534,18 +534,18 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
    * These menu items perform the key-frame insertion (not this operator)
    * hence the #OPERATOR_INTERFACE return. */
   blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
-      C, WM_operatortype_name(op->type, op->ptr).c_str(), ICON_NONE);
+      &C, WM_operatortype_name(op.type, op.ptr).c_str(), ICON_NONE);
   blender::ui::Layout &layout = *popup_menu_layout(pup);
 
   /* Even though `ANIM_OT_keyframe_insert_menu` can show a menu in one line,
    * prefer `ANIM_OT_keyframe_insert_by_name` so users can bind keys to specific
    * keying sets by name in the key-map instead of the index which isn't stable. */
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "type");
+  PropertyRNA *prop = RNA_struct_find_property(op.ptr, "type");
   const EnumPropertyItem *item_array = nullptr;
   int totitem;
   bool free;
 
-  RNA_property_enum_items_gettexted(C, op->ptr, prop, &item_array, &totitem, &free);
+  RNA_property_enum_items_gettexted(&C, op.ptr, prop, &item_array, &totitem, &free);
 
   for (int i = 0; i < totitem; i++) {
     const EnumPropertyItem *item = &item_array[i];
@@ -566,7 +566,7 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
     MEM_freeN(item_array);
   }
 
-  popup_menu_end(C, pup);
+  popup_menu_end(&C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -606,19 +606,19 @@ void ANIM_OT_keyframe_insert_menu(wmOperatorType *ot)
 
 /* Delete Key Operator ------------------------ */
 
-static wmOperatorStatus delete_key_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus delete_key_exec(bContext &C, wmOperator &op)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
-  KeyingSet *ks = keyingset_get_from_op_with_error(op, op->type->prop, scene);
+  KeyingSet *ks = keyingset_get_from_op_with_error(&op, op.type->prop, scene);
   if (ks == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  return delete_key_using_keying_set(C, op, ks);
+  return delete_key_using_keying_set(&C, &op, ks);
 }
 
 static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *ks)
@@ -755,12 +755,12 @@ static bool can_delete_fcurve(FCurve *fcu, Object *ob)
   return can_delete;
 }
 
-static wmOperatorStatus clear_anim_v3d_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus clear_anim_v3d_exec(bContext &C, wmOperator & /*op*/)
 {
   using namespace blender::animrig;
   bool changed = false;
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     /* just those in active action... */
     if ((ob->adt) && (ob->adt->action)) {
       AnimData *adt = ob->adt;
@@ -788,18 +788,18 @@ static wmOperatorStatus clear_anim_v3d_exec(bContext *C, wmOperator * /*op*/)
   }
 
   /* send updates */
-  WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus clear_anim_v3d_invoke(bContext *C,
-                                              wmOperator *op,
+static wmOperatorStatus clear_anim_v3d_invoke(bContext &C,
+                                              wmOperator &op,
                                               const wmEvent * /*event*/)
 {
-  if (RNA_boolean_get(op->ptr, "confirm")) {
-    return WM_operator_confirm_ex(C,
-                                  op,
+  if (RNA_boolean_get(op.ptr, "confirm")) {
+    return WM_operator_confirm_ex(&C,
+                                  &op,
                                   IFACE_("Remove animation from selected objects?"),
                                   nullptr,
                                   CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"),
@@ -856,25 +856,25 @@ static bool fcurve_belongs_to_strip(const FCurve &fcurve, const std::string &str
          std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0;
 }
 
-static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus clear_anim_vse_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::animrig;
   bool changed = false;
 
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   blender::Vector<PointerRNA> selection;
   blender::Vector<std::string> selected_strips_rna_paths;
-  get_selection(C, &selection);
+  get_selection(&C, &selection);
   selected_strips_rna_paths = get_selected_strips_rna_paths(selection);
 
   if (selected_strips_rna_paths.is_empty()) {
-    BKE_reportf(op->reports, RPT_WARNING, "No strips selected");
+    BKE_reportf(op.reports, RPT_WARNING, "No strips selected");
     return OPERATOR_CANCELLED;
   }
 
   if (!scene->adt || !scene->adt->action || (scene->adt->slot_handle == Slot::unassigned)) {
-    BKE_reportf(op->reports, RPT_ERROR, "Scene has no animation data or active action");
+    BKE_reportf(op.reports, RPT_ERROR, "Scene has no animation data or active action");
     return OPERATOR_CANCELLED;
   }
 
@@ -904,19 +904,19 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
   invalidate_strip_caches(selection, scene);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
-  WM_event_add_notifier(C, NC_ANIMATION, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(&C, NC_ANIMATION, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus clear_anim_vse_invoke(bContext *C,
-                                              wmOperator *op,
+static wmOperatorStatus clear_anim_vse_invoke(bContext &C,
+                                              wmOperator &op,
                                               const wmEvent * /*event*/)
 {
-  if (RNA_boolean_get(op->ptr, "confirm")) {
-    return WM_operator_confirm_ex(C,
-                                  op,
+  if (RNA_boolean_get(op.ptr, "confirm")) {
+    return WM_operator_confirm_ex(&C,
+                                  &op,
                                   IFACE_("Remove animation from selected strips?"),
                                   nullptr,
                                   CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"),
@@ -1087,25 +1087,25 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus delete_key_vse_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus delete_key_vse_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   KeyingSet *ks = blender::animrig::scene_get_active_keyingset(scene);
 
   if (ks == nullptr) {
-    return delete_key_vse_without_keying_set(C, op);
+    return delete_key_vse_without_keying_set(&C, &op);
   }
 
-  return delete_key_using_keying_set(C, op, ks);
+  return delete_key_using_keying_set(&C, &op, ks);
 }
 
-static wmOperatorStatus delete_key_vse_invoke(bContext *C,
-                                              wmOperator *op,
+static wmOperatorStatus delete_key_vse_invoke(bContext &C,
+                                              wmOperator &op,
                                               const wmEvent * /*event*/)
 {
-  if (RNA_boolean_get(op->ptr, "confirm")) {
-    return WM_operator_confirm_ex(C,
-                                  op,
+  if (RNA_boolean_get(op.ptr, "confirm")) {
+    return WM_operator_confirm_ex(&C,
+                                  &op,
                                   IFACE_("Delete keyframes from selected strips?"),
                                   nullptr,
                                   IFACE_("Delete"),
@@ -1213,25 +1213,25 @@ static wmOperatorStatus delete_key_v3d_without_keying_set(bContext *C, wmOperato
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus delete_key_v3d_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus delete_key_v3d_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   KeyingSet *ks = blender::animrig::scene_get_active_keyingset(scene);
 
   if (ks == nullptr) {
-    return delete_key_v3d_without_keying_set(C, op);
+    return delete_key_v3d_without_keying_set(&C, &op);
   }
 
-  return delete_key_using_keying_set(C, op, ks);
+  return delete_key_using_keying_set(&C, &op, ks);
 }
 
-static wmOperatorStatus delete_key_v3d_invoke(bContext *C,
-                                              wmOperator *op,
+static wmOperatorStatus delete_key_v3d_invoke(bContext &C,
+                                              wmOperator &op,
                                               const wmEvent * /*event*/)
 {
-  if (RNA_boolean_get(op->ptr, "confirm")) {
-    return WM_operator_confirm_ex(C,
-                                  op,
+  if (RNA_boolean_get(op.ptr, "confirm")) {
+    return WM_operator_confirm_ex(&C,
+                                  &op,
                                   IFACE_("Delete keyframes from selected objects?"),
                                   nullptr,
                                   IFACE_("Delete"),
@@ -1261,12 +1261,12 @@ void ANIM_OT_keyframe_delete_v3d(wmOperatorType *ot)
 
 /* Insert Key Button Operator ------------------------ */
 
-static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus insert_key_button_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::animrig;
-  Main *bmain = CTX_data_main(*C);
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
@@ -1275,15 +1275,15 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
   PropertyRNA *prop = nullptr;
   blender::ui::Button *but;
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
-      CTX_data_depsgraph_pointer(*C), BKE_scene_frame_get(scene));
+      CTX_data_depsgraph_pointer(C), BKE_scene_frame_get(scene));
   bool changed = false;
   int index;
-  const bool all = RNA_boolean_get(op->ptr, "all");
+  const bool all = RNA_boolean_get(op.ptr, "all");
   eInsertKeyFlags flag = INSERTKEY_NOFLAGS;
 
   flag = get_keyframing_flags(scene);
 
-  if (!(but = blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index))) {
+  if (!(but = blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index))) {
     /* pass event on if no active button found */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -1298,7 +1298,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
       FCurve *fcu = BKE_fcurve_find(&strip->fcurves, RNA_property_identifier(prop), index);
 
       if (fcu) {
-        changed = insert_keyframe_direct(op->reports,
+        changed = insert_keyframe_direct(op.reports,
                                          ptr,
                                          prop,
                                          fcu,
@@ -1308,7 +1308,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
                                          eInsertKeyFlags(0));
       }
       else {
-        BKE_report(op->reports,
+        BKE_report(op.reports,
                    RPT_ERROR,
                    "This property cannot be animated as it will not get updated correctly");
       }
@@ -1319,14 +1319,14 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
       bool driven, special;
 
       fcu = BKE_fcurve_find_by_rna_context_ui(
-          C, &ptr, prop, index, nullptr, nullptr, &driven, &special);
+          &C, &ptr, prop, index, nullptr, nullptr, &driven, &special);
 
       if (fcu && driven) {
         const float driver_frame = evaluate_driver_from_rna_pointer(
             &anim_eval_context, &ptr, prop, fcu);
         AnimationEvalContext remapped_context = BKE_animsys_eval_context_construct(
-            CTX_data_depsgraph_pointer(*C), driver_frame);
-        changed = insert_keyframe_direct(op->reports,
+            CTX_data_depsgraph_pointer(C), driver_frame);
+        changed = insert_keyframe_direct(op.reports,
                                          ptr,
                                          prop,
                                          fcu,
@@ -1343,7 +1343,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
         const std::optional<blender::StringRefNull> group = default_channel_group_for_path(
             &ptr, identifier);
 
-        ANIM_deselect_keys_in_animation_editors(C);
+        ANIM_deselect_keys_in_animation_editors(&C);
 
         /* NOTE: `index == -1` is a magic number, meaning either "operate on all
          * elements" or "not an array property". */
@@ -1361,7 +1361,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
         changed = result.get_count(SingleKeyingResult::SUCCESS) != 0;
       }
       else {
-        BKE_report(op->reports,
+        BKE_report(op.reports,
                    RPT_WARNING,
                    "Failed to resolve path to property, "
                    "try manually specifying this using a Keying Set instead");
@@ -1370,13 +1370,13 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
   }
   else {
     if (prop && !RNA_property_anim_editable(&ptr, prop)) {
-      BKE_reportf(op->reports,
+      BKE_reportf(op.reports,
                   RPT_WARNING,
                   "\"%s\" property cannot be animated",
                   RNA_property_identifier(prop));
     }
     else {
-      BKE_reportf(op->reports,
+      BKE_reportf(op.reports,
                   RPT_WARNING,
                   "Button does not appear to have any property information attached (ptr.data = "
                   "%p, prop = %p)",
@@ -1394,10 +1394,10 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(id, ID_RECALC_ANIMATION_NO_FLUSH);
 
     /* send updates */
-    blender::ui::context_update_anim_flag(C);
+    blender::ui::context_update_anim_flag(&C);
 
     /* send notifiers that keyframes have been changed */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
   }
 
   return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -1423,22 +1423,22 @@ void ANIM_OT_keyframe_insert_button(wmOperatorType *ot)
 
 /* Delete Key Button Operator ------------------------ */
 
-static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus delete_key_button_exec(bContext &C, wmOperator &op)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   const float cfra = BKE_scene_frame_get(scene);
   bool changed = false;
   int index;
-  const bool all = RNA_boolean_get(op->ptr, "all");
+  const bool all = RNA_boolean_get(op.ptr, "all");
 
-  if (!blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
+  if (!blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index)) {
     /* pass event on if no active button found */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -1456,7 +1456,7 @@ static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
       if (fcu) {
         if (BKE_fcurve_is_protected(fcu)) {
           BKE_reportf(
-              op->reports,
+              op.reports,
               RPT_WARNING,
               "Not deleting keyframe for locked F-Curve for NLA Strip influence on %s - %s '%s'",
               strip->name,
@@ -1492,7 +1492,7 @@ static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
         }
 
         changed = blender::animrig::delete_keyframe(
-                      bmain, op->reports, ptr.owner_id, rna_path, cfra) != 0;
+                      bmain, op.reports, ptr.owner_id, rna_path, cfra) != 0;
       }
       else if (G.debug & G_DEBUG) {
         printf("Button Delete-Key: no path to property\n");
@@ -1505,10 +1505,10 @@ static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     /* send updates */
-    blender::ui::context_update_anim_flag(C);
+    blender::ui::context_update_anim_flag(&C);
 
     /* send notifiers that keyframes have been changed */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
   }
 
   return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -1534,16 +1534,16 @@ void ANIM_OT_keyframe_delete_button(wmOperatorType *ot)
 
 /* Clear Key Button Operator ------------------------ */
 
-static wmOperatorStatus clear_key_button_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus clear_key_button_exec(bContext &C, wmOperator &op)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   bool changed = false;
   int index;
-  const bool all = RNA_boolean_get(op->ptr, "all");
+  const bool all = RNA_boolean_get(op.ptr, "all");
 
-  if (!blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
+  if (!blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index)) {
     /* pass event on if no active button found */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -1556,7 +1556,7 @@ static wmOperatorStatus clear_key_button_exec(bContext *C, wmOperator *op)
         rna_path.index = std::nullopt;
       }
 
-      changed |= (blender::animrig::clear_keyframe(bmain, op->reports, ptr.owner_id, rna_path) !=
+      changed |= (blender::animrig::clear_keyframe(bmain, op.reports, ptr.owner_id, rna_path) !=
                   0);
     }
     else if (G.debug & G_DEBUG) {
@@ -1569,10 +1569,10 @@ static wmOperatorStatus clear_key_button_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     /* send updates */
-    blender::ui::context_update_anim_flag(C);
+    blender::ui::context_update_anim_flag(&C);
 
     /* send notifiers that keyframes have been changed */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
   }
 
   return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;

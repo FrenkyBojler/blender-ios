@@ -1108,9 +1108,9 @@ static void fly_draw_status(bContext *C, wmOperator *op)
   status.item(fmt::format("{} ({:.2f})", IFACE_("Acceleration"), fly->speed), ICON_NONE);
 }
 
-static wmOperatorStatus fly_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus fly_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
   if (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) {
     return OPERATOR_CANCELLED;
@@ -1118,35 +1118,35 @@ static wmOperatorStatus fly_invoke(bContext *C, wmOperator *op, const wmEvent *e
 
   FlyInfo *fly = MEM_callocN<FlyInfo>("FlyOperation");
 
-  op->customdata = fly;
+  op.customdata = fly;
 
-  if (initFlyInfo(C, fly, op, event) == false) {
+  if (initFlyInfo(&C, fly, &op, event) == false) {
     MEM_freeN(fly);
     return OPERATOR_CANCELLED;
   }
 
   flyEvent(fly, event);
 
-  fly_draw_status(C, op);
+  fly_draw_status(&C, &op);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void fly_cancel(bContext *C, wmOperator *op)
+static void fly_cancel(bContext &C, wmOperator &op)
 {
-  FlyInfo *fly = static_cast<FlyInfo *>(op->customdata);
+  FlyInfo *fly = static_cast<FlyInfo *>(op.customdata);
 
   fly->state = FLY_CANCEL;
-  flyEnd(C, fly);
-  op->customdata = nullptr;
+  flyEnd(&C, fly);
+  op.customdata = nullptr;
 }
 
-static wmOperatorStatus fly_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus fly_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   bool do_draw = false;
-  FlyInfo *fly = static_cast<FlyInfo *>(op->customdata);
+  FlyInfo *fly = static_cast<FlyInfo *>(op.customdata);
   View3D *v3d = fly->v3d;
   RegionView3D *rv3d = fly->rv3d;
   Object *fly_object = ED_view3d_cameracontrol_object_get(fly->v3d_camera_control);
@@ -1155,32 +1155,32 @@ static wmOperatorStatus fly_modal(bContext *C, wmOperator *op, const wmEvent *ev
 
   flyEvent(fly, event);
 
-  fly_draw_status(C, op);
+  fly_draw_status(&C, &op);
 
 #ifdef WITH_INPUT_NDOF
   if (fly->ndof) { /* 3D mouse overrules [2D mouse + timer]. */
     if (event->type == NDOF_MOTION) {
-      flyApply_ndof(C, fly, false);
+      flyApply_ndof(&C, fly, false);
     }
   }
   else
 #endif /* WITH_INPUT_NDOF */
   {
     if (event->type == TIMER && event->customdata == fly->timer) {
-      flyApply(C, fly, false);
+      flyApply(&C, fly, false);
     }
   }
 
   do_draw |= fly->redraw;
 
-  wmOperatorStatus exit_code = flyEnd(C, fly);
+  wmOperatorStatus exit_code = flyEnd(&C, fly);
 
   if (exit_code == OPERATOR_FINISHED) {
-    const bool is_undo_pushed = ED_view3d_camera_lock_undo_push(op->type->name, v3d, rv3d, C);
+    const bool is_undo_pushed = ED_view3d_camera_lock_undo_push(op.type->name, v3d, rv3d, &C);
     /* If generic 'locked camera' code did not push an undo, but there is a valid 'flying
      * object', an undo push is still needed, since that object transform was modified. */
-    if (!is_undo_pushed && fly_object && ED_undo_is_memfile_compatible(C)) {
-      ED_undo_push(C, op->type->name);
+    if (!is_undo_pushed && fly_object && ED_undo_is_memfile_compatible(&C)) {
+      ED_undo_push(&C, op.type->name);
     }
   }
   if (exit_code != OPERATOR_RUNNING_MODAL) {
@@ -1189,11 +1189,11 @@ static wmOperatorStatus fly_modal(bContext *C, wmOperator *op, const wmEvent *ev
 
   if (do_draw) {
     if (rv3d->persp == RV3D_CAMOB) {
-      WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, fly_object);
+      WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, fly_object);
     }
 
     // puts("redraw!"); // too frequent, commented with NDOF_FLY_DRAW_TOOMUCH for now
-    ED_region_tag_redraw(CTX_wm_region(*C));
+    ED_region_tag_redraw(CTX_wm_region(C));
   }
 
   return exit_code;

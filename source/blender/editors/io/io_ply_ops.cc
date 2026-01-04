@@ -53,63 +53,64 @@ static const EnumPropertyItem ply_vertex_colors_mode[] = {
      "Vertex colors in the file are in linear color space"},
     {0, nullptr, 0, nullptr, nullptr}};
 
-static wmOperatorStatus wm_ply_export_invoke(bContext *C,
-                                             wmOperator *op,
+static wmOperatorStatus wm_ply_export_invoke(bContext &C,
+                                             wmOperator &op,
                                              const wmEvent * /*event*/)
 {
-  ED_fileselect_ensure_default_filepath(C, op, ".ply");
+  ED_fileselect_ensure_default_filepath(&C, &op, ".ply");
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_ply_export_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_ply_export_exec(bContext &C, wmOperator &op)
 {
-  if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+  if (!RNA_struct_property_is_set_ex(op.ptr, "filepath", false)) {
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
   PLYExportParams export_params;
   export_params.file_base_for_tests[0] = '\0';
-  RNA_string_get(op->ptr, "filepath", export_params.filepath);
-  export_params.blen_filepath = CTX_data_main(*C)->filepath;
+  RNA_string_get(op.ptr, "filepath", export_params.filepath);
+  export_params.blen_filepath = CTX_data_main(C)->filepath;
 
-  export_params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
-  export_params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
-  export_params.global_scale = RNA_float_get(op->ptr, "global_scale");
-  export_params.apply_modifiers = RNA_boolean_get(op->ptr, "apply_modifiers");
+  export_params.forward_axis = eIOAxis(RNA_enum_get(op.ptr, "forward_axis"));
+  export_params.up_axis = eIOAxis(RNA_enum_get(op.ptr, "up_axis"));
+  export_params.global_scale = RNA_float_get(op.ptr, "global_scale");
+  export_params.apply_modifiers = RNA_boolean_get(op.ptr, "apply_modifiers");
 
-  export_params.export_selected_objects = RNA_boolean_get(op->ptr, "export_selected_objects");
-  export_params.export_uv = RNA_boolean_get(op->ptr, "export_uv");
-  export_params.export_normals = RNA_boolean_get(op->ptr, "export_normals");
-  export_params.vertex_colors = ePLYVertexColorMode(RNA_enum_get(op->ptr, "export_colors"));
-  export_params.export_attributes = RNA_boolean_get(op->ptr, "export_attributes");
-  export_params.export_triangulated_mesh = RNA_boolean_get(op->ptr, "export_triangulated_mesh");
-  export_params.ascii_format = RNA_boolean_get(op->ptr, "ascii_format");
+  export_params.export_selected_objects = RNA_boolean_get(op.ptr, "export_selected_objects");
+  export_params.export_uv = RNA_boolean_get(op.ptr, "export_uv");
+  export_params.export_normals = RNA_boolean_get(op.ptr, "export_normals");
+  export_params.vertex_colors = ePLYVertexColorMode(RNA_enum_get(op.ptr, "export_colors"));
+  export_params.export_attributes = RNA_boolean_get(op.ptr, "export_attributes");
+  export_params.export_triangulated_mesh = RNA_boolean_get(op.ptr, "export_triangulated_mesh");
+  export_params.ascii_format = RNA_boolean_get(op.ptr, "ascii_format");
 
-  RNA_string_get(op->ptr, "collection", export_params.collection);
+  RNA_string_get(op.ptr, "collection", export_params.collection);
 
-  export_params.reports = op->reports;
+  export_params.reports = op.reports;
 
-  PLY_export(C, export_params);
+  PLY_export(&C, export_params);
 
-  if (BKE_reports_contain(op->reports, RPT_ERROR)) {
+  if (BKE_reports_contain(op.reports, RPT_ERROR)) {
     return OPERATOR_CANCELLED;
   }
 
-  BKE_report(op->reports, RPT_INFO, "File exported successfully");
+  BKE_report(op.reports, RPT_INFO, "File exported successfully");
   return OPERATOR_FINISHED;
 }
 
-static void wm_ply_export_draw(bContext *C, wmOperator *op)
+static void wm_ply_export_draw(bContext &C, wmOperator &op)
 {
-  blender::ui::Layout &layout = *op->layout;
-  PointerRNA *ptr = op->ptr;
+  blender::ui::Layout &layout = *op.layout;
+  PointerRNA *ptr = op.ptr;
 
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  if (blender::ui::Layout *panel = layout.panel(C, "PLY_export_general", false, IFACE_("General")))
+  if (blender::ui::Layout *panel = layout.panel(
+          &C, "PLY_export_general", false, IFACE_("General")))
   {
     blender::ui::Layout &col = panel->column(false);
 
@@ -118,7 +119,7 @@ static void wm_ply_export_draw(bContext *C, wmOperator *op)
       sub.prop(ptr, "ascii_format", UI_ITEM_NONE, IFACE_("ASCII"), ICON_NONE);
     }
     /* The Selection only options only make sense when using regular export. */
-    if (CTX_wm_space_file(*C)) {
+    if (CTX_wm_space_file(C)) {
       blender::ui::Layout &sub = col.column(false, IFACE_("Include"));
       sub.prop(ptr, "export_selected_objects", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
     }
@@ -129,7 +130,7 @@ static void wm_ply_export_draw(bContext *C, wmOperator *op)
   }
 
   if (blender::ui::Layout *panel = layout.panel(
-          C, "PLY_export_geometry", false, IFACE_("Geometry")))
+          &C, "PLY_export_geometry", false, IFACE_("Geometry")))
   {
     blender::ui::Layout &col = panel->column(false);
 
@@ -147,15 +148,15 @@ static void wm_ply_export_draw(bContext *C, wmOperator *op)
 /**
  * Return true if any property in the UI is changed.
  */
-static bool wm_ply_export_check(bContext * /*C*/, wmOperator *op)
+static bool wm_ply_export_check(bContext & /*C*/, wmOperator &op)
 {
   char filepath[FILE_MAX];
   bool changed = false;
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   if (!BLI_path_extension_check(filepath, ".ply")) {
     BLI_path_extension_ensure(filepath, FILE_MAX, ".ply");
-    RNA_string_set(op->ptr, "filepath", filepath);
+    RNA_string_set(op.ptr, "filepath", filepath);
     changed = true;
   }
   return changed;
@@ -252,35 +253,35 @@ void WM_OT_ply_export(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-static wmOperatorStatus wm_ply_import_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_ply_import_exec(bContext &C, wmOperator &op)
 {
   PLYImportParams params;
-  params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
-  params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
-  params.use_scene_unit = RNA_boolean_get(op->ptr, "use_scene_unit");
-  params.global_scale = RNA_float_get(op->ptr, "global_scale");
-  params.merge_verts = RNA_boolean_get(op->ptr, "merge_verts");
-  params.import_attributes = RNA_boolean_get(op->ptr, "import_attributes");
-  params.vertex_colors = ePLYVertexColorMode(RNA_enum_get(op->ptr, "import_colors"));
+  params.forward_axis = eIOAxis(RNA_enum_get(op.ptr, "forward_axis"));
+  params.up_axis = eIOAxis(RNA_enum_get(op.ptr, "up_axis"));
+  params.use_scene_unit = RNA_boolean_get(op.ptr, "use_scene_unit");
+  params.global_scale = RNA_float_get(op.ptr, "global_scale");
+  params.merge_verts = RNA_boolean_get(op.ptr, "merge_verts");
+  params.import_attributes = RNA_boolean_get(op.ptr, "import_attributes");
+  params.vertex_colors = ePLYVertexColorMode(RNA_enum_get(op.ptr, "import_colors"));
 
-  params.reports = op->reports;
+  params.reports = op.reports;
 
-  const auto paths = blender::ed::io::paths_from_operator_properties(op->ptr);
+  const auto paths = blender::ed::io::paths_from_operator_properties(op.ptr);
 
   if (paths.is_empty()) {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
   for (const auto &path : paths) {
     STRNCPY(params.filepath, path.c_str());
-    PLY_import(C, params);
+    PLY_import(&C, params);
   };
 
-  Scene *scene = CTX_data_scene(*C);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
-  ED_outliner_select_sync_from_object_tag(C);
+  Scene *scene = CTX_data_scene(C);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  ED_outliner_select_sync_from_object_tag(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -307,9 +308,9 @@ static void ui_ply_import_settings(const bContext *C, blender::ui::Layout &layou
   }
 }
 
-static void wm_ply_import_draw(bContext *C, wmOperator *op)
+static void wm_ply_import_draw(bContext &C, wmOperator &op)
 {
-  ui_ply_import_settings(C, *op->layout, op->ptr);
+  ui_ply_import_settings(&C, *op.layout, op.ptr);
 }
 
 void WM_OT_ply_import(wmOperatorType *ot)

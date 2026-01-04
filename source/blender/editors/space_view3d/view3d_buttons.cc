@@ -2609,20 +2609,21 @@ void view3d_buttons_register(ARegionType *art)
   BLI_addtail(&art->paneltypes, pt);
 }
 
-static wmOperatorStatus view3d_object_mode_menu_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_object_mode_menu_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   if (ob == nullptr) {
-    BKE_report(op->reports, RPT_WARNING, "No active object found");
+    BKE_report(op.reports, RPT_WARNING, "No active object found");
     return OPERATOR_CANCELLED;
   }
   if (((ob->mode & OB_MODE_EDIT) == 0) && ELEM(ob->type, OB_ARMATURE)) {
-    blender::ed::object::mode_set(C, (ob->mode == OB_MODE_OBJECT) ? OB_MODE_POSE : OB_MODE_OBJECT);
+    blender::ed::object::mode_set(&C,
+                                  (ob->mode == OB_MODE_OBJECT) ? OB_MODE_POSE : OB_MODE_OBJECT);
     return OPERATOR_CANCELLED;
   }
 
   blender::ui::pie_menu_invoke(
-      C, "VIEW3D_MT_object_mode_pie", CTX_wm_window(*C)->runtime->eventstate);
+      &C, "VIEW3D_MT_object_mode_pie", CTX_wm_window(C)->runtime->eventstate);
   return OPERATOR_CANCELLED;
 }
 

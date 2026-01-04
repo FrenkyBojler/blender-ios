@@ -76,38 +76,38 @@ static bool add_marker(const bContext *C, float x, float y)
   return true;
 }
 
-static wmOperatorStatus add_marker_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_marker_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   float pos[2];
 
   ClipViewLockState lock_state;
-  ED_clip_view_lock_state_store(C, &lock_state);
+  ED_clip_view_lock_state_store(&C, &lock_state);
 
-  RNA_float_get_array(op->ptr, "location", pos);
+  RNA_float_get_array(op.ptr, "location", pos);
 
-  if (!add_marker(C, pos[0], pos[1])) {
+  if (!add_marker(&C, pos[0], pos[1])) {
     return OPERATOR_CANCELLED;
   }
 
-  ED_clip_view_lock_state_restore_no_jump(C, &lock_state);
+  ED_clip_view_lock_state_restore_no_jump(&C, &lock_state);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus add_marker_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus add_marker_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
+  ARegion *region = CTX_wm_region(C);
 
-  if (!RNA_struct_property_is_set(op->ptr, "location")) {
+  if (!RNA_struct_property_is_set(op.ptr, "location")) {
     /* If location is not set, use mouse position as default. */
     float co[2];
     ED_clip_mouse_pos(sc, region, event->mval, co);
-    RNA_float_set_array(op->ptr, "location", co);
+    RNA_float_set_array(op.ptr, "location", co);
   }
 
   return add_marker_exec(C, op);
@@ -147,22 +147,22 @@ void CLIP_OT_add_marker(wmOperatorType *ot)
 /** \name Add Marker Operator
  * \{ */
 
-static wmOperatorStatus add_marker_at_click_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus add_marker_at_click_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent * /*event*/)
 {
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(&C);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Place Marker"), ICON_MOUSE_LMB);
 
   /* Add modal handler for ESC. */
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus add_marker_at_click_modal(bContext *C,
-                                                  wmOperator * /*op*/,
+static wmOperatorStatus add_marker_at_click_modal(bContext &C,
+                                                  wmOperator & /*op*/,
                                                   const wmEvent *event)
 {
   switch (event->type) {
@@ -170,12 +170,12 @@ static wmOperatorStatus add_marker_at_click_modal(bContext *C,
       return OPERATOR_RUNNING_MODAL;
 
     case LEFTMOUSE: {
-      SpaceClip *sc = CTX_wm_space_clip(*C);
+      SpaceClip *sc = CTX_wm_space_clip(C);
       MovieClip *clip = ED_space_clip_get_clip(sc);
-      ARegion *region = CTX_wm_region(*C);
+      ARegion *region = CTX_wm_region(C);
       float pos[2];
 
-      ED_workspace_status_text(C, nullptr);
+      ED_workspace_status_text(&C, nullptr);
 
       ED_clip_point_stable_pos(sc,
                                region,
@@ -184,16 +184,16 @@ static wmOperatorStatus add_marker_at_click_modal(bContext *C,
                                &pos[0],
                                &pos[1]);
 
-      if (!add_marker(C, pos[0], pos[1])) {
+      if (!add_marker(&C, pos[0], pos[1])) {
         return OPERATOR_CANCELLED;
       }
 
-      WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+      WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
       return OPERATOR_FINISHED;
     }
 
     case EVT_ESCKEY:
-      ED_workspace_status_text(C, nullptr);
+      ED_workspace_status_text(&C, nullptr);
       return OPERATOR_CANCELLED;
     default: {
       break;
@@ -225,9 +225,9 @@ void CLIP_OT_add_marker_at_click(wmOperatorType *ot)
 /** \name Delete Track Operator
  * \{ */
 
-static wmOperatorStatus delete_track_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus delete_track_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   bool changed = false;
@@ -235,7 +235,7 @@ static wmOperatorStatus delete_track_exec(bContext *C, wmOperator * /*op*/)
   /* Delete selected plane tracks. */
   for (MovieTrackingPlaneTrack &plane_track : tracking_object->plane_tracks.items_mutable()) {
     if (PLANE_TRACK_VIEW_SELECTED(&plane_track)) {
-      clip_delete_plane_track(C, clip, &plane_track);
+      clip_delete_plane_track(&C, clip, &plane_track);
       changed = true;
     }
   }
@@ -243,23 +243,23 @@ static wmOperatorStatus delete_track_exec(bContext *C, wmOperator * /*op*/)
   /* Remove selected point tracks (they'll also be removed from planes which uses them). */
   for (MovieTrackingTrack &track : tracking_object->tracks.items_mutable()) {
     if (TRACK_VIEW_SELECTED(sc, &track)) {
-      clip_delete_track(C, clip, &track);
+      clip_delete_track(&C, clip, &track);
       changed = true;
     }
   }
 
   if (changed) {
-    WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+    WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
   }
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus delete_track_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus delete_track_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  if (RNA_boolean_get(op->ptr, "confirm")) {
-    return WM_operator_confirm_ex(C,
-                                  op,
+  if (RNA_boolean_get(op.ptr, "confirm")) {
+    return WM_operator_confirm_ex(&C,
+                                  &op,
                                   IFACE_("Delete selected tracks?"),
                                   nullptr,
                                   IFACE_("Delete"),
@@ -292,9 +292,9 @@ void CLIP_OT_delete_track(wmOperatorType *ot)
 /** \name Delete Marker Operator
  * \{ */
 
-static wmOperatorStatus delete_marker_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus delete_marker_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   const int framenr = ED_space_clip_get_clip_frame_number(sc);
@@ -304,7 +304,7 @@ static wmOperatorStatus delete_marker_exec(bContext *C, wmOperator * /*op*/)
     if (TRACK_VIEW_SELECTED(sc, &track)) {
       MovieTrackingMarker *marker = BKE_tracking_marker_get_exact(&track, framenr);
       if (marker != nullptr) {
-        clip_delete_marker(C, clip, &track, marker);
+        clip_delete_marker(&C, clip, &track, marker);
         changed = true;
       }
     }
@@ -334,13 +334,13 @@ static wmOperatorStatus delete_marker_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus delete_marker_invoke(bContext *C,
-                                             wmOperator *op,
+static wmOperatorStatus delete_marker_invoke(bContext &C,
+                                             wmOperator &op,
                                              const wmEvent * /*event*/)
 {
-  if (RNA_boolean_get(op->ptr, "confirm")) {
-    return WM_operator_confirm_ex(C,
-                                  op,
+  if (RNA_boolean_get(op.ptr, "confirm")) {
+    return WM_operator_confirm_ex(&C,
+                                  &op,
                                   IFACE_("Delete marker for current frame from selected tracks?"),
                                   nullptr,
                                   IFACE_("Delete"),
@@ -603,11 +603,11 @@ static SlideMarkerData *slide_marker_customdata(bContext *C, const wmEvent *even
   return customdata;
 }
 
-static wmOperatorStatus slide_marker_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus slide_marker_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  SlideMarkerData *slidedata = slide_marker_customdata(C, event);
+  SlideMarkerData *slidedata = slide_marker_customdata(&C, event);
   if (slidedata != nullptr) {
-    SpaceClip *sc = CTX_wm_space_clip(*C);
+    SpaceClip *sc = CTX_wm_space_clip(C);
     MovieClip *clip = ED_space_clip_get_clip(sc);
     MovieTracking *tracking = &clip->tracking;
     MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -615,12 +615,12 @@ static wmOperatorStatus slide_marker_invoke(bContext *C, wmOperator *op, const w
     tracking_object->active_track = slidedata->track;
     tracking_object->active_plane_track = nullptr;
 
-    op->customdata = slidedata;
+    op.customdata = slidedata;
 
-    clip_tracking_hide_cursor(C);
-    WM_event_add_modal_handler(C, op);
+    clip_tracking_hide_cursor(&C);
+    WM_event_add_modal_handler(&C, &op);
 
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -670,11 +670,11 @@ static void free_slide_data(SlideMarkerData *data)
   MEM_freeN(data);
 }
 
-static wmOperatorStatus slide_marker_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus slide_marker_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
 
-  SlideMarkerData *data = (SlideMarkerData *)op->customdata;
+  SlideMarkerData *data = (SlideMarkerData *)op.customdata;
   float dx, dy, mdelta[2];
 
   switch (event->type) {
@@ -714,7 +714,7 @@ static wmOperatorStatus slide_marker_modal(bContext *C, wmOperator *op, const wm
         data->pos[0] += dx;
         data->pos[1] += dy;
 
-        WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+        WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
         DEG_id_tag_update(&sc->clip->id, 0);
       }
       else if (data->area == TRACK_AREA_PAT) {
@@ -806,16 +806,16 @@ static wmOperatorStatus slide_marker_modal(bContext *C, wmOperator *op, const wm
 
       copy_v2_v2_int(data->mval, event->mval);
 
-      WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, nullptr);
+      WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, nullptr);
 
       break;
 
     case LEFTMOUSE:
       if (event->val == KM_RELEASE) {
-        apply_mouse_slide(C, data);
+        apply_mouse_slide(&C, data);
         free_slide_data(data);
 
-        clip_tracking_show_cursor(C);
+        clip_tracking_show_cursor(&C);
 
         return OPERATOR_FINISHED;
       }
@@ -827,9 +827,9 @@ static wmOperatorStatus slide_marker_modal(bContext *C, wmOperator *op, const wm
 
       free_slide_data(data);
 
-      clip_tracking_show_cursor(C);
+      clip_tracking_show_cursor(&C);
 
-      WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, nullptr);
+      WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, nullptr);
 
       return OPERATOR_CANCELLED;
     default: {
@@ -874,13 +874,13 @@ void CLIP_OT_slide_marker(wmOperatorType *ot)
 /** \name Clear Track Operator
  * \{ */
 
-static wmOperatorStatus clear_track_path_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus clear_track_path_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
-  const eTrackClearAction action = eTrackClearAction(RNA_enum_get(op->ptr, "action"));
-  const bool clear_active = RNA_boolean_get(op->ptr, "clear_active");
+  const eTrackClearAction action = eTrackClearAction(RNA_enum_get(op.ptr, "action"));
+  const bool clear_active = RNA_boolean_get(op.ptr, "clear_active");
   const int framenr = ED_space_clip_get_clip_frame_number(sc);
 
   if (clear_active) {
@@ -897,7 +897,7 @@ static wmOperatorStatus clear_track_path_exec(bContext *C, wmOperator *op)
   }
 
   BKE_tracking_dopesheet_tag_update(&clip->tracking);
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
 
   return OPERATOR_FINISHED;
 }
@@ -953,12 +953,12 @@ enum {
   MARKER_OP_TOGGLE = 2,
 };
 
-static wmOperatorStatus disable_markers_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus disable_markers_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
-  const int action = RNA_enum_get(op->ptr, "action");
+  const int action = RNA_enum_get(op.ptr, "action");
   const int framenr = ED_space_clip_get_clip_frame_number(sc);
 
   for (MovieTrackingTrack &track : tracking_object->tracks) {
@@ -980,7 +980,7 @@ static wmOperatorStatus disable_markers_exec(bContext *C, wmOperator *op)
 
   DEG_id_tag_update(&clip->id, 0);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
 
   return OPERATOR_FINISHED;
 }
@@ -1016,13 +1016,13 @@ void CLIP_OT_disable_markers(wmOperatorType *ot)
 /** \name Hide Tracks Operator
  * \{ */
 
-static wmOperatorStatus hide_tracks_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus hide_tracks_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-  const int unselected = RNA_boolean_get(op->ptr, "unselected");
+  const int unselected = RNA_boolean_get(op.ptr, "unselected");
 
   /* Hide point tracks. */
   for (MovieTrackingTrack &track : tracking_object->tracks) {
@@ -1055,7 +1055,7 @@ static wmOperatorStatus hide_tracks_exec(bContext *C, wmOperator *op)
   }
 
   BKE_tracking_dopesheet_tag_update(tracking);
-  WM_event_add_notifier(C, NC_MOVIECLIP | ND_DISPLAY, nullptr);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1084,9 +1084,9 @@ void CLIP_OT_hide_tracks(wmOperatorType *ot)
 /** \name Hide Tracks Clear Operator
  * \{ */
 
-static wmOperatorStatus hide_tracks_clear_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus hide_tracks_clear_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
 
@@ -1102,7 +1102,7 @@ static wmOperatorStatus hide_tracks_clear_exec(bContext *C, wmOperator * /*op*/)
 
   BKE_tracking_dopesheet_tag_update(&clip->tracking);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | ND_DISPLAY, nullptr);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1128,20 +1128,20 @@ void CLIP_OT_hide_tracks_clear(wmOperatorType *ot)
 /** \name Frame Jump Operator
  * \{ */
 
-static bool frame_jump_poll(bContext *C)
+static bool frame_jump_poll(bContext &C)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(*C);
+  SpaceClip *space_clip = CTX_wm_space_clip(C);
   return space_clip != nullptr;
 }
 
-static wmOperatorStatus frame_jump_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus frame_jump_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  Scene *scene = CTX_data_scene(C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-  int pos = RNA_enum_get(op->ptr, "position");
+  int pos = RNA_enum_get(op.ptr, "position");
   int delta;
 
   if (pos <= 1) { /* jump to path */
@@ -1188,10 +1188,10 @@ static wmOperatorStatus frame_jump_exec(bContext *C, wmOperator *op)
     scene->r.cfra = sc->user.framenr;
     DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
-    WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+    WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
   }
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | ND_DISPLAY, nullptr);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1228,9 +1228,9 @@ void CLIP_OT_frame_jump(wmOperatorType *ot)
 /** \name Join Tracks Operator
  * \{ */
 
-static wmOperatorStatus join_tracks_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus join_tracks_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1239,7 +1239,7 @@ static wmOperatorStatus join_tracks_exec(bContext *C, wmOperator *op)
 
   MovieTrackingTrack *active_track = tracking_object->active_track;
   if (active_track == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "No active track to join to");
+    BKE_report(op.reports, RPT_ERROR, "No active track to join to");
     return OPERATOR_CANCELLED;
   }
 
@@ -1285,7 +1285,7 @@ static wmOperatorStatus join_tracks_exec(bContext *C, wmOperator *op)
   }
 
   if (update_stabilization) {
-    WM_event_add_notifier(C, NC_MOVIECLIP | ND_DISPLAY, clip);
+    WM_event_add_notifier(&C, NC_MOVIECLIP | ND_DISPLAY, clip);
   }
 
   int framenr = ED_space_clip_get_clip_frame_number(sc);
@@ -1295,7 +1295,7 @@ static wmOperatorStatus join_tracks_exec(bContext *C, wmOperator *op)
 
   DEG_id_tag_update(&clip->id, 0);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
 
   return OPERATOR_FINISHED;
 }
@@ -1321,9 +1321,9 @@ void CLIP_OT_join_tracks(wmOperatorType *ot)
 /** \name Average Tracks Operator
  * \{ */
 
-static wmOperatorStatus average_tracks_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus average_tracks_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(*C);
+  SpaceClip *space_clip = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1344,10 +1344,10 @@ static wmOperatorStatus average_tracks_exec(bContext *C, wmOperator *op)
   /* Perform averaging. */
   BKE_tracking_tracks_average(result_track, source_tracks, num_source_tracks);
 
-  const bool keep_original = RNA_boolean_get(op->ptr, "keep_original");
+  const bool keep_original = RNA_boolean_get(op.ptr, "keep_original");
   if (!keep_original) {
     for (int i = 0; i < num_source_tracks; i++) {
-      clip_delete_track(C, clip, source_tracks[i]);
+      clip_delete_track(&C, clip, source_tracks[i]);
     }
   }
 
@@ -1362,7 +1362,7 @@ static wmOperatorStatus average_tracks_exec(bContext *C, wmOperator *op)
 
   /* Inform the dependency graph and interface about changes. */
   DEG_id_tag_update(&clip->id, 0);
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
 
   /* Free memory. */
   MEM_freeN(source_tracks);
@@ -1370,20 +1370,20 @@ static wmOperatorStatus average_tracks_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus average_tracks_invoke(bContext *C,
-                                              wmOperator *op,
+static wmOperatorStatus average_tracks_invoke(bContext &C,
+                                              wmOperator &op,
                                               const wmEvent * /*event*/)
 {
-  PropertyRNA *prop_keep_original = RNA_struct_find_property(op->ptr, "keep_original");
-  if (!RNA_property_is_set(op->ptr, prop_keep_original)) {
-    SpaceClip *space_clip = CTX_wm_space_clip(*C);
+  PropertyRNA *prop_keep_original = RNA_struct_find_property(op.ptr, "keep_original");
+  if (!RNA_property_is_set(op.ptr, prop_keep_original)) {
+    SpaceClip *space_clip = CTX_wm_space_clip(C);
     MovieClip *clip = ED_space_clip_get_clip(space_clip);
     MovieTracking *tracking = &clip->tracking;
 
     const int num_selected_tracks = BKE_tracking_count_selected_tracks_in_active_object(tracking);
 
     if (num_selected_tracks == 1) {
-      RNA_property_boolean_set(op->ptr, prop_keep_original, false);
+      RNA_property_boolean_set(op.ptr, prop_keep_original, false);
     }
   }
 
@@ -1425,12 +1425,12 @@ enum {
   TRACK_ACTION_TOGGLE = 2,
 };
 
-static wmOperatorStatus lock_tracks_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lock_tracks_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
-  const int action = RNA_enum_get(op->ptr, "action");
+  const int action = RNA_enum_get(op.ptr, "action");
 
   for (MovieTrackingTrack &track : tracking_object->tracks) {
     if (TRACK_VIEW_SELECTED(sc, &track)) {
@@ -1448,7 +1448,7 @@ static wmOperatorStatus lock_tracks_exec(bContext *C, wmOperator *op)
     }
   }
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
 
   return OPERATOR_FINISHED;
 }
@@ -1489,13 +1489,13 @@ enum {
   SOLVER_KEYFRAME_B = 1,
 };
 
-static wmOperatorStatus set_solver_keyframe_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_solver_keyframe_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-  const int keyframe = RNA_enum_get(op->ptr, "keyframe");
+  const int keyframe = RNA_enum_get(op.ptr, "keyframe");
   const int framenr = BKE_movieclip_remap_scene_to_clip_frame(clip, sc->user.framenr);
 
   if (keyframe == SOLVER_KEYFRAME_A) {
@@ -1505,7 +1505,7 @@ static wmOperatorStatus set_solver_keyframe_exec(bContext *C, wmOperator *op)
     tracking_object->keyframe2 = framenr;
   }
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | ND_DISPLAY, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | ND_DISPLAY, clip);
 
   return OPERATOR_FINISHED;
 }
@@ -1540,9 +1540,9 @@ void CLIP_OT_set_solver_keyframe(wmOperatorType *ot)
 /** \name Track Copy Color Operator
  * \{ */
 
-static wmOperatorStatus track_copy_color_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus track_copy_color_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
 
@@ -1562,7 +1562,7 @@ static wmOperatorStatus track_copy_color_exec(bContext *C, wmOperator * /*op*/)
   }
 
   DEG_id_tag_update(&clip->id, 0);
-  WM_event_add_notifier(C, NC_MOVIECLIP | ND_DISPLAY, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | ND_DISPLAY, clip);
 
   return OPERATOR_FINISHED;
 }
@@ -1697,15 +1697,15 @@ static bool is_track_clean(MovieTrackingTrack *track, int frames, int del)
   return ok;
 }
 
-static wmOperatorStatus clean_tracks_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus clean_tracks_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-  int frames = RNA_int_get(op->ptr, "frames");
-  TrackingCleanAction action = TrackingCleanAction(RNA_enum_get(op->ptr, "action"));
-  float error = RNA_float_get(op->ptr, "error");
+  int frames = RNA_int_get(op.ptr, "frames");
+  TrackingCleanAction action = TrackingCleanAction(RNA_enum_get(op.ptr, "action"));
+  float error = RNA_float_get(op.ptr, "error");
 
   if (error && action == TrackingCleanAction::DeleteSegment) {
     action = TrackingCleanAction::DeleteTrack;
@@ -1747,26 +1747,26 @@ static wmOperatorStatus clean_tracks_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&clip->id, 0);
   BKE_tracking_dopesheet_tag_update(tracking);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | ND_SELECT, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | ND_SELECT, clip);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus clean_tracks_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus clean_tracks_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
 
-  if (!RNA_struct_property_is_set(op->ptr, "frames")) {
-    RNA_int_set(op->ptr, "frames", clip->tracking.settings.clean_frames);
+  if (!RNA_struct_property_is_set(op.ptr, "frames")) {
+    RNA_int_set(op.ptr, "frames", clip->tracking.settings.clean_frames);
   }
 
-  if (!RNA_struct_property_is_set(op->ptr, "error")) {
-    RNA_float_set(op->ptr, "error", clip->tracking.settings.clean_error);
+  if (!RNA_struct_property_is_set(op.ptr, "error")) {
+    RNA_float_set(op.ptr, "error", clip->tracking.settings.clean_error);
   }
 
-  if (!RNA_struct_property_is_set(op->ptr, "action")) {
-    RNA_enum_set(op->ptr, "action", clip->tracking.settings.clean_action);
+  if (!RNA_struct_property_is_set(op.ptr, "action")) {
+    RNA_enum_set(op.ptr, "action", clip->tracking.settings.clean_action);
   }
 
   return clean_tracks_exec(C, op);
@@ -1831,16 +1831,16 @@ void CLIP_OT_clean_tracks(wmOperatorType *ot)
 /** \name Add Tracking Object
  * \{ */
 
-static wmOperatorStatus tracking_object_new_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus tracking_object_new_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
 
   BKE_tracking_object_add(tracking, "Object");
 
   DEG_id_tag_update(&clip->id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
 
   return OPERATOR_FINISHED;
 }
@@ -1866,22 +1866,22 @@ void CLIP_OT_tracking_object_new(wmOperatorType *ot)
 /** \name Remove Tracking Object
  * \{ */
 
-static wmOperatorStatus tracking_object_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus tracking_object_remove_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
 
   if (tracking_object->flag & TRACKING_OBJECT_CAMERA) {
-    BKE_report(op->reports, RPT_WARNING, "Object used for camera tracking cannot be deleted");
+    BKE_report(op.reports, RPT_WARNING, "Object used for camera tracking cannot be deleted");
     return OPERATOR_CANCELLED;
   }
 
   BKE_tracking_object_delete(tracking, tracking_object);
 
   DEG_id_tag_update(&clip->id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
 
   return OPERATOR_FINISHED;
 }
@@ -1907,9 +1907,9 @@ void CLIP_OT_tracking_object_remove(wmOperatorType *ot)
 /** \name Copy Tracks to Clipboard Operator
  * \{ */
 
-static wmOperatorStatus copy_tracks_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus copy_tracks_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1942,7 +1942,7 @@ void CLIP_OT_copy_tracks(wmOperatorType *ot)
 /** \name Paste Tracks From Clipboard Operator
  * \{ */
 
-static bool paste_tracks_poll(bContext *C)
+static bool paste_tracks_poll(bContext &C)
 {
   if (ED_space_clip_tracking_poll(C)) {
     return BKE_tracking_clipboard_has_tracks();
@@ -1951,9 +1951,9 @@ static bool paste_tracks_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus paste_tracks_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus paste_tracks_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -1961,7 +1961,7 @@ static wmOperatorStatus paste_tracks_exec(bContext *C, wmOperator * /*op*/)
   BKE_tracking_tracks_deselect_all(&tracking_object->tracks);
   BKE_tracking_clipboard_paste_tracks(tracking, tracking_object);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
 
   return OPERATOR_FINISHED;
 }
@@ -2036,9 +2036,9 @@ static void keyframe_set_flag(bContext *C, bool set)
   WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 }
 
-static wmOperatorStatus keyframe_insert_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus keyframe_insert_exec(bContext &C, wmOperator & /*op*/)
 {
-  keyframe_set_flag(C, true);
+  keyframe_set_flag(&C, true);
   return OPERATOR_FINISHED;
 }
 
@@ -2063,9 +2063,9 @@ void CLIP_OT_keyframe_insert(wmOperatorType *ot)
 /** \name Delete Track Keyframe Operator
  * \{ */
 
-static wmOperatorStatus keyframe_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus keyframe_delete_exec(bContext &C, wmOperator & /*op*/)
 {
-  keyframe_set_flag(C, false);
+  keyframe_set_flag(&C, false);
   return OPERATOR_FINISHED;
 }
 
@@ -2114,13 +2114,13 @@ static ImBuf *sample_plane_marker_image_for_operator(bContext *C)
   return plane_ibuf;
 }
 
-static bool new_image_from_plane_marker_poll(bContext *C)
+static bool new_image_from_plane_marker_poll(bContext &C)
 {
   if (!ED_space_clip_tracking_poll(C)) {
     return false;
   }
 
-  SpaceClip *space_clip = CTX_wm_space_clip(*C);
+  SpaceClip *space_clip = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
   const MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -2132,24 +2132,24 @@ static bool new_image_from_plane_marker_poll(bContext *C)
   return true;
 }
 
-static wmOperatorStatus new_image_from_plane_marker_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus new_image_from_plane_marker_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(*C);
+  SpaceClip *space_clip = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
   MovieTrackingPlaneTrack *plane_track = tracking_object->active_plane_track;
 
-  ImBuf *plane_ibuf = sample_plane_marker_image_for_operator(C);
+  ImBuf *plane_ibuf = sample_plane_marker_image_for_operator(&C);
   if (plane_ibuf == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  plane_track->image = BKE_image_add_from_imbuf(CTX_data_main(*C), plane_ibuf, plane_track->name);
+  plane_track->image = BKE_image_add_from_imbuf(CTX_data_main(C), plane_ibuf, plane_track->name);
 
   IMB_freeImBuf(plane_ibuf);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
 
   return OPERATOR_FINISHED;
 }
@@ -2169,13 +2169,13 @@ void CLIP_OT_new_image_from_plane_marker(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static bool update_image_from_plane_marker_poll(bContext *C)
+static bool update_image_from_plane_marker_poll(bContext &C)
 {
   if (!ED_space_clip_tracking_poll(C)) {
     return false;
   }
 
-  SpaceClip *space_clip = CTX_wm_space_clip(*C);
+  SpaceClip *space_clip = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
   const MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -2190,15 +2190,15 @@ static bool update_image_from_plane_marker_poll(bContext *C)
   return image->type == IMA_TYPE_IMAGE && ELEM(image->source, IMA_SRC_FILE, IMA_SRC_GENERATED);
 }
 
-static wmOperatorStatus update_image_from_plane_marker_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus update_image_from_plane_marker_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(*C);
+  SpaceClip *space_clip = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
   MovieTrackingPlaneTrack *plane_track = tracking_object->active_plane_track;
 
-  ImBuf *plane_ibuf = sample_plane_marker_image_for_operator(C);
+  ImBuf *plane_ibuf = sample_plane_marker_image_for_operator(&C);
   if (plane_ibuf == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -2207,8 +2207,8 @@ static wmOperatorStatus update_image_from_plane_marker_exec(bContext *C, wmOpera
 
   IMB_freeImBuf(plane_ibuf);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
-  WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, plane_track->image);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
+  WM_event_add_notifier(&C, NC_IMAGE | NA_EDITED, plane_track->image);
 
   BKE_image_partial_update_mark_full_update(plane_track->image);
 

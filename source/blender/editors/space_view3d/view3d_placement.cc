@@ -913,20 +913,20 @@ static void view3d_interactive_add_status(wmOperator *op, bContext *C)
   status.opmodal(IFACE_("Snap"), op->type, PLACE_MODAL_SNAP_ON, ipd->use_snap);
 }
 
-static wmOperatorStatus view3d_interactive_add_invoke(bContext *C,
-                                                      wmOperator *op,
+static wmOperatorStatus view3d_interactive_add_invoke(bContext &C,
+                                                      wmOperator &op,
                                                       const wmEvent *event)
 {
-  const bool wait_for_input = RNA_boolean_get(op->ptr, "wait_for_input");
+  const bool wait_for_input = RNA_boolean_get(op.ptr, "wait_for_input");
 
   InteractivePlaceData *ipd = static_cast<InteractivePlaceData *>(
       MEM_callocN(sizeof(*ipd), __func__));
-  op->customdata = ipd;
+  op.customdata = ipd;
 
-  ipd->scene = CTX_data_scene(*C);
-  ipd->area = CTX_wm_area(*C);
-  ipd->region = CTX_wm_region(*C);
-  ipd->v3d = CTX_wm_view3d(*C);
+  ipd->scene = CTX_data_scene(C);
+  ipd->area = CTX_wm_area(C);
+  ipd->region = CTX_wm_region(C);
+  ipd->v3d = CTX_wm_view3d(C);
 
   if (wait_for_input) {
     ipd->wait_for_input = true;
@@ -936,12 +936,12 @@ static wmOperatorStatus view3d_interactive_add_invoke(bContext *C,
 #endif
   }
   else {
-    view3d_interactive_add_begin(C, op, event);
+    view3d_interactive_add_begin(&C, &op, event);
   }
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
-  view3d_interactive_add_status(op, C);
+  view3d_interactive_add_status(&op, &C);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -965,9 +965,9 @@ static void view3d_interactive_add_exit(bContext *C, wmOperator *op)
   MEM_freeN(ipd);
 }
 
-static void view3d_interactive_add_cancel(bContext *C, wmOperator *op)
+static void view3d_interactive_add_cancel(bContext &C, wmOperator &op)
 {
-  view3d_interactive_add_exit(C, op);
+  view3d_interactive_add_exit(&C, &op);
 }
 
 void viewplace_modal_keymap(wmKeyConfig *keyconf)
@@ -995,13 +995,13 @@ void viewplace_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_interactive_add");
 }
 
-static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
-                                                     wmOperator *op,
+static wmOperatorStatus view3d_interactive_add_modal(bContext &C,
+                                                     wmOperator &op,
                                                      const wmEvent *event)
 {
-  UNUSED_VARS(C, op);
+  UNUSED_VARS(&C, &op);
 
-  InteractivePlaceData *ipd = static_cast<InteractivePlaceData *>(op->customdata);
+  InteractivePlaceData *ipd = static_cast<InteractivePlaceData *>(op.customdata);
 
   ARegion *region = ipd->region;
   bool do_redraw = false;
@@ -1050,7 +1050,7 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
       case RIGHTMOUSE: {
         /* Restore snap mode. */
         *ipd->snap_to_ptr = ipd->snap_to_restore;
-        view3d_interactive_add_exit(C, op);
+        view3d_interactive_add_exit(&C, &op);
         return OPERATOR_CANCELLED;
       }
       case MOUSEMOVE: {
@@ -1066,7 +1066,7 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
   if (ipd->wait_for_input) {
     if (ELEM(event->type, LEFTMOUSE)) {
       if (event->val == KM_PRESS) {
-        view3d_interactive_add_begin(C, op, event);
+        view3d_interactive_add_begin(&C, &op, event);
         ipd->wait_for_input = false;
         return OPERATOR_RUNNING_MODAL;
       }
@@ -1212,14 +1212,14 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
           }
 
           WM_operator_name_call_ptr(
-              C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
+              &C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
           WM_operator_properties_free(&op_props);
         }
         else {
           BLI_assert(0);
         }
 
-        view3d_interactive_add_exit(C, op);
+        view3d_interactive_add_exit(&C, &op);
         return OPERATOR_FINISHED;
       }
     }
@@ -1236,7 +1236,7 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
     ipd->is_snap_found = false;
     if (ipd->use_snap) {
       ipd->is_snap_found = view3d_interactive_add_calc_snap(
-          C, event, ipd->snap_co, nullptr, nullptr, nullptr);
+          &C, event, ipd->snap_co, nullptr, nullptr, nullptr);
     }
 
     if (ipd->step_index == STEP_BASE) {
@@ -1299,15 +1299,15 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
 
   if (do_redraw) {
     ED_region_tag_redraw(region);
-    view3d_interactive_add_status(op, C);
+    view3d_interactive_add_status(&op, &C);
   }
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static bool view3d_interactive_add_poll(bContext *C)
+static bool view3d_interactive_add_poll(bContext &C)
 {
-  const enum eContextObjectMode mode = CTX_data_mode_enum(*C);
+  const enum eContextObjectMode mode = CTX_data_mode_enum(C);
   return ELEM(mode, CTX_MODE_OBJECT, CTX_MODE_EDIT_MESH);
 }
 

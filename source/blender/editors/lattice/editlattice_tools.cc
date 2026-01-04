@@ -36,7 +36,7 @@ using blender::Vector;
 /** \name Make Regular Operator
  * \{ */
 
-static bool make_regular_poll(bContext *C)
+static bool make_regular_poll(bContext &C)
 {
   Object *ob;
 
@@ -44,20 +44,20 @@ static bool make_regular_poll(bContext *C)
     return true;
   }
 
-  ob = CTX_data_active_object(*C);
+  ob = CTX_data_active_object(C);
   return (ob && ob->type == OB_LATTICE);
 }
 
-static wmOperatorStatus make_regular_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus make_regular_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  const bool is_editmode = CTX_data_edit_object(*C) != nullptr;
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  const bool is_editmode = CTX_data_edit_object(C) != nullptr;
 
   if (is_editmode) {
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-        scene, view_layer, CTX_wm_view3d(*C));
+        scene, view_layer, CTX_wm_view3d(C));
     for (Object *ob : objects) {
       Lattice *lt = static_cast<Lattice *>(ob->data);
 
@@ -65,14 +65,14 @@ static wmOperatorStatus make_regular_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      if (blender::ed::object::shape_key_report_if_locked(ob, op->reports)) {
+      if (blender::ed::object::shape_key_report_if_locked(ob, op.reports)) {
         continue;
       }
 
       BKE_lattice_resize(lt->editlatt->latt, lt->pntsu, lt->pntsv, lt->pntsw, nullptr);
 
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
     }
   }
   else {
@@ -85,7 +85,7 @@ static wmOperatorStatus make_regular_exec(bContext *C, wmOperator *op)
       BKE_lattice_resize(lt, lt->pntsu, lt->pntsv, lt->pntsw, nullptr);
 
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
     }
     FOREACH_SELECTED_OBJECT_END;
   }
@@ -196,15 +196,15 @@ static void lattice_swap_point_pairs(
   lattice_flip_point_value(lt, u1, v1, w1, mid, axis);
 }
 
-static wmOperatorStatus lattice_flip_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lattice_flip_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   bool changed = false;
-  const eLattice_FlipAxes axis = eLattice_FlipAxes(RNA_enum_get(op->ptr, "axis"));
+  const eLattice_FlipAxes axis = eLattice_FlipAxes(RNA_enum_get(op.ptr, "axis"));
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Lattice *lt;
 
@@ -218,7 +218,7 @@ static wmOperatorStatus lattice_flip_exec(bContext *C, wmOperator *op)
     lt = (Lattice *)obedit->data;
     lt = lt->editlatt->latt;
 
-    if (blender::ed::object::shape_key_report_if_locked(obedit, op->reports)) {
+    if (blender::ed::object::shape_key_report_if_locked(obedit, op.reports)) {
       continue;
     }
 
@@ -323,7 +323,7 @@ static wmOperatorStatus lattice_flip_exec(bContext *C, wmOperator *op)
 
     /* updates */
     DEG_id_tag_update(&obedit->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
     changed = true;
   }
 

@@ -35,12 +35,12 @@
 
 namespace blender::ed::vse {
 
-static bool sequencer_text_editing_poll(bContext *C)
+static bool sequencer_text_editing_poll(bContext &C)
 {
   if (!sequencer_editing_initialized_and_active(C)) {
     return false;
   }
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   if (!scene) {
     return false;
   }
@@ -58,9 +58,9 @@ static bool sequencer_text_editing_poll(bContext *C)
   return true;
 }
 
-bool sequencer_text_editing_active_poll(bContext *C)
+bool sequencer_text_editing_active_poll(bContext &C)
 {
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   if (!scene) {
     return false;
   }
@@ -69,7 +69,7 @@ bool sequencer_text_editing_active_poll(bContext *C)
     return false;
   }
 
-  if (ED_screen_animation_no_scrub(CTX_wm_manager(*C))) {
+  if (ED_screen_animation_no_scrub(CTX_wm_manager(C))) {
     return false;
   }
 
@@ -309,19 +309,19 @@ static int2 cursor_move_next_word(int2 cursor_position,
   return cursor_position;
 }
 
-static wmOperatorStatus sequencer_text_cursor_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sequencer_text_cursor_move_exec(bContext &C, wmOperator &op)
 {
-  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));
+  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const seq::TextVarsRuntime *text = data->runtime;
 
-  if (RNA_boolean_get(op->ptr, "select_text") && !text_has_selection(data)) {
+  if (RNA_boolean_get(op.ptr, "select_text") && !text_has_selection(data)) {
     data->selection_start_offset = data->cursor_offset;
   }
 
   int2 cursor_position = strip_text_cursor_offset_to_position(text, data->cursor_offset);
 
-  switch (RNA_enum_get(op->ptr, "type")) {
+  switch (RNA_enum_get(op.ptr, "type")) {
     case PREV_CHAR:
       cursor_position = cursor_move_by_character(cursor_position, text, -1);
       break;
@@ -356,17 +356,17 @@ static wmOperatorStatus sequencer_text_cursor_move_exec(bContext *C, wmOperator 
   }
 
   data->cursor_offset = cursor_position_to_offset(text, cursor_position);
-  if (RNA_boolean_get(op->ptr, "select_text")) {
+  if (RNA_boolean_get(op.ptr, "select_text")) {
     data->selection_end_offset = data->cursor_offset;
   }
 
-  if (!RNA_boolean_get(op->ptr, "select_text") ||
+  if (!RNA_boolean_get(op.ptr, "select_text") ||
       data->cursor_offset == data->selection_start_offset)
   {
     text_selection_cancel(data);
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(*C));
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
   return OPERATOR_FINISHED;
 }
 
@@ -422,13 +422,13 @@ static bool text_insert(TextVars *data, const char *buf, const size_t buf_len)
   return true;
 }
 
-static wmOperatorStatus sequencer_text_insert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sequencer_text_insert_exec(bContext &C, wmOperator &op)
 {
-  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));
+  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
 
   char str[512];
-  RNA_string_get(op->ptr, "string", str);
+  RNA_string_get(op.ptr, "string", str);
 
   const size_t in_buf_len = STRNLEN(str);
   if (in_buf_len == 0) {
@@ -439,17 +439,17 @@ static wmOperatorStatus sequencer_text_insert_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  text_editing_update(C);
+  text_editing_update(&C);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus sequencer_text_insert_invoke(bContext *C,
-                                                     wmOperator *op,
+static wmOperatorStatus sequencer_text_insert_invoke(bContext &C,
+                                                     wmOperator &op,
                                                      const wmEvent *event)
 {
   char str[6];
   BLI_strncpy_utf8(str, event->utf8_buf, BLI_str_utf8_size_safe(event->utf8_buf) + 1);
-  RNA_string_set(op->ptr, "string", str);
+  RNA_string_set(op.ptr, "string", str);
   return sequencer_text_insert_exec(C, op);
 }
 
@@ -492,16 +492,16 @@ static void delete_character(const seq::CharInfo character, TextVars *data)
   BLI_assert(data->text_len_bytes >= 0);
 }
 
-static wmOperatorStatus sequencer_text_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sequencer_text_delete_exec(bContext &C, wmOperator &op)
 {
-  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));
+  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const seq::TextVarsRuntime *text = data->runtime;
-  const int type = RNA_enum_get(op->ptr, "type");
+  const int type = RNA_enum_get(op.ptr, "type");
 
   if (text_has_selection(data)) {
     delete_selected_text(data);
-    text_editing_update(C);
+    text_editing_update(&C);
     return OPERATOR_FINISHED;
   }
 
@@ -521,7 +521,7 @@ static wmOperatorStatus sequencer_text_delete_exec(bContext *C, wmOperator *op)
     data->cursor_offset -= 1;
   }
 
-  text_editing_update(C);
+  text_editing_update(&C);
   return OPERATOR_FINISHED;
 }
 
@@ -548,16 +548,16 @@ void SEQUENCER_OT_text_delete(wmOperatorType *ot)
                "Which part of the text to delete");
 }
 
-static wmOperatorStatus sequencer_text_line_break_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_text_line_break_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));
+  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
 
   if (!text_insert(data, "\n", 1)) {
     return OPERATOR_CANCELLED;
   }
 
-  text_editing_update(C);
+  text_editing_update(&C);
   return OPERATOR_FINISHED;
 }
 
@@ -576,13 +576,13 @@ void SEQUENCER_OT_text_line_break(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 }
 
-static wmOperatorStatus sequencer_text_select_all_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_text_select_all_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));
+  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   data->selection_start_offset = 0;
   data->selection_end_offset = data->runtime->character_count;
-  text_editing_update(C);
+  text_editing_update(&C);
   return OPERATOR_FINISHED;
 }
 
@@ -601,9 +601,9 @@ void SEQUENCER_OT_text_select_all(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 }
 
-static wmOperatorStatus sequencer_text_deselect_all_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_text_deselect_all_exec(bContext &C, wmOperator & /*op*/)
 {
-  Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));
+  Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
 
   if (!text_has_selection(data)) {
@@ -614,7 +614,7 @@ static wmOperatorStatus sequencer_text_deselect_all_exec(bContext *C, wmOperator
     text_selection_cancel(data);
   }
 
-  text_editing_update(C);
+  text_editing_update(&C);
   return OPERATOR_FINISHED;
 }
 
@@ -633,9 +633,9 @@ void SEQUENCER_OT_text_deselect_all(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 }
 
-static wmOperatorStatus sequencer_text_edit_mode_toggle_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_text_edit_mode_toggle_exec(bContext &C, wmOperator & /*op*/)
 {
-  Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));
+  Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
   if (sequencer_text_editing_active_poll(C)) {
     strip->flag &= ~SEQ_FLAG_TEXT_EDITING_ACTIVE;
   }
@@ -643,7 +643,7 @@ static wmOperatorStatus sequencer_text_edit_mode_toggle_exec(bContext *C, wmOper
     strip->flag |= SEQ_FLAG_TEXT_EDITING_ACTIVE;
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(*C));
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
   return OPERATOR_FINISHED;
 }
 
@@ -706,11 +706,11 @@ static void cursor_set_by_mouse_position(const bContext *C, const wmEvent *event
   data->cursor_offset = find_closest_cursor_offset(data, float2(mouse_loc));
 }
 
-static wmOperatorStatus sequencer_text_cursor_set_modal(bContext *C,
-                                                        wmOperator * /*op*/,
+static wmOperatorStatus sequencer_text_cursor_set_modal(bContext &C,
+                                                        wmOperator & /*op*/,
                                                         const wmEvent *event)
 {
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const Strip *strip = seq::select_active_get(scene);
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   bool make_selection = false;
@@ -718,7 +718,7 @@ static wmOperatorStatus sequencer_text_cursor_set_modal(bContext *C,
   switch (event->type) {
     case LEFTMOUSE:
       if (event->val == KM_RELEASE) {
-        cursor_set_by_mouse_position(C, event);
+        cursor_set_by_mouse_position(&C, event);
         if (make_selection) {
           data->selection_end_offset = data->cursor_offset;
         }
@@ -733,7 +733,7 @@ static wmOperatorStatus sequencer_text_cursor_set_modal(bContext *C,
       if (!text_has_selection(data)) {
         data->selection_start_offset = data->cursor_offset;
       }
-      cursor_set_by_mouse_position(C, event);
+      cursor_set_by_mouse_position(&C, event);
       data->selection_end_offset = data->cursor_offset;
       break;
     default: {
@@ -741,21 +741,21 @@ static wmOperatorStatus sequencer_text_cursor_set_modal(bContext *C,
     }
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(*C));
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus sequencer_text_cursor_set_invoke(bContext *C,
-                                                         wmOperator *op,
+static wmOperatorStatus sequencer_text_cursor_set_invoke(bContext &C,
+                                                         wmOperator &op,
                                                          const wmEvent *event)
 {
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  const View2D *v2d = ui::view2d_fromcontext(C);
+  const View2D *v2d = ui::view2d_fromcontext(&C);
 
   int2 mval_region;
-  WM_event_drag_start_mval(event, CTX_wm_region(*C), mval_region);
+  WM_event_drag_start_mval(event, CTX_wm_region(C), mval_region);
   float2 mouse_loc;
   ui::view2d_region_to_view(v2d, mval_region.x, mval_region.y, &mouse_loc.x, &mouse_loc.y);
 
@@ -765,10 +765,10 @@ static wmOperatorStatus sequencer_text_cursor_set_invoke(bContext *C,
   }
 
   text_selection_cancel(data);
-  cursor_set_by_mouse_position(C, event);
+  cursor_set_by_mouse_position(&C, event);
 
-  WM_event_add_modal_handler(C, op);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(*C));
+  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -815,9 +815,9 @@ static void text_edit_copy(const TextVars *data)
   MEM_freeN(buf);
 }
 
-static wmOperatorStatus sequencer_text_edit_copy_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_text_edit_copy_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));
+  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
 
   if (!text_has_selection(data)) {
@@ -844,9 +844,9 @@ void SEQUENCER_OT_text_edit_copy(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 }
 
-static wmOperatorStatus sequencer_text_edit_paste_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_text_edit_paste_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));
+  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const seq::TextVarsRuntime *text = data->runtime;
 
@@ -875,7 +875,7 @@ static wmOperatorStatus sequencer_text_edit_paste_exec(bContext *C, wmOperator *
   data->cursor_offset += BLI_strlen_utf8(buf);
 
   MEM_freeN(buf);
-  text_editing_update(C);
+  text_editing_update(&C);
   return OPERATOR_FINISHED;
 }
 
@@ -894,9 +894,9 @@ void SEQUENCER_OT_text_edit_paste(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 }
 
-static wmOperatorStatus sequencer_text_edit_cut_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_text_edit_cut_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));
+  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
 
   if (!text_has_selection(data)) {
@@ -906,7 +906,7 @@ static wmOperatorStatus sequencer_text_edit_cut_exec(bContext *C, wmOperator * /
   text_edit_copy(data);
   delete_selected_text(data);
 
-  text_editing_update(C);
+  text_editing_update(&C);
   return OPERATOR_FINISHED;
 }
 

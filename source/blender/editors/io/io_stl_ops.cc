@@ -36,56 +36,57 @@
 #  include "io_stl_ops.hh"
 #  include "io_utils.hh"
 
-static wmOperatorStatus wm_stl_export_invoke(bContext *C,
-                                             wmOperator *op,
+static wmOperatorStatus wm_stl_export_invoke(bContext &C,
+                                             wmOperator &op,
                                              const wmEvent * /*event*/)
 {
-  ED_fileselect_ensure_default_filepath(C, op, ".stl");
+  ED_fileselect_ensure_default_filepath(&C, &op, ".stl");
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_stl_export_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_stl_export_exec(bContext &C, wmOperator &op)
 {
-  if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
-    BKE_report(op->reports, RPT_ERROR, "No filename given");
+  if (!RNA_struct_property_is_set_ex(op.ptr, "filepath", false)) {
+    BKE_report(op.reports, RPT_ERROR, "No filename given");
     return OPERATOR_CANCELLED;
   }
   STLExportParams export_params;
-  RNA_string_get(op->ptr, "filepath", export_params.filepath);
-  export_params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
-  export_params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
-  export_params.global_scale = RNA_float_get(op->ptr, "global_scale");
-  export_params.apply_modifiers = RNA_boolean_get(op->ptr, "apply_modifiers");
-  export_params.export_selected_objects = RNA_boolean_get(op->ptr, "export_selected_objects");
-  export_params.use_scene_unit = RNA_boolean_get(op->ptr, "use_scene_unit");
-  export_params.ascii_format = RNA_boolean_get(op->ptr, "ascii_format");
-  export_params.use_batch = RNA_boolean_get(op->ptr, "use_batch");
+  RNA_string_get(op.ptr, "filepath", export_params.filepath);
+  export_params.forward_axis = eIOAxis(RNA_enum_get(op.ptr, "forward_axis"));
+  export_params.up_axis = eIOAxis(RNA_enum_get(op.ptr, "up_axis"));
+  export_params.global_scale = RNA_float_get(op.ptr, "global_scale");
+  export_params.apply_modifiers = RNA_boolean_get(op.ptr, "apply_modifiers");
+  export_params.export_selected_objects = RNA_boolean_get(op.ptr, "export_selected_objects");
+  export_params.use_scene_unit = RNA_boolean_get(op.ptr, "use_scene_unit");
+  export_params.ascii_format = RNA_boolean_get(op.ptr, "ascii_format");
+  export_params.use_batch = RNA_boolean_get(op.ptr, "use_batch");
 
-  RNA_string_get(op->ptr, "collection", export_params.collection);
+  RNA_string_get(op.ptr, "collection", export_params.collection);
 
-  export_params.reports = op->reports;
+  export_params.reports = op.reports;
 
-  STL_export(C, &export_params);
+  STL_export(&C, &export_params);
 
-  if (BKE_reports_contain(op->reports, RPT_ERROR)) {
+  if (BKE_reports_contain(op.reports, RPT_ERROR)) {
     return OPERATOR_CANCELLED;
   }
 
-  BKE_report(op->reports, RPT_INFO, "File exported successfully");
+  BKE_report(op.reports, RPT_INFO, "File exported successfully");
   return OPERATOR_FINISHED;
 }
 
-static void wm_stl_export_draw(bContext *C, wmOperator *op)
+static void wm_stl_export_draw(bContext &C, wmOperator &op)
 {
-  blender::ui::Layout &layout = *op->layout;
-  PointerRNA *ptr = op->ptr;
+  blender::ui::Layout &layout = *op.layout;
+  PointerRNA *ptr = op.ptr;
 
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  if (blender::ui::Layout *panel = layout.panel(C, "STL_export_general", false, IFACE_("General")))
+  if (blender::ui::Layout *panel = layout.panel(
+          &C, "STL_export_general", false, IFACE_("General")))
   {
     blender::ui::Layout &col = panel->column(false);
 
@@ -93,7 +94,7 @@ static void wm_stl_export_draw(bContext *C, wmOperator *op)
     sub->prop(ptr, "ascii_format", UI_ITEM_NONE, IFACE_("ASCII"), ICON_NONE);
 
     /* The Batch mode and Selection only options only make sense when using regular export. */
-    if (CTX_wm_space_file(*C)) {
+    if (CTX_wm_space_file(C)) {
       col.prop(ptr, "use_batch", UI_ITEM_NONE, IFACE_("Batch"), ICON_NONE);
 
       sub = &col.column(false, IFACE_("Include"));
@@ -107,7 +108,7 @@ static void wm_stl_export_draw(bContext *C, wmOperator *op)
   }
 
   if (blender::ui::Layout *panel = layout.panel(
-          C, "STL_export_geometry", false, IFACE_("Geometry")))
+          &C, "STL_export_geometry", false, IFACE_("Geometry")))
   {
     blender::ui::Layout &col = panel->column(false);
     col.prop(ptr, "apply_modifiers", UI_ITEM_NONE, IFACE_("Apply Modifiers"), ICON_NONE);
@@ -117,18 +118,18 @@ static void wm_stl_export_draw(bContext *C, wmOperator *op)
 /**
  * Return true if any property in the UI is changed.
  */
-static bool wm_stl_export_check(bContext * /*C*/, wmOperator *op)
+static bool wm_stl_export_check(bContext & /*C*/, wmOperator &op)
 {
   char filepath[FILE_MAX];
   bool changed = false;
-  bool use_batch = RNA_boolean_get(op->ptr, "use_batch");
-  RNA_string_get(op->ptr, "filepath", filepath);
+  bool use_batch = RNA_boolean_get(op.ptr, "use_batch");
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   /* Enforce an extension on the filepath unless Batch mode is used. Batch mode
    * will perform substitutions, including the extension, during its processing. */
   if (!use_batch && !BLI_path_extension_check(filepath, ".stl")) {
     BLI_path_extension_ensure(filepath, FILE_MAX, ".stl");
-    RNA_string_set(op->ptr, "filepath", filepath);
+    RNA_string_set(op.ptr, "filepath", filepath);
     changed = true;
   }
   return changed;
@@ -200,46 +201,46 @@ void WM_OT_stl_export(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-static wmOperatorStatus wm_stl_import_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_stl_import_exec(bContext &C, wmOperator &op)
 {
   STLImportParams params;
-  params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
-  params.up_axis = eIOAxis(RNA_enum_get(op->ptr, "up_axis"));
-  params.use_facet_normal = RNA_boolean_get(op->ptr, "use_facet_normal");
-  params.use_scene_unit = RNA_boolean_get(op->ptr, "use_scene_unit");
-  params.global_scale = RNA_float_get(op->ptr, "global_scale");
-  params.use_mesh_validate = RNA_boolean_get(op->ptr, "use_mesh_validate");
+  params.forward_axis = eIOAxis(RNA_enum_get(op.ptr, "forward_axis"));
+  params.up_axis = eIOAxis(RNA_enum_get(op.ptr, "up_axis"));
+  params.use_facet_normal = RNA_boolean_get(op.ptr, "use_facet_normal");
+  params.use_scene_unit = RNA_boolean_get(op.ptr, "use_scene_unit");
+  params.global_scale = RNA_float_get(op.ptr, "global_scale");
+  params.use_mesh_validate = RNA_boolean_get(op.ptr, "use_mesh_validate");
 
-  params.reports = op->reports;
+  params.reports = op.reports;
 
-  const auto paths = blender::ed::io::paths_from_operator_properties(op->ptr);
+  const auto paths = blender::ed::io::paths_from_operator_properties(op.ptr);
 
   if (paths.is_empty()) {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
   for (const auto &path : paths) {
     STRNCPY(params.filepath, path.c_str());
-    STL_import(C, &params);
+    STL_import(&C, &params);
   }
 
-  Scene *scene = CTX_data_scene(*C);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
-  ED_outliner_select_sync_from_object_tag(C);
+  Scene *scene = CTX_data_scene(C);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  ED_outliner_select_sync_from_object_tag(&C);
 
   return OPERATOR_FINISHED;
 }
 
-static bool wm_stl_import_check(bContext * /*C*/, wmOperator *op)
+static bool wm_stl_import_check(bContext & /*C*/, wmOperator &op)
 {
   const int num_axes = 3;
   /* Both forward and up axes cannot be the same (or same except opposite sign). */
-  if (RNA_enum_get(op->ptr, "forward_axis") % num_axes ==
-      (RNA_enum_get(op->ptr, "up_axis") % num_axes))
+  if (RNA_enum_get(op.ptr, "forward_axis") % num_axes ==
+      (RNA_enum_get(op.ptr, "up_axis") % num_axes))
   {
-    RNA_enum_set(op->ptr, "up_axis", RNA_enum_get(op->ptr, "up_axis") % num_axes + 1);
+    RNA_enum_set(op.ptr, "up_axis", RNA_enum_get(op.ptr, "up_axis") % num_axes + 1);
     return true;
   }
   return false;
@@ -269,9 +270,9 @@ static void ui_stl_import_settings(const bContext *C, blender::ui::Layout *layou
   }
 }
 
-static void wm_stl_import_draw(bContext *C, wmOperator *op)
+static void wm_stl_import_draw(bContext &C, wmOperator &op)
 {
-  ui_stl_import_settings(C, op->layout, op->ptr);
+  ui_stl_import_settings(&C, op.layout, op.ptr);
 }
 
 void WM_OT_stl_import(wmOperatorType *ot)

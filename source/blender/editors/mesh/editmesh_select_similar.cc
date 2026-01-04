@@ -1250,27 +1250,27 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
 /** \name Select Similar Operator
  * \{ */
 
-static wmOperatorStatus edbm_select_similar_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_select_similar_exec(bContext &C, wmOperator &op)
 {
-  ToolSettings *ts = CTX_data_tool_settings(*C);
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "threshold");
+  ToolSettings *ts = CTX_data_tool_settings(C);
+  PropertyRNA *prop = RNA_struct_find_property(op.ptr, "threshold");
 
-  const int type = RNA_enum_get(op->ptr, "type");
+  const int type = RNA_enum_get(op.ptr, "type");
 
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_float_set(op->ptr, prop, ts->select_thresh);
+  if (!RNA_property_is_set(op.ptr, prop)) {
+    RNA_property_float_set(op.ptr, prop, ts->select_thresh);
   }
   else {
-    ts->select_thresh = RNA_property_float_get(op->ptr, prop);
+    ts->select_thresh = RNA_property_float_get(op.ptr, prop);
   }
 
   if (type < 100) {
-    return similar_vert_select_exec(C, op);
+    return similar_vert_select_exec(&C, &op);
   }
   if (type < 200) {
-    return similar_edge_select_exec(C, op);
+    return similar_edge_select_exec(&C, &op);
   }
-  return similar_face_select_exec(C, op);
+  return similar_face_select_exec(&C, &op);
 }
 
 static const EnumPropertyItem *select_similar_type_itemf(bContext *C,
@@ -1321,12 +1321,12 @@ static const EnumPropertyItem *select_similar_type_itemf(bContext *C,
   return prop_similar_types;
 }
 
-static bool edbm_select_similar_poll_property(const bContext * /*C*/,
-                                              wmOperator *op,
+static bool edbm_select_similar_poll_property(const bContext & /*C*/,
+                                              wmOperator &op,
                                               const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
-  const int type = RNA_enum_get(op->ptr, "type");
+  const int type = RNA_enum_get(op.ptr, "type");
 
   /* Only show compare when it is used. */
   if (STREQ(prop_id, "compare")) {

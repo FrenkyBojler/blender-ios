@@ -59,10 +59,10 @@
 
 /******************** open sound operator ********************/
 
-static void sound_open_cancel(bContext * /*C*/, wmOperator *op)
+static void sound_open_cancel(bContext & /*C*/, wmOperator &op)
 {
-  MEM_delete(static_cast<PropertyPointerRNA *>(op->customdata));
-  op->customdata = nullptr;
+  MEM_delete(static_cast<PropertyPointerRNA *>(op.customdata));
+  op.customdata = nullptr;
 }
 
 static void sound_open_init(bContext *C, wmOperator *op)
@@ -74,30 +74,30 @@ static void sound_open_init(bContext *C, wmOperator *op)
 }
 
 #ifdef WITH_AUDASPACE
-static wmOperatorStatus sound_open_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sound_open_exec(bContext &C, wmOperator &op)
 {
   char filepath[FILE_MAX];
   bSound *sound;
   PropertyPointerRNA *pprop;
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
   sound = BKE_sound_new_file(bmain, filepath);
 
-  if (!op->customdata) {
-    sound_open_init(C, op);
+  if (!op.customdata) {
+    sound_open_init(&C, &op);
   }
 
-  if (RNA_boolean_get(op->ptr, "mono")) {
+  if (RNA_boolean_get(op.ptr, "mono")) {
     sound->flags |= SOUND_FLAGS_MONO;
   }
 
-  if (RNA_boolean_get(op->ptr, "cache")) {
+  if (RNA_boolean_get(op.ptr, "cache")) {
     sound->flags |= SOUND_FLAGS_CACHING;
   }
 
   /* hook into UI */
-  pprop = static_cast<PropertyPointerRNA *>(op->customdata);
+  pprop = static_cast<PropertyPointerRNA *>(op.customdata);
 
   if (pprop->prop) {
     /* when creating new ID blocks, use is already 1, but RNA
@@ -106,7 +106,7 @@ static wmOperatorStatus sound_open_exec(bContext *C, wmOperator *op)
 
     PointerRNA idptr = RNA_id_pointer_create(&sound->id);
     RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
-    RNA_property_update(C, &pprop->ptr, pprop->prop);
+    RNA_property_update(&C, &pprop->ptr, pprop->prop);
   }
 
   DEG_relations_tag_update(bmain);
@@ -126,15 +126,15 @@ static wmOperatorStatus sound_open_exec(bContext * /*C*/, wmOperator *op)
 
 #endif
 
-static wmOperatorStatus sound_open_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sound_open_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (RNA_struct_property_is_set(op->ptr, "filepath")) {
+  if (RNA_struct_property_is_set(op.ptr, "filepath")) {
     return sound_open_exec(C, op);
   }
 
-  sound_open_init(C, op);
+  sound_open_init(&C, &op);
 
-  return WM_operator_filesel(C, op, event);
+  return WM_operator_filesel(&C, &op, event);
 }
 
 static void SOUND_OT_open(wmOperatorType *ot)
@@ -258,12 +258,12 @@ static void sound_update_animation_flags(Scene *scene)
   }
 }
 
-static wmOperatorStatus sound_update_animation_flags_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sound_update_animation_flags_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
-  BKE_main_id_tag_idcode(CTX_data_main(*C), ID_SCE, ID_TAG_DOIT, false);
-  sound_update_animation_flags(CTX_data_scene(*C));
+  BKE_main_id_tag_idcode(CTX_data_main(C), ID_SCE, ID_TAG_DOIT, false);
+  sound_update_animation_flags(CTX_data_scene(C));
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   return OPERATOR_FINISHED;
 }
@@ -291,16 +291,16 @@ static void SOUND_OT_update_animation_flags(wmOperatorType *ot)
 
 /* ******************************************************* */
 
-static wmOperatorStatus sound_bake_animation_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sound_bake_animation_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   /* NOTE: We will be forcefully evaluating dependency graph at every frame, so no need to ensure
    * current scene state is evaluated as it will be lost anyway. */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   int oldfra = scene->r.cfra;
   int cfra;
 
-  sound_update_animation_flags_exec(C, nullptr);
+  sound_update_animation_flags_exec(C, *nullptr);
 
   for (cfra = (scene->r.sfra > 0) ? (scene->r.sfra - 1) : 0; cfra <= scene->r.efra + 1; cfra++) {
     scene->r.cfra = cfra;
@@ -331,13 +331,13 @@ static void SOUND_OT_bake_animation(wmOperatorType *ot)
 
 /******************** mixdown operator ********************/
 
-static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sound_mixdown_exec(bContext &C, wmOperator &op)
 {
 #ifdef WITH_AUDASPACE
   char filepath[FILE_MAX];
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   int split;
 
   int bitrate, accuracy;
@@ -349,15 +349,15 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
 
   sound_bake_animation_exec(C, op);
 
-  RNA_string_get(op->ptr, "filepath", filepath);
-  bitrate = RNA_int_get(op->ptr, "bitrate") * 1000;
-  accuracy = RNA_int_get(op->ptr, "accuracy");
-  specs.format = AUD_SampleFormat(RNA_enum_get(op->ptr, "format"));
-  container = AUD_Container(RNA_enum_get(op->ptr, "container"));
-  codec = AUD_Codec(RNA_enum_get(op->ptr, "codec"));
-  split = RNA_boolean_get(op->ptr, "split_channels");
-  specs.channels = AUD_Channels(RNA_enum_get(op->ptr, "channels"));
-  specs.rate = RNA_int_get(op->ptr, "mixrate");
+  RNA_string_get(op.ptr, "filepath", filepath);
+  bitrate = RNA_int_get(op.ptr, "bitrate") * 1000;
+  accuracy = RNA_int_get(op.ptr, "accuracy");
+  specs.format = AUD_SampleFormat(RNA_enum_get(op.ptr, "format"));
+  container = AUD_Container(RNA_enum_get(op.ptr, "container"));
+  codec = AUD_Codec(RNA_enum_get(op.ptr, "codec"));
+  split = RNA_boolean_get(op.ptr, "split_channels");
+  specs.channels = AUD_Channels(RNA_enum_get(op.ptr, "channels"));
+  specs.rate = RNA_int_get(op.ptr, "mixrate");
 
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
@@ -401,7 +401,7 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
   BKE_sound_reset_scene_specs(scene_eval);
 
   if (!result) {
-    BKE_report(op->reports, RPT_ERROR, error_message);
+    BKE_report(op.reports, RPT_ERROR, error_message);
     return OPERATOR_CANCELLED;
   }
 #else  /* WITH_AUDASPACE */
@@ -440,9 +440,9 @@ static const char *snd_ext_sound[] = {
     nullptr,
 };
 
-static bool sound_mixdown_check(bContext * /*C*/, wmOperator *op)
+static bool sound_mixdown_check(bContext & /*C*/, wmOperator &op)
 {
-  AUD_Container container = AUD_Container(RNA_enum_get(op->ptr, "container"));
+  AUD_Container container = AUD_Container(RNA_enum_get(op.ptr, "container"));
 
   const char *extension = nullptr;
 
@@ -468,8 +468,8 @@ static bool sound_mixdown_check(bContext * /*C*/, wmOperator *op)
 
     int check;
 
-    prop = RNA_struct_find_property(op->ptr, "filepath");
-    RNA_property_string_get(op->ptr, prop, filepath);
+    prop = RNA_struct_find_property(op.ptr, "filepath");
+    RNA_property_string_get(op.ptr, prop, filepath);
 
     if (BLI_path_extension_check_array(filepath, snd_ext_sound)) {
       check = BLI_path_extension_replace(filepath, FILE_MAX, extension);
@@ -482,7 +482,7 @@ static bool sound_mixdown_check(bContext * /*C*/, wmOperator *op)
       return check;
     }
 
-    RNA_property_string_set(op->ptr, prop, filepath);
+    RNA_property_string_set(op.ptr, prop, filepath);
     return true;
   }
 
@@ -491,13 +491,13 @@ static bool sound_mixdown_check(bContext * /*C*/, wmOperator *op)
 
 #endif /* WITH_AUDASPACE */
 
-static wmOperatorStatus sound_mixdown_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sound_mixdown_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (RNA_struct_property_is_set(op->ptr, "filepath")) {
+  if (RNA_struct_property_is_set(op.ptr, "filepath")) {
     return sound_mixdown_exec(C, op);
   }
 
-  return WM_operator_filesel(C, op, event);
+  return WM_operator_filesel(&C, &op, event);
 }
 
 #ifdef WITH_AUDASPACE
@@ -510,7 +510,7 @@ static bool sound_mixdown_draw_check_prop(PointerRNA * /*ptr*/,
   return !STR_ELEM(prop_id, "filepath", "directory", "filename");
 }
 
-static void sound_mixdown_draw(bContext *C, wmOperator *op)
+static void sound_mixdown_draw(bContext &C, wmOperator &op)
 {
   static const EnumPropertyItem pcm_format_items[] = {
       {AUD_FORMAT_U8, "U8", 0, "U8", "8-bit unsigned"},
@@ -557,8 +557,8 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  blender::ui::Layout &layout = *op->layout;
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  blender::ui::Layout &layout = *op.layout;
+  wmWindowManager *wm = CTX_wm_manager(C);
   PropertyRNA *prop_format;
   PropertyRNA *prop_codec;
   PropertyRNA *prop_bitrate;
@@ -566,12 +566,12 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  AUD_Container container = AUD_Container(RNA_enum_get(op->ptr, "container"));
-  AUD_Codec codec = AUD_Codec(RNA_enum_get(op->ptr, "codec"));
+  AUD_Container container = AUD_Container(RNA_enum_get(op.ptr, "container"));
+  AUD_Codec codec = AUD_Codec(RNA_enum_get(op.ptr, "codec"));
 
-  prop_format = RNA_struct_find_property(op->ptr, "format");
-  prop_codec = RNA_struct_find_property(op->ptr, "codec");
-  prop_bitrate = RNA_struct_find_property(op->ptr, "bitrate");
+  prop_format = RNA_struct_find_property(op.ptr, "format");
+  prop_codec = RNA_struct_find_property(op.ptr, "codec");
+  prop_bitrate = RNA_struct_find_property(op.ptr, "bitrate");
 
   RNA_def_property_clear_flag(prop_bitrate, PROP_HIDDEN);
   RNA_def_property_flag(prop_codec, PROP_HIDDEN);
@@ -580,18 +580,18 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
   switch (container) {
     case AUD_CONTAINER_AAC:
       RNA_def_property_enum_items(prop_codec, all_codec_items);
-      RNA_enum_set(op->ptr, "codec", AUD_CODEC_AAC);
-      RNA_enum_set(op->ptr, "format", AUD_FORMAT_FLOAT32);
+      RNA_enum_set(op.ptr, "codec", AUD_CODEC_AAC);
+      RNA_enum_set(op.ptr, "format", AUD_FORMAT_FLOAT32);
       break;
     case AUD_CONTAINER_AC3:
       RNA_def_property_enum_items(prop_codec, all_codec_items);
-      RNA_enum_set(op->ptr, "codec", AUD_CODEC_AC3);
-      RNA_enum_set(op->ptr, "format", AUD_FORMAT_FLOAT32);
+      RNA_enum_set(op.ptr, "codec", AUD_CODEC_AC3);
+      RNA_enum_set(op.ptr, "format", AUD_FORMAT_FLOAT32);
       break;
     case AUD_CONTAINER_FLAC:
       RNA_def_property_flag(prop_bitrate, PROP_HIDDEN);
       RNA_def_property_enum_items(prop_codec, all_codec_items);
-      RNA_enum_set(op->ptr, "codec", AUD_CODEC_FLAC);
+      RNA_enum_set(op.ptr, "codec", AUD_CODEC_FLAC);
 #  ifdef WITH_SNDFILE
       RNA_def_property_clear_flag(prop_format, PROP_HIDDEN);
       RNA_def_property_enum_items(prop_format, flac_format_items);
@@ -605,17 +605,17 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
 
       switch (codec) {
         case AUD_CODEC_AAC:
-          RNA_enum_set(op->ptr, "format", AUD_FORMAT_S16);
+          RNA_enum_set(op.ptr, "format", AUD_FORMAT_S16);
           break;
         case AUD_CODEC_AC3:
-          RNA_enum_set(op->ptr, "format", AUD_FORMAT_FLOAT32);
+          RNA_enum_set(op.ptr, "format", AUD_FORMAT_FLOAT32);
           break;
         case AUD_CODEC_FLAC:
           RNA_def_property_flag(prop_bitrate, PROP_HIDDEN);
-          RNA_enum_set(op->ptr, "format", AUD_FORMAT_S16);
+          RNA_enum_set(op.ptr, "format", AUD_FORMAT_S16);
           break;
         case AUD_CODEC_MP2:
-          RNA_enum_set(op->ptr, "format", AUD_FORMAT_S16);
+          RNA_enum_set(op.ptr, "format", AUD_FORMAT_S16);
           break;
         case AUD_CODEC_MP3:
           RNA_def_property_enum_items(prop_format, mp3_format_items);
@@ -627,7 +627,7 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
           RNA_def_property_clear_flag(prop_format, PROP_HIDDEN);
           break;
         case AUD_CODEC_VORBIS:
-          RNA_enum_set(op->ptr, "format", AUD_FORMAT_S16);
+          RNA_enum_set(op.ptr, "format", AUD_FORMAT_S16);
           break;
         default:
           break;
@@ -635,33 +635,33 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
 
       break;
     case AUD_CONTAINER_MP2:
-      RNA_enum_set(op->ptr, "format", AUD_FORMAT_S16);
-      RNA_enum_set(op->ptr, "codec", AUD_CODEC_MP2);
+      RNA_enum_set(op.ptr, "format", AUD_FORMAT_S16);
+      RNA_enum_set(op.ptr, "codec", AUD_CODEC_MP2);
       RNA_def_property_enum_items(prop_codec, all_codec_items);
       break;
     case AUD_CONTAINER_MP3:
       RNA_def_property_clear_flag(prop_format, PROP_HIDDEN);
       RNA_def_property_enum_items(prop_format, mp3_format_items);
       RNA_def_property_enum_items(prop_codec, all_codec_items);
-      RNA_enum_set(op->ptr, "codec", AUD_CODEC_MP3);
+      RNA_enum_set(op.ptr, "codec", AUD_CODEC_MP3);
       break;
     case AUD_CONTAINER_OGG:
       RNA_def_property_clear_flag(prop_codec, PROP_HIDDEN);
       RNA_def_property_enum_items(prop_codec, ogg_codec_items);
-      RNA_enum_set(op->ptr, "format", AUD_FORMAT_S16);
+      RNA_enum_set(op.ptr, "format", AUD_FORMAT_S16);
       break;
     case AUD_CONTAINER_WAV:
       RNA_def_property_flag(prop_bitrate, PROP_HIDDEN);
       RNA_def_property_clear_flag(prop_format, PROP_HIDDEN);
       RNA_def_property_enum_items(prop_format, pcm_format_items);
       RNA_def_property_enum_items(prop_codec, all_codec_items);
-      RNA_enum_set(op->ptr, "codec", AUD_CODEC_PCM);
+      RNA_enum_set(op.ptr, "codec", AUD_CODEC_PCM);
       break;
     default:
       break;
   }
 
-  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op.type->srna, op.properties);
 
   /* main draw call */
   uiDefAutoButsRNA(&layout,
@@ -776,9 +776,9 @@ static void SOUND_OT_mixdown(wmOperatorType *ot)
 
 /* ******************************************************* */
 
-static bool sound_poll(bContext *C)
+static bool sound_poll(bContext &C)
 {
-  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(*C));
+  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
 
   if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND) {
     return false;
@@ -788,10 +788,10 @@ static bool sound_poll(bContext *C)
 }
 /********************* pack operator *********************/
 
-static wmOperatorStatus sound_pack_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sound_pack_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(*C));
+  Main *bmain = CTX_data_main(C);
+  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
   bSound *sound;
 
   if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND) {
@@ -805,7 +805,7 @@ static wmOperatorStatus sound_pack_exec(bContext *C, wmOperator *op)
   }
 
   sound->packedfile = BKE_packedfile_new(
-      op->reports, sound->filepath, ID_BLEND_PATH(bmain, &sound->id));
+      op.reports, sound->filepath, ID_BLEND_PATH(bmain, &sound->id));
 
   DEG_id_tag_update_ex(bmain, &sound->id, ID_RECALC_AUDIO);
 
@@ -829,16 +829,16 @@ static void SOUND_OT_pack(wmOperatorType *ot)
 
 /********************* unpack operator *********************/
 
-static wmOperatorStatus sound_unpack_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sound_unpack_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  int method = RNA_enum_get(op->ptr, "method");
+  Main *bmain = CTX_data_main(C);
+  int method = RNA_enum_get(op.ptr, "method");
   bSound *sound = nullptr;
 
   /* find the supplied image by name */
-  if (RNA_struct_property_is_set(op->ptr, "id")) {
+  if (RNA_struct_property_is_set(op.ptr, "id")) {
     char sndname[MAX_ID_NAME - 2];
-    RNA_string_get(op->ptr, "id", sndname);
+    RNA_string_get(op.ptr, "id", sndname);
     sound = static_cast<bSound *>(BLI_findstring(&bmain->sounds, sndname, offsetof(ID, name) + 2));
   }
 
@@ -847,27 +847,27 @@ static wmOperatorStatus sound_unpack_exec(bContext *C, wmOperator *op)
   }
 
   if (!ID_IS_EDITABLE(&sound->id)) {
-    BKE_report(op->reports, RPT_ERROR, "Sound is not editable");
+    BKE_report(op.reports, RPT_ERROR, "Sound is not editable");
     return OPERATOR_CANCELLED;
   }
 
   if (G.fileflags & G_FILE_AUTOPACK) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_WARNING,
                "AutoPack is enabled, so image will be packed again on file save");
   }
 
-  BKE_packedfile_unpack_sound(bmain, op->reports, sound, ePF_FileStatus(method));
+  BKE_packedfile_unpack_sound(bmain, op.reports, sound, ePF_FileStatus(method));
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus sound_unpack_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus sound_unpack_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(*C));
+  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
   bSound *sound;
 
-  if (RNA_struct_property_is_set(op->ptr, "id")) {
+  if (RNA_struct_property_is_set(op.ptr, "id")) {
     return sound_unpack_exec(C, op);
   }
 
@@ -882,18 +882,18 @@ static wmOperatorStatus sound_unpack_invoke(bContext *C, wmOperator *op, const w
   }
 
   if (!ID_IS_EDITABLE(&sound->id)) {
-    BKE_report(op->reports, RPT_ERROR, "Sound is not editable");
+    BKE_report(op.reports, RPT_ERROR, "Sound is not editable");
     return OPERATOR_CANCELLED;
   }
 
   if (G.fileflags & G_FILE_AUTOPACK) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_WARNING,
                "AutoPack is enabled, so image will be packed again on file save");
   }
 
   unpack_menu(
-      C, "SOUND_OT_unpack", sound->id.name + 2, sound->filepath, "sounds", sound->packedfile);
+      &C, "SOUND_OT_unpack", sound->id.name + 2, sound->filepath, "sounds", sound->packedfile);
 
   return OPERATOR_FINISHED;
 }

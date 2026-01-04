@@ -74,69 +74,69 @@ static const EnumPropertyItem rna_enum_abc_export_evaluation_mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus wm_alembic_export_invoke(bContext *C,
-                                                 wmOperator *op,
+static wmOperatorStatus wm_alembic_export_invoke(bContext &C,
+                                                 wmOperator &op,
                                                  const wmEvent * /*event*/)
 {
-  if (!RNA_struct_property_is_set(op->ptr, "as_background_job")) {
-    RNA_boolean_set(op->ptr, "as_background_job", true);
+  if (!RNA_struct_property_is_set(op.ptr, "as_background_job")) {
+    RNA_boolean_set(op.ptr, "as_background_job", true);
   }
 
-  RNA_boolean_set(op->ptr, "init_scene_frame_range", true);
+  RNA_boolean_set(op.ptr, "init_scene_frame_range", true);
 
-  ED_fileselect_ensure_default_filepath(C, op, ".abc");
+  ED_fileselect_ensure_default_filepath(&C, &op, ".abc");
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus wm_alembic_export_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_alembic_export_exec(bContext &C, wmOperator &op)
 {
-  if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+  if (!RNA_struct_property_is_set_ex(op.ptr, "filepath", false)) {
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
 
   char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   AlembicExportParams params{};
-  params.frame_start = RNA_int_get(op->ptr, "start");
-  params.frame_end = RNA_int_get(op->ptr, "end");
+  params.frame_start = RNA_int_get(op.ptr, "start");
+  params.frame_end = RNA_int_get(op.ptr, "end");
 
-  params.frame_samples_xform = RNA_int_get(op->ptr, "xsamples");
-  params.frame_samples_shape = RNA_int_get(op->ptr, "gsamples");
+  params.frame_samples_xform = RNA_int_get(op.ptr, "xsamples");
+  params.frame_samples_shape = RNA_int_get(op.ptr, "gsamples");
 
-  params.shutter_open = RNA_float_get(op->ptr, "sh_open");
-  params.shutter_close = RNA_float_get(op->ptr, "sh_close");
+  params.shutter_open = RNA_float_get(op.ptr, "sh_open");
+  params.shutter_close = RNA_float_get(op.ptr, "sh_close");
 
-  params.selected_only = RNA_boolean_get(op->ptr, "selected");
-  params.uvs = RNA_boolean_get(op->ptr, "uvs");
-  params.normals = RNA_boolean_get(op->ptr, "normals");
-  params.vcolors = RNA_boolean_get(op->ptr, "vcolors");
-  params.orcos = RNA_boolean_get(op->ptr, "orcos");
-  params.apply_subdiv = RNA_boolean_get(op->ptr, "apply_subdiv");
-  params.curves_as_mesh = RNA_boolean_get(op->ptr, "curves_as_mesh");
-  params.flatten_hierarchy = RNA_boolean_get(op->ptr, "flatten");
-  params.face_sets = RNA_boolean_get(op->ptr, "face_sets");
-  params.use_subdiv_schema = RNA_boolean_get(op->ptr, "subdiv_schema");
-  params.export_hair = RNA_boolean_get(op->ptr, "export_hair");
-  params.export_particles = RNA_boolean_get(op->ptr, "export_particles");
-  params.export_custom_properties = RNA_boolean_get(op->ptr, "export_custom_properties");
-  params.use_instancing = RNA_boolean_get(op->ptr, "use_instancing");
-  params.packuv = RNA_boolean_get(op->ptr, "packuv");
-  params.triangulate = RNA_boolean_get(op->ptr, "triangulate");
-  params.quad_method = RNA_enum_get(op->ptr, "quad_method");
-  params.ngon_method = RNA_enum_get(op->ptr, "ngon_method");
-  params.evaluation_mode = eEvaluationMode(RNA_enum_get(op->ptr, "evaluation_mode"));
+  params.selected_only = RNA_boolean_get(op.ptr, "selected");
+  params.uvs = RNA_boolean_get(op.ptr, "uvs");
+  params.normals = RNA_boolean_get(op.ptr, "normals");
+  params.vcolors = RNA_boolean_get(op.ptr, "vcolors");
+  params.orcos = RNA_boolean_get(op.ptr, "orcos");
+  params.apply_subdiv = RNA_boolean_get(op.ptr, "apply_subdiv");
+  params.curves_as_mesh = RNA_boolean_get(op.ptr, "curves_as_mesh");
+  params.flatten_hierarchy = RNA_boolean_get(op.ptr, "flatten");
+  params.face_sets = RNA_boolean_get(op.ptr, "face_sets");
+  params.use_subdiv_schema = RNA_boolean_get(op.ptr, "subdiv_schema");
+  params.export_hair = RNA_boolean_get(op.ptr, "export_hair");
+  params.export_particles = RNA_boolean_get(op.ptr, "export_particles");
+  params.export_custom_properties = RNA_boolean_get(op.ptr, "export_custom_properties");
+  params.use_instancing = RNA_boolean_get(op.ptr, "use_instancing");
+  params.packuv = RNA_boolean_get(op.ptr, "packuv");
+  params.triangulate = RNA_boolean_get(op.ptr, "triangulate");
+  params.quad_method = RNA_enum_get(op.ptr, "quad_method");
+  params.ngon_method = RNA_enum_get(op.ptr, "ngon_method");
+  params.evaluation_mode = eEvaluationMode(RNA_enum_get(op.ptr, "evaluation_mode"));
 
-  params.global_scale = RNA_float_get(op->ptr, "global_scale");
+  params.global_scale = RNA_float_get(op.ptr, "global_scale");
 
-  RNA_string_get(op->ptr, "collection", params.collection);
+  RNA_string_get(op.ptr, "collection", params.collection);
 
   /* Take some defaults from the scene, if not specified explicitly. */
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   if (params.frame_start == INT_MIN) {
     params.frame_start = scene->r.sfra;
   }
@@ -144,8 +144,8 @@ static wmOperatorStatus wm_alembic_export_exec(bContext *C, wmOperator *op)
     params.frame_end = scene->r.efra;
   }
 
-  const bool as_background_job = RNA_boolean_get(op->ptr, "as_background_job");
-  bool ok = ABC_export(scene, C, filepath, &params, as_background_job);
+  const bool as_background_job = RNA_boolean_get(op.ptr, "as_background_job");
+  bool ok = ABC_export(scene, &C, filepath, &params, as_background_job);
 
   return as_background_job || ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
@@ -241,29 +241,29 @@ static void ui_alembic_export_settings(const bContext *C,
   }
 }
 
-static void wm_alembic_export_draw(bContext *C, wmOperator *op)
+static void wm_alembic_export_draw(bContext &C, wmOperator &op)
 {
   /* Conveniently set start and end frame to match the scene's frame range. */
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
-  if (scene != nullptr && RNA_boolean_get(op->ptr, "init_scene_frame_range")) {
-    RNA_int_set(op->ptr, "start", scene->r.sfra);
-    RNA_int_set(op->ptr, "end", scene->r.efra);
+  if (scene != nullptr && RNA_boolean_get(op.ptr, "init_scene_frame_range")) {
+    RNA_int_set(op.ptr, "start", scene->r.sfra);
+    RNA_int_set(op.ptr, "end", scene->r.efra);
 
-    RNA_boolean_set(op->ptr, "init_scene_frame_range", false);
+    RNA_boolean_set(op.ptr, "init_scene_frame_range", false);
   }
 
-  ui_alembic_export_settings(C, *op->layout, op->ptr);
+  ui_alembic_export_settings(&C, *op.layout, op.ptr);
 }
 
-static bool wm_alembic_export_check(bContext * /*C*/, wmOperator *op)
+static bool wm_alembic_export_check(bContext & /*C*/, wmOperator &op)
 {
   char filepath[FILE_MAX];
-  RNA_string_get(op->ptr, "filepath", filepath);
+  RNA_string_get(op.ptr, "filepath", filepath);
 
   if (!BLI_path_extension_check(filepath, ".abc")) {
     BLI_path_extension_ensure(filepath, FILE_MAX, ".abc");
-    RNA_string_set(op->ptr, "filepath", filepath);
+    RNA_string_set(op.ptr, "filepath", filepath);
     return true;
   }
 
@@ -591,34 +591,34 @@ static void ui_alembic_import_settings(const bContext *C,
   }
 }
 
-static void wm_alembic_import_draw(bContext *C, wmOperator *op)
+static void wm_alembic_import_draw(bContext &C, wmOperator &op)
 {
-  ui_alembic_import_settings(C, op->layout, op->ptr);
+  ui_alembic_import_settings(&C, op.layout, op.ptr);
 }
 
 /* op->invoke, opens fileselect if path property not set, otherwise executes */
-static wmOperatorStatus wm_alembic_import_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_alembic_import_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (!RNA_struct_property_is_set(op->ptr, "as_background_job")) {
-    RNA_boolean_set(op->ptr, "as_background_job", true);
+  if (!RNA_struct_property_is_set(op.ptr, "as_background_job")) {
+    RNA_boolean_set(op.ptr, "as_background_job", true);
   }
   return blender::ed::io::filesel_drop_import_invoke(C, op, event);
 }
 
-static wmOperatorStatus wm_alembic_import_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_alembic_import_exec(bContext &C, wmOperator &op)
 {
-  blender::Vector<std::string> paths = blender::ed::io::paths_from_operator_properties(op->ptr);
+  blender::Vector<std::string> paths = blender::ed::io::paths_from_operator_properties(op.ptr);
   if (paths.is_empty()) {
-    BKE_report(op->reports, RPT_ERROR, "No filepath given");
+    BKE_report(op.reports, RPT_ERROR, "No filepath given");
     return OPERATOR_CANCELLED;
   }
 
-  const float scale = RNA_float_get(op->ptr, "scale");
-  const bool is_sequence = RNA_boolean_get(op->ptr, "is_sequence");
-  const bool set_frame_range = RNA_boolean_get(op->ptr, "set_frame_range");
-  const bool validate_meshes = RNA_boolean_get(op->ptr, "validate_meshes");
-  const bool always_add_cache_reader = RNA_boolean_get(op->ptr, "always_add_cache_reader");
-  const bool as_background_job = RNA_boolean_get(op->ptr, "as_background_job");
+  const float scale = RNA_float_get(op.ptr, "scale");
+  const bool is_sequence = RNA_boolean_get(op.ptr, "is_sequence");
+  const bool set_frame_range = RNA_boolean_get(op.ptr, "set_frame_range");
+  const bool validate_meshes = RNA_boolean_get(op.ptr, "validate_meshes");
+  const bool always_add_cache_reader = RNA_boolean_get(op.ptr, "always_add_cache_reader");
+  const bool as_background_job = RNA_boolean_get(op.ptr, "as_background_job");
 
   int sequence_min_frame = std::numeric_limits<int>::max();
   int sequence_max_frame = std::numeric_limits<int>::min();
@@ -628,7 +628,7 @@ static wmOperatorStatus wm_alembic_import_exec(bContext *C, wmOperator *op)
       int offset = 0;
       int sequence_len = get_sequence_len(path.c_str(), &offset);
       if (sequence_len < 0) {
-        BKE_report(op->reports, RPT_ERROR, "Unable to determine ABC sequence length");
+        BKE_report(op.reports, RPT_ERROR, "Unable to determine ABC sequence length");
         return OPERATOR_CANCELLED;
       }
       sequence_min_frame = std::min(sequence_min_frame, offset);
@@ -637,9 +637,9 @@ static wmOperatorStatus wm_alembic_import_exec(bContext *C, wmOperator *op)
   }
 
   /* Switch out of edit mode to avoid being stuck in it (#54326). */
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   if (obedit) {
-    blender::ed::object::mode_set(C, OB_MODE_OBJECT);
+    blender::ed::object::mode_set(&C, OB_MODE_OBJECT);
   }
 
   AlembicImportParams params{};
@@ -652,7 +652,7 @@ static wmOperatorStatus wm_alembic_import_exec(bContext *C, wmOperator *op)
   params.validate_meshes = validate_meshes;
   params.always_add_cache_reader = always_add_cache_reader;
 
-  bool ok = ABC_import(C, &params, as_background_job);
+  bool ok = ABC_import(&C, &params, as_background_job);
 
   return as_background_job || ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }

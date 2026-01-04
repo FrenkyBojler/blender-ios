@@ -113,5 +113,5 @@ SelectPick_Params ED_select_pick_params_from_operator(PointerRNA *ptr) ATTR_NONN
  * Get-name callback for #wmOperatorType.get_name, this is mainly useful so the selection
  * action is shown in the status-bar.
  */
-std::string ED_select_pick_get_name(wmOperatorType *ot, PointerRNA *ptr);
-std::string ED_select_circle_get_name(wmOperatorType *ot, PointerRNA *ptr);
+std::string ED_select_pick_get_name(wmOperatorType &ot, PointerRNA *ptr);
+std::string ED_select_circle_get_name(wmOperatorType &ot, PointerRNA *ptr);

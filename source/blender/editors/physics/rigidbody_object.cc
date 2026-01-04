@@ -54,30 +54,30 @@ static bool operator_rigidbody_editable_poll(Scene *scene)
   return true;
 }
 
-static bool operator_rigidbody_active_poll(bContext *C)
+static bool operator_rigidbody_active_poll(bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   if (!operator_rigidbody_editable_poll(scene)) {
     return false;
   }
 
   if (ED_operator_object_active_editable(C)) {
-    Object *ob = blender::ed::object::context_active_object(C);
+    Object *ob = blender::ed::object::context_active_object(&C);
     return (ob && ob->rigidbody_object);
   }
 
   return false;
 }
 
-static bool operator_rigidbody_add_poll(bContext *C)
+static bool operator_rigidbody_add_poll(bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   if (!operator_rigidbody_editable_poll(scene)) {
     return false;
   }
 
   if (ED_operator_object_active_editable(C)) {
-    Object *ob = blender::ed::object::context_active_object(C);
+    Object *ob = blender::ed::object::context_active_object(&C);
     return (ob && ob->type == OB_MESH);
   }
 
@@ -101,21 +101,21 @@ void ED_rigidbody_object_remove(Main *bmain, Scene *scene, Object *ob)
 
 /* ************ Add Rigid Body ************** */
 
-static wmOperatorStatus rigidbody_object_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus rigidbody_object_add_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob = blender::ed::object::context_active_object(C);
-  int type = RNA_enum_get(op->ptr, "type");
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = blender::ed::object::context_active_object(&C);
+  int type = RNA_enum_get(op.ptr, "type");
   bool changed;
 
   /* apply to active object */
-  changed = ED_rigidbody_object_add(bmain, scene, ob, type, op->reports);
+  changed = ED_rigidbody_object_add(bmain, scene, ob, type, op.reports);
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
-    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, nullptr);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -148,11 +148,11 @@ void RIGIDBODY_OT_object_add(wmOperatorType *ot)
 
 /* ************ Remove Rigid Body ************** */
 
-static wmOperatorStatus rigidbody_object_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus rigidbody_object_remove_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob = blender::ed::object::context_active_object(C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = blender::ed::object::context_active_object(&C);
   bool changed = false;
 
   /* apply to active object */
@@ -163,14 +163,14 @@ static wmOperatorStatus rigidbody_object_remove_exec(bContext *C, wmOperator *op
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
-    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, nullptr);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
   }
 
-  BKE_report(op->reports, RPT_ERROR, "Object has no Rigid Body settings to remove");
+  BKE_report(op.reports, RPT_ERROR, "Object has no Rigid Body settings to remove");
   return OPERATOR_CANCELLED;
 }
 
@@ -194,23 +194,23 @@ void RIGIDBODY_OT_object_remove(wmOperatorType *ot)
 
 /* ************ Add Rigid Bodies ************** */
 
-static wmOperatorStatus rigidbody_objects_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus rigidbody_objects_add_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  int type = RNA_enum_get(op->ptr, "type");
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  int type = RNA_enum_get(op.ptr, "type");
   bool changed = false;
 
   /* create rigid body objects and add them to the world's group */
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
-    changed |= ED_rigidbody_object_add(bmain, scene, ob, type, op->reports);
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+    changed |= ED_rigidbody_object_add(bmain, scene, ob, type, op.reports);
   }
   CTX_DATA_END;
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
-    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, nullptr);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -243,14 +243,14 @@ void RIGIDBODY_OT_objects_add(wmOperatorType *ot)
 
 /* ************ Remove Rigid Bodies ************** */
 
-static wmOperatorStatus rigidbody_objects_remove_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus rigidbody_objects_remove_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
   bool changed = false;
 
   /* apply this to all selected objects... */
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     if (ob->rigidbody_object) {
       ED_rigidbody_object_remove(bmain, scene, ob);
       changed = true;
@@ -260,8 +260,8 @@ static wmOperatorStatus rigidbody_objects_remove_exec(bContext *C, wmOperator * 
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
-    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, nullptr);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -289,13 +289,13 @@ void RIGIDBODY_OT_objects_remove(wmOperatorType *ot)
 
 /* ************ Change Collision Shapes ************** */
 
-static wmOperatorStatus rigidbody_objects_shape_change_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus rigidbody_objects_shape_change_exec(bContext &C, wmOperator &op)
 {
-  int shape = RNA_enum_get(op->ptr, "type");
+  int shape = RNA_enum_get(op.ptr, "type");
   bool changed = false;
 
   /* apply this to all selected objects... */
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     if (ob->rigidbody_object) {
       /* use RNA-system to change the property and perform all necessary changes */
       PointerRNA ptr = RNA_pointer_create_discrete(
@@ -311,8 +311,8 @@ static wmOperatorStatus rigidbody_objects_shape_change_exec(bContext *C, wmOpera
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, nullptr);
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, nullptr);
+    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -449,10 +449,10 @@ static const EnumPropertyItem *rigidbody_materials_itemf(bContext * /*C*/,
 
 /* ------------------------------------------ */
 
-static wmOperatorStatus rigidbody_objects_calc_mass_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus rigidbody_objects_calc_mass_exec(bContext &C, wmOperator &op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  int material = RNA_enum_get(op->ptr, "material");
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  int material = RNA_enum_get(op.ptr, "material");
   float density;
   bool changed = false;
 
@@ -464,15 +464,15 @@ static wmOperatorStatus rigidbody_objects_calc_mass_exec(bContext *C, wmOperator
     }
 
     density = RB_MATERIAL_DENSITY_TABLE[material].density;
-    RNA_float_set(op->ptr, "density", density);
+    RNA_float_set(op.ptr, "density", density);
   }
   else {
     /* custom - grab from whatever value is set */
-    density = RNA_float_get(op->ptr, "density");
+    density = RNA_float_get(op.ptr, "density");
   }
 
   /* Apply this to all selected objects (with rigid-bodies). */
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     if (ob->rigidbody_object) {
       float volume; /* m^3 */
       float mass;   /* kg */
@@ -498,7 +498,7 @@ static wmOperatorStatus rigidbody_objects_calc_mass_exec(bContext *C, wmOperator
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, nullptr);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -506,15 +506,15 @@ static wmOperatorStatus rigidbody_objects_calc_mass_exec(bContext *C, wmOperator
   return OPERATOR_CANCELLED;
 }
 
-static bool mass_calculate_poll_property(const bContext * /*C*/,
-                                         wmOperator *op,
+static bool mass_calculate_poll_property(const bContext & /*C*/,
+                                         wmOperator &op,
                                          const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
 
   /* Disable density input when not using the 'Custom' preset. */
   if (STREQ(prop_id, "density")) {
-    int material = RNA_enum_get(op->ptr, "material");
+    int material = RNA_enum_get(op.ptr, "material");
     if (material >= 0) {
       RNA_def_property_clear_flag((PropertyRNA *)prop, PROP_EDITABLE);
     }

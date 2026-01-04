@@ -4132,10 +4132,10 @@ static void knifetool_finish(wmOperator *op)
 /** \name Operator (#MESH_OT_knife_tool)
  * \{ */
 
-static void knifetool_cancel(bContext * /*C*/, wmOperator *op)
+static void knifetool_cancel(bContext & /*C*/, wmOperator &op)
 {
   /* this is just a wrapper around exit() */
-  knifetool_exit(op);
+  knifetool_exit(&op);
 }
 
 wmKeyMap *knifetool_modal_keymap(wmKeyConfig *keyconf)
@@ -4201,15 +4201,15 @@ static void knifetool_disable_orientation_locking(KnifeTool_OpData *kcd)
   kcd->axis_constrained = false;
 }
 
-static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus knifetool_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  KnifeTool_OpData *kcd = static_cast<KnifeTool_OpData *>(op->customdata);
+  KnifeTool_OpData *kcd = static_cast<KnifeTool_OpData *>(op.customdata);
   bool do_refresh = false;
 
   Object *ob = (kcd->curr.ob_index != -1) ? kcd->objects[kcd->curr.ob_index] : kcd->vc.obedit;
   if (!ob || ob->type != OB_MESH) {
-    knifetool_exit(op);
-    ED_workspace_status_text(C, nullptr);
+    knifetool_exit(&op);
+    ED_workspace_status_text(&C, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -4231,9 +4231,9 @@ static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEve
     {
       knife_reset_snap_angle_input(kcd);
     }
-    knife_update_header(C, op, kcd); /* Update the angle multiple. */
+    knife_update_header(&C, &op, kcd); /* Update the angle multiple. */
     /* Modal numinput active, try to handle numeric inputs first... */
-    if (event->val == KM_PRESS && hasNumInput(&kcd->num) && handleNumInput(C, &kcd->num, event)) {
+    if (event->val == KM_PRESS && hasNumInput(&kcd->num) && handleNumInput(&C, &kcd->num, event)) {
       handled = true;
       applyNumInput(&kcd->num, &snapping_increment_temp);
       /* Restrict number key input to 0 - 180 degree range. */
@@ -4243,7 +4243,7 @@ static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEve
         kcd->angle_snapping_increment = snapping_increment_temp;
       }
       knife_update_active(kcd, mval);
-      knife_update_header(C, op, kcd);
+      knife_update_header(&C, &op, kcd);
       ED_region_tag_redraw(kcd->region);
       return OPERATOR_RUNNING_MODAL;
     }
@@ -4256,8 +4256,8 @@ static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEve
         /* finish */
         ED_region_tag_redraw(kcd->region);
 
-        knifetool_exit(op);
-        ED_workspace_status_text(C, nullptr);
+        knifetool_exit(&op);
+        ED_workspace_status_text(&C, nullptr);
 
         return OPERATOR_CANCELLED;
       case KNF_MODAL_CONFIRM: {
@@ -4265,9 +4265,9 @@ static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEve
         /* finish */
         ED_region_tag_redraw(kcd->region);
 
-        knifetool_finish(op);
-        knifetool_exit(op);
-        ED_workspace_status_text(C, nullptr);
+        knifetool_finish(&op);
+        knifetool_exit(&op);
+        ED_workspace_status_text(&C, nullptr);
 
         /* Cancel to prevent undo push for empty cuts. */
         if (!changed) {
@@ -4278,8 +4278,8 @@ static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEve
       case KNF_MODAL_UNDO:
         if (BLI_stack_is_empty(kcd->undostack)) {
           ED_region_tag_redraw(kcd->region);
-          knifetool_exit(op);
-          ED_workspace_status_text(C, nullptr);
+          knifetool_exit(&op);
+          ED_workspace_status_text(&C, nullptr);
           return OPERATOR_CANCELLED;
         }
         knifetool_undo(kcd);
@@ -4324,7 +4324,7 @@ static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEve
         }
         kcd->angle_snapping = (kcd->angle_snapping_mode != KNF_CONSTRAIN_ANGLE_MODE_NONE);
         kcd->angle_snapping_increment = RAD2DEGF(
-            RNA_float_get(op->ptr, "angle_snapping_increment"));
+            RNA_float_get(op.ptr, "angle_snapping_increment"));
         knifetool_disable_orientation_locking(kcd);
         knife_reset_snap_angle_input(kcd);
         knife_update_active(kcd, mval);
@@ -4371,8 +4371,8 @@ static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEve
          */
         if (kcd->no_cuts) {
           ED_region_tag_redraw(kcd->region);
-          knifetool_exit(op);
-          ED_workspace_status_text(C, nullptr);
+          knifetool_exit(&op);
+          ED_workspace_status_text(&C, nullptr);
           return OPERATOR_CANCELLED;
         }
         ED_region_tag_redraw(kcd->region);
@@ -4489,7 +4489,7 @@ static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEve
     }
     if (event->type != EVT_MODAL_MAP) {
       /* Modal number-input inactive, try to handle numeric inputs last. */
-      if (!handled && event->val == KM_PRESS && handleNumInput(C, &kcd->num, event)) {
+      if (!handled && event->val == KM_PRESS && handleNumInput(&C, &kcd->num, event)) {
         applyNumInput(&kcd->num, &snapping_increment_temp);
         /* Restrict number key input to 0 - 180 degree range. */
         if (snapping_increment_temp > KNIFE_MIN_ANGLE_SNAPPING_INCREMENT &&
@@ -4498,7 +4498,7 @@ static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEve
           kcd->angle_snapping_increment = snapping_increment_temp;
         }
         knife_update_active(kcd, mval);
-        knife_update_header(C, op, kcd);
+        knife_update_header(&C, &op, kcd);
         ED_region_tag_redraw(kcd->region);
         return OPERATOR_RUNNING_MODAL;
       }
@@ -4545,37 +4545,37 @@ static wmOperatorStatus knifetool_modal(bContext *C, wmOperator *op, const wmEve
   }
 
   if (kcd->mode == MODE_DRAGGING) {
-    op->flag &= ~OP_IS_MODAL_CURSOR_REGION;
+    op.flag &= ~OP_IS_MODAL_CURSOR_REGION;
   }
   else {
-    op->flag |= OP_IS_MODAL_CURSOR_REGION;
+    op.flag |= OP_IS_MODAL_CURSOR_REGION;
   }
 
   if (do_refresh) {
     ED_region_tag_redraw(kcd->region);
-    knife_update_header(C, op, kcd);
+    knife_update_header(&C, &op, kcd);
   }
 
   /* Keep going until the user confirms. */
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus knifetool_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus knifetool_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const bool only_select = RNA_boolean_get(op->ptr, "only_selected");
-  const bool cut_through = !RNA_boolean_get(op->ptr, "use_occlude_geometry");
-  const bool xray = !RNA_boolean_get(op->ptr, "xray");
-  const int visible_measurements = RNA_enum_get(op->ptr, "visible_measurements");
-  const int angle_snapping = RNA_enum_get(op->ptr, "angle_snapping");
-  const bool wait_for_input = RNA_boolean_get(op->ptr, "wait_for_input");
+  const bool only_select = RNA_boolean_get(op.ptr, "only_selected");
+  const bool cut_through = !RNA_boolean_get(op.ptr, "use_occlude_geometry");
+  const bool xray = !RNA_boolean_get(op.ptr, "xray");
+  const int visible_measurements = RNA_enum_get(op.ptr, "visible_measurements");
+  const int angle_snapping = RNA_enum_get(op.ptr, "angle_snapping");
+  const bool wait_for_input = RNA_boolean_get(op.ptr, "wait_for_input");
   const float angle_snapping_increment = RAD2DEGF(
-      RNA_float_get(op->ptr, "angle_snapping_increment"));
+      RNA_float_get(op.ptr, "angle_snapping_increment"));
 
-  ViewContext vc = em_setup_viewcontext(C);
+  ViewContext vc = em_setup_viewcontext(&C);
 
   /* alloc new customdata */
   KnifeTool_OpData *kcd = MEM_new<KnifeTool_OpData>(__func__);
-  op->customdata = kcd;
+  op.customdata = kcd;
   knifetool_init(
       &vc,
       kcd,
@@ -4598,17 +4598,17 @@ static wmOperatorStatus knifetool_invoke(bContext *C, wmOperator *op, const wmEv
     }
 
     if (!faces_selected) {
-      BKE_report(op->reports, RPT_ERROR, "Selected faces required");
+      BKE_report(op.reports, RPT_ERROR, "Selected faces required");
       knifetool_cancel(C, op);
       return OPERATOR_CANCELLED;
     }
   }
 
-  op->flag |= OP_IS_MODAL_CURSOR_REGION;
+  op.flag |= OP_IS_MODAL_CURSOR_REGION;
 
   /* Add a modal handler for this operator - handles loop selection. */
-  WM_cursor_modal_set(CTX_wm_window(*C), WM_CURSOR_KNIFE);
-  WM_event_add_modal_handler(C, op);
+  WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_KNIFE);
+  WM_event_add_modal_handler(&C, &op);
 
   if (wait_for_input == false) {
     /* Avoid copy-paste logic. */
@@ -4625,7 +4625,7 @@ static wmOperatorStatus knifetool_invoke(bContext *C, wmOperator *op, const wmEv
     UNUSED_VARS_NDEBUG(retval);
   }
 
-  knife_update_header(C, op, kcd);
+  knife_update_header(&C, &op, kcd);
 
   return OPERATOR_RUNNING_MODAL;
 }

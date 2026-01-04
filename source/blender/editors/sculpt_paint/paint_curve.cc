@@ -43,23 +43,23 @@
 #define PAINT_CURVE_SELECT_THRESHOLD 40.0f
 #define PAINT_CURVE_POINT_SELECT(pcp, i) (*(&pcp->bez.f1 + i) = SELECT)
 
-bool paint_curve_poll(bContext *C)
+bool paint_curve_poll(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  Object *ob = CTX_data_active_object(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   SpaceImage *sima;
 
   if (rv3d && !(ob && ((ob->mode & (OB_MODE_ALL_PAINT | OB_MODE_SCULPT_CURVES)) != 0))) {
     return false;
   }
 
-  sima = CTX_wm_space_image(*C);
+  sima = CTX_wm_space_image(C);
 
   if (sima && sima->mode != SI_MODE_PAINT) {
     return false;
   }
 
-  Paint *paint = BKE_paint_get_active_from_context(C);
+  Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
 
   if (brush && (brush->flag & BRUSH_CURVE)) {
@@ -154,18 +154,18 @@ static PaintCurve *paintcurve_for_brush_add(Main *bmain, const char *name, const
   return curve;
 }
 
-static wmOperatorStatus paintcurve_new_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus paintcurve_new_exec(bContext &C, wmOperator & /*op*/)
 {
-  Paint *paint = BKE_paint_get_active_from_context(C);
+  Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush *brush = (paint) ? BKE_paint_brush(paint) : nullptr;
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   if (brush) {
     brush->paint_curve = paintcurve_for_brush_add(bmain, DATA_("PaintCurve"), brush);
     BKE_brush_tag_unsaved_changes(brush);
   }
 
-  WM_event_add_notifier(C, NC_PAINTCURVE | NA_ADDED, nullptr);
+  WM_event_add_notifier(&C, NC_PAINTCURVE | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -248,23 +248,23 @@ static void paintcurve_point_add(bContext *C, wmOperator *op, const int loc[2])
   WM_paint_cursor_tag_redraw(window, region);
 }
 
-static wmOperatorStatus paintcurve_add_point_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus paintcurve_add_point_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent *event)
 {
   const int loc[2] = {event->mval[0], event->mval[1]};
-  paintcurve_point_add(C, op, loc);
-  RNA_int_set_array(op->ptr, "location", loc);
+  paintcurve_point_add(&C, &op, loc);
+  RNA_int_set_array(op.ptr, "location", loc);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus paintcurve_add_point_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paintcurve_add_point_exec(bContext &C, wmOperator &op)
 {
   int loc[2];
 
-  if (RNA_struct_property_is_set(op->ptr, "location")) {
-    RNA_int_get_array(op->ptr, "location", loc);
-    paintcurve_point_add(C, op, loc);
+  if (RNA_struct_property_is_set(op.ptr, "location")) {
+    RNA_int_get_array(op.ptr, "location", loc);
+    paintcurve_point_add(&C, &op, loc);
     return OPERATOR_FINISHED;
   }
 
@@ -299,14 +299,14 @@ void PAINTCURVE_OT_add_point(wmOperatorType *ot)
                      SHRT_MAX);
 }
 
-static wmOperatorStatus paintcurve_delete_point_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paintcurve_delete_point_exec(bContext &C, wmOperator &op)
 {
-  Paint *paint = BKE_paint_get_active_from_context(C);
+  Paint *paint = BKE_paint_get_active_from_context(&C);
   Brush *br = BKE_paint_brush(paint);
   PaintCurve *pc;
   PaintCurvePoint *pcp;
-  wmWindow *window = CTX_wm_window(*C);
-  ARegion *region = CTX_wm_region(*C);
+  wmWindow *window = CTX_wm_window(C);
+  ARegion *region = CTX_wm_region(C);
   int i;
   int tot_del = 0;
   pc = br->paint_curve;
@@ -315,7 +315,7 @@ static wmOperatorStatus paintcurve_delete_point_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED;
   }
 
-  ED_paintcurve_undo_push_begin(op->type->name);
+  ED_paintcurve_undo_push_begin(op.type->name);
 
 #define DELETE_TAG 2
 
@@ -356,7 +356,7 @@ static wmOperatorStatus paintcurve_delete_point_exec(bContext *C, wmOperator *op
 
 #undef DELETE_TAG
 
-  ED_paintcurve_undo_push_end(C);
+  ED_paintcurve_undo_push_end(&C);
   BKE_brush_tag_unsaved_changes(br);
 
   WM_paint_cursor_tag_redraw(window, region);
@@ -480,29 +480,29 @@ static bool paintcurve_point_select(
   return true;
 }
 
-static wmOperatorStatus paintcurve_select_point_invoke(bContext *C,
-                                                       wmOperator *op,
+static wmOperatorStatus paintcurve_select_point_invoke(bContext &C,
+                                                       wmOperator &op,
                                                        const wmEvent *event)
 {
   const int loc[2] = {event->mval[0], event->mval[1]};
-  bool toggle = RNA_boolean_get(op->ptr, "toggle");
-  bool extend = RNA_boolean_get(op->ptr, "extend");
-  if (paintcurve_point_select(C, op, loc, toggle, extend)) {
-    RNA_int_set_array(op->ptr, "location", loc);
+  bool toggle = RNA_boolean_get(op.ptr, "toggle");
+  bool extend = RNA_boolean_get(op.ptr, "extend");
+  if (paintcurve_point_select(&C, &op, loc, toggle, extend)) {
+    RNA_int_set_array(op.ptr, "location", loc);
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus paintcurve_select_point_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paintcurve_select_point_exec(bContext &C, wmOperator &op)
 {
   int loc[2];
 
-  if (RNA_struct_property_is_set(op->ptr, "location")) {
-    bool toggle = RNA_boolean_get(op->ptr, "toggle");
-    bool extend = RNA_boolean_get(op->ptr, "extend");
-    RNA_int_get_array(op->ptr, "location", loc);
-    if (paintcurve_point_select(C, op, loc, toggle, extend)) {
+  if (RNA_struct_property_is_set(op.ptr, "location")) {
+    bool toggle = RNA_boolean_get(op.ptr, "toggle");
+    bool extend = RNA_boolean_get(op.ptr, "extend");
+    RNA_int_get_array(op.ptr, "location", loc);
+    if (paintcurve_point_select(&C, &op, loc, toggle, extend)) {
       return OPERATOR_FINISHED;
     }
   }
@@ -553,14 +553,14 @@ struct PointSlideData {
   bool align;
 };
 
-static wmOperatorStatus paintcurve_slide_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paintcurve_slide_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Paint *paint = BKE_paint_get_active_from_context(C);
+  Paint *paint = BKE_paint_get_active_from_context(&C);
   const float loc_fl[2] = {float(event->mval[0]), float(event->mval[1])};
   char select;
   int i;
-  bool do_select = RNA_boolean_get(op->ptr, "select");
-  bool align = RNA_boolean_get(op->ptr, "align");
+  bool do_select = RNA_boolean_get(op.ptr, "select");
+  bool align = RNA_boolean_get(op.ptr, "align");
   Brush *br = BKE_paint_brush(paint);
   PaintCurve *pc = br->paint_curve;
   PaintCurvePoint *pcp;
@@ -584,8 +584,8 @@ static wmOperatorStatus paintcurve_slide_invoke(bContext *C, wmOperator *op, con
   }
 
   if (pcp) {
-    ARegion *region = CTX_wm_region(*C);
-    wmWindow *window = CTX_wm_window(*C);
+    ARegion *region = CTX_wm_region(C);
+    wmWindow *window = CTX_wm_window(C);
     PointSlideData *psd = MEM_mallocN<PointSlideData>("PointSlideData");
     copy_v2_v2_int(psd->initial_loc, event->mval);
     psd->event = event->type;
@@ -595,7 +595,7 @@ static wmOperatorStatus paintcurve_slide_invoke(bContext *C, wmOperator *op, con
       copy_v2_v2(psd->point_initial_loc[i], pcp->bez.vec[i]);
     }
     psd->align = align;
-    op->customdata = psd;
+    op.customdata = psd;
 
     /* first, clear all selection from points */
     for (i = 0; i < pc->tot_points; i++) {
@@ -607,7 +607,7 @@ static wmOperatorStatus paintcurve_slide_invoke(bContext *C, wmOperator *op, con
     BKE_paint_curve_clamp_endpoint_add_index(pc, pcp - pc->points);
     BKE_brush_tag_unsaved_changes(br);
 
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
     WM_paint_cursor_tag_redraw(window, region);
     return OPERATOR_RUNNING_MODAL;
   }
@@ -615,21 +615,21 @@ static wmOperatorStatus paintcurve_slide_invoke(bContext *C, wmOperator *op, con
   return OPERATOR_PASS_THROUGH;
 }
 
-static wmOperatorStatus paintcurve_slide_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paintcurve_slide_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  PointSlideData *psd = static_cast<PointSlideData *>(op->customdata);
+  PointSlideData *psd = static_cast<PointSlideData *>(op.customdata);
 
   if (event->type == psd->event && event->val == KM_RELEASE) {
     MEM_freeN(psd);
-    ED_paintcurve_undo_push_begin(op->type->name);
-    ED_paintcurve_undo_push_end(C);
+    ED_paintcurve_undo_push_begin(op.type->name);
+    ED_paintcurve_undo_push_end(&C);
     return OPERATOR_FINISHED;
   }
 
   switch (event->type) {
     case MOUSEMOVE: {
-      ARegion *region = CTX_wm_region(*C);
-      wmWindow *window = CTX_wm_window(*C);
+      ARegion *region = CTX_wm_region(C);
+      wmWindow *window = CTX_wm_window(C);
       float diff[2] = {float(event->mval[0] - psd->initial_loc[0]),
                        float(event->mval[1] - psd->initial_loc[1])};
       if (psd->select == 1) {
@@ -680,9 +680,9 @@ void PAINTCURVE_OT_slide(wmOperatorType *ot)
       ot->srna, "select", true, "Select", "Attempt to select a point handle before transform");
 }
 
-static wmOperatorStatus paintcurve_draw_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus paintcurve_draw_exec(bContext &C, wmOperator & /*op*/)
 {
-  PaintMode mode = BKE_paintmode_get_active_from_context(C);
+  PaintMode mode = BKE_paintmode_get_active_from_context(&C);
   const char *name;
 
   switch (mode) {
@@ -710,7 +710,7 @@ static wmOperatorStatus paintcurve_draw_exec(bContext *C, wmOperator * /*op*/)
   }
 
   return WM_operator_name_call(
-      C, name, blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+      &C, name, blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
 }
 
 void PAINTCURVE_OT_draw(wmOperatorType *ot)
@@ -728,16 +728,16 @@ void PAINTCURVE_OT_draw(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 }
 
-static wmOperatorStatus paintcurve_cursor_invoke(bContext *C,
-                                                 wmOperator * /*op*/,
+static wmOperatorStatus paintcurve_cursor_invoke(bContext &C,
+                                                 wmOperator & /*op*/,
                                                  const wmEvent *event)
 {
-  PaintMode mode = BKE_paintmode_get_active_from_context(C);
+  PaintMode mode = BKE_paintmode_get_active_from_context(&C);
 
   switch (mode) {
     case PaintMode::Texture2D: {
-      ARegion *region = CTX_wm_region(*C);
-      SpaceImage *sima = CTX_wm_space_image(*C);
+      ARegion *region = CTX_wm_region(C);
+      SpaceImage *sima = CTX_wm_space_image(C);
       float location[2];
 
       if (!sima) {
@@ -747,11 +747,11 @@ static wmOperatorStatus paintcurve_cursor_invoke(bContext *C,
       blender::ui::view2d_region_to_view(
           &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
       copy_v2_v2(sima->cursor, location);
-      WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+      WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_IMAGE, nullptr);
       break;
     }
     default:
-      ED_view3d_cursor3d_update(C, event->mval, true, V3D_CURSOR_ORIENT_VIEW);
+      ED_view3d_cursor3d_update(&C, event->mval, true, V3D_CURSOR_ORIENT_VIEW);
       break;
   }
 

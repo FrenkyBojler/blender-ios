@@ -700,18 +700,18 @@ static void separate_armature_bones(Main *bmain, Object *ob, const bool is_selec
 }
 
 /* separate selected bones into their armature */
-static wmOperatorStatus separate_armature_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus separate_armature_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   bool ok = false;
 
   /* set wait cursor in case this takes a while */
   WM_cursor_wait(true);
 
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Base *base_old : bases) {
     Object *ob_old = base_old->object;
@@ -786,15 +786,15 @@ static wmOperatorStatus separate_armature_exec(bContext *C, wmOperator *op)
     ok = true;
 
     /* NOTE: notifier might evolve. */
-    WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob_old);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob_old);
   }
 
   /* Recalculate/redraw + cleanup */
   WM_cursor_wait(false);
 
   if (ok) {
-    BKE_report(op->reports, RPT_INFO, "Separated bones");
-    ED_outliner_select_sync_from_object_tag(C);
+    BKE_report(op.reports, RPT_INFO, "Separated bones");
+    ED_outliner_select_sync_from_object_tag(&C);
   }
 
   return OPERATOR_FINISHED;
@@ -895,17 +895,17 @@ static const EnumPropertyItem prop_editarm_make_parent_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus armature_parent_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_parent_set_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = CTX_data_edit_object(*C);
+  Object *ob = CTX_data_edit_object(C);
   bArmature *arm = static_cast<bArmature *>(ob->data);
-  EditBone *actbone = CTX_data_active_bone(*C);
+  EditBone *actbone = CTX_data_active_bone(C);
   EditBone *actmirb = nullptr;
-  short val = RNA_enum_get(op->ptr, "type");
+  short val = RNA_enum_get(op.ptr, "type");
 
   /* there must be an active bone */
   if (actbone == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Operation requires an active bone");
+    BKE_report(op.reports, RPT_ERROR, "Operation requires an active bone");
     return OPERATOR_CANCELLED;
   }
   if (arm->flag & ARM_MIRROR_EDIT) {
@@ -978,14 +978,14 @@ static wmOperatorStatus armature_parent_set_exec(bContext *C, wmOperator *op)
   }
 
   /* NOTE: notifier might evolve. */
-  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
   DEG_id_tag_update(&ob->id, ID_RECALC_SELECT);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus armature_parent_set_invoke(bContext *C,
-                                                   wmOperator * /*op*/,
+static wmOperatorStatus armature_parent_set_invoke(bContext &C,
+                                                   wmOperator & /*op*/,
                                                    const wmEvent * /*event*/)
 {
   /* False when all selected bones are parented to the active bone. */
@@ -993,7 +993,7 @@ static wmOperatorStatus armature_parent_set_invoke(bContext *C,
   /* False when all selected bones are connected to the active bone. */
   bool enable_connect = false;
   {
-    Object *ob = CTX_data_edit_object(*C);
+    Object *ob = CTX_data_edit_object(C);
     bArmature *arm = static_cast<bArmature *>(ob->data);
     EditBone *actbone = arm->act_edbone;
     for (EditBone &ebone : *arm->edbo) {
@@ -1016,7 +1016,7 @@ static wmOperatorStatus armature_parent_set_invoke(bContext *C,
   }
 
   blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
-      C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Parent"), ICON_NONE);
+      &C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Parent"), ICON_NONE);
   blender::ui::Layout &layout = *popup_menu_layout(pup);
 
   blender::ui::Layout &row_offset = layout.row(false);
@@ -1029,7 +1029,7 @@ static wmOperatorStatus armature_parent_set_invoke(bContext *C,
   op_ptr = row_connect.op("ARMATURE_OT_parent_set", IFACE_("Connected"), ICON_NONE);
   RNA_enum_set(&op_ptr, "type", ARM_PAR_CONNECT);
 
-  popup_menu_end(C, pup);
+  popup_menu_end(&C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -1072,19 +1072,19 @@ static void editbone_clear_parent(EditBone *ebone, int mode)
   ebone->flag &= ~BONE_CONNECTED;
 }
 
-static wmOperatorStatus armature_parent_clear_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus armature_parent_clear_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  const int val = RNA_enum_get(op->ptr, "type");
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  const int val = RNA_enum_get(op.ptr, "type");
 
-  CTX_DATA_BEGIN (*C, EditBone *, ebone, selected_editable_bones) {
+  CTX_DATA_BEGIN (C, EditBone *, ebone, selected_editable_bones) {
     editbone_clear_parent(ebone, val);
   }
   CTX_DATA_END;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     bool changed = false;
@@ -1103,13 +1103,13 @@ static wmOperatorStatus armature_parent_clear_exec(bContext *C, wmOperator *op)
     ED_armature_edit_sync_selection(arm->edbo);
 
     /* NOTE: notifier might evolve. */
-    WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
   }
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus armature_parent_clear_invoke(bContext *C,
-                                                     wmOperator * /*op*/,
+static wmOperatorStatus armature_parent_clear_invoke(bContext &C,
+                                                     wmOperator & /*op*/,
                                                      const wmEvent * /*event*/)
 {
   /* False when no selected bones are connected to the active bone. */
@@ -1117,7 +1117,7 @@ static wmOperatorStatus armature_parent_clear_invoke(bContext *C,
   /* False when no selected bones are parented to the active bone. */
   bool enable_clear = false;
   {
-    Object *ob = CTX_data_edit_object(*C);
+    Object *ob = CTX_data_edit_object(C);
     bArmature *arm = static_cast<bArmature *>(ob->data);
     for (EditBone &ebone : *arm->edbo) {
       if (!EBONE_EDITABLE(&ebone) || !(ebone.flag & BONE_SELECTED)) {
@@ -1136,7 +1136,7 @@ static wmOperatorStatus armature_parent_clear_invoke(bContext *C,
   }
 
   blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
-      C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Parent"), ICON_NONE);
+      &C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Parent"), ICON_NONE);
   blender::ui::Layout &layout = *popup_menu_layout(pup);
 
   blender::ui::Layout &row_clear = layout.row(false);
@@ -1149,7 +1149,7 @@ static wmOperatorStatus armature_parent_clear_invoke(bContext *C,
   op_ptr = row_disconnect.op("ARMATURE_OT_parent_clear", IFACE_("Disconnect Bone"), ICON_NONE);
   RNA_enum_set(&op_ptr, "type", ARM_PAR_CLEAR_DISCONNECT);
 
-  popup_menu_end(C, pup);
+  popup_menu_end(&C, pup);
 
   return OPERATOR_INTERFACE;
 }

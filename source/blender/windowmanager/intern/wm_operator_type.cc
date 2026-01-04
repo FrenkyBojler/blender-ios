@@ -328,27 +328,27 @@ static wmOperatorStatus wm_macro_end(wmOperator *op, wmOperatorStatus retval)
 }
 
 /* Macro exec only runs exec calls. */
-static wmOperatorStatus wm_macro_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_macro_exec(bContext &C, wmOperator &op)
 {
   wmOperatorStatus retval = OPERATOR_FINISHED;
-  const int op_inherited_flag = op->flag & (OP_IS_REPEAT | OP_IS_REPEAT_LAST);
+  const int op_inherited_flag = op.flag & (OP_IS_REPEAT | OP_IS_REPEAT_LAST);
 
-  wm_macro_start(op);
+  wm_macro_start(&op);
 
-  for (wmOperator &opm : op->macro) {
+  for (wmOperator &opm : op.macro) {
     if (opm.type->exec == nullptr) {
       CLOG_WARN(WM_LOG_OPERATORS, "'%s' can't exec macro", opm.type->idname);
       continue;
     }
 
     opm.flag |= op_inherited_flag;
-    retval = opm.type->exec(C, &opm);
+    retval = opm.type->exec(&C, &opm);
     opm.flag &= ~op_inherited_flag;
 
     OPERATOR_RETVAL_CHECK(retval);
 
     if (retval & OPERATOR_FINISHED) {
-      MacroData *md = static_cast<MacroData *>(op->customdata);
+      MacroData *md = static_cast<MacroData *>(op.customdata);
       md->retval = OPERATOR_FINISHED; /* Keep in mind that at least one operator finished. */
     }
     else {
@@ -356,7 +356,7 @@ static wmOperatorStatus wm_macro_exec(bContext *C, wmOperator *op)
     }
   }
 
-  return wm_macro_end(op, retval);
+  return wm_macro_end(&op, retval);
 }
 
 static wmOperatorStatus wm_macro_invoke_internal(bContext *C,
@@ -395,22 +395,22 @@ static wmOperatorStatus wm_macro_invoke_internal(bContext *C,
   return wm_macro_end(op, retval);
 }
 
-static wmOperatorStatus wm_macro_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_macro_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  wm_macro_start(op);
-  return wm_macro_invoke_internal(C, op, event, static_cast<wmOperator *>(op->macro.first));
+  wm_macro_start(&op);
+  return wm_macro_invoke_internal(&C, &op, event, static_cast<wmOperator *>(op.macro.first));
 }
 
-static wmOperatorStatus wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus wm_macro_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  wmOperator *opm = op->opm;
+  wmOperator *opm = op.opm;
   wmOperatorStatus retval = OPERATOR_FINISHED;
 
   if (opm == nullptr) {
     CLOG_ERROR(WM_LOG_OPERATORS, "macro error, calling nullptr modal()");
   }
   else {
-    retval = opm->type->modal(C, opm, event);
+    retval = opm->type->modal(&C, opm, event);
     OPERATOR_RETVAL_CHECK(retval);
 
     /* If we're halfway through using a tool and cancel it, clear the options, see: #37149. */
@@ -420,19 +420,19 @@ static wmOperatorStatus wm_macro_modal(bContext *C, wmOperator *op, const wmEven
 
     /* If this one is done but it's not the last operator in the macro. */
     if ((retval & OPERATOR_FINISHED) && opm->next) {
-      MacroData *md = static_cast<MacroData *>(op->customdata);
+      MacroData *md = static_cast<MacroData *>(op.customdata);
 
       md->retval = OPERATOR_FINISHED; /* Keep in mind that at least one operator finished. */
 
-      retval = wm_macro_invoke_internal(C, op, event, opm->next);
+      retval = wm_macro_invoke_internal(&C, &op, event, opm->next);
 
       /* If new operator is modal and also added its own handler. */
-      if (retval & OPERATOR_RUNNING_MODAL && op->opm != opm) {
-        wmWindow *win = CTX_wm_window(*C);
+      if (retval & OPERATOR_RUNNING_MODAL && op.opm != opm) {
+        wmWindow *win = CTX_wm_window(C);
         wmEventHandler_Op *handler;
 
         handler = static_cast<wmEventHandler_Op *>(
-            BLI_findptr(&win->runtime->modalhandlers, op, offsetof(wmEventHandler_Op, op)));
+            BLI_findptr(&win->runtime->modalhandlers, &op, offsetof(wmEventHandler_Op, op)));
         if (handler) {
           BLI_remlink(&win->runtime->modalhandlers, handler);
           wm_event_free_handler(&handler->head);
@@ -440,24 +440,24 @@ static wmOperatorStatus wm_macro_modal(bContext *C, wmOperator *op, const wmEven
 
         /* If operator is blocking, grab cursor.
          * This may end up grabbing twice, but we don't care. */
-        if (op->opm->type->flag & OPTYPE_BLOCKING) {
+        if (op.opm->type->flag & OPTYPE_BLOCKING) {
           int wrap = WM_CURSOR_WRAP_NONE;
           const rcti *wrap_region = nullptr;
 
-          if ((op->opm->flag & OP_IS_MODAL_GRAB_CURSOR) ||
-              (op->opm->type->flag & OPTYPE_GRAB_CURSOR_XY))
+          if ((op.opm->flag & OP_IS_MODAL_GRAB_CURSOR) ||
+              (op.opm->type->flag & OPTYPE_GRAB_CURSOR_XY))
           {
             wrap = WM_CURSOR_WRAP_XY;
           }
-          else if (op->opm->type->flag & OPTYPE_GRAB_CURSOR_X) {
+          else if (op.opm->type->flag & OPTYPE_GRAB_CURSOR_X) {
             wrap = WM_CURSOR_WRAP_X;
           }
-          else if (op->opm->type->flag & OPTYPE_GRAB_CURSOR_Y) {
+          else if (op.opm->type->flag & OPTYPE_GRAB_CURSOR_Y) {
             wrap = WM_CURSOR_WRAP_Y;
           }
 
           if (wrap) {
-            ARegion *region = CTX_wm_region(*C);
+            ARegion *region = CTX_wm_region(C);
             if (region) {
               wrap_region = &region->winrct;
             }
@@ -469,17 +469,17 @@ static wmOperatorStatus wm_macro_modal(bContext *C, wmOperator *op, const wmEven
     }
   }
 
-  return wm_macro_end(op, retval);
+  return wm_macro_end(&op, retval);
 }
 
-static void wm_macro_cancel(bContext *C, wmOperator *op)
+static void wm_macro_cancel(bContext &C, wmOperator &op)
 {
   /* Call cancel on the current modal operator, if any. */
-  if (op->opm && op->opm->type->cancel) {
-    op->opm->type->cancel(C, op->opm);
+  if (op.opm && op.opm->type->cancel) {
+    op.opm->type->cancel(&C, op.opm);
   }
 
-  wm_macro_end(op, OPERATOR_CANCELLED);
+  wm_macro_end(&op, OPERATOR_CANCELLED);
 }
 
 wmOperatorType *WM_operatortype_append_macro(const char *idname,

@@ -543,9 +543,9 @@ void ed_tracking_deselect_all_plane_tracks(ListBaseT<MovieTrackingPlaneTrack> *p
   }
 }
 
-static bool select_poll(bContext *C)
+static bool select_poll(bContext &C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
 
   if (sc) {
     return sc->clip && sc->view == SC_VIEW_CLIP;
@@ -554,20 +554,20 @@ static bool select_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
+  const bool deselect_all = RNA_boolean_get(op.ptr, "deselect_all");
 
   float co[2];
-  RNA_float_get_array(op->ptr, "location", co);
+  RNA_float_get_array(op.ptr, "location", co);
 
   const TrackPickOptions options = ed_tracking_pick_options_defaults();
-  const TrackingPick pick = ed_tracking_pick_closest(&options, C, co);
+  const TrackingPick pick = ed_tracking_pick_closest(&options, &C, co);
 
   /* Special code which allows to slide a marker which belongs to currently selected but not yet
    * active track. If such track is found activate it and return pass-though so that marker slide
@@ -584,14 +584,14 @@ static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
       tracking_object->active_plane_track = pick.plane_track_pick.plane_track;
     }
 
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
     DEG_id_tag_update(&clip->id, ID_RECALC_SELECT);
 
     return OPERATOR_PASS_THROUGH;
   }
 
   ClipViewLockState lock_state;
-  ED_clip_view_lock_state_store(C, &lock_state);
+  ED_clip_view_lock_state_store(&C, &lock_state);
 
   if (pick.point_track_pick.track != nullptr) {
     if (!extend) {
@@ -648,25 +648,25 @@ static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
     ed_tracking_deselect_all_plane_tracks(&tracking_object->plane_tracks);
   }
 
-  ED_clip_view_lock_state_restore_no_jump(C, &lock_state);
+  ED_clip_view_lock_state_restore_no_jump(&C, &lock_state);
 
   BKE_tracking_dopesheet_tag_update(tracking);
 
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
+  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
   DEG_id_tag_update(&clip->id, ID_RECALC_SELECT);
 
   /* Pass-through + finished to allow tweak to transform. */
   return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
 }
 
-static wmOperatorStatus select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus select_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
+  ARegion *region = CTX_wm_region(C);
 
   float co[2];
   ED_clip_mouse_pos(sc, region, event->mval, co);
-  RNA_float_set_array(op->ptr, "location", co);
+  RNA_float_set_array(op.ptr, "location", co);
 
   return select_exec(C, op);
 }
@@ -717,15 +717,15 @@ void CLIP_OT_select(wmOperatorType *ot)
 bool ED_clip_can_select(bContext *C)
 {
   /* To avoid conflicts with mask select deselect all in empty space. */
-  return select_poll(C);
+  return select_poll(*C);
 }
 
 /********************** box select operator *********************/
 
-static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus box_select_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
+  ARegion *region = CTX_wm_region(C);
 
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
@@ -735,12 +735,12 @@ static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
   int framenr = ED_space_clip_get_clip_frame_number(sc);
 
   /* get rectangle from operator */
-  WM_operator_properties_border_to_rcti(op, &rect);
+  WM_operator_properties_border_to_rcti(&op, &rect);
 
   ED_clip_point_stable_pos(sc, region, rect.xmin, rect.ymin, &rectf.xmin, &rectf.ymin);
   ED_clip_point_stable_pos(sc, region, rect.xmax, rect.ymax, &rectf.xmax, &rectf.ymax);
 
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op.ptr, "mode"));
   const bool select = (sel_op != SEL_OP_SUB);
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     ED_clip_select_all(sc, SEL_DESELECT, nullptr);
@@ -792,7 +792,7 @@ static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
   if (changed) {
     BKE_tracking_dopesheet_tag_update(&clip->tracking);
 
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
     DEG_id_tag_update(&clip->id, ID_RECALC_SELECT);
 
     return OPERATOR_FINISHED;
@@ -906,22 +906,22 @@ static int do_lasso_select_marker(bContext *C, const Span<int2> mcoords, bool se
   return changed;
 }
 
-static wmOperatorStatus clip_lasso_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus clip_lasso_select_exec(bContext &C, wmOperator &op)
 {
-  const Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
+  const Array<int2> mcoords = WM_gesture_lasso_path_to_array(&C, &op);
 
   if (mcoords.is_empty()) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op.ptr, "mode"));
   const bool select = (sel_op != SEL_OP_SUB);
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
-    SpaceClip *sc = CTX_wm_space_clip(*C);
+    SpaceClip *sc = CTX_wm_space_clip(C);
     ED_clip_select_all(sc, SEL_DESELECT, nullptr);
   }
 
-  do_lasso_select_marker(C, mcoords, select);
+  do_lasso_select_marker(&C, mcoords, select);
 
   return OPERATOR_FINISHED;
 }
@@ -970,10 +970,10 @@ static int marker_inside_ellipse(const MovieTrackingMarker *marker,
   return point_inside_ellipse(marker->pos, offset, ellipse);
 }
 
-static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus circle_select_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
+  ARegion *region = CTX_wm_region(C);
 
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
@@ -983,13 +983,13 @@ static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
   int framenr = ED_space_clip_get_clip_frame_number(sc);
 
   /* get operator properties */
-  const int x = RNA_int_get(op->ptr, "x");
-  const int y = RNA_int_get(op->ptr, "y");
-  const int radius = RNA_int_get(op->ptr, "radius");
+  const int x = RNA_int_get(op.ptr, "x");
+  const int y = RNA_int_get(op.ptr, "y");
+  const int radius = RNA_int_get(op.ptr, "radius");
 
   const eSelectOp sel_op = ED_select_op_modal(
-      eSelectOp(RNA_enum_get(op->ptr, "mode")),
-      WM_gesture_is_modal_first(static_cast<wmGesture *>(op->customdata)));
+      eSelectOp(RNA_enum_get(op.ptr, "mode")),
+      WM_gesture_is_modal_first(static_cast<wmGesture *>(op.customdata)));
   const bool select = (sel_op != SEL_OP_SUB);
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     ED_clip_select_all(sc, SEL_DESELECT, nullptr);
@@ -1051,7 +1051,7 @@ static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
   if (changed) {
     BKE_tracking_dopesheet_tag_update(&clip->tracking);
 
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
+    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
     DEG_id_tag_update(&clip->id, ID_RECALC_SELECT);
 
     return OPERATOR_FINISHED;
@@ -1084,27 +1084,27 @@ void CLIP_OT_select_circle(wmOperatorType *ot)
 
 /********************** select all operator *********************/
 
-static wmOperatorStatus select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_all_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
 
-  const int action = RNA_enum_get(op->ptr, "action");
+  const int action = RNA_enum_get(op.ptr, "action");
 
   ClipViewLockState lock_state;
-  ED_clip_view_lock_state_store(C, &lock_state);
+  ED_clip_view_lock_state_store(&C, &lock_state);
 
   bool has_selection = false;
   ED_clip_select_all(sc, action, &has_selection);
 
   if (has_selection) {
-    ED_clip_view_lock_state_restore_no_jump(C, &lock_state);
+    ED_clip_view_lock_state_restore_no_jump(&C, &lock_state);
   }
 
   BKE_tracking_dopesheet_tag_update(tracking);
 
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
+  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
   DEG_id_tag_update(&clip->id, ID_RECALC_SELECT);
 
   return OPERATOR_FINISHED;
@@ -1129,12 +1129,12 @@ void CLIP_OT_select_all(wmOperatorType *ot)
 
 /********************** select grouped operator *********************/
 
-static wmOperatorStatus select_grouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_grouped_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
-  const int group = RNA_enum_get(op->ptr, "group");
+  const int group = RNA_enum_get(op.ptr, "group");
   const int framenr = ED_space_clip_get_clip_frame_number(sc);
 
   for (MovieTrackingTrack &track : tracking_object->tracks) {
@@ -1185,7 +1185,7 @@ static wmOperatorStatus select_grouped_exec(bContext *C, wmOperator *op)
 
   BKE_tracking_dopesheet_tag_update(&clip->tracking);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | ND_DISPLAY, clip);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | ND_DISPLAY, clip);
   DEG_id_tag_update(&clip->id, ID_RECALC_SELECT);
 
   return OPERATOR_FINISHED;

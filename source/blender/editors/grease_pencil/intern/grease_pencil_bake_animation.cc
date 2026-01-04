@@ -46,30 +46,30 @@ static void ensure_valid_frame_end(Main * /*main*/, Scene * /*scene*/, PointerRN
   }
 }
 
-static wmOperatorStatus bake_grease_pencil_animation_invoke(bContext *C,
-                                                            wmOperator *op,
+static wmOperatorStatus bake_grease_pencil_animation_invoke(bContext &C,
+                                                            wmOperator &op,
                                                             const wmEvent * /*event*/)
 {
-  const Scene *scene = CTX_data_scene(*C);
+  const Scene *scene = CTX_data_scene(C);
 
-  PropertyRNA *prop_frame_start = RNA_struct_find_property(op->ptr, "frame_start");
-  if (!RNA_property_is_set(op->ptr, prop_frame_start)) {
-    const int frame_start = RNA_property_int_get(op->ptr, prop_frame_start);
+  PropertyRNA *prop_frame_start = RNA_struct_find_property(op.ptr, "frame_start");
+  if (!RNA_property_is_set(op.ptr, prop_frame_start)) {
+    const int frame_start = RNA_property_int_get(op.ptr, prop_frame_start);
     if (frame_start < scene->r.sfra) {
-      RNA_property_int_set(op->ptr, prop_frame_start, scene->r.sfra);
+      RNA_property_int_set(op.ptr, prop_frame_start, scene->r.sfra);
     }
   }
 
-  PropertyRNA *prop_frame_end = RNA_struct_find_property(op->ptr, "frame_end");
-  if (!RNA_property_is_set(op->ptr, prop_frame_end)) {
-    const int frame_end = RNA_property_int_get(op->ptr, prop_frame_end);
+  PropertyRNA *prop_frame_end = RNA_struct_find_property(op.ptr, "frame_end");
+  if (!RNA_property_is_set(op.ptr, prop_frame_end)) {
+    const int frame_end = RNA_property_int_get(op.ptr, prop_frame_end);
     if (frame_end > scene->r.efra) {
-      RNA_property_int_set(op->ptr, prop_frame_end, scene->r.efra);
+      RNA_property_int_set(op.ptr, prop_frame_end, scene->r.efra);
     }
   }
 
   return WM_operator_props_dialog_popup(
-      C, op, 250, IFACE_("Bake Object Transform to Grease Pencil"), IFACE_("Bake"));
+      &C, &op, 250, IFACE_("Bake Object Transform to Grease Pencil"), IFACE_("Bake"));
 }
 
 static Vector<Object *> get_bake_targets(bContext &C, Depsgraph &depsgraph, Scene &scene)
@@ -136,36 +136,36 @@ static Set<int> get_selected_object_keyframes(Span<Object *> bake_targets)
   return keyframes;
 }
 
-static wmOperatorStatus bake_grease_pencil_animation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bake_grease_pencil_animation_exec(bContext &C, wmOperator &op)
 {
   using namespace bke::greasepencil;
 
-  Main &bmain = *CTX_data_main(*C);
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene &scene = *CTX_data_scene(*C);
+  Main &bmain = *CTX_data_main(C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
+  Scene &scene = *CTX_data_scene(C);
 
-  const int step = RNA_int_get(op->ptr, "step");
+  const int step = RNA_int_get(op.ptr, "step");
 
-  const int frame_start = (scene.r.sfra > RNA_int_get(op->ptr, "frame_start")) ?
+  const int frame_start = (scene.r.sfra > RNA_int_get(op.ptr, "frame_start")) ?
                               scene.r.sfra :
-                              RNA_int_get(op->ptr, "frame_start");
+                              RNA_int_get(op.ptr, "frame_start");
 
-  const int frame_end = (scene.r.efra < RNA_int_get(op->ptr, "frame_end")) ?
+  const int frame_end = (scene.r.efra < RNA_int_get(op.ptr, "frame_end")) ?
                             scene.r.efra :
-                            RNA_int_get(op->ptr, "frame_end");
+                            RNA_int_get(op.ptr, "frame_end");
 
-  const bool only_selected = RNA_boolean_get(op->ptr, "only_selected");
-  const int frame_offset = RNA_int_get(op->ptr, "frame_target") - frame_start;
-  const ReprojectMode reproject_mode = ReprojectMode(RNA_enum_get(op->ptr, "project_type"));
+  const bool only_selected = RNA_boolean_get(op.ptr, "only_selected");
+  const int frame_offset = RNA_int_get(op.ptr, "frame_target") - frame_start;
+  const ReprojectMode reproject_mode = ReprojectMode(RNA_enum_get(op.ptr, "project_type"));
 
-  View3D *v3d = CTX_wm_view3d(*C);
-  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(C);
 
-  Vector<Object *> bake_targets = get_bake_targets(*C, depsgraph, scene);
+  Vector<Object *> bake_targets = get_bake_targets(C, depsgraph, scene);
 
   uint8_t local_view_bits = (v3d && v3d->localvd) ? v3d->local_view_uid : 0;
   Object *target_object = object::add_type(
-      C, OB_GREASE_PENCIL, nullptr, scene.cursor.location, float3(0), false, local_view_bits);
+      &C, OB_GREASE_PENCIL, nullptr, scene.cursor.location, float3(0), false, local_view_bits);
 
   const float4x4 target_imat = math::invert(target_object->object_to_world());
 
@@ -280,16 +280,16 @@ static wmOperatorStatus bake_grease_pencil_animation_exec(bContext *C, wmOperato
   DEG_relations_tag_update(&bmain);
   DEG_id_tag_update(&scene.id, ID_RECALC_SELECT);
   DEG_id_tag_update(&target.id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(C, NC_OBJECT | NA_ADDED, nullptr);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, &scene);
+  WM_event_add_notifier(&C, NC_OBJECT | NA_ADDED, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, &scene);
 
   WM_cursor_wait(false);
   return OPERATOR_FINISHED;
 }
 
-static bool bake_grease_pencil_animation_poll(bContext *C)
+static bool bake_grease_pencil_animation_poll(bContext &C)
 {
-  const Object *obact = CTX_data_active_object(*C);
+  const Object *obact = CTX_data_active_object(C);
 
   /* Check if grease pencil or empty for dupli groups. */
   if ((obact == nullptr) || (obact->mode != OB_MODE_OBJECT) ||
@@ -299,7 +299,7 @@ static bool bake_grease_pencil_animation_poll(bContext *C)
   }
 
   /* Only if the current view is 3D View. */
-  const ScrArea *area = CTX_wm_area(*C);
+  const ScrArea *area = CTX_wm_area(C);
   return (area && area->spacetype);
 }
 

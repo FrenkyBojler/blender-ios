@@ -139,10 +139,10 @@ static void bake_progress_update(void *bjv, float progress)
 }
 
 /** Catch escape key to cancel. */
-static wmOperatorStatus bake_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus bake_modal(bContext &C, wmOperator & /*op*/, const wmEvent *event)
 {
   /* no running blender, remove handler and pass through */
-  if (0 == WM_jobs_test(CTX_wm_manager(*C), CTX_data_scene(*C), WM_JOB_TYPE_OBJECT_BAKE)) {
+  if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_OBJECT_BAKE)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
@@ -1940,19 +1940,19 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
   }
 }
 
-static wmOperatorStatus bake_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bake_exec(bContext &C, wmOperator &op)
 {
   Render *re;
   wmOperatorStatus result = OPERATOR_CANCELLED;
   BakeAPIRender bkr = {nullptr};
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   G.is_break = false;
   G.is_rendering = true;
 
-  bake_set_props(op, scene);
+  bake_set_props(&op, scene);
 
-  bake_init_api_data(op, C, &bkr);
+  bake_init_api_data(&op, &C, &bkr);
   re = bkr.render;
 
   /* setup new render */
@@ -2180,24 +2180,24 @@ static void bake_set_props(wmOperator *op, Scene *scene)
   }
 }
 
-static wmOperatorStatus bake_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus bake_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   wmJob *wm_job;
   Render *re;
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
-  bake_set_props(op, scene);
+  bake_set_props(&op, scene);
 
   /* only one render job at a time */
-  if (WM_jobs_test(CTX_wm_manager(*C), scene, WM_JOB_TYPE_OBJECT_BAKE)) {
+  if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_OBJECT_BAKE)) {
     return OPERATOR_CANCELLED;
   }
 
   BakeAPIRender *bkr = MEM_new<BakeAPIRender>(__func__);
 
   /* init bake render */
-  bake_init_api_data(op, C, bkr);
-  BKE_callback_exec_id(CTX_data_main(*C), &bkr->ob->id, BKE_CB_EVT_OBJECT_BAKE_PRE);
+  bake_init_api_data(&op, &C, bkr);
+  BKE_callback_exec_id(CTX_data_main(C), &bkr->ob->id, BKE_CB_EVT_OBJECT_BAKE_PRE);
   re = bkr->render;
 
   /* setup new render */
@@ -2205,8 +2205,8 @@ static wmOperatorStatus bake_invoke(bContext *C, wmOperator *op, const wmEvent *
   RE_progress_cb(re, bkr, bake_progress_update);
 
   /* setup job */
-  wm_job = WM_jobs_get(CTX_wm_manager(*C),
-                       CTX_wm_window(*C),
+  wm_job = WM_jobs_get(CTX_wm_manager(C),
+                       CTX_wm_window(C),
                        scene,
                        "Baking texture...",
                        WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
@@ -2221,14 +2221,14 @@ static wmOperatorStatus bake_invoke(bContext *C, wmOperator *op, const wmEvent *
   G.is_break = false;
   G.is_rendering = true;
 
-  WM_jobs_start(CTX_wm_manager(*C), wm_job);
+  WM_jobs_start(CTX_wm_manager(C), wm_job);
 
   WM_cursor_wait(false);
 
   /* add modal handler for ESC */
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_RESULT, scene);
   return OPERATOR_RUNNING_MODAL;
 }
 

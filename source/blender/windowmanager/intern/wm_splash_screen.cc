@@ -416,11 +416,11 @@ static blender::ui::Block *wm_block_splash_create(bContext *C, ARegion *region, 
   return block;
 }
 
-static wmOperatorStatus wm_splash_invoke(bContext *C,
-                                         wmOperator * /*op*/,
+static wmOperatorStatus wm_splash_invoke(bContext &C,
+                                         wmOperator & /*op*/,
                                          const wmEvent * /*event*/)
 {
-  blender::ui::popup_block_invoke(C, wm_block_splash_create, nullptr, nullptr);
+  blender::ui::popup_block_invoke(&C, wm_block_splash_create, nullptr, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -500,11 +500,11 @@ static blender::ui::Block *wm_block_about_create(bContext *C, ARegion *region, v
   return block;
 }
 
-static wmOperatorStatus wm_splash_about_invoke(bContext *C,
-                                               wmOperator * /*op*/,
+static wmOperatorStatus wm_splash_about_invoke(bContext &C,
+                                               wmOperator & /*op*/,
                                                const wmEvent * /*event*/)
 {
-  blender::ui::popup_block_invoke(C, wm_block_about_create, nullptr, nullptr);
+  blender::ui::popup_block_invoke(&C, wm_block_about_create, nullptr, nullptr);
 
   return OPERATOR_FINISHED;
 }

@@ -56,7 +56,7 @@ using blender::StringRefNull;
 
 static bool metadata_panel_context_poll(const bContext *C, PanelType * /*pt*/)
 {
-  return ED_space_clip_poll((bContext *)C);
+  return ED_space_clip_poll(*(bContext *)C);
 }
 
 static void metadata_panel_context_draw(const bContext *C, Panel *panel)

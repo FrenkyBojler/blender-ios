@@ -168,15 +168,15 @@ static wmOperatorStatus stroke_trim_execute(const bContext *C, const Span<int2> 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus grease_pencil_stroke_trim_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_stroke_trim_exec(bContext &C, wmOperator &op)
 {
-  const Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
+  const Array<int2> mcoords = WM_gesture_lasso_path_to_array(&C, &op);
 
   if (mcoords.is_empty()) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  return stroke_trim_execute(C, mcoords);
+  return stroke_trim_execute(&C, mcoords);
 }
 
 }  // namespace blender::ed::greasepencil

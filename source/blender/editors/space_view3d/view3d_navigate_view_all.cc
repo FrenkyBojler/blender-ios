@@ -432,18 +432,18 @@ bool view3d_calc_point_in_selected_bounds(Depsgraph *depsgraph,
  * Move & Zoom the view to fit all of its contents.
  * \{ */
 
-static wmOperatorStatus view3d_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_all_exec(bContext &C, wmOperator &op)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  Scene *scene = CTX_data_scene(*C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  Scene *scene = CTX_data_scene(C);
 
-  const bool use_all_regions = RNA_boolean_get(op->ptr, "use_all_regions");
-  const bool center = RNA_boolean_get(op->ptr, "center");
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  const bool use_all_regions = RNA_boolean_get(op.ptr, "use_all_regions");
+  const bool center = RNA_boolean_get(op.ptr, "center");
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   std::optional<blender::Bounds<float3>> bounds = view3d_calc_minmax_visible(
       depsgraph, area, region, use_all_regions, true);
   if (center) {
@@ -452,7 +452,7 @@ static wmOperatorStatus view3d_all_exec(bContext *C, wmOperator *op)
 
     cursor->set_matrix(blender::float4x4::identity(), false);
 
-    wmMsgBus *mbus = CTX_wm_message_bus(*C);
+    wmMsgBus *mbus = CTX_wm_message_bus(C);
     WM_msg_publish_rna_prop(mbus, &scene->id, &scene->cursor, View3DCursor, location);
 
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
@@ -477,15 +477,15 @@ static wmOperatorStatus view3d_all_exec(bContext *C, wmOperator *op)
     minmax_v3v3_v3(min, max, float3(0.0f));
   }
 
-  ED_view3d_smooth_view_undo_begin(C, area);
+  ED_view3d_smooth_view_undo_begin(&C, area);
   if (use_all_regions) {
-    view3d_from_minmax_multi(C, v3d, min, max, true, smooth_viewtx);
+    view3d_from_minmax_multi(&C, v3d, min, max, true, smooth_viewtx);
   }
   else {
-    view3d_from_minmax(C, v3d, region, min, max, true, smooth_viewtx);
+    view3d_from_minmax(&C, v3d, region, min, max, true, smooth_viewtx);
   }
 
-  ED_view3d_smooth_view_undo_end(C, area, op->type->name, false);
+  ED_view3d_smooth_view_undo_end(&C, area, op.type->name, false);
 
   return OPERATOR_FINISHED;
 }
@@ -517,16 +517,16 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
  * Move & Zoom the view to fit selected contents.
  * \{ */
 
-static wmOperatorStatus viewselected_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus viewselected_exec(bContext &C, wmOperator &op)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(C);
   bool do_zoom = true;
-  const bool use_all_regions = RNA_boolean_get(op->ptr, "use_all_regions");
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  const bool use_all_regions = RNA_boolean_get(op.ptr, "use_all_regions");
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const std::optional<blender::Bounds<float3>> bounds = view3d_calc_minmax_selected(
       depsgraph, area, region, use_all_regions, true, &do_zoom);
 
@@ -537,15 +537,15 @@ static wmOperatorStatus viewselected_exec(bContext *C, wmOperator *op)
   const float3 &min = bounds.value().min;
   const float3 &max = bounds.value().max;
 
-  ED_view3d_smooth_view_undo_begin(C, area);
+  ED_view3d_smooth_view_undo_begin(&C, area);
   if (use_all_regions) {
-    view3d_from_minmax_multi(C, v3d, min, max, do_zoom, smooth_viewtx);
+    view3d_from_minmax_multi(&C, v3d, min, max, do_zoom, smooth_viewtx);
   }
   else {
-    view3d_from_minmax(C, v3d, region, min, max, do_zoom, smooth_viewtx);
+    view3d_from_minmax(&C, v3d, region, min, max, do_zoom, smooth_viewtx);
   }
 
-  ED_view3d_smooth_view_undo_end(C, area, op->type->name, false);
+  ED_view3d_smooth_view_undo_end(&C, area, op.type->name, false);
 
   return OPERATOR_FINISHED;
 }

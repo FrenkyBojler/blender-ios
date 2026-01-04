@@ -56,23 +56,23 @@ static ARegion *text_has_properties_region(ScrArea *area)
   return arnew;
 }
 
-static bool text_properties_poll(bContext *C)
+static bool text_properties_poll(bContext &C)
 {
-  return (CTX_wm_space_text(*C) != nullptr);
+  return (CTX_wm_space_text(C) != nullptr);
 }
 
-static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus text_text_search_exec(bContext &C, wmOperator & /*op*/)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   ARegion *region = text_has_properties_region(area);
-  SpaceText *st = CTX_wm_space_text(*C);
+  SpaceText *st = CTX_wm_space_text(C);
 
   if (region) {
     Text *text = st->text;
 
     /* Use active text selection as search query, if selection is on a single line. */
     if (text && (text->curl == text->sell) && (text->curc != text->selc)) {
-      const ARegion *active_region = CTX_wm_region(*C);
+      const ARegion *active_region = CTX_wm_region(C);
       if (active_region && active_region->regiontype == RGN_TYPE_WINDOW) {
         const char *sel_start = text->curl->line + std::min(text->curc, text->selc);
         const int sel_len = std::abs(text->curc - text->selc);
@@ -83,7 +83,7 @@ static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
     bool draw = false;
 
     if (region->flag & RGN_FLAG_HIDDEN) {
-      ED_region_toggle_hidden(C, region);
+      ED_region_toggle_hidden(&C, region);
       draw = true;
     }
 
@@ -95,11 +95,11 @@ static wmOperatorStatus text_text_search_exec(bContext *C, wmOperator * /*op*/)
 
     /* Build the layout and draw so `find_text` text button can be activated. */
     if (draw) {
-      ED_region_do_layout(C, region);
-      ED_region_do_draw(C, region);
+      ED_region_do_layout(&C, region);
+      ED_region_do_draw(&C, region);
     }
 
-    blender::ui::textbutton_activate_rna(C, region, st, "find_text");
+    blender::ui::textbutton_activate_rna(&C, region, st, "find_text");
 
     ED_region_tag_redraw(region);
   }

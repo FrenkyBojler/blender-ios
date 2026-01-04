@@ -36,29 +36,29 @@ using blender::Vector;
 /** \name Spin Operator
  * \{ */
 
-static wmOperatorStatus edbm_spin_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_spin_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   float cent[3], axis[3];
   const float d[3] = {0.0f, 0.0f, 0.0f};
 
-  RNA_float_get_array(op->ptr, "center", cent);
-  RNA_float_get_array(op->ptr, "axis", axis);
-  const int steps = RNA_int_get(op->ptr, "steps");
-  const float angle = RNA_float_get(op->ptr, "angle");
-  const bool use_normal_flip = RNA_boolean_get(op->ptr, "use_normal_flip");
-  const bool dupli = RNA_boolean_get(op->ptr, "dupli");
-  const bool use_auto_merge = (RNA_boolean_get(op->ptr, "use_auto_merge") && (dupli == false) &&
+  RNA_float_get_array(op.ptr, "center", cent);
+  RNA_float_get_array(op.ptr, "axis", axis);
+  const int steps = RNA_int_get(op.ptr, "steps");
+  const float angle = RNA_float_get(op.ptr, "angle");
+  const bool use_normal_flip = RNA_boolean_get(op.ptr, "use_normal_flip");
+  const bool dupli = RNA_boolean_get(op.ptr, "dupli");
+  const bool use_auto_merge = (RNA_boolean_get(op.ptr, "use_auto_merge") && (dupli == false) &&
                                (steps >= 3) && fabsf(fabsf(angle) - float(M_PI * 2)) <= 1e-6f);
 
   if (is_zero_v3(axis)) {
-    BKE_report(op->reports, RPT_ERROR, "Invalid/unset axis");
+    BKE_report(op.reports, RPT_ERROR, "Invalid/unset axis");
     return OPERATOR_CANCELLED;
   }
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -68,7 +68,7 @@ static wmOperatorStatus edbm_spin_exec(bContext *C, wmOperator *op)
     /* Keep the values in world-space since we're passing the `obmat`. */
     if (!EDBM_op_init(em,
                       &spinop,
-                      op,
+                      &op,
                       "spin geom=%hvef cent=%v axis=%v dvec=%v steps=%i angle=%f space=%m4 "
                       "use_normal_flip=%b use_duplicate=%b use_merge=%b",
                       BM_ELEM_SELECT,
@@ -90,7 +90,7 @@ static wmOperatorStatus edbm_spin_exec(bContext *C, wmOperator *op)
       BMO_slot_buffer_hflag_enable(
           bm, spinop.slots_out, "geom_last.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
     }
-    if (!EDBM_op_finish(em, &spinop, op, true)) {
+    if (!EDBM_op_finish(em, &spinop, &op, true)) {
       continue;
     }
 
@@ -105,29 +105,29 @@ static wmOperatorStatus edbm_spin_exec(bContext *C, wmOperator *op)
 }
 
 /* get center and axis, in global coords */
-static wmOperatorStatus edbm_spin_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus edbm_spin_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
+  Scene *scene = CTX_data_scene(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(&C);
 
   PropertyRNA *prop;
-  prop = RNA_struct_find_property(op->ptr, "center");
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_float_set_array(op->ptr, prop, scene->cursor.location);
+  prop = RNA_struct_find_property(op.ptr, "center");
+  if (!RNA_property_is_set(op.ptr, prop)) {
+    RNA_property_float_set_array(op.ptr, prop, scene->cursor.location);
   }
   if (rv3d) {
-    prop = RNA_struct_find_property(op->ptr, "axis");
-    if (!RNA_property_is_set(op->ptr, prop)) {
-      RNA_property_float_set_array(op->ptr, prop, rv3d->viewinv[2]);
+    prop = RNA_struct_find_property(op.ptr, "axis");
+    if (!RNA_property_is_set(op.ptr, prop)) {
+      RNA_property_float_set_array(op.ptr, prop, rv3d->viewinv[2]);
     }
   }
 
 #ifdef USE_GIZMO
   /* Start with zero angle, drag out the value. */
-  prop = RNA_struct_find_property(op->ptr, "angle");
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_float_set(op->ptr, prop, 0.0f);
+  prop = RNA_struct_find_property(op.ptr, "angle");
+  if (!RNA_property_is_set(op.ptr, prop)) {
+    RNA_property_float_set(op.ptr, prop, 0.0f);
   }
 #endif
 
@@ -139,7 +139,7 @@ static wmOperatorStatus edbm_spin_invoke(bContext *C, wmOperator *op, const wmEv
     if (v3d && ((v3d->gizmo_flag & V3D_GIZMO_HIDE) == 0)) {
       wmGizmoGroupType *gzgt = WM_gizmogrouptype_find("MESH_GGT_spin_redo", false);
       if (!WM_gizmo_group_type_ensure_ptr(gzgt)) {
-        Main *bmain = CTX_data_main(*C);
+        Main *bmain = CTX_data_main(C);
         WM_gizmo_group_type_reinit_ptr(bmain, gzgt);
       }
     }
@@ -149,12 +149,12 @@ static wmOperatorStatus edbm_spin_invoke(bContext *C, wmOperator *op, const wmEv
   return ret;
 }
 
-static bool edbm_spin_poll_property(const bContext * /*C*/,
-                                    wmOperator *op,
+static bool edbm_spin_poll_property(const bContext & /*C*/,
+                                    wmOperator &op,
                                     const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
-  const bool dupli = RNA_boolean_get(op->ptr, "dupli");
+  const bool dupli = RNA_boolean_get(op.ptr, "dupli");
 
   if (dupli) {
     if (STR_ELEM(prop_id, "use_auto_merge", "use_normal_flip")) {

@@ -32,10 +32,10 @@ namespace blender::ed::object {
  * \{ */
 
 template<LightLinkingType link_type>
-static wmOperatorStatus light_linking_collection_new_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus light_linking_collection_new_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  Object *object = context_active_object(C);
+  Main *bmain = CTX_data_main(C);
+  Object *object = context_active_object(&C);
 
   BKE_light_linking_collection_new(bmain, object, link_type);
 
@@ -79,15 +79,15 @@ void OBJECT_OT_light_linking_blocker_collection_new(wmOperatorType *ot)
  * \{ */
 
 template<LightLinkingType link_type>
-static wmOperatorStatus light_linking_select_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus light_linking_select_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Object *emitter = context_active_object(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Object *emitter = context_active_object(&C);
 
   BKE_light_linking_select_receivers_of_emitter(scene, view_layer, emitter, link_type);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -129,16 +129,16 @@ void OBJECT_OT_light_linking_blockers_select(wmOperatorType *ot)
  * \{ */
 
 template<LightLinkingType link_type>
-static wmOperatorStatus light_linking_link_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus light_linking_link_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *emitter = context_active_object(C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *emitter = context_active_object(&C);
 
   const eCollectionLightLinkingState link_state = eCollectionLightLinkingState(
-      RNA_enum_get(op->ptr, "link_state"));
+      RNA_enum_get(op.ptr, "link_state"));
 
-  CTX_DATA_BEGIN (*C, Object *, receiver, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, receiver, selected_objects) {
     if (receiver == emitter) {
       continue;
     }
@@ -150,7 +150,7 @@ static wmOperatorStatus light_linking_link_exec(bContext *C, wmOperator *op)
   /* It is possible that the receiver collection is also used by the view layer.
    * For this case send a notifier so that the UI is updated for the changes in the collection
    * content. */
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -233,26 +233,26 @@ void OBJECT_OT_light_linking_blockers_link(wmOperatorType *ot)
 /** \name Unlink from the Light Linking Collection Operator
  * \{ */
 
-static wmOperatorStatus light_linking_unlink_from_collection_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus light_linking_unlink_from_collection_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
-  ID *id = static_cast<ID *>(CTX_data_pointer_get_type(*C, "id", &RNA_ID).data);
+  ID *id = static_cast<ID *>(CTX_data_pointer_get_type(C, "id", &RNA_ID).data);
   Collection *collection = static_cast<Collection *>(
-      CTX_data_pointer_get_type(*C, "collection", &RNA_Collection).data);
+      CTX_data_pointer_get_type(C, "collection", &RNA_Collection).data);
 
   if (!id || !collection) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  if (!BKE_light_linking_unlink_id_from_collection(bmain, collection, id, op->reports)) {
+  if (!BKE_light_linking_unlink_id_from_collection(bmain, collection, id, op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
   /* Copy notifiers from the Outliner's "Unlink" operation for objects and collections. */
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, nullptr);
-  WM_event_add_notifier(C, NC_ID | NA_EDITED, nullptr);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER, nullptr);
+  WM_event_add_notifier(&C, NC_ID | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   return OPERATOR_FINISHED;
 }

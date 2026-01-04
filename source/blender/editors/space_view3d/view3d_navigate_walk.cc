@@ -1550,44 +1550,44 @@ static void walk_draw_status(bContext *C, wmOperator *op)
                  walk->zlock != WALK_AXISLOCK_STATE_OFF);
 }
 
-static wmOperatorStatus walk_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus walk_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   if (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) {
     return OPERATOR_CANCELLED;
   }
 
   WalkInfo *walk = MEM_callocN<WalkInfo>("NavigationWalkOperation");
 
-  op->customdata = walk;
+  op.customdata = walk;
 
-  if (initWalkInfo(C, walk, op, event->mval) == false) {
+  if (initWalkInfo(&C, walk, &op, event->mval) == false) {
     MEM_freeN(walk);
     return OPERATOR_CANCELLED;
   }
 
   walkEvent(walk, event);
 
-  walk_draw_status(C, op);
+  walk_draw_status(&C, &op);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void walk_cancel(bContext *C, wmOperator *op)
+static void walk_cancel(bContext &C, wmOperator &op)
 {
-  WalkInfo *walk = static_cast<WalkInfo *>(op->customdata);
+  WalkInfo *walk = static_cast<WalkInfo *>(op.customdata);
 
   walk->state = WALK_CANCEL;
-  walkEnd(C, walk);
-  op->customdata = nullptr;
+  walkEnd(&C, walk);
+  op.customdata = nullptr;
 }
 
-static wmOperatorStatus walk_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus walk_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   bool do_draw = false;
-  WalkInfo *walk = static_cast<WalkInfo *>(op->customdata);
+  WalkInfo *walk = static_cast<WalkInfo *>(op.customdata);
   ARegion *region = walk->region;
   View3D *v3d = walk->v3d;
   RegionView3D *rv3d = walk->rv3d;
@@ -1597,41 +1597,41 @@ static wmOperatorStatus walk_modal(bContext *C, wmOperator *op, const wmEvent *e
 
   walkEvent(walk, event);
 
-  walk_draw_status(C, op);
+  walk_draw_status(&C, &op);
 
 #ifdef WITH_INPUT_NDOF
   if (walk->ndof) { /* 3D mouse overrules [2D mouse + timer]. */
     if (event->type == NDOF_MOTION) {
-      walkApply_ndof(C, walk, false);
+      walkApply_ndof(&C, walk, false);
     }
   }
   else
 #endif /* WITH_INPUT_NDOF */
   {
     if (event->type == TIMER && event->customdata == walk->timer) {
-      walkApply(C, walk, false);
+      walkApply(&C, walk, false);
     }
   }
 
   do_draw |= walk->redraw;
 
-  const wmOperatorStatus exit_code = walkEnd(C, walk);
+  const wmOperatorStatus exit_code = walkEnd(&C, walk);
 
   if (exit_code != OPERATOR_RUNNING_MODAL) {
     do_draw = true;
   }
   if (exit_code == OPERATOR_FINISHED) {
-    const bool is_undo_pushed = ED_view3d_camera_lock_undo_push(op->type->name, v3d, rv3d, C);
+    const bool is_undo_pushed = ED_view3d_camera_lock_undo_push(op.type->name, v3d, rv3d, &C);
     /* If generic 'locked camera' code did not push an undo, but there is a valid 'walking
      * object', an undo push is still needed, since that object transform was modified. */
-    if (!is_undo_pushed && walk_object && ED_undo_is_memfile_compatible(C)) {
-      ED_undo_push(C, op->type->name);
+    if (!is_undo_pushed && walk_object && ED_undo_is_memfile_compatible(&C)) {
+      ED_undo_push(&C, op.type->name);
     }
   }
 
   if (do_draw) {
     if (rv3d->persp == RV3D_CAMOB) {
-      WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, walk_object);
+      WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, walk_object);
     }
 
     /* Too frequent, commented with `NDOF_WALK_DRAW_TOOMUCH` for now. */

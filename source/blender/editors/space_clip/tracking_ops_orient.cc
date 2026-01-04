@@ -83,12 +83,12 @@ static Object *get_orientation_object(bContext *C)
   return object;
 }
 
-static bool set_orientation_poll(bContext *C)
+static bool set_orientation_poll(bContext &C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   if (sc != nullptr) {
-    const Scene *scene = CTX_data_scene(*C);
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    const Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
     MovieClip *clip = ED_space_clip_get_clip(sc);
     if (clip != nullptr) {
       MovieTracking *tracking = &clip->tracking;
@@ -158,17 +158,17 @@ static Object *object_solver_camera(Scene *scene, Object *ob)
   return nullptr;
 }
 
-static wmOperatorStatus set_origin_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_origin_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   Object *camera = get_camera_with_movieclip(scene, clip);
-  int selected_count = count_selected_bundles(C);
+  int selected_count = count_selected_bundles(&C);
 
   if (selected_count == 0) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_ERROR,
                "At least one track with bundle should be selected to "
                "define origin position");
@@ -176,9 +176,9 @@ static wmOperatorStatus set_origin_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Object *object = get_orientation_object(C);
+  Object *object = get_orientation_object(&C);
   if (object == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "No object to apply orientation on");
+    BKE_report(op.reports, RPT_ERROR, "No object to apply orientation on");
     return OPERATOR_CANCELLED;
   }
 
@@ -209,8 +209,8 @@ static wmOperatorStatus set_origin_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&clip->id, 0);
   DEG_id_tag_update(&object->id, ID_RECALC_TRANSFORM);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -372,17 +372,17 @@ static void set_axis(Scene *scene,
   BKE_object_apply_mat4(ob, mat, false, false);
 }
 
-static wmOperatorStatus set_plane_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_plane_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   MovieTracking *tracking = &clip->tracking;
   const MovieTrackingTrack *axis_track = nullptr;
   Object *camera = get_camera_with_movieclip(scene, clip);
   int tot = 0;
   float vec[3][3], mat[4][4], obmat[4][4], newmat[4][4], orig[3] = {0.0f, 0.0f, 0.0f};
-  int plane = RNA_enum_get(op->ptr, "plane");
+  int plane = RNA_enum_get(op.ptr, "plane");
   float rot[4][4] = {
       {0.0f, 0.0f, -1.0f, 0.0f},
       {0.0f, 1.0f, 0.0f, 0.0f},
@@ -390,17 +390,17 @@ static wmOperatorStatus set_plane_exec(bContext *C, wmOperator *op)
       {0.0f, 0.0f, 0.0f, 1.0f},
   }; /* 90 degrees Y-axis rotation matrix */
 
-  if (count_selected_bundles(C) != 3) {
-    BKE_report(op->reports, RPT_ERROR, "Three tracks with bundles are needed to orient the floor");
+  if (count_selected_bundles(&C) != 3) {
+    BKE_report(op.reports, RPT_ERROR, "Three tracks with bundles are needed to orient the floor");
 
     return OPERATOR_CANCELLED;
   }
 
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
 
-  Object *object = get_orientation_object(C);
+  Object *object = get_orientation_object(&C);
   if (object == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "No object to apply orientation on");
+    BKE_report(op.reports, RPT_ERROR, "No object to apply orientation on");
     return OPERATOR_CANCELLED;
   }
 
@@ -469,7 +469,7 @@ static wmOperatorStatus set_plane_exec(bContext *C, wmOperator *op)
     BKE_object_apply_mat4(object, mat, false, false);
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   Object *object_eval = DEG_get_evaluated(depsgraph, object);
   BKE_object_transform_copy(object_eval, object);
@@ -481,8 +481,8 @@ static wmOperatorStatus set_plane_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&clip->id, 0);
   DEG_id_tag_update(&object->id, ID_RECALC_TRANSFORM);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -515,25 +515,25 @@ void CLIP_OT_set_plane(wmOperatorType *ot)
 
 /********************** set axis operator *********************/
 
-static wmOperatorStatus set_axis_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_axis_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   Object *object;
-  int axis = RNA_enum_get(op->ptr, "axis");
+  int axis = RNA_enum_get(op.ptr, "axis");
 
-  if (count_selected_bundles(C) != 1) {
+  if (count_selected_bundles(&C) != 1) {
     BKE_report(
-        op->reports, RPT_ERROR, "Single track with bundle should be selected to define axis");
+        op.reports, RPT_ERROR, "Single track with bundle should be selected to define axis");
     return OPERATOR_CANCELLED;
   }
 
-  object = get_orientation_object(C);
+  object = get_orientation_object(&C);
   if (object == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "No object to apply orientation on");
+    BKE_report(op.reports, RPT_ERROR, "No object to apply orientation on");
     return OPERATOR_CANCELLED;
   }
 
@@ -551,8 +551,8 @@ static wmOperatorStatus set_axis_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&clip->id, 0);
   DEG_id_tag_update(&object->id, ID_RECALC_TRANSFORM);
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -682,18 +682,18 @@ static wmOperatorStatus do_set_scale(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus set_scale_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_scale_exec(bContext &C, wmOperator &op)
 {
-  return do_set_scale(C, op, false, false);
+  return do_set_scale(&C, &op, false, false);
 }
 
-static wmOperatorStatus set_scale_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus set_scale_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
 
-  if (!RNA_struct_property_is_set(op->ptr, "distance")) {
-    RNA_float_set(op->ptr, "distance", clip->tracking.settings.dist);
+  if (!RNA_struct_property_is_set(op.ptr, "distance")) {
+    RNA_float_set(op.ptr, "distance", clip->tracking.settings.dist);
   }
 
   return set_scale_exec(C, op);
@@ -728,9 +728,9 @@ void CLIP_OT_set_scale(wmOperatorType *ot)
 
 /********************** set solution scale operator *********************/
 
-static bool set_solution_scale_poll(bContext *C)
+static bool set_solution_scale_poll(bContext &C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   if (sc != nullptr) {
     MovieClip *clip = ED_space_clip_get_clip(sc);
     if (clip != nullptr) {
@@ -742,20 +742,20 @@ static bool set_solution_scale_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus set_solution_scale_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_solution_scale_exec(bContext &C, wmOperator &op)
 {
-  return do_set_scale(C, op, true, false);
+  return do_set_scale(&C, &op, true, false);
 }
 
-static wmOperatorStatus set_solution_scale_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus set_solution_scale_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent * /*event*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
 
-  if (!RNA_struct_property_is_set(op->ptr, "distance")) {
-    RNA_float_set(op->ptr, "distance", clip->tracking.settings.object_distance);
+  if (!RNA_struct_property_is_set(op.ptr, "distance")) {
+    RNA_float_set(op.ptr, "distance", clip->tracking.settings.object_distance);
   }
 
   return set_solution_scale_exec(C, op);
@@ -792,9 +792,9 @@ void CLIP_OT_set_solution_scale(wmOperatorType *ot)
 
 /********************** apply solution scale operator *********************/
 
-static bool apply_solution_scale_poll(bContext *C)
+static bool apply_solution_scale_poll(bContext &C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   if (sc != nullptr) {
     MovieClip *clip = ED_space_clip_get_clip(sc);
     if (clip != nullptr) {
@@ -806,19 +806,19 @@ static bool apply_solution_scale_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus apply_solution_scale_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus apply_solution_scale_exec(bContext &C, wmOperator &op)
 {
-  return do_set_scale(C, op, false, true);
+  return do_set_scale(&C, &op, false, true);
 }
 
-static wmOperatorStatus apply_solution_scale_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus apply_solution_scale_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent * /*event*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  if (!RNA_struct_property_is_set(op->ptr, "distance")) {
-    RNA_float_set(op->ptr, "distance", clip->tracking.settings.dist);
+  if (!RNA_struct_property_is_set(op.ptr, "distance")) {
+    RNA_float_set(op.ptr, "distance", clip->tracking.settings.dist);
   }
   return apply_solution_scale_exec(C, op);
 }

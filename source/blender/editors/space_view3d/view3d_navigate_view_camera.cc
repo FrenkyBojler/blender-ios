@@ -21,22 +21,22 @@
 /** \name View Camera Operator
  * \{ */
 
-static wmOperatorStatus view_camera_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view_camera_exec(bContext &C, wmOperator &op)
 {
   View3D *v3d;
   ARegion *region;
   RegionView3D *rv3d;
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
   /* no nullptr check is needed, poll checks */
-  ED_view3d_context_user_region(C, &v3d, &region);
+  ED_view3d_context_user_region(&C, &v3d, &region);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  ED_view3d_smooth_view_force_finish(C, v3d, region);
+  ED_view3d_smooth_view_force_finish(&C, v3d, region);
 
   if ((RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) == 0) {
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
-    Scene *scene = CTX_data_scene(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
+    Scene *scene = CTX_data_scene(C);
 
     if (rv3d->persp != RV3D_CAMOB) {
       BKE_view_layer_synced_ensure(scene, view_layer);
@@ -93,12 +93,12 @@ static wmOperatorStatus view_camera_exec(bContext *C, wmOperator *op)
       /* No undo because this changes cameras (and wont move the camera). */
       sview.undo_str = nullptr;
 
-      ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview);
+      ED_view3d_smooth_view(&C, v3d, region, smooth_viewtx, &sview);
     }
     else {
       /* return to settings of last view */
       /* does view3d_smooth_view too */
-      axis_set_view(C,
+      axis_set_view(&C,
                     v3d,
                     region,
                     rv3d->lviewquat,

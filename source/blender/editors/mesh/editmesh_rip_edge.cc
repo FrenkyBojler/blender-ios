@@ -34,16 +34,16 @@ using blender::Vector;
 /* uses total number of selected edges around a vertex to choose how to extend */
 #define USE_TRICKY_EXTEND
 
-static wmOperatorStatus edbm_rip_edge_invoke(bContext *C,
-                                             wmOperator * /*op*/,
+static wmOperatorStatus edbm_rip_edge_invoke(bContext &C,
+                                             wmOperator & /*op*/,
                                              const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);

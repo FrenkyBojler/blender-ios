@@ -266,13 +266,13 @@ bool ED_scene_view_layer_delete(Main *bmain, Scene *scene, ViewLayer *layer, Rep
 /** \name Scene New Operator
  * \{ */
 
-static wmOperatorStatus scene_new_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus scene_new_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  int type = RNA_enum_get(op->ptr, "type");
+  Main *bmain = CTX_data_main(C);
+  wmWindow *win = CTX_wm_window(C);
+  int type = RNA_enum_get(op.ptr, "type");
 
-  ED_scene_add(bmain, C, win, eSceneCopyMethod(type));
+  ED_scene_add(bmain, &C, win, eSceneCopyMethod(type));
 
   return OPERATOR_FINISHED;
 }
@@ -320,11 +320,11 @@ static void SCENE_OT_new(wmOperatorType *ot)
 /** \name Scene New Sequencer Operator
  * \{ */
 
-static wmOperatorStatus scene_new_sequencer_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus scene_new_sequencer_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  int type = RNA_enum_get(op->ptr, "type");
-  Scene *sequencer_scene = CTX_data_sequencer_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  int type = RNA_enum_get(op.ptr, "type");
+  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
   Strip *strip = blender::seq::select_active_get(sequencer_scene);
   BLI_assert(strip != nullptr);
 
@@ -344,9 +344,9 @@ static wmOperatorStatus scene_new_sequencer_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static bool scene_new_sequencer_poll(bContext *C)
+static bool scene_new_sequencer_poll(bContext &C)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   const Strip *strip = blender::seq::select_active_get(scene);
   return (strip && (strip->type == STRIP_TYPE_SCENE));
 }
@@ -417,13 +417,13 @@ static void SCENE_OT_new_sequencer(wmOperatorType *ot)
 /** \name New Sequencer Scene Operator
  * \{ */
 
-static wmOperatorStatus new_sequencer_scene_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus new_sequencer_scene_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  WorkSpace *workspace = CTX_wm_workspace(*C);
-  Scene *scene_old = CTX_data_sequencer_scene(*C);
-  const int type = RNA_enum_get(op->ptr, "type");
+  Main *bmain = CTX_data_main(C);
+  wmWindow *win = CTX_wm_window(C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  Scene *scene_old = CTX_data_sequencer_scene(C);
+  const int type = RNA_enum_get(op.ptr, "type");
 
   Scene *new_scene = scene_add(bmain, scene_old, eSceneCopyMethod(type));
   blender::seq::editing_ensure(new_scene);
@@ -436,21 +436,21 @@ static wmOperatorStatus new_sequencer_scene_exec(bContext *C, wmOperator *op)
    *
    * FIXME: This logic is meant to address a temporary paper-cut and may be removed later in 5.1+
    * when properties for scenes and sequencer scenes can be more properly separated. */
-  WM_window_set_active_scene(bmain, C, win, new_scene);
+  WM_window_set_active_scene(bmain, &C, win, new_scene);
   BKE_reportf(
-      op->reports, RPT_WARNING, TIP_("Active scene changed to '%s'"), new_scene->id.name + 2);
+      op.reports, RPT_WARNING, TIP_("Active scene changed to '%s'"), new_scene->id.name + 2);
 
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus new_sequencer_scene_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus new_sequencer_scene_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
-  if (CTX_data_sequencer_scene(*C) == nullptr) {
+  if (CTX_data_sequencer_scene(C) == nullptr) {
     /* When there is no sequencer scene set, create a blank new one. */
-    RNA_enum_set(op->ptr, "type", SCE_COPY_NEW);
+    RNA_enum_set(op.ptr, "type", SCE_COPY_NEW);
     return new_sequencer_scene_exec(C, op);
   }
   return WM_menu_invoke(C, op, event);
@@ -482,18 +482,18 @@ static void SCENE_OT_new_sequencer_scene(wmOperatorType *ot)
 /** \name Scene Delete Operator
  * \{ */
 
-static bool scene_delete_poll(bContext *C)
+static bool scene_delete_poll(bContext &C)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
   return BKE_scene_can_be_removed(bmain, scene);
 }
 
-static wmOperatorStatus scene_delete_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus scene_delete_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
-  if (ED_scene_delete(C, CTX_data_main(*C), scene) == false) {
+  if (ED_scene_delete(&C, CTX_data_main(C), scene) == false) {
     return OPERATOR_CANCELLED;
   }
 
@@ -501,7 +501,7 @@ static wmOperatorStatus scene_delete_exec(bContext *C, wmOperator * /*op*/)
     printf("scene delete %p\n", scene);
   }
 
-  WM_event_add_notifier(C, NC_SCENE | NA_REMOVED, scene);
+  WM_event_add_notifier(&C, NC_SCENE | NA_REMOVED, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -527,19 +527,19 @@ static void SCENE_OT_delete(wmOperatorType *ot)
 /** \name Drop Scene Asset
  * \{ */
 
-static wmOperatorStatus drop_scene_asset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus drop_scene_asset_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   Scene *scene_asset = reinterpret_cast<Scene *>(
-      WM_operator_properties_id_lookup_from_name_or_session_uid(bmain, op->ptr, ID_SCE));
+      WM_operator_properties_id_lookup_from_name_or_session_uid(bmain, op.ptr, ID_SCE));
   if (!scene_asset) {
     return OPERATOR_CANCELLED;
   }
 
-  wmWindow *win = CTX_wm_window(*C);
-  WM_window_set_active_scene(bmain, C, win, scene_asset);
+  wmWindow *win = CTX_wm_window(C);
+  WM_window_set_active_scene(bmain, &C, win, scene_asset);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SCENEBROWSE, scene_asset);
+  WM_event_add_notifier(&C, NC_SCENE | ND_SCENEBROWSE, scene_asset);
 
   return OPERATOR_FINISHED;
 }

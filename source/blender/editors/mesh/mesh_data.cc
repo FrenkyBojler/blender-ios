@@ -356,21 +356,21 @@ bool ED_mesh_color_ensure(Mesh *mesh, const char *name)
 
 /*********************** UV texture operators ************************/
 
-static bool uv_maps_poll(bContext *C)
+static bool uv_maps_poll(bContext &C)
 {
-  Object *ob = blender::ed::object::context_object(C);
+  Object *ob = blender::ed::object::context_object(&C);
   ID *data = (ob) ? static_cast<ID *>(ob->data) : nullptr;
   return (ob && ID_IS_EDITABLE(ob) && !ID_IS_OVERRIDE_LIBRARY(ob) && ob->type == OB_MESH && data &&
           ID_IS_EDITABLE(data) && !ID_IS_OVERRIDE_LIBRARY(data));
 }
 
-static bool uv_texture_remove_poll(bContext *C)
+static bool uv_texture_remove_poll(bContext &C)
 {
   if (!uv_maps_poll(C)) {
     return false;
   }
 
-  Object *ob = blender::ed::object::context_object(C);
+  Object *ob = blender::ed::object::context_object(&C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   const StringRef active_name = mesh->active_uv_map_name();
   if (mesh->runtime->edit_mesh) {
@@ -388,19 +388,19 @@ static bool uv_texture_remove_poll(bContext *C)
   return true;
 }
 
-static wmOperatorStatus mesh_uv_texture_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mesh_uv_texture_add_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = blender::ed::object::context_object(C);
+  Object *ob = blender::ed::object::context_object(&C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
 
-  if (ED_mesh_uv_add(mesh, nullptr, true, true, op->reports) == -1) {
+  if (ED_mesh_uv_add(mesh, nullptr, true, true, op.reports) == -1) {
     return OPERATOR_CANCELLED;
   }
 
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
-    WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+    WM_event_add_notifier(&C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -418,21 +418,21 @@ void MESH_OT_uv_texture_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus mesh_uv_texture_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mesh_uv_texture_remove_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = blender::ed::object::context_object(C);
+  Object *ob = blender::ed::object::context_object(&C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
 
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
   const StringRef name = mesh->active_uv_map_name();
-  if (!BKE_attribute_remove(owner, name, op->reports)) {
+  if (!BKE_attribute_remove(owner, name, op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
-    WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+    WM_event_add_notifier(&C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
 
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
@@ -453,9 +453,9 @@ void MESH_OT_uv_texture_remove(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static bool mesh_customdata_mask_clear_poll(bContext *C)
+static bool mesh_customdata_mask_clear_poll(bContext &C)
 {
-  Object *ob = blender::ed::object::context_object(C);
+  Object *ob = blender::ed::object::context_object(&C);
   if (!ob) {
     return false;
   }
@@ -487,9 +487,9 @@ static bool mesh_customdata_mask_clear_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus mesh_customdata_mask_clear_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mesh_customdata_mask_clear_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *object = blender::ed::object::context_object(C);
+  Object *object = blender::ed::object::context_object(&C);
   Mesh *mesh = static_cast<Mesh *>(object->data);
   if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
     const bool removed_a = CustomData_free_layer_named(&em->bm->vdata, ".sculpt_mask");
@@ -506,7 +506,7 @@ static wmOperatorStatus mesh_customdata_mask_clear_exec(bContext *C, wmOperator 
     }
   }
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
   return OPERATOR_FINISHED;
 }
 
@@ -548,20 +548,20 @@ static SkinState mesh_customdata_skin_state(bContext *C)
                                                                  SkinState::NoSkin;
 }
 
-static bool mesh_customdata_skin_add_poll(bContext *C)
+static bool mesh_customdata_skin_add_poll(bContext &C)
 {
-  return mesh_customdata_skin_state(C) == SkinState::NoSkin;
+  return mesh_customdata_skin_state(&C) == SkinState::NoSkin;
 }
 
-static wmOperatorStatus mesh_customdata_skin_add_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mesh_customdata_skin_add_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = blender::ed::object::context_object(C);
+  Object *ob = blender::ed::object::context_object(&C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
 
   BKE_mesh_ensure_skin_customdata(mesh);
 
   DEG_id_tag_update(&mesh->id, 0);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
 
   return OPERATOR_FINISHED;
 }
@@ -578,14 +578,14 @@ void MESH_OT_customdata_skin_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static bool mesh_customdata_skin_clear_poll(bContext *C)
+static bool mesh_customdata_skin_clear_poll(bContext &C)
 {
-  return mesh_customdata_skin_state(C) == SkinState::HasSkin;
+  return mesh_customdata_skin_state(&C) == SkinState::HasSkin;
 }
 
-static wmOperatorStatus mesh_customdata_skin_clear_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mesh_customdata_skin_clear_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *object = blender::ed::object::context_object(C);
+  Object *object = blender::ed::object::context_object(&C);
   Mesh *mesh = static_cast<Mesh *>(object->data);
   if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
     if (!CustomData_free_layers(&em->bm->vdata, CD_MVERT_SKIN)) {
@@ -598,7 +598,7 @@ static wmOperatorStatus mesh_customdata_skin_clear_exec(bContext *C, wmOperator 
     }
   }
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
   return OPERATOR_FINISHED;
 }
 
@@ -614,11 +614,11 @@ void MESH_OT_customdata_skin_clear(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus mesh_customdata_custom_splitnormals_add_exec(bContext *C,
-                                                                     wmOperator * /*op*/)
+static wmOperatorStatus mesh_customdata_custom_splitnormals_add_exec(bContext &C,
+                                                                     wmOperator & /*op*/)
 {
   using namespace blender;
-  Mesh *mesh = ED_mesh_context(C);
+  Mesh *mesh = ED_mesh_context(&C);
   if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
     if (BM_data_layer_lookup(*em->bm, "custom_normal")) {
       return OPERATOR_CANCELLED;
@@ -634,7 +634,7 @@ static wmOperatorStatus mesh_customdata_custom_splitnormals_add_exec(bContext *C
   }
 
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
 
   return OPERATOR_FINISHED;
 }
@@ -651,11 +651,11 @@ void MESH_OT_customdata_custom_splitnormals_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus mesh_customdata_custom_splitnormals_clear_exec(bContext *C,
-                                                                       wmOperator * /*op*/)
+static wmOperatorStatus mesh_customdata_custom_splitnormals_clear_exec(bContext &C,
+                                                                       wmOperator & /*op*/)
 {
   using namespace blender;
-  Mesh *mesh = ED_mesh_context(C);
+  Mesh *mesh = ED_mesh_context(&C);
   if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
     BMesh &bm = *em->bm;
     if (!CustomData_has_layer_named(&bm.ldata, CD_PROP_INT16_2D, "custom_normal")) {
@@ -675,7 +675,7 @@ static wmOperatorStatus mesh_customdata_custom_splitnormals_clear_exec(bContext 
 
   mesh->tag_custom_normals_changed();
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
+  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
 
   return OPERATOR_FINISHED;
 }

@@ -885,28 +885,27 @@ static Vector<Object *> gather_supported_objects(const bContext &C,
   return objects;
 }
 
-static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus run_node_group_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *active_object = CTX_data_active_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *active_object = CTX_data_active_object(C);
   if (!active_object) {
     return OPERATOR_CANCELLED;
   }
   const eObjectMode mode = eObjectMode(active_object->mode);
 
-  const bNodeTree *node_tree_orig = get_node_group(*C, *op->type, op->reports);
+  const bNodeTree *node_tree_orig = get_node_group(C, *op.type, op.reports);
   if (!node_tree_orig) {
     return OPERATOR_CANCELLED;
   }
 
-  const Vector<Object *> objects = gather_supported_objects(*C, *bmain, mode);
+  const Vector<Object *> objects = gather_supported_objects(C, *bmain, mode);
 
-  Depsgraph *depsgraph_active = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph_active = CTX_data_ensure_evaluated_depsgraph(C);
   Set<ID *> extra_ids;
   gather_node_group_ids(*node_tree_orig, extra_ids);
-  const Map<StringRef, ID *> input_ids = gather_input_ids(
-      *bmain, *node_tree_orig, *op->properties);
+  const Map<StringRef, ID *> input_ids = gather_input_ids(*bmain, *node_tree_orig, *op.properties);
   for (ID *id : input_ids.values()) {
     /* Skip IDs that are already fully evaluated in the active depsgraph. */
     if (!DEG_id_is_fully_evaluated(depsgraph_active, id)) {
@@ -919,7 +918,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
       extra_ids.is_empty() ? nullptr : build_extra_depsgraph(*depsgraph_active, extra_ids),
   };
 
-  IDProperty *properties = replace_strings_with_id_pointers(*op->properties, input_ids);
+  IDProperty *properties = replace_strings_with_id_pointers(*op.properties, input_ids);
   BLI_SCOPED_DEFER([&]() { IDP_FreeProperty_ex(properties, false); });
 
   replace_inputs_evaluated_data_blocks(*properties, depsgraphs);
@@ -935,18 +934,18 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   const nodes::GeometryNodesLazyFunctionGraphInfo *lf_graph_info =
       nodes::ensure_geometry_nodes_lazy_function_graph(*node_tree).get();
   if (lf_graph_info == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot evaluate node group");
+    BKE_report(op.reports, RPT_ERROR, "Cannot evaluate node group");
     return OPERATOR_CANCELLED;
   }
 
   if (!node_tree->group_output_node()) {
-    BKE_report(op->reports, RPT_ERROR, "Node group must have a group output node");
+    BKE_report(op.reports, RPT_ERROR, "Node group must have a group output node");
     return OPERATOR_CANCELLED;
   }
   if (node_tree->interface_outputs().is_empty() ||
       !STREQ(node_tree->interface_outputs()[0]->socket_type, "NodeSocketGeometry"))
   {
-    BKE_report(op->reports, RPT_ERROR, "Node group's first output must be a geometry");
+    BKE_report(op.reports, RPT_ERROR, "Node group's first output must be a geometry");
     return OPERATOR_CANCELLED;
   }
 
@@ -958,7 +957,7 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
   find_socket_log_contexts(*bmain, socket_log_contexts);
 
   /* May be null if operator called from outside 3D view context. */
-  const RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
   Vector<MeshState> orig_mesh_states;
 
   for (Object *object : objects) {
@@ -967,15 +966,15 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
     operator_eval_data.depsgraphs = &depsgraphs;
     operator_eval_data.self_object_orig = object;
     operator_eval_data.scene_orig = scene;
-    RNA_int_get_array(op->ptr, "mouse_position", operator_eval_data.mouse_position);
-    RNA_int_get_array(op->ptr, "region_size", operator_eval_data.region_size);
-    RNA_float_get_array(op->ptr, "cursor_position", operator_eval_data.cursor_position);
-    RNA_float_get_array(op->ptr, "cursor_rotation", &operator_eval_data.cursor_rotation.w);
+    RNA_int_get_array(op.ptr, "mouse_position", operator_eval_data.mouse_position);
+    RNA_int_get_array(op.ptr, "region_size", operator_eval_data.region_size);
+    RNA_float_get_array(op.ptr, "cursor_position", operator_eval_data.cursor_position);
+    RNA_float_get_array(op.ptr, "cursor_rotation", &operator_eval_data.cursor_rotation.w);
     RNA_float_get_array(
-        op->ptr, "viewport_projection_matrix", operator_eval_data.viewport_winmat.base_ptr());
+        op.ptr, "viewport_projection_matrix", operator_eval_data.viewport_winmat.base_ptr());
     RNA_float_get_array(
-        op->ptr, "viewport_view_matrix", operator_eval_data.viewport_viewmat.base_ptr());
-    operator_eval_data.viewport_is_perspective = RNA_boolean_get(op->ptr,
+        op.ptr, "viewport_view_matrix", operator_eval_data.viewport_viewmat.base_ptr());
+    operator_eval_data.viewport_is_perspective = RNA_boolean_get(op.ptr,
                                                                  "viewport_is_perspective");
 
     nodes::GeoNodesCallData call_data{};
@@ -993,18 +992,18 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
         *node_tree, properties, compute_context, call_data, std::move(geometry_orig));
 
     store_result_geometry(
-        *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
+        C, op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, object->data);
   }
 
   geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());
   tree_log.ensure_node_warnings(*bmain);
   for (const geo_log::NodeWarning &warning : tree_log.all_warnings) {
     if (warning.type == nodes::NodeWarningType::Info) {
-      BKE_report(op->reports, RPT_INFO, warning.message.c_str());
+      BKE_report(op.reports, RPT_INFO, warning.message.c_str());
     }
     else {
-      BKE_report(op->reports, RPT_WARNING, warning.message.c_str());
+      BKE_report(op.reports, RPT_WARNING, warning.message.c_str());
     }
   }
 
@@ -1054,30 +1053,30 @@ static void store_input_node_values_rna_props(const bContext &C,
   RNA_boolean_set(op.ptr, "viewport_is_perspective", rv3d ? bool(rv3d->is_persp) : true);
 }
 
-static wmOperatorStatus run_node_group_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus run_node_group_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const bNodeTree *node_tree = get_node_group(*C, *op->type, op->reports);
+  const bNodeTree *node_tree = get_node_group(C, *op.type, op.reports);
   if (!node_tree) {
     return OPERATOR_CANCELLED;
   }
 
-  store_input_node_values_rna_props(*C, *op, *event);
+  store_input_node_values_rna_props(C, op, *event);
 
-  nodes::update_input_properties_from_node_tree(*node_tree, op->properties, *op->properties, true);
-  nodes::update_output_properties_from_node_tree(*node_tree, op->properties, *op->properties);
+  nodes::update_input_properties_from_node_tree(*node_tree, op.properties, *op.properties, true);
+  nodes::update_output_properties_from_node_tree(*node_tree, op.properties, *op.properties);
 
   return run_node_group_exec(C, op);
 }
 
-static void run_node_group_ui(bContext *C, wmOperator *op)
+static void run_node_group_ui(bContext &C, wmOperator &op)
 {
-  ui::Layout &layout = *op->layout;
+  ui::Layout &layout = *op.layout;
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
 
-  const bNodeTree *node_tree = get_node_group(*C, *op->type, nullptr);
+  const bNodeTree *node_tree = get_node_group(C, *op.type, nullptr);
   if (!node_tree) {
     return;
   }
@@ -1089,10 +1088,10 @@ static void run_node_group_ui(bContext *C, wmOperator *op)
                                       &eval_log.log->get_tree_log(compute_context.hash()) :
                                       nullptr;
   nodes::draw_geometry_nodes_operator_redo_ui(
-      *C, *op, const_cast<bNodeTree &>(*node_tree), tree_log);
+      C, op, const_cast<bNodeTree &>(*node_tree), tree_log);
 }
 
-static bool run_node_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
+static bool run_node_ui_poll(wmOperatorType & /*ot*/, PointerRNA *ptr)
 {
   bool result = false;
   RNA_STRUCT_BEGIN (ptr, prop) {
@@ -1106,10 +1105,10 @@ static bool run_node_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
   return result;
 }
 
-static bool run_node_group_poll(bContext *C, wmOperatorType *ot)
+static bool run_node_group_poll(bContext &C, wmOperatorType &ot)
 {
-  const auto &type_data = *static_cast<const OperatorTypeData *>(ot->custom_data.get());
-  const Object *active_object = CTX_data_active_object(*C);
+  const auto &type_data = *static_cast<const OperatorTypeData *>(ot.custom_data.get());
+  const Object *active_object = CTX_data_active_object(C);
   if (!active_object) {
     return false;
   }

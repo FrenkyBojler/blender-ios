@@ -21,18 +21,18 @@
 
 namespace blender::ed::vse {
 
-static wmOperatorStatus sequencer_rename_channel_invoke(bContext *C,
-                                                        wmOperator * /*op*/,
+static wmOperatorStatus sequencer_rename_channel_invoke(bContext &C,
+                                                        wmOperator & /*op*/,
                                                         const wmEvent *event)
 {
   SeqChannelDrawContext context;
-  SpaceSeq *sseq = CTX_wm_space_seq(*C);
-  channel_draw_context_init(C, CTX_wm_region(*C), &context);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  channel_draw_context_init(&C, CTX_wm_region(C), &context);
   float mouse_y = blender::ui::view2d_region_to_view_y(context.timeline_region_v2d,
                                                        event->mval[1]);
 
   sseq->runtime->rename_channel_index = mouse_y;
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(*C));
+  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
   return OPERATOR_FINISHED;
 }
 

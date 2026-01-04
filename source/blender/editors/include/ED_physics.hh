@@ -25,9 +25,9 @@ void ED_object_particle_edit_mode_enter(bContext *C);
 void ED_object_particle_edit_mode_exit_ex(Scene *scene, Object *ob);
 void ED_object_particle_edit_mode_exit(bContext *C);
 
-bool PE_poll(bContext *C);
-bool PE_hair_poll(bContext *C);
-bool PE_poll_view3d(bContext *C);
+bool PE_poll(bContext &C);
+bool PE_hair_poll(bContext &C);
+bool PE_poll_view3d(bContext &C);
 
 /* `rigidbody_object.cc` */
 

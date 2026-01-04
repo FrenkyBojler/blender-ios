@@ -43,7 +43,7 @@
  * 2) Value Indicator (stored per Graph Editor instance)
  * \{ */
 
-static bool graphview_cursor_poll(bContext *C)
+static bool graphview_cursor_poll(bContext &C)
 {
   /* prevent changes during render */
   if (G.is_rendering) {
@@ -99,9 +99,9 @@ static void graphview_cursor_apply(bContext *C, wmOperator *op)
 /* ... */
 
 /* Non-modal callback for running operator without user input */
-static wmOperatorStatus graphview_cursor_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphview_cursor_exec(bContext &C, wmOperator &op)
 {
-  graphview_cursor_apply(C, op);
+  graphview_cursor_apply(&C, &op);
   return OPERATOR_FINISHED;
 }
 
@@ -128,16 +128,16 @@ static void graphview_cursor_setprops(bContext *C, wmOperator *op, const wmEvent
 }
 
 /* Modal Operator init */
-static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus graphview_cursor_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
 
   /* Change to frame that mouse is over before adding modal handler,
    * as user could click on a single frame (jump to frame) as well as
    * click-dragging over a range (modal scrubbing). Apply this change.
    */
-  graphview_cursor_setprops(C, op, event);
-  graphview_cursor_apply(C, op);
+  graphview_cursor_setprops(&C, &op, event);
+  graphview_cursor_apply(&C, &op);
 
   /* Signal that a scrubbing operating is starting */
   if (screen) {
@@ -145,15 +145,15 @@ static wmOperatorStatus graphview_cursor_invoke(bContext *C, wmOperator *op, con
   }
 
   /* add temp handler */
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
 /* Modal event handling of cursor changing */
-static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus graphview_cursor_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  bScreen *screen = CTX_wm_screen(*C);
-  Scene *scene = CTX_data_scene(*C);
+  bScreen *screen = CTX_wm_screen(C);
+  Scene *scene = CTX_data_scene(C);
 
   /* execute the events */
   switch (event->type) {
@@ -162,13 +162,13 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
         screen->scrubbing = false;
       }
 
-      WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+      WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
       return OPERATOR_FINISHED;
 
     case MOUSEMOVE:
       /* set the new values */
-      graphview_cursor_setprops(C, op, event);
-      graphview_cursor_apply(C, op);
+      graphview_cursor_setprops(&C, &op, event);
+      graphview_cursor_apply(&C, &op);
       break;
 
     case LEFTMOUSE:
@@ -180,7 +180,7 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
           screen->scrubbing = false;
         }
 
-        WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+        WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
         return OPERATOR_FINISHED;
       }
       break;
@@ -219,16 +219,16 @@ static void GRAPH_OT_cursor_set(wmOperatorType *ot)
 /** \name Hide/Reveal
  * \{ */
 
-static wmOperatorStatus graphview_curves_hide_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphview_curves_hide_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   ListBaseT<bAnimListElem> all_data = {nullptr, nullptr};
   int filter;
-  const bool unselected = RNA_boolean_get(op->ptr, "unselected");
+  const bool unselected = RNA_boolean_get(op.ptr, "unselected");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -308,7 +308,7 @@ static wmOperatorStatus graphview_curves_hide_exec(bContext *C, wmOperator *op)
   }
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -334,16 +334,16 @@ static void GRAPH_OT_hide(wmOperatorType *ot)
 
 /* ........ */
 
-static wmOperatorStatus graphview_curves_reveal_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphview_curves_reveal_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   ListBaseT<bAnimListElem> all_data = {nullptr, nullptr};
   int filter;
-  const bool select = RNA_boolean_get(op->ptr, "select");
+  const bool select = RNA_boolean_get(op.ptr, "select");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -392,7 +392,7 @@ static wmOperatorStatus graphview_curves_reveal_exec(bContext *C, wmOperator *op
   BLI_freelistN(&all_data);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }

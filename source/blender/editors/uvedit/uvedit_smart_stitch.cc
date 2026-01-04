@@ -2331,19 +2331,19 @@ static int stitch_init_all(bContext *C, wmOperator *op)
   return 1;
 }
 
-static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus stitch_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  if (!stitch_init_all(C, op)) {
+  if (!stitch_init_all(&C, &op)) {
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
-  StitchStateContainer *ssc = (StitchStateContainer *)op->customdata;
+  StitchStateContainer *ssc = (StitchStateContainer *)op.customdata;
 
   for (uint ob_index = 0; ob_index < ssc->objects_len; ob_index++) {
     StitchState *state = ssc->states[ob_index];
@@ -2354,7 +2354,7 @@ static wmOperatorStatus stitch_invoke(bContext *C, wmOperator *op, const wmEvent
       continue;
     }
 
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -2445,20 +2445,20 @@ static void stitch_exit(bContext *C, wmOperator *op, int finished)
   op->customdata = nullptr;
 }
 
-static void stitch_cancel(bContext *C, wmOperator *op)
+static void stitch_cancel(bContext &C, wmOperator &op)
 {
-  stitch_exit(C, op, 0);
+  stitch_exit(&C, &op, 0);
 }
 
-static wmOperatorStatus stitch_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus stitch_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
-  if (!stitch_init_all(C, op)) {
+  if (!stitch_init_all(&C, &op)) {
     return OPERATOR_CANCELLED;
   }
-  if (stitch_process_data_all((StitchStateContainer *)op->customdata, scene, 1)) {
-    stitch_exit(C, op, 1);
+  if (stitch_process_data_all((StitchStateContainer *)op.customdata, scene, 1)) {
+    stitch_exit(&C, &op, 1);
     return OPERATOR_FINISHED;
   }
   stitch_cancel(C, op);
@@ -2520,12 +2520,12 @@ static StitchState *stitch_select(bContext *C,
   return nullptr;
 }
 
-static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus stitch_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   StitchStateContainer *ssc;
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
-  ssc = static_cast<StitchStateContainer *>(op->customdata);
+  ssc = static_cast<StitchStateContainer *>(op.customdata);
   StitchState *active_state = ssc->states[ssc->active_object_index];
 
   switch (event->type) {
@@ -2542,7 +2542,7 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
     case EVT_RETKEY:
       if (event->val == KM_PRESS) {
         if (stitch_process_data(ssc, active_state, scene, true)) {
-          stitch_exit(C, op, 1);
+          stitch_exit(&C, &op, 1);
           return OPERATOR_FINISHED;
         }
 
@@ -2634,7 +2634,7 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
         return OPERATOR_CANCELLED;
       }
       if (event->val == KM_PRESS) {
-        StitchState *selected_state = stitch_select(C, scene, event, ssc);
+        StitchState *selected_state = stitch_select(&C, scene, event, ssc);
 
         if (selected_state && !stitch_process_data(ssc, selected_state, scene, false)) {
           stitch_cancel(C, op);
@@ -2675,8 +2675,8 @@ static wmOperatorStatus stitch_modal(bContext *C, wmOperator *op, const wmEvent 
   }
 
   /* if updated settings, renew feedback message */
-  stitch_update_header(ssc, C);
-  ED_region_tag_redraw(CTX_wm_region(*C));
+  stitch_update_header(ssc, &C);
+  ED_region_tag_redraw(CTX_wm_region(C));
 
   return OPERATOR_RUNNING_MODAL;
 }

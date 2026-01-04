@@ -74,7 +74,7 @@ void EDBM_stats_update(BMEditMesh *em);
 /**
  * Poll call for mesh operators requiring a view3d context.
  */
-bool EDBM_view3d_poll(bContext *C);
+bool EDBM_view3d_poll(bContext &C);
 
 BMElem *EDBM_elem_from_selectmode(BMEditMesh *em, BMVert *eve, BMEdge *eed, BMFace *efa);
 

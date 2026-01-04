@@ -135,16 +135,16 @@ enum {
   ISECT_SOLVER_EXACT = 1,
 };
 
-static wmOperatorStatus edbm_intersect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_intersect_exec(bContext &C, wmOperator &op)
 {
-  const int mode = RNA_enum_get(op->ptr, "mode");
+  const int mode = RNA_enum_get(op.ptr, "mode");
   int (*test_fn)(BMFace *, void *);
   bool use_separate_all = false;
   bool use_separate_cut = false;
-  const int separate_mode = RNA_enum_get(op->ptr, "separate_mode");
-  const float eps = RNA_float_get(op->ptr, "threshold");
+  const int separate_mode = RNA_enum_get(op.ptr, "separate_mode");
+  const float eps = RNA_float_get(op.ptr, "threshold");
 #ifdef WITH_GMP
-  const bool exact = RNA_enum_get(op->ptr, "solver") == ISECT_SOLVER_EXACT;
+  const bool exact = RNA_enum_get(op.ptr, "solver") == ISECT_SOLVER_EXACT;
 #else
   if (RNA_enum_get(op->ptr, "solver") == ISECT_SOLVER_EXACT) {
     BKE_report(op->reports, RPT_WARNING, "Compiled without GMP, using \"float\" solver");
@@ -182,11 +182,11 @@ static wmOperatorStatus edbm_intersect_exec(bContext *C, wmOperator *op)
     default: /* ISECT_SEPARATE_NONE */
       break;
   }
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   uint isect_len = 0;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
@@ -235,32 +235,32 @@ static wmOperatorStatus edbm_intersect_exec(bContext *C, wmOperator *op)
   }
 
   if (isect_len == objects.size()) {
-    BKE_report(op->reports, RPT_WARNING, "No intersections found");
+    BKE_report(op.reports, RPT_WARNING, "No intersections found");
   }
   return OPERATOR_FINISHED;
 }
 
-static void edbm_intersect_ui(bContext * /*C*/, wmOperator *op)
+static void edbm_intersect_ui(bContext & /*C*/, wmOperator &op)
 {
-  blender::ui::Layout &layout = *op->layout;
+  blender::ui::Layout &layout = *op.layout;
 
-  bool use_exact = RNA_enum_get(op->ptr, "solver") == ISECT_SOLVER_EXACT;
+  bool use_exact = RNA_enum_get(op.ptr, "solver") == ISECT_SOLVER_EXACT;
 
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
   blender::ui::Layout *row = &layout.row(false);
-  row->prop(op->ptr, "mode", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  row->prop(op.ptr, "mode", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   layout.separator();
   row = &layout.row(false);
-  row->prop(op->ptr, "separate_mode", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  row->prop(op.ptr, "separate_mode", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   layout.separator();
 
   row = &layout.row(false);
-  row->prop(op->ptr, "solver", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  row->prop(op.ptr, "solver", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   layout.separator();
 
   if (!use_exact) {
-    layout.prop(op->ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op.ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -337,29 +337,29 @@ void MESH_OT_intersect(wmOperatorType *ot)
  * however from a user perspective they are quite different, so expose as different tools.
  * \{ */
 
-static wmOperatorStatus edbm_intersect_boolean_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_intersect_boolean_exec(bContext &C, wmOperator &op)
 {
-  const int boolean_operation = RNA_enum_get(op->ptr, "operation");
-  bool use_swap = RNA_boolean_get(op->ptr, "use_swap");
-  bool use_self = RNA_boolean_get(op->ptr, "use_self");
+  const int boolean_operation = RNA_enum_get(op.ptr, "operation");
+  bool use_swap = RNA_boolean_get(op.ptr, "use_swap");
+  bool use_self = RNA_boolean_get(op.ptr, "use_self");
 #ifdef WITH_GMP
-  const bool use_exact = RNA_enum_get(op->ptr, "solver") == ISECT_SOLVER_EXACT;
+  const bool use_exact = RNA_enum_get(op.ptr, "solver") == ISECT_SOLVER_EXACT;
 #else
   if (RNA_enum_get(op->ptr, "solver") == ISECT_SOLVER_EXACT) {
     BKE_report(op->reports, RPT_WARNING, "Compiled without GMP, using \"float\" solver");
   }
   const bool use_exact = false;
 #endif
-  const float eps = RNA_float_get(op->ptr, "threshold");
+  const float eps = RNA_float_get(op.ptr, "threshold");
   int (*test_fn)(BMFace *, void *);
   bool has_isect;
 
   test_fn = use_swap ? bm_face_isect_pair_swap : bm_face_isect_pair;
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   uint isect_len = 0;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
@@ -394,32 +394,32 @@ static wmOperatorStatus edbm_intersect_boolean_exec(bContext *C, wmOperator *op)
   }
 
   if (isect_len == objects.size()) {
-    BKE_report(op->reports, RPT_WARNING, "No intersections found");
+    BKE_report(op.reports, RPT_WARNING, "No intersections found");
   }
   return OPERATOR_FINISHED;
 }
 
-static void edbm_intersect_boolean_ui(bContext * /*C*/, wmOperator *op)
+static void edbm_intersect_boolean_ui(bContext & /*C*/, wmOperator &op)
 {
-  blender::ui::Layout &layout = *op->layout;
+  blender::ui::Layout &layout = *op.layout;
 
-  bool use_exact = RNA_enum_get(op->ptr, "solver") == ISECT_SOLVER_EXACT;
+  bool use_exact = RNA_enum_get(op.ptr, "solver") == ISECT_SOLVER_EXACT;
 
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
   blender::ui::Layout &operation_row = layout.row(false);
-  operation_row.prop(op->ptr, "operation", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  operation_row.prop(op.ptr, "operation", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   layout.separator();
 
   blender::ui::Layout &solver_row = layout.row(false);
-  solver_row.prop(op->ptr, "solver", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  solver_row.prop(op.ptr, "solver", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   layout.separator();
 
-  layout.prop(op->ptr, "use_swap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout.prop(op->ptr, "use_self", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "use_swap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op.ptr, "use_self", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!use_exact) {
-    layout.prop(op->ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op.ptr, "threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -790,7 +790,7 @@ static BMEdge *bm_face_split_edge_find(BMEdge *e_a,
 
 #endif /* USE_NET_ISLAND_CONNECT */
 
-static wmOperatorStatus edbm_face_split_by_edges_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus edbm_face_split_by_edges_exec(bContext &C, wmOperator & /*op*/)
 {
   const char hflag = BM_ELEM_TAG;
 
@@ -799,10 +799,10 @@ static wmOperatorStatus edbm_face_split_by_edges_exec(bContext *C, wmOperator * 
 
   BLI_SMALLSTACK_DECLARE(loop_stack, BMLoop *);
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;

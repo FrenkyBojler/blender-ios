@@ -20,20 +20,20 @@
 /** \name View Center Pick Operator
  * \{ */
 
-static wmOperatorStatus viewcenter_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewcenter_pick_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
-  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  ARegion *region = CTX_wm_region(C);
 
   if (rv3d) {
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     float ofs_new[3];
-    const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+    const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
-    ED_view3d_smooth_view_force_finish(C, v3d, region);
+    ED_view3d_smooth_view_force_finish(&C, v3d, region);
 
-    view3d_operator_needs_gpu(C);
+    view3d_operator_needs_gpu(&C);
 
     /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
     ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, true, nullptr);
@@ -50,9 +50,9 @@ static wmOperatorStatus viewcenter_pick_invoke(bContext *C, wmOperator *op, cons
 
     V3D_SmoothParams sview = {nullptr};
     sview.ofs = ofs_new;
-    sview.undo_str = op->type->name;
+    sview.undo_str = op.type->name;
 
-    ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview);
+    ED_view3d_smooth_view(&C, v3d, region, smooth_viewtx, &sview);
   }
 
   return OPERATOR_FINISHED;

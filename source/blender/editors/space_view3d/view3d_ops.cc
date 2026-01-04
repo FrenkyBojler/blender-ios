@@ -53,18 +53,18 @@ static void view3d_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filep
 /** \name Viewport Copy Operator
  * \{ */
 
-static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_copybuffer_exec(bContext &C, wmOperator &op)
 {
   using namespace blender::bke::blendfile;
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   PartialWriteContext copybuffer{*bmain};
 
-  Object *obact = CTX_data_active_object(*C);
+  Object *obact = CTX_data_active_object(C);
   Object *obact_copy = nullptr;
 
   /* context, selection, could be generalized */
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     ID *ob_id_copy = copybuffer.id_add(
         &ob->id,
         PartialWriteContext::IDAddOptions{
@@ -91,7 +91,7 @@ static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
   }
 
   if (num_copied == 0) {
-    BKE_report(op->reports, RPT_INFO, "No objects selected to copy");
+    BKE_report(op.reports, RPT_INFO, "No objects selected to copy");
     return OPERATOR_CANCELLED;
   }
 
@@ -101,9 +101,9 @@ static wmOperatorStatus view3d_copybuffer_exec(bContext *C, wmOperator *op)
 
   char filepath[FILE_MAX];
   view3d_copybuffer_filepath_get(filepath, sizeof(filepath));
-  copybuffer.write(filepath, *op->reports);
+  copybuffer.write(filepath, *op.reports);
 
-  BKE_reportf(op->reports, RPT_INFO, "Copied %d selected object(s)", num_copied);
+  BKE_reportf(op.reports, RPT_INFO, "Copied %d selected object(s)", num_copied);
 
   return OPERATOR_FINISHED;
 }
@@ -126,31 +126,31 @@ static void VIEW3D_OT_copybuffer(wmOperatorType *ot)
 /** \name Viewport Paste Operator
  * \{ */
 
-static wmOperatorStatus view3d_pastebuffer_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_pastebuffer_exec(bContext &C, wmOperator &op)
 {
   char filepath[FILE_MAX];
   int flag = 0;
 
-  if (RNA_boolean_get(op->ptr, "autoselect")) {
+  if (RNA_boolean_get(op.ptr, "autoselect")) {
     flag |= FILE_AUTOSELECT | BLO_LIBLINK_APPEND_SET_OB_ACTIVE_CLIPBOARD;
   }
-  if (RNA_boolean_get(op->ptr, "active_collection")) {
+  if (RNA_boolean_get(op.ptr, "active_collection")) {
     flag |= FILE_ACTIVE_COLLECTION;
   }
 
   view3d_copybuffer_filepath_get(filepath, sizeof(filepath));
 
-  const int num_pasted = BKE_copybuffer_paste(C, filepath, flag, op->reports, FILTER_ID_OB);
+  const int num_pasted = BKE_copybuffer_paste(&C, filepath, flag, op.reports, FILTER_ID_OB);
   if (num_pasted == 0) {
-    BKE_report(op->reports, RPT_INFO, "No objects to paste");
+    BKE_report(op.reports, RPT_INFO, "No objects to paste");
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, nullptr);
-  ED_outliner_select_sync_from_object_tag(C);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, nullptr);
+  ED_outliner_select_sync_from_object_tag(&C);
 
-  BKE_reportf(op->reports, RPT_INFO, "%d object(s) pasted", num_pasted);
+  BKE_reportf(op.reports, RPT_INFO, "%d object(s) pasted", num_pasted);
 
   return OPERATOR_FINISHED;
 }

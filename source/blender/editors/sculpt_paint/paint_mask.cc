@@ -656,19 +656,19 @@ static void invert_mask(Main &bmain, const Scene &scene, Depsgraph &depsgraph, O
   }
 }
 
-static wmOperatorStatus mask_flood_fill_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mask_flood_fill_exec(bContext &C, wmOperator &op)
 {
-  Main &bmain = *CTX_data_main(*C);
-  const Scene &scene = *CTX_data_scene(*C);
-  Object &object = *CTX_data_active_object(*C);
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*C);
+  Main &bmain = *CTX_data_main(C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object &object = *CTX_data_active_object(C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
 
-  const FloodFillMode mode = FloodFillMode(RNA_enum_get(op->ptr, "mode"));
-  const float value = RNA_float_get(op->ptr, "value");
+  const FloodFillMode mode = FloodFillMode(RNA_enum_get(op.ptr, "mode"));
+  const float value = RNA_float_get(op.ptr, "value");
 
   BKE_sculpt_update_object_for_edit(&depsgraph, &object, false);
 
-  undo::push_begin(scene, object, op);
+  undo::push_begin(scene, object, &op);
   switch (mode) {
     case FloodFillMode::Value:
       fill_mask(bmain, scene, depsgraph, object, value);
@@ -683,7 +683,7 @@ static wmOperatorStatus mask_flood_fill_exec(bContext *C, wmOperator *op)
 
   undo::push_end(object);
 
-  SCULPT_tag_update_overlays(C);
+  SCULPT_tag_update_overlays(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -890,47 +890,47 @@ static void gesture_operator_properties(wmOperatorType *ot)
       1.0f);
 }
 
-static wmOperatorStatus gesture_box_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_box_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  init_operation(*C, *gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  init_operation(C, *gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_lasso_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  init_operation(*C, *gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  init_operation(C, *gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_line_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  init_operation(*C, *gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  init_operation(C, *gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_polyline_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  init_operation(*C, *gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  init_operation(C, *gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 

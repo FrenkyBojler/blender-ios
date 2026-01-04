@@ -173,34 +173,34 @@ namespace blender::ed::outliner {
 
 }  // namespace blender::ed::outliner
 
-bool ED_outliner_collections_editor_poll(bContext *C)
+bool ED_outliner_collections_editor_poll(bContext &C)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   return (space_outliner != nullptr) &&
          ELEM(space_outliner->outlinevis, SO_VIEW_LAYER, SO_SCENES, SO_LIBRARIES);
 }
 
 namespace blender::ed::outliner {
 
-static bool outliner_view_layer_collections_editor_poll(bContext *C)
+static bool outliner_view_layer_collections_editor_poll(bContext &C)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   return (space_outliner != nullptr) && (space_outliner->outlinevis == SO_VIEW_LAYER);
 }
 
-static bool collection_edit_in_active_scene_poll(bContext *C)
+static bool collection_edit_in_active_scene_poll(bContext &C)
 {
   if (!ED_outliner_collections_editor_poll(C)) {
     return false;
   }
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   if (!ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene)) {
     return false;
   }
   return true;
 }
 
-static bool collection_new_poll(bContext *C)
+static bool collection_new_poll(bContext &C)
 {
   if (!ED_operator_region_outliner_active(C)) {
     return false;
@@ -240,18 +240,18 @@ static TreeTraversalAction collection_find_selected_to_add(TreeElement *te, void
   return TRAVERSE_CONTINUE;
 }
 
-static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_new_exec(bContext &C, wmOperator &op)
 {
-  WorkSpace *workspace = CTX_wm_workspace(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
-  ARegion *region = CTX_wm_region(*C);
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  ARegion *region = CTX_wm_region(C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   CollectionNewData data{};
 
-  if (RNA_boolean_get(op->ptr, "nested")) {
+  if (RNA_boolean_get(op.ptr, "nested")) {
     outliner_build_tree(bmain, workspace, scene, view_layer, space_outliner, region);
 
     outliner_tree_traverse(space_outliner,
@@ -262,7 +262,7 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
                            &data);
 
     if (data.error) {
-      BKE_report(op->reports, RPT_ERROR, "More than one collection is selected");
+      BKE_report(op.reports, RPT_ERROR, "More than one collection is selected");
       return OPERATOR_CANCELLED;
     }
   }
@@ -274,7 +274,7 @@ static wmOperatorStatus collection_new_exec(bContext *C, wmOperator *op)
   }
 
   if (!ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene)) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot add a new collection to linked/override scene");
+    BKE_report(op.reports, RPT_ERROR, "Cannot add a new collection to linked/override scene");
     return OPERATOR_CANCELLED;
   }
 
@@ -432,16 +432,16 @@ void outliner_collection_delete(
   }
 }
 
-static wmOperatorStatus collection_hierarchy_delete_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_hierarchy_delete_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  wmMsgBus *mbus = CTX_wm_message_bus(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   const Base *basact_prev = BKE_view_layer_active_base_get(view_layer);
 
-  outliner_collection_delete(C, bmain, scene, op->reports, true);
+  outliner_collection_delete(&C, bmain, scene, op.reports, true);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
@@ -453,7 +453,7 @@ static wmOperatorStatus collection_hierarchy_delete_exec(bContext *C, wmOperator
     WM_msg_publish_rna_prop(mbus, &scene->id, view_layer, LayerObjects, active);
   }
 
-  ED_outliner_select_sync_from_object_tag(C);
+  ED_outliner_select_sync_from_object_tag(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -518,12 +518,12 @@ static LayerCollection *outliner_active_layer_collection(bContext *C)
   return data.layer_collection;
 }
 
-static wmOperatorStatus collection_objects_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_objects_select_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
-  bool deselect = STREQ(op->idname, "OUTLINER_OT_collection_objects_deselect");
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  bool deselect = STREQ(op.idname, "OUTLINER_OT_collection_objects_deselect");
 
   IDsSelectedData selected_collections{};
   outliner_tree_traverse(space_outliner,
@@ -548,7 +548,7 @@ static wmOperatorStatus collection_objects_select_exec(bContext *C, wmOperator *
   BLI_freelistN(&selected_collections.selected_array);
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
   WM_main_add_notifier(NC_SCENE | ND_OB_SELECT, scene);
-  ED_outliner_select_sync_from_object_tag(C);
+  ED_outliner_select_sync_from_object_tag(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -626,11 +626,11 @@ static TreeElement *outliner_active_collection(bContext *C)
   return data.te;
 }
 
-static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_duplicate_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  const bool linked = strstr(op->idname, "linked") != nullptr;
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  Main *bmain = CTX_data_main(C);
+  const bool linked = strstr(op.idname, "linked") != nullptr;
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   IDsSelectedData selected_collections{};
   outliner_tree_traverse(space_outliner,
@@ -642,7 +642,7 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
 
   /* Can happen when calling from a key binding. */
   if (BLI_listbase_is_empty(&selected_collections.selected_array)) {
-    BKE_report(op->reports, RPT_ERROR, "No active collection");
+    BKE_report(op.reports, RPT_ERROR, "No active collection");
     return OPERATOR_CANCELLED;
   }
 
@@ -662,7 +662,7 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
      * but we should not allow its parent to be a linked ID, ever.
      * This can happen when a whole scene is linked e.g. */
     if (parent != nullptr && (!ID_IS_EDITABLE(parent) || ID_IS_OVERRIDE_LIBRARY(parent))) {
-      Scene *scene = CTX_data_scene(*C);
+      Scene *scene = CTX_data_scene(C);
       parent = (!ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene)) ?
                    nullptr :
                    scene->master_collection;
@@ -675,7 +675,7 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
       BLI_assert(GS(scene_owner->id.name) == ID_SCE);
 
       if (!ID_IS_EDITABLE(scene_owner) || ID_IS_OVERRIDE_LIBRARY(scene_owner)) {
-        scene_owner = CTX_data_scene(*C);
+        scene_owner = CTX_data_scene(C);
         parent = (!ID_IS_EDITABLE(scene_owner) || ID_IS_OVERRIDE_LIBRARY(scene_owner)) ?
                      nullptr :
                      scene_owner->master_collection;
@@ -689,7 +689,7 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
   }
 
   if (failed_count != 0) {
-    BKE_reportf(op->reports,
+    BKE_reportf(op.reports,
                 RPT_WARNING,
                 "Unable to duplicate %d of the selected collections. "
                 "Could not find a valid parent collection for the new duplicate, "
@@ -699,8 +699,8 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
 
   BLI_freelistN(&selected_collections.selected_array);
   DEG_relations_tag_update(bmain);
-  WM_main_add_notifier(NC_SCENE | ND_LAYER, CTX_data_scene(*C));
-  ED_outliner_select_sync_from_object_tag(C);
+  WM_main_add_notifier(NC_SCENE | ND_LAYER, CTX_data_scene(C));
+  ED_outliner_select_sync_from_object_tag(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -744,12 +744,12 @@ void OUTLINER_OT_collection_duplicate(wmOperatorType *ot)
 /** \name Link Collection
  * \{ */
 
-static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_link_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Collection *active_collection = CTX_data_layer_collection(*C)->collection;
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Collection *active_collection = CTX_data_layer_collection(C)->collection;
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   CollectionEditData data{};
   data.scene = scene;
@@ -762,7 +762,7 @@ static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
        (!ID_IS_EDITABLE(scene) || ID_IS_OVERRIDE_LIBRARY(scene))))
   {
     BKE_report(
-        op->reports, RPT_ERROR, "Cannot add a collection to a linked/override collection/scene");
+        op.reports, RPT_ERROR, "Cannot add a collection to a linked/override collection/scene");
     return OPERATOR_CANCELLED;
   }
 
@@ -809,12 +809,12 @@ void OUTLINER_OT_collection_link(wmOperatorType *ot)
 /** \name Instance Collection
  * \{ */
 
-static wmOperatorStatus collection_instance_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus collection_instance_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   CollectionEditData data{};
   data.scene = scene;
   data.space_outliner = space_outliner;
@@ -842,7 +842,7 @@ static wmOperatorStatus collection_instance_exec(bContext *C, wmOperator * /*op*
   /* Effectively instance the collections. */
   for (Collection *collection : data.collections_to_edit) {
     Object *ob = object::add_type(
-        C, OB_EMPTY, collection->id.name + 2, scene->cursor.location, nullptr, false, 0);
+        &C, OB_EMPTY, collection->id.name + 2, scene->cursor.location, nullptr, false, 0);
     ob->instance_collection = collection;
     ob->transflag |= OB_DUPLICOLLECTION;
     id_us_plus(&collection->id);
@@ -935,51 +935,51 @@ static bool collections_view_layer_poll(bContext *C, bool clear, int flag)
   return result;
 }
 
-static bool collections_exclude_set_poll(bContext *C)
+static bool collections_exclude_set_poll(bContext &C)
 {
-  return collections_view_layer_poll(C, false, LAYER_COLLECTION_EXCLUDE);
+  return collections_view_layer_poll(&C, false, LAYER_COLLECTION_EXCLUDE);
 }
 
-static bool collections_exclude_clear_poll(bContext *C)
+static bool collections_exclude_clear_poll(bContext &C)
 {
-  return collections_view_layer_poll(C, true, LAYER_COLLECTION_EXCLUDE);
+  return collections_view_layer_poll(&C, true, LAYER_COLLECTION_EXCLUDE);
 }
 
-static bool collections_holdout_set_poll(bContext *C)
+static bool collections_holdout_set_poll(bContext &C)
 {
-  return collections_view_layer_poll(C, false, LAYER_COLLECTION_HOLDOUT);
+  return collections_view_layer_poll(&C, false, LAYER_COLLECTION_HOLDOUT);
 }
 
-static bool collections_holdout_clear_poll(bContext *C)
+static bool collections_holdout_clear_poll(bContext &C)
 {
-  return collections_view_layer_poll(C, true, LAYER_COLLECTION_HOLDOUT);
+  return collections_view_layer_poll(&C, true, LAYER_COLLECTION_HOLDOUT);
 }
 
-static bool collections_indirect_only_set_poll(bContext *C)
+static bool collections_indirect_only_set_poll(bContext &C)
 {
-  return collections_view_layer_poll(C, false, LAYER_COLLECTION_INDIRECT_ONLY);
+  return collections_view_layer_poll(&C, false, LAYER_COLLECTION_INDIRECT_ONLY);
 }
 
-static bool collections_indirect_only_clear_poll(bContext *C)
+static bool collections_indirect_only_clear_poll(bContext &C)
 {
-  return collections_view_layer_poll(C, true, LAYER_COLLECTION_INDIRECT_ONLY);
+  return collections_view_layer_poll(&C, true, LAYER_COLLECTION_INDIRECT_ONLY);
 }
 
-static wmOperatorStatus collection_view_layer_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_view_layer_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   CollectionEditData data{};
   data.scene = scene;
   data.space_outliner = space_outliner;
   data.is_liboverride_allowed = true;
   data.is_liboverride_hierarchy_root_allowed = true;
-  bool clear = strstr(op->idname, "clear") != nullptr;
-  int flag = strstr(op->idname, "holdout")       ? LAYER_COLLECTION_HOLDOUT :
-             strstr(op->idname, "indirect_only") ? LAYER_COLLECTION_INDIRECT_ONLY :
-                                                   LAYER_COLLECTION_EXCLUDE;
+  bool clear = strstr(op.idname, "clear") != nullptr;
+  int flag = strstr(op.idname, "holdout")       ? LAYER_COLLECTION_HOLDOUT :
+             strstr(op.idname, "indirect_only") ? LAYER_COLLECTION_INDIRECT_ONLY :
+                                                  LAYER_COLLECTION_EXCLUDE;
 
   outliner_tree_traverse(space_outliner,
                          &space_outliner->tree,
@@ -1098,12 +1098,12 @@ void OUTLINER_OT_collection_indirect_only_clear(wmOperatorType *ot)
 /** \name Visibility for Collection Operators
  * \{ */
 
-static wmOperatorStatus collection_isolate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_isolate_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
   CollectionEditData data{};
   data.scene = scene;
   data.space_outliner = space_outliner;
@@ -1142,13 +1142,13 @@ static wmOperatorStatus collection_isolate_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus collection_isolate_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus collection_isolate_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "extend");
-  if (!RNA_property_is_set(op->ptr, prop) && (event->modifier & KM_SHIFT)) {
-    RNA_property_boolean_set(op->ptr, prop, true);
+  PropertyRNA *prop = RNA_struct_find_property(op.ptr, "extend");
+  if (!RNA_property_is_set(op.ptr, prop) && (event->modifier & KM_SHIFT)) {
+    RNA_property_boolean_set(op.ptr, prop, true);
   }
   return collection_isolate_exec(C, op);
 }
@@ -1174,31 +1174,31 @@ void OUTLINER_OT_collection_isolate(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static bool collection_show_poll(bContext *C)
+static bool collection_show_poll(bContext &C)
 {
-  return collections_view_layer_poll(C, true, LAYER_COLLECTION_HIDE);
+  return collections_view_layer_poll(&C, true, LAYER_COLLECTION_HIDE);
 }
 
-static bool collection_hide_poll(bContext *C)
+static bool collection_hide_poll(bContext &C)
 {
-  return collections_view_layer_poll(C, false, LAYER_COLLECTION_HIDE);
+  return collections_view_layer_poll(&C, false, LAYER_COLLECTION_HIDE);
 }
 
-static bool collection_inside_poll(bContext *C)
+static bool collection_inside_poll(bContext &C)
 {
   if (!ED_outliner_collections_editor_poll(C)) {
     return false;
   }
-  return outliner_active_layer_collection(C) != nullptr;
+  return outliner_active_layer_collection(&C) != nullptr;
 }
 
-static wmOperatorStatus collection_visibility_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_visibility_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
-  const bool is_inside = strstr(op->idname, "inside") != nullptr;
-  const bool show = strstr(op->idname, "show") != nullptr;
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  const bool is_inside = strstr(op.idname, "inside") != nullptr;
+  const bool show = strstr(op.idname, "show") != nullptr;
   CollectionEditData data{};
   data.scene = scene;
   data.space_outliner = space_outliner;
@@ -1291,7 +1291,7 @@ void OUTLINER_OT_collection_hide_inside(wmOperatorType *ot)
 
 static bool collection_flag_poll(bContext *C, bool clear, int flag)
 {
-  if (!ED_outliner_collections_editor_poll(C)) {
+  if (!ED_outliner_collections_editor_poll(*C)) {
     return false;
   }
 
@@ -1315,34 +1315,34 @@ static bool collection_flag_poll(bContext *C, bool clear, int flag)
   return false;
 }
 
-static bool collection_enable_poll(bContext *C)
+static bool collection_enable_poll(bContext &C)
 {
-  return collection_flag_poll(C, true, COLLECTION_HIDE_VIEWPORT);
+  return collection_flag_poll(&C, true, COLLECTION_HIDE_VIEWPORT);
 }
 
-static bool collection_disable_poll(bContext *C)
+static bool collection_disable_poll(bContext &C)
 {
-  return collection_flag_poll(C, false, COLLECTION_HIDE_VIEWPORT);
+  return collection_flag_poll(&C, false, COLLECTION_HIDE_VIEWPORT);
 }
 
-static bool collection_enable_render_poll(bContext *C)
+static bool collection_enable_render_poll(bContext &C)
 {
-  return collection_flag_poll(C, true, COLLECTION_HIDE_RENDER);
+  return collection_flag_poll(&C, true, COLLECTION_HIDE_RENDER);
 }
 
-static bool collection_disable_render_poll(bContext *C)
+static bool collection_disable_render_poll(bContext &C)
 {
-  return collection_flag_poll(C, false, COLLECTION_HIDE_RENDER);
+  return collection_flag_poll(&C, false, COLLECTION_HIDE_RENDER);
 }
 
-static wmOperatorStatus collection_flag_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_flag_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
-  const bool is_render = strstr(op->idname, "render");
-  const bool clear = strstr(op->idname, "show") || strstr(op->idname, "enable");
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  const bool is_render = strstr(op.idname, "render");
+  const bool clear = strstr(op.idname, "show") || strstr(op.idname, "enable");
   int flag = is_render ? COLLECTION_HIDE_RENDER : COLLECTION_HIDE_VIEWPORT;
   CollectionEditData data{};
   data.scene = scene;
@@ -1401,7 +1401,7 @@ static wmOperatorStatus collection_flag_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
 
   if (!is_render) {
-    DEG_relations_tag_update(CTX_data_main(*C));
+    DEG_relations_tag_update(CTX_data_main(C));
   }
 
   WM_main_add_notifier(NC_SCENE | ND_LAYER_CONTENT, nullptr);
@@ -1514,11 +1514,11 @@ static TreeTraversalAction outliner_hide_collect_data_to_edit(TreeElement *te, v
   return TRAVERSE_CONTINUE;
 }
 
-static wmOperatorStatus outliner_hide_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus outliner_hide_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   OutlinerHideEditData data{};
   data.scene = scene;
   data.view_layer = view_layer;
@@ -1561,10 +1561,10 @@ void OUTLINER_OT_hide(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus outliner_unhide_all_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus outliner_unhide_all_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   /* Unhide all the collections. */
   LayerCollection *lc_master = static_cast<LayerCollection *>(view_layer->layer_collections.first);
@@ -1606,11 +1606,11 @@ void OUTLINER_OT_unhide_all(wmOperatorType *ot)
 /** \name Collection Color Tags
  * \{ */
 
-static wmOperatorStatus outliner_color_tag_set_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_color_tag_set_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
-  const short color_tag = RNA_enum_get(op->ptr, "color");
+  Scene *scene = CTX_data_scene(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  const short color_tag = RNA_enum_get(op.ptr, "color");
 
   IDsSelectedData selected{};
 
@@ -1628,8 +1628,8 @@ static wmOperatorStatus outliner_color_tag_set_exec(bContext *C, wmOperator *op)
     if (collection == scene->master_collection) {
       continue;
     }
-    if (!BKE_id_is_editable(CTX_data_main(*C), &collection->id)) {
-      BKE_report(op->reports, RPT_WARNING, "Cannot add a color tag to a linked collection");
+    if (!BKE_id_is_editable(CTX_data_main(C), &collection->id)) {
+      BKE_report(op.reports, RPT_WARNING, "Cannot add a color tag to a linked collection");
       continue;
     }
 
@@ -1638,7 +1638,7 @@ static wmOperatorStatus outliner_color_tag_set_exec(bContext *C, wmOperator *op)
 
   BLI_freelistN(&selected.selected_array);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, nullptr);
 
   return OPERATOR_FINISHED;
 }

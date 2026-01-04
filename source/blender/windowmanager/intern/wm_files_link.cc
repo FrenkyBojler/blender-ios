@@ -70,14 +70,14 @@ static CLG_LogRef LOG = {"blend.link"};
 /** \name Link/Append Operator
  * \{ */
 
-static bool wm_link_append_poll(bContext *C)
+static bool wm_link_append_poll(bContext &C)
 {
   if (WM_operator_winactive(C)) {
     /* NOTE(@sergey): Linking changes active object which is pretty useful in general,
      * but which totally confuses edit mode (i.e. it becoming not so obvious
      * to leave from edit mode and invalid tools in toolbar might be displayed)
      * so disable link/append when in edit mode. */
-    if (CTX_data_edit_object(*C)) {
+    if (CTX_data_edit_object(C)) {
       return false;
     }
 
@@ -87,23 +87,23 @@ static bool wm_link_append_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus wm_link_append_invoke(bContext *C,
-                                              wmOperator *op,
+static wmOperatorStatus wm_link_append_invoke(bContext &C,
+                                              wmOperator &op,
                                               const wmEvent * /*event*/)
 {
-  if (!RNA_struct_property_is_set(op->ptr, "filepath")) {
+  if (!RNA_struct_property_is_set(op.ptr, "filepath")) {
     const char *blendfile_path = BKE_main_blendfile_path_from_global();
     if (G.filepath_last_library[0] != '\0') {
-      RNA_string_set(op->ptr, "filepath", G.filepath_last_library);
+      RNA_string_set(op.ptr, "filepath", G.filepath_last_library);
     }
     else if (blendfile_path[0] != '\0') {
       char dirpath[FILE_MAX];
       BLI_path_split_dir_part(blendfile_path, dirpath, sizeof(dirpath));
-      RNA_string_set(op->ptr, "filepath", dirpath);
+      RNA_string_set(op.ptr, "filepath", dirpath);
     }
   }
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -198,12 +198,12 @@ static bool wm_link_append_item_poll(ReportList *reports,
   return true;
 }
 
-static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_link_append_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   PropertyRNA *prop;
   BlendfileLinkAppendContext *lapp_context;
   char filepath[FILE_MAX_LIBEXTRA], root[FILE_MAXDIR], libname[FILE_MAX_LIBEXTRA],
@@ -211,8 +211,8 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
   char *group, *name;
   int totfiles = 0;
 
-  RNA_string_get(op->ptr, "filename", relname);
-  RNA_string_get(op->ptr, "directory", root);
+  RNA_string_get(op.ptr, "filename", relname);
+  RNA_string_get(op.ptr, "directory", root);
   if (BLI_path_is_rel(root)) {
     BLI_path_abs(root, blendfile_path);
   }
@@ -230,49 +230,49 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
       if (BLI_path_cmp(blendfile_path, filepath) == 0 ||
           BLI_path_cmp(blendfile_path, libname) == 0)
       {
-        BKE_reportf(op->reports, RPT_ERROR, "'%s': cannot use current file as library", filepath);
+        BKE_reportf(op.reports, RPT_ERROR, "'%s': cannot use current file as library", filepath);
         return OPERATOR_CANCELLED;
       }
     }
   }
 
   if (!group) {
-    BKE_reportf(op->reports, RPT_ERROR, "'%s': nothing indicated", filepath);
+    BKE_reportf(op.reports, RPT_ERROR, "'%s': nothing indicated", filepath);
     return OPERATOR_CANCELLED;
   }
   if (!is_librarypath_valid) {
-    BKE_reportf(op->reports, RPT_ERROR, "'%s': not a library", filepath);
+    BKE_reportf(op.reports, RPT_ERROR, "'%s': not a library", filepath);
     return OPERATOR_CANCELLED;
   }
 
   /* Check if something is indicated for append/link. */
-  prop = RNA_struct_find_property(op->ptr, "files");
+  prop = RNA_struct_find_property(op.ptr, "files");
   if (prop) {
-    totfiles = RNA_property_collection_length(op->ptr, prop);
+    totfiles = RNA_property_collection_length(op.ptr, prop);
     if (totfiles == 0) {
       if (!name) {
-        BKE_reportf(op->reports, RPT_ERROR, "'%s': nothing indicated", filepath);
+        BKE_reportf(op.reports, RPT_ERROR, "'%s': nothing indicated", filepath);
         return OPERATOR_CANCELLED;
       }
     }
   }
   else if (!name) {
-    BKE_reportf(op->reports, RPT_ERROR, "'%s': nothing indicated", filepath);
+    BKE_reportf(op.reports, RPT_ERROR, "'%s': nothing indicated", filepath);
     return OPERATOR_CANCELLED;
   }
 
-  int flag = wm_link_append_flag(op);
+  int flag = wm_link_append_flag(&op);
   const bool do_append = (flag & FILE_LINK) == 0;
 
   /* From here down, no error returns. */
 
-  if (view_layer && RNA_boolean_get(op->ptr, "autoselect")) {
+  if (view_layer && RNA_boolean_get(op.ptr, "autoselect")) {
     BKE_view_layer_base_deselect_all(scene, view_layer);
   }
 
   /* Sanity checks for flag. */
   if (scene && scene->id.lib) {
-    BKE_reportf(op->reports,
+    BKE_reportf(op.reports,
                 RPT_WARNING,
                 "Scene '%s' is linked, instantiation of objects is disabled",
                 scene->id.name + 2);
@@ -290,7 +290,7 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
    * Note that here, each item 'uses' one library, and only one. */
   LibraryLink_Params lapp_params;
   BLO_library_link_params_init_with_context(
-      &lapp_params, bmain, flag, 0, scene, view_layer, CTX_wm_view3d(*C));
+      &lapp_params, bmain, flag, 0, scene, view_layer, CTX_wm_view3d(C));
 
   lapp_context = BKE_blendfile_link_append_context_new(&lapp_params);
   BKE_blendfile_link_append_context_embedded_blendfile_set(
@@ -300,7 +300,7 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
     blender::Map<std::string, int> libraries;
     int lib_idx = 0;
 
-    RNA_BEGIN (op->ptr, itemptr, "files") {
+    RNA_BEGIN (op.ptr, itemptr, "files") {
       RNA_string_get(&itemptr, "name", relname);
 
       BLI_path_join(filepath, sizeof(filepath), root, relname);
@@ -318,7 +318,7 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
     }
     RNA_END;
 
-    RNA_BEGIN (op->ptr, itemptr, "files") {
+    RNA_BEGIN (op.ptr, itemptr, "files") {
       RNA_string_get(&itemptr, "name", relname);
 
       BLI_path_join(filepath, sizeof(filepath), root, relname);
@@ -326,7 +326,7 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
       if (BKE_blendfile_library_path_explode(filepath, libname, &group, &name)) {
         BlendfileLinkAppendContextItem *item;
 
-        if (!wm_link_append_item_poll(op->reports, filepath, group, name, do_append)) {
+        if (!wm_link_append_item_poll(op.reports, filepath, group, name, do_append)) {
           continue;
         }
 
@@ -361,7 +361,7 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
   /* XXX We'd need re-entrant locking on Main for this to work... */
   // BKE_main_lock(bmain);
 
-  BKE_blendfile_link(lapp_context, op->reports);
+  BKE_blendfile_link(lapp_context, op.reports);
 
   // BKE_main_unlock(bmain);
 
@@ -371,11 +371,11 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
 
   /* Append, rather than linking. */
   if (do_append) {
-    BKE_blendfile_append(lapp_context, op->reports);
+    BKE_blendfile_append(lapp_context, op.reports);
   }
 
   /* Instantiate loose data in the scene (e.g. add object to the active collection). */
-  BKE_blendfile_link_append_instantiate_loose(lapp_context, op->reports);
+  BKE_blendfile_link_append_instantiate_loose(lapp_context, op.reports);
 
   BKE_blendfile_link_append_context_finalize(lapp_context);
 
@@ -404,7 +404,7 @@ static wmOperatorStatus wm_link_append_exec(bContext *C, wmOperator *op)
    * (like last opened image, etc). */
   STRNCPY(G.filepath_last_library, root);
 
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -528,19 +528,19 @@ void WM_OT_append(wmOperatorType *ot)
       "Localize all appended data, including those indirectly linked from other libraries");
 }
 
-static wmOperatorStatus wm_id_linked_relocate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_id_linked_relocate_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   BlendfileLinkAppendContext *lapp_context;
   char filepath[FILE_MAX_LIBEXTRA], root[FILE_MAXDIR], libname[FILE_MAX_LIBEXTRA],
       relname[FILE_MAX];
   char *group, *name;
 
-  RNA_string_get(op->ptr, "filename", relname);
-  RNA_string_get(op->ptr, "directory", root);
+  RNA_string_get(op.ptr, "filename", relname);
+  RNA_string_get(op.ptr, "directory", root);
   if (BLI_path_is_rel(root)) {
     BLI_path_abs(root, blendfile_path);
   }
@@ -558,27 +558,27 @@ static wmOperatorStatus wm_id_linked_relocate_exec(bContext *C, wmOperator *op)
       if (BLI_path_cmp(blendfile_path, filepath) == 0 ||
           BLI_path_cmp(blendfile_path, libname) == 0)
       {
-        BKE_reportf(op->reports, RPT_ERROR, "'%s': cannot use current file as library", filepath);
+        BKE_reportf(op.reports, RPT_ERROR, "'%s': cannot use current file as library", filepath);
         return OPERATOR_CANCELLED;
       }
     }
   }
 
   if (!is_librarypath_valid) {
-    BKE_reportf(op->reports, RPT_ERROR, "'%s': not a library", filepath);
+    BKE_reportf(op.reports, RPT_ERROR, "'%s': not a library", filepath);
     return OPERATOR_CANCELLED;
   }
   if (!group || !name) {
-    BKE_reportf(op->reports, RPT_ERROR, "'%s': nothing indicated", filepath);
+    BKE_reportf(op.reports, RPT_ERROR, "'%s': nothing indicated", filepath);
     return OPERATOR_CANCELLED;
   }
 
-  int flag = wm_link_append_flag(op);
+  int flag = wm_link_append_flag(&op);
   BLI_assert(flag & FILE_LINK);
 
   const short id_type_code = BKE_idtype_idcode_from_name(group);
 
-  const int tmp_id_session_uid = RNA_int_get(op->ptr, "id_session_uid");
+  const int tmp_id_session_uid = RNA_int_get(op.ptr, "id_session_uid");
   const uint id_session_uid = *reinterpret_cast<const uint *>(&tmp_id_session_uid);
   /* NOTE: Creating a full ID map for a single lookup is not worth it. */
   ID *linked_id = BKE_libblock_find_session_uid(bmain, id_session_uid);
@@ -587,11 +587,11 @@ static wmOperatorStatus wm_id_linked_relocate_exec(bContext *C, wmOperator *op)
     const char *linked_id_name = BKE_id_name(*linked_id);
 
     if (!linked_id || !ID_IS_LINKED(linked_id)) {
-      BKE_reportf(op->reports, RPT_ERROR, "No valid existing linked ID given to relocate");
+      BKE_reportf(op.reports, RPT_ERROR, "No valid existing linked ID given to relocate");
       return OPERATOR_CANCELLED;
     }
     if (GS(linked_id->name) != id_type_code) {
-      BKE_reportf(op->reports,
+      BKE_reportf(op.reports,
                   RPT_ERROR,
                   "Selected ID '%s' is a %s, cannot be used to relocate existing linked ID '%s' "
                   "which is a %s",
@@ -602,7 +602,7 @@ static wmOperatorStatus wm_id_linked_relocate_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
     if (STREQ(linked_id_name, name) && STREQ(linked_id->lib->runtime->filepath_abs, libname)) {
-      BKE_reportf(op->reports,
+      BKE_reportf(op.reports,
                   RPT_ERROR,
                   "Selected ID '%s' seems to be the same as the relocated ID '%s', use 'Reload' "
                   "operation instead",
@@ -614,7 +614,7 @@ static wmOperatorStatus wm_id_linked_relocate_exec(bContext *C, wmOperator *op)
 
   /* From here down, no error returns. */
 
-  if (view_layer && RNA_boolean_get(op->ptr, "autoselect")) {
+  if (view_layer && RNA_boolean_get(op.ptr, "autoselect")) {
     BKE_view_layer_base_deselect_all(scene, view_layer);
   }
 
@@ -630,7 +630,7 @@ static wmOperatorStatus wm_id_linked_relocate_exec(bContext *C, wmOperator *op)
    * Note that here, each item 'uses' one library, and only one. */
   LibraryLink_Params lapp_params;
   BLO_library_link_params_init_with_context(
-      &lapp_params, bmain, flag, 0, scene, view_layer, CTX_wm_view3d(*C));
+      &lapp_params, bmain, flag, 0, scene, view_layer, CTX_wm_view3d(C));
 
   lapp_context = BKE_blendfile_link_append_context_new(&lapp_params);
   BKE_blendfile_link_append_context_embedded_blendfile_set(
@@ -643,7 +643,7 @@ static wmOperatorStatus wm_id_linked_relocate_exec(bContext *C, wmOperator *op)
 
   BKE_blendfile_link_append_context_init_done(lapp_context);
 
-  BKE_blendfile_id_relocate(*lapp_context, op->reports);
+  BKE_blendfile_id_relocate(*lapp_context, op.reports);
 
   BKE_blendfile_link_append_context_finalize(lapp_context);
 
@@ -668,7 +668,7 @@ static wmOperatorStatus wm_id_linked_relocate_exec(bContext *C, wmOperator *op)
    * (like last opened image, etc). */
   STRNCPY(G.filepath_last_library, root);
 
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -812,27 +812,27 @@ ID *WM_file_append_datablock(Main *bmain,
 /** \name Library Relocate Operator & Library Reload API
  * \{ */
 
-static wmOperatorStatus wm_lib_relocate_invoke(bContext *C,
-                                               wmOperator *op,
+static wmOperatorStatus wm_lib_relocate_invoke(bContext &C,
+                                               wmOperator &op,
                                                const wmEvent * /*event*/)
 {
   Library *lib;
   char lib_name[MAX_NAME];
 
-  RNA_string_get(op->ptr, "library", lib_name);
-  lib = (Library *)BKE_libblock_find_name(CTX_data_main(*C), ID_LI, lib_name);
+  RNA_string_get(op.ptr, "library", lib_name);
+  lib = (Library *)BKE_libblock_find_name(CTX_data_main(C), ID_LI, lib_name);
 
   if (lib) {
     if (lib->runtime->parent) {
-      BKE_reportf(op->reports,
+      BKE_reportf(op.reports,
                   RPT_ERROR_INVALID_INPUT,
                   "Cannot relocate indirectly linked library '%s'",
                   lib->runtime->filepath_abs);
       return OPERATOR_CANCELLED;
     }
-    RNA_string_set(op->ptr, "filepath", lib->runtime->filepath_abs);
+    RNA_string_set(op.ptr, "filepath", lib->runtime->filepath_abs);
 
-    WM_event_add_fileselect(C, op);
+    WM_event_add_fileselect(&C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -1039,9 +1039,9 @@ static wmOperatorStatus wm_lib_relocate_exec_do(bContext *C, wmOperator *op, boo
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus wm_lib_relocate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_lib_relocate_exec(bContext &C, wmOperator &op)
 {
-  return wm_lib_relocate_exec_do(C, op, false);
+  return wm_lib_relocate_exec_do(&C, &op, false);
 }
 
 void WM_OT_lib_relocate(wmOperatorType *ot)
@@ -1070,9 +1070,9 @@ void WM_OT_lib_relocate(wmOperatorType *ot)
                                  FILE_SORT_DEFAULT);
 }
 
-static wmOperatorStatus wm_lib_reload_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_lib_reload_exec(bContext &C, wmOperator &op)
 {
-  return wm_lib_relocate_exec_do(C, op, true);
+  return wm_lib_relocate_exec_do(&C, &op, true);
 }
 
 void WM_OT_lib_reload(wmOperatorType *ot)

@@ -1075,7 +1075,7 @@ bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_regi
  * Also works if \a v3d is not the active space.
  */
 bool ED_view3d_area_user_region(const ScrArea *area, const View3D *v3d, ARegion **r_region);
-bool ED_operator_rv3d_user_region_poll(bContext *C);
+bool ED_operator_rv3d_user_region_poll(bContext &C);
 
 /**
  * Most of the time this isn't needed since you could assume the view matrix was

@@ -190,7 +190,7 @@ struct CurvesConstraintSolver {
   }
 };
 
-bool curves_sculpt_poll(bContext *C);
+bool curves_sculpt_poll(bContext &C);
 bool curves_sculpt_poll_view3d(bContext *C);
 
 }  // namespace blender::ed::sculpt_paint

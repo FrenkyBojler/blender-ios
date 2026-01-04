@@ -418,13 +418,13 @@ void deselect_graph_keys(bAnimContext *ac, bool test, eEditKeyframes_Select sel,
 
 /* ------------------- */
 
-static wmOperatorStatus graphkeys_deselectall_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_deselectall_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   bAnimListElem *ale_active = nullptr;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -435,7 +435,7 @@ static wmOperatorStatus graphkeys_deselectall_exec(bContext *C, wmOperator *op)
   ale_active = get_active_fcurve_channel(&ac);
 
   /* 'standard' behavior - check if selected, then apply relevant selection */
-  const int action = RNA_enum_get(op->ptr, "action");
+  const int action = RNA_enum_get(op.ptr, "action");
   switch (action) {
     case SEL_TOGGLE:
       deselect_graph_keys(&ac, true, SELECT_ADD, true);
@@ -468,7 +468,7 @@ static wmOperatorStatus graphkeys_deselectall_exec(bContext *C, wmOperator *op)
   }
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -820,16 +820,16 @@ static void box_select_graphcurves(bAnimContext *ac,
 
 /* ------------------- */
 
-static wmOperatorStatus graphkeys_box_select_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus graphkeys_box_select_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent *event)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  if (RNA_boolean_get(op->ptr, "tweak")) {
+  if (RNA_boolean_get(op.ptr, "tweak")) {
     int mval[2];
     WM_event_drag_start_mval(event, ac.region, mval);
     tNearestVertInfo *under_mouse = find_nearest_fcurve_vert(&ac, mval);
@@ -846,7 +846,7 @@ static wmOperatorStatus graphkeys_box_select_invoke(bContext *C,
   return WM_gesture_box_invoke(C, op, event);
 }
 
-static wmOperatorStatus graphkeys_box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_box_select_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   rcti rect;
@@ -854,24 +854,24 @@ static wmOperatorStatus graphkeys_box_select_exec(bContext *C, wmOperator *op)
   short mode = 0;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op.ptr, "mode"));
   const eEditKeyframes_Select selectmode = (sel_op != SEL_OP_SUB) ? SELECT_ADD : SELECT_SUBTRACT;
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     deselect_graph_keys(&ac, true, SELECT_SUBTRACT, true);
   }
 
   /* 'include_handles' from the operator specifies whether to include handles in the selection. */
-  bool incl_handles = RNA_boolean_get(op->ptr, "include_handles");
+  bool incl_handles = RNA_boolean_get(op.ptr, "include_handles");
 
   /* Get settings from operator. */
-  WM_operator_properties_border_to_rcti(op, &rect);
+  WM_operator_properties_border_to_rcti(&op, &rect);
 
   /* Selection 'mode' depends on whether box_select region only matters on one axis. */
-  if (RNA_boolean_get(op->ptr, "axis_range")) {
+  if (RNA_boolean_get(op.ptr, "axis_range")) {
     /* Mode depends on which axis of the range is larger to determine which axis to use
      * - Checking this in region-space is fine, as it's fundamentally still going to be a
      *   different rect size.
@@ -895,12 +895,12 @@ static wmOperatorStatus graphkeys_box_select_exec(bContext *C, wmOperator *op)
   /* Apply box_select action. */
   const bool any_key_selection_changed = box_select_graphkeys(
       &ac, &rect_fl, mode, selectmode, incl_handles, nullptr);
-  const bool use_curve_selection = RNA_boolean_get(op->ptr, "use_curve_selection");
+  const bool use_curve_selection = RNA_boolean_get(op.ptr, "use_curve_selection");
   if (use_curve_selection && !any_key_selection_changed) {
     box_select_graphcurves(&ac, &rect_fl, mode, selectmode, incl_handles, nullptr);
   }
   /* Send notifier that keyframe selection has changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -955,7 +955,7 @@ void GRAPH_OT_select_box(wmOperatorType *ot)
 
 /* ------------------- */
 
-static wmOperatorStatus graphkeys_lassoselect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_lassoselect_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
@@ -964,17 +964,17 @@ static wmOperatorStatus graphkeys_lassoselect_exec(bContext *C, wmOperator *op)
   rctf rect_fl;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   data_lasso.rectf_view = &rect_fl;
-  data_lasso.mcoords = WM_gesture_lasso_path_to_array(C, op);
+  data_lasso.mcoords = WM_gesture_lasso_path_to_array(&C, &op);
   if (data_lasso.mcoords.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op.ptr, "mode"));
   const eEditKeyframes_Select selectmode = (sel_op != SEL_OP_SUB) ? SELECT_ADD : SELECT_SUBTRACT;
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     deselect_graph_keys(&ac, false, SELECT_SUBTRACT, true);
@@ -985,19 +985,19 @@ static wmOperatorStatus graphkeys_lassoselect_exec(bContext *C, wmOperator *op)
   BLI_rctf_rcti_copy(&rect_fl, &rect);
 
   /* 'include_handles' from the operator specifies whether to consider handles in the selection. */
-  const bool incl_handles = RNA_boolean_get(op->ptr, "include_handles");
+  const bool incl_handles = RNA_boolean_get(op.ptr, "include_handles");
 
   /* Apply box_select action. */
   const bool any_key_selection_changed = box_select_graphkeys(
       &ac, &rect_fl, BEZT_OK_REGION_LASSO, selectmode, incl_handles, &data_lasso);
-  const bool use_curve_selection = RNA_boolean_get(op->ptr, "use_curve_selection");
+  const bool use_curve_selection = RNA_boolean_get(op.ptr, "use_curve_selection");
   if (use_curve_selection && !any_key_selection_changed) {
     box_select_graphcurves(
         &ac, &rect_fl, BEZT_OK_REGION_LASSO, selectmode, incl_handles, &data_lasso);
   }
 
   /* Send notifier that keyframe selection has changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1044,25 +1044,25 @@ void GRAPH_OT_select_lasso(wmOperatorType *ot)
 
 /* ------------------- */
 
-static wmOperatorStatus graph_circle_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graph_circle_select_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   KeyframeEdit_CircleData data = {nullptr};
   rctf rect_fl;
 
-  float x = RNA_int_get(op->ptr, "x");
-  float y = RNA_int_get(op->ptr, "y");
-  float radius = RNA_int_get(op->ptr, "radius");
+  float x = RNA_int_get(op.ptr, "x");
+  float y = RNA_int_get(op.ptr, "y");
+  float radius = RNA_int_get(op.ptr, "radius");
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   const eSelectOp sel_op = ED_select_op_modal(
-      eSelectOp(RNA_enum_get(op->ptr, "mode")),
-      WM_gesture_is_modal_first(static_cast<const wmGesture *>(op->customdata)));
+      eSelectOp(RNA_enum_get(op.ptr, "mode")),
+      WM_gesture_is_modal_first(static_cast<const wmGesture *>(op.customdata)));
   const eEditKeyframes_Select selectmode = (sel_op != SEL_OP_SUB) ? SELECT_ADD : SELECT_SUBTRACT;
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     deselect_graph_keys(&ac, false, SELECT_SUBTRACT, true);
@@ -1079,7 +1079,7 @@ static wmOperatorStatus graph_circle_select_exec(bContext *C, wmOperator *op)
   rect_fl.ymax = y + radius;
 
   /* 'include_handles' from the operator specifies whether to consider handles in the selection. */
-  const bool incl_handles = RNA_boolean_get(op->ptr, "include_handles");
+  const bool incl_handles = RNA_boolean_get(op.ptr, "include_handles");
 
   /* Apply box_select action. */
   const bool any_key_selection_changed = box_select_graphkeys(
@@ -1088,15 +1088,15 @@ static wmOperatorStatus graph_circle_select_exec(bContext *C, wmOperator *op)
     /* If any key was selected at any time during this process, the entire-curve selection should
      * be disabled. Otherwise, sliding over any keyless part of the curve will immediately cause
      * the entire curve to be selected. */
-    RNA_boolean_set(op->ptr, "use_curve_selection", false);
+    RNA_boolean_set(op.ptr, "use_curve_selection", false);
   }
-  const bool use_curve_selection = RNA_boolean_get(op->ptr, "use_curve_selection");
+  const bool use_curve_selection = RNA_boolean_get(op.ptr, "use_curve_selection");
   if (use_curve_selection && !any_key_selection_changed) {
     box_select_graphcurves(&ac, &rect_fl, BEZT_OK_REGION_CIRCLE, selectmode, incl_handles, &data);
   }
 
   /* Send notifier that keyframe selection has changed. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1291,18 +1291,18 @@ static void columnselect_graph_keys(bAnimContext *ac, short mode)
 
 /* ------------------- */
 
-static wmOperatorStatus graphkeys_columnselect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_columnselect_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* action to take depends on the mode */
-  mode = RNA_enum_get(op->ptr, "mode");
+  mode = RNA_enum_get(op.ptr, "mode");
 
   if (mode == GRAPHKEYS_COLUMNSEL_MARKERS_BETWEEN) {
     markers_selectkeys_between(&ac);
@@ -1312,7 +1312,7 @@ static wmOperatorStatus graphkeys_columnselect_exec(bContext *C, wmOperator *op)
   }
 
   /* set notifier that keyframe selection has changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1342,7 +1342,7 @@ void GRAPH_OT_select_column(wmOperatorType *ot)
 /** \name Select Linked Operator
  * \{ */
 
-static wmOperatorStatus graphkeys_select_linked_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_select_linked_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
@@ -1353,7 +1353,7 @@ static wmOperatorStatus graphkeys_select_linked_exec(bContext *C, wmOperator * /
   KeyframeEditFunc sel_cb = ANIM_editkeyframes_select(SELECT_ADD);
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1377,7 +1377,7 @@ static wmOperatorStatus graphkeys_select_linked_exec(bContext *C, wmOperator * /
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that keyframe selection has changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1448,12 +1448,12 @@ static void select_moreless_graph_keys(bAnimContext *ac, short mode)
 
 /* ----------------- */
 
-static wmOperatorStatus graphkeys_select_more_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_select_more_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1461,7 +1461,7 @@ static wmOperatorStatus graphkeys_select_more_exec(bContext *C, wmOperator * /*o
   select_moreless_graph_keys(&ac, SELMAP_MORE);
 
   /* set notifier that keyframe selection has changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1483,12 +1483,12 @@ void GRAPH_OT_select_more(wmOperatorType *ot)
 
 /* ----------------- */
 
-static wmOperatorStatus graphkeys_select_less_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus graphkeys_select_less_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1496,7 +1496,7 @@ static wmOperatorStatus graphkeys_select_less_exec(bContext *C, wmOperator * /*o
   select_moreless_graph_keys(&ac, SELMAP_LESS);
 
   /* set notifier that keyframe selection has changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1588,19 +1588,19 @@ static void graphkeys_select_leftright(bAnimContext *ac,
 
 /* ----------------- */
 
-static wmOperatorStatus graphkeys_select_leftright_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_select_leftright_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
-  short leftright = RNA_enum_get(op->ptr, "mode");
+  short leftright = RNA_enum_get(op.ptr, "mode");
   eEditKeyframes_Select selectmode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* select mode is either replace (deselect all, then add) or add/extend */
-  if (RNA_boolean_get(op->ptr, "extend")) {
+  if (RNA_boolean_get(op.ptr, "extend")) {
     selectmode = SELECT_INVERT;
   }
   else {
@@ -1616,21 +1616,21 @@ static wmOperatorStatus graphkeys_select_leftright_exec(bContext *C, wmOperator 
   graphkeys_select_leftright(&ac, leftright, selectmode);
 
   /* set notifier that keyframe selection (and channels too) have changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus graphkeys_select_leftright_invoke(bContext *C,
-                                                          wmOperator *op,
+static wmOperatorStatus graphkeys_select_leftright_invoke(bContext &C,
+                                                          wmOperator &op,
                                                           const wmEvent *event)
 {
   bAnimContext ac;
-  short leftright = RNA_enum_get(op->ptr, "mode");
+  short leftright = RNA_enum_get(op.ptr, "mode");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1644,10 +1644,10 @@ static wmOperatorStatus graphkeys_select_leftright_invoke(bContext *C,
     /* determine which side of the current frame mouse is on */
     x = blender::ui::view2d_region_to_view_x(v2d, event->mval[0]);
     if (x < scene->r.cfra) {
-      RNA_enum_set(op->ptr, "mode", GRAPHKEYS_LRSEL_LEFT);
+      RNA_enum_set(op.ptr, "mode", GRAPHKEYS_LRSEL_LEFT);
     }
     else {
-      RNA_enum_set(op->ptr, "mode", GRAPHKEYS_LRSEL_RIGHT);
+      RNA_enum_set(op.ptr, "mode", GRAPHKEYS_LRSEL_RIGHT);
     }
   }
 
@@ -1953,34 +1953,34 @@ static wmOperatorStatus graphkeys_mselect_column(bAnimContext *ac,
 /** \name Click Select Operator
  * \{ */
 
-static wmOperatorStatus graphkeys_clickselect_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_clickselect_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   /* select mode is either replace (deselect all, then add) or add/extend */
-  const short selectmode = RNA_boolean_get(op->ptr, "extend") ? SELECT_INVERT : SELECT_REPLACE;
-  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
+  const short selectmode = RNA_boolean_get(op.ptr, "extend") ? SELECT_INVERT : SELECT_REPLACE;
+  const bool deselect_all = RNA_boolean_get(op.ptr, "deselect_all");
   /* See #WM_operator_properties_generic_select() for a detailed description of the how and why of
    * this. */
-  const bool wait_to_deselect_others = RNA_boolean_get(op->ptr, "wait_to_deselect_others");
+  const bool wait_to_deselect_others = RNA_boolean_get(op.ptr, "wait_to_deselect_others");
   int mval[2];
   wmOperatorStatus ret_val;
 
-  mval[0] = RNA_int_get(op->ptr, "mouse_x");
-  mval[1] = RNA_int_get(op->ptr, "mouse_y");
+  mval[0] = RNA_int_get(op.ptr, "mouse_x");
+  mval[1] = RNA_int_get(op.ptr, "mouse_y");
 
   /* figure out action to take */
-  if (RNA_boolean_get(op->ptr, "column")) {
+  if (RNA_boolean_get(op.ptr, "column")) {
     /* select all keyframes in the same frame as the one that was under the mouse */
     ret_val = graphkeys_mselect_column(
         &ac, mval, eEditKeyframes_Select(selectmode), wait_to_deselect_others);
   }
-  else if (RNA_boolean_get(op->ptr, "curves")) {
+  else if (RNA_boolean_get(op.ptr, "curves")) {
     /* select all keyframes in the same F-Curve as the one under the mouse */
     ret_val = mouse_graph_keys(
         &ac, mval, eEditKeyframes_Select(selectmode), deselect_all, true, wait_to_deselect_others);
@@ -1997,8 +1997,8 @@ static wmOperatorStatus graphkeys_clickselect_exec(bContext *C, wmOperator *op)
 
   /* set notifier that keyframe selection (and also channel selection in some cases) has
    * changed */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
 
   /* for tweak grab to work */
   return ret_val | OPERATOR_PASS_THROUGH;
@@ -2149,25 +2149,25 @@ static void graphkeys_select_key_handles(
   ANIM_animdata_freelist(&anim_data);
 }
 
-static wmOperatorStatus graphkeys_select_key_handles_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus graphkeys_select_key_handles_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(&C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   const eGraphKey_SelectKeyHandles_Action left_handle_action =
-      static_cast<eGraphKey_SelectKeyHandles_Action>(RNA_enum_get(op->ptr, "left_handle_action"));
+      static_cast<eGraphKey_SelectKeyHandles_Action>(RNA_enum_get(op.ptr, "left_handle_action"));
   const eGraphKey_SelectKeyHandles_Action key_action =
-      static_cast<eGraphKey_SelectKeyHandles_Action>(RNA_enum_get(op->ptr, "key_action"));
+      static_cast<eGraphKey_SelectKeyHandles_Action>(RNA_enum_get(op.ptr, "key_action"));
   const eGraphKey_SelectKeyHandles_Action right_handle_action =
-      static_cast<eGraphKey_SelectKeyHandles_Action>(RNA_enum_get(op->ptr, "right_handle_action"));
+      static_cast<eGraphKey_SelectKeyHandles_Action>(RNA_enum_get(op.ptr, "right_handle_action"));
 
   graphkeys_select_key_handles(&ac, left_handle_action, key_action, right_handle_action);
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }

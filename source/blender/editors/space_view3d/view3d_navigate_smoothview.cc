@@ -527,12 +527,12 @@ static void view3d_smoothview_apply_from_timer(bContext *C, View3D *v3d, ARegion
   ED_region_tag_redraw(region);
 }
 
-static wmOperatorStatus view3d_smoothview_invoke(bContext *C,
-                                                 wmOperator * /*op*/,
+static wmOperatorStatus view3d_smoothview_invoke(bContext &C,
+                                                 wmOperator & /*op*/,
                                                  const wmEvent *event)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   /* Escape if not our timer. */
@@ -540,7 +540,7 @@ static wmOperatorStatus view3d_smoothview_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
-  view3d_smoothview_apply_from_timer(C, v3d, region);
+  view3d_smoothview_apply_from_timer(&C, v3d, region);
 
   return OPERATOR_FINISHED;
 }

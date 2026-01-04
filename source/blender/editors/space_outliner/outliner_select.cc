@@ -1908,20 +1908,20 @@ static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
 }
 
 /* Event can enter-key, then it opens/closes. */
-static wmOperatorStatus outliner_item_activate_invoke(bContext *C,
-                                                      wmOperator *op,
+static wmOperatorStatus outliner_item_activate_invoke(bContext &C,
+                                                      wmOperator &op,
                                                       const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const bool use_range = RNA_boolean_get(op->ptr, "extend_range");
-  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
-  const bool recurse = RNA_boolean_get(op->ptr, "recurse");
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
+  const bool use_range = RNA_boolean_get(op.ptr, "extend_range");
+  const bool deselect_all = RNA_boolean_get(op.ptr, "deselect_all");
+  const bool recurse = RNA_boolean_get(op.ptr, "recurse");
 
   int mval[2];
   WM_event_drag_start_mval(event, region, mval);
-  return outliner_item_do_activate_from_cursor(C, mval, extend, use_range, deselect_all, recurse);
+  return outliner_item_do_activate_from_cursor(&C, mval, extend, use_range, deselect_all, recurse);
 }
 
 void OUTLINER_OT_item_activate(wmOperatorType *ot)
@@ -1974,41 +1974,41 @@ static void outliner_box_select(bContext *C,
   });
 }
 
-static wmOperatorStatus outliner_box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus outliner_box_select_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
-  ARegion *region = CTX_wm_region(*C);
+  Scene *scene = CTX_data_scene(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  ARegion *region = CTX_wm_region(C);
   rctf rectf;
 
-  const eSelectOp sel_op = (eSelectOp)RNA_enum_get(op->ptr, "mode");
+  const eSelectOp sel_op = (eSelectOp)RNA_enum_get(op.ptr, "mode");
   const bool select = (sel_op != SEL_OP_SUB);
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     outliner_flag_set(*space_outliner, TSE_SELECTED, 0);
   }
 
-  WM_operator_properties_border_to_rctf(op, &rectf);
+  WM_operator_properties_border_to_rctf(&op, &rectf);
   ui::view2d_region_to_view_rctf(&region->v2d, &rectf, &rectf);
 
-  outliner_box_select(C, space_outliner, &rectf, select);
+  outliner_box_select(&C, space_outliner, &rectf, select);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
   ED_region_tag_redraw_no_rebuild(region);
 
-  ED_outliner_select_sync_from_outliner(C, space_outliner);
+  ED_outliner_select_sync_from_outliner(&C, space_outliner);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus outliner_box_select_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus outliner_box_select_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  ARegion *region = CTX_wm_region(C);
   float view_mval[2];
-  const bool tweak = RNA_boolean_get(op->ptr, "tweak");
+  const bool tweak = RNA_boolean_get(op.ptr, "tweak");
 
   int mval[2];
   WM_event_drag_start_mval(event, region, mval);
@@ -2022,7 +2022,7 @@ static wmOperatorStatus outliner_box_select_invoke(bContext *C,
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  if (outliner_is_co_within_active_mode_column(C, space_outliner, view_mval)) {
+  if (outliner_is_co_within_active_mode_column(&C, space_outliner, view_mval)) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
@@ -2233,16 +2233,16 @@ static void outliner_walk_scroll(SpaceOutliner *space_outliner, ARegion *region,
   }
 }
 
-static wmOperatorStatus outliner_walk_select_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus outliner_walk_select_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent * /*event*/)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  ARegion *region = CTX_wm_region(C);
 
-  const short direction = RNA_enum_get(op->ptr, "direction");
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const bool toggle_all = RNA_boolean_get(op->ptr, "toggle_all");
+  const short direction = RNA_enum_get(op.ptr, "direction");
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
+  const bool toggle_all = RNA_boolean_get(op.ptr, "toggle_all");
 
   bool changed;
   TreeElement *active_te = find_walk_select_start_element(space_outliner, &changed);
@@ -2252,7 +2252,7 @@ static wmOperatorStatus outliner_walk_select_invoke(bContext *C,
     active_te = do_outliner_select_walk(space_outliner, active_te, direction, extend, toggle_all);
   }
 
-  outliner_item_select(C,
+  outliner_item_select(&C,
                        space_outliner,
                        active_te,
                        OL_ITEM_SELECT | OL_ITEM_ACTIVATE | (extend ? OL_ITEM_EXTEND : 0));
@@ -2260,7 +2260,7 @@ static wmOperatorStatus outliner_walk_select_invoke(bContext *C,
   /* Scroll outliner to focus on walk element */
   outliner_walk_scroll(space_outliner, region, active_te);
 
-  ED_outliner_select_sync_from_outliner(C, space_outliner);
+  ED_outliner_select_sync_from_outliner(&C, space_outliner);
   outliner_tag_redraw_avoid_rebuild_on_open_change(space_outliner, region);
 
   return OPERATOR_FINISHED;

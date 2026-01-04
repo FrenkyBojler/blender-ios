@@ -204,9 +204,9 @@ static void edbm_inset_exit(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 }
 
-static void edbm_inset_cancel(bContext *C, wmOperator *op)
+static void edbm_inset_cancel(bContext &C, wmOperator &op)
 {
-  InsetData *opdata = static_cast<InsetData *>(op->customdata);
+  InsetData *opdata = static_cast<InsetData *>(op.customdata);
   if (opdata->is_modal) {
     for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
       Object *obedit = opdata->ob_store[ob_index].ob;
@@ -220,10 +220,10 @@ static void edbm_inset_cancel(bContext *C, wmOperator *op)
     }
   }
 
-  edbm_inset_exit(C, op);
+  edbm_inset_exit(&C, &op);
 
   /* need to force redisplay or we may still view the modified result */
-  ED_region_tag_redraw(CTX_wm_region(*C));
+  ED_region_tag_redraw(CTX_wm_region(C));
 }
 
 static bool edbm_inset_calc(wmOperator *op)
@@ -316,39 +316,39 @@ static bool edbm_inset_calc(wmOperator *op)
   return changed;
 }
 
-static wmOperatorStatus edbm_inset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_inset_exec(bContext &C, wmOperator &op)
 {
-  if (!edbm_inset_init(C, op, false)) {
+  if (!edbm_inset_init(&C, &op, false)) {
     return OPERATOR_CANCELLED;
   }
 
-  if (!edbm_inset_calc(op)) {
-    edbm_inset_exit(C, op);
+  if (!edbm_inset_calc(&op)) {
+    edbm_inset_exit(&C, &op);
     return OPERATOR_CANCELLED;
   }
 
-  edbm_inset_exit(C, op);
+  edbm_inset_exit(&C, &op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus edbm_inset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_inset_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   InsetData *opdata;
   float mlen[2];
   float center_3d[3];
 
-  if (!edbm_inset_init(C, op, true)) {
+  if (!edbm_inset_init(&C, &op, true)) {
     return OPERATOR_CANCELLED;
   }
 
-  opdata = static_cast<InsetData *>(op->customdata);
+  opdata = static_cast<InsetData *>(op.customdata);
 
   opdata->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
   /* initialize mouse values */
   if (!blender::ed::transform::calculateTransformCenter(
-          C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter))
+          &C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter))
   {
     /* in this case the tool will likely do nothing,
      * ideally this will never happen and should be checked for above */
@@ -359,39 +359,39 @@ static wmOperatorStatus edbm_inset_invoke(bContext *C, wmOperator *op, const wmE
   opdata->initial_length = len_v2(mlen);
   opdata->pixel_size = rv3d ? ED_view3d_pixel_size(rv3d, center_3d) : 1.0f;
 
-  edbm_inset_calc(op);
+  edbm_inset_calc(&op);
 
-  edbm_inset_update_header(op, C);
+  edbm_inset_update_header(&op, &C);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus edbm_inset_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edbm_inset_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  InsetData *opdata = static_cast<InsetData *>(op->customdata);
+  InsetData *opdata = static_cast<InsetData *>(op.customdata);
   const bool has_numinput = hasNumInput(&opdata->num_input);
 
   /* Modal numinput active, try to handle numeric inputs first... */
-  if (event->val == KM_PRESS && has_numinput && handleNumInput(C, &opdata->num_input, event)) {
-    float amounts[2] = {RNA_float_get(op->ptr, "thickness"), RNA_float_get(op->ptr, "depth")};
+  if (event->val == KM_PRESS && has_numinput && handleNumInput(&C, &opdata->num_input, event)) {
+    float amounts[2] = {RNA_float_get(op.ptr, "thickness"), RNA_float_get(op.ptr, "depth")};
     applyNumInput(&opdata->num_input, amounts);
     amounts[0] = max_ff(amounts[0], 0.0f);
-    RNA_float_set(op->ptr, "thickness", amounts[0]);
-    RNA_float_set(op->ptr, "depth", amounts[1]);
+    RNA_float_set(op.ptr, "thickness", amounts[0]);
+    RNA_float_set(op.ptr, "depth", amounts[1]);
 
-    if (edbm_inset_calc(op)) {
-      edbm_inset_update_header(op, C);
+    if (edbm_inset_calc(&op)) {
+      edbm_inset_update_header(&op, &C);
       return OPERATOR_RUNNING_MODAL;
     }
     edbm_inset_cancel(C, op);
     return OPERATOR_CANCELLED;
   }
   if ((event->type == opdata->launch_event) && (event->val == KM_RELEASE) &&
-      RNA_boolean_get(op->ptr, "release_confirm"))
+      RNA_boolean_get(op.ptr, "release_confirm"))
   {
-    edbm_inset_calc(op);
-    edbm_inset_exit(C, op);
+    edbm_inset_calc(&op);
+    edbm_inset_exit(&C, &op);
     return OPERATOR_FINISHED;
   }
 
@@ -427,15 +427,15 @@ static wmOperatorStatus edbm_inset_modal(bContext *C, wmOperator *op, const wmEv
         }
 
         if (opdata->modify_depth) {
-          RNA_float_set(op->ptr, "depth", amount);
+          RNA_float_set(op.ptr, "depth", amount);
         }
         else {
           amount = max_ff(amount, 0.0f);
-          RNA_float_set(op->ptr, "thickness", amount);
+          RNA_float_set(op.ptr, "thickness", amount);
         }
 
-        if (edbm_inset_calc(op)) {
-          edbm_inset_update_header(op, C);
+        if (edbm_inset_calc(&op)) {
+          edbm_inset_update_header(&op, &C);
         }
         else {
           edbm_inset_cancel(C, op);
@@ -449,10 +449,10 @@ static wmOperatorStatus edbm_inset_modal(bContext *C, wmOperator *op, const wmEv
     case EVT_PADENTER:
     case EVT_RETKEY:
       if ((event->val == KM_PRESS) ||
-          ((event->val == KM_RELEASE) && RNA_boolean_get(op->ptr, "release_confirm")))
+          ((event->val == KM_RELEASE) && RNA_boolean_get(op.ptr, "release_confirm")))
       {
-        edbm_inset_calc(op);
-        edbm_inset_exit(C, op);
+        edbm_inset_calc(&op);
+        edbm_inset_exit(&C, &op);
         return OPERATOR_FINISHED;
       }
       break;
@@ -460,10 +460,10 @@ static wmOperatorStatus edbm_inset_modal(bContext *C, wmOperator *op, const wmEv
     case EVT_RIGHTSHIFTKEY:
       if (event->val == KM_PRESS) {
         if (opdata->modify_depth) {
-          opdata->shift_amount = RNA_float_get(op->ptr, "depth");
+          opdata->shift_amount = RNA_float_get(op.ptr, "depth");
         }
         else {
-          opdata->shift_amount = RNA_float_get(op->ptr, "thickness");
+          opdata->shift_amount = RNA_float_get(op.ptr, "thickness");
         }
         opdata->shift = true;
         handled = true;
@@ -483,14 +483,14 @@ static wmOperatorStatus edbm_inset_modal(bContext *C, wmOperator *op, const wmEv
       mlen[1] = opdata->mcenter[1] - event->mval[1];
 
       if (event->val == KM_PRESS) {
-        opdata->old_thickness = RNA_float_get(op->ptr, "thickness");
+        opdata->old_thickness = RNA_float_get(op.ptr, "thickness");
         if (opdata->shift) {
           opdata->shift_amount = opdata->old_thickness;
         }
         opdata->modify_depth = true;
       }
       else {
-        opdata->old_depth = RNA_float_get(op->ptr, "depth");
+        opdata->old_depth = RNA_float_get(op.ptr, "depth");
         if (opdata->shift) {
           opdata->shift_amount = opdata->old_depth;
         }
@@ -498,17 +498,17 @@ static wmOperatorStatus edbm_inset_modal(bContext *C, wmOperator *op, const wmEv
       }
       opdata->initial_length = len_v2(mlen);
 
-      edbm_inset_update_header(op, C);
+      edbm_inset_update_header(&op, &C);
       handled = true;
       break;
     }
 
     case EVT_OKEY:
       if (event->val == KM_PRESS) {
-        const bool use_outset = RNA_boolean_get(op->ptr, "use_outset");
-        RNA_boolean_set(op->ptr, "use_outset", !use_outset);
-        if (edbm_inset_calc(op)) {
-          edbm_inset_update_header(op, C);
+        const bool use_outset = RNA_boolean_get(op.ptr, "use_outset");
+        RNA_boolean_set(op.ptr, "use_outset", !use_outset);
+        if (edbm_inset_calc(&op)) {
+          edbm_inset_update_header(&op, &C);
         }
         else {
           edbm_inset_cancel(C, op);
@@ -519,10 +519,10 @@ static wmOperatorStatus edbm_inset_modal(bContext *C, wmOperator *op, const wmEv
       break;
     case EVT_BKEY:
       if (event->val == KM_PRESS) {
-        const bool use_boundary = RNA_boolean_get(op->ptr, "use_boundary");
-        RNA_boolean_set(op->ptr, "use_boundary", !use_boundary);
-        if (edbm_inset_calc(op)) {
-          edbm_inset_update_header(op, C);
+        const bool use_boundary = RNA_boolean_get(op.ptr, "use_boundary");
+        RNA_boolean_set(op.ptr, "use_boundary", !use_boundary);
+        if (edbm_inset_calc(&op)) {
+          edbm_inset_update_header(&op, &C);
         }
         else {
           edbm_inset_cancel(C, op);
@@ -533,10 +533,10 @@ static wmOperatorStatus edbm_inset_modal(bContext *C, wmOperator *op, const wmEv
       break;
     case EVT_IKEY:
       if (event->val == KM_PRESS) {
-        const bool use_individual = RNA_boolean_get(op->ptr, "use_individual");
-        RNA_boolean_set(op->ptr, "use_individual", !use_individual);
-        if (edbm_inset_calc(op)) {
-          edbm_inset_update_header(op, C);
+        const bool use_individual = RNA_boolean_get(op.ptr, "use_individual");
+        RNA_boolean_set(op.ptr, "use_individual", !use_individual);
+        if (edbm_inset_calc(&op)) {
+          edbm_inset_update_header(&op, &C);
         }
         else {
           edbm_inset_cancel(C, op);
@@ -551,15 +551,15 @@ static wmOperatorStatus edbm_inset_modal(bContext *C, wmOperator *op, const wmEv
   }
 
   /* Modal numinput inactive, try to handle numeric inputs last... */
-  if (!handled && event->val == KM_PRESS && handleNumInput(C, &opdata->num_input, event)) {
-    float amounts[2] = {RNA_float_get(op->ptr, "thickness"), RNA_float_get(op->ptr, "depth")};
+  if (!handled && event->val == KM_PRESS && handleNumInput(&C, &opdata->num_input, event)) {
+    float amounts[2] = {RNA_float_get(op.ptr, "thickness"), RNA_float_get(op.ptr, "depth")};
     applyNumInput(&opdata->num_input, amounts);
     amounts[0] = max_ff(amounts[0], 0.0f);
-    RNA_float_set(op->ptr, "thickness", amounts[0]);
-    RNA_float_set(op->ptr, "depth", amounts[1]);
+    RNA_float_set(op.ptr, "thickness", amounts[0]);
+    RNA_float_set(op.ptr, "depth", amounts[1]);
 
-    if (edbm_inset_calc(op)) {
-      edbm_inset_update_header(op, C);
+    if (edbm_inset_calc(&op)) {
+      edbm_inset_update_header(&op, &C);
       return OPERATOR_RUNNING_MODAL;
     }
     edbm_inset_cancel(C, op);

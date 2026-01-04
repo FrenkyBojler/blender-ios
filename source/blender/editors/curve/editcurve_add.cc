@@ -574,9 +574,9 @@ static wmOperatorStatus surf_prim_add(bContext *C, wmOperator *op, int type)
 
 /* ******************** Curves ******************* */
 
-static wmOperatorStatus add_primitive_bezier_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_bezier_exec(bContext &C, wmOperator &op)
 {
-  return curve_prim_add(C, op, CU_BEZIER | CU_PRIM_CURVE);
+  return curve_prim_add(&C, &op, CU_BEZIER | CU_PRIM_CURVE);
 }
 
 void CURVE_OT_primitive_bezier_curve_add(wmOperatorType *ot)
@@ -597,9 +597,9 @@ void CURVE_OT_primitive_bezier_curve_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_bezier_circle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_bezier_circle_exec(bContext &C, wmOperator &op)
 {
-  return curve_prim_add(C, op, CU_BEZIER | CU_PRIM_CIRCLE);
+  return curve_prim_add(&C, &op, CU_BEZIER | CU_PRIM_CIRCLE);
 }
 
 void CURVE_OT_primitive_bezier_circle_add(wmOperatorType *ot)
@@ -620,9 +620,9 @@ void CURVE_OT_primitive_bezier_circle_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_nurbs_curve_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_curve_exec(bContext &C, wmOperator &op)
 {
-  return curve_prim_add(C, op, CU_NURBS | CU_PRIM_CURVE);
+  return curve_prim_add(&C, &op, CU_NURBS | CU_PRIM_CURVE);
 }
 
 void CURVE_OT_primitive_nurbs_curve_add(wmOperatorType *ot)
@@ -643,9 +643,9 @@ void CURVE_OT_primitive_nurbs_curve_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_nurbs_circle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_circle_exec(bContext &C, wmOperator &op)
 {
-  return curve_prim_add(C, op, CU_NURBS | CU_PRIM_CIRCLE);
+  return curve_prim_add(&C, &op, CU_NURBS | CU_PRIM_CIRCLE);
 }
 
 void CURVE_OT_primitive_nurbs_circle_add(wmOperatorType *ot)
@@ -666,9 +666,9 @@ void CURVE_OT_primitive_nurbs_circle_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_curve_path_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_curve_path_exec(bContext &C, wmOperator &op)
 {
-  return curve_prim_add(C, op, CU_NURBS | CU_PRIM_PATH);
+  return curve_prim_add(&C, &op, CU_NURBS | CU_PRIM_PATH);
 }
 
 void CURVE_OT_primitive_nurbs_path_add(wmOperatorType *ot)
@@ -690,9 +690,9 @@ void CURVE_OT_primitive_nurbs_path_add(wmOperatorType *ot)
 }
 
 /* **************** NURBS surfaces ********************** */
-static wmOperatorStatus add_primitive_nurbs_surface_curve_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_surface_curve_exec(bContext &C, wmOperator &op)
 {
-  return surf_prim_add(C, op, CU_PRIM_CURVE | CU_NURBS);
+  return surf_prim_add(&C, &op, CU_PRIM_CURVE | CU_NURBS);
 }
 
 void SURFACE_OT_primitive_nurbs_surface_curve_add(wmOperatorType *ot)
@@ -713,9 +713,9 @@ void SURFACE_OT_primitive_nurbs_surface_curve_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_nurbs_surface_circle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_surface_circle_exec(bContext &C, wmOperator &op)
 {
-  return surf_prim_add(C, op, CU_PRIM_CIRCLE | CU_NURBS);
+  return surf_prim_add(&C, &op, CU_PRIM_CIRCLE | CU_NURBS);
 }
 
 void SURFACE_OT_primitive_nurbs_surface_circle_add(wmOperatorType *ot)
@@ -736,9 +736,9 @@ void SURFACE_OT_primitive_nurbs_surface_circle_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_nurbs_surface_surface_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_surface_surface_exec(bContext &C, wmOperator &op)
 {
-  return surf_prim_add(C, op, CU_PRIM_PATCH | CU_NURBS);
+  return surf_prim_add(&C, &op, CU_PRIM_PATCH | CU_NURBS);
 }
 
 void SURFACE_OT_primitive_nurbs_surface_surface_add(wmOperatorType *ot)
@@ -759,9 +759,9 @@ void SURFACE_OT_primitive_nurbs_surface_surface_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_nurbs_surface_cylinder_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_surface_cylinder_exec(bContext &C, wmOperator &op)
 {
-  return surf_prim_add(C, op, CU_PRIM_TUBE | CU_NURBS);
+  return surf_prim_add(&C, &op, CU_PRIM_TUBE | CU_NURBS);
 }
 
 void SURFACE_OT_primitive_nurbs_surface_cylinder_add(wmOperatorType *ot)
@@ -782,9 +782,9 @@ void SURFACE_OT_primitive_nurbs_surface_cylinder_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_nurbs_surface_sphere_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_surface_sphere_exec(bContext &C, wmOperator &op)
 {
-  return surf_prim_add(C, op, CU_PRIM_SPHERE | CU_NURBS);
+  return surf_prim_add(&C, &op, CU_PRIM_SPHERE | CU_NURBS);
 }
 
 void SURFACE_OT_primitive_nurbs_surface_sphere_add(wmOperatorType *ot)
@@ -805,9 +805,9 @@ void SURFACE_OT_primitive_nurbs_surface_sphere_add(wmOperatorType *ot)
   blender::ed::object::add_generic_props(ot, true);
 }
 
-static wmOperatorStatus add_primitive_nurbs_surface_torus_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_primitive_nurbs_surface_torus_exec(bContext &C, wmOperator &op)
 {
-  return surf_prim_add(C, op, CU_PRIM_DONUT | CU_NURBS);
+  return surf_prim_add(&C, &op, CU_PRIM_DONUT | CU_NURBS);
 }
 
 void SURFACE_OT_primitive_nurbs_surface_torus_add(wmOperatorType *ot)

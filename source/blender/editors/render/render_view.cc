@@ -284,10 +284,10 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
 /** \name Cancel Render Viewer Operator
  * \{ */
 
-static wmOperatorStatus render_view_cancel_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus render_view_cancel_exec(bContext &C, wmOperator & /*op*/)
 {
-  wmWindow *win = CTX_wm_window(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *area = CTX_wm_area(C);
   SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
 
   /* ensure image editor full-screen and area full-screen states are in sync */
@@ -301,21 +301,21 @@ static wmOperatorStatus render_view_cancel_exec(bContext *C, wmOperator * /*op*/
 
     if (sima->flag & SI_FULLWINDOW) {
       sima->flag &= ~SI_FULLWINDOW;
-      ED_screen_full_prevspace(C, area);
+      ED_screen_full_prevspace(&C, area);
     }
     else {
-      ED_area_prevspace(C, area);
+      ED_area_prevspace(&C, area);
     }
 
     return OPERATOR_FINISHED;
   }
   if (sima->flag & SI_FULLWINDOW) {
     sima->flag &= ~SI_FULLWINDOW;
-    ED_screen_state_toggle(C, win, area, SCREENMAXIMIZED);
+    ED_screen_state_toggle(&C, win, area, SCREENMAXIMIZED);
     return OPERATOR_FINISHED;
   }
   if (WM_window_is_temp_screen(win)) {
-    wm_window_close(C, CTX_wm_manager(*C), win);
+    wm_window_close(&C, CTX_wm_manager(C), win);
     return OPERATOR_FINISHED;
   }
 
@@ -340,9 +340,9 @@ void RENDER_OT_view_cancel(wmOperatorType *ot)
 /** \name Show Render Viewer Operator
  * \{ */
 
-static wmOperatorStatus render_view_show_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus render_view_show_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  wmWindow *wincur = CTX_wm_window(*C);
+  wmWindow *wincur = CTX_wm_window(C);
 
   /* test if we have currently a temp screen active */
   if (WM_window_is_temp_screen(wincur)) {
@@ -350,10 +350,10 @@ static wmOperatorStatus render_view_show_invoke(bContext *C, wmOperator *op, con
   }
   else {
     wmWindow *win_show = nullptr;
-    ScrArea *area = find_area_showing_render_result(C, CTX_data_scene(*C), &win_show);
+    ScrArea *area = find_area_showing_render_result(&C, CTX_data_scene(C), &win_show);
 
     /* is there another window on current scene showing result? */
-    for (wmWindow &win : CTX_wm_manager(*C)->windows) {
+    for (wmWindow &win : CTX_wm_manager(C)->windows) {
       const bScreen *screen = WM_window_get_active_screen(&win);
 
       if ((WM_window_is_temp_screen(&win) &&
@@ -376,16 +376,16 @@ static wmOperatorStatus render_view_show_invoke(bContext *C, wmOperator *op, con
 
           if (sima->flag & SI_FULLWINDOW) {
             sima->flag &= ~SI_FULLWINDOW;
-            ED_screen_full_prevspace(C, area);
+            ED_screen_full_prevspace(&C, area);
           }
           else {
-            ED_area_prevspace(C, area);
+            ED_area_prevspace(&C, area);
           }
         }
       }
     }
     else {
-      render_view_open(C, event->xy[0], event->xy[1], op->reports);
+      render_view_open(&C, event->xy[0], event->xy[1], op.reports);
     }
   }
 

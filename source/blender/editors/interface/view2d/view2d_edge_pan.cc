@@ -30,9 +30,9 @@ namespace blender::ui {
 /** \name Edge Pan Operator Utilities
  * \{ */
 
-bool view2d_edge_pan_poll(bContext *C)
+bool view2d_edge_pan_poll(bContext &C)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
   /* Check if there's a region in context to work with. */
   if (region == nullptr) {
@@ -59,7 +59,7 @@ void view2d_edge_pan_init(bContext *C,
                           float delay,
                           float zoom_influence)
 {
-  if (!view2d_edge_pan_poll(C)) {
+  if (!view2d_edge_pan_poll(*C)) {
     return;
   }
 

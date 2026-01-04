@@ -29,12 +29,12 @@
 
 namespace blender::ed::mesh {
 
-static wmOperatorStatus set_sharpness_by_angle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_sharpness_by_angle_exec(bContext &C, wmOperator &op)
 {
-  const float angle_limit_cos = std::cos(RNA_float_get(op->ptr, "angle"));
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const float angle_limit_cos = std::cos(RNA_float_get(op.ptr, "angle"));
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      CTX_data_scene(*C), CTX_data_view_layer(*C), CTX_wm_view3d(*C));
+      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C));
 
   for (Object *object : objects) {
     Mesh &mesh = *static_cast<Mesh *>(object->data);
@@ -64,7 +64,7 @@ static wmOperatorStatus set_sharpness_by_angle_exec(bContext *C, wmOperator *op)
     if (changed) {
       BKE_editmesh_lnorspace_update(em);
       DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, &mesh.id);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &mesh.id);
     }
   }
 

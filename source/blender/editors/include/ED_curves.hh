@@ -241,11 +241,11 @@ void transverts_update_curves(bke::CurvesGeometry &curves,
 /** \name Poll Functions
  * \{ */
 
-bool editable_curves_with_surface_poll(bContext *C);
-bool editable_curves_in_edit_mode_poll(bContext *C);
-bool curves_with_surface_poll(bContext *C);
-bool editable_curves_poll(bContext *C);
-bool curves_poll(bContext *C);
+bool editable_curves_with_surface_poll(bContext &C);
+bool editable_curves_in_edit_mode_poll(bContext &C);
+bool curves_with_surface_poll(bContext &C);
+bool editable_curves_poll(bContext &C);
+bool curves_poll(bContext &C);
 
 /** \} */
 

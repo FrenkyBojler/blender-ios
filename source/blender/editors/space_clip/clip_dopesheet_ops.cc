@@ -26,13 +26,13 @@
 
 #include "clip_intern.hh" /* own include */
 
-static bool space_clip_dopesheet_poll(bContext *C)
+static bool space_clip_dopesheet_poll(bContext &C)
 {
   if (ED_space_clip_tracking_poll(C)) {
-    SpaceClip *sc = CTX_wm_space_clip(*C);
+    SpaceClip *sc = CTX_wm_space_clip(C);
 
     if (sc->view == SC_VIEW_DOPESHEET) {
-      ARegion *region = CTX_wm_region(*C);
+      ARegion *region = CTX_wm_region(C);
 
       return region->regiontype == RGN_TYPE_PREVIEW;
     }
@@ -43,9 +43,9 @@ static bool space_clip_dopesheet_poll(bContext *C)
 
 /********************** select channel operator *********************/
 
-static bool dopesheet_select_channel_poll(bContext *C)
+static bool dopesheet_select_channel_poll(bContext &C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
 
   if (sc && sc->clip) {
     return sc->view == SC_VIEW_DOPESHEET;
@@ -54,19 +54,19 @@ static bool dopesheet_select_channel_poll(bContext *C)
   return false;
 }
 
-static wmOperatorStatus dopesheet_select_channel_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus dopesheet_select_channel_exec(bContext &C, wmOperator &op)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
   MovieTrackingDopesheet *dopesheet = &tracking->dopesheet;
   float location[2];
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
   int current_channel_index = 0, channel_index;
   const bool show_selected_only = (dopesheet->flag & TRACKING_DOPE_SELECTED_ONLY) != 0;
 
-  RNA_float_get_array(op->ptr, "location", location);
+  RNA_float_get_array(op.ptr, "location", location);
   channel_index = -(location[1] - (CHANNEL_FIRST + CHANNEL_HEIGHT_HALF)) / CHANNEL_STEP;
 
   for (MovieTrackingDopesheetChannel &channel : dopesheet->channels) {
@@ -95,21 +95,21 @@ static wmOperatorStatus dopesheet_select_channel_exec(bContext *C, wmOperator *o
     current_channel_index++;
   }
 
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
+  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus dopesheet_select_channel_invoke(bContext *C,
-                                                        wmOperator *op,
+static wmOperatorStatus dopesheet_select_channel_invoke(bContext &C,
+                                                        wmOperator &op,
                                                         const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   float location[2];
 
   blender::ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
-  RNA_float_set_array(op->ptr, "location", location);
+  RNA_float_set_array(op.ptr, "location", location);
 
   return dopesheet_select_channel_exec(C, op);
 }
@@ -149,10 +149,10 @@ void CLIP_OT_dopesheet_select_channel(wmOperatorType *ot)
 
 /********************** View All operator *********************/
 
-static wmOperatorStatus dopesheet_view_all_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus dopesheet_view_all_exec(bContext &C, wmOperator & /*op*/)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
+  ARegion *region = CTX_wm_region(C);
   View2D *v2d = &region->v2d;
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;

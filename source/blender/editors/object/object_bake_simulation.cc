@@ -52,7 +52,7 @@ namespace bake = blender::bke::bake;
 
 namespace blender::ed::object::bake_simulation {
 
-static bool simulate_to_frame_poll(bContext *C)
+static bool simulate_to_frame_poll(bContext &C)
 {
   if (!ED_operator_object_active(C)) {
     return false;
@@ -138,14 +138,14 @@ static void simulate_to_frame_endjob(void *customdata)
   WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, nullptr);
 }
 
-static wmOperatorStatus simulate_to_frame_invoke(bContext *C,
-                                                 wmOperator *op,
+static wmOperatorStatus simulate_to_frame_invoke(bContext &C,
+                                                 wmOperator &op,
                                                  const wmEvent * /*event*/)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
-  Main *bmain = CTX_data_main(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Main *bmain = CTX_data_main(C);
 
   SimulateToFrameJob *job = MEM_new<SimulateToFrameJob>(__func__);
   job->wm = wm;
@@ -155,21 +155,21 @@ static wmOperatorStatus simulate_to_frame_invoke(bContext *C,
   job->start_frame = scene->r.sfra;
   job->end_frame = scene->r.cfra;
 
-  if (RNA_boolean_get(op->ptr, "selected")) {
-    CTX_DATA_BEGIN (*C, Object *, object, selected_objects) {
+  if (RNA_boolean_get(op.ptr, "selected")) {
+    CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
       job->objects.append(object);
     }
     CTX_DATA_END;
   }
   else {
-    if (Object *object = CTX_data_active_object(*C)) {
+    if (Object *object = CTX_data_active_object(C)) {
       job->objects.append(object);
     }
   }
 
   wmJob *wm_job = WM_jobs_get(wm,
-                              CTX_wm_window(*C),
-                              CTX_data_scene(*C),
+                              CTX_wm_window(C),
+                              CTX_data_scene(C),
                               "Calculating simulation...",
                               WM_JOB_PROGRESS,
                               WM_JOB_TYPE_CALCULATE_SIMULATION_NODES);
@@ -180,32 +180,31 @@ static wmOperatorStatus simulate_to_frame_invoke(bContext *C,
   WM_jobs_callbacks(
       wm_job, simulate_to_frame_startjob, nullptr, nullptr, simulate_to_frame_endjob);
 
-  WM_jobs_start(CTX_wm_manager(*C), wm_job);
-  WM_event_add_modal_handler(C, op);
+  WM_jobs_start(CTX_wm_manager(C), wm_job);
+  WM_event_add_modal_handler(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus simulate_to_frame_modal(bContext *C,
-                                                wmOperator * /*op*/,
+static wmOperatorStatus simulate_to_frame_modal(bContext &C,
+                                                wmOperator & /*op*/,
                                                 const wmEvent * /*event*/)
 {
-  if (!WM_jobs_test(
-          CTX_wm_manager(*C), CTX_data_scene(*C), WM_JOB_TYPE_CALCULATE_SIMULATION_NODES))
+  if (!WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_CALCULATE_SIMULATION_NODES))
   {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
   return OPERATOR_PASS_THROUGH;
 }
 
-static bool bake_simulation_poll(bContext *C)
+static bool bake_simulation_poll(bContext &C)
 {
   if (!ED_operator_object_active(C)) {
     return false;
   }
-  Object *ob = context_active_object(C);
+  Object *ob = context_active_object(&C);
   const bool use_frame_cache = ob->flag & OB_FLAG_USE_SIMULATION_CACHE;
   if (!use_frame_cache) {
-    CTX_wm_operator_poll_msg_set(C, "Cache has to be enabled");
+    CTX_wm_operator_poll_msg_set(&C, "Cache has to be enabled");
     return false;
   }
   return true;
@@ -687,10 +686,10 @@ static Vector<NodeBakeRequest> bake_simulation_gather_requests(bContext *C, wmOp
   return collect_simulations_to_bake(*bmain, *scene, objects);
 }
 
-static wmOperatorStatus bake_simulation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bake_simulation_exec(bContext &C, wmOperator &op)
 {
-  Vector<NodeBakeRequest> requests = bake_simulation_gather_requests(C, op);
-  return start_bake_job(C, std::move(requests), op, BakeRequestsMode::Sync);
+  Vector<NodeBakeRequest> requests = bake_simulation_gather_requests(&C, &op);
+  return start_bake_job(&C, std::move(requests), &op, BakeRequestsMode::Sync);
 }
 
 struct PathStringHash {
@@ -827,33 +826,33 @@ static PathUsersMap bake_simulation_get_path_users(bContext *C, const Span<Objec
   return path_users;
 }
 
-static wmOperatorStatus bake_simulation_invoke(bContext *C,
-                                               wmOperator *op,
+static wmOperatorStatus bake_simulation_invoke(bContext &C,
+                                               wmOperator &op,
                                                const wmEvent * /*event*/)
 {
   Vector<Object *> objects;
-  if (RNA_boolean_get(op->ptr, "selected")) {
-    CTX_DATA_BEGIN (*C, Object *, object, selected_objects) {
+  if (RNA_boolean_get(op.ptr, "selected")) {
+    CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
       objects.append(object);
     }
     CTX_DATA_END;
   }
   else {
-    if (Object *object = CTX_data_active_object(*C)) {
+    if (Object *object = CTX_data_active_object(C)) {
       objects.append(object);
     }
   }
 
   /* Set empty paths to default if necessary. */
-  bake_simulation_validate_paths(C, op, objects);
+  bake_simulation_validate_paths(&C, &op, objects);
 
-  PathUsersMap path_users = bake_simulation_get_path_users(C, objects);
+  PathUsersMap path_users = bake_simulation_get_path_users(&C, objects);
   bool has_path_conflict = false;
   bool has_existing_bake_data = false;
   for (const auto &item : path_users.items()) {
     /* Check if multiple caches are writing to the same bake directory. */
     if (item.value > 1) {
-      BKE_reportf(op->reports,
+      BKE_reportf(op.reports,
                   RPT_ERROR,
                   "Path conflict: %d caches set to path %s",
                   item.value,
@@ -868,45 +867,45 @@ static wmOperatorStatus bake_simulation_invoke(bContext *C,
   }
 
   if (has_path_conflict) {
-    ui::popup_menu_reports(C, op->reports);
+    ui::popup_menu_reports(&C, op.reports);
     return OPERATOR_CANCELLED;
   }
   if (has_existing_bake_data) {
-    return WM_operator_confirm_ex(C,
-                                  op,
+    return WM_operator_confirm_ex(&C,
+                                  &op,
                                   IFACE_("Overwrite existing bake data?"),
                                   nullptr,
                                   IFACE_("Bake"),
                                   ui::AlertIcon::None,
                                   false);
   }
-  Vector<NodeBakeRequest> requests = bake_simulation_gather_requests(C, op);
-  return start_bake_job(C, std::move(requests), op, BakeRequestsMode::Async);
+  Vector<NodeBakeRequest> requests = bake_simulation_gather_requests(&C, &op);
+  return start_bake_job(&C, std::move(requests), &op, BakeRequestsMode::Async);
 }
 
-static wmOperatorStatus bake_simulation_modal(bContext *C,
-                                              wmOperator * /*op*/,
+static wmOperatorStatus bake_simulation_modal(bContext &C,
+                                              wmOperator & /*op*/,
                                               const wmEvent * /*event*/)
 {
-  if (!WM_jobs_test(CTX_wm_manager(*C), CTX_data_scene(*C), WM_JOB_TYPE_BAKE_GEOMETRY_NODES)) {
+  if (!WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_BAKE_GEOMETRY_NODES)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
   return OPERATOR_PASS_THROUGH;
 }
 
-static wmOperatorStatus delete_baked_simulation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus delete_baked_simulation_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   Vector<Object *> objects;
-  if (RNA_boolean_get(op->ptr, "selected")) {
-    CTX_DATA_BEGIN (*C, Object *, object, selected_objects) {
+  if (RNA_boolean_get(op.ptr, "selected")) {
+    CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
       objects.append(object);
     }
     CTX_DATA_END;
   }
   else {
-    if (Object *object = CTX_data_active_object(*C)) {
+    if (Object *object = CTX_data_active_object(C)) {
       objects.append(object);
     }
   }
@@ -920,7 +919,7 @@ static wmOperatorStatus delete_baked_simulation_exec(bContext *C, wmOperator *op
       if (md.type == eModifierType_Nodes) {
         NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
         for (const NodesModifierBake &bake : Span(nmd->bakes, nmd->bakes_num)) {
-          try_delete_bake(bmain, *object, *nmd, bake.id, op->reports);
+          try_delete_bake(bmain, *object, *nmd, bake.id, op.reports);
         }
       }
     }
@@ -928,7 +927,7 @@ static wmOperatorStatus delete_baked_simulation_exec(bContext *C, wmOperator *op
     DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
   }
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1013,53 +1012,53 @@ static Vector<NodeBakeRequest> bake_single_node_gather_bake_request(bContext *C,
   return requests;
 }
 
-static wmOperatorStatus bake_single_node_invoke(bContext *C,
-                                                wmOperator *op,
+static wmOperatorStatus bake_single_node_invoke(bContext &C,
+                                                wmOperator &op,
                                                 const wmEvent * /*event*/)
 {
-  Vector<NodeBakeRequest> requests = bake_single_node_gather_bake_request(C, op);
+  Vector<NodeBakeRequest> requests = bake_single_node_gather_bake_request(&C, &op);
   if (requests.is_empty()) {
     return OPERATOR_CANCELLED;
   }
-  return start_bake_job(C, std::move(requests), op, BakeRequestsMode::Async);
+  return start_bake_job(&C, std::move(requests), &op, BakeRequestsMode::Async);
 }
 
-static wmOperatorStatus bake_single_node_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus bake_single_node_exec(bContext &C, wmOperator &op)
 {
-  Vector<NodeBakeRequest> requests = bake_single_node_gather_bake_request(C, op);
+  Vector<NodeBakeRequest> requests = bake_single_node_gather_bake_request(&C, &op);
   if (requests.is_empty()) {
     return OPERATOR_CANCELLED;
   }
-  return start_bake_job(C, std::move(requests), op, BakeRequestsMode::Sync);
+  return start_bake_job(&C, std::move(requests), &op, BakeRequestsMode::Sync);
 }
 
-static wmOperatorStatus bake_single_node_modal(bContext *C,
-                                               wmOperator * /*op*/,
+static wmOperatorStatus bake_single_node_modal(bContext &C,
+                                               wmOperator & /*op*/,
                                                const wmEvent * /*event*/)
 {
-  if (!WM_jobs_test(CTX_wm_manager(*C), CTX_data_scene(*C), WM_JOB_TYPE_BAKE_GEOMETRY_NODES)) {
+  if (!WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_BAKE_GEOMETRY_NODES)) {
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
   return OPERATOR_PASS_THROUGH;
 }
 
-static wmOperatorStatus delete_single_bake_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus delete_single_bake_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   Object *object = reinterpret_cast<Object *>(
-      WM_operator_properties_id_lookup_from_name_or_session_uid(bmain, op->ptr, ID_OB));
+      WM_operator_properties_id_lookup_from_name_or_session_uid(bmain, op.ptr, ID_OB));
   if (object == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  std::string modifier_name = RNA_string_get(op->ptr, "modifier_name");
+  std::string modifier_name = RNA_string_get(op.ptr, "modifier_name");
   ModifierData *md = BKE_modifiers_findby_name(object, modifier_name.c_str());
   if (md == nullptr) {
     return OPERATOR_CANCELLED;
   }
   NodesModifierData &nmd = *reinterpret_cast<NodesModifierData *>(md);
-  const int bake_id = RNA_int_get(op->ptr, "bake_id");
+  const int bake_id = RNA_int_get(op.ptr, "bake_id");
 
-  try_delete_bake(bmain, *object, nmd, bake_id, op->reports);
+  try_delete_bake(bmain, *object, nmd, bake_id, op.reports);
 
   DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, nullptr);
@@ -1067,21 +1066,21 @@ static wmOperatorStatus delete_single_bake_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus pack_single_bake_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pack_single_bake_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   Object *object = reinterpret_cast<Object *>(
-      WM_operator_properties_id_lookup_from_name_or_session_uid(bmain, op->ptr, ID_OB));
+      WM_operator_properties_id_lookup_from_name_or_session_uid(bmain, op.ptr, ID_OB));
   if (object == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  std::string modifier_name = RNA_string_get(op->ptr, "modifier_name");
+  std::string modifier_name = RNA_string_get(op.ptr, "modifier_name");
   ModifierData *md = BKE_modifiers_findby_name(object, modifier_name.c_str());
   if (md == nullptr) {
     return OPERATOR_CANCELLED;
   }
   NodesModifierData &nmd = *reinterpret_cast<NodesModifierData *>(md);
-  const int bake_id = RNA_int_get(op->ptr, "bake_id");
+  const int bake_id = RNA_int_get(op.ptr, "bake_id");
 
   const std::optional<bake::BakePath> bake_path = bake::get_node_bake_path(
       *bmain, *object, nmd, bake_id);
@@ -1093,56 +1092,56 @@ static wmOperatorStatus pack_single_bake_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bake::pack_geometry_nodes_bake(*bmain, op->reports, *object, nmd, *bake);
+  bake::pack_geometry_nodes_bake(*bmain, op.reports, *object, nmd, *bake);
 
   WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, nullptr);
   WM_main_add_notifier(NC_NODE, nullptr);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus unpack_single_bake_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus unpack_single_bake_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent * /*event*/)
 {
-  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Unpack"), ICON_NONE);
+  ui::PopupMenu *pup = ui::popup_menu_begin(&C, IFACE_("Unpack"), ICON_NONE);
   ui::Layout &layout = *popup_menu_layout(pup);
 
   layout.operator_context_set(wm::OpCallContext::ExecDefault);
-  layout.op_enum(op->type->idname,
+  layout.op_enum(op.type->idname,
                  "method",
-                 static_cast<IDProperty *>(op->ptr->data),
+                 static_cast<IDProperty *>(op.ptr->data),
                  wm::OpCallContext::ExecRegionWin,
                  UI_ITEM_NONE);
 
-  popup_menu_end(C, pup);
+  popup_menu_end(&C, pup);
 
   return OPERATOR_INTERFACE;
 }
 
-static wmOperatorStatus unpack_single_bake_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus unpack_single_bake_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   Object *object = reinterpret_cast<Object *>(
-      WM_operator_properties_id_lookup_from_name_or_session_uid(bmain, op->ptr, ID_OB));
+      WM_operator_properties_id_lookup_from_name_or_session_uid(bmain, op.ptr, ID_OB));
   if (object == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  std::string modifier_name = RNA_string_get(op->ptr, "modifier_name");
+  std::string modifier_name = RNA_string_get(op.ptr, "modifier_name");
   ModifierData *md = BKE_modifiers_findby_name(object, modifier_name.c_str());
   if (md == nullptr) {
     return OPERATOR_CANCELLED;
   }
   NodesModifierData &nmd = *reinterpret_cast<NodesModifierData *>(md);
-  const int bake_id = RNA_int_get(op->ptr, "bake_id");
+  const int bake_id = RNA_int_get(op.ptr, "bake_id");
   NodesModifierBake *bake = nmd.find_bake(bake_id);
   if (!bake) {
     return OPERATOR_CANCELLED;
   }
 
-  const ePF_FileStatus method = ePF_FileStatus(RNA_enum_get(op->ptr, "method"));
+  const ePF_FileStatus method = ePF_FileStatus(RNA_enum_get(op.ptr, "method"));
 
   bake::UnpackGeometryNodesBakeResult result = bake::unpack_geometry_nodes_bake(
-      *bmain, op->reports, *object, nmd, *bake, method);
+      *bmain, op.reports, *object, nmd, *bake, method);
   if (result != bake::UnpackGeometryNodesBakeResult::Success) {
     return OPERATOR_CANCELLED;
   }

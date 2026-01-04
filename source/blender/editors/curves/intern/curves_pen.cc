@@ -1402,28 +1402,28 @@ static void curves_pen_exit(bContext *C, wmOperator *op)
 }
 
 /* Invoke handler: Initialize the operator. */
-static wmOperatorStatus curves_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curves_pen_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   /* Allocate new data. */
   CurvesPenToolOperation *ptd_pointer = MEM_new<CurvesPenToolOperation>(__func__);
-  op->customdata = ptd_pointer;
+  op.customdata = ptd_pointer;
   CurvesPenToolOperation &ptd = *ptd_pointer;
 
-  const wmOperatorStatus result = ptd.invoke(C, op, event);
+  const wmOperatorStatus result = ptd.invoke(&C, &op, event);
   if (result != OPERATOR_RUNNING_MODAL) {
-    curves_pen_exit(C, op);
+    curves_pen_exit(&C, &op);
   }
   return result;
 }
 
 /* Modal handler: Events handling during interactive part. */
-static wmOperatorStatus curves_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus curves_pen_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  CurvesPenToolOperation &ptd = *reinterpret_cast<CurvesPenToolOperation *>(op->customdata);
+  CurvesPenToolOperation &ptd = *reinterpret_cast<CurvesPenToolOperation *>(op.customdata);
 
-  const wmOperatorStatus result = ptd.modal(C, op, event);
+  const wmOperatorStatus result = ptd.modal(&C, &op, event);
   if (result != OPERATOR_RUNNING_MODAL) {
-    curves_pen_exit(C, op);
+    curves_pen_exit(&C, &op);
   }
   return result;
 }

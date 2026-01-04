@@ -588,19 +588,19 @@ static void eyedropper_color_sample_text_update(bContext *C,
   }
 }
 
-static void eyedropper_cancel(bContext *C, wmOperator *op)
+static void eyedropper_cancel(bContext &C, wmOperator &op)
 {
-  Eyedropper *eye = static_cast<Eyedropper *>(op->customdata);
+  Eyedropper *eye = static_cast<Eyedropper *>(op.customdata);
   if (eye->is_set) {
-    eyedropper_color_set(C, eye, eye->init_col);
+    eyedropper_color_set(&C, eye, eye->init_col);
   }
-  eyedropper_exit(C, op);
+  eyedropper_exit(&C, &op);
 }
 
 /* main modal status check */
-static wmOperatorStatus eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus eyedropper_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Eyedropper *eye = (Eyedropper *)op->customdata;
+  Eyedropper *eye = (Eyedropper *)op.customdata;
 
   /* handle modal keymap */
   if (event->type == EVT_MODAL_MAP) {
@@ -611,42 +611,42 @@ static wmOperatorStatus eyedropper_modal(bContext *C, wmOperator *op, const wmEv
       case EYE_MODAL_SAMPLE_CONFIRM: {
         const bool is_undo = eye->is_undo;
         if (eye->accum_tot == 0) {
-          eyedropper_color_sample(C, eye, event->xy);
+          eyedropper_color_sample(&C, eye, event->xy);
         }
-        eyedropper_exit(C, op);
+        eyedropper_exit(&C, &op);
         /* Could support finished & undo-skip. */
         return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
       }
       case EYE_MODAL_SAMPLE_BEGIN:
         /* enable accum and make first sample */
         eye->accum_start = true;
-        eyedropper_color_sample(C, eye, event->xy);
+        eyedropper_color_sample(&C, eye, event->xy);
         break;
       case EYE_MODAL_SAMPLE_RESET:
         eye->accum_tot = 0;
         zero_v3(eye->accum_col);
-        eyedropper_color_sample(C, eye, event->xy);
+        eyedropper_color_sample(&C, eye, event->xy);
         break;
     }
   }
   else if (ISMOUSE_MOTION(event->type)) {
     if (eye->accum_start) {
       /* button is pressed so keep sampling */
-      eyedropper_color_sample(C, eye, event->xy);
-      WorkspaceStatus status(C);
+      eyedropper_color_sample(&C, eye, event->xy);
+      WorkspaceStatus status(&C);
       status.item(TIP_("Drag to continue sampling, release when done"), ICON_MOUSE_MOVE);
     }
     else {
-      WorkspaceStatus status(C);
-      status.opmodal(IFACE_("Confirm"), op->type, EYE_MODAL_SAMPLE_CONFIRM);
-      status.opmodal(IFACE_("Cancel"), op->type, EYE_MODAL_CANCEL);
+      WorkspaceStatus status(&C);
+      status.opmodal(IFACE_("Confirm"), op.type, EYE_MODAL_SAMPLE_CONFIRM);
+      status.opmodal(IFACE_("Cancel"), op.type, EYE_MODAL_CANCEL);
 #ifdef __APPLE__
       status.item(TIP_("Press 'Enter' to sample outside of a Blender window"), ICON_INFO);
 #endif
     }
 
     if (eye->draw_handle_sample_text) {
-      eyedropper_color_sample_text_update(C, eye, event->xy);
+      eyedropper_color_sample_text_update(&C, eye, event->xy);
     }
   }
 
@@ -654,17 +654,17 @@ static wmOperatorStatus eyedropper_modal(bContext *C, wmOperator *op, const wmEv
 }
 
 /* Modal Operator init */
-static wmOperatorStatus eyedropper_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus eyedropper_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   /* init */
-  if (eyedropper_init(C, op)) {
-    wmWindow *win = CTX_wm_window(*C);
+  if (eyedropper_init(&C, &op)) {
+    wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    context_active_but_clear(C, win, CTX_wm_region(*C));
+    context_active_but_clear(&C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(&C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -672,26 +672,26 @@ static wmOperatorStatus eyedropper_invoke(bContext *C, wmOperator *op, const wmE
 }
 
 /* Repeat operator */
-static wmOperatorStatus eyedropper_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus eyedropper_exec(bContext &C, wmOperator &op)
 {
   /* init */
-  if (eyedropper_init(C, op)) {
+  if (eyedropper_init(&C, &op)) {
 
     /* do something */
 
     /* cleanup */
-    eyedropper_exit(C, op);
+    eyedropper_exit(&C, &op);
 
     return OPERATOR_FINISHED;
   }
   return OPERATOR_PASS_THROUGH;
 }
 
-static bool eyedropper_poll(bContext *C)
+static bool eyedropper_poll(bContext &C)
 {
   /* Actual test for active button happens later, since we don't
    * know which one is active until mouse over. */
-  return (CTX_wm_window(*C) != nullptr);
+  return (CTX_wm_window(C) != nullptr);
 }
 
 void UI_OT_eyedropper_color(wmOperatorType *ot)

@@ -134,7 +134,7 @@ PointCloud *copy_selection(const PointCloud &src, const IndexMask &mask);
 /** \name Poll Functions
  * \{ */
 
-bool editable_pointcloud_in_edit_mode_poll(bContext *C);
+bool editable_pointcloud_in_edit_mode_poll(bContext &C);
 
 /** \} */
 

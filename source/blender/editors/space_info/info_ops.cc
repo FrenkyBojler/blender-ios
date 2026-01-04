@@ -42,11 +42,11 @@
 /** \name Pack Blend File Libraries Operator
  * \{ */
 
-static wmOperatorStatus pack_libraries_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pack_libraries_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
-  BKE_packedfile_pack_all_libraries(bmain, op->reports);
+  BKE_packedfile_pack_all_libraries(bmain, op.reports);
 
   return OPERATOR_FINISHED;
 }
@@ -67,12 +67,12 @@ void FILE_OT_pack_libraries(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus unpack_libraries_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus unpack_libraries_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   WM_cursor_wait(true);
-  BKE_packedfile_unpack_all_libraries(bmain, op->reports);
+  BKE_packedfile_unpack_all_libraries(bmain, op.reports);
   WM_cursor_wait(false);
 
   return OPERATOR_FINISHED;
@@ -84,12 +84,12 @@ static wmOperatorStatus unpack_libraries_exec(bContext *C, wmOperator *op)
 /** \name Unpack Blend File Libraries Operator
  * \{ */
 
-static wmOperatorStatus unpack_libraries_invoke(bContext *C,
-                                                wmOperator *op,
+static wmOperatorStatus unpack_libraries_invoke(bContext &C,
+                                                wmOperator &op,
                                                 const wmEvent * /*event*/)
 {
-  return WM_operator_confirm_ex(C,
-                                op,
+  return WM_operator_confirm_ex(&C,
+                                &op,
                                 IFACE_("Restore Packed Linked Data to Their Original Locations"),
                                 IFACE_("Will create directories so that all paths are valid."),
                                 IFACE_("Unpack"),
@@ -118,15 +118,15 @@ void FILE_OT_unpack_libraries(wmOperatorType *ot)
 /** \name Toggle Auto-Pack Operator
  * \{ */
 
-static wmOperatorStatus autopack_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus autopack_toggle_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   if (G.fileflags & G_FILE_AUTOPACK) {
     G.fileflags &= ~G_FILE_AUTOPACK;
   }
   else {
-    BKE_packedfile_pack_all(bmain, op->reports, true);
+    BKE_packedfile_pack_all(bmain, op.reports, true);
     G.fileflags |= G_FILE_AUTOPACK;
   }
 
@@ -153,20 +153,20 @@ void FILE_OT_autopack_toggle(wmOperatorType *ot)
 /** \name Pack All Operator
  * \{ */
 
-static wmOperatorStatus pack_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pack_all_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
-  BKE_packedfile_pack_all(bmain, op->reports, true);
+  BKE_packedfile_pack_all(bmain, op.reports, true);
 
   WM_main_add_notifier(NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus pack_all_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus pack_all_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   Image *ima;
 
   /* First check for dirty images. */
@@ -180,8 +180,8 @@ static wmOperatorStatus pack_all_invoke(bContext *C, wmOperator *op, const wmEve
 
   if (ima) {
     return WM_operator_confirm_ex(
-        C,
-        op,
+        &C,
+        &op,
         IFACE_("Pack all used external files into this .blend file"),
         IFACE_("Warning: Some images are modified and these changes will be lost."),
         IFACE_("Pack"),
@@ -236,14 +236,14 @@ static const EnumPropertyItem unpack_all_method_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus unpack_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus unpack_all_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  ePF_FileStatus method = ePF_FileStatus(RNA_enum_get(op->ptr, "method"));
+  Main *bmain = CTX_data_main(C);
+  ePF_FileStatus method = ePF_FileStatus(RNA_enum_get(op.ptr, "method"));
 
   if (method != PF_KEEP) {
     WM_cursor_wait(true);
-    BKE_packedfile_unpack_all(bmain, op->reports, method); /* XXX PF_ASK can't work here */
+    BKE_packedfile_unpack_all(bmain, op.reports, method); /* XXX PF_ASK can't work here */
     WM_cursor_wait(false);
   }
   G.fileflags &= ~G_FILE_AUTOPACK;
@@ -252,14 +252,14 @@ static wmOperatorStatus unpack_all_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus unpack_all_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus unpack_all_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   const PackedFileCount count = BKE_packedfile_count_all(bmain);
 
   if (count.total() == 0) {
-    BKE_report(op->reports, RPT_WARNING, "No packed files to unpack");
+    BKE_report(op.reports, RPT_WARNING, "No packed files to unpack");
     G.fileflags &= ~G_FILE_AUTOPACK;
     return OPERATOR_CANCELLED;
   }
@@ -267,13 +267,13 @@ static wmOperatorStatus unpack_all_invoke(bContext *C, wmOperator *op, const wmE
   const std::string title = fmt::format(
       fmt::runtime(IFACE_("Unpack - Files: {}, Bakes: {}")), count.individual_files, count.bakes);
 
-  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(C, title.c_str(), ICON_NONE);
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(&C, title.c_str(), ICON_NONE);
   blender::ui::Layout &layout = *popup_menu_layout(pup);
 
   layout.operator_context_set(blender::wm::OpCallContext::ExecDefault);
   layout.op_enum("FILE_OT_unpack_all", "method");
 
-  popup_menu_end(C, pup);
+  popup_menu_end(&C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -324,30 +324,30 @@ static const EnumPropertyItem unpack_item_method_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static wmOperatorStatus unpack_item_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus unpack_item_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   ID *id;
   char idname[MAX_ID_NAME - 2];
-  int type = RNA_int_get(op->ptr, "id_type");
-  ePF_FileStatus method = ePF_FileStatus(RNA_enum_get(op->ptr, "method"));
+  int type = RNA_int_get(op.ptr, "id_type");
+  ePF_FileStatus method = ePF_FileStatus(RNA_enum_get(op.ptr, "method"));
 
-  RNA_string_get(op->ptr, "id_name", idname);
+  RNA_string_get(op.ptr, "id_name", idname);
   id = BKE_libblock_find_name(bmain, type, idname);
 
   if (id == nullptr) {
-    BKE_report(op->reports, RPT_WARNING, "No packed file");
+    BKE_report(op.reports, RPT_WARNING, "No packed file");
     return OPERATOR_CANCELLED;
   }
 
   if (!ID_IS_EDITABLE(id)) {
-    BKE_report(op->reports, RPT_WARNING, "Data-block using this packed file is not editable");
+    BKE_report(op.reports, RPT_WARNING, "Data-block using this packed file is not editable");
     return OPERATOR_CANCELLED;
   }
 
   if (method != PF_KEEP) {
     WM_cursor_wait(true);
-    BKE_packedfile_id_unpack(bmain, id, op->reports, method); /* XXX PF_ASK can't work here */
+    BKE_packedfile_id_unpack(bmain, id, op.reports, method); /* XXX PF_ASK can't work here */
     WM_cursor_wait(false);
   }
 
@@ -356,19 +356,19 @@ static wmOperatorStatus unpack_item_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus unpack_item_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus unpack_item_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(C, IFACE_("Unpack"), ICON_NONE);
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(&C, IFACE_("Unpack"), ICON_NONE);
   blender::ui::Layout &layout = *popup_menu_layout(pup);
 
   layout.operator_context_set(blender::wm::OpCallContext::ExecDefault);
-  layout.op_enum(op->type->idname,
+  layout.op_enum(op.type->idname,
                  "method",
-                 static_cast<IDProperty *>(op->ptr->data),
+                 static_cast<IDProperty *>(op.ptr->data),
                  blender::wm::OpCallContext::ExecRegionWin,
                  UI_ITEM_NONE);
 
-  popup_menu_end(C, pup);
+  popup_menu_end(&C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -409,19 +409,19 @@ void FILE_OT_unpack_item(wmOperatorType *ot)
 /** \name Make Paths Relative Operator
  * \{ */
 
-static wmOperatorStatus make_paths_relative_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus make_paths_relative_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
 
   if (blendfile_path[0] == '\0') {
-    BKE_report(op->reports, RPT_WARNING, "Cannot set relative paths with an unsaved blend file");
+    BKE_report(op.reports, RPT_WARNING, "Cannot set relative paths with an unsaved blend file");
     return OPERATOR_CANCELLED;
   }
 
   BPathSummary summary;
-  BKE_bpath_relative_convert(bmain, blendfile_path, op->reports, &summary);
-  BKE_bpath_summary_report(summary, op->reports);
+  BKE_bpath_relative_convert(bmain, blendfile_path, op.reports, &summary);
+  BKE_bpath_summary_report(summary, op.reports);
 
   /* redraw everything so any changed paths register */
   WM_main_add_notifier(NC_WINDOW, nullptr);
@@ -449,19 +449,19 @@ void FILE_OT_make_paths_relative(wmOperatorType *ot)
 /** \name Make Paths Absolute Operator
  * \{ */
 
-static wmOperatorStatus make_paths_absolute_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus make_paths_absolute_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
 
   if (blendfile_path[0] == '\0') {
-    BKE_report(op->reports, RPT_WARNING, "Cannot set absolute paths with an unsaved blend file");
+    BKE_report(op.reports, RPT_WARNING, "Cannot set absolute paths with an unsaved blend file");
     return OPERATOR_CANCELLED;
   }
 
   BPathSummary summary;
-  BKE_bpath_absolute_convert(bmain, blendfile_path, op->reports, &summary);
-  BKE_bpath_summary_report(summary, op->reports);
+  BKE_bpath_absolute_convert(bmain, blendfile_path, op.reports, &summary);
+  BKE_bpath_summary_report(summary, op.reports);
 
   /* redraw everything so any changed paths register */
   WM_main_add_notifier(NC_WINDOW, nullptr);
@@ -489,12 +489,12 @@ void FILE_OT_make_paths_absolute(wmOperatorType *ot)
 /** \name Report Missing Files Operator
  * \{ */
 
-static wmOperatorStatus report_missing_files_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus report_missing_files_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   /* run the missing file check */
-  BKE_bpath_missing_files_check(bmain, op->reports);
+  BKE_bpath_missing_files_check(bmain, op.reports);
   /* Redraw sequencer since media presence cache might have changed. */
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, nullptr);
 
@@ -521,25 +521,25 @@ void FILE_OT_report_missing_files(wmOperatorType *ot)
 /** \name Find Missing Files Operator
  * \{ */
 
-static wmOperatorStatus find_missing_files_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus find_missing_files_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  const std::string searchpath = RNA_string_get(op->ptr, "directory");
-  const bool find_all = RNA_boolean_get(op->ptr, "find_all");
+  Main *bmain = CTX_data_main(C);
+  const std::string searchpath = RNA_string_get(op.ptr, "directory");
+  const bool find_all = RNA_boolean_get(op.ptr, "find_all");
 
-  BKE_bpath_missing_files_find(bmain, searchpath.c_str(), op->reports, find_all);
+  BKE_bpath_missing_files_find(bmain, searchpath.c_str(), op.reports, find_all);
   /* Redraw sequencer since media presence cache might have changed. */
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus find_missing_files_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus find_missing_files_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent * /*event*/)
 {
   /* XXX file open button text "Find Missing Files" */
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -590,11 +590,11 @@ void FILE_OT_find_missing_files(wmOperatorType *ot)
 #define FLASH_TIMEOUT 1.0f
 #define COLLAPSE_TIMEOUT 0.25f
 
-static wmOperatorStatus update_reports_display_invoke(bContext *C,
-                                                      wmOperator * /*op*/,
+static wmOperatorStatus update_reports_display_invoke(bContext &C,
+                                                      wmOperator & /*op*/,
                                                       const wmEvent *event)
 {
-  ReportList *reports = CTX_wm_reports(*C);
+  ReportList *reports = CTX_wm_reports(C);
   Report *report;
 
   /* escape if not our timer */
@@ -605,7 +605,7 @@ static wmOperatorStatus update_reports_display_invoke(bContext *C,
     return OPERATOR_PASS_THROUGH;
   }
 
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   ReportTimerInfo *rti = (ReportTimerInfo *)reports->reporttimer->customdata;
   const float flash_timeout = FLASH_TIMEOUT;
   bool send_notifier = false;
@@ -618,7 +618,7 @@ static wmOperatorStatus update_reports_display_invoke(bContext *C,
     WM_event_timer_remove(wm, nullptr, reports->reporttimer);
     reports->reporttimer = nullptr;
 
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, nullptr);
+    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_INFO, nullptr);
 
     return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);
   }
@@ -645,7 +645,7 @@ static wmOperatorStatus update_reports_display_invoke(bContext *C,
   }
 
   if (send_notifier) {
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, nullptr);
+    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_INFO, nullptr);
   }
 
   return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);

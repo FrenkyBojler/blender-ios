@@ -272,13 +272,13 @@ bool UV_ClipboardBuffer::find_isomorphism(UvElementMap *dest_element_map,
   return false;
 }
 
-static wmOperatorStatus uv_copy_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus uv_copy_exec(bContext &C, wmOperator & /*op*/)
 {
   UV_clipboard_free();
   uv_clipboard = new UV_ClipboardBuffer();
 
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -301,14 +301,14 @@ static wmOperatorStatus uv_copy_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus uv_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_paste_exec(bContext &C, wmOperator &op)
 {
   /* TODO: Restore `UvClipboard` from system clipboard. */
   if (!uv_clipboard) {
     return OPERATOR_FINISHED; /* Nothing to do. */
   }
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
@@ -354,12 +354,12 @@ static wmOperatorStatus uv_paste_exec(bContext *C, wmOperator *op)
       changed_multi = true;
 
       DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
     }
   }
 
   if (complicated_search) {
-    BKE_reportf(op->reports,
+    BKE_reportf(op.reports,
                 RPT_WARNING,
                 "Skipped %d of %d island(s), geometry was too complicated to detect a match",
                 complicated_search,

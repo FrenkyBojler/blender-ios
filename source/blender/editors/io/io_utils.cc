@@ -23,18 +23,18 @@
 
 namespace blender::ed::io {
 
-wmOperatorStatus filesel_drop_import_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+wmOperatorStatus filesel_drop_import_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
 
-  PropertyRNA *filepath_prop = RNA_struct_find_property(op->ptr, "filepath");
-  PropertyRNA *directory_prop = RNA_struct_find_property(op->ptr, "directory");
-  if ((filepath_prop && RNA_property_is_set(op->ptr, filepath_prop)) ||
-      (directory_prop && RNA_property_is_set(op->ptr, directory_prop)))
+  PropertyRNA *filepath_prop = RNA_struct_find_property(op.ptr, "filepath");
+  PropertyRNA *directory_prop = RNA_struct_find_property(op.ptr, "directory");
+  if ((filepath_prop && RNA_property_is_set(op.ptr, filepath_prop)) ||
+      (directory_prop && RNA_property_is_set(op.ptr, directory_prop)))
   {
     std::string title;
-    PropertyRNA *files_prop = RNA_struct_find_property(op->ptr, "files");
+    PropertyRNA *files_prop = RNA_struct_find_property(op.ptr, "files");
     if (directory_prop && files_prop) {
-      const auto files = paths_from_operator_properties(op->ptr);
+      const auto files = paths_from_operator_properties(op.ptr);
       if (files.size() == 1) {
         title = files[0];
       }
@@ -44,14 +44,14 @@ wmOperatorStatus filesel_drop_import_invoke(bContext *C, wmOperator *op, const w
     }
     else {
       char filepath[FILE_MAX];
-      RNA_string_get(op->ptr, "filepath", filepath);
+      RNA_string_get(op.ptr, "filepath", filepath);
       title = filepath;
     }
     return WM_operator_props_dialog_popup(
-        C, op, 350, std::move(title), WM_operatortype_name(op->type, op->ptr));
+        &C, &op, 350, std::move(title), WM_operatortype_name(op.type, op.ptr));
   }
 
-  WM_event_add_fileselect(C, op);
+  WM_event_add_fileselect(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 

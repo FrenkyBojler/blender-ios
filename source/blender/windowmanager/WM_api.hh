@@ -893,7 +893,7 @@ void WM_event_timer_sleep(wmWindowManager *wm, wmWindow *win, wmTimer *timer, bo
  * To be used together with #WM_generic_select_invoke() and
  * #WM_operator_properties_generic_select().
  */
-wmOperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEvent *event);
+wmOperatorStatus WM_generic_select_modal(bContext &C, wmOperator &op, const wmEvent *event);
 /**
  * Helper to get select and tweak-transform to work conflict free and as desired. See
  * #WM_operator_properties_generic_select() for details.
@@ -901,7 +901,7 @@ wmOperatorStatus WM_generic_select_modal(bContext *C, wmOperator *op, const wmEv
  * To be used together with #WM_generic_select_modal() and
  * #WM_operator_properties_generic_select().
  */
-wmOperatorStatus WM_generic_select_invoke(bContext *C, wmOperator *op, const wmEvent *event);
+wmOperatorStatus WM_generic_select_invoke(bContext &C, wmOperator &op, const wmEvent *event);
 void WM_operator_view3d_unit_defaults(bContext *C, wmOperator *op);
 int WM_operator_smooth_viewtx_get(const wmOperator *op);
 /**
@@ -910,18 +910,18 @@ int WM_operator_smooth_viewtx_get(const wmOperator *op);
 wmOperatorStatus WM_menu_invoke_ex(bContext *C,
                                    wmOperator *op,
                                    blender::wm::OpCallContext opcontext);
-wmOperatorStatus WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent *event);
+wmOperatorStatus WM_menu_invoke(bContext &C, wmOperator &op, const wmEvent *event);
 /**
  * Call an existent menu. The menu can be created in C or Python.
  */
 void WM_menu_name_call(bContext *C, const char *menu_name, blender::wm::OpCallContext context);
 
-wmOperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent *event);
+wmOperatorStatus WM_enum_search_invoke(bContext &C, wmOperator &op, const wmEvent *event);
 
 /**
  * Invoke callback, confirm menu + exec.
  */
-wmOperatorStatus WM_operator_confirm(bContext *C, wmOperator *op, const wmEvent *event);
+wmOperatorStatus WM_operator_confirm(bContext &C, wmOperator &op, const wmEvent *event);
 wmOperatorStatus WM_operator_confirm_or_exec(bContext *C, wmOperator *op, const wmEvent *event);
 
 /**
@@ -943,7 +943,7 @@ wmOperatorStatus WM_operator_confirm_ex(bContext *C,
 wmOperatorStatus WM_operator_filesel(bContext *C, wmOperator *op, const wmEvent *event);
 bool WM_operator_filesel_ensure_ext_imtype(wmOperator *op, const ImageFormatData *im_format);
 /** Callback for #wmOperatorType.poll. */
-bool WM_operator_winactive(bContext *C);
+bool WM_operator_winactive(bContext &C);
 /**
  * Invoke callback, exec + redo popup.
  *
@@ -969,7 +969,7 @@ wmOperatorStatus WM_operator_props_popup_confirm_ex(
  * Without this, first access to a button will make the result jump, see #32452.
  */
 wmOperatorStatus WM_operator_props_popup_call(bContext *C, wmOperator *op, const wmEvent *event);
-wmOperatorStatus WM_operator_props_popup(bContext *C, wmOperator *op, const wmEvent *event);
+wmOperatorStatus WM_operator_props_popup(bContext &C, wmOperator &op, const wmEvent *event);
 
 wmOperatorStatus WM_operator_props_dialog_popup(
     bContext *C,
@@ -1535,20 +1535,20 @@ void WM_paneltype_idname_visit_for_search(
 
 /* `wm_gesture_ops.cc` */
 
-wmOperatorStatus WM_gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event);
-wmOperatorStatus WM_gesture_box_modal(bContext *C, wmOperator *op, const wmEvent *event);
-void WM_gesture_box_cancel(bContext *C, wmOperator *op);
-wmOperatorStatus WM_gesture_circle_invoke(bContext *C, wmOperator *op, const wmEvent *event);
-wmOperatorStatus WM_gesture_circle_modal(bContext *C, wmOperator *op, const wmEvent *event);
-void WM_gesture_circle_cancel(bContext *C, wmOperator *op);
-wmOperatorStatus WM_gesture_lines_invoke(bContext *C, wmOperator *op, const wmEvent *event);
-wmOperatorStatus WM_gesture_lines_modal(bContext *C, wmOperator *op, const wmEvent *event);
-void WM_gesture_lines_cancel(bContext *C, wmOperator *op);
-wmOperatorStatus WM_gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event);
-wmOperatorStatus WM_gesture_lasso_modal(bContext *C, wmOperator *op, const wmEvent *event);
-void WM_gesture_lasso_cancel(bContext *C, wmOperator *op);
-wmOperatorStatus WM_gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event);
-wmOperatorStatus WM_gesture_polyline_modal(bContext *C, wmOperator *op, const wmEvent *event);
+wmOperatorStatus WM_gesture_box_invoke(bContext &C, wmOperator &op, const wmEvent *event);
+wmOperatorStatus WM_gesture_box_modal(bContext &C, wmOperator &op, const wmEvent *event);
+void WM_gesture_box_cancel(bContext &C, wmOperator &op);
+wmOperatorStatus WM_gesture_circle_invoke(bContext &C, wmOperator &op, const wmEvent *event);
+wmOperatorStatus WM_gesture_circle_modal(bContext &C, wmOperator &op, const wmEvent *event);
+void WM_gesture_circle_cancel(bContext &C, wmOperator &op);
+wmOperatorStatus WM_gesture_lines_invoke(bContext &C, wmOperator &op, const wmEvent *event);
+wmOperatorStatus WM_gesture_lines_modal(bContext &C, wmOperator &op, const wmEvent *event);
+void WM_gesture_lines_cancel(bContext &C, wmOperator &op);
+wmOperatorStatus WM_gesture_lasso_invoke(bContext &C, wmOperator &op, const wmEvent *event);
+wmOperatorStatus WM_gesture_lasso_modal(bContext &C, wmOperator &op, const wmEvent *event);
+void WM_gesture_lasso_cancel(bContext &C, wmOperator &op);
+wmOperatorStatus WM_gesture_polyline_invoke(bContext &C, wmOperator &op, const wmEvent *event);
+wmOperatorStatus WM_gesture_polyline_modal(bContext &C, wmOperator &op, const wmEvent *event);
 void WM_gesture_polyline_cancel(bContext *C, wmOperator *op);
 /**
  * helper function, we may want to add options for conversion to view space
@@ -1560,15 +1560,15 @@ wmOperatorStatus WM_gesture_straightline_invoke(bContext *C, wmOperator *op, con
  * This invoke callback starts the straight-line gesture with a viewport preview to the right side
  * of the line.
  */
-wmOperatorStatus WM_gesture_straightline_active_side_invoke(bContext *C,
-                                                            wmOperator *op,
+wmOperatorStatus WM_gesture_straightline_active_side_invoke(bContext &C,
+                                                            wmOperator &op,
                                                             const wmEvent *event);
 /**
  * This modal callback calls exec once per mouse move event while the gesture is active with the
  * updated line start and end values, so it can be used for tools that have a real time preview
  * (like a gradient updating in real time over the mesh).
  */
-wmOperatorStatus WM_gesture_straightline_modal(bContext *C, wmOperator *op, const wmEvent *event);
+wmOperatorStatus WM_gesture_straightline_modal(bContext &C, wmOperator &op, const wmEvent *event);
 /**
  * This modal one-shot callback only calls exec once after the gesture finishes without any updates
  * during the gesture execution. Should be used for operations that are intended to be applied once
@@ -1576,10 +1576,10 @@ wmOperatorStatus WM_gesture_straightline_modal(bContext *C, wmOperator *op, cons
  * after finishing the gesture as the bisect operation is too heavy to be computed in real time for
  * a preview).
  */
-wmOperatorStatus WM_gesture_straightline_oneshot_modal(bContext *C,
-                                                       wmOperator *op,
+wmOperatorStatus WM_gesture_straightline_oneshot_modal(bContext &C,
+                                                       wmOperator &op,
                                                        const wmEvent *event);
-void WM_gesture_straightline_cancel(bContext *C, wmOperator *op);
+void WM_gesture_straightline_cancel(bContext &C, wmOperator &op);
 
 /* Gesture manager API. */
 

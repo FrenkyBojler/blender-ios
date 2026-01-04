@@ -43,24 +43,24 @@ namespace blender::ed::space_node {
 /** \name Local Functions
  * \{ */
 
-static bool space_node_active_view_poll(bContext *C)
+static bool space_node_active_view_poll(bContext &C)
 {
   if (!ED_operator_node_active(C)) {
     return false;
   }
-  const ARegion *region = CTX_wm_region(*C);
+  const ARegion *region = CTX_wm_region(C);
   if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
     return false;
   }
   return true;
 }
 
-static bool space_node_composite_active_view_poll(bContext *C)
+static bool space_node_composite_active_view_poll(bContext &C)
 {
   if (!composite_node_active(C)) {
     return false;
   }
-  const ARegion *region = CTX_wm_region(*C);
+  const ARegion *region = CTX_wm_region(C);
   if (!(region && region->regiontype == RGN_TYPE_WINDOW)) {
     return false;
   }
@@ -134,17 +134,17 @@ bool space_node_view_flag(
   return true;
 }
 
-static wmOperatorStatus node_view_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_view_all_exec(bContext &C, wmOperator &op)
 {
-  ARegion *region = CTX_wm_region(*C);
-  SpaceNode *snode = CTX_wm_space_node(*C);
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
   /* is this really needed? */
   snode->xof = 0;
   snode->yof = 0;
 
-  if (space_node_view_flag(*C, *snode, *region, 0, smooth_viewtx)) {
+  if (space_node_view_flag(C, *snode, *region, 0, smooth_viewtx)) {
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -171,13 +171,13 @@ void NODE_OT_view_all(wmOperatorType *ot)
 /** \name View Selected Operator
  * \{ */
 
-static wmOperatorStatus node_view_selected_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus node_view_selected_exec(bContext &C, wmOperator &op)
 {
-  ARegion *region = CTX_wm_region(*C);
-  SpaceNode *snode = CTX_wm_space_node(*C);
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  ARegion *region = CTX_wm_region(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
-  if (space_node_view_flag(*C, *snode, *region, NODE_SELECT, smooth_viewtx)) {
+  if (space_node_view_flag(C, *snode, *region, NODE_SELECT, smooth_viewtx)) {
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -211,11 +211,11 @@ struct NodeViewMove {
   float xof_orig, yof_orig;
 };
 
-static wmOperatorStatus snode_bg_viewmove_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus snode_bg_viewmove_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
-  ARegion *region = CTX_wm_region(*C);
-  NodeViewMove *nvm = (NodeViewMove *)op->customdata;
+  SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(C);
+  NodeViewMove *nvm = (NodeViewMove *)op.customdata;
 
   switch (event->type) {
     case MOUSEMOVE:
@@ -239,7 +239,7 @@ static wmOperatorStatus snode_bg_viewmove_modal(bContext *C, wmOperator *op, con
     case MIDDLEMOUSE:
       if (event->val == KM_RELEASE) {
         MEM_freeN(nvm);
-        op->customdata = nullptr;
+        op.customdata = nullptr;
         return OPERATOR_FINISHED;
       }
       break;
@@ -252,7 +252,7 @@ static wmOperatorStatus snode_bg_viewmove_modal(bContext *C, wmOperator *op, con
       WM_main_add_notifier(NC_SPACE | ND_SPACE_NODE_VIEW, nullptr);
 
       MEM_freeN(nvm);
-      op->customdata = nullptr;
+      op.customdata = nullptr;
 
       return OPERATOR_CANCELLED;
     default: {
@@ -263,11 +263,11 @@ static wmOperatorStatus snode_bg_viewmove_modal(bContext *C, wmOperator *op, con
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus snode_bg_viewmove_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus snode_bg_viewmove_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(*C);
-  SpaceNode *snode = CTX_wm_space_node(*C);
-  ARegion *region = CTX_wm_region(*C);
+  Main *bmain = CTX_data_main(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(C);
   NodeViewMove *nvm;
   Image *ima;
   ImBuf *ibuf;
@@ -284,7 +284,7 @@ static wmOperatorStatus snode_bg_viewmove_invoke(bContext *C, wmOperator *op, co
   }
 
   nvm = MEM_callocN<NodeViewMove>(__func__);
-  op->customdata = nvm;
+  op.customdata = nvm;
   nvm->mvalo.x = event->mval[0];
   nvm->mvalo.y = event->mval[1];
 
@@ -299,16 +299,16 @@ static wmOperatorStatus snode_bg_viewmove_invoke(bContext *C, wmOperator *op, co
   BKE_image_release_ibuf(ima, ibuf, lock);
 
   /* add modal handler */
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void snode_bg_viewmove_cancel(bContext * /*C*/, wmOperator *op)
+static void snode_bg_viewmove_cancel(bContext & /*C*/, wmOperator &op)
 {
-  NodeViewMove *nvm = (NodeViewMove *)op->customdata;
+  NodeViewMove *nvm = (NodeViewMove *)op.customdata;
   MEM_freeN(nvm);
-  op->customdata = nullptr;
+  op.customdata = nullptr;
 }
 
 void NODE_OT_backimage_move(wmOperatorType *ot)
@@ -334,11 +334,11 @@ void NODE_OT_backimage_move(wmOperatorType *ot)
 /** \name Background Image Zoom
  * \{ */
 
-static wmOperatorStatus backimage_zoom_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus backimage_zoom_exec(bContext &C, wmOperator &op)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
-  ARegion *region = CTX_wm_region(*C);
-  float fac = RNA_float_get(op->ptr, "factor");
+  SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(C);
+  float fac = RNA_float_get(op.ptr, "factor");
 
   snode->zoom *= fac;
   ED_region_tag_redraw(region);
@@ -373,11 +373,11 @@ void NODE_OT_backimage_zoom(wmOperatorType *ot)
 /** \name Background Image Fit
  * \{ */
 
-static wmOperatorStatus backimage_fit_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus backimage_fit_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  SpaceNode *snode = CTX_wm_space_node(*C);
-  ARegion *region = CTX_wm_region(*C);
+  Main *bmain = CTX_data_main(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(C);
 
   Image *ima;
   ImBuf *ibuf;
@@ -649,15 +649,15 @@ static void sample_exit(bContext *C, wmOperator *op)
   MEM_freeN(info);
 }
 
-static wmOperatorStatus sample_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sample_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(C);
   ImageSampleInfo *info;
 
   /* Don't handle events intended for nodes (which rely on click/drag distinction).
    * which this operator would use since sampling is normally activated on press, see: #98191. */
-  if (node_or_socket_isect_event(*C, *event)) {
+  if (node_or_socket_isect_event(C, *event)) {
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -669,27 +669,27 @@ static wmOperatorStatus sample_invoke(bContext *C, wmOperator *op, const wmEvent
   info->art = region->runtime->type;
   info->draw_handle = ED_region_draw_cb_activate(
       region->runtime->type, sample_draw, info, REGION_DRAW_POST_PIXEL);
-  op->customdata = info;
+  op.customdata = info;
 
-  sample_apply(C, op, event);
+  sample_apply(&C, &op, event);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus sample_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sample_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   switch (event->type) {
     case LEFTMOUSE:
     case RIGHTMOUSE: /* XXX hardcoded */
       if (event->val == KM_RELEASE) {
-        sample_exit(C, op);
+        sample_exit(&C, &op);
         return OPERATOR_CANCELLED;
       }
       break;
     case MOUSEMOVE:
-      sample_apply(C, op, event);
+      sample_apply(&C, &op, event);
       break;
     default: {
       break;
@@ -699,9 +699,9 @@ static wmOperatorStatus sample_modal(bContext *C, wmOperator *op, const wmEvent 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static void sample_cancel(bContext *C, wmOperator *op)
+static void sample_cancel(bContext &C, wmOperator &op)
 {
-  sample_exit(C, op);
+  sample_exit(&C, &op);
 }
 
 void NODE_OT_backimage_sample(wmOperatorType *ot)

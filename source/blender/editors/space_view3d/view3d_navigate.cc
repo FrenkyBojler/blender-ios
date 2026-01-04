@@ -496,7 +496,7 @@ struct ViewOpsData_Utility : ViewOpsData {
 
 static bool view3d_navigation_poll_impl(bContext *C, const char viewlock)
 {
-  if (!ED_operator_region_view3d_active(C)) {
+  if (!ED_operator_region_view3d_active(*C)) {
     return false;
   }
 
@@ -603,58 +603,58 @@ wmOperatorStatus view3d_navigate_invoke_impl(bContext *C,
 /** \name Generic Callbacks
  * \{ */
 
-bool view3d_location_poll(bContext *C)
+bool view3d_location_poll(bContext &C)
 {
-  return view3d_navigation_poll_impl(C, RV3D_LOCK_LOCATION);
+  return view3d_navigation_poll_impl(&C, RV3D_LOCK_LOCATION);
 }
 
-bool view3d_rotation_poll(bContext *C)
+bool view3d_rotation_poll(bContext &C)
 {
-  return view3d_navigation_poll_impl(C, RV3D_LOCK_ROTATION);
+  return view3d_navigation_poll_impl(&C, RV3D_LOCK_ROTATION);
 }
 
-bool view3d_zoom_or_dolly_poll(bContext *C)
+bool view3d_zoom_or_dolly_poll(bContext &C)
 {
-  return view3d_navigation_poll_impl(C, RV3D_LOCK_ZOOM_AND_DOLLY);
+  return view3d_navigation_poll_impl(&C, RV3D_LOCK_ZOOM_AND_DOLLY);
 }
 
-bool view3d_zoom_or_dolly_or_rotation_poll(bContext *C)
+bool view3d_zoom_or_dolly_or_rotation_poll(bContext &C)
 {
   /* This combination of flags is needed for the dolly operator,
    * see code-comments there for details. */
-  return view3d_navigation_poll_impl(C, RV3D_LOCK_ZOOM_AND_DOLLY | RV3D_LOCK_ROTATION);
+  return view3d_navigation_poll_impl(&C, RV3D_LOCK_ZOOM_AND_DOLLY | RV3D_LOCK_ROTATION);
 }
 
-wmOperatorStatus view3d_navigate_modal_fn(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus view3d_navigate_modal_fn(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ViewOpsData *vod = static_cast<ViewOpsData *>(op->customdata);
+  ViewOpsData *vod = static_cast<ViewOpsData *>(op.customdata);
 
   const ViewOpsType *nav_type_prev = vod->nav_type;
   const eV3D_OpEvent event_code = view3d_navigate_event(vod, event);
   if (nav_type_prev != vod->nav_type) {
     wmOperatorType *ot_new = WM_operatortype_find(vod->nav_type->idname, false);
-    WM_operator_type_set(op, ot_new);
-    vod->end_navigation(C);
-    return view3d_navigation_invoke_generic(C, vod, event, op->ptr, vod->nav_type, nullptr);
+    WM_operator_type_set(&op, ot_new);
+    vod->end_navigation(&C);
+    return view3d_navigation_invoke_generic(&C, vod, event, op.ptr, vod->nav_type, nullptr);
   }
 
-  wmOperatorStatus ret = vod->nav_type->apply_fn(C, vod, event_code, event->xy);
+  wmOperatorStatus ret = vod->nav_type->apply_fn(&C, vod, event_code, event->xy);
 
   if ((ret & OPERATOR_RUNNING_MODAL) == 0) {
     if (ret & OPERATOR_FINISHED) {
-      ED_view3d_camera_lock_undo_push(op->type->name, vod->v3d, vod->rv3d, C);
+      ED_view3d_camera_lock_undo_push(op.type->name, vod->v3d, vod->rv3d, &C);
     }
-    viewops_data_free(C, vod);
-    op->customdata = nullptr;
+    viewops_data_free(&C, vod);
+    op.customdata = nullptr;
   }
 
   return ret;
 }
 
-void view3d_navigate_cancel_fn(bContext *C, wmOperator *op)
+void view3d_navigate_cancel_fn(bContext &C, wmOperator &op)
 {
-  viewops_data_free(C, static_cast<ViewOpsData *>(op->customdata));
-  op->customdata = nullptr;
+  viewops_data_free(&C, static_cast<ViewOpsData *>(op.customdata));
+  op.customdata = nullptr;
 }
 
 /** \} */

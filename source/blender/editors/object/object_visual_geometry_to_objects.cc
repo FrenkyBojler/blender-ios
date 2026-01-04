@@ -435,15 +435,15 @@ static Vector<Collection *> find_collections_containing_object(Main &bmain,
   return collections.extract_vector();
 }
 
-static wmOperatorStatus visual_geometry_to_objects_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus visual_geometry_to_objects_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main &bmain = *CTX_data_main(*C);
-  Scene &scene = *CTX_data_scene(*C);
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*C);
-  ViewLayer &active_view_layer = *CTX_data_view_layer(*C);
+  Main &bmain = *CTX_data_main(C);
+  Scene &scene = *CTX_data_scene(C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
+  ViewLayer &active_view_layer = *CTX_data_view_layer(C);
 
   Vector<Object *> selected_objects_orig;
-  CTX_DATA_BEGIN (*C, Object *, src_ob_orig, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, src_ob_orig, selected_objects) {
     selected_objects_orig.append(src_ob_orig);
   }
   CTX_DATA_END;
@@ -516,7 +516,7 @@ static wmOperatorStatus visual_geometry_to_objects_exec(bContext *C, wmOperator 
   DEG_id_tag_update(&scene.id, ID_RECALC_BASE_FLAGS);
 
   DEG_relations_tag_update(&bmain);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, &scene);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, &scene);
   WM_main_add_notifier(NC_SCENE | ND_LAYER, nullptr);
   WM_main_add_notifier(NC_SCENE | ND_LAYER_CONTENT, nullptr);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);

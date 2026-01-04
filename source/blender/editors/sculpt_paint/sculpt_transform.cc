@@ -909,18 +909,18 @@ static float3 average_mask_border_position(const Depsgraph &depsgraph,
   return float3(0);
 }
 
-static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus set_pivot_position_exec(bContext &C, wmOperator &op)
 {
-  Object &ob = *CTX_data_active_object(*C);
+  Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
-  ARegion *region = CTX_wm_region(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  ARegion *region = CTX_wm_region(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
-  const PivotPositionMode mode = PivotPositionMode(RNA_enum_get(op->ptr, "mode"));
+  const PivotPositionMode mode = PivotPositionMode(RNA_enum_get(op.ptr, "mode"));
 
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -938,17 +938,17 @@ static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
       ss.pivot_pos = average_mask_border_position(*depsgraph, ob, ss.pivot_pos, symm);
       break;
     case PivotPositionMode::ActiveVert: {
-      const float2 mval(RNA_float_get(op->ptr, "mouse_x"), RNA_float_get(op->ptr, "mouse_y"));
+      const float2 mval(RNA_float_get(op.ptr, "mouse_x"), RNA_float_get(op.ptr, "mouse_y"));
       CursorGeometryInfo cgi;
-      if (cursor_geometry_info_update(C, &cgi, mval, false)) {
+      if (cursor_geometry_info_update(&C, &cgi, mval, false)) {
         ss.pivot_pos = ss.active_vert_position(*depsgraph, ob);
       }
       break;
     }
     case PivotPositionMode::CursorSurface: {
-      const float2 mval(RNA_float_get(op->ptr, "mouse_x"), RNA_float_get(op->ptr, "mouse_y"));
+      const float2 mval(RNA_float_get(op.ptr, "mouse_x"), RNA_float_get(op.ptr, "mouse_y"));
       float3 stroke_location;
-      if (stroke_get_location_bvh(C, stroke_location, mval, false)) {
+      if (stroke_get_location_bvh(&C, stroke_location, mval, false)) {
         ss.pivot_pos = stroke_location;
       }
       break;
@@ -956,33 +956,33 @@ static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
   }
 
   /* Update the viewport navigation rotation origin. */
-  Paint *paint = BKE_paint_get_active_from_context(C);
+  Paint *paint = BKE_paint_get_active_from_context(&C);
   bke::PaintRuntime *paint_runtime = paint->runtime;
   paint_runtime->average_stroke_accum = ss.pivot_pos;
   paint_runtime->average_stroke_counter = 1;
   paint_runtime->last_stroke_valid = true;
 
   ED_region_tag_redraw(region);
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob.data);
+  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, ob.data);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus set_pivot_position_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus set_pivot_position_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent *event)
 {
-  RNA_float_set(op->ptr, "mouse_x", event->mval[0]);
-  RNA_float_set(op->ptr, "mouse_y", event->mval[1]);
+  RNA_float_set(op.ptr, "mouse_x", event->mval[0]);
+  RNA_float_set(op.ptr, "mouse_y", event->mval[1]);
   return set_pivot_position_exec(C, op);
 }
 
-static bool set_pivot_position_poll_property(const bContext * /*C*/,
-                                             wmOperator *op,
+static bool set_pivot_position_poll_property(const bContext & /*C*/,
+                                             wmOperator &op,
                                              const PropertyRNA *prop)
 {
   if (STRPREFIX(RNA_property_identifier(prop), "mouse_")) {
-    const PivotPositionMode mode = PivotPositionMode(RNA_enum_get(op->ptr, "mode"));
+    const PivotPositionMode mode = PivotPositionMode(RNA_enum_get(op.ptr, "mode"));
     return ELEM(mode, PivotPositionMode::CursorSurface, PivotPositionMode::ActiveVert);
   }
   return true;

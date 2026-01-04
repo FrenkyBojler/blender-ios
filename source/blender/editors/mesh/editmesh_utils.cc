@@ -1824,7 +1824,7 @@ void EDBM_update_extern(Mesh *mesh, const bool do_tessellation, const bool is_de
 /** \name Operator Helpers
  * \{ */
 
-bool EDBM_view3d_poll(bContext *C)
+bool EDBM_view3d_poll(bContext &C)
 {
   if (ED_operator_editmesh(C) && ED_operator_view3d_active(C)) {
     return true;

@@ -361,14 +361,14 @@ float2 node_link_calculate_multi_input_position(const float2 &socket_position,
 
 float node_socket_calculate_height(const bNodeSocket &socket);
 
-bool composite_node_active(bContext *C);
+bool composite_node_active(bContext &C);
 /** Operator poll callback. */
-bool composite_node_editable(bContext *C);
+bool composite_node_editable(bContext &C);
 
 bool node_has_hidden_sockets(bNode *node);
 void node_set_hidden_sockets(bNode *node, int set);
 bool node_is_previewable(const SpaceNode &snode, const bNodeTree &ntree, const bNode &node);
-wmOperatorStatus node_render_changed_exec(bContext *, wmOperator *);
+wmOperatorStatus node_render_changed_exec(bContext &, wmOperator &);
 bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
                                         ARegion &region,
                                         const float2 &cursor,

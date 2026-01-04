@@ -3697,22 +3697,22 @@ static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
 
 }  // namespace blender::ed::sculpt_paint
 
-bool SCULPT_mode_poll(bContext *C)
+bool SCULPT_mode_poll(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   return ob && ob->mode & OB_MODE_SCULPT;
 }
 
-bool SCULPT_mode_poll_view3d(bContext *C)
+bool SCULPT_mode_poll_view3d(bContext &C)
 {
   using namespace blender::ed::sculpt_paint;
-  return (SCULPT_mode_poll(C) && CTX_wm_region_view3d(*C));
+  return (SCULPT_mode_poll(C) && CTX_wm_region_view3d(C));
 }
 
-bool SCULPT_poll(bContext *C)
+bool SCULPT_poll(bContext &C)
 {
   using namespace blender::ed::sculpt_paint;
-  return SCULPT_mode_poll(C) && blender::ed::sculpt_paint::paint_brush_tool_poll(C);
+  return SCULPT_mode_poll(C) && blender::ed::sculpt_paint::paint_brush_tool_poll(&C);
 }
 
 /**
@@ -3757,7 +3757,7 @@ static bool is_brush_related_tool(bContext *C)
 bool SCULPT_brush_cursor_poll(bContext *C)
 {
   using namespace blender::ed::sculpt_paint;
-  return SCULPT_mode_poll(C) && (paint_brush_cursor_poll(C) || is_brush_related_tool(C));
+  return SCULPT_mode_poll(*C) && (paint_brush_cursor_poll(C) || is_brush_related_tool(C));
 }
 
 static const char *sculpt_brush_type_name(const Sculpt &sd)
@@ -5803,16 +5803,16 @@ bool SculptPaintStroke::test_cancel()
   return ret_val;
 }
 
-static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus sculpt_brush_stroke_invoke(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
   SculptPaintStroke *stroke;
   int ignore_background_click;
-  Object &ob = *CTX_data_active_object(*C);
-  Scene &scene = *CTX_data_scene(*C);
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  Object &ob = *CTX_data_active_object(C);
+  Scene &scene = *CTX_data_scene(C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   /* Test that ob is visible; otherwise we won't be able to get evaluated data
    * from the depsgraph. We do this here instead of SCULPT_mode_poll
    * to avoid falling through to the translate operator in the
@@ -5821,22 +5821,22 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  brush_stroke_init(C);
+  brush_stroke_init(&C);
 
-  Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   Brush &brush = *BKE_paint_brush(&sd.paint);
 
   if (brush_type_is_paint(brush.sculpt_brush_type) &&
-      !color_supported_check(scene, ob, op->reports))
+      !color_supported_check(scene, ob, op.reports))
   {
     return OPERATOR_CANCELLED;
   }
   if (brush_type_is_mask(brush.sculpt_brush_type)) {
     MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
-    BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(*C), CTX_data_main(*C), &ob, mmd);
+    BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(C), CTX_data_main(C), &ob, mmd);
   }
   if (!brush_type_is_attribute_only(brush.sculpt_brush_type) &&
-      report_if_shape_key_is_locked(ob, op->reports))
+      report_if_shape_key_is_locked(ob, op.reports))
   {
     return OPERATOR_CANCELLED;
   }
@@ -5846,75 +5846,75 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   {
     const blender::bke::pbvh::Tree *pbvh = blender::bke::object::pbvh_get(ob);
     if (!pbvh || pbvh->type() != bke::pbvh::Type::Grids) {
-      BKE_report(op->reports, RPT_ERROR, "Only supported in multiresolution mode");
+      BKE_report(op.reports, RPT_ERROR, "Only supported in multiresolution mode");
       return OPERATOR_CANCELLED;
     }
   }
 
-  stroke = MEM_new<SculptPaintStroke>(__func__, C, op, event->type);
+  stroke = MEM_new<SculptPaintStroke>(__func__, &C, &op, event->type);
 
-  op->customdata = stroke;
+  op.customdata = stroke;
 
   /* For tablet rotation. */
-  ignore_background_click = RNA_boolean_get(op->ptr, "ignore_background_click");
+  ignore_background_click = RNA_boolean_get(op.ptr, "ignore_background_click");
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
-  if (ignore_background_click && !over_mesh(C, op, mval)) {
+  if (ignore_background_click && !over_mesh(&C, &op, mval)) {
     MEM_delete(stroke);
-    stroke->free(C, op);
+    stroke->free(&C, &op);
     return OPERATOR_PASS_THROUGH;
   }
 
-  const wmOperatorStatus retval = op->type->modal(C, op, event);
+  const wmOperatorStatus retval = op.type->modal(&C, &op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
-    stroke->free(C, op);
+    stroke->free(&C, &op);
     return retval;
   }
   /* Add modal handler. */
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_brush_stroke_exec(bContext &C, wmOperator &op)
 {
-  brush_stroke_init(C);
+  brush_stroke_init(&C);
 
-  SculptPaintStroke *stroke = MEM_new<SculptPaintStroke>(__func__, C, op, 0);
-  op->customdata = stroke;
+  SculptPaintStroke *stroke = MEM_new<SculptPaintStroke>(__func__, &C, &op, 0);
+  op.customdata = stroke;
 
-  stroke->exec(C, op);
+  stroke->exec(&C, &op);
 
   MEM_delete(stroke);
 
   return OPERATOR_FINISHED;
 }
 
-static void sculpt_brush_stroke_cancel(bContext *C, wmOperator *op)
+static void sculpt_brush_stroke_cancel(bContext &C, wmOperator &op)
 {
   using namespace blender::ed::sculpt_paint;
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
-  Object &ob = *CTX_data_active_object(*C);
-  Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  Object &ob = *CTX_data_active_object(C);
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
-  SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
+  SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op.customdata);
 
   BLI_assert(!dyntopo::stroke_is_dyntopo(ob, brush));
   UNUSED_VARS_NDEBUG(brush);
 
   undo::restore_from_undo_step(depsgraph, sd, ob);
-  stroke->cancel(C, op);
+  stroke->cancel(&C, &op);
 }
 
-static wmOperatorStatus brush_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus brush_stroke_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
-  const wmOperatorStatus retval = stroke->modal(C, op, event);
+  SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op.customdata);
+  const wmOperatorStatus retval = stroke->modal(&C, &op, event);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
@@ -5923,7 +5923,7 @@ static wmOperatorStatus brush_stroke_modal(bContext *C, wmOperator *op, const wm
   return retval;
 }
 
-static void redo_empty_ui(bContext * /*C*/, wmOperator * /*op*/) {}
+static void redo_empty_ui(bContext & /*C*/, wmOperator & /*op*/) {}
 
 void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 {

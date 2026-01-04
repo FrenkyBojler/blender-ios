@@ -424,17 +424,17 @@ static void selectconnected_posebonechildren(Object &ob,
 
 /* within active object context */
 /* previously known as "selectconnected_posearmature" */
-static wmOperatorStatus pose_select_connected_invoke(bContext *C,
-                                                     wmOperator *op,
+static wmOperatorStatus pose_select_connected_invoke(bContext &C,
+                                                     wmOperator &op,
                                                      const wmEvent *event)
 {
   bPoseChannel *pchan, *curBone, *next = nullptr;
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
 
-  view3d_operator_needs_gpu(C);
+  view3d_operator_needs_gpu(&C);
 
   Base *base = nullptr;
-  pchan = ED_armature_pick_pchan(C, event->mval, !extend, &base);
+  pchan = ED_armature_pick_pchan(&C, event->mval, !extend, &base);
 
   if (!pchan) {
     return OPERATOR_CANCELLED;
@@ -466,14 +466,14 @@ static wmOperatorStatus pose_select_connected_invoke(bContext *C,
   /* Select children */
   selectconnected_posebonechildren(*base->object, *pchan, extend);
 
-  ED_outliner_select_sync_from_pose_bone_tag(C);
+  ED_outliner_select_sync_from_pose_bone_tag(&C);
 
   ED_pose_bone_select_tag_update(base->object);
 
   return OPERATOR_FINISHED;
 }
 
-static bool pose_select_linked_pick_poll(bContext *C)
+static bool pose_select_linked_pick_poll(bContext &C)
 {
   return (ED_operator_view3d_active(C) && ED_operator_posemode(C));
 }
@@ -504,11 +504,11 @@ void POSE_OT_select_linked_pick(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static wmOperatorStatus pose_select_linked_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus pose_select_linked_exec(bContext &C, wmOperator & /*op*/)
 {
   bPoseChannel *curBone, *next = nullptr;
 
-  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
     if ((pchan->flag & POSE_SELECTED) == 0) {
       continue;
     }
@@ -538,7 +538,7 @@ static wmOperatorStatus pose_select_linked_exec(bContext *C, wmOperator * /*op*/
   }
   CTX_DATA_END;
 
-  ED_outliner_select_sync_from_pose_bone_tag(C);
+  ED_outliner_select_sync_from_pose_bone_tag(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -560,21 +560,21 @@ void POSE_OT_select_linked(wmOperatorType *ot)
 
 /* -------------------------------------- */
 
-static wmOperatorStatus pose_de_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_de_select_all_exec(bContext &C, wmOperator &op)
 {
-  int action = RNA_enum_get(op->ptr, "action");
+  int action = RNA_enum_get(op.ptr, "action");
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   int multipaint = scene->toolsettings->multipaint;
 
   if (action == SEL_TOGGLE) {
-    action = CTX_DATA_COUNT(*C, selected_pose_bones) ? SEL_DESELECT : SEL_SELECT;
+    action = CTX_DATA_COUNT(C, selected_pose_bones) ? SEL_DESELECT : SEL_SELECT;
   }
 
   Object *ob_prev = nullptr;
 
   /* Set the flags. */
-  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     pose_do_bone_select(pchan, action);
 
@@ -590,9 +590,9 @@ static wmOperatorStatus pose_de_select_all_exec(bContext *C, wmOperator *op)
   }
   CTX_DATA_END;
 
-  ED_outliner_select_sync_from_pose_bone_tag(C);
+  ED_outliner_select_sync_from_pose_bone_tag(&C);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -616,14 +616,14 @@ void POSE_OT_select_all(wmOperatorType *ot)
 
 /* -------------------------------------- */
 
-static wmOperatorStatus pose_select_parent_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus pose_select_parent_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
   bArmature *arm = static_cast<bArmature *>(ob->data);
   bPoseChannel *pchan, *parent;
 
   /* Determine if there is an active bone */
-  pchan = CTX_data_active_pose_bone(*C);
+  pchan = CTX_data_active_pose_bone(C);
   if (pchan) {
     parent = pchan->parent;
     if ((parent) && !(parent->drawflag & PCHAN_DRAW_HIDDEN) &&
@@ -640,7 +640,7 @@ static wmOperatorStatus pose_select_parent_exec(bContext *C, wmOperator * /*op*/
     return OPERATOR_CANCELLED;
   }
 
-  ED_outliner_select_sync_from_pose_bone_tag(C);
+  ED_outliner_select_sync_from_pose_bone_tag(&C);
 
   ED_pose_bone_select_tag_update(ob);
   return OPERATOR_FINISHED;
@@ -663,11 +663,11 @@ void POSE_OT_select_parent(wmOperatorType *ot)
 
 /* -------------------------------------- */
 
-static wmOperatorStatus pose_select_constraint_target_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus pose_select_constraint_target_exec(bContext &C, wmOperator & /*op*/)
 {
   bool found = false;
 
-  CTX_DATA_BEGIN (*C, bPoseChannel *, pchan, visible_pose_bones) {
+  CTX_DATA_BEGIN (C, bPoseChannel *, pchan, visible_pose_bones) {
     if (pchan->flag & POSE_SELECTED) {
       for (bConstraint &con : pchan->constraints) {
         ListBaseT<bConstraintTarget> targets = {nullptr, nullptr};
@@ -699,7 +699,7 @@ static wmOperatorStatus pose_select_constraint_target_exec(bContext *C, wmOperat
     return OPERATOR_CANCELLED;
   }
 
-  ED_outliner_select_sync_from_pose_bone_tag(C);
+  ED_outliner_select_sync_from_pose_bone_tag(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -723,13 +723,13 @@ void POSE_OT_select_constraint_target(wmOperatorType *ot)
 
 /* No need to convert to multi-objects. Just like we keep the non-active bones
  * selected we then keep the non-active objects untouched (selected/unselected). */
-static wmOperatorStatus pose_select_hierarchy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_select_hierarchy_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
   bArmature *arm = static_cast<bArmature *>(ob->data);
   bPoseChannel *pchan_act;
-  int direction = RNA_enum_get(op->ptr, "direction");
-  const bool add_to_sel = RNA_boolean_get(op->ptr, "extend");
+  int direction = RNA_enum_get(op.ptr, "direction");
+  const bool add_to_sel = RNA_boolean_get(op.ptr, "extend");
   bool changed = false;
 
   pchan_act = BKE_pose_channel_active_if_bonecoll_visible(ob);
@@ -788,7 +788,7 @@ static wmOperatorStatus pose_select_hierarchy_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  ED_outliner_select_sync_from_pose_bone_tag(C);
+  ED_outliner_select_sync_from_pose_bone_tag(&C);
 
   ED_pose_bone_select_tag_update(ob);
 
@@ -1172,11 +1172,11 @@ static bool pose_select_same_keyingset(bContext *C, ReportList *reports, bool ex
   return changed_multi;
 }
 
-static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_select_grouped_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
-  const SelectRelatedMode mode = SelectRelatedMode(RNA_enum_get(op->ptr, "type"));
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
+  const SelectRelatedMode mode = SelectRelatedMode(RNA_enum_get(op.ptr, "type"));
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
   bool changed = false;
 
   /* sanity check */
@@ -1187,31 +1187,31 @@ static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
   /* selection types */
   switch (mode) {
     case SelectRelatedMode::SAME_COLLECTION:
-      changed = pose_select_same_collection(C, extend);
+      changed = pose_select_same_collection(&C, extend);
       break;
 
     case SelectRelatedMode::SAME_COLOR:
-      changed = pose_select_same_color(C, extend);
+      changed = pose_select_same_color(&C, extend);
       break;
 
     case SelectRelatedMode::SAME_KEYINGSET:
-      changed = pose_select_same_keyingset(C, op->reports, extend);
+      changed = pose_select_same_keyingset(&C, op.reports, extend);
       break;
 
     case SelectRelatedMode::CHILDREN:
-      changed = pose_select_children(C, true, extend);
+      changed = pose_select_children(&C, true, extend);
       break;
 
     case SelectRelatedMode::IMMEDIATE_CHILDREN:
-      changed = pose_select_children(C, false, extend);
+      changed = pose_select_children(&C, false, extend);
       break;
 
     case SelectRelatedMode::PARENT:
-      changed = pose_select_parents(C, extend);
+      changed = pose_select_parents(&C, extend);
       break;
 
     case SelectRelatedMode::SIBLINGS:
-      changed = pose_select_siblings(C, extend);
+      changed = pose_select_siblings(&C, extend);
       break;
 
     default:
@@ -1221,7 +1221,7 @@ static wmOperatorStatus pose_select_grouped_exec(bContext *C, wmOperator *op)
 
   /* report done status */
   if (changed) {
-    ED_outliner_select_sync_from_pose_bone_tag(C);
+    ED_outliner_select_sync_from_pose_bone_tag(&C);
 
     return OPERATOR_FINISHED;
   }
@@ -1304,21 +1304,20 @@ static void bone_selection_flags_set(bPoseChannel *pchan, const ePchan_Flag new_
 /**
  * \note clone of #armature_select_mirror_exec keep in sync
  */
-static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_select_mirror_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Object *ob_active = CTX_data_active_object(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Object *ob_active = CTX_data_active_object(C);
 
   const bool is_weight_paint = (ob_active->mode & OB_MODE_WEIGHT_PAINT) != 0;
-  const bool active_only = RNA_boolean_get(op->ptr, "only_active");
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
+  const bool active_only = RNA_boolean_get(op.ptr, "only_active");
+  const bool extend = RNA_boolean_get(op.ptr, "extend");
 
   const auto set_bone_selection_flags = extend ? bone_selection_flags_add :
                                                  bone_selection_flags_set;
 
-  Vector<Object *> objects = BKE_object_pose_array_get_unique(
-      scene, view_layer, CTX_wm_view3d(*C));
+  Vector<Object *> objects = BKE_object_pose_array_get_unique(scene, view_layer, CTX_wm_view3d(C));
   for (Object *ob : objects) {
     bArmature *arm = static_cast<bArmature *>(ob->data);
     bPoseChannel *pchan_mirror_act = nullptr;
@@ -1368,13 +1367,13 @@ static wmOperatorStatus pose_select_mirror_exec(bContext *C, wmOperator *op)
       }
     }
 
-    WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
 
     /* Need to tag armature for cow updates, or else selection doesn't update. */
     DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
-  ED_outliner_select_sync_from_pose_bone_tag(C);
+  ED_outliner_select_sync_from_pose_bone_tag(&C);
 
   return OPERATOR_FINISHED;
 }

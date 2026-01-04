@@ -76,22 +76,22 @@ static bool object_rand_transverts(TransVertStore *tvs,
   return true;
 }
 
-static wmOperatorStatus object_rand_verts_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_rand_verts_exec(bContext &C, wmOperator &op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Object *ob_active = CTX_data_edit_object(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Object *ob_active = CTX_data_edit_object(C);
   const int ob_mode = ob_active->mode;
 
-  const float offset = RNA_float_get(op->ptr, "offset");
-  const float uniform = RNA_float_get(op->ptr, "uniform");
-  const float normal_factor = RNA_float_get(op->ptr, "normal");
-  const uint seed = RNA_int_get(op->ptr, "seed");
+  const float offset = RNA_float_get(op.ptr, "offset");
+  const float uniform = RNA_float_get(op.ptr, "uniform");
+  const float normal_factor = RNA_float_get(op.ptr, "normal");
+  const uint seed = RNA_int_get(op.ptr, "seed");
 
   bool changed_multi = false;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C), eObjectMode(ob_mode));
+      scene, view_layer, CTX_wm_view3d(C), eObjectMode(ob_mode));
   for (const int ob_index : objects.index_range()) {
     Object *ob_iter = objects[ob_index];
 
@@ -104,7 +104,7 @@ static wmOperatorStatus object_rand_verts_exec(bContext *C, wmOperator *op)
         mode |= TX_VERT_USE_NORMAL;
       }
 
-      if (shape_key_report_if_locked(ob_iter, op->reports)) {
+      if (shape_key_report_if_locked(ob_iter, op.reports)) {
         continue;
       }
 
@@ -125,7 +125,7 @@ static wmOperatorStatus object_rand_verts_exec(bContext *C, wmOperator *op)
       ED_transverts_update_obedit(&tvs, ob_iter);
       ED_transverts_free(&tvs);
 
-      WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob_iter);
+      WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, ob_iter);
       changed_multi = true;
     }
   }

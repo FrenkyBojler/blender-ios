@@ -210,17 +210,17 @@ struct ViewOpsData {
 
 /* view3d_navigate.cc */
 
-bool view3d_location_poll(bContext *C);
-bool view3d_rotation_poll(bContext *C);
-bool view3d_zoom_or_dolly_poll(bContext *C);
-bool view3d_zoom_or_dolly_or_rotation_poll(bContext *C);
+bool view3d_location_poll(bContext &C);
+bool view3d_rotation_poll(bContext &C);
+bool view3d_zoom_or_dolly_poll(bContext &C);
+bool view3d_zoom_or_dolly_or_rotation_poll(bContext &C);
 
 wmOperatorStatus view3d_navigate_invoke_impl(bContext *C,
                                              wmOperator *op,
                                              const wmEvent *event,
                                              const ViewOpsType *nav_type);
-wmOperatorStatus view3d_navigate_modal_fn(bContext *C, wmOperator *op, const wmEvent *event);
-void view3d_navigate_cancel_fn(bContext *C, wmOperator *op);
+wmOperatorStatus view3d_navigate_modal_fn(bContext &C, wmOperator &op, const wmEvent *event);
+void view3d_navigate_cancel_fn(bContext &C, wmOperator &op);
 
 void calctrackballvec(const rcti *rect, const int event_xy[2], float r_dir[3]);
 void viewmove_apply(ViewOpsData *vod, int x, int y);

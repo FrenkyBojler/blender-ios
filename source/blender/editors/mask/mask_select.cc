@@ -194,21 +194,21 @@ void ED_mask_deselect_all(const bContext *C)
 /** \name (De)select All Operator
  * \{ */
 
-static wmOperatorStatus select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_all_exec(bContext &C, wmOperator &op)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
-  int action = RNA_enum_get(op->ptr, "action");
+  Mask *mask = CTX_data_edit_mask(C);
+  int action = RNA_enum_get(op.ptr, "action");
 
   MaskViewLockState lock_state;
-  ED_mask_view_lock_state_store(C, &lock_state);
+  ED_mask_view_lock_state_store(&C, &lock_state);
 
   ED_mask_select_toggle_all(mask, action);
   ED_mask_select_flush_all(mask);
 
   DEG_id_tag_update(&mask->id, ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
+  WM_event_add_notifier(&C, NC_MASK | ND_SELECT, mask);
 
-  ED_mask_view_lock_state_restore_no_jump(C, &lock_state);
+  ED_mask_view_lock_state_restore_no_jump(&C, &lock_state);
 
   return OPERATOR_FINISHED;
 }
@@ -237,27 +237,27 @@ void MASK_OT_select_all(wmOperatorType *ot)
 /** \name Select (Cursor Pick) Operator
  * \{ */
 
-static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_exec(bContext &C, wmOperator &op)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   MaskLayer *mask_layer;
   MaskSpline *spline;
   MaskSplinePoint *point = nullptr;
   float co[2];
-  bool extend = RNA_boolean_get(op->ptr, "extend");
-  bool deselect = RNA_boolean_get(op->ptr, "deselect");
-  bool toggle = RNA_boolean_get(op->ptr, "toggle");
-  const bool deselect_all = RNA_boolean_get(op->ptr, "deselect_all");
+  bool extend = RNA_boolean_get(op.ptr, "extend");
+  bool deselect = RNA_boolean_get(op.ptr, "deselect");
+  bool toggle = RNA_boolean_get(op.ptr, "toggle");
+  const bool deselect_all = RNA_boolean_get(op.ptr, "deselect_all");
   eMaskWhichHandle which_handle;
   const float threshold = 19;
 
   MaskViewLockState lock_state;
-  ED_mask_view_lock_state_store(C, &lock_state);
+  ED_mask_view_lock_state_store(&C, &lock_state);
 
-  RNA_float_get_array(op->ptr, "location", co);
+  RNA_float_get_array(op.ptr, "location", co);
 
   point = ED_mask_point_find_nearest(
-      C, mask, co, threshold, &mask_layer, &spline, &which_handle, nullptr);
+      &C, mask, co, threshold, &mask_layer, &spline, &which_handle, nullptr);
 
   if (extend == false && deselect == false && toggle == false) {
     ED_mask_select_toggle_all(mask, SEL_DESELECT);
@@ -315,9 +315,9 @@ static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
     ED_mask_select_flush_all(mask);
 
     DEG_id_tag_update(&mask->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_SELECT, mask);
 
-    ED_mask_view_lock_state_restore_no_jump(C, &lock_state);
+    ED_mask_view_lock_state_restore_no_jump(&C, &lock_state);
 
     return OPERATOR_PASS_THROUGH | OPERATOR_FINISHED;
   }
@@ -325,7 +325,7 @@ static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
   MaskSplinePointUW *uw;
 
   if (ED_mask_feather_find_nearest(
-          C, mask, co, threshold, &mask_layer, &spline, &point, &uw, nullptr))
+          &C, mask, co, threshold, &mask_layer, &spline, &point, &uw, nullptr))
   {
 
     if (extend) {
@@ -358,31 +358,31 @@ static wmOperatorStatus select_exec(bContext *C, wmOperator *op)
     ED_mask_select_flush_all(mask);
 
     DEG_id_tag_update(&mask->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_SELECT, mask);
 
-    ED_mask_view_lock_state_restore_no_jump(C, &lock_state);
+    ED_mask_view_lock_state_restore_no_jump(&C, &lock_state);
 
     return OPERATOR_PASS_THROUGH | OPERATOR_FINISHED;
   }
   if (deselect_all) {
-    ED_mask_deselect_all(C);
-    ED_mask_view_lock_state_restore_no_jump(C, &lock_state);
+    ED_mask_deselect_all(&C);
+    ED_mask_view_lock_state_restore_no_jump(&C, &lock_state);
     return OPERATOR_PASS_THROUGH | OPERATOR_FINISHED;
   }
 
   return OPERATOR_PASS_THROUGH;
 }
 
-static wmOperatorStatus select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus select_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
 
   float co[2];
 
   ED_mask_mouse_pos(area, region, event->mval, co);
 
-  RNA_float_set_array(op->ptr, "location", co);
+  RNA_float_set_array(op.ptr, "location", co);
 
   const wmOperatorStatus retval = select_exec(C, op);
 
@@ -426,20 +426,20 @@ void MASK_OT_select(wmOperatorType *ot)
 /** \name Box Select Operator
  * \{ */
 
-static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus box_select_exec(bContext &C, wmOperator &op)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
 
-  Mask *mask_orig = CTX_data_edit_mask(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Mask *mask_orig = CTX_data_edit_mask(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   rcti rect;
   rctf rectf;
   bool changed = false;
 
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op.ptr, "mode"));
   const bool select = (sel_op != SEL_OP_SUB);
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     ED_mask_select_toggle_all(mask_orig, SEL_DESELECT);
@@ -447,7 +447,7 @@ static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
   }
 
   /* get rectangle from operator */
-  WM_operator_properties_border_to_rcti(op, &rect);
+  WM_operator_properties_border_to_rcti(&op, &rect);
 
   ED_mask_point_pos(area, region, rect.xmin, rect.ymin, &rectf.xmin, &rectf.ymin);
   ED_mask_point_pos(area, region, rect.xmax, rect.ymax, &rectf.xmax, &rectf.ymax);
@@ -488,7 +488,7 @@ static wmOperatorStatus box_select_exec(bContext *C, wmOperator *op)
     ED_mask_select_flush_all(mask_orig);
 
     DEG_id_tag_update(&mask_orig->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask_orig);
+    WM_event_add_notifier(&C, NC_MASK | ND_SELECT, mask_orig);
 
     return OPERATOR_FINISHED;
   }
@@ -603,15 +603,15 @@ static bool do_lasso_select_mask(bContext *C, const Span<int2> mcoords, const eS
   return changed;
 }
 
-static wmOperatorStatus clip_lasso_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus clip_lasso_select_exec(bContext &C, wmOperator &op)
 {
-  const Array<int2> mcoords = WM_gesture_lasso_path_to_array(C, op);
+  const Array<int2> mcoords = WM_gesture_lasso_path_to_array(&C, &op);
   if (mcoords.is_empty()) {
     return OPERATOR_PASS_THROUGH;
   }
 
-  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
-  do_lasso_select_mask(C, mcoords, sel_op);
+  const eSelectOp sel_op = eSelectOp(RNA_enum_get(op.ptr, "mode"));
+  do_lasso_select_mask(&C, mcoords, sel_op);
 
   return OPERATOR_FINISHED;
 }
@@ -657,13 +657,13 @@ static int mask_spline_point_inside_ellipse(BezTriple *bezt,
   return x * x + y * y < 1.0f;
 }
 
-static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus circle_select_exec(bContext &C, wmOperator &op)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
 
-  Mask *mask_orig = CTX_data_edit_mask(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Mask *mask_orig = CTX_data_edit_mask(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Mask *mask_eval = DEG_get_evaluated(depsgraph, mask_orig);
 
   float zoomx, zoomy, offset[2], ellipse[2];
@@ -671,9 +671,9 @@ static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
   bool changed = false;
 
   /* get operator properties */
-  const int x = RNA_int_get(op->ptr, "x");
-  const int y = RNA_int_get(op->ptr, "y");
-  const int radius = RNA_int_get(op->ptr, "radius");
+  const int x = RNA_int_get(op.ptr, "x");
+  const int y = RNA_int_get(op.ptr, "y");
+  const int radius = RNA_int_get(op.ptr, "radius");
 
   /* compute ellipse and position in unified coordinates */
   ED_mask_get_size(area, &width, &height);
@@ -686,8 +686,8 @@ static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
   ED_mask_point_pos(area, region, x, y, &offset[0], &offset[1]);
 
   const eSelectOp sel_op = ED_select_op_modal(
-      eSelectOp(RNA_enum_get(op->ptr, "mode")),
-      WM_gesture_is_modal_first(static_cast<wmGesture *>(op->customdata)));
+      eSelectOp(RNA_enum_get(op.ptr, "mode")),
+      WM_gesture_is_modal_first(static_cast<wmGesture *>(op.customdata)));
   const bool select = (sel_op != SEL_OP_SUB);
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     ED_mask_select_toggle_all(mask_orig, SEL_DESELECT);
@@ -729,7 +729,7 @@ static wmOperatorStatus circle_select_exec(bContext *C, wmOperator *op)
     ED_mask_select_flush_all(mask_orig);
 
     DEG_id_tag_update(&mask_orig->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask_orig);
+    WM_event_add_notifier(&C, NC_MASK | ND_SELECT, mask_orig);
 
     return OPERATOR_FINISHED;
   }
@@ -765,26 +765,26 @@ void MASK_OT_select_circle(wmOperatorType *ot)
 /** \name Select Linked (Cursor Pick) Operator
  * \{ */
 
-static wmOperatorStatus mask_select_linked_pick_invoke(bContext *C,
-                                                       wmOperator *op,
+static wmOperatorStatus mask_select_linked_pick_invoke(bContext &C,
+                                                       wmOperator &op,
                                                        const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
 
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   MaskLayer *mask_layer;
   MaskSpline *spline;
   MaskSplinePoint *point = nullptr;
   float co[2];
-  bool do_select = !RNA_boolean_get(op->ptr, "deselect");
+  bool do_select = !RNA_boolean_get(op.ptr, "deselect");
   const float threshold = 19;
   bool changed = false;
 
   ED_mask_mouse_pos(area, region, event->mval, co);
 
   point = ED_mask_point_find_nearest(
-      C, mask, co, threshold, &mask_layer, &spline, nullptr, nullptr);
+      &C, mask, co, threshold, &mask_layer, &spline, nullptr, nullptr);
 
   if (point) {
     ED_mask_spline_select_set(spline, do_select);
@@ -798,7 +798,7 @@ static wmOperatorStatus mask_select_linked_pick_invoke(bContext *C,
     ED_mask_select_flush_all(mask);
 
     DEG_id_tag_update(&mask->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_SELECT, mask);
 
     return OPERATOR_FINISHED;
   }
@@ -829,9 +829,9 @@ void MASK_OT_select_linked_pick(wmOperatorType *ot)
 /** \name Select Linked Operator
  * \{ */
 
-static wmOperatorStatus mask_select_linked_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_select_linked_exec(bContext &C, wmOperator & /*op*/)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
 
   bool changed = false;
 
@@ -853,7 +853,7 @@ static wmOperatorStatus mask_select_linked_exec(bContext *C, wmOperator * /*op*/
     ED_mask_select_flush_all(mask);
 
     DEG_id_tag_update(&mask->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_MASK | ND_SELECT, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_SELECT, mask);
 
     return OPERATOR_FINISHED;
   }
@@ -956,9 +956,9 @@ static wmOperatorStatus mask_select_more_less(bContext *C, bool more)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus mask_select_more_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_select_more_exec(bContext &C, wmOperator & /*op*/)
 {
-  return mask_select_more_less(C, true);
+  return mask_select_more_less(&C, true);
 }
 
 void MASK_OT_select_more(wmOperatorType *ot)
@@ -976,9 +976,9 @@ void MASK_OT_select_more(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus mask_select_less_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_select_less_exec(bContext &C, wmOperator & /*op*/)
 {
-  return mask_select_more_less(C, false);
+  return mask_select_more_less(&C, false);
 }
 
 void MASK_OT_select_less(wmOperatorType *ot)

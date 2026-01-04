@@ -176,31 +176,31 @@ const EnumPropertyItem rna_enum_transform_mode_type_items[] = {
 
 namespace blender::ed::transform {
 
-static wmOperatorStatus select_orientation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_orientation_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
-  int orientation = RNA_enum_get(op->ptr, "orientation");
+  int orientation = RNA_enum_get(op.ptr, "orientation");
 
   BKE_scene_orientation_slot_set_index(&scene->orientation_slots[SCE_ORIENT_DEFAULT], orientation);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(&C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
-  wmMsgBus *mbus = CTX_wm_message_bus(*C);
+  wmMsgBus *mbus = CTX_wm_message_bus(C);
   WM_msg_publish_rna_prop(mbus, &scene->id, scene, TransformOrientationSlot, type);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus select_orientation_invoke(bContext *C,
-                                                  wmOperator * /*op*/,
+static wmOperatorStatus select_orientation_invoke(bContext &C,
+                                                  wmOperator & /*op*/,
                                                   const wmEvent * /*event*/)
 {
-  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Orientation"), ICON_NONE);
+  ui::PopupMenu *pup = ui::popup_menu_begin(&C, IFACE_("Orientation"), ICON_NONE);
   ui::Layout &layout = *ui::popup_menu_layout(pup);
   layout.op_enum("TRANSFORM_OT_select_orientation", "orientation");
-  popup_menu_end(C, pup);
+  popup_menu_end(&C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -225,34 +225,34 @@ static void TRANSFORM_OT_select_orientation(wmOperatorType *ot)
   RNA_def_enum_funcs(prop, rna_TransformOrientation_itemf);
 }
 
-static wmOperatorStatus delete_orientation_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus delete_orientation_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  BIF_removeTransformOrientationIndex(C,
+  Scene *scene = CTX_data_scene(C);
+  BIF_removeTransformOrientationIndex(&C,
                                       scene->orientation_slots[SCE_ORIENT_DEFAULT].index_custom);
 
-  WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
+  WM_event_add_notifier(&C, NC_SCENE | NA_EDITED, scene);
 
-  wmMsgBus *mbus = CTX_wm_message_bus(*C);
+  wmMsgBus *mbus = CTX_wm_message_bus(C);
   WM_msg_publish_rna_prop(mbus, &scene->id, scene, Scene, transform_orientation_slots);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus delete_orientation_invoke(bContext *C,
-                                                  wmOperator *op,
+static wmOperatorStatus delete_orientation_invoke(bContext &C,
+                                                  wmOperator &op,
                                                   const wmEvent * /*event*/)
 {
   return delete_orientation_exec(C, op);
 }
 
-static bool delete_orientation_poll(bContext *C)
+static bool delete_orientation_poll(bContext &C)
 {
   if (ED_operator_areaactive(C) == 0) {
     return false;
   }
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   return ((scene->orientation_slots[SCE_ORIENT_DEFAULT].type >= V3D_ORIENT_CUSTOM) &&
           (scene->orientation_slots[SCE_ORIENT_DEFAULT].index_custom != -1));
 }
@@ -271,36 +271,36 @@ static void TRANSFORM_OT_delete_orientation(wmOperatorType *ot)
   ot->poll = delete_orientation_poll;
 }
 
-static wmOperatorStatus create_orientation_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus create_orientation_exec(bContext &C, wmOperator &op)
 {
   char name[MAX_NAME];
-  const bool use = RNA_boolean_get(op->ptr, "use");
-  const bool overwrite = RNA_boolean_get(op->ptr, "overwrite");
-  const bool use_view = RNA_boolean_get(op->ptr, "use_view");
-  View3D *v3d = CTX_wm_view3d(*C);
-  Scene *scene = CTX_data_scene(*C);
+  const bool use = RNA_boolean_get(op.ptr, "use");
+  const bool overwrite = RNA_boolean_get(op.ptr, "overwrite");
+  const bool use_view = RNA_boolean_get(op.ptr, "use_view");
+  View3D *v3d = CTX_wm_view3d(C);
+  Scene *scene = CTX_data_scene(C);
 
-  RNA_string_get(op->ptr, "name", name);
+  RNA_string_get(op.ptr, "name", name);
 
   if (use && !v3d) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_ERROR,
                "Create Orientation's 'use' parameter only valid in a 3DView context");
     return OPERATOR_CANCELLED;
   }
 
-  if (!BIF_createTransformOrientation(C, op->reports, name, use_view, use, overwrite)) {
-    BKE_report(op->reports, RPT_ERROR, "Unable to create orientation");
+  if (!BIF_createTransformOrientation(&C, op.reports, name, use_view, use, overwrite)) {
+    BKE_report(op.reports, RPT_ERROR, "Unable to create orientation");
     return OPERATOR_CANCELLED;
   }
 
   if (use) {
-    wmMsgBus *mbus = CTX_wm_message_bus(*C);
+    wmMsgBus *mbus = CTX_wm_message_bus(C);
     WM_msg_publish_rna_prop(mbus, &scene->id, scene, Scene, transform_orientation_slots);
-    WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
+    WM_event_add_notifier(&C, NC_SCENE | NA_EDITED, scene);
   }
 
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -423,11 +423,11 @@ static int transformops_data(bContext *C, wmOperator *op, const wmEvent *event)
   return retval; /* Return 0 on error. */
 }
 
-static wmOperatorStatus transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus transform_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   wmOperatorStatus exit_code = OPERATOR_PASS_THROUGH;
 
-  TransInfo *t = static_cast<TransInfo *>(op->customdata);
+  TransInfo *t = static_cast<TransInfo *>(op.customdata);
   const eTfmMode mode_prev = t->mode;
 
 #if defined(WITH_INPUT_NDOF) && 0
@@ -441,16 +441,16 @@ static wmOperatorStatus transform_modal(bContext *C, wmOperator *op, const wmEve
 #endif
 
   /* XXX insert keys are called here, and require context. */
-  t->context = C;
+  t->context = &C;
 
-  exit_code = transformEvent(t, op, event);
+  exit_code = transformEvent(t, &op, event);
   t->context = nullptr;
 
   /* Allow navigation while transforming. */
   if (t->vod && (exit_code & OPERATOR_PASS_THROUGH)) {
     RegionView3D *rv3d = static_cast<RegionView3D *>(t->region->regiondata);
     const bool is_navigating = (rv3d->rflag & RV3D_NAVIGATING) != 0;
-    if (ED_view3d_navigation_do(C, t->vod, event, t->center_global)) {
+    if (ED_view3d_navigation_do(&C, t->vod, event, t->center_global)) {
       if (!is_navigating) {
         /* Navigation has started. */
 
@@ -483,12 +483,12 @@ static wmOperatorStatus transform_modal(bContext *C, wmOperator *op, const wmEve
     }
   }
 
-  transformApply(C, t);
+  transformApply(&C, t);
 
-  exit_code |= transformEnd(C, t);
+  exit_code |= transformEnd(&C, t);
 
   if ((exit_code & OPERATOR_RUNNING_MODAL) == 0) {
-    transformops_exit(C, op);
+    transformops_exit(&C, &op);
     exit_code &= ~OPERATOR_PASS_THROUGH; /* Preventively remove pass-through. */
   }
   else {
@@ -508,7 +508,7 @@ static wmOperatorStatus transform_modal(bContext *C, wmOperator *op, const wmEve
 
       BLI_assert(ot_new != nullptr);
       if (ot_new) {
-        WM_operator_type_set(op, ot_new);
+        WM_operator_type_set(&op, ot_new);
       }
       /* End suspicious code. */
     }
@@ -517,80 +517,80 @@ static wmOperatorStatus transform_modal(bContext *C, wmOperator *op, const wmEve
   return exit_code;
 }
 
-static void transform_cancel(bContext *C, wmOperator *op)
+static void transform_cancel(bContext &C, wmOperator &op)
 {
-  TransInfo *t = static_cast<TransInfo *>(op->customdata);
+  TransInfo *t = static_cast<TransInfo *>(op.customdata);
 
   t->state = TRANS_CANCEL;
-  transformEnd(C, t);
-  transformops_exit(C, op);
+  transformEnd(&C, t);
+  transformops_exit(&C, &op);
 }
 
-static wmOperatorStatus transform_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus transform_exec(bContext &C, wmOperator &op)
 {
   TransInfo *t;
 
-  if (!transformops_data(C, op, nullptr)) {
+  if (!transformops_data(&C, &op, nullptr)) {
     G.moving = 0;
     return OPERATOR_CANCELLED;
   }
 
-  t = static_cast<TransInfo *>(op->customdata);
+  t = static_cast<TransInfo *>(op.customdata);
 
   t->options |= CTX_AUTOCONFIRM;
 
-  transformApply(C, t);
+  transformApply(&C, t);
 
-  transformEnd(C, t);
+  transformEnd(&C, t);
 
-  transformops_exit(C, op);
+  transformops_exit(&C, &op);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus transform_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus transform_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (!transformops_data(C, op, event)) {
+  if (!transformops_data(&C, &op, event)) {
     G.moving = 0;
     return OPERATOR_CANCELLED;
   }
 
   /* When modal, allow 'value' to set initial offset. */
-  if ((event == nullptr) && RNA_struct_property_is_set(op->ptr, "value")) {
+  if ((event == nullptr) && RNA_struct_property_is_set(op.ptr, "value")) {
     return transform_exec(C, op);
   }
 
   /* Add temp handler. */
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   /* Use when modal input has some transformation to begin with. */
-  TransInfo *t = static_cast<TransInfo *>(op->customdata);
+  TransInfo *t = static_cast<TransInfo *>(op.customdata);
   if ((t->flag & T_NO_CURSOR_WRAP) == 0) {
-    op->flag |= OP_IS_MODAL_GRAB_CURSOR; /* XXX maybe we want this with the gizmo only? */
+    op.flag |= OP_IS_MODAL_GRAB_CURSOR; /* XXX maybe we want this with the gizmo only? */
   }
   if (UNLIKELY(!is_zero_v4(t->values_modal_offset))) {
-    transformApply(C, t);
+    transformApply(&C, t);
   }
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static bool transform_poll_property(const bContext *C, wmOperator *op, const PropertyRNA *prop)
+static bool transform_poll_property(const bContext &C, wmOperator &op, const PropertyRNA *prop)
 {
   const char *prop_id = RNA_property_identifier(prop);
 
   /* Orientation/Constraints. */
   if (STRPREFIX(prop_id, "constraint")) {
     /* Hide orientation axis if no constraints are set, since it won't be used. */
-    PropertyRNA *prop_con = RNA_struct_find_property(op->ptr, "orient_type");
+    PropertyRNA *prop_con = RNA_struct_find_property(op.ptr, "orient_type");
     if (!ELEM(prop_con, nullptr, prop)) {
 
       /* Special case: show constraint axis if we don't have values,
        * needed for mirror operator. */
       if (STREQ(prop_id, "constraint_axis") &&
-          (RNA_struct_find_property(op->ptr, "value") == nullptr))
+          (RNA_struct_find_property(op.ptr, "value") == nullptr))
       {
         return true;
       }
@@ -602,20 +602,20 @@ static bool transform_poll_property(const bContext *C, wmOperator *op, const Pro
 
   /* Orientation Axis. */
   if (STREQ(prop_id, "orient_axis")) {
-    eTfmMode mode = (eTfmMode)transformops_mode(op);
+    eTfmMode mode = (eTfmMode)transformops_mode(&op);
     return mode != TFM_ALIGN;
   }
 
   /* Proportional Editing. */
   if (STRPREFIX(prop_id, "proportional") || STRPREFIX(prop_id, "use_proportional")) {
-    ScrArea *area = CTX_wm_area(*C);
+    ScrArea *area = CTX_wm_area(C);
     if (area->spacetype == SPACE_NLA) {
       /* Hide properties that are not supported in some spaces. */
       return false;
     }
 
-    PropertyRNA *prop_pet = RNA_struct_find_property(op->ptr, "use_proportional_edit");
-    if ((prop_pet != prop) && (RNA_property_boolean_get(op->ptr, prop_pet) == false)) {
+    PropertyRNA *prop_pet = RNA_struct_find_property(op.ptr, "use_proportional_edit");
+    if ((prop_pet != prop) && (RNA_property_boolean_get(op.ptr, prop_pet) == false)) {
       /* If "use_proportional_edit" is false, hide:
        * - "proportional_edit_falloff",
        * - "proportional_size",
@@ -628,12 +628,12 @@ static bool transform_poll_property(const bContext *C, wmOperator *op, const Pro
 
   /* Snapping. */
   if (STREQ(prop_id, "use_snap_project")) {
-    return RNA_boolean_get(op->ptr, "snap");
+    return RNA_boolean_get(op.ptr, "snap");
   }
 
   if (STREQ(prop_id, "use_even_offset")) {
     /* Even offset isn't meaningful for individual faces. */
-    if (op->opm && STREQ(op->opm->idname, "MESH_OT_extrude_faces_move")) {
+    if (op.opm && STREQ(op.opm->idname, "MESH_OT_extrude_faces_move")) {
       return false;
     }
     return true;
@@ -641,7 +641,7 @@ static bool transform_poll_property(const bContext *C, wmOperator *op, const Pro
 
   /* #P_CORRECT_UV. */
   if (STREQ(prop_id, "correct_uv")) {
-    ScrArea *area = CTX_wm_area(*C);
+    ScrArea *area = CTX_wm_area(C);
     return area->spacetype == SPACE_VIEW3D;
   }
 
@@ -1004,9 +1004,9 @@ static void TRANSFORM_OT_rotate(wmOperatorType *ot)
                           P_GEO_SNAP | P_GPENCIL_EDIT | P_CENTER);
 }
 
-static bool tilt_poll(bContext *C)
+static bool tilt_poll(bContext &C)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   if (!obedit) {
     return false;
   }
@@ -1072,13 +1072,13 @@ static void TRANSFORM_OT_bend(wmOperatorType *ot)
   properties_register(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP | P_GPENCIL_EDIT | P_CENTER);
 }
 
-static bool transform_shear_poll(bContext *C)
+static bool transform_shear_poll(bContext &C)
 {
   if (!ED_operator_screenactive(C)) {
     return false;
   }
 
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   return area && !ELEM(area->spacetype, SPACE_ACTION);
 }
 
@@ -1470,13 +1470,13 @@ static void TRANSFORM_OT_transform(wmOperatorType *ot)
                           P_ALIGN_SNAP | P_GPENCIL_EDIT | P_CENTER | P_POST_TRANSFORM | P_OPTIONS);
 }
 
-static wmOperatorStatus transform_from_gizmo_invoke(bContext *C,
-                                                    wmOperator * /*op*/,
+static wmOperatorStatus transform_from_gizmo_invoke(bContext &C,
+                                                    wmOperator & /*op*/,
                                                     const wmEvent *event)
 {
-  bToolRef *tref = WM_toolsystem_ref_from_context(C);
+  bToolRef *tref = WM_toolsystem_ref_from_context(&C);
   if (tref) {
-    ARegion *region = CTX_wm_region(*C);
+    ARegion *region = CTX_wm_region(C);
     wmGizmoMap *gzmap = region->runtime->gizmo_map;
     wmGizmoGroup *gzgroup = gzmap ? WM_gizmomap_group_find(gzmap, "VIEW3D_GGT_xform_gizmo") :
                                     nullptr;
@@ -1502,7 +1502,7 @@ static wmOperatorStatus transform_from_gizmo_invoke(bContext *C,
         wmOperatorType *ot = WM_operatortype_find(op_id, true);
         PointerRNA op_ptr = WM_operator_properties_create_ptr(ot);
         RNA_boolean_set(&op_ptr, "release_confirm", true);
-        WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &op_ptr, event);
+        WM_operator_name_call_ptr(&C, ot, wm::OpCallContext::InvokeDefault, &op_ptr, event);
         WM_operator_properties_free(&op_ptr);
         return OPERATOR_FINISHED;
       }

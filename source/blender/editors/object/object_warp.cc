@@ -155,14 +155,14 @@ static void object_warp_transverts(TransVertStore *tvs,
   }
 }
 
-static wmOperatorStatus object_warp_verts_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_warp_verts_exec(bContext &C, wmOperator &op)
 {
-  const float warp_angle = RNA_float_get(op->ptr, "warp_angle");
-  const float offset_angle = RNA_float_get(op->ptr, "offset_angle");
+  const float warp_angle = RNA_float_get(op.ptr, "warp_angle");
+  const float offset_angle = RNA_float_get(op.ptr, "offset_angle");
 
   TransVertStore tvs = {nullptr};
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Object *obedit = CTX_data_edit_object(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Object *obedit = CTX_data_edit_object(C);
 
   /* typically from 'rv3d' and 3d cursor */
   float viewmat[4][4];
@@ -174,7 +174,7 @@ static wmOperatorStatus object_warp_verts_exec(bContext *C, wmOperator *op)
 
   float min, max;
 
-  if (shape_key_report_if_locked(obedit, op->reports)) {
+  if (shape_key_report_if_locked(obedit, op.reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -188,12 +188,12 @@ static wmOperatorStatus object_warp_verts_exec(bContext *C, wmOperator *op)
 
   /* Get view-matrix. */
   {
-    PropertyRNA *prop_viewmat = RNA_struct_find_property(op->ptr, "viewmat");
-    if (RNA_property_is_set(op->ptr, prop_viewmat)) {
-      RNA_property_float_get_array(op->ptr, prop_viewmat, (float *)viewmat);
+    PropertyRNA *prop_viewmat = RNA_struct_find_property(op.ptr, "viewmat");
+    if (RNA_property_is_set(op.ptr, prop_viewmat)) {
+      RNA_property_float_get_array(op.ptr, prop_viewmat, (float *)viewmat);
     }
     else {
-      RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+      RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
       if (rv3d) {
         copy_m4_m4(viewmat, rv3d->viewmat);
@@ -202,21 +202,21 @@ static wmOperatorStatus object_warp_verts_exec(bContext *C, wmOperator *op)
         unit_m4(viewmat);
       }
 
-      RNA_property_float_set_array(op->ptr, prop_viewmat, (float *)viewmat);
+      RNA_property_float_set_array(op.ptr, prop_viewmat, (float *)viewmat);
     }
   }
 
   /* get center */
   {
-    PropertyRNA *prop_center = RNA_struct_find_property(op->ptr, "center");
-    if (RNA_property_is_set(op->ptr, prop_center)) {
-      RNA_property_float_get_array(op->ptr, prop_center, center);
+    PropertyRNA *prop_center = RNA_struct_find_property(op.ptr, "center");
+    if (RNA_property_is_set(op.ptr, prop_center)) {
+      RNA_property_float_get_array(op.ptr, prop_center, center);
     }
     else {
-      const Scene *scene = CTX_data_scene(*C);
+      const Scene *scene = CTX_data_scene(C);
       copy_v3_v3(center, scene->cursor.location);
 
-      RNA_property_float_set_array(op->ptr, prop_center, center);
+      RNA_property_float_set_array(op.ptr, prop_center, center);
     }
   }
 
@@ -224,19 +224,19 @@ static wmOperatorStatus object_warp_verts_exec(bContext *C, wmOperator *op)
 
   /* get minmax */
   {
-    PropertyRNA *prop_min = RNA_struct_find_property(op->ptr, "min");
-    PropertyRNA *prop_max = RNA_struct_find_property(op->ptr, "max");
+    PropertyRNA *prop_min = RNA_struct_find_property(op.ptr, "min");
+    PropertyRNA *prop_max = RNA_struct_find_property(op.ptr, "max");
 
-    if (RNA_property_is_set(op->ptr, prop_min) || RNA_property_is_set(op->ptr, prop_max)) {
-      min = RNA_property_float_get(op->ptr, prop_min);
-      max = RNA_property_float_get(op->ptr, prop_max);
+    if (RNA_property_is_set(op.ptr, prop_min) || RNA_property_is_set(op.ptr, prop_max)) {
+      min = RNA_property_float_get(op.ptr, prop_min);
+      max = RNA_property_float_get(op.ptr, prop_max);
     }
     else {
       /* handy to set the bounds of the mesh */
       object_warp_transverts_minmax_x(&tvs, mat_view, center_view, &min, &max);
 
-      RNA_property_float_set(op->ptr, prop_min, min);
-      RNA_property_float_set(op->ptr, prop_max, max);
+      RNA_property_float_set(op.ptr, prop_min, min);
+      RNA_property_float_set(op.ptr, prop_max, max);
     }
 
     if (min > max) {
@@ -251,7 +251,7 @@ static wmOperatorStatus object_warp_verts_exec(bContext *C, wmOperator *op)
   ED_transverts_update_obedit(&tvs, obedit);
   ED_transverts_free(&tvs);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, obedit);
 
   return OPERATOR_FINISHED;
 }

@@ -57,19 +57,19 @@
 /** \name Camera to View Operator
  * \{ */
 
-static wmOperatorStatus view3d_camera_to_view_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus view3d_camera_to_view_exec(bContext &C, wmOperator & /*op*/)
 {
-  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   View3D *v3d;
   ARegion *region;
   RegionView3D *rv3d;
 
   ObjectTfmProtectedChannels obtfm;
 
-  ED_view3d_context_user_region(C, &v3d, &region);
+  ED_view3d_context_user_region(&C, &v3d, &region);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  ED_view3d_smooth_view_force_finish(C, v3d, region);
+  ED_view3d_smooth_view_force_finish(&C, v3d, region);
 
   ED_view3d_lastview_store(rv3d);
 
@@ -82,19 +82,19 @@ static wmOperatorStatus view3d_camera_to_view_exec(bContext *C, wmOperator * /*o
   DEG_id_tag_update(&v3d->camera->id, ID_RECALC_TRANSFORM);
   rv3d->persp = RV3D_CAMOB;
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, v3d->camera);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, v3d->camera);
 
   return OPERATOR_FINISHED;
 }
 
-static bool view3d_camera_to_view_poll(bContext *C)
+static bool view3d_camera_to_view_poll(bContext &C)
 {
   View3D *v3d;
   ARegion *region;
 
-  if (ED_view3d_context_user_region(C, &v3d, &region)) {
+  if (ED_view3d_context_user_region(&C, &v3d, &region)) {
     RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-    if (v3d && v3d->camera && BKE_id_is_editable(CTX_data_main(*C), &v3d->camera->id)) {
+    if (v3d && v3d->camera && BKE_id_is_editable(CTX_data_main(C), &v3d->camera->id)) {
       if (rv3d && (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) == 0) {
         if (rv3d->persp != RV3D_CAMOB) {
           return true;
@@ -131,21 +131,21 @@ void VIEW3D_OT_camera_to_view(wmOperatorType *ot)
  * Unlike #VIEW3D_OT_view_selected this is for framing a render and not
  * meant to take into account vertex/bone selection for eg.
  */
-static wmOperatorStatus view3d_camera_to_view_selected_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_camera_to_view_selected_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
-  View3D *v3d = CTX_wm_view3d(*C); /* can be nullptr */
+  Main *bmain = CTX_data_main(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
+  View3D *v3d = CTX_wm_view3d(C); /* can be nullptr */
   Object *camera_ob = v3d ? v3d->camera : scene->camera;
 
   if (camera_ob == nullptr) {
-    BKE_report(op->reports, RPT_ERROR, "No active camera");
+    BKE_report(op.reports, RPT_ERROR, "No active camera");
     return OPERATOR_CANCELLED;
   }
 
   if (ED_view3d_camera_to_view_selected(bmain, depsgraph, scene, camera_ob)) {
-    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, camera_ob);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, camera_ob);
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -229,22 +229,22 @@ static void sync_viewport_camera_smoothview(bContext *C,
   }
 }
 
-static wmOperatorStatus view3d_setobjectascamera_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus view3d_setobjectascamera_exec(bContext &C, wmOperator &op)
 {
   View3D *v3d;
   ARegion *region;
   RegionView3D *rv3d;
 
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob = CTX_data_active_object(*C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = CTX_data_active_object(C);
 
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
   /* no nullptr check is needed, poll checks */
-  ED_view3d_context_user_region(C, &v3d, &region);
+  ED_view3d_context_user_region(&C, &v3d, &region);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
 
-  ED_view3d_smooth_view_force_finish(C, v3d, region);
+  ED_view3d_smooth_view_force_finish(&C, v3d, region);
 
   if (ob) {
     Object *camera_old = (rv3d->persp == RV3D_CAMOB) ? V3D_CAMERA_SCENE(scene, v3d) : nullptr;
@@ -253,7 +253,7 @@ static wmOperatorStatus view3d_setobjectascamera_exec(bContext *C, wmOperator *o
     if (v3d->scenelock && scene->camera != ob) {
       scene->camera = ob;
       DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-      DEG_relations_tag_update(CTX_data_main(*C));
+      DEG_relations_tag_update(CTX_data_main(C));
     }
 
     /* unlikely but looks like a glitch when set to the same */
@@ -269,25 +269,25 @@ static wmOperatorStatus view3d_setobjectascamera_exec(bContext *C, wmOperator *o
       sview_params.undo_str = nullptr;
 
       ED_view3d_lastview_store(rv3d);
-      ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview_params);
+      ED_view3d_smooth_view(&C, v3d, region, smooth_viewtx, &sview_params);
     }
 
     if (v3d->scenelock) {
-      sync_viewport_camera_smoothview(C, v3d, ob, smooth_viewtx);
-      WM_event_add_notifier(C, NC_SCENE, scene);
+      sync_viewport_camera_smoothview(&C, v3d, ob, smooth_viewtx);
+      WM_event_add_notifier(&C, NC_SCENE, scene);
     }
-    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, scene);
+    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, scene);
   }
 
   return OPERATOR_FINISHED;
 }
 
-bool ED_operator_rv3d_user_region_poll(bContext *C)
+bool ED_operator_rv3d_user_region_poll(bContext &C)
 {
   View3D *v3d_dummy;
   ARegion *region_dummy;
 
-  return ED_view3d_context_user_region(C, &v3d_dummy, &region_dummy);
+  return ED_view3d_context_user_region(&C, &v3d_dummy, &region_dummy);
 }
 
 void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
@@ -1057,18 +1057,18 @@ bool ED_localview_exit_if_empty(const Depsgraph *depsgraph,
       depsgraph, wm, win, scene, view_layer, area, frame_selected, smooth_viewtx);
 }
 
-static wmOperatorStatus localview_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus localview_exec(bContext &C, wmOperator &op)
 {
-  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  ScrArea *area = CTX_wm_area(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  bool frame_selected = RNA_boolean_get(op->ptr, "frame_selected");
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ScrArea *area = CTX_wm_area(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  bool frame_selected = RNA_boolean_get(op.ptr, "frame_selected");
   bool changed;
 
   if (v3d->localvd) {
@@ -1085,7 +1085,7 @@ static wmOperatorStatus localview_exec(bContext *C, wmOperator *op)
                                     area,
                                     frame_selected,
                                     smooth_viewtx,
-                                    op->reports);
+                                    op.reports);
   }
 
   if (changed) {
@@ -1095,7 +1095,7 @@ static wmOperatorStatus localview_exec(bContext *C, wmOperator *op)
     /* Unselected objects become selected when exiting. */
     if (v3d->localvd == nullptr) {
       DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+      WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
     }
     else {
       DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
@@ -1127,12 +1127,12 @@ void VIEW3D_OT_localview(wmOperatorType *ot)
                   "Move the view to frame the selected objects");
 }
 
-static wmOperatorStatus localview_remove_from_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus localview_remove_from_exec(bContext &C, wmOperator &op)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   bool changed = false;
   BKE_view_layer_synced_ensure(scene, view_layer);
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
@@ -1149,36 +1149,36 @@ static wmOperatorStatus localview_remove_from_exec(bContext *C, wmOperator *op)
 
   /* If some object was removed from the local view, exit the local view if it is now empty. */
   if (changed) {
-    ED_localview_exit_if_empty(CTX_data_ensure_evaluated_depsgraph(*C),
+    ED_localview_exit_if_empty(CTX_data_ensure_evaluated_depsgraph(C),
                                scene,
                                view_layer,
-                               CTX_wm_manager(*C),
-                               CTX_wm_window(*C),
+                               CTX_wm_manager(C),
+                               CTX_wm_window(C),
                                v3d,
-                               CTX_wm_area(*C),
+                               CTX_wm_area(C),
                                true,
-                               WM_operator_smooth_viewtx_get(op));
+                               WM_operator_smooth_viewtx_get(&op));
   }
 
   if (changed) {
     DEG_tag_on_visible_update(bmain, false);
     DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
+    WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+    WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, scene);
     return OPERATOR_FINISHED;
   }
 
-  BKE_report(op->reports, RPT_ERROR, "No object selected");
+  BKE_report(op.reports, RPT_ERROR, "No object selected");
   return OPERATOR_CANCELLED;
 }
 
-static bool localview_remove_from_poll(bContext *C)
+static bool localview_remove_from_poll(bContext &C)
 {
-  if (CTX_data_edit_object(*C) != nullptr) {
+  if (CTX_data_edit_object(C) != nullptr) {
     return false;
   }
 
-  View3D *v3d = CTX_wm_view3d(*C);
+  View3D *v3d = CTX_wm_view3d(C);
   return v3d && v3d->localvd;
 }
 

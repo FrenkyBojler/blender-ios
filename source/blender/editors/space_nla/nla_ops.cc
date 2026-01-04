@@ -24,7 +24,7 @@
 
 /* ************************** poll callbacks for operators **********************************/
 
-bool nlaop_poll_tweakmode_off(bContext *C)
+bool nlaop_poll_tweakmode_off(bContext &C)
 {
   Scene *scene;
 
@@ -38,7 +38,7 @@ bool nlaop_poll_tweakmode_off(bContext *C)
     return false;
   }
 
-  scene = CTX_data_scene(*C);
+  scene = CTX_data_scene(C);
   if ((scene == nullptr) || (scene->flag & SCE_NLA_EDIT_ON)) {
     return false;
   }
@@ -46,7 +46,7 @@ bool nlaop_poll_tweakmode_off(bContext *C)
   return true;
 }
 
-bool nlaop_poll_tweakmode_on(bContext *C)
+bool nlaop_poll_tweakmode_on(bContext &C)
 {
   Scene *scene;
 
@@ -60,7 +60,7 @@ bool nlaop_poll_tweakmode_on(bContext *C)
     return false;
   }
 
-  scene = CTX_data_scene(*C);
+  scene = CTX_data_scene(C);
   if ((scene == nullptr) || !(scene->flag & SCE_NLA_EDIT_ON)) {
     return false;
   }

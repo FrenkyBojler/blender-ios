@@ -416,12 +416,12 @@ bool mode_generic_has_data(Depsgraph *depsgraph, const Object *ob)
  * leaving the mode of the current object.
  * \{ */
 
-static bool object_transfer_mode_poll(bContext *C)
+static bool object_transfer_mode_poll(bContext &C)
 {
-  if (!CTX_wm_region_view3d(*C)) {
+  if (!CTX_wm_region_view3d(C)) {
     return false;
   }
-  const Object *ob = CTX_data_active_object(*C);
+  const Object *ob = CTX_data_active_object(C);
   return ob && (ob->mode != OB_MODE_OBJECT);
 }
 
@@ -527,18 +527,18 @@ static bool object_transfer_mode_to_base(bContext *C,
   return mode_transferred;
 }
 
-static wmOperatorStatus object_transfer_mode_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus object_transfer_mode_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent *event)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ARegion *region = CTX_wm_region(*C);
-  Object *ob_src = CTX_data_active_object(*C);
+  Scene *scene = CTX_data_scene(C);
+  ARegion *region = CTX_wm_region(C);
+  Object *ob_src = CTX_data_active_object(C);
   const eObjectMode mode_src = eObjectMode(ob_src->mode);
 
-  Base *base_dst = ED_view3d_give_base_under_cursor(C, event->mval);
+  Base *base_dst = ED_view3d_give_base_under_cursor(&C, event->mval);
   if (!base_dst) {
-    BKE_reportf(op->reports, RPT_ERROR, "No target object to transfer the mode to");
+    BKE_reportf(op.reports, RPT_ERROR, "No target object to transfer the mode to");
     return OPERATOR_CANCELLED;
   }
 
@@ -550,14 +550,14 @@ static wmOperatorStatus object_transfer_mode_invoke(bContext *C,
 
   BLI_assert(ob_dst->id.orig_id == nullptr);
   if (!ID_IS_EDITABLE(ob_dst) || !ID_IS_EDITABLE(ob_src)) {
-    BKE_reportf(op->reports,
+    BKE_reportf(op.reports,
                 RPT_ERROR,
                 "Unable to transfer mode, the source and/or target objects are not editable");
     return OPERATOR_CANCELLED;
   }
   if (ID_IS_OVERRIDE_LIBRARY(ob_dst) && !ELEM(mode_src, OB_MODE_OBJECT, OB_MODE_POSE)) {
     BKE_reportf(
-        op->reports,
+        op.reports,
         RPT_ERROR,
         "Current mode of source object '%s' is not compatible with target liboverride object '%s'",
         ob_src->id.name + 2,
@@ -565,7 +565,7 @@ static wmOperatorStatus object_transfer_mode_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
   if (!mode_compat_test(ob_dst, mode_src)) {
-    BKE_reportf(op->reports,
+    BKE_reportf(op.reports,
                 RPT_ERROR,
                 "Current mode of source object '%s' is not compatible with target object '%s'",
                 ob_src->id.name + 2,
@@ -574,19 +574,19 @@ static wmOperatorStatus object_transfer_mode_invoke(bContext *C,
   }
 
   const bool mode_transferred = object_transfer_mode_to_base(
-      C, op, scene, ob_src, ob_dst, mode_src);
+      &C, &op, scene, ob_src, ob_dst, mode_src);
   if (!mode_transferred) {
     /* Error report should have been set by #object_transfer_mode_to_base call here. */
     return OPERATOR_CANCELLED;
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
-  ED_outliner_select_sync_from_object_tag(C);
+  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+  ED_outliner_select_sync_from_object_tag(&C);
 
-  WM_toolsystem_update_from_context_view3d(C);
+  WM_toolsystem_update_from_context_view3d(&C);
   if (mode_src & OB_MODE_ALL_PAINT) {
-    Paint *paint = BKE_paint_get_active_from_context(C);
+    Paint *paint = BKE_paint_get_active_from_context(&C);
     object_transfer_mode_reposition_view_pivot(region, paint, event->mval);
   }
 

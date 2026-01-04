@@ -883,7 +883,7 @@ static const EnumPropertyItem *driver_mapping_type_itemf(bContext *C,
 
 /* Add Driver (With Menu) Button Operator ------------------------ */
 
-static bool add_driver_button_poll(bContext *C)
+static bool add_driver_button_poll(bContext &C)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
@@ -891,7 +891,7 @@ static bool add_driver_button_poll(bContext *C)
   bool driven, special;
 
   /* this operator can only run if there's a property button active, and it can be animated */
-  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index);
 
   if (!(ptr.owner_id && ptr.data && prop)) {
     return false;
@@ -902,7 +902,7 @@ static bool add_driver_button_poll(bContext *C)
 
   /* Don't do anything if there is an fcurve for animation without a driver. */
   const FCurve *fcu = BKE_fcurve_find_by_rna_context_ui(
-      C, &ptr, prop, index, nullptr, nullptr, &driven, &special);
+      &C, &ptr, prop, index, nullptr, nullptr, &driven, &special);
   return (fcu == nullptr || fcu->driver);
 }
 
@@ -941,12 +941,12 @@ static wmOperatorStatus add_driver_button_none(bContext *C, wmOperator *op, shor
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus add_driver_button_menu_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus add_driver_button_menu_exec(bContext &C, wmOperator &op)
 {
-  short mapping_type = RNA_enum_get(op->ptr, "mapping_type");
+  short mapping_type = RNA_enum_get(op.ptr, "mapping_type");
   if (ELEM(mapping_type, CREATEDRIVER_MAPPING_NONE, CREATEDRIVER_MAPPING_NONE_ALL)) {
     /* Just create driver with no targets */
-    return add_driver_button_none(C, op, mapping_type);
+    return add_driver_button_none(&C, &op, mapping_type);
   }
 
   /* Create Driver using Eyedropper */
@@ -954,20 +954,20 @@ static wmOperatorStatus add_driver_button_menu_exec(bContext *C, wmOperator *op)
 
   /* XXX: We assume that it's fine to use the same set of properties,
    * since they're actually the same. */
-  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, op->ptr, nullptr);
+  WM_operator_name_call_ptr(&C, ot, blender::wm::OpCallContext::InvokeDefault, op.ptr, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
 /* Show menu or create drivers */
-static wmOperatorStatus add_driver_button_menu_invoke(bContext *C,
-                                                      wmOperator *op,
+static wmOperatorStatus add_driver_button_menu_invoke(bContext &C,
+                                                      wmOperator &op,
                                                       const wmEvent * /*event*/)
 {
   PropertyRNA *prop;
 
-  if ((prop = RNA_struct_find_property(op->ptr, "mapping_type")) &&
-      RNA_property_is_set(op->ptr, prop))
+  if ((prop = RNA_struct_find_property(op.ptr, "mapping_type")) &&
+      RNA_property_is_set(op.ptr, prop))
   {
     /* Mapping Type is Set - Directly go into creating drivers */
     return add_driver_button_menu_exec(C, op);
@@ -976,7 +976,7 @@ static wmOperatorStatus add_driver_button_menu_invoke(bContext *C,
   /* Show menu */
   /* TODO: This should get filtered by the enum filter. */
   /* important to execute in the region we're currently in. */
-  return WM_menu_invoke_ex(C, op, blender::wm::OpCallContext::InvokeDefault);
+  return WM_menu_invoke_ex(&C, &op, blender::wm::OpCallContext::InvokeDefault);
 }
 
 static void UNUSED_FUNCTION(ANIM_OT_driver_button_add_menu)(wmOperatorType *ot)
@@ -1006,15 +1006,15 @@ static void UNUSED_FUNCTION(ANIM_OT_driver_button_add_menu)(wmOperatorType *ot)
 
 /* Add Driver Button Operator ------------------------ */
 
-static wmOperatorStatus add_driver_button_invoke(bContext *C,
-                                                 wmOperator *op,
+static wmOperatorStatus add_driver_button_invoke(bContext &C,
+                                                 wmOperator &op,
                                                  const wmEvent * /*event*/)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   int index;
 
-  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_driver_editable(&ptr, prop)) {
     /* 1) Create a new "empty" driver for this property */
@@ -1022,22 +1022,22 @@ static wmOperatorStatus add_driver_button_invoke(bContext *C,
     bool changed = false;
 
     if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
-      changed |=
-          (ANIM_add_driver(
-               op->reports, ptr.owner_id, path->c_str(), index, flags, DRIVER_TYPE_PYTHON) != 0);
+      changed |= (ANIM_add_driver(
+                      op.reports, ptr.owner_id, path->c_str(), index, flags, DRIVER_TYPE_PYTHON) !=
+                  0);
     }
 
     if (changed) {
       /* send updates */
-      blender::ui::context_update_anim_flag(C);
+      blender::ui::context_update_anim_flag(&C);
       DEG_id_tag_update(ptr.owner_id, ID_RECALC_SYNC_TO_EVAL);
-      DEG_relations_tag_update(CTX_data_main(*C));
-      WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
+      DEG_relations_tag_update(CTX_data_main(C));
+      WM_event_add_notifier(&C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
     }
 
     /* 2) Show editing panel for setting up this driver */
     /* TODO: Use a different one from the editing popover, so we can have the single/all toggle? */
-    blender::ui::popover_panel_invoke(C, "GRAPH_PT_drivers_popover", true, op->reports);
+    blender::ui::popover_panel_invoke(&C, "GRAPH_PT_drivers_popover", true, op.reports);
   }
 
   return OPERATOR_INTERFACE;
@@ -1061,15 +1061,15 @@ void ANIM_OT_driver_button_add(wmOperatorType *ot)
 
 /* Remove Driver Button Operator ------------------------ */
 
-static wmOperatorStatus remove_driver_button_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus remove_driver_button_exec(bContext &C, wmOperator &op)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   bool changed = false;
   int index;
-  const bool all = RNA_boolean_get(op->ptr, "all");
+  const bool all = RNA_boolean_get(op.ptr, "all");
 
-  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index);
 
   if (all) {
     index = -1;
@@ -1083,10 +1083,10 @@ static wmOperatorStatus remove_driver_button_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     /* send updates */
-    blender::ui::context_update_anim_flag(C);
-    DEG_relations_tag_update(CTX_data_main(*C));
+    blender::ui::context_update_anim_flag(&C);
+    DEG_relations_tag_update(CTX_data_main(C));
     DEG_id_tag_update(ptr.owner_id, ID_RECALC_ANIMATION);
-    WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
+    WM_event_add_notifier(&C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
   }
 
   return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -1113,16 +1113,16 @@ void ANIM_OT_driver_button_remove(wmOperatorType *ot)
 
 /* Edit Driver Button Operator ------------------------ */
 
-static wmOperatorStatus edit_driver_button_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edit_driver_button_exec(bContext &C, wmOperator &op)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   int index;
 
-  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop) {
-    blender::ui::popover_panel_invoke(C, "GRAPH_PT_drivers_popover", true, op->reports);
+    blender::ui::popover_panel_invoke(&C, "GRAPH_PT_drivers_popover", true, op.reports);
   }
 
   return OPERATOR_INTERFACE;
@@ -1146,21 +1146,21 @@ void ANIM_OT_driver_button_edit(wmOperatorType *ot)
 
 /* Copy Driver Button Operator ------------------------ */
 
-static wmOperatorStatus copy_driver_button_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus copy_driver_button_exec(bContext &C, wmOperator &op)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   bool changed = false;
   int index;
 
-  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_driver_editable(&ptr, prop)) {
     if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
       /* only copy the driver for the button that this was involved for */
-      changed = ANIM_copy_driver(op->reports, ptr.owner_id, path->c_str(), index, 0);
+      changed = ANIM_copy_driver(op.reports, ptr.owner_id, path->c_str(), index, 0);
 
-      blender::ui::context_update_anim_flag(C);
+      blender::ui::context_update_anim_flag(&C);
     }
   }
 
@@ -1185,27 +1185,27 @@ void ANIM_OT_copy_driver_button(wmOperatorType *ot)
 
 /* Paste Driver Button Operator ------------------------ */
 
-static wmOperatorStatus paste_driver_button_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paste_driver_button_exec(bContext &C, wmOperator &op)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   bool changed = false;
   int index;
 
-  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_driver_editable(&ptr, prop)) {
     if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
       /* only copy the driver for the button that this was involved for */
-      changed = ANIM_paste_driver(op->reports, ptr.owner_id, path->c_str(), index, 0);
+      changed = ANIM_paste_driver(op.reports, ptr.owner_id, path->c_str(), index, 0);
 
-      blender::ui::context_update_anim_flag(C);
+      blender::ui::context_update_anim_flag(&C);
 
-      DEG_relations_tag_update(CTX_data_main(*C));
+      DEG_relations_tag_update(CTX_data_main(C));
 
       DEG_id_tag_update(ptr.owner_id, ID_RECALC_ANIMATION);
 
-      WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr); /* XXX */
+      WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr); /* XXX */
     }
   }
 

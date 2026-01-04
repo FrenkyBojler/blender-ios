@@ -209,19 +209,19 @@ static void annotation_session_validatebuffer(tGPsdata *p);
 /* Context Wrangling... */
 
 /* check if context is suitable for drawing */
-static bool annotation_draw_poll(bContext *C)
+static bool annotation_draw_poll(bContext &C)
 {
   if (ED_operator_regionactive(C)) {
     /* check if current context can support GPencil data */
-    if (ED_annotation_data_get_pointers(C, nullptr) != nullptr) {
+    if (ED_annotation_data_get_pointers(&C, nullptr) != nullptr) {
       return true;
     }
     else {
-      CTX_wm_operator_poll_msg_set(C, "Failed to find Annotation data to draw into");
+      CTX_wm_operator_poll_msg_set(&C, "Failed to find Annotation data to draw into");
     }
   }
   else {
-    CTX_wm_operator_poll_msg_set(C, "Active region not set");
+    CTX_wm_operator_poll_msg_set(&C, "Active region not set");
   }
 
   return false;
@@ -1887,10 +1887,10 @@ static void annotation_draw_exit(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 }
 
-static void annotation_draw_cancel(bContext *C, wmOperator *op)
+static void annotation_draw_cancel(bContext &C, wmOperator &op)
 {
   /* this is just a wrapper around exit() */
-  annotation_draw_exit(C, op);
+  annotation_draw_exit(&C, &op);
 }
 
 /* ------------------------------- */
@@ -2189,24 +2189,24 @@ static void annotation_draw_apply_event(
 /* ------------------------------- */
 
 /* operator 'redo' (i.e. after changing some properties, but also for repeat last) */
-static wmOperatorStatus annotation_draw_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus annotation_draw_exec(bContext &C, wmOperator &op)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   /* try to initialize context data needed while drawing */
-  if (!annotation_draw_init(C, op, nullptr)) {
-    tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
+  if (!annotation_draw_init(&C, &op, nullptr)) {
+    tGPsdata *p = static_cast<tGPsdata *>(op.customdata);
     MEM_delete(p);
-    op->customdata = nullptr;
+    op.customdata = nullptr;
     return OPERATOR_CANCELLED;
   }
 
-  tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
+  tGPsdata *p = static_cast<tGPsdata *>(op.customdata);
 
   /* loop over the stroke RNA elements recorded (i.e. progress of mouse movement),
    * setting the relevant values in context at each step, then applying
    */
-  RNA_BEGIN (op->ptr, itemptr, "stroke") {
+  RNA_BEGIN (op.ptr, itemptr, "stroke") {
     float mousef[2];
 
     /* get relevant data for this point from stroke */
@@ -2238,15 +2238,15 @@ static wmOperatorStatus annotation_draw_exec(bContext *C, wmOperator *op)
     }
 
     /* apply this data as necessary now (as per usual) */
-    annotation_draw_apply(op, p, depsgraph);
+    annotation_draw_apply(&op, p, depsgraph);
   }
   RNA_END;
 
   /* cleanup */
-  annotation_draw_exit(C, op);
+  annotation_draw_exit(&C, &op);
 
   /* refreshes */
-  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -2255,28 +2255,28 @@ static wmOperatorStatus annotation_draw_exec(bContext *C, wmOperator *op)
 /* ------------------------------- */
 
 /* start of interactive drawing part of operator */
-static wmOperatorStatus annotation_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus annotation_draw_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   /* support for tablets eraser pen */
   if (annotation_is_tablet_eraser_active(event)) {
-    RNA_enum_set(op->ptr, "mode", GP_PAINTMODE_ERASER);
+    RNA_enum_set(op.ptr, "mode", GP_PAINTMODE_ERASER);
   }
 
   /* try to initialize context data needed while drawing */
-  if (!annotation_draw_init(C, op, event)) {
-    tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
+  if (!annotation_draw_init(&C, &op, event)) {
+    tGPsdata *p = static_cast<tGPsdata *>(op.customdata);
     MEM_delete(p);
-    op->customdata = nullptr;
+    op.customdata = nullptr;
     return OPERATOR_CANCELLED;
   }
 
-  tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
+  tGPsdata *p = static_cast<tGPsdata *>(op.customdata);
 
   /* if empty erase capture and finish */
   if (p->status == GP_STATUS_CAPTURE) {
-    annotation_draw_exit(C, op);
+    annotation_draw_exit(&C, &op);
 
-    BKE_report(op->reports, RPT_ERROR, "Nothing to erase");
+    BKE_report(op.reports, RPT_ERROR, "Nothing to erase");
     return OPERATOR_FINISHED;
   }
 
@@ -2285,19 +2285,19 @@ static wmOperatorStatus annotation_draw_invoke(bContext *C, wmOperator *op, cons
     annotation_draw_toggle_eraser_cursor(p, true);
   }
   else if (p->paintmode == GP_PAINTMODE_DRAW_STRAIGHT) {
-    if (RNA_enum_get(op->ptr, "arrowstyle_start") != GP_STROKE_ARROWSTYLE_NONE) {
+    if (RNA_enum_get(op.ptr, "arrowstyle_start") != GP_STROKE_ARROWSTYLE_NONE) {
       p->gpd->runtime.sbuffer_sflag |= GP_STROKE_USE_ARROW_START;
-      p->gpd->runtime.arrow_start_style = RNA_enum_get(op->ptr, "arrowstyle_start");
+      p->gpd->runtime.arrow_start_style = RNA_enum_get(op.ptr, "arrowstyle_start");
     }
-    if (RNA_enum_get(op->ptr, "arrowstyle_end") != GP_STROKE_ARROWSTYLE_NONE) {
+    if (RNA_enum_get(op.ptr, "arrowstyle_end") != GP_STROKE_ARROWSTYLE_NONE) {
       p->gpd->runtime.sbuffer_sflag |= GP_STROKE_USE_ARROW_END;
-      p->gpd->runtime.arrow_end_style = RNA_enum_get(op->ptr, "arrowstyle_end");
+      p->gpd->runtime.arrow_end_style = RNA_enum_get(op.ptr, "arrowstyle_end");
     }
   }
   else if (p->paintmode == GP_PAINTMODE_DRAW) {
-    p->stabilizer_factor = RNA_float_get(op->ptr, "stabilizer_factor");
-    p->stabilizer_radius = RNA_int_get(op->ptr, "stabilizer_radius");
-    if (RNA_boolean_get(op->ptr, "use_stabilizer")) {
+    p->stabilizer_factor = RNA_float_get(op.ptr, "stabilizer_factor");
+    p->stabilizer_radius = RNA_int_get(op.ptr, "stabilizer_radius");
+    if (RNA_boolean_get(op.ptr, "use_stabilizer")) {
       p->flags |= GP_PAINTFLAG_USE_STABILIZER | GP_PAINTFLAG_USE_STABILIZER_TEMP;
       annotation_draw_toggle_stabilizer_cursor(p, true);
     }
@@ -2313,22 +2313,22 @@ static wmOperatorStatus annotation_draw_invoke(bContext *C, wmOperator *op, cons
   annotation_draw_cursor_set(p);
 
   /* only start drawing immediately if we're allowed to do so... */
-  if (RNA_boolean_get(op->ptr, "wait_for_input") == false) {
+  if (RNA_boolean_get(op.ptr, "wait_for_input") == false) {
     /* hotkey invoked - start drawing */
     p->status = GP_STATUS_PAINTING;
 
     /* handle the initial drawing - i.e. for just doing a simple dot */
-    annotation_draw_apply_event(op, event, CTX_data_ensure_evaluated_depsgraph(*C), 0.0f, 0.0f);
-    op->flag |= OP_IS_MODAL_CURSOR_REGION;
+    annotation_draw_apply_event(&op, event, CTX_data_ensure_evaluated_depsgraph(C), 0.0f, 0.0f);
+    op.flag |= OP_IS_MODAL_CURSOR_REGION;
   }
   else {
     /* toolbar invoked - don't start drawing yet... */
-    op->flag |= OP_IS_MODAL_CURSOR_REGION;
+    op.flag |= OP_IS_MODAL_CURSOR_REGION;
   }
 
-  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
   /* add a modal handler for this operator, so that we can then draw continuous strokes */
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -2420,9 +2420,9 @@ static void annotation_add_missing_events(bContext *C,
 }
 
 /* events handling during interactive drawing part of operator */
-static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus annotation_draw_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  tGPsdata *p = static_cast<tGPsdata *>(op->customdata);
+  tGPsdata *p = static_cast<tGPsdata *>(op.customdata);
   /* Default exit state - pass through to support MMB view navigation, etc. */
   wmOperatorStatus estate = OPERATOR_PASS_THROUGH;
 
@@ -2437,7 +2437,7 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
 #endif
 
   if (p->status == GP_STATUS_IDLING) {
-    ARegion *region = CTX_wm_region(*C);
+    ARegion *region = CTX_wm_region(C);
     p->region = region;
   }
 
@@ -2479,7 +2479,7 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
        * - Since this operator is non-modal, we can just call it here, and keep going...
        * - This operator is especially useful when animating
        */
-      WM_operator_name_call(C,
+      WM_operator_name_call(&C,
                             "GPENCIL_OT_layer_annotation_add",
                             blender::wm::OpCallContext::ExecDefault,
                             nullptr,
@@ -2522,13 +2522,13 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
 
       if (sketch) {
         /* end stroke only, and then wait to resume painting soon */
-        annotation_stroke_end(op);
+        annotation_stroke_end(&op);
 
         /* If eraser mode is on, turn it off after the stroke finishes
          * NOTE: This just makes it nicer to work with drawing sessions
          */
         if (p->paintmode == GP_PAINTMODE_ERASER) {
-          p->paintmode = eGPencil_PaintModes(RNA_enum_get(op->ptr, "mode"));
+          p->paintmode = eGPencil_PaintModes(RNA_enum_get(op.ptr, "mode"));
 
           /* if the original mode was *still* eraser,
            * we'll let it say for now, since this gives
@@ -2549,7 +2549,7 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
         estate = OPERATOR_RUNNING_MODAL;
 
         /* stroke could be smoothed, send notifier to refresh screen */
-        WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+        WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
       }
       else {
         p->status = GP_STATUS_DONE;
@@ -2601,13 +2601,13 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
         }
         else { /* Any mouse button besides right. */
           /* restore drawmode to default */
-          p->paintmode = eGPencil_PaintModes(RNA_enum_get(op->ptr, "mode"));
+          p->paintmode = eGPencil_PaintModes(RNA_enum_get(op.ptr, "mode"));
         }
 
         annotation_draw_toggle_eraser_cursor(p, p->paintmode == GP_PAINTMODE_ERASER);
 
         /* not painting, so start stroke (this should be mouse-button down) */
-        p = annotation_stroke_begin(C, op);
+        p = annotation_stroke_begin(&C, &op);
 
         if (p->status == GP_STATUS_ERROR) {
           estate = OPERATOR_CANCELLED;
@@ -2624,7 +2624,7 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
     }
     else if (event->val == KM_RELEASE) {
       p->status = GP_STATUS_IDLING;
-      op->flag |= OP_IS_MODAL_CURSOR_REGION;
+      op.flag |= OP_IS_MODAL_CURSOR_REGION;
     }
   }
 
@@ -2634,11 +2634,11 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
     if (ISMOUSE_MOTION(event->type) || (p->flags & GP_PAINTFLAG_FIRSTRUN)) {
       /* handle drawing event */
       if ((p->flags & GP_PAINTFLAG_FIRSTRUN) == 0) {
-        annotation_add_missing_events(C, op, event, p);
+        annotation_add_missing_events(&C, &op, event, p);
       }
 
       /* TODO(sergey): Possibly evaluating dependency graph from modal operator? */
-      annotation_draw_apply_event(op, event, CTX_data_ensure_evaluated_depsgraph(*C), 0.0f, 0.0f);
+      annotation_draw_apply_event(&op, event, CTX_data_ensure_evaluated_depsgraph(C), 0.0f, 0.0f);
 
       /* finish painting operation if anything went wrong just now */
       if (p->status == GP_STATUS_ERROR) {
@@ -2693,12 +2693,12 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
   }
 
   /* gpencil modal operator stores area, which can be removed while using it (like full-screen). */
-  if (0 == annotation_area_exists(C, p->area)) {
+  if (0 == annotation_area_exists(&C, p->area)) {
     estate = OPERATOR_CANCELLED;
   }
   else {
     /* update status indicators - cursor, header, etc. */
-    annotation_draw_status_indicators(C, p);
+    annotation_draw_status_indicators(&C, p);
     /* cursor may have changed outside our control - #44084 */
     annotation_draw_cursor_set(p);
   }
@@ -2707,12 +2707,12 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
   switch (estate) {
     case OPERATOR_FINISHED:
       /* one last flush before we're done */
-      annotation_draw_exit(C, op);
-      WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+      annotation_draw_exit(&C, &op);
+      WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
       break;
 
     case OPERATOR_CANCELLED:
-      annotation_draw_exit(C, op);
+      annotation_draw_exit(&C, &op);
       break;
 
       /* Event doesn't need to be handled. */

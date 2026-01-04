@@ -444,10 +444,10 @@ void ED_imbuf_sample_exit(bContext *C, wmOperator *op)
   MEM_freeN(info);
 }
 
-wmOperatorStatus ED_imbuf_sample_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus ED_imbuf_sample_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  ARegion *region = CTX_wm_region(C);
+  ScrArea *area = CTX_wm_area(C);
   if (area) {
     switch (area->spacetype) {
       case SPACE_IMAGE: {
@@ -474,28 +474,28 @@ wmOperatorStatus ED_imbuf_sample_invoke(bContext *C, wmOperator *op, const wmEve
   info->art = region->runtime->type;
   info->draw_handle = ED_region_draw_cb_activate(
       region->runtime->type, ED_imbuf_sample_draw, info, REGION_DRAW_POST_PIXEL);
-  info->sample_size = RNA_int_get(op->ptr, "size");
-  op->customdata = info;
+  info->sample_size = RNA_int_get(op.ptr, "size");
+  op.customdata = info;
 
-  ed_imbuf_sample_apply(C, op, event);
+  ed_imbuf_sample_apply(&C, &op, event);
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-wmOperatorStatus ED_imbuf_sample_modal(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus ED_imbuf_sample_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   switch (event->type) {
     case LEFTMOUSE:
     case RIGHTMOUSE: /* XXX hardcoded */
       if (event->val == KM_RELEASE) {
-        ED_imbuf_sample_exit(C, op);
+        ED_imbuf_sample_exit(&C, &op);
         return OPERATOR_CANCELLED;
       }
       break;
     case MOUSEMOVE:
-      ed_imbuf_sample_apply(C, op, event);
+      ed_imbuf_sample_apply(&C, &op, event);
       break;
     default: {
       break;
@@ -505,14 +505,14 @@ wmOperatorStatus ED_imbuf_sample_modal(bContext *C, wmOperator *op, const wmEven
   return OPERATOR_RUNNING_MODAL;
 }
 
-void ED_imbuf_sample_cancel(bContext *C, wmOperator *op)
+void ED_imbuf_sample_cancel(bContext &C, wmOperator &op)
 {
-  ED_imbuf_sample_exit(C, op);
+  ED_imbuf_sample_exit(&C, &op);
 }
 
-bool ED_imbuf_sample_poll(bContext *C)
+bool ED_imbuf_sample_poll(bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   if (area == nullptr) {
     return false;
   }
@@ -520,7 +520,7 @@ bool ED_imbuf_sample_poll(bContext *C)
   switch (area->spacetype) {
     case SPACE_IMAGE: {
       SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
-      Object *obedit = CTX_data_edit_object(*C);
+      Object *obedit = CTX_data_edit_object(C);
       if (obedit) {
         /* Disable when UV editing so it doesn't swallow all click events
          * (use for setting cursor). */
@@ -539,10 +539,10 @@ bool ED_imbuf_sample_poll(bContext *C)
       if (sseq->mainb != SEQ_DRAW_IMG_IMBUF) {
         return false;
       }
-      if (blender::seq::editing_get(CTX_data_sequencer_scene(*C)) == nullptr) {
+      if (blender::seq::editing_get(CTX_data_sequencer_scene(C)) == nullptr) {
         return false;
       }
-      ARegion *region = CTX_wm_region(*C);
+      ARegion *region = CTX_wm_region(C);
       if (!(region && (region->regiontype == RGN_TYPE_PREVIEW))) {
         return false;
       }

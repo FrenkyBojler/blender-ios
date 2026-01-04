@@ -31,9 +31,9 @@ namespace blender::ed::greasepencil {
 /** \name Show All Materials Operator
  * \{ */
 
-static wmOperatorStatus grease_pencil_material_reveal_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus grease_pencil_material_reveal_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   bool changed = false;
@@ -48,7 +48,7 @@ static wmOperatorStatus grease_pencil_material_reveal_exec(bContext *C, wmOperat
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -74,11 +74,11 @@ static void GREASE_PENCIL_OT_material_reveal(wmOperatorType *ot)
 /** \name Hide Others Materials Operator
  * \{ */
 
-static wmOperatorStatus grease_pencil_material_hide_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_material_hide_exec(bContext &C, wmOperator &op)
 {
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const bool invert = RNA_boolean_get(op->ptr, "invert");
+  const bool invert = RNA_boolean_get(op.ptr, "invert");
 
   bool changed = false;
   const int material_index = object->actcol - 1;
@@ -100,7 +100,7 @@ static wmOperatorStatus grease_pencil_material_hide_exec(bContext *C, wmOperator
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -130,9 +130,9 @@ static void GREASE_PENCIL_OT_material_hide(wmOperatorType *ot)
 /** \name Lock All Materials Operator
  * \{ */
 
-static wmOperatorStatus grease_pencil_material_lock_all_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus grease_pencil_material_lock_all_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   bool changed = false;
@@ -147,7 +147,7 @@ static wmOperatorStatus grease_pencil_material_lock_all_exec(bContext *C, wmOper
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -174,9 +174,9 @@ static void GREASE_PENCIL_OT_material_lock_all(wmOperatorType *ot)
 /** \name Unlock All Materials Operator
  * \{ */
 
-static wmOperatorStatus grease_pencil_material_unlock_all_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus grease_pencil_material_unlock_all_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   bool changed = false;
@@ -191,7 +191,7 @@ static wmOperatorStatus grease_pencil_material_unlock_all_exec(bContext *C, wmOp
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -217,9 +217,9 @@ static void GREASE_PENCIL_OT_material_unlock_all(wmOperatorType *ot)
 /** \name Lock Unused Materials Operator
  * \{ */
 
-static wmOperatorStatus grease_pencil_material_lock_unused_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus grease_pencil_material_lock_unused_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   bool changed = false;
@@ -235,7 +235,7 @@ static wmOperatorStatus grease_pencil_material_lock_unused_exec(bContext *C, wmO
   }
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -261,14 +261,14 @@ static void GREASE_PENCIL_OT_material_lock_unused(wmOperatorType *ot)
 /** \name Lock Unselected Materials Operator
  * \{ */
 
-static wmOperatorStatus grease_pencil_material_lock_unselected_exec(bContext *C,
-                                                                    wmOperator * /*op*/)
+static wmOperatorStatus grease_pencil_material_lock_unselected_exec(bContext &C,
+                                                                    wmOperator & /*op*/)
 {
   using namespace blender;
   using namespace blender::bke;
 
-  const Scene *scene = CTX_data_scene(*C);
-  Object *object = CTX_data_active_object(*C);
+  const Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   bool changed = false;
@@ -312,7 +312,7 @@ static wmOperatorStatus grease_pencil_material_lock_unselected_exec(bContext *C,
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -338,20 +338,20 @@ static void GREASE_PENCIL_OT_material_lock_unselected(wmOperatorType *ot)
 /** \name Copy Materials to Selected Objects
  * \{ */
 
-static wmOperatorStatus grease_pencil_material_copy_to_object_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_material_copy_to_object_exec(bContext &C, wmOperator &op)
 {
   using namespace blender;
   using namespace blender::bke;
 
-  Main *bmain = CTX_data_main(*C);
-  const bool only_active = RNA_boolean_get(op->ptr, "only_active");
-  Object *ob_src = CTX_data_active_object(*C);
+  Main *bmain = CTX_data_main(C);
+  const bool only_active = RNA_boolean_get(op.ptr, "only_active");
+  Object *ob_src = CTX_data_active_object(C);
   Material *ma_active = BKE_object_material_get(ob_src, ob_src->actcol);
   if (ma_active == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     if ((ob == ob_src) || (ob->type != OB_GREASE_PENCIL)) {
       continue;
     }
@@ -373,7 +373,7 @@ static wmOperatorStatus grease_pencil_material_copy_to_object_exec(bContext *C, 
   }
   CTX_DATA_END;
 
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -402,9 +402,9 @@ static void GREASE_PENCIL_OT_material_copy_to_object(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
-static wmOperatorStatus material_isolate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus material_isolate_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
   Material *active_ma = BKE_gpencil_material(ob, ob->actcol);
   MaterialGPencilStyle *active_material = BKE_gpencil_material_settings(ob, ob->actcol);
@@ -413,7 +413,7 @@ static wmOperatorStatus material_isolate_exec(bContext *C, wmOperator *op)
   int flags = GP_MATERIAL_LOCKED;
   bool isolate = false;
 
-  if (RNA_boolean_get(op->ptr, "affect_visibility")) {
+  if (RNA_boolean_get(op.ptr, "affect_visibility")) {
     flags |= GP_MATERIAL_HIDE;
   }
 
@@ -471,7 +471,7 @@ static wmOperatorStatus material_isolate_exec(bContext *C, wmOperator *op)
   }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }

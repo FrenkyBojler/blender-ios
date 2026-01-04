@@ -168,7 +168,7 @@ void TEXT_OT_to_3d_object(wmOperatorType *ot);
 
 void TEXT_OT_resolve_conflict(wmOperatorType *ot);
 
-bool text_space_edit_poll(bContext *C);
+bool text_space_edit_poll(bContext &C);
 
 void TEXT_OT_update_shader(wmOperatorType *ot);
 

@@ -1285,7 +1285,7 @@ static void graph_panel_drivers(const bContext *C, Panel *panel)
  * as this is only to be used as a popup elsewhere. */
 static bool graph_panel_drivers_popover_poll(const bContext *C, PanelType * /*pt*/)
 {
-  return ED_operator_graphedit_active((bContext *)C) == false;
+  return ED_operator_graphedit_active(*(bContext *)C) == false;
 }
 
 /* popover panel for driver editing anywhere in ui */

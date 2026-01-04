@@ -606,9 +606,9 @@ static void viewRedrawPost(bContext *C, TransInfo *t)
 
 /* ************************************************* */
 
-static bool transform_modal_item_poll(const wmOperator *op, int value)
+static bool transform_modal_item_poll(const wmOperator &op, int value)
 {
-  const TransInfo *t = static_cast<const TransInfo *>(op->customdata);
+  const TransInfo *t = static_cast<const TransInfo *>(op.customdata);
   if (t->modifiers & MOD_EDIT_SNAP_SOURCE) {
     if (value == TFM_MODAL_EDIT_SNAP_SOURCE_OFF) {
       return true;

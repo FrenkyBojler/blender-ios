@@ -728,21 +728,21 @@ static bool decrease_contrast_mask_bmesh(const Depsgraph &depsgraph,
   return true;
 }
 
-static wmOperatorStatus sculpt_mask_filter_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_mask_filter_exec(bContext &C, wmOperator &op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Object &ob = *CTX_data_active_object(*C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
-  const FilterType filter_type = FilterType(RNA_enum_get(op->ptr, "filter_type"));
+  const Scene &scene = *CTX_data_scene(C);
+  Object &ob = *CTX_data_active_object(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  const FilterType filter_type = FilterType(RNA_enum_get(op.ptr, "filter_type"));
 
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
 
   MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
-  BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(*C), CTX_data_main(*C), &ob, mmd);
+  BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(C), CTX_data_main(C), &ob, mmd);
 
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
 
@@ -751,15 +751,15 @@ static wmOperatorStatus sculpt_mask_filter_exec(bContext *C, wmOperator *op)
 
   IndexMaskMemory memory;
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
-  undo::push_begin(scene, ob, op);
+  undo::push_begin(scene, ob, &op);
 
-  int iterations = RNA_int_get(op->ptr, "iterations");
+  int iterations = RNA_int_get(op.ptr, "iterations");
 
   /* Auto iteration count calculates the number of iteration based on the vertices of the mesh to
    * avoid adding an unnecessary amount of undo steps when using the operator from a shortcut.
    * One iteration per 50000 vertices in the mesh should be fine in most cases.
    * Maybe we want this to be configurable. */
-  if (RNA_boolean_get(op->ptr, "auto_iteration_count")) {
+  if (RNA_boolean_get(op.ptr, "auto_iteration_count")) {
     iterations = int(SCULPT_vertex_count_get(ob) / 50000.0f) + 1;
   }
 
@@ -1027,10 +1027,10 @@ static wmOperatorStatus sculpt_mask_filter_exec(bContext *C, wmOperator *op)
 
   undo::push_end(ob);
 
-  flush_update_step(C, UpdateType::Mask);
-  flush_update_done(C, ob, UpdateType::Mask);
+  flush_update_step(&C, UpdateType::Mask);
+  flush_update_done(&C, ob, UpdateType::Mask);
 
-  SCULPT_tag_update_overlays(C);
+  SCULPT_tag_update_overlays(&C);
 
   return OPERATOR_FINISHED;
 }

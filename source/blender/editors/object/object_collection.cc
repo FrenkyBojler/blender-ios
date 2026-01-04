@@ -126,12 +126,12 @@ static Collection *collection_object_active_find_index(Main *bmain,
   return collection;
 }
 
-static wmOperatorStatus objects_add_active_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus objects_add_active_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(C);
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  int single_collection_index = RNA_enum_get(op->ptr, "collection");
+  Object *ob = context_object(&C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  int single_collection_index = RNA_enum_get(op.ptr, "collection");
   Collection *single_collection = collection_object_active_find_index(
       bmain, scene, ob, single_collection_index);
   bool is_cycle = false;
@@ -151,7 +151,7 @@ static wmOperatorStatus objects_add_active_exec(bContext *C, wmOperator *op)
     }
 
     bool changed = false;
-    CTX_DATA_BEGIN (*C, Base *, base, selected_editable_bases) {
+    CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
       if (BKE_collection_has_object(collection, base->object)) {
         continue;
       }
@@ -174,7 +174,7 @@ static wmOperatorStatus objects_add_active_exec(bContext *C, wmOperator *op)
   FOREACH_COLLECTION_END;
 
   if (is_cycle) {
-    BKE_report(op->reports, RPT_WARNING, "Skipped some collections because of cycle detected");
+    BKE_report(op.reports, RPT_WARNING, "Skipped some collections because of cycle detected");
   }
 
   if (!changed_multi) {
@@ -182,7 +182,7 @@ static wmOperatorStatus objects_add_active_exec(bContext *C, wmOperator *op)
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_GROUP | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GROUP | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -219,14 +219,14 @@ void COLLECTION_OT_objects_add_active(wmOperatorType *ot)
   ot->prop = prop;
 }
 
-static wmOperatorStatus objects_remove_active_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus objects_remove_active_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  int single_collection_index = RNA_enum_get(op->ptr, "collection");
+  int single_collection_index = RNA_enum_get(op.ptr, "collection");
   Collection *single_collection = collection_object_active_find_index(
       bmain, scene, ob, single_collection_index);
   bool changed_multi = false;
@@ -245,7 +245,7 @@ static wmOperatorStatus objects_remove_active_exec(bContext *C, wmOperator *op)
     if (BKE_collection_has_object(collection, ob)) {
       /* Remove collections from selected objects */
       bool changed = false;
-      CTX_DATA_BEGIN (*C, Base *, base, selected_editable_bases) {
+      CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
         BKE_collection_object_remove(bmain, collection, base->object, false);
         changed = true;
       }
@@ -260,11 +260,11 @@ static wmOperatorStatus objects_remove_active_exec(bContext *C, wmOperator *op)
   FOREACH_COLLECTION_END;
 
   if (!changed_multi) {
-    BKE_report(op->reports, RPT_ERROR, "Active object contains no collections");
+    BKE_report(op.reports, RPT_ERROR, "Active object contains no collections");
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_GROUP | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GROUP | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -298,18 +298,18 @@ void COLLECTION_OT_objects_remove_active(wmOperatorType *ot)
   ot->prop = prop;
 }
 
-static wmOperatorStatus collection_objects_remove_all_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus collection_objects_remove_all_exec(bContext &C, wmOperator & /*op*/)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
 
-  CTX_DATA_BEGIN (*C, Base *, base, selected_editable_bases) {
+  CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
     BKE_object_groups_clear(bmain, scene, base->object);
   }
   CTX_DATA_END;
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_GROUP | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GROUP | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -329,12 +329,12 @@ void COLLECTION_OT_objects_remove_all(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus collection_objects_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_objects_remove_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(C);
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  int single_collection_index = RNA_enum_get(op->ptr, "collection");
+  Object *ob = context_object(&C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  int single_collection_index = RNA_enum_get(op.ptr, "collection");
   Collection *single_collection = collection_object_active_find_index(
       bmain, scene, ob, single_collection_index);
   bool changed_multi = false;
@@ -353,7 +353,7 @@ static wmOperatorStatus collection_objects_remove_exec(bContext *C, wmOperator *
 
     /* now remove all selected objects from the collection */
     bool changed = false;
-    CTX_DATA_BEGIN (*C, Base *, base, selected_editable_bases) {
+    CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
       BKE_collection_object_remove(bmain, collection, base->object, false);
       changed = true;
     }
@@ -371,7 +371,7 @@ static wmOperatorStatus collection_objects_remove_exec(bContext *C, wmOperator *
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_GROUP | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GROUP | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -405,18 +405,18 @@ void COLLECTION_OT_objects_remove(wmOperatorType *ot)
   ot->prop = prop;
 }
 
-static wmOperatorStatus collection_create_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_create_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   char name[MAX_ID_NAME - 2]; /* id name */
   bool changed = false;
 
-  RNA_string_get(op->ptr, "name", name);
+  RNA_string_get(op.ptr, "name", name);
 
   Collection *collection = BKE_collection_add(bmain, nullptr, name);
   id_fake_user_set(&collection->id);
 
-  CTX_DATA_BEGIN (*C, Base *, base, selected_bases) {
+  CTX_DATA_BEGIN (C, Base *, base, selected_bases) {
     BKE_collection_object_add(bmain, collection, base->object);
     changed = true;
   }
@@ -427,7 +427,7 @@ static wmOperatorStatus collection_create_exec(bContext *C, wmOperator *op)
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_GROUP | NA_EDITED, nullptr);
+  WM_event_add_notifier(&C, NC_GROUP | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -455,51 +455,51 @@ static bool collection_exporter_common_check(const Collection *collection)
          !(ID_IS_LINKED(&collection->id) || ID_IS_OVERRIDE_LIBRARY(&collection->id));
 }
 
-static bool collection_exporter_poll(bContext *C)
+static bool collection_exporter_poll(bContext &C)
 {
-  const Collection *collection = CTX_data_collection(*C);
+  const Collection *collection = CTX_data_collection(C);
   return collection_exporter_common_check(collection);
 }
 
-static bool collection_exporter_remove_poll(bContext *C)
+static bool collection_exporter_remove_poll(bContext &C)
 {
-  const Collection *collection = CTX_data_collection(*C);
+  const Collection *collection = CTX_data_collection(C);
   return collection_exporter_common_check(collection) &&
          !BLI_listbase_is_empty(&collection->exporters);
 }
 
-static bool collection_export_all_poll(bContext *C)
+static bool collection_export_all_poll(bContext &C)
 {
-  return CTX_data_view_layer(*C) != nullptr;
+  return CTX_data_view_layer(C) != nullptr;
 }
 
-static wmOperatorStatus collection_exporter_add_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_exporter_add_exec(bContext &C, wmOperator &op)
 {
   using namespace blender;
-  Collection *collection = CTX_data_collection(*C);
+  Collection *collection = CTX_data_collection(C);
 
   char name[MAX_ID_NAME - 2]; /* id name */
-  RNA_string_get(op->ptr, "name", name);
+  RNA_string_get(op.ptr, "name", name);
 
   bke::FileHandlerType *fh = bke::file_handler_find(name);
   if (!fh) {
-    BKE_reportf(op->reports, RPT_ERROR, "File handler '%s' not found", name);
+    BKE_reportf(op.reports, RPT_ERROR, "File handler '%s' not found", name);
     return OPERATOR_CANCELLED;
   }
 
   if (!WM_operatortype_find(fh->export_operator, true)) {
     BKE_reportf(
-        op->reports, RPT_ERROR, "File handler operator '%s' not found", fh->export_operator);
+        op.reports, RPT_ERROR, "File handler operator '%s' not found", fh->export_operator);
     return OPERATOR_CANCELLED;
   }
 
   BKE_collection_exporter_add(collection, fh->idname, fh->label);
 
-  BKE_view_layer_need_resync_tag(CTX_data_view_layer(*C));
+  BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
 
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -521,12 +521,12 @@ static void COLLECTION_OT_exporter_add(wmOperatorType *ot)
   RNA_def_string(ot->srna, "name", nullptr, MAX_ID_NAME - 2, "Name", "FileHandler idname");
 }
 
-static wmOperatorStatus collection_exporter_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_exporter_remove_exec(bContext &C, wmOperator &op)
 {
-  Collection *collection = CTX_data_collection(*C);
+  Collection *collection = CTX_data_collection(C);
   ListBaseT<CollectionExport> *exporters = &collection->exporters;
 
-  int index = RNA_int_get(op->ptr, "index");
+  int index = RNA_int_get(op.ptr, "index");
   CollectionExport *data = static_cast<CollectionExport *>(BLI_findlink(exporters, index));
   if (!data) {
     return OPERATOR_CANCELLED;
@@ -534,21 +534,21 @@ static wmOperatorStatus collection_exporter_remove_exec(bContext *C, wmOperator 
 
   BKE_collection_exporter_remove(collection, data);
 
-  BKE_view_layer_need_resync_tag(CTX_data_view_layer(*C));
+  BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
 
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
+  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus collection_exporter_remove_invoke(bContext *C,
-                                                          wmOperator *op,
+static wmOperatorStatus collection_exporter_remove_invoke(bContext &C,
+                                                          wmOperator &op,
                                                           const wmEvent * /*event*/)
 {
   return WM_operator_confirm_ex(
-      C, op, IFACE_("Remove exporter?"), nullptr, IFACE_("Delete"), ui::AlertIcon::None, false);
+      &C, &op, IFACE_("Remove exporter?"), nullptr, IFACE_("Delete"), ui::AlertIcon::None, false);
 }
 
 static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)
@@ -569,11 +569,11 @@ static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Exporter index", 0, INT_MAX);
 }
 
-static wmOperatorStatus collection_exporter_move_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_exporter_move_exec(bContext &C, wmOperator &op)
 {
   using namespace blender;
-  Collection *collection = CTX_data_collection(*C);
-  const int dir = RNA_enum_get(op->ptr, "direction");
+  Collection *collection = CTX_data_collection(C);
+  const int dir = RNA_enum_get(op.ptr, "direction");
   const int from = collection->active_exporter_index;
 
   /* Move Up/down to index. */
@@ -688,18 +688,18 @@ static wmOperatorStatus collection_exporter_export(bContext *C,
   return op_result;
 }
 
-static wmOperatorStatus collection_exporter_export_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_exporter_export_exec(bContext &C, wmOperator &op)
 {
-  Collection *collection = CTX_data_collection(*C);
+  Collection *collection = CTX_data_collection(C);
   ListBaseT<CollectionExport> *exporters = &collection->exporters;
 
-  int index = RNA_int_get(op->ptr, "index");
+  int index = RNA_int_get(op.ptr, "index");
   CollectionExport *data = static_cast<CollectionExport *>(BLI_findlink(exporters, index));
   if (!data) {
     return OPERATOR_CANCELLED;
   }
 
-  return collection_exporter_export(C, op, data, collection, true);
+  return collection_exporter_export(&C, &op, data, collection, true);
 }
 
 static void COLLECTION_OT_exporter_export(wmOperatorType *ot)
@@ -747,16 +747,16 @@ static wmOperatorStatus collection_export(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus collection_io_export_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_io_export_all_exec(bContext &C, wmOperator &op)
 {
-  Collection *collection = CTX_data_collection(*C);
+  Collection *collection = CTX_data_collection(C);
   CollectionExportStats stats;
-  wmOperatorStatus result = collection_export(C, op, collection, stats);
+  wmOperatorStatus result = collection_export(&C, &op, collection, stats);
 
   /* Only report if nothing was cancelled along the way. We don't want this UI report to happen
    * over-top any reports from the actual failures. */
   if (result == OPERATOR_FINISHED && stats.successful_exports_num > 0) {
-    BKE_reportf(op->reports,
+    BKE_reportf(op.reports,
                 RPT_INFO,
                 "Exported %d files from collection '%s'",
                 stats.successful_exports_num,
@@ -808,13 +808,13 @@ static wmOperatorStatus collection_export_recursive(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus wm_collection_export_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_collection_export_all_exec(bContext &C, wmOperator &op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   CollectionExportStats stats;
   for (LayerCollection &layer_collection : view_layer->layer_collections) {
-    if (collection_export_recursive(C, op, &layer_collection, stats) != OPERATOR_FINISHED) {
+    if (collection_export_recursive(&C, &op, &layer_collection, stats) != OPERATOR_FINISHED) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -822,7 +822,7 @@ static wmOperatorStatus wm_collection_export_all_exec(bContext *C, wmOperator *o
   /* Only report if nothing was cancelled along the way. We don't want this UI report to happen
    * over-top any reports from the actual failures. */
   if (stats.successful_exports_num > 0) {
-    BKE_reportf(op->reports,
+    BKE_reportf(op.reports,
                 RPT_INFO,
                 "Exported %d files from %d collections",
                 stats.successful_exports_num,
@@ -884,10 +884,10 @@ void collection_exporter_register()
 
 /****************** properties window operators *********************/
 
-static wmOperatorStatus collection_add_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus collection_add_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = context_object(C);
-  Main *bmain = CTX_data_main(*C);
+  Object *ob = context_object(&C);
+  Main *bmain = CTX_data_main(C);
 
   if (ob == nullptr) {
     return OPERATOR_CANCELLED;
@@ -900,7 +900,7 @@ static wmOperatorStatus collection_add_exec(bContext *C, wmOperator * /*op*/)
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -920,12 +920,12 @@ void OBJECT_OT_collection_add(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_link_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Object *ob = context_object(C);
+  Main *bmain = CTX_data_main(C);
+  Object *ob = context_object(&C);
   Collection *collection = static_cast<Collection *>(
-      BLI_findlink(&bmain->collections, RNA_enum_get(op->ptr, "collection")));
+      BLI_findlink(&bmain->collections, RNA_enum_get(op.ptr, "collection")));
 
   if (ELEM(nullptr, ob, collection)) {
     return OPERATOR_CANCELLED;
@@ -941,13 +941,13 @@ static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
 
   /* Currently this should not be allowed (might be supported in the future though...). */
   if (ID_IS_OVERRIDE_LIBRARY(&collection->id)) {
-    BKE_report(op->reports, RPT_ERROR, "Could not add the collection because it is overridden");
+    BKE_report(op.reports, RPT_ERROR, "Could not add the collection because it is overridden");
     return OPERATOR_CANCELLED;
   }
   /* Linked collections are already checked for by using RNA_collection_local_itemf
    * but operator can be called without invoke */
   if (!ID_IS_EDITABLE(&collection->id)) {
-    BKE_report(op->reports, RPT_ERROR, "Could not add the collection because it is linked");
+    BKE_report(op.reports, RPT_ERROR, "Could not add the collection because it is linked");
     return OPERATOR_CANCELLED;
   }
 
@@ -957,7 +957,7 @@ static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
    * contains our current object.
    */
   if (BKE_collection_object_cyclic_check(bmain, ob, collection)) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_ERROR,
                "Could not add the collection because of dependency cycle detected");
     return OPERATOR_CANCELLED;
@@ -968,7 +968,7 @@ static wmOperatorStatus collection_link_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -997,18 +997,18 @@ void OBJECT_OT_collection_link(wmOperatorType *ot)
   ot->prop = prop;
 }
 
-static wmOperatorStatus collection_remove_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_remove_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Object *ob = context_object(C);
+  Main *bmain = CTX_data_main(C);
+  Object *ob = context_object(&C);
   Collection *collection = static_cast<Collection *>(
-      CTX_data_pointer_get_type(*C, "collection", &RNA_Collection).data);
+      CTX_data_pointer_get_type(C, "collection", &RNA_Collection).data);
 
   if (!ob || !collection) {
     return OPERATOR_CANCELLED;
   }
   if (!ID_IS_EDITABLE(collection) || ID_IS_OVERRIDE_LIBRARY(collection)) {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_ERROR,
                "Cannot remove an object from a linked or library override collection");
     return OPERATOR_CANCELLED;
@@ -1019,7 +1019,7 @@ static wmOperatorStatus collection_remove_exec(bContext *C, wmOperator *op)
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -1039,10 +1039,10 @@ void OBJECT_OT_collection_remove(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus collection_unlink_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus collection_unlink_exec(bContext &C, wmOperator &op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Collection *collection = CTX_data_collection(*C);
+  Main *bmain = CTX_data_main(C);
+  Collection *collection = CTX_data_collection(C);
 
   if (!collection) {
     return OPERATOR_CANCELLED;
@@ -1054,7 +1054,7 @@ static wmOperatorStatus collection_unlink_exec(bContext *C, wmOperator *op)
   if (ID_IS_OVERRIDE_LIBRARY(collection) &&
       collection->id.override_library->hierarchy_root != &collection->id)
   {
-    BKE_report(op->reports,
+    BKE_report(op.reports,
                RPT_ERROR,
                "Cannot unlink a library override collection which is not the root of its override "
                "hierarchy");
@@ -1065,14 +1065,14 @@ static wmOperatorStatus collection_unlink_exec(bContext *C, wmOperator *op)
 
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static bool collection_unlink_poll(bContext *C)
+static bool collection_unlink_poll(bContext &C)
 {
-  Collection *collection = CTX_data_collection(*C);
+  Collection *collection = CTX_data_collection(C);
 
   if (!collection) {
     return false;
@@ -1106,17 +1106,17 @@ void OBJECT_OT_collection_unlink(wmOperatorType *ot)
 }
 
 /* Select objects in the same collection as the active */
-static wmOperatorStatus select_grouped_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus select_grouped_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   Collection *collection = static_cast<Collection *>(
-      CTX_data_pointer_get_type(*C, "collection", &RNA_Collection).data);
+      CTX_data_pointer_get_type(C, "collection", &RNA_Collection).data);
 
   if (!collection) {
     return OPERATOR_CANCELLED;
   }
 
-  CTX_DATA_BEGIN (*C, Base *, base, visible_bases) {
+  CTX_DATA_BEGIN (C, Base *, base, visible_bases) {
     if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
       if (BKE_collection_has_object_recursive(collection, base->object)) {
         base_select(base, BA_SELECT);

@@ -36,11 +36,11 @@ static void select_only_layer_shape(MaskLayer *mask_layer, MaskLayerShape *mask_
   mask_layer_shape->flag |= MASK_SHAPE_SELECT;
 }
 
-static wmOperatorStatus mask_shape_key_insert_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_shape_key_insert_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   const int frame = scene->r.cfra;
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   bool changed = false;
 
   for (MaskLayer &mask_layer : mask->masklayers) {
@@ -58,7 +58,7 @@ static wmOperatorStatus mask_shape_key_insert_exec(bContext *C, wmOperator * /*o
   }
 
   if (changed) {
-    WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_DATA, mask);
     DEG_id_tag_update(&mask->id, 0);
 
     return OPERATOR_FINISHED;
@@ -81,11 +81,11 @@ void MASK_OT_shape_key_insert(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus mask_shape_key_clear_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_shape_key_clear_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   const int frame = scene->r.cfra;
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   bool changed = false;
 
   for (MaskLayer &mask_layer : mask->masklayers) {
@@ -104,7 +104,7 @@ static wmOperatorStatus mask_shape_key_clear_exec(bContext *C, wmOperator * /*op
   }
 
   if (changed) {
-    WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_DATA, mask);
     DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
     return OPERATOR_FINISHED;
@@ -127,11 +127,11 @@ void MASK_OT_shape_key_clear(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static wmOperatorStatus mask_shape_key_feather_reset_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus mask_shape_key_feather_reset_exec(bContext &C, wmOperator & /*op*/)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   const int frame = scene->r.cfra;
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   bool changed = false;
 
   for (MaskLayer &mask_layer : mask->masklayers) {
@@ -185,7 +185,7 @@ static wmOperatorStatus mask_shape_key_feather_reset_exec(bContext *C, wmOperato
   }
 
   if (changed) {
-    WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_DATA, mask);
     DEG_id_tag_update(&mask->id, 0);
 
     return OPERATOR_FINISHED;
@@ -216,15 +216,15 @@ void MASK_OT_shape_key_feather_reset(wmOperatorType *ot)
  * - copy unselected values back from the original.
  * - free the original.
  */
-static wmOperatorStatus mask_shape_key_rekey_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mask_shape_key_rekey_exec(bContext &C, wmOperator &op)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   const int frame = scene->r.cfra;
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   bool changed = false;
 
-  const bool do_feather = RNA_boolean_get(op->ptr, "feather");
-  const bool do_location = RNA_boolean_get(op->ptr, "location");
+  const bool do_feather = RNA_boolean_get(op.ptr, "feather");
+  const bool do_location = RNA_boolean_get(op.ptr, "location");
 
   for (MaskLayer &mask_layer : mask->masklayers) {
     if (mask_layer.visibility_flag & (MASK_HIDE_VIEW | MASK_HIDE_SELECT)) {
@@ -353,7 +353,7 @@ static wmOperatorStatus mask_shape_key_rekey_exec(bContext *C, wmOperator *op)
   }
 
   if (changed) {
-    WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
+    WM_event_add_notifier(&C, NC_MASK | ND_DATA, mask);
     DEG_id_tag_update(&mask->id, 0);
 
     return OPERATOR_FINISHED;

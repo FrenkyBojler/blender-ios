@@ -464,51 +464,51 @@ static void ed_undo_refresh_for_op(bContext *C)
   ED_outliner_select_sync_from_all_tag(C);
 }
 
-static wmOperatorStatus ed_undo_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus ed_undo_exec(bContext &C, wmOperator &op)
 {
   /* "last operator" should disappear, later we can tie this with undo stack nicer */
-  WM_operator_stack_clear(CTX_wm_manager(*C));
-  wmOperatorStatus ret = ed_undo_step_direction(C, STEP_UNDO, op->reports);
+  WM_operator_stack_clear(CTX_wm_manager(C));
+  wmOperatorStatus ret = ed_undo_step_direction(&C, STEP_UNDO, op.reports);
   if (ret & OPERATOR_FINISHED) {
-    ed_undo_refresh_for_op(C);
+    ed_undo_refresh_for_op(&C);
   }
   return ret;
 }
 
-static wmOperatorStatus ed_undo_push_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus ed_undo_push_exec(bContext &C, wmOperator &op)
 {
   if (G.background) {
     /* Exception for background mode, see: #60934.
      * NOTE: since the undo stack isn't initialized on startup, background mode behavior
      * won't match regular usage, this is just for scripts to do explicit undo pushes. */
-    wmWindowManager *wm = CTX_wm_manager(*C);
+    wmWindowManager *wm = CTX_wm_manager(C);
     if (wm->runtime->undo_stack == nullptr) {
       wm->runtime->undo_stack = BKE_undosys_stack_create();
     }
   }
   char str[BKE_UNDO_STR_MAX];
-  RNA_string_get(op->ptr, "message", str);
-  ED_undo_push(C, str);
+  RNA_string_get(op.ptr, "message", str);
+  ED_undo_push(&C, str);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus ed_redo_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus ed_redo_exec(bContext &C, wmOperator &op)
 {
-  wmOperatorStatus ret = ed_undo_step_direction(C, STEP_REDO, op->reports);
+  wmOperatorStatus ret = ed_undo_step_direction(&C, STEP_REDO, op.reports);
   if (ret & OPERATOR_FINISHED) {
-    ed_undo_refresh_for_op(C);
+    ed_undo_refresh_for_op(&C);
   }
   return ret;
 }
 
-static wmOperatorStatus ed_undo_redo_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus ed_undo_redo_exec(bContext &C, wmOperator & /*op*/)
 {
-  wmOperator *last_op = WM_operator_last_redo(C);
-  wmOperatorStatus ret = ED_undo_operator_repeat(C, last_op) ? OPERATOR_FINISHED :
-                                                               OPERATOR_CANCELLED;
+  wmOperator *last_op = WM_operator_last_redo(&C);
+  wmOperatorStatus ret = ED_undo_operator_repeat(&C, last_op) ? OPERATOR_FINISHED :
+                                                                OPERATOR_CANCELLED;
   if (ret & OPERATOR_FINISHED) {
     /* Keep button under the cursor active. */
-    WM_event_add_mousemove(CTX_wm_window(*C));
+    WM_event_add_mousemove(CTX_wm_window(C));
   }
   return ret;
 }
@@ -530,27 +530,27 @@ static bool ed_undo_is_init_poll(bContext *C)
   return true;
 }
 
-static bool ed_undo_is_init_and_screenactive_poll(bContext *C)
+static bool ed_undo_is_init_and_screenactive_poll(bContext &C)
 {
-  if (ed_undo_is_init_poll(C) == false) {
+  if (ed_undo_is_init_poll(&C) == false) {
     return false;
   }
   return ED_operator_screenactive(C);
 }
 
-static bool ed_undo_redo_poll(bContext *C)
+static bool ed_undo_redo_poll(bContext &C)
 {
-  wmOperator *last_op = WM_operator_last_redo(C);
+  wmOperator *last_op = WM_operator_last_redo(&C);
   return (last_op && ed_undo_is_init_and_screenactive_poll(C) &&
-          WM_operator_check_ui_enabled(C, last_op->type->name));
+          WM_operator_check_ui_enabled(&C, last_op->type->name));
 }
 
-static bool ed_undo_poll(bContext *C)
+static bool ed_undo_poll(bContext &C)
 {
   if (!ed_undo_is_init_and_screenactive_poll(C)) {
     return false;
   }
-  UndoStack *undo_stack = CTX_wm_manager(*C)->runtime->undo_stack;
+  UndoStack *undo_stack = CTX_wm_manager(C)->runtime->undo_stack;
   return (undo_stack->step_active != nullptr) && (undo_stack->step_active->prev != nullptr);
 }
 
@@ -588,12 +588,12 @@ void ED_OT_undo_push(wmOperatorType *ot)
                  "");
 }
 
-static bool ed_redo_poll(bContext *C)
+static bool ed_redo_poll(bContext &C)
 {
   if (!ed_undo_is_init_and_screenactive_poll(C)) {
     return false;
   }
-  UndoStack *undo_stack = CTX_wm_manager(*C)->runtime->undo_stack;
+  UndoStack *undo_stack = CTX_wm_manager(C)->runtime->undo_stack;
   return (undo_stack->step_active != nullptr) && (undo_stack->step_active->next != nullptr);
 }
 
@@ -724,30 +724,30 @@ void ED_undo_operator_repeat_cb_evt(bContext *C, void *arg_op, int /*arg_unused*
  * \{ */
 
 /* NOTE: also check #ed_undo_step() in top if you change notifiers. */
-static wmOperatorStatus undo_history_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus undo_history_exec(bContext &C, wmOperator &op)
 {
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "item");
-  if (RNA_property_is_set(op->ptr, prop)) {
-    const int item = RNA_property_int_get(op->ptr, prop);
-    const int ret = ed_undo_step_by_index(C, item, op->reports);
+  PropertyRNA *prop = RNA_struct_find_property(op.ptr, "item");
+  if (RNA_property_is_set(op.ptr, prop)) {
+    const int item = RNA_property_int_get(op.ptr, prop);
+    const int ret = ed_undo_step_by_index(&C, item, op.reports);
     if (ret & OPERATOR_FINISHED) {
-      ed_undo_refresh_for_op(C);
+      ed_undo_refresh_for_op(&C);
 
-      WM_event_add_notifier(C, NC_WINDOW, nullptr);
+      WM_event_add_notifier(&C, NC_WINDOW, nullptr);
       return OPERATOR_FINISHED;
     }
   }
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus undo_history_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus undo_history_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "item");
-  if (RNA_property_is_set(op->ptr, prop)) {
+  PropertyRNA *prop = RNA_struct_find_property(op.ptr, "item");
+  if (RNA_property_is_set(op.ptr, prop)) {
     return undo_history_exec(C, op);
   }
 
-  WM_menu_name_call(C, "TOPBAR_MT_undo_history", blender::wm::OpCallContext::InvokeDefault);
+  WM_menu_name_call(&C, "TOPBAR_MT_undo_history", blender::wm::OpCallContext::InvokeDefault);
   return OPERATOR_FINISHED;
 }
 

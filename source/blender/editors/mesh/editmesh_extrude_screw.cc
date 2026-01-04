@@ -34,7 +34,7 @@ using blender::Vector;
 /** \name Screw Operator
  * \{ */
 
-static wmOperatorStatus edbm_screw_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edbm_screw_exec(bContext &C, wmOperator &op)
 {
   BMEdge *eed;
   BMVert *eve, *v1, *v2;
@@ -46,15 +46,15 @@ static wmOperatorStatus edbm_screw_exec(bContext *C, wmOperator *op)
   uint failed_axis_len = 0;
   uint failed_verts_len = 0;
 
-  turns = RNA_int_get(op->ptr, "turns");
-  steps = RNA_int_get(op->ptr, "steps");
-  RNA_float_get_array(op->ptr, "center", cent);
-  RNA_float_get_array(op->ptr, "axis", axis);
+  turns = RNA_int_get(op.ptr, "turns");
+  steps = RNA_int_get(op.ptr, "steps");
+  RNA_float_get_array(op.ptr, "center", cent);
+  RNA_float_get_array(op.ptr, "axis", axis);
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -119,7 +119,7 @@ static wmOperatorStatus edbm_screw_exec(bContext *C, wmOperator *op)
     if (!EDBM_op_init(
             em,
             &spinop,
-            op,
+            &op,
             "spin geom=%hvef cent=%v axis=%v dvec=%v steps=%i angle=%f space=%m4 use_duplicate=%b",
             BM_ELEM_SELECT,
             cent,
@@ -138,7 +138,7 @@ static wmOperatorStatus edbm_screw_exec(bContext *C, wmOperator *op)
     BMO_slot_buffer_hflag_enable(
         bm, spinop.slots_out, "geom_last.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
 
-    if (!EDBM_op_finish(em, &spinop, op, true)) {
+    if (!EDBM_op_finish(em, &spinop, &op, true)) {
       continue;
     }
 
@@ -150,30 +150,30 @@ static wmOperatorStatus edbm_screw_exec(bContext *C, wmOperator *op)
   }
 
   if (failed_axis_len == objects.size() - objects_empty_len) {
-    BKE_report(op->reports, RPT_ERROR, "Invalid/unset axis");
+    BKE_report(op.reports, RPT_ERROR, "Invalid/unset axis");
   }
   else if (failed_verts_len == objects.size() - objects_empty_len) {
-    BKE_report(op->reports, RPT_ERROR, "You have to select a string of connected vertices too");
+    BKE_report(op.reports, RPT_ERROR, "You have to select a string of connected vertices too");
   }
 
   return OPERATOR_FINISHED;
 }
 
 /* get center and axis, in global coords */
-static wmOperatorStatus edbm_screw_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus edbm_screw_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  Scene *scene = CTX_data_scene(*C);
-  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
+  Scene *scene = CTX_data_scene(C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(&C);
 
   PropertyRNA *prop;
-  prop = RNA_struct_find_property(op->ptr, "center");
-  if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_float_set_array(op->ptr, prop, scene->cursor.location);
+  prop = RNA_struct_find_property(op.ptr, "center");
+  if (!RNA_property_is_set(op.ptr, prop)) {
+    RNA_property_float_set_array(op.ptr, prop, scene->cursor.location);
   }
   if (rv3d) {
-    prop = RNA_struct_find_property(op->ptr, "axis");
-    if (!RNA_property_is_set(op->ptr, prop)) {
-      RNA_property_float_set_array(op->ptr, prop, rv3d->viewinv[1]);
+    prop = RNA_struct_find_property(op.ptr, "axis");
+    if (!RNA_property_is_set(op.ptr, prop)) {
+      RNA_property_float_set_array(op.ptr, prop, rv3d->viewinv[1]);
     }
   }
 

@@ -401,16 +401,16 @@ static void clear_face_sets(const Depsgraph &depsgraph, Object &object, const In
   attributes.remove(".sculpt_face_set");
 }
 
-static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus create_op_exec(bContext &C, wmOperator &op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Object &object = *CTX_data_active_object(*C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object &object = *CTX_data_active_object(C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
 
-  const CreateMode mode = CreateMode(RNA_enum_get(op->ptr, "mode"));
+  const CreateMode mode = CreateMode(RNA_enum_get(op.ptr, "mode"));
 
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -426,7 +426,7 @@ static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
 
   BKE_sculpt_update_object_for_edit(&depsgraph, &object, false);
 
-  undo::push_begin(scene, object, op);
+  undo::push_begin(scene, object, &op);
 
   const int next_face_set = find_next_available_id(object);
 
@@ -555,7 +555,7 @@ static wmOperatorStatus create_op_exec(bContext *C, wmOperator *op)
 
   undo::push_end(object);
 
-  SCULPT_tag_update_overlays(C);
+  SCULPT_tag_update_overlays(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -698,16 +698,16 @@ Set<int> gather_hidden_face_sets(const Span<bool> hide_poly, const Span<int> fac
   return hidden_face_sets;
 }
 
-static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus init_op_exec(bContext &C, wmOperator &op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Object &ob = *CTX_data_active_object(*C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object &ob = *CTX_data_active_object(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
-  const InitMode mode = InitMode(RNA_enum_get(op->ptr, "mode"));
+  const InitMode mode = InitMode(RNA_enum_get(op.ptr, "mode"));
 
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -726,10 +726,10 @@ static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  undo::push_begin(scene, ob, op);
+  undo::push_begin(scene, ob, &op);
   undo::push_nodes(*depsgraph, ob, node_mask, undo::Type::FaceSet);
 
-  const float threshold = RNA_float_get(op->ptr, "threshold");
+  const float threshold = RNA_float_get(op.ptr, "threshold");
 
   Mesh *mesh = static_cast<Mesh *>(ob.data);
   const bke::AttributeAccessor attributes = mesh->attributes();
@@ -818,7 +818,7 @@ static wmOperatorStatus init_op_exec(bContext *C, wmOperator *op)
 
   pbvh.tag_face_sets_changed(node_mask);
 
-  SCULPT_tag_update_overlays(C);
+  SCULPT_tag_update_overlays(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -982,12 +982,12 @@ static void show_all(Depsgraph &depsgraph, Object &object, const IndexMask &node
   }
 }
 
-static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus change_visibility_exec(bContext &C, wmOperator &op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Object &object = *CTX_data_active_object(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object &object = *CTX_data_active_object(C);
   SculptSession &ss = *object.sculpt;
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
 
   Mesh *mesh = BKE_object_get_original_mesh(&object);
   BKE_sculpt_update_object_for_edit(&depsgraph, &object, false);
@@ -999,10 +999,10 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  const VisibilityMode mode = VisibilityMode(RNA_enum_get(op->ptr, "mode"));
+  const VisibilityMode mode = VisibilityMode(RNA_enum_get(op.ptr, "mode"));
   const int active_face_set = active_face_set_get(object);
 
-  undo::push_begin(scene, object, op);
+  undo::push_begin(scene, object, &op);
 
   IndexMaskMemory memory;
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
@@ -1065,7 +1065,7 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
   /* For modes that use the cursor active vertex, update the rotation origin for viewport
    * navigation. */
   if (ELEM(mode, VisibilityMode::Toggle, VisibilityMode::ShowActive)) {
-    Paint *paint = BKE_paint_get_active_from_context(C);
+    Paint *paint = BKE_paint_get_active_from_context(&C);
     bke::PaintRuntime *paint_runtime = paint->runtime;
     if (std::holds_alternative<std::monostate>(ss.active_vert())) {
       paint_runtime->last_stroke_valid = false;
@@ -1085,17 +1085,17 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
   pbvh.update_visibility(object);
 
   islands::invalidate(*object.sculpt);
-  hide::tag_update_visibility(*C);
+  hide::tag_update_visibility(C);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus change_visibility_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus change_visibility_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Object &ob = *CTX_data_active_object(*C);
+  Object &ob = *CTX_data_active_object(C);
 
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -1105,7 +1105,7 @@ static wmOperatorStatus change_visibility_invoke(bContext *C, wmOperator *op, co
   CursorGeometryInfo cgi;
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
   vert_random_access_ensure(ob);
-  cursor_geometry_info_update(C, &cgi, mval_fl, false);
+  cursor_geometry_info_update(&C, &cgi, mval_fl, false);
 
   return change_visibility_exec(C, op);
 }
@@ -1143,12 +1143,12 @@ void SCULPT_OT_face_set_change_visibility(wmOperatorType *ot)
   RNA_def_enum(ot->srna, "mode", modes, int(VisibilityMode::Toggle), "Mode", "");
 }
 
-static wmOperatorStatus randomize_colors_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus randomize_colors_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object &ob = *CTX_data_active_object(*C);
+  Object &ob = *CTX_data_active_object(C);
 
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -1179,7 +1179,7 @@ static wmOperatorStatus randomize_colors_exec(bContext *C, wmOperator * /*op*/)
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
   pbvh.tag_face_sets_changed(node_mask);
 
-  SCULPT_tag_update_overlays(C);
+  SCULPT_tag_update_overlays(&C);
 
   return OPERATOR_FINISHED;
 }
@@ -1519,46 +1519,46 @@ static bool edit_op_init(bContext *C, wmOperator *op)
   return true;
 }
 
-static wmOperatorStatus edit_op_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus edit_op_exec(bContext &C, wmOperator &op)
 {
-  if (!edit_op_init(C, op)) {
+  if (!edit_op_init(&C, &op)) {
     return OPERATOR_CANCELLED;
   }
 
-  const Scene &scene = *CTX_data_scene(*C);
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
-  Object &ob = *CTX_data_active_object(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  Object &ob = *CTX_data_active_object(C);
 
-  const int active_face_set = RNA_int_get(op->ptr, "active_face_set");
-  const EditMode mode = EditMode(RNA_enum_get(op->ptr, "mode"));
-  const bool modify_hidden = RNA_boolean_get(op->ptr, "modify_hidden");
+  const int active_face_set = RNA_int_get(op.ptr, "active_face_set");
+  const EditMode mode = EditMode(RNA_enum_get(op.ptr, "mode"));
+  const bool modify_hidden = RNA_boolean_get(op.ptr, "modify_hidden");
 
   switch (mode) {
     case EditMode::DeleteGeometry:
-      edit_modify_geometry(C, ob, active_face_set, modify_hidden, op);
+      edit_modify_geometry(&C, ob, active_face_set, modify_hidden, &op);
       break;
     case EditMode::Grow:
     case EditMode::Shrink:
-      edit_grow_shrink(depsgraph, scene, ob, mode, active_face_set, modify_hidden, op);
+      edit_grow_shrink(depsgraph, scene, ob, mode, active_face_set, modify_hidden, &op);
       break;
     case EditMode::FairPositions:
     case EditMode::FairTangency:
-      edit_modify_coordinates(C, ob, active_face_set, mode, op);
+      edit_modify_coordinates(&C, ob, active_face_set, mode, &op);
       break;
   }
 
-  SCULPT_tag_update_overlays(C);
+  SCULPT_tag_update_overlays(&C);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus edit_op_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus edit_op_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
-  Object &ob = *CTX_data_active_object(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Object &ob = *CTX_data_active_object(C);
 
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -1569,11 +1569,11 @@ static wmOperatorStatus edit_op_invoke(bContext *C, wmOperator *op, const wmEven
    * tool without brush cursor. */
   CursorGeometryInfo cgi;
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  if (!cursor_geometry_info_update(C, &cgi, mval_fl, false)) {
+  if (!cursor_geometry_info_update(&C, &cgi, mval_fl, false)) {
     /* The cursor is not over the mesh. Cancel to avoid editing the last updated face set ID. */
     return OPERATOR_CANCELLED;
   }
-  RNA_int_set(op->ptr, "active_face_set", active_face_set_get(ob));
+  RNA_int_set(op.ptr, "active_face_set", active_face_set_get(ob));
 
   return edit_op_exec(C, op);
 }
@@ -1810,10 +1810,10 @@ static void init_operation(gesture::GestureData &gesture_data, wmOperator & /*op
   face_set_operation->new_face_set_id = face_set::find_next_available_id(object);
 }
 
-static wmOperatorStatus gesture_box_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_box_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -1821,21 +1821,21 @@ static wmOperatorStatus gesture_box_invoke(bContext *C, wmOperator *op, const wm
   return WM_gesture_box_invoke(C, op, event);
 }
 
-static wmOperatorStatus gesture_box_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_box_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  init_operation(*gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  init_operation(*gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus gesture_lasso_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_lasso_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -1843,21 +1843,21 @@ static wmOperatorStatus gesture_lasso_invoke(bContext *C, wmOperator *op, const 
   return WM_gesture_lasso_invoke(C, op, event);
 }
 
-static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_lasso_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  init_operation(*gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  init_operation(*gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus gesture_line_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_line_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -1865,21 +1865,21 @@ static wmOperatorStatus gesture_line_invoke(bContext *C, wmOperator *op, const w
   return WM_gesture_straightline_active_side_invoke(C, op, event);
 }
 
-static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_line_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  init_operation(*gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  init_operation(*gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus gesture_polyline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus gesture_polyline_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const View3D *v3d = CTX_wm_view3d(*C);
-  const Base *base = CTX_data_active_base(*C);
+  const View3D *v3d = CTX_wm_view3d(C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -1887,14 +1887,14 @@ static wmOperatorStatus gesture_polyline_invoke(bContext *C, wmOperator *op, con
   return WM_gesture_polyline_invoke(C, op, event);
 }
 
-static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_polyline_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(C, op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(&C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
-  init_operation(*gesture_data, *op);
-  gesture::apply(*C, *gesture_data, *op);
+  init_operation(*gesture_data, op);
+  gesture::apply(C, *gesture_data, op);
   return OPERATOR_FINISHED;
 }
 

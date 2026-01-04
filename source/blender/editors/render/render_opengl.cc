@@ -944,10 +944,10 @@ static void screen_opengl_render_end(OGLRender *oglrender)
   oglrender->ended = true;
 }
 
-static void screen_opengl_render_cancel(bContext *C, wmOperator *op)
+static void screen_opengl_render_cancel(bContext &C, wmOperator &op)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  OGLRender *oglrender = static_cast<OGLRender *>(op.customdata);
 
   if (oglrender->is_animation) {
     WM_jobs_kill_type(wm, oglrender->scene, WM_JOB_TYPE_RENDER);
@@ -1241,11 +1241,11 @@ finally: /* Step the frame and bail early if needed */
   return true;
 }
 
-static wmOperatorStatus screen_opengl_render_modal(bContext *C,
-                                                   wmOperator *op,
+static wmOperatorStatus screen_opengl_render_modal(bContext &C,
+                                                   wmOperator &op,
                                                    const wmEvent *event)
 {
-  OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
+  OGLRender *oglrender = static_cast<OGLRender *>(op.customdata);
 
   /* Still render completes immediately, but still modal to show some feedback
    * in case render initialization takes a while. */
@@ -1257,7 +1257,7 @@ static wmOperatorStatus screen_opengl_render_modal(bContext *C,
   }
 
   /* no running blender, remove handler and pass through */
-  if (0 == WM_jobs_test(CTX_wm_manager(*C), oglrender->scene, WM_JOB_TYPE_RENDER)) {
+  if (0 == WM_jobs_test(CTX_wm_manager(C), oglrender->scene, WM_JOB_TYPE_RENDER)) {
     screen_opengl_render_end(oglrender);
     MEM_delete(oglrender);
     return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
@@ -1308,34 +1308,34 @@ static void opengl_render_freejob(void *customdata)
   screen_opengl_render_end(oglrender);
 }
 
-static wmOperatorStatus screen_opengl_render_invoke(bContext *C,
-                                                    wmOperator *op,
+static wmOperatorStatus screen_opengl_render_invoke(bContext &C,
+                                                    wmOperator &op,
                                                     const wmEvent *event)
 {
-  const bool anim = RNA_boolean_get(op->ptr, "animation");
+  const bool anim = RNA_boolean_get(op.ptr, "animation");
 
-  if (!screen_opengl_render_init(C, op)) {
+  if (!screen_opengl_render_init(&C, &op)) {
     return OPERATOR_CANCELLED;
   }
 
   if (anim) {
-    if (!screen_opengl_render_anim_init(op)) {
+    if (!screen_opengl_render_anim_init(&op)) {
       return OPERATOR_CANCELLED;
     }
   }
 
-  OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
-  render_view_open(C, event->xy[0], event->xy[1], op->reports);
+  OGLRender *oglrender = static_cast<OGLRender *>(op.customdata);
+  render_view_open(&C, event->xy[0], event->xy[1], op.reports);
 
   /* View may be changed above #USER_RENDER_DISPLAY_WINDOW. */
-  oglrender->win = CTX_wm_window(*C);
+  oglrender->win = CTX_wm_window(C);
 
   /* Setup animation job. */
   if (anim) {
     G.is_break = false;
 
-    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
-                                CTX_wm_window(*C),
+    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
+                                CTX_wm_window(C),
                                 oglrender->scene,
                                 "Rendering viewport...",
                                 WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
@@ -1346,22 +1346,22 @@ static wmOperatorStatus screen_opengl_render_invoke(bContext *C,
     WM_jobs_customdata_set(wm_job, oglrender, opengl_render_freejob);
     WM_jobs_timer(wm_job, 0.01f, NC_SCENE | ND_RENDER_RESULT, 0);
     WM_jobs_callbacks(wm_job, opengl_render_startjob, nullptr, nullptr, nullptr);
-    WM_jobs_start(CTX_wm_manager(*C), wm_job);
+    WM_jobs_start(CTX_wm_manager(C), wm_job);
   }
 
-  WM_event_add_modal_handler(C, op);
+  WM_event_add_modal_handler(&C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
 /* executes blocking render */
-static wmOperatorStatus screen_opengl_render_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus screen_opengl_render_exec(bContext &C, wmOperator &op)
 {
-  if (!screen_opengl_render_init(C, op)) {
+  if (!screen_opengl_render_init(&C, &op)) {
     return OPERATOR_CANCELLED;
   }
 
-  OGLRender *oglrender = static_cast<OGLRender *>(op->customdata);
+  OGLRender *oglrender = static_cast<OGLRender *>(op.customdata);
 
   if (!oglrender->is_animation) { /* same as invoke */
     screen_opengl_render_apply(oglrender);
@@ -1373,7 +1373,7 @@ static wmOperatorStatus screen_opengl_render_exec(bContext *C, wmOperator *op)
 
   bool ret = true;
 
-  if (!screen_opengl_render_anim_init(op)) {
+  if (!screen_opengl_render_anim_init(&op)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1387,8 +1387,8 @@ static wmOperatorStatus screen_opengl_render_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static std::string screen_opengl_render_get_description(bContext * /*C*/,
-                                                        wmOperatorType * /*ot*/,
+static std::string screen_opengl_render_get_description(bContext & /*C*/,
+                                                        wmOperatorType & /*ot*/,
                                                         PointerRNA *ptr)
 {
   if (!RNA_boolean_get(ptr, "animation")) {
