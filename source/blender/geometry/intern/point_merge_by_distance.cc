@@ -38,8 +38,7 @@ static int roots_by_distance(const Span<float3> positions,
       tree, merge_distance, false, r_root_indices.data());
   kdtree_3d_free(tree);
 
-  selection.foreach_index_optimized<int>(GrainSize(1024),
-                                         [&](const int i) { r_root_indices[i] = i; });
+  selection.foreach_index(GrainSize(1024), [&](const int i) { r_root_indices[i] = i; });
 
   BLI_assert(!r_root_indices.as_span().contains(-1));
 
