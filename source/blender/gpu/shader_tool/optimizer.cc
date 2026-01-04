@@ -119,8 +119,6 @@ static void first_pass(parser::IntermediateForm &parser,
       process_functions(parser, Token::from_position(data, cursor), functions);
     }
   }
-
-  parser().foreach_token(Word, [&](const Token &t) {});
 }
 
 static void prune_functions(parser::IntermediateForm &parser,
@@ -133,11 +131,11 @@ static void prune_functions(parser::IntermediateForm &parser,
       if (end_of_args.next() == '{') {
         /* Full definition. */
         Token end_of_body = end_of_args.next().scope().back();
-        parser.replace_try(type, end_of_body, "");
+        parser.erase(type, end_of_body);
       }
       else {
         /* Prototype. */
-        parser.replace_try(type, end_of_args, "");
+        parser.erase(type, end_of_args);
       }
     }
   }
