@@ -88,16 +88,16 @@ bool BKE_copybuffer_read(Main *bmain_dst,
   return true;
 }
 
-int BKE_copybuffer_paste(bContext *C,
+int BKE_copybuffer_paste(bContext &C,
                          const char *libname,
                          const int flag,
                          ReportList *reports,
                          const uint64_t id_types_mask)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C); /* may be nullptr. */
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C); /* may be nullptr. */
   const int id_tag_extra = 0;
 
   /* NOTE: No recursive append here, external linked data should remain linked. */

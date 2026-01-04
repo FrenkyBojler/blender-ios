@@ -570,7 +570,7 @@ static void applyVertSlide(TransInfo *t)
     return;
   }
 
-  WorkspaceStatus status(t->context);
+  WorkspaceStatus status(*t->context);
   status.opmodal(IFACE_("Confirm"), op->type, TFM_MODAL_CONFIRM);
   status.opmodal(IFACE_("Cancel"), op->type, TFM_MODAL_CONFIRM);
   status.opmodal(IFACE_("Snap"), op->type, TFM_MODAL_SNAP_TOGGLE, is_snap);

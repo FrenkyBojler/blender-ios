@@ -505,7 +505,7 @@ static Object *add_hook_object_new(
   return ob;
 }
 
-static int add_hook_object(const bContext *C,
+static int add_hook_object(const bContext &C,
                            Main *bmain,
                            Scene *scene,
                            ViewLayer *view_layer,
@@ -515,7 +515,7 @@ static int add_hook_object(const bContext *C,
                            int mode,
                            ReportList *reports)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   HookModifierData *hmd = nullptr;
   float cent[3];
   float pose_mat[4][4];
@@ -632,8 +632,8 @@ static wmOperatorStatus object_add_hook_selob_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  if (add_hook_object(&C, bmain, scene, view_layer, nullptr, obedit, obsel, mode, op.reports)) {
-    WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, obedit);
+  if (add_hook_object(C, bmain, scene, view_layer, nullptr, obedit, obsel, mode, op.reports)) {
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, obedit);
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -669,11 +669,11 @@ static wmOperatorStatus object_add_hook_newob_exec(bContext &C, wmOperator &op)
   Object *obedit = CTX_data_edit_object(C);
 
   if (add_hook_object(
-          &C, bmain, scene, view_layer, v3d, obedit, nullptr, OBJECT_ADDHOOK_NEWOB, op.reports))
+          C, bmain, scene, view_layer, v3d, obedit, nullptr, OBJECT_ADDHOOK_NEWOB, op.reports))
   {
     DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, obedit);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, obedit);
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -713,7 +713,7 @@ static wmOperatorStatus object_hook_remove_exec(bContext &C, wmOperator &op)
 
   DEG_relations_tag_update(CTX_data_main(C));
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -792,7 +792,7 @@ static wmOperatorStatus object_hook_reset_exec(bContext &C, wmOperator &op)
   BKE_object_modifier_hook_reset(ob, hmd);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -847,7 +847,7 @@ static wmOperatorStatus object_hook_recenter_exec(bContext &C, wmOperator &op)
   mul_m3_v3(imat, hmd->cent);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -912,7 +912,7 @@ static wmOperatorStatus object_hook_assign_exec(bContext &C, wmOperator &op)
   hmd->indexar_num = indexar_num;
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -963,7 +963,7 @@ static wmOperatorStatus object_hook_select_exec(bContext &C, wmOperator &op)
   object_hook_select(ob, hmd);
 
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, ob->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
 
   return OPERATOR_FINISHED;
 }

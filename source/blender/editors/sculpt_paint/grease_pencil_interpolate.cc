@@ -784,7 +784,7 @@ static void grease_pencil_interpolate_update(bContext &C, const wmOperator &op)
   grease_pencil_interpolate_status_indicators(C, opdata);
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 }
 
 /* Restore timeline changes when canceled. */
@@ -814,14 +814,14 @@ static void grease_pencil_interpolate_restore(bContext &C, wmOperator &op)
         drawing->strokes_for_write() = *layer_data.orig_curves;
         drawing->tag_topology_changed();
         DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-        WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+        WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
       }
     }
     else {
       /* Frame was empty, remove the added drawing. */
       grease_pencil.remove_frames(layer, {current_frame});
       DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+      WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
     }
   });
 }
@@ -904,9 +904,9 @@ static wmOperatorStatus grease_pencil_interpolate_invoke(bContext &C,
 
   grease_pencil_interpolate_status_indicators(C, opdata);
 
-  WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1326,7 +1326,7 @@ static wmOperatorStatus grease_pencil_interpolate_sequence_exec(bContext &C, wmO
 
   /* Notifiers */
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 
   MEM_delete(static_cast<InterpolateOpData *>(op.customdata));
   op.customdata = nullptr;

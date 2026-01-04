@@ -81,7 +81,7 @@ void ED_space_image_get_zoom(SpaceImage *sima,
                              float *r_zoomy);
 void ED_space_image_get_uv_aspect(SpaceImage *sima, float *r_aspx, float *r_aspy);
 
-void ED_space_image_scopes_update(const bContext *C,
+void ED_space_image_scopes_update(const bContext &C,
                                   SpaceImage *sima,
                                   ImBuf *ibuf,
                                   bool use_view_settings);
@@ -115,7 +115,7 @@ bool ED_space_image_show_paint(const SpaceImage *sima);
 bool ED_space_image_show_mask(const SpaceImage *sima);
 bool ED_space_image_show_uvedit(const SpaceImage *sima, Object *obedit);
 
-bool ED_space_image_paint_curve(const bContext *C);
+bool ED_space_image_paint_curve(const bContext &C);
 
 /**
  * Matches clip function.
@@ -130,7 +130,7 @@ bool ED_space_image_check_show_maskedit(SpaceImage *sima, Object *obedit);
  *
  * It is not required to have mask opened for editing.
  */
-bool ED_space_image_maskedit_poll(bContext *C);
+bool ED_space_image_maskedit_poll(bContext &C);
 
 /**
  * Returns true when the following conditions are met:
@@ -185,7 +185,7 @@ bool ED_space_image_show_cache_and_mval_over(const SpaceImage *sima,
 
 bool ED_image_should_save_modified(const Main *bmain);
 int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports);
-bool ED_image_save_all_modified(const bContext *C, ReportList *reports);
+bool ED_image_save_all_modified(const bContext &C, ReportList *reports);
 
 /* `image_sequence.cc` */
 

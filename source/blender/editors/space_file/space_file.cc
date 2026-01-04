@@ -586,7 +586,7 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
   view2d_region_reinit(v2d, blender::ui::V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* sets tile/border settings in sfile */
-  file_calc_previews(C, region);
+  file_calc_previews(*C, region);
 
   /* set view */
   blender::ui::view2d_view_ortho(v2d);
@@ -598,11 +598,11 @@ static void file_main_region_draw(const bContext *C, ARegion *region)
   }
 
   if (!file_draw_hint_if_invalid(C, sfile, region)) {
-    file_draw_list(C, region);
+    file_draw_list(*C, region);
   }
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   /* scrollers */
   rcti view_rect;

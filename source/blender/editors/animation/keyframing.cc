@@ -77,7 +77,7 @@ static KeyingSet *keyingset_get_from_op_with_error(wmOperator *op,
                                                    PropertyRNA *prop,
                                                    Scene *scene);
 
-static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *ks);
+static wmOperatorStatus delete_key_using_keying_set(bContext &C, wmOperator *op, KeyingSet *ks);
 
 /* ******************************************* */
 /* Animation Data Validation */
@@ -112,7 +112,7 @@ void update_autoflags_fcurve(FCurve *fcu, bContext *C, ReportList *reports, Poin
 
   if (old_flag != fcu->flag) {
     /* Same as if keyframes had been changed */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+    WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
   }
 }
 
@@ -172,14 +172,14 @@ static bool modify_key_op_poll(bContext &C)
 
 /* Insert Key Operator ------------------------ */
 
-static wmOperatorStatus insert_key_with_keyingset(bContext *C, wmOperator *op, KeyingSet *ks)
+static wmOperatorStatus insert_key_with_keyingset(bContext &C, wmOperator *op, KeyingSet *ks)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   bool ob_edit_mode = false;
 
   const float cfra = BKE_scene_frame_get(scene);
@@ -188,13 +188,13 @@ static wmOperatorStatus insert_key_with_keyingset(bContext *C, wmOperator *op, K
    * updated since the last switching to the edit mode will be keyframed correctly
    */
   if (obedit && blender::animrig::keyingset_find_id(ks, static_cast<ID *>(obedit->data))) {
-    blender::ed::object::mode_set(C, OB_MODE_OBJECT);
+    blender::ed::object::mode_set(&C, OB_MODE_OBJECT);
     ob_edit_mode = true;
   }
 
   /* try to insert keyframes for the channels specified by KeyingSet */
   const int num_channels = blender::animrig::apply_keyingset(
-      C, nullptr, ks, blender::animrig::ModifyKeyMode::INSERT, cfra);
+      &C, nullptr, ks, blender::animrig::ModifyKeyMode::INSERT, cfra);
   if (G.debug & G_DEBUG) {
     BKE_reportf(op->reports,
                 RPT_INFO,
@@ -205,7 +205,7 @@ static wmOperatorStatus insert_key_with_keyingset(bContext *C, wmOperator *op, K
 
   /* restore the edit mode if necessary */
   if (ob_edit_mode) {
-    blender::ed::object::mode_set(C, OB_MODE_EDIT);
+    blender::ed::object::mode_set(&C, OB_MODE_EDIT);
   }
 
   /* report failure or do updates? */
@@ -311,16 +311,16 @@ static blender::Vector<RNAPath> construct_rna_paths(PointerRNA *ptr)
 }
 
 /* Fill the list with items depending on the mode of the context. */
-static bool get_selection(bContext *C, blender::Vector<PointerRNA> *r_selection)
+static bool get_selection(bContext &C, blender::Vector<PointerRNA> *r_selection)
 {
-  const eContextObjectMode context_mode = CTX_data_mode_enum(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  const eContextObjectMode context_mode = CTX_data_mode_enum(C);
+  ScrArea *area = CTX_wm_area(C);
 
   if (area && area->spacetype == SPACE_SEQ) {
     blender::VectorSet<Strip *> strips = blender::ed::vse::selected_strips_from_context(C);
     for (Strip *strip : strips) {
       PointerRNA ptr;
-      ptr = RNA_pointer_create_discrete(&CTX_data_scene(*C)->id, &RNA_Strip, strip);
+      ptr = RNA_pointer_create_discrete(&CTX_data_scene(C)->id, &RNA_Strip, strip);
       r_selection->append(ptr);
     }
     return true;
@@ -328,11 +328,11 @@ static bool get_selection(bContext *C, blender::Vector<PointerRNA> *r_selection)
 
   switch (context_mode) {
     case CTX_MODE_OBJECT: {
-      CTX_data_selected_objects(*C, r_selection);
+      CTX_data_selected_objects(C, r_selection);
       break;
     }
     case CTX_MODE_POSE: {
-      CTX_data_selected_pose_bones(*C, r_selection);
+      CTX_data_selected_pose_bones(C, r_selection);
       break;
     }
     default:
@@ -347,7 +347,7 @@ static wmOperatorStatus insert_key(bContext *C, wmOperator *op)
   using namespace blender;
 
   Vector<PointerRNA> selection;
-  const bool found_selection = get_selection(C, &selection);
+  const bool found_selection = get_selection(*C, &selection);
   if (!found_selection) {
     BKE_reportf(op->reports, RPT_ERROR, "Unsupported context mode");
     return OPERATOR_CANCELLED;
@@ -406,15 +406,15 @@ static wmOperatorStatus insert_key(bContext *C, wmOperator *op)
     DEG_id_tag_update(id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  WM_event_add_notifier(*C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
 
 static wmOperatorStatus insert_key_exec(bContext &C, wmOperator &op)
 {
-  ANIM_deselect_keys_in_animation_editors(&C);
+  ANIM_deselect_keys_in_animation_editors(C);
 
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
@@ -425,7 +425,7 @@ static wmOperatorStatus insert_key_exec(bContext &C, wmOperator &op)
   const int type = RNA_enum_get(op.ptr, "type");
   KeyingSet *ks = ANIM_keyingset_get_from_enum_type(scene, type);
   if (ks) {
-    return insert_key_with_keyingset(&C, &op, ks);
+    return insert_key_with_keyingset(C, &op, ks);
   }
   return insert_key(&C, &op);
 }
@@ -467,7 +467,7 @@ void ANIM_OT_keyframe_insert(wmOperatorType *ot)
 
 static wmOperatorStatus keyframe_insert_with_keyingset_exec(bContext &C, wmOperator &op)
 {
-  ANIM_deselect_keys_in_animation_editors(&C);
+  ANIM_deselect_keys_in_animation_editors(C);
 
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
@@ -478,7 +478,7 @@ static wmOperatorStatus keyframe_insert_with_keyingset_exec(bContext &C, wmOpera
   if (ks == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  return insert_key_with_keyingset(&C, &op, ks);
+  return insert_key_with_keyingset(C, &op, ks);
 }
 
 void ANIM_OT_keyframe_insert_by_name(wmOperatorType *ot)
@@ -566,7 +566,7 @@ static wmOperatorStatus insert_key_menu_invoke(bContext &C,
     MEM_freeN(item_array);
   }
 
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -618,13 +618,13 @@ static wmOperatorStatus delete_key_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  return delete_key_using_keying_set(&C, &op, ks);
+  return delete_key_using_keying_set(C, &op, ks);
 }
 
-static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op, KeyingSet *ks)
+static wmOperatorStatus delete_key_using_keying_set(bContext &C, wmOperator *op, KeyingSet *ks)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
@@ -634,7 +634,7 @@ static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op,
 
   /* Try to delete keyframes for the channels specified by KeyingSet. */
   num_channels = blender::animrig::apply_keyingset(
-      C, nullptr, ks, blender::animrig::ModifyKeyMode::DELETE_KEY, cfra);
+      &C, nullptr, ks, blender::animrig::ModifyKeyMode::DELETE_KEY, cfra);
   if (G.debug & G_DEBUG) {
     printf("KeyingSet '%s' - Successfully removed %d Keyframes\n", ks->name, num_channels);
   }
@@ -788,7 +788,7 @@ static wmOperatorStatus clear_anim_v3d_exec(bContext &C, wmOperator & /*op*/)
   }
 
   /* send updates */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -865,7 +865,7 @@ static wmOperatorStatus clear_anim_vse_exec(bContext &C, wmOperator &op)
 
   blender::Vector<PointerRNA> selection;
   blender::Vector<std::string> selected_strips_rna_paths;
-  get_selection(&C, &selection);
+  get_selection(C, &selection);
   selected_strips_rna_paths = get_selected_strips_rna_paths(selection);
 
   if (selected_strips_rna_paths.is_empty()) {
@@ -904,8 +904,8 @@ static wmOperatorStatus clear_anim_vse_exec(bContext &C, wmOperator &op)
     DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
   invalidate_strip_caches(selection, scene);
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
-  WM_event_add_notifier(&C, NC_ANIMATION, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_ANIMATION, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -999,10 +999,10 @@ static bool can_delete_scene_key(FCurve *fcu, Scene *scene, wmOperator *op)
   return true;
 }
 
-static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperator *op)
+static wmOperatorStatus delete_key_vse_without_keying_set(bContext &C, wmOperator *op)
 {
   using namespace blender::animrig;
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   const float cfra = BKE_scene_frame_get(scene);
 
   blender::Vector<PointerRNA> selection;
@@ -1093,10 +1093,10 @@ static wmOperatorStatus delete_key_vse_exec(bContext &C, wmOperator &op)
   KeyingSet *ks = blender::animrig::scene_get_active_keyingset(scene);
 
   if (ks == nullptr) {
-    return delete_key_vse_without_keying_set(&C, &op);
+    return delete_key_vse_without_keying_set(C, &op);
   }
 
-  return delete_key_using_keying_set(&C, &op, ks);
+  return delete_key_using_keying_set(C, &op, ks);
 }
 
 static wmOperatorStatus delete_key_vse_invoke(bContext &C,
@@ -1133,10 +1133,10 @@ void ANIM_OT_keyframe_delete_vse(wmOperatorType *ot)
   WM_operator_properties_confirm_or_exec(ot);
 }
 
-static wmOperatorStatus delete_key_v3d_without_keying_set(bContext *C, wmOperator *op)
+static wmOperatorStatus delete_key_v3d_without_keying_set(bContext &C, wmOperator *op)
 {
   using namespace blender::animrig;
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   const float cfra = BKE_scene_frame_get(scene);
 
   int selected_objects_len = 0;
@@ -1145,7 +1145,7 @@ static wmOperatorStatus delete_key_v3d_without_keying_set(bContext *C, wmOperato
 
   const bool confirm = op->flag & OP_IS_INVOKE;
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     int success = 0;
 
     selected_objects_len += 1;
@@ -1219,10 +1219,10 @@ static wmOperatorStatus delete_key_v3d_exec(bContext &C, wmOperator &op)
   KeyingSet *ks = blender::animrig::scene_get_active_keyingset(scene);
 
   if (ks == nullptr) {
-    return delete_key_v3d_without_keying_set(&C, &op);
+    return delete_key_v3d_without_keying_set(C, &op);
   }
 
-  return delete_key_using_keying_set(&C, &op, ks);
+  return delete_key_using_keying_set(C, &op, ks);
 }
 
 static wmOperatorStatus delete_key_v3d_invoke(bContext &C,
@@ -1283,7 +1283,7 @@ static wmOperatorStatus insert_key_button_exec(bContext &C, wmOperator &op)
 
   flag = get_keyframing_flags(scene);
 
-  if (!(but = blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index))) {
+  if (!(but = blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index))) {
     /* pass event on if no active button found */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -1343,7 +1343,7 @@ static wmOperatorStatus insert_key_button_exec(bContext &C, wmOperator &op)
         const std::optional<blender::StringRefNull> group = default_channel_group_for_path(
             &ptr, identifier);
 
-        ANIM_deselect_keys_in_animation_editors(&C);
+        ANIM_deselect_keys_in_animation_editors(C);
 
         /* NOTE: `index == -1` is a magic number, meaning either "operate on all
          * elements" or "not an array property". */
@@ -1394,10 +1394,10 @@ static wmOperatorStatus insert_key_button_exec(bContext &C, wmOperator &op)
     DEG_id_tag_update(id, ID_RECALC_ANIMATION_NO_FLUSH);
 
     /* send updates */
-    blender::ui::context_update_anim_flag(&C);
+    blender::ui::context_update_anim_flag(C);
 
     /* send notifiers that keyframes have been changed */
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
   }
 
   return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -1438,7 +1438,7 @@ static wmOperatorStatus delete_key_button_exec(bContext &C, wmOperator &op)
   int index;
   const bool all = RNA_boolean_get(op.ptr, "all");
 
-  if (!blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index)) {
+  if (!blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
     /* pass event on if no active button found */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -1505,10 +1505,10 @@ static wmOperatorStatus delete_key_button_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     /* send updates */
-    blender::ui::context_update_anim_flag(&C);
+    blender::ui::context_update_anim_flag(C);
 
     /* send notifiers that keyframes have been changed */
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
   }
 
   return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -1543,7 +1543,7 @@ static wmOperatorStatus clear_key_button_exec(bContext &C, wmOperator &op)
   int index;
   const bool all = RNA_boolean_get(op.ptr, "all");
 
-  if (!blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index)) {
+  if (!blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
     /* pass event on if no active button found */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -1569,10 +1569,10 @@ static wmOperatorStatus clear_key_button_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     /* send updates */
-    blender::ui::context_update_anim_flag(&C);
+    blender::ui::context_update_anim_flag(C);
 
     /* send notifiers that keyframes have been changed */
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
   }
 
   return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;

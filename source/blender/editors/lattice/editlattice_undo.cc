@@ -177,10 +177,10 @@ static int validate_undoLatt(void *data, void *edata)
 }
 #endif
 
-static Object *editlatt_object_from_context(bContext *C)
+static Object *editlatt_object_from_context(bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   if (obedit && obedit->type == OB_LATTICE) {
@@ -216,7 +216,7 @@ struct LatticeUndoStep {
 
 static bool lattice_undosys_poll(bContext *C)
 {
-  return editlatt_object_from_context(C) != nullptr;
+  return editlatt_object_from_context(*C) != nullptr;
 }
 
 static bool lattice_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
@@ -312,7 +312,7 @@ static void lattice_undosys_step_decode(
 
   bmain->is_memfile_undo_flush_needed = true;
 
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, nullptr);
+  WM_event_add_notifier(*C, NC_GEOM | ND_DATA, nullptr);
 }
 
 static void lattice_undosys_step_free(UndoStep *us_p)

@@ -1030,14 +1030,14 @@ struct EraseOperationExecutor {
 
     if (changed) {
       DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
     }
   }
 };
 
 void EraseOperation::on_stroke_begin(const bContext &C, const InputSample & /*start_sample*/)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
 
   /* If we're using the draw tool to erase (e.g. while holding ctrl), then we should use the
@@ -1154,7 +1154,7 @@ void EraseOperation::on_stroke_done(const bContext &C)
   affected_drawings_.clear();
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil.id);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil.id);
 }
 
 std::unique_ptr<GreasePencilStrokeOperation> new_erase_operation(const bool temp_eraser)

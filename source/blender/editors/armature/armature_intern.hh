@@ -174,7 +174,7 @@ Object *poseAnim_object_get(Object *ob_);
  * Build up a list of tPChanFCurveLink. First only selected, and if that yields no result, all
  * visible.
  */
-void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks);
+void poseAnim_mapping_get(bContext &C, ListBaseT<tPChanFCurveLink> *pfLinks);
 /** Free F-Curve <-> PoseChannel links. */
 void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks);
 
@@ -187,7 +187,7 @@ void poseAnim_mapping_refresh(bContext *C, Scene *scene, Object *ob);
  */
 void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks);
 /** Perform auto-key-framing after changes were made + confirmed. */
-void poseAnim_mapping_autoKeyframe(bContext *C,
+void poseAnim_mapping_autoKeyframe(bContext &C,
                                    Scene *scene,
                                    ListBaseT<tPChanFCurveLink> *pfLinks,
                                    float cframe);

@@ -312,10 +312,10 @@ static void deform_matrices(ModifierData *md,
   }
 }
 
-static bool get_show_adaptive_options(const bContext *C, Panel *panel)
+static bool get_show_adaptive_options(const bContext &C, Panel *panel)
 {
   /* Don't show adaptive options if cycles isn't the active engine. */
-  const RenderEngineType *engine_type = CTX_data_engine_type(*C);
+  const RenderEngineType *engine_type = CTX_data_engine_type(C);
   if (!STREQ(engine_type->idname, "CYCLES")) {
     return false;
   }
@@ -372,7 +372,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     }
   }
 
-  if (get_show_adaptive_options(C, panel)) {
+  if (get_show_adaptive_options(*C, panel)) {
     blender::ui::PanelLayout adaptive_panel = layout.panel_prop_with_bool_header(
         C,
         ptr,

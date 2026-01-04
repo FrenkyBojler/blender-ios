@@ -78,7 +78,7 @@ static void pose_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filepat
 
 /* helper for apply_armature_pose2bones - fixes parenting of objects
  * that are bone-parented to armature */
-static void applyarmature_fix_boneparents(const bContext *C, Scene *scene, Object *armob)
+static void applyarmature_fix_boneparents(const bContext &C, Scene *scene, Object *armob)
 {
   /* Depsgraph has been ensured to be evaluated at the beginning of the operator.
    *
@@ -88,8 +88,8 @@ static void applyarmature_fix_boneparents(const bContext *C, Scene *scene, Objec
    * TODO(sergey): This seems very similar to `ignore_parent_tx()`, which was now ensured to work
    * quite reliably. Can we de-duplicate the code? Or at least verify we don't need an extra logic
    * in this function. */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
-  Main *bmain = CTX_data_main(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Main *bmain = CTX_data_main(C);
 
   /* go through all objects in database */
   for (Object *ob = static_cast<Object *>(bmain->objects.first); ob;
@@ -461,13 +461,13 @@ static wmOperatorStatus apply_armature_pose2bones_exec(bContext &C, wmOperator &
   BKE_pose_where_is(depsgraph, scene, ob);
 
   /* fix parenting of objects which are bone-parented */
-  applyarmature_fix_boneparents(&C, scene, ob);
+  applyarmature_fix_boneparents(C, scene, ob);
 
   /* For the affected bones, reset specific constraints that are now known to be invalid. */
   applyarmature_reset_constraints(pose, use_selected);
 
   /* NOTE: notifier might evolve. */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
 
   return OPERATOR_FINISHED;
@@ -567,7 +567,7 @@ static wmOperatorStatus pose_visual_transform_apply_exec(bContext &C, wmOperator
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
       /* NOTE: notifier might evolve. */
-      WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
+      WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
     }
 
     MEM_freeN(pchan_xform_array);
@@ -915,7 +915,7 @@ static wmOperatorStatus pose_paste_exec(bContext &C, wmOperator &op)
   }
 
   /* Notifiers for updates, */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -1167,14 +1167,14 @@ static void pchan_clear_transforms(const bPose *pose, bPoseChannel *pchan)
 /* --------------- */
 
 /* generic exec for clear-pose operators */
-static wmOperatorStatus pose_clear_transform_generic_exec(bContext *C,
+static wmOperatorStatus pose_clear_transform_generic_exec(bContext &C,
                                                           wmOperator *op,
                                                           void (*clear_func)(const bPose *,
                                                                              bPoseChannel *),
                                                           const char default_ksName[])
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
   bool changed_multi = false;
 
   /* sanity checks */
@@ -1186,8 +1186,8 @@ static wmOperatorStatus pose_clear_transform_generic_exec(bContext *C,
   }
 
   /* only clear relevant transforms for selected bones */
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
   FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob_iter) {
     /* XXX: UGLY HACK (for auto-key + clear transforms). */
     Object *ob_eval = DEG_get_evaluated(depsgraph, ob_iter);
@@ -1223,11 +1223,11 @@ static wmOperatorStatus pose_clear_transform_generic_exec(bContext *C,
 
         /* insert keyframes */
         blender::animrig::apply_keyingset(
-            C, &sources, ks, blender::animrig::ModifyKeyMode::INSERT, float(scene->r.cfra));
+            &C, &sources, ks, blender::animrig::ModifyKeyMode::INSERT, float(scene->r.cfra));
 
         /* now recalculate paths */
         if (ob_iter->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) {
-          ED_pose_recalculate_paths(C, scene, ob_iter, POSE_PATH_CALC_RANGE_FULL);
+          ED_pose_recalculate_paths(&C, scene, ob_iter, POSE_PATH_CALC_RANGE_FULL);
         }
       }
 
@@ -1251,7 +1251,7 @@ static wmOperatorStatus pose_clear_transform_generic_exec(bContext *C,
 static wmOperatorStatus pose_clear_scale_exec(bContext &C, wmOperator &op)
 {
   return pose_clear_transform_generic_exec(
-      &C, &op, pchan_clear_scale_with_mirrored, ANIM_KS_SCALING_ID);
+      C, &op, pchan_clear_scale_with_mirrored, ANIM_KS_SCALING_ID);
 }
 
 void POSE_OT_scale_clear(wmOperatorType *ot)
@@ -1278,7 +1278,7 @@ void POSE_OT_scale_clear(wmOperatorType *ot)
 static wmOperatorStatus pose_clear_rot_exec(bContext &C, wmOperator &op)
 {
   return pose_clear_transform_generic_exec(
-      &C, &op, pchan_clear_rot_with_mirrored, ANIM_KS_ROTATION_ID);
+      C, &op, pchan_clear_rot_with_mirrored, ANIM_KS_ROTATION_ID);
 }
 
 void POSE_OT_rot_clear(wmOperatorType *ot)
@@ -1305,7 +1305,7 @@ void POSE_OT_rot_clear(wmOperatorType *ot)
 static wmOperatorStatus pose_clear_loc_exec(bContext &C, wmOperator &op)
 {
   return pose_clear_transform_generic_exec(
-      &C, &op, pchan_clear_loc_with_mirrored, ANIM_KS_LOCATION_ID);
+      C, &op, pchan_clear_loc_with_mirrored, ANIM_KS_LOCATION_ID);
 }
 
 void POSE_OT_loc_clear(wmOperatorType *ot)
@@ -1332,7 +1332,7 @@ void POSE_OT_loc_clear(wmOperatorType *ot)
 static wmOperatorStatus pose_clear_transforms_exec(bContext &C, wmOperator &op)
 {
   return pose_clear_transform_generic_exec(
-      &C, &op, pchan_clear_transforms, ANIM_KS_LOC_ROT_SCALE_ID);
+      C, &op, pchan_clear_transforms, ANIM_KS_LOC_ROT_SCALE_ID);
 }
 
 void POSE_OT_transforms_clear(wmOperatorType *ot)
@@ -1413,7 +1413,7 @@ static wmOperatorStatus pose_clear_user_transforms_exec(bContext &C, wmOperator 
 
     /* notifiers and updates */
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
   }
   FOREACH_OBJECT_IN_MODE_END;
 

@@ -161,20 +161,20 @@ static void find_nearest_tracking_knot_cb(void *userdata,
   }
 }
 
-static void mouse_select_init_data(bContext *C, MouseSelectUserData *userdata, const float co[2])
+static void mouse_select_init_data(bContext &C, MouseSelectUserData *userdata, const float co[2])
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   memset(userdata, 0, sizeof(MouseSelectUserData));
   userdata->sc = sc;
   userdata->min_dist_sq = FLT_MAX;
   copy_v2_v2(userdata->mouse_co, co);
 }
 
-static bool mouse_select_knot(bContext *C, const float co[2], bool extend)
+static bool mouse_select_knot(bContext &C, const float co[2], bool extend)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   View2D *v2d = &region->v2d;
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingTrack *active_track = tracking_object->active_track;
@@ -230,9 +230,9 @@ static bool mouse_select_knot(bContext *C, const float co[2], bool extend)
   return false;
 }
 
-static bool mouse_select_curve(bContext *C, const float co[2], bool extend)
+static bool mouse_select_curve(bContext &C, const float co[2], bool extend)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingTrack *active_track = tracking_object->active_track;
@@ -282,15 +282,15 @@ static wmOperatorStatus mouse_select(bContext *C, float co[2], bool extend)
   bool sel = false;
 
   /* first try to select knot on selected curves */
-  sel = mouse_select_knot(C, co, extend);
+  sel = mouse_select_knot(*C, co, extend);
 
   if (!sel) {
     /* if there's no close enough knot to mouse position, select nearest curve */
-    sel = mouse_select_curve(C, co, extend);
+    sel = mouse_select_curve(*C, co, extend);
   }
 
   if (sel) {
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
+    WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -422,7 +422,7 @@ static wmOperatorStatus box_select_graph_exec(bContext &C, wmOperator &op)
       sc, active_track, &userdata, box_select_cb, nullptr, nullptr);
 
   if (userdata.changed) {
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
 
     return OPERATOR_FINISHED;
   }
@@ -493,7 +493,7 @@ static wmOperatorStatus graph_select_all_markers_exec(bContext &C, wmOperator &o
     }
   }
 
-  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -752,7 +752,7 @@ static wmOperatorStatus graph_disable_markers_exec(bContext &C, wmOperator &op)
 
   DEG_id_tag_update(&clip->id, 0);
 
-  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
 
   return OPERATOR_FINISHED;
 }

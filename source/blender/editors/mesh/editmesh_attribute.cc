@@ -66,7 +66,7 @@ static bool mesh_active_attribute_poll(bContext &C)
   if (!ED_operator_editmesh(C)) {
     return false;
   }
-  const Mesh *mesh = ED_mesh_context(&C);
+  const Mesh *mesh = ED_mesh_context(C);
   if (!geometry::attribute_set_poll(C, mesh->id)) {
     return false;
   }
@@ -138,7 +138,7 @@ static wmOperatorStatus mesh_set_attribute_exec(bContext &C, wmOperator &op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
-  Mesh *active_mesh = ED_mesh_context(&C);
+  Mesh *active_mesh = ED_mesh_context(C);
   AttributeOwner active_owner = AttributeOwner::from_id(&active_mesh->id);
   const StringRef name = *BKE_attributes_active_name_get(active_owner);
   const BMDataLayerLookup active_attr = BM_data_layer_lookup(*active_mesh->runtime->edit_mesh->bm,
@@ -208,7 +208,7 @@ static wmOperatorStatus mesh_set_attribute_invoke(bContext &C,
                                                   wmOperator &op,
                                                   const wmEvent *event)
 {
-  Mesh *mesh = ED_mesh_context(&C);
+  Mesh *mesh = ED_mesh_context(C);
   BMesh *bm = mesh->runtime->edit_mesh->bm;
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
 
@@ -244,7 +244,7 @@ static void mesh_set_attribute_ui(bContext &C, wmOperator &op)
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
-  Mesh *mesh = ED_mesh_context(&C);
+  Mesh *mesh = ED_mesh_context(C);
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
   const StringRef name = *BKE_attributes_active_name_get(owner);
   const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, name);

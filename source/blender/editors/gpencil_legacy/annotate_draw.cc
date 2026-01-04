@@ -777,17 +777,17 @@ static void annotation_draw_data_all(Scene *scene,
 
 /* ----- Annotation Sketches Drawing API ------ */
 
-void ED_annotation_draw_2dimage(const bContext *C)
+void ED_annotation_draw_2dimage(const bContext &C)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
-  Scene *scene = CTX_data_scene(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(C);
 
   int offsx, offsy, sizex, sizey;
   int dflag = GP_DRAWDATA_NOSTATUS;
 
-  bGPdata *gpd = ED_annotation_data_get_active(C);
+  bGPdata *gpd = ED_annotation_data_get_active(&C);
   if (gpd == nullptr) {
     return;
   }
@@ -846,19 +846,19 @@ void ED_annotation_draw_2dimage(const bContext *C)
       scene, gpd, offsx, offsy, sizex, sizey, scene->r.cfra, dflag, eSpace_Type(area->spacetype));
 }
 
-void ED_annotation_draw_view2d(const bContext *C, bool onlyv2d)
+void ED_annotation_draw_view2d(const bContext &C, bool onlyv2d)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
-  Scene *scene = CTX_data_scene(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(C);
   int dflag = 0;
 
   /* check that we have grease-pencil stuff to draw */
   if (area == nullptr) {
     return;
   }
-  bGPdata *gpd = ED_annotation_data_get_active(C);
+  bGPdata *gpd = ED_annotation_data_get_active(&C);
   if (gpd == nullptr) {
     return;
   }

@@ -121,7 +121,7 @@ static wmOperatorStatus surface_slot_remove_exec(bContext &C, wmOperator & /*op*
   }
 
   DEG_id_tag_update(&obj_ctx->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, obj_ctx);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, obj_ctx);
 
   return OPERATOR_FINISHED;
 }
@@ -171,7 +171,7 @@ static wmOperatorStatus type_toggle_exec(bContext &C, wmOperator &op)
   /* update dependency */
   DEG_id_tag_update(&cObject->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, cObject);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, cObject);
 
   return OPERATOR_FINISHED;
 }

@@ -32,7 +32,7 @@ enum {
 };
 
 /** Draw Scene-Markers in time window. */
-void ED_markers_draw(const bContext *C, int flag);
+void ED_markers_draw(const bContext &C, int flag);
 
 /** \} */
 
@@ -52,8 +52,8 @@ ListBaseT<TimeMarker> *ED_scene_markers_get(const bContext *C, Scene *scene);
  *
  * \return A #TimeMarker list.
  */
-ListBaseT<TimeMarker> *ED_context_get_markers(const bContext *C);
-ListBaseT<TimeMarker> *ED_sequencer_context_get_markers(const bContext *C);
+ListBaseT<TimeMarker> *ED_context_get_markers(const bContext &C);
+ListBaseT<TimeMarker> *ED_sequencer_context_get_markers(const bContext &C);
 ListBaseT<TimeMarker> *ED_scene_markers_get_from_area(Scene *scene,
                                                       ViewLayer *view_layer,
                                                       const ScrArea *area);

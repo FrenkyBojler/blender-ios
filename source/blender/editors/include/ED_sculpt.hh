@@ -31,9 +31,9 @@ void object_sculpt_mode_enter(Main &bmain,
                               Object &ob,
                               bool force_dyntopo,
                               ReportList *reports);
-void object_sculpt_mode_enter(bContext *C, Depsgraph &depsgraph, ReportList *reports);
+void object_sculpt_mode_enter(bContext &C, Depsgraph &depsgraph, ReportList *reports);
 void object_sculpt_mode_exit(Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob);
-void object_sculpt_mode_exit(bContext *C, Depsgraph &depsgraph);
+void object_sculpt_mode_exit(bContext &C, Depsgraph &depsgraph);
 
 /* `sculpt.cc` */
 
@@ -50,9 +50,9 @@ void keymap_sculpt(wmKeyConfig *keyconf);
 
 /* `sculpt_transform.cc` */
 
-void update_modal_transform(bContext *C, Object &ob);
-void cancel_modal_transform(bContext *C, Object &ob);
-void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char *undo_name);
+void update_modal_transform(bContext &C, Object &ob);
+void cancel_modal_transform(bContext &C, Object &ob);
+void init_transform(bContext &C, Object &ob, const float mval_fl[2], const char *undo_name);
 void end_transform(bContext *C, Object &ob);
 
 /* `sculpt_undo.cc` */

@@ -110,7 +110,7 @@ void tag_update_visibility(const bContext &C)
   ED_region_tag_redraw(region);
 
   Object *ob = CTX_data_active_object(C);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_SHADING);
   const RegionView3D *rv3d = CTX_wm_region_view3d(C);

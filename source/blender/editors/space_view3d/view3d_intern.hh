@@ -63,7 +63,7 @@ void view3d_main_region_draw(const bContext *C, ARegion *region);
 /**
  * Information drawn on top of the solid plates and composed data.
  */
-void view3d_draw_region_info(const bContext *C, ARegion *region);
+void view3d_draw_region_info(const bContext &C, ARegion *region);
 
 void view3d_depths_rect_create(ARegion *region, rcti *rect, ViewDepths *r_d);
 /**

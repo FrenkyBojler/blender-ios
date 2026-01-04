@@ -48,13 +48,13 @@ void PE_update_object(Depsgraph *depsgraph, Scene *scene, Object *ob, int usefla
 
 /* selection tools */
 
-bool PE_mouse_particles(bContext *C, const int mval[2], const SelectPick_Params &params);
-bool PE_box_select(bContext *C, const rcti *rect, int sel_op);
+bool PE_mouse_particles(bContext &C, const int mval[2], const SelectPick_Params &params);
+bool PE_box_select(bContext &C, const rcti *rect, int sel_op);
 bool PE_circle_select(
-    bContext *C, wmGenericUserData *wm_userdata, int sel_op, const int mval[2], float rad);
-int PE_lasso_select(bContext *C, const int mcoords[][2], int mcoords_len, int sel_op);
+    bContext &C, wmGenericUserData *wm_userdata, int sel_op, const int mval[2], float rad);
+int PE_lasso_select(bContext &C, const int mcoords[][2], int mcoords_len, int sel_op);
 bool PE_deselect_all_visible_ex(PTCacheEdit *edit);
-bool PE_deselect_all_visible(bContext *C);
+bool PE_deselect_all_visible(bContext &C);
 
 /* `particle_edit_undo.cc` */
 

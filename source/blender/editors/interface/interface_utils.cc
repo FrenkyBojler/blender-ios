@@ -761,7 +761,7 @@ std::optional<std::string> button_online_manual_id(const Button *but)
 
 std::optional<std::string> button_online_manual_id_from_active(const bContext *C)
 {
-  if (Button *but = context_active_but_get(C)) {
+  if (Button *but = context_active_but_get(*C)) {
     return button_online_manual_id(but);
   }
   return std::nullopt;
@@ -844,7 +844,7 @@ void but_ensure_in_view(const bContext *C, ARegion *region, const Button *but)
 
   const bool changed = ui_view2d_cur_ensure_rect_in_view(v2d, &rect);
   if (changed) {
-    view2d_curRect_changed(C, v2d);
+    view2d_curRect_changed(*C, v2d);
     ED_region_tag_redraw_no_rebuild(region);
   }
 }

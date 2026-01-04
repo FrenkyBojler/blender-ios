@@ -61,13 +61,13 @@ bool is_loaded(const AssetLibraryReference *library_reference);
  * storage, as well as for all open asset browsers. Call this whenever the content of the given
  * asset library changed in a way that a reload is necessary.
  */
-void clear(const AssetLibraryReference *library_reference, const bContext *C);
+void clear(const AssetLibraryReference *library_reference, const bContext &C);
 /**
  * Clears the all asset library for reload in both the static asset list storage, as well as for
  * all open asset browsers. Call this whenever any asset library content changed in a way that a
  * reload is necessary.
  */
-void clear_all_library(const bContext *C);
+void clear_all_library(const bContext &C);
 /**
  * Returns if the given asset library in global asset list storage.
  */
@@ -78,7 +78,7 @@ bool has_list_storage_for_library(const AssetLibraryReference *library_reference
  * with #has_list_storage_for_library().
  */
 bool has_asset_browser_storage_for_library(const AssetLibraryReference *library_reference,
-                                           const bContext *C);
+                                           const bContext &C);
 /**
  * Tag all asset lists in the storage that show main data as needing an update (re-fetch).
  *

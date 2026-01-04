@@ -24,7 +24,7 @@ class PlyReadBuffer;
 Mesh *import_mesh(const PLYImportParams &import_params);
 
 /* Main import function used from within Blender. */
-void importer_main(bContext *C, const PLYImportParams &import_params);
+void importer_main(bContext &C, const PLYImportParams &import_params);
 
 /* Used from tests, where full bContext does not exist. */
 void importer_main(Main *bmain,

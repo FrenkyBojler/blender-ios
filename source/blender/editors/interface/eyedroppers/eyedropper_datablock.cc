@@ -81,7 +81,7 @@ static int datadropper_init(bContext *C, wmOperator *op)
 
   DataDropper *ddr = MEM_new<DataDropper>(__func__);
 
-  Button *but = context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &index_dummy);
+  Button *but = context_active_but_prop_get(*C, &ddr->ptr, &ddr->prop, &index_dummy);
 
   if ((ddr->ptr.data == nullptr) || (ddr->prop == nullptr) ||
       (RNA_property_editable(&ddr->ptr, ddr->prop) == false) ||
@@ -112,9 +112,9 @@ static int datadropper_init(bContext *C, wmOperator *op)
   return true;
 }
 
-static void datadropper_exit(bContext *C, wmOperator *op)
+static void datadropper_exit(bContext &C, wmOperator *op)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
   WM_cursor_modal_restore(win);
 
@@ -136,11 +136,11 @@ static void datadropper_exit(bContext *C, wmOperator *op)
  * \brief get the ID from the 3D view or outliner.
  */
 static void datadropper_id_sample_pt(
-    bContext *C, wmWindow *win, ScrArea *area, DataDropper *ddr, const int event_xy[2], ID **r_id)
+    bContext &C, wmWindow *win, ScrArea *area, DataDropper *ddr, const int event_xy[2], ID **r_id)
 {
-  wmWindow *win_prev = CTX_wm_window(*C);
-  ScrArea *area_prev = CTX_wm_area(*C);
-  ARegion *region_prev = CTX_wm_region(*C);
+  wmWindow *win_prev = CTX_wm_window(C);
+  ScrArea *area_prev = CTX_wm_area(C);
+  ARegion *region_prev = CTX_wm_region(C);
 
   if (area) {
     if (ELEM(area->spacetype, SPACE_VIEW3D, SPACE_OUTLINER)) {
@@ -149,15 +149,15 @@ static void datadropper_id_sample_pt(
         const int mval[2] = {event_xy[0] - region->winrct.xmin, event_xy[1] - region->winrct.ymin};
         Base *base;
 
-        CTX_wm_window_set(*C, win);
-        CTX_wm_area_set(*C, area);
-        CTX_wm_region_set(*C, region);
+        CTX_wm_window_set(C, win);
+        CTX_wm_area_set(C, area);
+        CTX_wm_region_set(C, region);
 
         /* Unfortunately it's necessary to always draw else we leave stale text. */
         ED_region_tag_redraw(region);
 
         if (area->spacetype == SPACE_VIEW3D) {
-          base = ED_view3d_give_base_under_cursor(C, mval);
+          base = ED_view3d_give_base_under_cursor(&C, mval);
         }
         else {
           base = ED_outliner_give_base_under_cursor(C, mval);
@@ -191,9 +191,9 @@ static void datadropper_id_sample_pt(
     }
   }
 
-  CTX_wm_window_set(*C, win_prev);
-  CTX_wm_area_set(*C, area_prev);
-  CTX_wm_region_set(*C, region_prev);
+  CTX_wm_window_set(C, win_prev);
+  CTX_wm_area_set(C, area_prev);
+  CTX_wm_region_set(C, region_prev);
 }
 
 /* sets the ID, returns success */
@@ -203,7 +203,7 @@ static bool datadropper_id_set(bContext *C, DataDropper *ddr, ID *id)
 
   RNA_property_pointer_set(&ddr->ptr, ddr->prop, ptr_value, nullptr);
 
-  RNA_property_update(C, &ddr->ptr, ddr->prop);
+  RNA_property_update(*C, &ddr->ptr, ddr->prop);
 
   ptr_value = RNA_property_pointer_get(&ddr->ptr, ddr->prop);
 
@@ -218,9 +218,9 @@ static bool datadropper_id_sample(bContext *C, DataDropper *ddr, const int event
   int event_xy_win[2];
   wmWindow *win;
   ScrArea *area;
-  eyedropper_win_area_find(C, event_xy, event_xy_win, &win, &area);
+  eyedropper_win_area_find(*C, event_xy, event_xy_win, &win, &area);
 
-  datadropper_id_sample_pt(C, win, area, ddr, event_xy_win, &id);
+  datadropper_id_sample_pt(*C, win, area, ddr, event_xy_win, &id);
   return datadropper_id_set(C, ddr, id);
 }
 
@@ -228,7 +228,7 @@ static void datadropper_cancel(bContext &C, wmOperator &op)
 {
   DataDropper *ddr = static_cast<DataDropper *>(op.customdata);
   datadropper_id_set(&C, ddr, ddr->init_id);
-  datadropper_exit(&C, &op);
+  datadropper_exit(C, &op);
 }
 
 /* To switch the draw callback when region under mouse event changes */
@@ -268,7 +268,7 @@ static wmOperatorStatus datadropper_modal(bContext &C, wmOperator &op, const wmE
       case EYE_MODAL_SAMPLE_CONFIRM: {
         const bool is_undo = ddr->is_undo;
         const bool success = datadropper_id_sample(&C, ddr, event->xy);
-        datadropper_exit(&C, &op);
+        datadropper_exit(C, &op);
         if (success) {
           /* Could support finished & undo-skip. */
           return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -284,12 +284,12 @@ static wmOperatorStatus datadropper_modal(bContext &C, wmOperator &op, const wmE
     int event_xy_win[2];
     wmWindow *win;
     ScrArea *area;
-    eyedropper_win_area_find(&C, event->xy, event_xy_win, &win, &area);
+    eyedropper_win_area_find(C, event->xy, event_xy_win, &win, &area);
 
     /* Set the region for eyedropper cursor text drawing */
     datadropper_set_draw_callback_region(area, ddr);
 
-    datadropper_id_sample_pt(&C, win, area, ddr, event_xy_win, &id);
+    datadropper_id_sample_pt(C, win, area, ddr, event_xy_win, &id);
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -306,7 +306,7 @@ static wmOperatorStatus datadropper_invoke(bContext &C, wmOperator &op, const wm
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -319,7 +319,7 @@ static wmOperatorStatus datadropper_exec(bContext &C, wmOperator &op)
   /* init */
   if (datadropper_init(&C, &op)) {
     /* cleanup */
-    datadropper_exit(&C, &op);
+    datadropper_exit(C, &op);
 
     return OPERATOR_FINISHED;
   }
@@ -335,7 +335,7 @@ static bool datadropper_poll(bContext &C)
 
   /* data dropper only supports object data */
   if ((CTX_wm_window(C) != nullptr) &&
-      (but = context_active_but_prop_get(&C, &ptr, &prop, &index_dummy)) &&
+      (but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
       (but->type == ButtonType::SearchMenu) && (but->flag & BUT_VALUE_CLEAR))
   {
     if (prop && RNA_property_type(prop) == PROP_POINTER) {

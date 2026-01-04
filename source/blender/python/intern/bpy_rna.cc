@@ -469,14 +469,14 @@ void pyrna_write_set(bool val)
   rna_disallow_writes = !val;
 }
 
-void pyrna_context_init(bContext *C)
+void pyrna_context_init(bContext &C)
 {
-  CTX_rna_disallow_write_set_p(*C, &rna_disallow_writes);
+  CTX_rna_disallow_write_set_p(C, &rna_disallow_writes);
 }
 
-void pyrna_context_clear(bContext *C)
+void pyrna_context_clear(bContext &C)
 {
-  CTX_rna_disallow_write_set_p(*C, nullptr);
+  CTX_rna_disallow_write_set_p(C, nullptr);
 }
 #else  /* USE_PEDANTIC_WRITE */
 bool pyrna_write_check()
@@ -590,7 +590,7 @@ static int mathutils_rna_vector_set(BaseMathObject *bmo, int subtype)
 
   RNA_property_float_set_array(&self->ptr.value(), self->prop, bmo->data);
   if (RNA_property_update_check(self->prop)) {
-    RNA_property_update(BPY_context_get(), &self->ptr.value(), self->prop);
+    RNA_property_update(*BPY_context_get(), &self->ptr.value(), self->prop);
   }
 
   /* Euler order exception. */
@@ -602,7 +602,7 @@ static int mathutils_rna_vector_set(BaseMathObject *bmo, int subtype)
     if (order != eul->order) {
       RNA_property_enum_set(&self->ptr.value(), prop_eul_order, eul->order);
       if (RNA_property_update_check(prop_eul_order)) {
-        RNA_property_update(BPY_context_get(), &self->ptr.value(), prop_eul_order);
+        RNA_property_update(*BPY_context_get(), &self->ptr.value(), prop_eul_order);
       }
     }
   }
@@ -651,7 +651,7 @@ static int mathutils_rna_vector_set_index(BaseMathObject *bmo, int /*subtype*/, 
   RNA_property_float_set_index(&self->ptr.value(), self->prop, index, bmo->data[index]);
 
   if (RNA_property_update_check(self->prop)) {
-    RNA_property_update(BPY_context_get(), &self->ptr.value(), self->prop);
+    RNA_property_update(*BPY_context_get(), &self->ptr.value(), self->prop);
   }
 
   return 0;
@@ -710,7 +710,7 @@ static int mathutils_rna_matrix_set(BaseMathObject *bmo, int /*subtype*/)
   RNA_property_float_set_array(&self->ptr.value(), self->prop, bmo->data);
 
   if (RNA_property_update_check(self->prop)) {
-    RNA_property_update(BPY_context_get(), &self->ptr.value(), self->prop);
+    RNA_property_update(*BPY_context_get(), &self->ptr.value(), self->prop);
   }
   return 0;
 }
@@ -2193,7 +2193,7 @@ static int pyrna_py_to_prop(
 
   /* Run RNA property functions. */
   if (RNA_property_update_check(prop)) {
-    RNA_property_update(BPY_context_get(), ptr, prop);
+    RNA_property_update(*BPY_context_get(), ptr, prop);
   }
 
   return 0;
@@ -2271,7 +2271,7 @@ static int pyrna_py_to_prop_array_index(BPy_PropertyArrayRNA *self, int index, P
 
   /* Run RNA property functions. */
   if (RNA_property_update_check(prop)) {
-    RNA_property_update(BPY_context_get(), ptr, prop);
+    RNA_property_update(*BPY_context_get(), ptr, prop);
   }
 
   return ret;
@@ -3399,7 +3399,7 @@ static int pyrna_prop_array_ass_subscript(BPy_PropertyArrayRNA *self,
 
   if (ret != -1) {
     if (RNA_property_update_check(self->prop)) {
-      RNA_property_update(BPY_context_get(), &self->ptr.value(), self->prop);
+      RNA_property_update(*BPY_context_get(), &self->ptr.value(), self->prop);
     }
   }
 
@@ -4272,7 +4272,7 @@ PyDoc_STRVAR(
     "      however in rare cases it's useful to call explicitly.\n");
 static PyObject *pyrna_prop_update(BPy_PropertyRNA *self)
 {
-  RNA_property_update(BPY_context_get(), &self->ptr.value(), self->prop);
+  RNA_property_update(*BPY_context_get(), &self->ptr.value(), self->prop);
   Py_RETURN_NONE;
 }
 
@@ -6052,7 +6052,7 @@ static PyObject *foreach_getset(BPy_PropertyRNA *self, PyObject *args, int set)
   }
 
   if (set) {
-    RNA_property_update(BPY_context_get(), &self->ptr.value(), self->prop);
+    RNA_property_update(*BPY_context_get(), &self->ptr.value(), self->prop);
   }
   Py_RETURN_NONE;
 }

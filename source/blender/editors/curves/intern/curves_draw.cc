@@ -579,13 +579,13 @@ static void curve_draw_exit(wmOperator *op)
   }
 }
 
-static bool curve_draw_init(bContext *C, wmOperator *op, bool is_invoke)
+static bool curve_draw_init(bContext &C, wmOperator *op, bool is_invoke)
 {
   BLI_assert(op->customdata == nullptr);
 
   CurveDrawData *cdd = MEM_callocN<CurveDrawData>(__func__);
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   if (is_invoke) {
     cdd->vc = ED_view3d_viewcontext_init(C, depsgraph);
@@ -596,11 +596,11 @@ static bool curve_draw_init(bContext *C, wmOperator *op, bool is_invoke)
     }
   }
   else {
-    cdd->vc.bmain = CTX_data_main(*C);
+    cdd->vc.bmain = CTX_data_main(C);
     cdd->vc.depsgraph = depsgraph;
-    cdd->vc.scene = CTX_data_scene(*C);
-    cdd->vc.view_layer = CTX_data_view_layer(*C);
-    cdd->vc.obedit = CTX_data_edit_object(*C);
+    cdd->vc.scene = CTX_data_scene(C);
+    cdd->vc.view_layer = CTX_data_view_layer(C);
+    cdd->vc.obedit = CTX_data_edit_object(C);
 
     /* Using an empty stroke complicates logic later,
      * it's simplest to disallow early on (see: #94085). */
@@ -738,7 +738,7 @@ static void create_NURBS(bke::CurvesGeometry &curves,
 static wmOperatorStatus curves_draw_exec(bContext &C, wmOperator &op)
 {
   if (op.customdata == nullptr) {
-    if (!curve_draw_init(&C, &op, false)) {
+    if (!curve_draw_init(C, &op, false)) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -1038,7 +1038,7 @@ static wmOperatorStatus curves_draw_exec(bContext &C, wmOperator &op)
     curves.cyclic_for_write()[curve_index] = true;
   }
 
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
 
   curve_draw_exit(&op);
@@ -1052,7 +1052,7 @@ static wmOperatorStatus curves_draw_invoke(bContext &C, wmOperator &op, const wm
     return curves_draw_exec(C, op);
   }
 
-  if (!curve_draw_init(&C, &op, true)) {
+  if (!curve_draw_init(C, &op, true)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1092,7 +1092,7 @@ static wmOperatorStatus curves_draw_invoke(bContext &C, wmOperator &op, const wm
     else {
       if ((cps->depth_mode == CURVE_PAINT_PROJECT_SURFACE) && (v3d->shading.type > OB_WIRE)) {
         /* needed or else the draw matrix can be incorrect */
-        view3d_operator_needs_gpu(&C);
+        view3d_operator_needs_gpu(C);
 
         eV3DDepthOverrideMode depth_mode = V3D_DEPTH_ALL;
         if (cps->flag & CURVE_PAINT_FLAG_DEPTH_ONLY_SELECTED) {
@@ -1139,7 +1139,7 @@ static wmOperatorStatus curves_draw_invoke(bContext &C, wmOperator &op, const wm
   }
 
   /* add temp handler */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }

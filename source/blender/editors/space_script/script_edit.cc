@@ -68,9 +68,9 @@ void SCRIPT_OT_python_file_run(wmOperatorType *ot)
 }
 
 #ifdef WITH_PYTHON
-static bool script_test_modal_operators(bContext *C)
+static bool script_test_modal_operators(bContext &C)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   for (wmWindow &win : wm->windows) {
     for (wmEventHandler &handler_base : win.runtime->modalhandlers) {
       if (handler_base.type == WM_HANDLER_TYPE_OP) {
@@ -95,7 +95,7 @@ static wmOperatorStatus script_reload_exec(bContext &C, wmOperator &op)
 #ifdef WITH_PYTHON
 
   /* clear running operators */
-  if (script_test_modal_operators(&C)) {
+  if (script_test_modal_operators(C)) {
     BKE_report(op.reports, RPT_ERROR, "Cannot reload with running modal operators");
     return OPERATOR_CANCELLED;
   }

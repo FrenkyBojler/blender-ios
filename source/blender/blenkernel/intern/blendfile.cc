@@ -919,7 +919,7 @@ static void wm_data_consistency_ensure(wmWindowManager *curwm,
  *
  * \param bfd: Blend file data, freed by this function on exit.
  */
-static void setup_app_data(bContext *C,
+static void setup_app_data(bContext &C,
                            BlendFileData *bfd,
                            const BlendFileReadParams *params,
                            BlendFileReadWMSetupData *wm_setup_data,
@@ -1068,8 +1068,8 @@ static void setup_app_data(bContext *C,
    * and always in case of undo MEMFILE reading. */
   if (mode != LOAD_UI) {
     /* Re-use current window and screen. */
-    win = CTX_wm_window(*C);
-    curscreen = CTX_wm_screen(*C);
+    win = CTX_wm_window(C);
+    curscreen = CTX_wm_screen(C);
 
     track_undo_scene = (mode == LOAD_UNDO && curscreen && curscene && bfd->main->wm.first);
 
@@ -1107,7 +1107,7 @@ static void setup_app_data(bContext *C,
     MEM_delete(reuse_data.remapper);
     reuse_data.remapper = nullptr;
 
-    wm_data_consistency_ensure(CTX_wm_manager(*C), curscene, cur_view_layer);
+    wm_data_consistency_ensure(CTX_wm_manager(C), curscene, cur_view_layer);
   }
 
   if (mode == LOAD_UNDO) {
@@ -1120,7 +1120,7 @@ static void setup_app_data(bContext *C,
      * Another source of potential inconsistency is undoing into a step where the active camera
      * object does not exist (see e.g. #125636).
      */
-    wm_data_consistency_ensure(CTX_wm_manager(*C), curscene, cur_view_layer);
+    wm_data_consistency_ensure(CTX_wm_manager(C), curscene, cur_view_layer);
   }
 
   BLI_assert(BKE_main_namemap_validate(*bfd->main));
@@ -1148,7 +1148,7 @@ static void setup_app_data(bContext *C,
       BKE_screen_gizmo_tag_refresh(curscreen);
     }
   }
-  CTX_data_scene_set(*C, curscene);
+  CTX_data_scene_set(C, curscene);
 
   BLI_assert(BKE_main_namemap_validate(*bfd->main));
 
@@ -1156,7 +1156,7 @@ static void setup_app_data(bContext *C,
   BKE_blender_globals_main_replace(bfd->main);
   bmain = G_MAIN;
   bfd->main = nullptr;
-  CTX_data_main_set(*C, bmain);
+  CTX_data_main_set(C, bmain);
 
   BLI_assert(BKE_main_namemap_validate(*bmain));
 
@@ -1165,13 +1165,13 @@ static void setup_app_data(bContext *C,
     /* Setting a window-manger clears all other windowing members (window, screen, area, etc).
      * So only do it when effectively loading a new #wmWindowManager
      * otherwise just assert that the WM from context is still the same as in `new_bmain`. */
-    CTX_wm_manager_set(*C, static_cast<wmWindowManager *>(bmain->wm.first));
-    CTX_wm_screen_set(*C, bfd->curscreen);
-    CTX_wm_area_set(*C, nullptr);
-    CTX_wm_region_set(*C, nullptr);
-    CTX_wm_region_popup_set(*C, nullptr);
+    CTX_wm_manager_set(C, static_cast<wmWindowManager *>(bmain->wm.first));
+    CTX_wm_screen_set(C, bfd->curscreen);
+    CTX_wm_area_set(C, nullptr);
+    CTX_wm_region_set(C, nullptr);
+    CTX_wm_region_popup_set(C, nullptr);
   }
-  BLI_assert(CTX_wm_manager(*C) == static_cast<wmWindowManager *>(bmain->wm.first));
+  BLI_assert(CTX_wm_manager(C) == static_cast<wmWindowManager *>(bmain->wm.first));
 
   /* Keep state from preferences. */
   const int fileflags_keep = G_FILE_FLAG_ALL_RUNTIME;
@@ -1188,8 +1188,8 @@ static void setup_app_data(bContext *C,
 
 #ifdef WITH_PYTHON
   /* let python know about new main */
-  if (CTX_py_init_get(*C)) {
-    BPY_context_update(C);
+  if (CTX_py_init_get(C)) {
+    BPY_context_update(&C);
   }
 #endif
 
@@ -1303,7 +1303,7 @@ static void setup_app_blend_file_data(bContext *C,
     setup_app_userdef(bfd);
   }
   if ((params->skip_flags & BLO_READ_SKIP_DATA) == 0) {
-    setup_app_data(C, bfd, params, wm_setup_data, reports);
+    setup_app_data(*C, bfd, params, wm_setup_data, reports);
   }
 }
 
@@ -1415,9 +1415,9 @@ BlendFileData *BKE_blendfile_read_from_memfile(Main *bmain,
   return bfd;
 }
 
-void BKE_blendfile_read_make_empty(bContext *C)
+void BKE_blendfile_read_make_empty(bContext &C)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   ListBaseT<ID> *lb;
   ID *id;
 

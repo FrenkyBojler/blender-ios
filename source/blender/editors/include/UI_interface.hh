@@ -190,7 +190,7 @@ class DropTargetInterface {
    * Execute the logic to apply a drop of the data dragged with \a drag onto/into the UI element
    * this drop target is for.
    */
-  virtual bool on_drop(bContext *C, const DragInfo &drag) const = 0;
+  virtual bool on_drop(bContext &C, const DragInfo &drag) const = 0;
 };
 
 /**

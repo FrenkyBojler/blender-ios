@@ -569,7 +569,7 @@ wmOperatorStatus grease_pencil_join_selection_exec(bContext &C, wmOperator &op)
   dst_drawing->tag_topology_changed();
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }

@@ -598,9 +598,9 @@ static void clip_gizmos()
  * \{ */
 
 /* sets up the fields of the View2D from zoom and offset */
-static void movieclip_main_area_set_view2d(const bContext *C, ARegion *region)
+static void movieclip_main_area_set_view2d(const bContext &C, ARegion *region)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   float x1, y1, w, h, aspx, aspy;
   int width, height, winx, winy;
 
@@ -708,12 +708,12 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   /* data... */
-  movieclip_main_area_set_view2d(C, region);
+  movieclip_main_area_set_view2d(*C, region);
 
   /* callback */
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
 
-  clip_draw_main(C, sc, region);
+  clip_draw_main(*C, sc, region);
 
   /* TODO(sergey): would be nice to find a way to de-duplicate all this space conversions */
   blender::ui::view2d_view_to_region_fl(&region->v2d, 0.0f, 0.0f, &x, &y);
@@ -759,11 +759,11 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
     GPU_matrix_pop();
   }
 
-  clip_draw_cache_and_notes(C, sc, region);
+  clip_draw_cache_and_notes(*C, sc, region);
 
   if (sc->overlay.flag & SC_SHOW_OVERLAYS && sc->flag & SC_SHOW_ANNOTATION) {
     /* Grease Pencil */
-    clip_draw_grease_pencil((bContext *)C, true);
+    clip_draw_grease_pencil(*(bContext *)C, true);
   }
 
   /* callback */
@@ -777,11 +777,11 @@ static void clip_main_region_draw(const bContext *C, ARegion *region)
   // GPU_matrix_pop_projection();
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   if (sc->overlay.flag & SC_SHOW_OVERLAYS && sc->flag & SC_SHOW_ANNOTATION) {
     /* draw Grease Pencil - screen space only */
-    clip_draw_grease_pencil((bContext *)C, false);
+    clip_draw_grease_pencil(*(bContext *)C, false);
   }
   if ((sc->gizmo_flag & SCLIP_GIZMO_HIDE) == 0) {
     WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
@@ -844,11 +844,11 @@ static void clip_preview_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
-static void graph_region_draw(const bContext *C, ARegion *region)
+static void graph_region_draw(const bContext &C, ARegion *region)
 {
   View2D *v2d = &region->v2d;
-  SpaceClip *sc = CTX_wm_space_clip(*C);
-  Scene *scene = CTX_data_scene(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
+  Scene *scene = CTX_data_scene(C);
   short cfra_flag = 0;
   const bool minimized = (region->winy <= HEADERY * UI_SCALE_FAC * 1.1f);
 
@@ -899,10 +899,10 @@ static void graph_region_draw(const bContext *C, ARegion *region)
   }
 }
 
-static void dopesheet_region_draw(const bContext *C, ARegion *region)
+static void dopesheet_region_draw(const bContext &C, ARegion *region)
 {
-  Scene *scene = CTX_data_scene(*C);
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  Scene *scene = CTX_data_scene(C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   View2D *v2d = &region->v2d;
   short cfra_flag = 0;
@@ -957,10 +957,10 @@ static void clip_preview_region_draw(const bContext *C, ARegion *region)
   SpaceClip *sc = CTX_wm_space_clip(*C);
 
   if (sc->view == SC_VIEW_GRAPH) {
-    graph_region_draw(C, region);
+    graph_region_draw(*C, region);
   }
   else if (sc->view == SC_VIEW_DOPESHEET) {
-    dopesheet_region_draw(C, region);
+    dopesheet_region_draw(*C, region);
   }
 }
 
@@ -1008,10 +1008,10 @@ static void clip_channels_region_draw(const bContext *C, ARegion *region)
   blender::ui::view2d_view_ortho(v2d);
 
   /* data... */
-  clip_draw_dopesheet_channels(C, region);
+  clip_draw_dopesheet_channels(*C, region);
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 }
 
 static void clip_channels_region_listener(const wmRegionListenerParams * /*params*/) {}

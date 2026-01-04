@@ -199,17 +199,17 @@ static void export_endjob(void *customdata)
 }  // namespace blender::io::alembic
 
 bool ABC_export(Scene *scene,
-                bContext *C,
+                bContext &C,
                 const char *filepath,
                 const AlembicExportParams *params,
                 bool as_background_job)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   ExportJobData *job = MEM_new<ExportJobData>("ExportJobData");
 
-  job->bmain = CTX_data_main(*C);
-  job->wm = CTX_wm_manager(*C);
+  job->bmain = CTX_data_main(C);
+  job->wm = CTX_wm_manager(C);
   job->export_ok = false;
   STRNCPY(job->filepath, filepath);
 
@@ -227,7 +227,7 @@ bool ABC_export(Scene *scene,
   bool export_ok = false;
   if (as_background_job) {
     wmJob *wm_job = WM_jobs_get(job->wm,
-                                CTX_wm_window(*C),
+                                CTX_wm_window(C),
                                 scene,
                                 "Exporting Alembic...",
                                 WM_JOB_PROGRESS,
@@ -243,7 +243,7 @@ bool ABC_export(Scene *scene,
                       nullptr,
                       blender::io::alembic::export_endjob);
 
-    WM_jobs_start(CTX_wm_manager(*C), wm_job);
+    WM_jobs_start(CTX_wm_manager(C), wm_job);
   }
   else {
     wmJobWorkerStatus worker_status = {};

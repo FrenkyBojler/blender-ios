@@ -1066,7 +1066,7 @@ static void knife_update_header(bContext *C, wmOperator *op, KnifeTool_OpData *k
     return WM_modalkeymap_operator_items_to_string(op->type, id, true).value_or("");
   };
 
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
   status.opmodal(IFACE_("Cut"), op->type, KNF_MODAL_ADD_CUT);
   status.opmodal(IFACE_("Close"), op->type, KNF_MODAL_ADD_CUT_CLOSED);
   status.opmodal(IFACE_("Stop"), op->type, KNF_MODAL_NEW_CUT);
@@ -4571,7 +4571,7 @@ static wmOperatorStatus knifetool_invoke(bContext &C, wmOperator &op, const wmEv
   const float angle_snapping_increment = RAD2DEGF(
       RNA_float_get(op.ptr, "angle_snapping_increment"));
 
-  ViewContext vc = em_setup_viewcontext(&C);
+  ViewContext vc = em_setup_viewcontext(C);
 
   /* alloc new customdata */
   KnifeTool_OpData *kcd = MEM_new<KnifeTool_OpData>(__func__);
@@ -4608,7 +4608,7 @@ static wmOperatorStatus knifetool_invoke(bContext &C, wmOperator &op, const wmEv
 
   /* Add a modal handler for this operator - handles loop selection. */
   WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_KNIFE);
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   if (wait_for_input == false) {
     /* Avoid copy-paste logic. */

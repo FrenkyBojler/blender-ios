@@ -273,7 +273,7 @@ static wmOperatorStatus unpack_all_invoke(bContext &C, wmOperator &op, const wmE
   layout.operator_context_set(blender::wm::OpCallContext::ExecDefault);
   layout.op_enum("FILE_OT_unpack_all", "method");
 
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -368,7 +368,7 @@ static wmOperatorStatus unpack_item_invoke(bContext &C, wmOperator &op, const wm
                  blender::wm::OpCallContext::ExecRegionWin,
                  UI_ITEM_NONE);
 
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -618,7 +618,7 @@ static wmOperatorStatus update_reports_display_invoke(bContext &C,
     WM_event_timer_remove(wm, nullptr, reports->reporttimer);
     reports->reporttimer = nullptr;
 
-    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_INFO, nullptr);
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, nullptr);
 
     return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);
   }
@@ -645,7 +645,7 @@ static wmOperatorStatus update_reports_display_invoke(bContext &C,
   }
 
   if (send_notifier) {
-    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_INFO, nullptr);
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, nullptr);
   }
 
   return (OPERATOR_FINISHED | OPERATOR_PASS_THROUGH);

@@ -51,9 +51,9 @@
 /* *************************************************** */
 /* CURRENT FRAME DRAWING */
 
-void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag)
+void ANIM_draw_cfra(const bContext &C, View2D *v2d, short flag)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   const float time = scene->r.cfra + scene->r.subframe;
   const float x = float(time * scene->r.framelen);
@@ -110,16 +110,16 @@ void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width
   }
 }
 
-void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d)
+void ANIM_draw_scene_strip_range(const bContext &C, View2D *v2d)
 {
   using namespace blender;
-  SpaceAction *space_action = CTX_wm_space_action(*C);
+  SpaceAction *space_action = CTX_wm_space_action(C);
   if (!space_action || (space_action->overlays.flag & ADS_OVERLAY_SHOW_OVERLAYS) == 0 ||
       (space_action->overlays.flag & ADS_SHOW_SCENE_STRIP_FRAME_RANGE) == 0)
   {
     return;
   }
-  WorkSpace *workspace = CTX_wm_workspace(*C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
   if (!workspace) {
     return;
   }
@@ -668,11 +668,11 @@ float ANIM_unit_mapping_get_factor(Scene *scene, ID *id, FCurve *fcu, short flag
   return 1.0f;
 }
 
-static bool find_prev_next_keyframes(bContext *C, int *r_nextfra, int *r_prevfra)
+static bool find_prev_next_keyframes(bContext &C, int *r_nextfra, int *r_prevfra)
 {
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob = CTX_data_active_object(*C);
-  Mask *mask = CTX_data_edit_mask(*C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = CTX_data_active_object(C);
+  Mask *mask = CTX_data_edit_mask(C);
   bDopeSheet ads = {nullptr};
   AnimKeylist *keylist = ED_keylist_create();
   const ActKeyColumn *aknext, *akprev;
@@ -765,15 +765,15 @@ static bool find_prev_next_keyframes(bContext *C, int *r_nextfra, int *r_prevfra
   return false;
 }
 
-void ANIM_center_frame(bContext *C, int smooth_viewtx)
+void ANIM_center_frame(bContext &C, int smooth_viewtx)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return;
   }
 
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   float w = BLI_rctf_size_x(&region->v2d.cur);
   rctf newrct;
   int nextfra, prevfra;

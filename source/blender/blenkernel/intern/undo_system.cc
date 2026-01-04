@@ -353,11 +353,11 @@ static bool undosys_stack_push_main(UndoStack *ustack, const char *name, Main *b
   UNDO_NESTED_ASSERT(false);
   BLI_assert(ustack->step_init == nullptr);
   CLOG_DEBUG(&LOG, "Push main '%s'", name);
-  bContext *C_temp = CTX_create();
-  CTX_data_main_set(*C_temp, bmain);
+  bContext &C_temp = *CTX_create();
+  CTX_data_main_set(C_temp, bmain);
   eUndoPushReturn ret = BKE_undosys_step_push_with_type(
-      ustack, C_temp, name, BKE_UNDOSYS_TYPE_MEMFILE);
-  CTX_free(C_temp);
+      ustack, &C_temp, name, BKE_UNDOSYS_TYPE_MEMFILE);
+  CTX_free(&C_temp);
   return (ret & UNDO_PUSH_RET_SUCCESS);
 }
 

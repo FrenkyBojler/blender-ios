@@ -163,7 +163,7 @@ static wmOperatorStatus edbm_screw_exec(bContext &C, wmOperator &op)
 static wmOperatorStatus edbm_screw_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   Scene *scene = CTX_data_scene(C);
-  RegionView3D *rv3d = ED_view3d_context_rv3d(&C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
 
   PropertyRNA *prop;
   prop = RNA_struct_find_property(op.ptr, "center");

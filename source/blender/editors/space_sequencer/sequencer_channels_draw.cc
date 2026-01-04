@@ -247,7 +247,7 @@ static void draw_channel_labels(const SeqChannelDrawContext *context,
       sseq->runtime->rename_channel_index = 0;
     }
 
-    WM_event_add_notifier(context->C, NC_SCENE | ND_SEQUENCER, context->scene);
+    WM_event_add_notifier(*context->C, NC_SCENE | ND_SEQUENCER, context->scene);
   }
   else {
     const char *label = seq::channel_name_get(context->channels, channel_index);
@@ -270,7 +270,7 @@ static void draw_channel_headers(const SeqChannelDrawContext *context)
   GPU_matrix_push();
   wmOrtho2_pixelspace(context->region->winx / context->scale,
                       context->region->winy / context->scale);
-  ui::Block *block = block_begin(context->C, context->region, __func__, ui::EmbossType::Emboss);
+  ui::Block *block = block_begin(*context->C, context->region, __func__, ui::EmbossType::Emboss);
 
   int channel_range[2];
   displayed_channel_range_get(context, channel_range);
@@ -289,8 +289,8 @@ static void draw_channel_headers(const SeqChannelDrawContext *context)
     draw_channel_labels(context, block, channel, offset_width);
   }
 
-  block_end(context->C, block);
-  block_draw(context->C, block);
+  block_end(*context->C, block);
+  block_draw(*context->C, block);
 
   GPU_matrix_pop();
 }
@@ -300,15 +300,15 @@ static void draw_background()
   ui::theme::frame_buffer_clear(TH_BACK);
 }
 
-void channel_draw_context_init(const bContext *C,
+void channel_draw_context_init(const bContext &C,
                                ARegion *region,
                                SeqChannelDrawContext *r_context)
 {
-  r_context->C = C;
-  r_context->area = CTX_wm_area(*C);
+  r_context->C = &C;
+  r_context->area = CTX_wm_area(C);
   r_context->region = region;
   r_context->v2d = &region->v2d;
-  r_context->scene = CTX_data_sequencer_scene(*C);
+  r_context->scene = CTX_data_sequencer_scene(C);
   r_context->ed = seq::editing_get(r_context->scene);
   r_context->seqbase = seq::active_seqbase_get(r_context->ed);
   r_context->channels = seq::channels_displayed_get(r_context->ed);
@@ -323,10 +323,10 @@ void channel_draw_context_init(const bContext *C,
   r_context->scale = min_ff(r_context->channel_height / (U.widget_unit * 0.6), 1);
 }
 
-void draw_channels(const bContext *C, ARegion *region)
+void draw_channels(const bContext &C, ARegion *region)
 {
   draw_background();
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   if (!scene) {
     return;
   }

@@ -144,7 +144,7 @@ void paintface_flush_flags(bContext *C,
     DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT);
   }
 
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
+  WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, ob->data);
 }
 
 void paintface_hide(bContext *C, Object *ob, const bool unselected)
@@ -415,11 +415,11 @@ static bool follow_face_loop(const int face_start_index,
   return false;
 }
 
-void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const bool select)
+void paintface_select_loop(bContext &C, Object *ob, const int mval[2], const bool select)
 {
   using namespace blender;
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   ED_view3d_select_id_validate(&vc);
 
@@ -437,7 +437,7 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
     return;
   }
 
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   ED_view3d_init_mats_rv3d(ob_eval, rv3d);
 
@@ -495,7 +495,7 @@ void paintface_select_loop(bContext *C, Object *ob, const int mval[2], const boo
   select_poly.span.fill_indices(faces_to_select.as_span(), select_toggle);
 
   select_poly.finish();
-  paintface_flush_flags(C, ob, true, false);
+  paintface_flush_flags(&C, ob, true, false);
 }
 
 static bool poly_has_selected_neighbor(blender::Span<int> face_edges,
@@ -1046,7 +1046,7 @@ void paintvert_select_less(Mesh *mesh, const bool face_step)
 void paintvert_tag_select_update(bContext *C, Object *ob)
 {
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
+  WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, ob->data);
 }
 
 bool paintvert_deselect_all_visible(Object *ob, int action, bool flush_flags)

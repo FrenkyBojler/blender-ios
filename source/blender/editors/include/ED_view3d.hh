@@ -114,17 +114,17 @@ bool ED_view3d_has_workbench_in_texture_color(const Scene *scene,
  *
  * \note cannot use `event->mval` here, called by #object_add().
  */
-void ED_view3d_cursor3d_position(bContext *C,
+void ED_view3d_cursor3d_position(bContext &C,
                                  const int mval[2],
                                  bool use_depth,
                                  float r_cursor_co[3]);
-void ED_view3d_cursor3d_position_rotation(bContext *C,
+void ED_view3d_cursor3d_position_rotation(bContext &C,
                                           const int mval[2],
                                           bool use_depth,
                                           enum eV3DCursorOrient orientation,
                                           float r_cursor_co[3],
                                           float r_cursor_quat[4]);
-void ED_view3d_cursor3d_update(bContext *C,
+void ED_view3d_cursor3d_update(bContext &C,
                                const int mval[2],
                                bool use_depth,
                                enum eV3DCursorOrient orientation);
@@ -244,7 +244,7 @@ bool ED_view3d_has_depth_buffer_updated(const Depsgraph *depsgraph, const View3D
  *
  * \note modal map events can also be used in #ED_view3d_navigation_do.
  */
-ViewOpsData *ED_view3d_navigation_init(bContext *C, const wmKeyMapItem *kmi_merge);
+ViewOpsData *ED_view3d_navigation_init(bContext &C, const wmKeyMapItem *kmi_merge);
 bool ED_view3d_navigation_do(bContext *C,
                              ViewOpsData *vod,
                              const wmEvent *event,
@@ -375,7 +375,7 @@ void ED_view3d_cursor_snap_state_free(V3DSnapCursorState *state);
 void ED_view3d_cursor_snap_state_prevpoint_set(V3DSnapCursorState *state,
                                                const float prev_point[3]);
 void ED_view3d_cursor_snap_data_update(V3DSnapCursorState *state,
-                                       const bContext *C,
+                                       const bContext &C,
                                        const ARegion *region,
                                        const blender::int2 &mval);
 V3DSnapCursorData *ED_view3d_cursor_snap_data_get();
@@ -1030,7 +1030,7 @@ int view3d_gpu_select_with_id_filter(const ViewContext *vc,
 /* `view3d_select.cc` */
 
 float ED_view3d_select_dist_px();
-ViewContext ED_view3d_viewcontext_init(bContext *C, Depsgraph *depsgraph);
+ViewContext ED_view3d_viewcontext_init(bContext &C, Depsgraph *depsgraph);
 
 /**
  * Re-initialize `vc` with `obact` as if it's active object (with some differences).
@@ -1052,7 +1052,7 @@ void ED_view3d_viewcontext_init_object(ViewContext *vc, Object *obact);
  * Use this call when executing an operator,
  * event system doesn't set for each event the OpenGL drawing context.
  */
-void view3d_operator_needs_gpu(const bContext *C);
+void view3d_operator_needs_gpu(const bContext &C);
 void view3d_region_operator_needs_gpu(ARegion *region);
 
 /** XXX: should move to BLI_math */
@@ -1064,12 +1064,12 @@ bool edge_inside_circle(const float cent[2],
 /**
  * Get 3D region from context, also if mouse is in header or toolbar.
  */
-RegionView3D *ED_view3d_context_rv3d(bContext *C);
+RegionView3D *ED_view3d_context_rv3d(bContext &C);
 /**
  * Ideally would return an rv3d but in some cases the region is needed too
  * so return that, the caller can then access the `region->regiondata`.
  */
-bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_region);
+bool ED_view3d_context_user_region(bContext &C, View3D **r_v3d, ARegion **r_region);
 /**
  * Similar to #ED_view3d_context_user_region() but does not use context. Always performs a lookup.
  * Also works if \a v3d is not the active space.
@@ -1108,7 +1108,7 @@ void ED_view3D_mats_rv3d_free(RV3DMatrixStore *rv3d_mat);
 
 RenderEngineType *ED_view3d_engine_type(const Scene *scene, int drawtype);
 
-bool ED_view3d_context_activate(bContext *C);
+bool ED_view3d_context_activate(bContext &C);
 /**
  * Set the correct matrices
  */
@@ -1384,7 +1384,7 @@ void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *area);
 
 /* `view3d_gizmo_preselect_type.cc` */
 
-void ED_view3d_gizmo_mesh_preselect_get_active(const bContext *C,
+void ED_view3d_gizmo_mesh_preselect_get_active(const bContext &C,
                                                const wmGizmo *gz,
                                                Base **r_base,
                                                BMElem **r_ele);
@@ -1395,11 +1395,11 @@ void ED_view3d_gizmo_mesh_preselect_clear(wmGizmo *gz);
 /**
  * Remove all rulers when Annotation layer is removed.
  */
-void ED_view3d_gizmo_ruler_remove_by_gpencil_layer(struct bContext *C, bGPDlayer *gpl);
+void ED_view3d_gizmo_ruler_remove_by_gpencil_layer(struct bContext &C, bGPDlayer *gpl);
 
 /* `space_view3d.cc` */
 
-void ED_view3d_buttons_region_layout_ex(const bContext *C,
+void ED_view3d_buttons_region_layout_ex(const bContext &C,
                                         ARegion *region,
                                         const char *category_override);
 
@@ -1431,7 +1431,7 @@ bool ED_localview_exit_if_empty(const Depsgraph *depsgraph,
  * Try to keep the same UUID previously used to allow users to quickly toggle back and forth.
  */
 bool ED_view3d_local_collections_set(const Main *bmain, View3D *v3d);
-void ED_view3d_local_collections_reset(const bContext *C, bool reset_all);
+void ED_view3d_local_collections_reset(const bContext &C, bool reset_all);
 
 #ifdef WITH_XR_OPENXR
 void ED_view3d_xr_mirror_update(const ScrArea *area, const View3D *v3d, bool enable);

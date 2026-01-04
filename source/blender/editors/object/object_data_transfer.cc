@@ -338,13 +338,13 @@ static bool data_transfer_check(bContext & /*C*/, wmOperator &op)
 }
 
 /* Helper, used by both data_transfer_exec and datalayout_transfer_exec. */
-static void data_transfer_exec_preprocess_objects(bContext *C,
+static void data_transfer_exec_preprocess_objects(bContext &C,
                                                   wmOperator *op,
                                                   Object *ob_src,
                                                   Vector<PointerRNA> *ctx_objects,
                                                   const bool reverse_transfer)
 {
-  CTX_data_selected_editable_objects(*C, ctx_objects);
+  CTX_data_selected_editable_objects(C, ctx_objects);
 
   if (reverse_transfer) {
     return; /* Nothing else to do in this case... */
@@ -471,7 +471,7 @@ static wmOperatorStatus data_transfer_exec(bContext &C, wmOperator &op)
     layers_select_dst[fromto_idx] = layers_dst;
   }
 
-  data_transfer_exec_preprocess_objects(&C, &op, ob_src, &ctx_objects, reverse_transfer);
+  data_transfer_exec_preprocess_objects(C, &op, ob_src, &ctx_objects, reverse_transfer);
 
   int invalid_count = 0;
 
@@ -531,7 +531,7 @@ static wmOperatorStatus data_transfer_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     DEG_relations_tag_update(CTX_data_main(C));
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
   }
 
   if (invalid_count > 0) {
@@ -819,7 +819,7 @@ void OBJECT_OT_data_transfer(wmOperatorType *ot)
 
 static bool datalayout_transfer_poll(bContext &C)
 {
-  return (edit_modifier_poll_generic(&C, &RNA_DataTransferModifier, (1 << OB_MESH), true, false) ||
+  return (edit_modifier_poll_generic(C, &RNA_DataTransferModifier, (1 << OB_MESH), true, false) ||
           data_transfer_poll(C));
 }
 
@@ -877,7 +877,7 @@ static wmOperatorStatus datalayout_transfer_exec(bContext &C, wmOperator &op)
 
     Object *ob_src_eval = DEG_get_evaluated(depsgraph, ob_src);
 
-    data_transfer_exec_preprocess_objects(&C, &op, ob_src, &ctx_objects, false);
+    data_transfer_exec_preprocess_objects(C, &op, ob_src, &ctx_objects, false);
 
     for (const PointerRNA &ptr : ctx_objects) {
       Object *ob_dst = static_cast<Object *>(ptr.data);
@@ -896,7 +896,7 @@ static wmOperatorStatus datalayout_transfer_exec(bContext &C, wmOperator &op)
   }
 
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
 
   return OPERATOR_FINISHED;
 }

@@ -325,7 +325,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
    * \return A #PanelLayout containing layouts for both the header row and the panel body. If the
    * panel is closed and should not be drawn, the body layout will be NULL.
    */
-  PanelLayout panel_prop(const bContext *C,
+  PanelLayout panel_prop(const bContext &C,
                          PointerRNA *open_prop_owner,
                          StringRefNull open_prop_name);
   /**
@@ -559,7 +559,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
             std::optional<StringRef> name,
             int icon);
 
-  void popover(const bContext *C, PanelType *pt, std::optional<StringRef> name_opt, int icon);
+  void popover(const bContext &C, PanelType *pt, std::optional<StringRef> name_opt, int icon);
   void popover(const bContext *C,
                StringRef panel_type,
                std::optional<StringRef> name_opt,
@@ -921,7 +921,7 @@ void uiLayoutSetTooltipCustomFunc(Layout *layout,
                                   CopyArgFunc copy_arg,
                                   FreeArgFunc free_arg);
 
-void menutype_draw(bContext *C, MenuType *mt, Layout *layout);
+void menutype_draw(bContext &C, MenuType *mt, Layout *layout);
 
 /**
  * Used for popup panels only.

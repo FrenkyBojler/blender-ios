@@ -290,7 +290,7 @@ void uiTemplateInputStatus(Layout *layout, bContext *C)
     return;
   }
 
-  if (WM_window_modal_keymap_status_draw(C, win, *layout)) {
+  if (WM_window_modal_keymap_status_draw(*C, win, *layout)) {
     return;
   }
 

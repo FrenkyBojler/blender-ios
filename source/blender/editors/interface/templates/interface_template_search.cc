@@ -36,7 +36,7 @@ static void template_search_exec_fn(bContext *C, void *arg_template, void *item)
 
   PointerRNA item_ptr = RNA_pointer_create_discrete(nullptr, type, item);
   RNA_property_pointer_set(&coll_search->target_ptr, coll_search->target_prop, item_ptr, nullptr);
-  RNA_property_update(C, &coll_search->target_ptr, coll_search->target_prop);
+  RNA_property_update(*C, &coll_search->target_ptr, coll_search->target_prop);
 }
 
 static Block *template_search_menu(bContext *C, ARegion *region, void *arg_template)

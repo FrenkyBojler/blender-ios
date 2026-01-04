@@ -440,7 +440,7 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
   BKE_reports_free(&reports);
 
   if (result) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+    WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   }
 
   return PyBool_FromLong(result);
@@ -636,7 +636,7 @@ PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
     }
 
     bContext *context = BPY_context_get();
-    WM_event_add_notifier(BPY_context_get(), NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
+    WM_event_add_notifier(*BPY_context_get(), NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
     DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
     DEG_relations_tag_update(CTX_data_main(*context));
   }
@@ -691,7 +691,7 @@ PyObject *pyrna_struct_driver_remove(BPy_StructRNA *self, PyObject *args)
   }
 
   bContext *context = BPY_context_get();
-  WM_event_add_notifier(context, NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
+  WM_event_add_notifier(*context, NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
   DEG_id_tag_update(self->ptr->owner_id, ID_RECALC_ANIMATION);
   DEG_relations_tag_update(CTX_data_main(*context));
 

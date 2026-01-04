@@ -211,10 +211,10 @@ static void ASSET_OT_mark(wmOperatorType *ot)
   ot->idname = "ASSET_OT_mark";
 
   ot->exec = [](bContext &C, wmOperator &op) -> wmOperatorStatus {
-    return asset_mark_exec(C, op, ED_operator_get_ids_from_context_as_vec(&C));
+    return asset_mark_exec(C, op, ED_operator_get_ids_from_context_as_vec(C));
   };
   ot->poll = [](bContext &C) -> bool {
-    return asset_mark_poll(C, ED_operator_get_ids_from_context_as_vec(&C));
+    return asset_mark_poll(C, ED_operator_get_ids_from_context_as_vec(C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -232,10 +232,10 @@ static void ASSET_OT_mark_single(wmOperatorType *ot)
   ot->idname = "ASSET_OT_mark_single";
 
   ot->exec = [](bContext &C, wmOperator &op) -> wmOperatorStatus {
-    return asset_mark_exec(C, op, ED_operator_single_id_from_context_as_vec(&C));
+    return asset_mark_exec(C, op, ED_operator_single_id_from_context_as_vec(C));
   };
   ot->poll = [](bContext &C) -> bool {
-    return asset_mark_poll(C, ED_operator_single_id_from_context_as_vec(&C));
+    return asset_mark_poll(C, ED_operator_single_id_from_context_as_vec(C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -381,10 +381,10 @@ static void ASSET_OT_clear(wmOperatorType *ot)
   ot->idname = "ASSET_OT_clear";
 
   ot->exec = [](bContext &C, wmOperator &op) -> wmOperatorStatus {
-    return asset_clear_exec(C, op, ED_operator_get_ids_from_context_as_vec(&C));
+    return asset_clear_exec(C, op, ED_operator_get_ids_from_context_as_vec(C));
   };
   ot->poll = [](bContext &C) -> bool {
-    return asset_clear_poll(C, ED_operator_get_ids_from_context_as_vec(&C));
+    return asset_clear_poll(C, ED_operator_get_ids_from_context_as_vec(C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -405,10 +405,10 @@ static void ASSET_OT_clear_single(wmOperatorType *ot)
   ot->idname = "ASSET_OT_clear_single";
 
   ot->exec = [](bContext &C, wmOperator &op) -> wmOperatorStatus {
-    return asset_clear_exec(C, op, ED_operator_single_id_from_context_as_vec(&C));
+    return asset_clear_exec(C, op, ED_operator_single_id_from_context_as_vec(C));
   };
   ot->poll = [](bContext &C) -> bool {
-    return asset_clear_poll(C, ED_operator_single_id_from_context_as_vec(&C));
+    return asset_clear_poll(C, ED_operator_single_id_from_context_as_vec(C));
   };
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -436,15 +436,15 @@ static bool asset_library_refresh_poll(bContext &C)
   }
 
   return list::has_list_storage_for_library(library) ||
-         list::has_asset_browser_storage_for_library(library, &C);
+         list::has_asset_browser_storage_for_library(library, C);
 }
 
 static wmOperatorStatus asset_library_refresh_exec(bContext &C, wmOperator & /*unused*/)
 {
   const AssetLibraryReference *library = CTX_wm_asset_library_ref(C);
   /* Handles both global asset list storage and asset browsers. */
-  list::clear(library, &C);
-  WM_event_add_notifier(&C, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
+  list::clear(library, C);
+  WM_event_add_notifier(C, NC_ASSET | ND_ASSET_LIST_READING, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -552,9 +552,9 @@ static void ASSET_OT_catalog_delete(wmOperatorType *ot)
   RNA_def_string(ot->srna, "catalog_id", nullptr, 0, "Catalog ID", "ID of the catalog to delete");
 }
 
-static asset_system::AssetCatalogService *get_catalog_service(bContext *C)
+static asset_system::AssetCatalogService *get_catalog_service(bContext &C)
 {
-  const SpaceFile *sfile = CTX_wm_space_file(*C);
+  const SpaceFile *sfile = CTX_wm_space_file(C);
   if (!sfile || ED_fileselect_is_file_browser(sfile)) {
     return nullptr;
   }
@@ -569,19 +569,19 @@ static asset_system::AssetCatalogService *get_catalog_service(bContext *C)
 
 static wmOperatorStatus asset_catalog_undo_exec(bContext &C, wmOperator & /*op*/)
 {
-  asset_system::AssetCatalogService *catalog_service = get_catalog_service(&C);
+  asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
   if (!catalog_service) {
     return OPERATOR_CANCELLED;
   }
 
   catalog_service->undo();
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
   return OPERATOR_FINISHED;
 }
 
 static bool asset_catalog_undo_poll(bContext &C)
 {
-  const asset_system::AssetCatalogService *catalog_service = get_catalog_service(&C);
+  const asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
   return catalog_service && catalog_service->is_undo_possbile();
 }
 
@@ -599,19 +599,19 @@ static void ASSET_OT_catalog_undo(wmOperatorType *ot)
 
 static wmOperatorStatus asset_catalog_redo_exec(bContext &C, wmOperator & /*op*/)
 {
-  asset_system::AssetCatalogService *catalog_service = get_catalog_service(&C);
+  asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
   if (!catalog_service) {
     return OPERATOR_CANCELLED;
   }
 
   catalog_service->redo();
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
   return OPERATOR_FINISHED;
 }
 
 static bool asset_catalog_redo_poll(bContext &C)
 {
-  const asset_system::AssetCatalogService *catalog_service = get_catalog_service(&C);
+  const asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
   return catalog_service && catalog_service->is_redo_possbile();
 }
 
@@ -629,7 +629,7 @@ static void ASSET_OT_catalog_redo(wmOperatorType *ot)
 
 static wmOperatorStatus asset_catalog_undo_push_exec(bContext &C, wmOperator & /*op*/)
 {
-  asset_system::AssetCatalogService *catalog_service = get_catalog_service(&C);
+  asset_system::AssetCatalogService *catalog_service = get_catalog_service(C);
   if (!catalog_service) {
     return OPERATOR_CANCELLED;
   }
@@ -640,7 +640,7 @@ static wmOperatorStatus asset_catalog_undo_push_exec(bContext &C, wmOperator & /
 
 static bool asset_catalog_undo_push_poll(bContext &C)
 {
-  return get_catalog_service(&C) != nullptr;
+  return get_catalog_service(C) != nullptr;
 }
 
 static void ASSET_OT_catalog_undo_push(wmOperatorType *ot)
@@ -789,7 +789,7 @@ static wmOperatorStatus asset_bundle_install_exec(bContext &C, wmOperator &op)
   }
 
   WM_cursor_wait(true);
-  asset_system::AssetCatalogService *cat_service = get_catalog_service(&C);
+  asset_system::AssetCatalogService *cat_service = get_catalog_service(C);
   /* Store undo step, such that on a failed save the 'prepare_to_merge_on_write' call can be
    * un-done. */
   cat_service->undo_push();
@@ -1091,11 +1091,11 @@ static void generate_previewimg_from_buffer(ID *id, const ImBuf *image_buffer)
  * Takes a screenshot of Blender for the given rect. The returned `ImBuf` has to be freed by the
  * caller with `IMB_freeImBuf()`.
  */
-static ImBuf *take_screenshot_crop(bContext *C, const rcti &crop_rect)
+static ImBuf *take_screenshot_crop(bContext &C, const rcti &crop_rect)
 {
   int dumprect_size[2];
-  wmWindow *win = CTX_wm_window(*C);
-  uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
+  wmWindow *win = CTX_wm_window(C);
+  uint8_t *dumprect = WM_window_pixels_read(&C, win, dumprect_size);
 
   /* Clamp coordinates to window bounds. */
   rcti safe_rect = crop_rect;
@@ -1148,8 +1148,8 @@ static wmOperatorStatus screenshot_preview_exec(bContext &C, wmOperator &op)
 
   ImBuf *image_buffer;
 
-  ScrArea *area_p1 = ED_area_find_under_cursor(&C, SPACE_TYPE_ANY, p1);
-  ScrArea *area_p2 = ED_area_find_under_cursor(&C, SPACE_TYPE_ANY, p2);
+  ScrArea *area_p1 = ED_area_find_under_cursor(C, SPACE_TYPE_ANY, p1);
+  ScrArea *area_p2 = ED_area_find_under_cursor(C, SPACE_TYPE_ANY, p2);
   /* Special case for taking a screenshot from a 3D viewport. In that case we do an offscreen
    * render to support transparency. Render settings are used as currently set up in the viewport
    * to comply with WYSIWYG as much as possible. One limitation is that GUI elements will not be
@@ -1203,7 +1203,7 @@ static wmOperatorStatus screenshot_preview_exec(bContext &C, wmOperator &op)
   }
   else {
     const rcti crop_rect = {p1.x, p2.x, p1.y, p2.y};
-    image_buffer = take_screenshot_crop(&C, crop_rect);
+    image_buffer = take_screenshot_crop(C, crop_rect);
     if (!image_buffer) {
       BKE_report(op.reports, RPT_ERROR, "Invalid screenshot area selection");
       return OPERATOR_CANCELLED;
@@ -1280,14 +1280,14 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
   ui::draw_roundbox_aa(&screenshot_rect, false, 0, color);
 }
 
-static void screenshot_preview_exit(bContext *C, wmOperator *op)
+static void screenshot_preview_exit(bContext &C, wmOperator *op)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   WM_cursor_modal_restore(win);
   ScreenshotOperatorData *data = static_cast<ScreenshotOperatorData *>(op->customdata);
   WM_draw_cb_exit(win, data->draw_handle);
   MEM_freeN(data);
-  ED_workspace_status_text(C, nullptr);
+  ED_workspace_status_text(&C, nullptr);
 }
 
 static inline void screenshot_area_transfer_to_rna(wmOperator *op, ScreenshotOperatorData *data)
@@ -1320,7 +1320,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext &C, wmOperator &op, co
           data->drag_end = clamp_point_to_window(screen_space_cursor, win);
           screenshot_area_transfer_to_rna(&op, data);
           screenshot_preview_exec(C, op);
-          screenshot_preview_exit(&C, &op);
+          screenshot_preview_exit(C, &op);
           return OPERATOR_FINISHED;
       }
       break;
@@ -1330,13 +1330,13 @@ static wmOperatorStatus screenshot_preview_modal(bContext &C, wmOperator &op, co
     case EVT_RETKEY: {
       screenshot_area_transfer_to_rna(&op, data);
       screenshot_preview_exec(C, op);
-      screenshot_preview_exit(&C, &op);
+      screenshot_preview_exit(C, &op);
       return OPERATOR_FINISHED;
     }
 
     case RIGHTMOUSE:
     case EVT_ESCKEY: {
-      screenshot_preview_exit(&C, &op);
+      screenshot_preview_exit(C, &op);
       CTX_wm_screen(C)->do_draw = true;
       return OPERATOR_CANCELLED;
     }
@@ -1416,7 +1416,7 @@ static wmOperatorStatus screenshot_preview_modal(bContext &C, wmOperator &op, co
       break;
   }
 
-  WorkspaceStatus status(&C);
+  WorkspaceStatus status(C);
   if (data->is_mouse_down) {
     status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
   }
@@ -1448,7 +1448,7 @@ static wmOperatorStatus screenshot_preview_invoke(bContext &C,
   data->crossed_threshold = false;
   data->force_square = RNA_boolean_get(op.ptr, "force_square");
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   CTX_wm_screen(C)->do_draw = true;
 
   return OPERATOR_RUNNING_MODAL;

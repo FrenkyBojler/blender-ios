@@ -53,10 +53,10 @@ enum class ButtonSectionsAlign : int8_t;
 /** Only exported for WM. */
 void ED_region_do_listen(wmRegionListenerParams *params);
 /** Only exported for WM. */
-void ED_region_do_layout(bContext *C, ARegion *region);
+void ED_region_do_layout(bContext &C, ARegion *region);
 /** Only exported for WM. */
-void ED_region_do_draw(bContext *C, ARegion *region);
-void ED_region_exit(bContext *C, ARegion *region);
+void ED_region_do_draw(bContext &C, ARegion *region);
+void ED_region_exit(bContext &C, ARegion *region);
 /**
  * Utility to exit and free an area-region. Screen level regions (menus/popups) need to be treated
  * slightly differently, see #ui::region_temp_remove().
@@ -114,7 +114,7 @@ void ED_region_panels(const bContext *C, ARegion *region);
  * Matching against any of these strings will draw the panel.
  * Can be NULL to skip context checks.
  */
-void ED_region_panels_layout_ex(const bContext *C,
+void ED_region_panels_layout_ex(const bContext &C,
                                 ARegion *region,
                                 ListBaseT<PanelType> *paneltypes,
                                 blender::wm::OpCallContext op_context,
@@ -124,7 +124,7 @@ void ED_region_panels_layout_ex(const bContext *C,
  * Build the same panel list as #ED_region_panels_layout_ex and checks whether any
  * of the panels contain a search result based on the area / region's search filter.
  */
-bool ED_region_property_search(const bContext *C,
+bool ED_region_property_search(const bContext &C,
                                ARegion *region,
                                ListBaseT<PanelType> *paneltypes,
                                const char *contexts[],
@@ -163,7 +163,7 @@ void ED_region_visibility_change_update(bContext *C, ScrArea *area, ARegion *reg
 /**
  * \note Assumes that \a region itself is not a split version from previous region.
  */
-void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARegion *region);
+void ED_region_visibility_change_update_animated(bContext &C, ScrArea *area, ARegion *region);
 
 void ED_region_clear(const bContext *C, const ARegion *region, int /*ThemeColorID*/ colorid);
 
@@ -218,7 +218,7 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf);
 /**
  * Returns offset for next button in header.
  */
-int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, int yco);
+int ED_area_header_switchbutton(const bContext &C, blender::ui::Block *block, int yco);
 
 /* areas */
 /**
@@ -228,11 +228,11 @@ void ED_area_and_region_types_init(ScrArea *area);
 /**
  * Called in screen_refresh, or screens_init, also area size changes.
  */
-void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area);
-void ED_area_exit(bContext *C, ScrArea *area);
+void ED_area_init(bContext &C, const wmWindow *win, ScrArea *area);
+void ED_area_exit(bContext &C, ScrArea *area);
 blender::StringRefNull ED_area_name(const ScrArea *area);
 int ED_area_icon(const ScrArea *area);
-int ED_screen_area_active(const bContext *C);
+int ED_screen_area_active(const bContext &C);
 void ED_screen_global_areas_refresh(wmWindow *win);
 void ED_screen_global_areas_sync(wmWindow *win);
 /** Only exported for WM. */
@@ -259,9 +259,9 @@ void ED_area_status_text(ScrArea *area, const char *str);
 /**
  * \param skip_region_exit: Skip calling area exit callback. Set for opening temp spaces.
  */
-void ED_area_newspace(bContext *C, ScrArea *area, int type, bool skip_region_exit);
+void ED_area_newspace(bContext &C, ScrArea *area, int type, bool skip_region_exit);
 void ED_area_prevspace(bContext *C, ScrArea *area);
-void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2);
+void ED_area_swapspace(bContext &C, ScrArea *sa1, ScrArea *sa2);
 int ED_area_headersize();
 int ED_area_footersize();
 /**
@@ -287,7 +287,7 @@ void ED_area_offscreen_free(wmWindowManager *wm, wmWindow *win, ScrArea *area);
  * Search all screens, even non-active or overlapping (multiple windows), return the most-likely
  * area of interest. xy is relative to active window, like all similar functions.
  */
-ScrArea *ED_area_find_under_cursor(const bContext *C, int spacetype, const int event_xy[2]);
+ScrArea *ED_area_find_under_cursor(const bContext &C, int spacetype, const int event_xy[2]);
 
 ScrArea *ED_screen_areas_iter_first(const wmWindow *win, const bScreen *screen);
 ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area);
@@ -311,14 +311,14 @@ ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area);
 /**
  * Update all areas that are supposed to follow the timeline current-frame indicator.
  */
-void ED_areas_do_frame_follow(bContext *C, bool center_view);
+void ED_areas_do_frame_follow(bContext &C, bool center_view);
 
 /* screens */
 
 /**
  * File read, set all screens, ....
  */
-void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm);
+void ED_screens_init(bContext &C, Main *bmain, wmWindowManager *wm);
 /**
  * Only for edge lines between areas.
  */
@@ -330,7 +330,7 @@ void ED_screen_draw_edges(wmWindow *win);
  */
 void ED_screen_refresh(bContext *C, wmWindowManager *wm, wmWindow *win);
 void ED_screen_ensure_updated(bContext *C, wmWindowManager *wm, wmWindow *win);
-void ED_screen_do_listen(bContext *C, const wmNotifier *note);
+void ED_screen_do_listen(bContext &C, const wmNotifier *note);
 /**
  * \brief Change the active screen.
  *
@@ -339,20 +339,20 @@ void ED_screen_do_listen(bContext *C, const wmNotifier *note);
  * \warning Do NOT call in area/region queues!
  * \returns if screen changing was successful.
  */
-bool ED_screen_change(bContext *C, bScreen *screen);
-void ED_screen_scene_change(bContext *C, wmWindow *win, Scene *scene, bool refresh_toolsystem);
+bool ED_screen_change(bContext &C, bScreen *screen);
+void ED_screen_scene_change(bContext &C, wmWindow *win, Scene *scene, bool refresh_toolsystem);
 /**
  * Called in `wm_event_system.cc`. sets state vars in screen, cursors.
  * event type is mouse move.
  */
 void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2]);
-void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen);
+void ED_screen_exit(bContext &C, wmWindow *window, bScreen *screen);
 /**
  * redraws: uses defines from `stime->redraws`
  * \param enable: 1 - forward on, -1 - backwards on, 0 - off.
  */
 void ED_screen_animation_timer(
-    bContext *C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable);
+    bContext &C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable);
 void ED_screen_animation_timer_update(bScreen *screen, int redraws);
 void ED_screen_restore_temp_type(bContext *C, ScrArea *area);
 ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *area, int type);
@@ -363,7 +363,7 @@ void ED_screen_full_prevspace(bContext *C, ScrArea *area);
 /**
  * Restore a screen / area back to default operation, after temp full-screen modes.
  */
-void ED_screen_full_restore(bContext *C, ScrArea *area);
+void ED_screen_full_restore(bContext &C, ScrArea *area);
 /**
  * Create a new temporary screen with a maximized, empty area.
  * This can be closed with #ED_screen_state_toggle().
@@ -371,7 +371,7 @@ void ED_screen_full_restore(bContext *C, ScrArea *area);
  * Use this to just create a new maximized screen/area, rather than maximizing an existing one.
  * Otherwise, maximize with #ED_screen_state_toggle().
  */
-bScreen *ED_screen_state_maximized_create(bContext *C);
+bScreen *ED_screen_state_maximized_create(bContext &C);
 /**
  * This function toggles: if area is maximized/full then the parent will be restored.
  *
@@ -382,7 +382,7 @@ bScreen *ED_screen_state_maximized_create(bContext *C);
  *
  * \warning \a area may be freed.
  */
-ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, short state);
+ScrArea *ED_screen_state_toggle(bContext &C, wmWindow *win, ScrArea *area, short state);
 /**
  * Wrapper to open a temporary space either as full-screen space, or as separate window,
  * as defined by \a display_type.
@@ -397,7 +397,7 @@ ScrArea *ED_screen_temp_space_open(bContext *C,
                                    bool dialog) ATTR_NONNULL(1);
 void ED_screens_header_tools_menu_create(bContext *C, blender::ui::Layout *layout, void *arg);
 void ED_screens_footer_tools_menu_create(bContext *C, blender::ui::Layout *layout, void *arg);
-void ED_screens_region_flip_menu_create(bContext *C, blender::ui::Layout *layout, void *arg);
+void ED_screens_region_flip_menu_create(bContext &C, blender::ui::Layout *layout, void *arg);
 /**
  * \return true if any active area requires to see in 3D.
  */
@@ -427,7 +427,7 @@ WorkSpace *ED_workspace_add(Main *bmain, const char *name) ATTR_NONNULL();
  * \warning Do NOT call in area/region queues!
  * \returns if workspace changing was successful.
  */
-bool ED_workspace_change(WorkSpace *workspace_new, bContext *C, wmWindowManager *wm, wmWindow *win)
+bool ED_workspace_change(WorkSpace *workspace_new, bContext &C, wmWindowManager *wm, wmWindow *win)
     ATTR_NONNULL();
 /**
  * Duplicate a workspace including its layouts. Does not activate the workspace, but
@@ -473,7 +473,7 @@ WorkSpaceLayout *ED_workspace_layout_duplicate(Main *bmain,
  */
 bool ED_workspace_layout_delete(WorkSpace *workspace, WorkSpaceLayout *layout_old, bContext *C)
     ATTR_NONNULL();
-bool ED_workspace_layout_cycle(WorkSpace *workspace, short direction, bContext *C) ATTR_NONNULL();
+bool ED_workspace_layout_cycle(WorkSpace *workspace, short direction, bContext &C) ATTR_NONNULL();
 
 void ED_workspace_status_text(bContext *C, const char *str);
 
@@ -482,7 +482,7 @@ class WorkspaceStatus {
   wmWindowManager *wm_;
 
  public:
-  WorkspaceStatus(bContext *C);
+  WorkspaceStatus(bContext &C);
 
   /**
    * Add a static status entry and up to two icons.
@@ -519,7 +519,7 @@ class WorkspaceStatus {
   void opmodal(std::string text, const wmOperatorType *ot, int propvalue, bool inverted = false);
 };
 
-void ED_workspace_do_listen(bContext *C, const wmNotifier *note);
+void ED_workspace_do_listen(bContext &C, const wmNotifier *note);
 
 /* anim */
 /**
@@ -530,8 +530,8 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph);
 /**
  * Toggle operator.
  */
-void ED_reset_audio_device(bContext *C);
-wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode);
+void ED_reset_audio_device(bContext &C);
+wmOperatorStatus ED_screen_animation_play(bContext &C, int sync, int mode);
 /**
  * Find window that owns the animation timer.
  */
@@ -562,7 +562,7 @@ bool ED_operator_regionactive(bContext &C);
 
 bool ED_operator_scene(bContext &C);
 bool ED_operator_scene_editable(bContext &C);
-bool ED_operator_sequencer_scene(bContext *C);
+bool ED_operator_sequencer_scene(bContext &C);
 bool ED_operator_sequencer_scene_editable(bContext &C);
 
 bool ED_operator_objectmode(bContext &C);
@@ -628,7 +628,7 @@ bool ED_operator_editmesh_view3d(bContext &C);
 bool ED_operator_editmesh_region_view3d(bContext &C);
 bool ED_operator_editarmature(bContext &C);
 bool ED_operator_editcurve(bContext &C);
-bool ED_operator_editcurve_3d(bContext *C);
+bool ED_operator_editcurve_3d(bContext &C);
 bool ED_operator_editsurf(bContext &C);
 bool ED_operator_editsurfcurve(bContext &C);
 bool ED_operator_editsurfcurve_region_view3d(bContext &C);
@@ -657,8 +657,8 @@ bool ED_operator_camera_poll(bContext &C);
 
 /* `screen_user_menu.cc` */
 
-bUserMenu **ED_screen_user_menus_find(const bContext *C, uint *r_len);
-bUserMenu *ED_screen_user_menu_ensure(bContext *C);
+bUserMenu **ED_screen_user_menus_find(const bContext &C, uint *r_len);
+bUserMenu *ED_screen_user_menu_ensure(bContext &C);
 
 /**
  * Finds a menu item associated with an operator in user menus (aka Quick Favorites)
@@ -750,7 +750,7 @@ ARegion *ED_area_find_region_xy_visual(const ScrArea *area, int regiontype, cons
 namespace blender::ui {
 ARegionType *ED_area_type_hud(int space_type);
 void ED_area_type_hud_clear(wmWindowManager *wm, ScrArea *area_keep);
-void ED_area_type_hud_ensure(bContext *C, ScrArea *area);
+void ED_area_type_hud_ensure(bContext &C, ScrArea *area);
 /**
  * Lookup the region the operation was executed in, and which should be used to redo the
  * operation. The lookup is based on the region type, so it can return a different region when the

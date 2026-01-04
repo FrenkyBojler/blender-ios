@@ -730,8 +730,8 @@ void DataSetViewItem::on_activate(bContext &C)
   PointerRNA ptr = RNA_pointer_create_discrete(&screen.id, &RNA_SpaceSpreadsheet, &sspreadsheet);
   /* These updates also make sure that the attribute domain is set properly based on the
    * component type. */
-  RNA_property_update(&C, &ptr, RNA_struct_find_property(&ptr, "attribute_domain"));
-  RNA_property_update(&C, &ptr, RNA_struct_find_property(&ptr, "geometry_component_type"));
+  RNA_property_update(C, &ptr, RNA_struct_find_property(&ptr, "attribute_domain"));
+  RNA_property_update(C, &ptr, RNA_struct_find_property(&ptr, "geometry_component_type"));
 }
 
 std::optional<bool> DataSetViewItem::should_be_active() const

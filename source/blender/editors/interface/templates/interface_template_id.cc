@@ -69,7 +69,7 @@ static void template_ID_set_property_exec_fn(bContext *C, void *arg_template, vo
   if (item) {
     PointerRNA idptr = RNA_id_pointer_create(static_cast<ID *>(item));
     RNA_property_pointer_set(&template_ui->ptr, template_ui->prop, idptr, nullptr);
-    RNA_property_update(C, &template_ui->ptr, template_ui->prop);
+    RNA_property_update(*C, &template_ui->ptr, template_ui->prop);
   }
 }
 
@@ -270,7 +270,7 @@ void context_active_but_prop_get_templateID(const bContext *C,
                                             PointerRNA *r_ptr,
                                             PropertyRNA **r_prop)
 {
-  Button *but = context_active_but_get(C);
+  Button *but = context_active_but_get(*C);
 
   *r_ptr = {};
   *r_prop = nullptr;
@@ -375,9 +375,9 @@ ID *template_id_liboverride_hierarchy_make(
       *r_undo_push_label = "Clear Library Override Hierarchy";
     }
 
-    WM_event_add_notifier(C, NC_WM | ND_DATACHANGED, nullptr);
-    WM_event_add_notifier(C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    WM_event_add_notifier(*C, NC_WM | ND_DATACHANGED, nullptr);
+    WM_event_add_notifier(*C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
+    WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
     return id;
   }
 
@@ -521,7 +521,7 @@ ID *template_id_liboverride_hierarchy_make(
         BKE_lib_override_library_create(
             bmain, scene, view_layer, nullptr, id, nullptr, nullptr, &id_override, false);
         BKE_scene_collections_object_remove(bmain, scene, (Object *)id, true);
-        WM_event_add_notifier(C, NC_ID | NA_REMOVED, nullptr);
+        WM_event_add_notifier(*C, NC_ID | NA_REMOVED, nullptr);
       }
       break;
     case ID_ME:
@@ -626,8 +626,8 @@ ID *template_id_liboverride_hierarchy_make(
      * rebuild of outliner trees, leading to crashes.
      *
      * So for now, add some extra notifiers here. */
-    WM_event_add_notifier(C, NC_ID | NA_ADDED, nullptr);
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+    WM_event_add_notifier(*C, NC_ID | NA_ADDED, nullptr);
+    WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
   }
   return id_override;
 }
@@ -690,7 +690,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
     case UI_ID_DELETE:
       idptr = {};
       RNA_property_pointer_set(&template_ui->ptr, template_ui->prop, idptr, nullptr);
-      RNA_property_update(C, &template_ui->ptr, template_ui->prop);
+      RNA_property_update(*C, &template_ui->ptr, template_ui->prop);
 
       if (id && CTX_wm_window(*C)->runtime->eventstate->modifier & KM_SHIFT) {
         /* only way to force-remove data (on save) */
@@ -735,7 +735,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
         }
         if (undo_push_label != nullptr) {
           RNA_property_pointer_set(&template_ui->ptr, template_ui->prop, idptr, nullptr);
-          RNA_property_update(C, &template_ui->ptr, template_ui->prop);
+          RNA_property_update(*C, &template_ui->ptr, template_ui->prop);
         }
       }
       break;
@@ -750,7 +750,7 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
           /* Reassign to get proper updates/notifiers. */
           idptr = RNA_property_pointer_get(&template_ui->ptr, template_ui->prop);
           RNA_property_pointer_set(&template_ui->ptr, template_ui->prop, idptr, nullptr);
-          RNA_property_update(C, &template_ui->ptr, template_ui->prop);
+          RNA_property_update(*C, &template_ui->ptr, template_ui->prop);
           undo_push_label = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Local");
         }
       }
@@ -765,13 +765,13 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
           Main *bmain = CTX_data_main(*C);
           Scene *scene = CTX_data_scene(*C);
           blender::ed::object::object_single_user_make(bmain, scene, (Object *)id);
-          WM_event_add_notifier(C, NC_WINDOW, nullptr);
+          WM_event_add_notifier(*C, NC_WINDOW, nullptr);
           DEG_relations_tag_update(bmain);
         }
         else {
           Main *bmain = CTX_data_main(*C);
           id_single_user(C, id, &template_ui->ptr, template_ui->prop);
-          WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+          WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
           DEG_relations_tag_update(bmain);
         }
         BKE_main_ensure_invariants(*CTX_data_main(*C));
@@ -785,8 +785,8 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
   }
 
   if (undo_push_label != nullptr) {
-    ED_undo_push(C, undo_push_label);
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+    ED_undo_push(*C, undo_push_label);
+    WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
   }
 }
 
@@ -1430,7 +1430,7 @@ static void template_ID(const bContext *C,
 
 ID *context_active_but_get_tab_ID(bContext *C)
 {
-  Button *but = context_active_but_get(C);
+  Button *but = context_active_but_get(*C);
 
   if (but && but->type == ButtonType::Tab) {
     return static_cast<ID *>(but->custom_data);

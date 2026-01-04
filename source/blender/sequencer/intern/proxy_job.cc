@@ -67,16 +67,16 @@ static void proxy_endjob(void *pjv)
   WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, pj->scene);
 }
 
-ProxyJob *ED_seq_proxy_job_get(const bContext *C, wmJob *wm_job)
+ProxyJob *ED_seq_proxy_job_get(const bContext &C, wmJob *wm_job)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   ProxyJob *pj = static_cast<ProxyJob *>(WM_jobs_customdata_get(wm_job));
   if (!pj) {
     pj = MEM_callocN<ProxyJob>("proxy rebuild job");
     pj->depsgraph = depsgraph;
     pj->scene = scene;
-    pj->main = CTX_data_main(*C);
+    pj->main = CTX_data_main(C);
     WM_jobs_customdata_set(wm_job, pj, proxy_freejob);
     WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_SEQUENCER, NC_SCENE | ND_SEQUENCER);
     WM_jobs_callbacks(wm_job, proxy_startjob, nullptr, nullptr, proxy_endjob);
@@ -84,11 +84,11 @@ ProxyJob *ED_seq_proxy_job_get(const bContext *C, wmJob *wm_job)
   return pj;
 }
 
-wmJob *ED_seq_proxy_wm_job_get(const bContext *C)
+wmJob *ED_seq_proxy_wm_job_get(const bContext &C)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
-                              CTX_wm_window(*C),
+  Scene *scene = CTX_data_sequencer_scene(C);
+  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
+                              CTX_wm_window(C),
                               scene,
                               "Building proxies...",
                               WM_JOB_PROGRESS,

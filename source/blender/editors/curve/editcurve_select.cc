@@ -257,9 +257,9 @@ bool ED_curve_deselect_all_multi_ex(Span<Base *> bases)
   return changed_multi;
 }
 
-bool ED_curve_deselect_all_multi(bContext *C)
+bool ED_curve_deselect_all_multi(bContext &C)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
       vc.scene, vc.view_layer, vc.v3d);
@@ -498,7 +498,7 @@ static wmOperatorStatus de_select_first_exec(bContext &C, wmOperator & /*op*/)
   for (Object *obedit : objects) {
     selectend_nurb(obedit, FIRST, true, false);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     BKE_curve_nurb_vert_active_validate(static_cast<Curve *>(obedit->data));
   }
   return OPERATOR_FINISHED;
@@ -529,7 +529,7 @@ static wmOperatorStatus de_select_last_exec(bContext &C, wmOperator & /*op*/)
   for (Object *obedit : objects) {
     selectend_nurb(obedit, LAST, true, false);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     BKE_curve_nurb_vert_active_validate(static_cast<Curve *>(obedit->data));
   }
 
@@ -597,7 +597,7 @@ static wmOperatorStatus de_select_all_exec(bContext &C, wmOperator &op)
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
       BKE_curve_nurb_vert_active_validate(cu);
     }
   }
@@ -651,7 +651,7 @@ static wmOperatorStatus select_linked_exec(bContext &C, wmOperator & /*op*/)
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -701,8 +701,8 @@ static wmOperatorStatus select_linked_pick_invoke(bContext &C,
   const bool select = !RNA_boolean_get(op.ptr, "deselect");
   Base *basact = nullptr;
 
-  view3d_operator_needs_gpu(&C);
-  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  view3d_operator_needs_gpu(C);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   copy_v2_v2_int(vc.mval, event->mval);
 
   if (!ED_curve_pick_vert(&vc, 1, &nu, &bezt, &bp, nullptr, &basact)) {
@@ -729,7 +729,7 @@ static wmOperatorStatus select_linked_pick_invoke(bContext &C,
   Object *obedit = basact->object;
 
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
   if (!select) {
     BKE_curve_nurb_vert_active_validate(static_cast<Curve *>(obedit->data));
@@ -806,7 +806,7 @@ static wmOperatorStatus select_row_exec(bContext &C, wmOperator & /*op*/)
   }
 
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
   return OPERATOR_FINISHED;
 }
@@ -847,7 +847,7 @@ static wmOperatorStatus select_next_exec(bContext &C, wmOperator & /*op*/)
     select_adjacent_cp(editnurb, 1, false, SELECT);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
   return OPERATOR_FINISHED;
 }
@@ -886,7 +886,7 @@ static wmOperatorStatus select_previous_exec(bContext &C, wmOperator & /*op*/)
     select_adjacent_cp(editnurb, -1, false, SELECT);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
   return OPERATOR_FINISHED;
 }
@@ -996,7 +996,7 @@ static wmOperatorStatus curve_select_more_exec(bContext &C, wmOperator & /*op*/)
   for (Object *obedit : objects) {
     curve_select_more(obedit);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
   return OPERATOR_FINISHED;
 }
@@ -1213,7 +1213,7 @@ static wmOperatorStatus curve_select_less_exec(bContext &C, wmOperator & /*op*/)
   for (Object *obedit : objects) {
     curve_select_less(obedit);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
   return OPERATOR_FINISHED;
 }
@@ -1326,7 +1326,7 @@ static wmOperatorStatus curve_select_random_exec(bContext &C, wmOperator &op)
     MEM_freeN(verts_selection_mask);
     BKE_curve_nurb_vert_active_validate(static_cast<Curve *>(obedit->data));
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -1446,7 +1446,7 @@ static wmOperatorStatus select_nth_exec(bContext &C, wmOperator &op)
       changed = true;
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -1808,7 +1808,7 @@ static wmOperatorStatus curve_select_similar_exec(bContext &C, wmOperator &op)
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -2012,8 +2012,8 @@ static wmOperatorStatus edcu_shortest_path_pick_invoke(bContext &C,
   void *vert_dst_p;
   Base *basact = nullptr;
 
-  view3d_operator_needs_gpu(&C);
-  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  view3d_operator_needs_gpu(C);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   copy_v2_v2_int(vc.mval, event->mval);
 
   if (!ED_curve_pick_vert(&vc, 1, &nu_dst, &bezt_dst, &bp_dst, nullptr, &basact)) {
@@ -2052,11 +2052,11 @@ static wmOperatorStatus edcu_shortest_path_pick_invoke(bContext &C,
 
   BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
   if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-    blender::ed::object::base_activate(&C, basact);
+    blender::ed::object::base_activate(C, basact);
   }
 
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT | ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   return OPERATOR_FINISHED;
 }
 

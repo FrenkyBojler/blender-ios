@@ -232,7 +232,7 @@ wmOperatorStatus WM_gizmo_operator_invoke(bContext *C,
   if (gz->flag & WM_GIZMO_OPERATOR_TOOL_INIT) {
     /* Merge tool-settings into the gizmo properties. */
     PointerRNA tref_ptr;
-    bToolRef *tref = WM_toolsystem_ref_from_context(C);
+    bToolRef *tref = WM_toolsystem_ref_from_context(*C);
     if (tref && WM_toolsystem_ref_properties_get_from_operator(tref, gzop->type, &tref_ptr)) {
       if (gzop->ptr.data == nullptr) {
         gzop->ptr.data = blender::bke::idprop::create_group("wmOperatorProperties").release();
@@ -441,7 +441,7 @@ void WM_gizmo_modal_set_while_modal(wmGizmoMap *gzmap,
   }
 
   if (gz) {
-    wm_gizmo_calculate_scale(gz, C);
+    wm_gizmo_calculate_scale(gz, *C);
 
     /* Set `highlight_part` to -1 to skip operator invocation. */
     const int highlight_part = gz->highlight_part;
@@ -451,9 +451,9 @@ void WM_gizmo_modal_set_while_modal(wmGizmoMap *gzmap,
   }
 }
 
-void wm_gizmo_calculate_scale(wmGizmo *gz, const bContext *C)
+void wm_gizmo_calculate_scale(wmGizmo *gz, const bContext &C)
 {
-  const RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
   float scale = UI_SCALE_FAC;
 
   if ((gz->parent_gzgroup->type->flag & WM_GIZMOGROUPTYPE_SCALE) == 0) {
@@ -495,7 +495,7 @@ void wm_gizmo_update(wmGizmo *gz, const bContext *C, const bool refresh_map)
   if (refresh_map) {
     gizmo_update_prop_data(gz);
   }
-  wm_gizmo_calculate_scale(gz, C);
+  wm_gizmo_calculate_scale(gz, *C);
 }
 
 int wm_gizmo_is_visible(wmGizmo *gz)

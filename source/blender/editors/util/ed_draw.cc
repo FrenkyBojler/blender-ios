@@ -432,12 +432,12 @@ static void slider_update_factor(tSlider *slider, const wmEvent *event)
   }
 }
 
-tSlider *ED_slider_create(bContext *C)
+tSlider *ED_slider_create(bContext &C)
 {
   tSlider *slider = MEM_new<tSlider>(__func__);
-  slider->scene = CTX_data_scene(*C);
-  slider->area = CTX_wm_area(*C);
-  slider->region_header = CTX_wm_region(*C);
+  slider->scene = CTX_data_scene(C);
+  slider->area = CTX_wm_area(C);
+  slider->region_header = CTX_wm_region(C);
 
   /* Default is true, caller needs to manually set to false. */
   slider->allow_overshoot_lower = true;

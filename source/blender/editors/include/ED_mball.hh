@@ -38,7 +38,7 @@ Base *ED_mball_base_and_elem_from_select_buffer(blender::Span<Base *> bases,
  * \return True when pick finds an element or the selection changed.
  */
 bool ED_mball_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params);
-bool ED_mball_deselect_all_multi(bContext *C);
+bool ED_mball_deselect_all_multi(bContext &C);
 
 /**
  * This function is used to free all MetaElems from MetaBall.

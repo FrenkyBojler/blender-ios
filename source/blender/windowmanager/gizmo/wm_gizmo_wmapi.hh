@@ -76,7 +76,7 @@ void wm_gizmomaps_handled_modal_update(bContext *C, wmEvent *event, wmEventHandl
  * Prepare context for gizmo handling (but only if area/region is
  * part of screen). Version of #wm_handler_op_context for gizmos.
  */
-void wm_gizmomap_handler_context_op(bContext *C, wmEventHandler_Op *handler);
+void wm_gizmomap_handler_context_op(bContext &C, wmEventHandler_Op *handler);
 void wm_gizmomap_handler_context_gizmo(bContext *C, wmEventHandler_Gizmo *handler);
 
 bool wm_gizmomap_highlight_pending(const wmGizmoMap *gzmap);
@@ -86,7 +86,7 @@ bool wm_gizmomap_highlight_handled(wmGizmoMap *gzmap);
  * 3D ones (could check for smallest screen-space distance but not needed right now).
  */
 wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
-                                    bContext *C,
+                                    bContext &C,
                                     const wmEvent *event,
                                     int *r_part);
 bool wm_gizmomap_highlight_set(wmGizmoMap *gzmap, const bContext *C, wmGizmo *gz, int part);

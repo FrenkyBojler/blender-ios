@@ -39,7 +39,7 @@ static wmOperatorStatus viewcenter_cursor_exec(bContext &C, wmOperator &op)
     V3D_SmoothParams sview = {nullptr};
     sview.ofs = ofs_new;
     sview.undo_str = op.type->name;
-    ED_view3d_smooth_view(&C, v3d, region, smooth_viewtx, &sview);
+    ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview);
 
     /* Smooth view does view-lock #RV3D_BOXVIEW copy. */
   }

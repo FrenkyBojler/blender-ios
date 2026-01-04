@@ -153,10 +153,10 @@ static void image_sample_rect_color_float(ImBuf *ibuf, const rcti *rect, float r
 /** \name Image Pixel Sample (Internal Utilities)
  * \{ */
 
-static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
+static void image_sample_apply(bContext &C, wmOperator *op, const wmEvent *event)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
+  ARegion *region = CTX_wm_region(C);
   Image *image = ED_space_image(sima);
 
   float uv[2];
@@ -166,7 +166,7 @@ static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event
   void *lock;
   ImBuf *ibuf = ED_space_image_acquire_buffer(sima, &lock, tile);
   ImageSampleInfo *info = static_cast<ImageSampleInfo *>(op->customdata);
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   CurveMapping *curve_mapping = scene->view_settings.curve_mapping;
 
   if (ibuf == nullptr) {
@@ -270,13 +270,13 @@ static void image_sample_apply(bContext *C, wmOperator *op, const wmEvent *event
   }
 
   ED_space_image_release_buffer(sima, ibuf, lock);
-  ED_area_tag_redraw(CTX_wm_area(*C));
+  ED_area_tag_redraw(CTX_wm_area(C));
 }
 
-static void sequencer_sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
+static void sequencer_sample_apply(bContext &C, wmOperator *op, const wmEvent *event)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
-  ARegion *region = CTX_wm_region(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  ARegion *region = CTX_wm_region(C);
   ImBuf *ibuf = blender::ed::vse::sequencer_ibuf_get(C, scene->r.cfra, nullptr);
   ImageSampleInfo *info = static_cast<ImageSampleInfo *>(op->customdata);
   float fx, fy;
@@ -350,12 +350,12 @@ static void sequencer_sample_apply(bContext *C, wmOperator *op, const wmEvent *e
   }
 
   IMB_freeImBuf(ibuf);
-  ED_area_tag_redraw(CTX_wm_area(*C));
+  ED_area_tag_redraw(CTX_wm_area(C));
 }
 
-static void ed_imbuf_sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
+static void ed_imbuf_sample_apply(bContext &C, wmOperator *op, const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   if (area == nullptr) {
     return;
   }
@@ -435,12 +435,12 @@ void ED_imbuf_sample_draw(const bContext *C, ARegion *region, void *arg_info)
   }
 }
 
-void ED_imbuf_sample_exit(bContext *C, wmOperator *op)
+void ED_imbuf_sample_exit(bContext &C, wmOperator *op)
 {
   ImageSampleInfo *info = static_cast<ImageSampleInfo *>(op->customdata);
 
   ED_region_draw_cb_exit(info->art, info->draw_handle);
-  ED_area_tag_redraw(CTX_wm_area(*C));
+  ED_area_tag_redraw(CTX_wm_area(C));
   MEM_freeN(info);
 }
 
@@ -477,9 +477,9 @@ wmOperatorStatus ED_imbuf_sample_invoke(bContext &C, wmOperator &op, const wmEve
   info->sample_size = RNA_int_get(op.ptr, "size");
   op.customdata = info;
 
-  ed_imbuf_sample_apply(&C, &op, event);
+  ed_imbuf_sample_apply(C, &op, event);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -490,12 +490,12 @@ wmOperatorStatus ED_imbuf_sample_modal(bContext &C, wmOperator &op, const wmEven
     case LEFTMOUSE:
     case RIGHTMOUSE: /* XXX hardcoded */
       if (event->val == KM_RELEASE) {
-        ED_imbuf_sample_exit(&C, &op);
+        ED_imbuf_sample_exit(C, &op);
         return OPERATOR_CANCELLED;
       }
       break;
     case MOUSEMOVE:
-      ed_imbuf_sample_apply(&C, &op, event);
+      ed_imbuf_sample_apply(C, &op, event);
       break;
     default: {
       break;
@@ -507,7 +507,7 @@ wmOperatorStatus ED_imbuf_sample_modal(bContext &C, wmOperator &op, const wmEven
 
 void ED_imbuf_sample_cancel(bContext &C, wmOperator &op)
 {
-  ED_imbuf_sample_exit(&C, &op);
+  ED_imbuf_sample_exit(C, &op);
 }
 
 bool ED_imbuf_sample_poll(bContext &C)

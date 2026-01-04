@@ -250,9 +250,9 @@ static void node_unassigned_assets_draw(const bContext *C, Menu *menu)
   }
 }
 
-static void root_catalogs_draw(const bContext *C, Menu *menu, const StringRefNull operator_id)
+static void root_catalogs_draw(const bContext &C, Menu *menu, const StringRefNull operator_id)
 {
-  SpaceNode &snode = *CTX_wm_space_node(*C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   ui::Layout *layout = menu->layout;
   const bNodeTree *edit_tree = snode.edittree;
   if (!edit_tree) {
@@ -260,7 +260,7 @@ static void root_catalogs_draw(const bContext *C, Menu *menu, const StringRefNul
   }
 
   snode.runtime->assets_for_menu = std::make_shared<asset::AssetItemTree>(
-      build_catalog_tree(*C, *edit_tree));
+      build_catalog_tree(C, *edit_tree));
 
   const bool loading_finished = all_loading_finished();
 
@@ -294,7 +294,7 @@ static void add_root_catalogs_draw(const bContext *C, Menu *menu)
   const StringRefNull operator_id = "NODE_OT_add_group_asset";
 
   menu->layout->context_string_set("operator_id", operator_id);
-  root_catalogs_draw(C, menu, operator_id);
+  root_catalogs_draw(*C, menu, operator_id);
 }
 
 static void swap_root_catalogs_draw(const bContext *C, Menu *menu)
@@ -302,7 +302,7 @@ static void swap_root_catalogs_draw(const bContext *C, Menu *menu)
   const StringRefNull operator_id = "NODE_OT_swap_group_asset";
 
   menu->layout->context_string_set("operator_id", operator_id);
-  root_catalogs_draw(C, menu, operator_id);
+  root_catalogs_draw(*C, menu, operator_id);
 }
 
 MenuType catalog_assets_menu_type()

@@ -605,7 +605,7 @@ static void createTransSeqData(bContext *C, TransInfo *t)
   ts->tdseq = tdsq = MEM_calloc_arrayN<TransDataSeq>(tc->data_len, "TransSeq TransDataSeq");
 
   /* Custom data to enable edge panning during transformation. */
-  view2d_edge_pan_init(t->context,
+  view2d_edge_pan_init(*t->context,
                        &ts->edge_pan,
                        STRIP_EDGE_PAN_INSIDE_PAD,
                        STRIP_EDGE_PAN_OUTSIDE_PAD,

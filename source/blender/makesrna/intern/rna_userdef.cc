@@ -391,7 +391,7 @@ static void rna_userdef_asset_library_path_set(PointerRNA *ptr, const char *valu
 
 static void rna_userdef_asset_library_update(bContext *C, PointerRNA *ptr)
 {
-  blender::ed::asset::list::clear_all_library(C);
+  blender::ed::asset::list::clear_all_library(*C);
   rna_userdef_update(CTX_data_main(*C), CTX_data_scene(*C), ptr);
 }
 
@@ -614,7 +614,7 @@ static bUserAssetLibrary *rna_userdef_asset_library_new(const bContext *C,
   bUserAssetLibrary *new_library = BKE_preferences_asset_library_add(
       &U, name ? name : "", directory ? directory : "");
 
-  blender::ed::asset::list::clear_all_library(C);
+  blender::ed::asset::list::clear_all_library(*C);
 
   /* Trigger refresh for the Asset Browser. */
   WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
@@ -633,7 +633,7 @@ static void rna_userdef_asset_library_remove(bContext *C, ReportList *reports, P
   }
 
   BKE_preferences_asset_library_remove(&U, library);
-  blender::ed::asset::list::clear_all_library(C);
+  blender::ed::asset::list::clear_all_library(*C);
 
   /* Update active library index to be in range. */
   const int count_remaining = BLI_listbase_count(&U.asset_libraries);
@@ -787,7 +787,7 @@ static void rna_userdef_keyconfig_reload_update(bContext *C,
                                                 Scene * /*scene*/,
                                                 PointerRNA * /*ptr*/)
 {
-  WM_keyconfig_reload(C);
+  WM_keyconfig_reload(*C);
   USERDEF_TAG_DIRTY;
 }
 
@@ -935,7 +935,7 @@ static void rna_UserDef_subdivision_update(Main *bmain, Scene *scene, PointerRNA
 
 static void rna_UserDef_audio_update(bContext *C, PointerRNA * /*ptr*/)
 {
-  ED_reset_audio_device(C);
+  ED_reset_audio_device(*C);
   USERDEF_TAG_DIRTY;
 }
 

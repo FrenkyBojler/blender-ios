@@ -33,7 +33,7 @@ void console_scrollback_free(SpaceConsole *sc, ConsoleLine *cl);
 ConsoleLine *console_history_add_str(SpaceConsole *sc, char *str, bool own);
 ConsoleLine *console_scrollback_add_str(SpaceConsole *sc, char *str, bool own);
 
-ConsoleLine *console_history_verify(const bContext *C);
+ConsoleLine *console_history_verify(const bContext &C);
 
 void console_textview_update_rect(SpaceConsole *sc, ARegion *region);
 

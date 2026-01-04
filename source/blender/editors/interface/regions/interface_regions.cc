@@ -34,9 +34,9 @@ ARegion *region_temp_add(bScreen *screen)
   return region;
 }
 
-void region_temp_remove(bContext *C, bScreen *screen, ARegion *region)
+void region_temp_remove(bContext &C, bScreen *screen, ARegion *region)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
   BLI_assert(region->regiontype == RGN_TYPE_TEMPORARY);
   BLI_assert(BLI_findindex(&screen->regionbase, region) != -1);
@@ -48,11 +48,11 @@ void region_temp_remove(bContext *C, bScreen *screen, ARegion *region)
   BKE_area_region_free(nullptr, region); /* nullptr: no space-type. */
   BLI_freelinkN(&screen->regionbase, region);
 
-  if (CTX_wm_region(*C) == region) {
-    CTX_wm_region_set(*C, nullptr);
+  if (CTX_wm_region(C) == region) {
+    CTX_wm_region_set(C, nullptr);
   }
-  if (CTX_wm_region_popup(*C) == region) {
-    CTX_wm_region_popup_set(*C, nullptr);
+  if (CTX_wm_region_popup(C) == region) {
+    CTX_wm_region_popup_set(C, nullptr);
   }
 }
 

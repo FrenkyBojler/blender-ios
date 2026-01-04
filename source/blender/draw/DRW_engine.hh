@@ -55,7 +55,7 @@ using DRW_ObjectFilterFn = bool (*)(Object *ob, void *user_data);
  * This function takes care of calling all cache and rendering functions
  * for each relevant engine / mode engine.
  */
-void DRW_draw_view(const bContext *C);
+void DRW_draw_view(const bContext &C);
 /**
  * Draw render engine info.
  */

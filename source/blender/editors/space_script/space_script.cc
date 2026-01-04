@@ -121,7 +121,7 @@ static void script_main_region_draw(const bContext *C, ARegion *region)
 #endif
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   /* scrollers? */
 }

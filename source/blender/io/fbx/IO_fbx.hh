@@ -51,4 +51,4 @@ struct FBXImportParams {
   ReportList *reports = nullptr;
 };
 
-void FBX_import(bContext *C, const FBXImportParams &params);
+void FBX_import(bContext &C, const FBXImportParams &params);

@@ -145,7 +145,7 @@ static wmOperatorStatus wm_xr_session_toggle_exec(bContext &C, wmOperator & /*op
   wm_xr_session_toggle(wm, win, wm_xr_session_update_screen_on_exit_cb);
   wm_xr_session_update_screen(bmain, &wm->xr);
 
-  WM_event_add_notifier(&C, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+  WM_event_add_notifier(C, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -424,7 +424,7 @@ static wmOperatorStatus wm_xr_navigation_grab_invoke(bContext &C,
   wm_xr_grab_init(&op);
   wm_xr_grab_update(&op, actiondata);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -789,7 +789,7 @@ static wmOperatorStatus wm_xr_navigation_fly_invoke(bContext &C,
 
   wm_xr_fly_init(&op, &wm->xr);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1576,7 +1576,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_invoke(bContext &C,
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval & OPERATOR_RUNNING_MODAL) {
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
   }
 
   return retval;
@@ -1849,7 +1849,7 @@ static wmOperatorStatus wm_xr_navigation_swap_hands_invoke(bContext &C,
     return OPERATOR_PASS_THROUGH;
   }
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   wmWindowManager *wm = CTX_wm_manager(C);
   wmXrData *xr = &wm->xr;

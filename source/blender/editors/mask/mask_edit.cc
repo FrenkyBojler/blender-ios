@@ -32,9 +32,9 @@ bool ED_maskedit_poll(bContext &C)
       case SPACE_CLIP:
         return ED_space_clip_maskedit_poll(C);
       case SPACE_SEQ:
-        return blender::ed::vse::maskedit_poll(&C);
+        return blender::ed::vse::maskedit_poll(C);
       case SPACE_IMAGE:
-        return ED_space_image_maskedit_poll(&C);
+        return ED_space_image_maskedit_poll(C);
     }
   }
   return false;
@@ -46,9 +46,9 @@ bool ED_maskedit_visible_splines_poll(bContext &C)
   if (area) {
     switch (area->spacetype) {
       case SPACE_CLIP:
-        return ED_space_clip_maskedit_visible_splines_poll(&C);
+        return ED_space_clip_maskedit_visible_splines_poll(C);
       case SPACE_SEQ:
-        return blender::ed::vse::maskedit_poll(&C);
+        return blender::ed::vse::maskedit_poll(C);
       case SPACE_IMAGE:
         return ED_space_image_maskedit_visible_splines_poll(&C);
     }
@@ -78,7 +78,7 @@ bool ED_maskedit_mask_visible_splines_poll(bContext &C)
   if (area) {
     switch (area->spacetype) {
       case SPACE_CLIP:
-        return ED_space_clip_maskedit_mask_visible_splines_poll(&C);
+        return ED_space_clip_maskedit_mask_visible_splines_poll(C);
       case SPACE_SEQ:
         return blender::ed::vse::maskedit_mask_poll(&C);
       case SPACE_IMAGE:
@@ -203,17 +203,17 @@ void ED_operatormacros_mask()
 /** \name Lock-to-selection viewport preservation
  * \{ */
 
-void ED_mask_view_lock_state_store(const bContext *C, MaskViewLockState *state)
+void ED_mask_view_lock_state_store(const bContext &C, MaskViewLockState *state)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(*C);
+  SpaceClip *space_clip = CTX_wm_space_clip(C);
   if (space_clip != nullptr) {
     ED_clip_view_lock_state_store(C, &state->space_clip_state);
   }
 }
 
-void ED_mask_view_lock_state_restore_no_jump(const bContext *C, const MaskViewLockState *state)
+void ED_mask_view_lock_state_restore_no_jump(const bContext &C, const MaskViewLockState *state)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(*C);
+  SpaceClip *space_clip = CTX_wm_space_clip(C);
   if (space_clip != nullptr) {
     if ((space_clip->flag & SC_LOCK_SELECTION) == 0) {
       /* Early output if the editor is not locked to selection.
@@ -226,7 +226,7 @@ void ED_mask_view_lock_state_restore_no_jump(const bContext *C, const MaskViewLo
      * calculation of new offset for the view for an updated state of mask to cancel the offset out
      * by modifying locked offset. In order to do such calculation mask needs to be evaluated after
      * modification by an operator. */
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     (void)depsgraph;
 
     ED_clip_view_lock_state_restore_no_jump(C, &state->space_clip_state);

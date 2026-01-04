@@ -993,7 +993,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 /**
  * \see #initTransform which reads values from the operator.
  */
-void saveTransform(bContext *C, TransInfo *t, wmOperator *op);
+void saveTransform(bContext &C, TransInfo *t, wmOperator *op);
 wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *event);
 void transformApply(bContext *C, TransInfo *t);
 wmOperatorStatus transformEnd(bContext *C, TransInfo *t);
@@ -1085,7 +1085,7 @@ void setInputPostFct(MouseInput *mi, void (*post)(TransInfo *t, float values[3])
  *
  * \see #saveTransform does the reverse.
  */
-void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *event);
+void initTransInfo(bContext &C, TransInfo *t, wmOperator *op, const wmEvent *event);
 /**
  * Needed for mode switching.
  */

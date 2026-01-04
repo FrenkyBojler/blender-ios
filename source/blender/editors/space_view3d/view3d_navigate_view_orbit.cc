@@ -51,7 +51,7 @@ static wmOperatorStatus vieworbit_exec(bContext &C, wmOperator &op)
   }
 
   ViewOpsData vod = {};
-  vod.init_context(&C);
+  vod.init_context(C);
 
   ED_view3d_smooth_view_force_finish(&C, vod.v3d, vod.region);
 
@@ -62,7 +62,7 @@ static wmOperatorStatus vieworbit_exec(bContext &C, wmOperator &op)
 
   if ((RV3D_LOCK_FLAGS(vod.rv3d) & RV3D_LOCK_ROTATION) && (view_opposite == RV3D_VIEW_USER)) {
     /* no nullptr check is needed, poll checks */
-    ED_view3d_context_user_region(&C, &vod.v3d, &vod.region);
+    ED_view3d_context_user_region(C, &vod.v3d, &vod.region);
     vod.rv3d = static_cast<RegionView3D *>(vod.region->regiondata);
 
     ED_view3d_smooth_view_force_finish(&C, vod.v3d, vod.region);
@@ -126,7 +126,7 @@ static wmOperatorStatus vieworbit_exec(bContext &C, wmOperator &op)
     sview.dyn_ofs = vod.dyn_ofs;
   }
 
-  ED_view3d_smooth_view(&C, vod.v3d, vod.region, smooth_viewtx, &sview);
+  ED_view3d_smooth_view(C, vod.v3d, vod.region, smooth_viewtx, &sview);
 
   vod.end_navigation(&C);
 

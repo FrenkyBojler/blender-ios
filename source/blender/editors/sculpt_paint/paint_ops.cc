@@ -53,7 +53,7 @@
 
 static wmOperatorStatus brush_scale_size_exec(bContext &C, wmOperator &op)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
   float scalar = RNA_float_get(op.ptr, "scalar");
 
@@ -128,7 +128,7 @@ static void BRUSH_OT_scale_size(wmOperatorType *ot)
 
 static wmOperatorStatus palette_new_exec(bContext &C, wmOperator & /*op*/)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Main *bmain = CTX_data_main(C);
   Palette *palette;
 
@@ -155,7 +155,7 @@ static void PALETTE_OT_new(wmOperatorType *ot)
 
 static bool palette_poll(bContext &C)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
 
   if (paint && paint->palette != nullptr && ID_IS_EDITABLE(paint->palette) &&
       !ID_IS_OVERRIDE_LIBRARY(paint->palette))
@@ -168,8 +168,8 @@ static bool palette_poll(bContext &C)
 
 static wmOperatorStatus palette_color_add_exec(bContext &C, wmOperator & /*op*/)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
-  PaintMode mode = BKE_paintmode_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  PaintMode mode = BKE_paintmode_get_active_from_context(C);
   Palette *palette = paint->palette;
   PaletteColor *color;
 
@@ -214,7 +214,7 @@ static void PALETTE_OT_color_add(wmOperatorType *ot)
 
 static wmOperatorStatus palette_color_delete_exec(bContext &C, wmOperator & /*op*/)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Palette *palette = paint->palette;
   PaletteColor *color = static_cast<PaletteColor *>(
       BLI_findlink(&palette->colors, palette->active_color));
@@ -330,7 +330,7 @@ static wmOperatorStatus palette_sort_exec(bContext &C, wmOperator &op)
 {
   const int type = RNA_enum_get(op.ptr, "type");
 
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Palette *palette = paint->palette;
 
   if (palette == nullptr) {
@@ -391,7 +391,7 @@ static wmOperatorStatus palette_sort_exec(bContext &C, wmOperator &op)
     MEM_SAFE_FREE(color_array);
   }
 
-  WM_event_add_notifier(&C, NC_BRUSH | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -424,7 +424,7 @@ static void PALETTE_OT_sort(wmOperatorType *ot)
 /* Move colors in palette. */
 static wmOperatorStatus palette_color_move_exec(bContext &C, wmOperator &op)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Palette *palette = paint->palette;
   PaletteColor *palcolor = static_cast<PaletteColor *>(
       BLI_findlink(&palette->colors, palette->active_color));
@@ -438,7 +438,7 @@ static wmOperatorStatus palette_color_move_exec(bContext &C, wmOperator &op)
   BLI_assert(ELEM(direction, -1, 0, 1)); /* we use value below */
   if (BLI_listbase_link_move(&palette->colors, palcolor, direction)) {
     palette->active_color += direction;
-    WM_event_add_notifier(&C, NC_BRUSH | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -471,7 +471,7 @@ static void PALETTE_OT_color_move(wmOperatorType *ot)
 static wmOperatorStatus palette_join_exec(bContext &C, wmOperator &op)
 {
   Main *bmain = CTX_data_main(C);
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Palette *palette = paint->palette;
   Palette *palette_join = nullptr;
   bool done = false;
@@ -508,7 +508,7 @@ static wmOperatorStatus palette_join_exec(bContext &C, wmOperator &op)
     }
 
     /* Notifier. */
-    WM_event_add_notifier(&C, NC_BRUSH | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -603,7 +603,7 @@ static void stencil_set_target(StencilControlData *scd)
 
 static wmOperatorStatus stencil_control_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
   const float mvalf[2] = {float(event->mval[0]), float(event->mval[1])};
   ARegion *region = CTX_wm_region(C);
@@ -635,7 +635,7 @@ static wmOperatorStatus stencil_control_invoke(bContext &C, wmOperator &op, cons
   scd->area_size[1] = region->winy;
 
   op.customdata = scd;
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -716,7 +716,7 @@ static wmOperatorStatus stencil_control_modal(bContext &C, wmOperator &op, const
 
   if (event->type == scd->launch_event && event->val == KM_RELEASE) {
     MEM_freeN(scd);
-    WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+    WM_event_add_notifier(C, NC_WINDOW, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -727,7 +727,7 @@ static wmOperatorStatus stencil_control_modal(bContext &C, wmOperator &op, const
     case EVT_ESCKEY:
       if (event->val == KM_PRESS) {
         stencil_control_cancel(C, op);
-        WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+        WM_event_add_notifier(C, NC_WINDOW, nullptr);
         return OPERATOR_CANCELLED;
       }
       break;
@@ -767,7 +767,7 @@ static wmOperatorStatus stencil_control_modal(bContext &C, wmOperator &op, const
 
 static bool stencil_control_poll(bContext &C)
 {
-  PaintMode mode = BKE_paintmode_get_active_from_context(&C);
+  PaintMode mode = BKE_paintmode_get_active_from_context(C);
 
   Paint *paint;
   Brush *br;
@@ -776,7 +776,7 @@ static bool stencil_control_poll(bContext &C)
     return false;
   }
 
-  paint = BKE_paint_get_active_from_context(&C);
+  paint = BKE_paint_get_active_from_context(C);
   br = BKE_paint_brush(paint);
   return (br && (br->mtex.brush_map_mode == MTEX_MAP_MODE_STENCIL ||
                  br->mask_mtex.brush_map_mode == MTEX_MAP_MODE_STENCIL));
@@ -819,7 +819,7 @@ static void BRUSH_OT_stencil_control(wmOperatorType *ot)
 
 static wmOperatorStatus stencil_fit_image_aspect_exec(bContext &C, wmOperator &op)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
   bool use_scale = RNA_boolean_get(op.ptr, "use_scale");
   bool use_repeat = RNA_boolean_get(op.ptr, "use_repeat");
@@ -869,7 +869,7 @@ static wmOperatorStatus stencil_fit_image_aspect_exec(bContext &C, wmOperator &o
     BKE_brush_tag_unsaved_changes(br);
   }
 
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -897,7 +897,7 @@ static void BRUSH_OT_stencil_fit_image_aspect(wmOperatorType *ot)
 
 static wmOperatorStatus stencil_reset_transform_exec(bContext &C, wmOperator &op)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
   bool do_mask = RNA_boolean_get(op.ptr, "mask");
 
@@ -925,7 +925,7 @@ static wmOperatorStatus stencil_reset_transform_exec(bContext &C, wmOperator &op
   }
 
   BKE_brush_tag_unsaved_changes(br);
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
 }

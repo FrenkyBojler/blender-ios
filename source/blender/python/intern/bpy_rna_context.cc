@@ -47,7 +47,7 @@ static void bpy_rna_context_temp_set_screen_for_window(bContext *C, wmWindow *wi
   WorkSpace *workspace;
   BKE_workspace_layout_find_global(CTX_data_main(*C), screen, &workspace);
   /* Changing workspace instead of just screen as they are tied. */
-  WM_window_set_active_workspace(C, win, workspace);
+  WM_window_set_active_workspace(*C, win, workspace);
   WM_window_set_active_screen(win, workspace, screen);
 }
 
@@ -110,9 +110,9 @@ static bool wm_check_region_exists(const bScreen *screen,
 /**
  * Helper function to configure context logging with extensible options.
  */
-static void bpy_rna_context_logging_set(bContext *C, bool enable)
+static void bpy_rna_context_logging_set(bContext &C, bool enable)
 {
-  CTX_member_logging_set(*C, enable);
+  CTX_member_logging_set(C, enable);
 }
 
 /** \} */
@@ -303,7 +303,7 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
 
   /* Enable logging for this temporary override context if the user has requested it. */
   if (self->ctx_temp.use_logging) {
-    bpy_rna_context_logging_set(C, true);
+    bpy_rna_context_logging_set(*C, true);
   }
 
   /* It's crucial to call #CTX_py_state_pop if this function fails with an error. */
@@ -521,7 +521,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   }
 
   /* Restore logging state based on the user's preference stored in ctx_init.use_logging. */
-  bpy_rna_context_logging_set(C, self->ctx_init.use_logging);
+  bpy_rna_context_logging_set(*C, self->ctx_init.use_logging);
 
   CTX_py_state_pop(*C, &self->py_state);
 
@@ -541,7 +541,7 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
 
   self->ctx_temp.use_logging = enable;
 
-  bpy_rna_context_logging_set(self->context, enable);
+  bpy_rna_context_logging_set(*self->context, enable);
 
   Py_RETURN_NONE;
 }

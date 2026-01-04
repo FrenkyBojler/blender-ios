@@ -87,7 +87,7 @@ static bool object_array_for_wpaint_filter(const Object *ob, void *user_data)
 
 static Vector<Object *> object_array_for_wpaint(bContext *C)
 {
-  return objects_in_mode_or_selected(C, object_array_for_wpaint_filter, C);
+  return objects_in_mode_or_selected(*C, object_array_for_wpaint_filter, C);
 }
 
 static bool vertex_group_use_vert_sel(Object *ob)
@@ -769,7 +769,7 @@ const EnumPropertyItem *vgroup_selection_itemf_helper(const bContext *C,
     return WT_vertex_group_select_item;
   }
 
-  ob = context_object(C);
+  ob = context_object(*C);
   if (selection_mask & (1 << WT_VGROUP_ACTIVE)) {
     RNA_enum_items_add_value(&item, &totitem, WT_vertex_group_select_item, WT_VGROUP_ACTIVE);
   }
@@ -2499,7 +2499,7 @@ static bool vertex_group_supported_poll_ex(bContext *C, const Object *ob)
 
 static bool vertex_group_supported_poll(bContext &C)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   return vertex_group_supported_poll_ex(&C, ob);
 }
 
@@ -2520,13 +2520,13 @@ static bool vertex_group_poll_ex(bContext *C, Object *ob)
 
 static bool vertex_group_poll(bContext &C)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   return vertex_group_poll_ex(&C, ob);
 }
 
 static bool UNUSED_FUNCTION(vertex_group_poll_edit)(bContext *C)
 {
-  Object *ob = context_object(C);
+  Object *ob = context_object(*C);
 
   if (!vertex_group_supported_poll_ex(C, ob)) {
     return false;
@@ -2540,7 +2540,7 @@ static bool vertex_group_vert_poll_ex(bContext *C,
                                       const bool needs_select,
                                       const short ob_type_flag)
 {
-  Object *ob = context_object(C);
+  Object *ob = context_object(*C);
 
   if (!vertex_group_supported_poll_ex(C, ob)) {
     return false;
@@ -2593,7 +2593,7 @@ static bool vertex_group_mesh_vert_select_poll(bContext *C)
 /* editmode _or_ weight paint vertex sel and active group unlocked */
 static bool vertex_group_vert_select_unlocked_poll(bContext &C)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   if (!vertex_group_supported_poll_ex(&C, ob)) {
     return false;
@@ -2617,7 +2617,7 @@ static bool vertex_group_vert_select_unlocked_poll(bContext &C)
 
 static bool vertex_group_vert_select_mesh_poll(bContext &C)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   if (!vertex_group_supported_poll_ex(&C, ob)) {
     return false;
@@ -2639,13 +2639,13 @@ static bool vertex_group_vert_select_mesh_poll(bContext &C)
 
 static wmOperatorStatus vertex_group_add_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   BKE_object_defgroup_add(ob);
   DEG_relations_tag_update(CTX_data_main(C));
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -2720,7 +2720,7 @@ static void grease_pencil_clear_from_all_vgroup(Scene &scene,
 
 static wmOperatorStatus vertex_group_remove_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Scene &scene = *CTX_data_scene(C);
   const bool all_vgroup = RNA_boolean_get(op.ptr, "all");
   const bool only_unlocked = RNA_boolean_get(op.ptr, "all_unlocked");
@@ -2751,8 +2751,8 @@ static wmOperatorStatus vertex_group_remove_exec(bContext &C, wmOperator &op)
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -2791,7 +2791,7 @@ void OBJECT_OT_vertex_group_remove(wmOperatorType *ot)
 static wmOperatorStatus vertex_group_assign_exec(bContext &C, wmOperator &op)
 {
   ToolSettings *ts = CTX_data_tool_settings(C);
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Scene &scene = *CTX_data_scene(C);
 
   vgroup_assign_verts(ob, scene, ts->vgroup_weight);
@@ -2807,7 +2807,7 @@ static wmOperatorStatus vertex_group_assign_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -2840,7 +2840,7 @@ void OBJECT_OT_vertex_group_assign(wmOperatorType *ot)
 static wmOperatorStatus vertex_group_assign_new_exec(bContext &C, wmOperator &op)
 {
   /* create new group... */
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   BKE_object_defgroup_add(ob);
 
   /* assign selection to new group */
@@ -2877,7 +2877,7 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext &C, wmOperator &o
   const bool use_all_verts = RNA_boolean_get(op.ptr, "use_all_verts");
   Scene &scene = *CTX_data_scene(C);
 
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   if (use_all_groups) {
     if (ob->type == OB_GREASE_PENCIL) {
@@ -2915,7 +2915,7 @@ static wmOperatorStatus vertex_group_remove_from_exec(bContext &C, wmOperator &o
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -2956,7 +2956,7 @@ void OBJECT_OT_vertex_group_remove_from(wmOperatorType *ot)
 static wmOperatorStatus vertex_group_select_exec(bContext &C, wmOperator & /*op*/)
 {
   const ToolSettings &tool_settings = *CTX_data_scene(C)->toolsettings;
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Scene &scene = *CTX_data_scene(C);
 
   if (!ob || !ID_IS_EDITABLE(ob) || ID_IS_OVERRIDE_LIBRARY(ob)) {
@@ -2965,7 +2965,7 @@ static wmOperatorStatus vertex_group_select_exec(bContext &C, wmOperator & /*op*
 
   vgroup_select_verts(tool_settings, ob, scene, 1);
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, ob->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -2994,12 +2994,12 @@ void OBJECT_OT_vertex_group_select(wmOperatorType *ot)
 static wmOperatorStatus vertex_group_deselect_exec(bContext &C, wmOperator & /*op*/)
 {
   const ToolSettings &tool_settings = *CTX_data_scene(C)->toolsettings;
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Scene &scene = *CTX_data_scene(C);
 
   vgroup_select_verts(tool_settings, ob, scene, 0);
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, ob->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -3027,13 +3027,13 @@ void OBJECT_OT_vertex_group_deselect(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_group_copy_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   vgroup_duplicate(ob);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-  WM_event_add_notifier(&C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -3061,7 +3061,7 @@ void OBJECT_OT_vertex_group_copy(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_group_levels_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   float offset = RNA_float_get(op.ptr, "offset");
   float gain = RNA_float_get(op.ptr, "gain");
@@ -3076,8 +3076,8 @@ static wmOperatorStatus vertex_group_levels_exec(bContext &C, wmOperator &op)
   MEM_freeN(vgroup_validmap);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -3112,15 +3112,15 @@ void OBJECT_OT_vertex_group_levels(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_group_normalize_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   bool changed;
 
   changed = vgroup_normalize(ob);
 
   if (changed) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
     return OPERATOR_FINISHED;
   }
@@ -3178,7 +3178,7 @@ static eVGroupSelect normalize_vertex_group_target(Object *ob)
 
 static wmOperatorStatus vertex_group_normalize_all_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   eVGroupSelect target_group = normalize_vertex_group_target(ob);
 
@@ -3212,8 +3212,8 @@ static wmOperatorStatus vertex_group_normalize_all_exec(bContext &C, wmOperator 
 
   if (changed) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
     return OPERATOR_FINISHED;
   }
@@ -3254,14 +3254,14 @@ void OBJECT_OT_vertex_group_normalize_all(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_group_lock_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   int action = RNA_enum_get(op.ptr, "action");
   int mask = RNA_enum_get(op.ptr, "mask");
 
   vgroup_lock_all(ob, action, mask);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -3368,7 +3368,7 @@ void OBJECT_OT_vertex_group_lock(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_group_invert_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   bool auto_assign = RNA_boolean_get(op.ptr, "auto_assign");
   bool auto_remove = RNA_boolean_get(op.ptr, "auto_remove");
 
@@ -3383,8 +3383,8 @@ static wmOperatorStatus vertex_group_invert_exec(bContext &C, wmOperator &op)
   MEM_freeN(vgroup_validmap);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -3458,8 +3458,8 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext &C, wmOperator &op)
             ob, vgroup_validmap, vgroup_tot, subset_count, fac, repeat, fac_expand);
 
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-        WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-        WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+        WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+        WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
       }
     }
 
@@ -3532,8 +3532,8 @@ static wmOperatorStatus vertex_group_clean_exec(bContext &C, wmOperator &op)
     MEM_freeN(vgroup_validmap);
 
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
   }
 
   return OPERATOR_FINISHED;
@@ -3578,7 +3578,7 @@ void OBJECT_OT_vertex_group_clean(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_group_quantize_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   const int steps = RNA_int_get(op.ptr, "steps");
   eVGroupSelect subset_type = static_cast<eVGroupSelect>(
@@ -3592,8 +3592,8 @@ static wmOperatorStatus vertex_group_quantize_exec(bContext &C, wmOperator &op)
   MEM_freeN(vgroup_validmap);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -3641,8 +3641,8 @@ static wmOperatorStatus vertex_group_limit_total_exec(bContext &C, wmOperator &o
 
     if (remove_count != 0) {
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+      WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
     }
     remove_multi_count += remove_count;
   }
@@ -3689,7 +3689,7 @@ void OBJECT_OT_vertex_group_limit_total(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_group_mirror_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   int totmirr = 0, totfail = 0;
 
   vgroup_mirror(ob,
@@ -3704,8 +3704,8 @@ static wmOperatorStatus vertex_group_mirror_exec(bContext &C, wmOperator &op)
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -3747,7 +3747,7 @@ void OBJECT_OT_vertex_group_mirror(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_group_copy_to_selected_exec(bContext &C, wmOperator &op)
 {
-  Object *obact = context_object(&C);
+  Object *obact = context_object(C);
   int changed_tot = 0;
   int fail = 0;
 
@@ -3756,7 +3756,7 @@ static wmOperatorStatus vertex_group_copy_to_selected_exec(bContext &C, wmOperat
       if (vgroup_array_copy(ob, obact)) {
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
         DEG_relations_tag_update(CTX_data_main(C));
-        WM_event_add_notifier(&C, NC_GEOM | ND_VERTEX_GROUP, ob);
+        WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
         changed_tot++;
       }
       else {
@@ -3801,14 +3801,14 @@ void OBJECT_OT_vertex_group_copy_to_selected(wmOperatorType *ot)
 
 static wmOperatorStatus set_active_group_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   int nr = RNA_enum_get(op.ptr, "group");
 
   BLI_assert(nr + 1 >= 0);
   BKE_object_defgroup_active_index_set(ob, nr + 1);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_VERTEX_GROUP, ob);
+  WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -3822,7 +3822,7 @@ static const EnumPropertyItem *vgroup_itemf(bContext *C,
     return rna_enum_dummy_NULL_items;
   }
 
-  Object *ob = context_object(C);
+  Object *ob = context_object(*C);
   EnumPropertyItem tmp = {0, "", 0, "", ""};
   EnumPropertyItem *item = nullptr;
   bDeformGroup *def;
@@ -4022,7 +4022,7 @@ enum {
 
 static wmOperatorStatus vertex_group_sort_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   char *name_array;
   wmOperatorStatus ret;
   int sort_type = RNA_enum_get(op.ptr, "sort_type");
@@ -4047,7 +4047,7 @@ static wmOperatorStatus vertex_group_sort_exec(bContext &C, wmOperator &op)
 
   if (ret != OPERATOR_CANCELLED) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_VERTEX_GROUP, ob);
+    WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
   }
 
   if (name_array) {
@@ -4087,7 +4087,7 @@ void OBJECT_OT_vertex_group_sort(wmOperatorType *ot)
 
 static wmOperatorStatus vgroup_move_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   bDeformGroup *def;
   char *name_array;
   int dir = RNA_enum_get(op.ptr, "direction");
@@ -4108,7 +4108,7 @@ static wmOperatorStatus vgroup_move_exec(bContext &C, wmOperator &op)
 
     if (ret != OPERATOR_CANCELLED) {
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GEOM | ND_VERTEX_GROUP, ob);
+      WM_event_add_notifier(C, NC_GEOM | ND_VERTEX_GROUP, ob);
     }
   }
 
@@ -4236,7 +4236,7 @@ static bool check_vertex_group_accessible(wmOperator *op, Object *ob, int def_nr
 
 static wmOperatorStatus vertex_weight_paste_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   const int def_nr = RNA_int_get(op.ptr, "weight_group");
 
   if (!check_vertex_group_accessible(&op, ob, def_nr)) {
@@ -4246,7 +4246,7 @@ static wmOperatorStatus vertex_weight_paste_exec(bContext &C, wmOperator &op)
   vgroup_copy_active_to_sel_single(ob, def_nr);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -4287,7 +4287,7 @@ void OBJECT_OT_vertex_weight_paste(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_weight_delete_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   const int def_nr = RNA_int_get(op.ptr, "weight_group");
 
   if (!check_vertex_group_accessible(&op, ob, def_nr)) {
@@ -4297,7 +4297,7 @@ static wmOperatorStatus vertex_weight_delete_exec(bContext &C, wmOperator &op)
   vgroup_remove_weight(ob, def_nr);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -4337,13 +4337,13 @@ void OBJECT_OT_vertex_weight_delete(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_weight_set_active_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   const int wg_index = RNA_int_get(op.ptr, "weight_group");
 
   if (wg_index != -1) {
     BKE_object_defgroup_active_index_set(ob, wg_index + 1);
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   }
 
   return OPERATOR_FINISHED;
@@ -4385,7 +4385,7 @@ void OBJECT_OT_vertex_weight_set_active(wmOperatorType *ot)
 static wmOperatorStatus vertex_weight_normalize_active_vertex_exec(bContext &C,
                                                                    wmOperator & /*op*/)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   ToolSettings *ts = CTX_data_tool_settings(C);
   eVGroupSelect subset_type = static_cast<eVGroupSelect>(ts->vgroupsubset);
   bool changed;
@@ -4394,7 +4394,7 @@ static wmOperatorStatus vertex_weight_normalize_active_vertex_exec(bContext &C,
 
   if (changed) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
     return OPERATOR_FINISHED;
   }
@@ -4424,14 +4424,14 @@ void OBJECT_OT_vertex_weight_normalize_active_vertex(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_weight_copy_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   ToolSettings *ts = CTX_data_tool_settings(C);
   eVGroupSelect subset_type = static_cast<eVGroupSelect>(ts->vgroupsubset);
 
   vgroup_copy_active_to_sel(ob, subset_type);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }

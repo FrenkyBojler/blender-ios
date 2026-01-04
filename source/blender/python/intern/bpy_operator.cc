@@ -245,7 +245,7 @@ PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
         PyThreadState *ts = PyEval_SaveThread();
 #endif
 
-        retval = WM_operator_call_py(C, ot, context, &ptr, reports, is_undo);
+        retval = WM_operator_call_py(*C, ot, context, &ptr, reports, is_undo);
 
 #ifdef BPY_RELEASE_GIL
         /* regain GIL */

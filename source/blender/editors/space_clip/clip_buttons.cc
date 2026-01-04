@@ -271,7 +271,7 @@ static void marker_update_cb(bContext *C, void *arg_cb, void * /*arg*/)
   MovieTrackingMarker *marker = BKE_tracking_marker_ensure(cb->track, clip_framenr);
   marker->flag = cb->marker_flag;
 
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_MOVIECLIP | NA_EDITED, nullptr);
 }
 
 static void marker_block_handler(bContext *C, void *arg_cb, int event)
@@ -291,7 +291,7 @@ static void marker_block_handler(bContext *C, void *arg_cb, int event)
 
     /* to update position of "parented" objects */
     DEG_id_tag_update(&cb->clip->id, 0);
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
     ok = true;
   }
@@ -374,13 +374,13 @@ static void marker_block_handler(bContext *C, void *arg_cb, int event)
 
     /* to update position of "parented" objects */
     DEG_id_tag_update(&cb->clip->id, 0);
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
     ok = true;
   }
 
   if (ok) {
-    WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, cb->clip);
+    WM_event_add_notifier(*C, NC_MOVIECLIP | NA_EDITED, cb->clip);
   }
 }
 

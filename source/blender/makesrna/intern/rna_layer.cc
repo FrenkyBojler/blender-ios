@@ -267,7 +267,7 @@ static void rna_ObjectBase_hide_viewport_update(bContext *C, PointerRNA * /*ptr*
   ViewLayer *view_layer = CTX_data_view_layer(*C);
   BKE_view_layer_need_resync_tag(view_layer);
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(*C, NC_SCENE | ND_OB_SELECT, scene);
 }
 
 static void rna_LayerCollection_name_get(PointerRNA *ptr, char *value)

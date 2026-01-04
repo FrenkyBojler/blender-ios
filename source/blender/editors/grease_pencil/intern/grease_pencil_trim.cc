@@ -77,13 +77,13 @@ static bool execute_trim_on_drawing(const int layer_index,
 /**
  * Apply the stroke trim to all layers.
  */
-static wmOperatorStatus stroke_trim_execute(const bContext *C, const Span<int2> mcoords)
+static wmOperatorStatus stroke_trim_execute(const bContext &C, const Span<int2> mcoords)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  const ARegion *region = CTX_wm_region(*C);
-  const RegionView3D *rv3d = CTX_wm_region_view3d(*C);
-  const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
-  Object *obact = CTX_data_active_object(*C);
+  const Scene *scene = CTX_data_scene(C);
+  const ARegion *region = CTX_wm_region(C);
+  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
+  const Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Object *obact = CTX_data_active_object(C);
   Object *ob_eval = DEG_get_evaluated(depsgraph, obact);
 
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(obact->data);
@@ -176,7 +176,7 @@ static wmOperatorStatus grease_pencil_stroke_trim_exec(bContext &C, wmOperator &
     return OPERATOR_PASS_THROUGH;
   }
 
-  return stroke_trim_execute(&C, mcoords);
+  return stroke_trim_execute(C, mcoords);
 }
 
 }  // namespace blender::ed::greasepencil

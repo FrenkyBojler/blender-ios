@@ -683,7 +683,7 @@ static wmOperatorStatus mask_flood_fill_exec(bContext &C, wmOperator &op)
 
   undo::push_end(object);
 
-  SCULPT_tag_update_overlays(&C);
+  SCULPT_tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }

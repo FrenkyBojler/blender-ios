@@ -124,7 +124,7 @@ BlendFileData *BKE_blendfile_read_from_memfile(Main *bmain,
  * Utility to make a file 'empty' used for startup to optionally give an empty file.
  * Handy for tests.
  */
-void BKE_blendfile_read_make_empty(bContext *C);
+void BKE_blendfile_read_make_empty(bContext &C);
 
 /**
  * Only read the #UserDef from a .blend.

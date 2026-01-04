@@ -446,7 +446,7 @@ bool RNA_property_comparable(PointerRNA *ptr, PropertyRNA *prop);
  */
 bool RNA_property_path_from_ID_check(PointerRNA *ptr, PropertyRNA *prop); /* slow, use with care */
 
-void RNA_property_update(bContext *C, PointerRNA *ptr, PropertyRNA *prop);
+void RNA_property_update(bContext &C, PointerRNA *ptr, PropertyRNA *prop);
 /**
  * \param scene: may be NULL.
  */

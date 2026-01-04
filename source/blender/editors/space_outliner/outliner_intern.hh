@@ -303,7 +303,7 @@ TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *cus
 /**
  * \param do_rebuild: When false, only the scroll position changed since last draw.
  */
-void draw_outliner(const bContext *C, bool do_rebuild);
+void draw_outliner(const bContext &C, bool do_rebuild);
 
 void outliner_tree_dimensions(SpaceOutliner *space_outliner, int *r_width, int *r_height);
 
@@ -559,7 +559,7 @@ void outliner_keymap(wmKeyConfig *keyconf);
 bool outliner_is_collection_tree_element(const TreeElement *te);
 Collection *outliner_collection_from_tree_element(const TreeElement *te);
 void outliner_collection_delete(
-    bContext *C, Main *bmain, Scene *scene, ReportList *reports, bool do_hierarchy);
+    bContext &C, Main *bmain, Scene *scene, ReportList *reports, bool do_hierarchy);
 
 void OUTLINER_OT_collection_new(wmOperatorType *ot);
 void OUTLINER_OT_collection_duplicate_linked(wmOperatorType *ot);
@@ -592,7 +592,7 @@ void OUTLINER_OT_collection_color_tag_set(wmOperatorType *ot);
 
 /* `outliner_utils.cc` */
 
-void outliner_viewcontext_init(const bContext *C, TreeViewContext *tvc);
+void outliner_viewcontext_init(const bContext &C, TreeViewContext *tvc);
 
 /**
  * Try to find an item under y-coordinate \a view_co_y (view-space).

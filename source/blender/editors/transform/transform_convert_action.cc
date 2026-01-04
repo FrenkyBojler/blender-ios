@@ -671,7 +671,7 @@ static void createTransActionData(bContext *C, TransInfo *t)
   float ypos = 1.0f / ((ysize / xsize) * (xmask / ymask)) * BLI_rctf_cent_y(&t->region->v2d.cur);
 
   /* Determine what type of data we are operating on. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return;
   }
 
@@ -1209,7 +1209,7 @@ static void special_aftertrans_update__actedit(bContext *C, TransInfo *t)
   const bool duplicate = (t->flag & T_DUPLICATED_KEYFRAMES) != 0;
 
   /* Initialize relevant anim-context 'context' data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return;
   }
 
@@ -1381,12 +1381,12 @@ static void special_aftertrans_update__actedit(bContext *C, TransInfo *t)
 #endif
       {
         ED_markers_post_apply_transform(
-            ED_context_get_markers(C), t->scene, t->mode, t->values_final[0], t->frame_side);
+            ED_context_get_markers(*C), t->scene, t->mode, t->values_final[0], t->frame_side);
       }
     }
     else if (t->mode == TFM_TIME_SCALE) {
       ED_markers_post_apply_transform(
-          ED_context_get_markers(C), t->scene, t->mode, t->values_final[0], t->frame_side);
+          ED_context_get_markers(*C), t->scene, t->mode, t->values_final[0], t->frame_side);
     }
   }
 

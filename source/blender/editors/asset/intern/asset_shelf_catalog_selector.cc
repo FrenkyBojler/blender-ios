@@ -182,12 +182,12 @@ void AssetCatalogSelectorTree::update_shelf_settings_from_enabled_catalogs()
   });
 }
 
-void library_selector_draw(const bContext *C, ui::Layout &layout, AssetShelf &shelf)
+void library_selector_draw(const bContext &C, ui::Layout &layout, AssetShelf &shelf)
 {
   layout.operator_context_set(wm::OpCallContext::InvokeDefault);
 
   PointerRNA shelf_ptr = RNA_pointer_create_discrete(
-      &CTX_wm_screen(*C)->id, &RNA_AssetShelf, &shelf);
+      &CTX_wm_screen(C)->id, &RNA_AssetShelf, &shelf);
 
   ui::Layout &row = layout.row(true);
   row.prop(&shelf_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
@@ -205,7 +205,7 @@ static void catalog_selector_panel_draw(const bContext *C, Panel *panel)
 
   ui::Layout &layout = *panel->layout;
 
-  library_selector_draw(C, layout, *shelf);
+  library_selector_draw(*C, layout, *shelf);
 
   asset_system::AssetLibrary *library = list::library_get_once_available(
       shelf->settings.asset_library_reference);

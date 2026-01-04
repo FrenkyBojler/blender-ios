@@ -1901,10 +1901,10 @@ static void draw_distortion(SpaceClip *sc,
   GPU_matrix_pop();
 }
 
-void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *region)
+void clip_draw_main(const bContext &C, SpaceClip *sc, ARegion *region)
 {
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   ImBuf *ibuf = nullptr;
   int width, height;
   float zoomx, zoomy;
@@ -1954,7 +1954,7 @@ void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *region)
   }
 
   if (ibuf) {
-    draw_movieclip_buffer(C, sc, region, ibuf, width, height, zoomx, zoomy);
+    draw_movieclip_buffer(&C, sc, region, ibuf, width, height, zoomx, zoomy);
     IMB_freeImBuf(ibuf);
   }
   else if (sc->flag & SC_MUTE_FOOTAGE) {
@@ -1972,9 +1972,9 @@ void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *region)
   }
 }
 
-void clip_draw_cache_and_notes(const bContext *C, SpaceClip *sc, ARegion *region)
+void clip_draw_cache_and_notes(const bContext &C, SpaceClip *sc, ARegion *region)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   if (clip) {
     draw_movieclip_cache(sc, region, clip, scene);
@@ -1982,9 +1982,9 @@ void clip_draw_cache_and_notes(const bContext *C, SpaceClip *sc, ARegion *region
   }
 }
 
-void clip_draw_grease_pencil(bContext *C, int onlyv2d)
+void clip_draw_grease_pencil(bContext &C, int onlyv2d)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
 
   if (!clip) {

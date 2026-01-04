@@ -183,11 +183,11 @@ float grid_size_get()
   return NODE_GRID_STEP_SIZE;
 }
 
-void tree_update(const bContext *C)
+void tree_update(const bContext &C)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   if (snode) {
-    snode_set_context(*C);
+    snode_set_context(C);
 
     if (snode->nodetree) {
       id_us_ensure_real(&snode->nodetree->id);
@@ -3286,7 +3286,7 @@ static void node_draw_basis(const bContext &C,
                tree_draw_ctx.region,
                tree_draw_ctx.depsgraph,
                &block);
-  block_draw(&C, &block);
+  block_draw(C, &block);
 }
 
 static void node_draw_collapsed(const bContext &C,
@@ -3427,7 +3427,7 @@ static void node_draw_collapsed(const bContext &C,
                tree_draw_ctx.region,
                tree_draw_ctx.depsgraph,
                &block);
-  block_draw(&C, &block);
+  block_draw(C, &block);
 }
 
 int node_get_resize_cursor(NodeResizeDirection directions)
@@ -3862,7 +3862,7 @@ static void frame_node_draw_overlay(const bContext &C,
                tree_draw_ctx.region,
                tree_draw_ctx.depsgraph,
                &block);
-  block_draw(&C, &block);
+  block_draw(C, &block);
 }
 
 static Set<const bNodeSocket *> find_sockets_on_active_gizmo_paths(
@@ -4083,7 +4083,7 @@ static void reroute_node_draw(const bContext &C,
                tree_draw_ctx.region,
                tree_draw_ctx.depsgraph,
                &block);
-  block_draw(&C, &block);
+  block_draw(C, &block);
 }
 
 static void node_draw(const bContext &C,
@@ -4601,8 +4601,8 @@ static void node_draw_nodetree(const bContext &C,
       }
     }
   }
-  block_end(&C, &invalid_links_block);
-  block_draw(&C, &invalid_links_block);
+  block_end(C, &invalid_links_block);
+  block_draw(C, &invalid_links_block);
 }
 
 /* Draw the breadcrumb on the top of the editor. */
@@ -4619,7 +4619,7 @@ static void draw_tree_path(const bContext &C, ARegion &region)
   const int y = region.winy - UI_UNIT_Y * 0.6f;
   const int width = BLI_rcti_size_x(rect) - 2 * padding_x;
 
-  ui::Block *block = block_begin(&C, &region, __func__, ui::EmbossType::None);
+  ui::Block *block = block_begin(C, &region, __func__, ui::EmbossType::None);
   ui::Layout &layout = ui::block_layout(
       block, ui::LayoutDirection::Vertical, ui::LayoutType::Panel, x, y, width, 1, 0, style);
 
@@ -4627,8 +4627,8 @@ static void draw_tree_path(const bContext &C, ARegion &region)
   ui::template_breadcrumbs(layout, context_path);
 
   ui::block_layout_resolve(block);
-  block_end(&C, block);
-  block_draw(&C, block);
+  block_end(C, block);
+  block_draw(C, block);
 
   GPU_matrix_pop_projection();
 }
@@ -4859,7 +4859,7 @@ void node_draw_space(const bContext &C, ARegion &region)
 
     if (snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS && snode.flag & SNODE_SHOW_GPENCIL) {
       /* Draw grease-pencil annotations. */
-      ED_annotation_draw_view2d(&C, true);
+      ED_annotation_draw_view2d(C, true);
     }
   }
   else {
@@ -4871,12 +4871,12 @@ void node_draw_space(const bContext &C, ARegion &region)
   ED_region_draw_cb_draw(&C, &region, REGION_DRAW_POST_VIEW);
 
   /* Reset view matrix. */
-  ui::view2d_view_restore(&C);
+  ui::view2d_view_restore(C);
 
   if (snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS) {
     if (snode.flag & SNODE_SHOW_GPENCIL && snode.treepath.last) {
       /* Draw grease-pencil (screen strokes, and also paint-buffer). */
-      ED_annotation_draw_view2d(&C, false);
+      ED_annotation_draw_view2d(C, false);
     }
 
     /* Draw context path. */

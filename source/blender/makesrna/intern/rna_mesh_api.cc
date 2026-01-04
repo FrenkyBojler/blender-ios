@@ -221,7 +221,7 @@ static void rna_Mesh_update(Mesh *mesh,
   mesh->runtime->face_normals_true_cache.tag_dirty();
 
   DEG_id_tag_update(&mesh->id, 0);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
+  WM_event_add_notifier(*C, NC_GEOM | ND_DATA, mesh);
 }
 
 static void rna_Mesh_update_gpu_tag(Mesh *mesh)

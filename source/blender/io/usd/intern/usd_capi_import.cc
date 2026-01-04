@@ -375,7 +375,7 @@ static void import_endjob(void *customdata)
     if (data->is_background_job) {
       /* Blender already returned from the import operator, so we need to store our own extra undo
        * step. */
-      ED_undo_push(data->C, "USD Import Finished");
+      ED_undo_push(*data->C, "USD Import Finished");
     }
   }
 
@@ -405,7 +405,7 @@ static void import_freejob(void *user_data)
   delete data;
 }
 
-bool USD_import(const bContext *C,
+bool USD_import(const bContext &C,
                 const char *filepath,
                 const USDImportParams *params,
                 bool as_background_job,
@@ -413,11 +413,11 @@ bool USD_import(const bContext *C,
 {
   /* Using new here since `MEM_*` functions do not call constructor to properly initialize data. */
   ImportJobData *job = new ImportJobData();
-  job->C = const_cast<bContext *>(C);
-  job->bmain = CTX_data_main(*C);
-  job->scene = CTX_data_scene(*C);
-  job->view_layer = CTX_data_view_layer(*C);
-  job->wm = CTX_wm_manager(*C);
+  job->C = const_cast<bContext *>(&C);
+  job->bmain = CTX_data_main(C);
+  job->scene = CTX_data_scene(C);
+  job->view_layer = CTX_data_view_layer(C);
+  job->wm = CTX_wm_manager(C);
   job->import_ok = false;
   job->is_background_job = as_background_job;
   STRNCPY(job->filepath, filepath);
@@ -432,8 +432,8 @@ bool USD_import(const bContext *C,
 
   bool import_ok = false;
   if (as_background_job) {
-    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
-                                CTX_wm_window(*C),
+    wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
+                                CTX_wm_window(C),
                                 job->scene,
                                 "Importing USD...",
                                 WM_JOB_PROGRESS,
@@ -444,7 +444,7 @@ bool USD_import(const bContext *C,
     WM_jobs_timer(wm_job, 0.1, NC_SCENE, NC_SCENE);
     WM_jobs_callbacks(wm_job, import_startjob, nullptr, nullptr, import_endjob);
 
-    WM_jobs_start(CTX_wm_manager(*C), wm_job);
+    WM_jobs_start(CTX_wm_manager(C), wm_job);
   }
   else {
     wmJobWorkerStatus worker_status = {};

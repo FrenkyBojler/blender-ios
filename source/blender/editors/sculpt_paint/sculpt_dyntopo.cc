@@ -148,12 +148,12 @@ static void disable(
   BKE_scene_graph_update_tagged(&depsgraph, &bmain);
 }
 
-void disable(bContext *C, undo::StepData *undo_step)
+void disable(bContext &C, undo::StepData *undo_step)
 {
-  Main *bmain = CTX_data_main(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob = CTX_data_active_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = CTX_data_active_object(C);
   disable(*bmain, *depsgraph, *scene, *ob, undo_step);
 }
 

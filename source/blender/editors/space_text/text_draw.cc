@@ -1672,9 +1672,9 @@ void space_text_update_character_width(SpaceText *st)
   text_font_end(&tdc);
 }
 
-bool ED_text_activate_in_screen(bContext *C, Text *text)
+bool ED_text_activate_in_screen(bContext &C, Text *text)
 {
-  ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(*C), SPACE_TEXT, 0);
+  ScrArea *area = BKE_screen_find_big_area(CTX_wm_screen(C), SPACE_TEXT, 0);
   if (area) {
     SpaceText *st = static_cast<SpaceText *>(area->spacedata.first);
     ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
@@ -1768,10 +1768,10 @@ void space_text_scroll_to_cursor_with_area(SpaceText *st, ScrArea *area, const b
   }
 }
 
-void space_text_update_cursor_moved(bContext *C)
+void space_text_update_cursor_moved(bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  SpaceText *st = CTX_wm_space_text(*C);
+  ScrArea *area = CTX_wm_area(C);
+  SpaceText *st = CTX_wm_space_text(C);
 
   space_text_scroll_to_cursor_with_area(st, area, true);
 }

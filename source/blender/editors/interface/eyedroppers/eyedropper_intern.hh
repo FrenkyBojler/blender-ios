@@ -28,8 +28,8 @@ void eyedropper_draw_cursor_text_region(const int xy[2], const char *name);
  *
  * \return A button under the mouse which relates to some RNA Property, or NULL
  */
-Button *eyedropper_get_property_button_under_mouse(bContext *C, const wmEvent *event);
-void eyedropper_win_area_find(const bContext *C,
+Button *eyedropper_get_property_button_under_mouse(bContext &C, const wmEvent *event);
+void eyedropper_win_area_find(const bContext &C,
                               const int event_xy[2],
                               int r_event_xy[2],
                               wmWindow **r_win,
@@ -47,7 +47,7 @@ void eyedropper_win_area_find(const bContext *C,
  * \note Exposed by 'eyedropper_intern.hh' for use with color band picking.
  */
 struct Eyedropper;
-bool eyedropper_color_sample_fl(bContext *C,
+bool eyedropper_color_sample_fl(bContext &C,
                                 struct Eyedropper *eye,
                                 const int event_xy[2],
                                 float r_col[3]);

@@ -32,7 +32,7 @@ void space_text_update_character_width(SpaceText *st);
  * Takes an area instead of a region, use for listeners.
  */
 void space_text_scroll_to_cursor_with_area(SpaceText *st, ScrArea *area, bool center);
-void space_text_update_cursor_moved(bContext *C);
+void space_text_update_cursor_moved(bContext &C);
 
 /* Padding around line numbers in character widths. */
 #define TXT_NUMCOL_PAD 1.0f

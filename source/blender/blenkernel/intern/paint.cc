@@ -473,17 +473,17 @@ Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer)
   return nullptr;
 }
 
-Paint *BKE_paint_get_active_from_context(const bContext *C)
+Paint *BKE_paint_get_active_from_context(const bContext &C)
 {
-  Scene *sce = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *sce = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   if (sce && view_layer) {
     ToolSettings *ts = sce->toolsettings;
     BKE_view_layer_synced_ensure(sce, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
 
-    SpaceImage *sima = CTX_wm_space_image(*C);
+    SpaceImage *sima = CTX_wm_space_image(C);
     if (sima != nullptr) {
       if (obact && obact->mode == OB_MODE_EDIT) {
         if (sima->mode == SI_MODE_PAINT) {
@@ -502,16 +502,16 @@ Paint *BKE_paint_get_active_from_context(const bContext *C)
   return nullptr;
 }
 
-PaintMode BKE_paintmode_get_active_from_context(const bContext *C)
+PaintMode BKE_paintmode_get_active_from_context(const bContext &C)
 {
-  Scene *sce = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *sce = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   if (sce && view_layer) {
     BKE_view_layer_synced_ensure(sce, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
 
-    SpaceImage *sima = CTX_wm_space_image(*C);
+    SpaceImage *sima = CTX_wm_space_image(C);
     if (sima != nullptr) {
       if (obact && obact->mode == OB_MODE_EDIT) {
         if (sima->mode == SI_MODE_PAINT) {

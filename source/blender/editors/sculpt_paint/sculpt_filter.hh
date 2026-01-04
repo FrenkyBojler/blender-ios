@@ -110,7 +110,7 @@ struct Cache {
   ~Cache();
 };
 
-void cache_init(bContext *C,
+void cache_init(bContext &C,
                 Object &ob,
                 Sculpt &sd,
                 undo::Type undo_type,

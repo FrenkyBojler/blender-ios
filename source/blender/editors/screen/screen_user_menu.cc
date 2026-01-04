@@ -53,17 +53,17 @@ static const char *screen_menu_context_string(const bContext *C, const SpaceLink
 /** \name Menu Type
  * \{ */
 
-bUserMenu **ED_screen_user_menus_find(const bContext *C, uint *r_len)
+bUserMenu **ED_screen_user_menus_find(const bContext &C, uint *r_len)
 {
-  SpaceLink *sl = CTX_wm_space_data(*C);
+  SpaceLink *sl = CTX_wm_space_data(C);
 
   if (sl == nullptr) {
     *r_len = 0;
     return nullptr;
   }
 
-  const char *context_mode = CTX_data_mode_string(*C);
-  const char *context = screen_menu_context_string(C, sl);
+  const char *context_mode = CTX_data_mode_string(C);
+  const char *context = screen_menu_context_string(&C, sl);
   uint array_len = 3;
   bUserMenu **um_array = static_cast<bUserMenu **>(
       MEM_calloc_arrayN(array_len, sizeof(*um_array), __func__));
@@ -79,10 +79,10 @@ bUserMenu **ED_screen_user_menus_find(const bContext *C, uint *r_len)
   return um_array;
 }
 
-bUserMenu *ED_screen_user_menu_ensure(bContext *C)
+bUserMenu *ED_screen_user_menu_ensure(bContext &C)
 {
-  SpaceLink *sl = CTX_wm_space_data(*C);
-  const char *context = screen_menu_context_string(C, sl);
+  SpaceLink *sl = CTX_wm_space_data(C);
+  const char *context = screen_menu_context_string(&C, sl);
   return BKE_blender_user_menu_ensure(&U.user_menus, sl->spacetype, context);
 }
 
@@ -212,7 +212,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
   char label[512];
 
   uint um_array_len;
-  bUserMenu **um_array = ED_screen_user_menus_find(C, &um_array_len);
+  bUserMenu **um_array = ED_screen_user_menus_find(*C, &um_array_len);
   bool is_empty = true;
   for (int um_index = 0; um_index < um_array_len; um_index++) {
     bUserMenu *um = um_array[um_index];

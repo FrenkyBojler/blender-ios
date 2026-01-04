@@ -635,7 +635,7 @@ static PointerRNA rna_PopMenuBegin(bContext *C,
 
 static void rna_PopMenuEnd(bContext *C, PointerRNA *handle)
 {
-  blender::ui::popup_menu_end(C, static_cast<blender::ui::PopupMenu *>(handle->data));
+  blender::ui::popup_menu_end(*C, static_cast<blender::ui::PopupMenu *>(handle->data));
 }
 
 /* popover wrapper */
@@ -656,7 +656,7 @@ static PointerRNA rna_PopoverBegin(bContext *C,
 
 static void rna_PopoverEnd(bContext *C, PointerRNA *handle, wmKeyMap *keymap)
 {
-  blender::ui::popover_end(C, static_cast<blender::ui::Popover *>(handle->data), keymap);
+  blender::ui::popover_end(*C, static_cast<blender::ui::Popover *>(handle->data), keymap);
 }
 
 /* pie menu wrapper */
@@ -668,7 +668,7 @@ static PointerRNA rna_PieMenuBegin(
   }
 
   void *data = (void *)blender::ui::pie_menu_begin(
-      C, title, icon, static_cast<const wmEvent *>(event->data));
+      *C, title, icon, static_cast<const wmEvent *>(event->data));
 
   PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPieMenu, data);
   return ptr_result;
@@ -676,7 +676,7 @@ static PointerRNA rna_PieMenuBegin(
 
 static void rna_PieMenuEnd(bContext *C, PointerRNA *handle)
 {
-  blender::ui::pie_menu_end(C, static_cast<blender::ui::PieMenu *>(handle->data));
+  blender::ui::pie_menu_end(*C, static_cast<blender::ui::PieMenu *>(handle->data));
 }
 
 static void rna_WindowManager_print_undo_steps(wmWindowManager *wm)

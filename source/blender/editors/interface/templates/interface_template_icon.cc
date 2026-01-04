@@ -32,7 +32,7 @@ static Block *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_litem
   const int w = UI_UNIT_X * (args.icon_scale);
   const int h = UI_UNIT_X * (args.icon_scale + args.show_labels);
 
-  Block *block = block_begin(C, region, "_popup", EmbossType::Pulldown);
+  Block *block = block_begin(*C, region, "_popup", EmbossType::Pulldown);
   block_flag_enable(block, BLOCK_LOOP);
   block_theme_style_set(block, BLOCK_THEME_STYLE_POPUP);
 

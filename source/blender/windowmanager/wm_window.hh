@@ -55,7 +55,7 @@ wmWindow *wm_window_copy(
  * A higher level version of copy that tests the new window can be added.
  * (called from the operator directly).
  */
-wmWindow *wm_window_copy_test(bContext *C, wmWindow *win_src, bool duplicate_layout, bool child);
+wmWindow *wm_window_copy_test(bContext &C, wmWindow *win_src, bool duplicate_layout, bool child);
 /**
  * Including window itself.
  * \param C: can be NULL.
@@ -85,7 +85,7 @@ void wm_window_ghostwindows_ensure(wmWindowManager *wm);
  * (after loading a new file) in the unlikely event a window couldn't be created.
  */
 void wm_window_ghostwindows_remove_invalid(bContext *C, wmWindowManager *wm);
-void wm_window_events_process(const bContext *C);
+void wm_window_events_process(const bContext &C);
 
 void wm_window_clear_drawable(wmWindowManager *wm);
 void wm_window_make_drawable(wmWindowManager *wm, wmWindow *win);
@@ -137,7 +137,7 @@ wmOperatorStatus wm_window_fullscreen_toggle_exec(bContext &C, wmOperator &op);
  *
  * \param win: The window to show the confirmation popup/window in.
  */
-void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win) ATTR_NONNULL();
+void wm_quit_with_optional_confirmation_prompt(bContext &C, wmWindow *win) ATTR_NONNULL();
 
 wmOperatorStatus wm_window_new_exec(bContext &C, wmOperator &op);
 wmOperatorStatus wm_window_new_main_exec(bContext &C, wmOperator &op);

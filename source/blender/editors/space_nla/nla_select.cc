@@ -135,7 +135,7 @@ static wmOperatorStatus nlaedit_deselectall_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -160,7 +160,7 @@ static wmOperatorStatus nlaedit_deselectall_exec(bContext &C, wmOperator &op)
   }
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -334,7 +334,7 @@ static wmOperatorStatus nlaedit_box_select_invoke(bContext &C,
                                                   const wmEvent *event)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -352,7 +352,7 @@ static wmOperatorStatus nlaedit_box_select_exec(bContext &C, wmOperator &op)
   short mode = 0;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -389,7 +389,7 @@ static wmOperatorStatus nlaedit_box_select_exec(bContext &C, wmOperator &op)
   box_select_nla_strips(&ac, rect, mode, selectmode);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -504,7 +504,7 @@ static wmOperatorStatus nlaedit_select_leftright_exec(bContext &C, wmOperator &o
   short selectmode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -525,8 +525,8 @@ static wmOperatorStatus nlaedit_select_leftright_exec(bContext &C, wmOperator &o
   nlaedit_select_leftright(&C, &ac, leftright, selectmode);
 
   /* set notifier that keyframe selection (and tracks too) have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -539,7 +539,7 @@ static wmOperatorStatus nlaedit_select_leftright_invoke(bContext &C,
   short leftright = RNA_enum_get(op.ptr, "mode");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -684,7 +684,7 @@ static wmOperatorStatus nlaedit_clickselect_exec(bContext &C, wmOperator &op)
   wmOperatorStatus ret_value;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -700,7 +700,7 @@ static wmOperatorStatus nlaedit_clickselect_exec(bContext &C, wmOperator &op)
   ret_value = mouse_nla_strips(&C, &ac, mval, selectmode, deselect_all, wait_to_deselect_others);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_SELECTED, nullptr);
 
   /* for tweak grab to work */
   return ret_value | OPERATOR_PASS_THROUGH;

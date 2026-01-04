@@ -125,7 +125,7 @@ static wmOperatorStatus set_attribute_exec(bContext &C, wmOperator &op)
     attribute.finish();
 
     DEG_id_tag_update(&pointcloud->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, pointcloud);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, pointcloud);
   }
 
   return OPERATOR_FINISHED;

@@ -453,18 +453,18 @@ namespace blender::ed::sculpt_paint {
 /**
  * Triggers redraws, updates, and dependency graph tags as necessary after each brush calculation.
  */
-void flush_update_step(const bContext *C, UpdateType update_type);
+void flush_update_step(const bContext &C, UpdateType update_type);
 /**
  * Triggers redraws, updates, and dependency graph tags as necessary when a brush stroke finishes.
  */
-void flush_update_done(const bContext *C, Object &ob, UpdateType update_type);
+void flush_update_done(const bContext &C, Object &ob, UpdateType update_type);
 
 }  // namespace blender::ed::sculpt_paint
 
 /**
  * Should be used after modifying the mask or face set IDs.
  */
-void SCULPT_tag_update_overlays(bContext *C);
+void SCULPT_tag_update_overlays(bContext &C);
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -478,7 +478,7 @@ namespace blender::ed::sculpt_paint {
  *
  * TODO: This should be updated to return std::optional<float3>
  */
-bool stroke_get_location_bvh(bContext *C, float out[3], const float mval[2], bool force_original);
+bool stroke_get_location_bvh(bContext &C, float out[3], const float mval[2], bool force_original);
 bool stroke_get_location_bvh(Depsgraph &depsgraph,
                              ViewContext &vc,
                              const Sculpt &sd,
@@ -510,7 +510,7 @@ struct CursorGeometryInfo {
  *
  * TODO: This should be updated to return `std::optional<CursorGeometryInfo>`
  */
-bool cursor_geometry_info_update(bContext *C,
+bool cursor_geometry_info_update(bContext &C,
                                  CursorGeometryInfo *out,
                                  const float2 &mval,
                                  bool use_sampled_normal);
@@ -531,7 +531,7 @@ void geometry_preview_lines_update(Depsgraph &depsgraph,
 
 void SCULPT_stroke_modifiers_check(
     Depsgraph &depsgraph, RegionView3D *rv3d, const Sculpt &sd, Object &ob, const Brush *brush);
-void SCULPT_stroke_modifiers_check(const bContext *C, Object &ob, const Brush *brush);
+void SCULPT_stroke_modifiers_check(const bContext &C, Object &ob, const Brush *brush);
 namespace blender::ed::sculpt_paint {
 float raycast_init(ViewContext *vc,
                    const float2 &mval,

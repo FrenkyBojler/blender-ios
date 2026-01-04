@@ -160,7 +160,7 @@ void view2d_sync(bScreen *screen, ScrArea *area, View2D *v2dcur, int flag);
  *
  * Current intent is to use it from user code, such as view navigation and zoom operations.
  */
-void view2d_curRect_changed(const bContext *C, View2D *v2d);
+void view2d_curRect_changed(const bContext &C, View2D *v2d);
 
 void view2d_totRect_set(View2D *v2d, int width, int height);
 
@@ -194,7 +194,7 @@ void view2d_view_orthoSpecial(ARegion *region, View2D *v2d, bool xaxis);
 /**
  * Restore view matrices after drawing.
  */
-void view2d_view_restore(const bContext *C);
+void view2d_view_restore(const bContext &C);
 
 /** \} */
 
@@ -371,12 +371,12 @@ bool view2d_view_to_region_rcti_clip(const View2D *v2d, const rctf *rect_src, rc
 /**
  * View2D data by default resides in region, so get from region stored in context.
  */
-View2D *view2d_fromcontext(const bContext *C);
+View2D *view2d_fromcontext(const bContext &C);
 /**
  * Same as #view2d_fromcontext, but it returns region-window.
  * Utility for pull-downs or buttons.
  */
-View2D *view2d_fromcontext_rwin(const bContext *C);
+View2D *view2d_fromcontext_rwin(const bContext &C);
 
 /**
  * Get scroll-bar sizes of the current 2D view.
@@ -473,7 +473,7 @@ void ED_keymap_view2d(wmKeyConfig *keyconf);
  * Will start timer if appropriate.
  * the arguments are the desired situation.
  */
-void view2d_smooth_view(const bContext *C, ARegion *region, const rctf *cur, int smooth_viewtx);
+void view2d_smooth_view(const bContext &C, ARegion *region, const rctf *cur, int smooth_viewtx);
 
 #define UI_MARKER_MARGIN_Y (34 * UI_SCALE_FAC)
 #define UI_TIME_SCRUB_MARGIN_Y (23 * UI_SCALE_FAC)
@@ -549,7 +549,7 @@ struct View2DEdgePanData {
   double edge_pan_start_time_x, edge_pan_start_time_y;
 };
 
-void view2d_edge_pan_init(bContext *C,
+void view2d_edge_pan_init(bContext &C,
                           View2DEdgePanData *vpd,
                           float inside_pad,
                           float outside_pad,

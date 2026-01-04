@@ -109,15 +109,15 @@ static bool node_group_operator_editable(bContext &C)
   return false;
 }
 
-static StringRef group_ntree_idname(bContext *C)
+static StringRef group_ntree_idname(bContext &C)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   return snode->tree_idname;
 }
 
-StringRef node_group_idname(const bContext *C)
+StringRef node_group_idname(const bContext &C)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
+  SpaceNode *snode = CTX_wm_space_node(C);
 
   if (ED_node_is_shader(snode)) {
     return ntreeType_Shader->group_idname;
@@ -135,9 +135,9 @@ StringRef node_group_idname(const bContext *C)
   return "";
 }
 
-static bNode *node_group_get_active(bContext *C, const StringRef node_idname)
+static bNode *node_group_get_active(bContext &C, const StringRef node_idname)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
   if (node && node->idname == node_idname) {
@@ -183,12 +183,12 @@ static wmOperatorStatus node_group_edit_exec(bContext &C, wmOperator &op)
 {
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
-  const StringRef node_idname = node_group_idname(&C);
+  const StringRef node_idname = node_group_idname(C);
   const bool exit = RNA_boolean_get(op.ptr, "exit");
 
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
-  bNode *gnode = node_group_get_active(&C, node_idname);
+  bNode *gnode = node_group_get_active(C, node_idname);
 
   if (gnode && !exit) {
     bNodeTree *ngroup = (bNodeTree *)gnode->id;
@@ -201,8 +201,8 @@ static wmOperatorStatus node_group_edit_exec(bContext &C, wmOperator &op)
     ED_node_tree_pop(region, snode);
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_NODES, nullptr);
-  WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_NODES, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_NODE_GIZMO, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -466,7 +466,7 @@ static wmOperatorStatus node_group_ungroup_exec(bContext &C, wmOperator & /*op*/
 {
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
-  const StringRef node_idname = node_group_idname(&C);
+  const StringRef node_idname = node_group_idname(C);
 
   ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
 
@@ -682,7 +682,7 @@ static wmOperatorStatus node_group_separate_invoke(bContext &C,
   op_ptr = layout->op("NODE_OT_group_separate", IFACE_("Move"), ICON_NONE);
   RNA_enum_set(&op_ptr, "type", NODE_GS_MOVE);
 
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -1489,8 +1489,8 @@ static wmOperatorStatus node_group_make_exec(bContext &C, wmOperator &op)
   ARegion &region = *CTX_wm_region(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
-  const StringRef ntree_idname = group_ntree_idname(&C);
-  const StringRef node_idname = node_group_idname(&C);
+  const StringRef ntree_idname = group_ntree_idname(C);
+  const StringRef node_idname = node_group_idname(C);
   Main *bmain = CTX_data_main(C);
 
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
@@ -1517,7 +1517,7 @@ static wmOperatorStatus node_group_make_exec(bContext &C, wmOperator &op)
     }
   }
 
-  WM_event_add_notifier(&C, NC_NODE | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
 
   /* We broke relations in node tree, need to rebuild them in the graphs. */
   DEG_relations_tag_update(bmain);
@@ -1551,11 +1551,11 @@ static wmOperatorStatus node_group_insert_exec(bContext &C, wmOperator &op)
   SpaceNode *snode = CTX_wm_space_node(C);
   ARegion *region = CTX_wm_region(C);
   bNodeTree *ntree = snode->edittree;
-  const StringRef node_idname = node_group_idname(&C);
+  const StringRef node_idname = node_group_idname(C);
 
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
-  bNode *gnode = node_group_get_active(&C, node_idname);
+  bNode *gnode = node_group_get_active(C, node_idname);
   if (!gnode || !gnode->id) {
     return OPERATOR_CANCELLED;
   }
@@ -1649,7 +1649,7 @@ static wmOperatorStatus node_default_group_width_set_exec(bContext &C, wmOperato
     return OPERATOR_CANCELLED;
   }
   ntree->default_group_node_width = parent_node->width;
-  WM_event_add_notifier(&C, NC_NODE | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_EDITED, nullptr);
   return OPERATOR_CANCELLED;
 }
 

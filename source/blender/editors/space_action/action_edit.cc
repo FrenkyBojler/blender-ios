@@ -92,12 +92,12 @@ static bool act_markers_make_local_poll(bContext &C)
   }
 
   /* 4) */
-  return ED_markers_get_first_selected(ED_context_get_markers(&C)) != nullptr;
+  return ED_markers_get_first_selected(ED_context_get_markers(C)) != nullptr;
 }
 
 static wmOperatorStatus act_markers_make_local_exec(bContext &C, wmOperator & /*op*/)
 {
-  ListBaseT<TimeMarker> *markers = ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = ED_context_get_markers(C);
   bAction *act = ANIM_active_action_from_area(
       CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_area(C));
 
@@ -125,8 +125,8 @@ static wmOperatorStatus act_markers_make_local_exec(bContext &C, wmOperator & /*
   sact->flag |= SACTION_POSEMARKERS_SHOW;
 
   /* notifiers - both sets, as this change affects both */
-  WM_event_add_notifier(&C, NC_SCENE | ND_MARKERS, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_MARKERS, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -264,7 +264,7 @@ static wmOperatorStatus actkeys_previewrange_exec(bContext &C, wmOperator & /*op
   float min, max;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   if (ac.scene == nullptr) {
@@ -286,7 +286,7 @@ static wmOperatorStatus actkeys_previewrange_exec(bContext &C, wmOperator & /*op
 
   /* set notifier that things have changed */
   /* XXX err... there's nothing for frame ranges yet, but this should do fine too */
-  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, ac.scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
 
   return OPERATOR_FINISHED;
 }
@@ -374,7 +374,7 @@ static wmOperatorStatus actkeys_viewall(bContext *C, const bool only_sel)
   bool found;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   v2d = &ac.region->v2d;
@@ -487,7 +487,7 @@ void ACTION_OT_view_selected(wmOperatorType *ot)
 static wmOperatorStatus actkeys_view_frame_exec(bContext &C, wmOperator &op)
 {
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
-  ANIM_center_frame(&C, smooth_viewtx);
+  ANIM_center_frame(C, smooth_viewtx);
 
   return OPERATOR_FINISHED;
 }
@@ -605,7 +605,7 @@ static wmOperatorStatus actkeys_copy_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -667,7 +667,7 @@ static wmOperatorStatus actkeys_paste_exec(bContext &C, wmOperator &op)
   bool gpframes_inbuf = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -718,10 +718,10 @@ static wmOperatorStatus actkeys_paste_exec(bContext &C, wmOperator &op)
 
   /* Grease Pencil needs extra update to refresh the added keyframes. */
   if (ac.datatype == ANIMCONT_GPENCIL || gpframes_inbuf) {
-    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA, nullptr);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA, nullptr);
   }
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -977,7 +977,7 @@ static wmOperatorStatus actkeys_insertkey_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -989,16 +989,16 @@ static wmOperatorStatus actkeys_insertkey_exec(bContext &C, wmOperator &op)
   /* what channels to affect? */
   mode = RNA_enum_get(op.ptr, "type");
 
-  ANIM_deselect_keys_in_animation_editors(&C);
+  ANIM_deselect_keys_in_animation_editors(C);
 
   /* insert keyframes */
   insert_action_keys(&ac, mode);
 
   /* set notifier that keyframes have changed */
   if (ac.datatype == ANIMCONT_GPENCIL) {
-    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   }
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1076,7 +1076,7 @@ static wmOperatorStatus actkeys_duplicate_exec(bContext &C, wmOperator & /*op*/)
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1086,7 +1086,7 @@ static wmOperatorStatus actkeys_duplicate_exec(bContext &C, wmOperator & /*op*/)
   }
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1171,7 +1171,7 @@ static wmOperatorStatus actkeys_delete_exec(bContext &C, wmOperator & /*op*/)
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1181,7 +1181,7 @@ static wmOperatorStatus actkeys_delete_exec(bContext &C, wmOperator & /*op*/)
   }
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1261,7 +1261,7 @@ static wmOperatorStatus actkeys_clean_exec(bContext &C, wmOperator &op)
   bool clean_chan;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1278,7 +1278,7 @@ static wmOperatorStatus actkeys_clean_exec(bContext &C, wmOperator &op)
   clean_action_keys(&ac, thresh, clean_chan);
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1339,7 +1339,7 @@ static wmOperatorStatus actkeys_bake_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1352,7 +1352,7 @@ static wmOperatorStatus actkeys_bake_exec(bContext &C, wmOperator &op)
   bake_action_keys(&ac);
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1467,7 +1467,7 @@ static wmOperatorStatus actkeys_expo_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1483,7 +1483,7 @@ static wmOperatorStatus actkeys_expo_exec(bContext &C, wmOperator &op)
   setexpo_action_keys(&ac, mode);
 
   /* set notifier that keyframe properties have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1519,7 +1519,7 @@ static wmOperatorStatus actkeys_ipo_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1539,7 +1539,7 @@ static wmOperatorStatus actkeys_ipo_exec(bContext &C, wmOperator &op)
                                   ANIM_editkeyframes_ipo(mode));
 
   /* set notifier that keyframe properties have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1578,7 +1578,7 @@ static wmOperatorStatus actkeys_easing_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1593,7 +1593,7 @@ static wmOperatorStatus actkeys_easing_exec(bContext &C, wmOperator &op)
                                   ANIM_editkeyframes_easing(mode));
 
   /* set notifier that keyframe properties have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1667,7 +1667,7 @@ static wmOperatorStatus actkeys_handletype_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1683,7 +1683,7 @@ static wmOperatorStatus actkeys_handletype_exec(bContext &C, wmOperator &op)
   sethandles_action_keys(&ac, mode);
 
   /* set notifier that keyframe properties have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1764,7 +1764,7 @@ static wmOperatorStatus actkeys_keytype_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1777,7 +1777,7 @@ static wmOperatorStatus actkeys_keytype_exec(bContext &C, wmOperator &op)
   setkeytype_action_keys(&ac, eBezTriple_KeyframeType(mode));
 
   /* set notifier that keyframe properties have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1826,7 +1826,7 @@ static wmOperatorStatus actkeys_framejump_exec(bContext &C, wmOperator & /*op*/)
   KeyframeEditData ked = {{nullptr}};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1890,7 +1890,7 @@ static wmOperatorStatus actkeys_framejump_exec(bContext &C, wmOperator & /*op*/)
   }
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, ac.scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
 
   return OPERATOR_FINISHED;
 }
@@ -2013,7 +2013,7 @@ static wmOperatorStatus actkeys_snap_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2024,7 +2024,7 @@ static wmOperatorStatus actkeys_snap_exec(bContext &C, wmOperator &op)
   snap_action_keys(&ac, mode);
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2147,7 +2147,7 @@ static wmOperatorStatus actkeys_mirror_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2158,7 +2158,7 @@ static wmOperatorStatus actkeys_mirror_exec(bContext &C, wmOperator &op)
   mirror_action_keys(&ac, mode);
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }

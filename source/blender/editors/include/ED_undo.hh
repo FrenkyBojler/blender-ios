@@ -30,12 +30,12 @@ struct wmWindowManager;
 /**
  * Run from the main event loop, basic checks that undo is left in a correct state.
  */
-bool ED_undo_is_state_valid(bContext *C);
-void ED_undo_group_begin(bContext *C);
-void ED_undo_group_end(bContext *C);
-void ED_undo_push(bContext *C, const char *str);
+bool ED_undo_is_state_valid(bContext &C);
+void ED_undo_group_begin(bContext &C);
+void ED_undo_group_end(bContext &C);
+void ED_undo_push(bContext &C, const char *str);
 void ED_undo_push_op(bContext *C, wmOperator *op);
-void ED_undo_grouped_push(bContext *C, const char *str);
+void ED_undo_grouped_push(bContext &C, const char *str);
 void ED_undo_grouped_push_op(bContext *C, wmOperator *op);
 void ED_undo_pop_op(bContext *C, wmOperator *op);
 void ED_undo_pop(bContext *C);
@@ -61,9 +61,9 @@ void ED_undo_operator_repeat_cb_evt(bContext *C, void *arg_op, int arg_unused);
 /**
  * Name optionally, function used to check for operator redo panel.
  */
-bool ED_undo_is_valid(const bContext *C, const char *undoname);
+bool ED_undo_is_valid(const bContext &C, const char *undoname);
 
-bool ED_undo_is_memfile_compatible(const bContext *C);
+bool ED_undo_is_memfile_compatible(const bContext &C);
 
 /* Unfortunate workaround for limits mixing undo systems. */
 

@@ -140,7 +140,7 @@ static int mouse_nla_tracks(bContext *C, bAnimContext *ac, int track_index, shor
         }
 
         /* change active object - regardless of whether it is now selected [#37883] */
-        blender::ed::object::base_activate_with_mode_exit_if_needed(C, base); /* adds notifier */
+        blender::ed::object::base_activate_with_mode_exit_if_needed(*C, base); /* adds notifier */
 
         if ((adt) && (adt->flag & ADT_UI_SELECTED)) {
           adt->flag |= ADT_UI_ACTIVE;
@@ -298,7 +298,7 @@ static wmOperatorStatus nlatracks_mouseclick_invoke(bContext &C,
   float x, y;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -330,7 +330,7 @@ static wmOperatorStatus nlatracks_mouseclick_invoke(bContext &C,
   notifierFlags = mouse_nla_tracks(&C, &ac, track_index, selectmode);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | notifierFlags, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | notifierFlags, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -369,7 +369,7 @@ static wmOperatorStatus nlatracks_pushdown_exec(bContext &C, wmOperator &op)
   int track_index = RNA_int_get(op.ptr, "track_index");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -452,7 +452,7 @@ static wmOperatorStatus nlatracks_pushdown_exec(bContext &C, wmOperator &op)
   DEG_id_tag_update_ex(bmain, &action_to_push_down->id, ID_RECALC_ANIMATION);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -649,7 +649,7 @@ static wmOperatorStatus nlaedit_add_tracks_exec(bContext &C, wmOperator &op)
   bool op_done = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -662,7 +662,7 @@ static wmOperatorStatus nlaedit_add_tracks_exec(bContext &C, wmOperator &op)
     DEG_relations_tag_update(CTX_data_main(C));
 
     /* set notifier that things have changed */
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -708,7 +708,7 @@ static wmOperatorStatus nlaedit_delete_tracks_exec(bContext &C, wmOperator & /*o
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -748,7 +748,7 @@ static wmOperatorStatus nlaedit_delete_tracks_exec(bContext &C, wmOperator & /*o
   DEG_relations_tag_update(ac.bmain);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -785,7 +785,7 @@ static wmOperatorStatus nlaedit_objects_add_exec(bContext &C, wmOperator & /*op*
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -803,7 +803,7 @@ static wmOperatorStatus nlaedit_objects_add_exec(bContext &C, wmOperator & /*op*
   CTX_DATA_END;
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;

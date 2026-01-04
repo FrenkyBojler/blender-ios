@@ -170,12 +170,12 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
     GreasePencil *grease_pencil = this->grease_pencil;
 
     DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
+    WM_event_add_notifier(*C, NC_GEOM | ND_DATA, grease_pencil);
 
     ED_region_tag_redraw(this->vc.region);
   }
 
-  std::optional<wmOperatorStatus> initialize(bContext *C,
+  std::optional<wmOperatorStatus> initialize(bContext &C,
                                              wmOperator *op,
                                              const wmEvent * /*event*/)
   {
@@ -186,7 +186,7 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
 
     GreasePencil *grease_pencil = static_cast<GreasePencil *>(this->vc.obact->data);
     this->grease_pencil = grease_pencil;
-    View3D *view3d = CTX_wm_view3d(*C);
+    View3D *view3d = CTX_wm_view3d(C);
 
     /* Initialize helper class for projecting screen space coordinates. */
     DrawingPlacement placement = DrawingPlacement(*this->vc.scene,
@@ -195,10 +195,10 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
                                                   *this->vc.obact,
                                                   grease_pencil->get_active_layer());
     if (placement.use_project_to_surface()) {
-      placement.cache_viewport_depths(CTX_data_depsgraph_pointer(*C), this->vc.region, view3d);
+      placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), this->vc.region, view3d);
     }
     else if (placement.use_project_to_stroke()) {
-      placement.cache_viewport_depths(CTX_data_depsgraph_pointer(*C), this->vc.region, view3d);
+      placement.cache_viewport_depths(CTX_data_depsgraph_pointer(C), this->vc.region, view3d);
     }
 
     bool inserted_keyframe = false;
@@ -217,7 +217,7 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
 
     /* Update the view. */
     if (inserted_keyframe) {
-      WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+      WM_event_add_notifier(*C, NC_GPENCIL | NA_EDITED, nullptr);
     }
 
     this->placement = placement;
@@ -276,7 +276,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext &C, wmOperator &op, co
   op.customdata = ptd_pointer;
   GreasePencilPenToolOperation &ptd = *ptd_pointer;
 
-  const wmOperatorStatus result = ptd.invoke(&C, &op, event);
+  const wmOperatorStatus result = ptd.invoke(C, &op, event);
   if (result != OPERATOR_RUNNING_MODAL) {
     grease_pencil_pen_exit(&C, &op);
   }

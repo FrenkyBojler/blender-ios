@@ -556,13 +556,13 @@ bool modifier_move_to_index(ReportList *reports,
   return true;
 }
 
-void modifier_link(bContext *C, Object *ob_dst, Object *ob_src)
+void modifier_link(bContext &C, Object *ob_dst, Object *ob_src)
 {
   BKE_object_link_modifiers(ob_dst, ob_src);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob_dst);
   DEG_id_tag_update(&ob_dst->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   DEG_relations_tag_update(bmain);
 }
 
@@ -1406,7 +1406,7 @@ static wmOperatorStatus modifier_add_exec(bContext &C, wmOperator &op)
       continue;
     }
     changed = true;
-    WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
   }
   if (!changed) {
     return OPERATOR_CANCELLED;
@@ -1507,15 +1507,15 @@ void OBJECT_OT_modifier_add(wmOperatorType *ot)
  * Using modifier names and data context.
  * \{ */
 
-bool edit_modifier_poll_generic(bContext *C,
+bool edit_modifier_poll_generic(bContext &C,
                                 StructRNA *rna_type,
                                 int obtype_flag,
                                 const bool is_editmode_allowed,
                                 const bool is_liboverride_allowed)
 {
-  Main *bmain = CTX_data_main(*C);
-  PointerRNA ptr = CTX_data_pointer_get_type(*C, "modifier", rna_type);
-  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(C);
+  Main *bmain = CTX_data_main(C);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "modifier", rna_type);
+  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(&C);
   ModifierData *mod = static_cast<ModifierData *>(ptr.data); /* May be nullptr. */
 
   if (mod == nullptr && ob != nullptr) {
@@ -1534,12 +1534,12 @@ bool edit_modifier_poll_generic(bContext *C,
 
   if (!is_liboverride_allowed && BKE_modifier_is_nonlocal_in_liboverride(ob, mod)) {
     CTX_wm_operator_poll_msg_set(
-        *C, "Cannot edit modifiers coming from linked data in a library override");
+        C, "Cannot edit modifiers coming from linked data in a library override");
     return false;
   }
 
-  if (!is_editmode_allowed && CTX_data_edit_object(*C) != nullptr) {
-    CTX_wm_operator_poll_msg_set(*C, "This modifier operation is not allowed from Edit mode");
+  if (!is_editmode_allowed && CTX_data_edit_object(C) != nullptr) {
+    CTX_wm_operator_poll_msg_set(C, "This modifier operation is not allowed from Edit mode");
     return false;
   }
 
@@ -1548,14 +1548,14 @@ bool edit_modifier_poll_generic(bContext *C,
 
 static bool edit_modifier_poll(bContext &C)
 {
-  return edit_modifier_poll_generic(&C, &RNA_Modifier, 0, true, false);
+  return edit_modifier_poll_generic(C, &RNA_Modifier, 0, true, false);
 }
 
 /* Used by operators performing actions allowed also on modifiers from the overridden linked object
  * (not only from added 'local' ones). */
 static bool edit_modifier_liboverride_allowed_poll(bContext &C)
 {
-  return edit_modifier_poll_generic(&C, &RNA_Modifier, 0, true, true);
+  return edit_modifier_poll_generic(C, &RNA_Modifier, 0, true, true);
 }
 
 void edit_modifier_properties(wmOperatorType *ot)
@@ -1624,7 +1624,7 @@ static bool edit_modifier_invoke_properties_with_hover(bContext *C,
     return true;
   }
 
-  PointerRNA *panel_ptr = ui::region_panel_custom_data_under_cursor(C, event);
+  PointerRNA *panel_ptr = ui::region_panel_custom_data_under_cursor(*C, event);
   if (panel_ptr == nullptr || RNA_pointer_is_null(panel_ptr)) {
     /* The operators using this function can typically be called from UIs that aren't related to
      * the modifiers UI at all. So include #OPERATOR_PASS_THROUGH to not block events from reaching
@@ -1690,14 +1690,14 @@ static wmOperatorStatus modifier_remove_exec(bContext &C, wmOperator &op)
 
     changed = true;
 
-    WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER | NA_REMOVED, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_REMOVED, ob);
 
     /* if cloth/softbody was removed, particle mode could be cleared */
     if (mode_orig & OB_MODE_PARTICLE_EDIT) {
       if ((ob->mode & OB_MODE_PARTICLE_EDIT) == 0) {
         BKE_view_layer_synced_ensure(scene, view_layer);
         if (ob == BKE_view_layer_active_object_get(view_layer)) {
-          WM_event_add_notifier(&C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
+          WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
         }
       }
     }
@@ -1794,7 +1794,7 @@ static wmOperatorStatus modifier_move_up_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -1839,7 +1839,7 @@ static wmOperatorStatus modifier_move_down_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -1942,7 +1942,7 @@ void OBJECT_OT_modifier_move_to_index(wmOperatorType *ot)
 
 static bool modifier_apply_poll(bContext &C)
 {
-  if (!edit_modifier_poll_generic(&C, &RNA_Modifier, 0, false, false)) {
+  if (!edit_modifier_poll_generic(C, &RNA_Modifier, 0, false, false)) {
     return false;
   }
 
@@ -1967,15 +1967,15 @@ static bool modifier_apply_poll(bContext &C)
   return true;
 }
 
-static wmOperatorStatus modifier_apply_exec_ex(bContext *C,
+static wmOperatorStatus modifier_apply_exec_ex(bContext &C,
                                                wmOperator *op,
                                                int apply_as,
                                                bool keep_modifier)
 {
-  Main *bmain = CTX_data_main(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Vector<PointerRNA> objects = modifier_get_edit_objects(*C, *op);
+  Main *bmain = CTX_data_main(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
+  Vector<PointerRNA> objects = modifier_get_edit_objects(C, *op);
 
   char name[MAX_NAME];
   RNA_string_get(op->ptr, "modifier", name);
@@ -2052,7 +2052,7 @@ static wmOperatorStatus modifier_apply_exec_ex(bContext *C,
 
 static wmOperatorStatus modifier_apply_exec(bContext &C, wmOperator &op)
 {
-  return modifier_apply_exec_ex(&C, &op, MODIFIER_APPLY_DATA, false);
+  return modifier_apply_exec_ex(C, &op, MODIFIER_APPLY_DATA, false);
 }
 
 static wmOperatorStatus modifier_apply_invoke(bContext &C, wmOperator &op, const wmEvent *event)
@@ -2137,7 +2137,7 @@ static wmOperatorStatus modifier_apply_as_shapekey_exec(bContext &C, wmOperator 
 {
   bool keep = RNA_boolean_get(op.ptr, "keep_modifier");
 
-  return modifier_apply_exec_ex(&C, &op, MODIFIER_APPLY_SHAPE, keep);
+  return modifier_apply_exec_ex(C, &op, MODIFIER_APPLY_SHAPE, keep);
 }
 
 static wmOperatorStatus modifier_apply_as_shapekey_invoke(bContext &C,
@@ -2204,7 +2204,7 @@ static wmOperatorStatus modifier_convert_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -2261,7 +2261,7 @@ static wmOperatorStatus modifier_copy_exec(bContext &C, wmOperator &op)
     changed = true;
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     DEG_relations_tag_update(bmain);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
   }
 
   if (!changed) {
@@ -2310,7 +2310,7 @@ static wmOperatorStatus modifier_set_active_exec(bContext &C, wmOperator &op)
   /* If there is no modifier set for this operator, clear the active modifier field. */
   BKE_object_modifier_set_active(ob, md);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -2368,7 +2368,7 @@ static wmOperatorStatus modifier_copy_to_selected_exec(bContext &C, wmOperator &
       continue;
     }
     if (modifier_copy_to_object(bmain, scene, obact, md, ob, op.reports)) {
-      WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
+      WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
       num_copied++;
     }
   }
@@ -2478,7 +2478,7 @@ static wmOperatorStatus object_modifiers_copy_exec(bContext &C, wmOperator &op)
     }
     for (const ModifierData &md : active_object->modifiers) {
       if (modifier_copy_to_object(bmain, scene, active_object, &md, object, op.reports)) {
-        WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER | NA_ADDED, object);
+        WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, object);
       }
     }
   }
@@ -2488,7 +2488,7 @@ static wmOperatorStatus object_modifiers_copy_exec(bContext &C, wmOperator &op)
 
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2540,14 +2540,14 @@ static void modifier_skin_customdata_delete(Object *ob)
 
 static bool skin_poll(bContext &C)
 {
-  return edit_modifier_poll_generic(&C, &RNA_SkinModifier, (1 << OB_MESH), false, false);
+  return edit_modifier_poll_generic(C, &RNA_SkinModifier, (1 << OB_MESH), false, false);
 }
 
 static bool skin_edit_poll(bContext &C)
 {
   Object *ob = CTX_data_edit_object(C);
   return (ob != nullptr &&
-          edit_modifier_poll_generic(&C, &RNA_SkinModifier, (1 << OB_MESH), true, false) &&
+          edit_modifier_poll_generic(C, &RNA_SkinModifier, (1 << OB_MESH), true, false) &&
           !ID_IS_OVERRIDE_LIBRARY(ob) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
@@ -2598,7 +2598,7 @@ static wmOperatorStatus skin_root_mark_exec(bContext &C, wmOperator & /*op*/)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -2651,7 +2651,7 @@ static wmOperatorStatus skin_loose_mark_clear_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -2700,7 +2700,7 @@ static wmOperatorStatus skin_radii_equalize_exec(bContext &C, wmOperator & /*op*
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -2861,7 +2861,7 @@ static wmOperatorStatus skin_armature_create_exec(bContext &C, wmOperator &op)
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -2899,7 +2899,7 @@ void OBJECT_OT_skin_armature_create(wmOperatorType *ot)
 
 static bool correctivesmooth_poll(bContext &C)
 {
-  return edit_modifier_poll_generic(&C, &RNA_CorrectiveSmoothModifier, 0, true, false);
+  return edit_modifier_poll_generic(C, &RNA_CorrectiveSmoothModifier, 0, true, false);
 }
 
 static wmOperatorStatus correctivesmooth_bind_exec(bContext &C, wmOperator &op)
@@ -2940,7 +2940,7 @@ static wmOperatorStatus correctivesmooth_bind_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -2980,7 +2980,7 @@ void OBJECT_OT_correctivesmooth_bind(wmOperatorType *ot)
 
 static bool meshdeform_poll(bContext &C)
 {
-  return edit_modifier_poll_generic(&C, &RNA_MeshDeformModifier, 0, true, false);
+  return edit_modifier_poll_generic(C, &RNA_MeshDeformModifier, 0, true, false);
 }
 
 static wmOperatorStatus meshdeform_bind_exec(bContext &C, wmOperator &op)
@@ -3019,7 +3019,7 @@ static wmOperatorStatus meshdeform_bind_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
   return OPERATOR_FINISHED;
 }
 
@@ -3058,7 +3058,7 @@ void OBJECT_OT_meshdeform_bind(wmOperatorType *ot)
 
 static bool explode_poll(bContext &C)
 {
-  return edit_modifier_poll_generic(&C, &RNA_ExplodeModifier, 0, true, false);
+  return edit_modifier_poll_generic(C, &RNA_ExplodeModifier, 0, true, false);
 }
 
 static wmOperatorStatus explode_refresh_exec(bContext &C, wmOperator &op)
@@ -3074,7 +3074,7 @@ static wmOperatorStatus explode_refresh_exec(bContext &C, wmOperator &op)
   emd->flag |= eExplodeFlag_CalcFaces;
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -3112,7 +3112,7 @@ void OBJECT_OT_explode_refresh(wmOperatorType *ot)
 
 static bool ocean_bake_poll(bContext &C)
 {
-  return edit_modifier_poll_generic(&C, &RNA_OceanModifier, 0, true, false);
+  return edit_modifier_poll_generic(C, &RNA_OceanModifier, 0, true, false);
 }
 
 struct OceanBakeJob {
@@ -3205,7 +3205,7 @@ static wmOperatorStatus ocean_bake_exec(bContext &C, wmOperator &op)
   if (free) {
     BKE_ocean_free_modifier_cache(omd);
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
     return OPERATOR_FINISHED;
   }
 
@@ -3315,7 +3315,7 @@ void OBJECT_OT_ocean_bake(wmOperatorType *ot)
 
 static bool laplaciandeform_poll(bContext &C)
 {
-  return edit_modifier_poll_generic(&C, &RNA_LaplacianDeformModifier, 0, false, false);
+  return edit_modifier_poll_generic(C, &RNA_LaplacianDeformModifier, 0, false, false);
 }
 
 static wmOperatorStatus laplaciandeform_bind_exec(bContext &C, wmOperator &op)
@@ -3358,7 +3358,7 @@ static wmOperatorStatus laplaciandeform_bind_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
   return OPERATOR_FINISHED;
 }
 
@@ -3397,7 +3397,7 @@ void OBJECT_OT_laplaciandeform_bind(wmOperatorType *ot)
 
 static bool surfacedeform_bind_poll(bContext &C)
 {
-  return edit_modifier_poll_generic(&C, &RNA_SurfaceDeformModifier, 0, true, false);
+  return edit_modifier_poll_generic(C, &RNA_SurfaceDeformModifier, 0, true, false);
 }
 
 static wmOperatorStatus surfacedeform_bind_exec(bContext &C, wmOperator &op)
@@ -3427,7 +3427,7 @@ static wmOperatorStatus surfacedeform_bind_exec(bContext &C, wmOperator &op)
   object_force_modifier_bind_simple_options(depsgraph, ob, &smd->modifier);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
   return OPERATOR_FINISHED;
 }
 
@@ -3499,7 +3499,7 @@ static wmOperatorStatus geometry_nodes_input_attribute_toggle_exec(bContext &C, 
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
   return OPERATOR_FINISHED;
 }
 
@@ -3555,7 +3555,7 @@ static wmOperatorStatus geometry_node_tree_copy_assign_exec(bContext &C, wmOpera
   BKE_main_ensure_invariants(*bmain);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
   return OPERATOR_FINISHED;
 }
 
@@ -3580,7 +3580,7 @@ void OBJECT_OT_geometry_node_tree_copy_assign(wmOperatorType *ot)
 
 static bool dash_modifier_segment_poll(bContext &C)
 {
-  return edit_modifier_poll_generic(&C, &RNA_GreasePencilDashModifierData, 0, false, false);
+  return edit_modifier_poll_generic(C, &RNA_GreasePencilDashModifierData, 0, false, false);
 }
 
 static wmOperatorStatus dash_modifier_segment_add_exec(bContext &C, wmOperator &op)
@@ -3629,7 +3629,7 @@ static wmOperatorStatus dash_modifier_segment_add_exec(bContext &C, wmOperator &
   dmd->segment_active_index = new_active_index;
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -3684,7 +3684,7 @@ static wmOperatorStatus dash_modifier_segment_remove_exec(bContext &C, wmOperato
                            dash_modifier_segment_free);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -3766,7 +3766,7 @@ static wmOperatorStatus dash_modifier_segment_move_exec(bContext &C, wmOperator 
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -3814,7 +3814,7 @@ void OBJECT_OT_grease_pencil_dash_modifier_segment_move(wmOperatorType *ot)
 
 static bool time_modifier_segment_poll(bContext &C)
 {
-  return edit_modifier_poll_generic(&C, &RNA_GreasePencilTimeModifier, 0, false, false);
+  return edit_modifier_poll_generic(C, &RNA_GreasePencilTimeModifier, 0, false, false);
 }
 
 static wmOperatorStatus time_modifier_segment_add_exec(bContext &C, wmOperator &op)
@@ -3863,7 +3863,7 @@ static wmOperatorStatus time_modifier_segment_add_exec(bContext &C, wmOperator &
   tmd->segment_active_index++;
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -3918,7 +3918,7 @@ static wmOperatorStatus time_modifier_segment_remove_exec(bContext &C, wmOperato
                            time_modifier_segment_free);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -4000,7 +4000,7 @@ static wmOperatorStatus time_modifier_segment_move_exec(bContext &C, wmOperator 
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY | ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }

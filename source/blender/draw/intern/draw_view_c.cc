@@ -35,7 +35,7 @@
 void DRW_draw_region_info(const bContext *C, ARegion *region)
 {
   GPU_debug_group_begin("RegionInfo");
-  view3d_draw_region_info(C, region);
+  view3d_draw_region_info(*C, region);
   GPU_debug_group_end();
 }
 

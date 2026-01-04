@@ -48,11 +48,11 @@ struct SolveCameraJob {
 };
 
 static bool solve_camera_initjob(
-    bContext *C, SolveCameraJob *scj, wmOperator *op, char *error_msg, int max_error)
+    bContext &C, SolveCameraJob *scj, wmOperator *op, char *error_msg, int max_error)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
   int width, height;
@@ -64,7 +64,7 @@ static bool solve_camera_initjob(
   /* Could fail if footage uses images with different sizes. */
   BKE_movieclip_get_size(clip, &sc->user, &width, &height);
 
-  scj->wm = CTX_wm_manager(*C);
+  scj->wm = CTX_wm_manager(C);
   scj->clip = clip;
   scj->scene = scene;
   scj->reports = op->reports;
@@ -181,7 +181,7 @@ static wmOperatorStatus solve_camera_exec(bContext &C, wmOperator &op)
   SolveCameraJob *scj;
   char error_msg[256] = "\0";
   scj = MEM_new_for_free<SolveCameraJob>("SolveCameraJob data");
-  if (!solve_camera_initjob(&C, scj, &op, error_msg, sizeof(error_msg))) {
+  if (!solve_camera_initjob(C, scj, &op, error_msg, sizeof(error_msg))) {
     if (error_msg[0]) {
       BKE_report(op.reports, RPT_ERROR, error_msg);
     }
@@ -211,7 +211,7 @@ static wmOperatorStatus solve_camera_invoke(bContext &C, wmOperator &op, const w
   }
 
   scj = MEM_new_for_free<SolveCameraJob>("SolveCameraJob data");
-  if (!solve_camera_initjob(&C, scj, &op, error_msg, sizeof(error_msg))) {
+  if (!solve_camera_initjob(C, scj, &op, error_msg, sizeof(error_msg))) {
     if (error_msg[0]) {
       BKE_report(op.reports, RPT_ERROR, error_msg);
     }
@@ -223,7 +223,7 @@ static wmOperatorStatus solve_camera_invoke(bContext &C, wmOperator &op, const w
 
   /* Hide reconstruction statistics from previous solve. */
   reconstruction->flag &= ~TRACKING_RECONSTRUCTED;
-  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
 
   /* Setup job. */
   wm_job = WM_jobs_get(CTX_wm_manager(C),
@@ -242,7 +242,7 @@ static wmOperatorStatus solve_camera_invoke(bContext &C, wmOperator &op, const w
   WM_cursor_wait(false);
 
   /* add modal handler for ESC */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -303,8 +303,8 @@ static wmOperatorStatus clear_solution_exec(bContext &C, wmOperator & /*op*/)
 
   DEG_id_tag_update(&clip->id, 0);
 
-  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   return OPERATOR_FINISHED;
 }

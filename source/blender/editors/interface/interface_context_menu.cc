@@ -184,7 +184,7 @@ static Block *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMapItem, kmi);
 
-  Block *block = block_begin(C, region, "_popup", EmbossType::Emboss);
+  Block *block = block_begin(*C, region, "_popup", EmbossType::Emboss);
   block_func_handle_set(block, but_shortcut_name_func, but);
   block_flag_enable(block, BLOCK_MOVEMOUSE_QUIT);
   block_direction_set(block, UI_DIR_CENTER_Y);
@@ -224,7 +224,7 @@ static Block *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
 
   /* XXX this guess_opname can potentially return a different keymap
    * than being found on adding later... */
-  wmKeyMap *km = WM_keymap_guess_opname(C, idname);
+  wmKeyMap *km = WM_keymap_guess_opname(*C, idname);
   KeyMapItem_Params params{};
   params.type = EVT_AKEY;
   params.value = KM_PRESS;
@@ -240,12 +240,12 @@ static Block *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
   WM_keyconfig_update(wm);
   U.runtime.is_dirty = true;
 
-  km = WM_keymap_guess_opname(C, idname);
+  km = WM_keymap_guess_opname(*C, idname);
   kmi = WM_keymap_item_find_id(km, kmi_id);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMapItem, kmi);
 
-  Block *block = block_begin(C, region, "_popup", EmbossType::Emboss);
+  Block *block = block_begin(*C, region, "_popup", EmbossType::Emboss);
   block_func_handle_set(block, but_shortcut_name_func, but);
   block_direction_set(block, UI_DIR_CENTER_Y);
 
@@ -280,7 +280,7 @@ static void menu_add_shortcut_cancel(bContext *C, void *arg1)
   const char *idname = shortcut_get_operator_property(C, but, &prop);
 
 #ifdef USE_KEYMAP_ADD_HACK
-  wmKeyMap *km = WM_keymap_guess_opname(C, idname);
+  wmKeyMap *km = WM_keymap_guess_opname(*C, idname);
   const int kmi_id = g_kmi_id_hack;
   UNUSED_VARS(but);
 #else
@@ -542,7 +542,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   else if (but->type == ButtonType::Tab) {
     ButtonTab *tab = (ButtonTab *)but;
     if (tab->menu) {
-      menutype_draw(C, tab->menu, &layout);
+      menutype_draw(*C, tab->menu, &layout);
       layout.separator();
     }
   }
@@ -994,7 +994,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
       (but->menu_create_func == nullptr))
   {
     /* If the button represents an id, it can set the "id" context pointer. */
-    if (blender::ed::asset::can_mark_single_from_context(C)) {
+    if (blender::ed::asset::can_mark_single_from_context(*C)) {
       const ID *id = static_cast<const ID *>(CTX_data_pointer_get_type(*C, "id", &RNA_ID).data);
 
       /* Gray out items depending on if data-block is an asset. Preferably this could be done via
@@ -1044,7 +1044,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
     bool item_found = false;
 
     uint um_array_len;
-    bUserMenu **um_array = ED_screen_user_menus_find(C, &um_array_len);
+    bUserMenu **um_array = ED_screen_user_menus_find(*C, &um_array_len);
     for (int um_index = 0; um_index < um_array_len; um_index++) {
       bUserMenu *um = um_array[um_index];
       if (um == nullptr) {
@@ -1087,7 +1087,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
           nullptr,
           TIP_("Add to a user defined context menu (stored in the user preferences)"));
       button_func_set(but2, [but](bContext &C) {
-        bUserMenu *um = ED_screen_user_menu_ensure(&C);
+        bUserMenu *um = ED_screen_user_menu_ensure(C);
         U.runtime.is_dirty = true;
         ui_but_user_menu_add(&C, but, um);
       });
@@ -1167,7 +1167,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
       button_func_set(but2, [but](bContext &C) { remove_shortcut_func(&C, but); });
     }
     /* only show 'assign' if there's a suitable key map for it to go in */
-    else if (WM_keymap_guess_opname(C, idname)) {
+    else if (WM_keymap_guess_opname(*C, idname)) {
       Button *but2 = uiDefIconTextBut(
           block,
           ButtonType::But,
@@ -1180,7 +1180,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
           nullptr,
           "");
       button_func_set(but2, [but](bContext &C) {
-        popup_block_ex(&C, menu_add_shortcut, nullptr, menu_add_shortcut_cancel, but, nullptr);
+        popup_block_ex(C, menu_add_shortcut, nullptr, menu_add_shortcut_cancel, but, nullptr);
       });
     }
 
@@ -1257,13 +1257,13 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
   if (is_inside_listrow) {
     MenuType *mt = WM_menutype_find("UI_MT_list_item_context_menu", true);
     if (mt) {
-      menutype_draw(C, mt, &layout.column(false));
+      menutype_draw(*C, mt, &layout.column(false));
     }
   }
 
   MenuType *mt = WM_menutype_find("UI_MT_button_context_menu", true);
   if (mt) {
-    menutype_draw(C, mt, &layout.column(false));
+    menutype_draw(*C, mt, &layout.column(false));
   }
 
   if (but->context) {
@@ -1279,9 +1279,9 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
 /** \name Panel Context Menu
  * \{ */
 
-void popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
+void popup_context_menu_for_panel(bContext &C, ARegion *region, Panel *panel)
 {
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
   const bool has_panel_category = panel_category_tabs_is_visible(region);
   const bool any_item_visible = has_panel_category;
 
@@ -1297,7 +1297,7 @@ void popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
 
   PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Panel, panel);
 
-  PopupMenu *pup = popup_menu_begin(C, IFACE_("Panel"), ICON_NONE);
+  PopupMenu *pup = popup_menu_begin(&C, IFACE_("Panel"), ICON_NONE);
   Layout &layout = *popup_menu_layout(pup);
 
   if (has_panel_category) {

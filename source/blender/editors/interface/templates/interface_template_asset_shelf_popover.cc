@@ -82,7 +82,7 @@ bool asset_shelf_popover_invoke(bContext &C, StringRef asset_shelf_idname, Repor
 
   std::string asset_shelf_id_str = asset_shelf_idname;
   popover_panel_create(
-      &C,
+      C,
       nullptr,
       nullptr,
       [asset_shelf_id_str](bContext *C, Layout *layout, void *arg_pt) {

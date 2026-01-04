@@ -176,7 +176,7 @@ static void restrictbutton_recursive_bone(Bone *bone_parent, int flag, bool set_
 
 static void restrictbutton_r_lay_fn(bContext *C, void *poin, void * /*poin2*/)
 {
-  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, poin);
+  WM_event_add_notifier(*C, NC_SCENE | ND_RENDER_OPTIONS, poin);
 }
 
 static void restrictbutton_bone_visibility_fn(bContext *C, void *poin, void *poin2)
@@ -210,7 +210,7 @@ static void restrictbutton_bone_select_fn(bContext *C, void *poin, void *poin2)
   }
 
   DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, nullptr);
 }
 
 static void restrictbutton_ebone_select_fn(bContext *C, void *poin, void *poin2)
@@ -227,7 +227,7 @@ static void restrictbutton_ebone_select_fn(bContext *C, void *poin, void *poin2)
         arm, ebone, BONE_UNSELECTABLE, (ebone->flag & BONE_UNSELECTABLE) != 0);
   }
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, nullptr);
 }
 
 static void restrictbutton_ebone_visibility_fn(bContext *C, void *poin, void *poin2)
@@ -242,7 +242,7 @@ static void restrictbutton_ebone_visibility_fn(bContext *C, void *poin, void *po
     restrictbutton_recursive_ebone(arm, ebone, BONE_HIDDEN_A, (ebone->flag & BONE_HIDDEN_A) != 0);
   }
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, nullptr);
 }
 
 static void restrictbutton_gp_layer_flag_fn(bContext *C, void *poin, void * /*poin2*/)
@@ -250,7 +250,7 @@ static void restrictbutton_gp_layer_flag_fn(bContext *C, void *poin, void * /*po
   ID *id = (ID *)poin;
 
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 }
 
 static void restrictbutton_id_user_toggle(bContext * /*C*/, void *poin, void * /*poin2*/)
@@ -267,15 +267,15 @@ static void restrictbutton_id_user_toggle(bContext * /*C*/, void *poin, void * /
   }
 }
 
-static void outliner_object_set_flag_recursive_fn(bContext *C,
+static void outliner_object_set_flag_recursive_fn(bContext &C,
                                                   Base *base,
                                                   Object *ob,
                                                   const char *propname)
 {
-  Main *bmain = CTX_data_main(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   bool extend = (win->runtime->eventstate->modifier & KM_SHIFT);
 
@@ -335,7 +335,7 @@ static void outliner__object_set_flag_recursive_fn(bContext *C, void *poin, void
 {
   Object *ob = static_cast<Object *>(poin);
   const char *propname = static_cast<const char *>(poin2);
-  outliner_object_set_flag_recursive_fn(C, nullptr, ob, propname);
+  outliner_object_set_flag_recursive_fn(*C, nullptr, ob, propname);
 }
 
 /**
@@ -345,7 +345,7 @@ static void outliner__base_set_flag_recursive_fn(bContext *C, void *poin, void *
 {
   Base *base = static_cast<Base *>(poin);
   const char *propname = static_cast<const char *>(poin2);
-  outliner_object_set_flag_recursive_fn(C, base, nullptr, propname);
+  outliner_object_set_flag_recursive_fn(*C, base, nullptr, propname);
 }
 
 /** Create either a RNA_LayerCollection or a RNA_Collection pointer. */
@@ -630,15 +630,15 @@ void outliner_collection_isolate_flag(Scene *scene,
   }
 }
 
-static void outliner_collection_set_flag_recursive_fn(bContext *C,
+static void outliner_collection_set_flag_recursive_fn(bContext &C,
                                                       LayerCollection *layer_collection,
                                                       Collection *collection,
                                                       const char *propname)
 {
-  Main *bmain = CTX_data_main(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   bool do_isolate = (win->runtime->eventstate->modifier & KM_CTRL);
   bool extend = (win->runtime->eventstate->modifier & KM_SHIFT);
@@ -699,7 +699,7 @@ static void view_layer__layer_collection_set_flag_recursive_fn(bContext *C,
 {
   LayerCollection *layer_collection = static_cast<LayerCollection *>(poin);
   const char *propname = static_cast<const char *>(poin2);
-  outliner_collection_set_flag_recursive_fn(C, layer_collection, nullptr, propname);
+  outliner_collection_set_flag_recursive_fn(*C, layer_collection, nullptr, propname);
 }
 
 /**
@@ -711,7 +711,7 @@ static void view_layer__collection_set_flag_recursive_fn(bContext *C, void *poin
   LayerCollection *layer_collection = static_cast<LayerCollection *>(poin);
   const char *propname = static_cast<const char *>(poin2);
   outliner_collection_set_flag_recursive_fn(
-      C, layer_collection, layer_collection->collection, propname);
+      *C, layer_collection, layer_collection->collection, propname);
 }
 
 /**
@@ -722,7 +722,7 @@ static void scenes__collection_set_flag_recursive_fn(bContext *C, void *poin, vo
 {
   Collection *collection = static_cast<Collection *>(poin);
   const char *propname = static_cast<const char *>(poin2);
-  outliner_collection_set_flag_recursive_fn(C, nullptr, collection, propname);
+  outliner_collection_set_flag_recursive_fn(*C, nullptr, collection, propname);
 }
 
 static void namebutton_fn(bContext *C, void *tsep, char *oldname)
@@ -758,21 +758,21 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
 
       switch (GS(tselem->id->name)) {
         case ID_MA:
-          WM_event_add_notifier(C, NC_MATERIAL, nullptr);
+          WM_event_add_notifier(*C, NC_MATERIAL, nullptr);
           break;
         case ID_TE:
-          WM_event_add_notifier(C, NC_TEXTURE, nullptr);
+          WM_event_add_notifier(*C, NC_TEXTURE, nullptr);
           break;
         case ID_IM:
-          WM_event_add_notifier(C, NC_IMAGE, nullptr);
+          WM_event_add_notifier(*C, NC_IMAGE, nullptr);
           break;
         case ID_SCE:
-          WM_event_add_notifier(C, NC_SCENE, nullptr);
+          WM_event_add_notifier(*C, NC_SCENE, nullptr);
           break;
         default:
           break;
       }
-      WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
+      WM_event_add_notifier(*C, NC_ID | NA_RENAME, nullptr);
 
       /* Check the library target exists */
       if (te->idcode == ID_LI) {
@@ -821,12 +821,12 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           break;
         }
         case TSE_NLA_TRACK: {
-          WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_RENAME, nullptr);
+          WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN | NA_RENAME, nullptr);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename NLA Track");
           break;
         }
         case TSE_MODIFIER: {
-          WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_RENAME, nullptr);
+          WM_event_add_notifier(*C, NC_OBJECT | ND_MODIFIER | NA_RENAME, nullptr);
           DEG_relations_tag_update(bmain);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Modifier");
 
@@ -843,7 +843,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
             STRNCPY_UTF8(ebone->name, oldname);
             ED_armature_bone_rename(bmain, arm, oldname, newname);
             WM_msg_publish_rna_prop(mbus, &arm->id, ebone, EditBone, name);
-            WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+            WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, nullptr);
             DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
             undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Edit Bone");
           }
@@ -852,7 +852,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
 
         case TSE_BONE: {
           TreeViewContext tvc;
-          outliner_viewcontext_init(C, &tvc);
+          outliner_viewcontext_init(*C, &tvc);
 
           bArmature *arm = (bArmature *)tselem->id;
           Bone *bone = static_cast<Bone *>(te->directdata);
@@ -866,14 +866,14 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           STRNCPY_UTF8(bone->name, oldname);
           ED_armature_bone_rename(bmain, arm, oldname, newname);
           WM_msg_publish_rna_prop(mbus, &arm->id, bone, Bone, name);
-          WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+          WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, nullptr);
           DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Bone");
           break;
         }
         case TSE_POSE_CHANNEL: {
           TreeViewContext tvc;
-          outliner_viewcontext_init(C, &tvc);
+          outliner_viewcontext_init(*C, &tvc);
 
           Object *ob = (Object *)tselem->id;
           bArmature *arm = (bArmature *)ob->data;
@@ -890,7 +890,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           STRNCPY_UTF8(pchan->name, oldname);
           ED_armature_bone_rename(bmain, static_cast<bArmature *>(ob->data), oldname, newname);
           WM_msg_publish_rna_prop(mbus, &arm->id, pchan->bone, Bone, name);
-          WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+          WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, nullptr);
           DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
           DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Pose Bone");
@@ -909,7 +909,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
 
           WM_msg_publish_rna_prop(mbus, &gpd->id, gpl, AnnotationLayer, info);
           DEG_id_tag_update(&gpd->id, ID_RECALC_GEOMETRY);
-          WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, gpd);
+          WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_SELECTED, gpd);
           DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Annotation Layer");
           break;
@@ -926,7 +926,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           node.set_name(oldname);
           grease_pencil.rename_node(*bmain, node, new_name);
           DEG_id_tag_update(&grease_pencil.id, ID_RECALC_SYNC_TO_EVAL);
-          WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
+          WM_event_add_notifier(*C, NC_ID | NA_RENAME, nullptr);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Grease Pencil Drawing");
           break;
         }
@@ -942,7 +942,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
           /* Rename, preserving animation and compositing data. */
           BKE_view_layer_rename(bmain, scene, view_layer, newname);
           WM_msg_publish_rna_prop(mbus, &scene->id, view_layer, ViewLayer, name);
-          WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
+          WM_event_add_notifier(*C, NC_ID | NA_RENAME, nullptr);
           DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename View Layer");
           break;
@@ -953,7 +953,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
             undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Data-Block");
           }
           WM_msg_publish_rna_prop(mbus, tselem->id, tselem->id, ID, name);
-          WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
+          WM_event_add_notifier(*C, NC_ID | NA_RENAME, nullptr);
           DEG_id_tag_update(tselem->id, ID_RECALC_SYNC_TO_EVAL);
           break;
         }
@@ -964,14 +964,14 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
 
           ANIM_armature_bonecoll_name_set(arm, bcoll, bcoll->name);
           WM_msg_publish_rna_prop(mbus, &arm->id, bcoll, BoneCollection, name);
-          WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, arm);
+          WM_event_add_notifier(*C, NC_OBJECT | ND_BONE_COLLECTION, arm);
           DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Bone Collection");
           break;
         }
 
         case TSE_ACTION_SLOT: {
-          WM_event_add_notifier(C, NC_ID | NA_RENAME, nullptr);
+          WM_event_add_notifier(*C, NC_ID | NA_RENAME, nullptr);
           undo_str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Action Slot");
           break;
         }
@@ -981,7 +981,7 @@ static void namebutton_fn(bContext *C, void *tsep, char *oldname)
   }
 
   if (undo_str) {
-    ED_undo_push(C, undo_str);
+    ED_undo_push(*C, undo_str);
   }
 }
 
@@ -2213,7 +2213,7 @@ static void outliner_buttons(const bContext *C,
     tselem->flag &= ~TSE_TEXTBUT;
 
     /* Bad! (notifier within draw) without this, we don't get a refresh. */
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+    WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
   }
 }
 
@@ -2222,7 +2222,7 @@ static void outliner_mode_toggle_fn(bContext *C, void *tselem_poin, void * /*arg
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
   TreeStoreElem *tselem = (TreeStoreElem *)tselem_poin;
   TreeViewContext tvc;
-  outliner_viewcontext_init(C, &tvc);
+  outliner_viewcontext_init(*C, &tvc);
 
   TreeElement *te = outliner_find_tree_element(&space_outliner->tree, tselem);
   if (!te) {
@@ -3968,13 +3968,13 @@ static void outliner_update_viewable_area(ARegion *region,
  * Draw contents of Outliner editor.
  * \{ */
 
-void draw_outliner(const bContext *C, bool do_rebuild)
+void draw_outliner(const bContext &C, bool do_rebuild)
 {
-  Main *mainvar = CTX_data_main(*C);
-  WorkSpace *workspace = CTX_wm_workspace(*C);
-  ARegion *region = CTX_wm_region(*C);
+  Main *mainvar = CTX_data_main(C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  ARegion *region = CTX_wm_region(C);
   View2D *v2d = &region->v2d;
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   ui::Block *block;
   TreeElement *te_edit = nullptr;
 
@@ -4006,7 +4006,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
                 SO_DATA_API,
                 SO_ID_ORPHANS))
       {
-        outliner_sync_selection(C, tvc, space_outliner);
+        outliner_sync_selection(&C, tvc, space_outliner);
       }
     }
   }
@@ -4094,7 +4094,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
 
   /* Draw edit buttons if necessary. */
   if (te_edit) {
-    outliner_buttons(C, block, region, right_column_width, te_edit);
+    outliner_buttons(&C, block, region, right_column_width, te_edit);
   }
 
   block_end(C, block);

@@ -444,7 +444,7 @@ class LazyFunctionForBakeNode final : public LazyFunction {
 static void node_extra_info(NodeExtraInfoParams &params)
 {
   BakeDrawContext ctx;
-  if (!get_bake_draw_context(&params.C, params.node, ctx)) {
+  if (!get_bake_draw_context(params.C, params.node, ctx)) {
     return;
   }
   if (!ctx.is_bakeable_in_current_context) {
@@ -464,7 +464,7 @@ static void node_layout(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   BakeDrawContext ctx;
   const bNode &node = *static_cast<const bNode *>(ptr->data);
-  if (!get_bake_draw_context(C, node, ctx)) {
+  if (!get_bake_draw_context(*C, node, ctx)) {
     return;
   }
   layout.active_set(ctx.is_bakeable_in_current_context);
@@ -484,7 +484,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 
   BakeDrawContext ctx;
   const bNode &node = *static_cast<const bNode *>(ptr->data);
-  if (!get_bake_draw_context(C, node, ctx)) {
+  if (!get_bake_draw_context(*C, node, ctx)) {
     return;
   }
 
@@ -506,7 +506,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
     }
   }
 
-  draw_common_bake_settings(C, ctx, layout);
+  draw_common_bake_settings(*C, ctx, layout);
   draw_data_blocks(C, layout, ctx.bake_rna);
 }
 
@@ -573,11 +573,11 @@ NOD_REGISTER_NODE(node_register)
 
 namespace blender::nodes {
 
-bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext &r_ctx)
+bool get_bake_draw_context(const bContext &C, const bNode &node, BakeDrawContext &r_ctx)
 {
   BLI_assert(ELEM(node.type_legacy, GEO_NODE_BAKE, GEO_NODE_SIMULATION_OUTPUT));
   r_ctx.node = &node;
-  r_ctx.snode = CTX_wm_space_node(*C);
+  r_ctx.snode = CTX_wm_space_node(C);
   if (!r_ctx.snode) {
     return false;
   }
@@ -633,7 +633,7 @@ bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext
       }
     }
   }
-  const Scene *scene = CTX_data_scene(*C);
+  const Scene *scene = CTX_data_scene(C);
   r_ctx.frame_range = bke::bake::get_node_bake_frame_range(
       *scene, *r_ctx.object, *r_ctx.nmd, r_ctx.bake->id);
   r_ctx.bake_still = node.type_legacy == GEO_NODE_BAKE &&
@@ -747,7 +747,7 @@ void draw_bake_button_row(const BakeDrawContext &ctx, ui::Layout &layout, const 
   }
 }
 
-void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, ui::Layout &layout)
+void draw_common_bake_settings(bContext &C, BakeDrawContext &ctx, ui::Layout &layout)
 {
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
@@ -763,7 +763,7 @@ void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, ui::Layout &la
     ui::Layout &subsubcol = subcol.column(true);
     const bool use_custom_path = ctx.bake->flag & NODES_MODIFIER_BAKE_CUSTOM_PATH;
     subsubcol.active_set(use_custom_path);
-    Main *bmain = CTX_data_main(*C);
+    Main *bmain = CTX_data_main(C);
     auto bake_path = bke::bake::get_node_bake_path(*bmain, *ctx.object, *ctx.nmd, ctx.bake->id);
 
     char placeholder_path[FILE_MAX] = "";

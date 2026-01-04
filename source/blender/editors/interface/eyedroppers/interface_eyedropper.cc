@@ -113,9 +113,9 @@ void eyedropper_draw_cursor_text_region(const int xy[2], const char *name)
   fontstyle_draw_simple_backdrop(fstyle, xy[0], xy[1] + U.widget_unit, name, col_fg, col_bg);
 }
 
-Button *eyedropper_get_property_button_under_mouse(bContext *C, const wmEvent *event)
+Button *eyedropper_get_property_button_under_mouse(bContext &C, const wmEvent *event)
 {
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
   ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
   const ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_ANY, event->xy);
 
@@ -127,15 +127,15 @@ Button *eyedropper_get_property_button_under_mouse(bContext *C, const wmEvent *e
   return but;
 }
 
-void eyedropper_win_area_find(const bContext *C,
+void eyedropper_win_area_find(const bContext &C,
                               const int event_xy[2],
                               int r_event_xy[2],
                               wmWindow **r_win,
                               ScrArea **r_area)
 {
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
 
-  *r_win = CTX_wm_window(*C);
+  *r_win = CTX_wm_window(C);
   *r_area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event_xy);
   if (*r_area == nullptr) {
     *r_win = WM_window_find_under_cursor(*r_win, event_xy, r_event_xy);

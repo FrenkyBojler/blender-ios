@@ -345,7 +345,7 @@ void WM_init(bContext *C, int argc, const char **argv)
    * needed to properly load user-configured add-on key-maps, see: #113603. */
   WM_keyconfig_update_postpone_begin();
 
-  WM_keyconfig_init(C);
+  WM_keyconfig_init(*C);
 
   /* Load add-ons after key-maps have been initialized (but before the blend file has been read),
    * important to guarantee default key-maps have been declared & before post-read handlers run. */
@@ -385,22 +385,22 @@ void WM_init_splash_on_startup(bContext *C)
     return;
   }
 
-  WM_init_splash(C);
+  WM_init_splash(*C);
 }
 
-void WM_init_splash(bContext *C)
+void WM_init_splash(bContext &C)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   /* NOTE(@ideasman42): this should practically never happen. */
   if (UNLIKELY(BLI_listbase_is_empty(&wm->windows))) {
     return;
   }
 
-  wmWindow *prevwin = CTX_wm_window(*C);
-  CTX_wm_window_set(*C, static_cast<wmWindow *>(wm->windows.first));
+  wmWindow *prevwin = CTX_wm_window(C);
+  CTX_wm_window_set(C, static_cast<wmWindow *>(wm->windows.first));
   WM_operator_name_call(
-      C, "WM_OT_splash", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
-  CTX_wm_window_set(*C, prevwin);
+      &C, "WM_OT_splash", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+  CTX_wm_window_set(C, prevwin);
 }
 
 /** Load add-ons & app-templates once on startup. */
@@ -432,17 +432,21 @@ static int wm_exit_handler(bContext *C, const wmEvent *event, void *userdata)
   return WM_UI_HANDLER_BREAK;
 }
 
-void wm_exit_schedule_delayed(const bContext *C)
+void wm_exit_schedule_delayed(const bContext &C)
 {
   /* What we do here is a little bit hacky, but quite simple and doesn't require bigger
    * changes: Add a handler wrapping WM_exit() to cause a delayed call of it. */
 
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
   /* Use modal UI handler for now.
    * Could add separate WM handlers or so, but probably not worth it. */
-  WM_event_add_ui_handler(
-      C, &win->runtime->modalhandlers, wm_exit_handler, nullptr, nullptr, eWM_EventHandlerFlag(0));
+  WM_event_add_ui_handler(&C,
+                          &win->runtime->modalhandlers,
+                          wm_exit_handler,
+                          nullptr,
+                          nullptr,
+                          eWM_EventHandlerFlag(0));
   WM_event_add_mousemove(win); /* Ensure handler actually gets called. */
 }
 
@@ -483,9 +487,9 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
     for (wmWindow &win : wm->windows) {
       CTX_wm_window_set(*C, &win); /* Needed by operator close callbacks. */
-      WM_event_remove_handlers(C, &win.runtime->handlers);
-      WM_event_remove_handlers(C, &win.runtime->modalhandlers);
-      ED_screen_exit(C, &win, WM_window_get_active_screen(&win));
+      WM_event_remove_handlers(*C, &win.runtime->handlers);
+      WM_event_remove_handlers(*C, &win.runtime->modalhandlers);
+      ED_screen_exit(*C, &win, WM_window_get_active_screen(&win));
     }
 
     if (!G.background) {

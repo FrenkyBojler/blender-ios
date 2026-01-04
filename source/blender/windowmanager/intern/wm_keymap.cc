@@ -1427,7 +1427,7 @@ static wmKeyMapItem *wm_keymap_item_find_handlers(const bContext *C,
   return nullptr;
 }
 
-static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
+static wmKeyMapItem *wm_keymap_item_find_props(const bContext &C,
                                                const char *opname,
                                                blender::wm::OpCallContext opcontext,
                                                const IDProperty *properties,
@@ -1435,15 +1435,15 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
                                                const wmKeyMapItemFind_Params *params,
                                                wmKeyMap **r_keymap)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
   wmKeyMapItem *found = nullptr;
 
   /* Look into multiple handler lists to find the item. */
   if (win) {
-    found = wm_keymap_item_find_handlers(C,
+    found = wm_keymap_item_find_handlers(&C,
                                          wm,
                                          win,
                                          &win->runtime->modalhandlers,
@@ -1454,7 +1454,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
                                          params,
                                          r_keymap);
     if (found == nullptr) {
-      found = wm_keymap_item_find_handlers(C,
+      found = wm_keymap_item_find_handlers(&C,
                                            wm,
                                            win,
                                            &win->runtime->handlers,
@@ -1469,7 +1469,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
 
   if (area && found == nullptr) {
     found = wm_keymap_item_find_handlers(
-        C, wm, win, &area->handlers, opname, opcontext, properties, is_strict, params, r_keymap);
+        &C, wm, win, &area->handlers, opname, opcontext, properties, is_strict, params, r_keymap);
   }
 
   if (found == nullptr) {
@@ -1483,7 +1483,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
         }
 
         if (region) {
-          found = wm_keymap_item_find_handlers(C,
+          found = wm_keymap_item_find_handlers(&C,
                                                wm,
                                                win,
                                                &region->runtime->handlers,
@@ -1505,7 +1505,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
       }
 
       if (region) {
-        found = wm_keymap_item_find_handlers(C,
+        found = wm_keymap_item_find_handlers(&C,
                                              wm,
                                              win,
                                              &region->runtime->handlers,
@@ -1526,7 +1526,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
       }
 
       if (region) {
-        found = wm_keymap_item_find_handlers(C,
+        found = wm_keymap_item_find_handlers(&C,
                                              wm,
                                              win,
                                              &region->runtime->handlers,
@@ -1540,7 +1540,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C,
     }
     else {
       if (region) {
-        found = wm_keymap_item_find_handlers(C,
+        found = wm_keymap_item_find_handlers(&C,
                                              wm,
                                              win,
                                              &region->runtime->handlers,
@@ -1575,7 +1575,7 @@ static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
   }
 
   wmKeyMapItem *found = wm_keymap_item_find_props(
-      C, opname, opcontext, properties, is_strict, params, r_keymap);
+      *C, opname, opcontext, properties, is_strict, params, r_keymap);
 
   /* This block is *only* useful in one case: when op uses an enum menu in its prop member
    * (then, we want to rerun a comparison with that 'prop' unset). Note this remains brittle,
@@ -1599,7 +1599,7 @@ static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
         RNA_property_unset(&opptr, ot->prop);
 
         found = wm_keymap_item_find_props(
-            C, opname, opcontext, properties_temp, is_strict, params, r_keymap);
+            *C, opname, opcontext, properties_temp, is_strict, params, r_keymap);
       }
 
       IDP_FreeProperty(properties_temp);
@@ -1618,7 +1618,7 @@ static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
 
         wmKeyMap *km;
         wmKeyMapItem *kmi = wm_keymap_item_find_props(
-            C, opname, opcontext, properties_default, is_strict, params, &km);
+            *C, opname, opcontext, properties_default, is_strict, params, &km);
         if (kmi) {
           std::string kmi_str = WM_keymap_item_to_string(kmi, false).value_or("");
           printf(

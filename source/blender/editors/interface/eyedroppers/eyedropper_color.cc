@@ -110,7 +110,7 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
     eye->is_undo = true;
   }
   else {
-    Button *but = context_active_but_prop_get(C, &eye->ptr, &eye->prop, &eye->index);
+    Button *but = context_active_but_prop_get(*C, &eye->ptr, &eye->prop, &eye->index);
     if (but != nullptr) {
       eye->is_undo = button_flag_is_set(but, BUT_UNDO);
     }
@@ -156,13 +156,13 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
   return true;
 }
 
-static void eyedropper_exit(bContext *C, wmOperator *op)
+static void eyedropper_exit(bContext &C, wmOperator *op)
 {
   Eyedropper *eye = static_cast<Eyedropper *>(op->customdata);
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
   WM_cursor_modal_restore(window);
 
-  ED_workspace_status_text(C, nullptr);
+  ED_workspace_status_text(&C, nullptr);
 
   if (eye->draw_handle_sample_text) {
     WM_draw_cb_exit(eye->cb_win, eye->draw_handle_sample_text);
@@ -292,7 +292,7 @@ static bool eyedropper_cryptomatte_sample_render_fl(const bNode *node,
   return success;
 }
 
-static bool eyedropper_cryptomatte_sample_image_fl(bContext *C,
+static bool eyedropper_cryptomatte_sample_image_fl(bContext &C,
                                                    const bNode *node,
                                                    NodeCryptomatte *crypto,
                                                    const char *prefix,
@@ -304,7 +304,7 @@ static bool eyedropper_cryptomatte_sample_image_fl(bContext *C,
   BLI_assert((image == nullptr) || (GS(image->id.name) == ID_IM));
 
   /* Compute the effective frame number of the image if it was animated. */
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   ImageUser image_user_for_frame = crypto->iuser;
   BKE_image_user_frame_calc(image, &image_user_for_frame, scene->r.cfra);
 
@@ -431,12 +431,12 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
     return eyedropper_cryptomatte_sample_render_fl(node, prefix, fpos, r_col);
   }
   if (node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE) {
-    return eyedropper_cryptomatte_sample_image_fl(C, node, crypto, prefix, fpos, r_col);
+    return eyedropper_cryptomatte_sample_image_fl(*C, node, crypto, prefix, fpos, r_col);
   }
   return false;
 }
 
-bool eyedropper_color_sample_fl(bContext *C,
+bool eyedropper_color_sample_fl(bContext &C,
                                 Eyedropper *eye,
                                 const int event_xy[2],
                                 float r_col[3])
@@ -444,7 +444,7 @@ bool eyedropper_color_sample_fl(bContext *C,
   ScrArea *area = nullptr;
 
   int event_xy_win[2];
-  wmWindow *win = WM_window_find_under_cursor(CTX_wm_window(*C), event_xy, event_xy_win);
+  wmWindow *win = WM_window_find_under_cursor(CTX_wm_window(C), event_xy, event_xy_win);
   if (win) {
     bScreen *screen = WM_window_get_active_screen(win);
     area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event_xy_win);
@@ -465,7 +465,7 @@ bool eyedropper_color_sample_fl(bContext *C,
       }
       else if (area->spacetype == SPACE_NODE) {
         SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
-        Main *bmain = CTX_data_main(*C);
+        Main *bmain = CTX_data_main(C);
         if (ED_space_node_color_sample(bmain, snode, region, mval, r_col)) {
           return true;
         }
@@ -493,10 +493,10 @@ bool eyedropper_color_sample_fl(bContext *C,
 
   /* Other areas within a Blender window. */
   if (win) {
-    if (!WM_window_pixels_read_sample(C, win, event_xy_win, r_col)) {
-      WM_window_pixels_read_sample_from_offscreen(C, win, event_xy_win, r_col);
+    if (!WM_window_pixels_read_sample(&C, win, event_xy_win, r_col)) {
+      WM_window_pixels_read_sample_from_offscreen(&C, win, event_xy_win, r_col);
     }
-    const char *display_device = CTX_data_scene(*C)->display_settings.display_device;
+    const char *display_device = CTX_data_scene(C)->display_settings.display_device;
     const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
     IMB_colormanagement_display_to_scene_linear_v3(r_col, display);
     return true;
@@ -534,7 +534,7 @@ static void eyedropper_color_set(bContext *C, Eyedropper *eye, const float col[3
   RNA_property_float_set_array_at_most(&eye->ptr, eye->prop, col_conv, ARRAY_SIZE(col_conv));
   eye->is_set = true;
 
-  RNA_property_update(C, &eye->ptr, eye->prop);
+  RNA_property_update(*C, &eye->ptr, eye->prop);
 }
 
 static void eyedropper_color_sample(bContext *C, Eyedropper *eye, const int event_xy[2])
@@ -547,7 +547,7 @@ static void eyedropper_color_sample(bContext *C, Eyedropper *eye, const int even
     }
   }
   else {
-    if (!eyedropper_color_sample_fl(C, eye, event_xy, col)) {
+    if (!eyedropper_color_sample_fl(*C, eye, event_xy, col)) {
       return;
     }
   }
@@ -594,7 +594,7 @@ static void eyedropper_cancel(bContext &C, wmOperator &op)
   if (eye->is_set) {
     eyedropper_color_set(&C, eye, eye->init_col);
   }
-  eyedropper_exit(&C, &op);
+  eyedropper_exit(C, &op);
 }
 
 /* main modal status check */
@@ -613,7 +613,7 @@ static wmOperatorStatus eyedropper_modal(bContext &C, wmOperator &op, const wmEv
         if (eye->accum_tot == 0) {
           eyedropper_color_sample(&C, eye, event->xy);
         }
-        eyedropper_exit(&C, &op);
+        eyedropper_exit(C, &op);
         /* Could support finished & undo-skip. */
         return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
       }
@@ -633,11 +633,11 @@ static wmOperatorStatus eyedropper_modal(bContext &C, wmOperator &op, const wmEv
     if (eye->accum_start) {
       /* button is pressed so keep sampling */
       eyedropper_color_sample(&C, eye, event->xy);
-      WorkspaceStatus status(&C);
+      WorkspaceStatus status(C);
       status.item(TIP_("Drag to continue sampling, release when done"), ICON_MOUSE_MOVE);
     }
     else {
-      WorkspaceStatus status(&C);
+      WorkspaceStatus status(C);
       status.opmodal(IFACE_("Confirm"), op.type, EYE_MODAL_SAMPLE_CONFIRM);
       status.opmodal(IFACE_("Cancel"), op.type, EYE_MODAL_CANCEL);
 #ifdef __APPLE__
@@ -664,7 +664,7 @@ static wmOperatorStatus eyedropper_invoke(bContext &C, wmOperator &op, const wmE
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -680,7 +680,7 @@ static wmOperatorStatus eyedropper_exec(bContext &C, wmOperator &op)
     /* do something */
 
     /* cleanup */
-    eyedropper_exit(&C, &op);
+    eyedropper_exit(C, &op);
 
     return OPERATOR_FINISHED;
   }

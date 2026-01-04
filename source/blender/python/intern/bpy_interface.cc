@@ -126,7 +126,7 @@ void bpy_context_set(bContext *C, PyGILState_STATE *gilstate)
   if (py_call_level == 1) {
     BPY_context_update(C);
 
-    pyrna_context_init(C);
+    pyrna_context_init(*C);
 
 #ifdef TIME_PY_RUN
     if (bpy_timer_count == 0) {
@@ -159,7 +159,7 @@ void bpy_context_clear(bContext *C, const PyGILState_STATE *gilstate)
     BPY_context_set(nullptr);
 #endif
 
-    pyrna_context_clear(C);
+    pyrna_context_clear(*C);
 
 #ifdef TIME_PY_RUN
     bpy_timer_run_tot += BLI_time_now_seconds() - bpy_timer_run;
@@ -676,7 +676,7 @@ void BPY_python_reset(bContext *C)
 
   BPY_driver_reset();
   BPY_app_handlers_reset(false);
-  BPY_modules_load_user(C);
+  BPY_modules_load_user(*C);
 }
 
 void BPY_python_use_system_env()
@@ -729,10 +729,10 @@ void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr)
   PyGILState_Release(gilstate);
 }
 
-void BPY_modules_load_user(bContext *C)
+void BPY_modules_load_user(bContext &C)
 {
   PyGILState_STATE gilstate;
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   Text *text;
 
   /* Can happen on file load. */
@@ -742,10 +742,10 @@ void BPY_modules_load_user(bContext *C)
 
   /* Update pointers since this can run from a nested script on file load. */
   if (py_call_level) {
-    BPY_context_update(C);
+    BPY_context_update(&C);
   }
 
-  bpy_context_set(C, &gilstate);
+  bpy_context_set(&C, &gilstate);
 
   for (text = static_cast<Text *>(bmain->texts.first); text;
        text = static_cast<Text *>(text->id.next))
@@ -762,16 +762,16 @@ void BPY_modules_load_user(bContext *C)
         }
       }
       else {
-        BPY_run_text(C, text, nullptr, false);
+        BPY_run_text(&C, text, nullptr, false);
 
         /* Check if the script loaded a new file. */
-        if (bmain != CTX_data_main(*C)) {
+        if (bmain != CTX_data_main(C)) {
           break;
         }
       }
     }
   }
-  bpy_context_clear(C, &gilstate);
+  bpy_context_clear(&C, &gilstate);
 }
 
 /** Helper function for logging context member access errors with both CLI and Python support */
@@ -797,7 +797,7 @@ static void bpy_context_log_member_error(const bContext *C, const char *message)
   }
 }
 
-bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult *result)
+bool BPY_context_member_get(bContext &C, const char *member, bContextDataResult *result)
 {
   PyGILState_STATE gilstate;
   const bool use_gil = !PyC_IsInterpreterActive();
@@ -810,7 +810,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   PointerRNA *ptr = nullptr;
   bool done = false;
 
-  pyctx = (PyObject *)CTX_py_dict_get(*C);
+  pyctx = (PyObject *)CTX_py_dict_get(C);
   item = PyDict_GetItemString(pyctx, member);
 
   if (item == nullptr) {
@@ -849,7 +849,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
           std::string message = std::string("'") + member +
                                 "' list item not a valid type in sequence type '" +
                                 Py_TYPE(list_item)->tp_name + "'";
-          bpy_context_log_member_error(C, message.c_str());
+          bpy_context_log_member_error(&C, message.c_str());
         }
       }
       Py_DECREF(seq_fast);
@@ -862,7 +862,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
     if (item) {
       /* Log invalid member type */
       std::string message = std::string("'") + member + "' not a valid type";
-      bpy_context_log_member_error(C, message.c_str());
+      bpy_context_log_member_error(&C, message.c_str());
     }
   }
 

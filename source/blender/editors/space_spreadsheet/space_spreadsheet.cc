@@ -210,25 +210,25 @@ ID *get_current_id(const SpaceSpreadsheet *sspreadsheet)
   return id_elem->id;
 }
 
-static void view_active_object(const bContext *C, SpaceSpreadsheet *sspreadsheet)
+static void view_active_object(const bContext &C, SpaceSpreadsheet *sspreadsheet)
 {
   BKE_viewer_path_clear(&sspreadsheet->geometry_id.viewer_path);
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   if (ob == nullptr) {
     return;
   }
   IDViewerPathElem *id_elem = BKE_viewer_path_elem_new_id();
   id_elem->id = &ob->id;
   BLI_addtail(&sspreadsheet->geometry_id.viewer_path.path, id_elem);
-  ED_area_tag_redraw(CTX_wm_area(*C));
+  ED_area_tag_redraw(CTX_wm_area(C));
 }
 
-static void spreadsheet_update_context(const bContext *C)
+static void spreadsheet_update_context(const bContext &C)
 {
   using blender::ed::viewer_path::ViewerPathForGeometryNodesViewer;
 
-  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
-  Object *active_object = CTX_data_active_object(*C);
+  SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(C);
+  Object *active_object = CTX_data_active_object(C);
   Object *context_object = blender::ed::viewer_path::parse_object_only(
       sspreadsheet->geometry_id.viewer_path);
   switch (eSpaceSpreadsheet_ObjectEvalState(sspreadsheet->geometry_id.object_eval_state)) {
@@ -257,7 +257,7 @@ static void spreadsheet_update_context(const bContext *C)
       break;
     }
     case SPREADSHEET_OBJECT_EVAL_STATE_VIEWER_NODE: {
-      WorkSpace *workspace = CTX_wm_workspace(*C);
+      WorkSpace *workspace = CTX_wm_workspace(C);
       if (sspreadsheet->flag & SPREADSHEET_FLAG_PINNED) {
         const std::optional<ViewerPathForGeometryNodesViewer> parsed_path =
             blender::ed::viewer_path::parse_geometry_nodes_viewer(
@@ -340,7 +340,7 @@ std::unique_ptr<DataSource> get_data_source(const bContext &C)
 
   Object *object_eval = spreadsheet_get_object_eval(sspreadsheet, depsgraph);
   if (object_eval) {
-    return data_source_from_geometry(&C, object_eval);
+    return data_source_from_geometry(C, object_eval);
   }
   return {};
 }
@@ -431,7 +431,7 @@ static void update_visible_columns(SpreadsheetTable &table, DataSource &data_sou
 static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
 {
   SpaceSpreadsheet *sspreadsheet = CTX_wm_space_spreadsheet(*C);
-  spreadsheet_update_context(C);
+  spreadsheet_update_context(*C);
 
   std::unique_ptr<DataSource> data_source = get_data_source(*C);
   if (!data_source) {
@@ -503,7 +503,7 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
   sspreadsheet->runtime->visible_rows = spreadsheet_layout.row_indices.size();
 
   std::unique_ptr<SpreadsheetDrawer> drawer = spreadsheet_drawer_from_layout(spreadsheet_layout);
-  draw_spreadsheet_in_region(C, region, *drawer);
+  draw_spreadsheet_in_region(*C, region, *drawer);
 
   sspreadsheet->runtime->top_row_height = drawer->top_row_height;
   sspreadsheet->runtime->left_column_width = drawer->left_column_width;
@@ -574,7 +574,7 @@ static void spreadsheet_header_region_init(wmWindowManager * /*wm*/, ARegion *re
 
 static void spreadsheet_header_region_draw(const bContext *C, ARegion *region)
 {
-  spreadsheet_update_context(C);
+  spreadsheet_update_context(*C);
   ED_region_header(C, region);
 }
 
@@ -648,7 +648,7 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
 
   ui::theme::frame_buffer_clear(TH_BACK);
 
-  ui::Block *block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
+  ui::Block *block = block_begin(*C, region, __func__, ui::EmbossType::Emboss);
   const uiStyle *style = ui::style_get_dpi();
   ui::Layout &layout = ui::block_layout(block,
                                         ui::LayoutDirection::Horizontal,
@@ -664,8 +664,8 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
   layout.label(stats_str, ICON_NONE);
   ui::block_layout_resolve(block);
   block_align_end(block);
-  block_end(C, block);
-  block_draw(C, block);
+  block_end(*C, block);
+  block_draw(*C, block);
 }
 
 static void spreadsheet_footer_region_free(ARegion * /*region*/) {}
@@ -696,7 +696,7 @@ static void spreadsheet_dataset_region_listener(const wmRegionListenerParams *pa
 
 static void spreadsheet_dataset_region_draw(const bContext *C, ARegion *region)
 {
-  spreadsheet_update_context(C);
+  spreadsheet_update_context(*C);
   ED_region_panels(C, region);
 }
 

@@ -126,15 +126,15 @@ bNode *add_static_node(const bContext &C, int type, const float2 &location)
 /**
  * Hook an existing node tree to a templateID UI button.
  */
-static void node_templateID_assign(bContext *C, bNodeTree *node_tree)
+static void node_templateID_assign(bContext &C, bNodeTree *node_tree)
 {
-  Main *bmain = CTX_data_main(*C);
-  SpaceNode *snode = CTX_wm_space_node(*C);
+  Main *bmain = CTX_data_main(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
 
   PointerRNA ptr;
   PropertyRNA *prop;
 
-  ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
+  ui::context_active_but_prop_get_templateID(&C, &ptr, &prop);
 
   if (prop) {
     /* #RNA_property_pointer_set increases the user count, fixed here as the editor is the initial
@@ -360,7 +360,7 @@ static wmOperatorStatus node_add_group_exec(bContext &C, wmOperator &op)
 
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
-  const StringRef node_idname = node_group_idname(&C);
+  const StringRef node_idname = node_group_idname(C);
   if (node_idname[0] == '\0') {
     BKE_report(op.reports, RPT_WARNING, "Could not determine type of group node");
     return OPERATOR_CANCELLED;
@@ -384,7 +384,7 @@ static wmOperatorStatus node_add_group_exec(bContext &C, wmOperator &op)
 
   bke::node_set_active(*ntree, *group_node);
   BKE_main_ensure_invariants(*bmain);
-  WM_event_add_notifier(&C, NC_NODE | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
   DEG_relations_tag_update(bmain);
   return OPERATOR_FINISHED;
 }
@@ -511,7 +511,7 @@ static bool add_node_group_asset(const bContext &C,
 
   bke::node_set_active(edit_tree, *group_node);
   BKE_main_ensure_invariants(bmain);
-  WM_event_add_notifier(&C, NC_NODE | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
   DEG_relations_tag_update(&bmain);
 
   return true;
@@ -581,7 +581,7 @@ static wmOperatorStatus node_swap_group_asset_invoke(bContext &C,
 
   snode.runtime->cursor /= UI_SCALE_FAC;
 
-  const StringRef node_idname = node_group_idname(&C);
+  const StringRef node_idname = node_group_idname(C);
   if (node_idname[0] == '\0') {
     BKE_report(op.reports, RPT_WARNING, "Could not determine type of group node");
     return OPERATOR_CANCELLED;
@@ -620,7 +620,7 @@ static wmOperatorStatus node_swap_group_asset_invoke(bContext &C,
   }
 
   BKE_main_ensure_invariants(bmain);
-  WM_event_add_notifier(&C, NC_NODE | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
   DEG_relations_tag_update(&bmain);
 
   return OPERATOR_FINISHED;
@@ -943,7 +943,7 @@ static wmOperatorStatus node_add_image_exec(bContext &C, wmOperator &op)
   const Vector<std::string> paths = ed::io::paths_from_operator_properties(op.ptr);
   for (const std::string &path : paths) {
     RNA_string_set(op.ptr, "filepath", path.c_str());
-    Image *image = (Image *)WM_operator_drop_load_path(&C, &op, ID_IM);
+    Image *image = (Image *)WM_operator_drop_load_path(C, &op, ID_IM);
     if (!image) {
       BKE_report(op.reports, RPT_WARNING, fmt::format("Could not load {}", path).c_str());
       continue;
@@ -952,12 +952,12 @@ static wmOperatorStatus node_add_image_exec(bContext &C, wmOperator &op)
     /* When adding new image file via drag-drop we need to load #ImBuf in order
      * to get proper image source. */
     BKE_image_signal(bmain, image, nullptr, IMA_SIGNAL_RELOAD);
-    WM_event_add_notifier(&C, NC_IMAGE | NA_EDITED, image);
+    WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, image);
   }
 
   /* If not path is provided, try to get a ID Image from operator. */
   if (paths.is_empty()) {
-    Image *image = (Image *)WM_operator_drop_load_path(&C, &op, ID_IM);
+    Image *image = (Image *)WM_operator_drop_load_path(C, &op, ID_IM);
     if (image) {
       images.append(image);
     }
@@ -1014,7 +1014,7 @@ static wmOperatorStatus node_add_image_exec(bContext &C, wmOperator &op)
   data->nodes = std::move(nodes);
   data->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
   op.customdata = data;
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1273,7 +1273,7 @@ static wmOperatorStatus node_add_import_node_exec(bContext &C, wmOperator &op)
   data->nodes = std::move(new_nodes);
   data->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
   op.customdata = data;
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   BKE_main_ensure_invariants(*bmain, ntree->id);
 
@@ -1635,9 +1635,9 @@ void NODE_OT_add_color(wmOperatorType *ot)
 /** \name New Node Tree Operator
  * \{ */
 
-static bNodeTree *new_node_tree_impl(bContext *C, StringRef treename, StringRef idname)
+static bNodeTree *new_node_tree_impl(bContext &C, StringRef treename, StringRef idname)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   bNodeTree *node_tree = bke::node_tree_add_tree(bmain, treename, idname);
   node_templateID_assign(C, node_tree);
@@ -1679,9 +1679,9 @@ static wmOperatorStatus new_node_tree_exec(bContext &C, wmOperator &op)
     treename = type->ui_name.c_str();
   }
 
-  new_node_tree_impl(&C, treename, idname);
+  new_node_tree_impl(C, treename, idname);
 
-  WM_event_add_notifier(&C, NC_NODE | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -1726,10 +1726,10 @@ static wmOperatorStatus new_compositing_node_group_exec(bContext &C, wmOperator 
   char tree_name[MAX_ID_NAME - 2];
   RNA_string_get(op.ptr, "name", tree_name);
 
-  bNodeTree *ntree = new_node_tree_impl(&C, tree_name, "CompositorNodeTree");
-  blender::nodes::node_tree_composit_default_init(&C, ntree);
+  bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
+  blender::nodes::node_tree_composit_default_init(C, ntree);
 
-  WM_event_add_notifier(&C, NC_NODE | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
   BKE_ntree_update_after_single_tree_change(*bmain, *ntree);
 
   return OPERATOR_FINISHED;
@@ -1772,9 +1772,9 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Duplicate Compositing Node Tree Operator
  * \{ */
-static wmOperatorStatus duplicate_and_assign_node_tree(bContext *C, bNodeTree *source_node_tree)
+static wmOperatorStatus duplicate_and_assign_node_tree(bContext &C, bNodeTree *source_node_tree)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   if (source_node_tree == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -1792,7 +1792,7 @@ static wmOperatorStatus duplicate_and_assign_node_tree(bContext *C, bNodeTree *s
 static wmOperatorStatus duplicate_compositing_node_group_exec(bContext &C, wmOperator & /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
-  return duplicate_and_assign_node_tree(&C, scene->compositing_node_group);
+  return duplicate_and_assign_node_tree(C, scene->compositing_node_group);
 }
 
 void NODE_OT_duplicate_compositing_node_group(wmOperatorType *ot)
@@ -1828,7 +1828,7 @@ static wmOperatorStatus duplicate_compositing_modifier_node_group_exec(bContext 
   }
 
   SequencerCompositorModifierData *nmd = reinterpret_cast<SequencerCompositorModifierData *>(smd);
-  return duplicate_and_assign_node_tree(&C, nmd->node_group);
+  return duplicate_and_assign_node_tree(C, nmd->node_group);
 }
 
 void NODE_OT_duplicate_compositing_modifier_node_group(wmOperatorType *ot)
@@ -1848,7 +1848,7 @@ void NODE_OT_duplicate_compositing_modifier_node_group(wmOperatorType *ot)
 /** \name New Compositor Sequencer Node Group Operator
  * \{ */
 
-static void initialize_compositor_sequencer_node_group(const bContext *C, bNodeTree &ntree)
+static void initialize_compositor_sequencer_node_group(const bContext &C, bNodeTree &ntree)
 {
   BLI_assert(ntree.type == NTREE_COMPOSIT);
   BLI_assert(BLI_listbase_count(&ntree.nodes) == 0);
@@ -1860,20 +1860,20 @@ static void initialize_compositor_sequencer_node_group(const bContext *C, bNodeT
   ntree.tree_interface.add_socket(
       "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
 
-  bNode *output_node = blender::bke::node_add_node(C, ntree, "NodeGroupOutput");
+  bNode *output_node = blender::bke::node_add_node(&C, ntree, "NodeGroupOutput");
   output_node->location[0] = 200.0f;
   output_node->location[1] = 0.0f;
 
-  bNode *input_node = blender::bke::node_add_node(C, ntree, "NodeGroupInput");
+  bNode *input_node = blender::bke::node_add_node(&C, ntree, "NodeGroupInput");
   input_node->location[0] = -150.0f - input_node->width;
   input_node->location[1] = 0.0f;
   blender::bke::node_set_active(ntree, *input_node);
 
-  bNode *reroute = blender::bke::node_add_static_node(C, ntree, NODE_REROUTE);
+  bNode *reroute = blender::bke::node_add_static_node(&C, ntree, NODE_REROUTE);
   reroute->location[0] = 100.0f;
   reroute->location[1] = -35.0f;
 
-  bNode *viewer = blender::bke::node_add_static_node(C, ntree, CMP_NODE_VIEWER);
+  bNode *viewer = blender::bke::node_add_static_node(&C, ntree, CMP_NODE_VIEWER);
   viewer->location[0] = 200.0f;
   viewer->location[1] = -80.0f;
 
@@ -1895,7 +1895,7 @@ static void initialize_compositor_sequencer_node_group(const bContext *C, bNodeT
                               *viewer,
                               *static_cast<bNodeSocket *>(viewer->inputs.first));
 
-  BKE_ntree_update_after_single_tree_change(*CTX_data_main(*C), ntree);
+  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), ntree);
 }
 
 static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext &C, wmOperator &op)
@@ -1906,8 +1906,8 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext &C, wm
   char tree_name[MAX_ID_NAME - 2];
   RNA_string_get(op.ptr, "name", tree_name);
 
-  bNodeTree *ntree = new_node_tree_impl(&C, tree_name, "CompositorNodeTree");
-  initialize_compositor_sequencer_node_group(&C, *ntree);
+  bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
+  initialize_compositor_sequencer_node_group(C, *ntree);
 
   Strip *strip = seq::select_active_get(scene);
 
@@ -1926,12 +1926,12 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext &C, wm
       /* Tag depsgraph relations for an update since the modifier should now be referencing a
        * different node tree. */
       DEG_relations_tag_update(bmain);
-      WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
+      WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     }
   }
 
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
-  WM_event_add_notifier(&C, NC_NODE | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }

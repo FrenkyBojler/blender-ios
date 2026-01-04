@@ -61,7 +61,7 @@ static bool WIDGETGROUP_tool_generic_poll(const bContext *C, wmGizmoGroupType *g
   return true;
 }
 
-static wmGizmo *tool_generic_create_gizmo(const bContext *C, wmGizmoGroup *gzgroup)
+static wmGizmo *tool_generic_create_gizmo(const bContext &C, wmGizmoGroup *gzgroup)
 {
 
   wmGizmo *gz = WM_gizmo_new("GIZMO_GT_button_2d", gzgroup, nullptr);
@@ -74,7 +74,7 @@ static wmGizmo *tool_generic_create_gizmo(const bContext *C, wmGizmoGroup *gzgro
 
   RNA_enum_set(gz->ptr, "icon", ICON_NONE);
 
-  bToolRef *tref = WM_toolsystem_ref_from_context((bContext *)C);
+  bToolRef *tref = WM_toolsystem_ref_from_context(*(bContext *)&C);
   PointerRNA gzgt_ptr;
   const bool gzgt_ptr_is_valid = WM_toolsystem_ref_properties_get_from_gizmo_group(
       tref, gzgroup->type, &gzgt_ptr);
@@ -106,7 +106,7 @@ static wmGizmo *tool_generic_create_gizmo(const bContext *C, wmGizmoGroup *gzgro
                   gzgt_ptr_is_valid ? RNA_float_get(&gzgt_ptr, "backdrop_fill_alpha") : 0.125f);
   }
 
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmKeyConfig *kc = wm->runtime->defaultconf;
 
   gz->keymap = WM_keymap_ensure(kc, tref->runtime->keymap, tref->space_type, RGN_TYPE_WINDOW);
@@ -116,7 +116,7 @@ static wmGizmo *tool_generic_create_gizmo(const bContext *C, wmGizmoGroup *gzgro
 static void WIDGETGROUP_tool_generic_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
   wmGizmoWrapper *wwrapper = MEM_mallocN<wmGizmoWrapper>(__func__);
-  wwrapper->gizmo = tool_generic_create_gizmo(C, gzgroup);
+  wwrapper->gizmo = tool_generic_create_gizmo(*C, gzgroup);
   gzgroup->customdata = wwrapper;
 
   /* The tool handles undo, no need to set #WM_GIZMO_NEEDS_UNDO. */
@@ -148,7 +148,7 @@ static void WIDGETGROUP_tool_generic_refresh(const bContext *C, wmGizmoGroup *gz
     blender::ed::transform::TransformCalcParams params{};
     params.use_only_center = true;
     params.orientation_index = orientation + 1;
-    const bool hide = blender::ed::transform::calc_gizmo_stats(C, &params, &tbounds, rv3d) == 0;
+    const bool hide = blender::ed::transform::calc_gizmo_stats(*C, &params, &tbounds, rv3d) == 0;
 
     WM_gizmo_set_flag(gz, WM_GIZMO_HIDDEN, hide);
     if (hide) {

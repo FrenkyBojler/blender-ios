@@ -43,7 +43,7 @@ struct Layout;
 
 namespace blender::ed::space_node {
 
-void tree_update(const bContext *C);
+void tree_update(const bContext &C);
 
 float grid_size_get();
 

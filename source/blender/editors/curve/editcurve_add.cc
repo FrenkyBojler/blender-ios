@@ -106,7 +106,7 @@ Nurb *ED_curve_add_nurbs_primitive(
 {
   static int xzproj = 0; /* this function calls itself... */
   ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
-  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(*C);
   Nurb *nu = nullptr;
   BezTriple *bezt;
   BPoint *bp;
@@ -493,11 +493,11 @@ Nurb *ED_curve_add_nurbs_primitive(
   return nu;
 }
 
-static wmOperatorStatus curvesurf_prim_add(bContext *C, wmOperator *op, int type, int isSurf)
+static wmOperatorStatus curvesurf_prim_add(bContext &C, wmOperator *op, int type, int isSurf)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   ListBaseT<Nurb> *editnurb;
@@ -508,10 +508,10 @@ static wmOperatorStatus curvesurf_prim_add(bContext *C, wmOperator *op, int type
   float loc[3], rot[3];
   float mat[4][4];
 
-  WM_operator_view3d_unit_defaults(C, op);
+  WM_operator_view3d_unit_defaults(&C, op);
 
   blender::ed::object::add_generic_get_opts(
-      C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
+      &C, op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
   if (!isSurf) { /* adding curve */
     if (obedit == nullptr || obedit->type != OB_CURVES_LEGACY) {
@@ -519,7 +519,7 @@ static wmOperatorStatus curvesurf_prim_add(bContext *C, wmOperator *op, int type
       Curve *cu;
 
       obedit = blender::ed::object::add_type(
-          C, OB_CURVES_LEGACY, name, loc, rot, true, local_view_bits);
+          &C, OB_CURVES_LEGACY, name, loc, rot, true, local_view_bits);
       newob = true;
 
       cu = (Curve *)obedit->data;
@@ -535,7 +535,7 @@ static wmOperatorStatus curvesurf_prim_add(bContext *C, wmOperator *op, int type
   else { /* adding surface */
     if (obedit == nullptr || obedit->type != OB_SURF) {
       const char *name = get_surf_defname(type);
-      obedit = blender::ed::object::add_type(C, OB_SURF, name, loc, rot, true, local_view_bits);
+      obedit = blender::ed::object::add_type(&C, OB_SURF, name, loc, rot, true, local_view_bits);
       newob = true;
     }
     else {
@@ -548,7 +548,7 @@ static wmOperatorStatus curvesurf_prim_add(bContext *C, wmOperator *op, int type
   copy_v3_fl(scale, radius);
   blender::ed::object::new_primitive_matrix(C, obedit, loc, rot, scale, mat);
 
-  nu = ED_curve_add_nurbs_primitive(C, obedit, mat, type, newob);
+  nu = ED_curve_add_nurbs_primitive(&C, obedit, mat, type, newob);
   editnurb = object_editcurve_get(obedit);
   BLI_addtail(editnurb, nu);
 
@@ -564,12 +564,12 @@ static wmOperatorStatus curvesurf_prim_add(bContext *C, wmOperator *op, int type
 
 static wmOperatorStatus curve_prim_add(bContext *C, wmOperator *op, int type)
 {
-  return curvesurf_prim_add(C, op, type, 0);
+  return curvesurf_prim_add(*C, op, type, 0);
 }
 
 static wmOperatorStatus surf_prim_add(bContext *C, wmOperator *op, int type)
 {
-  return curvesurf_prim_add(C, op, type, 1);
+  return curvesurf_prim_add(*C, op, type, 1);
 }
 
 /* ******************** Curves ******************* */

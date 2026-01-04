@@ -222,7 +222,7 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
   bNodeSocketValueString *value = static_cast<bNodeSocketValueString *>(socket->default_value);
   BLI_strncpy_utf8(value->value, item->name.c_str(), MAX_NAME);
 
-  ED_undo_push(C, "Assign Attribute Name");
+  ED_undo_push(*C, "Assign Attribute Name");
 }
 
 void node_geometry_add_attribute_search_button(const bContext & /*C*/,

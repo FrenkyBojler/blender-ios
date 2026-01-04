@@ -65,7 +65,7 @@ static Vector<SculptBatch> sculpt_batches_get_ex(const Object *ob,
 
   Paint *paint = nullptr;
   if (drwctx->evil_C != nullptr) {
-    paint = BKE_paint_get_active_from_context(drwctx->evil_C);
+    paint = BKE_paint_get_active_from_context(*drwctx->evil_C);
   }
 
   /* TODO: take into account partial redraw for clipping planes. */

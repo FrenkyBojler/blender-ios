@@ -47,7 +47,7 @@ static wmOperatorStatus view3d_zoom_border_exec(bContext &C, wmOperator &op)
   float cent[2], p[3];
 
   /* NOTE: otherwise opengl won't work. */
-  view3d_operator_needs_gpu(&C);
+  view3d_operator_needs_gpu(C);
 
   /* get box select values using rna */
   WM_operator_properties_border_to_rcti(&op, &rect);
@@ -176,7 +176,7 @@ static wmOperatorStatus view3d_zoom_border_exec(bContext &C, wmOperator &op)
   sview_params.dist = &dist_new;
   sview_params.undo_str = op.type->name;
 
-  ED_view3d_smooth_view(&C, v3d, region, smooth_viewtx, &sview_params);
+  ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview_params);
 
   if (RV3D_LOCK_FLAGS(rv3d) & RV3D_BOXVIEW) {
     view3d_boxview_sync(CTX_wm_area(C), region);

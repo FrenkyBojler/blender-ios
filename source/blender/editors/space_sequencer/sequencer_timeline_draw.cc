@@ -78,9 +78,9 @@ constexpr int MUTE_ALPHA = 120;
 
 constexpr float ICON_SIZE = 12.0f;
 
-Vector<Strip *> sequencer_visible_strips_get(const bContext *C)
+Vector<Strip *> sequencer_visible_strips_get(const bContext &C)
 {
-  return sequencer_visible_strips_get(CTX_data_sequencer_scene(*C), ui::view2d_fromcontext(C));
+  return sequencer_visible_strips_get(CTX_data_sequencer_scene(C), ui::view2d_fromcontext(C));
 }
 
 Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v2d)
@@ -106,14 +106,14 @@ Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v
   return strips;
 }
 
-static TimelineDrawContext timeline_draw_context_get(const bContext *C, SeqQuadsBatch *quads_batch)
+static TimelineDrawContext timeline_draw_context_get(const bContext &C, SeqQuadsBatch *quads_batch)
 {
   TimelineDrawContext ctx;
 
-  ctx.C = C;
-  ctx.region = CTX_wm_region(*C);
-  ctx.scene = CTX_data_sequencer_scene(*C);
-  ctx.sseq = CTX_wm_space_seq(*C);
+  ctx.C = &C;
+  ctx.region = CTX_wm_region(C);
+  ctx.scene = CTX_data_sequencer_scene(C);
+  ctx.sseq = CTX_wm_space_seq(C);
   ctx.v2d = ui::view2d_fromcontext(C);
 
   ctx.ed = ctx.scene ? seq::editing_get(ctx.scene) : nullptr;
@@ -433,7 +433,7 @@ static void color3ubv_from_seq(const Scene *curscene,
 static void waveform_job_start_if_needed(const bContext *C, const Strip *strip)
 {
   if (BKE_sound_runtime_start_waveform_loading(strip->sound)) {
-    sequencer_preview_add_sound(C, strip);
+    sequencer_preview_add_sound(*C, strip);
   }
 }
 
@@ -886,7 +886,7 @@ static void draw_icon_centered(const TimelineDrawContext &ctx,
   if (BLI_rctf_size_x(&rect) * 1.1f < icon_size * ctx.pixelx ||
       BLI_rctf_size_y(&rect) * 1.1f < icon_size * ctx.pixely)
   {
-    ui::view2d_view_restore(ctx.C);
+    ui::view2d_view_restore(*ctx.C);
     return;
   }
 
@@ -910,7 +910,7 @@ static void draw_icon_centered(const TimelineDrawContext &ctx,
                    UI_NO_ICON_OVERLAY_TEXT);
 
   /* Restore view matrix. */
-  ui::view2d_view_restore(ctx.C);
+  ui::view2d_view_restore(*ctx.C);
 }
 
 static void draw_strip_icons(const TimelineDrawContext &ctx,
@@ -1178,8 +1178,8 @@ static void draw_multicam_highlight(const TimelineDrawContext &ctx,
 /* Force redraw, when prefetching and using cache view. */
 static void seq_prefetch_wm_notify(const bContext *C, Scene *scene)
 {
-  if (seq::prefetch_need_redraw(C, scene)) {
-    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, nullptr);
+  if (seq::prefetch_need_redraw(*C, scene)) {
+    WM_event_add_notifier(*C, NC_SCENE | ND_SEQUENCER, nullptr);
   }
 }
 
@@ -1215,7 +1215,7 @@ static void visible_strips_ordered_get(const TimelineDrawContext &ctx,
   r_bottom_layer.clear();
   r_top_layer.clear();
 
-  Vector<Strip *> strips = sequencer_visible_strips_get(ctx.C);
+  Vector<Strip *> strips = sequencer_visible_strips_get(*ctx.C);
   r_bottom_layer.reserve(strips.size());
 
   for (Strip *strip : strips) {
@@ -1655,11 +1655,11 @@ static void draw_cache_stripe(const Scene *scene,
       strip->left_handle(), stripe_bot, strip->right_handle(scene), stripe_bot + stripe_ht, color);
 }
 
-static void draw_cache_background(const bContext *C, const CacheDrawData *draw_data)
+static void draw_cache_background(const bContext &C, const CacheDrawData *draw_data)
 {
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = ui::view2d_fromcontext(C);
-  const SpaceSeq *sseq = CTX_wm_space_seq(*C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   /* NOTE: Final bg color is the same as the movie clip cache color.
    * See ED_region_cache_draw_background.
@@ -1694,11 +1694,11 @@ static void draw_cache_background(const bContext *C, const CacheDrawData *draw_d
   }
 }
 
-static void draw_cache_view(const bContext *C)
+static void draw_cache_view(const bContext &C)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = ui::view2d_fromcontext(C);
-  const SpaceSeq *sseq = CTX_wm_space_seq(*C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   if ((sseq->flag & SEQ_SHOW_OVERLAY) == 0 || (sseq->cache_overlay.flag & SEQ_CACHE_SHOW) == 0) {
     return;
@@ -1788,7 +1788,7 @@ static void draw_timeline_markers(const TimelineDrawContext &ctx)
   }
 
   ui::view2d_view_orthoSpecial(ctx.region, ctx.v2d, true);
-  ED_markers_draw(ctx.C, DRAW_MARKERS_MARGIN);
+  ED_markers_draw(*ctx.C, DRAW_MARKERS_MARGIN);
   ui::view2d_view_ortho(ctx.v2d);
 }
 
@@ -1820,7 +1820,7 @@ static void draw_timeline_post_view_callbacks(const TimelineDrawContext &ctx)
 void draw_timeline_seq(const bContext *C, const ARegion *region)
 {
   SeqQuadsBatch quads_batch;
-  TimelineDrawContext ctx = timeline_draw_context_get(C, &quads_batch);
+  TimelineDrawContext ctx = timeline_draw_context_get(*C, &quads_batch);
   StripsDrawBatch strips_batch(ctx.v2d);
 
   draw_timeline_pre_view_callbacks(ctx);
@@ -1836,7 +1836,7 @@ void draw_timeline_seq(const bContext *C, const ARegion *region)
     ANIM_draw_previewrange(ctx.scene, ctx.v2d, 1);
   }
   draw_timeline_post_view_callbacks(ctx);
-  ui::view2d_view_restore(C);
+  ui::view2d_view_restore(*C);
 
   draw_timeline_gizmos(ctx);
 
@@ -1851,13 +1851,13 @@ void draw_timeline_seq(const bContext *C, const ARegion *region)
   }
 }
 
-void draw_timeline_seq_display(const bContext *C, ARegion *region)
+void draw_timeline_seq_display(const bContext &C, ARegion *region)
 {
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   if (!scene) {
     return;
   }
-  const SpaceSeq *sseq = CTX_wm_space_seq(*C);
+  const SpaceSeq *sseq = CTX_wm_space_seq(C);
   View2D *v2d = &region->v2d;
 
   if (scene->ed != nullptr) {

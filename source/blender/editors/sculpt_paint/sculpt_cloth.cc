@@ -2286,7 +2286,7 @@ static wmOperatorStatus sculpt_cloth_filter_modal(bContext &C,
     MEM_delete(ss.filter_cache);
     ss.filter_cache = nullptr;
     undo::push_end(object);
-    flush_update_done(&C, object, UpdateType::Position);
+    flush_update_done(C, object, UpdateType::Position);
     return OPERATOR_FINISHED;
   }
 
@@ -2384,7 +2384,7 @@ static wmOperatorStatus sculpt_cloth_filter_modal(bContext &C,
   /* Update and write the simulation to the nodes. */
   do_simulation_step(*depsgraph, sd, object, *ss.filter_cache->cloth_sim, node_mask);
 
-  flush_update_step(&C, UpdateType::Position);
+  flush_update_step(C, UpdateType::Position);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -2409,7 +2409,7 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext &C,
   /* Update the active vertex */
   float2 mval_fl{float(event->mval[0]), float(event->mval[1])};
   CursorGeometryInfo cgi;
-  cursor_geometry_info_update(&C, &cgi, mval_fl, false);
+  cursor_geometry_info_update(C, &cgi, mval_fl, false);
 
   /* Needs mask data to be available as it is used when solving the constraints. */
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
@@ -2419,7 +2419,7 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext &C,
   }
 
   undo::push_begin(scene, ob, &op);
-  filter::cache_init(&C,
+  filter::cache_init(C,
                      ob,
                      sd,
                      undo::Type::Position,
@@ -2464,7 +2464,7 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext &C,
 
   ss.filter_cache->orientation = filter::FilterOrientation(RNA_enum_get(op.ptr, "orientation"));
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 

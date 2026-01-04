@@ -579,7 +579,7 @@ static void uilist_prepare(uiList *ui_list,
   r_visual_info->end_idx = min_ii(r_visual_info->start_idx + actual_rows, items->item_vec.size());
 }
 
-static void uilist_resize_update(bContext *C, uiList *ui_list)
+static void uilist_resize_update(bContext &C, uiList *ui_list)
 {
   uiListDyn *dyn_data = ui_list->dyn_data;
 
@@ -594,7 +594,7 @@ static void uilist_resize_update(bContext *C, uiList *ui_list)
   }
 
   /* In case uilist is in popup, we need special refreshing */
-  ED_region_tag_refresh_ui(CTX_wm_region_popup(*C));
+  ED_region_tag_refresh_ui(CTX_wm_region_popup(C));
 }
 
 static void *uilist_item_use_dynamic_tooltip(PointerRNA *itemptr, const char *propname)
@@ -623,7 +623,7 @@ static std::string uilist_item_tooltip_func(bContext * /*C*/, void *argN, const 
 /**
  * \note that \a layout_type may be null.
  */
-static uiList *ui_list_ensure(const bContext *C,
+static uiList *ui_list_ensure(const bContext &C,
                               uiListType *ui_list_type,
                               const char *list_id,
                               int layout_type,
@@ -631,9 +631,9 @@ static uiList *ui_list_ensure(const bContext *C,
                               bool sort_lock)
 {
   /* Allows to work in popups. */
-  ARegion *region = CTX_wm_region_popup(*C);
+  ARegion *region = CTX_wm_region_popup(C);
   if (region == nullptr) {
-    region = CTX_wm_region(*C);
+    region = CTX_wm_region(C);
   }
 
   /* Find or add the uiList to the current Region. */
@@ -915,7 +915,7 @@ static void ui_template_list_layout_draw(const bContext *C,
                             0.0,
                             0.0,
                             "");
-        button_func_set(but, [ui_list](bContext &C) { uilist_resize_update(&C, ui_list); });
+        button_func_set(but, [ui_list](bContext &C) { uilist_resize_update(C, ui_list); });
       }
 
       block_emboss_set(subblock, EmbossType::Emboss);
@@ -963,7 +963,7 @@ static void ui_template_list_layout_draw(const bContext *C,
                             0.0,
                             0.0,
                             "");
-        button_func_set(but, [ui_list](bContext &C) { uilist_resize_update(&C, ui_list); });
+        button_func_set(but, [ui_list](bContext &C) { uilist_resize_update(C, ui_list); });
       }
 
       block_emboss_set(subblock, EmbossType::Emboss);
@@ -1007,7 +1007,7 @@ void template_list(Layout *layout,
   uiListFilterItemsFunc filter_items = ui_list_type->filter_items ? ui_list_type->filter_items :
                                                                     uilist_filter_items_default;
 
-  uiList *ui_list = ui_list_ensure(C,
+  uiList *ui_list = ui_list_ensure(*C,
                                    ui_list_type,
                                    list_id,
                                    layout_type,

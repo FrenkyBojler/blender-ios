@@ -858,7 +858,7 @@ static const EnumPropertyItem *driver_mapping_type_itemf(bContext *C,
     return prop_driver_create_mapping_types;
   }
 
-  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(*C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_driver_editable(&ptr, prop)) {
     const bool is_array = RNA_property_array_check(prop);
@@ -891,7 +891,7 @@ static bool add_driver_button_poll(bContext &C)
   bool driven, special;
 
   /* this operator can only run if there's a property button active, and it can be animated */
-  blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (!(ptr.owner_id && ptr.data && prop)) {
     return false;
@@ -915,7 +915,7 @@ static wmOperatorStatus add_driver_button_none(bContext *C, wmOperator *op, shor
   int index;
   int success = 0;
 
-  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(*C, &ptr, &prop, &index);
 
   if (mapping_type == CREATEDRIVER_MAPPING_NONE_ALL) {
     index = -1;
@@ -932,9 +932,9 @@ static wmOperatorStatus add_driver_button_none(bContext *C, wmOperator *op, shor
 
   if (success) {
     /* send updates */
-    blender::ui::context_update_anim_flag(C);
+    blender::ui::context_update_anim_flag(*C);
     DEG_relations_tag_update(CTX_data_main(*C));
-    WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
+    WM_event_add_notifier(*C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
 
     return OPERATOR_FINISHED;
   }
@@ -1014,7 +1014,7 @@ static wmOperatorStatus add_driver_button_invoke(bContext &C,
   PropertyRNA *prop = nullptr;
   int index;
 
-  blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_driver_editable(&ptr, prop)) {
     /* 1) Create a new "empty" driver for this property */
@@ -1029,10 +1029,10 @@ static wmOperatorStatus add_driver_button_invoke(bContext &C,
 
     if (changed) {
       /* send updates */
-      blender::ui::context_update_anim_flag(&C);
+      blender::ui::context_update_anim_flag(C);
       DEG_id_tag_update(ptr.owner_id, ID_RECALC_SYNC_TO_EVAL);
       DEG_relations_tag_update(CTX_data_main(C));
-      WM_event_add_notifier(&C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
+      WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
     }
 
     /* 2) Show editing panel for setting up this driver */
@@ -1069,7 +1069,7 @@ static wmOperatorStatus remove_driver_button_exec(bContext &C, wmOperator &op)
   int index;
   const bool all = RNA_boolean_get(op.ptr, "all");
 
-  blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (all) {
     index = -1;
@@ -1083,10 +1083,10 @@ static wmOperatorStatus remove_driver_button_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     /* send updates */
-    blender::ui::context_update_anim_flag(&C);
+    blender::ui::context_update_anim_flag(C);
     DEG_relations_tag_update(CTX_data_main(C));
     DEG_id_tag_update(ptr.owner_id, ID_RECALC_ANIMATION);
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
+    WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
   }
 
   return (changed) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -1119,7 +1119,7 @@ static wmOperatorStatus edit_driver_button_exec(bContext &C, wmOperator &op)
   PropertyRNA *prop = nullptr;
   int index;
 
-  blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop) {
     blender::ui::popover_panel_invoke(&C, "GRAPH_PT_drivers_popover", true, op.reports);
@@ -1153,14 +1153,14 @@ static wmOperatorStatus copy_driver_button_exec(bContext &C, wmOperator &op)
   bool changed = false;
   int index;
 
-  blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_driver_editable(&ptr, prop)) {
     if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
       /* only copy the driver for the button that this was involved for */
       changed = ANIM_copy_driver(op.reports, ptr.owner_id, path->c_str(), index, 0);
 
-      blender::ui::context_update_anim_flag(&C);
+      blender::ui::context_update_anim_flag(C);
     }
   }
 
@@ -1192,20 +1192,20 @@ static wmOperatorStatus paste_driver_button_exec(bContext &C, wmOperator &op)
   bool changed = false;
   int index;
 
-  blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_driver_editable(&ptr, prop)) {
     if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
       /* only copy the driver for the button that this was involved for */
       changed = ANIM_paste_driver(op.reports, ptr.owner_id, path->c_str(), index, 0);
 
-      blender::ui::context_update_anim_flag(&C);
+      blender::ui::context_update_anim_flag(C);
 
       DEG_relations_tag_update(CTX_data_main(C));
 
       DEG_id_tag_update(ptr.owner_id, ID_RECALC_ANIMATION);
 
-      WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr); /* XXX */
+      WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr); /* XXX */
     }
   }
 

@@ -509,11 +509,11 @@ static RulerItem *gzgroup_ruler_item_first_get(wmGizmoGroup *gzgroup)
 
 /* GP data creation has to happen before the undo step is stored.
  * See also #116734. */
-static void view3d_ruler_gpencil_ensure(bContext *C)
+static void view3d_ruler_gpencil_ensure(bContext &C)
 {
   // RulerInfo *ruler_info = gzgroup->customdata;
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
   if (scene->gpd == nullptr) {
     scene->gpd = BKE_gpencil_data_addnew(bmain, "Annotations");
     DEG_id_tag_update_ex(bmain, &scene->id, ID_RECALC_SYNC_TO_EVAL);
@@ -521,10 +521,10 @@ static void view3d_ruler_gpencil_ensure(bContext *C)
   }
 }
 
-static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
+static bool view3d_ruler_to_gpencil(bContext &C, wmGizmoGroup *gzgroup)
 {
   // RulerInfo *ruler_info = gzgroup->customdata;
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   bGPdata *gpd;
   bGPDlayer *gpl;
@@ -592,9 +592,9 @@ static bool view3d_ruler_to_gpencil(bContext *C, wmGizmoGroup *gzgroup)
   return changed;
 }
 
-static bool view3d_ruler_from_gpencil(const bContext *C, wmGizmoGroup *gzgroup)
+static bool view3d_ruler_from_gpencil(const bContext &C, wmGizmoGroup *gzgroup)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   bool changed = false;
 
   if (scene->gpd) {
@@ -633,9 +633,9 @@ static bool view3d_ruler_from_gpencil(const bContext *C, wmGizmoGroup *gzgroup)
   return changed;
 }
 
-void ED_view3d_gizmo_ruler_remove_by_gpencil_layer(bContext *C, bGPDlayer *gpl)
+void ED_view3d_gizmo_ruler_remove_by_gpencil_layer(bContext &C, bGPDlayer *gpl)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   for (wmWindow &win : wm->windows) {
     const Scene *scene = WM_window_get_active_scene(&win);
     if (!scene->gpd) {
@@ -666,7 +666,7 @@ void ED_view3d_gizmo_ruler_remove_by_gpencil_layer(bContext *C, bGPDlayer *gpl)
       }
       RulerItem *ruler_item;
       while ((ruler_item = gzgroup_ruler_item_first_get(gzgroup))) {
-        ruler_item_remove(C, gzgroup, ruler_item);
+        ruler_item_remove(&C, gzgroup, ruler_item);
       }
 
       ED_region_tag_redraw_editor_overlays(region);
@@ -1236,7 +1236,7 @@ static wmOperatorStatus gizmo_ruler_invoke(bContext *C, wmGizmo *gz, const wmEve
   ruler_info->item_active = ruler_item_pick;
 
   /* Ensures there is a valid GPencil data in current scene. */
-  view3d_ruler_gpencil_ensure(C);
+  view3d_ruler_gpencil_ensure(*C);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1252,9 +1252,9 @@ static void gizmo_ruler_exit(bContext *C, wmGizmo *gz, const bool cancel)
       ruler_state_set(ruler_info, RULER_STATE_NORMAL);
     }
     /* We could convert only the current gizmo, for now just re-generate. */
-    if (view3d_ruler_to_gpencil(C, gzgroup)) {
+    if (view3d_ruler_to_gpencil(*C, gzgroup)) {
       /* For immediate update when a ruler annotation layer was added. */
-      WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+      WM_event_add_notifier(*C, NC_GPENCIL | NA_EDITED, nullptr);
     }
   }
 
@@ -1313,7 +1313,7 @@ static void WIDGETGROUP_ruler_setup(const bContext *C, wmGizmoGroup *gzgroup)
     WM_gizmo_operator_set(gizmo, 0, ot, nullptr);
   }
 
-  if (view3d_ruler_from_gpencil(C, gzgroup)) {
+  if (view3d_ruler_from_gpencil(*C, gzgroup)) {
     /* nop */
   }
 
@@ -1476,8 +1476,8 @@ static wmOperatorStatus view3d_ruler_remove_invoke(bContext &C,
       }
 
       /* Update the annotation layer. */
-      view3d_ruler_gpencil_ensure(&C);
-      view3d_ruler_to_gpencil(&C, gzgroup);
+      view3d_ruler_gpencil_ensure(C);
+      view3d_ruler_to_gpencil(C, gzgroup);
 
       ED_region_tag_redraw_editor_overlays(region);
       return OPERATOR_FINISHED;

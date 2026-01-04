@@ -129,7 +129,7 @@ void text_pop_suggest_list()
 /** \name Private API
  * \{ */
 
-static void text_autocomplete_free(bContext *C, wmOperator *op);
+static void text_autocomplete_free(bContext &C, wmOperator *op);
 
 static GHash *text_autocomplete_build(Text *text)
 {
@@ -302,18 +302,18 @@ static wmOperatorStatus text_autocomplete_invoke(bContext &C,
     ED_area_tag_redraw(CTX_wm_area(C));
 
     if (texttool_suggest_first() == texttool_suggest_last()) {
-      ED_text_undo_push_init(&C);
+      ED_text_undo_push_init(C);
       confirm_suggestion(st->text);
       text_update_line_edited(st->text->curl);
-      text_autocomplete_free(&C, &op);
-      ED_undo_push(&C, op.type->name);
+      text_autocomplete_free(C, &op);
+      ED_undo_push(C, op.type->name);
       return OPERATOR_FINISHED;
     }
 
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
     return OPERATOR_RUNNING_MODAL;
   }
-  text_autocomplete_free(&C, &op);
+  text_autocomplete_free(C, &op);
   return OPERATOR_CANCELLED;
 }
 
@@ -345,10 +345,10 @@ static wmOperatorStatus text_autocomplete_modal(bContext &C, wmOperator &op, con
       if (event->val == KM_PRESS) {
         if (space_text_do_suggest_select(st, region, event->mval)) {
           if (tools & TOOL_SUGG_LIST) {
-            ED_text_undo_push_init(&C);
+            ED_text_undo_push_init(C);
             confirm_suggestion(st->text);
             text_update_line_edited(st->text->curl);
-            ED_undo_push(&C, op.type->name);
+            ED_undo_push(C, op.type->name);
             swallow = 1;
             draw = 1;
           }
@@ -379,10 +379,10 @@ static wmOperatorStatus text_autocomplete_modal(bContext &C, wmOperator &op, con
     case EVT_PADENTER:
       if (event->val == KM_PRESS) {
         if (tools & TOOL_SUGG_LIST) {
-          ED_text_undo_push_init(&C);
+          ED_text_undo_push_init(C);
           confirm_suggestion(st->text);
           text_update_line_edited(st->text->curl);
-          ED_undo_push(&C, op.type->name);
+          ED_undo_push(C, op.type->name);
           swallow = 1;
           draw = 1;
         }
@@ -533,15 +533,15 @@ static wmOperatorStatus text_autocomplete_modal(bContext &C, wmOperator &op, con
 
   if (texttool_suggest_first()) {
     if (retval != OPERATOR_RUNNING_MODAL) {
-      text_autocomplete_free(&C, &op);
+      text_autocomplete_free(C, &op);
     }
     return retval;
   }
-  text_autocomplete_free(&C, &op);
+  text_autocomplete_free(C, &op);
   return OPERATOR_FINISHED;
 }
 
-static void text_autocomplete_free(bContext *C, wmOperator *op)
+static void text_autocomplete_free(bContext &C, wmOperator *op)
 {
   GHash *gh = static_cast<GHash *>(op->customdata);
   if (gh) {
@@ -551,7 +551,7 @@ static void text_autocomplete_free(bContext *C, wmOperator *op)
 
   /* Other stuff. */
   {
-    SpaceText *st = CTX_wm_space_text(*C);
+    SpaceText *st = CTX_wm_space_text(C);
     st->doplugins = false;
     texttool_text_clear();
   }
@@ -559,7 +559,7 @@ static void text_autocomplete_free(bContext *C, wmOperator *op)
 
 static void text_autocomplete_cancel(bContext &C, wmOperator &op)
 {
-  text_autocomplete_free(&C, &op);
+  text_autocomplete_free(C, &op);
 }
 
 void TEXT_OT_autocomplete(wmOperatorType *ot)

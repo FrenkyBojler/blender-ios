@@ -216,7 +216,7 @@ static void layer_name_search_exec_fn(bContext *C, void *data_v, void *item_v)
   IDProperty &name_property = *IDP_GetPropertyFromGroup(info.properties, data.socket_identifier);
   IDP_AssignString(&name_property, item->c_str());
 
-  ED_undo_push(C, "Assign Layer Name");
+  ED_undo_push(*C, "Assign Layer Name");
 }
 
 static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
@@ -254,7 +254,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
   button_placeholder_set(but, IFACE_("Layer"));
   layout.label("", ICON_BLANK1);
 
-  const Object *object = ed::object::context_object(&ctx.C);
+  const Object *object = ed::object::context_object(ctx.C);
   BLI_assert(object != nullptr);
   if (object == nullptr) {
     return;
@@ -342,7 +342,7 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
   IDProperty &name_property = *IDP_GetPropertyFromGroup(info.properties, attribute_prop_name);
   IDP_AssignString(&name_property, item.name.c_str());
 
-  ED_undo_push(C, "Assign Attribute Name");
+  ED_undo_push(*C, "Assign Attribute Name");
 }
 
 static void add_attribute_search_button(DrawGroupInputsContext &ctx,
@@ -369,7 +369,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                                       0,
                                       StringRef(socket.description));
 
-  const Object *object = ed::object::context_object(&ctx.C);
+  const Object *object = ed::object::context_object(ctx.C);
   BLI_assert(object != nullptr);
   if (object == nullptr) {
     return;
@@ -709,7 +709,7 @@ static void draw_interface_panel_as_panel(DrawGroupInputsContext &ctx,
     skip_first = true;
   }
   else {
-    panel_layout = layout.panel_prop(&ctx.C, &open_property.ptr, open_property.name);
+    panel_layout = layout.panel_prop(ctx.C, &open_property.ptr, open_property.name);
     panel_layout.header->label(IFACE_(panel_name), ICON_NONE);
   }
   if (!interface_panel_affects_output(ctx, interface_panel)) {
@@ -807,7 +807,7 @@ static void draw_warnings(const bContext *C,
   const int num_warnings = count_by_type.lookup_default(NodeWarningType::Warning, 0);
   const int num_infos = count_by_type.lookup_default(NodeWarningType::Info, 0);
   const std::string panel_name = get_node_warning_panel_name(num_errors, num_warnings, num_infos);
-  ui::PanelLayout panel = layout.panel_prop(C, md_ptr, "open_warnings_panel");
+  ui::PanelLayout panel = layout.panel_prop(*C, md_ptr, "open_warnings_panel");
   panel.header->label(panel_name.c_str(), ICON_NONE);
   if (!panel.body) {
     return;

@@ -685,7 +685,7 @@ static void store_result_geometry(const bContext &C,
 
       DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
       if (inserted_new_keyframe) {
-        WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+        WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
       }
     }
   }
@@ -993,7 +993,7 @@ static wmOperatorStatus run_node_group_exec(bContext &C, wmOperator &op)
 
     store_result_geometry(
         C, op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, object->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, object->data);
   }
 
   geo_log::GeoTreeLog &tree_log = eval_log.log->get_tree_log(compute_context.hash());

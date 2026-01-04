@@ -95,7 +95,7 @@ static wmOperatorStatus dopesheet_select_channel_exec(bContext &C, wmOperator &o
     current_channel_index++;
   }
 
-  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
 
   return OPERATOR_FINISHED;
 }

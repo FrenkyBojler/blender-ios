@@ -41,22 +41,22 @@
 /** \name Context Query Helpers
  * \{ */
 
-blender::Vector<PointerRNA> ED_operator_single_id_from_context_as_vec(const bContext *C)
+blender::Vector<PointerRNA> ED_operator_single_id_from_context_as_vec(const bContext &C)
 {
   blender::Vector<PointerRNA> ids;
-  PointerRNA idptr = CTX_data_pointer_get_type(*C, "id", &RNA_ID);
+  PointerRNA idptr = CTX_data_pointer_get_type(C, "id", &RNA_ID);
   if (idptr.data) {
     ids.append(idptr);
   }
   return ids;
 }
 
-blender::Vector<PointerRNA> ED_operator_get_ids_from_context_as_vec(const bContext *C)
+blender::Vector<PointerRNA> ED_operator_get_ids_from_context_as_vec(const bContext &C)
 {
   blender::Vector<PointerRNA> ids;
 
   /* "selected_ids" context member. */
-  CTX_data_selected_ids(*C, &ids);
+  CTX_data_selected_ids(C, &ids);
   if (!ids.is_empty()) {
     return ids;
   }
@@ -144,7 +144,7 @@ static wmOperatorStatus lib_id_load_custom_preview_exec(bContext &C, wmOperator 
 
   BKE_previewimg_id_custom_set(id, filepath);
 
-  WM_event_add_notifier(&C, NC_ASSET | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ASSET | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -192,7 +192,7 @@ static void ED_OT_lib_id_load_custom_preview(wmOperatorType *ot)
  */
 static void lib_id_batch_edit_previews(bContext *C, blender::FunctionRef<void(ID *)> foreach_id)
 {
-  blender::Vector<PointerRNA> id_pointers = ED_operator_get_ids_from_context_as_vec(C);
+  blender::Vector<PointerRNA> id_pointers = ED_operator_get_ids_from_context_as_vec(*C);
   for (PointerRNA &idptr : id_pointers) {
     ID *id = static_cast<ID *>(idptr.data);
 
@@ -216,7 +216,7 @@ static bool lib_id_batch_editing_preview_poll(
     blender::FunctionRef<bool(const ID *, const char **r_disabled_hint)> additional_condition =
         nullptr)
 {
-  blender::Vector<PointerRNA> id_pointers = ED_operator_get_ids_from_context_as_vec(C);
+  blender::Vector<PointerRNA> id_pointers = ED_operator_get_ids_from_context_as_vec(*C);
   if (id_pointers.is_empty()) {
     CTX_wm_operator_poll_msg_set(*C, "No data-block selected or active");
     return false;
@@ -276,7 +276,7 @@ static wmOperatorStatus lib_id_generate_preview_exec(bContext &C, wmOperator & /
     }
   });
 
-  WM_event_add_notifier(&C, NC_ASSET | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ASSET | NA_EDITED, nullptr);
   asset::list::storage_tag_main_data_dirty();
 
   return OPERATOR_FINISHED;
@@ -335,7 +335,7 @@ static wmOperatorStatus lib_id_generate_preview_from_object_exec(bContext &C, wm
         &C, nullptr, &object_to_render->id, ICON_SIZE_PREVIEW, true, preview_image);
   });
 
-  WM_event_add_notifier(&C, NC_ASSET | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ASSET | NA_EDITED, nullptr);
   asset::list::storage_tag_main_data_dirty();
 
   return OPERATOR_FINISHED;
@@ -380,7 +380,7 @@ static wmOperatorStatus lib_id_remove_preview_exec(bContext &C, wmOperator & /*o
 {
   lib_id_batch_edit_previews(&C, [&](ID *id) { BKE_previewimg_id_free(id); });
 
-  WM_event_add_notifier(&C, NC_ASSET | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ASSET | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -475,7 +475,7 @@ static wmOperatorStatus lib_id_unlink_exec(bContext &C, wmOperator &op)
 
   idptr = {};
   RNA_property_pointer_set(&pprop.ptr, pprop.prop, idptr, nullptr);
-  RNA_property_update(&C, &pprop.ptr, pprop.prop);
+  RNA_property_update(C, &pprop.ptr, pprop.prop);
 
   return OPERATOR_FINISHED;
 }
@@ -517,8 +517,8 @@ static wmOperatorStatus lib_id_override_editable_toggle_exec(bContext &C, wmOper
     /* Reset override, which makes it non-editable (i.e. a system define override). */
     BKE_lib_override_library_id_reset(bmain, id, true);
 
-    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
-    WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    WM_event_add_notifier(C, NC_WINDOW, nullptr);
   }
 
   WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);

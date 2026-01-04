@@ -84,7 +84,7 @@ void draw_channel_names(bContext *C,
     }
   }
   { /* second pass: widgets */
-    blender::ui::Block *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+    blender::ui::Block *block = block_begin(*C, region, __func__, blender::ui::EmbossType::Emboss);
     size_t channel_index = 0;
     float ymax = ANIM_UI_get_first_channel_top(v2d);
 
@@ -104,8 +104,8 @@ void draw_channel_names(bContext *C,
       }
     }
 
-    block_end(C, block);
-    block_draw(C, block);
+    block_end(*C, block);
+    block_draw(*C, block);
   }
 }
 

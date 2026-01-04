@@ -110,7 +110,7 @@ static wmOperatorStatus nlaedit_enable_tweakmode_exec(bContext &C, wmOperator &o
   bool ok = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -166,7 +166,7 @@ static wmOperatorStatus nlaedit_enable_tweakmode_exec(bContext &C, wmOperator &o
     ac.scene->flag |= SCE_NLA_EDIT_ON;
 
     /* set notifier that things have changed */
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   }
   else {
     BKE_report(op.reports, RPT_ERROR, "No active strip(s) to enter tweak mode on");
@@ -273,7 +273,7 @@ static wmOperatorStatus nlaedit_disable_tweakmode_exec(bContext &C, wmOperator &
   bool ok = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -384,7 +384,7 @@ static wmOperatorStatus nlaedit_previewrange_exec(bContext &C, wmOperator & /*op
   float min, max;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -402,7 +402,7 @@ static wmOperatorStatus nlaedit_previewrange_exec(bContext &C, wmOperator & /*op
 
   /* set notifier that things have changed */
   /* XXX err... there's nothing for frame ranges yet, but this should do fine too */
-  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, ac.scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
 
   return OPERATOR_FINISHED;
 }
@@ -489,7 +489,7 @@ static wmOperatorStatus nlaedit_viewall(bContext *C, const bool only_sel)
   float extra;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   v2d = &ac.region->v2d;
@@ -585,7 +585,7 @@ void NLA_OT_view_selected(wmOperatorType *ot)
 static wmOperatorStatus nlaedit_viewframe_exec(bContext &C, wmOperator &op)
 {
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
-  ANIM_center_frame(&C, smooth_viewtx);
+  ANIM_center_frame(C, smooth_viewtx);
   return OPERATOR_FINISHED;
 }
 
@@ -629,7 +629,7 @@ static wmOperatorStatus nlaedit_add_actionclip_invoke(bContext &C,
 {
   /* Get editor data. */
   bAnimContext ac;
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -656,7 +656,7 @@ static wmOperatorStatus nlaedit_add_actionclip_exec(bContext &C, wmOperator &op)
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -736,7 +736,7 @@ static wmOperatorStatus nlaedit_add_actionclip_exec(bContext &C, wmOperator &op)
   DEG_relations_tag_update(ac.bmain);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -785,7 +785,7 @@ static wmOperatorStatus nlaedit_add_transition_exec(bContext &C, wmOperator &op)
   bool done = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -870,7 +870,7 @@ static wmOperatorStatus nlaedit_add_transition_exec(bContext &C, wmOperator &op)
     ED_nla_postop_refresh(&ac);
 
     /* set notifier that things have changed */
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -911,7 +911,7 @@ static wmOperatorStatus nlaedit_add_sound_exec(bContext &C, wmOperator & /*op*/)
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -966,7 +966,7 @@ static wmOperatorStatus nlaedit_add_sound_exec(bContext &C, wmOperator & /*op*/)
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1003,7 +1003,7 @@ static wmOperatorStatus nlaedit_add_meta_exec(bContext &C, wmOperator & /*op*/)
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1041,7 +1041,7 @@ static wmOperatorStatus nlaedit_add_meta_exec(bContext &C, wmOperator & /*op*/)
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1077,7 +1077,7 @@ static wmOperatorStatus nlaedit_remove_meta_exec(bContext &C, wmOperator & /*op*
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1106,7 +1106,7 @@ static wmOperatorStatus nlaedit_remove_meta_exec(bContext &C, wmOperator & /*op*
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1146,7 +1146,7 @@ static wmOperatorStatus nlaedit_duplicate_exec(bContext &C, wmOperator &op)
   bool done = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1208,7 +1208,7 @@ static wmOperatorStatus nlaedit_duplicate_exec(bContext &C, wmOperator &op)
     }
 
     /* set notifier that things have changed */
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -1264,7 +1264,7 @@ static wmOperatorStatus nlaedit_delete_exec(bContext &C, wmOperator & /*op*/)
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1318,7 +1318,7 @@ static wmOperatorStatus nlaedit_delete_exec(bContext &C, wmOperator & /*op*/)
   DEG_relations_tag_update(ac.bmain);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1432,7 +1432,7 @@ static wmOperatorStatus nlaedit_split_exec(bContext &C, wmOperator & /*op*/)
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1481,7 +1481,7 @@ static wmOperatorStatus nlaedit_split_exec(bContext &C, wmOperator & /*op*/)
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1519,7 +1519,7 @@ static wmOperatorStatus nlaedit_toggle_mute_exec(bContext &C, wmOperator & /*op*
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1550,7 +1550,7 @@ static wmOperatorStatus nlaedit_toggle_mute_exec(bContext &C, wmOperator & /*op*
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1586,7 +1586,7 @@ static wmOperatorStatus nlaedit_swap_exec(bContext &C, wmOperator &op)
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1738,8 +1738,8 @@ static wmOperatorStatus nlaedit_swap_exec(bContext &C, wmOperator &op)
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1775,7 +1775,7 @@ static wmOperatorStatus nlaedit_move_up_exec(bContext &C, wmOperator & /*op*/)
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1829,8 +1829,8 @@ static wmOperatorStatus nlaedit_move_up_exec(bContext &C, wmOperator & /*op*/)
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1866,7 +1866,7 @@ static wmOperatorStatus nlaedit_move_down_exec(bContext &C, wmOperator & /*op*/)
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1920,8 +1920,8 @@ static wmOperatorStatus nlaedit_move_down_exec(bContext &C, wmOperator & /*op*/)
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -1958,7 +1958,7 @@ static wmOperatorStatus nlaedit_sync_actlen_exec(bContext &C, wmOperator &op)
   const bool active_only = RNA_boolean_get(op.ptr, "active");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2005,7 +2005,7 @@ static wmOperatorStatus nlaedit_sync_actlen_exec(bContext &C, wmOperator &op)
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -2051,7 +2051,7 @@ static wmOperatorStatus nlaedit_make_single_user_exec(bContext &C, wmOperator & 
   bool copied = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2101,7 +2101,7 @@ static wmOperatorStatus nlaedit_make_single_user_exec(bContext &C, wmOperator & 
   }
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -2175,7 +2175,7 @@ static wmOperatorStatus nlaedit_apply_scale_exec(bContext &C, wmOperator & /*op*
   KeyframeEditData ked = {{nullptr}};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2259,7 +2259,7 @@ static wmOperatorStatus nlaedit_apply_scale_exec(bContext &C, wmOperator & /*op*
   }
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -2295,7 +2295,7 @@ static wmOperatorStatus nlaedit_clear_scale_exec(bContext &C, wmOperator & /*op*
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2325,7 +2325,7 @@ static wmOperatorStatus nlaedit_clear_scale_exec(bContext &C, wmOperator & /*op*
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -2376,7 +2376,7 @@ static wmOperatorStatus nlaedit_snap_exec(bContext &C, wmOperator &op)
   float secf;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2485,9 +2485,9 @@ static wmOperatorStatus nlaedit_snap_exec(bContext &C, wmOperator &op)
   ED_nla_postop_refresh(&ac);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
   if (any_added) {
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
   }
 
   /* done */
@@ -2570,7 +2570,7 @@ static wmOperatorStatus nla_fmodifier_add_exec(bContext &C, wmOperator &op)
   const bool active_only = RNA_boolean_get(op.ptr, "only_active");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2630,7 +2630,7 @@ static wmOperatorStatus nla_fmodifier_add_exec(bContext &C, wmOperator &op)
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;
@@ -2679,7 +2679,7 @@ static wmOperatorStatus nla_fmodifier_copy_exec(bContext &C, wmOperator &op)
   bool ok = false;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2759,7 +2759,7 @@ static wmOperatorStatus nla_fmodifier_paste_exec(bContext &C, wmOperator &op)
   const bool replace = RNA_boolean_get(op.ptr, "replace");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2804,7 +2804,7 @@ static wmOperatorStatus nla_fmodifier_paste_exec(bContext &C, wmOperator &op)
 
   /* successful or not? */
   if (ok) {
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
     return OPERATOR_FINISHED;
   }
 

@@ -104,7 +104,7 @@ static wmOperatorStatus add_default_keyingset_exec(bContext &C, wmOperator & /*o
 
   scene->active_keyingset = BLI_listbase_count(&scene->keyingsets);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_KEYINGSET, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -151,7 +151,7 @@ static wmOperatorStatus remove_active_keyingset_exec(bContext &C, wmOperator &op
   /* The active one should now be the previously second-to-last one. */
   scene->active_keyingset--;
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_KEYINGSET, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -263,7 +263,7 @@ static wmOperatorStatus add_keyingset_button_exec(bContext &C, wmOperator &op)
   PointerRNA ptr = {};
   int index = 0, pflag = 0;
 
-  if (!blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index)) {
+  if (!blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
     /* Pass event on if no active button found. */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -321,7 +321,7 @@ static wmOperatorStatus add_keyingset_button_exec(bContext &C, wmOperator &op)
   }
 
   if (changed) {
-    WM_event_add_notifier(&C, NC_SCENE | ND_KEYINGSET, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, nullptr);
 
     /* Show notification/report header, so that users notice that something changed. */
     BKE_reportf(op.reports, RPT_INFO, "Property added to Keying Set: '%s'", keyingset->name);
@@ -356,7 +356,7 @@ static wmOperatorStatus remove_keyingset_button_exec(bContext &C, wmOperator &op
   PointerRNA ptr = {};
   int index = 0;
 
-  if (!blender::ui::context_active_but_prop_get(&C, &ptr, &prop, &index)) {
+  if (!blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index)) {
     /* Pass event on if no active button found. */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -394,7 +394,7 @@ static wmOperatorStatus remove_keyingset_button_exec(bContext &C, wmOperator &op
   }
 
   if (changed) {
-    WM_event_add_notifier(&C, NC_SCENE | ND_KEYINGSET, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, nullptr);
 
     /* Show warning. */
     BKE_report(op.reports, RPT_INFO, "Property removed from keying set");
@@ -432,7 +432,7 @@ static wmOperatorStatus keyingset_active_menu_invoke(bContext &C,
   blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(&C, op.type->name, ICON_NONE);
   blender::ui::Layout &layout = *popup_menu_layout(pup);
   layout.op_enum("ANIM_OT_keying_set_active_set", "type");
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -445,27 +445,27 @@ static wmOperatorStatus keyingset_active_menu_exec(bContext &C, wmOperator &op)
   /* If type == 0, it will deselect any active keying set. */
   scene->active_keyingset = type;
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_KEYINGSET, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
 /* Build the enum for all keyingsets except the active keyingset. */
-static void build_keyingset_enum(bContext *C, EnumPropertyItem **item, int *totitem, bool *r_free)
+static void build_keyingset_enum(bContext &C, EnumPropertyItem **item, int *totitem, bool *r_free)
 {
   /* user-defined Keying Sets
    * - these are listed in the order in which they were defined for the active scene
    */
   EnumPropertyItem item_tmp = {0};
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   KeyingSet *keyingset;
   int enum_index = 1;
   if (scene->keyingsets.first) {
     for (keyingset = static_cast<KeyingSet *>(scene->keyingsets.first); keyingset;
          keyingset = keyingset->next, enum_index++)
     {
-      if (ANIM_keyingset_context_ok_poll(C, keyingset)) {
+      if (ANIM_keyingset_context_ok_poll(&C, keyingset)) {
         item_tmp.identifier = keyingset->idname;
         item_tmp.name = keyingset->name;
         item_tmp.description = keyingset->description;
@@ -483,7 +483,7 @@ static void build_keyingset_enum(bContext *C, EnumPropertyItem **item, int *toti
        keyingset = keyingset->next, enum_index--)
   {
     /* Only show KeyingSet if context is suitable. */
-    if (ANIM_keyingset_context_ok_poll(C, keyingset)) {
+    if (ANIM_keyingset_context_ok_poll(&C, keyingset)) {
       item_tmp.identifier = keyingset->idname;
       item_tmp.name = keyingset->name;
       item_tmp.description = keyingset->description;
@@ -521,7 +521,7 @@ static const EnumPropertyItem *keyingset_set_active_enum_itemf(bContext *C,
     RNA_enum_item_add_separator(&item, &totitem);
   }
 
-  build_keyingset_enum(C, &item, &totitem, r_free);
+  build_keyingset_enum(*C, &item, &totitem, r_free);
 
   return item;
 }
@@ -677,7 +677,7 @@ const EnumPropertyItem *ANIM_keying_sets_enum_itemf(bContext *C,
     RNA_enum_item_add_separator(&item, &totitem);
   }
 
-  build_keyingset_enum(C, &item, &totitem, r_free);
+  build_keyingset_enum(*C, &item, &totitem, r_free);
 
   return item;
 }

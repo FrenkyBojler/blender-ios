@@ -753,11 +753,11 @@ PopupMenu *popup_menu_begin_ex(bContext *C, const char *title, const char *block
 /**
  * Set the whole structure to work.
  */
-void popup_menu_end(bContext *C, PopupMenu *pup);
+void popup_menu_end(bContext &C, PopupMenu *pup);
 bool popup_menu_end_or_cancel(bContext *C, PopupMenu *pup);
 Layout *popup_menu_layout(PopupMenu *pup);
 
-void popup_menu_reports(bContext *C, ReportList *reports) ATTR_NONNULL();
+void popup_menu_reports(bContext &C, ReportList *reports) ATTR_NONNULL();
 wmOperatorStatus popup_menu_invoke(bContext *C, const char *idname, ReportList *reports)
     ATTR_NONNULL(1, 2);
 
@@ -807,7 +807,7 @@ Popover *popover_begin(bContext *C, int ui_menu_width, bool from_active_button) 
 /**
  * Set the whole structure to work.
  */
-void popover_end(bContext *C, Popover *pup, wmKeyMap *keymap);
+void popover_end(bContext &C, Popover *pup, wmKeyMap *keymap);
 Layout *popover_layout(Popover *pup);
 void popover_once_clear(Popover *pup);
 
@@ -818,9 +818,9 @@ struct PieMenu;
 
 wmOperatorStatus pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event);
 
-PieMenu *pie_menu_begin(bContext *C, const char *title, int icon, const wmEvent *event)
+PieMenu *pie_menu_begin(bContext &C, const char *title, int icon, const wmEvent *event)
     ATTR_NONNULL();
-void pie_menu_end(bContext *C, PieMenu *pie);
+void pie_menu_end(bContext &C, PieMenu *pie);
 Layout *pie_menu_layout(PieMenu *pie);
 
 /* `interface_region_menu_popup.cc` */
@@ -839,8 +839,8 @@ void popup_block_invoke(bContext *C, BlockCreateFunc func, void *arg, FreeArgFun
  * as this exits text fields which can be disruptive if refresh isn't needed.
  */
 void popup_block_invoke_ex(
-    bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free, bool can_refresh);
-void popup_block_ex(bContext *C,
+    bContext &C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free, bool can_refresh);
+void popup_block_ex(bContext &C,
                     BlockCreateFunc func,
                     BlockHandleFunc popup_func,
                     BlockCancelFunc cancel_func,
@@ -894,7 +894,7 @@ bool popup_block_name_exists(const bScreen *screen, StringRef name);
  * Freeing blocks is done by the screen/ module automatically.
  */
 
-Block *block_begin(const bContext *C, ARegion *region, std::string name, EmbossType emboss);
+Block *block_begin(const bContext &C, ARegion *region, std::string name, EmbossType emboss);
 Block *block_begin(const bContext *C,
                    Scene *scene,
                    wmWindow *window,
@@ -910,12 +910,12 @@ void block_end_ex(const bContext *C,
                   Block *block,
                   const int xy[2] = nullptr,
                   int r_xy[2] = nullptr);
-void block_end(const bContext *C, Block *block);
+void block_end(const bContext &C, Block *block);
 /**
  * Uses local copy of style, to scale things down, and allow widgets to change stuff.
  */
-void block_draw(const bContext *C, Block *block);
-void blocklist_update_window_matrix(const bContext *C, const ListBaseT<blender::ui::Block> *lb);
+void block_draw(const bContext &C, Block *block);
+void blocklist_update_window_matrix(const bContext &C, const ListBaseT<blender::ui::Block> *lb);
 void blocklist_update_view_for_buttons(const bContext *C, const ListBaseT<blender::ui::Block> *lb);
 void blocklist_draw(const bContext *C, const ListBaseT<blender::ui::Block> *lb);
 void block_update_from_old(const bContext *C, Block *block);
@@ -955,7 +955,7 @@ void blocklist_free_inactive(const bContext *C, ARegion *region);
 /**
  * Is called by notifier.
  */
-void UI_screen_free_active_but_highlight(const bContext *C, bScreen *screen);
+void UI_screen_free_active_but_highlight(const bContext &C, bScreen *screen);
 void UI_region_free_active_but_all(bContext *C, ARegion *region);
 
 void block_region_set(Block *block, ARegion *region);
@@ -1033,13 +1033,13 @@ void block_translate(Block *block, float x, float y);
 
 int button_return_value_get(Button *but);
 
-Button *button_active_drop_name_button(const bContext *C);
+Button *button_active_drop_name_button(const bContext &C);
 /**
  * Returns true if highlighted button allows drop of names.
  * called in region context.
  */
 bool button_active_drop_name(const bContext *C);
-bool button_active_drop_color(bContext *C);
+bool button_active_drop_color(bContext &C);
 
 void button_flag_enable(Button *but, int flag);
 void button_flag_disable(Button *but, int flag);
@@ -1954,7 +1954,7 @@ bool textbutton_activate_rna(const bContext *C,
                              ARegion *region,
                              const void *rna_poin_data,
                              const char *rna_prop_id);
-bool textbutton_activate_but(const bContext *C, Button *actbut);
+bool textbutton_activate_but(const bContext &C, Button *actbut);
 
 /**
  * push a new event onto event queue to activate the given button
@@ -2043,7 +2043,7 @@ void button_drag_set_image(Button *but, const char *path, int icon, const ImBuf 
  * not clear yet so we postpone that. */
 
 void panels_begin(const bContext *C, ARegion *region);
-void panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y);
+void panels_end(const bContext &C, ARegion *region, int *r_x, int *r_y);
 /**
  * Draw panels, selected (panels currently being dragged) on top.
  */
@@ -2122,7 +2122,7 @@ void panel_stop_animation(const bContext *C, Panel *panel);
 
 /* Panel custom data. */
 PointerRNA *panel_custom_data_get(const Panel *panel);
-PointerRNA *region_panel_custom_data_under_cursor(const bContext *C, const wmEvent *event);
+PointerRNA *region_panel_custom_data_under_cursor(const bContext &C, const wmEvent *event);
 void panel_custom_data_set(Panel *panel, PointerRNA *custom_data);
 
 /* Poly-instantiated panels for representing a list of data. */
@@ -2681,19 +2681,19 @@ bool context_copy_to_selected_check(PointerRNA *ptr,
                                     PropertyRNA **r_prop);
 
 /* Helpers for Operators */
-Button *context_active_but_get(const bContext *C);
+Button *context_active_but_get(const bContext &C);
 /**
  * Version of #UI_context_active_get() that uses the result of #CTX_wm_region_popup() if set.
  * Does not traverse into parent menus, which may be wanted in some cases.
  */
-Button *context_active_but_get_respect_popup(const bContext *C);
+Button *context_active_but_get_respect_popup(const bContext &C);
 /**
  * Version of #context_active_but_get that also returns RNA property info.
  * Helper function for insert keyframe, reset to default, etc operators.
  *
  * \return active button, NULL if none found or if it doesn't contain valid RNA data.
  */
-Button *context_active_but_prop_get(const bContext *C,
+Button *context_active_but_prop_get(const bContext &C,
                                     PointerRNA *r_ptr,
                                     PropertyRNA **r_prop,
                                     int *r_index);
@@ -2711,12 +2711,12 @@ Button *region_active_but_prop_get(const ARegion *region,
 void context_active_but_prop_handle(bContext *C, bool handle_undo);
 void context_active_but_clear(bContext *C, wmWindow *win, ARegion *region);
 
-wmOperator *context_active_operator_get(const bContext *C);
+wmOperator *context_active_operator_get(const bContext &C);
 /**
  * Helper function for insert keyframe, reset to default, etc operators.
  */
-void context_update_anim_flag(const bContext *C);
-void context_active_but_prop_get_filebrowser(const bContext *C,
+void context_update_anim_flag(const bContext &C);
+void context_active_but_prop_get_filebrowser(const bContext &C,
                                              PointerRNA *r_ptr,
                                              PropertyRNA **r_prop,
                                              bool *r_is_undo,
@@ -2893,12 +2893,12 @@ ARegion *tooltip_create_from_button(bContext *C,
                                     ARegion *butregion,
                                     Button *but,
                                     bool is_quick_tip);
-ARegion *tooltip_create_from_button_or_extra_icon(bContext *C,
+ARegion *tooltip_create_from_button_or_extra_icon(bContext &C,
                                                   ARegion *butregion,
                                                   Button *but,
                                                   ButtonExtraOpIcon *extra_icon,
                                                   bool is_quick_tip);
-ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz);
+ARegion *tooltip_create_from_gizmo(bContext &C, wmGizmo *gz);
 void tooltip_free(bContext *C, bScreen *screen, ARegion *region);
 
 /**

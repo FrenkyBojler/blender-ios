@@ -238,7 +238,7 @@ bool button_anim_expression_set(Button *but, const char *str)
       fcu->flag &= ~FCURVE_DISABLED;
 
       /* this notifier should update the Graph Editor and trigger depsgraph refresh? */
-      WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, nullptr);
+      WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME, nullptr);
 
       DEG_relations_tag_update(CTX_data_main(*C));
 
@@ -307,7 +307,7 @@ bool button_anim_expression_create(Button *but, const char *str)
       /* updates */
       BKE_driver_invalidate_expression(driver, true, false);
       DEG_relations_tag_update(CTX_data_main(*C));
-      WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME, nullptr);
+      WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME, nullptr);
       ok = true;
     }
   }
@@ -317,7 +317,8 @@ bool button_anim_expression_create(Button *but, const char *str)
 
 void button_anim_autokey(bContext *C, Button *but, Scene *scene, float cfra)
 {
-  animrig::autokeyframe_property(C, scene, &but->rnapoin, but->rnaprop, but->rnaindex, cfra, true);
+  animrig::autokeyframe_property(
+      *C, scene, &but->rnapoin, but->rnaprop, but->rnaindex, cfra, true);
 }
 
 void button_anim_copy_driver(bContext *C)

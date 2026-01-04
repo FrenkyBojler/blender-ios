@@ -250,11 +250,11 @@ static wmOperatorStatus graphkeys_insertkey_exec(bContext &C, wmOperator &op)
   eGraphKeys_InsertKey_Types mode;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  ANIM_deselect_keys_in_animation_editors(&C);
+  ANIM_deselect_keys_in_animation_editors(C);
 
   /* Which channels to affect? */
   mode = eGraphKeys_InsertKey_Types(RNA_enum_get(op.ptr, "type"));
@@ -263,7 +263,7 @@ static wmOperatorStatus graphkeys_insertkey_exec(bContext &C, wmOperator &op)
   insert_graph_keys(&ac, mode);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -301,7 +301,7 @@ static wmOperatorStatus graphkeys_click_insert_exec(bContext &C, wmOperator &op)
   FCurve *fcu;
 
   /* Get animation context. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -378,7 +378,7 @@ static wmOperatorStatus graphkeys_click_insert_exec(bContext &C, wmOperator &op)
   MEM_freeN(ale);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   /* Done */
   return OPERATOR_FINISHED;
@@ -395,7 +395,7 @@ static wmOperatorStatus graphkeys_click_insert_invoke(bContext &C,
   float x, y;
 
   /* Get animation context. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -541,7 +541,7 @@ static wmOperatorStatus graphkeys_copy_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -581,7 +581,7 @@ static wmOperatorStatus graphkeys_paste_exec(bContext &C, wmOperator &op)
   const bool flipped = RNA_boolean_get(op.ptr, "flipped");
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -604,7 +604,7 @@ static wmOperatorStatus graphkeys_paste_exec(bContext &C, wmOperator &op)
   }
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -706,7 +706,7 @@ static wmOperatorStatus graphkeys_duplicate_exec(bContext &C, wmOperator & /*op*
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -716,7 +716,7 @@ static wmOperatorStatus graphkeys_duplicate_exec(bContext &C, wmOperator & /*op*
   }
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -796,7 +796,7 @@ static wmOperatorStatus graphkeys_delete_exec(bContext &C, wmOperator & /*op*/)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -806,7 +806,7 @@ static wmOperatorStatus graphkeys_delete_exec(bContext &C, wmOperator & /*op*/)
   }
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -885,7 +885,7 @@ static wmOperatorStatus graphkeys_clean_exec(bContext &C, wmOperator &op)
   bool clean_chan;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -896,7 +896,7 @@ static wmOperatorStatus graphkeys_clean_exec(bContext &C, wmOperator &op)
   clean_graph_keys(&ac, thresh, clean_chan);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -972,7 +972,7 @@ static wmOperatorStatus graphkeys_keys_to_samples_exec(bContext &C, wmOperator &
   int start, end;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -987,7 +987,7 @@ static wmOperatorStatus graphkeys_keys_to_samples_exec(bContext &C, wmOperator &
 
   /* Set notifier that keyframes have changed. */
   /* NOTE: some distinction between order/number of keyframes and type should be made? */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1051,7 +1051,7 @@ static wmOperatorStatus graphkeys_samples_to_keys_exec(bContext &C, wmOperator &
   int start, end;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1063,7 +1063,7 @@ static wmOperatorStatus graphkeys_samples_to_keys_exec(bContext &C, wmOperator &
 
   /* Set notifier that keyframes have changed. */
   /* NOTE: some distinction between order/number of keyframes and type should be made? */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1136,7 +1136,7 @@ static wmOperatorStatus graphkeys_sound_to_samples_exec(bContext &C, wmOperator 
   char filepath[FILE_MAX];
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1197,7 +1197,7 @@ static wmOperatorStatus graphkeys_sound_to_samples_exec(bContext &C, wmOperator 
   ANIM_animdata_freelist(&anim_data);
 
   /* Set notifier that 'keyframes' have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1220,7 +1220,7 @@ static wmOperatorStatus graphkeys_sound_to_samples_invoke(bContext &C,
   bAnimContext ac;
 
   /* Verify editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1365,7 +1365,7 @@ static wmOperatorStatus graphkeys_bake_exec(bContext &C, wmOperator & /*op*/)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1373,7 +1373,7 @@ static wmOperatorStatus graphkeys_bake_exec(bContext &C, wmOperator & /*op*/)
   bake_graph_keys(&ac);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1495,7 +1495,7 @@ static wmOperatorStatus graphkeys_expo_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1506,7 +1506,7 @@ static wmOperatorStatus graphkeys_expo_exec(bContext &C, wmOperator &op)
   setexpo_graph_keys(&ac, mode);
 
   /* Set notifier that keyframe properties have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1572,7 +1572,7 @@ static wmOperatorStatus graphkeys_ipo_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1583,7 +1583,7 @@ static wmOperatorStatus graphkeys_ipo_exec(bContext &C, wmOperator &op)
   setipo_graph_keys(&ac, mode);
 
   /* Set notifier that keyframe properties have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1649,7 +1649,7 @@ static wmOperatorStatus graphkeys_easing_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1660,7 +1660,7 @@ static wmOperatorStatus graphkeys_easing_exec(bContext &C, wmOperator &op)
   seteasing_graph_keys(&ac, mode);
 
   /* Set notifier that keyframe properties have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1734,7 +1734,7 @@ static wmOperatorStatus graphkeys_handletype_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1745,7 +1745,7 @@ static wmOperatorStatus graphkeys_handletype_exec(bContext &C, wmOperator &op)
   sethandles_graph_keys(&ac, mode);
 
   /* Set notifier that keyframe properties have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2015,7 +2015,7 @@ static wmOperatorStatus graphkeys_euler_filter_exec(bContext &C, wmOperator &op)
 {
   /* Get editor data. */
   bAnimContext ac;
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2086,7 +2086,7 @@ static wmOperatorStatus graphkeys_euler_filter_exec(bContext &C, wmOperator &op)
   }
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   /* Done at last. */
   return OPERATOR_FINISHED;
@@ -2183,7 +2183,7 @@ static wmOperatorStatus graphkeys_framejump_exec(bContext &C, wmOperator & /*op*
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2213,7 +2213,7 @@ static wmOperatorStatus graphkeys_framejump_exec(bContext &C, wmOperator & /*op*
   sipo->cursorVal = sum_value / float(num_keyframes);
 
   /* Set notifier that things have changed. */
-  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, ac.scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
 
   return OPERATOR_FINISHED;
 }
@@ -2262,7 +2262,7 @@ static wmOperatorStatus graphkeys_snap_cursor_value_exec(bContext &C, wmOperator
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2417,7 +2417,7 @@ static wmOperatorStatus graphkeys_snap_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2428,7 +2428,7 @@ static wmOperatorStatus graphkeys_snap_exec(bContext &C, wmOperator &op)
   snap_graph_keys(&ac, mode);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2439,7 +2439,7 @@ static bool graph_has_selected_control_points(bContext *C)
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return false;
   }
 
@@ -2539,7 +2539,7 @@ static wmOperatorStatus graphkeys_equalize_handles_exec(bContext &C, wmOperator 
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2551,7 +2551,7 @@ static wmOperatorStatus graphkeys_equalize_handles_exec(bContext &C, wmOperator 
   /* Equalize graph keyframes. */
   equalize_graph_keys(&ac, mode, handle_length, flatten);
 
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2723,7 +2723,7 @@ static wmOperatorStatus graphkeys_mirror_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2734,7 +2734,7 @@ static wmOperatorStatus graphkeys_mirror_exec(bContext &C, wmOperator &op)
   mirror_graph_keys(&ac, mode);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2771,7 +2771,7 @@ static wmOperatorStatus graphkeys_smooth_exec(bContext &C, wmOperator & /*op*/)
   int filter;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2796,7 +2796,7 @@ static wmOperatorStatus graphkeys_smooth_exec(bContext &C, wmOperator & /*op*/)
   ANIM_animdata_freelist(&anim_data);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2868,7 +2868,7 @@ static wmOperatorStatus graph_fmodifier_add_exec(bContext &C, wmOperator &op)
   short type;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2910,7 +2910,7 @@ static wmOperatorStatus graph_fmodifier_add_exec(bContext &C, wmOperator &op)
   ANIM_animdata_freelist(&anim_data);
 
   /* Set notifier that things have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2955,7 +2955,7 @@ static wmOperatorStatus graph_fmodifier_copy_exec(bContext &C, wmOperator &op)
   bool ok = false;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3025,7 +3025,7 @@ static wmOperatorStatus graph_fmodifier_paste_exec(bContext &C, wmOperator &op)
   bool ok = false;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3066,7 +3066,7 @@ static wmOperatorStatus graph_fmodifier_paste_exec(bContext &C, wmOperator &op)
   /* Successful or not? */
   if (ok) {
     /* Set notifier that keyframes have changed. */
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
     return OPERATOR_FINISHED;
   }
@@ -3170,7 +3170,7 @@ static wmOperatorStatus graph_driver_vars_paste_exec(bContext &C, wmOperator &op
     DEG_relations_tag_update(CTX_data_main(C));
 
     /* Set notifier that keyframes have changed. */
-    WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, CTX_data_scene(C));
+    WM_event_add_notifier(C, NC_SCENE | ND_FRAME, CTX_data_scene(C));
 
     return OPERATOR_FINISHED;
   }
@@ -3215,7 +3215,7 @@ static wmOperatorStatus graph_driver_delete_invalid_exec(bContext &C, wmOperator
   uint deleted = 0;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3251,7 +3251,7 @@ static wmOperatorStatus graph_driver_delete_invalid_exec(bContext &C, wmOperator
   if (deleted > 0) {
     /* Notify the world of any changes. */
     DEG_relations_tag_update(CTX_data_main(C));
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
     BKE_reportf(op.reports, RPT_INFO, "Deleted %u drivers", deleted);
   }
   else {
@@ -3277,7 +3277,7 @@ static bool graph_driver_delete_invalid_poll(bContext &C)
   }
 
   /* Try to init Anim-Context stuff ourselves and check. */
-  return ANIM_animdata_get_context(&C, &ac) != 0;
+  return ANIM_animdata_get_context(C, &ac) != 0;
 }
 
 void GRAPH_OT_driver_delete_invalid(wmOperatorType *ot)

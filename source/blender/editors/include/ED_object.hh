@@ -55,13 +55,13 @@ struct XFormObjectData;
 /* `object_edit.cc` */
 
 /** `context.object` */
-Object *context_object(const bContext *C);
+Object *context_object(const bContext &C);
 /**
  * Find the correct active object per context (`context.object` or `context.active_object`)
  * \note context can be NULL when called from a enum with #PROP_ENUM_NO_CONTEXT.
  */
 Object *context_active_object(const bContext *C);
-void collection_hide_menu_draw(const bContext *C, ui::Layout &layout);
+void collection_hide_menu_draw(const bContext &C, ui::Layout &layout);
 
 /**
  * Return an array of objects:
@@ -71,7 +71,7 @@ void collection_hide_menu_draw(const bContext *C, ui::Layout &layout);
  *   the callers \a filter_fn needs to check of they are editable
  *   (assuming they need to be modified).
  */
-Vector<Object *> objects_in_mode_or_selected(bContext *C,
+Vector<Object *> objects_in_mode_or_selected(bContext &C,
                                              bool (*filter_fn)(const Object *ob, void *user_data),
                                              void *filter_user_data);
 
@@ -219,7 +219,7 @@ extern const EnumPropertyItem prop_make_parent_types[];
  * Set the object's parent, return true if successful.
  */
 bool parent_set(ReportList *reports,
-                const bContext *C,
+                const bContext &C,
                 Scene *scene,
                 Object *const ob,
                 Object *const par,
@@ -241,8 +241,8 @@ void base_select(Base *base, eObjectSelect_Mode mode);
 /**
  * Change active base, it includes the notifier
  */
-void base_activate(bContext *C, Base *base);
-void base_activate_with_mode_exit_if_needed(bContext *C, Base *base);
+void base_activate(bContext &C, Base *base);
+void base_activate_with_mode_exit_if_needed(bContext &C, Base *base);
 /**
  * Call when the active base has changed.
  */
@@ -285,7 +285,7 @@ enum {
  * - If #EM_FREEDATA isn't in the flag, use #editmode_load directly.
  */
 bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag);
-bool editmode_exit(bContext *C, int flag);
+bool editmode_exit(bContext &C, int flag);
 
 /**
  * Support freeing edit-mode data without flushing it back to the object.
@@ -295,21 +295,21 @@ bool editmode_exit(bContext *C, int flag);
 bool editmode_free_ex(Main *bmain, Object *obedit);
 
 bool editmode_exit_multi_ex(Main *bmain, Scene *scene, ViewLayer *view_layer, int flag);
-bool editmode_exit_multi(bContext *C, int flag);
+bool editmode_exit_multi(bContext &C, int flag);
 
 bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag);
-bool editmode_enter(bContext *C, int flag);
+bool editmode_enter(bContext &C, int flag);
 bool editmode_load(Main *bmain, Object *obedit);
 
-void location_from_view(bContext *C, float loc[3]);
+void location_from_view(bContext &C, float loc[3]);
 void rotation_from_quat(float rot[3], const float quat[4], char align_axis);
-void rotation_from_view(bContext *C, float rot[3], char align_axis);
+void rotation_from_view(bContext &C, float rot[3], char align_axis);
 void init_transform_on_add(Object *object, const float loc[3], const float rot[3]);
 /**
  * Uses context to figure out transform for primitive.
  * Returns standard diameter.
  */
-float new_primitive_matrix(bContext *C,
+float new_primitive_matrix(bContext &C,
                            Object *obedit,
                            const float loc[3],
                            const float rot[3],
@@ -342,7 +342,7 @@ void add_generic_get_opts(bContext *C,
  *
  * \note Do not call undo push in this function (users of this function have to).
  */
-Object *add_type_with_obdata(bContext *C,
+Object *add_type_with_obdata(bContext &C,
                              int type,
                              const char *name,
                              const float loc[3],
@@ -390,9 +390,9 @@ void motion_paths_recalc(bContext *C,
                          eObjectPathCalcRange range,
                          ListBaseT<LinkData> *ld_objects);
 
-void motion_paths_recalc_selected(bContext *C, Scene *scene, eObjectPathCalcRange range);
+void motion_paths_recalc_selected(bContext &C, Scene *scene, eObjectPathCalcRange range);
 
-void motion_paths_recalc_visible(bContext *C, Scene *scene, eObjectPathCalcRange range);
+void motion_paths_recalc_visible(bContext &C, Scene *scene, eObjectPathCalcRange range);
 
 /* constraints */
 /**
@@ -404,7 +404,7 @@ ListBaseT<bConstraint> *constraint_active_list(Object *ob);
  * Get the constraints for the active pose bone. Bone may be on an inactive bone-layer
  * (unlike #constraint_active_list, such constraints are not excluded here).
  */
-ListBaseT<bConstraint> *pose_constraint_list(const bContext *C);
+ListBaseT<bConstraint> *pose_constraint_list(const bContext &C);
 /**
  * Find the list that a given constraint belongs to,
  * and/or also get the pose-channel this is from (if applicable).
@@ -451,7 +451,7 @@ bool mode_compat_test(const Object *ob, eObjectMode mode);
  * mode runtime data is cleaned up prior to entering a new mode.
  */
 bool mode_compat_set(bContext *C, Object *ob, eObjectMode mode, ReportList *reports);
-bool mode_set_ex(bContext *C, eObjectMode mode, bool use_undo, ReportList *reports);
+bool mode_set_ex(bContext &C, eObjectMode mode, bool use_undo, ReportList *reports);
 bool mode_set(bContext *C, eObjectMode mode);
 
 void mode_generic_exit(Main *bmain, Depsgraph *depsgraph, Scene *scene, Object *ob);
@@ -534,7 +534,7 @@ bool modifier_apply(Main *bmain,
                     bool keep_modifier,
                     bool do_all_keyframes);
 bool modifier_copy(ReportList *reports, Main *bmain, Scene *scene, Object *ob, ModifierData *md);
-void modifier_link(bContext *C, Object *ob_dst, Object *ob_src);
+void modifier_link(bContext &C, Object *ob_dst, Object *ob_src);
 bool modifier_copy_to_object(Main *bmain,
                              const Scene *scene,
                              const Object *ob_src,
@@ -592,7 +592,7 @@ Base *find_first_by_data_id(const Scene *scene, ViewLayer *view_layer, ID *id);
  *
  * \returns false if not found in current view layer
  */
-bool jump_to_object(bContext *C, Object *ob, bool reveal_hidden);
+bool jump_to_object(bContext &C, Object *ob, bool reveal_hidden);
 /**
  * Select and make the target object and bone active.
  * Switches to Pose mode if in Object mode so the selection is visible.

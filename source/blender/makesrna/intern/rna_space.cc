@@ -840,7 +840,7 @@ static void rna_Space_bool_from_region_flag_update_by_type(bContext *C,
     if (region_flag == RGN_FLAG_HIDDEN) {
       /* Only support animation when the area is in the current context. */
       if (region->overlap && (area == CTX_wm_area(*C)) && !(U.uiflag & USER_REDUCE_MOTION)) {
-        ED_region_visibility_change_update_animated(C, area, region);
+        ED_region_visibility_change_update_animated(*C, area, region);
       }
       else {
         ED_region_visibility_change_update(C, area, region);
@@ -851,7 +851,7 @@ static void rna_Space_bool_from_region_flag_update_by_type(bContext *C,
         ED_region_toggle_hidden(C, region);
 
         if ((region->flag & RGN_FLAG_HIDDEN_BY_USER) == 0) {
-          blender::ui::ED_area_type_hud_ensure(C, area);
+          blender::ui::ED_area_type_hud_ensure(*C, area);
         }
       }
     }
@@ -2087,7 +2087,7 @@ static void rna_SpaceImageEditor_scopes_update(bContext *C, PointerRNA *ptr)
   /* TODO(lukas): Support tiles in scopes? */
   ibuf = ED_space_image_acquire_buffer(sima, &lock, 0);
   if (ibuf) {
-    ED_space_image_scopes_update(C, sima, ibuf, true);
+    ED_space_image_scopes_update(*C, sima, ibuf, true);
     WM_main_add_notifier(NC_IMAGE, sima->image);
   }
   ED_space_image_release_buffer(sima, ibuf, lock);
@@ -2435,7 +2435,7 @@ static void rna_SpaceGraphEditor_normalize_update(bContext *C, PointerRNA * /*pt
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return;
   }
 
@@ -2471,8 +2471,8 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
   ListBaseT<Strip> *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
 
   blender::Set<std::string> processed_paths;
-  wmJob *wm_job = blender::seq::ED_seq_proxy_wm_job_get(C);
-  blender::seq::ProxyJob *pj = blender::seq::ED_seq_proxy_job_get(C, wm_job);
+  wmJob *wm_job = blender::seq::ED_seq_proxy_wm_job_get(*C);
+  blender::seq::ProxyJob *pj = blender::seq::ED_seq_proxy_job_get(*C, wm_job);
 
   for (Strip &strip : *seqbase) {
     if (strip.type != STRIP_TYPE_MOVIE || strip.data == nullptr || strip.data->proxy == nullptr) {
@@ -2713,7 +2713,7 @@ static bool rna_SpaceNodeEditor_node_tree_poll(PointerRNA *ptr, const PointerRNA
 
 static void rna_SpaceNodeEditor_node_tree_update(const bContext *C, PointerRNA * /*ptr*/)
 {
-  blender::ed::space_node::tree_update(C);
+  blender::ed::space_node::tree_update(*C);
 }
 
 static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
@@ -2839,12 +2839,12 @@ static int rna_SpaceNodeEditor_path_length(PointerRNA *ptr)
 static void rna_SpaceNodeEditor_path_clear(SpaceNode *snode, bContext *C)
 {
   ED_node_tree_start(nullptr, snode, nullptr, nullptr, nullptr);
-  blender::ed::space_node::tree_update(C);
+  blender::ed::space_node::tree_update(*C);
 }
 
-static ARegion *find_snode_region(SpaceNode *snode, bContext *C)
+static ARegion *find_snode_region(SpaceNode *snode, bContext &C)
 {
-  if (wmWindowManager *wm = CTX_wm_manager(*C)) {
+  if (wmWindowManager *wm = CTX_wm_manager(C)) {
     for (wmWindow &win : wm->windows) {
       bScreen *screen = WM_window_get_active_screen(&win);
       ScrArea *area = BKE_screen_find_area_from_space(screen,
@@ -2859,9 +2859,9 @@ static ARegion *find_snode_region(SpaceNode *snode, bContext *C)
 
 static void rna_SpaceNodeEditor_path_start(SpaceNode *snode, bContext *C, PointerRNA *node_tree)
 {
-  ARegion *region = find_snode_region(snode, C);
+  ARegion *region = find_snode_region(snode, *C);
   ED_node_tree_start(region, snode, (bNodeTree *)node_tree->data, nullptr, nullptr);
-  blender::ed::space_node::tree_update(C);
+  blender::ed::space_node::tree_update(*C);
 }
 
 static void rna_SpaceNodeEditor_path_append(SpaceNode *snode,
@@ -2869,17 +2869,17 @@ static void rna_SpaceNodeEditor_path_append(SpaceNode *snode,
                                             PointerRNA *node_tree,
                                             PointerRNA *node)
 {
-  ARegion *region = find_snode_region(snode, C);
+  ARegion *region = find_snode_region(snode, *C);
   ED_node_tree_push(
       region, snode, static_cast<bNodeTree *>(node_tree->data), static_cast<bNode *>(node->data));
-  blender::ed::space_node::tree_update(C);
+  blender::ed::space_node::tree_update(*C);
 }
 
 static void rna_SpaceNodeEditor_path_pop(SpaceNode *snode, bContext *C)
 {
-  ARegion *region = find_snode_region(snode, C);
+  ARegion *region = find_snode_region(snode, *C);
   ED_node_tree_pop(region, snode);
-  blender::ed::space_node::tree_update(C);
+  blender::ed::space_node::tree_update(*C);
 }
 
 static void rna_SpaceNodeEditor_show_backdrop_update(Main * /*bmain*/,

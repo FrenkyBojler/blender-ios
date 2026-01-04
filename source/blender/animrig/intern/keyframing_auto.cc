@@ -190,28 +190,28 @@ bool autokeyframe_pchan(bContext *C, Scene *scene, Object *ob, bPoseChannel *pch
   return true;
 }
 
-void autokeyframe_pose_channel(bContext *C,
+void autokeyframe_pose_channel(bContext &C,
                                Scene *scene,
                                Object *ob,
                                bPoseChannel *pose_channel,
                                Span<RNAPath> rna_paths,
                                short targetless_ik)
 {
-  BLI_assert(C != nullptr);
+  BLI_assert(&C != nullptr);
   BLI_assert(scene != nullptr);
   BLI_assert(ob != nullptr);
   BLI_assert(pose_channel != nullptr);
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   ID *id = &ob->id;
 
   if (!blender::animrig::autokeyframe_cfra_can_key(scene, id)) {
     return;
   }
 
-  ReportList *reports = CTX_wm_reports(*C);
+  ReportList *reports = CTX_wm_reports(C);
   KeyingSet *active_ks = scene_get_active_keyingset(scene);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   const float scene_frame = BKE_scene_frame_get(scene);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
                                                                                     scene_frame);
@@ -234,7 +234,7 @@ void autokeyframe_pose_channel(bContext *C,
   /* only insert into active keyingset? */
   if (is_keying_flag(scene, AUTOKEY_FLAG_ONLYKEYINGSET) && (active_ks)) {
     /* Run the active Keying Set on the current data-source. */
-    apply_keyingset(C, &sources, active_ks, ModifyKeyMode::INSERT, anim_eval_context.eval_time);
+    apply_keyingset(&C, &sources, active_ks, ModifyKeyMode::INSERT, anim_eval_context.eval_time);
     return;
   }
 
@@ -257,7 +257,7 @@ void autokeyframe_pose_channel(bContext *C,
   }
 }
 
-bool autokeyframe_property(bContext *C,
+bool autokeyframe_property(bContext &C,
                            Scene *scene,
                            PointerRNA *ptr,
                            PropertyRNA *prop,
@@ -266,7 +266,7 @@ bool autokeyframe_property(bContext *C,
                            const bool only_if_property_keyed)
 {
 
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
                                                                                     cfra);
   bAction *action;
@@ -277,7 +277,7 @@ bool autokeyframe_property(bContext *C,
    * but works well enough in typical cases. */
   const int rnaindex_check = (rnaindex == -1) ? 0 : rnaindex;
   FCurve *fcu = BKE_fcurve_find_by_rna_context_ui(
-      C, ptr, prop, rnaindex_check, nullptr, &action, &driven, &special);
+      &C, ptr, prop, rnaindex_check, nullptr, &action, &driven, &special);
 
   /* Only early out when we actually want an existing F-curve already
    * (e.g. auto-keyframing from buttons). */
@@ -293,7 +293,7 @@ bool autokeyframe_property(bContext *C,
   if (special) {
     /* NLA Strip property. */
     if (is_autokey_on(scene)) {
-      ReportList *reports = CTX_wm_reports(*C);
+      ReportList *reports = CTX_wm_reports(C);
       ToolSettings *ts = scene->toolsettings;
 
       changed = insert_keyframe_direct(reports,
@@ -309,7 +309,7 @@ bool autokeyframe_property(bContext *C,
   }
   else {
     ID *id = ptr->owner_id;
-    Main *bmain = CTX_data_main(*C);
+    Main *bmain = CTX_data_main(C);
 
     /* TODO: this should probably respect the keyingset only option for anim */
     if (autokeyframe_cfra_can_key(scene, id)) {

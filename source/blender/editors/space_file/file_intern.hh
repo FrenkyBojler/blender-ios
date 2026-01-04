@@ -51,8 +51,8 @@ int /*eContextResult*/ file_context(const bContext &C,
 #define FILE_LAYOUT_HIDE_SIZE(_layout) \
   (_layout->flag & FILE_LAYOUT_VER && (_layout->width / UI_SCALE_FAC) < 350)
 
-void file_calc_previews(const bContext *C, ARegion *region);
-void file_draw_list(const bContext *C, ARegion *region);
+void file_calc_previews(const bContext &C, ARegion *region);
+void file_draw_list(const bContext &C, ARegion *region);
 /**
  * Draw a string hint if the file list is invalid.
  * \return true if the list is invalid and a hint was drawn.
@@ -60,7 +60,7 @@ void file_draw_list(const bContext *C, ARegion *region);
 bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegion *region);
 
 void file_draw_check_ex(bContext *C, ScrArea *area);
-void file_draw_check(bContext *C);
+void file_draw_check(bContext &C);
 /**
  * For use with; #block_func_set.
  */
@@ -246,7 +246,7 @@ void file_path_to_ui_path(const char *path, char *r_path, int r_path_maxncpy);
 
 namespace blender::ed::asset_browser {
 
-void file_create_asset_catalog_tree_view_in_layout(const bContext *C,
+void file_create_asset_catalog_tree_view_in_layout(const bContext &C,
                                                    asset_system::AssetLibrary *asset_library,
                                                    ui::Layout &layout,
                                                    SpaceFile *space_file,

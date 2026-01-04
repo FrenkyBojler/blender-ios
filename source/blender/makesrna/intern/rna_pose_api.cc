@@ -133,7 +133,7 @@ static void rna_Pose_apply_pose_from_action(ID *pose_owner,
 
   /* Do NOT tag with ID_RECALC_ANIMATION, as that would overwrite the just-applied pose. */
   DEG_id_tag_update(pose_owner, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, pose_owner);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, pose_owner);
 }
 
 static void rna_Pose_blend_pose_from_action(ID *pose_owner,
@@ -150,7 +150,7 @@ static void rna_Pose_blend_pose_from_action(ID *pose_owner,
 
   /* Do NOT tag with ID_RECALC_ANIMATION, as that would overwrite the just-applied pose. */
   DEG_id_tag_update(pose_owner, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, pose_owner);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, pose_owner);
 }
 
 static void rna_Pose_backup_create(ID *pose_owner, bAction *action)
@@ -177,7 +177,7 @@ static bool rna_Pose_backup_restore(ID *pose_owner, bContext *C)
 
   /* Do NOT tag with ID_RECALC_ANIMATION, as that would overwrite the just-applied pose. */
   DEG_id_tag_update(pose_owner, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, pose_owner);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, pose_owner);
 
   return true;
 }

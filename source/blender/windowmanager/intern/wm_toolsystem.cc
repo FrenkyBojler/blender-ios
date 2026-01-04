@@ -63,7 +63,7 @@ static bToolRef *toolsystem_reinit_ensure_toolref(bContext *C,
 static void toolsystem_refresh_screen_from_active_tool(Main *bmain,
                                                        WorkSpace *workspace,
                                                        bToolRef *tref);
-static void toolsystem_ref_set_by_brush_type(bContext *C, const char *brush_type);
+static void toolsystem_ref_set_by_brush_type(bContext &C, const char *brush_type);
 
 static void toolsystem_ref_set_by_id_pending(Main *bmain,
                                              bToolRef *tref,
@@ -73,15 +73,15 @@ static void toolsystem_ref_set_by_id_pending(Main *bmain,
 /** \name Tool Reference API
  * \{ */
 
-bToolRef *WM_toolsystem_ref_from_context(const bContext *C)
+bToolRef *WM_toolsystem_ref_from_context(const bContext &C)
 {
-  WorkSpace *workspace = CTX_wm_workspace(*C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
   if (workspace == nullptr) {
     return nullptr;
   }
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ScrArea *area = CTX_wm_area(C);
   if ((area == nullptr) || ((1 << area->spacetype) & WM_TOOLSYSTEM_SPACE_MASK) == 0) {
     return nullptr;
   }
@@ -98,7 +98,7 @@ bToolRef *WM_toolsystem_ref_from_context(const bContext *C)
 
 bToolRef_Runtime *WM_toolsystem_runtime_from_context(const bContext *C)
 {
-  bToolRef *tref = WM_toolsystem_ref_from_context(C);
+  bToolRef *tref = WM_toolsystem_ref_from_context(*C);
   return tref ? tref->runtime : nullptr;
 }
 
@@ -162,21 +162,21 @@ static bToolKey toolsystem_key_from_context_or_view3d(const Scene *scene,
  * Use this instead of #WM_toolsystem_ref_from_context() when usage from properties editors should
  * be possible, which shows tool settings of the 3D View.
  */
-static const bToolRef *toolsystem_active_tool_from_context_or_view3d(const bContext *C)
+static const bToolRef *toolsystem_active_tool_from_context_or_view3d(const bContext &C)
 {
   /* Current space & mode has its own active tool, use that. */
-  const ScrArea *area = CTX_wm_area(*C);
+  const ScrArea *area = CTX_wm_area(C);
   if (area && ((1 << area->spacetype) & WM_TOOLSYSTEM_SPACE_MASK)) {
     return WM_toolsystem_ref_from_context(C);
   }
 
   /* Otherwise: Fallback to getting the active tool for 3D views. */
-  WorkSpace *workspace = CTX_wm_workspace(*C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
   if (workspace == nullptr) {
     return nullptr;
   }
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   bToolKey tkey{};
   tkey.space_type = SPACE_VIEW3D;
   tkey.mode = WM_toolsystem_mode_from_spacetype(scene, view_layer, nullptr, SPACE_VIEW3D);
@@ -221,7 +221,7 @@ static const char *brush_type_identifier_get(const int brush_type, const PaintMo
 
 static bool brush_type_matches_active_tool(bContext *C, const int brush_type)
 {
-  const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(C);
+  const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(*C);
 
   if (active_tool->runtime == nullptr) {
     /* Should only ever be null in background mode. */
@@ -233,7 +233,8 @@ static bool brush_type_matches_active_tool(bContext *C, const int brush_type)
     return false;
   }
 
-  BLI_assert(BKE_paintmode_get_active_from_context(C) == BKE_paintmode_get_from_tool(active_tool));
+  BLI_assert(BKE_paintmode_get_active_from_context(*C) ==
+             BKE_paintmode_get_from_tool(active_tool));
   return active_tool->runtime->brush_type == brush_type;
 }
 
@@ -297,8 +298,8 @@ static void toolsystem_brush_type_binding_update(Paint *paint,
 
 bool WM_toolsystem_activate_brush_and_tool(bContext *C, Paint *paint, Brush *brush)
 {
-  const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(C);
-  const PaintMode paint_mode = BKE_paintmode_get_active_from_context(C);
+  const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(*C);
+  const PaintMode paint_mode = BKE_paintmode_get_active_from_context(*C);
 
   if (!BKE_paint_can_use_brush(paint, brush)) {
     /* Avoid switching tool when brush isn't valid for this mode anyway. */
@@ -310,12 +311,12 @@ bool WM_toolsystem_activate_brush_and_tool(bContext *C, Paint *paint, Brush *bru
     std::optional<int> brush_type = BKE_paint_get_brush_type_from_paintmode(brush, paint_mode);
     if (!brush_type) {
       BLI_assert_unreachable();
-      WM_toolsystem_ref_set_by_id(C, "builtin.brush");
+      WM_toolsystem_ref_set_by_id(*C, "builtin.brush");
     }
     else if (!brush_type_matches_active_tool(C, *brush_type)) {
       const char *brush_type_name = brush_type_identifier_get(*brush_type, paint_mode);
       /* Calls into .py to query available tools. */
-      toolsystem_ref_set_by_brush_type(C, brush_type_name);
+      toolsystem_ref_set_by_brush_type(*C, brush_type_name);
     }
   }
 
@@ -606,16 +607,16 @@ void WM_toolsystem_reinit_all(bContext *C, wmWindow *win)
   }
 }
 
-void WM_toolsystem_ref_set_from_runtime(bContext *C,
+void WM_toolsystem_ref_set_from_runtime(bContext &C,
                                         WorkSpace *workspace,
                                         bToolRef *tref,
                                         const bToolRef_Runtime *tref_rt,
                                         const char *idname)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   if (tref->runtime) {
-    toolsystem_unlink_ref(C, workspace, tref);
+    toolsystem_unlink_ref(&C, workspace, tref);
   }
 
   STRNCPY_UTF8(tref->idname, idname);
@@ -659,7 +660,7 @@ void WM_toolsystem_ref_set_from_runtime(bContext *C,
 
   /* Set the cursor if possible, if not - it's fine as entering the region will refresh it. */
   {
-    wmWindow *win = CTX_wm_window(*C);
+    wmWindow *win = CTX_wm_window(C);
     if (win != nullptr) {
       win->addmousemove = true;
       win->tag_cursor_refresh = true;
@@ -667,7 +668,7 @@ void WM_toolsystem_ref_set_from_runtime(bContext *C,
   }
 
   {
-    wmMsgBus *mbus = CTX_wm_message_bus(*C);
+    wmMsgBus *mbus = CTX_wm_message_bus(C);
     WM_msg_publish_rna_prop(mbus, &workspace->id, workspace, WorkSpace, tools);
   }
 }
@@ -706,11 +707,11 @@ void WM_toolsystem_ref_sync_from_context(Main *bmain, WorkSpace *workspace, bToo
   }
 }
 
-void WM_toolsystem_init(const bContext *C)
+void WM_toolsystem_init(const bContext &C)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
-  BLI_assert(CTX_wm_window(*C) == nullptr);
+  BLI_assert(CTX_wm_window(C) == nullptr);
 
   for (WorkSpace &workspace : bmain->workspaces) {
     for (bToolRef &tref : workspace.tools) {
@@ -798,9 +799,9 @@ bool WM_toolsystem_key_from_context(const Scene *scene,
   return false;
 }
 
-void WM_toolsystem_refresh_active(bContext *C)
+void WM_toolsystem_refresh_active(bContext &C)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   struct {
     wmWindow *win;
@@ -832,16 +833,16 @@ void WM_toolsystem_refresh_active(bContext *C)
           bToolRef *tref = WM_toolsystem_ref_find(workspace, &tkey);
           if (tref != area.runtime.tool) {
             if (context_prev.is_set == false) {
-              context_prev.win = CTX_wm_window(*C);
-              context_prev.area = CTX_wm_area(*C);
-              context_prev.region = CTX_wm_region(*C);
+              context_prev.win = CTX_wm_window(C);
+              context_prev.area = CTX_wm_area(C);
+              context_prev.region = CTX_wm_region(C);
               context_prev.is_set = true;
             }
 
-            CTX_wm_window_set(*C, &win);
-            CTX_wm_area_set(*C, &area);
+            CTX_wm_window_set(C, &win);
+            CTX_wm_area_set(C, &area);
 
-            toolsystem_reinit_ensure_toolref(C, workspace, &tkey, nullptr);
+            toolsystem_reinit_ensure_toolref(&C, workspace, &tkey, nullptr);
           }
         }
       }
@@ -849,9 +850,9 @@ void WM_toolsystem_refresh_active(bContext *C)
   }
 
   if (context_prev.is_set) {
-    CTX_wm_window_set(*C, context_prev.win);
-    CTX_wm_area_set(*C, context_prev.area);
-    CTX_wm_region_set(*C, context_prev.region);
+    CTX_wm_window_set(C, context_prev.win);
+    CTX_wm_area_set(C, context_prev.area);
+    CTX_wm_region_set(C, context_prev.region);
   }
 
   BKE_workspace_id_tag_all_visible(bmain, ID_TAG_DOIT);
@@ -863,7 +864,7 @@ void WM_toolsystem_refresh_active(bContext *C)
        * This is needed because undo can load a state which no longer has the underlying DNA data
        * needed for the tool (un-initialized paint-slots for eg), see: #64339. */
       for (bToolRef &tref : workspace.tools) {
-        toolsystem_refresh_ref(C, &workspace, &tref);
+        toolsystem_refresh_ref(&C, &workspace, &tref);
       }
     }
   }
@@ -989,26 +990,26 @@ bToolRef *WM_toolsystem_ref_set_by_id_ex(
   return (tref && STREQ(tref->idname, name)) ? tref : nullptr;
 }
 
-bToolRef *WM_toolsystem_ref_set_by_id(bContext *C, const char *name)
+bToolRef *WM_toolsystem_ref_set_by_id(bContext &C, const char *name)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ScrArea *area = CTX_wm_area(C);
   bToolKey tkey;
   if (WM_toolsystem_key_from_context(scene, view_layer, area, &tkey)) {
-    WorkSpace *workspace = CTX_wm_workspace(*C);
-    return WM_toolsystem_ref_set_by_id_ex(C, workspace, &tkey, name, false);
+    WorkSpace *workspace = CTX_wm_workspace(C);
+    return WM_toolsystem_ref_set_by_id_ex(&C, workspace, &tkey, name, false);
   }
   return nullptr;
 }
 
-static void toolsystem_ref_set_by_brush_type(bContext *C, const char *brush_type)
+static void toolsystem_ref_set_by_brush_type(bContext &C, const char *brush_type)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ScrArea *area = CTX_wm_area(C);
   const bToolKey tkey = toolsystem_key_from_context_or_view3d(scene, view_layer, area);
-  WorkSpace *workspace = CTX_wm_workspace(*C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
 
   wmOperatorType *ot = WM_operatortype_find("WM_OT_tool_set_by_brush_type", false);
   /* On startup, Python operators are not yet loaded. */
@@ -1021,7 +1022,7 @@ static void toolsystem_ref_set_by_brush_type(bContext *C, const char *brush_type
 #ifndef NDEBUG
   /* Exclude this check for some space types where the space type isn't used. */
   if ((1 << tkey.space_type) & WM_TOOLSYSTEM_SPACE_MASK_MODE_FROM_SPACE) {
-    ScrArea *area = CTX_wm_area(*C);
+    ScrArea *area = CTX_wm_area(C);
     BLI_assert(area == nullptr || area->spacetype == tkey.space_type);
   }
 #endif
@@ -1033,13 +1034,13 @@ static void toolsystem_ref_set_by_brush_type(bContext *C, const char *brush_type
 
   RNA_enum_set(&op_props, "space_type", tkey.space_type);
 
-  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
+  WM_operator_name_call_ptr(&C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
 
   bToolRef *tref = WM_toolsystem_ref_find(workspace, &tkey);
 
   if (tref) {
-    Main *bmain = CTX_data_main(*C);
+    Main *bmain = CTX_data_main(C);
     toolsystem_refresh_screen_from_active_tool(bmain, workspace, tref);
   }
 }
@@ -1171,44 +1172,44 @@ static bToolRef *toolsystem_reinit_ensure_toolref(bContext *C,
   return tref;
 }
 
-static void wm_toolsystem_update_from_context_view3d_impl(bContext *C, WorkSpace *workspace)
+static void wm_toolsystem_update_from_context_view3d_impl(bContext &C, WorkSpace *workspace)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   int space_type = SPACE_VIEW3D;
   bToolKey tkey{};
   tkey.space_type = space_type;
   tkey.mode = WM_toolsystem_mode_from_spacetype(scene, view_layer, nullptr, space_type);
-  toolsystem_reinit_ensure_toolref(C, workspace, &tkey, nullptr);
+  toolsystem_reinit_ensure_toolref(&C, workspace, &tkey, nullptr);
 }
 
-void WM_toolsystem_update_from_context_view3d(bContext *C)
+void WM_toolsystem_update_from_context_view3d(bContext &C)
 {
-  WorkSpace *workspace = CTX_wm_workspace(*C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
   if (workspace) {
     wm_toolsystem_update_from_context_view3d_impl(C, workspace);
   }
 
   /* Multi window support. */
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   if (!BLI_listbase_is_single(&wm->windows)) {
-    wmWindow *win_prev = CTX_wm_window(*C);
-    ScrArea *area_prev = CTX_wm_area(*C);
-    ARegion *region_prev = CTX_wm_region(*C);
+    wmWindow *win_prev = CTX_wm_window(C);
+    ScrArea *area_prev = CTX_wm_area(C);
+    ARegion *region_prev = CTX_wm_region(C);
 
     for (wmWindow &win : wm->windows) {
       if (&win != win_prev) {
         WorkSpace *workspace_iter = WM_window_get_active_workspace(&win);
         if (workspace_iter != workspace) {
 
-          CTX_wm_window_set(*C, &win);
+          CTX_wm_window_set(C, &win);
 
           wm_toolsystem_update_from_context_view3d_impl(C, workspace_iter);
 
-          CTX_wm_window_set(*C, win_prev);
-          CTX_wm_area_set(*C, area_prev);
-          CTX_wm_region_set(*C, region_prev);
+          CTX_wm_window_set(C, win_prev);
+          CTX_wm_area_set(C, area_prev);
+          CTX_wm_region_set(C, region_prev);
         }
       }
     }

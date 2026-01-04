@@ -138,9 +138,9 @@ bool shape_key_is_selected(const Object &object, const KeyBlock &kb, const int k
 /** \name Add Shape Key Function
  * \{ */
 
-static void object_shape_key_add(bContext *C, Object *ob, const bool from_mix)
+static void object_shape_key_add(bContext &C, Object *ob, const bool from_mix)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   KeyBlock *kb = BKE_object_shapekey_insert(bmain, ob, nullptr, from_mix);
   if (kb) {
     /* Shapekeys created via this operator should get default value 1.0. */
@@ -273,7 +273,7 @@ static bool object_shape_key_mirror(
   *r_totfail = totfail;
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_DRAW, ob);
 
   return true;
 }
@@ -286,7 +286,7 @@ static bool object_shape_key_mirror(
 
 static bool shape_key_poll(bContext &C)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   ID *data = static_cast<ID *>((ob) ? ob->data : nullptr);
 
   return (ob != nullptr && ID_IS_EDITABLE(ob) && !ID_IS_OVERRIDE_LIBRARY(ob) && data != nullptr &&
@@ -295,7 +295,7 @@ static bool shape_key_poll(bContext &C)
 
 static bool shape_key_exists_poll(bContext &C)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   return (shape_key_poll(C) &&
           /* check a keyblock exists */
@@ -304,14 +304,14 @@ static bool shape_key_exists_poll(bContext &C)
 
 static bool shape_key_mode_poll(bContext &C)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   return (shape_key_poll(C) && ob->mode != OB_MODE_EDIT);
 }
 
 static bool shape_key_mode_exists_poll(bContext &C)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   return (shape_key_mode_poll(C) &&
           /* check a keyblock exists */
@@ -321,7 +321,7 @@ static bool shape_key_mode_exists_poll(bContext &C)
 static bool shape_key_move_poll(bContext &C)
 {
   /* Same as shape_key_mode_exists_poll above, but ensure we have at least two shapes! */
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Key *key = BKE_key_from_object(ob);
 
   return (shape_key_mode_poll(C) && key != nullptr && key->totkey > 1);
@@ -335,10 +335,10 @@ static bool shape_key_move_poll(bContext &C)
 
 static wmOperatorStatus shape_key_add_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   const bool from_mix = RNA_boolean_get(op.ptr, "from_mix");
 
-  object_shape_key_add(&C, ob, from_mix);
+  object_shape_key_add(C, ob, from_mix);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -376,12 +376,12 @@ void OBJECT_OT_shape_key_add(wmOperatorType *ot)
 
 static wmOperatorStatus shape_key_copy_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Key *key = BKE_key_from_object(ob);
   KeyBlock *kb_src = BKE_keyblock_from_object(ob);
   KeyBlock *kb_new = BKE_keyblock_duplicate(key, kb_src);
   ob->shapenr = BLI_findindex(&key->block, kb_new) + 1;
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
   return OPERATOR_FINISHED;
@@ -408,7 +408,7 @@ void OBJECT_OT_shape_key_copy(wmOperatorType *ot)
 static wmOperatorStatus shape_key_remove_exec(bContext &C, wmOperator &op)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   bool changed = false;
 
   if (RNA_boolean_get(op.ptr, "all")) {
@@ -473,7 +473,7 @@ static wmOperatorStatus shape_key_remove_exec(bContext &C, wmOperator &op)
   if (changed) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     DEG_relations_tag_update(CTX_data_main(C));
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
     return OPERATOR_FINISHED;
   }
@@ -539,7 +539,7 @@ void OBJECT_OT_shape_key_remove(wmOperatorType *ot)
 
 static wmOperatorStatus shape_key_clear_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Key *key = BKE_key_from_object(ob);
 
   if (!key || BLI_listbase_is_empty(&key->block)) {
@@ -551,7 +551,7 @@ static wmOperatorStatus shape_key_clear_exec(bContext &C, wmOperator & /*op*/)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -575,7 +575,7 @@ void OBJECT_OT_shape_key_clear(wmOperatorType *ot)
 /* starting point and step size could be optional */
 static wmOperatorStatus shape_key_retime_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Key *key = BKE_key_from_object(ob);
   float cfra = 0.0f;
 
@@ -589,7 +589,7 @@ static wmOperatorStatus shape_key_retime_exec(bContext &C, wmOperator & /*op*/)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -617,7 +617,7 @@ void OBJECT_OT_shape_key_retime(wmOperatorType *ot)
 
 static wmOperatorStatus shape_key_mirror_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   int totmirr = 0, totfail = 0;
   bool use_topology = RNA_boolean_get(op.ptr, "use_topology");
 
@@ -672,7 +672,7 @@ enum KeyBlockMove {
 
 static wmOperatorStatus shape_key_move_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
 
   const Key &key = *BKE_key_from_object(ob);
   const KeyBlockMove type = KeyBlockMove(RNA_enum_get(op.ptr, "type"));
@@ -738,7 +738,7 @@ static wmOperatorStatus shape_key_move_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -801,7 +801,7 @@ static wmOperatorStatus shape_key_lock_exec(bContext &C, wmOperator &op)
     }
   }
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -865,7 +865,7 @@ static bool shape_key_make_basis_poll(bContext &C)
     return false;
   }
 
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   /* 0 = nothing active, 1 = basis key active. */
   return ob->shapenr > 1;
 }
@@ -897,7 +897,7 @@ static wmOperatorStatus shape_key_make_basis_exec(bContext &C, wmOperator & /*op
   old_basis_key->relative = 0;
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }

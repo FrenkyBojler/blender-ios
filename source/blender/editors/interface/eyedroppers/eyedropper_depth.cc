@@ -121,7 +121,7 @@ static bool depthdropper_test(bContext *C, wmOperator *op)
 
   /* check if there's an active button taking depth value */
   if ((CTX_wm_window(*C) != nullptr) &&
-      (but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
+      (but = context_active_but_prop_get(*C, &ptr, &prop, &index_dummy)) &&
       (but->type == ButtonType::Num) && (prop != nullptr))
   {
     if ((RNA_property_type(prop) == PROP_FLOAT) &&
@@ -167,7 +167,7 @@ static int depthdropper_init(bContext *C, wmOperator *op)
   else {
     /* fallback to the active camera's dof */
     int index_dummy;
-    Button *but = context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &index_dummy);
+    Button *but = context_active_but_prop_get(*C, &ddr->ptr, &ddr->prop, &index_dummy);
     if (ddr->prop == nullptr) {
       RegionView3D *rv3d = CTX_wm_region_view3d(*C);
       if (rv3d && rv3d->persp == RV3D_CAMOB) {
@@ -208,9 +208,9 @@ static int depthdropper_init(bContext *C, wmOperator *op)
   return true;
 }
 
-static void depthdropper_exit(bContext *C, wmOperator *op)
+static void depthdropper_exit(bContext &C, wmOperator *op)
 {
-  WM_cursor_modal_restore(CTX_wm_window(*C));
+  WM_cursor_modal_restore(CTX_wm_window(C));
 
   if (op->customdata) {
     DepthDropper *ddr = (DepthDropper *)op->customdata;
@@ -227,18 +227,18 @@ static void depthdropper_exit(bContext *C, wmOperator *op)
 /**
  * \brief get the ID from the screen.
  */
-static void depthdropper_depth_sample_pt(bContext *C,
+static void depthdropper_depth_sample_pt(bContext &C,
                                          DepthDropper *ddr,
                                          const int m_xy[2],
                                          float *r_depth)
 {
   /* we could use some clever */
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
   ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, m_xy);
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
-  ScrArea *area_prev = CTX_wm_area(*C);
-  ARegion *region_prev = CTX_wm_region(*C);
+  ScrArea *area_prev = CTX_wm_area(C);
+  ARegion *region_prev = CTX_wm_region(C);
 
   ddr->name[0] = '\0';
 
@@ -246,7 +246,7 @@ static void depthdropper_depth_sample_pt(bContext *C,
     if (area->spacetype == SPACE_VIEW3D) {
       ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_WINDOW, m_xy);
       if (region) {
-        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
         View3D *v3d = static_cast<View3D *>(area->spacedata.first);
         RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
         /* weak, we could pass in some reference point */
@@ -259,8 +259,8 @@ static void depthdropper_depth_sample_pt(bContext *C,
 
         float co[3];
 
-        CTX_wm_area_set(*C, area);
-        CTX_wm_region_set(*C, region);
+        CTX_wm_area_set(C, area);
+        CTX_wm_region_set(C, region);
 
         /* Unfortunately it's necessary to always draw otherwise we leave stale text. */
         ED_region_tag_redraw(region);
@@ -295,8 +295,8 @@ static void depthdropper_depth_sample_pt(bContext *C,
     }
   }
 
-  CTX_wm_area_set(*C, area_prev);
-  CTX_wm_region_set(*C, region_prev);
+  CTX_wm_area_set(C, area_prev);
+  CTX_wm_region_set(C, region_prev);
 }
 
 /* sets the sample depth RGB, maintaining A */
@@ -304,7 +304,7 @@ static void depthdropper_depth_set(bContext *C, DepthDropper *ddr, const float d
 {
   RNA_property_float_set(&ddr->ptr, ddr->prop, depth);
   ddr->is_set = true;
-  RNA_property_update(C, &ddr->ptr, ddr->prop);
+  RNA_property_update(*C, &ddr->ptr, ddr->prop);
 }
 
 /* set sample from accumulated values */
@@ -322,7 +322,7 @@ static void depthdropper_depth_sample(bContext *C, DepthDropper *ddr, const int 
 {
   float depth = -1.0f;
   if (depth != -1.0f) {
-    depthdropper_depth_sample_pt(C, ddr, m_xy, &depth);
+    depthdropper_depth_sample_pt(*C, ddr, m_xy, &depth);
     depthdropper_depth_set(C, ddr, depth);
   }
 }
@@ -330,7 +330,7 @@ static void depthdropper_depth_sample(bContext *C, DepthDropper *ddr, const int 
 static void depthdropper_depth_sample_accum(bContext *C, DepthDropper *ddr, const int m_xy[2])
 {
   float depth = -1.0f;
-  depthdropper_depth_sample_pt(C, ddr, m_xy, &depth);
+  depthdropper_depth_sample_pt(*C, ddr, m_xy, &depth);
   if (depth != -1.0f) {
     ddr->accum_depth += depth;
     ddr->accum_tot++;
@@ -343,7 +343,7 @@ static void depthdropper_cancel(bContext &C, wmOperator &op)
   if (ddr->is_set) {
     depthdropper_depth_set(&C, ddr, ddr->init_depth);
   }
-  depthdropper_exit(&C, &op);
+  depthdropper_exit(C, &op);
 }
 
 /* main modal status check */
@@ -365,7 +365,7 @@ static wmOperatorStatus depthdropper_modal(bContext &C, wmOperator &op, const wm
         else {
           depthdropper_depth_set_accum(&C, ddr);
         }
-        depthdropper_exit(&C, &op);
+        depthdropper_exit(C, &op);
         /* Could support finished & undo-skip. */
         return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
       }
@@ -408,7 +408,7 @@ static wmOperatorStatus depthdropper_invoke(bContext &C, wmOperator &op, const w
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -421,7 +421,7 @@ static wmOperatorStatus depthdropper_exec(bContext &C, wmOperator &op)
   /* init */
   if (depthdropper_init(&C, &op)) {
     /* cleanup */
-    depthdropper_exit(&C, &op);
+    depthdropper_exit(C, &op);
 
     return OPERATOR_FINISHED;
   }
@@ -437,7 +437,7 @@ static bool depthdropper_poll(bContext &C)
 
   /* check if there's an active button taking depth value */
   if ((CTX_wm_window(C) != nullptr) &&
-      (but = context_active_but_prop_get(&C, &ptr, &prop, &index_dummy)))
+      (but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy)))
   {
     if (but->icon == ICON_EYEDROPPER) {
       return true;

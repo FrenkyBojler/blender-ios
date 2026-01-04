@@ -821,7 +821,7 @@ static void applyEdgeSlide(TransInfo *t)
   if (slp->update_status_bar) {
     slp->update_status_bar = false;
 
-    WorkspaceStatus status(t->context);
+    WorkspaceStatus status(*t->context);
     status.opmodal(IFACE_("Confirm"), op->type, TFM_MODAL_CONFIRM);
     status.opmodal(IFACE_("Cancel"), op->type, TFM_MODAL_CANCEL);
     status.opmodal(IFACE_("Snap"), op->type, TFM_MODAL_SNAP_TOGGLE, is_snap);

@@ -205,23 +205,23 @@ static bool autokeyframe_sequencer_image(bContext *C,
   if (do_rot) {
     prop = RNA_struct_find_property(&ptr, "rotation");
     changed |= animrig::autokeyframe_property(
-        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
+        *C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
   if (do_loc) {
     prop = RNA_struct_find_property(&ptr, "offset_x");
     changed |= animrig::autokeyframe_property(
-        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
+        *C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
     prop = RNA_struct_find_property(&ptr, "offset_y");
     changed |= animrig::autokeyframe_property(
-        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
+        *C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
   if (do_scale) {
     prop = RNA_struct_find_property(&ptr, "scale_x");
     changed |= animrig::autokeyframe_property(
-        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
+        *C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
     prop = RNA_struct_find_property(&ptr, "scale_y");
     changed |= animrig::autokeyframe_property(
-        C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
+        *C, scene, &ptr, prop, -1, scene->r.cfra, only_when_keyed);
   }
 
   return changed;

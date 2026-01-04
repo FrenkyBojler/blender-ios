@@ -678,7 +678,7 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
                                                       wmOperator *op,
                                                       PrimitiveToolOperation &ptd)
 {
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
   status.opmodal(IFACE_("Confirm"), op->type, int(ModalKeyMode::Confirm));
   status.opmodal(IFACE_("Cancel"), op->type, int(ModalKeyMode::Cancel));
   status.opmodal(IFACE_("Panning"), op->type, int(ModalKeyMode::Panning));
@@ -710,7 +710,7 @@ static void grease_pencil_primitive_update_view(bContext *C, PrimitiveToolOperat
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(ptd.vc.obact->data);
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
+  WM_event_add_notifier(*C, NC_GEOM | ND_DATA, grease_pencil);
 
   ED_region_tag_redraw(ptd.region);
 }
@@ -721,7 +721,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext &C,
                                                        const wmEvent *event)
 {
   const wmOperatorStatus retval = ed::greasepencil::grease_pencil_draw_operator_invoke(
-      &C, &op, false);
+      C, &op, false);
   if (retval != OPERATOR_RUNNING_MODAL) {
     return retval;
   }
@@ -735,7 +735,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext &C,
   /* Set cursor to indicate modal. */
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
-  ViewContext vc = ED_view3d_viewcontext_init(&C, CTX_data_depsgraph_pointer(C));
+  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
 
   /* Allocate new data. */
   PrimitiveToolOperation *ptd_pointer = MEM_new<PrimitiveToolOperation>(__func__);
@@ -762,7 +762,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext &C,
 
   ptd.placement = placement;
 
-  ptd.vod = ED_view3d_navigation_init(&C, nullptr);
+  ptd.vod = ED_view3d_navigation_init(C, nullptr);
 
   ptd.start_position_2d = start_coords;
   ptd.subdivision = RNA_int_get(op.ptr, "subdivision");
@@ -859,17 +859,17 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext &C,
   grease_pencil_primitive_status_indicators(&C, &op, ptd);
 
   /* Add a modal handler for this operator. */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
 /* Exit and free memory. */
-static void grease_pencil_primitive_exit(bContext *C, wmOperator *op, const bool cancelled)
+static void grease_pencil_primitive_exit(bContext &C, wmOperator *op, const bool cancelled)
 {
   PrimitiveToolOperation *ptd = static_cast<PrimitiveToolOperation *>(op->customdata);
 
-  const Scene &scene = *CTX_data_scene(*C);
+  const Scene &scene = *CTX_data_scene(C);
   const bool do_automerge_endpoints = (scene.toolsettings->gpencil_flags &
                                        GP_TOOL_FLAG_AUTOMERGE_STROKE) != 0;
   const bool on_back = (scene.toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
@@ -888,21 +888,21 @@ static void grease_pencil_primitive_exit(bContext *C, wmOperator *op, const bool
     const IndexMask selection = IndexRange::from_single(active_curve);
 
     drawing.strokes_for_write() = ed::greasepencil::curves_merge_endpoints_by_distance(
-        *CTX_wm_region(*C), src_curves, layer_to_world, merge_distance, selection, {});
+        *CTX_wm_region(C), src_curves, layer_to_world, merge_distance, selection, {});
     drawing.tag_topology_changed();
   }
 
   /* Clear status message area. */
-  ED_workspace_status_text(C, nullptr);
+  ED_workspace_status_text(&C, nullptr);
 
   WM_cursor_modal_restore(ptd->vc.win);
 
   /* Deactivate the extra drawing stuff in 3D-View. */
   ED_region_draw_cb_exit(ptd->region->runtime->type, ptd->draw_handle);
 
-  ED_view3d_navigation_free(C, ptd->vod);
+  ED_view3d_navigation_free(&C, ptd->vod);
 
-  grease_pencil_primitive_update_view(C, *ptd);
+  grease_pencil_primitive_update_view(&C, *ptd);
 
   MEM_delete<PrimitiveToolOperation>(ptd);
   /* Clear pointer. */
@@ -1183,11 +1183,11 @@ static int primitive_check_ui_hover(const PrimitiveToolOperation &ptd, const wmE
   return -1;
 }
 
-static void grease_pencil_primitive_cursor_update(bContext *C,
+static void grease_pencil_primitive_cursor_update(bContext &C,
                                                   PrimitiveToolOperation &ptd,
                                                   const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
   if (ptd.mode != OperatorMode::Idle) {
     WM_cursor_modal_set(win, WM_CURSOR_CROSS);
@@ -1217,12 +1217,12 @@ static wmOperatorStatus grease_pencil_primitive_event_modal_map(bContext *C,
   switch (event->val) {
     case int(ModalKeyMode::Cancel): {
       grease_pencil_primitive_undo_curves(ptd);
-      grease_pencil_primitive_exit(C, op, true);
+      grease_pencil_primitive_exit(*C, op, true);
 
       return OPERATOR_CANCELLED;
     }
     case int(ModalKeyMode::Confirm): {
-      grease_pencil_primitive_exit(C, op, false);
+      grease_pencil_primitive_exit(*C, op, false);
 
       return OPERATOR_FINISHED;
     }
@@ -1465,7 +1465,7 @@ static wmOperatorStatus grease_pencil_primitive_modal(bContext &C,
   /* Check for confirm before navigation. */
   if (event->type == EVT_MODAL_MAP) {
     if (event->val == int(ModalKeyMode::Confirm)) {
-      grease_pencil_primitive_exit(&C, &op, false);
+      grease_pencil_primitive_exit(C, &op, false);
 
       return OPERATOR_FINISHED;
     }
@@ -1484,7 +1484,7 @@ static wmOperatorStatus grease_pencil_primitive_modal(bContext &C,
   }
 
   ptd.projection = ED_view3d_ob_project_mat_get(ptd.vc.rv3d, ptd.vc.obact);
-  grease_pencil_primitive_cursor_update(&C, ptd, event);
+  grease_pencil_primitive_cursor_update(C, ptd, event);
 
   if (event->type == EVT_MODAL_MAP) {
     const wmOperatorStatus return_val = grease_pencil_primitive_event_modal_map(
@@ -1510,7 +1510,7 @@ static wmOperatorStatus grease_pencil_primitive_modal(bContext &C,
 
       if (ptd.mode == OperatorMode::Idle) {
         grease_pencil_primitive_undo_curves(ptd);
-        grease_pencil_primitive_exit(&C, &op, true);
+        grease_pencil_primitive_exit(C, &op, true);
 
         return OPERATOR_CANCELLED;
       }
@@ -1547,7 +1547,7 @@ static wmOperatorStatus grease_pencil_primitive_modal(bContext &C,
 static void grease_pencil_primitive_cancel(bContext &C, wmOperator &op)
 {
   /* This is just a wrapper around exit() */
-  grease_pencil_primitive_exit(&C, &op, true);
+  grease_pencil_primitive_exit(C, &op, true);
 }
 
 static void grease_pencil_primitive_common_props(wmOperatorType *ot,

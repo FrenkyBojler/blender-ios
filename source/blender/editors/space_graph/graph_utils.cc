@@ -125,7 +125,7 @@ bool graphop_visible_keyframes_poll(bContext &C)
   }
 
   /* try to init Anim-Context stuff ourselves and check */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return found;
   }
 
@@ -177,7 +177,7 @@ bool graphop_editable_keyframes_poll(bContext &C)
   }
 
   /* try to init Anim-Context stuff ourselves and check */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return found;
   }
 
@@ -231,7 +231,7 @@ bool graphop_active_fcurve_poll(bContext &C)
   }
 
   /* try to init Anim-Context stuff ourselves and check */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return has_fcurve;
   }
 
@@ -282,7 +282,7 @@ bool graphop_selected_fcurve_poll(bContext &C)
   }
 
   /* try to init Anim-Context stuff ourselves and check */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return false;
   }
 

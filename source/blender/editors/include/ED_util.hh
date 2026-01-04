@@ -21,7 +21,7 @@ class IDRemapper;
 /* `ed_util.cc` */
 
 void ED_editors_init_for_undo(Main *bmain);
-void ED_editors_init(bContext *C);
+void ED_editors_init(bContext &C);
 /**
  * Frees all edit-mode stuff.
  */
@@ -54,13 +54,13 @@ void ED_spacedata_id_remap(ScrArea *area,
  * #PointerRNA vector. Useful when the API uses vectors to also support acting on multiple IDs,
  * e.g. as returned by #ED_operator_get_ids_from_context_as_vec().
  */
-blender::Vector<PointerRNA> ED_operator_single_id_from_context_as_vec(const bContext *C);
+blender::Vector<PointerRNA> ED_operator_single_id_from_context_as_vec(const bContext &C);
 /**
  * Helper for context sensitive operations: Returns the "selected_ids" context member or, if none,
  * the "id" context member as a #PointerRNA vector. Batch operations can use this to get all IDs to
  * act on, including a fallback to the active ID if there's no selection.
  */
-blender::Vector<PointerRNA> ED_operator_get_ids_from_context_as_vec(const bContext *C);
+blender::Vector<PointerRNA> ED_operator_get_ids_from_context_as_vec(const bContext &C);
 
 void ED_operatortypes_edutils();
 
@@ -94,7 +94,7 @@ void ED_region_image_render_region_draw(
 struct tSlider;
 enum SliderMode { SLIDER_MODE_PERCENT = 0, SLIDER_MODE_FLOAT = 1 };
 
-tSlider *ED_slider_create(bContext *C);
+tSlider *ED_slider_create(bContext &C);
 /**
  * For modal operations so the percentage doesn't pop on the first mouse movement.
  */
@@ -156,7 +156,7 @@ void apply_keyb_grid(
     bool shift, bool ctrl, float *val, float fac1, float fac2, float fac3, int invert);
 
 /* where else to go ? */
-void unpack_menu(bContext *C,
+void unpack_menu(bContext &C,
                  const char *opname,
                  const char *id_name,
                  const char *abs_name,

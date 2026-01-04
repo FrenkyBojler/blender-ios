@@ -24,11 +24,11 @@
 
 namespace blender::nodes::socket_items::ops {
 
-inline PointerRNA get_active_node_to_operate_on(bContext *C,
+inline PointerRNA get_active_node_to_operate_on(bContext &C,
                                                 wmOperator *op,
                                                 const StringRef node_idname)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   if (!snode) {
     return PointerRNA_NULL;
   }
@@ -70,13 +70,13 @@ inline PointerRNA get_active_node_to_operate_on(bContext *C,
   return RNA_pointer_create_discrete(&snode->edittree->id, &RNA_Node, node);
 }
 
-inline void update_after_node_change(bContext *C, const PointerRNA node_ptr)
+inline void update_after_node_change(bContext &C, const PointerRNA node_ptr)
 {
   bNode *node = static_cast<bNode *>(node_ptr.data);
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(node_ptr.owner_id);
 
   BKE_ntree_update_tag_node_property(ntree, node);
-  BKE_main_ensure_invariants(*CTX_data_main(*C), ntree->id);
+  BKE_main_ensure_invariants(*CTX_data_main(C), ntree->id);
   WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
 }
 
@@ -127,7 +127,7 @@ inline void remove_active_item(wmOperatorType *ot,
     if (*ref.items_num > 0) {
       dna::array::remove_index(
           ref.items, ref.items_num, ref.active_index, *ref.active_index, Accessor::destruct_item);
-      update_after_node_change(&C, node_ptr);
+      update_after_node_change(C, node_ptr);
     }
     return OPERATOR_FINISHED;
   };
@@ -155,7 +155,7 @@ inline void remove_item_by_index(wmOperatorType *ot,
     dna::array::remove_index(
         ref.items, ref.items_num, ref.active_index, index_to_remove, Accessor::destruct_item);
 
-    update_after_node_change(&C, node_ptr);
+    update_after_node_change(C, node_ptr);
     return OPERATOR_FINISHED;
   };
 
@@ -222,7 +222,7 @@ inline void add_item(wmOperatorType *ot,
       *ref.active_index = dst_index;
     }
 
-    update_after_node_change(&C, node_ptr);
+    update_after_node_change(C, node_ptr);
     return OPERATOR_FINISHED;
   };
 
@@ -262,7 +262,7 @@ inline void move_active_item(wmOperatorType *ot,
       *ref.active_index += 1;
     }
 
-    update_after_node_change(&C, node_ptr);
+    update_after_node_change(C, node_ptr);
     return OPERATOR_FINISHED;
   };
 

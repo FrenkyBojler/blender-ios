@@ -22,8 +22,8 @@ struct EnumPropertyItem;
 
 /* Key Configuration. */
 
-void WM_keyconfig_init(bContext *C);
-void WM_keyconfig_reload(bContext *C);
+void WM_keyconfig_init(bContext &C);
+void WM_keyconfig_reload(bContext &C);
 
 wmKeyConfig *WM_keyconfig_new(wmWindowManager *wm, const char *idname, bool user_defined);
 wmKeyConfig *WM_keyconfig_ensure(wmWindowManager *wm, const char *idname, bool user_defined);
@@ -161,14 +161,14 @@ wmKeyMapItem *WM_keymap_add_tool(wmKeyMap *keymap,
                                  const char *idname,
                                  const KeyMapItem_Params *params);
 
-wmKeyMap *WM_keymap_guess_from_context(const bContext *C);
+wmKeyMap *WM_keymap_guess_from_context(const bContext &C);
 
 /**
  * Guess an appropriate key-map from the operator name.
  *
  * \note Needs to be kept up to date with Key-map and Operator naming.
  */
-wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname);
+wmKeyMap *WM_keymap_guess_opname(const bContext &C, const char *opname);
 
 bool WM_keymap_uses_event_modifier(const wmKeyMap *keymap, int event_modifier);
 

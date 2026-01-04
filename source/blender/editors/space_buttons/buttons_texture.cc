@@ -56,7 +56,7 @@
 
 #include "buttons_intern.hh" /* own include */
 
-static ScrArea *find_area_properties(const bContext *C);
+static ScrArea *find_area_properties(const bContext &C);
 static SpaceProperties *find_space_properties(const bContext *C);
 
 /************************* Texture User **************************/
@@ -277,7 +277,7 @@ static void buttons_texture_users_from_context(ListBaseT<ButsTextureUser> *users
     ViewLayer *view_layer = (win->scene == scene) ? WM_window_get_active_view_layer(win) :
                                                     BKE_view_layer_default_view(scene);
 
-    brush = BKE_paint_brush(BKE_paint_get_active_from_context(C));
+    brush = BKE_paint_brush(BKE_paint_get_active_from_context(*C));
     linestyle = BKE_linestyle_active_from_view_layer(view_layer);
     BKE_view_layer_synced_ensure(scene, view_layer);
     ob = BKE_view_layer_active_object_get(view_layer);
@@ -451,7 +451,7 @@ static void template_texture_select(bContext *C, void *user_p, void * /*arg*/)
       blender::bke::node_set_selected(*node, false);
     }
     blender::bke::node_set_selected(*user->node, true);
-    WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
+    WM_event_add_notifier(*C, NC_NODE | NA_SELECTED, nullptr);
   }
   if (user->ptr.data) {
     texptr = RNA_property_pointer_get(&user->ptr, user->prop);
@@ -589,10 +589,10 @@ void uiTemplateTextureUser(blender::ui::Layout *layout, bContext *C)
 
 /************************* Texture Show **************************/
 
-static ScrArea *find_area_properties(const bContext *C)
+static ScrArea *find_area_properties(const bContext &C)
 {
-  bScreen *screen = CTX_wm_screen(*C);
-  Object *ob = CTX_data_active_object(*C);
+  bScreen *screen = CTX_wm_screen(C);
+  Object *ob = CTX_data_active_object(C);
 
   for (ScrArea &area : screen->areabase) {
     if (area.spacetype == SPACE_PROPERTIES) {
@@ -610,7 +610,7 @@ static ScrArea *find_area_properties(const bContext *C)
 
 static SpaceProperties *find_space_properties(const bContext *C)
 {
-  ScrArea *area = find_area_properties(C);
+  ScrArea *area = find_area_properties(*C);
   if (area != nullptr) {
     return static_cast<SpaceProperties *>(area->spacedata.first);
   }
@@ -624,7 +624,7 @@ static void template_texture_show(bContext *C, void *data_p, void *prop_p)
     return;
   }
 
-  ScrArea *area = find_area_properties(C);
+  ScrArea *area = find_area_properties(*C);
   if (area == nullptr) {
     return;
   }

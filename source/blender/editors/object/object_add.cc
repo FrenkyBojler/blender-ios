@@ -286,9 +286,9 @@ static wmOperatorStatus object_add_drop_xy_generic_invoke(bContext &C,
 /** \name Public Add Object API
  * \{ */
 
-void location_from_view(bContext *C, float loc[3])
+void location_from_view(bContext &C, float loc[3])
 {
-  const Scene *scene = CTX_data_scene(*C);
+  const Scene *scene = CTX_data_scene(C);
   copy_v3_v3(loc, scene->cursor.location);
 }
 
@@ -318,9 +318,9 @@ void rotation_from_quat(float rot[3], const float viewquat[4], const char align_
   }
 }
 
-void rotation_from_view(bContext *C, float rot[3], const char align_axis)
+void rotation_from_view(bContext &C, float rot[3], const char align_axis)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   BLI_assert(align_axis >= 'X' && align_axis <= 'Z');
   if (rv3d) {
     float viewquat[4];
@@ -346,15 +346,15 @@ void init_transform_on_add(Object *object, const float loc[3], const float rot[3
   BKE_object_to_mat4(object, object->runtime->object_to_world.ptr());
 }
 
-float new_primitive_matrix(bContext *C,
+float new_primitive_matrix(bContext &C,
                            Object *obedit,
                            const float loc[3],
                            const float rot[3],
                            const float scale[3],
                            float r_primmat[4][4])
 {
-  Scene *scene = CTX_data_scene(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Scene *scene = CTX_data_scene(C);
+  View3D *v3d = CTX_wm_view3d(C);
   float mat[3][3], rmat[3][3], cmat[3][3], imat[3][3];
 
   unit_m4(r_primmat);
@@ -521,7 +521,7 @@ void add_generic_get_opts(bContext *C,
       RNA_float_get_array(op->ptr, "location", r_loc);
     }
     else {
-      location_from_view(C, r_loc);
+      location_from_view(*C, r_loc);
       RNA_float_set_array(op->ptr, "location", r_loc);
     }
   }
@@ -574,7 +574,7 @@ void add_generic_get_opts(bContext *C,
           RNA_float_get_array(op->ptr, "rotation", r_rot);
           break;
         case ALIGN_VIEW:
-          rotation_from_view(C, r_rot, view_align_axis);
+          rotation_from_view(*C, r_rot, view_align_axis);
           RNA_float_set_array(op->ptr, "rotation", r_rot);
           break;
         case ALIGN_CURSOR: {
@@ -611,7 +611,7 @@ void add_generic_get_opts(bContext *C,
   }
 }
 
-Object *add_type_with_obdata(bContext *C,
+Object *add_type_with_obdata(bContext &C,
                              const int type,
                              const char *name,
                              const float loc[3],
@@ -620,9 +620,9 @@ Object *add_type_with_obdata(bContext *C,
                              const ushort local_view_bits,
                              ID *obdata)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   {
     BKE_view_layer_synced_ensure(scene, view_layer);
@@ -690,7 +690,7 @@ Object *add_type(bContext *C,
                  const bool enter_editmode,
                  const ushort local_view_bits)
 {
-  return add_type_with_obdata(C, type, name, loc, rot, enter_editmode, local_view_bits, nullptr);
+  return add_type_with_obdata(*C, type, name, loc, rot, enter_editmode, local_view_bits, nullptr);
 }
 
 static bool object_can_have_lattice_modifier(const Object *ob)
@@ -758,11 +758,11 @@ void OBJECT_OT_add(wmOperatorType *ot)
  * \{ */
 
 static std::optional<Bounds<float3>> lattice_add_to_selected_collect_targets_and_calc_bounds(
-    bContext *C, const float orientation_matrix[3][3], Vector<Object *> &r_targets)
+    bContext &C, const float orientation_matrix[3][3], Vector<Object *> &r_targets)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   Bounds<float3> local_bounds;
   local_bounds.min = float3(FLT_MAX);
@@ -831,7 +831,7 @@ static wmOperatorStatus lattice_add_to_selected_exec(bContext &C, wmOperator &op
 
   Vector<Object *> targets;
   std::optional<Bounds<float3>> bounds_opt =
-      lattice_add_to_selected_collect_targets_and_calc_bounds(&C, orientation_matrix, targets);
+      lattice_add_to_selected_collect_targets_and_calc_bounds(C, orientation_matrix, targets);
 
   /* Disable fit to selected when there are no valid targets
    * (either nothing is selected or meshes with no geometry). */
@@ -1132,7 +1132,7 @@ static wmOperatorStatus effector_add_exec(bContext &C, wmOperator &op)
     editmode_enter_ex(bmain, scene, ob, 0);
 
     float mat[4][4];
-    new_primitive_matrix(&C, ob, loc, rot, nullptr, mat);
+    new_primitive_matrix(C, ob, loc, rot, nullptr, mat);
     mul_mat3_m4_fl(mat, dia);
     BLI_addtail(&cu->editnurb->nurbs,
                 ED_curve_add_nurbs_primitive(&C, ob, mat, CU_NURBS | CU_PRIM_PATH, 1));
@@ -1266,7 +1266,7 @@ static wmOperatorStatus object_metaball_add_exec(bContext &C, wmOperator &op)
   }
 
   float mat[4][4];
-  new_primitive_matrix(&C, obedit, loc, rot, nullptr, mat);
+  new_primitive_matrix(C, obedit, loc, rot, nullptr, mat);
   /* Halving here is done to account for constant values from #BKE_mball_element_add.
    * While the default radius of the resulting meta element is 2,
    * we want to pass in 1 so other values such as resolution are scaled by 1.0. */
@@ -1280,7 +1280,7 @@ static wmOperatorStatus object_metaball_add_exec(bContext &C, wmOperator &op)
   }
   else {
     /* Only needed in edit-mode (#add_type normally handles this). */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, obedit);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
   }
 
   return OPERATOR_FINISHED;
@@ -1477,7 +1477,7 @@ static wmOperatorStatus object_image_add_exec(bContext &C, wmOperator &op)
 {
   Image *ima = nullptr;
 
-  ima = (Image *)WM_operator_drop_load_path(&C, &op, ID_IM);
+  ima = (Image *)WM_operator_drop_load_path(C, &op, ID_IM);
   if (!ima) {
     return OPERATOR_CANCELLED;
   }
@@ -1539,8 +1539,8 @@ static wmOperatorStatus object_image_add_invoke(bContext &C, wmOperator &op, con
   }
 
   float loc[3];
-  location_from_view(&C, loc);
-  ED_view3d_cursor3d_position(&C, event->mval, false, loc);
+  location_from_view(C, loc);
+  ED_view3d_cursor3d_position(C, event->mval, false, loc);
   RNA_float_set_array(op.ptr, "location", loc);
 
   Object *ob_cursor = ED_view3d_give_object_under_cursor(&C, event->mval);
@@ -1552,7 +1552,7 @@ static wmOperatorStatus object_image_add_invoke(bContext &C, wmOperator &op, con
   /* User dropped an image on an existing image. */
   Image *ima = nullptr;
 
-  ima = (Image *)WM_operator_drop_load_path(&C, &op, ID_IM);
+  ima = (Image *)WM_operator_drop_load_path(C, &op, ID_IM);
   if (!ima) {
     return OPERATOR_CANCELLED;
   }
@@ -1560,7 +1560,7 @@ static wmOperatorStatus object_image_add_invoke(bContext &C, wmOperator &op, con
   id_us_min(&ima->id);
 
   Scene *scene = CTX_data_scene(C);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
   DEG_id_tag_update((ID *)ob_cursor, ID_RECALC_TRANSFORM);
 
   BKE_object_empty_draw_type_set(ob_cursor, OB_EMPTY_IMAGE);
@@ -1687,7 +1687,7 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext &C, wmOperator &o
       const float3 scale(radius);
 
       float4x4 mat;
-      new_primitive_matrix(&C, object, loc, rot, scale, mat.ptr());
+      new_primitive_matrix(C, object, loc, rot, scale, mat.ptr());
 
       greasepencil::create_stroke(*bmain, *object, mat, scene->r.cfra);
       break;
@@ -1697,7 +1697,7 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext &C, wmOperator &o
       const float3 scale(radius);
 
       float4x4 mat;
-      new_primitive_matrix(&C, object, loc, rot, scale, mat.ptr());
+      new_primitive_matrix(C, object, loc, rot, scale, mat.ptr());
 
       greasepencil::create_suzanne(*bmain, *object, mat, scene->r.cfra);
       break;
@@ -1922,12 +1922,12 @@ struct CollectionAddInfo {
   float loc[3], rot[3], scale[3];
 };
 
-static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext *C,
+static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext &C,
                                                                         wmOperator *op)
 {
   CollectionAddInfo add_info{};
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   PropertyRNA *prop_location = RNA_struct_find_property(op->ptr, "location");
 
@@ -1943,9 +1943,9 @@ static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext
         BLI_findlink(&bmain->collections, RNA_enum_get(op->ptr, "collection")));
   }
 
-  if (update_location_if_necessary && CTX_wm_region_view3d(*C)) {
+  if (update_location_if_necessary && CTX_wm_region_view3d(C)) {
     int mval[2];
-    if (!RNA_property_is_set(op->ptr, prop_location) && object_add_drop_xy_get(C, op, &mval)) {
+    if (!RNA_property_is_set(op->ptr, prop_location) && object_add_drop_xy_get(&C, op, &mval)) {
       location_from_view(C, add_info.loc);
       ED_view3d_cursor3d_position(C, mval, false, add_info.loc);
       RNA_property_float_set_array(op->ptr, prop_location, add_info.loc);
@@ -1956,7 +1956,7 @@ static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext
     return std::nullopt;
   }
 
-  add_generic_get_opts(C,
+  add_generic_get_opts(&C,
                        op,
                        'Z',
                        add_info.loc,
@@ -1966,7 +1966,7 @@ static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext
                        &add_info.local_view_bits,
                        nullptr);
 
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   /* Avoid dependency cycles. */
   LayerCollection *active_lc = BKE_layer_collection_get_active(view_layer);
@@ -1979,7 +1979,7 @@ static std::optional<CollectionAddInfo> collection_add_info_get_from_op(bContext
 
 static wmOperatorStatus collection_instance_add_exec(bContext &C, wmOperator &op)
 {
-  std::optional<CollectionAddInfo> add_info = collection_add_info_get_from_op(&C, &op);
+  std::optional<CollectionAddInfo> add_info = collection_add_info_get_from_op(C, &op);
   if (!add_info) {
     return OPERATOR_CANCELLED;
   }
@@ -2072,7 +2072,7 @@ static wmOperatorStatus collection_drop_exec(bContext &C, wmOperator &op)
 {
   Main *bmain = CTX_data_main(C);
   LayerCollection *active_collection = CTX_data_layer_collection(C);
-  std::optional<CollectionAddInfo> add_info = collection_add_info_get_from_op(&C, &op);
+  std::optional<CollectionAddInfo> add_info = collection_add_info_get_from_op(C, &op);
   if (!add_info) {
     return OPERATOR_CANCELLED;
   }
@@ -2186,15 +2186,15 @@ static wmOperatorStatus object_data_instance_add_exec(bContext &C, wmOperator &o
   if (CTX_wm_region_view3d(C)) {
     int mval[2];
     if (!RNA_property_is_set(op.ptr, prop_location) && object_add_drop_xy_get(&C, &op, &mval)) {
-      location_from_view(&C, loc);
-      ED_view3d_cursor3d_position(&C, mval, false, loc);
+      location_from_view(C, loc);
+      ED_view3d_cursor3d_position(C, mval, false, loc);
       RNA_property_float_set_array(op.ptr, prop_location, loc);
     }
   }
 
   add_generic_get_opts(&C, &op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
-  add_type_with_obdata(&C, object_type, id->name + 2, loc, rot, false, local_view_bits, id);
+  add_type_with_obdata(C, object_type, id->name + 2, loc, rot, false, local_view_bits, id);
 
   return OPERATOR_FINISHED;
 }
@@ -2259,7 +2259,7 @@ static wmOperatorStatus object_speaker_add_exec(bContext &C, wmOperator &op)
     STRNCPY_UTF8(nlt->name, DATA_("SoundTrack"));
     BKE_nlastrip_validate_name(adt, strip);
 
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -2338,7 +2338,7 @@ static wmOperatorStatus object_curves_empty_hair_add_exec(bContext &C, wmOperato
   curves_id->surface = surface_ob;
 
   /* Parent to surface object. */
-  parent_set(op.reports, &C, scene, curves_ob, surface_ob, PAR_OBJECT, false, true, nullptr);
+  parent_set(op.reports, C, scene, curves_ob, surface_ob, PAR_OBJECT, false, true, nullptr);
 
   /* Decide which UV map to use for attachment. */
   Mesh *surface_mesh = static_cast<Mesh *>(surface_ob->data);
@@ -2547,8 +2547,8 @@ static wmOperatorStatus object_delete_exec(bContext &C, wmOperator &op)
       DEG_relations_tag_update(bmain);
 
       DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, scene);
-      WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, scene);
+      WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
+      WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
     }
   }
 
@@ -2600,11 +2600,11 @@ void OBJECT_OT_delete(wmOperatorType *ot)
  * \{ */
 
 /* after copying objects, copied data should get new pointers */
-static void copy_object_set_idnew(bContext *C)
+static void copy_object_set_idnew(bContext &C)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     BKE_libblock_relink_to_newid(bmain, &ob->id, ID_REMAP_SKIP_USER_CLEAR);
   }
   CTX_DATA_END;
@@ -2738,15 +2738,15 @@ struct DupliObjectInstancerEq {
   }
 };
 
-static void make_object_duplilist_real(bContext *C,
+static void make_object_duplilist_real(bContext &C,
                                        Depsgraph *depsgraph,
                                        Scene *scene,
                                        Base *base,
                                        const bool use_base_parent,
                                        const bool use_hierarchy)
 {
-  Main *bmain = CTX_data_main(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   using ParentMap =
       Map<DupliObject *, Object *, 4, DefaultProbingStrategy, DupliObjectHash, DupliObjectEq>;
   using InstancerMap = Map<DupliObject *,
@@ -2945,17 +2945,17 @@ static wmOperatorStatus object_duplicates_make_real_exec(bContext &C, wmOperator
   BKE_main_id_newptr_and_tag_clear(bmain);
 
   CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
-    make_object_duplilist_real(&C, depsgraph, scene, base, use_base_parent, use_hierarchy);
+    make_object_duplilist_real(C, depsgraph, scene, base, use_base_parent, use_hierarchy);
 
     /* dependencies were changed */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_PARENT, base->object);
+    WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, base->object);
   }
   CTX_DATA_END;
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_SCENE, scene);
+  WM_event_add_notifier(C, NC_SCENE, scene);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
-  ED_outliner_select_sync_from_object_tag(&C);
+  ED_outliner_select_sync_from_object_tag(C);
 
   return OPERATOR_FINISHED;
 }
@@ -4467,15 +4467,15 @@ static wmOperatorStatus object_convert_exec(bContext &C, wmOperator &op)
 
   if (act_base) {
     /* active base was changed */
-    base_activate(&C, act_base);
+    base_activate(C, act_base);
     view_layer->basact = act_base;
   }
   else {
     BKE_view_layer_synced_ensure(scene, view_layer);
     if (Object *object = BKE_view_layer_active_object_get(view_layer)) {
       if (object->flag & OB_DONE) {
-        WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, object);
-        WM_event_add_notifier(&C, NC_OBJECT | ND_DATA, object);
+        WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
+        WM_event_add_notifier(C, NC_OBJECT | ND_DATA, object);
       }
     }
   }
@@ -4503,9 +4503,9 @@ static wmOperatorStatus object_convert_exec(bContext &C, wmOperator &op)
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, scene);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -4774,7 +4774,7 @@ static wmOperatorStatus duplicate_exec(bContext &C, wmOperator &op)
     BLI_assert(base_new);
     base_select(base_new, BA_SELECT);
     if (active_base == link.base_src) {
-      base_activate(&C, base_new);
+      base_activate(C, base_new);
     }
 
     if (link.object_new->data) {
@@ -4785,15 +4785,15 @@ static wmOperatorStatus duplicate_exec(bContext &C, wmOperator &op)
   }
 
   /* Note that this will also clear newid pointers and tags. */
-  copy_object_set_idnew(&C);
+  copy_object_set_idnew(C);
 
-  ED_outliner_select_sync_from_object_tag(&C);
+  ED_outliner_select_sync_from_object_tag(C);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -4885,18 +4885,18 @@ static wmOperatorStatus object_add_named_exec(bContext &C, wmOperator &op)
    * unlike #object_add_common() or #BKE_view_layer_base_deselect_all(). */
   base_deselect_all(scene, view_layer, nullptr, SEL_DESELECT);
   base_select(basen, BA_SELECT);
-  base_activate(&C, basen);
+  base_activate(C, basen);
 
-  copy_object_set_idnew(&C);
+  copy_object_set_idnew(C);
 
   /* TODO(sergey): Only update relations for the current scene. */
   DEG_relations_tag_update(bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, scene);
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, scene);
-  ED_outliner_select_sync_from_object_tag(&C);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  ED_outliner_select_sync_from_object_tag(C);
 
   PropertyRNA *prop_matrix = RNA_struct_find_property(op.ptr, "matrix");
   if (RNA_property_is_set(op.ptr, prop_matrix)) {
@@ -4909,8 +4909,8 @@ static wmOperatorStatus object_add_named_exec(bContext &C, wmOperator &op)
   else if (CTX_wm_region_view3d(C)) {
     int mval[2];
     if (object_add_drop_xy_get(&C, &op, &mval)) {
-      location_from_view(&C, basen->object->loc);
-      ED_view3d_cursor3d_position(&C, mval, false, basen->object->loc);
+      location_from_view(C, basen->object->loc);
+      ED_view3d_cursor3d_position(C, mval, false, basen->object->loc);
     }
   }
 
@@ -5009,8 +5009,8 @@ static wmOperatorStatus object_transform_to_mouse_exec(bContext &C, wmOperator &
     int mval[2];
     if (object_add_drop_xy_get(&C, &op, &mval)) {
       float cursor[3];
-      location_from_view(&C, cursor);
-      ED_view3d_cursor3d_position(&C, mval, false, cursor);
+      location_from_view(C, cursor);
+      ED_view3d_cursor3d_position(C, mval, false, cursor);
 
       /* Use the active objects location since this is the ID which the user selected to drop.
        *
@@ -5123,22 +5123,22 @@ static wmOperatorStatus object_join_exec(bContext &C, wmOperator &op)
 
   wmOperatorStatus ret = OPERATOR_CANCELLED;
   if (ob->type == OB_MESH) {
-    ret = mesh::join_objects_exec(&C, &op);
+    ret = mesh::join_objects_exec(C, &op);
   }
   else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
-    ret = ED_curve_join_objects_exec(&C, &op);
+    ret = ED_curve_join_objects_exec(C, &op);
   }
   else if (ob->type == OB_ARMATURE) {
-    ret = ED_armature_join_objects_exec(&C, &op);
+    ret = ED_armature_join_objects_exec(C, &op);
   }
   else if (ob->type == OB_POINTCLOUD) {
-    ret = pointcloud::join_objects_exec(&C, &op);
+    ret = pointcloud::join_objects_exec(C, &op);
   }
   else if (ob->type == OB_CURVES) {
-    ret = curves::join_objects_exec(&C, &op);
+    ret = curves::join_objects_exec(C, &op);
   }
   else if (ob->type == OB_GREASE_PENCIL) {
-    ret = ED_grease_pencil_join_objects_exec(&C, &op);
+    ret = ED_grease_pencil_join_objects_exec(C, &op);
   }
 
   if (ret & OPERATOR_FINISHED) {
@@ -5218,7 +5218,7 @@ static bool active_shape_key_editable_poll(bContext &C)
 static wmOperatorStatus join_shapes_exec(bContext &C, wmOperator &op)
 {
   return ED_mesh_shapes_join_objects_exec(
-      &C, true, RNA_boolean_get(op.ptr, "use_mirror"), op.reports);
+      C, true, RNA_boolean_get(op.ptr, "use_mirror"), op.reports);
 }
 
 void OBJECT_OT_join_shapes(wmOperatorType *ot)
@@ -5242,7 +5242,7 @@ void OBJECT_OT_join_shapes(wmOperatorType *ot)
 static wmOperatorStatus update_all_shape_keys_exec(bContext &C, wmOperator &op)
 {
   return ED_mesh_shapes_join_objects_exec(
-      &C, false, RNA_boolean_get(op.ptr, "use_mirror"), op.reports);
+      C, false, RNA_boolean_get(op.ptr, "use_mirror"), op.reports);
 }
 
 static bool object_update_shapes_poll(bContext &C)

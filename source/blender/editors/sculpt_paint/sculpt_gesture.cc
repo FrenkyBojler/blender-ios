@@ -57,9 +57,9 @@ void operator_properties(wmOperatorType *ot, ShapeType shapeType)
   }
 }
 
-static void init_common(bContext *C, const wmOperator *op, GestureData &gesture_data)
+static void init_common(bContext &C, const wmOperator *op, GestureData &gesture_data)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   gesture_data.vc = ED_view3d_viewcontext_init(C, depsgraph);
   const Object &object = *gesture_data.vc.obact;
 
@@ -115,7 +115,7 @@ std::unique_ptr<GestureData> init_from_lasso(bContext *C, wmOperator *op)
   std::unique_ptr<GestureData> gesture_data = std::make_unique<GestureData>();
   gesture_data->shape_type = ShapeType::Lasso;
 
-  init_common(C, op, *gesture_data);
+  init_common(*C, op, *gesture_data);
 
   gesture_data->lasso.projviewobjmat = ED_view3d_ob_project_mat_get(gesture_data->vc.rv3d,
                                                                     gesture_data->vc.obact);
@@ -156,7 +156,7 @@ std::unique_ptr<GestureData> init_from_box(bContext *C, wmOperator *op)
   std::unique_ptr<GestureData> gesture_data = std::make_unique<GestureData>();
   gesture_data->shape_type = ShapeType::Box;
 
-  init_common(C, op, *gesture_data);
+  init_common(*C, op, *gesture_data);
 
   rcti rect;
   WM_operator_properties_border_to_rcti(op, &rect);
@@ -238,7 +238,7 @@ std::unique_ptr<GestureData> init_from_line(bContext *C, const wmOperator *op)
   gesture_data->shape_type = ShapeType::Line;
   gesture_data->line.use_side_planes = RNA_boolean_get(op->ptr, "use_limit_to_segment");
 
-  init_common(C, op, *gesture_data);
+  init_common(*C, op, *gesture_data);
 
   gesture_data->gesture_points.reinitialize(2);
   gesture_data->gesture_points[0] = {float(RNA_int_get(op->ptr, "xstart")),
@@ -468,6 +468,6 @@ void apply(bContext &C, GestureData &gesture_data, wmOperator &op)
 
   operation->end(C, gesture_data);
 
-  SCULPT_tag_update_overlays(&C);
+  SCULPT_tag_update_overlays(C);
 }
 }  // namespace blender::ed::sculpt_paint::gesture

@@ -832,14 +832,14 @@ void view2d_curRect_validate(View2D *v2d)
   ui_view2d_curRect_validate_resize(v2d, false);
 }
 
-void view2d_curRect_changed(const bContext *C, View2D *v2d)
+void view2d_curRect_changed(const bContext &C, View2D *v2d)
 {
   view2d_curRect_validate(v2d);
 
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
   if (region->runtime->type->on_view2d_changed != nullptr) {
-    region->runtime->type->on_view2d_changed(C, region);
+    region->runtime->type->on_view2d_changed(&C, region);
   }
 }
 
@@ -1161,9 +1161,9 @@ void view2d_view_orthoSpecial(ARegion *region, View2D *v2d, const bool xaxis)
   }
 }
 
-void view2d_view_restore(const bContext *C)
+void view2d_view_restore(const bContext &C)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   const int width = BLI_rcti_size_x(&region->winrct) + 1;
   const int height = BLI_rcti_size_y(&region->winrct) + 1;
 
@@ -1850,10 +1850,10 @@ bool view2d_view_to_region_rcti_clip(const View2D *v2d, const rctf *rect_src, rc
 /** \name Utilities
  * \{ */
 
-View2D *view2d_fromcontext(const bContext *C)
+View2D *view2d_fromcontext(const bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
 
   if (area == nullptr) {
     return nullptr;
@@ -1864,10 +1864,10 @@ View2D *view2d_fromcontext(const bContext *C)
   return &(region->v2d);
 }
 
-View2D *view2d_fromcontext_rwin(const bContext *C)
+View2D *view2d_fromcontext_rwin(const bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
 
   if (area == nullptr) {
     return nullptr;

@@ -39,16 +39,16 @@ namespace blender::ed::outliner {
 /** \name Tree View Context
  * \{ */
 
-void outliner_viewcontext_init(const bContext *C, TreeViewContext *tvc)
+void outliner_viewcontext_init(const bContext &C, TreeViewContext *tvc)
 {
   memset(tvc, 0, sizeof(*tvc));
   /* Workspace. */
-  tvc->workspace = CTX_wm_workspace(*C);
+  tvc->workspace = CTX_wm_workspace(C);
 
   /* Scene level. */
-  tvc->scene = CTX_data_scene(*C);
-  tvc->view_layer = CTX_data_view_layer(*C);
-  tvc->layer_collection = CTX_data_layer_collection(*C);
+  tvc->scene = CTX_data_scene(C);
+  tvc->view_layer = CTX_data_view_layer(C);
+  tvc->layer_collection = CTX_data_layer_collection(C);
 
   /* Objects. */
   BKE_view_layer_synced_ensure(tvc->scene, tvc->view_layer);
@@ -478,12 +478,12 @@ void outliner_tag_redraw_avoid_rebuild_on_open_change(const SpaceOutliner *space
 
 using namespace blender::ed::outliner;
 
-Base *ED_outliner_give_base_under_cursor(bContext *C, const int mval[2])
+Base *ED_outliner_give_base_under_cursor(bContext &C, const int mval[2])
 {
-  ARegion *region = CTX_wm_region(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  ARegion *region = CTX_wm_region(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   TreeElement *te;
   Base *base = nullptr;
   float view_mval[2];
@@ -503,10 +503,10 @@ Base *ED_outliner_give_base_under_cursor(bContext *C, const int mval[2])
   return base;
 }
 
-bool ED_outliner_give_rna_under_cursor(bContext *C, const int mval[2], PointerRNA *r_ptr)
+bool ED_outliner_give_rna_under_cursor(bContext &C, const int mval[2], PointerRNA *r_ptr)
 {
-  ARegion *region = CTX_wm_region(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  ARegion *region = CTX_wm_region(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   float view_mval[2];
   blender::ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);

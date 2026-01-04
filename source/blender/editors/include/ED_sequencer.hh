@@ -44,7 +44,7 @@ bool deselect_all_strips(const Scene *scene);
 
 bool maskedit_mask_poll(bContext *C);
 bool check_show_maskedit(SpaceSeq *sseq, Scene *scene);
-bool maskedit_poll(bContext *C);
+bool maskedit_poll(bContext &C);
 
 /**
  * Are we displaying the seq output (not channels or histogram).
@@ -63,9 +63,9 @@ bool has_playback_animation(const Scene *scene);
 void ED_operatormacros_sequencer();
 
 Strip *special_preview_get();
-void special_preview_set(bContext *C, const int mval[2]);
+void special_preview_set(bContext &C, const int mval[2]);
 void special_preview_clear();
-bool sequencer_retiming_mode_is_active(const bContext *C);
+bool sequencer_retiming_mode_is_active(const bContext &C);
 /**
  * Returns collection with selected strips presented to user. If operation is done in preview,
  * collection is limited to selected presented strips, that can produce image output at current
@@ -74,7 +74,7 @@ bool sequencer_retiming_mode_is_active(const bContext *C);
  * \param C: context
  * \return collection of strips (`Strip`)
  */
-VectorSet<Strip *> selected_strips_from_context(bContext *C);
+VectorSet<Strip *> selected_strips_from_context(bContext &C);
 StripSelection pick_strip_and_handle(const struct Scene *scene,
                                      const View2D *v2d,
                                      float mouse_co[2]);

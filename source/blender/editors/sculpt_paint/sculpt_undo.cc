@@ -530,7 +530,7 @@ static bool restore_active_shape_key(bContext &C,
       object.shapenr = BLI_findindex(&key->block, kb) + 1;
 
       BKE_sculpt_update_object_for_edit(&depsgraph, &object, false);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_DATA, &object);
+      WM_event_add_notifier(C, NC_OBJECT | ND_DATA, &object);
     }
     else {
       /* Key has been removed -- skip this undo node. */
@@ -874,7 +874,7 @@ static void bmesh_enable(Object &object, const StepData &step_data)
 static void bmesh_handle_dyntopo_begin(bContext *C, StepData &step_data, Object &object)
 {
   if (step_data.needs_undo()) {
-    dyntopo::disable(C, &step_data);
+    dyntopo::disable(*C, &step_data);
     step_data.tag_needs_redo();
   }
   else /* needs_redo */ {
@@ -901,7 +901,7 @@ static void bmesh_handle_dyntopo_end(bContext *C, StepData &step_data, Object &o
   }
   else /* needs_redo */ {
     /* Disable dynamic topology sculpting. */
-    dyntopo::disable(C, nullptr);
+    dyntopo::disable(*C, nullptr);
     step_data.tag_needs_undo();
   }
 }
@@ -1049,11 +1049,11 @@ static void refine_subdiv(Depsgraph *depsgraph,
       subdiv, static_cast<const Mesh *>(object.data), deformed_verts);
 }
 
-static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
+static void restore_list(bContext &C, Depsgraph *depsgraph, StepData &step_data)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object &object = *BKE_view_layer_active_object_get(view_layer);
   if (step_data.object_name != object.id.name) {
@@ -1066,7 +1066,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
   ss.pivot_pos = step_data.pivot_pos;
   ss.pivot_rot = step_data.pivot_rot;
 
-  if (bmesh_restore(C, *depsgraph, step_data, object)) {
+  if (bmesh_restore(&C, *depsgraph, step_data, object)) {
     return;
   }
 
@@ -1125,7 +1125,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
       }
       else {
         MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
-        if (!restore_active_shape_key(*C, *depsgraph, step_data, object)) {
+        if (!restore_active_shape_key(C, *depsgraph, step_data, object)) {
           return;
         }
         const Mesh &mesh = *static_cast<const Mesh *>(object.data);
@@ -2165,7 +2165,7 @@ static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoS
 {
   BLI_assert(us->step.is_applied == true);
 
-  restore_list(C, depsgraph, us->data);
+  restore_list(*C, depsgraph, us->data);
   us->step.is_applied = false;
 }
 
@@ -2173,7 +2173,7 @@ static void step_decode_redo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoS
 {
   BLI_assert(us->step.is_applied == false);
 
-  restore_list(C, depsgraph, us->data);
+  restore_list(*C, depsgraph, us->data);
   us->step.is_applied = true;
 }
 
@@ -2401,7 +2401,7 @@ void register_type(UndoType *ut)
 
 static bool use_multires_mesh(bContext *C)
 {
-  if (BKE_paintmode_get_active_from_context(C) != PaintMode::Sculpt) {
+  if (BKE_paintmode_get_active_from_context(*C) != PaintMode::Sculpt) {
     return false;
   }
 
@@ -2430,7 +2430,7 @@ void push_multires_mesh_begin(bContext *C, const char *str)
 void push_multires_mesh_end(bContext *C, const char *str)
 {
   if (!use_multires_mesh(C)) {
-    ED_undo_push(C, str);
+    ED_undo_push(*C, str);
     return;
   }
 

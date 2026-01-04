@@ -191,7 +191,7 @@ static wmOperatorStatus graphkeys_previewrange_exec(bContext &C, wmOperator & /*
   float min, max;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   if (ac.scene == nullptr) {
@@ -208,7 +208,7 @@ static wmOperatorStatus graphkeys_previewrange_exec(bContext &C, wmOperator & /*
 
   /* Set notifier that things have changed. */
   /* XXX: Err... there's nothing for frame ranges yet, but this should do fine too. */
-  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, ac.scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, ac.scene);
 
   return OPERATOR_FINISHED;
 }
@@ -244,7 +244,7 @@ static wmOperatorStatus graphkeys_viewall(bContext *C,
   rctf cur_new;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -264,11 +264,11 @@ static wmOperatorStatus graphkeys_viewall(bContext *C,
   /* Take regions into account, that could block the view.
    * Marker region is supposed to be larger than the scroll-bar, so prioritize it. */
   float pad_top = UI_TIME_SCRUB_MARGIN_Y;
-  float pad_bottom = BLI_listbase_is_empty(ED_context_get_markers(C)) ? V2D_SCROLL_HANDLE_HEIGHT :
-                                                                        UI_MARKER_MARGIN_Y;
+  float pad_bottom = BLI_listbase_is_empty(ED_context_get_markers(*C)) ? V2D_SCROLL_HANDLE_HEIGHT :
+                                                                         UI_MARKER_MARGIN_Y;
   BLI_rctf_pad_y(&cur_new, ac.region->winy, pad_bottom, pad_top);
 
-  blender::ui::view2d_smooth_view(C, ac.region, &cur_new, smooth_viewtx);
+  blender::ui::view2d_smooth_view(*C, ac.region, &cur_new, smooth_viewtx);
   return OPERATOR_FINISHED;
 }
 
@@ -349,7 +349,7 @@ void GRAPH_OT_view_selected(wmOperatorType *ot)
 static wmOperatorStatus graphkeys_view_frame_exec(bContext &C, wmOperator &op)
 {
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
-  ANIM_center_frame(&C, smooth_viewtx);
+  ANIM_center_frame(C, smooth_viewtx);
   return OPERATOR_FINISHED;
 }
 
@@ -456,7 +456,7 @@ static wmOperatorStatus graphkeys_create_ghostcurves_exec(bContext &C, wmOperato
   int start, end;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -507,7 +507,7 @@ static wmOperatorStatus graphkeys_clear_ghostcurves_exec(bContext &C, wmOperator
   SpaceGraph *sipo;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   sipo = (SpaceGraph *)ac.sl;

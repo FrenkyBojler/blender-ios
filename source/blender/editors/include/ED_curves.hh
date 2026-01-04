@@ -122,7 +122,7 @@ class PenToolOperation {
    */
   virtual bool can_create_new_curve(wmOperator *op) const = 0;
   virtual void update_view(bContext *C) const = 0;
-  virtual std::optional<wmOperatorStatus> initialize(bContext *C,
+  virtual std::optional<wmOperatorStatus> initialize(bContext &C,
                                                      wmOperator *op,
                                                      const wmEvent *event) = 0;
 
@@ -132,7 +132,7 @@ class PenToolOperation {
                          const float2 &screen_co,
                          const float3 &depth_point_layer) const;
 
-  wmOperatorStatus invoke(bContext *C, wmOperator *op, const wmEvent *event);
+  wmOperatorStatus invoke(bContext &C, wmOperator *op, const wmEvent *event);
   wmOperatorStatus modal(bContext *C, wmOperator *op, const wmEvent *event);
 };
 
@@ -580,7 +580,7 @@ void resize_curves(bke::CurvesGeometry &curves,
  */
 void reorder_curves(bke::CurvesGeometry &curves, Span<int> old_by_new_indices_map);
 
-wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus join_objects_exec(bContext &C, wmOperator *op);
 
 enum class SetHandleType : uint8_t {
   Free = 0,

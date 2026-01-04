@@ -86,7 +86,7 @@ static void rna_Image_save_render(Image *image,
 
   BKE_image_save_options_free(&opts);
 
-  WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, image);
+  WM_event_add_notifier(*C, NC_IMAGE | NA_EDITED, image);
 }
 
 static void rna_Image_save(Image *image,
@@ -122,7 +122,7 @@ static void rna_Image_save(Image *image,
 
   BKE_image_save_options_free(&opts);
 
-  WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, image);
+  WM_event_add_notifier(*C, NC_IMAGE | NA_EDITED, image);
 }
 
 static void rna_Image_pack(
@@ -142,7 +142,7 @@ static void rna_Image_pack(
     BKE_image_packfiles(reports, image, ID_BLEND_PATH(bmain, &image->id));
   }
 
-  WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, image);
+  WM_event_add_notifier(*C, NC_IMAGE | NA_EDITED, image);
 }
 
 static void rna_Image_unpack(Image *image, Main *bmain, ReportList *reports, int method)

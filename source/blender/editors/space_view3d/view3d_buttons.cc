@@ -1671,7 +1671,7 @@ static void v3d_object_dimension_buts(bContext *C,
 
     PointerRNA obptr = RNA_id_pointer_create(&ob->id);
     PropertyRNA *prop = RNA_struct_find_property(&obptr, "scale");
-    RNA_property_update(C, &obptr, prop);
+    RNA_property_update(*C, &obptr, prop);
   }
 }
 
@@ -1690,7 +1690,7 @@ static void do_view3d_vgroup_buttons(bContext *C, void * /*arg*/, int event)
   Object *ob = BKE_view_layer_active_object_get(view_layer);
   blender::ed::object::vgroup_vert_active_mirror(ob, event - B_VGRP_PNL_EDIT_SINGLE);
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+  WM_event_add_notifier(*C, NC_GEOM | ND_DATA, ob->data);
 }
 
 static bool view3d_panel_vgroup_poll(const bContext *C, PanelType * /*pt*/)
@@ -2111,7 +2111,7 @@ static void do_view3d_region_buttons(bContext *C, void * /*index*/, int event)
   }
 
   /* default for now */
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 }
 
 static bool view3d_panel_transform_poll(const bContext *C, PanelType * /*pt*/)
@@ -2174,25 +2174,25 @@ static bool view3d_panel_curve_data_poll(const bContext *C, PanelType * /*pt*/)
 }
 
 static void apply_to_active_object(
-    bContext *C,
+    bContext &C,
     blender::FunctionRef<void(const CurvesDataPanelState &modified_state,
                               const blender::IndexMask &selection,
                               blender::bke::CurvesGeometry &curves)> curves_geometry_handler)
 {
   using namespace blender;
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
 
-  View3D *v3d = CTX_wm_view3d(*C);
+  View3D *v3d = CTX_wm_view3d(C);
   const TransformProperties &tfp = *v3d_transform_props_ensure(v3d);
   const CurvesDataPanelState &modified = tfp.modified;
 
   if (ob->type == OB_GREASE_PENCIL) {
     using namespace ed::greasepencil;
-    Scene &scene = *CTX_data_scene(*C);
+    Scene &scene = *CTX_data_scene(C);
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
     Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
@@ -2228,7 +2228,7 @@ static void handle_curves_cyclic(bContext *C, void *, void *)
 {
   using namespace blender;
 
-  apply_to_active_object(C,
+  apply_to_active_object(*C,
                          [](const CurvesDataPanelState &modified_state,
                             const IndexMask &selection,
                             bke::CurvesGeometry &curves) {
@@ -2278,7 +2278,7 @@ static void handle_curves_knot_mode(bContext *C, void *, void *)
   using namespace blender;
 
   apply_to_active_object(
-      C,
+      *C,
       [](const CurvesDataPanelState &modified_state,
          const IndexMask &selection,
          bke::CurvesGeometry &curves) {
@@ -2321,7 +2321,7 @@ static void handle_curves_order(bContext *C, void *, void *)
   using namespace blender;
 
   apply_to_active_object(
-      C,
+      *C,
       [](const CurvesDataPanelState &modified_state,
          const IndexMask &selection,
          bke::CurvesGeometry &curves) {
@@ -2367,7 +2367,7 @@ static void handle_curves_resolution(bContext *C, void *, void *)
 {
   using namespace blender;
 
-  apply_to_active_object(C,
+  apply_to_active_object(*C,
                          [](const CurvesDataPanelState &modified_state,
                             const IndexMask &selection,
                             bke::CurvesGeometry &curves) {

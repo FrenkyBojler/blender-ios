@@ -127,7 +127,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
 
     this->object = CTX_data_active_object(C);
     this->grease_pencil = static_cast<GreasePencil *>(this->object->data);
-    Paint *paint = BKE_paint_get_active_from_context(&C);
+    Paint *paint = BKE_paint_get_active_from_context(C);
     Brush *brush = BKE_paint_brush(paint);
 
     this->brush = brush;

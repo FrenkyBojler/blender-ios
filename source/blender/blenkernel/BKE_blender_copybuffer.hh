@@ -44,4 +44,4 @@ bool BKE_copybuffer_read(Main *bmain_dst,
  * (does not includes indirectly linked ones).
  */
 int BKE_copybuffer_paste(
-    bContext *C, const char *libname, int flag, ReportList *reports, uint64_t id_types_mask);
+    bContext &C, const char *libname, int flag, ReportList *reports, uint64_t id_types_mask);

@@ -72,7 +72,7 @@ static ClosestCurveDataBlock find_closest_curve(const Depsgraph &depsgraph,
 static bool select_linked_pick(bContext &C, const int2 &mval, const SelectPick_Params &params)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  const ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  const ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   const Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
       vc.scene, vc.view_layer, vc.v3d);
 
@@ -103,7 +103,7 @@ static bool select_linked_pick(bContext &C, const int2 &mval, const SelectPick_P
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
    * generic attribute for now. */
   DEG_id_tag_update(&closest.curves_id->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, closest.curves_id);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, closest.curves_id);
 
   return true;
 }

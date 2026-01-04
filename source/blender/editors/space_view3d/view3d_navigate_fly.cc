@@ -303,20 +303,20 @@ enum {
   FLY_CONFIRM = 2,
 };
 
-static bool initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, const wmEvent *event)
+static bool initFlyInfo(bContext &C, FlyInfo *fly, wmOperator *op, const wmEvent *event)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
   rctf viewborder;
 
   float upvec[3];
   float mat[3][3];
 
-  fly->rv3d = CTX_wm_region_view3d(*C);
-  fly->v3d = CTX_wm_view3d(*C);
-  fly->region = CTX_wm_region(*C);
-  fly->depsgraph = CTX_data_expect_evaluated_depsgraph(*C);
-  fly->scene = CTX_data_scene(*C);
+  fly->rv3d = CTX_wm_region_view3d(C);
+  fly->v3d = CTX_wm_view3d(C);
+  fly->region = CTX_wm_region(C);
+  fly->depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  fly->scene = CTX_data_scene(C);
 
 #ifdef NDOF_FLY_DEBUG
   puts("\n-- fly begin --");
@@ -328,7 +328,7 @@ static bool initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, const wmEvent
   }
 
   if (fly->rv3d->persp == RV3D_CAMOB &&
-      !BKE_id_is_editable(CTX_data_main(*C), &fly->v3d->camera->id))
+      !BKE_id_is_editable(CTX_data_main(C), &fly->v3d->camera->id))
   {
     BKE_report(op->reports,
                RPT_ERROR,
@@ -365,7 +365,7 @@ static bool initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, const wmEvent
 #endif
   zero_v3(fly->dvec_prev);
 
-  fly->timer = WM_event_timer_add(CTX_wm_manager(*C), win, TIMER, 0.01f);
+  fly->timer = WM_event_timer_add(CTX_wm_manager(C), win, TIMER, 0.01f);
 
   copy_v2_v2_int(fly->mval, event->mval);
 
@@ -1078,7 +1078,7 @@ static void fly_draw_status(bContext *C, wmOperator *op)
 {
   FlyInfo *fly = static_cast<FlyInfo *>(op->customdata);
 
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
 
   status.opmodal(IFACE_("Confirm"), op->type, FLY_MODAL_CONFIRM);
   status.opmodal(IFACE_("Cancel"), op->type, FLY_MODAL_CANCEL);
@@ -1120,7 +1120,7 @@ static wmOperatorStatus fly_invoke(bContext &C, wmOperator &op, const wmEvent *e
 
   op.customdata = fly;
 
-  if (initFlyInfo(&C, fly, &op, event) == false) {
+  if (initFlyInfo(C, fly, &op, event) == false) {
     MEM_freeN(fly);
     return OPERATOR_CANCELLED;
   }
@@ -1129,7 +1129,7 @@ static wmOperatorStatus fly_invoke(bContext &C, wmOperator &op, const wmEvent *e
 
   fly_draw_status(&C, &op);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1179,8 +1179,8 @@ static wmOperatorStatus fly_modal(bContext &C, wmOperator &op, const wmEvent *ev
     const bool is_undo_pushed = ED_view3d_camera_lock_undo_push(op.type->name, v3d, rv3d, &C);
     /* If generic 'locked camera' code did not push an undo, but there is a valid 'flying
      * object', an undo push is still needed, since that object transform was modified. */
-    if (!is_undo_pushed && fly_object && ED_undo_is_memfile_compatible(&C)) {
-      ED_undo_push(&C, op.type->name);
+    if (!is_undo_pushed && fly_object && ED_undo_is_memfile_compatible(C)) {
+      ED_undo_push(C, op.type->name);
     }
   }
   if (exit_code != OPERATOR_RUNNING_MODAL) {
@@ -1189,7 +1189,7 @@ static wmOperatorStatus fly_modal(bContext &C, wmOperator &op, const wmEvent *ev
 
   if (do_draw) {
     if (rv3d->persp == RV3D_CAMOB) {
-      WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, fly_object);
+      WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, fly_object);
     }
 
     // puts("redraw!"); // too frequent, commented with NDOF_FLY_DRAW_TOOMUCH for now

@@ -242,9 +242,9 @@ static bool wm_stereo3d_set_properties(bContext * /*C*/, wmOperator *op)
   return is_set;
 }
 
-static void wm_stereo3d_set_init(bContext *C, wmOperator *op)
+static void wm_stereo3d_set_init(bContext &C, wmOperator *op)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
   Stereo3dData *s3dd = MEM_new_for_free<Stereo3dData>(__func__);
   op->customdata = s3dd;
@@ -268,7 +268,7 @@ wmOperatorStatus wm_stereo3d_set_exec(bContext &C, wmOperator &op)
 
   if (op.customdata == nullptr) {
     /* No invoke means we need to set the operator properties here. */
-    wm_stereo3d_set_init(&C, &op);
+    wm_stereo3d_set_init(C, &op);
     wm_stereo3d_set_properties(&C, &op);
   }
 
@@ -279,7 +279,7 @@ wmOperatorStatus wm_stereo3d_set_exec(bContext &C, wmOperator &op)
       prev_display_mode != win_src->stereo3d_format->display_mode)
   {
     /* In case the hardware supports page-flip but not the display. */
-    if ((win_dst = wm_window_copy_test(&C, win_src, false, false))) {
+    if ((win_dst = wm_window_copy_test(C, win_src, false, false))) {
       /* Pass. */
     }
     else {
@@ -300,7 +300,7 @@ wmOperatorStatus wm_stereo3d_set_exec(bContext &C, wmOperator &op)
       ok = false;
     }
     /* Page-flip requires a new window to be created with the proper OS flags. */
-    else if ((win_dst = wm_window_copy_test(&C, win_src, false, false))) {
+    else if ((win_dst = wm_window_copy_test(C, win_src, false, false))) {
       if (GPU_stereo_quadbuffer_support()) {
         BKE_report(op.reports, RPT_INFO, "Quad-buffer window successfully created");
       }
@@ -333,7 +333,7 @@ wmOperatorStatus wm_stereo3d_set_exec(bContext &C, wmOperator &op)
       wm_window_close(&C, wm, win_src);
     }
 
-    WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+    WM_event_add_notifier(C, NC_WINDOW, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -345,7 +345,7 @@ wmOperatorStatus wm_stereo3d_set_exec(bContext &C, wmOperator &op)
 
 wmOperatorStatus wm_stereo3d_set_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  wm_stereo3d_set_init(&C, &op);
+  wm_stereo3d_set_init(C, &op);
 
   if (wm_stereo3d_set_properties(&C, &op)) {
     return wm_stereo3d_set_exec(C, op);

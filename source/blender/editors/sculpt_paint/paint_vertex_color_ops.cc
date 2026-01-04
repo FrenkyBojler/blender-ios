@@ -129,7 +129,7 @@ static wmOperatorStatus vertex_paint_from_weight_exec(bContext &C, wmOperator & 
 {
   Object *obact = CTX_data_active_object(C);
   if (vertex_paint_from_weight(*obact)) {
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, obact);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obact);
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -223,7 +223,7 @@ static wmOperatorStatus vertex_color_smooth_exec(bContext &C, wmOperator & /*op*
 {
   Object *obact = CTX_data_active_object(C);
   if (vertex_color_smooth(*obact)) {
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, obact);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obact);
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -300,15 +300,15 @@ static void transform_active_color_data(
   DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
 }
 
-static void transform_active_color(bContext *C,
+static void transform_active_color(bContext &C,
                                    const FunctionRef<void(ColorGeometry4f &color)> transform_fn)
 {
   using namespace blender;
   using namespace blender::ed::sculpt_paint;
-  Object &obact = *CTX_data_active_object(*C);
+  Object &obact = *CTX_data_active_object(C);
 
   /* Ensure valid sculpt state. */
-  BKE_sculpt_update_object_for_edit(CTX_data_ensure_evaluated_depsgraph(*C), &obact, true);
+  BKE_sculpt_update_object_for_edit(CTX_data_ensure_evaluated_depsgraph(C), &obact, true);
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(obact);
 
@@ -357,7 +357,7 @@ static wmOperatorStatus vertex_color_brightness_contrast_exec(bContext &C, wmOpe
     return OPERATOR_CANCELLED;
   }
 
-  transform_active_color(&C, [&](ColorGeometry4f &color) {
+  transform_active_color(C, [&](ColorGeometry4f &color) {
     for (int i = 0; i < 3; i++) {
       color[i] = gain * color[i] + offset;
     }
@@ -404,7 +404,7 @@ static wmOperatorStatus vertex_color_hsv_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  transform_active_color(&C, [&](ColorGeometry4f &color) {
+  transform_active_color(C, [&](ColorGeometry4f &color) {
     float hsv[3];
     rgb_to_hsv_v(color, hsv);
 
@@ -455,7 +455,7 @@ static wmOperatorStatus vertex_color_invert_exec(bContext &C, wmOperator & /*op*
     return OPERATOR_CANCELLED;
   }
 
-  transform_active_color(&C, [&](ColorGeometry4f &color) {
+  transform_active_color(C, [&](ColorGeometry4f &color) {
     for (int i = 0; i < 3; i++) {
       color[i] = 1.0f - color[i];
     }
@@ -493,13 +493,13 @@ static wmOperatorStatus vertex_color_levels_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  transform_active_color(&C, [&](ColorGeometry4f &color) {
+  transform_active_color(C, [&](ColorGeometry4f &color) {
     for (int i = 0; i < 3; i++) {
       color[i] = gain * (color[i] + offset);
     }
   });
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, obact);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obact);
 
   return OPERATOR_FINISHED;
 }

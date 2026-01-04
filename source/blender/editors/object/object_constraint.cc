@@ -98,12 +98,11 @@ ListBaseT<bConstraint> *constraint_active_list(Object *ob)
   return nullptr;
 }
 
-ListBaseT<bConstraint> *pose_constraint_list(const bContext *C)
+ListBaseT<bConstraint> *pose_constraint_list(const bContext &C)
 {
-  bPoseChannel *pose_bone = static_cast<bPoseChannel *>(
-      CTX_data_pointer_get(*C, "pose_bone").data);
+  bPoseChannel *pose_bone = static_cast<bPoseChannel *>(CTX_data_pointer_get(C, "pose_bone").data);
   if (pose_bone == nullptr) {
-    pose_bone = static_cast<bPoseChannel *>(CTX_data_pointer_get(*C, "active_pose_bone").data);
+    pose_bone = static_cast<bPoseChannel *>(CTX_data_pointer_get(C, "active_pose_bone").data);
     if (pose_bone == nullptr) {
       return nullptr;
     }
@@ -571,26 +570,26 @@ static const EnumPropertyItem constraint_owner_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static bool edit_constraint_poll_generic(bContext *C,
+static bool edit_constraint_poll_generic(bContext &C,
                                          StructRNA *rna_type,
                                          const bool is_liboverride_allowed)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(*C, "constraint", rna_type);
-  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(C);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", rna_type);
+  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(&C);
   bConstraint *con = static_cast<bConstraint *>(ptr.data);
 
-  if (!ED_operator_object_active_editable_ex(C, ob)) {
+  if (!ED_operator_object_active_editable_ex(&C, ob)) {
     return false;
   }
 
   if (ptr.owner_id != nullptr && !ID_IS_EDITABLE(ptr.owner_id)) {
-    CTX_wm_operator_poll_msg_set(*C, "Cannot edit library data");
+    CTX_wm_operator_poll_msg_set(C, "Cannot edit library data");
     return false;
   }
 
   if (!is_liboverride_allowed && BKE_constraint_is_nonlocal_in_liboverride(ob, con)) {
     CTX_wm_operator_poll_msg_set(
-        *C, "Cannot edit constraints coming from linked data in a library override");
+        C, "Cannot edit constraints coming from linked data in a library override");
     return false;
   }
 
@@ -599,14 +598,14 @@ static bool edit_constraint_poll_generic(bContext *C,
 
 static bool edit_constraint_poll(bContext &C)
 {
-  return edit_constraint_poll_generic(&C, &RNA_Constraint, false);
+  return edit_constraint_poll_generic(C, &RNA_Constraint, false);
 }
 
 /* Used by operators performing actions allowed also on constraints from the overridden linked
  * object (not only from added 'local' ones). */
 static bool edit_constraint_liboverride_allowed_poll(bContext &C)
 {
-  return edit_constraint_poll_generic(&C, &RNA_Constraint, true);
+  return edit_constraint_poll_generic(C, &RNA_Constraint, true);
 }
 
 static void edit_constraint_properties(wmOperatorType *ot)
@@ -627,13 +626,13 @@ static void edit_constraint_report_property(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
-static bool edit_constraint_invoke_properties(bContext *C,
+static bool edit_constraint_invoke_properties(bContext &C,
                                               wmOperator *op,
                                               const wmEvent *event,
                                               wmOperatorStatus *r_retval)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(*C, "constraint", &RNA_Constraint);
-  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(C);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(&C);
   bConstraint *con;
   ListBaseT<bConstraint> *list;
 
@@ -700,7 +699,7 @@ static bConstraint *edit_constraint_property_get(bContext *C, wmOperator *op, Ob
   RNA_string_get(op->ptr, "constraint", constraint_name);
 
   if (owner == EDIT_CONSTRAINT_OWNER_BONE) {
-    list = pose_constraint_list(C);
+    list = pose_constraint_list(*C);
     if (!list) {
       return nullptr;
     }
@@ -747,7 +746,7 @@ static wmOperatorStatus stretchto_reset_exec(bContext &C, wmOperator &op)
   data->orglength = 0.0f;
   constraint_update(bmain, ob);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -755,7 +754,7 @@ static wmOperatorStatus stretchto_reset_invoke(bContext &C,
                                                wmOperator &op,
                                                const wmEvent * /*event*/)
 {
-  if (edit_constraint_invoke_properties(&C, &op, nullptr, nullptr)) {
+  if (edit_constraint_invoke_properties(C, &op, nullptr, nullptr)) {
     return stretchto_reset_exec(C, op);
   }
   return OPERATOR_CANCELLED;
@@ -804,7 +803,7 @@ static wmOperatorStatus limitdistance_reset_exec(bContext &C, wmOperator &op)
   data->dist = 0.0f;
   constraint_update(bmain, ob);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -812,7 +811,7 @@ static wmOperatorStatus limitdistance_reset_invoke(bContext &C,
                                                    wmOperator &op,
                                                    const wmEvent * /*event*/)
 {
-  if (edit_constraint_invoke_properties(&C, &op, nullptr, nullptr)) {
+  if (edit_constraint_invoke_properties(C, &op, nullptr, nullptr)) {
     return limitdistance_reset_exec(C, op);
   }
   return OPERATOR_CANCELLED;
@@ -883,7 +882,7 @@ static wmOperatorStatus childof_set_inverse_exec(bContext &C, wmOperator &op)
   force_evaluation_if_constraint_disabled(&C, ob, con);
 
   constraint_update(bmain, ob);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -892,7 +891,7 @@ static wmOperatorStatus childof_set_inverse_invoke(bContext &C,
                                                    wmOperator &op,
                                                    const wmEvent * /*event*/)
 {
-  if (edit_constraint_invoke_properties(&C, &op, nullptr, nullptr)) {
+  if (edit_constraint_invoke_properties(C, &op, nullptr, nullptr)) {
     return childof_set_inverse_exec(C, op);
   }
   return OPERATOR_CANCELLED;
@@ -934,7 +933,7 @@ static wmOperatorStatus childof_clear_inverse_exec(bContext &C, wmOperator &op)
   unit_m4(data->invmat);
 
   constraint_update(bmain, ob);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -943,7 +942,7 @@ static wmOperatorStatus childof_clear_inverse_invoke(bContext &C,
                                                      wmOperator &op,
                                                      const wmEvent * /*event*/)
 {
-  if (edit_constraint_invoke_properties(&C, &op, nullptr, nullptr)) {
+  if (edit_constraint_invoke_properties(C, &op, nullptr, nullptr)) {
     return childof_clear_inverse_exec(C, op);
   }
   return OPERATOR_CANCELLED;
@@ -1084,7 +1083,7 @@ static wmOperatorStatus followpath_path_animate_exec(bContext &C, wmOperator &op
   }
 
   /* updates... */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
   return OPERATOR_FINISHED;
 }
 
@@ -1093,7 +1092,7 @@ static wmOperatorStatus followpath_path_animate_invoke(bContext &C,
                                                        const wmEvent * /*event*/)
 {
   /* hook up invoke properties for figuring out which constraint we're dealing with */
-  if (edit_constraint_invoke_properties(&C, &op, nullptr, nullptr)) {
+  if (edit_constraint_invoke_properties(C, &op, nullptr, nullptr)) {
     return followpath_path_animate_exec(C, op);
   }
   return OPERATOR_CANCELLED;
@@ -1165,7 +1164,7 @@ static wmOperatorStatus objectsolver_set_inverse_exec(bContext &C, wmOperator &o
   force_evaluation_if_constraint_disabled(&C, ob, con);
 
   constraint_update(bmain, ob);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -1174,7 +1173,7 @@ static wmOperatorStatus objectsolver_set_inverse_invoke(bContext &C,
                                                         wmOperator &op,
                                                         const wmEvent * /*event*/)
 {
-  if (edit_constraint_invoke_properties(&C, &op, nullptr, nullptr)) {
+  if (edit_constraint_invoke_properties(C, &op, nullptr, nullptr)) {
     return objectsolver_set_inverse_exec(C, op);
   }
   return OPERATOR_CANCELLED;
@@ -1221,7 +1220,7 @@ static wmOperatorStatus objectsolver_clear_inverse_exec(bContext &C, wmOperator 
   unit_m4(data->invmat);
 
   constraint_update(bmain, ob);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -1230,7 +1229,7 @@ static wmOperatorStatus objectsolver_clear_inverse_invoke(bContext &C,
                                                           wmOperator &op,
                                                           const wmEvent * /*event*/)
 {
-  if (edit_constraint_invoke_properties(&C, &op, nullptr, nullptr)) {
+  if (edit_constraint_invoke_properties(C, &op, nullptr, nullptr)) {
     return objectsolver_clear_inverse_exec(C, op);
   }
   return OPERATOR_CANCELLED;
@@ -1437,7 +1436,7 @@ static wmOperatorStatus constraint_delete_exec(bContext &C, wmOperator &op)
     DEG_relations_tag_update(bmain);
 
     /* notifiers */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
 
     if (RNA_boolean_get(op.ptr, "report")) {
       BKE_reportf(op.reports, RPT_INFO, "Removed constraint: %s", name);
@@ -1452,7 +1451,7 @@ static wmOperatorStatus constraint_delete_exec(bContext &C, wmOperator &op)
 static wmOperatorStatus constraint_delete_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   wmOperatorStatus retval;
-  if (!edit_constraint_invoke_properties(&C, &op, event, &retval)) {
+  if (!edit_constraint_invoke_properties(C, &op, event, &retval)) {
     return OPERATOR_CANCELLED;
   }
   return constraint_delete_exec(C, op);
@@ -1524,12 +1523,12 @@ static wmOperatorStatus constraint_apply_exec(bContext &C, wmOperator &op)
   constraint_update(bmain, ob);
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
   if (pchan) {
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
   }
   else {
-    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
   }
 
   if (RNA_boolean_get(op.ptr, "report")) {
@@ -1550,7 +1549,7 @@ static wmOperatorStatus constraint_apply_exec(bContext &C, wmOperator &op)
 static wmOperatorStatus constraint_apply_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   wmOperatorStatus retval;
-  if (!edit_constraint_invoke_properties(&C, &op, event, &retval)) {
+  if (!edit_constraint_invoke_properties(C, &op, event, &retval)) {
     return OPERATOR_CANCELLED;
   }
   return constraint_apply_exec(C, op);
@@ -1623,7 +1622,7 @@ static wmOperatorStatus constraint_copy_exec(bContext &C, wmOperator &op)
   constraint_update(bmain, ob);
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT | NA_ADDED, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_ADDED, ob);
 
   if (RNA_boolean_get(op.ptr, "report")) {
     BKE_reportf(op.reports, RPT_INFO, "Copied constraint: %s", name);
@@ -1635,7 +1634,7 @@ static wmOperatorStatus constraint_copy_exec(bContext &C, wmOperator &op)
 static wmOperatorStatus constraint_copy_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   wmOperatorStatus retval;
-  if (!edit_constraint_invoke_properties(&C, &op, event, &retval)) {
+  if (!edit_constraint_invoke_properties(C, &op, event, &retval)) {
     return OPERATOR_CANCELLED;
   }
   return constraint_copy_exec(C, op);
@@ -1729,7 +1728,7 @@ static wmOperatorStatus constraint_copy_to_selected_exec(bContext &C, wmOperator
   /* Force depsgraph to get recalculated since new relationships added. */
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1739,7 +1738,7 @@ static wmOperatorStatus constraint_copy_to_selected_invoke(bContext &C,
                                                            const wmEvent *event)
 {
   wmOperatorStatus retval;
-  if (!edit_constraint_invoke_properties(&C, &op, event, &retval)) {
+  if (!edit_constraint_invoke_properties(C, &op, event, &retval)) {
     return retval;
   }
   return constraint_copy_to_selected_exec(C, op);
@@ -1833,7 +1832,7 @@ static wmOperatorStatus constraint_move_down_exec(bContext &C, wmOperator &op)
     BLI_insertlinkafter(conlist, nextCon, con);
 
     constraint_update(CTX_data_main(C), ob);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
 
     return OPERATOR_FINISHED;
   }
@@ -1846,7 +1845,7 @@ static wmOperatorStatus constraint_move_down_invoke(bContext &C,
                                                     const wmEvent *event)
 {
   wmOperatorStatus retval;
-  if (edit_constraint_invoke_properties(&C, &op, event, &retval)) {
+  if (edit_constraint_invoke_properties(C, &op, event, &retval)) {
     return constraint_move_down_exec(C, op);
   }
   return retval;
@@ -1891,7 +1890,7 @@ static wmOperatorStatus constraint_move_up_exec(bContext &C, wmOperator &op)
     BLI_insertlinkbefore(conlist, prevCon, con);
 
     constraint_update(CTX_data_main(C), ob);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
 
     return OPERATOR_FINISHED;
   }
@@ -1904,7 +1903,7 @@ static wmOperatorStatus constraint_move_up_invoke(bContext &C,
                                                   const wmEvent *event)
 {
   wmOperatorStatus retval;
-  if (edit_constraint_invoke_properties(&C, &op, event, &retval)) {
+  if (edit_constraint_invoke_properties(C, &op, event, &retval)) {
     return constraint_move_up_exec(C, op);
   }
   return retval;
@@ -1957,7 +1956,7 @@ static wmOperatorStatus constraint_move_to_index_invoke(bContext &C,
                                                         const wmEvent *event)
 {
   wmOperatorStatus retval;
-  if (edit_constraint_invoke_properties(&C, &op, event, &retval)) {
+  if (edit_constraint_invoke_properties(C, &op, event, &retval)) {
     return constraint_move_to_index_exec(C, op);
   }
   return retval;
@@ -2009,7 +2008,7 @@ static wmOperatorStatus pose_constraints_clear_exec(bContext &C, wmOperator & /*
 
     if (prev_ob != ob) {
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
+      WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
       prev_ob = ob;
     }
   }
@@ -2051,7 +2050,7 @@ static wmOperatorStatus object_constraints_clear_exec(bContext &C, wmOperator & 
   DEG_relations_tag_update(bmain);
 
   /* do updates */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2113,7 +2112,7 @@ static wmOperatorStatus pose_constraint_copy_exec(bContext &C, wmOperator &op)
   /* force depsgraph to get recalculated since new relationships added */
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2158,7 +2157,7 @@ static wmOperatorStatus object_constraint_copy_exec(bContext &C, wmOperator & /*
   DEG_relations_tag_update(bmain);
 
   /* notifiers for updates */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2342,14 +2341,14 @@ static bool get_new_constraint_target(
 }
 
 /* used by add constraint operators to add the constraint required */
-static wmOperatorStatus constraint_add_exec(bContext *C,
+static wmOperatorStatus constraint_add_exec(bContext &C,
                                             wmOperator *op,
                                             Object *ob,
                                             ListBaseT<bConstraint> *list,
                                             int type,
                                             const bool setTarget)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   bPoseChannel *pchan;
   bConstraint *con;
 
@@ -2387,7 +2386,7 @@ static wmOperatorStatus constraint_add_exec(bContext *C,
     bPoseChannel *tar_pchan = nullptr;
 
     /* get the target objects, adding them as need be */
-    if (get_new_constraint_target(C, type, &tar_ob, &tar_pchan, true)) {
+    if (get_new_constraint_target(&C, type, &tar_ob, &tar_pchan, true)) {
 
       /* Armature constraints don't have a target by default, add one. */
       if (type == CONSTRAINT_TYPE_ARMATURE) {
@@ -2457,7 +2456,7 @@ static wmOperatorStatus object_constraint_add_exec(bContext &C, wmOperator &op)
     with_targets = 1;
   }
 
-  return constraint_add_exec(&C, &op, ob, &ob->constraints, type, with_targets);
+  return constraint_add_exec(C, &op, ob, &ob->constraints, type, with_targets);
 }
 
 /* dummy operator callback */
@@ -2479,7 +2478,7 @@ static wmOperatorStatus pose_constraint_add_exec(bContext &C, wmOperator &op)
     with_targets = 1;
   }
 
-  return constraint_add_exec(&C, &op, ob, constraint_active_list(ob), type, with_targets);
+  return constraint_add_exec(C, &op, ob, constraint_active_list(ob), type, with_targets);
 }
 
 /* ------------------ */
@@ -2665,7 +2664,7 @@ static wmOperatorStatus pose_ik_add_invoke(bContext &C, wmOperator &op, const wm
   }
 
   /* finish building the menu, and process it (should result in calling self again) */
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -2679,7 +2678,7 @@ static wmOperatorStatus pose_ik_add_exec(bContext &C, wmOperator &op)
   /* add the constraint - all necessary checks should have
    * been done by the invoke() callback already... */
   return constraint_add_exec(
-      &C, &op, ob, constraint_active_list(ob), CONSTRAINT_TYPE_KINEMATIC, with_targets);
+      C, &op, ob, constraint_active_list(ob), CONSTRAINT_TYPE_KINEMATIC, with_targets);
 }
 
 void POSE_OT_ik_add(wmOperatorType *ot)
@@ -2739,7 +2738,7 @@ static wmOperatorStatus pose_ik_clear_exec(bContext &C, wmOperator & /*op*/)
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
       /* NOTE: notifier might evolve. */
-      WM_event_add_notifier(&C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
+      WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
     }
   }
   CTX_DATA_END;

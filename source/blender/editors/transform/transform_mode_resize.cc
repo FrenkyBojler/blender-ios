@@ -277,7 +277,7 @@ static void initResize(TransInfo *t, wmOperator *op)
 
   const bool only_location = transform_mode_affect_only_locations(t);
   if (only_location) {
-    WorkspaceStatus status(t->context);
+    WorkspaceStatus status(*t->context);
     status.item(TIP_("Transform is set to only affect location"), ICON_ERROR);
   }
 

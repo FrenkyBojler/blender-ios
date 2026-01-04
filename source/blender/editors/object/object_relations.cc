@@ -283,7 +283,7 @@ static wmOperatorStatus vertex_parent_set_exec(bContext &C, wmOperator &op)
 
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(&C, NC_OBJECT, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT, nullptr);
 
   return OPERATOR_FINISHED;
 
@@ -435,8 +435,8 @@ static wmOperatorStatus parent_clear_exec(bContext &C, wmOperator &op)
   CTX_DATA_END;
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARENT, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -502,7 +502,7 @@ const EnumPropertyItem prop_make_parent_types[] = {
 };
 
 static bool parent_set_with_depsgraph(ReportList *reports,
-                                      const bContext *C,
+                                      const bContext &C,
                                       Scene *scene,
                                       Depsgraph *depsgraph,
                                       Object *const ob,
@@ -513,7 +513,7 @@ static bool parent_set_with_depsgraph(ReportList *reports,
                                       const bool keep_transform,
                                       const int vert_par[3])
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   bPoseChannel *pchan = nullptr;
   bPoseChannel *pchan_eval = nullptr;
 
@@ -781,7 +781,7 @@ static bool parent_set_with_depsgraph(ReportList *reports,
 }
 
 bool parent_set(ReportList *reports,
-                const bContext *C,
+                const bContext &C,
                 Scene *scene,
                 Object *const ob,
                 Object *const par,
@@ -790,7 +790,7 @@ bool parent_set(ReportList *reports,
                 const bool keep_transform,
                 const int vert_par[3])
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *parent_eval = DEG_get_evaluated(depsgraph, par);
 
   return parent_set_with_depsgraph(reports,
@@ -841,12 +841,12 @@ struct ParentingContext {
   bool keep_transform;
 };
 
-static bool parent_set_nonvertex_parent(bContext *C, ParentingContext *parenting_context)
+static bool parent_set_nonvertex_parent(bContext &C, ParentingContext *parenting_context)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *parent_eval = DEG_get_evaluated(depsgraph, parenting_context->par);
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if (ob == parenting_context->par) {
       /* parent_set() will fail (and thus return false), but this case
        * shouldn't break this loop. It's expected that the active object is also selected. */
@@ -873,13 +873,13 @@ static bool parent_set_nonvertex_parent(bContext *C, ParentingContext *parenting
   return true;
 }
 
-static bool parent_set_vertex_parent_with_kdtree(bContext *C,
+static bool parent_set_vertex_parent_with_kdtree(bContext &C,
                                                  ParentingContext *parenting_context,
                                                  KDTree_3d *tree)
 {
   int vert_par[3] = {0, 0, 0};
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     if (ob == parenting_context->par) {
       /* parent_set() will fail (and thus return false), but this case
        * shouldn't break this loop. It's expected that the active object is also selected. */
@@ -904,12 +904,12 @@ static bool parent_set_vertex_parent_with_kdtree(bContext *C,
   return true;
 }
 
-static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_context)
+static bool parent_set_vertex_parent(bContext &C, ParentingContext *parenting_context)
 {
   KDTree_3d *tree = nullptr;
   int tree_tot;
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *par_eval = DEG_get_evaluated(depsgraph, parenting_context->par);
 
   tree = BKE_object_as_kdtree(par_eval, &tree_tot);
@@ -940,10 +940,10 @@ static wmOperatorStatus parent_set_exec(bContext &C, wmOperator &op)
 
   bool ok;
   if (ELEM(parenting_context.partype, PAR_VERTEX, PAR_VERTEX_TRI)) {
-    ok = parent_set_vertex_parent(&C, &parenting_context);
+    ok = parent_set_vertex_parent(C, &parenting_context);
   }
   else {
-    ok = parent_set_nonvertex_parent(&C, &parenting_context);
+    ok = parent_set_nonvertex_parent(C, &parenting_context);
   }
   if (!ok) {
     return OPERATOR_CANCELLED;
@@ -951,16 +951,16 @@ static wmOperatorStatus parent_set_exec(bContext &C, wmOperator &op)
 
   Main *bmain = CTX_data_main(C);
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARENT, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, nullptr);
 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
+static wmOperatorStatus parent_set_invoke_menu(bContext &C, wmOperatorType *ot)
 {
-  Object *parent = context_active_object(C);
-  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Set Parent To"), ICON_NONE);
+  Object *parent = context_active_object(&C);
+  ui::PopupMenu *pup = ui::popup_menu_begin(&C, IFACE_("Set Parent To"), ICON_NONE);
   ui::Layout &layout = *popup_menu_layout(pup);
 
   PointerRNA opptr = layout.op(
@@ -989,7 +989,7 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
     bool armature_deform, empty_groups, envelope_weights, automatic_weights, attach_surface;
   } can_support = {false};
 
-  CTX_DATA_BEGIN (*C, Object *, child, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, child, selected_editable_objects) {
     if (child == parent) {
       continue;
     }
@@ -1075,7 +1075,7 @@ static wmOperatorStatus parent_set_invoke(bContext &C, wmOperator &op, const wmE
   if (RNA_property_is_set(op.ptr, op.type->prop)) {
     return parent_set_exec(C, op);
   }
-  return parent_set_invoke_menu(&C, op.type);
+  return parent_set_invoke_menu(C, op.type);
 }
 
 static bool parent_set_poll_property(const bContext & /*C*/,
@@ -1169,8 +1169,8 @@ static wmOperatorStatus parent_noinv_set_exec(bContext &C, wmOperator &op)
   CTX_DATA_END;
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARENT, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1253,7 +1253,7 @@ static wmOperatorStatus object_track_clear_exec(bContext &C, wmOperator &op)
   CTX_DATA_END;
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1375,7 +1375,7 @@ static wmOperatorStatus track_set_exec(bContext &C, wmOperator &op)
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1462,7 +1462,7 @@ static wmOperatorStatus make_links_scene_exec(bContext &C, wmOperator &op)
   DEG_relations_tag_update(bmain);
 
   /* redraw the 3D view because the object center points are colored differently */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
 
   /* one day multiple scenes will be visible, then we should have some update function for them
    */
@@ -1682,9 +1682,9 @@ static wmOperatorStatus make_links_data_exec(bContext &C, wmOperator &op)
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE, CTX_wm_view3d(C));
-  WM_event_add_notifier(&C, NC_OBJECT, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, CTX_wm_view3d(C));
+  WM_event_add_notifier(C, NC_OBJECT, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2134,16 +2134,16 @@ static int tag_localizable_looper(LibraryIDLinkCallbackData *cb_data)
   return IDWALK_RET_NOP;
 }
 
-static void tag_localizable_objects(bContext *C, const int mode)
+static void tag_localizable_objects(bContext &C, const int mode)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
   /* Set ID_TAG_DOIT flag for all selected objects, so next we can check whether
    * object is gonna to become local or not.
    */
-  CTX_DATA_BEGIN (*C, Object *, object, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
     object->id.tag |= ID_TAG_DOIT;
 
     /* If obdata is also going to become local, mark it as such too. */
@@ -2281,7 +2281,7 @@ static wmOperatorStatus make_local_exec(bContext &C, wmOperator &op)
   }
   else {
     BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, true);
-    tag_localizable_objects(&C, mode);
+    tag_localizable_objects(C, mode);
 
     CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
       if ((ob->id.tag & ID_TAG_DOIT) == 0) {
@@ -2327,7 +2327,7 @@ static wmOperatorStatus make_local_exec(bContext &C, wmOperator &op)
   BKE_library_make_local(
       bmain, nullptr, nullptr, true, false, true); /* nullptr is all libraries. */
 
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -2569,9 +2569,9 @@ static wmOperatorStatus make_override_library_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&CTX_data_scene(C)->id, ID_RECALC_BASE_FLAGS | ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
-  WM_event_add_notifier(&C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   return success ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
@@ -2755,9 +2755,9 @@ static wmOperatorStatus reset_override_library_exec(bContext &C, wmOperator & /*
   }
   FOREACH_SELECTED_OBJECT_END;
 
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
-  WM_event_add_notifier(&C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2830,9 +2830,9 @@ static wmOperatorStatus clear_override_library_exec(bContext &C, wmOperator & /*
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS | ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
-  WM_event_add_notifier(&C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2909,7 +2909,7 @@ static wmOperatorStatus make_single_user_exec(bContext &C, wmOperator &op)
 
   BKE_main_id_newptr_and_tag_clear(bmain);
 
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   if (update_deps) {
     DEG_relations_tag_update(bmain);
@@ -3023,9 +3023,9 @@ static wmOperatorStatus drop_named_material_invoke(bContext &C,
 
   DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_OB_SHADING, ob);
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
-  WM_event_add_notifier(&C, NC_MATERIAL | ND_SHADING_LINKS, ma);
+  WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_LINKS, ma);
 
   return OPERATOR_FINISHED;
 }
@@ -3137,7 +3137,7 @@ static wmOperatorStatus drop_geometry_nodes_invoke(bContext &C,
   MOD_nodes_update_interface(ob, nmd);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3205,7 +3205,7 @@ static wmOperatorStatus object_unlink_data_exec(bContext &C, wmOperator &op)
     }
   }
 
-  RNA_property_update(&C, &pprop.ptr, pprop.prop);
+  RNA_property_update(C, &pprop.ptr, pprop.prop);
 
   return OPERATOR_FINISHED;
 }

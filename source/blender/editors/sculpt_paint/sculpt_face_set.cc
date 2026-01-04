@@ -143,7 +143,7 @@ int active_update_and_get(bContext *C, Object &ob, const float mval[2])
   }
 
   CursorGeometryInfo gi;
-  if (!cursor_geometry_info_update(C, &gi, mval, false)) {
+  if (!cursor_geometry_info_update(*C, &gi, mval, false)) {
     return SCULPT_FACE_SET_NONE;
   }
 
@@ -555,7 +555,7 @@ static wmOperatorStatus create_op_exec(bContext &C, wmOperator &op)
 
   undo::push_end(object);
 
-  SCULPT_tag_update_overlays(&C);
+  SCULPT_tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }
@@ -818,7 +818,7 @@ static wmOperatorStatus init_op_exec(bContext &C, wmOperator &op)
 
   pbvh.tag_face_sets_changed(node_mask);
 
-  SCULPT_tag_update_overlays(&C);
+  SCULPT_tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1065,7 +1065,7 @@ static wmOperatorStatus change_visibility_exec(bContext &C, wmOperator &op)
   /* For modes that use the cursor active vertex, update the rotation origin for viewport
    * navigation. */
   if (ELEM(mode, VisibilityMode::Toggle, VisibilityMode::ShowActive)) {
-    Paint *paint = BKE_paint_get_active_from_context(&C);
+    Paint *paint = BKE_paint_get_active_from_context(C);
     bke::PaintRuntime *paint_runtime = paint->runtime;
     if (std::holds_alternative<std::monostate>(ss.active_vert())) {
       paint_runtime->last_stroke_valid = false;
@@ -1105,7 +1105,7 @@ static wmOperatorStatus change_visibility_invoke(bContext &C, wmOperator &op, co
   CursorGeometryInfo cgi;
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
   vert_random_access_ensure(ob);
-  cursor_geometry_info_update(&C, &cgi, mval_fl, false);
+  cursor_geometry_info_update(C, &cgi, mval_fl, false);
 
   return change_visibility_exec(C, op);
 }
@@ -1179,7 +1179,7 @@ static wmOperatorStatus randomize_colors_exec(bContext &C, wmOperator & /*op*/)
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
   pbvh.tag_face_sets_changed(node_mask);
 
-  SCULPT_tag_update_overlays(&C);
+  SCULPT_tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1457,9 +1457,9 @@ static bool edit_is_operation_valid(const Object &object,
 }
 
 static void edit_modify_geometry(
-    bContext *C, Object &ob, const int active_face_set, const bool modify_hidden, wmOperator *op)
+    bContext &C, Object &ob, const int active_face_set, const bool modify_hidden, wmOperator *op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
+  const Scene &scene = *CTX_data_scene(C);
   Mesh *mesh = static_cast<Mesh *>(ob.data);
   undo::geometry_begin(scene, ob, op);
   delete_geometry(ob, active_face_set, modify_hidden);
@@ -1471,11 +1471,11 @@ static void edit_modify_geometry(
 }
 
 static void edit_modify_coordinates(
-    bContext *C, Object &ob, const int active_face_set, const EditMode mode, wmOperator *op)
+    bContext &C, Object &ob, const int active_face_set, const EditMode mode, wmOperator *op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
-  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
+  const Scene &scene = *CTX_data_scene(C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   IndexMaskMemory memory;
   const IndexMask node_mask = bke::pbvh::all_leaf_nodes(pbvh, memory);
@@ -1503,10 +1503,10 @@ static void edit_modify_coordinates(
   undo::push_end(ob);
 }
 
-static bool edit_op_init(bContext *C, wmOperator *op)
+static bool edit_op_init(bContext &C, wmOperator *op)
 {
-  Object *ob = CTX_data_active_object(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Object *ob = CTX_data_active_object(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   const EditMode mode = EditMode(RNA_enum_get(op->ptr, "mode"));
   const bool modify_hidden = RNA_boolean_get(op->ptr, "modify_hidden");
 
@@ -1521,7 +1521,7 @@ static bool edit_op_init(bContext *C, wmOperator *op)
 
 static wmOperatorStatus edit_op_exec(bContext &C, wmOperator &op)
 {
-  if (!edit_op_init(&C, &op)) {
+  if (!edit_op_init(C, &op)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1535,7 +1535,7 @@ static wmOperatorStatus edit_op_exec(bContext &C, wmOperator &op)
 
   switch (mode) {
     case EditMode::DeleteGeometry:
-      edit_modify_geometry(&C, ob, active_face_set, modify_hidden, &op);
+      edit_modify_geometry(C, ob, active_face_set, modify_hidden, &op);
       break;
     case EditMode::Grow:
     case EditMode::Shrink:
@@ -1543,11 +1543,11 @@ static wmOperatorStatus edit_op_exec(bContext &C, wmOperator &op)
       break;
     case EditMode::FairPositions:
     case EditMode::FairTangency:
-      edit_modify_coordinates(&C, ob, active_face_set, mode, &op);
+      edit_modify_coordinates(C, ob, active_face_set, mode, &op);
       break;
   }
 
-  SCULPT_tag_update_overlays(&C);
+  SCULPT_tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1569,7 +1569,7 @@ static wmOperatorStatus edit_op_invoke(bContext &C, wmOperator &op, const wmEven
    * tool without brush cursor. */
   CursorGeometryInfo cgi;
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  if (!cursor_geometry_info_update(&C, &cgi, mval_fl, false)) {
+  if (!cursor_geometry_info_update(C, &cgi, mval_fl, false)) {
     /* The cursor is not over the mesh. Cancel to avoid editing the last updated face set ID. */
     return OPERATOR_CANCELLED;
   }

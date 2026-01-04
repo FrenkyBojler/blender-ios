@@ -160,7 +160,7 @@ static wmOperatorStatus wm_drop_import_file_invoke(bContext &C,
     file_handler_import_operator_write_ptr(file_handler, file_props, paths);
   }
 
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
   return OPERATOR_INTERFACE;
 }
 

@@ -74,9 +74,9 @@ static bool lattice_deselect_all_multi(const Span<Base *> bases)
   return changed_multi;
 }
 
-bool ED_lattice_deselect_all_multi(bContext *C)
+bool ED_lattice_deselect_all_multi(bContext &C)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
       vc.scene, vc.view_layer, vc.v3d);
@@ -133,7 +133,7 @@ static wmOperatorStatus lattice_select_random_exec(bContext &C, wmOperator &op)
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -219,7 +219,7 @@ static wmOperatorStatus lattice_select_mirror_exec(bContext &C, wmOperator &op)
 
     /* TODO: only notify changes. */
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -265,14 +265,14 @@ static bool lattice_test_bitmap_uvw(
   return false;
 }
 
-static wmOperatorStatus lattice_select_more_less(bContext *C, const bool select)
+static wmOperatorStatus lattice_select_more_less(bContext &C, const bool select)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   bool changed = false;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     Lattice *lt = ((Lattice *)obedit->data)->editlatt->latt;
     BPoint *bp;
@@ -317,12 +317,12 @@ static wmOperatorStatus lattice_select_more_less(bContext *C, const bool select)
 
 static wmOperatorStatus lattice_select_more_exec(bContext &C, wmOperator & /*op*/)
 {
-  return lattice_select_more_less(&C, true);
+  return lattice_select_more_less(C, true);
 }
 
 static wmOperatorStatus lattice_select_less_exec(bContext &C, wmOperator & /*op*/)
 {
-  return lattice_select_more_less(&C, false);
+  return lattice_select_more_less(C, false);
 }
 
 void LATTICE_OT_select_more(wmOperatorType *ot)
@@ -441,7 +441,7 @@ static wmOperatorStatus lattice_select_all_exec(bContext &C, wmOperator &op)
     if (changed) {
       changed_multi = true;
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -510,7 +510,7 @@ static wmOperatorStatus lattice_select_ungrouped_exec(bContext &C, wmOperator &o
 
     changed = true;
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   if (!changed) {
@@ -597,9 +597,9 @@ static BPoint *findnearestLattvert(ViewContext *vc, bool select, Base **r_base)
   return data.bp;
 }
 
-bool ED_lattice_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params)
+bool ED_lattice_select_pick(bContext &C, const int mval[2], const SelectPick_Params &params)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   BPoint *bp = nullptr;
   Base *basact = nullptr;
   bool changed = false;

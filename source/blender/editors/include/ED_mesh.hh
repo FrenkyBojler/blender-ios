@@ -108,7 +108,7 @@ void EDBM_verts_mirror_cache_end(BMEditMesh *em);
 void EDBM_mesh_normals_update_ex(BMEditMesh *em, const BMeshNormalsUpdate_Params *params);
 void EDBM_mesh_normals_update(BMEditMesh *em);
 
-void EDBM_selectmode_to_scene(bContext *C);
+void EDBM_selectmode_to_scene(bContext &C);
 void EDBM_mesh_make(Object *ob, int select_mode, bool add_key_index);
 /** Replaces the edit-mesh in the object with a new one based on the given mesh. */
 void EDBM_mesh_make_from_mesh(Object *ob, Mesh *src_mesh, int select_mode, bool add_key_index);
@@ -223,7 +223,7 @@ bool BMBVH_EdgeVisible(const BMBVHTree *tree,
                        const Object *obedit);
 
 void EDBM_project_snap_verts(
-    bContext *C, Depsgraph *depsgraph, ARegion *region, Object *obedit, BMEditMesh *em);
+    bContext &C, Depsgraph *depsgraph, ARegion *region, Object *obedit, BMEditMesh *em);
 
 /* `editmesh_automerge.cc` */
 
@@ -355,14 +355,14 @@ bool EDBM_selectmode_set_multi_ex(Scene *scene,
  * High level select-mode setting utility.
  * This operates on tool-settings and all edit-mode objects.
  */
-bool EDBM_selectmode_set_multi(bContext *C, short selectmode);
+bool EDBM_selectmode_set_multi(bContext &C, short selectmode);
 /**
  * User facing function, handles notification.
  *
  * \param selectmode_toggle: The mode to adjust based on `action`, must not contain mixed flags.
  */
 bool EDBM_selectmode_toggle_multi(
-    bContext *C, short selectmode_toggle, int action, bool use_extend, bool use_expand);
+    bContext &C, short selectmode_toggle, int action, bool use_extend, bool use_expand);
 
 /**
  * Use to disable a select-mode if its enabled, Using another mode as a fallback
@@ -381,15 +381,15 @@ void EDBM_select_toggle_all(BMEditMesh *em);
 
 void EDBM_select_swap(BMEditMesh *em); /* exported for UV */
 bool EDBM_select_interior_faces(BMEditMesh *em);
-ViewContext em_setup_viewcontext(bContext *C); /* rename? */
+ViewContext em_setup_viewcontext(bContext &C); /* rename? */
 
 bool EDBM_mesh_deselect_all_multi_ex(blender::Span<Base *> bases);
-bool EDBM_mesh_deselect_all_multi(bContext *C);
+bool EDBM_mesh_deselect_all_multi(bContext &C);
 bool EDBM_selectmode_disable_multi_ex(Scene *scene,
                                       blender::Span<Base *> bases,
                                       short selectmode_disable,
                                       short selectmode_fallback);
-bool EDBM_selectmode_disable_multi(bContext *C,
+bool EDBM_selectmode_disable_multi(bContext &C,
                                    short selectmode_disable,
                                    short selectmode_fallback);
 
@@ -462,7 +462,7 @@ bool paintface_mouse_select(bContext *C,
 bool paintface_deselect_all_visible(bContext *C, Object *ob, int action, bool flush_flags);
 void paintface_select_linked(bContext *C, Object *ob, const int mval[2], bool select);
 
-void paintface_select_loop(bContext *C, Object *ob, const int mval[2], bool select);
+void paintface_select_loop(bContext &C, Object *ob, const int mval[2], bool select);
 /**
  * Grow the selection of faces.
  * \param face_step: If true will also select faces that only touch on the corner.
@@ -548,7 +548,7 @@ KeyBlock *ED_mesh_get_edit_shape_key(const Mesh *me);
 /**
  * Returns the pinned mesh, the mesh from the pinned object, or the mesh from the active object.
  */
-Mesh *ED_mesh_context(bContext *C);
+Mesh *ED_mesh_context(bContext &C);
 
 /**
  * Split all edges that would appear sharp based on face and edge sharpness tags and the
@@ -579,13 +579,13 @@ void EDBM_redo_state_free(BMBackup *backup) ATTR_NONNULL(1);
 
 namespace blender::ed::mesh {
 
-wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus join_objects_exec(bContext &C, wmOperator *op);
 
 }
 
 /* `meshtools.cc` */
 
-wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
+wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext &C,
                                                   bool ensure_keys_exist,
                                                   bool mirror,
                                                   ReportList *reports);
@@ -643,12 +643,12 @@ bool ED_mesh_pick_face(bContext *C, Object *ob, const int mval[2], uint dist_px,
  * This gets the face then finds the closest vertex to mval.
  */
 bool ED_mesh_pick_face_vert(
-    bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index);
+    bContext &C, Object *ob, const int mval[2], uint dist_px, uint *r_index);
 /**
  * Used for paint face loop selection which needs to get closest edge even though in face select
  * mode. Changes the select_buffer context to edge selection for this.
  */
-bool ED_mesh_pick_edge(bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index);
+bool ED_mesh_pick_edge(bContext &C, Object *ob, const int mval[2], uint dist_px, uint *r_index);
 
 MDeformVert *ED_mesh_active_dvert_get_em(Object *ob, BMVert **r_eve);
 MDeformVert *ED_mesh_active_dvert_get_ob(Object *ob, int *r_index);

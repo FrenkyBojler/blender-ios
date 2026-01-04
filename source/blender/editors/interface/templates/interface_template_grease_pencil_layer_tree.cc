@@ -102,7 +102,7 @@ class LayerNodeDropTarget : public TreeViewItemDropTarget {
     return "";
   }
 
-  bool on_drop(bContext *C, const DragInfo &drag_info) const override
+  bool on_drop(bContext &C, const DragInfo &drag_info) const override
   {
     const wmDragGreasePencilLayer *drag_grease_pencil =
         static_cast<const wmDragGreasePencilLayer *>(drag_info.drag_data.poin);
@@ -147,24 +147,24 @@ class LayerNodeDropTarget : public TreeViewItemDropTarget {
 
     if (drag_node.is_layer()) {
       WM_msg_publish_rna_prop(
-          CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
       WM_msg_publish_rna_prop(
-          CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
+          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
     }
     else if (drag_node.is_group()) {
-      WM_msg_publish_rna_prop(CTX_wm_message_bus(*C),
+      WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
                               &grease_pencil.id,
                               &grease_pencil,
                               GreasePencilv3LayerGroup,
                               active);
       WM_msg_publish_rna_prop(
-          CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
+          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
     }
 
-    ED_undo_push(C, "Reorder Layers");
+    ED_undo_push(*C, "Reorder Layers");
 
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
+    WM_event_add_notifier(*C, NC_GPENCIL | NA_EDITED, nullptr);
     return true;
   }
 };
@@ -257,9 +257,9 @@ class LayerViewItem : public AbstractTreeViewItem {
     }
 
     RNA_property_pointer_set(&layers_ptr, prop, value_ptr, nullptr);
-    RNA_property_update(&C, &layers_ptr, prop);
+    RNA_property_update(C, &layers_ptr, prop);
 
-    ED_undo_push(&C, "Active Grease Pencil Layer");
+    ED_undo_push(C, "Active Grease Pencil Layer");
   }
 
   bool supports_renaming() const override
@@ -274,9 +274,9 @@ class LayerViewItem : public AbstractTreeViewItem {
     PropertyRNA *prop = RNA_struct_find_property(&layer_ptr, "name");
 
     RNA_property_string_set(&layer_ptr, prop, new_name.c_str());
-    RNA_property_update(&const_cast<bContext &>(C), &layer_ptr, prop);
+    RNA_property_update(const_cast<bContext &>(C), &layer_ptr, prop);
 
-    ED_undo_push(&const_cast<bContext &>(C), "Rename Grease Pencil Layer");
+    ED_undo_push(const_cast<bContext &>(C), "Rename Grease Pencil Layer");
     return true;
   }
 
@@ -285,12 +285,12 @@ class LayerViewItem : public AbstractTreeViewItem {
     return layer_.name();
   }
 
-  void delete_item(bContext *C) override
+  void delete_item(bContext &C) override
   {
     grease_pencil_.remove_layer(layer_);
     DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
-    ED_undo_push(C, "Delete Grease Pencil Layer");
+    WM_event_add_notifier(*C, NC_OBJECT | ND_DRAW, nullptr);
+    ED_undo_push(*C, "Delete Grease Pencil Layer");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
@@ -378,7 +378,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     PropertyRNA *prop = RNA_struct_find_property(&group_ptr, "is_expanded");
 
     RNA_property_boolean_set(&group_ptr, prop, is_expanded);
-    RNA_property_update(&C, &group_ptr, prop);
+    RNA_property_update(C, &group_ptr, prop);
   }
 
   void build_row(Layout &row) override
@@ -405,7 +405,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     if (!mt) {
       return;
     }
-    menutype_draw(&C, mt, &layout);
+    menutype_draw(C, mt, &layout);
   }
 
   void on_activate(bContext &C) override
@@ -426,9 +426,9 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     }
 
     RNA_property_pointer_set(&grease_pencil_ptr, prop, value_ptr, nullptr);
-    RNA_property_update(&C, &grease_pencil_ptr, prop);
+    RNA_property_update(C, &grease_pencil_ptr, prop);
 
-    ED_undo_push(&C, "Active Grease Pencil Group");
+    ED_undo_push(C, "Active Grease Pencil Group");
   }
 
   bool supports_renaming() const override
@@ -443,9 +443,9 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     PropertyRNA *prop = RNA_struct_find_property(&group_ptr, "name");
 
     RNA_property_string_set(&group_ptr, prop, new_name.c_str());
-    RNA_property_update(&const_cast<bContext &>(C), &group_ptr, prop);
+    RNA_property_update(const_cast<bContext &>(C), &group_ptr, prop);
 
-    ED_undo_push(&const_cast<bContext &>(C), "Rename Grease Pencil Layer Group");
+    ED_undo_push(const_cast<bContext &>(C), "Rename Grease Pencil Layer Group");
     return true;
   }
 
@@ -454,12 +454,12 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     return group_.name();
   }
 
-  void delete_item(bContext *C) override
+  void delete_item(bContext &C) override
   {
     grease_pencil_.remove_group(group_);
     DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
-    ED_undo_push(C, "Delete Grease Pencil Group");
+    WM_event_add_notifier(*C, NC_OBJECT | ND_DRAW, nullptr);
+    ED_undo_push(*C, "Delete Grease Pencil Group");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override

@@ -568,9 +568,9 @@ static bool buttons_context_path_strip_modifier(Scene *sequencer_scene, ButsCont
 }
 
 #ifdef WITH_FREESTYLE
-static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *view_layer)
+static bool buttons_context_linestyle_pinnable(const bContext &C, ViewLayer *view_layer)
 {
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
   Scene *scene = WM_window_get_active_scene(window);
 
   /* if Freestyle is disabled in the scene */
@@ -583,7 +583,7 @@ static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *vie
     return false;
   }
   /* if the scene has already been pinned */
-  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(C);
   if (sbuts->pinid && sbuts->pinid == &scene->id) {
     return false;
   }
@@ -592,11 +592,11 @@ static bool buttons_context_linestyle_pinnable(const bContext *C, ViewLayer *vie
 #endif
 
 static bool buttons_context_path(
-    const bContext *C, SpaceProperties *sbuts, ButsContextPath *path, int mainb, int flag)
+    const bContext &C, SpaceProperties *sbuts, ButsContextPath *path, int mainb, int flag)
 {
   /* Note we don't use CTX_data here, instead we get it from the window.
    * Otherwise there is a loop reading the context that we are setting. */
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
   Scene *scene = WM_window_get_active_scene(window);
   WorkSpace *workspace = WM_window_get_active_workspace(window);
   Scene *sequencer_scene = workspace->sequencer_scene;
@@ -664,7 +664,7 @@ static bool buttons_context_path(
       found = buttons_context_path_world(path);
       break;
     case BCONTEXT_COLLECTION: /* This is for Line Art collection flags */
-      found = buttons_context_path_collection(C, path, window);
+      found = buttons_context_path_collection(&C, path, window);
       break;
     case BCONTEXT_TOOL:
       found = true;
@@ -691,7 +691,7 @@ static bool buttons_context_path(
       break;
     case BCONTEXT_TEXTURE:
       found = buttons_context_path_texture(
-          C, path, static_cast<ButsContextTexture *>(sbuts->texuser));
+          &C, path, static_cast<ButsContextTexture *>(sbuts->texuser));
       break;
     case BCONTEXT_BONE:
       found = buttons_context_path_bone(path);
@@ -716,9 +716,9 @@ static bool buttons_context_path(
   return found;
 }
 
-static bool buttons_shading_context(const bContext *C, int mainb)
+static bool buttons_shading_context(const bContext &C, int mainb)
 {
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
   const Scene *scene = WM_window_get_active_scene(window);
   ViewLayer *view_layer = WM_window_get_active_view_layer(window);
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -734,9 +734,9 @@ static bool buttons_shading_context(const bContext *C, int mainb)
   return false;
 }
 
-static int buttons_shading_new_context(const bContext *C, int flag)
+static int buttons_shading_new_context(const bContext &C, int flag)
 {
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
   const Scene *scene = WM_window_get_active_scene(window);
   ViewLayer *view_layer = WM_window_get_active_view_layer(window);
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -767,14 +767,14 @@ void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
   int flag = 0;
 
   /* Set scene path. */
-  buttons_context_path(C, sbuts, path, BCONTEXT_SCENE, pflag);
+  buttons_context_path(*C, sbuts, path, BCONTEXT_SCENE, pflag);
 
   buttons_texture_context_compute(C, sbuts);
 
   /* for each context, see if we can compute a valid path to it, if
    * this is the case, we know we have to display the button */
   for (int i = 0; i < BCONTEXT_TOT; i++) {
-    if (buttons_context_path(C, sbuts, path, i, pflag)) {
+    if (buttons_context_path(*C, sbuts, path, i, pflag)) {
       flag |= (1 << i);
 
       /* setting icon for data context */
@@ -805,7 +805,7 @@ void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
   if ((flag & (1 << sbuts->mainb)) == 0) {
     if (sbuts->flag & SB_SHADING_CONTEXT) {
       /* try to keep showing shading related buttons */
-      sbuts->mainb = buttons_shading_new_context(C, flag);
+      sbuts->mainb = buttons_shading_new_context(*C, flag);
     }
     else if (flag & BCONTEXT_OBJECT) {
       sbuts->mainb = BCONTEXT_OBJECT;
@@ -820,7 +820,7 @@ void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
     }
   }
 
-  buttons_context_path(C, sbuts, path, sbuts->mainb, pflag);
+  buttons_context_path(*C, sbuts, path, sbuts->mainb, pflag);
 
   if (!(flag & (1 << sbuts->mainb))) {
     if (flag & (1 << BCONTEXT_OBJECT)) {
@@ -831,7 +831,7 @@ void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
     }
   }
 
-  if (buttons_shading_context(C, sbuts->mainb)) {
+  if (buttons_shading_context(*C, sbuts->mainb)) {
     sbuts->flag |= SB_SHADING_CONTEXT;
   }
   else {
@@ -851,11 +851,11 @@ static bool is_pointer_in_path(ButsContextPath *path, PointerRNA *ptr)
   return false;
 }
 
-bool ED_buttons_should_sync_with_outliner(const bContext *C,
+bool ED_buttons_should_sync_with_outliner(const bContext &C,
                                           const SpaceProperties *sbuts,
                                           ScrArea *area)
 {
-  ScrArea *active_area = CTX_wm_area(*C);
+  ScrArea *active_area = CTX_wm_area(C);
   const bool auto_sync = ED_area_has_shared_border(active_area, area) &&
                          sbuts->outliner_sync == PROPERTIES_SYNC_AUTO;
   return auto_sync || sbuts->outliner_sync == PROPERTIES_SYNC_ALWAYS;
@@ -867,7 +867,7 @@ void ED_buttons_set_context(const bContext *C,
                             const int context)
 {
   ButsContextPath path;
-  if (buttons_context_path(C, sbuts, &path, context, 0) && is_pointer_in_path(&path, ptr)) {
+  if (buttons_context_path(*C, sbuts, &path, context, 0) && is_pointer_in_path(&path, ptr)) {
     sbuts->mainbuser = context;
     sbuts->mainb = sbuts->mainbuser;
   }
@@ -1345,9 +1345,9 @@ void buttons_context_register(ARegionType *art)
   BLI_addtail(&art->paneltypes, pt);
 }
 
-ID *buttons_context_id_path(const bContext *C)
+ID *buttons_context_id_path(const bContext &C)
 {
-  SpaceProperties *sbuts = CTX_wm_space_properties(*C);
+  SpaceProperties *sbuts = CTX_wm_space_properties(C);
   ButsContextPath *path = static_cast<ButsContextPath *>(sbuts->path);
 
   if (path->len == 0) {

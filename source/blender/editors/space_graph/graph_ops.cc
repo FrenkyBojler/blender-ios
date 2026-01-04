@@ -54,10 +54,10 @@ static bool graphview_cursor_poll(bContext &C)
 }
 
 /* Set the new frame number */
-static void graphview_cursor_apply(bContext *C, wmOperator *op)
+static void graphview_cursor_apply(bContext &C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  SpaceGraph *sipo = CTX_wm_space_graph(*C);
+  Scene *scene = CTX_data_scene(C);
+  SpaceGraph *sipo = CTX_wm_space_graph(C);
   /* this isn't technically "frame", but it'll do... */
   float frame = RNA_float_get(op->ptr, "frame");
 
@@ -101,16 +101,16 @@ static void graphview_cursor_apply(bContext *C, wmOperator *op)
 /* Non-modal callback for running operator without user input */
 static wmOperatorStatus graphview_cursor_exec(bContext &C, wmOperator &op)
 {
-  graphview_cursor_apply(&C, &op);
+  graphview_cursor_apply(C, &op);
   return OPERATOR_FINISHED;
 }
 
 /* ... */
 
 /* set the operator properties from the initial event */
-static void graphview_cursor_setprops(bContext *C, wmOperator *op, const wmEvent *event)
+static void graphview_cursor_setprops(bContext &C, wmOperator *op, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   float viewx, viewy;
 
   /* abort if not active region (should not really be possible) */
@@ -136,8 +136,8 @@ static wmOperatorStatus graphview_cursor_invoke(bContext &C, wmOperator &op, con
    * as user could click on a single frame (jump to frame) as well as
    * click-dragging over a range (modal scrubbing). Apply this change.
    */
-  graphview_cursor_setprops(&C, &op, event);
-  graphview_cursor_apply(&C, &op);
+  graphview_cursor_setprops(C, &op, event);
+  graphview_cursor_apply(C, &op);
 
   /* Signal that a scrubbing operating is starting */
   if (screen) {
@@ -145,7 +145,7 @@ static wmOperatorStatus graphview_cursor_invoke(bContext &C, wmOperator &op, con
   }
 
   /* add temp handler */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -162,13 +162,13 @@ static wmOperatorStatus graphview_cursor_modal(bContext &C, wmOperator &op, cons
         screen->scrubbing = false;
       }
 
-      WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
+      WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
       return OPERATOR_FINISHED;
 
     case MOUSEMOVE:
       /* set the new values */
-      graphview_cursor_setprops(&C, &op, event);
-      graphview_cursor_apply(&C, &op);
+      graphview_cursor_setprops(C, &op, event);
+      graphview_cursor_apply(C, &op);
       break;
 
     case LEFTMOUSE:
@@ -180,7 +180,7 @@ static wmOperatorStatus graphview_cursor_modal(bContext &C, wmOperator &op, cons
           screen->scrubbing = false;
         }
 
-        WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
+        WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
         return OPERATOR_FINISHED;
       }
       break;
@@ -228,7 +228,7 @@ static wmOperatorStatus graphview_curves_hide_exec(bContext &C, wmOperator &op)
   const bool unselected = RNA_boolean_get(op.ptr, "unselected");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -308,7 +308,7 @@ static wmOperatorStatus graphview_curves_hide_exec(bContext &C, wmOperator &op)
   }
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -343,7 +343,7 @@ static wmOperatorStatus graphview_curves_reveal_exec(bContext &C, wmOperator &op
   const bool select = RNA_boolean_get(op.ptr, "select");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -392,7 +392,7 @@ static wmOperatorStatus graphview_curves_reveal_exec(bContext &C, wmOperator &op
   BLI_freelistN(&all_data);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }

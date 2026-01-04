@@ -590,9 +590,9 @@ static bool is_viewer_socket(const bNodeSocket &socket)
   return false;
 }
 
-static int get_default_viewer_type(const bContext *C)
+static int get_default_viewer_type(const bContext &C)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   return ED_node_is_compositor(snode) ? CMP_NODE_VIEWER : GEO_NODE_VIEWER;
 }
 
@@ -892,7 +892,7 @@ static int view_socket(const bContext &C,
   }
   if (viewer_node == nullptr) {
     const float2 socket_location = bsocket_to_view.runtime->location;
-    const int viewer_type = get_default_viewer_type(&C);
+    const int viewer_type = get_default_viewer_type(C);
     const float2 location{socket_location.x / UI_SCALE_FAC + 100,
                           socket_location.y / UI_SCALE_FAC};
     viewer_node = add_static_node(C, viewer_type, location);
@@ -1680,7 +1680,7 @@ static wmOperatorStatus node_link_invoke(bContext &C, wmOperator &op, const wmEv
   snode.runtime->linkdrag = std::move(nldrag);
   op.customdata = snode.runtime->linkdrag.get();
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2055,7 +2055,7 @@ static wmOperatorStatus node_parent_set_exec(bContext &C, wmOperator & /*op*/)
   }
 
   tree_draw_order_update(ntree);
-  WM_event_add_notifier(&C, NC_NODE | ND_DISPLAY, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2183,7 +2183,7 @@ static wmOperatorStatus node_join_in_frame_exec(bContext &C, wmOperator & /*op*/
 
   tree_draw_order_update(ntree);
   BKE_main_ensure_invariants(bmain, snode.edittree->id);
-  WM_event_add_notifier(&C, NC_NODE | ND_DISPLAY, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2315,7 +2315,7 @@ static wmOperatorStatus node_join_nodes_exec(bContext &C, wmOperator &op)
   }
 
   BKE_main_ensure_invariants(bmain, snode.edittree->id);
-  WM_event_add_notifier(&C, NC_NODE | ND_DISPLAY, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2404,7 +2404,7 @@ static wmOperatorStatus node_attach_invoke(bContext &C, wmOperator & /*op*/, con
 
   if (changed) {
     tree_draw_order_update(ntree);
-    WM_event_add_notifier(&C, NC_NODE | ND_DISPLAY, nullptr);
+    WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -2476,7 +2476,7 @@ static wmOperatorStatus node_detach_exec(bContext &C, wmOperator & /*op*/)
   }
 
   tree_draw_order_update(ntree);
-  WM_event_add_notifier(&C, NC_NODE | ND_DISPLAY, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3102,7 +3102,7 @@ static wmOperatorStatus node_insert_offset_invoke(bContext &C,
   iofsd->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
 
   /* add temp handler */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }

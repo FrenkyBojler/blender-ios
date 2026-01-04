@@ -112,8 +112,8 @@ static wmOperatorStatus separate_exec(bContext &C, wmOperator & /*op*/)
 
     DEG_id_tag_update(&src->id, ID_RECALC_GEOMETRY);
     DEG_id_tag_update(&dst->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, base_src->object);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, object_dst);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, base_src->object);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, object_dst);
   }
 
   DEG_relations_tag_update(bmain);

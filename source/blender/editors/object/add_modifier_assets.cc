@@ -310,7 +310,7 @@ static wmOperatorStatus modifier_add_asset_exec(bContext &C, wmOperator &op)
     STRNCPY_UTF8(nmd->modifier.name, DATA_(node_group->id.name + 2));
     BKE_modifier_unique_name(&object->modifiers, &nmd->modifier);
 
-    WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, object);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
   }
 
   if (!changed) {

@@ -1135,14 +1135,14 @@ static void view3d_buttons_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
-void ED_view3d_buttons_region_layout_ex(const bContext *C,
+void ED_view3d_buttons_region_layout_ex(const bContext &C,
                                         ARegion *region,
                                         const char *category_override)
 {
-  const enum eContextObjectMode mode = CTX_data_mode_enum(*C);
+  const enum eContextObjectMode mode = CTX_data_mode_enum(C);
 
   const char *contexts_base[4] = {nullptr};
-  contexts_base[0] = CTX_data_mode_string(*C);
+  contexts_base[0] = CTX_data_mode_string(C);
 
   const char **contexts = &contexts_base[1];
 
@@ -1268,7 +1268,7 @@ void ED_view3d_buttons_region_layout_ex(const bContext *C,
 
 static void view3d_buttons_region_layout(const bContext *C, ARegion *region)
 {
-  ED_view3d_buttons_region_layout_ex(C, region, nullptr);
+  ED_view3d_buttons_region_layout_ex(*C, region, nullptr);
 }
 
 static void view3d_buttons_region_listener(const wmRegionListenerParams *params)

@@ -587,7 +587,7 @@ static wmOperatorStatus fluid_bake_invoke(bContext &C, wmOperator &op, const wmE
   WM_locked_interface_set_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
 
   WM_jobs_start(CTX_wm_manager(C), wm_job);
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }

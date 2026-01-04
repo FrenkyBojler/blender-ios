@@ -169,7 +169,7 @@ static wmOperatorStatus voxel_remesh_exec(bContext &C, wmOperator &op)
   }
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -362,7 +362,7 @@ static void voxel_size_edit_cancel(bContext &C, wmOperator &op)
 static void voxel_size_edit_update_header(wmOperator *op, bContext *C)
 {
   VoxelSizeEditCustomData *cd = static_cast<VoxelSizeEditCustomData *>(op->customdata);
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN, ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
   status.item(IFACE_("Change Size"), ICON_MOUSE_MOVE);
@@ -395,7 +395,7 @@ static wmOperatorStatus voxel_size_edit_modal(bContext &C, wmOperator &op, const
     MEM_freeN(cd);
     ED_region_tag_redraw(region);
     ED_workspace_status_text(&C, nullptr);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, nullptr);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -597,7 +597,7 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext &C, wmOperator &op, cons
   scale_m4_fl(scale_mat, pixelsize * 0.5f);
   mul_m4_m4_post(cd->text_mat, scale_mat);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   ED_region_tag_redraw(region);
 

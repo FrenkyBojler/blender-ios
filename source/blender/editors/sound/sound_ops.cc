@@ -107,7 +107,7 @@ static wmOperatorStatus sound_open_exec(bContext &C, wmOperator &op)
 
     PointerRNA idptr = RNA_id_pointer_create(&sound->id);
     RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
-    RNA_property_update(&C, &pprop->ptr, pprop->prop);
+    RNA_property_update(C, &pprop->ptr, pprop->prop);
   }
 
   DEG_relations_tag_update(bmain);
@@ -894,7 +894,7 @@ static wmOperatorStatus sound_unpack_invoke(bContext &C, wmOperator &op, const w
   }
 
   unpack_menu(
-      &C, "SOUND_OT_unpack", sound->id.name + 2, sound->filepath, "sounds", sound->packedfile);
+      C, "SOUND_OT_unpack", sound->id.name + 2, sound->filepath, "sounds", sound->packedfile);
 
   return OPERATOR_FINISHED;
 }

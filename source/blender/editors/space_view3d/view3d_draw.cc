@@ -1173,12 +1173,12 @@ static void draw_ndof_guide_orbit_center(const RegionView3D *rv3d)
 /**
  * Render and camera border
  */
-static void view3d_draw_border(const bContext *C, ARegion *region)
+static void view3d_draw_border(const bContext &C, ARegion *region)
 {
-  Scene *scene = CTX_data_scene(*C);
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(*C);
+  Scene *scene = CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-  View3D *v3d = CTX_wm_view3d(*C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   if (rv3d->persp == RV3D_CAMOB) {
     drawviewborder(scene, depsgraph, region, v3d);
@@ -1606,15 +1606,15 @@ static void draw_performance_stats(Depsgraph *depsgraph,
   draw_time_stat(labels[TOTAL], total_time);
 }
 
-void view3d_draw_region_info(const bContext *C, ARegion *region)
+void view3d_draw_region_info(const bContext &C, ARegion *region)
 {
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-  View3D *v3d = CTX_wm_view3d(*C);
-  Scene *scene = CTX_data_scene(*C);
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  Main *bmain = CTX_data_main(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  View3D *v3d = CTX_wm_view3d(C);
+  Scene *scene = CTX_data_scene(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  Main *bmain = CTX_data_main(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
 #ifdef WITH_INPUT_NDOF
   if (U.ndof_flag & NDOF_SHOW_GUIDE_ORBIT_AXIS) {
@@ -1650,7 +1650,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
   const rcti *rect = ED_region_visible_rect(region);
 
   view3d_draw_border(C, region);
-  view3d_draw_grease_pencil(C);
+  view3d_draw_grease_pencil(&C);
 
   BLF_batch_draw_begin();
 
@@ -1744,14 +1744,14 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
 /** \name Draw Viewport Contents
  * \{ */
 
-static void view3d_draw_view(const bContext *C, ARegion *region)
+static void view3d_draw_view(const bContext &C, ARegion *region)
 {
-  ED_view3d_draw_setup_view(CTX_wm_manager(*C),
-                            CTX_wm_window(*C),
-                            CTX_data_expect_evaluated_depsgraph(*C),
-                            CTX_data_scene(*C),
+  ED_view3d_draw_setup_view(CTX_wm_manager(C),
+                            CTX_wm_window(C),
+                            CTX_data_expect_evaluated_depsgraph(C),
+                            CTX_data_scene(C),
                             region,
-                            CTX_wm_view3d(*C),
+                            CTX_wm_view3d(C),
                             nullptr,
                             nullptr,
                             nullptr);
@@ -1774,10 +1774,10 @@ RenderEngineType *ED_view3d_engine_type(const Scene *scene, int drawtype)
   return type;
 }
 
-static void view3d_update_viewer_path(const bContext *C)
+static void view3d_update_viewer_path(const bContext &C)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  WorkSpace *workspace = CTX_wm_workspace(*C);
+  View3D *v3d = CTX_wm_view3d(C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
   /* Always use viewer path from workspace, pinning is not supported currently. */
   if (!BKE_viewer_path_equal(&v3d->viewer_path, &workspace->viewer_path)) {
     BKE_viewer_path_clear(&v3d->viewer_path);
@@ -1791,8 +1791,8 @@ void view3d_main_region_draw(const bContext *C, ARegion *region)
   Main *bmain = CTX_data_main(*C);
   View3D *v3d = CTX_wm_view3d(*C);
 
-  view3d_update_viewer_path(C);
-  view3d_draw_view(C, region);
+  view3d_update_viewer_path(*C);
+  view3d_draw_view(*C, region);
 
   DRW_cache_free_old_subdiv();
   DRW_cache_free_old_batches(bmain);

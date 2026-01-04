@@ -109,7 +109,7 @@ static wmOperatorStatus outliner_highlight_update_invoke(bContext &C,
                                                          const wmEvent *event)
 {
   /* stop highlighting if out of area */
-  if (!ED_screen_area_active(&C)) {
+  if (!ED_screen_area_active(C)) {
     return OPERATOR_PASS_THROUGH;
   }
 
@@ -291,7 +291,7 @@ static wmOperatorStatus outliner_item_openclose_invoke(bContext &C,
     /* Store the first clicked on element */
     op.customdata = toggle_data;
 
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
     return OPERATOR_RUNNING_MODAL;
   }
 
@@ -522,13 +522,13 @@ struct SceneReplaceData {
   }
 };
 
-static bool id_delete_tag(bContext *C,
+static bool id_delete_tag(bContext &C,
                           ReportList *reports,
                           TreeElement *te,
                           TreeStoreElem *tselem,
                           SceneReplaceData &scene_replace_data)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   ID *id = tselem->id;
 
   BLI_assert(id != nullptr);
@@ -555,7 +555,7 @@ static bool id_delete_tag(bContext *C,
 
   if (te->idcode == ID_LI) {
     /* Get the scene currently expected to become the active scene. */
-    scene_curr = scene_replace_data.active_scene_get(C);
+    scene_curr = scene_replace_data.active_scene_get(&C);
     Library *lib = blender::id_cast<Library *>(id);
     if (lib->runtime->parent != nullptr) {
       BKE_reportf(reports, RPT_WARNING, "Cannot delete indirectly linked library '%s'", id->name);
@@ -610,7 +610,7 @@ static bool id_delete_tag(bContext *C,
   }
   else if (te->idcode == ID_SCE) {
     /* Get the scene currently expected to become the active scene. */
-    scene_curr = scene_replace_data.active_scene_get(C);
+    scene_curr = scene_replace_data.active_scene_get(&C);
     if (&scene_curr->id == id) {
       scene_new = BKE_scene_find_replacement(*bmain, *scene_curr, [](const Scene &scene) -> bool {
         return (
@@ -638,7 +638,7 @@ static bool id_delete_tag(bContext *C,
       scene_replace_data.scene_to_delete = scene_curr;
     }
     else {
-      BLI_assert(scene_replace_data.scene_to_delete == CTX_data_scene(*C));
+      BLI_assert(scene_replace_data.scene_to_delete == CTX_data_scene(C));
     }
     scene_replace_data.scene_to_activate = scene_new;
   }
@@ -656,7 +656,7 @@ void id_delete_tag_fn(bContext *C,
                       TreeStoreElem *tselem)
 {
   SceneReplaceData scene_replace_data;
-  id_delete_tag(C, reports, te, tselem, scene_replace_data);
+  id_delete_tag(*C, reports, te, tselem, scene_replace_data);
 
   BLI_assert(scene_replace_data.is_valid());
   if (scene_replace_data.can_replace()) {
@@ -679,7 +679,7 @@ static int outliner_id_delete_tag(bContext *C,
     TreeStoreElem *tselem = TREESTORE(te);
 
     if (te->idcode != 0 && tselem->id) {
-      if (id_delete_tag(C, reports, te, tselem, scene_replace_data)) {
+      if (id_delete_tag(*C, reports, te, tselem, scene_replace_data)) {
         id_tagged_num++;
       }
     }
@@ -801,7 +801,7 @@ static wmOperatorStatus outliner_id_remap_exec(bContext &C, wmOperator &op)
    * such as lights so freeing correctly refreshes. */
   GPU_materials_free(bmain);
 
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1034,13 +1034,13 @@ static wmOperatorStatus outliner_id_paste_exec(bContext &C, wmOperator &op)
 
   outliner_copybuffer_filepath_get(filepath, sizeof(filepath));
 
-  const int num_pasted = BKE_copybuffer_paste(&C, filepath, flag, op.reports, 0);
+  const int num_pasted = BKE_copybuffer_paste(C, filepath, flag, op.reports, 0);
   if (num_pasted == 0) {
     BKE_report(op.reports, RPT_INFO, "No data to paste");
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   BKE_reportf(op.reports, RPT_INFO, "%d data-block(s) pasted", num_pasted);
 
@@ -1453,7 +1453,7 @@ static wmOperatorStatus outliner_select_all_exec(bContext &C, wmOperator &op)
   ED_outliner_select_sync_from_outliner(&C, space_outliner);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
   ED_region_tag_redraw_no_rebuild(region);
 
   return OPERATOR_FINISHED;
@@ -2147,7 +2147,7 @@ static wmOperatorStatus outliner_drivers_addsel_exec(bContext &C, wmOperator &op
   do_outliner_drivers_editop(space_outliner, op.reports, DRIVERS_EDITMODE_ADD);
 
   /* send notifiers */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
+  WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
 
   return OPERATOR_FINISHED;
 }
@@ -2186,7 +2186,7 @@ static wmOperatorStatus outliner_drivers_deletesel_exec(bContext &C, wmOperator 
   do_outliner_drivers_editop(space_outliner, op.reports, DRIVERS_EDITMODE_REMOVE);
 
   /* send notifiers */
-  WM_event_add_notifier(&C, ND_KEYS, nullptr); /* XXX */
+  WM_event_add_notifier(C, ND_KEYS, nullptr); /* XXX */
 
   return OPERATOR_FINISHED;
 }
@@ -2337,7 +2337,7 @@ static wmOperatorStatus outliner_keyingset_additems_exec(bContext &C, wmOperator
   do_outliner_keyingset_editop(space_outliner, ks, KEYINGSET_EDITMODE_ADD);
 
   /* send notifiers */
-  WM_event_add_notifier(&C, NC_SCENE | ND_KEYINGSET, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2378,7 +2378,7 @@ static wmOperatorStatus outliner_keyingset_removeitems_exec(bContext &C, wmOpera
   do_outliner_keyingset_editop(space_outliner, ks, KEYINGSET_EDITMODE_REMOVE);
 
   /* send notifiers */
-  WM_event_add_notifier(&C, NC_SCENE | ND_KEYINGSET, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_KEYINGSET, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2442,11 +2442,11 @@ static void unused_message_gen(std::string &message,
   }
 }
 
-static int unused_message_popup_width_compute(bContext *C)
+static int unused_message_popup_width_compute(bContext &C)
 {
   /* Computation of unused data amounts, with all options ON.
    * Used to estimate the maximum required width for the dialog. */
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   LibQueryUnusedIDsData data;
   data.do_local_ids = true;
   data.do_linked_ids = true;
@@ -2509,7 +2509,7 @@ static wmOperatorStatus outliner_orphans_purge_invoke(bContext &C,
 
   return WM_operator_props_dialog_popup(&C,
                                         &op,
-                                        unused_message_popup_width_compute(&C),
+                                        unused_message_popup_width_compute(C),
                                         IFACE_("Purge Unused Data from This File"),
                                         IFACE_("Delete"));
 }
@@ -2598,7 +2598,7 @@ static wmOperatorStatus outliner_orphans_purge_exec(bContext &C, wmOperator &op)
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_ID | NA_REMOVED, nullptr);
+  WM_event_add_notifier(C, NC_ID | NA_REMOVED, nullptr);
   /* Force full redraw of the UI. */
   WM_main_add_notifier(NC_WINDOW, nullptr);
 
@@ -2698,7 +2698,7 @@ static wmOperatorStatus outliner_orphans_manage_invoke(bContext &C,
                                                        wmOperator & /*op*/,
                                                        const wmEvent * /*event*/)
 {
-  if (WM_window_open_temp(&C, IFACE_("Manage Unused Data"), SPACE_OUTLINER, false)) {
+  if (WM_window_open_temp(C, IFACE_("Manage Unused Data"), SPACE_OUTLINER, false)) {
     SpaceOutliner *soutline = CTX_wm_space_outliner(C);
     soutline->outlinevis = SO_ID_ORPHANS;
     return OPERATOR_FINISHED;

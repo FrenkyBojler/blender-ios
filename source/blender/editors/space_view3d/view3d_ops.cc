@@ -140,15 +140,15 @@ static wmOperatorStatus view3d_pastebuffer_exec(bContext &C, wmOperator &op)
 
   view3d_copybuffer_filepath_get(filepath, sizeof(filepath));
 
-  const int num_pasted = BKE_copybuffer_paste(&C, filepath, flag, op.reports, FILTER_ID_OB);
+  const int num_pasted = BKE_copybuffer_paste(C, filepath, flag, op.reports, FILTER_ID_OB);
   if (num_pasted == 0) {
     BKE_report(op.reports, RPT_INFO, "No objects to paste");
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, nullptr);
-  ED_outliner_select_sync_from_object_tag(&C);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, nullptr);
+  ED_outliner_select_sync_from_object_tag(C);
 
   BKE_reportf(op.reports, RPT_INFO, "%d object(s) pasted", num_pasted);
 

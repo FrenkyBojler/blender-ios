@@ -863,7 +863,7 @@ bool button_context_poll_operator(bContext *C, wmOperatorType *ot, const Button 
  * \param but: The button that might store context. Can be NULL for convenience (e.g. if there is
  *             no button to take context from, but we still want to poll the operator).
  */
-bool button_context_poll_operator_ex(bContext *C,
+bool button_context_poll_operator_ex(bContext &C,
                                      const Button *but,
                                      const wmOperatorCallParams *optype_params);
 
@@ -1043,7 +1043,7 @@ bool searchbox_event(
  * String validated to be of correct length (but->hardmax).
  */
 bool searchbox_apply(Button *but, ARegion *region);
-void searchbox_free(bContext *C, ARegion *region);
+void searchbox_free(bContext &C, ARegion *region);
 /**
  * XXX weak: search_func adds all partial matches.
  */
@@ -1059,9 +1059,9 @@ void popup_menu_memory_set(Block *block, Button *but);
 /**
  * Called for creating new popups and refreshing existing ones.
  */
-Block *popup_block_refresh(bContext *C, PopupBlockHandle *handle, ARegion *butregion, Button *but);
+Block *popup_block_refresh(bContext &C, PopupBlockHandle *handle, ARegion *butregion, Button *but);
 
-PopupBlockHandle *popup_block_create(bContext *C,
+PopupBlockHandle *popup_block_create(bContext &C,
                                      ARegion *butregion,
                                      Button *but,
                                      BlockCreateFunc create_func,
@@ -1076,7 +1076,7 @@ PopupBlockHandle *popup_menu_create(
 
 using PopoverCreateFunc = std::function<void(bContext *, Layout *, PanelType *)>;
 
-PopupBlockHandle *popover_panel_create(bContext *C,
+PopupBlockHandle *popover_panel_create(bContext &C,
                                        ARegion *butregion,
                                        Button *but,
                                        PopoverCreateFunc popover_func,
@@ -1132,7 +1132,7 @@ void draw_layout_panels_backdrop(const ARegion *region,
                                  const Panel *panel,
                                  const float radius,
                                  float subpanel_backcolor[4]);
-void panel_drag_collapse_handler_add(const bContext *C, const bool was_open);
+void panel_drag_collapse_handler_add(const bContext &C, const bool was_open);
 void panel_tag_search_filter_match(Panel *panel);
 /** Toggles layout panel open state and returns the new state. */
 bool ui_layout_panel_toggle_open(const bContext *C, LayoutPanelHeader *header);
@@ -1220,7 +1220,7 @@ void pan_to_scroll(const wmEvent *event, int *type, int *val);
  * \note The region is only for the button.
  * The context needs to be set by the caller.
  */
-void button_activate_event(bContext *C, ARegion *region, Button *but);
+void button_activate_event(bContext &C, ARegion *region, Button *but);
 /**
  * Simulate moving the mouse over a button (or navigating to it with arrow keys).
  *
@@ -1587,7 +1587,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
 /**
  * menu to show when right clicking on the panel header
  */
-void popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel);
+void popup_context_menu_for_panel(bContext &C, ARegion *region, Panel *panel);
 
 /* `eyedroppers/interface_eyedropper.cc` */
 

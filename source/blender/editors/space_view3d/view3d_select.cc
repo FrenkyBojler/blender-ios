@@ -111,21 +111,21 @@ float ED_view3d_select_dist_px()
   return 75.0f * U.pixelsize;
 }
 
-ViewContext ED_view3d_viewcontext_init(bContext *C, Depsgraph *depsgraph)
+ViewContext ED_view3d_viewcontext_init(bContext &C, Depsgraph *depsgraph)
 {
   /* TODO: should return whether there is valid context to continue. */
   ViewContext vc = {};
-  vc.C = C;
-  vc.region = CTX_wm_region(*C);
-  vc.bmain = CTX_data_main(*C);
+  vc.C = &C;
+  vc.region = CTX_wm_region(C);
+  vc.bmain = CTX_data_main(C);
   vc.depsgraph = depsgraph;
-  vc.scene = CTX_data_scene(*C);
-  vc.view_layer = CTX_data_view_layer(*C);
-  vc.v3d = CTX_wm_view3d(*C);
-  vc.win = CTX_wm_window(*C);
-  vc.rv3d = CTX_wm_region_view3d(*C);
-  vc.obact = CTX_data_active_object(*C);
-  vc.obedit = CTX_data_edit_object(*C);
+  vc.scene = CTX_data_scene(C);
+  vc.view_layer = CTX_data_view_layer(C);
+  vc.v3d = CTX_wm_view3d(C);
+  vc.win = CTX_wm_window(C);
+  vc.rv3d = CTX_wm_region_view3d(C);
+  vc.obact = CTX_data_active_object(C);
+  vc.obedit = CTX_data_edit_object(C);
   return vc;
 }
 
@@ -1368,13 +1368,13 @@ static bool do_lasso_select_paintface(const ViewContext *vc,
   return changed;
 }
 
-static bool view3d_lasso_select(bContext *C,
+static bool view3d_lasso_select(bContext &C,
                                 ViewContext *vc,
                                 const Span<int2> mcoords,
                                 const eSelectOp sel_op)
 {
   using namespace blender;
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   bool changed_multi = false;
 
   wmGenericUserData wm_userdata_buf = {nullptr, nullptr, false};
@@ -1518,14 +1518,14 @@ static wmOperatorStatus view3d_lasso_select_exec(bContext &C, wmOperator &op)
   }
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  view3d_operator_needs_gpu(&C);
+  view3d_operator_needs_gpu(C);
   BKE_object_update_select_id(CTX_data_main(C));
 
   /* setup view context for argument to callbacks */
-  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   eSelectOp sel_op = static_cast<eSelectOp>(RNA_enum_get(op.ptr, "mode"));
-  bool changed_multi = view3d_lasso_select(&C, &vc, mcoords, sel_op);
+  bool changed_multi = view3d_lasso_select(C, &vc, mcoords, sel_op);
 
   if (changed_multi) {
     return OPERATOR_FINISHED;
@@ -1658,7 +1658,7 @@ static wmOperatorStatus object_select_menu_exec(bContext &C, wmOperator &op)
   }
 
   if (oldbasact != basact) {
-    blender::ed::object::base_activate(&C, basact);
+    blender::ed::object::base_activate(C, basact);
   }
 
   /* weak but ensures we activate menu again before using the enum */
@@ -1668,9 +1668,9 @@ static wmOperatorStatus object_select_menu_exec(bContext &C, wmOperator &op)
   if (changed) {
     Scene *scene = CTX_data_scene(C);
     DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 
-    ED_outliner_select_sync_from_object_tag(&C);
+    ED_outliner_select_sync_from_object_tag(C);
 
     return OPERATOR_FINISHED;
   }
@@ -1722,7 +1722,7 @@ void VIEW3D_OT_select_menu(wmOperatorType *ot)
 /**
  * \return True when a menu was activated.
  */
-static bool object_mouse_select_menu(bContext *C,
+static bool object_mouse_select_menu(bContext &C,
                                      const ViewContext *vc,
                                      const blender::Span<GPUSelectResult> hit_results,
                                      const int mval[2],
@@ -1744,7 +1744,7 @@ static bool object_mouse_select_menu(bContext *C,
   ListBaseT<BaseRefWithDepth> base_ref_list = {nullptr, nullptr};
 
   /* handle base->object->select_id */
-  CTX_DATA_BEGIN (*C, Base *, base, selectable_bases) {
+  CTX_DATA_BEGIN (C, Base *, base, selectable_bases) {
     bool ok = false;
     uint depth_id;
 
@@ -1823,7 +1823,7 @@ static bool object_mouse_select_menu(bContext *C,
   RNA_boolean_set(&ptr, "extend", params.sel_op == SEL_OP_ADD);
   RNA_boolean_set(&ptr, "deselect", params.sel_op == SEL_OP_SUB);
   RNA_boolean_set(&ptr, "toggle", params.sel_op == SEL_OP_XOR);
-  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
+  WM_operator_name_call_ptr(&C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
   BLI_freelistN(&base_ref_list);
@@ -1853,7 +1853,7 @@ static wmOperatorStatus bone_select_menu_exec(bContext &C, wmOperator &op)
 
   if (basact->object->mode & OB_MODE_EDIT) {
     EditBone *ebone = (EditBone *)object_mouse_select_menu_data[name_index].item_ptr;
-    ED_armature_edit_select_pick_bone(&C, basact, ebone, BONE_SELECTED, params);
+    ED_armature_edit_select_pick_bone(C, basact, ebone, BONE_SELECTED, params);
   }
   else {
     bPoseChannel *pchan = (bPoseChannel *)object_mouse_select_menu_data[name_index].item_ptr;
@@ -1867,8 +1867,8 @@ static wmOperatorStatus bone_select_menu_exec(bContext &C, wmOperator &op)
    * Not-selected active object in pose-mode won't work well for tools. */
   blender::ed::object::base_select(basact, blender::ed::object::BA_SELECT);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, basact->object);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_ACTIVE, basact->object);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, basact->object);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, basact->object);
 
   /* In weight-paint, we use selected bone to select vertex-group,
    * so don't switch to new active object. */
@@ -1885,7 +1885,7 @@ static wmOperatorStatus bone_select_menu_exec(bContext &C, wmOperator &op)
     }
     else {
       if (oldbasact != basact) {
-        blender::ed::object::base_activate(&C, basact);
+        blender::ed::object::base_activate(C, basact);
       }
     }
   }
@@ -1893,9 +1893,9 @@ static wmOperatorStatus bone_select_menu_exec(bContext &C, wmOperator &op)
   /* Undo? */
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 
-  ED_outliner_select_sync_from_object_tag(&C);
+  ED_outliner_select_sync_from_object_tag(C);
 
   return OPERATOR_FINISHED;
 }
@@ -2449,17 +2449,17 @@ static Base *mouse_select_object_center(const ViewContext *vc, Base *startbase, 
   return basact;
 }
 
-static Base *ed_view3d_give_base_under_cursor_ex(bContext *C,
+static Base *ed_view3d_give_base_under_cursor_ex(bContext &C,
                                                  const int mval[2],
                                                  int *r_material_slot)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Base *basact = nullptr;
   GPUSelectBuffer buffer;
 
   /* setup view context for argument to callbacks */
   view3d_operator_needs_gpu(C);
-  BKE_object_update_select_id(CTX_data_main(*C));
+  BKE_object_update_select_id(CTX_data_main(C));
 
   const ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
@@ -2480,7 +2480,7 @@ static Base *ed_view3d_give_base_under_cursor_ex(bContext *C,
 
 Base *ED_view3d_give_base_under_cursor(bContext *C, const int mval[2])
 {
-  return ed_view3d_give_base_under_cursor_ex(C, mval, nullptr);
+  return ed_view3d_give_base_under_cursor_ex(*C, mval, nullptr);
 }
 
 Object *ED_view3d_give_object_under_cursor(bContext *C, const int mval[2])
@@ -2496,7 +2496,7 @@ Object *ED_view3d_give_material_slot_under_cursor(bContext *C,
                                                   const int mval[2],
                                                   int *r_material_slot)
 {
-  Base *base = ed_view3d_give_base_under_cursor_ex(C, mval, r_material_slot);
+  Base *base = ed_view3d_give_base_under_cursor_ex(*C, mval, r_material_slot);
   if (base) {
     return base->object;
   }
@@ -2596,8 +2596,8 @@ static bool ed_object_select_pick_camera_track(bContext *C,
 
     DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
     DEG_id_tag_update(&clip->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_MOVIECLIP | ND_SELECT, track);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+    WM_event_add_notifier(*C, NC_MOVIECLIP | ND_SELECT, track);
+    WM_event_add_notifier(*C, NC_SCENE | ND_OB_SELECT, scene);
 
     changed = true;
   }
@@ -2617,14 +2617,14 @@ static bool ed_object_select_pick_camera_track(bContext *C,
  * Otherwise fall-through to non-menu selection.
  * \param object_only: Only select objects (not bones / track markers).
  */
-static bool ed_object_select_pick(bContext *C,
+static bool ed_object_select_pick(bContext &C,
                                   const int mval[2],
                                   const SelectPick_Params &params,
                                   const bool center,
                                   const bool enumerate,
                                   const bool object_only)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   /* Setup view context for argument to callbacks. */
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
@@ -2684,7 +2684,7 @@ static bool ed_object_select_pick(bContext *C,
       if (gpu->hits != 0) {
         const blender::Span<GPUSelectResult> hit_results = gpu->buffer.storage.as_span().slice(
             0, gpu->hits);
-        if (gpu->has_bones && bone_mouse_select_menu(C, hit_results, false, params)) {
+        if (gpu->has_bones && bone_mouse_select_menu(&C, hit_results, false, params)) {
           has_menu = true;
         }
         else if (object_mouse_select_menu(C, &vc, hit_results, mval, params, &basact_override)) {
@@ -2790,7 +2790,7 @@ static bool ed_object_select_pick(bContext *C,
         MovieClip *clip = BKE_object_movieclip_get(scene, basact->object, false);
         if (clip != nullptr) {
           if (ed_object_select_pick_camera_track(
-                  C, scene, basact, clip, gpu->buffer, gpu->hits, params))
+                  &C, scene, basact, clip, gpu->buffer, gpu->hits, params))
           {
             blender::ed::object::base_select(basact, blender::ed::object::BA_SELECT);
             /* Don't set `handled` here as the object activation may be necessary. */
@@ -3034,20 +3034,21 @@ static bool ed_object_select_pick(bContext *C,
  *
  * \return True when pick finds an element or the selection changed.
  */
-static bool ed_wpaint_vertex_select_pick(bContext *C,
+static bool ed_wpaint_vertex_select_pick(bContext &C,
                                          const int mval[2],
                                          const SelectPick_Params &params,
                                          Object *obact)
 {
   using namespace blender;
-  View3D *v3d = CTX_wm_view3d(*C);
+  View3D *v3d = CTX_wm_view3d(C);
   const bool use_zbuf = !XRAY_ENABLED(v3d);
 
   Mesh *mesh = static_cast<Mesh *>(obact->data); /* already checked for nullptr */
   uint index = 0;
   bool changed = false;
 
-  bool found = ED_mesh_pick_vert(C, obact, mval, ED_MESH_PICK_DEFAULT_VERT_DIST, use_zbuf, &index);
+  bool found = ED_mesh_pick_vert(
+      &C, obact, mval, ED_MESH_PICK_DEFAULT_VERT_DIST, use_zbuf, &index);
 
   bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
   bke::AttributeWriter<bool> select_vert = attributes.lookup_or_add_for_write<bool>(
@@ -3059,7 +3060,7 @@ static bool ed_wpaint_vertex_select_pick(bContext *C,
     }
     else if (found || params.deselect_all) {
       /* Deselect everything. */
-      changed |= paintface_deselect_all_visible(C, obact, SEL_DESELECT, false);
+      changed |= paintface_deselect_all_visible(&C, obact, SEL_DESELECT, false);
     }
   }
 
@@ -3107,7 +3108,7 @@ static bool ed_wpaint_vertex_select_pick(bContext *C,
   }
 
   if (changed) {
-    paintvert_tag_select_update(C, obact);
+    paintvert_tag_select_update(&C, obact);
   }
 
   return changed || found;
@@ -3129,7 +3130,7 @@ static bool pointcloud_select_pick(bContext &C, const int2 mval, const SelectPic
   using namespace blender::ed;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   /* Setup view context for argument to callbacks. */
-  const ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  const ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   const Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
       vc.scene, vc.view_layer, vc.v3d);
@@ -3188,7 +3189,7 @@ static bool pointcloud_select_pick(bContext &C, const int2 mval, const SelectPic
         /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
          * generic attribute for now. */
         DEG_id_tag_update(&pointcloud.id, ID_RECALC_GEOMETRY);
-        WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &pointcloud);
+        WM_event_add_notifier(C, NC_GEOM | ND_DATA, &pointcloud);
       }
     }
   }
@@ -3205,7 +3206,7 @@ static bool pointcloud_select_pick(bContext &C, const int2 mval, const SelectPic
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
    * generic attribute for now. */
   DEG_id_tag_update(&closest.pointcloud->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, closest.pointcloud);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, closest.pointcloud);
 
   return true;
 }
@@ -3226,7 +3227,7 @@ static bool ed_curves_select_pick(bContext &C, const int mval[2], const SelectPi
   using namespace blender;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   /* Setup view context for argument to callbacks. */
-  const ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  const ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   const Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
       vc.scene, vc.view_layer, vc.v3d);
@@ -3315,7 +3316,7 @@ static bool ed_curves_select_pick(bContext &C, const int mval[2], const SelectPi
         /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
          * generic attribute for now. */
         DEG_id_tag_update(&curves_id.id, ID_RECALC_GEOMETRY);
-        WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &curves_id);
+        WM_event_add_notifier(C, NC_GEOM | ND_DATA, &curves_id);
       }
     }
   }
@@ -3347,7 +3348,7 @@ static bool ed_curves_select_pick(bContext &C, const int mval[2], const SelectPi
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
    * generic attribute for now. */
   DEG_id_tag_update(&closest.curves_id->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, closest.curves_id);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, closest.curves_id);
 
   return true;
 }
@@ -3364,12 +3365,12 @@ struct ClosestGreasePencilDrawing {
  *
  * \returns true if the selection changed.
  */
-static bool ed_grease_pencil_select_pick(bContext *C,
+static bool ed_grease_pencil_select_pick(bContext &C,
                                          const int mval[2],
                                          const SelectPick_Params &params)
 {
   using namespace blender;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   /* Setup view context for argument to callbacks. */
   const ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Object *object = (vc.obedit ? vc.obedit : vc.obact);
@@ -3531,7 +3532,7 @@ static wmOperatorStatus view3d_select_exec(bContext &C, wmOperator &op)
   Object *obact = CTX_data_active_object(C);
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  const ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  const ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   const SelectPick_Params params = ED_select_pick_params_from_operator(op.ptr);
 
@@ -3572,7 +3573,7 @@ static wmOperatorStatus view3d_select_exec(bContext &C, wmOperator &op)
 
   RNA_int_get_array(op.ptr, "location", mval);
 
-  view3d_operator_needs_gpu(&C);
+  view3d_operator_needs_gpu(C);
   BKE_object_update_select_id(CTX_data_main(C));
 
   if (obedit && object_only == false) {
@@ -3588,20 +3589,20 @@ static wmOperatorStatus view3d_select_exec(bContext &C, wmOperator &op)
             &C, buffer.storage.as_span().take_front(hits), true, params);
       }
       if (!changed) {
-        changed = ED_armature_edit_select_pick(&C, mval, params);
+        changed = ED_armature_edit_select_pick(C, mval, params);
       }
     }
     else if (obedit->type == OB_LATTICE) {
-      changed = ED_lattice_select_pick(&C, mval, params);
+      changed = ED_lattice_select_pick(C, mval, params);
     }
     else if (ELEM(obedit->type, OB_CURVES_LEGACY, OB_SURF)) {
-      changed = ED_curve_editnurb_select_pick(&C, mval, ED_view3d_select_dist_px(), params);
+      changed = ED_curve_editnurb_select_pick(C, mval, ED_view3d_select_dist_px(), params);
     }
     else if (obedit->type == OB_MBALL) {
       changed = ED_mball_select_pick(&C, mval, params);
     }
     else if (obedit->type == OB_FONT) {
-      changed = ED_curve_editfont_select_pick(&C, mval, params);
+      changed = ED_curve_editfont_select_pick(C, mval, params);
     }
     else if (obedit->type == OB_POINTCLOUD) {
       changed = pointcloud_select_pick(C, mval, params);
@@ -3610,23 +3611,23 @@ static wmOperatorStatus view3d_select_exec(bContext &C, wmOperator &op)
       changed = ed_curves_select_pick(C, mval, params);
     }
     else if (obedit->type == OB_GREASE_PENCIL) {
-      changed = ed_grease_pencil_select_pick(&C, mval, params);
+      changed = ed_grease_pencil_select_pick(C, mval, params);
     }
   }
   else if (obact && obact->mode & OB_MODE_PARTICLE_EDIT) {
-    changed = PE_mouse_particles(&C, mval, params);
+    changed = PE_mouse_particles(C, mval, params);
   }
   else if (obact && BKE_paint_select_face_test(obact)) {
     changed = paintface_mouse_select(&C, mval, params, obact);
   }
   else if (BKE_paint_select_vert_test(obact)) {
-    changed = ed_wpaint_vertex_select_pick(&C, mval, params, obact);
+    changed = ed_wpaint_vertex_select_pick(C, mval, params, obact);
   }
   else if (BKE_paint_select_grease_pencil_test(obact)) {
-    changed = ed_grease_pencil_select_pick(&C, mval, params);
+    changed = ed_grease_pencil_select_pick(C, mval, params);
   }
   else {
-    changed = ed_object_select_pick(&C, mval, params, center, enumerate, object_only);
+    changed = ed_object_select_pick(C, mval, params, center, enumerate, object_only);
   }
 
   /* Pass-through flag may be cleared, see #WM_operator_flag_only_pass_through_on_press. */
@@ -3634,7 +3635,7 @@ static wmOperatorStatus view3d_select_exec(bContext &C, wmOperator &op)
   /* Pass-through allows tweaks
    * FINISHED to signal one operator worked */
   if (changed) {
-    WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
     return OPERATOR_PASS_THROUGH | OPERATOR_FINISHED;
   }
   /* Nothing selected, just passthrough. */
@@ -4313,7 +4314,7 @@ static int gpu_bone_select_buffer_cmp(const void *sel_a_p, const void *sel_b_p)
 static void object_select_tag_updates(bContext &C, Scene &scene)
 {
   DEG_id_tag_update(&scene.id, ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, &scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, &scene);
 }
 
 static bool do_object_box_select(bContext *C,
@@ -4459,7 +4460,7 @@ static bool do_pose_box_select(bContext *C,
   const bool changed_multi = do_pose_tag_select_op_exec(bases, sel_op);
   if (changed_multi) {
     DEG_id_tag_update(&vc->scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, vc->scene);
+    WM_event_add_notifier(*C, NC_SCENE | ND_OB_SELECT, vc->scene);
   }
 
   return changed_multi;
@@ -4523,11 +4524,11 @@ static wmOperatorStatus view3d_box_select_exec(bContext &C, wmOperator &op)
   wmGenericUserData wm_userdata_buf = {nullptr, nullptr, false};
   wmGenericUserData *wm_userdata = &wm_userdata_buf;
 
-  view3d_operator_needs_gpu(&C);
+  view3d_operator_needs_gpu(C);
   BKE_object_update_select_id(CTX_data_main(C));
 
   /* setup view context for argument to callbacks */
-  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   eSelectOp sel_op = static_cast<eSelectOp>(RNA_enum_get(op.ptr, "mode"));
   WM_operator_properties_border_to_rcti(&op, &rect);
@@ -4545,7 +4546,7 @@ static wmOperatorStatus view3d_box_select_exec(bContext &C, wmOperator &op)
           changed = do_mesh_box_select(&vc, wm_userdata, &rect, sel_op);
           if (changed) {
             DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_SELECT);
-            WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, vc.obedit->data);
+            WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc.obedit->data);
           }
           break;
         case OB_CURVES_LEGACY:
@@ -4553,29 +4554,29 @@ static wmOperatorStatus view3d_box_select_exec(bContext &C, wmOperator &op)
           changed = do_nurbs_box_select(&vc, &rect, sel_op);
           if (changed) {
             DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_SELECT);
-            WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, vc.obedit->data);
+            WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc.obedit->data);
           }
           break;
         case OB_MBALL:
           changed = do_meta_box_select(&vc, &rect, sel_op);
           if (changed) {
             DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_SELECT);
-            WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, vc.obedit->data);
+            WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc.obedit->data);
           }
           break;
         case OB_ARMATURE:
           changed = do_armature_box_select(&vc, &rect, sel_op);
           if (changed) {
             DEG_id_tag_update(&vc.obedit->id, ID_RECALC_SELECT);
-            WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, vc.obedit);
-            ED_outliner_select_sync_from_edit_bone_tag(&C);
+            WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, vc.obedit);
+            ED_outliner_select_sync_from_edit_bone_tag(C);
           }
           break;
         case OB_LATTICE:
           changed = do_lattice_box_select(&vc, &rect, sel_op);
           if (changed) {
             DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_SELECT);
-            WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, vc.obedit->data);
+            WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc.obedit->data);
           }
           break;
         case OB_CURVES: {
@@ -4599,7 +4600,7 @@ static wmOperatorStatus view3d_box_select_exec(bContext &C, wmOperator &op)
             /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
              * generic attribute for now. */
             DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_GEOMETRY);
-            WM_event_add_notifier(&C, NC_GEOM | ND_DATA, vc.obedit->data);
+            WM_event_add_notifier(C, NC_GEOM | ND_DATA, vc.obedit->data);
           }
           break;
         }
@@ -4611,7 +4612,7 @@ static wmOperatorStatus view3d_box_select_exec(bContext &C, wmOperator &op)
             /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
              * generic attribute for now. */
             DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_GEOMETRY);
-            WM_event_add_notifier(&C, NC_GEOM | ND_DATA, vc.obedit->data);
+            WM_event_add_notifier(C, NC_GEOM | ND_DATA, vc.obedit->data);
           }
           break;
         }
@@ -4638,7 +4639,7 @@ static wmOperatorStatus view3d_box_select_exec(bContext &C, wmOperator &op)
       changed_multi = do_grease_pencil_box_select(&vc, &rect, sel_op);
     }
     else if (vc.obact && vc.obact->mode & OB_MODE_PARTICLE_EDIT) {
-      changed_multi = PE_box_select(&C, &rect, sel_op);
+      changed_multi = PE_box_select(C, &rect, sel_op);
     }
     else if (vc.obact && ((vc.obact->mode & OB_MODE_POSE) ||
                           ((vc.obact->mode & OB_MODE_WEIGHT_PAINT) &&
@@ -4646,13 +4647,13 @@ static wmOperatorStatus view3d_box_select_exec(bContext &C, wmOperator &op)
     {
       changed_multi = do_pose_box_select(&C, &vc, &rect, sel_op);
       if (changed_multi) {
-        ED_outliner_select_sync_from_pose_bone_tag(&C);
+        ED_outliner_select_sync_from_pose_bone_tag(C);
       }
     }
     else { /* object mode with none active */
       changed_multi = do_object_box_select(&C, &vc, &rect, sel_op);
       if (changed_multi) {
-        ED_outliner_select_sync_from_object_tag(&C);
+        ED_outliner_select_sync_from_object_tag(C);
       }
     }
   }
@@ -5465,7 +5466,7 @@ static bool obedit_circle_select(bContext *C,
     case OB_ARMATURE:
       changed = armature_circle_select(vc, sel_op, mval, rad);
       if (changed) {
-        ED_outliner_select_sync_from_edit_bone_tag(C);
+        ED_outliner_select_sync_from_edit_bone_tag(*C);
       }
       break;
     case OB_MBALL:
@@ -5493,7 +5494,7 @@ static bool obedit_circle_select(bContext *C,
         /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
          * generic attribute for now. */
         DEG_id_tag_update(static_cast<ID *>(vc->obedit->data), ID_RECALC_GEOMETRY);
-        WM_event_add_notifier(C, NC_GEOM | ND_DATA, vc->obedit->data);
+        WM_event_add_notifier(*C, NC_GEOM | ND_DATA, vc->obedit->data);
       }
       break;
     }
@@ -5506,7 +5507,7 @@ static bool obedit_circle_select(bContext *C,
         /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
          * generic attribute for now. */
         DEG_id_tag_update(static_cast<ID *>(vc->obedit->data), ID_RECALC_GEOMETRY);
-        WM_event_add_notifier(C, NC_GEOM | ND_DATA, vc->obedit->data);
+        WM_event_add_notifier(*C, NC_GEOM | ND_DATA, vc->obedit->data);
       }
       break;
     }
@@ -5575,7 +5576,7 @@ static void view3d_circle_select_recalc(void *user_data)
   if (obedit_active) {
     switch (obedit_active->type) {
       case OB_MESH: {
-        ViewContext vc = em_setup_viewcontext(C);
+        ViewContext vc = em_setup_viewcontext(*C);
         FOREACH_OBJECT_IN_MODE_BEGIN (
             vc.scene, vc.view_layer, vc.v3d, vc.obact->type, vc.obact->mode, ob_iter)
         {
@@ -5626,13 +5627,13 @@ static wmOperatorStatus view3d_circle_select_exec(bContext &C, wmOperator &op)
   const eSelectOp sel_op = ED_select_op_modal(static_cast<eSelectOp>(RNA_enum_get(op.ptr, "mode")),
                                               WM_gesture_is_modal_first(gesture));
 
-  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   Object *obact = vc.obact;
   Object *obedit = vc.obedit;
 
   if (obedit || BKE_paint_select_elem_test(obact) || (obact && (obact->mode & OB_MODE_POSE))) {
-    view3d_operator_needs_gpu(&C);
+    view3d_operator_needs_gpu(C);
     if (obedit == nullptr) {
       BKE_object_update_select_id(CTX_data_main(C));
     }
@@ -5664,7 +5665,7 @@ static wmOperatorStatus view3d_circle_select_exec(bContext &C, wmOperator &op)
       }
       else if (obact->mode & OB_MODE_POSE) {
         pose_circle_select(&vc, sel_op, mval, float(radius));
-        ED_outliner_select_sync_from_pose_bone_tag(&C);
+        ED_outliner_select_sync_from_pose_bone_tag(C);
       }
       else {
         BLI_assert(0);
@@ -5673,7 +5674,7 @@ static wmOperatorStatus view3d_circle_select_exec(bContext &C, wmOperator &op)
     FOREACH_OBJECT_IN_MODE_END;
   }
   else if (obact && (obact->mode & OB_MODE_PARTICLE_EDIT)) {
-    if (PE_circle_select(&C, wm_userdata, sel_op, mval, float(radius))) {
+    if (PE_circle_select(C, wm_userdata, sel_op, mval, float(radius))) {
       return OPERATOR_FINISHED;
     }
     return OPERATOR_CANCELLED;
@@ -5687,14 +5688,14 @@ static wmOperatorStatus view3d_circle_select_exec(bContext &C, wmOperator &op)
   {
     ED_view3d_viewcontext_init_object(&vc, obact_pose);
     pose_circle_select(&vc, sel_op, mval, float(radius));
-    ED_outliner_select_sync_from_pose_bone_tag(&C);
+    ED_outliner_select_sync_from_pose_bone_tag(C);
   }
   else {
     if (object_circle_select(&vc, sel_op, mval, float(radius))) {
       DEG_id_tag_update(&vc.scene->id, ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, vc.scene);
+      WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, vc.scene);
 
-      ED_outliner_select_sync_from_object_tag(&C);
+      ED_outliner_select_sync_from_object_tag(C);
     }
   }
 

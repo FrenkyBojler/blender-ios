@@ -152,9 +152,9 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
     return "";
   }
 
-  bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override
+  bool on_drop(bContext &C, const ui::DragInfo &drag_info) const override
   {
-    Object *ob = CTX_data_active_object(*C);
+    Object *ob = CTX_data_active_object(C);
     Key *key = BKE_key_from_object(ob);
     const KeyBlock **drag_shapekey = static_cast<const KeyBlock **>(drag_info.drag_data.poin);
 
@@ -241,9 +241,9 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
         &shape_key_.object->id, &RNA_Object, shape_key_.object);
     PropertyRNA *prop = RNA_struct_find_property(&object_ptr, "active_shape_key_index");
     RNA_property_int_set(&object_ptr, prop, shape_key_.index);
-    RNA_property_update(&C, &object_ptr, prop);
+    RNA_property_update(C, &object_ptr, prop);
 
-    ED_undo_push(&C, "Set Active Shape Key");
+    ED_undo_push(C, "Set Active Shape Key");
   }
 
   std::optional<bool> should_be_selected() const override
@@ -267,7 +267,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
         &shape_key_.key->id, &RNA_ShapeKey, shape_key_.kb);
     RNA_string_set(&shapekey_ptr, "name", new_name.c_str());
-    ED_undo_push(const_cast<bContext *>(&C), "Rename shape key");
+    ED_undo_push(*const_cast<bContext *>(&C), "Rename shape key");
     return true;
   }
 
@@ -276,9 +276,9 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     return label_;
   }
 
-  void delete_item(bContext *C) override
+  void delete_item(bContext &C) override
   {
-    Main *bmain = CTX_data_main(*C);
+    Main *bmain = CTX_data_main(C);
     BKE_object_shapekey_remove(bmain, shape_key_.object, shape_key_.kb);
     DEG_id_tag_update(&shape_key_.object->id, ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
@@ -291,7 +291,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     if (!mt) {
       return;
     }
-    ui::menutype_draw(&C, mt, &layout);
+    ui::menutype_draw(C, mt, &layout);
   }
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override

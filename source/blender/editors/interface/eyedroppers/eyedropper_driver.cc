@@ -49,7 +49,7 @@ static bool driverdropper_init(bContext *C, wmOperator *op)
 {
   DriverDropper *ddr = MEM_new<DriverDropper>(__func__);
 
-  Button *but = context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &ddr->index);
+  Button *but = context_active_but_prop_get(*C, &ddr->ptr, &ddr->prop, &ddr->index);
 
   if ((ddr->ptr.data == nullptr) || (ddr->prop == nullptr) ||
       (RNA_property_driver_editable(&ddr->ptr, ddr->prop) == false) || (but->flag & BUT_DRIVEN))
@@ -64,9 +64,9 @@ static bool driverdropper_init(bContext *C, wmOperator *op)
   return true;
 }
 
-static void driverdropper_exit(bContext *C, wmOperator *op)
+static void driverdropper_exit(bContext &C, wmOperator *op)
 {
-  WM_cursor_modal_restore(CTX_wm_window(*C));
+  WM_cursor_modal_restore(CTX_wm_window(C));
 
   if (op->customdata) {
     DriverDropper *ddr = static_cast<DriverDropper *>(op->customdata);
@@ -78,7 +78,7 @@ static void driverdropper_exit(bContext *C, wmOperator *op)
 static void driverdropper_sample(bContext *C, wmOperator *op, const wmEvent *event)
 {
   DriverDropper *ddr = static_cast<DriverDropper *>(op->customdata);
-  Button *but = eyedropper_get_property_button_under_mouse(C, event);
+  Button *but = eyedropper_get_property_button_under_mouse(*C, event);
 
   const short mapping_type = RNA_enum_get(op->ptr, "mapping_type");
   const short flag = 0;
@@ -113,17 +113,17 @@ static void driverdropper_sample(bContext *C, wmOperator *op, const wmEvent *eve
 
     if (success) {
       /* send updates */
-      context_update_anim_flag(C);
+      context_update_anim_flag(*C);
       DEG_relations_tag_update(CTX_data_main(*C));
       DEG_id_tag_update(ddr->ptr.owner_id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
+      WM_event_add_notifier(*C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
     }
   }
 }
 
 static void driverdropper_cancel(bContext &C, wmOperator &op)
 {
-  driverdropper_exit(&C, &op);
+  driverdropper_exit(C, &op);
 }
 
 /* main modal status check */
@@ -141,7 +141,7 @@ static wmOperatorStatus driverdropper_modal(bContext &C, wmOperator &op, const w
       case EYE_MODAL_SAMPLE_CONFIRM: {
         const bool is_undo = ddr->is_undo;
         driverdropper_sample(&C, &op, event);
-        driverdropper_exit(&C, &op);
+        driverdropper_exit(C, &op);
         /* Could support finished & undo-skip. */
         return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
       }
@@ -164,7 +164,7 @@ static wmOperatorStatus driverdropper_invoke(bContext &C,
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -177,7 +177,7 @@ static wmOperatorStatus driverdropper_exec(bContext &C, wmOperator &op)
   /* init */
   if (driverdropper_init(&C, &op)) {
     /* cleanup */
-    driverdropper_exit(&C, &op);
+    driverdropper_exit(C, &op);
 
     return OPERATOR_FINISHED;
   }

@@ -19,6 +19,6 @@ void prefetch_stop_all();
  * This function should almost always be called by cache invalidation, not directly.
  */
 void prefetch_stop(Scene *scene);
-bool prefetch_need_redraw(const bContext *C, Scene *scene);
+bool prefetch_need_redraw(const bContext &C, Scene *scene);
 
 }  // namespace blender::seq

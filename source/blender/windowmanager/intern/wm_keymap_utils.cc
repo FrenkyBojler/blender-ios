@@ -74,11 +74,11 @@ wmKeyMapItem *WM_keymap_add_tool(wmKeyMap *keymap,
 /** \name Introspection
  * \{ */
 
-wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
+wmKeyMap *WM_keymap_guess_from_context(const bContext &C)
 {
   eSpace_Type space_type = SPACE_EMPTY;
   eRegion_Type region_type = RGN_TYPE_WINDOW;
-  SpaceLink *sl = CTX_wm_space_data(*C);
+  SpaceLink *sl = CTX_wm_space_data(C);
 
   /* Tool property tab is a special case where 3d tool properties are shown in the properties
    * editor. This would allow assigning tool shortcut keys from properties editor. */
@@ -92,7 +92,7 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
 
   const char *km_id = nullptr;
   if (sl->spacetype == SPACE_VIEW3D || allow_properties_keymap) {
-    const enum eContextObjectMode mode = CTX_data_mode_enum(*C);
+    const enum eContextObjectMode mode = CTX_data_mode_enum(C);
     switch (mode) {
       case CTX_MODE_EDIT_MESH:
         km_id = "Mesh";
@@ -215,12 +215,12 @@ wmKeyMap *WM_keymap_guess_from_context(const bContext *C)
     return nullptr;
   }
 
-  wmKeyMap *km = WM_keymap_find_all(CTX_wm_manager(*C), km_id, space_type, region_type);
+  wmKeyMap *km = WM_keymap_find_all(CTX_wm_manager(C), km_id, space_type, region_type);
   BLI_assert(km);
   return km;
 }
 
-wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
+wmKeyMap *WM_keymap_guess_opname(const bContext &C, const char *opname)
 {
   /* Op types purposely skipped for now:
    *     BOID_OT
@@ -233,8 +233,8 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
    */
 
   wmKeyMap *km = nullptr;
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  SpaceLink *sl = CTX_wm_space_data(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  SpaceLink *sl = CTX_wm_space_data(C);
 
   /* Window. */
   if (STRPREFIX(opname, "WM_OT") || STRPREFIX(opname, "ED_OT_undo")) {
@@ -297,7 +297,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
     km = WM_keymap_find_all(wm, "Mesh", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
     /* Some mesh operators are active in object mode too, like add-prim. */
-    if (km && !WM_keymap_poll((bContext *)C, km)) {
+    if (km && !WM_keymap_poll((bContext *)&C, km)) {
       km = WM_keymap_find_all(wm, "Object Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
     }
   }
@@ -305,7 +305,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
     km = WM_keymap_find_all(wm, "Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
     /* Some curve operators are active in object mode too, like add-prim. */
-    if (km && !WM_keymap_poll((bContext *)C, km)) {
+    if (km && !WM_keymap_poll((bContext *)&C, km)) {
       km = WM_keymap_find_all(wm, "Object Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
     }
   }
@@ -316,7 +316,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
     km = WM_keymap_find_all(wm, "Pose", SPACE_EMPTY, RGN_TYPE_WINDOW);
   }
   else if (STRPREFIX(opname, "SCULPT_OT")) {
-    switch (CTX_data_mode_enum(*C)) {
+    switch (CTX_data_mode_enum(C)) {
       case CTX_MODE_SCULPT:
         km = WM_keymap_find_all(wm, "Sculpt", SPACE_EMPTY, RGN_TYPE_WINDOW);
         break;
@@ -334,7 +334,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
     km = WM_keymap_find_all(wm, "Metaball", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
     /* Some meta-ball operators are active in object mode too, like add-primitive. */
-    if (km && !WM_keymap_poll((bContext *)C, km)) {
+    if (km && !WM_keymap_poll((bContext *)&C, km)) {
       km = WM_keymap_find_all(wm, "Object Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
     }
   }
@@ -380,7 +380,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
      * Mesh keymap is probably not ideal, but best place I could find to put those. */
     if (sl->spacetype == SPACE_VIEW3D) {
       km = WM_keymap_find_all(wm, "Mesh", SPACE_EMPTY, RGN_TYPE_WINDOW);
-      if (km && !WM_keymap_poll((bContext *)C, km)) {
+      if (km && !WM_keymap_poll((bContext *)&C, km)) {
         km = nullptr;
       }
     }
@@ -399,7 +399,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
   /* Animation Generic - after channels. */
   else if (STRPREFIX(opname, "ANIM_OT")) {
     if (sl->spacetype == SPACE_VIEW3D) {
-      switch (CTX_data_mode_enum(*C)) {
+      switch (CTX_data_mode_enum(C)) {
         case CTX_MODE_OBJECT:
           km = WM_keymap_find_all(wm, "Object Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
           break;
@@ -410,14 +410,14 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
           break;
       }
 
-      if (ARegion *region = CTX_wm_region(*C)) {
+      if (ARegion *region = CTX_wm_region(C)) {
         /* When property is in side panel, add shortcut key to User interface Keymap, see: #136998.
          */
         if (region->regiontype == RGN_TYPE_UI) {
           km = WM_keymap_find_all(wm, "User Interface", SPACE_EMPTY, RGN_TYPE_WINDOW);
         }
       }
-      if (km && !WM_keymap_poll((bContext *)C, km)) {
+      if (km && !WM_keymap_poll((bContext *)&C, km)) {
         km = nullptr;
       }
     }
@@ -508,7 +508,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
   else if (STRPREFIX(opname, "GEOMETRY_OT")) {
     switch (sl->spacetype) {
       case SPACE_VIEW3D:
-        switch (CTX_data_mode_enum(*C)) {
+        switch (CTX_data_mode_enum(C)) {
           case CTX_MODE_EDIT_MESH:
             km = WM_keymap_find_all(wm, "Mesh", SPACE_EMPTY, RGN_TYPE_WINDOW);
             break;

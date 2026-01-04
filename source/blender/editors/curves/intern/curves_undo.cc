@@ -105,7 +105,7 @@ static void step_decode(
 
   bmain->is_memfile_undo_flush_needed = true;
 
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, nullptr);
+  WM_event_add_notifier(*C, NC_GEOM | ND_DATA, nullptr);
 }
 
 static void step_free(UndoStep *us_p)

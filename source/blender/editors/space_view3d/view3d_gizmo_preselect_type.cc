@@ -144,7 +144,7 @@ static int gizmo_preselect_elem_test_select(bContext *C, wmGizmo *gz, const int 
     }
   }
 
-  ViewContext vc = em_setup_viewcontext(C);
+  ViewContext vc = em_setup_viewcontext(*C);
   copy_v2_v2_int(vc.mval, mval);
 
   {
@@ -349,7 +349,7 @@ static int loopcut_tool_preview_cuts_from_toolsettings(const bContext *C)
 {
   const int default_cuts = 1;
 
-  bToolRef *tref = WM_toolsystem_ref_from_context(C);
+  bToolRef *tref = WM_toolsystem_ref_from_context(*C);
   if (tref == nullptr) {
     return default_cuts;
   }
@@ -402,7 +402,7 @@ static int gizmo_preselect_edgering_test_select(bContext *C, wmGizmo *gz, const 
     }
   }
 
-  ViewContext vc = em_setup_viewcontext(C);
+  ViewContext vc = em_setup_viewcontext(*C);
   copy_v2_v2_int(vc.mval, mval);
 
   uint base_index;
@@ -527,13 +527,13 @@ void ED_gizmotypes_preselect_3d()
  * the information from this gizmo.
  * \{ */
 
-void ED_view3d_gizmo_mesh_preselect_get_active(const bContext *C,
+void ED_view3d_gizmo_mesh_preselect_get_active(const bContext &C,
                                                const wmGizmo *gz,
                                                Base **r_base,
                                                BMElem **r_ele)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   const int object_index = RNA_int_get(gz->ptr, "object_index");
 
@@ -542,7 +542,7 @@ void ED_view3d_gizmo_mesh_preselect_get_active(const bContext *C,
   Object *obedit = nullptr;
   if (object_index != -1) {
     Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode(
-        scene, view_layer, CTX_wm_view3d(*C));
+        scene, view_layer, CTX_wm_view3d(C));
     if (object_index < bases.size()) {
       base = bases[object_index];
       obedit = base->object;

@@ -172,7 +172,7 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
   op_data.keylist = ED_keylist_create();
 
   bAnimContext ac;
-  if (!ANIM_animdata_get_context(C, &ac)) {
+  if (!ANIM_animdata_get_context(*C, &ac)) {
     /* If there is no action, getting the anim context fails in the action editor. */
     ED_keylist_prepare_for_direct_access(op_data.keylist);
     return;
@@ -311,7 +311,7 @@ static void append_nla_strip_snap_target(bContext *C,
 {
 
   bAnimContext ac;
-  if (!ANIM_animdata_get_context(C, &ac)) {
+  if (!ANIM_animdata_get_context(*C, &ac)) {
     BLI_assert_unreachable();
   }
 
@@ -349,11 +349,11 @@ static void append_nla_strip_snap_target(bContext *C,
 
 /* ---- */
 
-static blender::Vector<SnapTarget> seq_get_snap_targets(bContext *C,
+static blender::Vector<SnapTarget> seq_get_snap_targets(bContext &C,
                                                         FrameChangeModalData &op_data,
                                                         const float timeline_frame)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   if (!scene) {
     return {};
   }
@@ -378,7 +378,7 @@ static blender::Vector<SnapTarget> seq_get_snap_targets(bContext *C,
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
-    append_keyframe_snap_target(C, op_data, timeline_frame, targets);
+    append_keyframe_snap_target(&C, op_data, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
@@ -392,15 +392,15 @@ static blender::Vector<SnapTarget> seq_get_snap_targets(bContext *C,
   return targets;
 }
 
-static blender::Vector<SnapTarget> nla_get_snap_targets(bContext *C, const float timeline_frame)
+static blender::Vector<SnapTarget> nla_get_snap_targets(bContext &C, const float timeline_frame)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
 
   blender::Vector<SnapTarget> targets;
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
-    append_nla_strip_snap_target(C, timeline_frame, targets);
+    append_nla_strip_snap_target(&C, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {
@@ -418,11 +418,11 @@ static blender::Vector<SnapTarget> nla_get_snap_targets(bContext *C, const float
   return targets;
 }
 
-static blender::Vector<SnapTarget> action_get_snap_targets(bContext *C,
+static blender::Vector<SnapTarget> action_get_snap_targets(bContext &C,
                                                            FrameChangeModalData &op_data,
                                                            const float timeline_frame)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
 
   blender::Vector<SnapTarget> targets;
@@ -432,7 +432,7 @@ static blender::Vector<SnapTarget> action_get_snap_targets(bContext *C,
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
-    append_keyframe_snap_target(C, op_data, timeline_frame, targets);
+    append_keyframe_snap_target(&C, op_data, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
@@ -446,11 +446,11 @@ static blender::Vector<SnapTarget> action_get_snap_targets(bContext *C,
   return targets;
 }
 
-static blender::Vector<SnapTarget> graph_get_snap_targets(bContext *C,
+static blender::Vector<SnapTarget> graph_get_snap_targets(bContext &C,
                                                           FrameChangeModalData &op_data,
                                                           const float timeline_frame)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   ToolSettings *tool_settings = scene->toolsettings;
 
   blender::Vector<SnapTarget> targets;
@@ -460,7 +460,7 @@ static blender::Vector<SnapTarget> graph_get_snap_targets(bContext *C,
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_KEYS) {
-    append_keyframe_snap_target(C, op_data, timeline_frame, targets);
+    append_keyframe_snap_target(&C, op_data, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_SECOND) {
@@ -478,13 +478,13 @@ static blender::Vector<SnapTarget> graph_get_snap_targets(bContext *C,
 
 /* Returns a frame that is snapped to the closest point of interest defined by the area. If no
  * point of interest is nearby, the frame is returned unmodified. */
-static float apply_frame_snap(bContext *C, FrameChangeModalData &op_data, const float frame)
+static float apply_frame_snap(bContext &C, FrameChangeModalData &op_data, const float frame)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
   blender::Vector<SnapTarget> targets;
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return frame;
   }
@@ -516,7 +516,7 @@ static float apply_frame_snap(bContext *C, FrameChangeModalData &op_data, const 
     }
   }
 
-  const ARegion *region = CTX_wm_region(*C);
+  const ARegion *region = CTX_wm_region(C);
   if (abs(snap_frame - frame) < get_snap_threshold(scene->toolsettings, region)) {
     return snap_frame;
   }
@@ -540,10 +540,10 @@ static float apply_frame_snap(bContext *C, FrameChangeModalData &op_data, const 
 }
 
 /* Set the new frame number */
-static void change_frame_apply(bContext *C, wmOperator *op, const bool always_update)
+static void change_frame_apply(bContext &C, wmOperator *op, const bool always_update)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return;
   }
@@ -569,7 +569,7 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
   }
   FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
 
-  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(C);
 
   /* do updates */
   const bool frame_changed = (old_frame != scene->r.cfra) || (old_subframe != scene->r.subframe);
@@ -584,7 +584,7 @@ static void change_frame_apply(bContext *C, wmOperator *op, const bool always_up
 /* Non-modal callback for running operator without user input */
 static wmOperatorStatus change_frame_exec(bContext &C, wmOperator &op)
 {
-  change_frame_apply(&C, &op, true);
+  change_frame_apply(C, &op, true);
 
   return OPERATOR_FINISHED;
 }
@@ -592,11 +592,11 @@ static wmOperatorStatus change_frame_exec(bContext &C, wmOperator &op)
 /* ---- */
 
 /* Get frame from mouse coordinates */
-static float frame_from_event(bContext *C, const wmEvent *event)
+static float frame_from_event(bContext &C, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  ARegion *region = CTX_wm_region(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   float frame;
 
   /* convert from region coordinates to View2D 'tot' space */
@@ -610,10 +610,10 @@ static float frame_from_event(bContext *C, const wmEvent *event)
   return frame;
 }
 
-static void change_frame_seq_preview_begin(bContext *C, const wmEvent *event, SpaceSeq *sseq)
+static void change_frame_seq_preview_begin(bContext &C, const wmEvent *event, SpaceSeq *sseq)
 {
   BLI_assert(sseq != nullptr);
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   if (blender::ed::vse::check_show_strip(*sseq) && !ED_time_scrub_event_in_region(region, event)) {
     blender::ed::vse::special_preview_set(C, event->mval);
   }
@@ -628,15 +628,15 @@ static void change_frame_seq_preview_end(SpaceSeq *sseq)
   }
 }
 
-static bool use_playhead_snapping(bContext *C)
+static bool use_playhead_snapping(bContext &C)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   if (!scene) {
     return false;
   }
 
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
   if (area->spacetype == SPACE_GRAPH) {
     SpaceGraph *graph_editor = static_cast<SpaceGraph *>(area->spacedata.first);
@@ -650,9 +650,9 @@ static bool use_playhead_snapping(bContext *C)
   return scene->toolsettings->snap_flag_playhead & SCE_SNAP;
 }
 
-static bool sequencer_is_mouse_over_handle(const bContext *C, const wmEvent *event)
+static bool sequencer_is_mouse_over_handle(const bContext &C, const wmEvent *event)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   if (!blender::seq::editing_get(scene)) {
     return false;
   }
@@ -680,7 +680,7 @@ static wmOperatorStatus change_frame_invoke(bContext &C, wmOperator &op, const w
    * event (e.g. RCS keymap where both are activated on left mouse press). Tweaking should take
    * precedence. */
   if (RNA_boolean_get(op.ptr, "pass_through_on_strip_handles") && CTX_wm_space_seq(C) &&
-      sequencer_is_mouse_over_handle(&C, event))
+      sequencer_is_mouse_over_handle(C, event))
   {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
@@ -689,9 +689,9 @@ static wmOperatorStatus change_frame_invoke(bContext &C, wmOperator &op, const w
    * as user could click on a single frame (jump to frame) as well as
    * click-dragging over a range (modal scrubbing).
    */
-  RNA_float_set(op.ptr, "frame", frame_from_event(&C, event));
+  RNA_float_set(op.ptr, "frame", frame_from_event(C, event));
 
-  if (use_playhead_snapping(&C)) {
+  if (use_playhead_snapping(C)) {
     RNA_boolean_set(op.ptr, "snap", true);
   }
 
@@ -700,26 +700,26 @@ static wmOperatorStatus change_frame_invoke(bContext &C, wmOperator &op, const w
   if (RNA_boolean_get(op.ptr, "seq_solo_preview")) {
     SpaceSeq *sseq = CTX_wm_space_seq(C);
     if (sseq) {
-      change_frame_seq_preview_begin(&C, event, sseq);
+      change_frame_seq_preview_begin(C, event, sseq);
     }
   }
 
-  change_frame_apply(&C, &op, true);
+  change_frame_apply(C, &op, true);
 
   /* add temp handler */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static bool need_extra_redraw_after_scrubbing_ends(bContext *C)
+static bool need_extra_redraw_after_scrubbing_ends(bContext &C)
 {
-  if (CTX_wm_space_seq(*C)) {
+  if (CTX_wm_space_seq(C)) {
     /* During scrubbing in the sequencer, a preview of the final video might be drawn. After
      * scrubbing, the actual result should be shown again. */
     return true;
   }
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   if (scene->eevee.taa_samples != 1) {
     return true;
   }
@@ -738,9 +738,9 @@ static void change_frame_cancel(bContext &C, wmOperator &op)
     }
   }
 
-  if (need_extra_redraw_after_scrubbing_ends(&C)) {
+  if (need_extra_redraw_after_scrubbing_ends(C)) {
     Scene *scene = CTX_data_scene(C);
-    WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
   }
 }
 
@@ -755,8 +755,8 @@ static wmOperatorStatus change_frame_modal(bContext &C, wmOperator &op, const wm
       break;
 
     case MOUSEMOVE:
-      RNA_float_set(op.ptr, "frame", frame_from_event(&C, event));
-      change_frame_apply(&C, &op, false);
+      RNA_float_set(op.ptr, "frame", frame_from_event(C, event));
+      change_frame_apply(C, &op, false);
       break;
 
     case LEFTMOUSE:
@@ -771,7 +771,7 @@ static wmOperatorStatus change_frame_modal(bContext &C, wmOperator &op, const wm
     case EVT_LEFTCTRLKEY:
     case EVT_RIGHTCTRLKEY:
       /* Use Ctrl key to invert snapping in sequencer. */
-      if (use_playhead_snapping(&C)) {
+      if (use_playhead_snapping(C)) {
         if (event->val == KM_RELEASE) {
           RNA_boolean_set(op.ptr, "snap", true);
         }
@@ -793,7 +793,7 @@ static wmOperatorStatus change_frame_modal(bContext &C, wmOperator &op, const wm
     }
   }
 
-  WorkspaceStatus status(&C);
+  WorkspaceStatus status(C);
   status.item(IFACE_("Toggle Snapping"), ICON_EVENT_CTRL);
 
   if (ret != OPERATOR_RUNNING_MODAL) {
@@ -812,9 +812,9 @@ static wmOperatorStatus change_frame_modal(bContext &C, wmOperator &op, const wm
       }
     }
 
-    if (need_extra_redraw_after_scrubbing_ends(&C)) {
+    if (need_extra_redraw_after_scrubbing_ends(C)) {
       Scene *scene = CTX_data_scene(C);
-      WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
+      WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
     }
   }
 
@@ -928,7 +928,7 @@ static wmOperatorStatus anim_set_sfra_exec(bContext &C, wmOperator &op)
     }
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -984,7 +984,7 @@ static wmOperatorStatus anim_set_efra_exec(bContext &C, wmOperator &op)
     }
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1041,7 +1041,7 @@ static wmOperatorStatus previewrange_define_exec(bContext &C, wmOperator &op)
   scene->r.pefra = round_fl_to_int(efra);
 
   /* send notifiers */
-  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1097,7 +1097,7 @@ static wmOperatorStatus previewrange_clear_exec(bContext &C, wmOperator & /*op*/
   ED_area_tag_redraw(curarea);
 
   /* send notifiers */
-  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1128,7 +1128,7 @@ static void ANIM_OT_previewrange_clear(wmOperatorType *ot)
 static wmOperatorStatus debug_channel_list_exec(bContext &C, wmOperator & /*op*/)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 

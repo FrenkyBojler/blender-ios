@@ -211,7 +211,7 @@ static ActionSlot *rna_Action_slots_new(
   animrig::Slot *slot = &action.slot_add_for_id_type(ID_Type(type));
   action.slot_display_name_set(*bmain, *slot, name);
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
   return slot;
 }
 
@@ -228,7 +228,7 @@ void rna_Action_slots_remove(bAction *dna_action,
   }
 
   slot_ptr->invalidate();
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
   DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
 }
 
@@ -268,7 +268,7 @@ static ActionLayer *rna_Action_layers_new(bAction *dna_action,
 
   animrig::Layer &layer = action.layer_add(name);
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
   return &layer;
 }
 
@@ -285,7 +285,7 @@ void rna_Action_layers_remove(bAction *dna_action,
   }
 
   layer_ptr->invalidate();
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
   DEG_id_tag_update(&action.id, ID_RECALC_ANIMATION);
 }
 
@@ -453,7 +453,7 @@ ActionStrip *rna_ActionStrips_new(
   animrig::Action &action = reinterpret_cast<bAction *>(dna_action_id)->wrap();
   animrig::Strip &strip = layer.strip_add(action, strip_type);
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
   return &strip;
 }
 
@@ -469,7 +469,7 @@ void rna_ActionStrips_remove(
   }
 
   strip_ptr->invalidate();
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
   DEG_id_tag_update(action_id, ID_RECALC_ANIMATION);
 }
 
@@ -529,7 +529,7 @@ static ActionChannelbag *rna_Channelbags_new(ID *dna_action_id,
 
   animrig::Channelbag &channelbag = strip_data.channelbag_for_slot_add(slot);
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
   /* No need to tag the depsgraph, as there is no new animation yet. */
 
   return &channelbag;
@@ -552,7 +552,7 @@ static void rna_Channelbags_remove(ID *dna_action_id,
   }
 
   channelbag_ptr->invalidate();
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
   DEG_id_tag_update(dna_action_id, ID_RECALC_ANIMATION);
 }
 
@@ -753,7 +753,7 @@ static void rna_Channelbag_fcurve_remove(ID *dna_action_id,
   }
 
   DEG_id_tag_update(dna_action_id, ID_RECALC_ANIMATION_NO_FLUSH);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static void rna_Channelbag_fcurve_clear(ID *dna_action_id,
@@ -762,7 +762,7 @@ static void rna_Channelbag_fcurve_clear(ID *dna_action_id,
 {
   dna_channelbag->wrap().fcurves_clear();
   DEG_id_tag_update(dna_action_id, ID_RECALC_ANIMATION_NO_FLUSH);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static void rna_iterator_Channelbag_groups_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -1198,7 +1198,7 @@ static void rna_Action_show_errors_update(bContext *C, PointerRNA * /*ptr*/)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return;
   }
 

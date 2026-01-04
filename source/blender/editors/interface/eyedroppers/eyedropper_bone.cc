@@ -109,7 +109,7 @@ static int bonedropper_init(bContext *C, wmOperator *op)
   int index_dummy;
   PointerRNA button_ptr;
   PropertyRNA *button_prop;
-  Button *button = context_active_but_prop_get(C, &button_ptr, &button_prop, &index_dummy);
+  Button *button = context_active_but_prop_get(*C, &button_ptr, &button_prop, &index_dummy);
 
   if (!button || button->type != ButtonType::SearchMenu) {
     return false;
@@ -140,9 +140,9 @@ static int bonedropper_init(bContext *C, wmOperator *op)
   return true;
 }
 
-static void bonedropper_exit(bContext *C, wmOperator *op)
+static void bonedropper_exit(bContext &C, wmOperator *op)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   WM_cursor_modal_restore(win);
 
   if (op->customdata) {
@@ -161,7 +161,7 @@ static void bonedropper_exit(bContext *C, wmOperator *op)
 
 static void bonedropper_cancel(bContext &C, wmOperator &op)
 {
-  bonedropper_exit(&C, &op);
+  bonedropper_exit(C, &op);
 }
 
 /* To switch the draw callback when region under mouse event changes */
@@ -186,15 +186,15 @@ static void bonedropper_set_draw_callback_region(ScrArea &area, BoneDropper &bdr
       art, datadropper_draw_cb, &bdr, REGION_DRAW_POST_PIXEL);
 }
 
-static BoneSampleData sample_data_from_3d_view(bContext *C,
+static BoneSampleData sample_data_from_3d_view(bContext &C,
                                                const int mval[2],
                                                const BoneDropper &bdr)
 {
   Base *base = nullptr;
 
-  switch (CTX_data_mode_enum(*C)) {
+  switch (CTX_data_mode_enum(C)) {
     case CTX_MODE_POSE: {
-      bPoseChannel *bone = ED_armature_pick_pchan(C, mval, true, &base);
+      bPoseChannel *bone = ED_armature_pick_pchan(&C, mval, true, &base);
       if (!bone || !base) {
         return {SampleResult::NO_BONE_3DVIEW};
       }
@@ -218,7 +218,7 @@ static BoneSampleData sample_data_from_3d_view(bContext *C,
     }
 
     case CTX_MODE_EDIT_ARMATURE: {
-      EditBone *ebone = ED_armature_pick_ebone(C, mval, true, &base);
+      EditBone *ebone = ED_armature_pick_ebone(&C, mval, true, &base);
       if (!ebone || !base) {
         return {SampleResult::NO_BONE_3DVIEW};
       }
@@ -246,7 +246,7 @@ static BoneSampleData sample_data_from_outliner(bContext *C,
 {
   BoneSampleData sample_data;
 
-  const bool success = ED_outliner_give_rna_under_cursor(C, mval, &sample_data.bone_rna);
+  const bool success = ED_outliner_give_rna_under_cursor(*C, mval, &sample_data.bone_rna);
   if (!success) {
     sample_data.sample_result = SampleResult::NO_BONE_OUTLINER;
     return sample_data;
@@ -337,7 +337,7 @@ static BoneSampleData bonedropper_sample_pt(
   BoneSampleData sample_data;
   switch (area.spacetype) {
     case SPACE_VIEW3D: {
-      sample_data = sample_data_from_3d_view(C, mval, bdr);
+      sample_data = sample_data_from_3d_view(*C, mval, bdr);
       break;
     }
     case SPACE_OUTLINER: {
@@ -367,7 +367,7 @@ static SampleResult bonedropper_sample(bContext *C, BoneDropper &bdr, const int 
   int event_xy_win[2];
   wmWindow *win = nullptr;
   ScrArea *area = nullptr;
-  eyedropper_win_area_find(C, event_xy, event_xy_win, &win, &area);
+  eyedropper_win_area_find(*C, event_xy, event_xy_win, &win, &area);
 
   if (!win || !area) {
     return SampleResult::WRONG_AREA;
@@ -409,7 +409,7 @@ static SampleResult bonedropper_sample(bContext *C, BoneDropper &bdr, const int 
       break;
   }
 
-  RNA_property_update(C, &bdr.ptr, bdr.prop);
+  RNA_property_update(*C, &bdr.ptr, bdr.prop);
 
   return SampleResult::SUCCESS;
 }
@@ -460,7 +460,7 @@ static wmOperatorStatus bonedropper_modal(bContext &C, wmOperator &op, const wmE
       case EYE_MODAL_SAMPLE_CONFIRM: {
         const bool is_undo = bdr->is_undo;
         const SampleResult result = bonedropper_sample(&C, *bdr, event->xy);
-        bonedropper_exit(&C, &op);
+        bonedropper_exit(C, &op);
         if (result == SampleResult::SUCCESS) {
           /* Could support finished & undo-skip. */
           return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -474,7 +474,7 @@ static wmOperatorStatus bonedropper_modal(bContext &C, wmOperator &op, const wmE
     int event_xy_win[2];
     wmWindow *win = nullptr;
     ScrArea *area = nullptr;
-    eyedropper_win_area_find(&C, event->xy, event_xy_win, &win, &area);
+    eyedropper_win_area_find(C, event->xy, event_xy_win, &win, &area);
 
     if (win && area) {
       /* Set the region for eyedropper cursor text drawing */
@@ -496,7 +496,7 @@ static wmOperatorStatus bonedropper_invoke(bContext &C, wmOperator &op, const wm
     context_active_but_clear(&C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
     return OPERATOR_RUNNING_MODAL;
   }
   return OPERATOR_CANCELLED;
@@ -505,7 +505,7 @@ static wmOperatorStatus bonedropper_invoke(bContext &C, wmOperator &op, const wm
 static wmOperatorStatus bonedropper_exec(bContext &C, wmOperator &op)
 {
   if (bonedropper_init(&C, &op)) {
-    bonedropper_exit(&C, &op);
+    bonedropper_exit(C, &op);
 
     return OPERATOR_FINISHED;
   }
@@ -534,7 +534,7 @@ static bool bonedropper_poll(bContext &C)
     return false;
   }
 
-  Button *but = context_active_but_prop_get(&C, &ptr, &prop, &index_dummy);
+  Button *but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy);
 
   if (!but) {
     return false;

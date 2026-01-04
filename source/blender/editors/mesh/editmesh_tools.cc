@@ -518,7 +518,7 @@ static wmOperatorStatus edbm_delete_exec(bContext &C, wmOperator &op)
     EDBM_update(static_cast<Mesh *>(obedit->data), &params);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return changed_multi ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -4536,7 +4536,7 @@ static wmOperatorStatus edbm_separate_exec(bContext &C, wmOperator &op)
         BM_mesh_bm_to_me(bmain, bm_old, mesh, &to_mesh_params);
 
         DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY_ALL_MODES);
-        WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
+        WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
       }
 
       BM_mesh_free(bm_old);
@@ -4549,8 +4549,8 @@ static wmOperatorStatus edbm_separate_exec(bContext &C, wmOperator &op)
   if (changed_multi) {
     /* delay depsgraph recalc until all objects are duplicated */
     DEG_relations_tag_update(bmain);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
-    ED_outliner_select_sync_from_object_tag(&C);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+    ED_outliner_select_sync_from_object_tag(C);
 
     return OPERATOR_FINISHED;
   }
@@ -7026,7 +7026,7 @@ static void sort_bmelem_flag(bContext *C,
   EDBM_update(static_cast<Mesh *>(ob->data), &params);
 
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+  WM_event_add_notifier(*C, NC_GEOM | ND_DATA, ob->data);
 
   for (j = 3; j--;) {
     if (map[j]) {
@@ -7042,7 +7042,7 @@ static wmOperatorStatus edbm_sort_elements_exec(bContext &C, wmOperator &op)
   Object *ob_active = CTX_data_edit_object(C);
 
   /* may be nullptr */
-  RegionView3D *rv3d = ED_view3d_context_rv3d(&C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
 
   const int action = RNA_enum_get(op.ptr, "type");
   PropertyRNA *prop_elem_types = RNA_struct_find_property(op.ptr, "elements");
@@ -8124,7 +8124,7 @@ static wmOperatorStatus edbm_mark_freestyle_edge_exec(bContext &C, wmOperator &o
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -8199,7 +8199,7 @@ static wmOperatorStatus edbm_mark_freestyle_face_exec(bContext &C, wmOperator &o
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -8341,9 +8341,9 @@ static EnumPropertyItem clnors_pointto_mode_items[] = {
 };
 
 /* Initialize loop normal data */
-static bool point_normals_init(bContext *C, wmOperator *op)
+static bool point_normals_init(bContext &C, wmOperator *op)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
 
@@ -8360,7 +8360,7 @@ static bool point_normals_ensure(bContext *C, wmOperator *op)
   if (op->customdata != nullptr) {
     return true;
   }
-  return point_normals_init(C, op);
+  return point_normals_init(*C, op);
 }
 
 static void point_normals_free(wmOperator *op)
@@ -8380,7 +8380,7 @@ static void point_normals_cancel(bContext &C, wmOperator &op)
 
 static void point_normals_update_statusbar(bContext *C, wmOperator *op)
 {
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
 
   status.opmodal(IFACE_("Confirm"), op->type, EDBM_CLNOR_MODAL_CONFIRM);
   status.opmodal(IFACE_("Cancel"), op->type, EDBM_CLNOR_MODAL_CANCEL);
@@ -8429,9 +8429,9 @@ static void bmesh_selected_verts_center_calc(BMesh *bm, float *r_center)
   mul_v3_fl(r_center, 1.0f / float(i));
 }
 
-static void point_normals_apply(bContext *C, wmOperator *op, float target[3], const bool do_reset)
+static void point_normals_apply(bContext &C, wmOperator *op, float target[3], const bool do_reset)
 {
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obedit = CTX_data_edit_object(C);
   BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
   BMLoopNorEditDataArray *lnors_ed_arr = static_cast<BMLoopNorEditDataArray *>(op->customdata);
 
@@ -8567,14 +8567,14 @@ static wmOperatorStatus edbm_point_normals_modal(bContext &C, wmOperator &op, co
 
       case EDBM_CLNOR_MODAL_POINTTO_SET_USE_3DCURSOR:
         new_mode = EDBM_CLNOR_POINTTO_MODE_COORDINATES;
-        ED_view3d_cursor3d_update(&C, event->mval, false, V3D_CURSOR_ORIENT_NONE);
+        ED_view3d_cursor3d_update(C, event->mval, false, V3D_CURSOR_ORIENT_NONE);
         copy_v3_v3(target, scene->cursor.location);
         ret = OPERATOR_RUNNING_MODAL;
         break;
 
       case EDBM_CLNOR_MODAL_POINTTO_SET_USE_SELECTED: {
         new_mode = EDBM_CLNOR_POINTTO_MODE_COORDINATES;
-        view3d_operator_needs_gpu(&C);
+        view3d_operator_needs_gpu(C);
         SelectPick_Params params{};
         params.sel_op = SEL_OP_SET;
         if (EDBM_select_pick(&C, event->mval, params)) {
@@ -8667,7 +8667,7 @@ static wmOperatorStatus edbm_point_normals_modal(bContext &C, wmOperator &op, co
     }
 
     if (point_normals_ensure(&C, &op)) {
-      point_normals_apply(&C, &op, target, do_reset);
+      point_normals_apply(C, &op, target, do_reset);
       EDBMUpdate_Params params{};
       params.calc_looptris = true;
       params.calc_normals = false;
@@ -8698,12 +8698,12 @@ static wmOperatorStatus edbm_point_normals_invoke(bContext &C,
                                                   wmOperator &op,
                                                   const wmEvent * /*event*/)
 {
-  if (!point_normals_init(&C, &op)) {
+  if (!point_normals_init(C, &op)) {
     point_normals_cancel(C, op);
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   point_normals_update_statusbar(&C, &op);
 
@@ -8716,7 +8716,7 @@ static wmOperatorStatus edbm_point_normals_exec(bContext &C, wmOperator &op)
 {
   Object *obedit = CTX_data_edit_object(C);
 
-  if (!point_normals_init(&C, &op)) {
+  if (!point_normals_init(C, &op)) {
     point_normals_cancel(C, op);
     return OPERATOR_CANCELLED;
   }
@@ -8727,7 +8727,7 @@ static wmOperatorStatus edbm_point_normals_exec(bContext &C, wmOperator &op)
   float target[3];
   RNA_float_get_array(op.ptr, "target_location", target);
 
-  point_normals_apply(&C, &op, target, false);
+  point_normals_apply(C, &op, target, false);
 
   EDBMUpdate_Params params{};
   params.calc_looptris = true;
@@ -8952,12 +8952,12 @@ static void normals_split(BMesh *bm)
   }
 }
 
-static wmOperatorStatus normals_split_merge(bContext *C, const bool do_merge)
+static wmOperatorStatus normals_split_merge(bContext &C, const bool do_merge)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -9008,7 +9008,7 @@ static wmOperatorStatus normals_split_merge(bContext *C, const bool do_merge)
 
 static wmOperatorStatus edbm_merge_normals_exec(bContext &C, wmOperator & /*op*/)
 {
-  return normals_split_merge(&C, true);
+  return normals_split_merge(C, true);
 }
 
 void MESH_OT_merge_normals(wmOperatorType *ot)
@@ -9028,7 +9028,7 @@ void MESH_OT_merge_normals(wmOperatorType *ot)
 
 static wmOperatorStatus edbm_split_normals_exec(bContext &C, wmOperator & /*op*/)
 {
-  return normals_split_merge(&C, false);
+  return normals_split_merge(C, false);
 }
 
 void MESH_OT_split_normals(wmOperatorType *ot)

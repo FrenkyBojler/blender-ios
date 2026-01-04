@@ -257,7 +257,7 @@ static void sequencer_refresh(const bContext *C, ScrArea *area)
   }
 
   if (view_changed) {
-    ED_area_init(const_cast<bContext *>(C), window, area);
+    ED_area_init(*const_cast<bContext *>(C), window, area);
     ED_area_tag_redraw(area);
   }
 }
@@ -453,19 +453,19 @@ static void sequencer_main_region_draw(const bContext *C, ARegion *region)
 /* Strip editing timeline. */
 static void sequencer_main_region_draw_overlay(const bContext *C, ARegion *region)
 {
-  draw_timeline_seq_display(C, region);
+  draw_timeline_seq_display(*C, region);
 }
 
-static void sequencer_main_clamp_view(const bContext *C, ARegion *region)
+static void sequencer_main_clamp_view(const bContext &C, ARegion *region)
 {
-  SpaceSeq *sseq = CTX_wm_space_seq(*C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
 
   if ((sseq->flag & SEQ_CLAMP_VIEW) == 0) {
     return;
   }
 
   View2D *v2d = &region->v2d;
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   if (!scene) {
     return;
   }
@@ -516,9 +516,9 @@ static void sequencer_main_clamp_view(const bContext *C, ARegion *region)
   v2d->cur = view_clamped;
 }
 
-static void sequencer_main_region_clamp_custom_set(const bContext *C, ARegion *region)
+static void sequencer_main_region_clamp_custom_set(const bContext &C, ARegion *region)
 {
-  SpaceSeq *sseq = CTX_wm_space_seq(*C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
   View2D *v2d = &region->v2d;
 
   if ((v2d->flag & V2D_IS_NAVIGATING) == 0) {
@@ -528,14 +528,14 @@ static void sequencer_main_region_clamp_custom_set(const bContext *C, ARegion *r
 
 static void sequencer_main_region_layout(const bContext *C, ARegion *region)
 {
-  sequencer_main_region_clamp_custom_set(C, region);
-  sequencer_main_clamp_view(C, region);
+  sequencer_main_region_clamp_custom_set(*C, region);
+  sequencer_main_clamp_view(*C, region);
 }
 
 static void sequencer_main_region_view2d_changed(const bContext *C, ARegion *region)
 {
-  sequencer_main_region_clamp_custom_set(C, region);
-  sequencer_main_clamp_view(C, region);
+  sequencer_main_region_clamp_custom_set(*C, region);
+  sequencer_main_clamp_view(*C, region);
 }
 
 static void sequencer_main_region_listener(const wmRegionListenerParams *params)
@@ -1094,7 +1094,7 @@ static void sequencer_channel_region_init(wmWindowManager *wm, ARegion *region)
 
 static void sequencer_channel_region_draw(const bContext *C, ARegion *region)
 {
-  draw_channels(C, region);
+  draw_channels(*C, region);
 }
 
 static void sequencer_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)

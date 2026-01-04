@@ -191,7 +191,7 @@ void OBJECT_OT_camera_custom_update(wmOperatorType *ot);
 
 /* `object_modifier.cc` */
 
-bool edit_modifier_poll_generic(bContext *C,
+bool edit_modifier_poll_generic(bContext &C,
                                 StructRNA *rna_type,
                                 int obtype_flag,
                                 bool is_editmode_allowed,

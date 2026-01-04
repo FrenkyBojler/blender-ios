@@ -98,12 +98,12 @@ struct AlembicImportParams {
  */
 
 bool ABC_export(struct Scene *scene,
-                struct bContext *C,
+                struct bContext &C,
                 const char *filepath,
                 const struct AlembicExportParams *params,
                 bool as_background_job);
 
-bool ABC_import(struct bContext *C,
+bool ABC_import(struct bContext &C,
                 const struct AlembicImportParams *params,
                 bool as_background_job);
 

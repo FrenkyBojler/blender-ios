@@ -301,9 +301,9 @@ static void compo_completejob(void *cjv)
 
 /* Identify if the compositor can run. Currently, this only checks if the compositor is set to GPU
  * and the render size exceeds what can be allocated as a texture in it. */
-static bool is_compositing_possible(const bContext *C)
+static bool is_compositing_possible(const bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   /* CPU compositor can always run. */
   if (scene->r.compositor_device != SCE_COMPOSITOR_DEVICE_GPU) {
     return true;
@@ -321,12 +321,12 @@ static bool is_compositing_possible(const bContext *C)
 
 /* Returns the compositor outputs that need to be computed because their result is visible to the
  * user or required by the render pipeline. */
-static blender::compositor::OutputTypes get_compositor_needed_outputs(const bContext *C,
+static blender::compositor::OutputTypes get_compositor_needed_outputs(const bContext &C,
                                                                       Scene *scene_owner)
 {
   blender::compositor::OutputTypes needed_outputs = blender::compositor::OutputTypes::None;
 
-  wmWindowManager *window_manager = CTX_wm_manager(*C);
+  wmWindowManager *window_manager = CTX_wm_manager(C);
   for (wmWindow &window : window_manager->windows) {
     bScreen *screen = WM_window_get_active_screen(&window);
     for (ScrArea &area : screen->areabase) {
@@ -385,7 +385,7 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
   /* None of the outputs are needed except maybe previews, so no need to execute the compositor.
    * Previews are not considered because they are a secondary output that needs another output to
    * be computed with. */
-  blender::compositor::OutputTypes needed_outputs = get_compositor_needed_outputs(C, scene_owner);
+  blender::compositor::OutputTypes needed_outputs = get_compositor_needed_outputs(*C, scene_owner);
   if (ELEM(needed_outputs,
            blender::compositor::OutputTypes::None,
            blender::compositor::OutputTypes::Previews))
@@ -399,7 +399,7 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
   Scene *scene = CTX_data_scene(*C);
   ViewLayer *view_layer = CTX_data_view_layer(*C);
 
-  if (!is_compositing_possible(C)) {
+  if (!is_compositing_possible(*C)) {
     return;
   }
 
@@ -778,9 +778,9 @@ struct NodeSizeWidget {
 };
 
 static void node_resize_init(
-    bContext *C, wmOperator *op, const float2 &cursor, const bNode *node, NodeResizeDirection dir)
+    bContext &C, wmOperator *op, const float2 &cursor, const bNode *node, NodeResizeDirection dir)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   NodeSizeWidget *nsw = MEM_callocN<NodeSizeWidget>(__func__);
 
   op->customdata = nsw;
@@ -796,20 +796,20 @@ static void node_resize_init(
   nsw->directions = dir;
   nsw->snap_to_grid = scene->toolsettings->snap_flag_node;
 
-  WM_cursor_modal_set(CTX_wm_window(*C), node_get_resize_cursor(dir));
+  WM_cursor_modal_set(CTX_wm_window(C), node_get_resize_cursor(dir));
   /* add modal handler */
   WM_event_add_modal_handler(C, op);
 }
 
-static void node_resize_exit(bContext *C, wmOperator *op, bool cancel)
+static void node_resize_exit(bContext &C, wmOperator *op, bool cancel)
 {
   NodeSizeWidget *nsw = (NodeSizeWidget *)op->customdata;
 
-  WM_cursor_modal_restore(CTX_wm_window(*C));
+  WM_cursor_modal_restore(CTX_wm_window(C));
 
   /* Restore old data on cancel. */
   if (cancel) {
-    SpaceNode *snode = CTX_wm_space_node(*C);
+    SpaceNode *snode = CTX_wm_space_node(C);
     bNode *node = bke::node_get_active(*snode->edittree);
 
     node->location[0] = nsw->oldlocx;
@@ -877,7 +877,7 @@ static wmOperatorStatus node_resize_modal(bContext &C, wmOperator &op, const wmE
         return OPERATOR_RUNNING_MODAL;
       }
       case NodeResizeAction::Cancel: {
-        node_resize_exit(&C, &op, true);
+        node_resize_exit(C, &op, true);
         ED_region_tag_redraw(region);
         return OPERATOR_CANCELLED;
       }
@@ -959,7 +959,7 @@ static wmOperatorStatus node_resize_modal(bContext &C, wmOperator &op, const wmE
     case MIDDLEMOUSE:
     case RIGHTMOUSE: {
       if (event->val == KM_RELEASE) {
-        node_resize_exit(&C, &op, false);
+        node_resize_exit(C, &op, false);
         ED_node_post_apply_transform(&C, snode->edittree);
 
         return OPERATOR_FINISHED;
@@ -994,13 +994,13 @@ static wmOperatorStatus node_resize_invoke(bContext &C, wmOperator &op, const wm
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  node_resize_init(&C, &op, cursor, node, dir);
+  node_resize_init(C, &op, cursor, node, dir);
   return OPERATOR_RUNNING_MODAL;
 }
 
 static void node_resize_cancel(bContext &C, wmOperator &op)
 {
-  node_resize_exit(&C, &op, true);
+  node_resize_exit(C, &op, true);
 }
 
 void NODE_OT_resize(wmOperatorType *ot)
@@ -1605,7 +1605,7 @@ static wmOperatorStatus node_collapse_toggle_exec(bContext &C, wmOperator & /*op
 
   node_flag_toggle_exec(snode, NODE_COLLAPSED);
 
-  WM_event_add_notifier(&C, NC_NODE | ND_DISPLAY, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1636,8 +1636,8 @@ static wmOperatorStatus node_preview_toggle_exec(bContext &C, wmOperator & /*op*
 
   node_flag_toggle_exec(snode, NODE_PREVIEW, true);
 
-  WM_event_add_notifier(&C, NC_NODE | NA_EDITED, &snode->edittree->id);
-  WM_event_add_notifier(&C, NC_NODE | ND_DISPLAY, &snode->edittree->id);
+  WM_event_add_notifier(C, NC_NODE | NA_EDITED, &snode->edittree->id);
+  WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, &snode->edittree->id);
 
   BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
@@ -1859,7 +1859,7 @@ static wmOperatorStatus node_options_toggle_exec(bContext &C, wmOperator & /*op*
 
   node_flag_toggle_exec(snode, NODE_OPTIONS);
 
-  WM_event_add_notifier(&C, NC_NODE | ND_DISPLAY, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1909,7 +1909,7 @@ static wmOperatorStatus node_socket_toggle_exec(bContext &C, wmOperator & /*op*/
 
   BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
-  WM_event_add_notifier(&C, NC_NODE | ND_DISPLAY, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
   /* Hack to force update of the button state after drawing, see #112462. */
   WM_event_add_mousemove(CTX_wm_window(C));
 
@@ -2037,7 +2037,7 @@ static wmOperatorStatus node_delete_reconnect_exec(bContext &C, wmOperator & /*o
 
       /* Since this node might have been animated, and that animation data been
        * deleted, a notifier call is necessary to redraw any animation editor. */
-      WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+      WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
     }
   }
 
@@ -2089,7 +2089,7 @@ static wmOperatorStatus node_copy_color_exec(bContext &C, wmOperator & /*op*/)
     }
   }
 
-  WM_event_add_notifier(&C, NC_NODE | ND_DISPLAY, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2253,7 +2253,7 @@ static wmOperatorStatus viewer_border_exec(bContext &C, wmOperator &op)
       }
 
       BKE_main_ensure_invariants(*bmain, btree->id);
-      WM_event_add_notifier(&C, NC_NODE | ND_DISPLAY, nullptr);
+      WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
     }
     else {
       btree->flag &= ~NTREE_VIEWER_BORDER;
@@ -2293,7 +2293,7 @@ static wmOperatorStatus clear_viewer_border_exec(bContext &C, wmOperator & /*op*
 
   btree->flag &= ~NTREE_VIEWER_BORDER;
   BKE_main_ensure_invariants(*CTX_data_main(C), btree->id);
-  WM_event_add_notifier(&C, NC_NODE | ND_DISPLAY, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
 
   return OPERATOR_FINISHED;
 }

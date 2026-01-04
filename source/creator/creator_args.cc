@@ -530,14 +530,14 @@ struct BlendePyContextStore {
   bool has_win;
 };
 
-static void arg_py_context_backup(bContext *C, BlendePyContextStore *c_py)
+static void arg_py_context_backup(bContext &C, BlendePyContextStore *c_py)
 {
-  c_py->wm = CTX_wm_manager(*C);
-  c_py->scene = CTX_data_scene(*C);
+  c_py->wm = CTX_wm_manager(C);
+  c_py->scene = CTX_data_scene(C);
   c_py->has_win = c_py->wm && !BLI_listbase_is_empty(&c_py->wm->windows);
   if (c_py->has_win) {
-    c_py->win = CTX_wm_window(*C);
-    CTX_wm_window_set(*C, static_cast<wmWindow *>(c_py->wm->windows.first));
+    c_py->win = CTX_wm_window(C);
+    CTX_wm_window_set(C, static_cast<wmWindow *>(c_py->wm->windows.first));
   }
   else {
     /* NOTE: this should never happen, although it may be possible when loading
@@ -568,7 +568,7 @@ static void arg_py_context_restore(bContext *C, BlendePyContextStore *c_py)
 #    define BPY_CTX_SETUP(_cmd) \
       { \
         BlendePyContextStore py_c; \
-        arg_py_context_backup(C, &py_c); \
+        arg_py_context_backup(*C, &py_c); \
         { \
           _cmd; \
         } \
@@ -2424,7 +2424,7 @@ static int arg_handle_scene_set(int argc, const char **argv, void *data)
         win = static_cast<wmWindow *>(CTX_wm_manager(*C)->windows.first);
       }
       if (win != nullptr) {
-        WM_window_set_active_scene(CTX_data_main(*C), C, win, scene);
+        WM_window_set_active_scene(CTX_data_main(*C), *C, win, scene);
       }
     }
     return 1;
@@ -2727,7 +2727,7 @@ static int arg_handle_profile_gpu_set(int /*argc*/, const char ** /*argv*/, void
  * Implementation for #arg_handle_load_last_file, also used by `--open-last`.
  * \return true on success.
  */
-static bool handle_load_file(bContext *C, const char *filepath_arg, const bool load_empty_file)
+static bool handle_load_file(bContext &C, const char *filepath_arg, const bool load_empty_file)
 {
   /* Make the path absolute because its needed for relative linked blends to be found. */
   char filepath[FILE_MAX];
@@ -2744,14 +2744,14 @@ static bool handle_load_file(bContext *C, const char *filepath_arg, const bool l
   const bool use_scripts_autoexec_check = true;
   const bool success = WM_file_read(C, filepath, use_scripts_autoexec_check, &reports);
 
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   WM_reports_from_reports_move(wm, &reports);
   BKE_reports_free(&reports);
 
   if (success) {
     if (G.background) {
       /* Ensure we use 'C->data.scene' for background render. */
-      CTX_wm_window_set(*C, nullptr);
+      CTX_wm_window_set(C, nullptr);
     }
   }
   else {
@@ -2786,7 +2786,7 @@ static bool handle_load_file(bContext *C, const char *filepath_arg, const bool l
 
     if (error_msg) {
       fprintf(stderr, "Error: %s, exiting! %s\n", error_msg, filepath);
-      WM_exit(C, EXIT_FAILURE);
+      WM_exit(&C, EXIT_FAILURE);
       /* Unreachable, return for clarity. */
       return false;
     }
@@ -2816,7 +2816,7 @@ int main_args_handle_load_file(int /*argc*/, const char **argv, void *data)
     fprintf(stderr, "unknown argument, loading as file: %s\n", filepath);
   }
 
-  if (!handle_load_file(C, filepath, true)) {
+  if (!handle_load_file(*C, filepath, true)) {
     return -1;
   }
   return 0;
@@ -2834,7 +2834,7 @@ static int arg_handle_load_last_file(int /*argc*/, const char ** /*argv*/, void 
 
   bContext *C = static_cast<bContext *>(data);
   const RecentFile *recent_file = static_cast<const RecentFile *>(G.recent_files.first);
-  if (!handle_load_file(C, recent_file->filepath, false)) {
+  if (!handle_load_file(*C, recent_file->filepath, false)) {
     return -1;
   }
   return 0;

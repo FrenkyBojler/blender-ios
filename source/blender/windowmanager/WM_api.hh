@@ -161,7 +161,7 @@ void WM_init_splash_on_startup(bContext *C);
 /**
  * Show the splash screen.
  */
-void WM_init_splash(bContext *C);
+void WM_init_splash(bContext &C);
 
 void WM_init_gpu();
 
@@ -233,7 +233,7 @@ ENUM_OPERATORS(eWM_CapabilitiesFlag)
  */
 eWM_CapabilitiesFlag WM_capabilities_flag();
 
-void WM_check(bContext *C);
+void WM_check(bContext &C);
 void WM_reinit_gizmomap_all(Main *bmain);
 
 /**
@@ -359,11 +359,11 @@ Scene *WM_window_get_active_scene(const wmWindow *win) ATTR_NONNULL() ATTR_WARN_
 /**
  * \warning Only call outside of area/region loops.
  */
-void WM_window_set_active_scene(Main *bmain, bContext *C, wmWindow *win, Scene *scene)
+void WM_window_set_active_scene(Main *bmain, bContext &C, wmWindow *win, Scene *scene)
     ATTR_NONNULL();
 WorkSpace *WM_window_get_active_workspace(const wmWindow *win)
     ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
-void WM_window_set_active_workspace(bContext *C, wmWindow *win, WorkSpace *workspace)
+void WM_window_set_active_workspace(bContext &C, wmWindow *win, WorkSpace *workspace)
     ATTR_NONNULL(1);
 WorkSpaceLayout *WM_window_get_active_layout(const wmWindow *win)
     ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
@@ -408,7 +408,7 @@ enum eWindowAlignment {
  * \param area_setup_user_data: User data argument passed to `area_setup_fn`.
  * \return the window or NULL in case of failure.
  */
-wmWindow *WM_window_open(bContext *C,
+wmWindow *WM_window_open(bContext &C,
                          const char *title,
                          const rcti *rect_unscaled,
                          int space_type,
@@ -419,7 +419,7 @@ wmWindow *WM_window_open(bContext *C,
                          void (*area_setup_fn)(bScreen *screen, ScrArea *area, void *user_data),
                          void *area_setup_user_data) ATTR_NONNULL(1, 3);
 
-wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bool dialog);
+wmWindow *WM_window_open_temp(bContext &C, const char *title, int space_type, bool dialog);
 
 void WM_window_dpi_set_userdef(const wmWindow *win);
 /**
@@ -492,7 +492,7 @@ void WM_file_autoexec_init(const char *filepath);
  * In this case the file-path used for exclusion is the recovery path which is only known once
  * the file has been loaded.
  */
-bool WM_file_read(bContext *C,
+bool WM_file_read(bContext &C,
                   const char *filepath,
                   const bool use_scripts_autoexec_check,
                   ReportList *reports);
@@ -751,7 +751,7 @@ wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindowManager *wm,
                                                  ScrArea *area,
                                                  ARegion *region,
                                                  wmOperator *op) ATTR_NONNULL(1, 2, 5);
-wmEventHandler_Op *WM_event_add_modal_handler(bContext *C, wmOperator *op) ATTR_NONNULL(1, 2);
+wmEventHandler_Op *WM_event_add_modal_handler(bContext &C, wmOperator *op) ATTR_NONNULL(1, 2);
 void WM_event_remove_modal_handler(ListBaseT<wmEventHandler> *handlers,
                                    const wmOperator *op,
                                    bool postpone) ATTR_NONNULL(1, 2);
@@ -779,7 +779,7 @@ void WM_event_ui_handler_region_popup_replace(wmWindow *win,
 /**
  * Called on exit or remove area, only here call cancel callback.
  */
-void WM_event_remove_handlers(bContext *C, ListBaseT<wmEventHandler> *handlers);
+void WM_event_remove_handlers(bContext &C, ListBaseT<wmEventHandler> *handlers);
 
 wmEventHandler_Dropbox *WM_event_add_dropbox_handler(ListBaseT<wmEventHandler> *handlers,
                                                      ListBaseT<wmDropBox> *dropboxes);
@@ -796,7 +796,7 @@ void WM_event_add_notifier_ex(wmWindowManager *wm,
                               const wmWindow *win,
                               unsigned int type,
                               void *reference);
-void WM_event_add_notifier(const bContext *C, unsigned int type, void *reference);
+void WM_event_add_notifier(const bContext &C, unsigned int type, void *reference);
 void WM_main_add_notifier(unsigned int type, void *reference);
 /**
  * Clear notifiers by reference, Used so listeners don't act on freed data.
@@ -1030,7 +1030,7 @@ bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCa
  * \note It's best practice that `ot->poll` sets the "poll message",
  * otherwise a generic (unhelpful) error will be used.
  */
-bool WM_operator_poll_or_report_error(bContext *C, wmOperatorType *ot, ReportList *reports);
+bool WM_operator_poll_or_report_error(bContext &C, wmOperatorType *ot, ReportList *reports);
 
 /**
  * For running operators with frozen context (modal handlers, menus).
@@ -1096,14 +1096,14 @@ wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
  * - `poll()` must be called by python before this runs.
  * - reports can be passed to this function (so python can report them as exceptions).
  */
-wmOperatorStatus WM_operator_call_py(bContext *C,
+wmOperatorStatus WM_operator_call_py(bContext &C,
                                      wmOperatorType *ot,
                                      blender::wm::OpCallContext context,
                                      PointerRNA *properties,
                                      ReportList *reports,
                                      bool is_undo);
 
-void WM_operator_name_call_ptr_with_depends_on_cursor(bContext *C,
+void WM_operator_name_call_ptr_with_depends_on_cursor(bContext &C,
                                                       wmOperatorType *ot,
                                                       blender::wm::OpCallContext opcontext,
                                                       PointerRNA *properties,
@@ -1142,16 +1142,16 @@ bool WM_operator_ui_poll(wmOperatorType *ot, PointerRNA *ptr);
 /**
  * Return false, if the UI should be disabled.
  */
-bool WM_operator_check_ui_enabled(const bContext *C, const char *idname);
+bool WM_operator_check_ui_enabled(const bContext &C, const char *idname);
 
 IDProperty *WM_operator_last_properties_ensure_idprops(wmOperatorType *ot);
 void WM_operator_last_properties_ensure(wmOperatorType *ot, PointerRNA *ptr);
-wmOperator *WM_operator_last_redo(const bContext *C);
+wmOperator *WM_operator_last_redo(const bContext &C);
 /**
  * Use for drag & drop a path or name with operators invoke() function.
  * Returns null if no operator property is set to identify the file or ID to use.
  */
-ID *WM_operator_drop_load_path(bContext *C, wmOperator *op, short idcode);
+ID *WM_operator_drop_load_path(bContext &C, wmOperator *op, short idcode);
 
 bool WM_operator_last_properties_init(wmOperator *op);
 bool WM_operator_last_properties_store(wmOperator *op);
@@ -1555,7 +1555,7 @@ void WM_gesture_polyline_cancel(bContext *C, wmOperator *op);
  */
 blender::Array<blender::int2> WM_gesture_lasso_path_to_array(bContext *C, wmOperator *op);
 
-wmOperatorStatus WM_gesture_straightline_invoke(bContext *C, wmOperator *op, const wmEvent *event);
+wmOperatorStatus WM_gesture_straightline_invoke(bContext &C, wmOperator *op, const wmEvent *event);
 /**
  * This invoke callback starts the straight-line gesture with a viewport preview to the right side
  * of the line.
@@ -1617,7 +1617,7 @@ void WM_event_consecutive_data_free(wmWindow *win);
  *
  * \see #BKE_area_find_region_active_win
  */
-void WM_operator_region_active_win_set(bContext *C);
+void WM_operator_region_active_win_set(bContext &C);
 
 /**
  * Indented for use in a selection (picking) operators #wmOperatorType::invoke callback
@@ -1664,13 +1664,13 @@ wmDrag *WM_drag_data_create(
 /**
  * Invoke dragging using the given \a drag data.
  */
-void WM_event_start_prepared_drag(bContext *C, wmDrag *drag);
+void WM_event_start_prepared_drag(bContext &C, wmDrag *drag);
 void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale);
 /**
  * Overrides the `drag.poin` event to include all selected files in the space file where the event
  * started.
  */
-void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext *, wmDrag *drag);
+void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext &, wmDrag *drag);
 void WM_event_drag_preview_icon(wmDrag *drag, int icon_id);
 void WM_drag_free(wmDrag *drag);
 void WM_drag_data_free(eWM_DragDataType dragtype, void *poin);
@@ -1701,7 +1701,7 @@ ListBaseT<wmDropBox> *WM_dropboxmap_find(const char *idname, int spaceid, int re
  *
  * \param flag_extra: Additional linking flags (from #eFileSel_Params_Flag).
  */
-ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, int flag_extra);
+ID *WM_drag_asset_id_import(const bContext &C, wmDragAsset *asset_drag, int flag_extra);
 bool WM_drag_asset_will_import_linked(const wmDrag *drag);
 bool WM_drag_asset_will_import_packed(const wmDrag *drag);
 void WM_drag_add_local_ID(wmDrag *drag, ID *id, ID *from_parent);
@@ -2024,7 +2024,7 @@ void WM_draw_cb_exit(wmWindow *win, void *handle);
  * With some rare exceptions which require a redraw (e.g. screen-shot & sample screen color)
  * explicitly redrawing should be avoided, see: #92704, #93950, #97627 & #98462.
  */
-void WM_redraw_windows(bContext *C);
+void WM_redraw_windows(bContext &C);
 
 void WM_draw_region_viewport_ensure(Scene *scene, ARegion *region, short space_type);
 void WM_draw_region_viewport_bind(ARegion *region);
@@ -2073,7 +2073,7 @@ void WM_window_status_area_tag_redraw(wmWindow *win);
  * use here since the area is stored in the window manager.
  */
 ScrArea *WM_window_status_area_find(wmWindow *win, bScreen *screen);
-bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, blender::ui::Layout &layout);
+bool WM_window_modal_keymap_status_draw(bContext &C, wmWindow *win, blender::ui::Layout &layout);
 
 /* `wm_event_query.cc` */
 
@@ -2182,7 +2182,7 @@ using wmTooltipInitFn = ARegion *(*)(bContext * C,
 
 void WM_tooltip_immediate_init(
     bContext *C, wmWindow *win, ScrArea *area, ARegion *region, wmTooltipInitFn init);
-void WM_tooltip_timer_init_ex(bContext *C,
+void WM_tooltip_timer_init_ex(bContext &C,
                               wmWindow *win,
                               ScrArea *area,
                               ARegion *region,
@@ -2190,9 +2190,9 @@ void WM_tooltip_timer_init_ex(bContext *C,
                               double delay);
 void WM_tooltip_timer_init(
     bContext *C, wmWindow *win, ScrArea *area, ARegion *region, wmTooltipInitFn init);
-void WM_tooltip_timer_clear(bContext *C, wmWindow *win);
+void WM_tooltip_timer_clear(bContext &C, wmWindow *win);
 void WM_tooltip_clear(bContext *C, wmWindow *win);
-void WM_tooltip_init(bContext *C, wmWindow *win);
+void WM_tooltip_init(bContext &C, wmWindow *win);
 void WM_tooltip_refresh(bContext *C, wmWindow *win);
 double WM_tooltip_time_closed();
 

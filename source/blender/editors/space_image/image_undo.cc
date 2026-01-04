@@ -931,7 +931,7 @@ static bool image_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoStep *u
   else {
     BLI_assert(C != nullptr);
     /* Happens when switching modes. */
-    PaintMode paint_mode = BKE_paintmode_get_active_from_context(C);
+    PaintMode paint_mode = BKE_paintmode_get_active_from_context(*C);
     BLI_assert(ELEM(paint_mode, PaintMode::Texture2D, PaintMode::Texture3D));
     us->paint_mode = paint_mode;
   }
@@ -1009,7 +1009,7 @@ static void image_undosys_step_decode(
   }
 
   if (us->paint_mode == PaintMode::Texture3D) {
-    blender::ed::object::mode_set_ex(C, OB_MODE_TEXTURE_PAINT, false, nullptr);
+    blender::ed::object::mode_set_ex(*C, OB_MODE_TEXTURE_PAINT, false, nullptr);
   }
 
   /* Ideally, we shouldn't have to tag the object as needing to be recalculated if using this paint

@@ -289,7 +289,7 @@ static eInsertKeyFlags keyingset_apply_keying_flags(const eInsertKeyFlags base_f
   return result;
 }
 
-static int insert_key_to_keying_set_path(bContext *C,
+static int insert_key_to_keying_set_path(bContext &C,
                                          KS_Path *keyingset_path,
                                          KeyingSet *keyingset,
                                          const eInsertKeyFlags insert_key_flags,
@@ -339,14 +339,14 @@ static int insert_key_to_keying_set_path(bContext *C,
     array_length++;
   }
 
-  Main *bmain = CTX_data_main(*C);
-  ReportList *reports = CTX_wm_reports(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  ReportList *reports = CTX_wm_reports(C);
+  Scene *scene = CTX_data_scene(C);
   const eBezTriple_KeyframeType keytype = eBezTriple_KeyframeType(
       scene->toolsettings->keyframe_type);
   /* For each possible index, perform operation
    * - Assume that array-length is greater than index. */
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
                                                                                     frame);
   int keyed_channels = 0;
@@ -451,7 +451,7 @@ int apply_keyingset(bContext *C,
     }
 
     keyed_channels += insert_key_to_keying_set_path(
-        C, &keyingset_path, keyingset, kflag, mode, cfra);
+        *C, &keyingset_path, keyingset, kflag, mode, cfra);
   }
 
   /* Return the number of channels successfully affected. */

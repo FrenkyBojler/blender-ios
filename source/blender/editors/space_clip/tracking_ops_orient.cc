@@ -58,11 +58,11 @@ static Object *get_camera_with_movieclip(Scene *scene, const MovieClip *clip)
   return camera;
 }
 
-static Object *get_orientation_object(bContext *C)
+static Object *get_orientation_object(bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -103,9 +103,9 @@ static bool set_orientation_poll(bContext &C)
   return false;
 }
 
-static int count_selected_bundles(bContext *C)
+static int count_selected_bundles(bContext &C)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   int tot = 0;
@@ -165,7 +165,7 @@ static wmOperatorStatus set_origin_exec(bContext &C, wmOperator &op)
   MovieTracking *tracking = &clip->tracking;
   Scene *scene = CTX_data_scene(C);
   Object *camera = get_camera_with_movieclip(scene, clip);
-  int selected_count = count_selected_bundles(&C);
+  int selected_count = count_selected_bundles(C);
 
   if (selected_count == 0) {
     BKE_report(op.reports,
@@ -176,7 +176,7 @@ static wmOperatorStatus set_origin_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  Object *object = get_orientation_object(&C);
+  Object *object = get_orientation_object(C);
   if (object == nullptr) {
     BKE_report(op.reports, RPT_ERROR, "No object to apply orientation on");
     return OPERATOR_CANCELLED;
@@ -209,8 +209,8 @@ static wmOperatorStatus set_origin_exec(bContext &C, wmOperator &op)
   DEG_id_tag_update(&clip->id, 0);
   DEG_id_tag_update(&object->id, ID_RECALC_TRANSFORM);
 
-  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -390,7 +390,7 @@ static wmOperatorStatus set_plane_exec(bContext &C, wmOperator &op)
       {0.0f, 0.0f, 0.0f, 1.0f},
   }; /* 90 degrees Y-axis rotation matrix */
 
-  if (count_selected_bundles(&C) != 3) {
+  if (count_selected_bundles(C) != 3) {
     BKE_report(op.reports, RPT_ERROR, "Three tracks with bundles are needed to orient the floor");
 
     return OPERATOR_CANCELLED;
@@ -398,7 +398,7 @@ static wmOperatorStatus set_plane_exec(bContext &C, wmOperator &op)
 
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
 
-  Object *object = get_orientation_object(&C);
+  Object *object = get_orientation_object(C);
   if (object == nullptr) {
     BKE_report(op.reports, RPT_ERROR, "No object to apply orientation on");
     return OPERATOR_CANCELLED;
@@ -481,8 +481,8 @@ static wmOperatorStatus set_plane_exec(bContext &C, wmOperator &op)
   DEG_id_tag_update(&clip->id, 0);
   DEG_id_tag_update(&object->id, ID_RECALC_TRANSFORM);
 
-  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -525,13 +525,13 @@ static wmOperatorStatus set_axis_exec(bContext &C, wmOperator &op)
   Object *object;
   int axis = RNA_enum_get(op.ptr, "axis");
 
-  if (count_selected_bundles(&C) != 1) {
+  if (count_selected_bundles(C) != 1) {
     BKE_report(
         op.reports, RPT_ERROR, "Single track with bundle should be selected to define axis");
     return OPERATOR_CANCELLED;
   }
 
-  object = get_orientation_object(&C);
+  object = get_orientation_object(C);
   if (object == nullptr) {
     BKE_report(op.reports, RPT_ERROR, "No object to apply orientation on");
     return OPERATOR_CANCELLED;
@@ -551,8 +551,8 @@ static wmOperatorStatus set_axis_exec(bContext &C, wmOperator &op)
   DEG_id_tag_update(&clip->id, 0);
   DEG_id_tag_update(&object->id, ID_RECALC_TRANSFORM);
 
-  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EVALUATED, clip);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EVALUATED, clip);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -586,16 +586,16 @@ void CLIP_OT_set_axis(wmOperatorType *ot)
 
 /********************** set scale operator *********************/
 
-static wmOperatorStatus do_set_scale(bContext *C,
+static wmOperatorStatus do_set_scale(bContext &C,
                                      wmOperator *op,
                                      bool scale_solution,
                                      bool apply_scale)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   Object *object = nullptr;
   Object *camera = get_camera_with_movieclip(scene, clip);
   int tot = 0;
@@ -684,7 +684,7 @@ static wmOperatorStatus do_set_scale(bContext *C,
 
 static wmOperatorStatus set_scale_exec(bContext &C, wmOperator &op)
 {
-  return do_set_scale(&C, &op, false, false);
+  return do_set_scale(C, &op, false, false);
 }
 
 static wmOperatorStatus set_scale_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
@@ -744,7 +744,7 @@ static bool set_solution_scale_poll(bContext &C)
 
 static wmOperatorStatus set_solution_scale_exec(bContext &C, wmOperator &op)
 {
-  return do_set_scale(&C, &op, true, false);
+  return do_set_scale(C, &op, true, false);
 }
 
 static wmOperatorStatus set_solution_scale_invoke(bContext &C,
@@ -808,7 +808,7 @@ static bool apply_solution_scale_poll(bContext &C)
 
 static wmOperatorStatus apply_solution_scale_exec(bContext &C, wmOperator &op)
 {
-  return do_set_scale(&C, &op, false, true);
+  return do_set_scale(C, &op, false, true);
 }
 
 static wmOperatorStatus apply_solution_scale_invoke(bContext &C,

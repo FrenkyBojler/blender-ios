@@ -44,7 +44,7 @@ void ED_clip_buttons_register(ARegionType *art);
 /* clip_dopesheet_draw.cc */
 
 void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *region, Scene *scene);
-void clip_draw_dopesheet_channels(const bContext *C, ARegion *region);
+void clip_draw_dopesheet_channels(const bContext &C, ARegion *region);
 
 /* clip_dopesheet_ops.cc */
 
@@ -53,16 +53,16 @@ void CLIP_OT_dopesheet_view_all(wmOperatorType *ot);
 
 /* clip_draw.cc */
 
-void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *region);
+void clip_draw_main(const bContext &C, SpaceClip *sc, ARegion *region);
 
 /* draw grease pencil */
 
-void clip_draw_grease_pencil(bContext *C, int onlyv2d);
-void clip_draw_cache_and_notes(const bContext *C, SpaceClip *sc, ARegion *region);
+void clip_draw_grease_pencil(bContext &C, int onlyv2d);
+void clip_draw_cache_and_notes(const bContext &C, SpaceClip *sc, ARegion *region);
 
 /* clip_editor.cc */
 
-void clip_start_prefetch_job(const bContext *C);
+void clip_start_prefetch_job(const bContext &C);
 
 /* clip_graph_draw.cc */
 
@@ -171,13 +171,13 @@ void clip_view_offset_for_center_to_point(
 void clip_view_center_to_point(SpaceClip *sc, float x, float y);
 
 bool clip_view_calculate_view_selection(
-    const bContext *C, bool fit, float *r_offset_x, float *r_offset_y, float *r_zoom);
+    const bContext &C, bool fit, float *r_offset_x, float *r_offset_y, float *r_zoom);
 
 /**
  * Returns truth if lock-to-selection is enabled and possible.
  * Locking to selection is not possible if there is no selection.
  */
-bool clip_view_has_locked_selection(const bContext *C);
+bool clip_view_has_locked_selection(const bContext &C);
 
 /* tracking_ops.cc */
 

@@ -267,7 +267,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
   bool sel_key, sel_left, sel_right;
 
   /* Determine what type of data we are operating on. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return;
   }
 
@@ -986,7 +986,7 @@ static void special_aftertrans_update__graph(bContext *C, TransInfo *t)
   const bool duplicate = (t->flag & T_DUPLICATED_KEYFRAMES) != 0;
 
   /* Initialize relevant anim-context 'context' data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return;
   }
 

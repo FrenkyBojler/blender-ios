@@ -584,15 +584,15 @@ static void gizmo_draw_select_3d_loop(const bContext *C,
 
 static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
                                             const int visible_gizmos_len,
-                                            const bContext *C,
+                                            const bContext &C,
                                             const int co[2],
                                             const int hotspot)
 {
-  const wmWindowManager *wm = CTX_wm_manager(*C);
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
+  const wmWindowManager *wm = CTX_wm_manager(C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   rcti rect;
   /* Almost certainly overkill, but allow for many custom gizmos. */
   GPUSelectBuffer buffer;
@@ -601,7 +601,7 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
   BLI_rcti_init_pt_radius(&rect, co, hotspot);
 
   ED_view3d_draw_setup_view(
-      wm, CTX_wm_window(*C), depsgraph, CTX_data_scene(*C), region, v3d, nullptr, nullptr, &rect);
+      wm, CTX_wm_window(C), depsgraph, CTX_data_scene(C), region, v3d, nullptr, nullptr, &rect);
 
   bool use_select_bias = false;
 
@@ -610,25 +610,18 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
    * use the GPU or draw something once, see #61474. */
   GPU_select_begin(&buffer, &rect, GPU_SELECT_NEAREST_FIRST_PASS, 0);
   /* Do the drawing. */
-  gizmo_draw_select_3d_loop(C, visible_gizmos, visible_gizmos_len, &use_select_bias);
+  gizmo_draw_select_3d_loop(&C, visible_gizmos, visible_gizmos_len, &use_select_bias);
 
   hits = GPU_select_end();
 
   if (hits > 0) {
     GPU_select_begin(&buffer, &rect, GPU_SELECT_NEAREST_SECOND_PASS, hits);
-    gizmo_draw_select_3d_loop(C, visible_gizmos, visible_gizmos_len, &use_select_bias);
+    gizmo_draw_select_3d_loop(&C, visible_gizmos, visible_gizmos_len, &use_select_bias);
     GPU_select_end();
   }
 
-  ED_view3d_draw_setup_view(wm,
-                            CTX_wm_window(*C),
-                            depsgraph,
-                            CTX_data_scene(*C),
-                            region,
-                            v3d,
-                            nullptr,
-                            nullptr,
-                            nullptr);
+  ED_view3d_draw_setup_view(
+      wm, CTX_wm_window(C), depsgraph, CTX_data_scene(C), region, v3d, nullptr, nullptr, nullptr);
 
   const blender::Span<GPUSelectResult> hit_results = buffer.storage.as_span().take_front(hits);
   if (use_select_bias && (hits > 1)) {
@@ -688,7 +681,7 @@ static wmGizmo *gizmo_find_intersected_3d(bContext *C,
   *r_part = 0;
 
   /* Set up view matrices. */
-  view3d_operator_needs_gpu(C);
+  view3d_operator_needs_gpu(*C);
 
   /* Search for 3D gizmo's that use the 2D callback for checking intersections. */
   bool has_3d = false;
@@ -752,7 +745,7 @@ static wmGizmo *gizmo_find_intersected_3d(bContext *C,
     };
     for (int i = 0; i < ARRAY_SIZE(hotspot_radii); i++) {
       hit = gizmo_find_intersected_3d_intern(
-          visible_gizmos, visible_gizmos_len_trim, C, co, hotspot_radii[i]);
+          visible_gizmos, visible_gizmos_len_trim, *C, co, hotspot_radii[i]);
       if (hit != -1) {
         break;
       }
@@ -783,25 +776,25 @@ bool wm_gizmomap_highlight_handled(wmGizmoMap *gzmap)
 }
 
 wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
-                                    bContext *C,
+                                    bContext &C,
                                     const wmEvent *event,
                                     int *r_part)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmGizmo *gz = nullptr;
   blender::Vector<wmGizmo *, 128> visible_3d_gizmos;
   bool do_step[WM_GIZMOMAP_DRAWSTEP_MAX];
 
   int mval[2];
   if (event->val == KM_PRESS_DRAG) {
-    WM_event_drag_start_mval(event, CTX_wm_region(*C), mval);
+    WM_event_drag_start_mval(event, CTX_wm_region(C), mval);
   }
   else {
     copy_v2_v2_int(mval, event->mval);
   }
 
   for (int i = 0; i < ARRAY_SIZE(do_step); i++) {
-    do_step[i] = WM_gizmo_context_check_drawstep(C, eWM_GizmoFlagMapDrawStep(i));
+    do_step[i] = WM_gizmo_context_check_drawstep(&C, eWM_GizmoFlagMapDrawStep(i));
   }
 
   for (wmGizmoGroup &gzgroup : gzmap->groups) {
@@ -813,11 +806,11 @@ wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
       continue;
     }
 
-    if (WM_gizmo_group_type_poll(C, gzgroup.type)) {
+    if (WM_gizmo_group_type_poll(&C, gzgroup.type)) {
       const eWM_GizmoFlagMapDrawStep step = WM_gizmomap_drawstep_from_gizmo_group(&gzgroup);
       if (do_step[step]) {
         if (gzmap->update_flag[step] & GIZMOMAP_IS_REFRESH_CALLBACK) {
-          WM_gizmo_group_refresh(C, &gzgroup);
+          WM_gizmo_group_refresh(&C, &gzgroup);
           /* Cleared below. */
         }
         if (step == WM_GIZMOMAP_DRAWSTEP_3D) {
@@ -826,7 +819,7 @@ wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
         }
         else if (step == WM_GIZMOMAP_DRAWSTEP_2D) {
           if ((gz = wm_gizmogroup_find_intersected_gizmo(
-                   wm, &gzgroup, C, event->modifier, mval, r_part)))
+                   wm, &gzgroup, &C, event->modifier, mval, r_part)))
           {
             break;
           }
@@ -839,7 +832,7 @@ wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
     /* 2D gizmos get priority. */
     if (gz == nullptr) {
       gz = gizmo_find_intersected_3d(
-          C, mval, visible_3d_gizmos.data(), visible_3d_gizmos.size(), r_part);
+          &C, mval, visible_3d_gizmos.data(), visible_3d_gizmos.size(), r_part);
     }
   }
 
@@ -881,7 +874,7 @@ void wm_gizmomaps_handled_modal_update(bContext *C, wmEvent *event, wmEventHandl
   ScrArea *area = CTX_wm_area(*C);
   ARegion *region = CTX_wm_region(*C);
 
-  wm_gizmomap_handler_context_op(C, handler);
+  wm_gizmomap_handler_context_op(*C, handler);
 
   /* Regular update for running operator. */
   if (modal_running) {
@@ -990,9 +983,9 @@ bool WM_gizmomap_select_all(bContext *C, wmGizmoMap *gzmap, const int action)
   return changed;
 }
 
-void wm_gizmomap_handler_context_op(bContext *C, wmEventHandler_Op *handler)
+void wm_gizmomap_handler_context_op(bContext &C, wmEventHandler_Op *handler)
 {
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
 
   if (screen) {
     ScrArea *area;
@@ -1008,7 +1001,7 @@ void wm_gizmomap_handler_context_op(bContext *C, wmEventHandler_Op *handler)
     }
     else {
       ARegion *region;
-      CTX_wm_area_set(*C, area);
+      CTX_wm_area_set(C, area);
       for (region = static_cast<ARegion *>(area->regionbase.first); region; region = region->next)
       {
         if (region == handler->context.region) {
@@ -1017,7 +1010,7 @@ void wm_gizmomap_handler_context_op(bContext *C, wmEventHandler_Op *handler)
       }
       /* XXX no warning print here, after full-area and back regions are remade. */
       if (region) {
-        CTX_wm_region_set(*C, region);
+        CTX_wm_region_set(C, region);
       }
     }
   }
@@ -1266,7 +1259,7 @@ ARegion *WM_gizmomap_tooltip_init(
         /* On screen area of 3D gizmos may be large, exit on cursor motion. */
         *r_exit_on_event = true;
       }
-      return blender::ui::tooltip_create_from_gizmo(C, gz);
+      return blender::ui::tooltip_create_from_gizmo(*C, gz);
     }
   }
   return nullptr;

@@ -1017,7 +1017,7 @@ static bool node_material_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /
 
 static bool node_color_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
-  return (drag->type == WM_DRAG_COLOR) && !ui::button_active_drop_color(C);
+  return (drag->type == WM_DRAG_COLOR) && !ui::button_active_drop_color(*C);
 }
 
 static bool node_import_file_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)

@@ -54,10 +54,10 @@ void viewdolly_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_dolly");
 }
 
-static bool viewdolly_offset_lock_check(bContext *C, wmOperator *op)
+static bool viewdolly_offset_lock_check(bContext &C, wmOperator *op)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  View3D *v3d = CTX_wm_view3d(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   if (ED_view3d_offset_lock_check(v3d, rv3d)) {
     BKE_report(op->reports, RPT_WARNING, "Cannot dolly when the view offset is locked");
     return true;
@@ -242,7 +242,7 @@ static wmOperatorStatus viewdolly_invoke(bContext &C, wmOperator &op, const wmEv
 
   ViewOpsData *vod;
 
-  if (viewdolly_offset_lock_check(&C, &op)) {
+  if (viewdolly_offset_lock_check(C, &op)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -319,7 +319,7 @@ static wmOperatorStatus viewdolly_invoke(bContext &C, wmOperator &op, const wmEv
     }
 
     /* add temp handler */
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
     return OPERATOR_RUNNING_MODAL;
   }
   return OPERATOR_FINISHED;

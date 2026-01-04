@@ -323,9 +323,9 @@ static void transDataTrackingFree(TransInfo * /*t*/,
   }
 }
 
-static void createTransTrackingTracksData(bContext *C, TransInfo *t)
+static void createTransTrackingTracksData(bContext &C, TransInfo *t)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(*C);
+  SpaceClip *space_clip = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(space_clip);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   const int framenr = ED_space_clip_get_clip_frame_number(space_clip);
@@ -394,7 +394,7 @@ static void createTransTrackingData(bContext *C, TransInfo *t)
     return;
   }
 
-  createTransTrackingTracksData(C, t);
+  createTransTrackingTracksData(*C, t);
 }
 
 /** \} */
@@ -612,7 +612,7 @@ static void special_aftertrans_update__movieclip(bContext *C, TransInfo *t)
       Main *bmain = CTX_data_main(*C);
       BKE_ntree_update_tag_id_changed(bmain, &clip->id);
       BKE_ntree_update(*bmain);
-      WM_event_add_notifier(C, NC_SCENE | ND_NODES, nullptr);
+      WM_event_add_notifier(*C, NC_SCENE | ND_NODES, nullptr);
     }
   }
 }

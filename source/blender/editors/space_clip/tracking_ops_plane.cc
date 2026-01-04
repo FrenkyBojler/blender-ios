@@ -60,7 +60,7 @@ static wmOperatorStatus create_plane_track_tracks_exec(bContext &C, wmOperator &
   BKE_tracking_track_plane_from_existing_motion(plane_track, framenr);
 
   DEG_id_tag_update(&clip->id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
+  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 
   return OPERATOR_FINISHED;
 }
@@ -95,12 +95,12 @@ struct SlidePlaneMarkerData {
   bool accurate;
 };
 
-static MovieTrackingPlaneTrack *tracking_plane_marker_check_slide(bContext *C,
+static MovieTrackingPlaneTrack *tracking_plane_marker_check_slide(bContext &C,
                                                                   const wmEvent *event,
                                                                   int *r_corner)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceClip *space_clip = CTX_wm_space_clip(C);
+  ARegion *region = CTX_wm_region(C);
 
   float co[2];
   ED_clip_mouse_pos(space_clip, region, event->mval, co);
@@ -124,10 +124,10 @@ static MovieTrackingPlaneTrack *tracking_plane_marker_check_slide(bContext *C,
   return track_pick.plane_track;
 }
 
-static SlidePlaneMarkerData *slide_plane_marker_customdata(bContext *C, const wmEvent *event)
+static SlidePlaneMarkerData *slide_plane_marker_customdata(bContext &C, const wmEvent *event)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
+  ARegion *region = CTX_wm_region(C);
   MovieTrackingPlaneTrack *plane_track;
   int width, height;
   float co[2];
@@ -174,7 +174,7 @@ static wmOperatorStatus slide_plane_marker_invoke(bContext &C,
                                                   wmOperator &op,
                                                   const wmEvent *event)
 {
-  SlidePlaneMarkerData *slidedata = slide_plane_marker_customdata(&C, event);
+  SlidePlaneMarkerData *slidedata = slide_plane_marker_customdata(C, event);
 
   if (slidedata) {
     SpaceClip *sc = CTX_wm_space_clip(C);
@@ -187,10 +187,10 @@ static wmOperatorStatus slide_plane_marker_invoke(bContext &C,
 
     op.customdata = slidedata;
 
-    clip_tracking_hide_cursor(&C);
-    WM_event_add_modal_handler(&C, &op);
+    clip_tracking_hide_cursor(C);
+    WM_event_add_modal_handler(C, &op);
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, nullptr);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -295,7 +295,7 @@ static wmOperatorStatus slide_plane_marker_modal(bContext &C, wmOperator &op, co
       copy_v2_v2(data->previous_corner, data->corner);
 
       DEG_id_tag_update(&clip->id, ID_RECALC_SYNC_TO_EVAL);
-      WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, nullptr);
+      WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, nullptr);
 
       break;
 
@@ -309,10 +309,10 @@ static wmOperatorStatus slide_plane_marker_modal(bContext &C, wmOperator &op, co
 
         free_slide_plane_marker_data(data);
 
-        clip_tracking_show_cursor(&C);
+        clip_tracking_show_cursor(C);
 
         DEG_id_tag_update(&clip->id, ID_RECALC_SYNC_TO_EVAL);
-        WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
+        WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 
         return OPERATOR_FINISHED;
       }
@@ -324,9 +324,9 @@ static wmOperatorStatus slide_plane_marker_modal(bContext &C, wmOperator &op, co
 
       free_slide_plane_marker_data(data);
 
-      clip_tracking_show_cursor(&C);
+      clip_tracking_show_cursor(C);
 
-      WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, clip);
+      WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
 
       return OPERATOR_CANCELLED;
     default: {

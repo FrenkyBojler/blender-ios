@@ -55,20 +55,20 @@
 
 using blender::Vector;
 
-Object *ED_pose_object_from_context(bContext *C)
+Object *ED_pose_object_from_context(bContext &C)
 {
   /* NOTE: matches logic with #ED_operator_posemode_context(). */
 
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   Object *ob;
 
   /* Since this call may also be used from the buttons window,
    * we need to check for where to get the object. */
   if (area && area->spacetype == SPACE_PROPERTIES) {
-    ob = blender::ed::object::context_active_object(C);
+    ob = blender::ed::object::context_active_object(&C);
   }
   else {
-    ob = BKE_object_pose_armature_get(CTX_data_active_object(*C));
+    ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
   }
 
   return ob;
@@ -95,10 +95,10 @@ bool ED_object_posemode_enter_ex(Main *bmain, Object *ob)
 
   return ok;
 }
-bool ED_object_posemode_enter(bContext *C, Object *ob)
+bool ED_object_posemode_enter(bContext &C, Object *ob)
 {
-  ReportList *reports = CTX_wm_reports(*C);
-  Main *bmain = CTX_data_main(*C);
+  ReportList *reports = CTX_wm_reports(C);
+  Main *bmain = CTX_data_main(C);
   if (!BKE_id_is_editable(bmain, &ob->id)) {
     BKE_report(reports, RPT_WARNING, "Cannot pose libdata");
     return false;
@@ -123,9 +123,9 @@ bool ED_object_posemode_exit_ex(Main *bmain, Object *ob)
   }
   return ok;
 }
-bool ED_object_posemode_exit(bContext *C, Object *ob)
+bool ED_object_posemode_exit(bContext &C, Object *ob)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   bool ok = ED_object_posemode_exit_ex(bmain, ob);
   if (ok) {
     WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
@@ -278,7 +278,7 @@ static wmOperatorStatus pose_calculate_paths_exec(bContext &C, wmOperator &op)
 #endif
 
   /* notifiers for updates */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -353,7 +353,7 @@ static wmOperatorStatus pose_update_paths_exec(bContext &C, wmOperator &op)
   ED_pose_recalculate_paths(&C, scene, ob, POSE_PATH_CALC_RANGE_FULL);
 
   /* notifiers for updates */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -421,7 +421,7 @@ static wmOperatorStatus pose_clear_paths_exec(bContext &C, wmOperator &op)
   pose_clear_paths(ob, only_selected);
 
   /* notifiers for updates */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -477,7 +477,7 @@ static wmOperatorStatus pose_update_paths_range_exec(bContext &C, wmOperator & /
 
   /* tag for updates */
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -524,7 +524,7 @@ static wmOperatorStatus pose_flip_names_exec(bContext &C, wmOperator &op)
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
     /* NOTE: notifier might evolve. */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
   }
   FOREACH_OBJECT_IN_MODE_END;
 
@@ -575,7 +575,7 @@ static wmOperatorStatus pose_autoside_names_exec(bContext &C, wmOperator &op)
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
       /* NOTE: notifier might evolve. */
-      WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob);
+      WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
       ob_prev = ob;
     }
   }
@@ -631,8 +631,8 @@ static wmOperatorStatus pose_bone_rotmode_exec(bContext &C, wmOperator &op)
     if (prev_ob != ob) {
       /* Notifiers and updates. */
       DEG_id_tag_update(reinterpret_cast<ID *>(ob), ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, ob);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
+      WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
       prev_ob = ob;
     }
   }
@@ -691,7 +691,7 @@ static wmOperatorStatus pose_hide_exec(bContext &C, wmOperator &op)
 
     if (changed) {
       changed_multi = true;
-      WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob_iter);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob_iter);
       DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
@@ -746,7 +746,7 @@ static wmOperatorStatus pose_reveal_exec(bContext &C, wmOperator &op)
 
     if (changed) {
       changed_multi = true;
-      WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob_iter);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob_iter);
       DEG_id_tag_update(&arm->id, ID_RECALC_PARAMETERS);
     }
   }
@@ -794,7 +794,7 @@ static wmOperatorStatus pose_flip_quats_exec(bContext &C, wmOperator & /*op*/)
         negate_v4(pchan->quat);
 
         blender::animrig::autokeyframe_pose_channel(
-            &C, scene, ob_iter, pchan, {{"rotation_quaternion"}}, false);
+            C, scene, ob_iter, pchan, {{"rotation_quaternion"}}, false);
       }
     }
     FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
@@ -803,7 +803,7 @@ static wmOperatorStatus pose_flip_quats_exec(bContext &C, wmOperator & /*op*/)
       changed_multi = true;
       /* notifiers and updates */
       DEG_id_tag_update(&ob_iter->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, ob_iter);
+      WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob_iter);
     }
   }
   FOREACH_OBJECT_IN_MODE_END;

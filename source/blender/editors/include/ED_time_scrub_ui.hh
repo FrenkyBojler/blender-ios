@@ -48,5 +48,5 @@ bool ED_time_scrub_event_in_region_poll(const wmWindow *win,
                                         const ARegion *region,
                                         const wmEvent *event);
 
-void ED_time_scrub_channel_search_draw(const bContext *C, ARegion *region, bDopeSheet *dopesheet);
+void ED_time_scrub_channel_search_draw(const bContext &C, ARegion *region, bDopeSheet *dopesheet);
 void ED_time_scrub_region_rect_get(const ARegion *region, rcti *r_rect);

@@ -77,13 +77,13 @@ static eViewOpsFlag viewops_flag_from_prefs()
 /** \name ViewOpsData definition
  * \{ */
 
-void ViewOpsData::init_context(bContext *C)
+void ViewOpsData::init_context(bContext &C)
 {
   /* Store data. */
-  this->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  this->scene = CTX_data_scene(*C);
-  this->area = CTX_wm_area(*C);
-  this->region = CTX_wm_region(*C);
+  this->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  this->scene = CTX_data_scene(C);
+  this->area = CTX_wm_area(C);
+  this->region = CTX_wm_region(C);
   this->v3d = static_cast<View3D *>(this->area->spacedata.first);
   this->rv3d = static_cast<RegionView3D *>(this->region->regiondata);
 }
@@ -180,7 +180,7 @@ static eViewOpsFlag navigate_pivot_get(bContext *C,
                                        const float dyn_ofs_override[3],
                                        float r_pivot[3])
 {
-  if ((viewops_flag & VIEWOPS_FLAG_ORBIT_SELECT) && view3d_orbit_calc_center(C, r_pivot)) {
+  if ((viewops_flag & VIEWOPS_FLAG_ORBIT_SELECT) && view3d_orbit_calc_center(*C, r_pivot)) {
     return VIEWOPS_FLAG_ORBIT_SELECT;
   }
 
@@ -421,13 +421,13 @@ struct ViewOpsData_Utility : ViewOpsData {
   /* Used by #ED_view3d_navigation_do. */
   bool is_modal_event = false;
 
-  ViewOpsData_Utility(bContext *C, const wmKeyMapItem *kmi_merge = nullptr)
+  ViewOpsData_Utility(bContext &C, const wmKeyMapItem *kmi_merge = nullptr)
       : ViewOpsData(), keymap_items()
   {
     this->init_context(C);
 
     wmKeyMap *keymap = WM_keymap_find_all(
-        CTX_wm_manager(*C), "3D View", SPACE_VIEW3D, RGN_TYPE_WINDOW);
+        CTX_wm_manager(C), "3D View", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
     WM_keyconfig_update_suppress_begin();
 
@@ -494,13 +494,13 @@ struct ViewOpsData_Utility : ViewOpsData {
   MEM_CXX_CLASS_ALLOC_FUNCS("ViewOpsData_Utility")
 };
 
-static bool view3d_navigation_poll_impl(bContext *C, const char viewlock)
+static bool view3d_navigation_poll_impl(bContext &C, const char viewlock)
 {
-  if (!ED_operator_region_view3d_active(*C)) {
+  if (!ED_operator_region_view3d_active(C)) {
     return false;
   }
 
-  const RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  const RegionView3D *rv3d = CTX_wm_region_view3d(C);
   return !(RV3D_LOCK_FLAGS(rv3d) & viewlock);
 }
 
@@ -582,13 +582,13 @@ wmOperatorStatus view3d_navigate_invoke_impl(bContext *C,
                                              const ViewOpsType *nav_type)
 {
   ViewOpsData *vod = new ViewOpsData();
-  vod->init_context(C);
+  vod->init_context(*C);
   wmOperatorStatus ret = view3d_navigation_invoke_generic(
       C, vod, event, op->ptr, nav_type, nullptr);
   op->customdata = (void *)vod;
 
   if (ret == OPERATOR_RUNNING_MODAL) {
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(*C, op);
     return OPERATOR_RUNNING_MODAL;
   }
 
@@ -605,24 +605,24 @@ wmOperatorStatus view3d_navigate_invoke_impl(bContext *C,
 
 bool view3d_location_poll(bContext &C)
 {
-  return view3d_navigation_poll_impl(&C, RV3D_LOCK_LOCATION);
+  return view3d_navigation_poll_impl(C, RV3D_LOCK_LOCATION);
 }
 
 bool view3d_rotation_poll(bContext &C)
 {
-  return view3d_navigation_poll_impl(&C, RV3D_LOCK_ROTATION);
+  return view3d_navigation_poll_impl(C, RV3D_LOCK_ROTATION);
 }
 
 bool view3d_zoom_or_dolly_poll(bContext &C)
 {
-  return view3d_navigation_poll_impl(&C, RV3D_LOCK_ZOOM_AND_DOLLY);
+  return view3d_navigation_poll_impl(C, RV3D_LOCK_ZOOM_AND_DOLLY);
 }
 
 bool view3d_zoom_or_dolly_or_rotation_poll(bContext &C)
 {
   /* This combination of flags is needed for the dolly operator,
    * see code-comments there for details. */
-  return view3d_navigation_poll_impl(&C, RV3D_LOCK_ZOOM_AND_DOLLY | RV3D_LOCK_ROTATION);
+  return view3d_navigation_poll_impl(C, RV3D_LOCK_ZOOM_AND_DOLLY | RV3D_LOCK_ROTATION);
 }
 
 wmOperatorStatus view3d_navigate_modal_fn(bContext &C, wmOperator &op, const wmEvent *event)
@@ -810,17 +810,17 @@ void viewrotate_apply_dyn_ofs(ViewOpsData *vod, const float viewquat_new[4])
   }
 }
 
-bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
+bool view3d_orbit_calc_center(bContext &C, float r_dyn_ofs[3])
 {
   using namespace blender;
   float3 ofs = float3(0);
   bool is_set = false;
 
-  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   Paint *paint = BKE_paint_get_active_from_context(C);
   ViewLayer *view_layer_eval = DEG_get_evaluated_view_layer(depsgraph);
-  View3D *v3d = CTX_wm_view3d(*C);
+  View3D *v3d = CTX_wm_view3d(C);
   BKE_view_layer_synced_ensure(scene_eval, view_layer_eval);
   Object *ob_act_eval = BKE_view_layer_active_object_get(view_layer_eval);
   Object *ob_act = DEG_get_original(ob_act_eval);
@@ -909,7 +909,7 @@ ViewOpsData *viewops_data_create(bContext *C,
                                  const bool use_cursor_init)
 {
   ViewOpsData *vod = new ViewOpsData();
-  vod->init_context(C);
+  vod->init_context(*C);
   vod->init_navigation(C, event, nav_type, nullptr, use_cursor_init);
   return vod;
 }
@@ -991,7 +991,7 @@ void axis_set_view(bContext *C,
     /* No undo because this switches to/from camera. */
     sview.undo_str = nullptr;
 
-    ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview);
+    ED_view3d_smooth_view(*C, v3d, region, smooth_viewtx, &sview);
   }
   else if (orig_persp == RV3D_CAMOB && v3d->camera) {
     /* from camera */
@@ -1012,7 +1012,7 @@ void axis_set_view(bContext *C,
     /* No undo because this switches to/from camera. */
     sview.undo_str = nullptr;
 
-    ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview);
+    ED_view3d_smooth_view(*C, v3d, region, smooth_viewtx, &sview);
   }
   else {
     /* rotate around selection */
@@ -1020,7 +1020,7 @@ void axis_set_view(bContext *C,
     float dyn_ofs[3];
 
     if (U.uiflag & USER_ORBIT_SELECTION) {
-      if (view3d_orbit_calc_center(C, dyn_ofs)) {
+      if (view3d_orbit_calc_center(*C, dyn_ofs)) {
         negate_v3(dyn_ofs);
         dyn_ofs_pt = dyn_ofs;
       }
@@ -1033,7 +1033,7 @@ void axis_set_view(bContext *C,
     /* No undo because this switches to/from camera. */
     sview.undo_str = nullptr;
 
-    ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview);
+    ED_view3d_smooth_view(*C, v3d, region, smooth_viewtx, &sview);
   }
 }
 
@@ -1106,11 +1106,11 @@ static const ViewOpsType *view3d_navigation_type_from_idname(const char *idname)
   return nullptr;
 }
 
-ViewOpsData *ED_view3d_navigation_init(bContext *C, const wmKeyMapItem *kmi_merge)
+ViewOpsData *ED_view3d_navigation_init(bContext &C, const wmKeyMapItem *kmi_merge)
 {
   /* Unlike #viewops_data_create, #ED_view3d_navigation_init creates a navigation context along
    * with an array of `wmKeyMapItem`s used for navigation. */
-  if (!CTX_wm_region_view3d(*C)) {
+  if (!CTX_wm_region_view3d(C)) {
     return nullptr;
   }
 

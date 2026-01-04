@@ -199,9 +199,9 @@ static void catalog_tree_draw(const bContext &C, ui::Layout &layout, AssetShelf 
   ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout);
 }
 
-static AssetShelfType *lookup_type_from_idname_in_context(const bContext *C)
+static AssetShelfType *lookup_type_from_idname_in_context(const bContext &C)
 {
-  const std::optional<StringRefNull> idname = CTX_data_string_get(*C, "asset_shelf_idname");
+  const std::optional<StringRefNull> idname = CTX_data_string_get(C, "asset_shelf_idname");
   if (!idname) {
     return nullptr;
   }
@@ -225,7 +225,7 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
 {
   const wmWindow *win = CTX_wm_window(*C);
   const int layout_width_units = layout_width_units_clamped(win);
-  AssetShelfType *shelf_type = lookup_type_from_idname_in_context(C);
+  AssetShelfType *shelf_type = lookup_type_from_idname_in_context(*C);
   BLI_assert_msg(shelf_type != nullptr, "couldn't find asset shelf type from context");
 
   ui::Layout &layout = *panel->layout;
@@ -246,7 +246,7 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
   ui::Layout &catalogs_col = row.column(false);
   catalogs_col.ui_units_x_set(LEFT_COL_WIDTH_UNITS);
   catalogs_col.fixed_size_set(true);
-  library_selector_draw(C, catalogs_col, *shelf);
+  library_selector_draw(*C, catalogs_col, *shelf);
   catalog_tree_draw(*C, catalogs_col, *shelf);
 
   ui::Layout &right_col = row.column(false);
@@ -270,7 +270,7 @@ static void popover_panel_draw(const bContext *C, Panel *panel)
 
 static bool popover_panel_poll(const bContext *C, PanelType * /*panel_type*/)
 {
-  const AssetShelfType *shelf_type = lookup_type_from_idname_in_context(C);
+  const AssetShelfType *shelf_type = lookup_type_from_idname_in_context(*C);
   if (!shelf_type) {
     return false;
   }

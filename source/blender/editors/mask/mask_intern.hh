@@ -31,11 +31,11 @@ void MASK_OT_primitive_square_add(wmOperatorType *ot);
 
 /* `mask_ops.cc` */
 
-Mask *ED_mask_new(bContext *C, const char *name);
+Mask *ED_mask_new(bContext &C, const char *name);
 /**
  * Get active layer. Will create mask/layer to be sure there's an active layer.
  */
-MaskLayer *ED_mask_layer_ensure(bContext *C, bool *r_added_mask);
+MaskLayer *ED_mask_layer_ensure(bContext &C, bool *r_added_mask);
 
 void MASK_OT_new(wmOperatorType *ot);
 void MASK_OT_layer_new(wmOperatorType *ot);
@@ -102,12 +102,12 @@ struct MaskViewLockState {
   ClipViewLockState space_clip_state;
 };
 
-void ED_mask_view_lock_state_store(const bContext *C, MaskViewLockState *state);
-void ED_mask_view_lock_state_restore_no_jump(const bContext *C, const MaskViewLockState *state);
+void ED_mask_view_lock_state_store(const bContext &C, MaskViewLockState *state);
+void ED_mask_view_lock_state_restore_no_jump(const bContext &C, const MaskViewLockState *state);
 
 /* `mask_query.cc` */
 
-bool ED_mask_find_nearest_diff_point(const bContext *C,
+bool ED_mask_find_nearest_diff_point(const bContext &C,
                                      Mask *mask_orig,
                                      const float normal_co[2],
                                      int threshold,
@@ -120,7 +120,7 @@ bool ED_mask_find_nearest_diff_point(const bContext *C,
                                      MaskSplinePoint **r_point,
                                      float *r_u,
                                      float *r_score);
-bool ED_mask_feather_find_nearest(const bContext *C,
+bool ED_mask_feather_find_nearest(const bContext &C,
                                   Mask *mask_orig,
                                   const float normal_co[2],
                                   float threshold,
@@ -129,7 +129,7 @@ bool ED_mask_feather_find_nearest(const bContext *C,
                                   MaskSplinePoint **r_point,
                                   MaskSplinePointUW **r_uw,
                                   float *r_score);
-MaskSplinePoint *ED_mask_point_find_nearest(const bContext *C,
+MaskSplinePoint *ED_mask_point_find_nearest(const bContext &C,
                                             Mask *mask_orig,
                                             const float normal_co[2],
                                             float threshold,

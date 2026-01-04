@@ -114,14 +114,14 @@ static void uvedit_translate(Scene *scene, const Span<Object *> objects, const f
 
 static float uvedit_old_center[2];
 
-static void uvedit_vertex_buttons(const bContext *C, blender::ui::Block *block)
+static void uvedit_vertex_buttons(const bContext &C, blender::ui::Block *block)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
-  Scene *scene = CTX_data_scene(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
+  Scene *scene = CTX_data_scene(C);
   float center[2];
   int imx, imy, step, digits;
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, CTX_data_view_layer(*C), CTX_wm_view3d(*C));
+      scene, CTX_data_view_layer(C), CTX_wm_view3d(C));
 
   ED_space_image_get_size(sima, &imx, &imy);
 
@@ -218,7 +218,7 @@ static void do_uvedit_vertex(bContext *C, void * /*arg*/, int event)
 
   uvedit_translate(scene, objects, delta);
 
-  WM_event_add_notifier(C, NC_IMAGE, sima->image);
+  WM_event_add_notifier(*C, NC_IMAGE, sima->image);
   for (Object *obedit : objects) {
     DEG_id_tag_update((ID *)obedit->data, ID_RECALC_GEOMETRY);
   }
@@ -241,7 +241,7 @@ static void image_panel_uv(const bContext *C, Panel *panel)
   blender::ui::Block *block = panel->layout->absolute().block();
   block_func_handle_set(block, do_uvedit_vertex, nullptr);
 
-  uvedit_vertex_buttons(C, block);
+  uvedit_vertex_buttons(*C, block);
 }
 
 void ED_uvedit_buttons_register(ARegionType *art)

@@ -963,7 +963,7 @@ static void searchbox_region_layout_fn(const bContext *C, ARegion *region)
   data->size_set = true;
 }
 
-static ARegion *searchbox_create_generic_ex(bContext *C,
+static ARegion *searchbox_create_generic_ex(bContext &C,
                                             ARegion *butregion,
                                             ButtonSearch *but,
                                             const bool use_shortcut_sep)
@@ -972,7 +972,7 @@ static ARegion *searchbox_create_generic_ex(bContext *C,
   const float aspect = but->block->aspect;
 
   /* create area region */
-  ARegion *region = region_temp_add(CTX_wm_screen(*C));
+  ARegion *region = region_temp_add(CTX_wm_screen(C));
 
   static ARegionType type;
   memset(&type, 0, sizeof(ARegionType));
@@ -1046,7 +1046,7 @@ static ARegion *searchbox_create_generic_ex(bContext *C,
 
 ARegion *searchbox_create_generic(bContext *C, ARegion *butregion, ButtonSearch *search_but)
 {
-  return searchbox_create_generic_ex(C, butregion, search_but, false);
+  return searchbox_create_generic_ex(*C, butregion, search_but, false);
 }
 
 /**
@@ -1170,16 +1170,16 @@ static void searchbox_region_draw_cb__operator(const bContext * /*C*/, ARegion *
 
 ARegion *searchbox_create_operator(bContext *C, ARegion *butregion, ButtonSearch *search_but)
 {
-  ARegion *region = searchbox_create_generic_ex(C, butregion, search_but, true);
+  ARegion *region = searchbox_create_generic_ex(*C, butregion, search_but, true);
 
   region->runtime->type->draw = searchbox_region_draw_cb__operator;
 
   return region;
 }
 
-void searchbox_free(bContext *C, ARegion *region)
+void searchbox_free(bContext &C, ARegion *region)
 {
-  region_temp_remove(C, CTX_wm_screen(*C), region);
+  region_temp_remove(C, CTX_wm_screen(C), region);
 }
 
 static void searchbox_region_draw_cb__menu(const bContext * /*C*/, ARegion * /*region*/)
@@ -1189,7 +1189,7 @@ static void searchbox_region_draw_cb__menu(const bContext * /*C*/, ARegion * /*r
 
 ARegion *searchbox_create_menu(bContext *C, ARegion *butregion, ButtonSearch *search_but)
 {
-  ARegion *region = searchbox_create_generic_ex(C, butregion, search_but, true);
+  ARegion *region = searchbox_create_generic_ex(*C, butregion, search_but, true);
 
   if (false) {
     region->runtime->type->draw = searchbox_region_draw_cb__menu;

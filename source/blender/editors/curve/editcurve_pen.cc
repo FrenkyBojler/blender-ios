@@ -1555,7 +1555,7 @@ static wmOperatorStatus curve_pen_modal(bContext &C, wmOperator &op, const wmEve
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *obedit = CTX_data_edit_object(C);
 
-  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Curve *cu = static_cast<Curve *>(vc.obedit->data);
   ListBaseT<Nurb> *nurbs = &cu->editnurb->nurbs;
   const float threshold_dist_px = ED_view3d_select_dist_px() * SEL_DIST_FACTOR;
@@ -1660,7 +1660,7 @@ static wmOperatorStatus curve_pen_modal(bContext &C, wmOperator &op, const wmEve
   else if (ELEM(event->type, LEFTMOUSE)) {
     if (ELEM(event->val, KM_RELEASE, KM_DBL_CLICK)) {
       if (delete_point && !cpd->new_point && !cpd->dragging) {
-        if (ED_curve_editnurb_select_pick(&C, event->mval, threshold_dist_px, params)) {
+        if (ED_curve_editnurb_select_pick(C, event->mval, threshold_dist_px, params)) {
           cpd->changed = delete_point_under_mouse(&vc, event);
         }
       }
@@ -1721,7 +1721,7 @@ static wmOperatorStatus curve_pen_modal(bContext &C, wmOperator &op, const wmEve
           }
         }
         else if (select_point) {
-          ED_curve_editnurb_select_pick(&C, event->mval, threshold_dist_px, params);
+          ED_curve_editnurb_select_pick(C, event->mval, threshold_dist_px, params);
         }
       }
 
@@ -1733,8 +1733,8 @@ static wmOperatorStatus curve_pen_modal(bContext &C, wmOperator &op, const wmEve
     }
   }
 
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
-  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
 
   return ret;
@@ -1743,7 +1743,7 @@ static wmOperatorStatus curve_pen_modal(bContext &C, wmOperator &op, const wmEve
 static wmOperatorStatus curve_pen_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Curve *cu = static_cast<Curve *>(vc.obedit->data);
   ListBaseT<Nurb> *nurbs = &cu->editnurb->nurbs;
 
@@ -1824,7 +1824,7 @@ static wmOperatorStatus curve_pen_invoke(bContext &C, wmOperator &op, const wmEv
       }
     }
   }
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }

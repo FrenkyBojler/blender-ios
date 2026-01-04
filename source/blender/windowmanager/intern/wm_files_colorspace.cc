@@ -62,11 +62,11 @@ static const EnumPropertyItem *working_space_itemf(bContext * /*C*/,
   return item;
 }
 
-static bool wm_set_working_space_check_safe(bContext *C, wmOperator *op)
+static bool wm_set_working_space_check_safe(bContext &C, wmOperator *op)
 {
-  const wmWindowManager *wm = CTX_wm_manager(*C);
-  const Main *bmain = CTX_data_main(*C);
-  const Scene *scene = CTX_data_scene(*C);
+  const wmWindowManager *wm = CTX_wm_manager(C);
+  const Main *bmain = CTX_data_main(C);
+  const Scene *scene = CTX_data_scene(C);
 
   if (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY)) {
     BKE_report(
@@ -92,7 +92,7 @@ static wmOperatorStatus wm_set_working_color_space_exec(bContext &C, wmOperator 
   const char *working_space = IMB_colormanagement_working_space_get_indexed_name(
       working_space_index);
 
-  if (!wm_set_working_space_check_safe(&C, &op)) {
+  if (!wm_set_working_space_check_safe(C, &op)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -151,7 +151,7 @@ static wmOperatorStatus wm_set_working_color_space_invoke(bContext &C,
                                                           wmOperator &op,
                                                           const wmEvent *event)
 {
-  if (!wm_set_working_space_check_safe(&C, &op)) {
+  if (!wm_set_working_space_check_safe(C, &op)) {
     return OPERATOR_CANCELLED;
   }
 

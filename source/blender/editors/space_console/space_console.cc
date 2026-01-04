@@ -231,11 +231,11 @@ static void console_main_region_draw(const bContext *C, ARegion *region)
 
   /* data... */
 
-  console_history_verify(C); /* make sure we have some command line */
+  console_history_verify(*C); /* make sure we have some command line */
   console_textview_main(sc, region);
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   /* scrollers */
   blender::ui::view2d_scrollers_draw(v2d, nullptr);

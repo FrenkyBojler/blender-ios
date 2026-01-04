@@ -50,7 +50,7 @@ struct ProxyJob {
   int stop;
 };
 
-wmJob *ED_seq_proxy_wm_job_get(const bContext *C);
-ProxyJob *ED_seq_proxy_job_get(const bContext *C, wmJob *wm_job);
+wmJob *ED_seq_proxy_wm_job_get(const bContext &C);
+ProxyJob *ED_seq_proxy_job_get(const bContext &C, wmJob *wm_job);
 
 }  // namespace blender::seq

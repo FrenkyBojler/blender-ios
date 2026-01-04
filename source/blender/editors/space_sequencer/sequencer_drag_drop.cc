@@ -78,9 +78,9 @@ struct SeqDropCoords {
  */
 static SeqDropCoords g_drop_coords{};
 
-static void generic_poll_operations(const bContext *C, const wmEvent *event, uint8_t type)
+static void generic_poll_operations(const bContext &C, const wmEvent *event, uint8_t type)
 {
-  const Scene *scene = CTX_data_scene(*C);
+  const Scene *scene = CTX_data_scene(C);
   const ToolSettings *ts = scene->toolsettings;
 
   g_drop_coords.type = type;
@@ -110,13 +110,13 @@ static bool image_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
     if (file_type == FILE_TYPE_IMAGE &&
         test_single_file_handler_poll(C, drag, "SEQUENCER_FH_image_strip"))
     {
-      generic_poll_operations(C, event, TH_SEQ_IMAGE);
+      generic_poll_operations(*C, event, TH_SEQ_IMAGE);
       return true;
     }
   }
 
   if (WM_drag_is_ID_type(drag, ID_IM)) {
-    generic_poll_operations(C, event, TH_SEQ_IMAGE);
+    generic_poll_operations(*C, event, TH_SEQ_IMAGE);
     return true;
   }
 
@@ -142,7 +142,7 @@ static bool movie_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
   if (is_movie(drag) && (drag->type != WM_DRAG_PATH ||
                          test_single_file_handler_poll(C, drag, "SEQUENCER_FH_movie_strip")))
   {
-    generic_poll_operations(C, event, TH_SEQ_MOVIE);
+    generic_poll_operations(*C, event, TH_SEQ_MOVIE);
     return true;
   }
 
@@ -168,18 +168,18 @@ static bool sound_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
   if (is_sound(drag) && (drag->type != WM_DRAG_PATH ||
                          test_single_file_handler_poll(C, drag, "SEQUENCER_FH_sound_strip")))
   {
-    generic_poll_operations(C, event, TH_SEQ_AUDIO);
+    generic_poll_operations(*C, event, TH_SEQ_AUDIO);
     return true;
   }
 
   return false;
 }
 
-static float update_overlay_strip_position_data(bContext *C, const int mval[2])
+static float update_overlay_strip_position_data(bContext &C, const int mval[2])
 {
   SeqDropCoords *coords = &g_drop_coords;
-  ARegion *region = CTX_wm_region(*C);
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   View2D *v2d = &region->v2d;
 
   /* Update the position were we would place the strip if we complete the drag and drop action.
@@ -266,7 +266,7 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
       mval[0] = xy[0] - region->winrct.xmin;
       mval[1] = xy[1] - region->winrct.ymin;
 
-      update_overlay_strip_position_data(C, mval);
+      update_overlay_strip_position_data(*C, mval);
     }
 
     RNA_int_set(drop->ptr, "frame_start", g_drop_coords.start_frame);
@@ -384,7 +384,7 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
   mval[0] = xy[0] - region->winrct.xmin;
   mval[1] = xy[1] - region->winrct.ymin;
 
-  float strip_len = update_overlay_strip_position_data(C, mval);
+  float strip_len = update_overlay_strip_position_data(*C, mval);
 
   GPU_matrix_push();
   wmOrtho2_region_pixelspace(region);
@@ -398,7 +398,7 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
   if (coords->use_snapping) {
     ui::view2d_view_ortho(&region->v2d);
     transform::snap_sequencer_draw_drag_drop(region, coords->snap_point_x);
-    ui::view2d_view_restore(C);
+    ui::view2d_view_restore(*C);
   }
 
   /* Init GPU drawing. */
@@ -596,12 +596,12 @@ static void free_prefetch_data_fn(void *custom_data)
   MEM_freeN(job_data);
 }
 
-static void start_audio_video_job(bContext *C, wmDrag *drag, bool only_audio)
+static void start_audio_video_job(bContext &C, wmDrag *drag, bool only_audio)
 {
   g_drop_coords.strip_len = 0;
   g_drop_coords.channel_len = 1;
 
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
 
   wmJob *wm_job = WM_jobs_get(wm,
                               nullptr,
@@ -611,7 +611,7 @@ static void start_audio_video_job(bContext *C, wmDrag *drag, bool only_audio)
                               WM_JOB_TYPE_SEQ_DRAG_DROP_PREVIEW);
 
   DropJobData *job_data = MEM_mallocN<DropJobData>("SeqDragDropPreviewData");
-  get_drag_path(C, drag, job_data->path);
+  get_drag_path(&C, drag, job_data->path);
 
   job_data->only_audio = only_audio;
   g_drop_coords.only_audio = only_audio;
@@ -626,14 +626,14 @@ static void start_audio_video_job(bContext *C, wmDrag *drag, bool only_audio)
 static void video_prefetch(bContext *C, wmDrag *drag)
 {
   if (is_movie(drag)) {
-    start_audio_video_job(C, drag, false);
+    start_audio_video_job(*C, drag, false);
   }
 }
 
 static void audio_prefetch(bContext *C, wmDrag *drag)
 {
   if (is_sound(drag)) {
-    start_audio_video_job(C, drag, true);
+    start_audio_video_job(*C, drag, true);
   }
 }
 

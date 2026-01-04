@@ -22,7 +22,7 @@
 
 #include "ED_gizmo_utils.hh"
 
-bool ED_gizmo_poll_or_unlink_delayed_from_operator(const bContext *C,
+bool ED_gizmo_poll_or_unlink_delayed_from_operator(const bContext &C,
                                                    wmGizmoGroupType *gzgt,
                                                    const char *idname)
 {
@@ -30,7 +30,7 @@ bool ED_gizmo_poll_or_unlink_delayed_from_operator(const bContext *C,
   /* Causes selection to continue showing the last gizmo. */
   wmOperator *op = WM_operator_last_redo(C);
 #else
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmOperator *op = static_cast<wmOperator *>(wm->runtime->operators.last);
 #endif
 

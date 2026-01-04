@@ -95,19 +95,19 @@ static void outliner_main_region_draw(const bContext *C, ARegion *region)
 #endif
 
   ui::theme::frame_buffer_clear(TH_BACK);
-  draw_outliner(C, true);
+  draw_outliner(*C, true);
 
 #ifdef USE_OUTLINER_DRAW_CLAMPS_SCROLL_HACK
   /* This happens when scrolling is clamped & occasionally when resizing the area.
    * In practice this isn't often which is important as that would hurt performance. */
   if (!BLI_rctf_compare(&v2d->cur, &v2d_cur_prev, FLT_EPSILON)) {
     ui::theme::frame_buffer_clear(TH_BACK);
-    draw_outliner(C, false);
+    draw_outliner(*C, false);
   }
 #endif
 
   /* reset view matrix */
-  ui::view2d_view_restore(C);
+  ui::view2d_view_restore(*C);
 
   ED_region_draw_overflow_indication(CTX_wm_area(*C), region);
 

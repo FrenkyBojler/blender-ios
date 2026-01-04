@@ -298,7 +298,7 @@ static blender::ui::Block *wm_block_splash_create(bContext *C, ARegion *region, 
 {
   const uiStyle *style = blender::ui::style_get_dpi();
 
-  blender::ui::Block *block = block_begin(C, region, "splash", blender::ui::EmbossType::Emboss);
+  blender::ui::Block *block = block_begin(*C, region, "splash", blender::ui::EmbossType::Emboss);
 
   /* Note on #BLOCK_NO_WIN_CLIP, the window size is not always synchronized
    * with the OS when the splash shows, window clipping in this case gives
@@ -370,7 +370,7 @@ static blender::ui::Block *wm_block_splash_create(bContext *C, ARegion *region, 
   block_func_set(block, wm_block_splash_close_on_fileselect, block, nullptr);
 
   if (mt) {
-    blender::ui::menutype_draw(C, mt, &layout);
+    blender::ui::menutype_draw(*C, mt, &layout);
   }
 
 /* Displays a warning if blender is being emulated via Rosetta (macOS) or XTA (Windows) */
@@ -446,7 +446,7 @@ static blender::ui::Block *wm_block_about_create(bContext *C, ARegion *region, v
   const uiStyle *style = blender::ui::style_get_dpi();
   const int dialog_width = style->widget.points * 42 * UI_SCALE_FAC;
 
-  blender::ui::Block *block = block_begin(C, region, "about", blender::ui::EmbossType::Emboss);
+  blender::ui::Block *block = block_begin(*C, region, "about", blender::ui::EmbossType::Emboss);
 
   block_flag_enable(block,
                     blender::ui::BLOCK_KEEP_OPEN | blender::ui::BLOCK_LOOP |
@@ -492,7 +492,7 @@ static blender::ui::Block *wm_block_about_create(bContext *C, ARegion *region, v
 
   MenuType *mt = WM_menutype_find("WM_MT_splash_about", true);
   if (mt) {
-    blender::ui::menutype_draw(C, mt, &col);
+    blender::ui::menutype_draw(*C, mt, &col);
   }
 
   block_bounds_set_centered(block, 22 * UI_SCALE_FAC);

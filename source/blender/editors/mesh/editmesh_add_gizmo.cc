@@ -51,14 +51,14 @@
  * for now pick the "ground" based on the 3D cursor's dominant plane
  * pointing down relative to the view.
  */
-static void calc_initial_placement_point_from_view(bContext *C,
+static void calc_initial_placement_point_from_view(bContext &C,
                                                    const float mval[2],
                                                    float r_location[3],
                                                    float r_rotation[3][3])
 {
 
-  Scene *scene = CTX_data_scene(*C);
-  ARegion *region = CTX_wm_region(*C);
+  Scene *scene = CTX_data_scene(C);
+  ARegion *region = CTX_wm_region(C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   bool use_mouse_project = true; /* TODO: make optional */
@@ -121,7 +121,7 @@ struct GizmoPlacementGroup {
 static void gizmo_placement_exec(GizmoPlacementGroup *ggd)
 {
   wmOperator *op = ggd->data.op;
-  if (op == WM_operator_last_redo(ggd->data.context)) {
+  if (op == WM_operator_last_redo(*ggd->data.context)) {
     ED_undo_operator_repeat(ggd->data.context, op);
   }
 }
@@ -179,10 +179,10 @@ static void gizmo_placement_prop_matrix_set(const wmGizmo *gz,
 static bool gizmo_mesh_placement_poll(const bContext *C, wmGizmoGroupType *gzgt)
 {
   return ED_gizmo_poll_or_unlink_delayed_from_operator(
-      C, gzgt, "MESH_OT_primitive_cube_add_gizmo");
+      *C, gzgt, "MESH_OT_primitive_cube_add_gizmo");
 }
 
-static void gizmo_mesh_placement_modal_from_setup(const bContext *C, wmGizmoGroup *gzgroup)
+static void gizmo_mesh_placement_modal_from_setup(const bContext &C, wmGizmoGroup *gzgroup)
 {
   GizmoPlacementGroup *ggd = static_cast<GizmoPlacementGroup *>(gzgroup->customdata);
 
@@ -200,8 +200,8 @@ static void gizmo_mesh_placement_modal_from_setup(const bContext *C, wmGizmoGrou
 
   /* Start off dragging. */
   {
-    wmWindow *win = CTX_wm_window(*C);
-    ARegion *region = CTX_wm_region(*C);
+    wmWindow *win = CTX_wm_window(C);
+    ARegion *region = CTX_wm_region(C);
     wmGizmo *gz = ggd->cage;
 
     {
@@ -211,7 +211,7 @@ static void gizmo_mesh_placement_modal_from_setup(const bContext *C, wmGizmoGrou
           float(win->runtime->eventstate->xy[0] - region->winrct.xmin),
           float(win->runtime->eventstate->xy[1] - region->winrct.ymin),
       };
-      calc_initial_placement_point_from_view((bContext *)C, mval, location, mat3);
+      calc_initial_placement_point_from_view(*(bContext *)&C, mval, location, mat3);
       copy_m4_m3(gz->matrix_basis, mat3);
       copy_v3_v3(gz->matrix_basis[3], location);
     }
@@ -219,7 +219,7 @@ static void gizmo_mesh_placement_modal_from_setup(const bContext *C, wmGizmoGrou
     if (true) {
       wmGizmoMap *gzmap = gzgroup->parent_gzmap;
       WM_gizmo_modal_set_from_setup(gzmap,
-                                    (bContext *)C,
+                                    (bContext *)&C,
                                     ggd->cage,
                                     ED_GIZMO_CAGE3D_PART_SCALE_MAX_X_MAX_Y_MAX_Z,
                                     win->runtime->eventstate);
@@ -229,7 +229,7 @@ static void gizmo_mesh_placement_modal_from_setup(const bContext *C, wmGizmoGrou
 
 static void gizmo_mesh_placement_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  wmOperator *op = WM_operator_last_redo(C);
+  wmOperator *op = WM_operator_last_redo(*C);
 
   if (op == nullptr || !STREQ(op->type->idname, "MESH_OT_primitive_cube_add_gizmo")) {
     return;
@@ -267,14 +267,14 @@ static void gizmo_mesh_placement_setup(const bContext *C, wmGizmoGroup *gzgroup)
     WM_gizmo_target_property_def_func(ggd->cage, "matrix", &params);
   }
 
-  gizmo_mesh_placement_modal_from_setup(C, gzgroup);
+  gizmo_mesh_placement_modal_from_setup(*C, gzgroup);
 }
 
 static void gizmo_mesh_placement_draw_prepare(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
   GizmoPlacementGroup *ggd = static_cast<GizmoPlacementGroup *>(gzgroup->customdata);
   if (ggd->data.op->next) {
-    ggd->data.op = WM_operator_last_redo(ggd->data.context);
+    ggd->data.op = WM_operator_last_redo(*ggd->data.context);
   }
   gizmo_mesh_placement_update_from_op(ggd);
 }

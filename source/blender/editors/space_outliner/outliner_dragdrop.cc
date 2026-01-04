@@ -90,10 +90,10 @@ static TreeElement *outliner_dropzone_find(const SpaceOutliner *space_outliner,
   return nullptr;
 }
 
-static TreeElement *outliner_drop_find(bContext *C, const wmEvent *event)
+static TreeElement *outliner_drop_find(bContext &C, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  ARegion *region = CTX_wm_region(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   float fmval[2];
   ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
@@ -102,7 +102,7 @@ static TreeElement *outliner_drop_find(bContext *C, const wmEvent *event)
 
 static ID *outliner_ID_drop_find(bContext *C, const wmEvent *event, short idcode)
 {
-  TreeElement *te = outliner_drop_find(C, event);
+  TreeElement *te = outliner_drop_find(*C, event);
   TreeStoreElem *tselem = (te) ? TREESTORE(te) : nullptr;
 
   if (te && (te->idcode == idcode) && (tselem->type == TSE_SOME_ID)) {
@@ -112,12 +112,12 @@ static ID *outliner_ID_drop_find(bContext *C, const wmEvent *event, short idcode
 }
 
 /* Find tree element to drop into, with additional before and after reorder support. */
-static TreeElement *outliner_drop_insert_find(bContext *C,
+static TreeElement *outliner_drop_insert_find(bContext &C,
                                               const int xy[2],
                                               TreeElementInsertType *r_insert_type)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
-  ARegion *region = CTX_wm_region(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
+  ARegion *region = CTX_wm_region(C);
   TreeElement *te_hovered;
   float view_mval[2];
 
@@ -214,7 +214,7 @@ static TreeElement *outliner_drop_insert_collection_find(bContext *C,
                                                          const int xy[2],
                                                          TreeElementInsertType *r_insert_type)
 {
-  TreeElement *te = outliner_drop_insert_find(C, xy, r_insert_type);
+  TreeElement *te = outliner_drop_insert_find(*C, xy, r_insert_type);
   if (!te) {
     return nullptr;
   }
@@ -345,7 +345,7 @@ static bool parent_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
     }
   }
 
-  TreeElement *te = outliner_drop_find(C, event);
+  TreeElement *te = outliner_drop_find(*C, event);
   if (!te) {
     return false;
   }
@@ -359,15 +359,15 @@ static bool parent_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
   return false;
 }
 
-static void parent_drop_set_parents(bContext *C,
+static void parent_drop_set_parents(bContext &C,
                                     ReportList *reports,
                                     wmDragID *drag,
                                     Object *parent,
                                     short parent_type,
                                     const bool keep_transform)
 {
-  Main *bmain = CTX_data_main(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  Main *bmain = CTX_data_main(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   TreeElement *te = outliner_find_id(
       space_outliner, &space_outliner->tree, &parent->id, (TreeElementFlag)0);
@@ -379,7 +379,7 @@ static void parent_drop_set_parents(bContext *C,
      * active scene and parenting them is allowed (sergey)
      */
 
-    scene = CTX_data_scene(*C);
+    scene = CTX_data_scene(C);
   }
 
   bool parent_set = false;
@@ -416,7 +416,7 @@ static void parent_drop_set_parents(bContext *C,
 
 static wmOperatorStatus parent_drop_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  TreeElement *te = outliner_drop_find(&C, event);
+  TreeElement *te = outliner_drop_find(C, event);
   TreeStoreElem *tselem = te ? TREESTORE(te) : nullptr;
 
   if (!(te && (te->idcode == ID_OB) && (tselem->type == TSE_SOME_ID))) {
@@ -440,7 +440,7 @@ static wmOperatorStatus parent_drop_invoke(bContext &C, wmOperator &op, const wm
   ListBaseT<wmDrag> *lb = static_cast<ListBaseT<wmDrag> *>(event->customdata);
   wmDrag *drag = static_cast<wmDrag *>(lb->first);
 
-  parent_drop_set_parents(&C,
+  parent_drop_set_parents(C,
                           op.reports,
                           static_cast<wmDragID *>(drag->ids.first),
                           par,
@@ -490,7 +490,7 @@ static bool parent_clear_poll(bContext *C, wmDrag *drag, const wmEvent *event)
     return false;
   }
 
-  TreeElement *te = outliner_drop_find(C, event);
+  TreeElement *te = outliner_drop_find(*C, event);
   if (te) {
     TreeStoreElem *tselem = TREESTORE(te);
     ID *id = tselem->id;
@@ -534,8 +534,8 @@ static wmOperatorStatus parent_clear_invoke(bContext &C, wmOperator & /*op*/, co
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARENT, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARENT, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -660,9 +660,9 @@ static wmOperatorStatus material_drop_invoke(bContext &C,
 
   BKE_object_material_assign(bmain, ob, ma, ob->totcol + 1, BKE_MAT_ASSIGN_USERPREF);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_OB_SHADING, ob);
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
-  WM_event_add_notifier(&C, NC_MATERIAL | ND_SHADING_LINKS, ma);
+  WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_LINKS, ma);
 
   return OPERATOR_FINISHED;
 }
@@ -747,7 +747,7 @@ static bool datastack_drop_init(bContext *C, const wmEvent *event, StackDropData
     return false;
   }
 
-  TreeElement *te_target = outliner_drop_insert_find(C, event->xy, &drop_data->insert_type);
+  TreeElement *te_target = outliner_drop_insert_find(*C, event->xy, &drop_data->insert_type);
   if (!te_target) {
     return false;
   }
@@ -931,9 +931,9 @@ static std::string datastack_drop_tooltip(bContext * /*C*/,
   return {};
 }
 
-static void datastack_drop_link(bContext *C, StackDropData *drop_data)
+static void datastack_drop_link(bContext &C, StackDropData *drop_data)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   TreeStoreElem *tselem = TREESTORE(drop_data->drop_te);
   Object *ob_dst = (Object *)tselem->id;
 
@@ -973,9 +973,9 @@ static void datastack_drop_link(bContext *C, StackDropData *drop_data)
   }
 }
 
-static void datastack_drop_copy(bContext *C, StackDropData *drop_data)
+static void datastack_drop_copy(bContext &C, StackDropData *drop_data)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   TreeStoreElem *tselem = TREESTORE(drop_data->drop_te);
   Object *ob_dst = (Object *)tselem->id;
@@ -984,11 +984,11 @@ static void datastack_drop_copy(bContext *C, StackDropData *drop_data)
     case TSE_MODIFIER:
       object::modifier_copy_to_object(
           bmain,
-          CTX_data_scene(*C),
+          CTX_data_scene(C),
           drop_data->ob_parent,
           static_cast<const ModifierData *>(drop_data->drag_directdata),
           ob_dst,
-          CTX_wm_reports(*C));
+          CTX_wm_reports(C));
       break;
     case TSE_CONSTRAINT:
       if (tselem->type == TSE_POSE_CHANNEL) {
@@ -1014,9 +1014,9 @@ static void datastack_drop_copy(bContext *C, StackDropData *drop_data)
   }
 }
 
-static void datastack_drop_reorder(bContext *C, ReportList *reports, StackDropData *drop_data)
+static void datastack_drop_reorder(bContext &C, ReportList *reports, StackDropData *drop_data)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   TreeElement *drag_te = outliner_find_tree_element(&space_outliner->tree, drop_data->drag_tselem);
   if (!drag_te) {
@@ -1070,13 +1070,13 @@ static wmOperatorStatus datastack_drop_invoke(bContext &C, wmOperator &op, const
 
   switch (drop_data->drop_action) {
     case DATA_STACK_DROP_LINK:
-      datastack_drop_link(&C, drop_data);
+      datastack_drop_link(C, drop_data);
       break;
     case DATA_STACK_DROP_COPY:
-      datastack_drop_copy(&C, drop_data);
+      datastack_drop_copy(C, drop_data);
       break;
     case DATA_STACK_DROP_REORDER:
-      datastack_drop_reorder(&C, op.reports, drop_data);
+      datastack_drop_reorder(C, op.reports, drop_data);
       break;
   }
 
@@ -1559,7 +1559,7 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext &C,
     WM_drag_add_local_ID(drag, data.drag_id, data.drag_parent);
   }
 
-  WM_event_start_prepared_drag(&C, drag);
+  WM_event_start_prepared_drag(C, drag);
 
   ED_outliner_select_sync_from_outliner(&C, space_outliner);
 

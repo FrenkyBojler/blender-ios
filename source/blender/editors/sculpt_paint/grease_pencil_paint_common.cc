@@ -523,7 +523,7 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing_with_automask(
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 }
 
@@ -568,7 +568,7 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing_with_automask(
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 }
 
@@ -605,7 +605,7 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 }
 
@@ -648,7 +648,7 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 }
 
@@ -689,14 +689,14 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 }
 
 void GreasePencilStrokeOperationCommon::init_stroke(const bContext &C,
                                                     const InputSample &start_sample)
 {
-  Paint &paint = *BKE_paint_get_active_from_context(&C);
+  Paint &paint = *BKE_paint_get_active_from_context(C);
   Brush &brush = *BKE_paint_brush(&paint);
 
   init_brush(brush);

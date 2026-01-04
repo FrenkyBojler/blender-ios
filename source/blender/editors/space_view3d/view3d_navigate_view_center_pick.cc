@@ -33,7 +33,7 @@ static wmOperatorStatus viewcenter_pick_invoke(bContext &C, wmOperator &op, cons
 
     ED_view3d_smooth_view_force_finish(&C, v3d, region);
 
-    view3d_operator_needs_gpu(&C);
+    view3d_operator_needs_gpu(C);
 
     /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
     ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, true, nullptr);
@@ -52,7 +52,7 @@ static wmOperatorStatus viewcenter_pick_invoke(bContext &C, wmOperator &op, cons
     sview.ofs = ofs_new;
     sview.undo_str = op.type->name;
 
-    ED_view3d_smooth_view(&C, v3d, region, smooth_viewtx, &sview);
+    ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview);
   }
 
   return OPERATOR_FINISHED;

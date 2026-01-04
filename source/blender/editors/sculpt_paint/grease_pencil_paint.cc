@@ -1128,7 +1128,7 @@ IndexRange PaintOperation::interpolate_stroke_depth(std::optional<int> start_poi
 
 void PaintOperation::toggle_fill_guides_brush_on(const bContext &C)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *current_brush = BKE_paint_brush(paint);
 
   fill_guides_brush_ = create_fill_guide_brush();
@@ -1140,7 +1140,7 @@ void PaintOperation::toggle_fill_guides_brush_on(const bContext &C)
 
 void PaintOperation::toggle_fill_guides_brush_off(const bContext &C)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   BLI_assert(saved_active_brush_ != nullptr);
   BKE_paint_brush_set(paint, saved_active_brush_);
   saved_active_brush_ = nullptr;
@@ -1232,7 +1232,7 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   executor.process_start_sample(*this, C, start_sample, material_index, use_fill);
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
 }
 
 void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)
@@ -1243,7 +1243,7 @@ void PaintOperation::on_stroke_extended(const bContext &C, const InputSample &ex
   executor.execute(*this, C, extension_sample);
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
 }
 
 static void smooth_stroke(bke::greasepencil::Drawing &drawing,
@@ -1736,7 +1736,7 @@ void PaintOperation::on_stroke_done(const bContext &C)
   }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil.id);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil.id);
 }
 
 std::unique_ptr<GreasePencilStrokeOperation> new_paint_operation(const bool do_fill_guides)

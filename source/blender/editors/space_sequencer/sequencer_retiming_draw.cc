@@ -59,14 +59,14 @@ static float key_x_get(const Scene *scene, const Strip *strip, const SeqRetiming
 
 static float pixels_to_view_width(const bContext *C, const float width)
 {
-  const View2D *v2d = ui::view2d_fromcontext(C);
+  const View2D *v2d = ui::view2d_fromcontext(*C);
   float scale_x = ui::view2d_view_to_region_x(v2d, 1) - ui::view2d_view_to_region_x(v2d, 0.0f);
   return width / scale_x;
 }
 
 static float pixels_to_view_height(const bContext *C, const float height)
 {
-  const View2D *v2d = ui::view2d_fromcontext(C);
+  const View2D *v2d = ui::view2d_fromcontext(*C);
   float scale_y = ui::view2d_view_to_region_y(v2d, 1) - ui::view2d_view_to_region_y(v2d, 0.0f);
   return height / scale_y;
 }
@@ -102,30 +102,30 @@ rctf strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const St
   return rect;
 }
 
-int left_fake_key_frame_get(const bContext *C, const Strip *strip)
+int left_fake_key_frame_get(const bContext &C, const Strip *strip)
 {
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
   const int content_start = strip->content_start() + sound_offset;
   return max_ii(content_start, strip->left_handle());
 }
 
-int right_fake_key_frame_get(const bContext *C, const Strip *strip)
+int right_fake_key_frame_get(const bContext &C, const Strip *strip)
 {
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
   const int content_end = strip->content_end(scene) + sound_offset;
   return min_ii(content_end, strip->right_handle(scene));
 }
 
-static bool retiming_fake_key_frame_clicked(const bContext *C,
+static bool retiming_fake_key_frame_clicked(const bContext &C,
                                             const Strip *strip,
                                             const int mval[2],
                                             int &r_frame)
 {
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = ui::view2d_fromcontext(C);
 
   rctf box = strip_retiming_keys_box_get(scene, v2d, strip);
@@ -153,9 +153,9 @@ void realize_fake_keys(const Scene *scene, Strip *strip)
   seq::retiming_add_key(scene, strip, strip->right_handle(scene));
 }
 
-SeqRetimingKey *try_to_realize_fake_keys(const bContext *C, Strip *strip, const int mval[2])
+SeqRetimingKey *try_to_realize_fake_keys(const bContext &C, Strip *strip, const int mval[2])
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   SeqRetimingKey *key = nullptr;
 
   int key_frame;
@@ -166,11 +166,11 @@ SeqRetimingKey *try_to_realize_fake_keys(const bContext *C, Strip *strip, const 
   return key;
 }
 
-static SeqRetimingKey *mouse_over_key_get_from_strip(const bContext *C,
+static SeqRetimingKey *mouse_over_key_get_from_strip(const bContext &C,
                                                      const Strip *strip,
                                                      const int mval[2])
 {
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = ui::view2d_fromcontext(C);
 
   int best_distance = INT_MAX;
@@ -196,9 +196,9 @@ static SeqRetimingKey *mouse_over_key_get_from_strip(const bContext *C,
   return best_key;
 }
 
-SeqRetimingKey *retiming_mouseover_key_get(const bContext *C, const int mval[2], Strip **r_strip)
+SeqRetimingKey *retiming_mouseover_key_get(const bContext &C, const int mval[2], Strip **r_strip)
 {
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = ui::view2d_fromcontext(C);
   for (Strip *strip : sequencer_visible_strips_get(C)) {
     if (!seq::retiming_data_is_editable(strip)) {
@@ -376,13 +376,13 @@ static bool fake_keys_draw(const TimelineDrawContext &ctx,
     return false;
   }
 
-  const int left_key_frame = left_fake_key_frame_get(ctx.C, strip);
+  const int left_key_frame = left_fake_key_frame_get(*ctx.C, strip);
   if (seq::retiming_key_get_by_timeline_frame(scene, strip, left_key_frame) == nullptr) {
     SeqRetimingKey fake_key = fake_retiming_key_init(scene, strip, left_key_frame);
     retime_key_draw(ctx, strip_ctx, &fake_key, sh_bindings);
   }
 
-  int right_key_frame = right_fake_key_frame_get(ctx.C, strip);
+  int right_key_frame = right_fake_key_frame_get(*ctx.C, strip);
   if (seq::retiming_key_get_by_timeline_frame(scene, strip, right_key_frame) == nullptr) {
     SeqRetimingKey fake_key = fake_retiming_key_init(scene, strip, right_key_frame);
     retime_key_draw(ctx, strip_ctx, &fake_key, sh_bindings);

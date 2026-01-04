@@ -54,15 +54,15 @@ using blender::int2;
  *
  * \{ */
 
-static void gesture_modal_end(bContext *C, wmOperator *op)
+static void gesture_modal_end(bContext &C, wmOperator *op)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
 
   WM_gesture_end(win, gesture); /* Frees gesture itself, and unregisters from window. */
   op->customdata = nullptr;
 
-  ED_area_tag_redraw(CTX_wm_area(*C));
+  ED_area_tag_redraw(CTX_wm_area(C));
 
   if (RNA_struct_find_property(op->ptr, "cursor")) {
     WM_cursor_modal_restore(win);
@@ -186,7 +186,7 @@ wmOperatorStatus WM_gesture_box_invoke(bContext &C, wmOperator &op, const wmEven
   }
 
   /* Add modal handler. */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   wm_gesture_tag_redraw(win);
 
@@ -220,14 +220,14 @@ wmOperatorStatus WM_gesture_box_modal(bContext &C, wmOperator &op, const wmEvent
           gesture->modal_state = event->val;
         }
         if (gesture_box_apply(&C, &op)) {
-          gesture_modal_end(&C, &op);
+          gesture_modal_end(C, &op);
           return OPERATOR_FINISHED;
         }
-        gesture_modal_end(&C, &op);
+        gesture_modal_end(C, &op);
         return OPERATOR_CANCELLED;
       }
       case GESTURE_MODAL_CANCEL: {
-        gesture_modal_end(&C, &op);
+        gesture_modal_end(C, &op);
         return OPERATOR_CANCELLED;
       }
     }
@@ -274,7 +274,7 @@ wmOperatorStatus WM_gesture_box_modal(bContext &C, wmOperator &op, const wmEvent
 
 void WM_gesture_box_cancel(bContext &C, wmOperator &op)
 {
-  gesture_modal_end(&C, &op);
+  gesture_modal_end(C, &op);
 }
 
 /** \} */
@@ -314,7 +314,7 @@ wmOperatorStatus WM_gesture_circle_invoke(bContext &C, wmOperator &op, const wmE
   }
 
   /* Add modal handler. */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   wm_gesture_tag_redraw(win);
 
@@ -417,7 +417,7 @@ wmOperatorStatus WM_gesture_circle_modal(bContext &C, wmOperator &op, const wmEv
     }
 
     if (is_finished) {
-      gesture_modal_end(&C, &op);
+      gesture_modal_end(C, &op);
       return OPERATOR_FINISHED; /* Use finish or we don't get an undo. */
     }
 
@@ -450,7 +450,7 @@ wmOperatorStatus WM_gesture_circle_modal(bContext &C, wmOperator &op, const wmEv
 
 void WM_gesture_circle_cancel(bContext &C, wmOperator &op)
 {
-  gesture_modal_end(&C, &op);
+  gesture_modal_end(C, &op);
 }
 
 #if 0
@@ -491,7 +491,7 @@ wmOperatorStatus WM_gesture_lasso_invoke(bContext &C, wmOperator &op, const wmEv
   gesture->use_smooth = RNA_boolean_get(op.ptr, "use_smooth_stroke");
 
   /* Add modal handler. */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   wm_gesture_tag_redraw(win);
 
@@ -514,7 +514,7 @@ wmOperatorStatus WM_gesture_lines_invoke(bContext &C, wmOperator &op, const wmEv
   }
 
   /* Add modal handler. */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   wm_gesture_tag_redraw(win);
 
@@ -544,7 +544,7 @@ static wmOperatorStatus gesture_lasso_apply(bContext *C, wmOperator *op)
     RNA_float_set_array(&itemptr, "loc", loc);
   }
 
-  gesture_modal_end(C, op);
+  gesture_modal_end(*C, op);
 
   if (op->type->exec) {
     retval = op->type->exec(*C, *op);
@@ -626,7 +626,7 @@ wmOperatorStatus WM_gesture_lasso_modal(bContext &C, wmOperator &op, const wmEve
         break;
       }
       case EVT_ESCKEY: {
-        gesture_modal_end(&C, &op);
+        gesture_modal_end(C, &op);
         return OPERATOR_CANCELLED;
       }
       default: {
@@ -646,12 +646,12 @@ wmOperatorStatus WM_gesture_lines_modal(bContext &C, wmOperator &op, const wmEve
 
 void WM_gesture_lasso_cancel(bContext &C, wmOperator &op)
 {
-  gesture_modal_end(&C, &op);
+  gesture_modal_end(C, &op);
 }
 
 void WM_gesture_lines_cancel(bContext &C, wmOperator &op)
 {
-  gesture_modal_end(&C, &op);
+  gesture_modal_end(C, &op);
 }
 
 Array<int2> WM_gesture_lasso_path_to_array(bContext * /*C*/, wmOperator *op)
@@ -734,7 +734,7 @@ wmOperatorStatus WM_gesture_polyline_invoke(bContext &C, wmOperator &op, const w
   op.customdata = WM_gesture_new(win, CTX_wm_region(C), event, WM_GESTURE_POLYLINE);
 
   /* add modal handler */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   wm_gesture_tag_redraw(win);
 
@@ -812,7 +812,7 @@ static wmOperatorStatus gesture_polyline_apply(bContext *C,
     RNA_float_set_array(&itemptr, "loc", loc);
   }
 
-  gesture_modal_end(C, op);
+  gesture_modal_end(*C, op);
 
   wmOperatorStatus retval = OPERATOR_FINISHED;
   if (op->type->exec) {
@@ -864,7 +864,7 @@ wmOperatorStatus WM_gesture_polyline_modal(bContext &C, wmOperator &op, const wm
         }
         break;
       case GESTURE_MODAL_CANCEL:
-        gesture_modal_end(&C, &op);
+        gesture_modal_end(C, &op);
         return OPERATOR_CANCELLED;
     }
   }
@@ -906,7 +906,7 @@ wmOperatorStatus WM_gesture_polyline_modal(bContext &C, wmOperator &op, const wm
 
 void WM_gesture_polyline_cancel(bContext *C, wmOperator *op)
 {
-  gesture_modal_end(C, op);
+  gesture_modal_end(*C, op);
 }
 
 /* template to copy from */
@@ -1001,12 +1001,12 @@ static bool gesture_straightline_apply(bContext *C, wmOperator *op)
   return true;
 }
 
-wmOperatorStatus WM_gesture_straightline_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus WM_gesture_straightline_invoke(bContext &C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   PropertyRNA *prop;
 
-  op->customdata = WM_gesture_new(win, CTX_wm_region(*C), event, WM_GESTURE_STRAIGHTLINE);
+  op->customdata = WM_gesture_new(win, CTX_wm_region(C), event, WM_GESTURE_STRAIGHTLINE);
 
   if (WM_event_is_mouse_drag_or_press(event)) {
     wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
@@ -1028,7 +1028,7 @@ wmOperatorStatus WM_gesture_straightline_active_side_invoke(bContext &C,
                                                             wmOperator &op,
                                                             const wmEvent *event)
 {
-  WM_gesture_straightline_invoke(&C, &op, event);
+  WM_gesture_straightline_invoke(C, &op, event);
   wmGesture *gesture = static_cast<wmGesture *>(op.customdata);
   gesture->draw_active_side = true;
   gesture->use_flip = false;
@@ -1111,14 +1111,14 @@ wmOperatorStatus WM_gesture_straightline_modal(bContext &C, wmOperator &op, cons
       }
       case GESTURE_MODAL_SELECT: {
         if (gesture_straightline_apply(&C, &op)) {
-          gesture_modal_end(&C, &op);
+          gesture_modal_end(C, &op);
           return OPERATOR_FINISHED;
         }
-        gesture_modal_end(&C, &op);
+        gesture_modal_end(C, &op);
         return OPERATOR_CANCELLED;
       }
       case GESTURE_MODAL_CANCEL: {
-        gesture_modal_end(&C, &op);
+        gesture_modal_end(C, &op);
         return OPERATOR_CANCELLED;
       }
     }
@@ -1205,14 +1205,14 @@ wmOperatorStatus WM_gesture_straightline_oneshot_modal(bContext &C,
           gesture->modal_state = event->val;
         }
         if (gesture_straightline_apply(&C, &op)) {
-          gesture_modal_end(&C, &op);
+          gesture_modal_end(C, &op);
           return OPERATOR_FINISHED;
         }
-        gesture_modal_end(&C, &op);
+        gesture_modal_end(C, &op);
         return OPERATOR_CANCELLED;
       }
       case GESTURE_MODAL_CANCEL: {
-        gesture_modal_end(&C, &op);
+        gesture_modal_end(C, &op);
         return OPERATOR_CANCELLED;
       }
     }
@@ -1254,7 +1254,7 @@ wmOperatorStatus WM_gesture_straightline_oneshot_modal(bContext &C,
 
 void WM_gesture_straightline_cancel(bContext &C, wmOperator &op)
 {
-  gesture_modal_end(&C, &op);
+  gesture_modal_end(C, &op);
 }
 
 #if 0

@@ -80,15 +80,15 @@ struct ValueInteraction {
   } context_vars;
 };
 
-static void interactive_value_init(bContext *C,
+static void interactive_value_init(bContext &C,
                                    ValueInteraction *inter,
                                    const wmEvent *event,
                                    const float value_final,
                                    const float range[2])
 {
 
-  inter->context_vars.area = CTX_wm_area(*C);
-  inter->context_vars.region = CTX_wm_region(*C);
+  inter->context_vars.area = CTX_wm_area(C);
+  inter->context_vars.region = CTX_wm_region(C);
 
   inter->init.mval[0] = event->mval[0];
   inter->init.mval[1] = event->mval[1];
@@ -105,7 +105,7 @@ static void interactive_value_init_from_property(
   float step, precision;
   RNA_property_float_ui_range(ptr, prop, &range[0], &range[1], &step, &precision);
   const float value_final = RNA_property_float_get(ptr, prop);
-  interactive_value_init(C, inter, event, value_final, range);
+  interactive_value_init(*C, inter, event, value_final, range);
 }
 
 static void interactive_value_exit(ValueInteraction *inter)
@@ -231,7 +231,7 @@ static wmOperatorStatus op_generic_value_invoke(bContext &C, wmOperator &op, con
 
   op.customdata = cd;
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   G.moving |= G_TRANSFORM_EDIT;
 
   return OPERATOR_RUNNING_MODAL;

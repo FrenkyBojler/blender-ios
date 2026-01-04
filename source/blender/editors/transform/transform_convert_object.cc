@@ -838,14 +838,14 @@ static Vector<RNAPath> get_affected_rna_paths_from_transform_mode(
   return rna_paths;
 }
 
-static void autokeyframe_object(bContext *C,
+static void autokeyframe_object(bContext &C,
                                 Scene *scene,
                                 Object *ob,
                                 const eTfmMode tmode,
                                 const bool transforming_more_than_one_object)
 {
   Vector<RNAPath> rna_paths;
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   const StringRef rotation_path = animrig::get_rotation_mode_path(eRotationModes(ob->rotmode));
 
   if (animrig::is_keying_flag(scene, AUTOKEY_FLAG_INSERTNEEDED)) {
@@ -855,7 +855,7 @@ static void autokeyframe_object(bContext *C,
   else {
     rna_paths = {{"location"}, {rotation_path}, {"scale"}};
   }
-  animrig::autokeyframe_object(C, scene, ob, rna_paths.as_span());
+  animrig::autokeyframe_object(&C, scene, ob, rna_paths.as_span());
 }
 
 static void recalcData_objects(TransInfo *t)
@@ -883,7 +883,7 @@ static void recalcData_objects(TransInfo *t)
        * (FPoints) instead of keyframes? */
       if ((t->animtimer) && animrig::is_autokey_on(t->scene)) {
         animrecord_check_state(t, &ob->id);
-        autokeyframe_object(t->context, t->scene, ob, t->mode, t->data_len_all > 1);
+        autokeyframe_object(*t->context, t->scene, ob, t->mode, t->data_len_all > 1);
       }
 
       motionpath_update |= motionpath_need_update_object(t->scene, ob);
@@ -897,7 +897,7 @@ static void recalcData_objects(TransInfo *t)
   if (motionpath_update) {
     /* Update motion paths once for all transformed objects. */
     object::motion_paths_recalc_selected(
-        t->context, t->scene, object::OBJECT_PATH_CALC_RANGE_CURRENT_FRAME);
+        *t->context, t->scene, object::OBJECT_PATH_CALC_RANGE_CURRENT_FRAME);
   }
 
   if (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) {
@@ -926,7 +926,7 @@ static void special_aftertrans_update__object(bContext *C, TransInfo *t)
   bool motionpath_update = false;
 
   if (animrig::is_autokey_on(t->scene) && !canceled) {
-    ANIM_deselect_keys_in_animation_editors(C);
+    ANIM_deselect_keys_in_animation_editors(*C);
   }
 
   for (int i = 0; i < tc->data_len; i++) {
@@ -962,7 +962,7 @@ static void special_aftertrans_update__object(bContext *C, TransInfo *t)
 
     /* Set auto-key if necessary. */
     if (!canceled) {
-      autokeyframe_object(C, t->scene, ob, t->mode, tc->data_len > 1);
+      autokeyframe_object(*C, t->scene, ob, t->mode, tc->data_len > 1);
     }
 
     motionpath_update |= motionpath_need_update_object(t->scene, ob);
@@ -982,7 +982,7 @@ static void special_aftertrans_update__object(bContext *C, TransInfo *t)
     const object::eObjectPathCalcRange range = canceled ?
                                                    object::OBJECT_PATH_CALC_RANGE_CURRENT_FRAME :
                                                    object::OBJECT_PATH_CALC_RANGE_CHANGED;
-    object::motion_paths_recalc_selected(C, t->scene, range);
+    object::motion_paths_recalc_selected(*C, t->scene, range);
   }
 
   clear_trans_object_base_flags(t);

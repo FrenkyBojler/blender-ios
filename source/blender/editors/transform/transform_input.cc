@@ -306,7 +306,7 @@ static int transform_seq_slide_strip_cursor_get(const Strip *strip)
 static int transform_seq_slide_cursor_get(TransInfo *t)
 {
   const Scene *scene = t->scene;
-  VectorSet<Strip *> strips = vse::selected_strips_from_context(t->context);
+  VectorSet<Strip *> strips = vse::selected_strips_from_context(*t->context);
 
   if (strips.size() == 1) {
     return transform_seq_slide_strip_cursor_get(strips[0]);

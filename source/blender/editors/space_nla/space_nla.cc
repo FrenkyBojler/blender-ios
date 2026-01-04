@@ -189,7 +189,7 @@ static void nla_track_region_init(wmWindowManager *wm, ARegion *region)
 static void nla_track_region_draw(const bContext *C, ARegion *region)
 {
   bAnimContext ac;
-  if (!ANIM_animdata_get_context(C, &ac)) {
+  if (!ANIM_animdata_get_context(*C, &ac)) {
     return;
   }
 
@@ -211,7 +211,7 @@ static void nla_track_region_draw(const bContext *C, ARegion *region)
   int height = NLATRACK_TOT_HEIGHT(&ac, item_count);
   /* Add padding for the collapsed redo panel. */
   height += HEADERY;
-  if (!BLI_listbase_is_empty(ED_context_get_markers(C))) {
+  if (!BLI_listbase_is_empty(ED_context_get_markers(*C))) {
     height += (UI_MARKER_MARGIN_Y - NLATRACK_STEP(snla));
   }
   v2d->tot.ymin = -height;
@@ -222,10 +222,10 @@ static void nla_track_region_draw(const bContext *C, ARegion *region)
   draw_nla_track_list(C, &ac, region, anim_data);
 
   /* track filter next to scrubbing area */
-  ED_time_scrub_channel_search_draw(C, region, ac.ads);
+  ED_time_scrub_channel_search_draw(*C, region, ac.ads);
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   /* scrollers */
   if (region->winy > UI_ANIM_MINY) {
@@ -279,7 +279,7 @@ static void nla_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* data */
-  if (ANIM_animdata_get_context(C, &ac)) {
+  if (ANIM_animdata_get_context(*C, &ac)) {
     /* strips and backdrops */
     draw_nla_main_data(&ac, snla, region);
 
@@ -291,7 +291,7 @@ static void nla_main_region_draw(const bContext *C, ARegion *region)
   blender::ui::view2d_view_orthoSpecial(region, v2d, true);
   int marker_draw_flag = DRAW_MARKERS_MARGIN;
   if (ED_markers_region_visible(CTX_wm_area(*C), region)) {
-    ED_markers_draw(C, marker_draw_flag);
+    ED_markers_draw(*C, marker_draw_flag);
   }
 
   /* preview range */
@@ -303,7 +303,7 @@ static void nla_main_region_draw(const bContext *C, ARegion *region)
   ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_VIEW);
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   const int fps = round_db_to_int(scene->frames_per_second());
   ED_time_scrub_draw(region, scene, snla->flag & SNLA_DRAWTIME, true, fps);

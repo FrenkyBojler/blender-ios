@@ -143,11 +143,11 @@ TreeTraversalAction outliner_collect_selected_objects(TreeElement *te, void *cus
 
 }  // namespace blender::ed::outliner
 
-void ED_outliner_selected_objects_get(const bContext *C, ListBaseT<LinkData> *objects)
+void ED_outliner_selected_objects_get(const bContext &C, ListBaseT<LinkData> *objects)
 {
   using namespace blender::ed::outliner;
 
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   IDsSelectedData data = {{nullptr}};
   outliner_tree_traverse(space_outliner,
                          &space_outliner->tree,
@@ -365,9 +365,9 @@ static TreeTraversalAction collection_collect_data_to_edit(TreeElement *te, void
 }
 
 void outliner_collection_delete(
-    bContext *C, Main *bmain, Scene *scene, ReportList *reports, bool do_hierarchy)
+    bContext &C, Main *bmain, Scene *scene, ReportList *reports, bool do_hierarchy)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   CollectionEditData data{};
   data.scene = scene;
@@ -441,7 +441,7 @@ static wmOperatorStatus collection_hierarchy_delete_exec(bContext &C, wmOperator
   BKE_view_layer_synced_ensure(scene, view_layer);
   const Base *basact_prev = BKE_view_layer_active_base_get(view_layer);
 
-  outliner_collection_delete(&C, bmain, scene, op.reports, true);
+  outliner_collection_delete(C, bmain, scene, op.reports, true);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
@@ -453,7 +453,7 @@ static wmOperatorStatus collection_hierarchy_delete_exec(bContext &C, wmOperator
     WM_msg_publish_rna_prop(mbus, &scene->id, view_layer, LayerObjects, active);
   }
 
-  ED_outliner_select_sync_from_object_tag(&C);
+  ED_outliner_select_sync_from_object_tag(C);
 
   return OPERATOR_FINISHED;
 }
@@ -503,9 +503,9 @@ static TreeTraversalAction outliner_find_first_selected_layer_collection(TreeEle
   }
 }
 
-static LayerCollection *outliner_active_layer_collection(bContext *C)
+static LayerCollection *outliner_active_layer_collection(bContext &C)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   CollectionObjectsSelectData data{};
 
@@ -548,7 +548,7 @@ static wmOperatorStatus collection_objects_select_exec(bContext &C, wmOperator &
   BLI_freelistN(&selected_collections.selected_array);
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
   WM_main_add_notifier(NC_SCENE | ND_OB_SELECT, scene);
-  ED_outliner_select_sync_from_object_tag(&C);
+  ED_outliner_select_sync_from_object_tag(C);
 
   return OPERATOR_FINISHED;
 }
@@ -611,9 +611,9 @@ static TreeTraversalAction outliner_find_first_selected_collection(TreeElement *
   }
 }
 
-static TreeElement *outliner_active_collection(bContext *C)
+static TreeElement *outliner_active_collection(bContext &C)
 {
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
 
   CollectionDuplicateData data = {};
 
@@ -700,7 +700,7 @@ static wmOperatorStatus collection_duplicate_exec(bContext &C, wmOperator &op)
   BLI_freelistN(&selected_collections.selected_array);
   DEG_relations_tag_update(bmain);
   WM_main_add_notifier(NC_SCENE | ND_LAYER, CTX_data_scene(C));
-  ED_outliner_select_sync_from_object_tag(&C);
+  ED_outliner_select_sync_from_object_tag(C);
 
   return OPERATOR_FINISHED;
 }
@@ -900,15 +900,15 @@ static TreeTraversalAction layer_collection_collect_data_to_edit(TreeElement *te
   return TRAVERSE_CONTINUE;
 }
 
-static bool collections_view_layer_poll(bContext *C, bool clear, int flag)
+static bool collections_view_layer_poll(bContext &C, bool clear, int flag)
 {
   /* Poll function so the right click menu show current state of selected collections. */
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   if (!(space_outliner && space_outliner->outlinevis == SO_VIEW_LAYER)) {
     return false;
   }
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   CollectionEditData data{};
   data.scene = scene;
   data.space_outliner = space_outliner;
@@ -937,32 +937,32 @@ static bool collections_view_layer_poll(bContext *C, bool clear, int flag)
 
 static bool collections_exclude_set_poll(bContext &C)
 {
-  return collections_view_layer_poll(&C, false, LAYER_COLLECTION_EXCLUDE);
+  return collections_view_layer_poll(C, false, LAYER_COLLECTION_EXCLUDE);
 }
 
 static bool collections_exclude_clear_poll(bContext &C)
 {
-  return collections_view_layer_poll(&C, true, LAYER_COLLECTION_EXCLUDE);
+  return collections_view_layer_poll(C, true, LAYER_COLLECTION_EXCLUDE);
 }
 
 static bool collections_holdout_set_poll(bContext &C)
 {
-  return collections_view_layer_poll(&C, false, LAYER_COLLECTION_HOLDOUT);
+  return collections_view_layer_poll(C, false, LAYER_COLLECTION_HOLDOUT);
 }
 
 static bool collections_holdout_clear_poll(bContext &C)
 {
-  return collections_view_layer_poll(&C, true, LAYER_COLLECTION_HOLDOUT);
+  return collections_view_layer_poll(C, true, LAYER_COLLECTION_HOLDOUT);
 }
 
 static bool collections_indirect_only_set_poll(bContext &C)
 {
-  return collections_view_layer_poll(&C, false, LAYER_COLLECTION_INDIRECT_ONLY);
+  return collections_view_layer_poll(C, false, LAYER_COLLECTION_INDIRECT_ONLY);
 }
 
 static bool collections_indirect_only_clear_poll(bContext &C)
 {
-  return collections_view_layer_poll(&C, true, LAYER_COLLECTION_INDIRECT_ONLY);
+  return collections_view_layer_poll(C, true, LAYER_COLLECTION_INDIRECT_ONLY);
 }
 
 static wmOperatorStatus collection_view_layer_exec(bContext &C, wmOperator &op)
@@ -1176,12 +1176,12 @@ void OUTLINER_OT_collection_isolate(wmOperatorType *ot)
 
 static bool collection_show_poll(bContext &C)
 {
-  return collections_view_layer_poll(&C, true, LAYER_COLLECTION_HIDE);
+  return collections_view_layer_poll(C, true, LAYER_COLLECTION_HIDE);
 }
 
 static bool collection_hide_poll(bContext &C)
 {
-  return collections_view_layer_poll(&C, false, LAYER_COLLECTION_HIDE);
+  return collections_view_layer_poll(C, false, LAYER_COLLECTION_HIDE);
 }
 
 static bool collection_inside_poll(bContext &C)
@@ -1189,7 +1189,7 @@ static bool collection_inside_poll(bContext &C)
   if (!ED_outliner_collections_editor_poll(C)) {
     return false;
   }
-  return outliner_active_layer_collection(&C) != nullptr;
+  return outliner_active_layer_collection(C) != nullptr;
 }
 
 static wmOperatorStatus collection_visibility_exec(bContext &C, wmOperator &op)
@@ -1289,9 +1289,9 @@ void OUTLINER_OT_collection_hide_inside(wmOperatorType *ot)
 /** \name Enable/Disable Collection Operators
  * \{ */
 
-static bool collection_flag_poll(bContext *C, bool clear, int flag)
+static bool collection_flag_poll(bContext &C, bool clear, int flag)
 {
-  if (!ED_outliner_collections_editor_poll(*C)) {
+  if (!ED_outliner_collections_editor_poll(C)) {
     return false;
   }
 
@@ -1317,22 +1317,22 @@ static bool collection_flag_poll(bContext *C, bool clear, int flag)
 
 static bool collection_enable_poll(bContext &C)
 {
-  return collection_flag_poll(&C, true, COLLECTION_HIDE_VIEWPORT);
+  return collection_flag_poll(C, true, COLLECTION_HIDE_VIEWPORT);
 }
 
 static bool collection_disable_poll(bContext &C)
 {
-  return collection_flag_poll(&C, false, COLLECTION_HIDE_VIEWPORT);
+  return collection_flag_poll(C, false, COLLECTION_HIDE_VIEWPORT);
 }
 
 static bool collection_enable_render_poll(bContext &C)
 {
-  return collection_flag_poll(&C, true, COLLECTION_HIDE_RENDER);
+  return collection_flag_poll(C, true, COLLECTION_HIDE_RENDER);
 }
 
 static bool collection_disable_render_poll(bContext &C)
 {
-  return collection_flag_poll(&C, false, COLLECTION_HIDE_RENDER);
+  return collection_flag_poll(C, false, COLLECTION_HIDE_RENDER);
 }
 
 static wmOperatorStatus collection_flag_exec(bContext &C, wmOperator &op)
@@ -1638,7 +1638,7 @@ static wmOperatorStatus outliner_color_tag_set_exec(bContext &C, wmOperator &op)
 
   BLI_freelistN(&selected.selected_array);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, nullptr);
 
   return OPERATOR_FINISHED;
 }

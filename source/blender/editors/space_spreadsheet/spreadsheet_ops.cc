@@ -37,7 +37,7 @@ static wmOperatorStatus row_filter_add_exec(bContext &C, wmOperator & /*op*/)
   SpreadsheetRowFilter *row_filter = spreadsheet_row_filter_new();
   BLI_addtail(&sspreadsheet->row_filters, row_filter);
 
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_SPREADSHEET, sspreadsheet);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_SPREADSHEET, sspreadsheet);
 
   return OPERATOR_FINISHED;
 }
@@ -67,7 +67,7 @@ static wmOperatorStatus row_filter_remove_exec(bContext &C, wmOperator &op)
   BLI_remlink(&sspreadsheet->row_filters, row_filter);
   spreadsheet_row_filter_free(row_filter);
 
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_SPREADSHEET, sspreadsheet);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_SPREADSHEET, sspreadsheet);
 
   return OPERATOR_FINISHED;
 }
@@ -264,7 +264,7 @@ static wmOperatorStatus resize_column_invoke(bContext &C, wmOperator &op, const 
   data->initial_width_px = column_to_resize->width * SPREADSHEET_WIDTH_UNIT;
   op.customdata = data;
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -379,14 +379,14 @@ static wmOperatorStatus reorder_columns_invoke(bContext &C, wmOperator &op, cons
   visualization_data.new_index = old_index;
   visualization_data.current_offset_x_px = 0;
 
-  view2d_edge_pan_init(&C, &data->pan_data, 0, 0, 1, 26, 0.5f, 0.0f);
+  view2d_edge_pan_init(C, &data->pan_data, 0, 0, 1, 26, 0.5f, 0.0f);
   /* Limit to horizontal panning. */
   data->pan_data.limit.xmin = region.v2d.tot.xmin;
   data->pan_data.limit.xmax = region.v2d.tot.xmax;
   data->pan_data.limit.ymin = region.v2d.cur.ymin;
   data->pan_data.limit.ymax = region.v2d.cur.ymax;
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 

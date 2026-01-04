@@ -66,9 +66,9 @@ static void node_gizmo_calc_matrix_space_with_image_dims(const SpaceNode *snode,
                        ((image_dims.y / 2.0f - image_offset.y) * snode->zoom);
 }
 
-static bool node_gizmo_is_set_visible(const bContext *C)
+static bool node_gizmo_is_set_visible(const bContext &C)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   if (snode == nullptr) {
     return false;
   }
@@ -133,7 +133,7 @@ static void gizmo_node_backdrop_prop_matrix_set(const wmGizmo * /*gz*/,
 
 static bool WIDGETGROUP_node_transform_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  if (!node_gizmo_is_set_visible(C)) {
+  if (!node_gizmo_is_set_visible(*C)) {
     return false;
   }
 
@@ -238,8 +238,9 @@ struct NodeBBoxWidgetGroup {
 
 static void gizmo_node_bbox_update(NodeBBoxWidgetGroup *bbox_group)
 {
-  RNA_property_update(
-      bbox_group->update_data.context, &bbox_group->update_data.ptr, bbox_group->update_data.prop);
+  RNA_property_update(*bbox_group->update_data.context,
+                      &bbox_group->update_data.ptr,
+                      bbox_group->update_data.prop);
 }
 
 static void node_input_to_rect(const bNode *node,
@@ -354,7 +355,7 @@ static void gizmo_node_crop_prop_matrix_set(const wmGizmo *gz,
 
 static bool WIDGETGROUP_node_crop_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  if (!node_gizmo_is_set_visible(C)) {
+  if (!node_gizmo_is_set_visible(*C)) {
     return false;
   }
 
@@ -561,7 +562,7 @@ static void gizmo_node_box_mask_prop_matrix_set(const wmGizmo *gz,
 
 static bool WIDGETGROUP_node_box_mask_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  if (!node_gizmo_is_set_visible(C)) {
+  if (!node_gizmo_is_set_visible(*C)) {
     return false;
   }
 
@@ -676,7 +677,7 @@ void NODE_GGT_backdrop_box_mask(wmGizmoGroupType *gzgt)
 
 static bool WIDGETGROUP_node_ellipse_mask_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  if (!node_gizmo_is_set_visible(C)) {
+  if (!node_gizmo_is_set_visible(*C)) {
     return false;
   }
 
@@ -748,7 +749,7 @@ struct NodeGlareWidgetGroup {
 
 static bool WIDGETGROUP_node_glare_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  if (!node_gizmo_is_set_visible(C)) {
+  if (!node_gizmo_is_set_visible(*C)) {
     return false;
   }
 
@@ -867,7 +868,7 @@ struct NodeCornerPinWidgetGroup {
 
 static bool WIDGETGROUP_node_corner_pin_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  if (!node_gizmo_is_set_visible(C)) {
+  if (!node_gizmo_is_set_visible(*C)) {
     return false;
   }
 
@@ -978,7 +979,7 @@ void NODE_GGT_backdrop_corner_pin(wmGizmoGroupType *gzgt)
 
 static bool WIDGETGROUP_node_split_poll(const bContext *C, wmGizmoGroupType * /*gzgt*/)
 {
-  if (!node_gizmo_is_set_visible(C)) {
+  if (!node_gizmo_is_set_visible(*C)) {
     return false;
   }
 

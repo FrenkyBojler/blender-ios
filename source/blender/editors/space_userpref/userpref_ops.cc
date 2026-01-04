@@ -57,7 +57,7 @@ static wmOperatorStatus preferences_reset_default_theme_exec(bContext &C, wmOper
   blender::ui::theme::init_default();
   blender::ui::style_init_default();
   WM_reinit_gizmomap_all(bmain);
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
   U.runtime.is_dirty = true;
   return OPERATOR_FINISHED;
 }
@@ -153,7 +153,7 @@ static wmOperatorStatus preferences_asset_library_add_exec(bContext &C, wmOperat
 
   /* There's no dedicated notifier for the Preferences. */
   WM_main_add_notifier(NC_WINDOW, nullptr);
-  blender::ed::asset::list::clear_all_library(&C);
+  blender::ed::asset::list::clear_all_library(C);
 
   MEM_freeN(path);
   return OPERATOR_FINISHED;
@@ -221,7 +221,7 @@ static wmOperatorStatus preferences_asset_library_remove_exec(bContext &C, wmOpe
   CLAMP(U.active_asset_library, 0, count_remaining - 1);
   U.runtime.is_dirty = true;
 
-  blender::ed::asset::list::clear_all_library(&C);
+  blender::ed::asset::list::clear_all_library(C);
   /* Trigger refresh for the Asset Browser. */
   WM_main_add_notifier(NC_SPACE | ND_SPACE_ASSET_PARAMS, nullptr);
 
@@ -388,7 +388,7 @@ static wmOperatorStatus preferences_extension_repo_add_exec(bContext &C, wmOpera
   }
 
   /* There's no dedicated notifier for the Preferences. */
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   /* Mainly useful when adding a repository from a popup since it's not as obvious
    * the repository was added compared to the repository popover. */
@@ -746,7 +746,7 @@ static wmOperatorStatus preferences_extension_repo_remove_exec(bContext &C, wmOp
   BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
 
   /* There's no dedicated notifier for the Preferences. */
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
 }

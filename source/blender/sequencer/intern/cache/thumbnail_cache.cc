@@ -244,7 +244,7 @@ class ThumbGenerationJob {
  public:
   ThumbGenerationJob(Scene *scene, ThumbnailCache *cache) : scene_(scene), cache_(cache) {}
 
-  static void ensure_job(const bContext *C, ThumbnailCache *cache);
+  static void ensure_job(const bContext &C, ThumbnailCache *cache);
 
  private:
   static void run_fn(void *customdata, wmJobWorkerStatus *worker_status);
@@ -252,11 +252,11 @@ class ThumbGenerationJob {
   static void free_fn(void *customdata);
 };
 
-void ThumbGenerationJob::ensure_job(const bContext *C, ThumbnailCache *cache)
+void ThumbGenerationJob::ensure_job(const bContext &C, ThumbnailCache *cache)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   wmJob *wm_job = WM_jobs_get(wm,
                               win,
                               scene,
@@ -486,7 +486,7 @@ static ImBuf *query_thumbnail(ThumbnailCache &cache,
                                     img_width,
                                     img_height);
     cache.requests_.add(request);
-    ThumbGenerationJob::ensure_job(C, &cache);
+    ThumbGenerationJob::ensure_job(*C, &cache);
   }
 
   if (best_index < 0) {

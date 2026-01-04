@@ -69,7 +69,7 @@ static float I[4][4] = {
 static wmOperatorStatus particle_system_add_exec(bContext &C, wmOperator & /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = blender::ed::object::context_object(&C);
+  Object *ob = blender::ed::object::context_object(C);
   Scene *scene = CTX_data_scene(C);
 
   if (!scene || !ob) {
@@ -78,8 +78,8 @@ static wmOperatorStatus particle_system_add_exec(bContext &C, wmOperator & /*op*
 
   object_add_particle_system(bmain, scene, ob, nullptr);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, ob);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -102,7 +102,7 @@ void OBJECT_OT_particle_system_add(wmOperatorType *ot)
 static wmOperatorStatus particle_system_remove_exec(bContext &C, wmOperator & /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = blender::ed::object::context_object(&C);
+  Object *ob = blender::ed::object::context_object(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   int mode_orig;
@@ -122,13 +122,13 @@ static wmOperatorStatus particle_system_remove_exec(bContext &C, wmOperator & /*
     if ((ob->mode & OB_MODE_PARTICLE_EDIT) == 0) {
       BKE_view_layer_synced_ensure(scene, view_layer);
       if (BKE_view_layer_active_object_get(view_layer) == ob) {
-        WM_event_add_notifier(&C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
+        WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
       }
     }
   }
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, ob);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -190,7 +190,7 @@ static wmOperatorStatus new_particle_settings_exec(bContext &C, wmOperator & /*o
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -240,7 +240,7 @@ static wmOperatorStatus new_particle_target_exec(bContext &C, wmOperator & /*op*
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -289,7 +289,7 @@ static wmOperatorStatus remove_particle_target_exec(bContext &C, wmOperator & /*
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -328,7 +328,7 @@ static wmOperatorStatus target_move_up_exec(bContext &C, wmOperator & /*op*/)
       BLI_insertlinkbefore(&psys->targets, pt->prev, pt);
 
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, ob);
+      WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, ob);
       break;
     }
   }
@@ -367,7 +367,7 @@ static wmOperatorStatus target_move_down_exec(bContext &C, wmOperator & /*op*/)
       BLI_insertlinkafter(&psys->targets, pt->next, pt);
 
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, ob);
+      WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, ob);
       break;
     }
   }
@@ -400,7 +400,7 @@ static wmOperatorStatus dupliob_refresh_exec(bContext &C, wmOperator & /*op*/)
 
   psys_check_group_weights(psys->part);
   DEG_id_tag_update(&psys->part->id, ID_RECALC_GEOMETRY | ID_RECALC_PSYS_REDO);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -436,7 +436,7 @@ static wmOperatorStatus dupliob_move_up_exec(bContext &C, wmOperator & /*op*/)
       BLI_insertlinkbefore(&part->instance_weights, dw.prev, &dw);
 
       DEG_id_tag_update(&part->id, ID_RECALC_GEOMETRY | ID_RECALC_PSYS_REDO);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, nullptr);
+      WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, nullptr);
       break;
     }
   }
@@ -477,7 +477,7 @@ static wmOperatorStatus copy_particle_dupliob_exec(bContext &C, wmOperator & /*o
       BLI_addhead(&part->instance_weights, new_dw);
 
       DEG_id_tag_update(&part->id, ID_RECALC_GEOMETRY | ID_RECALC_PSYS_REDO);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, nullptr);
+      WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, nullptr);
       break;
     }
   }
@@ -524,7 +524,7 @@ static wmOperatorStatus remove_particle_dupliob_exec(bContext &C, wmOperator & /
   }
 
   DEG_id_tag_update(&part->id, ID_RECALC_GEOMETRY | ID_RECALC_PSYS_REDO);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -562,7 +562,7 @@ static wmOperatorStatus dupliob_move_down_exec(bContext &C, wmOperator & /*op*/)
       BLI_insertlinkafter(&part->instance_weights, dw.next, &dw);
 
       DEG_id_tag_update(&part->id, ID_RECALC_GEOMETRY | ID_RECALC_PSYS_REDO);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, nullptr);
+      WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, nullptr);
       break;
     }
   }
@@ -642,7 +642,7 @@ static wmOperatorStatus disconnect_hair_exec(bContext &C, wmOperator &op)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
-  Object *ob = blender::ed::object::context_object(&C);
+  Object *ob = blender::ed::object::context_object(C);
   ParticleSystem *psys = nullptr;
   const bool all = RNA_boolean_get(op.ptr, "all");
 
@@ -661,7 +661,7 @@ static wmOperatorStatus disconnect_hair_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -937,7 +937,7 @@ static wmOperatorStatus connect_hair_exec(bContext &C, wmOperator &op)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
-  Object *ob = blender::ed::object::context_object(&C);
+  Object *ob = blender::ed::object::context_object(C);
   ParticleSystem *psys = nullptr;
   const bool all = RNA_boolean_get(op.ptr, "all");
   bool any_connected = false;
@@ -964,7 +964,7 @@ static wmOperatorStatus connect_hair_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -1076,7 +1076,7 @@ static void remove_particle_systems_from_object(Object *ob_to)
 }
 
 /* single_psys_from is optional, if nullptr all psys of ob_from are copied */
-static bool copy_particle_systems_to_object(const bContext *C,
+static bool copy_particle_systems_to_object(const bContext &C,
                                             Scene *scene,
                                             Object *ob_from,
                                             ParticleSystem *single_psys_from,
@@ -1084,8 +1084,8 @@ static bool copy_particle_systems_to_object(const bContext *C,
                                             int space,
                                             bool duplicate_settings)
 {
-  Main *bmain = CTX_data_main(*C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Main *bmain = CTX_data_main(C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ModifierData *md;
   ParticleSystem *psys_start = nullptr, *psys, *psys_from;
   ParticleSystem **tmp_psys;
@@ -1259,7 +1259,7 @@ static wmOperatorStatus copy_particle_systems_exec(bContext &C, wmOperator &op)
         remove_particle_systems_from_object(ob_to);
         changed = true;
       }
-      if (copy_particle_systems_to_object(&C, scene, ob_from, psys_from, ob_to, space, false)) {
+      if (copy_particle_systems_to_object(C, scene, ob_from, psys_from, ob_to, space, false)) {
         changed = true;
       }
       else {
@@ -1353,7 +1353,7 @@ static wmOperatorStatus duplicate_particle_systems_exec(bContext &C, wmOperator 
   }
 
   copy_particle_systems_to_object(
-      &C, scene, ob, psys, ob, PAR_COPY_SPACE_OBJECT, duplicate_settings);
+      C, scene, ob, psys, ob, PAR_COPY_SPACE_OBJECT, duplicate_settings);
   return OPERATOR_FINISHED;
 }
 
@@ -1394,7 +1394,7 @@ static bool remove_all_particle_systems_poll(bContext &C)
 static wmOperatorStatus particle_system_remove_all_exec(bContext &C, wmOperator & /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = blender::ed::object::context_object(&C);
+  Object *ob = blender::ed::object::context_object(C);
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
@@ -1414,13 +1414,13 @@ static wmOperatorStatus particle_system_remove_all_exec(bContext &C, wmOperator 
     if ((ob->mode & OB_MODE_PARTICLE_EDIT) == 0) {
       BKE_view_layer_synced_ensure(scene, view_layer);
       if (BKE_view_layer_active_object_get(view_layer) == ob) {
-        WM_event_add_notifier(&C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
+        WM_event_add_notifier(C, NC_SCENE | ND_MODE | NS_MODE_OBJECT, nullptr);
       }
     }
   }
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_PARTICLE, ob);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
 
   return OPERATOR_FINISHED;
 }

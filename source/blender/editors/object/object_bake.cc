@@ -100,16 +100,16 @@ struct MultiresBakeJob {
   bool use_low_resolution_mesh;
 };
 
-static bool multiresbake_check(bContext *C, wmOperator *op)
+static bool multiresbake_check(bContext &C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   Object *ob;
   Mesh *mesh;
   MultiresModifierData *mmd;
   bool ok = true;
   int a;
 
-  CTX_DATA_BEGIN (*C, Base *, base, selected_editable_bases) {
+  CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
     ob = base->object;
 
     if (ob->type != OB_MESH) {
@@ -268,9 +268,9 @@ static void clear_images_poly(const Span<Image *> ob_image_array, const ClearFla
   }
 }
 
-static wmOperatorStatus multiresbake_image_exec_locked(bContext *C, wmOperator *op)
+static wmOperatorStatus multiresbake_image_exec_locked(bContext &C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   int objects_baked = 0;
 
   if (!multiresbake_check(C, op)) {
@@ -278,7 +278,7 @@ static wmOperatorStatus multiresbake_image_exec_locked(bContext *C, wmOperator *
   }
 
   if (scene->r.bake.flag & R_BAKE_CLEAR) { /* clear images */
-    CTX_DATA_BEGIN (*C, Base *, base, selected_editable_bases) {
+    CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
       Object &object = *base->object;
       BLI_assert(object.type == OB_MESH);
 
@@ -299,7 +299,7 @@ static wmOperatorStatus multiresbake_image_exec_locked(bContext *C, wmOperator *
     CTX_DATA_END;
   }
 
-  CTX_DATA_BEGIN (*C, Base *, base, selected_editable_bases) {
+  CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
     Object &object = *base->object;
     BLI_assert(object.type == OB_MESH);
 
@@ -340,9 +340,9 @@ static wmOperatorStatus multiresbake_image_exec_locked(bContext *C, wmOperator *
 /**
  * Multi-resolution-bake adopted for job-system executing.
  */
-static void init_multiresbake_job(bContext *C, MultiresBakeJob *bkj)
+static void init_multiresbake_job(bContext &C, MultiresBakeJob *bkj)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   /* backup scene settings, so their changing in UI would take no effect on baker */
   bkj->scene = scene;
@@ -358,7 +358,7 @@ static void init_multiresbake_job(bContext *C, MultiresBakeJob *bkj)
   bkj->use_low_resolution_mesh = scene->r.bake.flag & R_BAKE_LORES_MESH;
   bkj->bake_clear = scene->r.bake.flag & R_BAKE_CLEAR;
 
-  CTX_DATA_BEGIN (*C, Base *, base, selected_editable_bases) {
+  CTX_DATA_BEGIN (C, Base *, base, selected_editable_bases) {
     Object &object = *base->object;
     BLI_assert(object.type == OB_MESH);
 
@@ -449,9 +449,9 @@ static void multiresbake_freejob(void *bkv)
   MEM_freeN(bkj);
 }
 
-static wmOperatorStatus multiresbake_image_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus multiresbake_image_exec(bContext &C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   if (!multiresbake_check(C, op)) {
     return OPERATOR_CANCELLED;
@@ -467,8 +467,8 @@ static wmOperatorStatus multiresbake_image_exec(bContext *C, wmOperator *op)
   }
 
   /* setup job */
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
-                              CTX_wm_window(*C),
+  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
+                              CTX_wm_window(C),
                               scene,
                               "Baking Multires...",
                               WM_JOB_EXCL_RENDER | WM_JOB_PRIORITY | WM_JOB_PROGRESS,
@@ -479,7 +479,7 @@ static wmOperatorStatus multiresbake_image_exec(bContext *C, wmOperator *op)
 
   G.is_break = false;
 
-  WM_jobs_start(CTX_wm_manager(*C), wm_job);
+  WM_jobs_start(CTX_wm_manager(C), wm_job);
   WM_cursor_wait(false);
 
   /* add modal handler for ESC */
@@ -532,9 +532,9 @@ static wmOperatorStatus objects_bake_render_invoke(bContext &C,
   Scene *scene = CTX_data_scene(C);
   wmOperatorStatus result = OPERATOR_CANCELLED;
 
-  result = multiresbake_image_exec(&C, &op);
+  result = multiresbake_image_exec(C, &op);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_RESULT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, scene);
 
   return result;
 }
@@ -549,9 +549,9 @@ static wmOperatorStatus bake_image_exec(bContext &C, wmOperator &op)
     return result;
   }
 
-  result = multiresbake_image_exec_locked(&C, &op);
+  result = multiresbake_image_exec_locked(C, &op);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_RESULT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, scene);
 
   return result;
 }

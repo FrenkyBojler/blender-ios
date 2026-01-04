@@ -84,7 +84,7 @@ void wm_homefile_read_post(bContext *C, const wmFileReadPost_Params *params_file
 
 void wm_file_read_report(Main *bmain, wmWindow *win);
 
-void wm_close_file_dialog(bContext *C, wmGenericCallback *post_action);
+void wm_close_file_dialog(bContext &C, wmGenericCallback *post_action);
 /**
  * \return True if the dialog was created, the calling operator should return #OPERATOR_INTERFACE
  *         then.
@@ -102,7 +102,7 @@ bool wm_file_or_session_data_has_unsaved_changes(const Main *bmain, const wmWind
  *
  * Important to ask confirmation, as this is a very common scenario of data loss.
  */
-void wm_save_file_overwrite_dialog(bContext *C, wmOperator *op);
+void wm_save_file_overwrite_dialog(bContext &C, wmOperator *op);
 
 void WM_OT_save_homefile(wmOperatorType *ot);
 void WM_OT_save_userpref(wmOperatorType *ot);

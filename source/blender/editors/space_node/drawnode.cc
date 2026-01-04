@@ -1602,7 +1602,7 @@ void draw_nodespace_back_pix(const bContext &C,
   blender::gpu::FrameBuffer *old_fb = GPU_framebuffer_active_get();
   GPU_framebuffer_restore();
   BLI_thread_lock(LOCK_DRAW_IMAGE);
-  DRW_draw_view(&C);
+  DRW_draw_view(C);
   BLI_thread_unlock(LOCK_DRAW_IMAGE);
   GPU_framebuffer_bind_no_srgb(old_fb);
   /* Draw manager changes the depth state. Set it back to NONE. Without this the

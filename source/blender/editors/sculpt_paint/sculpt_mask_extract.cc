@@ -77,22 +77,22 @@ struct GeometryExtractParams {
 /* Function that tags in BMesh the faces that should be deleted in the extracted object. */
 using GeometryExtractTagMeshFunc = void(BMesh *, GeometryExtractParams *);
 
-static wmOperatorStatus geometry_extract_apply(bContext *C,
+static wmOperatorStatus geometry_extract_apply(bContext &C,
                                                wmOperator *op,
                                                GeometryExtractTagMeshFunc *tag_fn,
                                                GeometryExtractParams *params)
 {
-  Main *bmain = CTX_data_main(*C);
-  Object *ob = CTX_data_active_object(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Depsgraph &depsgraph = *CTX_data_depsgraph_on_load(*C);
+  Main *bmain = CTX_data_main(C);
+  Object *ob = CTX_data_active_object(C);
+  View3D *v3d = CTX_wm_view3d(C);
+  Scene *scene = CTX_data_scene(C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_on_load(C);
 
   blender::ed::sculpt_paint::object_sculpt_mode_exit(C, depsgraph);
 
   /* Ensures that deformation from sculpt mode is taken into account before duplicating the mesh to
    * extract the geometry. */
-  CTX_data_ensure_evaluated_depsgraph(*C);
+  CTX_data_ensure_evaluated_depsgraph(C);
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   Mesh *new_mesh = (Mesh *)BKE_id_copy(bmain, &mesh->id);
@@ -179,11 +179,11 @@ static wmOperatorStatus geometry_extract_apply(bContext *C,
     local_view_bits = v3d->local_view_uid;
   }
   Object *new_ob = blender::ed::object::add_type(
-      C, OB_MESH, nullptr, ob->loc, ob->rot, false, local_view_bits);
+      &C, OB_MESH, nullptr, ob->loc, ob->rot, false, local_view_bits);
   BKE_mesh_nomain_to_mesh(new_mesh, static_cast<Mesh *>(new_ob->data), new_ob);
 
   if (params->apply_shrinkwrap) {
-    BKE_shrinkwrap_mesh_nearest_surface_deform(CTX_data_depsgraph_pointer(*C), scene, new_ob, ob);
+    BKE_shrinkwrap_mesh_nearest_surface_deform(CTX_data_depsgraph_pointer(C), scene, new_ob, ob);
   }
 
   if (params->add_solidify) {
@@ -274,7 +274,7 @@ static wmOperatorStatus paint_mask_extract_exec(bContext &C, wmOperator &op)
    */
   ED_undo_push_op(&C, &op);
 
-  return geometry_extract_apply(&C, &op, geometry_extract_tag_masked_faces, &params);
+  return geometry_extract_apply(C, &op, geometry_extract_tag_masked_faces, &params);
 }
 
 static wmOperatorStatus paint_mask_extract_invoke(bContext &C, wmOperator &op, const wmEvent *e)
@@ -361,7 +361,7 @@ static wmOperatorStatus face_set_extract_invoke(bContext &C, wmOperator &op, con
   params.add_boundary_loop = false;
   params.apply_shrinkwrap = true;
   params.add_solidify = true;
-  return geometry_extract_apply(&C, &op, geometry_extract_tag_face_set, &params);
+  return geometry_extract_apply(C, &op, geometry_extract_tag_face_set, &params);
 }
 
 void SCULPT_OT_face_set_extract(wmOperatorType *ot)
@@ -498,11 +498,11 @@ static wmOperatorStatus paint_mask_slice_exec(bContext &C, wmOperator &op)
 
     Mesh *new_mesh = static_cast<Mesh *>(new_ob->data);
     BKE_mesh_nomain_to_mesh(new_ob_mesh, new_mesh, new_ob);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, new_ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, new_ob);
     BKE_mesh_batch_cache_dirty_tag(new_mesh, BKE_MESH_BATCH_DIRTY_ALL);
     DEG_relations_tag_update(&bmain);
     DEG_id_tag_update(&new_ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, new_mesh);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, new_mesh);
   }
 
   mesh = static_cast<Mesh *>(ob.data);
@@ -522,7 +522,7 @@ static wmOperatorStatus paint_mask_slice_exec(bContext &C, wmOperator &op)
 
   BKE_mesh_batch_cache_dirty_tag(mesh, BKE_MESH_BATCH_DIRTY_ALL);
   DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 
   return OPERATOR_FINISHED;
 }

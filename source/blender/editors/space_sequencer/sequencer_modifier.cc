@@ -48,7 +48,7 @@ static wmOperatorStatus strip_modifier_add_exec(bContext &C, wmOperator &op)
   seq::modifier_persistent_uid_init(*strip, *smd);
 
   seq::relations_invalidate_cache(scene, strip);
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -123,7 +123,7 @@ static wmOperatorStatus strip_modifier_remove_exec(bContext &C, wmOperator &op)
   else {
     seq::relations_invalidate_cache(scene, strip);
   }
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -196,7 +196,7 @@ static wmOperatorStatus strip_modifier_move_exec(bContext &C, wmOperator &op)
     seq::relations_invalidate_cache(scene, strip);
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -253,7 +253,7 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext &C, wmOperator &op)
 
   int isSound = ELEM(active_strip->type, STRIP_TYPE_SOUND);
 
-  VectorSet<Strip *> selected = selected_strips_from_context(&C);
+  VectorSet<Strip *> selected = selected_strips_from_context(C);
   selected.remove(active_strip);
 
   for (Strip *strip_iter : selected) {
@@ -292,7 +292,7 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext &C, wmOperator &op)
     seq::relations_invalidate_cache(scene, active_strip);
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -349,7 +349,7 @@ static wmOperatorStatus strip_modifier_equalizer_redefine_exec(bContext &C, wmOp
   seq::sound_equalizermodifier_set_graphs((SoundEqualizerModifierData *)smd, number);
 
   seq::relations_invalidate_cache(scene, strip);
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -417,7 +417,7 @@ static wmOperatorStatus modifier_move_to_index_exec(bContext &C, wmOperator &op)
     seq::relations_invalidate_cache(scene, strip);
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }

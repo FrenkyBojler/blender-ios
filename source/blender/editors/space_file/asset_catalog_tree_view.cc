@@ -89,7 +89,7 @@ class AssetCatalogTreeViewItem : public ui::BasicTreeViewItem {
 
   bool supports_renaming() const override;
   bool rename(const bContext &C, StringRefNull new_name) override;
-  void delete_item(bContext *C) override;
+  void delete_item(bContext &C) override;
 
   /** Add drag support for catalog items. */
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override;
@@ -117,7 +117,7 @@ class AssetCatalogDropTarget : public ui::TreeViewItemDropTarget {
 
   bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
   std::string drop_tooltip(const ui::DragInfo &drag_info) const override;
-  bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override;
+  bool on_drop(bContext &C, const ui::DragInfo &drag_info) const override;
 
   asset_system::AssetLibrary &get_asset_library() const;
 
@@ -158,7 +158,7 @@ class AssetCatalogTreeViewAllItem : public ui::BasicTreeViewItem {
 
     bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
     std::string drop_tooltip(const ui::DragInfo &drag_info) const override;
-    bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override;
+    bool on_drop(bContext &C, const ui::DragInfo &drag_info) const override;
   };
 
   std::unique_ptr<ui::TreeViewItemDropTarget> create_drop_target() override;
@@ -172,7 +172,7 @@ class AssetCatalogTreeViewUnassignedItem : public ui::BasicTreeViewItem {
 
     bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
     std::string drop_tooltip(const ui::DragInfo &drag_info) const override;
-    bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override;
+    bool on_drop(bContext &C, const ui::DragInfo &drag_info) const override;
   };
 
   std::unique_ptr<ui::TreeViewItemDropTarget> create_drop_target() override;
@@ -324,7 +324,7 @@ void AssetCatalogTreeViewItem::build_context_menu(bContext &C, ui::Layout &colum
   if (!mt) {
     return;
   }
-  ui::menutype_draw(&C, mt, &column);
+  ui::menutype_draw(C, mt, &column);
 }
 
 bool AssetCatalogTreeViewItem::supports_renaming() const
@@ -345,7 +345,7 @@ bool AssetCatalogTreeViewItem::rename(const bContext &C, StringRefNull new_name)
   return true;
 }
 
-void AssetCatalogTreeViewItem::delete_item(bContext * /*C*/)
+void AssetCatalogTreeViewItem::delete_item(bContext & /*C*/)
 {
   const AssetCatalogTreeView &tree_view = static_cast<const AssetCatalogTreeView &>(
       this->get_tree_view());
@@ -442,14 +442,14 @@ std::string AssetCatalogDropTarget::drop_tooltip_asset_list(const wmDrag &drag) 
   return basic_tip;
 }
 
-bool AssetCatalogDropTarget::on_drop(bContext *C, const ui::DragInfo &drag_info) const
+bool AssetCatalogDropTarget::on_drop(bContext &C, const ui::DragInfo &drag_info) const
 {
   if (drag_info.drag_data.type == WM_DRAG_ASSET_CATALOG) {
     return drop_asset_catalog_into_catalog(drag_info.drag_data,
                                            this->get_view<AssetCatalogTreeView>(),
                                            catalog_item_.get_catalog_id());
   }
-  return drop_assets_into_catalog(C,
+  return drop_assets_into_catalog(&C,
                                   this->get_view<AssetCatalogTreeView>(),
                                   drag_info.drag_data,
                                   catalog_item_.get_catalog_id(),
@@ -501,7 +501,7 @@ bool AssetCatalogDropTarget::drop_assets_into_catalog(bContext *C,
   }
 
   if (did_update) {
-    ED_undo_push(C, "Assign Asset Catalog");
+    ED_undo_push(*C, "Assign Asset Catalog");
   }
   return true;
 }
@@ -637,7 +637,7 @@ std::string AssetCatalogTreeViewAllItem::DropTarget::drop_tooltip(
                      drag_catalog->path.name());
 }
 
-bool AssetCatalogTreeViewAllItem::DropTarget::on_drop(bContext * /*C*/,
+bool AssetCatalogTreeViewAllItem::DropTarget::on_drop(bContext & /*C*/,
                                                       const ui::DragInfo &drag_info) const
 {
   BLI_assert(drag_info.drag_data.type == WM_DRAG_ASSET_CATALOG);
@@ -681,12 +681,12 @@ std::string AssetCatalogTreeViewUnassignedItem::DropTarget::drop_tooltip(
                               TIP_("Move asset out of any catalog");
 }
 
-bool AssetCatalogTreeViewUnassignedItem::DropTarget::on_drop(bContext *C,
+bool AssetCatalogTreeViewUnassignedItem::DropTarget::on_drop(bContext &C,
                                                              const ui::DragInfo &drag_info) const
 {
   /* Assign to nil catalog ID. */
   return AssetCatalogDropTarget::drop_assets_into_catalog(
-      C, this->get_view<AssetCatalogTreeView>(), drag_info.drag_data, CatalogID{});
+      &C, this->get_view<AssetCatalogTreeView>(), drag_info.drag_data, CatalogID{});
 }
 
 /* ---------------------------------------------------------------------- */
@@ -762,7 +762,7 @@ bool file_is_asset_visible_in_catalog_filter_settings(
 
 /* ---------------------------------------------------------------------- */
 
-void file_create_asset_catalog_tree_view_in_layout(const bContext *C,
+void file_create_asset_catalog_tree_view_in_layout(const bContext &C,
                                                    asset_system::AssetLibrary *asset_library,
                                                    ui::Layout &layout,
                                                    SpaceFile *space_file,
@@ -778,7 +778,7 @@ void file_create_asset_catalog_tree_view_in_layout(const bContext *C,
       std::make_unique<ed::asset_browser::AssetCatalogTreeView>(
           asset_library, params, *space_file));
   tree_view->set_context_menu_title("Catalog");
-  ui::TreeViewBuilder::build_tree_view(*C, *tree_view, layout);
+  ui::TreeViewBuilder::build_tree_view(C, *tree_view, layout);
 }
 
 }  // namespace blender::ed::asset_browser

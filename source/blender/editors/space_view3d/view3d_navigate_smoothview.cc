@@ -26,7 +26,7 @@
 #include "view3d_navigate.hh" /* Own include. */
 
 static void view3d_smoothview_apply_with_interp(
-    bContext *C, View3D *v3d, RegionView3D *rv3d, const bool use_autokey, const float factor);
+    bContext &C, View3D *v3d, RegionView3D *rv3d, const bool use_autokey, const float factor);
 
 /* -------------------------------------------------------------------- */
 /** \name Smooth View Undo Handling
@@ -117,7 +117,7 @@ void ED_view3d_smooth_view_undo_end(bContext *C,
 
   /* Fast forward, undo push, then rewind. */
   if (is_interactive) {
-    view3d_smoothview_apply_with_interp(C, v3d, rv3d, false, 1.0f);
+    view3d_smoothview_apply_with_interp(*C, v3d, rv3d, false, 1.0f);
   }
 
   if (undo_grouped) {
@@ -128,7 +128,7 @@ void ED_view3d_smooth_view_undo_end(bContext *C,
   }
 
   if (is_interactive) {
-    view3d_smoothview_apply_with_interp(C, v3d, rv3d, false, 0.0f);
+    view3d_smoothview_apply_with_interp(*C, v3d, rv3d, false, 0.0f);
   }
 }
 
@@ -384,16 +384,16 @@ void ED_view3d_smooth_view_ex(
   }
 }
 
-void ED_view3d_smooth_view(bContext *C,
+void ED_view3d_smooth_view(bContext &C,
                            View3D *v3d,
                            ARegion *region,
                            const int smooth_viewtx,
                            const V3D_SmoothParams *sview)
 {
-  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *area = CTX_wm_area(C);
 
   /* #ED_view3d_smooth_view_ex asserts this is not set as it doesn't support undo. */
   V3D_SmoothParams sview_no_undo = *sview;
@@ -402,13 +402,13 @@ void ED_view3d_smooth_view(bContext *C,
 
   const bool do_undo = (sview->undo_str != nullptr);
   if (do_undo) {
-    ED_view3d_smooth_view_undo_begin(C, area);
+    ED_view3d_smooth_view_undo_begin(&C, area);
   }
 
   ED_view3d_smooth_view_ex(depsgraph, wm, win, area, v3d, region, smooth_viewtx, &sview_no_undo);
 
   if (do_undo) {
-    ED_view3d_smooth_view_undo_end(C, area, sview->undo_str, sview->undo_grouped);
+    ED_view3d_smooth_view_undo_end(&C, area, sview->undo_str, sview->undo_grouped);
   }
 }
 
@@ -416,7 +416,7 @@ void ED_view3d_smooth_view(bContext *C,
  * Apply with interpolation, on completion run #view3d_smoothview_apply_and_finish.
  */
 static void view3d_smoothview_apply_with_interp(
-    bContext *C, View3D *v3d, RegionView3D *rv3d, const bool use_autokey, const float factor)
+    bContext &C, View3D *v3d, RegionView3D *rv3d, const bool use_autokey, const float factor)
 {
   SmoothView3DStore *sms = rv3d->sms;
 
@@ -433,10 +433,10 @@ static void view3d_smoothview_apply_with_interp(
   rv3d->dist = interpf(sms->dst.dist, sms->src.dist, factor);
   v3d->lens = interpf(sms->dst.lens, sms->src.lens, factor);
 
-  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   if (ED_view3d_camera_lock_sync(depsgraph, v3d, rv3d)) {
     if (use_autokey) {
-      ED_view3d_camera_lock_autokey(v3d, rv3d, C, true, true);
+      ED_view3d_camera_lock_autokey(v3d, rv3d, &C, true, true);
     }
   }
 }
@@ -490,16 +490,16 @@ static void view3d_smoothview_apply_and_finish_ex(wmWindowManager *wm,
   WM_main_add_notifier(NC_SPACE | ND_SPACE_VIEW3D, v3d);
 }
 
-static void view3d_smoothview_apply_and_finish(bContext *C, View3D *v3d, RegionView3D *rv3d)
+static void view3d_smoothview_apply_and_finish(bContext &C, View3D *v3d, RegionView3D *rv3d)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  view3d_smoothview_apply_and_finish_ex(wm, win, v3d, rv3d, C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  view3d_smoothview_apply_and_finish_ex(wm, win, v3d, rv3d, &C);
 }
 
-static void view3d_smoothview_apply_from_timer(bContext *C, View3D *v3d, ARegion *region)
+static void view3d_smoothview_apply_from_timer(bContext &C, View3D *v3d, ARegion *region)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   SmoothView3DStore *sms = rv3d->sms;
   float factor;
@@ -521,7 +521,7 @@ static void view3d_smoothview_apply_from_timer(bContext *C, View3D *v3d, ARegion
   }
 
   if (RV3D_LOCK_FLAGS(rv3d) & RV3D_BOXVIEW) {
-    view3d_boxview_copy(CTX_wm_area(*C), region);
+    view3d_boxview_copy(CTX_wm_area(C), region);
   }
 
   ED_region_tag_redraw(region);
@@ -540,7 +540,7 @@ static wmOperatorStatus view3d_smoothview_invoke(bContext &C,
     return OPERATOR_PASS_THROUGH;
   }
 
-  view3d_smoothview_apply_from_timer(&C, v3d, region);
+  view3d_smoothview_apply_from_timer(C, v3d, region);
 
   return OPERATOR_FINISHED;
 }

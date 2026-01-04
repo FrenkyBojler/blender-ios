@@ -169,7 +169,7 @@ static void draw_single_handle(const MaskLayer *mask_layer,
 }
 
 /* return non-zero if spline is selected */
-static void draw_spline_points(const bContext *C,
+static void draw_spline_points(const bContext &C,
                                MaskLayer *mask_layer,
                                MaskSpline *spline,
                                const MaskDrawType draw_type)
@@ -179,7 +179,7 @@ static void draw_spline_points(const bContext *C,
 
   uchar rgb_spline[4];
   MaskSplinePoint *points_array = BKE_mask_spline_point_array(spline);
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   bool undistort = false;
 
   int tot_feather_point;
@@ -372,7 +372,7 @@ static void mask_draw_array(uint pos,
   immEnd();
 }
 
-static void mask_draw_curve_type(const bContext *C,
+static void mask_draw_curve_type(const bContext &C,
                                  MaskSpline *spline,
                                  float (*orig_points)[2],
                                  int tot_point,
@@ -385,7 +385,7 @@ static void mask_draw_curve_type(const bContext *C,
                                                                         GPU_PRIM_LINE_STRIP;
   const uchar rgb_black[4] = {0x00, 0x00, 0x00, 0xff};
   uchar rgb_tmp[4];
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   float (*points)[2] = orig_points;
 
   if (sc) {
@@ -532,7 +532,7 @@ static void draw_spline_curve(const bContext *C,
   /* draw feather */
   mask_spline_feather_color_get(mask_layer, spline, is_spline_sel, rgb_tmp);
   mask_draw_curve_type(
-      C, spline, feather_points, tot_feather_point, true, is_active, rgb_tmp, draw_type);
+      *C, spline, feather_points, tot_feather_point, true, is_active, rgb_tmp, draw_type);
 
   if (!is_fill) {
     const float *fp = &diff_points[0][0];
@@ -548,7 +548,7 @@ static void draw_spline_curve(const bContext *C,
 
     /* same as above */
     mask_draw_curve_type(
-        C, spline, feather_points, tot_feather_point, true, is_active, rgb_tmp, draw_type);
+        *C, spline, feather_points, tot_feather_point, true, is_active, rgb_tmp, draw_type);
   }
 
   MEM_freeN(feather_points);
@@ -556,7 +556,7 @@ static void draw_spline_curve(const bContext *C,
   /* draw main curve */
   mask_spline_color_get(mask_layer, spline, is_spline_sel, rgb_tmp);
   mask_draw_curve_type(
-      C, spline, diff_points, tot_diff_point, false, is_active, rgb_tmp, draw_type);
+      *C, spline, diff_points, tot_diff_point, false, is_active, rgb_tmp, draw_type);
   MEM_freeN(diff_points);
 
   GPU_line_smooth(false);
@@ -575,7 +575,7 @@ static void draw_layer_splines(const bContext *C,
 
     if (!(layer->visibility_flag & MASK_HIDE_SELECT)) {
       /* ...and then handles over the curve so they're nicely visible */
-      draw_spline_points(C, layer, &spline, draw_type);
+      draw_spline_points(*C, layer, &spline, draw_type);
     }
 
     /* show undeform for testing */
@@ -584,7 +584,7 @@ static void draw_layer_splines(const bContext *C,
 
       spline.points_deform = nullptr;
       draw_spline_curve(C, layer, &spline, draw_type, is_active, width, height);
-      draw_spline_points(C, layer, &spline, draw_type);
+      draw_spline_points(*C, layer, &spline, draw_type);
       spline.points_deform = back;
     }
   }

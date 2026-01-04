@@ -593,7 +593,7 @@ size_t ANIM_animdata_filter(bAnimContext *ac,
  * - Clears data and sets the information from Blender Context which is useful
  * \return whether the operation was successful.
  */
-bool ANIM_animdata_get_context(const bContext *C, bAnimContext *ac);
+bool ANIM_animdata_get_context(const bContext &C, bAnimContext *ac);
 
 /**
  * Obtain current anim-data context,
@@ -851,7 +851,7 @@ bool ANIM_is_active_channel(bAnimListElem *ale);
  * Deselects the keys displayed within the open animation editors. Depending on the display
  * settings of those editors, the keys may not be from an action of the selected objects.
  */
-void ANIM_deselect_keys_in_animation_editors(bContext *C);
+void ANIM_deselect_keys_in_animation_editors(bContext &C);
 
 /* ************************************************ */
 /* DRAWING API */
@@ -878,7 +878,7 @@ enum eAnimEditDraw_CurrentFrame {
 /**
  * General call for drawing current frame indicator in animation editor.
  */
-void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag);
+void ANIM_draw_cfra(const bContext &C, View2D *v2d, short flag);
 
 /** \} */
 
@@ -896,7 +896,7 @@ void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width
 /**
  * Draw range of the current sequencer scene strip when using scene time syncing.
  */
-void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d);
+void ANIM_draw_scene_strip_range(const bContext &C, View2D *v2d);
 
 /** \} */
 
@@ -942,7 +942,7 @@ using uiListPanelIDFromDataFunc = void (*)(void *data_link, char *r_idname);
 /**
  * Checks if the panels match the active strip / curve, rebuilds them if they don't.
  */
-void ANIM_fmodifier_panels(const bContext *C,
+void ANIM_fmodifier_panels(const bContext &C,
                            ID *owner_id,
                            ListBaseT<FModifier> *fmodifiers,
                            uiListPanelIDFromDataFunc panel_id_fn);
@@ -1193,7 +1193,7 @@ void ANIM_list_elem_update(Main *bmain, Scene *scene, bAnimListElem *ale);
  */
 void ANIM_sync_animchannels_to_data(const bContext *C);
 
-void ANIM_center_frame(bContext *C, int smooth_viewtx);
+void ANIM_center_frame(bContext &C, int smooth_viewtx);
 
 /**
  * Add horizontal margin to the rectangle.

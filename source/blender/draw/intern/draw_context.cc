@@ -1353,7 +1353,7 @@ static void drw_callbacks_post_scene_2D(DRWContext &draw_ctx, View2D &v2d)
     wmOrtho2(v2d.cur.xmin, v2d.cur.xmax, v2d.cur.ymin, v2d.cur.ymax);
 
     if (do_annotations) {
-      ED_annotation_draw_view2d(draw_ctx.evil_C, true);
+      ED_annotation_draw_view2d(*draw_ctx.evil_C, true);
     }
 
     GPU_depth_test(GPU_DEPTH_NONE);
@@ -1368,7 +1368,7 @@ static void drw_callbacks_post_scene_2D(DRWContext &draw_ctx, View2D &v2d)
     GPU_depth_test(GPU_DEPTH_NONE);
 
     if (do_annotations) {
-      ED_annotation_draw_view2d(draw_ctx.evil_C, false);
+      ED_annotation_draw_view2d(*draw_ctx.evil_C, false);
     }
   }
 
@@ -1496,14 +1496,14 @@ static void drw_draw_render_loop_2d(DRWContext &draw_ctx)
   }
 }
 
-void DRW_draw_view(const bContext *C)
+void DRW_draw_view(const bContext &C)
 {
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(*C);
-  ARegion *region = CTX_wm_region(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(C);
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
 
-  DRWContext draw_ctx(DRWContext::VIEWPORT, depsgraph, viewport, C);
+  DRWContext draw_ctx(DRWContext::VIEWPORT, depsgraph, viewport, &C);
   draw_ctx.acquire_data();
 
   if (draw_ctx.v3d) {

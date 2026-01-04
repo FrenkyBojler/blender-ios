@@ -1605,18 +1605,18 @@ void paint_2d_stroke(void *ps,
   painter->firsttouch = false;
 }
 
-void *paint_2d_new_stroke(bContext *C, wmOperator *op, int mode)
+void *paint_2d_new_stroke(bContext &C, wmOperator *op, int mode)
 {
-  Scene *scene = CTX_data_scene(*C);
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  Scene *scene = CTX_data_scene(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
   ToolSettings *settings = scene->toolsettings;
   const Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(&settings->imapaint.paint);
 
   ImagePaintState *s = MEM_callocN<ImagePaintState>(__func__);
 
-  s->sima = CTX_wm_space_image(*C);
-  s->v2d = &CTX_wm_region(*C)->v2d;
+  s->sima = CTX_wm_space_image(C);
+  s->v2d = &CTX_wm_region(C)->v2d;
   s->scene = scene;
   s->paint = paint;
 
@@ -1721,7 +1721,7 @@ void paint_2d_redraw(const bContext *C, void *ps, bool final)
       ED_region_tag_redraw(CTX_wm_region(*C));
     }
     else {
-      WM_event_add_notifier(C, NC_IMAGE | NA_PAINTING, s->image);
+      WM_event_add_notifier(*C, NC_IMAGE | NA_PAINTING, s->image);
     }
   }
 
@@ -1731,7 +1731,7 @@ void paint_2d_redraw(const bContext *C, void *ps, bool final)
     }
 
     /* compositor listener deals with updating */
-    WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, s->image);
+    WM_event_add_notifier(*C, NC_IMAGE | NA_EDITED, s->image);
     DEG_id_tag_update(&s->image->id, 0);
 
     /* Ideally, we shouldn't have to tag the object as needing to be recalculated if using this
@@ -1831,14 +1831,14 @@ static ImageUser *paint_2d_get_tile_iuser(ImagePaintState *s, int tile_number)
   return iuser;
 }
 
-void paint_2d_bucket_fill(const bContext *C,
+void paint_2d_bucket_fill(const bContext &C,
                           const float color[3],
                           Brush *br,
                           const float mouse_init[2],
                           const float mouse_final[2],
                           void *ps)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   Image *ima = sima->image;
 
@@ -1856,7 +1856,7 @@ void paint_2d_bucket_fill(const bContext *C,
     return;
   }
 
-  View2D *v2d = s ? s->v2d : &CTX_wm_region(*C)->v2d;
+  View2D *v2d = s ? s->v2d : &CTX_wm_region(C)->v2d;
   float uv_origin[2];
   float image_init[2];
   paint_2d_transform_mouse(v2d, mouse_init, image_init);
@@ -2034,9 +2034,9 @@ void paint_2d_bucket_fill(const bContext *C,
 }
 
 void paint_2d_gradient_fill(
-    const bContext *C, Brush *br, const float mouse_init[2], const float mouse_final[2], void *ps)
+    const bContext &C, Brush *br, const float mouse_init[2], const float mouse_final[2], void *ps)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
   Image *ima = sima->image;
   ImagePaintState *s = static_cast<ImagePaintState *>(ps);
 

@@ -46,17 +46,17 @@
 
 #include "view3d_intern.hh" /* own include */
 
-static bool view3d_drop_in_main_region_poll(bContext *C, const wmEvent *event)
+static bool view3d_drop_in_main_region_poll(bContext &C, const wmEvent *event)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   return ED_region_overlap_isect_any_xy(area, event->xy) == false;
 }
 
-static ID_Type view3d_drop_id_in_main_region_poll_get_id_type(bContext *C,
+static ID_Type view3d_drop_id_in_main_region_poll_get_id_type(bContext &C,
                                                               wmDrag *drag,
                                                               const wmEvent *event)
 {
-  const ScrArea *area = CTX_wm_area(*C);
+  const ScrArea *area = CTX_wm_area(C);
 
   if (ED_region_overlap_isect_any_xy(area, event->xy)) {
     return ID_Type(0);
@@ -83,7 +83,7 @@ static bool view3d_drop_id_in_main_region_poll(bContext *C,
                                                const wmEvent *event,
                                                ID_Type id_type)
 {
-  if (!view3d_drop_in_main_region_poll(C, event)) {
+  if (!view3d_drop_in_main_region_poll(*C, event)) {
     return false;
   }
 
@@ -221,7 +221,7 @@ static bool view3d_world_drop_poll(bContext *C, wmDrag *drag, const wmEvent *eve
 
 static bool view3d_object_data_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  ID_Type id_type = view3d_drop_id_in_main_region_poll_get_id_type(C, drag, event);
+  ID_Type id_type = view3d_drop_id_in_main_region_poll_get_id_type(*C, drag, event);
   if (id_type && OB_DATA_SUPPORT_ID(id_type)) {
     return true;
   }
@@ -236,19 +236,19 @@ static std::string view3d_object_data_drop_tooltip(bContext * /*C*/,
   return TIP_("Create object instance from object-data");
 }
 
-static bool view3d_ima_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
+static bool view3d_ima_drop_poll(bContext &C, wmDrag *drag, const wmEvent *event)
 {
-  if (ED_region_overlap_isect_any_xy(CTX_wm_area(*C), event->xy)) {
+  if (ED_region_overlap_isect_any_xy(CTX_wm_area(C), event->xy)) {
     return false;
   }
   return WM_drag_is_ID_type(drag, ID_IM);
 }
 
-static bool view3d_ima_bg_is_camera_view(bContext *C)
+static bool view3d_ima_bg_is_camera_view(bContext &C)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   if (rv3d && (rv3d->persp == RV3D_CAMOB)) {
-    View3D *v3d = CTX_wm_view3d(*C);
+    View3D *v3d = CTX_wm_view3d(C);
     if (v3d && v3d->camera && v3d->camera->type == OB_CAMERA) {
       return true;
     }
@@ -258,7 +258,7 @@ static bool view3d_ima_bg_is_camera_view(bContext *C)
 
 static bool view3d_ima_bg_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  if (!view3d_ima_drop_poll(C, drag, event)) {
+  if (!view3d_ima_drop_poll(*C, drag, event)) {
     return false;
   }
 
@@ -266,12 +266,12 @@ static bool view3d_ima_bg_drop_poll(bContext *C, wmDrag *drag, const wmEvent *ev
     return false;
   }
 
-  return view3d_ima_bg_is_camera_view(C);
+  return view3d_ima_bg_is_camera_view(*C);
 }
 
 static bool view3d_ima_empty_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  if (!view3d_ima_drop_poll(C, drag, event)) {
+  if (!view3d_ima_drop_poll(*C, drag, event)) {
     return false;
   }
 
@@ -471,14 +471,14 @@ static void view3d_ob_drop_copy_external_asset(bContext *C, wmDrag *drag, wmDrop
 
   BKE_view_layer_base_deselect_all(scene, view_layer);
 
-  ID *id = WM_drag_asset_id_import(C, asset_drag, FILE_AUTOSELECT);
+  ID *id = WM_drag_asset_id_import(*C, asset_drag, FILE_AUTOSELECT);
   if (!id) {
     return;
   }
 
   /* TODO(sergey): Only update relations for the current scene. */
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  WM_event_add_notifier(*C, NC_SCENE | ND_LAYER_CONTENT, scene);
 
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_base_find(view_layer, (Object *)id);
@@ -498,7 +498,7 @@ static void view3d_ob_drop_copy_external_asset(bContext *C, wmDrag *drag, wmDrop
     }
   }
 
-  ED_outliner_select_sync_from_object_tag(C);
+  ED_outliner_select_sync_from_object_tag(*C);
 
   /* Do after making local, since that changes the session UID. */
   RNA_int_set(drop->ptr, "session_uid", id->session_uid);
@@ -575,7 +575,7 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
   /* Temporarily disable instancing for the import, the drop operator handles that. */
   asset_drag->import_settings.use_instance_collections = false;
 
-  ID *id = WM_drag_asset_id_import(C, asset_drag, FILE_AUTOSELECT);
+  ID *id = WM_drag_asset_id_import(*C, asset_drag, FILE_AUTOSELECT);
   if (!id) {
     return;
   }
@@ -586,7 +586,7 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
 
   /* TODO(sergey): Only update relations for the current scene. */
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  WM_event_add_notifier(*C, NC_SCENE | ND_LAYER_CONTENT, scene);
 
   /* Make an object active, just use the first one in the collection. */
   CollectionObject *cobject = static_cast<CollectionObject *>(collection->gobject.first);
@@ -608,7 +608,7 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
     id = &collection->id;
   }
 
-  ED_outliner_select_sync_from_object_tag(C);
+  ED_outliner_select_sync_from_object_tag(*C);
 
   /* Do after making local, since that changes the session UID. */
   RNA_int_set(drop->ptr, "session_uid", int(id->session_uid));
@@ -624,7 +624,7 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
 
   /* XXX Without an undo push here, there will be a crash when the user modifies operator
    * properties. The stuff we do in these drop callbacks just isn't safe over undo/redo. */
-  ED_undo_push(C, "Drop Collection");
+  ED_undo_push(*C, "Drop Collection");
 }
 
 static void view3d_id_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)

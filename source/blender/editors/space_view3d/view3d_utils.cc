@@ -228,9 +228,9 @@ bool ED_view3d_viewplane_get(const Depsgraph *depsgraph,
 /** \name View State/Context Utilities
  * \{ */
 
-void view3d_operator_needs_gpu(const bContext *C)
+void view3d_operator_needs_gpu(const bContext &C)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
   view3d_region_operator_needs_gpu(region);
 }
@@ -270,10 +270,10 @@ void ED_view3d_polygon_offset(const RegionView3D *rv3d, const float dist)
   GPU_polygon_offset(viewdist, dist);
 }
 
-bool ED_view3d_context_activate(bContext *C)
+bool ED_view3d_context_activate(bContext &C)
 {
-  bScreen *screen = CTX_wm_screen(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  bScreen *screen = CTX_wm_screen(C);
+  ScrArea *area = CTX_wm_area(C);
 
   /* area can be nullptr when called from python */
   if (area == nullptr || area->spacetype != SPACE_VIEW3D) {
@@ -290,8 +290,8 @@ bool ED_view3d_context_activate(bContext *C)
   }
 
   /* Bad context switch. */
-  CTX_wm_area_set(*C, area);
-  CTX_wm_region_set(*C, region);
+  CTX_wm_area_set(C, area);
+  CTX_wm_region_set(C, region);
 
   return true;
 }
@@ -758,7 +758,7 @@ bool ED_view3d_camera_lock_autokey(
 bool ED_view3d_camera_lock_undo_test(const View3D *v3d, const RegionView3D *rv3d, bContext *C)
 {
   if (ED_view3d_camera_lock_check(v3d, rv3d)) {
-    if (ED_undo_is_memfile_compatible(C)) {
+    if (ED_undo_is_memfile_compatible(*C)) {
       return true;
     }
   }
@@ -781,10 +781,10 @@ static bool view3d_camera_lock_undo_ex(const char *str,
 {
   if (ED_view3d_camera_lock_undo_test(v3d, rv3d, C)) {
     if (undo_group) {
-      ED_undo_grouped_push(C, str);
+      ED_undo_grouped_push(*C, str);
     }
     else {
-      ED_undo_push(C, str);
+      ED_undo_push(*C, str);
     }
     return true;
   }

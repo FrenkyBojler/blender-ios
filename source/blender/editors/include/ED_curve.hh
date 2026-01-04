@@ -55,7 +55,7 @@ void ED_curve_editnurb_free(Object *obedit);
 /**
  * \param dist_px: Maximum distance to pick (in pixels).
  */
-bool ED_curve_editnurb_select_pick(bContext *C,
+bool ED_curve_editnurb_select_pick(bContext &C,
                                    const int mval[2],
                                    int dist_px,
                                    const SelectPick_Params &params);
@@ -72,14 +72,14 @@ bool ED_curve_nurb_deselect_all(const Nurb *nu);
  * This is used externally, by #OBJECT_OT_join.
  * TODO: shape keys - as with meshes.
  */
-wmOperatorStatus ED_curve_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus ED_curve_join_objects_exec(bContext &C, wmOperator *op);
 
 /* `editcurve_select.cc` */
 
 bool ED_curve_select_check(const View3D *v3d, const EditNurb *editnurb);
 bool ED_curve_deselect_all(EditNurb *editnurb);
 bool ED_curve_deselect_all_multi_ex(blender::Span<Base *> bases);
-bool ED_curve_deselect_all_multi(bContext *C);
+bool ED_curve_deselect_all_multi(bContext &C);
 bool ED_curve_select_all(EditNurb *editnurb);
 bool ED_curve_select_swap(EditNurb *editnurb, bool hide_handles);
 int ED_curve_select_count(const View3D *v3d, const EditNurb *editnurb);
@@ -95,7 +95,7 @@ void ED_curve_editfont_load(Object *obedit);
 void ED_curve_editfont_make(Object *obedit);
 void ED_curve_editfont_free(Object *obedit);
 
-void ED_text_to_object(bContext *C, const Text *text, bool split_lines);
+void ED_text_to_object(bContext &C, const Text *text, bool split_lines);
 
 void ED_curve_beztcpy(EditNurb *editnurb, BezTriple *dst, BezTriple *src, int count);
 void ED_curve_bpcpy(EditNurb *editnurb, BPoint *dst, BPoint *src, int count);
@@ -112,7 +112,7 @@ bool ED_curve_active_center(Curve *cu, float center[3]);
  *
  * \return True when pick finds an element or the selection changed.
  */
-bool ED_curve_editfont_select_pick(bContext *C,
+bool ED_curve_editfont_select_pick(bContext &C,
                                    const int mval[2],
                                    const SelectPick_Params &params);
 

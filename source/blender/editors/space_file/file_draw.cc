@@ -638,9 +638,9 @@ static void file_draw_string_multiline(int sx,
   }
 }
 
-void file_calc_previews(const bContext *C, ARegion *region)
+void file_calc_previews(const bContext &C, ARegion *region)
 {
-  SpaceFile *sfile = CTX_wm_space_file(*C);
+  SpaceFile *sfile = CTX_wm_space_file(C);
   View2D *v2d = &region->v2d;
 
   ED_fileselect_init_layout(sfile, region);
@@ -1320,11 +1320,11 @@ static rcti text_draw_rect_get(const View2D *v2d,
   return rect;
 }
 
-void file_draw_list(const bContext *C, ARegion *region)
+void file_draw_list(const bContext &C, ARegion *region)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  SpaceFile *sfile = CTX_wm_space_file(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   FileLayout *layout = ED_fileselect_get_layout(sfile, region);
   View2D *v2d = &region->v2d;
@@ -1560,7 +1560,7 @@ void file_draw_list(const bContext *C, ARegion *region)
       button_func_rename_set(but, renamebutton_cb, file);
       button_flag_enable(but, blender::ui::BUT_NO_UTF8); /* Allow non UTF8 names. */
       button_flag_disable(but, blender::ui::BUT_UNDO);
-      if (false == button_active_only(C, region, block, but)) {
+      if (false == button_active_only(&C, region, block, but)) {
         /* Note that this is the only place where we can also handle a cancelled renaming. */
 
         file_params_rename_end(wm, win, sfile, file);
@@ -1684,7 +1684,7 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
     file_draw_string_multiline(
         sx + UI_UNIT_X, sy, suggestion, width - UI_UNIT_X, line_height, text_col, nullptr, &sy);
 
-    blender::ui::Block *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+    blender::ui::Block *block = block_begin(*C, region, __func__, blender::ui::EmbossType::Emboss);
     wmOperatorType *ot = WM_operatortype_find("SCREEN_OT_userpref_show", false);
     blender::ui::Button *but = uiDefIconTextButO_ptr(block,
                                                      blender::ui::ButtonType::But,
@@ -1700,8 +1700,8 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
     PointerRNA *but_opptr = button_operator_ptr_ensure(but);
     RNA_enum_set(but_opptr, "section", USER_SECTION_FILE_PATHS);
 
-    block_end(C, block);
-    block_draw(C, block);
+    block_end(*C, block);
+    block_draw(*C, block);
   }
 }
 

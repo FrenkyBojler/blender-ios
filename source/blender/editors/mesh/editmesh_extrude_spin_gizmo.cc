@@ -255,7 +255,7 @@ static void gizmo_mesh_spin_init_draw_prepare(const bContext *C, wmGizmoGroup *g
 #ifdef USE_DIAL_HOVER
   {
     PointerRNA ptr;
-    bToolRef *tref = WM_toolsystem_ref_from_context((bContext *)C);
+    bToolRef *tref = WM_toolsystem_ref_from_context(*(bContext *)C);
     WM_toolsystem_ref_properties_ensure_from_gizmo_group(tref, gzgroup->type, &ptr);
     const int axis_flag = RNA_property_enum_get(&ptr, ggd->data.gzgt_axis_prop);
     for (int i = 0; i < 4; i++) {
@@ -303,7 +303,7 @@ static void gizmo_mesh_spin_init_invoke_prepare(const bContext * /*C*/,
 static void gizmo_mesh_spin_init_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   GizmoGroupData_SpinInit *ggd = static_cast<GizmoGroupData_SpinInit *>(gzgroup->customdata);
-  RegionView3D *rv3d = ED_view3d_context_rv3d((bContext *)C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(*(bContext *)C);
   const float *gizmo_center = nullptr;
   {
     Scene *scene = CTX_data_scene(*C);
@@ -323,7 +323,7 @@ static void gizmo_mesh_spin_init_refresh(const bContext *C, wmGizmoGroup *gzgrou
     }
   }
 
-  blender::ed::transform::calc_orientation_from_type(C, ggd->data.orient_mat);
+  blender::ed::transform::calc_orientation_from_type(*C, ggd->data.orient_mat);
   for (int i = 0; i < 3; i++) {
     const int axis_ortho = (i + ORTHO_AXIS_OFFSET) % 3;
     const float *axis_ortho_vec = ggd->data.orient_mat[axis_ortho];
@@ -400,7 +400,7 @@ static void gizmo_mesh_spin_init_refresh(const bContext *C, wmGizmoGroup *gzgrou
 
   {
     PointerRNA ptr;
-    bToolRef *tref = WM_toolsystem_ref_from_context((bContext *)C);
+    bToolRef *tref = WM_toolsystem_ref_from_context(*(bContext *)C);
     WM_toolsystem_ref_properties_ensure_from_gizmo_group(tref, gzgroup->type, &ptr);
     const int axis_flag = RNA_property_enum_get(&ptr, ggd->data.gzgt_axis_prop);
     for (int i = 0; i < ARRAY_SIZE(ggd->gizmos.icon_button); i++) {
@@ -539,7 +539,7 @@ static void gizmo_spin_exec(GizmoGroupData_SpinRedo *ggd)
   }
 
   wmOperator *op = ggd->data.op;
-  if (op == WM_operator_last_redo(ggd->data.context)) {
+  if (op == WM_operator_last_redo(*ggd->data.context)) {
     ED_undo_operator_repeat(ggd->data.context, op);
   }
 }
@@ -783,7 +783,7 @@ static void gizmo_spin_prop_angle_set(const wmGizmo *gz,
 
 static bool gizmo_mesh_spin_redo_poll(const bContext *C, wmGizmoGroupType *gzgt)
 {
-  if (ED_gizmo_poll_or_unlink_delayed_from_operator(C, gzgt, "MESH_OT_spin")) {
+  if (ED_gizmo_poll_or_unlink_delayed_from_operator(*C, gzgt, "MESH_OT_spin")) {
     if (ED_gizmo_poll_or_unlink_delayed_from_tool_ex(C, gzgt, "MESH_GGT_spin")) {
       return true;
     }
@@ -791,23 +791,23 @@ static bool gizmo_mesh_spin_redo_poll(const bContext *C, wmGizmoGroupType *gzgt)
   return false;
 }
 
-static void gizmo_mesh_spin_redo_modal_from_setup(const bContext *C, wmGizmoGroup *gzgroup)
+static void gizmo_mesh_spin_redo_modal_from_setup(const bContext &C, wmGizmoGroup *gzgroup)
 {
   /* Start off dragging. */
   GizmoGroupData_SpinRedo *ggd = static_cast<GizmoGroupData_SpinRedo *>(gzgroup->customdata);
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   wmGizmo *gz = ggd->angle_z;
   wmGizmoMap *gzmap = gzgroup->parent_gzmap;
 
   ggd->is_init = true;
 
-  WM_gizmo_modal_set_from_setup(gzmap, (bContext *)C, gz, 0, win->runtime->eventstate);
+  WM_gizmo_modal_set_from_setup(gzmap, (bContext *)&C, gz, 0, win->runtime->eventstate);
 }
 
 static void gizmo_mesh_spin_redo_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
   wmOperatorType *ot = WM_operatortype_find("MESH_OT_spin", true);
-  wmOperator *op = WM_operator_last_redo(C);
+  wmOperator *op = WM_operator_last_redo(*C);
 
   if ((op == nullptr) || (op->type != ot)) {
     return;
@@ -1012,7 +1012,7 @@ static void gizmo_mesh_spin_redo_setup(const bContext *C, wmGizmoGroup *gzgroup)
       ARegion *region = CTX_wm_region(*C);
       if (screen->active_region == region) {
         /* Become modal as soon as it's started. */
-        gizmo_mesh_spin_redo_modal_from_setup(C, gzgroup);
+        gizmo_mesh_spin_redo_modal_from_setup(*C, gzgroup);
       }
     }
   }
@@ -1022,7 +1022,7 @@ static void gizmo_mesh_spin_redo_draw_prepare(const bContext * /*C*/, wmGizmoGro
 {
   GizmoGroupData_SpinRedo *ggd = static_cast<GizmoGroupData_SpinRedo *>(gzgroup->customdata);
   if (ggd->data.op->next) {
-    ggd->data.op = WM_operator_last_redo(ggd->data.context);
+    ggd->data.op = WM_operator_last_redo(*ggd->data.context);
   }
 
   /* Not essential, just avoids feedback loop where matrices
@@ -1039,7 +1039,7 @@ static void gizmo_mesh_spin_redo_draw_prepare(const bContext * /*C*/, wmGizmoGro
     gizmo_mesh_spin_redo_update_from_op(ggd);
   }
 
-  RegionView3D *rv3d = ED_view3d_context_rv3d(ggd->data.context);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(*ggd->data.context);
   WM_gizmo_set_matrix_rotation_from_z_axis(ggd->translate_c, rv3d->viewinv[2]);
   {
     float view_up[3];

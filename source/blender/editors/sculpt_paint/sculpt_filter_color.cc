@@ -367,10 +367,10 @@ static void sculpt_color_presmooth_init(const Mesh &mesh, Object &object)
   }
 }
 
-static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
+static void sculpt_color_filter_apply(bContext &C, wmOperator *op, Object &ob)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
-  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   SculptSession &ss = *ob.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -427,7 +427,7 @@ static void sculpt_color_filter_end(bContext *C, Object &ob)
   undo::push_end(ob);
   MEM_delete(ss.filter_cache);
   ss.filter_cache = nullptr;
-  flush_update_done(C, ob, UpdateType::Color);
+  flush_update_done(*C, ob, UpdateType::Color);
 }
 
 static wmOperatorStatus sculpt_color_filter_modal(bContext &C,
@@ -450,19 +450,19 @@ static wmOperatorStatus sculpt_color_filter_modal(bContext &C,
   float filter_strength = ss.filter_cache->start_filter_strength * -len;
   RNA_float_set(op.ptr, "strength", filter_strength);
 
-  sculpt_color_filter_apply(&C, &op, ob);
+  sculpt_color_filter_apply(C, &op, ob);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int sculpt_color_filter_init(bContext *C, wmOperator *op)
+static int sculpt_color_filter_init(bContext &C, wmOperator *op)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Object &ob = *CTX_data_active_object(*C);
-  Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
-  View3D *v3d = CTX_wm_view3d(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Object &ob = *CTX_data_active_object(C);
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  View3D *v3d = CTX_wm_view3d(C);
 
-  const Base *base = CTX_data_active_base(*C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -487,14 +487,14 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   }
 
   /* Ensure that we have a PBVH to be able to push changes on only visible nodes. */
-  bke::object::pbvh_ensure(*CTX_data_ensure_evaluated_depsgraph(*C), ob);
+  bke::object::pbvh_ensure(*CTX_data_ensure_evaluated_depsgraph(C), ob);
 
   undo::push_begin(scene, ob, op);
   BKE_sculpt_color_layer_create_if_needed(&ob);
 
   /* CTX_data_ensure_evaluated_depsgraph should be used at the end to include the potential
    * creation of color layer data. */
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, true);
 
   filter::cache_init(C,
@@ -518,11 +518,11 @@ static wmOperatorStatus sculpt_color_filter_exec(bContext &C, wmOperator &op)
 {
   Object &ob = *CTX_data_active_object(C);
 
-  if (sculpt_color_filter_init(&C, &op) == OPERATOR_CANCELLED) {
+  if (sculpt_color_filter_init(C, &op) == OPERATOR_CANCELLED) {
     return OPERATOR_CANCELLED;
   }
 
-  sculpt_color_filter_apply(&C, &op, ob);
+  sculpt_color_filter_apply(C, &op, ob);
   sculpt_color_filter_end(&C, ob);
 
   return OPERATOR_FINISHED;
@@ -540,13 +540,13 @@ static wmOperatorStatus sculpt_color_filter_invoke(bContext &C,
 
   RNA_int_set_array(op.ptr, "start_mouse", event->mval);
 
-  if (sculpt_color_filter_init(&C, &op) == OPERATOR_CANCELLED) {
+  if (sculpt_color_filter_init(C, &op) == OPERATOR_CANCELLED) {
     return OPERATOR_CANCELLED;
   }
 
   ED_paint_brush_type_update_sticky_shading_color(&C, &ob);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 

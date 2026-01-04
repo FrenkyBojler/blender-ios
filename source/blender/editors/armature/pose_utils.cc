@@ -245,7 +245,7 @@ Object *poseAnim_object_get(Object *ob_)
   return nullptr;
 }
 
-void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
+void poseAnim_mapping_get(bContext &C, ListBaseT<tPChanFCurveLink> *pfLinks)
 {
   BLI_assert(pfLinks != nullptr);
   /* For each Pose-Channel which gets affected, get the F-Curves for that channel
@@ -255,7 +255,7 @@ void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
 
   prev_ob = nullptr;
   ob_pose_armature = nullptr;
-  CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
+  CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
     BLI_assert(pchan != nullptr);
     if (ob != prev_ob) {
       prev_ob = ob;
@@ -280,7 +280,7 @@ void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
   if (BLI_listbase_is_empty(pfLinks)) {
     prev_ob = nullptr;
     ob_pose_armature = nullptr;
-    CTX_DATA_BEGIN_WITH_ID (*C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
+    CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, visible_pose_bones, Object *, ob) {
       BLI_assert(pchan != nullptr);
       if (ob != prev_ob) {
         prev_ob = ob;
@@ -330,7 +330,7 @@ void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks)
 void poseAnim_mapping_refresh(bContext *C, Scene * /*scene*/, Object *ob)
 {
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, ob);
 
   AnimData *adt = BKE_animdata_from_id(&ob->id);
   if (adt && adt->action) {
@@ -375,13 +375,13 @@ void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks)
   }
 }
 
-void poseAnim_mapping_autoKeyframe(bContext *C,
+void poseAnim_mapping_autoKeyframe(bContext &C,
                                    Scene *scene,
                                    ListBaseT<tPChanFCurveLink> *pfLinks,
                                    float cframe)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
   bool skip = true;
 
   FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
@@ -426,7 +426,7 @@ void poseAnim_mapping_autoKeyframe(bContext *C,
 
   /* insert keyframes for all relevant bones in one go */
   blender::animrig::apply_keyingset(
-      C, &sources, ks, blender::animrig::ModifyKeyMode::INSERT, cframe);
+      &C, &sources, ks, blender::animrig::ModifyKeyMode::INSERT, cframe);
 
   /* do the bone paths
    * - only do this if keyframes should have been added
@@ -437,7 +437,7 @@ void poseAnim_mapping_autoKeyframe(bContext *C,
       if (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) {
         // ED_pose_clear_paths(C, ob); /* XXX for now, don't need to clear. */
         /* TODO(sergey): Should ensure we can use more narrow update range here. */
-        ED_pose_recalculate_paths(C, scene, ob, POSE_PATH_CALC_RANGE_FULL);
+        ED_pose_recalculate_paths(&C, scene, ob, POSE_PATH_CALC_RANGE_FULL);
       }
     }
   }

@@ -602,7 +602,7 @@ static void ui_layer_but_cb(bContext *C, void *arg_but, void *arg_index)
 
     RNA_property_boolean_set_array(ptr, prop, value_array.data());
 
-    RNA_property_update(C, ptr, prop);
+    RNA_property_update(*C, ptr, prop);
 
     for (const std::unique_ptr<Button> &cbut : but->block->buttons) {
       button_update(cbut.get());
@@ -1254,13 +1254,13 @@ static Button *ui_item_with_label(Layout *layout,
   return but;
 }
 
-void context_active_but_prop_get_filebrowser(const bContext *C,
+void context_active_but_prop_get_filebrowser(const bContext &C,
                                              PointerRNA *r_ptr,
                                              PropertyRNA **r_prop,
                                              bool *r_is_undo,
                                              bool *r_is_userdef)
 {
-  ARegion *region = CTX_wm_region_popup(*C) ? CTX_wm_region_popup(*C) : CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
   Button *prevbut = nullptr;
 
   *r_ptr = {};
@@ -1451,13 +1451,13 @@ static void ui_item_menu_hold(bContext *C, ARegion *butregion, Button *but)
   MenuType *mt = WM_menutype_find(menu_id, true);
   if (mt) {
     layout->context_set_from_but(but);
-    menutype_draw(C, mt, layout);
+    menutype_draw(*C, mt, layout);
   }
   else {
     layout->label(RPT_("Menu Missing:"), ICON_NONE);
     layout->label(menu_id, ICON_NONE);
   }
-  popup_menu_end(C, pup);
+  popup_menu_end(*C, pup);
 }
 
 PointerRNA Layout::op(wmOperatorType *ot,
@@ -2774,7 +2774,7 @@ void Layout::prop_search(PointerRNA *ptr,
 void item_menutype_func(bContext *C, Layout *layout, void *arg_mt)
 {
   MenuType *mt = (MenuType *)arg_mt;
-  menutype_draw(C, mt, layout);
+  menutype_draw(*C, mt, layout);
 }
 
 void item_paneltype_func(bContext *C, Layout *layout, void *arg_pt)
@@ -2907,7 +2907,7 @@ void Layout::menu_contents(const StringRef menuname)
     return;
   }
 
-  menutype_draw(C, mt, this);
+  menutype_draw(*C, mt, this);
 }
 
 void Layout::decorator(PointerRNA *ptr, PropertyRNA *prop, int index)
@@ -2982,7 +2982,7 @@ void Layout::decorator(PointerRNA *ptr, const std::optional<StringRefNull> propn
   this->decorator(ptr, prop, index);
 }
 
-void Layout::popover(const bContext *C,
+void Layout::popover(const bContext &C,
                      PanelType *pt,
                      const std::optional<StringRef> name_opt,
                      int icon)
@@ -2994,11 +2994,11 @@ void Layout::popover(const bContext *C,
     icon = ICON_BLANK1;
   }
 
-  const bContextStore *previous_ctx = CTX_store_get(*C);
+  const bContextStore *previous_ctx = CTX_store_get(C);
   /* Set context for polling (and panel header drawing). */
-  CTX_store_set(*const_cast<bContext *>(C), context_);
+  CTX_store_set(*const_cast<bContext *>(&C), context_);
 
-  const bool ok = (pt->poll == nullptr) || pt->poll(C, pt);
+  const bool ok = (pt->poll == nullptr) || pt->poll(&C, pt);
   if (ok && (pt->draw_header != nullptr)) {
     layout = &this->row(true);
     Panel panel{};
@@ -3007,10 +3007,10 @@ void Layout::popover(const bContext *C,
     panel.type = pt;
     panel.layout = layout;
     panel.flag = PNL_POPOVER;
-    pt->draw_header(C, &panel);
+    pt->draw_header(&C, &panel);
   }
 
-  CTX_store_set(*const_cast<bContext *>(C), previous_ctx);
+  CTX_store_set(*const_cast<bContext *>(&C), previous_ctx);
 
   Button *but = ui_item_menu(
       layout, name, icon, item_paneltype_func, pt, nullptr, TIP_(pt->description), true);
@@ -3036,7 +3036,7 @@ void Layout::popover(const bContext *C,
     RNA_warning("Panel type not found '%s'", std::string(panel_type).c_str());
     return;
   }
-  this->popover(C, pt, name_opt, icon);
+  this->popover(*C, pt, name_opt, icon);
 }
 
 void Layout::popover_group(
@@ -3059,7 +3059,7 @@ void Layout::popover_group(
       if (/* (*context == '\0') || */ STREQ(pt.context, context)) {
         if ((*category == '\0') || STREQ(pt.category, category)) {
           if (pt.poll == nullptr || pt.poll(C, &pt)) {
-            this->popover(C, &pt, std::nullopt, ICON_NONE);
+            this->popover(*C, &pt, std::nullopt, ICON_NONE);
           }
         }
       }
@@ -4721,11 +4721,11 @@ Layout &Layout::row(bool align)
   return *litem;
 }
 
-PanelLayout Layout::panel_prop(const bContext *C,
+PanelLayout Layout::panel_prop(const bContext &C,
                                PointerRNA *open_prop_owner,
                                const StringRefNull open_prop_name)
 {
-  const ARegion *region = CTX_wm_region(*C);
+  const ARegion *region = CTX_wm_region(C);
 
   const bool is_real_open = RNA_boolean_get(open_prop_owner, open_prop_name.c_str());
   const bool search_filter_active = region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE;
@@ -4770,7 +4770,7 @@ PanelLayout Layout::panel_prop_with_bool_header(const bContext *C,
                                                 const StringRefNull bool_prop_name,
                                                 const std::optional<StringRef> label)
 {
-  PanelLayout panel_layout = this->panel_prop(C, open_prop_owner, open_prop_name);
+  PanelLayout panel_layout = this->panel_prop(*C, open_prop_owner, open_prop_name);
 
   Layout *panel_header = panel_layout.header;
   panel_header->flag_ &= ~(ItemInternalFlag::PropSep | ItemInternalFlag::PropDecorate |
@@ -4785,7 +4785,7 @@ Layout *Layout::panel_prop(const bContext *C,
                            const StringRefNull open_prop_name,
                            const StringRef label)
 {
-  PanelLayout panel_layout = this->panel_prop(C, open_prop_owner, open_prop_name);
+  PanelLayout panel_layout = this->panel_prop(*C, open_prop_owner, open_prop_name);
   panel_layout.header->label(label, ICON_NONE);
 
   return panel_layout.body;
@@ -4800,7 +4800,7 @@ PanelLayout Layout::panel(const bContext *C, const StringRef idname, const bool 
       root_panel, idname, default_closed);
   PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, &RNA_LayoutPanelState, state);
 
-  return this->panel_prop(C, &state_ptr, "is_open");
+  return this->panel_prop(*C, &state_ptr, "is_open");
 }
 
 Layout *Layout::panel(const bContext *C,
@@ -5772,7 +5772,7 @@ std::optional<StringRefNull> button_asset_shelf_type_idname_get(const Button *bu
   return asset_shelf_idname_from_button_context(but);
 }
 
-void menutype_draw(bContext *C, MenuType *mt, Layout *layout)
+void menutype_draw(bContext &C, MenuType *mt, Layout *layout)
 {
   Menu menu{};
   menu.layout = layout;
@@ -5795,15 +5795,15 @@ void menutype_draw(bContext *C, MenuType *mt, Layout *layout)
   if (layout->context()) {
     context_store = *layout->context();
   }
-  const bContextStore *previous_context_store = CTX_store_get(*C);
+  const bContextStore *previous_context_store = CTX_store_get(C);
   if (previous_context_store) {
     context_store.entries.extend(previous_context_store->entries);
   }
-  CTX_store_set(*C, &context_store);
+  CTX_store_set(C, &context_store);
 
-  mt->draw(C, &menu);
+  mt->draw(&C, &menu);
 
-  CTX_store_set(*C, previous_context_store);
+  CTX_store_set(C, previous_context_store);
 }
 
 static bool ui_layout_has_panel_label(const Layout *layout, const PanelType *pt)

@@ -164,10 +164,10 @@ static void undocurve_free_data(UndoCurve *uc)
   BKE_fcurves_free(&uc->drivers);
 }
 
-static Object *editcurve_object_from_context(bContext *C)
+static Object *editcurve_object_from_context(bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   if (obedit && ELEM(obedit->type, OB_CURVES_LEGACY, OB_SURF)) {
@@ -202,7 +202,7 @@ struct CurveUndoStep {
 
 static bool curve_undosys_poll(bContext *C)
 {
-  Object *obedit = editcurve_object_from_context(C);
+  Object *obedit = editcurve_object_from_context(*C);
   return (obedit != nullptr);
 }
 
@@ -277,7 +277,7 @@ static void curve_undosys_step_decode(
 
   bmain->is_memfile_undo_flush_needed = true;
 
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, nullptr);
+  WM_event_add_notifier(*C, NC_GEOM | ND_DATA, nullptr);
 }
 
 static void curve_undosys_step_free(UndoStep *us_p)

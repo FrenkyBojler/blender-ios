@@ -96,7 +96,7 @@ enum class AreaDockTarget {
 void ED_area_data_copy(ScrArea *area_dst, ScrArea *area_src, bool do_free);
 void ED_area_data_swap(ScrArea *area_dst, ScrArea *area_src);
 /* for quick toggle, can skip fades */
-void region_toggle_hidden(bContext *C, ARegion *region, bool do_fade);
+void region_toggle_hidden(bContext &C, ARegion *region, bool do_fade);
 
 /* `screen_draw.cc` */
 
@@ -142,7 +142,7 @@ bScreen *screen_add(Main *bmain, const char *name, const rcti *rect);
  * Prepare a newly created screen for initializing it as active screen.
  */
 void screen_new_activate_prepare(const wmWindow *win, bScreen *screen_new);
-void screen_change_update(bContext *C, wmWindow *win, bScreen *screen);
+void screen_change_update(bContext &C, wmWindow *win, bScreen *screen);
 /**
  * \return the screen to activate.
  * \warning The returned screen may not always equal \a screen_new!
@@ -180,7 +180,7 @@ AZone *ED_area_actionzone_find_xy(ScrArea *area, const int xy[2]);
 /**
  * \return true if any region polling state changed, and an area re-init is needed.
  */
-bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area);
+bool area_regions_poll(bContext &C, const bScreen *screen, ScrArea *area);
 
 /* `screen_geometry.cc` */
 

@@ -38,7 +38,7 @@ struct MakePrimitiveData {
   bool was_editmode;
 };
 
-static Object *make_prim_init(bContext *C,
+static Object *make_prim_init(bContext &C,
                               const char *idname,
                               const float loc[3],
                               const float rot[3],
@@ -46,13 +46,13 @@ static Object *make_prim_init(bContext *C,
                               ushort local_view_bits,
                               MakePrimitiveData *r_creation_data)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *obedit = CTX_data_edit_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *obedit = CTX_data_edit_object(C);
 
   r_creation_data->was_editmode = false;
   if (obedit == nullptr || obedit->type != OB_MESH) {
-    obedit = blender::ed::object::add_type(C, OB_MESH, idname, loc, rot, false, local_view_bits);
+    obedit = blender::ed::object::add_type(&C, OB_MESH, idname, loc, rot, false, local_view_bits);
     blender::ed::object::editmode_enter_ex(bmain, scene, obedit, 0);
 
     r_creation_data->was_editmode = true;
@@ -89,7 +89,7 @@ static void make_prim_finish(bContext *C,
     blender::ed::object::editmode_exit_ex(
         CTX_data_main(*C), CTX_data_scene(*C), obedit, blender::ed::object::EM_FREEDATA);
   }
-  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_DRAW, obedit);
 }
 
 static wmOperatorStatus add_primitive_plane_exec(bContext &C, wmOperator &op)
@@ -105,7 +105,7 @@ static wmOperatorStatus add_primitive_plane_exec(bContext &C, wmOperator &op)
   WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
       &C, &op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(&C,
+  obedit = make_prim_init(C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Plane"),
                           loc,
                           rot,
@@ -171,7 +171,7 @@ static wmOperatorStatus add_primitive_cube_exec(bContext &C, wmOperator &op)
   WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
       &C, &op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(&C,
+  obedit = make_prim_init(C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cube"),
                           loc,
                           rot,
@@ -246,7 +246,7 @@ static wmOperatorStatus add_primitive_circle_exec(bContext &C, wmOperator &op)
   WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
       &C, &op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(&C,
+  obedit = make_prim_init(C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Circle"),
                           loc,
                           rot,
@@ -320,7 +320,7 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext &C, wmOperator &op)
   WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
       &C, &op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(&C,
+  obedit = make_prim_init(C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cylinder"),
                           loc,
                           rot,
@@ -397,7 +397,7 @@ static wmOperatorStatus add_primitive_cone_exec(bContext &C, wmOperator &op)
   WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
       &C, &op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(&C,
+  obedit = make_prim_init(C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Cone"),
                           loc,
                           rot,
@@ -474,7 +474,7 @@ static wmOperatorStatus add_primitive_grid_exec(bContext &C, wmOperator &op)
   WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
       &C, &op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(&C,
+  obedit = make_prim_init(C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Grid"),
                           loc,
                           rot,
@@ -549,7 +549,7 @@ static wmOperatorStatus add_primitive_monkey_exec(bContext &C, wmOperator &op)
   blender::ed::object::add_generic_get_opts(
       &C, &op, 'Y', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
-  obedit = make_prim_init(&C,
+  obedit = make_prim_init(C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Suzanne"),
                           loc,
                           rot,
@@ -614,7 +614,7 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext &C, wmOperator &op)
   WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
       &C, &op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(&C,
+  obedit = make_prim_init(C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Sphere"),
                           loc,
                           rot,
@@ -685,7 +685,7 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext &C, wmOperator &op
   WM_operator_view3d_unit_defaults(&C, &op);
   blender::ed::object::add_generic_get_opts(
       &C, &op, 'Z', loc, rot, scale, &enter_editmode, &local_view_bits, nullptr);
-  obedit = make_prim_init(&C,
+  obedit = make_prim_init(C,
                           CTX_DATA_(BLT_I18NCONTEXT_ID_MESH, "Icosphere"),
                           loc,
                           rot,

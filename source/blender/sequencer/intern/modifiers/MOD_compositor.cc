@@ -302,7 +302,7 @@ static void compositor_modifier_panel_draw(const bContext *C, Panel *panel)
   if (ui::Layout *mask_input_layout = layout.panel_prop(
           C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
   {
-    draw_mask_input_type_settings(C, *mask_input_layout, ptr);
+    draw_mask_input_type_settings(*C, *mask_input_layout, ptr);
   }
 }
 

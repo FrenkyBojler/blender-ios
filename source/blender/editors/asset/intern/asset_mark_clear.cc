@@ -108,11 +108,11 @@ void pre_save_assets(Main *bmain)
   FOREACH_MAIN_ID_END;
 }
 
-bool can_mark_single_from_context(const bContext *C)
+bool can_mark_single_from_context(const bContext &C)
 {
   /* Context needs a "id" pointer to be set for #ASSET_OT_mark()/#ASSET_OT_mark_single() and
    * #ASSET_OT_clear()/#ASSET_OT_clear_single() to use. */
-  const ID *id = static_cast<ID *>(CTX_data_pointer_get_type_silent(*C, "id", &RNA_ID).data);
+  const ID *id = static_cast<ID *>(CTX_data_pointer_get_type_silent(C, "id", &RNA_ID).data);
   if (!id) {
     return false;
   }

@@ -341,8 +341,8 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext &C, wmOperator &op)
     BKE_report(
         op.reports, RPT_INFO, "Copied the selected Video Sequencer strips to internal clipboard");
   }
-  ED_outliner_select_sync_from_sequence_tag(&C);
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  ED_outliner_select_sync_from_sequence_tag(C);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
   return OPERATOR_FINISHED;
 }
 
@@ -396,7 +396,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext &C, wmOperator &op)
   BlendFileData *bfd = BKE_blendfile_read(filepath, &params, &bf_reports);
   const int mval[2] = {RNA_int_get(op.ptr, "x"), RNA_int_get(op.ptr, "y")};
   float2 view_mval;
-  View2D *v2d = ui::view2d_fromcontext(&C);
+  View2D *v2d = ui::view2d_fromcontext(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   ui::view2d_region_to_view(v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
 
@@ -551,9 +551,9 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext &C, wmOperator &op)
     DEG_id_tag_update(&scene_dst->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
   DEG_relations_tag_update(bmain_dst);
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene_dst);
-  WM_event_add_notifier(&C, NC_SCENE | ND_ANIMCHAN, scene_dst);
-  ED_outliner_select_sync_from_sequence_tag(&C);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene_dst);
+  WM_event_add_notifier(C, NC_SCENE | ND_ANIMCHAN, scene_dst);
+  ED_outliner_select_sync_from_sequence_tag(C);
 
   BKE_reportf(op.reports, RPT_INFO, "%d strips pasted", num_strips_to_paste);
 

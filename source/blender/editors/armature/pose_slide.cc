@@ -189,15 +189,15 @@ static const EnumPropertyItem prop_axis_lock_types[] = {
 /* ------------------------------------ */
 
 /** Operator custom-data initialization. */
-static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
+static int pose_slide_init(bContext &C, wmOperator *op, ePoseSlide_Modes mode)
 {
   tPoseSlideOp *pso = MEM_new<tPoseSlideOp>(__func__);
   op->customdata = pso;
 
   /* Get info from context. */
-  pso->scene = CTX_data_scene(*C);
-  pso->area = CTX_wm_area(*C);     /* Only really needed when doing modal(). */
-  pso->region = CTX_wm_region(*C); /* Only really needed when doing modal(). */
+  pso->scene = CTX_data_scene(C);
+  pso->area = CTX_wm_area(C);     /* Only really needed when doing modal(). */
+  pso->region = CTX_wm_region(C); /* Only really needed when doing modal(). */
 
   pso->current_frame = pso->scene->r.cfra;
   pso->mode = mode;
@@ -221,7 +221,7 @@ static int pose_slide_init(bContext *C, wmOperator *op, ePoseSlide_Modes mode)
   /* Explicitly setting this to false because we *do* want this to work for armature instances. */
   params.no_dup_data = false;
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_mode_params(
-      CTX_data_scene(*C), CTX_data_view_layer(*C), CTX_wm_view3d(*C), &params);
+      CTX_data_scene(C), CTX_data_view_layer(C), CTX_wm_view3d(C), &params);
   pso->ob_data_array.reinitialize(objects.size());
 
   for (const int ob_index : objects.index_range()) {
@@ -869,7 +869,7 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 static void pose_slide_autoKeyframe(bContext *C, tPoseSlideOp *pso)
 {
   /* Wrapper around the generic call. */
-  poseAnim_mapping_autoKeyframe(C, pso->scene, &pso->pfLinks, float(pso->current_frame));
+  poseAnim_mapping_autoKeyframe(*C, pso->scene, &pso->pfLinks, float(pso->current_frame));
 }
 
 /**
@@ -912,7 +912,7 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
 
   ED_slider_property_label_set(pso->slider, mode_st);
 
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
 
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
@@ -971,9 +971,9 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
 /**
  * Common code for invoke() methods.
  */
-static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus pose_slide_invoke_common(bContext &C, wmOperator *op, const wmEvent *event)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
   tPoseSlideOp *pso = static_cast<tPoseSlideOp *>(op->customdata);
 
@@ -993,7 +993,7 @@ static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, co
   ED_keylist_prepare_for_direct_access(pso->keylist);
   if (ED_keylist_is_empty(pso->keylist)) {
     BKE_report(op->reports, RPT_ERROR, "No keyframes to slide between");
-    pose_slide_exit(C, op);
+    pose_slide_exit(&C, op);
     return OPERATOR_CANCELLED;
   }
 
@@ -1038,20 +1038,20 @@ static wmOperatorStatus pose_slide_invoke_common(bContext *C, wmOperator *op, co
   /* Initial apply for operator. */
   /* TODO: need to calculate factor for initial round too. */
   if (!ELEM(pso->mode, POSESLIDE_BLEND_REST)) {
-    pose_slide_apply(C, pso);
+    pose_slide_apply(&C, pso);
   }
   else {
-    pose_slide_rest_pose_apply(C, pso);
+    pose_slide_rest_pose_apply(&C, pso);
   }
 
   /* Depsgraph updates + redraws. */
-  pose_slide_refresh(C, pso);
+  pose_slide_refresh(&C, pso);
 
   /* Set cursor to indicate modal. */
   WM_cursor_modal_set(win, WM_CURSOR_EW_SCROLL);
 
   /* Header print. */
-  pose_slide_draw_status(C, pso);
+  pose_slide_draw_status(&C, pso);
 
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, op);
@@ -1393,13 +1393,13 @@ static void pose_slide_opdef_properties(wmOperatorType *ot)
 static wmOperatorStatus pose_slide_push_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   /* Initialize data. */
-  if (pose_slide_init(&C, &op, POSESLIDE_PUSH) == 0) {
+  if (pose_slide_init(C, &op, POSESLIDE_PUSH) == 0) {
     pose_slide_exit(&C, &op);
     return OPERATOR_CANCELLED;
   }
 
   /* Do common setup work. */
-  return pose_slide_invoke_common(&C, &op, event);
+  return pose_slide_invoke_common(C, &op, event);
 }
 
 /**
@@ -1410,7 +1410,7 @@ static wmOperatorStatus pose_slide_push_exec(bContext &C, wmOperator &op)
   tPoseSlideOp *pso;
 
   /* Initialize data (from RNA-props). */
-  if (pose_slide_init(&C, &op, POSESLIDE_PUSH) == 0) {
+  if (pose_slide_init(C, &op, POSESLIDE_PUSH) == 0) {
     pose_slide_exit(&C, &op);
     return OPERATOR_CANCELLED;
   }
@@ -1450,13 +1450,13 @@ void POSE_OT_push(wmOperatorType *ot)
 static wmOperatorStatus pose_slide_relax_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   /* Initialize data. */
-  if (pose_slide_init(&C, &op, POSESLIDE_RELAX) == 0) {
+  if (pose_slide_init(C, &op, POSESLIDE_RELAX) == 0) {
     pose_slide_exit(&C, &op);
     return OPERATOR_CANCELLED;
   }
 
   /* Do common setup work. */
-  return pose_slide_invoke_common(&C, &op, event);
+  return pose_slide_invoke_common(C, &op, event);
 }
 
 /**
@@ -1467,7 +1467,7 @@ static wmOperatorStatus pose_slide_relax_exec(bContext &C, wmOperator &op)
   tPoseSlideOp *pso;
 
   /* Initialize data (from RNA-props). */
-  if (pose_slide_init(&C, &op, POSESLIDE_RELAX) == 0) {
+  if (pose_slide_init(C, &op, POSESLIDE_RELAX) == 0) {
     pose_slide_exit(&C, &op);
     return OPERATOR_CANCELLED;
   }
@@ -1508,7 +1508,7 @@ static wmOperatorStatus pose_slide_blend_rest_invoke(bContext &C,
                                                      const wmEvent *event)
 {
   /* Initialize data. */
-  if (pose_slide_init(&C, &op, POSESLIDE_BLEND_REST) == 0) {
+  if (pose_slide_init(C, &op, POSESLIDE_BLEND_REST) == 0) {
     pose_slide_exit(&C, &op);
     return OPERATOR_CANCELLED;
   }
@@ -1518,7 +1518,7 @@ static wmOperatorStatus pose_slide_blend_rest_invoke(bContext &C,
   ED_slider_factor_bounds_set(pso->slider, -1, 1);
 
   /* do common setup work */
-  return pose_slide_invoke_common(&C, &op, event);
+  return pose_slide_invoke_common(C, &op, event);
 }
 
 /**
@@ -1529,7 +1529,7 @@ static wmOperatorStatus pose_slide_blend_rest_exec(bContext &C, wmOperator &op)
   tPoseSlideOp *pso;
 
   /* Initialize data (from RNA-props). */
-  if (pose_slide_init(&C, &op, POSESLIDE_BLEND_REST) == 0) {
+  if (pose_slide_init(C, &op, POSESLIDE_BLEND_REST) == 0) {
     pose_slide_exit(&C, &op);
     return OPERATOR_CANCELLED;
   }
@@ -1571,13 +1571,13 @@ static wmOperatorStatus pose_slide_breakdown_invoke(bContext &C,
                                                     const wmEvent *event)
 {
   /* Initialize data. */
-  if (pose_slide_init(&C, &op, POSESLIDE_BREAKDOWN) == 0) {
+  if (pose_slide_init(C, &op, POSESLIDE_BREAKDOWN) == 0) {
     pose_slide_exit(&C, &op);
     return OPERATOR_CANCELLED;
   }
 
   /* Do common setup work. */
-  return pose_slide_invoke_common(&C, &op, event);
+  return pose_slide_invoke_common(C, &op, event);
 }
 
 /**
@@ -1588,7 +1588,7 @@ static wmOperatorStatus pose_slide_breakdown_exec(bContext &C, wmOperator &op)
   tPoseSlideOp *pso;
 
   /* Initialize data (from RNA-props). */
-  if (pose_slide_init(&C, &op, POSESLIDE_BREAKDOWN) == 0) {
+  if (pose_slide_init(C, &op, POSESLIDE_BREAKDOWN) == 0) {
     pose_slide_exit(&C, &op);
     return OPERATOR_CANCELLED;
   }
@@ -1626,13 +1626,13 @@ static wmOperatorStatus pose_slide_blend_to_neighbors_invoke(bContext &C,
                                                              const wmEvent *event)
 {
   /* Initialize data. */
-  if (pose_slide_init(&C, &op, POSESLIDE_BLEND) == 0) {
+  if (pose_slide_init(C, &op, POSESLIDE_BLEND) == 0) {
     pose_slide_exit(&C, &op);
     return OPERATOR_CANCELLED;
   }
 
   /* Do common setup work. */
-  return pose_slide_invoke_common(&C, &op, event);
+  return pose_slide_invoke_common(C, &op, event);
 }
 
 static wmOperatorStatus pose_slide_blend_to_neighbors_exec(bContext &C, wmOperator &op)
@@ -1640,7 +1640,7 @@ static wmOperatorStatus pose_slide_blend_to_neighbors_exec(bContext &C, wmOperat
   tPoseSlideOp *pso;
 
   /* Initialize data (from RNA-props). */
-  if (pose_slide_init(&C, &op, POSESLIDE_BLEND) == 0) {
+  if (pose_slide_init(C, &op, POSESLIDE_BLEND) == 0) {
     pose_slide_exit(&C, &op);
     return OPERATOR_CANCELLED;
   }
@@ -1831,7 +1831,7 @@ static wmOperatorStatus pose_propagate_exec(bContext &C, wmOperator &op)
   const int mode = RNA_enum_get(op.ptr, "mode");
 
   /* Isolate F-Curves related to the selected bones. */
-  poseAnim_mapping_get(&C, &pflinks);
+  poseAnim_mapping_get(C, &pflinks);
 
   if (BLI_listbase_is_empty(&pflinks)) {
     /* There is a change the reason the list is empty is

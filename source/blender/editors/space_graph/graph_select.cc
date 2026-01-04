@@ -424,7 +424,7 @@ static wmOperatorStatus graphkeys_deselectall_exec(bContext &C, wmOperator &op)
   bAnimListElem *ale_active = nullptr;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -468,7 +468,7 @@ static wmOperatorStatus graphkeys_deselectall_exec(bContext &C, wmOperator &op)
   }
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -825,7 +825,7 @@ static wmOperatorStatus graphkeys_box_select_invoke(bContext &C,
                                                     const wmEvent *event)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -854,7 +854,7 @@ static wmOperatorStatus graphkeys_box_select_exec(bContext &C, wmOperator &op)
   short mode = 0;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -900,7 +900,7 @@ static wmOperatorStatus graphkeys_box_select_exec(bContext &C, wmOperator &op)
     box_select_graphcurves(&ac, &rect_fl, mode, selectmode, incl_handles, nullptr);
   }
   /* Send notifier that keyframe selection has changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -964,7 +964,7 @@ static wmOperatorStatus graphkeys_lassoselect_exec(bContext &C, wmOperator &op)
   rctf rect_fl;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -997,7 +997,7 @@ static wmOperatorStatus graphkeys_lassoselect_exec(bContext &C, wmOperator &op)
   }
 
   /* Send notifier that keyframe selection has changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1056,7 +1056,7 @@ static wmOperatorStatus graph_circle_select_exec(bContext &C, wmOperator &op)
   float radius = RNA_int_get(op.ptr, "radius");
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1096,7 +1096,7 @@ static wmOperatorStatus graph_circle_select_exec(bContext &C, wmOperator &op)
   }
 
   /* Send notifier that keyframe selection has changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1297,7 +1297,7 @@ static wmOperatorStatus graphkeys_columnselect_exec(bContext &C, wmOperator &op)
   short mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1312,7 +1312,7 @@ static wmOperatorStatus graphkeys_columnselect_exec(bContext &C, wmOperator &op)
   }
 
   /* set notifier that keyframe selection has changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1353,7 +1353,7 @@ static wmOperatorStatus graphkeys_select_linked_exec(bContext &C, wmOperator & /
   KeyframeEditFunc sel_cb = ANIM_editkeyframes_select(SELECT_ADD);
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1377,7 +1377,7 @@ static wmOperatorStatus graphkeys_select_linked_exec(bContext &C, wmOperator & /
   ANIM_animdata_freelist(&anim_data);
 
   /* set notifier that keyframe selection has changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1453,7 +1453,7 @@ static wmOperatorStatus graphkeys_select_more_exec(bContext &C, wmOperator & /*o
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1461,7 +1461,7 @@ static wmOperatorStatus graphkeys_select_more_exec(bContext &C, wmOperator & /*o
   select_moreless_graph_keys(&ac, SELMAP_MORE);
 
   /* set notifier that keyframe selection has changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1488,7 +1488,7 @@ static wmOperatorStatus graphkeys_select_less_exec(bContext &C, wmOperator & /*o
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1496,7 +1496,7 @@ static wmOperatorStatus graphkeys_select_less_exec(bContext &C, wmOperator & /*o
   select_moreless_graph_keys(&ac, SELMAP_LESS);
 
   /* set notifier that keyframe selection has changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1595,7 +1595,7 @@ static wmOperatorStatus graphkeys_select_leftright_exec(bContext &C, wmOperator 
   eEditKeyframes_Select selectmode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1616,8 +1616,8 @@ static wmOperatorStatus graphkeys_select_leftright_exec(bContext &C, wmOperator 
   graphkeys_select_leftright(&ac, leftright, selectmode);
 
   /* set notifier that keyframe selection (and channels too) have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1630,7 +1630,7 @@ static wmOperatorStatus graphkeys_select_leftright_invoke(bContext &C,
   short leftright = RNA_enum_get(op.ptr, "mode");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1958,7 +1958,7 @@ static wmOperatorStatus graphkeys_clickselect_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1997,8 +1997,8 @@ static wmOperatorStatus graphkeys_clickselect_exec(bContext &C, wmOperator &op)
 
   /* set notifier that keyframe selection (and also channel selection in some cases) has
    * changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
 
   /* for tweak grab to work */
   return ret_val | OPERATOR_PASS_THROUGH;
@@ -2154,7 +2154,7 @@ static wmOperatorStatus graphkeys_select_key_handles_exec(bContext &C, wmOperato
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2167,7 +2167,7 @@ static wmOperatorStatus graphkeys_select_key_handles_exec(bContext &C, wmOperato
 
   graphkeys_select_key_handles(&ac, left_handle_action, key_action, right_handle_action);
 
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }

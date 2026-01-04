@@ -152,7 +152,7 @@ static void applyShrinkFatten(TransInfo *t)
   ED_area_status_text(t->area, fmt::to_string(str).c_str());
 
   if (custom_data->op) {
-    WorkspaceStatus status(t->context);
+    WorkspaceStatus status(*t->context);
 
     status.opmodal(IFACE_("Confirm"), custom_data->op->type, TFM_MODAL_CONFIRM);
     status.opmodal(IFACE_("Cancel"), custom_data->op->type, TFM_MODAL_CANCEL);

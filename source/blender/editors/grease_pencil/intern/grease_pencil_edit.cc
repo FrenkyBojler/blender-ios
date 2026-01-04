@@ -176,7 +176,7 @@ static wmOperatorStatus grease_pencil_stroke_smooth_exec(bContext &C, wmOperator
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -361,7 +361,7 @@ static wmOperatorStatus grease_pencil_stroke_simplify_exec(bContext &C, wmOperat
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
   return OPERATOR_FINISHED;
 }
@@ -474,7 +474,7 @@ static wmOperatorStatus grease_pencil_delete_exec(bContext &C, wmOperator & /*op
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
   return OPERATOR_FINISHED;
 }
@@ -614,7 +614,7 @@ static wmOperatorStatus grease_pencil_dissolve_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
   return OPERATOR_FINISHED;
 }
@@ -696,8 +696,8 @@ static wmOperatorStatus grease_pencil_delete_frame_exec(bContext &C, wmOperator 
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
-    WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
+    WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -777,7 +777,7 @@ static wmOperatorStatus grease_pencil_stroke_material_set_exec(bContext &C, wmOp
   });
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -908,7 +908,7 @@ static wmOperatorStatus grease_pencil_cyclical_set_exec(bContext &C, wmOperator 
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -968,7 +968,7 @@ static wmOperatorStatus grease_pencil_set_active_material_exec(bContext &C, wmOp
     break;
   };
 
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -1018,7 +1018,7 @@ static wmOperatorStatus grease_pencil_set_uniform_thickness_exec(bContext &C, wm
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -1085,7 +1085,7 @@ static wmOperatorStatus grease_pencil_set_uniform_opacity_exec(bContext &C, wmOp
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -1140,7 +1140,7 @@ static wmOperatorStatus grease_pencil_stroke_switch_direction_exec(bContext &C,
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -1259,7 +1259,7 @@ static wmOperatorStatus grease_pencil_set_start_point_exec(bContext &C, wmOperat
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
   return OPERATOR_FINISHED;
 }
@@ -1375,7 +1375,7 @@ static wmOperatorStatus grease_pencil_caps_set_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -1456,7 +1456,7 @@ static wmOperatorStatus grease_pencil_set_material_exec(bContext &C, wmOperator 
   /* Set active material. */
   object->actcol = slot;
 
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -1520,7 +1520,7 @@ static wmOperatorStatus grease_pencil_duplicate_exec(bContext &C, wmOperator & /
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
   return OPERATOR_FINISHED;
 }
@@ -1563,7 +1563,7 @@ static wmOperatorStatus grease_pencil_clean_loose_exec(bContext &C, wmOperator &
   });
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -1699,7 +1699,7 @@ static wmOperatorStatus gpencil_stroke_subdivide_exec(bContext &C, wmOperator &o
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -1854,7 +1854,7 @@ static wmOperatorStatus grease_pencil_stroke_reorder_exec(bContext &C, wmOperato
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -1978,7 +1978,7 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext &C, wmOperator
   if (changed) {
     /* updates */
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -2184,7 +2184,7 @@ static bool grease_pencil_separate_selected(bContext &C,
 
     remove_unused_materials(&bmain, object_dst);
     DEG_id_tag_update(&grease_pencil_dst.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, &grease_pencil_dst);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &grease_pencil_dst);
   }
   return changed;
 }
@@ -2261,7 +2261,7 @@ static bool grease_pencil_separate_layer(bContext &C,
     remove_unused_materials(&bmain, object_dst);
 
     DEG_id_tag_update(&grease_pencil_dst.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, &grease_pencil_dst);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &grease_pencil_dst);
   }
 
   return changed;
@@ -2339,7 +2339,7 @@ static bool grease_pencil_separate_material(bContext &C,
     remove_unused_materials(&bmain, object_dst);
 
     DEG_id_tag_update(&grease_pencil_dst.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, &grease_pencil_dst);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &grease_pencil_dst);
   }
 
   if (changed) {
@@ -2412,7 +2412,7 @@ static wmOperatorStatus grease_pencil_separate_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil_src.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil_src);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil_src);
   }
 
   return OPERATOR_FINISHED;
@@ -2781,7 +2781,7 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext &C, wmOperator
     }
 
     if (inserted_keyframe) {
-      WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+      WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
     }
   }
   else if (type == PasteType::ByLayer) {
@@ -2853,7 +2853,7 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext &C, wmOperator
       }
 
       if (inserted_keyframe) {
-        WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+        WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
       }
     }
   }
@@ -2862,7 +2862,7 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext &C, wmOperator
   }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -2979,7 +2979,7 @@ static wmOperatorStatus grease_pencil_stroke_merge_by_distance_exec(bContext &C,
   });
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
   return OPERATOR_FINISHED;
 }
@@ -3173,7 +3173,7 @@ static wmOperatorStatus grease_pencil_extrude_exec(bContext &C, wmOperator & /*o
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -3392,7 +3392,7 @@ static wmOperatorStatus grease_pencil_reproject_exec(bContext &C, wmOperator &op
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -3556,8 +3556,8 @@ static wmOperatorStatus grease_pencil_snap_to_grid_exec(bContext &C, wmOperator 
     drawing_info.drawing.tag_positions_changed();
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
     DEG_id_tag_update(&object.id, ID_RECALC_SYNC_TO_EVAL);
-    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, &grease_pencil);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -3635,8 +3635,8 @@ static wmOperatorStatus grease_pencil_snap_to_cursor_exec(bContext &C, wmOperato
     drawing_info.drawing.tag_positions_changed();
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
     DEG_id_tag_update(&object.id, ID_RECALC_SYNC_TO_EVAL);
-    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, &grease_pencil);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -3749,7 +3749,7 @@ static wmOperatorStatus grease_pencil_snap_cursor_to_sel_exec(bContext &C, wmOpe
   }
 
   DEG_id_tag_update(&scene.id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3892,7 +3892,7 @@ static wmOperatorStatus grease_pencil_texture_gradient_exec(bContext &C, wmOpera
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -3920,7 +3920,7 @@ static wmOperatorStatus grease_pencil_texture_gradient_invoke(bContext &C,
                                                               const wmEvent *event)
 {
   /* Invoke interactive line drawing (representing the gradient) in viewport. */
-  const wmOperatorStatus ret = WM_gesture_straightline_invoke(&C, &op, event);
+  const wmOperatorStatus ret = WM_gesture_straightline_invoke(C, &op, event);
 
   if ((ret & OPERATOR_RUNNING_MODAL) != 0) {
     ARegion *region = CTX_wm_region(C);
@@ -3995,7 +3995,7 @@ static wmOperatorStatus grease_pencil_set_curve_type_exec(bContext &C, wmOperato
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -4102,7 +4102,7 @@ static wmOperatorStatus grease_pencil_set_handle_type_exec(bContext &C, wmOperat
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -4164,7 +4164,7 @@ static wmOperatorStatus grease_pencil_set_curve_resolution_exec(bContext &C, wmO
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -4270,7 +4270,7 @@ static wmOperatorStatus grease_pencil_reset_uvs_exec(bContext &C, wmOperator & /
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -4316,7 +4316,7 @@ static wmOperatorStatus grease_pencil_stroke_split_exec(bContext &C, wmOperator 
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
     return OPERATOR_FINISHED;
   }
 
@@ -4383,7 +4383,7 @@ static wmOperatorStatus grease_pencil_remove_fill_guides_exec(bContext &C, wmOpe
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
     return OPERATOR_FINISHED;
   }
 
@@ -4525,7 +4525,7 @@ static wmOperatorStatus grease_pencil_outline_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -4712,7 +4712,7 @@ static wmOperatorStatus grease_pencil_convert_curve_type_exec(bContext &C, wmOpe
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -4853,7 +4853,7 @@ static wmOperatorStatus grease_pencil_set_corner_type_exec(bContext &C, wmOperat
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -5298,11 +5298,11 @@ static void join_object_with_active(Main &bmain,
 
 }  // namespace blender::ed::greasepencil
 
-wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op)
+wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext &C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob_active = CTX_data_active_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob_active = CTX_data_active_object(C);
 
   /* Ensure we're in right mode and that the active object is correct. */
   if (!ob_active || ob_active->type != OB_GREASE_PENCIL) {
@@ -5310,7 +5310,7 @@ wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op)
   }
 
   bool ok = false;
-  CTX_DATA_BEGIN (*C, Object *, ob_iter, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob_iter == ob_active) {
       ok = true;
       break;
@@ -5340,7 +5340,7 @@ wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op)
   }
 
   /* Loop and join all data. */
-  CTX_DATA_BEGIN (*C, Object *, ob_iter, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob_iter->type != OB_GREASE_PENCIL || ob_iter == ob_active) {
       continue;
     }

@@ -86,7 +86,7 @@ static void ui_popover_create_block(bContext *C,
 
   const uiStyle *style = style_get_dpi();
 
-  pup->block = block_begin(C, region, __func__, EmbossType::Emboss);
+  pup->block = block_begin(*C, region, __func__, EmbossType::Emboss);
 
   block_flag_enable(pup->block, BLOCK_KEEP_OPEN | BLOCK_POPOVER);
 #ifdef USE_UI_POPOVER_ONCE
@@ -250,13 +250,13 @@ static void block_free_func_POPOVER(void *arg_pup)
   MEM_delete(pup);
 }
 
-PopupBlockHandle *popover_panel_create(bContext *C,
+PopupBlockHandle *popover_panel_create(bContext &C,
                                        ARegion *butregion,
                                        Button *but,
                                        PopoverCreateFunc popover_func,
                                        const PanelType *panel_type)
 {
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
   const uiStyle *style = style_get_dpi();
 
   /* Create popover, buttons are created from callback. */
@@ -289,7 +289,7 @@ PopupBlockHandle *popover_panel_create(bContext *C,
   /* Add handlers. If attached to a button, the button will already
    * add a modal handler and pass on events. */
   if (!but) {
-    popup_handlers_add(C, &window->runtime->modalhandlers, handle, 0);
+    popup_handlers_add(&C, &window->runtime->modalhandlers, handle, 0);
     WM_event_add_mousemove(window);
     handle->popup = true;
   }
@@ -322,7 +322,7 @@ wmOperatorStatus popover_panel_invoke(bContext *C,
 
   Block *block = nullptr;
   if (keep_open) {
-    PopupBlockHandle *handle = popover_panel_create(C, nullptr, nullptr, item_paneltype_func, pt);
+    PopupBlockHandle *handle = popover_panel_create(*C, nullptr, nullptr, item_paneltype_func, pt);
     Popover *pup = static_cast<Popover *>(handle->popup_create_vars.arg);
     block = pup->block;
   }
@@ -330,7 +330,7 @@ wmOperatorStatus popover_panel_invoke(bContext *C,
     Popover *pup = popover_begin(C, U.widget_unit * pt->ui_units_x, false);
     layout = popover_layout(pup);
     blender::ui::UI_paneltype_draw(C, pt, layout);
-    blender::ui::popover_end(C, pup, nullptr);
+    blender::ui::popover_end(*C, pup, nullptr);
     block = pup->block;
   }
 
@@ -385,9 +385,9 @@ static void popover_keymap_fn(wmKeyMap * /*keymap*/, wmKeyMapItem * /*kmi*/, voi
   pup->block->handle->menuretval = RETURN_OK;
 }
 
-void popover_end(bContext *C, Popover *pup, wmKeyMap *keymap)
+void popover_end(bContext &C, Popover *pup, wmKeyMap *keymap)
 {
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
 
   if (keymap) {
     /* Add so we get keymaps shown in the buttons. */
@@ -410,7 +410,7 @@ void popover_end(bContext *C, Popover *pup, wmKeyMap *keymap)
                                                 false);
 
   /* Add handlers. */
-  popup_handlers_add(C, &window->runtime->modalhandlers, handle, 0);
+  popup_handlers_add(&C, &window->runtime->modalhandlers, handle, 0);
   WM_event_add_mousemove(window);
   handle->popup = true;
 

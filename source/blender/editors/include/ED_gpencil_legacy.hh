@@ -86,7 +86,7 @@ bGPdata *ED_annotation_data_get_active(const bContext *C);
  * Get pointer to active Grease Pencil data-block,
  * and an RNA-pointer to trace back to whatever owns it.
  */
-bGPdata **ED_annotation_data_get_pointers(const bContext *C, PointerRNA *r_ptr);
+bGPdata **ED_annotation_data_get_pointers(const bContext &C, PointerRNA *r_ptr);
 /**
  * Get pointer to active Grease Pencil data-block for annotations,
  * and an RNA-pointer to trace back to whatever owns it,
@@ -119,7 +119,7 @@ void ED_operatortypes_gpencil_legacy();
 /**
  * Draw grease-pencil sketches to specified 2d-view that uses `ibuf` corrections.
  */
-void ED_annotation_draw_2dimage(const bContext *C);
+void ED_annotation_draw_2dimage(const bContext &C);
 /**
  * Draw grease-pencil sketches to specified 2d-view
  * assuming that matrices are already set correctly.
@@ -127,7 +127,7 @@ void ED_annotation_draw_2dimage(const bContext *C);
  * \note This gets called twice - first time with onlyv2d=true to draw 'canvas' strokes,
  * second time with onlyv2d=false for screen-aligned strokes.
  */
-void ED_annotation_draw_view2d(const bContext *C, bool onlyv2d);
+void ED_annotation_draw_view2d(const bContext &C, bool onlyv2d);
 /**
  * Draw annotations sketches to specified 3d-view assuming that matrices are already set correctly.
  * NOTE: this gets called twice - first time with only3d=true to draw 3d-strokes,

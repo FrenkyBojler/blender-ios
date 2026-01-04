@@ -48,7 +48,7 @@ static bool paint_tool_uses_canvas(blender::StringRef idname)
 
 static bool paint_brush_uses_canvas(bContext *C)
 {
-  const Paint *paint = BKE_paint_get_active_from_context(C);
+  const Paint *paint = BKE_paint_get_active_from_context(*C);
   const Brush *brush = BKE_paint_brush_for_read(paint);
   if (brush == nullptr) {
     return false;
@@ -69,7 +69,7 @@ void ED_paint_brush_type_update_sticky_shading_color(bContext *C, Object *ob)
     return;
   }
 
-  bToolRef *tref = WM_toolsystem_ref_from_context(C);
+  bToolRef *tref = WM_toolsystem_ref_from_context(*C);
   if (tref == nullptr) {
     return;
   }
@@ -88,7 +88,7 @@ static bool paint_brush_type_shading_color_follows_last_used_tool(bContext *C, O
     return false;
   }
 
-  bToolRef *tref = WM_toolsystem_ref_from_context(C);
+  bToolRef *tref = WM_toolsystem_ref_from_context(*C);
   if (tref == nullptr) {
     return false;
   }
@@ -99,7 +99,7 @@ static bool paint_brush_type_shading_color_follows_last_used_tool(bContext *C, O
 bool ED_paint_brush_type_use_canvas(bContext *C, bToolRef *tref)
 {
   if (tref == nullptr) {
-    tref = WM_toolsystem_ref_from_context(C);
+    tref = WM_toolsystem_ref_from_context(*C);
   }
   if (tref == nullptr) {
     return false;

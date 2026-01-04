@@ -265,7 +265,7 @@ void template_constraints(Layout * /*layout*/, bContext *C, bool use_bone_constr
   Object *ob = blender::ed::object::context_active_object(C);
   ListBaseT<bConstraint> *constraints = {nullptr};
   if (use_bone_constraints) {
-    constraints = blender::ed::object::pose_constraint_list(C);
+    constraints = blender::ed::object::pose_constraint_list(*C);
   }
   else if (ob != nullptr) {
     constraints = &ob->constraints;

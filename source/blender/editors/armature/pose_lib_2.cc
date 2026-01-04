@@ -169,14 +169,14 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, PoseBlendData *pbd)
           eRotationModes(pchan->rotmode));
       rna_paths.append({rotation_mode_path});
       rna_paths.append({"scale"});
-      blender::animrig::autokeyframe_pose_channel(C, scene, ob, pchan, rna_paths, 0);
+      blender::animrig::autokeyframe_pose_channel(*C, scene, ob, pchan, rna_paths, 0);
       keyed_pose_bones.add(pchan);
     };
     blender::bke::BKE_action_find_fcurves_with_bones(act, slot.handle, autokey_pose_bones);
   }
 
   /* send notifiers for this */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 /* Apply the relevant changes to the pose */
@@ -195,7 +195,7 @@ static void poselib_blend_apply(bContext *C, wmOperator *op)
    * result of the blend. */
   for (Object *ob : pbd->objects) {
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
+    WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, ob);
   }
 
   if (pbd->state != POSE_BLEND_BLENDING) {
@@ -374,15 +374,15 @@ static bAction *poselib_blend_init_get_action(bContext *C, wmOperator *op)
       pbd->temp_id_consumer, ID_AC, CTX_data_main(*C), op->reports));
 }
 
-static bAction *flip_pose(bContext *C, blender::Span<Object *> objects, bAction *action)
+static bAction *flip_pose(bContext &C, blender::Span<Object *> objects, bAction *action)
 {
   bAction *action_copy = reinterpret_cast<bAction *>(
       BKE_id_copy_ex(nullptr, &action->id, nullptr, LIB_ID_COPY_LOCALIZE));
 
   /* Lock the window manager while flipping the pose. Flipping requires temporarily modifying the
    * pose, which can cause unwanted visual glitches. */
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  const bool interface_was_locked = CTX_wm_interface_locked(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  const bool interface_was_locked = CTX_wm_interface_locked(C);
   WM_locked_interface_set(wm, true);
 
   BKE_action_flip_with_pose(action_copy, objects);
@@ -392,12 +392,12 @@ static bAction *flip_pose(bContext *C, blender::Span<Object *> objects, bAction 
 }
 
 /* Return true on success, false if the context isn't suitable. */
-static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *event)
+static bool poselib_blend_init_data(bContext &C, wmOperator *op, const wmEvent *event)
 {
   op->customdata = nullptr;
 
   /* check if valid poselib */
-  blender::Vector<Object *> selected_pose_objects = get_poselib_objects(*C);
+  blender::Vector<Object *> selected_pose_objects = get_poselib_objects(C);
   if (selected_pose_objects.is_empty()) {
     BKE_report(op->reports, RPT_ERROR, "Pose lib is only for armatures in pose mode");
     return false;
@@ -407,7 +407,7 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
   PoseBlendData *pbd;
   op->customdata = pbd = MEM_new<PoseBlendData>("PoseLib Preview Data");
 
-  pbd->act = poselib_blend_init_get_action(C, op);
+  pbd->act = poselib_blend_init_get_action(&C, op);
   if (pbd->act == nullptr) {
     /* No report here. The poll function cannot check if the operator properties have an asset
      * reference to determine the asset to operate on, in which case we fallback to getting the
@@ -433,8 +433,8 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
   /* Get the basic data. */
   pbd->objects = selected_pose_objects;
 
-  pbd->scene = CTX_data_scene(*C);
-  pbd->area = CTX_wm_area(*C);
+  pbd->scene = CTX_data_scene(C);
+  pbd->area = CTX_wm_area(C);
 
   pbd->state = POSE_BLEND_INIT;
   pbd->needs_redraw = true;
@@ -479,17 +479,17 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
   return true;
 }
 
-static void poselib_blend_cleanup(bContext *C, wmOperator *op)
+static void poselib_blend_cleanup(bContext &C, wmOperator *op)
 {
   PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
   /* Redraw the header so that it doesn't show any of our stuff anymore. */
   ED_area_status_text(pbd->area, nullptr);
-  ED_workspace_status_text(C, nullptr);
+  ED_workspace_status_text(&C, nullptr);
 
   if (pbd->slider) {
-    ED_slider_destroy(C, pbd->slider);
+    ED_slider_destroy(&C, pbd->slider);
   }
 
   /* This signals the depsgraph to unlock and reevaluate the pose on the next evaluation. */
@@ -501,7 +501,7 @@ static void poselib_blend_cleanup(bContext *C, wmOperator *op)
   switch (pbd->state) {
     case POSE_BLEND_CONFIRM: {
       Scene *scene = pbd->scene;
-      poselib_keytag_pose(C, scene, pbd);
+      poselib_keytag_pose(&C, scene, pbd);
 
       /* Ensure the redo panel has the actually-used value, instead of the initial value. */
       RNA_float_set(op->ptr, "blend_factor", pbd->blend_factor);
@@ -548,7 +548,7 @@ static void poselib_blend_free(wmOperator *op)
   MEM_delete(pbd);
 }
 
-static wmOperatorStatus poselib_blend_exit(bContext *C, wmOperator *op)
+static wmOperatorStatus poselib_blend_exit(bContext &C, wmOperator *op)
 {
   PoseBlendData *pbd = static_cast<PoseBlendData *>(op->customdata);
   const ePoseBlendState exit_state = pbd->state;
@@ -556,7 +556,7 @@ static wmOperatorStatus poselib_blend_exit(bContext *C, wmOperator *op)
   poselib_blend_cleanup(C, op);
   poselib_blend_free(op);
 
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   WM_cursor_modal_restore(win);
 
   if (exit_state == POSE_BLEND_CANCEL) {
@@ -570,7 +570,7 @@ static void poselib_blend_cancel(bContext &C, wmOperator &op)
 {
   PoseBlendData *pbd = static_cast<PoseBlendData *>(op.customdata);
   pbd->state = POSE_BLEND_CANCEL;
-  poselib_blend_exit(&C, &op);
+  poselib_blend_exit(C, &op);
 }
 
 /* Main modal status check. */
@@ -580,12 +580,12 @@ static wmOperatorStatus poselib_blend_modal(bContext &C, wmOperator &op, const w
 
   const PoseBlendData *pbd = static_cast<const PoseBlendData *>(op.customdata);
   if (ELEM(pbd->state, POSE_BLEND_CONFIRM, POSE_BLEND_CANCEL)) {
-    return poselib_blend_exit(&C, &op);
+    return poselib_blend_exit(C, &op);
   }
 
   if (pbd->needs_redraw) {
 
-    WorkspaceStatus status(&C);
+    WorkspaceStatus status(C);
 
     if (pbd->state == POSE_BLEND_BLENDING) {
       status.item(IFACE_("Show Original Pose"), ICON_EVENT_TAB);
@@ -606,7 +606,7 @@ static wmOperatorStatus poselib_blend_modal(bContext &C, wmOperator &op, const w
 
 static wmOperatorStatus poselib_apply_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (!poselib_blend_init_data(&C, &op, event)) {
+  if (!poselib_blend_init_data(C, &op, event)) {
     poselib_blend_free(&op);
     return OPERATOR_CANCELLED;
   }
@@ -615,7 +615,7 @@ static wmOperatorStatus poselib_apply_invoke(bContext &C, wmOperator &op, const 
 
   PoseBlendData *pbd = static_cast<PoseBlendData *>(op.customdata);
   pbd->state = POSE_BLEND_CONFIRM;
-  return poselib_blend_exit(&C, &op);
+  return poselib_blend_exit(C, &op);
 }
 
 static wmOperatorStatus poselib_apply_exec(bContext &C, wmOperator &op)
@@ -626,7 +626,7 @@ static wmOperatorStatus poselib_apply_exec(bContext &C, wmOperator &op)
 /* Modal Operator init. */
 static wmOperatorStatus poselib_blend_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  if (!poselib_blend_init_data(&C, &op, event)) {
+  if (!poselib_blend_init_data(C, &op, event)) {
     poselib_blend_free(&op);
     return OPERATOR_CANCELLED;
   }
@@ -637,7 +637,7 @@ static wmOperatorStatus poselib_blend_invoke(bContext &C, wmOperator &op, const 
   /* Do initial apply to have something to look at. */
   poselib_blend_apply(&C, &op);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 

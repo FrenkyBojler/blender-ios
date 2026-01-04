@@ -170,7 +170,7 @@ Block *template_common_search_menu(const bContext *C,
   /* clear initial search string, then all items show */
   search[0] = 0;
 
-  Block *block = block_begin(C, region, "_popup", EmbossType::Emboss);
+  Block *block = block_begin(*C, region, "_popup", EmbossType::Emboss);
   block_flag_enable(block, BLOCK_LOOP | BLOCK_SEARCH_MENU);
   block_theme_style_set(block, BLOCK_THEME_STYLE_POPUP);
 
@@ -244,7 +244,7 @@ Block *template_common_search_menu(const bContext *C,
 void template_header(Layout *layout, bContext *C)
 {
   Block *block = layout->absolute().block();
-  ED_area_header_switchbutton(C, block, 0);
+  ED_area_header_switchbutton(*C, block, 0);
 }
 
 /** \} */

@@ -448,7 +448,7 @@ static void special_aftertrans_update__mask(bContext *C, TransInfo *t)
   }
 
   if (t->scene->compositing_node_group) {
-    WM_event_add_notifier(C, NC_MASK | ND_DATA, &mask->id);
+    WM_event_add_notifier(*C, NC_MASK | ND_DATA, &mask->id);
   }
 
   /* TODO: don't key all masks. */
@@ -456,7 +456,7 @@ static void special_aftertrans_update__mask(bContext *C, TransInfo *t)
     Scene *scene = t->scene;
 
     if (ED_mask_layer_shape_auto_key_select(mask, scene->r.cfra)) {
-      WM_event_add_notifier(C, NC_MASK | ND_DATA, &mask->id);
+      WM_event_add_notifier(*C, NC_MASK | ND_DATA, &mask->id);
       DEG_id_tag_update(&mask->id, 0);
     }
   }

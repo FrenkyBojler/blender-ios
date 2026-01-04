@@ -220,7 +220,7 @@ static void add_region_padding(bContext *C, ARegion *region, rctf *bounds)
   BLI_rctf_scale(bounds, 1.1f);
 
   const float pad_top = UI_TIME_SCRUB_MARGIN_Y;
-  const float pad_bottom = BLI_listbase_is_empty(ED_context_get_markers(C)) ?
+  const float pad_bottom = BLI_listbase_is_empty(ED_context_get_markers(*C)) ?
                                V2D_SCROLL_HANDLE_HEIGHT :
                                UI_MARKER_MARGIN_Y;
   BLI_rctf_pad_y(bounds, region->winy, pad_bottom, pad_top);
@@ -2170,7 +2170,7 @@ static wmOperatorStatus animchannels_rearrange_exec(bContext &C, wmOperator &op)
   eRearrangeAnimChan_Mode mode;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2261,8 +2261,8 @@ static wmOperatorStatus animchannels_rearrange_exec(bContext &C, wmOperator &op)
   }
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ORDER, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2402,7 +2402,7 @@ static wmOperatorStatus animchannels_group_exec(bContext &C, wmOperator &op)
   char name[MAX_NAME];
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2428,7 +2428,7 @@ static wmOperatorStatus animchannels_group_exec(bContext &C, wmOperator &op)
     ANIM_animdata_freelist(&anim_data);
 
     /* Updates. */
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -2474,7 +2474,7 @@ static wmOperatorStatus animchannels_ungroup_exec(bContext &C, wmOperator & /*op
   int filter;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2504,7 +2504,7 @@ static wmOperatorStatus animchannels_ungroup_exec(bContext &C, wmOperator & /*op
   ANIM_animdata_freelist(&anim_data);
 
   /* updates */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2745,7 +2745,7 @@ static wmOperatorStatus animchannels_delete_exec(bContext &C, wmOperator & /*op*
   int filter;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2867,8 +2867,8 @@ static wmOperatorStatus animchannels_delete_exec(bContext &C, wmOperator & /*op*
   ANIM_animdata_freelist(&anim_data);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
   DEG_relations_tag_update(CTX_data_main(C));
 
   return OPERATOR_FINISHED;
@@ -3012,7 +3012,7 @@ static wmOperatorStatus animchannels_setflag_exec(bContext &C, wmOperator &op)
   bool flush = true;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3031,7 +3031,7 @@ static wmOperatorStatus animchannels_setflag_exec(bContext &C, wmOperator &op)
   setflag_anim_channels(&ac, setting, mode, true, flush);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3153,7 +3153,7 @@ static wmOperatorStatus animchannels_expand_exec(bContext &C, wmOperator &op)
   bool onlysel = true;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3166,7 +3166,7 @@ static wmOperatorStatus animchannels_expand_exec(bContext &C, wmOperator &op)
   setflag_anim_channels(&ac, ACHANNEL_SETTING_EXPAND, ACHANNEL_SETFLAG_ADD, onlysel, false);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3202,7 +3202,7 @@ static wmOperatorStatus animchannels_collapse_exec(bContext &C, wmOperator &op)
   bool onlysel = true;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3215,7 +3215,7 @@ static wmOperatorStatus animchannels_collapse_exec(bContext &C, wmOperator &op)
   setflag_anim_channels(&ac, ACHANNEL_SETTING_EXPAND, ACHANNEL_SETFLAG_CLEAR, onlysel, false);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3264,7 +3264,7 @@ static wmOperatorStatus animchannels_clean_empty_exec(bContext &C, wmOperator & 
   int filter;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3335,8 +3335,8 @@ static wmOperatorStatus animchannels_clean_empty_exec(bContext &C, wmOperator & 
   ANIM_animdata_freelist(&anim_data);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3388,7 +3388,7 @@ static wmOperatorStatus animchannels_enable_exec(bContext &C, wmOperator & /*op*
   int filter;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3417,7 +3417,7 @@ static wmOperatorStatus animchannels_enable_exec(bContext &C, wmOperator & /*op*
   ANIM_animdata_freelist(&anim_data);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3475,7 +3475,7 @@ static wmOperatorStatus animchannels_select_filter_invoke(bContext &C,
     ED_region_tag_redraw(region_channels);
   }
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   CTX_wm_region_set(C, region_ctx);
   return OPERATOR_RUNNING_MODAL;
@@ -3486,14 +3486,14 @@ static wmOperatorStatus animchannels_select_filter_modal(bContext &C,
                                                          const wmEvent * /*event*/)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   ARegion *region = CTX_wm_region(C);
   if (blender::ui::textbutton_activate_rna(&C, region, ac.ads, "filter_text")) {
     /* Redraw to make sure it shows the cursor after activating */
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -3525,7 +3525,7 @@ static wmOperatorStatus animchannels_selectall_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3550,7 +3550,7 @@ static wmOperatorStatus animchannels_selectall_exec(bContext &C, wmOperator &op)
   }
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3712,7 +3712,7 @@ static wmOperatorStatus animchannels_box_select_exec(bContext &C, wmOperator &op
   const bool extend = RNA_boolean_get(op.ptr, "extend");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3734,7 +3734,7 @@ static wmOperatorStatus animchannels_box_select_exec(bContext &C, wmOperator &op
   box_select_anim_channels(&ac, rect, selectmode);
 
   /* send notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -3903,7 +3903,7 @@ static wmOperatorStatus animchannels_rename_invoke(bContext &C,
   int channel_index;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3911,7 +3911,7 @@ static wmOperatorStatus animchannels_rename_invoke(bContext &C,
 
   /* handle click */
   if (rename_anim_channels(&ac, channel_index)) {
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_ANIMCHAN | NA_RENAME, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_RENAME, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -4077,7 +4077,7 @@ static int click_select_channel_object(bContext *C,
    *
    * Ensure we exit edit-mode on whatever object was active before
    * to avoid getting stuck there, see: #48747. */
-  object::base_activate_with_mode_exit_if_needed(C, base); /* adds notifier */
+  object::base_activate_with_mode_exit_if_needed(*C, base); /* adds notifier */
 
   /* Similar to outliner, do not change active element when selecting elements in range. */
   if ((adt) && (adt->flag & ADT_UI_SELECTED) && (selectmode != SELECT_EXTEND_RANGE)) {
@@ -4371,7 +4371,7 @@ static int click_select_channel_gplayer(bContext *C,
   }
 
   /* Grease Pencil updates */
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED | ND_SPACE_PROPERTIES, nullptr);
+  WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_EDITED | ND_SPACE_PROPERTIES, nullptr);
   return (ND_ANIMCHAN | NA_EDITED); /* Animation Editors updates */
 }
 
@@ -4398,8 +4398,8 @@ static int click_select_channel_grease_pencil_layer_group(bContext *C, bAnimList
    *   the whole channel can also be used for this purpose.
    */
   layer_group.set_expanded(!layer_group.is_expanded());
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_PROPERTIES | NA_EDITED, nullptr);
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_PROPERTIES | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   return (ND_ANIMCHAN | NA_EDITED);
 }
 
@@ -4433,7 +4433,7 @@ static int click_select_channel_grease_pencil_layer(bContext *C,
     DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   }
 
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   return (ND_ANIMCHAN | NA_EDITED);
 }
 
@@ -4470,7 +4470,7 @@ static int click_select_channel_masklayer(bAnimContext *ac,
   return (ND_ANIMCHAN | NA_EDITED);
 }
 
-static int mouse_anim_channels(bContext *C,
+static int mouse_anim_channels(bContext &C,
                                bAnimContext *ac,
                                const int channel_index,
                                short /* eEditKeyframes_Select or -1 */ selectmode)
@@ -4479,7 +4479,7 @@ static int mouse_anim_channels(bContext *C,
   bAnimListElem *ale;
   int filter;
   int notifierFlags = 0;
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
   /* get the channel that was clicked on */
   /* filter channels */
@@ -4526,7 +4526,7 @@ static int mouse_anim_channels(bContext *C,
       notifierFlags |= click_select_channel_scene(ale, selectmode);
       break;
     case ANIMTYPE_OBJECT:
-      notifierFlags |= click_select_channel_object(C, ac, ale, selectmode);
+      notifierFlags |= click_select_channel_object(&C, ac, ale, selectmode);
       break;
     case ANIMTYPE_FILLACTD:        /* Action Expander */
     case ANIMTYPE_FILLACT_LAYERED: /* Animation Expander */
@@ -4571,16 +4571,16 @@ static int mouse_anim_channels(bContext *C,
       notifierFlags |= click_select_channel_nlacontrols(ale);
       break;
     case ANIMTYPE_GPLAYER:
-      notifierFlags |= click_select_channel_gplayer(C, ac, ale, selectmode, filter);
+      notifierFlags |= click_select_channel_gplayer(&C, ac, ale, selectmode, filter);
       break;
     case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
       notifierFlags |= click_select_channel_grease_pencil_datablock(ale);
       break;
     case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
-      notifierFlags |= click_select_channel_grease_pencil_layer_group(C, ale);
+      notifierFlags |= click_select_channel_grease_pencil_layer_group(&C, ale);
       break;
     case ANIMTYPE_GREASE_PENCIL_LAYER:
-      notifierFlags |= click_select_channel_grease_pencil_layer(C, ac, ale, selectmode, filter);
+      notifierFlags |= click_select_channel_grease_pencil_layer(&C, ac, ale, selectmode, filter);
       break;
     case ANIMTYPE_MASKDATABLOCK:
       notifierFlags |= click_select_channel_maskdatablock(ale);
@@ -4622,7 +4622,7 @@ static wmOperatorStatus animchannels_mouseclick_invoke(bContext &C,
   float x, y;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -4658,10 +4658,10 @@ static wmOperatorStatus animchannels_mouseclick_invoke(bContext &C,
                                             &channel_index);
 
   /* handle mouse-click in the relevant channel then */
-  notifierFlags = mouse_anim_channels(&C, &ac, channel_index, selectmode);
+  notifierFlags = mouse_anim_channels(C, &ac, channel_index, selectmode);
 
   /* set notifier that things have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | notifierFlags, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | notifierFlags, nullptr);
 
   return WM_operator_flag_only_pass_through_on_press(OPERATOR_FINISHED | OPERATOR_PASS_THROUGH,
                                                      event);
@@ -4782,7 +4782,7 @@ static wmOperatorStatus animchannels_channel_select_keys_invoke(bContext &C,
   bool extend = RNA_boolean_get(op.ptr, "extend");
 
   /* get editor data */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -4790,7 +4790,7 @@ static wmOperatorStatus animchannels_channel_select_keys_invoke(bContext &C,
 
   /* handle click */
   if (select_anim_channel_keys(&ac, channel_index, extend)) {
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -4840,7 +4840,7 @@ static wmOperatorStatus graphkeys_view_selected_channels_exec(bContext &C, wmOpe
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   ARegion *window_region = BKE_area_find_region_type(ac.area, RGN_TYPE_WINDOW);
@@ -4897,7 +4897,7 @@ static wmOperatorStatus graphkeys_view_selected_channels_exec(bContext &C, wmOpe
   }
 
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
-  blender::ui::view2d_smooth_view(&C, window_region, &bounds, smooth_viewtx);
+  blender::ui::view2d_smooth_view(C, window_region, &bounds, smooth_viewtx);
 
   ANIM_animdata_freelist(&anim_data);
 
@@ -4941,7 +4941,7 @@ static wmOperatorStatus graphkeys_channel_view_pick_invoke(bContext &C,
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -4988,7 +4988,7 @@ static wmOperatorStatus graphkeys_channel_view_pick_invoke(bContext &C,
   }
 
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
-  blender::ui::view2d_smooth_view(&C, window_region, &bounds, smooth_viewtx);
+  blender::ui::view2d_smooth_view(C, window_region, &bounds, smooth_viewtx);
 
   ANIM_animdata_freelist(&anim_data);
 
@@ -5034,7 +5034,7 @@ static wmOperatorStatus channels_bake_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -5134,7 +5134,7 @@ static wmOperatorStatus channels_bake_exec(bContext &C, wmOperator &op)
   }
 
   ANIM_animdata_freelist(&anim_data);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -5219,7 +5219,7 @@ static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext &C, wmOpe
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -5274,7 +5274,7 @@ static wmOperatorStatus slot_channels_move_to_new_action_exec(bContext &C, wmOpe
 
   DEG_id_tag_update(&target_action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -5338,7 +5338,7 @@ static wmOperatorStatus separate_slots_exec(bContext &C, wmOperator &op)
 
   DEG_id_tag_update(&action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -5377,12 +5377,12 @@ static void ANIM_OT_separate_slots(wmOperatorType *ot)
 /**
  *  Find a Graph Editor area and set the context arguments accordingly.
  */
-static bool context_find_graph_editor(bContext *C,
+static bool context_find_graph_editor(bContext &C,
                                       wmWindow **r_win,
                                       ScrArea **r_area,
                                       ARegion **r_region)
 {
-  for (wmWindow &win : CTX_wm_manager(*C)->windows) {
+  for (wmWindow &win : CTX_wm_manager(C)->windows) {
     bScreen *screen = WM_window_get_active_screen(&win);
 
     for (ScrArea &area : screen->areabase) {
@@ -5577,7 +5577,7 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext &C, wmOperator 
   blender::ui::Button *but;
   int index;
 
-  if (!(but = blender::ui::context_active_but_prop_get(&C, &button_ptr, &button_prop, &index))) {
+  if (!(but = blender::ui::context_active_but_prop_get(C, &button_ptr, &button_prop, &index))) {
     /* Pass event on if no active button found. */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -5598,7 +5598,7 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext &C, wmOperator 
       &C, &button_ptr, button_prop, &selection, &path_from_id, &id_to_prop_path);
 
   if (!context_find_graph_editor(
-          &C, &wm_context_temp.win, &wm_context_temp.area, &wm_context_temp.region))
+          C, &wm_context_temp.win, &wm_context_temp.area, &wm_context_temp.region))
   {
     BKE_report(op.reports, RPT_WARNING, "No open Graph Editor window found");
     retval = OPERATOR_CANCELLED;
@@ -5613,7 +5613,7 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext &C, wmOperator 
     CTX_wm_region_set(C, wm_context_temp.region);
 
     bAnimContext ac;
-    if (!ANIM_animdata_get_context(&C, &ac)) {
+    if (!ANIM_animdata_get_context(C, &ac)) {
       /* This might never be called since we are manually setting the Graph Editor just before. */
       BKE_report(op.reports, RPT_ERROR, "Cannot create the Animation Context");
       retval = OPERATOR_CANCELLED;
@@ -5670,7 +5670,7 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext &C, wmOperator 
         add_region_padding(&C, region, &bounds);
 
         const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
-        blender::ui::view2d_smooth_view(&C, region, &bounds, smooth_viewtx);
+        blender::ui::view2d_smooth_view(C, region, &bounds, smooth_viewtx);
 
         /* This ensures the channel list updates. */
         ED_area_tag_redraw(area);

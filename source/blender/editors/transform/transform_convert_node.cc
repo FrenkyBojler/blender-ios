@@ -155,7 +155,7 @@ static void createTransNodeData(bContext *C, TransInfo *t)
 
   /* Custom data to enable edge panning during the node transform. */
   TransCustomDataNode *customdata = MEM_new<TransCustomDataNode>(__func__);
-  view2d_edge_pan_init(t->context,
+  view2d_edge_pan_init(*t->context,
                        &customdata->edgepan_data,
                        NODE_EDGE_PAN_INSIDE_PAD,
                        NODE_EDGE_PAN_OUTSIDE_PAD,

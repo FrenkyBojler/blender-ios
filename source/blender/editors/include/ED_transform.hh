@@ -82,16 +82,16 @@ bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], floa
 /* UNUSED */
 // int BIF_snappingSupported(Object *obedit);
 
-void BIF_clearTransformOrientation(bContext *C);
-void BIF_removeTransformOrientation(bContext *C, TransformOrientation *target);
-void BIF_removeTransformOrientationIndex(bContext *C, int index);
+void BIF_clearTransformOrientation(bContext &C);
+void BIF_removeTransformOrientation(bContext &C, TransformOrientation *target);
+void BIF_removeTransformOrientationIndex(bContext &C, int index);
 bool BIF_createTransformOrientation(bContext *C,
                                     ReportList *reports,
                                     const char *name,
                                     bool use_view,
                                     bool activate,
                                     bool overwrite);
-void BIF_selectTransformOrientation(bContext *C, TransformOrientation *target);
+void BIF_selectTransformOrientation(bContext &C, TransformOrientation *target);
 
 void ED_getTransformOrientationMatrix(const Scene *scene,
                                       ViewLayer *view_layer,
@@ -101,7 +101,7 @@ void ED_getTransformOrientationMatrix(const Scene *scene,
                                       short around,
                                       float r_orientation_mat[3][3]);
 
-int BIF_countTransformOrientation(const bContext *C);
+int BIF_countTransformOrientation(const bContext &C);
 
 /* to be able to add operator properties to other operators */
 
@@ -130,7 +130,7 @@ int BIF_countTransformOrientation(const bContext *C);
 void properties_register(wmOperatorType *ot, int flags);
 
 /* `transform_orientations.cc` */
-void calc_orientation_from_type(const bContext *C, float r_mat[3][3]);
+void calc_orientation_from_type(const bContext &C, float r_mat[3][3]);
 /**
  * \note The resulting matrix may not be orthogonal,
  * callers that depend on `r_mat` to be orthogonal should use #orthogonalize_m3.
@@ -150,7 +150,7 @@ short calc_orientation_from_type_ex(const Scene *scene,
                                     int pivot_point,
                                     float r_mat[3][3]);
 
-bool calc_pivot_pos(const bContext *C, const short pivot_type, float r_pivot_pos[3]);
+bool calc_pivot_pos(const bContext &C, const short pivot_type, float r_pivot_pos[3]);
 
 /* transform gizmos */
 
@@ -202,7 +202,7 @@ struct TransformCalcParams {
  *
  * Returns total items selected.
  */
-int calc_gizmo_stats(const bContext *C,
+int calc_gizmo_stats(const bContext &C,
                      const TransformCalcParams *params,
                      TransformBounds *tbounds,
                      RegionView3D *rv3d);

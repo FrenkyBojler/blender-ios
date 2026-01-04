@@ -762,12 +762,12 @@ void colormanage_cache_free(ImBuf *ibuf)
 }
 
 void IMB_colormanagement_display_settings_from_ctx(
-    const bContext *C,
+    const bContext &C,
     ColorManagedViewSettings **r_view_settings,
     ColorManagedDisplaySettings **r_display_settings)
 {
-  Scene *scene = CTX_data_scene(*C);
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  Scene *scene = CTX_data_scene(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
 
   *r_view_settings = &scene->view_settings;
   *r_display_settings = &scene->display_settings;
@@ -2944,7 +2944,7 @@ uchar *IMB_display_buffer_acquire_ctx(const bContext *C, ImBuf *ibuf, void **cac
   ColorManagedViewSettings *view_settings;
   ColorManagedDisplaySettings *display_settings;
 
-  IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
+  IMB_colormanagement_display_settings_from_ctx(*C, &view_settings, &display_settings);
 
   return IMB_display_buffer_acquire(ibuf, view_settings, display_settings, cache_handle);
 }
@@ -4500,7 +4500,7 @@ bool IMB_colormanagement_setup_glsl_draw_from_space_ctx(const bContext *C,
   ColorManagedViewSettings *view_settings;
   ColorManagedDisplaySettings *display_settings;
 
-  IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
+  IMB_colormanagement_display_settings_from_ctx(*C, &view_settings, &display_settings);
 
   return IMB_colormanagement_setup_glsl_draw_from_space(
       view_settings, display_settings, from_colorspace, dither, predivide, false);

@@ -248,12 +248,12 @@ static wmOperatorStatus action_new_exec(bContext &C, wmOperator & /*op*/)
       /* set this new action */
       PointerRNA idptr = RNA_id_pointer_create(&action->id);
       RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
-      RNA_property_update(&C, &ptr, prop);
+      RNA_property_update(C, &ptr, prop);
     }
   }
 
   /* set notifier that keyframes have changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -322,7 +322,7 @@ static wmOperatorStatus action_pushdown_exec(bContext &C, wmOperator & /*op*/)
   }
 
   /* Send notifiers that stuff has changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -366,7 +366,7 @@ static wmOperatorStatus action_stash_exec(bContext &C, wmOperator &op)
   }
 
   /* Send notifiers that stuff has changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -473,7 +473,7 @@ static wmOperatorStatus action_stash_create_exec(bContext &C, wmOperator &op)
   }
 
   /* Send notifiers that stuff has changed */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -576,7 +576,7 @@ void ED_animedit_unlink_action(
     PropertyRNA *prop = RNA_struct_find_property(&ptr, "action");
 
     RNA_property_pointer_set(&ptr, prop, PointerRNA_NULL, nullptr);
-    RNA_property_update(C, &ptr, prop);
+    RNA_property_update(*C, &ptr, prop);
   }
 }
 

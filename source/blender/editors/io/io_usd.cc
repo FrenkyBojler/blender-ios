@@ -965,7 +965,7 @@ static wmOperatorStatus wm_usd_import_exec(bContext &C, wmOperator &op)
     blender::ed::object::mode_set(&C, OB_MODE_EDIT);
   }
 
-  const bool ok = USD_import(&C, filepath, &params, as_background_job, op.reports);
+  const bool ok = USD_import(C, filepath, &params, as_background_job, op.reports);
 
   return as_background_job || ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }

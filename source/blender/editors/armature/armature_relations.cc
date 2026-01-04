@@ -308,11 +308,11 @@ static BoneCollection *join_armature_remap_collection(
   return new_bcoll;
 }
 
-wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
+wmOperatorStatus ED_armature_join_objects_exec(bContext &C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob_active = CTX_data_active_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob_active = CTX_data_active_object(C);
   bArmature *arm = static_cast<bArmature *>((ob_active) ? ob_active->data : nullptr);
   bPose *pose, *opose;
   bPoseChannel *pchan, *pchann;
@@ -328,7 +328,7 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  CTX_DATA_BEGIN (*C, Object *, ob_iter, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob_iter == ob_active) {
       ok = true;
       break;
@@ -346,7 +346,7 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
    * each to-be-joined Armature is unique. */
   {
     blender::Set<const bArmature *> seen_armatures;
-    CTX_DATA_BEGIN (*C, const Object *, ob_iter, selected_editable_objects) {
+    CTX_DATA_BEGIN (C, const Object *, ob_iter, selected_editable_objects) {
       if (ob_iter->type != OB_ARMATURE) {
         continue;
       }
@@ -388,7 +388,7 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
   pose = ob_active->pose;
   ob_active->mode &= ~OB_MODE_POSE;
 
-  CTX_DATA_BEGIN (*C, Object *, ob_iter, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if ((ob_iter->type == OB_ARMATURE) && (ob_iter != ob_active)) {
       bArmature *curarm = static_cast<bArmature *>(ob_iter->data);
 
@@ -786,7 +786,7 @@ static wmOperatorStatus separate_armature_exec(bContext &C, wmOperator &op)
     ok = true;
 
     /* NOTE: notifier might evolve. */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, ob_old);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob_old);
   }
 
   /* Recalculate/redraw + cleanup */
@@ -794,7 +794,7 @@ static wmOperatorStatus separate_armature_exec(bContext &C, wmOperator &op)
 
   if (ok) {
     BKE_report(op.reports, RPT_INFO, "Separated bones");
-    ED_outliner_select_sync_from_object_tag(&C);
+    ED_outliner_select_sync_from_object_tag(C);
   }
 
   return OPERATOR_FINISHED;
@@ -978,7 +978,7 @@ static wmOperatorStatus armature_parent_set_exec(bContext &C, wmOperator &op)
   }
 
   /* NOTE: notifier might evolve. */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
   DEG_id_tag_update(&ob->id, ID_RECALC_SELECT);
 
   return OPERATOR_FINISHED;
@@ -1029,7 +1029,7 @@ static wmOperatorStatus armature_parent_set_invoke(bContext &C,
   op_ptr = row_connect.op("ARMATURE_OT_parent_set", IFACE_("Connected"), ICON_NONE);
   RNA_enum_set(&op_ptr, "type", ARM_PAR_CONNECT);
 
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -1103,7 +1103,7 @@ static wmOperatorStatus armature_parent_clear_exec(bContext &C, wmOperator &op)
     ED_armature_edit_sync_selection(arm->edbo);
 
     /* NOTE: notifier might evolve. */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
   }
   return OPERATOR_FINISHED;
 }
@@ -1149,7 +1149,7 @@ static wmOperatorStatus armature_parent_clear_invoke(bContext &C,
   op_ptr = row_disconnect.op("ARMATURE_OT_parent_clear", IFACE_("Disconnect Bone"), ICON_NONE);
   RNA_enum_set(&op_ptr, "type", ARM_PAR_CLEAR_DISCONNECT);
 
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }

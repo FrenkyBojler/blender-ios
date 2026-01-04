@@ -105,10 +105,10 @@ static bool wm_window_grab_warp_region_is_set(const wmWindow *win)
 /** \name Draw Paint Cursor
  * \{ */
 
-static void wm_paintcursor_draw(bContext *C, ScrArea *area, ARegion *region)
+static void wm_paintcursor_draw(bContext &C, ScrArea *area, ARegion *region)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
   bScreen *screen = WM_window_get_active_screen(win);
 
   /* Don't draw paint cursors with locked interface. Painting is not possible
@@ -131,7 +131,7 @@ static void wm_paintcursor_draw(bContext *C, ScrArea *area, ARegion *region)
       continue;
     }
 
-    if (pc.poll == nullptr || pc.poll(*C)) {
+    if (pc.poll == nullptr || pc.poll(C)) {
       blender::ui::theme::theme_set(area->spacetype, region->regiontype);
 
       /* Prevent drawing outside region. */
@@ -155,7 +155,7 @@ static void wm_paintcursor_draw(bContext *C, ScrArea *area, ARegion *region)
         xy = xy_buf;
       }
 
-      pc.draw(C, xy, win->runtime->eventstate->tablet.tilt, pc.customdata);
+      pc.draw(&C, xy, win->runtime->eventstate->tablet.tilt, pc.customdata);
       GPU_scissor_test(false);
     }
   }
@@ -407,13 +407,13 @@ static void wm_software_cursor_draw(wmWindow *win, const GrabState *grab_state)
 /** \name Post Draw Region on display handlers
  * \{ */
 
-static void wm_region_draw_overlay(bContext *C, const ScrArea *area, ARegion *region)
+static void wm_region_draw_overlay(bContext &C, const ScrArea *area, ARegion *region)
 {
-  const wmWindow *win = CTX_wm_window(*C);
+  const wmWindow *win = CTX_wm_window(C);
 
   wmViewport(&region->winrct);
   blender::ui::theme::theme_set(area->spacetype, region->regiontype);
-  region->runtime->type->draw_overlay(C, region);
+  region->runtime->type->draw_overlay(&C, region);
   wmWindowViewport(win);
 }
 
@@ -958,12 +958,12 @@ GPUViewport *WM_draw_region_get_bound_viewport(ARegion *region)
   return viewport;
 }
 
-static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bool stereo)
+static void wm_draw_area_offscreen(bContext &C, wmWindow *win, ScrArea *area, bool stereo)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  Main *bmain = CTX_data_main(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  Main *bmain = CTX_data_main(C);
 
-  CTX_wm_area_set(*C, area);
+  CTX_wm_area_set(C, area);
   GPU_debug_group_begin(wm_area_name(area));
 
   /* Compute UI layouts for dynamically size regions. */
@@ -981,9 +981,9 @@ static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bo
     if ((region.runtime->visible || ignore_visibility) && region.runtime->do_draw &&
         region.runtime->type && region.runtime->type->layout)
     {
-      CTX_wm_region_set(*C, &region);
+      CTX_wm_region_set(C, &region);
       ED_region_do_layout(C, &region);
-      CTX_wm_region_set(*C, nullptr);
+      CTX_wm_region_set(C, nullptr);
     }
   }
 
@@ -992,7 +992,7 @@ static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bo
   if (area->flag & AREA_FLAG_ACTIVE_TOOL_UPDATE) {
     if ((1 << area->spacetype) & WM_TOOLSYSTEM_SPACE_MASK) {
       WM_toolsystem_update_from_context(
-          C, CTX_wm_workspace(*C), CTX_data_scene(*C), CTX_data_view_layer(*C), area);
+          &C, CTX_wm_workspace(C), CTX_data_scene(C), CTX_data_view_layer(C), area);
     }
     area->flag &= ~AREA_FLAG_ACTIVE_TOOL_UPDATE;
   }
@@ -1003,7 +1003,7 @@ static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bo
       continue;
     }
 
-    CTX_wm_region_set(*C, &region);
+    CTX_wm_region_set(C, &region);
     bool use_viewport = WM_region_use_viewport(area, &region);
 
     GPU_debug_group_begin(use_viewport ? "Viewport" : "ARegion");
@@ -1043,10 +1043,10 @@ static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bo
     GPU_debug_group_end();
 
     region.runtime->do_draw = 0;
-    CTX_wm_region_set(*C, nullptr);
+    CTX_wm_region_set(C, nullptr);
   }
 
-  CTX_wm_area_set(*C, nullptr);
+  CTX_wm_area_set(C, nullptr);
 
   GPU_debug_group_end();
 }
@@ -1060,12 +1060,12 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
    * editors like the 3D viewport. */
   ED_screen_areas_iter (win, screen, area) {
     if (!ELEM(area->spacetype, SPACE_STATUSBAR, SPACE_SPREADSHEET)) {
-      wm_draw_area_offscreen(C, win, area, stereo);
+      wm_draw_area_offscreen(*C, win, area, stereo);
     }
   }
   ED_screen_areas_iter (win, screen, area) {
     if (ELEM(area->spacetype, SPACE_STATUSBAR, SPACE_SPREADSHEET)) {
-      wm_draw_area_offscreen(C, win, area, stereo);
+      wm_draw_area_offscreen(*C, win, area, stereo);
     }
   }
 
@@ -1089,7 +1089,7 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
     wm_draw_region_buffer_create(scene, &region, false, false);
     wm_draw_region_bind(&region, 0);
     GPU_clear_color(0.0f, 0.0f, 0.0f, 0.0f);
-    ED_region_do_draw(C, &region);
+    ED_region_do_draw(*C, &region);
     wm_draw_region_unbind(&region);
 
     GPU_debug_group_end();
@@ -1099,9 +1099,9 @@ static void wm_draw_window_offscreen(bContext *C, wmWindow *win, bool stereo)
   }
 }
 
-static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
+static void wm_draw_window_onscreen(bContext &C, wmWindow *win, int view)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   bScreen *screen = WM_window_get_active_screen(win);
 
   GPU_debug_group_begin("Window Redraw");
@@ -1143,16 +1143,16 @@ static void wm_draw_window_onscreen(bContext *C, wmWindow *win, int view)
         continue;
       }
 
-      CTX_wm_area_set(*C, area);
-      CTX_wm_region_set(*C, &region);
+      CTX_wm_area_set(C, area);
+      CTX_wm_region_set(C, &region);
       if (do_draw_overlay) {
         wm_region_draw_overlay(C, area, &region);
       }
       if (do_paint_cursor) {
         wm_paintcursor_draw(C, area, &region);
       }
-      CTX_wm_region_set(*C, nullptr);
-      CTX_wm_area_set(*C, nullptr);
+      CTX_wm_region_set(C, nullptr);
+      CTX_wm_area_set(C, nullptr);
     }
   }
   wmWindowViewport(win);
@@ -1235,20 +1235,20 @@ static void wm_draw_window(bContext *C, wmWindow *win)
   /* Now we draw into the window frame-buffer, in full window coordinates. */
   if (!stereo) {
     /* Regular mono drawing. */
-    wm_draw_window_onscreen(C, win, -1);
+    wm_draw_window_onscreen(*C, win, -1);
   }
   else if (win->stereo3d_format->display_mode == S3D_DISPLAY_PAGEFLIP) {
     /* For page-flip we simply draw to both back buffers. */
     GPU_backbuffer_bind(GPU_BACKBUFFER_RIGHT);
-    wm_draw_window_onscreen(C, win, 1);
+    wm_draw_window_onscreen(*C, win, 1);
 
     GPU_backbuffer_bind(GPU_BACKBUFFER_LEFT);
-    wm_draw_window_onscreen(C, win, 0);
+    wm_draw_window_onscreen(*C, win, 0);
   }
   else if (ELEM(win->stereo3d_format->display_mode, S3D_DISPLAY_ANAGLYPH, S3D_DISPLAY_INTERLACE)) {
     /* For anaglyph and interlace, we draw individual regions with
      * stereo frame-buffers using different shaders. */
-    wm_draw_window_onscreen(C, win, -1);
+    wm_draw_window_onscreen(*C, win, -1);
   }
   else {
     /* Determine desired offscreen format depending on HDR availability. */
@@ -1274,7 +1274,7 @@ static void wm_draw_window(bContext *C, wmWindow *win)
       for (int view = 0; view < 2; view++) {
         /* Draw view into offscreen buffer. */
         GPU_offscreen_bind(offscreen, false);
-        wm_draw_window_onscreen(C, win, view);
+        wm_draw_window_onscreen(*C, win, view);
         GPU_offscreen_unbind(offscreen, false);
 
         /* Draw offscreen buffer to screen. */
@@ -1295,7 +1295,7 @@ static void wm_draw_window(bContext *C, wmWindow *win)
     }
     else {
       /* Still draw something in case of allocation failure. */
-      wm_draw_window_onscreen(C, win, 0);
+      wm_draw_window_onscreen(*C, win, 0);
     }
   }
 
@@ -1443,7 +1443,7 @@ uint8_t *WM_window_pixels_read_from_offscreen(bContext *C, wmWindow *win, int r_
   const uint rect_len = win_size[0] * win_size[1];
   uint8_t *rect = MEM_malloc_arrayN<uint8_t>(4 * rect_len, __func__);
   GPU_offscreen_bind(offscreen, false);
-  wm_draw_window_onscreen(C, win, -1);
+  wm_draw_window_onscreen(*C, win, -1);
   GPU_offscreen_unbind(offscreen, false);
   GPU_offscreen_read_color(offscreen, GPU_DATA_UBYTE, rect);
   GPU_offscreen_free(offscreen);
@@ -1481,7 +1481,7 @@ bool WM_window_pixels_read_sample_from_offscreen(bContext *C,
 
   float rect_pixel[4];
   GPU_offscreen_bind(offscreen, false);
-  wm_draw_window_onscreen(C, win, -1);
+  wm_draw_window_onscreen(*C, win, -1);
   GPU_offscreen_unbind(offscreen, false);
   GPU_offscreen_read_color_region(offscreen, GPU_DATA_FLOAT, pos[0], pos[1], 1, 1, rect_pixel);
   GPU_offscreen_free(offscreen);
@@ -1518,9 +1518,9 @@ bool WM_desktop_cursor_sample_read(float r_col[3])
  * \{ */
 
 /* Quick test to prevent changing window drawable. */
-static bool wm_draw_update_test_window(Main *bmain, bContext *C, wmWindow *win)
+static bool wm_draw_update_test_window(Main *bmain, bContext &C, wmWindow *win)
 {
-  const wmWindowManager *wm = CTX_wm_manager(*C);
+  const wmWindowManager *wm = CTX_wm_manager(C);
   Scene *scene = WM_window_get_active_scene(win);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
   Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
@@ -1539,7 +1539,7 @@ static bool wm_draw_update_test_window(Main *bmain, bContext *C, wmWindow *win)
 
   ED_screen_areas_iter (win, screen, area) {
     for (ARegion &region : area->regionbase) {
-      wm_region_test_gizmo_do_draw(C, area, &region, true);
+      wm_region_test_gizmo_do_draw(&C, area, &region, true);
       wm_region_test_render_do_draw(scene, depsgraph, area, &region);
 #ifdef WITH_XR_OPENXR
       wm_region_test_xr_do_draw(wm, area, &region);
@@ -1619,13 +1619,13 @@ void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion * /*region*/)
   }
 }
 
-void wm_draw_update(bContext *C)
+void wm_draw_update(bContext &C)
 {
-  Main *bmain = CTX_data_main(*C);
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  Main *bmain = CTX_data_main(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   const bool rna_disallow_writes = true;
 
-  CTX_rna_disallow_write_set_p(*C, &rna_disallow_writes);
+  CTX_rna_disallow_write_set_p(C, &rna_disallow_writes);
 
   GPU_context_main_lock();
 
@@ -1653,7 +1653,7 @@ void wm_draw_update(bContext *C)
     }
 #endif
 
-    CTX_wm_window_set(*C, &win);
+    CTX_wm_window_set(C, &win);
 
     if (wm_draw_update_test_window(bmain, C, &win)) {
       /* Sets context window+screen. */
@@ -1661,24 +1661,24 @@ void wm_draw_update(bContext *C)
       wm_window_swap_buffer_acquire(&win);
 
       /* Notifiers for screen redraw. */
-      ED_screen_ensure_updated(C, wm, &win);
+      ED_screen_ensure_updated(&C, wm, &win);
 
-      wm_draw_window(C, &win);
-      wm_draw_update_clear_window(C, &win);
+      wm_draw_window(&C, &win);
+      wm_draw_update_clear_window(&C, &win);
 
       wm_window_swap_buffer_release(&win);
     }
   }
 
-  CTX_wm_window_set(*C, nullptr);
+  CTX_wm_window_set(C, nullptr);
 
   /* Draw non-windows (surfaces). */
-  wm_surfaces_iter(C, wm_draw_surface);
+  wm_surfaces_iter(&C, wm_draw_surface);
 
   GPU_render_end();
   GPU_context_main_unlock();
 
-  CTX_rna_disallow_write_set_p(*C, nullptr);
+  CTX_rna_disallow_write_set_p(C, nullptr);
 }
 
 void wm_draw_region_clear(wmWindow *win, ARegion * /*region*/)
@@ -1692,11 +1692,11 @@ void WM_draw_region_free(ARegion *region)
   wm_draw_region_buffer_free(region);
 }
 
-void wm_draw_region_test(bContext *C, ScrArea *area, ARegion *region)
+void wm_draw_region_test(bContext &C, ScrArea *area, ARegion *region)
 {
   /* Function for redraw timer benchmark. */
   bool use_viewport = WM_region_use_viewport(area, region);
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   Scene *scene = WM_window_get_active_scene(win);
   wm_draw_region_buffer_create(scene, region, false, use_viewport);
   wm_draw_region_bind(region, 0);
@@ -1705,17 +1705,17 @@ void wm_draw_region_test(bContext *C, ScrArea *area, ARegion *region)
   region->runtime->do_draw = 0;
 }
 
-void WM_redraw_windows(bContext *C)
+void WM_redraw_windows(bContext &C)
 {
-  wmWindow *win_prev = CTX_wm_window(*C);
-  ScrArea *area_prev = CTX_wm_area(*C);
-  ARegion *region_prev = CTX_wm_region(*C);
+  wmWindow *win_prev = CTX_wm_window(C);
+  ScrArea *area_prev = CTX_wm_area(C);
+  ARegion *region_prev = CTX_wm_region(C);
 
   wm_draw_update(C);
 
-  CTX_wm_window_set(*C, win_prev);
-  CTX_wm_area_set(*C, area_prev);
-  CTX_wm_region_set(*C, region_prev);
+  CTX_wm_window_set(C, win_prev);
+  CTX_wm_area_set(C, area_prev);
+  CTX_wm_region_set(C, region_prev);
 }
 
 /** \} */

@@ -195,7 +195,7 @@ struct ViewOpsData {
    */
   bool use_dyn_ofs_ortho_correction;
 
-  void init_context(bContext *C);
+  void init_context(bContext &C);
   void state_backup();
   void state_restore();
   void init_navigation(bContext *C,
@@ -230,7 +230,7 @@ void view3d_orbit_apply_dyn_ofs(float r_ofs[3],
                                 const float viewquat_new[4],
                                 const float dyn_ofs[3]);
 void viewrotate_apply_dyn_ofs(ViewOpsData *vod, const float viewquat_new[4]);
-bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3]);
+bool view3d_orbit_calc_center(bContext &C, float r_dyn_ofs[3]);
 
 void view3d_operator_properties_common(wmOperatorType *ot, const eV3D_OpPropFlag flag);
 
@@ -353,7 +353,7 @@ void ED_view3d_smooth_view_ex(const Depsgraph *depsgraph,
                               const V3D_SmoothParams *sview);
 
 void ED_view3d_smooth_view(
-    bContext *C, View3D *v3d, ARegion *region, int smooth_viewtx, const V3D_SmoothParams *sview);
+    bContext &C, View3D *v3d, ARegion *region, int smooth_viewtx, const V3D_SmoothParams *sview);
 
 /**
  * Call before multiple smooth-view operations begin to properly handle undo.

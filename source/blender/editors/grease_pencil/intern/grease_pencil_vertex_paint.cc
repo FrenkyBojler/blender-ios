@@ -138,7 +138,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_brightness_contrast_exec(bCon
 
   if (any_changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
   return OPERATOR_FINISHED;
 }
@@ -211,7 +211,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_hsv_exec(bContext &C, wmOpera
 
   if (any_changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
   return OPERATOR_FINISHED;
 }
@@ -267,7 +267,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_invert_exec(bContext &C, wmOp
 
   if (any_changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
   return OPERATOR_FINISHED;
 }
@@ -322,7 +322,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_levels_exec(bContext &C, wmOp
 
   if (any_changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
   return OPERATOR_FINISHED;
 }
@@ -355,7 +355,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_set_exec(bContext &C, wmOpera
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &object = *CTX_data_active_object(C);
-  Paint &paint = *BKE_paint_get_active_from_context(&C);
+  Paint &paint = *BKE_paint_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush(&paint);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
   const VertexColorMode mode = VertexColorMode(RNA_enum_get(op.ptr, "mode"));
@@ -395,7 +395,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_set_exec(bContext &C, wmOpera
 
   if (any_changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
   return OPERATOR_FINISHED;
 }
@@ -462,7 +462,7 @@ static wmOperatorStatus grease_pencil_vertex_paint_reset_exec(bContext &C, wmOpe
 
   if (any_changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
   return OPERATOR_FINISHED;
 }

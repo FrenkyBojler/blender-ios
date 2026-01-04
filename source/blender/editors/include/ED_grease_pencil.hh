@@ -61,7 +61,7 @@ enum {
 /**
  * Join selected objects. Called from #OBJECT_OT_join.
  */
-wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext &C, wmOperator *op);
 
 void ED_operatortypes_grease_pencil();
 void ED_operatortypes_grease_pencil_draw();
@@ -347,7 +347,7 @@ float radius_from_input_sample(const RegionView3D *rv3d,
                                const float3 &location,
                                const float4x4 &to_world,
                                const BrushGpencilSettings *settings);
-wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
+wmOperatorStatus grease_pencil_draw_operator_invoke(bContext &C,
                                                     wmOperator *op,
                                                     bool use_duplicate_previous_key);
 float4x2 calculate_texture_space(const Scene *scene,

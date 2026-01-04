@@ -70,7 +70,7 @@ ListBaseT<TimeMarker> *ED_scene_markers_get(const bContext *C, Scene *scene)
   }
 
   bAnimContext ac;
-  if (!ANIM_animdata_get_context(C, &ac)) {
+  if (!ANIM_animdata_get_context(*C, &ac)) {
     return &scene->markers;
   }
   return ac.markers;
@@ -102,14 +102,14 @@ ListBaseT<TimeMarker> *ED_scene_markers_get_from_area(Scene *scene,
 
 /* ............. */
 
-ListBaseT<TimeMarker> *ED_context_get_markers(const bContext *C)
+ListBaseT<TimeMarker> *ED_context_get_markers(const bContext &C)
 {
-  return ED_scene_markers_get(C, CTX_data_scene(*C));
+  return ED_scene_markers_get(&C, CTX_data_scene(C));
 }
 
-ListBaseT<TimeMarker> *ED_sequencer_context_get_markers(const bContext *C)
+ListBaseT<TimeMarker> *ED_sequencer_context_get_markers(const bContext &C)
 {
-  return ED_scene_markers_get(C, CTX_data_sequencer_scene(*C));
+  return ED_scene_markers_get(&C, CTX_data_sequencer_scene(C));
 }
 
 /* --------------------------------- */
@@ -638,18 +638,18 @@ static int markers_frame_sort(const void *a, const void *b)
   return marker_a->frame > marker_b->frame;
 }
 
-void ED_markers_draw(const bContext *C, int flag)
+void ED_markers_draw(const bContext &C, int flag)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
                                                   ED_context_get_markers(C);
   if (markers == nullptr || BLI_listbase_is_empty(markers)) {
     return;
   }
 
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   View2D *v2d = blender::ui::view2d_fromcontext(C);
-  int cfra = CTX_data_scene(*C)->r.cfra;
+  int cfra = CTX_data_scene(C)->r.cfra;
 
   GPU_line_width(1.0f);
 
@@ -751,8 +751,8 @@ void ED_markers_draw(const bContext *C, int flag)
 static bool ed_markers_poll_selected_markers(bContext &C)
 {
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                  ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
 
   if (!operator_markers_region_active(C)) {
     return false;
@@ -770,8 +770,8 @@ static bool ed_markers_poll_selected_markers(bContext &C)
 static bool ed_markers_poll_selected_no_locked_markers(bContext &C)
 {
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                  ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
   ToolSettings *ts = CTX_data_tool_settings(C);
 
   if (!operator_markers_region_active(C)) {
@@ -796,8 +796,8 @@ static bool ed_markers_poll_selected_no_locked_markers(bContext &C)
 static bool ed_markers_poll_markers_exist(bContext &C)
 {
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                  ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
   ToolSettings *ts = CTX_data_tool_settings(C);
 
   if (ts->lock_markers || !operator_markers_region_active(C)) {
@@ -835,8 +835,8 @@ static wmOperatorStatus ed_marker_add_exec(bContext &C, wmOperator & /*op*/)
 {
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
-  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                  ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
 
   if (markers == nullptr || scene == nullptr) {
     return OPERATOR_CANCELLED;
@@ -863,8 +863,8 @@ static wmOperatorStatus ed_marker_add_exec(bContext &C, wmOperator & /*op*/)
   SNPRINTF_UTF8(marker->name, "F_%02d", frame);
   BLI_addtail(markers, marker);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_MARKERS, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_MARKERS, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -937,10 +937,10 @@ static bool ed_marker_move_use_time(MarkerMove *mm)
   return false;
 }
 
-static void ed_marker_move_update_header(bContext *C, wmOperator *op)
+static void ed_marker_move_update_header(bContext &C, wmOperator *op)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   MarkerMove *mm = static_cast<MarkerMove *>(op->customdata);
   TimeMarker *marker, *selmarker = nullptr;
   const int ofs = RNA_int_get(op->ptr, "frames");
@@ -981,15 +981,15 @@ static void ed_marker_move_update_header(bContext *C, wmOperator *op)
     SNPRINTF_UTF8(str, IFACE_("Marker offset %s"), str_ofs);
   }
 
-  ED_area_status_text(CTX_wm_area(*C), str);
+  ED_area_status_text(CTX_wm_area(C), str);
 }
 
 /* copy selection to temp buffer */
 /* return 0 if not OK */
-static bool ed_marker_move_init(bContext *C, wmOperator *op)
+static bool ed_marker_move_init(bContext &C, wmOperator *op)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
                                                   ED_context_get_markers(C);
   MarkerMove *mm;
@@ -1013,7 +1013,7 @@ static bool ed_marker_move_init(bContext *C, wmOperator *op)
   }
 
   op->customdata = mm = MEM_callocN<MarkerMove>("Markermove");
-  mm->slink = CTX_wm_space_data(*C);
+  mm->slink = CTX_wm_space_data(C);
   mm->markers = markers;
   mm->oldframe = MEM_calloc_arrayN<int>(totmark, "MarkerMove oldframe");
 
@@ -1035,7 +1035,7 @@ static bool ed_marker_move_init(bContext *C, wmOperator *op)
 }
 
 /* free stuff */
-static void ed_marker_move_exit(bContext *C, wmOperator *op)
+static void ed_marker_move_exit(bContext &C, wmOperator *op)
 {
   MarkerMove *mm = static_cast<MarkerMove *>(op->customdata);
 
@@ -1045,7 +1045,7 @@ static void ed_marker_move_exit(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 
   /* clear custom header prints */
-  ED_area_status_text(CTX_wm_area(*C), nullptr);
+  ED_area_status_text(CTX_wm_area(C), nullptr);
 }
 
 static wmOperatorStatus ed_marker_move_invoke(bContext &C, wmOperator &op, const wmEvent *event)
@@ -1056,14 +1056,14 @@ static wmOperatorStatus ed_marker_move_invoke(bContext &C, wmOperator &op, const
     ARegion *region = CTX_wm_region(C);
     View2D *v2d = &region->v2d;
     const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-    ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                    ED_context_get_markers(&C);
+    ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                    ED_context_get_markers(C);
     if (!region_position_is_over_marker(v2d, markers, event->xy[0] - region->winrct.xmin)) {
       return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
     }
   }
 
-  if (ed_marker_move_init(&C, &op)) {
+  if (ed_marker_move_init(C, &op)) {
     MarkerMove *mm = static_cast<MarkerMove *>(op.customdata);
 
     mm->evtx = event->xy[0];
@@ -1072,12 +1072,12 @@ static wmOperatorStatus ed_marker_move_invoke(bContext &C, wmOperator &op, const
     mm->event_val = event->val;
 
     /* add temp handler */
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
 
     /* Reset frames delta. */
     RNA_int_set(op.ptr, "frames", 0);
 
-    ed_marker_move_update_header(&C, &op);
+    ed_marker_move_update_header(C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -1086,11 +1086,11 @@ static wmOperatorStatus ed_marker_move_invoke(bContext &C, wmOperator &op, const
 }
 
 /* NOTE: init has to be called successfully. */
-static void ed_marker_move_apply(bContext *C, wmOperator *op)
+static void ed_marker_move_apply(bContext &C, wmOperator *op)
 {
-  bScreen *screen = CTX_wm_screen(*C);
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
-  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(*C) : CTX_data_scene(*C);
+  bScreen *screen = CTX_wm_screen(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   Object *camera = scene->camera;
   MarkerMove *mm = static_cast<MarkerMove *>(op->customdata);
   TimeMarker *marker;
@@ -1122,8 +1122,8 @@ static void ed_marker_move_apply(bContext *C, wmOperator *op)
 static void ed_marker_move_cancel(bContext &C, wmOperator &op)
 {
   RNA_int_set(op.ptr, "frames", 0);
-  ed_marker_move_apply(&C, &op);
-  ed_marker_move_exit(&C, &op);
+  ed_marker_move_apply(C, &op);
+  ed_marker_move_exit(C, &op);
 }
 
 static wmOperatorStatus ed_marker_move_modal(bContext &C, wmOperator &op, const wmEvent *event)
@@ -1131,7 +1131,7 @@ static wmOperatorStatus ed_marker_move_modal(bContext &C, wmOperator &op, const 
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   MarkerMove *mm = static_cast<MarkerMove *>(op.customdata);
-  View2D *v2d = blender::ui::view2d_fromcontext(&C);
+  View2D *v2d = blender::ui::view2d_fromcontext(C);
   const bool has_numinput = hasNumInput(&mm->num);
   const bool use_time = ed_marker_move_use_time(mm);
 
@@ -1145,8 +1145,8 @@ static wmOperatorStatus ed_marker_move_modal(bContext &C, wmOperator &op, const 
     }
 
     RNA_int_set(op.ptr, "frames", int(value));
-    ed_marker_move_apply(&C, &op);
-    ed_marker_move_update_header(&C, &op);
+    ed_marker_move_apply(C, &op);
+    ed_marker_move_update_header(C, &op);
   }
   else {
     bool handled = false;
@@ -1168,9 +1168,9 @@ static wmOperatorStatus ed_marker_move_modal(bContext &C, wmOperator &op, const 
       case LEFTMOUSE:
       case MIDDLEMOUSE:
         if (WM_event_is_modal_drag_exit(event, mm->event_type, mm->event_val)) {
-          ed_marker_move_exit(&C, &op);
-          WM_event_add_notifier(&C, NC_SCENE | ND_MARKERS, nullptr);
-          WM_event_add_notifier(&C, NC_ANIMATION | ND_MARKERS, nullptr);
+          ed_marker_move_exit(C, &op);
+          WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
+          WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
           return OPERATOR_FINISHED;
         }
         break;
@@ -1195,8 +1195,8 @@ static wmOperatorStatus ed_marker_move_modal(bContext &C, wmOperator &op, const 
                             0);
 
             RNA_int_set(op.ptr, "frames", int(fac));
-            ed_marker_move_apply(&C, &op);
-            ed_marker_move_update_header(&C, &op);
+            ed_marker_move_apply(C, &op);
+            ed_marker_move_update_header(C, &op);
           }
         }
         break;
@@ -1214,8 +1214,8 @@ static wmOperatorStatus ed_marker_move_modal(bContext &C, wmOperator &op, const 
       }
 
       RNA_int_set(op.ptr, "frames", int(value));
-      ed_marker_move_apply(&C, &op);
-      ed_marker_move_update_header(&C, &op);
+      ed_marker_move_apply(C, &op);
+      ed_marker_move_update_header(C, &op);
     }
   }
 
@@ -1224,9 +1224,9 @@ static wmOperatorStatus ed_marker_move_modal(bContext &C, wmOperator &op, const 
 
 static wmOperatorStatus ed_marker_move_exec(bContext &C, wmOperator &op)
 {
-  if (ed_marker_move_init(&C, &op)) {
-    ed_marker_move_apply(&C, &op);
-    ed_marker_move_exit(&C, &op);
+  if (ed_marker_move_init(C, &op)) {
+    ed_marker_move_apply(C, &op);
+    ed_marker_move_exit(C, &op);
     return OPERATOR_FINISHED;
   }
   return OPERATOR_PASS_THROUGH;
@@ -1279,9 +1279,9 @@ static void MARKER_OT_move(wmOperatorType *ot)
  */
 
 /* duplicate selected TimeMarkers */
-static void ed_marker_duplicate_apply(bContext *C)
+static void ed_marker_duplicate_apply(bContext &C)
 {
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
                                                   ED_context_get_markers(C);
   if (markers == nullptr) {
@@ -1316,7 +1316,7 @@ static void ed_marker_duplicate_apply(bContext *C)
 
 static wmOperatorStatus ed_marker_duplicate_exec(bContext &C, wmOperator &op)
 {
-  ed_marker_duplicate_apply(&C);
+  ed_marker_duplicate_apply(C);
   ed_marker_move_exec(C, op); /* Assumes frame delta set. */
 
   return OPERATOR_FINISHED;
@@ -1326,7 +1326,7 @@ static wmOperatorStatus ed_marker_duplicate_invoke(bContext &C,
                                                    wmOperator &op,
                                                    const wmEvent *event)
 {
-  ed_marker_duplicate_apply(&C);
+  ed_marker_duplicate_apply(C);
   return ed_marker_move_invoke(C, op, event);
 }
 
@@ -1400,7 +1400,7 @@ static void select_marker_camera_switch(
           if (base) {
             object::base_select(base, object::eObjectSelect_Mode(sel));
             if (!extend) {
-              object::base_activate(C, base);
+              object::base_activate(*C, base);
             }
           }
         }
@@ -1408,11 +1408,11 @@ static void select_marker_camera_switch(
     }
 
     DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+    WM_event_add_notifier(*C, NC_SCENE | ND_OB_SELECT, scene);
   }
 }
 
-static wmOperatorStatus ed_marker_select(bContext *C,
+static wmOperatorStatus ed_marker_select(bContext &C,
                                          const int mval[2],
                                          bool extend,
                                          bool deselect_all,
@@ -1427,7 +1427,7 @@ static wmOperatorStatus ed_marker_select(bContext *C,
    * The variables (`sel_op` & `deselect_all`) have been included so marker
    * selection can use identical checks to dope-sheet selection. */
 
-  const bool is_sequencer = CTX_wm_space_seq(*C) != nullptr;
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
   ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
                                                   ED_context_get_markers(C);
 
@@ -1491,7 +1491,7 @@ static wmOperatorStatus ed_marker_select(bContext *C,
   }
   /* If extend is set (by holding Shift), then add the camera to the selection too. */
   if (found && camera) {
-    select_marker_camera_switch(C, true, extend, markers, nearest_marker->frame);
+    select_marker_camera_switch(&C, true, extend, markers, nearest_marker->frame);
   }
 
   WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
@@ -1521,7 +1521,7 @@ static wmOperatorStatus ed_marker_select_exec(bContext &C, wmOperator &op)
   bool deselect_all = true;
 
   wmOperatorStatus ret_value = ed_marker_select(
-      &C, mval, extend, deselect_all, camera, wait_to_deselect_others);
+      C, mval, extend, deselect_all, camera, wait_to_deselect_others);
 
   return ret_value | OPERATOR_PASS_THROUGH;
 }
@@ -1584,8 +1584,8 @@ static wmOperatorStatus ed_marker_box_select_invoke(bContext &C,
   View2D *v2d = &region->v2d;
 
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                  ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
   bool over_marker = region_position_is_over_marker(
                          v2d, markers, event->xy[0] - region->winrct.xmin) != nullptr;
 
@@ -1599,10 +1599,10 @@ static wmOperatorStatus ed_marker_box_select_invoke(bContext &C,
 
 static wmOperatorStatus ed_marker_box_select_exec(bContext &C, wmOperator &op)
 {
-  View2D *v2d = blender::ui::view2d_fromcontext(&C);
+  View2D *v2d = blender::ui::view2d_fromcontext(C);
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                  ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
   rctf rect;
 
   WM_operator_properties_border_to_rctf(&op, &rect);
@@ -1624,8 +1624,8 @@ static wmOperatorStatus ed_marker_box_select_exec(bContext &C, wmOperator &op)
     }
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_MARKERS, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_MARKERS, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1666,8 +1666,8 @@ static void MARKER_OT_select_box(wmOperatorType *ot)
 static wmOperatorStatus ed_marker_select_all_exec(bContext &C, wmOperator &op)
 {
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                  ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
   if (markers == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -1675,8 +1675,8 @@ static wmOperatorStatus ed_marker_select_all_exec(bContext &C, wmOperator &op)
   int action = RNA_enum_get(op.ptr, "action");
   ED_markers_deselect_all(markers, action);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_MARKERS, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_MARKERS, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1747,13 +1747,13 @@ static wmOperatorStatus ed_marker_select_leftright_exec(bContext &C, wmOperator 
   const bool extend = RNA_boolean_get(op.ptr, "extend");
 
   bAnimContext ac;
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
   markers_select_leftright(&ac, mode, extend);
 
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_SELECTED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1790,8 +1790,8 @@ static wmOperatorStatus ed_marker_delete_exec(bContext &C, wmOperator & /*op*/)
 
 {
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                  ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
   TimeMarker *marker, *nmarker;
   bool changed = false;
 
@@ -1812,8 +1812,8 @@ static wmOperatorStatus ed_marker_delete_exec(bContext &C, wmOperator & /*op*/)
   }
 
   if (changed) {
-    WM_event_add_notifier(&C, NC_SCENE | ND_MARKERS, nullptr);
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_MARKERS, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -1863,15 +1863,15 @@ static void MARKER_OT_delete(wmOperatorType *ot)
 static wmOperatorStatus ed_marker_rename_exec(bContext &C, wmOperator &op)
 {
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                  ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
   TimeMarker *marker = ED_markers_get_first_selected(markers);
 
   if (marker) {
     RNA_string_get(op.ptr, "name", marker->name);
 
-    WM_event_add_notifier(&C, NC_SCENE | ND_MARKERS, nullptr);
-    WM_event_add_notifier(&C, NC_ANIMATION | ND_MARKERS, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
+    WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
 
     return OPERATOR_FINISHED;
   }
@@ -1882,8 +1882,8 @@ static wmOperatorStatus ed_marker_rename_exec(bContext &C, wmOperator &op)
 static wmOperatorStatus ed_marker_rename_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                  ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
   /* must initialize the marker name first if there is a marker selected */
   TimeMarker *marker = ED_markers_get_first_selected(markers);
   if (marker) {
@@ -1931,8 +1931,8 @@ static wmOperatorStatus ed_marker_make_links_scene_exec(bContext &C, wmOperator 
 {
   Main *bmain = CTX_data_main(C);
   const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
-  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                  ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
   Scene *scene_to = static_cast<Scene *>(
       BLI_findlink(&bmain->scenes, RNA_enum_get(op.ptr, "scene")));
   TimeMarker *marker_new;
@@ -2003,8 +2003,8 @@ static wmOperatorStatus ed_marker_camera_bind_exec(bContext &C, wmOperator &op)
   if (!scene) {
     return OPERATOR_CANCELLED;
   }
-  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(&C) :
-                                                  ED_context_get_markers(&C);
+  ListBaseT<TimeMarker> *markers = is_sequencer ? ED_sequencer_context_get_markers(C) :
+                                                  ED_context_get_markers(C);
   Object *ob = CTX_data_active_object(C);
   TimeMarker *marker;
 
@@ -2045,9 +2045,9 @@ static wmOperatorStatus ed_marker_camera_bind_exec(bContext &C, wmOperator &op)
   BKE_screen_view3d_scene_sync(screen, scene);
   DEG_relations_tag_update(CTX_data_main(C));
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_MARKERS, nullptr);
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_MARKERS, nullptr);
-  WM_event_add_notifier(&C, NC_SCENE | NA_EDITED, scene); /* so we get view3d redraws */
+  WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene); /* so we get view3d redraws */
 
   return OPERATOR_FINISHED;
 }

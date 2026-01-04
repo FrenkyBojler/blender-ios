@@ -1005,7 +1005,7 @@ void draw_nla_track_list(const bContext *C,
     }
   }
   { /* second pass: UI widgets */
-    blender::ui::Block *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+    blender::ui::Block *block = block_begin(*C, region, __func__, blender::ui::EmbossType::Emboss);
     size_t track_index = 0;
     float ymax = NLATRACK_FIRST_TOP(ac);
 
@@ -1029,8 +1029,8 @@ void draw_nla_track_list(const bContext *C,
       }
     }
 
-    block_end(C, block);
-    block_draw(C, block);
+    block_end(*C, block);
+    block_draw(*C, block);
 
     GPU_blend(GPU_BLEND_NONE);
   }

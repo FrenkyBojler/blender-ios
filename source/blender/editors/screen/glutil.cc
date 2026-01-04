@@ -592,7 +592,7 @@ void ED_draw_imbuf_ctx_clipping(const bContext *C,
   ColorManagedViewSettings *view_settings;
   ColorManagedDisplaySettings *display_settings;
 
-  IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
+  IMB_colormanagement_display_settings_from_ctx(*C, &view_settings, &display_settings);
 
   ED_draw_imbuf_clipping(ibuf,
                          x,

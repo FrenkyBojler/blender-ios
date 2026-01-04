@@ -240,7 +240,7 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   int axis_type;
   {
     PointerRNA ptr;
-    bToolRef *tref = WM_toolsystem_ref_from_context((bContext *)C);
+    bToolRef *tref = WM_toolsystem_ref_from_context(*(bContext *)C);
     WM_toolsystem_ref_properties_ensure_from_gizmo_group(tref, gzgroup->type, &ptr);
     axis_type = RNA_property_enum_get(&ptr, ggd->gzgt_axis_type_prop);
   }
@@ -256,7 +256,7 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
     TransformBounds tbounds_normal;
     TransformCalcParams params{};
     params.orientation_index = V3D_ORIENT_NORMAL + 1;
-    if (!calc_gizmo_stats(C, &params, &tbounds_normal, rv3d)) {
+    if (!calc_gizmo_stats(*C, &params, &tbounds_normal, rv3d)) {
       unit_m3(tbounds_normal.axis);
     }
     copy_m3_m3(ggd->data.normal_mat3, tbounds_normal.axis);
@@ -265,7 +265,7 @@ static void gizmo_mesh_extrude_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   /* TODO(@ideasman42): run second since this modifies the 3D view, it should not. */
   TransformCalcParams params{};
   params.orientation_index = ggd->data.orientation_index + 1;
-  if (!calc_gizmo_stats(C, &params, &tbounds, rv3d)) {
+  if (!calc_gizmo_stats(*C, &params, &tbounds, rv3d)) {
     return;
   }
 

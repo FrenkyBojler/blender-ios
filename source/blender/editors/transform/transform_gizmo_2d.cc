@@ -228,7 +228,7 @@ static GizmoGroup2D *gizmogroup2d_init(wmGizmoGroup *gzgroup)
 /**
  * Calculates origin in view space, use with #gizmo2d_origin_to_region.
  */
-static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min, float *r_max)
+static bool gizmo2d_calc_bounds(const bContext &C, float *r_center, float *r_min, float *r_max)
 {
   float min_buf[2], max_buf[2];
   if (r_min == nullptr) {
@@ -238,14 +238,14 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
     r_max = max_buf;
   }
 
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   bool has_select = false;
   if (area->spacetype == SPACE_IMAGE) {
     const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
     switch (sima->mode) {
       case SI_MODE_UV: {
-        Scene *scene = CTX_data_scene(*C);
-        ViewLayer *view_layer = CTX_data_view_layer(*C);
+        Scene *scene = CTX_data_scene(C);
+        ViewLayer *view_layer = CTX_data_view_layer(C);
         Vector<Object *> objects =
             BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
                 scene, view_layer, nullptr);
@@ -265,7 +265,7 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
     }
   }
   else if (area->spacetype == SPACE_SEQ) {
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     Editing *ed = seq::editing_get(scene);
     ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
     ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
@@ -312,14 +312,14 @@ static bool gizmo2d_calc_bounds(const bContext *C, float *r_center, float *r_min
   return has_select;
 }
 
-static int gizmo2d_calc_transform_orientation(const bContext *C)
+static int gizmo2d_calc_transform_orientation(const bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   if (area->spacetype != SPACE_SEQ) {
     return V3D_ORIENT_GLOBAL;
   }
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
@@ -334,14 +334,14 @@ static int gizmo2d_calc_transform_orientation(const bContext *C)
   return V3D_ORIENT_GLOBAL;
 }
 
-static float gizmo2d_calc_rotation(const bContext *C)
+static float gizmo2d_calc_rotation(const bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   if (area->spacetype != SPACE_SEQ) {
     return 0.0f;
   }
 
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
   ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
   ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
@@ -382,22 +382,22 @@ static bool seq_get_strip_pivot_median(const Scene *scene, float r_pivot[2])
   return has_select;
 }
 
-static bool gizmo2d_calc_transform_pivot(const bContext *C, float r_pivot[2])
+static bool gizmo2d_calc_transform_pivot(const bContext &C, float r_pivot[2])
 {
-  ScrArea *area = CTX_wm_area(*C);
-  Scene *scene = CTX_data_scene(*C);
+  ScrArea *area = CTX_wm_area(C);
+  Scene *scene = CTX_data_scene(C);
   bool has_select = false;
 
   if (area->spacetype == SPACE_IMAGE) {
     const SpaceImage *sima = static_cast<const SpaceImage *>(area->spacedata.first);
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
     switch (sima->mode) {
       case SI_MODE_UV:
         ED_uvedit_center_from_pivot_ex(
             sima, scene, view_layer, r_pivot, sima->around, &has_select);
         break;
       case SI_MODE_MASK:
-        ED_mask_center_from_pivot_ex(C, area, r_pivot, sima->around, &has_select);
+        ED_mask_center_from_pivot_ex(&C, area, r_pivot, sima->around, &has_select);
         break;
       default:
         break;
@@ -450,7 +450,7 @@ static wmOperatorStatus gizmo2d_modal(bContext *C,
   ARegion *region = CTX_wm_region(*C);
   float origin[3];
 
-  gizmo2d_calc_transform_pivot(C, origin);
+  gizmo2d_calc_transform_pivot(*C, origin);
   gizmo2d_origin_to_region(region, origin);
   WM_gizmo_set_matrix_location(widget, origin);
 
@@ -582,11 +582,11 @@ static void gizmo2d_xform_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   GizmoGroup2D *ggd = static_cast<GizmoGroup2D *>(gzgroup->customdata);
   bool has_select;
   if (ggd->no_cage) {
-    has_select = gizmo2d_calc_transform_pivot(C, ggd->origin);
+    has_select = gizmo2d_calc_transform_pivot(*C, ggd->origin);
   }
   else {
-    has_select = gizmo2d_calc_bounds(C, ggd->origin, ggd->min, ggd->max);
-    ggd->rotation = gizmo2d_calc_rotation(C);
+    has_select = gizmo2d_calc_bounds(*C, ggd->origin, ggd->min, ggd->max);
+    ggd->rotation = gizmo2d_calc_rotation(*C);
   }
 
   bool show_cage = !ggd->no_cage && !equals_v2v2(ggd->min, ggd->max);
@@ -725,7 +725,7 @@ static void gizmo2d_xform_invoke_prepare(const bContext *C,
     axis_angle_to_mat3_single(orient_matrix, 'Z', ggd->rotation);
   }
 
-  int orient_type = gizmo2d_calc_transform_orientation(C);
+  int orient_type = gizmo2d_calc_transform_orientation(*C);
 
   gzop = WM_gizmo_operator_get(ggd->cage, ED_GIZMO_CAGE2D_PART_SCALE_MIN_X);
   PropertyRNA *prop_center_override = RNA_struct_find_property(&gzop->ptr, "center_override");
@@ -828,7 +828,7 @@ static void gizmo2d_resize_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   GizmoGroup_Resize2D *ggd = static_cast<GizmoGroup_Resize2D *>(gzgroup->customdata);
   float origin[3];
-  const bool has_select = gizmo2d_calc_transform_pivot(C, origin);
+  const bool has_select = gizmo2d_calc_transform_pivot(*C, origin);
 
   if (has_select == false) {
     for (int i = 0; i < ARRAY_SIZE(ggd->gizmo_xy); i++) {
@@ -840,7 +840,7 @@ static void gizmo2d_resize_refresh(const bContext *C, wmGizmoGroup *gzgroup)
       ggd->gizmo_xy[i]->flag &= ~WM_GIZMO_HIDDEN;
     }
     copy_v2_v2(ggd->origin, origin);
-    ggd->rotation = gizmo2d_calc_rotation(C);
+    ggd->rotation = gizmo2d_calc_rotation(*C);
   }
 }
 
@@ -930,7 +930,7 @@ static void gizmo2d_resize_invoke_prepare(const bContext *C,
                                           const wmEvent * /*event*/)
 {
   wmGizmoOpElem *gzop;
-  int orient_type = gizmo2d_calc_transform_orientation(C);
+  int orient_type = gizmo2d_calc_transform_orientation(*C);
 
   gzop = WM_gizmo_operator_get(gz, 0);
   RNA_enum_set(&gzop->ptr, "orient_type", orient_type);
@@ -988,7 +988,7 @@ static void gizmo2d_rotate_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
   GizmoGroup_Rotate2D *ggd = static_cast<GizmoGroup_Rotate2D *>(gzgroup->customdata);
   float origin[3];
-  const bool has_select = gizmo2d_calc_transform_pivot(C, origin);
+  const bool has_select = gizmo2d_calc_transform_pivot(*C, origin);
 
   if (has_select == false) {
     ggd->gizmo->flag |= WM_GIZMO_HIDDEN;

@@ -713,13 +713,13 @@ static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext &C,
 
   bool track_active = true;
 
-  ViewContext vc = em_setup_viewcontext(&C);
+  ViewContext vc = em_setup_viewcontext(C);
   copy_v2_v2_int(vc.mval, event->mval);
   BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
   Base *basact = BKE_view_layer_active_base_get(vc.view_layer);
   BMEditMesh *em = vc.em;
 
-  view3d_operator_needs_gpu(&C);
+  view3d_operator_needs_gpu(C);
 
   {
     int base_index = -1;
@@ -772,7 +772,7 @@ static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext &C,
 
   BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
   if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-    blender::ed::object::base_activate(&C, basact);
+    blender::ed::object::base_activate(C, basact);
   }
 
   /* to support redo */

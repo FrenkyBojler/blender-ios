@@ -327,7 +327,7 @@ ImBuf *IMB_colormanagement_imbuf_for_write(ImBuf *ibuf,
  * \{ */
 
 void IMB_colormanagement_display_settings_from_ctx(
-    const bContext *C,
+    const bContext &C,
     ColorManagedViewSettings **r_view_settings,
     ColorManagedDisplaySettings **r_display_settings);
 

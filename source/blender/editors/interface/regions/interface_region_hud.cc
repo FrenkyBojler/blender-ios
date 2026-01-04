@@ -107,7 +107,7 @@ struct HudRegionData {
 
 static bool last_redo_poll(const bContext *C, short region_type, int region_index_hint)
 {
-  wmOperator *op = WM_operator_last_redo(C);
+  wmOperator *op = WM_operator_last_redo(*C);
   if (op == nullptr) {
     return false;
   }
@@ -162,18 +162,18 @@ static bool hud_panel_operator_redo_poll(const bContext *C, PanelType * /*pt*/)
 
 static void hud_panel_operator_redo_draw_header(const bContext *C, Panel *panel)
 {
-  wmOperator *op = WM_operator_last_redo(C);
+  wmOperator *op = WM_operator_last_redo(*C);
   const std::string opname = WM_operatortype_name(op->type, op->ptr);
   panel_drawname_set(panel, opname);
 }
 
 static void hud_panel_operator_redo_draw(const bContext *C, Panel *panel)
 {
-  wmOperator *op = WM_operator_last_redo(C);
+  wmOperator *op = WM_operator_last_redo(*C);
   if (op == nullptr) {
     return;
   }
-  if (!WM_operator_check_ui_enabled(C, op->type->name)) {
+  if (!WM_operator_check_ui_enabled(*C, op->type->name)) {
     panel->layout->enabled_set(false);
   }
   Layout &col = panel->layout->column(false);
@@ -261,7 +261,7 @@ static void hud_region_layout(const bContext *C, ARegion *region)
   }
 
   /* restore view matrix */
-  view2d_view_restore(C);
+  view2d_view_restore(*C);
 }
 
 static void hud_region_draw(const bContext *C, ARegion *region)
@@ -353,9 +353,9 @@ void ED_area_type_hud_clear(wmWindowManager *wm, ScrArea *area_keep)
   }
 }
 
-void ED_area_type_hud_ensure(bContext *C, ScrArea *area)
+void ED_area_type_hud_ensure(bContext &C, ScrArea *area)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   ED_area_type_hud_clear(wm, area);
 
   ARegionType *art = BKE_regiontype_from_id(area->type, RGN_TYPE_HUD);
@@ -373,10 +373,10 @@ void ED_area_type_hud_ensure(bContext *C, ScrArea *area)
 
   bool init = false;
   const bool was_hidden = region == nullptr || region->runtime->visible == false;
-  ARegion *region_op = CTX_wm_region(*C);
+  ARegion *region_op = CTX_wm_region(C);
   BLI_assert((region_op == nullptr) || (region_op->regiontype != RGN_TYPE_HUD));
   const int region_index_hint = region_op ? area_calc_region_type_index(area, region_op) : -1;
-  if (!last_redo_poll(C, region_op ? region_op->regiontype : -1, region_index_hint)) {
+  if (!last_redo_poll(&C, region_op ? region_op->regiontype : -1, region_index_hint)) {
     if (region) {
       ED_region_tag_redraw(region);
       hud_region_hide(region);
@@ -421,7 +421,7 @@ void ED_area_type_hud_ensure(bContext *C, ScrArea *area)
 
   if (init) {
     /* This is needed or 'winrct' will be invalid. */
-    wmWindow *win = CTX_wm_window(*C);
+    wmWindow *win = CTX_wm_window(C);
     ED_area_update_region_sizes(wm, win, area);
   }
 
@@ -451,15 +451,15 @@ void ED_area_type_hud_ensure(bContext *C, ScrArea *area)
   /* We shouldn't need to do this every time :S */
   /* XXX, this is evil! - it also makes the menu show on first draw. :( */
   if (region->runtime->visible) {
-    ARegion *region_prev = CTX_wm_region(*C);
-    CTX_wm_region_set(*C, region);
-    hud_region_layout(C, region);
+    ARegion *region_prev = CTX_wm_region(C);
+    CTX_wm_region_set(C, region);
+    hud_region_layout(&C, region);
     if (was_hidden) {
       region->winx = region->v2d.winx;
       region->winy = region->v2d.winy;
       region->v2d.cur = region->v2d.tot = reset_rect;
     }
-    CTX_wm_region_set(*C, region_prev);
+    CTX_wm_region_set(C, region_prev);
   }
 
   region->runtime->visible = !((region->flag & RGN_FLAG_HIDDEN) ||

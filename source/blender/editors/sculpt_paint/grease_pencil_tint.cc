@@ -71,7 +71,7 @@ void TintOperation::on_stroke_begin(const bContext &C, const InputSample & /*sta
 {
   using namespace blender::bke::greasepencil;
   Scene *scene = CTX_data_scene(C);
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
 
   BKE_curvemapping_init(brush->gpencil_settings->curve_sensitivity);
@@ -330,7 +330,7 @@ void TintOperation::execute_tint(const bContext &C, const InputSample &extension
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 }
 

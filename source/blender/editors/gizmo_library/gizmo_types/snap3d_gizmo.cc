@@ -75,7 +75,7 @@ void ED_gizmotypes_snap_3d_data_get(const bContext *C,
           event->xy[1] - region->winrct.ymin,
       };
       SnapGizmo3D *snap_gizmo = (SnapGizmo3D *)gz;
-      ED_view3d_cursor_snap_data_update(snap_gizmo->snap_state, C, region, mval);
+      ED_view3d_cursor_snap_data_update(snap_gizmo->snap_state, *C, region, mval);
     }
   }
 
@@ -271,7 +271,7 @@ static int snap_gizmo_test_select(bContext *C, wmGizmo *gz, const int mval[2])
       mval_copy = mval;
     }
   }
-  ED_view3d_cursor_snap_data_update(snap_gizmo->snap_state, C, region, mval_copy);
+  ED_view3d_cursor_snap_data_update(snap_gizmo->snap_state, *C, region, mval_copy);
   V3DSnapCursorData *snap_data = ED_view3d_cursor_snap_data_get();
 
   if (snap_data->type_target != SCE_SNAP_TO_NONE) {

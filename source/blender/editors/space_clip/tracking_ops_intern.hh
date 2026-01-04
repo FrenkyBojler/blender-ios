@@ -26,8 +26,8 @@ struct MovieTrackingPlaneMarker;
 
 void clip_tracking_clear_invisible_track_selection(SpaceClip *sc, MovieClip *clip);
 
-void clip_tracking_show_cursor(bContext *C);
-void clip_tracking_hide_cursor(bContext *C);
+void clip_tracking_show_cursor(bContext &C);
+void clip_tracking_hide_cursor(bContext &C);
 
 /* tracking_select.h */
 
@@ -89,7 +89,7 @@ struct PointTrackPick {
 /* Pick point track which is closest to the given coordinate.
  * Operates in the original non-stabilized and non-un-distorted coordinates. */
 PointTrackPick ed_tracking_pick_point_track(const TrackPickOptions *options,
-                                            bContext *C,
+                                            bContext &C,
                                             const float co[2]);
 
 /* Returns true when the pick did not pick anything. */
@@ -118,7 +118,7 @@ struct PlaneTrackPick {
 /* Pick plane track which is closest to the given coordinate.
  * Operates in the original non-stabilized and non-un-distorted coordinates. */
 PlaneTrackPick ed_tracking_pick_plane_track(const TrackPickOptions *options,
-                                            struct bContext *C,
+                                            struct bContext &C,
                                             const float co[2]);
 
 /* Returns true when the pick did not pick anything. */

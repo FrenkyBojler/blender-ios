@@ -305,7 +305,7 @@ bool selection_update(const ViewContext *vc,
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a
      * generic attribute for now. */
     DEG_id_tag_update(static_cast<ID *>(object->data), ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(vc->C, NC_GEOM | ND_DATA, object->data);
+    WM_event_add_notifier(*vc->C, NC_GEOM | ND_DATA, object->data);
   }
 
   return changed;
@@ -343,7 +343,7 @@ static wmOperatorStatus select_all_exec(bContext &C, wmOperator &op)
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
    * attribute for now. */
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -366,7 +366,7 @@ static wmOperatorStatus select_more_exec(bContext &C, wmOperator & /*op*/)
 {
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const ViewContext vc = ED_view3d_viewcontext_init(&C, CTX_data_depsgraph_pointer(C));
+  const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
 
   ed::greasepencil::selection_update(&vc,
                                      SEL_OP_ADD,
@@ -381,7 +381,7 @@ static wmOperatorStatus select_more_exec(bContext &C, wmOperator & /*op*/)
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
    * attribute for now. */
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -402,7 +402,7 @@ static wmOperatorStatus select_less_exec(bContext &C, wmOperator & /*op*/)
 {
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const ViewContext vc = ED_view3d_viewcontext_init(&C, CTX_data_depsgraph_pointer(C));
+  const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
 
   ed::greasepencil::selection_update(&vc,
                                      SEL_OP_SUB,
@@ -417,7 +417,7 @@ static wmOperatorStatus select_less_exec(bContext &C, wmOperator & /*op*/)
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
    * attribute for now. */
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -454,7 +454,7 @@ static wmOperatorStatus select_linked_exec(bContext &C, wmOperator & /*op*/)
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
    * attribute for now. */
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -481,7 +481,7 @@ static wmOperatorStatus select_random_exec(bContext &C, wmOperator &op)
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(scene->toolsettings,
                                                                            object);
-  const ViewContext vc = ED_view3d_viewcontext_init(&C, CTX_data_depsgraph_pointer(C));
+  const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
 
   /* Note: For segment selection this doesn't work very well, because it is based on random point
    * selection. A segment has a high probability of getting at least one selected point and be
@@ -511,7 +511,7 @@ static wmOperatorStatus select_random_exec(bContext &C, wmOperator &op)
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
    * attribute for now. */
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -545,7 +545,7 @@ static wmOperatorStatus select_alternate_exec(bContext &C, wmOperator &op)
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
    * attribute for now. */
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -786,7 +786,7 @@ static wmOperatorStatus select_similar_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -815,7 +815,7 @@ static wmOperatorStatus select_ends_exec(bContext &C, wmOperator &op)
   const int amount_end = RNA_int_get(op.ptr, "amount_end");
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const ViewContext vc = ED_view3d_viewcontext_init(&C, CTX_data_depsgraph_pointer(C));
+  const ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
 
   ed::greasepencil::selection_update(
       &vc,
@@ -833,7 +833,7 @@ static wmOperatorStatus select_ends_exec(bContext &C, wmOperator &op)
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
    * attribute for now. */
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -960,7 +960,7 @@ static wmOperatorStatus select_set_mode_exec(bContext &C, wmOperator &op)
      * attribute for now. */
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
     WM_main_add_notifier(NC_SPACE | ND_SPACE_VIEW3D, nullptr);
   }
@@ -1038,7 +1038,7 @@ static wmOperatorStatus grease_pencil_material_select_exec(bContext &C, wmOperat
   });
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA | NA_EDITED, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }

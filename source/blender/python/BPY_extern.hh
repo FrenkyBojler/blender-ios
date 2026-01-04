@@ -71,7 +71,7 @@ void BPY_text_free_code(Text *text);
  * Needed so the #Main pointer in `bpy.data` doesn't become out of date.
  */
 void BPY_modules_update();
-void BPY_modules_load_user(bContext *C);
+void BPY_modules_load_user(bContext &C);
 
 void BPY_app_handlers_reset(bool do_all);
 
@@ -103,7 +103,7 @@ void BPY_driver_reset();
 void BPY_DECREF(void *pyob_ptr);
 
 void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr);
-[[nodiscard]] bool BPY_context_member_get(bContext *C,
+[[nodiscard]] bool BPY_context_member_get(bContext &C,
                                           const char *member,
                                           bContextDataResult *result);
 void BPY_context_set(bContext *C);

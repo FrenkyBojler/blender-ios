@@ -280,8 +280,8 @@ static wmOperatorStatus bake_grease_pencil_animation_exec(bContext &C, wmOperato
   DEG_relations_tag_update(&bmain);
   DEG_id_tag_update(&scene.id, ID_RECALC_SELECT);
   DEG_id_tag_update(&target.id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_OBJECT | NA_ADDED, nullptr);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, &scene);
+  WM_event_add_notifier(C, NC_OBJECT | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, &scene);
 
   WM_cursor_wait(false);
   return OPERATOR_FINISHED;

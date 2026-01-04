@@ -36,7 +36,7 @@ bool wm_gizmo_select_set_ex(
     wmGizmoMap *gzmap, wmGizmo *gz, bool select, bool use_array, bool use_callback);
 bool wm_gizmo_select_and_highlight(bContext *C, wmGizmoMap *gzmap, wmGizmo *gz);
 
-void wm_gizmo_calculate_scale(wmGizmo *gz, const bContext *C);
+void wm_gizmo_calculate_scale(wmGizmo *gz, const bContext &C);
 void wm_gizmo_update(wmGizmo *gz, const bContext *C, bool refresh_map);
 
 int wm_gizmo_is_visible(wmGizmo *gz);

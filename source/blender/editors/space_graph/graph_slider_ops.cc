@@ -127,7 +127,7 @@ static void apply_fcu_segment_function(bAnimContext *ac,
 
 static void common_draw_status_header(bContext *C, tGraphSliderOp *gso)
 {
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
@@ -240,10 +240,10 @@ static float slider_factor_get_and_remember(wmOperator *op)
 /** \name Common Modal Functions
  * \{ */
 
-static void graph_slider_exit(bContext *C, wmOperator *op)
+static void graph_slider_exit(bContext &C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
   /* If data exists, clear its data and exit. */
   if (gso == nullptr) {
@@ -257,7 +257,7 @@ static void graph_slider_exit(bContext *C, wmOperator *op)
   ScrArea *area = gso->area;
   LinkData *link;
 
-  ED_slider_destroy(C, gso->slider);
+  ED_slider_destroy(&C, gso->slider);
 
   for (link = static_cast<LinkData *>(gso->bezt_arr_list.first); link != nullptr;
        link = link->next)
@@ -312,7 +312,7 @@ static wmOperatorStatus graph_slider_modal(bContext &C, wmOperator &op, const wm
     case EVT_RETKEY:
     case EVT_PADENTER: {
       if (event->val == KM_PRESS) {
-        graph_slider_exit(&C, &op);
+        graph_slider_exit(C, &op);
 
         return OPERATOR_FINISHED;
       }
@@ -329,9 +329,9 @@ static wmOperatorStatus graph_slider_modal(bContext &C, wmOperator &op, const wm
          * the state prior to calling reset_bezt. */
         update_depsgraph(gso);
 
-        WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+        WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
-        graph_slider_exit(&C, &op);
+        graph_slider_exit(C, &op);
 
         return OPERATOR_CANCELLED;
       }
@@ -382,11 +382,11 @@ static wmOperatorStatus graph_slider_modal(bContext &C, wmOperator &op, const wm
 }
 
 /* Allocate tGraphSliderOp and assign to op->customdata. */
-static wmOperatorStatus graph_slider_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus graph_slider_invoke(bContext &C, wmOperator *op, const wmEvent *event)
 {
   tGraphSliderOp *gso;
 
-  WM_cursor_modal_set(CTX_wm_window(*C), WM_CURSOR_EW_SCROLL);
+  WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_EW_SCROLL);
 
   /* Init slide-op data. */
   gso = static_cast<tGraphSliderOp *>(
@@ -399,9 +399,9 @@ static wmOperatorStatus graph_slider_invoke(bContext *C, wmOperator *op, const w
   }
   gso->ac.reports = op->reports;
 
-  gso->scene = CTX_data_scene(*C);
-  gso->area = CTX_wm_area(*C);
-  gso->region = CTX_wm_region(*C);
+  gso->scene = CTX_data_scene(C);
+  gso->area = CTX_wm_area(C);
+  gso->region = CTX_wm_region(C);
 
   store_original_bezt_arrays(gso);
 
@@ -454,7 +454,7 @@ static void decimate_graph_keys(bAnimContext *ac, float factor, float error_sq_m
 /* Draw a percentage indicator in workspace footer. */
 static void decimate_draw_status(bContext *C, tGraphSliderOp *gso)
 {
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
@@ -484,12 +484,12 @@ static void decimate_modal_update(bContext *C, wmOperator *op)
   /* We don't want to limit the decimation to a certain error margin. */
   const float error_sq_max = FLT_MAX;
   decimate_graph_keys(&gso->ac, factor, error_sq_max);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus decimate_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return OPERATOR_CANCELLED;
@@ -508,7 +508,7 @@ static wmOperatorStatus decimate_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -538,7 +538,7 @@ static wmOperatorStatus decimate_exec(bContext &C, wmOperator &op)
   decimate_graph_keys(&ac, factor, error_sq_max);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -657,12 +657,12 @@ static void blend_to_neighbor_modal_update(bContext *C, wmOperator *op)
   const float factor = slider_factor_get_and_remember(op);
   blend_to_neighbor_graph_keys(&gso->ac, factor);
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus blend_to_neighbor_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -682,7 +682,7 @@ static wmOperatorStatus blend_to_neighbor_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -691,7 +691,7 @@ static wmOperatorStatus blend_to_neighbor_exec(bContext &C, wmOperator &op)
   blend_to_neighbor_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -744,12 +744,12 @@ static void breakdown_modal_update(bContext *C, wmOperator *op)
   reset_bezts(gso);
   const float factor = slider_factor_get_and_remember(op);
   breakdown_graph_keys(&gso->ac, factor);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus breakdown_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -769,7 +769,7 @@ static wmOperatorStatus breakdown_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -778,7 +778,7 @@ static wmOperatorStatus breakdown_exec(bContext &C, wmOperator &op)
   breakdown_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -851,12 +851,12 @@ static void blend_to_default_modal_update(bContext *C, wmOperator *op)
   const float factor = ED_slider_factor_get(gso->slider);
   RNA_property_float_set(op->ptr, gso->factor_prop, factor);
   blend_to_default_graph_keys(&gso->ac, factor);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus blend_to_default_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -875,7 +875,7 @@ static wmOperatorStatus blend_to_default_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -884,7 +884,7 @@ static wmOperatorStatus blend_to_default_exec(bContext &C, wmOperator &op)
   blend_to_default_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -946,7 +946,7 @@ static void ease_graph_keys(bAnimContext *ac, const float factor, const float wi
 static void ease_draw_status_header(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
@@ -987,7 +987,7 @@ static void ease_modal_update(bContext *C, wmOperator *op)
   }
 
   ease_graph_keys(&gso->ac, factor, width);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus ease_modal(bContext &C, wmOperator &op, const wmEvent *event)
@@ -1029,7 +1029,7 @@ static wmOperatorStatus ease_modal(bContext &C, wmOperator &op, const wmEvent *e
 
 static wmOperatorStatus ease_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1051,7 +1051,7 @@ static wmOperatorStatus ease_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1060,7 +1060,7 @@ static wmOperatorStatus ease_exec(bContext &C, wmOperator &op)
 
   ease_graph_keys(&ac, factor, width);
 
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1128,12 +1128,12 @@ static void blend_offset_modal_update(bContext *C, wmOperator *op)
   reset_bezts(gso);
   const float factor = slider_factor_get_and_remember(op);
   blend_offset_graph_keys(&gso->ac, factor);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus blend_offset_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1154,7 +1154,7 @@ static wmOperatorStatus blend_offset_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1163,7 +1163,7 @@ static wmOperatorStatus blend_offset_exec(bContext &C, wmOperator &op)
   blend_offset_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1221,12 +1221,12 @@ static void blend_to_ease_modal_update(bContext *C, wmOperator *op)
   reset_bezts(gso);
   const float factor = slider_factor_get_and_remember(op);
   blend_to_ease_graph_keys(&gso->ac, factor);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus blend_to_ease_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1248,7 +1248,7 @@ static wmOperatorStatus blend_to_ease_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1257,7 +1257,7 @@ static wmOperatorStatus blend_to_ease_exec(bContext &C, wmOperator &op)
   blend_to_ease_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1345,12 +1345,12 @@ static void match_slope_modal_update(bContext *C, wmOperator *op)
   reset_bezts(gso);
   const float factor = slider_factor_get_and_remember(op);
   match_slope_graph_keys(&gso->ac, factor);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus match_slope_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1372,7 +1372,7 @@ static wmOperatorStatus match_slope_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   ac.reports = op.reports;
@@ -1382,7 +1382,7 @@ static wmOperatorStatus match_slope_exec(bContext &C, wmOperator &op)
   match_slope_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1438,12 +1438,12 @@ static void time_offset_modal_update(bContext *C, wmOperator *op)
   reset_bezts(gso);
   const float factor = slider_factor_get_and_remember(op);
   time_offset_graph_keys(&gso->ac, factor);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus time_offset_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1467,7 +1467,7 @@ static wmOperatorStatus time_offset_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1476,7 +1476,7 @@ static wmOperatorStatus time_offset_exec(bContext &C, wmOperator &op)
   time_offset_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1552,7 +1552,7 @@ static void shear_graph_keys(bAnimContext *ac, const float factor, tShearDirecti
 
 static void shear_draw_status_header(bContext *C, tGraphSliderOp *gso, tShearDirection direction)
 {
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
@@ -1583,7 +1583,7 @@ static void shear_modal_update(bContext *C, wmOperator *op)
   shear_draw_status_header(C, gso, direction);
 
   shear_graph_keys(&gso->ac, factor, direction);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus shear_modal(bContext &C, wmOperator &op, const wmEvent *event)
@@ -1611,7 +1611,7 @@ static wmOperatorStatus shear_modal(bContext &C, wmOperator &op, const wmEvent *
 
 static wmOperatorStatus shear_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1634,7 +1634,7 @@ static wmOperatorStatus shear_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1644,7 +1644,7 @@ static wmOperatorStatus shear_exec(bContext &C, wmOperator &op)
   shear_graph_keys(&ac, factor, direction);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1704,12 +1704,12 @@ static void scale_average_modal_update(bContext *C, wmOperator *op)
   reset_bezts(gso);
   const float factor = slider_factor_get_and_remember(op);
   scale_average_graph_keys(&gso->ac, factor);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus scale_average_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1730,7 +1730,7 @@ static wmOperatorStatus scale_average_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1739,7 +1739,7 @@ static wmOperatorStatus scale_average_exec(bContext &C, wmOperator &op)
   scale_average_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1870,7 +1870,7 @@ static void gaussian_smooth_modal_update(bContext *C, wmOperator *op)
 
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return;
   }
 
@@ -1896,12 +1896,12 @@ static void gaussian_smooth_modal_update(bContext *C, wmOperator *op)
   }
 
   ANIM_animdata_update(&ac, &operator_data->anim_data);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus gaussian_smooth_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -1964,7 +1964,7 @@ static wmOperatorStatus gaussian_smooth_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   const float factor = RNA_float_get(op.ptr, "factor");
@@ -1978,7 +1978,7 @@ static wmOperatorStatus gaussian_smooth_exec(bContext &C, wmOperator &op)
   MEM_freeN(kernel);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2114,7 +2114,7 @@ static void btw_smooth_modal_update(bContext *C, wmOperator *op)
 
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return;
   }
 
@@ -2148,12 +2148,12 @@ static void btw_smooth_modal_update(bContext *C, wmOperator *op)
   }
 
   ANIM_animdata_update(&ac, &operator_data->anim_data);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus btw_smooth_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -2231,7 +2231,7 @@ static wmOperatorStatus btw_smooth_exec(bContext &C, wmOperator &op)
 {
   bAnimContext ac;
 
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   const float blend = RNA_float_get(op.ptr, "blend");
@@ -2243,7 +2243,7 @@ static wmOperatorStatus btw_smooth_exec(bContext &C, wmOperator &op)
       &ac, blend, blend_in_out, cutoff_frequency, filter_order, samples_per_frame);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2335,12 +2335,12 @@ static void push_pull_modal_update(bContext *C, wmOperator *op)
   reset_bezts(gso);
   const float factor = slider_factor_get_and_remember(op);
   push_pull_graph_keys(&gso->ac, factor);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus push_pull_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return invoke_result;
@@ -2361,7 +2361,7 @@ static wmOperatorStatus push_pull_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2370,7 +2370,7 @@ static wmOperatorStatus push_pull_exec(bContext &C, wmOperator &op)
   push_pull_graph_keys(&ac, factor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2440,7 +2440,7 @@ static void scale_from_neighbor_graph_keys(bAnimContext *ac,
 static void scale_from_neighbor_draw_status_header(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
@@ -2474,7 +2474,7 @@ static void scale_from_neighbor_modal_update(bContext *C, wmOperator *op)
   const float factor = slider_factor_get_and_remember(op);
   const FCurveSegmentAnchor anchor = FCurveSegmentAnchor(RNA_enum_get(op->ptr, "anchor"));
   scale_from_neighbor_graph_keys(&gso->ac, factor, anchor);
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus scale_from_neighbor_modal(bContext &C,
@@ -2511,7 +2511,7 @@ static wmOperatorStatus scale_from_neighbor_invoke(bContext &C,
                                                    wmOperator &op,
                                                    const wmEvent *event)
 {
-  const wmOperatorStatus invoke_result = graph_slider_invoke(&C, &op, event);
+  const wmOperatorStatus invoke_result = graph_slider_invoke(C, &op, event);
 
   if (invoke_result == OPERATOR_CANCELLED) {
     return OPERATOR_CANCELLED;
@@ -2532,7 +2532,7 @@ static wmOperatorStatus scale_from_neighbor_exec(bContext &C, wmOperator &op)
   bAnimContext ac;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(&C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2542,7 +2542,7 @@ static wmOperatorStatus scale_from_neighbor_exec(bContext &C, wmOperator &op)
   scale_from_neighbor_graph_keys(&ac, factor, anchor);
 
   /* Set notifier that keyframes have changed. */
-  WM_event_add_notifier(&C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }

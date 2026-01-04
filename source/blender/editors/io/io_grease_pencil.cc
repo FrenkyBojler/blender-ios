@@ -97,12 +97,12 @@ static void grease_pencil_export_common_props_definition(wmOperatorType *ot)
 /* Note: Region data is found using "big area" functions, rather than context. This is necessary
  * since export operators are not always invoked from a View3D. This enables the operator to find
  * the most relevant 3D view for projection of strokes. */
-static bool get_invoke_region(bContext *C,
+static bool get_invoke_region(bContext &C,
                               ARegion **r_region,
                               View3D **r_view3d,
                               RegionView3D **r_rv3d)
 {
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
   if (screen == nullptr) {
     return false;
   }
@@ -157,7 +157,7 @@ static wmOperatorStatus grease_pencil_import_svg_exec(bContext &C, wmOperator &o
   ARegion *region;
   View3D *v3d;
   RegionView3D *rv3d;
-  if (!get_invoke_region(&C, &region, &v3d, &rv3d)) {
+  if (!get_invoke_region(C, &region, &v3d, &rv3d)) {
     BKE_report(op.reports, RPT_ERROR, "Unable to find valid 3D View area");
     return OPERATOR_CANCELLED;
   }
@@ -308,7 +308,7 @@ static wmOperatorStatus grease_pencil_export_svg_exec(bContext &C, wmOperator &o
   ARegion *region;
   View3D *v3d;
   RegionView3D *rv3d;
-  if (!get_invoke_region(&C, &region, &v3d, &rv3d)) {
+  if (!get_invoke_region(C, &region, &v3d, &rv3d)) {
     BKE_report(op.reports, RPT_ERROR, "Unable to find valid 3D View area");
     return OPERATOR_CANCELLED;
   }
@@ -505,7 +505,7 @@ static wmOperatorStatus grease_pencil_export_pdf_exec(bContext &C, wmOperator &o
   ARegion *region;
   View3D *v3d;
   RegionView3D *rv3d;
-  if (!get_invoke_region(&C, &region, &v3d, &rv3d)) {
+  if (!get_invoke_region(C, &region, &v3d, &rv3d)) {
     BKE_report(op.reports, RPT_ERROR, "Unable to find valid 3D View area");
     return OPERATOR_CANCELLED;
   }

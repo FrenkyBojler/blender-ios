@@ -1092,7 +1092,7 @@ Block *block_func_COLOR(bContext *C, PopupBlockHandle *handle, void *arg_but)
   Button *but = static_cast<Button *>(arg_but);
   Block *block;
 
-  block = block_begin(C, handle->region, __func__, EmbossType::Emboss);
+  block = block_begin(*C, handle->region, __func__, EmbossType::Emboss);
 
   if (button_is_color_gamma(but)) {
     block->is_color_gamma_picker = true;

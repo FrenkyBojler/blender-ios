@@ -457,10 +457,10 @@ static bool area_is_pseudo_minimized(const ScrArea *area)
   return (area->winx < 3) || (area->winy < 3);
 }
 
-void ED_region_do_layout(bContext *C, ARegion *region)
+void ED_region_do_layout(bContext &C, ARegion *region)
 {
   /* This is optional, only needed for dynamically sized regions. */
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   ARegionType *at = region->runtime->type;
 
   if (!at->layout) {
@@ -474,17 +474,17 @@ void ED_region_do_layout(bContext *C, ARegion *region)
   region->runtime->do_draw |= RGN_DRAWING;
 
   blender::ui::theme::theme_set(area ? area->spacetype : 0, at->regionid);
-  at->layout(C, region);
+  at->layout(&C, region);
 
   /* Clear temporary update flag. */
   region->flag &= ~RGN_FLAG_SEARCH_FILTER_UPDATE;
 }
 
-void ED_region_do_draw(bContext *C, ARegion *region)
+void ED_region_do_draw(bContext &C, ARegion *region)
 {
   using namespace blender;
-  wmWindow *win = CTX_wm_window(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *area = CTX_wm_area(C);
   ARegionType *at = region->runtime->type;
 
   /* see BKE_spacedata_draw_locks() */
@@ -510,7 +510,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
     region_draw_status_text(area, region);
   }
   else if (at->draw) {
-    at->draw(C, region);
+    at->draw(&C, region);
   }
 
   /* XXX test: add convention to end regions always in pixel space,
@@ -521,7 +521,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
   blender::gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
   GPU_framebuffer_bind(fb);
 
-  ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_PIXEL);
+  ED_region_draw_cb_draw(&C, region, REGION_DRAW_POST_PIXEL);
 
   region_draw_azones(area, region);
 
@@ -544,7 +544,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
 
   region->runtime->drawrct = rcti{};
 
-  blender::ui::blocklist_free_inactive(C, region);
+  blender::ui::blocklist_free_inactive(&C, region);
 
   if (area) {
     const bScreen *screen = WM_window_get_active_screen(win);
@@ -577,10 +577,10 @@ void ED_region_do_draw(bContext *C, ARegion *region)
 
   /* We may want to detach message-subscriptions from drawing. */
   {
-    WorkSpace *workspace = CTX_wm_workspace(*C);
-    wmWindowManager *wm = CTX_wm_manager(*C);
+    WorkSpace *workspace = CTX_wm_workspace(C);
+    wmWindowManager *wm = CTX_wm_manager(C);
     bScreen *screen = WM_window_get_active_screen(win);
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     wmMsgBus *mbus = wm->runtime->message_bus;
     WM_msgbus_clear_by_owner(mbus, region);
 
@@ -603,7 +603,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
     }
 
     wmRegionMessageSubscribeParams message_subscribe_params{};
-    message_subscribe_params.context = C;
+    message_subscribe_params.context = &C;
     message_subscribe_params.message_bus = mbus;
     message_subscribe_params.workspace = workspace;
     message_subscribe_params.scene = scene;
@@ -913,14 +913,14 @@ static void ed_workspace_status_space(WorkSpace *workspace, const float space_fa
   ed_workspace_status_item(workspace, {}, ICON_NONE, space_factor);
 }
 
-WorkspaceStatus::WorkspaceStatus(bContext *C)
+WorkspaceStatus::WorkspaceStatus(bContext &C)
 {
-  workspace_ = CTX_wm_workspace(*C);
-  wm_ = CTX_wm_manager(*C);
+  workspace_ = CTX_wm_workspace(C);
+  wm_ = CTX_wm_manager(C);
   if (workspace_) {
     BKE_workspace_status_clear(workspace_);
   }
-  ED_area_tag_redraw(WM_window_status_area_find(CTX_wm_window(*C), CTX_wm_screen(*C)));
+  ED_area_tag_redraw(WM_window_status_area_find(CTX_wm_window(C), CTX_wm_screen(C)));
 }
 
 /* -------------------------------------------------------------------- */
@@ -1027,7 +1027,7 @@ void WorkspaceStatus::opmodal(std::string text,
 
 void ED_workspace_status_text(bContext *C, const char *str)
 {
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
   status.item(str ? str : "", ICON_NONE);
 }
 
@@ -2169,9 +2169,9 @@ void ED_area_and_region_types_init(ScrArea *area)
   }
 }
 
-void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
+void ED_area_init(bContext &C, const wmWindow *win, ScrArea *area)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   WorkSpace *workspace = WM_window_get_active_workspace(win);
   const bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
   const Scene *scene = WM_window_get_active_scene(win);
@@ -2371,7 +2371,7 @@ void ED_region_visibility_change_update_ex(
     bContext *C, ScrArea *area, ARegion *region, bool is_hidden, bool do_init)
 {
   if (is_hidden) {
-    WM_event_remove_handlers(C, &region->runtime->handlers);
+    WM_event_remove_handlers(*C, &region->runtime->handlers);
     /* Needed to close any open pop-overs which would otherwise remain open,
      * crashing on attempting to refresh. See: #93410.
      *
@@ -2381,7 +2381,7 @@ void ED_region_visibility_change_update_ex(
   }
 
   if (do_init) {
-    ED_area_init(C, CTX_wm_window(*C), area);
+    ED_area_init(*C, CTX_wm_window(*C), area);
     ED_area_tag_redraw(area);
   }
 }
@@ -2393,9 +2393,9 @@ void ED_region_visibility_change_update(bContext *C, ScrArea *area, ARegion *reg
   ED_region_visibility_change_update_ex(C, area, region, is_hidden, do_init);
 }
 
-void region_toggle_hidden(bContext *C, ARegion *region, const bool do_fade)
+void region_toggle_hidden(bContext &C, ARegion *region, const bool do_fade)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
   region->flag ^= RGN_FLAG_HIDDEN;
 
@@ -2404,13 +2404,13 @@ void region_toggle_hidden(bContext *C, ARegion *region, const bool do_fade)
     ED_region_visibility_change_update_animated(C, area, region);
   }
   else {
-    ED_region_visibility_change_update(C, area, region);
+    ED_region_visibility_change_update(&C, area, region);
   }
 }
 
 void ED_region_toggle_hidden(bContext *C, ARegion *region)
 {
-  region_toggle_hidden(C, region, true);
+  region_toggle_hidden(*C, region, true);
 }
 
 void ED_area_data_copy(ScrArea *area_dst, ScrArea *area_src, const bool do_free)
@@ -2674,10 +2674,10 @@ static void region_align_info_to_area(
 
 /* *********** Space switching code *********** */
 
-void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
+void ED_area_swapspace(bContext &C, ScrArea *sa1, ScrArea *sa2)
 {
   ScrArea *tmp = MEM_new_for_free<ScrArea>(__func__);
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
   ED_area_exit(C, sa1);
   ED_area_exit(C, sa2);
@@ -2694,7 +2694,7 @@ void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
   /* The areas being swapped could be between different windows,
    * so clear screen active region pointers. This is set later
    * through regular operations. #141313. */
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   for (wmWindow &win : wm->windows) {
     if (bScreen *screen = WM_window_get_active_screen(&win)) {
       screen->active_region = nullptr;
@@ -2710,9 +2710,9 @@ void ED_area_swapspace(bContext *C, ScrArea *sa1, ScrArea *sa2)
   ED_area_tag_refresh(sa2);
 }
 
-void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_region_exit)
+void ED_area_newspace(bContext &C, ScrArea *area, int type, const bool skip_region_exit)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   SpaceType *st = BKE_spacetype_from_id(type);
 
   if (area->spacetype != type) {
@@ -2838,9 +2838,9 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
    * specifying a subtype (assumed zero) and we don't want to use the old subtype. */
   area->butspacetype_subtype = 0;
 
-  if (BLI_listbase_is_single(&CTX_wm_screen(*C)->areabase)) {
+  if (BLI_listbase_is_single(&CTX_wm_screen(C)->areabase)) {
     /* If there is only one area update the window title. */
-    WM_window_title_refresh(CTX_wm_manager(*C), CTX_wm_window(*C));
+    WM_window_title_refresh(CTX_wm_manager(C), CTX_wm_window(C));
   }
 
   /* See #WM_capabilities_flag code-comments for details on the background check. */
@@ -2885,7 +2885,7 @@ void ED_area_prevspace(bContext *C, ScrArea *area)
   if (prevspace) {
     /* Specify that we want last-used if there are subtypes. */
     area->butspacetype_subtype = -1;
-    ED_area_newspace(C, area, prevspace->spacetype, false);
+    ED_area_newspace(*C, area, prevspace->spacetype, false);
     /* We've exited the space, so it can't be considered temporary anymore. */
     sl->link_flag &= ~SPACE_FLAG_TYPE_TEMPORARY;
   }
@@ -2900,13 +2900,13 @@ void ED_area_prevspace(bContext *C, ScrArea *area)
   ED_area_tag_redraw(area);
 
   /* send space change notifier */
-  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CHANGED, area);
+  WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_CHANGED, area);
 }
 
-int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, int yco)
+int ED_area_header_switchbutton(const bContext &C, blender::ui::Block *block, int yco)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  bScreen *screen = CTX_wm_screen(*C);
+  ScrArea *area = CTX_wm_area(C);
+  bScreen *screen = CTX_wm_screen(C);
   int xco = 0.4 * U.widget_unit;
 
   PointerRNA areaptr = RNA_pointer_create_discrete(&(screen->id), &RNA_Area, area);
@@ -2947,7 +2947,7 @@ void ED_region_clear(const bContext *C, const ARegion *region, const int /*Theme
 {
   if (region->overlap) {
     /* view should be in pixelspace */
-    blender::ui::view2d_view_restore(C);
+    blender::ui::view2d_view_restore(*C);
 
     float back[4];
     blender::ui::theme::get_color_4fv(colorid, back);
@@ -2961,7 +2961,7 @@ void ED_region_clear(const bContext *C, const ARegion *region, const int /*Theme
 static void region_clear_fully_transparent(const bContext *C)
 {
   /* view should be in pixelspace */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   GPU_clear_color(0, 0, 0, 0);
 }
@@ -3007,7 +3007,7 @@ static void ed_panel_draw(const bContext *C,
   else {
     STRNCPY_UTF8(block_name, pt->idname);
   }
-  blender::ui::Block *block = block_begin(C, region, block_name, blender::ui::EmbossType::Emboss);
+  blender::ui::Block *block = block_begin(*C, region, block_name, blender::ui::EmbossType::Emboss);
 
   bool open;
   panel = panel_begin(region, lb, block, pt, panel, &open);
@@ -3133,7 +3133,7 @@ static void ed_panel_draw(const bContext *C,
     }
   }
 
-  block_end(C, block);
+  block_end(*C, block);
 
   /* Draw child panels. */
   if (open || search_filter_active) {
@@ -3236,7 +3236,7 @@ static int panel_draw_width_from_max_width_get(const ARegion *region,
              max_width;
 }
 
-void ED_region_panels_layout_ex(const bContext *C,
+void ED_region_panels_layout_ex(const bContext &C,
                                 ARegion *region,
                                 ListBaseT<PanelType> *paneltypes,
                                 blender::wm::OpCallContext op_context,
@@ -3244,17 +3244,17 @@ void ED_region_panels_layout_ex(const bContext *C,
                                 const char *category_override)
 {
   /* collect panels to draw */
-  WorkSpace *workspace = CTX_wm_workspace(*C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
   LinkNode *panel_types_stack = nullptr;
   for (PanelType &pt : paneltypes->items_reversed()) {
-    if (panel_add_check(C, workspace, contexts, category_override, &pt)) {
+    if (panel_add_check(&C, workspace, contexts, category_override, &pt)) {
       BLI_linklist_prepend_alloca(&panel_types_stack, &pt);
     }
   }
 
   region->runtime->category = nullptr;
 
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   View2D *v2d = &region->v2d;
 
   bool use_categories = (category_override == nullptr) &&
@@ -3298,7 +3298,7 @@ void ED_region_panels_layout_ex(const bContext *C,
   const int em = (region->runtime->type->prefsizex) ? 10 : 20;
 
   /* create panels */
-  blender::ui::panels_begin(C, region);
+  blender::ui::panels_begin(&C, region);
 
   /* Get search string for property search. */
   const char *search_filter = ED_area_region_search_filter_get(area, region);
@@ -3329,7 +3329,7 @@ void ED_region_panels_layout_ex(const bContext *C,
     }
 
     ed_panel_draw(
-        C, region, &region->panels, pt, panel, width, em, nullptr, search_filter, op_context);
+        &C, region, &region->panels, pt, panel, width, em, nullptr, search_filter, op_context);
   }
 
   /* Draw "poly-instantiated" panels that don't have a 1 to 1 correspondence with their types. */
@@ -3344,7 +3344,7 @@ void ED_region_panels_layout_ex(const bContext *C,
       if (use_categories && panel.type->category[0] && !STREQ(category, panel.type->category)) {
         continue;
       }
-      if (!panel_add_check(C, workspace, contexts, category_override, panel.type)) {
+      if (!panel_add_check(&C, workspace, contexts, category_override, panel.type)) {
         continue;
       }
 
@@ -3359,7 +3359,7 @@ void ED_region_panels_layout_ex(const bContext *C,
        * panel of the same type might be found. */
       char unique_panel_str[INSTANCED_PANEL_UNIQUE_STR_SIZE];
       blender::ui::list_panel_unique_str(&panel, unique_panel_str);
-      ed_panel_draw(C,
+      ed_panel_draw(&C,
                     region,
                     &region->panels,
                     panel.type,
@@ -3412,7 +3412,7 @@ void ED_region_panels_layout_ex(const bContext *C,
     y = -y;
   }
 
-  blender::ui::blocklist_update_view_for_buttons(C, &region->runtime->uiblocks);
+  blender::ui::blocklist_update_view_for_buttons(&C, &region->runtime->uiblocks);
 
   if (update_tot_size) {
     /* this also changes the 'cur' */
@@ -3530,7 +3530,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area,
 
 void ED_region_panels_layout(const bContext *C, ARegion *region)
 {
-  ED_region_panels_layout_ex(C,
+  ED_region_panels_layout_ex(*C,
                              region,
                              &region->runtime->type->paneltypes,
                              blender::wm::OpCallContext::InvokeRegionWin,
@@ -3558,7 +3558,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   blender::ui::view2d_view_ortho(v2d);
 
   /* View2D matrix might have changed due to dynamic sized regions. */
-  blender::ui::blocklist_update_window_matrix(C, &region->runtime->uiblocks);
+  blender::ui::blocklist_update_window_matrix(*C, &region->runtime->uiblocks);
 
   /* draw panels if they are large enough. */
   const bool has_category_tabs = blender::ui::panel_category_tabs_is_visible(region);
@@ -3569,7 +3569,7 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   }
 
   /* restore view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   /* Set in layout. */
   if (has_category_tabs && region->runtime->category) {
@@ -3614,7 +3614,7 @@ void ED_region_panels_ex(const bContext *C,
 {
   /* TODO: remove? */
   ED_region_panels_layout_ex(
-      C, region, &region->runtime->type->paneltypes, op_context, contexts, nullptr);
+      *C, region, &region->runtime->type->paneltypes, op_context, contexts, nullptr);
   ED_region_panels_draw(C, region);
 }
 
@@ -3659,7 +3659,7 @@ static bool panel_property_search(const bContext *C,
                                   const char *search_filter)
 {
   blender::ui::Block *block = block_begin(
-      C, region, panel_type->idname, blender::ui::EmbossType::Emboss);
+      *C, region, panel_type->idname, blender::ui::EmbossType::Emboss);
   block_set_search_only(block, true);
 
   /* Skip panels that give meaningless search results. */
@@ -3734,20 +3734,20 @@ static bool panel_property_search(const bContext *C,
   return false;
 }
 
-bool ED_region_property_search(const bContext *C,
+bool ED_region_property_search(const bContext &C,
                                ARegion *region,
                                ListBaseT<PanelType> *paneltypes,
                                const char *contexts[],
                                const char *category_override)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  WorkSpace *workspace = CTX_wm_workspace(*C);
+  ScrArea *area = CTX_wm_area(C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
   const uiStyle *style = blender::ui::style_get_dpi();
   const char *search_filter = ED_area_region_search_filter_get(area, region);
 
   LinkNode *panel_types_stack = nullptr;
   for (PanelType &pt : paneltypes->items_reversed()) {
-    if (panel_add_check(C, workspace, contexts, category_override, &pt)) {
+    if (panel_add_check(&C, workspace, contexts, category_override, &pt)) {
       BLI_linklist_prepend_alloca(&panel_types_stack, &pt);
     }
   }
@@ -3778,7 +3778,7 @@ bool ED_region_property_search(const bContext *C,
 
     /* We start property search with an empty panel list, so there's
      * no point in trying to find an existing panel with this type. */
-    has_result = panel_property_search(C, region, style, nullptr, panel_type, search_filter);
+    has_result = panel_property_search(&C, region, style, nullptr, panel_type, search_filter);
     if (has_result) {
       break;
     }
@@ -3797,7 +3797,7 @@ bool ED_region_property_search(const bContext *C,
         }
       }
 
-      has_result = panel_property_search(C, region, style, &panel, panel.type, search_filter);
+      has_result = panel_property_search(&C, region, style, &panel, panel.type, search_filter);
       if (has_result) {
         break;
       }
@@ -3805,8 +3805,8 @@ bool ED_region_property_search(const bContext *C,
   }
 
   /* Free the panels and blocks, as they are only used for search. */
-  blender::ui::blocklist_free(C, region);
-  blender::ui::panels_free_instanced(C, region);
+  blender::ui::blocklist_free(&C, region);
+  blender::ui::panels_free_instanced(&C, region);
   BKE_area_region_panels_free(&region->panels);
 
   return has_result;
@@ -3837,7 +3837,8 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
       continue;
     }
 
-    blender::ui::Block *block = block_begin(C, region, ht.idname, blender::ui::EmbossType::Emboss);
+    blender::ui::Block *block = block_begin(
+        *C, region, ht.idname, blender::ui::EmbossType::Emboss);
     blender::ui::Layout &layout = blender::ui::block_layout(
         block,
         blender::ui::LayoutDirection::Horizontal,
@@ -3882,7 +3883,7 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
       ED_area_tag_region_size_update(area, region);
     }
 
-    block_end(C, block);
+    block_end(*C, block);
 
     /* In most cases there is only ever one header, it never makes sense to draw more than one
      * header in the same region, this results in overlapping buttons, see: #60195. */
@@ -3897,7 +3898,7 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
   blender::ui::view2d_totRect_set(&region->v2d, maxco, region->winy);
 
   /* Restore view matrix. */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 }
 
 static void region_draw_blocks_in_view2d(const bContext *C, const ARegion *region)
@@ -3905,13 +3906,13 @@ static void region_draw_blocks_in_view2d(const bContext *C, const ARegion *regio
   blender::ui::view2d_view_ortho(&region->v2d);
 
   /* View2D matrix might have changed due to dynamic sized regions. */
-  blender::ui::blocklist_update_window_matrix(C, &region->runtime->uiblocks);
+  blender::ui::blocklist_update_window_matrix(*C, &region->runtime->uiblocks);
 
   /* draw blocks */
   blender::ui::blocklist_draw(C, &region->runtime->uiblocks);
 
   /* restore view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 }
 
 void ED_region_header_draw(const bContext *C, ARegion *region)
@@ -4001,10 +4002,10 @@ bool ED_area_is_global(const ScrArea *area)
   return area->global != nullptr;
 }
 
-ScrArea *ED_area_find_under_cursor(const bContext *C, int spacetype, const int event_xy[2])
+ScrArea *ED_area_find_under_cursor(const bContext &C, int spacetype, const int event_xy[2])
 {
-  bScreen *screen = CTX_wm_screen(*C);
-  wmWindow *win = CTX_wm_window(*C);
+  bScreen *screen = CTX_wm_screen(C);
+  wmWindow *win = CTX_wm_window(C);
 
   ScrArea *area = nullptr;
 

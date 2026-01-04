@@ -1064,10 +1064,10 @@ struct MinStretch {
   wmTimer *timer;
 };
 
-static bool minimize_stretch_init(bContext *C, wmOperator *op)
+static bool minimize_stretch_init(bContext &C, wmOperator *op)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   UnwrapOptions options{};
   options.topology_from_uvs = true;
@@ -1077,7 +1077,7 @@ static bool minimize_stretch_init(bContext *C, wmOperator *op)
   options.correct_aspect = true;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   if (!uvedit_have_selection_multi(scene, objects, &options)) {
     return false;
@@ -1102,11 +1102,11 @@ static bool minimize_stretch_init(bContext *C, wmOperator *op)
   return true;
 }
 
-static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interactive)
+static void minimize_stretch_iteration(bContext &C, wmOperator *op, bool interactive)
 {
   MinStretch *ms = static_cast<MinStretch *>(op->customdata);
-  ScrArea *area = CTX_wm_area(*C);
-  const Scene *scene = CTX_data_scene(*C);
+  ScrArea *area = CTX_wm_area(C);
+  const Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
@@ -1124,7 +1124,7 @@ static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interac
     if (area) {
       SNPRINTF_UTF8(str, IFACE_("Minimize Stretch. Blend %.2f"), ms->blend);
       ED_area_status_text(area, str);
-      ED_workspace_status_text(C, IFACE_("Press + and -, or scroll wheel to set blending"));
+      ED_workspace_status_text(&C, IFACE_("Press + and -, or scroll wheel to set blending"));
     }
 
     ms->lasttime = BLI_time_now_seconds();
@@ -1142,19 +1142,19 @@ static void minimize_stretch_iteration(bContext *C, wmOperator *op, bool interac
   }
 }
 
-static void minimize_stretch_exit(bContext *C, wmOperator *op, bool cancel)
+static void minimize_stretch_exit(bContext &C, wmOperator *op, bool cancel)
 {
   MinStretch *ms = static_cast<MinStretch *>(op->customdata);
-  ScrArea *area = CTX_wm_area(*C);
-  const Scene *scene = CTX_data_scene(*C);
+  ScrArea *area = CTX_wm_area(C);
+  const Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
   const bool synced_selection = (ts->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   ED_area_status_text(area, nullptr);
-  ED_workspace_status_text(C, nullptr);
+  ED_workspace_status_text(&C, nullptr);
 
   if (ms->timer) {
-    WM_event_timer_remove(CTX_wm_manager(*C), CTX_wm_window(*C), ms->timer);
+    WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), ms->timer);
   }
 
   if (cancel) {
@@ -1186,15 +1186,15 @@ static wmOperatorStatus minimize_stretch_exec(bContext &C, wmOperator &op)
 {
   int i, iterations;
 
-  if (!minimize_stretch_init(&C, &op)) {
+  if (!minimize_stretch_init(C, &op)) {
     return OPERATOR_CANCELLED;
   }
 
   iterations = RNA_int_get(op.ptr, "iterations");
   for (i = 0; i < iterations; i++) {
-    minimize_stretch_iteration(&C, &op, false);
+    minimize_stretch_iteration(C, &op, false);
   }
-  minimize_stretch_exit(&C, &op, false);
+  minimize_stretch_exit(C, &op, false);
 
   return OPERATOR_FINISHED;
 }
@@ -1203,14 +1203,14 @@ static wmOperatorStatus minimize_stretch_invoke(bContext &C,
                                                 wmOperator &op,
                                                 const wmEvent * /*event*/)
 {
-  if (!minimize_stretch_init(&C, &op)) {
+  if (!minimize_stretch_init(C, &op)) {
     return OPERATOR_CANCELLED;
   }
 
-  minimize_stretch_iteration(&C, &op, true);
+  minimize_stretch_iteration(C, &op, true);
 
   MinStretch *ms = static_cast<MinStretch *>(op.customdata);
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   ms->timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
 
   return OPERATOR_RUNNING_MODAL;
@@ -1223,12 +1223,12 @@ static wmOperatorStatus minimize_stretch_modal(bContext &C, wmOperator &op, cons
   switch (event->type) {
     case EVT_ESCKEY:
     case RIGHTMOUSE:
-      minimize_stretch_exit(&C, &op, true);
+      minimize_stretch_exit(C, &op, true);
       return OPERATOR_CANCELLED;
     case EVT_RETKEY:
     case EVT_PADENTER:
     case LEFTMOUSE:
-      minimize_stretch_exit(&C, &op, false);
+      minimize_stretch_exit(C, &op, false);
       return OPERATOR_FINISHED;
     case EVT_PADPLUSKEY:
     case WHEELUPMOUSE:
@@ -1237,7 +1237,7 @@ static wmOperatorStatus minimize_stretch_modal(bContext &C, wmOperator &op, cons
           ms->blend += 0.1f;
           ms->lasttime = 0.0f;
           RNA_float_set(op.ptr, "blend", ms->blend);
-          minimize_stretch_iteration(&C, &op, true);
+          minimize_stretch_iteration(C, &op, true);
         }
       }
       break;
@@ -1248,7 +1248,7 @@ static wmOperatorStatus minimize_stretch_modal(bContext &C, wmOperator &op, cons
           ms->blend -= 0.1f;
           ms->lasttime = 0.0f;
           RNA_float_set(op.ptr, "blend", ms->blend);
-          minimize_stretch_iteration(&C, &op, true);
+          minimize_stretch_iteration(C, &op, true);
         }
       }
       break;
@@ -1257,7 +1257,7 @@ static wmOperatorStatus minimize_stretch_modal(bContext &C, wmOperator &op, cons
         double start = BLI_time_now_seconds();
 
         do {
-          minimize_stretch_iteration(&C, &op, true);
+          minimize_stretch_iteration(C, &op, true);
         } while (BLI_time_now_seconds() - start < 0.01);
       }
       break;
@@ -1267,7 +1267,7 @@ static wmOperatorStatus minimize_stretch_modal(bContext &C, wmOperator &op, cons
   }
 
   if (ms->iterations && ms->i >= ms->iterations) {
-    minimize_stretch_exit(&C, &op, false);
+    minimize_stretch_exit(C, &op, false);
     return OPERATOR_FINISHED;
   }
 
@@ -1276,7 +1276,7 @@ static wmOperatorStatus minimize_stretch_modal(bContext &C, wmOperator &op, cons
 
 static void minimize_stretch_cancel(bContext &C, wmOperator &op)
 {
-  minimize_stretch_exit(&C, &op, true);
+  minimize_stretch_exit(C, &op, true);
 }
 
 void UV_OT_minimize_stretch(wmOperatorType *ot)
@@ -1735,7 +1735,7 @@ static void pack_islands_endjob(void *pidv)
   WM_main_add_notifier(NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
   if (pid->undo_str) {
-    ED_undo_push(pid->undo_context, pid->undo_str);
+    ED_undo_push(*pid->undo_context, pid->undo_str);
   }
 }
 
@@ -2093,7 +2093,7 @@ static wmOperatorStatus average_islands_scale_exec(bContext &C, wmOperator &op)
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   }
   return OPERATOR_FINISHED;
 }
@@ -2413,10 +2413,10 @@ static void uv_map_rotation_matrix_ex(float result[4][4],
   mul_m4_series(result, rotup, rotside, viewmatrix, rotobj);
 }
 
-static void uv_map_transform(bContext *C, wmOperator *op, float rotmat[3][3])
+static void uv_map_transform(bContext &C, wmOperator *op, float rotmat[3][3])
 {
-  Object *obedit = CTX_data_edit_object(*C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  Object *obedit = CTX_data_edit_object(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
   const int align = RNA_enum_get(op->ptr, "align");
   const int direction = RNA_enum_get(op->ptr, "direction");
@@ -3591,7 +3591,7 @@ static wmOperatorStatus uv_from_view_exec(bContext &C, wmOperator &op)
     if (changed) {
       changed_objects.append(obedit);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
 
@@ -3670,7 +3670,7 @@ static wmOperatorStatus reset_exec(bContext &C, wmOperator & /*op*/)
     ED_mesh_uv_loop_reset(&C, mesh);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -3932,7 +3932,7 @@ static wmOperatorStatus sphere_project_exec(bContext &C, wmOperator &op)
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
     float center[3], rotmat[3][3];
 
-    uv_map_transform(&C, &op, rotmat);
+    uv_map_transform(C, &op, rotmat);
     uv_map_transform_center(scene, v3d, obedit, em, center, nullptr);
 
     const bool fan = RNA_enum_get(op.ptr, "pole");
@@ -3961,7 +3961,7 @@ static wmOperatorStatus sphere_project_exec(bContext &C, wmOperator &op)
     uv_map_clip_correct(scene, {obedit}, &op, per_face_aspect, only_selected_uvs);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -4110,7 +4110,7 @@ static wmOperatorStatus cylinder_project_exec(bContext &C, wmOperator &op)
     const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
     float center[3], rotmat[3][3];
 
-    uv_map_transform(&C, &op, rotmat);
+    uv_map_transform(C, &op, rotmat);
     uv_map_transform_center(scene, v3d, obedit, em, center, nullptr);
 
     const bool fan = RNA_enum_get(op.ptr, "pole");
@@ -4149,7 +4149,7 @@ static wmOperatorStatus cylinder_project_exec(bContext &C, wmOperator &op)
     uv_map_clip_correct(scene, {obedit}, &op, per_face_aspect, only_selected_uvs);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -4285,7 +4285,7 @@ static wmOperatorStatus cube_project_exec(bContext &C, wmOperator &op)
     uv_map_clip_correct(scene, {obedit}, &op, per_face_aspect, only_selected_uvs);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   }
 
   return OPERATOR_FINISHED;

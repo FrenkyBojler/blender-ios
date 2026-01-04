@@ -518,16 +518,16 @@ static struct {
     /*userdef_jump_height*/ -1.0f,
 };
 
-static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int mval[2])
+static bool initWalkInfo(bContext &C, WalkInfo *walk, wmOperator *op, const int mval[2])
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
 
-  walk->rv3d = CTX_wm_region_view3d(*C);
-  walk->v3d = CTX_wm_view3d(*C);
-  walk->region = CTX_wm_region(*C);
-  walk->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  walk->scene = CTX_data_scene(*C);
+  walk->rv3d = CTX_wm_region_view3d(C);
+  walk->v3d = CTX_wm_view3d(C);
+  walk->region = CTX_wm_region(C);
+  walk->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  walk->scene = CTX_data_scene(C);
 
 #ifdef NDOF_WALK_DEBUG
   puts("\n-- walk begin --");
@@ -539,7 +539,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
   }
 
   if (walk->rv3d->persp == RV3D_CAMOB &&
-      !BKE_id_is_editable(CTX_data_main(*C), &walk->v3d->camera->id))
+      !BKE_id_is_editable(CTX_data_main(C), &walk->v3d->camera->id))
   {
     BKE_report(op->reports,
                RPT_ERROR,
@@ -621,7 +621,7 @@ static bool initWalkInfo(bContext *C, WalkInfo *walk, wmOperator *op, const int 
 #endif
   zero_v3(walk->dvec_prev);
 
-  walk->timer = WM_event_timer_add(CTX_wm_manager(*C), win, TIMER, 0.01f);
+  walk->timer = WM_event_timer_add(CTX_wm_manager(C), win, TIMER, 0.01f);
 
 #ifdef WITH_INPUT_NDOF
   walk->ndof = nullptr;
@@ -1495,7 +1495,7 @@ static void walk_draw_status(bContext *C, wmOperator *op)
 {
   WalkInfo *walk = static_cast<WalkInfo *>(op->customdata);
 
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
 
   status.opmodal(IFACE_("Confirm"), op->type, WALK_MODAL_CONFIRM);
   status.opmodal(IFACE_("Cancel"), op->type, WALK_MODAL_CANCEL);
@@ -1561,7 +1561,7 @@ static wmOperatorStatus walk_invoke(bContext &C, wmOperator &op, const wmEvent *
 
   op.customdata = walk;
 
-  if (initWalkInfo(&C, walk, &op, event->mval) == false) {
+  if (initWalkInfo(C, walk, &op, event->mval) == false) {
     MEM_freeN(walk);
     return OPERATOR_CANCELLED;
   }
@@ -1570,7 +1570,7 @@ static wmOperatorStatus walk_invoke(bContext &C, wmOperator &op, const wmEvent *
 
   walk_draw_status(&C, &op);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1624,14 +1624,14 @@ static wmOperatorStatus walk_modal(bContext &C, wmOperator &op, const wmEvent *e
     const bool is_undo_pushed = ED_view3d_camera_lock_undo_push(op.type->name, v3d, rv3d, &C);
     /* If generic 'locked camera' code did not push an undo, but there is a valid 'walking
      * object', an undo push is still needed, since that object transform was modified. */
-    if (!is_undo_pushed && walk_object && ED_undo_is_memfile_compatible(&C)) {
-      ED_undo_push(&C, op.type->name);
+    if (!is_undo_pushed && walk_object && ED_undo_is_memfile_compatible(C)) {
+      ED_undo_push(C, op.type->name);
     }
   }
 
   if (do_draw) {
     if (rv3d->persp == RV3D_CAMOB) {
-      WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, walk_object);
+      WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, walk_object);
     }
 
     /* Too frequent, commented with `NDOF_WALK_DRAW_TOOMUCH` for now. */

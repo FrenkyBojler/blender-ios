@@ -248,7 +248,7 @@ static bool add_vertex_subdivide(const bContext *C, Mask *mask, const float co[2
   float tangent[2];
   float u;
 
-  if (ED_mask_find_nearest_diff_point(C,
+  if (ED_mask_find_nearest_diff_point(*C,
                                       mask,
                                       co,
                                       threshold,
@@ -286,7 +286,7 @@ static bool add_vertex_subdivide(const bContext *C, Mask *mask, const float co[2
     mask_layer->act_spline = spline;
     mask_layer->act_point = new_point;
 
-    WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+    WM_event_add_notifier(*C, NC_MASK | NA_EDITED, mask);
 
     return true;
   }
@@ -294,12 +294,12 @@ static bool add_vertex_subdivide(const bContext *C, Mask *mask, const float co[2
   return false;
 }
 
-static bool add_vertex_extrude(const bContext *C,
+static bool add_vertex_extrude(const bContext &C,
                                Mask *mask,
                                MaskLayer *mask_layer,
                                const float co[2])
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   const float ctime = scene->r.cfra;
 
   MaskSpline *spline;
@@ -397,9 +397,9 @@ static bool add_vertex_extrude(const bContext *C,
   return true;
 }
 
-static bool add_vertex_new(const bContext *C, Mask *mask, MaskLayer *mask_layer, const float co[2])
+static bool add_vertex_new(const bContext &C, Mask *mask, MaskLayer *mask_layer, const float co[2])
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   const float ctime = scene->r.cfra;
 
   MaskSpline *spline;
@@ -438,12 +438,12 @@ static bool add_vertex_new(const bContext *C, Mask *mask, MaskLayer *mask_layer,
 
 /* Convert coordinate from normalized space to pixel one.
  * TODO(sergey): Make the function more generally available. */
-static void mask_point_make_pixel_space(bContext *C,
+static void mask_point_make_pixel_space(bContext &C,
                                         const float point_normalized[2],
                                         float point_pixel[2])
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ARegion *region = CTX_wm_region(*C);
+  ScrArea *area = CTX_wm_area(C);
+  ARegion *region = CTX_wm_region(C);
 
   float scalex, scaley;
   ED_mask_pixelspace_factor(area, region, &scalex, &scaley);
@@ -469,10 +469,10 @@ static wmOperatorStatus add_vertex_handle_cyclic_at_point(bContext *C,
   }
 
   float co_pixel[2];
-  mask_point_make_pixel_space(C, co, co_pixel);
+  mask_point_make_pixel_space(*C, co, co_pixel);
 
   float point_pixel[2];
-  mask_point_make_pixel_space(C, other_point->bezt.vec[1], point_pixel);
+  mask_point_make_pixel_space(*C, other_point->bezt.vec[1], point_pixel);
 
   const float dist_squared = len_squared_v2v2(co_pixel, point_pixel);
   if (dist_squared > tolerance_in_pixels_squared) {
@@ -487,7 +487,7 @@ static wmOperatorStatus add_vertex_handle_cyclic_at_point(bContext *C,
 
   DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+  WM_event_add_notifier(*C, NC_MASK | NA_EDITED, mask);
 
   return OPERATOR_FINISHED;
 }
@@ -517,12 +517,12 @@ static wmOperatorStatus add_vertex_handle_cyclic(
 static wmOperatorStatus add_vertex_exec(bContext &C, wmOperator &op)
 {
   MaskViewLockState lock_state;
-  ED_mask_view_lock_state_store(&C, &lock_state);
+  ED_mask_view_lock_state_store(C, &lock_state);
 
   Mask *mask = CTX_data_edit_mask(C);
   if (mask == nullptr) {
     /* if there's no active mask, create one */
-    mask = ED_mask_new(&C, nullptr);
+    mask = ED_mask_new(C, nullptr);
   }
 
   MaskLayer *mask_layer = BKE_mask_layer_active(mask);
@@ -547,14 +547,14 @@ static wmOperatorStatus add_vertex_exec(bContext &C, wmOperator &op)
     }
 
     if (!add_vertex_subdivide(&C, mask, co)) {
-      if (!add_vertex_extrude(&C, mask, mask_layer, co)) {
+      if (!add_vertex_extrude(C, mask, mask_layer, co)) {
         return OPERATOR_CANCELLED;
       }
     }
   }
   else {
     if (!add_vertex_subdivide(&C, mask, co)) {
-      if (!add_vertex_new(&C, mask, mask_layer, co)) {
+      if (!add_vertex_new(C, mask, mask_layer, co)) {
         return OPERATOR_CANCELLED;
       }
     }
@@ -562,7 +562,7 @@ static wmOperatorStatus add_vertex_exec(bContext &C, wmOperator &op)
 
   DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
-  ED_mask_view_lock_state_restore_no_jump(&C, &lock_state);
+  ED_mask_view_lock_state_restore_no_jump(C, &lock_state);
 
   return OPERATOR_FINISHED;
 }
@@ -626,12 +626,12 @@ static wmOperatorStatus add_feather_vertex_exec(bContext &C, wmOperator &op)
 
   RNA_float_get_array(op.ptr, "location", co);
 
-  point = ED_mask_point_find_nearest(&C, mask, co, threshold, nullptr, nullptr, nullptr, nullptr);
+  point = ED_mask_point_find_nearest(C, mask, co, threshold, nullptr, nullptr, nullptr, nullptr);
   if (point) {
     return OPERATOR_FINISHED;
   }
 
-  if (ED_mask_find_nearest_diff_point(&C,
+  if (ED_mask_find_nearest_diff_point(C,
                                       mask,
                                       co,
                                       threshold,
@@ -656,7 +656,7 @@ static wmOperatorStatus add_feather_vertex_exec(bContext &C, wmOperator &op)
 
     DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
-    WM_event_add_notifier(&C, NC_MASK | NA_EDITED, mask);
+    WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
 
     return OPERATOR_FINISHED;
   }
@@ -742,12 +742,12 @@ static BezTriple *points_to_bezier(const float (*points)[2],
 }
 
 static int create_primitive_from_points(
-    bContext *C, wmOperator *op, const float (*points)[2], int num_points, char handle_type)
+    bContext &C, wmOperator *op, const float (*points)[2], int num_points, char handle_type)
 {
   MaskViewLockState lock_state;
   ED_mask_view_lock_state_store(C, &lock_state);
 
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   int size = RNA_float_get(op->ptr, "size");
 
   int width, height;
@@ -770,7 +770,7 @@ static int create_primitive_from_points(
 
   bool added_mask = false;
   MaskLayer *mask_layer = ED_mask_layer_ensure(C, &added_mask);
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
 
   ED_mask_select_toggle_all(mask, SEL_DESELECT);
 
@@ -861,7 +861,7 @@ static wmOperatorStatus primitive_circle_add_exec(bContext &C, wmOperator &op)
   const float points[4][2] = {{0.0f, 0.5f}, {0.5f, 1.0f}, {1.0f, 0.5f}, {0.5f, 0.0f}};
   int num_points = ARRAY_SIZE(points);
 
-  create_primitive_from_points(&C, &op, points, num_points, HD_AUTO);
+  create_primitive_from_points(C, &op, points, num_points, HD_AUTO);
 
   return OPERATOR_FINISHED;
 }
@@ -896,7 +896,7 @@ static wmOperatorStatus primitive_square_add_exec(bContext &C, wmOperator &op)
   const float points[4][2] = {{0.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}, {1.0f, 0.0f}};
   int num_points = ARRAY_SIZE(points);
 
-  create_primitive_from_points(&C, &op, points, num_points, HD_VECT);
+  create_primitive_from_points(C, &op, points, num_points, HD_VECT);
 
   return OPERATOR_FINISHED;
 }

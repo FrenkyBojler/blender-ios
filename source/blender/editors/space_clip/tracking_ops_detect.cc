@@ -90,7 +90,7 @@ static wmOperatorStatus detect_features_exec(bContext &C, wmOperator &op)
   IMB_freeImBuf(ibuf);
 
   BKE_tracking_dopesheet_tag_update(tracking);
-  WM_event_add_notifier(&C, NC_MOVIECLIP | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }

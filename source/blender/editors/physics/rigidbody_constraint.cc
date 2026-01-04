@@ -140,7 +140,7 @@ static wmOperatorStatus rigidbody_con_add_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -189,7 +189,7 @@ static wmOperatorStatus rigidbody_con_remove_exec(bContext &C, wmOperator &op)
   ED_rigidbody_constraint_remove(bmain, scene, ob);
 
   /* send updates */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   /* done */
   return OPERATOR_FINISHED;

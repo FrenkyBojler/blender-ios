@@ -17,7 +17,7 @@ struct bContext;
 
 /* `text_draw.cc` */
 
-bool ED_text_activate_in_screen(bContext *C, Text *text);
+bool ED_text_activate_in_screen(bContext &C, Text *text);
 
 int ED_space_text_visible_lines_get(const SpaceText *st);
 /**
@@ -38,7 +38,7 @@ bool ED_space_text_region_location_from_cursor(const SpaceText *st,
 void ED_text_undosys_type(UndoType *ut);
 
 /** Use operator system to finish the undo step. */
-UndoStep *ED_text_undo_push_init(bContext *C);
+UndoStep *ED_text_undo_push_init(bContext &C);
 
 /* `text_format.cc` */
 

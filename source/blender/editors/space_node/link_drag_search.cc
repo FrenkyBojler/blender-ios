@@ -430,7 +430,7 @@ static ui::Block *create_search_popup_block(bContext *C, ARegion *region, void *
 {
   LinkDragSearchStorage &storage = *(LinkDragSearchStorage *)arg_op;
 
-  ui::Block *block = block_begin(C, region, "_popup", ui::EmbossType::Emboss);
+  ui::Block *block = block_begin(*C, region, "_popup", ui::EmbossType::Emboss);
   block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_MOVEMOUSE_QUIT | ui::BLOCK_SEARCH_MENU);
   block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
 
@@ -480,7 +480,7 @@ void invoke_node_link_drag_add_menu(bContext &C,
 {
   LinkDragSearchStorage *storage = new LinkDragSearchStorage{node, socket, cursor};
   /* Use the "_ex" variant with `can_refresh` false to avoid a double free when closing Blender. */
-  popup_block_invoke_ex(&C, create_search_popup_block, storage, nullptr, false);
+  popup_block_invoke_ex(C, create_search_popup_block, storage, nullptr, false);
 }
 
 }  // namespace blender::ed::space_node

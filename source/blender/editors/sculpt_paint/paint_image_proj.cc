@@ -4057,10 +4057,10 @@ static void project_paint_bleed_add_face_user(const ProjPaintState *ps,
 #endif
 
 /* Return true if evaluated mesh can be painted on, false otherwise */
-static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *ps)
+static bool proj_paint_state_mesh_eval_init(const bContext &C, ProjPaintState *ps)
 {
   using namespace blender;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *ob = ps->ob;
 
   const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
@@ -4616,7 +4616,7 @@ static void project_paint_begin(const bContext *C,
 
   /* paint onto the derived mesh */
   if (ps->is_shared_user == false) {
-    if (!proj_paint_state_mesh_eval_init(C, ps)) {
+    if (!proj_paint_state_mesh_eval_init(*C, ps)) {
       return;
     }
   }
@@ -5961,7 +5961,7 @@ void paint_proj_stroke(const bContext *C,
     float *cursor = scene->cursor.location;
     const int mval_i[2] = {int(pos[0]), int(pos[1])};
 
-    view3d_operator_needs_gpu(C);
+    view3d_operator_needs_gpu(*C);
 
     /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
     ED_view3d_depth_override(
@@ -5984,9 +5984,9 @@ void paint_proj_stroke(const bContext *C,
 }
 
 /* initialize project paint settings from context */
-static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int mode)
+static void project_state_init(bContext &C, Object *ob, ProjPaintState *ps, int mode)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   ToolSettings *settings = scene->toolsettings;
 
   /* brush */
@@ -6028,11 +6028,11 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
   BLI_assert(ps->pixel_sizeof >= sizeof(ProjPixel));
 
   /* these can be nullptr */
-  ps->v3d = CTX_wm_view3d(*C);
-  ps->rv3d = CTX_wm_region_view3d(*C);
-  ps->region = CTX_wm_region(*C);
+  ps->v3d = CTX_wm_view3d(C);
+  ps->rv3d = CTX_wm_region_view3d(C);
+  ps->region = CTX_wm_region(C);
 
-  ps->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  ps->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ps->scene = scene;
   /* allow override of active object */
   ps->ob = ob;
@@ -6095,10 +6095,10 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
   ps->dither = settings->imapaint.dither;
 }
 
-void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int mode)
+void *paint_proj_new_stroke(bContext &C, Object *ob, const float mouse[2], int mode)
 {
   ProjStrokeHandle *ps_handle;
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   ToolSettings *settings = scene->toolsettings;
   char symmetry_flag_views[BOUNDED_ARRAY_TYPE_SIZE<decltype(ps_handle->ps_views)>()] = {0};
 
@@ -6182,7 +6182,7 @@ void *paint_proj_new_stroke(bContext *C, Object *ob, const float mouse[2], int m
       PROJ_PAINT_STATE_SHARED_MEMCPY(ps, ps_handle->ps_views[0]);
     }
 
-    project_paint_begin(C, ps, is_multi_view, symmetry_flag_views[i]);
+    project_paint_begin(&C, ps, is_multi_view, symmetry_flag_views[i]);
     if (ps->mesh_eval == nullptr) {
       goto fail;
     }
@@ -6215,7 +6215,7 @@ void paint_proj_redraw(const bContext *C, void *ps_handle_p, bool final)
 
   if (final) {
     /* compositor listener deals with updating */
-    WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, nullptr);
+    WM_event_add_notifier(*C, NC_IMAGE | NA_EDITED, nullptr);
   }
   else {
     ED_region_tag_redraw(CTX_wm_region(*C));
@@ -6270,11 +6270,11 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext &C, wmOperato
 
   if (!ED_paint_proj_mesh_data_check(scene, *ob, &uvs, &mat, &tex, nullptr)) {
     ED_paint_data_warning(op.reports, uvs, mat, tex, true);
-    WM_event_add_notifier(&C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
     return OPERATOR_CANCELLED;
   }
 
-  project_state_init(&C, ob, &ps, BRUSH_STROKE_NORMAL);
+  project_state_init(C, ob, &ps, BRUSH_STROKE_NORMAL);
 
   if (image == nullptr) {
     BKE_report(op.reports, RPT_ERROR, "Image could not be found");
@@ -6352,7 +6352,7 @@ static wmOperatorStatus texture_paint_camera_project_exec(bContext &C, wmOperato
 
   for (a = 0; a < ps.image_tot; a++) {
     BKE_image_free_gputextures(ps.projImages[a].ima);
-    WM_event_add_notifier(&C, NC_IMAGE | NA_EDITED, ps.projImages[a].ima);
+    WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ps.projImages[a].ima);
   }
 
   project_paint_end(&ps);
@@ -6821,10 +6821,10 @@ static void default_paint_slot_color_get(int layer_type, Material *ma, float col
   }
 }
 
-static bool proj_paint_add_slot(bContext *C, wmOperator *op)
+static bool proj_paint_add_slot(bContext &C, wmOperator *op)
 {
-  Object *ob = blender::ed::object::context_active_object(C);
-  Scene *scene = CTX_data_scene(*C);
+  Object *ob = blender::ed::object::context_active_object(&C);
+  Scene *scene = CTX_data_scene(C);
   Material *ma;
   Image *ima = nullptr;
   CustomDataLayer *layer = nullptr;
@@ -6833,10 +6833,10 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     return false;
   }
 
-  ma = get_or_create_current_material(C, ob);
+  ma = get_or_create_current_material(&C, ob);
 
   if (ma) {
-    Main *bmain = CTX_data_main(*C);
+    Main *bmain = CTX_data_main(C);
     int type = RNA_enum_get(op->ptr, "type");
     bool is_data = (type > LAYER_BASE_COLOR);
 
@@ -6844,7 +6844,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     bNodeTree *ntree = ma->nodetree;
 
     if (!ntree) {
-      blender::nodes::node_tree_shader_default(C, bmain, &ma->id);
+      blender::nodes::node_tree_shader_default(&C, bmain, &ma->id);
       ntree = ma->nodetree;
     }
 
@@ -6856,13 +6856,13 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     /* Create a new node. */
     switch (slot_type) {
       case PAINT_CANVAS_SOURCE_IMAGE: {
-        new_node = blender::bke::node_add_static_node(C, *ntree, SH_NODE_TEX_IMAGE);
+        new_node = blender::bke::node_add_static_node(&C, *ntree, SH_NODE_TEX_IMAGE);
         ima = proj_paint_image_create(op, bmain, is_data);
         new_node->id = &ima->id;
         break;
       }
       case PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE: {
-        new_node = blender::bke::node_add_static_node(C, *ntree, SH_NODE_ATTRIBUTE);
+        new_node = blender::bke::node_add_static_node(&C, *ntree, SH_NODE_ATTRIBUTE);
         if (const std::optional<std::string> name = proj_paint_color_attribute_create(op, *ob)) {
           STRNCPY_UTF8(((NodeShaderAttribute *)new_node->storage)->name, name->c_str());
         }
@@ -6889,7 +6889,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       }
       else if (type == LAYER_NORMAL) {
         bNode *nor_node;
-        nor_node = blender::bke::node_add_static_node(C, *ntree, SH_NODE_NORMAL_MAP);
+        nor_node = blender::bke::node_add_static_node(&C, *ntree, SH_NODE_NORMAL_MAP);
 
         in_sock = blender::bke::node_find_socket(*nor_node, SOCK_IN, "Color");
         blender::bke::node_add_link(*ntree, *out_node, *out_sock, *nor_node, *in_sock);
@@ -6901,7 +6901,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       }
       else if (type == LAYER_BUMP) {
         bNode *bump_node;
-        bump_node = blender::bke::node_add_static_node(C, *ntree, SH_NODE_BUMP);
+        bump_node = blender::bke::node_add_static_node(&C, *ntree, SH_NODE_BUMP);
 
         in_sock = blender::bke::node_find_socket(*bump_node, SOCK_IN, "Height");
         blender::bke::node_add_link(*ntree, *out_node, *out_sock, *bump_node, *in_sock);
@@ -6953,7 +6953,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
     DEG_id_tag_update(&ntree->id, 0);
     DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
     DEG_relations_tag_update(bmain);
-    ED_area_tag_redraw(CTX_wm_area(*C));
+    ED_area_tag_redraw(CTX_wm_area(C));
 
     ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
 
@@ -6973,7 +6973,7 @@ static int get_texture_layer_type(wmOperator *op, const char *prop_name)
 
 static wmOperatorStatus texture_paint_add_texture_paint_slot_exec(bContext &C, wmOperator &op)
 {
-  if (proj_paint_add_slot(&C, &op)) {
+  if (proj_paint_add_slot(C, &op)) {
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -7151,8 +7151,8 @@ static wmOperatorStatus add_simple_uvs_exec(bContext &C, wmOperator & /*op*/)
   ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
 
   DEG_id_tag_update(static_cast<ID *>(ob->data), 0);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
-  WM_event_add_notifier(&C, NC_SCENE | ND_TOOLSETTINGS, scene);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+  WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, scene);
   return OPERATOR_FINISHED;
 }
 

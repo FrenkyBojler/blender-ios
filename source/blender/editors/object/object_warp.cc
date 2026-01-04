@@ -251,7 +251,7 @@ static wmOperatorStatus object_warp_verts_exec(bContext &C, wmOperator &op)
   ED_transverts_update_obedit(&tvs, obedit);
   ED_transverts_free(&tvs);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, obedit);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
 
   return OPERATOR_FINISHED;
 }

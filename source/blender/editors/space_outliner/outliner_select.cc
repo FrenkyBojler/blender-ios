@@ -82,9 +82,9 @@ namespace blender::ed::outliner {
  *
  * \note Handles its own undo push.
  */
-static void do_outliner_item_editmode_toggle(bContext *C, Scene *scene, Base *base)
+static void do_outliner_item_editmode_toggle(bContext &C, Scene *scene, Base *base)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   Object *ob = base->object;
 
   bool changed = false;
@@ -96,7 +96,7 @@ static void do_outliner_item_editmode_toggle(bContext *C, Scene *scene, Base *ba
     }
   }
   else {
-    changed = object::editmode_enter_ex(CTX_data_main(*C), scene, ob, object::EM_NO_CONTEXT);
+    changed = object::editmode_enter_ex(CTX_data_main(C), scene, ob, object::EM_NO_CONTEXT);
     if (changed) {
       object::base_select(base, object::BA_SELECT);
       WM_event_add_notifier(C, NC_SCENE | ND_MODE, nullptr);
@@ -115,13 +115,13 @@ static void do_outliner_item_editmode_toggle(bContext *C, Scene *scene, Base *ba
  *
  * \note Handles its own undo push.
  */
-static void do_outliner_item_posemode_toggle(bContext *C, Scene *scene, Base *base)
+static void do_outliner_item_posemode_toggle(bContext &C, Scene *scene, Base *base)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   Object *ob = base->object;
 
-  if (!BKE_id_is_editable(CTX_data_main(*C), &ob->id)) {
-    BKE_report(CTX_wm_reports(*C), RPT_WARNING, "Cannot pose non-editable data");
+  if (!BKE_id_is_editable(CTX_data_main(C), &ob->id)) {
+    BKE_report(CTX_wm_reports(C), RPT_WARNING, "Cannot pose non-editable data");
     return;
   }
 
@@ -164,7 +164,7 @@ static void do_outliner_item_mode_toggle_generic(bContext *C,
                                                  Base *base)
 {
   const eObjectMode active_mode = (eObjectMode)tvc.obact->mode;
-  ED_undo_group_begin(C);
+  ED_undo_group_begin(*C);
 
   if (object::mode_set(C, OB_MODE_OBJECT)) {
     BKE_view_layer_synced_ensure(tvc.scene, tvc.view_layer);
@@ -173,14 +173,14 @@ static void do_outliner_item_mode_toggle_generic(bContext *C,
       BKE_view_layer_base_deselect_all(tvc.scene, tvc.view_layer);
       BKE_view_layer_base_select_and_set_active(tvc.view_layer, base);
       DEG_id_tag_update(&tvc.scene->id, ID_RECALC_SELECT);
-      ED_undo_push(C, "Change Active");
+      ED_undo_push(*C, "Change Active");
 
       /* Operator call does undo push. */
       object::mode_set(C, active_mode);
-      ED_outliner_select_sync_from_object_tag(C);
+      ED_outliner_select_sync_from_object_tag(*C);
     }
   }
-  ED_undo_group_end(C);
+  ED_undo_group_end(*C);
 }
 
 void outliner_item_mode_toggle(bContext *C,
@@ -206,10 +206,10 @@ void outliner_item_mode_toggle(bContext *C,
       do_outliner_item_mode_toggle_generic(C, tvc, base);
     }
     else if (tvc.ob_edit && OB_TYPE_SUPPORT_EDITMODE(ob->type)) {
-      do_outliner_item_editmode_toggle(C, tvc.scene, base);
+      do_outliner_item_editmode_toggle(*C, tvc.scene, base);
     }
     else if (tvc.ob_pose && ob->type == OB_ARMATURE) {
-      do_outliner_item_posemode_toggle(C, tvc.scene, base);
+      do_outliner_item_posemode_toggle(*C, tvc.scene, base);
     }
   }
 }
@@ -233,7 +233,7 @@ static void tree_element_viewlayer_activate(bContext *C, TreeElement *te)
 
   if (BLI_findindex(&scene->view_layers, view_layer) != -1) {
     WM_window_set_active_view_layer(win, view_layer);
-    WM_event_add_notifier(C, NC_SCREEN | ND_LAYER, nullptr);
+    WM_event_add_notifier(*C, NC_SCREEN | ND_LAYER, nullptr);
   }
 }
 
@@ -321,7 +321,7 @@ static void tree_element_object_activate(bContext *C,
 
   sce = (Scene *)outliner_search_back(te, ID_SCE);
   if (sce && scene != sce) {
-    WM_window_set_active_scene(CTX_data_main(*C), C, CTX_wm_window(*C), sce);
+    WM_window_set_active_scene(CTX_data_main(*C), *C, CTX_wm_window(*C), sce);
     view_layer = WM_window_get_active_view_layer(CTX_wm_window(*C));
     scene = sce;
   }
@@ -393,10 +393,10 @@ static void tree_element_object_activate(bContext *C,
 
     if (set != OL_SETSEL_NONE) {
       if (!recursive) {
-        object::base_activate_with_mode_exit_if_needed(C, base); /* adds notifier */
+        object::base_activate_with_mode_exit_if_needed(*C, base); /* adds notifier */
       }
       DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+      WM_event_add_notifier(*C, NC_SCENE | ND_OB_SELECT, scene);
     }
   }
 }
@@ -432,7 +432,7 @@ static void tree_element_material_activate(bContext *C,
    * for render views to update. See #42973.
    * Note that RNA material update does it too, see e.g. rna_MaterialSlot_update(). */
   DEG_id_tag_update((ID *)ob, ID_RECALC_TRANSFORM);
-  WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_LINKS, nullptr);
+  WM_event_add_notifier(*C, NC_MATERIAL | ND_SHADING_LINKS, nullptr);
 }
 
 static void tree_element_camera_activate(bContext *C, Scene *scene, TreeElement *te)
@@ -453,7 +453,7 @@ static void tree_element_camera_activate(bContext *C, Scene *scene, TreeElement 
   WM_windows_scene_data_sync(&wm->windows, scene);
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(C, NC_SCENE | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_SCENE | NA_EDITED, nullptr);
 }
 
 static void tree_element_world_activate(bContext *C, Scene *scene, TreeElement *te)
@@ -470,7 +470,7 @@ static void tree_element_world_activate(bContext *C, Scene *scene, TreeElement *
 
   /* make new scene active */
   if (sce && scene != sce) {
-    WM_window_set_active_scene(CTX_data_main(*C), C, CTX_wm_window(*C), sce);
+    WM_window_set_active_scene(CTX_data_main(*C), *C, CTX_wm_window(*C), sce);
   }
 }
 
@@ -482,7 +482,7 @@ static void tree_element_defgroup_activate(bContext *C, TreeElement *te, TreeSto
   BKE_object_defgroup_active_index_set(ob, te->index + 1);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_TRANSFORM, ob);
 }
 
 static void tree_element_gplayer_activate(bContext *C, TreeElement *te, TreeStoreElem *tselem)
@@ -495,7 +495,7 @@ static void tree_element_gplayer_activate(bContext *C, TreeElement *te, TreeStor
   if (gpl) {
     BKE_gpencil_layer_active_set(gpd, gpl);
     DEG_id_tag_update(&gpd->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, gpd);
+    WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_SELECTED, gpd);
   }
 }
 
@@ -532,7 +532,7 @@ static void tree_element_grease_pencil_node_activate(bContext *C,
   grease_pencil.set_active_node(&node);
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
+  WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
 }
 
 static void tree_element_bonecollection_activate(bContext *C,
@@ -542,7 +542,7 @@ static void tree_element_bonecollection_activate(bContext *C,
   bArmature *arm = reinterpret_cast<bArmature *>(tselem->id);
   BoneCollection *bcoll = reinterpret_cast<BoneCollection *>(te->directdata);
   ANIM_armature_bonecoll_active_set(arm, bcoll);
-  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, arm);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_BONE_COLLECTION, arm);
 }
 
 static void tree_element_posechannel_activate(bContext *C,
@@ -594,7 +594,7 @@ static void tree_element_posechannel_activate(bContext *C,
     do_outliner_bone_select_recursive(arm, pchan->bone, (pchan->flag & POSE_SELECTED) != 0);
   }
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, ob);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_BONE_ACTIVE, ob);
   DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
 }
 
@@ -638,11 +638,11 @@ static void tree_element_bone_activate(bContext *C,
     do_outliner_bone_select_recursive(arm, bone, (bone->flag & BONE_SELECTED) != 0);
   }
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, ob);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_BONE_ACTIVE, ob);
 }
 
 /** Edit-bones only draw in edit-mode armature. */
-static void tree_element_active_ebone__sel(bContext *C, bArmature *arm, EditBone *ebone, short sel)
+static void tree_element_active_ebone__sel(bContext &C, bArmature *arm, EditBone *ebone, short sel)
 {
   if (sel) {
     arm->act_edbone = ebone;
@@ -650,7 +650,7 @@ static void tree_element_active_ebone__sel(bContext *C, bArmature *arm, EditBone
   if (EBONE_SELECTABLE(arm, ebone)) {
     ED_armature_ebone_select_set(ebone, sel);
   }
-  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, CTX_data_edit_object(*C));
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, CTX_data_edit_object(C));
 }
 
 static void tree_element_ebone_activate(bContext *C,
@@ -673,15 +673,15 @@ static void tree_element_ebone_activate(bContext *C,
         scene, view_layer, nullptr, &ob_params);
     ED_armature_edit_deselect_all_multi_ex(bases);
 
-    tree_element_active_ebone__sel(C, arm, ebone, true);
+    tree_element_active_ebone__sel(*C, arm, ebone, true);
   }
   else if (set == OL_SETSEL_EXTEND) {
     if (!(ebone->flag & BONE_SELECTED)) {
-      tree_element_active_ebone__sel(C, arm, ebone, true);
+      tree_element_active_ebone__sel(*C, arm, ebone, true);
     }
     else {
       /* entirely selected, so de-select */
-      tree_element_active_ebone__sel(C, arm, ebone, false);
+      tree_element_active_ebone__sel(*C, arm, ebone, false);
     }
   }
 
@@ -701,7 +701,7 @@ static void tree_element_modifier_activate(bContext *C,
 
   if (set == OL_SETSEL_NORMAL) {
     BKE_object_modifier_set_active(ob, md);
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+    WM_event_add_notifier(*C, NC_OBJECT | ND_MODIFIER, ob);
   }
 }
 
@@ -709,7 +709,7 @@ static void tree_element_psys_activate(bContext *C, TreeStoreElem *tselem)
 {
   Object *ob = (Object *)tselem->id;
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE | NA_EDITED, ob);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_PARTICLE | NA_EDITED, ob);
 }
 
 static void tree_element_constraint_activate(bContext *C,
@@ -732,7 +732,7 @@ static void tree_element_constraint_activate(bContext *C,
     te = te->parent;
   }
 
-  WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_CONSTRAINT, ob);
 }
 
 static void tree_element_strip_activate(bContext *C,
@@ -763,7 +763,7 @@ static void tree_element_strip_activate(bContext *C,
     }
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, sequencer_scene);
+  WM_event_add_notifier(*C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, sequencer_scene);
 }
 
 static void tree_element_strip_dup_activate(WorkSpace *workspace, TreeElement * /*te*/)
@@ -793,9 +793,9 @@ static void tree_element_strip_dup_activate(WorkSpace *workspace, TreeElement * 
   }
 }
 
-static void tree_element_master_collection_activate(const bContext *C)
+static void tree_element_master_collection_activate(const bContext &C)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   LayerCollection *layer_collection = static_cast<LayerCollection *>(
       view_layer->layer_collections.first);
   BKE_layer_collection_activate(view_layer, layer_collection);
@@ -804,9 +804,9 @@ static void tree_element_master_collection_activate(const bContext *C)
   WM_main_add_notifier(NC_SCENE | ND_LAYER | NS_LAYER_COLLECTION | NA_ACTIVATED, nullptr);
 }
 
-static void tree_element_layer_collection_activate(bContext *C, TreeElement *te)
+static void tree_element_layer_collection_activate(bContext &C, TreeElement *te)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   LayerCollection *layer_collection = static_cast<LayerCollection *>(te->directdata);
   ViewLayer *view_layer = BKE_view_layer_find_from_collection(scene, layer_collection);
   BKE_layer_collection_activate(view_layer, layer_collection);
@@ -818,7 +818,7 @@ static void tree_element_layer_collection_activate(bContext *C, TreeElement *te)
 static void tree_element_text_activate(bContext *C, TreeElement *te)
 {
   Text *text = (Text *)te->store_elem->id;
-  ED_text_activate_in_screen(C, text);
+  ED_text_activate_in_screen(*C, text);
 }
 
 /* ---------------------------------------------- */
@@ -908,10 +908,10 @@ void tree_element_type_active_set(bContext *C,
       tree_element_grease_pencil_node_activate(C, te, tselem);
       break;
     case TSE_VIEW_COLLECTION_BASE:
-      tree_element_master_collection_activate(C);
+      tree_element_master_collection_activate(*C);
       break;
     case TSE_LAYER_COLLECTION:
-      tree_element_layer_collection_activate(C, te);
+      tree_element_layer_collection_activate(*C, te);
       break;
   }
 }
@@ -1241,11 +1241,11 @@ bPoseChannel *outliner_find_parent_bone(TreeElement *te, TreeElement **r_bone_te
   return nullptr;
 }
 
-static void outliner_sync_to_properties_editors(const bContext *C,
+static void outliner_sync_to_properties_editors(const bContext &C,
                                                 PointerRNA *ptr,
                                                 const int context)
 {
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
 
   for (ScrArea &area : screen->areabase) {
     if (area.spacetype != SPACE_PROPERTIES) {
@@ -1254,7 +1254,7 @@ static void outliner_sync_to_properties_editors(const bContext *C,
 
     SpaceProperties *sbuts = (SpaceProperties *)area.spacedata.first;
     if (ED_buttons_should_sync_with_outliner(C, sbuts, &area)) {
-      ED_buttons_set_context(C, sbuts, ptr, context);
+      ED_buttons_set_context(&C, sbuts, ptr, context);
     }
   }
 }
@@ -1437,7 +1437,7 @@ static void outliner_set_properties_tab(bContext *C, TreeElement *te, TreeStoreE
   }
 
   if (ptr.data) {
-    outliner_sync_to_properties_editors(C, &ptr, context);
+    outliner_sync_to_properties_editors(*C, &ptr, context);
   }
 }
 
@@ -1495,7 +1495,7 @@ static void do_outliner_item_activate_tree_element(bContext *C,
     }
     else if (te->idcode == ID_SCE) {
       if (tvc.scene != (Scene *)tselem->id) {
-        WM_window_set_active_scene(CTX_data_main(*C), C, CTX_wm_window(*C), (Scene *)tselem->id);
+        WM_window_set_active_scene(CTX_data_main(*C), *C, CTX_wm_window(*C), (Scene *)tselem->id);
       }
     }
     else if ((te->idcode == ID_GR) && (space_outliner->outlinevis != SO_VIEW_LAYER)) {
@@ -1537,7 +1537,7 @@ static void do_outliner_item_activate_tree_element(bContext *C,
       }
 
       DEG_id_tag_update(&tvc.scene->id, ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, tvc.scene);
+      WM_event_add_notifier(*C, NC_SCENE | ND_OB_SELECT, tvc.scene);
     }
     else { /* Rest of types. */
       tree_element_activate(C, tvc, te, OL_SETSEL_NORMAL, false);
@@ -1577,7 +1577,7 @@ void outliner_item_select(bContext *C,
 
   if (activate) {
     TreeViewContext tvc;
-    outliner_viewcontext_init(C, &tvc);
+    outliner_viewcontext_init(*C, &tvc);
 
     if (!recursive) {
       tselem->flag |= TSE_ACTIVE;
@@ -1765,12 +1765,12 @@ bool outliner_is_co_within_mode_column(SpaceOutliner *space_outliner, const floa
   return view_mval[0] < UI_UNIT_X;
 }
 
-static bool outliner_is_co_within_active_mode_column(bContext *C,
+static bool outliner_is_co_within_active_mode_column(bContext &C,
                                                      SpaceOutliner *space_outliner,
                                                      const float view_mval[2])
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
 
@@ -1783,15 +1783,15 @@ static bool outliner_is_co_within_active_mode_column(bContext *C,
  *
  * May expend/collapse branches or activate items.
  */
-static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
+static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext &C,
                                                               const int mval[2],
                                                               const bool extend,
                                                               const bool use_range,
                                                               const bool deselect_all,
                                                               const bool recurse)
 {
-  ARegion *region = CTX_wm_region(*C);
-  SpaceOutliner *space_outliner = CTX_wm_space_outliner(*C);
+  ARegion *region = CTX_wm_region(C);
+  SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   TreeElement *te;
   float view_mval[2];
   bool changed = false, rebuild_tree = false;
@@ -1825,7 +1825,7 @@ static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
 
     /* If the selected icon was an aggregate of multiple elements, run the search popup */
     if (merged_elements) {
-      merged_element_search_menu_invoke(C, te, activate_te);
+      merged_element_search_menu_invoke(&C, te, activate_te);
       return OPERATOR_CANCELLED;
     }
 
@@ -1833,7 +1833,7 @@ static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
 
     Collection *parent_collection = nullptr;
     if (recurse) {
-      parent_collection = outliner_collection_get_for_recursive(C, activate_te);
+      parent_collection = outliner_collection_get_for_recursive(&C, activate_te);
     }
 
     /* If we're not recursing (not double clicking), and we are extending or range selecting by
@@ -1846,7 +1846,7 @@ static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
 
     if (use_range) {
       do_outliner_range_select(
-          C, space_outliner, activate_te, extend, (recurse && is_over_icon), parent_collection);
+          &C, space_outliner, activate_te, extend, (recurse && is_over_icon), parent_collection);
     }
     else {
       const bool is_over_name_icons = outliner_item_is_co_over_name_icons(activate_te,
@@ -1870,7 +1870,7 @@ static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
       if (recurse) {
         if (is_over_icon) {
           /* Select or deselect object hierarchy recursively. */
-          outliner_item_select(C, space_outliner, activate_te, select_flag);
+          outliner_item_select(&C, space_outliner, activate_te, select_flag);
           do_outliner_select_recursive(&activate_te->subtree, select, parent_collection);
         }
         else {
@@ -1879,12 +1879,12 @@ static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
         }
       }
       else {
-        outliner_item_select(C, space_outliner, activate_te, select_flag);
+        outliner_item_select(&C, space_outliner, activate_te, select_flag);
       }
 
       /* Only switch properties editor tabs when icons are selected. */
       if (is_over_icon) {
-        outliner_set_properties_tab(C, activate_te, activate_tselem);
+        outliner_set_properties_tab(&C, activate_te, activate_tselem);
       }
     }
 
@@ -1902,7 +1902,7 @@ static wmOperatorStatus outliner_item_do_activate_from_cursor(bContext *C,
     ED_region_tag_redraw_no_rebuild(region);
   }
 
-  ED_outliner_select_sync_from_outliner(C, space_outliner);
+  ED_outliner_select_sync_from_outliner(&C, space_outliner);
 
   return OPERATOR_FINISHED;
 }
@@ -1921,7 +1921,7 @@ static wmOperatorStatus outliner_item_activate_invoke(bContext &C,
 
   int mval[2];
   WM_event_drag_start_mval(event, region, mval);
-  return outliner_item_do_activate_from_cursor(&C, mval, extend, use_range, deselect_all, recurse);
+  return outliner_item_do_activate_from_cursor(C, mval, extend, use_range, deselect_all, recurse);
 }
 
 void OUTLINER_OT_item_activate(wmOperatorType *ot)
@@ -1993,7 +1993,7 @@ static wmOperatorStatus outliner_box_select_exec(bContext &C, wmOperator &op)
   outliner_box_select(&C, space_outliner, &rectf, select);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
   ED_region_tag_redraw_no_rebuild(region);
 
   ED_outliner_select_sync_from_outliner(&C, space_outliner);
@@ -2022,7 +2022,7 @@ static wmOperatorStatus outliner_box_select_invoke(bContext &C,
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  if (outliner_is_co_within_active_mode_column(&C, space_outliner, view_mval)) {
+  if (outliner_is_co_within_active_mode_column(C, space_outliner, view_mval)) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 

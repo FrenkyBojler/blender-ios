@@ -1182,10 +1182,10 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
   }
 }
 
-void ED_file_change_dir(bContext *C)
+void ED_file_change_dir(bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  ED_file_change_dir_ex(C, area);
+  ScrArea *area = CTX_wm_area(C);
+  ED_file_change_dir_ex(&C, area);
 }
 
 void file_select_deselect_all(SpaceFile *sfile, const eDirEntry_SelectFlag flag)

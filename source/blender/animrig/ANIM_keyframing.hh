@@ -263,7 +263,7 @@ bool autokeyframe_pchan(bContext *C, Scene *scene, Object *ob, bPoseChannel *pch
  * \note Context may not always be available,
  * so must check before using it as it's a luxury for a few cases.
  */
-void autokeyframe_pose_channel(bContext *C,
+void autokeyframe_pose_channel(bContext &C,
                                Scene *scene,
                                Object *ob,
                                bPoseChannel *pose_channel,
@@ -275,7 +275,7 @@ void autokeyframe_pose_channel(bContext *C,
  * properties. This is by design when using buttons. For other callers such as gizmos or sequencer
  * preview transform, creating new animation/keyframes also on non-keyed properties is desired.
  */
-bool autokeyframe_property(bContext *C,
+bool autokeyframe_property(bContext &C,
                            Scene *scene,
                            PointerRNA *ptr,
                            PropertyRNA *prop,

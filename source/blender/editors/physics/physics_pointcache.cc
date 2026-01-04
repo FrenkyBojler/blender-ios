@@ -173,22 +173,22 @@ static void ptcache_free_bake(PointCache *cache)
   }
 }
 
-static PTCacheBaker *ptcache_baker_create(bContext *C, wmOperator *op, bool all)
+static PTCacheBaker *ptcache_baker_create(bContext &C, wmOperator *op, bool all)
 {
   PTCacheBaker *baker = MEM_callocN<PTCacheBaker>("PTCacheBaker");
 
-  baker->bmain = CTX_data_main(*C);
-  baker->scene = CTX_data_scene(*C);
-  baker->view_layer = CTX_data_view_layer(*C);
+  baker->bmain = CTX_data_main(C);
+  baker->scene = CTX_data_scene(C);
+  baker->view_layer = CTX_data_view_layer(C);
   /* Depsgraph is used to sweep the frame range and evaluate scene at different times. */
-  baker->depsgraph = CTX_data_depsgraph_pointer(*C);
+  baker->depsgraph = CTX_data_depsgraph_pointer(C);
   baker->bake = RNA_boolean_get(op->ptr, "bake");
   baker->render = false;
   baker->anim_init = false;
   baker->quick_step = 1;
 
   if (!all) {
-    PointerRNA ptr = CTX_data_pointer_get_type(*C, "point_cache", &RNA_PointCache);
+    PointerRNA ptr = CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
     ID *id = ptr.owner_id;
     Object *ob = (GS(id->name) == ID_OB) ? (Object *)id : nullptr;
     PointCache *cache = static_cast<PointCache *>(ptr.data);
@@ -202,7 +202,7 @@ static wmOperatorStatus ptcache_bake_exec(bContext &C, wmOperator &op)
 {
   bool all = STREQ(op.type->idname, "PTCACHE_OT_bake_all");
 
-  PTCacheBaker *baker = ptcache_baker_create(&C, &op, all);
+  PTCacheBaker *baker = ptcache_baker_create(C, &op, all);
   BKE_ptcache_bake(baker);
   MEM_freeN(baker);
 
@@ -215,7 +215,7 @@ static wmOperatorStatus ptcache_bake_invoke(bContext &C, wmOperator &op, const w
 
   PointCacheJob *job = MEM_mallocN<PointCacheJob>("PointCacheJob");
   job->wm = CTX_wm_manager(C);
-  job->baker = ptcache_baker_create(&C, &op, all);
+  job->baker = ptcache_baker_create(C, &op, all);
   job->baker->bake_job = job;
   job->baker->update_progress = ptcache_job_update;
 
@@ -234,7 +234,7 @@ static wmOperatorStatus ptcache_bake_invoke(bContext &C, wmOperator &op, const w
 
   WM_jobs_start(CTX_wm_manager(C), wm_job);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   /* we must run modal until the bake job is done, otherwise the undo push
    * happens before the job ends, which can lead to race conditions between
@@ -277,11 +277,11 @@ static wmOperatorStatus ptcache_free_bake_all_exec(bContext &C, wmOperator & /*o
 
     BLI_freelistN(&pidlist);
 
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
   }
   FOREACH_SCENE_OBJECT_END;
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -328,7 +328,7 @@ static wmOperatorStatus ptcache_free_bake_exec(bContext &C, wmOperator & /*op*/)
 
   ptcache_free_bake(cache);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -340,7 +340,7 @@ static wmOperatorStatus ptcache_bake_from_cache_exec(bContext &C, wmOperator & /
 
   cache->flag |= PTCACHE_BAKED;
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -406,8 +406,8 @@ static wmOperatorStatus ptcache_add_new_exec(bContext &C, wmOperator & /*op*/)
     *(pid.cache_ptr) = cache_new;
 
     DEG_id_tag_update(&ob->id, ID_RECALC_POINT_CACHE);
-    WM_event_add_notifier(&C, NC_SCENE | ND_FRAME, scene);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, ob);
+    WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
   }
 
   return OPERATOR_FINISHED;
@@ -427,7 +427,7 @@ static wmOperatorStatus ptcache_remove_exec(bContext &C, wmOperator & /*op*/)
     *(pid.cache_ptr) = static_cast<PointCache *>(pid.ptcaches->first);
 
     DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, ob);
   }
 
   return OPERATOR_FINISHED;

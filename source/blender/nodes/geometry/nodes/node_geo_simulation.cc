@@ -201,7 +201,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_
   bNode &output_node = const_cast<bNode &>(*zone->output_node());
 
   BakeDrawContext ctx;
-  if (!get_bake_draw_context(C, output_node, ctx)) {
+  if (!get_bake_draw_context(*C, output_node, ctx)) {
     return;
   }
   layout.active_set(ctx.is_bakeable_in_current_context);
@@ -221,7 +221,7 @@ static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_
       row.label(*bake_state_str, ICON_NONE);
     }
   }
-  draw_common_bake_settings(C, ctx, layout);
+  draw_common_bake_settings(*C, ctx, layout);
   draw_data_blocks(C, layout, ctx.bake_rna);
 }
 
@@ -803,7 +803,7 @@ static bool node_insert_link(bke::NodeInsertLinkParams &params)
 static void node_extra_info(NodeExtraInfoParams &params)
 {
   BakeDrawContext ctx;
-  if (!get_bake_draw_context(&params.C, params.node, ctx)) {
+  if (!get_bake_draw_context(params.C, params.node, ctx)) {
     return;
   }
   if (!ctx.is_bakeable_in_current_context) {

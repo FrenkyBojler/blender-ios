@@ -137,7 +137,7 @@ void ED_space_image_set_mask(bContext *C, SpaceImage *sima, Mask *mask)
   id_us_ensure_real((ID *)sima->mask_info.mask);
 
   if (C) {
-    WM_event_add_notifier(C, NC_MASK | NA_SELECTED, mask);
+    WM_event_add_notifier(*C, NC_MASK | NA_SELECTED, mask);
   }
 }
 
@@ -414,13 +414,13 @@ bool ED_image_slot_cycle(Image *image, int direction)
   return (cur != image->render_slot);
 }
 
-void ED_space_image_scopes_update(const bContext *C,
+void ED_space_image_scopes_update(const bContext &C,
                                   SpaceImage *sima,
                                   ImBuf *ibuf,
                                   bool use_view_settings)
 {
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob = CTX_data_active_object(*C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = CTX_data_active_object(C);
 
   /* scope update can be expensive, don't update during paint modes */
   if (sima->mode == SI_MODE_PAINT) {
@@ -496,13 +496,13 @@ bool ED_space_image_check_show_maskedit(SpaceImage *sima, Object *obedit)
   return (sima->mode == SI_MODE_MASK);
 }
 
-bool ED_space_image_maskedit_poll(bContext *C)
+bool ED_space_image_maskedit_poll(bContext &C)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
 
   if (sima) {
-    Scene *scene = CTX_data_scene(*C);
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *obedit = BKE_view_layer_edit_object_get(view_layer);
     return ED_space_image_check_show_maskedit(sima, obedit);
@@ -513,7 +513,7 @@ bool ED_space_image_maskedit_poll(bContext *C)
 
 bool ED_space_image_maskedit_visible_splines_poll(bContext *C)
 {
-  if (!ED_space_image_maskedit_poll(C)) {
+  if (!ED_space_image_maskedit_poll(*C)) {
     return false;
   }
 
@@ -521,12 +521,12 @@ bool ED_space_image_maskedit_visible_splines_poll(bContext *C)
   return space_image->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
 }
 
-bool ED_space_image_paint_curve(const bContext *C)
+bool ED_space_image_paint_curve(const bContext &C)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
 
   if (sima && sima->mode == SI_MODE_PAINT) {
-    Brush *br = BKE_paint_brush(&CTX_data_tool_settings(*C)->imapaint.paint);
+    Brush *br = BKE_paint_brush(&CTX_data_tool_settings(C)->imapaint.paint);
 
     if (br && (br->flag & BRUSH_CURVE)) {
       return true;
@@ -538,7 +538,7 @@ bool ED_space_image_paint_curve(const bContext *C)
 
 bool ED_space_image_maskedit_mask_poll(bContext *C)
 {
-  if (ED_space_image_maskedit_poll(C)) {
+  if (ED_space_image_maskedit_poll(*C)) {
     SpaceImage *sima = CTX_wm_space_image(*C);
     return sima->mask_info.mask != nullptr;
   }
@@ -558,6 +558,6 @@ bool ED_space_image_maskedit_mask_visible_splines_poll(bContext *C)
 
 bool ED_space_image_cursor_poll(bContext &C)
 {
-  return ED_operator_uvedit_space_image(C) || ED_space_image_maskedit_poll(&C) ||
-         ED_space_image_paint_curve(&C);
+  return ED_operator_uvedit_space_image(C) || ED_space_image_maskedit_poll(C) ||
+         ED_space_image_paint_curve(C);
 }

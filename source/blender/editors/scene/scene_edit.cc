@@ -70,9 +70,9 @@ static Scene *scene_add(Main *bmain, Scene *scene_old, eSceneCopyMethod method)
   return scene_new;
 }
 
-Scene *ED_scene_sequencer_add(Main *bmain, bContext *C, eSceneCopyMethod method)
+Scene *ED_scene_sequencer_add(Main *bmain, bContext &C, eSceneCopyMethod method)
 {
-  Scene *active_scene = CTX_data_scene(*C);
+  Scene *active_scene = CTX_data_scene(C);
   Scene *scene_new = scene_add(bmain, active_scene, method);
 
   return scene_new;
@@ -83,9 +83,9 @@ Scene *ED_scene_add(Main *bmain, bContext *C, wmWindow *win, eSceneCopyMethod me
   Scene *scene_old = WM_window_get_active_scene(win);
   Scene *scene_new = scene_add(bmain, scene_old, method);
 
-  WM_window_set_active_scene(bmain, C, win, scene_new);
+  WM_window_set_active_scene(bmain, *C, win, scene_new);
 
-  WM_event_add_notifier(C, NC_SCENE | ND_SCENEBROWSE, scene_new);
+  WM_event_add_notifier(*C, NC_SCENE | ND_SCENEBROWSE, scene_new);
 
   return scene_new;
 }
@@ -114,7 +114,7 @@ bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene
 #ifdef WITH_PYTHON
       BPy_BEGIN_ALLOW_THREADS;
 #endif
-      ED_screen_animation_play(&C, 0, 0);
+      ED_screen_animation_play(C, 0, 0);
 #ifdef WITH_PYTHON
       BPy_END_ALLOW_THREADS;
 #endif
@@ -133,7 +133,7 @@ bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene
 #ifdef WITH_PYTHON
       BPy_BEGIN_ALLOW_THREADS;
 #endif
-      WM_window_set_active_scene(&bmain, &C, &win, scene_new);
+      WM_window_set_active_scene(&bmain, C, &win, scene_new);
 #ifdef WITH_PYTHON
       BPy_END_ALLOW_THREADS;
 #endif
@@ -144,7 +144,7 @@ bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene
   for (WorkSpace &workspace : bmain.workspaces) {
     if (workspace.sequencer_scene == &scene) {
       workspace.sequencer_scene = scene_new;
-      WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+      WM_event_add_notifier(C, NC_WINDOW, nullptr);
     }
   }
 
@@ -164,9 +164,9 @@ bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene
   return true;
 }
 
-bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene)
+bool ED_scene_delete(bContext &C, Main *bmain, Scene *scene)
 {
-  if (ED_scene_replace_active_for_deletion(*C, *bmain, *scene)) {
+  if (ED_scene_replace_active_for_deletion(C, *bmain, *scene)) {
     BKE_id_delete(bmain, scene);
     return true;
   }
@@ -436,11 +436,11 @@ static wmOperatorStatus new_sequencer_scene_exec(bContext &C, wmOperator &op)
    *
    * FIXME: This logic is meant to address a temporary paper-cut and may be removed later in 5.1+
    * when properties for scenes and sequencer scenes can be more properly separated. */
-  WM_window_set_active_scene(bmain, &C, win, new_scene);
+  WM_window_set_active_scene(bmain, C, win, new_scene);
   BKE_reportf(
       op.reports, RPT_WARNING, TIP_("Active scene changed to '%s'"), new_scene->id.name + 2);
 
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -493,7 +493,7 @@ static wmOperatorStatus scene_delete_exec(bContext &C, wmOperator & /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
 
-  if (ED_scene_delete(&C, CTX_data_main(C), scene) == false) {
+  if (ED_scene_delete(C, CTX_data_main(C), scene) == false) {
     return OPERATOR_CANCELLED;
   }
 
@@ -501,7 +501,7 @@ static wmOperatorStatus scene_delete_exec(bContext &C, wmOperator & /*op*/)
     printf("scene delete %p\n", scene);
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | NA_REMOVED, scene);
+  WM_event_add_notifier(C, NC_SCENE | NA_REMOVED, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -537,9 +537,9 @@ static wmOperatorStatus drop_scene_asset_exec(bContext &C, wmOperator &op)
   }
 
   wmWindow *win = CTX_wm_window(C);
-  WM_window_set_active_scene(bmain, &C, win, scene_asset);
+  WM_window_set_active_scene(bmain, C, win, scene_asset);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_SCENEBROWSE, scene_asset);
+  WM_event_add_notifier(C, NC_SCENE | ND_SCENEBROWSE, scene_asset);
 
   return OPERATOR_FINISHED;
 }

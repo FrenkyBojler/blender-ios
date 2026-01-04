@@ -68,7 +68,7 @@ class NodeSocketDropTarget : public TreeViewItemDropTarget {
 
   bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
   std::string drop_tooltip(const DragInfo &drag_info) const override;
-  bool on_drop(bContext * /*C*/, const DragInfo &drag_info) const override;
+  bool on_drop(bContext & /*C*/, const DragInfo &drag_info) const override;
 };
 
 class NodePanelDropTarget : public TreeViewItemDropTarget {
@@ -80,7 +80,7 @@ class NodePanelDropTarget : public TreeViewItemDropTarget {
 
   bool can_drop(const wmDrag &drag, const char **r_disabled_hint) const override;
   std::string drop_tooltip(const DragInfo &drag_info) const override;
-  bool on_drop(bContext *C, const DragInfo &drag_info) const override;
+  bool on_drop(bContext &C, const DragInfo &drag_info) const override;
 };
 
 class NodeSocketViewItem : public BasicTreeViewItem {
@@ -154,7 +154,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     socket_.name = BLI_strdup(new_name.c_str());
     nodetree_.tree_interface.tag_item_property_changed();
     BKE_main_ensure_invariants(*CTX_data_main(C), nodetree_.id);
-    ED_undo_push(&const_cast<bContext &>(C), new_name.c_str());
+    ED_undo_push(const_cast<bContext &>(C), new_name.c_str());
     return true;
   }
   StringRef get_rename_string() const override
@@ -162,9 +162,9 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     return socket_.name;
   }
 
-  void delete_item(bContext *C) override
+  void delete_item(bContext &C) override
   {
-    Main *bmain = CTX_data_main(*C);
+    Main *bmain = CTX_data_main(C);
     nodetree_.tree_interface.remove_item(socket_.item);
     BKE_main_ensure_invariants(*bmain, nodetree_.id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
@@ -249,7 +249,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
         &nodetree_.id, &RNA_NodeTreeInterfacePanel, &panel_);
     PropertyRNA *name_prop = RNA_struct_find_property(&panel_ptr, "name");
     RNA_property_string_set(&panel_ptr, name_prop, new_name.c_str());
-    RNA_property_update(const_cast<bContext *>(&C), &panel_ptr, name_prop);
+    RNA_property_update(*const_cast<bContext *>(&C), &panel_ptr, name_prop);
     return true;
   }
   StringRef get_rename_string() const override
@@ -257,9 +257,9 @@ class NodePanelViewItem : public BasicTreeViewItem {
     return panel_.name;
   }
 
-  void delete_item(bContext *C) override
+  void delete_item(bContext &C) override
   {
-    Main *bmain = CTX_data_main(*C);
+    Main *bmain = CTX_data_main(C);
     nodetree_.tree_interface.remove_item(panel_.item);
     BKE_main_ensure_invariants(*bmain, nodetree_.id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
@@ -470,14 +470,14 @@ bool on_drop_flat_item(bContext *C,
 
   /* General update */
   BKE_main_ensure_invariants(*CTX_data_main(*C), ntree.id);
-  ED_undo_push(C, "Insert node group item");
+  ED_undo_push(*C, "Insert node group item");
   return true;
 }
 
-bool NodeSocketDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
+bool NodeSocketDropTarget::on_drop(bContext &C, const DragInfo &drag_info) const
 {
   bNodeTree &nodetree = this->get_view<NodeTreeInterfaceView>().nodetree();
-  return on_drop_flat_item(C, drag_info, nodetree, socket_.item);
+  return on_drop_flat_item(&C, drag_info, nodetree, socket_.item);
 }
 
 NodePanelDropTarget::NodePanelDropTarget(NodePanelViewItem &item, bNodeTreeInterfacePanel &panel)
@@ -509,7 +509,7 @@ std::string NodePanelDropTarget::drop_tooltip(const DragInfo &drag_info) const
   return "";
 }
 
-bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
+bool NodePanelDropTarget::on_drop(bContext &C, const DragInfo &drag_info) const
 {
   bNodeTreeInterfaceItemReference *drag_data = get_drag_node_tree_declaration(drag_info.drag_data);
   BLI_assert(drag_data != nullptr);
@@ -551,8 +551,8 @@ bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
   interface.move_item_to_parent(*drag_item, parent, index);
 
   /* General update */
-  BKE_main_ensure_invariants(*CTX_data_main(*C), nodetree.id);
-  ED_undo_push(C, "Insert node group item");
+  BKE_main_ensure_invariants(*CTX_data_main(C), nodetree.id);
+  ED_undo_push(*C, "Insert node group item");
   return true;
 }
 }  // namespace

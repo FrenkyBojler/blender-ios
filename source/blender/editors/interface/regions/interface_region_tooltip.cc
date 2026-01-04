@@ -1237,7 +1237,7 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_button_or_extra_icon(
       call_params.optype = optype;
       call_params.opcontext = opcontext;
       CTX_wm_operator_poll_msg_clear(*C);
-      button_context_poll_operator_ex(C, but, &call_params);
+      button_context_poll_operator_ex(*C, but, &call_params);
       disabled_msg_orig = CTX_wm_operator_poll_msg_get(*C, &disabled_msg_free);
       disabled_msg = TIP_(disabled_msg_orig);
     }
@@ -1363,29 +1363,29 @@ static std::unique_ptr<TooltipData> ui_tooltip_data_from_gizmo(bContext *C, wmGi
   return data->fields.is_empty() ? nullptr : std::move(data);
 }
 
-static std::unique_ptr<TooltipData> ui_tooltip_data_from_custom_func(bContext *C, Button *but)
+static std::unique_ptr<TooltipData> ui_tooltip_data_from_custom_func(bContext &C, Button *but)
 {
   /* Create tooltip data. */
   std::unique_ptr<TooltipData> data = std::make_unique<TooltipData>();
 
   /* Create fields from custom callback. */
-  but->tip_custom_func(*C, *data, but, but->tip_arg);
+  but->tip_custom_func(C, *data, but, but->tip_arg);
 
   return data->fields.is_empty() ? nullptr : std::move(data);
 }
 
-static ARegion *ui_tooltip_create_with_data(bContext *C,
+static ARegion *ui_tooltip_create_with_data(bContext &C,
                                             std::unique_ptr<TooltipData> data_uptr,
                                             const float init_position[2],
                                             const rcti *init_rect_overlap)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   const int2 win_size = WM_window_native_pixel_size(win);
   rcti rect_i;
   FontFlags font_flag = BLF_NONE;
 
   /* Create area region. */
-  ARegion *region = region_temp_add(CTX_wm_screen(*C));
+  ARegion *region = region_temp_add(CTX_wm_screen(C));
 
   static ARegionType type;
   memset(&type, 0, sizeof(ARegionType));
@@ -1642,9 +1642,9 @@ static ARegion *ui_tooltip_create_with_data(bContext *C,
  * \{ */
 
 ARegion *tooltip_create_from_button_or_extra_icon(
-    bContext *C, ARegion *butregion, Button *but, ButtonExtraOpIcon *extra_icon, bool is_quick_tip)
+    bContext &C, ARegion *butregion, Button *but, ButtonExtraOpIcon *extra_icon, bool is_quick_tip)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   float init_position[2];
 
   if (but->drawflag & BUT_NO_TOOLTIP) {
@@ -1657,15 +1657,15 @@ ARegion *tooltip_create_from_button_or_extra_icon(
   }
 
   if (data == nullptr) {
-    data = ui_tooltip_data_from_tool(C, but, is_quick_tip);
+    data = ui_tooltip_data_from_tool(&C, but, is_quick_tip);
   }
 
   if (data == nullptr) {
-    data = ui_tooltip_data_from_button_or_extra_icon(C, but, extra_icon, is_quick_tip);
+    data = ui_tooltip_data_from_button_or_extra_icon(&C, but, extra_icon, is_quick_tip);
   }
 
   if (data == nullptr) {
-    data = ui_tooltip_data_from_button_or_extra_icon(C, but, nullptr, is_quick_tip);
+    data = ui_tooltip_data_from_button_or_extra_icon(&C, but, nullptr, is_quick_tip);
   }
 
   if (data == nullptr) {
@@ -1712,16 +1712,16 @@ ARegion *tooltip_create_from_button(bContext *C,
                                     Button *but,
                                     bool is_quick_tip)
 {
-  return tooltip_create_from_button_or_extra_icon(C, butregion, but, nullptr, is_quick_tip);
+  return tooltip_create_from_button_or_extra_icon(*C, butregion, but, nullptr, is_quick_tip);
 }
 
-ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
+ARegion *tooltip_create_from_gizmo(bContext &C, wmGizmo *gz)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   float init_position[2] = {float(win->runtime->eventstate->xy[0]),
                             float(win->runtime->eventstate->xy[1])};
 
-  std::unique_ptr<TooltipData> data = ui_tooltip_data_from_gizmo(C, gz);
+  std::unique_ptr<TooltipData> data = ui_tooltip_data_from_gizmo(&C, gz);
   if (data == nullptr) {
     return nullptr;
   }
@@ -1730,7 +1730,7 @@ ARegion *tooltip_create_from_gizmo(bContext *C, wmGizmo *gz)
    * which we then project to 2D here. Would make a nice improvement. */
   if (gz->type->screen_bounds_get) {
     rcti bounds;
-    if (gz->type->screen_bounds_get(C, gz, &bounds)) {
+    if (gz->type->screen_bounds_get(&C, gz, &bounds)) {
       init_position[0] = bounds.xmin;
       init_position[1] = bounds.ymin;
     }
@@ -1964,12 +1964,12 @@ ARegion *tooltip_create_from_search_item_generic(bContext *C,
   init_position[0] = win->runtime->eventstate->xy[0];
   init_position[1] = item_rect->ymin + searchbox_region->winrct.ymin - (UI_POPUP_MARGIN / 2);
 
-  return ui_tooltip_create_with_data(C, std::move(data), init_position, nullptr);
+  return ui_tooltip_create_with_data(*C, std::move(data), init_position, nullptr);
 }
 
 void tooltip_free(bContext *C, bScreen *screen, ARegion *region)
 {
-  region_temp_remove(C, screen, region);
+  region_temp_remove(*C, screen, region);
 }
 
 /** \} */

@@ -516,7 +516,7 @@ static wmOperatorStatus visual_geometry_to_objects_exec(bContext &C, wmOperator 
   DEG_id_tag_update(&scene.id, ID_RECALC_BASE_FLAGS);
 
   DEG_relations_tag_update(&bmain);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, &scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, &scene);
   WM_main_add_notifier(NC_SCENE | ND_LAYER, nullptr);
   WM_main_add_notifier(NC_SCENE | ND_LAYER_CONTENT, nullptr);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);

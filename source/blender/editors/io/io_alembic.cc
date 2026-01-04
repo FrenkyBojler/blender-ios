@@ -145,7 +145,7 @@ static wmOperatorStatus wm_alembic_export_exec(bContext &C, wmOperator &op)
   }
 
   const bool as_background_job = RNA_boolean_get(op.ptr, "as_background_job");
-  bool ok = ABC_export(scene, &C, filepath, &params, as_background_job);
+  bool ok = ABC_export(scene, C, filepath, &params, as_background_job);
 
   return as_background_job || ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
@@ -652,7 +652,7 @@ static wmOperatorStatus wm_alembic_import_exec(bContext &C, wmOperator &op)
   params.validate_meshes = validate_meshes;
   params.always_add_cache_reader = always_add_cache_reader;
 
-  bool ok = ABC_import(&C, &params, as_background_job);
+  bool ok = ABC_import(C, &params, as_background_job);
 
   return as_background_job || ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }

@@ -22,12 +22,12 @@ Scene *ED_scene_add(Main *bmain, bContext *C, wmWindow *win, eSceneCopyMethod me
 /**
  * Add a new scene from the sequence editor.
  */
-Scene *ED_scene_sequencer_add(Main *bmain, bContext *C, eSceneCopyMethod method);
+Scene *ED_scene_sequencer_add(Main *bmain, bContext &C, eSceneCopyMethod method);
 /**
  * \note Only call outside of area/region loops.
  * \return true if successful.
  */
-bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene) ATTR_NONNULL();
+bool ED_scene_delete(bContext &C, Main *bmain, Scene *scene) ATTR_NONNULL();
 /**
  * Replace the given scene (assumed to be an active scene) by another suitable one.
  *

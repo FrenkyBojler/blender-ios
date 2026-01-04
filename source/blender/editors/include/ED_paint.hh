@@ -42,7 +42,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf);
 void ED_imapaint_clear_partial_redraw();
 void ED_imapaint_dirty_region(
     Image *ima, ImBuf *ibuf, ImageUser *iuser, int x, int y, int w, int h, bool find_old);
-void ED_imapaint_bucket_fill(bContext *C,
+void ED_imapaint_bucket_fill(bContext &C,
                              const float color[3],
                              wmOperator *op,
                              const int mouse[2]);
@@ -142,20 +142,20 @@ bool ED_paint_brush_type_use_canvas(bContext *C, bToolRef *tref);
 void ED_paint_brush_type_update_sticky_shading_color(bContext *C, Object *ob);
 
 void ED_object_vpaintmode_enter_ex(Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob);
-void ED_object_vpaintmode_enter(bContext *C, Depsgraph &depsgraph);
+void ED_object_vpaintmode_enter(bContext &C, Depsgraph &depsgraph);
 void ED_object_wpaintmode_enter_ex(Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob);
-void ED_object_wpaintmode_enter(bContext *C, Depsgraph &depsgraph);
+void ED_object_wpaintmode_enter(bContext &C, Depsgraph &depsgraph);
 
 void ED_object_vpaintmode_exit_ex(Object &ob);
-void ED_object_vpaintmode_exit(bContext *C);
+void ED_object_vpaintmode_exit(bContext &C);
 void ED_object_wpaintmode_exit_ex(Object &ob);
-void ED_object_wpaintmode_exit(bContext *C);
+void ED_object_wpaintmode_exit(bContext &C);
 
 void ED_object_texture_paint_mode_enter_ex(Main &bmain,
                                            Scene &scene,
                                            Depsgraph &depsgraph,
                                            Object &ob);
-void ED_object_texture_paint_mode_enter(bContext *C);
+void ED_object_texture_paint_mode_enter(bContext &C);
 
 void ED_object_texture_paint_mode_exit_ex(Main &bmain, Scene &scene, Object &ob);
-void ED_object_texture_paint_mode_exit(bContext *C);
+void ED_object_texture_paint_mode_exit(bContext &C);

@@ -102,7 +102,7 @@ static Block *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap_v
   Button *bt;
   const float width = 8 * UI_UNIT_X;
 
-  Block *block = block_begin(C, region, __func__, EmbossType::Emboss);
+  Block *block = block_begin(*C, region, __func__, EmbossType::Emboss);
   block_flag_enable(block, BLOCK_KEEP_OPEN | BLOCK_MOVEMOUSE_QUIT);
   block_theme_style_set(block, BLOCK_THEME_STYLE_POPUP);
 
@@ -190,7 +190,7 @@ static Block *curvemap_tools_func(
   short yco = 0;
   const short menuwidth = 10 * UI_UNIT_X;
 
-  Block *block = block_begin(C, region, __func__, EmbossType::Emboss);
+  Block *block = block_begin(*C, region, __func__, EmbossType::Emboss);
 
   {
     Button *but = uiDefIconTextBut(block,
@@ -227,7 +227,7 @@ static Block *curvemap_tools_func(
         cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
         BKE_curvemapping_changed(cumap, false);
         rna_update_cb(C, cb);
-        ED_undo_push(&C, "CurveMap tools");
+        ED_undo_push(C, "CurveMap tools");
         ED_region_tag_redraw(CTX_wm_region(C));
       });
     }
@@ -247,7 +247,7 @@ static Block *curvemap_tools_func(
         cumap->flag |= CUMA_EXTEND_EXTRAPOLATE;
         BKE_curvemapping_changed(cumap, false);
         rna_update_cb(C, cb);
-        ED_undo_push(&C, "CurveMap tools");
+        ED_undo_push(C, "CurveMap tools");
         ED_region_tag_redraw(CTX_wm_region(C));
       });
     }
@@ -270,7 +270,7 @@ static Block *curvemap_tools_func(
       BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, reset_mode);
       BKE_curvemapping_changed(cumap, false);
       rna_update_cb(C, cb);
-      ED_undo_push(&C, "CurveMap tools");
+      ED_undo_push(C, "CurveMap tools");
       ED_region_tag_redraw(CTX_wm_region(C));
     });
   }

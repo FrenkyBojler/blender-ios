@@ -86,11 +86,11 @@ static void markerToTransCurveDataInit(TransData *td,
   unit_m3(td->smtx);
 }
 
-static void createTransTrackingCurvesData(bContext *C, TransInfo *t)
+static void createTransTrackingCurvesData(bContext &C, TransInfo *t)
 {
   TransData *td;
   TransData2D *td2d;
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   TransDataTrackingCurves *tdt;
@@ -192,7 +192,7 @@ static void createTransTrackingCurves(bContext *C, TransInfo *t)
 
   /* Transformation was called from graph editor. */
   BLI_assert(CTX_wm_region(*C)->regiontype == RGN_TYPE_PREVIEW);
-  createTransTrackingCurvesData(C, t);
+  createTransTrackingCurvesData(*C, t);
 }
 
 /** \} */
@@ -292,7 +292,7 @@ static void special_aftertrans_update__movieclip_for_curves(bContext *C, TransIn
       Main *bmain = CTX_data_main(*C);
       BKE_ntree_update_tag_id_changed(bmain, &clip->id);
       BKE_ntree_update(*bmain);
-      WM_event_add_notifier(C, NC_SCENE | ND_NODES, nullptr);
+      WM_event_add_notifier(*C, NC_SCENE | ND_NODES, nullptr);
     }
   }
 }

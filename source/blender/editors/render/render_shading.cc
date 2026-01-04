@@ -131,7 +131,7 @@ static bool object_array_for_shading_edit_mode_enabled_filter(const Object *ob, 
 static Vector<Object *> object_array_for_shading_edit_mode_enabled(bContext *C)
 {
   return blender::ed::object::objects_in_mode_or_selected(
-      C, object_array_for_shading_edit_mode_enabled_filter, C);
+      *C, object_array_for_shading_edit_mode_enabled_filter, C);
 }
 
 static bool object_array_for_shading_edit_mode_disabled_filter(const Object *ob, void *user_data)
@@ -148,7 +148,7 @@ static bool object_array_for_shading_edit_mode_disabled_filter(const Object *ob,
 static Vector<Object *> object_array_for_shading_edit_mode_disabled(bContext *C)
 {
   return blender::ed::object::objects_in_mode_or_selected(
-      C, object_array_for_shading_edit_mode_disabled_filter, C);
+      *C, object_array_for_shading_edit_mode_disabled_filter, C);
 }
 
 /** \} */
@@ -178,7 +178,7 @@ static bool object_materials_supported_poll_ex(bContext *C, const Object *ob)
 
 static bool object_materials_supported_poll(bContext &C)
 {
-  Object *ob = blender::ed::object::context_object(&C);
+  Object *ob = blender::ed::object::context_object(C);
   return object_materials_supported_poll_ex(&C, ob);
 }
 
@@ -199,7 +199,7 @@ static bool material_slot_populated_poll(bContext &C)
 static wmOperatorStatus material_slot_add_exec(bContext &C, wmOperator & /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = blender::ed::object::context_object(&C);
+  Object *ob = blender::ed::object::context_object(C);
 
   if (!ob) {
     return OPERATOR_CANCELLED;
@@ -210,12 +210,12 @@ static wmOperatorStatus material_slot_add_exec(bContext &C, wmOperator & /*op*/)
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
     ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
-    WM_event_add_notifier(&C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_OB_SHADING, ob);
-  WM_event_add_notifier(&C, NC_MATERIAL | ND_SHADING_PREVIEW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob);
+  WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_PREVIEW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -243,7 +243,7 @@ void OBJECT_OT_material_slot_add(wmOperatorType *ot)
 
 static bool material_slot_remove_poll(bContext &C)
 {
-  const Object *ob = blender::ed::object::context_object(&C);
+  const Object *ob = blender::ed::object::context_object(C);
 
   if (!object_materials_supported_poll_ex(&C, ob)) {
     return false;
@@ -263,7 +263,7 @@ static bool material_slot_remove_poll(bContext &C)
 
 static wmOperatorStatus material_slot_remove_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = blender::ed::object::context_object(&C);
+  Object *ob = blender::ed::object::context_object(C);
 
   if (!ob) {
     return OPERATOR_CANCELLED;
@@ -274,13 +274,13 @@ static wmOperatorStatus material_slot_remove_exec(bContext &C, wmOperator & /*op
   if (ob->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
     ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
-    WM_event_add_notifier(&C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_OB_SHADING, ob);
-  WM_event_add_notifier(&C, NC_MATERIAL | ND_SHADING_PREVIEW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob);
+  WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_PREVIEW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -384,7 +384,7 @@ static wmOperatorStatus material_slot_assign_exec(bContext &C, wmOperator & /*op
     if (changed) {
       changed_multi = true;
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
     }
   }
 
@@ -412,13 +412,13 @@ void OBJECT_OT_material_slot_assign(wmOperatorType *ot)
 /** \name Material Slot (De)Select Operator
  * \{ */
 
-static wmOperatorStatus material_slot_de_select(bContext *C, bool select)
+static wmOperatorStatus material_slot_de_select(bContext &C, bool select)
 {
   bool changed_multi = false;
-  Object *obact = CTX_data_active_object(*C);
+  Object *obact = CTX_data_active_object(C);
   const Material *mat_active = obact ? BKE_object_material_get(obact, obact->actcol) : nullptr;
 
-  Vector<Object *> objects = object_array_for_shading_edit_mode_enabled(C);
+  Vector<Object *> objects = object_array_for_shading_edit_mode_enabled(&C);
   for (Object *ob : objects) {
     if (ob->totcol == 0) {
       continue;
@@ -502,7 +502,7 @@ static wmOperatorStatus material_slot_de_select(bContext *C, bool select)
 
 static wmOperatorStatus material_slot_select_exec(bContext &C, wmOperator & /*op*/)
 {
-  return material_slot_de_select(&C, true);
+  return material_slot_de_select(C, true);
 }
 
 void OBJECT_OT_material_slot_select(wmOperatorType *ot)
@@ -521,7 +521,7 @@ void OBJECT_OT_material_slot_select(wmOperatorType *ot)
 
 static wmOperatorStatus material_slot_deselect_exec(bContext &C, wmOperator & /*op*/)
 {
-  return material_slot_de_select(&C, false);
+  return material_slot_de_select(C, false);
 }
 
 void OBJECT_OT_material_slot_deselect(wmOperatorType *ot)
@@ -547,7 +547,7 @@ void OBJECT_OT_material_slot_deselect(wmOperatorType *ot)
 static wmOperatorStatus material_slot_copy_exec(bContext &C, wmOperator & /*op*/)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = blender::ed::object::context_object(&C);
+  Object *ob = blender::ed::object::context_object(C);
   Material ***matar_obdata;
 
   if (!ob || !(matar_obdata = BKE_object_material_array_p(ob))) {
@@ -586,7 +586,7 @@ static wmOperatorStatus material_slot_copy_exec(bContext &C, wmOperator & /*op*/
       if (ob_iter->totcol == ob->totcol) {
         ob_iter->actcol = ob->actcol;
         DEG_id_tag_update(&ob_iter->id, ID_RECALC_GEOMETRY);
-        WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob_iter);
+        WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob_iter);
       }
     }
   }
@@ -620,7 +620,7 @@ void OBJECT_OT_material_slot_copy(wmOperatorType *ot)
 
 static wmOperatorStatus material_slot_move_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = blender::ed::object::context_object(&C);
+  Object *ob = blender::ed::object::context_object(C);
 
   uint *slot_remap;
   int index_pair[2];
@@ -659,8 +659,8 @@ static wmOperatorStatus material_slot_move_exec(bContext &C, wmOperator &op)
   MEM_freeN(slot_remap);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DATA, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DATA, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -734,12 +734,12 @@ static wmOperatorStatus material_slot_remove_unused_exec(bContext &C, wmOperator
   if (ob_active->mode & OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
     ED_paint_proj_mesh_data_check(*scene, *ob_active, nullptr, nullptr, nullptr, nullptr);
-    WM_event_add_notifier(&C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob_active);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_OB_SHADING, ob_active);
-  WM_event_add_notifier(&C, NC_MATERIAL | ND_SHADING_PREVIEW, ob_active);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob_active);
+  WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob_active);
+  WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_PREVIEW, ob_active);
 
   return OPERATOR_FINISHED;
 }
@@ -795,12 +795,12 @@ static wmOperatorStatus material_slot_remove_all_exec(bContext &C, wmOperator &o
   if (ob_active->mode == OB_MODE_TEXTURE_PAINT) {
     Scene *scene = CTX_data_scene(C);
     ED_paint_proj_mesh_data_check(*scene, *ob_active, nullptr, nullptr, nullptr, nullptr);
-    WM_event_add_notifier(&C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+    WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
   }
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob_active);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_OB_SHADING, ob_active);
-  WM_event_add_notifier(&C, NC_MATERIAL | ND_SHADING_PREVIEW, ob_active);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob_active);
+  WM_event_add_notifier(C, NC_OBJECT | ND_OB_SHADING, ob_active);
+  WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_PREVIEW, ob_active);
 
   return OPERATOR_FINISHED;
 }
@@ -876,10 +876,10 @@ static wmOperatorStatus new_material_exec(bContext &C, wmOperator & /*op*/)
 
     PointerRNA idptr = RNA_id_pointer_create(&ma->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
-    RNA_property_update(&C, &ptr, prop);
+    RNA_property_update(C, &ptr, prop);
   }
 
-  WM_event_add_notifier(&C, NC_MATERIAL | NA_ADDED, ma);
+  WM_event_add_notifier(C, NC_MATERIAL | NA_ADDED, ma);
 
   return OPERATOR_FINISHED;
 }
@@ -936,14 +936,14 @@ static wmOperatorStatus new_texture_exec(bContext &C, wmOperator &op)
 
     PointerRNA idptr = RNA_id_pointer_create(&tex->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
-    RNA_property_update(&C, &ptr, prop);
+    RNA_property_update(C, &ptr, prop);
   }
 
   if (!linked_id_created) {
     ED_undo_push_op(&C, &op);
   }
 
-  WM_event_add_notifier(&C, NC_TEXTURE | NA_ADDED, tex);
+  WM_event_add_notifier(C, NC_TEXTURE | NA_ADDED, tex);
 
   return OPERATOR_FINISHED;
 }
@@ -1000,10 +1000,10 @@ static wmOperatorStatus new_world_exec(bContext &C, wmOperator & /*op*/)
 
     PointerRNA idptr = RNA_id_pointer_create(&wo->id);
     RNA_property_pointer_set(&ptr, prop, idptr, nullptr);
-    RNA_property_update(&C, &ptr, prop);
+    RNA_property_update(C, &ptr, prop);
   }
 
-  WM_event_add_notifier(&C, NC_WORLD | NA_ADDED, wo);
+  WM_event_add_notifier(C, NC_WORLD | NA_ADDED, wo);
 
   return OPERATOR_FINISHED;
 }
@@ -1050,7 +1050,7 @@ static wmOperatorStatus view_layer_add_exec(bContext &C, wmOperator &op)
 
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1106,7 +1106,7 @@ static wmOperatorStatus view_layer_remove_exec(bContext &C, wmOperator & /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1155,7 +1155,7 @@ static wmOperatorStatus view_layer_add_aov_exec(bContext &C, wmOperator & /*op*/
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1207,7 +1207,7 @@ static wmOperatorStatus view_layer_remove_aov_exec(bContext &C, wmOperator & /*o
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1259,7 +1259,7 @@ static wmOperatorStatus view_layer_add_lightgroup_exec(bContext &C, wmOperator &
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1309,7 +1309,7 @@ static wmOperatorStatus view_layer_remove_lightgroup_exec(bContext &C, wmOperato
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1373,7 +1373,7 @@ static wmOperatorStatus view_layer_add_used_lightgroups_exec(bContext &C, wmOper
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1416,7 +1416,7 @@ static wmOperatorStatus view_layer_remove_unused_lightgroups_exec(bContext &C, w
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1447,11 +1447,11 @@ enum {
   LIGHTCACHE_SUBSET_ACTIVE,
 };
 
-static blender::Vector<Object *> lightprobe_cache_irradiance_volume_subset_get(bContext *C,
+static blender::Vector<Object *> lightprobe_cache_irradiance_volume_subset_get(bContext &C,
                                                                                wmOperator *op)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Scene *scene = CTX_data_scene(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Scene *scene = CTX_data_scene(C);
 
   auto is_irradiance_volume = [](Object *ob) -> bool {
     return ob->type == OB_LIGHTPROBE &&
@@ -1492,7 +1492,7 @@ static blender::Vector<Object *> lightprobe_cache_irradiance_volume_subset_get(b
       break;
     }
     case LIGHTCACHE_SUBSET_ACTIVE: {
-      Object *active_ob = CTX_data_active_object(*C);
+      Object *active_ob = CTX_data_active_object(C);
       if (is_irradiance_volume(active_ob)) {
         irradiance_volume_setup(active_ob);
       }
@@ -1525,7 +1525,7 @@ static wmOperatorStatus lightprobe_cache_bake_invoke(bContext &C,
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
 
-  blender::Vector<Object *> probes = lightprobe_cache_irradiance_volume_subset_get(&C, &op);
+  blender::Vector<Object *> probes = lightprobe_cache_irradiance_volume_subset_get(C, &op);
 
   if (probes.is_empty()) {
     return OPERATOR_CANCELLED;
@@ -1543,7 +1543,7 @@ static wmOperatorStatus lightprobe_cache_bake_invoke(bContext &C,
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   op.customdata = static_cast<void *>(data);
 
@@ -1604,7 +1604,7 @@ static wmOperatorStatus lightprobe_cache_bake_exec(bContext &C, wmOperator &op)
 
   G.is_break = false;
 
-  blender::Vector<Object *> probes = lightprobe_cache_irradiance_volume_subset_get(&C, &op);
+  blender::Vector<Object *> probes = lightprobe_cache_irradiance_volume_subset_get(C, &op);
 
   std::string report;
   void *rj = EEVEE_lightbake_job_data_alloc(
@@ -1671,7 +1671,7 @@ static wmOperatorStatus lightprobe_cache_free_exec(bContext &C, wmOperator &op)
   wmWindowManager *wm = CTX_wm_manager(C);
   WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_LIGHT_BAKE);
 
-  blender::Vector<Object *> probes = lightprobe_cache_irradiance_volume_subset_get(&C, &op);
+  blender::Vector<Object *> probes = lightprobe_cache_irradiance_volume_subset_get(C, &op);
 
   for (Object *object : probes) {
     if (object->lightprobe_cache == nullptr) {
@@ -1681,7 +1681,7 @@ static wmOperatorStatus lightprobe_cache_free_exec(bContext &C, wmOperator &op)
     DEG_id_tag_update(&object->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SHADING);
   }
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, scene);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1746,7 +1746,7 @@ static wmOperatorStatus render_view_add_exec(bContext &C, wmOperator & /*op*/)
   BKE_scene_add_render_view(scene, nullptr);
   scene->r.actview = BLI_listbase_count(&scene->r.views) - 1;
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
   BKE_ntree_update_tag_id_changed(bmain, &scene->id);
   BKE_main_ensure_invariants(*bmain);
@@ -1785,7 +1785,7 @@ static wmOperatorStatus render_view_remove_exec(bContext &C, wmOperator & /*op*/
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
   BKE_ntree_update_tag_id_changed(bmain, &scene->id);
   BKE_main_ensure_invariants(*bmain);
@@ -1849,7 +1849,7 @@ static wmOperatorStatus freestyle_module_add_exec(bContext &C, wmOperator & /*op
 
   BKE_freestyle_module_add(&view_layer->freestyle_config);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1884,7 +1884,7 @@ static wmOperatorStatus freestyle_module_remove_exec(bContext &C, wmOperator & /
   BKE_freestyle_module_delete(&view_layer->freestyle_config, module);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1914,7 +1914,7 @@ static wmOperatorStatus freestyle_module_move_exec(bContext &C, wmOperator &op)
 
   if (BKE_freestyle_module_move(&view_layer->freestyle_config, module, dir)) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-    WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
   }
 
   return OPERATOR_FINISHED;
@@ -1970,7 +1970,7 @@ static wmOperatorStatus freestyle_lineset_add_exec(bContext &C, wmOperator & /*o
   BKE_freestyle_lineset_add(bmain, &view_layer->freestyle_config, nullptr);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -2044,7 +2044,7 @@ static wmOperatorStatus freestyle_lineset_paste_exec(bContext &C, wmOperator & /
   FRS_paste_active_lineset(&view_layer->freestyle_config);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -2078,7 +2078,7 @@ static wmOperatorStatus freestyle_lineset_remove_exec(bContext &C, wmOperator & 
   FRS_delete_active_lineset(&view_layer->freestyle_config);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -2112,7 +2112,7 @@ static wmOperatorStatus freestyle_lineset_move_exec(bContext &C, wmOperator &op)
 
   if (FRS_move_active_lineset(&view_layer->freestyle_config, dir)) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
-    WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
   }
 
   return OPERATOR_FINISHED;
@@ -2171,7 +2171,7 @@ static wmOperatorStatus freestyle_linestyle_new_exec(bContext &C, wmOperator &op
     lineset->linestyle = BKE_linestyle_new(bmain, DATA_("LineStyle"));
   }
   DEG_id_tag_update(&lineset->linestyle->id, 0);
-  WM_event_add_notifier(&C, NC_LINESTYLE, lineset->linestyle);
+  WM_event_add_notifier(C, NC_LINESTYLE, lineset->linestyle);
 
   return OPERATOR_FINISHED;
 }
@@ -2212,7 +2212,7 @@ static wmOperatorStatus freestyle_color_modifier_add_exec(bContext &C, wmOperato
     return OPERATOR_CANCELLED;
   }
   DEG_id_tag_update(&lineset->linestyle->id, 0);
-  WM_event_add_notifier(&C, NC_LINESTYLE, lineset->linestyle);
+  WM_event_add_notifier(C, NC_LINESTYLE, lineset->linestyle);
 
   return OPERATOR_FINISHED;
 }
@@ -2259,7 +2259,7 @@ static wmOperatorStatus freestyle_alpha_modifier_add_exec(bContext &C, wmOperato
     return OPERATOR_CANCELLED;
   }
   DEG_id_tag_update(&lineset->linestyle->id, 0);
-  WM_event_add_notifier(&C, NC_LINESTYLE, lineset->linestyle);
+  WM_event_add_notifier(C, NC_LINESTYLE, lineset->linestyle);
 
   return OPERATOR_FINISHED;
 }
@@ -2306,7 +2306,7 @@ static wmOperatorStatus freestyle_thickness_modifier_add_exec(bContext &C, wmOpe
     return OPERATOR_CANCELLED;
   }
   DEG_id_tag_update(&lineset->linestyle->id, 0);
-  WM_event_add_notifier(&C, NC_LINESTYLE, lineset->linestyle);
+  WM_event_add_notifier(C, NC_LINESTYLE, lineset->linestyle);
 
   return OPERATOR_FINISHED;
 }
@@ -2353,7 +2353,7 @@ static wmOperatorStatus freestyle_geometry_modifier_add_exec(bContext &C, wmOper
     return OPERATOR_CANCELLED;
   }
   DEG_id_tag_update(&lineset->linestyle->id, 0);
-  WM_event_add_notifier(&C, NC_LINESTYLE, lineset->linestyle);
+  WM_event_add_notifier(C, NC_LINESTYLE, lineset->linestyle);
 
   return OPERATOR_FINISHED;
 }
@@ -2432,7 +2432,7 @@ static wmOperatorStatus freestyle_modifier_remove_exec(bContext &C, wmOperator &
       return OPERATOR_CANCELLED;
   }
   DEG_id_tag_update(&lineset->linestyle->id, 0);
-  WM_event_add_notifier(&C, NC_LINESTYLE, lineset->linestyle);
+  WM_event_add_notifier(C, NC_LINESTYLE, lineset->linestyle);
 
   return OPERATOR_FINISHED;
 }
@@ -2488,7 +2488,7 @@ static wmOperatorStatus freestyle_modifier_copy_exec(bContext &C, wmOperator &op
       return OPERATOR_CANCELLED;
   }
   DEG_id_tag_update(&lineset->linestyle->id, 0);
-  WM_event_add_notifier(&C, NC_LINESTYLE, lineset->linestyle);
+  WM_event_add_notifier(C, NC_LINESTYLE, lineset->linestyle);
 
   return OPERATOR_FINISHED;
 }
@@ -2548,7 +2548,7 @@ static wmOperatorStatus freestyle_modifier_move_exec(bContext &C, wmOperator &op
 
   if (changed) {
     DEG_id_tag_update(&lineset->linestyle->id, 0);
-    WM_event_add_notifier(&C, NC_LINESTYLE, lineset->linestyle);
+    WM_event_add_notifier(C, NC_LINESTYLE, lineset->linestyle);
   }
 
   return OPERATOR_FINISHED;
@@ -2673,7 +2673,7 @@ static wmOperatorStatus texture_slot_move_exec(bContext &C, wmOperator &op)
     }
 
     DEG_id_tag_update(id, 0);
-    WM_event_add_notifier(&C, NC_TEXTURE, CTX_data_scene(C));
+    WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(C));
   }
 
   return OPERATOR_FINISHED;
@@ -2950,7 +2950,7 @@ static wmOperatorStatus paste_material_exec(bContext &C, wmOperator &op)
   BKE_main_ensure_invariants(*bmain);
 
   DEG_id_tag_update(&ma->id, ID_RECALC_SYNC_TO_EVAL);
-  WM_event_add_notifier(&C, NC_MATERIAL | ND_SHADING_LINKS, ma);
+  WM_event_add_notifier(C, NC_MATERIAL | ND_SHADING_LINKS, ma);
 
   return OPERATOR_FINISHED;
 }
@@ -3144,7 +3144,7 @@ static wmOperatorStatus paste_mtex_exec(bContext &C, wmOperator & /*op*/)
 
   paste_mtex_copybuf(id);
 
-  WM_event_add_notifier(&C, NC_TEXTURE | ND_SHADING_LINKS, nullptr);
+  WM_event_add_notifier(C, NC_TEXTURE | ND_SHADING_LINKS, nullptr);
 
   return OPERATOR_FINISHED;
 }

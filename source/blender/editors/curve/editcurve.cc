@@ -1454,8 +1454,8 @@ static wmOperatorStatus separate_exec(bContext &C, wmOperator &op)
     DEG_id_tag_update(&oldob->id, ID_RECALC_GEOMETRY); /* This is the original one. */
     DEG_id_tag_update(&newob->id, ID_RECALC_GEOMETRY); /* This is the separated one. */
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, oldob->data);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, newob);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, oldob->data);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, newob);
     status.changed++;
   }
   WM_cursor_wait(false);
@@ -1490,7 +1490,7 @@ static wmOperatorStatus separate_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  ED_outliner_select_sync_from_object_tag(&C);
+  ED_outliner_select_sync_from_object_tag(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1551,11 +1551,11 @@ static wmOperatorStatus curve_split_exec(bContext &C, wmOperator &op)
     BLI_movelisttolist(editnurb, &newnurb);
 
     if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
     }
 
     changed = true;
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -2629,11 +2629,11 @@ static wmOperatorStatus switch_direction_exec(bContext &C, wmOperator & /*op*/)
     }
 
     if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   }
   return OPERATOR_FINISHED;
 }
@@ -2691,7 +2691,7 @@ static wmOperatorStatus set_goal_weight_exec(bContext &C, wmOperator &op)
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -2762,7 +2762,7 @@ static wmOperatorStatus set_radius_exec(bContext &C, wmOperator &op)
       }
     }
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -2926,7 +2926,7 @@ static wmOperatorStatus smooth_exec(bContext &C, wmOperator &op)
       }
     }
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -3154,7 +3154,7 @@ static wmOperatorStatus curve_smooth_weight_exec(bContext &C, wmOperator & /*op*
 
     curve_smooth_value(editnurb, offsetof(BezTriple, weight), offsetof(BPoint, weight));
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -3204,7 +3204,7 @@ static wmOperatorStatus curve_smooth_radius_exec(bContext &C, wmOperator &op)
 
     curve_smooth_value(editnurb, offsetof(BezTriple, radius), offsetof(BPoint, radius));
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -3253,7 +3253,7 @@ static wmOperatorStatus curve_smooth_tilt_exec(bContext &C, wmOperator &op)
 
     curve_smooth_value(editnurb, offsetof(BezTriple, tilt), offsetof(BPoint, tilt));
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -3351,7 +3351,7 @@ static wmOperatorStatus hide_exec(bContext &C, wmOperator &op)
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     BKE_curve_nurb_vert_active_validate(static_cast<Curve *>(obedit->data));
   }
   return OPERATOR_FINISHED;
@@ -3429,7 +3429,7 @@ static wmOperatorStatus reveal_exec(bContext &C, wmOperator &op)
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data),
                         ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT | ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
       changed_multi = true;
     }
   }
@@ -3889,10 +3889,10 @@ static wmOperatorStatus subdivide_exec(bContext &C, wmOperator &op)
     subdividenurb(obedit, v3d, number_cuts);
 
     if (ED_curve_updateAnimPaths(bmain, cu)) {
-      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
     }
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, cu);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, cu);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -3962,11 +3962,11 @@ static wmOperatorStatus set_spline_type_exec(bContext &C, wmOperator &op)
 
     if (changed) {
       if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-        WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
+        WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
       }
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
 
       if (changed_size) {
         Curve *cu = static_cast<Curve *>(obedit->data);
@@ -4039,7 +4039,7 @@ static wmOperatorStatus set_handle_type_exec(bContext &C, wmOperator &op)
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     BKE_nurbList_handles_set(editnurb, handle_mode, handle_type);
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
   return OPERATOR_FINISHED;
@@ -4109,7 +4109,7 @@ static wmOperatorStatus curve_normals_make_consistent_exec(bContext &C, wmOperat
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     BKE_nurbList_handles_recalculate(editnurb, calc_length, SELECT);
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
   return totobjects ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -4766,13 +4766,13 @@ static wmOperatorStatus make_segment_exec(bContext &C, wmOperator &op)
     }
 
     if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
     }
 
     status.changed++;
 
   curve_merge_tag_object:
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -4835,12 +4835,12 @@ void CURVE_OT_make_segment(wmOperatorType *ot)
 /** \name Pick Select from 3D View
  * \{ */
 
-bool ED_curve_editnurb_select_pick(bContext *C,
+bool ED_curve_editnurb_select_pick(bContext &C,
                                    const int mval[2],
                                    const int dist_px,
                                    const SelectPick_Params &params)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Nurb *nu;
   BezTriple *bezt = nullptr;
   BPoint *bp = nullptr;
@@ -5130,7 +5130,7 @@ static wmOperatorStatus spin_exec(bContext &C, wmOperator &op)
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = ED_view3d_context_rv3d(&C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
   float cent[3], axis[3], viewmat[4][4];
   bool changed = false;
   int count_failed = 0;
@@ -5164,10 +5164,10 @@ static wmOperatorStatus spin_exec(bContext &C, wmOperator &op)
 
     changed = true;
     if (ED_curve_updateAnimPaths(bmain, cu)) {
-      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
     }
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -5183,7 +5183,7 @@ static wmOperatorStatus spin_exec(bContext &C, wmOperator &op)
 static wmOperatorStatus spin_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   Scene *scene = CTX_data_scene(C);
-  RegionView3D *rv3d = ED_view3d_context_rv3d(&C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
   float axis[3] = {0.0f, 0.0f, 1.0f};
 
   if (rv3d) {
@@ -5637,11 +5637,11 @@ static wmOperatorStatus add_vertex_exec(bContext &C, wmOperator &op)
 
   if (ed_editcurve_addvert(cu, editnurb, v3d, location)) {
     if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
     }
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
 
@@ -5653,7 +5653,7 @@ static wmOperatorStatus add_vertex_exec(bContext &C, wmOperator &op)
 static wmOperatorStatus add_vertex_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   if (vc.rv3d && !RNA_struct_property_is_set(op.ptr, "location")) {
     Curve *cu;
@@ -5811,10 +5811,10 @@ static wmOperatorStatus curve_extrude_exec(bContext &C, wmOperator & /*op*/)
 
     if (changed) {
       if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-        WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
+        WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
       }
 
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     }
   }
@@ -5948,7 +5948,7 @@ static wmOperatorStatus toggle_cyclic_exec(bContext &C, wmOperator &op)
     ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     if (curve_toggle_cyclic(v3d, editnurb, direction)) {
       changed_multi = true;
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     }
   }
@@ -5971,7 +5971,7 @@ static wmOperatorStatus toggle_cyclic_invoke(bContext &C,
               &C, IFACE_("Direction"), ICON_NONE);
           blender::ui::Layout &layout = *popup_menu_layout(pup);
           layout.op_enum(op.type->idname, "direction");
-          popup_menu_end(&C, pup);
+          popup_menu_end(C, pup);
           return OPERATOR_INTERFACE;
         }
       }
@@ -6046,7 +6046,7 @@ static wmOperatorStatus duplicate_exec(bContext &C, wmOperator &op)
     changed = true;
     BLI_movelisttolist(object_editcurve_get(obedit), &newnurb);
     DEG_id_tag_update(&cu->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, &cu->id);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, &cu->id);
   }
 
   if (changed == false) {
@@ -6556,10 +6556,10 @@ static wmOperatorStatus curve_delete_exec(bContext &C, wmOperator &op)
       cu->actvert = CU_ACT_NONE;
 
       if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-        WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
+        WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
       }
 
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     }
   }
@@ -6743,10 +6743,10 @@ static wmOperatorStatus curve_dissolve_exec(bContext &C, wmOperator & /*op*/)
     cu->actnu = cu->actvert = CU_ACT_NONE;
 
     if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-      WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
+      WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
     }
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
   return OPERATOR_FINISHED;
@@ -6829,10 +6829,10 @@ static wmOperatorStatus curve_decimate_exec(bContext &C, wmOperator &op)
     if (changed) {
       cu->actnu = cu->actvert = CU_ACT_NONE;
       if (ED_curve_updateAnimPaths(bmain, static_cast<Curve *>(obedit->data))) {
-        WM_event_add_notifier(&C, NC_OBJECT | ND_KEYS, obedit);
+        WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
       }
 
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     }
   }
@@ -6896,7 +6896,7 @@ static wmOperatorStatus shade_smooth_exec(bContext &C, wmOperator &op)
       }
     }
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     ret_value = OPERATOR_FINISHED;
   }
@@ -6940,11 +6940,11 @@ void CURVE_OT_shade_flat(wmOperatorType *ot)
 /** \name Join Operator
  * \{ */
 
-wmOperatorStatus ED_curve_join_objects_exec(bContext *C, wmOperator *op)
+wmOperatorStatus ED_curve_join_objects_exec(bContext &C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *ob_active = CTX_data_active_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *ob_active = CTX_data_active_object(C);
   Curve *cu;
   BezTriple *bezt;
   BPoint *bp;
@@ -6953,7 +6953,7 @@ wmOperatorStatus ED_curve_join_objects_exec(bContext *C, wmOperator *op)
   int a;
   bool ok = false;
 
-  CTX_DATA_BEGIN (*C, Object *, ob_iter, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob_iter == ob_active) {
       ok = true;
       break;
@@ -6974,7 +6974,7 @@ wmOperatorStatus ED_curve_join_objects_exec(bContext *C, wmOperator *op)
 
   Curve *cu_active = static_cast<Curve *>(ob_active->data);
 
-  CTX_DATA_BEGIN (*C, Object *, ob_iter, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob_iter->type == ob_active->type) {
       if (ob_iter != ob_active) {
 
@@ -7111,7 +7111,7 @@ static wmOperatorStatus clear_tilt_exec(bContext &C, wmOperator &op)
       }
     }
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
   return totobjects ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -7198,7 +7198,7 @@ static wmOperatorStatus match_texture_space_exec(bContext &C, wmOperator & /*op*
 
   curve->texspace_flag &= ~CU_TEXSPACE_FLAG_AUTO;
 
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curve);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, curve);
   DEG_id_tag_update(&curve->id, ID_RECALC_GEOMETRY);
 
   return OPERATOR_FINISHED;

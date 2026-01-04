@@ -225,10 +225,10 @@ static wmOperatorStatus wm_stl_import_exec(bContext &C, wmOperator &op)
   }
 
   Scene *scene = CTX_data_scene(C);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, scene);
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, scene);
-  ED_outliner_select_sync_from_object_tag(&C);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  ED_outliner_select_sync_from_object_tag(C);
 
   return OPERATOR_FINISHED;
 }

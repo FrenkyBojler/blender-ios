@@ -322,7 +322,7 @@ static ClosestElement find_closest_element(const PenToolOperation &ptd, const fl
 
 static void pen_status_indicators(bContext *C, wmOperator *op)
 {
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
   status.opmodal(IFACE_("Snap Angle"), op->type, int(PenModal::SnapAngle));
   status.opmodal(IFACE_("Move Current Handle"), op->type, int(PenModal::MoveHandle));
   status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
@@ -1153,17 +1153,17 @@ float3 PenToolOperation::screen_to_layer(const float4x4 &layer_to_world,
   return math::transform_point(math::invert(layer_to_world), proj_point);
 }
 
-wmOperatorStatus PenToolOperation::invoke(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus PenToolOperation::invoke(bContext &C, wmOperator *op, const wmEvent *event)
 {
   /* If in tools region, wait till we get to the main (3D-space)
    * region before allowing drawing to take place. */
   op->flag |= OP_IS_MODAL_CURSOR_REGION;
 
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   /* Set cursor to indicate modal. */
   WM_cursor_modal_set(win, WM_CURSOR_CROSS);
 
-  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(*C));
+  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
 
   this->vc = vc;
   this->projection = ED_view3d_ob_project_mat_get(this->vc.rv3d, this->vc.obact);
@@ -1200,7 +1200,7 @@ wmOperatorStatus PenToolOperation::invoke(bContext *C, wmOperator *op, const wmE
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, op);
 
-  invoke_curves(*this, C, op, event);
+  invoke_curves(*this, &C, op, event);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1344,28 +1344,28 @@ class CurvesPenToolOperation : public PenToolOperation {
   {
     for (Curves *curves_id : this->all_curves) {
       DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
+      WM_event_add_notifier(*C, NC_GEOM | ND_DATA, curves_id);
     }
     ED_region_tag_redraw(this->vc.region);
   }
 
-  std::optional<wmOperatorStatus> initialize(bContext *C,
+  std::optional<wmOperatorStatus> initialize(bContext &C,
                                              wmOperator * /*op*/,
                                              const wmEvent * /*event*/)
   {
     this->active_drawing_index = std::nullopt;
     VectorSet<Curves *> unique_curves;
 
-    const Main &bmain = *CTX_data_main(*C);
+    const Main &bmain = *CTX_data_main(C);
 
-    Object *object = CTX_data_active_object(*C);
+    Object *object = CTX_data_active_object(C);
     if (object && object_has_editable_curves(bmain, *object)) {
       unique_curves.add_new(static_cast<Curves *>(object->data));
       this->layer_to_world_per_curves.append(object->object_to_world());
       this->active_drawing_index = 0;
     }
 
-    CTX_DATA_BEGIN (*C, Object *, object, selected_objects) {
+    CTX_DATA_BEGIN (C, Object *, object, selected_objects) {
       if (object_has_editable_curves(bmain, *object)) {
         if (unique_curves.add(static_cast<Curves *>(object->data))) {
           this->layer_to_world_per_curves.append(object->object_to_world());
@@ -1409,7 +1409,7 @@ static wmOperatorStatus curves_pen_invoke(bContext &C, wmOperator &op, const wmE
   op.customdata = ptd_pointer;
   CurvesPenToolOperation &ptd = *ptd_pointer;
 
-  const wmOperatorStatus result = ptd.invoke(&C, &op, event);
+  const wmOperatorStatus result = ptd.invoke(C, &op, event);
   if (result != OPERATOR_RUNNING_MODAL) {
     curves_pen_exit(&C, &op);
   }

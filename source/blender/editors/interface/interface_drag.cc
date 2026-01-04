@@ -118,7 +118,7 @@ void button_drag_start(bContext *C, Button *but)
     WM_event_drag_preview_icon(drag, but->drag_preview_icon_id);
   }
 
-  WM_event_start_prepared_drag(C, drag);
+  WM_event_start_prepared_drag(*C, drag);
 
   /* Special feature for assets: We add another drag item that supports multiple assets. It
    * gets the assets from context. */
@@ -127,7 +127,7 @@ void button_drag_start(bContext *C, Button *but)
   }
 
   if (but->dragtype == WM_DRAG_PATH) {
-    WM_event_drag_path_override_poin_data_with_space_file_paths(C, drag);
+    WM_event_drag_path_override_poin_data_with_space_file_paths(*C, drag);
   }
 }
 

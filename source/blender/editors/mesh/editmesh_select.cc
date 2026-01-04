@@ -1510,7 +1510,7 @@ static wmOperatorStatus edbm_select_similar_region_exec(bContext &C, wmOperator 
 
   if (changed) {
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
   else {
     BKE_report(op.reports, RPT_WARNING, "No matching face regions found");
@@ -1547,7 +1547,7 @@ static wmOperatorStatus edbm_select_mode_exec(bContext &C, wmOperator &op)
   const bool use_extend = RNA_boolean_get(op.ptr, "use_extend");
   const bool use_expand = RNA_boolean_get(op.ptr, "use_expand");
 
-  if (EDBM_selectmode_toggle_multi(&C, type, action, use_extend, use_expand)) {
+  if (EDBM_selectmode_toggle_multi(C, type, action, use_extend, use_expand)) {
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -1783,7 +1783,7 @@ static wmOperatorStatus edbm_loop_multiselect_exec(bContext &C, wmOperator &op)
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -1884,7 +1884,7 @@ static bool mouse_mesh_loop(
   bool select_cycle = true;
   float mvalf[2];
 
-  ViewContext vc = em_setup_viewcontext(C);
+  ViewContext vc = em_setup_viewcontext(*C);
   mvalf[0] = float(vc.mval[0] = mval[0]);
   mvalf[1] = float(vc.mval[1] = mval[1]);
 
@@ -2033,7 +2033,7 @@ static bool mouse_mesh_loop(
   }
 
   DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc.obedit->data);
+  WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, vc.obedit->data);
 
   return true;
 }
@@ -2041,7 +2041,7 @@ static bool mouse_mesh_loop(
 static wmOperatorStatus edbm_select_loop_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
 
-  view3d_operator_needs_gpu(&C);
+  view3d_operator_needs_gpu(C);
 
   if (mouse_mesh_loop(&C,
                       event->mval,
@@ -2155,7 +2155,7 @@ static wmOperatorStatus edbm_select_all_exec(bContext &C, wmOperator &op)
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -2199,7 +2199,7 @@ static wmOperatorStatus edbm_faces_select_interior_exec(bContext &C, wmOperator 
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -2237,7 +2237,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
   BMFace *efa = nullptr;
 
   /* Setup view context for argument to callbacks. */
-  ViewContext vc = em_setup_viewcontext(C);
+  ViewContext vc = em_setup_viewcontext(*C);
   vc.mval[0] = mval[0];
   vc.mval[1] = mval[1];
 
@@ -2258,7 +2258,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
         Object *ob_iter = base_iter->object;
         EDBM_flag_disable_all(BKE_editmesh_from_object(ob_iter), BM_ELEM_SELECT);
         DEG_id_tag_update(static_cast<ID *>(ob_iter->data), ID_RECALC_SELECT);
-        WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob_iter->data);
+        WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, ob_iter->data);
       }
       changed = true;
     }
@@ -2448,11 +2448,11 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
      * switch UV layers, vgroups for eg. */
     BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
     if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-      blender::ed::object::base_activate(C, basact);
+      blender::ed::object::base_activate(*C, basact);
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, obedit->data);
 
     changed = true;
   }
@@ -2676,22 +2676,22 @@ void EDBM_selectmode_convert(BMEditMesh *em,
   }
 }
 
-bool EDBM_selectmode_toggle_multi(bContext *C,
+bool EDBM_selectmode_toggle_multi(bContext &C,
                                   const short selectmode_toggle,
                                   const int action,
                                   const bool use_extend,
                                   const bool use_expand)
 {
   BLI_assert(ELEM(selectmode_toggle, SCE_SELECT_VERTEX, SCE_SELECT_EDGE, SCE_SELECT_FACE));
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  ToolSettings *ts = CTX_data_tool_settings(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  ToolSettings *ts = CTX_data_tool_settings(C);
   bool ret = false;
 
   short selectmode_new;
   /* Avoid mixing up the active/iterable edit-mesh by limiting its scope. */
   {
-    Object *obedit = CTX_data_edit_object(*C);
+    Object *obedit = CTX_data_edit_object(C);
     BMEditMesh *em = nullptr;
 
     if (obedit && obedit->type == OB_MESH) {
@@ -2742,7 +2742,7 @@ bool EDBM_selectmode_toggle_multi(bContext *C,
   }
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   if (only_update) {
     for (Object *ob_iter : objects) {
@@ -2871,11 +2871,11 @@ bool EDBM_selectmode_set_multi_ex(Scene *scene, Span<Object *> objects, const sh
   return changed || changed_toolsettings;
 }
 
-bool EDBM_selectmode_set_multi(bContext *C, const short selectmode)
+bool EDBM_selectmode_set_multi(bContext &C, const short selectmode)
 {
   BLI_assert(selectmode != 0);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
   if (!(obact && (obact->type == OB_MESH) && (obact->mode & OB_MODE_EDIT) &&
@@ -2885,7 +2885,7 @@ bool EDBM_selectmode_set_multi(bContext *C, const short selectmode)
   }
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   return EDBM_selectmode_set_multi_ex(scene, objects, selectmode);
 }
@@ -3031,9 +3031,9 @@ bool EDBM_mesh_deselect_all_multi_ex(const Span<Base *> bases)
   return changed_multi;
 }
 
-bool EDBM_mesh_deselect_all_multi(bContext *C)
+bool EDBM_mesh_deselect_all_multi(bContext &C)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
       vc.scene, vc.view_layer, vc.v3d);
@@ -3057,12 +3057,12 @@ bool EDBM_selectmode_disable_multi_ex(Scene *scene,
   return changed_multi;
 }
 
-bool EDBM_selectmode_disable_multi(bContext *C,
+bool EDBM_selectmode_disable_multi(bContext &C,
                                    const short selectmode_disable,
                                    const short selectmode_fallback)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
       vc.scene, vc.view_layer, nullptr);
@@ -3733,7 +3733,7 @@ static wmOperatorStatus edbm_select_linked_exec(bContext &C, wmOperator &op)
     EDBM_uvselect_clear(em);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -3909,10 +3909,10 @@ static wmOperatorStatus edbm_select_linked_pick_invoke(bContext &C,
   }
 
   /* #unified_findnearest needs OpenGL. */
-  view3d_operator_needs_gpu(&C);
+  view3d_operator_needs_gpu(C);
 
   /* Setup view context for argument to callbacks. */
-  ViewContext vc = em_setup_viewcontext(&C);
+  ViewContext vc = em_setup_viewcontext(C);
 
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode(
       vc.scene, vc.view_layer, vc.v3d);
@@ -3971,7 +3971,7 @@ static wmOperatorStatus edbm_select_linked_pick_invoke(bContext &C,
   }
 
   DEG_id_tag_update(static_cast<ID *>(basact->object->data), ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, basact->object->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, basact->object->data);
 
   return OPERATOR_FINISHED;
 }
@@ -4006,7 +4006,7 @@ static wmOperatorStatus edbm_select_linked_pick_exec(bContext &C, wmOperator &op
   edbm_select_linked_pick_ex(em, ele, sel, delimit);
 
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
   return OPERATOR_FINISHED;
 }
@@ -4140,7 +4140,7 @@ static wmOperatorStatus edbm_select_by_pole_count_exec(bContext &C, wmOperator &
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -4220,7 +4220,7 @@ static wmOperatorStatus edbm_select_face_by_sides_exec(bContext &C, wmOperator &
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -4333,7 +4333,7 @@ static wmOperatorStatus edbm_select_loose_exec(bContext &C, wmOperator &op)
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -4403,7 +4403,7 @@ static wmOperatorStatus edbm_select_mirror_exec(bContext &C, wmOperator &op)
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
 
     tot_fail += tot_fail_iter;
@@ -4460,7 +4460,7 @@ static wmOperatorStatus edbm_select_more_exec(bContext &C, wmOperator &op)
 
     EDBM_select_more(em, use_face_step);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -4508,7 +4508,7 @@ static wmOperatorStatus edbm_select_less_exec(bContext &C, wmOperator &op)
 
     EDBM_select_less(em, use_face_step);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -5073,9 +5073,9 @@ void MESH_OT_select_nth(wmOperatorType *ot)
   WM_operator_properties_checker_interval(ot, false);
 }
 
-ViewContext em_setup_viewcontext(bContext *C)
+ViewContext em_setup_viewcontext(bContext &C)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   if (vc.obedit) {
@@ -5133,7 +5133,7 @@ static wmOperatorStatus edbm_select_sharp_edges_exec(bContext &C, wmOperator &op
     EDBM_uvselect_clear(em);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -5233,7 +5233,7 @@ static wmOperatorStatus edbm_select_linked_flat_faces_exec(bContext &C, wmOperat
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -5338,7 +5338,7 @@ static wmOperatorStatus edbm_select_non_manifold_exec(bContext &C, wmOperator &o
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
       EDBM_selectmode_flush(em);
       EDBM_uvselect_clear(em);
@@ -5470,7 +5470,7 @@ static wmOperatorStatus edbm_select_random_exec(bContext &C, wmOperator &op)
     EDBM_uvselect_clear(em);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   return OPERATOR_FINISHED;
@@ -5567,7 +5567,7 @@ static wmOperatorStatus edbm_select_ungrouped_exec(bContext &C, wmOperator &op)
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
   return OPERATOR_FINISHED;
@@ -5694,7 +5694,7 @@ static wmOperatorStatus edbm_select_axis_exec(bContext &C, wmOperator &op)
       EDBM_selectmode_flush(em_iter);
       EDBM_uvselect_clear(em);
 
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit_iter->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit_iter->data);
       DEG_id_tag_update(static_cast<ID *>(obedit_iter->data), ID_RECALC_SELECT);
     }
   }
@@ -5793,14 +5793,14 @@ static wmOperatorStatus edbm_region_to_loop_exec(bContext &C, wmOperator & /*op*
     }
 
     DEG_id_tag_update(&obedit->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   if (changed) {
     /* If in face-only select mode, switch to edge select mode so that
      * an edge-only selection is not inconsistent state. Do this for all meshes in multi-object
      * editmode so their selectmode is in sync for following operators. */
-    EDBM_selectmode_disable_multi(&C, SCE_SELECT_FACE, SCE_SELECT_EDGE);
+    EDBM_selectmode_disable_multi(C, SCE_SELECT_FACE, SCE_SELECT_EDGE);
   }
 
   return OPERATOR_FINISHED;
@@ -6017,7 +6017,7 @@ static wmOperatorStatus edbm_loop_to_region_exec(bContext &C, wmOperator &op)
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 
@@ -6136,7 +6136,7 @@ static wmOperatorStatus edbm_select_by_attribute_exec(bContext &C, wmOperator & 
       EDBM_uvselect_clear(em);
 
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
     }
   }
 

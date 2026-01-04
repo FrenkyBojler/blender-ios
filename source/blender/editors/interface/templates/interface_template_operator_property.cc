@@ -285,7 +285,7 @@ void uiTemplateOperatorPropertyButs(
 
 void template_operator_redo_properties(Layout *layout, const bContext *C)
 {
-  wmOperator *op = WM_operator_last_redo(C);
+  wmOperator *op = WM_operator_last_redo(*C);
   Block *block = layout->block();
 
   if (op == nullptr) {
@@ -459,7 +459,7 @@ void template_collection_exporters(Layout *layout, bContext *C)
 
   PointerRNA exporter_ptr = RNA_pointer_create_discrete(
       &collection->id, &RNA_CollectionExport, data);
-  PanelLayout panel = layout->panel_prop(C, &exporter_ptr, "is_open");
+  PanelLayout panel = layout->panel_prop(*C, &exporter_ptr, "is_open");
 
   bke::FileHandlerType *fh = bke::file_handler_find(data->fh_idname);
   if (!fh) {

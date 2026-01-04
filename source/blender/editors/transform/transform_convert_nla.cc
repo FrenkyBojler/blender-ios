@@ -459,7 +459,7 @@ static void createTransNlaData(bContext *C, TransInfo *t)
   TransDataContainer *tc = TRANS_DATA_CONTAINER_FIRST_SINGLE(t);
 
   /* Determine what type of data we are operating on. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return;
   }
   snla = (SpaceNla *)ac.sl;
@@ -933,7 +933,7 @@ static void special_aftertrans_update__nla(bContext *C, TransInfo *t)
   bAnimContext ac;
 
   /* Initialize relevant anim-context 'context' data. */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return;
   }
 
@@ -980,7 +980,7 @@ static void special_aftertrans_update__nla(bContext *C, TransInfo *t)
    * - strips moved between tracks
    * - strips swapped order
    * - duplicate-move moves to different track. */
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
   /* Free temp memory. */
   ANIM_animdata_freelist(&anim_data);

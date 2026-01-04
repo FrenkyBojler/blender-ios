@@ -57,7 +57,7 @@ void RandomizeOperation::on_stroke_begin(const bContext &C, const InputSample &s
 
 void RandomizeOperation::on_stroke_extended(const bContext &C, const InputSample &extension_sample)
 {
-  Paint &paint = *BKE_paint_get_active_from_context(&C);
+  Paint &paint = *BKE_paint_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush(&paint);
   const int sculpt_mode_flag = brush.gpencil_settings->sculpt_mode_flag;
 

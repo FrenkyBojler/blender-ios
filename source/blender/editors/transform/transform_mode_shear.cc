@@ -293,7 +293,7 @@ static void apply_shear(TransInfo *t)
   if (custom_data->op && custom_data->update_status_bar) {
     custom_data->update_status_bar = false;
 
-    WorkspaceStatus status(t->context);
+    WorkspaceStatus status(*t->context);
 
     status.opmodal(IFACE_("Confirm"), custom_data->op->type, TFM_MODAL_CONFIRM);
     status.opmodal(IFACE_("Cancel"), custom_data->op->type, TFM_MODAL_CANCEL);

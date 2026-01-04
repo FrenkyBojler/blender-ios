@@ -192,7 +192,7 @@ void ED_buttons_visible_tabs_menu(bContext *C, blender::ui::Layout *layout, void
 
 void ED_buttons_navbar_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
-  ED_screens_region_flip_menu_create(C, layout, nullptr);
+  ED_screens_region_flip_menu_create(*C, layout, nullptr);
   layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
   layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
 }
@@ -312,7 +312,7 @@ static void buttons_main_region_layout_properties(const bContext *C,
 
   const char *contexts[2] = {buttons_main_region_context_string(sbuts->mainb), nullptr};
 
-  ED_region_panels_layout_ex(C,
+  ED_region_panels_layout_ex(*C,
                              region,
                              &region->runtime->type->paneltypes,
                              blender::wm::OpCallContext::InvokeRegionWin,
@@ -362,7 +362,7 @@ static bool property_search_for_context(const bContext *C, ARegion *region, Spac
 
   buttons_context_compute(C, sbuts);
   return ED_region_property_search(
-      C, region, &region->runtime->type->paneltypes, contexts, nullptr);
+      *C, region, &region->runtime->type->paneltypes, contexts, nullptr);
 }
 
 static void property_search_move_to_next_tab_with_results(
@@ -398,21 +398,21 @@ static void property_search_move_to_next_tab_with_results(
   }
 }
 
-static void property_search_all_tabs(const bContext *C,
+static void property_search_all_tabs(const bContext &C,
                                      SpaceProperties *sbuts,
                                      ARegion *region_original,
                                      blender::Span<eSpaceButtons_Context> context_tabs_array)
 {
   /* Use local copies of the area and duplicate the region as a mainly-paranoid protection
    * against changing any of the space / region data while running the search. */
-  ScrArea *area_original = CTX_wm_area(*C);
+  ScrArea *area_original = CTX_wm_area(C);
   ScrArea area_copy = blender::dna::shallow_copy(*area_original);
   ARegion *region_copy = BKE_area_region_copy(area_copy.type, region_original);
   /* Set the region visible field. Otherwise some layout code thinks we're drawing in a popup.
    * This likely isn't necessary, but it's nice to emulate a "real" region where possible. */
   region_copy->runtime->visible = true;
-  CTX_wm_area_set(*(bContext *)C, &area_copy);
-  CTX_wm_region_set(*(bContext *)C, region_copy);
+  CTX_wm_area_set(*(bContext *)&C, &area_copy);
+  CTX_wm_region_set(*(bContext *)&C, region_copy);
 
   SpaceProperties sbuts_copy = blender::dna::shallow_copy(*sbuts);
   sbuts_copy.path = nullptr;
@@ -439,17 +439,17 @@ static void property_search_all_tabs(const bContext *C,
     /* Actually do the search and store the result in the bitmap. */
     BLI_BITMAP_SET(sbuts->runtime->tab_search_results,
                    i,
-                   property_search_for_context(C, region_copy, &sbuts_copy));
+                   property_search_for_context(&C, region_copy, &sbuts_copy));
 
-    blender::ui::blocklist_free(C, region_copy);
+    blender::ui::blocklist_free(&C, region_copy);
   }
 
   BKE_area_region_free(area_copy.type, region_copy);
   MEM_freeN(region_copy);
   buttons_free((SpaceLink *)&sbuts_copy);
 
-  CTX_wm_area_set(*(bContext *)C, area_original);
-  CTX_wm_region_set(*(bContext *)C, region_original);
+  CTX_wm_area_set(*(bContext *)&C, area_original);
+  CTX_wm_region_set(*(bContext *)&C, region_original);
 }
 
 /**
@@ -463,7 +463,7 @@ static void buttons_main_region_property_search(const bContext *C,
   /* Theoretical maximum of every context shown with a spacer between every tab. */
   const blender::Vector<eSpaceButtons_Context> context_tabs_array = ED_buttons_tabs_list(sbuts);
 
-  property_search_all_tabs(C, sbuts, region, context_tabs_array);
+  property_search_all_tabs(*C, sbuts, region, context_tabs_array);
 
   /* Check whether the current tab has a search match. */
   bool current_tab_has_search_match = false;
@@ -561,7 +561,7 @@ static void buttons_main_region_layout(const bContext *C, ARegion *region)
   buttons_context_compute(C, sbuts);
 
   if (ED_buttons_tabs_list(sbuts).is_empty()) {
-    View2D *v2d = blender::ui::view2d_fromcontext(C);
+    View2D *v2d = blender::ui::view2d_fromcontext(*C);
     v2d->scroll &= ~V2D_SCROLL_VERTICAL;
     return;
   }
@@ -569,7 +569,7 @@ static void buttons_main_region_layout(const bContext *C, ARegion *region)
   buttons_apply_filter(sbuts);
 
   if (sbuts->mainb == BCONTEXT_TOOL) {
-    ED_view3d_buttons_region_layout_ex(C, region, "Tool");
+    ED_view3d_buttons_region_layout_ex(*C, region, "Tool");
   }
   else {
     buttons_main_region_layout_properties(C, sbuts, region);

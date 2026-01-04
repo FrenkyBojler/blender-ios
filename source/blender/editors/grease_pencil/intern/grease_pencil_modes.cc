@@ -103,13 +103,13 @@ static wmOperatorStatus paintmode_toggle_exec(bContext &C, wmOperator &op)
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
-  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_MODE, nullptr);
 
   WM_msg_publish_rna_prop(mbus, &ob->id, ob, Object, mode);
 
   if (G.background == false) {
-    WM_toolsystem_update_from_context_view3d(&C);
+    WM_toolsystem_update_from_context_view3d(C);
   }
 
   return OPERATOR_FINISHED;
@@ -201,13 +201,13 @@ static wmOperatorStatus sculptmode_toggle_exec(bContext &C, wmOperator &op)
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
-  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_MODE, nullptr);
 
   WM_msg_publish_rna_prop(mbus, &ob->id, ob, Object, mode);
 
   if (G.background == false) {
-    WM_toolsystem_update_from_context_view3d(&C);
+    WM_toolsystem_update_from_context_view3d(C);
   }
 
   return OPERATOR_FINISHED;
@@ -296,13 +296,13 @@ static wmOperatorStatus weightmode_toggle_exec(bContext &C, wmOperator &op)
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
-  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_MODE, nullptr);
 
   WM_msg_publish_rna_prop(mbus, &ob->id, ob, Object, mode);
 
   if (G.background == false) {
-    WM_toolsystem_update_from_context_view3d(&C);
+    WM_toolsystem_update_from_context_view3d(C);
   }
 
   return OPERATOR_FINISHED;
@@ -395,13 +395,13 @@ static wmOperatorStatus vertexmode_toggle_exec(bContext &C, wmOperator &op)
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
-  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_MODE, nullptr);
 
   WM_msg_publish_rna_prop(mbus, &ob->id, ob, Object, mode);
 
   if (G.background == false) {
-    WM_toolsystem_update_from_context_view3d(&C);
+    WM_toolsystem_update_from_context_view3d(C);
   }
 
   return OPERATOR_FINISHED;

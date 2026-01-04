@@ -182,7 +182,7 @@ class SingleValueDataSource : public DataSource {
 
 int get_instance_reference_icon(const bke::InstanceReference &reference);
 
-std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object *object_eval);
+std::unique_ptr<DataSource> data_source_from_geometry(const bContext &C, Object *object_eval);
 
 bke::GeometrySet get_geometry_set_for_instance_ids(const bke::GeometrySet &root_geometry,
                                                    const Span<SpreadsheetInstanceID> instance_ids);

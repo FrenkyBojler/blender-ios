@@ -169,11 +169,11 @@ static void delete_selected_text(TextVars *data)
   text_selection_cancel(data);
 }
 
-static void text_editing_update(const bContext *C)
+static void text_editing_update(const bContext &C)
 {
-  Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(*C));
-  seq::relations_invalidate_cache_raw(CTX_data_sequencer_scene(*C), strip);
-  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(*C));
+  Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
+  seq::relations_invalidate_cache_raw(CTX_data_sequencer_scene(C), strip);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
 }
 
 enum {
@@ -366,7 +366,7 @@ static wmOperatorStatus sequencer_text_cursor_move_exec(bContext &C, wmOperator 
     text_selection_cancel(data);
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
   return OPERATOR_FINISHED;
 }
 
@@ -439,7 +439,7 @@ static wmOperatorStatus sequencer_text_insert_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  text_editing_update(&C);
+  text_editing_update(C);
   return OPERATOR_FINISHED;
 }
 
@@ -501,7 +501,7 @@ static wmOperatorStatus sequencer_text_delete_exec(bContext &C, wmOperator &op)
 
   if (text_has_selection(data)) {
     delete_selected_text(data);
-    text_editing_update(&C);
+    text_editing_update(C);
     return OPERATOR_FINISHED;
   }
 
@@ -521,7 +521,7 @@ static wmOperatorStatus sequencer_text_delete_exec(bContext &C, wmOperator &op)
     data->cursor_offset -= 1;
   }
 
-  text_editing_update(&C);
+  text_editing_update(C);
   return OPERATOR_FINISHED;
 }
 
@@ -557,7 +557,7 @@ static wmOperatorStatus sequencer_text_line_break_exec(bContext &C, wmOperator &
     return OPERATOR_CANCELLED;
   }
 
-  text_editing_update(&C);
+  text_editing_update(C);
   return OPERATOR_FINISHED;
 }
 
@@ -582,7 +582,7 @@ static wmOperatorStatus sequencer_text_select_all_exec(bContext &C, wmOperator &
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   data->selection_start_offset = 0;
   data->selection_end_offset = data->runtime->character_count;
-  text_editing_update(&C);
+  text_editing_update(C);
   return OPERATOR_FINISHED;
 }
 
@@ -614,7 +614,7 @@ static wmOperatorStatus sequencer_text_deselect_all_exec(bContext &C, wmOperator
     text_selection_cancel(data);
   }
 
-  text_editing_update(&C);
+  text_editing_update(C);
   return OPERATOR_FINISHED;
 }
 
@@ -643,7 +643,7 @@ static wmOperatorStatus sequencer_text_edit_mode_toggle_exec(bContext &C, wmOper
     strip->flag |= SEQ_FLAG_TEXT_EDITING_ACTIVE;
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
   return OPERATOR_FINISHED;
 }
 
@@ -681,22 +681,22 @@ static int find_closest_cursor_offset(const TextVars *data, float2 mouse_loc)
   return best_cursor_offset;
 }
 
-static void cursor_set_by_mouse_position(const bContext *C, const wmEvent *event)
+static void cursor_set_by_mouse_position(const bContext &C, const wmEvent *event)
 {
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const Strip *strip = seq::select_active_get(scene);
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const View2D *v2d = ui::view2d_fromcontext(C);
 
   int2 mval_region;
-  WM_event_drag_start_mval(event, CTX_wm_region(*C), mval_region);
+  WM_event_drag_start_mval(event, CTX_wm_region(C), mval_region);
   float2 mouse_loc;
   ui::view2d_region_to_view(v2d, mval_region.x, mval_region.y, &mouse_loc.x, &mouse_loc.y);
 
   /* Convert cursor coordinates to domain of CharInfo::position. */
   const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
   const float view_aspect = scene->r.xasp / scene->r.yasp;
-  float3x3 transform_mat = seq::image_transform_matrix_get(CTX_data_sequencer_scene(*C), strip);
+  float3x3 transform_mat = seq::image_transform_matrix_get(CTX_data_sequencer_scene(C), strip);
   // MSVC 2019 can't decide here for some reason, pick the template for it.
   transform_mat = blender::math::invert<float, 3>(transform_mat);
 
@@ -718,7 +718,7 @@ static wmOperatorStatus sequencer_text_cursor_set_modal(bContext &C,
   switch (event->type) {
     case LEFTMOUSE:
       if (event->val == KM_RELEASE) {
-        cursor_set_by_mouse_position(&C, event);
+        cursor_set_by_mouse_position(C, event);
         if (make_selection) {
           data->selection_end_offset = data->cursor_offset;
         }
@@ -733,7 +733,7 @@ static wmOperatorStatus sequencer_text_cursor_set_modal(bContext &C,
       if (!text_has_selection(data)) {
         data->selection_start_offset = data->cursor_offset;
       }
-      cursor_set_by_mouse_position(&C, event);
+      cursor_set_by_mouse_position(C, event);
       data->selection_end_offset = data->cursor_offset;
       break;
     default: {
@@ -741,7 +741,7 @@ static wmOperatorStatus sequencer_text_cursor_set_modal(bContext &C,
     }
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -752,7 +752,7 @@ static wmOperatorStatus sequencer_text_cursor_set_invoke(bContext &C,
   const Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  const View2D *v2d = ui::view2d_fromcontext(&C);
+  const View2D *v2d = ui::view2d_fromcontext(C);
 
   int2 mval_region;
   WM_event_drag_start_mval(event, CTX_wm_region(C), mval_region);
@@ -765,10 +765,10 @@ static wmOperatorStatus sequencer_text_cursor_set_invoke(bContext &C,
   }
 
   text_selection_cancel(data);
-  cursor_set_by_mouse_position(&C, event);
+  cursor_set_by_mouse_position(C, event);
 
-  WM_event_add_modal_handler(&C, &op);
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
+  WM_event_add_modal_handler(C, &op);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, CTX_data_sequencer_scene(C));
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -875,7 +875,7 @@ static wmOperatorStatus sequencer_text_edit_paste_exec(bContext &C, wmOperator &
   data->cursor_offset += BLI_strlen_utf8(buf);
 
   MEM_freeN(buf);
-  text_editing_update(&C);
+  text_editing_update(C);
   return OPERATOR_FINISHED;
 }
 
@@ -906,7 +906,7 @@ static wmOperatorStatus sequencer_text_edit_cut_exec(bContext &C, wmOperator & /
   text_edit_copy(data);
   delete_selected_text(data);
 
-  text_editing_update(&C);
+  text_editing_update(C);
   return OPERATOR_FINISHED;
 }
 

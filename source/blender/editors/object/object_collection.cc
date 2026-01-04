@@ -71,7 +71,7 @@ static const EnumPropertyItem *collection_object_active_itemf(bContext *C,
   EnumPropertyItem *item = nullptr, item_tmp = {0};
   int totitem = 0;
 
-  ob = context_object(C);
+  ob = context_object(*C);
 
   /* check that the object exists */
   if (ob) {
@@ -128,7 +128,7 @@ static Collection *collection_object_active_find_index(Main *bmain,
 
 static wmOperatorStatus objects_add_active_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   int single_collection_index = RNA_enum_get(op.ptr, "collection");
@@ -182,7 +182,7 @@ static wmOperatorStatus objects_add_active_exec(bContext &C, wmOperator &op)
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_GROUP | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GROUP | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -264,7 +264,7 @@ static wmOperatorStatus objects_remove_active_exec(bContext &C, wmOperator &op)
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_GROUP | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GROUP | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -309,7 +309,7 @@ static wmOperatorStatus collection_objects_remove_all_exec(bContext &C, wmOperat
   CTX_DATA_END;
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_GROUP | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GROUP | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -331,7 +331,7 @@ void COLLECTION_OT_objects_remove_all(wmOperatorType *ot)
 
 static wmOperatorStatus collection_objects_remove_exec(bContext &C, wmOperator &op)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   int single_collection_index = RNA_enum_get(op.ptr, "collection");
@@ -371,7 +371,7 @@ static wmOperatorStatus collection_objects_remove_exec(bContext &C, wmOperator &
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_GROUP | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GROUP | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -427,7 +427,7 @@ static wmOperatorStatus collection_create_exec(bContext &C, wmOperator &op)
   }
 
   DEG_relations_tag_update(bmain);
-  WM_event_add_notifier(&C, NC_GROUP | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GROUP | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -498,8 +498,8 @@ static wmOperatorStatus collection_exporter_add_exec(bContext &C, wmOperator &op
   BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
 
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -537,8 +537,8 @@ static wmOperatorStatus collection_exporter_remove_exec(bContext &C, wmOperator 
   BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
 
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_PROPERTIES, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -886,7 +886,7 @@ void collection_exporter_register()
 
 static wmOperatorStatus collection_add_exec(bContext &C, wmOperator & /*op*/)
 {
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Main *bmain = CTX_data_main(C);
 
   if (ob == nullptr) {
@@ -900,7 +900,7 @@ static wmOperatorStatus collection_add_exec(bContext &C, wmOperator & /*op*/)
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -923,7 +923,7 @@ void OBJECT_OT_collection_add(wmOperatorType *ot)
 static wmOperatorStatus collection_link_exec(bContext &C, wmOperator &op)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Collection *collection = static_cast<Collection *>(
       BLI_findlink(&bmain->collections, RNA_enum_get(op.ptr, "collection")));
 
@@ -968,7 +968,7 @@ static wmOperatorStatus collection_link_exec(bContext &C, wmOperator &op)
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -1000,7 +1000,7 @@ void OBJECT_OT_collection_link(wmOperatorType *ot)
 static wmOperatorStatus collection_remove_exec(bContext &C, wmOperator &op)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = context_object(&C);
+  Object *ob = context_object(C);
   Collection *collection = static_cast<Collection *>(
       CTX_data_pointer_get_type(C, "collection", &RNA_Collection).data);
 
@@ -1019,7 +1019,7 @@ static wmOperatorStatus collection_remove_exec(bContext &C, wmOperator &op)
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -1065,7 +1065,7 @@ static wmOperatorStatus collection_unlink_exec(bContext &C, wmOperator &op)
 
   DEG_relations_tag_update(bmain);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
 
   return OPERATOR_FINISHED;
 }

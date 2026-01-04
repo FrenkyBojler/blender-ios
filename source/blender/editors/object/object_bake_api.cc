@@ -1873,14 +1873,14 @@ cleanup:
 
 /* Bake Operator */
 
-static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
+static void bake_init_api_data(wmOperator *op, bContext &C, BakeAPIRender *bkr)
 {
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
 
-  bkr->ob = CTX_data_active_object(*C);
-  bkr->main = CTX_data_main(*C);
-  bkr->view_layer = CTX_data_view_layer(*C);
-  bkr->scene = CTX_data_scene(*C);
+  bkr->ob = CTX_data_active_object(C);
+  bkr->main = CTX_data_main(C);
+  bkr->view_layer = CTX_data_view_layer(C);
+  bkr->scene = CTX_data_scene(C);
   bkr->area = screen ? BKE_screen_find_big_area(screen, SPACE_IMAGE, 10) : nullptr;
 
   bkr->pass_type = eScenePassType(RNA_enum_get(op->ptr, "type"));
@@ -1916,10 +1916,10 @@ static void bake_init_api_data(wmOperator *op, bContext *C, BakeAPIRender *bkr)
 
   if (bkr->save_mode == R_BAKE_SAVE_EXTERNAL && bkr->is_automatic_name) {
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, "type");
-    RNA_property_enum_identifier(C, op->ptr, prop, bkr->pass_type, &bkr->identifier);
+    RNA_property_enum_identifier(&C, op->ptr, prop, bkr->pass_type, &bkr->identifier);
   }
 
-  CTX_data_selected_objects(*C, &bkr->selected_objects);
+  CTX_data_selected_objects(C, &bkr->selected_objects);
 
   bkr->reports = op->reports;
 
@@ -1952,7 +1952,7 @@ static wmOperatorStatus bake_exec(bContext &C, wmOperator &op)
 
   bake_set_props(&op, scene);
 
-  bake_init_api_data(&op, &C, &bkr);
+  bake_init_api_data(&op, C, &bkr);
   re = bkr.render;
 
   /* setup new render */
@@ -2196,7 +2196,7 @@ static wmOperatorStatus bake_invoke(bContext &C, wmOperator &op, const wmEvent *
   BakeAPIRender *bkr = MEM_new<BakeAPIRender>(__func__);
 
   /* init bake render */
-  bake_init_api_data(&op, &C, bkr);
+  bake_init_api_data(&op, C, bkr);
   BKE_callback_exec_id(CTX_data_main(C), &bkr->ob->id, BKE_CB_EVT_OBJECT_BAKE_PRE);
   re = bkr->render;
 
@@ -2226,9 +2226,9 @@ static wmOperatorStatus bake_invoke(bContext &C, wmOperator &op, const wmEvent *
   WM_cursor_wait(false);
 
   /* add modal handler for ESC */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_RESULT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, scene);
   return OPERATOR_RUNNING_MODAL;
 }
 

@@ -261,7 +261,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   }
 
   /* draw data */
-  if (ANIM_animdata_get_context(C, &ac)) {
+  if (ANIM_animdata_get_context(*C, &ac)) {
     /* draw ghost curves */
     graph_draw_ghost_curves(&ac, sipo, region);
 
@@ -327,7 +327,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
     blender::ui::view2d_view_orthoSpecial(region, v2d, true);
     int marker_draw_flag = DRAW_MARKERS_MARGIN;
     if (ED_markers_region_visible(CTX_wm_area(*C), region)) {
-      ED_markers_draw(C, marker_draw_flag);
+      ED_markers_draw(*C, marker_draw_flag);
     }
   }
 
@@ -342,7 +342,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_VIEW);
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   /* time-scrubbing */
   int base = round_db_to_int(scene->frames_per_second());
@@ -421,7 +421,7 @@ static void set_v2d_height(View2D *v2d, const size_t item_count)
 static void graph_channel_region_draw(const bContext *C, ARegion *region)
 {
   bAnimContext ac;
-  if (!ANIM_animdata_get_context(C, &ac)) {
+  if (!ANIM_animdata_get_context(*C, &ac)) {
     return;
   }
   View2D *v2d = &region->v2d;
@@ -441,10 +441,10 @@ static void graph_channel_region_draw(const bContext *C, ARegion *region)
   graph_draw_channel_names((bContext *)C, &ac, region, anim_data);
 
   /* channel filter next to scrubbing area */
-  ED_time_scrub_channel_search_draw(C, region, ac.ads);
+  ED_time_scrub_channel_search_draw(*C, region, ac.ads);
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   /* scrollers */
   blender::ui::view2d_scrollers_draw(v2d, nullptr);
@@ -698,7 +698,7 @@ static void graph_refresh_fcurve_colors(const bContext *C)
   int filter;
   int i;
 
-  if (ANIM_animdata_get_context(C, &ac) == false) {
+  if (ANIM_animdata_get_context(*C, &ac) == false) {
     return;
   }
 

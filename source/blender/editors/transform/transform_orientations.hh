@@ -58,7 +58,7 @@ void createSpaceNormalTangent_or_fallback(float mat[3][3],
                                           const float normal[3],
                                           const float tangent[3]);
 
-TransformOrientation *addMatrixSpace(bContext *C,
+TransformOrientation *addMatrixSpace(bContext &C,
                                      float mat[3][3],
                                      const char *name,
                                      bool overwrite);
@@ -87,6 +87,6 @@ int getTransformOrientation_ex(const Scene *scene,
                                short around,
                                float r_normal[3],
                                float r_plane[3]);
-int getTransformOrientation(const bContext *C, float r_normal[3], float r_plane[3]);
+int getTransformOrientation(const bContext &C, float r_normal[3], float r_plane[3]);
 
 }  // namespace blender::ed::transform

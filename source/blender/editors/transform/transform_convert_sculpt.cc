@@ -98,7 +98,7 @@ static void createTransSculpt(bContext *C, TransInfo *t)
   normalize_m3(td->axismtx);
 
   BLI_assert(!(t->options & CTX_PAINT_CURVE));
-  sculpt_paint::init_transform(C, ob, t->mval, t->undo_name);
+  sculpt_paint::init_transform(*C, ob, t->mval, t->undo_name);
 }
 
 /** \} */
@@ -113,10 +113,10 @@ static void recalcData_sculpt(TransInfo *t)
   Object *ob = BKE_view_layer_active_object_get(t->view_layer);
 
   if (t->state == TRANS_CANCEL) {
-    sculpt_paint::cancel_modal_transform(t->context, *ob);
+    sculpt_paint::cancel_modal_transform(*t->context, *ob);
   }
   else {
-    sculpt_paint::update_modal_transform(t->context, *ob);
+    sculpt_paint::update_modal_transform(*t->context, *ob);
   }
 }
 

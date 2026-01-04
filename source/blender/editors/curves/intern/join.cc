@@ -21,11 +21,11 @@
 
 namespace blender::ed::curves {
 
-wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op)
+wmOperatorStatus join_objects_exec(bContext &C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *active_object = CTX_data_active_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *active_object = CTX_data_active_object(C);
   BLI_assert(active_object);
   BLI_assert(active_object->type == OB_CURVES);
   Curves &active_curves = *static_cast<Curves *>(active_object->data);
@@ -33,7 +33,7 @@ wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op)
 
   Vector<Object *> objects{active_object};
   bool active_object_selected = false;
-  CTX_DATA_BEGIN (*C, Object *, object, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, object, selected_editable_objects) {
     if (object == active_object) {
       active_object_selected = true;
       continue;

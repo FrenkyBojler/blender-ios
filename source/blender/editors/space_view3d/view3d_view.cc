@@ -66,7 +66,7 @@ static wmOperatorStatus view3d_camera_to_view_exec(bContext &C, wmOperator & /*o
 
   ObjectTfmProtectedChannels obtfm;
 
-  ED_view3d_context_user_region(&C, &v3d, &region);
+  ED_view3d_context_user_region(C, &v3d, &region);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   ED_view3d_smooth_view_force_finish(&C, v3d, region);
@@ -82,7 +82,7 @@ static wmOperatorStatus view3d_camera_to_view_exec(bContext &C, wmOperator & /*o
   DEG_id_tag_update(&v3d->camera->id, ID_RECALC_TRANSFORM);
   rv3d->persp = RV3D_CAMOB;
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, v3d->camera);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, v3d->camera);
 
   return OPERATOR_FINISHED;
 }
@@ -92,7 +92,7 @@ static bool view3d_camera_to_view_poll(bContext &C)
   View3D *v3d;
   ARegion *region;
 
-  if (ED_view3d_context_user_region(&C, &v3d, &region)) {
+  if (ED_view3d_context_user_region(C, &v3d, &region)) {
     RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
     if (v3d && v3d->camera && BKE_id_is_editable(CTX_data_main(C), &v3d->camera->id)) {
       if (rv3d && (RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ANY_TRANSFORM) == 0) {
@@ -145,7 +145,7 @@ static wmOperatorStatus view3d_camera_to_view_selected_exec(bContext &C, wmOpera
   }
 
   if (ED_view3d_camera_to_view_selected(bmain, depsgraph, scene, camera_ob)) {
-    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, camera_ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, camera_ob);
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -172,12 +172,12 @@ void VIEW3D_OT_camera_to_view_selected(wmOperatorType *ot)
 /** \name Object as Camera Operator
  * \{ */
 
-static void sync_viewport_camera_smoothview(bContext *C,
+static void sync_viewport_camera_smoothview(bContext &C,
                                             View3D *v3d,
                                             Object *ob,
                                             const int smooth_viewtx)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   for (bScreen &screen : bmain->screens) {
     for (ScrArea &area : screen.areabase) {
       for (SpaceLink &space_link : area.spacedata) {
@@ -241,7 +241,7 @@ static wmOperatorStatus view3d_setobjectascamera_exec(bContext &C, wmOperator &o
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
   /* no nullptr check is needed, poll checks */
-  ED_view3d_context_user_region(&C, &v3d, &region);
+  ED_view3d_context_user_region(C, &v3d, &region);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   ED_view3d_smooth_view_force_finish(&C, v3d, region);
@@ -269,14 +269,14 @@ static wmOperatorStatus view3d_setobjectascamera_exec(bContext &C, wmOperator &o
       sview_params.undo_str = nullptr;
 
       ED_view3d_lastview_store(rv3d);
-      ED_view3d_smooth_view(&C, v3d, region, smooth_viewtx, &sview_params);
+      ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview_params);
     }
 
     if (v3d->scenelock) {
-      sync_viewport_camera_smoothview(&C, v3d, ob, smooth_viewtx);
-      WM_event_add_notifier(&C, NC_SCENE, scene);
+      sync_viewport_camera_smoothview(C, v3d, ob, smooth_viewtx);
+      WM_event_add_notifier(C, NC_SCENE, scene);
     }
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, scene);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, scene);
   }
 
   return OPERATOR_FINISHED;
@@ -287,7 +287,7 @@ bool ED_operator_rv3d_user_region_poll(bContext &C)
   View3D *v3d_dummy;
   ARegion *region_dummy;
 
-  return ED_view3d_context_user_region(&C, &v3d_dummy, &region_dummy);
+  return ED_view3d_context_user_region(C, &v3d_dummy, &region_dummy);
 }
 
 void VIEW3D_OT_object_as_camera(wmOperatorType *ot)
@@ -1095,7 +1095,7 @@ static wmOperatorStatus localview_exec(bContext &C, wmOperator &op)
     /* Unselected objects become selected when exiting. */
     if (v3d->localvd == nullptr) {
       DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+      WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
     }
     else {
       DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
@@ -1163,8 +1163,8 @@ static wmOperatorStatus localview_remove_from_exec(bContext &C, wmOperator &op)
   if (changed) {
     DEG_tag_on_visible_update(bmain, false);
     DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
-    WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
     return OPERATOR_FINISHED;
   }
 
@@ -1287,9 +1287,9 @@ bool ED_view3d_local_collections_set(const Main *bmain, View3D *v3d)
   return true;
 }
 
-void ED_view3d_local_collections_reset(const bContext *C, const bool reset_all)
+void ED_view3d_local_collections_reset(const bContext &C, const bool reset_all)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   uint local_view_bit = ~0;
   bool do_reset = false;
 
@@ -1319,8 +1319,8 @@ void ED_view3d_local_collections_reset(const bContext *C, const bool reset_all)
     view3d_local_collections_reset(bmain, ~0);
     View3D v3d = {};
     v3d.local_collections_uid = ~0;
-    BKE_layer_collection_local_sync(CTX_data_scene(*C), CTX_data_view_layer(*C), &v3d);
-    DEG_id_tag_update(&CTX_data_scene(*C)->id, ID_RECALC_BASE_FLAGS);
+    BKE_layer_collection_local_sync(CTX_data_scene(C), CTX_data_view_layer(C), &v3d);
+    DEG_id_tag_update(&CTX_data_scene(C)->id, ID_RECALC_BASE_FLAGS);
   }
 }
 

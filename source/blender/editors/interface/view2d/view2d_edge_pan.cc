@@ -50,7 +50,7 @@ bool view2d_edge_pan_poll(bContext &C)
   return true;
 }
 
-void view2d_edge_pan_init(bContext *C,
+void view2d_edge_pan_init(bContext &C,
                           View2DEdgePanData *vpd,
                           float inside_pad,
                           float outside_pad,
@@ -59,14 +59,14 @@ void view2d_edge_pan_init(bContext *C,
                           float delay,
                           float zoom_influence)
 {
-  if (!view2d_edge_pan_poll(*C)) {
+  if (!view2d_edge_pan_poll(C)) {
     return;
   }
 
   /* Set pointers to owners. */
-  vpd->screen = CTX_wm_screen(*C);
-  vpd->area = CTX_wm_area(*C);
-  vpd->region = CTX_wm_region(*C);
+  vpd->screen = CTX_wm_screen(C);
+  vpd->area = CTX_wm_area(C);
+  vpd->region = CTX_wm_region(C);
   vpd->v2d = &vpd->region->v2d;
   BLI_rctf_init(&vpd->limit, -FLT_MAX, FLT_MAX, -FLT_MAX, FLT_MAX);
 
@@ -201,7 +201,7 @@ static void edge_pan_apply_delta(bContext *C, View2DEdgePanData *vpd, float dx, 
 
   if (dx != 0.0f || dy != 0.0f) {
     /* Inform v2d about changes after this operation. */
-    view2d_curRect_changed(C, v2d);
+    view2d_curRect_changed(*C, v2d);
 
     /* Don't rebuild full tree in outliner, since we're just changing our view. */
     ED_region_tag_redraw_no_rebuild(vpd->region);
@@ -291,7 +291,7 @@ void view2d_edge_pan_cancel(bContext *C, View2DEdgePanData *vpd)
   v2d->cur = vpd->initial_rect;
 
   /* Inform v2d about changes after this operation. */
-  view2d_curRect_changed(C, v2d);
+  view2d_curRect_changed(*C, v2d);
 
   /* Don't rebuild full tree in outliner, since we're just changing our view. */
   ED_region_tag_redraw_no_rebuild(vpd->region);
@@ -382,7 +382,7 @@ void view2d_edge_pan_operator_properties_ex(wmOperatorType *ot,
 
 void view2d_edge_pan_operator_init(bContext *C, View2DEdgePanData *vpd, wmOperator *op)
 {
-  view2d_edge_pan_init(C,
+  view2d_edge_pan_init(*C,
                        vpd,
                        RNA_float_get(op->ptr, "inside_padding"),
                        RNA_float_get(op->ptr, "outside_padding"),

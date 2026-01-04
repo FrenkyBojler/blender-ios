@@ -222,7 +222,7 @@ void ED_file_read_bookmarks();
  * needed so RNA properties update function isn't context sensitive, see #70255.
  */
 void ED_file_change_dir_ex(bContext *C, ScrArea *area);
-void ED_file_change_dir(bContext *C);
+void ED_file_change_dir(bContext &C);
 
 void ED_file_path_button(bScreen *screen,
                          const SpaceFile *sfile,

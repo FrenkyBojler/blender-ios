@@ -222,7 +222,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   }
 
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
-  const bool has_anim_context = ANIM_animdata_get_context(C, &ac);
+  const bool has_anim_context = ANIM_animdata_get_context(*C, &ac);
   if (has_anim_context) {
     /* Build list of channels to draw. */
     const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
@@ -272,21 +272,21 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
                 DRAW_MARKERS_MARGIN;
 
   if (ED_markers_region_visible(CTX_wm_area(*C), region)) {
-    ED_markers_draw(C, marker_flag);
+    ED_markers_draw(*C, marker_flag);
   }
 
   /* preview range */
   blender::ui::view2d_view_ortho(v2d);
   ANIM_draw_previewrange(scene, v2d, 0);
 
-  ANIM_draw_scene_strip_range(C, v2d);
+  ANIM_draw_scene_strip_range(*C, v2d);
 
   /* callback */
   blender::ui::view2d_view_ortho(v2d);
   ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_VIEW);
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   /* gizmos */
   WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
@@ -343,7 +343,7 @@ static void action_channel_region_draw(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   bAnimContext ac;
-  const bool has_valid_animcontext = ANIM_animdata_get_context(C, &ac);
+  const bool has_valid_animcontext = ANIM_animdata_get_context(*C, &ac);
 
   /* clear and setup matrix */
   blender::ui::theme::frame_buffer_clear(TH_BACK);
@@ -368,10 +368,10 @@ static void action_channel_region_draw(const bContext *C, ARegion *region)
   draw_channel_names((bContext *)C, &ac, region, anim_data);
 
   /* channel filter next to scrubbing area */
-  ED_time_scrub_channel_search_draw(C, region, ac.ads);
+  ED_time_scrub_channel_search_draw(*C, region, ac.ads);
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   /* no scrollers here */
   ANIM_animdata_freelist(&anim_data);
@@ -388,7 +388,7 @@ static void action_header_region_draw(const bContext *C, ARegion *region)
   /* The anim context is not actually used, but this makes sure the action being displayed is up to
    * date. */
   bAnimContext ac;
-  ANIM_animdata_get_context(C, &ac);
+  ANIM_animdata_get_context(*C, &ac);
 
   ED_region_header(C, region);
 }

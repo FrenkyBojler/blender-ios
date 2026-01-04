@@ -88,12 +88,12 @@ static float ui_pie_menu_title_width(const char *name, int icon)
   return (fontstyle_string_width(fstyle, name) + (UI_UNIT_X * (1.50f + (icon ? 0.25f : 0.0f))));
 }
 
-PieMenu *pie_menu_begin(bContext *C, const char *title, int icon, const wmEvent *event)
+PieMenu *pie_menu_begin(bContext &C, const char *title, int icon, const wmEvent *event)
 {
   const uiStyle *style = style_get_dpi();
   short event_type;
 
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
   PieMenu *pie = MEM_callocN<PieMenu>(__func__);
 
@@ -162,16 +162,16 @@ PieMenu *pie_menu_begin(bContext *C, const char *title, int icon, const wmEvent 
   return pie;
 }
 
-void pie_menu_end(bContext *C, PieMenu *pie)
+void pie_menu_end(bContext &C, PieMenu *pie)
 {
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
 
   PopupBlockHandle *menu = popup_block_create(
       C, nullptr, nullptr, nullptr, block_func_PIE, pie, nullptr, false);
   menu->popup = true;
   menu->towardstime = BLI_time_now_seconds();
 
-  popup_handlers_add(C, &window->runtime->modalhandlers, menu, WM_HANDLER_ACCEPT_DBL_CLICK);
+  popup_handlers_add(&C, &window->runtime->modalhandlers, menu, WM_HANDLER_ACCEPT_DBL_CLICK);
   WM_event_add_mousemove(window);
 
   MEM_freeN(pie);
@@ -197,12 +197,12 @@ wmOperatorStatus pie_menu_invoke(bContext *C, const char *idname, const wmEvent 
   }
 
   PieMenu *pie = pie_menu_begin(
-      C, CTX_IFACE_(mt->translation_context, mt->label), ICON_NONE, event);
+      *C, CTX_IFACE_(mt->translation_context, mt->label), ICON_NONE, event);
   Layout *layout = pie_menu_layout(pie);
 
-  menutype_draw(C, mt, layout);
+  menutype_draw(*C, mt, layout);
 
-  pie_menu_end(C, pie);
+  pie_menu_end(*C, pie);
 
   return OPERATOR_INTERFACE;
 }
@@ -246,7 +246,7 @@ static void ui_pie_menu_level_invoke(bContext *C, void *argN, void *arg2)
   PieMenuLevelData *lvl = (PieMenuLevelData *)arg2;
   wmWindow *win = CTX_wm_window(*C);
 
-  PieMenu *pie = pie_menu_begin(C, IFACE_(lvl->title), lvl->icon, win->runtime->eventstate);
+  PieMenu *pie = pie_menu_begin(*C, IFACE_(lvl->title), lvl->icon, win->runtime->eventstate);
   Layout &layout = pie_menu_layout(pie)->menu_pie();
 
   PointerRNA ptr = WM_operator_properties_create_ptr(lvl->ot);
@@ -262,7 +262,7 @@ static void ui_pie_menu_level_invoke(bContext *C, void *argN, void *arg2)
     RNA_warning("%s.%s not found", RNA_struct_identifier(ptr.type), lvl->propname.c_str());
   }
 
-  pie_menu_end(C, pie);
+  pie_menu_end(*C, pie);
 }
 
 void pie_menu_level_create(Block *block,

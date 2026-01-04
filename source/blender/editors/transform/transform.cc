@@ -488,7 +488,7 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 {
   if (t->options & CTX_GPENCIL_STROKES) {
     if (t->obedit_type == OB_GREASE_PENCIL) {
-      WM_event_add_notifier(C, NC_GEOM | ND_DATA, nullptr);
+      WM_event_add_notifier(*C, NC_GEOM | ND_DATA, nullptr);
     }
   }
   else if (t->spacetype == SPACE_VIEW3D) {
@@ -499,44 +499,44 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
     else {
       /* Do we need more refined tags? */
       if (t->options & CTX_POSE_BONE) {
-        WM_event_add_notifier(C, NC_OBJECT | ND_POSE, nullptr);
+        WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, nullptr);
       }
       else {
-        WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+        WM_event_add_notifier(*C, NC_OBJECT | ND_TRANSFORM, nullptr);
       }
 
       /* For real-time animation record - send notifiers recognized by animation editors. */
       /* XXX: is this notifier a lame duck? */
       if ((t->animtimer) && animrig::is_autokey_on(t->scene)) {
-        WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, nullptr);
+        WM_event_add_notifier(*C, NC_OBJECT | ND_KEYS, nullptr);
       }
     }
   }
   else if (t->spacetype == SPACE_ACTION) {
     // SpaceAction *saction = (SpaceAction *)t->area->spacedata.first;
-    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+    WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
   }
   else if (t->spacetype == SPACE_GRAPH) {
     // SpaceGraph *sipo = (SpaceGraph *)t->area->spacedata.first;
-    WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+    WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
   }
   else if (t->spacetype == SPACE_NLA) {
-    WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
+    WM_event_add_notifier(*C, NC_ANIMATION | ND_NLA | NA_EDITED, nullptr);
   }
   else if (t->spacetype == SPACE_NODE) {
     // ED_area_tag_redraw(t->area);
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_NODE_VIEW, nullptr);
+    WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_NODE_VIEW, nullptr);
   }
   else if (t->spacetype == SPACE_SEQ) {
-    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, nullptr);
+    WM_event_add_notifier(*C, NC_SCENE | ND_SEQUENCER, nullptr);
     /* Key-frames on strips has been moved, so make sure related editors are informed. */
-    WM_event_add_notifier(C, NC_ANIMATION, nullptr);
+    WM_event_add_notifier(*C, NC_ANIMATION, nullptr);
   }
   else if (t->spacetype == SPACE_IMAGE) {
     if (t->options & CTX_MASK) {
       Mask *mask = CTX_data_edit_mask(*C);
 
-      WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+      WM_event_add_notifier(*C, NC_MASK | NA_EDITED, mask);
     }
     else if (t->options & CTX_PAINT_CURVE) {
       wmWindow *window = CTX_wm_window(*C);
@@ -551,7 +551,7 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
       if (sima->lock) {
         BKE_view_layer_synced_ensure(t->scene, t->view_layer);
         WM_event_add_notifier(
-            C, NC_GEOM | ND_DATA, BKE_view_layer_edit_object_get(t->view_layer)->data);
+            *C, NC_GEOM | ND_DATA, BKE_view_layer_edit_object_get(t->view_layer)->data);
       }
       else {
         ED_area_tag_redraw(t->area);
@@ -565,22 +565,22 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
       MovieClip *clip = ED_space_clip_get_clip(sc);
 
       /* Objects could be parented to tracking data, so send this for viewport refresh. */
-      WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+      WM_event_add_notifier(*C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
-      WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+      WM_event_add_notifier(*C, NC_MOVIECLIP | NA_EDITED, clip);
     }
     else if (ED_space_clip_check_show_maskedit(sc)) {
       Mask *mask = CTX_data_edit_mask(*C);
 
-      WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
+      WM_event_add_notifier(*C, NC_MASK | NA_EDITED, mask);
     }
   }
 }
 
-static void viewRedrawPost(bContext *C, TransInfo *t)
+static void viewRedrawPost(bContext &C, TransInfo *t)
 {
   ED_area_status_text(t->area, nullptr);
-  WorkSpace *workspace = CTX_wm_workspace(*C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
   if (workspace) {
     BKE_workspace_status_clear(workspace);
   }
@@ -1507,7 +1507,7 @@ bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], floa
 
   t->mode = TFM_DUMMY;
 
-  initTransInfo(C, t, nullptr, nullptr);
+  initTransInfo(*C, t, nullptr, nullptr);
 
   /* Avoid doing connectivity lookups (when V3D_AROUND_LOCAL_ORIGINS is set). */
   t->around = V3D_AROUND_CENTER_BOUNDS;
@@ -1718,9 +1718,9 @@ static void drawTransformPixel(const bContext * /*C*/, ARegion *region, void *ar
   }
 }
 
-void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
+void saveTransform(bContext &C, TransInfo *t, wmOperator *op)
 {
-  ToolSettings *ts = CTX_data_tool_settings(*C);
+  ToolSettings *ts = CTX_data_tool_settings(C);
   PropertyRNA *prop;
 
   bool use_prop_edit = false;
@@ -2000,7 +2000,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   unit_m3(t->spacemtx);
 
-  initTransInfo(C, t, op, event);
+  initTransInfo(*C, t, op, event);
 
   if (!G.background) {
     if (t->spacetype == SPACE_VIEW3D) {
@@ -2272,7 +2272,7 @@ wmOperatorStatus transformEnd(bContext *C, TransInfo *t)
     postTrans(C, t);
 
     /* Send events out for redraws. */
-    viewRedrawPost(C, t);
+    viewRedrawPost(*C, t);
 
     viewRedrawForce(C, t);
 

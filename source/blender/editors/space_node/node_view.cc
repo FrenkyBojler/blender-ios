@@ -129,7 +129,7 @@ bool space_node_view_flag(
     BLI_rctf_scale(&cur_new, 1.1f);
   }
 
-  ui::view2d_smooth_view(&C, &region, &cur_new, smooth_viewtx);
+  ui::view2d_smooth_view(C, &region, &cur_new, smooth_viewtx);
 
   return true;
 }
@@ -299,7 +299,7 @@ static wmOperatorStatus snode_bg_viewmove_invoke(bContext &C, wmOperator &op, co
   BKE_image_release_ibuf(ima, ibuf, lock);
 
   /* add modal handler */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -554,11 +554,11 @@ bool ED_space_node_color_sample(
 
 namespace blender::ed::space_node {
 
-static void sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
+static void sample_apply(bContext &C, wmOperator *op, const wmEvent *event)
 {
-  Main *bmain = CTX_data_main(*C);
-  SpaceNode *snode = CTX_wm_space_node(*C);
-  ARegion *region = CTX_wm_region(*C);
+  Main *bmain = CTX_data_main(C);
+  SpaceNode *snode = CTX_wm_space_node(C);
+  ARegion *region = CTX_wm_region(C);
   ImageSampleInfo *info = (ImageSampleInfo *)op->customdata;
   void *lock;
   Image *ima;
@@ -636,16 +636,16 @@ static void sample_apply(bContext *C, wmOperator *op, const wmEvent *event)
 
   BKE_image_release_ibuf(ima, ibuf, lock);
 
-  ED_area_tag_redraw(CTX_wm_area(*C));
+  ED_area_tag_redraw(CTX_wm_area(C));
 }
 
-static void sample_exit(bContext *C, wmOperator *op)
+static void sample_exit(bContext &C, wmOperator *op)
 {
   ImageSampleInfo *info = (ImageSampleInfo *)op->customdata;
 
   ED_node_sample_set(nullptr);
   ED_region_draw_cb_exit(info->art, info->draw_handle);
-  ED_area_tag_redraw(CTX_wm_area(*C));
+  ED_area_tag_redraw(CTX_wm_area(C));
   MEM_freeN(info);
 }
 
@@ -671,9 +671,9 @@ static wmOperatorStatus sample_invoke(bContext &C, wmOperator &op, const wmEvent
       region->runtime->type, sample_draw, info, REGION_DRAW_POST_PIXEL);
   op.customdata = info;
 
-  sample_apply(&C, &op, event);
+  sample_apply(C, &op, event);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -684,12 +684,12 @@ static wmOperatorStatus sample_modal(bContext &C, wmOperator &op, const wmEvent 
     case LEFTMOUSE:
     case RIGHTMOUSE: /* XXX hardcoded */
       if (event->val == KM_RELEASE) {
-        sample_exit(&C, &op);
+        sample_exit(C, &op);
         return OPERATOR_CANCELLED;
       }
       break;
     case MOUSEMOVE:
-      sample_apply(&C, &op, event);
+      sample_apply(C, &op, event);
       break;
     default: {
       break;
@@ -701,7 +701,7 @@ static wmOperatorStatus sample_modal(bContext &C, wmOperator &op, const wmEvent 
 
 static void sample_cancel(bContext &C, wmOperator &op)
 {
-  sample_exit(&C, &op);
+  sample_exit(C, &op);
 }
 
 void NODE_OT_backimage_sample(wmOperatorType *ot)

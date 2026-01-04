@@ -1082,21 +1082,21 @@ void ED_view3d_cursor_snap_state_prevpoint_set(V3DSnapCursorState *state,
 }
 
 void ED_view3d_cursor_snap_data_update(V3DSnapCursorState *state,
-                                       const bContext *C,
+                                       const bContext &C,
                                        const ARegion *region,
                                        const blender::int2 &mval)
 {
   SnapCursorDataIntern *data_intern = &g_data_intern;
-  const wmEvent *event = CTX_wm_window(*C)->runtime->eventstate;
+  const wmEvent *event = CTX_wm_window(C)->runtime->eventstate;
   if (event && v3d_cursor_eventstate_has_changed(data_intern, state, mval, event->modifier)) {
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     Scene *scene = DEG_get_input_scene(depsgraph);
-    View3D *v3d = CTX_wm_view3d(*C);
+    View3D *v3d = CTX_wm_view3d(C);
 
     if (!state) {
       state = ED_view3d_cursor_snap_state_active_get();
     }
-    v3d_cursor_snap_update(state, C, depsgraph, scene, region, v3d, mval, event->modifier);
+    v3d_cursor_snap_update(state, &C, depsgraph, scene, region, v3d, mval, event->modifier);
   }
 }
 

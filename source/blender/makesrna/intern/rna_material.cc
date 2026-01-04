@@ -276,7 +276,7 @@ MTex *rna_mtex_texture_slots_add(ID *self_id, bContext *C, ReportList *reports)
   }
 
   /* for redraw only */
-  WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(*C));
+  WM_event_add_notifier(*C, NC_TEXTURE, CTX_data_scene(*C));
 
   return mtex;
 }
@@ -293,7 +293,7 @@ MTex *rna_mtex_texture_slots_create(ID *self_id, bContext *C, ReportList *report
   mtex = BKE_texture_mtex_add_id(self_id, index);
 
   /* for redraw only */
-  WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(*C));
+  WM_event_add_notifier(*C, NC_TEXTURE, CTX_data_scene(*C));
 
   return mtex;
 }
@@ -323,7 +323,7 @@ void rna_mtex_texture_slots_clear(ID *self_id, bContext *C, ReportList *reports,
   }
 
   /* for redraw only */
-  WM_event_add_notifier(C, NC_TEXTURE, CTX_data_scene(*C));
+  WM_event_add_notifier(*C, NC_TEXTURE, CTX_data_scene(*C));
 }
 
 static void rna_TexPaintSlot_uv_layer_get(PointerRNA *ptr, char *value)

@@ -132,7 +132,7 @@ struct TimelineDrawContext {
 /* Returns value in frames (view-space), 5px for large strips, 1/4 of the strip for smaller. */
 float strip_handle_draw_size_get(const Scene *scene, const Strip *strip, float pixelx);
 void draw_timeline_seq(const bContext *C, const ARegion *region);
-void draw_timeline_seq_display(const bContext *C, ARegion *region);
+void draw_timeline_seq_display(const bContext &C, ARegion *region);
 
 /* `sequencer_preview_draw.cc` */
 
@@ -155,7 +155,7 @@ void sequencer_special_update_set(Strip *strip);
  * TODO: do not rely on such hack and just update the \a ibuf outside of
  * the UI drawing code.
  */
-ImBuf *sequencer_ibuf_get(const bContext *C, int timeline_frame, const char *viewname);
+ImBuf *sequencer_ibuf_get(const bContext &C, int timeline_frame, const char *viewname);
 
 /* `sequencer_thumbnails.cc` */
 
@@ -165,8 +165,8 @@ void draw_strip_thumbnails(const TimelineDrawContext &ctx,
 
 /* sequencer_draw_channels.c */
 
-void draw_channels(const bContext *C, ARegion *region);
-void channel_draw_context_init(const bContext *C,
+void draw_channels(const bContext &C, ARegion *region);
+void channel_draw_context_init(const bContext &C,
                                ARegion *region,
                                SeqChannelDrawContext *r_context);
 
@@ -187,8 +187,8 @@ bool sequencer_editing_initialized_and_active(bContext &C);
 bool sequencer_strip_editable_poll(bContext &C);
 bool sequencer_strip_has_path_poll(bContext &C);
 bool sequencer_view_has_preview_poll(bContext &C);
-bool sequencer_view_preview_only_poll(const bContext *C);
-bool sequencer_view_strips_poll(bContext *C);
+bool sequencer_view_preview_only_poll(const bContext &C);
+bool sequencer_view_strips_poll(bContext &C);
 
 /**
  * Returns collection with all strips presented to user. If operation is done in preview,
@@ -197,7 +197,7 @@ bool sequencer_view_strips_poll(bContext *C);
  * \param C: context
  * \return collection of strips (`Strip`)
  */
-VectorSet<Strip *> all_strips_from_context(bContext *C);
+VectorSet<Strip *> all_strips_from_context(bContext &C);
 
 /* Externals. */
 
@@ -329,8 +329,8 @@ void SEQUENCER_OT_strip_modifier_equalizer_redefine(wmOperatorType *ot);
 
 /* `sequencer_view.cc` */
 
-void SEQ_get_timeline_region_padding(const bContext *C, float *r_pad_top, float *r_pad_bottom);
-void SEQ_add_timeline_region_padding(const bContext *C, rctf *view_box);
+void SEQ_get_timeline_region_padding(const bContext &C, float *r_pad_top, float *r_pad_bottom);
+void SEQ_add_timeline_region_padding(const bContext &C, rctf *view_box);
 
 void SEQUENCER_OT_sample(wmOperatorType *ot);
 void SEQUENCER_OT_view_all(wmOperatorType *ot);
@@ -346,7 +346,7 @@ void SEQUENCER_OT_rename_channel(wmOperatorType *ot);
 
 /* `sequencer_preview.cc` */
 
-void sequencer_preview_add_sound(const bContext *C, const Strip *strip);
+void sequencer_preview_add_sound(const bContext &C, const Strip *strip);
 
 /* `sequencer_add.cc` */
 
@@ -370,13 +370,13 @@ wmOperatorStatus sequencer_retiming_key_select_exec(bContext *C,
                                                     SeqRetimingKey *key,
                                                     const Strip *key_owner);
 /* Select a key and all following keys. */
-wmOperatorStatus sequencer_retiming_select_linked_time(bContext *C,
+wmOperatorStatus sequencer_retiming_select_linked_time(bContext &C,
                                                        wmOperator *op,
                                                        SeqRetimingKey *key,
                                                        const Strip *key_owner);
 wmOperatorStatus sequencer_select_exec(bContext &C, wmOperator &op);
-wmOperatorStatus sequencer_retiming_select_all_exec(bContext *C, wmOperator *op);
-wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op);
+wmOperatorStatus sequencer_retiming_select_all_exec(bContext &C, wmOperator *op);
+wmOperatorStatus sequencer_retiming_box_select_exec(bContext &C, wmOperator *op);
 
 /* `sequencer_retiming_draw.cc` */
 void sequencer_retiming_draw_continuity(const TimelineDrawContext &ctx,
@@ -385,10 +385,10 @@ void sequencer_retiming_keys_draw(const TimelineDrawContext &ctx, Span<StripDraw
 void sequencer_retiming_speed_draw(const TimelineDrawContext &ctx,
                                    const StripDrawContext &strip_ctx);
 void realize_fake_keys(const Scene *scene, Strip *strip);
-SeqRetimingKey *try_to_realize_fake_keys(const bContext *C, Strip *strip, const int mval[2]);
-SeqRetimingKey *retiming_mouseover_key_get(const bContext *C, const int mval[2], Strip **r_strip);
-int left_fake_key_frame_get(const bContext *C, const Strip *strip);
-int right_fake_key_frame_get(const bContext *C, const Strip *strip);
+SeqRetimingKey *try_to_realize_fake_keys(const bContext &C, Strip *strip, const int mval[2]);
+SeqRetimingKey *retiming_mouseover_key_get(const bContext &C, const int mval[2], Strip **r_strip);
+int left_fake_key_frame_get(const bContext &C, const Strip *strip);
+int right_fake_key_frame_get(const bContext &C, const Strip *strip);
 bool retiming_keys_can_be_displayed(const SpaceSeq *sseq);
 rctf strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const Strip *strip);
 
@@ -409,7 +409,7 @@ int2 strip_text_cursor_offset_to_position(const seq::TextVarsRuntime *text, int 
 IndexRange strip_text_selection_range_get(const TextVars *data);
 
 /* `sequencer_timeline_draw.cc` */
-Vector<Strip *> sequencer_visible_strips_get(const bContext *C);
+Vector<Strip *> sequencer_visible_strips_get(const bContext &C);
 Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v2d);
 
 /* `sequencer_clipboard.cc` */

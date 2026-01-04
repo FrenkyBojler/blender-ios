@@ -40,7 +40,7 @@ class SpreadsheetDrawer {
   virtual int column_width(int column_index) const;
 };
 
-void draw_spreadsheet_in_region(const bContext *C,
+void draw_spreadsheet_in_region(const bContext &C,
                                 ARegion *region,
                                 const SpreadsheetDrawer &drawer);
 

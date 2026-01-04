@@ -91,7 +91,7 @@ void RENDER_OT_shutter_curve_preset(wmOperatorType *ot);
 /**
  * New window uses x,y to set position.
  */
-ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports);
+ScrArea *render_view_open(bContext &C, int mx, int my, ReportList *reports);
 
 void RENDER_OT_view_show(wmOperatorType *ot);
 void RENDER_OT_view_cancel(wmOperatorType *ot);

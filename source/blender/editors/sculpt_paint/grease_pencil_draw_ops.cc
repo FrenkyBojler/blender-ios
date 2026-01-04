@@ -80,7 +80,7 @@ namespace blender::ed::sculpt_paint {
 
 struct GreasePencilPaintStroke final : public PaintStroke {
   GreasePencilPaintStroke(bContext *C, wmOperator *op, const int event_type)
-      : PaintStroke(C, op, event_type)
+      : PaintStroke(*C, op, event_type)
   {
   }
 
@@ -105,9 +105,9 @@ bool GreasePencilPaintStroke::get_location(float out[3],
 static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContext &C,
                                                                          wmOperator *op)
 {
-  const Paint *paint = BKE_paint_get_active_from_context(&C);
+  const Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(paint);
-  const PaintMode mode = BKE_paintmode_get_active_from_context(&C);
+  const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op->ptr, "mode"));
 
   if (mode == PaintMode::GPencil) {
@@ -261,9 +261,9 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext &C,
   }
 
   const bool use_duplicate_previous_key = [&]() -> bool {
-    const Paint *paint = BKE_paint_get_active_from_context(&C);
+    const Paint *paint = BKE_paint_get_active_from_context(C);
     const Brush &brush = *BKE_paint_brush_for_read(paint);
-    const PaintMode mode = BKE_paintmode_get_active_from_context(&C);
+    const PaintMode mode = BKE_paintmode_get_active_from_context(C);
     const BrushStrokeMode stroke_mode = BrushStrokeMode(RNA_enum_get(op.ptr, "mode"));
 
     if (mode == PaintMode::GPencil) {
@@ -285,7 +285,7 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext &C,
     return false;
   }();
   wmOperatorStatus retval = ed::greasepencil::grease_pencil_draw_operator_invoke(
-      &C, &op, use_duplicate_previous_key);
+      C, &op, use_duplicate_previous_key);
   if (retval != OPERATOR_RUNNING_MODAL) {
     return retval;
   }
@@ -302,7 +302,7 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext &C,
     return OPERATOR_FINISHED;
   }
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -375,7 +375,7 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext &C,
     return OPERATOR_CANCELLED;
   }
 
-  const Paint *paint = BKE_paint_get_active_from_context(&C);
+  const Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *brush = BKE_paint_brush_for_read(paint);
   if (brush == nullptr) {
     return OPERATOR_CANCELLED;
@@ -398,7 +398,7 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext &C,
     BKE_report(op.reports, RPT_ERROR, "No Grease Pencil frame to draw on");
     return OPERATOR_CANCELLED;
   }
-  WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 
   GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(
       __func__, &C, &op, event->type);
@@ -412,7 +412,7 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext &C,
     return OPERATOR_FINISHED;
   }
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -480,7 +480,7 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_invoke(bContext &C,
   }
 
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
-  const Paint *paint = BKE_paint_get_active_from_context(&C);
+  const Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *brush = BKE_paint_brush_for_read(paint);
   if (brush == nullptr) {
     return OPERATOR_CANCELLED;
@@ -511,7 +511,7 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_invoke(bContext &C,
     return OPERATOR_FINISHED;
   }
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -584,7 +584,7 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext &C,
     return OPERATOR_CANCELLED;
   }
 
-  const Paint *paint = BKE_paint_get_active_from_context(&C);
+  const Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *brush = BKE_paint_brush_for_read(paint);
   if (brush == nullptr) {
     return OPERATOR_CANCELLED;
@@ -607,7 +607,7 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext &C,
     BKE_report(op.reports, RPT_ERROR, "No Grease Pencil frame to draw on");
     return OPERATOR_CANCELLED;
   }
-  WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 
   GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(
       __func__, &C, &op, event->type);
@@ -621,7 +621,7 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext &C,
     return OPERATOR_FINISHED;
   }
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -1097,7 +1097,7 @@ static void grease_pencil_fill_status_indicators(bContext &C,
 {
   const bool is_extend = (op_data.extension_mode == GP_FILL_EMODE_EXTEND);
 
-  WorkspaceStatus status(&C);
+  WorkspaceStatus status(C);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Fill"), ICON_MOUSE_LMB);
   status.item(
@@ -1216,7 +1216,7 @@ static void grease_pencil_update_extend(bContext &C, GreasePencilFillOpData &op_
 {
   grease_pencil_fill_update_overlay(*CTX_wm_region(C), op_data);
   grease_pencil_fill_status_indicators(C, op_data);
-  WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 }
 
 /* Layer mode defines layers where only marked boundary strokes are used. */
@@ -1399,7 +1399,7 @@ static bool grease_pencil_apply_fill(bContext &C, wmOperator &op, const wmEvent 
   }
 
   wmWindow &win = *CTX_wm_window(C);
-  const ViewContext view_context = ED_view3d_viewcontext_init(&C, CTX_data_depsgraph_pointer(C));
+  const ViewContext view_context = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
   const Scene &scene = *CTX_data_scene(C);
   Object &object = *CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
@@ -1587,7 +1587,7 @@ static void grease_pencil_fill_exit(bContext &C, wmOperator &op)
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
 
   WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
-  WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus grease_pencil_fill_invoke(bContext &C,
@@ -1622,10 +1622,10 @@ static wmOperatorStatus grease_pencil_fill_invoke(bContext &C,
   grease_pencil_fill_update_overlay(region, op_data);
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 
   /* Add a modal handler for this operator. */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1706,7 +1706,7 @@ static wmOperatorStatus grease_pencil_fill_event_modal_map(bContext *C,
       }
       /* Update cursor line. */
       WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
-      WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+      WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
       break;
     }
 
@@ -1767,7 +1767,7 @@ static wmOperatorStatus grease_pencil_fill_modal(bContext &C, wmOperator &op, co
 
         /* Update cursor line and extend lines. */
         WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
-        WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+        WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 
         grease_pencil_update_extend(C, op_data);
         break;
@@ -1781,7 +1781,7 @@ static wmOperatorStatus grease_pencil_fill_modal(bContext &C, wmOperator &op, co
   switch (estate) {
     case OPERATOR_FINISHED:
       grease_pencil_fill_exit(C, op);
-      WM_event_add_notifier(&C, NC_GPENCIL | NA_EDITED, nullptr);
+      WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
       break;
 
     case OPERATOR_CANCELLED:
@@ -1982,7 +1982,7 @@ static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext &C, wmOperator &
       *scene, grease_pencil, drawings.as_span(), points_to_remove_per_drawing);
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -2059,7 +2059,7 @@ static wmOperatorStatus grease_pencil_erase_box_exec(bContext &C, wmOperator &op
       *scene, grease_pencil, drawings.as_span(), points_to_remove_per_drawing);
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   }
 
   return OPERATOR_FINISHED;

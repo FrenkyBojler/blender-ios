@@ -54,16 +54,16 @@ struct ScreenshotData {
 };
 
 /* call from both exec and invoke */
-static int screenshot_data_create(bContext *C, wmOperator *op, ScrArea *area)
+static int screenshot_data_create(bContext &C, wmOperator *op, ScrArea *area)
 {
   int dumprect_size[2];
 
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
   /* do redraw so we don't show popups/menus */
   WM_redraw_windows(C);
 
-  uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
+  uint8_t *dumprect = WM_window_pixels_read(&C, win, dumprect_size);
 
   if (dumprect) {
     ScreenshotData *scd = MEM_new_for_free<ScreenshotData>("screenshot");
@@ -106,7 +106,7 @@ static wmOperatorStatus screenshot_exec(bContext &C, wmOperator &op)
 
   if (scd == nullptr) {
     /* when running exec directly */
-    screenshot_data_create(&C, &op, use_crop ? CTX_wm_area(C) : nullptr);
+    screenshot_data_create(C, &op, use_crop ? CTX_wm_area(C) : nullptr);
     scd = static_cast<ScreenshotData *>(op.customdata);
   }
 
@@ -163,7 +163,7 @@ static wmOperatorStatus screenshot_invoke(bContext &C, wmOperator &op, const wmE
     }
   }
 
-  if (screenshot_data_create(&C, &op, area)) {
+  if (screenshot_data_create(C, &op, area)) {
     if (RNA_struct_property_is_set(op.ptr, "filepath")) {
       return screenshot_exec(C, op);
     }

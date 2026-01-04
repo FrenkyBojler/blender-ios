@@ -61,7 +61,7 @@ static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
 {
   ColorBand *band = nullptr;
 
-  Button *but = context_active_but_get(C);
+  Button *but = context_active_but_get(*C);
 
   PointerRNA rna_update_ptr = PointerRNA_NULL;
   PropertyRNA *rna_update_prop = nullptr;
@@ -122,7 +122,7 @@ static void eyedropper_colorband_sample_point(bContext *C,
   if (eye->event_xy_last[0] != m_xy[0] || eye->event_xy_last[1] != m_xy[1]) {
     float4 col;
     col[3] = 1.0f; /* TODO: sample alpha */
-    eyedropper_color_sample_fl(C, nullptr, m_xy, col);
+    eyedropper_color_sample_fl(*C, nullptr, m_xy, col);
     eye->color_buffer.append(col);
     copy_v2_v2_int(eye->event_xy_last, m_xy);
     eye->is_set = true;
@@ -150,9 +150,9 @@ static void eyedropper_colorband_sample_segment(bContext *C,
       eye->event_xy_last, m_xy, eyedropper_colorband_sample_callback, &userdata);
 }
 
-static void eyedropper_colorband_exit(bContext *C, wmOperator *op)
+static void eyedropper_colorband_exit(bContext &C, wmOperator *op)
 {
-  WM_cursor_modal_restore(CTX_wm_window(*C));
+  WM_cursor_modal_restore(CTX_wm_window(C));
 
   if (op->customdata) {
     EyedropperColorband *eye = static_cast<EyedropperColorband *>(op->customdata);
@@ -173,7 +173,7 @@ static void eyedropper_colorband_apply(bContext *C, wmOperator *op)
       filter_samples);
   eye->is_set = true;
   if (eye->prop) {
-    RNA_property_update(C, &eye->ptr, eye->prop);
+    RNA_property_update(*C, &eye->ptr, eye->prop);
   }
 }
 
@@ -183,10 +183,10 @@ static void eyedropper_colorband_cancel(bContext &C, wmOperator &op)
   if (eye->is_set) {
     *eye->color_band = eye->init_color_band;
     if (eye->prop) {
-      RNA_property_update(&C, &eye->ptr, eye->prop);
+      RNA_property_update(C, &eye->ptr, eye->prop);
     }
   }
-  eyedropper_colorband_exit(&C, &op);
+  eyedropper_colorband_exit(C, &op);
 }
 
 /* main modal status check */
@@ -205,7 +205,7 @@ static wmOperatorStatus eyedropper_colorband_modal(bContext &C,
         const bool is_undo = eye->is_undo;
         eyedropper_colorband_sample_segment(&C, eye, event->xy);
         eyedropper_colorband_apply(&C, &op);
-        eyedropper_colorband_exit(&C, &op);
+        eyedropper_colorband_exit(C, &op);
         /* Could support finished & undo-skip. */
         return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
       }
@@ -242,7 +242,7 @@ static wmOperatorStatus eyedropper_colorband_point_modal(bContext &C,
         return OPERATOR_CANCELLED;
       case EYE_MODAL_POINT_CONFIRM:
         eyedropper_colorband_apply(&C, &op);
-        eyedropper_colorband_exit(&C, &op);
+        eyedropper_colorband_exit(C, &op);
         return OPERATOR_FINISHED;
       case EYE_MODAL_POINT_REMOVE_LAST:
         if (!eye->color_buffer.is_empty()) {
@@ -254,14 +254,14 @@ static wmOperatorStatus eyedropper_colorband_point_modal(bContext &C,
         eyedropper_colorband_sample_point(&C, eye, event->xy);
         eyedropper_colorband_apply(&C, &op);
         if (eye->color_buffer.size() == MAXCOLORBAND) {
-          eyedropper_colorband_exit(&C, &op);
+          eyedropper_colorband_exit(C, &op);
           return OPERATOR_FINISHED;
         }
         break;
       case EYE_MODAL_SAMPLE_RESET:
         *eye->color_band = eye->init_color_band;
         if (eye->prop) {
-          RNA_property_update(&C, &eye->ptr, eye->prop);
+          RNA_property_update(C, &eye->ptr, eye->prop);
         }
         eye->color_buffer.clear();
         break;
@@ -283,7 +283,7 @@ static wmOperatorStatus eyedropper_colorband_invoke(bContext &C,
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -299,7 +299,7 @@ static wmOperatorStatus eyedropper_colorband_exec(bContext &C, wmOperator &op)
     /* do something */
 
     /* cleanup */
-    eyedropper_colorband_exit(&C, &op);
+    eyedropper_colorband_exit(C, &op);
 
     return OPERATOR_FINISHED;
   }
@@ -308,7 +308,7 @@ static wmOperatorStatus eyedropper_colorband_exec(bContext &C, wmOperator &op)
 
 static bool eyedropper_colorband_poll(bContext &C)
 {
-  Button *but = context_active_but_get(&C);
+  Button *but = context_active_but_get(C);
   if (but && but->type == ButtonType::ColorBand) {
     return true;
   }

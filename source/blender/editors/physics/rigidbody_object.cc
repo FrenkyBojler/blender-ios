@@ -114,8 +114,8 @@ static wmOperatorStatus rigidbody_object_add_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -163,8 +163,8 @@ static wmOperatorStatus rigidbody_object_remove_exec(bContext &C, wmOperator &op
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -209,8 +209,8 @@ static wmOperatorStatus rigidbody_objects_add_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -260,8 +260,8 @@ static wmOperatorStatus rigidbody_objects_remove_exec(bContext &C, wmOperator & 
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -311,8 +311,8 @@ static wmOperatorStatus rigidbody_objects_shape_change_exec(bContext &C, wmOpera
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, nullptr);
-    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, nullptr);
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;
@@ -498,7 +498,7 @@ static wmOperatorStatus rigidbody_objects_calc_mass_exec(bContext &C, wmOperator
 
   if (changed) {
     /* send updates */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_POINTCACHE, nullptr);
+    WM_event_add_notifier(C, NC_OBJECT | ND_POINTCACHE, nullptr);
 
     /* done */
     return OPERATOR_FINISHED;

@@ -2149,18 +2149,18 @@ static void rna_Scene_uv_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
 {
   /* Makes sure that the UV selection states are consistent with the current UV select mode and
    * sticky mode. */
-  ED_uvedit_selectmode_clean_multi(C);
+  ED_uvedit_selectmode_clean_multi(*C);
 }
 
 static void rna_Scene_uv_select_sync_update(bContext *C, PointerRNA * /*ptr*/)
 {
-  ED_uvedit_select_sync_multi(C);
+  ED_uvedit_select_sync_multi(*C);
 }
 
 static void rna_Scene_uv_sticky_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
 {
   /* Some changes to sticky select mode require rebuilding. */
-  ED_uvedit_sticky_selectmode_update(C);
+  ED_uvedit_sticky_selectmode_update(*C);
 }
 
 static void object_simplify_update(Scene *scene,

@@ -859,7 +859,7 @@ static void do_weight_paint_vertex(const VPaint &wp,
 
 struct WeightPaintStroke final : public PaintStroke {
   WeightPaintStroke(bContext *C, wmOperator *op, const int event_type)
-      : PaintStroke(C, op, event_type)
+      : PaintStroke(*C, op, event_type)
   {
   }
 
@@ -873,7 +873,7 @@ struct WeightPaintStroke final : public PaintStroke {
 
 bool WeightPaintStroke::get_location(float out[3], const float mouse[2], bool force_original)
 {
-  return stroke_get_location_bvh(this->evil_C, out, mouse, force_original);
+  return stroke_get_location_bvh(*this->evil_C, out, mouse, force_original);
 }
 bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
 {
@@ -888,7 +888,7 @@ bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
   VPaint &vp = *CTX_data_tool_settings(*this->evil_C)->wpaint;
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(*this->evil_C);
 
-  if (ED_wpaint_ensure_data(this->evil_C, op->reports, WPAINT_ENSURE_MIRROR, &vgroup_index) ==
+  if (ED_wpaint_ensure_data(*this->evil_C, op->reports, WPAINT_ENSURE_MIRROR, &vgroup_index) ==
       false)
   {
     return false;
@@ -938,7 +938,7 @@ bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
   }
 
   std::unique_ptr<WPaintData> wpd = std::make_unique<WPaintData>();
-  wpd->vc = ED_view3d_viewcontext_init(this->evil_C, &depsgraph);
+  wpd->vc = ED_view3d_viewcontext_init(*this->evil_C, &depsgraph);
 
   const Brush *brush = BKE_paint_brush_for_read(&vp.paint);
   vwpaint::view_angle_limits_init(&wpd->normal_angle_precalc,
@@ -1012,7 +1012,7 @@ bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
 
   /* If not previously created, create vertex/weight paint mode session data */
   vwpaint::init_stroke(depsgraph, ob);
-  vwpaint::update_cache_invariants(this->evil_C, vp, ss, op, mouse);
+  vwpaint::update_cache_invariants(*this->evil_C, vp, ss, op, mouse);
   vwpaint::init_session_data(ts, ob);
 
   /* Brush may have changed after initialization. */
@@ -1519,7 +1519,7 @@ static float calculate_average_weight(const Depsgraph &depsgraph,
   return math::safe_divide(value.value, double(value.len));
 }
 
-static void wpaint_paint_leaves(bContext *C,
+static void wpaint_paint_leaves(bContext &C,
                                 Object &ob,
                                 VPaint &vp,
                                 WPaintData &wpd,
@@ -1528,7 +1528,7 @@ static void wpaint_paint_leaves(bContext *C,
                                 const IndexMask &node_mask)
 {
   const Brush &brush = *ob.sculpt->cache->brush;
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
 
   switch ((eBrushWeightPaintType)brush.weight_brush_type) {
     case WPAINT_BRUSH_TYPE_AVERAGE: {
@@ -1573,11 +1573,11 @@ void ED_object_wpaintmode_enter_ex(Main &bmain, Depsgraph &depsgraph, Scene &sce
 {
   vwpaint::mode_enter_generic(bmain, depsgraph, scene, ob, OB_MODE_WEIGHT_PAINT);
 }
-void ED_object_wpaintmode_enter(bContext *C, Depsgraph &depsgraph)
+void ED_object_wpaintmode_enter(bContext &C, Depsgraph &depsgraph)
 {
-  Main &bmain = *CTX_data_main(*C);
-  Scene &scene = *CTX_data_scene(*C);
-  Object &ob = *CTX_data_active_object(*C);
+  Main &bmain = *CTX_data_main(C);
+  Scene &scene = *CTX_data_scene(C);
+  Object &ob = *CTX_data_active_object(C);
   ED_object_wpaintmode_enter_ex(bmain, depsgraph, scene, ob);
 }
 /** \} */
@@ -1590,9 +1590,9 @@ void ED_object_wpaintmode_exit_ex(Object &ob)
 {
   vwpaint::mode_exit_generic(ob, OB_MODE_WEIGHT_PAINT);
 }
-void ED_object_wpaintmode_exit(bContext *C)
+void ED_object_wpaintmode_exit(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   ED_object_wpaintmode_exit_ex(*ob);
 }
 /** \} */
@@ -1613,18 +1613,18 @@ bool weight_paint_mode_region_view3d_poll(bContext &C)
   return weight_paint_mode_poll(C) && ED_operator_region_view3d_active(C);
 }
 
-static bool weight_paint_poll_ex(bContext *C, bool check_tool)
+static bool weight_paint_poll_ex(bContext &C, bool check_tool)
 {
-  const Object *ob = CTX_data_active_object(*C);
+  const Object *ob = CTX_data_active_object(C);
   const ScrArea *area;
 
   if ((ob != nullptr) && (ob->mode & OB_MODE_WEIGHT_PAINT) &&
-      (BKE_paint_brush(&CTX_data_tool_settings(*C)->wpaint->paint) != nullptr) &&
-      (area = CTX_wm_area(*C)) && (area->spacetype == SPACE_VIEW3D))
+      (BKE_paint_brush(&CTX_data_tool_settings(C)->wpaint->paint) != nullptr) &&
+      (area = CTX_wm_area(C)) && (area->spacetype == SPACE_VIEW3D))
   {
-    const ARegion *region = CTX_wm_region(*C);
+    const ARegion *region = CTX_wm_region(C);
     if (region && ELEM(region->regiontype, RGN_TYPE_WINDOW, RGN_TYPE_HUD)) {
-      if (!check_tool || WM_toolsystem_active_tool_is_brush(C)) {
+      if (!check_tool || WM_toolsystem_active_tool_is_brush(&C)) {
         return true;
       }
     }
@@ -1634,12 +1634,12 @@ static bool weight_paint_poll_ex(bContext *C, bool check_tool)
 
 bool weight_paint_poll(bContext &C)
 {
-  return weight_paint_poll_ex(&C, true);
+  return weight_paint_poll_ex(C, true);
 }
 
 bool weight_paint_poll_ignore_tool(bContext &C)
 {
-  return weight_paint_poll_ex(&C, false);
+  return weight_paint_poll_ex(C, false);
 }
 
 /**
@@ -1684,11 +1684,11 @@ static wmOperatorStatus wpaint_mode_toggle_exec(bContext &C, wmOperator &op)
    */
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, &scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_MODE, &scene);
 
   WM_msg_publish_rna_prop(mbus, &ob.id, &ob, Object, mode);
 
-  WM_toolsystem_update_from_context_view3d(&C);
+  WM_toolsystem_update_from_context_view3d(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1710,7 +1710,7 @@ void PAINT_OT_weight_paint_toggle(wmOperatorType *ot)
 /** \name Weight Paint Operator
  * \{ */
 
-static void wpaint_do_paint(bContext *C,
+static void wpaint_do_paint(bContext &C,
                             Object &ob,
                             VPaint &wp,
                             WPaintData &wpd,
@@ -1722,7 +1722,7 @@ static void wpaint_do_paint(bContext *C,
                             const int i,
                             const float angle)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   SculptSession &ss = *ob.sculpt;
   ss.cache->radial_symmetry_pass = i;
   SCULPT_cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
@@ -1745,7 +1745,7 @@ static void wpaint_do_radial_symmetry(bContext *C,
 {
   for (int i = 1; i < mesh.radial_symmetry[axis - 'X']; i++) {
     const float angle = (2.0 * M_PI) * i / mesh.radial_symmetry[axis - 'X'];
-    wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, symm, axis, i, angle);
+    wpaint_do_paint(*C, ob, wp, wpd, wpi, mesh, brush, symm, axis, i, angle);
   }
 }
 
@@ -1763,7 +1763,7 @@ static void wpaint_do_symmetrical_brush_actions(
 
   /* initial stroke */
   cache.mirror_symmetry_pass = ePaintSymmetryFlags(0);
-  wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'X', 0, 0);
+  wpaint_do_paint(*C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'X', 0, 0);
   wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'X');
   wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'Y');
   wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'Z');
@@ -1785,15 +1785,15 @@ static void wpaint_do_symmetrical_brush_actions(
       SCULPT_cache_calc_brushdata_symm(cache, symm, 0, 0);
 
       if (i & (1 << 0)) {
-        wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, symm, 'X', 0, 0);
+        wpaint_do_paint(*C, ob, wp, wpd, wpi, mesh, brush, symm, 'X', 0, 0);
         wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, symm, 'X');
       }
       if (i & (1 << 1)) {
-        wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, symm, 'Y', 0, 0);
+        wpaint_do_paint(*C, ob, wp, wpd, wpi, mesh, brush, symm, 'Y', 0, 0);
         wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, symm, 'Y');
       }
       if (i & (1 << 2)) {
-        wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, symm, 'Z', 0, 0);
+        wpaint_do_paint(*C, ob, wp, wpd, wpi, mesh, brush, symm, 'Z', 0, 0);
         wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, symm, 'Z');
       }
     }
@@ -1813,7 +1813,7 @@ void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
 
   SculptSession &ss = *ob->sculpt;
 
-  vwpaint::update_cache_variants(this->evil_C, wp, *ob, itemptr);
+  vwpaint::update_cache_variants(*this->evil_C, wp, *ob, itemptr);
 
   float mat[4][4];
 
@@ -1877,7 +1877,7 @@ void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
   BKE_mesh_batch_cache_dirty_tag(&mesh, BKE_MESH_BATCH_DIRTY_ALL);
 
   DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(this->evil_C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(*this->evil_C, NC_OBJECT | ND_DRAW, ob);
   swap_m4m4(wpd->vc.rv3d->persmat, mat);
 
   ED_region_tag_redraw(vc->region);
@@ -1908,7 +1908,7 @@ void WeightPaintStroke::done(bool /*is_cancel*/)
 
   DEG_id_tag_update((ID *)ob.data, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(this->evil_C, NC_OBJECT | ND_DRAW, &ob);
+  WM_event_add_notifier(*this->evil_C, NC_OBJECT | ND_DRAW, &ob);
 
   MEM_delete(ob.sculpt->cache);
   ob.sculpt->cache = nullptr;
@@ -1917,7 +1917,7 @@ void WeightPaintStroke::done(bool /*is_cancel*/)
 static wmOperatorStatus wpaint_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   if (!G.background) {
-    view3d_operator_needs_gpu(&C);
+    view3d_operator_needs_gpu(C);
   }
 
   WeightPaintStroke *stroke = MEM_new<WeightPaintStroke>(__func__, &C, &op, event->type);
@@ -1927,11 +1927,11 @@ static wmOperatorStatus wpaint_invoke(bContext &C, wmOperator &op, const wmEvent
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
-    stroke->free(&C, &op);
+    stroke->free(C, &op);
     MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   BLI_assert(retval == OPERATOR_RUNNING_MODAL);
 

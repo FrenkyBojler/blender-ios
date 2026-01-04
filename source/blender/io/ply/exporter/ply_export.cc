@@ -28,15 +28,15 @@ static CLG_LogRef LOG = {"io.ply"};
 
 namespace blender::io::ply {
 
-void exporter_main(bContext *C, const PLYExportParams &export_params)
+void exporter_main(bContext &C, const PLYExportParams &export_params)
 {
   std::unique_ptr<blender::io::ply::PlyData> plyData = std::make_unique<PlyData>();
 
   Depsgraph *depsgraph = nullptr;
   bool needs_free = false;
 
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
   if (export_params.collection[0]) {
     Collection *collection = reinterpret_cast<Collection *>(
         BKE_libblock_find_name(bmain, ID_GR, export_params.collection));
@@ -48,7 +48,7 @@ void exporter_main(bContext *C, const PLYExportParams &export_params)
       return;
     }
 
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
 
     depsgraph = DEG_graph_new(bmain, scene, view_layer, DAG_EVAL_RENDER);
     needs_free = true;
@@ -56,7 +56,7 @@ void exporter_main(bContext *C, const PLYExportParams &export_params)
     BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
   }
   else {
-    depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+    depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   }
 
   load_plydata(*plyData, depsgraph, export_params);

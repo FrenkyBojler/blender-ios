@@ -42,13 +42,13 @@ struct bToolKey {
   int mode;
 };
 
-bToolRef *WM_toolsystem_ref_from_context(const bContext *C);
+bToolRef *WM_toolsystem_ref_from_context(const bContext &C);
 bToolRef *WM_toolsystem_ref_find(WorkSpace *workspace, const bToolKey *tkey);
 bool WM_toolsystem_ref_ensure(WorkSpace *workspace, const bToolKey *tkey, bToolRef **r_tref);
 
 bToolRef *WM_toolsystem_ref_set_by_id_ex(
     bContext *C, WorkSpace *workspace, const bToolKey *tkey, const char *name, bool cycle);
-bToolRef *WM_toolsystem_ref_set_by_id(bContext *C, const char *name);
+bToolRef *WM_toolsystem_ref_set_by_id(bContext &C, const char *name);
 
 bToolRef_Runtime *WM_toolsystem_runtime_from_context(const bContext *C);
 bToolRef_Runtime *WM_toolsystem_runtime_find(WorkSpace *workspace, const bToolKey *tkey);
@@ -73,7 +73,7 @@ void WM_toolsystem_unlink_all(bContext *C, WorkSpace *workspace);
 void WM_toolsystem_refresh_all(const bContext *C, WorkSpace *workspace);
 void WM_toolsystem_reinit_all(bContext *C, wmWindow *win);
 
-void WM_toolsystem_ref_set_from_runtime(bContext *C,
+void WM_toolsystem_ref_set_from_runtime(bContext &C,
                                         WorkSpace *workspace,
                                         bToolRef *tref,
                                         const bToolRef_Runtime *tref_rt,
@@ -87,7 +87,7 @@ void WM_toolsystem_ref_set_from_runtime(bContext *C,
  */
 void WM_toolsystem_ref_sync_from_context(Main *bmain, WorkSpace *workspace, bToolRef *tref);
 
-void WM_toolsystem_init(const bContext *C);
+void WM_toolsystem_init(const bContext &C);
 
 int WM_toolsystem_mode_from_spacetype(const Scene *scene,
                                       ViewLayer *view_layer,
@@ -98,7 +98,7 @@ bool WM_toolsystem_key_from_context(const Scene *scene,
                                     ScrArea *area,
                                     bToolKey *tkey);
 
-void WM_toolsystem_update_from_context_view3d(bContext *C);
+void WM_toolsystem_update_from_context_view3d(bContext &C);
 void WM_toolsystem_update_from_context(
     bContext *C, WorkSpace *workspace, const Scene *scene, ViewLayer *view_layer, ScrArea *area);
 
@@ -147,7 +147,7 @@ void WM_toolsystem_ref_properties_init_for_keymap(bToolRef *tref,
  *
  * Used when undoing since the active mode may have changed.
  */
-void WM_toolsystem_refresh_active(bContext *C);
+void WM_toolsystem_refresh_active(bContext &C);
 /**
  * \return true if the tool changed.
  */

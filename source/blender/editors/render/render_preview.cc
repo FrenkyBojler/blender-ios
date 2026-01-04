@@ -779,7 +779,7 @@ void ED_preview_draw(
       if (sbuts != nullptr) {
         sbuts->preview = 0;
       }
-      ED_preview_shader_job(C, owner, id, parent, slot, newx, newy, PR_BUTS_RENDER);
+      ED_preview_shader_job(*C, owner, id, parent, slot, newx, newy, PR_BUTS_RENDER);
       ui_preview->tag &= ~UI_PREVIEW_TAG_DIRTY;
     }
   }
@@ -2116,7 +2116,7 @@ void ED_preview_icon_job(
   WM_jobs_start(CTX_wm_manager(*C), wm_job);
 }
 
-void ED_preview_shader_job(const bContext *C,
+void ED_preview_shader_job(const bContext &C,
                            const void *owner,
                            ID *id,
                            ID *parent,
@@ -2125,10 +2125,10 @@ void ED_preview_shader_job(const bContext *C,
                            int sizey,
                            ePreviewRenderMethod method)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   wmJob *wm_job;
   ShaderPreview *sp;
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   const ID_Type id_type = GS(id->name);
 
   BLI_assert(BKE_previewimg_id_supports_jobs(id));
@@ -2142,8 +2142,8 @@ void ED_preview_shader_job(const bContext *C,
 
   ED_preview_ensure_dbase(true);
 
-  wm_job = WM_jobs_get(CTX_wm_manager(*C),
-                       CTX_wm_window(*C),
+  wm_job = WM_jobs_get(CTX_wm_manager(C),
+                       CTX_wm_window(C),
                        owner,
                        "Generating shader preview...",
                        WM_JOB_EXCL_RENDER,
@@ -2161,7 +2161,7 @@ void ED_preview_shader_job(const bContext *C,
   sp->own_id_copy = true;
   sp->parent = parent;
   sp->slot = slot;
-  sp->bmain = CTX_data_main(*C);
+  sp->bmain = CTX_data_main(C);
   Material *ma = nullptr;
 
   /* hardcoded preview .blend for Eevee + Cycles, this should be solved
@@ -2191,7 +2191,7 @@ void ED_preview_shader_job(const bContext *C,
   WM_jobs_timer(wm_job, 0.1, NC_MATERIAL, NC_MATERIAL);
   WM_jobs_callbacks(wm_job, common_preview_startjob, nullptr, shader_preview_updatejob, nullptr);
 
-  WM_jobs_start(CTX_wm_manager(*C), wm_job);
+  WM_jobs_start(CTX_wm_manager(C), wm_job);
 }
 
 void ED_preview_kill_jobs(wmWindowManager *wm, Main * /*bmain*/)

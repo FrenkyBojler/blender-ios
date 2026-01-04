@@ -70,7 +70,7 @@ static bool graph_panel_context(const bContext *C, bAnimListElem **ale, FCurve *
    * to work correctly is able to be correctly retrieved.
    * There's no point showing empty panels?
    */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return false;
   }
 
@@ -654,7 +654,7 @@ static void do_graph_region_driver_buttons(bContext *C, void *id_v, int event)
   }
 
   /* default for now */
-  WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene); /* XXX could use better notifier */
+  WM_event_add_notifier(*C, NC_SCENE | ND_FRAME, scene); /* XXX could use better notifier */
 }
 
 /* callback to add a target variable to the active driver */
@@ -664,7 +664,7 @@ static void driver_add_var_cb(bContext *C, void *driver_v, void * /*arg*/)
 
   /* add a new variable */
   driver_add_new_variable(driver);
-  ED_undo_push(C, "Add Driver Variable");
+  ED_undo_push(*C, "Add Driver Variable");
 }
 
 /* callback to remove target variable from active driver */
@@ -675,7 +675,7 @@ static void driver_delete_var_cb(bContext *C, void *driver_v, void *dvar_v)
 
   /* remove the active variable */
   driver_free_variable_ex(driver, dvar);
-  ED_undo_push(C, "Delete Driver Variable");
+  ED_undo_push(*C, "Delete Driver Variable");
 }
 
 /* callback to report why a driver variable is invalid */
@@ -712,7 +712,7 @@ static void driver_dvar_invalid_name_query_cb(bContext *C, void *dvar_v, void * 
     layout.label(RPT_("It cannot be a reserved keyword in Python"), ICON_INFO);
   }
 
-  popup_menu_end(C, pup);
+  popup_menu_end(*C, pup);
 }
 
 /* callback to reset the driver's flags */
@@ -1371,7 +1371,7 @@ static void do_graph_region_modifier_buttons(bContext *C, void * /*arg*/, int ev
   switch (event) {
     case B_FMODIFIER_REDRAW: /* XXX this should send depsgraph updates too */
       /* XXX: need a notifier specially for F-Modifiers */
-      WM_event_add_notifier(C, NC_ANIMATION, nullptr);
+      WM_event_add_notifier(*C, NC_ANIMATION, nullptr);
       break;
   }
 }
@@ -1403,7 +1403,7 @@ static void graph_panel_modifiers(const bContext *C, Panel *panel)
     sub.op("GRAPH_OT_fmodifier_paste", "", ICON_PASTEDOWN);
   }
 
-  ANIM_fmodifier_panels(C, ale->fcurve_owner_id, &fcu->modifiers, graph_fmodifier_panel_id);
+  ANIM_fmodifier_panels(*C, ale->fcurve_owner_id, &fcu->modifiers, graph_fmodifier_panel_id);
 
   MEM_freeN(ale);
 }

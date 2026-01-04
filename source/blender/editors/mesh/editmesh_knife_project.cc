@@ -40,10 +40,10 @@
 
 using blender::Vector;
 
-static LinkNode *knifeproject_poly_from_object(const bContext *C, Object *ob, LinkNode *polys)
+static LinkNode *knifeproject_poly_from_object(const bContext &C, Object *ob, LinkNode *polys)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  ARegion *region = CTX_wm_region(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  ARegion *region = CTX_wm_region(C);
   const Mesh *mesh_eval;
   bool mesh_eval_needs_free;
 
@@ -112,7 +112,7 @@ static wmOperatorStatus knifeproject_exec(bContext &C, wmOperator &op)
     if (BKE_object_is_in_editmode(ob)) {
       continue;
     }
-    polys = knifeproject_poly_from_object(&C, ob, polys);
+    polys = knifeproject_poly_from_object(C, ob, polys);
   }
   CTX_DATA_END;
 
@@ -123,7 +123,7 @@ static wmOperatorStatus knifeproject_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  ViewContext vc = em_setup_viewcontext(&C);
+  ViewContext vc = em_setup_viewcontext(C);
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       vc.scene, vc.view_layer, vc.v3d);

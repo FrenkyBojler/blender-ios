@@ -184,8 +184,8 @@ static wmOperatorStatus select_orientation_exec(bContext &C, wmOperator &op)
 
   BKE_scene_orientation_slot_set_index(&scene->orientation_slots[SCE_ORIENT_DEFAULT], orientation);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   wmMsgBus *mbus = CTX_wm_message_bus(C);
   WM_msg_publish_rna_prop(mbus, &scene->id, scene, TransformOrientationSlot, type);
@@ -200,7 +200,7 @@ static wmOperatorStatus select_orientation_invoke(bContext &C,
   ui::PopupMenu *pup = ui::popup_menu_begin(&C, IFACE_("Orientation"), ICON_NONE);
   ui::Layout &layout = *ui::popup_menu_layout(pup);
   layout.op_enum("TRANSFORM_OT_select_orientation", "orientation");
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -228,10 +228,10 @@ static void TRANSFORM_OT_select_orientation(wmOperatorType *ot)
 static wmOperatorStatus delete_orientation_exec(bContext &C, wmOperator & /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
-  BIF_removeTransformOrientationIndex(&C,
+  BIF_removeTransformOrientationIndex(C,
                                       scene->orientation_slots[SCE_ORIENT_DEFAULT].index_custom);
 
-  WM_event_add_notifier(&C, NC_SCENE | NA_EDITED, scene);
+  WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
 
   wmMsgBus *mbus = CTX_wm_message_bus(C);
   WM_msg_publish_rna_prop(mbus, &scene->id, scene, Scene, transform_orientation_slots);
@@ -297,10 +297,10 @@ static wmOperatorStatus create_orientation_exec(bContext &C, wmOperator &op)
   if (use) {
     wmMsgBus *mbus = CTX_wm_message_bus(C);
     WM_msg_publish_rna_prop(mbus, &scene->id, scene, Scene, transform_orientation_slots);
-    WM_event_add_notifier(&C, NC_SCENE | NA_EDITED, scene);
+    WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
   }
 
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -364,7 +364,7 @@ static void transformops_loopsel_hack(bContext *C, wmOperator *op)
         /* Still switch if we were originally in face select mode. */
         if ((ts->selectmode != selectmode_orig) && (selectmode_orig != SCE_SELECT_FACE)) {
           ts->selectmode = selectmode_orig;
-          EDBM_selectmode_set_multi(C, selectmode_orig);
+          EDBM_selectmode_set_multi(*C, selectmode_orig);
         }
       }
     }
@@ -382,7 +382,7 @@ static void transformops_exit(bContext *C, wmOperator *op)
 #endif
 
   TransInfo *t = static_cast<TransInfo *>(op->customdata);
-  saveTransform(C, t, op);
+  saveTransform(*C, t, op);
   MEM_freeN(t);
   op->customdata = nullptr;
   G.moving = 0;
@@ -545,7 +545,7 @@ static wmOperatorStatus transform_exec(bContext &C, wmOperator &op)
 
   transformops_exit(&C, &op);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -563,7 +563,7 @@ static wmOperatorStatus transform_invoke(bContext &C, wmOperator &op, const wmEv
   }
 
   /* Add temp handler. */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   /* Use when modal input has some transformation to begin with. */
   TransInfo *t = static_cast<TransInfo *>(op.customdata);
@@ -1474,7 +1474,7 @@ static wmOperatorStatus transform_from_gizmo_invoke(bContext &C,
                                                     wmOperator & /*op*/,
                                                     const wmEvent *event)
 {
-  bToolRef *tref = WM_toolsystem_ref_from_context(&C);
+  bToolRef *tref = WM_toolsystem_ref_from_context(C);
   if (tref) {
     ARegion *region = CTX_wm_region(C);
     wmGizmoMap *gzmap = region->runtime->gizmo_map;

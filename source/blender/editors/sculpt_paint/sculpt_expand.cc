@@ -1586,20 +1586,20 @@ static void restore_original_state(bContext *C, Object &ob, Cache &expand_cache)
   switch (expand_cache.target) {
     case TargetType::Mask:
       write_mask_data(ob, expand_cache.original_mask);
-      flush_update_step(C, UpdateType::Mask);
-      flush_update_done(C, ob, UpdateType::Mask);
-      SCULPT_tag_update_overlays(C);
+      flush_update_step(*C, UpdateType::Mask);
+      flush_update_done(*C, ob, UpdateType::Mask);
+      SCULPT_tag_update_overlays(*C);
       break;
     case TargetType::FaceSets:
       restore_face_set_data(ob, expand_cache);
-      flush_update_step(C, UpdateType::FaceSet);
-      flush_update_done(C, ob, UpdateType::FaceSet);
-      SCULPT_tag_update_overlays(C);
+      flush_update_step(*C, UpdateType::FaceSet);
+      flush_update_done(*C, ob, UpdateType::FaceSet);
+      SCULPT_tag_update_overlays(*C);
       break;
     case TargetType::Colors:
       restore_color_data(ob, expand_cache);
-      flush_update_step(C, UpdateType::Color);
-      flush_update_done(C, ob, UpdateType::Color);
+      flush_update_step(*C, UpdateType::Color);
+      flush_update_done(*C, ob, UpdateType::Color);
       break;
   }
 }
@@ -1910,9 +1910,9 @@ static void face_sets_restore(Object &object, Cache &expand_cache)
   face_sets.finish();
 }
 
-static void update_for_vert(bContext *C, Object &ob, const std::optional<int> vertex)
+static void update_for_vert(bContext &C, Object &ob, const std::optional<int> vertex)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   SculptSession &ss = *ob.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   Cache &expand_cache = *ss.expand_cache;
@@ -2031,7 +2031,7 @@ static std::optional<int> target_vert_update_and_get(bContext *C, Object &ob, co
 {
   SculptSession &ss = *ob.sculpt;
   CursorGeometryInfo cgi;
-  if (cursor_geometry_info_update(C, &cgi, mval, false)) {
+  if (cursor_geometry_info_update(*C, &cgi, mval, false)) {
     return ss.active_vert_index();
   }
   return std::nullopt;
@@ -2041,11 +2041,11 @@ static std::optional<int> target_vert_update_and_get(bContext *C, Object &ob, co
  * Moves the sculpt pivot to the average point of the boundary enabled vertices of the current
  * expand state. Take symmetry and active components into account.
  */
-static void reposition_pivot(bContext *C, Object &ob, Cache &expand_cache)
+static void reposition_pivot(bContext &C, Object &ob, Cache &expand_cache)
 {
   SculptSession &ss = *ob.sculpt;
   const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
 
   const bool initial_invert_state = expand_cache.invert;
   expand_cache.invert = false;
@@ -2125,9 +2125,9 @@ static void reposition_pivot(bContext *C, Object &ob, Cache &expand_cache)
   WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob.data);
 }
 
-static void finish(bContext *C)
+static void finish(bContext &C)
 {
-  Object &ob = *CTX_data_active_object(*C);
+  Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
   undo::push_end(ob);
 
@@ -2144,7 +2144,7 @@ static void finish(bContext *C)
   }
 
   expand_cache_free(ss);
-  ED_workspace_status_text(C, nullptr);
+  ED_workspace_status_text(&C, nullptr);
 }
 
 /**
@@ -2180,15 +2180,15 @@ static void find_active_connected_components_from_vert(const Depsgraph &depsgrap
  * Stores the active vertex, face set and mouse coordinates in the #Cache based on the
  * current cursor position.
  */
-static bool set_initial_components_for_mouse(bContext *C,
+static bool set_initial_components_for_mouse(bContext &C,
                                              Object &ob,
                                              Cache &expand_cache,
                                              const float mval[2])
 {
   SculptSession &ss = *ob.sculpt;
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
 
-  std::optional<int> initial_vert = target_vert_update_and_get(C, ob, mval);
+  std::optional<int> initial_vert = target_vert_update_and_get(&C, ob, mval);
   if (!initial_vert) {
     /* Cursor not over the mesh, for creating valid initial falloffs, fall back to the last active
      * vertex in the sculpt session. */
@@ -2230,12 +2230,12 @@ static bool set_initial_components_for_mouse(bContext *C,
  * Displaces the initial mouse coordinates using the new mouse position to get a new active vertex.
  * After that, initializes a new falloff of the same type with the new active vertex.
  */
-static void move_propagation_origin(bContext *C,
+static void move_propagation_origin(bContext &C,
                                     Object &ob,
                                     const wmEvent *event,
                                     Cache &expand_cache)
 {
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
   float move_disp[2];
   sub_v2_v2v2(move_disp, mval_fl, expand_cache.initial_mouse_move);
@@ -2295,7 +2295,7 @@ static int active_face_set_id_get(Object &object, Cache &expand_cache)
 
 static void sculpt_expand_status(bContext *C, wmOperator *op, Cache *expand_cache)
 {
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
 
   status.opmodal(IFACE_("Confirm"), op->type, SCULPT_EXPAND_MODAL_CONFIRM);
   status.opmodal(IFACE_("Cancel"), op->type, SCULPT_EXPAND_MODAL_CANCEL);
@@ -2452,13 +2452,13 @@ static wmOperatorStatus sculpt_expand_modal(bContext &C, wmOperator &op, const w
         break;
       }
       case SCULPT_EXPAND_MODAL_CONFIRM: {
-        update_for_vert(&C, ob, target_expand_vertex);
+        update_for_vert(C, ob, target_expand_vertex);
 
         if (expand_cache.reposition_pivot) {
-          reposition_pivot(&C, ob, expand_cache);
+          reposition_pivot(C, ob, expand_cache);
         }
 
-        finish(&C);
+        finish(C);
         return OPERATOR_FINISHED;
       }
       case SCULPT_EXPAND_MODAL_FALLOFF_GEODESIC: {
@@ -2529,7 +2529,7 @@ static wmOperatorStatus sculpt_expand_modal(bContext &C, wmOperator &op, const w
 
   /* Handle expand origin movement if enabled. */
   if (expand_cache.move) {
-    move_propagation_origin(&C, ob, event, expand_cache);
+    move_propagation_origin(C, ob, event, expand_cache);
   }
 
   /* Add new face set IDs to the snapping set if enabled. */
@@ -2540,7 +2540,7 @@ static wmOperatorStatus sculpt_expand_modal(bContext &C, wmOperator &op, const w
   }
 
   /* Update the sculpt data with the current state of the #Cache. */
-  update_for_vert(&C, ob, target_expand_vertex);
+  update_for_vert(C, ob, target_expand_vertex);
 
   sculpt_expand_status(&C, &op, &expand_cache);
 
@@ -2627,7 +2627,7 @@ static void delete_face_set_id(
   BLI_LINKSTACK_FREE(queue_next);
 }
 
-static void cache_initial_config_set(bContext *C, wmOperator *op, Cache &expand_cache)
+static void cache_initial_config_set(bContext &C, wmOperator *op, Cache &expand_cache)
 {
   expand_cache.normal_falloff_blur_steps = RNA_int_get(op->ptr, "normal_falloff_smooth");
   expand_cache.invert = RNA_boolean_get(op->ptr, "invert");
@@ -2645,14 +2645,14 @@ static void cache_initial_config_set(bContext *C, wmOperator *op, Cache &expand_
 
   /* Texture and color data from the active Brush. */
   const Paint *paint = BKE_paint_get_active_from_context(C);
-  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
+  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   expand_cache.paint = paint;
   expand_cache.brush = BKE_paint_brush_for_read(&sd.paint);
   BKE_curvemapping_init(expand_cache.brush->curve_distance_falloff);
   copy_v4_fl(expand_cache.fill_color, 1.0f);
   copy_v3_v3(expand_cache.fill_color, BKE_brush_color_get(paint, expand_cache.brush));
 
-  expand_cache.scene = CTX_data_scene(*C);
+  expand_cache.scene = CTX_data_scene(C);
   expand_cache.texture_distortion_strength = 0.0f;
   expand_cache.blend_mode = expand_cache.brush->blend;
 }
@@ -2737,7 +2737,7 @@ static wmOperatorStatus sculpt_expand_invoke(bContext &C, wmOperator &op, const 
 
   /* Create and configure the Expand Cache. */
   ss.expand_cache = MEM_new<Cache>(__func__);
-  cache_initial_config_set(&C, &op, *ss.expand_cache);
+  cache_initial_config_set(C, &op, *ss.expand_cache);
 
   /* Update object. */
   const bool needs_colors = ss.expand_cache->target == TargetType::Colors;
@@ -2785,7 +2785,7 @@ static wmOperatorStatus sculpt_expand_invoke(bContext &C, wmOperator &op, const 
   /* When getting the initial active vert, in cases where the cursor is not over the mesh and
    * the mesh type has changed, we cannot proceed with the expand operator, as there is no
    * sensible last active vertex when switching between backing implementations. */
-  if (!set_initial_components_for_mouse(&C, ob, *ss.expand_cache, mouse)) {
+  if (!set_initial_components_for_mouse(C, ob, *ss.expand_cache, mouse)) {
     expand_cache_free(ss);
     return OPERATOR_CANCELLED;
   }
@@ -2863,11 +2863,11 @@ static wmOperatorStatus sculpt_expand_invoke(bContext &C, wmOperator &op, const 
   check_topology_islands(ob, falloff_type);
 
   /* Initial mesh data update, resets all target data in the sculpt mesh. */
-  update_for_vert(&C, ob, initial_vert);
+  update_for_vert(C, ob, initial_vert);
 
   sculpt_expand_status(&C, &op, ss.expand_cache);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 

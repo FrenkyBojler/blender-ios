@@ -199,14 +199,14 @@ static void node_socket_remove(Main *bmain, bNodeTree *ntree, bNode *node_to, bN
 }
 
 /* add new node connected to this socket, or replace an existing one */
-static void node_socket_add_replace(const bContext *C,
+static void node_socket_add_replace(const bContext &C,
                                     bNodeTree *ntree,
                                     bNode *node_to,
                                     bNodeSocket *sock_to,
                                     int type,
                                     NodeLinkItem *item)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   bNode *node_from;
   bNodeSocket *sock_from_tmp;
   bNode *node_prev = nullptr;
@@ -237,7 +237,7 @@ static void node_socket_add_replace(const bContext *C,
     node_from = node_prev;
   }
   else if (!node_from) {
-    node_from = bke::node_add_static_node(C, *ntree, type);
+    node_from = bke::node_add_static_node(&C, *ntree, type);
     if (node_prev != nullptr) {
       /* If we're replacing existing node, use its location. */
       node_from->location[0] = node_prev->location[0];
@@ -419,10 +419,10 @@ static void ui_node_link(bContext *C, void *arg_p, void *event_p)
     node_socket_remove(bmain, ntree, node_to, sock_to);
   }
   else {
-    node_socket_add_replace(C, ntree, node_to, sock_to, arg->node_type->type_legacy, &arg->item);
+    node_socket_add_replace(*C, ntree, node_to, sock_to, arg->node_type->type_legacy, &arg->item);
   }
 
-  ED_undo_push(C, "Node input modify");
+  ED_undo_push(*C, "Node input modify");
 }
 
 static void ui_node_sock_name(const bNodeTree *ntree,

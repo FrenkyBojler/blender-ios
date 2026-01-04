@@ -167,7 +167,7 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
 
 struct SculptCurvesBrushStroke final : public PaintStroke {
   SculptCurvesBrushStroke(bContext *C, wmOperator *op, const int event_type)
-      : PaintStroke(C, op, event_type)
+      : PaintStroke(*C, op, event_type)
   {
   }
 
@@ -251,13 +251,13 @@ static wmOperatorStatus sculpt_curves_stroke_invoke(bContext &C,
 
   if (retval == OPERATOR_FINISHED) {
     if (op.customdata != nullptr) {
-      op_data->free(&C, &op);
+      op_data->free(C, &op);
       MEM_delete(op_data);
     }
     return OPERATOR_FINISHED;
   }
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -304,12 +304,12 @@ static void SCULPT_CURVES_OT_brush_stroke(wmOperatorType *ot)
 /** \name Toggle Sculpt Mode
  * \{ */
 
-static void curves_sculptmode_enter(bContext *C)
+static void curves_sculptmode_enter(bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
-  wmMsgBus *mbus = CTX_wm_message_bus(*C);
+  Scene *scene = CTX_data_scene(C);
+  wmMsgBus *mbus = CTX_wm_message_bus(C);
 
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   BKE_paint_ensure(scene->toolsettings, (Paint **)&scene->toolsettings->curves_sculpt);
   CurvesSculpt *curves_sculpt = scene->toolsettings->curves_sculpt;
 
@@ -317,7 +317,7 @@ static void curves_sculptmode_enter(bContext *C)
 
   Paint *paint = BKE_paint_get_active_from_paintmode(scene, PaintMode::SculptCurves);
 
-  BKE_paint_brushes_ensure(CTX_data_main(*C), paint);
+  BKE_paint_brushes_ensure(CTX_data_main(C), paint);
 
   ED_paint_cursor_start(&curves_sculpt->paint, curves_sculpt_poll_view3d);
   paint_init_pivot(ob, scene, paint);
@@ -328,9 +328,9 @@ static void curves_sculptmode_enter(bContext *C)
   WM_event_add_notifier(C, NC_SCENE | ND_MODE, nullptr);
 }
 
-static void curves_sculptmode_exit(bContext *C)
+static void curves_sculptmode_exit(bContext &C)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   ob->mode = OB_MODE_OBJECT;
 }
 
@@ -348,18 +348,18 @@ static wmOperatorStatus curves_sculptmode_toggle_exec(bContext &C, wmOperator &o
   }
 
   if (is_mode_set) {
-    curves_sculptmode_exit(&C);
+    curves_sculptmode_exit(C);
   }
   else {
-    curves_sculptmode_enter(&C);
+    curves_sculptmode_enter(C);
   }
 
-  WM_toolsystem_update_from_context_view3d(&C);
+  WM_toolsystem_update_from_context_view3d(C);
 
   /* Necessary to change the object mode on the evaluated object. */
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
   WM_msg_publish_rna_prop(mbus, &ob->id, ob, Object, mode);
-  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_MODE, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -472,7 +472,7 @@ static wmOperatorStatus select_random_exec(bContext &C, wmOperator &op)
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
   return OPERATOR_FINISHED;
 }
@@ -629,7 +629,7 @@ static int select_grow_update(bContext *C, wmOperator *op, const float mouse_dif
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&curves_id.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &curves_id);
+    WM_event_add_notifier(*C, NC_GEOM | ND_DATA, &curves_id);
   }
 
   return OPERATOR_FINISHED;
@@ -764,7 +764,7 @@ static wmOperatorStatus select_grow_invoke(bContext &C, wmOperator &op, const wm
   select_grow_invoke_per_curve(curves_id, *active_ob, *region, *v3d, *rv3d, *curve_op_data);
   op_data->per_curve.append(std::move(curve_op_data));
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -802,7 +802,7 @@ static wmOperatorStatus select_grow_modal(bContext &C, wmOperator &op, const wmE
         /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
          * attribute for now. */
         DEG_id_tag_update(&curves_id.id, ID_RECALC_GEOMETRY);
-        WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &curves_id);
+        WM_event_add_notifier(C, NC_GEOM | ND_DATA, &curves_id);
       }
       MEM_delete(&op_data);
       return OPERATOR_CANCELLED;
@@ -882,7 +882,7 @@ struct MinDistanceEditData {
 
 static int calculate_points_per_side(bContext *C, MinDistanceEditData &op_data)
 {
-  Paint *paint = BKE_paint_get_active_from_context(C);
+  Paint *paint = BKE_paint_get_active_from_context(*C);
   ARegion *region = op_data.region;
 
   const float min_distance = op_data.brush->curves_sculpt_settings->minimum_distance;
@@ -929,7 +929,7 @@ static void min_distance_edit_draw(bContext *C,
                                    const blender::float2 & /*tilt*/,
                                    void *customdata)
 {
-  Paint *paint = BKE_paint_get_active_from_context(C);
+  Paint *paint = BKE_paint_get_active_from_context(*C);
   MinDistanceEditData &op_data = *static_cast<MinDistanceEditData *>(customdata);
 
   const float min_distance = op_data.brush->curves_sculpt_settings->minimum_distance;
@@ -1117,7 +1117,7 @@ static wmOperatorStatus min_distance_edit_invoke(bContext &C, wmOperator &op, co
   op_data->region = CTX_wm_region(C);
   op_data->rv3d = CTX_wm_region_view3d(C);
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
   ED_region_tag_redraw(region);
   return OPERATOR_RUNNING_MODAL;
 }

@@ -521,7 +521,7 @@ static Object *gizmo_3d_transform_space_object_get(Scene *scene, ViewLayer *view
  * \param r_mat: Returns the space matrix of the coordinates.
  * \param r_drawflags: Drawing flags for gizmos. Usually stored in #RegionView3D::drawflags.
  */
-static int gizmo_3d_foreach_selected(const bContext *C,
+static int gizmo_3d_foreach_selected(const bContext &C,
                                      const short orient_index,
                                      const bool use_curve_handles,
                                      const bool use_only_center,
@@ -539,12 +539,12 @@ static int gizmo_3d_foreach_selected(const bContext *C,
         user_fn(co);
       };
 
-  ScrArea *area = CTX_wm_area(*C);
-  Scene *scene = CTX_data_scene(*C);
+  ScrArea *area = CTX_wm_area(C);
+  Scene *scene = CTX_data_scene(C);
   /* TODO(sergey): This function is used from operator's modal() and from gizmo's refresh().
    * Is it fine to possibly evaluate dependency graph here? */
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   int a, totsel = 0;
 
@@ -556,7 +556,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
   { \
     invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr()); \
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode( \
-        scene, view_layer, CTX_wm_view3d(*C)); \
+        scene, view_layer, CTX_wm_view3d(C)); \
     for (Object *ob_iter : objects) { \
       const bool use_mat_local = (ob_iter != obedit);
 
@@ -977,14 +977,14 @@ static int gizmo_3d_foreach_selected(const bContext *C,
   return totsel;
 }
 
-int calc_gizmo_stats(const bContext *C,
+int calc_gizmo_stats(const bContext &C,
                      const TransformCalcParams *params,
                      TransformBounds *tbounds,
                      RegionView3D *rv3d)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ScrArea *area = CTX_wm_area(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
   int totsel = 0;
 
@@ -1109,7 +1109,7 @@ static bool gizmo_3d_calc_pos(const bContext *C,
       if (tbounds == nullptr) {
         TransformCalcParams calc_params{};
         calc_params.use_only_center = true;
-        if (calc_gizmo_stats(C, &calc_params, &tbounds_stack, nullptr)) {
+        if (calc_gizmo_stats(*C, &calc_params, &tbounds_stack, nullptr)) {
           tbounds = &tbounds_stack;
         }
       }
@@ -1130,7 +1130,7 @@ static bool gizmo_3d_calc_pos(const bContext *C,
       const auto gizmo_3d_calc_center_fn = [&](const float3 &co) { add_v3_v3(co_sum, co); };
       const float (*r_mat)[4] = nullptr;
       int totsel;
-      totsel = gizmo_3d_foreach_selected(C,
+      totsel = gizmo_3d_foreach_selected(*C,
                                          0,
                                          (pivot_type != V3D_AROUND_LOCAL_ORIGINS),
                                          true,
@@ -1150,10 +1150,11 @@ static bool gizmo_3d_calc_pos(const bContext *C,
   return false;
 }
 
-void gizmo_prepare_mat(const bContext *C, RegionView3D *rv3d, const TransformBounds *tbounds)
+void gizmo_prepare_mat(const bContext &C, RegionView3D *rv3d, const TransformBounds *tbounds)
 {
-  Scene *scene = CTX_data_scene(*C);
-  gizmo_3d_calc_pos(C, scene, tbounds, scene->toolsettings->transform_pivot_point, rv3d->twmat[3]);
+  Scene *scene = CTX_data_scene(C);
+  gizmo_3d_calc_pos(
+      &C, scene, tbounds, scene->toolsettings->transform_pivot_point, rv3d->twmat[3]);
 }
 
 /**
@@ -1712,8 +1713,8 @@ static wmOperatorStatus gizmo_modal(bContext *C,
 
     TransformCalcParams calc_params{};
     calc_params.use_only_center = true;
-    if (calc_gizmo_stats(C, &calc_params, &tbounds, rv3d)) {
-      gizmo_prepare_mat(C, rv3d, &tbounds);
+    if (calc_gizmo_stats(*C, &calc_params, &tbounds, rv3d)) {
+      gizmo_prepare_mat(*C, rv3d, &tbounds);
       for (wmGizmo &gz : gzgroup->gizmos) {
         WM_gizmo_set_matrix_location(&gz, rv3d->twmat[3]);
       }
@@ -1984,7 +1985,7 @@ static void WIDGETGROUP_gizmo_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   TransformCalcParams calc_params{};
   calc_params.use_only_center = true;
   calc_params.orientation_index = orient_index + 1;
-  if ((ggd->all_hidden = (calc_gizmo_stats(C, &calc_params, &tbounds, rv3d) == 0))) {
+  if ((ggd->all_hidden = (calc_gizmo_stats(*C, &calc_params, &tbounds, rv3d) == 0))) {
     return;
   }
 
@@ -2487,10 +2488,10 @@ void transform_gizmo_3d_model_from_constraint_and_mode_restore(TransInfo *t)
   MAN_ITER_AXES_END;
 }
 
-bool calc_pivot_pos(const bContext *C, const short pivot_type, float r_pivot_pos[3])
+bool calc_pivot_pos(const bContext &C, const short pivot_type, float r_pivot_pos[3])
 {
-  Scene *scene = CTX_data_scene(*C);
-  return gizmo_3d_calc_pos(C, scene, nullptr, pivot_type, r_pivot_pos);
+  Scene *scene = CTX_data_scene(C);
+  return gizmo_3d_calc_pos(&C, scene, nullptr, pivot_type, r_pivot_pos);
 }
 
 }  // namespace blender::ed::transform

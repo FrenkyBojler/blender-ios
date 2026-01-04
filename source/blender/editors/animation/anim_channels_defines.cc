@@ -5478,7 +5478,7 @@ void ANIM_channel_draw(
 /* callback for (normal) widget settings - send notifiers */
 static void achannel_setting_widget_cb(bContext *C, void *ale_npoin, void *setting_wrap)
 {
-  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
   const bAnimListElem *ale_setting = static_cast<bAnimListElem *>(ale_npoin);
   const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale_setting);
@@ -5522,7 +5522,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
     return;
   }
   if (ELEM(ale_setting->type, ANIMTYPE_GREASE_PENCIL_LAYER, ANIMTYPE_GREASE_PENCIL_LAYER_GROUP)) {
-    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+    WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   }
 
   if (ale_setting->type == ANIMTYPE_GPLAYER) {
@@ -5533,7 +5533,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
     }
 
     /* UI updates */
-    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+    WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   }
 
   /* Tag for full animation update, so that the settings will have an effect. */
@@ -5546,7 +5546,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
   }
 
   /* verify animation context */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return;
   }
 
@@ -5654,7 +5654,7 @@ static void achannel_setting_slider_cb(bContext *C, void *id_poin, void *fcu_poi
         DEG_id_tag_update(&adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
       }
       DEG_id_tag_update(id, ID_RECALC_ANIMATION_NO_FLUSH);
-      WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+      WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
     }
   }
 
@@ -5721,7 +5721,7 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C, void * /*id_poin*/
 
   /* Get pointer and property from the slider -
    * this should all match up with the NlaStrip required. */
-  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(*C, &ptr, &prop, &index);
 
   if (fcu && prop) {
     /* set the special 'replace' flag if on a keyframe */
@@ -5743,7 +5743,7 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C, void * /*id_poin*/
                                                     flag);
 
     if (done) {
-      WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+      WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
     }
   }
 }
@@ -6189,7 +6189,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
         ac->ads->renameIndex = 0;
 
         /* send notifiers */
-        WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_RENAME, nullptr);
+        WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN | NA_RENAME, nullptr);
       }
 
       block_emboss_set(block, blender::ui::EmbossType::None);
@@ -6199,7 +6199,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
        * so that this doesn't hang around, and the name can be drawn normally - #47492
        */
       ac->ads->renameIndex = 0;
-      WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
+      WM_event_add_notifier(*C, NC_ANIMATION | ND_ANIMCHAN, nullptr);
     }
   }
 

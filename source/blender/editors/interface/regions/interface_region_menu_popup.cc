@@ -183,7 +183,7 @@ static void ui_popup_menu_create_block(bContext *C,
 {
   const uiStyle *style = style_get_dpi();
 
-  pup->block = block_begin(C, nullptr, block_name, EmbossType::Pulldown);
+  pup->block = block_begin(*C, nullptr, block_name, EmbossType::Pulldown);
 
   /* A title is only provided when a Menu has a label, this is not always the case, see e.g.
    * `VIEW3D_MT_edit_mesh_context_menu` -- this specifies its own label inside the draw function
@@ -391,14 +391,14 @@ static void block_free_func_POPUP(void *arg_pup)
 }
 
 static PopupBlockHandle *ui_popup_menu_create_impl(
-    bContext *C,
+    bContext &C,
     ARegion *butregion,
     Button *but,
     const char *title,
     std::function<void(bContext *, Layout *)> menu_func,
     const bool can_refresh)
 {
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
 
   PopupMenu *pup = MEM_new<PopupMenu>(__func__);
   pup->title = title;
@@ -426,7 +426,7 @@ static PopupBlockHandle *ui_popup_menu_create_impl(
   if (!but) {
     handle->popup = true;
 
-    popup_handlers_add(C, &window->runtime->modalhandlers, handle, 0);
+    popup_handlers_add(&C, &window->runtime->modalhandlers, handle, 0);
     WM_event_add_mousemove(window);
   }
 
@@ -437,7 +437,7 @@ PopupBlockHandle *popup_menu_create(
     bContext *C, ARegion *butregion, Button *but, MenuCreateFunc menu_func, void *arg)
 {
   return ui_popup_menu_create_impl(
-      C,
+      *C,
       butregion,
       but,
       nullptr,
@@ -498,9 +498,9 @@ void popup_menu_but_set(PopupMenu *pup, ARegion *butregion, Button *but)
   pup->butregion = butregion;
 }
 
-void popup_menu_end(bContext *C, PopupMenu *pup)
+void popup_menu_end(bContext &C, PopupMenu *pup)
 {
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
 
   pup->popup = true;
   pup->mx = window->runtime->eventstate->xy[0];
@@ -517,7 +517,7 @@ void popup_menu_end(bContext *C, PopupMenu *pup)
       C, butregion, but, nullptr, block_func_POPUP, pup, nullptr, false);
   menu->popup = true;
 
-  popup_handlers_add(C, &window->runtime->modalhandlers, menu, 0);
+  popup_handlers_add(&C, &window->runtime->modalhandlers, menu, 0);
   WM_event_add_mousemove(window);
 
   MEM_delete(pup);
@@ -526,7 +526,7 @@ void popup_menu_end(bContext *C, PopupMenu *pup)
 bool popup_menu_end_or_cancel(bContext *C, PopupMenu *pup)
 {
   if (!block_is_empty_ex(pup->block, true)) {
-    popup_menu_end(C, pup);
+    popup_menu_end(*C, pup);
     return true;
   }
   block_layout_resolve(pup->block);
@@ -547,12 +547,12 @@ Layout *popup_menu_layout(PopupMenu *pup)
 /** \name Standard Popup Menus
  * \{ */
 
-void popup_menu_reports(bContext *C, ReportList *reports)
+void popup_menu_reports(bContext &C, ReportList *reports)
 {
   PopupMenu *pup = nullptr;
   Layout *layout;
 
-  if (!CTX_wm_window(*C)) {
+  if (!CTX_wm_window(C)) {
     return;
   }
 
@@ -570,7 +570,7 @@ void popup_menu_reports(bContext *C, ReportList *reports)
       char title[UI_MAX_DRAW_STR];
       SNPRINTF_UTF8(title, "%s: %s", RPT_("Report"), report.typestr);
       /* popup_menu stuff does just what we need (but pass meaningful block name) */
-      pup = popup_menu_begin_ex(C, title, __func__, ICON_NONE);
+      pup = popup_menu_begin_ex(&C, title, __func__, ICON_NONE);
       layout = popup_menu_layout(pup);
     }
     else {
@@ -606,7 +606,7 @@ static void ui_popup_menu_create_from_menutype(bContext *C,
                                                const int icon)
 {
   PopupBlockHandle *handle = ui_popup_menu_create_impl(
-      C,
+      *C,
       nullptr,
       nullptr,
       title,
@@ -620,7 +620,7 @@ static void ui_popup_menu_create_from_menutype(bContext *C,
 
   STRNCPY_UTF8(handle->menu_idname, mt->idname);
 
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
   if (flag_is_set(mt->flag, MenuTypeFlag::SearchOnKeyPress)) {
     status.range(IFACE_("Search"), ICON_EVENT_A, ICON_EVENT_Z);
   }
@@ -654,8 +654,8 @@ wmOperatorStatus popup_menu_invoke(bContext *C, const char *idname, ReportList *
     /* If no refresh is needed, create the block directly. */
     PopupMenu *pup = popup_menu_begin(C, title, ICON_NONE);
     Layout *layout = popup_menu_layout(pup);
-    menutype_draw(C, mt, layout);
-    popup_menu_end(C, pup);
+    menutype_draw(*C, mt, layout);
+    popup_menu_end(*C, pup);
   }
 
   return OPERATOR_INTERFACE;
@@ -668,9 +668,9 @@ wmOperatorStatus popup_menu_invoke(bContext *C, const char *idname, ReportList *
  * \{ */
 
 void popup_block_invoke_ex(
-    bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free, const bool can_refresh)
+    bContext &C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free, const bool can_refresh)
 {
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
 
   PopupBlockHandle *handle = popup_block_create(
       C, nullptr, nullptr, func, nullptr, arg, arg_free, can_refresh);
@@ -680,25 +680,25 @@ void popup_block_invoke_ex(
   WorkspaceStatus status(C);
   status.item(" ", ICON_NONE);
 
-  popup_handlers_add(C, &window->runtime->modalhandlers, handle, 0);
+  popup_handlers_add(&C, &window->runtime->modalhandlers, handle, 0);
   block_active_only_flagged_buttons(
-      C, handle->region, static_cast<Block *>(handle->region->runtime->uiblocks.first));
+      &C, handle->region, static_cast<Block *>(handle->region->runtime->uiblocks.first));
   WM_event_add_mousemove(window);
 }
 
 void popup_block_invoke(bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free)
 {
-  popup_block_invoke_ex(C, func, arg, arg_free, true);
+  popup_block_invoke_ex(*C, func, arg, arg_free, true);
 }
 
-void popup_block_ex(bContext *C,
+void popup_block_ex(bContext &C,
                     BlockCreateFunc func,
                     BlockHandleFunc popup_func,
                     BlockCancelFunc cancel_func,
                     void *arg,
                     wmOperator *op)
 {
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
 
   PopupBlockHandle *handle = popup_block_create(
       C, nullptr, nullptr, func, nullptr, arg, nullptr, true);
@@ -715,9 +715,9 @@ void popup_block_ex(bContext *C,
   WorkspaceStatus status(C);
   status.item(" ", ICON_NONE);
 
-  popup_handlers_add(C, &window->runtime->modalhandlers, handle, 0);
+  popup_handlers_add(&C, &window->runtime->modalhandlers, handle, 0);
   block_active_only_flagged_buttons(
-      C, handle->region, static_cast<Block *>(handle->region->runtime->uiblocks.first));
+      &C, handle->region, static_cast<Block *>(handle->region->runtime->uiblocks.first));
   WM_event_add_mousemove(window);
 }
 

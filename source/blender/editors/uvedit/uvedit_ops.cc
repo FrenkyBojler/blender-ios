@@ -379,7 +379,7 @@ static wmOperatorStatus uv_move_on_axis_exec(bContext &C, wmOperator &op)
     if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
   return OPERATOR_FINISHED;
@@ -787,7 +787,7 @@ static wmOperatorStatus uv_arrange_islands_exec(bContext &C, wmOperator &op)
     if (uvedit_uv_islands_arrange(scene, em->bm, axis, align, order, margin, position)) {
       uvedit_live_unwrap_update(sima, scene, obedit);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
   return OPERATOR_FINISHED;
@@ -894,11 +894,11 @@ static void UV_OT_arrange_islands(wmOperatorType *ot)
       ot->srna, "margin", 0.05f, 0.0f, 1.0f, "Margin", "Space between islands", 0.0f, 1.0f);
 }
 
-static void uv_weld(bContext *C)
+static void uv_weld(bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
   float cent[2];
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
@@ -924,11 +924,11 @@ static void uv_weld(bContext *C)
   }
 }
 
-static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPositionMode position_mode)
+static void uv_align(bContext &C, eUVWeldAlign tool, UVAlignPositionMode position_mode)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
   float pos[2], min[2], max[2];
   const bool align_auto = (tool == UV_ALIGN_AUTO);
   INIT_MINMAX2(min, max);
@@ -984,7 +984,7 @@ static void uv_align(bContext *C, eUVWeldAlign tool, UVAlignPositionMode positio
 }
 static wmOperatorStatus uv_align_exec(bContext &C, wmOperator &op)
 {
-  uv_align(&C,
+  uv_align(C,
            eUVWeldAlign(RNA_enum_get(op.ptr, "axis")),
            UVAlignPositionMode(RNA_enum_get(op.ptr, "position_mode")));
 
@@ -1068,11 +1068,11 @@ static void UV_OT_align(wmOperatorType *ot)
 /** \name Remove Doubles Operator
  * \{ */
 
-static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_remove_doubles_to_selected(bContext &C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
 
   const float threshold = RNA_float_get(op->ptr, "threshold");
 
@@ -1182,11 +1182,11 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_remove_doubles_to_unselected(bContext &C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
   const float threshold = RNA_float_get(op->ptr, "threshold");
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
@@ -1240,14 +1240,14 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C, wmOperator *op)
+static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext &C, wmOperator *op)
 {
   /* NOTE: The calculation for the center-point of loops belonging to a vertex will be skewed
    * if one UV coordinate holds more loops than the others. */
 
-  Scene *scene = CTX_data_scene(*C);
-  SpaceImage *sima = CTX_wm_space_image(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Scene *scene = CTX_data_scene(C);
+  SpaceImage *sima = CTX_wm_space_image(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
@@ -1353,12 +1353,12 @@ static wmOperatorStatus uv_remove_doubles_to_selected_shared_vertex(bContext *C,
 static wmOperatorStatus uv_remove_doubles_exec(bContext &C, wmOperator &op)
 {
   if (RNA_boolean_get(op.ptr, "use_unselected")) {
-    return uv_remove_doubles_to_unselected(&C, &op);
+    return uv_remove_doubles_to_unselected(C, &op);
   }
   if (RNA_boolean_get(op.ptr, "use_shared_vertex")) {
-    return uv_remove_doubles_to_selected_shared_vertex(&C, &op);
+    return uv_remove_doubles_to_selected_shared_vertex(C, &op);
   }
-  return uv_remove_doubles_to_selected(&C, &op);
+  return uv_remove_doubles_to_selected(C, &op);
 }
 
 static void UV_OT_remove_doubles(wmOperatorType *ot)
@@ -1400,7 +1400,7 @@ static void UV_OT_remove_doubles(wmOperatorType *ot)
 
 static wmOperatorStatus uv_weld_exec(bContext &C, wmOperator & /*op*/)
 {
-  uv_weld(&C);
+  uv_weld(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1482,7 +1482,7 @@ static wmOperatorStatus uv_snap_cursor_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_IMAGE, sima);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, sima);
 
   return OPERATOR_FINISHED;
 }
@@ -1664,7 +1664,7 @@ static wmOperatorStatus uv_snap_selection_exec(bContext &C, wmOperator &op)
       changed_multi = true;
       uvedit_live_unwrap_update(sima, scene, obedit);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
 
@@ -1753,7 +1753,7 @@ static wmOperatorStatus uv_pin_exec(bContext &C, wmOperator &op)
     }
 
     if (changed) {
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SYNC_TO_EVAL);
     }
   }
@@ -2070,7 +2070,7 @@ static wmOperatorStatus uv_hide_exec(bContext &C, wmOperator &op)
     BM_select_history_validate(em->bm);
 
     DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, ob->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
   }
 
   return OPERATOR_FINISHED;
@@ -2218,7 +2218,7 @@ static wmOperatorStatus uv_reveal_exec(bContext &C, wmOperator &op)
     BM_mesh_elem_hflag_enable_test(em->bm, BM_FACE, BM_ELEM_SELECT, true, false, BM_ELEM_TAG);
 
     DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, ob->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
   }
 
   return OPERATOR_FINISHED;
@@ -2261,7 +2261,7 @@ static wmOperatorStatus uv_set_2d_cursor_exec(bContext &C, wmOperator &op)
     WM_msg_publish_rna_prop(mbus, &screen->id, sima, SpaceImageEditor, cursor_location);
   }
 
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, nullptr);
 
   /* Use pass-through to allow click-drag to transform the cursor. */
   return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
@@ -2383,7 +2383,7 @@ static wmOperatorStatus uv_seams_from_islands_exec(bContext &C, wmOperator &op)
     if (changed) {
       changed_multi = true;
       DEG_id_tag_update(&mesh->id, 0);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
     }
   }
 
@@ -2456,7 +2456,7 @@ static wmOperatorStatus uv_mark_seam_exec(bContext &C, wmOperator &op)
 
     if (changed) {
       DEG_id_tag_update(&mesh->id, 0);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
     }
   }
 
@@ -2484,7 +2484,7 @@ static wmOperatorStatus uv_mark_seam_invoke(bContext &C, wmOperator &op, const w
       op.type->idname, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Seam"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "clear", true);
 
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -2661,7 +2661,7 @@ static wmOperatorStatus uv_copy_mirrored_faces_exec(bContext &C, wmOperator &op)
 
     if (changed) {
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     }
   }
 

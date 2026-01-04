@@ -83,22 +83,22 @@ void ED_render_view3d_update(Depsgraph *depsgraph,
      * time of the last update) */
     if (engine && (updated || (engine->flag & RE_ENGINE_DO_UPDATE))) {
       /* Create temporary context to execute callback in. */
-      bContext *C = CTX_create();
-      CTX_data_main_set(*C, bmain);
-      CTX_data_scene_set(*C, scene);
-      CTX_wm_manager_set(*C, static_cast<wmWindowManager *>(bmain->wm.first));
-      CTX_wm_window_set(*C, window);
-      CTX_wm_screen_set(*C, WM_window_get_active_screen(window));
-      CTX_wm_area_set(*C, area);
-      CTX_wm_region_set(*C, &region);
+      bContext &C = *CTX_create();
+      CTX_data_main_set(C, bmain);
+      CTX_data_scene_set(C, scene);
+      CTX_wm_manager_set(C, static_cast<wmWindowManager *>(bmain->wm.first));
+      CTX_wm_window_set(C, window);
+      CTX_wm_screen_set(C, WM_window_get_active_screen(window));
+      CTX_wm_area_set(C, area);
+      CTX_wm_region_set(C, &region);
 
       engine->flag &= ~RE_ENGINE_DO_UPDATE;
       /* NOTE: Important to pass non-updated depsgraph, This is because this function is called
        * from inside dependency graph evaluation. Additionally, if we pass fully evaluated one
        * we will lose updates stored in the graph. */
-      engine->type->view_update(engine, C, CTX_data_depsgraph_pointer(*C));
+      engine->type->view_update(engine, &C, CTX_data_depsgraph_pointer(C));
 
-      CTX_free(C);
+      CTX_free(&C);
     }
   }
 }

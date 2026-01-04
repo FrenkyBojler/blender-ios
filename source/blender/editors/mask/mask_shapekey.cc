@@ -58,7 +58,7 @@ static wmOperatorStatus mask_shape_key_insert_exec(bContext &C, wmOperator & /*o
   }
 
   if (changed) {
-    WM_event_add_notifier(&C, NC_MASK | ND_DATA, mask);
+    WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
     DEG_id_tag_update(&mask->id, 0);
 
     return OPERATOR_FINISHED;
@@ -104,7 +104,7 @@ static wmOperatorStatus mask_shape_key_clear_exec(bContext &C, wmOperator & /*op
   }
 
   if (changed) {
-    WM_event_add_notifier(&C, NC_MASK | ND_DATA, mask);
+    WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
     DEG_id_tag_update(&mask->id, ID_RECALC_GEOMETRY);
 
     return OPERATOR_FINISHED;
@@ -185,7 +185,7 @@ static wmOperatorStatus mask_shape_key_feather_reset_exec(bContext &C, wmOperato
   }
 
   if (changed) {
-    WM_event_add_notifier(&C, NC_MASK | ND_DATA, mask);
+    WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
     DEG_id_tag_update(&mask->id, 0);
 
     return OPERATOR_FINISHED;
@@ -353,7 +353,7 @@ static wmOperatorStatus mask_shape_key_rekey_exec(bContext &C, wmOperator &op)
   }
 
   if (changed) {
-    WM_event_add_notifier(&C, NC_MASK | ND_DATA, mask);
+    WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
     DEG_id_tag_update(&mask->id, 0);
 
     return OPERATOR_FINISHED;

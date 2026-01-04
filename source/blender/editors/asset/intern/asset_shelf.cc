@@ -52,7 +52,7 @@ static int asset_shelf_default_tile_height();
 
 void send_redraw_notifier(const bContext &C)
 {
-  WM_event_add_notifier(&C, NC_SPACE | ND_REGIONS_ASSET_SHELF, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_REGIONS_ASSET_SHELF, nullptr);
 }
 
 /* -------------------------------------------------------------------- */
@@ -542,7 +542,7 @@ void region_layout(const bContext *C, ARegion *region)
     return;
   }
 
-  ui::Block *block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
+  ui::Block *block = block_begin(*C, region, __func__, ui::EmbossType::Emboss);
 
   const uiStyle *style = ui::style_get_dpi();
   const int padding_y = main_region_padding_y();
@@ -571,10 +571,10 @@ void region_layout(const bContext *C, ARegion *region)
    * called as part of #block_end(), so the block's window matrix needs to be up-to-date. */
   {
     ui::view2d_view_ortho(&region->v2d);
-    ui::blocklist_update_window_matrix(C, &region->runtime->uiblocks);
+    ui::blocklist_update_window_matrix(*C, &region->runtime->uiblocks);
   }
 
-  block_end(C, block);
+  block_end(*C, block);
 }
 
 void region_draw(const bContext *C, ARegion *region)
@@ -585,12 +585,12 @@ void region_draw(const bContext *C, ARegion *region)
   ui::view2d_view_ortho(&region->v2d);
 
   /* View2D matrix might have changed due to dynamic sized regions. */
-  ui::blocklist_update_window_matrix(C, &region->runtime->uiblocks);
+  ui::blocklist_update_window_matrix(*C, &region->runtime->uiblocks);
 
   ui::blocklist_draw(C, &region->runtime->uiblocks);
 
   /* Restore view matrix. */
-  ui::view2d_view_restore(C);
+  ui::view2d_view_restore(*C);
 
   ui::view2d_scrollers_draw(&region->v2d, nullptr);
 }
@@ -775,14 +775,14 @@ int context(const bContext &C, const char *member, bContextDataResult *result)
   return CTX_RESULT_MEMBER_NOT_FOUND;
 }
 
-static PointerRNA active_shelf_ptr_from_context(const bContext *C)
+static PointerRNA active_shelf_ptr_from_context(const bContext &C)
 {
-  return CTX_data_pointer_get_type(*C, "asset_shelf", &RNA_AssetShelf);
+  return CTX_data_pointer_get_type(C, "asset_shelf", &RNA_AssetShelf);
 }
 
 AssetShelf *active_shelf_from_context(const bContext *C)
 {
-  PointerRNA shelf_settings_ptr = active_shelf_ptr_from_context(C);
+  PointerRNA shelf_settings_ptr = active_shelf_ptr_from_context(*C);
   return static_cast<AssetShelf *>(shelf_settings_ptr.data);
 }
 
@@ -873,7 +873,7 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
 
   layout.separator();
 
-  PointerRNA shelf_ptr = active_shelf_ptr_from_context(C);
+  PointerRNA shelf_ptr = active_shelf_ptr_from_context(*C);
   if (AssetShelf *shelf = static_cast<AssetShelf *>(shelf_ptr.data)) {
     add_catalog_tabs(*shelf, layout);
   }

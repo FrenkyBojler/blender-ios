@@ -406,7 +406,7 @@ static void dial_ghostarc_draw_with_helplines(const float angle_ofs,
   dial_ghostarc_draw_helpline(angle_ofs + angle_delta, co_outer, color_helpline, line_width);
 }
 
-static void dial_draw_intern(const bContext *C,
+static void dial_draw_intern(const bContext &C,
                              wmGizmo *gz,
                              const bool select,
                              const bool highlight,
@@ -415,8 +415,8 @@ static void dial_draw_intern(const bContext *C,
   float matrix_final[4][4];
   float color[4];
 
-  (void)C;
-  BLI_assert(CTX_wm_area(*C)->spacetype == SPACE_VIEW3D);
+  (void)&C;
+  BLI_assert(CTX_wm_area(C)->spacetype == SPACE_VIEW3D);
 
   gizmo_color_get(gz, highlight, color);
 
@@ -424,7 +424,7 @@ static void dial_draw_intern(const bContext *C,
 
   float clip_plane[4];
   if (use_clip_plane) {
-    ARegion *region = CTX_wm_region(*C);
+    ARegion *region = CTX_wm_region(C);
     RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
     copy_v3_v3(clip_plane, rv3d->viewinv[2]);
@@ -484,7 +484,7 @@ static void gizmo_dial_draw_select(const bContext *C, wmGizmo *gz, int select_id
   const bool use_clip_plane = (draw_options & ED_GIZMO_DIAL_DRAW_FLAG_CLIP);
 
   GPU_select_load_id(select_id);
-  dial_draw_intern(C, gz, true, false, use_clip_plane);
+  dial_draw_intern(*C, gz, true, false, use_clip_plane);
 }
 
 static void gizmo_dial_draw(const bContext *C, wmGizmo *gz)
@@ -495,7 +495,7 @@ static void gizmo_dial_draw(const bContext *C, wmGizmo *gz)
   const bool use_clip_plane = !is_modal && (draw_options & ED_GIZMO_DIAL_DRAW_FLAG_CLIP);
 
   GPU_blend(GPU_BLEND_ALPHA);
-  dial_draw_intern(C, gz, false, is_highlight, use_clip_plane);
+  dial_draw_intern(*C, gz, false, is_highlight, use_clip_plane);
   GPU_blend(GPU_BLEND_NONE);
 }
 

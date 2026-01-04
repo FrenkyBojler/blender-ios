@@ -117,12 +117,12 @@ static void eyedropper_grease_pencil_status_indicators(bContext *C,
   ED_workspace_status_text(C, header.c_str());
 }
 
-static bool eyedropper_grease_pencil_init(bContext *C, wmOperator *op)
+static bool eyedropper_grease_pencil_init(bContext &C, wmOperator *op)
 {
   EyedropperGreasePencil *eye = MEM_new<EyedropperGreasePencil>(__func__);
 
   op->customdata = eye;
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   const char *display_device;
   display_device = scene->display_settings.display_device;
@@ -146,10 +146,10 @@ static void eyedropper_grease_pencil_exit(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 }
 
-static void eyedropper_add_material(bContext *C, const float3 color, const MaterialMode mat_mode)
+static void eyedropper_add_material(bContext &C, const float3 color, const MaterialMode mat_mode)
 {
-  Main *bmain = CTX_data_main(*C);
-  Object *ob = CTX_data_active_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Object *ob = CTX_data_active_object(C);
   Material *ma = nullptr;
 
   bool found = false;
@@ -236,10 +236,10 @@ static void eyedropper_add_material(bContext *C, const float3 color, const Mater
 }
 
 /* Create a new palette color and palette if needed. */
-static void eyedropper_add_palette_color(bContext *C, const float3 color)
+static void eyedropper_add_palette_color(bContext &C, const float3 color)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
   GpPaint *gp_paint = ts->gp_paint;
   GpVertexPaint *gp_vertexpaint = ts->gp_vertexpaint;
@@ -277,9 +277,9 @@ static void eyedropper_add_palette_color(bContext *C, const float3 color)
 }
 
 /* Set the active brush's color. */
-static void eyedropper_set_brush_color(bContext *C, const float3 &color)
+static void eyedropper_set_brush_color(bContext &C, const float3 &color)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   ToolSettings *ts = scene->toolsettings;
   Paint *paint = &ts->gp_paint->paint;
   Brush *brush = BKE_paint_brush(paint);
@@ -313,13 +313,13 @@ static void eyedropper_grease_pencil_color_set(bContext *C,
 
   switch (eye->mode) {
     case EyeMode::Material:
-      eyedropper_add_material(C, eye->color, mat_mode);
+      eyedropper_add_material(*C, eye->color, mat_mode);
       break;
     case EyeMode::Palette:
-      eyedropper_add_palette_color(C, eye->color);
+      eyedropper_add_palette_color(*C, eye->color);
       break;
     case EyeMode::Brush:
-      eyedropper_set_brush_color(C, eye->color);
+      eyedropper_set_brush_color(*C, eye->color);
       break;
   }
 }
@@ -331,7 +331,7 @@ static void eyedropper_grease_pencil_color_sample(bContext *C,
 {
   /* Accumulate color. */
   float3 col;
-  eyedropper_color_sample_fl(C, nullptr, m_xy, col);
+  eyedropper_color_sample_fl(*C, nullptr, m_xy, col);
 
   eye->accum_col += col;
   eye->accum_tot++;
@@ -409,9 +409,9 @@ static wmOperatorStatus eyedropper_grease_pencil_invoke(bContext &C,
                                                         wmOperator &op,
                                                         const wmEvent *event)
 {
-  if (eyedropper_grease_pencil_init(&C, &op)) {
+  if (eyedropper_grease_pencil_init(C, &op)) {
     /* Add modal temp handler. */
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
     /* Status message. */
     eyedropper_grease_pencil_status_indicators(&C, &op, event);
 
@@ -423,7 +423,7 @@ static wmOperatorStatus eyedropper_grease_pencil_invoke(bContext &C,
 /* Repeat operator */
 static wmOperatorStatus eyedropper_grease_pencil_exec(bContext &C, wmOperator &op)
 {
-  if (eyedropper_grease_pencil_init(&C, &op)) {
+  if (eyedropper_grease_pencil_init(C, &op)) {
 
     /* cleanup */
     eyedropper_grease_pencil_exit(&C, &op);

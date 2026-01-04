@@ -255,7 +255,7 @@ static bool keymap_grease_pencil_brush_stroke_poll(bContext &C)
   /* Don't use the normal brush stroke keymap while the primitive tools are active. Otherwise
    * simple mouse presses start freehand drawing instead of invoking the primitive operators. Could
    * be a flag on the tool itself, for now making it a hardcoded exception. */
-  if (const bToolRef *tref = WM_toolsystem_ref_from_context(&C)) {
+  if (const bToolRef *tref = WM_toolsystem_ref_from_context(C)) {
     const Set<StringRef> primitive_tools = {
         "builtin.line",
         "builtin.polyline",

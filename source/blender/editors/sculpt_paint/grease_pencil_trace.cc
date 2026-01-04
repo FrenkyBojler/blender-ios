@@ -425,7 +425,7 @@ static wmOperatorStatus grease_pencil_trace_image_exec(bContext &C, wmOperator &
   job->ensure_output_object();
 
   /* Back to active base. */
-  blender::ed::object::base_activate(job->C, job->base_active);
+  blender::ed::object::base_activate(*job->C, job->base_active);
 
   /* Create materials on the main thread before starting the job. */
   job->foreground_material_index = ensure_foreground_material(

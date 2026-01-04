@@ -219,10 +219,10 @@ static void ensure_asset_ui_visible(bContext &C)
   ED_region_visibility_change_update(&C, CTX_wm_area(C), shelf_region);
 }
 
-static Vector<Object *> get_selected_pose_objects(bContext *C)
+static Vector<Object *> get_selected_pose_objects(bContext &C)
 {
   Vector<PointerRNA> selected_objects;
-  CTX_data_selected_objects(*C, &selected_objects);
+  CTX_data_selected_objects(C, &selected_objects);
 
   Vector<Object *> selected_pose_objects;
   for (const PointerRNA &ptr : selected_objects) {
@@ -233,7 +233,7 @@ static Vector<Object *> get_selected_pose_objects(bContext *C)
     selected_pose_objects.append(object);
   }
 
-  Object *active_object = CTX_data_active_object(*C);
+  Object *active_object = CTX_data_active_object(C);
   /* The active object may not be selected, it should be added because you can still switch to pose
    * mode. */
   if (active_object && active_object->pose && !selected_pose_objects.contains(active_object)) {
@@ -247,7 +247,7 @@ static wmOperatorStatus create_pose_asset_local(bContext *C,
                                                 const StringRefNull name,
                                                 const AssetLibraryReference lib_ref)
 {
-  Vector<Object *> selected_pose_objects = get_selected_pose_objects(C);
+  Vector<Object *> selected_pose_objects = get_selected_pose_objects(*C);
 
   if (selected_pose_objects.is_empty()) {
     return OPERATOR_CANCELLED;
@@ -288,13 +288,13 @@ static wmOperatorStatus create_pose_asset_local(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus create_pose_asset_user_library(bContext *C,
+static wmOperatorStatus create_pose_asset_user_library(bContext &C,
                                                        wmOperator *op,
                                                        const char name[MAX_NAME],
                                                        const AssetLibraryReference lib_ref)
 {
   BLI_assert(lib_ref.type == ASSET_LIBRARY_CUSTOM);
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   const bUserAssetLibrary *user_library = BKE_preferences_asset_library_find_index(
       &U, lib_ref.custom_library_index);
@@ -319,7 +319,7 @@ static wmOperatorStatus create_pose_asset_user_library(bContext *C,
   blender::animrig::Action &pose_action = extract_pose(*bmain, selected_pose_objects);
   asset::mark_id(&pose_action.id);
   if (!G.background) {
-    asset::generate_preview(C, &pose_action.id);
+    asset::generate_preview(&C, &pose_action.id);
   }
 
   /* Add asset to catalog. */
@@ -339,12 +339,12 @@ static wmOperatorStatus create_pose_asset_user_library(bContext *C,
       *bmain, pose_action.id, name, *user_library, pose_asset_reference, *op->reports);
 
   library->catalog_service().write_to_disk(*final_full_asset_filepath);
-  ensure_asset_ui_visible(*C);
-  asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path_c);
+  ensure_asset_ui_visible(C);
+  asset::shelf::show_catalog_in_visible_shelves(C, catalog_path_c);
 
   BKE_id_free(bmain, &pose_action.id);
 
-  asset::refresh_asset_library(C, lib_ref);
+  asset::refresh_asset_library(&C, lib_ref);
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
 
@@ -371,7 +371,7 @@ static wmOperatorStatus pose_asset_create_exec(bContext &C, wmOperator &op)
       return create_pose_asset_local(&C, &op, name, lib_ref);
 
     case ASSET_LIBRARY_CUSTOM:
-      return create_pose_asset_user_library(&C, &op, name, lib_ref);
+      return create_pose_asset_user_library(C, &op, name, lib_ref);
 
     default:
       /* Only local and custom libraries should be exposed in the enum. */
@@ -486,9 +486,9 @@ static const EnumPropertyItem prop_asset_overwrite_modes[] = {
  * \see #pose_asset_potentially_editable_poll() for use in poll functions.
  * \see #is_pose_asset_blend_editable() to check if the asset is from an editable .asset.blend.
  */
-static bAction *get_action_of_selected_asset(bContext *C)
+static bAction *get_action_of_selected_asset(bContext &C)
 {
-  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(*C);
+  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
   if (!asset) {
     return nullptr;
   }
@@ -498,7 +498,7 @@ static bAction *get_action_of_selected_asset(bContext *C)
   }
 
   AssetWeakReference asset_reference = asset->make_weak_reference();
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   return reinterpret_cast<bAction *>(
       bke::asset_edit_id_from_weak_reference(*bmain, ID_AC, asset_reference));
 }
@@ -693,7 +693,7 @@ static void update_pose_action_from_scene(Main *bmain,
 
 static wmOperatorStatus pose_asset_modify_exec(bContext &C, wmOperator &op)
 {
-  bAction *action = get_action_of_selected_asset(&C);
+  bAction *action = get_action_of_selected_asset(C);
   BLI_assert_msg(action, "Poll should have checked action exists");
 
   if (ID_IS_LINKED(action) && !is_pose_asset_blend_editable(*action, op.reports)) {
@@ -768,7 +768,7 @@ void POSELIB_OT_asset_modify(wmOperatorType *ot)
 
 static wmOperatorStatus pose_asset_delete_exec(bContext &C, wmOperator &op)
 {
-  bAction *action = get_action_of_selected_asset(&C);
+  bAction *action = get_action_of_selected_asset(C);
   if (!action) {
     return OPERATOR_CANCELLED;
   }
@@ -803,7 +803,7 @@ static wmOperatorStatus pose_asset_delete_invoke(bContext &C,
 {
   /* Perform some checks that the 'exec' function also does, so that when things aren't editable,
    * the user gets a message about this *before* having to confirm the deletion. */
-  bAction *action = get_action_of_selected_asset(&C);
+  bAction *action = get_action_of_selected_asset(C);
   if (!action) {
     /* TODO: if this ever happens, figure out how that happened, and see if more
      * useful information can be included in the report. After all, the poll

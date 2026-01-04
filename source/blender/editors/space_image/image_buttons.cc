@@ -134,7 +134,7 @@ static bool ui_imageuser_slot_menu_step(bContext *C, int direction, void *image_
   Image *image = static_cast<Image *>(image_p);
 
   if (ED_image_slot_cycle(image, direction)) {
-    WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, nullptr);
+    WM_event_add_notifier(*C, NC_IMAGE | ND_DRAW, nullptr);
     return true;
   }
   return true;
@@ -416,7 +416,7 @@ static void image_multi_cb(bContext *C, void *rnd_pt, void *rr_v)
   ImageUser *iuser = rnd_data->iuser;
 
   BKE_image_multilayer_index(static_cast<RenderResult *>(rr_v), iuser);
-  WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, nullptr);
+  WM_event_add_notifier(*C, NC_IMAGE | ND_DRAW, nullptr);
 }
 
 static bool ui_imageuser_layer_menu_step(bContext *C, int direction, void *rnd_pt)
@@ -460,7 +460,7 @@ static bool ui_imageuser_layer_menu_step(bContext *C, int direction, void *rnd_p
 
   if (changed) {
     BKE_image_multilayer_index(rr, iuser);
-    WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, nullptr);
+    WM_event_add_notifier(*C, NC_IMAGE | ND_DRAW, nullptr);
   }
 
   return changed;
@@ -537,7 +537,7 @@ static bool ui_imageuser_pass_menu_step(bContext *C, int direction, void *rnd_pt
 
   if (changed) {
     BKE_image_multilayer_index(rr, iuser);
-    WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, nullptr);
+    WM_event_add_notifier(*C, NC_IMAGE | ND_DRAW, nullptr);
   }
 
   return changed;
@@ -551,7 +551,7 @@ static void image_multiview_cb(bContext *C, void *rnd_pt, void * /*arg_v*/)
   ImageUser *iuser = rnd_data->iuser;
 
   BKE_image_multiview_index(ima, iuser);
-  WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, nullptr);
+  WM_event_add_notifier(*C, NC_IMAGE | ND_DRAW, nullptr);
 }
 
 static void uiblock_layer_pass_buttons(blender::ui::Layout &layout,
@@ -725,7 +725,7 @@ static void rna_update_cb(bContext *C, void *arg_cb, void * /*arg*/)
   /* we call update here on the pointer property, this way the
    * owner of the image pointer can still define its own update
    * and notifier */
-  RNA_property_update(C, &cb->ptr, cb->prop);
+  RNA_property_update(*C, &cb->ptr, cb->prop);
 }
 
 void uiTemplateImage(blender::ui::Layout *layout,

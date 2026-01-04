@@ -298,7 +298,7 @@ struct MenuStackEntry {
 /**
  * Populate \a menu_stack with menus from inspecting active key-maps for this context.
  */
-static void menu_types_add_from_keymap_items(bContext *C,
+static void menu_types_add_from_keymap_items(bContext &C,
                                              wmWindow *win,
                                              ScrArea *area,
                                              ARegion *region,
@@ -306,7 +306,7 @@ static void menu_types_add_from_keymap_items(bContext *C,
                                              Map<MenuType *, wmKeyMapItem *> &menu_to_kmi,
                                              Set<MenuType *> &menu_tagged)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   ListBaseT<wmEventHandler> *handlers[] = {
       region ? &region->runtime->handlers : nullptr,
       area ? &area->handlers : nullptr,
@@ -334,7 +334,7 @@ static void menu_types_add_from_keymap_items(bContext *C,
         WM_event_get_keymaps_from_handler(wm, win, handler, &km_result);
         for (int km_index = 0; km_index < km_result.keymaps_len; km_index++) {
           wmKeyMap *keymap = km_result.keymaps[km_index];
-          if (keymap && WM_keymap_poll(C, keymap)) {
+          if (keymap && WM_keymap_poll(&C, keymap)) {
             for (wmKeyMapItem &kmi : keymap->items) {
               if (kmi.flag & KMI_INACTIVE) {
                 continue;
@@ -408,7 +408,7 @@ static void menu_items_from_all_operators(bContext *C, MenuSearch_Data *data)
  * - Look up predefined editor-menus.
  * - Look up key-map items which call menus.
  */
-static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
+static MenuSearch_Data *menu_items_from_ui_create(bContext &C,
                                                   wmWindow *win,
                                                   ScrArea *area_init,
                                                   ARegion *region_init,
@@ -418,14 +418,14 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
   Map<MenuType *, const char *> menu_display_name_map;
   const uiStyle *style = style_get_dpi();
 
-  const bContextStore *old_context_store = CTX_store_get(*C);
-  BLI_SCOPED_DEFER([&]() { CTX_store_set(*C, old_context_store); });
+  const bContextStore *old_context_store = CTX_store_get(C);
+  BLI_SCOPED_DEFER([&]() { CTX_store_set(C, old_context_store); });
   bContextStore context_store;
   if (old_context_store) {
     context_store = *old_context_store;
   }
   context_store.entries.append({"is_menu_search", true});
-  CTX_store_set(*C, &context_store);
+  CTX_store_set(C, &context_store);
 
   /* Convert into non-ui structure. */
   MenuSearch_Data *data = MEM_new<MenuSearch_Data>(__func__);
@@ -515,7 +515,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
       area_dummy.spacetype = SPACE_TOPBAR;
       PointerRNA ptr = RNA_pointer_create_discrete(&screen->id, &RNA_Area, &area_dummy);
       prop_ui_type = RNA_struct_find_property(&ptr, "ui_type");
-      RNA_property_enum_items(C,
+      RNA_property_enum_items(&C,
                               &ptr,
                               prop_ui_type,
                               &space_type_ui_items,
@@ -581,8 +581,8 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
         area = wm_context->area;
         region = wm_context->region;
 
-        CTX_wm_area_set(*C, area);
-        CTX_wm_region_set(*C, region);
+        CTX_wm_area_set(C, area);
+        CTX_wm_region_set(C, region);
       }
     }
     else {
@@ -664,7 +664,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
     while (!menu_stack.is_empty()) {
       MenuStackEntry current_menu = menu_stack.pop();
       MenuType *mt = current_menu.mt;
-      if (!WM_menutype_poll(C, mt)) {
+      if (!WM_menutype_poll(&C, mt)) {
         continue;
       }
 
@@ -802,13 +802,13 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
            * at this point it's not set - this could be further investigated. */
           bool poll_success = true;
           if (PanelType *pt = button_paneltype_get(but.get())) {
-            if (pt->poll && (pt->poll(C, pt) == false)) {
+            if (pt->poll && (pt->poll(&C, pt) == false)) {
               poll_success = false;
             }
           }
 
           if (poll_success) {
-            but->menu_create_func(C, &sub_layout, but->poin);
+            but->menu_create_func(&C, &sub_layout, but->poin);
           }
 
           block_end(C, sub_block);
@@ -910,8 +910,8 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
   std::sort(data->items.begin(), data->items.end(), menu_item_sort_by_drawstr_full);
 
   if (include_all_areas) {
-    CTX_wm_area_set(*C, area_init);
-    CTX_wm_region_set(*C, region_init);
+    CTX_wm_area_set(C, area_init);
+    CTX_wm_region_set(C, region_init);
 
     if (space_type_ui_items_free) {
       MEM_freeN(space_type_ui_items);
@@ -930,7 +930,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
    * - User who really prefer to list all operators can use #WM_OT_search_operator.
    */
   if ((U.flag & USER_DEVELOPER_UI) && single_menu_idname == nullptr) {
-    menu_items_from_all_operators(C, data);
+    menu_items_from_all_operators(&C, data);
   }
 
   return data;
@@ -962,7 +962,7 @@ static void menu_search_exec_fn(bContext *C, void * /*arg1*/, void *arg2)
   if (auto *op_data = std::get_if<MenuSearch_Item::OperatorData>(&item->data)) {
     CTX_store_set(*C, op_data->context);
     WM_operator_name_call_ptr_with_depends_on_cursor(
-        C, op_data->type, op_data->opcontext, op_data->opptr, nullptr, item->drawstr);
+        *C, op_data->type, op_data->opcontext, op_data->opptr, nullptr, item->drawstr);
     CTX_store_set(*C, nullptr);
   }
   else if (auto *rna_data = std::get_if<MenuSearch_Item::PropertyData>(&item->data)) {
@@ -990,7 +990,7 @@ static void menu_search_exec_fn(bContext *C, void * /*arg1*/, void *arg2)
     }
 
     if (changed) {
-      RNA_property_update(C, ptr, prop);
+      RNA_property_update(*C, ptr, prop);
     }
   }
 
@@ -1141,7 +1141,7 @@ void button_func_menu_search(Button *but, const char *single_menu_idname)
   const bool include_all_areas = (area && (area->spacetype == SPACE_TOPBAR)) &&
                                  !single_menu_idname;
   MenuSearch_Data *data = menu_items_from_ui_create(
-      C, win, area, region, include_all_areas, single_menu_idname);
+      *C, win, area, region, include_all_areas, single_menu_idname);
   button_func_search_set(but,
                          /* Generic callback. */
                          searchbox_create_menu,

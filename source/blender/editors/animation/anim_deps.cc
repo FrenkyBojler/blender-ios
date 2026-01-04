@@ -267,7 +267,7 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
   bActionGroup *active_agrp = nullptr;
 
   /* get animation context info for filtering the channels */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return;
   }
 
@@ -475,16 +475,16 @@ void ANIM_animdata_freelist(ListBaseT<bAnimListElem> *anim_data)
 #endif
 }
 
-void ANIM_deselect_keys_in_animation_editors(bContext *C)
+void ANIM_deselect_keys_in_animation_editors(bContext &C)
 {
   using namespace blender;
 
-  wmWindow *ctx_window = CTX_wm_window(*C);
-  ScrArea *ctx_area = CTX_wm_area(*C);
-  ARegion *ctx_region = CTX_wm_region(*C);
+  wmWindow *ctx_window = CTX_wm_window(C);
+  ScrArea *ctx_area = CTX_wm_area(C);
+  ARegion *ctx_region = CTX_wm_region(C);
 
   Set<bAction *> dna_actions;
-  for (wmWindow &win : CTX_wm_manager(*C)->windows) {
+  for (wmWindow &win : CTX_wm_manager(C)->windows) {
     bScreen *screen = BKE_workspace_active_screen_get(win.workspace_hook);
 
     for (ScrArea &area : screen->areabase) {
@@ -497,9 +497,9 @@ void ANIM_deselect_keys_in_animation_editors(bContext *C)
         continue;
       }
 
-      CTX_wm_window_set(*C, &win);
-      CTX_wm_area_set(*C, &area);
-      CTX_wm_region_set(*C, window_region);
+      CTX_wm_window_set(C, &win);
+      CTX_wm_area_set(C, &area);
+      CTX_wm_region_set(C, window_region);
       bAnimContext ac;
       if (!ANIM_animdata_get_context(C, &ac)) {
         continue;
@@ -517,9 +517,9 @@ void ANIM_deselect_keys_in_animation_editors(bContext *C)
     }
   }
 
-  CTX_wm_window_set(*C, ctx_window);
-  CTX_wm_area_set(*C, ctx_area);
-  CTX_wm_region_set(*C, ctx_region);
+  CTX_wm_window_set(C, ctx_window);
+  CTX_wm_area_set(C, ctx_area);
+  CTX_wm_region_set(C, ctx_region);
 
   for (bAction *dna_action : dna_actions) {
     animrig::action_deselect_keys(dna_action->wrap());

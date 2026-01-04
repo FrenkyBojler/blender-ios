@@ -1329,23 +1329,23 @@ struct PaintCursorContext {
   int pixel_radius;
 };
 
-static bool paint_cursor_context_init(bContext *C,
+static bool paint_cursor_context_init(bContext &C,
                                       const blender::int2 &xy,
                                       const blender::float2 &tilt,
                                       PaintCursorContext &pcontext)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   if (region && region->regiontype != RGN_TYPE_WINDOW) {
     return false;
   }
 
   pcontext.region = region;
-  pcontext.wm = CTX_wm_manager(*C);
-  pcontext.win = CTX_wm_window(*C);
-  pcontext.screen = CTX_wm_screen(*C);
-  pcontext.depsgraph = CTX_data_depsgraph_pointer(*C);
-  pcontext.scene = CTX_data_scene(*C);
-  pcontext.object = CTX_data_active_object(*C);
+  pcontext.wm = CTX_wm_manager(C);
+  pcontext.win = CTX_wm_window(C);
+  pcontext.screen = CTX_wm_screen(C);
+  pcontext.depsgraph = CTX_data_depsgraph_pointer(C);
+  pcontext.scene = CTX_data_scene(C);
+  pcontext.object = CTX_data_active_object(C);
   pcontext.paint = BKE_paint_get_active_from_context(C);
   if (pcontext.paint == nullptr) {
     return false;
@@ -1357,8 +1357,8 @@ static bool paint_cursor_context_init(bContext *C,
   }
   pcontext.mode = BKE_paintmode_get_active_from_context(C);
   if (pcontext.mode == PaintMode::Sculpt) {
-    pcontext.sd = CTX_data_tool_settings(*C)->sculpt;
-    pcontext.base = CTX_data_active_base(*C);
+    pcontext.sd = CTX_data_tool_settings(C)->sculpt;
+    pcontext.base = CTX_data_active_base(C);
   }
 
   pcontext.vc = ED_view3d_viewcontext_init(C, pcontext.depsgraph);
@@ -1403,7 +1403,7 @@ static bool paint_cursor_context_init(bContext *C,
     pcontext.outline_col = float3(0.8f);
   }
 
-  const ScrArea *area = CTX_wm_area(*C);
+  const ScrArea *area = CTX_wm_area(C);
   pcontext.is_brush_active = paint_brush_tool_poll(area, region, pcontext.paint, pcontext.object);
   if (!pcontext.is_brush_active) {
     /* Use a default color for tools that are not brushes. */
@@ -2205,7 +2205,7 @@ static void paint_draw_cursor(bContext *C,
                               void * /*unused*/)
 {
   PaintCursorContext pcontext;
-  if (!paint_cursor_context_init(C, xy, tilt, pcontext)) {
+  if (!paint_cursor_context_init(*C, xy, tilt, pcontext)) {
     return;
   }
 

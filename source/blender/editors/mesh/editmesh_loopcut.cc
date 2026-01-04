@@ -220,11 +220,11 @@ static void ringsel_finish(bContext *C, wmOperator *op)
        * all meshes in multi-object editmode so their selectmode is in sync for following
        * operators. */
       else if (is_macro && (cuts > 1) && (em->selectmode & SCE_SELECT_VERTEX)) {
-        EDBM_selectmode_disable_multi(C, SCE_SELECT_VERTEX, SCE_SELECT_EDGE);
+        EDBM_selectmode_disable_multi(*C, SCE_SELECT_VERTEX, SCE_SELECT_EDGE);
       }
       /* Force edge slide to edge select mode in face select mode. Do this for all meshes in
        * multi-object editmode so their selectmode is in sync for following operators. */
-      else if (EDBM_selectmode_disable_multi(C, SCE_SELECT_FACE, SCE_SELECT_EDGE)) {
+      else if (EDBM_selectmode_disable_multi(*C, SCE_SELECT_FACE, SCE_SELECT_EDGE)) {
         /* pass, the change will flush selection */
       }
       else {
@@ -247,7 +247,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
       EDBM_selectmode_flush(lcd->em);
 
       DEG_id_tag_update(static_cast<ID *>(lcd->ob->data), ID_RECALC_SELECT);
-      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, lcd->ob->data);
+      WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, lcd->ob->data);
     }
 
     EDBM_uvselect_clear(em);
@@ -274,19 +274,19 @@ static void ringsel_exit(bContext * /*C*/, wmOperator *op)
 }
 
 /* called when modal loop selection gets set up... */
-static int ringsel_init(bContext *C, wmOperator *op, bool do_cut)
+static int ringsel_init(bContext &C, wmOperator *op, bool do_cut)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
 
   /* alloc new customdata */
   RingSelOpData *lcd = MEM_new<RingSelOpData>(__func__);
   op->customdata = lcd;
   lcd->vc = em_setup_viewcontext(C);
 
-  lcd->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  lcd->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   /* assign the drawing handle for drawing preview line... */
-  lcd->region = CTX_wm_region(*C);
+  lcd->region = CTX_wm_region(C);
   /* Type can be null in background mode. */
   if (lcd->region->runtime->type) {
     lcd->draw_handle = ED_region_draw_cb_activate(
@@ -367,12 +367,12 @@ static void loopcut_mouse_move(RingSelOpData *lcd, const int previewlines)
 }
 
 /* called by both init() and exec() */
-static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus loopcut_init(bContext &C, wmOperator *op, const wmEvent *event)
 {
   /* Check whether both `rv3d` and `event` is present, this way we allow the loopcut operator to
    * run non-interactively no matter whether the graphical UI is present or not (e.g. from scripts
    * with UI running, or entirely in the background with `blender -b`). */
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   const bool is_interactive = (rv3d != nullptr) && (event != nullptr);
 
   /* Use for redo - intentionally wrap int to uint. */
@@ -383,11 +383,11 @@ static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent 
   exec_data.base_index = uint(RNA_int_get(op->ptr, "object_index"));
   exec_data.e_index = uint(RNA_int_get(op->ptr, "edge_index"));
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode(
-      scene, view_layer, CTX_wm_view3d(*C));
+      scene, view_layer, CTX_wm_view3d(C));
 
   if (is_interactive) {
     for (Base *base : bases) {
@@ -476,7 +476,7 @@ static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent 
       BLI_snprintf_utf8(str_rep + NUM_STR_REP_LEN, NUM_STR_REP_LEN, "%.2f", lcd->smoothness);
     }
     SNPRINTF_UTF8(buf, IFACE_("Cuts: %s, Smoothness: %s"), str_rep, str_rep + NUM_STR_REP_LEN);
-    ED_area_status_text(CTX_wm_area(*C), buf);
+    ED_area_status_text(CTX_wm_area(C), buf);
 
     WorkspaceStatus status(C);
     status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
@@ -488,8 +488,8 @@ static wmOperatorStatus loopcut_init(bContext *C, wmOperator *op, const wmEvent 
     return OPERATOR_RUNNING_MODAL;
   }
 
-  ringsel_finish(C, op);
-  ringsel_exit(C, op);
+  ringsel_finish(&C, op);
+  ringsel_exit(&C, op);
   return OPERATOR_FINISHED;
 }
 
@@ -510,26 +510,26 @@ static wmOperatorStatus ringcut_invoke(bContext &C, wmOperator &op, const wmEven
       if (object_index != -1 && edge_index != -1) {
         RNA_int_set(op.ptr, "object_index", object_index);
         RNA_int_set(op.ptr, "edge_index", edge_index);
-        return loopcut_init(&C, &op, nullptr);
+        return loopcut_init(C, &op, nullptr);
       }
       return OPERATOR_CANCELLED;
     }
   }
 
-  return loopcut_init(&C, &op, event);
+  return loopcut_init(C, &op, event);
 }
 
 static wmOperatorStatus loopcut_exec(bContext &C, wmOperator &op)
 {
-  return loopcut_init(&C, &op, nullptr);
+  return loopcut_init(C, &op, nullptr);
 }
 
-static wmOperatorStatus loopcut_finish(RingSelOpData *lcd, bContext *C, wmOperator *op)
+static wmOperatorStatus loopcut_finish(RingSelOpData *lcd, bContext &C, wmOperator *op)
 {
   /* finish */
   ED_region_tag_redraw(lcd->region);
-  ED_workspace_status_text(C, nullptr);
-  ED_area_status_text(CTX_wm_area(*C), nullptr);
+  ED_workspace_status_text(&C, nullptr);
+  ED_area_status_text(CTX_wm_area(C), nullptr);
 
   if (lcd->eed) {
     /* set for redo */
@@ -538,11 +538,11 @@ static wmOperatorStatus loopcut_finish(RingSelOpData *lcd, bContext *C, wmOperat
     RNA_int_set(op->ptr, "edge_index", BM_elem_index_get(lcd->eed));
 
     /* execute */
-    ringsel_finish(C, op);
-    ringsel_exit(C, op);
+    ringsel_finish(&C, op);
+    ringsel_exit(&C, op);
   }
   else {
-    ringcut_cancel(*C, *op);
+    ringcut_cancel(C, *op);
     return OPERATOR_CANCELLED;
   }
 
@@ -561,10 +561,10 @@ static wmOperatorStatus loopcut_modal(bContext &C, wmOperator &op, const wmEvent
   bool show_cuts = false;
   const bool has_numinput = hasNumInput(&lcd->num);
 
-  lcd->vc = em_setup_viewcontext(&C);
+  lcd->vc = em_setup_viewcontext(C);
   lcd->region = lcd->vc.region;
 
-  view3d_operator_needs_gpu(&C);
+  view3d_operator_needs_gpu(C);
 
   /* using the keyboard to input the number of cuts */
   /* Modal numinput active, try to handle numeric inputs first... */
@@ -581,7 +581,7 @@ static wmOperatorStatus loopcut_modal(bContext &C, wmOperator &op, const wmEvent
       case EVT_PADENTER:
       case LEFTMOUSE: /* confirm */ /* XXX hardcoded */
         if (event->val == KM_PRESS) {
-          return loopcut_finish(lcd, &C, &op);
+          return loopcut_finish(lcd, C, &op);
         }
 
         ED_region_tag_redraw(lcd->region);

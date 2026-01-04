@@ -26,7 +26,7 @@ void stl_import_report_error(FILE *file);
 Mesh *read_stl_file(const STLImportParams &import_params);
 
 /* Main import function used from within Blender. */
-void importer_main(const bContext *C, const STLImportParams &import_params);
+void importer_main(const bContext &C, const STLImportParams &import_params);
 
 /* Used from tests, where full bContext does not exist. */
 void importer_main(Main *bmain,

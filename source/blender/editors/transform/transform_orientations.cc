@@ -57,9 +57,9 @@ namespace blender::ed::transform {
 
 /* *********************** TransSpace ************************** */
 
-void BIF_clearTransformOrientation(bContext *C)
+void BIF_clearTransformOrientation(bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   ListBaseT<TransformOrientation> *transform_orientations = &scene->transform_spaces;
 
   BLI_freelistN(transform_orientations);
@@ -92,12 +92,12 @@ static void uniqueOrientationName(ListBaseT<TransformOrientation> *lb, char *nam
       sizeof(TransformOrientation::name));
 }
 
-static TransformOrientation *createViewSpace(bContext *C,
+static TransformOrientation *createViewSpace(bContext &C,
                                              ReportList * /*reports*/,
                                              const char *name,
                                              const bool overwrite)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   float mat[3][3];
 
   if (!rv3d) {
@@ -108,7 +108,7 @@ static TransformOrientation *createViewSpace(bContext *C,
   normalize_m3(mat);
 
   if (name[0] == 0) {
-    View3D *v3d = CTX_wm_view3d(*C);
+    View3D *v3d = CTX_wm_view3d(C);
     if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
       /* If an object is used as camera, then this space is the same as object space! */
       name = v3d->camera->id.name + 2;
@@ -121,12 +121,12 @@ static TransformOrientation *createViewSpace(bContext *C,
   return addMatrixSpace(C, mat, name, overwrite);
 }
 
-static TransformOrientation *createObjectSpace(bContext *C,
+static TransformOrientation *createObjectSpace(bContext &C,
                                                ReportList * /*reports*/,
                                                const char *name,
                                                const bool overwrite)
 {
-  Base *base = CTX_data_active_base(*C);
+  Base *base = CTX_data_active_base(C);
   Object *ob;
   float mat[3][3];
 
@@ -155,7 +155,7 @@ static TransformOrientation *createBoneSpace(bContext *C,
   float mat[3][3];
   float normal[3], plane[3];
 
-  getTransformOrientation(C, normal, plane);
+  getTransformOrientation(*C, normal, plane);
 
   if (createSpaceNormalTangent(mat, normal, plane) == 0) {
     BKE_reports_prepend(reports, "Cannot use zero-length bone");
@@ -166,7 +166,7 @@ static TransformOrientation *createBoneSpace(bContext *C,
     name = DATA_("Bone");
   }
 
-  return addMatrixSpace(C, mat, name, overwrite);
+  return addMatrixSpace(*C, mat, name, overwrite);
 }
 
 static TransformOrientation *createCurveSpace(bContext *C,
@@ -177,7 +177,7 @@ static TransformOrientation *createCurveSpace(bContext *C,
   float mat[3][3];
   float normal[3], plane[3];
 
-  getTransformOrientation(C, normal, plane);
+  getTransformOrientation(*C, normal, plane);
 
   if (createSpaceNormalTangent(mat, normal, plane) == 0) {
     BKE_reports_prepend(reports, "Cannot use zero-length curve");
@@ -188,7 +188,7 @@ static TransformOrientation *createCurveSpace(bContext *C,
     name = DATA_("Curve");
   }
 
-  return addMatrixSpace(C, mat, name, overwrite);
+  return addMatrixSpace(*C, mat, name, overwrite);
 }
 
 static TransformOrientation *createMeshSpace(bContext *C,
@@ -200,7 +200,7 @@ static TransformOrientation *createMeshSpace(bContext *C,
   float normal[3], plane[3];
   int type;
 
-  type = getTransformOrientation(C, normal, plane);
+  type = getTransformOrientation(*C, normal, plane);
 
   switch (type) {
     case ORIENTATION_VERT:
@@ -237,7 +237,7 @@ static TransformOrientation *createMeshSpace(bContext *C,
       return nullptr;
   }
 
-  return addMatrixSpace(C, mat, name, overwrite);
+  return addMatrixSpace(*C, mat, name, overwrite);
 }
 
 static bool test_rotmode_euler(short rotmode)
@@ -473,7 +473,7 @@ bool BIF_createTransformOrientation(bContext *C,
   TransformOrientation *ts = nullptr;
 
   if (use_view) {
-    ts = createViewSpace(C, reports, name, overwrite);
+    ts = createViewSpace(*C, reports, name, overwrite);
   }
   else {
     Object *obedit = CTX_data_edit_object(*C);
@@ -493,23 +493,23 @@ bool BIF_createTransformOrientation(bContext *C,
       ts = createBoneSpace(C, reports, name, overwrite);
     }
     else {
-      ts = createObjectSpace(C, reports, name, overwrite);
+      ts = createObjectSpace(*C, reports, name, overwrite);
     }
   }
 
   if (activate && ts != nullptr) {
-    BIF_selectTransformOrientation(C, ts);
+    BIF_selectTransformOrientation(*C, ts);
   }
   return (ts != nullptr);
 }
 
-TransformOrientation *addMatrixSpace(bContext *C,
+TransformOrientation *addMatrixSpace(bContext &C,
                                      float mat[3][3],
                                      const char *name,
                                      const bool overwrite)
 {
   TransformOrientation *ts = nullptr;
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   ListBaseT<TransformOrientation> *transform_orientations = &scene->transform_spaces;
   char name_unique[sizeof(ts->name)];
 
@@ -535,20 +535,20 @@ TransformOrientation *addMatrixSpace(bContext *C,
   return ts;
 }
 
-void BIF_removeTransformOrientation(bContext *C, TransformOrientation *target)
+void BIF_removeTransformOrientation(bContext &C, TransformOrientation *target)
 {
-  BKE_scene_transform_orientation_remove(CTX_data_scene(*C), target);
+  BKE_scene_transform_orientation_remove(CTX_data_scene(C), target);
 }
 
-void BIF_removeTransformOrientationIndex(bContext *C, int index)
+void BIF_removeTransformOrientationIndex(bContext &C, int index)
 {
-  TransformOrientation *target = BKE_scene_transform_orientation_find(CTX_data_scene(*C), index);
+  TransformOrientation *target = BKE_scene_transform_orientation_find(CTX_data_scene(C), index);
   BIF_removeTransformOrientation(C, target);
 }
 
-void BIF_selectTransformOrientation(bContext *C, TransformOrientation *target)
+void BIF_selectTransformOrientation(bContext &C, TransformOrientation *target)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   int index = BKE_scene_transform_orientation_get_index(scene, target);
 
   BLI_assert(index != -1);
@@ -557,9 +557,9 @@ void BIF_selectTransformOrientation(bContext *C, TransformOrientation *target)
   scene->orientation_slots[SCE_ORIENT_DEFAULT].index_custom = index;
 }
 
-int BIF_countTransformOrientation(const bContext *C)
+int BIF_countTransformOrientation(const bContext &C)
 {
-  Scene *scene = CTX_data_scene(*C);
+  Scene *scene = CTX_data_scene(C);
   ListBaseT<TransformOrientation> *transform_orientations = &scene->transform_spaces;
   return BLI_listbase_count(transform_orientations);
 }
@@ -614,13 +614,13 @@ static int armature_bone_transflags_update(Object &ob, bArmature *arm, ListBaseT
   return total;
 }
 
-void calc_orientation_from_type(const bContext *C, float r_mat[3][3])
+void calc_orientation_from_type(const bContext &C, float r_mat[3][3])
 {
-  ARegion *region = CTX_wm_region(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  Object *obedit = CTX_data_edit_object(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  ARegion *region = CTX_wm_region(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  Object *obedit = CTX_data_edit_object(C);
+  View3D *v3d = CTX_wm_view3d(C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
@@ -1514,17 +1514,17 @@ int getTransformOrientation_ex(const Scene *scene,
   return result;
 }
 
-int getTransformOrientation(const bContext *C, float r_normal[3], float r_plane[3])
+int getTransformOrientation(const bContext &C, float r_normal[3], float r_plane[3])
 {
-  Object *obact = CTX_data_active_object(*C);
-  Object *obedit = CTX_data_edit_object(*C);
+  Object *obact = CTX_data_active_object(C);
+  Object *obedit = CTX_data_edit_object(C);
 
   /* Dummy value, not #V3D_AROUND_ACTIVE and not #V3D_AROUND_LOCAL_ORIGINS. */
   short around = V3D_AROUND_CENTER_BOUNDS;
 
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   return getTransformOrientation_ex(
       scene, view_layer, v3d, obact, obedit, around, r_normal, r_plane);

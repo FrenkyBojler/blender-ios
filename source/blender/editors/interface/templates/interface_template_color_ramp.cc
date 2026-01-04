@@ -45,7 +45,7 @@ static void colorband_flip(bContext *C, ColorBand *coba)
   /* May as well flip the `cur`. */
   coba->cur = coba->tot - (coba->cur + 1);
 
-  ED_undo_push(C, "Flip Color Ramp");
+  ED_undo_push(*C, "Flip Color Ramp");
 }
 
 static void colorband_distribute(bContext *C, ColorBand *coba, bool evenly)
@@ -62,7 +62,7 @@ static void colorband_distribute(bContext *C, ColorBand *coba, bool evenly)
                                            "Distribute Stops Evenly") :
                                     CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT,
                                            "Distribute Stops from Left");
-    ED_undo_push(C, undo_str);
+    ED_undo_push(*C, undo_str);
   }
 }
 
@@ -75,7 +75,7 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
   short yco = 0;
   const short menuwidth = 10 * UI_UNIT_X;
 
-  Block *block = block_begin(C, region, __func__, EmbossType::Pulldown);
+  Block *block = block_begin(*C, region, __func__, EmbossType::Pulldown);
 
   Layout &layout = block_layout(block,
                                 LayoutDirection::Vertical,
@@ -168,7 +168,7 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
     button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       BKE_colorband_init(coba, true);
-      ED_undo_push(&C, "Reset Color Ramp");
+      ED_undo_push(C, "Reset Color Ramp");
       ED_region_tag_redraw(CTX_wm_region(C));
       rna_update_cb(C, cb);
     });
@@ -195,7 +195,7 @@ static void colorband_add(bContext &C, const RNAUpdateCb &cb, ColorBand &coba)
 
   if (BKE_colorband_element_add(&coba, pos)) {
     rna_update_cb(C, cb);
-    ED_undo_push(&C, "Add Color Ramp Stop");
+    ED_undo_push(C, "Add Color Ramp Stop");
   }
 }
 
@@ -255,7 +255,7 @@ static void colorband_buttons_layout(Layout &layout,
   button_func_set(bt, [coba, cb](bContext &C) {
     if (BKE_colorband_element_remove(coba, coba->cur)) {
       rna_update_cb(C, cb);
-      ED_undo_push(&C, "Delete Color Ramp Stop");
+      ED_undo_push(C, "Delete Color Ramp Stop");
     }
   });
 

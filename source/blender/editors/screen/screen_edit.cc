@@ -89,7 +89,7 @@ static ScrArea *screen_addarea(bScreen *screen,
 static void screen_delarea(bContext *C, bScreen *screen, ScrArea *area)
 {
 
-  ED_area_exit(C, area);
+  ED_area_exit(*C, area);
 
   BKE_screen_area_free(area);
 
@@ -626,10 +626,10 @@ static void region_cursor_set(wmWindow *win, bool swin_changed)
   }
 }
 
-void ED_screen_do_listen(bContext *C, const wmNotifier *note)
+void ED_screen_do_listen(bContext &C, const wmNotifier *note)
 {
-  wmWindow *win = CTX_wm_window(*C);
-  bScreen *screen = CTX_wm_screen(*C);
+  wmWindow *win = CTX_wm_window(C);
+  bScreen *screen = CTX_wm_screen(C);
 
   /* generic notes */
   switch (note->category) {
@@ -683,14 +683,14 @@ static bool region_poll(const bContext *C,
   return region->runtime->type->poll(&params);
 }
 
-bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area)
+bool area_regions_poll(bContext &C, const bScreen *screen, ScrArea *area)
 {
-  bScreen *prev_screen = CTX_wm_screen(*C);
-  ScrArea *prev_area = CTX_wm_area(*C);
-  ARegion *prev_region = CTX_wm_region(*C);
+  bScreen *prev_screen = CTX_wm_screen(C);
+  ScrArea *prev_area = CTX_wm_area(C);
+  ARegion *prev_region = CTX_wm_region(C);
 
-  CTX_wm_screen_set(*C, const_cast<bScreen *>(screen));
-  CTX_wm_area_set(*C, area);
+  CTX_wm_screen_set(C, const_cast<bScreen *>(screen));
+  CTX_wm_area_set(C, area);
 
   bool any_changed = false;
   for (ARegion &region : area->regionbase) {
@@ -698,12 +698,12 @@ bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area)
 
     region.flag &= ~RGN_FLAG_POLL_FAILED;
 
-    CTX_wm_region_set(*C, &region);
-    if (region_poll(C, screen, area, &region) == false) {
+    CTX_wm_region_set(C, &region);
+    if (region_poll(&C, screen, area, &region) == false) {
       region.flag |= RGN_FLAG_POLL_FAILED;
     }
     else if (region.runtime->type && region.runtime->type->on_poll_success) {
-      region.runtime->type->on_poll_success(C, &region);
+      region.runtime->type->on_poll_success(&C, &region);
     }
 
     if (old_region_flag != region.flag) {
@@ -716,13 +716,13 @@ bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area)
       /* Don't re-init areas, caller is expected to handle that. In fact, this code might actually
        * run as part of #ED_area_init(). */
       const bool do_init = false;
-      ED_region_visibility_change_update_ex(C, area, &region, is_hidden, do_init);
+      ED_region_visibility_change_update_ex(&C, area, &region, is_hidden, do_init);
     }
   }
 
-  CTX_wm_screen_set(*C, prev_screen);
-  CTX_wm_area_set(*C, prev_area);
-  CTX_wm_region_set(*C, prev_region);
+  CTX_wm_screen_set(C, prev_screen);
+  CTX_wm_area_set(C, prev_area);
+  CTX_wm_region_set(C, prev_region);
 
   return any_changed;
 }
@@ -730,13 +730,13 @@ bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area)
 /**
  * \return true if any region polling state changed, and a screen refresh is needed.
  */
-static bool screen_regions_poll(bContext *C, wmWindow *win, const bScreen *screen)
+static bool screen_regions_poll(bContext &C, wmWindow *win, const bScreen *screen)
 {
-  wmWindow *prev_win = CTX_wm_window(*C);
-  ScrArea *prev_area = CTX_wm_area(*C);
-  ARegion *prev_region = CTX_wm_region(*C);
+  wmWindow *prev_win = CTX_wm_window(C);
+  ScrArea *prev_area = CTX_wm_area(C);
+  ARegion *prev_region = CTX_wm_region(C);
 
-  CTX_wm_window_set(*C, win);
+  CTX_wm_window_set(C, win);
 
   bool any_changed = false;
   ED_screen_areas_iter (win, screen, area) {
@@ -745,9 +745,9 @@ static bool screen_regions_poll(bContext *C, wmWindow *win, const bScreen *scree
     }
   }
 
-  CTX_wm_window_set(*C, prev_win);
-  CTX_wm_area_set(*C, prev_area);
-  CTX_wm_region_set(*C, prev_region);
+  CTX_wm_window_set(C, prev_win);
+  CTX_wm_area_set(C, prev_area);
+  CTX_wm_region_set(C, prev_region);
 
   return any_changed;
 }
@@ -773,7 +773,7 @@ static void screen_refresh_if_needed(bContext *C, wmWindowManager *wm, wmWindow 
     }
 
     /* Returns true if a change was done that requires refreshing. */
-    if (screen_regions_poll(C, win, screen)) {
+    if (screen_regions_poll(*C, win, screen)) {
       screen->do_refresh = true;
     }
 
@@ -794,7 +794,7 @@ static void screen_refresh_if_needed(bContext *C, wmWindowManager *wm, wmWindow 
     ED_screen_areas_iter (win, screen, area) {
       /* Set space-type and region callbacks, calls init() */
       /* Sets sub-windows for regions, adds handlers. */
-      ED_area_init(C, win, area);
+      ED_area_init(*C, win, area);
     }
 
     /* wake up animtimer */
@@ -821,21 +821,21 @@ void ED_screen_refresh(bContext *C, wmWindowManager *wm, wmWindow *win)
   screen_refresh_if_needed(C, wm, win);
 }
 
-void ED_screens_init(bContext *C, Main *bmain, wmWindowManager *wm)
+void ED_screens_init(bContext &C, Main *bmain, wmWindowManager *wm)
 {
-  wmWindow *prev_ctx_win = CTX_wm_window(*C);
-  BLI_SCOPED_DEFER([&]() { CTX_wm_window_set(*C, prev_ctx_win); });
+  wmWindow *prev_ctx_win = CTX_wm_window(C);
+  BLI_SCOPED_DEFER([&]() { CTX_wm_window_set(C, prev_ctx_win); });
 
   for (wmWindow &win : wm->windows) {
     /* Region polls may need window/screen context. */
-    CTX_wm_window_set(*C, &win);
+    CTX_wm_window_set(C, &win);
 
     if (BKE_workspace_active_get(win.workspace_hook) == nullptr) {
       BKE_workspace_active_set(win.workspace_hook,
                                static_cast<WorkSpace *>(bmain->workspaces.first));
     }
 
-    ED_screen_refresh(C, wm, &win);
+    ED_screen_refresh(&C, wm, &win);
     if (win.runtime->eventstate) {
       ED_screen_set_active_region(nullptr, &win, win.runtime->eventstate->xy);
     }
@@ -855,31 +855,31 @@ void ED_screen_ensure_updated(bContext *C, wmWindowManager *wm, wmWindow *win)
 
 void ED_region_remove(bContext *C, ScrArea *area, ARegion *region)
 {
-  ED_region_exit(C, region);
+  ED_region_exit(*C, region);
   BKE_area_region_free(area->type, region);
   BLI_freelinkN(&area->regionbase, region);
 }
 
 /* *********** exit calls are for closing running stuff ******** */
 
-void ED_region_exit(bContext *C, ARegion *region)
+void ED_region_exit(bContext &C, ARegion *region)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  ARegion *prevar = CTX_wm_region(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  ARegion *prevar = CTX_wm_region(C);
 
   if (region->runtime->type && region->runtime->type->exit) {
     region->runtime->type->exit(wm, region);
   }
 
-  CTX_wm_region_set(*C, region);
+  CTX_wm_region_set(C, region);
 
   WM_event_remove_handlers(C, &region->runtime->handlers);
   WM_event_modal_handler_region_replace(win, region, nullptr);
 
   /* Stop panel animation in this region if there are any. */
   for (Panel &panel : region->panels) {
-    blender::ui::panel_stop_animation(C, &panel);
+    blender::ui::panel_stop_animation(&C, &panel);
   }
 
   if (region->regiontype == RGN_TYPE_TEMPORARY) {
@@ -906,20 +906,20 @@ void ED_region_exit(bContext *C, ARegion *region)
 
   WM_msgbus_clear_by_owner(wm->runtime->message_bus, region);
 
-  CTX_wm_region_set(*C, prevar);
+  CTX_wm_region_set(C, prevar);
 }
 
-void ED_area_exit(bContext *C, ScrArea *area)
+void ED_area_exit(bContext &C, ScrArea *area)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  ScrArea *prevsa = CTX_wm_area(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  ScrArea *prevsa = CTX_wm_area(C);
 
   if (area->type && area->type->exit) {
     area->type->exit(wm, area);
   }
 
-  CTX_wm_area_set(*C, area);
+  CTX_wm_area_set(C, area);
 
   for (ARegion &region : area->regionbase) {
     ED_region_exit(C, &region);
@@ -928,20 +928,20 @@ void ED_area_exit(bContext *C, ScrArea *area)
   WM_event_remove_handlers(C, &area->handlers);
   WM_event_modal_handler_area_replace(win, area, nullptr);
 
-  CTX_wm_area_set(*C, prevsa);
+  CTX_wm_area_set(C, prevsa);
 }
 
-void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
+void ED_screen_exit(bContext &C, wmWindow *window, bScreen *screen)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *prevwin = CTX_wm_window(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *prevwin = CTX_wm_window(C);
 
-  CTX_wm_window_set(*C, window);
+  CTX_wm_window_set(C, window);
 
   if (screen->animtimer) {
     WM_event_timer_remove(wm, window, screen->animtimer);
 
-    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     Scene *scene = WM_window_get_active_scene(prevwin);
     Scene *scene_eval = DEG_get_evaluated(depsgraph, scene);
     BKE_sound_stop_scene(scene_eval);
@@ -967,11 +967,11 @@ void ED_screen_exit(bContext *C, wmWindow *window, bScreen *screen)
 
   if (!WM_window_is_temp_screen(prevwin)) {
     /* use previous window if possible */
-    CTX_wm_window_set(*C, prevwin);
+    CTX_wm_window_set(C, prevwin);
   }
   else {
     /* none otherwise */
-    CTX_wm_window_set(*C, nullptr);
+    CTX_wm_window_set(C, nullptr);
   }
 }
 
@@ -1148,17 +1148,17 @@ void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
        * because it can undo setting the right button as active due
        * to delayed notifier handling. */
       if (C) {
-        blender::ui::UI_screen_free_active_but_highlight(C, screen);
+        blender::ui::UI_screen_free_active_but_highlight(*C, screen);
       }
     }
   }
 }
 
-int ED_screen_area_active(const bContext *C)
+int ED_screen_area_active(const bContext &C)
 {
-  wmWindow *win = CTX_wm_window(*C);
-  bScreen *screen = CTX_wm_screen(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  wmWindow *win = CTX_wm_window(C);
+  bScreen *screen = CTX_wm_screen(C);
+  ScrArea *area = CTX_wm_area(C);
 
   if (win && screen && area) {
     AZone *az = ED_area_actionzone_find_xy(area, win->runtime->eventstate->xy);
@@ -1348,7 +1348,7 @@ void screen_change_prepare(
     if (wt) {
       WM_event_timer_sleep(CTX_wm_manager(*C), win, wt, true);
     }
-    ED_screen_exit(C, win, screen_old);
+    ED_screen_exit(*C, win, screen_old);
 
     /* Same scene, "transfer" playback to new screen. */
     if (wt) {
@@ -1357,15 +1357,15 @@ void screen_change_prepare(
   }
 }
 
-void screen_change_update(bContext *C, wmWindow *win, bScreen *screen)
+void screen_change_update(bContext &C, wmWindow *win, bScreen *screen)
 {
   Scene *scene = WM_window_get_active_scene(win);
   WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
   WorkSpaceLayout *layout = BKE_workspace_layout_find(workspace, screen);
 
-  CTX_wm_window_set(*C, win); /* stores C->wm.screen... hrmf */
+  CTX_wm_window_set(C, win); /* stores C->wm.screen... hrmf */
 
-  ED_screen_refresh(C, CTX_wm_manager(*C), win);
+  ED_screen_refresh(&C, CTX_wm_manager(C), win);
 
   BKE_screen_view3d_scene_sync(screen, scene); /* sync new screen with scene data */
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
@@ -1375,13 +1375,13 @@ void screen_change_update(bContext *C, wmWindow *win, bScreen *screen)
   WM_event_add_mousemove(win);
 }
 
-bool ED_screen_change(bContext *C, bScreen *screen)
+bool ED_screen_change(bContext &C, bScreen *screen)
 {
-  Main *bmain = CTX_data_main(*C);
-  wmWindow *win = CTX_wm_window(*C);
+  Main *bmain = CTX_data_main(C);
+  wmWindow *win = CTX_wm_window(C);
   WorkSpace *workspace = BKE_workspace_active_get(win->workspace_hook);
   WorkSpaceLayout *layout = BKE_workspace_layout_find(workspace, screen);
-  bScreen *screen_old = CTX_wm_screen(*C);
+  bScreen *screen_old = CTX_wm_screen(C);
 
   /* Get the actual layout/screen to be activated (guaranteed to be unused, even if that means
    * having to duplicate an existing one). */
@@ -1389,7 +1389,7 @@ bool ED_screen_change(bContext *C, bScreen *screen)
       bmain, workspace, layout, layout, win);
   bScreen *screen_new = BKE_workspace_layout_screen_get(layout_new);
 
-  screen_change_prepare(screen_old, screen_new, bmain, C, win);
+  screen_change_prepare(screen_old, screen_new, bmain, &C, win);
 
   if (screen_old != screen_new) {
     WM_window_set_active_screen(win, workspace, screen_new);
@@ -1444,7 +1444,7 @@ static void screen_set_3dview_camera(Scene *scene,
   }
 }
 
-void ED_screen_scene_change(bContext *C,
+void ED_screen_scene_change(bContext &C,
                             wmWindow *win,
                             Scene *scene,
                             const bool refresh_toolsystem)
@@ -1455,8 +1455,8 @@ void ED_screen_scene_change(bContext *C,
 
   /* Switch scene. */
   win->scene = scene;
-  if (CTX_wm_window(*C) == win) {
-    CTX_data_scene_set(*C, scene);
+  if (CTX_wm_window(C) == win) {
+    CTX_data_scene_set(C, scene);
   }
 
   /* Ensure the view layer name is updated. */
@@ -1498,7 +1498,7 @@ ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *area, int type)
   SpaceLink *newsl;
 
   if (!area || area->full == nullptr) {
-    newscreen = ED_screen_state_maximized_create(C);
+    newscreen = ED_screen_state_maximized_create(*C);
     newsa = static_cast<ScrArea *>(newscreen->areabase.first);
     BLI_assert(newsa->spacetype == SPACE_EMPTY);
   }
@@ -1515,10 +1515,10 @@ ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *area, int type)
     newsl->link_flag |= SPACE_FLAG_TYPE_WAS_ACTIVE;
   }
 
-  ED_area_newspace(C, newsa, type, (newsl && newsl->link_flag & SPACE_FLAG_TYPE_TEMPORARY));
+  ED_area_newspace(*C, newsa, type, (newsl && newsl->link_flag & SPACE_FLAG_TYPE_TEMPORARY));
 
   if (newscreen) {
-    ED_screen_change(C, newscreen);
+    ED_screen_change(*C, newscreen);
   }
 
   return newsa;
@@ -1549,15 +1549,15 @@ void ED_screen_restore_temp_type(bContext *C, ScrArea *area)
   }
 
   if (area->full) {
-    ED_screen_state_toggle(C, CTX_wm_window(*C), area, SCREENMAXIMIZED);
+    ED_screen_state_toggle(*C, CTX_wm_window(*C), area, SCREENMAXIMIZED);
   }
 }
 
-void ED_screen_full_restore(bContext *C, ScrArea *area)
+void ED_screen_full_restore(bContext &C, ScrArea *area)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
-  bScreen *screen = CTX_wm_screen(*C);
+  bScreen *screen = CTX_wm_screen(C);
   short state = (screen ? screen->state : short(SCREENMAXIMIZED));
 
   /* If full-screen area has a temporary space (such as a file browser or full-screen render
@@ -1565,7 +1565,7 @@ void ED_screen_full_restore(bContext *C, ScrArea *area)
 
   if (sl->next) {
     if (sl->link_flag & SPACE_FLAG_TYPE_TEMPORARY) {
-      ED_screen_full_prevspace(C, area);
+      ED_screen_full_prevspace(&C, area);
     }
     else {
       ED_screen_state_toggle(C, win, area, state);
@@ -1587,12 +1587,12 @@ void ED_screen_full_restore(bContext *C, ScrArea *area)
  * as it would attempt to initialize areas that don't yet have a space-type assigned
  * (converting them to 3D view without creating the space-data).
  */
-static bScreen *screen_state_to_nonnormal(bContext *C,
+static bScreen *screen_state_to_nonnormal(bContext &C,
                                           wmWindow *win,
                                           ScrArea *toggle_area,
                                           int state)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   WorkSpace *workspace = WM_window_get_active_workspace(win);
 
   /* change from SCREENNORMAL to new state */
@@ -1703,14 +1703,14 @@ static bScreen *screen_state_to_nonnormal(bContext *C,
   return screen;
 }
 
-bScreen *ED_screen_state_maximized_create(bContext *C)
+bScreen *ED_screen_state_maximized_create(bContext &C)
 {
-  return screen_state_to_nonnormal(C, CTX_wm_window(*C), nullptr, SCREENMAXIMIZED);
+  return screen_state_to_nonnormal(C, CTX_wm_window(C), nullptr, SCREENMAXIMIZED);
 }
 
-ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const short state)
+ScrArea *ED_screen_state_toggle(bContext &C, wmWindow *win, ScrArea *area, const short state)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   WorkSpace *workspace = WM_window_get_active_workspace(win);
 
   if (area) {
@@ -1718,7 +1718,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
      * switching screens with tooltip open because region and tooltip
      * are no longer in the same screen */
     for (ARegion &region : area->regionbase) {
-      blender::ui::blocklist_free(C, &region);
+      blender::ui::blocklist_free(&C, &region);
       if (region.runtime->regiontimer) {
         WM_event_timer_remove(wm, nullptr, region.runtime->regiontimer);
         region.runtime->regiontimer = nullptr;
@@ -1727,7 +1727,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
 
     /* prevent hanging status prints */
     ED_area_status_text(area, nullptr);
-    ED_workspace_status_text(C, nullptr);
+    ED_workspace_status_text(&C, nullptr);
   }
   bScreen *screen;
   if (area && area->full) {
@@ -1820,7 +1820,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
 
     ED_screen_change(C, screen);
 
-    BKE_workspace_layout_remove(CTX_data_main(*C), workspace, layout_old);
+    BKE_workspace_layout_remove(CTX_data_main(C), workspace, layout_old);
 
     /* After we've restored back to SCREENNORMAL, we have to wait with
      * screen handling as it uses the area coords which aren't updated yet.
@@ -1843,8 +1843,8 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
     ED_screen_change(C, screen);
   }
 
-  BLI_assert(CTX_wm_screen(*C) == screen);
-  BLI_assert(CTX_wm_area(*C) == nullptr); /* May have been freed. */
+  BLI_assert(CTX_wm_screen(C) == screen);
+  BLI_assert(CTX_wm_area(C) == nullptr); /* May have been freed. */
 
   /* Setting the area is only needed for Python scripts that call
    * operators in succession before returning to the main event loop.
@@ -1852,7 +1852,7 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
    * an area after toggling full-screen for example (see: #89526).
    * NOTE: an old comment stated this was "bad code",
    * however it doesn't cause problems so leave as-is. */
-  CTX_wm_area_set(*C, static_cast<ScrArea *>(screen->areabase.first));
+  CTX_wm_area_set(C, static_cast<ScrArea *>(screen->areabase.first));
 
   return static_cast<ScrArea *>(screen->areabase.first);
 }
@@ -1862,7 +1862,7 @@ ScrArea *ED_screen_temp_space_open(
 {
   switch (display_type) {
     case USER_TEMP_SPACE_DISPLAY_WINDOW:
-      if (WM_window_open_temp(C, title, space_type, dialog)) {
+      if (WM_window_open_temp(*C, title, space_type, dialog)) {
         return CTX_wm_area(*C);
       }
       break;
@@ -1885,7 +1885,7 @@ ScrArea *ED_screen_temp_space_open(
       /* The current area is already fullscreen, stack the new area on top of it. */
       if (ctx_area != nullptr && ctx_area->full) {
         ScrArea *area = ctx_area;
-        ED_area_newspace(C, ctx_area, space_type, true);
+        ED_area_newspace(*C, ctx_area, space_type, true);
         area->flag |= AREA_FLAG_STACKED_FULLSCREEN;
         ((SpaceLink *)area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
         return area;
@@ -1902,11 +1902,11 @@ ScrArea *ED_screen_temp_space_open(
 }
 
 void ED_screen_animation_timer(
-    bContext *C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable)
+    bContext &C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable)
 {
-  bScreen *screen = CTX_wm_screen(*C);
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
+  bScreen *screen = CTX_wm_screen(C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
   bScreen *stopscreen = ED_screen_animation_playing(wm);
 
   if (stopscreen) {
@@ -1919,11 +1919,11 @@ void ED_screen_animation_timer(
 
     screen->animtimer = WM_event_timer_add(wm, win, TIMER0, (1.0 / scene->frames_per_second()));
 
-    sad->region = CTX_wm_region(*C);
+    sad->region = CTX_wm_region(C);
     sad->scene = scene;
     sad->view_layer = view_layer;
 
-    sad->do_scene_syncing = blender::ed::vse::is_scene_time_sync_needed(*C);
+    sad->do_scene_syncing = blender::ed::vse::is_scene_time_sync_needed(C);
 
     sad->sfra = scene->r.cfra;
     /* Make sure that were are inside the scene or preview frame range. */
@@ -1940,7 +1940,7 @@ void ED_screen_animation_timer(
     sad->flag |= (enable < 0) ? ANIMPLAY_FLAG_REVERSE : 0;
     sad->flag |= (sync == 0) ? ANIMPLAY_FLAG_NO_SYNC : (sync == 1) ? ANIMPLAY_FLAG_SYNC : 0;
 
-    ScrArea *area = CTX_wm_area(*C);
+    ScrArea *area = CTX_wm_area(C);
 
     char spacetype = -1;
 

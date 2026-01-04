@@ -2548,9 +2548,9 @@ bool RNA_property_update_check(PropertyRNA *prop)
   return (prop->magic != RNA_MAGIC || prop->update || prop->noteflag);
 }
 
-void RNA_property_update(bContext *C, PointerRNA *ptr, PropertyRNA *prop)
+void RNA_property_update(bContext &C, PointerRNA *ptr, PropertyRNA *prop)
 {
-  rna_property_update(C, CTX_data_main(*C), CTX_data_scene(*C), ptr, prop);
+  rna_property_update(&C, CTX_data_main(C), CTX_data_scene(C), ptr, prop);
 }
 
 void RNA_property_update_main(Main *bmain, Scene *scene, PointerRNA *ptr, PropertyRNA *prop)

@@ -101,13 +101,13 @@ static void info_main_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
-static void info_textview_update_rect(const bContext *C, ARegion *region)
+static void info_textview_update_rect(const bContext &C, ARegion *region)
 {
-  SpaceInfo *sinfo = CTX_wm_space_info(*C);
+  SpaceInfo *sinfo = CTX_wm_space_info(C);
   View2D *v2d = &region->v2d;
 
   blender::ui::view2d_totRect_set(
-      v2d, region->winx - 1, info_textview_height(sinfo, region, CTX_wm_reports(*C)));
+      v2d, region->winx - 1, info_textview_height(sinfo, region, CTX_wm_reports(C)));
 }
 
 static void info_main_region_draw(const bContext *C, ARegion *region)
@@ -124,7 +124,7 @@ static void info_main_region_draw(const bContext *C, ARegion *region)
     return;
   }
 
-  info_textview_update_rect(C, region);
+  info_textview_update_rect(*C, region);
 
   /* Works best with no view2d matrix set. */
   blender::ui::view2d_view_ortho(v2d);
@@ -132,7 +132,7 @@ static void info_main_region_draw(const bContext *C, ARegion *region)
   info_textview_main(sinfo, region, CTX_wm_reports(*C));
 
   /* reset view matrix */
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   /* scrollers */
   blender::ui::view2d_scrollers_draw(v2d, nullptr);

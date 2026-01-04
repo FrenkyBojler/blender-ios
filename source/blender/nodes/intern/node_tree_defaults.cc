@@ -94,9 +94,9 @@ void node_tree_shader_default(const bContext *C, Main *bmain, ID *id)
   }
 }
 
-void node_tree_composit_default(const bContext *C, Scene *sce)
+void node_tree_composit_default(const bContext &C, Scene *sce)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   /* but lets check it anyway */
   if (sce->compositing_node_group) {
@@ -114,7 +114,7 @@ void node_tree_composit_default(const bContext *C, Scene *sce)
   BKE_ntree_update_after_single_tree_change(*bmain, *sce->compositing_node_group);
 }
 
-void node_tree_composit_default_init(const bContext *C, bNodeTree *ntree)
+void node_tree_composit_default_init(const bContext &C, bNodeTree *ntree)
 {
   BLI_assert(ntree != nullptr && ntree->type == NTREE_COMPOSIT);
   BLI_assert(BLI_listbase_count(&ntree->nodes) == 0);
@@ -124,21 +124,21 @@ void node_tree_composit_default_init(const bContext *C, bNodeTree *ntree)
   ntree->tree_interface.add_socket(
       DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
 
-  bNode *composite = blender::bke::node_add_node(C, *ntree, "NodeGroupOutput");
+  bNode *composite = blender::bke::node_add_node(&C, *ntree, "NodeGroupOutput");
   composite->location[0] = 200.0f;
   composite->location[1] = 0.0f;
 
-  bNode *in = blender::bke::node_add_static_node(C, *ntree, CMP_NODE_R_LAYERS);
+  bNode *in = blender::bke::node_add_static_node(&C, *ntree, CMP_NODE_R_LAYERS);
   in->location[0] = -150.0f - in->width;
   in->location[1] = 0.0f;
   blender::bke::node_set_active(*ntree, *in);
   in->flag &= ~NODE_PREVIEW;
 
-  bNode *reroute = blender::bke::node_add_static_node(C, *ntree, NODE_REROUTE);
+  bNode *reroute = blender::bke::node_add_static_node(&C, *ntree, NODE_REROUTE);
   reroute->location[0] = 100.0f;
   reroute->location[1] = -35.0f;
 
-  bNode *viewer = blender::bke::node_add_static_node(C, *ntree, CMP_NODE_VIEWER);
+  bNode *viewer = blender::bke::node_add_static_node(&C, *ntree, CMP_NODE_VIEWER);
   viewer->location[0] = 200.0f;
   viewer->location[1] = -80.0f;
 
@@ -162,7 +162,7 @@ void node_tree_composit_default_init(const bContext *C, bNodeTree *ntree)
                               *viewer,
                               *reinterpret_cast<bNodeSocket *>(viewer->inputs.first));
 
-  BKE_ntree_update_after_single_tree_change(*CTX_data_main(*C), *ntree);
+  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
 }
 
 }  // namespace blender::nodes

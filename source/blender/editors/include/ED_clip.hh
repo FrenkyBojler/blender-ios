@@ -61,7 +61,7 @@ bool ED_space_clip_maskedit_poll(bContext &C);
  *
  * It is not required to have mask opened for editing.
  */
-bool ED_space_clip_maskedit_visible_splines_poll(bContext *C);
+bool ED_space_clip_maskedit_visible_splines_poll(bContext &C);
 
 /**
  * Returns true when the following conditions are met:
@@ -78,7 +78,7 @@ bool ED_space_clip_maskedit_mask_poll(bContext &C);
  * - The space has mask opened.
  * - Mask has visible and editable splines.
  */
-bool ED_space_clip_maskedit_mask_visible_splines_poll(bContext *C);
+bool ED_space_clip_maskedit_mask_visible_splines_poll(bContext &C);
 
 void ED_space_clip_get_size(const SpaceClip *sc, int *r_width, int *r_height);
 void ED_space_clip_get_size_fl(const SpaceClip *sc, float r_size[2]);
@@ -116,7 +116,7 @@ void ED_clip_update_frame(const Main *mainp, int cfra);
 bool ED_clip_view_selection(const bContext *C, const ARegion *region, bool fit);
 
 void ED_clip_select_all(const SpaceClip *sc, int action, bool *r_has_selection);
-bool ED_clip_can_select(bContext *C);
+bool ED_clip_can_select(bContext &C);
 
 void ED_clip_point_undistorted_pos(const SpaceClip *sc, const float co[2], float r_co[2]);
 void ED_clip_point_stable_pos(
@@ -169,8 +169,8 @@ struct ClipViewLockState {
   float zoom;
 };
 
-void ED_clip_view_lock_state_store(const bContext *C, ClipViewLockState *state);
-void ED_clip_view_lock_state_restore_no_jump(const bContext *C, const ClipViewLockState *state);
+void ED_clip_view_lock_state_store(const bContext &C, ClipViewLockState *state);
+void ED_clip_view_lock_state_restore_no_jump(const bContext &C, const ClipViewLockState *state);
 
 /* `clip_ops.cc` */
 void ED_operatormacros_clip();

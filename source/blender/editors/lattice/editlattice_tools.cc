@@ -72,7 +72,7 @@ static wmOperatorStatus make_regular_exec(bContext &C, wmOperator &op)
       BKE_lattice_resize(lt->editlatt->latt, lt->pntsu, lt->pntsv, lt->pntsw, nullptr);
 
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
     }
   }
   else {
@@ -85,7 +85,7 @@ static wmOperatorStatus make_regular_exec(bContext &C, wmOperator &op)
       BKE_lattice_resize(lt, lt->pntsu, lt->pntsv, lt->pntsw, nullptr);
 
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, ob->data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
     }
     FOREACH_SELECTED_OBJECT_END;
   }
@@ -323,7 +323,7 @@ static wmOperatorStatus lattice_flip_exec(bContext &C, wmOperator &op)
 
     /* updates */
     DEG_id_tag_update(&obedit->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
     changed = true;
   }
 

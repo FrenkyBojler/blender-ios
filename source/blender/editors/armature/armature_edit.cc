@@ -57,13 +57,13 @@ using blender::Vector;
 /** \name Object Tools Public API
  * \{ */
 
-bArmature *ED_armature_context(const bContext *C)
+bArmature *ED_armature_context(const bContext &C)
 {
   bArmature *armature = static_cast<bArmature *>(
-      CTX_data_pointer_get_type(*C, "armature", &RNA_Armature).data);
+      CTX_data_pointer_get_type(C, "armature", &RNA_Armature).data);
 
   if (armature == nullptr) {
-    Object *object = blender::ed::object::context_active_object(C);
+    Object *object = blender::ed::object::context_active_object(&C);
     if (object && object->type == OB_ARMATURE) {
       armature = static_cast<bArmature *>(object->data);
     }
@@ -451,7 +451,7 @@ static wmOperatorStatus armature_calc_roll_exec(bContext &C, wmOperator &op)
 
     if (changed) {
       /* NOTE: notifier might evolve. */
-      WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
       DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
     }
   }
@@ -520,7 +520,7 @@ static wmOperatorStatus armature_roll_clear_exec(bContext &C, wmOperator &op)
 
     if (changed) {
       /* NOTE: notifier might evolve. */
-      WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
       DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
     }
   }
@@ -861,7 +861,7 @@ static wmOperatorStatus armature_fill_bones_exec(bContext &C, wmOperator &op)
   }
 
   /* updates */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POSE, obedit);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, obedit);
   DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
 
   /* free points */
@@ -998,7 +998,7 @@ static wmOperatorStatus armature_switch_direction_exec(bContext &C, wmOperator &
     armature_tag_unselect(arm);
 
     /* NOTE: notifier might evolve. */
-    WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
     DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
   }
 
@@ -1149,7 +1149,7 @@ static wmOperatorStatus armature_align_bones_exec(bContext &C, wmOperator &op)
   }
 
   /* NOTE: notifier might evolve. */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
   DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
 
   return OPERATOR_FINISHED;
@@ -1196,7 +1196,7 @@ static wmOperatorStatus armature_split_exec(bContext &C, wmOperator & /*op*/)
       ED_armature_ebone_select_set(&bone, (bone.flag & BONE_SELECTED) != 0);
     }
 
-    WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
     DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
   }
 
@@ -1273,9 +1273,9 @@ static wmOperatorStatus armature_delete_selected_exec(bContext &C, wmOperator & 
 
       ED_armature_edit_sync_selection(arm->edbo);
       BKE_pose_tag_recalc(CTX_data_main(C), obedit->pose);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, obedit);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
       DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
-      ED_outliner_select_sync_from_edit_bone_tag(&C);
+      ED_outliner_select_sync_from_edit_bone_tag(C);
     }
   }
 
@@ -1447,9 +1447,9 @@ static wmOperatorStatus armature_dissolve_selected_exec(bContext &C, wmOperator 
     if (changed) {
       changed_multi = true;
       ED_armature_edit_sync_selection(arm->edbo);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, obedit);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
       DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
-      ED_outliner_select_sync_from_edit_bone_tag(&C);
+      ED_outliner_select_sync_from_edit_bone_tag(C);
     }
   }
 
@@ -1513,7 +1513,7 @@ static wmOperatorStatus armature_hide_exec(bContext &C, wmOperator &op)
     }
     ED_armature_edit_sync_selection(arm->edbo);
 
-    WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, obedit);
+    WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
     DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
   }
   return OPERATOR_FINISHED;
@@ -1570,7 +1570,7 @@ static wmOperatorStatus armature_reveal_exec(bContext &C, wmOperator &op)
     if (changed) {
       ED_armature_edit_sync_selection(arm->edbo);
 
-      WM_event_add_notifier(&C, NC_OBJECT | ND_BONE_SELECT, obedit);
+      WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
       DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
     }
   }

@@ -87,7 +87,7 @@ static wmOperatorStatus light_linking_select_exec(bContext &C, wmOperator & /*op
 
   BKE_light_linking_select_receivers_of_emitter(scene, view_layer, emitter, link_type);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -150,7 +150,7 @@ static wmOperatorStatus light_linking_link_exec(bContext &C, wmOperator &op)
   /* It is possible that the receiver collection is also used by the view layer.
    * For this case send a notifier so that the UI is updated for the changes in the collection
    * content. */
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -250,9 +250,9 @@ static wmOperatorStatus light_linking_unlink_from_collection_exec(bContext &C, w
   }
 
   /* Copy notifiers from the Outliner's "Unlink" operation for objects and collections. */
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER, nullptr);
-  WM_event_add_notifier(&C, NC_ID | NA_EDITED, nullptr);
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, nullptr);
+  WM_event_add_notifier(C, NC_ID | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_OUTLINER, nullptr);
 
   return OPERATOR_FINISHED;
 }

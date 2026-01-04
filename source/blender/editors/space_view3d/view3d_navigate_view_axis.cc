@@ -53,7 +53,7 @@ static wmOperatorStatus view_axis_exec(bContext &C, wmOperator &op)
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
   /* no nullptr check is needed, poll checks */
-  ED_view3d_context_user_region(&C, &v3d, &region);
+  ED_view3d_context_user_region(C, &v3d, &region);
   rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   ED_view3d_smooth_view_force_finish(&C, v3d, region);

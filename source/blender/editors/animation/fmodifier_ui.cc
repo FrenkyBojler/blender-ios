@@ -56,17 +56,17 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel);
 /**
  * Get the list of FModifiers from the context (either the NLA or graph editor).
  */
-static ListBaseT<FModifier> *fmodifier_list_space_specific(const bContext *C)
+static ListBaseT<FModifier> *fmodifier_list_space_specific(const bContext &C)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
   if (area->spacetype == SPACE_GRAPH) {
-    FCurve *fcu = ANIM_graph_context_fcurve(C);
+    FCurve *fcu = ANIM_graph_context_fcurve(&C);
     return &fcu->modifiers;
   }
 
   if (area->spacetype == SPACE_NLA) {
-    NlaStrip *strip = ANIM_nla_context_strip(C);
+    NlaStrip *strip = ANIM_nla_context_strip(&C);
     return &strip->modifiers;
   }
 
@@ -111,7 +111,7 @@ static void fmodifier_reorder(bContext *C, Panel *panel, int new_index)
     return;
   }
 
-  ListBaseT<FModifier> *modifiers = fmodifier_list_space_specific(C);
+  ListBaseT<FModifier> *modifiers = fmodifier_list_space_specific(*C);
 
   /* Again, make sure we don't move a modifier before a cycles modifier. */
   FModifier *fcm_first = static_cast<FModifier *>(modifiers->first);
@@ -133,9 +133,9 @@ static void fmodifier_reorder(bContext *C, Panel *panel, int new_index)
   /* Move the FModifier in the list. */
   BLI_listbase_link_move(modifiers, fcm, new_index - current_index);
 
-  ED_undo_push(C, "Reorder F-Curve Modifier");
+  ED_undo_push(*C, "Reorder F-Curve Modifier");
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
   DEG_id_tag_update(owner_id, ID_RECALC_ANIMATION);
 }
 
@@ -244,9 +244,9 @@ static void delete_fmodifier_cb(bContext *C, void *ctx_v, void *fcm_v)
   /* remove the given F-Modifier from the active modifier-stack */
   remove_fmodifier(modifiers, fcm);
 
-  ED_undo_push(C, "Delete F-Curve Modifier");
+  ED_undo_push(*C, "Delete F-Curve Modifier");
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
   DEG_id_tag_update(ctx->owner_id, ID_RECALC_ANIMATION);
 }
 
@@ -339,7 +339,7 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel)
   button_retval_set(but, B_REDR);
   FModifierDeleteContext *ctx = MEM_mallocN<FModifierDeleteContext>(__func__);
   ctx->owner_id = owner_id;
-  ctx->modifiers = fmodifier_list_space_specific(C);
+  ctx->modifiers = fmodifier_list_space_specific(*C);
   BLI_assert(ctx->modifiers != nullptr);
 
   button_funcN_set(but, delete_fmodifier_cb, ctx, fcm);
@@ -866,17 +866,17 @@ static void panel_register_stepped(ARegionType *region_type,
 /** \name Panel Creation
  * \{ */
 
-void ANIM_fmodifier_panels(const bContext *C,
+void ANIM_fmodifier_panels(const bContext &C,
                            ID *owner_id,
                            ListBaseT<FModifier> *fmodifiers,
                            uiListPanelIDFromDataFunc panel_id_fn)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
   bool panels_match = blender::ui::panel_list_matches_data(region, fmodifiers, panel_id_fn);
 
   if (!panels_match) {
-    blender::ui::panels_free_instanced(C, region);
+    blender::ui::panels_free_instanced(&C, region);
     for (FModifier &fcm : *fmodifiers) {
       char panel_idname[MAX_NAME];
       panel_id_fn(&fcm, panel_idname);
@@ -884,7 +884,7 @@ void ANIM_fmodifier_panels(const bContext *C,
       PointerRNA *fcm_ptr = MEM_new<PointerRNA>("panel customdata");
       *fcm_ptr = RNA_pointer_create_discrete(owner_id, &RNA_FModifier, &fcm);
 
-      blender::ui::panel_add_instanced(C, region, &region->panels, panel_idname, fcm_ptr);
+      blender::ui::panel_add_instanced(&C, region, &region->panels, panel_idname, fcm_ptr);
     }
   }
   else {

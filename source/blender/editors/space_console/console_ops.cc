@@ -286,9 +286,9 @@ ConsoleLine *console_scrollback_add_str(SpaceConsole *sc, char *str, bool own)
   return ci;
 }
 
-ConsoleLine *console_history_verify(const bContext *C)
+ConsoleLine *console_history_verify(const bContext &C)
 {
-  SpaceConsole *sc = CTX_wm_space_console(*C);
+  SpaceConsole *sc = CTX_wm_space_console(C);
   ConsoleLine *ci = static_cast<ConsoleLine *>(sc->history.last);
   if (ci == nullptr) {
     ci = console_history_add(sc, nullptr);
@@ -379,7 +379,7 @@ static const EnumPropertyItem console_move_type_items[] = {
 static wmOperatorStatus console_move_exec(bContext &C, wmOperator &op)
 {
   SpaceConsole *sc = CTX_wm_space_console(C);
-  ConsoleLine *ci = console_history_verify(&C);
+  ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
@@ -504,7 +504,7 @@ static wmOperatorStatus console_insert_exec(bContext &C, wmOperator &op)
   SpaceConsole *sc = CTX_wm_space_console(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
-  ConsoleLine *ci = console_history_verify(&C);
+  ConsoleLine *ci = console_history_verify(C);
   char *str = RNA_string_get_alloc(op.ptr, "text", nullptr, 0, nullptr);
   int len = strlen(str);
 
@@ -589,7 +589,7 @@ void CONSOLE_OT_insert(wmOperatorType *ot)
 
 static wmOperatorStatus console_indent_or_autocomplete_exec(bContext &C, wmOperator & /*op*/)
 {
-  ConsoleLine *ci = console_history_verify(&C);
+  ConsoleLine *ci = console_history_verify(C);
   bool text_before_cursor = false;
 
   /* Check any text before cursor (not just the previous character) as is done for
@@ -640,7 +640,7 @@ void CONSOLE_OT_indent_or_autocomplete(wmOperatorType *ot)
 static wmOperatorStatus console_indent_exec(bContext &C, wmOperator & /*op*/)
 {
   SpaceConsole *sc = CTX_wm_space_console(C);
-  ConsoleLine *ci = console_history_verify(&C);
+  ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
@@ -689,7 +689,7 @@ void CONSOLE_OT_indent(wmOperatorType *ot)
 static wmOperatorStatus console_unindent_exec(bContext &C, wmOperator & /*op*/)
 {
   SpaceConsole *sc = CTX_wm_space_console(C);
-  ConsoleLine *ci = console_history_verify(&C);
+  ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
@@ -751,7 +751,7 @@ static const EnumPropertyItem console_delete_type_items[] = {
 static wmOperatorStatus console_delete_exec(bContext &C, wmOperator &op)
 {
   SpaceConsole *sc = CTX_wm_space_console(C);
-  ConsoleLine *ci = console_history_verify(&C);
+  ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
@@ -856,7 +856,7 @@ void CONSOLE_OT_delete(wmOperatorType *ot)
 static wmOperatorStatus console_clear_line_exec(bContext &C, wmOperator & /*op*/)
 {
   SpaceConsole *sc = CTX_wm_space_console(C);
-  ConsoleLine *ci = console_history_verify(&C);
+  ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
@@ -899,7 +899,7 @@ static wmOperatorStatus console_clear_exec(bContext &C, wmOperator &op)
   const bool scrollback = RNA_boolean_get(op.ptr, "scrollback");
   const bool history = RNA_boolean_get(op.ptr, "history");
 
-  /* ConsoleLine *ci = */ console_history_verify(&C);
+  /* ConsoleLine *ci = */ console_history_verify(C);
 
   if (scrollback) { /* Last item in history. */
     while (sc->scrollback.first) {
@@ -911,7 +911,7 @@ static wmOperatorStatus console_clear_exec(bContext &C, wmOperator &op)
     while (sc->history.first) {
       console_history_free(sc, static_cast<ConsoleLine *>(sc->history.first));
     }
-    console_history_verify(&C);
+    console_history_verify(C);
   }
 
   console_textview_update_rect(sc, region);
@@ -944,7 +944,7 @@ static wmOperatorStatus console_history_cycle_exec(bContext &C, wmOperator &op)
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   /* TODO: stupid, just prevents crashes when no command line. */
-  ConsoleLine *ci = console_history_verify(&C);
+  ConsoleLine *ci = console_history_verify(C);
   const bool reverse = RNA_boolean_get(op.ptr, "reverse"); /* assumes down, reverse is up */
   int prev_len = ci->len;
 
@@ -1029,7 +1029,7 @@ static wmOperatorStatus console_history_append_exec(bContext &C, wmOperator &op)
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
-  ConsoleLine *ci = console_history_verify(&C);
+  ConsoleLine *ci = console_history_verify(C);
   /* own this text in the new line, don't free */
   char *str = RNA_string_get_alloc(op.ptr, "text", nullptr, 0, nullptr);
   int cursor = RNA_int_get(op.ptr, "current_character");
@@ -1103,7 +1103,7 @@ static wmOperatorStatus console_scrollback_append_exec(bContext &C, wmOperator &
   char *str = RNA_string_get_alloc(op.ptr, "text", nullptr, 0, nullptr);
   int type = RNA_enum_get(op.ptr, "type");
 
-  console_history_verify(&C);
+  console_history_verify(C);
 
   ci = console_scrollback_add_str(sc, str, true); /* own the string */
   ci->type = type;
@@ -1195,7 +1195,7 @@ static wmOperatorStatus console_paste_exec(bContext &C, wmOperator &op)
 {
   const bool selection = RNA_boolean_get(op.ptr, "selection");
   SpaceConsole *sc = CTX_wm_space_console(C);
-  ConsoleLine *ci = console_history_verify(&C);
+  ConsoleLine *ci = console_history_verify(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
@@ -1217,7 +1217,7 @@ static wmOperatorStatus console_paste_exec(bContext &C, wmOperator &op)
     if (buf != buf_str) {
       WM_operator_name_call(
           &C, "CONSOLE_OT_execute", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
-      ci = console_history_verify(&C);
+      ci = console_history_verify(C);
     }
     console_delete_editable_selection(sc);
     console_line_insert(ci, buf, buf_len);
@@ -1303,10 +1303,10 @@ static void console_cursor_set_to_pos(SpaceConsole *sc,
   }
 }
 
-static void console_modal_select_apply(bContext *C, wmOperator *op, const wmEvent *event)
+static void console_modal_select_apply(bContext &C, wmOperator *op, const wmEvent *event)
 {
-  SpaceConsole *sc = CTX_wm_space_console(*C);
-  ScrArea *area = CTX_wm_area(*C);
+  SpaceConsole *sc = CTX_wm_space_console(C);
+  ScrArea *area = CTX_wm_area(C);
   ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 
   SetConsoleCursor *scu = static_cast<SetConsoleCursor *>(op->customdata);
@@ -1320,9 +1320,9 @@ static void console_modal_select_apply(bContext *C, wmOperator *op, const wmEven
   }
 }
 
-static void console_cursor_set_exit(bContext *C, wmOperator *op)
+static void console_cursor_set_exit(bContext &C, wmOperator *op)
 {
-  SpaceConsole *sc = CTX_wm_space_console(*C);
+  SpaceConsole *sc = CTX_wm_space_console(C);
   SetConsoleCursor *scu = static_cast<SetConsoleCursor *>(op->customdata);
 
   console_select_update_primary_clipboard(sc);
@@ -1357,9 +1357,9 @@ static wmOperatorStatus console_select_set_invoke(bContext &C,
 
   scu->sel_init = INT_MAX;
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
-  console_modal_select_apply(&C, &op, event);
+  console_modal_select_apply(C, &op, event);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1372,18 +1372,18 @@ static wmOperatorStatus console_select_set_modal(bContext &C, wmOperator &op, co
     case MIDDLEMOUSE:
     case RIGHTMOUSE:
       if (event->val == KM_PRESS) {
-        console_modal_select_apply(&C, &op, event);
+        console_modal_select_apply(C, &op, event);
         break;
       }
       else if (event->val == KM_RELEASE) {
-        console_modal_select_apply(&C, &op, event);
+        console_modal_select_apply(C, &op, event);
         ED_area_tag_redraw(CTX_wm_area(C));
-        console_cursor_set_exit(&C, &op);
+        console_cursor_set_exit(C, &op);
         return OPERATOR_FINISHED;
       }
       break;
     case MOUSEMOVE:
-      console_modal_select_apply(&C, &op, event);
+      console_modal_select_apply(C, &op, event);
       break;
     default: {
       break;
@@ -1395,7 +1395,7 @@ static wmOperatorStatus console_select_set_modal(bContext &C, wmOperator &op, co
 
 static void console_select_set_cancel(bContext &C, wmOperator &op)
 {
-  console_cursor_set_exit(&C, &op);
+  console_cursor_set_exit(C, &op);
 }
 
 void CONSOLE_OT_select_set(wmOperatorType *ot)

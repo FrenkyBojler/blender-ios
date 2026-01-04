@@ -60,9 +60,9 @@ static CLG_LogRef LOG = {"undo"};
  * Non-operator undo editor functions.
  * \{ */
 
-bool ED_undo_is_state_valid(bContext *C)
+bool ED_undo_is_state_valid(bContext &C)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
 
   /* Currently only checks matching begin/end calls. */
   if (wm->runtime->undo_stack == nullptr) {
@@ -83,24 +83,24 @@ bool ED_undo_is_state_valid(bContext *C)
   return true;
 }
 
-void ED_undo_group_begin(bContext *C)
+void ED_undo_group_begin(bContext &C)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   BKE_undosys_stack_group_begin(wm->runtime->undo_stack);
 }
 
-void ED_undo_group_end(bContext *C)
+void ED_undo_group_end(bContext &C)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   BKE_undosys_stack_group_end(wm->runtime->undo_stack);
 }
 
-void ED_undo_push(bContext *C, const char *str)
+void ED_undo_push(bContext &C, const char *str)
 {
   CLOG_INFO(&LOG, "Push '%s'", str);
   WM_file_tag_modified();
 
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   int steps = U.undosteps;
 
   /* Ensure steps that have been initialized are always pushed,
@@ -135,7 +135,7 @@ void ED_undo_push(bContext *C, const char *str)
     BKE_undosys_stack_limit_steps_and_memory(wm->runtime->undo_stack, steps - 1, 0);
   }
 
-  push_retval = BKE_undosys_step_push(wm->runtime->undo_stack, C, str);
+  push_retval = BKE_undosys_step_push(wm->runtime->undo_stack, &C, str);
 
   if (U.undomemory != 0) {
     const size_t memory_limit = size_t(U.undomemory) * 1024 * 1024;
@@ -154,15 +154,15 @@ void ED_undo_push(bContext *C, const char *str)
 /**
  * Common pre management of undo/redo (killing all running jobs, calling pre handlers, etc.).
  */
-static void ed_undo_step_pre(bContext *C,
+static void ed_undo_step_pre(bContext &C,
                              wmWindowManager *wm,
                              const enum eUndoStepDir undo_dir,
                              ReportList *reports)
 {
   BLI_assert(ELEM(undo_dir, STEP_UNDO, STEP_REDO));
 
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
 
   /* undo during jobs are running can easily lead to freeing data using by jobs,
    * or they can just lead to freezing job in some other cases */
@@ -191,7 +191,7 @@ static void ed_undo_step_pre(bContext *C,
  *
  * \note Also check #undo_history_exec in bottom if you change notifiers.
  */
-static void ed_undo_step_post(bContext *C,
+static void ed_undo_step_post(bContext &C,
                               wmWindowManager *wm,
                               const enum eUndoStepDir undo_dir,
                               ReportList *reports)
@@ -199,8 +199,8 @@ static void ed_undo_step_post(bContext *C,
   using namespace blender::ed;
   BLI_assert(ELEM(undo_dir, STEP_UNDO, STEP_REDO));
 
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
 
   /* App-Handlers (post). */
   {
@@ -235,7 +235,7 @@ static void ed_undo_step_post(bContext *C,
  * May undo or redo several steps at once only if the target step is a 'skipped' one.
  * The target step will be the one immediately before or after the active one.
  */
-static wmOperatorStatus ed_undo_step_direction(bContext *C,
+static wmOperatorStatus ed_undo_step_direction(bContext &C,
                                                enum eUndoStepDir step,
                                                ReportList *reports)
 {
@@ -243,15 +243,15 @@ static wmOperatorStatus ed_undo_step_direction(bContext *C,
 
   CLOG_INFO(&LOG, "Step direction=%s", (step == STEP_UNDO) ? "STEP_UNDO" : "STEP_REDO");
 
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
 
   ed_undo_step_pre(C, wm, step, reports);
 
   if (step == STEP_UNDO) {
-    BKE_undosys_step_undo(wm->runtime->undo_stack, C);
+    BKE_undosys_step_undo(wm->runtime->undo_stack, &C);
   }
   else {
-    BKE_undosys_step_redo(wm->runtime->undo_stack, C);
+    BKE_undosys_step_redo(wm->runtime->undo_stack, &C);
   }
 
   ed_undo_step_post(C, wm, step, reports);
@@ -264,11 +264,11 @@ static wmOperatorStatus ed_undo_step_direction(bContext *C,
  * May undo several steps at once.
  * The target step will be the one immediately before given named one.
  */
-static int ed_undo_step_by_name(bContext *C, const char *undo_name, ReportList *reports)
+static int ed_undo_step_by_name(bContext &C, const char *undo_name, ReportList *reports)
 {
   BLI_assert(undo_name != nullptr);
 
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   UndoStep *undo_step_from_name = BKE_undosys_step_find_by_name(wm->runtime->undo_stack,
                                                                 undo_name);
   if (undo_step_from_name == nullptr) {
@@ -296,7 +296,7 @@ static int ed_undo_step_by_name(bContext *C, const char *undo_name, ReportList *
 
   ed_undo_step_pre(C, wm, undo_dir, reports);
 
-  BKE_undosys_step_load_data_ex(wm->runtime->undo_stack, C, undo_step_target, nullptr, true);
+  BKE_undosys_step_load_data_ex(wm->runtime->undo_stack, &C, undo_step_target, nullptr, true);
 
   ed_undo_step_post(C, wm, undo_dir, reports);
 
@@ -308,11 +308,11 @@ static int ed_undo_step_by_name(bContext *C, const char *undo_name, ReportList *
  * May undo or redo several steps at once.
  * The target step will be the one indicated by the given index.
  */
-static int ed_undo_step_by_index(bContext *C, const int undo_index, ReportList *reports)
+static int ed_undo_step_by_index(bContext &C, const int undo_index, ReportList *reports)
 {
   BLI_assert(undo_index >= 0);
 
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   const int active_step_index = BLI_findindex(&wm->runtime->undo_stack->steps,
                                               wm->runtime->undo_stack->step_active);
   if (undo_index == active_step_index) {
@@ -327,17 +327,17 @@ static int ed_undo_step_by_index(bContext *C, const int undo_index, ReportList *
 
   ed_undo_step_pre(C, wm, undo_dir, reports);
 
-  BKE_undosys_step_load_from_index(wm->runtime->undo_stack, C, undo_index);
+  BKE_undosys_step_load_from_index(wm->runtime->undo_stack, &C, undo_index);
 
   ed_undo_step_post(C, wm, undo_dir, reports);
 
   return OPERATOR_FINISHED;
 }
 
-void ED_undo_grouped_push(bContext *C, const char *str)
+void ED_undo_grouped_push(bContext &C, const char *str)
 {
   /* do nothing if previous undo task is the same as this one (or from the same undo group) */
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   const UndoStep *us = wm->runtime->undo_stack->step_active;
   if (us && STREQ(str, us->name)) {
     BKE_undosys_stack_clear_active(wm->runtime->undo_stack);
@@ -349,47 +349,47 @@ void ED_undo_grouped_push(bContext *C, const char *str)
 
 void ED_undo_pop(bContext *C)
 {
-  ed_undo_step_direction(C, STEP_UNDO, nullptr);
+  ed_undo_step_direction(*C, STEP_UNDO, nullptr);
 }
 void ED_undo_redo(bContext *C)
 {
-  ed_undo_step_direction(C, STEP_REDO, nullptr);
+  ed_undo_step_direction(*C, STEP_REDO, nullptr);
 }
 
 void ED_undo_push_op(bContext *C, wmOperator *op)
 {
   /* in future, get undo string info? */
-  ED_undo_push(C, op->type->name);
+  ED_undo_push(*C, op->type->name);
 }
 
 void ED_undo_grouped_push_op(bContext *C, wmOperator *op)
 {
   if (op->type->undo_group[0] != '\0') {
-    ED_undo_grouped_push(C, op->type->undo_group);
+    ED_undo_grouped_push(*C, op->type->undo_group);
   }
   else {
-    ED_undo_grouped_push(C, op->type->name);
+    ED_undo_grouped_push(*C, op->type->name);
   }
 }
 
 void ED_undo_pop_op(bContext *C, wmOperator *op)
 {
   /* search back a couple of undo's, in case something else added pushes */
-  ed_undo_step_by_name(C, op->type->name, op->reports);
+  ed_undo_step_by_name(*C, op->type->name, op->reports);
 }
 
-bool ED_undo_is_valid(const bContext *C, const char *undoname)
+bool ED_undo_is_valid(const bContext &C, const char *undoname)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   return BKE_undosys_stack_has_undo(wm->runtime->undo_stack, undoname);
 }
 
-bool ED_undo_is_memfile_compatible(const bContext *C)
+bool ED_undo_is_memfile_compatible(const bContext &C)
 {
   /* Some modes don't co-exist with memfile undo, disable their use: #60593
    * (this matches 2.7x behavior). */
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   if (view_layer != nullptr) {
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *obact = BKE_view_layer_active_object_get(view_layer);
@@ -453,13 +453,13 @@ UndoStack *ED_undo_stack_get()
 /**
  * Refresh to run after user activated undo/redo actions.
  */
-static void ed_undo_refresh_for_op(bContext *C)
+static void ed_undo_refresh_for_op(bContext &C)
 {
   /* The "last operator" should disappear, later we can tie this with undo stack nicer. */
-  WM_operator_stack_clear(CTX_wm_manager(*C));
+  WM_operator_stack_clear(CTX_wm_manager(C));
 
   /* Keep button under the cursor active. */
-  WM_event_add_mousemove(CTX_wm_window(*C));
+  WM_event_add_mousemove(CTX_wm_window(C));
 
   ED_outliner_select_sync_from_all_tag(C);
 }
@@ -468,9 +468,9 @@ static wmOperatorStatus ed_undo_exec(bContext &C, wmOperator &op)
 {
   /* "last operator" should disappear, later we can tie this with undo stack nicer */
   WM_operator_stack_clear(CTX_wm_manager(C));
-  wmOperatorStatus ret = ed_undo_step_direction(&C, STEP_UNDO, op.reports);
+  wmOperatorStatus ret = ed_undo_step_direction(C, STEP_UNDO, op.reports);
   if (ret & OPERATOR_FINISHED) {
-    ed_undo_refresh_for_op(&C);
+    ed_undo_refresh_for_op(C);
   }
   return ret;
 }
@@ -488,22 +488,22 @@ static wmOperatorStatus ed_undo_push_exec(bContext &C, wmOperator &op)
   }
   char str[BKE_UNDO_STR_MAX];
   RNA_string_get(op.ptr, "message", str);
-  ED_undo_push(&C, str);
+  ED_undo_push(C, str);
   return OPERATOR_FINISHED;
 }
 
 static wmOperatorStatus ed_redo_exec(bContext &C, wmOperator &op)
 {
-  wmOperatorStatus ret = ed_undo_step_direction(&C, STEP_REDO, op.reports);
+  wmOperatorStatus ret = ed_undo_step_direction(C, STEP_REDO, op.reports);
   if (ret & OPERATOR_FINISHED) {
-    ed_undo_refresh_for_op(&C);
+    ed_undo_refresh_for_op(C);
   }
   return ret;
 }
 
 static wmOperatorStatus ed_undo_redo_exec(bContext &C, wmOperator & /*op*/)
 {
-  wmOperator *last_op = WM_operator_last_redo(&C);
+  wmOperator *last_op = WM_operator_last_redo(C);
   wmOperatorStatus ret = ED_undo_operator_repeat(&C, last_op) ? OPERATOR_FINISHED :
                                                                 OPERATOR_CANCELLED;
   if (ret & OPERATOR_FINISHED) {
@@ -515,14 +515,14 @@ static wmOperatorStatus ed_undo_redo_exec(bContext &C, wmOperator & /*op*/)
 
 /* Disable in background mode, we could support if it's useful, #60934. */
 
-static bool ed_undo_is_init_poll(bContext *C)
+static bool ed_undo_is_init_poll(bContext &C)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   if (wm->runtime->undo_stack == nullptr) {
     /* This message is intended for Python developers,
      * it will be part of the exception when attempting to call undo in background mode. */
     CTX_wm_operator_poll_msg_set(
-        *C,
+        C,
         "Undo disabled at startup in background-mode "
         "(call `ed.undo_push()` to explicitly initialize the undo-system)");
     return false;
@@ -532,7 +532,7 @@ static bool ed_undo_is_init_poll(bContext *C)
 
 static bool ed_undo_is_init_and_screenactive_poll(bContext &C)
 {
-  if (ed_undo_is_init_poll(&C) == false) {
+  if (ed_undo_is_init_poll(C) == false) {
     return false;
   }
   return ED_operator_screenactive(C);
@@ -540,9 +540,9 @@ static bool ed_undo_is_init_and_screenactive_poll(bContext &C)
 
 static bool ed_undo_redo_poll(bContext &C)
 {
-  wmOperator *last_op = WM_operator_last_redo(&C);
+  wmOperator *last_op = WM_operator_last_redo(C);
   return (last_op && ed_undo_is_init_and_screenactive_poll(C) &&
-          WM_operator_check_ui_enabled(&C, last_op->type->name));
+          WM_operator_check_ui_enabled(C, last_op->type->name));
 }
 
 static bool ed_undo_poll(bContext &C)
@@ -729,11 +729,11 @@ static wmOperatorStatus undo_history_exec(bContext &C, wmOperator &op)
   PropertyRNA *prop = RNA_struct_find_property(op.ptr, "item");
   if (RNA_property_is_set(op.ptr, prop)) {
     const int item = RNA_property_int_get(op.ptr, prop);
-    const int ret = ed_undo_step_by_index(&C, item, op.reports);
+    const int ret = ed_undo_step_by_index(C, item, op.reports);
     if (ret & OPERATOR_FINISHED) {
-      ed_undo_refresh_for_op(&C);
+      ed_undo_refresh_for_op(C);
 
-      WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+      WM_event_add_notifier(C, NC_WINDOW, nullptr);
       return OPERATOR_FINISHED;
     }
   }

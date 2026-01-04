@@ -329,14 +329,14 @@ void clip_delete_track(bContext *C, MovieClip *clip, MovieTrackingTrack *track)
   BKE_tracking_track_free(track);
   BLI_freelinkN(&tracking_object->tracks, track);
   /* Send notifiers. */
-  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+  WM_event_add_notifier(*C, NC_MOVIECLIP | NA_EDITED, clip);
   if (used_for_stabilization) {
-    WM_event_add_notifier(C, NC_MOVIECLIP | ND_DISPLAY, clip);
+    WM_event_add_notifier(*C, NC_MOVIECLIP | ND_DISPLAY, clip);
   }
   /* Inform dependency graph. */
   DEG_id_tag_update(&clip->id, 0);
   if (has_bundle) {
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
   }
 }
 
@@ -351,7 +351,7 @@ void clip_delete_marker(bContext *C,
   else {
     BKE_tracking_marker_delete(track, marker->framenr);
 
-    WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
+    WM_event_add_notifier(*C, NC_MOVIECLIP | NA_EDITED, clip);
   }
 }
 
@@ -461,9 +461,9 @@ static bool tracking_has_selection(SpaceClip *space_clip)
   return false;
 }
 
-static bool mask_has_selection(const bContext *C)
+static bool mask_has_selection(const bContext &C)
 {
-  Mask *mask = CTX_data_edit_mask(*C);
+  Mask *mask = CTX_data_edit_mask(C);
   if (mask == nullptr) {
     return false;
   }
@@ -500,12 +500,12 @@ static bool mask_has_selection(const bContext *C)
   return false;
 }
 
-static bool selected_boundbox(const bContext *C,
+static bool selected_boundbox(const bContext &C,
                               float min[2],
                               float max[2],
                               bool handles_as_control_point)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   if (sc->mode == SC_MODE_TRACKING) {
     return selected_tracking_boundbox(sc, min, max);
   }
@@ -526,9 +526,9 @@ static bool selected_boundbox(const bContext *C,
 }
 
 bool clip_view_calculate_view_selection(
-    const bContext *C, bool fit, float *r_offset_x, float *r_offset_y, float *r_zoom)
+    const bContext &C, bool fit, float *r_offset_x, float *r_offset_y, float *r_zoom)
 {
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
 
   int frame_width, frame_height;
   ED_space_clip_get_size(sc, &frame_width, &frame_height);
@@ -562,7 +562,7 @@ bool clip_view_calculate_view_selection(
   /* set zoom to see all selection */
   *r_zoom = sc->zoom;
   if (w > 0 && h > 0) {
-    ARegion *region = CTX_wm_region(*C);
+    ARegion *region = CTX_wm_region(C);
 
     int width, height;
     float zoomx, zoomy, newzoom, aspx, aspy;
@@ -585,9 +585,9 @@ bool clip_view_calculate_view_selection(
   return true;
 }
 
-bool clip_view_has_locked_selection(const bContext *C)
+bool clip_view_has_locked_selection(const bContext &C)
 {
-  SpaceClip *space_clip = CTX_wm_space_clip(*C);
+  SpaceClip *space_clip = CTX_wm_space_clip(C);
 
   if ((space_clip->flag & SC_LOCK_SELECTION) == 0) {
     return false;

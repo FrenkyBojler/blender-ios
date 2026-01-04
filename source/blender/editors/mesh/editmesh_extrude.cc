@@ -692,7 +692,7 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext &C,
   float center[3];
   uint verts_len;
 
-  ViewContext vc = em_setup_viewcontext(&C);
+  ViewContext vc = em_setup_viewcontext(C);
   const Object *object_active = vc.obact;
 
   const bool rot_src = RNA_boolean_get(op.ptr, "rotate_source");
@@ -846,7 +846,7 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext &C,
 
         /* Also project the source, for retopology workflow. */
         if (use_proj) {
-          EDBM_project_snap_verts(&C, depsgraph, vc.region, vc.obedit, vc.em);
+          EDBM_project_snap_verts(C, depsgraph, vc.region, vc.obedit, vc.em);
         }
       }
 
@@ -879,7 +879,7 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext &C,
     }
 
     if (use_proj) {
-      EDBM_project_snap_verts(&C, depsgraph, vc.region, vc.obedit, vc.em);
+      EDBM_project_snap_verts(C, depsgraph, vc.region, vc.obedit, vc.em);
     }
 
     /* This normally happens when pushing undo but modal operators
@@ -890,8 +890,8 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext &C,
     params.is_destructive = true;
     EDBM_update(static_cast<Mesh *>(vc.obedit->data), &params);
 
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
   }
 
   /* Support dragging to move after extrude, see: #114282. */

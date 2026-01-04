@@ -713,10 +713,10 @@ static bool view3d_interactive_add_calc_snap(bContext * /*C*/,
 /** \name Add Object Modal Operator
  * \{ */
 
-static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEvent *event)
+static void view3d_interactive_add_begin(bContext &C, wmOperator *op, const wmEvent *event)
 {
   V3DSnapCursorState *snap_state = ED_view3d_cursor_snap_state_active_get();
-  ToolSettings *tool_settings = CTX_data_tool_settings(*C);
+  ToolSettings *tool_settings = CTX_data_tool_settings(C);
 
   const int plane_axis = tool_settings->plane_axis;
 
@@ -756,7 +756,7 @@ static void view3d_interactive_add_begin(bContext *C, wmOperator *op, const wmEv
   snap_state->draw_plane = true;
   ipd->is_snap_found =
       view3d_interactive_add_calc_snap(
-          C, event, ipd->co_src, ipd->matrix_orient, &ipd->use_snap, &ipd->is_snap_invert) != 0;
+          &C, event, ipd->co_src, ipd->matrix_orient, &ipd->use_snap, &ipd->is_snap_invert) != 0;
 
   snap_state->draw_plane = false;
   ED_view3d_cursor_snap_state_prevpoint_set(snap_state, ipd->co_src);
@@ -898,7 +898,7 @@ enum {
 static void view3d_interactive_add_status(wmOperator *op, bContext *C)
 {
   InteractivePlaceData *ipd = static_cast<InteractivePlaceData *>(op->customdata);
-  WorkspaceStatus status(C);
+  WorkspaceStatus status(*C);
   status.item(ipd->step_index == STEP_BASE ? IFACE_("Define Base") : IFACE_("Define Depth"),
               ICON_MOUSE_MOVE);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
@@ -936,10 +936,10 @@ static wmOperatorStatus view3d_interactive_add_invoke(bContext &C,
 #endif
   }
   else {
-    view3d_interactive_add_begin(&C, &op, event);
+    view3d_interactive_add_begin(C, &op, event);
   }
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   view3d_interactive_add_status(&op, &C);
 
@@ -1066,7 +1066,7 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext &C,
   if (ipd->wait_for_input) {
     if (ELEM(event->type, LEFTMOUSE)) {
       if (event->val == KM_PRESS) {
-        view3d_interactive_add_begin(&C, &op, event);
+        view3d_interactive_add_begin(C, &op, event);
         ipd->wait_for_input = false;
         return OPERATOR_RUNNING_MODAL;
       }

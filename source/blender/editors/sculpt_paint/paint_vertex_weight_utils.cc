@@ -40,12 +40,12 @@
 /** \name Weight Paint Sanity Checks
  * \{ */
 
-bool ED_wpaint_ensure_data(bContext *C,
+bool ED_wpaint_ensure_data(bContext &C,
                            ReportList *reports,
                            eWPaintFlag flag,
                            WPaintVGroupIndex *vgroup_index)
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   Mesh *mesh = BKE_mesh_from_object(ob);
 
   if (vgroup_index) {
@@ -81,7 +81,7 @@ bool ED_wpaint_ensure_data(bContext *C,
           bDeformGroup *dg = BKE_object_defgroup_find_name(ob, pchan->name);
           if (dg == nullptr) {
             dg = BKE_object_defgroup_add_name(ob, pchan->name); /* sets actdef */
-            DEG_relations_tag_update(CTX_data_main(*C));
+            DEG_relations_tag_update(CTX_data_main(C));
           }
           else {
 
@@ -95,7 +95,7 @@ bool ED_wpaint_ensure_data(bContext *C,
   }
   if (BLI_listbase_is_empty(defbase)) {
     BKE_object_defgroup_add(ob);
-    DEG_relations_tag_update(CTX_data_main(*C));
+    DEG_relations_tag_update(CTX_data_main(C));
   }
 
   /* ensure we don't try paint onto an invalid group */

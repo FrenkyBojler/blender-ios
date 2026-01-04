@@ -27,9 +27,9 @@ struct wmDrawBuffer {
 
 /* `wm_draw.cc` */
 
-void wm_draw_update(bContext *C);
+void wm_draw_update(bContext &C);
 void wm_draw_region_clear(wmWindow *win, ARegion *region);
 void wm_draw_region_blend(ARegion *region, int view, bool blend);
-void wm_draw_region_test(bContext *C, ScrArea *area, ARegion *region);
+void wm_draw_region_test(bContext &C, ScrArea *area, ARegion *region);
 
 blender::gpu::Texture *wm_draw_region_texture(ARegion *region, int view);

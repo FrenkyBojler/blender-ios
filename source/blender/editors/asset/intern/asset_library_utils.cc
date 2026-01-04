@@ -61,10 +61,10 @@ AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_
 
 void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref)
 {
-  asset::list::clear(&library_ref, C);
+  asset::list::clear(&library_ref, *C);
   /* TODO: Should the all library reference be automatically cleared? */
   AssetLibraryReference all_lib_ref = asset_system::all_library_reference();
-  asset::list::clear(&all_lib_ref, C);
+  asset::list::clear(&all_lib_ref, *C);
 }
 
 void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library)

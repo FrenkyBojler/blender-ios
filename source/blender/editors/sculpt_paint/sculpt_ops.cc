@@ -168,7 +168,7 @@ static wmOperatorStatus optimize_exec(bContext &C, wmOperator & /*op*/)
   BKE_sculptsession_free_pbvh(ob);
   DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, &ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &ob);
 
   return OPERATOR_FINISHED;
 }
@@ -284,7 +284,7 @@ static wmOperatorStatus symmetrize_exec(bContext &C, wmOperator &op)
 
   BKE_sculptsession_free_pbvh(ob);
   DEG_id_tag_update(&ob.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, &ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, &ob);
 
   return OPERATOR_FINISHED;
 }
@@ -468,11 +468,11 @@ void object_sculpt_mode_enter(Main &bmain,
   DEG_id_tag_update(&ob.id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-void object_sculpt_mode_enter(bContext *C, Depsgraph &depsgraph, ReportList *reports)
+void object_sculpt_mode_enter(bContext &C, Depsgraph &depsgraph, ReportList *reports)
 {
-  Main &bmain = *CTX_data_main(*C);
-  Scene &scene = *CTX_data_scene(*C);
-  ViewLayer &view_layer = *CTX_data_view_layer(*C);
+  Main &bmain = *CTX_data_main(C);
+  Scene &scene = *CTX_data_scene(C);
+  ViewLayer &view_layer = *CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(&scene, &view_layer);
   Object &ob = *BKE_view_layer_active_object_get(&view_layer);
   object_sculpt_mode_enter(bmain, depsgraph, scene, ob, false, reports);
@@ -523,11 +523,11 @@ void object_sculpt_mode_exit(Main &bmain, Depsgraph &depsgraph, Scene &scene, Ob
   DEG_id_tag_update(&ob.id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-void object_sculpt_mode_exit(bContext *C, Depsgraph &depsgraph)
+void object_sculpt_mode_exit(bContext &C, Depsgraph &depsgraph)
 {
-  Main &bmain = *CTX_data_main(*C);
-  Scene &scene = *CTX_data_scene(*C);
-  ViewLayer &view_layer = *CTX_data_view_layer(*C);
+  Main &bmain = *CTX_data_main(C);
+  Scene &scene = *CTX_data_scene(C);
+  ViewLayer &view_layer = *CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(&scene, &view_layer);
   Object &ob = *BKE_view_layer_active_object_get(&view_layer);
   object_sculpt_mode_exit(bmain, depsgraph, scene, ob);
@@ -577,11 +577,11 @@ static wmOperatorStatus sculpt_mode_toggle_exec(bContext &C, wmOperator &op)
     }
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_MODE, &scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_MODE, &scene);
 
   WM_msg_publish_rna_prop(mbus, &ob.id, &ob, Object, mode);
 
-  WM_toolsystem_update_from_context_view3d(&C);
+  WM_toolsystem_update_from_context_view3d(C);
 
   return OPERATOR_FINISHED;
 }
@@ -728,13 +728,13 @@ static void mask_by_color_full_mesh(const Depsgraph &depsgraph,
       });
 }
 
-static wmOperatorStatus mask_by_color(bContext *C, wmOperator *op, const float2 region_location)
+static wmOperatorStatus mask_by_color(bContext &C, wmOperator *op, const float2 region_location)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
-  Object &ob = *CTX_data_active_object(*C);
+  const Scene &scene = *CTX_data_scene(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
-  View3D *v3d = CTX_wm_view3d(*C);
+  View3D *v3d = CTX_wm_view3d(C);
 
   {
     if (v3d && v3d->shading.type == OB_SOLID) {
@@ -742,7 +742,7 @@ static wmOperatorStatus mask_by_color(bContext *C, wmOperator *op, const float2 
     }
   }
 
-  const Base *base = CTX_data_active_base(*C);
+  const Base *base = CTX_data_active_base(C);
   if (!BKE_base_is_visible(v3d, base)) {
     return OPERATOR_CANCELLED;
   }
@@ -790,13 +790,13 @@ static wmOperatorStatus mask_by_color_exec(bContext &C, wmOperator &op)
 {
   int2 mval;
   RNA_int_get_array(op.ptr, "location", mval);
-  return mask_by_color(&C, &op, float2(mval[0], mval[1]));
+  return mask_by_color(C, &op, float2(mval[0], mval[1]));
 }
 
 static wmOperatorStatus mask_by_color_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   RNA_int_set_array(op.ptr, "location", event->mval);
-  return mask_by_color(&C, &op, float2(event->mval[0], event->mval[1]));
+  return mask_by_color(C, &op, float2(event->mval[0], event->mval[1]));
 }
 
 static void SCULPT_OT_mask_by_color(wmOperatorType *ot)
@@ -1198,8 +1198,8 @@ static wmOperatorStatus mask_from_cavity_exec(bContext &C, wmOperator &op)
   undo::push_end(ob);
 
   pbvh.tag_masks_changed(node_mask);
-  flush_update_done(&C, ob, UpdateType::Mask);
-  SCULPT_tag_update_overlays(&C);
+  flush_update_done(C, ob, UpdateType::Mask);
+  SCULPT_tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }
@@ -1387,8 +1387,8 @@ static wmOperatorStatus mask_from_boundary_exec(bContext &C, wmOperator &op)
   undo::push_end(ob);
 
   pbvh.tag_masks_changed(node_mask);
-  flush_update_done(&C, ob, UpdateType::Mask);
-  SCULPT_tag_update_overlays(&C);
+  flush_update_done(C, ob, UpdateType::Mask);
+  SCULPT_tag_update_overlays(C);
 
   return OPERATOR_FINISHED;
 }

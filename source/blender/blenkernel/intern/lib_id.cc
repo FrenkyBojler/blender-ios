@@ -1085,7 +1085,7 @@ bool id_single_user(bContext *C, ID *id, PointerRNA *ptr, PropertyRNA *prop)
         /* assign copy */
         PointerRNA idptr = RNA_id_pointer_create(newid);
         RNA_property_pointer_set(ptr, prop, idptr, nullptr);
-        RNA_property_update(C, ptr, prop);
+        RNA_property_update(*C, ptr, prop);
 
         return true;
       }

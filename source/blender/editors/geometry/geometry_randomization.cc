@@ -36,7 +36,7 @@ static wmOperatorStatus geometry_randomization_exec(bContext &C, wmOperator &op)
   for (Object &object : bmain->objects) {
     DEG_id_tag_update(&object.id, ID_RECALC_GEOMETRY);
   }
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
   return OPERATOR_FINISHED;
 }
 

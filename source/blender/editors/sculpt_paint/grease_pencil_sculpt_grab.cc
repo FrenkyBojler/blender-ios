@@ -130,7 +130,7 @@ void GrabOperation::foreach_grabbed_drawing(
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 }
 
@@ -139,7 +139,7 @@ void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_
   const ARegion &region = *CTX_wm_region(C);
   const RegionView3D &rv3d = *CTX_wm_region_view3d(C);
   const Scene &scene = *CTX_data_scene(C);
-  Paint &paint = *BKE_paint_get_active_from_context(&C);
+  Paint &paint = *BKE_paint_get_active_from_context(C);
   Brush &brush = *BKE_paint_brush(&paint);
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Object &ob_orig = *CTX_data_active_object(C);

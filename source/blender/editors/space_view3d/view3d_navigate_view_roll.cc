@@ -180,7 +180,7 @@ static wmOperatorStatus viewroll_exec(bContext &C, wmOperator &op)
   }
   else {
     vod = new ViewOpsData();
-    ED_view3d_context_user_region(&C, &vod->v3d, &vod->region);
+    ED_view3d_context_user_region(C, &vod->v3d, &vod->region);
     vod->rv3d = static_cast<RegionView3D *>(vod->region->regiondata);
   }
 
@@ -223,7 +223,7 @@ static wmOperatorStatus viewroll_exec(bContext &C, wmOperator &op)
     sview_params.dyn_ofs = vod->dyn_ofs;
   }
 
-  ED_view3d_smooth_view(&C, vod->v3d, vod->region, smooth_viewtx, &sview_params);
+  ED_view3d_smooth_view(C, vod->v3d, vod->region, smooth_viewtx, &sview_params);
 
   viewops_data_free(&C, vod);
   op.customdata = nullptr;
@@ -281,7 +281,7 @@ static wmOperatorStatus viewroll_invoke(bContext &C, wmOperator &op, const wmEve
     }
 
     /* add temp handler */
-    WM_event_add_modal_handler(&C, &op);
+    WM_event_add_modal_handler(C, &op);
     return OPERATOR_RUNNING_MODAL;
   }
   return OPERATOR_FINISHED;

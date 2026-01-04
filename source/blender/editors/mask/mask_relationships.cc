@@ -47,7 +47,7 @@ static wmOperatorStatus mask_parent_clear_exec(bContext &C, wmOperator & /*op*/)
     }
   }
 
-  WM_event_add_notifier(&C, NC_MASK | ND_DATA, mask);
+  WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
   DEG_id_tag_update(&mask->id, 0);
 
   return OPERATOR_FINISHED;
@@ -146,7 +146,7 @@ static wmOperatorStatus mask_parent_set_exec(bContext &C, wmOperator & /*op*/)
     }
   }
 
-  WM_event_add_notifier(&C, NC_MASK | ND_DATA, mask);
+  WM_event_add_notifier(C, NC_MASK | ND_DATA, mask);
   DEG_id_tag_update(&mask->id, 0);
 
   return OPERATOR_FINISHED;

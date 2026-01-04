@@ -87,12 +87,12 @@ int view3d_context(const bContext &C, const char *member, bContextDataResult *re
 /** \name View3D Context Queries
  * \{ */
 
-RegionView3D *ED_view3d_context_rv3d(bContext *C)
+RegionView3D *ED_view3d_context_rv3d(bContext &C)
 {
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
   if (rv3d == nullptr) {
-    ScrArea *area = CTX_wm_area(*C);
+    ScrArea *area = CTX_wm_area(C);
     if (area && area->spacetype == SPACE_VIEW3D) {
       ARegion *region = BKE_area_find_region_active_win(area);
       if (region) {
@@ -103,15 +103,15 @@ RegionView3D *ED_view3d_context_rv3d(bContext *C)
   return rv3d;
 }
 
-bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_region)
+bool ED_view3d_context_user_region(bContext &C, View3D **r_v3d, ARegion **r_region)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
   *r_v3d = nullptr;
   *r_region = nullptr;
 
   if (area && area->spacetype == SPACE_VIEW3D) {
-    ARegion *region = CTX_wm_region(*C);
+    ARegion *region = CTX_wm_region(C);
     View3D *v3d = (View3D *)area->spacedata.first;
 
     if (region) {

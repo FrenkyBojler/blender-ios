@@ -1172,7 +1172,7 @@ bool button_active_only_ex(
       button_active_free(C, old_active);
     }
 
-    button_activate_event((bContext *)C, region, but);
+    button_activate_event(*(bContext *)C, region, but);
   }
   else if ((found == true) && (isactive == false)) {
     if (remove_on_failure) {
@@ -2009,14 +2009,14 @@ static void button_validate(const Button *but)
 }
 #endif
 
-bool button_context_poll_operator_ex(bContext *C,
+bool button_context_poll_operator_ex(bContext &C,
                                      const Button *but,
                                      const wmOperatorCallParams *optype_params)
 {
   bool result;
   int old_but_flag = 0;
 
-  const bContextStore *previous_ctx = CTX_store_get(*C);
+  const bContextStore *previous_ctx = CTX_store_get(C);
   if (but) {
     old_but_flag = but->flag;
 
@@ -2025,11 +2025,11 @@ bool button_context_poll_operator_ex(bContext *C,
     const_cast<Button *>(but)->flag |= BUT_ACTIVE_OVERRIDE;
 
     if (but->context) {
-      CTX_store_set(*C, but->context);
+      CTX_store_set(C, but->context);
     }
   }
 
-  result = WM_operator_poll_context(C, optype_params->optype, optype_params->opcontext);
+  result = WM_operator_poll_context(&C, optype_params->optype, optype_params->opcontext);
 
   if (but) {
     BLI_assert_msg((but->flag & ~BUT_ACTIVE_OVERRIDE) == (old_but_flag & ~BUT_ACTIVE_OVERRIDE),
@@ -2038,7 +2038,7 @@ bool button_context_poll_operator_ex(bContext *C,
     const_cast<Button *>(but)->flag = old_but_flag;
 
     if (but->context) {
-      CTX_store_set(*C, previous_ctx);
+      CTX_store_set(C, previous_ctx);
     }
   }
 
@@ -2051,7 +2051,7 @@ bool button_context_poll_operator(bContext *C, wmOperatorType *ot, const Button 
   wmOperatorCallParams params = {};
   params.optype = ot;
   params.opcontext = opcontext;
-  return button_context_poll_operator_ex(C, but, &params);
+  return button_context_poll_operator_ex(*C, but, &params);
 }
 
 void block_end_ex(const bContext *C,
@@ -2088,7 +2088,7 @@ void block_end_ex(const bContext *C,
     }
 
     for (ButtonExtraOpIcon &op_icon : but->extra_op_icons) {
-      if (!button_context_poll_operator_ex((bContext *)C, but.get(), op_icon.optype_params)) {
+      if (!button_context_poll_operator_ex(*(bContext *)C, but.get(), op_icon.optype_params)) {
         op_icon.disabled = true;
       }
     }
@@ -2168,16 +2168,16 @@ void block_end_ex(const bContext *C,
   block->endblock = true;
 }
 
-void block_end(const bContext *C, Block *block)
+void block_end(const bContext &C, Block *block)
 {
-  wmWindow *window = CTX_wm_window(*C);
+  wmWindow *window = CTX_wm_window(C);
 
-  block_end_ex(C,
-               CTX_data_main(*C),
+  block_end_ex(&C,
+               CTX_data_main(C),
                window,
-               CTX_data_scene(*C),
-               CTX_wm_region(*C),
-               CTX_data_depsgraph_pointer(*C),
+               CTX_data_scene(C),
+               CTX_wm_region(C),
+               CTX_data_depsgraph_pointer(C),
                block,
                window->runtime->eventstate->xy,
                nullptr);
@@ -2212,14 +2212,14 @@ static bool ui_but_pixelrect_in_view(const ARegion *region, const rcti *rect)
   return BLI_rcti_isect(&region->winrct, &rect_winspace, nullptr);
 }
 
-void block_draw(const bContext *C, Block *block)
+void block_draw(const bContext &C, Block *block)
 {
   uiStyle style = *style_get_dpi(); /* XXX pass on as arg */
 
   /* get menu region or area region */
-  ARegion *region = CTX_wm_region_popup(*C);
+  ARegion *region = CTX_wm_region_popup(C);
   if (!region) {
-    region = CTX_wm_region(*C);
+    region = CTX_wm_region(C);
   }
 
   if (!block->endblock) {
@@ -2304,7 +2304,7 @@ void block_draw(const bContext *C, Block *block)
     /* XXX: figure out why invalid coordinates happen when closing render window */
     /* and material preview is redrawn in main window (temp fix for bug #23848) */
     if (rect.xmin < rect.xmax && rect.ymin < rect.ymax) {
-      draw_button(C, region, &style, but.get(), &rect);
+      draw_button(&C, region, &style, but.get(), &rect);
     }
   }
 
@@ -3249,14 +3249,14 @@ static bool ui_number_from_string_units_with_but(bContext *C,
   return ui_number_from_string_units(C, str, unit_type, unit, r_value);
 }
 
-static bool ui_number_from_string(bContext *C, const char *str, double *r_value)
+static bool ui_number_from_string(bContext &C, const char *str, double *r_value)
 {
   bool ok;
 #ifdef WITH_PYTHON
   BPy_RunErrInfo err_info = {};
-  err_info.reports = CTX_wm_reports(*C);
+  err_info.reports = CTX_wm_reports(C);
   err_info.report_prefix = UI_NUMBER_EVAL_ERROR_PREFIX;
-  ok = BPY_run_string_as_number(C, nullptr, str, &err_info, r_value);
+  ok = BPY_run_string_as_number(&C, nullptr, str, &err_info, r_value);
 #else
   UNUSED_VARS(C);
   *r_value = atof(str);
@@ -3270,12 +3270,12 @@ static bool ui_number_from_string_factor(bContext *C, const char *str, double *r
   const int len = strlen(str);
   if (BLI_strn_endswith(str, "%", len)) {
     char *str_new = BLI_strdupn(str, len - 1);
-    const bool success = ui_number_from_string(C, str_new, r_value);
+    const bool success = ui_number_from_string(*C, str_new, r_value);
     MEM_freeN(str_new);
     *r_value /= 100.0;
     return success;
   }
-  if (!ui_number_from_string(C, str, r_value)) {
+  if (!ui_number_from_string(*C, str, r_value)) {
     return false;
   }
   if (U.factor_display_type == USER_FACTOR_AS_PERCENTAGE) {
@@ -3289,11 +3289,11 @@ static bool ui_number_from_string_percentage(bContext *C, const char *str, doubl
   const int len = strlen(str);
   if (BLI_strn_endswith(str, "%", len)) {
     char *str_new = BLI_strdupn(str, len - 1);
-    const bool success = ui_number_from_string(C, str_new, r_value);
+    const bool success = ui_number_from_string(*C, str_new, r_value);
     MEM_freeN(str_new);
     return success;
   }
-  return ui_number_from_string(C, str, r_value);
+  return ui_number_from_string(*C, str, r_value);
 }
 
 bool button_string_eval_number(bContext *C, const Button *but, const char *str, double *r_value)
@@ -3318,9 +3318,9 @@ bool button_string_eval_number(bContext *C, const Button *but, const char *str, 
     if (subtype == PROP_PERCENTAGE) {
       return ui_number_from_string_percentage(C, str, r_value);
     }
-    return ui_number_from_string(C, str, r_value);
+    return ui_number_from_string(*C, str, r_value);
   }
-  return ui_number_from_string(C, str, r_value);
+  return ui_number_from_string(*C, str, r_value);
 }
 
 bool button_string_set(bContext *C, Button *but, const char *str)
@@ -3770,10 +3770,10 @@ void block_listen(const Block *block, const wmRegionListenerParams *listener_par
   block_views_listen(block, listener_params);
 }
 
-void blocklist_update_window_matrix(const bContext *C, const ListBaseT<Block> *lb)
+void blocklist_update_window_matrix(const bContext &C, const ListBaseT<Block> *lb)
 {
-  ARegion *region = CTX_wm_region(*C);
-  wmWindow *window = CTX_wm_window(*C);
+  ARegion *region = CTX_wm_region(C);
+  wmWindow *window = CTX_wm_window(C);
 
   for (Block &block : *lb) {
     if (block.active) {
@@ -3795,7 +3795,7 @@ void blocklist_draw(const bContext *C, const ListBaseT<Block> *lb)
 {
   for (Block &block : *lb) {
     if (block.active) {
-      block_draw(C, &block);
+      block_draw(*C, &block);
     }
   }
 }
@@ -3905,9 +3905,9 @@ Block *block_begin(const bContext *C,
   return block;
 }
 
-Block *block_begin(const bContext *C, ARegion *region, std::string name, EmbossType emboss)
+Block *block_begin(const bContext &C, ARegion *region, std::string name, EmbossType emboss)
 {
-  return block_begin(C, CTX_data_scene(*C), CTX_wm_window(*C), region, std::move(name), emboss);
+  return block_begin(&C, CTX_data_scene(C), CTX_wm_window(C), region, std::move(name), emboss);
 }
 
 void block_add_dynamic_listener(Block *block,

@@ -64,7 +64,7 @@ static wmOperatorStatus set_sharpness_by_angle_exec(bContext &C, wmOperator &op)
     if (changed) {
       BKE_editmesh_lnorspace_update(em);
       DEG_id_tag_update(&mesh.id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &mesh.id);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, &mesh.id);
     }
   }
 

@@ -40,7 +40,7 @@ struct wmPaintCursor {
  * Cause a delayed #WM_exit()
  * call to avoid leaking memory when trying to exit from within operators.
  */
-void wm_exit_schedule_delayed(const bContext *C);
+void wm_exit_schedule_delayed(const bContext &C);
 
 /**
  * Context is allowed to be NULL, do not free wm itself `lib_id.cc`.
@@ -50,8 +50,8 @@ extern void wm_close_and_free(bContext *C, wmWindowManager *);
 /**
  * On startup, it adds all data, for matching.
  */
-extern void wm_add_default(Main *bmain, bContext *C);
-extern void wm_clear_default_size(bContext *C);
+extern void wm_add_default(Main *bmain, bContext &C);
+extern void wm_clear_default_size(bContext &C);
 
 /* Register to window-manager for redo or macro. */
 
@@ -60,7 +60,7 @@ extern void wm_clear_default_size(bContext *C);
  *
  * All operations get registered in the window-manager here.
  */
-void wm_operator_register(bContext *C, wmOperator *op);
+void wm_operator_register(bContext &C, wmOperator *op);
 
 /* `wm_operator.cc`, for init/exit. */
 

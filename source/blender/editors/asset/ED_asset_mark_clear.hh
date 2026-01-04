@@ -55,6 +55,6 @@ bool copy_to_id(const AssetMetaData *asset_data, ID *destination);
 
 void pre_save_assets(Main *bmain);
 
-bool can_mark_single_from_context(const bContext *C);
+bool can_mark_single_from_context(const bContext &C);
 
 }  // namespace blender::ed::asset

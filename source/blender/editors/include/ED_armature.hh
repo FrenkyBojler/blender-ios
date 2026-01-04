@@ -67,7 +67,7 @@ void ED_armature_ebone_copy(EditBone *dest, const EditBone *source);
 /**
  * Get current armature from the context, including properties editor pinning.
  */
-bArmature *ED_armature_context(const bContext *C);
+bArmature *ED_armature_context(const bContext &C);
 
 /**
  * Adjust bone roll to align Z axis with vector `align_axis` is in local space and is normalized.
@@ -131,7 +131,7 @@ void ED_keymap_armature(wmKeyConfig *keyconf);
 /**
  * Join armature exec is exported for use in object->join objects operator.
  */
-wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus ED_armature_join_objects_exec(bContext &C, wmOperator *op);
 
 /* `armature_select.cc` */
 
@@ -154,16 +154,16 @@ bool ED_armature_edit_deselect_all(Object *obedit);
 bool ED_armature_edit_deselect_all_visible(Object *obedit);
 bool ED_armature_edit_deselect_all_multi_ex(blender::Span<Base *> bases);
 bool ED_armature_edit_deselect_all_visible_multi_ex(blender::Span<Base *> bases);
-bool ED_armature_edit_deselect_all_visible_multi(bContext *C);
+bool ED_armature_edit_deselect_all_visible_multi(bContext &C);
 /**
  * \return True when pick finds an element or the selection changed.
  */
 bool ED_armature_edit_select_pick_bone(
-    bContext *C, Base *basact, EditBone *ebone, int selmask, const SelectPick_Params &params);
+    bContext &C, Base *basact, EditBone *ebone, int selmask, const SelectPick_Params &params);
 /**
  * Bone selection picking for armature edit-mode in the view3d.
  */
-bool ED_armature_edit_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params);
+bool ED_armature_edit_select_pick(bContext &C, const int mval[2], const SelectPick_Params &params);
 /**
  * Perform a selection operation on elements which have been 'touched',
  * use for lasso & border select but can be used elsewhere too.
@@ -256,12 +256,12 @@ void ED_armature_ebone_selectflag_disable(EditBone *ebone, int flag);
 
 /* `pose_edit.cc` */
 
-Object *ED_pose_object_from_context(bContext *C);
+Object *ED_pose_object_from_context(bContext &C);
 bool ED_object_posemode_exit_ex(Main *bmain, Object *ob);
-bool ED_object_posemode_exit(bContext *C, Object *ob);
+bool ED_object_posemode_exit(bContext &C, Object *ob);
 /** This function is used to process the necessary updates for. */
 bool ED_object_posemode_enter_ex(Main *bmain, Object *ob);
-bool ED_object_posemode_enter(bContext *C, Object *ob);
+bool ED_object_posemode_enter(bContext &C, Object *ob);
 
 /** Corresponds to #eAnimvizCalcRange. */
 enum ePosePathCalcRange {
@@ -316,7 +316,7 @@ void ED_armature_pose_select_in_wpaint_mode(const Scene *scene,
 bool ED_pose_deselect_all_multi_ex(blender::Span<Base *> bases,
                                    int select_mode,
                                    bool ignore_visibility);
-bool ED_pose_deselect_all_multi(bContext *C, int select_mode, bool ignore_visibility);
+bool ED_pose_deselect_all_multi(bContext &C, int select_mode, bool ignore_visibility);
 /**
  * 'select_mode' is usual SEL_SELECT/SEL_DESELECT/SEL_TOGGLE/SEL_INVERT.
  * When true, 'ignore_visibility' makes this func also affect invisible bones

@@ -119,7 +119,7 @@ static wmOperatorStatus weight_from_bones_exec(bContext &C, wmOperator &op)
 
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   DEG_relations_tag_update(CTX_data_main(C));
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mesh);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 
   return OPERATOR_FINISHED;
 }
@@ -173,7 +173,7 @@ static wmOperatorStatus weight_sample_invoke(bContext &C, wmOperator &op, const 
   Mesh *mesh;
   bool changed = false;
 
-  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   mesh = BKE_mesh_from_object(vc.obact);
   const MDeformVert *dvert = mesh->deform_verts().data();
 
@@ -182,7 +182,7 @@ static wmOperatorStatus weight_sample_invoke(bContext &C, wmOperator &op, const 
     int v_idx_best = -1;
     uint index;
 
-    view3d_operator_needs_gpu(&C);
+    view3d_operator_needs_gpu(C);
     ED_view3d_init_mats_rv3d(vc.obact, vc.rv3d);
 
     if (use_vert_sel) {
@@ -193,8 +193,7 @@ static wmOperatorStatus weight_sample_invoke(bContext &C, wmOperator &op, const 
       }
     }
     else {
-      if (ED_mesh_pick_face_vert(
-              &C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_FACE_DIST, &index))
+      if (ED_mesh_pick_face_vert(C, vc.obact, event->mval, ED_MESH_PICK_DEFAULT_FACE_DIST, &index))
       {
         v_idx_best = index;
       }
@@ -321,7 +320,7 @@ static wmOperatorStatus weight_sample_group_invoke(bContext &C,
                                                    const wmEvent *event)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   BLI_assert(vc.v3d && vc.rv3d); /* Ensured by poll. */
 
   Mesh *mesh = BKE_mesh_from_object(vc.obact);
@@ -336,7 +335,7 @@ static wmOperatorStatus weight_sample_group_invoke(bContext &C,
 
   bool found = false;
 
-  view3d_operator_needs_gpu(&C);
+  view3d_operator_needs_gpu(C);
   ED_view3d_init_mats_rv3d(vc.obact, vc.rv3d);
 
   if (use_vert_sel) {
@@ -380,7 +379,7 @@ static wmOperatorStatus weight_sample_group_invoke(bContext &C,
         ot, dg.name, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
     RNA_property_enum_set(&op_ptr, ot->prop, i);
   }
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -503,7 +502,7 @@ static wmOperatorStatus weight_paint_set_exec(bContext &C, wmOperator &op)
   Brush *brush = BKE_paint_brush(&ts->wpaint->paint);
   float vgroup_weight = BKE_brush_weight_get(&ts->wpaint->paint, brush);
 
-  if (ED_wpaint_ensure_data(&C, op.reports, WPAINT_ENSURE_MIRROR, nullptr) == false) {
+  if (ED_wpaint_ensure_data(C, op.reports, WPAINT_ENSURE_MIRROR, nullptr) == false) {
     return OPERATOR_CANCELLED;
   }
 
@@ -736,7 +735,7 @@ static wmOperatorStatus paint_weight_gradient_modal(bContext &C,
     }
 
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
   }
   else if (ret & OPERATOR_FINISHED) {
     wpaint_prev_destroy(&vert_cache->wpp);
@@ -788,7 +787,7 @@ static wmOperatorStatus paint_weight_gradient_exec(bContext &C, wmOperator &op)
     vert_cache = static_cast<WPGradient_vertStoreBase *>(gesture->user_data.data);
   }
   else {
-    if (ED_wpaint_ensure_data(&C, op.reports, eWPaintFlag(0), nullptr) == false) {
+    if (ED_wpaint_ensure_data(C, op.reports, eWPaintFlag(0), nullptr) == false) {
       return OPERATOR_CANCELLED;
     }
 
@@ -845,7 +844,7 @@ static wmOperatorStatus paint_weight_gradient_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 
   if (is_interactive == false) {
     MEM_freeN(vert_cache);
@@ -884,11 +883,11 @@ static wmOperatorStatus paint_weight_gradient_invoke(bContext &C,
 {
   wmOperatorStatus ret;
 
-  if (ED_wpaint_ensure_data(&C, op.reports, eWPaintFlag(0), nullptr) == false) {
+  if (ED_wpaint_ensure_data(C, op.reports, eWPaintFlag(0), nullptr) == false) {
     return OPERATOR_CANCELLED;
   }
 
-  ret = WM_gesture_straightline_invoke(&C, &op, event);
+  ret = WM_gesture_straightline_invoke(C, &op, event);
   if (ret & OPERATOR_RUNNING_MODAL) {
     ARegion *region = CTX_wm_region(C);
     if (region->regiontype == RGN_TYPE_WINDOW) {

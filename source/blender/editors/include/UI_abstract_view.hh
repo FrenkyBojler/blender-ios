@@ -364,7 +364,7 @@ class AbstractViewItem {
   void end_renaming();
   void rename_apply(const bContext &C);
 
-  virtual void delete_item(bContext *C);
+  virtual void delete_item(bContext &C);
   virtual void on_filter();
 
  protected:

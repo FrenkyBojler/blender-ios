@@ -152,7 +152,7 @@ class BoneCollectionDropTarget : public TreeViewItemDropTarget {
     return "";
   }
 
-  bool on_drop(bContext *C, const DragInfo &drag_info) const override
+  bool on_drop(bContext &C, const DragInfo &drag_info) const override
   {
     const ArmatureBoneCollection *drag_arm_bcoll = static_cast<const ArmatureBoneCollection *>(
         drag_info.drag_data.poin);
@@ -192,9 +192,9 @@ class BoneCollectionDropTarget : public TreeViewItemDropTarget {
     }
 
     ANIM_armature_bonecoll_active_index_set(arm, new_bcoll_index);
-    WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, &arm->id);
+    WM_event_add_notifier(*C, NC_OBJECT | ND_BONE_COLLECTION, &arm->id);
 
-    ED_undo_push(C, "Reorder Armature Bone Collections");
+    ED_undo_push(*C, "Reorder Armature Bone Collections");
     return true;
   }
 };
@@ -267,7 +267,7 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     if (!mt) {
       return;
     }
-    menutype_draw(&C, mt, &column);
+    menutype_draw(C, mt, &column);
   }
 
   std::optional<bool> should_be_active() const override
@@ -284,9 +284,9 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     PropertyRNA *prop = RNA_struct_find_property(&bcolls_ptr, "active_index");
 
     RNA_property_int_set(&bcolls_ptr, prop, bcoll_index_);
-    RNA_property_update(&C, &bcolls_ptr, prop);
+    RNA_property_update(C, &bcolls_ptr, prop);
 
-    ED_undo_push(&C, "Change Armature's Active Bone Collection");
+    ED_undo_push(C, "Change Armature's Active Bone Collection");
   }
 
   std::optional<bool> should_be_collapsed() const override
@@ -317,7 +317,7 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     PropertyRNA *prop = RNA_struct_find_property(&bcoll_ptr, "is_expanded");
 
     RNA_property_boolean_set(&bcoll_ptr, prop, is_expanded);
-    RNA_property_update(&C, &bcoll_ptr, prop);
+    RNA_property_update(C, &bcoll_ptr, prop);
   }
 
   bool supports_renaming() const override
@@ -333,9 +333,9 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     PropertyRNA *prop = RNA_struct_find_property(&bcoll_ptr, "name");
 
     RNA_property_string_set(&bcoll_ptr, prop, new_name.c_str());
-    RNA_property_update(&const_cast<bContext &>(C), &bcoll_ptr, prop);
+    RNA_property_update(const_cast<bContext &>(C), &bcoll_ptr, prop);
 
-    ED_undo_push(&const_cast<bContext &>(C), "Rename Armature Bone Collection");
+    ED_undo_push(const_cast<bContext &>(C), "Rename Armature Bone Collection");
     return true;
   }
 
@@ -344,10 +344,10 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     return bone_collection_.name;
   }
 
-  void delete_item(bContext *C) override
+  void delete_item(bContext &C) override
   {
     ANIM_armature_bonecoll_remove(&armature_, &bone_collection_);
-    ED_undo_push(C, "Delete Bone Collection");
+    ED_undo_push(*C, "Delete Bone Collection");
   }
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
   {
@@ -465,7 +465,7 @@ void BoneCollectionDragController::on_drag_start(bContext & /*C*/)
 
 void template_bone_collection_tree(Layout *layout, bContext *C)
 {
-  bArmature *armature = ED_armature_context(C);
+  bArmature *armature = ED_armature_context(*C);
   if (armature == nullptr) {
     return;
   }

@@ -35,7 +35,7 @@ static Block *curve_profile_presets_fn(bContext *C, ARegion *region, void *cb_v)
   CurveProfile *profile = static_cast<CurveProfile *>(profile_ptr.data);
   short yco = 0;
 
-  Block *block = block_begin(C, region, __func__, EmbossType::Emboss);
+  Block *block = block_begin(*C, region, __func__, EmbossType::Emboss);
 
   for (const auto &item :
        {std::pair<StringRef, eCurveProfilePresets>(IFACE_("Default"), PROF_PRESET_LINE),
@@ -64,7 +64,7 @@ static Block *curve_profile_presets_fn(bContext *C, ARegion *region, void *cb_v)
       profile->preset = preset;
       BKE_curveprofile_reset(profile);
       BKE_curveprofile_update(profile, PROF_UPDATE_NONE);
-      ED_undo_push(&C, "Reset Curve Profile");
+      ED_undo_push(C, "Reset Curve Profile");
       ED_region_tag_redraw(CTX_wm_region(C));
       rna_update_cb(C, cb);
     });
@@ -83,7 +83,7 @@ static Block *curve_profile_tools_fn(bContext *C, ARegion *region, void *cb_v)
   CurveProfile *profile = static_cast<CurveProfile *>(profile_ptr.data);
   short yco = 0;
 
-  Block *block = block_begin(C, region, __func__, EmbossType::Emboss);
+  Block *block = block_begin(*C, region, __func__, EmbossType::Emboss);
 
   {
     Button *but = uiDefIconTextBut(block,
@@ -117,7 +117,7 @@ static Block *curve_profile_tools_fn(bContext *C, ARegion *region, void *cb_v)
     button_func_set(but, [profile, cb](bContext &C) {
       BKE_curveprofile_reset(profile);
       BKE_curveprofile_update(profile, PROF_UPDATE_NONE);
-      ED_undo_push(&C, "Reset Profile");
+      ED_undo_push(C, "Reset Profile");
       ED_region_tag_redraw(CTX_wm_region(C));
       rna_update_cb(C, cb);
     });
@@ -140,7 +140,7 @@ static bool curve_profile_can_zoom_out(CurveProfile *profile)
   return BLI_rctf_size_x(&profile->view_rect) < BLI_rctf_size_x(&profile->clip_rect);
 }
 
-static void curve_profile_zoom_in(bContext *C, CurveProfile *profile)
+static void curve_profile_zoom_in(bContext &C, CurveProfile *profile)
 {
   if (curve_profile_can_zoom_in(profile)) {
     const float dx = 0.1154f * BLI_rctf_size_x(&profile->view_rect);
@@ -151,10 +151,10 @@ static void curve_profile_zoom_in(bContext *C, CurveProfile *profile)
     profile->view_rect.ymax -= dy;
   }
 
-  ED_region_tag_redraw(CTX_wm_region(*C));
+  ED_region_tag_redraw(CTX_wm_region(C));
 }
 
-static void curve_profile_zoom_out(bContext *C, CurveProfile *profile)
+static void curve_profile_zoom_out(bContext &C, CurveProfile *profile)
 {
   if (curve_profile_can_zoom_out(profile)) {
     float d = 0.15f * BLI_rctf_size_x(&profile->view_rect);
@@ -193,7 +193,7 @@ static void curve_profile_zoom_out(bContext *C, CurveProfile *profile)
     profile->view_rect.ymax += d1;
   }
 
-  ED_region_tag_redraw(CTX_wm_region(*C));
+  ED_region_tag_redraw(CTX_wm_region(C));
 }
 
 static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const RNAUpdateCb &cb)
@@ -270,7 +270,7 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
                     0.0,
                     0.0,
                     TIP_("Zoom in"));
-  button_func_set(bt, [profile](bContext &C) { curve_profile_zoom_in(&C, profile); });
+  button_func_set(bt, [profile](bContext &C) { curve_profile_zoom_in(C, profile); });
   if (!curve_profile_can_zoom_in(profile)) {
     button_disable(bt, "");
   }
@@ -287,7 +287,7 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
                     0.0,
                     0.0,
                     TIP_("Zoom out"));
-  button_func_set(bt, [profile](bContext &C) { curve_profile_zoom_out(&C, profile); });
+  button_func_set(bt, [profile](bContext &C) { curve_profile_zoom_out(C, profile); });
   if (!curve_profile_can_zoom_out(profile)) {
     button_disable(bt, "");
   }

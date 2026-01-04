@@ -14,7 +14,7 @@ struct bContext;
 struct wmGizmoGroupType;
 
 /** Wrapper function (operator name can't be guessed). */
-bool ED_gizmo_poll_or_unlink_delayed_from_operator(const bContext *C,
+bool ED_gizmo_poll_or_unlink_delayed_from_operator(const bContext &C,
                                                    wmGizmoGroupType *gzgt,
                                                    const char *idname);
 

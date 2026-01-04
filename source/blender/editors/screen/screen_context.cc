@@ -255,11 +255,11 @@ static eContextResult screen_ctx_objects_in_mode_unique_data(const bContext *C,
   CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
-static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
+static eContextResult screen_ctx_visible_or_editable_bones_(const bContext &C,
                                                             bContextDataResult *result,
                                                             const bool editable_bones)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   const Scene *scene = WM_window_get_active_scene(win);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -271,7 +271,7 @@ static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
 
   if (arm && arm->edbo) {
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-        scene, view_layer, CTX_wm_view3d(*C));
+        scene, view_layer, CTX_wm_view3d(C));
     for (Object *ob : objects) {
       arm = static_cast<bArmature *>(ob->data);
 
@@ -320,17 +320,17 @@ static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
 }
 static eContextResult screen_ctx_visible_bones(const bContext *C, bContextDataResult *result)
 {
-  return screen_ctx_visible_or_editable_bones_(C, result, false);
+  return screen_ctx_visible_or_editable_bones_(*C, result, false);
 }
 static eContextResult screen_ctx_editable_bones(const bContext *C, bContextDataResult *result)
 {
-  return screen_ctx_visible_or_editable_bones_(C, result, true);
+  return screen_ctx_visible_or_editable_bones_(*C, result, true);
 }
-static eContextResult screen_ctx_selected_bones_(const bContext *C,
+static eContextResult screen_ctx_selected_bones_(const bContext &C,
                                                  bContextDataResult *result,
                                                  const bool selected_editable_bones)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   const Scene *scene = WM_window_get_active_scene(win);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
   BKE_view_layer_synced_ensure(scene, view_layer);
@@ -341,7 +341,7 @@ static eContextResult screen_ctx_selected_bones_(const bContext *C,
 
   if (arm && arm->edbo) {
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-        scene, view_layer, CTX_wm_view3d(*C));
+        scene, view_layer, CTX_wm_view3d(C));
     for (Object *ob : objects) {
       arm = static_cast<bArmature *>(ob->data);
 
@@ -390,12 +390,12 @@ static eContextResult screen_ctx_selected_bones_(const bContext *C,
 }
 static eContextResult screen_ctx_selected_bones(const bContext *C, bContextDataResult *result)
 {
-  return screen_ctx_selected_bones_(C, result, false);
+  return screen_ctx_selected_bones_(*C, result, false);
 }
 static eContextResult screen_ctx_selected_editable_bones(const bContext *C,
                                                          bContextDataResult *result)
 {
-  return screen_ctx_selected_bones_(C, result, true);
+  return screen_ctx_selected_bones_(*C, result, true);
 }
 static eContextResult screen_ctx_visible_pose_bones(const bContext *C, bContextDataResult *result)
 {
@@ -548,7 +548,7 @@ static eContextResult screen_ctx_property(const bContext *C, bContextDataResult 
   PropertyRNA *prop;
   int index;
 
-  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(*C, &ptr, &prop, &index);
   if (ptr.data && prop) {
     /* context_active_but_prop_get returns an index of 0 if the property is not
      * an array, but other functions expect -1 for non-arrays. */
@@ -694,7 +694,7 @@ static eContextResult screen_ctx_active_nla_strip(const bContext *C, bContextDat
 static eContextResult screen_ctx_selected_nla_strips(const bContext *C, bContextDataResult *result)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) != 0) {
+  if (ANIM_animdata_get_context(*C, &ac) != 0) {
     ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
     ANIM_animdata_filter(
@@ -814,13 +814,13 @@ static eContextResult screen_ctx_active_operator(const bContext *C, bContextData
   if (sfile) {
     op = sfile->op;
   }
-  else if ((op = blender::ui::context_active_operator_get(C))) {
+  else if ((op = blender::ui::context_active_operator_get(*C))) {
     /* do nothing */
   }
   else {
     /* NOTE: this checks poll, could be a problem, but this also
      * happens for the toolbar */
-    op = WM_operator_last_redo(C);
+    op = WM_operator_last_redo(*C);
   }
   /* TODO: get the operator from popup's. */
 
@@ -836,7 +836,7 @@ static eContextResult screen_ctx_sel_actions_impl(const bContext *C,
                                                   bool editable)
 {
   bAnimContext ac;
-  if (!ANIM_animdata_get_context(C, &ac) || !ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
+  if (!ANIM_animdata_get_context(*C, &ac) || !ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
     return CTX_RESULT_NO_DATA;
   }
 
@@ -941,7 +941,7 @@ static eContextResult screen_ctx_sel_edit_fcurves_(const bContext *C,
                                                    const int extra_filter)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) && ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
+  if (ANIM_animdata_get_context(*C, &ac) && ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
     ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
     int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_NODUPLIS) |
@@ -988,7 +988,7 @@ static eContextResult screen_ctx_active_editable_fcurve(const bContext *C,
                                                         bContextDataResult *result)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) && ELEM(ac.spacetype, SPACE_GRAPH)) {
+  if (ANIM_animdata_get_context(*C, &ac) && ELEM(ac.spacetype, SPACE_GRAPH)) {
     ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
     int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_ACTIVE | ANIMFILTER_FOREDIT |
@@ -1013,7 +1013,7 @@ static eContextResult screen_ctx_selected_editable_keyframes(const bContext *C,
                                                              bContextDataResult *result)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) && ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
+  if (ANIM_animdata_get_context(*C, &ac) && ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
     ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
     /* Use keyframes from editable selected FCurves. */

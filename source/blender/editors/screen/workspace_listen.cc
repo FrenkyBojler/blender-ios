@@ -37,11 +37,11 @@ static void validate_viewer_paths(bContext &C, WorkSpace &workspace)
       break;
   }
 
-  WM_event_add_notifier(&C, NC_VIEWER_PATH, nullptr);
+  WM_event_add_notifier(C, NC_VIEWER_PATH, nullptr);
 }
 
-void ED_workspace_do_listen(bContext *C, const wmNotifier * /*note*/)
+void ED_workspace_do_listen(bContext &C, const wmNotifier * /*note*/)
 {
-  WorkSpace *workspace = CTX_wm_workspace(*C);
-  validate_viewer_paths(*C, *workspace);
+  WorkSpace *workspace = CTX_wm_workspace(C);
+  validate_viewer_paths(C, *workspace);
 }

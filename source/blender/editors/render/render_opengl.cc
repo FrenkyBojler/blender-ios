@@ -671,7 +671,7 @@ static int gather_frames_to_render_for_id(LibraryIDLinkCallbackData *cb_data)
  * Note that this follows all pointers to ID blocks, only filtering on ID type,
  * so it will pick up keys from pointers in custom properties as well.
  */
-static void gather_frames_to_render(bContext *C, OGLRender *oglrender)
+static void gather_frames_to_render(bContext &C, OGLRender *oglrender)
 {
   Scene *scene = oglrender->scene;
   int frame_start = PSFRA;
@@ -684,7 +684,7 @@ static void gather_frames_to_render(bContext *C, OGLRender *oglrender)
   /* The first frame should always be rendered, otherwise there is nothing to write to file. */
   BLI_BITMAP_ENABLE(oglrender->render_frames, 0);
 
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
     ID *id = &ob->id;
 
     /* Gather the frames from the object animation data. */
@@ -698,21 +698,21 @@ static void gather_frames_to_render(bContext *C, OGLRender *oglrender)
   CTX_DATA_END;
 }
 
-static bool screen_opengl_render_init(bContext *C, wmOperator *op)
+static bool screen_opengl_render_init(bContext &C, wmOperator *op)
 {
   /* new render clears all callbacks */
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  wmWindow *win = CTX_wm_window(*C);
-  WorkSpace *workspace = CTX_wm_workspace(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+  WorkSpace *workspace = CTX_wm_workspace(C);
 
   const bool is_sequencer = RNA_boolean_get(op->ptr, "sequencer");
 
-  Scene *scene = !is_sequencer ? CTX_data_scene(*C) : CTX_data_sequencer_scene(*C);
+  Scene *scene = !is_sequencer ? CTX_data_scene(C) : CTX_data_sequencer_scene(C);
   if (!scene) {
     return false;
   }
-  ScrArea *prev_area = CTX_wm_area(*C);
-  ARegion *prev_region = CTX_wm_region(*C);
+  ScrArea *prev_area = CTX_wm_area(C);
+  ARegion *prev_region = CTX_wm_region(C);
   GPUOffScreen *ofs;
   OGLRender *oglrender;
   int sizex, sizey;
@@ -758,7 +758,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   }
 
   /* stop all running jobs, except screen one. currently previews frustrate Render */
-  WM_jobs_kill_all_except(wm, CTX_wm_screen(*C));
+  WM_jobs_kill_all_except(wm, CTX_wm_screen(C));
 
   /* create offscreen buffer */
   BKE_render_resolution(&scene->r, false, &sizex, &sizey);
@@ -776,8 +776,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 
   if (!ofs) {
     BKE_reportf(op->reports, RPT_ERROR, "Failed to create OpenGL off-screen buffer, %s", err_out);
-    CTX_wm_area_set(*C, prev_area);
-    CTX_wm_region_set(*C, prev_region);
+    CTX_wm_area_set(C, prev_area);
+    CTX_wm_region_set(C, prev_region);
     return false;
   }
 
@@ -789,14 +789,14 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
   oglrender->sizex = sizex;
   oglrender->sizey = sizey;
   oglrender->viewport = GPU_viewport_create();
-  oglrender->bmain = CTX_data_main(*C);
+  oglrender->bmain = CTX_data_main(C);
   oglrender->scene = scene;
   oglrender->current_scene = scene;
   oglrender->workspace = workspace;
-  oglrender->view_layer = CTX_data_view_layer(*C);
+  oglrender->view_layer = CTX_data_view_layer(C);
   /* NOTE: The depsgraph is not only used to update scene for a new frames, but also to initialize
    * output video handles, which does need evaluated scene. */
-  oglrender->depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  oglrender->depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   oglrender->cfrao = scene->r.cfra;
 
   oglrender->write_still = is_write_still && !is_animation;
@@ -807,7 +807,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 
   oglrender->is_sequencer = is_sequencer;
   if (is_sequencer) {
-    oglrender->sseq = CTX_wm_space_seq(*C);
+    oglrender->sseq = CTX_wm_space_seq(C);
     ImBuf **ibufs_arr = static_cast<ImBuf **>(
         MEM_callocN(sizeof(*ibufs_arr) * oglrender->views_len, __func__));
     oglrender->seq_data.ibufs_arr = ibufs_arr;
@@ -817,8 +817,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
     /* Prefer rendering camera in quad view if possible. */
     if (!ED_view3d_context_user_region(C, &oglrender->v3d, &oglrender->region)) {
       /* If not get region activated by ED_view3d_context_activate earlier. */
-      oglrender->v3d = CTX_wm_view3d(*C);
-      oglrender->region = CTX_wm_region(*C);
+      oglrender->v3d = CTX_wm_view3d(C);
+      oglrender->region = CTX_wm_region(C);
     }
 
     oglrender->rv3d = static_cast<RegionView3D *>(oglrender->region->regiondata);
@@ -870,8 +870,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
     }
   }
 
-  CTX_wm_area_set(*C, prev_area);
-  CTX_wm_region_set(*C, prev_region);
+  CTX_wm_area_set(C, prev_area);
+  CTX_wm_region_set(C, prev_region);
 
   return true;
 }
@@ -1314,7 +1314,7 @@ static wmOperatorStatus screen_opengl_render_invoke(bContext &C,
 {
   const bool anim = RNA_boolean_get(op.ptr, "animation");
 
-  if (!screen_opengl_render_init(&C, &op)) {
+  if (!screen_opengl_render_init(C, &op)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1325,7 +1325,7 @@ static wmOperatorStatus screen_opengl_render_invoke(bContext &C,
   }
 
   OGLRender *oglrender = static_cast<OGLRender *>(op.customdata);
-  render_view_open(&C, event->xy[0], event->xy[1], op.reports);
+  render_view_open(C, event->xy[0], event->xy[1], op.reports);
 
   /* View may be changed above #USER_RENDER_DISPLAY_WINDOW. */
   oglrender->win = CTX_wm_window(C);
@@ -1349,7 +1349,7 @@ static wmOperatorStatus screen_opengl_render_invoke(bContext &C,
     WM_jobs_start(CTX_wm_manager(C), wm_job);
   }
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1357,7 +1357,7 @@ static wmOperatorStatus screen_opengl_render_invoke(bContext &C,
 /* executes blocking render */
 static wmOperatorStatus screen_opengl_render_exec(bContext &C, wmOperator &op)
 {
-  if (!screen_opengl_render_init(&C, &op)) {
+  if (!screen_opengl_render_init(C, &op)) {
     return OPERATOR_CANCELLED;
   }
 

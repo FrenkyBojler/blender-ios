@@ -95,8 +95,8 @@ static wmOperatorStatus text_text_search_exec(bContext &C, wmOperator & /*op*/)
 
     /* Build the layout and draw so `find_text` text button can be activated. */
     if (draw) {
-      ED_region_do_layout(&C, region);
-      ED_region_do_draw(&C, region);
+      ED_region_do_layout(C, region);
+      ED_region_do_draw(C, region);
     }
 
     blender::ui::textbutton_activate_rna(&C, region, st, "find_text");

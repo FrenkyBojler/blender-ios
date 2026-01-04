@@ -107,7 +107,7 @@ class AverageWeightPaintOperation : public WeightPaintOperation {
 
     if (drawing_changed) {
       DEG_id_tag_update(&this->grease_pencil->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
     }
   }
 

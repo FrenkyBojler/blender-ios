@@ -658,7 +658,7 @@ static NlaStrip *rna_NlaStrip_new(ID *id,
     BKE_nlastrip_validate_name(&adt, strip);
   }
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_NLA | NA_ADDED, nullptr);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update_ex(bmain, id, ID_RECALC_ANIMATION | ID_RECALC_SYNC_TO_EVAL);
@@ -679,7 +679,7 @@ static void rna_NlaStrip_remove(
   BKE_nlastrip_remove_and_free(&track->strips, strip, true);
   strip_ptr->invalidate();
 
-  WM_event_add_notifier(C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
+  WM_event_add_notifier(*C, NC_ANIMATION | ND_NLA | NA_REMOVED, nullptr);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update_ex(bmain, id, ID_RECALC_ANIMATION | ID_RECALC_SYNC_TO_EVAL);

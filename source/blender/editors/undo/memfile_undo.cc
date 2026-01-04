@@ -61,7 +61,7 @@ static bool memfile_undosys_poll(bContext *C)
 
   /* Allow a single memfile undo step (the first). */
   UndoStack *ustack = ED_undo_stack_get();
-  if ((ustack->step_active != nullptr) && (ED_undo_is_memfile_compatible(C) == false)) {
+  if ((ustack->step_active != nullptr) && (ED_undo_is_memfile_compatible(*C) == false)) {
     return false;
   }
   return true;
@@ -209,7 +209,7 @@ static void memfile_undosys_step_decode(
   ED_preview_kill_jobs(CTX_wm_manager(*C), bmain);
 
   MemFileUndoStep *us = (MemFileUndoStep *)us_p;
-  BKE_memfile_undo_decode(us->data, undo_direction, use_old_bmain_data, C);
+  BKE_memfile_undo_decode(us->data, undo_direction, use_old_bmain_data, *C);
 
   for (UndoStep *us_iter = us_p->next; us_iter; us_iter = us_iter->next) {
     if (BKE_UNDOSYS_TYPE_IS_MEMFILE_SKIP(us_iter->type)) {
@@ -335,7 +335,7 @@ static void memfile_undosys_step_decode(
     FOREACH_MAIN_ID_END;
   }
 
-  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, CTX_data_scene(*C));
+  WM_event_add_notifier(*C, NC_SCENE | ND_LAYER_CONTENT, CTX_data_scene(*C));
 }
 
 static void memfile_undosys_step_free(UndoStep *us_p)

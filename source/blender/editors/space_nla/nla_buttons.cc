@@ -55,8 +55,8 @@ static void do_nla_region_buttons(bContext *C, void * /*arg*/, int /*event*/)
   }
 #endif
   /* default for now */
-  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
-  WM_event_add_notifier(C, NC_SCENE | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(*C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(*C, NC_SCENE | ND_TRANSFORM, nullptr);
 }
 
 bool nla_panel_context(const bContext *C,
@@ -71,7 +71,7 @@ bool nla_panel_context(const bContext *C,
   /* For now, only draw if we could init the anim-context info
    * (necessary for all animation-related tools)
    * to work correctly is able to be correctly retrieved. There's no point showing empty panels? */
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
+  if (ANIM_animdata_get_context(*C, &ac) == 0) {
     return false;
   }
 
@@ -622,7 +622,7 @@ static void nla_panel_modifiers(const bContext *C, Panel *panel)
     sub.op("NLA_OT_fmodifier_paste", "", ICON_PASTEDOWN);
   }
 
-  ANIM_fmodifier_panels(C, strip_ptr.owner_id, &strip->modifiers, nla_fmodifier_panel_id);
+  ANIM_fmodifier_panels(*C, strip_ptr.owner_id, &strip->modifiers, nla_fmodifier_panel_id);
 }
 
 /* ******************* general ******************************** */

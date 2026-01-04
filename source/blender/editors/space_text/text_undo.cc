@@ -194,9 +194,9 @@ static void text_undosys_step_decode(
     /* Not essential, always show text being undo where possible. */
     st->text = text;
   }
-  space_text_update_cursor_moved(C);
+  space_text_update_cursor_moved(*C);
   space_text_drawcache_tag_update(st, true);
-  WM_event_add_notifier(C, NC_TEXT | NA_EDITED, text);
+  WM_event_add_notifier(*C, NC_TEXT | NA_EDITED, text);
 }
 
 static void text_undosys_step_free(UndoStep *us_p)
@@ -246,14 +246,14 @@ void ED_text_undosys_type(UndoType *ut)
 /** \name Utilities
  * \{ */
 
-UndoStep *ED_text_undo_push_init(bContext *C)
+UndoStep *ED_text_undo_push_init(bContext &C)
 {
   UndoStack *ustack = ED_undo_stack_get();
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
   if (wm->op_undo_depth <= 1) {
     UndoStep *us_p = BKE_undosys_step_push_init_with_type(
-        ustack, C, nullptr, BKE_UNDOSYS_TYPE_TEXT);
+        ustack, &C, nullptr, BKE_UNDOSYS_TYPE_TEXT);
     return us_p;
   }
   return nullptr;

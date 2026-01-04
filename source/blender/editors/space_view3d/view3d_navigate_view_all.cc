@@ -155,7 +155,7 @@ static void view3d_from_minmax(bContext *C,
     sview.camera_old = v3d->camera;
   }
 
-  ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview);
+  ED_view3d_smooth_view(*C, v3d, region, smooth_viewtx, &sview);
 
   /* Smooth-view does view-lock #RV3D_BOXVIEW copy. */
 }
@@ -163,21 +163,21 @@ static void view3d_from_minmax(bContext *C,
 /**
  * Same as #view3d_from_minmax but for all regions (except cameras).
  */
-static void view3d_from_minmax_multi(bContext *C,
+static void view3d_from_minmax_multi(bContext &C,
                                      View3D *v3d,
                                      const float min[3],
                                      const float max[3],
                                      const bool do_zoom,
                                      const int smooth_viewtx)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
   for (ARegion &region : area->regionbase) {
     if (region.regiontype == RGN_TYPE_WINDOW) {
       RegionView3D *rv3d = static_cast<RegionView3D *>(region.regiondata);
       /* when using all regions, don't jump out of camera view,
        * but _do_ allow locked cameras to be moved */
       if ((rv3d->persp != RV3D_CAMOB) || ED_view3d_camera_lock_check(v3d, rv3d)) {
-        view3d_from_minmax(C, v3d, &region, min, max, do_zoom, smooth_viewtx);
+        view3d_from_minmax(&C, v3d, &region, min, max, do_zoom, smooth_viewtx);
       }
     }
   }
@@ -479,7 +479,7 @@ static wmOperatorStatus view3d_all_exec(bContext &C, wmOperator &op)
 
   ED_view3d_smooth_view_undo_begin(&C, area);
   if (use_all_regions) {
-    view3d_from_minmax_multi(&C, v3d, min, max, true, smooth_viewtx);
+    view3d_from_minmax_multi(C, v3d, min, max, true, smooth_viewtx);
   }
   else {
     view3d_from_minmax(&C, v3d, region, min, max, true, smooth_viewtx);
@@ -539,7 +539,7 @@ static wmOperatorStatus viewselected_exec(bContext &C, wmOperator &op)
 
   ED_view3d_smooth_view_undo_begin(&C, area);
   if (use_all_regions) {
-    view3d_from_minmax_multi(&C, v3d, min, max, do_zoom, smooth_viewtx);
+    view3d_from_minmax_multi(C, v3d, min, max, do_zoom, smooth_viewtx);
   }
   else {
     view3d_from_minmax(&C, v3d, region, min, max, do_zoom, smooth_viewtx);

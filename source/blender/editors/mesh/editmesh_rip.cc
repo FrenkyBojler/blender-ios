@@ -520,11 +520,11 @@ static void edbm_tagged_loop_pairs_do_fill_faces(BMesh *bm, UnorderedLoopPair *u
 /**
  * This is the main vert ripping function (rip when one vertex is selected)
  */
-static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obedit, bool do_fill)
+static int edbm_rip_invoke__vert(bContext &C, const wmEvent *event, Object *obedit, bool do_fill)
 {
   UnorderedLoopPair *fill_uloop_pairs = nullptr;
-  ARegion *region = CTX_wm_region(*C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
   BMIter iter, liter;
@@ -886,11 +886,11 @@ static int edbm_rip_invoke__vert(bContext *C, const wmEvent *event, Object *obed
 /**
  * This is the main edge ripping function
  */
-static int edbm_rip_invoke__edge(bContext *C, const wmEvent *event, Object *obedit, bool do_fill)
+static int edbm_rip_invoke__edge(bContext &C, const wmEvent *event, Object *obedit, bool do_fill)
 {
   UnorderedLoopPair *fill_uloop_pairs = nullptr;
-  ARegion *region = CTX_wm_region(*C);
-  RegionView3D *rv3d = CTX_wm_region_view3d(*C);
+  ARegion *region = CTX_wm_region(C);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   BMesh *bm = em->bm;
   BMIter iter, eiter;
@@ -1081,10 +1081,10 @@ static wmOperatorStatus edbm_rip_invoke(bContext &C, wmOperator &op, const wmEve
 
     /* split 2 main parts of this operator out into vertex and edge ripping */
     if (singlesel) {
-      ret = edbm_rip_invoke__vert(&C, event, obedit, do_fill);
+      ret = edbm_rip_invoke__vert(C, event, obedit, do_fill);
     }
     else {
-      ret = edbm_rip_invoke__edge(&C, event, obedit, do_fill);
+      ret = edbm_rip_invoke__edge(C, event, obedit, do_fill);
     }
 
     if (ret != OPERATOR_FINISHED) {

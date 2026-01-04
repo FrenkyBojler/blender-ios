@@ -127,7 +127,7 @@ static void rna_Object_select_set(
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
   WM_main_add_notifier(NC_SCENE | ND_OB_SELECT, scene);
-  ED_outliner_select_sync_from_object_tag(C);
+  ED_outliner_select_sync_from_object_tag(*C);
 }
 
 static bool rna_Object_select_get(Object *ob, bContext *C, PointerRNA *view_layer_ptr)
@@ -166,7 +166,7 @@ static void rna_Object_hide_set(
 
   BKE_view_layer_need_resync_tag(view_layer);
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(*C, NC_SCENE | ND_OB_SELECT, scene);
 }
 
 static bool rna_Object_hide_get(Object *ob, bContext *C, PointerRNA *view_layer_ptr)
@@ -473,7 +473,7 @@ static PointerRNA rna_Object_shape_key_add(
 
     PointerRNA keyptr = RNA_pointer_create_discrete(
         (ID *)BKE_key_from_object(ob), &RNA_ShapeKey, kb);
-    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+    WM_event_add_notifier(*C, NC_OBJECT | ND_DRAW, ob);
 
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     DEG_relations_tag_update(bmain);

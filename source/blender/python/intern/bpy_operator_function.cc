@@ -38,15 +38,15 @@
  * Update view layer dependencies.
  * If there is no active view layer update all view layers.
  */
-static void bpy_op_fn_view_layer_update(bContext *C)
+static void bpy_op_fn_view_layer_update(bContext &C)
 {
-  Main *bmain = CTX_data_main(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   /* None in background mode. */
   if (view_layer) {
     /* Update the active view layer. */
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
     if (depsgraph && !DEG_is_evaluating(depsgraph)) {
       DEG_make_active(depsgraph);
@@ -167,7 +167,7 @@ static PyObject *bpy_op_fn_call(BPyOpFunction *self, PyObject *args, PyObject *k
    * NOTE: We only update active view-layer, since that's what
    * operators are supposed to operate on. There might be some
    * corner cases when operator need a full scene update though. */
-  bpy_op_fn_view_layer_update(C);
+  bpy_op_fn_view_layer_update(*C);
 
   PyObject *result = pyop_call(nullptr, new_args);
   Py_DECREF(new_args);
@@ -180,7 +180,7 @@ static PyObject *bpy_op_fn_call(BPyOpFunction *self, PyObject *args, PyObject *k
       int has_finished = PySequence_Contains(result, finished_str);
       if (has_finished == 1) {
         if (CTX_wm_manager(*C) == wm) {
-          bpy_op_fn_view_layer_update(C);
+          bpy_op_fn_view_layer_update(*C);
         }
       }
       else if (has_finished == -1) {

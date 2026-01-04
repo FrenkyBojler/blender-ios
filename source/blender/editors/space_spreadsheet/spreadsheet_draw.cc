@@ -145,7 +145,7 @@ static void draw_left_column_content(const int scroll_offset_y,
 
   GPU_scissor(0, 0, drawer.left_column_width, region->winy - drawer.top_row_height);
 
-  ui::Block *left_column_block = block_begin(C, region, __func__, ui::EmbossType::None);
+  ui::Block *left_column_block = block_begin(*C, region, __func__, ui::EmbossType::None);
   int first_row, max_visible_rows;
   get_visible_rows(drawer, region, scroll_offset_y, &first_row, &max_visible_rows);
   for (const int row_index : IndexRange(first_row, max_visible_rows)) {
@@ -162,8 +162,8 @@ static void draw_left_column_content(const int scroll_offset_y,
     drawer.draw_left_column_cell(row_index, params);
   }
 
-  block_end(C, left_column_block);
-  block_draw(C, left_column_block);
+  block_end(*C, left_column_block);
+  block_draw(*C, left_column_block);
 
   GPU_scissor(UNPACK4(old_scissor));
 }
@@ -181,7 +181,7 @@ static void draw_top_row_content(const bContext *C,
               region->winx - drawer.left_column_width,
               drawer.top_row_height);
 
-  ui::Block *first_row_block = block_begin(C, region, __func__, ui::EmbossType::None);
+  ui::Block *first_row_block = block_begin(*C, region, __func__, ui::EmbossType::None);
 
   int left_x = drawer.left_column_width - scroll_offset_x;
   for (const int column_index : IndexRange(drawer.tot_columns)) {
@@ -199,8 +199,8 @@ static void draw_top_row_content(const bContext *C,
     left_x = right_x;
   }
 
-  block_end(C, first_row_block);
-  block_draw(C, first_row_block);
+  block_end(*C, first_row_block);
+  block_draw(*C, first_row_block);
 
   GPU_scissor(UNPACK4(old_scissor));
 }
@@ -219,7 +219,7 @@ static void draw_cell_contents(const bContext *C,
               region->winx - drawer.left_column_width,
               region->winy - drawer.top_row_height);
 
-  ui::Block *cells_block = block_begin(C, region, __func__, ui::EmbossType::None);
+  ui::Block *cells_block = block_begin(*C, region, __func__, ui::EmbossType::None);
 
   int first_row, max_visible_rows;
   get_visible_rows(drawer, region, scroll_offset_y, &first_row, &max_visible_rows);
@@ -249,8 +249,8 @@ static void draw_cell_contents(const bContext *C,
     left_x = right_x;
   }
 
-  block_end(C, cells_block);
-  block_draw(C, cells_block);
+  block_end(*C, cells_block);
+  block_draw(*C, cells_block);
 
   GPU_scissor(UNPACK4(old_scissor));
 }
@@ -342,11 +342,11 @@ static void draw_column_reorder_destination(const ARegion &region,
   }
 }
 
-void draw_spreadsheet_in_region(const bContext *C,
+void draw_spreadsheet_in_region(const bContext &C,
                                 ARegion *region,
                                 const SpreadsheetDrawer &drawer)
 {
-  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(*C);
+  SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(C);
 
   update_view2d_tot_rect(drawer, region, drawer.tot_rows);
 
@@ -371,9 +371,9 @@ void draw_spreadsheet_in_region(const bContext *C,
 
   immUnbindProgram();
 
-  draw_left_column_content(scroll_offset_y, C, region, drawer);
-  draw_top_row_content(C, region, drawer, scroll_offset_x);
-  draw_cell_contents(C, region, drawer, scroll_offset_x, scroll_offset_y);
+  draw_left_column_content(scroll_offset_y, &C, region, drawer);
+  draw_top_row_content(&C, region, drawer, scroll_offset_x);
+  draw_cell_contents(&C, region, drawer, scroll_offset_x, scroll_offset_y);
 
   if (is_reordering_columns) {
     draw_column_reorder_destination(*region, sspreadsheet, drawer, scroll_offset_x);

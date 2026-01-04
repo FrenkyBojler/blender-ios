@@ -65,13 +65,13 @@ struct BisectData {
   int backup_len;
 };
 
-static void mesh_bisect_interactive_calc(bContext *C,
+static void mesh_bisect_interactive_calc(bContext &C,
                                          wmOperator *op,
                                          float plane_co[3],
                                          float plane_no[3])
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  ARegion *region = CTX_wm_region(*C);
+  View3D *v3d = CTX_wm_view3d(C);
+  ARegion *region = CTX_wm_region(C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
   int x_start = RNA_int_get(op->ptr, "xstart");
@@ -144,7 +144,7 @@ static wmOperatorStatus mesh_bisect_invoke(bContext &C, wmOperator &op, const wm
     ret = WM_gesture_straightline_active_side_invoke(C, op, event);
   }
   else {
-    ret = WM_gesture_straightline_invoke(&C, &op, event);
+    ret = WM_gesture_straightline_invoke(C, &op, event);
   }
 
   if (ret & OPERATOR_RUNNING_MODAL) {
@@ -173,7 +173,7 @@ static wmOperatorStatus mesh_bisect_invoke(bContext &C, wmOperator &op, const wm
     G.moving = G_TRANSFORM_EDIT;
 
     /* Initialize modal callout. */
-    WorkspaceStatus status(&C);
+    WorkspaceStatus status(C);
     status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
     status.item(IFACE_("Draw Cut Line"), ICON_MOUSE_LMB_DRAG);
   }
@@ -233,7 +233,7 @@ static wmOperatorStatus mesh_bisect_exec(bContext &C, wmOperator &op)
   Scene *scene = CTX_data_scene(C);
 
   /* both can be nullptr, fallbacks values are used */
-  RegionView3D *rv3d = ED_view3d_context_rv3d(&C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
 
   wmOperatorStatus ret = OPERATOR_CANCELLED;
 
@@ -282,7 +282,7 @@ static wmOperatorStatus mesh_bisect_exec(bContext &C, wmOperator &op)
   /* Modal support */
   /* NOTE: keep this isolated, exec can work without this. */
   if (opdata != nullptr) {
-    mesh_bisect_interactive_calc(&C, &op, plane_co, plane_no);
+    mesh_bisect_interactive_calc(C, &op, plane_co, plane_no);
     /* Write back to the props. */
     RNA_property_float_set_array(op.ptr, prop_plane_no, plane_no);
     RNA_property_float_set_array(op.ptr, prop_plane_co, plane_co);
@@ -504,7 +504,7 @@ struct GizmoGroup {
 static void gizmo_bisect_exec(GizmoGroup *ggd)
 {
   wmOperator *op = ggd->data.op;
-  if (op == WM_operator_last_redo(ggd->data.context)) {
+  if (op == WM_operator_last_redo(*ggd->data.context)) {
     ED_undo_operator_repeat(ggd->data.context, op);
   }
 }
@@ -526,7 +526,7 @@ static void gizmo_mesh_bisect_update_from_op(GizmoGroup *ggd)
 
   WM_gizmo_set_scale(ggd->translate_c, 0.2);
 
-  RegionView3D *rv3d = ED_view3d_context_rv3d(ggd->data.context);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(*ggd->data.context);
   if (rv3d) {
     normalize_v3_v3(ggd->data.rotate_axis, rv3d->viewinv[2]);
     normalize_v3_v3(ggd->data.rotate_up, rv3d->viewinv[1]);
@@ -678,12 +678,12 @@ static void gizmo_bisect_prop_angle_set(const wmGizmo *gz,
 
 static bool gizmo_mesh_bisect_poll(const bContext *C, wmGizmoGroupType *gzgt)
 {
-  return ED_gizmo_poll_or_unlink_delayed_from_operator(C, gzgt, "MESH_OT_bisect");
+  return ED_gizmo_poll_or_unlink_delayed_from_operator(*C, gzgt, "MESH_OT_bisect");
 }
 
 static void gizmo_mesh_bisect_setup(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  wmOperator *op = WM_operator_last_redo(C);
+  wmOperator *op = WM_operator_last_redo(*C);
 
   if (op == nullptr || !STREQ(op->type->idname, "MESH_OT_bisect")) {
     return;
@@ -754,7 +754,7 @@ static void gizmo_mesh_bisect_draw_prepare(const bContext * /*C*/, wmGizmoGroup 
 {
   GizmoGroup *ggd = static_cast<GizmoGroup *>(gzgroup->customdata);
   if (ggd->data.op->next) {
-    ggd->data.op = WM_operator_last_redo(ggd->data.context);
+    ggd->data.op = WM_operator_last_redo(*ggd->data.context);
   }
   gizmo_mesh_bisect_update_from_op(ggd);
 }

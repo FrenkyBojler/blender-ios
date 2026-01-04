@@ -109,7 +109,7 @@ static wmOperatorStatus edbm_spin_invoke(bContext &C, wmOperator &op, const wmEv
 {
   Scene *scene = CTX_data_scene(C);
   View3D *v3d = CTX_wm_view3d(C);
-  RegionView3D *rv3d = ED_view3d_context_rv3d(&C);
+  RegionView3D *rv3d = ED_view3d_context_rv3d(C);
 
   PropertyRNA *prop;
   prop = RNA_struct_find_property(op.ptr, "center");

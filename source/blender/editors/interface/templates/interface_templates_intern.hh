@@ -38,7 +38,7 @@ static inline void rna_update_cb(bContext &C, const RNAUpdateCb &cb)
   /* we call update here on the pointer property, this way the
    * owner of the curve mapping can still define its own update
    * and notifier, even if the CurveMapping struct is shared. */
-  RNA_property_update(&C, &const_cast<PointerRNA &>(cb.ptr), cb.prop);
+  RNA_property_update(C, &const_cast<PointerRNA &>(cb.ptr), cb.prop);
 }
 
 static inline void rna_update_cb(bContext *C, void *arg_cb, void * /*arg*/)

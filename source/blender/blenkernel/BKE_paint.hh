@@ -181,8 +181,8 @@ uint BKE_paint_get_brush_type_offset_from_paintmode(PaintMode mode);
 std::optional<int> BKE_paint_get_brush_type_from_obmode(const Brush *brush, eObjectMode ob_mode);
 std::optional<int> BKE_paint_get_brush_type_from_paintmode(const Brush *brush, PaintMode mode);
 Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer);
-Paint *BKE_paint_get_active_from_context(const bContext *C);
-PaintMode BKE_paintmode_get_active_from_context(const bContext *C);
+Paint *BKE_paint_get_active_from_context(const bContext &C);
+PaintMode BKE_paintmode_get_active_from_context(const bContext &C);
 PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref);
 bool BKE_paint_use_unified_color(const Paint *paint);
 

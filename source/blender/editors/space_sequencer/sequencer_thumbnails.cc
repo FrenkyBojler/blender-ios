@@ -286,7 +286,7 @@ void draw_strip_thumbnails(const TimelineDrawContext &ctx,
 
   ColorManagedViewSettings *view_settings;
   ColorManagedDisplaySettings *display_settings;
-  IMB_colormanagement_display_settings_from_ctx(ctx.C, &view_settings, &display_settings);
+  IMB_colormanagement_display_settings_from_ctx(*ctx.C, &view_settings, &display_settings);
 
   /* Arrange thumbnail images into a texture atlas, using a simple
    * "add to current row until end, then start a new row". Thumbnail

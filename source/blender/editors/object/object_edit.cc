@@ -118,7 +118,7 @@ namespace blender::ed::object {
 static CLG_LogRef LOG = {"object.edit"};
 
 /* prototypes */
-static ListBaseT<LinkData> selected_objects_get(bContext *C);
+static ListBaseT<LinkData> selected_objects_get(bContext &C);
 
 /* -------------------------------------------------------------------- */
 /** \name Internal Utilities
@@ -144,16 +144,16 @@ static bool object_mode_set_ok_or_report(ReportList *reports)
   return true;
 }
 
-Object *context_object(const bContext *C)
+Object *context_object(const bContext &C)
 {
-  return static_cast<Object *>(CTX_data_pointer_get_type(*C, "object", &RNA_Object).data);
+  return static_cast<Object *>(CTX_data_pointer_get_type(C, "object", &RNA_Object).data);
 }
 
 Object *context_active_object(const bContext *C)
 {
   Object *ob = nullptr;
   if (C) {
-    ob = context_object(C);
+    ob = context_object(*C);
     if (!ob) {
       ob = CTX_data_active_object(*C);
     }
@@ -161,13 +161,13 @@ Object *context_active_object(const bContext *C)
   return ob;
 }
 
-Vector<Object *> objects_in_mode_or_selected(bContext *C,
+Vector<Object *> objects_in_mode_or_selected(bContext &C,
                                              bool (*filter_fn)(const Object *ob, void *user_data),
                                              void *filter_user_data)
 {
-  ScrArea *area = CTX_wm_area(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ScrArea *area = CTX_wm_area(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob_active = BKE_view_layer_active_object_get(view_layer);
   ID *id_pin = nullptr;
@@ -324,8 +324,8 @@ static wmOperatorStatus object_hide_view_clear_exec(bContext &C, wmOperator &op)
 
   BKE_view_layer_need_resync_tag(view_layer);
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_VISIBLE, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_VISIBLE, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -390,8 +390,8 @@ static wmOperatorStatus object_hide_view_set_exec(bContext &C, wmOperator &op)
 
   BKE_view_layer_need_resync_tag(view_layer);
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_VISIBLE, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_VISIBLE, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -450,17 +450,17 @@ static wmOperatorStatus object_hide_collection_exec(bContext &C, wmOperator &op)
     BKE_layer_collection_isolate_global(scene, view_layer, lc, extend);
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
 
   return OPERATOR_FINISHED;
 }
 
 #define COLLECTION_INVALID_INDEX -1
 
-void collection_hide_menu_draw(const bContext *C, ui::Layout &layout)
+void collection_hide_menu_draw(const bContext &C, ui::Layout &layout)
 {
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   LayerCollection *lc_scene = static_cast<LayerCollection *>(view_layer->layer_collections.first);
 
   /* Use the "invoke" operator context so the "Shift" modifier is used to extend. */
@@ -511,9 +511,9 @@ static wmOperatorStatus object_hide_collection_invoke(bContext &C,
   ui::PopupMenu *pup = ui::popup_menu_begin(&C, title, ICON_OUTLINER_COLLECTION);
   ui::Layout &layout = *popup_menu_layout(pup);
 
-  collection_hide_menu_draw(&C, layout);
+  collection_hide_menu_draw(C, layout);
 
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -817,11 +817,11 @@ bool editmode_exit_ex(Main *bmain, Scene *scene, Object *obedit, int flag)
   return (obedit->mode & OB_MODE_EDIT) == 0;
 }
 
-bool editmode_exit(bContext *C, int flag)
+bool editmode_exit(bContext &C, int flag)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *obedit = CTX_data_edit_object(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *obedit = CTX_data_edit_object(C);
   return editmode_exit_ex(bmain, scene, obedit, flag);
 }
 
@@ -850,11 +850,11 @@ bool editmode_exit_multi_ex(Main *bmain, Scene *scene, ViewLayer *view_layer, in
   return changed;
 }
 
-bool editmode_exit_multi(bContext *C, int flag)
+bool editmode_exit_multi(bContext &C, int flag)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   return editmode_exit_multi_ex(bmain, scene, view_layer, flag);
 }
 
@@ -983,14 +983,14 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
   return (ob->mode & OB_MODE_EDIT) != 0;
 }
 
-bool editmode_enter(bContext *C, int flag)
+bool editmode_enter(bContext &C, int flag)
 {
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
 
   /* Active layer checked here for view3d,
    * callers that don't want view context can call the extended version. */
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   return editmode_enter_ex(bmain, scene, ob, flag);
 }
 
@@ -1043,7 +1043,7 @@ static wmOperatorStatus editmode_toggle_exec(bContext &C, wmOperator &op)
   WM_msg_publish_rna_prop(mbus, &obact->id, obact, Object, mode);
 
   if (G.background == false) {
-    WM_toolsystem_update_from_context_view3d(&C);
+    WM_toolsystem_update_from_context_view3d(C);
   }
 
   return OPERATOR_FINISHED;
@@ -1135,7 +1135,7 @@ static wmOperatorStatus posemode_exec(bContext &C, wmOperator &op)
   }
 
   if (is_mode_set) {
-    bool ok = ED_object_posemode_exit(&C, obact);
+    bool ok = ED_object_posemode_exit(C, obact);
     if (ok) {
       FOREACH_OBJECT_BEGIN (scene, view_layer, ob) {
         if ((ob != obact) && (ob->type == OB_ARMATURE) && (ob->mode & mode_flag)) {
@@ -1146,7 +1146,7 @@ static wmOperatorStatus posemode_exec(bContext &C, wmOperator &op)
     }
   }
   else {
-    bool ok = ED_object_posemode_enter(&C, obact);
+    bool ok = ED_object_posemode_enter(C, obact);
     if (ok) {
       const View3D *v3d = CTX_wm_view3d(C);
       FOREACH_SELECTED_OBJECT_BEGIN (view_layer, v3d, ob) {
@@ -1163,7 +1163,7 @@ static wmOperatorStatus posemode_exec(bContext &C, wmOperator &op)
   WM_msg_publish_rna_prop(mbus, &obact->id, obact, Object, mode);
 
   if (G.background == false) {
-    WM_toolsystem_update_from_context_view3d(&C);
+    WM_toolsystem_update_from_context_view3d(C);
   }
 
   return OPERATOR_FINISHED;
@@ -1231,8 +1231,8 @@ static wmOperatorStatus forcefield_toggle_exec(bContext &C, wmOperator & /*op*/)
   }
 
   check_force_modifiers(CTX_data_main(C), CTX_data_scene(C), ob);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW, ob);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
@@ -1274,28 +1274,28 @@ static eAnimvizCalcRange object_path_convert_range(eObjectPathCalcRange range)
   return ANIMVIZ_CALC_RANGE_FULL;
 }
 
-void motion_paths_recalc_selected(bContext *C, Scene *scene, eObjectPathCalcRange range)
+void motion_paths_recalc_selected(bContext &C, Scene *scene, eObjectPathCalcRange range)
 {
   ListBaseT<LinkData> selected_objects = {nullptr, nullptr};
-  CTX_DATA_BEGIN (*C, Object *, ob, selected_editable_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, selected_editable_objects) {
     BLI_addtail(&selected_objects, BLI_genericNodeN(ob));
   }
   CTX_DATA_END;
 
-  motion_paths_recalc(C, scene, range, &selected_objects);
+  motion_paths_recalc(&C, scene, range, &selected_objects);
 
   BLI_freelistN(&selected_objects);
 }
 
-void motion_paths_recalc_visible(bContext *C, Scene *scene, eObjectPathCalcRange range)
+void motion_paths_recalc_visible(bContext &C, Scene *scene, eObjectPathCalcRange range)
 {
   ListBaseT<LinkData> visible_objects = {nullptr, nullptr};
-  CTX_DATA_BEGIN (*C, Object *, ob, visible_objects) {
+  CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
     BLI_addtail(&visible_objects, BLI_genericNodeN(ob));
   }
   CTX_DATA_END;
 
-  motion_paths_recalc(C, scene, range, &visible_objects);
+  motion_paths_recalc(&C, scene, range, &visible_objects);
 
   BLI_freelistN(&visible_objects);
 }
@@ -1421,13 +1421,13 @@ static wmOperatorStatus object_calculate_paths_exec(bContext &C, wmOperator &op)
   CTX_DATA_END;
 
   /* calculate the paths for objects that have them (and are tagged to get refreshed) */
-  motion_paths_recalc_selected(&C, scene, OBJECT_PATH_CALC_RANGE_FULL);
+  motion_paths_recalc_selected(C, scene, OBJECT_PATH_CALC_RANGE_FULL);
 
   /* notifiers for updates */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW_ANIMVIZ, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW_ANIMVIZ, nullptr);
   /* NOTE: the notifier below isn't actually correct, but kept around just to be on the safe side.
    * If further testing shows it's not necessary (for both bones and objects) removal is fine. */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM | ND_POSE, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM | ND_POSE, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1493,13 +1493,13 @@ static wmOperatorStatus object_update_paths_exec(bContext &C, wmOperator &op)
   CTX_DATA_END;
 
   /* calculate the paths for objects that have them (and are tagged to get refreshed) */
-  motion_paths_recalc_selected(&C, scene, OBJECT_PATH_CALC_RANGE_FULL);
+  motion_paths_recalc_selected(C, scene, OBJECT_PATH_CALC_RANGE_FULL);
 
   /* notifiers for updates */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_DRAW_ANIMVIZ, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW_ANIMVIZ, nullptr);
   /* NOTE: the notifier below isn't actually correct, but kept around just to be on the safe side.
    * If further testing shows it's not necessary (for both bones and objects) removal is fine. */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM | ND_POSE, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM | ND_POSE, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1538,9 +1538,9 @@ static wmOperatorStatus object_update_all_paths_exec(bContext &C, wmOperator & /
     return OPERATOR_CANCELLED;
   }
 
-  motion_paths_recalc_visible(&C, scene, OBJECT_PATH_CALC_RANGE_FULL);
+  motion_paths_recalc_visible(C, scene, OBJECT_PATH_CALC_RANGE_FULL);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_POSE | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1606,7 +1606,7 @@ static wmOperatorStatus object_clear_paths_exec(bContext &C, wmOperator &op)
   motion_paths_clear(&C, only_selected);
 
   /* notifiers for updates */
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1759,7 +1759,7 @@ static wmOperatorStatus shade_smooth_exec(bContext &C, wmOperator &op)
     if (changed) {
       changed_multi = true;
       DEG_id_tag_update(data, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, data);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, data);
     }
   }
 
@@ -1971,7 +1971,7 @@ static wmOperatorStatus shade_auto_smooth_exec(bContext &C, wmOperator &op)
       }
 
       DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, object);
+      WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
     }
   }
   else {
@@ -2115,7 +2115,7 @@ static wmOperatorStatus object_mode_set_exec(bContext &C, wmOperator &op)
    */
   if (toggle == false) {
     if (ob->mode != mode) {
-      mode_set_ex(&C, mode, true, op.reports);
+      mode_set_ex(C, mode, true, op.reports);
     }
   }
   else {
@@ -2124,14 +2124,14 @@ static wmOperatorStatus object_mode_set_exec(bContext &C, wmOperator &op)
      * otherwise there is nothing to do. */
     if (mode == OB_MODE_OBJECT) {
       if (ob->mode != OB_MODE_OBJECT) {
-        if (mode_set_ex(&C, OB_MODE_OBJECT, true, op.reports)) {
+        if (mode_set_ex(C, OB_MODE_OBJECT, true, op.reports)) {
           /* Store old mode so we know what to go back to. */
           ob->restore_mode = mode_prev;
         }
       }
       else {
         if (ob->restore_mode != OB_MODE_OBJECT) {
-          mode_set_ex(&C, eObjectMode(ob->restore_mode), true, op.reports);
+          mode_set_ex(C, eObjectMode(ob->restore_mode), true, op.reports);
         }
       }
     }
@@ -2139,17 +2139,17 @@ static wmOperatorStatus object_mode_set_exec(bContext &C, wmOperator &op)
       /* Non-object modes, enter the 'mode' unless it's already set,
        * in that case use restore mode. */
       if (ob->mode != mode) {
-        if (mode_set_ex(&C, mode, true, op.reports)) {
+        if (mode_set_ex(C, mode, true, op.reports)) {
           /* Store old mode so we know what to go back to. */
           ob->restore_mode = mode_prev;
         }
       }
       else {
         if (ob->restore_mode != OB_MODE_OBJECT) {
-          mode_set_ex(&C, eObjectMode(ob->restore_mode), true, op.reports);
+          mode_set_ex(C, eObjectMode(ob->restore_mode), true, op.reports);
         }
         else {
-          mode_set_ex(&C, OB_MODE_OBJECT, true, op.reports);
+          mode_set_ex(C, OB_MODE_OBJECT, true, op.reports);
         }
       }
     }
@@ -2162,7 +2162,7 @@ static wmOperatorStatus object_mode_set_exec(bContext &C, wmOperator &op)
         if (RNA_property_is_set(op.ptr, prop)) {
           int mesh_select_mode = RNA_property_enum_get(op.ptr, prop);
           if (mesh_select_mode != 0) {
-            EDBM_selectmode_set_multi(&C, mesh_select_mode);
+            EDBM_selectmode_set_multi(C, mesh_select_mode);
           }
         }
       }
@@ -2226,15 +2226,15 @@ void OBJECT_OT_mode_set_with_submode(wmOperatorType *ot)
 /** \name Object Link/Move to Collection Operator
  * \{ */
 
-static ListBaseT<LinkData> selected_objects_get(bContext *C)
+static ListBaseT<LinkData> selected_objects_get(bContext &C)
 {
   ListBaseT<LinkData> objects = {nullptr};
 
-  if (CTX_wm_space_outliner(*C) != nullptr) {
+  if (CTX_wm_space_outliner(C) != nullptr) {
     ED_outliner_selected_objects_get(C, &objects);
   }
   else {
-    CTX_DATA_BEGIN (*C, Object *, ob, selected_objects) {
+    CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
       BLI_addtail(&objects, BLI_genericNodeN(ob));
     }
     CTX_DATA_END;
@@ -2278,7 +2278,7 @@ static wmOperatorStatus move_to_collection_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  ListBaseT<LinkData> objects = selected_objects_get(&C);
+  ListBaseT<LinkData> objects = selected_objects_get(C);
 
   if (is_new) {
     char new_collection_name[MAX_ID_NAME - 2];
@@ -2344,16 +2344,16 @@ static wmOperatorStatus move_to_collection_exec(bContext &C, wmOperator &op)
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&src_scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT);
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER, src_scene);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, src_scene);
-  WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, src_scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER, src_scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, src_scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, src_scene);
 
   if (src_scene != dest_scene) {
     DEG_id_tag_update(&dest_scene->id, ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT);
 
-    WM_event_add_notifier(&C, NC_SCENE | ND_LAYER, dest_scene);
-    WM_event_add_notifier(&C, NC_SCENE | ND_OB_ACTIVE, dest_scene);
-    WM_event_add_notifier(&C, NC_SCENE | ND_LAYER_CONTENT, dest_scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_LAYER, dest_scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, dest_scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, dest_scene);
   }
 
   return OPERATOR_FINISHED;
@@ -2363,7 +2363,7 @@ static wmOperatorStatus move_to_collection_invoke(bContext &C,
                                                   wmOperator &op,
                                                   const wmEvent * /*event*/)
 {
-  ListBaseT<LinkData> objects = selected_objects_get(&C);
+  ListBaseT<LinkData> objects = selected_objects_get(C);
   if (BLI_listbase_is_empty(&objects)) {
     BKE_report(op.reports, RPT_ERROR, "No objects selected");
     return OPERATOR_CANCELLED;

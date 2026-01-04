@@ -95,10 +95,10 @@ static void workspace_exit(WorkSpace *workspace, wmWindow *win)
  */
 static void workspace_scene_pinning_update(WorkSpace *workspace_new,
                                            const WorkSpace *workspace_old,
-                                           bContext *C)
+                                           bContext &C)
 {
-  wmWindow *win = CTX_wm_window(*C);
-  Main *bmain = CTX_data_main(*C);
+  wmWindow *win = CTX_wm_window(C);
+  Main *bmain = CTX_data_main(C);
   Scene *active_scene = WM_window_get_active_scene(win);
 
   const bool is_new_pinned = (workspace_new->flags & WORKSPACE_USE_PIN_SCENE);
@@ -142,7 +142,7 @@ static void workspace_change_update(WorkSpace *workspace_new,
                                     bContext *C,
                                     wmWindowManager *wm)
 {
-  workspace_scene_pinning_update(workspace_new, workspace_old, C);
+  workspace_scene_pinning_update(workspace_new, workspace_old, *C);
   /* needs to be done before changing mode! (to ensure right context) */
   UNUSED_VARS(wm);
 #if 0
@@ -179,9 +179,9 @@ static WorkSpaceLayout *workspace_change_get_new_layout(Main *bmain,
       bmain, workspace_new, layout_new, layout_old, win);
 }
 
-bool ED_workspace_change(WorkSpace *workspace_new, bContext *C, wmWindowManager *wm, wmWindow *win)
+bool ED_workspace_change(WorkSpace *workspace_new, bContext &C, wmWindowManager *wm, wmWindow *win)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   WorkSpace *workspace_old = WM_window_get_active_workspace(win);
   WorkSpaceLayout *layout_new = workspace_change_get_new_layout(bmain, workspace_new, win);
   bScreen *screen_new = BKE_workspace_layout_screen_get(layout_new);
@@ -196,7 +196,7 @@ bool ED_workspace_change(WorkSpace *workspace_new, bContext *C, wmWindowManager 
 
   workspace_exit(workspace_old, win);
 
-  screen_change_prepare(screen_old, screen_new, bmain, C, win);
+  screen_change_prepare(screen_old, screen_new, bmain, &C, win);
 
   if (screen_new == nullptr) {
     return false;
@@ -208,14 +208,14 @@ bool ED_workspace_change(WorkSpace *workspace_new, bContext *C, wmWindowManager 
   /* update screen *after* changing workspace - which also causes the
    * actual screen change and updates context (including CTX_wm_workspace) */
   screen_change_update(C, win, screen_new);
-  workspace_change_update(workspace_new, workspace_old, C, wm);
+  workspace_change_update(workspace_new, workspace_old, &C, wm);
 
-  BLI_assert(CTX_wm_workspace(*C) == workspace_new);
+  BLI_assert(CTX_wm_workspace(C) == workspace_new);
 
   /* Automatic mode switching. */
   if (workspace_new->object_mode != workspace_old->object_mode) {
     const Object *object = nullptr;
-    if (const Base *base = CTX_data_active_base(*C)) {
+    if (const Base *base = CTX_data_active_base(C)) {
       object = base->object;
       /* Behavior that depends on the active area is not expected in the context of workspace
        * switching, ignore the view-port even if it's available. */
@@ -231,7 +231,7 @@ bool ED_workspace_change(WorkSpace *workspace_new, bContext *C, wmWindowManager 
     }
 
     if (object) {
-      blender::ed::object::mode_set(C, eObjectMode(workspace_new->object_mode));
+      blender::ed::object::mode_set(&C, eObjectMode(workspace_new->object_mode));
     }
   }
 
@@ -271,7 +271,7 @@ bool ED_workspace_delete(WorkSpace *workspace, Main *bmain, bContext *C, wmWindo
   for (wmWindow &win : wm->windows) {
     WorkSpace *workspace_active = WM_window_get_active_workspace(&win);
     if (workspace_active == workspace) {
-      ED_workspace_change(new_active, C, wm, &win);
+      ED_workspace_change(new_active, *C, wm, &win);
     }
   }
 
@@ -320,7 +320,7 @@ static wmOperatorStatus workspace_new_exec(bContext &C, wmOperator & /*op*/)
 
   workspace = ED_workspace_duplicate(workspace, bmain, win);
 
-  WM_event_add_notifier(&C, NC_SCREEN | ND_WORKSPACE_SET, workspace);
+  WM_event_add_notifier(C, NC_SCREEN | ND_WORKSPACE_SET, workspace);
 
   return OPERATOR_FINISHED;
 }
@@ -340,8 +340,8 @@ static void WORKSPACE_OT_duplicate(wmOperatorType *ot)
 static wmOperatorStatus workspace_delete_exec(bContext &C, wmOperator & /*op*/)
 {
   WorkSpace *workspace = workspace_context_get(&C);
-  WM_event_add_notifier(&C, NC_SCREEN | ND_WORKSPACE_DELETE, workspace);
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_SCREEN | ND_WORKSPACE_DELETE, workspace);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -365,8 +365,8 @@ static wmOperatorStatus workspace_delete_all_others_exec(bContext &C, wmOperator
 
   for (WorkSpace &ws : bmain->workspaces) {
     if (&ws != workspace) {
-      WM_event_add_notifier(&C, NC_SCREEN | ND_WORKSPACE_DELETE, &ws);
-      WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+      WM_event_add_notifier(C, NC_SCREEN | ND_WORKSPACE_DELETE, &ws);
+      WM_event_add_notifier(C, NC_WINDOW, nullptr);
     }
   }
 
@@ -440,7 +440,7 @@ static wmOperatorStatus workspace_append_activate_exec(bContext &C, wmOperator &
                    true);
 
     /* Changing workspace changes context. Do delayed! */
-    WM_event_add_notifier(&C, NC_SCREEN | ND_WORKSPACE_SET, appended_workspace);
+    WM_event_add_notifier(C, NC_SCREEN | ND_WORKSPACE_SET, appended_workspace);
 
     return OPERATOR_FINISHED;
   }
@@ -655,7 +655,7 @@ static wmOperatorStatus workspace_reorder_to_back_exec(bContext &C, wmOperator &
 
   BKE_id_reorder(
       reinterpret_cast<const ListBaseT<ID> *>(&bmain->workspaces), &workspace->id, nullptr, true);
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   return OPERATOR_INTERFACE;
 }
@@ -679,7 +679,7 @@ static wmOperatorStatus workspace_reorder_to_front_exec(bContext &C, wmOperator 
 
   BKE_id_reorder(
       reinterpret_cast<const ListBaseT<ID> *>(&bmain->workspaces), &workspace->id, nullptr, false);
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   return OPERATOR_INTERFACE;
 }
@@ -704,7 +704,7 @@ static wmOperatorStatus workspace_scene_pin_toggle_exec(bContext &C, wmOperator 
    * requires an operator. */
   workspace->flags ^= WORKSPACE_USE_PIN_SCENE;
 
-  WM_event_add_notifier(&C, NC_WORKSPACE, nullptr);
+  WM_event_add_notifier(C, NC_WORKSPACE, nullptr);
 
   return OPERATOR_FINISHED;
 }

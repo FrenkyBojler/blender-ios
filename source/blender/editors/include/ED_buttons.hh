@@ -36,7 +36,7 @@ void ED_buttons_search_string_set(SpaceProperties *sbuts, const char *value);
 int ED_buttons_search_string_length(SpaceProperties *sbuts);
 const char *ED_buttons_search_string_get(SpaceProperties *sbuts);
 
-bool ED_buttons_should_sync_with_outliner(const bContext *C,
+bool ED_buttons_should_sync_with_outliner(const bContext &C,
                                           const SpaceProperties *sbuts,
                                           ScrArea *area);
 void ED_buttons_set_context(const bContext *C,

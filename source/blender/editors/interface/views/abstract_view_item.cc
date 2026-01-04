@@ -257,7 +257,7 @@ void AbstractViewItem::add_rename_button(Block &block)
   }
 }
 
-void AbstractViewItem::delete_item(bContext * /*C*/)
+void AbstractViewItem::delete_item(bContext & /*C*/)
 {
   /* No deletion by default. Needs type specific implementation. */
 }

@@ -394,16 +394,16 @@ static bool set_rna_property(bContext &C,
       value = std::clamp(value, soft_min, soft_max);
       if (array_len == 0) {
         RNA_property_float_set(&value_ptr, prop, value);
-        RNA_property_update(&C, &value_ptr, prop);
+        RNA_property_update(C, &value_ptr, prop);
         animrig::autokeyframe_property(
-            &C, scene, &value_ptr, prop, 0, scene->r.cfra, only_when_keyed);
+            C, scene, &value_ptr, prop, 0, scene->r.cfra, only_when_keyed);
         return true;
       }
       if (index >= 0 && index < array_len) {
         RNA_property_float_set_index(&value_ptr, prop, index, value);
-        RNA_property_update(&C, &value_ptr, prop);
+        RNA_property_update(C, &value_ptr, prop);
         animrig::autokeyframe_property(
-            &C, scene, &value_ptr, prop, index, scene->r.cfra, only_when_keyed);
+            C, scene, &value_ptr, prop, index, scene->r.cfra, only_when_keyed);
         return true;
       }
       break;
@@ -415,16 +415,16 @@ static bool set_rna_property(bContext &C,
       value = std::clamp(value, soft_min, soft_max);
       if (array_len == 0) {
         RNA_property_int_set(&value_ptr, prop, value);
-        RNA_property_update(&C, &value_ptr, prop);
+        RNA_property_update(C, &value_ptr, prop);
         animrig::autokeyframe_property(
-            &C, scene, &value_ptr, prop, 0, scene->r.cfra, only_when_keyed);
+            C, scene, &value_ptr, prop, 0, scene->r.cfra, only_when_keyed);
         return true;
       }
       if (index >= 0 && index < array_len) {
         RNA_property_int_set_index(&value_ptr, prop, index, value);
-        RNA_property_update(&C, &value_ptr, prop);
+        RNA_property_update(C, &value_ptr, prop);
         animrig::autokeyframe_property(
-            &C, scene, &value_ptr, prop, index, scene->r.cfra, only_when_keyed);
+            C, scene, &value_ptr, prop, index, scene->r.cfra, only_when_keyed);
         return true;
       }
       break;
@@ -433,16 +433,16 @@ static bool set_rna_property(bContext &C,
       const bool value = std::visit([](auto v) { return bool(v); }, value_variant);
       if (array_len == 0) {
         RNA_property_boolean_set(&value_ptr, prop, value);
-        RNA_property_update(&C, &value_ptr, prop);
+        RNA_property_update(C, &value_ptr, prop);
         animrig::autokeyframe_property(
-            &C, scene, &value_ptr, prop, 0, scene->r.cfra, only_when_keyed);
+            C, scene, &value_ptr, prop, 0, scene->r.cfra, only_when_keyed);
         return true;
       }
       if (index >= 0 && index < array_len) {
         RNA_property_boolean_set_index(&value_ptr, prop, index, value);
-        RNA_property_update(&C, &value_ptr, prop);
+        RNA_property_update(C, &value_ptr, prop);
         animrig::autokeyframe_property(
-            &C, scene, &value_ptr, prop, index, scene->r.cfra, only_when_keyed);
+            C, scene, &value_ptr, prop, index, scene->r.cfra, only_when_keyed);
         return true;
       }
       break;

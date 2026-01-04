@@ -181,11 +181,11 @@ bool mode_compat_set(bContext *C, Object *ob, eObjectMode mode, ReportList *repo
  *
  * \{ */
 
-bool mode_set_ex(bContext *C, eObjectMode mode, bool use_undo, ReportList *reports)
+bool mode_set_ex(bContext &C, eObjectMode mode, bool use_undo, ReportList *reports)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
@@ -208,7 +208,7 @@ bool mode_set_ex(bContext *C, eObjectMode mode, bool use_undo, ReportList *repor
   if (!use_undo) {
     wm->op_undo_depth++;
   }
-  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecRegionWin, nullptr, nullptr);
+  WM_operator_name_call_ptr(&C, ot, wm::OpCallContext::ExecRegionWin, nullptr, nullptr);
   if (!use_undo) {
     wm->op_undo_depth--;
   }
@@ -252,7 +252,7 @@ bool mode_set_ex(bContext *C, eObjectMode mode, bool use_undo, ReportList *repor
 bool mode_set(bContext *C, eObjectMode mode)
 {
   /* Don't do undo push by default, since this may be called by lower level code. */
-  return mode_set_ex(C, mode, true, nullptr);
+  return mode_set_ex(*C, mode, true, nullptr);
 }
 
 /**
@@ -344,14 +344,14 @@ static bool ed_object_mode_generic_exit_ex(
  * In this case move our pose object in/out of pose mode.
  * This is in fits with the convention of selecting multiple objects and entering a mode.
  */
-static void ed_object_posemode_set_for_weight_paint_ex(bContext *C,
+static void ed_object_posemode_set_for_weight_paint_ex(bContext &C,
                                                        Main *bmain,
                                                        Object *ob_arm,
                                                        const bool is_mode_set)
 {
-  View3D *v3d = CTX_wm_view3d(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  View3D *v3d = CTX_wm_view3d(C);
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   if (ob_arm != nullptr) {
     BKE_view_layer_synced_ensure(scene, view_layer);
@@ -386,13 +386,13 @@ void posemode_set_for_weight_paint(bContext *C, Main *bmain, Object *ob, const b
     if (md->type == eModifierType_Armature) {
       ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
       Object *ob_arm = amd->object;
-      ed_object_posemode_set_for_weight_paint_ex(C, bmain, ob_arm, is_mode_set);
+      ed_object_posemode_set_for_weight_paint_ex(*C, bmain, ob_arm, is_mode_set);
     }
     else if (md->type == eModifierType_GreasePencilArmature) {
       GreasePencilArmatureModifierData *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(
           md);
       Object *ob_arm = amd->object;
-      ed_object_posemode_set_for_weight_paint_ex(C, bmain, ob_arm, is_mode_set);
+      ed_object_posemode_set_for_weight_paint_ex(*C, bmain, ob_arm, is_mode_set);
     }
   }
 }
@@ -479,21 +479,21 @@ Map<std::string, float, 1> mode_transfer_overlay_current_state()
   return factors;
 }
 
-static void object_overlay_mode_transfer_animation_start(bContext *C, Object *ob_dst)
+static void object_overlay_mode_transfer_animation_start(bContext &C, Object *ob_dst)
 {
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   Object *ob_dst_eval = DEG_get_evaluated(depsgraph, ob_dst);
   mode_transfer_overlay_start_times().add_as(ob_dst_eval->id.name, BLI_time_now_seconds());
 }
 
-static bool object_transfer_mode_to_base(bContext *C,
+static bool object_transfer_mode_to_base(bContext &C,
                                          wmOperator *op,
                                          Scene *scene,
                                          Object * /*ob_src*/,
                                          Object *ob_dst,
                                          const eObjectMode mode_dst)
 {
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   /* Undo is handled manually here, such that the entry in the user-visible undo history is named
    * from the expected mode toggle operator name, and not the 'Transfer Mode' operator itself.
@@ -574,19 +574,19 @@ static wmOperatorStatus object_transfer_mode_invoke(bContext &C,
   }
 
   const bool mode_transferred = object_transfer_mode_to_base(
-      &C, &op, scene, ob_src, ob_dst, mode_src);
+      C, &op, scene, ob_src, ob_dst, mode_src);
   if (!mode_transferred) {
     /* Error report should have been set by #object_transfer_mode_to_base call here. */
     return OPERATOR_CANCELLED;
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  WM_event_add_notifier(&C, NC_SCENE | ND_OB_SELECT, scene);
-  ED_outliner_select_sync_from_object_tag(&C);
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+  ED_outliner_select_sync_from_object_tag(C);
 
-  WM_toolsystem_update_from_context_view3d(&C);
+  WM_toolsystem_update_from_context_view3d(C);
   if (mode_src & OB_MODE_ALL_PAINT) {
-    Paint *paint = BKE_paint_get_active_from_context(&C);
+    Paint *paint = BKE_paint_get_active_from_context(C);
     object_transfer_mode_reposition_view_pivot(region, paint, event->mval);
   }
 

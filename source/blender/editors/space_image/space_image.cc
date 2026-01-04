@@ -72,27 +72,26 @@ static void image_scopes_tag_refresh(ScrArea *area)
   sima->scopes.ok = 0;
 }
 
-static void image_user_refresh_scene(const bContext *C, SpaceImage *sima)
+static void image_user_refresh_scene(const bContext &C, SpaceImage *sima)
 {
   /* Update scene image user for acquiring render results. */
-  Scene *sequencer_scene = CTX_data_sequencer_scene(*C);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
   sima->iuser.scene = (sima->iuser.flag & IMA_SHOW_SEQUENCER_SCENE) && sequencer_scene ?
                           sequencer_scene :
-                          CTX_data_scene(*C);
+                          CTX_data_scene(C);
 
   if (sima->image && sima->image->type == IMA_TYPE_R_RESULT) {
     /* While rendering, prefer scene that is being rendered. */
-    Scene *render_scene = ED_render_job_get_current_scene(C);
+    Scene *render_scene = ED_render_job_get_current_scene(&C);
     if (render_scene) {
       sima->iuser.scene = render_scene;
-      SET_FLAG_FROM_TEST(sima->iuser.flag,
-                         render_scene == CTX_data_sequencer_scene(*C),
-                         IMA_SHOW_SEQUENCER_SCENE);
+      SET_FLAG_FROM_TEST(
+          sima->iuser.flag, render_scene == CTX_data_sequencer_scene(C), IMA_SHOW_SEQUENCER_SCENE);
     }
   }
 
   /* Auto switch image to show in UV editor when selection changes. */
-  ED_space_image_auto_set(C, sima);
+  ED_space_image_auto_set(&C, sima);
 }
 
 /* ******************** default callbacks for image space ***************** */
@@ -663,7 +662,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   /* XXX not supported yet, disabling for now */
   scene->r.scemode &= ~R_COMP_CROP;
 
-  image_user_refresh_scene(C, sima);
+  image_user_refresh_scene(*C, sima);
 
   /* we set view2d from own zoom and offset each time */
   image_main_region_set_view2d(sima, region);
@@ -676,7 +675,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   if (show_viewer) {
     BLI_thread_lock(LOCK_DRAW_IMAGE);
   }
-  DRW_draw_view(C);
+  DRW_draw_view(*C);
   if (show_viewer) {
     BLI_thread_unlock(LOCK_DRAW_IMAGE);
   }
@@ -703,7 +702,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
         x, y, &render_region, zoomx, zoomy, sima->overlay.passepartout_alpha);
   }
 
-  draw_image_main_helpers(C, region);
+  draw_image_main_helpers(*C, region);
 
   /* Draw Meta data of the image isn't added to the DrawManager as it is
    * used in other areas as well. */
@@ -744,7 +743,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   /* sample line */
   blender::ui::view2d_view_ortho(v2d);
   draw_image_sample_line(sima);
-  blender::ui::view2d_view_restore(C);
+  blender::ui::view2d_view_restore(*C);
 
   if (mask) {
     int width, height;
@@ -784,7 +783,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   if ((sima->gizmo_flag & SI_GIZMO_HIDE) == 0) {
     WM_gizmomap_draw(region->runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
   }
-  draw_image_cache(C, region);
+  draw_image_cache(*C, region);
 }
 
 static void image_main_region_listener(const wmRegionListenerParams *params)
@@ -879,7 +878,7 @@ static void image_buttons_region_layout(const bContext *C, ARegion *region)
       break;
   }
 
-  ED_region_panels_layout_ex(C,
+  ED_region_panels_layout_ex(*C,
                              region,
                              &region->runtime->type->paneltypes,
                              blender::wm::OpCallContext::InvokeRegionWin,
@@ -905,10 +904,10 @@ static void image_buttons_region_draw(const bContext *C, ARegion *region)
             &sima->sample_line_hist, ibuf, &scene->view_settings, &scene->display_settings);
       }
       if (sima->image->flag & IMA_VIEW_AS_RENDER) {
-        ED_space_image_scopes_update(C, sima, ibuf, true);
+        ED_space_image_scopes_update(*C, sima, ibuf, true);
       }
       else {
-        ED_space_image_scopes_update(C, sima, ibuf, false);
+        ED_space_image_scopes_update(*C, sima, ibuf, false);
       }
     }
   }
@@ -1026,7 +1025,7 @@ static void image_tools_header_region_draw(const bContext *C, ARegion *region)
   ScrArea *area = CTX_wm_area(*C);
   SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
 
-  image_user_refresh_scene(C, sima);
+  image_user_refresh_scene(*C, sima);
 
   ED_region_header_with_button_sections(
       C,
@@ -1049,7 +1048,7 @@ static void image_header_region_draw(const bContext *C, ARegion *region)
   ScrArea *area = CTX_wm_area(*C);
   SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
 
-  image_user_refresh_scene(C, sima);
+  image_user_refresh_scene(*C, sima);
 
   ED_region_header(C, region);
 }

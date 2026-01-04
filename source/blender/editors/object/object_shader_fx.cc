@@ -248,37 +248,37 @@ void shaderfx_copy(Object *dst, ShaderFxData *fx)
 /** \name Generic Poll Callback Helpers
  * \{ */
 
-static bool edit_shaderfx_poll_generic(bContext *C,
+static bool edit_shaderfx_poll_generic(bContext &C,
                                        StructRNA *rna_type,
                                        int obtype_flag,
                                        const bool is_liboverride_allowed)
 {
-  PointerRNA ptr = CTX_data_pointer_get_type(*C, "shaderfx", rna_type);
-  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(C);
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "shaderfx", rna_type);
+  Object *ob = (ptr.owner_id) ? (Object *)ptr.owner_id : context_active_object(&C);
   ShaderFxData *fx = static_cast<ShaderFxData *>(ptr.data); /* May be nullptr. */
 
-  if (!ED_operator_object_active_editable_ex(C, ob)) {
+  if (!ED_operator_object_active_editable_ex(&C, ob)) {
     return false;
   }
 
   /* NOTE: Temporary 'forbid all' for overrides, until we implement support to add shaderfx to
    * overrides. */
   if (ID_IS_OVERRIDE_LIBRARY(ob)) {
-    CTX_wm_operator_poll_msg_set(*C, "Cannot edit shaderfxs in a library override");
+    CTX_wm_operator_poll_msg_set(C, "Cannot edit shaderfxs in a library override");
     return false;
   }
 
   if (obtype_flag != 0 && ((1 << ob->type) & obtype_flag) == 0) {
-    CTX_wm_operator_poll_msg_set(*C, "Object type is not supported");
+    CTX_wm_operator_poll_msg_set(C, "Object type is not supported");
     return false;
   }
-  if (ptr.owner_id != nullptr && !BKE_id_is_editable(CTX_data_main(*C), ptr.owner_id)) {
-    CTX_wm_operator_poll_msg_set(*C, "Cannot edit library or override data");
+  if (ptr.owner_id != nullptr && !BKE_id_is_editable(CTX_data_main(C), ptr.owner_id)) {
+    CTX_wm_operator_poll_msg_set(C, "Cannot edit library or override data");
     return false;
   }
   if (!is_liboverride_allowed && BKE_shaderfx_is_nonlocal_in_liboverride(ob, fx)) {
     CTX_wm_operator_poll_msg_set(
-        *C, "Cannot edit shaderfxs coming from linked data in a library override");
+        C, "Cannot edit shaderfxs coming from linked data in a library override");
     return false;
   }
 
@@ -287,7 +287,7 @@ static bool edit_shaderfx_poll_generic(bContext *C,
 
 static bool edit_shaderfx_poll(bContext &C)
 {
-  return edit_shaderfx_poll_generic(&C, &RNA_ShaderFx, 0, false);
+  return edit_shaderfx_poll_generic(C, &RNA_ShaderFx, 0, false);
 }
 
 /** \} */
@@ -307,7 +307,7 @@ static wmOperatorStatus shaderfx_add_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_SHADERFX, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_SHADERFX, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -425,7 +425,7 @@ static bool edit_shaderfx_invoke_properties(bContext *C,
 
   /* Check the custom data of panels under the mouse for an effect. */
   if (event != nullptr) {
-    PointerRNA *panel_ptr = ui::region_panel_custom_data_under_cursor(C, event);
+    PointerRNA *panel_ptr = ui::region_panel_custom_data_under_cursor(*C, event);
 
     if (!(panel_ptr == nullptr || RNA_pointer_is_null(panel_ptr))) {
       if (RNA_struct_is_a(panel_ptr->type, &RNA_ShaderFx)) {
@@ -490,7 +490,7 @@ static wmOperatorStatus shaderfx_remove_exec(bContext &C, wmOperator &op)
     BKE_reportf(op.reports, RPT_INFO, "Removed effect: %s", name);
   }
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_SHADERFX, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_SHADERFX, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -536,7 +536,7 @@ static wmOperatorStatus shaderfx_move_up_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_SHADERFX, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_SHADERFX, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -581,7 +581,7 @@ static wmOperatorStatus shaderfx_move_down_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_SHADERFX, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_SHADERFX, ob);
 
   return OPERATOR_FINISHED;
 }

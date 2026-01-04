@@ -26,12 +26,12 @@ static void report_duration(const char *job, const TimePoint &start_time, const 
   fmt::print("\n");
 }
 
-void FBX_import(bContext *C, const FBXImportParams &params)
+void FBX_import(bContext &C, const FBXImportParams &params)
 {
   TimePoint start_time = Clock::now();
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   blender::io::fbx::importer_main(bmain, scene, view_layer, params);
   report_duration("import", start_time, params.filepath);
 }

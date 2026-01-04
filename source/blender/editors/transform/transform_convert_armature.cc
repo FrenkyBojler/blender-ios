@@ -1366,7 +1366,7 @@ static void autokeyframe_pose(bContext *C,
       rna_paths = {{"location"}, {rotation_path}, {"scale"}};
     }
 
-    animrig::autokeyframe_pose_channel(C, scene, ob, &pchan, rna_paths.as_span(), targetless_ik);
+    animrig::autokeyframe_pose_channel(*C, scene, ob, &pchan, rna_paths.as_span(), targetless_ik);
   }
 }
 
@@ -1648,7 +1648,7 @@ static void special_aftertrans_update__pose(bContext *C, TransInfo *t)
     const bool canceled = (t->state == TRANS_CANCEL);
 
     if (animrig::is_autokey_on(t->scene) && !canceled) {
-      ANIM_deselect_keys_in_animation_editors(C);
+      ANIM_deselect_keys_in_animation_editors(*C);
     }
 
     Set<Object *> motionpath_updates;

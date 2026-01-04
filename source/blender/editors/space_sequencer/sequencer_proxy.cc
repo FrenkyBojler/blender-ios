@@ -35,11 +35,11 @@ namespace blender::ed::vse {
 /** \name Rebuild Proxy and Timecode Indices Operator
  * \{ */
 
-static void seq_proxy_build_job(const bContext *C, ReportList *reports)
+static void seq_proxy_build_job(const bContext &C, ReportList *reports)
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
   if (ed == nullptr) {
     return;
@@ -81,7 +81,7 @@ static void seq_proxy_build_job(const bContext *C, ReportList *reports)
 
   if (!WM_jobs_is_running(wm_job)) {
     G.is_break = false;
-    WM_jobs_start(CTX_wm_manager(*C), wm_job);
+    WM_jobs_start(CTX_wm_manager(C), wm_job);
   }
 
   ED_area_tag_redraw(area);
@@ -91,7 +91,7 @@ static wmOperatorStatus sequencer_rebuild_proxy_invoke(bContext &C,
                                                        wmOperator &op,
                                                        const wmEvent * /*event*/)
 {
-  seq_proxy_build_job(&C, op.reports);
+  seq_proxy_build_job(C, op.reports);
 
   return OPERATOR_FINISHED;
 }
@@ -220,7 +220,7 @@ static wmOperatorStatus sequencer_enable_proxies_exec(bContext &C, wmOperator &o
     }
   }
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }

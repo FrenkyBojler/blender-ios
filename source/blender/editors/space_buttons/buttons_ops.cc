@@ -116,7 +116,7 @@ static wmOperatorStatus toggle_pin_exec(bContext &C, wmOperator & /*op*/)
 
   /* Create the new ID pointer and set the pin ID with RNA
    * so we can use the property's RNA update functionality. */
-  ID *new_id = (sbuts->flag & SB_PIN_CONTEXT) ? buttons_context_id_path(&C) : nullptr;
+  ID *new_id = (sbuts->flag & SB_PIN_CONTEXT) ? buttons_context_id_path(C) : nullptr;
   PointerRNA new_id_ptr = RNA_id_pointer_create(new_id);
   RNA_pointer_set(&sbuts_ptr, "pin_id", new_id_ptr);
 
@@ -152,7 +152,7 @@ static wmOperatorStatus context_menu_invoke(bContext &C,
   blender::ui::Layout &layout = *popup_menu_layout(pup);
 
   layout.menu("INFO_MT_area", std::nullopt, ICON_NONE);
-  popup_menu_end(&C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -246,17 +246,17 @@ static wmOperatorStatus file_browse_exec(bContext &C, wmOperator &op)
   }
 
   RNA_property_string_set(&fbo->ptr, fbo->prop, path);
-  RNA_property_update(&C, &fbo->ptr, fbo->prop);
+  RNA_property_update(C, &fbo->ptr, fbo->prop);
   MEM_freeN(path);
 
   if (fbo->is_undo) {
     const char *undostr = RNA_property_identifier(fbo->prop);
-    ED_undo_push(&C, undostr);
+    ED_undo_push(C, undostr);
   }
 
   /* Special annoying exception, filesel on redo panel #26618. */
   {
-    wmOperator *redo_op = WM_operator_last_redo(&C);
+    wmOperator *redo_op = WM_operator_last_redo(C);
     if (redo_op) {
       if (fbo->ptr.data == redo_op->ptr->data) {
         ED_undo_operator_repeat(&C, redo_op);
@@ -296,7 +296,7 @@ static wmOperatorStatus file_browse_invoke(bContext &C, wmOperator &op, const wm
     return OPERATOR_CANCELLED;
   }
 
-  blender::ui::context_active_but_prop_get_filebrowser(&C, &ptr, &prop, &is_undo, &is_userdef);
+  blender::ui::context_active_but_prop_get_filebrowser(C, &ptr, &prop, &is_undo, &is_userdef);
 
   if (!prop) {
     return OPERATOR_CANCELLED;

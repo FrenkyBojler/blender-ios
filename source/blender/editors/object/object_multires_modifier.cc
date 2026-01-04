@@ -40,7 +40,7 @@ namespace blender::ed::object {
 
 static bool multires_poll(bContext &C)
 {
-  return edit_modifier_poll_generic(&C, &RNA_MultiresModifier, (1 << OB_MESH), true, false);
+  return edit_modifier_poll_generic(C, &RNA_MultiresModifier, (1 << OB_MESH), true, false);
 }
 
 static wmOperatorStatus multires_higher_levels_delete_exec(bContext &C, wmOperator &op)
@@ -58,7 +58,7 @@ static wmOperatorStatus multires_higher_levels_delete_exec(bContext &C, wmOperat
 
   iter_other(CTX_data_main(C), ob, true, multires_update_totlevels, &mmd->totlvl);
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -130,7 +130,7 @@ static wmOperatorStatus multires_subdivide_exec(bContext &C, wmOperator &op)
   iter_other(CTX_data_main(C), object, true, multires_update_totlevels, &mmd->totlvl);
 
   DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, object);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
 
   if (object->mode & OB_MODE_SCULPT) {
     /* ensure that grid paint mask layer is created */
@@ -213,7 +213,7 @@ static wmOperatorStatus multires_reshape_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
 
   return OPERATOR_FINISHED;
 }
@@ -402,7 +402,7 @@ static wmOperatorStatus multires_base_apply_exec(bContext &C, wmOperator &op)
   ed::sculpt_paint::undo::push_multires_mesh_end(&C, op.type->name);
 
   DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, object);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
 
   return OPERATOR_FINISHED;
 }
@@ -464,7 +464,7 @@ static wmOperatorStatus multires_unsubdivide_exec(bContext &C, wmOperator &op)
   }
 
   DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, object);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
 
   return OPERATOR_FINISHED;
 }
@@ -520,7 +520,7 @@ static wmOperatorStatus multires_rebuild_subdiv_exec(bContext &C, wmOperator &op
   BKE_reportf(op.reports, RPT_INFO, "%d new levels rebuilt", new_levels);
 
   DEG_id_tag_update(&object->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_OBJECT | ND_MODIFIER, object);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, object);
 
   return OPERATOR_FINISHED;
 }

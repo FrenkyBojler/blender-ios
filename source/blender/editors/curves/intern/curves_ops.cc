@@ -111,24 +111,24 @@ VectorSet<Curves *> get_unique_editable_curves(const bContext &C)
   return unique_curves;
 }
 
-static bool curves_poll_impl(bContext *C,
+static bool curves_poll_impl(bContext &C,
                              const bool check_editable,
                              const bool check_surface,
                              const bool check_edit_mode)
 {
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   if (object == nullptr || object->type != OB_CURVES) {
     return false;
   }
   if (check_editable) {
-    if (!ED_operator_object_active_editable_ex(C, object)) {
+    if (!ED_operator_object_active_editable_ex(&C, object)) {
       return false;
     }
   }
   if (check_surface) {
     Curves &curves = *static_cast<Curves *>(object->data);
     if (curves.surface == nullptr || curves.surface->type != OB_MESH) {
-      CTX_wm_operator_poll_msg_set(*C, "Curves must have a mesh surface object set");
+      CTX_wm_operator_poll_msg_set(C, "Curves must have a mesh surface object set");
       return false;
     }
   }
@@ -142,27 +142,27 @@ static bool curves_poll_impl(bContext *C,
 
 bool editable_curves_in_edit_mode_poll(bContext &C)
 {
-  return curves_poll_impl(&C, true, false, true);
+  return curves_poll_impl(C, true, false, true);
 }
 
 bool editable_curves_with_surface_poll(bContext &C)
 {
-  return curves_poll_impl(&C, true, true, false);
+  return curves_poll_impl(C, true, true, false);
 }
 
 bool curves_with_surface_poll(bContext &C)
 {
-  return curves_poll_impl(&C, false, true, false);
+  return curves_poll_impl(C, false, true, false);
 }
 
 bool editable_curves_poll(bContext &C)
 {
-  return curves_poll_impl(&C, false, false, false);
+  return curves_poll_impl(C, false, false, false);
 }
 
 bool curves_poll(bContext &C)
 {
-  return curves_poll_impl(&C, false, false, false);
+  return curves_poll_impl(C, false, false, false);
 }
 
 static bool editable_curves_point_domain_poll(bContext &C)
@@ -732,7 +732,7 @@ static wmOperatorStatus snap_curves_to_surface_exec(bContext &C, wmOperator &op)
   }
 
   /* Refresh the entire window to also clear eventual modifier and nodes editor warnings. */
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -825,7 +825,7 @@ static wmOperatorStatus curves_set_selection_domain_exec(bContext &C, wmOperator
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
 
   WM_main_add_notifier(NC_SPACE | ND_SPACE_VIEW3D, nullptr);
@@ -877,7 +877,7 @@ static wmOperatorStatus select_all_exec(bContext &C, wmOperator &op)
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
 
   return OPERATOR_FINISHED;
@@ -926,7 +926,7 @@ static wmOperatorStatus select_random_exec(bContext &C, wmOperator &op)
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
   return OPERATOR_FINISHED;
 }
@@ -1002,7 +1002,7 @@ static wmOperatorStatus select_ends_exec(bContext &C, wmOperator &op)
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
 
   return OPERATOR_FINISHED;
@@ -1061,7 +1061,7 @@ static wmOperatorStatus select_linked_exec(bContext &C, wmOperator & /*op*/)
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
 
   return OPERATOR_FINISHED;
@@ -1088,7 +1088,7 @@ static wmOperatorStatus select_more_exec(bContext &C, wmOperator & /*op*/)
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
 
   return OPERATOR_FINISHED;
@@ -1115,7 +1115,7 @@ static wmOperatorStatus select_less_exec(bContext &C, wmOperator & /*op*/)
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
 
   return OPERATOR_FINISHED;
@@ -1152,7 +1152,7 @@ static wmOperatorStatus split_exec(bContext &C, wmOperator & /*op*/)
     curves.calculate_bezier_auto_handles();
 
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
 
   return OPERATOR_FINISHED;
@@ -1222,7 +1222,7 @@ static wmOperatorStatus surface_set_exec(bContext &C, wmOperator &op)
 
     curves_id.surface = &new_surface_ob;
     object::parent_set(op.reports,
-                       &C,
+                       C,
                        scene,
                        &curves_ob,
                        &new_surface_ob,
@@ -1232,8 +1232,8 @@ static wmOperatorStatus surface_set_exec(bContext &C, wmOperator &op)
                        nullptr);
 
     DEG_id_tag_update(&curves_ob.id, ID_RECALC_TRANSFORM);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &curves_id);
-    WM_event_add_notifier(&C, NC_NODE | NA_ADDED, nullptr);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &curves_id);
+    WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
 
     /* Required for deformation. */
     new_surface_ob.modifier_flag |= OB_MODIFIER_FLAG_ADD_REST_POSITION;
@@ -1269,7 +1269,7 @@ static wmOperatorStatus delete_exec(bContext &C, wmOperator & /*op*/)
     bke::CurvesGeometry &curves = curves_id->geometry.wrap();
     if (remove_selection(curves, bke::AttrDomain(curves_id->selection_domain))) {
       DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
     }
   }
 
@@ -1309,7 +1309,7 @@ static wmOperatorStatus duplicate_exec(bContext &C, wmOperator & /*op*/)
         break;
     }
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
   return OPERATOR_FINISHED;
 }
@@ -1349,7 +1349,7 @@ static wmOperatorStatus exec(bContext &C, wmOperator & /*op*/)
 
     curves.tag_normals_changed();
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
   return OPERATOR_FINISHED;
 }
@@ -1394,7 +1394,7 @@ static wmOperatorStatus exec(bContext &C, wmOperator & /*op*/)
     curves.calculate_bezier_auto_handles();
 
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
   return OPERATOR_FINISHED;
 }
@@ -1437,7 +1437,7 @@ static wmOperatorStatus exec(bContext &C, wmOperator &op)
     curves = geometry::convert_curves(curves, selection, dst_type, {}, options);
 
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
   return OPERATOR_FINISHED;
 }
@@ -1480,7 +1480,7 @@ static wmOperatorStatus exec(bContext &C, wmOperator & /*op*/)
     curves.reverse_curves(selection);
 
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
   return OPERATOR_FINISHED;
 }
@@ -1542,7 +1542,7 @@ static wmOperatorStatus exec(bContext &C, wmOperator &op)
         curves, curves.curves_range(), VArray<int>::from_span(segment_cuts), {});
 
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
   return OPERATOR_FINISHED;
 }
@@ -1648,7 +1648,7 @@ static wmOperatorStatus exec(bContext &C, wmOperator &op)
   append_primitive_curve(&C, *active_curves_id, generate_circle_primitive(radius), op);
 
   DEG_id_tag_update(&active_curves_id->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, active_curves_id);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, active_curves_id);
   return OPERATOR_FINISHED;
 }
 
@@ -1708,7 +1708,7 @@ static wmOperatorStatus exec(bContext &C, wmOperator &op)
   append_primitive_curve(&C, *active_curves_id, generate_bezier_primitive(radius), op);
 
   DEG_id_tag_update(&active_curves_id->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, active_curves_id);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, active_curves_id);
   return OPERATOR_FINISHED;
 }
 
@@ -1783,7 +1783,7 @@ static wmOperatorStatus exec(bContext &C, wmOperator &op)
     curves.tag_topology_changed();
 
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, curves_id);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
   }
   return OPERATOR_FINISHED;
 }

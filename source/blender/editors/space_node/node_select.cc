@@ -453,7 +453,7 @@ static wmOperatorStatus node_select_grouped_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     tree_draw_order_update(node_tree);
-    WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
+    WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
     return OPERATOR_FINISHED;
   }
 
@@ -525,7 +525,7 @@ void node_select_single(bContext &C, bNode &node)
     DEG_id_tag_update(&node_tree.id, ID_RECALC_SYNC_TO_EVAL);
   }
 
-  WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
 }
 
 static const bNodeSocket *find_socket_at_mouse_y(const Span<const bNodeSocket *> sockets,
@@ -593,18 +593,18 @@ static void handle_group_output_node_selection(bNodeTree &tree,
   activate_interface_socket(tree, io_socket);
 }
 
-static bool node_mouse_select(bContext *C,
+static bool node_mouse_select(bContext &C,
                               wmOperator *op,
                               const int2 mval,
                               const SelectPick_Params &params)
 {
-  Main &bmain = *CTX_data_main(*C);
-  SpaceNode &snode = *CTX_wm_space_node(*C);
+  Main &bmain = *CTX_data_main(C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode.edittree;
-  ARegion &region = *CTX_wm_region(*C);
-  const Object *ob = CTX_data_active_object(*C);
-  const Scene *scene = CTX_data_scene(*C);
-  const wmWindowManager *wm = CTX_wm_manager(*C);
+  ARegion &region = *CTX_wm_region(C);
+  const Object *ob = CTX_data_active_object(C);
+  const Scene *scene = CTX_data_scene(C);
+  const wmWindowManager *wm = CTX_wm_manager(C);
   bNode *node = nullptr;
   bNodeSocket *sock = nullptr;
 
@@ -729,13 +729,13 @@ static bool node_mouse_select(bContext *C,
   if (RNA_boolean_get(op->ptr, "clear_viewer")) {
     if (node == nullptr) {
       /* Disable existing active viewer. */
-      WorkSpace *workspace = CTX_wm_workspace(*C);
+      WorkSpace *workspace = CTX_wm_workspace(C);
       if (const std::optional<viewer_path::ViewerPathForGeometryNodesViewer> parsed_path =
               viewer_path::parse_geometry_nodes_viewer(workspace->viewer_path))
       {
         /* The object needs to be reevaluated, because the viewer path is changed which means that
          * the object may generate different viewer geometry as a side effect. */
-        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
         DEG_id_tag_update_for_side_effect_request(
             depsgraph, &parsed_path->object->id, ID_RECALC_GEOMETRY);
       }
@@ -783,7 +783,7 @@ static wmOperatorStatus node_select_exec(bContext &C, wmOperator &op)
   const SelectPick_Params params = ED_select_pick_params_from_operator(op.ptr);
 
   /* Perform the selection. */
-  const bool changed = node_mouse_select(&C, &op, mval, params);
+  const bool changed = node_mouse_select(C, &op, mval, params);
 
   if (changed) {
     return OPERATOR_PASS_THROUGH | OPERATOR_FINISHED;
@@ -894,8 +894,8 @@ static wmOperatorStatus node_box_select_exec(bContext &C, wmOperator &op)
 
   tree_draw_order_update(node_tree);
 
-  WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
-  WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_NODE_GIZMO, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -996,8 +996,8 @@ static wmOperatorStatus node_circleselect_exec(bContext &C, wmOperator &op)
     }
   }
 
-  WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
-  WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_NODE_GIZMO, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1041,12 +1041,12 @@ static wmOperatorStatus node_lasso_select_invoke(bContext &C, wmOperator &op, co
   return WM_gesture_lasso_invoke(C, op, event);
 }
 
-static bool do_lasso_select_node(bContext *C, const Span<int2> mcoords, eSelectOp sel_op)
+static bool do_lasso_select_node(bContext &C, const Span<int2> mcoords, eSelectOp sel_op)
 {
-  SpaceNode *snode = CTX_wm_space_node(*C);
+  SpaceNode *snode = CTX_wm_space_node(C);
   bNodeTree &node_tree = *snode->edittree;
 
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
   rcti rect;
   bool changed = false;
@@ -1118,7 +1118,7 @@ static wmOperatorStatus node_lasso_select_exec(bContext &C, wmOperator &op)
 
   const eSelectOp sel_op = (eSelectOp)RNA_enum_get(op.ptr, "mode");
 
-  do_lasso_select_node(&C, mcoords, sel_op);
+  do_lasso_select_node(C, mcoords, sel_op);
 
   return OPERATOR_FINISHED;
 }
@@ -1202,8 +1202,8 @@ static wmOperatorStatus node_select_all_exec(bContext &C, wmOperator &op)
 
   tree_draw_order_update(node_tree);
 
-  WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
-  WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_NODE_GIZMO, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -1255,7 +1255,7 @@ static wmOperatorStatus node_select_linked_to_exec(bContext &C, wmOperator & /*o
 
   tree_draw_order_update(node_tree);
 
-  WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -1305,7 +1305,7 @@ static wmOperatorStatus node_select_linked_from_exec(bContext &C, wmOperator & /
 
   tree_draw_order_update(node_tree);
 
-  WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -1613,7 +1613,7 @@ static ui::Block *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   ui::Button *but;
   wmOperatorType *optype = (wmOperatorType *)arg_optype;
 
-  block = block_begin(C, region, "_popup", ui::EmbossType::Emboss);
+  block = block_begin(*C, region, "_popup", ui::EmbossType::Emboss);
   block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_MOVEMOUSE_QUIT | ui::BLOCK_SEARCH_MENU);
   block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
 

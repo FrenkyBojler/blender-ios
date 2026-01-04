@@ -588,7 +588,8 @@ static void panel_draw(const bContext *C, Panel *panel)
     }
   }
 
-  ui::PanelLayout custom_range_panel_layout = layout.panel_prop(C, ptr, "open_custom_range_panel");
+  ui::PanelLayout custom_range_panel_layout = layout.panel_prop(
+      *C, ptr, "open_custom_range_panel");
   if (ui::Layout *header = custom_range_panel_layout.header) {
     header->use_property_split_set(false);
     header->active_set(use_custom_range);

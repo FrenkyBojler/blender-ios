@@ -314,7 +314,7 @@ static void lineart_bake_startjob(void *customdata, wmJobWorkerStatus *worker_st
       Object *ob = bj->objects[object];
       if (bake_single_target(bj, ob, frame)) {
         DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
-        WM_event_add_notifier(bj->C, NC_GPENCIL | ND_DATA | NA_EDITED, ob);
+        WM_event_add_notifier(*bj->C, NC_GPENCIL | ND_DATA | NA_EDITED, ob);
       }
     }
 
@@ -405,7 +405,7 @@ static wmOperatorStatus lineart_bake_common(bContext *C,
 
     WM_jobs_start(CTX_wm_manager(*C), wm_job);
 
-    WM_event_add_modal_handler(C, op);
+    WM_event_add_modal_handler(*C, op);
 
     return OPERATOR_RUNNING_MODAL;
   }
@@ -486,7 +486,7 @@ static wmOperatorStatus lineart_gpencil_clear_strokes_exec(bContext &C, wmOperat
         continue;
       }
       lineart_gpencil_clear_strokes_exec_common(ob);
-      WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, ob);
+      WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, ob);
     }
     CTX_DATA_END;
     BKE_report(op.reports, RPT_INFO, "All Line Art objects are now cleared of bakes");
@@ -497,7 +497,7 @@ static wmOperatorStatus lineart_gpencil_clear_strokes_exec(bContext &C, wmOperat
       return OPERATOR_CANCELLED;
     }
     lineart_gpencil_clear_strokes_exec_common(ob);
-    WM_event_add_notifier(&C, NC_GPENCIL | ND_DATA | NA_EDITED, ob);
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, ob);
     BKE_report(op.reports, RPT_INFO, "Baked strokes are cleared");
   }
 

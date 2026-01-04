@@ -44,16 +44,16 @@ static bool object_has_editable_pointcloud(const Main &bmain, const Object &obje
   return true;
 }
 
-static bool pointcloud_poll_impl(bContext *C,
+static bool pointcloud_poll_impl(bContext &C,
                                  const bool check_editable,
                                  const bool check_edit_mode)
 {
-  Object *object = CTX_data_active_object(*C);
+  Object *object = CTX_data_active_object(C);
   if (object == nullptr || object->type != OB_POINTCLOUD) {
     return false;
   }
   if (check_editable) {
-    if (!ED_operator_object_active_editable_ex(C, object)) {
+    if (!ED_operator_object_active_editable_ex(&C, object)) {
       return false;
     }
   }
@@ -67,12 +67,12 @@ static bool pointcloud_poll_impl(bContext *C,
 
 static bool editable_pointcloud_poll(bContext &C)
 {
-  return pointcloud_poll_impl(&C, false, false);
+  return pointcloud_poll_impl(C, false, false);
 }
 
 bool editable_pointcloud_in_edit_mode_poll(bContext &C)
 {
-  return pointcloud_poll_impl(&C, true, true);
+  return pointcloud_poll_impl(C, true, true);
 }
 
 VectorSet<PointCloud *> get_unique_editable_pointclouds(const bContext &C)
@@ -120,7 +120,7 @@ static wmOperatorStatus select_all_exec(bContext &C, wmOperator &op)
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&pointcloud->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, pointcloud);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, pointcloud);
   }
 
   return OPERATOR_FINISHED;
@@ -164,7 +164,7 @@ static wmOperatorStatus select_random_exec(bContext &C, wmOperator &op)
     /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
      * attribute for now. */
     DEG_id_tag_update(&pointcloud->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, pointcloud);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, pointcloud);
   }
   return OPERATOR_FINISHED;
 }
@@ -216,7 +216,7 @@ static wmOperatorStatus delete_exec(bContext &C, wmOperator & /*op*/)
   for (PointCloud *pointcloud : get_unique_editable_pointclouds(C)) {
     if (remove_selection(*pointcloud)) {
       DEG_id_tag_update(&pointcloud->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &pointcloud);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, &pointcloud);
     }
   }
 

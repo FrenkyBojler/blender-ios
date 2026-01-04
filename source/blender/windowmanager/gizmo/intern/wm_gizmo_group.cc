@@ -422,7 +422,7 @@ static bool gizmo_tweak_start_and_finish(
     /* Undo/Redo. */
     if (gzop->is_redo) {
       wmWindowManager *wm = CTX_wm_manager(*C);
-      wmOperator *op = WM_operator_last_redo(C);
+      wmOperator *op = WM_operator_last_redo(*C);
 
 /* We may want to enable this, for now the gizmo can manage its own properties. */
 #if 0
@@ -470,7 +470,7 @@ static void gizmo_tweak_finish(bContext *C, wmOperator *op, const bool cancel, b
   }
   if (cancel == false) {
     if (mtweak->gz_modal->flag & WM_GIZMO_NEEDS_UNDO) {
-      ED_undo_push(C, mtweak->gz_modal->parent_gzgroup->type->name);
+      ED_undo_push(*C, mtweak->gz_modal->parent_gzgroup->type->name);
     }
   }
   MEM_freeN(mtweak);
@@ -613,7 +613,7 @@ static wmOperatorStatus gizmo_tweak_invoke(bContext &C, wmOperator &op, const wm
 
   op.customdata = mtweak;
 
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }

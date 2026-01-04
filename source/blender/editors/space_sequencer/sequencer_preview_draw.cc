@@ -90,14 +90,14 @@ Strip *special_preview_get()
   return special_seq_update;
 }
 
-void special_preview_set(bContext *C, const int mval[2])
+void special_preview_set(bContext &C, const int mval[2])
 {
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   if (!seq::editing_get(scene)) {
     return;
   }
 
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   Strip *strip = strip_under_mouse_get(scene, &region->v2d, mval);
   if (strip != nullptr && strip->type != STRIP_TYPE_SOUND) {
     sequencer_special_update_set(strip);
@@ -109,14 +109,14 @@ void special_preview_clear()
   sequencer_special_update_set(nullptr);
 }
 
-ImBuf *sequencer_ibuf_get(const bContext *C, const int timeline_frame, const char *viewname)
+ImBuf *sequencer_ibuf_get(const bContext &C, const int timeline_frame, const char *viewname)
 {
-  Main *bmain = CTX_data_main(*C);
-  ARegion *region = CTX_wm_region(*C);
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_sequencer_scene(*C);
-  SpaceSeq *sseq = CTX_wm_space_seq(*C);
-  bScreen *screen = CTX_wm_screen(*C);
+  Main *bmain = CTX_data_main(C);
+  ARegion *region = CTX_wm_region(C);
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  bScreen *screen = CTX_wm_screen(C);
 
   seq::RenderData context = {nullptr};
   ImBuf *ibuf;
@@ -187,13 +187,13 @@ static void sequencer_display_size(const RenderData &render_data, float r_viewre
 static void sequencer_draw_gpencil_overlay(const bContext *C)
 {
   /* Draw grease-pencil (image aligned). */
-  ED_annotation_draw_2dimage(C);
+  ED_annotation_draw_2dimage(*C);
 
   /* Orthographic at pixel level. */
-  ui::view2d_view_restore(C);
+  ui::view2d_view_restore(*C);
 
   /* Draw grease-pencil (screen aligned). */
-  ED_annotation_draw_view2d(C, false);
+  ED_annotation_draw_view2d(*C, false);
 }
 
 /**
@@ -286,8 +286,8 @@ void sequencer_draw_maskedit(const bContext *C, Scene *scene, ARegion *region, S
 /* Force redraw, when prefetching and using cache view. */
 static void seq_prefetch_wm_notify(const bContext *C, Scene *scene)
 {
-  if (seq::prefetch_need_redraw(C, scene)) {
-    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, nullptr);
+  if (seq::prefetch_need_redraw(*C, scene)) {
+    WM_event_add_notifier(*C, NC_SCENE | ND_SEQUENCER, nullptr);
   }
 }
 
@@ -1061,11 +1061,11 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   GPU_line_smooth(false);
 }
 
-static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
+static void text_selection_draw(const bContext &C, const Strip *strip, uint pos)
 {
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const seq::TextVarsRuntime *text = data->runtime;
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
 
   if (data->selection_start_offset == -1 || strip_text_selection_range_get(data).is_empty()) {
     return;
@@ -1129,11 +1129,11 @@ static float2 coords_region_view_align(const View2D *v2d, const float2 coords)
   return coords_region_aligned;
 }
 
-static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint pos)
+static void text_edit_draw_cursor(const bContext &C, const Strip *strip, uint pos)
 {
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const seq::TextVarsRuntime *text = data->runtime;
-  const Scene *scene = CTX_data_sequencer_scene(*C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
 
   const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
   const float view_aspect = scene->r.xasp / scene->r.yasp;
@@ -1190,8 +1190,8 @@ static void text_edit_draw(const bContext *C)
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
-  text_selection_draw(C, strip, pos);
-  text_edit_draw_cursor(C, strip, pos);
+  text_selection_draw(*C, strip, pos);
+  text_edit_draw_cursor(*C, strip, pos);
 
   immUnbindProgram();
   GPU_blend(GPU_BLEND_NONE);
@@ -1217,14 +1217,14 @@ static void sequencer_preview_draw_empty(ARegion &region)
  * Initializes the drawing state which is common for color render and overlay drawing.
  *
  * #preview_draw_end() is to be called after drawing is done. */
-static void preview_draw_begin(const bContext *C,
+static void preview_draw_begin(const bContext &C,
                                const RenderData &render_data,
                                const ColorManagedViewSettings &view_settings,
                                const ColorManagedDisplaySettings &display_settings,
                                ARegion &region,
                                eSpaceSeq_RegionType preview_type)
 {
-  sequencer_stop_running_jobs(C, CTX_data_sequencer_scene(*C));
+  sequencer_stop_running_jobs(&C, CTX_data_sequencer_scene(C));
 
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(&region);
   BLI_assert(viewport);
@@ -1252,10 +1252,10 @@ static void preview_draw_begin(const bContext *C,
   ui::view2d_view_ortho(&v2d);
 }
 
-static void preview_draw_end(const bContext *C)
+static void preview_draw_end(const bContext &C)
 {
   ui::view2d_view_restore(C);
-  seq_prefetch_wm_notify(C, CTX_data_sequencer_scene(*C));
+  seq_prefetch_wm_notify(&C, CTX_data_sequencer_scene(C));
 }
 
 /* Configure current GPU state to draw on the color render frame-buffer of the viewport. */
@@ -1345,18 +1345,18 @@ static void preview_draw_texture_to_linear(gpu::Texture &texture,
 }
 
 /* Draw overlays for the currently displayed images in the preview. */
-static void preview_draw_all_image_overlays(const bContext *C,
+static void preview_draw_all_image_overlays(const bContext &C,
                                             const Scene *scene,
                                             const Editing &editing,
                                             const int timeline_frame)
 {
   /* do strip independent checks only once */
-  SpaceSeq *sseq = CTX_wm_space_seq(*C);
-  const ARegion *region = CTX_wm_region(*C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  const ARegion *region = CTX_wm_region(C);
   if (region->regiontype == RGN_TYPE_PREVIEW && !sequencer_view_preview_only_poll(C)) {
     return;
   }
-  if (ED_screen_animation_no_scrub(CTX_wm_manager(*C))) {
+  if (ED_screen_animation_no_scrub(CTX_wm_manager(C))) {
     return;
   }
   if ((sseq->flag & SEQ_SHOW_OVERLAY) == 0 ||
@@ -1379,9 +1379,9 @@ static void preview_draw_all_image_overlays(const bContext *C,
   Strip *active_seq = seq::select_active_get(scene);
 
   for (Strip *strip : strips) {
-    strip_draw_image_origin_and_outline(C, strip, strip == active_seq);
+    strip_draw_image_origin_and_outline(&C, strip, strip == active_seq);
   }
-  text_edit_draw(C);
+  text_edit_draw(&C);
 }
 
 static bool is_cursor_visible(const SpaceSeq &sseq)
@@ -1734,7 +1734,7 @@ static void sequencer_preview_draw_overlays(const bContext *C,
     sequencer_draw_borders_overlay(space_sequencer, region.v2d, scene);
 
     /* Various overlays like strip selection and text editing. */
-    preview_draw_all_image_overlays(C, scene, editing, timeline_frame);
+    preview_draw_all_image_overlays(*C, scene, editing, timeline_frame);
 
     if ((space_sequencer.preview_overlay.flag & SEQ_PREVIEW_SHOW_GPENCIL) && space_sequencer.gpd) {
       sequencer_draw_gpencil_overlay(C);
@@ -1743,7 +1743,7 @@ static void sequencer_preview_draw_overlays(const bContext *C,
 
   draw_registered_callbacks(C, region);
 
-  ui::view2d_view_restore(C);
+  ui::view2d_view_restore(*C);
 
   /* No need to show the cursor for scopes. */
   if ((is_playing == false) && show_preview_image && is_cursor_visible(space_sequencer)) {
@@ -1799,7 +1799,7 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
   const Editing &editing = *scene->ed;
   const RenderData &render_data = scene->r;
 
-  preview_draw_begin(C,
+  preview_draw_begin(*C,
                      render_data,
                      scene->view_settings,
                      scene->display_settings,
@@ -1839,14 +1839,14 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
   if (need_reference_frame) {
     const int offset = get_reference_frame_offset(editing, render_data);
     reference_ibuf = sequencer_ibuf_get(
-        C, timeline_frame + offset, view_names[space_sequencer.multiview_eye]);
+        *C, timeline_frame + offset, view_names[space_sequencer.multiview_eye]);
     if (show_imbuf && reference_ibuf) {
       reference_texture = create_texture(*reference_ibuf);
     }
   }
   if (need_current_frame) {
     current_ibuf = sequencer_ibuf_get(
-        C, timeline_frame, view_names[space_sequencer.multiview_eye]);
+        *C, timeline_frame, view_names[space_sequencer.multiview_eye]);
     if (use_gpu_texture && current_ibuf) {
       current_texture = seq::preview_cache_get_gpu_texture(
           scene, timeline_frame, space_sequencer.chanshown);
@@ -1896,7 +1896,7 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
   IMB_freeImBuf(current_ibuf);
   IMB_freeImBuf(reference_ibuf);
 
-  preview_draw_end(C);
+  preview_draw_end(*C);
 }
 
 }  // namespace blender::ed::vse

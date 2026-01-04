@@ -451,7 +451,7 @@ static wmOperatorStatus weight_sample_invoke(bContext &C,
                                              const wmEvent *event)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  ViewContext vc = ED_view3d_viewcontext_init(&C, depsgraph);
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   /* Get the active vertex group. */
   const int object_defgroup_nr = BKE_object_defgroup_active_index_get(vc.obact) - 1;
@@ -558,7 +558,7 @@ static void GREASE_PENCIL_OT_weight_sample(wmOperatorType *ot)
 
 static wmOperatorStatus toggle_weight_tool_direction_exec(bContext &C, wmOperator & /*op*/)
 {
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
 
   /* Toggle direction flag. */
@@ -577,7 +577,7 @@ static bool toggle_weight_tool_direction_poll(bContext &C)
     return false;
   }
 
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   if (paint == nullptr) {
     return false;
   }
@@ -647,7 +647,7 @@ static wmOperatorStatus grease_pencil_weight_invert_exec(bContext &C, wmOperator
   });
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   return OPERATOR_FINISHED;
 }
 
@@ -729,7 +729,7 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext &C, wmOperator &op)
   });
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }
@@ -847,7 +847,7 @@ static wmOperatorStatus vertex_group_normalize_exec(bContext &C, wmOperator &op)
 
   if (changed) {
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
   }
 
   return OPERATOR_FINISHED;
@@ -927,7 +927,7 @@ static wmOperatorStatus vertex_group_normalize_all_exec(bContext &C, wmOperator 
   });
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
 
   return OPERATOR_FINISHED;
 }

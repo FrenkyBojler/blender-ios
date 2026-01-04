@@ -92,9 +92,9 @@ void ED_mball_editmball_load(Object * /*obedit*/) {}
 /** \name Selection
  * \{ */
 
-bool ED_mball_deselect_all_multi(bContext *C)
+bool ED_mball_deselect_all_multi(bContext &C)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
   Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode_unique_data(
       vc.scene, vc.view_layer, vc.v3d);
@@ -175,7 +175,7 @@ static wmOperatorStatus mball_select_all_exec(bContext &C, wmOperator &op)
     Object *obedit = base->object;
     MetaBall *mb = (MetaBall *)obedit->data;
     DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, mb);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
   }
 
   return OPERATOR_FINISHED;
@@ -418,7 +418,7 @@ static wmOperatorStatus mball_select_similar_exec(bContext &C, wmOperator &op)
 
     if (changed) {
       DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
-      WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, mb);
+      WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
     }
   }
 
@@ -497,7 +497,7 @@ static wmOperatorStatus select_random_metaelems_exec(bContext &C, wmOperator &op
     BLI_rng_free(rng);
 
     DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, mb);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
   }
   return OPERATOR_FINISHED;
 }
@@ -552,7 +552,7 @@ static wmOperatorStatus duplicate_metaelems_exec(bContext &C, wmOperator & /*op*
         }
         ml = ml->prev;
       }
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mb);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, mb);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     }
   }
@@ -609,7 +609,7 @@ static wmOperatorStatus delete_metaelems_exec(bContext &C, wmOperator & /*op*/)
         }
         ml = next;
       }
-      WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mb);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, mb);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
     }
   }
@@ -671,7 +671,7 @@ static wmOperatorStatus hide_metaelems_exec(bContext &C, wmOperator &op)
       }
       ml = ml->next;
     }
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mb);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, mb);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -718,7 +718,7 @@ static wmOperatorStatus reveal_metaelems_exec(bContext &C, wmOperator &op)
     }
   }
   if (changed) {
-    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, mb);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, mb);
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
 
@@ -772,14 +772,14 @@ Base *ED_mball_base_and_elem_from_select_buffer(const Span<Base *> bases,
   return base;
 }
 
-static bool ed_mball_findnearest_metaelem(bContext *C,
+static bool ed_mball_findnearest_metaelem(bContext &C,
                                           const int mval[2],
                                           bool use_cycle,
                                           Base **r_base,
                                           MetaElem **r_ml,
                                           uint *r_selmask)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   int a, hits;
   GPUSelectBuffer buffer;
   rcti rect;
@@ -861,7 +861,7 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], const SelectPick_Param
 
   bool changed = false;
 
-  bool found = ed_mball_findnearest_metaelem(C, mval, true, &base, &ml, &selmask);
+  bool found = ed_mball_findnearest_metaelem(*C, mval, true, &base, &ml, &selmask);
 
   if (params.sel_op == SEL_OP_SET) {
     if ((found && params.select_passthrough) && (ml->flag & SELECT)) {
@@ -869,7 +869,7 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], const SelectPick_Param
     }
     else if (found || params.deselect_all) {
       /* Deselect everything. */
-      changed |= ED_mball_deselect_all_multi(C);
+      changed |= ED_mball_deselect_all_multi(*C);
     }
   }
 
@@ -915,11 +915,11 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], const SelectPick_Param
     mb->lastelem = ml;
 
     DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
+    WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, mb);
 
     BKE_view_layer_synced_ensure(scene, view_layer);
     if (BKE_view_layer_active_base_get(view_layer) != base) {
-      blender::ed::object::base_activate(C, base);
+      blender::ed::object::base_activate(*C, base);
     }
 
     changed = true;

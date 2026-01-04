@@ -42,7 +42,7 @@ bool drop_target_apply_drop(bContext &C,
     }
 
     const DragInfo drag_info{drag, event, *drop_location};
-    return drop_target.on_drop(&C, drag_info);
+    return drop_target.on_drop(C, drag_info);
   }
 
   return false;

@@ -479,12 +479,12 @@ static void relaxation_iteration_uv(UvSculptData *sculptdata,
   MEM_SAFE_FREE(delta_buf);
 }
 
-static void uv_sculpt_stroke_apply(bContext *C,
+static void uv_sculpt_stroke_apply(bContext &C,
                                    wmOperator *op,
                                    const wmEvent *event,
                                    Object *obedit)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   UvSculptData *sculptdata = (UvSculptData *)op->customdata;
   eBrushUVSculptTool tool = eBrushUVSculptTool(sculptdata->tool);
@@ -494,7 +494,7 @@ static void uv_sculpt_stroke_apply(bContext *C,
   float co[2];
   blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
 
   int width, height;
   ED_space_image_get_size(sima, &width, &height);
@@ -587,15 +587,15 @@ static void uv_sculpt_stroke_apply(bContext *C,
   }
 }
 
-static void uv_sculpt_stroke_exit(bContext *C, wmOperator *op)
+static void uv_sculpt_stroke_exit(bContext &C, wmOperator *op)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
   if (sima->flag & SI_LIVE_UNWRAP) {
     ED_uvedit_live_unwrap_end(false);
   }
   UvSculptData *data = static_cast<UvSculptData *>(op->customdata);
   if (data->timer) {
-    WM_event_timer_remove(CTX_wm_manager(*C), CTX_wm_window(*C), data->timer);
+    WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), data->timer);
   }
   BM_uv_element_map_free(data->elementMap);
   data->elementMap = nullptr;
@@ -650,10 +650,10 @@ static void set_element_flag(UvElement *element, const int flag)
   }
 }
 
-static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wmEvent *event)
+static UvSculptData *uv_sculpt_stroke_init(bContext &C, wmOperator *op, const wmEvent *event)
 {
-  Scene *scene = CTX_data_scene(*C);
-  Object *obedit = CTX_data_edit_object(*C);
+  Scene *scene = CTX_data_scene(C);
+  Object *obedit = CTX_data_edit_object(C);
   ToolSettings *ts = scene->toolsettings;
   UvSculptData *data = MEM_callocN<UvSculptData>(__func__);
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
@@ -667,7 +667,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
     return nullptr;
   }
 
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   float co[2];
   BMFace *efa;
   float (*luv)[2];
@@ -853,7 +853,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
     }
   }
 
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
   data->constrain_to_bounds = (sima->flag & SI_CLIP_UV);
   BKE_image_find_nearest_tile_with_offset(sima->image, co, data->uv_base_offset);
 
@@ -907,7 +907,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
 
     data->initial_stroke->totalInitialSelected = counter;
     if (sima->flag & SI_LIVE_UNWRAP) {
-      wmWindow *win_modal = CTX_wm_window(*C);
+      wmWindow *win_modal = CTX_wm_window(C);
       ED_uvedit_live_unwrap_begin(scene, obedit, win_modal);
     }
   }
@@ -920,19 +920,19 @@ static wmOperatorStatus uv_sculpt_stroke_invoke(bContext &C, wmOperator &op, con
   UvSculptData *data;
   Object *obedit = CTX_data_edit_object(C);
 
-  if (!(data = uv_sculpt_stroke_init(&C, &op, event))) {
+  if (!(data = uv_sculpt_stroke_init(C, &op, event))) {
     return OPERATOR_CANCELLED;
   }
 
-  uv_sculpt_stroke_apply(&C, &op, event, obedit);
+  uv_sculpt_stroke_apply(C, &op, event, obedit);
 
   data->timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.001f);
 
   if (!data->timer) {
-    uv_sculpt_stroke_exit(&C, &op);
+    uv_sculpt_stroke_exit(C, &op);
     return OPERATOR_CANCELLED;
   }
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -946,16 +946,16 @@ static wmOperatorStatus uv_sculpt_stroke_modal(bContext &C, wmOperator &op, cons
     case LEFTMOUSE:
     case MIDDLEMOUSE:
     case RIGHTMOUSE:
-      uv_sculpt_stroke_exit(&C, &op);
+      uv_sculpt_stroke_exit(C, &op);
       return OPERATOR_FINISHED;
 
     case MOUSEMOVE:
     case INBETWEEN_MOUSEMOVE:
-      uv_sculpt_stroke_apply(&C, &op, event, obedit);
+      uv_sculpt_stroke_apply(C, &op, event, obedit);
       break;
     case TIMER:
       if (event->customdata == data->timer) {
-        uv_sculpt_stroke_apply(&C, &op, event, obedit);
+        uv_sculpt_stroke_apply(C, &op, event, obedit);
       }
       break;
     default:
@@ -963,7 +963,7 @@ static wmOperatorStatus uv_sculpt_stroke_modal(bContext &C, wmOperator &op, cons
   }
 
   ED_region_tag_redraw(CTX_wm_region(C));
-  WM_event_add_notifier(&C, NC_GEOM | ND_DATA, obedit->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
   return OPERATOR_RUNNING_MODAL;
 }

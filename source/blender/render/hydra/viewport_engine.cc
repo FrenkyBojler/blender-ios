@@ -36,18 +36,18 @@ struct ViewSettings {
   pxr::GfVec4i border;
   pxr::GfCamera camera;
 
-  ViewSettings(bContext *context);
+  ViewSettings(bContext &context);
 
   int width();
   int height();
 };
 
-ViewSettings::ViewSettings(bContext *context)
+ViewSettings::ViewSettings(bContext &context)
 {
-  View3D *view3d = CTX_wm_view3d(*context);
-  RegionView3D *region_data = static_cast<RegionView3D *>(CTX_wm_region_data(*context));
-  ARegion *region = CTX_wm_region(*context);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*context);
+  View3D *view3d = CTX_wm_view3d(context);
+  RegionView3D *region_data = static_cast<RegionView3D *>(CTX_wm_region_data(context));
+  ARegion *region = CTX_wm_region(context);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(context);
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
 
   screen_width = region->winx;
@@ -224,7 +224,7 @@ blender::gpu::Texture *DrawTexture::texture() const
 
 void ViewportEngine::render()
 {
-  ViewSettings view_settings(context_);
+  ViewSettings view_settings(*context_);
   if (view_settings.width() * view_settings.height() == 0) {
     return;
   };

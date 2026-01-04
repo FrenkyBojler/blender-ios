@@ -52,12 +52,12 @@
 
 namespace blender::ed::sculpt_paint {
 
-void init_transform(bContext *C, Object &ob, const float mval_fl[2], const char *undo_name)
+void init_transform(bContext &C, Object &ob, const float mval_fl[2], const char *undo_name)
 {
-  const Scene &scene = *CTX_data_scene(*C);
-  Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
+  const Scene &scene = *CTX_data_scene(C);
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   SculptSession &ss = *ob.sculpt;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
 
   ss.init_pivot_pos = ss.pivot_pos;
   ss.init_pivot_rot = ss.pivot_rot;
@@ -535,11 +535,11 @@ static void transform_radius_elastic(const Depsgraph &depsgraph,
   pbvh.flush_bounds_to_parents();
 }
 
-void update_modal_transform(bContext *C, Object &ob)
+void update_modal_transform(bContext &C, Object &ob)
 {
-  const Sculpt &sd = *CTX_data_tool_settings(*C)->sculpt;
+  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   SculptSession &ss = *ob.sculpt;
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
   vert_random_access_ensure(ob);
   BKE_sculpt_update_object_for_edit(depsgraph, &ob, false);
@@ -575,12 +575,12 @@ void update_modal_transform(bContext *C, Object &ob)
   flush_update_step(C, UpdateType::Position);
 }
 
-void cancel_modal_transform(bContext *C, Object &ob)
+void cancel_modal_transform(bContext &C, Object &ob)
 {
   /* Canceling "Elastic" transforms (due to its #TransformDisplacementMode::Incremental nature),
    * requires restoring positions from undo. For "All Vertices" there is no benefit in using the
    * transform system to update to original positions either. */
-  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(*C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   undo::restore_position_from_undo_step(depsgraph, ob);
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
@@ -594,7 +594,7 @@ void end_transform(bContext *C, Object &ob)
   MEM_delete(ss.filter_cache);
   ss.filter_cache = nullptr;
   undo::push_end(ob);
-  flush_update_done(C, ob, UpdateType::Position);
+  flush_update_done(*C, ob, UpdateType::Position);
 }
 
 enum class PivotPositionMode {
@@ -940,7 +940,7 @@ static wmOperatorStatus set_pivot_position_exec(bContext &C, wmOperator &op)
     case PivotPositionMode::ActiveVert: {
       const float2 mval(RNA_float_get(op.ptr, "mouse_x"), RNA_float_get(op.ptr, "mouse_y"));
       CursorGeometryInfo cgi;
-      if (cursor_geometry_info_update(&C, &cgi, mval, false)) {
+      if (cursor_geometry_info_update(C, &cgi, mval, false)) {
         ss.pivot_pos = ss.active_vert_position(*depsgraph, ob);
       }
       break;
@@ -948,7 +948,7 @@ static wmOperatorStatus set_pivot_position_exec(bContext &C, wmOperator &op)
     case PivotPositionMode::CursorSurface: {
       const float2 mval(RNA_float_get(op.ptr, "mouse_x"), RNA_float_get(op.ptr, "mouse_y"));
       float3 stroke_location;
-      if (stroke_get_location_bvh(&C, stroke_location, mval, false)) {
+      if (stroke_get_location_bvh(C, stroke_location, mval, false)) {
         ss.pivot_pos = stroke_location;
       }
       break;
@@ -956,14 +956,14 @@ static wmOperatorStatus set_pivot_position_exec(bContext &C, wmOperator &op)
   }
 
   /* Update the viewport navigation rotation origin. */
-  Paint *paint = BKE_paint_get_active_from_context(&C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   bke::PaintRuntime *paint_runtime = paint->runtime;
   paint_runtime->average_stroke_accum = ss.pivot_pos;
   paint_runtime->average_stroke_counter = 1;
   paint_runtime->last_stroke_valid = true;
 
   ED_region_tag_redraw(region);
-  WM_event_add_notifier(&C, NC_GEOM | ND_SELECT, ob.data);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob.data);
 
   return OPERATOR_FINISHED;
 }

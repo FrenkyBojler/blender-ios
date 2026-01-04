@@ -61,8 +61,8 @@
 
 using blender::Vector;
 
-static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_cursor[3]);
-static bool snap_calc_active_center(bContext *C, const bool select_only, float r_center[3]);
+static bool snap_curs_to_sel_ex(bContext &C, const int pivot_point, float r_cursor[3]);
+static bool snap_calc_active_center(bContext &C, const bool select_only, float r_center[3]);
 
 /* -------------------------------------------------------------------- */
 /** \name Snap Selection to Grid Operator
@@ -217,7 +217,7 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext &C, wmOperator &op)
     }
 
     if (blender::animrig::is_autokey_on(scene)) {
-      ANIM_deselect_keys_in_animation_editors(&C);
+      ANIM_deselect_keys_in_animation_editors(C);
     }
 
     for (Object *ob_eval : objects_eval) {
@@ -260,7 +260,7 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext &C, wmOperator &op)
     }
   }
 
-  WM_event_add_notifier(&C, NC_OBJECT | ND_TRANSFORM, nullptr);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -312,7 +312,7 @@ static bool pose_bone_runtime_flag_test_recursive(const bPoseChannel *pose_bone,
  * and be snapped by the selection pivot point (median, active),
  * or if every object origin should be snapped to the given location.
  */
-static bool snap_selected_to_location_rotation(bContext *C,
+static bool snap_selected_to_location_rotation(bContext &C,
                                                wmOperator *op,
                                                const blender::float3 &target_loc_global,
                                                const View3DCursor *target_orientation_global,
@@ -321,11 +321,11 @@ static bool snap_selected_to_location_rotation(bContext *C,
                                                const bool use_toolsettings)
 {
   using namespace blender::ed;
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
-  Scene *scene = CTX_data_scene(*C);
-  Object *obedit = CTX_data_edit_object(*C);
-  Object *obact = CTX_data_active_object(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
+  Object *obedit = CTX_data_edit_object(C);
+  Object *obact = CTX_data_active_object(C);
+  View3D *v3d = CTX_wm_view3d(C);
   TransVertStore tvs = {nullptr};
   TransVert *tv;
   float imat[3][3], bmat[3][3];
@@ -351,7 +351,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
 
   if (obedit) {
     blender::float3 target_loc_local;
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
         scene, view_layer, v3d);
     for (const int ob_index : objects.index_range()) {
@@ -405,10 +405,10 @@ static bool snap_selected_to_location_rotation(bContext *C,
   }
   else if (OBPOSE_FROM_OBACT(obact)) {
     KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
     Vector<Object *> objects = BKE_object_pose_array_get(scene, view_layer, v3d);
-    Main *bmain = CTX_data_main(*C);
-    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+    Main *bmain = CTX_data_main(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
 
     for (Object *ob : objects) {
@@ -503,7 +503,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
             BKE_pchan_protected_location_set(&pchan, target_loc_pose);
 
             /* auto-keyframing */
-            blender::animrig::autokeyframe_pchan(C, scene, ob, &pchan, ks);
+            blender::animrig::autokeyframe_pchan(&C, scene, ob, &pchan, ks);
           }
           else {
             copy_v3_v3(pchan.loc, target_loc_pose);
@@ -522,8 +522,8 @@ static bool snap_selected_to_location_rotation(bContext *C,
   }
   else {
     KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
-    Main *bmain = CTX_data_main(*C);
-    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+    Main *bmain = CTX_data_main(C);
+    Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
 
     /* Reset flags. */
@@ -534,7 +534,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
     }
 
     /* Build object array, tag objects we're transforming. */
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
     Vector<Object *> objects;
     {
       FOREACH_SELECTED_EDITABLE_OBJECT_BEGIN (view_layer, v3d, ob) {
@@ -617,7 +617,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
         BKE_object_protected_location_set(ob, loc_final);
 
         /* auto-keyframing */
-        blender::animrig::autokeyframe_object(C, scene, ob, ks);
+        blender::animrig::autokeyframe_object(&C, scene, ob, ks);
       }
       else {
         add_v3_v3(ob->loc, target_loc_local);
@@ -678,7 +678,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
         }
 
         /* auto-keyframing */
-        blender::animrig::autokeyframe_object(C, scene, ob, ks);
+        blender::animrig::autokeyframe_object(&C, scene, ob, ks);
       }
 
       DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
@@ -711,7 +711,7 @@ bool ED_view3d_snap_selected_to_location(bContext *C,
    * so this can be used as a low level function. */
   const bool use_toolsettings = false;
   return snap_selected_to_location_rotation(
-      C, op, target_loc_global, nullptr, use_offset, pivot_point, use_toolsettings);
+      *C, op, target_loc_global, nullptr, use_offset, pivot_point, use_toolsettings);
 }
 
 /** \} */
@@ -732,7 +732,7 @@ static wmOperatorStatus snap_selected_to_cursor_exec(bContext &C, wmOperator &op
   const int pivot_point = scene->toolsettings->transform_pivot_point;
 
   if (snap_selected_to_location_rotation(
-          &C, &op, target_loc_global, snap_orientation, use_offset, pivot_point, true))
+          C, &op, target_loc_global, snap_orientation, use_offset, pivot_point, true))
   {
     return OPERATOR_FINISHED;
   }
@@ -777,12 +777,12 @@ static wmOperatorStatus snap_selected_to_active_exec(bContext &C, wmOperator &op
 {
   float target_loc_global[3];
 
-  if (snap_calc_active_center(&C, false, target_loc_global) == false) {
+  if (snap_calc_active_center(C, false, target_loc_global) == false) {
     BKE_report(op.reports, RPT_ERROR, "No active element found!");
     return OPERATOR_CANCELLED;
   }
 
-  if (!snap_selected_to_location_rotation(&C, &op, target_loc_global, nullptr, false, -1, true)) {
+  if (!snap_selected_to_location_rotation(C, &op, target_loc_global, nullptr, false, -1, true)) {
     return OPERATOR_CANCELLED;
   }
   return OPERATOR_FINISHED;
@@ -824,7 +824,7 @@ static wmOperatorStatus snap_curs_to_grid_exec(bContext &C, wmOperator & /*op*/)
   curs[1] = gridf * floorf(0.5f + curs[1] / gridf);
   curs[2] = gridf * floorf(0.5f + curs[2] / gridf);
 
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr); /* hrm */
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr); /* hrm */
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
   return OPERATOR_FINISHED;
@@ -904,13 +904,13 @@ static void bundle_midpoint(Scene *scene, Object *ob, float r_vec[3])
 }
 
 /** Snaps the 3D cursor location to the median point of the selection. */
-static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_cursor[3])
+static bool snap_curs_to_sel_ex(bContext &C, const int pivot_point, float r_cursor[3])
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewLayer *view_layer_eval = DEG_get_evaluated_view_layer(depsgraph);
-  Object *obedit = CTX_data_edit_object(*C);
-  Scene *scene = CTX_data_scene(*C);
-  View3D *v3d = CTX_wm_view3d(*C);
+  Object *obedit = CTX_data_edit_object(C);
+  Scene *scene = CTX_data_scene(C);
+  View3D *v3d = CTX_wm_view3d(C);
   TransVertStore tvs = {nullptr};
   TransVert *tv;
   float bmat[3][3], vec[3], min[3], max[3], centroid[3];
@@ -920,9 +920,9 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
   zero_v3(centroid);
 
   if (obedit) {
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-        scene, view_layer, CTX_wm_view3d(*C));
+        scene, view_layer, CTX_wm_view3d(C));
     for (const int ob_index : objects.index_range()) {
       obedit = objects[ob_index];
 
@@ -958,7 +958,7 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
     }
   }
   else {
-    Object *obact = CTX_data_active_object(*C);
+    Object *obact = CTX_data_active_object(C);
 
     if (obact && (obact->mode & OB_MODE_POSE)) {
       Object *obact_eval = DEG_get_evaluated(depsgraph, obact);
@@ -1013,8 +1013,8 @@ static wmOperatorStatus snap_curs_to_sel_exec(bContext &C, wmOperator & /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   const int pivot_point = scene->toolsettings->transform_pivot_point;
-  if (snap_curs_to_sel_ex(&C, pivot_point, scene->cursor.location)) {
-    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  if (snap_curs_to_sel_ex(C, pivot_point, scene->cursor.location)) {
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
     return OPERATOR_FINISHED;
@@ -1049,9 +1049,9 @@ void VIEW3D_OT_snap_cursor_to_selected(wmOperatorType *ot)
  * NOTE: this could be exported to be a generic function.
  * see: #calculateCenterActive
  */
-static bool snap_calc_active_center(bContext *C, const bool select_only, float r_center[3])
+static bool snap_calc_active_center(bContext &C, const bool select_only, float r_center[3])
 {
-  Object *ob = CTX_data_active_object(*C);
+  Object *ob = CTX_data_active_object(C);
   if (ob == nullptr) {
     return false;
   }
@@ -1062,8 +1062,8 @@ static wmOperatorStatus snap_curs_to_active_exec(bContext &C, wmOperator & /*op*
 {
   Scene *scene = CTX_data_scene(C);
 
-  if (snap_calc_active_center(&C, false, scene->cursor.location)) {
-    WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  if (snap_calc_active_center(C, false, scene->cursor.location)) {
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
     DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
     return OPERATOR_FINISHED;
@@ -1101,7 +1101,7 @@ static wmOperatorStatus snap_curs_to_center_exec(bContext &C, wmOperator & /*op*
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
-  WM_event_add_notifier(&C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
   return OPERATOR_FINISHED;
 }
 

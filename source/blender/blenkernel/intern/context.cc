@@ -120,12 +120,12 @@ bContext *CTX_create()
 
 bContext *CTX_copy(const bContext &C)
 {
-  bContext *newC = MEM_callocN<bContext>(__func__);
-  *newC = C;
+  bContext &newC = *MEM_callocN<bContext>(__func__);
+  newC = C;
 
-  memset(&newC->wm.operator_poll_msg_dyn_params, 0, sizeof(newC->wm.operator_poll_msg_dyn_params));
+  memset(&newC.wm.operator_poll_msg_dyn_params, 0, sizeof(newC.wm.operator_poll_msg_dyn_params));
 
-  return newC;
+  return &newC;
 }
 
 void CTX_free(bContext *C)
@@ -428,7 +428,7 @@ static void *ctx_wm_python_context_get(const bContext &C,
 #ifdef WITH_PYTHON
   if (UNLIKELY(CTX_py_dict_get(C))) {
     bContextDataResult result{};
-    if (BPY_context_member_get(&const_cast<bContext &>(C), member, &result)) {
+    if (BPY_context_member_get(const_cast<bContext &>(C), member, &result)) {
       found_member = true;
 
       if (result.ptr.data) {
@@ -487,7 +487,7 @@ static eContextResult ctx_data_get(bContext &C, const char *member, bContextData
 
 #ifdef WITH_PYTHON
   if (CTX_py_dict_get(C)) {
-    if (BPY_context_member_get(&C, member, result)) {
+    if (BPY_context_member_get(C, member, result)) {
       /* Log the Python context result if we're in a temp_override. */
       ctx_member_log_access(C, member, *result);
       return CTX_RESULT_OK;

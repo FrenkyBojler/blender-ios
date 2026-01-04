@@ -437,9 +437,9 @@ void draw_image_sample_line(SpaceImage *sima)
   }
 }
 
-void draw_image_main_helpers(const bContext *C, ARegion *region)
+void draw_image_main_helpers(const bContext &C, ARegion *region)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
   Image *ima = ED_space_image(sima);
 
   const bool show_viewer = (ima && ima->source == IMA_SRC_VIEWER) != 0;
@@ -447,11 +447,11 @@ void draw_image_main_helpers(const bContext *C, ARegion *region)
   if (ima && show_render) {
     float zoomx, zoomy;
     ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
-    draw_render_info(C, sima->iuser.scene, ima, region, zoomx, zoomy);
+    draw_render_info(&C, sima->iuser.scene, ima, region, zoomx, zoomy);
   }
 
   if (sima->mode == SI_MODE_UV) {
-    const Scene *scene = CTX_data_scene(*C);
+    const Scene *scene = CTX_data_scene(C);
     const ToolSettings *ts = scene->toolsettings;
     if (ts->uv_flag & UV_FLAG_CUSTOM_REGION) {
       draw_image_uv_custom_region(region, ts->uv_custom_region);
@@ -486,10 +486,10 @@ bool ED_space_image_show_cache_and_mval_over(const SpaceImage *sima,
   return ED_space_image_show_cache(sima);
 }
 
-void draw_image_cache(const bContext *C, ARegion *region)
+void draw_image_cache(const bContext &C, ARegion *region)
 {
-  SpaceImage *sima = CTX_wm_space_image(*C);
-  Scene *scene = CTX_data_scene(*C);
+  SpaceImage *sima = CTX_wm_space_image(C);
+  Scene *scene = CTX_data_scene(C);
   Image *image = ED_space_image(sima);
   float x, cfra = scene->r.cfra, sfra = scene->r.sfra, efra = scene->r.efra,
            framelen = region->winx / (efra - sfra + 1);

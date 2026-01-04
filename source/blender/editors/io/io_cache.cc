@@ -33,9 +33,9 @@
 
 #include "io_cache.hh"
 
-static void reload_cachefile(bContext *C, CacheFile *cache_file)
+static void reload_cachefile(bContext &C, CacheFile *cache_file)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   BKE_cachefile_reload(depsgraph, cache_file);
 }
 
@@ -104,7 +104,7 @@ static wmOperatorStatus cachefile_open_exec(bContext &C, wmOperator &op)
 
       PointerRNA idptr = RNA_id_pointer_create(&cache_file->id);
       RNA_property_pointer_set(&pprop->ptr, pprop->prop, idptr, nullptr);
-      RNA_property_update(&C, &pprop->ptr, pprop->prop);
+      RNA_property_update(C, &pprop->ptr, pprop->prop);
     }
 
     op.customdata = nullptr;
@@ -143,7 +143,7 @@ static wmOperatorStatus cachefile_reload_exec(bContext &C, wmOperator & /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  reload_cachefile(&C, cache_file);
+  reload_cachefile(C, cache_file);
 
   return OPERATOR_FINISHED;
 }
@@ -207,7 +207,7 @@ static wmOperatorStatus cachefile_layer_add_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  reload_cachefile(&C, cache_file);
+  reload_cachefile(C, cache_file);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
   return OPERATOR_FINISHED;
 }
@@ -244,7 +244,7 @@ static wmOperatorStatus cachefile_layer_remove_exec(bContext &C, wmOperator & /*
   CacheFileLayer *layer = BKE_cachefile_get_active_layer(cache_file);
   BKE_cachefile_remove_layer(cache_file, layer);
 
-  reload_cachefile(&C, cache_file);
+  reload_cachefile(C, cache_file);
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
   return OPERATOR_FINISHED;
 }
@@ -283,7 +283,7 @@ static wmOperatorStatus cachefile_layer_move_exec(bContext &C, wmOperator &op)
   if (BLI_listbase_link_move(&cache_file->layers, layer, dir)) {
     cache_file->active_layer = BLI_findindex(&cache_file->layers, layer) + 1;
     /* Only reload if something moved, might be expensive. */
-    reload_cachefile(&C, cache_file);
+    reload_cachefile(C, cache_file);
     WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
   }
 

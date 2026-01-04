@@ -439,7 +439,7 @@ static wmOperatorStatus screen_render_exec(bContext &C, wmOperator &op)
   /* No redraw needed, we leave state as we entered it. */
   ED_update_for_newframe(mainp, CTX_data_depsgraph_pointer(C));
 
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_RESULT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, scene);
 
   if (cancelled) {
     return OPERATOR_CANCELLED;
@@ -1101,7 +1101,7 @@ static wmOperatorStatus screen_render_invoke(bContext &C, wmOperator &op, const 
 
   /* cancel animation playback */
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
-    ED_screen_animation_play(&C, 0, 0);
+    ED_screen_animation_play(C, 0, 0);
   }
 
   /* handle UI stuff */
@@ -1118,7 +1118,7 @@ static wmOperatorStatus screen_render_invoke(bContext &C, wmOperator &op, const 
    * store spare */
 
   /* ensure at least 1 area shows result */
-  area = render_view_open(&C, event->xy[0], event->xy[1], op.reports);
+  area = render_view_open(C, event->xy[0], event->xy[1], op.reports);
 
   /* job custom data */
   rj = MEM_new<RenderJob>("render job");
@@ -1222,7 +1222,7 @@ static wmOperatorStatus screen_render_invoke(bContext &C, wmOperator &op, const 
   WM_jobs_start(CTX_wm_manager(C), wm_job);
 
   WM_cursor_wait(false);
-  WM_event_add_notifier(&C, NC_SCENE | ND_RENDER_RESULT, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, scene);
 
   /* we set G.is_rendering here already instead of only in the job, this ensure
    * main loop or other scene updates are disabled in time, since they may
@@ -1230,7 +1230,7 @@ static wmOperatorStatus screen_render_invoke(bContext &C, wmOperator &op, const 
   G.is_rendering = true;
 
   /* add modal handler for ESC */
-  WM_event_add_modal_handler(&C, &op);
+  WM_event_add_modal_handler(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1330,19 +1330,19 @@ void RENDER_OT_render(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-static RenderJobBase *render_job_get(const bContext *C)
+static RenderJobBase *render_job_get(const bContext &C)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   RenderJobBase *rj;
 
   /* Try to find job tied to active scene first. */
   rj = static_cast<RenderJobBase *>(
-      WM_jobs_customdata_from_type(wm, CTX_data_scene(*C), WM_JOB_TYPE_RENDER));
+      WM_jobs_customdata_from_type(wm, CTX_data_scene(C), WM_JOB_TYPE_RENDER));
 
   /* If not found, attempt to find job tied to sequencer scene. */
   if (rj == nullptr) {
     return static_cast<RenderJobBase *>(
-        WM_jobs_customdata_from_type(wm, CTX_data_sequencer_scene(*C), WM_JOB_TYPE_RENDER));
+        WM_jobs_customdata_from_type(wm, CTX_data_sequencer_scene(C), WM_JOB_TYPE_RENDER));
   }
 
   return rj;
@@ -1350,13 +1350,13 @@ static RenderJobBase *render_job_get(const bContext *C)
 
 Scene *ED_render_job_get_scene(const bContext *C)
 {
-  RenderJobBase *rj = render_job_get(C);
+  RenderJobBase *rj = render_job_get(*C);
   return rj ? rj->scene : nullptr;
 }
 
 Scene *ED_render_job_get_current_scene(const bContext *C)
 {
-  RenderJobBase *rj = render_job_get(C);
+  RenderJobBase *rj = render_job_get(*C);
   return rj ? rj->current_scene : nullptr;
 }
 

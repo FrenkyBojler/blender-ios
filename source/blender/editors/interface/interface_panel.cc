@@ -120,7 +120,7 @@ struct PanelSort {
 
 static void panel_set_expansion_from_list_data(const bContext *C, Panel *panel);
 static int get_panel_real_size_y(const Panel *panel);
-static void panel_activate_state(const bContext *C, Panel *panel, const HandlePanelState state);
+static void panel_activate_state(const bContext &C, Panel *panel, const HandlePanelState state);
 static bool panel_type_context_poll(ARegion *region,
                                     const PanelType *panel_type,
                                     const char *context);
@@ -319,7 +319,7 @@ void panels_free_instanced(const bContext *C, ARegion *region)
     }
     /* Make sure the panel's handler is removed before deleting it. */
     if (C != nullptr && panel.activedata != nullptr) {
-      panel_activate_state(C, &panel, PANEL_STATE_EXIT);
+      panel_activate_state(*C, &panel, PANEL_STATE_EXIT);
     }
 
     /* Free panel's custom data. */
@@ -481,7 +481,7 @@ static void panel_set_expansion_from_list_data(const bContext *C, Panel *panel)
 
   /* Start panel animation if the open state was changed. */
   if (panel_set_expand_from_list_data_recursive(panel, expand_flag, &flag_index)) {
-    panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
+    panel_activate_state(*C, panel, PANEL_STATE_ANIMATION);
   }
 }
 
@@ -567,7 +567,7 @@ static void panel_custom_pin_to_last_set(const bContext *C, const Panel *panel, 
     if (ptr != nullptr && !RNA_pointer_is_null(ptr)) {
       PropertyRNA *prop = RNA_struct_find_property(ptr, panel->type->pin_to_last_property);
       RNA_boolean_set(ptr, panel->type->pin_to_last_property, value);
-      RNA_property_update(const_cast<bContext *>(C), ptr, prop);
+      RNA_property_update(*const_cast<bContext *>(C), ptr, prop);
     }
   }
 }
@@ -1009,7 +1009,7 @@ void panels_draw(const bContext *C, ARegion *region)
     if (block.active && block.panel && !panel_is_dragging(block.panel) &&
         !block_is_search_only(&block))
     {
-      block_draw(C, &block);
+      block_draw(*C, &block);
     }
   }
 
@@ -1017,7 +1017,7 @@ void panels_draw(const bContext *C, ARegion *region)
     if (block.active && block.panel && panel_is_dragging(block.panel) &&
         !block_is_search_only(&block))
     {
-      block_draw(C, &block);
+      block_draw(*C, &block);
     }
   }
 }
@@ -1903,10 +1903,10 @@ static void ui_panels_size(ARegion *region, int *r_x, int *r_y)
   *r_y = sizey;
 }
 
-static void ui_do_animate(bContext *C, Panel *panel)
+static void ui_do_animate(bContext &C, Panel *panel)
 {
   HandlePanelData *data = static_cast<HandlePanelData *>(panel->activedata);
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
   float fac = (BLI_time_now_seconds() - data->starttime) / ANIMATION_TIME;
   fac = min_ff(sqrtf(fac), 1.0f);
@@ -1918,7 +1918,7 @@ static void ui_do_animate(bContext *C, Panel *panel)
     if (panel_is_dragging(panel)) {
       /* NOTE: doing this in #panel_activate_state would require
        * removing `const` for context in many other places. */
-      reorder_instanced_panel_list(C, region, panel);
+      reorder_instanced_panel_list(&C, region, panel);
     }
 
     panel_activate_state(C, panel, PANEL_STATE_EXIT);
@@ -1948,19 +1948,19 @@ void panels_begin(const bContext * /*C*/, ARegion *region)
   panels_layout_begin_clear_flags(&region->panels);
 }
 
-void panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y)
+void panels_end(const bContext &C, ARegion *region, int *r_x, int *r_y)
 {
-  ScrArea *area = CTX_wm_area(*C);
+  ScrArea *area = CTX_wm_area(C);
 
-  region_panels_set_expansion_from_list_data(C, region);
+  region_panels_set_expansion_from_list_data(&C, region);
 
   const bool region_search_filter_active = region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE;
 
   if (properties_space_needs_realign(area, region)) {
-    region_panels_set_expansion_from_search_filter(C, region, region_search_filter_active);
+    region_panels_set_expansion_from_search_filter(&C, region, region_search_filter_active);
   }
   else if (region->flag & RGN_FLAG_SEARCH_FILTER_UPDATE) {
-    region_panels_set_expansion_from_search_filter(C, region, region_search_filter_active);
+    region_panels_set_expansion_from_search_filter(&C, region, region_search_filter_active);
   }
 
   if (region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE) {
@@ -2008,10 +2008,10 @@ void panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y)
  * \{ */
 
 #define DRAG_REGION_PAD (PNL_HEADER * 0.5)
-static void ui_do_drag(const bContext *C, const wmEvent *event, Panel *panel)
+static void ui_do_drag(const bContext &C, const wmEvent *event, Panel *panel)
 {
   HandlePanelData *data = static_cast<HandlePanelData *>(panel->activedata);
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
   /* Keep the drag position in the region with a small pad to keep the panel visible. */
   const int y = clamp_i(event->xy[1], region->winrct.ymin, region->winrct.ymax + DRAG_REGION_PAD);
@@ -2084,13 +2084,13 @@ static void ui_panel_drag_collapse_handler_remove(bContext * /*C*/, void *userda
   MEM_freeN(dragcol_data);
 }
 
-static void ui_panel_drag_collapse(const bContext *C,
+static void ui_panel_drag_collapse(const bContext &C,
                                    const PanelDragCollapseHandle *dragcol_data,
                                    const int xy_dst[2])
 {
-  ARegion *region = CTX_wm_region_popup(*C);
+  ARegion *region = CTX_wm_region_popup(C);
   if (!region) {
-    region = CTX_wm_region(*C);
+    region = CTX_wm_region(C);
   }
   for (Block &block : region->runtime->uiblocks) {
     float xy_a_block[2] = {float(dragcol_data->xy_init[0]), float(dragcol_data->xy_init[1])};
@@ -2117,7 +2117,7 @@ static void ui_panel_drag_collapse(const bContext *C,
         RNA_boolean_set(
             &header.open_owner_ptr, header.open_prop_name.c_str(), !dragcol_data->was_first_open);
         RNA_property_update(
-            const_cast<bContext *>(C),
+            *const_cast<bContext *>(&C),
             &header.open_owner_ptr,
             RNA_struct_find_property(&header.open_owner_ptr, header.open_prop_name.c_str()));
         ED_region_tag_redraw(region);
@@ -2148,7 +2148,7 @@ static void ui_panel_drag_collapse(const bContext *C,
     }
   }
   /* Update the instanced panel data expand flags with the changes made here. */
-  set_panels_list_data_expand_flag(C, region);
+  set_panels_list_data_expand_flag(&C, region);
 }
 
 /**
@@ -2165,7 +2165,7 @@ static int ui_panel_drag_collapse_handler(bContext *C, const wmEvent *event, voi
 
   switch (event->type) {
     case MOUSEMOVE:
-      ui_panel_drag_collapse(C, dragcol_data, event->xy);
+      ui_panel_drag_collapse(*C, dragcol_data, event->xy);
 
       retval = WM_UI_HANDLER_BREAK;
       break;
@@ -2190,16 +2190,16 @@ static int ui_panel_drag_collapse_handler(bContext *C, const wmEvent *event, voi
   return retval;
 }
 
-void panel_drag_collapse_handler_add(const bContext *C, const bool was_open)
+void panel_drag_collapse_handler_add(const bContext &C, const bool was_open)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   const wmEvent *event = win->runtime->eventstate;
   PanelDragCollapseHandle *dragcol_data = MEM_callocN<PanelDragCollapseHandle>(__func__);
 
   dragcol_data->was_first_open = was_open;
   copy_v2_v2_int(dragcol_data->xy_init, event->xy);
 
-  WM_event_add_ui_handler(C,
+  WM_event_add_ui_handler(&C,
                           &win->runtime->modalhandlers,
                           ui_panel_drag_collapse_handler,
                           ui_panel_drag_collapse_handler_remove,
@@ -2212,7 +2212,7 @@ bool ui_layout_panel_toggle_open(const bContext *C, LayoutPanelHeader *header)
   const bool is_open = RNA_boolean_get(&header->open_owner_ptr, header->open_prop_name.c_str());
   RNA_boolean_set(&header->open_owner_ptr, header->open_prop_name.c_str(), !is_open);
   RNA_property_update(
-      const_cast<bContext *>(C),
+      *const_cast<bContext *>(C),
       &header->open_owner_ptr,
       RNA_struct_find_property(&header->open_owner_ptr, header->open_prop_name.c_str()));
   return !is_open;
@@ -2233,7 +2233,7 @@ static void ui_handle_layout_panel_header(
   WM_tooltip_clear(C, CTX_wm_window(*C));
 
   if (event_type == LEFTMOUSE) {
-    panel_drag_collapse_handler_add(C, !new_state);
+    panel_drag_collapse_handler_add(*C, !new_state);
   }
 }
 
@@ -2243,7 +2243,7 @@ static void ui_handle_layout_panel_header(
  *
  * \param mx: The mouse x coordinate, in panel space.
  */
-static void ui_handle_panel_header(const bContext *C,
+static void ui_handle_panel_header(const bContext &C,
                                    const Block *block,
                                    const int mx,
                                    const int event_type,
@@ -2251,7 +2251,7 @@ static void ui_handle_panel_header(const bContext *C,
                                    const bool shift)
 {
   Panel *panel = block->panel;
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
 
   BLI_assert(panel->type != nullptr);
   BLI_assert(!(panel->type->flag & PANEL_TYPE_NO_HEADER));
@@ -2308,7 +2308,7 @@ static void ui_handle_panel_header(const bContext *C,
       panel_custom_data_active_set(panel);
     }
 
-    set_panels_list_data_expand_flag(C, region);
+    set_panels_list_data_expand_flag(&C, region);
     panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
     return;
   }
@@ -2319,7 +2319,7 @@ static void ui_handle_panel_header(const bContext *C,
     const float drag_area_xmax = block->rect.xmax;
     if (IN_RANGE(mx, drag_area_xmin, drag_area_xmax)) {
       if (panel_custom_pin_to_last_get(panel)) {
-        panel_custom_pin_to_last_set(C, panel, false);
+        panel_custom_pin_to_last_set(&C, panel, false);
         return;
       }
       panel_activate_state(C, panel, PANEL_STATE_DRAG);
@@ -2597,12 +2597,12 @@ int handler_panel_region(bContext *C,
         if (too_narrow) {
           /* Enlarge region. */
           ui_panel_region_width_set(region, aspect, 250.0f);
-          WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+          WM_event_add_notifier(*C, NC_SCREEN | NA_EDITED, nullptr);
         }
         else if (already_active) {
           /* Minimize region. */
           ui_panel_region_width_set(region, aspect, UI_PANEL_CATEGORY_MIN_WIDTH);
-          WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+          WM_event_add_notifier(*C, NC_SCREEN | NA_EDITED, nullptr);
         }
 
         ED_region_tag_redraw(region);
@@ -2658,7 +2658,7 @@ int handler_panel_region(bContext *C,
       if ((event->type == EVT_AKEY) && (event->modifier == 0)) {
         retval = WM_UI_HANDLER_BREAK;
         ui_handle_panel_header(
-            C, &block, mx, event->type, event->modifier & KM_CTRL, event->modifier & KM_SHIFT);
+            *C, &block, mx, event->type, event->modifier & KM_CTRL, event->modifier & KM_SHIFT);
         break;
       }
     }
@@ -2673,11 +2673,11 @@ int handler_panel_region(bContext *C,
       if (ELEM(event->type, EVT_RETKEY, EVT_PADENTER, LEFTMOUSE)) {
         retval = WM_UI_HANDLER_BREAK;
         ui_handle_panel_header(
-            C, &block, mx, event->type, event->modifier & KM_CTRL, event->modifier & KM_SHIFT);
+            *C, &block, mx, event->type, event->modifier & KM_CTRL, event->modifier & KM_SHIFT);
       }
       else if (event->type == RIGHTMOUSE) {
         retval = WM_UI_HANDLER_BREAK;
-        popup_context_menu_for_panel(C, region, block.panel);
+        popup_context_menu_for_panel(*C, region, block.panel);
       }
       break;
     }
@@ -2724,9 +2724,9 @@ PointerRNA *panel_custom_data_get(const Panel *panel)
   return panel->runtime->custom_data_ptr;
 }
 
-PointerRNA *region_panel_custom_data_under_cursor(const bContext *C, const wmEvent *event)
+PointerRNA *region_panel_custom_data_under_cursor(const bContext &C, const wmEvent *event)
 {
-  ARegion *region = CTX_wm_region(*C);
+  ARegion *region = CTX_wm_region(C);
   if (region) {
     for (Block &block : region->runtime->uiblocks) {
       Panel *panel = block.panel;
@@ -2766,19 +2766,19 @@ static int ui_handler_panel(bContext *C, const wmEvent *event, void *userdata)
 
   /* Verify if we can stop. */
   if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
-    panel_activate_state(C, panel, PANEL_STATE_ANIMATION);
+    panel_activate_state(*C, panel, PANEL_STATE_ANIMATION);
   }
   else if (event->type == MOUSEMOVE) {
     if (data->state == PANEL_STATE_DRAG) {
-      ui_do_drag(C, event, panel);
+      ui_do_drag(*C, event, panel);
     }
   }
   else if (event->type == TIMER && event->customdata == data->animtimer) {
     if (data->state == PANEL_STATE_ANIMATION) {
-      ui_do_animate(C, panel);
+      ui_do_animate(*C, panel);
     }
     else if (data->state == PANEL_STATE_DRAG) {
-      ui_do_drag(C, event, panel);
+      ui_do_drag(*C, event, panel);
     }
   }
 
@@ -2794,7 +2794,7 @@ static void ui_handler_remove_panel(bContext *C, void *userdata)
 {
   Panel *panel = static_cast<Panel *>(userdata);
 
-  panel_activate_state(C, panel, PANEL_STATE_EXIT);
+  panel_activate_state(*C, panel, PANEL_STATE_EXIT);
 }
 
 static void panel_handle_data_ensure(const bContext *C,
@@ -2838,11 +2838,11 @@ static void panel_handle_data_ensure(const bContext *C,
  * Then when the mouse releases and the panel starts animating to its aligned position, PNL_SELECT
  * is unset. When the animation finishes, PANEL_IS_DRAG_DROP is cleared.
  */
-static void panel_activate_state(const bContext *C, Panel *panel, const HandlePanelState state)
+static void panel_activate_state(const bContext &C, Panel *panel, const HandlePanelState state)
 {
   HandlePanelData *data = static_cast<HandlePanelData *>(panel->activedata);
-  wmWindow *win = CTX_wm_window(*C);
-  ARegion *region = CTX_wm_region(*C);
+  wmWindow *win = CTX_wm_window(C);
+  ARegion *region = CTX_wm_region(C);
 
   if (data != nullptr && data->state == state) {
     return;
@@ -2854,7 +2854,7 @@ static void panel_activate_state(const bContext *C, Panel *panel, const HandlePa
     panel_set_flag_recursive(panel, PNL_SELECT, true);
     panel_set_runtime_flag_recursive(panel, PANEL_IS_DRAG_DROP, true);
 
-    panel_handle_data_ensure(C, win, region, panel, state);
+    panel_handle_data_ensure(&C, win, region, panel, state);
 
     /* Initiate edge panning during drags for scrolling beyond the initial region view. */
     wmOperatorType *ot = WM_operatortype_find("VIEW2D_OT_edge_pan", true);
@@ -2863,7 +2863,7 @@ static void panel_activate_state(const bContext *C, Panel *panel, const HandlePa
   else if (state == PANEL_STATE_ANIMATION) {
     panel_set_flag_recursive(panel, PNL_SELECT, false);
 
-    panel_handle_data_ensure(C, win, region, panel, state);
+    panel_handle_data_ensure(&C, win, region, panel, state);
   }
   else if (state == PANEL_STATE_EXIT) {
     panel_set_runtime_flag_recursive(panel, PANEL_IS_DRAG_DROP, false);
@@ -2871,7 +2871,7 @@ static void panel_activate_state(const bContext *C, Panel *panel, const HandlePa
     BLI_assert(data != nullptr);
 
     if (data->animtimer) {
-      WM_event_timer_remove(CTX_wm_manager(*C), win, data->animtimer);
+      WM_event_timer_remove(CTX_wm_manager(C), win, data->animtimer);
       data->animtimer = nullptr;
     }
 
@@ -2888,7 +2888,7 @@ static void panel_activate_state(const bContext *C, Panel *panel, const HandlePa
 void panel_stop_animation(const bContext *C, Panel *panel)
 {
   if (panel->activedata) {
-    panel_activate_state(C, panel, PANEL_STATE_EXIT);
+    panel_activate_state(*C, panel, PANEL_STATE_EXIT);
   }
 }
 

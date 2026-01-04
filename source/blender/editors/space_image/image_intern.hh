@@ -26,8 +26,8 @@ extern const char *image_context_dir[]; /* doc access */
 
 /* `image_draw.cc` */
 
-void draw_image_main_helpers(const bContext *C, ARegion *region);
-void draw_image_cache(const bContext *C, ARegion *region);
+void draw_image_main_helpers(const bContext &C, ARegion *region);
+void draw_image_cache(const bContext &C, ARegion *region);
 void draw_image_sample_line(SpaceImage *sima);
 void draw_image_uv_custom_region(const ARegion *region, const rctf &custom_region);
 

@@ -236,9 +236,9 @@ static BlendFileReadWMSetupData *wm_file_read_setup_wm_init(bContext *C,
   wmWindow *active_win = CTX_wm_window(*C);
   for (wmWindow &win : wm->windows) {
     CTX_wm_window_set(*C, &win); /* Needed by operator close callbacks. */
-    WM_event_remove_handlers(C, &win.runtime->handlers);
-    WM_event_remove_handlers(C, &win.runtime->modalhandlers);
-    ED_screen_exit(C, &win, WM_window_get_active_screen(&win));
+    WM_event_remove_handlers(*C, &win.runtime->handlers);
+    WM_event_remove_handlers(*C, &win.runtime->modalhandlers);
+    ED_screen_exit(*C, &win, WM_window_get_active_screen(&win));
   }
   /* Reset active window. */
   CTX_wm_window_set(*C, active_win);
@@ -448,13 +448,13 @@ static void wm_file_read_setup_wm_finalize(bContext *C,
   if (wm_setup_data->is_read_homefile && wm_setup_data->is_factory_startup &&
       wm_setup_data->old_wm == nullptr)
   {
-    wm_clear_default_size(C);
+    wm_clear_default_size(*C);
   }
 
   if (wm == nullptr) {
     /* Add a default WM in case none exists in newly read main (should only happen when opening
      * an old pre-2.5 .blend file at startup). */
-    wm_add_default(bmain, C);
+    wm_add_default(bmain, *C);
   }
   else if (wm_setup_data->old_wm != nullptr) {
     if (wm_setup_data->old_wm == wm) {
@@ -690,11 +690,11 @@ struct wmFileReadPost_Params {
  * Logic shared between #WM_file_read & #wm_homefile_read,
  * updates to make after reading a file.
  */
-static void wm_file_read_post(bContext *C,
+static void wm_file_read_post(bContext &C,
                               const char *filepath,
                               const wmFileReadPost_Params *params)
 {
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
 
   const bool use_data = params->use_data;
   const bool use_userdef = params->use_userdef;
@@ -707,9 +707,9 @@ static void wm_file_read_post(bContext *C,
   if (use_data) {
     if (!G.background) {
       /* Remove windows which failed to be added via #WM_check. */
-      wm_window_ghostwindows_remove_invalid(C, wm);
+      wm_window_ghostwindows_remove_invalid(&C, wm);
     }
-    CTX_wm_window_set(*C, static_cast<wmWindow *>(wm->windows.first));
+    CTX_wm_window_set(C, static_cast<wmWindow *>(wm->windows.first));
   }
 
 #ifdef WITH_PYTHON
@@ -717,20 +717,20 @@ static void wm_file_read_post(bContext *C,
     /* The following block handles data & preferences being reloaded
      * which requires resetting some internal variables. */
     if (!params->is_first_time) {
-      BLI_assert(CTX_py_init_get(*C));
+      BLI_assert(CTX_py_init_get(C));
       bool reset_all = use_userdef;
       if (use_userdef || reset_app_template) {
         /* Only run when we have a template path found. */
         if (BKE_appdir_app_template_any()) {
           const char *imports[] = {"bl_app_template_utils", nullptr};
-          BPY_run_string_eval(C, imports, "bl_app_template_utils.reset()");
+          BPY_run_string_eval(&C, imports, "bl_app_template_utils.reset()");
           reset_all = true;
         }
       }
       if (reset_all) {
         const char *imports[] = {"bpy", "addon_utils", nullptr};
         BPY_run_string_exec(
-            C,
+            &C,
             imports,
             /* Refresh scripts as the preferences may have changed the user-scripts path.
              *
@@ -741,7 +741,7 @@ static void wm_file_read_post(bContext *C,
             "addon_utils.reset_all()");
       }
       if (use_data) {
-        BPY_python_reset(C);
+        BPY_python_reset(&C);
       }
       addons_loaded = true;
     }
@@ -749,7 +749,7 @@ static void wm_file_read_post(bContext *C,
   else {
     /* Run any texts that were loaded in and flagged as modules. */
     if (use_data) {
-      BPY_python_reset(C);
+      BPY_python_reset(&C);
     }
     addons_loaded = true;
   }
@@ -757,7 +757,7 @@ static void wm_file_read_post(bContext *C,
   UNUSED_VARS(is_startup_file, reset_app_template);
 #endif /* WITH_PYTHON */
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   if (use_userdef) {
     if (is_factory_startup) {
@@ -834,7 +834,7 @@ static void wm_file_read_post(bContext *C,
         BKE_undosys_stack_clear(wm->runtime->undo_stack);
       }
       BKE_undosys_stack_init_from_main(wm->runtime->undo_stack, bmain);
-      BKE_undosys_stack_init_from_context(wm->runtime->undo_stack, C);
+      BKE_undosys_stack_init_from_context(wm->runtime->undo_stack, &C);
     }
   }
 
@@ -843,7 +843,7 @@ static void wm_file_read_post(bContext *C,
       /* In background mode this makes it hard to load
        * a blend file and do anything since the screen
        * won't be set to a valid value again. */
-      CTX_wm_window_set(*C, nullptr); /* Exits queues. */
+      CTX_wm_window_set(C, nullptr); /* Exits queues. */
 
       /* Ensure auto-run action is not used from a previous blend file load. */
       wm_test_autorun_revert_action_set(nullptr, nullptr);
@@ -854,23 +854,23 @@ static void wm_file_read_post(bContext *C,
   }
 }
 
-static void wm_read_callback_pre_wrapper(bContext *C, const char *filepath)
+static void wm_read_callback_pre_wrapper(bContext &C, const char *filepath)
 {
   /* NOTE: either #BKE_CB_EVT_LOAD_POST or #BKE_CB_EVT_LOAD_POST_FAIL must run.
    * Runs at the end of this function, don't return beforehand. */
-  BKE_callback_exec_string(CTX_data_main(*C), BKE_CB_EVT_LOAD_PRE, filepath);
+  BKE_callback_exec_string(CTX_data_main(C), BKE_CB_EVT_LOAD_PRE, filepath);
 }
 
-static void wm_read_callback_post_wrapper(bContext *C, const char *filepath, const bool success)
+static void wm_read_callback_post_wrapper(bContext &C, const char *filepath, const bool success)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   /* Temporarily set the window context as this was once supported, see: #107759.
    * If the window is already set, don't change it. */
-  bool has_window = CTX_wm_window(*C) != nullptr;
+  bool has_window = CTX_wm_window(C) != nullptr;
   if (!has_window) {
     wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
     wmWindow *win = static_cast<wmWindow *>(wm->windows.first);
-    CTX_wm_window_set(*C, win);
+    CTX_wm_window_set(C, win);
   }
 
   /* On success: #BKE_CB_EVT_LOAD_POST runs from #wm_file_read_post. */
@@ -880,7 +880,7 @@ static void wm_read_callback_post_wrapper(bContext *C, const char *filepath, con
 
   /* This function should leave the window null when the function entered. */
   if (!has_window) {
-    CTX_wm_window_set(*C, nullptr);
+    CTX_wm_window_set(C, nullptr);
   }
 }
 
@@ -1020,14 +1020,14 @@ static void file_read_reports_finalize(BlendFileReadReport *bf_reports)
   }
 }
 
-bool WM_file_read(bContext *C,
+bool WM_file_read(bContext &C,
                   const char *filepath,
                   const bool use_scripts_autoexec_check,
                   ReportList *reports)
 {
   /* Assume automated tasks with background, don't write recent file list. */
   const bool do_history_file_update = (G.background == false) &&
-                                      (CTX_wm_manager(*C)->op_undo_depth == 0);
+                                      (CTX_wm_manager(C)->op_undo_depth == 0);
   bool success = false;
 
   const bool use_data = true;
@@ -1036,7 +1036,7 @@ bool WM_file_read(bContext *C,
   /* NOTE: a matching #wm_read_callback_post_wrapper must be called. */
   wm_read_callback_pre_wrapper(C, filepath);
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
 
   /* So we can get the error message. */
   errno = 0;
@@ -1069,7 +1069,7 @@ bool WM_file_read(bContext *C,
 
       /* Put WM into a stable state for post-readfile processes (kill jobs, removes event handlers,
        * message bus, and so on). */
-      BlendFileReadWMSetupData *wm_setup_data = wm_file_read_setup_wm_init(C, bmain, false);
+      BlendFileReadWMSetupData *wm_setup_data = wm_file_read_setup_wm_init(&C, bmain, false);
 
       /* This flag is initialized by the operator but overwritten on read.
        * need to re-enable it here else drivers and registered scripts won't work. */
@@ -1077,12 +1077,12 @@ bool WM_file_read(bContext *C,
 
       /* Frees the current main and replaces it with the new one read from file. */
       BKE_blendfile_read_setup_readfile(
-          C, bfd, &params, wm_setup_data, &bf_reports, false, nullptr);
-      bmain = CTX_data_main(*C);
+          &C, bfd, &params, wm_setup_data, &bf_reports, false, nullptr);
+      bmain = CTX_data_main(C);
 
       /* Finalize handling of WM, using the read WM and/or the current WM depending on things like
        * whether the UI is loaded from the .blend file or not, etc. */
-      wm_file_read_setup_wm_finalize(C, bmain, wm_setup_data);
+      wm_file_read_setup_wm_finalize(&C, bmain, wm_setup_data);
 
       if (G.f != G_f_orig) {
         const int flags_keep = G_FLAG_ALL_RUNTIME;
@@ -1151,7 +1151,7 @@ bool WM_file_read(bContext *C,
 
   wm_read_callback_post_wrapper(C, filepath, success);
 
-  BLI_assert(BKE_main_namemap_validate(*CTX_data_main(*C)));
+  BLI_assert(BKE_main_namemap_validate(*CTX_data_main(C)));
 
   return success;
 }
@@ -1299,7 +1299,7 @@ void wm_homefile_read_ex(bContext *C,
   if (use_data) {
     /* NOTE: a matching #wm_read_callback_post_wrapper must be called.
      * This runs from #wm_homefile_read_post. */
-    wm_read_callback_pre_wrapper(C, "");
+    wm_read_callback_pre_wrapper(*C, "");
   }
 
   /* For regular file loading this only runs after the file is successfully read.
@@ -1458,7 +1458,7 @@ void wm_homefile_read_ex(bContext *C,
   }
 
   if (use_empty_data) {
-    BKE_blendfile_read_make_empty(C);
+    BKE_blendfile_read_make_empty(*C);
   }
 
   /* Load template preferences,
@@ -1525,7 +1525,7 @@ void wm_homefile_read_ex(bContext *C,
   }
 
   if (use_data) {
-    WM_check(C); /* Opens window(s), checks keymaps. */
+    WM_check(*C); /* Opens window(s), checks keymaps. */
 
     bmain->filepath[0] = '\0';
   }
@@ -1567,10 +1567,10 @@ void wm_homefile_read(bContext *C,
 void wm_homefile_read_post(bContext *C, const wmFileReadPost_Params *params_file_read_post)
 {
   const char *filepath = "";
-  wm_file_read_post(C, filepath, params_file_read_post);
+  wm_file_read_post(*C, filepath, params_file_read_post);
 
   if (params_file_read_post->use_data) {
-    wm_read_callback_post_wrapper(C, filepath, params_file_read_post->success);
+    wm_read_callback_post_wrapper(*C, filepath, params_file_read_post->success);
   }
 
   if (params_file_read_post->is_alloc) {
@@ -1845,11 +1845,11 @@ static blender::int2 blend_file_thumb_clamp_size(const int size[2], const int li
 /**
  * Screen-shot the active window.
  */
-static ImBuf *blend_file_thumb_from_screenshot(bContext *C, BlendThumbnail **r_thumb)
+static ImBuf *blend_file_thumb_from_screenshot(bContext &C, BlendThumbnail **r_thumb)
 {
   *r_thumb = nullptr;
 
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
   if (G.background || (win == nullptr)) {
     return nullptr;
   }
@@ -1859,7 +1859,7 @@ static ImBuf *blend_file_thumb_from_screenshot(bContext *C, BlendThumbnail **r_t
     win = win->parent;
   }
 
-  wmWindowManager *wm = CTX_wm_manager(*C);
+  wmWindowManager *wm = CTX_wm_manager(C);
   int win_size[2];
   /* NOTE: always read from front-buffer as drawing a window can cause problems while saving,
    * even if this means the thumbnail from the screen-shot fails to be created, see: #98462. */
@@ -2095,14 +2095,14 @@ static bool wm_file_write_check_with_report_on_failure(Main *bmain,
 /**
  * \see #wm_homefile_write_exec wraps #BLO_write_file in a similar way.
  */
-static bool wm_file_write(bContext *C,
+static bool wm_file_write(bContext &C,
                           const char *filepath,
                           int fileflags,
                           eBLO_WritePathRemap remap_mode,
                           bool use_save_as_copy,
                           ReportList *reports)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   BlendThumbnail *thumb = nullptr, *main_thumb = nullptr;
   ImBuf *ibuf_thumb = nullptr;
 
@@ -2178,8 +2178,8 @@ static bool wm_file_write(bContext *C,
       int file_preview_type = U.file_preview_type;
 
       if (file_preview_type == USER_FILE_PREVIEW_AUTO) {
-        Scene *scene = CTX_data_scene(*C);
-        bScreen *screen = CTX_wm_screen(*C);
+        Scene *scene = CTX_data_scene(C);
+        bScreen *screen = CTX_wm_screen(C);
         bool do_render = (scene != nullptr && scene->camera != nullptr && screen != nullptr &&
                           (BKE_screen_find_big_area(screen, SPACE_VIEW3D, 0) != nullptr));
         file_preview_type = do_render ? USER_FILE_PREVIEW_CAMERA : USER_FILE_PREVIEW_SCREENSHOT;
@@ -2192,7 +2192,7 @@ static bool wm_file_write(bContext *C,
         }
         case USER_FILE_PREVIEW_CAMERA: {
           ibuf_thumb = blend_file_thumb_from_camera(
-              C, CTX_data_scene(*C), CTX_wm_screen(*C), &thumb);
+              &C, CTX_data_scene(C), CTX_wm_screen(C), &thumb);
           break;
         }
         default:
@@ -2222,7 +2222,7 @@ static bool wm_file_write(bContext *C,
 
   if (success) {
     const bool do_history_file_update = (G.background == false) &&
-                                        (CTX_wm_manager(*C)->op_undo_depth == 0);
+                                        (CTX_wm_manager(C)->op_undo_depth == 0);
 
     if (use_save_as_copy == false) {
       STRNCPY(bmain->filepath, filepath); /* Is guaranteed current file. */
@@ -2653,7 +2653,7 @@ static void rna_struct_update_when_changed(bContext *C,
         break;
       default: {
         if (!RNA_property_equals(bmain, ptr_a, ptr_b, prop, RNA_EQ_STRICT)) {
-          RNA_property_update(C, ptr_b, prop);
+          RNA_property_update(*C, ptr_b, prop);
         }
       }
     }
@@ -2673,7 +2673,7 @@ static void wm_userpref_update_when_changed(bContext *C,
   rna_struct_update_when_changed(C, bmain, &ptr_a, &ptr_b);
 
   WM_reinit_gizmomap_all(bmain);
-  WM_keyconfig_reload(C);
+  WM_keyconfig_reload(*C);
 
   userdef_curr->runtime.is_dirty = is_dirty;
 }
@@ -2716,7 +2716,7 @@ static wmOperatorStatus wm_userpref_read_exec(bContext &C, wmOperator &op)
   /* Needed to recalculate UI scaling values (eg, #UserDef.inv_scale_factor). */
   wm_window_clear_drawable(static_cast<wmWindowManager *>(bmain->wm.first));
 
-  WM_event_add_notifier(&C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -2893,7 +2893,7 @@ static wmOperatorStatus wm_homefile_read_exec(bContext &C, wmOperator &op)
   wm_homefile_read(&C, &read_homefile_params, op.reports);
 
   if (use_splash) {
-    WM_init_splash(&C);
+    WM_init_splash(C);
   }
 
   if (use_userdef) {
@@ -2910,7 +2910,7 @@ static wmOperatorStatus wm_homefile_read_exec(bContext &C, wmOperator &op)
   }
 
   if (G.fileflags & G_FILE_NO_UI) {
-    ED_outliner_select_sync_from_all_tag(&C);
+    ED_outliner_select_sync_from_all_tag(C);
   }
 
   return OPERATOR_FINISHED;
@@ -3062,9 +3062,9 @@ static bool wm_file_read_opwrap(bContext *C,
 {
   /* XXX: wm in context is not set correctly after #WM_file_read -> crash. */
   /* Do it before for now, but is this correct with multiple windows? */
-  WM_event_add_notifier(C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(*C, NC_WINDOW, nullptr);
 
-  const bool success = WM_file_read(C, filepath, use_scripts_autoexec_check, reports);
+  const bool success = WM_file_read(*C, filepath, use_scripts_autoexec_check, reports);
 
   return success;
 }
@@ -3200,9 +3200,9 @@ static wmOperatorStatus wm_open_mainfile__open(bContext *C, wmOperator *op)
 
   if (success) {
     if (G.fileflags & G_FILE_NO_UI) {
-      ED_outliner_select_sync_from_all_tag(C);
+      ED_outliner_select_sync_from_all_tag(*C);
     }
-    ED_view3d_local_collections_reset(C, (G.fileflags & G_FILE_NO_UI) != 0);
+    ED_view3d_local_collections_reset(*C, (G.fileflags & G_FILE_NO_UI) != 0);
     return OPERATOR_FINISHED;
   }
   return OPERATOR_CANCELLED;
@@ -3616,9 +3616,9 @@ static void save_set_compress(wmOperator *op)
   }
 }
 
-static void save_set_filepath(bContext *C, wmOperator *op)
+static void save_set_filepath(bContext &C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   PropertyRNA *prop;
   char filepath[FILE_MAX];
 
@@ -3656,7 +3656,7 @@ static wmOperatorStatus wm_save_as_mainfile_invoke(bContext &C,
 {
 
   save_set_compress(&op);
-  save_set_filepath(&C, &op);
+  save_set_filepath(C, &op);
 
   PropertyRNA *prop = RNA_struct_find_property(op.ptr, "relative_remap");
   if (!RNA_property_is_set(op.ptr, prop)) {
@@ -3735,7 +3735,7 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext &C, wmOperator &op)
   SET_FLAG_FROM_TEST(fileflags, RNA_boolean_get(op.ptr, "compress"), G_FILE_COMPRESS);
 
   const bool success = wm_file_write(
-      &C, filepath, fileflags, remap_mode, use_save_as_copy, op.reports);
+      C, filepath, fileflags, remap_mode, use_save_as_copy, op.reports);
 
   if ((op.flag & OP_IS_INVOKE) == 0) {
     /* OP_IS_INVOKE is set when the operator is called from the GUI.
@@ -3774,7 +3774,7 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext &C, wmOperator &op)
 
     /* If saved file is the active one, notify WM so that saved status and window title can be
      * updated. */
-    WM_event_add_notifier(&C, NC_WM | ND_FILESAVE, nullptr);
+    WM_event_add_notifier(C, NC_WM | ND_FILESAVE, nullptr);
     if (wmWindowManager *wm = CTX_wm_manager(C)) {
       /* Restart auto-save timer to avoid unnecessary unexpected freezing (because of auto-save)
        * when often saving manually. */
@@ -3785,7 +3785,7 @@ static wmOperatorStatus wm_save_as_mainfile_exec(bContext &C, wmOperator &op)
   }
 
   if (!is_save_as && RNA_boolean_get(op.ptr, "exit")) {
-    wm_exit_schedule_delayed(&C);
+    wm_exit_schedule_delayed(C);
   }
 
   return OPERATOR_FINISHED;
@@ -3874,7 +3874,7 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext &C,
   }
 
   save_set_compress(&op);
-  save_set_filepath(&C, &op);
+  save_set_filepath(C, &op);
 
   /* If we're saving for the first time and prefer relative paths -
    * any existing paths will be absolute,
@@ -3889,7 +3889,7 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext &C,
 
   if (blendfile_path[0] != '\0') {
     if (BKE_main_needs_overwrite_confirm(CTX_data_main(C))) {
-      wm_save_file_overwrite_dialog(&C, &op);
+      wm_save_file_overwrite_dialog(C, &op);
       ret = OPERATOR_INTERFACE;
     }
     else {
@@ -4041,34 +4041,34 @@ static void wm_block_autorun_warning_ignore(bContext *C, void *arg_block, void *
   wm_test_autorun_revert_action_set(nullptr, nullptr);
 }
 
-static void wm_block_autorun_warning_reload_with_scripts(bContext *C, blender::ui::Block *block)
+static void wm_block_autorun_warning_reload_with_scripts(bContext &C, blender::ui::Block *block)
 {
-  wmWindow *win = CTX_wm_window(*C);
+  wmWindow *win = CTX_wm_window(C);
 
-  popup_block_close(C, win, block);
+  popup_block_close(&C, win, block);
 
   /* Save user preferences for permanent execution. */
   if ((U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0) {
     WM_operator_name_call(
-        C, "WM_OT_save_userpref", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
+        &C, "WM_OT_save_userpref", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
 
   /* Load file again with scripts enabled.
    * The reload is necessary to allow scripts to run when the files loads. */
-  wm_test_autorun_revert_action_exec(C);
+  wm_test_autorun_revert_action_exec(&C);
 }
 
-static void wm_block_autorun_warning_enable_scripts(bContext *C, blender::ui::Block *block)
+static void wm_block_autorun_warning_enable_scripts(bContext &C, blender::ui::Block *block)
 {
-  wmWindow *win = CTX_wm_window(*C);
-  Main *bmain = CTX_data_main(*C);
+  wmWindow *win = CTX_wm_window(C);
+  Main *bmain = CTX_data_main(C);
 
-  popup_block_close(C, win, block);
+  popup_block_close(&C, win, block);
 
   /* Save user preferences for permanent execution. */
   if ((U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0) {
     WM_operator_name_call(
-        C, "WM_OT_save_userpref", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
+        &C, "WM_OT_save_userpref", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
 
   /* Force a full refresh, but without reloading the file. */
@@ -4086,7 +4086,7 @@ static blender::ui::Block *block_create_autorun_warning(bContext *C,
   wmWindowManager *wm = CTX_wm_manager(*C);
 
   blender::ui::Block *block = block_begin(
-      C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
+      *C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
   block_flag_enable(block,
                     blender::ui::BLOCK_KEEP_OPEN | blender::ui::BLOCK_LOOP |
                         blender::ui::BLOCK_NO_WIN_CLIP | blender::ui::BLOCK_NUMSELECT);
@@ -4153,7 +4153,7 @@ static blender::ui::Block *block_create_autorun_warning(bContext *C,
                            nullptr,
                            TIP_("Reload file with execution of Python scripts enabled"));
     button_func_set(
-        but, [block](bContext &C) { wm_block_autorun_warning_reload_with_scripts(&C, block); });
+        but, [block](bContext &C) { wm_block_autorun_warning_reload_with_scripts(C, block); });
   }
   else {
     but = uiDefIconTextBut(block,
@@ -4167,7 +4167,7 @@ static blender::ui::Block *block_create_autorun_warning(bContext *C,
                            nullptr,
                            TIP_("Enable scripts"));
     button_func_set(but,
-                    [block](bContext &C) { wm_block_autorun_warning_enable_scripts(&C, block); });
+                    [block](bContext &C) { wm_block_autorun_warning_enable_scripts(C, block); });
   }
   button_drawflag_disable(but, blender::ui::BUT_TEXT_LEFT);
 
@@ -4476,7 +4476,7 @@ static blender::ui::Block *block_create_save_file_overwrite_dialog(bContext *C,
   Main *bmain = CTX_data_main(*C);
 
   blender::ui::Block *block = block_begin(
-      C, region, save_file_overwrite_dialog_name, blender::ui::EmbossType::Emboss);
+      *C, region, save_file_overwrite_dialog_name, blender::ui::EmbossType::Emboss);
   block_flag_enable(block,
                     blender::ui::BLOCK_KEEP_OPEN | blender::ui::BLOCK_LOOP |
                         blender::ui::BLOCK_NO_WIN_CLIP | blender::ui::BLOCK_NUMSELECT);
@@ -4565,16 +4565,16 @@ static blender::ui::Block *block_create_save_file_overwrite_dialog(bContext *C,
   return block;
 }
 
-void wm_save_file_overwrite_dialog(bContext *C, wmOperator *op)
+void wm_save_file_overwrite_dialog(bContext &C, wmOperator *op)
 {
-  if (!blender::ui::popup_block_name_exists(CTX_wm_screen(*C), save_file_overwrite_dialog_name)) {
+  if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), save_file_overwrite_dialog_name)) {
     wmGenericCallback *callback = MEM_new_for_free<wmGenericCallback>(__func__);
     callback->exec = nullptr;
     callback->user_data = IDP_CopyProperty(op->properties);
     callback->free_user_data = wm_free_operator_properties_callback;
 
     blender::ui::popup_block_invoke(
-        C, block_create_save_file_overwrite_dialog, callback, free_post_file_close_action);
+        &C, block_create_save_file_overwrite_dialog, callback, free_post_file_close_action);
   }
 }
 
@@ -4620,7 +4620,7 @@ static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_dat
   if (modified_images_count > 0 && save_images_when_file_is_closed) {
     if (ED_image_should_save_modified(bmain)) {
       ReportList *reports = CTX_wm_reports(*C);
-      ED_image_save_all_modified(C, reports);
+      ED_image_save_all_modified(*C, reports);
       WM_report_banner_show(wm, win);
     }
     else {
@@ -4738,7 +4738,7 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
   wmGenericCallback *post_action = (wmGenericCallback *)arg1;
   Main *bmain = CTX_data_main(*C);
 
-  ui::Block *block = block_begin(C, region, close_file_dialog_name, ui::EmbossType::Emboss);
+  ui::Block *block = block_begin(*C, region, close_file_dialog_name, ui::EmbossType::Emboss);
   block_flag_enable(
       block, ui::BLOCK_KEEP_OPEN | ui::BLOCK_LOOP | ui::BLOCK_NO_WIN_CLIP | ui::BLOCK_NUMSELECT);
   block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
@@ -4900,13 +4900,13 @@ static blender::ui::Block *block_create__close_file_dialog(bContext *C,
   return block;
 }
 
-void wm_close_file_dialog(bContext *C, wmGenericCallback *post_action)
+void wm_close_file_dialog(bContext &C, wmGenericCallback *post_action)
 {
-  if (!blender::ui::popup_block_name_exists(CTX_wm_screen(*C), close_file_dialog_name)) {
+  if (!blender::ui::popup_block_name_exists(CTX_wm_screen(C), close_file_dialog_name)) {
     save_images_when_file_is_closed = true;
 
     blender::ui::popup_block_invoke(
-        C, block_create__close_file_dialog, post_action, free_post_file_close_action);
+        &C, block_create__close_file_dialog, post_action, free_post_file_close_action);
   }
   else {
     WM_generic_callback_free(post_action);
@@ -4924,7 +4924,7 @@ bool wm_operator_close_file_dialog_if_needed(bContext *C,
     callback->exec = post_action_fn;
     callback->user_data = IDP_CopyProperty(op->properties);
     callback->free_user_data = wm_free_operator_properties_callback;
-    wm_close_file_dialog(C, callback);
+    wm_close_file_dialog(*C, callback);
     return true;
   }
 
