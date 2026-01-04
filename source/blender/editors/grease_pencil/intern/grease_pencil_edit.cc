@@ -1078,9 +1078,7 @@ static wmOperatorStatus grease_pencil_set_uniform_opacity_exec(bContext *C, wmOp
             AttrDomain::Curve,
             bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
     {
-      strokes.foreach_index(GrainSize(2048), [&](const int64_t curve) {
-        fill_opacities.span[curve] = opacity_fill;
-      });
+      index_mask::masked_fill(fill_opacities.span, opacity_fill, strokes);
       fill_opacities.finish();
     }
 
@@ -2490,8 +2488,8 @@ static Array<int> clipboard_materials_remap(Main &bmain, Object &object)
 
   /* Get a list of all materials in the scene. */
   Map<uint, Material *> scene_materials;
-  LISTBASE_FOREACH (Material *, material, &bmain.materials) {
-    scene_materials.add(material->id.session_uid, material);
+  for (Material &material : bmain.materials) {
+    scene_materials.add(material.id.session_uid, &material);
   }
 
   const Clipboard &clipboard = ensure_grease_pencil_clipboard();
@@ -3626,7 +3624,7 @@ static wmOperatorStatus grease_pencil_snap_to_cursor_exec(bContext *C, wmOperato
 
         /* Offset from first point of the curve. */
         const float3 offset = cursor_layer - positions[points.first()];
-        selected_points.slice_content(points).foreach_index(
+        selected_points.slice_content(points).foreach_index_optimized<int>(
             GrainSize(4096), [&](const int point_i) { positions[point_i] += offset; });
       });
     }
@@ -5089,16 +5087,16 @@ static void copy_layer_group_content(GreasePencil &grease_pencil_dst,
 {
   using namespace blender::bke::greasepencil;
 
-  LISTBASE_FOREACH (GreasePencilLayerTreeNode *, child, &group_src.children) {
-    switch (child->type) {
+  for (GreasePencilLayerTreeNode &child : group_src.children) {
+    switch (child.type) {
       case GP_LAYER_TREE_LEAF: {
-        Layer &layer_src = reinterpret_cast<GreasePencilLayer *>(child)->wrap();
+        Layer &layer_src = reinterpret_cast<GreasePencilLayer *>(&child)->wrap();
         Layer &layer_dst = copy_layer(grease_pencil_dst, group_dst, layer_src);
         layer_name_map.add_new(layer_src.name(), layer_dst.name());
         break;
       }
       case GP_LAYER_TREE_GROUP: {
-        LayerGroup &group_src = reinterpret_cast<GreasePencilLayerTreeGroup *>(child)->wrap();
+        LayerGroup &group_src = reinterpret_cast<GreasePencilLayerTreeGroup *>(&child)->wrap();
         copy_layer_group_recursive(grease_pencil_dst, group_dst, group_src, layer_name_map);
         break;
       }
@@ -5152,16 +5150,15 @@ static void remap_material_indices(bke::greasepencil::Drawing &drawing,
   material_writer.finish();
 }
 
-static Map<StringRefNull, StringRefNull> add_vertex_groups(Object &object,
-                                                           GreasePencil &grease_pencil,
-                                                           const ListBase &vertex_group_names)
+static Map<StringRefNull, StringRefNull> add_vertex_groups(
+    Object &object, GreasePencil &grease_pencil, const ListBaseT<bDeformGroup> &vertex_group_names)
 {
   Map<StringRefNull, StringRefNull> vertex_group_map;
-  LISTBASE_FOREACH (bDeformGroup *, dg, &vertex_group_names) {
-    bDeformGroup *vgroup = static_cast<bDeformGroup *>(MEM_dupallocN(dg));
+  for (bDeformGroup &dg : vertex_group_names) {
+    bDeformGroup *vgroup = static_cast<bDeformGroup *>(MEM_dupallocN(&dg));
     BKE_object_defgroup_unique_name(vgroup, &object);
     BLI_addtail(&grease_pencil.vertex_group_names, vgroup);
-    vertex_group_map.add_new(dg->name, vgroup->name);
+    vertex_group_map.add_new(dg.name, vgroup->name);
   }
   return vertex_group_map;
 }
@@ -5169,8 +5166,8 @@ static Map<StringRefNull, StringRefNull> add_vertex_groups(Object &object,
 static void remap_vertex_groups(bke::greasepencil::Drawing &drawing,
                                 const Map<StringRefNull, StringRefNull> &vertex_group_map)
 {
-  LISTBASE_FOREACH (bDeformGroup *, dg, &drawing.strokes_for_write().vertex_group_names) {
-    STRNCPY_UTF8(dg->name, vertex_group_map.lookup(dg->name).c_str());
+  for (bDeformGroup &dg : drawing.strokes_for_write().vertex_group_names) {
+    STRNCPY_UTF8(dg.name, vertex_group_map.lookup(dg.name).c_str());
   }
 
   /* Indices in vertex weights remain valid, they are local to the drawing's vertex groups.
@@ -5279,11 +5276,11 @@ static void join_object_with_active(Main &bmain,
     /* Update newly added layers. */
     if (!is_orig_layer) {
       /* Update name references for masks. */
-      LISTBASE_FOREACH (GreasePencilLayerMask *, dst_mask, &layer.masks) {
-        const StringRefNull *new_mask_name = layer_name_map.lookup_ptr(dst_mask->layer_name);
+      for (GreasePencilLayerMask &dst_mask : layer.masks) {
+        const StringRefNull *new_mask_name = layer_name_map.lookup_ptr(dst_mask.layer_name);
         if (new_mask_name) {
-          MEM_SAFE_FREE(dst_mask->layer_name);
-          dst_mask->layer_name = BLI_strdup(new_mask_name->c_str());
+          MEM_SAFE_FREE(dst_mask.layer_name);
+          dst_mask.layer_name = BLI_strdup(new_mask_name->c_str());
         }
       }
       /* Shift drawing indices to match the new drawings array. */
@@ -5339,9 +5336,9 @@ static void join_object_with_active(Main &bmain,
     }
     /* Fix driver targets. */
     if (fcu->driver) {
-      LISTBASE_FOREACH (DriverVar *, dvar, &fcu->driver->variables) {
+      for (DriverVar &dvar : fcu->driver->variables) {
         /* Only change the used targets, since the others will need fixing manually anyway. */
-        DRIVER_TARGETS_USED_LOOPER_BEGIN (dvar) {
+        DRIVER_TARGETS_USED_LOOPER_BEGIN (&dvar) {
           if (dtar->id != &grease_pencil_src.id) {
             continue;
           }

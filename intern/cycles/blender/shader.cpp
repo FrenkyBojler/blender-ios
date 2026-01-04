@@ -824,8 +824,8 @@ static ShaderNode *add_node(Scene *scene,
 
       if (b_image_source == IMA_SRC_TILED) {
         array<int> tiles;
-        LISTBASE_FOREACH (::ImageTile *, b_tile, &b_image->tiles) {
-          tiles.push_back_slow(b_tile->tile_number);
+        for (::ImageTile &b_tile : b_image->tiles) {
+          tiles.push_back_slow(b_tile.tile_number);
         }
         image->set_tiles(tiles);
       }
@@ -1767,7 +1767,8 @@ void BlenderSync::sync_world(::Depsgraph &b_depsgraph,
   background->set_use_shader(view_layer.use_background_shader ||
                              viewport_parameters.use_custom_shader());
 
-  background->set_lightgroup(ustring(b_world ? b_world->lightgroup->name : ""));
+  background->set_lightgroup(
+      ustring((b_world && b_world->lightgroup) ? b_world->lightgroup->name : ""));
 
   background->tag_update(scene);
 }
