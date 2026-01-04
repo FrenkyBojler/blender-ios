@@ -491,7 +491,7 @@ static wmDropBox *dropbox_active(bContext *C,
           /* Attempt to set the disabled hint when the poll fails. Will always be the last hint set
            * when there are multiple failing polls (could allow multiple disabled-hints too). */
           bool free_disabled_info = false;
-          const char *disabled_hint = CTX_wm_operator_poll_msg_get(C, &free_disabled_info);
+          const char *disabled_hint = CTX_wm_operator_poll_msg_get(*C, &free_disabled_info);
           if (disabled_hint) {
             drag->drop_state.disabled_info = disabled_hint;
             if (free_disabled_info) {

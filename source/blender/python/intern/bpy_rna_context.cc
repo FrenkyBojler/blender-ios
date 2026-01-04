@@ -307,7 +307,7 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   }
 
   /* It's crucial to call #CTX_py_state_pop if this function fails with an error. */
-  CTX_py_state_push(C, &self->py_state, self->py_state_context_dict);
+  CTX_py_state_push(*C, &self->py_state, self->py_state_context_dict);
 
   self->ctx_init.win = CTX_wm_window(*C);
   self->ctx_init.screen = self->ctx_init.win ? WM_window_get_active_screen(self->ctx_init.win) :
@@ -333,7 +333,7 @@ static PyObject *bpy_rna_context_temp_override_enter(BPyContextTempOverride *sel
   }
 
   if (!bpy_rna_context_temp_override_enter_ok_or_error(self, bmain, win, screen, area, region)) {
-    CTX_py_state_pop(C, &self->py_state);
+    CTX_py_state_pop(*C, &self->py_state);
     return nullptr;
   }
 
@@ -523,7 +523,7 @@ static PyObject *bpy_rna_context_temp_override_exit(BPyContextTempOverride *self
   /* Restore logging state based on the user's preference stored in ctx_init.use_logging. */
   bpy_rna_context_logging_set(C, self->ctx_init.use_logging);
 
-  CTX_py_state_pop(C, &self->py_state);
+  CTX_py_state_pop(*C, &self->py_state);
 
   Py_RETURN_NONE;
 }

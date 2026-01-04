@@ -1127,7 +1127,7 @@ bool WM_operator_poll_or_report_error(bContext *C, wmOperatorType *ot, ReportLis
     return true;
   }
   bool msg_free = false;
-  const char *msg = CTX_wm_operator_poll_msg_get(C, &msg_free);
+  const char *msg = CTX_wm_operator_poll_msg_get(*C, &msg_free);
   CTX_wm_operator_poll_msg_clear(*C);
   BKE_reportf(reports,
               RPT_ERROR,

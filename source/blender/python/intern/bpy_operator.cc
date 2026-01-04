@@ -208,7 +208,7 @@ PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
 
   if (WM_operator_poll_context(C, ot, context) == false) {
     bool msg_free = false;
-    const char *msg = CTX_wm_operator_poll_msg_get(C, &msg_free);
+    const char *msg = CTX_wm_operator_poll_msg_get(*C, &msg_free);
     PyErr_Format(PyExc_RuntimeError,
                  "Operator bpy.ops.%.200s.poll() %.200s",
                  opname,

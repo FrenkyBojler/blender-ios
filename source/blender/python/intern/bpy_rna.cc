@@ -4716,7 +4716,7 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
       eContextResult done;
       if (name[0]) {
         done = eContextResult(CTX_data_get(
-            C, name, &newptr, &newlb, &newprop, &newindex, &newstr, &newint, &newtype));
+            *C, name, &newptr, &newlb, &newprop, &newindex, &newstr, &newint, &newtype));
       }
       else {
         /* Fall through to built-in `getattr`. */
@@ -4998,7 +4998,7 @@ static int pyrna_struct_setattro(BPy_StructRNA *self, PyObject *pyname, PyObject
     ContextDataType newtype;
 
     const eContextResult done = eContextResult(
-        CTX_data_get(C, name, &newptr, &newlb, &newprop, &newindex, &newstr, &newint, &newtype));
+        CTX_data_get(*C, name, &newptr, &newlb, &newprop, &newindex, &newstr, &newint, &newtype));
 
     if (done == CTX_RESULT_OK) {
       PyErr_Format(
