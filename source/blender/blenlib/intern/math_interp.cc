@@ -596,70 +596,30 @@ static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const 
   float weights_x[MAX_SAMPLES];
   const int nx = make_samples<sampler>(source.width, source.wrap_x, uv.x, wh.x, positions_x, weights_x);
 
-  switch (source.components) {
-    default: { /* case 1: */
-      float sum{0.0f};
-      for (int i = 0; i < ny; i++) {
-        float sumx{0.0f};
-        const float *p = source.buffer + positions_y[i] * source.width;
-        for (int j = 0; j < nx; j++) {
-          sumx += *(p + positions_x[j]) * weights_x[j];
-        }
-        sum += sumx * weights_y[i];
-      }
-      return float4(sum, 0.0f, 0.0f, 1.0f);
-    }
-    case 2: {
-      float2 sum{0.0f};
-      for (int i = 0; i < ny; i++) {
-        float2 sumx{0.0f};
-        const float *p = source.buffer + positions_y[i] * source.width * 2;
-        for (int j = 0; j < nx; j++) {
-          sumx += *(float2 *)(p + positions_x[j] * 2) * weights_x[j];
-        }
-        sum += sumx * weights_y[i];
-      }
-      return float4(sum.x, sum.y, 0.0f, 1.0f);
-    }
-    case 3: {
-      float3 sum{0.0f};
-      for (int i = 0; i < ny; i++) {
-        float3 sumx{0.0f};
-        const float *p = source.buffer + positions_y[i] * source.width * 3;
-        for (int j = 0; j < nx; j++) {
-          sumx += *(float3 *)(p + positions_x[j] * 3) * weights_x[j];
-        }
-        sum += sumx * weights_y[i];
-      }
-      return float4(sum.x, sum.y, sum.z, 1.0f);
-    }
-    case 4: {
 #if BLI_HAVE_SSE2
-      __m128 sum = _mm_set1_ps(0.0f);
-      for (int i = 0; i < ny; i++) {
-        __m128 sumx = _mm_set1_ps(0.0f);
-        const float *p = source.buffer + positions_y[i] * source.width * 4;
-        for (int j = 0; j < nx; j++) {
-          sumx = _mm_add_ps(
-              sumx, _mm_mul_ps(_mm_loadu_ps(p + positions_x[j] * 4), _mm_set1_ps(weights_x[j])));
-        }
-        sum = _mm_add_ps(sum, _mm_mul_ps(sumx, _mm_set1_ps(weights_y[i])));
-      }
-      return *(float4 *)(&sum);  //_mm_storeu_ps(output, sum);
-#else
-      float4 sum{0.0f};
-      for (int i = 0; i < ny; i++) {
-        float4 sumx{0.0f};
-        const float *p = source.buffer + positions_y[i] * source.width * 4;
-        for (int j = 0; j < nx; j++) {
-          sumx += *(float4 *)(p + positions_x[j] * 4) * weights_x[j];
-        }
-        sum += sumx * weights_y[i];
-      }
-      return sum;
-#endif
+  __m128 sum = _mm_set1_ps(0.0f);
+  for (int i = 0; i < ny; i++) {
+    __m128 sumx = _mm_set1_ps(0.0f);
+    const float *p = source.buffer + positions_y[i] * source.width * 4;
+    for (int j = 0; j < nx; j++) {
+      sumx = _mm_add_ps(
+        sumx, _mm_mul_ps(_mm_loadu_ps(p + positions_x[j] * 4), _mm_set1_ps(weights_x[j])));
     }
+    sum = _mm_add_ps(sum, _mm_mul_ps(sumx, _mm_set1_ps(weights_y[i])));
   }
+  return *(float4 *)(&sum);  //_mm_storeu_ps(output, sum);
+#else
+  float4 sum{0.0f};
+  for (int i = 0; i < ny; i++) {
+    float4 sumx{0.0f};
+    const float *p = source.buffer + positions_y[i] * source.width * 4;
+    for (int j = 0; j < nx; j++) {
+      sumx += *(float4 *)(p + positions_x[j] * 4) * weights_x[j];
+    }
+    sum += sumx * weights_y[i];
+  }
+  return sum;
+#endif
 }
 
 template<>
@@ -686,6 +646,7 @@ float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source, const float2
 
 SampleRect sample_rect(const SamplerSource &source)
 {
+  BLI_assert(source.components == 4);
   switch (source.sampler) {
     case Sampler::Nearest:
       return _sample_rect<Sampler::Nearest>;
@@ -830,6 +791,7 @@ static float4 sample_anisotropic_clip(const SamplerSource &source, const float2 
 
 SampleArea sample_area(const SamplerSource &source)
 {
+  BLI_assert(source.components == 4);
   switch (source.sampler) {
     case Sampler::Nearest:
       return _sample_area<Sampler::Nearest>;
