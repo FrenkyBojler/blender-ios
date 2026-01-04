@@ -19,19 +19,20 @@ using namespace blender::gpu::shader;
 using namespace blender::gpu::shader::parser;
 using namespace std;
 
-static void first_pass(parser::IntermediateForm &parser, unordered_map<string, Token> functions)
+static void first_pass(parser::IntermediateForm &parser,
+                       unordered_map<string_view, Token> functions)
 {
-  unordered_set<string> defines;
+  unordered_set<string_view> defines;
 
   auto process_disabled_scope = [&](Token start_tok) {
     /* Search for endif with the same indentation. Assume formatted input. */
-    string end_str = start_tok.str_with_whitespace() + "endif";
+    string end_str = string(start_tok.str_with_whitespace()) + "endif";
     size_t scope_end = parser.str().find(end_str, start_tok.str_index_start());
     if (scope_end == string::npos) {
       return;
     }
     /* Search for else/elif with the same indentation. Assume formatted input. */
-    string else_str = start_tok.str_with_whitespace() + "el";
+    string else_str = string(start_tok.str_with_whitespace()) + "el";
     size_t scope_else = parser.str().find(else_str, start_tok.str_index_start());
     if (scope_else != string::npos && scope_else < scope_end) {
       /* Only erase the content and keep the preprocessor directives. */

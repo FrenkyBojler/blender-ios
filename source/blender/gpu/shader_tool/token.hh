@@ -216,24 +216,24 @@ struct Token {
     return (pos == std::string::npos) ? (data->str.size() - 1) : (pos - 1);
   }
 
-  std::string str_with_whitespace() const
+  std::string_view str_with_whitespace() const
   {
-    return data->str.substr(index_range().start, index_range().size);
+    return std::string_view(data->str).substr(index_range().start, index_range().size);
   }
 
-  std::string str() const
+  std::string_view str() const
   {
     if (is_invalid()) {
       return "";
     }
-    std::string str = this->str_with_whitespace();
+    std::string_view str = this->str_with_whitespace();
     return str.substr(0, str.find_last_not_of(" \n") + 1);
   }
 
   /* Return the content without the first and last characters. */
-  std::string str_exclusive() const
+  std::string_view str_exclusive() const
   {
-    std::string str = this->str();
+    std::string_view str = this->str();
     if (str.length() < 2) {
       return "";
     }
