@@ -505,12 +505,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
       if (g->box_xmin == g->box_xmax) {
         g->box_xmax = g->box_xmin + advance;
       }
-#ifndef BLF_SUBPIXEL_POSITION
-      pen_x = FT_PIX_ROUND(pen_x);
-#endif
-#ifdef BLF_SUBPIXEL_AA
       g = blf_glyph_ensure_subpixel(segment_font, segment_gc, g, pen_x);
-#endif
 
       rcti bounds = {pen_x + glyph_pos[i].x_offset,
                      pen_x + g->box_xmax + glyph_pos[i].x_offset,

@@ -544,36 +544,13 @@ void style_init()
 
   /* Set default flags based on UI preferences (not render fonts) */
   {
-    const FontFlags flag_disable = (BLF_MONOCHROME | BLF_HINTING_NONE | BLF_HINTING_SLIGHT |
-                                    BLF_HINTING_FULL | BLF_RENDER_SUBPIXELAA);
+    const FontFlags flag_disable = BLF_NONE;
     FontFlags flag_enable = BLF_NONE;
-
-    if (U.text_render & USER_TEXT_HINTING_NONE) {
-      flag_enable |= BLF_HINTING_NONE;
-    }
-    else if (U.text_render & USER_TEXT_HINTING_SLIGHT) {
-      flag_enable |= BLF_HINTING_SLIGHT;
-    }
-    else if (U.text_render & USER_TEXT_HINTING_FULL) {
-      flag_enable |= BLF_HINTING_FULL;
-    }
-
-    if (U.text_render & USER_TEXT_DISABLE_AA) {
-      flag_enable |= BLF_MONOCHROME;
-    }
-    else {
-      if (U.text_render & USER_TEXT_RENDER_SUBPIXELAA) {
-        flag_enable |= BLF_RENDER_SUBPIXELAA;
-      }
-    }
 
     for (uiFont &font : U.uifonts) {
       if (font.blf_id != -1) {
         BLF_disable(font.blf_id, flag_disable);
         BLF_enable(font.blf_id, flag_enable);
-        BLF_otf_feature_set(font.blf_id, "kern", U.text_render & USER_TEXT_KERNING ? 1 : 0);
-        BLF_otf_feature_set(
-            font.blf_id, "tnum", U.text_render & USER_TEXT_TABULAR_NUMBERS_UI ? 1 : 0);
         BLF_otf_feature_set(
             font.blf_id, "dlig", U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES_UI ? 1 : 0);
         BLF_otf_feature_set(

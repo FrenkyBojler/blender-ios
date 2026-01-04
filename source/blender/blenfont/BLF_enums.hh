@@ -37,11 +37,10 @@ enum FontFlags {
   // BLF_MATRIX = 1 << 4,
   BLF_ASPECT = 1 << 5,
   BLF_WORD_WRAP = 1 << 6,
-  /** No anti-aliasing. */
-  BLF_MONOCHROME = 1 << 7,
-  BLF_HINTING_NONE = 1 << 8,
-  BLF_HINTING_SLIGHT = 1 << 9,
-  BLF_HINTING_FULL = 1 << 10,
+  // BLF_MONOCHROME = 1 << 7,
+  // BLF_HINTING_NONE = 1 << 8,
+  // BLF_HINTING_SLIGHT = 1 << 9,
+  // BLF_HINTING_FULL = 1 << 10,
   BLF_BOLD = 1 << 11,
   BLF_ITALIC = 1 << 12,
   /** Intended USE is monospaced, regardless of font type. */
@@ -52,12 +51,7 @@ enum FontFlags {
   BLF_LAST_RESORT = 1 << 15,
   /** Failure to load this font. Don't try again. */
   BLF_BAD_FONT = 1 << 16,
-  /**
-   * At small sizes glyphs are rendered at multiple sub-pixel positions.
-   *
-   * \note Can be checked without checking #BLF_MONOSPACED which can be assumed to be disabled.
-   */
-  BLF_RENDER_SUBPIXELAA = 1 << 18,
+  // BLF_RENDER_SUBPIXELAA = 1 << 18,
 
   /** Do not look in other fonts when a glyph is not found in this font. */
   BLF_NO_FALLBACK = 1 << 19,

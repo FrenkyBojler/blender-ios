@@ -891,24 +891,8 @@ static FT_GlyphSlot blf_glyph_load(FontBLF *font,
   if (outline_only) {
     load_flags = FT_LOAD_NO_SCALE | FT_LOAD_NO_BITMAP;
   }
-  else if (font->flags & BLF_MONOCHROME) {
-    load_flags = FT_LOAD_TARGET_MONO;
-  }
   else {
-    load_flags = FT_LOAD_NO_BITMAP;
-    if (font->flags & BLF_HINTING_NONE) {
-      load_flags |= FT_LOAD_TARGET_NORMAL | FT_LOAD_NO_HINTING;
-    }
-    else if (font->flags & BLF_HINTING_SLIGHT) {
-      load_flags |= FT_LOAD_TARGET_LIGHT;
-    }
-    else if (font->flags & BLF_HINTING_FULL) {
-      load_flags |= FT_LOAD_TARGET_NORMAL;
-    }
-    else {
-      /* Default "Auto" is Slight (vertical only) hinting. */
-      load_flags |= FT_LOAD_TARGET_LIGHT;
-    }
+    load_flags = FT_LOAD_NO_BITMAP | FT_LOAD_TARGET_LIGHT;
   }
 
   if (!outline_only && FT_HAS_COLOR(font->face)) {
@@ -932,17 +916,7 @@ static FT_GlyphSlot blf_glyph_load(FontBLF *font,
  */
 static bool blf_glyph_render_bitmap(FontBLF *font, FT_GlyphSlot glyph)
 {
-  int render_mode;
-
-  if (font->flags & BLF_MONOCHROME) {
-    render_mode = FT_RENDER_MODE_MONO;
-  }
-  else if (font->flags & BLF_HINTING_SLIGHT) {
-    render_mode = FT_RENDER_MODE_LIGHT;
-  }
-  else {
-    render_mode = FT_RENDER_MODE_NORMAL;
-  }
+  int render_mode = FT_RENDER_MODE_LIGHT;
 
   /* Render the glyph curves to a bitmap. */
   FT_Error err = FT_Render_Glyph(glyph, FT_Render_Mode(render_mode));
@@ -1450,11 +1424,9 @@ GlyphBLF *blf_glyph_ensure_icon(GlyphCacheBLF *gc,
 }
 #endif /* WITH_HEADLESS */
 
-#ifdef BLF_SUBPIXEL_AA
 GlyphBLF *blf_glyph_ensure_subpixel(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, int32_t pen_x)
 {
-  if (!(font->flags & BLF_RENDER_SUBPIXELAA)) {
-    /* Not if we are in mono mode (aliased) or the feature is turned off. */
+  if (font->flags & BLF_MONOSPACED) {
     return g;
   }
 
@@ -1474,7 +1446,6 @@ GlyphBLF *blf_glyph_ensure_subpixel(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *
   }
   return g;
 }
-#endif
 
 GlyphBLF::~GlyphBLF()
 {

@@ -31,16 +31,6 @@ enum class BLFWrapMode;
  */
 #define BLF_MAX_FONT 64
 
-/**
- * If enabled, glyphs positions are on 64ths of a pixel. Disabled, they are on whole pixels.
- */
-#define BLF_SUBPIXEL_POSITION
-
-/**
- * If enabled, glyphs are rendered at multiple horizontal subpixel positions.
- */
-#define BLF_SUBPIXEL_AA
-
 /** Maximum number of opened FT_Face objects managed by cache. 0 is default of 2. */
 #define BLF_CACHE_MAX_FACES 8
 /** Maximum number of opened FT_Size objects managed by cache. 0 is default of 4 */
@@ -203,9 +193,7 @@ GlyphBLF *blf_glyph_ensure(
 
 FontBLF *blf_font_script_ensure(FontBLF *font, const uint charcode);
 
-#ifdef BLF_SUBPIXEL_AA
 GlyphBLF *blf_glyph_ensure_subpixel(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, int32_t pen_x);
-#endif
 
 GlyphBLF *blf_glyph_ensure_icon(
     GlyphCacheBLF *gc,

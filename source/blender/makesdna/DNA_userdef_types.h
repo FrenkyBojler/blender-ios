@@ -319,22 +319,20 @@ enum eTextEdit_Flags {
  * #UserDef.text_render
  */
 enum eText_Draw_Options {
-  USER_TEXT_DISABLE_AA = (1 << 0),
+  USER_TEXT_DISABLE_AA_DEPRECATED = (1 << 0), /* Deprecated in 5.1. */
 
-  USER_TEXT_HINTING_NONE = (1 << 1),
-  USER_TEXT_HINTING_SLIGHT = (1 << 2),
-  USER_TEXT_HINTING_FULL = (1 << 3),
+  USER_TEXT_HINTING_NONE_DEPRECATED = (1 << 1),      /* Deprecated in 5.1. */
+  USER_TEXT_HINTING_SLIGHT_DEPRECATED = (1 << 2),    /* Deprecated in 5.1. */
+  USER_TEXT_HINTING_FULL_DEPRECATED = (1 << 3),      /* Deprecated in 5.1. */
+  USER_TEXT_RENDER_SUBPIXELAA_DEPRECATED = (1 << 4), /* Deprecated in 5.1. */
 
-  USER_TEXT_RENDER_SUBPIXELAA = (1 << 4),
-  USER_TEXT_KERNING = (1 << 5),
   /* UI & Mono fonts. */
-  USER_TEXT_SLASHED_ZERO_UI = (1 << 6),
-  USER_TEXT_DISCRETIONARY_LIGATURES_UI = (1 << 7),
-  USER_TEXT_TABULAR_NUMBERS_UI = (1 << 8),
-  USER_TEXT_CONTEXTUAL_ALTERNATES_UI = (1 << 9),
+  USER_TEXT_SLASHED_ZERO_UI = (1 << 5),
+  USER_TEXT_DISCRETIONARY_LIGATURES_UI = (1 << 6),
+  USER_TEXT_CONTEXTUAL_ALTERNATES_UI = (1 << 7),
   /* With default (Inter) as UI font Only. */
-  USER_TEXT_DISAMBIGUATION_INTER = (1 << 10),
-  USER_TEXT_OPEN_DIGITS_INTER = (1 << 11),
+  USER_TEXT_DISAMBIGUATION_INTER = (1 << 8),
+  USER_TEXT_OPEN_DIGITS_INTER = (1 << 9),
 };
 
 /**
@@ -1139,10 +1137,8 @@ struct UserDef {
   short animation_flag = USER_ANIM_HIGH_QUALITY_DRAWING;
 
   /** Options for text rendering. */
-  short text_render = USER_TEXT_HINTING_SLIGHT | USER_TEXT_RENDER_SUBPIXELAA | USER_TEXT_KERNING |
-                      USER_TEXT_SLASHED_ZERO_UI | USER_TEXT_DISAMBIGUATION_INTER |
-                      USER_TEXT_OPEN_DIGITS_INTER | USER_TEXT_DISCRETIONARY_LIGATURES_UI |
-                      USER_TEXT_TABULAR_NUMBERS_UI;
+  short text_render = USER_TEXT_SLASHED_ZERO_UI | USER_TEXT_DISAMBIGUATION_INTER |
+                      USER_TEXT_OPEN_DIGITS_INTER | USER_TEXT_DISCRETIONARY_LIGATURES_UI;
   char _pad19[1];
 
   char navigation_mode = VIEW_NAVIGATION_WALK;
