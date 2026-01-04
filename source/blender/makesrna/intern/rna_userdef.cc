@@ -1057,6 +1057,11 @@ static void rna_userdef_text_update(Main * /*bmain*/, Scene * /*scene*/, Pointer
   USERDEF_TAG_DIRTY;
 }
 
+int static rna_UserDef_ui_font_is_default(const PointerRNA * /*ptr*/, const char ** /*r_info*/)
+{
+  return (U.font_path_ui[0] == 0) ? PROP_EDITABLE : PropertyFlag(0);
+}
+
 static PointerRNA rna_Theme_space_generic_get(PointerRNA *ptr)
 {
   return RNA_pointer_create_with_parent(*ptr, &RNA_ThemeSpaceGeneric, ptr->data);
@@ -5377,12 +5382,14 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_text_disambiguation", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_DISAMBIGUATION_INTER);
+  RNA_def_property_editable_func(prop, "rna_UserDef_ui_font_is_default");
   RNA_def_property_ui_text(
-      prop, "Disambiguation", "Alternate characters that increase visual differences");
+      prop, "Disambiguation", "Inter only: Alternate characters to increase visual differences");
   RNA_def_property_update(prop, 0, "rna_userdef_text_update");
 
   prop = RNA_def_property(srna, "use_text_open_digits", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_OPEN_DIGITS_INTER);
+  RNA_def_property_editable_func(prop, "rna_UserDef_ui_font_is_default");
   RNA_def_property_ui_text(prop, "Open Digits", "Inter only: Alternate style for numeric digits");
   RNA_def_property_update(prop, 0, "rna_userdef_text_update");
 
