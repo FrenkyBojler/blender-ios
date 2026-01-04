@@ -358,7 +358,8 @@ struct Scope {
     });
   }
 
-  void foreach_token(const TokenType token_type, std::function<void(const Token)> callback) const
+  template<typename Callback>
+  void foreach_token(const TokenType token_type, Callback callback) const
   {
     IndexRange index_range = data->scope_ranges[index];
     std::string_view view(data->token_types);
