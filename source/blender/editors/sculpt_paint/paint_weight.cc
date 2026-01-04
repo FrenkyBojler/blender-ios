@@ -1752,7 +1752,7 @@ static void wpaint_do_radial_symmetry(bContext *C,
 /* near duplicate of: sculpt.cc's,
  * 'do_symmetrical_brush_actions' and 'vpaint_do_symmetrical_brush_actions'. */
 static void wpaint_do_symmetrical_brush_actions(
-    bContext *C, Object &ob, VPaint &wp, WPaintData &wpd, WeightPaintInfo &wpi)
+    bContext &C, Object &ob, VPaint &wp, WPaintData &wpd, WeightPaintInfo &wpi)
 {
   Brush &brush = *BKE_paint_brush(&wp.paint);
   Mesh &mesh = *(Mesh *)ob.data;
@@ -1763,10 +1763,10 @@ static void wpaint_do_symmetrical_brush_actions(
 
   /* initial stroke */
   cache.mirror_symmetry_pass = ePaintSymmetryFlags(0);
-  wpaint_do_paint(*C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'X', 0, 0);
-  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'X');
-  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'Y');
-  wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'Z');
+  wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'X', 0, 0);
+  wpaint_do_radial_symmetry(&C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'X');
+  wpaint_do_radial_symmetry(&C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'Y');
+  wpaint_do_radial_symmetry(&C, ob, wp, wpd, wpi, mesh, brush, ePaintSymmetryFlags(0), 'Z');
 
   cache.symmetry = symm;
 
@@ -1785,16 +1785,16 @@ static void wpaint_do_symmetrical_brush_actions(
       SCULPT_cache_calc_brushdata_symm(cache, symm, 0, 0);
 
       if (i & (1 << 0)) {
-        wpaint_do_paint(*C, ob, wp, wpd, wpi, mesh, brush, symm, 'X', 0, 0);
-        wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, symm, 'X');
+        wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, symm, 'X', 0, 0);
+        wpaint_do_radial_symmetry(&C, ob, wp, wpd, wpi, mesh, brush, symm, 'X');
       }
       if (i & (1 << 1)) {
-        wpaint_do_paint(*C, ob, wp, wpd, wpi, mesh, brush, symm, 'Y', 0, 0);
-        wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, symm, 'Y');
+        wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, symm, 'Y', 0, 0);
+        wpaint_do_radial_symmetry(&C, ob, wp, wpd, wpi, mesh, brush, symm, 'Y');
       }
       if (i & (1 << 2)) {
-        wpaint_do_paint(*C, ob, wp, wpd, wpi, mesh, brush, symm, 'Z', 0, 0);
-        wpaint_do_radial_symmetry(C, ob, wp, wpd, wpi, mesh, brush, symm, 'Z');
+        wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, symm, 'Z', 0, 0);
+        wpaint_do_radial_symmetry(&C, ob, wp, wpd, wpi, mesh, brush, symm, 'Z');
       }
     }
   }
@@ -1864,7 +1864,7 @@ void WeightPaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
     precompute_weight_values(*ob, brush, *wpd, wpi, mesh);
   }
 
-  wpaint_do_symmetrical_brush_actions(this->evil_C, *ob, wp, *wpd, wpi);
+  wpaint_do_symmetrical_brush_actions(*this->evil_C, *ob, wp, *wpd, wpi);
 
   swap_m4m4(vc->rv3d->persmat, mat);
 
@@ -1943,7 +1943,7 @@ static wmOperatorStatus wpaint_exec(bContext &C, wmOperator &op)
   WeightPaintStroke *stroke = MEM_new<WeightPaintStroke>(__func__, &C, &op, 0);
   op.customdata = stroke;
 
-  stroke->exec(&C, &op);
+  stroke->exec(C, &op);
 
   MEM_delete(stroke);
   return OPERATOR_FINISHED;
@@ -1952,7 +1952,7 @@ static wmOperatorStatus wpaint_exec(bContext &C, wmOperator &op)
 static wmOperatorStatus wpaint_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   WeightPaintStroke *stroke = static_cast<WeightPaintStroke *>(op.customdata);
-  const wmOperatorStatus retval = stroke->modal(&C, &op, event);
+  const wmOperatorStatus retval = stroke->modal(C, &op, event);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);

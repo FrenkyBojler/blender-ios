@@ -1445,7 +1445,7 @@ static void annotation_visible_on_space(tGPsdata *p)
 }
 
 /* init new painting session */
-static tGPsdata *annotation_session_initpaint(bContext *C)
+static tGPsdata *annotation_session_initpaint(bContext &C)
 {
   tGPsdata *p = nullptr;
 
@@ -1455,7 +1455,7 @@ static tGPsdata *annotation_session_initpaint(bContext *C)
   /* Try to initialize context data
    * WARNING: This may not always succeed (e.g. using GP in an annotation-only context)
    */
-  if (annotation_session_initdata(*C, p) == 0) {
+  if (annotation_session_initdata(C, p) == 0) {
     /* Invalid state - Exit
      * NOTE: It should be safe to just free the data, since failing context checks should
      * only happen when no data has been allocated.
@@ -1901,7 +1901,7 @@ static int annotation_draw_init(bContext *C, wmOperator *op, const wmEvent *even
   eGPencil_PaintModes paintmode = eGPencil_PaintModes(RNA_enum_get(op->ptr, "mode"));
 
   /* check context */
-  p = static_cast<tGPsdata *>(op->customdata = annotation_session_initpaint(C));
+  p = static_cast<tGPsdata *>(op->customdata = annotation_session_initpaint(*C));
   if ((p == nullptr) || (p->status == GP_STATUS_ERROR)) {
     /* something wasn't set correctly in context */
     annotation_draw_exit(*C, op);
@@ -1940,9 +1940,9 @@ static void annotation_draw_cursor_set(tGPsdata *p)
 }
 
 /* update UI indicators of status, including cursor and header prints */
-static void annotation_draw_status_indicators(bContext *C, tGPsdata *p)
+static void annotation_draw_status_indicators(bContext &C, tGPsdata *p)
 {
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
 
   /* header prints */
   switch (p->status) {
@@ -2698,7 +2698,7 @@ static wmOperatorStatus annotation_draw_modal(bContext &C, wmOperator &op, const
   }
   else {
     /* update status indicators - cursor, header, etc. */
-    annotation_draw_status_indicators(&C, p);
+    annotation_draw_status_indicators(C, p);
     /* cursor may have changed outside our control - #44084 */
     annotation_draw_cursor_set(p);
   }

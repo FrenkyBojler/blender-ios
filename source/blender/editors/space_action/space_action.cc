@@ -365,7 +365,7 @@ static void action_channel_region_draw(const bContext *C, ARegion *region)
   set_v2d_height(v2d, item_count, !BLI_listbase_is_empty(ac.markers));
 
   blender::ui::view2d_view_ortho(v2d);
-  draw_channel_names((bContext *)C, &ac, region, anim_data);
+  draw_channel_names(*(bContext *)C, &ac, region, anim_data);
 
   /* channel filter next to scrubbing area */
   ED_time_scrub_channel_search_draw(*C, region, ac.ads);
@@ -851,7 +851,7 @@ static void action_refresh(const bContext *C, ScrArea *area)
     /* Perform syncing of channel state incl. selection
      * Active action setting also occurs here
      * (as part of anim channel filtering in `anim_filter.cc`). */
-    ANIM_sync_animchannels_to_data(C);
+    ANIM_sync_animchannels_to_data(*C);
     saction->runtime.flag &= ~SACTION_RUNTIME_FLAG_NEED_CHAN_SYNC;
 
     /* Tag everything for redraw

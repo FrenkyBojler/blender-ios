@@ -151,12 +151,12 @@ std::unique_ptr<GestureData> init_from_lasso(bContext *C, wmOperator *op)
   return gesture_data;
 }
 
-std::unique_ptr<GestureData> init_from_box(bContext *C, wmOperator *op)
+std::unique_ptr<GestureData> init_from_box(bContext &C, wmOperator *op)
 {
   std::unique_ptr<GestureData> gesture_data = std::make_unique<GestureData>();
   gesture_data->shape_type = ShapeType::Box;
 
-  init_common(*C, op, *gesture_data);
+  init_common(C, op, *gesture_data);
 
   rcti rect;
   WM_operator_properties_border_to_rcti(op, &rect);
@@ -232,13 +232,13 @@ static void line_calculate_plane_points(const GestureData &gesture_data,
   r_offset_plane_points[1] = r_plane_points[3] + normal;
 }
 
-std::unique_ptr<GestureData> init_from_line(bContext *C, const wmOperator *op)
+std::unique_ptr<GestureData> init_from_line(bContext &C, const wmOperator *op)
 {
   std::unique_ptr<GestureData> gesture_data = std::make_unique<GestureData>();
   gesture_data->shape_type = ShapeType::Line;
   gesture_data->line.use_side_planes = RNA_boolean_get(op->ptr, "use_limit_to_segment");
 
-  init_common(*C, op, *gesture_data);
+  init_common(C, op, *gesture_data);
 
   gesture_data->gesture_points.reinitialize(2);
   gesture_data->gesture_points[0] = {float(RNA_int_get(op->ptr, "xstart")),

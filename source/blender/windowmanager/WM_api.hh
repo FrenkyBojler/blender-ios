@@ -150,7 +150,7 @@ void WM_exit_ex(bContext *C, bool do_python_exit, bool do_user_exit_actions);
  */
 void WM_exit(bContext *C, int exit_code) ATTR_NORETURN;
 
-void WM_main(bContext *C) ATTR_NORETURN;
+void WM_main(bContext &C) ATTR_NORETURN;
 
 /**
  * Show the splash screen as needed on startup.
@@ -926,7 +926,7 @@ wmOperatorStatus WM_operator_confirm_or_exec(bContext *C, wmOperator *op, const 
 /**
  * Like WM_operator_confirm, but with more options and can't be used as an invoke directly.
  */
-wmOperatorStatus WM_operator_confirm_ex(bContext *C,
+wmOperatorStatus WM_operator_confirm_ex(bContext &C,
                                         wmOperator *op,
                                         const char *title,
                                         const char *message,
@@ -971,7 +971,7 @@ wmOperatorStatus WM_operator_props_popup_call(bContext *C, wmOperator *op, const
 wmOperatorStatus WM_operator_props_popup(bContext &C, wmOperator &op, const wmEvent *event);
 
 wmOperatorStatus WM_operator_props_dialog_popup(
-    bContext *C,
+    bContext &C,
     wmOperator *op,
     int width,
     std::optional<std::string> title = std::nullopt,
@@ -980,7 +980,7 @@ wmOperatorStatus WM_operator_props_dialog_popup(
     std::optional<std::string> message = std::nullopt);
 
 wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op);
-wmOperatorStatus WM_operator_ui_popup(bContext *C, wmOperator *op, int width);
+wmOperatorStatus WM_operator_ui_popup(bContext &C, wmOperator *op, int width);
 
 /**
  * Can't be used as an invoke directly, needs message arg (can be NULL).
@@ -1015,7 +1015,7 @@ void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot);
 void WM_operator_handlers_clear(wmWindowManager *wm, const blender::Set<wmOperatorType *> &types);
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot);
-bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context);
+bool WM_operator_poll_context(bContext &C, wmOperatorType *ot, blender::wm::OpCallContext context);
 
 /**
  * Check poll succeeds or returns false & report an error.
@@ -1039,7 +1039,7 @@ bool WM_operator_poll_or_report_error(bContext &C, wmOperatorType *ot, ReportLis
  *
  * \warning do not use this within an operator to call itself! #29537.
  */
-wmOperatorStatus WM_operator_call_ex(bContext *C, wmOperator *op, bool store);
+wmOperatorStatus WM_operator_call_ex(bContext &C, wmOperator *op, bool store);
 wmOperatorStatus WM_operator_call(bContext *C, wmOperator *op);
 /**
  * This is intended to be used when an invoke operator wants to call exec on itself
@@ -1050,8 +1050,8 @@ wmOperatorStatus WM_operator_call_notest(bContext *C, wmOperator *op);
 /**
  * Execute this operator again, put here so it can share above code
  */
-wmOperatorStatus WM_operator_repeat(bContext *C, wmOperator *op);
-wmOperatorStatus WM_operator_repeat_last(bContext *C, wmOperator *op);
+wmOperatorStatus WM_operator_repeat(bContext &C, wmOperator *op);
+wmOperatorStatus WM_operator_repeat_last(bContext &C, wmOperator *op);
 /**
  * \return true if #WM_operator_repeat can run.
  * Simple check for now but may become more involved.
@@ -1071,7 +1071,7 @@ bool WM_operator_name_poll(bContext *C, const char *opstring);
  * storing the key that was pressed so as to be able to detect its release.
  * In these cases it's necessary to forward the current event being handled.
  */
-wmOperatorStatus WM_operator_name_call_ptr(bContext *C,
+wmOperatorStatus WM_operator_name_call_ptr(bContext &C,
                                            wmOperatorType *ot,
                                            blender::wm::OpCallContext context,
                                            PointerRNA *properties,
@@ -1548,7 +1548,7 @@ wmOperatorStatus WM_gesture_lasso_modal(bContext &C, wmOperator &op, const wmEve
 void WM_gesture_lasso_cancel(bContext &C, wmOperator &op);
 wmOperatorStatus WM_gesture_polyline_invoke(bContext &C, wmOperator &op, const wmEvent *event);
 wmOperatorStatus WM_gesture_polyline_modal(bContext &C, wmOperator &op, const wmEvent *event);
-void WM_gesture_polyline_cancel(bContext *C, wmOperator *op);
+void WM_gesture_polyline_cancel(bContext &C, wmOperator *op);
 /**
  * helper function, we may want to add options for conversion to view space
  */
@@ -1650,7 +1650,7 @@ wmOperatorStatus WM_operator_flag_only_pass_through_on_press(wmOperatorStatus re
  * Note that \a poin should be valid allocated and not on stack.
  */
 void WM_event_start_drag(
-    bContext *C, int icon, eWM_DragDataType type, void *poin, unsigned int flags);
+    bContext &C, int icon, eWM_DragDataType type, void *poin, unsigned int flags);
 /**
  * Create and fill the dragging data, but don't start dragging just yet (unlike
  * #WM_event_start_drag()). Must be followed up by #WM_event_start_prepared_drag(), otherwise the
@@ -2180,7 +2180,7 @@ using wmTooltipInitFn = ARegion *(*)(bContext * C,
                                      bool *r_exit_on_event);
 
 void WM_tooltip_immediate_init(
-    bContext *C, wmWindow *win, ScrArea *area, ARegion *region, wmTooltipInitFn init);
+    bContext &C, wmWindow *win, ScrArea *area, ARegion *region, wmTooltipInitFn init);
 void WM_tooltip_timer_init_ex(bContext &C,
                               wmWindow *win,
                               ScrArea *area,
@@ -2188,11 +2188,11 @@ void WM_tooltip_timer_init_ex(bContext &C,
                               wmTooltipInitFn init,
                               double delay);
 void WM_tooltip_timer_init(
-    bContext *C, wmWindow *win, ScrArea *area, ARegion *region, wmTooltipInitFn init);
+    bContext &C, wmWindow *win, ScrArea *area, ARegion *region, wmTooltipInitFn init);
 void WM_tooltip_timer_clear(bContext &C, wmWindow *win);
-void WM_tooltip_clear(bContext *C, wmWindow *win);
+void WM_tooltip_clear(bContext &C, wmWindow *win);
 void WM_tooltip_init(bContext &C, wmWindow *win);
-void WM_tooltip_refresh(bContext *C, wmWindow *win);
+void WM_tooltip_refresh(bContext &C, wmWindow *win);
 double WM_tooltip_time_closed();
 
 /* `wm_utils.cc` */

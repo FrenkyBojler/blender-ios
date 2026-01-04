@@ -378,7 +378,7 @@ static wmOperatorStatus nlatracks_pushdown_exec(bContext &C, wmOperator &op)
     PointerRNA adt_ptr = {};
 
     /* active animdata block */
-    if (nla_panel_context(&C, &adt_ptr, nullptr, nullptr) == 0 || (adt_ptr.data == nullptr)) {
+    if (nla_panel_context(C, &adt_ptr, nullptr, nullptr) == 0 || (adt_ptr.data == nullptr)) {
       BKE_report(op.reports,
                  RPT_ERROR,
                  "No active AnimData block to use "
@@ -489,7 +489,7 @@ static bool nla_action_unlink_poll(bContext &C)
 {
   if (ED_operator_nla_active(C)) {
     PointerRNA adt_ptr;
-    return (nla_panel_context(&C, &adt_ptr, nullptr, nullptr) && (adt_ptr.data != nullptr));
+    return (nla_panel_context(C, &adt_ptr, nullptr, nullptr) && (adt_ptr.data != nullptr));
   }
 
   /* something failed... */
@@ -501,7 +501,7 @@ static wmOperatorStatus nla_action_unlink_exec(bContext &C, wmOperator &op)
   PointerRNA adt_ptr;
 
   /* check context and also validity of pointer */
-  if (!nla_panel_context(&C, &adt_ptr, nullptr, nullptr)) {
+  if (!nla_panel_context(C, &adt_ptr, nullptr, nullptr)) {
     return OPERATOR_CANCELLED;
   }
 

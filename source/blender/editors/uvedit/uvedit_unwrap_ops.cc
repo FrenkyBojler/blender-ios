@@ -3667,7 +3667,7 @@ static wmOperatorStatus reset_exec(bContext &C, wmOperator & /*op*/)
       continue;
     }
 
-    ED_mesh_uv_loop_reset(&C, mesh);
+    ED_mesh_uv_loop_reset(C, mesh);
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
     WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);

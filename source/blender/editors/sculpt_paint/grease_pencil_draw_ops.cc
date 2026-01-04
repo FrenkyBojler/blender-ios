@@ -311,7 +311,7 @@ static wmOperatorStatus grease_pencil_brush_stroke_modal(bContext &C,
                                                          const wmEvent *event)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op.customdata);
-  const wmOperatorStatus retval = stroke->modal(&C, &op, event);
+  const wmOperatorStatus retval = stroke->modal(C, &op, event);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
@@ -421,7 +421,7 @@ static wmOperatorStatus grease_pencil_sculpt_paint_modal(bContext &C,
                                                          const wmEvent *event)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op.customdata);
-  const wmOperatorStatus retval = stroke->modal(&C, &op, event);
+  const wmOperatorStatus retval = stroke->modal(C, &op, event);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
@@ -520,7 +520,7 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_modal(bContext &C,
                                                                 const wmEvent *event)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op.customdata);
-  const wmOperatorStatus retval = stroke->modal(&C, &op, event);
+  const wmOperatorStatus retval = stroke->modal(C, &op, event);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);
@@ -630,7 +630,7 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_modal(bContext &C,
                                                                 const wmEvent *event)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op.customdata);
-  const wmOperatorStatus retval = stroke->modal(&C, &op, event);
+  const wmOperatorStatus retval = stroke->modal(C, &op, event);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);

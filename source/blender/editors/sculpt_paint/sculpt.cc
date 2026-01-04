@@ -5888,7 +5888,7 @@ static wmOperatorStatus sculpt_brush_stroke_exec(bContext &C, wmOperator &op)
   SculptPaintStroke *stroke = MEM_new<SculptPaintStroke>(__func__, &C, &op, 0);
   op.customdata = stroke;
 
-  stroke->exec(&C, &op);
+  stroke->exec(C, &op);
 
   MEM_delete(stroke);
 
@@ -5915,7 +5915,7 @@ static void sculpt_brush_stroke_cancel(bContext &C, wmOperator &op)
 static wmOperatorStatus brush_stroke_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op.customdata);
-  const wmOperatorStatus retval = stroke->modal(&C, &op, event);
+  const wmOperatorStatus retval = stroke->modal(C, &op, event);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);

@@ -61,7 +61,7 @@ void ED_region_exit(bContext &C, ARegion *region);
  * Utility to exit and free an area-region. Screen level regions (menus/popups) need to be treated
  * slightly differently, see #ui::region_temp_remove().
  */
-void ED_region_remove(bContext *C, ScrArea *area, ARegion *region);
+void ED_region_remove(bContext &C, ScrArea *area, ARegion *region);
 void ED_region_pixelspace(const ARegion *region);
 /**
  * Call to move a popup window (keep OpenGL context free!)
@@ -104,7 +104,7 @@ const char *ED_area_region_search_filter_get(const ScrArea *area, const ARegion 
 int ED_area_max_regionsize(const ScrArea *area, const ARegion *scale_region, const AZEdge edge);
 
 void ED_region_panels_init(wmWindowManager *wm, ARegion *region);
-void ED_region_panels_ex(const bContext *C,
+void ED_region_panels_ex(const bContext &C,
                          ARegion *region,
                          blender::wm::OpCallContext op_context,
                          const char *contexts[]);
@@ -151,7 +151,7 @@ void ED_region_cursor_set(wmWindow *win, ScrArea *area, ARegion *region);
 /**
  * Exported to all editors, uses fading default.
  */
-void ED_region_toggle_hidden(bContext *C, ARegion *region);
+void ED_region_toggle_hidden(bContext &C, ARegion *region);
 /**
  * For use after changing visibility of regions.
  */
@@ -355,7 +355,7 @@ void ED_screen_animation_timer(
     bContext &C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable);
 void ED_screen_animation_timer_update(bScreen *screen, int redraws);
 void ED_screen_restore_temp_type(bContext *C, ScrArea *area);
-ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *area, int type);
+ScrArea *ED_screen_full_newspace(bContext &C, ScrArea *area, int type);
 /**
  * \a was_prev_temp for the case previous space was a temporary full-screen as well
  */
@@ -583,7 +583,7 @@ bool ED_operator_region_gizmo_active(bContext &C);
 bool ED_operator_animview_active(bContext &C);
 bool ED_operator_outliner_active(bContext &C);
 bool ED_operator_region_outliner_active(bContext &C);
-bool ED_operator_outliner_active_no_editobject(bContext *C);
+bool ED_operator_outliner_active_no_editobject(bContext &C);
 /**
  * \note Will return true for file spaces in either file or asset browsing mode! See
  * #ED_operator_file_browsing_active() (file browsing only) and
@@ -596,7 +596,7 @@ bool ED_operator_file_active(bContext &C);
  * #ED_operator_asset_browsing_active() (asset browsing only).
  */
 bool ED_operator_file_browsing_active(bContext &C);
-bool ED_operator_asset_browsing_active(bContext *C);
+bool ED_operator_asset_browsing_active(bContext &C);
 bool ED_operator_spreadsheet_active(bContext &C);
 bool ED_operator_action_active(bContext &C);
 bool ED_operator_buttons_active(bContext &C);
@@ -650,7 +650,7 @@ bool ED_operator_object_active_local_editable_posemode_exclusive(bContext &C);
  * Allows for pinned pose objects to be used in the object buttons
  * and the non-active pose object to be used in the 3D view.
  */
-bool ED_operator_posemode_context(bContext *C);
+bool ED_operator_posemode_context(bContext &C);
 bool ED_operator_posemode(bContext &C);
 bool ED_operator_posemode_local(bContext &C);
 bool ED_operator_camera_poll(bContext &C);

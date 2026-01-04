@@ -78,14 +78,14 @@ Scene *ED_scene_sequencer_add(Main *bmain, bContext &C, eSceneCopyMethod method)
   return scene_new;
 }
 
-Scene *ED_scene_add(Main *bmain, bContext *C, wmWindow *win, eSceneCopyMethod method)
+Scene *ED_scene_add(Main *bmain, bContext &C, wmWindow *win, eSceneCopyMethod method)
 {
   Scene *scene_old = WM_window_get_active_scene(win);
   Scene *scene_new = scene_add(bmain, scene_old, method);
 
-  WM_window_set_active_scene(bmain, *C, win, scene_new);
+  WM_window_set_active_scene(bmain, C, win, scene_new);
 
-  WM_event_add_notifier(*C, NC_SCENE | ND_SCENEBROWSE, scene_new);
+  WM_event_add_notifier(C, NC_SCENE | ND_SCENEBROWSE, scene_new);
 
   return scene_new;
 }
@@ -272,7 +272,7 @@ static wmOperatorStatus scene_new_exec(bContext &C, wmOperator &op)
   wmWindow *win = CTX_wm_window(C);
   int type = RNA_enum_get(op.ptr, "type");
 
-  ED_scene_add(bmain, &C, win, eSceneCopyMethod(type));
+  ED_scene_add(bmain, C, win, eSceneCopyMethod(type));
 
   return OPERATOR_FINISHED;
 }

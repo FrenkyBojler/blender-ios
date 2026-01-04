@@ -468,7 +468,7 @@ bool view_item_drag_start(bContext &C, AbstractViewItem &item)
 
   if (const std::optional<eWM_DragDataType> drag_type = drag_controller->get_drag_type()) {
     WM_event_start_drag(
-        &C, ICON_NONE, *drag_type, drag_controller->create_drag_data(), WM_DRAG_FREE_DATA);
+        C, ICON_NONE, *drag_type, drag_controller->create_drag_data(), WM_DRAG_FREE_DATA);
   }
   drag_controller->on_drag_start(C);
 

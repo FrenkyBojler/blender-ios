@@ -857,7 +857,7 @@ bool button_menu_draw_as_popover(const Button *but);
 void button_range_set_hard(Button *but);
 void button_range_set_soft(Button *but);
 
-bool button_context_poll_operator(bContext *C, wmOperatorType *ot, const Button *but);
+bool button_context_poll_operator(bContext &C, wmOperatorType *ot, const Button *but);
 /**
  * Check if the operator \a ot poll is successful with the context given by \a but (optionally).
  * \param but: The button that might store context. Can be NULL for convenience (e.g. if there is
@@ -1070,7 +1070,7 @@ PopupBlockHandle *popup_block_create(bContext &C,
                                      FreeArgFunc arg_free,
                                      bool can_refresh);
 PopupBlockHandle *popup_menu_create(
-    bContext *C, ARegion *butregion, Button *but, MenuCreateFunc menu_func, void *arg);
+    bContext &C, ARegion *butregion, Button *but, MenuCreateFunc menu_func, void *arg);
 
 /* `interface_region_popover.cc` */
 
@@ -1102,7 +1102,7 @@ void pie_menu_level_create(Block *block,
  * Translate any popup regions (so we can drag them).
  */
 void popup_translate(ARegion *region, const int mdiff[2]);
-void popup_block_free(bContext *C, PopupBlockHandle *handle);
+void popup_block_free(bContext &C, PopupBlockHandle *handle);
 void popup_block_scrolltest(Block *block);
 
 /** \} */
@@ -1459,7 +1459,7 @@ void button_group_replace_but_ptr(Block *block, const Button *old_but_ptr, Butto
 
 void button_drag_free(Button *but);
 bool button_drag_is_draggable(const Button *but);
-void button_drag_start(bContext *C, Button *but);
+void button_drag_start(bContext &C, Button *but);
 
 /* `interface_align.cc` */
 
@@ -1489,7 +1489,7 @@ bool button_anim_expression_set(Button *but, const char *str);
  * Create new expression for button (i.e. a "scripted driver"), if it can be created.
  */
 bool button_anim_expression_create(Button *but, const char *str);
-void button_anim_autokey(bContext *C, Button *but, Scene *scene, float cfra);
+void button_anim_autokey(bContext &C, Button *but, Scene *scene, float cfra);
 
 void button_anim_decorate_cb(bContext *C, void *arg_but, void *arg_dummy);
 void button_anim_decorate_update_from_flag(ButtonDecorator *but);

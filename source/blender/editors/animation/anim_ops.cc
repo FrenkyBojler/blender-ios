@@ -305,13 +305,13 @@ static void append_sequencer_strip_snap_target(blender::Span<Strip *> strips,
   }
 }
 
-static void append_nla_strip_snap_target(bContext *C,
+static void append_nla_strip_snap_target(bContext &C,
                                          const float timeline_frame,
                                          blender::Vector<SnapTarget> &r_targets)
 {
 
   bAnimContext ac;
-  if (!ANIM_animdata_get_context(*C, &ac)) {
+  if (!ANIM_animdata_get_context(C, &ac)) {
     BLI_assert_unreachable();
   }
 
@@ -400,7 +400,7 @@ static blender::Vector<SnapTarget> nla_get_snap_targets(bContext &C, const float
   blender::Vector<SnapTarget> targets;
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
-    append_nla_strip_snap_target(&C, timeline_frame, targets);
+    append_nla_strip_snap_target(C, timeline_frame, targets);
   }
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_MARKERS) {

@@ -1135,7 +1135,7 @@ bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *even
             nullptr,
             "");
         button_func_set(but2, [but](bContext &C) {
-          popup_block_invoke(&C, menu_change_shortcut, but, nullptr);
+          popup_block_invoke(C, menu_change_shortcut, but, nullptr);
         });
       }
       else {

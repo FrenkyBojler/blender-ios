@@ -343,11 +343,11 @@ bool ED_operator_region_outliner_active(bContext &C)
   return true;
 }
 
-bool ED_operator_outliner_active_no_editobject(bContext *C)
+bool ED_operator_outliner_active_no_editobject(bContext &C)
 {
-  if (ed_spacetype_test(*C, SPACE_OUTLINER)) {
-    Object *ob = blender::ed::object::context_active_object(C);
-    Object *obedit = CTX_data_edit_object(*C);
+  if (ed_spacetype_test(C, SPACE_OUTLINER)) {
+    Object *ob = blender::ed::object::context_active_object(&C);
+    Object *obedit = CTX_data_edit_object(C);
     if (ob && ob == obedit) {
       return false;
     }
@@ -369,10 +369,10 @@ bool ED_operator_file_browsing_active(bContext &C)
   return false;
 }
 
-bool ED_operator_asset_browsing_active(bContext *C)
+bool ED_operator_asset_browsing_active(bContext &C)
 {
-  if (ed_spacetype_test(*C, SPACE_FILE)) {
-    return ED_fileselect_is_asset_browser(CTX_wm_space_file(*C));
+  if (ed_spacetype_test(C, SPACE_FILE)) {
+    return ED_fileselect_is_asset_browser(CTX_wm_space_file(C));
   }
   return false;
 }
@@ -599,9 +599,9 @@ bool ED_operator_object_active_local_editable_posemode_exclusive(bContext &C)
   return true;
 }
 
-bool ED_operator_posemode_context(bContext *C)
+bool ED_operator_posemode_context(bContext &C)
 {
-  Object *obpose = ED_pose_object_from_context(*C);
+  Object *obpose = ED_pose_object_from_context(C);
 
   if (obpose && !(obpose->mode & OB_MODE_EDIT)) {
     if (BKE_object_pose_context_check(obpose)) {
@@ -2150,9 +2150,9 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
 }
 
 /* Moves selected screen edge amount of delta. */
-static void area_move_apply_do(bContext *C, int delta, sAreaMoveData *md)
+static void area_move_apply_do(bContext &C, int delta, sAreaMoveData *md)
 {
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item_bool(IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
@@ -2217,7 +2217,7 @@ static void area_move_apply_do(bContext *C, int delta, sAreaMoveData *md)
 
     ED_screen_global_areas_sync(md->win);
 
-    WM_event_add_notifier(*C, NC_SCREEN | NA_EDITED, nullptr); /* redraw everything */
+    WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr); /* redraw everything */
     /* Update preview thumbnail */
     BKE_icon_changed(md->screen->id.icon_id);
   }
@@ -2228,7 +2228,7 @@ static void area_move_apply(bContext *C, wmOperator *op)
   sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
   int delta = RNA_int_get(op->ptr, "delta");
 
-  area_move_apply_do(C, delta, md);
+  area_move_apply_do(*C, delta, md);
 }
 
 static void area_move_exit(bContext &C, wmOperator *op)
@@ -3118,7 +3118,7 @@ static void region_scale_validate_size(RegionMoveData *rmd)
   }
 }
 
-static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
+static void region_scale_toggle_hidden(bContext &C, RegionMoveData *rmd)
 {
   /* hidden areas may have bad 'View2D.cur' value,
    * correct before displaying. see #45156 */
@@ -3126,7 +3126,7 @@ static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
     blender::ui::view2d_curRect_validate(&rmd->region->v2d);
   }
 
-  region_toggle_hidden(*C, rmd->region, false);
+  region_toggle_hidden(C, rmd->region, false);
   region_scale_validate_size(rmd);
 
   if ((rmd->region->flag & RGN_FLAG_HIDDEN) == 0) {
@@ -3136,7 +3136,7 @@ static void region_scale_toggle_hidden(bContext *C, RegionMoveData *rmd)
         if ((region_tool_header->flag & RGN_FLAG_HIDDEN_BY_USER) == 0 &&
             (region_tool_header->flag & RGN_FLAG_HIDDEN) != 0)
         {
-          region_toggle_hidden(*C, region_tool_header, false);
+          region_toggle_hidden(C, region_tool_header, false);
         }
       }
     }
@@ -3188,11 +3188,11 @@ static wmOperatorStatus region_scale_modal(bContext &C, wmOperator &op, const wm
         if (size_no_snap < UI_UNIT_X / aspect) {
           rmd->region->sizex = rmd->origval;
           if (!(rmd->region->flag & RGN_FLAG_HIDDEN)) {
-            region_scale_toggle_hidden(&C, rmd);
+            region_scale_toggle_hidden(C, rmd);
           }
         }
         else if (rmd->region->flag & RGN_FLAG_HIDDEN) {
-          region_scale_toggle_hidden(&C, rmd);
+          region_scale_toggle_hidden(C, rmd);
         }
 
         /* Hiding/unhiding is handled above, but still fix the size as requested. */
@@ -3237,11 +3237,11 @@ static wmOperatorStatus region_scale_modal(bContext &C, wmOperator &op, const wm
         if (size_no_snap < (UI_UNIT_Y / 4) / aspect) {
           rmd->region->sizey = rmd->origval;
           if (!(rmd->region->flag & RGN_FLAG_HIDDEN)) {
-            region_scale_toggle_hidden(&C, rmd);
+            region_scale_toggle_hidden(C, rmd);
           }
         }
         else if (rmd->region->flag & RGN_FLAG_HIDDEN) {
-          region_scale_toggle_hidden(&C, rmd);
+          region_scale_toggle_hidden(C, rmd);
         }
 
         /* Hiding/unhiding is handled above, but still fix the size as requested. */
@@ -3273,7 +3273,7 @@ static wmOperatorStatus region_scale_modal(bContext &C, wmOperator &op, const wm
       if (event->val == KM_RELEASE) {
         if (len_manhattan_v2v2_int(event->xy, rmd->orig_xy) <= WM_event_drag_threshold(event)) {
           if (rmd->region->flag & RGN_FLAG_HIDDEN) {
-            region_scale_toggle_hidden(&C, rmd);
+            region_scale_toggle_hidden(C, rmd);
           }
           else if (rmd->region->flag & RGN_FLAG_TOO_SMALL) {
             region_scale_validate_size(rmd);
@@ -4784,9 +4784,9 @@ static void area_join_cancel(bContext &C, wmOperator &op)
   area_join_exit(C, &op);
 }
 
-static void screen_area_touch_menu_create(bContext *C, ScrArea *area)
+static void screen_area_touch_menu_create(bContext &C, ScrArea *area)
 {
-  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(C, "Area Options", ICON_NONE);
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(&C, "Area Options", ICON_NONE);
   blender::ui::Layout &layout = *blender::ui::popup_menu_layout(pup);
   layout.operator_context_set(blender::wm::OpCallContext::InvokeDefault);
 
@@ -4826,7 +4826,7 @@ static void screen_area_touch_menu_create(bContext *C, ScrArea *area)
   layout.separator();
   layout.op("SCREEN_OT_area_close", IFACE_("Close Area"), ICON_X);
 
-  popup_menu_end(*C, pup);
+  popup_menu_end(C, pup);
 }
 
 static bool is_header_azone_location(ScrArea *area, const wmEvent *event)
@@ -4916,7 +4916,7 @@ static wmOperatorStatus area_join_modal(bContext &C, wmOperator &op, const wmEve
         if (jd->dir == SCREEN_DIR_NONE && jd->dock_target == AreaDockTarget::None &&
             jd->split_fac == 0.0f && is_header_azone_location(jd->sa1, event))
         {
-          screen_area_touch_menu_create(&C, jd->sa1);
+          screen_area_touch_menu_create(C, jd->sa1);
           area_join_cancel(C, op);
           return OPERATOR_CANCELLED;
         }
@@ -5235,7 +5235,7 @@ static wmOperatorStatus repeat_last_exec(bContext &C, wmOperator & /*op*/)
 
   if (lastop) {
     WM_operator_free_all_after(wm, lastop);
-    WM_operator_repeat_last(&C, lastop);
+    WM_operator_repeat_last(C, lastop);
   }
 
   return OPERATOR_CANCELLED;
@@ -5303,7 +5303,7 @@ static wmOperatorStatus repeat_history_exec(bContext &C, wmOperator &op)
     BLI_remlink(&wm->runtime->operators, repeat_op);
     BLI_addtail(&wm->runtime->operators, repeat_op);
 
-    WM_operator_repeat(&C, repeat_op);
+    WM_operator_repeat(C, repeat_op);
   }
 
   return OPERATOR_FINISHED;
@@ -5445,7 +5445,7 @@ static wmOperatorStatus region_quadview_exec(bContext &C, wmOperator &op)
 
     for (ARegion &region_iter : area->regionbase.items_mutable()) {
       if (region_iter.alignment == RGN_ALIGN_QSPLIT) {
-        ED_region_remove(&C, area, &region_iter);
+        ED_region_remove(C, area, &region_iter);
         if (&region_iter == screen->active_region) {
           screen->active_region = nullptr;
         }
@@ -5547,7 +5547,7 @@ static wmOperatorStatus region_toggle_exec(bContext &C, wmOperator &op)
   }
 
   if (region && (region->alignment != RGN_ALIGN_NONE)) {
-    ED_region_toggle_hidden(&C, region);
+    ED_region_toggle_hidden(C, region);
   }
   ED_region_tag_redraw(region);
 

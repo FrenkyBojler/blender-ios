@@ -366,7 +366,7 @@ static bool actkeys_channels_get_selected_extents(bAnimContext *ac, float *r_min
   return (found != 0);
 }
 
-static wmOperatorStatus actkeys_viewall(bContext *C, const bool only_sel)
+static wmOperatorStatus actkeys_viewall(bContext &C, const bool only_sel)
 {
   bAnimContext ac;
   View2D *v2d;
@@ -374,7 +374,7 @@ static wmOperatorStatus actkeys_viewall(bContext *C, const bool only_sel)
   bool found;
 
   /* get editor data */
-  if (ANIM_animdata_get_context(*C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
   v2d = &ac.region->v2d;
@@ -424,10 +424,10 @@ static wmOperatorStatus actkeys_viewall(bContext *C, const bool only_sel)
   }
 
   /* do View2D syncing */
-  blender::ui::view2d_sync(CTX_wm_screen(*C), CTX_wm_area(*C), v2d, V2D_LOCK_COPY);
+  blender::ui::view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
 
   /* just redraw this view */
-  ED_area_tag_redraw(CTX_wm_area(*C));
+  ED_area_tag_redraw(CTX_wm_area(C));
 
   return OPERATOR_FINISHED;
 }
@@ -437,13 +437,13 @@ static wmOperatorStatus actkeys_viewall(bContext *C, const bool only_sel)
 static wmOperatorStatus actkeys_viewall_exec(bContext &C, wmOperator & /*op*/)
 {
   /* whole range */
-  return actkeys_viewall(&C, false);
+  return actkeys_viewall(C, false);
 }
 
 static wmOperatorStatus actkeys_viewsel_exec(bContext &C, wmOperator & /*op*/)
 {
   /* only selected */
-  return actkeys_viewall(&C, true);
+  return actkeys_viewall(C, true);
 }
 
 /* ......... */
@@ -1191,7 +1191,7 @@ static wmOperatorStatus actkeys_delete_invoke(bContext &C,
                                               const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Delete selected keyframes?"),
                                   nullptr,

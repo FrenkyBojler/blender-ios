@@ -1707,12 +1707,12 @@ ARegion *tooltip_create_from_button_or_extra_icon(
   return region;
 }
 
-ARegion *tooltip_create_from_button(bContext *C,
+ARegion *tooltip_create_from_button(bContext &C,
                                     ARegion *butregion,
                                     Button *but,
                                     bool is_quick_tip)
 {
-  return tooltip_create_from_button_or_extra_icon(*C, butregion, but, nullptr, is_quick_tip);
+  return tooltip_create_from_button_or_extra_icon(C, butregion, but, nullptr, is_quick_tip);
 }
 
 ARegion *tooltip_create_from_gizmo(bContext &C, wmGizmo *gz)
@@ -1967,9 +1967,9 @@ ARegion *tooltip_create_from_search_item_generic(bContext *C,
   return ui_tooltip_create_with_data(*C, std::move(data), init_position, nullptr);
 }
 
-void tooltip_free(bContext *C, bScreen *screen, ARegion *region)
+void tooltip_free(bContext &C, bScreen *screen, ARegion *region)
 {
-  region_temp_remove(*C, screen, region);
+  region_temp_remove(C, screen, region);
 }
 
 /** \} */

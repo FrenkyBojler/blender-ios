@@ -318,10 +318,10 @@ void WM_event_start_prepared_drag(bContext &C, wmDrag *drag)
   wm_dropbox_invoke(C, drag);
 }
 
-void WM_event_start_drag(bContext *C, int icon, eWM_DragDataType type, void *poin, uint flags)
+void WM_event_start_drag(bContext &C, int icon, eWM_DragDataType type, void *poin, uint flags)
 {
-  wmDrag *drag = WM_drag_data_create(C, icon, type, poin, flags);
-  WM_event_start_prepared_drag(*C, drag);
+  wmDrag *drag = WM_drag_data_create(&C, icon, type, poin, flags);
+  WM_event_start_prepared_drag(C, drag);
 }
 
 void wm_drags_exit(wmWindowManager *wm, wmWindow *win)
@@ -481,7 +481,7 @@ static wmDropBox *dropbox_active(bContext *C,
           }
 
           const blender::wm::OpCallContext opcontext = wm_drop_operator_context_get(&drop);
-          if (drop.ot && WM_operator_poll_context(C, drop.ot, opcontext)) {
+          if (drop.ot && WM_operator_poll_context(*C, drop.ot, opcontext)) {
             /* Get dropbox tooltip now, #wm_drag_draw_tooltip can use a different draw context. */
             drag->drop_state.tooltip = dropbox_tooltip(C, drag, event->xy, &drop);
             CTX_store_set(*C, nullptr);
@@ -589,7 +589,7 @@ void wm_drop_prepare(bContext &C, wmDrag *drag, wmDropBox *drop)
   /* Optionally copy drag information to operator properties. Don't call it if the
    * operator fails anyway, it might do more than just set properties (e.g.
    * typically import an asset). */
-  if (drop->copy && WM_operator_poll_context(&C, drop->ot, opcontext)) {
+  if (drop->copy && WM_operator_poll_context(C, drop->ot, opcontext)) {
     drop->copy(&C, drag, drop);
   }
 
@@ -1210,12 +1210,12 @@ static void wm_drag_draw_tooltip(bContext &C, wmWindow *win, wmDrag *drag, const
   }
 }
 
-static void wm_drag_draw_default(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2])
+static void wm_drag_draw_default(bContext &C, wmWindow *win, wmDrag *drag, const int xy[2])
 {
   int xy_tmp[2] = {UNPACK2(xy)};
 
   /* Image or icon. */
-  wm_drag_draw_icon(C, win, drag, xy_tmp);
+  wm_drag_draw_icon(&C, win, drag, xy_tmp);
 
   /* Item name. */
   if (drag->imb) {
@@ -1238,12 +1238,12 @@ static void wm_drag_draw_default(bContext *C, wmWindow *win, wmDrag *drag, const
   }
 
   /* Operator name with round-box. */
-  wm_drag_draw_tooltip(*C, win, drag, xy);
+  wm_drag_draw_tooltip(C, win, drag, xy);
 }
 
 void WM_drag_draw_default_fn(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2])
 {
-  wm_drag_draw_default(C, win, drag, xy);
+  wm_drag_draw_default(*C, win, drag, xy);
 }
 
 void wm_drags_draw(bContext &C, wmWindow *win)
@@ -1295,7 +1295,7 @@ void wm_drags_draw(bContext &C, wmWindow *win)
 
     /* Needs zero offset here or it looks blurry. #128112. */
     wmWindowViewport_ex(win, 0.0f);
-    wm_drag_draw_default(&C, win, &drag, xy);
+    wm_drag_draw_default(C, win, &drag, xy);
   }
   GPU_blend(GPU_BLEND_NONE);
   CTX_wm_area_set(C, nullptr);

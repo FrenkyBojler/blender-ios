@@ -191,7 +191,7 @@ static bool eyedropper_cryptomatte_sample_view3d_fl(bContext *C,
                                                     float r_col[3])
 {
   int material_slot = 0;
-  Object *object = ED_view3d_give_material_slot_under_cursor(C, mval, &material_slot);
+  Object *object = ED_view3d_give_material_slot_under_cursor(*C, mval, &material_slot);
   if (!object) {
     return false;
   }
@@ -515,7 +515,7 @@ bool eyedropper_color_sample_fl(bContext &C,
 }
 
 /* sets the sample color RGB, maintaining A */
-static void eyedropper_color_set(bContext *C, Eyedropper *eye, const float col[3])
+static void eyedropper_color_set(bContext &C, Eyedropper *eye, const float col[3])
 {
   float col_conv[4];
 
@@ -534,7 +534,7 @@ static void eyedropper_color_set(bContext *C, Eyedropper *eye, const float col[3
   RNA_property_float_set_array_at_most(&eye->ptr, eye->prop, col_conv, ARRAY_SIZE(col_conv));
   eye->is_set = true;
 
-  RNA_property_update(*C, &eye->ptr, eye->prop);
+  RNA_property_update(C, &eye->ptr, eye->prop);
 }
 
 static void eyedropper_color_sample(bContext *C, Eyedropper *eye, const int event_xy[2])
@@ -569,7 +569,7 @@ static void eyedropper_color_sample(bContext *C, Eyedropper *eye, const int even
   else {
     copy_v3_v3(accum_col, eye->accum_col);
   }
-  eyedropper_color_set(C, eye, accum_col);
+  eyedropper_color_set(*C, eye, accum_col);
 }
 
 static void eyedropper_color_sample_text_update(bContext *C,
@@ -592,7 +592,7 @@ static void eyedropper_cancel(bContext &C, wmOperator &op)
 {
   Eyedropper *eye = static_cast<Eyedropper *>(op.customdata);
   if (eye->is_set) {
-    eyedropper_color_set(&C, eye, eye->init_col);
+    eyedropper_color_set(C, eye, eye->init_col);
   }
   eyedropper_exit(C, &op);
 }

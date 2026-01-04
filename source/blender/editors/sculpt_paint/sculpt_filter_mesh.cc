@@ -2120,9 +2120,9 @@ wmKeyMap *modal_keymap(wmKeyConfig *keyconf)
   return keymap;
 }
 
-static void sculpt_mesh_update_status_bar(bContext *C, wmOperator * /*op*/)
+static void sculpt_mesh_update_status_bar(bContext &C, wmOperator * /*op*/)
 {
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
 }
@@ -2283,7 +2283,7 @@ static wmOperatorStatus sculpt_mesh_filter_modal(bContext &C, wmOperator &op, co
   const MeshFilterType filter_type = MeshFilterType(RNA_enum_get(op.ptr, "type"));
 
   WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_EW_SCROLL);
-  sculpt_mesh_update_status_bar(&C, &op);
+  sculpt_mesh_update_status_bar(C, &op);
 
   if (event->type == EVT_MODAL_MAP) {
     wmOperatorStatus ret = OPERATOR_FINISHED;

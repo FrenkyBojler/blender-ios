@@ -199,11 +199,11 @@ static void view_pan_apply_ex(bContext &C, v2dViewPanData *vpd, float dx, float 
   view2d_sync(vpd->screen, vpd->area, v2d, V2D_LOCK_COPY);
 }
 
-static void view_pan_apply(bContext *C, wmOperator *op)
+static void view_pan_apply(bContext &C, wmOperator *op)
 {
   v2dViewPanData *vpd = static_cast<v2dViewPanData *>(op->customdata);
 
-  view_pan_apply_ex(*C, vpd, RNA_int_get(op->ptr, "deltax"), RNA_int_get(op->ptr, "deltay"));
+  view_pan_apply_ex(C, vpd, RNA_int_get(op->ptr, "deltax"), RNA_int_get(op->ptr, "deltay"));
 }
 
 /* Cleanup temp custom-data. */
@@ -225,7 +225,7 @@ static void view_pan_exit(wmOperator *op)
 static wmOperatorStatus view_pan_exec(bContext &C, wmOperator &op)
 {
   view_pan_init(C, &op);
-  view_pan_apply(&C, &op);
+  view_pan_apply(C, &op);
   view_pan_exit(&op);
   return OPERATOR_FINISHED;
 }
@@ -252,7 +252,7 @@ static wmOperatorStatus view_pan_invoke(bContext &C, wmOperator &op, const wmEve
     RNA_int_set(op.ptr, "deltax", event->prev_xy[0] - event->xy[0]);
     RNA_int_set(op.ptr, "deltay", event->prev_xy[1] - event->xy[1]);
 
-    view_pan_apply(&C, &op);
+    view_pan_apply(C, &op);
     view_pan_exit(&op);
     return OPERATOR_FINISHED;
   }
@@ -308,7 +308,7 @@ static wmOperatorStatus view_pan_modal(bContext &C, wmOperator &op, const wmEven
       if (deltax || deltay) {
         RNA_int_set(op.ptr, "deltax", deltax);
         RNA_int_set(op.ptr, "deltay", deltay);
-        view_pan_apply(&C, &op);
+        view_pan_apply(C, &op);
       }
       break;
     }
@@ -395,7 +395,7 @@ static wmOperatorStatus view_edge_pan_invoke(bContext &C,
 {
   op.customdata = MEM_callocN(sizeof(View2DEdgePanData), "View2DEdgePanData");
   View2DEdgePanData *vpd = static_cast<View2DEdgePanData *>(op.customdata);
-  view2d_edge_pan_operator_init(&C, vpd, &op);
+  view2d_edge_pan_operator_init(C, vpd, &op);
 
   WM_event_add_modal_handler(C, &op);
 
@@ -475,7 +475,7 @@ static wmOperatorStatus view_scrollright_exec(bContext &C, wmOperator &op)
   RNA_int_set(op.ptr, "deltay", 0);
 
   /* apply movement, then we're done */
-  view_pan_apply(&C, &op);
+  view_pan_apply(C, &op);
   view_pan_exit(&op);
 
   return OPERATOR_FINISHED;
@@ -515,7 +515,7 @@ static wmOperatorStatus view_scrollleft_exec(bContext &C, wmOperator &op)
   RNA_int_set(op.ptr, "deltay", 0);
 
   /* apply movement, then we're done */
-  view_pan_apply(&C, &op);
+  view_pan_apply(C, &op);
   view_pan_exit(&op);
 
   return OPERATOR_FINISHED;
@@ -569,7 +569,7 @@ static wmOperatorStatus view_scrolldown_exec(bContext &C, wmOperator &op)
   }
 
   /* apply movement, then we're done */
-  view_pan_apply(&C, &op);
+  view_pan_apply(C, &op);
   view_pan_exit(&op);
 
   return OPERATOR_FINISHED;
@@ -624,7 +624,7 @@ static wmOperatorStatus view_scrollup_exec(bContext &C, wmOperator &op)
   }
 
   /* apply movement, then we're done */
-  view_pan_apply(&C, &op);
+  view_pan_apply(C, &op);
   view_pan_exit(&op);
 
   return OPERATOR_FINISHED;
@@ -865,11 +865,11 @@ static void view_zoomstep_apply_ex(bContext &C,
   view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
 }
 
-static void view_zoomstep_apply(bContext *C, wmOperator *op)
+static void view_zoomstep_apply(bContext &C, wmOperator *op)
 {
   v2dViewZoomData *vzd = static_cast<v2dViewZoomData *>(op->customdata);
   view_zoomstep_apply_ex(
-      *C, vzd, RNA_float_get(op->ptr, "zoomfacx"), RNA_float_get(op->ptr, "zoomfacy"));
+      C, vzd, RNA_float_get(op->ptr, "zoomfacx"), RNA_float_get(op->ptr, "zoomfacy"));
 }
 
 /** \} */
@@ -908,7 +908,7 @@ static wmOperatorStatus view_zoomin_exec(bContext &C, wmOperator &op)
   RNA_float_set(op.ptr, "zoomfacy", do_zoom_xy[1] ? 0.0375f : 0.0f);
 
   /* apply movement, then we're done */
-  view_zoomstep_apply(&C, &op);
+  view_zoomstep_apply(C, &op);
 
   view_zoomstep_exit(C, &op);
 
@@ -971,7 +971,7 @@ static wmOperatorStatus view_zoomout_exec(bContext &C, wmOperator &op)
   RNA_float_set(op.ptr, "zoomfacy", do_zoom_xy[1] ? -0.0375f : 0.0f);
 
   /* apply movement, then we're done */
-  view_zoomstep_apply(&C, &op);
+  view_zoomstep_apply(C, &op);
 
   view_zoomstep_exit(C, &op);
 

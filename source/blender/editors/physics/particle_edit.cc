@@ -515,11 +515,11 @@ static void PE_set_data(bContext &C, PEData *data)
   data->edit = PE_get_current(data->depsgraph, data->scene, data->ob);
 }
 
-static void PE_set_view3d_data(bContext *C, PEData *data)
+static void PE_set_view3d_data(bContext &C, PEData *data)
 {
-  PE_set_data(*C, data);
+  PE_set_data(C, data);
 
-  data->vc = ED_view3d_viewcontext_init(*C, data->depsgraph);
+  data->vc = ED_view3d_viewcontext_init(C, data->depsgraph);
 
   if (!XRAY_ENABLED(data->vc.v3d)) {
     ED_view3d_depth_override(data->depsgraph,
@@ -1861,7 +1861,7 @@ static bool pe_nearest_point_and_key(bContext *C,
   NearestParticleData user_data = {nullptr};
 
   PEData data;
-  PE_set_view3d_data(C, &data);
+  PE_set_view3d_data(*C, &data);
   data.mval = mval;
   data.rad = ED_view3d_select_dist_px();
 
@@ -2230,7 +2230,7 @@ static wmOperatorStatus select_linked_pick_exec(bContext &C, wmOperator &op)
   mval[0] = location[0];
   mval[1] = location[1];
 
-  PE_set_view3d_data(&C, &data);
+  PE_set_view3d_data(C, &data);
   data.mval = mval;
   data.rad = 75.0f;
   data.select = !RNA_boolean_get(op.ptr, "deselect");
@@ -2320,7 +2320,7 @@ bool PE_box_select(bContext &C, const rcti *rect, const int sel_op)
     return false;
   }
 
-  PE_set_view3d_data(&C, &data);
+  PE_set_view3d_data(C, &data);
   data.rect = rect;
   data.sel_op = eSelectOp(sel_op);
 
@@ -2363,7 +2363,7 @@ static void pe_select_cache_init_with_generic_userdata(bContext *C, wmGenericUse
   wm_userdata->data = data;
   wm_userdata->free_fn = pe_select_cache_free_generic_userdata;
   wm_userdata->use_free = true;
-  PE_set_view3d_data(C, data);
+  PE_set_view3d_data(*C, data);
 }
 
 bool PE_circle_select(
@@ -2428,7 +2428,7 @@ int PE_lasso_select(bContext &C, const int mcoords[][2], const int mcoords_len, 
   }
 
   /* only for depths */
-  PE_set_view3d_data(&C, &data);
+  PE_set_view3d_data(C, &data);
 
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     data.is_changed |= PE_deselect_all_visible_ex(edit);
@@ -4740,7 +4740,7 @@ static int brush_edit_init(bContext &C, wmOperator *op)
   bedit->zfac = ED_view3d_calc_zfac(static_cast<const RegionView3D *>(region->regiondata), min);
 
   /* cache view depths and settings for re-use */
-  PE_set_view3d_data(&C, &bedit->data);
+  PE_set_view3d_data(C, &bedit->data);
   PE_create_random_generator(&bedit->data);
 
   return 1;
@@ -5006,7 +5006,7 @@ static wmOperatorStatus brush_edit_exec(bContext &C, wmOperator &op)
   return OPERATOR_FINISHED;
 }
 
-static void brush_edit_apply_event(bContext *C, wmOperator *op, const wmEvent *event)
+static void brush_edit_apply_event(bContext &C, wmOperator *op, const wmEvent *event)
 {
   PointerRNA itemptr;
   float mouse[2];
@@ -5019,7 +5019,7 @@ static void brush_edit_apply_event(bContext *C, wmOperator *op, const wmEvent *e
   RNA_float_set_array(&itemptr, "mouse", mouse);
 
   /* apply */
-  brush_edit_apply(*C, op, &itemptr);
+  brush_edit_apply(C, op, &itemptr);
 }
 
 static wmOperatorStatus brush_edit_invoke(bContext &C, wmOperator &op, const wmEvent *event)
@@ -5030,7 +5030,7 @@ static wmOperatorStatus brush_edit_invoke(bContext &C, wmOperator &op, const wmE
 
   RNA_boolean_set(op.ptr, "pen_flip", event->modifier & KM_SHIFT); /* XXX hardcoded */
 
-  brush_edit_apply_event(&C, &op, event);
+  brush_edit_apply_event(C, &op, event);
 
   WM_event_add_modal_handler(C, &op);
 
@@ -5049,7 +5049,7 @@ static wmOperatorStatus brush_edit_modal(bContext &C, wmOperator &op, const wmEv
       }
       break;
     case MOUSEMOVE:
-      brush_edit_apply_event(&C, &op, event);
+      brush_edit_apply_event(C, &op, event);
       break;
     default: {
       break;

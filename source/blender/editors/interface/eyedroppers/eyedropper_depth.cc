@@ -300,11 +300,11 @@ static void depthdropper_depth_sample_pt(bContext &C,
 }
 
 /* sets the sample depth RGB, maintaining A */
-static void depthdropper_depth_set(bContext *C, DepthDropper *ddr, const float depth)
+static void depthdropper_depth_set(bContext &C, DepthDropper *ddr, const float depth)
 {
   RNA_property_float_set(&ddr->ptr, ddr->prop, depth);
   ddr->is_set = true;
-  RNA_property_update(*C, &ddr->ptr, ddr->prop);
+  RNA_property_update(C, &ddr->ptr, ddr->prop);
 }
 
 /* set sample from accumulated values */
@@ -314,7 +314,7 @@ static void depthdropper_depth_set_accum(bContext *C, DepthDropper *ddr)
   if (ddr->accum_tot) {
     depth /= float(ddr->accum_tot);
   }
-  depthdropper_depth_set(C, ddr, depth);
+  depthdropper_depth_set(*C, ddr, depth);
 }
 
 /* single point sample & set */
@@ -323,14 +323,14 @@ static void depthdropper_depth_sample(bContext *C, DepthDropper *ddr, const int 
   float depth = -1.0f;
   if (depth != -1.0f) {
     depthdropper_depth_sample_pt(*C, ddr, m_xy, &depth);
-    depthdropper_depth_set(C, ddr, depth);
+    depthdropper_depth_set(*C, ddr, depth);
   }
 }
 
-static void depthdropper_depth_sample_accum(bContext *C, DepthDropper *ddr, const int m_xy[2])
+static void depthdropper_depth_sample_accum(bContext &C, DepthDropper *ddr, const int m_xy[2])
 {
   float depth = -1.0f;
-  depthdropper_depth_sample_pt(*C, ddr, m_xy, &depth);
+  depthdropper_depth_sample_pt(C, ddr, m_xy, &depth);
   if (depth != -1.0f) {
     ddr->accum_depth += depth;
     ddr->accum_tot++;
@@ -341,7 +341,7 @@ static void depthdropper_cancel(bContext &C, wmOperator &op)
 {
   DepthDropper *ddr = static_cast<DepthDropper *>(op.customdata);
   if (ddr->is_set) {
-    depthdropper_depth_set(&C, ddr, ddr->init_depth);
+    depthdropper_depth_set(C, ddr, ddr->init_depth);
   }
   depthdropper_exit(C, &op);
 }
@@ -372,12 +372,12 @@ static wmOperatorStatus depthdropper_modal(bContext &C, wmOperator &op, const wm
       case EYE_MODAL_SAMPLE_BEGIN:
         /* enable accum and make first sample */
         ddr->accum_start = true;
-        depthdropper_depth_sample_accum(&C, ddr, event->xy);
+        depthdropper_depth_sample_accum(C, ddr, event->xy);
         break;
       case EYE_MODAL_SAMPLE_RESET:
         ddr->accum_tot = 0;
         ddr->accum_depth = 0.0f;
-        depthdropper_depth_sample_accum(&C, ddr, event->xy);
+        depthdropper_depth_sample_accum(C, ddr, event->xy);
         depthdropper_depth_set_accum(&C, ddr);
         break;
     }
@@ -385,7 +385,7 @@ static wmOperatorStatus depthdropper_modal(bContext &C, wmOperator &op, const wm
   else if (event->type == MOUSEMOVE) {
     if (ddr->accum_start) {
       /* button is pressed so keep sampling */
-      depthdropper_depth_sample_accum(&C, ddr, event->xy);
+      depthdropper_depth_sample_accum(C, ddr, event->xy);
       depthdropper_depth_set_accum(&C, ddr);
     }
   }

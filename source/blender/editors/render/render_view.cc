@@ -203,7 +203,7 @@ ScrArea *render_view_open(bContext &C, int mx, int my, ReportList *reports)
       }
 
       /* this function returns with changed context */
-      area = ED_screen_full_newspace(&C, area, SPACE_IMAGE);
+      area = ED_screen_full_newspace(C, area, SPACE_IMAGE);
     }
   }
 

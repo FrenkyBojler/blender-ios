@@ -1521,7 +1521,7 @@ static wmOperatorStatus delete_exec(bContext &C, wmOperator & /*op*/)
 static wmOperatorStatus delete_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Delete selected control points and splines?"),
                                   nullptr,

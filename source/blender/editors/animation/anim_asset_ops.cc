@@ -242,23 +242,23 @@ static Vector<Object *> get_selected_pose_objects(bContext &C)
   return selected_pose_objects;
 }
 
-static wmOperatorStatus create_pose_asset_local(bContext *C,
+static wmOperatorStatus create_pose_asset_local(bContext &C,
                                                 wmOperator *op,
                                                 const StringRefNull name,
                                                 const AssetLibraryReference lib_ref)
 {
-  Vector<Object *> selected_pose_objects = get_selected_pose_objects(*C);
+  Vector<Object *> selected_pose_objects = get_selected_pose_objects(C);
 
   if (selected_pose_objects.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(*C);
+  Main *bmain = CTX_data_main(C);
   /* Extract the pose into a new action. */
   blender::animrig::Action &pose_action = extract_pose(*bmain, selected_pose_objects);
   asset::mark_id(&pose_action.id);
   if (!G.background) {
-    asset::generate_preview(C, &pose_action.id);
+    asset::generate_preview(&C, &pose_action.id);
   }
   BKE_id_rename(*bmain, pose_action.id, name);
 
@@ -278,8 +278,8 @@ static wmOperatorStatus create_pose_asset_local(bContext *C,
     BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
   }
 
-  ensure_asset_ui_visible(*C);
-  asset::shelf::show_catalog_in_visible_shelves(*C, catalog_path_c);
+  ensure_asset_ui_visible(C);
+  asset::shelf::show_catalog_in_visible_shelves(C, catalog_path_c);
 
   asset::refresh_asset_library(C, lib_ref);
 
@@ -344,7 +344,7 @@ static wmOperatorStatus create_pose_asset_user_library(bContext &C,
 
   BKE_id_free(bmain, &pose_action.id);
 
-  asset::refresh_asset_library(&C, lib_ref);
+  asset::refresh_asset_library(C, lib_ref);
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
 
@@ -368,7 +368,7 @@ static wmOperatorStatus pose_asset_create_exec(bContext &C, wmOperator &op)
 
   switch (lib_ref.type) {
     case ASSET_LIBRARY_LOCAL:
-      return create_pose_asset_local(&C, &op, name, lib_ref);
+      return create_pose_asset_local(C, &op, name, lib_ref);
 
     case ASSET_LIBRARY_CUSTOM:
       return create_pose_asset_user_library(C, &op, name, lib_ref);
@@ -396,12 +396,12 @@ static wmOperatorStatus pose_asset_create_invoke(bContext &C,
         op.ptr, "asset_library_reference", asset::library_reference_to_enum_value(&first_library));
   }
 
-  return WM_operator_props_dialog_popup(&C, &op, 400, std::nullopt, IFACE_("Create"));
+  return WM_operator_props_dialog_popup(C, &op, 400, std::nullopt, IFACE_("Create"));
 }
 
 static bool pose_asset_create_poll(bContext &C)
 {
-  if (!ED_operator_posemode_context(&C)) {
+  if (!ED_operator_posemode_context(C)) {
     return false;
   }
   return true;
@@ -719,7 +719,7 @@ static wmOperatorStatus pose_asset_modify_exec(bContext &C, wmOperator &op)
   }
   else {
     /* Only create undo-step for local actions. Undoing external files isn't supported. */
-    ED_undo_push_op(&C, &op);
+    ED_undo_push_op(C, &op);
   }
 
   asset::refresh_asset_library_from_asset(&C, *asset);
@@ -730,7 +730,7 @@ static wmOperatorStatus pose_asset_modify_exec(bContext &C, wmOperator &op)
 
 static bool pose_asset_modify_poll(bContext &C)
 {
-  if (!ED_operator_posemode_context(&C)) {
+  if (!ED_operator_posemode_context(C)) {
     CTX_wm_operator_poll_msg_set(C, "Pose assets can only be modified from Pose Mode");
     return false;
   }
@@ -787,10 +787,10 @@ static wmOperatorStatus pose_asset_delete_exec(bContext &C, wmOperator &op)
   else {
     asset::clear_id(&action->id);
     /* Only create undo-step for local actions. Undoing external files isn't supported. */
-    ED_undo_push_op(&C, &op);
+    ED_undo_push_op(C, &op);
   }
 
-  asset::refresh_asset_library(&C, library_ref.value());
+  asset::refresh_asset_library(C, library_ref.value());
 
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_REMOVED, nullptr);
 
@@ -817,7 +817,7 @@ static wmOperatorStatus pose_asset_delete_invoke(bContext &C,
   }
 
   return WM_operator_confirm_ex(
-      &C,
+      C,
       &op,
       IFACE_("Delete Pose Asset"),
       ID_IS_LINKED(action) ?

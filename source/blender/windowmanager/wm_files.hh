@@ -80,7 +80,7 @@ void wm_homefile_read(bContext *C,
  * Special case, support deferred execution of #wm_file_read_post,
  * Needed when loading for the first time to workaround order of initialization bug, see #89046.
  */
-void wm_homefile_read_post(bContext *C, const wmFileReadPost_Params *params_file_read_post);
+void wm_homefile_read_post(bContext &C, const wmFileReadPost_Params *params_file_read_post);
 
 void wm_file_read_report(Main *bmain, wmWindow *win);
 

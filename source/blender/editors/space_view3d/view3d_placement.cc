@@ -895,10 +895,10 @@ enum {
   PLACE_MODAL_PIVOT_CENTER_OFF,
 };
 
-static void view3d_interactive_add_status(wmOperator *op, bContext *C)
+static void view3d_interactive_add_status(wmOperator *op, bContext &C)
 {
   InteractivePlaceData *ipd = static_cast<InteractivePlaceData *>(op->customdata);
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.item(ipd->step_index == STEP_BASE ? IFACE_("Define Base") : IFACE_("Define Depth"),
               ICON_MOUSE_MOVE);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
@@ -941,7 +941,7 @@ static wmOperatorStatus view3d_interactive_add_invoke(bContext &C,
 
   WM_event_add_modal_handler(C, &op);
 
-  view3d_interactive_add_status(&op, &C);
+  view3d_interactive_add_status(&op, C);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1212,7 +1212,7 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext &C,
           }
 
           WM_operator_name_call_ptr(
-              &C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
+              C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
           WM_operator_properties_free(&op_props);
         }
         else {
@@ -1299,7 +1299,7 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext &C,
 
   if (do_redraw) {
     ED_region_tag_redraw(region);
-    view3d_interactive_add_status(&op, &C);
+    view3d_interactive_add_status(&op, C);
   }
 
   return OPERATOR_RUNNING_MODAL;

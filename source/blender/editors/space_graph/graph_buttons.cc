@@ -60,7 +60,7 @@
 /** \name Internal Utilities
  * \{ */
 
-static bool graph_panel_context(const bContext *C, bAnimListElem **ale, FCurve **fcu)
+static bool graph_panel_context(const bContext &C, bAnimListElem **ale, FCurve **fcu)
 {
   bAnimContext ac;
   bAnimListElem *elem = nullptr;
@@ -70,7 +70,7 @@ static bool graph_panel_context(const bContext *C, bAnimListElem **ale, FCurve *
    * to work correctly is able to be correctly retrieved.
    * There's no point showing empty panels?
    */
-  if (ANIM_animdata_get_context(*C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return false;
   }
 
@@ -96,7 +96,7 @@ static bool graph_panel_context(const bContext *C, bAnimListElem **ale, FCurve *
 FCurve *ANIM_graph_context_fcurve(const bContext *C)
 {
   FCurve *fcu;
-  if (!graph_panel_context(C, nullptr, &fcu)) {
+  if (!graph_panel_context(*C, nullptr, &fcu)) {
     return nullptr;
   }
 
@@ -105,7 +105,7 @@ FCurve *ANIM_graph_context_fcurve(const bContext *C)
 
 static bool graph_panel_poll(const bContext *C, PanelType * /*pt*/)
 {
-  return graph_panel_context(C, nullptr, nullptr);
+  return graph_panel_context(*C, nullptr, nullptr);
 }
 
 /** \} */
@@ -174,7 +174,7 @@ static void graph_panel_properties(const bContext *C, Panel *panel)
   char name[256];
   int icon = 0;
 
-  if (!graph_panel_context(C, &ale, &fcu)) {
+  if (!graph_panel_context(*C, &ale, &fcu)) {
     return;
   }
 
@@ -370,7 +370,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
   /* Just a width big enough so buttons use entire layout width (will be clamped by it then). */
   const int but_max_width = region->winx;
 
-  if (!graph_panel_context(C, &ale, &fcu)) {
+  if (!graph_panel_context(*C, &ale, &fcu)) {
     return;
   }
 
@@ -735,7 +735,7 @@ static bool graph_panel_drivers_poll(const bContext *C, PanelType * /*pt*/)
     return false;
   }
 
-  return graph_panel_context(C, nullptr, nullptr);
+  return graph_panel_context(*C, nullptr, nullptr);
 }
 
 static void graph_panel_driverVar_fallback(blender::ui::Layout &layout,
@@ -931,7 +931,7 @@ static void graph_panel_drivers_header(const bContext *C, Panel *panel)
 {
   bAnimListElem *ale;
   FCurve *fcu;
-  if (!graph_panel_context(C, &ale, &fcu)) {
+  if (!graph_panel_context(*C, &ale, &fcu)) {
     return;
   }
 
@@ -1252,7 +1252,7 @@ static void graph_panel_driven_property(const bContext *C, Panel *panel)
   bAnimListElem *ale;
   FCurve *fcu;
 
-  if (!graph_panel_context(C, &ale, &fcu)) {
+  if (!graph_panel_context(*C, &ale, &fcu)) {
     return;
   }
 
@@ -1269,7 +1269,7 @@ static void graph_panel_drivers(const bContext *C, Panel *panel)
   FCurve *fcu;
 
   /* Get settings from context */
-  if (!graph_panel_context(C, &ale, &fcu)) {
+  if (!graph_panel_context(*C, &ale, &fcu)) {
     return;
   }
 
@@ -1381,7 +1381,7 @@ static void graph_panel_modifiers(const bContext *C, Panel *panel)
   bAnimListElem *ale;
   FCurve *fcu;
 
-  if (!graph_panel_context(C, &ale, &fcu)) {
+  if (!graph_panel_context(*C, &ale, &fcu)) {
     return;
   }
 

@@ -576,23 +576,23 @@ static wmOperatorStatus view3d_navigation_invoke_generic(bContext *C,
   return nav_type->init_fn(C, vod, event, ptr);
 }
 
-wmOperatorStatus view3d_navigate_invoke_impl(bContext *C,
+wmOperatorStatus view3d_navigate_invoke_impl(bContext &C,
                                              wmOperator *op,
                                              const wmEvent *event,
                                              const ViewOpsType *nav_type)
 {
   ViewOpsData *vod = new ViewOpsData();
-  vod->init_context(*C);
+  vod->init_context(C);
   wmOperatorStatus ret = view3d_navigation_invoke_generic(
-      C, vod, event, op->ptr, nav_type, nullptr);
+      &C, vod, event, op->ptr, nav_type, nullptr);
   op->customdata = (void *)vod;
 
   if (ret == OPERATOR_RUNNING_MODAL) {
-    WM_event_add_modal_handler(*C, op);
+    WM_event_add_modal_handler(C, op);
     return OPERATOR_RUNNING_MODAL;
   }
 
-  viewops_data_free(C, vod);
+  viewops_data_free(&C, vod);
   op->customdata = nullptr;
   return ret;
 }
@@ -903,14 +903,14 @@ bool view3d_orbit_calc_center(bContext &C, float r_dyn_ofs[3])
   return is_set;
 }
 
-ViewOpsData *viewops_data_create(bContext *C,
+ViewOpsData *viewops_data_create(bContext &C,
                                  const wmEvent *event,
                                  const ViewOpsType *nav_type,
                                  const bool use_cursor_init)
 {
   ViewOpsData *vod = new ViewOpsData();
-  vod->init_context(*C);
-  vod->init_navigation(C, event, nav_type, nullptr, use_cursor_init);
+  vod->init_context(C);
+  vod->init_navigation(&C, event, nav_type, nullptr, use_cursor_init);
   return vod;
 }
 

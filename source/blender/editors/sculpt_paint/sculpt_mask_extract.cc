@@ -179,7 +179,7 @@ static wmOperatorStatus geometry_extract_apply(bContext &C,
     local_view_bits = v3d->local_view_uid;
   }
   Object *new_ob = blender::ed::object::add_type(
-      &C, OB_MESH, nullptr, ob->loc, ob->rot, false, local_view_bits);
+      C, OB_MESH, nullptr, ob->loc, ob->rot, false, local_view_bits);
   BKE_mesh_nomain_to_mesh(new_mesh, static_cast<Mesh *>(new_ob->data), new_ob);
 
   if (params->apply_shrinkwrap) {
@@ -272,7 +272,7 @@ static wmOperatorStatus paint_mask_extract_exec(bContext &C, wmOperator &op)
    *
    * Fixes #103261.
    */
-  ED_undo_push_op(&C, &op);
+  ED_undo_push_op(C, &op);
 
   return geometry_extract_apply(C, &op, geometry_extract_tag_masked_faces, &params);
 }
@@ -480,7 +480,7 @@ static wmOperatorStatus paint_mask_slice_exec(bContext &C, wmOperator &op)
       local_view_bits = v3d->local_view_uid;
     }
     Object *new_ob = blender::ed::object::add_type(
-        &C, OB_MESH, nullptr, ob.loc, ob.rot, false, local_view_bits);
+        C, OB_MESH, nullptr, ob.loc, ob.rot, false, local_view_bits);
     Mesh *new_ob_mesh = (Mesh *)BKE_id_copy(&bmain, &mesh->id);
 
     const BMAllocTemplate allocsize_new_ob = BMALLOC_TEMPLATE_FROM_ME(new_ob_mesh);

@@ -350,23 +350,23 @@ static void *ed_armature_pick_bone_impl(
   return nullptr;
 }
 
-EditBone *ED_armature_pick_ebone(bContext *C, const int xy[2], bool findunsel, Base **r_base)
+EditBone *ED_armature_pick_ebone(bContext &C, const int xy[2], bool findunsel, Base **r_base)
 {
   const bool is_editmode = true;
   return static_cast<EditBone *>(
-      ed_armature_pick_bone_impl(is_editmode, *C, xy, findunsel, r_base));
+      ed_armature_pick_bone_impl(is_editmode, C, xy, findunsel, r_base));
 }
 
-bPoseChannel *ED_armature_pick_pchan(bContext *C, const int xy[2], bool findunsel, Base **r_base)
+bPoseChannel *ED_armature_pick_pchan(bContext &C, const int xy[2], bool findunsel, Base **r_base)
 {
   const bool is_editmode = false;
   return static_cast<bPoseChannel *>(
-      ed_armature_pick_bone_impl(is_editmode, *C, xy, findunsel, r_base));
+      ed_armature_pick_bone_impl(is_editmode, C, xy, findunsel, r_base));
 }
 
 Bone *ED_armature_pick_bone(bContext *C, const int xy[2], bool findunsel, Base **r_base)
 {
-  bPoseChannel *pchan = ED_armature_pick_pchan(C, xy, findunsel, r_base);
+  bPoseChannel *pchan = ED_armature_pick_pchan(*C, xy, findunsel, r_base);
   return pchan ? pchan->bone : nullptr;
 }
 
@@ -564,7 +564,7 @@ static wmOperatorStatus armature_select_linked_pick_invoke(bContext &C,
   BKE_object_update_select_id(CTX_data_main(C));
 
   Base *base = nullptr;
-  EditBone *ebone_active = ED_armature_pick_ebone(&C, event->mval, true, &base);
+  EditBone *ebone_active = ED_armature_pick_ebone(C, event->mval, true, &base);
 
   if (ebone_active == nullptr) {
     return OPERATOR_CANCELLED;
@@ -2275,7 +2275,7 @@ static wmOperatorStatus armature_shortest_path_pick_invoke(bContext &C,
   BKE_object_update_select_id(CTX_data_main(C));
 
   ebone_src = arm->act_edbone;
-  ebone_dst = ED_armature_pick_ebone(&C, event->mval, false, &base_dst);
+  ebone_dst = ED_armature_pick_ebone(C, event->mval, false, &base_dst);
 
   /* fall back to object selection */
   if (ELEM(nullptr, ebone_src, ebone_dst) || (ebone_src == ebone_dst)) {

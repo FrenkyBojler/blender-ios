@@ -86,7 +86,7 @@ static void view3d_object_calc_minmax(Depsgraph *depsgraph,
   }
 }
 
-static void view3d_from_minmax(bContext *C,
+static void view3d_from_minmax(bContext &C,
                                View3D *v3d,
                                ARegion *region,
                                const float min[3],
@@ -98,7 +98,7 @@ static void view3d_from_minmax(bContext *C,
   float afm[3];
   float size;
 
-  ED_view3d_smooth_view_force_finish(C, v3d, region);
+  ED_view3d_smooth_view_force_finish(&C, v3d, region);
 
   /* SMOOTHVIEW */
   float ofs_new[3];
@@ -130,7 +130,7 @@ static void view3d_from_minmax(bContext *C,
     }
 
     if (do_zoom) {
-      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(*C);
+      Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
       dist_new = ED_view3d_radius_to_dist(
           v3d, region, depsgraph, persp, true, (size / 2) * VIEW3D_MARGIN);
       if (rv3d->is_persp) {
@@ -155,7 +155,7 @@ static void view3d_from_minmax(bContext *C,
     sview.camera_old = v3d->camera;
   }
 
-  ED_view3d_smooth_view(*C, v3d, region, smooth_viewtx, &sview);
+  ED_view3d_smooth_view(C, v3d, region, smooth_viewtx, &sview);
 
   /* Smooth-view does view-lock #RV3D_BOXVIEW copy. */
 }
@@ -177,7 +177,7 @@ static void view3d_from_minmax_multi(bContext &C,
       /* when using all regions, don't jump out of camera view,
        * but _do_ allow locked cameras to be moved */
       if ((rv3d->persp != RV3D_CAMOB) || ED_view3d_camera_lock_check(v3d, rv3d)) {
-        view3d_from_minmax(&C, v3d, &region, min, max, do_zoom, smooth_viewtx);
+        view3d_from_minmax(C, v3d, &region, min, max, do_zoom, smooth_viewtx);
       }
     }
   }
@@ -482,7 +482,7 @@ static wmOperatorStatus view3d_all_exec(bContext &C, wmOperator &op)
     view3d_from_minmax_multi(C, v3d, min, max, true, smooth_viewtx);
   }
   else {
-    view3d_from_minmax(&C, v3d, region, min, max, true, smooth_viewtx);
+    view3d_from_minmax(C, v3d, region, min, max, true, smooth_viewtx);
   }
 
   ED_view3d_smooth_view_undo_end(&C, area, op.type->name, false);
@@ -542,7 +542,7 @@ static wmOperatorStatus viewselected_exec(bContext &C, wmOperator &op)
     view3d_from_minmax_multi(C, v3d, min, max, do_zoom, smooth_viewtx);
   }
   else {
-    view3d_from_minmax(&C, v3d, region, min, max, do_zoom, smooth_viewtx);
+    view3d_from_minmax(C, v3d, region, min, max, do_zoom, smooth_viewtx);
   }
 
   ED_view3d_smooth_view_undo_end(&C, area, op.type->name, false);

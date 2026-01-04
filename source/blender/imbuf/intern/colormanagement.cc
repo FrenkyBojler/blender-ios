@@ -2939,12 +2939,12 @@ uchar *IMB_display_buffer_acquire(ImBuf *ibuf,
   return display_buffer;
 }
 
-uchar *IMB_display_buffer_acquire_ctx(const bContext *C, ImBuf *ibuf, void **cache_handle)
+uchar *IMB_display_buffer_acquire_ctx(const bContext &C, ImBuf *ibuf, void **cache_handle)
 {
   ColorManagedViewSettings *view_settings;
   ColorManagedDisplaySettings *display_settings;
 
-  IMB_colormanagement_display_settings_from_ctx(*C, &view_settings, &display_settings);
+  IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
 
   return IMB_display_buffer_acquire(ibuf, view_settings, display_settings, cache_handle);
 }
@@ -4492,7 +4492,7 @@ bool IMB_colormanagement_setup_glsl_draw(const ColorManagedViewSettings *view_se
       view_settings, display_settings, nullptr, dither, predivide, false);
 }
 
-bool IMB_colormanagement_setup_glsl_draw_from_space_ctx(const bContext *C,
+bool IMB_colormanagement_setup_glsl_draw_from_space_ctx(const bContext &C,
                                                         const ColorSpace *from_colorspace,
                                                         float dither,
                                                         bool predivide)
@@ -4500,7 +4500,7 @@ bool IMB_colormanagement_setup_glsl_draw_from_space_ctx(const bContext *C,
   ColorManagedViewSettings *view_settings;
   ColorManagedDisplaySettings *display_settings;
 
-  IMB_colormanagement_display_settings_from_ctx(*C, &view_settings, &display_settings);
+  IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
 
   return IMB_colormanagement_setup_glsl_draw_from_space(
       view_settings, display_settings, from_colorspace, dither, predivide, false);
@@ -4508,7 +4508,7 @@ bool IMB_colormanagement_setup_glsl_draw_from_space_ctx(const bContext *C,
 
 bool IMB_colormanagement_setup_glsl_draw_ctx(const bContext *C, float dither, bool predivide)
 {
-  return IMB_colormanagement_setup_glsl_draw_from_space_ctx(C, nullptr, dither, predivide);
+  return IMB_colormanagement_setup_glsl_draw_from_space_ctx(*C, nullptr, dither, predivide);
 }
 
 bool IMB_colormanagement_setup_glsl_draw_to_scene_linear(const char *from_colorspace_name,

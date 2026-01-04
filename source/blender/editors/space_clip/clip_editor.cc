@@ -362,15 +362,15 @@ void ED_clip_update_frame(const Main *mainp, int cfra)
   }
 }
 
-bool ED_clip_view_selection(const bContext *C, const ARegion * /*region*/, bool fit)
+bool ED_clip_view_selection(const bContext &C, const ARegion * /*region*/, bool fit)
 {
   float offset_x, offset_y;
   float zoom;
-  if (!clip_view_calculate_view_selection(*C, fit, &offset_x, &offset_y, &zoom)) {
+  if (!clip_view_calculate_view_selection(C, fit, &offset_x, &offset_y, &zoom)) {
     return false;
   }
 
-  SpaceClip *sc = CTX_wm_space_clip(*C);
+  SpaceClip *sc = CTX_wm_space_clip(C);
   sc->xof = offset_x;
   sc->yof = offset_y;
   sc->zoom = zoom;

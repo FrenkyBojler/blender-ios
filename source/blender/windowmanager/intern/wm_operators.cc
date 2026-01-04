@@ -1230,19 +1230,20 @@ wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
       alert_icon = blender::ui::AlertIcon::Info;
       break;
   }
-  return WM_operator_confirm_ex(C, op, IFACE_(title), nullptr, IFACE_(message), alert_icon, false);
+  return WM_operator_confirm_ex(
+      *C, op, IFACE_(title), nullptr, IFACE_(message), alert_icon, false);
 }
 
 wmOperatorStatus WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message)
 {
   return WM_operator_confirm_ex(
-      C, op, IFACE_(message), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
+      *C, op, IFACE_(message), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
 }
 
 wmOperatorStatus WM_operator_confirm(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   return WM_operator_confirm_ex(
-      &C, &op, IFACE_(op.type->name), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
+      C, &op, IFACE_(op.type->name), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
 }
 
 wmOperatorStatus WM_operator_confirm_or_exec(bContext *C,
@@ -1251,8 +1252,13 @@ wmOperatorStatus WM_operator_confirm_or_exec(bContext *C,
 {
   const bool confirm = RNA_boolean_get(op->ptr, "confirm");
   if (confirm) {
-    return WM_operator_confirm_ex(
-        C, op, IFACE_(op->type->name), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
+    return WM_operator_confirm_ex(*C,
+                                  op,
+                                  IFACE_(op->type->name),
+                                  nullptr,
+                                  IFACE_("OK"),
+                                  blender::ui::AlertIcon::None,
+                                  false);
   }
   return op->type->exec(*C, *op);
 }
@@ -1407,10 +1413,10 @@ static void wm_block_redo_cb(bContext *C, void *arg_op, int /*arg_event*/)
   }
   else {
     /* Operator not executed yet, call it. */
-    ED_undo_push_op(C, op);
+    ED_undo_push_op(*C, op);
     wm_operator_register(*C, op);
 
-    WM_operator_repeat(C, op);
+    WM_operator_repeat(*C, op);
   }
 }
 
@@ -1511,7 +1517,7 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
   wmWindow *win = CTX_wm_window(*C);
   popup_block_close(C, win, block);
 
-  WM_operator_call_ex(C, op, true);
+  WM_operator_call_ex(*C, op, true);
 }
 
 static void wm_operator_ui_popup_cancel(bContext *C, void *user_data);
@@ -1760,13 +1766,13 @@ static void wm_operator_ui_popup_ok(bContext *C, void *arg, int retval)
   wmOperator *op = data->op;
 
   if (op && retval > 0) {
-    WM_operator_call_ex(C, op, true);
+    WM_operator_call_ex(*C, op, true);
   }
 
   MEM_delete(data);
 }
 
-wmOperatorStatus WM_operator_confirm_ex(bContext *C,
+wmOperatorStatus WM_operator_confirm_ex(bContext &C,
                                         wmOperator *op,
                                         const char *title,
                                         const char *message,
@@ -1794,18 +1800,18 @@ wmOperatorStatus WM_operator_confirm_ex(bContext *C,
   data->include_properties = false;
 
   popup_block_ex(
-      *C, wm_block_dialog_create, wm_operator_ui_popup_ok, wm_operator_ui_popup_cancel, data, op);
+      C, wm_block_dialog_create, wm_operator_ui_popup_ok, wm_operator_ui_popup_cancel, data, op);
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-wmOperatorStatus WM_operator_ui_popup(bContext *C, wmOperator *op, int width)
+wmOperatorStatus WM_operator_ui_popup(bContext &C, wmOperator *op, int width)
 {
   wmOpPopUp *data = MEM_new<wmOpPopUp>(__func__);
   data->op = op;
   data->width = width * UI_SCALE_FAC;
   data->free_op = true; /* If this runs and gets registered we may want not to free it. */
-  popup_block_ex(*C, wm_operator_ui_create, nullptr, wm_operator_ui_popup_cancel, data, op);
+  popup_block_ex(C, wm_operator_ui_create, nullptr, wm_operator_ui_popup_cancel, data, op);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -1846,7 +1852,7 @@ static wmOperatorStatus wm_operator_props_popup_ex(
    * so we require manual OK clicking in this popup. */
   if (!do_redo || !(U.uiflag & USER_GLOBALUNDO)) {
     return WM_operator_props_dialog_popup(
-        C, op, 300, title, confirm_text, cancel_default, message);
+        *C, op, 300, title, confirm_text, cancel_default, message);
   }
 
   popup_block_ex(*C, wm_block_create_redo, nullptr, wm_block_redo_cancel_cb, op, op);
@@ -1889,7 +1895,7 @@ wmOperatorStatus WM_operator_props_popup(bContext &C, wmOperator &op, const wmEv
   return wm_operator_props_popup_ex(&C, &op, false, true);
 }
 
-wmOperatorStatus WM_operator_props_dialog_popup(bContext *C,
+wmOperatorStatus WM_operator_props_dialog_popup(bContext &C,
                                                 wmOperator *op,
                                                 int width,
                                                 std::optional<std::string> title,
@@ -1914,7 +1920,7 @@ wmOperatorStatus WM_operator_props_dialog_popup(bContext *C,
 
   /* The operator is not executed until popup OK button is clicked. */
   popup_block_ex(
-      *C, wm_block_dialog_create, wm_operator_ui_popup_ok, wm_operator_ui_popup_cancel, data, op);
+      C, wm_block_dialog_create, wm_operator_ui_popup_ok, wm_operator_ui_popup_cancel, data, op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -1937,7 +1943,7 @@ wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op)
 
   /* Operator is stored and kept alive in the window manager. So passing a pointer to the UI is
    * fine, it will remain valid. */
-  blender::ui::popup_block_invoke(C, wm_block_create_redo, op, nullptr);
+  blender::ui::popup_block_invoke(*C, wm_block_create_redo, op, nullptr);
 
   return OPERATOR_CANCELLED;
 }
@@ -1964,7 +1970,7 @@ static wmOperatorStatus wm_debug_menu_invoke(bContext &C,
                                              const wmEvent * /*event*/)
 {
   RNA_int_set(op.ptr, "debug_value", G.debug_value);
-  return WM_operator_props_dialog_popup(&C, &op, 250, IFACE_("Set Debug Value"), IFACE_("Set"));
+  return WM_operator_props_dialog_popup(C, &op, 250, IFACE_("Set Debug Value"), IFACE_("Set"));
 }
 
 static void WM_OT_debug_menu(wmOperatorType *ot)
@@ -3162,11 +3168,11 @@ static int radial_control_get_properties(bContext *C, wmOperator *op)
   return 1;
 }
 
-static void radial_control_status(bContext *C, const RadialControl *radial_control)
+static void radial_control_status(bContext &C, const RadialControl *radial_control)
 {
   const char *ui_name = RNA_property_ui_name(radial_control->prop);
 
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN, ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
   status.item(ui_name, ICON_MOUSE_MOVE);
@@ -3259,7 +3265,7 @@ static wmOperatorStatus radial_control_invoke(bContext &C, wmOperator &op, const
       SPACE_TYPE_ANY, RGN_TYPE_ANY, op.type->poll, radial_control_paint_cursor, rc);
 
   WM_event_add_modal_handler(C, &op);
-  radial_control_status(&C, rc);
+  radial_control_status(C, rc);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -3562,7 +3568,7 @@ static wmOperatorStatus radial_control_modal(bContext &C, wmOperator &op, const 
   }
 
   if (ret == OPERATOR_RUNNING_MODAL) {
-    radial_control_status(&C, rc);
+    radial_control_status(C, rc);
   }
   return ret;
 }
@@ -3782,9 +3788,9 @@ static void redraw_timer_step(bContext *C,
   else { /* #eRTUndo. */
     /* Undo and redo, including depsgraph update since that can be a
      * significant part of the cost. */
-    ED_undo_pop(C);
+    ED_undo_pop(*C);
     wm_event_do_refresh_wm_and_depsgraph(*C);
-    ED_undo_redo(C);
+    ED_undo_redo(*C);
     wm_event_do_refresh_wm_and_depsgraph(*C);
   }
 }
@@ -4157,12 +4163,11 @@ static wmOperatorStatus doc_view_manual_ui_context_exec(bContext &C, wmOperator 
 {
   wmOperatorStatus retval = OPERATOR_CANCELLED;
 
-  if (std::optional<std::string> manual_id = blender::ui::button_online_manual_id_from_active(&C))
-  {
+  if (std::optional<std::string> manual_id = blender::ui::button_online_manual_id_from_active(C)) {
     PointerRNA ptr_props = WM_operator_properties_create("WM_OT_doc_view_manual");
     RNA_string_set(&ptr_props, "doc_id", manual_id.value().c_str());
 
-    retval = WM_operator_name_call_ptr(&C,
+    retval = WM_operator_name_call_ptr(C,
                                        WM_operatortype_find("WM_OT_doc_view_manual", false),
                                        blender::wm::OpCallContext::ExecDefault,
                                        &ptr_props,

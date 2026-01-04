@@ -525,7 +525,7 @@ wmOperatorStatus WM_gesture_lines_invoke(bContext &C, wmOperator &op, const wmEv
   return OPERATOR_RUNNING_MODAL;
 }
 
-static wmOperatorStatus gesture_lasso_apply(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_lasso_apply(bContext &C, wmOperator *op)
 {
   wmOperatorStatus retval = OPERATOR_FINISHED;
   wmGesture *gesture = static_cast<wmGesture *>(op->customdata);
@@ -544,10 +544,10 @@ static wmOperatorStatus gesture_lasso_apply(bContext *C, wmOperator *op)
     RNA_float_set_array(&itemptr, "loc", loc);
   }
 
-  gesture_modal_end(*C, op);
+  gesture_modal_end(C, op);
 
   if (op->type->exec) {
-    retval = op->type->exec(*C, *op);
+    retval = op->type->exec(C, *op);
     OPERATOR_RETVAL_CHECK(retval);
   }
 
@@ -621,7 +621,7 @@ wmOperatorStatus WM_gesture_lasso_modal(bContext &C, wmOperator &op, const wmEve
       case MIDDLEMOUSE:
       case RIGHTMOUSE: {
         if (event->val == KM_RELEASE) { /* Key release. */
-          return gesture_lasso_apply(&C, &op);
+          return gesture_lasso_apply(C, &op);
         }
         break;
       }
@@ -786,7 +786,7 @@ static bool gesture_polyline_can_apply(const wmGesture &wmGesture, const bool is
   return true;
 }
 
-static wmOperatorStatus gesture_polyline_apply(bContext *C,
+static wmOperatorStatus gesture_polyline_apply(bContext &C,
                                                wmOperator *op,
                                                const bool is_click_submitted)
 {
@@ -812,11 +812,11 @@ static wmOperatorStatus gesture_polyline_apply(bContext *C,
     RNA_float_set_array(&itemptr, "loc", loc);
   }
 
-  gesture_modal_end(*C, op);
+  gesture_modal_end(C, op);
 
   wmOperatorStatus retval = OPERATOR_FINISHED;
   if (op->type->exec) {
-    retval = op->type->exec(*C, *op);
+    retval = op->type->exec(C, *op);
     OPERATOR_RETVAL_CHECK(retval);
   }
 
@@ -850,7 +850,7 @@ wmOperatorStatus WM_gesture_polyline_modal(bContext &C, wmOperator &op, const wm
         if (dist < blender::wm::gesture::POLYLINE_CLICK_RADIUS * UI_SCALE_FAC &&
             gesture_polyline_can_apply(*gesture, true))
         {
-          return gesture_polyline_apply(&C, &op, true);
+          return gesture_polyline_apply(C, &op, true);
         }
 
         gesture->points++;
@@ -860,7 +860,7 @@ wmOperatorStatus WM_gesture_polyline_modal(bContext &C, wmOperator &op, const wm
       }
       case GESTURE_MODAL_CONFIRM:
         if (gesture_polyline_can_apply(*gesture, false)) {
-          return gesture_polyline_apply(&C, &op, false);
+          return gesture_polyline_apply(C, &op, false);
         }
         break;
       case GESTURE_MODAL_CANCEL:
@@ -904,9 +904,9 @@ wmOperatorStatus WM_gesture_polyline_modal(bContext &C, wmOperator &op, const wm
   return OPERATOR_RUNNING_MODAL;
 }
 
-void WM_gesture_polyline_cancel(bContext *C, wmOperator *op)
+void WM_gesture_polyline_cancel(bContext &C, wmOperator *op)
 {
-  gesture_modal_end(*C, op);
+  gesture_modal_end(C, op);
 }
 
 /* template to copy from */

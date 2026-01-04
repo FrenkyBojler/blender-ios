@@ -94,11 +94,11 @@ namespace blender::ui {
  *
  * \{ */
 
-static void region_redraw_immediately(bContext *C, ARegion *region)
+static void region_redraw_immediately(bContext &C, ARegion *region)
 {
-  ED_region_do_layout(*C, region);
+  ED_region_do_layout(C, region);
   WM_draw_region_viewport_bind(region);
-  ED_region_do_draw(*C, region);
+  ED_region_do_draw(C, region);
   WM_draw_region_viewport_unbind(region);
   region->runtime->do_draw = 0;
 }
@@ -317,7 +317,7 @@ static void UI_OT_copy_python_command_button(wmOperatorType *ot)
 /** \name Reset to Default Values Button Operator
  * \{ */
 
-static wmOperatorStatus operator_button_property_finish(bContext *C,
+static wmOperatorStatus operator_button_property_finish(bContext &C,
                                                         PointerRNA *ptr,
                                                         PropertyRNA *prop)
 {
@@ -325,7 +325,7 @@ static wmOperatorStatus operator_button_property_finish(bContext *C,
   const bool is_undo = ptr->owner_id && ID_CHECK_UNDO(ptr->owner_id);
 
   /* perform updates required for this property */
-  RNA_property_update(*C, ptr, prop);
+  RNA_property_update(C, ptr, prop);
 
   /* as if we pressed the button */
   context_active_but_prop_handle(C, false);
@@ -340,12 +340,12 @@ static wmOperatorStatus operator_button_property_finish(bContext *C,
   return OPERATOR_CANCELLED;
 }
 
-static wmOperatorStatus operator_button_property_finish_with_undo(bContext *C,
+static wmOperatorStatus operator_button_property_finish_with_undo(bContext &C,
                                                                   PointerRNA *ptr,
                                                                   PropertyRNA *prop)
 {
   /* Perform updates required for this property. */
-  RNA_property_update(*C, ptr, prop);
+  RNA_property_update(C, ptr, prop);
 
   /* As if we pressed the button. */
   context_active_but_prop_handle(C, true);
@@ -383,7 +383,7 @@ static wmOperatorStatus reset_default_button_exec(bContext &C, wmOperator &op)
       Scene *scene = CTX_data_scene(C);
       animrig::autokeyframe_property(C, scene, &ptr, prop, array_index, scene->r.cfra, true);
 
-      return operator_button_property_finish_with_undo(&C, &ptr, prop);
+      return operator_button_property_finish_with_undo(C, &ptr, prop);
     }
   }
 
@@ -447,7 +447,7 @@ static wmOperatorStatus assign_default_button_exec(bContext &C, wmOperator & /*o
   /* if there is a valid property that is editable... */
   if (ptr.data && prop && RNA_property_editable(&ptr, prop)) {
     if (RNA_property_assign_default(&ptr, prop)) {
-      return operator_button_property_finish(&C, &ptr, prop);
+      return operator_button_property_finish(C, &ptr, prop);
     }
   }
 
@@ -490,7 +490,7 @@ static wmOperatorStatus unset_property_button_exec(bContext &C, wmOperator & /*o
       RNA_property_is_set(&ptr, prop))
   {
     RNA_property_unset(&ptr, prop);
-    return operator_button_property_finish(&C, &ptr, prop);
+    return operator_button_property_finish(C, &ptr, prop);
   }
 
   return OPERATOR_CANCELLED;
@@ -566,7 +566,7 @@ static wmOperatorStatus override_add_button_exec(bContext &C, wmOperator &op)
   /* Outliner e.g. has to be aware of this change. */
   WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
 
-  return operator_button_property_finish(&C, &ptr, prop);
+  return operator_button_property_finish(C, &ptr, prop);
 }
 
 static void UI_OT_override_add_button(wmOperatorType *ot)
@@ -657,7 +657,7 @@ static wmOperatorStatus override_remove_button_exec(bContext &C, wmOperator &op)
   /* Outliner e.g. has to be aware of this change. */
   WM_main_add_notifier(NC_WM | ND_LIB_OVERRIDE_CHANGED, nullptr);
 
-  return operator_button_property_finish(&C, &ptr, prop);
+  return operator_button_property_finish(C, &ptr, prop);
 }
 
 static void UI_OT_override_remove_button(wmOperatorType *ot)
@@ -684,7 +684,7 @@ static void override_idtemplate_ids_get(
 {
   PointerRNA owner_ptr;
   PropertyRNA *prop;
-  context_active_but_prop_get_templateID(C, &owner_ptr, &prop);
+  context_active_but_prop_get_templateID(*C, &owner_ptr, &prop);
 
   if (owner_ptr.data == nullptr || prop == nullptr) {
     *r_owner_id = *r_id = nullptr;
@@ -1733,7 +1733,7 @@ int paste_property_drivers(Span<FCurve *> src_drivers,
  * otherwise.  Returns true in poll mode if a copy could be successfully made,
  * and false otherwise.
  */
-static bool copy_driver_to_selected_button(bContext *C, bool copy_entire_array, const bool poll)
+static bool copy_driver_to_selected_button(bContext &C, bool copy_entire_array, const bool poll)
 {
   using namespace blender::ui::internal;
 
@@ -1742,7 +1742,7 @@ static bool copy_driver_to_selected_button(bContext *C, bool copy_entire_array, 
   int index;
 
   /* Get the property of the clicked button. */
-  context_active_but_prop_get(*C, &ptr, &prop, &index);
+  context_active_but_prop_get(C, &ptr, &prop, &index);
   if (!ptr.data || !ptr.owner_id || !prop) {
     return false;
   }
@@ -1761,7 +1761,7 @@ static bool copy_driver_to_selected_button(bContext *C, bool copy_entire_array, 
   std::optional<std::string> path;
   bool use_path_from_id;
   Vector<PointerRNA> target_properties;
-  if (!context_copy_to_selected_list(C, &ptr, prop, &target_properties, &use_path_from_id, &path))
+  if (!context_copy_to_selected_list(&C, &ptr, prop, &target_properties, &use_path_from_id, &path))
   {
     return false;
   }
@@ -1803,7 +1803,7 @@ static bool copy_driver_to_selected_button(bContext *C, bool copy_entire_array, 
       continue;
     }
 
-    RNA_property_update(*C, &dst_ptr, dst_prop);
+    RNA_property_update(C, &dst_ptr, dst_prop);
     total_copy_count += paste_count;
   }
 
@@ -1812,14 +1812,14 @@ static bool copy_driver_to_selected_button(bContext *C, bool copy_entire_array, 
 
 static bool copy_driver_to_selected_button_poll(bContext &C)
 {
-  return copy_driver_to_selected_button(&C, false, true);
+  return copy_driver_to_selected_button(C, false, true);
 }
 
 static wmOperatorStatus copy_driver_to_selected_button_exec(bContext &C, wmOperator &op)
 {
   const bool all = RNA_boolean_get(op.ptr, "all");
 
-  if (!copy_driver_to_selected_button(&C, all, false)) {
+  if (!copy_driver_to_selected_button(C, all, false)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1924,13 +1924,13 @@ static bool jump_to_target_ptr(bContext *C, PointerRNA ptr, const bool poll)
  * used as a right click menu item for certain UI field types, and
  * this will fail quickly if the context is completely unsuitable.
  */
-static bool jump_to_target_button(bContext *C, bool poll)
+static bool jump_to_target_button(bContext &C, bool poll)
 {
   PointerRNA ptr, target_ptr;
   PropertyRNA *prop;
   int index;
 
-  const Button *but = context_active_but_prop_get(*C, &ptr, &prop, &index);
+  const Button *but = context_active_but_prop_get(C, &ptr, &prop, &index);
 
   /* If there is a valid property... */
   if (ptr.data && prop) {
@@ -1940,7 +1940,7 @@ static bool jump_to_target_button(bContext *C, bool poll)
     if (type == PROP_POINTER) {
       target_ptr = RNA_property_pointer_get(&ptr, prop);
 
-      return jump_to_target_ptr(C, target_ptr, poll);
+      return jump_to_target_ptr(&C, target_ptr, poll);
     }
     /* For string properties with prop_search, look up the search collection item. */
     if (type == PROP_STRING) {
@@ -1968,7 +1968,7 @@ static bool jump_to_target_button(bContext *C, bool poll)
         }
 
         if (found) {
-          return jump_to_target_ptr(C, target_ptr, poll);
+          return jump_to_target_ptr(&C, target_ptr, poll);
         }
       }
     }
@@ -1979,12 +1979,12 @@ static bool jump_to_target_button(bContext *C, bool poll)
 
 bool jump_to_target_button_poll(bContext &C)
 {
-  return jump_to_target_button(&C, true);
+  return jump_to_target_button(C, true);
 }
 
 static wmOperatorStatus jump_to_target_button_exec(bContext &C, wmOperator & /*op*/)
 {
-  const bool success = jump_to_target_button(&C, false);
+  const bool success = jump_to_target_button(C, false);
 
   return (success) ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
@@ -2104,7 +2104,7 @@ static wmOperatorStatus editsource_text_edit(bContext *C,
   RNA_int_set(&op_props, "column", 0);
 
   wmOperatorStatus result = WM_operator_name_call_ptr(
-      C, ot, wm::OpCallContext::ExecDefault, &op_props, nullptr);
+      *C, ot, wm::OpCallContext::ExecDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
   return result;
 }
@@ -2126,7 +2126,7 @@ static wmOperatorStatus editsource_exec(bContext &C, wmOperator &op)
     ui_editsource_active_but_set(but);
 
     /* redraw and get active button python info */
-    region_redraw_immediately(&C, region);
+    region_redraw_immediately(C, region);
 
     /* It's possible the key button referenced in `ui_editsource_info` has been freed.
      * This typically happens with popovers but could happen in other situations, see: #140439. */
@@ -2507,7 +2507,7 @@ static wmOperatorStatus ui_list_start_filter_invoke(bContext &C,
   BLI_assert(list != nullptr);
 
   if (ui_list_unhide_filter_options(list)) {
-    region_redraw_immediately(&C, region);
+    region_redraw_immediately(C, region);
   }
 
   if (!textbutton_activate_rna(&C, region, list, "filter_name")) {

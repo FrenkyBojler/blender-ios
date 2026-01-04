@@ -2408,9 +2408,9 @@ void region_toggle_hidden(bContext &C, ARegion *region, const bool do_fade)
   }
 }
 
-void ED_region_toggle_hidden(bContext *C, ARegion *region)
+void ED_region_toggle_hidden(bContext &C, ARegion *region)
 {
-  region_toggle_hidden(*C, region, true);
+  region_toggle_hidden(C, region, true);
 }
 
 void ED_area_data_copy(ScrArea *area_dst, ScrArea *area_src, const bool do_free)
@@ -2958,10 +2958,10 @@ void ED_region_clear(const bContext *C, const ARegion *region, const int /*Theme
   }
 }
 
-static void region_clear_fully_transparent(const bContext *C)
+static void region_clear_fully_transparent(const bContext &C)
 {
   /* view should be in pixelspace */
-  blender::ui::view2d_view_restore(*C);
+  blender::ui::view2d_view_restore(C);
 
   GPU_clear_color(0, 0, 0, 0);
 }
@@ -2985,7 +2985,7 @@ BLI_INLINE bool streq_array_any(const char *s, const char *arr[])
  * associated with the panel. Used when the panel is an instanced panel so a unique identifier is
  * needed to find the correct old \a blender::ui::Block, and nullptr otherwise.
  */
-static void ed_panel_draw(const bContext *C,
+static void ed_panel_draw(const bContext &C,
                           ARegion *region,
                           ListBaseT<Panel> *lb,
                           PanelType *pt,
@@ -3007,7 +3007,7 @@ static void ed_panel_draw(const bContext *C,
   else {
     STRNCPY_UTF8(block_name, pt->idname);
   }
-  blender::ui::Block *block = block_begin(*C, region, block_name, blender::ui::EmbossType::Emboss);
+  blender::ui::Block *block = block_begin(C, region, block_name, blender::ui::EmbossType::Emboss);
 
   bool open;
   panel = panel_begin(region, lb, block, pt, panel, &open);
@@ -3035,7 +3035,7 @@ static void ed_panel_draw(const bContext *C,
 
     panel->layout->operator_context_set(op_context);
 
-    pt->draw_header_preset(C, panel);
+    pt->draw_header_preset(&C, panel);
 
     block_apply_search_filter(block, search_filter);
     co = blender::ui::block_layout_resolve(block);
@@ -3076,7 +3076,7 @@ static void ed_panel_draw(const bContext *C,
 
     panel->layout->operator_context_set(op_context);
 
-    pt->draw_header(C, panel);
+    pt->draw_header(&C, panel);
 
     block_apply_search_filter(block, search_filter);
     co = blender::ui::block_layout_resolve(block);
@@ -3115,7 +3115,7 @@ static void ed_panel_draw(const bContext *C,
 
     panel->layout->operator_context_set(op_context);
 
-    pt->draw(C, panel);
+    pt->draw(&C, panel);
 
     const bool ends_with_layout_panel_header = uiLayoutEndsWithPanelHeader(*panel->layout);
 
@@ -3133,7 +3133,7 @@ static void ed_panel_draw(const bContext *C,
     }
   }
 
-  block_end(*C, block);
+  block_end(C, block);
 
   /* Draw child panels. */
   if (open || search_filter_active) {
@@ -3141,7 +3141,7 @@ static void ed_panel_draw(const bContext *C,
       PanelType *child_pt = static_cast<PanelType *>(link.data);
       Panel *child_panel = blender::ui::panel_find_by_type(&panel->children, child_pt);
 
-      if (child_pt->draw && (!child_pt->poll || child_pt->poll(C, child_pt))) {
+      if (child_pt->draw && (!child_pt->poll || child_pt->poll(&C, child_pt))) {
         ed_panel_draw(C,
                       region,
                       &panel->children,
@@ -3329,7 +3329,7 @@ void ED_region_panels_layout_ex(const bContext &C,
     }
 
     ed_panel_draw(
-        &C, region, &region->panels, pt, panel, width, em, nullptr, search_filter, op_context);
+        C, region, &region->panels, pt, panel, width, em, nullptr, search_filter, op_context);
   }
 
   /* Draw "poly-instantiated" panels that don't have a 1 to 1 correspondence with their types. */
@@ -3359,7 +3359,7 @@ void ED_region_panels_layout_ex(const bContext &C,
        * panel of the same type might be found. */
       char unique_panel_str[INSTANCED_PANEL_UNIQUE_STR_SIZE];
       blender::ui::list_panel_unique_str(&panel, unique_panel_str);
-      ed_panel_draw(&C,
+      ed_panel_draw(C,
                     region,
                     &region->panels,
                     panel.type,
@@ -3607,15 +3607,15 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   blender::ui::view2d_scrollers_draw(v2d, use_mask ? &mask : nullptr);
 }
 
-void ED_region_panels_ex(const bContext *C,
+void ED_region_panels_ex(const bContext &C,
                          ARegion *region,
                          blender::wm::OpCallContext op_context,
                          const char *contexts[])
 {
   /* TODO: remove? */
   ED_region_panels_layout_ex(
-      *C, region, &region->runtime->type->paneltypes, op_context, contexts, nullptr);
-  ED_region_panels_draw(C, region);
+      C, region, &region->runtime->type->paneltypes, op_context, contexts, nullptr);
+  ED_region_panels_draw(&C, region);
 }
 
 void ED_region_panels(const bContext *C, ARegion *region)
@@ -3651,7 +3651,7 @@ void ED_region_panels_init(wmWindowManager *wm, ARegion *region)
  *
  * \param panel: If non-null, use this instead of adding a new panel for the \a panel_type.
  */
-static bool panel_property_search(const bContext *C,
+static bool panel_property_search(const bContext &C,
                                   ARegion *region,
                                   const uiStyle *style,
                                   Panel *panel,
@@ -3659,7 +3659,7 @@ static bool panel_property_search(const bContext *C,
                                   const char *search_filter)
 {
   blender::ui::Block *block = block_begin(
-      *C, region, panel_type->idname, blender::ui::EmbossType::Emboss);
+      C, region, panel_type->idname, blender::ui::EmbossType::Emboss);
   block_set_search_only(block, true);
 
   /* Skip panels that give meaningless search results. */
@@ -3684,7 +3684,7 @@ static bool panel_property_search(const bContext *C,
                                                0,
                                                0,
                                                style);
-    panel_type->draw_header_preset(C, panel);
+    panel_type->draw_header_preset(&C, panel);
   }
   if (panel->type->draw_header != nullptr) {
     panel->layout = &blender::ui::block_layout(block,
@@ -3696,7 +3696,7 @@ static bool panel_property_search(const bContext *C,
                                                0,
                                                0,
                                                style);
-    panel_type->draw_header(C, panel);
+    panel_type->draw_header(&C, panel);
   }
   if (LIKELY(panel->type->draw != nullptr)) {
     panel->layout = &blender::ui::block_layout(block,
@@ -3708,7 +3708,7 @@ static bool panel_property_search(const bContext *C,
                                                0,
                                                0,
                                                style);
-    panel_type->draw(C, panel);
+    panel_type->draw(&C, panel);
   }
 
   blender::ui::block_layout_free(block);
@@ -3721,7 +3721,7 @@ static bool panel_property_search(const bContext *C,
 
   for (LinkData &link : panel_type->children) {
     PanelType *panel_type_child = static_cast<PanelType *>(link.data);
-    if (!panel_type_child->poll || panel_type_child->poll(C, panel_type_child)) {
+    if (!panel_type_child->poll || panel_type_child->poll(&C, panel_type_child)) {
       /* Search for the existing child panel here because it might be an instanced
        * child panel with a custom data field that will be needed to build the layout. */
       Panel *child_panel = blender::ui::panel_find_by_type(&panel->children, panel_type_child);
@@ -3778,7 +3778,7 @@ bool ED_region_property_search(const bContext &C,
 
     /* We start property search with an empty panel list, so there's
      * no point in trying to find an existing panel with this type. */
-    has_result = panel_property_search(&C, region, style, nullptr, panel_type, search_filter);
+    has_result = panel_property_search(C, region, style, nullptr, panel_type, search_filter);
     if (has_result) {
       break;
     }
@@ -3797,7 +3797,7 @@ bool ED_region_property_search(const bContext &C,
         }
       }
 
-      has_result = panel_property_search(&C, region, style, &panel, panel.type, search_filter);
+      has_result = panel_property_search(C, region, style, &panel, panel.type, search_filter);
       if (has_result) {
         break;
       }
@@ -3901,18 +3901,18 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
   blender::ui::view2d_view_restore(*C);
 }
 
-static void region_draw_blocks_in_view2d(const bContext *C, const ARegion *region)
+static void region_draw_blocks_in_view2d(const bContext &C, const ARegion *region)
 {
   blender::ui::view2d_view_ortho(&region->v2d);
 
   /* View2D matrix might have changed due to dynamic sized regions. */
-  blender::ui::blocklist_update_window_matrix(*C, &region->runtime->uiblocks);
+  blender::ui::blocklist_update_window_matrix(C, &region->runtime->uiblocks);
 
   /* draw blocks */
-  blender::ui::blocklist_draw(C, &region->runtime->uiblocks);
+  blender::ui::blocklist_draw(&C, &region->runtime->uiblocks);
 
   /* restore view matrix */
-  blender::ui::view2d_view_restore(*C);
+  blender::ui::view2d_view_restore(C);
 }
 
 void ED_region_header_draw(const bContext *C, ARegion *region)
@@ -3926,7 +3926,7 @@ void ED_region_header_draw(const bContext *C, ARegion *region)
     BLF_batch_discard();
   }
 
-  region_draw_blocks_in_view2d(C, region);
+  region_draw_blocks_in_view2d(*C, region);
   ED_region_draw_overflow_indication(CTX_wm_area(*C), region);
 }
 
@@ -3939,13 +3939,13 @@ void ED_region_header_draw_with_button_sections(const bContext *C,
   /* Clear and draw button sections background when using region overlap. Otherwise clear using the
    * background color like normal. */
   if (region->overlap) {
-    region_clear_fully_transparent(C);
+    region_clear_fully_transparent(*C);
     blender::ui::region_button_sections_draw(region, bgcolorid, align);
   }
   else {
     ED_region_clear(C, region, bgcolorid);
   }
-  region_draw_blocks_in_view2d(C, region);
+  region_draw_blocks_in_view2d(*C, region);
 }
 
 void ED_region_header(const bContext *C, ARegion *region)

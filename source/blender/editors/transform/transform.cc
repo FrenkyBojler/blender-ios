@@ -1493,12 +1493,12 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
   return OPERATOR_PASS_THROUGH;
 }
 
-bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], float cent2d[2])
+bool calculateTransformCenter(bContext &C, int centerMode, float cent3d[3], float cent2d[2])
 {
   TransInfo *t = MEM_callocN<TransInfo>("TransInfo data");
   bool success;
 
-  t->context = C;
+  t->context = &C;
 
   t->state = TRANS_RUNNING;
 
@@ -1507,12 +1507,12 @@ bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], floa
 
   t->mode = TFM_DUMMY;
 
-  initTransInfo(*C, t, nullptr, nullptr);
+  initTransInfo(C, t, nullptr, nullptr);
 
   /* Avoid doing connectivity lookups (when V3D_AROUND_LOCAL_ORIGINS is set). */
   t->around = V3D_AROUND_CENTER_BOUNDS;
 
-  create_trans_data(C, t); /* Make TransData structs from selection. */
+  create_trans_data(&C, t); /* Make TransData structs from selection. */
 
   t->around = centerMode; /* Override user-defined mode. */
 
@@ -1535,9 +1535,9 @@ bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], floa
   }
 
   /* Does insert keyframes, and clears base flags; doesn't read `transdata`. */
-  special_aftertrans_update(C, t);
+  special_aftertrans_update(&C, t);
 
-  postTrans(C, t);
+  postTrans(&C, t);
 
   MEM_freeN(t);
 
@@ -1945,14 +1945,14 @@ void saveTransform(bContext &C, TransInfo *t, wmOperator *op)
   }
 }
 
-bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *event, int mode)
+bool initTransform(bContext &C, TransInfo *t, wmOperator *op, const wmEvent *event, int mode)
 {
   int options = 0;
   PropertyRNA *prop;
 
-  mode = transform_mode_really_used(C, eTfmMode(mode));
+  mode = transform_mode_really_used(&C, eTfmMode(mode));
 
-  t->context = C;
+  t->context = &C;
 
   /* Added initialize, for external calls to set stuff in TransInfo, like undo string. */
 
@@ -2000,7 +2000,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   unit_m3(t->spacemtx);
 
-  initTransInfo(*C, t, op, event);
+  initTransInfo(C, t, op, event);
 
   if (!G.background) {
     if (t->spacetype == SPACE_VIEW3D) {
@@ -2026,10 +2026,10 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     }
   }
 
-  create_trans_data(C, t); /* Make #TransData structs from selection. */
+  create_trans_data(&C, t); /* Make #TransData structs from selection. */
 
   if (t->data_len_all == 0) {
-    postTrans(C, t);
+    postTrans(&C, t);
     return false;
   }
 
@@ -2062,14 +2062,14 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     }
 
     if (!has_selected_any) {
-      postTrans(C, t);
+      postTrans(&C, t);
       return false;
     }
   }
 
   if (event) {
     /* Keymap for shortcut header prints. */
-    t->keymap = WM_keymap_active(CTX_wm_manager(*C), op->type->modalkeymap);
+    t->keymap = WM_keymap_active(CTX_wm_manager(C), op->type->modalkeymap);
 
     /* Stupid code to have Ctrl-Click on gizmo work ok.
      *
@@ -2152,7 +2152,7 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   transform_mode_init(t, op, mode);
 
   if (t->state == TRANS_CANCEL) {
-    postTrans(C, t);
+    postTrans(&C, t);
     return false;
   }
 

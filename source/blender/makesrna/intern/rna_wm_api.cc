@@ -124,7 +124,7 @@ static void rna_Operator_enum_search_invoke(bContext *C, wmOperator *op)
 
 static int rna_Operator_ui_popup(bContext *C, wmOperator *op, int width)
 {
-  return wmOperatorStatus(WM_operator_ui_popup(C, op, width));
+  return wmOperatorStatus(WM_operator_ui_popup(*C, op, width));
 }
 
 static bool rna_event_modal_handler_add(bContext *C, ReportList *reports, wmOperator *op)
@@ -243,7 +243,7 @@ static int rna_Operator_confirm(bContext *C,
       message, text_ctxt, nullptr, nullptr, translate);
   std::optional<blender::StringRefNull> confirm_text_str = RNA_translate_ui_text(
       confirm_text, text_ctxt, nullptr, nullptr, translate);
-  return WM_operator_confirm_ex(C,
+  return WM_operator_confirm_ex(*C,
                                 op,
                                 title_str ? title_str->c_str() : nullptr,
                                 message_str ? message_str->c_str() : nullptr,
@@ -270,7 +270,7 @@ static int rna_Operator_props_dialog_popup(bContext *C,
   std::optional<blender::StringRefNull> confirm_text_str = RNA_translate_ui_text(
       confirm_text, text_ctxt, nullptr, nullptr, translate);
   return WM_operator_props_dialog_popup(
-      C,
+      *C,
       op,
       width,
       title_str ? std::make_optional<std::string>(*title_str) : std::nullopt,

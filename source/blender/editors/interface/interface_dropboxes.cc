@@ -74,7 +74,7 @@ static std::string ui_view_drop_tooltip(bContext *C,
 
 static bool ui_drop_name_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
-  return button_active_drop_name(C) && ELEM(drag->type, WM_DRAG_ID, WM_DRAG_ASSET);
+  return button_active_drop_name(*C) && ELEM(drag->type, WM_DRAG_ID, WM_DRAG_ASSET);
 }
 
 static void ui_drop_name_copy(bContext *C, wmDrag *drag, wmDropBox *drop)

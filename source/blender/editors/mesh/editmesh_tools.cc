@@ -8378,9 +8378,9 @@ static void point_normals_cancel(bContext &C, wmOperator &op)
   ED_workspace_status_text(&C, nullptr);
 }
 
-static void point_normals_update_statusbar(bContext *C, wmOperator *op)
+static void point_normals_update_statusbar(bContext &C, wmOperator *op)
 {
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
 
   status.opmodal(IFACE_("Confirm"), op->type, EDBM_CLNOR_MODAL_CONFIRM);
   status.opmodal(IFACE_("Cancel"), op->type, EDBM_CLNOR_MODAL_CANCEL);
@@ -8577,7 +8577,7 @@ static wmOperatorStatus edbm_point_normals_modal(bContext &C, wmOperator &op, co
         view3d_operator_needs_gpu(C);
         SelectPick_Params params{};
         params.sel_op = SEL_OP_SET;
-        if (EDBM_select_pick(&C, event->mval, params)) {
+        if (EDBM_select_pick(C, event->mval, params)) {
           /* Point to newly selected active. */
           blender::ed::object::calc_active_center_for_editmode(obedit, false, target);
 
@@ -8675,7 +8675,7 @@ static wmOperatorStatus edbm_point_normals_modal(bContext &C, wmOperator &op, co
       /* Recheck booleans. */
       EDBM_update(static_cast<Mesh *>(obedit->data), &params);
 
-      point_normals_update_statusbar(&C, &op);
+      point_normals_update_statusbar(C, &op);
     }
     else {
       ret = OPERATOR_CANCELLED;
@@ -8705,7 +8705,7 @@ static wmOperatorStatus edbm_point_normals_invoke(bContext &C,
 
   WM_event_add_modal_handler(C, &op);
 
-  point_normals_update_statusbar(&C, &op);
+  point_normals_update_statusbar(C, &op);
 
   op.flag |= OP_IS_MODAL_GRAB_CURSOR;
   return OPERATOR_RUNNING_MODAL;

@@ -1871,7 +1871,7 @@ static void mouse_mesh_loop_edge(
 }
 
 static bool mouse_mesh_loop(
-    bContext *C, const int mval[2], bool extend, bool deselect, bool toggle, bool ring)
+    bContext &C, const int mval[2], bool extend, bool deselect, bool toggle, bool ring)
 {
   Base *basact = nullptr;
   BMVert *eve = nullptr;
@@ -1884,7 +1884,7 @@ static bool mouse_mesh_loop(
   bool select_cycle = true;
   float mvalf[2];
 
-  ViewContext vc = em_setup_viewcontext(*C);
+  ViewContext vc = em_setup_viewcontext(C);
   mvalf[0] = float(vc.mval[0] = mval[0]);
   mvalf[1] = float(vc.mval[1] = mval[1]);
 
@@ -2033,7 +2033,7 @@ static bool mouse_mesh_loop(
   }
 
   DEG_id_tag_update(static_cast<ID *>(vc.obedit->data), ID_RECALC_SELECT);
-  WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, vc.obedit->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, vc.obedit->data);
 
   return true;
 }
@@ -2043,7 +2043,7 @@ static wmOperatorStatus edbm_select_loop_invoke(bContext &C, wmOperator &op, con
 
   view3d_operator_needs_gpu(C);
 
-  if (mouse_mesh_loop(&C,
+  if (mouse_mesh_loop(C,
                       event->mval,
                       RNA_boolean_get(op.ptr, "extend"),
                       RNA_boolean_get(op.ptr, "deselect"),
@@ -2229,7 +2229,7 @@ void MESH_OT_select_interior_faces(wmOperatorType *ot)
  * Gets called via generic mouse select operator.
  * \{ */
 
-bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params)
+bool EDBM_select_pick(bContext &C, const int mval[2], const SelectPick_Params &params)
 {
   int base_index_active = -1;
   BMVert *eve = nullptr;
@@ -2237,7 +2237,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
   BMFace *efa = nullptr;
 
   /* Setup view context for argument to callbacks. */
-  ViewContext vc = em_setup_viewcontext(*C);
+  ViewContext vc = em_setup_viewcontext(C);
   vc.mval[0] = mval[0];
   vc.mval[1] = mval[1];
 
@@ -2258,7 +2258,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
         Object *ob_iter = base_iter->object;
         EDBM_flag_disable_all(BKE_editmesh_from_object(ob_iter), BM_ELEM_SELECT);
         DEG_id_tag_update(static_cast<ID *>(ob_iter->data), ID_RECALC_SELECT);
-        WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, ob_iter->data);
+        WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob_iter->data);
       }
       changed = true;
     }
@@ -2448,11 +2448,11 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
      * switch UV layers, vgroups for eg. */
     BKE_view_layer_synced_ensure(vc.scene, vc.view_layer);
     if (BKE_view_layer_active_base_get(vc.view_layer) != basact) {
-      blender::ed::object::base_activate(*C, basact);
+      blender::ed::object::base_activate(C, basact);
     }
 
     DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
-    WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, obedit->data);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit->data);
 
     changed = true;
   }

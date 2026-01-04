@@ -375,14 +375,14 @@ static void transformops_loopsel_hack(bContext *C, wmOperator *op)
 #  error "loopslide hack removed!"
 #endif /* USE_LOOPSLIDE_HACK */
 
-static void transformops_exit(bContext *C, wmOperator *op)
+static void transformops_exit(bContext &C, wmOperator *op)
 {
 #ifdef USE_LOOPSLIDE_HACK
-  transformops_loopsel_hack(C, op);
+  transformops_loopsel_hack(&C, op);
 #endif
 
   TransInfo *t = static_cast<TransInfo *>(op->customdata);
-  saveTransform(*C, t, op);
+  saveTransform(C, t, op);
   MEM_freeN(t);
   op->customdata = nullptr;
   G.moving = 0;
@@ -408,7 +408,7 @@ static int transformops_data(bContext *C, wmOperator *op, const wmEvent *event)
     t->undo_name = op->type->name;
 
     int mode = transformops_mode(op);
-    retval = initTransform(C, t, op, event, mode);
+    retval = initTransform(*C, t, op, event, mode);
 
     /* Store data. */
     if (retval) {
@@ -488,7 +488,7 @@ static wmOperatorStatus transform_modal(bContext &C, wmOperator &op, const wmEve
   exit_code |= transformEnd(&C, t);
 
   if ((exit_code & OPERATOR_RUNNING_MODAL) == 0) {
-    transformops_exit(&C, &op);
+    transformops_exit(C, &op);
     exit_code &= ~OPERATOR_PASS_THROUGH; /* Preventively remove pass-through. */
   }
   else {
@@ -523,7 +523,7 @@ static void transform_cancel(bContext &C, wmOperator &op)
 
   t->state = TRANS_CANCEL;
   transformEnd(&C, t);
-  transformops_exit(&C, &op);
+  transformops_exit(C, &op);
 }
 
 static wmOperatorStatus transform_exec(bContext &C, wmOperator &op)
@@ -543,7 +543,7 @@ static wmOperatorStatus transform_exec(bContext &C, wmOperator &op)
 
   transformEnd(&C, t);
 
-  transformops_exit(&C, &op);
+  transformops_exit(C, &op);
 
   WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, nullptr);
 
@@ -1502,7 +1502,7 @@ static wmOperatorStatus transform_from_gizmo_invoke(bContext &C,
         wmOperatorType *ot = WM_operatortype_find(op_id, true);
         PointerRNA op_ptr = WM_operator_properties_create_ptr(ot);
         RNA_boolean_set(&op_ptr, "release_confirm", true);
-        WM_operator_name_call_ptr(&C, ot, wm::OpCallContext::InvokeDefault, &op_ptr, event);
+        WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &op_ptr, event);
         WM_operator_properties_free(&op_ptr);
         return OPERATOR_FINISHED;
       }

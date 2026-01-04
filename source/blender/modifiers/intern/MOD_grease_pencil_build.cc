@@ -816,7 +816,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   layout.separator();
   layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   ui::PanelLayout restrict_frame_range_layout = layout.panel_prop_with_bool_header(
-      C,
+      *C,
       ptr,
       "open_frame_range_panel",
       ptr,
@@ -830,7 +830,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     col.prop(ptr, "frame_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
   }
   ui::PanelLayout fading_layout = layout.panel_prop_with_bool_header(
-      C, ptr, "open_fading_panel", ptr, "use_fading", IFACE_("Fading"));
+      *C, ptr, "open_fading_panel", ptr, "use_fading", IFACE_("Fading"));
   if (ui::Layout *panel = fading_layout.body) {
     const bool active = RNA_boolean_get(ptr, "use_fading");
     ui::Layout &col = panel->column(false);
@@ -847,7 +847,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (ui::Layout *influence_panel = layout.panel_prop(
-          C, ptr, "open_influence_panel", IFACE_("Influence")))
+          *C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);

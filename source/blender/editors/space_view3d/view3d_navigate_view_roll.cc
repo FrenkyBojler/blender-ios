@@ -258,7 +258,7 @@ static wmOperatorStatus viewroll_invoke(bContext &C, wmOperator &op, const wmEve
     }
 
     /* makes op->customdata */
-    vod = viewops_data_create(&C, event, &ViewOpsType_roll, false);
+    vod = viewops_data_create(C, event, &ViewOpsType_roll, false);
 
     const float start_position[2] = {float(BLI_rcti_cent_x(&vod->region->winrct)),
                                      float(BLI_rcti_cent_y(&vod->region->winrct))};

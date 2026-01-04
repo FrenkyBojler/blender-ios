@@ -57,16 +57,16 @@ static float key_x_get(const Scene *scene, const Strip *strip, const SeqRetiming
   return seq::retiming_key_timeline_frame_get(scene, strip, key);
 }
 
-static float pixels_to_view_width(const bContext *C, const float width)
+static float pixels_to_view_width(const bContext &C, const float width)
 {
-  const View2D *v2d = ui::view2d_fromcontext(*C);
+  const View2D *v2d = ui::view2d_fromcontext(C);
   float scale_x = ui::view2d_view_to_region_x(v2d, 1) - ui::view2d_view_to_region_x(v2d, 0.0f);
   return width / scale_x;
 }
 
-static float pixels_to_view_height(const bContext *C, const float height)
+static float pixels_to_view_height(const bContext &C, const float height)
 {
-  const View2D *v2d = ui::view2d_fromcontext(*C);
+  const View2D *v2d = ui::view2d_fromcontext(C);
   float scale_y = ui::view2d_view_to_region_y(v2d, 1) - ui::view2d_view_to_region_y(v2d, 0.0f);
   return height / scale_y;
 }
@@ -488,17 +488,17 @@ static bool label_rect_get(const TimelineDrawContext &ctx,
   const bContext *C = ctx.C;
   const Scene *scene = ctx.scene;
   const SeqRetimingKey *next_key = key + 1;
-  const float width = pixels_to_view_width(C, BLF_width(BLF_default(), label_str, label_len));
-  const float height = pixels_to_view_height(C, BLF_height(BLF_default(), label_str, label_len));
+  const float width = pixels_to_view_width(*C, BLF_width(BLF_default(), label_str, label_len));
+  const float height = pixels_to_view_height(*C, BLF_height(BLF_default(), label_str, label_len));
   const float xmin = max_ff(strip_ctx.left_handle, key_x_get(scene, strip_ctx.strip, key));
   const float xmax = min_ff(strip_ctx.right_handle, key_x_get(scene, strip_ctx.strip, next_key));
 
   rect->xmin = (xmin + xmax - width) / 2;
   rect->xmax = rect->xmin + width;
-  rect->ymin = strip_y_rescale(strip_ctx.strip, 0) + pixels_to_view_height(C, 5);
+  rect->ymin = strip_y_rescale(strip_ctx.strip, 0) + pixels_to_view_height(*C, 5);
   rect->ymax = rect->ymin + height;
 
-  return width < xmax - xmin - pixels_to_view_width(C, KEY_SIZE);
+  return width < xmax - xmin - pixels_to_view_width(*C, KEY_SIZE);
 }
 
 static void retime_speed_text_draw(const TimelineDrawContext &ctx,

@@ -1291,7 +1291,7 @@ static wmOperatorStatus armature_delete_selected_invoke(bContext &C,
                                                         const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Delete selected bones?"),
                                   nullptr,

@@ -321,7 +321,7 @@ bool EDBM_unified_findnearest_from_raycast(ViewContext *vc,
                                            BMEdge **r_eed,
                                            BMFace **r_efa);
 
-bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params);
+bool EDBM_select_pick(bContext &C, const int mval[2], const SelectPick_Params &params);
 
 /**
  * When switching select mode, makes sure selection is consistent for editing
@@ -486,7 +486,7 @@ void paintvert_select_ungrouped(Object *ob, bool extend, bool flush_flags);
  * use in object mode when selecting vertices (while painting).
  */
 void paintvert_flush_flags(Object *ob);
-void paintvert_tag_select_update(bContext *C, Object *ob);
+void paintvert_tag_select_update(bContext &C, Object *ob);
 /* Select vertices that are connected to already selected vertices. */
 void paintvert_select_linked(bContext *C, Object *ob);
 /* Select vertices that are linked to the vertex under the given region space coordinates. */
@@ -535,7 +535,7 @@ void ED_mesh_uv_ensure(Mesh *mesh, const char *name);
 int ED_mesh_uv_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);
 
-void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh);
+void ED_mesh_uv_loop_reset(bContext &C, Mesh *mesh);
 bool ED_mesh_color_ensure(Mesh *mesh, const char *name);
 std::string ED_mesh_color_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);

@@ -832,7 +832,7 @@ Layout *pie_menu_layout(PieMenu *pie);
 using BlockCreateFunc = Block *(*)(bContext * C, ARegion *region, void *arg1);
 using BlockCancelFunc = void (*)(bContext *C, void *arg1);
 
-void popup_block_invoke(bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free);
+void popup_block_invoke(bContext &C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free);
 /**
  * \param can_refresh: When true, the popup may be refreshed (updated after creation).
  * \note It can be useful to disable refresh (even though it will work)
@@ -1038,7 +1038,7 @@ Button *button_active_drop_name_button(const bContext &C);
  * Returns true if highlighted button allows drop of names.
  * called in region context.
  */
-bool button_active_drop_name(const bContext *C);
+bool button_active_drop_name(const bContext &C);
 bool button_active_drop_color(bContext &C);
 
 void button_flag_enable(Button *but, int flag);
@@ -1092,7 +1092,7 @@ bool block_active_only_flagged_buttons(const bContext *C, ARegion *region, Block
 void button_execute(const bContext *C, ARegion *region, Button *but);
 
 std::optional<std::string> button_online_manual_id(const Button *but) ATTR_WARN_UNUSED_RESULT;
-std::optional<std::string> button_online_manual_id_from_active(const bContext *C)
+std::optional<std::string> button_online_manual_id_from_active(const bContext &C)
     ATTR_WARN_UNUSED_RESULT;
 bool button_is_userdef(const Button *but);
 
@@ -2708,7 +2708,7 @@ Button *region_active_but_prop_get(const ARegion *region,
                                    PropertyRNA **r_prop,
                                    int *r_index);
 
-void context_active_but_prop_handle(bContext *C, bool handle_undo);
+void context_active_but_prop_handle(bContext &C, bool handle_undo);
 void context_active_but_clear(bContext *C, wmWindow *win, ARegion *region);
 
 wmOperator *context_active_operator_get(const bContext &C);
@@ -2726,10 +2726,10 @@ void context_active_but_prop_get_filebrowser(const bContext &C,
  *
  * This is for browsing and editing the ID-blocks used.
  */
-void context_active_but_prop_get_templateID(const bContext *C,
+void context_active_but_prop_get_templateID(const bContext &C,
                                             PointerRNA *r_ptr,
                                             PropertyRNA **r_prop);
-ID *context_active_but_get_tab_ID(bContext *C);
+ID *context_active_but_get_tab_ID(bContext &C);
 
 Button *region_active_but_get(const ARegion *region);
 Button *region_but_find_rect_over(const ARegion *region, const rcti *rect_px);
@@ -2889,7 +2889,7 @@ void butstore_unregister(ButStore *bs_handle, Button **but_p);
 /**
  * \param is_quick_tip: See #button_func_quick_tooltip_set for what a quick tooltip is.
  */
-ARegion *tooltip_create_from_button(bContext *C,
+ARegion *tooltip_create_from_button(bContext &C,
                                     ARegion *butregion,
                                     Button *but,
                                     bool is_quick_tip);
@@ -2899,7 +2899,7 @@ ARegion *tooltip_create_from_button_or_extra_icon(bContext &C,
                                                   ButtonExtraOpIcon *extra_icon,
                                                   bool is_quick_tip);
 ARegion *tooltip_create_from_gizmo(bContext &C, wmGizmo *gz);
-void tooltip_free(bContext *C, bScreen *screen, ARegion *region);
+void tooltip_free(bContext &C, bScreen *screen, ARegion *region);
 
 /**
  * Create a tooltip from search-item tooltip data \a item_tooltip data.

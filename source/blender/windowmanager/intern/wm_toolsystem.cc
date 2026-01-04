@@ -96,9 +96,9 @@ bToolRef *WM_toolsystem_ref_from_context(const bContext &C)
   return tref;
 }
 
-bToolRef_Runtime *WM_toolsystem_runtime_from_context(const bContext *C)
+bToolRef_Runtime *WM_toolsystem_runtime_from_context(const bContext &C)
 {
-  bToolRef *tref = WM_toolsystem_ref_from_context(*C);
+  bToolRef *tref = WM_toolsystem_ref_from_context(C);
   return tref ? tref->runtime : nullptr;
 }
 
@@ -219,9 +219,9 @@ static const char *brush_type_identifier_get(const int brush_type, const PaintMo
   return type_enum[item_idx].identifier;
 }
 
-static bool brush_type_matches_active_tool(bContext *C, const int brush_type)
+static bool brush_type_matches_active_tool(bContext &C, const int brush_type)
 {
-  const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(*C);
+  const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(C);
 
   if (active_tool->runtime == nullptr) {
     /* Should only ever be null in background mode. */
@@ -233,8 +233,7 @@ static bool brush_type_matches_active_tool(bContext *C, const int brush_type)
     return false;
   }
 
-  BLI_assert(BKE_paintmode_get_active_from_context(*C) ==
-             BKE_paintmode_get_from_tool(active_tool));
+  BLI_assert(BKE_paintmode_get_active_from_context(C) == BKE_paintmode_get_from_tool(active_tool));
   return active_tool->runtime->brush_type == brush_type;
 }
 
@@ -296,10 +295,10 @@ static void toolsystem_brush_type_binding_update(Paint *paint,
   }
 }
 
-bool WM_toolsystem_activate_brush_and_tool(bContext *C, Paint *paint, Brush *brush)
+bool WM_toolsystem_activate_brush_and_tool(bContext &C, Paint *paint, Brush *brush)
 {
-  const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(*C);
-  const PaintMode paint_mode = BKE_paintmode_get_active_from_context(*C);
+  const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(C);
+  const PaintMode paint_mode = BKE_paintmode_get_active_from_context(C);
 
   if (!BKE_paint_can_use_brush(paint, brush)) {
     /* Avoid switching tool when brush isn't valid for this mode anyway. */
@@ -311,12 +310,12 @@ bool WM_toolsystem_activate_brush_and_tool(bContext *C, Paint *paint, Brush *bru
     std::optional<int> brush_type = BKE_paint_get_brush_type_from_paintmode(brush, paint_mode);
     if (!brush_type) {
       BLI_assert_unreachable();
-      WM_toolsystem_ref_set_by_id(*C, "builtin.brush");
+      WM_toolsystem_ref_set_by_id(C, "builtin.brush");
     }
     else if (!brush_type_matches_active_tool(C, *brush_type)) {
       const char *brush_type_name = brush_type_identifier_get(*brush_type, paint_mode);
       /* Calls into .py to query available tools. */
-      toolsystem_ref_set_by_brush_type(*C, brush_type_name);
+      toolsystem_ref_set_by_brush_type(C, brush_type_name);
     }
   }
 
@@ -977,7 +976,7 @@ bToolRef *WM_toolsystem_ref_set_by_id_ex(
   RNA_enum_set(&op_props, "space_type", tkey->space_type);
   RNA_boolean_set(&op_props, "cycle", cycle);
 
-  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
+  WM_operator_name_call_ptr(*C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
 
   bToolRef *tref = WM_toolsystem_ref_find(workspace, tkey);
@@ -1034,7 +1033,7 @@ static void toolsystem_ref_set_by_brush_type(bContext &C, const char *brush_type
 
   RNA_enum_set(&op_props, "space_type", tkey.space_type);
 
-  WM_operator_name_call_ptr(&C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
 
   bToolRef *tref = WM_toolsystem_ref_find(workspace, &tkey);
@@ -1229,13 +1228,13 @@ void WM_toolsystem_update_from_context(
 
 bool WM_toolsystem_active_tool_is_brush(const bContext *C)
 {
-  const bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context((bContext *)C);
+  const bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context(*(bContext *)C);
   return tref_rt && (tref_rt->flag & TOOLREF_FLAG_USE_BRUSHES);
 }
 
 bool WM_toolsystem_active_tool_has_custom_cursor(const bContext *C)
 {
-  const bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context((bContext *)C);
+  const bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context(*(bContext *)C);
   return tref_rt && (tref_rt->cursor != WM_CURSOR_DEFAULT);
 }
 

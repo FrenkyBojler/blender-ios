@@ -192,7 +192,7 @@ static void ui_obj_export_settings(const bContext *C, blender::ui::Layout &layou
   }
 
   /* Material options. */
-  blender::ui::PanelLayout panel = layout.panel(C, "OBJ_export_materials", false);
+  blender::ui::PanelLayout panel = layout.panel(*C, "OBJ_export_materials", false);
   panel.header->use_property_split_set(false);
   panel.header->prop(ptr, "export_materials", UI_ITEM_NONE, "", ICON_NONE);
   panel.header->label(IFACE_("Materials"), ICON_NONE);
@@ -205,7 +205,7 @@ static void ui_obj_export_settings(const bContext *C, blender::ui::Layout &layou
   }
 
   /* Animation options. */
-  panel = layout.panel(C, "OBJ_export_animation", true);
+  panel = layout.panel(*C, "OBJ_export_animation", true);
   panel.header->use_property_split_set(false);
   panel.header->prop(ptr, "export_animation", UI_ITEM_NONE, "", ICON_NONE);
   panel.header->label(IFACE_("Animation"), ICON_NONE);
@@ -456,7 +456,7 @@ static wmOperatorStatus wm_obj_import_exec(bContext &C, wmOperator &op)
   }
   for (const auto &path : paths) {
     STRNCPY(import_params.filepath, path.c_str());
-    OBJ_import(&C, &import_params);
+    OBJ_import(C, &import_params);
     /* Only first import clears selection. */
     import_params.clear_selection = false;
   };

@@ -28,7 +28,7 @@ struct wmOperatorType;
 /* **************************************** */
 /* `space_nla.cc` / `nla_buttons.cc`. */
 
-bool nla_panel_context(const bContext *C,
+bool nla_panel_context(const bContext &C,
                        PointerRNA *adt_ptr,
                        PointerRNA *nlt_ptr,
                        PointerRNA *strip_ptr);
@@ -39,7 +39,7 @@ void nla_buttons_register(ARegionType *art);
 /* `nla_draw.cc` */
 
 void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region);
-void draw_nla_track_list(const bContext *C,
+void draw_nla_track_list(const bContext &C,
                          bAnimContext *ac,
                          ARegion *region,
                          const ListBaseT<bAnimListElem> &anim_data);

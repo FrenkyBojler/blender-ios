@@ -1650,7 +1650,7 @@ static wmOperatorStatus node_find_node_invoke(bContext &C,
                                               wmOperator &op,
                                               const wmEvent * /*event*/)
 {
-  ui::popup_block_invoke(&C, node_find_menu, op.type, nullptr);
+  ui::popup_block_invoke(C, node_find_menu, op.type, nullptr);
   return OPERATOR_CANCELLED;
 }
 

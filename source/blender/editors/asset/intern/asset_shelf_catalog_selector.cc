@@ -198,7 +198,7 @@ void library_selector_draw(const bContext &C, ui::Layout &layout, AssetShelf &sh
 
 static void catalog_selector_panel_draw(const bContext *C, Panel *panel)
 {
-  AssetShelf *shelf = active_shelf_from_context(C);
+  AssetShelf *shelf = active_shelf_from_context(*C);
   if (!shelf) {
     return;
   }

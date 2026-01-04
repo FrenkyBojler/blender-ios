@@ -403,10 +403,10 @@ bool strip_point_image_isect(const Scene *scene, const Strip *strip, float point
                              strip_image_quad[3]);
 }
 
-void sequencer_select_do_updates(const bContext *C, Scene *scene)
+void sequencer_select_do_updates(const bContext &C, Scene *scene)
 {
-  ED_outliner_select_sync_from_sequence_tag(*C);
-  WM_event_add_notifier(*C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+  ED_outliner_select_sync_from_sequence_tag(C);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 }
 
 /** \} */
@@ -1206,7 +1206,7 @@ wmOperatorStatus sequencer_select_exec(bContext &C, wmOperator &op)
     if (key != nullptr) {
       if (!was_retiming) {
         deselect_all_strips(scene);
-        sequencer_select_do_updates(&C, scene);
+        sequencer_select_do_updates(C, scene);
       }
       /* Attempt to realize any other connected strips' fake keys. */
       if (seq::is_strip_connected(strip_key_owner)) {
@@ -1251,7 +1251,7 @@ wmOperatorStatus sequencer_select_exec(bContext &C, wmOperator &op)
       deselect_all_strips(scene);
     }
     select_linked_time(scene, selection, extend, deselect, toggle);
-    sequencer_select_do_updates(&C, scene);
+    sequencer_select_do_updates(C, scene);
     sequencer_select_set_active(scene, selection.strip1);
     return OPERATOR_FINISHED;
   }
@@ -1262,7 +1262,7 @@ wmOperatorStatus sequencer_select_exec(bContext &C, wmOperator &op)
       deselect_all_strips(scene);
     }
     sequencer_select_side_of_frame(C, v2d, mouse_co.region, scene);
-    sequencer_select_do_updates(&C, scene);
+    sequencer_select_do_updates(C, scene);
     return OPERATOR_FINISHED;
   }
 
@@ -1272,7 +1272,7 @@ wmOperatorStatus sequencer_select_exec(bContext &C, wmOperator &op)
       deselect_all_strips(scene);
     }
     sequencer_select_linked_handle(C, selection.strip1, selection.handle);
-    sequencer_select_do_updates(&C, scene);
+    sequencer_select_do_updates(C, scene);
     sequencer_select_set_active(scene, selection.strip1);
     return OPERATOR_FINISHED;
   }
@@ -1324,7 +1324,7 @@ wmOperatorStatus sequencer_select_exec(bContext &C, wmOperator &op)
   /* Nothing to select, but strips might have been deselected, in which case we should update. */
   if (!selection.strip1) {
     if (changed) {
-      sequencer_select_do_updates(&C, scene);
+      sequencer_select_do_updates(C, scene);
     }
     return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
   }
@@ -1348,7 +1348,7 @@ wmOperatorStatus sequencer_select_exec(bContext &C, wmOperator &op)
     sequencer_select_connected_strips(selection);
   }
 
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
   sequencer_select_set_active(scene, selection.strip1);
   return OPERATOR_FINISHED;
 }
@@ -1499,7 +1499,7 @@ static wmOperatorStatus sequencer_select_handle_exec(bContext &C, wmOperator &op
   }
 
   seq::retiming_selection_clear(ed);
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
   sequencer_select_set_active(scene, selection.strip1);
   return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
 }
@@ -2148,7 +2148,7 @@ static wmOperatorStatus sequencer_box_select_exec(bContext &C, wmOperator &op)
       return OPERATOR_CANCELLED;
     }
     seq_box_select_strip_from_preview(C, &rectf, sel_op);
-    sequencer_select_do_updates(&C, scene);
+    sequencer_select_do_updates(C, scene);
     return OPERATOR_FINISHED;
   }
 
@@ -2213,7 +2213,7 @@ static wmOperatorStatus sequencer_box_select_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -2430,7 +2430,7 @@ static wmOperatorStatus vse_lasso_select_exec(bContext &C, wmOperator &op)
   }
 
   if (changed) {
-    sequencer_select_do_updates(&C, scene);
+    sequencer_select_do_updates(C, scene);
     return OPERATOR_FINISHED;
   }
 
@@ -2542,7 +2542,7 @@ static wmOperatorStatus vse_circle_select_exec(bContext &C, wmOperator &op)
 
   if (use_pre_deselect && WM_gesture_is_modal_first(gesture)) {
     deselect_all_strips(scene);
-    sequencer_select_do_updates(&C, scene);
+    sequencer_select_do_updates(C, scene);
   }
 
   if (ed == nullptr) {
@@ -2555,7 +2555,7 @@ static wmOperatorStatus vse_circle_select_exec(bContext &C, wmOperator &op)
 
   if (region->regiontype == RGN_TYPE_PREVIEW) {
     seq_circle_select_strip_from_preview(C, pixel_radius, view_mval, sel_op);
-    sequencer_select_do_updates(&C, scene);
+    sequencer_select_do_updates(C, scene);
     return OPERATOR_FINISHED;
   }
 
@@ -2586,7 +2586,7 @@ static wmOperatorStatus vse_circle_select_exec(bContext &C, wmOperator &op)
     }
   }
   if (changed) {
-    sequencer_select_do_updates(&C, scene);
+    sequencer_select_do_updates(C, scene);
   }
   return OPERATOR_FINISHED;
 }

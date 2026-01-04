@@ -242,7 +242,7 @@ using assign_ebone_func = bool (*)(BoneCollection *bcoll, EditBone *ebone);
 /* The following 3 functions either assign or unassign, depending on the
  * 'assign_bone_func'/'assign_ebone_func' they get passed. */
 
-static void bone_collection_assign_pchans(bContext *C,
+static void bone_collection_assign_pchans(bContext &C,
                                           Object *ob,
                                           BoneCollection *bcoll,
                                           assign_bone_func assign_func,
@@ -256,13 +256,13 @@ static void bone_collection_assign_pchans(bContext *C,
   }
   FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
 
-  WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
 
   bArmature *arm = static_cast<bArmature *>(ob->data);
   DEG_id_tag_update(&arm->id, ID_RECALC_SELECT); /* Recreate the draw buffers. */
 }
 
-static void bone_collection_assign_editbones(bContext *C,
+static void bone_collection_assign_editbones(bContext &C,
                                              Object *ob,
                                              BoneCollection *bcoll,
                                              assign_ebone_func assign_func,
@@ -281,7 +281,7 @@ static void bone_collection_assign_editbones(bContext *C,
   }
 
   ED_armature_edit_sync_selection(arm->edbo);
-  WM_event_add_notifier(*C, NC_OBJECT | ND_BONE_COLLECTION, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, ob);
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
@@ -301,13 +301,13 @@ static bool bone_collection_assign_mode_specific(bContext &C,
   switch (CTX_data_mode_enum(C)) {
     case CTX_MODE_POSE: {
       bone_collection_assign_pchans(
-          &C, ob, bcoll, assign_bone_func, made_any_changes, had_bones_to_assign);
+          C, ob, bcoll, assign_bone_func, made_any_changes, had_bones_to_assign);
       return true;
     }
 
     case CTX_MODE_EDIT_ARMATURE: {
       bone_collection_assign_editbones(
-          &C, ob, bcoll, assign_ebone_func, made_any_changes, had_bones_to_assign);
+          C, ob, bcoll, assign_ebone_func, made_any_changes, had_bones_to_assign);
 
       ED_outliner_select_sync_from_edit_bone_tag(C);
       return true;
@@ -930,14 +930,14 @@ static BoneCollection *add_or_move_to_collection_bcoll(wmOperator *op, bArmature
   return target_bcoll;
 }
 
-static wmOperatorStatus add_or_move_to_collection_exec(bContext *C,
+static wmOperatorStatus add_or_move_to_collection_exec(bContext &C,
                                                        wmOperator *op,
                                                        const assign_bone_func assign_func_bone,
                                                        const assign_ebone_func assign_func_ebone)
 {
-  Object *ob = blender::ed::object::context_object(*C);
+  Object *ob = blender::ed::object::context_object(C);
   if (ob->mode == OB_MODE_POSE) {
-    ob = ED_pose_object_from_context(*C);
+    ob = ED_pose_object_from_context(C);
   }
   if (!ob) {
     BKE_reportf(op->reports, RPT_ERROR, "No object found to operate on");
@@ -953,7 +953,7 @@ static wmOperatorStatus add_or_move_to_collection_exec(bContext *C,
 
   bool made_any_changes = false;
   bool had_bones_to_assign = false;
-  const bool mode_is_supported = bone_collection_assign_mode_specific(*C,
+  const bool mode_is_supported = bone_collection_assign_mode_specific(C,
                                                                       ob,
                                                                       target_bcoll,
                                                                       assign_func_bone,
@@ -979,14 +979,14 @@ static wmOperatorStatus add_or_move_to_collection_exec(bContext *C,
 
   DEG_id_tag_update(&arm->id, ID_RECALC_SELECT); /* Recreate the draw buffers. */
 
-  WM_event_add_notifier(*C, NC_OBJECT | ND_DATA, ob);
-  WM_event_add_notifier(*C, NC_OBJECT | ND_POSE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DATA, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
   return OPERATOR_FINISHED;
 }
 
 static wmOperatorStatus move_to_collection_exec(bContext &C, wmOperator &op)
 {
-  return add_or_move_to_collection_exec(&C,
+  return add_or_move_to_collection_exec(C,
                                         &op,
                                         ANIM_armature_bonecoll_assign_and_move,
                                         ANIM_armature_bonecoll_assign_and_move_editbone);
@@ -995,7 +995,7 @@ static wmOperatorStatus move_to_collection_exec(bContext &C, wmOperator &op)
 static wmOperatorStatus assign_to_collection_exec(bContext &C, wmOperator &op)
 {
   return add_or_move_to_collection_exec(
-      &C, &op, ANIM_armature_bonecoll_assign, ANIM_armature_bonecoll_assign_editbone);
+      C, &op, ANIM_armature_bonecoll_assign, ANIM_armature_bonecoll_assign_editbone);
 }
 
 static bool move_to_collection_poll(bContext &C)
@@ -1171,16 +1171,16 @@ static void move_to_collection_menu_create(bContext *C,
   }
 }
 
-static wmOperatorStatus move_to_collection_regular_invoke(bContext *C, wmOperator *op)
+static wmOperatorStatus move_to_collection_regular_invoke(bContext &C, wmOperator *op)
 {
   const char *title = CTX_IFACE_(op->type->translation_context, op->type->name);
-  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(C, title, ICON_NONE);
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(&C, title, ICON_NONE);
   blender::ui::Layout *layout = popup_menu_layout(pup);
 
   const bool is_move_operation = STREQ(op->type->idname, "ARMATURE_OT_move_to_collection");
-  move_to_collection_menu_create(C, layout, menu_custom_data_encode(-1, is_move_operation));
+  move_to_collection_menu_create(&C, layout, menu_custom_data_encode(-1, is_move_operation));
 
-  popup_menu_end(*C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -1189,7 +1189,7 @@ static wmOperatorStatus move_to_new_collection_invoke(bContext *C, wmOperator *o
 {
   RNA_string_set(op->ptr, "new_collection_name", IFACE_("Bones"));
   return WM_operator_props_dialog_popup(
-      C, op, 200, IFACE_("Move to New Bone Collection"), IFACE_("Create"));
+      *C, op, 200, IFACE_("Move to New Bone Collection"), IFACE_("Create"));
 }
 
 static wmOperatorStatus move_to_collection_invoke(bContext &C,
@@ -1203,7 +1203,7 @@ static wmOperatorStatus move_to_collection_invoke(bContext &C,
     return move_to_new_collection_invoke(&C, &op);
   }
 
-  return move_to_collection_regular_invoke(&C, &op);
+  return move_to_collection_regular_invoke(C, &op);
 }
 
 void ARMATURE_OT_move_to_collection(wmOperatorType *ot)

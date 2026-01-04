@@ -48,7 +48,7 @@ wmOperatorStatus filesel_drop_import_invoke(bContext &C, wmOperator &op, const w
       title = filepath;
     }
     return WM_operator_props_dialog_popup(
-        &C, &op, 350, std::move(title), WM_operatortype_name(op.type, op.ptr));
+        C, &op, 350, std::move(title), WM_operatortype_name(op.type, op.ptr));
   }
 
   WM_event_add_fileselect(&C, &op);

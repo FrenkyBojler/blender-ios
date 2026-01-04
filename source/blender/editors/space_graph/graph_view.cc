@@ -235,7 +235,7 @@ void GRAPH_OT_previewrange_set(wmOperatorType *ot)
 /** \name View-All Operator
  * \{ */
 
-static wmOperatorStatus graphkeys_viewall(bContext *C,
+static wmOperatorStatus graphkeys_viewall(bContext &C,
                                           const bool do_sel_only,
                                           const bool include_handles,
                                           const int smooth_viewtx)
@@ -244,7 +244,7 @@ static wmOperatorStatus graphkeys_viewall(bContext *C,
   rctf cur_new;
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(*C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
@@ -264,11 +264,11 @@ static wmOperatorStatus graphkeys_viewall(bContext *C,
   /* Take regions into account, that could block the view.
    * Marker region is supposed to be larger than the scroll-bar, so prioritize it. */
   float pad_top = UI_TIME_SCRUB_MARGIN_Y;
-  float pad_bottom = BLI_listbase_is_empty(ED_context_get_markers(*C)) ? V2D_SCROLL_HANDLE_HEIGHT :
-                                                                         UI_MARKER_MARGIN_Y;
+  float pad_bottom = BLI_listbase_is_empty(ED_context_get_markers(C)) ? V2D_SCROLL_HANDLE_HEIGHT :
+                                                                        UI_MARKER_MARGIN_Y;
   BLI_rctf_pad_y(&cur_new, ac.region->winy, pad_bottom, pad_top);
 
-  blender::ui::view2d_smooth_view(*C, ac.region, &cur_new, smooth_viewtx);
+  blender::ui::view2d_smooth_view(C, ac.region, &cur_new, smooth_viewtx);
   return OPERATOR_FINISHED;
 }
 
@@ -280,7 +280,7 @@ static wmOperatorStatus graphkeys_viewall_exec(bContext &C, wmOperator &op)
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
   /* Whole range */
-  return graphkeys_viewall(&C, false, include_handles, smooth_viewtx);
+  return graphkeys_viewall(C, false, include_handles, smooth_viewtx);
 }
 
 static wmOperatorStatus graphkeys_view_selected_exec(bContext &C, wmOperator &op)
@@ -289,7 +289,7 @@ static wmOperatorStatus graphkeys_view_selected_exec(bContext &C, wmOperator &op
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
 
   /* Only selected. */
-  return graphkeys_viewall(&C, true, include_handles, smooth_viewtx);
+  return graphkeys_viewall(C, true, include_handles, smooth_viewtx);
 }
 
 /* ......... */

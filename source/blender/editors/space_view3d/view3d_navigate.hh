@@ -215,7 +215,7 @@ bool view3d_rotation_poll(bContext &C);
 bool view3d_zoom_or_dolly_poll(bContext &C);
 bool view3d_zoom_or_dolly_or_rotation_poll(bContext &C);
 
-wmOperatorStatus view3d_navigate_invoke_impl(bContext *C,
+wmOperatorStatus view3d_navigate_invoke_impl(bContext &C,
                                              wmOperator *op,
                                              const wmEvent *event,
                                              const ViewOpsType *nav_type);
@@ -242,7 +242,7 @@ void viewops_data_free(bContext *C, ViewOpsData *vod);
 /**
  * Allocate, fill in context pointers and calculate the values for #ViewOpsData
  */
-ViewOpsData *viewops_data_create(bContext *C,
+ViewOpsData *viewops_data_create(bContext &C,
                                  const wmEvent *event,
                                  const ViewOpsType *nav_type,
                                  const bool use_cursor_init);

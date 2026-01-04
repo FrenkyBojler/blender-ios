@@ -186,8 +186,8 @@ struct PaintStroke : NonCopyable, NonMovable {
    * 6. Return to step 3 while stroke is ongoing.
    * 7. Call `StrokeDone` when finished to perform any cleanup or finalization.
    */
-  wmOperatorStatus modal(bContext *C, wmOperator *op, const wmEvent *event);
-  wmOperatorStatus exec(bContext *C, wmOperator *op);
+  wmOperatorStatus modal(bContext &C, wmOperator *op, const wmEvent *event);
+  wmOperatorStatus exec(bContext &C, wmOperator *op);
   /** Cancel a stroke and return to the initial state. */
   void cancel(bContext *C, wmOperator *op);
   /**
@@ -264,9 +264,9 @@ struct PaintStroke : NonCopyable, NonMovable {
               bool *r_location_is_set);
 
  private:
-  void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
+  void stroke_done(bContext &C, wmOperator *op, bool is_cancel);
 
-  void add_step(bContext *C, wmOperator *op, float2 mval, float pressure);
+  void add_step(bContext &C, wmOperator *op, float2 mval, float pressure);
 
   void add_sample(int input_samples, float x, float y, float pressure);
   void calc_average_sample(PaintSample *average);
@@ -348,7 +348,7 @@ bool weight_paint_poll_ignore_tool(bContext &C);
 bool weight_paint_mode_poll(bContext &C);
 bool weight_paint_mode_region_view3d_poll(bContext &C);
 bool vertex_paint_poll(bContext &C);
-bool vertex_paint_poll_ignore_tool(bContext *C);
+bool vertex_paint_poll_ignore_tool(bContext &C);
 /**
  * Returns true if vertex paint mode is active.
  */

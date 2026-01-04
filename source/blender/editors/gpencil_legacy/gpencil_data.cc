@@ -222,7 +222,7 @@ void GPENCIL_OT_layer_annotation_add(wmOperatorType *ot)
 
 static wmOperatorStatus gpencil_layer_remove_exec(bContext &C, wmOperator &op)
 {
-  bGPdata *gpd = ED_annotation_data_get_active(&C);
+  bGPdata *gpd = ED_annotation_data_get_active(C);
   bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
   /* sanity checks */
@@ -274,7 +274,7 @@ static wmOperatorStatus gpencil_layer_remove_exec(bContext &C, wmOperator &op)
 
 static bool gpencil_active_layer_annotation_poll(bContext &C)
 {
-  bGPdata *gpd = ED_annotation_data_get_active(&C);
+  bGPdata *gpd = ED_annotation_data_get_active(C);
   bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
   return (gpl != nullptr);
@@ -302,7 +302,7 @@ enum {
 
 static wmOperatorStatus gpencil_layer_move_exec(bContext &C, wmOperator &op)
 {
-  bGPdata *gpd = ED_annotation_data_get_active(&C);
+  bGPdata *gpd = ED_annotation_data_get_active(C);
   bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
   const int direction = RNA_enum_get(op.ptr, "type") * -1;

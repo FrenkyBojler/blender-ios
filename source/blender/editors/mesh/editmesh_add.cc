@@ -52,7 +52,7 @@ static Object *make_prim_init(bContext &C,
 
   r_creation_data->was_editmode = false;
   if (obedit == nullptr || obedit->type != OB_MESH) {
-    obedit = blender::ed::object::add_type(&C, OB_MESH, idname, loc, rot, false, local_view_bits);
+    obedit = blender::ed::object::add_type(C, OB_MESH, idname, loc, rot, false, local_view_bits);
     blender::ed::object::editmode_enter_ex(bmain, scene, obedit, 0);
 
     r_creation_data->was_editmode = true;
@@ -63,7 +63,7 @@ static Object *make_prim_init(bContext &C,
   return obedit;
 }
 
-static void make_prim_finish(bContext *C,
+static void make_prim_finish(bContext &C,
                              Object *obedit,
                              const MakePrimitiveData *creation_data,
                              int enter_editmode)
@@ -87,9 +87,9 @@ static void make_prim_finish(bContext *C,
   /* userdef */
   if (exit_editmode) {
     blender::ed::object::editmode_exit_ex(
-        CTX_data_main(*C), CTX_data_scene(*C), obedit, blender::ed::object::EM_FREEDATA);
+        CTX_data_main(C), CTX_data_scene(C), obedit, blender::ed::object::EM_FREEDATA);
   }
-  WM_event_add_notifier(*C, NC_OBJECT | ND_DRAW, obedit);
+  WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, obedit);
 }
 
 static wmOperatorStatus add_primitive_plane_exec(bContext &C, wmOperator &op)
@@ -134,7 +134,7 @@ static wmOperatorStatus add_primitive_plane_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -198,7 +198,7 @@ static wmOperatorStatus add_primitive_cube_exec(bContext &C, wmOperator &op)
   }
 
   /* BMESH_TODO make plane side this: M_SQRT2 - plane (diameter of 1.41 makes it unit size) */
-  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -276,7 +276,7 @@ static wmOperatorStatus add_primitive_circle_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -351,7 +351,7 @@ static wmOperatorStatus add_primitive_cylinder_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -428,7 +428,7 @@ static wmOperatorStatus add_primitive_cone_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -502,7 +502,7 @@ static wmOperatorStatus add_primitive_grid_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -576,7 +576,7 @@ static wmOperatorStatus add_primitive_monkey_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -642,7 +642,7 @@ static wmOperatorStatus add_primitive_uvsphere_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }
@@ -712,7 +712,7 @@ static wmOperatorStatus add_primitive_icosphere_exec(bContext &C, wmOperator &op
     return OPERATOR_CANCELLED;
   }
 
-  make_prim_finish(&C, obedit, &creation_data, enter_editmode);
+  make_prim_finish(C, obedit, &creation_data, enter_editmode);
 
   return OPERATOR_FINISHED;
 }

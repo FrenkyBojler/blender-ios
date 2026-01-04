@@ -1324,7 +1324,7 @@ static bool do_lasso_select_paintvert(const ViewContext *vc,
       BKE_mesh_mselect_validate(mesh);
     }
     paintvert_flush_flags(ob);
-    paintvert_tag_select_update(vc->C, ob);
+    paintvert_tag_select_update(*vc->C, ob);
   }
 
   return changed;
@@ -1823,7 +1823,7 @@ static bool object_mouse_select_menu(bContext &C,
   RNA_boolean_set(&ptr, "extend", params.sel_op == SEL_OP_ADD);
   RNA_boolean_set(&ptr, "deselect", params.sel_op == SEL_OP_SUB);
   RNA_boolean_set(&ptr, "toggle", params.sel_op == SEL_OP_XOR);
-  WM_operator_name_call_ptr(&C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
   BLI_freelistN(&base_ref_list);
@@ -2068,7 +2068,7 @@ static bool bone_mouse_select_menu(bContext *C,
   RNA_boolean_set(&ptr, "extend", params.sel_op == SEL_OP_ADD);
   RNA_boolean_set(&ptr, "deselect", params.sel_op == SEL_OP_SUB);
   RNA_boolean_set(&ptr, "toggle", params.sel_op == SEL_OP_XOR);
-  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
+  WM_operator_name_call_ptr(*C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
   BLI_freelistN(&bone_ref_list);
@@ -2478,25 +2478,25 @@ static Base *ed_view3d_give_base_under_cursor_ex(bContext &C,
   return basact;
 }
 
-Base *ED_view3d_give_base_under_cursor(bContext *C, const int mval[2])
+Base *ED_view3d_give_base_under_cursor(bContext &C, const int mval[2])
 {
-  return ed_view3d_give_base_under_cursor_ex(*C, mval, nullptr);
+  return ed_view3d_give_base_under_cursor_ex(C, mval, nullptr);
 }
 
 Object *ED_view3d_give_object_under_cursor(bContext *C, const int mval[2])
 {
-  Base *base = ED_view3d_give_base_under_cursor(C, mval);
+  Base *base = ED_view3d_give_base_under_cursor(*C, mval);
   if (base) {
     return base->object;
   }
   return nullptr;
 }
 
-Object *ED_view3d_give_material_slot_under_cursor(bContext *C,
+Object *ED_view3d_give_material_slot_under_cursor(bContext &C,
                                                   const int mval[2],
                                                   int *r_material_slot)
 {
-  Base *base = ed_view3d_give_base_under_cursor_ex(*C, mval, r_material_slot);
+  Base *base = ed_view3d_give_base_under_cursor_ex(C, mval, r_material_slot);
   if (base) {
     return base->object;
   }
@@ -3108,7 +3108,7 @@ static bool ed_wpaint_vertex_select_pick(bContext &C,
   }
 
   if (changed) {
-    paintvert_tag_select_update(&C, obact);
+    paintvert_tag_select_update(C, obact);
   }
 
   return changed || found;
@@ -3578,7 +3578,7 @@ static wmOperatorStatus view3d_select_exec(bContext &C, wmOperator &op)
 
   if (obedit && object_only == false) {
     if (obedit->type == OB_MESH) {
-      changed = EDBM_select_pick(&C, mval, params);
+      changed = EDBM_select_pick(C, mval, params);
     }
     else if (obedit->type == OB_ARMATURE) {
       if (enumerate) {
@@ -3599,7 +3599,7 @@ static wmOperatorStatus view3d_select_exec(bContext &C, wmOperator &op)
       changed = ED_curve_editnurb_select_pick(C, mval, ED_view3d_select_dist_px(), params);
     }
     else if (obedit->type == OB_MBALL) {
-      changed = ED_mball_select_pick(&C, mval, params);
+      changed = ED_mball_select_pick(C, mval, params);
     }
     else if (obedit->type == OB_FONT) {
       changed = ED_curve_editfont_select_pick(C, mval, params);
@@ -3828,7 +3828,7 @@ static bool do_paintvert_box_select(const ViewContext *vc,
       BKE_mesh_mselect_validate(mesh);
     }
     paintvert_flush_flags(vc->obact);
-    paintvert_tag_select_update(vc->C, vc->obact);
+    paintvert_tag_select_update(*vc->C, vc->obact);
   }
   return changed;
 }
@@ -5007,7 +5007,7 @@ static bool paint_vertsel_circle_select(const ViewContext *vc,
       BKE_mesh_mselect_validate(mesh);
     }
     paintvert_flush_flags(ob);
-    paintvert_tag_select_update(vc->C, ob);
+    paintvert_tag_select_update(*vc->C, ob);
   }
   return changed;
 }

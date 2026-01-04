@@ -1890,7 +1890,7 @@ static wmOperatorStatus file_external_operation_exec(bContext &C, wmOperator &op
   PointerRNA op_props = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&op_props, "filepath", filepath);
   const wmOperatorStatus retval = WM_operator_name_call_ptr(
-      &C, ot, blender::wm::OpCallContext::InvokeDefault, &op_props, nullptr);
+      C, ot, blender::wm::OpCallContext::InvokeDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
 
   if (retval == OPERATOR_FINISHED) {
@@ -2197,10 +2197,10 @@ void FILE_OT_execute(wmOperatorType *ot)
 /**
  * \returns false if the mouse doesn't hover a selectable item.
  */
-static bool file_ensure_hovered_is_active(bContext *C, const wmEvent *event)
+static bool file_ensure_hovered_is_active(bContext &C, const wmEvent *event)
 {
   rcti rect = file_select_mval_to_select_rect(event->mval);
-  if (file_select(*C, &rect, FILE_SEL_ADD, false, false) == FILE_SELECT_NOTHING) {
+  if (file_select(C, &rect, FILE_SEL_ADD, false, false) == FILE_SELECT_NOTHING) {
     return false;
   }
 
@@ -2224,7 +2224,7 @@ static wmOperatorStatus file_execute_mouse_invoke(bContext &C,
    * on mouse-press. This execute operator is called afterwards on the double-click event then.
    * However relying on this would be fragile and could break with keymap changes, so better to
    * have this mouse-execute operator that makes sure once more that the hovered file is active. */
-  if (!file_ensure_hovered_is_active(&C, event)) {
+  if (!file_ensure_hovered_is_active(C, event)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -2769,7 +2769,7 @@ static wmOperatorStatus file_directory_new_invoke(bContext &C,
    * when entering a path from the file selector. Without a confirmation,
    * a typo will create the path without any prompt. See #128567. */
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Create new directory?"),
                                   nullptr,
@@ -3000,7 +3000,7 @@ void file_directory_enter_handle(bContext *C, void * /*arg_unused*/, void * /*ar
         STRNCPY(params->dir, lastdir);
       }
 
-      WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
+      WM_operator_name_call_ptr(*C, ot, blender::wm::OpCallContext::InvokeDefault, &ptr, nullptr);
       WM_operator_properties_free(&ptr);
     }
   }
@@ -3311,7 +3311,7 @@ static wmOperatorStatus file_delete_exec(bContext &C, wmOperator &op)
 
 static wmOperatorStatus file_delete_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  return WM_operator_confirm_ex(&C,
+  return WM_operator_confirm_ex(C,
                                 &op,
                                 IFACE_("Delete selected files?"),
                                 nullptr,

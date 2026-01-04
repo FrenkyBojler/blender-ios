@@ -25,7 +25,7 @@ struct bContext;
 /**
  * Left hand part.
  */
-void graph_draw_channel_names(bContext *C,
+void graph_draw_channel_names(bContext &C,
                               bAnimContext *ac,
                               ARegion *region,
                               const ListBaseT<bAnimListElem> &anim_data);

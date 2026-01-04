@@ -325,13 +325,13 @@ static void eyedropper_grease_pencil_color_set(bContext *C,
 }
 
 /* Sample the color below cursor. */
-static void eyedropper_grease_pencil_color_sample(bContext *C,
+static void eyedropper_grease_pencil_color_sample(bContext &C,
                                                   EyedropperGreasePencil *eye,
                                                   const int m_xy[2])
 {
   /* Accumulate color. */
   float3 col;
-  eyedropper_color_sample_fl(*C, nullptr, m_xy, col);
+  eyedropper_color_sample_fl(C, nullptr, m_xy, col);
 
   eye->accum_col += col;
   eye->accum_tot++;
@@ -362,19 +362,19 @@ static wmOperatorStatus eyedropper_grease_pencil_modal(bContext &C,
         case EYE_MODAL_SAMPLE_BEGIN:
           /* enable accum and make first sample */
           eye->accum_start = true;
-          eyedropper_grease_pencil_color_sample(&C, eye, event->xy);
+          eyedropper_grease_pencil_color_sample(C, eye, event->xy);
           break;
         case EYE_MODAL_SAMPLE_RESET:
           eye->accum_tot = 0;
           eye->accum_col = float3(0.0f, 0.0f, 0.0f);
-          eyedropper_grease_pencil_color_sample(&C, eye, event->xy);
+          eyedropper_grease_pencil_color_sample(C, eye, event->xy);
           break;
         case EYE_MODAL_CANCEL: {
           eyedropper_grease_pencil_cancel(C, op);
           return OPERATOR_CANCELLED;
         }
         case EYE_MODAL_SAMPLE_CONFIRM: {
-          eyedropper_grease_pencil_color_sample(&C, eye, event->xy);
+          eyedropper_grease_pencil_color_sample(C, eye, event->xy);
 
           /* Create material. */
           eyedropper_grease_pencil_color_set(&C, event, eye);
@@ -393,7 +393,7 @@ static wmOperatorStatus eyedropper_grease_pencil_modal(bContext &C,
     case INBETWEEN_MOUSEMOVE: {
       if (eye->accum_start) {
         /* button is pressed so keep sampling */
-        eyedropper_grease_pencil_color_sample(&C, eye, event->xy);
+        eyedropper_grease_pencil_color_sample(C, eye, event->xy);
       }
       break;
     }

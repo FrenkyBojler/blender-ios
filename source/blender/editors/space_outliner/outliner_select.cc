@@ -159,12 +159,12 @@ static void do_outliner_item_posemode_toggle(bContext &C, Scene *scene, Base *ba
  *
  * \note Handles its own undo push.
  */
-static void do_outliner_item_mode_toggle_generic(bContext *C,
+static void do_outliner_item_mode_toggle_generic(bContext &C,
                                                  const TreeViewContext &tvc,
                                                  Base *base)
 {
   const eObjectMode active_mode = (eObjectMode)tvc.obact->mode;
-  ED_undo_group_begin(*C);
+  ED_undo_group_begin(C);
 
   if (object::mode_set(C, OB_MODE_OBJECT)) {
     BKE_view_layer_synced_ensure(tvc.scene, tvc.view_layer);
@@ -173,14 +173,14 @@ static void do_outliner_item_mode_toggle_generic(bContext *C,
       BKE_view_layer_base_deselect_all(tvc.scene, tvc.view_layer);
       BKE_view_layer_base_select_and_set_active(tvc.view_layer, base);
       DEG_id_tag_update(&tvc.scene->id, ID_RECALC_SELECT);
-      ED_undo_push(*C, "Change Active");
+      ED_undo_push(C, "Change Active");
 
       /* Operator call does undo push. */
       object::mode_set(C, active_mode);
-      ED_outliner_select_sync_from_object_tag(*C);
+      ED_outliner_select_sync_from_object_tag(C);
     }
   }
-  ED_undo_group_end(*C);
+  ED_undo_group_end(C);
 }
 
 void outliner_item_mode_toggle(bContext *C,
@@ -203,7 +203,7 @@ void outliner_item_mode_toggle(bContext *C,
     }
 
     if (!do_extend) {
-      do_outliner_item_mode_toggle_generic(C, tvc, base);
+      do_outliner_item_mode_toggle_generic(*C, tvc, base);
     }
     else if (tvc.ob_edit && OB_TYPE_SUPPORT_EDITMODE(ob->type)) {
       do_outliner_item_editmode_toggle(*C, tvc.scene, base);
@@ -474,7 +474,7 @@ static void tree_element_world_activate(bContext *C, Scene *scene, TreeElement *
   }
 }
 
-static void tree_element_defgroup_activate(bContext *C, TreeElement *te, TreeStoreElem *tselem)
+static void tree_element_defgroup_activate(bContext &C, TreeElement *te, TreeStoreElem *tselem)
 {
   /* id in tselem is object */
   Object *ob = (Object *)tselem->id;
@@ -482,7 +482,7 @@ static void tree_element_defgroup_activate(bContext *C, TreeElement *te, TreeSto
   BKE_object_defgroup_active_index_set(ob, te->index + 1);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(*C, NC_OBJECT | ND_TRANSFORM, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_TRANSFORM, ob);
 }
 
 static void tree_element_gplayer_activate(bContext *C, TreeElement *te, TreeStoreElem *tselem)
@@ -499,7 +499,7 @@ static void tree_element_gplayer_activate(bContext *C, TreeElement *te, TreeStor
   }
 }
 
-static void tree_element_grease_pencil_node_activate(bContext *C,
+static void tree_element_grease_pencil_node_activate(bContext &C,
                                                      TreeElement *te,
                                                      TreeStoreElem *tselem)
 {
@@ -508,21 +508,21 @@ static void tree_element_grease_pencil_node_activate(bContext *C,
 
   if (node.is_layer()) {
     if (grease_pencil.has_active_group()) {
-      WM_msg_publish_rna_prop(CTX_wm_message_bus(*C),
+      WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
                               &grease_pencil.id,
                               &grease_pencil,
                               GreasePencilv3LayerGroup,
                               active);
     }
     WM_msg_publish_rna_prop(
-        CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+        CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
   }
   if (node.is_group()) {
     if (grease_pencil.has_active_layer()) {
       WM_msg_publish_rna_prop(
-          CTX_wm_message_bus(*C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+          CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
     }
-    WM_msg_publish_rna_prop(CTX_wm_message_bus(*C),
+    WM_msg_publish_rna_prop(CTX_wm_message_bus(C),
                             &grease_pencil.id,
                             &grease_pencil,
                             GreasePencilv3LayerGroup,
@@ -532,20 +532,20 @@ static void tree_element_grease_pencil_node_activate(bContext *C,
   grease_pencil.set_active_node(&node);
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, &grease_pencil);
 }
 
-static void tree_element_bonecollection_activate(bContext *C,
+static void tree_element_bonecollection_activate(bContext &C,
                                                  TreeElement *te,
                                                  TreeStoreElem *tselem)
 {
   bArmature *arm = reinterpret_cast<bArmature *>(tselem->id);
   BoneCollection *bcoll = reinterpret_cast<BoneCollection *>(te->directdata);
   ANIM_armature_bonecoll_active_set(arm, bcoll);
-  WM_event_add_notifier(*C, NC_OBJECT | ND_BONE_COLLECTION, arm);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, arm);
 }
 
-static void tree_element_posechannel_activate(bContext *C,
+static void tree_element_posechannel_activate(bContext &C,
                                               const Scene *scene,
                                               ViewLayer *view_layer,
                                               TreeElement *te,
@@ -594,11 +594,11 @@ static void tree_element_posechannel_activate(bContext *C,
     do_outliner_bone_select_recursive(arm, pchan->bone, (pchan->flag & POSE_SELECTED) != 0);
   }
 
-  WM_event_add_notifier(*C, NC_OBJECT | ND_BONE_ACTIVE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, ob);
   DEG_id_tag_update(&arm->id, ID_RECALC_SELECT);
 }
 
-static void tree_element_bone_activate(bContext *C,
+static void tree_element_bone_activate(bContext &C,
                                        const Scene *scene,
                                        ViewLayer *view_layer,
                                        TreeElement *te,
@@ -638,7 +638,7 @@ static void tree_element_bone_activate(bContext *C,
     do_outliner_bone_select_recursive(arm, bone, (bone->flag & BONE_SELECTED) != 0);
   }
 
-  WM_event_add_notifier(*C, NC_OBJECT | ND_BONE_ACTIVE, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, ob);
 }
 
 /** Edit-bones only draw in edit-mode armature. */
@@ -705,11 +705,11 @@ static void tree_element_modifier_activate(bContext *C,
   }
 }
 
-static void tree_element_psys_activate(bContext *C, TreeStoreElem *tselem)
+static void tree_element_psys_activate(bContext &C, TreeStoreElem *tselem)
 {
   Object *ob = (Object *)tselem->id;
 
-  WM_event_add_notifier(*C, NC_OBJECT | ND_PARTICLE | NA_EDITED, ob);
+  WM_event_add_notifier(C, NC_OBJECT | ND_PARTICLE | NA_EDITED, ob);
 }
 
 static void tree_element_constraint_activate(bContext *C,
@@ -726,7 +726,7 @@ static void tree_element_constraint_activate(bContext *C,
   while (te) {
     tselem = TREESTORE(te);
     if (tselem->type == TSE_POSE_CHANNEL) {
-      tree_element_posechannel_activate(C, scene, view_layer, te, tselem, set, false);
+      tree_element_posechannel_activate(*C, scene, view_layer, te, tselem, set, false);
       return;
     }
     te = te->parent;
@@ -815,10 +815,10 @@ static void tree_element_layer_collection_activate(bContext &C, TreeElement *te)
   WM_main_add_notifier(NC_SCENE | ND_LAYER | NS_LAYER_COLLECTION | NA_ACTIVATED, nullptr);
 }
 
-static void tree_element_text_activate(bContext *C, TreeElement *te)
+static void tree_element_text_activate(bContext &C, TreeElement *te)
 {
   Text *text = (Text *)te->store_elem->id;
-  ED_text_activate_in_screen(*C, text);
+  ED_text_activate_in_screen(C, text);
 }
 
 /* ---------------------------------------------- */
@@ -848,7 +848,7 @@ void tree_element_activate(bContext *C,
       tree_element_camera_activate(C, tvc.scene, te);
       break;
     case ID_TXT:
-      tree_element_text_activate(C, te);
+      tree_element_text_activate(*C, te);
       break;
   }
 }
@@ -863,10 +863,10 @@ void tree_element_type_active_set(bContext *C,
   BLI_assert(set != OL_SETSEL_NONE);
   switch (tselem->type) {
     case TSE_DEFGROUP:
-      tree_element_defgroup_activate(C, te, tselem);
+      tree_element_defgroup_activate(*C, te, tselem);
       break;
     case TSE_BONE:
-      tree_element_bone_activate(C, tvc.scene, tvc.view_layer, te, tselem, set, recursive);
+      tree_element_bone_activate(*C, tvc.scene, tvc.view_layer, te, tselem, set, recursive);
       break;
     case TSE_EBONE:
       tree_element_ebone_activate(C, tvc.scene, tvc.view_layer, te, tselem, set, recursive);
@@ -878,12 +878,12 @@ void tree_element_type_active_set(bContext *C,
       tree_element_object_activate(C, tvc.scene, tvc.view_layer, te, set, false);
       break;
     case TSE_LINKED_PSYS:
-      tree_element_psys_activate(C, tselem);
+      tree_element_psys_activate(*C, tselem);
       break;
     case TSE_POSE_BASE:
       return;
     case TSE_POSE_CHANNEL:
-      tree_element_posechannel_activate(C, tvc.scene, tvc.view_layer, te, tselem, set, recursive);
+      tree_element_posechannel_activate(*C, tvc.scene, tvc.view_layer, te, tselem, set, recursive);
       break;
     case TSE_CONSTRAINT_BASE:
     case TSE_CONSTRAINT:
@@ -893,7 +893,7 @@ void tree_element_type_active_set(bContext *C,
       tree_element_viewlayer_activate(C, te);
       break;
     case TSE_BONE_COLLECTION:
-      tree_element_bonecollection_activate(C, te, tselem);
+      tree_element_bonecollection_activate(*C, te, tselem);
       break;
     case TSE_STRIP:
       tree_element_strip_activate(C, tvc.workspace, te, set);
@@ -905,7 +905,7 @@ void tree_element_type_active_set(bContext *C,
       tree_element_gplayer_activate(C, te, tselem);
       break;
     case TSE_GREASE_PENCIL_NODE:
-      tree_element_grease_pencil_node_activate(C, te, tselem);
+      tree_element_grease_pencil_node_activate(*C, te, tselem);
       break;
     case TSE_VIEW_COLLECTION_BASE:
       tree_element_master_collection_activate(*C);
@@ -1254,7 +1254,7 @@ static void outliner_sync_to_properties_editors(const bContext &C,
 
     SpaceProperties *sbuts = (SpaceProperties *)area.spacedata.first;
     if (ED_buttons_should_sync_with_outliner(C, sbuts, &area)) {
-      ED_buttons_set_context(&C, sbuts, ptr, context);
+      ED_buttons_set_context(C, sbuts, ptr, context);
     }
   }
 }

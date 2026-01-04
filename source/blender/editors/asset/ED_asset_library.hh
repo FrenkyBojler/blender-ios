@@ -67,7 +67,7 @@ AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_
 /**
  * Call after changes to an asset library have been made to reflect the changes in the UI.
  */
-void refresh_asset_library(const bContext *C, const AssetLibraryReference &library_ref);
+void refresh_asset_library(const bContext &C, const AssetLibraryReference &library_ref);
 void refresh_asset_library(const bContext *C, const bUserAssetLibrary &user_library);
 void refresh_asset_library_from_asset(const bContext *C,
                                       const blender::asset_system::AssetRepresentation &asset);

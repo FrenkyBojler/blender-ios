@@ -100,9 +100,9 @@ static TreeElement *outliner_drop_find(bContext &C, const wmEvent *event)
   return outliner_dropzone_find(space_outliner, fmval, true);
 }
 
-static ID *outliner_ID_drop_find(bContext *C, const wmEvent *event, short idcode)
+static ID *outliner_ID_drop_find(bContext &C, const wmEvent *event, short idcode)
 {
-  TreeElement *te = outliner_drop_find(*C, event);
+  TreeElement *te = outliner_drop_find(C, event);
   TreeStoreElem *tselem = (te) ? TREESTORE(te) : nullptr;
 
   if (te && (te->idcode == idcode) && (tselem->type == TSE_SOME_ID)) {
@@ -210,11 +210,11 @@ static bool is_pchan_element(TreeElement *te)
   return tselem->type == TSE_POSE_CHANNEL;
 }
 
-static TreeElement *outliner_drop_insert_collection_find(bContext *C,
+static TreeElement *outliner_drop_insert_collection_find(bContext &C,
                                                          const int xy[2],
                                                          TreeElementInsertType *r_insert_type)
 {
-  TreeElement *te = outliner_drop_insert_find(*C, xy, r_insert_type);
+  TreeElement *te = outliner_drop_insert_find(C, xy, r_insert_type);
   if (!te) {
     return nullptr;
   }
@@ -565,13 +565,13 @@ static bool scene_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   /* Ensure item under cursor is valid drop target */
   Object *ob = (Object *)WM_drag_get_local_ID(drag, ID_OB);
-  return (ob && (outliner_ID_drop_find(C, event, ID_SCE) != nullptr));
+  return (ob && (outliner_ID_drop_find(*C, event, ID_SCE) != nullptr));
 }
 
 static wmOperatorStatus scene_drop_invoke(bContext &C, wmOperator & /*op*/, const wmEvent *event)
 {
   Main *bmain = CTX_data_main(C);
-  Scene *scene = (Scene *)outliner_ID_drop_find(&C, event, ID_SCE);
+  Scene *scene = (Scene *)outliner_ID_drop_find(C, event, ID_SCE);
   Object *ob = (Object *)WM_drag_get_local_ID_from_event(event, ID_OB);
 
   if (ELEM(nullptr, ob, scene) || !BKE_id_is_editable(bmain, &scene->id)) {
@@ -636,7 +636,7 @@ static bool material_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
   /* Ensure item under cursor is valid drop target */
   Material *ma = (Material *)WM_drag_get_local_ID(drag, ID_MA);
-  Object *ob = reinterpret_cast<Object *>(outliner_ID_drop_find(C, event, ID_OB));
+  Object *ob = reinterpret_cast<Object *>(outliner_ID_drop_find(*C, event, ID_OB));
 
   return (!ELEM(nullptr, ob, ma) && ID_IS_EDITABLE(&ob->id) && !ID_IS_OVERRIDE_LIBRARY(&ob->id));
 }
@@ -646,7 +646,7 @@ static wmOperatorStatus material_drop_invoke(bContext &C,
                                              const wmEvent *event)
 {
   Main *bmain = CTX_data_main(C);
-  Object *ob = (Object *)outliner_ID_drop_find(&C, event, ID_OB);
+  Object *ob = (Object *)outliner_ID_drop_find(C, event, ID_OB);
   Material *ma = (Material *)WM_drag_get_local_ID_from_event(event, ID_MA);
 
   if (ELEM(nullptr, ob, ma) || !BKE_id_is_editable(bmain, &ob->id)) {
@@ -1135,7 +1135,7 @@ static bool collection_drop_init(bContext *C, wmDrag *drag, const int xy[2], Col
 {
   /* Get collection to drop into. */
   TreeElementInsertType insert_type;
-  TreeElement *te = outliner_drop_insert_collection_find(C, xy, &insert_type);
+  TreeElement *te = outliner_drop_insert_collection_find(*C, xy, &insert_type);
   if (!te) {
     return false;
   }
@@ -1454,7 +1454,7 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext &C,
     wmOperatorType *ot = WM_operatortype_find("VIEW2D_OT_edge_pan", true);
     PointerRNA op_ptr = WM_operator_properties_create_ptr(ot);
     RNA_float_set(&op_ptr, "outside_padding", OUTLINER_DRAG_SCOLL_OUTSIDE_PAD);
-    WM_operator_name_call_ptr(&C, ot, wm::OpCallContext::InvokeDefault, &op_ptr, event);
+    WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &op_ptr, event);
     WM_operator_properties_free(&op_ptr);
   }
 

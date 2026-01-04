@@ -7011,7 +7011,7 @@ static wmOperatorStatus texture_paint_add_texture_paint_slot_invoke(bContext &C,
   RNA_float_set_array(op.ptr, "color", color);
 
   return WM_operator_props_dialog_popup(
-      &C, &op, 300, IFACE_("Add Paint Slot"), CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add"));
+      C, &op, 300, IFACE_("Add Paint Slot"), CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add"));
 }
 
 static void texture_paint_add_texture_paint_slot_ui(bContext &C, wmOperator &op)

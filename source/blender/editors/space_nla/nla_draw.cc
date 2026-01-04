@@ -972,7 +972,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region)
 /* *********************************************** */
 /* Track List */
 
-void draw_nla_track_list(const bContext *C,
+void draw_nla_track_list(const bContext &C,
                          bAnimContext *ac,
                          ARegion *region,
                          const ListBaseT<bAnimListElem> &anim_data)
@@ -1005,7 +1005,7 @@ void draw_nla_track_list(const bContext *C,
     }
   }
   { /* second pass: UI widgets */
-    blender::ui::Block *block = block_begin(*C, region, __func__, blender::ui::EmbossType::Emboss);
+    blender::ui::Block *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
     size_t track_index = 0;
     float ymax = NLATRACK_FIRST_TOP(ac);
 
@@ -1025,12 +1025,12 @@ void draw_nla_track_list(const bContext *C,
         /* draw all tracks using standard channel-drawing API */
         rctf track_rect;
         BLI_rctf_init(&track_rect, 0, v2d->cur.xmax, ymin, ymax);
-        ANIM_channel_draw_widgets(C, ac, ale, block, &track_rect, track_index);
+        ANIM_channel_draw_widgets(&C, ac, ale, block, &track_rect, track_index);
       }
     }
 
-    block_end(*C, block);
-    block_draw(*C, block);
+    block_end(C, block);
+    block_draw(C, block);
 
     GPU_blend(GPU_BLEND_NONE);
   }

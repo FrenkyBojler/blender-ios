@@ -67,7 +67,7 @@ static wmOperatorStatus wm_stl_export_exec(bContext &C, wmOperator &op)
 
   export_params.reports = op.reports;
 
-  STL_export(&C, &export_params);
+  STL_export(C, &export_params);
 
   if (BKE_reports_contain(op.reports, RPT_ERROR)) {
     return OPERATOR_CANCELLED;
@@ -221,7 +221,7 @@ static wmOperatorStatus wm_stl_import_exec(bContext &C, wmOperator &op)
   }
   for (const auto &path : paths) {
     STRNCPY(params.filepath, path.c_str());
-    STL_import(&C, &params);
+    STL_import(C, &params);
   }
 
   Scene *scene = CTX_data_scene(C);

@@ -438,7 +438,7 @@ static void graph_channel_region_draw(const bContext *C, ARegion *region)
   blender::ui::view2d_view_ortho(v2d);
 
   /* draw channels */
-  graph_draw_channel_names((bContext *)C, &ac, region, anim_data);
+  graph_draw_channel_names(*(bContext *)C, &ac, region, anim_data);
 
   /* channel filter next to scrubbing area */
   ED_time_scrub_channel_search_draw(*C, region, ac.ads);
@@ -688,7 +688,7 @@ static void graph_listener(const wmSpaceTypeListenerParams *params)
 }
 
 /* Update F-Curve colors */
-static void graph_refresh_fcurve_colors(const bContext *C)
+static void graph_refresh_fcurve_colors(const bContext &C)
 {
   bAnimContext ac;
 
@@ -698,7 +698,7 @@ static void graph_refresh_fcurve_colors(const bContext *C)
   int filter;
   int i;
 
-  if (ANIM_animdata_get_context(*C, &ac) == false) {
+  if (ANIM_animdata_get_context(C, &ac) == false) {
     return;
   }
 
@@ -821,7 +821,7 @@ static void graph_refresh(const bContext *C, ScrArea *area)
    * NOTE: the temp flag is used to indicate when this needs to be done,
    * and will be cleared once handled. */
   if (sipo->runtime.flag & SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC) {
-    ANIM_sync_animchannels_to_data(C);
+    ANIM_sync_animchannels_to_data(*C);
     sipo->runtime.flag &= ~SIPO_RUNTIME_FLAG_NEED_CHAN_SYNC;
     ED_area_tag_redraw(area);
   }
@@ -839,7 +839,7 @@ static void graph_refresh(const bContext *C, ScrArea *area)
                           SIPO_RUNTIME_FLAG_TWEAK_HANDLES_RIGHT);
 
   /* init/adjust F-Curve colors */
-  graph_refresh_fcurve_colors(C);
+  graph_refresh_fcurve_colors(*C);
 }
 
 static void graph_id_remap(ScrArea * /*area*/,

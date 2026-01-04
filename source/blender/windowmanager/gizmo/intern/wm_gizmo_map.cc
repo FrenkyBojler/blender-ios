@@ -356,7 +356,7 @@ static bool gizmo_prepare_drawing(wmGizmoMap *gzmap,
     /* Ensure we get RNA updates. */
     if (do_draw & WM_GIZMO_IS_VISIBLE_UPDATE) {
       /* Hover gizmos need updating, even if we don't draw them. */
-      wm_gizmo_update(gz, C, (gzmap->update_flag[drawstep] & GIZMOMAP_IS_PREPARE_DRAW) != 0);
+      wm_gizmo_update(gz, *C, (gzmap->update_flag[drawstep] & GIZMOMAP_IS_PREPARE_DRAW) != 0);
     }
     if (do_draw & WM_GIZMO_IS_VISIBLE_DRAW) {
       BLI_addhead(draw_gizmos, BLI_genericNodeN(gz));
@@ -668,7 +668,7 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
 /**
  * Try to find a 3D gizmo at screen-space coordinate \a co. Uses OpenGL picking.
  */
-static wmGizmo *gizmo_find_intersected_3d(bContext *C,
+static wmGizmo *gizmo_find_intersected_3d(bContext &C,
                                           const int co[2],
                                           wmGizmo **visible_gizmos,
                                           const int visible_gizmos_len,
@@ -681,7 +681,7 @@ static wmGizmo *gizmo_find_intersected_3d(bContext *C,
   *r_part = 0;
 
   /* Set up view matrices. */
-  view3d_operator_needs_gpu(*C);
+  view3d_operator_needs_gpu(C);
 
   /* Search for 3D gizmo's that use the 2D callback for checking intersections. */
   bool has_3d = false;
@@ -690,7 +690,7 @@ static wmGizmo *gizmo_find_intersected_3d(bContext *C,
       wmGizmo *gz = visible_gizmos[select_id];
       /* With both defined, favor the 3D, in case the gizmo can be used in 2D or 3D views. */
       if (gz->type->test_select && (gz->type->draw_select == nullptr)) {
-        if ((*r_part = gz->type->test_select(C, gz, co)) != -1) {
+        if ((*r_part = gz->type->test_select(&C, gz, co)) != -1) {
           hit = select_id;
           result = gz;
           /* Don't search past this when checking intersections. */
@@ -709,7 +709,7 @@ static wmGizmo *gizmo_find_intersected_3d(bContext *C,
   if (has_3d) {
 
     /* The depth buffer is needed for gizmos to obscure each other. */
-    GPUViewport *viewport = WM_draw_region_get_viewport(CTX_wm_region(*C));
+    GPUViewport *viewport = WM_draw_region_get_viewport(CTX_wm_region(C));
 
     /* When switching between modes and the mouse pointer is over a gizmo, the highlight test is
      * performed before the viewport is fully initialized (region->runtime->draw_buffer = nullptr).
@@ -745,7 +745,7 @@ static wmGizmo *gizmo_find_intersected_3d(bContext *C,
     };
     for (int i = 0; i < ARRAY_SIZE(hotspot_radii); i++) {
       hit = gizmo_find_intersected_3d_intern(
-          visible_gizmos, visible_gizmos_len_trim, *C, co, hotspot_radii[i]);
+          visible_gizmos, visible_gizmos_len_trim, C, co, hotspot_radii[i]);
       if (hit != -1) {
         break;
       }
@@ -832,7 +832,7 @@ wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,
     /* 2D gizmos get priority. */
     if (gz == nullptr) {
       gz = gizmo_find_intersected_3d(
-          &C, mval, visible_3d_gizmos.data(), visible_3d_gizmos.size(), r_part);
+          C, mval, visible_3d_gizmos.data(), visible_3d_gizmos.size(), r_part);
     }
   }
 
@@ -1093,7 +1093,7 @@ void wm_gizmomap_modal_set(
     BLI_assert(gzmap->gzmap_context.modal == nullptr);
     wmWindow *win = CTX_wm_window(*C);
 
-    WM_tooltip_clear(C, win);
+    WM_tooltip_clear(*C, win);
 
     /* Use even if we don't have invoke, so we can setup data before an operator runs. */
     if (gz->parent_gzgroup->type->invoke_prepare) {

@@ -215,12 +215,12 @@ static bool get_channel_bounds(bAnimContext *ac,
 
 /* Pad the given rctf with regions that could block the view.
  * For example Markers and Time Scrubbing. */
-static void add_region_padding(bContext *C, ARegion *region, rctf *bounds)
+static void add_region_padding(bContext &C, ARegion *region, rctf *bounds)
 {
   BLI_rctf_scale(bounds, 1.1f);
 
   const float pad_top = UI_TIME_SCRUB_MARGIN_Y;
-  const float pad_bottom = BLI_listbase_is_empty(ED_context_get_markers(*C)) ?
+  const float pad_bottom = BLI_listbase_is_empty(ED_context_get_markers(C)) ?
                                V2D_SCROLL_HANDLE_HEIGHT :
                                UI_MARKER_MARGIN_Y;
   BLI_rctf_pad_y(bounds, region->winy, pad_bottom, pad_top);
@@ -1045,7 +1045,7 @@ void ANIM_frame_channel_y_extents(bContext *C, bAnimContext *ac)
     return;
   }
 
-  add_region_padding(C, window_region, &bounds);
+  add_region_padding(*C, window_region, &bounds);
 
   window_region->v2d.cur.ymin = bounds.ymin;
   window_region->v2d.cur.ymax = bounds.ymax;
@@ -3471,7 +3471,7 @@ static wmOperatorStatus animchannels_select_filter_invoke(bContext &C,
    * the modal callback function; by the time it runs, the screen has been redrawn and the UI
    * element is there to activate. */
   if (region_channels->flag & RGN_FLAG_HIDDEN) {
-    ED_region_toggle_hidden(&C, region_channels);
+    ED_region_toggle_hidden(C, region_channels);
     ED_region_tag_redraw(region_channels);
   }
 
@@ -4332,7 +4332,7 @@ static int click_select_channel_nlacontrols(bAnimListElem *ale)
   return (ND_ANIMCHAN | NA_EDITED);
 }
 
-static int click_select_channel_gplayer(bContext *C,
+static int click_select_channel_gplayer(bContext &C,
                                         bAnimContext *ac,
                                         bAnimListElem *ale,
                                         const short /* eEditKeyframes_Select or -1 */ selectmode,
@@ -4371,7 +4371,7 @@ static int click_select_channel_gplayer(bContext *C,
   }
 
   /* Grease Pencil updates */
-  WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_EDITED | ND_SPACE_PROPERTIES, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED | ND_SPACE_PROPERTIES, nullptr);
   return (ND_ANIMCHAN | NA_EDITED); /* Animation Editors updates */
 }
 
@@ -4388,7 +4388,7 @@ static int click_select_channel_grease_pencil_datablock(bAnimListElem *ale)
   return (ND_ANIMCHAN | NA_EDITED);
 }
 
-static int click_select_channel_grease_pencil_layer_group(bContext *C, bAnimListElem *ale)
+static int click_select_channel_grease_pencil_layer_group(bContext &C, bAnimListElem *ale)
 {
   using namespace blender::bke::greasepencil;
   LayerGroup &layer_group = static_cast<GreasePencilLayerTreeGroup *>(ale->data)->wrap();
@@ -4398,12 +4398,12 @@ static int click_select_channel_grease_pencil_layer_group(bContext *C, bAnimList
    *   the whole channel can also be used for this purpose.
    */
   layer_group.set_expanded(!layer_group.is_expanded());
-  WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_PROPERTIES | NA_EDITED, nullptr);
-  WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_PROPERTIES | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   return (ND_ANIMCHAN | NA_EDITED);
 }
 
-static int click_select_channel_grease_pencil_layer(bContext *C,
+static int click_select_channel_grease_pencil_layer(bContext &C,
                                                     bAnimContext *ac,
                                                     bAnimListElem *ale,
                                                     const short selectmode,
@@ -4429,11 +4429,11 @@ static int click_select_channel_grease_pencil_layer(bContext *C,
   if (layer->is_selected() && (selectmode != SELECT_EXTEND_RANGE)) {
     grease_pencil->set_active_layer(layer);
     WM_msg_publish_rna_prop(
-        CTX_wm_message_bus(*C), &grease_pencil->id, grease_pencil, GreasePencilv3Layers, active);
+        CTX_wm_message_bus(C), &grease_pencil->id, grease_pencil, GreasePencilv3Layers, active);
     DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   }
 
-  WM_event_add_notifier(*C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
   return (ND_ANIMCHAN | NA_EDITED);
 }
 
@@ -4571,16 +4571,16 @@ static int mouse_anim_channels(bContext &C,
       notifierFlags |= click_select_channel_nlacontrols(ale);
       break;
     case ANIMTYPE_GPLAYER:
-      notifierFlags |= click_select_channel_gplayer(&C, ac, ale, selectmode, filter);
+      notifierFlags |= click_select_channel_gplayer(C, ac, ale, selectmode, filter);
       break;
     case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
       notifierFlags |= click_select_channel_grease_pencil_datablock(ale);
       break;
     case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
-      notifierFlags |= click_select_channel_grease_pencil_layer_group(&C, ale);
+      notifierFlags |= click_select_channel_grease_pencil_layer_group(C, ale);
       break;
     case ANIMTYPE_GREASE_PENCIL_LAYER:
-      notifierFlags |= click_select_channel_grease_pencil_layer(&C, ac, ale, selectmode, filter);
+      notifierFlags |= click_select_channel_grease_pencil_layer(C, ac, ale, selectmode, filter);
       break;
     case ANIMTYPE_MASKDATABLOCK:
       notifierFlags |= click_select_channel_maskdatablock(ale);
@@ -4889,7 +4889,7 @@ static wmOperatorStatus graphkeys_view_selected_channels_exec(bContext &C, wmOpe
     return OPERATOR_CANCELLED;
   }
 
-  add_region_padding(&C, window_region, &bounds);
+  add_region_padding(C, window_region, &bounds);
 
   if (ac.spacetype == SPACE_ACTION) {
     bounds.ymin = window_region->v2d.cur.ymin;
@@ -4980,7 +4980,7 @@ static wmOperatorStatus graphkeys_channel_view_pick_invoke(bContext &C,
     return OPERATOR_CANCELLED;
   }
 
-  add_region_padding(&C, window_region, &bounds);
+  add_region_padding(C, window_region, &bounds);
 
   if (ac.spacetype == SPACE_ACTION) {
     bounds.ymin = window_region->v2d.cur.ymin;
@@ -5667,7 +5667,7 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext &C, wmOperator 
       else {
         ARegion *region = wm_context_temp.region;
         ScrArea *area = wm_context_temp.area;
-        add_region_padding(&C, region, &bounds);
+        add_region_padding(C, region, &bounds);
 
         const int smooth_viewtx = WM_operator_smooth_viewtx_get(&op);
         blender::ui::view2d_smooth_view(C, region, &bounds, smooth_viewtx);

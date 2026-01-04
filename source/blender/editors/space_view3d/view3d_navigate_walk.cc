@@ -1491,11 +1491,11 @@ static void walkApply_ndof(bContext *C, WalkInfo *walk, bool is_confirm)
 /** \name Walk Operator
  * \{ */
 
-static void walk_draw_status(bContext *C, wmOperator *op)
+static void walk_draw_status(bContext &C, wmOperator *op)
 {
   WalkInfo *walk = static_cast<WalkInfo *>(op->customdata);
 
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
 
   status.opmodal(IFACE_("Confirm"), op->type, WALK_MODAL_CONFIRM);
   status.opmodal(IFACE_("Cancel"), op->type, WALK_MODAL_CANCEL);
@@ -1568,7 +1568,7 @@ static wmOperatorStatus walk_invoke(bContext &C, wmOperator &op, const wmEvent *
 
   walkEvent(walk, event);
 
-  walk_draw_status(&C, &op);
+  walk_draw_status(C, &op);
 
   WM_event_add_modal_handler(C, &op);
 
@@ -1597,7 +1597,7 @@ static wmOperatorStatus walk_modal(bContext &C, wmOperator &op, const wmEvent *e
 
   walkEvent(walk, event);
 
-  walk_draw_status(&C, &op);
+  walk_draw_status(C, &op);
 
 #ifdef WITH_INPUT_NDOF
   if (walk->ndof) { /* 3D mouse overrules [2D mouse + timer]. */

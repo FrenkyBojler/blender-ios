@@ -208,7 +208,7 @@ bool mode_set_ex(bContext &C, eObjectMode mode, bool use_undo, ReportList *repor
   if (!use_undo) {
     wm->op_undo_depth++;
   }
-  WM_operator_name_call_ptr(&C, ot, wm::OpCallContext::ExecRegionWin, nullptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecRegionWin, nullptr, nullptr);
   if (!use_undo) {
     wm->op_undo_depth--;
   }
@@ -249,10 +249,10 @@ bool mode_set_ex(bContext &C, eObjectMode mode, bool use_undo, ReportList *repor
   return true;
 }
 
-bool mode_set(bContext *C, eObjectMode mode)
+bool mode_set(bContext &C, eObjectMode mode)
 {
   /* Don't do undo push by default, since this may be called by lower level code. */
-  return mode_set_ex(*C, mode, true, nullptr);
+  return mode_set_ex(C, mode, true, nullptr);
 }
 
 /**
@@ -536,7 +536,7 @@ static wmOperatorStatus object_transfer_mode_invoke(bContext &C,
   Object *ob_src = CTX_data_active_object(C);
   const eObjectMode mode_src = eObjectMode(ob_src->mode);
 
-  Base *base_dst = ED_view3d_give_base_under_cursor(&C, event->mval);
+  Base *base_dst = ED_view3d_give_base_under_cursor(C, event->mval);
   if (!base_dst) {
     BKE_reportf(op.reports, RPT_ERROR, "No target object to transfer the mode to");
     return OPERATOR_CANCELLED;

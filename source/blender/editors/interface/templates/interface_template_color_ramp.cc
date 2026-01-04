@@ -30,7 +30,7 @@
 
 namespace blender::ui {
 
-static void colorband_flip(bContext *C, ColorBand *coba)
+static void colorband_flip(bContext &C, ColorBand *coba)
 {
   CBData data_tmp[MAXCOLORBAND];
 
@@ -45,7 +45,7 @@ static void colorband_flip(bContext *C, ColorBand *coba)
   /* May as well flip the `cur`. */
   coba->cur = coba->tot - (coba->cur + 1);
 
-  ED_undo_push(*C, "Flip Color Ramp");
+  ED_undo_push(C, "Flip Color Ramp");
 }
 
 static void colorband_distribute(bContext *C, ColorBand *coba, bool evenly)
@@ -106,7 +106,7 @@ static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
                                    "");
     button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
-      colorband_flip(&C, coba);
+      colorband_flip(C, coba);
       ED_region_tag_redraw(CTX_wm_region(C));
       rna_update_cb(C, cb);
     });

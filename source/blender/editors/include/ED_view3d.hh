@@ -320,7 +320,7 @@ ENUM_OPERATORS(eV3DProjTest);
 
 /* `view3d_snap.cc` */
 
-bool ED_view3d_snap_selected_to_location(bContext *C,
+bool ED_view3d_snap_selected_to_location(bContext &C,
                                          wmOperator *op,
                                          const float target_loc_global[3],
                                          int pivot_point);
@@ -1125,9 +1125,9 @@ void ED_view3d_draw_setup_view(const wmWindowManager *wm,
 /**
  * `mval` comes from event->mval, only use within region handlers.
  */
-Base *ED_view3d_give_base_under_cursor(bContext *C, const int mval[2]);
+Base *ED_view3d_give_base_under_cursor(bContext &C, const int mval[2]);
 Object *ED_view3d_give_object_under_cursor(bContext *C, const int mval[2]);
-Object *ED_view3d_give_material_slot_under_cursor(bContext *C,
+Object *ED_view3d_give_material_slot_under_cursor(bContext &C,
                                                   const int mval[2],
                                                   int *r_material_slot);
 bool ED_view3d_is_object_under_cursor(bContext *C, const int mval[2]);

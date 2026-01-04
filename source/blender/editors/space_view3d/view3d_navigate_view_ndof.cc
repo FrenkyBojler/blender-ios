@@ -850,7 +850,7 @@ static wmOperatorStatus ndof_orbit_invoke(bContext &C, wmOperator &op, const wmE
     return OPERATOR_CANCELLED;
   }
 
-  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_ndof_orbit);
+  return view3d_navigate_invoke_impl(C, &op, event, &ViewOpsType_ndof_orbit);
 }
 
 void VIEW3D_OT_ndof_orbit(wmOperatorType *ot)
@@ -988,7 +988,7 @@ static wmOperatorStatus ndof_orbit_zoom_invoke(bContext &C, wmOperator &op, cons
     return OPERATOR_CANCELLED;
   }
 
-  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_ndof_orbit_zoom);
+  return view3d_navigate_invoke_impl(C, &op, event, &ViewOpsType_ndof_orbit_zoom);
 }
 
 void VIEW3D_OT_ndof_orbit_zoom(wmOperatorType *ot)
@@ -1073,7 +1073,7 @@ static wmOperatorStatus ndof_pan_invoke(bContext &C, wmOperator &op, const wmEve
     return OPERATOR_CANCELLED;
   }
 
-  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_ndof_pan);
+  return view3d_navigate_invoke_impl(C, &op, event, &ViewOpsType_ndof_pan);
 }
 
 void VIEW3D_OT_ndof_pan(wmOperatorType *ot)
@@ -1125,7 +1125,7 @@ static wmOperatorStatus ndof_all_invoke(bContext &C, wmOperator &op, const wmEve
     return OPERATOR_CANCELLED;
   }
 
-  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_ndof_all);
+  return view3d_navigate_invoke_impl(C, &op, event, &ViewOpsType_ndof_all);
 }
 
 void VIEW3D_OT_ndof_all(wmOperatorType *ot)

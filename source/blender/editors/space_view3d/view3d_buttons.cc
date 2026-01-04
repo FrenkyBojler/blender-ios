@@ -2617,8 +2617,7 @@ static wmOperatorStatus view3d_object_mode_menu_exec(bContext &C, wmOperator &op
     return OPERATOR_CANCELLED;
   }
   if (((ob->mode & OB_MODE_EDIT) == 0) && ELEM(ob->type, OB_ARMATURE)) {
-    blender::ed::object::mode_set(&C,
-                                  (ob->mode == OB_MODE_OBJECT) ? OB_MODE_POSE : OB_MODE_OBJECT);
+    blender::ed::object::mode_set(C, (ob->mode == OB_MODE_OBJECT) ? OB_MODE_POSE : OB_MODE_OBJECT);
     return OPERATOR_CANCELLED;
   }
 

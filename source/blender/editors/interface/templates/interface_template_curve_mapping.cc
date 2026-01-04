@@ -182,7 +182,7 @@ static Block *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap_v
 }
 
 static Block *curvemap_tools_func(
-    bContext *C, ARegion *region, RNAUpdateCb &cb, bool show_extend, CurveMapSlopeType reset_mode)
+    bContext &C, ARegion *region, RNAUpdateCb &cb, bool show_extend, CurveMapSlopeType reset_mode)
 {
   PointerRNA cumap_ptr = RNA_property_pointer_get(&cb.ptr, cb.prop);
   CurveMapping *cumap = static_cast<CurveMapping *>(cumap_ptr.data);
@@ -190,7 +190,7 @@ static Block *curvemap_tools_func(
   short yco = 0;
   const short menuwidth = 10 * UI_UNIT_X;
 
-  Block *block = block_begin(*C, region, __func__, EmbossType::Emboss);
+  Block *block = block_begin(C, region, __func__, EmbossType::Emboss);
 
   {
     Button *but = uiDefIconTextBut(block,
@@ -284,25 +284,25 @@ static Block *curvemap_tools_func(
 static Block *curvemap_tools_posslope_func(bContext *C, ARegion *region, void *cb_v)
 {
   return curvemap_tools_func(
-      C, region, *static_cast<RNAUpdateCb *>(cb_v), true, CurveMapSlopeType::Positive);
+      *C, region, *static_cast<RNAUpdateCb *>(cb_v), true, CurveMapSlopeType::Positive);
 }
 
 static Block *curvemap_tools_negslope_func(bContext *C, ARegion *region, void *cb_v)
 {
   return curvemap_tools_func(
-      C, region, *static_cast<RNAUpdateCb *>(cb_v), true, CurveMapSlopeType::Negative);
+      *C, region, *static_cast<RNAUpdateCb *>(cb_v), true, CurveMapSlopeType::Negative);
 }
 
 static Block *curvemap_brush_tools_func(bContext *C, ARegion *region, void *cb_v)
 {
   return curvemap_tools_func(
-      C, region, *static_cast<RNAUpdateCb *>(cb_v), false, CurveMapSlopeType::Positive);
+      *C, region, *static_cast<RNAUpdateCb *>(cb_v), false, CurveMapSlopeType::Positive);
 }
 
 static Block *curvemap_brush_tools_negslope_func(bContext *C, ARegion *region, void *cb_v)
 {
   return curvemap_tools_func(
-      C, region, *static_cast<RNAUpdateCb *>(cb_v), false, CurveMapSlopeType::Negative);
+      *C, region, *static_cast<RNAUpdateCb *>(cb_v), false, CurveMapSlopeType::Negative);
 }
 
 static void curvemap_buttons_redraw(bContext &C)

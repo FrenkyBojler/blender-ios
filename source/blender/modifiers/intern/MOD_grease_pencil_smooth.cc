@@ -250,7 +250,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   col.prop(ptr, "use_smooth_ends", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (ui::Layout *influence_panel = layout.panel_prop(
-          C, ptr, "open_influence_panel", IFACE_("Influence")))
+          *C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);

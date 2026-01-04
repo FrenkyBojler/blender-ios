@@ -2027,11 +2027,11 @@ static void update_for_vert(bContext &C, Object &ob, const std::optional<int> ve
  * Updates the #SculptSession cursor data and gets the active vertex
  * if the cursor is over the mesh.
  */
-static std::optional<int> target_vert_update_and_get(bContext *C, Object &ob, const float mval[2])
+static std::optional<int> target_vert_update_and_get(bContext &C, Object &ob, const float mval[2])
 {
   SculptSession &ss = *ob.sculpt;
   CursorGeometryInfo cgi;
-  if (cursor_geometry_info_update(*C, &cgi, mval, false)) {
+  if (cursor_geometry_info_update(C, &cgi, mval, false)) {
     return ss.active_vert_index();
   }
   return std::nullopt;
@@ -2188,7 +2188,7 @@ static bool set_initial_components_for_mouse(bContext &C,
   SculptSession &ss = *ob.sculpt;
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
 
-  std::optional<int> initial_vert = target_vert_update_and_get(&C, ob, mval);
+  std::optional<int> initial_vert = target_vert_update_and_get(C, ob, mval);
   if (!initial_vert) {
     /* Cursor not over the mesh, for creating valid initial falloffs, fall back to the last active
      * vertex in the sculpt session. */
@@ -2293,9 +2293,9 @@ static int active_face_set_id_get(Object &object, Cache &expand_cache)
   return SCULPT_FACE_SET_NONE;
 }
 
-static void sculpt_expand_status(bContext *C, wmOperator *op, Cache *expand_cache)
+static void sculpt_expand_status(bContext &C, wmOperator *op, Cache *expand_cache)
 {
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
 
   status.opmodal(IFACE_("Confirm"), op->type, SCULPT_EXPAND_MODAL_CONFIRM);
   status.opmodal(IFACE_("Cancel"), op->type, SCULPT_EXPAND_MODAL_CANCEL);
@@ -2374,7 +2374,7 @@ static wmOperatorStatus sculpt_expand_modal(bContext &C, wmOperator &op, const w
 
   /* Update and get the active vertex (and face) from the cursor. */
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  const std::optional<int> target_expand_vertex = target_vert_update_and_get(&C, ob, mval_fl);
+  const std::optional<int> target_expand_vertex = target_vert_update_and_get(C, ob, mval_fl);
 
   /* Handle the modal keymap state changes. */
   Cache &expand_cache = *ss.expand_cache;
@@ -2542,7 +2542,7 @@ static wmOperatorStatus sculpt_expand_modal(bContext &C, wmOperator &op, const w
   /* Update the sculpt data with the current state of the #Cache. */
   update_for_vert(C, ob, target_expand_vertex);
 
-  sculpt_expand_status(&C, &op, &expand_cache);
+  sculpt_expand_status(C, &op, &expand_cache);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2865,7 +2865,7 @@ static wmOperatorStatus sculpt_expand_invoke(bContext &C, wmOperator &op, const 
   /* Initial mesh data update, resets all target data in the sculpt mesh. */
   update_for_vert(C, ob, initial_vert);
 
-  sculpt_expand_status(&C, &op, ss.expand_cache);
+  sculpt_expand_status(C, &op, ss.expand_cache);
 
   WM_event_add_modal_handler(C, &op);
   return OPERATOR_RUNNING_MODAL;

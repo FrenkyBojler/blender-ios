@@ -434,7 +434,7 @@ static wmOperatorStatus pose_select_connected_invoke(bContext &C,
   view3d_operator_needs_gpu(C);
 
   Base *base = nullptr;
-  pchan = ED_armature_pick_pchan(&C, event->mval, !extend, &base);
+  pchan = ED_armature_pick_pchan(C, event->mval, !extend, &base);
 
   if (!pchan) {
     return OPERATOR_CANCELLED;

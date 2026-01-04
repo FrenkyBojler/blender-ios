@@ -17,7 +17,7 @@ struct bContext;
 struct wmWindow;
 struct Strip;
 
-Scene *ED_scene_add(Main *bmain, bContext *C, wmWindow *win, eSceneCopyMethod method)
+Scene *ED_scene_add(Main *bmain, bContext &C, wmWindow *win, eSceneCopyMethod method)
     ATTR_NONNULL();
 /**
  * Add a new scene from the sequence editor.

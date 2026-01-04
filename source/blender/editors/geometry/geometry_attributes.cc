@@ -924,7 +924,7 @@ static wmOperatorStatus geometry_attribute_convert_invoke(bContext &C,
   }
 
   return WM_operator_props_dialog_popup(
-      &C, &op, 300, IFACE_("Convert Attribute Domain"), IFACE_("Convert"));
+      C, &op, 300, IFACE_("Convert Attribute Domain"), IFACE_("Convert"));
 }
 
 static void geometry_attribute_convert_ui(bContext &C, wmOperator &op)
@@ -1049,7 +1049,7 @@ static wmOperatorStatus geometry_color_attribute_convert_invoke(bContext &C,
   }
 
   return WM_operator_props_dialog_popup(
-      &C, &op, 300, IFACE_("Convert Color Attribute Domain"), IFACE_("Convert"));
+      C, &op, 300, IFACE_("Convert Color Attribute Domain"), IFACE_("Convert"));
 }
 
 static void geometry_color_attribute_convert_ui(bContext & /*C*/, wmOperator &op)

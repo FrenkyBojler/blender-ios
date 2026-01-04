@@ -50,7 +50,7 @@ bToolRef *WM_toolsystem_ref_set_by_id_ex(
     bContext *C, WorkSpace *workspace, const bToolKey *tkey, const char *name, bool cycle);
 bToolRef *WM_toolsystem_ref_set_by_id(bContext &C, const char *name);
 
-bToolRef_Runtime *WM_toolsystem_runtime_from_context(const bContext *C);
+bToolRef_Runtime *WM_toolsystem_runtime_from_context(const bContext &C);
 bToolRef_Runtime *WM_toolsystem_runtime_find(WorkSpace *workspace, const bToolKey *tkey);
 
 /**
@@ -60,7 +60,7 @@ bToolRef_Runtime *WM_toolsystem_runtime_find(WorkSpace *workspace, const bToolKe
  *
  * \return True if the brush was successfully activated.
  */
-bool WM_toolsystem_activate_brush_and_tool(bContext *C, Paint *paint, Brush *brush);
+bool WM_toolsystem_activate_brush_and_tool(bContext &C, Paint *paint, Brush *brush);
 
 void WM_toolsystem_unlink(bContext *C, WorkSpace *workspace, const bToolKey *tkey);
 void WM_toolsystem_refresh(const bContext *C, WorkSpace *workspace, const bToolKey *tkey);

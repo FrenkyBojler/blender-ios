@@ -121,7 +121,7 @@ class PenToolOperation {
    * Will return true if a new curve can be created, and report any errors.
    */
   virtual bool can_create_new_curve(wmOperator *op) const = 0;
-  virtual void update_view(bContext *C) const = 0;
+  virtual void update_view(bContext &C) const = 0;
   virtual std::optional<wmOperatorStatus> initialize(bContext &C,
                                                      wmOperator *op,
                                                      const wmEvent *event) = 0;

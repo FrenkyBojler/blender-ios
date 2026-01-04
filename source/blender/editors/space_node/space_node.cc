@@ -845,7 +845,7 @@ static void node_area_refresh(const bContext *C, ScrArea *area)
   if (snode->nodetree && snode->nodetree == scene->compositing_node_group) {
     if (snode->runtime->recalc_regular_compositing) {
       snode->runtime->recalc_regular_compositing = false;
-      ED_node_composite_job(C, scene->compositing_node_group, scene);
+      ED_node_composite_job(*C, scene->compositing_node_group, scene);
     }
   }
 }
@@ -992,12 +992,12 @@ static bool node_group_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*ev
 
 static bool node_object_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
-  return WM_drag_is_ID_type(drag, ID_OB) && !ui::button_active_drop_name(C);
+  return WM_drag_is_ID_type(drag, ID_OB) && !ui::button_active_drop_name(*C);
 }
 
 static bool node_collection_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
-  return WM_drag_is_ID_type(drag, ID_GR) && !ui::button_active_drop_name(C);
+  return WM_drag_is_ID_type(drag, ID_GR) && !ui::button_active_drop_name(*C);
 }
 
 static bool node_id_im_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
@@ -1012,7 +1012,7 @@ static bool node_mask_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * 
 
 static bool node_material_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
-  return WM_drag_is_ID_type(drag, ID_MA) && !ui::button_active_drop_name(C);
+  return WM_drag_is_ID_type(drag, ID_MA) && !ui::button_active_drop_name(*C);
 }
 
 static bool node_color_drop_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)

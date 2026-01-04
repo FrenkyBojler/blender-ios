@@ -169,7 +169,7 @@ static void open_init(bContext *C, wmOperator *op)
   PropertyPointerRNA *pprop;
 
   op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
-  blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
+  blender::ui::context_active_but_prop_get_templateID(*C, &pprop->ptr, &pprop->prop);
 }
 
 static void open_cancel(bContext & /*C*/, wmOperator &op)
@@ -1034,7 +1034,7 @@ static wmOperatorStatus view_selected_exec(bContext &C, wmOperator & /*op*/)
   sc->xlockof = 0.0f;
   sc->ylockof = 0.0f;
 
-  ED_clip_view_selection(&C, region, true);
+  ED_clip_view_selection(C, region, true);
   ED_region_tag_redraw(region);
 
   return OPERATOR_FINISHED;

@@ -305,7 +305,7 @@ static void pose_slide_refresh(bContext *C, tPoseSlideOp *pso)
   /* Wrapper around the generic version, allowing us to add some custom stuff later still. */
   for (tPoseSlideObject &ob_data : pso->ob_data_array) {
     if (ob_data.valid) {
-      poseAnim_mapping_refresh(C, pso->scene, ob_data.ob);
+      poseAnim_mapping_refresh(*C, pso->scene, ob_data.ob);
     }
   }
 }
@@ -866,10 +866,10 @@ static void pose_slide_apply(bContext *C, tPoseSlideOp *pso)
 /**
  * Perform auto-key-framing after changes were made + confirmed.
  */
-static void pose_slide_autoKeyframe(bContext *C, tPoseSlideOp *pso)
+static void pose_slide_autoKeyframe(bContext &C, tPoseSlideOp *pso)
 {
   /* Wrapper around the generic call. */
-  poseAnim_mapping_autoKeyframe(*C, pso->scene, &pso->pfLinks, float(pso->current_frame));
+  poseAnim_mapping_autoKeyframe(C, pso->scene, &pso->pfLinks, float(pso->current_frame));
 }
 
 /**
@@ -888,7 +888,7 @@ static void pose_slide_reset(tPoseSlideOp *pso)
  *
  * TODO: Include hints about locks here.
  */
-static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
+static void pose_slide_draw_status(bContext &C, tPoseSlideOp *pso)
 {
   const char *mode_st;
   switch (pso->mode) {
@@ -912,7 +912,7 @@ static void pose_slide_draw_status(bContext *C, tPoseSlideOp *pso)
 
   ED_slider_property_label_set(pso->slider, mode_st);
 
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
 
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
@@ -1051,7 +1051,7 @@ static wmOperatorStatus pose_slide_invoke_common(bContext &C, wmOperator *op, co
   WM_cursor_modal_set(win, WM_CURSOR_EW_SCROLL);
 
   /* Header print. */
-  pose_slide_draw_status(&C, pso);
+  pose_slide_draw_status(C, pso);
 
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, op);
@@ -1137,7 +1137,7 @@ static wmOperatorStatus pose_slide_modal(bContext &C, wmOperator &op, const wmEv
         pose_slide_refresh(&C, pso);
 
         /* Insert keyframes as required. */
-        pose_slide_autoKeyframe(&C, pso);
+        pose_slide_autoKeyframe(C, pso);
         pose_slide_exit(&C, &op);
 
         /* Done! */
@@ -1280,7 +1280,7 @@ static wmOperatorStatus pose_slide_modal(bContext &C, wmOperator &op, const wmEv
     RNA_float_set(op.ptr, "factor", ED_slider_factor_get(pso->slider));
 
     /* Update percentage indicator in header. */
-    pose_slide_draw_status(&C, pso);
+    pose_slide_draw_status(C, pso);
 
     /* Reset transforms (to avoid accumulation errors). */
     pose_slide_reset(pso);
@@ -1321,7 +1321,7 @@ static wmOperatorStatus pose_slide_exec_common(bContext *C, wmOperator *op, tPos
   }
 
   /* Insert keyframes if needed. */
-  pose_slide_autoKeyframe(C, pso);
+  pose_slide_autoKeyframe(*C, pso);
 
   /* Cleanup and done. */
   pose_slide_exit(C, op);
@@ -1895,7 +1895,7 @@ static wmOperatorStatus pose_propagate_exec(bContext &C, wmOperator &op)
 
   /* Updates + notifiers. */
   FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
-    poseAnim_mapping_refresh(&C, scene, ob);
+    poseAnim_mapping_refresh(C, scene, ob);
   }
   FOREACH_OBJECT_IN_MODE_END;
 

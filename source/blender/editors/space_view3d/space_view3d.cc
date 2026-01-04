@@ -1396,7 +1396,7 @@ static void view3d_tools_region_init(wmWindowManager *wm, ARegion *region)
 static void view3d_tools_region_draw(const bContext *C, ARegion *region)
 {
   const char *contexts[] = {CTX_data_mode_string(*C), nullptr};
-  ED_region_panels_ex(C, region, blender::wm::OpCallContext::InvokeRegionWin, contexts);
+  ED_region_panels_ex(*C, region, blender::wm::OpCallContext::InvokeRegionWin, contexts);
 }
 
 static void view3d_tools_header_region_draw(const bContext *C, ARegion *region)

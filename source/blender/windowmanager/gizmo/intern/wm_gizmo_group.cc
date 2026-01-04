@@ -430,7 +430,7 @@ static bool gizmo_tweak_start_and_finish(
 #endif
 
       WM_operator_free_all_after(wm, op);
-      ED_undo_pop_op(C, op);
+      ED_undo_pop_op(*C, op);
     }
 
     /* XXX temporary workaround for modal gizmo operator
@@ -569,7 +569,7 @@ static wmOperatorStatus gizmo_tweak_invoke(bContext &C, wmOperator &op, const wm
   wmGizmo *gz = gzmap->gzmap_context.highlight;
 
   /* Needed for single click actions which don't enter modal state. */
-  WM_tooltip_clear(&C, CTX_wm_window(C));
+  WM_tooltip_clear(C, CTX_wm_window(C));
 
   if (!gz) {
     /* #wm_handlers_do_intern shouldn't let this happen. */

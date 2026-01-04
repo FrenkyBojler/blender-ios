@@ -588,13 +588,13 @@ void cancel_modal_transform(bContext &C, Object &ob)
   pbvh.update_bounds(depsgraph, ob);
 }
 
-void end_transform(bContext *C, Object &ob)
+void end_transform(bContext &C, Object &ob)
 {
   SculptSession &ss = *ob.sculpt;
   MEM_delete(ss.filter_cache);
   ss.filter_cache = nullptr;
   undo::push_end(ob);
-  flush_update_done(*C, ob, UpdateType::Position);
+  flush_update_done(C, ob, UpdateType::Position);
 }
 
 enum class PivotPositionMode {

@@ -699,7 +699,7 @@ static bool snap_selected_to_location_rotation(bContext &C,
   return true;
 }
 
-bool ED_view3d_snap_selected_to_location(bContext *C,
+bool ED_view3d_snap_selected_to_location(bContext &C,
                                          wmOperator *op,
                                          const float target_loc_global[3],
                                          const int pivot_point)
@@ -711,7 +711,7 @@ bool ED_view3d_snap_selected_to_location(bContext *C,
    * so this can be used as a low level function. */
   const bool use_toolsettings = false;
   return snap_selected_to_location_rotation(
-      *C, op, target_loc_global, nullptr, use_offset, pivot_point, use_toolsettings);
+      C, op, target_loc_global, nullptr, use_offset, pivot_point, use_toolsettings);
 }
 
 /** \} */

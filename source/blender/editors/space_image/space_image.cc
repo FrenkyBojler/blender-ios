@@ -82,7 +82,7 @@ static void image_user_refresh_scene(const bContext &C, SpaceImage *sima)
 
   if (sima->image && sima->image->type == IMA_TYPE_R_RESULT) {
     /* While rendering, prefer scene that is being rendered. */
-    Scene *render_scene = ED_render_job_get_current_scene(&C);
+    Scene *render_scene = ED_render_job_get_current_scene(C);
     if (render_scene) {
       sima->iuser.scene = render_scene;
       SET_FLAG_FROM_TEST(
@@ -291,7 +291,7 @@ static void image_refresh(const bContext *C, ScrArea *area)
     if (scene->compositing_node_group) {
       Mask *mask = ED_space_image_get_mask(sima);
       if (mask) {
-        ED_node_composite_job(C, scene->compositing_node_group, scene);
+        ED_node_composite_job(*C, scene->compositing_node_group, scene);
       }
     }
   }

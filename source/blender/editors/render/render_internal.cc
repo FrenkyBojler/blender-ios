@@ -1348,15 +1348,15 @@ static RenderJobBase *render_job_get(const bContext &C)
   return rj;
 }
 
-Scene *ED_render_job_get_scene(const bContext *C)
+Scene *ED_render_job_get_scene(const bContext &C)
 {
-  RenderJobBase *rj = render_job_get(*C);
+  RenderJobBase *rj = render_job_get(C);
   return rj ? rj->scene : nullptr;
 }
 
-Scene *ED_render_job_get_current_scene(const bContext *C)
+Scene *ED_render_job_get_current_scene(const bContext &C)
 {
-  RenderJobBase *rj = render_job_get(*C);
+  RenderJobBase *rj = render_job_get(C);
   return rj ? rj->current_scene : nullptr;
 }
 

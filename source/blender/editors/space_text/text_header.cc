@@ -83,7 +83,7 @@ static wmOperatorStatus text_text_search_exec(bContext &C, wmOperator & /*op*/)
     bool draw = false;
 
     if (region->flag & RGN_FLAG_HIDDEN) {
-      ED_region_toggle_hidden(&C, region);
+      ED_region_toggle_hidden(C, region);
       draw = true;
     }
 

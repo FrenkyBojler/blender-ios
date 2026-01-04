@@ -740,7 +740,7 @@ static void ui_node_draw_recursive(ui::Layout &layout,
   const StringRef panel_translation_context = panel_decl.translation_context.has_value() ?
                                                   *panel_decl.translation_context :
                                                   "";
-  ui::PanelLayout panel_layout = layout.panel(&C, panel_id.c_str(), panel_decl.default_collapsed);
+  ui::PanelLayout panel_layout = layout.panel(C, panel_id.c_str(), panel_decl.default_collapsed);
   if (panel_toggle_decl) {
     panel_layout.header->use_property_split_set(false);
     panel_layout.header->use_property_decorate_set(false);

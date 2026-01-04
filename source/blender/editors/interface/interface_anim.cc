@@ -315,10 +315,9 @@ bool button_anim_expression_create(Button *but, const char *str)
   return ok;
 }
 
-void button_anim_autokey(bContext *C, Button *but, Scene *scene, float cfra)
+void button_anim_autokey(bContext &C, Button *but, Scene *scene, float cfra)
 {
-  animrig::autokeyframe_property(
-      *C, scene, &but->rnapoin, but->rnaprop, but->rnaindex, cfra, true);
+  animrig::autokeyframe_property(C, scene, &but->rnapoin, but->rnaprop, but->rnaindex, cfra, true);
 }
 
 void button_anim_copy_driver(bContext *C)
@@ -357,14 +356,14 @@ void button_anim_decorate_cb(bContext *C, void *arg_but, void * /*arg_dummy*/)
     wmOperatorType *ot = WM_operatortype_find("ANIM_OT_keyframe_delete_button", false);
     PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     RNA_boolean_set(&props_ptr, "all", but_anim->rnaindex == -1);
-    WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(*C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
   }
   else {
     wmOperatorType *ot = WM_operatortype_find("ANIM_OT_keyframe_insert_button", false);
     PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     RNA_boolean_set(&props_ptr, "all", but_anim->rnaindex == -1);
-    WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(*C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
   }
 

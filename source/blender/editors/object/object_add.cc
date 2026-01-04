@@ -682,7 +682,7 @@ Object *add_type_with_obdata(bContext &C,
   return ob;
 }
 
-Object *add_type(bContext *C,
+Object *add_type(bContext &C,
                  const int type,
                  const char *name,
                  const float loc[3],
@@ -690,7 +690,7 @@ Object *add_type(bContext *C,
                  const bool enter_editmode,
                  const ushort local_view_bits)
 {
-  return add_type_with_obdata(*C, type, name, loc, rot, enter_editmode, local_view_bits, nullptr);
+  return add_type_with_obdata(C, type, name, loc, rot, enter_editmode, local_view_bits, nullptr);
 }
 
 static bool object_can_have_lattice_modifier(const Object *ob)
@@ -717,7 +717,7 @@ static wmOperatorStatus object_add_exec(bContext &C, wmOperator &op)
 
   radius = RNA_float_get(op.ptr, "radius");
   Object *ob = add_type(
-      &C, RNA_enum_get(op.ptr, "type"), nullptr, loc, rot, enter_editmode, local_view_bits);
+      C, RNA_enum_get(op.ptr, "type"), nullptr, loc, rot, enter_editmode, local_view_bits);
 
   if (ob->type == OB_LATTICE) {
     /* lattice is a special case!
@@ -841,7 +841,7 @@ static wmOperatorStatus lattice_add_to_selected_exec(bContext &C, wmOperator &op
   const bool fit_to_selected = RNA_boolean_get(op.ptr, "fit_to_selected");
 
   Object *ob_lattice = add_type(
-      &C, OB_LATTICE, nullptr, location, rotation_euler, enter_editmode, local_view_bits);
+      C, OB_LATTICE, nullptr, location, rotation_euler, enter_editmode, local_view_bits);
   Lattice *lt = (Lattice *)ob_lattice->data;
 
   if (fit_to_selected && bounds_opt.has_value()) {
@@ -1030,7 +1030,7 @@ static wmOperatorStatus lightprobe_add_exec(bContext &C, wmOperator &op)
   float radius = RNA_float_get(op.ptr, "radius");
 
   Object *ob = add_type(
-      &C, OB_LIGHTPROBE, get_lightprobe_defname(type), loc, rot, false, local_view_bits);
+      C, OB_LIGHTPROBE, get_lightprobe_defname(type), loc, rot, false, local_view_bits);
   copy_v3_fl(ob->scale, radius);
 
   LightProbe *probe = (LightProbe *)ob->data;
@@ -1125,7 +1125,7 @@ static wmOperatorStatus effector_add_exec(bContext &C, wmOperator &op)
     Main *bmain = CTX_data_main(C);
     Scene *scene = CTX_data_scene(C);
     ob = add_type(
-        &C, OB_CURVES_LEGACY, get_effector_defname(type), loc, rot, false, local_view_bits);
+        C, OB_CURVES_LEGACY, get_effector_defname(type), loc, rot, false, local_view_bits);
 
     Curve *cu = static_cast<Curve *>(ob->data);
     cu->flag |= CU_PATH | CU_3D;
@@ -1135,13 +1135,13 @@ static wmOperatorStatus effector_add_exec(bContext &C, wmOperator &op)
     new_primitive_matrix(C, ob, loc, rot, nullptr, mat);
     mul_mat3_m4_fl(mat, dia);
     BLI_addtail(&cu->editnurb->nurbs,
-                ED_curve_add_nurbs_primitive(&C, ob, mat, CU_NURBS | CU_PRIM_PATH, 1));
+                ED_curve_add_nurbs_primitive(C, ob, mat, CU_NURBS | CU_PRIM_PATH, 1));
     if (!enter_editmode) {
       editmode_exit_ex(bmain, scene, ob, EM_FREEDATA);
     }
   }
   else {
-    ob = add_type(&C, OB_EMPTY, get_effector_defname(type), loc, rot, false, local_view_bits);
+    ob = add_type(C, OB_EMPTY, get_effector_defname(type), loc, rot, false, local_view_bits);
     BKE_object_obdata_size_init(ob, dia);
     if (ELEM(type, PFIELD_WIND, PFIELD_VORTEX)) {
       ob->empty_drawtype = OB_SINGLE_ARROW;
@@ -1194,7 +1194,7 @@ static wmOperatorStatus object_camera_add_exec(bContext &C, wmOperator &op)
   add_generic_get_opts(
       &C, &op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
-  Object *ob = add_type(&C, OB_CAMERA, nullptr, loc, rot, false, local_view_bits);
+  Object *ob = add_type(C, OB_CAMERA, nullptr, loc, rot, false, local_view_bits);
 
   if (v3d) {
     if (v3d->camera == nullptr) {
@@ -1258,7 +1258,7 @@ static wmOperatorStatus object_metaball_add_exec(bContext &C, wmOperator &op)
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
   if (obedit == nullptr || obedit->type != OB_MBALL) {
-    obedit = add_type(&C, OB_MBALL, nullptr, loc, rot, true, local_view_bits);
+    obedit = add_type(C, OB_MBALL, nullptr, loc, rot, true, local_view_bits);
     newob = true;
   }
   else {
@@ -1328,7 +1328,7 @@ static wmOperatorStatus object_add_text_exec(bContext &C, wmOperator &op)
     return OPERATOR_CANCELLED;
   }
 
-  obedit = add_type(&C, OB_FONT, nullptr, loc, rot, enter_editmode, local_view_bits);
+  obedit = add_type(C, OB_FONT, nullptr, loc, rot, enter_editmode, local_view_bits);
   BKE_object_obdata_size_init(obedit, RNA_float_get(op.ptr, "radius"));
 
   return OPERATOR_FINISHED;
@@ -1379,7 +1379,7 @@ static wmOperatorStatus object_armature_add_exec(bContext &C, wmOperator &op)
       &C, &op, 'Z', loc, rot, nullptr, &enter_editmode, &local_view_bits, nullptr);
 
   if ((obedit == nullptr) || (obedit->type != OB_ARMATURE)) {
-    obedit = add_type(&C, OB_ARMATURE, nullptr, loc, rot, true, local_view_bits);
+    obedit = add_type(C, OB_ARMATURE, nullptr, loc, rot, true, local_view_bits);
     editmode_enter_ex(bmain, scene, obedit, 0);
     newob = true;
   }
@@ -1443,7 +1443,7 @@ static wmOperatorStatus object_empty_add_exec(bContext &C, wmOperator &op)
   WM_operator_view3d_unit_defaults(&C, &op);
   add_generic_get_opts(&C, &op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
-  ob = add_type(&C, OB_EMPTY, nullptr, loc, rot, false, local_view_bits);
+  ob = add_type(C, OB_EMPTY, nullptr, loc, rot, false, local_view_bits);
 
   BKE_object_empty_draw_type_set(ob, type);
   BKE_object_obdata_size_init(ob, RNA_float_get(op.ptr, "radius"));
@@ -1493,7 +1493,7 @@ static wmOperatorStatus object_image_add_exec(bContext &C, wmOperator &op)
 
   add_generic_get_opts(&C, &op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
-  Object *ob = add_type(&C, OB_EMPTY, nullptr, loc, rot, false, local_view_bits);
+  Object *ob = add_type(C, OB_EMPTY, nullptr, loc, rot, false, local_view_bits);
   ob->empty_drawsize = 5.0f;
 
   if (RNA_boolean_get(op.ptr, "background")) {
@@ -1672,7 +1672,7 @@ static wmOperatorStatus object_grease_pencil_add_exec(bContext &C, wmOperator &o
     }
   }
 
-  Object *object = add_type(&C, OB_GREASE_PENCIL, ob_name, loc, rot, false, local_view_bits);
+  Object *object = add_type(C, OB_GREASE_PENCIL, ob_name, loc, rot, false, local_view_bits);
   GreasePencil &grease_pencil_id = *static_cast<GreasePencil *>(object->data);
   const bool use_in_front = RNA_boolean_get(op.ptr, "use_in_front");
   const bool use_lights = RNA_boolean_get(op.ptr, "use_lights");
@@ -1854,7 +1854,7 @@ static wmOperatorStatus object_light_add_exec(bContext &C, wmOperator &op)
   WM_operator_view3d_unit_defaults(&C, &op);
   add_generic_get_opts(&C, &op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
-  ob = add_type(&C, OB_LAMP, get_light_defname(type), loc, rot, false, local_view_bits);
+  ob = add_type(C, OB_LAMP, get_light_defname(type), loc, rot, false, local_view_bits);
 
   float size = RNA_float_get(op.ptr, "radius");
   /* Better defaults for light size. */
@@ -1984,7 +1984,7 @@ static wmOperatorStatus collection_instance_add_exec(bContext &C, wmOperator &op
     return OPERATOR_CANCELLED;
   }
 
-  Object *ob = add_type(&C,
+  Object *ob = add_type(C,
                         OB_EMPTY,
                         add_info->collection->id.name + 2,
                         add_info->loc,
@@ -2082,7 +2082,7 @@ static wmOperatorStatus collection_drop_exec(bContext &C, wmOperator &op)
     DEG_id_tag_update(&active_collection->collection->id, ID_RECALC_SYNC_TO_EVAL);
     DEG_relations_tag_update(bmain);
 
-    Object *ob = add_type(&C,
+    Object *ob = add_type(C,
                           OB_EMPTY,
                           add_info->collection->id.name + 2,
                           add_info->loc,
@@ -2238,7 +2238,7 @@ static wmOperatorStatus object_speaker_add_exec(bContext &C, wmOperator &op)
   float loc[3], rot[3];
   add_generic_get_opts(&C, &op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
-  Object *ob = add_type(&C, OB_SPEAKER, nullptr, loc, rot, false, local_view_bits);
+  Object *ob = add_type(C, OB_SPEAKER, nullptr, loc, rot, false, local_view_bits);
   const bool is_liboverride = ID_IS_OVERRIDE_LIBRARY(ob);
 
   /* To make it easier to start using this immediately in NLA, a default sound clip is created
@@ -2294,7 +2294,7 @@ static wmOperatorStatus object_curves_random_add_exec(bContext &C, wmOperator &o
   float loc[3], rot[3];
   add_generic_get_opts(&C, &op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
-  Object *object = add_type(&C, OB_CURVES, nullptr, loc, rot, false, local_view_bits);
+  Object *object = add_type(C, OB_CURVES, nullptr, loc, rot, false, local_view_bits);
 
   Curves *curves_id = static_cast<Curves *>(object->data);
   curves_id->geometry.wrap() = ed::curves::primitive_random_sphere(500, 8);
@@ -2330,7 +2330,7 @@ static wmOperatorStatus object_curves_empty_hair_add_exec(bContext &C, wmOperato
   Object *surface_ob = CTX_data_active_object(C);
   BLI_assert(surface_ob != nullptr);
 
-  Object *curves_ob = add_type(&C, OB_CURVES, nullptr, nullptr, nullptr, false, local_view_bits);
+  Object *curves_ob = add_type(C, OB_CURVES, nullptr, nullptr, nullptr, false, local_view_bits);
   BKE_object_apply_mat4(curves_ob, surface_ob->object_to_world().ptr(), false, false);
 
   /* Set surface object. */
@@ -2396,7 +2396,7 @@ static wmOperatorStatus object_pointcloud_add_exec(bContext &C, wmOperator &op)
   float loc[3], rot[3];
   add_generic_get_opts(&C, &op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
-  Object *object = add_type(&C, OB_POINTCLOUD, nullptr, loc, rot, false, local_view_bits);
+  Object *object = add_type(C, OB_POINTCLOUD, nullptr, loc, rot, false, local_view_bits);
   PointCloud &pointcloud = *static_cast<PointCloud *>(object->data);
   pointcloud.totpoint = 400;
 
@@ -2560,7 +2560,7 @@ static wmOperatorStatus object_delete_invoke(bContext &C,
                                              const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Delete selected objects?"),
                                   nullptr,
@@ -5020,7 +5020,7 @@ static wmOperatorStatus object_transform_to_mouse_exec(bContext &C, wmOperator &
        *
        * The caller is responsible for ensuring the selection state gives useful results.
        * Link/append does this using #FILE_AUTOSELECT. */
-      ED_view3d_snap_selected_to_location(&C, &op, cursor, V3D_AROUND_ACTIVE);
+      ED_view3d_snap_selected_to_location(C, &op, cursor, V3D_AROUND_ACTIVE);
     }
   }
 

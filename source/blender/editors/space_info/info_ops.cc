@@ -88,7 +88,7 @@ static wmOperatorStatus unpack_libraries_invoke(bContext &C,
                                                 wmOperator &op,
                                                 const wmEvent * /*event*/)
 {
-  return WM_operator_confirm_ex(&C,
+  return WM_operator_confirm_ex(C,
                                 &op,
                                 IFACE_("Restore Packed Linked Data to Their Original Locations"),
                                 IFACE_("Will create directories so that all paths are valid."),
@@ -180,7 +180,7 @@ static wmOperatorStatus pack_all_invoke(bContext &C, wmOperator &op, const wmEve
 
   if (ima) {
     return WM_operator_confirm_ex(
-        &C,
+        C,
         &op,
         IFACE_("Pack all used external files into this .blend file"),
         IFACE_("Warning: Some images are modified and these changes will be lost."),

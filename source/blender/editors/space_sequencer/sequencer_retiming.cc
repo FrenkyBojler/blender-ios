@@ -358,7 +358,7 @@ static bool freeze_frame_add_new_for_strip(const bContext &C,
   }
 
   deselect_all_strips(scene);
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
 
   seq::retiming_selection_append(freeze);
 
@@ -484,7 +484,7 @@ static bool transition_add_new_for_strip(const bContext &C,
   }
 
   deselect_all_strips(scene);
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
 
   seq::retiming_selection_append(transition);
 
@@ -644,19 +644,19 @@ void SEQUENCER_OT_retiming_key_delete(wmOperatorType *ot)
  * \{ */
 
 /* Return speed of existing segment or strip. Assume 1 element is selected. */
-static float strip_speed_get(bContext *C, const wmOperator * /*op*/)
+static float strip_speed_get(bContext &C, const wmOperator * /*op*/)
 {
   /* Strip mode. */
-  if (!sequencer_retiming_mode_is_active(*C)) {
-    VectorSet<Strip *> strips = selected_strips_from_context(*C);
+  if (!sequencer_retiming_mode_is_active(C)) {
+    VectorSet<Strip *> strips = selected_strips_from_context(C);
     if (strips.size() == 1) {
       Strip *strip = strips[0];
-      SeqRetimingKey *key = ensure_left_and_right_keys(*C, strip);
+      SeqRetimingKey *key = ensure_left_and_right_keys(C, strip);
       return seq::retiming_key_speed_get(strip, key);
     }
   }
 
-  Scene *scene = CTX_data_sequencer_scene(*C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Map selection = seq::retiming_selection_get(seq::editing_get(scene));
   /* Retiming mode. */
   if (selection.size() == 1) {
@@ -747,7 +747,7 @@ static wmOperatorStatus sequencer_retiming_segment_speed_set_invoke(bContext &C,
                                                                     const wmEvent *event)
 {
   if (!RNA_struct_property_is_set(op.ptr, "speed")) {
-    RNA_float_set(op.ptr, "speed", strip_speed_get(&C, &op) * 100.0f);
+    RNA_float_set(op.ptr, "speed", strip_speed_get(C, &op) * 100.0f);
     return WM_operator_props_popup(C, op, event);
   }
 

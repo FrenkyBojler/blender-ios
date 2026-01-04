@@ -290,7 +290,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   layout.prop(ptr, "smooth_step", UI_ITEM_NONE, IFACE_("Repeat"), ICON_NONE);
 
   if (ui::Layout *influence_panel = layout.panel_prop(
-          C, ptr, "open_influence_panel", IFACE_("Influence")))
+          *C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);

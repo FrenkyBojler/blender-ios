@@ -1082,7 +1082,7 @@ static void ui_apply_but_autokey(bContext &C, Button *but)
   Scene *scene = CTX_data_scene(C);
 
   /* try autokey */
-  button_anim_autokey(&C, but, scene, BKE_scene_frame_get(scene));
+  button_anim_autokey(C, but, scene, BKE_scene_frame_get(scene));
 
   if (!but->rnaprop) {
     return;
@@ -2223,7 +2223,7 @@ static bool ui_but_drag_init(bContext &C,
       }
 
       if (valid) {
-        WM_event_start_drag(&C, ICON_COLOR, WM_DRAG_COLOR, drag_info, WM_DRAG_FREE_DATA);
+        WM_event_start_drag(C, ICON_COLOR, WM_DRAG_COLOR, drag_info, WM_DRAG_FREE_DATA);
       }
       else {
         MEM_freeN(drag_info);
@@ -2237,7 +2237,7 @@ static bool ui_but_drag_init(bContext &C,
       }
     }
     else {
-      button_drag_start(&C, but);
+      button_drag_start(C, but);
     }
     return true;
   }
@@ -3475,7 +3475,7 @@ const wmIMEData *button_ime_data_get(Button *but)
 }
 #endif /* WITH_INPUT_IME */
 
-static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
+static void ui_textedit_begin(bContext &C, Button *but, HandleButtonData *data)
 {
   TextEdit &text_edit = data->text_edit;
   wmWindow *win = data->window;
@@ -3484,7 +3484,7 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
 
   MEM_SAFE_FREE(text_edit.edit_string);
 
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
 
 #if defined(__APPLE__)
   const int ctrl_icon = ICON_KEY_COMMAND;
@@ -3510,7 +3510,7 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   if (data->applied_interactive) {
     /* remove any small changes so canceling edit doesn't restore invalid value: #40538 */
     data->cancel = true;
-    ui_apply_but(C, but->block, but, data, true);
+    ui_apply_but(&C, but->block, but, data, true);
     data->cancel = false;
 
     data->applied_interactive = false;
@@ -3582,8 +3582,8 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   if (but->type == ButtonType::SearchMenu) {
     ButtonSearch *search_but = (ButtonSearch *)but;
 
-    data->searchbox = search_but->popup_create_fn(C, data->region, search_but);
-    searchbox_update(C, data->searchbox, but, true); /* true = reset */
+    data->searchbox = search_but->popup_create_fn(&C, data->region, search_but);
+    searchbox_update(&C, data->searchbox, but, true); /* true = reset */
   }
 
   /* reset alert flag (avoid confusion, will refresh on exit) */
@@ -3604,7 +3604,7 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   else if ((but->block->flag & BLOCK_CLIP_EVENTS) == 0) {
     /* Blocks with BLOCK_CLIP_EVENTS are overlapping their region, so scrolling
      * that region to ensure it is in view can't work and causes issues. #97530 */
-    but_ensure_in_view(C, data->region, but);
+    but_ensure_in_view(&C, data->region, but);
   }
 
   WM_cursor_modal_set(win, WM_CURSOR_TEXT_EDIT);
@@ -4500,7 +4500,7 @@ static void block_open_begin(bContext *C, Button *but, HandleButtonData *data)
     }
   }
   else if (menufunc) {
-    data->menu = popup_menu_create(C, data->region, but, menufunc, arg);
+    data->menu = popup_menu_create(*C, data->region, but, menufunc, arg);
     if (MenuType *mt = button_menutype_get(but)) {
       STRNCPY_UTF8(data->menu->menu_idname, mt->idname);
     }
@@ -4545,7 +4545,7 @@ static void block_open_end(bContext *C, Button *but, HandleButtonData *data)
   ED_workspace_status_text(C, nullptr);
 
   if (data->menu) {
-    popup_block_free(C, data->menu);
+    popup_block_free(*C, data->menu);
     data->menu = nullptr;
   }
 }
@@ -8643,7 +8643,7 @@ void button_tooltip_refresh(bContext *C, Button *but)
   if (data) {
     bScreen *screen = WM_window_get_active_screen(data->window);
     if (screen->tool_tip && screen->tool_tip->region) {
-      WM_tooltip_refresh(C, data->window);
+      WM_tooltip_refresh(*C, data->window);
     }
   }
 }
@@ -8658,7 +8658,7 @@ void button_tooltip_timer_remove(bContext *C, Button *but)
     }
 
     if (data->window) {
-      WM_tooltip_clear(C, data->window);
+      WM_tooltip_clear(*C, data->window);
     }
   }
 }
@@ -8779,7 +8779,7 @@ static void button_activate_state(bContext *C, Button *but, HandleButtonState st
 
   /* text editing */
   if (state == BUTTON_STATE_TEXT_EDITING && data->state != BUTTON_STATE_TEXT_SELECTING) {
-    ui_textedit_begin(C, but, data);
+    ui_textedit_begin(*C, but, data);
   }
   else if (data->state == BUTTON_STATE_TEXT_EDITING && state != BUTTON_STATE_TEXT_SELECTING) {
     ui_textedit_end(C, but, data);
@@ -9023,7 +9023,7 @@ static void button_activate_init(bContext *C,
     /* Show a label for this button. */
     bScreen *screen = WM_window_get_active_screen(data->window);
     if ((BLI_time_now_seconds() - WM_tooltip_time_closed()) < 0.1) {
-      WM_tooltip_immediate_init(C, CTX_wm_window(*C), data->area, region, ui_but_tooltip_init);
+      WM_tooltip_immediate_init(*C, CTX_wm_window(*C), data->area, region, ui_but_tooltip_init);
       if (screen->tool_tip) {
         screen->tool_tip->pass = 1;
       }
@@ -9314,9 +9314,9 @@ Button *context_active_but_prop_get(const bContext &C,
       region_popup ? region_popup : CTX_wm_region(C), r_ptr, r_prop, r_index);
 }
 
-void context_active_but_prop_handle(bContext *C, const bool handle_undo)
+void context_active_but_prop_handle(bContext &C, const bool handle_undo)
 {
-  Button *activebut = context_active_but_get_respect_popup(*C);
+  Button *activebut = context_active_but_get_respect_popup(C);
   if (activebut) {
     /* TODO(@ideasman42): look into a better way to handle the button change
      * currently this is mainly so reset defaults works for the
@@ -9330,10 +9330,10 @@ void context_active_but_prop_handle(bContext *C, const bool handle_undo)
 
     /* This may be needed to validate the value, see: #134101. */
     if (activebut->func) {
-      activebut->func(C, activebut->func_arg1, activebut->func_arg2);
+      activebut->func(&C, activebut->func_arg1, activebut->func_arg2);
     }
     if (block->handle_func) {
-      block->handle_func(C, block->handle_func_arg, activebut->retval);
+      block->handle_func(&C, block->handle_func_arg, activebut->retval);
     }
     if (handle_undo) {
       /* Update the button so the undo text uses the correct value. */
@@ -11254,7 +11254,7 @@ static int ui_handle_menu_event(bContext &C,
         SafetyRect *saferct = static_cast<SafetyRect *>(block->saferct.first);
 
         if (event->type == MOUSEMOVE) {
-          WM_tooltip_clear(&C, win);
+          WM_tooltip_clear(C, win);
         }
 
         if (ELEM(event->type, LEFTMOUSE, MIDDLEMOUSE, RIGHTMOUSE)) {
@@ -12263,7 +12263,7 @@ static int ui_popup_handler(bContext *C, const wmEvent *event, void *userdata)
       reset_pie = true;
     }
 
-    popup_block_free(C, menu);
+    popup_block_free(*C, menu);
     popup_handlers_remove(&win->runtime->modalhandlers, menu);
     CTX_wm_region_popup_set(*C, nullptr);
 
@@ -12326,7 +12326,7 @@ static void ui_popup_handler_remove(bContext *C, void *userdata)
   }
 
   /* free menu block if window is closed for some reason */
-  popup_block_free(C, menu);
+  popup_block_free(*C, menu);
 
   /* delayed apply callbacks */
   ui_apply_but_funcs_after(C);
@@ -12496,9 +12496,9 @@ Button *button_active_drop_name_button(const bContext &C)
   return nullptr;
 }
 
-bool button_active_drop_name(const bContext *C)
+bool button_active_drop_name(const bContext &C)
 {
-  return button_active_drop_name_button(*C) != nullptr;
+  return button_active_drop_name_button(C) != nullptr;
 }
 
 bool button_active_drop_color(bContext &C)

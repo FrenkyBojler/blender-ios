@@ -71,7 +71,7 @@ static void sound_open_init(bContext *C, wmOperator *op)
   PropertyPointerRNA *pprop;
 
   op->customdata = pprop = MEM_new<PropertyPointerRNA>(__func__);
-  blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
+  blender::ui::context_active_but_prop_get_templateID(*C, &pprop->ptr, &pprop->prop);
 }
 
 #ifdef WITH_AUDASPACE

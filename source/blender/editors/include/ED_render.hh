@@ -52,8 +52,8 @@ void ED_render_scene_update(const DEGEditorUpdateContext *update_ctx, bool updat
  */
 void ED_render_view3d_update(Depsgraph *depsgraph, wmWindow *window, ScrArea *area, bool updated);
 
-Scene *ED_render_job_get_scene(const bContext *C);
-Scene *ED_render_job_get_current_scene(const bContext *C);
+Scene *ED_render_job_get_scene(const bContext &C);
+Scene *ED_render_job_get_current_scene(const bContext &C);
 
 /**
  * Render the preview method.

@@ -787,7 +787,7 @@ void ED_annotation_draw_2dimage(const bContext &C)
   int offsx, offsy, sizex, sizey;
   int dflag = GP_DRAWDATA_NOSTATUS;
 
-  bGPdata *gpd = ED_annotation_data_get_active(&C);
+  bGPdata *gpd = ED_annotation_data_get_active(C);
   if (gpd == nullptr) {
     return;
   }
@@ -858,7 +858,7 @@ void ED_annotation_draw_view2d(const bContext &C, bool onlyv2d)
   if (area == nullptr) {
     return;
   }
-  bGPdata *gpd = ED_annotation_data_get_active(&C);
+  bGPdata *gpd = ED_annotation_data_get_active(C);
   if (gpd == nullptr) {
     return;
   }

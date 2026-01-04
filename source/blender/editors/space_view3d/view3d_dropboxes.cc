@@ -78,12 +78,12 @@ static ID_Type view3d_drop_id_in_main_region_poll_get_id_type(bContext &C,
   return ID_Type(0);
 }
 
-static bool view3d_drop_id_in_main_region_poll(bContext *C,
+static bool view3d_drop_id_in_main_region_poll(bContext &C,
                                                wmDrag *drag,
                                                const wmEvent *event,
                                                ID_Type id_type)
 {
-  if (!view3d_drop_in_main_region_poll(*C, event)) {
+  if (!view3d_drop_in_main_region_poll(C, event)) {
     return false;
   }
 
@@ -144,7 +144,7 @@ static void view3d_ob_drop_on_enter(wmDropBox *drop, wmDrag *drag)
 
 static bool view3d_ob_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  return view3d_drop_id_in_main_region_poll(C, drag, event, ID_OB);
+  return view3d_drop_id_in_main_region_poll(*C, drag, event, ID_OB);
 }
 static bool view3d_ob_drop_poll_external_asset(bContext *C, wmDrag *drag, const wmEvent *event)
 {
@@ -168,7 +168,7 @@ static bool view3d_ob_drop_poll_local_id(bContext *C, wmDrag *drag, const wmEven
 
 static bool view3d_collection_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  return view3d_drop_id_in_main_region_poll(C, drag, event, ID_GR);
+  return view3d_drop_id_in_main_region_poll(*C, drag, event, ID_GR);
 }
 
 static bool view3d_collection_drop_poll_local_id(bContext *C, wmDrag *drag, const wmEvent *event)
@@ -191,7 +191,7 @@ static bool view3d_collection_drop_poll_external_asset(bContext *C,
 
 static bool view3d_mat_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  if (!view3d_drop_id_in_main_region_poll(C, drag, event, ID_MA)) {
+  if (!view3d_drop_id_in_main_region_poll(*C, drag, event, ID_MA)) {
     return false;
   }
 
@@ -216,7 +216,7 @@ static std::string view3d_mat_drop_tooltip(bContext *C,
 
 static bool view3d_world_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  return view3d_drop_id_in_main_region_poll(C, drag, event, ID_WO);
+  return view3d_drop_id_in_main_region_poll(*C, drag, event, ID_WO);
 }
 
 static bool view3d_object_data_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
@@ -290,7 +290,7 @@ static bool view3d_ima_empty_drop_poll(bContext *C, wmDrag *drag, const wmEvent 
 
 static bool view3d_geometry_nodes_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
 {
-  if (!view3d_drop_id_in_main_region_poll(C, drag, event, ID_NT)) {
+  if (!view3d_drop_id_in_main_region_poll(*C, drag, event, ID_NT)) {
     return false;
   }
 

@@ -447,7 +447,7 @@ static void sequencer_main_region_init(wmWindowManager *wm, ARegion *region)
 /* Strip editing timeline. */
 static void sequencer_main_region_draw(const bContext *C, ARegion *region)
 {
-  draw_timeline_seq(C, region);
+  draw_timeline_seq(*C, region);
 }
 
 /* Strip editing timeline. */
@@ -805,7 +805,7 @@ static void sequencer_tools_region_draw(const bContext *C, ARegion *region)
     op_context = wm::OpCallContext::InvokeRegionChannels;
   }
 
-  ED_region_panels_ex(C, region, op_context, nullptr);
+  ED_region_panels_ex(*C, region, op_context, nullptr);
 }
 /* *********************** preview region ************************ */
 

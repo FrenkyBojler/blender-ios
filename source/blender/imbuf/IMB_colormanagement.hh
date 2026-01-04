@@ -341,7 +341,7 @@ unsigned char *IMB_display_buffer_acquire(ImBuf *ibuf,
 /**
  * Same as #IMB_display_buffer_acquire but gets view and display settings from context.
  */
-unsigned char *IMB_display_buffer_acquire_ctx(const bContext *C, ImBuf *ibuf, void **cache_handle);
+unsigned char *IMB_display_buffer_acquire_ctx(const bContext &C, ImBuf *ibuf, void **cache_handle);
 
 void IMB_display_buffer_transform_apply(unsigned char *display_buffer,
                                         float *linear_buffer,
@@ -587,7 +587,7 @@ bool IMB_colormanagement_setup_glsl_draw_ctx(const bContext *C, float dither, bo
  * Same as `setup_glsl_draw_from_space`,
  * but color management settings are guessing from a given context.
  */
-bool IMB_colormanagement_setup_glsl_draw_from_space_ctx(const bContext *C,
+bool IMB_colormanagement_setup_glsl_draw_from_space_ctx(const bContext &C,
                                                         const ColorSpace *from_colorspace,
                                                         float dither,
                                                         bool predivide);

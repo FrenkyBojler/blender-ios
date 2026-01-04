@@ -491,7 +491,7 @@ static void move_strips(bContext *C, wmOperator *op)
   RNA_boolean_set(&ptr, "remove_on_cancel", true);
   RNA_boolean_set(&ptr, "view2d_edge_pan", true);
   RNA_boolean_set(&ptr, "release_confirm", false);
-  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
+  WM_operator_name_call_ptr(*C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
 
@@ -739,7 +739,7 @@ static wmOperatorStatus sequencer_add_scene_strip_exec(bContext &C, wmOperator &
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   DEG_relations_tag_update(bmain);
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
   move_strips(&C, &op);
 
   return OPERATOR_FINISHED;
@@ -839,7 +839,7 @@ static wmOperatorStatus sequencer_add_scene_strip_new_exec(bContext &C, wmOperat
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   DEG_relations_tag_update(bmain);
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
   move_strips(&C, &op);
 
   return OPERATOR_FINISHED;
@@ -950,7 +950,7 @@ static wmOperatorStatus sequencer_add_scene_asset_invoke(bContext &C,
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   DEG_relations_tag_update(bmain);
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
   move_strips(&C, &op);
 
   return OPERATOR_FINISHED;
@@ -1028,7 +1028,7 @@ static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext &C, wmOperat
   seq_load_apply_generic_options(C, &op, strip);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
   move_strips(&C, &op);
 
   return OPERATOR_FINISHED;
@@ -1107,7 +1107,7 @@ static wmOperatorStatus sequencer_add_mask_strip_exec(bContext &C, wmOperator &o
   seq_load_apply_generic_options(C, &op, strip);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
   move_strips(&C, &op);
 
   return OPERATOR_FINISHED;
@@ -1429,7 +1429,7 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext &C, wmOperator &
   seq_build_proxy(&C, movie_strips);
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
   move_strips(&C, &op);
 
   sequencer_add_free(C, op);
@@ -1597,7 +1597,7 @@ static wmOperatorStatus sequencer_add_sound_strip_exec(bContext &C, wmOperator &
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
   move_strips(&C, &op);
 
   sequencer_add_free(C, op);
@@ -1915,7 +1915,7 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext &C, wmOperator &
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
   move_strips(&C, &op);
 
   sequencer_add_free(C, op);
@@ -2071,7 +2071,7 @@ static wmOperatorStatus sequencer_add_effect_strip_exec(bContext &C, wmOperator 
   }
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
 
   /* It's reasonable to add effects with inputs directly above the input. */
   if (ELEM(load_data.effect.type,

@@ -646,9 +646,9 @@ bool vertex_paint_poll(bContext &C)
   return vertex_paint_poll_ex(C, true);
 }
 
-bool vertex_paint_poll_ignore_tool(bContext *C)
+bool vertex_paint_poll_ignore_tool(bContext &C)
 {
-  return vertex_paint_poll_ex(*C, false);
+  return vertex_paint_poll_ex(C, false);
 }
 
 static ColorPaint4f vpaint_get_current_col(VPaint &vp, bool secondary)
@@ -985,7 +985,7 @@ struct VPaintData : public PaintModeData {
   }
 };
 
-static std::unique_ptr<VPaintData> vpaint_init_vpaint(bContext *C,
+static std::unique_ptr<VPaintData> vpaint_init_vpaint(bContext &C,
                                                       wmOperator *op,
                                                       Scene &scene,
                                                       Depsgraph &depsgraph,
@@ -1001,7 +1001,7 @@ static std::unique_ptr<VPaintData> vpaint_init_vpaint(bContext *C,
   vpd->type = type;
   vpd->domain = domain;
 
-  vpd->vc = ED_view3d_viewcontext_init(*C, &depsgraph);
+  vpd->vc = ED_view3d_viewcontext_init(C, &depsgraph);
 
   vwpaint::view_angle_limits_init(&vpd->normal_angle_precalc,
                                   brush.falloff_angle,
@@ -1092,8 +1092,16 @@ bool VertexPaintStroke::test_start(wmOperator *op, const float mouse[2])
     return false;
   }
 
-  std::unique_ptr<VPaintData> vpd = vpaint_init_vpaint(
-      evil_C, op, scene, depsgraph, vp, ob, *mesh, meta_data->domain, meta_data->data_type, brush);
+  std::unique_ptr<VPaintData> vpd = vpaint_init_vpaint(*evil_C,
+                                                       op,
+                                                       scene,
+                                                       depsgraph,
+                                                       vp,
+                                                       ob,
+                                                       *mesh,
+                                                       meta_data->domain,
+                                                       meta_data->data_type,
+                                                       brush);
 
   mode_data_ = std::move(vpd);
 
@@ -2024,7 +2032,7 @@ static void vpaint_do_radial_symmetry(bContext *C,
 
 /* near duplicate of: sculpt.cc's,
  * 'do_symmetrical_brush_actions' and 'wpaint_do_symmetrical_brush_actions'. */
-static void vpaint_do_symmetrical_brush_actions(bContext *C,
+static void vpaint_do_symmetrical_brush_actions(bContext &C,
                                                 const VPaint &vp,
                                                 VPaintData &vpd,
                                                 Object &ob)
@@ -2039,10 +2047,10 @@ static void vpaint_do_symmetrical_brush_actions(bContext *C,
   /* initial stroke */
   const ePaintSymmetryFlags initial_symm = ePaintSymmetryFlags(0);
   cache.mirror_symmetry_pass = ePaintSymmetryFlags(0);
-  vpaint_do_paint(*C, vp, vpd, ob, mesh, brush, initial_symm, 'X', 0, 0);
-  vpaint_do_radial_symmetry(C, vp, vpd, ob, mesh, brush, initial_symm, 'X');
-  vpaint_do_radial_symmetry(C, vp, vpd, ob, mesh, brush, initial_symm, 'Y');
-  vpaint_do_radial_symmetry(C, vp, vpd, ob, mesh, brush, initial_symm, 'Z');
+  vpaint_do_paint(C, vp, vpd, ob, mesh, brush, initial_symm, 'X', 0, 0);
+  vpaint_do_radial_symmetry(&C, vp, vpd, ob, mesh, brush, initial_symm, 'X');
+  vpaint_do_radial_symmetry(&C, vp, vpd, ob, mesh, brush, initial_symm, 'Y');
+  vpaint_do_radial_symmetry(&C, vp, vpd, ob, mesh, brush, initial_symm, 'Z');
 
   cache.symmetry = symm;
 
@@ -2054,16 +2062,16 @@ static void vpaint_do_symmetrical_brush_actions(bContext *C,
       SCULPT_cache_calc_brushdata_symm(cache, symm_pass, 0, 0);
 
       if (i & (1 << 0)) {
-        vpaint_do_paint(*C, vp, vpd, ob, mesh, brush, symm_pass, 'X', 0, 0);
-        vpaint_do_radial_symmetry(C, vp, vpd, ob, mesh, brush, symm_pass, 'X');
+        vpaint_do_paint(C, vp, vpd, ob, mesh, brush, symm_pass, 'X', 0, 0);
+        vpaint_do_radial_symmetry(&C, vp, vpd, ob, mesh, brush, symm_pass, 'X');
       }
       if (i & (1 << 1)) {
-        vpaint_do_paint(*C, vp, vpd, ob, mesh, brush, symm_pass, 'Y', 0, 0);
-        vpaint_do_radial_symmetry(C, vp, vpd, ob, mesh, brush, symm_pass, 'Y');
+        vpaint_do_paint(C, vp, vpd, ob, mesh, brush, symm_pass, 'Y', 0, 0);
+        vpaint_do_radial_symmetry(&C, vp, vpd, ob, mesh, brush, symm_pass, 'Y');
       }
       if (i & (1 << 2)) {
-        vpaint_do_paint(*C, vp, vpd, ob, mesh, brush, symm_pass, 'Z', 0, 0);
-        vpaint_do_radial_symmetry(C, vp, vpd, ob, mesh, brush, symm_pass, 'Z');
+        vpaint_do_paint(C, vp, vpd, ob, mesh, brush, symm_pass, 'Z', 0, 0);
+        vpaint_do_radial_symmetry(&C, vp, vpd, ob, mesh, brush, symm_pass, 'Z');
       }
     }
   }
@@ -2093,7 +2101,7 @@ void VertexPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
 
   swap_m4m4(vc.rv3d->persmat, mat);
 
-  vpaint_do_symmetrical_brush_actions(this->evil_C, vp, vpd, ob);
+  vpaint_do_symmetrical_brush_actions(*this->evil_C, vp, vpd, ob);
 
   swap_m4m4(vc.rv3d->persmat, mat);
 
@@ -2160,7 +2168,7 @@ static wmOperatorStatus vpaint_exec(bContext &C, wmOperator &op)
   VertexPaintStroke *stroke = MEM_new<VertexPaintStroke>(__func__, &C, &op, 0);
   op.customdata = stroke;
 
-  stroke->exec(&C, &op);
+  stroke->exec(C, &op);
 
   MEM_delete(stroke);
   return OPERATOR_FINISHED;
@@ -2169,7 +2177,7 @@ static wmOperatorStatus vpaint_exec(bContext &C, wmOperator &op)
 static wmOperatorStatus vpaint_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   VertexPaintStroke *stroke = static_cast<VertexPaintStroke *>(op.customdata);
-  const wmOperatorStatus retval = stroke->modal(&C, &op, event);
+  const wmOperatorStatus retval = stroke->modal(C, &op, event);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);

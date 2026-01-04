@@ -46,9 +46,9 @@ static bool paint_tool_uses_canvas(blender::StringRef idname)
   return ELEM(idname, "builtin.color_filter");
 }
 
-static bool paint_brush_uses_canvas(bContext *C)
+static bool paint_brush_uses_canvas(bContext &C)
 {
-  const Paint *paint = BKE_paint_get_active_from_context(*C);
+  const Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *brush = BKE_paint_brush_for_read(paint);
   if (brush == nullptr) {
     return false;
@@ -79,7 +79,7 @@ void ED_paint_brush_type_update_sticky_shading_color(bContext *C, Object *ob)
   }
 
   ob->sculpt->sticky_shading_color = paint_tool_uses_canvas(tref->idname) ||
-                                     paint_brush_uses_canvas(C);
+                                     paint_brush_uses_canvas(*C);
 }
 
 static bool paint_brush_type_shading_color_follows_last_used_tool(bContext *C, Object *ob)
@@ -105,7 +105,7 @@ bool ED_paint_brush_type_use_canvas(bContext *C, bToolRef *tref)
     return false;
   }
 
-  return paint_tool_uses_canvas(tref->idname) || paint_brush_uses_canvas(C);
+  return paint_tool_uses_canvas(tref->idname) || paint_brush_uses_canvas(*C);
 }
 
 eV3DShadingColorType ED_paint_shading_color_override(bContext *C,

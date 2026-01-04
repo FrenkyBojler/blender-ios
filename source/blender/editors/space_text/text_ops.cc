@@ -355,7 +355,7 @@ static wmOperatorStatus text_new_exec(bContext &C, wmOperator & /*op*/)
   text = BKE_text_add(bmain, DATA_("Text"));
 
   /* Hook into UI. */
-  blender::ui::context_active_but_prop_get_templateID(&C, &ptr, &prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
   if (prop) {
     PointerRNA idptr = RNA_id_pointer_create(&text->id);
@@ -402,7 +402,7 @@ static void text_open_init(bContext *C, wmOperator *op)
   PropertyPointerRNA *pprop = MEM_new<PropertyPointerRNA>(__func__);
 
   op->customdata = pprop;
-  blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
+  blender::ui::context_active_but_prop_get_templateID(*C, &pprop->ptr, &pprop->prop);
 }
 
 static void text_open_cancel(bContext & /*C*/, wmOperator &op)
@@ -569,7 +569,7 @@ static wmOperatorStatus text_reload_exec(bContext &C, wmOperator &op)
 
 static wmOperatorStatus text_reload_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  return WM_operator_confirm_ex(&C,
+  return WM_operator_confirm_ex(C,
                                 &op,
                                 IFACE_("Reload active text file?"),
                                 nullptr,
@@ -631,7 +631,7 @@ static wmOperatorStatus text_unlink_exec(bContext &C, wmOperator & /*op*/)
 
 static wmOperatorStatus text_unlink_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  return WM_operator_confirm_ex(&C,
+  return WM_operator_confirm_ex(C,
                                 &op,
                                 IFACE_("Delete active text file?"),
                                 nullptr,
@@ -2448,7 +2448,7 @@ static wmOperatorStatus text_jump_exec(bContext &C, wmOperator &op)
 
 static wmOperatorStatus text_jump_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
-  return WM_operator_props_dialog_popup(&C, &op, 200, IFACE_("Jump to Line Number"));
+  return WM_operator_props_dialog_popup(C, &op, 200, IFACE_("Jump to Line Number"));
 }
 
 void TEXT_OT_jump(wmOperatorType *ot)

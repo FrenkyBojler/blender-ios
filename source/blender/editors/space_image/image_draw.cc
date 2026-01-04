@@ -58,7 +58,7 @@ static void draw_render_info(
     const bContext *C, Scene *scene, Image *ima, ARegion *region, float zoomx, float zoomy)
 {
   Render *re = RE_GetSceneRender(scene);
-  Scene *stats_scene = ED_render_job_get_scene(C);
+  Scene *stats_scene = ED_render_job_get_scene(*C);
   if (stats_scene == nullptr) {
     stats_scene = scene;
   }

@@ -239,7 +239,7 @@ static void mask_spline_add_point_at_index(MaskSpline *spline, int point_index)
   spline->tot_point++;
 }
 
-static bool add_vertex_subdivide(const bContext *C, Mask *mask, const float co[2])
+static bool add_vertex_subdivide(const bContext &C, Mask *mask, const float co[2])
 {
   MaskLayer *mask_layer;
   MaskSpline *spline;
@@ -248,7 +248,7 @@ static bool add_vertex_subdivide(const bContext *C, Mask *mask, const float co[2
   float tangent[2];
   float u;
 
-  if (ED_mask_find_nearest_diff_point(*C,
+  if (ED_mask_find_nearest_diff_point(C,
                                       mask,
                                       co,
                                       threshold,
@@ -262,7 +262,7 @@ static bool add_vertex_subdivide(const bContext *C, Mask *mask, const float co[2
                                       &u,
                                       nullptr))
   {
-    Scene *scene = CTX_data_scene(*C);
+    Scene *scene = CTX_data_scene(C);
     const float ctime = scene->r.cfra;
 
     MaskSplinePoint *new_point;
@@ -286,7 +286,7 @@ static bool add_vertex_subdivide(const bContext *C, Mask *mask, const float co[2
     mask_layer->act_spline = spline;
     mask_layer->act_point = new_point;
 
-    WM_event_add_notifier(*C, NC_MASK | NA_EDITED, mask);
+    WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
 
     return true;
   }
@@ -546,14 +546,14 @@ static wmOperatorStatus add_vertex_exec(bContext &C, wmOperator &op)
       return cyclic_result;
     }
 
-    if (!add_vertex_subdivide(&C, mask, co)) {
+    if (!add_vertex_subdivide(C, mask, co)) {
       if (!add_vertex_extrude(C, mask, mask_layer, co)) {
         return OPERATOR_CANCELLED;
       }
     }
   }
   else {
-    if (!add_vertex_subdivide(&C, mask, co)) {
+    if (!add_vertex_subdivide(C, mask, co)) {
       if (!add_vertex_new(C, mask, mask_layer, co)) {
         return OPERATOR_CANCELLED;
       }

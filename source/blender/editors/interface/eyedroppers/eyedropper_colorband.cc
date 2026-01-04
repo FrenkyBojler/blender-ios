@@ -57,11 +57,11 @@ struct EyedropperColorband_Context {
   EyedropperColorband *eye;
 };
 
-static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
+static bool eyedropper_colorband_init(bContext &C, wmOperator *op)
 {
   ColorBand *band = nullptr;
 
-  Button *but = context_active_but_get(*C);
+  Button *but = context_active_but_get(C);
 
   PointerRNA rna_update_ptr = PointerRNA_NULL;
   PropertyRNA *rna_update_prop = nullptr;
@@ -88,7 +88,7 @@ static bool eyedropper_colorband_init(bContext *C, wmOperator *op)
   }
 
   if (!band) {
-    const PointerRNA ptr = CTX_data_pointer_get_type(*C, "color_ramp", &RNA_ColorRamp);
+    const PointerRNA ptr = CTX_data_pointer_get_type(C, "color_ramp", &RNA_ColorRamp);
     if (ptr.data != nullptr) {
       band = static_cast<ColorBand *>(ptr.data);
 
@@ -276,7 +276,7 @@ static wmOperatorStatus eyedropper_colorband_invoke(bContext &C,
                                                     const wmEvent * /*event*/)
 {
   /* init */
-  if (eyedropper_colorband_init(&C, &op)) {
+  if (eyedropper_colorband_init(C, &op)) {
     wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
     context_active_but_clear(&C, win, CTX_wm_region(C));
@@ -294,7 +294,7 @@ static wmOperatorStatus eyedropper_colorband_invoke(bContext &C,
 static wmOperatorStatus eyedropper_colorband_exec(bContext &C, wmOperator &op)
 {
   /* init */
-  if (eyedropper_colorband_init(&C, &op)) {
+  if (eyedropper_colorband_init(C, &op)) {
 
     /* do something */
 

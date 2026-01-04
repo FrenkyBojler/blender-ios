@@ -347,19 +347,19 @@ void ED_undo_grouped_push(bContext &C, const char *str)
   ED_undo_push(C, str);
 }
 
-void ED_undo_pop(bContext *C)
+void ED_undo_pop(bContext &C)
 {
-  ed_undo_step_direction(*C, STEP_UNDO, nullptr);
+  ed_undo_step_direction(C, STEP_UNDO, nullptr);
 }
-void ED_undo_redo(bContext *C)
+void ED_undo_redo(bContext &C)
 {
-  ed_undo_step_direction(*C, STEP_REDO, nullptr);
+  ed_undo_step_direction(C, STEP_REDO, nullptr);
 }
 
-void ED_undo_push_op(bContext *C, wmOperator *op)
+void ED_undo_push_op(bContext &C, wmOperator *op)
 {
   /* in future, get undo string info? */
-  ED_undo_push(*C, op->type->name);
+  ED_undo_push(C, op->type->name);
 }
 
 void ED_undo_grouped_push_op(bContext *C, wmOperator *op)
@@ -372,10 +372,10 @@ void ED_undo_grouped_push_op(bContext *C, wmOperator *op)
   }
 }
 
-void ED_undo_pop_op(bContext *C, wmOperator *op)
+void ED_undo_pop_op(bContext &C, wmOperator *op)
 {
   /* search back a couple of undo's, in case something else added pushes */
-  ed_undo_step_by_name(*C, op->type->name, op->reports);
+  ed_undo_step_by_name(C, op->type->name, op->reports);
 }
 
 bool ED_undo_is_valid(const bContext &C, const char *undoname)
@@ -666,7 +666,7 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
 
       WM_operator_free_all_after(wm, op);
 
-      ED_undo_pop_op(C, op);
+      ED_undo_pop_op(*C, op);
 
       if (op->type->check) {
         if (op->type->check(*C, *op)) {
@@ -678,12 +678,12 @@ bool ED_undo_operator_repeat(bContext *C, wmOperator *op)
         }
       }
 
-      const wmOperatorStatus retval = WM_operator_repeat(C, op);
+      const wmOperatorStatus retval = WM_operator_repeat(*C, op);
       if ((retval & OPERATOR_FINISHED) == 0) {
         if (G.debug & G_DEBUG) {
           printf("redo_cb: operator redo failed: %s, return %d\n", op->type->name, retval);
         }
-        ED_undo_redo(C);
+        ED_undo_redo(*C);
       }
       else {
         success = true;

@@ -2029,7 +2029,7 @@ bool button_context_poll_operator_ex(bContext &C,
     }
   }
 
-  result = WM_operator_poll_context(&C, optype_params->optype, optype_params->opcontext);
+  result = WM_operator_poll_context(C, optype_params->optype, optype_params->opcontext);
 
   if (but) {
     BLI_assert_msg((but->flag & ~BUT_ACTIVE_OVERRIDE) == (old_but_flag & ~BUT_ACTIVE_OVERRIDE),
@@ -2045,13 +2045,13 @@ bool button_context_poll_operator_ex(bContext &C,
   return result;
 }
 
-bool button_context_poll_operator(bContext *C, wmOperatorType *ot, const Button *but)
+bool button_context_poll_operator(bContext &C, wmOperatorType *ot, const Button *but)
 {
   const wm::OpCallContext opcontext = but ? but->opcontext : wm::OpCallContext::InvokeDefault;
   wmOperatorCallParams params = {};
   params.optype = ot;
   params.opcontext = opcontext;
-  return button_context_poll_operator_ex(*C, but, &params);
+  return button_context_poll_operator_ex(C, but, &params);
 }
 
 void block_end_ex(const bContext *C,
@@ -2082,7 +2082,7 @@ void block_end_ex(const bContext *C,
     if (but->optype) {
       wmOperatorType *ot = but->optype;
 
-      if (ot == nullptr || !button_context_poll_operator((bContext *)C, ot, but.get())) {
+      if (ot == nullptr || !button_context_poll_operator(*(bContext *)C, ot, but.get())) {
         but->flag |= BUT_DISABLED;
       }
     }

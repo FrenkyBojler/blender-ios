@@ -286,6 +286,6 @@ AbstractTreeView *block_add_view(Block &block,
                                  StringRef idname,
                                  std::unique_ptr<AbstractTreeView> tree_view);
 
-void alert(bContext *C, StringRef title, StringRef message, AlertIcon icon, bool compact);
+void alert(bContext &C, StringRef title, StringRef message, AlertIcon icon, bool compact);
 
 }  // namespace blender::ui

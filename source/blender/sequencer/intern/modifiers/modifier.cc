@@ -187,7 +187,7 @@ static void modifier_reorder(bContext *C, Panel *panel, const int new_index)
   PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&props_ptr, "modifier", smd->name);
   RNA_int_set(&props_ptr, "index", new_index);
-  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
+  WM_operator_name_call_ptr(*C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
   WM_operator_properties_free(&props_ptr);
 }
 

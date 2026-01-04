@@ -700,7 +700,7 @@ static void draw_interface_panel_as_panel(DrawGroupInputsContext &ctx,
       return;
     }
     const std::string rna_path = fmt::format("[\"{}\"]", BLI_str_escape(identifier.c_str()));
-    panel_layout = layout.panel_prop_with_bool_header(&ctx.C,
+    panel_layout = layout.panel_prop_with_bool_header(ctx.C,
                                                       &open_property.ptr,
                                                       open_property.name,
                                                       ctx.properties_ptr,
@@ -981,12 +981,12 @@ static void draw_manage_panel(const bContext *C,
                               NodesModifierData &nmd)
 {
   if (ui::Layout *panel_layout = layout.panel_prop(
-          C, modifier_ptr, "open_bake_panel", IFACE_("Bake")))
+          *C, modifier_ptr, "open_bake_panel", IFACE_("Bake")))
   {
     draw_bake_panel(*panel_layout, modifier_ptr);
   }
   if (ui::Layout *panel_layout = layout.panel_prop(
-          C, modifier_ptr, "open_named_attributes_panel", IFACE_("Named Attributes")))
+          *C, modifier_ptr, "open_named_attributes_panel", IFACE_("Named Attributes")))
   {
     draw_named_attributes_panel(*panel_layout, nmd);
   }
@@ -1058,7 +1058,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
 
   if (has_output_attribute(nmd.node_group)) {
     if (ui::Layout *panel_layout = layout.panel_prop(
-            &C, modifier_ptr, "open_output_attributes_panel", IFACE_("Output Attributes")))
+            C, modifier_ptr, "open_output_attributes_panel", IFACE_("Output Attributes")))
     {
       draw_output_attributes_panel(ctx, *panel_layout);
     }
@@ -1066,7 +1066,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C,
 
   if ((nmd.flag & NODES_MODIFIER_HIDE_MANAGE_PANEL) == 0) {
     if (ui::Layout *panel_layout = layout.panel_prop(
-            &C, modifier_ptr, "open_manage_panel", IFACE_("Manage")))
+            C, modifier_ptr, "open_manage_panel", IFACE_("Manage")))
     {
       draw_manage_panel(&C, *panel_layout, modifier_ptr, nmd);
     }

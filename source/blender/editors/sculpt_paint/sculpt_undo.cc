@@ -2161,19 +2161,19 @@ static bool step_encode(bContext * /*C*/, Main *bmain, UndoStep *us_p)
   return true;
 }
 
-static void step_decode_undo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
+static void step_decode_undo_impl(bContext &C, Depsgraph *depsgraph, SculptUndoStep *us)
 {
   BLI_assert(us->step.is_applied == true);
 
-  restore_list(*C, depsgraph, us->data);
+  restore_list(C, depsgraph, us->data);
   us->step.is_applied = false;
 }
 
-static void step_decode_redo_impl(bContext *C, Depsgraph *depsgraph, SculptUndoStep *us)
+static void step_decode_redo_impl(bContext &C, Depsgraph *depsgraph, SculptUndoStep *us)
 {
   BLI_assert(us->step.is_applied == false);
 
-  restore_list(*C, depsgraph, us->data);
+  restore_list(C, depsgraph, us->data);
   us->step.is_applied = true;
 }
 
@@ -2196,7 +2196,7 @@ static void step_decode_undo(bContext *C,
     BLI_assert(us_iter->step.type == us->step.type); /* Previous loop ensures this. */
 
     set_active_layer(C, &us_iter->active_color_start);
-    step_decode_undo_impl(C, depsgraph, us_iter);
+    step_decode_undo_impl(*C, depsgraph, us_iter);
 
     if (us_iter == us) {
       if (us_iter->step.prev && us_iter->step.prev->type == BKE_UNDOSYS_TYPE_SCULPT) {
@@ -2221,7 +2221,7 @@ static void step_decode_redo(bContext *C, Depsgraph *depsgraph, SculptUndoStep *
   }
   while (us_iter && (us_iter->step.is_applied == false)) {
     set_active_layer(C, &us_iter->active_color_end);
-    step_decode_redo_impl(C, depsgraph, us_iter);
+    step_decode_redo_impl(*C, depsgraph, us_iter);
 
     if (us_iter == us) {
       set_active_layer(C, &us_iter->active_color_start);
@@ -2399,13 +2399,13 @@ void register_type(UndoType *ut)
  * instead.
  * \{ */
 
-static bool use_multires_mesh(bContext *C)
+static bool use_multires_mesh(bContext &C)
 {
-  if (BKE_paintmode_get_active_from_context(*C) != PaintMode::Sculpt) {
+  if (BKE_paintmode_get_active_from_context(C) != PaintMode::Sculpt) {
     return false;
   }
 
-  const Object *object = CTX_data_active_object(*C);
+  const Object *object = CTX_data_active_object(C);
   const SculptSession *sculpt_session = object->sculpt;
 
   return sculpt_session->multires.active;
@@ -2413,7 +2413,7 @@ static bool use_multires_mesh(bContext *C)
 
 void push_multires_mesh_begin(bContext *C, const char *str)
 {
-  if (!use_multires_mesh(C)) {
+  if (!use_multires_mesh(*C)) {
     return;
   }
 
@@ -2429,7 +2429,7 @@ void push_multires_mesh_begin(bContext *C, const char *str)
 
 void push_multires_mesh_end(bContext *C, const char *str)
 {
-  if (!use_multires_mesh(C)) {
+  if (!use_multires_mesh(*C)) {
     ED_undo_push(*C, str);
     return;
   }

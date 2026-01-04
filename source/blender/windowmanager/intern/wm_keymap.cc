@@ -1557,7 +1557,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext &C,
   return found;
 }
 
-static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
+static wmKeyMapItem *wm_keymap_item_find(const bContext &C,
                                          const char *opname,
                                          blender::wm::OpCallContext opcontext,
                                          IDProperty *properties,
@@ -1575,7 +1575,7 @@ static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
   }
 
   wmKeyMapItem *found = wm_keymap_item_find_props(
-      *C, opname, opcontext, properties, is_strict, params, r_keymap);
+      C, opname, opcontext, properties, is_strict, params, r_keymap);
 
   /* This block is *only* useful in one case: when op uses an enum menu in its prop member
    * (then, we want to rerun a comparison with that 'prop' unset). Note this remains brittle,
@@ -1599,7 +1599,7 @@ static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
         RNA_property_unset(&opptr, ot->prop);
 
         found = wm_keymap_item_find_props(
-            *C, opname, opcontext, properties_temp, is_strict, params, r_keymap);
+            C, opname, opcontext, properties_temp, is_strict, params, r_keymap);
       }
 
       IDP_FreeProperty(properties_temp);
@@ -1618,7 +1618,7 @@ static wmKeyMapItem *wm_keymap_item_find(const bContext *C,
 
         wmKeyMap *km;
         wmKeyMapItem *kmi = wm_keymap_item_find_props(
-            *C, opname, opcontext, properties_default, is_strict, params, &km);
+            C, opname, opcontext, properties_default, is_strict, params, &km);
         if (kmi) {
           std::string kmi_str = WM_keymap_item_to_string(kmi, false).value_or("");
           printf(
@@ -1663,7 +1663,7 @@ std::optional<std::string> WM_key_event_operator_string(const bContext *C,
   params.filter_fn = kmi_filter_is_visible;
   params.user_data = nullptr;
   wmKeyMapItem *kmi = wm_keymap_item_find(
-      C, opname, opcontext, properties, is_strict, &params, nullptr);
+      *C, opname, opcontext, properties, is_strict, &params, nullptr);
   if (kmi) {
     return WM_keymap_item_to_string(kmi, false);
   }
@@ -1694,7 +1694,7 @@ wmKeyMapItem *WM_key_event_operator(const bContext *C,
   wmKeyMapItemFind_Params params{};
   params.filter_fn = use_mask ? kmi_filter_is_visible_type_mask : kmi_filter_is_visible;
   params.user_data = use_mask ? user_data_mask : nullptr;
-  return wm_keymap_item_find(C, opname, opcontext, properties, true, &params, r_keymap);
+  return wm_keymap_item_find(*C, opname, opcontext, properties, true, &params, r_keymap);
 }
 
 wmKeyMapItem *WM_key_event_operator_from_keymap(wmKeyMap *keymap,

@@ -359,10 +359,10 @@ static void voxel_size_edit_cancel(bContext &C, wmOperator &op)
   ED_workspace_status_text(&C, nullptr);
 }
 
-static void voxel_size_edit_update_header(wmOperator *op, bContext *C)
+static void voxel_size_edit_update_header(wmOperator *op, bContext &C)
 {
   VoxelSizeEditCustomData *cd = static_cast<VoxelSizeEditCustomData *>(op->customdata);
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN, ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
   status.item(IFACE_("Change Size"), ICON_MOUSE_MOVE);
@@ -431,7 +431,7 @@ static wmOperatorStatus voxel_size_edit_modal(bContext &C, wmOperator &op, const
 
   ED_region_tag_redraw(region);
 
-  voxel_size_edit_update_header(&op, &C);
+  voxel_size_edit_update_header(&op, C);
   return OPERATOR_RUNNING_MODAL;
 }
 
@@ -601,7 +601,7 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext &C, wmOperator &op, cons
 
   ED_region_tag_redraw(region);
 
-  voxel_size_edit_update_header(&op, &C);
+  voxel_size_edit_update_header(&op, C);
 
   return OPERATOR_RUNNING_MODAL;
 }

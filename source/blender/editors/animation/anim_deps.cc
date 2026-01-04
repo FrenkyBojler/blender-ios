@@ -258,7 +258,7 @@ static void animchan_sync_gplayer(bAnimListElem *ale)
 
 /* ---------------- */
 
-void ANIM_sync_animchannels_to_data(const bContext *C)
+void ANIM_sync_animchannels_to_data(const bContext &C)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
@@ -267,7 +267,7 @@ void ANIM_sync_animchannels_to_data(const bContext *C)
   bActionGroup *active_agrp = nullptr;
 
   /* get animation context info for filtering the channels */
-  if (ANIM_animdata_get_context(*C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return;
   }
 

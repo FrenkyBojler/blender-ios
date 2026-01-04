@@ -134,7 +134,7 @@ static void node_templateID_assign(bContext &C, bNodeTree *node_tree)
   PointerRNA ptr;
   PropertyRNA *prop;
 
-  ui::context_active_but_prop_get_templateID(&C, &ptr, &prop);
+  ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
   if (prop) {
     /* #RNA_property_pointer_set increases the user count, fixed here as the editor is the initial
@@ -546,7 +546,7 @@ static wmOperatorStatus node_add_group_asset_invoke(bContext &C,
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_translate_attach_remove_on_cancel", true);
   BLI_assert(ot);
   PointerRNA ptr = WM_operator_properties_create_ptr(ot);
-  WM_operator_name_call_ptr(&C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
   return OPERATOR_FINISHED;
@@ -603,7 +603,7 @@ static wmOperatorStatus node_swap_group_asset_invoke(bContext &C,
                               std::string(BKE_id_name(node_group->id)) + "\"]";
   RNA_string_set(&itemptr, "value", setting_value.c_str());
 
-  WM_operator_name_call_ptr(&C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
   for (bNode *group_node : get_selected_nodes(ntree)) {

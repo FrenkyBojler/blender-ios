@@ -1191,7 +1191,7 @@ void ANIM_list_elem_update(Main *bmain, Scene *scene, bAnimListElem *ale);
 /**
  * Main call to be exported to animation editors.
  */
-void ANIM_sync_animchannels_to_data(const bContext *C);
+void ANIM_sync_animchannels_to_data(const bContext &C);
 
 void ANIM_center_frame(bContext &C, int smooth_viewtx);
 

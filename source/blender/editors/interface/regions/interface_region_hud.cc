@@ -105,9 +105,9 @@ struct HudRegionData {
   int region_index_hint;
 };
 
-static bool last_redo_poll(const bContext *C, short region_type, int region_index_hint)
+static bool last_redo_poll(const bContext &C, short region_type, int region_index_hint)
 {
-  wmOperator *op = WM_operator_last_redo(*C);
+  wmOperator *op = WM_operator_last_redo(C);
   if (op == nullptr) {
     return false;
   }
@@ -118,17 +118,17 @@ static bool last_redo_poll(const bContext *C, short region_type, int region_inde
      * operator call. Otherwise we would be polling the operator with the
      * wrong context.
      */
-    ScrArea *area = CTX_wm_area(*C);
+    ScrArea *area = CTX_wm_area(C);
     ARegion *region_op = (region_type != -1) ? area_find_region_by_type_and_index_hint(
                                                    area, region_type, region_index_hint) :
                                                nullptr;
-    ARegion *region_prev = CTX_wm_region(*C);
-    CTX_wm_region_set(*(bContext *)C, region_op);
+    ARegion *region_prev = CTX_wm_region(C);
+    CTX_wm_region_set(*(bContext *)&C, region_op);
 
-    if (WM_operator_repeat_check(C, op) && WM_operator_ui_poll(op->type, op->ptr)) {
-      success = WM_operator_poll((bContext *)C, op->type);
+    if (WM_operator_repeat_check(&C, op) && WM_operator_ui_poll(op->type, op->ptr)) {
+      success = WM_operator_poll((bContext *)&C, op->type);
     }
-    CTX_wm_region_set(*(bContext *)C, region_prev);
+    CTX_wm_region_set(*(bContext *)&C, region_prev);
   }
   return success;
 }
@@ -154,7 +154,7 @@ static bool hud_panel_operator_redo_poll(const bContext *C, PanelType * /*pt*/)
   if (region != nullptr) {
     HudRegionData *hrd = static_cast<HudRegionData *>(region->regiondata);
     if (hrd != nullptr) {
-      return last_redo_poll(C, hrd->regionid, hrd->region_index_hint);
+      return last_redo_poll(*C, hrd->regionid, hrd->region_index_hint);
     }
   }
   return false;
@@ -221,7 +221,7 @@ static void hud_region_free(ARegion *region)
 static void hud_region_layout(const bContext *C, ARegion *region)
 {
   HudRegionData *hrd = static_cast<HudRegionData *>(region->regiondata);
-  if (hrd == nullptr || !last_redo_poll(C, hrd->regionid, hrd->region_index_hint)) {
+  if (hrd == nullptr || !last_redo_poll(*C, hrd->regionid, hrd->region_index_hint)) {
     ED_region_tag_redraw(region);
     hud_region_hide(region);
     return;
@@ -376,7 +376,7 @@ void ED_area_type_hud_ensure(bContext &C, ScrArea *area)
   ARegion *region_op = CTX_wm_region(C);
   BLI_assert((region_op == nullptr) || (region_op->regiontype != RGN_TYPE_HUD));
   const int region_index_hint = region_op ? area_calc_region_type_index(area, region_op) : -1;
-  if (!last_redo_poll(&C, region_op ? region_op->regiontype : -1, region_index_hint)) {
+  if (!last_redo_poll(C, region_op ? region_op->regiontype : -1, region_index_hint)) {
     if (region) {
       ED_region_tag_redraw(region);
       hud_region_hide(region);

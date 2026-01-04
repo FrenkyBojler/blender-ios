@@ -94,7 +94,7 @@ Object *GreasePencilImporter::create_object(const StringRefNull name)
                                      ushort(0);
 
   Object *ob_gpencil = blender::ed::object::add_type(
-      &context_.C, OB_GREASE_PENCIL, name.c_str(), cur_loc, rot, false, local_view_bits);
+      context_.C, OB_GREASE_PENCIL, name.c_str(), cur_loc, rot, false, local_view_bits);
 
   return ob_gpencil;
 }

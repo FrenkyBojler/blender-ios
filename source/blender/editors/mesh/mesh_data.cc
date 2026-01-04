@@ -146,11 +146,11 @@ static void reset_uv_map(Mesh *mesh, const StringRef name)
   DEG_id_tag_update(&mesh->id, 0);
 }
 
-void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh)
+void ED_mesh_uv_loop_reset(bContext &C, Mesh *mesh)
 {
   reset_uv_map(mesh, mesh->active_uv_map_name());
 
-  WM_event_add_notifier(*C, NC_GEOM | ND_DATA, mesh);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, mesh);
 }
 
 int ED_mesh_uv_add(
@@ -527,9 +527,9 @@ enum class SkinState {
   NoSkin = 0,
   HasSkin = 1,
 };
-static SkinState mesh_customdata_skin_state(bContext *C)
+static SkinState mesh_customdata_skin_state(bContext &C)
 {
-  Object *ob = blender::ed::object::context_object(*C);
+  Object *ob = blender::ed::object::context_object(C);
   if (!ob) {
     return SkinState::Invalid;
   }
@@ -550,7 +550,7 @@ static SkinState mesh_customdata_skin_state(bContext *C)
 
 static bool mesh_customdata_skin_add_poll(bContext &C)
 {
-  return mesh_customdata_skin_state(&C) == SkinState::NoSkin;
+  return mesh_customdata_skin_state(C) == SkinState::NoSkin;
 }
 
 static wmOperatorStatus mesh_customdata_skin_add_exec(bContext &C, wmOperator & /*op*/)
@@ -580,7 +580,7 @@ void MESH_OT_customdata_skin_add(wmOperatorType *ot)
 
 static bool mesh_customdata_skin_clear_poll(bContext &C)
 {
-  return mesh_customdata_skin_state(&C) == SkinState::HasSkin;
+  return mesh_customdata_skin_state(C) == SkinState::HasSkin;
 }
 
 static wmOperatorStatus mesh_customdata_skin_clear_exec(bContext &C, wmOperator & /*op*/)

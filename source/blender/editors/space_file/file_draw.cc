@@ -1644,7 +1644,7 @@ void file_draw_list(const bContext &C, ARegion *region)
   }
 }
 
-static void file_draw_invalid_asset_library_hint(const bContext *C,
+static void file_draw_invalid_asset_library_hint(const bContext &C,
                                                  const SpaceFile *sfile,
                                                  ARegion *region,
                                                  FileAssetSelectParams *asset_params)
@@ -1684,7 +1684,7 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
     file_draw_string_multiline(
         sx + UI_UNIT_X, sy, suggestion, width - UI_UNIT_X, line_height, text_col, nullptr, &sy);
 
-    blender::ui::Block *block = block_begin(*C, region, __func__, blender::ui::EmbossType::Emboss);
+    blender::ui::Block *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
     wmOperatorType *ot = WM_operatortype_find("SCREEN_OT_userpref_show", false);
     blender::ui::Button *but = uiDefIconTextButO_ptr(block,
                                                      blender::ui::ButtonType::But,
@@ -1700,8 +1700,8 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
     PointerRNA *but_opptr = button_operator_ptr_ensure(but);
     RNA_enum_set(but_opptr, "section", USER_SECTION_FILE_PATHS);
 
-    block_end(*C, block);
-    block_draw(*C, block);
+    block_end(C, block);
+    block_draw(C, block);
   }
 }
 
@@ -1772,7 +1772,7 @@ bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegio
     if (!((asset_params->asset_library_ref.type == ASSET_LIBRARY_LOCAL) ||
           filelist_is_dir(sfile->files, asset_params->base_params.dir)))
     {
-      file_draw_invalid_asset_library_hint(C, sfile, region, asset_params);
+      file_draw_invalid_asset_library_hint(*C, sfile, region, asset_params);
       return true;
     }
   }

@@ -315,7 +315,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 
 #ifdef WITH_PYTHON
   BPY_python_start(C, argc, argv);
-  BPY_python_reset(C);
+  BPY_python_reset(*C);
 #else
   UNUSED_VARS(argc, argv);
 #endif
@@ -354,7 +354,7 @@ void WM_init(bContext *C, int argc, const char **argv)
   WM_keyconfig_update_postpone_end();
   WM_keyconfig_update_on_startup(static_cast<wmWindowManager *>(G_MAIN->wm.first));
 
-  wm_homefile_read_post(C, params_file_read_post);
+  wm_homefile_read_post(*C, params_file_read_post);
 }
 
 static bool wm_init_splash_show_on_startup_check()

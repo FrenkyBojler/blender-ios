@@ -755,7 +755,7 @@ static int buttons_shading_new_context(const bContext &C, int flag)
   return BCONTEXT_RENDER;
 }
 
-void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
+void buttons_context_compute(const bContext &C, SpaceProperties *sbuts)
 {
   if (!sbuts->path) {
     sbuts->path = MEM_new<ButsContextPath>("ButsContextPath");
@@ -767,14 +767,14 @@ void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
   int flag = 0;
 
   /* Set scene path. */
-  buttons_context_path(*C, sbuts, path, BCONTEXT_SCENE, pflag);
+  buttons_context_path(C, sbuts, path, BCONTEXT_SCENE, pflag);
 
-  buttons_texture_context_compute(C, sbuts);
+  buttons_texture_context_compute(&C, sbuts);
 
   /* for each context, see if we can compute a valid path to it, if
    * this is the case, we know we have to display the button */
   for (int i = 0; i < BCONTEXT_TOT; i++) {
-    if (buttons_context_path(*C, sbuts, path, i, pflag)) {
+    if (buttons_context_path(C, sbuts, path, i, pflag)) {
       flag |= (1 << i);
 
       /* setting icon for data context */
@@ -805,7 +805,7 @@ void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
   if ((flag & (1 << sbuts->mainb)) == 0) {
     if (sbuts->flag & SB_SHADING_CONTEXT) {
       /* try to keep showing shading related buttons */
-      sbuts->mainb = buttons_shading_new_context(*C, flag);
+      sbuts->mainb = buttons_shading_new_context(C, flag);
     }
     else if (flag & BCONTEXT_OBJECT) {
       sbuts->mainb = BCONTEXT_OBJECT;
@@ -820,7 +820,7 @@ void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
     }
   }
 
-  buttons_context_path(*C, sbuts, path, sbuts->mainb, pflag);
+  buttons_context_path(C, sbuts, path, sbuts->mainb, pflag);
 
   if (!(flag & (1 << sbuts->mainb))) {
     if (flag & (1 << BCONTEXT_OBJECT)) {
@@ -831,7 +831,7 @@ void buttons_context_compute(const bContext *C, SpaceProperties *sbuts)
     }
   }
 
-  if (buttons_shading_context(*C, sbuts->mainb)) {
+  if (buttons_shading_context(C, sbuts->mainb)) {
     sbuts->flag |= SB_SHADING_CONTEXT;
   }
   else {
@@ -861,13 +861,13 @@ bool ED_buttons_should_sync_with_outliner(const bContext &C,
   return auto_sync || sbuts->outliner_sync == PROPERTIES_SYNC_ALWAYS;
 }
 
-void ED_buttons_set_context(const bContext *C,
+void ED_buttons_set_context(const bContext &C,
                             SpaceProperties *sbuts,
                             PointerRNA *ptr,
                             const int context)
 {
   ButsContextPath path;
-  if (buttons_context_path(*C, sbuts, &path, context, 0) && is_pointer_in_path(&path, ptr)) {
+  if (buttons_context_path(C, sbuts, &path, context, 0) && is_pointer_in_path(&path, ptr)) {
     sbuts->mainbuser = context;
     sbuts->mainb = sbuts->mainbuser;
   }
@@ -927,7 +927,7 @@ int /*eContextResult*/ buttons_context(const bContext &C,
   if (sbuts && sbuts->path == nullptr) {
     /* path is cleared for #SCREEN_OT_redo_last, when global undo does a file-read which clears the
      * path (see lib_link_workspace_layout_restore). */
-    buttons_context_compute(&C, sbuts);
+    buttons_context_compute(C, sbuts);
   }
   ButsContextPath *path = static_cast<ButsContextPath *>(sbuts ? sbuts->path : nullptr);
 

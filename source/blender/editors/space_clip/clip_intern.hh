@@ -155,7 +155,7 @@ void clip_graph_tracking_iterate(SpaceClip *sc,
                                  void *userdata,
                                  void (*func)(void *userdata, MovieTrackingMarker *marker));
 
-void clip_delete_track(bContext *C, MovieClip *clip, MovieTrackingTrack *track);
+void clip_delete_track(bContext &C, MovieClip *clip, MovieTrackingTrack *track);
 void clip_delete_marker(bContext *C,
                         MovieClip *clip,
                         MovieTrackingTrack *track,
@@ -183,7 +183,7 @@ bool clip_view_has_locked_selection(const bContext &C);
 
 /* Find track which can be slid in a proximity of the given event.
  * Uses the same distance tolerance rule as the "Slide Marker" operator. */
-MovieTrackingTrack *tracking_find_slidable_track_in_proximity(bContext *C, const float co[2]);
+MovieTrackingTrack *tracking_find_slidable_track_in_proximity(bContext &C, const float co[2]);
 
 void CLIP_OT_add_marker(wmOperatorType *ot);
 void CLIP_OT_add_marker_at_click(wmOperatorType *ot);

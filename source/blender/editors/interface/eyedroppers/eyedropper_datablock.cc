@@ -68,7 +68,7 @@ static void datadropper_draw_cb(const bContext * /*C*/, ARegion * /*region*/, vo
   ddr->name[0] = '\0';
 }
 
-static int datadropper_init(bContext *C, wmOperator *op)
+static int datadropper_init(bContext &C, wmOperator *op)
 {
   int index_dummy;
   StructRNA *type;
@@ -81,7 +81,7 @@ static int datadropper_init(bContext *C, wmOperator *op)
 
   DataDropper *ddr = MEM_new<DataDropper>(__func__);
 
-  Button *but = context_active_but_prop_get(*C, &ddr->ptr, &ddr->prop, &index_dummy);
+  Button *but = context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &index_dummy);
 
   if ((ddr->ptr.data == nullptr) || (ddr->prop == nullptr) ||
       (RNA_property_editable(&ddr->ptr, ddr->prop) == false) ||
@@ -94,7 +94,7 @@ static int datadropper_init(bContext *C, wmOperator *op)
 
   ddr->is_undo = button_flag_is_set(but, BUT_UNDO);
 
-  ddr->cursor_area = CTX_wm_area(*C);
+  ddr->cursor_area = CTX_wm_area(C);
   ddr->art = art;
   ddr->draw_handle_pixel = ED_region_draw_cb_activate(
       art, datadropper_draw_cb, ddr, REGION_DRAW_POST_PIXEL);
@@ -157,7 +157,7 @@ static void datadropper_id_sample_pt(
         ED_region_tag_redraw(region);
 
         if (area->spacetype == SPACE_VIEW3D) {
-          base = ED_view3d_give_base_under_cursor(&C, mval);
+          base = ED_view3d_give_base_under_cursor(C, mval);
         }
         else {
           base = ED_outliner_give_base_under_cursor(C, mval);
@@ -197,13 +197,13 @@ static void datadropper_id_sample_pt(
 }
 
 /* sets the ID, returns success */
-static bool datadropper_id_set(bContext *C, DataDropper *ddr, ID *id)
+static bool datadropper_id_set(bContext &C, DataDropper *ddr, ID *id)
 {
   PointerRNA ptr_value = RNA_id_pointer_create(id);
 
   RNA_property_pointer_set(&ddr->ptr, ddr->prop, ptr_value, nullptr);
 
-  RNA_property_update(*C, &ddr->ptr, ddr->prop);
+  RNA_property_update(C, &ddr->ptr, ddr->prop);
 
   ptr_value = RNA_property_pointer_get(&ddr->ptr, ddr->prop);
 
@@ -211,23 +211,23 @@ static bool datadropper_id_set(bContext *C, DataDropper *ddr, ID *id)
 }
 
 /* single point sample & set */
-static bool datadropper_id_sample(bContext *C, DataDropper *ddr, const int event_xy[2])
+static bool datadropper_id_sample(bContext &C, DataDropper *ddr, const int event_xy[2])
 {
   ID *id = nullptr;
 
   int event_xy_win[2];
   wmWindow *win;
   ScrArea *area;
-  eyedropper_win_area_find(*C, event_xy, event_xy_win, &win, &area);
+  eyedropper_win_area_find(C, event_xy, event_xy_win, &win, &area);
 
-  datadropper_id_sample_pt(*C, win, area, ddr, event_xy_win, &id);
+  datadropper_id_sample_pt(C, win, area, ddr, event_xy_win, &id);
   return datadropper_id_set(C, ddr, id);
 }
 
 static void datadropper_cancel(bContext &C, wmOperator &op)
 {
   DataDropper *ddr = static_cast<DataDropper *>(op.customdata);
-  datadropper_id_set(&C, ddr, ddr->init_id);
+  datadropper_id_set(C, ddr, ddr->init_id);
   datadropper_exit(C, &op);
 }
 
@@ -267,7 +267,7 @@ static wmOperatorStatus datadropper_modal(bContext &C, wmOperator &op, const wmE
         return OPERATOR_CANCELLED;
       case EYE_MODAL_SAMPLE_CONFIRM: {
         const bool is_undo = ddr->is_undo;
-        const bool success = datadropper_id_sample(&C, ddr, event->xy);
+        const bool success = datadropper_id_sample(C, ddr, event->xy);
         datadropper_exit(C, &op);
         if (success) {
           /* Could support finished & undo-skip. */
@@ -299,7 +299,7 @@ static wmOperatorStatus datadropper_modal(bContext &C, wmOperator &op, const wmE
 static wmOperatorStatus datadropper_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   /* init */
-  if (datadropper_init(&C, &op)) {
+  if (datadropper_init(C, &op)) {
     wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
     context_active_but_clear(&C, win, CTX_wm_region(C));
@@ -317,7 +317,7 @@ static wmOperatorStatus datadropper_invoke(bContext &C, wmOperator &op, const wm
 static wmOperatorStatus datadropper_exec(bContext &C, wmOperator &op)
 {
   /* init */
-  if (datadropper_init(&C, &op)) {
+  if (datadropper_init(C, &op)) {
     /* cleanup */
     datadropper_exit(C, &op);
 

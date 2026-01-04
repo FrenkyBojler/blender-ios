@@ -592,7 +592,7 @@ void view2d_edge_pan_operator_properties_ex(wmOperatorType *ot,
 /**
  * Initialize panning data with operator settings.
  */
-void view2d_edge_pan_operator_init(bContext *C, View2DEdgePanData *vpd, wmOperator *op);
+void view2d_edge_pan_operator_init(bContext &C, View2DEdgePanData *vpd, wmOperator *op);
 
 /** \} */
 

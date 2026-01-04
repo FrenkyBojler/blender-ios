@@ -1164,7 +1164,7 @@ static wmOperatorStatus object_transform_apply_invoke(bContext &C,
       RNA_property_boolean_set(op.ptr, prop, true);
     }
     if (RNA_property_boolean_get(op.ptr, prop)) {
-      return WM_operator_confirm_ex(&C,
+      return WM_operator_confirm_ex(C,
                                     &op,
                                     IFACE_("Apply Object Transformations"),
                                     IFACE_("Warning: Multiple objects share the same data.\nMake "

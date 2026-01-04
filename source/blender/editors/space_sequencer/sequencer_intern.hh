@@ -131,7 +131,7 @@ struct TimelineDrawContext {
 
 /* Returns value in frames (view-space), 5px for large strips, 1/4 of the strip for smaller. */
 float strip_handle_draw_size_get(const Scene *scene, const Strip *strip, float pixelx);
-void draw_timeline_seq(const bContext *C, const ARegion *region);
+void draw_timeline_seq(const bContext &C, const ARegion *region);
 void draw_timeline_seq_display(const bContext &C, ARegion *region);
 
 /* `sequencer_preview_draw.cc` */
@@ -279,7 +279,7 @@ void SEQUENCER_OT_select_inverse(wmOperatorType *ot);
 void SEQUENCER_OT_select_grouped(wmOperatorType *ot);
 
 bool strip_point_image_isect(const Scene *scene, const Strip *strip, float point_view[2]);
-void sequencer_select_do_updates(const bContext *C, Scene *scene);
+void sequencer_select_do_updates(const bContext &C, Scene *scene);
 /**
  * Returns the strip that intersects with the mouse cursor in the timeline, if applicable.
  *

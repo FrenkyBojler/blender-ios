@@ -113,7 +113,7 @@ void OBJ_import_geometries(const OBJImportParams *import_params,
  * Import also changes the selection & the active object; callers
  * need to update the UI bits if needed.
  */
-void OBJ_import(bContext *C, const OBJImportParams *import_params);
+void OBJ_import(bContext &C, const OBJImportParams *import_params);
 
 /**
  * Perform the full export process.

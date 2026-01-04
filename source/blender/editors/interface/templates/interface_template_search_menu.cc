@@ -1113,7 +1113,7 @@ static ARegion *ui_search_menu_create_tooltip(
       CTX_wm_region_set(*C, item->wm_context->region);
     }
 
-    ARegion *region_tip = tooltip_create_from_button(C, region, but, false);
+    ARegion *region_tip = tooltip_create_from_button(*C, region, but, false);
 
     if (item->wm_context != nullptr) {
       CTX_wm_area_set(*C, area_prev);

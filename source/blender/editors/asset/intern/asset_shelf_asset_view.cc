@@ -306,7 +306,7 @@ void AssetViewItem::on_activate(bContext &C)
           shelf_type.activate_operator, asset_))
   {
     WM_operator_name_call_ptr(
-        &C, activate_op->optype, activate_op->opcontext, activate_op->opptr, nullptr);
+        C, activate_op->optype, activate_op->opcontext, activate_op->opptr, nullptr);
     WM_operator_properties_free(activate_op->opptr);
     MEM_delete(activate_op->opptr);
   }
@@ -399,7 +399,7 @@ void AssetDragController::on_drag_start(bContext &C)
   if (std::optional<wmOperatorCallParams> drag_op = create_asset_operator_params(
           shelf_type.drag_operator, asset_))
   {
-    WM_operator_name_call_ptr(&C, drag_op->optype, drag_op->opcontext, drag_op->opptr, nullptr);
+    WM_operator_name_call_ptr(C, drag_op->optype, drag_op->opcontext, drag_op->opptr, nullptr);
     WM_operator_properties_free(drag_op->opptr);
     MEM_delete(drag_op->opptr);
   }

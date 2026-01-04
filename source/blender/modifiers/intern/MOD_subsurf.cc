@@ -374,7 +374,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   if (get_show_adaptive_options(*C, panel)) {
     blender::ui::PanelLayout adaptive_panel = layout.panel_prop_with_bool_header(
-        C,
+        *C,
         ptr,
         "open_adaptive_subdivision_panel",
         ptr,
@@ -417,7 +417,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (blender::ui::Layout *advanced_layout = layout.panel_prop(
-          C, ptr, "open_advanced_panel", IFACE_("Advanced")))
+          *C, ptr, "open_advanced_panel", IFACE_("Advanced")))
   {
     advanced_layout->use_property_split_set(true);
 

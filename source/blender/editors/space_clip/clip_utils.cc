@@ -302,7 +302,7 @@ void clip_graph_tracking_iterate(SpaceClip *sc,
   }
 }
 
-void clip_delete_track(bContext *C, MovieClip *clip, MovieTrackingTrack *track)
+void clip_delete_track(bContext &C, MovieClip *clip, MovieTrackingTrack *track)
 {
   MovieTracking *tracking = &clip->tracking;
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(tracking);
@@ -323,20 +323,20 @@ void clip_delete_track(bContext *C, MovieClip *clip, MovieTrackingTrack *track)
   char rna_path[MAX_NAME * 4 + 64];
   BKE_tracking_get_rna_path_for_track(tracking, track, rna_path, sizeof(rna_path));
   if (BKE_animdata_fix_paths_remove(&clip->id, rna_path)) {
-    DEG_relations_tag_update(CTX_data_main(*C));
+    DEG_relations_tag_update(CTX_data_main(C));
   }
   /* Delete track itself. */
   BKE_tracking_track_free(track);
   BLI_freelinkN(&tracking_object->tracks, track);
   /* Send notifiers. */
-  WM_event_add_notifier(*C, NC_MOVIECLIP | NA_EDITED, clip);
+  WM_event_add_notifier(C, NC_MOVIECLIP | NA_EDITED, clip);
   if (used_for_stabilization) {
-    WM_event_add_notifier(*C, NC_MOVIECLIP | ND_DISPLAY, clip);
+    WM_event_add_notifier(C, NC_MOVIECLIP | ND_DISPLAY, clip);
   }
   /* Inform dependency graph. */
   DEG_id_tag_update(&clip->id, 0);
   if (has_bundle) {
-    WM_event_add_notifier(*C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
   }
 }
 
@@ -346,7 +346,7 @@ void clip_delete_marker(bContext *C,
                         MovieTrackingMarker *marker)
 {
   if (track->markersnr == 1) {
-    clip_delete_track(C, clip, track);
+    clip_delete_track(*C, clip, track);
   }
   else {
     BKE_tracking_marker_delete(track, marker->framenr);

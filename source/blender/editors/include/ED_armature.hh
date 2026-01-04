@@ -340,6 +340,6 @@ void ED_mesh_deform_bind_callback(Object *object,
                                   int verts_num,
                                   float cagemat[4][4]);
 
-EditBone *ED_armature_pick_ebone(bContext *C, const int xy[2], bool findunsel, Base **r_base);
-bPoseChannel *ED_armature_pick_pchan(bContext *C, const int xy[2], bool findunsel, Base **r_base);
+EditBone *ED_armature_pick_ebone(bContext &C, const int xy[2], bool findunsel, Base **r_base);
+bPoseChannel *ED_armature_pick_pchan(bContext &C, const int xy[2], bool findunsel, Base **r_base);
 Bone *ED_armature_pick_bone(bContext *C, const int xy[2], bool findunsel, Base **r_base);

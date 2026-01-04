@@ -142,10 +142,10 @@ void filter_factors(const GestureData &gesture_data,
                     MutableSpan<float> factors);
 
 /* Initialization functions. */
-std::unique_ptr<GestureData> init_from_box(bContext *C, wmOperator *op);
+std::unique_ptr<GestureData> init_from_box(bContext &C, wmOperator *op);
 std::unique_ptr<GestureData> init_from_lasso(bContext *C, wmOperator *op);
 std::unique_ptr<GestureData> init_from_polyline(bContext *C, wmOperator *op);
-std::unique_ptr<GestureData> init_from_line(bContext *C, const wmOperator *op);
+std::unique_ptr<GestureData> init_from_line(bContext &C, const wmOperator *op);
 
 /* Common gesture operator properties. */
 void operator_properties(wmOperatorType *ot, ShapeType shapeType);

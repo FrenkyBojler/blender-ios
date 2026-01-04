@@ -277,20 +277,20 @@ static bool mouse_select_curve(bContext &C, const float co[2], bool extend)
   return false;
 }
 
-static wmOperatorStatus mouse_select(bContext *C, float co[2], bool extend)
+static wmOperatorStatus mouse_select(bContext &C, float co[2], bool extend)
 {
   bool sel = false;
 
   /* first try to select knot on selected curves */
-  sel = mouse_select_knot(*C, co, extend);
+  sel = mouse_select_knot(C, co, extend);
 
   if (!sel) {
     /* if there's no close enough knot to mouse position, select nearest curve */
-    sel = mouse_select_curve(*C, co, extend);
+    sel = mouse_select_curve(C, co, extend);
   }
 
   if (sel) {
-    WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, nullptr);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, nullptr);
   }
 
   return OPERATOR_FINISHED;
@@ -303,7 +303,7 @@ static wmOperatorStatus select_exec(bContext &C, wmOperator &op)
 
   RNA_float_get_array(op.ptr, "location", co);
 
-  return mouse_select(&C, co, extend);
+  return mouse_select(C, co, extend);
 }
 
 static wmOperatorStatus select_invoke(bContext &C, wmOperator &op, const wmEvent *event)
@@ -528,7 +528,7 @@ static wmOperatorStatus delete_curve_exec(bContext &C, wmOperator & /*op*/)
     return OPERATOR_CANCELLED;
   }
 
-  clip_delete_track(&C, clip, active_track);
+  clip_delete_track(C, clip, active_track);
 
   return OPERATOR_FINISHED;
 }
@@ -536,7 +536,7 @@ static wmOperatorStatus delete_curve_exec(bContext &C, wmOperator & /*op*/)
 static wmOperatorStatus delete_curve_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Delete track corresponding to the selected curve?"),
                                   nullptr,

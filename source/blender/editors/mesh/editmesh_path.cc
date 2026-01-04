@@ -740,7 +740,7 @@ static wmOperatorStatus edbm_shortest_path_pick_invoke(bContext &C,
     const SelectPick_Params params = {
         /*sel_op*/ SEL_OP_ADD,
     };
-    EDBM_select_pick(&C, event->mval, params);
+    EDBM_select_pick(C, event->mval, params);
     return OPERATOR_FINISHED;
   }
 

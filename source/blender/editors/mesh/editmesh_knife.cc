@@ -1060,13 +1060,13 @@ static void knifetool_draw(const bContext * /*C*/, ARegion * /*region*/, void *a
 /** \name Header
  * \{ */
 
-static void knife_update_header(bContext *C, wmOperator *op, KnifeTool_OpData *kcd)
+static void knife_update_header(bContext &C, wmOperator *op, KnifeTool_OpData *kcd)
 {
   auto get_modal_key_str = [&](int id) {
     return WM_modalkeymap_operator_items_to_string(op->type, id, true).value_or("");
   };
 
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.opmodal(IFACE_("Cut"), op->type, KNF_MODAL_ADD_CUT);
   status.opmodal(IFACE_("Close"), op->type, KNF_MODAL_ADD_CUT_CLOSED);
   status.opmodal(IFACE_("Stop"), op->type, KNF_MODAL_NEW_CUT);
@@ -4231,7 +4231,7 @@ static wmOperatorStatus knifetool_modal(bContext &C, wmOperator &op, const wmEve
     {
       knife_reset_snap_angle_input(kcd);
     }
-    knife_update_header(&C, &op, kcd); /* Update the angle multiple. */
+    knife_update_header(C, &op, kcd); /* Update the angle multiple. */
     /* Modal numinput active, try to handle numeric inputs first... */
     if (event->val == KM_PRESS && hasNumInput(&kcd->num) && handleNumInput(&C, &kcd->num, event)) {
       handled = true;
@@ -4243,7 +4243,7 @@ static wmOperatorStatus knifetool_modal(bContext &C, wmOperator &op, const wmEve
         kcd->angle_snapping_increment = snapping_increment_temp;
       }
       knife_update_active(kcd, mval);
-      knife_update_header(&C, &op, kcd);
+      knife_update_header(C, &op, kcd);
       ED_region_tag_redraw(kcd->region);
       return OPERATOR_RUNNING_MODAL;
     }
@@ -4498,7 +4498,7 @@ static wmOperatorStatus knifetool_modal(bContext &C, wmOperator &op, const wmEve
           kcd->angle_snapping_increment = snapping_increment_temp;
         }
         knife_update_active(kcd, mval);
-        knife_update_header(&C, &op, kcd);
+        knife_update_header(C, &op, kcd);
         ED_region_tag_redraw(kcd->region);
         return OPERATOR_RUNNING_MODAL;
       }
@@ -4553,7 +4553,7 @@ static wmOperatorStatus knifetool_modal(bContext &C, wmOperator &op, const wmEve
 
   if (do_refresh) {
     ED_region_tag_redraw(kcd->region);
-    knife_update_header(&C, &op, kcd);
+    knife_update_header(C, &op, kcd);
   }
 
   /* Keep going until the user confirms. */
@@ -4625,7 +4625,7 @@ static wmOperatorStatus knifetool_invoke(bContext &C, wmOperator &op, const wmEv
     UNUSED_VARS_NDEBUG(retval);
   }
 
-  knife_update_header(&C, &op, kcd);
+  knife_update_header(C, &op, kcd);
 
   return OPERATOR_RUNNING_MODAL;
 }

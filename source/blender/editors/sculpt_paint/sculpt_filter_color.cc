@@ -420,14 +420,14 @@ static void sculpt_color_filter_apply(bContext &C, wmOperator *op, Object &ob)
   flush_update_step(C, UpdateType::Color);
 }
 
-static void sculpt_color_filter_end(bContext *C, Object &ob)
+static void sculpt_color_filter_end(bContext &C, Object &ob)
 {
   SculptSession &ss = *ob.sculpt;
 
   undo::push_end(ob);
   MEM_delete(ss.filter_cache);
   ss.filter_cache = nullptr;
-  flush_update_done(*C, ob, UpdateType::Color);
+  flush_update_done(C, ob, UpdateType::Color);
 }
 
 static wmOperatorStatus sculpt_color_filter_modal(bContext &C,
@@ -438,7 +438,7 @@ static wmOperatorStatus sculpt_color_filter_modal(bContext &C,
   SculptSession &ss = *ob.sculpt;
 
   if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
-    sculpt_color_filter_end(&C, ob);
+    sculpt_color_filter_end(C, ob);
     return OPERATOR_FINISHED;
   }
 
@@ -523,7 +523,7 @@ static wmOperatorStatus sculpt_color_filter_exec(bContext &C, wmOperator &op)
   }
 
   sculpt_color_filter_apply(C, &op, ob);
-  sculpt_color_filter_end(&C, ob);
+  sculpt_color_filter_end(C, ob);
 
   return OPERATOR_FINISHED;
 }

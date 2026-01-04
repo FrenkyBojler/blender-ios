@@ -397,7 +397,7 @@ static bool gizmo2d_calc_transform_pivot(const bContext &C, float r_pivot[2])
             sima, scene, view_layer, r_pivot, sima->around, &has_select);
         break;
       case SI_MODE_MASK:
-        ED_mask_center_from_pivot_ex(&C, area, r_pivot, sima->around, &has_select);
+        ED_mask_center_from_pivot_ex(C, area, r_pivot, sima->around, &has_select);
         break;
       default:
         break;

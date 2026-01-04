@@ -816,7 +816,7 @@ static wmOperatorStatus graphkeys_delete_invoke(bContext &C,
                                                 const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Delete selected keyframes?"),
                                   nullptr,
@@ -2433,13 +2433,13 @@ static wmOperatorStatus graphkeys_snap_exec(bContext &C, wmOperator &op)
   return OPERATOR_FINISHED;
 }
 
-static bool graph_has_selected_control_points(bContext *C)
+static bool graph_has_selected_control_points(bContext &C)
 {
   bAnimContext ac;
   ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   /* Get editor data. */
-  if (ANIM_animdata_get_context(*C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return false;
   }
 
@@ -2468,7 +2468,7 @@ static wmOperatorStatus graphkeys_selected_control_points_invoke(bContext &C,
                                                                  wmOperator &op,
                                                                  const wmEvent *event)
 {
-  if (!graph_has_selected_control_points(&C)) {
+  if (!graph_has_selected_control_points(C)) {
     BKE_report(op.reports, RPT_ERROR, "No control points are selected");
     return OPERATOR_CANCELLED;
   }

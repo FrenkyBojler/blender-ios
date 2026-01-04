@@ -404,11 +404,11 @@ static void wm_save_file_on_quit_dialog_callback(bContext *C, void * /*user_data
  * Call the confirm dialog on quitting. It's displayed in the context window so
  * caller should set it as desired.
  */
-static void wm_confirm_quit(bContext *C)
+static void wm_confirm_quit(bContext &C)
 {
   wmGenericCallback *action = MEM_new_for_free<wmGenericCallback>(__func__);
   action->exec = wm_save_file_on_quit_dialog_callback;
-  wm_close_file_dialog(*C, action);
+  wm_close_file_dialog(C, action);
 }
 
 void wm_quit_with_optional_confirmation_prompt(bContext &C, wmWindow *win)
@@ -424,7 +424,7 @@ void wm_quit_with_optional_confirmation_prompt(bContext &C, wmWindow *win)
         !G.background)
     {
       wm_window_raise(win);
-      wm_confirm_quit(&C);
+      wm_confirm_quit(C);
     }
     else {
       wm_exit_schedule_delayed(C);
@@ -1935,7 +1935,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
         RNA_string_set(&props_ptr, "filepath", path);
         RNA_boolean_set(&props_ptr, "display_file_selector", false);
         WM_operator_name_call_ptr(
-            C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
+            *C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
         WM_operator_properties_free(&props_ptr);
 
         CTX_wm_window_set(*C, nullptr);
@@ -1999,14 +1999,14 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
           int icon = ED_file_extension_icon((char *)stra->strings[0]);
           wmDragPath *path_data = WM_drag_create_path_data(
               blender::Span((char **)stra->strings, stra->count));
-          WM_event_start_drag(C, icon, WM_DRAG_PATH, path_data, WM_DRAG_NOP);
+          WM_event_start_drag(*C, icon, WM_DRAG_PATH, path_data, WM_DRAG_NOP);
           /* Void pointer should point to string, it makes a copy. */
         }
       }
       else if (ddd->dataType == GHOST_kDragnDropTypeString) {
         /* Drop an arbitrary string. */
         std::string *str = MEM_new<std::string>(__func__, static_cast<const char *>(ddd->data));
-        WM_event_start_drag(C, ICON_NONE, WM_DRAG_STRING, str, WM_DRAG_FREE_DATA);
+        WM_event_start_drag(*C, ICON_NONE, WM_DRAG_STRING, str, WM_DRAG_FREE_DATA);
       }
 
       break;
@@ -2369,7 +2369,7 @@ void wm_test_gpu_backend_fallback(bContext *C)
     std::string message = RPT_("Updating GPU drivers may solve this issue.");
     message += RPT_(
         "The graphics backend can be changed in the System section of the Preferences.");
-    alert(C,
+    alert(*C,
           RPT_("Failed to load using Vulkan, using OpenGL instead."),
           message,
           blender::ui::AlertIcon::Error,

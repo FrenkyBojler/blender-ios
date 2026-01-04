@@ -91,7 +91,7 @@ static wmOperatorStatus brush_asset_activate_exec(bContext &C, wmOperator &op)
   /* Activate brush through tool system rather than calling #BKE_paint_brush_set() directly, to let
    * the tool system switch tools if necessary, and update which brush was the last recently used
    * one for the current tool. */
-  if (!WM_toolsystem_activate_brush_and_tool(&C, paint, brush)) {
+  if (!WM_toolsystem_activate_brush_and_tool(C, paint, brush)) {
     /* Note brush datablock was still added, so was not a no-op. */
     BKE_report(op.reports, RPT_WARNING, "Unable to activate brush, wrong object mode");
     return OPERATOR_FINISHED;
@@ -243,12 +243,12 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext &C, wmOperator &op)
 
   asset::shelf::show_catalog_in_visible_shelves(C, catalog_path_c);
 
-  if (!WM_toolsystem_activate_brush_and_tool(&C, paint, brush)) {
+  if (!WM_toolsystem_activate_brush_and_tool(C, paint, brush)) {
     /* Note brush asset was still saved in editable asset library, so was not a no-op. */
     BKE_report(op.reports, RPT_WARNING, "Unable to activate just-saved brush asset");
   }
 
-  asset::refresh_asset_library(&C, library_reference);
+  asset::refresh_asset_library(C, library_reference);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_ADDED, nullptr);
   if (is_local_library) {
     WM_main_add_notifier(NC_BRUSH | NA_ADDED, brush);
@@ -314,7 +314,7 @@ static wmOperatorStatus brush_asset_save_as_invoke(bContext &C,
     }
   }
 
-  return WM_operator_props_dialog_popup(&C, &op, 400, std::nullopt, IFACE_("Save"));
+  return WM_operator_props_dialog_popup(C, &op, 400, std::nullopt, IFACE_("Save"));
 }
 
 static const EnumPropertyItem *rna_asset_library_reference_itemf(bContext * /*C*/,
@@ -441,7 +441,7 @@ static wmOperatorStatus brush_asset_edit_metadata_invoke(bContext &C,
     RNA_string_set(op.ptr, "description", meta_data.description ? meta_data.description : "");
   }
 
-  return WM_operator_props_dialog_popup(&C, &op, 400, std::nullopt, IFACE_("Edit Metadata"));
+  return WM_operator_props_dialog_popup(C, &op, 400, std::nullopt, IFACE_("Edit Metadata"));
 }
 
 static void visit_active_library_catalogs_catalog_for_search_fn(
@@ -636,7 +636,7 @@ static wmOperatorStatus brush_asset_delete_invoke(bContext &C,
   Brush *brush = BKE_paint_brush(paint);
 
   return WM_operator_confirm_ex(
-      &C,
+      C,
       &op,
       IFACE_("Delete Brush Asset"),
       ID_IS_LINKED(brush) ?

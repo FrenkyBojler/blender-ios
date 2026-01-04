@@ -156,7 +156,7 @@ static wmOperatorStatus sequencer_enable_proxies_invoke(bContext &C,
                                                         const wmEvent * /*event*/)
 {
   return WM_operator_props_dialog_popup(
-      &C, &op, 200, IFACE_("Set Selected Strip Proxies"), IFACE_("Set"));
+      C, &op, 200, IFACE_("Set Selected Strip Proxies"), IFACE_("Set"));
 }
 
 static wmOperatorStatus sequencer_enable_proxies_exec(bContext &C, wmOperator &op)

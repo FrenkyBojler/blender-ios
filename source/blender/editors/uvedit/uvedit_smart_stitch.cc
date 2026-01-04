@@ -270,9 +270,9 @@ static void stitch_preview_delete(StitchPreviewer *stitch_preview)
 }
 
 /* This function updates the header of the UV editor when the stitch tool updates its settings */
-static void stitch_update_header(StitchStateContainer *ssc, bContext *C)
+static void stitch_update_header(StitchStateContainer *ssc, bContext &C)
 {
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(fmt::format("{} {}",
@@ -2323,7 +2323,7 @@ static int stitch_init_all(bContext &C, wmOperator *op)
   /* process active stitchobj again now that it can detect it's the active stitchobj */
   stitch_process_data(ssc, state, scene, false);
 
-  stitch_update_header(ssc, &C);
+  stitch_update_header(ssc, C);
 
   ssc->draw_handle = ED_region_draw_cb_activate(
       region->runtime->type, stitch_draw, ssc, REGION_DRAW_POST_VIEW);
@@ -2675,7 +2675,7 @@ static wmOperatorStatus stitch_modal(bContext &C, wmOperator &op, const wmEvent 
   }
 
   /* if updated settings, renew feedback message */
-  stitch_update_header(ssc, &C);
+  stitch_update_header(ssc, C);
   ED_region_tag_redraw(CTX_wm_region(C));
 
   return OPERATOR_RUNNING_MODAL;

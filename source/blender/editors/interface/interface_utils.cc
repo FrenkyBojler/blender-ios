@@ -759,9 +759,9 @@ std::optional<std::string> button_online_manual_id(const Button *but)
   return std::nullopt;
 }
 
-std::optional<std::string> button_online_manual_id_from_active(const bContext *C)
+std::optional<std::string> button_online_manual_id_from_active(const bContext &C)
 {
-  if (Button *but = context_active_but_get(*C)) {
+  if (Button *but = context_active_but_get(C)) {
     return button_online_manual_id(but);
   }
   return std::nullopt;

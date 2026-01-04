@@ -370,7 +370,7 @@ bool append_frame_to_filename(const char *filepath,
 
 void exporter_main(bContext *C, const OBJExportParams &export_params)
 {
-  ed::object::mode_set(C, OB_MODE_OBJECT);
+  ed::object::mode_set(*C, OB_MODE_OBJECT);
 
   Collection *collection = nullptr;
   if (export_params.collection[0]) {

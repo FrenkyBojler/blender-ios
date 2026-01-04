@@ -176,14 +176,14 @@ struct PopupMenu {
  * \param title: Optional. If set, it will be used to store recently opened menus so they can be
  *               opened with the mouse over the last chosen entry again.
  */
-static void ui_popup_menu_create_block(bContext *C,
+static void ui_popup_menu_create_block(bContext &C,
                                        PopupMenu *pup,
                                        const StringRef title,
                                        const StringRef block_name)
 {
   const uiStyle *style = style_get_dpi();
 
-  pup->block = block_begin(*C, nullptr, block_name, EmbossType::Pulldown);
+  pup->block = block_begin(C, nullptr, block_name, EmbossType::Pulldown);
 
   /* A title is only provided when a Menu has a label, this is not always the case, see e.g.
    * `VIEW3D_MT_edit_mesh_context_menu` -- this specifies its own label inside the draw function
@@ -230,7 +230,7 @@ static Block *block_func_POPUP(bContext *C, PopupBlockHandle *handle, void *arg_
   int minwidth = 0;
 
   if (!pup->layout) {
-    ui_popup_menu_create_block(C, pup, pup->title, __func__);
+    ui_popup_menu_create_block(*C, pup, pup->title, __func__);
 
     if (pup->menu_func) {
       pup->block->handle = handle;
@@ -434,10 +434,10 @@ static PopupBlockHandle *ui_popup_menu_create_impl(
 }
 
 PopupBlockHandle *popup_menu_create(
-    bContext *C, ARegion *butregion, Button *but, MenuCreateFunc menu_func, void *arg)
+    bContext &C, ARegion *butregion, Button *but, MenuCreateFunc menu_func, void *arg)
 {
   return ui_popup_menu_create_impl(
-      *C,
+      C,
       butregion,
       but,
       nullptr,
@@ -475,7 +475,7 @@ PopupMenu *popup_menu_begin_ex(bContext *C, const char *title, const char *block
 
   pup->title = title;
 
-  ui_popup_menu_create_block(C, pup, title, block_name);
+  ui_popup_menu_create_block(*C, pup, title, block_name);
 
   /* create in advance so we can let buttons point to retval already */
   pup->block->handle = MEM_new<PopupBlockHandle>(__func__);
@@ -600,13 +600,13 @@ void popup_menu_reports(bContext &C, ReportList *reports)
   }
 }
 
-static void ui_popup_menu_create_from_menutype(bContext *C,
+static void ui_popup_menu_create_from_menutype(bContext &C,
                                                MenuType *mt,
                                                const char *title,
                                                const int icon)
 {
   PopupBlockHandle *handle = ui_popup_menu_create_impl(
-      *C,
+      C,
       nullptr,
       nullptr,
       title,
@@ -620,7 +620,7 @@ static void ui_popup_menu_create_from_menutype(bContext *C,
 
   STRNCPY_UTF8(handle->menu_idname, mt->idname);
 
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   if (flag_is_set(mt->flag, MenuTypeFlag::SearchOnKeyPress)) {
     status.range(IFACE_("Search"), ICON_EVENT_A, ICON_EVENT_Z);
   }
@@ -648,7 +648,7 @@ wmOperatorStatus popup_menu_invoke(bContext *C, const char *idname, ReportList *
 
   const char *title = CTX_IFACE_(mt->translation_context, mt->label);
   if (allow_refresh) {
-    ui_popup_menu_create_from_menutype(C, mt, title, ICON_NONE);
+    ui_popup_menu_create_from_menutype(*C, mt, title, ICON_NONE);
   }
   else {
     /* If no refresh is needed, create the block directly. */
@@ -686,9 +686,9 @@ void popup_block_invoke_ex(
   WM_event_add_mousemove(window);
 }
 
-void popup_block_invoke(bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free)
+void popup_block_invoke(bContext &C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free)
 {
-  popup_block_invoke_ex(*C, func, arg, arg_free, true);
+  popup_block_invoke_ex(C, func, arg, arg_free, true);
 }
 
 void popup_block_ex(bContext &C,
@@ -874,7 +874,7 @@ void popup_block_close(bContext *C, wmWindow *win, Block *block)
       const bScreen *screen = WM_window_get_active_screen(win);
 
       popup_handlers_remove(&win->runtime->modalhandlers, block->handle);
-      popup_block_free(C, block->handle);
+      popup_block_free(*C, block->handle);
 
       /* In the case we have nested popups,
        * closing one may need to redraw another, see: #48874 */

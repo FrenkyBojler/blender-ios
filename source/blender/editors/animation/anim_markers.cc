@@ -1824,7 +1824,7 @@ static wmOperatorStatus ed_marker_delete_invoke(bContext &C,
                                                 const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Delete selected markers?"),
                                   nullptr,

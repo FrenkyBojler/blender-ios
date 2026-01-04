@@ -125,9 +125,9 @@ static void apply_fcu_segment_function(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
-static void common_draw_status_header(bContext *C, tGraphSliderOp *gso)
+static void common_draw_status_header(bContext &C, tGraphSliderOp *gso)
 {
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
@@ -452,9 +452,9 @@ static void decimate_graph_keys(bAnimContext *ac, float factor, float error_sq_m
 }
 
 /* Draw a percentage indicator in workspace footer. */
-static void decimate_draw_status(bContext *C, tGraphSliderOp *gso)
+static void decimate_draw_status(bContext &C, tGraphSliderOp *gso)
 {
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
@@ -474,7 +474,7 @@ static void decimate_modal_update(bContext *C, wmOperator *op)
    * (e.g. pressing a key or moving the mouse). */
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  decimate_draw_status(C, gso);
+  decimate_draw_status(*C, gso);
 
   /* Reset keyframe data (so we get back to the original state). */
   reset_bezts(gso);
@@ -649,7 +649,7 @@ static void blend_to_neighbor_modal_update(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  common_draw_status_header(C, gso);
+  common_draw_status_header(*C, gso);
 
   /* Reset keyframe data to the state at invoke. */
   reset_bezts(gso);
@@ -671,7 +671,7 @@ static wmOperatorStatus blend_to_neighbor_invoke(bContext &C, wmOperator &op, co
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = blend_to_neighbor_modal_update;
   gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
-  common_draw_status_header(&C, gso);
+  common_draw_status_header(C, gso);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
 
@@ -738,7 +738,7 @@ static void breakdown_modal_update(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  common_draw_status_header(C, gso);
+  common_draw_status_header(*C, gso);
 
   /* Reset keyframe data to the state at invoke. */
   reset_bezts(gso);
@@ -758,7 +758,7 @@ static wmOperatorStatus breakdown_invoke(bContext &C, wmOperator &op, const wmEv
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = breakdown_modal_update;
   gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
-  common_draw_status_header(&C, gso);
+  common_draw_status_header(C, gso);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
 
@@ -844,7 +844,7 @@ static void blend_to_default_modal_update(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  common_draw_status_header(C, gso);
+  common_draw_status_header(*C, gso);
 
   /* Set notifier that keyframes have changed. */
   reset_bezts(gso);
@@ -865,7 +865,7 @@ static wmOperatorStatus blend_to_default_invoke(bContext &C, wmOperator &op, con
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = blend_to_default_modal_update;
   gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
-  common_draw_status_header(&C, gso);
+  common_draw_status_header(C, gso);
   ED_slider_factor_set(gso->slider, 0.0f);
 
   return invoke_result;
@@ -943,10 +943,10 @@ static void ease_graph_keys(bAnimContext *ac, const float factor, const float wi
   ANIM_animdata_freelist(&anim_data);
 }
 
-static void ease_draw_status_header(bContext *C, wmOperator *op)
+static void ease_draw_status_header(bContext &C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
@@ -971,7 +971,7 @@ static void ease_modal_update(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  ease_draw_status_header(C, op);
+  ease_draw_status_header(*C, op);
 
   /* Reset keyframes to the state at invoke. */
   reset_bezts(gso);
@@ -1038,7 +1038,7 @@ static wmOperatorStatus ease_invoke(bContext &C, wmOperator &op, const wmEvent *
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = ease_modal_update;
   gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
-  ease_draw_status_header(&C, &op);
+  ease_draw_status_header(C, &op);
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
@@ -1115,7 +1115,7 @@ static void blend_offset_graph_keys(bAnimContext *ac, const float factor)
 
 static void blend_offset_draw_status_header(bContext *C, tGraphSliderOp *gso)
 {
-  common_draw_status_header(C, gso);
+  common_draw_status_header(*C, gso);
 }
 
 static void blend_offset_modal_update(bContext *C, wmOperator *op)
@@ -1208,7 +1208,7 @@ static void blend_to_ease_graph_keys(bAnimContext *ac, const float factor)
 
 static void blend_to_ease_draw_status_header(bContext *C, tGraphSliderOp *gso)
 {
-  common_draw_status_header(C, gso);
+  common_draw_status_header(*C, gso);
 }
 
 static void blend_to_ease_modal_update(bContext *C, wmOperator *op)
@@ -1332,7 +1332,7 @@ static void match_slope_graph_keys(bAnimContext *ac, const float factor)
 
 static void match_slope_draw_status_header(bContext *C, tGraphSliderOp *gso)
 {
-  common_draw_status_header(C, gso);
+  common_draw_status_header(*C, gso);
 }
 
 static void match_slope_modal_update(bContext *C, wmOperator *op)
@@ -1425,7 +1425,7 @@ static void time_offset_graph_keys(bAnimContext *ac, const float factor)
 
 static void time_offset_draw_status_header(bContext *C, tGraphSliderOp *gso)
 {
-  common_draw_status_header(C, gso);
+  common_draw_status_header(*C, gso);
 }
 
 static void time_offset_modal_update(bContext *C, wmOperator *op)
@@ -1550,9 +1550,9 @@ static void shear_graph_keys(bAnimContext *ac, const float factor, tShearDirecti
   ANIM_animdata_freelist(&anim_data);
 }
 
-static void shear_draw_status_header(bContext *C, tGraphSliderOp *gso, tShearDirection direction)
+static void shear_draw_status_header(bContext &C, tGraphSliderOp *gso, tShearDirection direction)
 {
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
@@ -1580,7 +1580,7 @@ static void shear_modal_update(bContext *C, wmOperator *op)
   const float factor = slider_factor_get_and_remember(op);
   const tShearDirection direction = tShearDirection(RNA_enum_get(op->ptr, "direction"));
 
-  shear_draw_status_header(C, gso, direction);
+  shear_draw_status_header(*C, gso, direction);
 
   shear_graph_keys(&gso->ac, factor, direction);
   WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, nullptr);
@@ -1622,7 +1622,7 @@ static wmOperatorStatus shear_invoke(bContext &C, wmOperator &op, const wmEvent 
   gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
   const tShearDirection direction = tShearDirection(RNA_enum_get(op.ptr, "direction"));
 
-  shear_draw_status_header(&C, gso, direction);
+  shear_draw_status_header(C, gso, direction);
   ED_slider_factor_bounds_set(gso->slider, -1, 1);
   ED_slider_factor_set(gso->slider, 0.0f);
 
@@ -1698,7 +1698,7 @@ static void scale_average_modal_update(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  common_draw_status_header(C, gso);
+  common_draw_status_header(*C, gso);
 
   /* Reset keyframes to the state at invoke. */
   reset_bezts(gso);
@@ -1718,7 +1718,7 @@ static wmOperatorStatus scale_average_invoke(bContext &C, wmOperator &op, const 
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = scale_average_modal_update;
   gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
-  common_draw_status_header(&C, gso);
+  common_draw_status_header(C, gso);
   ED_slider_factor_bounds_set(gso->slider, 0, 2);
   ED_slider_factor_set(gso->slider, 1.0f);
 
@@ -1874,7 +1874,7 @@ static void gaussian_smooth_modal_update(bContext *C, wmOperator *op)
     return;
   }
 
-  common_draw_status_header(C, gso);
+  common_draw_status_header(*C, gso);
 
   const float factor = slider_factor_get_and_remember(op);
   tGaussOperatorData *operator_data = (tGaussOperatorData *)gso->operator_data;
@@ -1919,7 +1919,7 @@ static wmOperatorStatus gaussian_smooth_invoke(bContext &C, wmOperator &op, cons
 
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_factor_set(gso->slider, 0.0f);
-  common_draw_status_header(&C, gso);
+  common_draw_status_header(C, gso);
 
   return invoke_result;
 }
@@ -2118,7 +2118,7 @@ static void btw_smooth_modal_update(bContext *C, wmOperator *op)
     return;
   }
 
-  common_draw_status_header(C, gso);
+  common_draw_status_header(*C, gso);
 
   tBtwOperatorData *operator_data = (tBtwOperatorData *)gso->operator_data;
 
@@ -2177,7 +2177,7 @@ static wmOperatorStatus btw_smooth_invoke(bContext &C, wmOperator &op, const wmE
   ED_slider_allow_overshoot_set(gso->slider, false, false);
   ED_slider_mode_set(gso->slider, SLIDER_MODE_FLOAT);
   ED_slider_unit_set(gso->slider, "Hz");
-  common_draw_status_header(&C, gso);
+  common_draw_status_header(C, gso);
 
   return invoke_result;
 }
@@ -2329,7 +2329,7 @@ static void push_pull_modal_update(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  common_draw_status_header(C, gso);
+  common_draw_status_header(*C, gso);
 
   /* Reset keyframes to the state at invoke. */
   reset_bezts(gso);
@@ -2351,7 +2351,7 @@ static wmOperatorStatus push_pull_invoke(bContext &C, wmOperator &op, const wmEv
   gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
   ED_slider_factor_bounds_set(gso->slider, 0, 2);
   ED_slider_factor_set(gso->slider, 1);
-  common_draw_status_header(&C, gso);
+  common_draw_status_header(C, gso);
 
   return invoke_result;
 }
@@ -2437,10 +2437,10 @@ static void scale_from_neighbor_graph_keys(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
-static void scale_from_neighbor_draw_status_header(bContext *C, wmOperator *op)
+static void scale_from_neighbor_draw_status_header(bContext &C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item(IFACE_("Adjust"), ICON_MOUSE_MOVE);
@@ -2467,7 +2467,7 @@ static void scale_from_neighbor_modal_update(bContext *C, wmOperator *op)
 {
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op->customdata);
 
-  scale_from_neighbor_draw_status_header(C, op);
+  scale_from_neighbor_draw_status_header(*C, op);
 
   /* Reset keyframes to the state at invoke. */
   reset_bezts(gso);
@@ -2520,7 +2520,7 @@ static wmOperatorStatus scale_from_neighbor_invoke(bContext &C,
   tGraphSliderOp *gso = static_cast<tGraphSliderOp *>(op.customdata);
   gso->modal_update = scale_from_neighbor_modal_update;
   gso->factor_prop = RNA_struct_find_property(op.ptr, "factor");
-  scale_from_neighbor_draw_status_header(&C, &op);
+  scale_from_neighbor_draw_status_header(C, &op);
   ED_slider_factor_bounds_set(gso->slider, 0, 2);
   ED_slider_factor_set(gso->slider, 1.0f);
 

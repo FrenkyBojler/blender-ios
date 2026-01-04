@@ -1176,10 +1176,10 @@ static void draw_multicam_highlight(const TimelineDrawContext &ctx,
 }
 
 /* Force redraw, when prefetching and using cache view. */
-static void seq_prefetch_wm_notify(const bContext *C, Scene *scene)
+static void seq_prefetch_wm_notify(const bContext &C, Scene *scene)
 {
-  if (seq::prefetch_need_redraw(*C, scene)) {
-    WM_event_add_notifier(*C, NC_SCENE | ND_SEQUENCER, nullptr);
+  if (seq::prefetch_need_redraw(C, scene)) {
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, nullptr);
   }
 }
 
@@ -1817,10 +1817,10 @@ static void draw_timeline_post_view_callbacks(const TimelineDrawContext &ctx)
   GPU_framebuffer_bind_no_srgb(ctx.framebuffer_overlay);
 }
 
-void draw_timeline_seq(const bContext *C, const ARegion *region)
+void draw_timeline_seq(const bContext &C, const ARegion *region)
 {
   SeqQuadsBatch quads_batch;
-  TimelineDrawContext ctx = timeline_draw_context_get(*C, &quads_batch);
+  TimelineDrawContext ctx = timeline_draw_context_get(C, &quads_batch);
   StripsDrawBatch strips_batch(ctx.v2d);
 
   draw_timeline_pre_view_callbacks(ctx);
@@ -1836,7 +1836,7 @@ void draw_timeline_seq(const bContext *C, const ARegion *region)
     ANIM_draw_previewrange(ctx.scene, ctx.v2d, 1);
   }
   draw_timeline_post_view_callbacks(ctx);
-  ui::view2d_view_restore(*C);
+  ui::view2d_view_restore(C);
 
   draw_timeline_gizmos(ctx);
 

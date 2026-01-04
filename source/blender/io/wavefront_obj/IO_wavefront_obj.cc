@@ -33,10 +33,10 @@ void OBJ_export(bContext *C, const OBJExportParams *export_params)
   report_duration("export", start_time, export_params->filepath);
 }
 
-void OBJ_import(bContext *C, const OBJImportParams *import_params)
+void OBJ_import(bContext &C, const OBJImportParams *import_params)
 {
   TimePoint start_time = Clock::now();
-  blender::io::obj::importer_main(*C, *import_params);
+  blender::io::obj::importer_main(C, *import_params);
   report_duration("import", start_time, import_params->filepath);
 }
 

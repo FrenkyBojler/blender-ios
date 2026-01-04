@@ -188,7 +188,7 @@ static wmOperatorStatus insert_key_with_keyingset(bContext &C, wmOperator *op, K
    * updated since the last switching to the edit mode will be keyframed correctly
    */
   if (obedit && blender::animrig::keyingset_find_id(ks, static_cast<ID *>(obedit->data))) {
-    blender::ed::object::mode_set(&C, OB_MODE_OBJECT);
+    blender::ed::object::mode_set(C, OB_MODE_OBJECT);
     ob_edit_mode = true;
   }
 
@@ -205,7 +205,7 @@ static wmOperatorStatus insert_key_with_keyingset(bContext &C, wmOperator *op, K
 
   /* restore the edit mode if necessary */
   if (ob_edit_mode) {
-    blender::ed::object::mode_set(&C, OB_MODE_EDIT);
+    blender::ed::object::mode_set(C, OB_MODE_EDIT);
   }
 
   /* report failure or do updates? */
@@ -342,12 +342,12 @@ static bool get_selection(bContext &C, blender::Vector<PointerRNA> *r_selection)
   return true;
 }
 
-static wmOperatorStatus insert_key(bContext *C, wmOperator *op)
+static wmOperatorStatus insert_key(bContext &C, wmOperator *op)
 {
   using namespace blender;
 
   Vector<PointerRNA> selection;
-  const bool found_selection = get_selection(*C, &selection);
+  const bool found_selection = get_selection(C, &selection);
   if (!found_selection) {
     BKE_reportf(op->reports, RPT_ERROR, "Unsupported context mode");
     return OPERATOR_CANCELLED;
@@ -358,14 +358,14 @@ static wmOperatorStatus insert_key(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
   const float scene_frame = BKE_scene_frame_get(scene);
 
   const eInsertKeyFlags insert_key_flags = animrig::get_keyframing_flags(scene);
   const eBezTriple_KeyframeType key_type = eBezTriple_KeyframeType(
       scene->toolsettings->keyframe_type);
-  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(*C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
       depsgraph, BKE_scene_frame_get(scene));
 
@@ -406,8 +406,8 @@ static wmOperatorStatus insert_key(bContext *C, wmOperator *op)
     DEG_id_tag_update(id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
 
-  WM_event_add_notifier(*C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
-  WM_event_add_notifier(*C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -427,7 +427,7 @@ static wmOperatorStatus insert_key_exec(bContext &C, wmOperator &op)
   if (ks) {
     return insert_key_with_keyingset(C, &op, ks);
   }
-  return insert_key(&C, &op);
+  return insert_key(C, &op);
 }
 
 static wmOperatorStatus insert_key_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
@@ -798,7 +798,7 @@ static wmOperatorStatus clear_anim_v3d_invoke(bContext &C,
                                               const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Remove animation from selected objects?"),
                                   nullptr,
@@ -915,7 +915,7 @@ static wmOperatorStatus clear_anim_vse_invoke(bContext &C,
                                               const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Remove animation from selected strips?"),
                                   nullptr,
@@ -1104,7 +1104,7 @@ static wmOperatorStatus delete_key_vse_invoke(bContext &C,
                                               const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Delete keyframes from selected strips?"),
                                   nullptr,
@@ -1230,7 +1230,7 @@ static wmOperatorStatus delete_key_v3d_invoke(bContext &C,
                                               const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Delete keyframes from selected objects?"),
                                   nullptr,

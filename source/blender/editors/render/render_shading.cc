@@ -128,10 +128,10 @@ static bool object_array_for_shading_edit_mode_enabled_filter(const Object *ob, 
   return false;
 }
 
-static Vector<Object *> object_array_for_shading_edit_mode_enabled(bContext *C)
+static Vector<Object *> object_array_for_shading_edit_mode_enabled(bContext &C)
 {
   return blender::ed::object::objects_in_mode_or_selected(
-      *C, object_array_for_shading_edit_mode_enabled_filter, C);
+      C, object_array_for_shading_edit_mode_enabled_filter, &C);
 }
 
 static bool object_array_for_shading_edit_mode_disabled_filter(const Object *ob, void *user_data)
@@ -145,10 +145,10 @@ static bool object_array_for_shading_edit_mode_disabled_filter(const Object *ob,
   return false;
 }
 
-static Vector<Object *> object_array_for_shading_edit_mode_disabled(bContext *C)
+static Vector<Object *> object_array_for_shading_edit_mode_disabled(bContext &C)
 {
   return blender::ed::object::objects_in_mode_or_selected(
-      *C, object_array_for_shading_edit_mode_disabled_filter, C);
+      C, object_array_for_shading_edit_mode_disabled_filter, &C);
 }
 
 /** \} */
@@ -314,7 +314,7 @@ static wmOperatorStatus material_slot_assign_exec(bContext &C, wmOperator & /*op
   Object *obact = CTX_data_active_object(C);
   const Material *mat_active = obact ? BKE_object_material_get(obact, obact->actcol) : nullptr;
 
-  Vector<Object *> objects = object_array_for_shading_edit_mode_enabled(&C);
+  Vector<Object *> objects = object_array_for_shading_edit_mode_enabled(C);
   for (Object *ob : objects) {
     short mat_nr_active = -1;
 
@@ -418,7 +418,7 @@ static wmOperatorStatus material_slot_de_select(bContext &C, bool select)
   Object *obact = CTX_data_active_object(C);
   const Material *mat_active = obact ? BKE_object_material_get(obact, obact->actcol) : nullptr;
 
-  Vector<Object *> objects = object_array_for_shading_edit_mode_enabled(&C);
+  Vector<Object *> objects = object_array_for_shading_edit_mode_enabled(C);
   for (Object *ob : objects) {
     if (ob->totcol == 0) {
       continue;
@@ -704,7 +704,7 @@ static wmOperatorStatus material_slot_remove_unused_exec(bContext &C, wmOperator
   Main *bmain = CTX_data_main(C);
   int removed = 0;
 
-  Vector<Object *> objects = object_array_for_shading_edit_mode_disabled(&C);
+  Vector<Object *> objects = object_array_for_shading_edit_mode_disabled(C);
   for (Object *ob : objects) {
     int actcol = ob->actcol;
     for (int slot = 1; slot <= ob->totcol; slot++) {
@@ -766,7 +766,7 @@ static wmOperatorStatus material_slot_remove_all_exec(bContext &C, wmOperator &o
   Main *bmain = CTX_data_main(C);
   int removed = 0;
 
-  Vector<Object *> objects = object_array_for_shading_edit_mode_disabled(&C);
+  Vector<Object *> objects = object_array_for_shading_edit_mode_disabled(C);
   for (Object *ob : objects) {
     int actcol = ob->actcol;
     for (int slot = 1; slot <= ob->totcol; slot++) {
@@ -835,7 +835,7 @@ static wmOperatorStatus new_material_exec(bContext &C, wmOperator & /*op*/)
   PropertyRNA *prop;
 
   /* hook into UI */
-  blender::ui::context_active_but_prop_get_templateID(&C, &ptr, &prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
   Object *ob = static_cast<Object *>((prop && RNA_struct_is_a(ptr.type, &RNA_Object)) ? ptr.data :
                                                                                         nullptr);
@@ -921,7 +921,7 @@ static wmOperatorStatus new_texture_exec(bContext &C, wmOperator &op)
   }
 
   /* hook into UI */
-  blender::ui::context_active_but_prop_get_templateID(&C, &ptr, &prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
   bool linked_id_created = false;
   if (prop) {
@@ -940,7 +940,7 @@ static wmOperatorStatus new_texture_exec(bContext &C, wmOperator &op)
   }
 
   if (!linked_id_created) {
-    ED_undo_push_op(&C, &op);
+    ED_undo_push_op(C, &op);
   }
 
   WM_event_add_notifier(C, NC_TEXTURE | NA_ADDED, tex);
@@ -987,7 +987,7 @@ static wmOperatorStatus new_world_exec(bContext &C, wmOperator & /*op*/)
   }
 
   /* hook into UI */
-  blender::ui::context_active_but_prop_get_templateID(&C, &ptr, &prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
   if (prop) {
     /* when creating new ID blocks, use is already 1, but RNA

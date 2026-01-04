@@ -1140,10 +1140,10 @@ bool WM_operator_poll_or_report_error(bContext &C, wmOperatorType *ot, ReportLis
   return false;
 }
 
-bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context)
+bool WM_operator_poll_context(bContext &C, wmOperatorType *ot, blender::wm::OpCallContext context)
 {
   /* Sets up the new context and calls #wm_operator_invoke() with poll_only. */
-  return wm_operator_call_internal(*C, ot, nullptr, nullptr, context, true, nullptr);
+  return wm_operator_call_internal(C, ot, nullptr, nullptr, context, true, nullptr);
 }
 
 bool WM_operator_ui_poll(wmOperatorType *ot, PointerRNA *ptr)
@@ -1293,7 +1293,7 @@ static void wm_operator_finished(bContext &C,
    * this will happen for python operators that call C operators. */
   if (wm->op_undo_depth == 0) {
     if (op->type->flag & OPTYPE_UNDO) {
-      ED_undo_push_op(&C, op);
+      ED_undo_push_op(C, op);
       if (repeat == 0) {
         hud_status = CLEAR;
       }
@@ -1434,14 +1434,14 @@ static wmOperatorStatus wm_operator_exec_notest(bContext *C, wmOperator *op)
   return retval;
 }
 
-wmOperatorStatus WM_operator_call_ex(bContext *C, wmOperator *op, const bool store)
+wmOperatorStatus WM_operator_call_ex(bContext &C, wmOperator *op, const bool store)
 {
-  return wm_operator_exec(*C, op, false, store);
+  return wm_operator_exec(C, op, false, store);
 }
 
 wmOperatorStatus WM_operator_call(bContext *C, wmOperator *op)
 {
-  return WM_operator_call_ex(C, op, false);
+  return WM_operator_call_ex(*C, op, false);
 }
 
 wmOperatorStatus WM_operator_call_notest(bContext *C, wmOperator *op)
@@ -1449,19 +1449,19 @@ wmOperatorStatus WM_operator_call_notest(bContext *C, wmOperator *op)
   return wm_operator_exec_notest(C, op);
 }
 
-wmOperatorStatus WM_operator_repeat(bContext *C, wmOperator *op)
+wmOperatorStatus WM_operator_repeat(bContext &C, wmOperator *op)
 {
   const int op_flag = OP_IS_REPEAT;
   op->flag |= op_flag;
-  const wmOperatorStatus ret = wm_operator_exec(*C, op, true, true);
+  const wmOperatorStatus ret = wm_operator_exec(C, op, true, true);
   op->flag &= ~op_flag;
   return ret;
 }
-wmOperatorStatus WM_operator_repeat_last(bContext *C, wmOperator *op)
+wmOperatorStatus WM_operator_repeat_last(bContext &C, wmOperator *op)
 {
   const int op_flag = OP_IS_REPEAT_LAST;
   op->flag |= op_flag;
-  const wmOperatorStatus ret = wm_operator_exec(*C, op, true, true);
+  const wmOperatorStatus ret = wm_operator_exec(C, op, true, true);
   op->flag &= ~op_flag;
   return ret;
 }
@@ -1928,14 +1928,14 @@ static wmOperatorStatus wm_operator_call_internal(bContext &C,
   return wmOperatorStatus(0);
 }
 
-wmOperatorStatus WM_operator_name_call_ptr(bContext *C,
+wmOperatorStatus WM_operator_name_call_ptr(bContext &C,
                                            wmOperatorType *ot,
                                            blender::wm::OpCallContext context,
                                            PointerRNA *properties,
                                            const wmEvent *event)
 {
   BLI_assert(ot == WM_operatortype_find(ot->idname, true));
-  return wm_operator_call_internal(*C, ot, properties, nullptr, context, false, event);
+  return wm_operator_call_internal(C, ot, properties, nullptr, context, false, event);
 }
 wmOperatorStatus WM_operator_name_call(bContext *C,
                                        const char *opstring,
@@ -1945,7 +1945,7 @@ wmOperatorStatus WM_operator_name_call(bContext *C,
 {
   wmOperatorType *ot = WM_operatortype_find(opstring, false);
   if (ot) {
-    return WM_operator_name_call_ptr(C, ot, context, properties, event);
+    return WM_operator_name_call_ptr(*C, ot, context, properties, event);
   }
 
   return wmOperatorStatus(0);
@@ -1970,7 +1970,7 @@ wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
   wmOperatorType *ot = WM_operatortype_find(opstring, false);
   PointerRNA props_ptr = RNA_pointer_create_discrete(
       &static_cast<wmWindowManager *>(G_MAIN->wm.first)->id, ot->srna, properties);
-  return WM_operator_name_call_ptr(C, ot, context, &props_ptr, event);
+  return WM_operator_name_call_ptr(*C, ot, context, &props_ptr, event);
 }
 
 void WM_menu_name_call(bContext *C, const char *menu_name, blender::wm::OpCallContext context)
@@ -1979,7 +1979,7 @@ void WM_menu_name_call(bContext *C, const char *menu_name, blender::wm::OpCallCo
   PointerRNA ptr = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&ptr, "name", menu_name);
   WM_operator_name_call_ptr(
-      C, ot, static_cast<blender::wm::OpCallContext>(context), &ptr, nullptr);
+      *C, ot, static_cast<blender::wm::OpCallContext>(context), &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
 
@@ -2088,7 +2088,7 @@ static int ui_handler_wait_for_input(bContext *C, const wmEvent *event, void *us
 
     if (state == EXECUTE) {
       CTX_store_set(*C, opwait->context ? &opwait->context.value() : nullptr);
-      WM_operator_name_call_ptr(C,
+      WM_operator_name_call_ptr(*C,
                                 opwait->optype_params.optype,
                                 opwait->optype_params.opcontext,
                                 opwait->optype_params.opptr,
@@ -2128,7 +2128,7 @@ void WM_operator_name_call_ptr_with_depends_on_cursor(bContext &C,
   }
 
   if (!depends_on_cursor) {
-    WM_operator_name_call_ptr(&C, ot, opcontext, properties, event);
+    WM_operator_name_call_ptr(C, ot, opcontext, properties, event);
     return;
   }
 
@@ -2971,7 +2971,7 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext &C,
         if (retval & OPERATOR_FINISHED) {
           if (CTX_wm_manager(C) == wm && wm->op_undo_depth == 0) {
             if (handler->op->type->flag & OPTYPE_UNDO) {
-              ED_undo_push_op(&C, handler->op);
+              ED_undo_push_op(C, handler->op);
             }
             else if (handler->op->type->flag & OPTYPE_UNDO_GROUPED) {
               ED_undo_grouped_push_op(&C, handler->op);
@@ -3264,7 +3264,7 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
 
   if (gz && ISMOUSE(event->type) && event->val == KM_PRESS) {
     /* Remove any tooltips on mouse down. #83589 */
-    WM_tooltip_clear(C, CTX_wm_window(*C));
+    WM_tooltip_clear(*C, CTX_wm_window(*C));
   }
 
   /* Needed so UI blocks over gizmos don't let events fall through to the gizmos,
@@ -3274,7 +3274,7 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
     if (blender::ui::region_block_find_mouse_over(region, event->xy, true)) {
       if (gz != nullptr && event->type != EVT_GIZMO_UPDATE) {
         if (restore_highlight_unless_activated == false) {
-          WM_tooltip_clear(C, CTX_wm_window(*C));
+          WM_tooltip_clear(*C, CTX_wm_window(*C));
           wm_gizmomap_highlight_set(gzmap, C, nullptr, 0);
         }
       }
@@ -3336,14 +3336,14 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
     /* If no gizmos are/were active, don't clear tool-tips. */
     if (gz || prev.gz) {
       if ((prev.gz != gz) || (prev.part != part)) {
-        WM_tooltip_clear(C, CTX_wm_window(*C));
+        WM_tooltip_clear(*C, CTX_wm_window(*C));
       }
     }
 
     if (wm_gizmomap_highlight_set(gzmap, C, gz, part)) {
       if (gz != nullptr) {
         if ((U.flag & USER_TOOLTIPS) && (gz->flag & WM_GIZMO_NO_TOOLTIP) == 0) {
-          WM_tooltip_timer_init(C, CTX_wm_window(*C), area, region, WM_gizmomap_tooltip_init);
+          WM_tooltip_timer_init(*C, CTX_wm_window(*C), area, region, WM_gizmomap_tooltip_init);
         }
       }
     }
@@ -3380,7 +3380,7 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
               {
                 wmOperatorType *ot = WM_operatortype_find(kmi.idname, false);
                 const bool success = WM_operator_poll_context(
-                    C, ot, blender::wm::OpCallContext::InvokeDefault);
+                    *C, ot, blender::wm::OpCallContext::InvokeDefault);
                 if (success) {
                   is_event_handle_all = true;
                   break;
@@ -3512,7 +3512,7 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext &C,
         if (action & WM_HANDLER_BREAK && !event_is_timer) {
           /* Window may be gone after file read. */
           if (CTX_wm_window(C) != nullptr) {
-            WM_tooltip_clear(&C, CTX_wm_window(C));
+            WM_tooltip_clear(C, CTX_wm_window(C));
           }
         }
       }
@@ -4244,7 +4244,7 @@ void wm_event_do_handlers(bContext &C)
           if (len_manhattan_v2v2_int(screen->tool_tip->event_xy, event->xy) >
               WM_EVENT_CURSOR_MOTION_THRESHOLD)
           {
-            WM_tooltip_clear(&C, &win);
+            WM_tooltip_clear(C, &win);
           }
         }
       }
@@ -6567,7 +6567,7 @@ wmKeyMapItem *WM_event_match_keymap_item(bContext *C, wmKeyMap *keymap, const wm
   for (wmKeyMapItem &kmi : keymap->items) {
     if (wm_eventmatch(event, &kmi)) {
       wmOperatorType *ot = WM_operatortype_find(kmi.idname, false);
-      if (WM_operator_poll_context(C, ot, blender::wm::OpCallContext::InvokeDefault)) {
+      if (WM_operator_poll_context(*C, ot, blender::wm::OpCallContext::InvokeDefault)) {
         return &kmi;
       }
     }

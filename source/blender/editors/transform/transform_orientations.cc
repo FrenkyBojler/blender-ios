@@ -147,7 +147,7 @@ static TransformOrientation *createObjectSpace(bContext &C,
   return addMatrixSpace(C, mat, name, overwrite);
 }
 
-static TransformOrientation *createBoneSpace(bContext *C,
+static TransformOrientation *createBoneSpace(bContext &C,
                                              ReportList *reports,
                                              const char *name,
                                              const bool overwrite)
@@ -155,7 +155,7 @@ static TransformOrientation *createBoneSpace(bContext *C,
   float mat[3][3];
   float normal[3], plane[3];
 
-  getTransformOrientation(*C, normal, plane);
+  getTransformOrientation(C, normal, plane);
 
   if (createSpaceNormalTangent(mat, normal, plane) == 0) {
     BKE_reports_prepend(reports, "Cannot use zero-length bone");
@@ -166,10 +166,10 @@ static TransformOrientation *createBoneSpace(bContext *C,
     name = DATA_("Bone");
   }
 
-  return addMatrixSpace(*C, mat, name, overwrite);
+  return addMatrixSpace(C, mat, name, overwrite);
 }
 
-static TransformOrientation *createCurveSpace(bContext *C,
+static TransformOrientation *createCurveSpace(bContext &C,
                                               ReportList *reports,
                                               const char *name,
                                               const bool overwrite)
@@ -177,7 +177,7 @@ static TransformOrientation *createCurveSpace(bContext *C,
   float mat[3][3];
   float normal[3], plane[3];
 
-  getTransformOrientation(*C, normal, plane);
+  getTransformOrientation(C, normal, plane);
 
   if (createSpaceNormalTangent(mat, normal, plane) == 0) {
     BKE_reports_prepend(reports, "Cannot use zero-length curve");
@@ -188,10 +188,10 @@ static TransformOrientation *createCurveSpace(bContext *C,
     name = DATA_("Curve");
   }
 
-  return addMatrixSpace(*C, mat, name, overwrite);
+  return addMatrixSpace(C, mat, name, overwrite);
 }
 
-static TransformOrientation *createMeshSpace(bContext *C,
+static TransformOrientation *createMeshSpace(bContext &C,
                                              ReportList *reports,
                                              const char *name,
                                              const bool overwrite)
@@ -200,7 +200,7 @@ static TransformOrientation *createMeshSpace(bContext *C,
   float normal[3], plane[3];
   int type;
 
-  type = getTransformOrientation(*C, normal, plane);
+  type = getTransformOrientation(C, normal, plane);
 
   switch (type) {
     case ORIENTATION_VERT:
@@ -237,7 +237,7 @@ static TransformOrientation *createMeshSpace(bContext *C,
       return nullptr;
   }
 
-  return addMatrixSpace(*C, mat, name, overwrite);
+  return addMatrixSpace(C, mat, name, overwrite);
 }
 
 static bool test_rotmode_euler(short rotmode)
@@ -480,17 +480,17 @@ bool BIF_createTransformOrientation(bContext *C,
     Object *ob = CTX_data_active_object(*C);
     if (obedit) {
       if (obedit->type == OB_MESH) {
-        ts = createMeshSpace(C, reports, name, overwrite);
+        ts = createMeshSpace(*C, reports, name, overwrite);
       }
       else if (obedit->type == OB_ARMATURE) {
-        ts = createBoneSpace(C, reports, name, overwrite);
+        ts = createBoneSpace(*C, reports, name, overwrite);
       }
       else if (obedit->type == OB_CURVES_LEGACY) {
-        ts = createCurveSpace(C, reports, name, overwrite);
+        ts = createCurveSpace(*C, reports, name, overwrite);
       }
     }
     else if (ob && (ob->mode & OB_MODE_POSE)) {
-      ts = createBoneSpace(C, reports, name, overwrite);
+      ts = createBoneSpace(*C, reports, name, overwrite);
     }
     else {
       ts = createObjectSpace(*C, reports, name, overwrite);

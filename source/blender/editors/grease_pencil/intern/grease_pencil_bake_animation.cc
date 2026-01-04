@@ -69,7 +69,7 @@ static wmOperatorStatus bake_grease_pencil_animation_invoke(bContext &C,
   }
 
   return WM_operator_props_dialog_popup(
-      &C, &op, 250, IFACE_("Bake Object Transform to Grease Pencil"), IFACE_("Bake"));
+      C, &op, 250, IFACE_("Bake Object Transform to Grease Pencil"), IFACE_("Bake"));
 }
 
 static Vector<Object *> get_bake_targets(bContext &C, Depsgraph &depsgraph, Scene &scene)
@@ -165,7 +165,7 @@ static wmOperatorStatus bake_grease_pencil_animation_exec(bContext &C, wmOperato
 
   uint8_t local_view_bits = (v3d && v3d->localvd) ? v3d->local_view_uid : 0;
   Object *target_object = object::add_type(
-      &C, OB_GREASE_PENCIL, nullptr, scene.cursor.location, float3(0), false, local_view_bits);
+      C, OB_GREASE_PENCIL, nullptr, scene.cursor.location, float3(0), false, local_view_bits);
 
   const float4x4 target_imat = math::invert(target_object->object_to_world());
 

@@ -37,7 +37,7 @@ static void operator_search_exec_fn(bContext *C, void * /*arg1*/, void *arg2)
   wmOperatorType *ot = static_cast<wmOperatorType *>(arg2);
 
   if (ot) {
-    WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, nullptr, nullptr);
+    WM_operator_name_call_ptr(*C, ot, wm::OpCallContext::InvokeDefault, nullptr, nullptr);
   }
 }
 

@@ -154,7 +154,7 @@ void AssetList::fetch(const bContext &C)
 
   if (filelist_needs_reading(files)) {
     if (!filelist_pending(files)) {
-      filelist_readjob_start(files, NC_ASSET | ND_ASSET_LIST_READING, &C);
+      filelist_readjob_start(files, NC_ASSET | ND_ASSET_LIST_READING, C);
     }
   }
   filelist_sort(files);
@@ -170,7 +170,7 @@ void AssetList::ensure_blocking(const bContext &C)
   }
 
   if (filelist_needs_reading(files)) {
-    filelist_readjob_blocking_run(files, NC_ASSET | ND_ASSET_LIST_READING, &C);
+    filelist_readjob_blocking_run(files, NC_ASSET | ND_ASSET_LIST_READING, C);
   }
 
   filelist_sort(files);

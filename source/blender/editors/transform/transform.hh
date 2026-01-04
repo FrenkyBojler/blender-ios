@@ -989,7 +989,7 @@ struct TransInfo {
  * \warning \a event might be NULL (when tweaking from redo panel)
  * \see #saveTransform which writes these values back.
  */
-bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *event, int mode);
+bool initTransform(bContext &C, TransInfo *t, wmOperator *op, const wmEvent *event, int mode);
 /**
  * \see #initTransform which reads values from the operator.
  */

@@ -190,9 +190,9 @@ static void ED_OT_lib_id_load_custom_preview(wmOperatorType *ot)
  * Helper for batch editing previews. Gets selected or active IDs from context and calls \a
  * foreach_id for each ID that supports previews.
  */
-static void lib_id_batch_edit_previews(bContext *C, blender::FunctionRef<void(ID *)> foreach_id)
+static void lib_id_batch_edit_previews(bContext &C, blender::FunctionRef<void(ID *)> foreach_id)
 {
-  blender::Vector<PointerRNA> id_pointers = ED_operator_get_ids_from_context_as_vec(*C);
+  blender::Vector<PointerRNA> id_pointers = ED_operator_get_ids_from_context_as_vec(C);
   for (PointerRNA &idptr : id_pointers) {
     ID *id = static_cast<ID *>(idptr.data);
 
@@ -212,13 +212,13 @@ static void lib_id_batch_edit_previews(bContext *C, blender::FunctionRef<void(ID
  * be considered as supporting this operation.
  */
 static bool lib_id_batch_editing_preview_poll(
-    bContext *C,
+    bContext &C,
     blender::FunctionRef<bool(const ID *, const char **r_disabled_hint)> additional_condition =
         nullptr)
 {
-  blender::Vector<PointerRNA> id_pointers = ED_operator_get_ids_from_context_as_vec(*C);
+  blender::Vector<PointerRNA> id_pointers = ED_operator_get_ids_from_context_as_vec(C);
   if (id_pointers.is_empty()) {
-    CTX_wm_operator_poll_msg_set(*C, "No data-block selected or active");
+    CTX_wm_operator_poll_msg_set(C, "No data-block selected or active");
     return false;
   }
 
@@ -243,17 +243,17 @@ static bool lib_id_batch_editing_preview_poll(
   /* Will only hold the first disabled hint set. That often gives some more specific information,
    * so it's more useful than a generic message. */
   if (disabled_hint) {
-    CTX_wm_operator_poll_msg_set(*C, disabled_hint);
+    CTX_wm_operator_poll_msg_set(C, disabled_hint);
   }
   else {
-    CTX_wm_operator_poll_msg_set(*C, "None of the selected data-blocks supports previews");
+    CTX_wm_operator_poll_msg_set(C, "None of the selected data-blocks supports previews");
   }
   return false;
 }
 
 static bool lib_id_generate_preview_poll(bContext &C)
 {
-  return lib_id_batch_editing_preview_poll(&C, [](const ID *id, const char **r_disabled_hint) {
+  return lib_id_batch_editing_preview_poll(C, [](const ID *id, const char **r_disabled_hint) {
     return ED_preview_id_is_supported(id, r_disabled_hint);
   });
 }
@@ -264,7 +264,7 @@ static wmOperatorStatus lib_id_generate_preview_exec(bContext &C, wmOperator & /
 
   ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 
-  lib_id_batch_edit_previews(&C, [&](ID *id) {
+  lib_id_batch_edit_previews(C, [&](ID *id) {
     if (ED_preview_id_is_supported(id, nullptr)) {
       PreviewImage *preview = BKE_previewimg_id_get(id);
 
@@ -300,7 +300,7 @@ static bool lib_id_generate_preview_from_object_poll(bContext &C)
 {
   /* This already checks if the IDs in context (e.g. selected in the Asset browser) can generate
    * previews... */
-  if (!lib_id_batch_editing_preview_poll(&C)) {
+  if (!lib_id_batch_editing_preview_poll(C)) {
     return false;
   }
 
@@ -327,7 +327,7 @@ static wmOperatorStatus lib_id_generate_preview_from_object_exec(bContext &C, wm
 
   Object *object_to_render = CTX_data_active_object(C);
 
-  lib_id_batch_edit_previews(&C, [&](ID *id) {
+  lib_id_batch_edit_previews(C, [&](ID *id) {
     BKE_previewimg_id_free(id);
 
     PreviewImage *preview_image = BKE_previewimg_id_ensure(id);
@@ -357,12 +357,12 @@ static void ED_OT_lib_id_generate_preview_from_object(wmOperatorType *ot)
 
 static bool lib_id_remove_preview_poll(bContext &C)
 {
-  if (!lib_id_batch_editing_preview_poll(&C)) {
+  if (!lib_id_batch_editing_preview_poll(C)) {
     return false;
   }
 
   bool has_any_removable = false;
-  lib_id_batch_edit_previews(&C, [&](ID *id) {
+  lib_id_batch_edit_previews(C, [&](ID *id) {
     if (BKE_previewimg_id_get(id)) {
       has_any_removable = true;
     }
@@ -378,7 +378,7 @@ static bool lib_id_remove_preview_poll(bContext &C)
 
 static wmOperatorStatus lib_id_remove_preview_exec(bContext &C, wmOperator & /*op*/)
 {
-  lib_id_batch_edit_previews(&C, [&](ID *id) { BKE_previewimg_id_free(id); });
+  lib_id_batch_edit_previews(C, [&](ID *id) { BKE_previewimg_id_free(id); });
 
   WM_event_add_notifier(C, NC_ASSET | NA_EDITED, nullptr);
 
@@ -411,7 +411,7 @@ static wmOperatorStatus lib_id_fake_user_toggle_exec(bContext &C, wmOperator &op
   PropertyPointerRNA pprop;
   PointerRNA idptr = PointerRNA_NULL;
 
-  blender::ui::context_active_but_prop_get_templateID(&C, &pprop.ptr, &pprop.prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
 
   if (pprop.prop) {
     idptr = RNA_property_pointer_get(&pprop.ptr, pprop.prop);
@@ -461,7 +461,7 @@ static wmOperatorStatus lib_id_unlink_exec(bContext &C, wmOperator &op)
   PropertyPointerRNA pprop;
   PointerRNA idptr;
 
-  blender::ui::context_active_but_prop_get_templateID(&C, &pprop.ptr, &pprop.prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
 
   if (pprop.prop) {
     idptr = RNA_property_pointer_get(&pprop.ptr, pprop.prop);

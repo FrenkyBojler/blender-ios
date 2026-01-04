@@ -266,11 +266,11 @@ static Block *id_search_menu(bContext *C, ARegion *region, void *arg_litem)
 
 static void template_id_cb(bContext *C, void *arg_litem, void *arg_event);
 
-void context_active_but_prop_get_templateID(const bContext *C,
+void context_active_but_prop_get_templateID(const bContext &C,
                                             PointerRNA *r_ptr,
                                             PropertyRNA **r_prop)
 {
-  Button *but = context_active_but_get(*C);
+  Button *but = context_active_but_get(C);
 
   *r_ptr = {};
   *r_prop = nullptr;
@@ -1428,9 +1428,9 @@ static void template_ID(const bContext *C,
   block_align_end(block);
 }
 
-ID *context_active_but_get_tab_ID(bContext *C)
+ID *context_active_but_get_tab_ID(bContext &C)
 {
-  Button *but = context_active_but_get(*C);
+  Button *but = context_active_but_get(C);
 
   if (but && but->type == ButtonType::Tab) {
     return static_cast<ID *>(but->custom_data);

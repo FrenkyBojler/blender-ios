@@ -481,7 +481,7 @@ bool searchbox_event(
             ScrArea *area = CTX_wm_area(*C);
             search_but->item_active = data->items.pointers[data->active];
             WM_tooltip_timer_init(
-                C, CTX_wm_window(*C), area, butregion, wm_searchbox_tooltip_init);
+                *C, CTX_wm_window(*C), area, butregion, wm_searchbox_tooltip_init);
             tooltip_timer_started = true;
           }
         }
@@ -493,7 +493,7 @@ bool searchbox_event(
 
   if (handled && (tooltip_timer_started == false)) {
     wmWindow *win = CTX_wm_window(*C);
-    WM_tooltip_clear(C, win);
+    WM_tooltip_clear(*C, win);
   }
 
   return handled;
@@ -508,7 +508,7 @@ static void searchbox_update_fn(bContext *C,
   /* While the button is in text editing mode (searchbox open), remove tooltips on every update. */
   if (but->editstr) {
     wmWindow *win = CTX_wm_window(*C);
-    WM_tooltip_clear(C, win);
+    WM_tooltip_clear(*C, win);
   }
   const bool is_first_search = !but->changed;
   but->items_update_fn(C, but->arg, str, items, is_first_search);

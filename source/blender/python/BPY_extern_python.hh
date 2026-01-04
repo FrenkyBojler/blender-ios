@@ -20,7 +20,7 @@ struct bContext;
 /** Call #BPY_context_set first. */
 void BPY_python_start(bContext *C, int argc, const char **argv);
 void BPY_python_end(bool do_python_exit);
-void BPY_python_reset(bContext *C);
+void BPY_python_reset(bContext &C);
 void BPY_python_use_system_env();
 [[nodiscard]] bool BPY_python_use_system_env_get();
 void BPY_python_backtrace(FILE *fp);

@@ -325,7 +325,7 @@ class Instance : public DrawEngine {
   {
     /* Get scene from the render job, to show progress for scenes render as part
      * of compositor or sequencer. */
-    Scene *scene = ED_render_job_get_current_scene(draw_ctx->evil_C);
+    Scene *scene = ED_render_job_get_current_scene(*draw_ctx->evil_C);
     if (scene == nullptr) {
       scene = draw_ctx->scene;
     }
@@ -458,7 +458,7 @@ bool DRW_engine_external_acquire_for_image_editor(const DRWContext *draw_ctx)
 {
   /* Get scene from the render job, to show progress for scenes render as part
    * of compositor or sequencer. */
-  Scene *scene = ED_render_job_get_current_scene(draw_ctx->evil_C);
+  Scene *scene = ED_render_job_get_current_scene(*draw_ctx->evil_C);
   if (scene == nullptr) {
     scene = draw_ctx->scene;
   }

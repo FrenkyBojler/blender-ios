@@ -87,9 +87,9 @@ namespace blender::ed::vse {
 /** \name Public Context Checks
  * \{ */
 
-bool maskedit_mask_poll(bContext *C)
+bool maskedit_mask_poll(bContext &C)
 {
-  return maskedit_poll(*C);
+  return maskedit_poll(C);
 }
 
 bool check_show_maskedit(SpaceSeq *sseq, Scene *scene)
@@ -464,7 +464,7 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
   if (prev_obact) {
     Object *obact = CTX_data_active_object(C);
     if (obact && prev_obact->type == obact->type) {
-      object::mode_set(&C, eObjectMode(prev_obact->mode));
+      object::mode_set(C, eObjectMode(prev_obact->mode));
     }
   }
 
@@ -733,11 +733,11 @@ void slip_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "SEQUENCER_OT_slip");
 }
 
-static void slip_draw_status(bContext *C, const wmOperator *op)
+static void slip_draw_status(bContext &C, const wmOperator *op)
 {
   SlipData *data = static_cast<SlipData *>(op->customdata);
 
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
 
   status.opmodal(IFACE_("Confirm"), op->type, SLIP_MODAL_CONFIRM);
   status.opmodal(IFACE_("Cancel"), op->type, SLIP_MODAL_CANCEL);
@@ -869,7 +869,7 @@ static wmOperatorStatus sequencer_slip_invoke(bContext &C, wmOperator &op, const
   data->prev_mval_x = event->mval[0];
   data->virtual_mval_x = event->mval[0];
 
-  slip_draw_status(&C, &op);
+  slip_draw_status(C, &op);
   slip_update_header(scene, area, data, 0.0f);
 
   WM_event_add_modal_handler(C, &op);
@@ -1007,7 +1007,7 @@ static wmOperatorStatus sequencer_slip_exec(bContext &C, wmOperator &op)
 }
 
 static void slip_handle_num_input(
-    bContext *C, wmOperator *op, ScrArea *area, SlipData *data, Scene *scene)
+    bContext &C, wmOperator *op, ScrArea *area, SlipData *data, Scene *scene)
 {
   float offset;
   applyNumInput(&data->num_input, &offset);
@@ -1016,9 +1016,9 @@ static void slip_handle_num_input(
   slip_update_header(scene, area, data, offset);
   RNA_float_set(op->ptr, "offset", offset);
 
-  slip_strips_delta(*C, op, scene, data, offset_delta);
+  slip_strips_delta(C, op, scene, data, offset_delta);
 
-  WM_event_add_notifier(*C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 }
 
 static wmOperatorStatus sequencer_slip_modal(bContext &C, wmOperator &op, const wmEvent *event)
@@ -1030,7 +1030,7 @@ static wmOperatorStatus sequencer_slip_modal(bContext &C, wmOperator &op, const 
   const bool has_num_input = hasNumInput(&data->num_input);
 
   if (event->val == KM_PRESS && handleNumInput(&C, &data->num_input, event)) {
-    slip_handle_num_input(&C, &op, area, data, scene);
+    slip_handle_num_input(C, &op, area, data, scene);
     return OPERATOR_RUNNING_MODAL;
   }
 
@@ -1104,7 +1104,7 @@ static wmOperatorStatus sequencer_slip_modal(bContext &C, wmOperator &op, const 
     }
   }
 
-  slip_draw_status(&C, &op);
+  slip_draw_status(C, &op);
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -2375,7 +2375,7 @@ static wmOperatorStatus sequencer_add_duplicate_exec(bContext &C, wmOperator &op
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   DEG_relations_tag_update(CTX_data_main(C));
-  sequencer_select_do_updates(&C, scene);
+  sequencer_select_do_updates(C, scene);
   return OPERATOR_FINISHED;
 }
 

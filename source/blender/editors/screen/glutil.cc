@@ -577,7 +577,7 @@ void ED_draw_imbuf(ImBuf *ibuf,
                          zoom_y);
 }
 
-void ED_draw_imbuf_ctx_clipping(const bContext *C,
+void ED_draw_imbuf_ctx_clipping(const bContext &C,
                                 ImBuf *ibuf,
                                 float x,
                                 float y,
@@ -592,7 +592,7 @@ void ED_draw_imbuf_ctx_clipping(const bContext *C,
   ColorManagedViewSettings *view_settings;
   ColorManagedDisplaySettings *display_settings;
 
-  IMB_colormanagement_display_settings_from_ctx(*C, &view_settings, &display_settings);
+  IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
 
   ED_draw_imbuf_clipping(ibuf,
                          x,
@@ -611,7 +611,7 @@ void ED_draw_imbuf_ctx_clipping(const bContext *C,
 void ED_draw_imbuf_ctx(
     const bContext *C, ImBuf *ibuf, float x, float y, bool use_filter, float zoom_x, float zoom_y)
 {
-  ED_draw_imbuf_ctx_clipping(C, ibuf, x, y, use_filter, 0.0f, 0.0f, 0.0f, 0.0f, zoom_x, zoom_y);
+  ED_draw_imbuf_ctx_clipping(*C, ibuf, x, y, use_filter, 0.0f, 0.0f, 0.0f, 0.0f, zoom_x, zoom_y);
 }
 
 int ED_draw_imbuf_method(const ImBuf *ibuf)

@@ -741,7 +741,7 @@ static void wm_file_read_post(bContext &C,
             "addon_utils.reset_all()");
       }
       if (use_data) {
-        BPY_python_reset(&C);
+        BPY_python_reset(C);
       }
       addons_loaded = true;
     }
@@ -749,7 +749,7 @@ static void wm_file_read_post(bContext &C,
   else {
     /* Run any texts that were loaded in and flagged as modules. */
     if (use_data) {
-      BPY_python_reset(&C);
+      BPY_python_reset(C);
     }
     addons_loaded = true;
   }
@@ -1544,7 +1544,7 @@ void wm_homefile_read_ex(bContext *C,
     params_file_read_post.is_alloc = false;
 
     if (r_params_file_read_post == nullptr) {
-      wm_homefile_read_post(C, &params_file_read_post);
+      wm_homefile_read_post(*C, &params_file_read_post);
     }
     else {
       params_file_read_post.is_alloc = true;
@@ -1564,13 +1564,13 @@ void wm_homefile_read(bContext *C,
   wm_homefile_read_ex(C, params_homefile, reports, nullptr);
 }
 
-void wm_homefile_read_post(bContext *C, const wmFileReadPost_Params *params_file_read_post)
+void wm_homefile_read_post(bContext &C, const wmFileReadPost_Params *params_file_read_post)
 {
   const char *filepath = "";
-  wm_file_read_post(*C, filepath, params_file_read_post);
+  wm_file_read_post(C, filepath, params_file_read_post);
 
   if (params_file_read_post->use_data) {
-    wm_read_callback_post_wrapper(*C, filepath, params_file_read_post->success);
+    wm_read_callback_post_wrapper(C, filepath, params_file_read_post->success);
   }
 
   if (params_file_read_post->is_alloc) {
@@ -2541,7 +2541,7 @@ static wmOperatorStatus wm_homefile_write_invoke(bContext &C,
                                                  const wmEvent * /*event*/)
 {
   if (!U.app_template[0]) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Overwrite Startup File"),
                                   IFACE_("Blender will start next time as it is now."),
@@ -2556,7 +2556,7 @@ static wmOperatorStatus wm_homefile_write_invoke(bContext &C,
   std::string message = fmt::format(
       fmt::runtime(IFACE_("Template \"{}\" will start next time as it is now.")),
       IFACE_(display_name));
-  return WM_operator_confirm_ex(&C,
+  return WM_operator_confirm_ex(C,
                                 &op,
                                 IFACE_("Overwrite Template Startup File"),
                                 message.c_str(),
@@ -2661,7 +2661,7 @@ static void rna_struct_update_when_changed(bContext *C,
   RNA_property_collection_end(&iter);
 }
 
-static void wm_userpref_update_when_changed(bContext *C,
+static void wm_userpref_update_when_changed(bContext &C,
                                             Main *bmain,
                                             UserDef *userdef_prev,
                                             UserDef *userdef_curr)
@@ -2670,10 +2670,10 @@ static void wm_userpref_update_when_changed(bContext *C,
   PointerRNA ptr_b = RNA_pointer_create_discrete(nullptr, &RNA_Preferences, userdef_curr);
   const bool is_dirty = userdef_curr->runtime.is_dirty;
 
-  rna_struct_update_when_changed(C, bmain, &ptr_a, &ptr_b);
+  rna_struct_update_when_changed(&C, bmain, &ptr_a, &ptr_b);
 
   WM_reinit_gizmomap_all(bmain);
-  WM_keyconfig_reload(*C);
+  WM_keyconfig_reload(C);
 
   userdef_curr->runtime.is_dirty = is_dirty;
 }
@@ -2705,7 +2705,7 @@ static wmOperatorStatus wm_userpref_read_exec(bContext &C, wmOperator &op)
   wm_userpref_read_exceptions(&U, &U_backup);
   SET_FLAG_FROM_TEST(G.f, use_factory_settings, G_FLAG_USERPREF_NO_SAVE_ON_EXIT);
 
-  wm_userpref_update_when_changed(&C, bmain, &U_backup, &U);
+  wm_userpref_update_when_changed(C, bmain, &U_backup, &U);
 
   if (use_factory_settings) {
     U.runtime.is_dirty = true;
@@ -2751,7 +2751,7 @@ static wmOperatorStatus wm_userpref_read_invoke(bContext &C,
   }
 
   return WM_operator_confirm_ex(
-      &C,
+      C,
       &op,
       title.c_str(),
       IFACE_("To make changes to Preferences permanent, use \"Save Preferences\""),
@@ -3018,7 +3018,7 @@ static wmOperatorStatus wm_read_factory_settings_invoke(bContext &C,
   }
 
   return WM_operator_confirm_ex(
-      &C,
+      C,
       &op,
       title.c_str(),
       unsaved ? IFACE_("To make changes to Preferences permanent, use \"Save Preferences\".\n"
@@ -3055,16 +3055,16 @@ void WM_OT_read_factory_settings(wmOperatorType *ot)
 /**
  * Wrap #WM_file_read, shared by file reading operators.
  */
-static bool wm_file_read_opwrap(bContext *C,
+static bool wm_file_read_opwrap(bContext &C,
                                 const char *filepath,
                                 const bool use_scripts_autoexec_check,
                                 ReportList *reports)
 {
   /* XXX: wm in context is not set correctly after #WM_file_read -> crash. */
   /* Do it before for now, but is this correct with multiple windows? */
-  WM_event_add_notifier(*C, NC_WINDOW, nullptr);
+  WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
-  const bool success = WM_file_read(*C, filepath, use_scripts_autoexec_check, reports);
+  const bool success = WM_file_read(C, filepath, use_scripts_autoexec_check, reports);
 
   return success;
 }
@@ -3196,7 +3196,7 @@ static wmOperatorStatus wm_open_mainfile__open(bContext *C, wmOperator *op)
 
   SET_FLAG_FROM_TEST(G.fileflags, !RNA_boolean_get(op->ptr, "load_ui"), G_FILE_NO_UI);
   SET_FLAG_FROM_TEST(G.f, RNA_boolean_get(op->ptr, "use_scripts"), G_FLAG_SCRIPT_AUTOEXEC);
-  success = wm_file_read_opwrap(C, filepath, use_scripts_autoexec_check, op->reports);
+  success = wm_file_read_opwrap(*C, filepath, use_scripts_autoexec_check, op->reports);
 
   if (success) {
     if (G.fileflags & G_FILE_NO_UI) {
@@ -3387,7 +3387,7 @@ static wmOperatorStatus wm_revert_mainfile_invoke(bContext &C,
     message += IFACE_("Warning: There are unsaved external image(s).");
   }
 
-  return WM_operator_confirm_ex(&C,
+  return WM_operator_confirm_ex(C,
                                 &op,
                                 IFACE_("Revert to the Saved File"),
                                 message.c_str(),
@@ -3407,7 +3407,7 @@ static wmOperatorStatus wm_revert_mainfile_exec(bContext &C, wmOperator &op)
   SET_FLAG_FROM_TEST(G.f, RNA_boolean_get(op.ptr, "use_scripts"), G_FLAG_SCRIPT_AUTOEXEC);
 
   STRNCPY(filepath, BKE_main_blendfile_path(bmain));
-  success = wm_file_read_opwrap(&C, filepath, use_scripts_autoexec_check, op.reports);
+  success = wm_file_read_opwrap(C, filepath, use_scripts_autoexec_check, op.reports);
 
   if (success) {
     return OPERATOR_FINISHED;
@@ -3447,7 +3447,7 @@ bool WM_file_recover_last_session(bContext *C,
   char filepath[FILE_MAX];
   BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), BLENDER_QUIT_FILE);
   G.fileflags |= G_FILE_RECOVER_READ;
-  const bool success = wm_file_read_opwrap(C, filepath, use_scripts_autoexec_check, reports);
+  const bool success = wm_file_read_opwrap(*C, filepath, use_scripts_autoexec_check, reports);
   G.fileflags &= ~G_FILE_RECOVER_READ;
   return success;
 }
@@ -3531,7 +3531,7 @@ static wmOperatorStatus wm_recover_auto_save_exec(bContext &C, wmOperator &op)
 
   G.fileflags |= G_FILE_RECOVER_READ;
 
-  success = wm_file_read_opwrap(&C, filepath, use_scripts_autoexec_check, op.reports);
+  success = wm_file_read_opwrap(C, filepath, use_scripts_autoexec_check, op.reports);
 
   G.fileflags &= ~G_FILE_RECOVER_READ;
 
@@ -4231,7 +4231,7 @@ void wm_test_autorun_revert_action_exec(bContext *C)
     wm_test_autorun_revert_action_set(ot, ptr);
   }
 
-  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, ptr, nullptr);
+  WM_operator_name_call_ptr(*C, ot, blender::wm::OpCallContext::ExecDefault, ptr, nullptr);
   wm_test_autorun_revert_action_set(nullptr, nullptr);
 }
 
@@ -4261,7 +4261,7 @@ void wm_test_autorun_warning(bContext *C)
 
     wmWindow *prevwin = CTX_wm_window(*C);
     CTX_wm_window_set(*C, win);
-    blender::ui::popup_block_invoke(C, block_create_autorun_warning, nullptr, nullptr);
+    blender::ui::popup_block_invoke(*C, block_create_autorun_warning, nullptr, nullptr);
     CTX_wm_window_set(*C, prevwin);
   }
 }
@@ -4286,7 +4286,7 @@ void wm_test_foreign_file_warning(bContext *C)
 
     wmWindow *prevwin = CTX_wm_window(*C);
     CTX_wm_window_set(*C, win);
-    alert(C,
+    alert(*C,
           RPT_("Unable to Load File"),
           RPT_("The file is not a valid Blender file."),
           blender::ui::AlertIcon::Error,
@@ -4574,7 +4574,7 @@ void wm_save_file_overwrite_dialog(bContext &C, wmOperator *op)
     callback->free_user_data = wm_free_operator_properties_callback;
 
     blender::ui::popup_block_invoke(
-        &C, block_create_save_file_overwrite_dialog, callback, free_post_file_close_action);
+        C, block_create_save_file_overwrite_dialog, callback, free_post_file_close_action);
   }
 }
 
@@ -4906,7 +4906,7 @@ void wm_close_file_dialog(bContext &C, wmGenericCallback *post_action)
     save_images_when_file_is_closed = true;
 
     blender::ui::popup_block_invoke(
-        &C, block_create__close_file_dialog, post_action, free_post_file_close_action);
+        C, block_create__close_file_dialog, post_action, free_post_file_close_action);
   }
   else {
     WM_generic_callback_free(post_action);

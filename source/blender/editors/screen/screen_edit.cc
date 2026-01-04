@@ -86,10 +86,10 @@ static ScrArea *screen_addarea(bScreen *screen,
       AREAMAP_FROM_SCREEN(screen), left_bottom, left_top, right_top, right_bottom, space_type);
 }
 
-static void screen_delarea(bContext *C, bScreen *screen, ScrArea *area)
+static void screen_delarea(bContext &C, bScreen *screen, ScrArea *area)
 {
 
-  ED_area_exit(*C, area);
+  ED_area_exit(C, area);
 
   BKE_screen_area_free(area);
 
@@ -454,7 +454,7 @@ static bool screen_area_join_aligned(
     screen_geom_edge_add(screen, sa1->v3, sa1->v4);
   }
 
-  screen_delarea(C, screen, sa2);
+  screen_delarea(*C, screen, sa2);
   BKE_screen_remove_double_scrverts(screen);
   /* Update preview thumbnail */
   BKE_icon_changed(screen->id.icon_id);
@@ -853,9 +853,9 @@ void ED_screen_ensure_updated(bContext *C, wmWindowManager *wm, wmWindow *win)
   screen_refresh_if_needed(C, wm, win);
 }
 
-void ED_region_remove(bContext *C, ScrArea *area, ARegion *region)
+void ED_region_remove(bContext &C, ScrArea *area, ARegion *region)
 {
-  ED_region_exit(*C, region);
+  ED_region_exit(C, region);
   BKE_area_region_free(area->type, region);
   BLI_freelinkN(&area->regionbase, region);
 }
@@ -1491,14 +1491,14 @@ void ED_screen_scene_change(bContext &C,
   }
 }
 
-ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *area, int type)
+ScrArea *ED_screen_full_newspace(bContext &C, ScrArea *area, int type)
 {
   bScreen *newscreen = nullptr;
   ScrArea *newsa = nullptr;
   SpaceLink *newsl;
 
   if (!area || area->full == nullptr) {
-    newscreen = ED_screen_state_maximized_create(*C);
+    newscreen = ED_screen_state_maximized_create(C);
     newsa = static_cast<ScrArea *>(newscreen->areabase.first);
     BLI_assert(newsa->spacetype == SPACE_EMPTY);
   }
@@ -1515,10 +1515,10 @@ ScrArea *ED_screen_full_newspace(bContext *C, ScrArea *area, int type)
     newsl->link_flag |= SPACE_FLAG_TYPE_WAS_ACTIVE;
   }
 
-  ED_area_newspace(*C, newsa, type, (newsl && newsl->link_flag & SPACE_FLAG_TYPE_TEMPORARY));
+  ED_area_newspace(C, newsa, type, (newsl && newsl->link_flag & SPACE_FLAG_TYPE_TEMPORARY));
 
   if (newscreen) {
-    ED_screen_change(*C, newscreen);
+    ED_screen_change(C, newscreen);
   }
 
   return newsa;
@@ -1892,7 +1892,7 @@ ScrArea *ED_screen_temp_space_open(
       }
 
       /* Create a new fullscreen area. */
-      ScrArea *area = ED_screen_full_newspace(C, ctx_area, int(space_type));
+      ScrArea *area = ED_screen_full_newspace(*C, ctx_area, int(space_type));
       ((SpaceLink *)area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
       return area;
     }

@@ -908,14 +908,14 @@ static bool add_driver_button_poll(bContext &C)
 
 /* Wrapper for creating a driver without knowing what the targets will be yet
  * (i.e. "manual/add later"). */
-static wmOperatorStatus add_driver_button_none(bContext *C, wmOperator *op, short mapping_type)
+static wmOperatorStatus add_driver_button_none(bContext &C, wmOperator *op, short mapping_type)
 {
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
   int index;
   int success = 0;
 
-  blender::ui::context_active_but_prop_get(*C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (mapping_type == CREATEDRIVER_MAPPING_NONE_ALL) {
     index = -1;
@@ -932,9 +932,9 @@ static wmOperatorStatus add_driver_button_none(bContext *C, wmOperator *op, shor
 
   if (success) {
     /* send updates */
-    blender::ui::context_update_anim_flag(*C);
-    DEG_relations_tag_update(CTX_data_main(*C));
-    WM_event_add_notifier(*C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
+    blender::ui::context_update_anim_flag(C);
+    DEG_relations_tag_update(CTX_data_main(C));
+    WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
 
     return OPERATOR_FINISHED;
   }
@@ -946,7 +946,7 @@ static wmOperatorStatus add_driver_button_menu_exec(bContext &C, wmOperator &op)
   short mapping_type = RNA_enum_get(op.ptr, "mapping_type");
   if (ELEM(mapping_type, CREATEDRIVER_MAPPING_NONE, CREATEDRIVER_MAPPING_NONE_ALL)) {
     /* Just create driver with no targets */
-    return add_driver_button_none(&C, &op, mapping_type);
+    return add_driver_button_none(C, &op, mapping_type);
   }
 
   /* Create Driver using Eyedropper */
@@ -954,7 +954,7 @@ static wmOperatorStatus add_driver_button_menu_exec(bContext &C, wmOperator &op)
 
   /* XXX: We assume that it's fine to use the same set of properties,
    * since they're actually the same. */
-  WM_operator_name_call_ptr(&C, ot, blender::wm::OpCallContext::InvokeDefault, op.ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, op.ptr, nullptr);
 
   return OPERATOR_FINISHED;
 }

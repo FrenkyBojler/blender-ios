@@ -674,11 +674,11 @@ static void grease_pencil_primitive_undo_curves(PrimitiveToolOperation &ptd)
 }
 
 /* Helper: Draw status message while the user is running the operator. */
-static void grease_pencil_primitive_status_indicators(bContext *C,
+static void grease_pencil_primitive_status_indicators(bContext &C,
                                                       wmOperator *op,
                                                       PrimitiveToolOperation &ptd)
 {
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.opmodal(IFACE_("Confirm"), op->type, int(ModalKeyMode::Confirm));
   status.opmodal(IFACE_("Cancel"), op->type, int(ModalKeyMode::Cancel));
   status.opmodal(IFACE_("Panning"), op->type, int(ModalKeyMode::Panning));
@@ -705,12 +705,12 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
   status.opmodal(IFACE_("Scale"), op->type, int(ModalKeyMode::Scale));
 }
 
-static void grease_pencil_primitive_update_view(bContext *C, PrimitiveToolOperation &ptd)
+static void grease_pencil_primitive_update_view(bContext &C, PrimitiveToolOperation &ptd)
 {
   GreasePencil *grease_pencil = static_cast<GreasePencil *>(ptd.vc.obact->data);
 
   DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(*C, NC_GEOM | ND_DATA, grease_pencil);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
 
   ED_region_tag_redraw(ptd.region);
 }
@@ -850,13 +850,13 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext &C,
                                                        vc.scene->r.cfra);
 
   grease_pencil_primitive_init_curves(ptd);
-  grease_pencil_primitive_update_view(&C, ptd);
+  grease_pencil_primitive_update_view(C, ptd);
 
   ptd.draw_handle = ED_region_draw_cb_activate(
       ptd.region->runtime->type, grease_pencil_primitive_draw, ptd_pointer, REGION_DRAW_POST_VIEW);
 
   /* Updates indicator in header. */
-  grease_pencil_primitive_status_indicators(&C, &op, ptd);
+  grease_pencil_primitive_status_indicators(C, &op, ptd);
 
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, &op);
@@ -902,7 +902,7 @@ static void grease_pencil_primitive_exit(bContext &C, wmOperator *op, const bool
 
   ED_view3d_navigation_free(&C, ptd->vod);
 
-  grease_pencil_primitive_update_view(&C, *ptd);
+  grease_pencil_primitive_update_view(C, *ptd);
 
   MEM_delete<PrimitiveToolOperation>(ptd);
   /* Clear pointer. */
@@ -1477,7 +1477,7 @@ static wmOperatorStatus grease_pencil_primitive_modal(bContext &C,
       ptd.projection = ED_view3d_ob_project_mat_get(ptd.vc.rv3d, ptd.vc.obact);
 
       grease_pencil_primitive_update_curves(ptd);
-      grease_pencil_primitive_update_view(&C, ptd);
+      grease_pencil_primitive_update_view(C, ptd);
 
       return OPERATOR_RUNNING_MODAL;
     }
@@ -1536,8 +1536,8 @@ static wmOperatorStatus grease_pencil_primitive_modal(bContext &C,
   grease_pencil_primitive_update_curves(ptd);
 
   /* Updates indicator in header. */
-  grease_pencil_primitive_status_indicators(&C, &op, ptd);
-  grease_pencil_primitive_update_view(&C, ptd);
+  grease_pencil_primitive_status_indicators(C, &op, ptd);
+  grease_pencil_primitive_update_view(C, ptd);
 
   /* Still running... */
   return OPERATOR_RUNNING_MODAL;

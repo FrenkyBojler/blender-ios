@@ -117,7 +117,7 @@ void TraceJob::ensure_output_object()
                                                                        0;
 
     /* Copy transform from the active object. */
-    this->ob_grease_pencil = ed::object::add_type(this->C,
+    this->ob_grease_pencil = ed::object::add_type(*this->C,
                                                   OB_GREASE_PENCIL,
                                                   nullptr,
                                                   this->ob_active->loc,
@@ -463,7 +463,7 @@ static wmOperatorStatus grease_pencil_trace_image_invoke(bContext &C,
 {
   /* Show popup dialog to allow editing. */
   /* FIXME: hard-coded dimensions here are just arbitrary. */
-  return WM_operator_props_dialog_popup(&C, &op, 250);
+  return WM_operator_props_dialog_popup(C, &op, 250);
 }
 
 static void GREASE_PENCIL_OT_trace_image(wmOperatorType *ot)

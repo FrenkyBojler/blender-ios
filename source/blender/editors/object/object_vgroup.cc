@@ -85,9 +85,9 @@ static bool object_array_for_wpaint_filter(const Object *ob, void *user_data)
   return false;
 }
 
-static Vector<Object *> object_array_for_wpaint(bContext *C)
+static Vector<Object *> object_array_for_wpaint(bContext &C)
 {
-  return objects_in_mode_or_selected(*C, object_array_for_wpaint_filter, C);
+  return objects_in_mode_or_selected(C, object_array_for_wpaint_filter, &C);
 }
 
 static bool vertex_group_use_vert_sel(Object *ob)
@@ -2524,11 +2524,11 @@ static bool vertex_group_poll(bContext &C)
   return vertex_group_poll_ex(&C, ob);
 }
 
-static bool UNUSED_FUNCTION(vertex_group_poll_edit)(bContext *C)
+static bool UNUSED_FUNCTION(vertex_group_poll_edit)(bContext &C)
 {
-  Object *ob = context_object(*C);
+  Object *ob = context_object(C);
 
-  if (!vertex_group_supported_poll_ex(C, ob)) {
+  if (!vertex_group_supported_poll_ex(&C, ob)) {
     return false;
   }
 
@@ -2536,13 +2536,13 @@ static bool UNUSED_FUNCTION(vertex_group_poll_edit)(bContext *C)
 }
 
 /* editmode _or_ weight paint vertex sel */
-static bool vertex_group_vert_poll_ex(bContext *C,
+static bool vertex_group_vert_poll_ex(bContext &C,
                                       const bool needs_select,
                                       const short ob_type_flag)
 {
-  Object *ob = context_object(*C);
+  Object *ob = context_object(C);
 
-  if (!vertex_group_supported_poll_ex(C, ob)) {
+  if (!vertex_group_supported_poll_ex(&C, ob)) {
     return false;
   }
 
@@ -2558,7 +2558,7 @@ static bool vertex_group_vert_poll_ex(bContext *C,
       if (BKE_object_is_in_wpaint_select_vert(ob)) {
         return true;
       }
-      CTX_wm_operator_poll_msg_set(*C, "Vertex select needs to be enabled in weight paint mode");
+      CTX_wm_operator_poll_msg_set(C, "Vertex select needs to be enabled in weight paint mode");
       return false;
     }
     return true;
@@ -2575,12 +2575,12 @@ static bool vertex_group_vert_poll(bContext *C)
 
 static bool vertex_group_mesh_vert_poll(bContext &C)
 {
-  return vertex_group_vert_poll_ex(&C, false, (1 << OB_MESH));
+  return vertex_group_vert_poll_ex(C, false, (1 << OB_MESH));
 }
 
 static bool vertex_group_vert_select_poll(bContext &C)
 {
-  return vertex_group_vert_poll_ex(&C, true, 0);
+  return vertex_group_vert_poll_ex(C, true, 0);
 }
 
 #if 0
@@ -3431,7 +3431,7 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext &C, wmOperator &op)
   const float fac_expand = RNA_float_get(op.ptr, "expand");
 
   bool has_vgroup_multi = false;
-  const Vector<Object *> objects = object_array_for_wpaint(&C);
+  const Vector<Object *> objects = object_array_for_wpaint(C);
   for (Object *ob : objects) {
     int subset_count, vgroup_tot;
 
@@ -3521,7 +3521,7 @@ static wmOperatorStatus vertex_group_clean_exec(bContext &C, wmOperator &op)
   const eVGroupSelect subset_type = static_cast<eVGroupSelect>(
       RNA_enum_get(op.ptr, "group_select_mode"));
 
-  const Vector<Object *> objects = object_array_for_wpaint(&C);
+  const Vector<Object *> objects = object_array_for_wpaint(C);
   for (Object *ob : objects) {
     int subset_count, vgroup_tot;
 
@@ -3629,7 +3629,7 @@ static wmOperatorStatus vertex_group_limit_total_exec(bContext &C, wmOperator &o
       RNA_enum_get(op.ptr, "group_select_mode"));
   int remove_multi_count = 0;
 
-  const Vector<Object *> objects = object_array_for_wpaint(&C);
+  const Vector<Object *> objects = object_array_for_wpaint(C);
   for (Object *ob : objects) {
 
     int subset_count, vgroup_tot;

@@ -93,7 +93,7 @@ bool ED_mask_selected_minmax(const bContext &C,
                              bool handles_as_control_point);
 
 void ED_mask_center_from_pivot_ex(
-    const bContext *C, ScrArea *area, float r_center[2], char mode, bool *r_has_select);
+    const bContext &C, ScrArea *area, float r_center[2], char mode, bool *r_has_select);
 
 /* `mask_draw.cc` */
 

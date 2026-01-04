@@ -4763,14 +4763,14 @@ PanelLayout Layout::panel_prop(const bContext &C,
   return panel_layout;
 }
 
-PanelLayout Layout::panel_prop_with_bool_header(const bContext *C,
+PanelLayout Layout::panel_prop_with_bool_header(const bContext &C,
                                                 PointerRNA *open_prop_owner,
                                                 const StringRefNull open_prop_name,
                                                 PointerRNA *bool_prop_owner,
                                                 const StringRefNull bool_prop_name,
                                                 const std::optional<StringRef> label)
 {
-  PanelLayout panel_layout = this->panel_prop(*C, open_prop_owner, open_prop_name);
+  PanelLayout panel_layout = this->panel_prop(C, open_prop_owner, open_prop_name);
 
   Layout *panel_header = panel_layout.header;
   panel_header->flag_ &= ~(ItemInternalFlag::PropSep | ItemInternalFlag::PropDecorate |
@@ -4780,18 +4780,18 @@ PanelLayout Layout::panel_prop_with_bool_header(const bContext *C,
   return panel_layout;
 }
 
-Layout *Layout::panel_prop(const bContext *C,
+Layout *Layout::panel_prop(const bContext &C,
                            PointerRNA *open_prop_owner,
                            const StringRefNull open_prop_name,
                            const StringRef label)
 {
-  PanelLayout panel_layout = this->panel_prop(*C, open_prop_owner, open_prop_name);
+  PanelLayout panel_layout = this->panel_prop(C, open_prop_owner, open_prop_name);
   panel_layout.header->label(label, ICON_NONE);
 
   return panel_layout.body;
 }
 
-PanelLayout Layout::panel(const bContext *C, const StringRef idname, const bool default_closed)
+PanelLayout Layout::panel(const bContext &C, const StringRef idname, const bool default_closed)
 {
   Panel *root_panel = this->root_panel();
   BLI_assert(root_panel != nullptr);
@@ -4800,7 +4800,7 @@ PanelLayout Layout::panel(const bContext *C, const StringRef idname, const bool 
       root_panel, idname, default_closed);
   PointerRNA state_ptr = RNA_pointer_create_discrete(nullptr, &RNA_LayoutPanelState, state);
 
-  return this->panel_prop(*C, &state_ptr, "is_open");
+  return this->panel_prop(C, &state_ptr, "is_open");
 }
 
 Layout *Layout::panel(const bContext *C,
@@ -4808,7 +4808,7 @@ Layout *Layout::panel(const bContext *C,
                       const bool default_closed,
                       const StringRef label)
 {
-  PanelLayout panel_layout = this->panel(C, idname, default_closed);
+  PanelLayout panel_layout = this->panel(*C, idname, default_closed);
   panel_layout.header->label(label, ICON_NONE);
 
   return panel_layout.body;

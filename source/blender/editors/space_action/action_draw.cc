@@ -53,7 +53,7 @@ using namespace blender;
 /** \name Channel List
  * \{ */
 
-void draw_channel_names(bContext *C,
+void draw_channel_names(bContext &C,
                         bAnimContext *ac,
                         ARegion *region,
                         const ListBaseT<bAnimListElem> &anim_data)
@@ -84,7 +84,7 @@ void draw_channel_names(bContext *C,
     }
   }
   { /* second pass: widgets */
-    blender::ui::Block *block = block_begin(*C, region, __func__, blender::ui::EmbossType::Emboss);
+    blender::ui::Block *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
     size_t channel_index = 0;
     float ymax = ANIM_UI_get_first_channel_top(v2d);
 
@@ -100,12 +100,12 @@ void draw_channel_names(bContext *C,
         /* draw all channels using standard channel-drawing API */
         rctf channel_rect;
         BLI_rctf_init(&channel_rect, 0, v2d->cur.xmax, ymin, ymax);
-        ANIM_channel_draw_widgets(C, ac, ale, block, &channel_rect, channel_index);
+        ANIM_channel_draw_widgets(&C, ac, ale, block, &channel_rect, channel_index);
       }
     }
 
-    block_end(*C, block);
-    block_draw(*C, block);
+    block_end(C, block);
+    block_draw(C, block);
   }
 }
 

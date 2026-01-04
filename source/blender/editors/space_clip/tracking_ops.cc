@@ -243,7 +243,7 @@ static wmOperatorStatus delete_track_exec(bContext &C, wmOperator & /*op*/)
   /* Remove selected point tracks (they'll also be removed from planes which uses them). */
   for (MovieTrackingTrack &track : tracking_object->tracks.items_mutable()) {
     if (TRACK_VIEW_SELECTED(sc, &track)) {
-      clip_delete_track(&C, clip, &track);
+      clip_delete_track(C, clip, &track);
       changed = true;
     }
   }
@@ -258,7 +258,7 @@ static wmOperatorStatus delete_track_exec(bContext &C, wmOperator & /*op*/)
 static wmOperatorStatus delete_track_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Delete selected tracks?"),
                                   nullptr,
@@ -339,7 +339,7 @@ static wmOperatorStatus delete_marker_invoke(bContext &C,
                                              const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Delete marker for current frame from selected tracks?"),
                                   nullptr,
@@ -566,9 +566,9 @@ static MovieTrackingTrack *tracking_marker_check_slide(
   return track_pick.track;
 }
 
-MovieTrackingTrack *tracking_find_slidable_track_in_proximity(bContext *C, const float co[2])
+MovieTrackingTrack *tracking_find_slidable_track_in_proximity(bContext &C, const float co[2])
 {
-  return tracking_marker_check_slide(*C, co, nullptr, nullptr, nullptr);
+  return tracking_marker_check_slide(C, co, nullptr, nullptr, nullptr);
 }
 
 static SlideMarkerData *slide_marker_customdata(bContext &C, const wmEvent *event)
@@ -1347,7 +1347,7 @@ static wmOperatorStatus average_tracks_exec(bContext &C, wmOperator &op)
   const bool keep_original = RNA_boolean_get(op.ptr, "keep_original");
   if (!keep_original) {
     for (int i = 0; i < num_source_tracks; i++) {
-      clip_delete_track(&C, clip, source_tracks[i]);
+      clip_delete_track(C, clip, source_tracks[i]);
     }
   }
 

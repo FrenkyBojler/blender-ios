@@ -45,11 +45,11 @@ struct DriverDropper {
   /* TODO: new target? */
 };
 
-static bool driverdropper_init(bContext *C, wmOperator *op)
+static bool driverdropper_init(bContext &C, wmOperator *op)
 {
   DriverDropper *ddr = MEM_new<DriverDropper>(__func__);
 
-  Button *but = context_active_but_prop_get(*C, &ddr->ptr, &ddr->prop, &ddr->index);
+  Button *but = context_active_but_prop_get(C, &ddr->ptr, &ddr->prop, &ddr->index);
 
   if ((ddr->ptr.data == nullptr) || (ddr->prop == nullptr) ||
       (RNA_property_driver_editable(&ddr->ptr, ddr->prop) == false) || (but->flag & BUT_DRIVEN))
@@ -75,10 +75,10 @@ static void driverdropper_exit(bContext &C, wmOperator *op)
   }
 }
 
-static void driverdropper_sample(bContext *C, wmOperator *op, const wmEvent *event)
+static void driverdropper_sample(bContext &C, wmOperator *op, const wmEvent *event)
 {
   DriverDropper *ddr = static_cast<DriverDropper *>(op->customdata);
-  Button *but = eyedropper_get_property_button_under_mouse(*C, event);
+  Button *but = eyedropper_get_property_button_under_mouse(C, event);
 
   const short mapping_type = RNA_enum_get(op->ptr, "mapping_type");
   const short flag = 0;
@@ -113,10 +113,10 @@ static void driverdropper_sample(bContext *C, wmOperator *op, const wmEvent *eve
 
     if (success) {
       /* send updates */
-      context_update_anim_flag(*C);
-      DEG_relations_tag_update(CTX_data_main(*C));
+      context_update_anim_flag(C);
+      DEG_relations_tag_update(CTX_data_main(C));
       DEG_id_tag_update(ddr->ptr.owner_id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(*C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
+      WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
     }
   }
 }
@@ -140,7 +140,7 @@ static wmOperatorStatus driverdropper_modal(bContext &C, wmOperator &op, const w
       }
       case EYE_MODAL_SAMPLE_CONFIRM: {
         const bool is_undo = ddr->is_undo;
-        driverdropper_sample(&C, &op, event);
+        driverdropper_sample(C, &op, event);
         driverdropper_exit(C, &op);
         /* Could support finished & undo-skip. */
         return is_undo ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -157,7 +157,7 @@ static wmOperatorStatus driverdropper_invoke(bContext &C,
                                              const wmEvent * /*event*/)
 {
   /* init */
-  if (driverdropper_init(&C, &op)) {
+  if (driverdropper_init(C, &op)) {
     wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
     context_active_but_clear(&C, win, CTX_wm_region(C));
@@ -175,7 +175,7 @@ static wmOperatorStatus driverdropper_invoke(bContext &C,
 static wmOperatorStatus driverdropper_exec(bContext &C, wmOperator &op)
 {
   /* init */
-  if (driverdropper_init(&C, &op)) {
+  if (driverdropper_init(C, &op)) {
     /* cleanup */
     driverdropper_exit(C, &op);
 

@@ -120,12 +120,12 @@ static bool edbm_preselect_or_active(bContext &C, const View3D *v3d, Base **r_ba
   return (*r_ele != nullptr);
 }
 
-static ViewContext edbm_preselect_or_active_init_viewcontext(bContext *C,
+static ViewContext edbm_preselect_or_active_init_viewcontext(bContext &C,
                                                              Base **r_base,
                                                              BMElem **r_ele)
 {
-  ViewContext vc = em_setup_viewcontext(*C);
-  bool ok = edbm_preselect_or_active(*C, vc.v3d, r_base, r_ele);
+  ViewContext vc = em_setup_viewcontext(C);
+  bool ok = edbm_preselect_or_active(C, vc.v3d, r_base, r_ele);
   if (ok) {
     ED_view3d_viewcontext_init_object(&vc, (*r_base)->object);
   }
@@ -138,7 +138,7 @@ static wmOperatorStatus edbm_polybuild_transform_at_cursor_invoke(bContext &C,
 {
   Base *basact = nullptr;
   BMElem *ele_act = nullptr;
-  ViewContext vc = edbm_preselect_or_active_init_viewcontext(&C, &basact, &ele_act);
+  ViewContext vc = edbm_preselect_or_active_init_viewcontext(C, &basact, &ele_act);
   BMEditMesh *em = vc.em;
   BMesh *bm = em->bm;
 
@@ -203,7 +203,7 @@ static wmOperatorStatus edbm_polybuild_delete_at_cursor_invoke(bContext &C,
   bool changed = false;
   Base *basact = nullptr;
   BMElem *ele_act = nullptr;
-  ViewContext vc = edbm_preselect_or_active_init_viewcontext(&C, &basact, &ele_act);
+  ViewContext vc = edbm_preselect_or_active_init_viewcontext(C, &basact, &ele_act);
   BMEditMesh *em = vc.em;
   BMesh *bm = em->bm;
 
@@ -298,7 +298,7 @@ static wmOperatorStatus edbm_polybuild_face_at_cursor_invoke(bContext &C,
 
   Base *basact = nullptr;
   BMElem *ele_act = nullptr;
-  ViewContext vc = edbm_preselect_or_active_init_viewcontext(&C, &basact, &ele_act);
+  ViewContext vc = edbm_preselect_or_active_init_viewcontext(C, &basact, &ele_act);
   BMEditMesh *em = vc.em;
   BMesh *bm = em->bm;
 
@@ -475,7 +475,7 @@ static wmOperatorStatus edbm_polybuild_split_at_cursor_invoke(bContext &C,
 
   Base *basact = nullptr;
   BMElem *ele_act = nullptr;
-  ViewContext vc = edbm_preselect_or_active_init_viewcontext(&C, &basact, &ele_act);
+  ViewContext vc = edbm_preselect_or_active_init_viewcontext(C, &basact, &ele_act);
   BMEditMesh *em = vc.em;
   BMesh *bm = em->bm;
 
@@ -558,7 +558,7 @@ static wmOperatorStatus edbm_polybuild_dissolve_at_cursor_invoke(bContext &C,
 
   Base *basact = nullptr;
   BMElem *ele_act = nullptr;
-  ViewContext vc = edbm_preselect_or_active_init_viewcontext(&C, &basact, &ele_act);
+  ViewContext vc = edbm_preselect_or_active_init_viewcontext(C, &basact, &ele_act);
   BMEditMesh *em = vc.em;
   BMesh *bm = em->bm;
 

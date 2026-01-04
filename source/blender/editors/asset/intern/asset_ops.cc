@@ -424,7 +424,7 @@ static void ASSET_OT_clear_single(wmOperatorType *ot)
 
 static bool asset_library_refresh_poll(bContext &C)
 {
-  if (ED_operator_asset_browsing_active(&C)) {
+  if (ED_operator_asset_browsing_active(C)) {
     return true;
   }
 

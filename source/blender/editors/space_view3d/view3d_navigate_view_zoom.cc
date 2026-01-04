@@ -517,7 +517,7 @@ static wmOperatorStatus viewzoom_invoke_impl(bContext *C,
 static wmOperatorStatus viewzoom_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
   /* Near duplicate logic in #viewdolly_invoke(), changes here may apply there too. */
-  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_zoom);
+  return view3d_navigate_invoke_impl(C, &op, event, &ViewOpsType_zoom);
 }
 
 void VIEW3D_OT_zoom(wmOperatorType *ot)

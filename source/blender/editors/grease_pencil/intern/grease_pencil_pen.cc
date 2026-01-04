@@ -165,12 +165,12 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
     return true;
   }
 
-  void update_view(bContext *C) const
+  void update_view(bContext &C) const
   {
     GreasePencil *grease_pencil = this->grease_pencil;
 
     DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(*C, NC_GEOM | ND_DATA, grease_pencil);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
 
     ED_region_tag_redraw(this->vc.region);
   }
@@ -261,7 +261,7 @@ static void grease_pencil_pen_exit(bContext *C, wmOperator *op)
 
   WM_cursor_modal_restore(ptd->vc.win);
 
-  ptd->update_view(C);
+  ptd->update_view(*C);
 
   MEM_delete(ptd);
   /* Clear pointer. */

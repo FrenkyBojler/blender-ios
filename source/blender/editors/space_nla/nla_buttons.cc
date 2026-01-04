@@ -59,7 +59,7 @@ static void do_nla_region_buttons(bContext *C, void * /*arg*/, int /*event*/)
   WM_event_add_notifier(*C, NC_SCENE | ND_TRANSFORM, nullptr);
 }
 
-bool nla_panel_context(const bContext *C,
+bool nla_panel_context(const bContext &C,
                        PointerRNA *adt_ptr,
                        PointerRNA *nlt_ptr,
                        PointerRNA *strip_ptr)
@@ -71,7 +71,7 @@ bool nla_panel_context(const bContext *C,
   /* For now, only draw if we could init the anim-context info
    * (necessary for all animation-related tools)
    * to work correctly is able to be correctly retrieved. There's no point showing empty panels? */
-  if (ANIM_animdata_get_context(*C, &ac) == 0) {
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
     return false;
   }
 
@@ -202,12 +202,12 @@ bool nla_panel_context(const bContext *C,
 
 bool ANIM_nla_context_track_ptr(const bContext *C, PointerRNA *r_ptr)
 {
-  return nla_panel_context(C, nullptr, r_ptr, nullptr);
+  return nla_panel_context(*C, nullptr, r_ptr, nullptr);
 }
 
 bool ANIM_nla_context_strip_ptr(const bContext *C, PointerRNA *r_ptr)
 {
-  return nla_panel_context(C, nullptr, nullptr, r_ptr);
+  return nla_panel_context(*C, nullptr, nullptr, r_ptr);
 }
 
 NlaTrack *ANIM_nla_context_track(const bContext *C)
@@ -239,21 +239,21 @@ static bool nla_animdata_panel_poll(const bContext *C, PanelType * /*pt*/)
 {
   PointerRNA ptr;
   PointerRNA strip_ptr;
-  return (nla_panel_context(C, &ptr, nullptr, &strip_ptr) && (ptr.data != nullptr) &&
+  return (nla_panel_context(*C, &ptr, nullptr, &strip_ptr) && (ptr.data != nullptr) &&
           (ptr.owner_id != strip_ptr.owner_id));
 }
 
 static bool nla_strip_panel_poll(const bContext *C, PanelType * /*pt*/)
 {
   PointerRNA ptr;
-  return (nla_panel_context(C, nullptr, nullptr, &ptr) && (ptr.data != nullptr));
+  return (nla_panel_context(*C, nullptr, nullptr, &ptr) && (ptr.data != nullptr));
 }
 
 static bool nla_strip_actclip_panel_poll(const bContext *C, PanelType * /*pt*/)
 {
   PointerRNA ptr;
 
-  if (!nla_panel_context(C, nullptr, nullptr, &ptr)) {
+  if (!nla_panel_context(*C, nullptr, nullptr, &ptr)) {
     return false;
   }
   if (ptr.data == nullptr) {
@@ -268,7 +268,7 @@ static bool nla_strip_eval_panel_poll(const bContext *C, PanelType * /*pt*/)
 {
   PointerRNA ptr;
 
-  if (!nla_panel_context(C, nullptr, nullptr, &ptr)) {
+  if (!nla_panel_context(*C, nullptr, nullptr, &ptr)) {
     return false;
   }
   if (ptr.data == nullptr) {
@@ -295,7 +295,7 @@ static void nla_panel_animdata(const bContext *C, Panel *panel)
   ui::Layout &layout = *panel->layout;
 
   /* check context and also validity of pointer */
-  if (!nla_panel_context(C, &adt_ptr, nullptr, &strip_ptr)) {
+  if (!nla_panel_context(*C, &adt_ptr, nullptr, &strip_ptr)) {
     return;
   }
 
@@ -361,7 +361,7 @@ static void nla_panel_animdata(const bContext *C, Panel *panel)
 static void nla_panel_stripname(const bContext *C, Panel *panel)
 {
   PointerRNA strip_ptr;
-  if (!nla_panel_context(C, nullptr, nullptr, &strip_ptr)) {
+  if (!nla_panel_context(*C, nullptr, nullptr, &strip_ptr)) {
     return;
   }
 
@@ -399,7 +399,7 @@ static void nla_panel_properties(const bContext *C, Panel *panel)
   PointerRNA strip_ptr;
   short showEvalProps = 1;
 
-  if (!nla_panel_context(C, nullptr, nullptr, &strip_ptr)) {
+  if (!nla_panel_context(*C, nullptr, nullptr, &strip_ptr)) {
     return;
   }
   ui::Layout &layout = *panel->layout;
@@ -463,7 +463,7 @@ static void nla_panel_actclip(const bContext *C, Panel *panel)
 {
   PointerRNA strip_ptr;
   /* check context and also validity of pointer */
-  if (!nla_panel_context(C, nullptr, nullptr, &strip_ptr)) {
+  if (!nla_panel_context(*C, nullptr, nullptr, &strip_ptr)) {
     return;
   }
   ui::Layout &layout = *panel->layout;
@@ -520,7 +520,7 @@ static void nla_panel_animated_influence_header(const bContext *C, Panel *panel)
   PointerRNA strip_ptr;
 
   /* check context and also validity of pointer */
-  if (!nla_panel_context(C, nullptr, nullptr, &strip_ptr)) {
+  if (!nla_panel_context(*C, nullptr, nullptr, &strip_ptr)) {
     return;
   }
   ui::Layout &layout = *panel->layout;
@@ -537,7 +537,7 @@ static void nla_panel_evaluation(const bContext *C, Panel *panel)
 {
   PointerRNA strip_ptr;
   /* check context and also validity of pointer */
-  if (!nla_panel_context(C, nullptr, nullptr, &strip_ptr)) {
+  if (!nla_panel_context(*C, nullptr, nullptr, &strip_ptr)) {
     return;
   }
 
@@ -555,7 +555,7 @@ static void nla_panel_animated_strip_time_header(const bContext *C, Panel *panel
 {
   PointerRNA strip_ptr;
   /* check context and also validity of pointer */
-  if (!nla_panel_context(C, nullptr, nullptr, &strip_ptr)) {
+  if (!nla_panel_context(*C, nullptr, nullptr, &strip_ptr)) {
     return;
   }
   ui::Layout &layout = *panel->layout;
@@ -571,7 +571,7 @@ static void nla_panel_animated_strip_time(const bContext *C, Panel *panel)
 {
   PointerRNA strip_ptr;
   /* check context and also validity of pointer */
-  if (!nla_panel_context(C, nullptr, nullptr, &strip_ptr)) {
+  if (!nla_panel_context(*C, nullptr, nullptr, &strip_ptr)) {
     return;
   }
   ui::Layout &layout = *panel->layout;
@@ -600,7 +600,7 @@ static void nla_panel_modifiers(const bContext *C, Panel *panel)
   PointerRNA strip_ptr;
 
   /* check context and also validity of pointer */
-  if (!nla_panel_context(C, nullptr, nullptr, &strip_ptr)) {
+  if (!nla_panel_context(*C, nullptr, nullptr, &strip_ptr)) {
     return;
   }
   NlaStrip *strip = static_cast<NlaStrip *>(strip_ptr.data);

@@ -115,12 +115,12 @@ struct SyncSelectTypes {
  * Set which types of data to sync when syncing selection from the outliner based on object
  * interaction mode and outliner display mode
  */
-static void outliner_sync_select_from_outliner_set_types(bContext *C,
+static void outliner_sync_select_from_outliner_set_types(bContext &C,
                                                          SpaceOutliner *space_outliner,
                                                          SyncSelectTypes *sync_types)
 {
   TreeViewContext tvc;
-  outliner_viewcontext_init(*C, &tvc);
+  outliner_viewcontext_init(C, &tvc);
 
   const bool sequence_view = space_outliner->outlinevis == SO_SEQUENCE;
 
@@ -328,7 +328,7 @@ void ED_outliner_select_sync_from_outliner(bContext *C, SpaceOutliner *space_out
   ViewLayer *view_layer = CTX_data_view_layer(*C);
 
   SyncSelectTypes sync_types;
-  outliner_sync_select_from_outliner_set_types(C, space_outliner, &sync_types);
+  outliner_sync_select_from_outliner_set_types(*C, space_outliner, &sync_types);
 
   /* To store elements that have been selected to prevent linked object sync errors */
   SelectedItems selected_items;

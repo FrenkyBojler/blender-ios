@@ -962,7 +962,7 @@ PopupBlockHandle *popup_block_create(bContext &C,
   return handle;
 }
 
-void popup_block_free(bContext *C, PopupBlockHandle *handle)
+void popup_block_free(bContext &C, PopupBlockHandle *handle)
 {
   bool is_submenu = false;
 
@@ -984,7 +984,7 @@ void popup_block_free(bContext *C, PopupBlockHandle *handle)
 
   /* Clear the status bar text that is set when opening a menu. */
   if (!is_submenu) {
-    ED_workspace_status_text(C, nullptr);
+    ED_workspace_status_text(&C, nullptr);
   }
 
   if (handle->popup_create_vars.arg_free) {
@@ -995,7 +995,7 @@ void popup_block_free(bContext *C, PopupBlockHandle *handle)
     BKE_panel_free(handle->region->runtime->popup_block_panel);
   }
 
-  ui_popup_block_remove(*C, handle);
+  ui_popup_block_remove(C, handle);
 
   MEM_delete(handle);
 }
@@ -1120,7 +1120,7 @@ static Block *ui_alert_create(bContext *C, ARegion *region, void *user_data)
   return block;
 }
 
-void alert(bContext *C,
+void alert(bContext &C,
            const StringRef title,
            const StringRef message,
            const AlertIcon icon,
@@ -1134,7 +1134,7 @@ void alert(bContext *C,
   data->okay_button = true;
   data->mouse_move_quit = compact;
 
-  popup_block_ex(*C, ui_alert_create, ui_alert_ok, ui_alert_cancel, data, nullptr);
+  popup_block_ex(C, ui_alert_create, ui_alert_ok, ui_alert_cancel, data, nullptr);
 }
 
 /** \} */

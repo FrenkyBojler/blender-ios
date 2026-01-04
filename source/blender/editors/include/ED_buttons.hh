@@ -39,7 +39,7 @@ const char *ED_buttons_search_string_get(SpaceProperties *sbuts);
 bool ED_buttons_should_sync_with_outliner(const bContext &C,
                                           const SpaceProperties *sbuts,
                                           ScrArea *area);
-void ED_buttons_set_context(const bContext *C,
+void ED_buttons_set_context(const bContext &C,
                             SpaceProperties *sbuts,
                             PointerRNA *ptr,
                             int context);

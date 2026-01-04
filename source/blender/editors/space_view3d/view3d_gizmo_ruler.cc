@@ -1356,7 +1356,7 @@ void VIEW3D_GGT_ruler(wmGizmoGroupType *gzgt)
 
 static bool view3d_ruler_poll(bContext &C)
 {
-  bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context(&C);
+  bToolRef_Runtime *tref_rt = WM_toolsystem_runtime_from_context(C);
   if ((tref_rt == nullptr) || !STREQ(view3d_gzgt_ruler_id, tref_rt->gizmo_group) ||
       CTX_wm_region_view3d(C) == nullptr)
   {

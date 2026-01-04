@@ -181,7 +181,7 @@ void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks);
 /**
  * Helper for apply() / reset() - refresh the data.
  */
-void poseAnim_mapping_refresh(bContext *C, Scene *scene, Object *ob);
+void poseAnim_mapping_refresh(bContext &C, Scene *scene, Object *ob);
 /**
  * Reset changes made to current pose.
  */

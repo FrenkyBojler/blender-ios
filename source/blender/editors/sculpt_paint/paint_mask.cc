@@ -892,7 +892,7 @@ static void gesture_operator_properties(wmOperatorType *ot)
 
 static wmOperatorStatus gesture_box_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(&C, &op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
@@ -914,7 +914,7 @@ static wmOperatorStatus gesture_lasso_exec(bContext &C, wmOperator &op)
 
 static wmOperatorStatus gesture_line_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(&C, &op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }

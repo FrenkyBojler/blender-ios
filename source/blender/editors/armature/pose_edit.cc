@@ -230,7 +230,7 @@ static wmOperatorStatus pose_calculate_paths_invoke(bContext &C,
   /* show popup dialog to allow editing of range... */
   /* FIXME: hard-coded dimensions here are just arbitrary. */
   return WM_operator_props_dialog_popup(
-      &C, &op, 270, IFACE_("Calculate Paths for the Selected Bones"), IFACE_("Calculate"));
+      C, &op, 270, IFACE_("Calculate Paths for the Selected Bones"), IFACE_("Calculate"));
 }
 
 /**

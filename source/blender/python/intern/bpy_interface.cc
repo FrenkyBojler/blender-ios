@@ -666,7 +666,7 @@ void BPY_python_end(const bool do_python_exit)
 #endif
 }
 
-void BPY_python_reset(bContext *C)
+void BPY_python_reset(bContext &C)
 {
   BLI_assert_msg(Py_IsInitialized() != 0, "Python must be initialized");
 
@@ -676,7 +676,7 @@ void BPY_python_reset(bContext *C)
 
   BPY_driver_reset();
   BPY_app_handlers_reset(false);
-  BPY_modules_load_user(*C);
+  BPY_modules_load_user(C);
 }
 
 void BPY_python_use_system_env()

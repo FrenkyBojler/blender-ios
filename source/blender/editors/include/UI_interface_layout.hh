@@ -337,11 +337,11 @@ struct Layout : public Item, NonCopyable, NonMovable {
    * \return NULL if the panel is closed and should not be drawn, otherwise the layout where the
    * sub-panel should be inserted into.
    */
-  Layout *panel_prop(const bContext *C,
+  Layout *panel_prop(const bContext &C,
                      PointerRNA *open_prop_owner,
                      StringRefNull open_prop_name,
                      StringRef label);
-  PanelLayout panel_prop_with_bool_header(const bContext *C,
+  PanelLayout panel_prop_with_bool_header(const bContext &C,
                                           PointerRNA *open_prop_owner,
                                           StringRefNull open_prop_name,
                                           PointerRNA *bool_prop_owner,
@@ -354,7 +354,7 @@ struct Layout : public Item, NonCopyable, NonMovable {
    *
    * \param idname: String that identifies the open-close-state in the root panel.
    */
-  PanelLayout panel(const bContext *C, StringRef idname, bool default_closed);
+  PanelLayout panel(const bContext &C, StringRef idname, bool default_closed);
 
   /**
    * Variant of #panel that automatically creates the header row with the given label and

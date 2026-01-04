@@ -45,7 +45,7 @@ static Object *object_volume_add(bContext *C, wmOperator *op, const char *name)
 
   add_generic_get_opts(C, op, 'Z', loc, rot, nullptr, nullptr, &local_view_bits, nullptr);
 
-  return add_type(C, OB_VOLUME, name, loc, rot, false, local_view_bits);
+  return add_type(*C, OB_VOLUME, name, loc, rot, false, local_view_bits);
 }
 
 static wmOperatorStatus object_volume_add_exec(bContext &C, wmOperator &op)

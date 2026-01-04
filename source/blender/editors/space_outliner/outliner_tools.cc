@@ -905,7 +905,7 @@ void merged_element_search_menu_invoke(bContext *C,
   select_data->parent_element = parent_te;
   select_data->select_element = activate_te;
 
-  popup_block_invoke(C, merged_element_search_menu, select_data, MEM_freeN);
+  popup_block_invoke(*C, merged_element_search_menu, select_data, MEM_freeN);
 }
 
 static void object_select_fn(bContext *C,
@@ -3636,17 +3636,17 @@ void OUTLINER_OT_data_operation(wmOperatorType *ot)
 /** \name Context Menu Operator
  * \{ */
 
-static wmOperatorStatus outliner_operator_menu(bContext *C, const char *opname)
+static wmOperatorStatus outliner_operator_menu(bContext &C, const char *opname)
 {
   wmOperatorType *ot = WM_operatortype_find(opname, false);
   ui::PopupMenu *pup = ui::popup_menu_begin(
-      C, WM_operatortype_name(ot, nullptr).c_str(), ICON_NONE);
+      &C, WM_operatortype_name(ot, nullptr).c_str(), ICON_NONE);
   ui::Layout &layout = *popup_menu_layout(pup);
 
   /* Set this so the default execution context is the same as sub-menus. */
   layout.operator_context_set(wm::OpCallContext::InvokeRegionWin);
 
-  if (WM_operator_poll(C, ot)) {
+  if (WM_operator_poll(&C, ot)) {
     layout.op_enum(ot->idname, RNA_property_identifier(ot->prop));
 
     layout.separator();
@@ -3654,7 +3654,7 @@ static wmOperatorStatus outliner_operator_menu(bContext *C, const char *opname)
 
   layout.menu_contents("OUTLINER_MT_context_menu");
 
-  popup_menu_end(*C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -3682,7 +3682,7 @@ static wmOperatorStatus do_outliner_operation_event(bContext *C,
   get_element_operation_type(te, &scenelevel, &objectlevel, &idlevel, &datalevel);
 
   if (scenelevel) {
-    return outliner_operator_menu(C, "OUTLINER_OT_scene_operation");
+    return outliner_operator_menu(*C, "OUTLINER_OT_scene_operation");
   }
   if (objectlevel) {
     WM_menu_name_call(C, "OUTLINER_MT_object", wm::OpCallContext::InvokeRegionWin);
@@ -3695,16 +3695,16 @@ static wmOperatorStatus do_outliner_operation_event(bContext *C,
         return OPERATOR_FINISHED;
         break;
       case ID_LI:
-        return outliner_operator_menu(C, "OUTLINER_OT_lib_operation");
+        return outliner_operator_menu(*C, "OUTLINER_OT_lib_operation");
         break;
       default:
-        return outliner_operator_menu(C, "OUTLINER_OT_id_operation");
+        return outliner_operator_menu(*C, "OUTLINER_OT_id_operation");
         break;
     }
   }
   else if (datalevel) {
     if (datalevel == TSE_ANIM_DATA) {
-      return outliner_operator_menu(C, "OUTLINER_OT_animdata_operation");
+      return outliner_operator_menu(*C, "OUTLINER_OT_animdata_operation");
     }
     if (datalevel == TSE_DRIVER_BASE) {
       /* do nothing... no special ops needed yet */
@@ -3723,12 +3723,12 @@ static wmOperatorStatus do_outliner_operation_event(bContext *C,
       return OPERATOR_CANCELLED;
     }
     if (datalevel == TSE_CONSTRAINT) {
-      return outliner_operator_menu(C, "OUTLINER_OT_constraint_operation");
+      return outliner_operator_menu(*C, "OUTLINER_OT_constraint_operation");
     }
     if (datalevel == TSE_MODIFIER) {
-      return outliner_operator_menu(C, "OUTLINER_OT_modifier_operation");
+      return outliner_operator_menu(*C, "OUTLINER_OT_modifier_operation");
     }
-    return outliner_operator_menu(C, "OUTLINER_OT_data_operation");
+    return outliner_operator_menu(*C, "OUTLINER_OT_data_operation");
   }
 
   return OPERATOR_CANCELLED;

@@ -184,16 +184,16 @@ static void sequencer_display_size(const RenderData &render_data, float r_viewre
   r_viewrect[0] *= render_data.xasp / render_data.yasp;
 }
 
-static void sequencer_draw_gpencil_overlay(const bContext *C)
+static void sequencer_draw_gpencil_overlay(const bContext &C)
 {
   /* Draw grease-pencil (image aligned). */
-  ED_annotation_draw_2dimage(*C);
+  ED_annotation_draw_2dimage(C);
 
   /* Orthographic at pixel level. */
-  ui::view2d_view_restore(*C);
+  ui::view2d_view_restore(C);
 
   /* Draw grease-pencil (screen aligned). */
-  ED_annotation_draw_view2d(*C, false);
+  ED_annotation_draw_view2d(C, false);
 }
 
 /**
@@ -284,10 +284,10 @@ void sequencer_draw_maskedit(const bContext *C, Scene *scene, ARegion *region, S
 #endif
 
 /* Force redraw, when prefetching and using cache view. */
-static void seq_prefetch_wm_notify(const bContext *C, Scene *scene)
+static void seq_prefetch_wm_notify(const bContext &C, Scene *scene)
 {
-  if (seq::prefetch_need_redraw(*C, scene)) {
-    WM_event_add_notifier(*C, NC_SCENE | ND_SEQUENCER, nullptr);
+  if (seq::prefetch_need_redraw(C, scene)) {
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, nullptr);
   }
 }
 
@@ -1255,7 +1255,7 @@ static void preview_draw_begin(const bContext &C,
 static void preview_draw_end(const bContext &C)
 {
   ui::view2d_view_restore(C);
-  seq_prefetch_wm_notify(&C, CTX_data_sequencer_scene(C));
+  seq_prefetch_wm_notify(C, CTX_data_sequencer_scene(C));
 }
 
 /* Configure current GPU state to draw on the color render frame-buffer of the viewport. */
@@ -1628,7 +1628,7 @@ static bool check_scope_needs_input_texture(const SpaceSeq &sseq)
 
 /* Part of the sequencer preview region drawing which renders information overlays to the
  * viewport's overlay frame-buffer. */
-static void sequencer_preview_draw_overlays(const bContext *C,
+static void sequencer_preview_draw_overlays(const bContext &C,
                                             const wmWindowManager &wm,
                                             Scene *scene,
                                             const SpaceSeq &space_sequencer,
@@ -1734,16 +1734,16 @@ static void sequencer_preview_draw_overlays(const bContext *C,
     sequencer_draw_borders_overlay(space_sequencer, region.v2d, scene);
 
     /* Various overlays like strip selection and text editing. */
-    preview_draw_all_image_overlays(*C, scene, editing, timeline_frame);
+    preview_draw_all_image_overlays(C, scene, editing, timeline_frame);
 
     if ((space_sequencer.preview_overlay.flag & SEQ_PREVIEW_SHOW_GPENCIL) && space_sequencer.gpd) {
       sequencer_draw_gpencil_overlay(C);
     }
   }
 
-  draw_registered_callbacks(C, region);
+  draw_registered_callbacks(&C, region);
 
-  ui::view2d_view_restore(*C);
+  ui::view2d_view_restore(C);
 
   /* No need to show the cursor for scopes. */
   if ((is_playing == false) && show_preview_image && is_cursor_visible(space_sequencer)) {
@@ -1757,7 +1757,7 @@ static void sequencer_preview_draw_overlays(const bContext *C,
 
   /* Gizmos. */
   if ((is_playing == false) && (space_sequencer.gizmo_flag & SEQ_GIZMO_HIDE) == 0) {
-    WM_gizmomap_draw(region.runtime->gizmo_map, C, WM_GIZMOMAP_DRAWSTEP_2D);
+    WM_gizmomap_draw(region.runtime->gizmo_map, &C, WM_GIZMOMAP_DRAWSTEP_2D);
   }
 
   /* FPS counter. */
@@ -1869,7 +1869,7 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
                                       show_imbuf ? current_texture : nullptr,
                                       reference_ibuf,
                                       show_imbuf ? reference_texture : nullptr);
-  sequencer_preview_draw_overlays(C,
+  sequencer_preview_draw_overlays(*C,
                                   *CTX_wm_manager(*C),
                                   scene,
                                   space_sequencer,

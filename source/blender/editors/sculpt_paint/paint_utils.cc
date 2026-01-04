@@ -344,7 +344,7 @@ static wmOperatorStatus vert_select_all_exec(bContext &C, wmOperator &op)
 {
   Object *ob = CTX_data_active_object(C);
   paintvert_deselect_all_visible(ob, RNA_enum_get(op.ptr, "action"), true);
-  paintvert_tag_select_update(&C, ob);
+  paintvert_tag_select_update(C, ob);
   ED_region_tag_redraw(CTX_wm_region(C));
   return OPERATOR_FINISHED;
 }
@@ -374,7 +374,7 @@ static wmOperatorStatus vert_select_ungrouped_exec(bContext &C, wmOperator &op)
   }
 
   paintvert_select_ungrouped(ob, RNA_boolean_get(op.ptr, "extend"), true);
-  paintvert_tag_select_update(&C, ob);
+  paintvert_tag_select_update(C, ob);
   ED_region_tag_redraw(CTX_wm_region(C));
   return OPERATOR_FINISHED;
 }
@@ -457,7 +457,7 @@ static wmOperatorStatus paintvert_select_more_exec(bContext &C, wmOperator &op)
   paintvert_select_more(mesh, face_step);
 
   paintvert_flush_flags(ob);
-  paintvert_tag_select_update(&C, ob);
+  paintvert_tag_select_update(C, ob);
   ED_region_tag_redraw(CTX_wm_region(C));
 
   return OPERATOR_FINISHED;
@@ -490,7 +490,7 @@ static wmOperatorStatus paintvert_select_less_exec(bContext &C, wmOperator &op)
   paintvert_select_less(mesh, face_step);
 
   paintvert_flush_flags(ob);
-  paintvert_tag_select_update(&C, ob);
+  paintvert_tag_select_update(C, ob);
   ED_region_tag_redraw(CTX_wm_region(C));
 
   return OPERATOR_FINISHED;

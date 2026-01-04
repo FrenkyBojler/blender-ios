@@ -275,22 +275,22 @@ static Brush *image_paint_brush(bContext &C)
   return BKE_paint_brush(&settings->imapaint.paint);
 }
 
-static bool image_paint_poll_ex(bContext *C, bool check_tool)
+static bool image_paint_poll_ex(bContext &C, bool check_tool)
 {
   Object *obact;
 
-  if (!image_paint_brush(*C)) {
+  if (!image_paint_brush(C)) {
     return false;
   }
 
-  obact = CTX_data_active_object(*C);
-  if ((obact && obact->mode & OB_MODE_TEXTURE_PAINT) && CTX_wm_region_view3d(*C)) {
-    if (!check_tool || WM_toolsystem_active_tool_is_brush(C)) {
+  obact = CTX_data_active_object(C);
+  if ((obact && obact->mode & OB_MODE_TEXTURE_PAINT) && CTX_wm_region_view3d(C)) {
+    if (!check_tool || WM_toolsystem_active_tool_is_brush(&C)) {
       return true;
     }
   }
   else {
-    SpaceImage *sima = CTX_wm_space_image(*C);
+    SpaceImage *sima = CTX_wm_space_image(C);
 
     if (sima) {
       if (sima->image != nullptr &&
@@ -299,7 +299,7 @@ static bool image_paint_poll_ex(bContext *C, bool check_tool)
         return false;
       }
       if (sima->mode == SI_MODE_PAINT) {
-        const ARegion *region = CTX_wm_region(*C);
+        const ARegion *region = CTX_wm_region(C);
         if (region->regiontype == RGN_TYPE_WINDOW) {
           return true;
         }
@@ -312,12 +312,12 @@ static bool image_paint_poll_ex(bContext *C, bool check_tool)
 
 bool ED_image_tools_paint_poll(bContext &C)
 {
-  return image_paint_poll_ex(&C, true);
+  return image_paint_poll_ex(C, true);
 }
 
 bool image_paint_poll_ignore_tool(bContext *C)
 {
-  return image_paint_poll_ex(C, false);
+  return image_paint_poll_ex(*C, false);
 }
 
 static bool image_paint_2d_clone_poll(bContext &C)

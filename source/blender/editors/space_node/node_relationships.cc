@@ -1671,7 +1671,7 @@ static wmOperatorStatus node_link_invoke(bContext &C, wmOperator &op, const wmEv
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
   }
 
-  view2d_edge_pan_operator_init(&C, &nldrag->pan_data, &op);
+  view2d_edge_pan_operator_init(C, &nldrag->pan_data, &op);
 
   /* Add icons at the cursor when the link is dragged in empty space. */
   if (need_drag_link_tooltip(*snode.edittree, *nldrag)) {

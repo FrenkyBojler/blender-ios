@@ -140,7 +140,7 @@ struct TrackingPick {
 /* Pick closest point or plane track (whichever is the closest to the given coordinate).
  * Operates in the original non-stabilized and non-un-distorted coordinates. */
 TrackingPick ed_tracking_pick_closest(const TrackPickOptions *options,
-                                      bContext *C,
+                                      bContext &C,
                                       const float co[2]);
 
 /* Returns true when the pick did not pick anything. */

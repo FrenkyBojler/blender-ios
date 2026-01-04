@@ -780,9 +780,9 @@ static PointerRNA active_shelf_ptr_from_context(const bContext &C)
   return CTX_data_pointer_get_type(C, "asset_shelf", &RNA_AssetShelf);
 }
 
-AssetShelf *active_shelf_from_context(const bContext *C)
+AssetShelf *active_shelf_from_context(const bContext &C)
 {
-  PointerRNA shelf_settings_ptr = active_shelf_ptr_from_context(*C);
+  PointerRNA shelf_settings_ptr = active_shelf_ptr_from_context(C);
   return static_cast<AssetShelf *>(shelf_settings_ptr.data);
 }
 

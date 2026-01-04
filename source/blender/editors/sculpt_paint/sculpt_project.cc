@@ -235,7 +235,7 @@ static wmOperatorStatus gesture_line_invoke(bContext &C, wmOperator &op, const w
 
 static wmOperatorStatus gesture_line_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(&C, &op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }

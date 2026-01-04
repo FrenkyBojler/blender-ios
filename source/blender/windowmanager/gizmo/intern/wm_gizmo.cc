@@ -243,7 +243,7 @@ wmOperatorStatus WM_gizmo_operator_invoke(bContext *C,
     }
   }
   return WM_operator_name_call_ptr(
-      C, gzop->type, blender::wm::OpCallContext::InvokeDefault, &gzop->ptr, event);
+      *C, gzop->type, blender::wm::OpCallContext::InvokeDefault, &gzop->ptr, event);
 }
 
 static void wm_gizmo_set_matrix_rotation_from_z_axis__internal(float matrix[4][4],
@@ -490,12 +490,12 @@ static void gizmo_update_prop_data(wmGizmo *gz)
   }
 }
 
-void wm_gizmo_update(wmGizmo *gz, const bContext *C, const bool refresh_map)
+void wm_gizmo_update(wmGizmo *gz, const bContext &C, const bool refresh_map)
 {
   if (refresh_map) {
     gizmo_update_prop_data(gz);
   }
-  wm_gizmo_calculate_scale(gz, *C);
+  wm_gizmo_calculate_scale(gz, C);
 }
 
 int wm_gizmo_is_visible(wmGizmo *gz)

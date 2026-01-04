@@ -248,7 +248,7 @@ static wmOperatorStatus viewdolly_invoke(bContext &C, wmOperator &op, const wmEv
 
   const bool use_cursor_init = RNA_boolean_get(op.ptr, "use_cursor_init");
 
-  vod = viewops_data_create(&C, event, &ViewOpsType_dolly, use_cursor_init);
+  vod = viewops_data_create(C, event, &ViewOpsType_dolly, use_cursor_init);
   op.customdata = vod;
 
   ED_view3d_smooth_view_force_finish(&C, vod->v3d, vod->region);

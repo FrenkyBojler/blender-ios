@@ -283,28 +283,38 @@ static void panel_draw(const bContext *C, Panel *panel)
   layout.prop(ptr, "count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(ptr, "replace_material", UI_ITEM_NONE, IFACE_("Material Override"), ICON_NONE);
   ui::PanelLayout relative_offset_layout = layout.panel_prop_with_bool_header(
-      C, ptr, "open_relative_offset_panel", ptr, "use_relative_offset", IFACE_("Relative Offset"));
+      *C,
+      ptr,
+      "open_relative_offset_panel",
+      ptr,
+      "use_relative_offset",
+      IFACE_("Relative Offset"));
   if (ui::Layout *sub = relative_offset_layout.body) {
     ui::Layout &col = sub->column(false);
     col.active_set(RNA_boolean_get(ptr, "use_relative_offset"));
     col.prop(ptr, "relative_offset", UI_ITEM_NONE, IFACE_("Factor"), ICON_NONE);
   }
   ui::PanelLayout constant_offset_layout = layout.panel_prop_with_bool_header(
-      C, ptr, "open_constant_offset_panel", ptr, "use_constant_offset", IFACE_("Constant Offset"));
+      *C,
+      ptr,
+      "open_constant_offset_panel",
+      ptr,
+      "use_constant_offset",
+      IFACE_("Constant Offset"));
   if (ui::Layout *sub = constant_offset_layout.body) {
     ui::Layout &col = sub->column(false);
     col.active_set(RNA_boolean_get(ptr, "use_constant_offset"));
     col.prop(ptr, "constant_offset", UI_ITEM_NONE, IFACE_("Distance"), ICON_NONE);
   }
   ui::PanelLayout object_offset_layout = layout.panel_prop_with_bool_header(
-      C, ptr, "open_object_offset_panel", ptr, "use_object_offset", IFACE_("Object Offset"));
+      *C, ptr, "open_object_offset_panel", ptr, "use_object_offset", IFACE_("Object Offset"));
   if (ui::Layout *sub = object_offset_layout.body) {
     ui::Layout &col = sub->column(false);
     col.active_set(RNA_boolean_get(ptr, "use_object_offset"));
     col.prop(ptr, "offset_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
   }
 
-  if (ui::Layout *sub = layout.panel_prop(C, ptr, "open_randomize_panel", IFACE_("Randomize"))) {
+  if (ui::Layout *sub = layout.panel_prop(*C, ptr, "open_randomize_panel", IFACE_("Randomize"))) {
     sub->use_property_split_set(true);
     sub->prop(ptr, "random_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
     sub->prop(ptr, "random_rotation", UI_ITEM_NONE, IFACE_("Rotation"), ICON_NONE);
@@ -314,7 +324,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (ui::Layout *influence_panel = layout.panel_prop(
-          C, ptr, "open_influence_panel", IFACE_("Influence")))
+          *C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);

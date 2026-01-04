@@ -350,7 +350,7 @@ Object *add_type_with_obdata(bContext &C,
                              bool enter_editmode,
                              ushort local_view_bits,
                              ID *obdata);
-Object *add_type(bContext *C,
+Object *add_type(bContext &C,
                  int type,
                  const char *name,
                  const float loc[3],
@@ -452,7 +452,7 @@ bool mode_compat_test(const Object *ob, eObjectMode mode);
  */
 bool mode_compat_set(bContext *C, Object *ob, eObjectMode mode, ReportList *reports);
 bool mode_set_ex(bContext &C, eObjectMode mode, bool use_undo, ReportList *reports);
-bool mode_set(bContext *C, eObjectMode mode);
+bool mode_set(bContext &C, eObjectMode mode);
 
 void mode_generic_exit(Main *bmain, Depsgraph *depsgraph, Scene *scene, Object *ob);
 bool mode_generic_has_data(Depsgraph *depsgraph, const Object *ob);

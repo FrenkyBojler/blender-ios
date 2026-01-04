@@ -507,15 +507,15 @@ static bool tracking_should_prefer_point_track(bContext *C,
 }
 
 TrackingPick ed_tracking_pick_closest(const TrackPickOptions *options,
-                                      bContext *C,
+                                      bContext &C,
                                       const float co[2])
 {
   TrackingPick pick;
 
-  pick.point_track_pick = ed_tracking_pick_point_track(options, *C, co);
-  pick.plane_track_pick = ed_tracking_pick_plane_track(options, *C, co);
+  pick.point_track_pick = ed_tracking_pick_point_track(options, C, co);
+  pick.plane_track_pick = ed_tracking_pick_plane_track(options, C, co);
 
-  if (tracking_should_prefer_point_track(C, &pick.point_track_pick, &pick.plane_track_pick)) {
+  if (tracking_should_prefer_point_track(&C, &pick.point_track_pick, &pick.plane_track_pick)) {
     pick.plane_track_pick = plane_track_pick_make_null();
   }
   else {
@@ -567,7 +567,7 @@ static wmOperatorStatus select_exec(bContext &C, wmOperator &op)
   RNA_float_get_array(op.ptr, "location", co);
 
   const TrackPickOptions options = ed_tracking_pick_options_defaults();
-  const TrackingPick pick = ed_tracking_pick_closest(&options, &C, co);
+  const TrackingPick pick = ed_tracking_pick_closest(&options, C, co);
 
   /* Special code which allows to slide a marker which belongs to currently selected but not yet
    * active track. If such track is found activate it and return pass-though so that marker slide

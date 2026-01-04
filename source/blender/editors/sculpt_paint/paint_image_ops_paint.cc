@@ -49,7 +49,7 @@ class AbstractPaintMode {
  public:
   virtual ~AbstractPaintMode() = default;
   virtual void *paint_new_stroke(
-      bContext *C, wmOperator *op, Object *ob, const float mouse[2], int mode) = 0;
+      bContext &C, wmOperator *op, Object *ob, const float mouse[2], int mode) = 0;
   virtual void paint_stroke(bContext *C,
                             void *stroke_handle,
                             float prev_mouse[2],
@@ -61,14 +61,14 @@ class AbstractPaintMode {
 
   virtual void paint_stroke_redraw(const bContext *C, void *stroke_handle, bool final) = 0;
   virtual void paint_stroke_done(void *stroke_handle) = 0;
-  virtual void paint_gradient_fill(const bContext *C,
+  virtual void paint_gradient_fill(const bContext &C,
                                    const Paint *paint,
                                    Brush *brush,
                                    PaintStroke *stroke,
                                    void *stroke_handle,
                                    float mouse_start[2],
                                    float mouse_end[2]) = 0;
-  virtual void paint_bucket_fill(const bContext *C,
+  virtual void paint_bucket_fill(const bContext &C,
                                  const Paint *paint,
                                  Brush *brush,
                                  PaintStroke *stroke,
@@ -80,9 +80,9 @@ class AbstractPaintMode {
 class ImagePaintMode : public AbstractPaintMode {
  public:
   void *paint_new_stroke(
-      bContext *C, wmOperator *op, Object * /*ob*/, const float /*mouse*/[2], int mode) override
+      bContext &C, wmOperator *op, Object * /*ob*/, const float /*mouse*/[2], int mode) override
   {
-    return paint_2d_new_stroke(*C, op, mode);
+    return paint_2d_new_stroke(C, op, mode);
   }
 
   void paint_stroke(bContext * /*C*/,
@@ -107,7 +107,7 @@ class ImagePaintMode : public AbstractPaintMode {
     paint_2d_stroke_done(stroke_handle);
   }
 
-  void paint_gradient_fill(const bContext *C,
+  void paint_gradient_fill(const bContext &C,
                            const Paint * /*paint*/,
                            Brush *brush,
                            PaintStroke * /*stroke*/,
@@ -115,10 +115,10 @@ class ImagePaintMode : public AbstractPaintMode {
                            float mouse_start[2],
                            float mouse_end[2]) override
   {
-    paint_2d_gradient_fill(*C, brush, mouse_start, mouse_end, stroke_handle);
+    paint_2d_gradient_fill(C, brush, mouse_start, mouse_end, stroke_handle);
   }
 
-  void paint_bucket_fill(const bContext *C,
+  void paint_bucket_fill(const bContext &C,
                          const Paint *paint,
                          Brush *brush,
                          PaintStroke *stroke,
@@ -133,16 +133,16 @@ class ImagePaintMode : public AbstractPaintMode {
     else {
       copy_v3_v3(color, BKE_brush_color_get(paint, brush));
     }
-    paint_2d_bucket_fill(*C, color, brush, mouse_start, mouse_end, stroke_handle);
+    paint_2d_bucket_fill(C, color, brush, mouse_start, mouse_end, stroke_handle);
   }
 };
 
 class ProjectionPaintMode : public AbstractPaintMode {
  public:
   void *paint_new_stroke(
-      bContext *C, wmOperator * /*op*/, Object *ob, const float mouse[2], int mode) override
+      bContext &C, wmOperator * /*op*/, Object *ob, const float mouse[2], int mode) override
   {
-    return paint_proj_new_stroke(*C, ob, mouse, mode);
+    return paint_proj_new_stroke(C, ob, mouse, mode);
   }
 
   void paint_stroke(bContext *C,
@@ -167,7 +167,7 @@ class ProjectionPaintMode : public AbstractPaintMode {
     paint_proj_stroke_done(stroke_handle);
   }
 
-  void paint_gradient_fill(const bContext *C,
+  void paint_gradient_fill(const bContext &C,
                            const Paint *paint,
                            Brush *brush,
                            PaintStroke *stroke,
@@ -175,10 +175,10 @@ class ProjectionPaintMode : public AbstractPaintMode {
                            float mouse_start[2],
                            float mouse_end[2]) override
   {
-    paint_fill(C, paint, brush, stroke, stroke_handle, mouse_start, mouse_end);
+    paint_fill(&C, paint, brush, stroke, stroke_handle, mouse_start, mouse_end);
   }
 
-  void paint_bucket_fill(const bContext *C,
+  void paint_bucket_fill(const bContext &C,
                          const Paint *paint,
                          Brush *brush,
                          PaintStroke *stroke,
@@ -186,7 +186,7 @@ class ProjectionPaintMode : public AbstractPaintMode {
                          float mouse_start[2],
                          float mouse_end[2]) override
   {
-    paint_fill(C, paint, brush, stroke, stroke_handle, mouse_start, mouse_end);
+    paint_fill(&C, paint, brush, stroke, stroke_handle, mouse_start, mouse_end);
   }
 
  private:
@@ -313,7 +313,7 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext &C,
     pop->mode = MEM_new<ImagePaintMode>("ImagePaintMode");
   }
 
-  pop->stroke_handle = pop->mode->paint_new_stroke(&C, op, ob, mouse, mode);
+  pop->stroke_handle = pop->mode->paint_new_stroke(C, op, ob, mouse, mode);
   if (!pop->stroke_handle) {
     return nullptr;
   }
@@ -348,7 +348,7 @@ struct ImagePaintStroke final : public PaintStroke {
   bool test_cancel() override;
   void done(bool is_cancel) override;
 
-  void update_for_exec(bContext *C,
+  void update_for_exec(bContext &C,
                        const Brush &brush,
                        PaintMode mode,
                        const float mouse_init[2],
@@ -428,11 +428,11 @@ void ImagePaintStroke::done(const bool is_cancel)
   if (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) {
     if (brush->flag & BRUSH_USE_GRADIENT) {
       pop->mode->paint_gradient_fill(
-          this->evil_C, paint, brush, this, pop->stroke_handle, pop->startmouse, pop->prevmouse);
+          *this->evil_C, paint, brush, this, pop->stroke_handle, pop->startmouse, pop->prevmouse);
     }
     else {
       pop->mode->paint_bucket_fill(
-          this->evil_C, paint, brush, this, pop->stroke_handle, pop->startmouse, pop->prevmouse);
+          *this->evil_C, paint, brush, this, pop->stroke_handle, pop->startmouse, pop->prevmouse);
     }
   }
   pop->mode->paint_stroke_done(pop->stroke_handle);
@@ -507,7 +507,7 @@ static wmOperatorStatus paint_invoke(bContext &C, wmOperator &op, const wmEvent 
   return OPERATOR_RUNNING_MODAL;
 }
 
-void ImagePaintStroke::update_for_exec(bContext *C,
+void ImagePaintStroke::update_for_exec(bContext &C,
                                        const Brush &brush,
                                        PaintMode mode,
                                        const float mouse_init[2],
@@ -516,7 +516,7 @@ void ImagePaintStroke::update_for_exec(bContext *C,
                                        float r_location[3],
                                        bool *r_location_is_set)
 {
-  this->update(*C, brush, mode, mouse_init, mouse, pressure, r_location, r_location_is_set);
+  this->update(C, brush, mode, mouse_init, mouse, pressure, r_location, r_location_is_set);
 }
 
 static wmOperatorStatus paint_exec(bContext &C, wmOperator &op)
@@ -554,8 +554,8 @@ static wmOperatorStatus paint_exec(bContext &C, wmOperator &op)
   float zoom_2d = std::max(zoomx, zoomy);
   paint_stroke_jitter_pos(&paint, mode, brush, pressure, stroke_mode, zoom_2d, mouse, mouse_out);
 
-  stroke->update_for_exec(&C, brush, mode, mouse, mouse_out, pressure, dummy_location, &dummy);
-  wmOperatorStatus ret_val = stroke->exec(&C, &op);
+  stroke->update_for_exec(C, brush, mode, mouse, mouse_out, pressure, dummy_location, &dummy);
+  wmOperatorStatus ret_val = stroke->exec(C, &op);
 
   MEM_delete(stroke);
 
@@ -565,7 +565,7 @@ static wmOperatorStatus paint_exec(bContext &C, wmOperator &op)
 static wmOperatorStatus paint_modal(bContext &C, wmOperator &op, const wmEvent *event)
 {
   ImagePaintStroke *stroke = static_cast<ImagePaintStroke *>(op.customdata);
-  const wmOperatorStatus retval = stroke->modal(&C, &op, event);
+  const wmOperatorStatus retval = stroke->modal(C, &op, event);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
     MEM_delete(stroke);

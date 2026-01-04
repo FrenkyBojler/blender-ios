@@ -105,7 +105,7 @@ static wmOperatorStatus viewmove_invoke_impl(bContext *C,
 
 static wmOperatorStatus viewmove_invoke(bContext &C, wmOperator &op, const wmEvent *event)
 {
-  return view3d_navigate_invoke_impl(&C, &op, event, &ViewOpsType_move);
+  return view3d_navigate_invoke_impl(C, &op, event, &ViewOpsType_move);
 }
 
 void VIEW3D_OT_move(wmOperatorType *ot)

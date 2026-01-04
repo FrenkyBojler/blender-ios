@@ -113,7 +113,7 @@ bool ED_space_clip_color_sample(const SpaceClip *sc,
                                 float r_col[3]);
 
 void ED_clip_update_frame(const Main *mainp, int cfra);
-bool ED_clip_view_selection(const bContext *C, const ARegion *region, bool fit);
+bool ED_clip_view_selection(const bContext &C, const ARegion *region, bool fit);
 
 void ED_clip_select_all(const SpaceClip *sc, int action, bool *r_has_selection);
 bool ED_clip_can_select(bContext &C);

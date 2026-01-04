@@ -621,7 +621,7 @@ static wmOperatorStatus delete_metaelems_invoke(bContext &C,
                                                 const wmEvent * /*event*/)
 {
   if (RNA_boolean_get(op.ptr, "confirm")) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Delete selected metaball elements?"),
                                   nullptr,
@@ -853,7 +853,7 @@ static bool ed_mball_findnearest_metaelem(bContext &C,
   return found;
 }
 
-bool ED_mball_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params)
+bool ED_mball_select_pick(bContext &C, const int mval[2], const SelectPick_Params &params)
 {
   Base *base = nullptr;
   MetaElem *ml = nullptr;
@@ -861,7 +861,7 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], const SelectPick_Param
 
   bool changed = false;
 
-  bool found = ed_mball_findnearest_metaelem(*C, mval, true, &base, &ml, &selmask);
+  bool found = ed_mball_findnearest_metaelem(C, mval, true, &base, &ml, &selmask);
 
   if (params.sel_op == SEL_OP_SET) {
     if ((found && params.select_passthrough) && (ml->flag & SELECT)) {
@@ -869,7 +869,7 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], const SelectPick_Param
     }
     else if (found || params.deselect_all) {
       /* Deselect everything. */
-      changed |= ED_mball_deselect_all_multi(*C);
+      changed |= ED_mball_deselect_all_multi(C);
     }
   }
 
@@ -909,17 +909,17 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], const SelectPick_Param
         break;
       }
     }
-    const Scene *scene = CTX_data_scene(*C);
-    ViewLayer *view_layer = CTX_data_view_layer(*C);
+    const Scene *scene = CTX_data_scene(C);
+    ViewLayer *view_layer = CTX_data_view_layer(C);
     MetaBall *mb = (MetaBall *)base->object->data;
     mb->lastelem = ml;
 
     DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
-    WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, mb);
+    WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
 
     BKE_view_layer_synced_ensure(scene, view_layer);
     if (BKE_view_layer_active_base_get(view_layer) != base) {
-      blender::ed::object::base_activate(*C, base);
+      blender::ed::object::base_activate(C, base);
     }
 
     changed = true;

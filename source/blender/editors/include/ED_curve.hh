@@ -61,7 +61,7 @@ bool ED_curve_editnurb_select_pick(bContext &C,
                                    const SelectPick_Params &params);
 
 Nurb *ED_curve_add_nurbs_primitive(
-    bContext *C, Object *obedit, float mat[4][4], int type, int newob);
+    bContext &C, Object *obedit, float mat[4][4], int type, int newob);
 
 bool ED_curve_nurb_select_check(const View3D *v3d, const Nurb *nu);
 int ED_curve_nurb_select_count(const View3D *v3d, const Nurb *nu);

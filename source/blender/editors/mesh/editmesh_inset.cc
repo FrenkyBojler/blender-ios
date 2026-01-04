@@ -348,7 +348,7 @@ static wmOperatorStatus edbm_inset_invoke(bContext &C, wmOperator &op, const wmE
 
   /* initialize mouse values */
   if (!blender::ed::transform::calculateTransformCenter(
-          &C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter))
+          C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter))
   {
     /* in this case the tool will likely do nothing,
      * ideally this will never happen and should be checked for above */

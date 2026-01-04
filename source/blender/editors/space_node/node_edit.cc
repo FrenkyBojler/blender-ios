@@ -380,12 +380,12 @@ static blender::compositor::OutputTypes get_compositor_needed_outputs(const bCon
   return needed_outputs;
 }
 
-void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_owner)
+void ED_node_composite_job(const bContext &C, bNodeTree *nodetree, Scene *scene_owner)
 {
   /* None of the outputs are needed except maybe previews, so no need to execute the compositor.
    * Previews are not considered because they are a secondary output that needs another output to
    * be computed with. */
-  blender::compositor::OutputTypes needed_outputs = get_compositor_needed_outputs(*C, scene_owner);
+  blender::compositor::OutputTypes needed_outputs = get_compositor_needed_outputs(C, scene_owner);
   if (ELEM(needed_outputs,
            blender::compositor::OutputTypes::None,
            blender::compositor::OutputTypes::Previews))
@@ -395,11 +395,11 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
 
   using namespace blender::ed::space_node;
 
-  Main *bmain = CTX_data_main(*C);
-  Scene *scene = CTX_data_scene(*C);
-  ViewLayer *view_layer = CTX_data_view_layer(*C);
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  if (!is_compositing_possible(*C)) {
+  if (!is_compositing_possible(C)) {
     return;
   }
 
@@ -415,8 +415,8 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
   BKE_image_backup_render(
       scene, BKE_image_ensure_viewer(bmain, IMA_TYPE_R_RESULT, "Render Result"), false);
 
-  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(*C),
-                              CTX_wm_window(*C),
+  wmJob *wm_job = WM_jobs_get(CTX_wm_manager(C),
+                              CTX_wm_window(C),
                               scene_owner,
                               "Compositing...",
                               WM_JOB_EXCL_RENDER | WM_JOB_PROGRESS,
@@ -441,7 +441,7 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
                        compo_completejob,
                        compo_canceljob);
 
-  WM_jobs_start(CTX_wm_manager(*C), wm_job);
+  WM_jobs_start(CTX_wm_manager(C), wm_job);
 }
 
 /** \} */

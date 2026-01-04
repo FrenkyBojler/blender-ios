@@ -3431,14 +3431,14 @@ static void filelist_readjob_start_ex(FileList *filelist,
   WM_jobs_start(CTX_wm_manager(C), wm_job);
 }
 
-void filelist_readjob_start(FileList *filelist, const int space_notifier, const bContext *C)
+void filelist_readjob_start(FileList *filelist, const int space_notifier, const bContext &C)
 {
-  filelist_readjob_start_ex(filelist, space_notifier, *C, false);
+  filelist_readjob_start_ex(filelist, space_notifier, C, false);
 }
 
-void filelist_readjob_blocking_run(FileList *filelist, int space_notifier, const bContext *C)
+void filelist_readjob_blocking_run(FileList *filelist, int space_notifier, const bContext &C)
 {
-  filelist_readjob_start_ex(filelist, space_notifier, *C, true);
+  filelist_readjob_start_ex(filelist, space_notifier, C, true);
 }
 
 void filelist_readjob_stop(FileList *filelist, wmWindowManager *wm)

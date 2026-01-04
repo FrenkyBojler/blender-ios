@@ -210,10 +210,10 @@ static ImageUser *image_user_from_context(const bContext &C)
   return (sima) ? &sima->iuser : nullptr;
 }
 
-static ImageUser image_user_from_context_and_active_tile(const bContext *C, Image *ima)
+static ImageUser image_user_from_context_and_active_tile(const bContext &C, Image *ima)
 {
   /* Try to get image user from context if available, otherwise use default. */
-  ImageUser *iuser_context = image_user_from_context(*C);
+  ImageUser *iuser_context = image_user_from_context(C);
   ImageUser iuser;
   if (iuser_context) {
     iuser = *iuser_context;
@@ -259,7 +259,7 @@ static bool image_from_context_editable_has_data_poll_active_tile(bContext &C)
     return false;
   }
 
-  ImageUser iuser = image_user_from_context_and_active_tile(&C, ima);
+  ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
 
   return BKE_image_has_ibuf(ima, &iuser);
 }
@@ -1313,7 +1313,7 @@ static void image_open_init(bContext &C, wmOperator *op)
   op->customdata = iod = MEM_new<ImageOpenData>(__func__);
   iod->iuser = static_cast<ImageUser *>(
       CTX_data_pointer_get_type(C, "image_user", &RNA_ImageUser).data);
-  blender::ui::context_active_but_prop_get_templateID(&C, &iod->pprop.ptr, &iod->pprop.prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &iod->pprop.ptr, &iod->pprop.prop);
 }
 
 static void image_open_cancel(bContext & /*C*/, wmOperator &op)
@@ -1524,7 +1524,7 @@ static wmOperatorStatus image_open_invoke(bContext &C, wmOperator &op, const wmE
     PropertyRNA *prop;
 
     /* hook into UI */
-    blender::ui::context_active_but_prop_get_templateID(&C, &ptr, &prop);
+    blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
     if (prop) {
       PointerRNA oldptr;
@@ -1703,14 +1703,13 @@ static wmOperatorStatus image_file_browse_invoke(bContext &C, wmOperator &op, co
       }
     }
     else if (ima->source == IMA_SRC_TILED) {
-      ImageUser iuser = image_user_from_context_and_active_tile(&C, ima);
+      ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
       BKE_image_user_file_path(&iuser, ima, filepath);
     }
 
     PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     RNA_string_set(&props_ptr, "filepath", filepath);
-    WM_operator_name_call_ptr(
-        &C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
     return OPERATOR_CANCELLED;
@@ -2623,7 +2622,7 @@ static ImageNewData *image_new_init(bContext *C, wmOperator *op)
   }
 
   ImageNewData *data = MEM_new<ImageNewData>(__func__);
-  blender::ui::context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
+  blender::ui::context_active_but_prop_get_templateID(*C, &data->pprop.ptr, &data->pprop.prop);
   op->customdata = data;
   return data;
 }
@@ -2729,12 +2728,12 @@ static wmOperatorStatus image_new_invoke(bContext &C, wmOperator &op, const wmEv
   /* Get property in advance, it doesn't work after WM_operator_props_dialog_popup. */
   ImageNewData *data;
   op.customdata = data = MEM_new<ImageNewData>(__func__);
-  blender::ui::context_active_but_prop_get_templateID(&C, &data->pprop.ptr, &data->pprop.prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
 
   /* Better for user feedback. */
   RNA_string_set(op.ptr, "name", DATA_(IMA_DEF_NAME));
   return WM_operator_props_dialog_popup(
-      &C, &op, 300, IFACE_("Create a New Image"), IFACE_("New Image"));
+      C, &op, 300, IFACE_("Create a New Image"), IFACE_("New Image"));
 }
 
 static void image_new_draw(bContext & /*C*/, wmOperator &op)
@@ -2823,7 +2822,7 @@ void IMAGE_OT_new(wmOperatorType *ot)
 static wmOperatorStatus image_flip_exec(bContext &C, wmOperator &op)
 {
   Image *ima = image_from_context(C);
-  ImageUser iuser = image_user_from_context_and_active_tile(&C, ima);
+  ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
   SpaceImage *sima = CTX_wm_space_image(C);
   const bool is_paint = ((sima != nullptr) && (sima->mode == SI_MODE_PAINT));
@@ -2941,7 +2940,7 @@ void IMAGE_OT_flip(wmOperatorType *ot)
 static wmOperatorStatus image_rotate_orthogonal_exec(bContext &C, wmOperator &op)
 {
   Image *ima = image_from_context(C);
-  ImageUser iuser = image_user_from_context_and_active_tile(&C, ima);
+  ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
   SpaceImage *sima = CTX_wm_space_image(C);
   const bool is_paint = ((sima != nullptr) && (sima->mode == SI_MODE_PAINT));
@@ -3100,7 +3099,7 @@ static wmOperatorStatus image_clipboard_paste_exec(bContext &C, wmOperator &op)
   WM_cursor_wait(true);
   ImBuf *ibuf = WM_clipboard_image_get();
   if (ibuf) {
-    ED_undo_push_op(&C, &op);
+    ED_undo_push_op(C, &op);
 
     Main *bmain = CTX_data_main(C);
     SpaceImage *sima = CTX_wm_space_image(C);
@@ -3157,7 +3156,7 @@ void IMAGE_OT_clipboard_paste(wmOperatorType *ot)
 static wmOperatorStatus image_invert_exec(bContext &C, wmOperator &op)
 {
   Image *ima = image_from_context(C);
-  ImageUser iuser = image_user_from_context_and_active_tile(&C, ima);
+  ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
   SpaceImage *sima = CTX_wm_space_image(C);
   const bool is_paint = ((sima != nullptr) && (sima->mode == SI_MODE_PAINT));
@@ -3279,7 +3278,7 @@ void IMAGE_OT_invert(wmOperatorType *ot)
 static wmOperatorStatus image_scale_invoke(bContext &C, wmOperator &op, const wmEvent * /*event*/)
 {
   Image *ima = image_from_context(C);
-  ImageUser iuser = image_user_from_context_and_active_tile(&C, ima);
+  ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
   PropertyRNA *prop = RNA_struct_find_property(op.ptr, "size");
   if (!RNA_property_is_set(op.ptr, prop)) {
     ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
@@ -3288,13 +3287,13 @@ static wmOperatorStatus image_scale_invoke(bContext &C, wmOperator &op, const wm
     BKE_image_release_ibuf(ima, ibuf, nullptr);
   }
   return WM_operator_props_dialog_popup(
-      &C, &op, 200, IFACE_("Scale Image to New Size"), IFACE_("Resize"));
+      C, &op, 200, IFACE_("Scale Image to New Size"), IFACE_("Resize"));
 }
 
 static wmOperatorStatus image_scale_exec(bContext &C, wmOperator &op)
 {
   Image *ima = image_from_context(C);
-  ImageUser iuser = image_user_from_context_and_active_tile(&C, ima);
+  ImageUser iuser = image_user_from_context_and_active_tile(C, ima);
   SpaceImage *sima = CTX_wm_space_image(C);
   const bool is_paint = ((sima != nullptr) && (sima->mode == SI_MODE_PAINT));
 
@@ -4408,7 +4407,7 @@ static wmOperatorStatus tile_add_invoke(bContext &C, wmOperator &op, const wmEve
   RNA_int_set(op.ptr, "count", 1);
   RNA_string_set(op.ptr, "label", "");
 
-  return WM_operator_props_dialog_popup(&C,
+  return WM_operator_props_dialog_popup(C,
                                         &op,
                                         300,
                                         IFACE_("Add Tile to Image"),
@@ -4547,7 +4546,7 @@ static wmOperatorStatus tile_fill_invoke(bContext &C, wmOperator &op, const wmEv
 {
   tile_fill_init(op.ptr, CTX_data_edit_image(C), nullptr);
 
-  return WM_operator_props_dialog_popup(&C,
+  return WM_operator_props_dialog_popup(C,
                                         &op,
                                         300,
                                         IFACE_("Fill Tile With Generated Image"),

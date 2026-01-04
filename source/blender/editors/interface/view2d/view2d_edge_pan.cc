@@ -380,9 +380,9 @@ void view2d_edge_pan_operator_properties_ex(wmOperatorType *ot,
                 1.0f);
 }
 
-void view2d_edge_pan_operator_init(bContext *C, View2DEdgePanData *vpd, wmOperator *op)
+void view2d_edge_pan_operator_init(bContext &C, View2DEdgePanData *vpd, wmOperator *op)
 {
-  view2d_edge_pan_init(*C,
+  view2d_edge_pan_init(C,
                        vpd,
                        RNA_float_get(op->ptr, "inside_padding"),
                        RNA_float_get(op->ptr, "outside_padding"),

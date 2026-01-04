@@ -871,7 +871,7 @@ static wmOperatorStatus bake_simulation_invoke(bContext &C,
     return OPERATOR_CANCELLED;
   }
   if (has_existing_bake_data) {
-    return WM_operator_confirm_ex(&C,
+    return WM_operator_confirm_ex(C,
                                   &op,
                                   IFACE_("Overwrite existing bake data?"),
                                   nullptr,

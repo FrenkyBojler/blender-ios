@@ -99,13 +99,13 @@ static void interactive_value_init(bContext &C,
 }
 
 static void interactive_value_init_from_property(
-    bContext *C, ValueInteraction *inter, const wmEvent *event, PointerRNA *ptr, PropertyRNA *prop)
+    bContext &C, ValueInteraction *inter, const wmEvent *event, PointerRNA *ptr, PropertyRNA *prop)
 {
   float range[2];
   float step, precision;
   RNA_property_float_ui_range(ptr, prop, &range[0], &range[1], &step, &precision);
   const float value_final = RNA_property_float_get(ptr, prop);
-  interactive_value_init(*C, inter, event, value_final, range);
+  interactive_value_init(C, inter, event, value_final, range);
 }
 
 static void interactive_value_exit(ValueInteraction *inter)
@@ -219,7 +219,7 @@ static wmOperatorStatus op_generic_value_invoke(bContext &C, wmOperator &op, con
   cd->is_first = true;
 
   if (cd->wait_for_input == false) {
-    interactive_value_init_from_property(&C, &cd->inter, event, op.ptr, op.type->prop);
+    interactive_value_init_from_property(C, &cd->inter, event, op.ptr, op.type->prop);
   }
 
   cd->objects_xform.reinitialize(objects.size());
@@ -285,7 +285,7 @@ static wmOperatorStatus op_generic_value_modal(bContext &C, wmOperator &op, cons
         if (event->val == KM_PRESS) {
           if (cd->is_active == false) {
             cd->is_active = true;
-            interactive_value_init_from_property(&C, &cd->inter, event, op.ptr, op.type->prop);
+            interactive_value_init_from_property(C, &cd->inter, event, op.ptr, op.type->prop);
           }
         }
         else if (event->val == KM_RELEASE) {

@@ -471,7 +471,7 @@ static void wm_usd_export_draw(bContext &C, wmOperator &op)
   }
 
   {
-    blender::ui::PanelLayout panel = layout.panel(&C, "USD_export_materials", true);
+    blender::ui::PanelLayout panel = layout.panel(C, "USD_export_materials", true);
     panel.header->use_property_split_set(false);
     panel.header->prop(ptr, "export_materials", UI_ITEM_NONE, "", ICON_NONE);
     panel.header->label(IFACE_("Materials"), ICON_NONE);
@@ -962,7 +962,7 @@ static wmOperatorStatus wm_usd_import_exec(bContext &C, wmOperator &op)
   /* Switch out of edit mode to avoid being stuck in it (#54326). */
   const Object *obedit = CTX_data_edit_object(C);
   if (obedit) {
-    blender::ed::object::mode_set(&C, OB_MODE_EDIT);
+    blender::ed::object::mode_set(C, OB_MODE_EDIT);
   }
 
   const bool ok = USD_import(C, filepath, &params, as_background_job, op.reports);

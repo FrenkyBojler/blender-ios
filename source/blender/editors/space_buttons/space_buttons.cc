@@ -304,7 +304,7 @@ static const char *buttons_main_region_context_string(const short mainb)
   return "";
 }
 
-static void buttons_main_region_layout_properties(const bContext *C,
+static void buttons_main_region_layout_properties(const bContext &C,
                                                   SpaceProperties *sbuts,
                                                   ARegion *region)
 {
@@ -312,7 +312,7 @@ static void buttons_main_region_layout_properties(const bContext *C,
 
   const char *contexts[2] = {buttons_main_region_context_string(sbuts->mainb), nullptr};
 
-  ED_region_panels_layout_ex(*C,
+  ED_region_panels_layout_ex(C,
                              region,
                              &region->runtime->type->paneltypes,
                              blender::wm::OpCallContext::InvokeRegionWin,
@@ -360,7 +360,7 @@ static bool property_search_for_context(const bContext *C, ARegion *region, Spac
     return false;
   }
 
-  buttons_context_compute(C, sbuts);
+  buttons_context_compute(*C, sbuts);
   return ED_region_property_search(
       *C, region, &region->runtime->type->paneltypes, contexts, nullptr);
 }
@@ -456,14 +456,14 @@ static void property_search_all_tabs(const bContext &C,
  * Handle property search for the layout pass, including finding which tabs have
  * search results and switching if the current tab doesn't have a result.
  */
-static void buttons_main_region_property_search(const bContext *C,
+static void buttons_main_region_property_search(const bContext &C,
                                                 SpaceProperties *sbuts,
                                                 ARegion *region)
 {
   /* Theoretical maximum of every context shown with a spacer between every tab. */
   const blender::Vector<eSpaceButtons_Context> context_tabs_array = ED_buttons_tabs_list(sbuts);
 
-  property_search_all_tabs(*C, sbuts, region, context_tabs_array);
+  property_search_all_tabs(C, sbuts, region, context_tabs_array);
 
   /* Check whether the current tab has a search match. */
   bool current_tab_has_search_match = false;
@@ -558,7 +558,7 @@ static void buttons_main_region_layout(const bContext *C, ARegion *region)
   SpaceProperties *sbuts = CTX_wm_space_properties(*C);
 
   /* Needed for RNA to get the good values! */
-  buttons_context_compute(C, sbuts);
+  buttons_context_compute(*C, sbuts);
 
   if (ED_buttons_tabs_list(sbuts).is_empty()) {
     View2D *v2d = blender::ui::view2d_fromcontext(*C);
@@ -572,11 +572,11 @@ static void buttons_main_region_layout(const bContext *C, ARegion *region)
     ED_view3d_buttons_region_layout_ex(*C, region, "Tool");
   }
   else {
-    buttons_main_region_layout_properties(C, sbuts, region);
+    buttons_main_region_layout_properties(*C, sbuts, region);
   }
 
   if (region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE) {
-    buttons_main_region_property_search(C, sbuts, region);
+    buttons_main_region_property_search(*C, sbuts, region);
   }
 
   sbuts->mainbo = sbuts->mainb;
@@ -629,7 +629,7 @@ static void buttons_header_region_draw(const bContext *C, ARegion *region)
   SpaceProperties *sbuts = CTX_wm_space_properties(*C);
 
   /* Needed for RNA to get the good values! */
-  buttons_context_compute(C, sbuts);
+  buttons_context_compute(*C, sbuts);
 
   ED_region_header(C, region);
 }
@@ -676,7 +676,7 @@ static void buttons_navigation_bar_region_init(wmWindowManager *wm, ARegion *reg
 static void buttons_navigation_bar_region_draw(const bContext *C, ARegion *region)
 {
   SpaceProperties *sbuts = CTX_wm_space_properties(*C);
-  buttons_context_compute(C, sbuts);
+  buttons_context_compute(*C, sbuts);
 
   for (PanelType &pt : region->runtime->type->paneltypes) {
     pt.flag |= PANEL_TYPE_LAYOUT_VERT_BAR;

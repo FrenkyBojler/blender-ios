@@ -476,9 +476,9 @@ void paint_stroke_jitter_pos(Paint *paint,
 }
 
 /* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */
-void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float pressure)
+void PaintStroke::add_step(bContext &C, wmOperator *op, const float2 mval, float pressure)
 {
-  const PaintMode mode = BKE_paintmode_get_active_from_context(*C);
+  const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(this->paint);
   bke::PaintRuntime *paint_runtime = this->paint->runtime;
 
@@ -535,7 +535,7 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
   float3 location;
   bool is_location_is_set;
   paint_runtime->last_hit = update(
-      *C, brush, mode, mval, mouse_out, pressure, location, &is_location_is_set);
+      C, brush, mode, mval, mouse_out, pressure, location, &is_location_is_set);
   if (is_location_is_set) {
     copy_v3_v3(paint_runtime->last_location, location);
   }
@@ -832,7 +832,7 @@ int PaintStroke::space_stroke(bContext &C,
           brush, spacing / no_pressure_spacing);
 
       stroke_distance_ += spacing / zoom_2d_;
-      this->add_step(&C, op, mouse, pressure);
+      this->add_step(C, op, mouse, pressure);
 
       length -= spacing;
       pressure = last_pressure_;
@@ -949,10 +949,10 @@ void PaintStroke::free(bContext &C, wmOperator * /*op*/)
   }
 }
 
-void PaintStroke::stroke_done(bContext *C, wmOperator *op, const bool is_cancel)
+void PaintStroke::stroke_done(bContext &C, wmOperator *op, const bool is_cancel)
 {
   if (print_pressure_status_enabled()) {
-    ED_workspace_status_text(C, nullptr);
+    ED_workspace_status_text(&C, nullptr);
   }
   bke::PaintRuntime *paint_runtime = this->paint->runtime;
 
@@ -973,7 +973,7 @@ void PaintStroke::stroke_done(bContext *C, wmOperator *op, const bool is_cancel)
     this->done(is_cancel);
   }
 
-  this->free(*C, op);
+  this->free(C, op);
 }
 
 static bool curves_sculpt_brush_uses_spacing(const eBrushCurvesSculptType tool)
@@ -1241,7 +1241,7 @@ void PaintStroke::lines_spacing(bContext &C,
       paint_runtime->overlap_factor = paint_stroke_integrate_overlap(brush, 1.0);
 
       stroke_distance_ += spacing / zoom_2d_;
-      this->add_step(&C, op, mouse, 1.0);
+      this->add_step(C, op, mouse, 1.0);
 
       length -= spacing;
       spacing_final = spacing;
@@ -1261,7 +1261,7 @@ void PaintStroke::line_end(bContext *C, wmOperator *op, const float2 mouse)
   if (stroke_started_ && (br->flag & BRUSH_LINE)) {
     paint_runtime->overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
 
-    this->add_step(C, op, this->last_mouse_position, 1.0);
+    this->add_step(*C, op, this->last_mouse_position, 1.0);
     this->space_stroke(*C, op, mouse, 1.0);
   }
 }
@@ -1343,7 +1343,7 @@ bool PaintStroke::curve_end(bContext *C, wmOperator *op)
         stroke_started_ = this->test_start(op, this->last_mouse_position);
 
         if (stroke_started_) {
-          this->add_step(C, op, data + 2 * j, 1.0);
+          this->add_step(*C, op, data + 2 * j, 1.0);
           this->lines_spacing(
               *C, op, no_pressure_spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
         }
@@ -1355,7 +1355,7 @@ bool PaintStroke::curve_end(bContext *C, wmOperator *op)
     }
   }
 
-  this->stroke_done(C, op, false);
+  this->stroke_done(*C, op, false);
 
 #ifdef DEBUG_TIME
   TIMEIT_END_AVERAGED(whole_stroke);
@@ -1390,12 +1390,12 @@ static void paint_stroke_line_constrain(float2 last_mouse_position,
   mouse[1] = constrained_pos[1] = len * sinf(angle) + last_mouse_position[1];
 }
 
-wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *event)
+wmOperatorStatus PaintStroke::modal(bContext &C, wmOperator *op, const wmEvent *event)
 {
   /* TODO: Temporary, used to facilitate removing bContext usage in subclasses */
-  this->evil_C = C;
+  this->evil_C = &C;
 
-  Paint *paint = BKE_paint_get_active_from_context(*C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *br = this->brush = BKE_paint_brush(paint);
   if (paint == nullptr || br == nullptr) {
     /* In some circumstances, the context may change during modal execution. In this case,
@@ -1403,7 +1403,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     this->stroke_done(C, op, true);
     return OPERATOR_CANCELLED;
   }
-  const PaintMode mode = BKE_paintmode_get_active_from_context(*C);
+  const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   bke::PaintRuntime &paint_runtime = *paint->runtime;
   bool first_dab = false;
   bool first_modal = false;
@@ -1422,7 +1422,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
 
   if (print_pressure_status_enabled() && WM_event_is_tablet(event)) {
     std::string msg = fmt::format("Tablet Pressure: {:.4f}", pressure);
-    ED_workspace_status_text(C, msg.c_str());
+    ED_workspace_status_text(&C, msg.c_str());
   }
 
   /* When processing a timer event the pressure from the event is 0, so use the last valid
@@ -1457,7 +1457,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
 
   /* one time initialization */
   if (!stroke_init_) {
-    if (this->curve_end(C, op)) {
+    if (this->curve_end(&C, op)) {
       return OPERATOR_FINISHED;
     }
 
@@ -1492,8 +1492,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       }
 
       if (br->flag & BRUSH_AIRBRUSH) {
-        timer_ = WM_event_timer_add(
-            CTX_wm_manager(*C), CTX_wm_window(*C), TIMER, this->brush->rate);
+        timer_ = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, this->brush->rate);
       }
 
       if (br->flag & BRUSH_LINE) {
@@ -1513,7 +1512,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   if (event->type == EVT_MODAL_MAP && event->val == PAINT_STROKE_MODAL_CANCEL) {
     if (op->type->cancel) {
       if (this->test_cancel()) {
-        op->type->cancel(*C, *op);
+        op->type->cancel(C, *op);
         return OPERATOR_CANCELLED;
       }
     }
@@ -1545,13 +1544,13 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       if (this->constrain_line) {
         paint_stroke_line_constrain(this->last_mouse_position, this->constrained_pos, mouse);
       }
-      this->line_end(C, op, mouse);
+      this->line_end(&C, op, mouse);
       this->stroke_done(C, op, false);
       return OPERATOR_FINISHED;
     }
   }
   else if (ELEM(event->type, EVT_RETKEY, EVT_SPACEKEY)) {
-    this->line_end(C, op, sample_average.mouse);
+    this->line_end(&C, op, sample_average.mouse);
     this->stroke_done(C, op, false);
     return OPERATOR_FINISHED;
   }
@@ -1593,7 +1592,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     {
       if (stroke_started_) {
         if (paint_space_stroke_enabled(*br, mode)) {
-          if (this->space_stroke(*C, op, mouse, pressure)) {
+          if (this->space_stroke(C, op, mouse, pressure)) {
             needs_redraw = true;
           }
         }
@@ -1617,8 +1616,8 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
 
   /* Don't update the paint cursor in #INBETWEEN_MOUSEMOVE events. */
   if (event->type != INBETWEEN_MOUSEMOVE) {
-    wmWindow *window = CTX_wm_window(*C);
-    ARegion *region = CTX_wm_region(*C);
+    wmWindow *window = CTX_wm_window(C);
+    ARegion *region = CTX_wm_region(C);
 
     if (region && (paint->flags & PAINT_SHOW_BRUSH)) {
       WM_paint_cursor_tag_redraw(window, region);
@@ -1635,10 +1634,10 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   return OPERATOR_RUNNING_MODAL;
 }
 
-wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
+wmOperatorStatus PaintStroke::exec(bContext &C, wmOperator *op)
 {
   /* TODO: Temporary, used to facilitate removing bContext usage in subclasses */
-  this->evil_C = C;
+  this->evil_C = &C;
 
   /* only when executed for the first time */
   if (!stroke_started_) {
@@ -1652,7 +1651,7 @@ wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
     }
   }
 
-  const PaintMode mode = BKE_paintmode_get_active_from_context(*C);
+  const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "override_location");
   const bool override_location = prop && RNA_property_boolean_get(op->ptr, prop) &&
                                  mode != PaintMode::Texture2D;
@@ -1670,7 +1669,7 @@ wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
       bool dummy_is_set;
 
       this->update(
-          *C, *this->brush, mode, mval, dummy_mouse, pressure, dummy_location, &dummy_is_set);
+          C, *this->brush, mode, mval, dummy_mouse, pressure, dummy_location, &dummy_is_set);
 
       if (override_location) {
         float3 location;
@@ -1695,7 +1694,7 @@ wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
 
 void PaintStroke::cancel(bContext *C, wmOperator *op)
 {
-  this->stroke_done(C, op, true);
+  this->stroke_done(*C, op, true);
 }
 
 static const bToolRef *brush_tool_get(const ScrArea *area,

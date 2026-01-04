@@ -890,7 +890,7 @@ static void paintvert_select_linked_vertices(bContext *C,
   select_vert.finish();
 
   paintvert_flush_flags(ob);
-  paintvert_tag_select_update(C, ob);
+  paintvert_tag_select_update(*C, ob);
 }
 
 void paintvert_select_linked_pick(bContext *C,
@@ -1043,10 +1043,10 @@ void paintvert_select_less(Mesh *mesh, const bool face_step)
   select_vert.finish();
 }
 
-void paintvert_tag_select_update(bContext *C, Object *ob)
+void paintvert_tag_select_update(bContext &C, Object *ob)
 {
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_SYNC_TO_EVAL | ID_RECALC_SELECT);
-  WM_event_add_notifier(*C, NC_GEOM | ND_SELECT, ob->data);
+  WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob->data);
 }
 
 bool paintvert_deselect_all_visible(Object *ob, int action, bool flush_flags)
@@ -1186,7 +1186,7 @@ void paintvert_hide(bContext *C, Object *ob, const bool unselected)
   bke::mesh_hide_vert_flush(*mesh);
 
   paintvert_flush_flags(ob);
-  paintvert_tag_select_update(C, ob);
+  paintvert_tag_select_update(*C, ob);
 }
 
 void paintvert_reveal(bContext *C, Object *ob, const bool select)
@@ -1217,5 +1217,5 @@ void paintvert_reveal(bContext *C, Object *ob, const bool select)
   bke::mesh_hide_vert_flush(*mesh);
 
   paintvert_flush_flags(ob);
-  paintvert_tag_select_update(C, ob);
+  paintvert_tag_select_update(*C, ob);
 }

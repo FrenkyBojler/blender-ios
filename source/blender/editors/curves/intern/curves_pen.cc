@@ -320,9 +320,9 @@ static ClosestElement find_closest_element(const PenToolOperation &ptd, const fl
   return closest_element;
 }
 
-static void pen_status_indicators(bContext *C, wmOperator *op)
+static void pen_status_indicators(bContext &C, wmOperator *op)
 {
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
   status.opmodal(IFACE_("Snap Angle"), op->type, int(PenModal::SnapAngle));
   status.opmodal(IFACE_("Move Current Handle"), op->type, int(PenModal::MoveHandle));
   status.opmodal(IFACE_("Move Entire Point"), op->type, int(PenModal::MoveEntire));
@@ -1093,9 +1093,9 @@ static void invoke_curves(PenToolOperation &ptd, bContext *C, wmOperator *op, co
   ptd.point_added = point_added;
   ptd.point_removed = point_removed;
 
-  pen_status_indicators(C, op);
+  pen_status_indicators(*C, op);
   if (changed) {
-    ptd.update_view(C);
+    ptd.update_view(*C);
   }
 }
 
@@ -1266,9 +1266,9 @@ wmOperatorStatus PenToolOperation::modal(bContext *C, wmOperator *op, const wmEv
     }
   }
 
-  pen_status_indicators(C, op);
+  pen_status_indicators(*C, op);
   if (changed) {
-    this->update_view(C);
+    this->update_view(*C);
   }
 
   /* Still running... */
@@ -1340,11 +1340,11 @@ class CurvesPenToolOperation : public PenToolOperation {
     return true;
   }
 
-  void update_view(bContext *C) const
+  void update_view(bContext &C) const
   {
     for (Curves *curves_id : this->all_curves) {
       DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-      WM_event_add_notifier(*C, NC_GEOM | ND_DATA, curves_id);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, curves_id);
     }
     ED_region_tag_redraw(this->vc.region);
   }
@@ -1394,7 +1394,7 @@ static void curves_pen_exit(bContext *C, wmOperator *op)
 
   WM_cursor_modal_restore(ptd->vc.win);
 
-  ptd->update_view(C);
+  ptd->update_view(*C);
 
   MEM_delete(ptd);
   /* Clear pointer. */

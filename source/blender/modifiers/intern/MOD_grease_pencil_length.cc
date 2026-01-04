@@ -288,7 +288,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   layout.prop(ptr, "overshoot_factor", ui::ITEM_R_SLIDER, IFACE_("Used Length"), ICON_NONE);
   ui::PanelLayout random_panel_layout = layout.panel_prop_with_bool_header(
-      C, ptr, "open_random_panel", ptr, "use_random", IFACE_("Randomize"));
+      *C, ptr, "open_random_panel", ptr, "use_random", IFACE_("Randomize"));
   if (ui::Layout *random_layout = random_panel_layout.body) {
     ui::Layout &subcol = random_layout->column(false);
     subcol.use_property_split_set(true);
@@ -302,7 +302,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     subcol.prop(ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   ui::PanelLayout curvature_panel_layout = layout.panel_prop_with_bool_header(
-      C, ptr, "open_curvature_panel", ptr, "use_curvature", IFACE_("Curvature"));
+      *C, ptr, "open_curvature_panel", ptr, "use_curvature", IFACE_("Curvature"));
   if (ui::Layout *curvature_layout = curvature_panel_layout.body) {
     ui::Layout &subcol = curvature_layout->column(false);
     subcol.use_property_split_set(true);
@@ -315,7 +315,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (ui::Layout *influence_panel = layout.panel_prop(
-          C, ptr, "open_influence_panel", IFACE_("Influence")))
+          *C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);

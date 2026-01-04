@@ -293,7 +293,7 @@ bool jump_to_bone(bContext *C, Object *ob, const char *bone_name, const bool rev
 
   /* Switch to pose mode from object mode. */
   if (!ELEM(ob->mode, OB_MODE_EDIT, OB_MODE_POSE)) {
-    mode_set(C, OB_MODE_POSE);
+    mode_set(*C, OB_MODE_POSE);
   }
 
   if (ob->mode == OB_MODE_EDIT && arm->edbo != nullptr) {

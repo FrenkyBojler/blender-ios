@@ -659,7 +659,7 @@ static wmOperatorStatus preferences_extension_repo_remove_invoke(bContext &C,
                                             IFACE_("Remove Repository");
 
   return WM_operator_confirm_ex(
-      &C, &op, nullptr, message.c_str(), confirm_text, blender::ui::AlertIcon::Warning, true);
+      C, &op, nullptr, message.c_str(), confirm_text, blender::ui::AlertIcon::Warning, true);
 }
 
 static wmOperatorStatus preferences_extension_repo_remove_exec(bContext &C, wmOperator &op)
@@ -808,8 +808,7 @@ static wmOperatorStatus preferences_extension_url_drop_invoke(bContext &C,
     if (use_url) {
       RNA_string_set(&props_ptr, "url", url.c_str());
     }
-    WM_operator_name_call_ptr(
-        &C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, event);
+    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, event);
     WM_operator_properties_free(&props_ptr);
     retval = OPERATOR_FINISHED;
   }

@@ -2069,7 +2069,7 @@ static wmOperatorStatus modifier_apply_invoke(bContext &C, wmOperator &op, const
       }
       if (RNA_property_boolean_get(op.ptr, prop)) {
         return WM_operator_confirm_ex(
-            &C,
+            C,
             &op,
             IFACE_("Apply Modifier"),
             IFACE_("Make data single-user, apply modifier, and remove it from the list."),

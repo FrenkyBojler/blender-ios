@@ -1331,7 +1331,7 @@ static void hide_show_init_properties(bContext & /*C*/,
 
 static wmOperatorStatus hide_show_gesture_box_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(&C, &op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }
@@ -1353,7 +1353,7 @@ static wmOperatorStatus hide_show_gesture_lasso_exec(bContext &C, wmOperator &op
 
 static wmOperatorStatus hide_show_gesture_line_exec(bContext &C, wmOperator &op)
 {
-  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(&C, &op);
+  std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, &op);
   if (!gesture_data) {
     return OPERATOR_CANCELLED;
   }

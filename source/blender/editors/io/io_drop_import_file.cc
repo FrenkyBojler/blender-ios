@@ -123,7 +123,7 @@ static wmOperatorStatus wm_drop_import_file_exec(bContext &C, wmOperator &op)
   file_handler_import_operator_write_ptr(file_handlers[0], file_props, paths);
 
   WM_operator_name_call_ptr(
-      &C, ot, blender::wm::OpCallContext::InvokeDefault, &file_props, nullptr);
+      C, ot, blender::wm::OpCallContext::InvokeDefault, &file_props, nullptr);
   WM_operator_properties_free(&file_props);
   return OPERATOR_FINISHED;
 }

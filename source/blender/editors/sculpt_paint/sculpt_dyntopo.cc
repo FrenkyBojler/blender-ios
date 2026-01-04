@@ -274,7 +274,7 @@ static wmOperatorStatus sculpt_dynamic_topology_toggle_invoke(bContext &C,
 
     if (flag & ATTRIBUTES) {
       return WM_operator_confirm_ex(
-          &C,
+          C,
           &op,
           RPT_("Attribute Data Detected"),
           RPT_("Dyntopo will not preserve colors, UVs, or other attributes"),
@@ -285,7 +285,7 @@ static wmOperatorStatus sculpt_dynamic_topology_toggle_invoke(bContext &C,
 
     if (flag & MODIFIER) {
       return WM_operator_confirm_ex(
-          &C,
+          C,
           &op,
           RPT_("Generative Modifiers Detected!"),
           RPT_("Keeping the modifiers will increase polycount when returning to object mode"),

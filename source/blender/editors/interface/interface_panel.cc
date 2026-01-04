@@ -2230,7 +2230,7 @@ static void ui_handle_layout_panel_header(
   }
   const bool new_state = ui_layout_panel_toggle_open(C, header);
   ED_region_tag_redraw(CTX_wm_region(*C));
-  WM_tooltip_clear(C, CTX_wm_window(*C));
+  WM_tooltip_clear(*C, CTX_wm_window(*C));
 
   if (event_type == LEFTMOUSE) {
     panel_drag_collapse_handler_add(*C, !new_state);

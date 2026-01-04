@@ -27,17 +27,17 @@ static void report_duration(const char *job, const TimePoint &start_time, const 
   fmt::print("\n");
 }
 
-void PLY_export(bContext *C, const PLYExportParams &params)
+void PLY_export(bContext &C, const PLYExportParams &params)
 {
   TimePoint start_time = Clock::now();
-  blender::io::ply::exporter_main(*C, params);
+  blender::io::ply::exporter_main(C, params);
   report_duration("export", start_time, params.filepath);
 }
 
-void PLY_import(bContext *C, const PLYImportParams &params)
+void PLY_import(bContext &C, const PLYImportParams &params)
 {
   TimePoint start_time = Clock::now();
-  blender::io::ply::importer_main(*C, params);
+  blender::io::ply::importer_main(C, params);
   report_duration("import", start_time, params.filepath);
 }
 

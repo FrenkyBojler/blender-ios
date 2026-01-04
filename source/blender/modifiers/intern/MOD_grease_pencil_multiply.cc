@@ -249,7 +249,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   col.prop(ptr, "distance", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(ptr, "offset", ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
   ui::PanelLayout fade_panel_layout = layout.panel_prop_with_bool_header(
-      C, ptr, "open_fading_panel", ptr, "use_fade", IFACE_("Fade"));
+      *C, ptr, "open_fading_panel", ptr, "use_fade", IFACE_("Fade"));
   if (ui::Layout *fade_panel = fade_panel_layout.body) {
     ui::Layout &sub = fade_panel->column(false);
     sub.active_set(RNA_boolean_get(ptr, "use_fade"));
@@ -260,7 +260,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (ui::Layout *influence_panel = layout.panel_prop(
-          C, ptr, "open_influence_panel", IFACE_("Influence")))
+          *C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);

@@ -219,7 +219,7 @@ static void nla_track_region_draw(const bContext *C, ARegion *region)
 
   blender::ui::view2d_view_ortho(v2d);
 
-  draw_nla_track_list(C, &ac, region, anim_data);
+  draw_nla_track_list(*C, &ac, region, anim_data);
 
   /* track filter next to scrubbing area */
   ED_time_scrub_channel_search_draw(*C, region, ac.ads);

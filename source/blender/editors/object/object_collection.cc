@@ -548,7 +548,7 @@ static wmOperatorStatus collection_exporter_remove_invoke(bContext &C,
                                                           const wmEvent * /*event*/)
 {
   return WM_operator_confirm_ex(
-      &C, &op, IFACE_("Remove exporter?"), nullptr, IFACE_("Delete"), ui::AlertIcon::None, false);
+      C, &op, IFACE_("Remove exporter?"), nullptr, IFACE_("Delete"), ui::AlertIcon::None, false);
 }
 
 static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)
@@ -670,7 +670,7 @@ static wmOperatorStatus collection_exporter_export(bContext *C,
   RNA_string_set(&properties, "filepath", filepath);
   RNA_string_set(&properties, "collection", collection_name);
   wmOperatorStatus op_result = WM_operator_name_call_ptr(
-      C, ot, wm::OpCallContext::ExecDefault, &properties, nullptr);
+      *C, ot, wm::OpCallContext::ExecDefault, &properties, nullptr);
 
   /* Free the "last used" properties that were just set from the collection export and restore the
    * original "last used" properties. */

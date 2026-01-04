@@ -81,7 +81,7 @@ struct tGPspoint {
  * \note This is the original (#G.main) copy of the data-block, stored in files.
  * Do not use for reading evaluated copies of GP Objects data.
  */
-bGPdata *ED_annotation_data_get_active(const bContext *C);
+bGPdata *ED_annotation_data_get_active(const bContext &C);
 /**
  * Get pointer to active Grease Pencil data-block,
  * and an RNA-pointer to trace back to whatever owns it.

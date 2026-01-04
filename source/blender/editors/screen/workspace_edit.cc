@@ -139,10 +139,10 @@ static void workspace_scene_pinning_update(WorkSpace *workspace_new,
  */
 static void workspace_change_update(WorkSpace *workspace_new,
                                     WorkSpace *workspace_old,
-                                    bContext *C,
+                                    bContext &C,
                                     wmWindowManager *wm)
 {
-  workspace_scene_pinning_update(workspace_new, workspace_old, *C);
+  workspace_scene_pinning_update(workspace_new, workspace_old, C);
   /* needs to be done before changing mode! (to ensure right context) */
   UNUSED_VARS(wm);
 #if 0
@@ -208,7 +208,7 @@ bool ED_workspace_change(WorkSpace *workspace_new, bContext &C, wmWindowManager 
   /* update screen *after* changing workspace - which also causes the
    * actual screen change and updates context (including CTX_wm_workspace) */
   screen_change_update(C, win, screen_new);
-  workspace_change_update(workspace_new, workspace_old, &C, wm);
+  workspace_change_update(workspace_new, workspace_old, C, wm);
 
   BLI_assert(CTX_wm_workspace(C) == workspace_new);
 
@@ -231,7 +231,7 @@ bool ED_workspace_change(WorkSpace *workspace_new, bContext &C, wmWindowManager 
     }
 
     if (object) {
-      blender::ed::object::mode_set(&C, eObjectMode(workspace_new->object_mode));
+      blender::ed::object::mode_set(C, eObjectMode(workspace_new->object_mode));
     }
   }
 
@@ -299,7 +299,7 @@ void ED_workspace_scene_data_sync(WorkSpaceInstanceHook *hook, Scene *scene)
 
 static WorkSpace *workspace_context_get(bContext *C)
 {
-  ID *id = blender::ui::context_active_but_get_tab_ID(C);
+  ID *id = blender::ui::context_active_but_get_tab_ID(*C);
   if (id && GS(id->name) == ID_WS) {
     return (WorkSpace *)id;
   }

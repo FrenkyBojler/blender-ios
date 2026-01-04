@@ -39,7 +39,7 @@ void build_asset_view(ui::Layout &layout,
 void catalog_selector_panel_register(ARegionType *region_type);
 void popover_panel_register(ARegionType *region_type);
 
-AssetShelf *active_shelf_from_context(const bContext *C);
+AssetShelf *active_shelf_from_context(const bContext &C);
 
 void send_redraw_notifier(const bContext &C);
 

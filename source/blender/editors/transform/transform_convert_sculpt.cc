@@ -131,7 +131,7 @@ static void special_aftertrans_update__sculpt(bContext *C, TransInfo *t)
   BKE_view_layer_synced_ensure(t->scene, t->view_layer);
   Object *ob = BKE_view_layer_active_object_get(t->view_layer);
   BLI_assert(!(t->options & CTX_PAINT_CURVE));
-  sculpt_paint::end_transform(C, *ob);
+  sculpt_paint::end_transform(*C, *ob);
 }
 
 /** \} */

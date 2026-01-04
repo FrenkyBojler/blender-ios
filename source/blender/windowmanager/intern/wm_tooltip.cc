@@ -27,9 +27,9 @@ double WM_tooltip_time_closed()
 }
 
 void WM_tooltip_immediate_init(
-    bContext *C, wmWindow *win, ScrArea *area, ARegion *region, wmTooltipInitFn init)
+    bContext &C, wmWindow *win, ScrArea *area, ARegion *region, wmTooltipInitFn init)
 {
-  WM_tooltip_timer_clear(*C, win);
+  WM_tooltip_timer_clear(C, win);
 
   bScreen *screen = WM_window_get_active_screen(win);
   if (screen->tool_tip == nullptr) {
@@ -38,7 +38,7 @@ void WM_tooltip_immediate_init(
   screen->tool_tip->area_from = area;
   screen->tool_tip->region_from = region;
   screen->tool_tip->init = init;
-  WM_tooltip_init(*C, win);
+  WM_tooltip_init(C, win);
 }
 
 void WM_tooltip_timer_init_ex(
@@ -62,9 +62,9 @@ void WM_tooltip_timer_init_ex(
 }
 
 void WM_tooltip_timer_init(
-    bContext *C, wmWindow *win, ScrArea *area, ARegion *region, wmTooltipInitFn init)
+    bContext &C, wmWindow *win, ScrArea *area, ARegion *region, wmTooltipInitFn init)
 {
-  WM_tooltip_timer_init_ex(*C, win, area, region, init, UI_TOOLTIP_DELAY);
+  WM_tooltip_timer_init_ex(C, win, area, region, init, UI_TOOLTIP_DELAY);
 }
 
 void WM_tooltip_timer_clear(bContext &C, wmWindow *win)
@@ -79,9 +79,9 @@ void WM_tooltip_timer_clear(bContext &C, wmWindow *win)
   }
 }
 
-void WM_tooltip_clear(bContext *C, wmWindow *win)
+void WM_tooltip_clear(bContext &C, wmWindow *win)
 {
-  WM_tooltip_timer_clear(*C, win);
+  WM_tooltip_timer_clear(C, win);
   bScreen *screen = WM_window_get_active_screen(win);
   if (screen->tool_tip != nullptr) {
     if (screen->tool_tip->region) {
@@ -99,7 +99,7 @@ void WM_tooltip_init(bContext &C, wmWindow *win)
   WM_tooltip_timer_clear(C, win);
   bScreen *screen = WM_window_get_active_screen(win);
   if (screen->tool_tip->region) {
-    blender::ui::tooltip_free(&C, screen, screen->tool_tip->region);
+    blender::ui::tooltip_free(C, screen, screen->tool_tip->region);
     screen->tool_tip->region = nullptr;
   }
   const int pass_prev = screen->tool_tip->pass;
@@ -126,19 +126,19 @@ void WM_tooltip_init(bContext &C, wmWindow *win)
     screen->tool_tip->timer = WM_event_timer_add(wm, win, TIMER, pass_delay);
   }
   if (screen->tool_tip->region == nullptr) {
-    WM_tooltip_clear(&C, win);
+    WM_tooltip_clear(C, win);
   }
 }
 
-void WM_tooltip_refresh(bContext *C, wmWindow *win)
+void WM_tooltip_refresh(bContext &C, wmWindow *win)
 {
-  WM_tooltip_timer_clear(*C, win);
+  WM_tooltip_timer_clear(C, win);
   bScreen *screen = WM_window_get_active_screen(win);
   if (screen->tool_tip != nullptr) {
     if (screen->tool_tip->region) {
       blender::ui::tooltip_free(C, screen, screen->tool_tip->region);
       screen->tool_tip->region = nullptr;
     }
-    WM_tooltip_init(*C, win);
+    WM_tooltip_init(C, win);
   }
 }

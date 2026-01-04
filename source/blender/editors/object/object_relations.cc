@@ -2976,7 +2976,7 @@ void OBJECT_OT_make_single_user(wmOperatorType *ot)
 std::string drop_named_material_tooltip(bContext *C, const char *name, const int mval[2])
 {
   int mat_slot = 0;
-  Object *ob = ED_view3d_give_material_slot_under_cursor(C, mval, &mat_slot);
+  Object *ob = ED_view3d_give_material_slot_under_cursor(*C, mval, &mat_slot);
   if (ob == nullptr) {
     return {};
   }
@@ -3001,7 +3001,7 @@ static wmOperatorStatus drop_named_material_invoke(bContext &C,
 {
   Main *bmain = CTX_data_main(C);
   int mat_slot = 0;
-  Object *ob = ED_view3d_give_material_slot_under_cursor(&C, event->mval, &mat_slot);
+  Object *ob = ED_view3d_give_material_slot_under_cursor(C, event->mval, &mat_slot);
   mat_slot = max_ii(mat_slot, 1);
 
   Material *ma = (Material *)WM_operator_properties_id_lookup_from_name_or_session_uid(
@@ -3180,7 +3180,7 @@ static wmOperatorStatus object_unlink_data_exec(bContext &C, wmOperator &op)
   ID *id;
   PropertyPointerRNA pprop;
 
-  ui::context_active_but_prop_get_templateID(&C, &pprop.ptr, &pprop.prop);
+  ui::context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
 
   if (pprop.prop == nullptr) {
     BKE_report(op.reports, RPT_ERROR, "Incorrect context for running object data unlink");

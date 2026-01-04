@@ -1074,11 +1074,11 @@ static void flyApply_ndof(bContext *C, FlyInfo *fly, bool is_confirm)
 /** \name Fly Operator
  * \{ */
 
-static void fly_draw_status(bContext *C, wmOperator *op)
+static void fly_draw_status(bContext &C, wmOperator *op)
 {
   FlyInfo *fly = static_cast<FlyInfo *>(op->customdata);
 
-  WorkspaceStatus status(*C);
+  WorkspaceStatus status(C);
 
   status.opmodal(IFACE_("Confirm"), op->type, FLY_MODAL_CONFIRM);
   status.opmodal(IFACE_("Cancel"), op->type, FLY_MODAL_CANCEL);
@@ -1127,7 +1127,7 @@ static wmOperatorStatus fly_invoke(bContext &C, wmOperator &op, const wmEvent *e
 
   flyEvent(fly, event);
 
-  fly_draw_status(&C, &op);
+  fly_draw_status(C, &op);
 
   WM_event_add_modal_handler(C, &op);
 
@@ -1155,7 +1155,7 @@ static wmOperatorStatus fly_modal(bContext &C, wmOperator &op, const wmEvent *ev
 
   flyEvent(fly, event);
 
-  fly_draw_status(&C, &op);
+  fly_draw_status(C, &op);
 
 #ifdef WITH_INPUT_NDOF
   if (fly->ndof) { /* 3D mouse overrules [2D mouse + timer]. */

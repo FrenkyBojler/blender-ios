@@ -830,13 +830,13 @@ static eContextResult screen_ctx_active_operator(const bContext *C, bContextData
   }
   return CTX_RESULT_NO_DATA;
 }
-static eContextResult screen_ctx_sel_actions_impl(const bContext *C,
+static eContextResult screen_ctx_sel_actions_impl(const bContext &C,
                                                   bContextDataResult *result,
                                                   bool active_only,
                                                   bool editable)
 {
   bAnimContext ac;
-  if (!ANIM_animdata_get_context(*C, &ac) || !ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
+  if (!ANIM_animdata_get_context(C, &ac) || !ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
     return CTX_RESULT_NO_DATA;
   }
 
@@ -924,24 +924,24 @@ static eContextResult screen_ctx_sel_actions_impl(const bContext *C,
 }
 static eContextResult screen_ctx_active_action(const bContext *C, bContextDataResult *result)
 {
-  return screen_ctx_sel_actions_impl(C, result, true, false);
+  return screen_ctx_sel_actions_impl(*C, result, true, false);
 }
 static eContextResult screen_ctx_selected_visible_actions(const bContext *C,
                                                           bContextDataResult *result)
 {
-  return screen_ctx_sel_actions_impl(C, result, false, false);
+  return screen_ctx_sel_actions_impl(*C, result, false, false);
 }
 static eContextResult screen_ctx_selected_editable_actions(const bContext *C,
                                                            bContextDataResult *result)
 {
-  return screen_ctx_sel_actions_impl(C, result, false, true);
+  return screen_ctx_sel_actions_impl(*C, result, false, true);
 }
-static eContextResult screen_ctx_sel_edit_fcurves_(const bContext *C,
+static eContextResult screen_ctx_sel_edit_fcurves_(const bContext &C,
                                                    bContextDataResult *result,
                                                    const int extra_filter)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(*C, &ac) && ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
+  if (ANIM_animdata_get_context(C, &ac) && ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
     ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
     int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_NODUPLIS) |
@@ -968,21 +968,21 @@ static eContextResult screen_ctx_sel_edit_fcurves_(const bContext *C,
 }
 static eContextResult screen_ctx_editable_fcurves(const bContext *C, bContextDataResult *result)
 {
-  return screen_ctx_sel_edit_fcurves_(C, result, ANIMFILTER_FOREDIT);
+  return screen_ctx_sel_edit_fcurves_(*C, result, ANIMFILTER_FOREDIT);
 }
 static eContextResult screen_ctx_visible_fcurves(const bContext *C, bContextDataResult *result)
 {
-  return screen_ctx_sel_edit_fcurves_(C, result, 0);
+  return screen_ctx_sel_edit_fcurves_(*C, result, 0);
 }
 static eContextResult screen_ctx_selected_editable_fcurves(const bContext *C,
                                                            bContextDataResult *result)
 {
-  return screen_ctx_sel_edit_fcurves_(C, result, ANIMFILTER_SEL | ANIMFILTER_FOREDIT);
+  return screen_ctx_sel_edit_fcurves_(*C, result, ANIMFILTER_SEL | ANIMFILTER_FOREDIT);
 }
 static eContextResult screen_ctx_selected_visible_fcurves(const bContext *C,
                                                           bContextDataResult *result)
 {
-  return screen_ctx_sel_edit_fcurves_(C, result, ANIMFILTER_SEL);
+  return screen_ctx_sel_edit_fcurves_(*C, result, ANIMFILTER_SEL);
 }
 static eContextResult screen_ctx_active_editable_fcurve(const bContext *C,
                                                         bContextDataResult *result)

@@ -57,7 +57,7 @@
 #include "buttons_intern.hh" /* own include */
 
 static ScrArea *find_area_properties(const bContext &C);
-static SpaceProperties *find_space_properties(const bContext *C);
+static SpaceProperties *find_space_properties(const bContext &C);
 
 /************************* Texture User **************************/
 
@@ -431,7 +431,7 @@ void buttons_texture_context_compute(const bContext *C, SpaceProperties *sbuts)
 static void template_texture_select(bContext *C, void *user_p, void * /*arg*/)
 {
   /* callback when selecting a texture user in the menu */
-  SpaceProperties *sbuts = find_space_properties(C);
+  SpaceProperties *sbuts = find_space_properties(*C);
   ButsContextTexture *ct = (sbuts) ? static_cast<ButsContextTexture *>(sbuts->texuser) : nullptr;
   ButsTextureUser *user = (ButsTextureUser *)user_p;
   PointerRNA texptr;
@@ -608,9 +608,9 @@ static ScrArea *find_area_properties(const bContext &C)
   return nullptr;
 }
 
-static SpaceProperties *find_space_properties(const bContext *C)
+static SpaceProperties *find_space_properties(const bContext &C)
 {
-  ScrArea *area = find_area_properties(*C);
+  ScrArea *area = find_area_properties(C);
   if (area != nullptr) {
     return static_cast<SpaceProperties *>(area->spacedata.first);
   }
@@ -673,7 +673,7 @@ void uiTemplateTextureShow(blender::ui::Layout *layout,
     return;
   }
 
-  SpaceProperties *sbuts = find_space_properties(C);
+  SpaceProperties *sbuts = find_space_properties(*C);
   ButsContextTexture *ct = (sbuts) ? static_cast<ButsContextTexture *>(sbuts->texuser) : nullptr;
 
   /* find corresponding texture user */

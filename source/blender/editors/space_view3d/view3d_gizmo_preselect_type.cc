@@ -345,11 +345,11 @@ static void gizmo_preselect_edgering_draw(const bContext *C, wmGizmo *gz)
   }
 }
 
-static int loopcut_tool_preview_cuts_from_toolsettings(const bContext *C)
+static int loopcut_tool_preview_cuts_from_toolsettings(const bContext &C)
 {
   const int default_cuts = 1;
 
-  bToolRef *tref = WM_toolsystem_ref_from_context(*C);
+  bToolRef *tref = WM_toolsystem_ref_from_context(C);
   if (tref == nullptr) {
     return default_cuts;
   }
@@ -441,7 +441,7 @@ static int gizmo_preselect_edgering_test_select(bContext *C, wmGizmo *gz, const 
       Array<float3> storage;
       const Span<float3> vert_positions = BKE_editmesh_vert_coords_when_deformed(
           vc.depsgraph, em_eval, scene_eval, ob_eval, storage);
-      const int preview_cuts = loopcut_tool_preview_cuts_from_toolsettings(C);
+      const int preview_cuts = loopcut_tool_preview_cuts_from_toolsettings(*C);
       EDBM_preselect_edgering_update_from_edge(
           gz_ring->psel, bm, best.eed, preview_cuts, vert_positions);
     }

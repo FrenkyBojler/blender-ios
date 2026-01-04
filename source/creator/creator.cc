@@ -623,7 +623,7 @@ int main(int argc,
     /* Shows the splash as needed. */
     WM_init_splash_on_startup(C);
 
-    WM_main(C);
+    WM_main(*C);
   }
   /* Neither #WM_exit, #WM_main return, this quiets CLANG's `unreachable-code-return` warning. */
   BLI_assert_unreachable();

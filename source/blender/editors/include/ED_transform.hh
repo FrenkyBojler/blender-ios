@@ -77,7 +77,7 @@ enum eTfmMode {
  * returns 1 if successful, 0 otherwise (usually means there's no selection)
  * (if false is returns, `cent3d` is unmodified).
  */
-bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], float cent2d[2]);
+bool calculateTransformCenter(bContext &C, int centerMode, float cent3d[3], float cent2d[2]);
 
 /* UNUSED */
 // int BIF_snappingSupported(Object *obedit);

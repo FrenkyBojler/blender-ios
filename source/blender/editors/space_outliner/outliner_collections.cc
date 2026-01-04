@@ -842,7 +842,7 @@ static wmOperatorStatus collection_instance_exec(bContext &C, wmOperator & /*op*
   /* Effectively instance the collections. */
   for (Collection *collection : data.collections_to_edit) {
     Object *ob = object::add_type(
-        &C, OB_EMPTY, collection->id.name + 2, scene->cursor.location, nullptr, false, 0);
+        C, OB_EMPTY, collection->id.name + 2, scene->cursor.location, nullptr, false, 0);
     ob->instance_collection = collection;
     ob->transflag |= OB_DUPLICOLLECTION;
     id_us_plus(&collection->id);

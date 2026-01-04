@@ -77,7 +77,7 @@ struct Popover {
  * \param region: Optional, the region the block will be placed in. Must be set if the popover is
  *                supposed to support refreshing.
  */
-static void ui_popover_create_block(bContext *C,
+static void ui_popover_create_block(bContext &C,
                                     ARegion *region,
                                     Popover *pup,
                                     wm::OpCallContext opcontext)
@@ -86,7 +86,7 @@ static void ui_popover_create_block(bContext *C,
 
   const uiStyle *style = style_get_dpi();
 
-  pup->block = block_begin(*C, region, __func__, EmbossType::Emboss);
+  pup->block = block_begin(C, region, __func__, EmbossType::Emboss);
 
   block_flag_enable(pup->block, BLOCK_KEEP_OPEN | BLOCK_POPOVER);
 #ifdef USE_UI_POPOVER_ONCE
@@ -113,7 +113,7 @@ static Block *block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *ar
 
   /* Create UI block and layout now if it wasn't done between begin/end. */
   if (!pup->layout) {
-    ui_popover_create_block(C, handle->region, pup, wm::OpCallContext::InvokeRegionWin);
+    ui_popover_create_block(*C, handle->region, pup, wm::OpCallContext::InvokeRegionWin);
 
     if (pup->popover_func) {
       pup->block->handle = handle;
@@ -370,7 +370,7 @@ Popover *popover_begin(bContext *C, int ui_menu_width, bool from_active_button)
   pup->butregion = butregion;
 
   /* Operator context default same as menus, change if needed. */
-  ui_popover_create_block(C, nullptr, pup, wm::OpCallContext::ExecRegionWin);
+  ui_popover_create_block(*C, nullptr, pup, wm::OpCallContext::ExecRegionWin);
 
   /* Create in advance so we can let buttons point to #PopupBlockHandle::retvalue
    * (and other return values) already. */

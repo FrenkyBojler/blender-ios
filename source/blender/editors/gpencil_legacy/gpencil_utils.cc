@@ -158,9 +158,9 @@ bGPdata *ED_annotation_data_get_active_direct(ID *screen_id, ScrArea *area, Scen
   return (gpd_ptr) ? *(gpd_ptr) : nullptr;
 }
 
-bGPdata *ED_annotation_data_get_active(const bContext *C)
+bGPdata *ED_annotation_data_get_active(const bContext &C)
 {
-  bGPdata **gpd_ptr = ED_annotation_data_get_pointers(*C, nullptr);
+  bGPdata **gpd_ptr = ED_annotation_data_get_pointers(C, nullptr);
   return (gpd_ptr) ? *(gpd_ptr) : nullptr;
 }
 

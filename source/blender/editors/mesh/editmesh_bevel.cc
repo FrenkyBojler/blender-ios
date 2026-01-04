@@ -532,7 +532,7 @@ static wmOperatorStatus edbm_bevel_invoke(bContext &C, wmOperator &op, const wmE
   /* initialize mouse values */
   float center_3d[3];
   if (!blender::ed::transform::calculateTransformCenter(
-          &C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter))
+          C, V3D_AROUND_CENTER_MEDIAN, center_3d, opdata->mcenter))
   {
     /* in this case the tool will likely do nothing,
      * ideally this will never happen and should be checked for above */

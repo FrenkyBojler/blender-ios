@@ -90,7 +90,7 @@ void ED_node_set_active(
  *
  * \note only call from spaces `refresh` callbacks, not direct! - use with care.
  */
-void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_owner);
+void ED_node_composite_job(const bContext &C, bNodeTree *nodetree, Scene *scene_owner);
 
 /* `node_ops.cc` */
 
