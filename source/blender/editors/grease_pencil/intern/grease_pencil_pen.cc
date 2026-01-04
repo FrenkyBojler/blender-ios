@@ -217,7 +217,7 @@ class GreasePencilPenToolOperation : public curves::pen_tool::PenToolOperation {
 
     /* Update the view. */
     if (inserted_keyframe) {
-      WM_event_add_notifier(*C, NC_GPENCIL | NA_EDITED, nullptr);
+      WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
     }
 
     this->placement = placement;

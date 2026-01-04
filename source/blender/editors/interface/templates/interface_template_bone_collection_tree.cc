@@ -192,9 +192,9 @@ class BoneCollectionDropTarget : public TreeViewItemDropTarget {
     }
 
     ANIM_armature_bonecoll_active_index_set(arm, new_bcoll_index);
-    WM_event_add_notifier(*C, NC_OBJECT | ND_BONE_COLLECTION, &arm->id);
+    WM_event_add_notifier(C, NC_OBJECT | ND_BONE_COLLECTION, &arm->id);
 
-    ED_undo_push(*C, "Reorder Armature Bone Collections");
+    ED_undo_push(C, "Reorder Armature Bone Collections");
     return true;
   }
 };
@@ -347,7 +347,7 @@ class BoneCollectionItem : public AbstractTreeViewItem {
   void delete_item(bContext &C) override
   {
     ANIM_armature_bonecoll_remove(&armature_, &bone_collection_);
-    ED_undo_push(*C, "Delete Bone Collection");
+    ED_undo_push(C, "Delete Bone Collection");
   }
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
   {

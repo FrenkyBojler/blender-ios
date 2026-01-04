@@ -363,8 +363,7 @@ void WM_window_set_active_scene(Main *bmain, bContext &C, wmWindow *win, Scene *
     ATTR_NONNULL();
 WorkSpace *WM_window_get_active_workspace(const wmWindow *win)
     ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
-void WM_window_set_active_workspace(bContext &C, wmWindow *win, WorkSpace *workspace)
-    ATTR_NONNULL(1);
+void WM_window_set_active_workspace(bContext &C, wmWindow *win, WorkSpace *workspace);
 WorkSpaceLayout *WM_window_get_active_layout(const wmWindow *win)
     ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
 void WM_window_set_active_layout(wmWindow *win, WorkSpace *workspace, WorkSpaceLayout *layout)
@@ -417,7 +416,7 @@ wmWindow *WM_window_open(bContext &C,
                          bool temp,
                          eWindowAlignment alignment,
                          void (*area_setup_fn)(bScreen *screen, ScrArea *area, void *user_data),
-                         void *area_setup_user_data) ATTR_NONNULL(1, 3);
+                         void *area_setup_user_data) ATTR_NONNULL(3);
 
 wmWindow *WM_window_open_temp(bContext &C, const char *title, int space_type, bool dialog);
 
@@ -751,7 +750,7 @@ wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindowManager *wm,
                                                  ScrArea *area,
                                                  ARegion *region,
                                                  wmOperator *op) ATTR_NONNULL(1, 2, 5);
-wmEventHandler_Op *WM_event_add_modal_handler(bContext &C, wmOperator *op) ATTR_NONNULL(1, 2);
+wmEventHandler_Op *WM_event_add_modal_handler(bContext &C, wmOperator *op) ATTR_NONNULL(2);
 void WM_event_remove_modal_handler(ListBaseT<wmEventHandler> *handlers,
                                    const wmOperator *op,
                                    bool postpone) ATTR_NONNULL(1, 2);

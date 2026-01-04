@@ -552,7 +552,7 @@ bool NodePanelDropTarget::on_drop(bContext &C, const DragInfo &drag_info) const
 
   /* General update */
   BKE_main_ensure_invariants(*CTX_data_main(C), nodetree.id);
-  ED_undo_push(*C, "Insert node group item");
+  ED_undo_push(C, "Insert node group item");
   return true;
 }
 }  // namespace

@@ -161,10 +161,10 @@ class LayerNodeDropTarget : public TreeViewItemDropTarget {
           CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
     }
 
-    ED_undo_push(*C, "Reorder Layers");
+    ED_undo_push(C, "Reorder Layers");
 
     DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(*C, NC_GPENCIL | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
     return true;
   }
 };
@@ -289,8 +289,8 @@ class LayerViewItem : public AbstractTreeViewItem {
   {
     grease_pencil_.remove_layer(layer_);
     DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(*C, NC_OBJECT | ND_DRAW, nullptr);
-    ED_undo_push(*C, "Delete Grease Pencil Layer");
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+    ED_undo_push(C, "Delete Grease Pencil Layer");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
@@ -458,8 +458,8 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
   {
     grease_pencil_.remove_group(group_);
     DEG_id_tag_update(&grease_pencil_.id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(*C, NC_OBJECT | ND_DRAW, nullptr);
-    ED_undo_push(*C, "Delete Grease Pencil Group");
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
+    ED_undo_push(C, "Delete Grease Pencil Group");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
