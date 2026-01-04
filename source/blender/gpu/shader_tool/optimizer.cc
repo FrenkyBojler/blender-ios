@@ -124,21 +124,29 @@ static void first_pass(parser::IntermediateForm &parser,
 static void prune_functions(parser::IntermediateForm &parser,
                             unordered_map<string_view, Token> &functions)
 {
-  for (auto [_, value] : functions) {
-    if (value.is_valid() && value.str() != "main") {
-      Token type = value.prev();
-      Token end_of_args = value.next().scope().back();
+  int count = 0, worked = 0, prototypes = 0;
+  for (auto [_, name_tok] : functions) {
+    if (name_tok.is_valid() && name_tok.str() != "main") {
+      Token type = name_tok.prev();
+      Token end_of_args = name_tok.next().scope().back();
       if (end_of_args.next() == '{') {
         /* Full definition. */
         Token end_of_body = end_of_args.next().scope().back();
-        parser.erase(type, end_of_body);
+        count++;
+        // parser.erase(type, end_of_body);
+        worked += parser.replace_try(type, end_of_body, "");
       }
       else {
         /* Prototype. */
+        count++;
+        prototypes++;
         parser.erase(type, end_of_args);
+        // worked += parser.replace_try(type, end_of_args, "");
       }
     }
   }
+  // std::cout << "Removed functions " << worked << " / " << functions.size() << std::endl;
+  // std::cout << "Removed prototypes " << prototypes << " / " << functions.size() << std::endl;
 }
 
 int main(int argc, char **argv)
@@ -218,12 +226,11 @@ int main(int argc, char **argv)
     }
   }
 
+  float percent = 100 - (result.size() * 100.0f / test.size());
   std::cout << "Input Size: " << (test.size()) / 1000000.0f << " MB" << std::endl;
-  std::cout << "Output Size: " << (result.size()) / 1000000.0f << " MB" << std::endl;
-  std::cout << "Percentage removed: " << 100 - (result.size() * 100.0f / test.size()) << " %"
+  std::cout << "Output Size: " << (result.size()) / 1000000.0f << " MB (-" << percent << "%)"
             << std::endl;
-  std::cout << "Processed Size: " << (test.size() * iter) / 1000000.0f << " MB" << std::endl;
-  std::cout << "Time: " << time.count() / 1000.0f << " ms" << std::endl;
+  std::cout << "Time: " << time.count() / (1000.0f * iter) << " ms" << std::endl;
   std::cout << "Throughput: " << ((test.size() * iter) / float(time.count())) << " MB/s"
             << std::endl;
 
