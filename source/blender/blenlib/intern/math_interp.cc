@@ -625,12 +625,12 @@ static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const 
 template<>
 float4 _sample_rect<Sampler::Nearest>(const SamplerSource &source, const float2 &uv, const float2 &)
 {
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  interpolate_nearest_wrapmode_fl(source.buffer, pixel_value,
-                                  source.width, source.height, source.components,
-                                  uv.x, uv.y,
-                                  source.wrap_x, source.wrap_y);
-  return pixel_value;
+  const int x = wrap_coord(uv.x, source.width, source.wrap_x);
+  const int y = wrap_coord(uv.y, source.height, source.wrap_y);
+  if (x < 0 || y < 0) {
+    return float4(0.0f);
+  }
+  return *(float4*)(source.buffer + (int64_t(source.width) * y + x) * 4);
 }
 
 template<>
