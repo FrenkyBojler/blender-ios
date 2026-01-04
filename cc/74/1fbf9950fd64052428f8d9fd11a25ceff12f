@@ -1,0 +1,1 @@
+Referenced by issue #152377, FBX (new C++ ufbx importer): importing FBX files with *LODs* creates duplicate faces and crashes Blender (regression vs 5.0)
