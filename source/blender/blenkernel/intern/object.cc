@@ -515,10 +515,10 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
     }
   }
 
-  LISTBASE_FOREACH (Lod *, lod, &object->lod_items) {
-    if (lod->target) {
+  for (Lod &lod : object->lod_items) {
+    if (lod.target) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(
-          data, lod->target, IDWALK_CB_USER);
+          data, lod.target, IDWALK_CB_USER);
     }
   }
 }

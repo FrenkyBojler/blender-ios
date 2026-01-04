@@ -103,8 +103,8 @@ int BKE_object_lod_index_of(Object *ob, const Lod *lod_find)
   }
 
   int i = 0;
-  LISTBASE_FOREACH (Lod *, lod, &ob->lod_items) {
-    if (lod == lod_find) {
+  for (Lod &lod : ob->lod_items) {
+    if (&lod == lod_find) {
       return i;
     }
     i++;

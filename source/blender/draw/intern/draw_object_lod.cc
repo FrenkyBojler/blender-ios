@@ -82,14 +82,13 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
   int selected_lod_index = -1;
 
   int lod_index = 0;
-  LISTBASE_FOREACH (Lod *, lod, &base_ob->lod_items) {
-    if (!lod->target) {
+  for (Lod &lod : base_ob->lod_items) {
+    if (!lod.target) {
       lod_index++;
       continue;
     }
 
-    const ID *lod_eval_id =
-        DEG_get_evaluated_id(draw_ctx.depsgraph, &lod->target->id);
+    const ID *lod_eval_id = DEG_get_evaluated_id(draw_ctx.depsgraph, &lod.target->id);
     if (!lod_eval_id) {
       lod_index++;
       continue;
@@ -98,10 +97,10 @@ Object *DRW_object_lod_select(const ObjectRef &ref,
     Object *lod_eval = (Object *)lod_eval_id;
 
     // TODO(Tri): Make the band adjustable (Adjustable hysteresis)
-    const float hysteresis = lod->distance * 0.1f;
-    const float switch_down_dist = lod->distance - hysteresis;
+    const float hysteresis = lod.distance * 0.1f;
+    const float switch_down_dist = lod.distance - hysteresis;
 
-    if (dist >= lod->distance) {
+    if (dist >= lod.distance) {
       selected_eval = lod_eval;
       selected_lod_index = lod_index;
     }
