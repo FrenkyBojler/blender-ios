@@ -518,10 +518,10 @@ static void ui_colorpicker_update_type_space_cb(bContext * /*C*/, void *picker_b
  * \param r_area_tooltip Tooltip describing the color area (e.g., "Hue/Saturation").
  * \param r_slider_tooltip Tooltip describing the slider (e.g., "Lightness" or "Value").
  */
-static void ui_colorpicker_tooltips(const char **r_area_tooltip, const char **r_slider_tooltip)
+static void ui_colorpicker_tooltips(ColorPicker *cpicker,
+                                    const char **r_area_tooltip,
+                                    const char **r_slider_tooltip)
 {
-  static thread_local char buf_area_tooltip[128];
-
   const char *name_hue = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Hue");
   const char *name_sat = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Saturation");
   const char *name_val = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Value");
@@ -564,9 +564,9 @@ static void ui_colorpicker_tooltips(const char **r_area_tooltip, const char **r_
       return;
   }
 
-  SNPRINTF_UTF8(buf_area_tooltip, "%s/%s", axis_x, axis_y);
+  SNPRINTF_UTF8(cpicker->tooltip_area, "%s/%s", axis_x, axis_y);
 
-  *r_area_tooltip = buf_area_tooltip;
+  *r_area_tooltip = cpicker->tooltip_area;
   *r_slider_tooltip = slider;
 }
 
@@ -580,7 +580,7 @@ static void ui_colorpicker_circle(Block *block,
   const char *circle_tooltip;
   const char *slider_tooltip;
 
-  ui_colorpicker_tooltips(&circle_tooltip, &slider_tooltip);
+  ui_colorpicker_tooltips(cpicker, &circle_tooltip, &slider_tooltip);
 
   /* Color circle (Hue/Saturation) */
   bt = uiDefButR_prop(block,
@@ -625,7 +625,7 @@ static void ui_colorpicker_square(
   const char *square_tooltip;
   const char *slider_tooltip;
 
-  ui_colorpicker_tooltips(&square_tooltip, &slider_tooltip);
+  ui_colorpicker_tooltips(cpicker, &square_tooltip, &slider_tooltip);
 
   BLI_assert(type <= GRAD_HS);
 
