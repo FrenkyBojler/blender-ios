@@ -19,7 +19,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_defaults.h"
 #include "DNA_scene_types.h" /* min/max frames */
 #include "DNA_userdef_types.h"
 
@@ -170,7 +169,7 @@ static void open_init(bContext *C, wmOperator *op)
   PropertyPointerRNA *pprop;
 
   op->customdata = pprop = MEM_new<PropertyPointerRNA>("OpenPropertyPointerRNA");
-  UI_context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &pprop->ptr, &pprop->prop);
 }
 
 static void open_cancel(bContext * /*C*/, wmOperator *op)
@@ -1107,7 +1106,8 @@ static int frame_from_event(bContext *C, const wmEvent *event)
   else {
     float viewx, viewy;
 
-    UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
+    blender::ui::view2d_region_to_view(
+        &region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
 
     framenr = round_fl_to_int(viewx);
   }
@@ -1323,7 +1323,7 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
 
   std::lock_guard lock(queue->mutex);
   if (!*queue->stop && queue->cfra <= queue->efra) {
-    MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+    MovieClipUser user = {};
     char filepath[FILE_MAX];
     int file;
 

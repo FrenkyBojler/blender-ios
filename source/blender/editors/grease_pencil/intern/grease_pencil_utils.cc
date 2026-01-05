@@ -1768,12 +1768,23 @@ GreasePencil *from_context(bContext &C)
   return grease_pencil;
 }
 
-void add_single_curve(bke::CurvesGeometry &curves, const bool at_end)
+void add_single_curve(bke::greasepencil::Drawing &drawing, const bool at_end)
 {
+  bke::CurvesGeometry &curves = drawing.strokes_for_write();
   if (at_end) {
     const int num_old_points = curves.points_num();
     curves.resize(curves.points_num() + 1, curves.curves_num() + 1);
     curves.offsets_for_write().last(1) = num_old_points;
+
+    /* Note: The triangle cache doesn't need to be resized here because the new curve has a single
+     * point and can't form a new triangle yet. However, the `curve_plane_normals_cache` and
+     * `curve_texture_matrices` are expected to have the same size as the number of curves in the
+     * drawing. */
+    drawing.runtime->curve_plane_normals_cache.update(
+        [&](Vector<float3> &normals) { normals.append(float3(0, 0, 1)); });
+    drawing.runtime->curve_texture_matrices.update([&](Vector<float4x2> &texture_matrices) {
+      texture_matrices.append(float4x2::identity());
+    });
     return;
   }
 
@@ -1978,8 +1989,8 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
   /* Gather the original vertex group names. */
   Set<StringRef> orig_vgroup_names;
-  LISTBASE_FOREACH (bDeformGroup *, dg, &orig_grease_pencil.vertex_group_names) {
-    orig_vgroup_names.add(dg->name);
+  for (bDeformGroup &dg : orig_grease_pencil.vertex_group_names) {
+    orig_vgroup_names.add(dg.name);
   }
 
   /* Update the drawings. */
@@ -1994,9 +2005,9 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
       CurvesGeometry &eval_strokes = drawing_eval->strokes_for_write();
 
       /* Check for new vertex groups in CurvesGeometry. */
-      LISTBASE_FOREACH (bDeformGroup *, dg, &eval_strokes.vertex_group_names) {
-        if (!orig_vgroup_names.contains(dg->name)) {
-          new_vgroup_names.add(dg->name);
+      for (bDeformGroup &dg : eval_strokes.vertex_group_names) {
+        if (!orig_vgroup_names.contains(dg.name)) {
+          new_vgroup_names.add(dg.name);
         }
       }
 
@@ -2011,7 +2022,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
   /* Add new vertex groups to GreasePencil object. */
   for (StringRef new_vgroup_name : new_vgroup_names) {
-    bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
+    bDeformGroup *dst = MEM_new_for_free<bDeformGroup>(__func__);
     new_vgroup_name.copy_utf8_truncated(dst->name);
     BLI_addtail(&orig_grease_pencil.vertex_group_names, dst);
   }

@@ -51,7 +51,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
@@ -1972,10 +1971,7 @@ static Mesh *final_skin(SkinModifierData *smd, Mesh *mesh, eSkinErrorFlag *r_err
 static void init_data(ModifierData *md)
 {
   SkinModifierData *smd = (SkinModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
-
-  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SkinModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
 
   /* Enable in editmode by default. */
   md->mode |= eModifierMode_Editmode;
@@ -2013,7 +2009,8 @@ static void required_data_mask(ModifierData * /*md*/, CustomData_MeshMasks *r_cd
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
   blender::ui::Layout &layout = *panel->layout;
-  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  const blender::ui::eUI_Item_Flag toggles_flag = blender::ui::ITEM_R_TOGGLE |
+                                                  blender::ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);

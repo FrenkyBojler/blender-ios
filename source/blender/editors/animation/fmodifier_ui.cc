@@ -56,7 +56,7 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel);
 /**
  * Get the list of FModifiers from the context (either the NLA or graph editor).
  */
-static ListBase *fmodifier_list_space_specific(const bContext *C)
+static ListBaseT<FModifier> *fmodifier_list_space_specific(const bContext *C)
 {
   ScrArea *area = CTX_wm_area(C);
 
@@ -81,7 +81,7 @@ static ListBase *fmodifier_list_space_specific(const bContext *C)
  */
 static PointerRNA *fmodifier_get_pointers(const bContext *C, const Panel *panel, ID **r_owner_id)
 {
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  PointerRNA *ptr = blender::ui::panel_custom_data_get(panel);
 
   if (r_owner_id != nullptr) {
     *r_owner_id = ptr->owner_id;
@@ -111,7 +111,7 @@ static void fmodifier_reorder(bContext *C, Panel *panel, int new_index)
     return;
   }
 
-  ListBase *modifiers = fmodifier_list_space_specific(C);
+  ListBaseT<FModifier> *modifiers = fmodifier_list_space_specific(C);
 
   /* Again, make sure we don't move a modifier before a cycles modifier. */
   FModifier *fcm_first = static_cast<FModifier *>(modifiers->first);
@@ -232,13 +232,13 @@ static PanelType *fmodifier_subpanel_register(ARegionType *region_type,
 /* Callback to remove the given modifier. */
 struct FModifierDeleteContext {
   ID *owner_id;
-  ListBase *modifiers;
+  ListBaseT<FModifier> *modifiers;
 };
 
 static void delete_fmodifier_cb(bContext *C, void *ctx_v, void *fcm_v)
 {
   FModifierDeleteContext *ctx = static_cast<FModifierDeleteContext *>(ctx_v);
-  ListBase *modifiers = ctx->modifiers;
+  ListBaseT<FModifier> *modifiers = ctx->modifiers;
   FModifier *fcm = static_cast<FModifier *>(fcm_v);
 
   /* remove the given F-Modifier from the active modifier-stack */
@@ -302,12 +302,12 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel)
   FModifier *fcm = static_cast<FModifier *>(ptr->data);
   const FModifierTypeInfo *fmi = fmodifier_get_typeinfo(fcm);
 
-  uiBlock *block = layout.block();
+  blender::ui::Block *block = layout.block();
 
   blender::ui::Layout *sub = &layout.row(true);
 
   /* Checkbox for 'active' status (for now). */
-  sub->prop(ptr, "active", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+  sub->prop(ptr, "active", blender::ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
 
   /* Name. */
   if (fmi) {
@@ -322,27 +322,27 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel)
   sub->emboss_set(blender::ui::EmbossType::None);
 
   /* 'Mute' button. */
-  sub->prop(ptr, "mute", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+  sub->prop(ptr, "mute", blender::ui::ITEM_R_ICON_ONLY, "", ICON_NONE);
 
   /* Delete button. */
-  uiBut *but = uiDefIconBut(block,
-                            ButType::But,
-                            ICON_X,
-                            0,
-                            0,
-                            UI_UNIT_X,
-                            UI_UNIT_Y,
-                            nullptr,
-                            0.0,
-                            0.0,
-                            TIP_("Delete Modifier"));
-  UI_but_retval_set(but, B_REDR);
+  blender::ui::Button *but = uiDefIconBut(block,
+                                          blender::ui::ButtonType::But,
+                                          ICON_X,
+                                          0,
+                                          0,
+                                          UI_UNIT_X,
+                                          UI_UNIT_Y,
+                                          nullptr,
+                                          0.0,
+                                          0.0,
+                                          TIP_("Delete Modifier"));
+  button_retval_set(but, B_REDR);
   FModifierDeleteContext *ctx = MEM_mallocN<FModifierDeleteContext>(__func__);
   ctx->owner_id = owner_id;
   ctx->modifiers = fmodifier_list_space_specific(C);
   BLI_assert(ctx->modifiers != nullptr);
 
-  UI_but_funcN_set(but, delete_fmodifier_cb, ctx, fcm);
+  button_funcN_set(but, delete_fmodifier_cb, ctx, fcm);
 
   layout.separator();
 }
@@ -599,7 +599,7 @@ static void fmod_envelope_addpoint_cb(bContext *C, void *fcm_dv, void * /*arg*/)
     }
 
     /* add new */
-    fedn = MEM_calloc_arrayN<FCM_EnvelopeData>((env->totvert + 1), "FCM_EnvelopeData");
+    fedn = MEM_new_array_for_free<FCM_EnvelopeData>((env->totvert + 1), "FCM_EnvelopeData");
 
     /* add the points that should occur before the point to be pasted */
     if (i > 0) {
@@ -621,7 +621,7 @@ static void fmod_envelope_addpoint_cb(bContext *C, void *fcm_dv, void * /*arg*/)
     env->totvert++;
   }
   else {
-    env->data = MEM_callocN<FCM_EnvelopeData>("FCM_EnvelopeData");
+    env->data = MEM_new_for_free<FCM_EnvelopeData>("FCM_EnvelopeData");
     *(env->data) = fed;
 
     env->totvert = 1;
@@ -639,7 +639,7 @@ static void fmod_envelope_deletepoint_cb(bContext * /*C*/, void *fcm_dv, void *i
   /* check that no data exists for the current frame... */
   if (env->totvert > 1) {
     /* allocate a new smaller array */
-    fedn = MEM_calloc_arrayN<FCM_EnvelopeData>((env->totvert - 1), "FCM_EnvelopeData");
+    fedn = MEM_new_array_for_free<FCM_EnvelopeData>((env->totvert - 1), "FCM_EnvelopeData");
 
     memcpy(fedn, env->data, sizeof(FCM_EnvelopeData) * (index));
     memcpy(fedn + index,
@@ -680,21 +680,22 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
   /* Control points list. */
 
   blender::ui::Layout *row = &layout.row(false);
-  uiBlock *block = row->block();
+  blender::ui::Block *block = row->block();
 
-  uiBut *but = uiDefBut(block,
-                        ButType::But,
-                        IFACE_("Add Control Point"),
-                        0,
-                        0,
-                        7.5 * UI_UNIT_X,
-                        UI_UNIT_Y,
-                        nullptr,
-                        0,
-                        0,
-                        TIP_("Add a new control-point to the envelope on the current frame"));
-  UI_but_retval_set(but, B_FMODIFIER_REDRAW);
-  UI_but_func_set(but, fmod_envelope_addpoint_cb, env, nullptr);
+  blender::ui::Button *but = uiDefBut(
+      block,
+      blender::ui::ButtonType::But,
+      IFACE_("Add Control Point"),
+      0,
+      0,
+      7.5 * UI_UNIT_X,
+      UI_UNIT_Y,
+      nullptr,
+      0,
+      0,
+      TIP_("Add a new control-point to the envelope on the current frame"));
+  button_retval_set(but, B_FMODIFIER_REDRAW);
+  button_func_set(but, fmod_envelope_addpoint_cb, env, nullptr);
 
   col = &layout.column(false);
   col->use_property_split_set(false);
@@ -713,7 +714,7 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
     row->prop(&ctrl_ptr, "max", UI_ITEM_NONE, IFACE_("Max"), ICON_NONE);
 
     but = uiDefIconBut(block,
-                       ButType::But,
+                       blender::ui::ButtonType::But,
                        ICON_X,
                        0,
                        0,
@@ -723,9 +724,9 @@ static void envelope_panel_draw(const bContext *C, Panel *panel)
                        0.0,
                        0.0,
                        TIP_("Delete envelope control point"));
-    UI_but_retval_set(but, B_FMODIFIER_REDRAW);
-    UI_but_func_set(but, fmod_envelope_deletepoint_cb, env, POINTER_FROM_INT(i));
-    UI_block_align_begin(block);
+    button_retval_set(but, B_FMODIFIER_REDRAW);
+    button_func_set(but, fmod_envelope_deletepoint_cb, env, POINTER_FROM_INT(i));
+    block_align_begin(block);
   }
 
   fmodifier_influence_draw(layout, ptr);
@@ -867,29 +868,29 @@ static void panel_register_stepped(ARegionType *region_type,
 
 void ANIM_fmodifier_panels(const bContext *C,
                            ID *owner_id,
-                           ListBase *fmodifiers,
+                           ListBaseT<FModifier> *fmodifiers,
                            uiListPanelIDFromDataFunc panel_id_fn)
 {
   ARegion *region = CTX_wm_region(C);
 
-  bool panels_match = UI_panel_list_matches_data(region, fmodifiers, panel_id_fn);
+  bool panels_match = blender::ui::panel_list_matches_data(region, fmodifiers, panel_id_fn);
 
   if (!panels_match) {
-    UI_panels_free_instanced(C, region);
-    LISTBASE_FOREACH (FModifier *, fcm, fmodifiers) {
+    blender::ui::panels_free_instanced(C, region);
+    for (FModifier &fcm : *fmodifiers) {
       char panel_idname[MAX_NAME];
-      panel_id_fn(fcm, panel_idname);
+      panel_id_fn(&fcm, panel_idname);
 
       PointerRNA *fcm_ptr = MEM_new<PointerRNA>("panel customdata");
-      *fcm_ptr = RNA_pointer_create_discrete(owner_id, &RNA_FModifier, fcm);
+      *fcm_ptr = RNA_pointer_create_discrete(owner_id, &RNA_FModifier, &fcm);
 
-      UI_panel_add_instanced(C, region, &region->panels, panel_idname, fcm_ptr);
+      blender::ui::panel_add_instanced(C, region, &region->panels, panel_idname, fcm_ptr);
     }
   }
   else {
     /* Assuming there's only one group of instanced panels, update the custom data pointers. */
     Panel *panel = static_cast<Panel *>(region->panels.first);
-    LISTBASE_FOREACH (FModifier *, fcm, fmodifiers) {
+    for (FModifier &fcm : *fmodifiers) {
 
       /* Move to the next instanced panel corresponding to the next modifier. */
       while ((panel->type == nullptr) || !(panel->type->flag & PANEL_TYPE_INSTANCED)) {
@@ -899,8 +900,8 @@ void ANIM_fmodifier_panels(const bContext *C,
       }
 
       PointerRNA *fcm_ptr = MEM_new<PointerRNA>("panel customdata");
-      *fcm_ptr = RNA_pointer_create_discrete(owner_id, &RNA_FModifier, fcm);
-      UI_panel_custom_data_set(panel, fcm_ptr);
+      *fcm_ptr = RNA_pointer_create_discrete(owner_id, &RNA_FModifier, &fcm);
+      blender::ui::panel_custom_data_set(panel, fcm_ptr);
 
       panel = panel->next;
     }
@@ -936,7 +937,7 @@ void ANIM_modifier_panels_register_graph_only(ARegionType *region_type,
  * \{ */
 
 /* Copy/Paste Buffer itself (list of FModifier 's) */
-static ListBase fmodifier_copypaste_buf = {nullptr, nullptr};
+static ListBaseT<FModifier> fmodifier_copypaste_buf = {nullptr, nullptr};
 
 /* ---------- */
 
@@ -946,7 +947,7 @@ void ANIM_fmodifiers_copybuf_free()
   free_fmodifiers(&fmodifier_copypaste_buf);
 }
 
-bool ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, bool active)
+bool ANIM_fmodifiers_copy_to_buf(ListBaseT<FModifier> *modifiers, bool active)
 {
   bool ok = true;
 
@@ -975,7 +976,7 @@ bool ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, bool active)
   return ok;
 }
 
-bool ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, bool replace, FCurve *curve)
+bool ANIM_fmodifiers_paste_from_buf(ListBaseT<FModifier> *modifiers, bool replace, FCurve *curve)
 {
   bool ok = false;
 
@@ -992,9 +993,9 @@ bool ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, bool replace, FCurve *c
   }
 
   /* now copy over all the modifiers in the buffer to the end of the list */
-  LISTBASE_FOREACH (FModifier *, fcm, &fmodifier_copypaste_buf) {
+  for (FModifier &fcm : fmodifier_copypaste_buf) {
     /* make a copy of it */
-    FModifier *fcmN = copy_fmodifier(fcm);
+    FModifier *fcmN = copy_fmodifier(&fcm);
 
     fcmN->curve = curve;
 

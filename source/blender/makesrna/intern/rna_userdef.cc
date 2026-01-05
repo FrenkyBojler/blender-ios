@@ -206,8 +206,11 @@ static const EnumPropertyItem rna_enum_preferences_asset_import_method_items[] =
 
 #ifdef RNA_RUNTIME
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_vector.h"
 #  include "BLI_memory_cache.hh"
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 #  include "BLI_string_utils.hh"
 
 #  include "DNA_object_types.h"
@@ -298,7 +301,7 @@ static void rna_userdef_theme_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 static void rna_userdef_theme_text_style_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  const uiStyle *style = UI_style_get();
+  const uiStyle *style = blender::ui::style_get();
   BLF_default_size(style->widget.points);
 
   rna_userdef_update(bmain, scene, ptr);
@@ -350,8 +353,8 @@ static void rna_userdef_screen_update_header_default(Main *bmain, Scene *scene, 
 static void rna_userdef_font_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)
 {
   BLF_cache_clear();
-  UI_reinit_font();
-  UI_update_text_styles();
+  blender::ui::reinit_font();
+  blender::ui::update_text_styles();
 }
 
 static void rna_userdef_language_update(Main *bmain, Scene * /*scene*/, PointerRNA * /*ptr*/)
@@ -585,7 +588,7 @@ static void rna_userdef_script_directory_name_set(PointerRNA *ptr, const char *v
 
 static bUserScriptDirectory *rna_userdef_script_directory_new()
 {
-  bUserScriptDirectory *script_dir = MEM_callocN<bUserScriptDirectory>(__func__);
+  bUserScriptDirectory *script_dir = MEM_new_for_free<bUserScriptDirectory>(__func__);
   BLI_addtail(&U.script_directories, script_dir);
   USERDEF_TAG_DIRTY;
   return script_dir;
@@ -701,6 +704,14 @@ static void rna_userdef_load_ui_update(Main * /*bmain*/, Scene * /*scene*/, Poin
   }
 
   USERDEF_TAG_DIRTY;
+}
+
+static void rna_userdef_window_csd_params_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+#  ifdef WITH_GHOST_CSD
+  WM_window_csd_params_update();
+#  endif
+  rna_userdef_update(bmain, scene, ptr);
 }
 
 static void rna_userdef_anisotropic_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -993,7 +1004,7 @@ static void rna_userdef_autosave_update(Main *bmain, Scene *scene, PointerRNA *p
 
 static bAddon *rna_userdef_addon_new()
 {
-  ListBase *addons_list = &U.addons;
+  ListBaseT<bAddon> *addons_list = &U.addons;
   bAddon *addon = BKE_addon_new();
   BLI_addtail(addons_list, addon);
   USERDEF_TAG_DIRTY;
@@ -1002,7 +1013,7 @@ static bAddon *rna_userdef_addon_new()
 
 static void rna_userdef_addon_remove(ReportList *reports, PointerRNA *addon_ptr)
 {
-  ListBase *addons_list = &U.addons;
+  ListBaseT<bAddon> *addons_list = &U.addons;
   bAddon *addon = static_cast<bAddon *>(addon_ptr->data);
   if (BLI_findindex(addons_list, addon) == -1) {
     BKE_report(reports, RPT_ERROR, "Add-on is no longer valid");
@@ -1016,7 +1027,7 @@ static void rna_userdef_addon_remove(ReportList *reports, PointerRNA *addon_ptr)
 
 static bPathCompare *rna_userdef_pathcompare_new()
 {
-  bPathCompare *path_cmp = MEM_callocN<bPathCompare>("bPathCompare");
+  bPathCompare *path_cmp = MEM_new_for_free<bPathCompare>("bPathCompare");
   BLI_addtail(&U.autoexec_paths, path_cmp);
   USERDEF_TAG_DIRTY;
   return path_cmp;
@@ -1044,7 +1055,7 @@ static void rna_userdef_temp_update(Main * /*bmain*/, Scene * /*scene*/, Pointer
 static void rna_userdef_text_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA * /*ptr*/)
 {
   BLF_cache_clear();
-  UI_reinit_font();
+  blender::ui::reinit_font();
   WM_main_add_notifier(NC_WINDOW, nullptr);
   USERDEF_TAG_DIRTY;
 }
@@ -1197,7 +1208,7 @@ static bool rna_AddonPref_unregister(Main * /*bmain*/, StructRNA *type)
   }
 
   RNA_struct_free_extension(type, &apt->rna_ext);
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
 
   BKE_addon_pref_type_remove(apt);
 
@@ -1268,7 +1279,8 @@ static StructRNA *rna_AddonPref_register(Main *bmain,
   memcpy(apt, &dummy_apt, sizeof(dummy_apt));
   BKE_addon_pref_type_add(apt);
 
-  apt->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, identifier, &RNA_AddonPreferences);
+  apt->rna_ext.srna = RNA_def_struct_ptr(
+      &RNA_blender_rna_get(), identifier, &RNA_AddonPreferences);
   apt->rna_ext.data = data;
   apt->rna_ext.call = call;
   apt->rna_ext.free = free;
@@ -1304,7 +1316,7 @@ static void rna_ThemeUI_roundness_set(PointerRNA *ptr, float value)
 /* Studio Light */
 static void rna_UserDef_studiolight_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  rna_iterator_listbase_begin(iter, ptr, BKE_studiolight_listbase(), nullptr);
+  rna_iterator_listbase_begin(iter, ptr, &BKE_studiolight_listbase(), nullptr);
 }
 
 static void rna_StudioLights_refresh(UserDef * /*userdef*/)
@@ -4695,8 +4707,6 @@ static void rna_def_userdef_solidlight(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
-  static const float default_dir[3] = {0.0f, 0.0f, 1.0f};
-  static const float default_col[3] = {0.8f, 0.8f, 0.8f};
 
   srna = RNA_def_struct(brna, "UserSolidLight", nullptr);
   RNA_def_struct_sdna(srna, "SolidLight");
@@ -4720,21 +4730,18 @@ static void rna_def_userdef_solidlight(BlenderRNA *brna)
   prop = RNA_def_property(srna, "direction", PROP_FLOAT, PROP_DIRECTION);
   RNA_def_property_float_sdna(prop, nullptr, "vec");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_float_array_default(prop, default_dir);
   RNA_def_property_ui_text(prop, "Direction", "Direction that the light is shining");
   RNA_def_property_update(prop, 0, "rna_UserDef_viewport_lights_update");
 
   prop = RNA_def_property(srna, "specular_color", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, nullptr, "spec");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_float_array_default(prop, default_col);
   RNA_def_property_ui_text(prop, "Specular Color", "Color of the light's specular highlight");
   RNA_def_property_update(prop, 0, "rna_UserDef_viewport_lights_update");
 
   prop = RNA_def_property(srna, "diffuse_color", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, nullptr, "col");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_float_array_default(prop, default_col);
   RNA_def_property_ui_text(prop, "Diffuse Color", "Color of the light's diffuse highlight");
   RNA_def_property_update(prop, 0, "rna_UserDef_viewport_lights_update");
 }
@@ -6535,6 +6542,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
                            "Number of pixels to drag before a drag event is triggered "
                            "for mouse/trackpad input "
                            "(otherwise click events are detected)");
+  RNA_def_property_update(prop, 0, "rna_userdef_window_csd_params_update");
 
   prop = RNA_def_property(srna, "drag_threshold_tablet", PROP_INT, PROP_PIXEL);
   RNA_def_property_range(prop, 1, 255);
@@ -6718,6 +6726,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "dbl_click_time");
   RNA_def_property_range(prop, 1, 1000);
   RNA_def_property_ui_text(prop, "Double Click Timeout", "Time/delay (in ms) for a double click");
+  RNA_def_property_update(prop, 0, "rna_userdef_window_csd_params_update");
 
   prop = RNA_def_property(srna, "use_mouse_emulate_3_button", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", USER_TWOBUTTONMOUSE);

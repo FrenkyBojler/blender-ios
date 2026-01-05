@@ -1341,7 +1341,7 @@ void CurvesGeometry::translate(const float3 &translation)
   if (bounds) {
     bounds->min += translation;
     bounds->max += translation;
-    this->runtime->bounds_cache.ensure([&](blender::Bounds<float3> &r_data) { r_data = *bounds; });
+    this->runtime->bounds_cache.ensure([&](Bounds<float3> &r_data) { r_data = *bounds; });
   }
 }
 
@@ -1476,7 +1476,7 @@ CurvesGeometry curves_copy_point_selection(const CurvesGeometry &curves,
 {
   const Array<int> point_to_curve_map = curves.point_to_curve_map();
   Array<int> curve_point_counts(curves.curves_num(), 0);
-  points_to_copy.foreach_index(
+  points_to_copy.foreach_index_optimized<int64_t>(
       [&](const int64_t point_i) { curve_point_counts[point_to_curve_map[point_i]]++; });
 
   IndexMaskMemory memory;

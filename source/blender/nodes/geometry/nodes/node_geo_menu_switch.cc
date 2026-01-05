@@ -101,7 +101,16 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
       input.supports_field();
     }
     /* Labels are ugly in combination with data-block pickers and are usually disabled. */
-    input.optional_label(ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL));
+    input.optional_label(ELEM(data_type,
+                              SOCK_OBJECT,
+                              SOCK_IMAGE,
+                              SOCK_COLLECTION,
+                              SOCK_MATERIAL,
+                              SOCK_FONT,
+                              SOCK_SCENE,
+                              SOCK_TEXT_ID,
+                              SOCK_MASK,
+                              SOCK_SOUND));
     input.structure_type(value_structure_type);
     auto &item_output = b.add_output<decl::Bool>(enum_item.name, std::move(identifier))
                             .align_with_previous()
@@ -129,7 +138,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree *tree, bNode *node)
 {
-  NodeMenuSwitch *data = MEM_callocN<NodeMenuSwitch>(__func__);
+  NodeMenuSwitch *data = MEM_new_for_free<NodeMenuSwitch>(__func__);
   data->data_type = tree->type == NTREE_GEOMETRY ? SOCK_GEOMETRY : SOCK_RGBA;
   data->enum_definition.next_identifier = 0;
   data->enum_definition.items_array = nullptr;
@@ -143,13 +152,14 @@ static void node_init(bNodeTree *tree, bNode *node)
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<MenuSwitchItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_freeN(reinterpret_cast<NodeMenuSwitch *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeMenuSwitch &src_storage = node_storage(*src_node);
-  NodeMenuSwitch *dst_storage = MEM_dupallocN<NodeMenuSwitch>(__func__, src_storage);
+  NodeMenuSwitch *dst_storage = MEM_new_for_free<NodeMenuSwitch>(
+      __func__, blender::dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<MenuSwitchItemsAccessor>(*src_node, *dst_node);
@@ -440,7 +450,7 @@ class MenuSwitchOperation : public NodeOperation {
   {
     Result &value_output = this->get_result("Output");
     const MenuValue menu_identifier = this->get_input("Menu").get_single_value<MenuValue>();
-    const NodeEnumDefinition &enum_definition = node_storage(bnode()).enum_definition;
+    const NodeEnumDefinition &enum_definition = node_storage(node()).enum_definition;
     bool found_item = false;
 
     for (const int i : IndexRange(enum_definition.items_num)) {

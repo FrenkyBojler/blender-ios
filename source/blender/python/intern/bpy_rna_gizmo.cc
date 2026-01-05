@@ -315,7 +315,7 @@ static void py_rna_gizmo_handler_free_cb(const wmGizmo * /*gz*/, wmGizmoProperty
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_gizmo_target_set_handler_doc,
-    ".. method:: target_set_handler(target, get, set, range=None):\n"
+    ".. method:: target_set_handler(target, get, set, range=None)\n"
     "\n"
     "   Assigns callbacks to a gizmos property.\n"
     "\n"
@@ -428,7 +428,7 @@ fail:
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_gizmo_target_get_value_doc,
-    ".. method:: target_get_value(target):\n"
+    ".. method:: target_get_value(target)\n"
     "\n"
     "   Get the value of this target property.\n"
     "\n"
@@ -499,7 +499,7 @@ fail:
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_gizmo_target_set_value_doc,
-    ".. method:: target_set_value(target):\n"
+    ".. method:: target_set_value(target)\n"
     "\n"
     "   Set the value of this target property.\n"
     "\n"
@@ -586,7 +586,7 @@ fail:
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_gizmo_target_get_range_doc,
-    ".. method:: target_get_range(target):\n"
+    ".. method:: target_get_range(target)\n"
     "\n"
     "   Get the range for this target property.\n"
     "\n"
@@ -699,6 +699,7 @@ bool BPY_rna_gizmo_module(PyObject *mod_par)
     PyMethodDef *m = &method_def_array[i];
     PyObject *func = PyCFunction_New(m, nullptr);
     PyObject *func_inst = PyInstanceMethod_New(func);
+    Py_DECREF(func);
     char name_prefix[128];
     PyOS_snprintf(name_prefix, sizeof(name_prefix), "_rna_gizmo_%s", m->ml_name);
     /* TODO: return a type that binds nearly to a method. */

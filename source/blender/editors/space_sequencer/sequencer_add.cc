@@ -50,7 +50,6 @@
 #include "SEQ_proxy.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 
 #include "ED_asset.hh"
@@ -181,7 +180,7 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
                    sequencer_add_draw_check_fn,
                    nullptr,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   ui::BUT_LABEL_ALIGN_NONE,
                    false);
 
   /* There is no effect strip add UI, so assume an image is being imported if "length" is found. */
@@ -322,7 +321,7 @@ static void sequencer_generic_invoke_path__internal(bContext *C,
 
 static int find_unlocked_unmuted_channel(const Editing *ed, int channel_index)
 {
-  const ListBase *channels = seq::channels_displayed_get(ed);
+  const ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
 
   while (channel_index < seq::MAX_CHANNELS) {
     SeqTimelineChannel *channel = seq::channel_get_by_index(channels, channel_index);
@@ -347,12 +346,12 @@ static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
     return 1;
   }
 
-  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
-    const int strip_end = seq::time_right_handle_frame_get(scene, strip);
-    if (ELEM(type, -1, strip->type) && (strip_end <= timeline_frame) &&
+  for (Strip &strip : *ed->current_strips()) {
+    const int strip_end = strip.right_handle(scene);
+    if (ELEM(type, -1, strip.type) && (strip_end <= timeline_frame) &&
         (timeline_frame - strip_end < proximity))
     {
-      tgt = strip;
+      tgt = &strip;
       proximity = timeline_frame - strip_end;
     }
   }
@@ -386,7 +385,7 @@ static bool have_free_channels(bContext *C,
    * gaps. */
   Set<int> used_channels;
   for (Strip *strip : all_strips_from_context(C)) {
-    if (seq::time_strip_intersects_frame(CTX_data_sequencer_scene(C), strip, frame_start)) {
+    if (strip->intersects_frame(CTX_data_sequencer_scene(C), frame_start)) {
       used_channels.add(strip->channel);
     }
   }
@@ -427,7 +426,7 @@ static void sequencer_file_drop_channel_frame_set(bContext *C,
   }
 
   float frame_start, channel;
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &frame_start, &channel);
+  ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &frame_start, &channel);
   RNA_int_set(op->ptr, "channel", int(channel));
   RNA_int_set(op->ptr, "frame_start", int(frame_start));
 }
@@ -488,8 +487,7 @@ static void move_strips(bContext *C, wmOperator *op)
   }
 
   wmOperatorType *ot = WM_operatortype_find("TRANSFORM_OT_seq_slide", true);
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
+  PointerRNA ptr = WM_operator_properties_create_ptr(ot);
   RNA_boolean_set(&ptr, "remove_on_cancel", true);
   RNA_boolean_set(&ptr, "view2d_edge_pan", true);
   RNA_boolean_set(&ptr, "release_confirm", false);
@@ -605,8 +603,8 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
   /* Override strip position by current mouse position. */
   if (can_move_strips(op) && region != nullptr) {
     const wmWindow *win = CTX_wm_window(C);
-    int2 mouse_region(win->eventstate->xy[0] - region->winrct.xmin,
-                      win->eventstate->xy[1] - region->winrct.ymin);
+    int2 mouse_region(win->runtime->eventstate->xy[0] - region->winrct.xmin,
+                      win->runtime->eventstate->xy[1] - region->winrct.ymin);
 
     /* Clamp mouse cursor location (strip starting position) to the sequencer region bounds so that
      * it is immediately visible even if the mouse cursor is out of bounds. For maximums, use 90%
@@ -621,7 +619,7 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
     BLI_rcti_clamp_pt_v(&clamp_bounds, mouse_region);
 
     float2 mouse_view;
-    UI_view2d_region_to_view(
+    ui::view2d_region_to_view(
         &region->v2d, mouse_region.x, mouse_region.y, &mouse_view.x, &mouse_view.y);
 
     load_data->start_frame = std::trunc(mouse_view.x);
@@ -1164,11 +1162,11 @@ static IMB_Proxy_Size seq_get_proxy_size_flags(bContext *C)
 {
   bScreen *screen = CTX_wm_screen(C);
   IMB_Proxy_Size proxy_sizes = IMB_PROXY_NONE;
-  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-    LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-      switch (sl->spacetype) {
+  for (ScrArea &area : screen->areabase) {
+    for (SpaceLink &sl : area.spacedata) {
+      switch (sl.spacetype) {
         case SPACE_SEQ: {
-          SpaceSeq *sseq = (SpaceSeq *)sl;
+          SpaceSeq *sseq = (SpaceSeq *)&sl;
           if (!ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
             continue;
           }
@@ -1222,10 +1220,8 @@ static void sequencer_add_movie_sync_sound_strip(
 
   /* Ensure that length matches the movie strip even if the underlying sound data
    * doesn't match up (e.g. it is longer). */
-  seq::time_right_handle_frame_set(
-      scene, strip_sound, seq::time_right_handle_frame_get(scene, strip_movie));
-  seq::time_left_handle_frame_set(
-      scene, strip_sound, seq::time_left_handle_frame_get(scene, strip_movie));
+  strip_sound->right_handle_set(scene, strip_movie->right_handle(scene));
+  strip_sound->left_handle_set(scene, strip_movie->left_handle());
 }
 
 static void sequencer_add_movie_multiple_strips(bContext *C,
@@ -1271,8 +1267,7 @@ static void sequencer_add_movie_multiple_strips(bContext *C,
         }
       }
 
-      load_data->start_frame += seq::time_right_handle_frame_get(scene, strip_movie) -
-                                seq::time_left_handle_frame_get(scene, strip_movie);
+      load_data->start_frame += strip_movie->right_handle(scene) - strip_movie->left_handle();
       if (overlap_shuffle_override) {
         has_seq_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_sound);
         has_seq_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_movie);
@@ -1371,6 +1366,10 @@ static bool sequencer_add_movie_single_strip(bContext *C,
 
 static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *op)
 {
+  if ((op->flag & OP_IS_INVOKE) && !WM_operator_poll_or_report_error(C, op->type, op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   seq::LoadData load_data;
@@ -1542,8 +1541,7 @@ static void sequencer_add_sound_multiple_strips(bContext *C,
     }
     else {
       seq_load_apply_generic_options(C, op, strip);
-      load_data->start_frame += seq::time_right_handle_frame_get(scene, strip) -
-                                seq::time_left_handle_frame_get(scene, strip);
+      load_data->start_frame += strip->right_handle(scene) - strip->left_handle();
     }
   }
   RNA_END;
@@ -1567,6 +1565,10 @@ static bool sequencer_add_sound_single_strip(bContext *C, wmOperator *op, seq::L
 
 static wmOperatorStatus sequencer_add_sound_strip_exec(bContext *C, wmOperator *op)
 {
+  if ((op->flag & OP_IS_INVOKE) && !WM_operator_poll_or_report_error(C, op->type, op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   seq::LoadData load_data;
@@ -1763,10 +1765,10 @@ static void sequencer_add_image_strip_load_files(wmOperator *op,
   }
   else {
     size_t strip_frame = 0;
-    LISTBASE_FOREACH (ImageFrame *, frame, &range->frames) {
+    for (ImageFrame &frame : range->frames) {
       char filename[FILE_MAX];
       frame_filename_set(
-          filename, sizeof(filename), filename_stripped, frame->framenr, numdigits, ext);
+          filename, sizeof(filename), filename_stripped, frame.framenr, numdigits, ext);
       seq::add_image_load_file(scene, strip, strip_frame, filename);
       strip_frame++;
     }
@@ -1777,6 +1779,10 @@ static bool sequencer_add_image_sequence_force(bContext *C,
                                                wmOperator *op,
                                                seq::LoadData &load_data)
 {
+  if ((op->flag & OP_IS_INVOKE) && !WM_operator_poll_or_report_error(C, op->type, op->reports)) {
+    return false;
+  }
+
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_ensure(scene);
@@ -1810,7 +1816,7 @@ static bool sequencer_add_image_sequence_force(bContext *C,
 
   seq::add_image_init_alpha_mode(bmain, scene, strip);
   if (load_data.image.count == 1) {
-    seq::time_right_handle_frame_set(scene, strip, load_data.start_frame + load_data.image.length);
+    strip->right_handle_set(scene, load_data.start_frame + load_data.image.length);
   }
   seq_load_apply_generic_options(C, op, strip);
   return true;
@@ -1823,7 +1829,8 @@ static bool sequencer_add_images(bContext *C, wmOperator *op, seq::LoadData &loa
   Editing *ed = seq::editing_ensure(scene);
 
   const char *blendfile_path = BKE_main_blendfile_path(bmain);
-  ListBase ranges = ED_image_filesel_detect_sequences(blendfile_path, blendfile_path, op, false);
+  ListBaseT<ImageFrameRange> ranges = ED_image_filesel_detect_sequences(
+      blendfile_path, blendfile_path, op, false);
   if (BLI_listbase_is_empty(&ranges)) {
     sequencer_add_free(C, op);
     return false;
@@ -1834,11 +1841,11 @@ static bool sequencer_add_images(bContext *C, wmOperator *op, seq::LoadData &loa
   }
 
   const bool use_placeholders = RNA_boolean_get(op->ptr, "use_placeholders");
-  LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
+  for (ImageFrameRange &range : ranges) {
     /* Populate `load_data` with data from `range`. */
-    load_data.image.count = use_placeholders ? range->max_framenr - range->offset + 1 :
-                                               BLI_listbase_count(&range->frames);
-    STRNCPY(load_data.path, range->filepath);
+    load_data.image.count = use_placeholders ? range.max_framenr - range.offset + 1 :
+                                               BLI_listbase_count(&range.frames);
+    STRNCPY(load_data.path, range.filepath);
     BLI_path_split_file_part(load_data.path, load_data.name, sizeof(load_data.name));
 
     Strip *strip = seq::add_image_strip(bmain, scene, ed->current_strips(), &load_data);
@@ -1850,20 +1857,19 @@ static bool sequencer_add_images(bContext *C, wmOperator *op, seq::LoadData &loa
 
     /* Set `StripElem` filenames, one for each `ImageFrame` in this range, or if `use_placeholders`
      * is set, every frame between `offset` and `max_framenr` . */
-    sequencer_add_image_strip_load_files(op, scene, strip, &load_data, range);
+    sequencer_add_image_strip_load_files(op, scene, strip, &load_data, &range);
 
     seq::add_image_init_alpha_mode(bmain, scene, strip);
 
     /* Adjust starting length of strip.
      * Note that this length differs from `strip->len`, which is always 1 for single images. */
     if (!is_sequence) {
-      seq::time_right_handle_frame_set(
-          scene, strip, load_data.start_frame + load_data.image.length);
+      strip->right_handle_set(scene, load_data.start_frame + load_data.image.length);
     }
 
     seq_load_apply_generic_options(C, op, strip);
     load_data.start_frame += is_sequence ? load_data.image.count : load_data.image.length;
-    BLI_freelistN(&range->frames);
+    BLI_freelistN(&range.frames);
   }
   BLI_freelistN(&ranges);
   return true;

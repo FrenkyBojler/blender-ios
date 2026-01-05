@@ -74,7 +74,7 @@ const wmGizmoType *WM_gizmotype_find(const StringRef idname, bool quiet)
 static wmGizmoType *wm_gizmotype_append__begin()
 {
   wmGizmoType *gzt = MEM_callocN<wmGizmoType>("gizmotype");
-  gzt->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_GizmoProperties);
+  gzt->srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), "", &RNA_GizmoProperties);
 #if 0
   /* Set the default i18n context now, so that opfunc can redefine it if needed! */
   RNA_def_struct_translation_context(ot->srna, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
@@ -86,7 +86,7 @@ static void wm_gizmotype_append__end(wmGizmoType *gzt)
 {
   BLI_assert(gzt->struct_size >= sizeof(wmGizmo));
 
-  RNA_def_struct_identifier(&BLENDER_RNA, gzt->srna, gzt->idname);
+  RNA_def_struct_identifier(&RNA_blender_rna_get(), gzt->srna, gzt->idname);
 
   get_gizmo_type_map().add(gzt);
 }
@@ -125,21 +125,21 @@ static void gizmotype_unlink(bContext *C, Main *bmain, wmGizmoType *gzt)
   for (bScreen *screen = static_cast<bScreen *>(bmain->screens.first); screen;
        screen = static_cast<bScreen *>(screen->id.next))
   {
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-        ListBase *lb = (sl == area->spacedata.first) ? &area->regionbase : &sl->regionbase;
-        LISTBASE_FOREACH (ARegion *, region, lb) {
-          wmGizmoMap *gzmap = region->runtime->gizmo_map;
+    for (ScrArea &area : screen->areabase) {
+      for (SpaceLink &sl : area.spacedata) {
+        ListBaseT<ARegion> *lb = (&sl == area.spacedata.first) ? &area.regionbase : &sl.regionbase;
+        for (ARegion &region : *lb) {
+          wmGizmoMap *gzmap = region.runtime->gizmo_map;
           if (gzmap) {
-            LISTBASE_FOREACH (wmGizmoGroup *, gzgroup, &gzmap->groups) {
-              for (wmGizmo *gz = static_cast<wmGizmo *>(gzgroup->gizmos.first), *gz_next; gz;
+            for (wmGizmoGroup &gzgroup : gzmap->groups) {
+              for (wmGizmo *gz = static_cast<wmGizmo *>(gzgroup.gizmos.first), *gz_next; gz;
                    gz = gz_next)
               {
                 gz_next = gz->next;
-                BLI_assert(gzgroup->parent_gzmap == gzmap);
+                BLI_assert(gzgroup.parent_gzmap == gzmap);
                 if (gz->type == gzt) {
-                  WM_gizmo_unlink(&gzgroup->gizmos, gzgroup->parent_gzmap, gz, C);
-                  ED_region_tag_redraw_editor_overlays(region);
+                  WM_gizmo_unlink(&gzgroup.gizmos, gzgroup.parent_gzmap, gz, C);
+                  ED_region_tag_redraw_editor_overlays(&region);
                 }
               }
             }

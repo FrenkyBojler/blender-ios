@@ -14,7 +14,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 #include "DNA_screen_types.h"
 
@@ -45,10 +44,7 @@
 static void init_data(ModifierData *md)
 {
   RemeshModifierData *rmd = (RemeshModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(rmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(rmd, DNA_struct_default_get(RemeshModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(rmd, modifier);
 }
 
 #ifdef WITH_MOD_REMESH
@@ -180,7 +176,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     /* TODO(jbakker): Dualcon crashes when run in parallel. Could be related to incorrect
      * input data or that the library isn't thread safe.
      * This was identified when changing the task isolation's during #76553. */
-    static blender::Mutex dualcon_mutex;
+    static Mutex dualcon_mutex;
     {
       std::scoped_lock lock(dualcon_mutex);
       output = static_cast<DualConOutput *>(dualcon(&input,
@@ -227,7 +223,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   int mode = RNA_enum_get(ptr, "mode");
 
-  layout.prop(ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "mode", blender::ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   layout.use_property_split_set(true);
 

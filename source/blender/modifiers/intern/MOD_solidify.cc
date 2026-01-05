@@ -12,7 +12,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_screen_types.h"
 
@@ -33,10 +32,7 @@
 static void init_data(ModifierData *md)
 {
   SolidifyModifierData *smd = (SolidifyModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
-
-  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SolidifyModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
 }
 
 #ifdef __GNUC__
@@ -179,7 +175,7 @@ static void edge_data_panel_draw(const bContext * /*C*/, Panel *panel)
              CTX_IFACE_(BLT_I18NCONTEXT_ID_MESH, "Rim"),
              ICON_NONE);
   }
-  layout.prop(ptr, "bevel_convex", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "bevel_convex", blender::ui::ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 }
 
 static void clamp_panel_draw(const bContext * /*C*/, Panel *panel)

@@ -138,8 +138,8 @@ static void applyTimeSlide(TransInfo *t)
   char str[UI_MAX_DRAW_STR];
 
   /* Calculate mouse co-ordinates. */
-  UI_view2d_region_to_view(v2d, t->mval[0], t->mval[1], &cval[0], &cval[1]);
-  UI_view2d_region_to_view(v2d, t->mouse.imval[0], t->mouse.imval[1], &sval[0], &sval[1]);
+  ui::view2d_region_to_view(v2d, t->mval[0], t->mval[1], &cval[0], &cval[1]);
+  ui::view2d_region_to_view(v2d, t->mouse.imval[0], t->mouse.imval[1], &sval[0], &sval[1]);
 
   /* `t->values_final[0]` stores `cval[0]`,
    * which is the current mouse-pointer location (in frames). */
@@ -179,8 +179,7 @@ static void initTimeSlide(TransInfo *t, wmOperator * /*op*/)
   {
     Scene *scene = t->scene;
     float *range;
-    t->custom.mode.data = range = static_cast<float *>(
-        MEM_mallocN(sizeof(float[2]), "TimeSlide Min/Max"));
+    t->custom.mode.data = range = MEM_malloc_arrayN<float>(2, "TimeSlide Min/Max");
     t->custom.mode.use_free = true;
 
     float min = 999999999.0f, max = -999999999.0f;
