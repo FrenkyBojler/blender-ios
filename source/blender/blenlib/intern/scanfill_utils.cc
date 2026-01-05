@@ -137,8 +137,8 @@ static ScanFillEdge *edge_step(PolyInfo *poly_info,
 {
   ScanFillEdge *eed;
 
-  BLI_assert(ELEM(v_prev, e_curr->v1, e_curr->v2));
-  BLI_assert(ELEM(v_curr, e_curr->v1, e_curr->v2));
+  BLI_assume_assert(ELEM(v_prev, e_curr->v1, e_curr->v2));
+  BLI_assume_assert(ELEM(v_curr, e_curr->v1, e_curr->v2));
 
   eed = (e_curr->next && e_curr != poly_info[poly_nr].edge_last) ? e_curr->next :
                                                                    poly_info[poly_nr].edge_first;
@@ -152,7 +152,7 @@ static ScanFillEdge *edge_step(PolyInfo *poly_info,
     return eed;
   }
 
-  BLI_assert(0);
+  BLI_assume_assert(0);
   return nullptr;
 }
 
@@ -180,7 +180,7 @@ static bool scanfill_preprocess_self_isect(ScanFillContext *sf_ctx,
         {
           /* check isect */
           float pt[2];
-          BLI_assert(eed != eed_other);
+          BLI_assume_assert(eed != eed_other);
 
           if (isect_seg_seg_v2_point(
                   eed->v1->co, eed->v2->co, eed_other->v1->co, eed_other->v2->co, pt) == 1)
@@ -326,14 +326,14 @@ static bool scanfill_preprocess_self_isect(ScanFillContext *sf_ctx,
     }
 #endif
 
-    BLI_assert(e_curr->poly_nr == poly_nr);
-    BLI_assert(pi->edge_last->poly_nr == poly_nr);
+    BLI_assume_assert(e_curr->poly_nr == poly_nr);
+    BLI_assume_assert(pi->edge_last->poly_nr == poly_nr);
 
     do {
       ScanFillVert *v_next;
 
       v_next = (e_next->v1 == v_curr) ? e_next->v2 : e_next->v1;
-      BLI_assert(ELEM(v_curr, e_next->v1, e_next->v2));
+      BLI_assume_assert(ELEM(v_curr, e_next->v1, e_next->v2));
 
       /* track intersections */
       if (inside) {
@@ -378,8 +378,8 @@ bool BLI_scanfill_calc_self_isect(ScanFillContext *sf_ctx,
     ushort poly_nr = 0;
 
     for (auto [eed_index, eed] : sf_ctx->filledgebase.enumerate()) {
-      BLI_assert(eed.poly_nr == eed.v1->poly_nr);
-      BLI_assert(eed.poly_nr == eed.v2->poly_nr);
+      BLI_assume_assert(eed.poly_nr == eed.v1->poly_nr);
+      BLI_assume_assert(eed.poly_nr == eed.v2->poly_nr);
 
       if ((poly_info[poly_nr].edge_last != nullptr) &&
           (poly_info[poly_nr].edge_last->poly_nr != eed.poly_nr))
@@ -395,7 +395,7 @@ bool BLI_scanfill_calc_self_isect(ScanFillContext *sf_ctx,
         poly_info[poly_nr].edge_last = &eed;
       }
 
-      BLI_assert(poly_info[poly_nr].edge_first->poly_nr == poly_info[poly_nr].edge_last->poly_nr);
+      BLI_assume_assert(poly_info[poly_nr].edge_first->poly_nr == poly_info[poly_nr].edge_last->poly_nr);
     }
   }
 

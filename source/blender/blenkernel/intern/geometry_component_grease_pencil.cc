@@ -33,7 +33,7 @@ GeometryComponentPtr GreasePencilComponent::copy() const
 
 void GreasePencilComponent::clear()
 {
-  BLI_assert(this->is_mutable() || this->is_expired());
+  BLI_assume_assert(this->is_mutable() || this->is_expired());
   if (grease_pencil_ != nullptr) {
     if (ownership_ == GeometryOwnershipType::Owned) {
       BKE_id_free(nullptr, grease_pencil_);
@@ -49,7 +49,7 @@ bool GreasePencilComponent::has_grease_pencil() const
 
 void GreasePencilComponent::replace(GreasePencil *grease_pencil, GeometryOwnershipType ownership)
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   this->clear();
   grease_pencil_ = grease_pencil;
   ownership_ = ownership;
@@ -57,7 +57,7 @@ void GreasePencilComponent::replace(GreasePencil *grease_pencil, GeometryOwnersh
 
 GreasePencil *GreasePencilComponent::release()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   GreasePencil *grease_pencil = grease_pencil_;
   grease_pencil_ = nullptr;
   return grease_pencil;
@@ -70,7 +70,7 @@ const GreasePencil *GreasePencilComponent::get() const
 
 GreasePencil *GreasePencilComponent::get_for_write()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   if (ownership_ == GeometryOwnershipType::ReadOnly) {
     grease_pencil_ = BKE_grease_pencil_copy_for_eval(grease_pencil_);
     ownership_ = GeometryOwnershipType::Owned;
@@ -90,7 +90,7 @@ bool GreasePencilComponent::owns_direct_data() const
 
 void GreasePencilComponent::ensure_owns_direct_data()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   if (ownership_ != GeometryOwnershipType::Owned) {
     if (grease_pencil_) {
       grease_pencil_ = BKE_grease_pencil_copy_for_eval(grease_pencil_);

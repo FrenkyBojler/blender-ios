@@ -7,6 +7,7 @@
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_log.hh"
 
+#include "BLI_assume.hh"
 #include "BLI_listbase.h"
 #include "BLI_stack.hh"
 #include "BLI_string_ref.hh"
@@ -701,7 +702,7 @@ ValueLog *GeoTreeLog::find_socket_value_log(const bNodeSocket &query_socket)
    * socket one might have to look at linked sockets as well.
    */
 
-  BLI_assert(reduced_socket_values_);
+  BLI_assume_assert(reduced_socket_values_);
   if (query_socket.is_multi_input()) {
     /* Not supported currently. */
     return nullptr;

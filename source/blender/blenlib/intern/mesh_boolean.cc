@@ -14,7 +14,7 @@
 #  include <iostream>
 
 #  include "BLI_array.hh"
-#  include "BLI_assert.h"
+#  include "BLI_assume.hh"
 #  include "BLI_hash.hh"
 #  include "BLI_kdopbvh.hh"
 #  include "BLI_map.hh"
@@ -96,7 +96,7 @@ class Edge {
 static std::ostream &operator<<(std::ostream &os, const Edge &e)
 {
   if (e.v0() == nullptr) {
-    BLI_assert(e.v1() == nullptr);
+    BLI_assume_assert(e.v1() == nullptr);
     os << "(null,null)";
   }
   else {
@@ -177,7 +177,7 @@ TriMeshTopology::TriMeshTopology(const IMesh &tm)
   vert_edges_.reserve(estimate_verts_num);
   for (int t : tm.face_index_range()) {
     const Face &tri = *tm.face(t);
-    BLI_assert(tri.is_tri());
+    BLI_assume_assert(tri.is_tri());
     for (int i = 0; i < 3; ++i) {
       const Vert *v = tri[i];
       const Vert *vnext = tri[(i + 1) % 3];
@@ -186,7 +186,7 @@ TriMeshTopology::TriMeshTopology(const IMesh &tm)
       if (edges == nullptr) {
         vert_edges_.add_new(v, Vector<Edge>());
         edges = vert_edges_.lookup_ptr(v);
-        BLI_assert(edges != nullptr);
+        BLI_assume_assert(edges != nullptr);
       }
       edges->append_non_duplicates(e);
 
@@ -511,7 +511,7 @@ static bool tris_have_same_verts(const IMesh &mesh, int t1, int t2)
 {
   const Face &tri1 = *mesh.face(t1);
   const Face &tri2 = *mesh.face(t2);
-  BLI_assert(tri1.size() == 3 && tri2.size() == 3);
+  BLI_assume_assert(tri1.size() == 3 && tri2.size() == 3);
   if (tri1.vert[0] == tri2.vert[0]) {
     return ((tri1.vert[1] == tri2.vert[1] && tri1.vert[2] == tri2.vert[2]) ||
             (tri1.vert[1] == tri2.vert[2] && tri1.vert[2] == tri2.vert[1]));
@@ -545,7 +545,7 @@ void Cell::check_for_zero_volume(const PatchesInfo &pinfo, const IMesh &mesh)
         p2_index = p;
       }
     }
-    BLI_assert(p1_index != NO_INDEX && p2_index != NO_INDEX);
+    BLI_assume_assert(p1_index != NO_INDEX && p2_index != NO_INDEX);
     const Patch &p1 = pinfo.patch(p1_index);
     const Patch &p2 = pinfo.patch(p2_index);
     if (p1.tot_tri() == 1 && p2.tot_tri() == 1) {
@@ -910,7 +910,7 @@ static int sort_tris_class(const Face &tri, const Face &tri0, const Edge e)
     std::cout << " t = " << tri[0] << " " << tri[1] << " " << tri[2];
     std::cout << " rev = " << rev << " flapv = " << flapv << "\n";
   }
-  BLI_assert(flapv != nullptr && flapv0 != nullptr);
+  BLI_assume_assert(flapv != nullptr && flapv0 != nullptr);
   const mpq3 flap = flapv->co_exact;
   /* orient will be positive if flap is below oriented plane of a0,a1,a2. */
   int orient = orient3d(a0, a1, a2, flap);
@@ -1007,7 +1007,7 @@ static Array<int> sort_tris_around_edge(
       continue;
     }
     int t = tris[i];
-    BLI_assert(t < tm.face_size() || (t == EXTRA_TRI_INDEX && extra_tri != nullptr));
+    BLI_assume_assert(t < tm.face_size() || (t == EXTRA_TRI_INDEX && extra_tri != nullptr));
     const Face &tri = (t == EXTRA_TRI_INDEX) ? *extra_tri : *tm.face(t);
     if (dbg_level > 2) {
       std::cout << "classifying tri " << t << " with respect to " << tris[0] << "\n";
@@ -1088,7 +1088,7 @@ static void find_cells_from_edge(const IMesh &tm,
     std::cout << "FIND_CELLS_FROM_EDGE " << e << "\n";
   }
   const Vector<int> *edge_tris = tmtopo.edge_tris(e);
-  BLI_assert(edge_tris != nullptr);
+  BLI_assume_assert(edge_tris != nullptr);
   Array<int> sorted_tris = sort_tris_around_edge(
       tm, e, Span<int>(*edge_tris), (*edge_tris)[0], nullptr);
 
@@ -1272,7 +1272,7 @@ static Vector<Vector<int>> find_patch_components(const CellsInfo &cinfo, Patches
     while (!stack.is_empty()) {
       int p = stack.pop();
       Patch &patch = pinfo.patch(p);
-      BLI_assert(patch.component == current_component);
+      BLI_assume_assert(patch.component == current_component);
       for (int c : {patch.cell_above, patch.cell_below}) {
         if (cell_processed[c]) {
           continue;
@@ -1372,14 +1372,14 @@ static bool is_pwn(const IMesh &tm, const TriMeshTopology &tmtopo)
        * is positively in t, and -1 if negatively in t. */
       for (int t : *tris[j].second) {
         const Face &face = *tm.face(t);
-        BLI_assert(face.size() == 3);
+        BLI_assume_assert(face.size() == 3);
         for (int i : face.index_range()) {
           if (face[i] == edge.v0()) {
             if (face[(i + 1) % 3] == edge.v1()) {
               ++tot_orient;
             }
             else {
-              BLI_assert(face[(i + 3 - 1) % 3] == edge.v1());
+              BLI_assume_assert(face[(i + 3 - 1) % 3] == edge.v1());
               --tot_orient;
             }
           }
@@ -1421,7 +1421,7 @@ static int find_cell_for_point_near_edge(const mpq3 &p,
                                           NO_INDEX,
                                           {NO_INDEX, NO_INDEX, NO_INDEX},
                                           {false, false, false});
-  BLI_assert(etris != nullptr);
+  BLI_assume_assert(etris != nullptr);
   Array<int> edge_tris(etris->size() + 1);
   std::copy(etris->begin(), etris->end(), edge_tris.begin());
   edge_tris[edge_tris.size() - 1] = EXTRA_TRI_INDEX;
@@ -1430,7 +1430,7 @@ static int find_cell_for_point_near_edge(const mpq3 &p,
     std::cout << "sorted tris = " << sorted_tris << "\n";
   }
   int *p_sorted_dummy = std::find(sorted_tris.begin(), sorted_tris.end(), EXTRA_TRI_INDEX);
-  BLI_assert(p_sorted_dummy != sorted_tris.end());
+  BLI_assume_assert(p_sorted_dummy != sorted_tris.end());
   int dummy_index = p_sorted_dummy - sorted_tris.begin();
   int prev_tri = (dummy_index == 0) ? sorted_tris[sorted_tris.size() - 1] :
                                       sorted_tris[dummy_index - 1];
@@ -1606,7 +1606,7 @@ static Edge find_good_sorting_edge(const Vert *testp,
    * of the swapped vertices is non-zero. */
   const mpq3 &co_closest = closestp->co_exact;
   const mpq3 &co_test = testp->co_exact;
-  BLI_assert(co_test != co_closest);
+  BLI_assume_assert(co_test != co_closest);
   mpq3 abscissa = co_test - co_closest;
   /* Find a non-zero-component axis of abscissa. */
   int axis;
@@ -1615,7 +1615,7 @@ static Edge find_good_sorting_edge(const Vert *testp,
       break;
     }
   }
-  BLI_assert(axis < 3);
+  BLI_assume_assert(axis < 3);
   int axis_next = (axis + 1) % 3;
   int axis_next_next = (axis_next + 1) % 3;
   mpq3 ordinate;
@@ -1726,11 +1726,11 @@ static int find_containing_cell(const Vert *v,
     if (vert_cv == v) {
       /* Need to use another one to find sorting edge. */
       vert_cv = tri[(cv + 1) % 3];
-      BLI_assert(vert_cv != v);
+      BLI_assume_assert(vert_cv != v);
     }
     etest = find_good_sorting_edge(v, vert_cv, tmtopo);
   }
-  BLI_assert(etest.v0() != nullptr);
+  BLI_assume_assert(etest.v0() != nullptr);
   if (dbg_level > 0) {
     std::cout << "etest = " << etest << "\n";
   }
@@ -2234,7 +2234,7 @@ static void propagate_windings_and_in_output_volume(PatchesInfo &pinfo,
         int winding_delta = p_above_c ? -1 : 1;
         int t = patch.tri(0);
         int shape = shape_fn(t);
-        BLI_assert(shape < nshapes);
+        BLI_assume_assert(shape < nshapes);
         UNUSED_VARS_NDEBUG(nshapes);
         if (dbg_level > 1) {
           std::cout << "    representative tri " << t << ": in shape " << shape << "\n";
@@ -2244,7 +2244,7 @@ static void propagate_windings_and_in_output_volume(PatchesInfo &pinfo,
           std::cout << "    now cell_neighbor = " << cell_neighbor << "\n";
         }
         queue.append(c_neighbor);
-        BLI_assert(queue.size() <= cinfo.tot_cell());
+        BLI_assume_assert(queue.size() <= cinfo.tot_cell());
       }
     }
   }
@@ -2268,7 +2268,7 @@ static void propagate_windings_and_in_output_volume(PatchesInfo &pinfo,
 static bool apply_bool_op(BoolOpType bool_optype, const Array<int> &winding)
 {
   int nw = winding.size();
-  BLI_assert(nw > 0);
+  BLI_assume_assert(nw > 0);
   switch (bool_optype) {
     case BoolOpType::Intersect: {
       for (int i = 0; i < nw; ++i) {
@@ -2355,7 +2355,7 @@ static void extract_zero_volume_cell_tris(Vector<Face *> &r_tris,
     const Cell *cell = &cinfo.cell(c);
     while (cell->zero_volume()) {
       /* In zero-volume cells, the cell should have exactly two patches. */
-      BLI_assert(cell->patches().size() == 2);
+      BLI_assume_assert(cell->patches().size() == 2);
       int pother = cell->patch_other(pwalk);
       bool flip = pinfo.patch(pother).cell_above == c;
       flipped.append(flip);
@@ -2373,7 +2373,7 @@ static void extract_zero_volume_cell_tris(Vector<Face *> &r_tris,
     c = pwalk_patch->cell_below;
     cell = &cinfo.cell(c);
     while (cell->zero_volume()) {
-      BLI_assert(cell->patches().size() == 2);
+      BLI_assume_assert(cell->patches().size() == 2);
       int pother = cell->patch_other(pwalk);
       bool flip = pinfo.patch(pother).cell_below == c;
       flipped.append(flip);
@@ -2995,7 +2995,7 @@ static void init_face_merge_state(FaceMergeState *fms,
     if (dbg_level > 0) {
       std::cout << "process tri = " << &tri << "\n";
     }
-    BLI_assert(tri.plane_populated());
+    BLI_assume_assert(tri.plane_populated());
     if (math::dot(norm, tri.plane->norm) <= 0.0) {
       if (dbg_level > 0) {
         std::cout << "triangle has wrong orientation, skipping\n";
@@ -3113,7 +3113,7 @@ static bool dissolve_leaves_valid_bmesh(FaceMergeState *fms,
                                         const MergeFace &mf_right)
 {
   int a_edge_start = mf_left.edge.first_index_of_try(me_index);
-  BLI_assert(a_edge_start != -1);
+  BLI_assume_assert(a_edge_start != -1);
   int alen = mf_left.vert.size();
   int blen = mf_right.vert.size();
   int b_left_face = me.right_face;
@@ -3156,7 +3156,7 @@ static void splice_faces(
 {
   int a_edge_start = mf_left.edge.first_index_of_try(me_index);
   int b_edge_start = mf_right.edge.first_index_of_try(me_index);
-  BLI_assert(a_edge_start != -1 && b_edge_start != -1);
+  BLI_assume_assert(a_edge_start != -1 && b_edge_start != -1);
   int alen = mf_left.vert.size();
   int blen = mf_right.vert.size();
   Vector<const Vert *> splice_vert;
@@ -3375,7 +3375,7 @@ static Array<bool> find_dissolve_verts(IMesh &imesh_out, int *r_count_dissolve)
     for (int i : face.index_range()) {
       const Vert *v = face[i];
       int v_index = imesh_out.lookup_vert(v);
-      BLI_assert(v_index != NO_INDEX);
+      BLI_assume_assert(v_index != NO_INDEX);
       if (dissolve[v_index]) {
         const Vert *n1 = face[face.next_pos(i)];
         const Vert *n2 = face[face.prev_pos(i)];
@@ -3401,7 +3401,7 @@ static Array<bool> find_dissolve_verts(IMesh &imesh_out, int *r_count_dissolve)
       dissolve[v_out] = false; /* Will set back to true if final condition is satisfied. */
       const std::pair<const Vert *, const Vert *> &nbrs = neighbors[v_out];
       if (nbrs.first != nullptr) {
-        BLI_assert(nbrs.second != nullptr);
+        BLI_assume_assert(nbrs.second != nullptr);
         const Vert *v_v_out = imesh_out.vert(v_out);
         if (approx_in_line(nbrs.first->co, v_v_out->co, nbrs.second->co)) {
           dissolve[v_out] = true;
@@ -3432,7 +3432,7 @@ static void dissolve_verts(IMesh *imesh, const Array<bool> dissolve, IMeshArena 
     int erase_num = 0;
     for (const Vert *v : face) {
       int v_index = imesh->lookup_vert(v);
-      BLI_assert(v_index != NO_INDEX);
+      BLI_assume_assert(v_index != NO_INDEX);
       if (dissolve[v_index]) {
         face_pos_erase.append(true);
         ++erase_num;

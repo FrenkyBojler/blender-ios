@@ -31,7 +31,7 @@ template<typename T>
 void accumulate_lengths(const Span<T> values, const bool cyclic, MutableSpan<float> lengths)
 {
   /* For cyclic curves with a single point the lengths array is empty. */
-  BLI_assert(lengths.size() ==
+  BLI_assume_assert(lengths.size() ==
              (cyclic && values.size() <= 1 ? 0 : segments_num(values.size(), cyclic)));
   float length = 0.0f;
   for (const int i : IndexRange(values.size() - 1)) {
@@ -50,8 +50,8 @@ inline void interpolate_to_masked(const Span<T> src,
                                   const IndexMask &dst_mask,
                                   MutableSpan<T> dst)
 {
-  BLI_assert(indices.size() == factors.size());
-  BLI_assert(indices.size() == dst_mask.size());
+  BLI_assume_assert(indices.size() == factors.size());
+  BLI_assume_assert(indices.size() == dst_mask.size());
   const int last_src_index = src.size() - 1;
 
   dst_mask.foreach_segment_optimized([&](const auto dst_segment, const int64_t dst_segment_pos) {
@@ -103,8 +103,8 @@ inline void sample_at_length(const Span<float> accumulated_segment_lengths,
   /* Use a shorter variable name. */
   const Span<float> lengths = accumulated_segment_lengths;
 
-  BLI_assert(lengths.size() > 0);
-  BLI_assert(sample_length >= 0.0f);
+  BLI_assume_assert(lengths.size() > 0);
+  BLI_assume_assert(sample_length >= 0.0f);
 
   if (hint != nullptr && hint->segment_index >= 0) {
     const float length_in_segment = sample_length - hint->segment_start;

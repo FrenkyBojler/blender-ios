@@ -310,8 +310,8 @@ AnimData *BKE_animdata_copy_in_lib(Main *bmain,
     const int id_copy_flag = (flag & LIB_ID_CREATE_NO_MAIN) == 0 ?
                                  flag & ~LIB_ID_CREATE_NO_USER_REFCOUNT :
                                  flag;
-    BLI_assert(bmain != nullptr);
-    BLI_assert(dadt->action == nullptr || dadt->action != dadt->tmpact);
+    BLI_assume_assert(bmain != nullptr);
+    BLI_assume_assert(dadt->action == nullptr || dadt->action != dadt->tmpact);
     dadt->action = reinterpret_cast<bAction *>(
         BKE_id_copy_in_lib(bmain,
                            owner_library,
@@ -407,7 +407,7 @@ static void animdata_copy_id_action(Main *bmain,
       const slot_handle_t orig_slot_handle = adt->slot_handle;
       const bool assign_ok = assign_action(&cloned_action->wrap(), *id);
       BLI_assert_msg(assign_ok, "Expected action assignment to work when copying animdata");
-      BLI_assert(orig_slot_handle == adt->slot_handle);
+      BLI_assume_assert(orig_slot_handle == adt->slot_handle);
       UNUSED_VARS_NDEBUG(assign_ok, orig_slot_handle);
     }
     if (adt->tmpact && (do_linked_id || !ID_IS_LINKED(adt->tmpact))) {
@@ -422,7 +422,7 @@ static void animdata_copy_id_action(Main *bmain,
       const slot_handle_t orig_slot_handle = adt->tmp_slot_handle;
       const bool assign_ok = assign_tmpaction(&cloned_action->wrap(), {*id, *adt});
       BLI_assert_msg(assign_ok, "Expected tmp-action assignment to work when copying animdata");
-      BLI_assert(orig_slot_handle == adt->tmp_slot_handle);
+      BLI_assume_assert(orig_slot_handle == adt->tmp_slot_handle);
       UNUSED_VARS_NDEBUG(assign_ok, orig_slot_handle);
     }
   }
@@ -540,7 +540,7 @@ static void animpath_update_basepath(FCurve *fcu,
                                      const StringRef old_basepath,
                                      const StringRef new_basepath)
 {
-  BLI_assert(animpath_matches_basepath(fcu->rna_path, old_basepath));
+  BLI_assume_assert(animpath_matches_basepath(fcu->rna_path, old_basepath));
   if (old_basepath == new_basepath) {
     return;
   }
@@ -687,7 +687,7 @@ static std::pair<AnimData *, AnimData *> ensure_animdata_pair(Main &bmain,
       const bool assign_ok = animrig::assign_action(&new_action, dst_owned_adt);
       BLI_assert_msg(assign_ok, "Expected Action assignment to work");
       UNUSED_VARS_NDEBUG(assign_ok);
-      BLI_assert(dst_adt->slot_handle != animrig::Slot::unassigned);
+      BLI_assume_assert(dst_adt->slot_handle != animrig::Slot::unassigned);
 
       DEG_relations_tag_update(&bmain);
     }
@@ -712,7 +712,7 @@ void BKE_animdata_copy_by_basepath(Main &bmain,
 
   /* Copy data from tyhe source action. */
   if (src_adt->action) {
-    BLI_assert(dst_adt->action);
+    BLI_assume_assert(dst_adt->action);
 
     /* Copy fcurves for each base path. */
     for (const AnimationBasePathChange &basepath_change : basepaths) {
@@ -758,7 +758,7 @@ void BKE_animdata_move_by_basepath(Main &bmain,
 
   /* Move data from the source action to the destination action. */
   if (src_adt->action) {
-    BLI_assert(dst_adt->action);
+    BLI_assume_assert(dst_adt->action);
 
     /* Move fcurves for each base path from the source action to the destination action. */
     for (const AnimationBasePathChange &basepath_change : basepaths) {

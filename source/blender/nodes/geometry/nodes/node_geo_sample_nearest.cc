@@ -27,9 +27,9 @@ void get_closest_in_bvhtree(bke::BVHTreeFromMesh &tree_data,
                             const MutableSpan<float> r_distances_sq,
                             const MutableSpan<float3> r_positions)
 {
-  BLI_assert(positions.size() >= r_indices.size());
-  BLI_assert(positions.size() >= r_distances_sq.size());
-  BLI_assert(positions.size() >= r_positions.size());
+  BLI_assume_assert(positions.size() >= r_indices.size());
+  BLI_assume_assert(positions.size() >= r_distances_sq.size());
+  BLI_assume_assert(positions.size() >= r_positions.size());
 
   mask.foreach_index([&](const int i) {
     BVHTreeNearest nearest;
@@ -80,7 +80,7 @@ static void get_closest_pointcloud_points(const bke::BVHTreeFromPointCloud &tree
                                           MutableSpan<int> r_indices,
                                           MutableSpan<float> r_distances_sq)
 {
-  BLI_assert(positions.size() >= r_indices.size());
+  BLI_assume_assert(positions.size() >= r_indices.size());
   if (tree_data.tree == nullptr) {
     r_indices.fill(0);
     r_distances_sq.fill(0.0f);
@@ -111,7 +111,7 @@ static void get_closest_mesh_points(const Mesh &mesh,
                                     const MutableSpan<float> r_distances_sq,
                                     const MutableSpan<float3> r_positions)
 {
-  BLI_assert(mesh.verts_num > 0);
+  BLI_assume_assert(mesh.verts_num > 0);
   bke::BVHTreeFromMesh tree_data = mesh.bvh_verts();
   get_closest_in_bvhtree(tree_data, positions, mask, r_point_indices, r_distances_sq, r_positions);
 }
@@ -123,7 +123,7 @@ static void get_closest_mesh_edges(const Mesh &mesh,
                                    const MutableSpan<float> r_distances_sq,
                                    const MutableSpan<float3> r_positions)
 {
-  BLI_assert(mesh.edges_num > 0);
+  BLI_assume_assert(mesh.edges_num > 0);
   bke::BVHTreeFromMesh tree_data = mesh.bvh_edges();
   get_closest_in_bvhtree(tree_data, positions, mask, r_edge_indices, r_distances_sq, r_positions);
 }
@@ -135,7 +135,7 @@ static void get_closest_mesh_tris(const Mesh &mesh,
                                   const MutableSpan<float> r_distances_sq,
                                   const MutableSpan<float3> r_positions)
 {
-  BLI_assert(mesh.faces_num > 0);
+  BLI_assume_assert(mesh.faces_num > 0);
   bke::BVHTreeFromMesh tree_data = mesh.bvh_corner_tris();
   get_closest_in_bvhtree(tree_data, positions, mask, r_tri_indices, r_distances_sq, r_positions);
 }
@@ -147,7 +147,7 @@ static void get_closest_mesh_faces(const Mesh &mesh,
                                    const MutableSpan<float> r_distances_sq,
                                    const MutableSpan<float3> r_positions)
 {
-  BLI_assert(mesh.faces_num > 0);
+  BLI_assume_assert(mesh.faces_num > 0);
 
   Array<int> tri_indices(positions.size());
   get_closest_mesh_tris(mesh, positions, mask, tri_indices, r_distances_sq, r_positions);
@@ -169,7 +169,7 @@ static void get_closest_mesh_corners(const Mesh &mesh,
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
 
-  BLI_assert(mesh.corners_num > 0);
+  BLI_assume_assert(mesh.corners_num > 0);
   Array<int> face_indices(positions.size());
   get_closest_mesh_faces(mesh, positions, mask, face_indices, {}, {});
 

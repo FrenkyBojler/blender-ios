@@ -79,7 +79,7 @@ static void foreach_libblock_remap_callback_skip(const ID * /*id_owner*/,
                                                  const bool is_obj_editmode)
 {
   ID *id = *id_ptr;
-  BLI_assert(id != nullptr);
+  BLI_assume_assert(id != nullptr);
 
   if (is_indirect) {
     id->runtime->remap.skipped_indirect++;
@@ -190,8 +190,8 @@ static int foreach_libblock_remap_callback(LibraryIDLinkCallbackData *cb_data)
 
   /* Those asserts ensure the general sanity of ID tags regarding 'embedded' ID data (root
    * node-trees and co). */
-  BLI_assert(id_owner == id_remap_data->id_owner);
-  BLI_assert(id_self == id_owner || is_self_embedded);
+  BLI_assume_assert(id_owner == id_remap_data->id_owner);
+  BLI_assume_assert(id_self == id_owner || is_self_embedded);
 
   /* Early exit when id pointer isn't set. */
   if (*id_p == nullptr) {
@@ -568,7 +568,7 @@ static void libblock_remap_foreach_idpair(ID *old_id, ID *new_id, Main *bmain, i
     return;
   }
 
-  BLI_assert(old_id != nullptr);
+  BLI_assume_assert(old_id != nullptr);
   BLI_assert((new_id == nullptr) || remap_flags & ID_REMAP_ALLOW_IDTYPE_MISMATCH ||
              GS(old_id->name) == GS(new_id->name));
 
@@ -741,9 +741,9 @@ static void libblock_relink_foreach_idpair(ID *old_id,
                                            Main *bmain,
                                            const blender::Span<ID *> ids)
 {
-  BLI_assert(old_id != nullptr);
+  BLI_assume_assert(old_id != nullptr);
   BLI_assert((new_id == nullptr) || GS(old_id->name) == GS(new_id->name));
-  BLI_assert(old_id != new_id);
+  BLI_assume_assert(old_id != new_id);
 
   bool is_object_update_processed = false;
   for (ID *id_iter : ids) {
@@ -795,7 +795,7 @@ void BKE_libblock_relink_multiple(Main *bmain,
                                   IDRemapper &id_remapper,
                                   const int remap_flags)
 {
-  BLI_assert(remap_type == ID_REMAP_TYPE_REMAP || id_remapper.is_empty());
+  BLI_assume_assert(remap_type == ID_REMAP_TYPE_REMAP || id_remapper.is_empty());
 
   for (ID *id_iter : ids) {
     libblock_remap_data(bmain, id_iter, remap_type, id_remapper, remap_flags);
@@ -866,15 +866,15 @@ void BKE_libblock_relink_ex(
   IDRemapper id_remapper;
   eIDRemapType remap_type = ID_REMAP_TYPE_REMAP;
 
-  BLI_assert(id != nullptr);
+  BLI_assume_assert(id != nullptr);
   UNUSED_VARS_NDEBUG(id);
   if (old_id != nullptr) {
     BLI_assert((new_id == nullptr) || GS(old_id->name) == GS(new_id->name));
-    BLI_assert(old_id != new_id);
+    BLI_assume_assert(old_id != new_id);
     id_remapper.add(old_id, new_id);
   }
   else {
-    BLI_assert(new_id == nullptr);
+    BLI_assume_assert(new_id == nullptr);
     remap_type = ID_REMAP_TYPE_CLEANUP;
   }
 
@@ -934,7 +934,7 @@ void BKE_libblock_relink_to_newid(Main *bmain, ID *id, const int remap_flag)
     return;
   }
   /* We do not want to have those cached relationship data here. */
-  BLI_assert(bmain->relations == nullptr);
+  BLI_assume_assert(bmain->relations == nullptr);
 
   RelinkToNewIDData relink_data{};
 

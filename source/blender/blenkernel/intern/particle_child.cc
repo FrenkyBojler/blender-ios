@@ -36,7 +36,7 @@ static void psys_path_iter_get(ParticlePathIterator *iter,
                                ParticleCacheKey *parent,
                                int index)
 {
-  BLI_assert(index >= 0 && index < totkeys);
+  BLI_assume_assert(index >= 0 && index < totkeys);
 
   iter->key = keys + index;
   iter->index = index;

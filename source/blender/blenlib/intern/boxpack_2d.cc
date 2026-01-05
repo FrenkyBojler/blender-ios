@@ -67,7 +67,7 @@ struct BoxVert {
 
 BLI_INLINE int quad_flag(uint q)
 {
-  BLI_assert(q < 4);
+  BLI_assume_assert(q < 4);
   return (1 << q);
 }
 
@@ -171,7 +171,7 @@ static bool box_isect(const BoxPack *box_a, const BoxPack *box_b)
 /* set when used is enabled */
 static void vert_bias_update(BoxVert *v)
 {
-  BLI_assert(v->used);
+  BLI_assume_assert(v->used);
   v->bias = (v->x * v->y) * EPSILON_BIAS;
 }
 #endif
@@ -490,7 +490,7 @@ void BLI_box_pack_2d(
 #  define A (vert->trb->v[TL])
 #  define B (vert->tlb->v[TR])
 #  define MASK (BLF | BRF)
-                BLI_assert(A->used != B->used);
+                BLI_assume_assert(A->used != B->used);
                 if (A->used) {
                   A->free &= B->free & ~MASK;
                   B = A;
@@ -521,7 +521,7 @@ void BLI_box_pack_2d(
 #  define A (vert->blb->v[BR])
 #  define B (vert->brb->v[BL])
 #  define MASK (TRF | TLF)
-                BLI_assert(A->used != B->used);
+                BLI_assume_assert(A->used != B->used);
                 if (A->used) {
                   A->free &= B->free & ~MASK;
                   B = A;
@@ -553,7 +553,7 @@ void BLI_box_pack_2d(
 #  define A (vert->blb->v[TL])
 #  define B (vert->tlb->v[BL])
 #  define MASK (TRF | BRF)
-                BLI_assert(A->used != B->used);
+                BLI_assume_assert(A->used != B->used);
                 if (A->used) {
                   A->free &= B->free & ~MASK;
                   B = A;
@@ -585,7 +585,7 @@ void BLI_box_pack_2d(
 #  define A (vert->brb->v[TR])
 #  define B (vert->trb->v[BR])
 #  define MASK (TLF | BLF)
-                BLI_assert(A->used != B->used);
+                BLI_assume_assert(A->used != B->used);
                 if (A->used) {
                   A->free &= B->free & ~MASK;
                   B = A;

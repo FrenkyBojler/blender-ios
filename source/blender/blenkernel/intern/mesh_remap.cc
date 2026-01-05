@@ -188,7 +188,7 @@ static void mesh_calc_eigen_matrix(const Span<float3> positions, float r_mat[4][
                         center);
 
   eigen_success = BLI_eigen_solve_selfadjoint_m3((const float (*)[3])covmat, eigen_val, eigen_vec);
-  BLI_assert(eigen_success);
+  BLI_assume_assert(eigen_success);
   UNUSED_VARS_NDEBUG(eigen_success);
 
   /* Special handling of cases where some eigen values are (nearly) identical. */
@@ -444,12 +444,12 @@ void BKE_mesh_remap_calc_verts_from_mesh(const int mode,
   const float max_dist_sq = max_dist * max_dist;
   int i;
 
-  BLI_assert(mode & MREMAP_MODE_VERT);
+  BLI_assume_assert(mode & MREMAP_MODE_VERT);
 
   BKE_mesh_remap_init(r_map, int(vert_positions_dst.size()));
 
   if (mode == MREMAP_MODE_TOPOLOGY) {
-    BLI_assert(vert_positions_dst.size() == me_src->verts_num);
+    BLI_assume_assert(vert_positions_dst.size() == me_src->verts_num);
     for (i = 0; i < vert_positions_dst.size(); i++) {
       mesh_remap_item_define(r_map, i, FLT_MAX, 0, 1, &i, &full_weight);
     }
@@ -665,12 +665,12 @@ void BKE_mesh_remap_calc_edges_from_mesh(const int mode,
   const float max_dist_sq = max_dist * max_dist;
   int i;
 
-  BLI_assert(mode & MREMAP_MODE_EDGE);
+  BLI_assume_assert(mode & MREMAP_MODE_EDGE);
 
   BKE_mesh_remap_init(r_map, int(edges_dst.size()));
 
   if (mode == MREMAP_MODE_TOPOLOGY) {
-    BLI_assert(edges_dst.size() == me_src->edges_num);
+    BLI_assume_assert(edges_dst.size() == me_src->edges_num);
     for (i = 0; i < edges_dst.size(); i++) {
       mesh_remap_item_define(r_map, i, FLT_MAX, 0, 1, &i, &full_weight);
     }
@@ -1197,14 +1197,14 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
   const float full_weight = 1.0f;
   const float max_dist_sq = max_dist * max_dist;
 
-  BLI_assert(mode & MREMAP_MODE_LOOP);
+  BLI_assume_assert(mode & MREMAP_MODE_LOOP);
   BLI_assert((islands_precision_src >= 0.0f) && (islands_precision_src <= 1.0f));
 
   BKE_mesh_remap_init(r_map, int(corner_verts_dst.size()));
 
   if (mode == MREMAP_MODE_TOPOLOGY) {
     /* In topology mapping, we assume meshes are identical, islands included! */
-    BLI_assert(corner_verts_dst.size() == me_src->corners_num);
+    BLI_assume_assert(corner_verts_dst.size() == me_src->corners_num);
     for (int i = 0; i < corner_verts_dst.size(); i++) {
       mesh_remap_item_define(r_map, i, FLT_MAX, 0, 1, &i, &full_weight);
     }
@@ -1397,7 +1397,7 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
         }
       }
       else {
-        BLI_assert(num_trees == 1);
+        BLI_assume_assert(num_trees == 1);
         treedata[0] = me_src->bvh_verts();
       }
     }
@@ -1425,7 +1425,7 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
         }
       }
       else {
-        BLI_assert(num_trees == 1);
+        BLI_assume_assert(num_trees == 1);
         treedata[0] = me_src->bvh_corner_tris();
       }
     }
@@ -1501,7 +1501,7 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
               }
 
               for (const int index_src : vert_to_refelem_map_src) {
-                BLI_assert(index_src != -1);
+                BLI_assume_assert(index_src != -1);
                 const float dot = dot_v3v3(nors_src[index_src], *nor_dst);
 
                 pidx_src = ((mode == MREMAP_MODE_LOOP_NEAREST_LOOPNOR) ?
@@ -1747,7 +1747,7 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
                     BLI_AStarGNLink *as_link = as_solution.prev_links[pidx_isld_src];
                     const int eidx = POINTER_AS_INT(as_link->custom_data);
                     pidx_isld_src = as_solution.prev_nodes[pidx_isld_src];
-                    BLI_assert(pidx_isld_src != -1);
+                    BLI_assume_assert(pidx_isld_src != -1);
                     if (eidx != -1) {
                       /* we are 'crossing' a cutting edge. */
                       last_valid_pidx_isld_src = pidx_isld_src;
@@ -1838,7 +1838,7 @@ void BKE_mesh_remap_calc_loops_from_mesh(const int mode,
                     int eidx = POINTER_AS_INT(as_link->custom_data);
 
                     pidx_isld_src = as_solution.prev_nodes[pidx_isld_src];
-                    BLI_assert(pidx_isld_src != -1);
+                    BLI_assume_assert(pidx_isld_src != -1);
                     if (eidx != -1) {
                       /* we are 'crossing' a cutting edge. */
                       last_valid_pidx_isld_src = pidx_isld_src;
@@ -1998,7 +1998,7 @@ void BKE_mesh_remap_calc_faces_from_mesh(const int mode,
   blender::Span<blender::float3> face_normals_dst;
   blender::float3 tmp_co, tmp_no;
 
-  BLI_assert(mode & MREMAP_MODE_POLY);
+  BLI_assume_assert(mode & MREMAP_MODE_POLY);
 
   if (mode & (MREMAP_USE_NORMAL | MREMAP_USE_NORPROJ)) {
     face_normals_dst = mesh_dst->face_normals();
@@ -2007,7 +2007,7 @@ void BKE_mesh_remap_calc_faces_from_mesh(const int mode,
   BKE_mesh_remap_init(r_map, int(faces_dst.size()));
 
   if (mode == MREMAP_MODE_TOPOLOGY) {
-    BLI_assert(faces_dst.size() == me_src->faces_num);
+    BLI_assume_assert(faces_dst.size() == me_src->faces_num);
     for (const int64_t i : faces_dst.index_range()) {
       const int index = int(i);
       mesh_remap_item_define(r_map, int(i), FLT_MAX, 0, 1, &index, &full_weight);

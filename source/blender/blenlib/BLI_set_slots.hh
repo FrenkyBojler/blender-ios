@@ -123,7 +123,7 @@ template<typename Key> class SimpleSetSlot {
    */
   template<typename Hash> uint64_t get_hash(const Hash &hash) const
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     return hash(*key_buffer_);
   }
 
@@ -156,7 +156,7 @@ template<typename Key> class SimpleSetSlot {
    */
   void remove()
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     key_buffer_.ref().~Key();
     state_ = Removed;
   }
@@ -231,7 +231,7 @@ template<typename Key> class HashedSetSlot {
 
   template<typename Hash> uint64_t get_hash(const Hash & /*hash*/) const
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     return hash_;
   }
 
@@ -257,7 +257,7 @@ template<typename Key> class HashedSetSlot {
 
   void remove()
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     key_buffer_.ref().~Key();
     state_ = Removed;
   }
@@ -304,14 +304,14 @@ template<typename Key, typename KeyInfo> class IntrusiveSetSlot {
 
   template<typename Hash> uint64_t get_hash(const Hash &hash) const
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     return hash(key_);
   }
 
   template<typename ForwardKey, typename IsEqual>
   bool contains(const ForwardKey &key, const IsEqual &is_equal, const uint64_t /*hash*/) const
   {
-    BLI_assert(KeyInfo::is_not_empty_or_removed(key));
+    BLI_assume_assert(KeyInfo::is_not_empty_or_removed(key));
     if constexpr (std::is_same_v<std::decay_t<IsEqual>, DefaultEquality<Key>>) {
       return is_equal(key_, key);
     }
@@ -326,13 +326,13 @@ template<typename Key, typename KeyInfo> class IntrusiveSetSlot {
   template<typename ForwardKey> void occupy(ForwardKey &&key, const uint64_t /*hash*/)
   {
     BLI_assert(!this->is_occupied());
-    BLI_assert(KeyInfo::is_not_empty_or_removed(key));
+    BLI_assume_assert(KeyInfo::is_not_empty_or_removed(key));
     key_ = std::forward<ForwardKey>(key);
   }
 
   void remove()
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     KeyInfo::remove(key_);
   }
 };

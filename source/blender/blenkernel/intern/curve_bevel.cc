@@ -58,8 +58,8 @@ static void bevel_quarter_fill(const Curve *curve,
   }
   else {
     /* The curve profile evaluation should be done when the resolution is set. */
-    BLI_assert(curve->bevel_profile->segments != nullptr);
-    BLI_assert(curve->bevel_profile->segments_len == curve->bevresol + 1);
+    BLI_assume_assert(curve->bevel_profile->segments != nullptr);
+    BLI_assume_assert(curve->bevel_profile->segments_len == curve->bevresol + 1);
 
     /* If there aren't enough samples, the curveprofile won't
      * sample the start vertex, so set it manually instead. */
@@ -244,7 +244,7 @@ static void curve_bevel_make_from_object(const Curve *cu, ListBaseT<DispList> *d
       dl = static_cast<DispList *>(cu->bevobj->runtime->curve_cache->disp.first);
     }
     else {
-      BLI_assert(cu->bevobj->runtime->curve_cache != nullptr);
+      BLI_assume_assert(cu->bevobj->runtime->curve_cache != nullptr);
       dl = nullptr;
     }
 

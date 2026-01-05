@@ -10,11 +10,11 @@
 #include <cstring>
 
 #include "BLI_utildefines.h"
-#include "MEM_guardedalloc.h"
-
+#include "BLI_assume.hh"
 #include "BLI_stack.h" /* own include */
-
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+
+#include "MEM_guardedalloc.h"
 
 #define USE_TOTELEM
 
@@ -119,7 +119,7 @@ void *BLI_stack_push_r(BLI_Stack *stack)
     stack->chunk_index = 0;
   }
 
-  BLI_assert(stack->chunk_index < stack->chunk_elem_max);
+  BLI_assume_assert(stack->chunk_index < stack->chunk_elem_max);
 
 #ifdef USE_TOTELEM
   stack->elem_num++;
@@ -137,7 +137,7 @@ void BLI_stack_push(BLI_Stack *stack, const void *src)
 
 void BLI_stack_pop(BLI_Stack *stack, void *dst)
 {
-  BLI_assert(BLI_stack_is_empty(stack) == false);
+  BLI_assume_assert(BLI_stack_is_empty(stack) == false);
 
   memcpy(dst, stack_get_last_elem(stack), stack->elem_size);
 
@@ -146,7 +146,7 @@ void BLI_stack_pop(BLI_Stack *stack, void *dst)
 
 void BLI_stack_pop_n(BLI_Stack *stack, void *dst, uint n)
 {
-  BLI_assert(n <= BLI_stack_count(stack));
+  BLI_assume_assert(n <= BLI_stack_count(stack));
 
   while (n--) {
     BLI_stack_pop(stack, dst);
@@ -156,7 +156,7 @@ void BLI_stack_pop_n(BLI_Stack *stack, void *dst, uint n)
 
 void BLI_stack_pop_n_reverse(BLI_Stack *stack, void *dst, uint n)
 {
-  BLI_assert(n <= BLI_stack_count(stack));
+  BLI_assume_assert(n <= BLI_stack_count(stack));
 
   dst = (void *)((char *)dst + (stack->elem_size * n));
 
@@ -168,14 +168,14 @@ void BLI_stack_pop_n_reverse(BLI_Stack *stack, void *dst, uint n)
 
 void *BLI_stack_peek(BLI_Stack *stack)
 {
-  BLI_assert(BLI_stack_is_empty(stack) == false);
+  BLI_assume_assert(BLI_stack_is_empty(stack) == false);
 
   return stack_get_last_elem(stack);
 }
 
 void BLI_stack_discard(BLI_Stack *stack)
 {
-  BLI_assert(BLI_stack_is_empty(stack) == false);
+  BLI_assume_assert(BLI_stack_is_empty(stack) == false);
 
 #ifdef USE_TOTELEM
   stack->elem_num--;

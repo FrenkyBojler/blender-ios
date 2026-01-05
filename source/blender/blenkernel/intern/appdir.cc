@@ -85,7 +85,7 @@ static struct {
 
 #ifndef NDEBUG
 static bool is_appdir_init = false;
-#  define ASSERT_IS_INIT() BLI_assert(is_appdir_init)
+#  define ASSERT_IS_INIT() BLI_assume_assert(is_appdir_init)
 #else
 #  define ASSERT_IS_INIT() ((void)0)
 #endif /* NDEBUG */
@@ -93,7 +93,7 @@ static bool is_appdir_init = false;
 void BKE_appdir_init()
 {
 #ifndef NDEBUG
-  BLI_assert(is_appdir_init == false);
+  BLI_assume_assert(is_appdir_init == false);
   is_appdir_init = true;
 #endif
 }
@@ -106,7 +106,7 @@ void BKE_appdir_exit()
    * & `BKE_appdir_init/_exit`). */
   GHOST_DisposeSystemPaths();
 #ifndef NDEBUG
-  BLI_assert(is_appdir_init == true);
+  BLI_assume_assert(is_appdir_init == true);
   is_appdir_init = false;
 #endif
 }
@@ -123,7 +123,7 @@ void BKE_appdir_exit()
 static char *blender_version_decimal(const int version)
 {
   static char version_str[5];
-  BLI_assert(version < 1000);
+  BLI_assume_assert(version < 1000);
   SNPRINTF(version_str, "%d.%d", version / 100, version % 100);
   return version_str;
 }
@@ -956,14 +956,14 @@ void BKE_appdir_program_path_init(const char *argv0)
 const char *BKE_appdir_program_path()
 {
 #ifndef WITH_PYTHON_MODULE /* Default's to empty when building as a Python module. */
-  BLI_assert(g_app.program_filepath[0]);
+  BLI_assume_assert(g_app.program_filepath[0]);
 #endif
   return g_app.program_filepath;
 }
 
 const char *BKE_appdir_program_dir()
 {
-  BLI_assert(g_app.program_dirname[0]);
+  BLI_assume_assert(g_app.program_dirname[0]);
   return g_app.program_dirname;
 }
 

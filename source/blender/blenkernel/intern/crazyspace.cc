@@ -374,7 +374,7 @@ int BKE_sculpt_get_first_deform_matrices(Depsgraph *depsgraph,
       else {
         /* More complex handling will continue in BKE_crazyspace_build_sculpt.
          * Exiting the loop on a non-deform modifier causes issues - #71213. */
-        BLI_assert(crazyspace_modifier_supports_deform(md));
+        BLI_assume_assert(crazyspace_modifier_supports_deform(md));
         break;
       }
     }
@@ -565,7 +565,7 @@ namespace blender::bke::crazyspace {
 
 GeometryDeformation get_evaluated_curves_deformation(const Object *ob_eval, const Object &ob_orig)
 {
-  BLI_assert(ob_orig.type == OB_CURVES);
+  BLI_assume_assert(ob_orig.type == OB_CURVES);
   const Curves &curves_id_orig = *static_cast<const Curves *>(ob_orig.data);
   const CurvesGeometry &curves_orig = curves_id_orig.geometry.wrap();
   const int points_num = curves_orig.points_num();
@@ -590,12 +590,12 @@ GeometryDeformation get_evaluated_curves_deformation(const Object *ob_eval, cons
     const CurvesEditHints *edit_hints = edit_component_eval->curves_edit_hints_.get();
     if (edit_hints != nullptr && &edit_hints->curves_id_orig == &curves_id_orig) {
       if (const std::optional<Span<float3>> positions = edit_hints->positions()) {
-        BLI_assert(positions->size() == points_num);
+        BLI_assume_assert(positions->size() == points_num);
         deformation.positions = *positions;
         uses_extra_positions = true;
       }
       if (edit_hints->deform_mats.has_value()) {
-        BLI_assert(edit_hints->deform_mats->size() == points_num);
+        BLI_assume_assert(edit_hints->deform_mats->size() == points_num);
         deformation.deform_mats = *edit_hints->deform_mats;
       }
     }
@@ -638,7 +638,7 @@ static const GreasePencilDrawingEditHints *get_drawing_edit_hint_for_original_dr
 GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(
     const Object *ob_eval, const Object &ob_orig, const bke::greasepencil::Drawing &drawing_orig)
 {
-  BLI_assert(ob_orig.type == OB_GREASE_PENCIL);
+  BLI_assume_assert(ob_orig.type == OB_GREASE_PENCIL);
   const GreasePencil &grease_pencil_orig = *static_cast<const GreasePencil *>(ob_orig.data);
 
   GeometryDeformation deformation;

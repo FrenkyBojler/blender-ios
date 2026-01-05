@@ -74,7 +74,7 @@ bUserMenuItem *BKE_blender_user_menu_item_add(ListBaseT<bUserMenuItem> *lb, int 
   }
   else {
     umi = MEM_new_for_free<bUserMenuItem>(__func__);
-    BLI_assert(0);
+    BLI_assume_assert(0);
   }
 
   umi->type = type;

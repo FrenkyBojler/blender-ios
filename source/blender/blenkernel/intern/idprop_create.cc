@@ -92,8 +92,8 @@ static void array_values_set(IDProperty *property,
                              size_t values_len,
                              size_t value_size)
 {
-  BLI_assert(values);
-  BLI_assert(property->len == values_len);
+  BLI_assume_assert(values);
+  BLI_assume_assert(property->len == values_len);
   memcpy(IDP_array_voidp_get(property), values, values_len * value_size);
 }
 
@@ -119,7 +119,7 @@ std::unique_ptr<IDProperty, IDPropertyDeleter> create_array(StringRef prop_name,
                 "PrimitiveType and id_property_type do not match (double).");
 
   const int64_t values_len = values.size();
-  BLI_assert(values_len > 0);
+  BLI_assume_assert(values_len > 0);
   std::unique_ptr<IDProperty, IDPropertyDeleter> property = array_create(
       prop_name, id_property_subtype, values_len, flags);
   array_values_set(

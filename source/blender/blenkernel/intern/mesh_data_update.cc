@@ -57,7 +57,7 @@ namespace blender::bke {
 // #define USE_MODIFIER_VALIDATE
 
 #ifdef USE_MODIFIER_VALIDATE
-#  define ASSERT_IS_VALID_MESH_INPUT(mesh) (BLI_assert(mesh_is_valid(*mesh)))
+#  define ASSERT_IS_VALID_MESH_INPUT(mesh) (BLI_assume_assert(mesh_is_valid(*mesh)))
 #  define ASSERT_IS_VALID_MESH_OUTPUT(mesh) \
     (BLI_assert((mesh == nullptr) || (mesh_is_valid(*mesh))))
 #else
@@ -557,7 +557,7 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
       if (mesh_next) {
         /* if the modifier returned a new mesh, release the old one */
         if (mesh != mesh_next) {
-          BLI_assert(mesh != &mesh_input);
+          BLI_assume_assert(mesh != &mesh_input);
           BKE_id_free(nullptr, mesh);
         }
         mesh = mesh_next;
@@ -589,7 +589,7 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
         if (mesh_next) {
           /* if the modifier returned a new mesh, release the old one */
           if (mesh_orco != mesh_next) {
-            BLI_assert(mesh_orco != &mesh_input);
+            BLI_assume_assert(mesh_orco != &mesh_input);
             BKE_id_free(nullptr, mesh_orco);
           }
 
@@ -616,7 +616,7 @@ static void mesh_calc_modifiers(Depsgraph &depsgraph,
         if (mesh_next) {
           /* if the modifier returned a new mesh, release the old one */
           if (mesh_orco_cloth != mesh_next) {
-            BLI_assert(mesh_orco != &mesh_input);
+            BLI_assume_assert(mesh_orco != &mesh_input);
             BKE_id_free(nullptr, mesh_orco_cloth);
           }
 
@@ -804,7 +804,7 @@ static void editbmesh_calc_modifiers(Depsgraph &depsgraph,
 
   /* The mesh from edit mode should not have any original index layers already, since those
    * are added during evaluation when necessary and are redundant on an original mesh. */
-  BLI_assert(CustomData_get_layer(&em_input.bm->pdata, CD_ORIGINDEX) == nullptr &&
+  BLI_assume_assert(CustomData_get_layer(&em_input.bm->pdata, CD_ORIGINDEX) == nullptr &&
              CustomData_get_layer(&em_input.bm->edata, CD_ORIGINDEX) == nullptr &&
              CustomData_get_layer(&em_input.bm->pdata, CD_ORIGINDEX) == nullptr);
 
@@ -1013,7 +1013,7 @@ static void mesh_build_data(Depsgraph &depsgraph,
   /* Make sure that drivers can target shapekey properties.
    * Note that this causes a potential inconsistency, as the shapekey may have a
    * different topology than the evaluated mesh. */
-  BLI_assert(mesh->key == nullptr || DEG_is_evaluated(mesh->key));
+  BLI_assume_assert(mesh->key == nullptr || DEG_is_evaluated(mesh->key));
   mesh_eval->key = mesh->key;
 
   if ((ob.mode & OB_MODE_ALL_SCULPT) && ob.sculpt) {
@@ -1049,7 +1049,7 @@ static void editbmesh_build_data(Depsgraph &depsgraph,
   /* Make sure that drivers can target shapekey properties.
    * Note that this causes a potential inconsistency, as the shapekey may have a
    * different topology than the evaluated mesh. */
-  BLI_assert(mesh->key == nullptr || DEG_is_evaluated(mesh->key));
+  BLI_assume_assert(mesh->key == nullptr || DEG_is_evaluated(mesh->key));
   me_final->key = mesh->key;
 
   obedit.runtime->editmesh_eval_cage = me_cage;
@@ -1119,11 +1119,11 @@ void mesh_data_update(Depsgraph &depsgraph,
                       Object &ob,
                       const CustomData_MeshMasks &dataMask)
 {
-  BLI_assert(ob.type == OB_MESH);
+  BLI_assume_assert(ob.type == OB_MESH);
 
   /* Evaluated meshes aren't supposed to be created on original instances. If you do,
    * they aren't cleaned up properly on mode switch, causing crashes, e.g #58150. */
-  BLI_assert(ob.id.tag & ID_TAG_COPIED_ON_EVAL);
+  BLI_assume_assert(ob.id.tag & ID_TAG_COPIED_ON_EVAL);
 
   BKE_object_free_derived_caches(&ob);
   if (DEG_is_active(&depsgraph)) {
@@ -1163,11 +1163,11 @@ Mesh *mesh_get_eval_deform(Depsgraph *depsgraph,
   }
 
   /* This function isn't thread-safe and can't be used during evaluation. */
-  BLI_assert(DEG_is_evaluating(depsgraph) == false);
+  BLI_assume_assert(DEG_is_evaluating(depsgraph) == false);
 
   /* Evaluated meshes aren't supposed to be created on original instances. If you do,
    * they aren't cleaned up properly on mode switch, causing crashes, e.g #58150. */
-  BLI_assert(ob->id.tag & ID_TAG_COPIED_ON_EVAL);
+  BLI_assume_assert(ob->id.tag & ID_TAG_COPIED_ON_EVAL);
 
   /* If there's no evaluated mesh or the last data mask used doesn't include
    * the data we need, rebuild the evaluated mesh. */

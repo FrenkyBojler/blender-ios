@@ -302,8 +302,8 @@ class VectorSet {
    */
   const Key &operator[](const int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index <= this->size());
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index <= this->size());
     return keys_[index];
   }
 
@@ -521,7 +521,7 @@ class VectorSet {
   template<typename ForwardKey> const Key &lookup_key_as(const ForwardKey &key) const
   {
     const Key *key_ptr = this->lookup_key_ptr_as(key);
-    BLI_assert(key_ptr != nullptr);
+    BLI_assume_assert(key_ptr != nullptr);
     return *key_ptr;
   }
 
@@ -750,7 +750,7 @@ class VectorSet {
     int64_t total_slots, usable_slots;
     max_load_factor_.compute_total_and_usable_slots(
         SlotArray::inline_buffer_capacity(), min_usable_slots, &total_slots, &usable_slots);
-    BLI_assert(total_slots >= 1);
+    BLI_assume_assert(total_slots >= 1);
     const uint64_t new_slot_mask = uint64_t(total_slots) - 1;
 
     /* Optimize the case when the set was empty beforehand. We can avoid some copies here. */
@@ -882,7 +882,7 @@ class VectorSet {
         int64_t index = this->size();
         Key *dst = keys_ + index;
         new (dst) Key(std::forward<ForwardKey>(key));
-        BLI_assert(hash_(*dst) == hash);
+        BLI_assume_assert(hash_(*dst) == hash);
         slot.occupy(index, hash);
         occupied_and_removed_slots_++;
         return;
@@ -900,7 +900,7 @@ class VectorSet {
         const int64_t index = this->size();
         Key *dst = keys_ + index;
         new (dst) Key(std::forward<ForwardKey>(key));
-        BLI_assert(hash_(*dst) == hash);
+        BLI_assume_assert(hash_(*dst) == hash);
         slot.occupy(index, hash);
         occupied_and_removed_slots_++;
         return true;
@@ -921,7 +921,7 @@ class VectorSet {
         const int64_t index = this->size();
         Key *dst = keys_ + index;
         new (dst) Key(std::forward<ForwardKey>(key));
-        BLI_assert(hash_(*dst) == hash);
+        BLI_assume_assert(hash_(*dst) == hash);
         slot.occupy(index, hash);
         occupied_and_removed_slots_++;
         return true;
@@ -930,7 +930,7 @@ class VectorSet {
         const int64_t index = slot.index();
         Key &stored_key = keys_[index];
         stored_key = std::forward<ForwardKey>(key);
-        BLI_assert(hash_(stored_key) == hash);
+        BLI_assume_assert(hash_(stored_key) == hash);
         return false;
       }
     }
@@ -940,7 +940,7 @@ class VectorSet {
   template<typename ForwardKey>
   int64_t index_of__impl(const ForwardKey &key, const uint64_t hash) const
   {
-    BLI_assert(this->contains_as(key));
+    BLI_assume_assert(this->contains_as(key));
 
     VECTOR_SET_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.contains(key, is_equal_, hash, keys_)) {
@@ -977,7 +977,7 @@ class VectorSet {
         const int64_t index = this->size();
         Key *dst = keys_ + index;
         new (dst) Key(std::forward<ForwardKey>(key));
-        BLI_assert(hash_(*dst) == hash);
+        BLI_assume_assert(hash_(*dst) == hash);
         slot.occupy(index, hash);
         occupied_and_removed_slots_++;
         return index;
@@ -988,7 +988,7 @@ class VectorSet {
 
   Key pop__impl()
   {
-    BLI_assert(this->size() > 0);
+    BLI_assume_assert(this->size() > 0);
 
     const int64_t index_to_pop = this->size() - 1;
     Key key = std::move(keys_[index_to_pop]);
@@ -1023,7 +1023,7 @@ class VectorSet {
   template<typename ForwardKey>
   void remove_contained__impl(const ForwardKey &key, const uint64_t hash)
   {
-    BLI_assert(this->contains_as(key));
+    BLI_assume_assert(this->contains_as(key));
 
     VECTOR_SET_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.contains(key, is_equal_, hash, keys_)) {
@@ -1083,7 +1083,7 @@ class VectorSet {
   {
     if (occupied_and_removed_slots_ >= usable_slots_) {
       this->realloc_and_reinsert(this->size() + 1);
-      BLI_assert(occupied_and_removed_slots_ < usable_slots_);
+      BLI_assume_assert(occupied_and_removed_slots_ < usable_slots_);
     }
   }
 

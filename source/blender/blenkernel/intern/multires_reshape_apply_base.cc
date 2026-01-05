@@ -147,9 +147,9 @@ void multires_reshape_apply_base_refine_from_deform(MultiresReshapeContext *resh
   Depsgraph *depsgraph = reshape_context->depsgraph;
   Object *object = reshape_context->object;
   MultiresModifierData *mmd = reshape_context->mmd;
-  BLI_assert(depsgraph != nullptr);
-  BLI_assert(object != nullptr);
-  BLI_assert(mmd != nullptr);
+  BLI_assume_assert(depsgraph != nullptr);
+  BLI_assume_assert(object != nullptr);
+  BLI_assume_assert(mmd != nullptr);
 
   blender::Array<blender::float3> deformed_verts =
       BKE_multires_create_deformed_base_mesh_vert_coords(depsgraph, object, mmd);

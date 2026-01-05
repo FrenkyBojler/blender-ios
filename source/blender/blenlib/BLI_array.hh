@@ -131,7 +131,7 @@ class Array {
   Array(int64_t size, const T &value, Allocator allocator = {})
       : Array(NoExceptConstructor(), allocator)
   {
-    BLI_assert(size >= 0);
+    BLI_assume_assert(size >= 0);
     data_ = this->get_buffer_for_size(size);
 #if defined(__GNUC__) && !defined(__clang__)
 #  pragma GCC diagnostic push
@@ -159,7 +159,7 @@ class Array {
   Array(int64_t size, NoInitialization, Allocator allocator = {})
       : Array(NoExceptConstructor(), allocator)
   {
-    BLI_assert(size >= 0);
+    BLI_assume_assert(size >= 0);
     data_ = this->get_buffer_for_size(size);
     size_ = size;
   }
@@ -206,15 +206,15 @@ class Array {
 
   T &operator[](int64_t index)
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < size_);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < size_);
     return data_[index];
   }
 
   const T &operator[](int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < size_);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < size_);
     return data_[index];
   }
 
@@ -280,12 +280,12 @@ class Array {
    */
   const T &first() const
   {
-    BLI_assert(size_ > 0);
+    BLI_assume_assert(size_ > 0);
     return *data_;
   }
   T &first()
   {
-    BLI_assert(size_ > 0);
+    BLI_assume_assert(size_ > 0);
     return *data_;
   }
 
@@ -295,14 +295,14 @@ class Array {
    */
   const T &last(const int64_t n = 0) const
   {
-    BLI_assert(n >= 0);
-    BLI_assert(n < size_);
+    BLI_assume_assert(n >= 0);
+    BLI_assume_assert(n < size_);
     return *(data_ + size_ - 1 - n);
   }
   T &last(const int64_t n = 0)
   {
-    BLI_assert(n >= 0);
-    BLI_assert(n < size_);
+    BLI_assume_assert(n >= 0);
+    BLI_assume_assert(n < size_);
     return *(data_ + size_ - 1 - n);
   }
 
@@ -418,7 +418,7 @@ class Array {
    */
   void reinitialize(const int64_t new_size)
   {
-    BLI_assert(new_size >= 0);
+    BLI_assume_assert(new_size >= 0);
     int64_t old_size = size_;
 
     destruct_n(data_, size_);

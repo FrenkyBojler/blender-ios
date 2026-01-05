@@ -353,7 +353,7 @@ float closest_seg_seg_v2(float r_closest_a[2],
     *r_lambda_b = 0.0f;
   }
   else {
-    BLI_assert(min_dist_sq == dist_sq4);
+    BLI_assume_assert(min_dist_sq == dist_sq4);
     copy_v2_v2(r_closest_a, p4);
     copy_v2_v2(r_closest_b, b2);
     *r_lambda_a = lambda4;
@@ -3030,7 +3030,7 @@ bool isect_ray_ray_epsilon_v3(const float ray_origin_a[3],
                               float *r_lambda_a,
                               float *r_lambda_b)
 {
-  BLI_assert(r_lambda_a || r_lambda_b);
+  BLI_assume_assert(r_lambda_a || r_lambda_b);
   float n[3];
   cross_v3_v3v3(n, ray_direction_b, ray_direction_a);
   const float nlen = len_squared_v3(n);
@@ -3423,7 +3423,7 @@ bool isect_point_tri_v3(
 
     /* Could use normal_tri_v3, but doesn't have to be unit-length */
     cross_tri_v3(no, v1, v2, v3);
-    BLI_assert(len_squared_v3(no) != 0.0f);
+    BLI_assume_assert(len_squared_v3(no) != 0.0f);
 
     plane_from_point_normal_v3(plane, v1, no);
     closest_to_plane_v3(r_isect_co, plane, p);
@@ -4936,8 +4936,8 @@ static float snap_coordinate(float u)
   if (u < 0.0f) {
     u += 1.0f; /* Get back into the unit interval. */
   }
-  BLI_assert(0.0f <= u);
-  BLI_assert(u <= 1.0f);
+  BLI_assume_assert(0.0f <= u);
+  BLI_assume_assert(u <= 1.0f);
   const float epsilon = 0.25f / 65536.0f; /* i.e. Quarter of a texel on a 65536 x 65536 texture. */
   if (u < epsilon) {
     return 0.0f; /* `u` is close to 0, just return 0. */

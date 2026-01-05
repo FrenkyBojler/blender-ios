@@ -239,7 +239,7 @@ template<typename TileData = NoTileData> struct PartialUpdateChecker {
      */
     ePartialUpdateIterResult get_next_change()
     {
-      BLI_assert(result_code == ePartialUpdateCollectResult::PartialChangesDetected);
+      BLI_assume_assert(result_code == ePartialUpdateCollectResult::PartialChangesDetected);
       ePartialUpdateIterResult result = BKE_image_partial_update_get_next_change(checker->user,
                                                                                  &changed_region);
       switch (result) {

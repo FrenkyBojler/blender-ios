@@ -216,7 +216,7 @@ void BLI_bitmap_draw_2d_tri_v2i(
   /* At first sort the three vertices by y-coordinate ascending so p1 is the top-most vertex */
   ORDER_VARS3_BY(const int *, p1, p2, p3, [1]);
 
-  BLI_assert(p1[1] <= p2[1] && p2[1] <= p3[1]);
+  BLI_assume_assert(p1[1] <= p2[1] && p2[1] <= p3[1]);
 
   /* Check for trivial case of bottom-flat triangle. */
   if (p2[1] == p3[1]) {
@@ -368,7 +368,7 @@ void BLI_bitmap_draw_2d_poly_v2i_n(const int xmin,
   int span_y_index = 0;
   if (span_y_len != 0 && verts[span_y[0][0]][1] < ymin) {
     while ((span_y_index < span_y_len) && (verts[span_y[span_y_index][0]][1] < ymin)) {
-      BLI_assert(verts[span_y[span_y_index][0]][1] < verts[span_y[span_y_index][1]][1]);
+      BLI_assume_assert(verts[span_y[span_y_index][0]][1] < verts[span_y[span_y_index][1]][1]);
       if (verts[span_y[span_y_index][1]][1] >= ymin) {
         NodeX *n = &node_x[node_x_len++];
         n->span_y_index = span_y_index;
@@ -388,7 +388,7 @@ void BLI_bitmap_draw_2d_poly_v2i_n(const int xmin,
       const int *co_prev = verts[s[0]];
       const int *co_curr = verts[s[1]];
 
-      BLI_assert(co_prev[1] < pixel_y && co_curr[1] >= pixel_y);
+      BLI_assume_assert(co_prev[1] < pixel_y && co_curr[1] >= pixel_y);
 
       const double x = (co_prev[0] - co_curr[0]);
       const double y = (co_prev[1] - co_curr[1]);

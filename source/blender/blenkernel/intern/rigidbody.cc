@@ -258,7 +258,7 @@ bool BKE_rigidbody_is_affected_by_simulation(Object *ob)
 /* get the appropriate evaluated mesh based on rigid body mesh source */
 static const Mesh *rigidbody_get_mesh(Object *ob)
 {
-  BLI_assert(ob->type == OB_MESH);
+  BLI_assume_assert(ob->type == OB_MESH);
 
   switch (ob->rigidbody_object->mesh_source) {
     case RBO_MESH_DEFORM:
@@ -269,7 +269,7 @@ static const Mesh *rigidbody_get_mesh(Object *ob)
       /* This mesh may be used for computing corner_tris, which should be done
        * on the original; otherwise every time the evaluated copy is recreated it will
        * have to be recomputed. */
-      BLI_assert(ob->rigidbody_object->mesh_source == RBO_MESH_BASE);
+      BLI_assume_assert(ob->rigidbody_object->mesh_source == RBO_MESH_BASE);
       return (Mesh *)ob->runtime->data_orig;
   }
 

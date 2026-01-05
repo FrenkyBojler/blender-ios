@@ -19,17 +19,17 @@
 #include <wcwidth.h>
 
 #include "BLI_utildefines.h"
-
+#include "BLI_assume.hh"
 #include "BLI_string.h"      /* #BLI_string_debug_size. */
 #include "BLI_string_utf8.h" /* own include */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
+
 #ifdef WIN32
 #  include "utfconv.hh"
 #endif
 #ifdef __GNUC__
 #  pragma GCC diagnostic error "-Wsign-conversion"
 #endif
-
-#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 static size_t str_utf8_truncate_at_size_unchecked(char *str, const size_t str_size);
 
@@ -289,7 +289,7 @@ int BLI_str_utf8_invalid_strip(char *str, size_t str_len)
   ptrdiff_t bad_char;
   int tot = 0;
 
-  BLI_assert(str[str_len] == '\0');
+  BLI_assume_assert(str[str_len] == '\0');
 
   while ((bad_char = BLI_str_utf8_invalid_byte(str, str_len)) != -1) {
     str += bad_char;
@@ -311,11 +311,11 @@ int BLI_str_utf8_invalid_strip(char *str, size_t str_len)
 
 int BLI_str_utf8_invalid_substitute(char *str, size_t str_len, const char substitute)
 {
-  BLI_assert(substitute);
+  BLI_assume_assert(substitute);
   ptrdiff_t bad_char;
   int tot = 0;
 
-  BLI_assert(str[str_len] == '\0');
+  BLI_assume_assert(str[str_len] == '\0');
 
   while ((bad_char = BLI_str_utf8_invalid_byte(str, str_len)) != -1) {
     str[bad_char] = substitute;
@@ -334,12 +334,12 @@ const char *BLI_str_utf8_invalid_substitute_if_needed(const char *str,
                                                       char *buf,
                                                       const size_t buf_maxncpy)
 {
-  BLI_assert(str[str_len] == '\0');
+  BLI_assume_assert(str[str_len] == '\0');
   const ptrdiff_t bad_char = BLI_str_utf8_invalid_byte(str, str_len);
   if (LIKELY(bad_char == -1)) {
     return str;
   }
-  BLI_assert(bad_char >= 0);
+  BLI_assume_assert(bad_char >= 0);
 
   /* In the case a bad character is outside the buffer limit,
    * simply perform a truncating UTF8 copy into the buffer and return that. */
@@ -401,7 +401,7 @@ BLI_INLINE char *str_utf8_copy_max_bytes_impl(char *dst, const char *src, size_t
 
 char *BLI_strncpy_utf8(char *__restrict dst, const char *__restrict src, size_t dst_maxncpy)
 {
-  BLI_assert(dst_maxncpy != 0);
+  BLI_assume_assert(dst_maxncpy != 0);
   BLI_string_debug_size(dst, dst_maxncpy);
 
   char *dst_end = str_utf8_copy_max_bytes_impl(dst, src, dst_maxncpy - 1);
@@ -411,7 +411,7 @@ char *BLI_strncpy_utf8(char *__restrict dst, const char *__restrict src, size_t 
 
 size_t BLI_strncpy_utf8_rlen(char *__restrict dst, const char *__restrict src, size_t dst_maxncpy)
 {
-  BLI_assert(dst_maxncpy != 0);
+  BLI_assume_assert(dst_maxncpy != 0);
   BLI_string_debug_size(dst, dst_maxncpy);
 
   char *r_dst = dst;
@@ -440,7 +440,7 @@ size_t BLI_strncpy_wchar_as_utf8(char *__restrict dst,
                                  const wchar_t *__restrict src,
                                  const size_t dst_maxncpy)
 {
-  BLI_assert(dst_maxncpy != 0);
+  BLI_assume_assert(dst_maxncpy != 0);
   BLI_string_debug_size(dst, dst_maxncpy);
 
   size_t len = 0;
@@ -556,9 +556,9 @@ size_t BLI_vsnprintf_utf8(char *__restrict dst,
   /* NOTE: a clone of #BLI_vsnprintf that trims the end. */
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  BLI_assert(dst != nullptr);
-  BLI_assert(dst_maxncpy > 0);
-  BLI_assert(format != nullptr);
+  BLI_assume_assert(dst != nullptr);
+  BLI_assume_assert(dst_maxncpy > 0);
+  BLI_assume_assert(format != nullptr);
 
   const size_t n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
   if (n < dst_maxncpy) {
@@ -578,9 +578,9 @@ size_t BLI_vsnprintf_utf8_rlen(char *__restrict dst,
 {
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  BLI_assert(dst != nullptr);
-  BLI_assert(dst_maxncpy > 0);
-  BLI_assert(format != nullptr);
+  BLI_assume_assert(dst != nullptr);
+  BLI_assume_assert(dst_maxncpy > 0);
+  BLI_assume_assert(format != nullptr);
 
   size_t n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
   if (n < dst_maxncpy) {
@@ -1114,7 +1114,7 @@ uint BLI_str_utf8_as_unicode_step_or_error(const char *__restrict p,
   const uchar c = uchar(*(p += *index));
 
   BLI_assert(*index < p_len);
-  BLI_assert(c != '\0');
+  BLI_assume_assert(c != '\0');
 
   char mask = 0;
   const int len = utf8_char_compute_skip_or_error_with_mask(c, &mask);
@@ -1215,7 +1215,7 @@ size_t BLI_str_utf8_as_utf32(char32_t *__restrict dst_w,
                              const char *__restrict src_c,
                              const size_t dst_w_maxncpy)
 {
-  BLI_assert(dst_w_maxncpy != 0);
+  BLI_assume_assert(dst_w_maxncpy != 0);
   BLI_string_debug_size(dst_w, dst_w_maxncpy);
 
   const size_t maxlen = dst_w_maxncpy - 1;
@@ -1247,7 +1247,7 @@ size_t BLI_str_utf32_as_utf8(char *__restrict dst,
                              const char32_t *__restrict src,
                              const size_t dst_maxncpy)
 {
-  BLI_assert(dst_maxncpy != 0);
+  BLI_assume_assert(dst_maxncpy != 0);
   BLI_string_debug_size(dst, dst_maxncpy);
 
   size_t len = 0;
@@ -1289,7 +1289,7 @@ const char *BLI_str_find_prev_char_utf8(const char *p, const char *str_start)
 {
   /* Originally `g_utf8_find_prev_char` in GLIB. */
 
-  BLI_assert(p >= str_start);
+  BLI_assume_assert(p >= str_start);
   if (str_start < p) {
     for (--p; p >= str_start; p--) {
       if ((*p & 0xc0) != 0x80) {
@@ -1304,7 +1304,7 @@ const char *BLI_str_find_next_char_utf8(const char *p, const char *str_end)
 {
   /* Originally `g_utf8_find_next_char` in GLIB. */
 
-  BLI_assert(p <= str_end);
+  BLI_assume_assert(p <= str_end);
   if ((p < str_end) && (*p != '\0')) {
     for (++p; p < str_end && (*p & 0xc0) == 0x80; p++) {
       /* do nothing */
@@ -1379,7 +1379,7 @@ size_t BLI_str_partition_ex_utf8(const char *str,
  */
 static size_t str_utf8_truncate_at_size_unchecked(char *str, const size_t str_size)
 {
-  BLI_assert(str_size > 0);
+  BLI_assume_assert(str_size > 0);
   BLI_assert(!std::memchr(str, '\0', str_size - 1));
   size_t str_len_trim;
   BLI_strnlen_utf8_ex(str, str_size - 1, &str_len_trim);
@@ -1389,7 +1389,7 @@ static size_t str_utf8_truncate_at_size_unchecked(char *str, const size_t str_si
 
 bool BLI_str_utf8_truncate_at_size(char *str, const size_t str_size)
 {
-  BLI_assert(str_size > 0);
+  BLI_assume_assert(str_size > 0);
   if (std::memchr(str, '\0', str_size)) {
     return false;
   }
@@ -1401,7 +1401,7 @@ bool BLI_str_utf8_truncate_at_size(char *str, const size_t str_size)
 /* -------------------------------------------------------------------- */
 /** \name Offset Conversion in Strings
  *
- * \note Regarding the assertion: `BLI_assert(offset <= offset_target)`
+ * \note Regarding the assertion: `BLI_assume_assert(offset <= offset_target)`
  * The `offset_target` is likely in the middle of a UTF8 byte-sequence.
  * Most likely the offset passed in is incorrect, although it may be impractical to
  * avoid this happening in the case of invalid UTF8 byte sequences.
@@ -1410,7 +1410,7 @@ bool BLI_str_utf8_truncate_at_size(char *str, const size_t str_size)
 
 int BLI_str_utf8_offset_to_index(const char *str, const size_t str_len, const int offset_target)
 {
-  BLI_assert(offset_target >= 0);
+  BLI_assume_assert(offset_target >= 0);
   const size_t offset_target_as_size = size_t(offset_target);
   size_t offset = 0;
   int index = 0;
@@ -1420,14 +1420,14 @@ int BLI_str_utf8_offset_to_index(const char *str, const size_t str_len, const in
     const uint code = BLI_str_utf8_as_unicode_step_safe(str, str_len, &offset);
     UNUSED_VARS(code);
     index++;
-    BLI_assert(offset <= offset_target_as_size); /* See DOXY section comment. */
+    BLI_assume_assert(offset <= offset_target_as_size); /* See DOXY section comment. */
   }
   return index;
 }
 
 int BLI_str_utf8_offset_from_index(const char *str, const size_t str_len, const int index_target)
 {
-  BLI_assert(index_target >= 0);
+  BLI_assume_assert(index_target >= 0);
   size_t offset = 0;
   int index = 0;
   while ((offset < str_len) && (index < index_target)) {
@@ -1441,14 +1441,14 @@ int BLI_str_utf8_offset_from_index(const char *str, const size_t str_len, const 
 
 int BLI_str_utf8_offset_to_column(const char *str, const size_t str_len, const int offset_target)
 {
-  BLI_assert(offset_target >= 0);
+  BLI_assume_assert(offset_target >= 0);
   const size_t offset_target_clamp = std::min(size_t(offset_target), str_len);
   size_t offset = 0;
   int column = 0;
   while (offset < offset_target_clamp) {
     const uint code = BLI_str_utf8_as_unicode_step_safe(str, str_len, &offset);
     column += BLI_wcwidth_safe(code);
-    BLI_assert(offset <= size_t(offset_target)); /* See DOXY section comment. */
+    BLI_assume_assert(offset <= size_t(offset_target)); /* See DOXY section comment. */
   }
   return column;
 }
@@ -1473,7 +1473,7 @@ int BLI_str_utf8_offset_to_column_with_tabs(const char *str,
                                             const int offset_target,
                                             const int tab_width)
 {
-  BLI_assert(offset_target >= 0);
+  BLI_assume_assert(offset_target >= 0);
   const size_t offset_target_clamp = std::min(size_t(offset_target), str_len);
   size_t offset = 0;
   int column = 0;
@@ -1481,7 +1481,7 @@ int BLI_str_utf8_offset_to_column_with_tabs(const char *str,
     const uint code = BLI_str_utf8_as_unicode_step_safe(str, str_len, &offset);
     /* The following line is the only change compared with #BLI_str_utf8_offset_to_column. */
     column += (code == '\t') ? (tab_width - (column % tab_width)) : BLI_wcwidth_safe(code);
-    BLI_assert(offset <= size_t(offset_target)); /* See DOXY section comment. */
+    BLI_assume_assert(offset <= size_t(offset_target)); /* See DOXY section comment. */
   }
   return column;
 }

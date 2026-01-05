@@ -241,14 +241,14 @@ void BKE_lightprobe_grid_cache_frame_free(LightProbeGridCacheFrame *cache)
 
 void BKE_lightprobe_cache_create(Object *object)
 {
-  BLI_assert(object->lightprobe_cache == nullptr);
+  BLI_assume_assert(object->lightprobe_cache == nullptr);
 
   object->lightprobe_cache = MEM_new_for_free<LightProbeObjectCache>("LightProbeObjectCache");
 }
 
 LightProbeObjectCache *BKE_lightprobe_cache_copy(LightProbeObjectCache *src_cache)
 {
-  BLI_assert(src_cache != nullptr);
+  BLI_assume_assert(src_cache != nullptr);
 
   LightProbeObjectCache *dst_cache = static_cast<LightProbeObjectCache *>(
       MEM_dupallocN(src_cache));

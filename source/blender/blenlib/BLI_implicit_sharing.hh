@@ -10,7 +10,7 @@
 
 #include <atomic>
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_utility_mixins.hh"
 
 #include "MEM_guardedalloc.h"
@@ -65,8 +65,8 @@ class ImplicitSharingInfo : NonCopyable, NonMovable {
  public:
   virtual ~ImplicitSharingInfo()
   {
-    BLI_assert(strong_users_ == 0);
-    BLI_assert(weak_users_ == 0);
+    BLI_assume_assert(strong_users_ == 0);
+    BLI_assume_assert(weak_users_ == 0);
   }
 
   /** Whether the resource can be modified in place because there is only one owner. */
@@ -111,7 +111,7 @@ class ImplicitSharingInfo : NonCopyable, NonMovable {
    */
   void tag_ensured_mutable() const
   {
-    BLI_assert(this->is_mutable());
+    BLI_assume_assert(this->is_mutable());
     /* This might not need an atomic increment when the #version method below is only called when
      * the code calling it is a strong user of this sharing info. Better be safe and use an atomic
      * for now. */
@@ -139,11 +139,11 @@ class ImplicitSharingInfo : NonCopyable, NonMovable {
   void remove_user_and_delete_if_last() const
   {
     const int old_user_count = strong_users_.fetch_sub(1, std::memory_order_acq_rel);
-    BLI_assert(old_user_count >= 1);
+    BLI_assume_assert(old_user_count >= 1);
     const bool was_last_user = old_user_count == 1;
     if (was_last_user) {
       const int old_weak_user_count = weak_users_.load(std::memory_order_acquire);
-      BLI_assert(old_weak_user_count >= 1);
+      BLI_assume_assert(old_weak_user_count >= 1);
       if (old_weak_user_count == 1) {
         /* If the weak user count is 1 it means that there is no actual weak user. The 1 just
          * indicates that there was still at least one strong user. */
@@ -168,7 +168,7 @@ class ImplicitSharingInfo : NonCopyable, NonMovable {
   void remove_weak_user_and_delete_if_last() const
   {
     const int old_weak_user_count = weak_users_.fetch_sub(1, std::memory_order_acq_rel);
-    BLI_assert(old_weak_user_count >= 1);
+    BLI_assume_assert(old_weak_user_count >= 1);
     const bool was_last_weak_user = old_weak_user_count == 1;
     if (was_last_weak_user) {
       /* It's possible that the data has been freed before already, but now it is definitely freed

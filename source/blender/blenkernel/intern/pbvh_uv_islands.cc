@@ -48,8 +48,8 @@ static int primitive_get_other_uv_vertex(const MeshData &mesh_data,
                                          const int v2)
 {
   const Span<int> corner_verts = mesh_data.corner_verts;
-  BLI_assert(ELEM(v1, corner_verts[tri[0]], corner_verts[tri[1]], corner_verts[tri[2]]));
-  BLI_assert(ELEM(v2, corner_verts[tri[0]], corner_verts[tri[1]], corner_verts[tri[2]]));
+  BLI_assume_assert(ELEM(v1, corner_verts[tri[0]], corner_verts[tri[1]], corner_verts[tri[2]]));
+  BLI_assume_assert(ELEM(v2, corner_verts[tri[0]], corner_verts[tri[1]], corner_verts[tri[2]]));
   for (const int loop : {tri[0], tri[1], tri[2]}) {
     const int vert = corner_verts[loop];
     if (!ELEM(vert, v1, v2)) {
@@ -520,7 +520,7 @@ struct FanSegment {
       vert_order[2] = 1;
     }
     else {
-      BLI_assert(mesh_data.corner_verts[tri[0]] == vertex);
+      BLI_assume_assert(mesh_data.corner_verts[tri[0]] == vertex);
       vert_order[0] = 0;
       vert_order[1] = 1;
       vert_order[2] = 2;
@@ -1374,8 +1374,8 @@ bool UVPrimitive::contains_uv_vertex(const UVVertex *uv_vertex) const
 
 const UVVertex *UVPrimitive::get_other_uv_vertex(const UVVertex *v1, const UVVertex *v2) const
 {
-  BLI_assert(contains_uv_vertex(v1));
-  BLI_assert(contains_uv_vertex(v2));
+  BLI_assume_assert(contains_uv_vertex(v1));
+  BLI_assume_assert(contains_uv_vertex(v2));
 
   for (const UVEdge *edge : edges) {
     for (const UVVertex *uv_vertex : edge->vertices) {

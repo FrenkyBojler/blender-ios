@@ -6,6 +6,7 @@
 #  include <algorithm>
 #  include <iostream>
 
+#  include "BLI_assume.hh"
 #  include "BLI_array.hh"
 #  include "BLI_array_utils.hh"
 #  include "BLI_map.hh"
@@ -144,8 +145,8 @@ static void dump_meshgl(const MeshGL &mgl, const std::string &name)
   dump_vector_values(indent, "m.runIndex", mgl.runIndex);
   dump_vector_values(indent, "m.runOriginalID", mgl.runOriginalID);
   dump_vector_values(indent, "m.faceID", mgl.faceID);
-  BLI_assert(mgl.runTransform.size() == 0);
-  BLI_assert(mgl.halfedgeTangent.size() == 0);
+  BLI_assume_assert(mgl.runTransform.size() == 0);
+  BLI_assume_assert(mgl.halfedgeTangent.size() == 0);
   if (mgl.tolerance != 0) {
     std::cout << indent << "m.tolerance = " << mgl.tolerance << ";\n";
   }
@@ -464,7 +465,7 @@ Span<int> OutToInMaps::ensure_face_map()
   timeit::ScopedTimer timer("filling face map");
 #  endif
   face_map_.reinitialize(output_mesh_->faces_num);
-  BLI_assert(mesh_assembly_->new_faces.size() == face_map_.size());
+  BLI_assume_assert(mesh_assembly_->new_faces.size() == face_map_.size());
   constexpr int grain_size = 50000;
   threading::parallel_for(
       mesh_assembly_->new_faces.index_range(), grain_size, [&](const IndexRange range) {
@@ -548,7 +549,7 @@ Span<int> OutToInMaps::ensure_corner_map()
           const int in_face_index = face_map[out_face_index];
           const IndexRange in_face = in_faces[in_face_index];
           for (const int out_c : out_faces[out_face_index]) {
-            BLI_assert(corner_map_[out_c] == -1);
+            BLI_assume_assert(corner_map_[out_c] == -1);
             const int out_v = out_corner_verts[out_c];
             const int in_v = vert_map[out_v];
             if (in_v == -1) {
@@ -679,7 +680,7 @@ Span<int> OutToInMaps::ensure_edge_map()
       const int in_e = in_corner_edges[in_c];
       const int in_v = in_corner_verts[in_c];
       /* Because of corner mapping, the output vertex should map to the input one. */
-      BLI_assert(vert_map[out_v] == in_v);
+      BLI_assume_assert(vert_map[out_v] == in_v);
       int2 out_e_v = out_edges[out_e];
       if (out_e_v[0] != out_v) {
         out_e_v = {out_e_v[1], out_e_v[0]};
@@ -698,7 +699,7 @@ Span<int> OutToInMaps::ensure_edge_map()
        * one being out_v, the vertex at corner out_c.
        * Similarly for in_e_v, with the first one being in_v.
        */
-      BLI_assert(vert_map[out_e_v[0]] == in_e_v[0]);
+      BLI_assume_assert(vert_map[out_e_v[0]] == in_e_v[0]);
       int edge_rep = -1;
       if (vert_map[out_e_v[1]] == in_e_v[1]) {
         /* Here both ends of the edges match. */
@@ -790,7 +791,7 @@ static Array<Vector<int, face_group_inline>> get_face_groups(const MeshGL &mgl,
   constexpr int dbg_level = 0;
   Array<Vector<int, face_group_inline>> fg(input_faces_num);
   const int tris_num = mgl.NumTri();
-  BLI_assert(mgl.faceID.size() == tris_num);
+  BLI_assume_assert(mgl.faceID.size() == tris_num);
   for (const int t : IndexRange(tris_num)) {
     const int faceid = mgl.faceID[t];
     fg[faceid].append(t);
@@ -818,7 +819,7 @@ static uchar check_original_face(const Vector<int, face_group_inline> &group,
                                  const Mesh *mesh,
                                  int face_index)
 {
-  BLI_assert(0 <= face_index && face_index < mesh->faces_num);
+  BLI_assume_assert(0 <= face_index && face_index < mesh->faces_num);
   const IndexRange orig_face = mesh->faces()[face_index];
   /* The face can't be original if the number of triangles isn't equal
    * to the original face size minus 2. */
@@ -1037,13 +1038,13 @@ static bool try_merge_out_face_pair(OutFace &f1, const OutFace &f2, const Shared
   /* Find i1, the index of the earlier of v1 and v2 in f1,
    * and i2, the index of the earlier of v1 and v2 in f2. */
   const int i1 = f1.find_vert_index(v1);
-  BLI_assert(i1 != -1);
+  BLI_assume_assert(i1 != -1);
   const int i1_next = (i1 + 1) % f1_len;
   const int i2 = f2.find_vert_index(v2);
-  BLI_assert(i2 != -1);
+  BLI_assume_assert(i2 != -1);
   const int i2_next = (i2 + 1) % f2_len;
-  BLI_assert(f1.verts[i1] == v1 && f1.verts[i1_next] == v2);
-  BLI_assert(f2.verts[i2] == v2 && f2.verts[i2_next] == v1);
+  BLI_assume_assert(f1.verts[i1] == v1 && f1.verts[i1_next] == v2);
+  BLI_assume_assert(f2.verts[i2] == v2 && f2.verts[i2_next] == v1);
   const bool can_merge = is_legal_merge(f1, f2, v1, v2);
   if (dbg_level > 0) {
     std::cout << "i1 = " << i1 << ", i2 = " << i2 << ", can_merge = " << can_merge << "\n";
@@ -1083,7 +1084,7 @@ static bool try_merge_out_face_pair(OutFace &f1, const OutFace &f2, const Shared
 static void merge_out_face_pair(Vector<OutFace> &faces)
 {
   constexpr int dbg_level = 0;
-  BLI_assert(faces.size() == 2);
+  BLI_assume_assert(faces.size() == 2);
   OutFace &tri1 = faces[0];
   OutFace &tri2 = faces[1];
   if (dbg_level > 0) {
@@ -1103,14 +1104,14 @@ static void merge_out_face_pair(Vector<OutFace> &faces)
   if (dbg_level > 0) {
     std::cout << "shared_edge = e" << e1 << ", e" << e2 << "; " << va << ", " << vb << "\n";
   }
-  BLI_assert(e1 < 3 && e2 >= 3);
+  BLI_assume_assert(e1 < 3 && e2 >= 3);
   /* Say tri1 has verts starting at pos e1 called a, b, c.
    * Then tri2 has verts starting at pos e2-3 called b, a, d.
    * So the quad we want is b, c, a, d.
    */
   const int vc = tri1.verts[(e1 + 2) % 3];
   const int vd = tri2.verts[(e2 - 3 + 2) % 3];
-  BLI_assert(tri1.verts[e1] == va && tri1.verts[(e1 + 1) % 3] == vb && tri2.verts[e2 - 3] == vb &&
+  BLI_assume_assert(tri1.verts[e1] == va && tri1.verts[(e1 + 1) % 3] == vb && tri2.verts[e2 - 3] == vb &&
              tri2.verts[(e2 - 3 + 1) % 3] == va);
   if (vc == vd) {
     /* This can't happen geometrically, but maybe in extreme cases... */
@@ -1168,7 +1169,7 @@ static void merge_out_faces(Vector<OutFace> &faces)
   Array<int> merged_to(faces.size(), -1);
   /* Local function to follow merged_to mappings as far as possible. */
   auto final_merged_to = [&](int f_orig) {
-    BLI_assert(f_orig != -1);
+    BLI_assume_assert(f_orig != -1);
     int f_mapped = f_orig;
     do {
       if (merged_to[f_mapped] != -1) {
@@ -1307,7 +1308,7 @@ static void dissolve_valence2_verts(MeshAssembly &ma)
     for (const int v : range) {
       if (dissolve[v]) {
         std::pair<int, int> &v_nbrs = neighbors[v];
-        BLI_assert(v_nbrs.first != -1 && v_nbrs.second != -1);
+        BLI_assume_assert(v_nbrs.first != -1 && v_nbrs.second != -1);
         const float3 p0 = ma.vert_position(v_nbrs.first);
         const float3 p1 = ma.vert_position(v);
         const float3 p2 = ma.vert_position(v_nbrs.second);
@@ -1342,10 +1343,10 @@ static void dissolve_valence2_verts(MeshAssembly &ma)
 
   /* Compress `vertpos` in place. Is there a parallel way to do this? */
   float *vpos_data = ma.vertpos.data();
-  BLI_assert(ma.vertpos_stride == 3);
+  BLI_assume_assert(ma.vertpos_stride == 3);
   for (const int old_v : IndexRange(vnum)) {
     const int new_v = ma.old_to_new_vert_map[old_v];
-    BLI_assert(new_v <= old_v);
+    BLI_assume_assert(new_v <= old_v);
     if (new_v >= 0) {
       std::copy_n(vpos_data + 3 * old_v, 3, vpos_data + 3 * new_v);
     }
@@ -1365,7 +1366,7 @@ static void dissolve_valence2_verts(MeshAssembly &ma)
         }
       }
       if (i_to < face.verts.size()) {
-        BLI_assert(i_to >= 3);
+        BLI_assume_assert(i_to >= 3);
         face.verts.resize(i_to);
       }
     }
@@ -1634,7 +1635,7 @@ void set_material_from_map(const Span<int> out_to_in_map,
                            const MeshOffsets &mesh_offsets,
                            const MutableSpan<int> dst)
 {
-  BLI_assert(material_remaps.size() > 0);
+  BLI_assume_assert(material_remaps.size() > 0);
   Array<VArray<int>> material_varrays(meshes.size());
   for (const int i : meshes.index_range()) {
     bke::AttributeAccessor input_attrs = meshes[i]->attributes();
@@ -1683,7 +1684,7 @@ static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
         int in_face2_i = face_map[face2_i];
         int m1 = mesh_id_for_face(in_face_i, mesh_offsets);
         int m2 = mesh_id_for_face(in_face2_i, mesh_offsets);
-        BLI_assert(m1 != -1 && m2 != -1);
+        BLI_assume_assert(m1 != -1 && m2 != -1);
         if (m1 != m2) {
           r_intersecting_edges->append(edge_i);
         }
@@ -1752,9 +1753,9 @@ static MeshGL mesh_trim_manifold(Manifold &manifold0,
    * plane faces, and faceIDs that make no sense for them. Fix this.
    * But only do this if the result is not empty. */
   if (meshgl.vertProperties.size() > 0) {
-    BLI_assert(meshgl.runOriginalID.size() == 2 && meshgl.runOriginalID[1] > 0);
+    BLI_assume_assert(meshgl.runOriginalID.size() == 2 && meshgl.runOriginalID[1] > 0);
     meshgl.runOriginalID[1] = 1;
-    BLI_assert(meshgl.runIndex.size() == 3);
+    BLI_assume_assert(meshgl.runIndex.size() == 3);
     int plane_face_start = meshgl.runIndex[1] / 3;
     int plane_face_end = meshgl.runIndex[2] / 3;
     for (int i = plane_face_start; i < plane_face_end; i++) {
@@ -1784,7 +1785,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
 #  ifdef DEBUG_TIME
   timeit::ScopedTimer timer("meshgl to mesh from joined_mesh");
 #  endif
-  BLI_assert(mgl.mergeFromVert.empty());
+  BLI_assume_assert(mgl.mergeFromVert.empty());
 
   if (mgl.vertProperties.empty() || mgl.triVerts.empty()) {
     Mesh *mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
@@ -1835,7 +1836,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
     timeit::ScopedTimer timer_c("set positions");
 #  endif
     BLI_assert(!output_attrs.contains("position"));
-    BLI_assert(mgl.numProp == 3);
+    BLI_assume_assert(mgl.numProp == 3);
     auto *sharing_info = new ImplicitSharedValue<std::vector<float>>(
         std::move(mgl.vertProperties));
     const bke::AttributeInitShared init(sharing_info->data.data(), *sharing_info);
@@ -1850,7 +1851,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
     bke::mesh_calc_edges(*mesh, false, false);
   }
 
-  BLI_assert(bke::mesh_is_valid(*mesh));
+  BLI_assume_assert(bke::mesh_is_valid(*mesh));
 
   OutToInMaps out_to_in(&ma, joined_mesh, mesh, &mesh_offsets);
 
@@ -1937,7 +1938,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
   mesh->tag_loose_verts_none();
   mesh->tag_overlapping_none();
 
-  BLI_assert(bke::mesh_is_valid(*mesh));
+  BLI_assume_assert(bke::mesh_is_valid(*mesh));
 
   return mesh;
 }

@@ -221,7 +221,7 @@ static void copy_with_mixing(const GSpan src,
                              const IndexMask &selection,
                              GMutableSpan dst)
 {
-  BLI_assert(selection.size() == dst.size());
+  BLI_assume_assert(selection.size() == dst.size());
   bke::attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
     using T = decltype(dummy);
     copy_with_mixing(src.typed<T>(), src_groups, selection, dst.typed<T>());

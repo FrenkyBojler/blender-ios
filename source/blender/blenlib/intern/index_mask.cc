@@ -37,7 +37,7 @@ template<typename T> void build_reverse_map(const IndexMask &mask, MutableSpan<T
   /* Catch errors with asserts in debug builds. */
   r_map.fill(-1);
 #endif
-  BLI_assert(r_map.size() >= mask.min_array_size());
+  BLI_assume_assert(r_map.size() >= mask.min_array_size());
   mask.foreach_index_optimized<T>(GrainSize(4096),
                                   [&](const T src, const T dst) { r_map[src] = dst; });
 }
@@ -62,7 +62,7 @@ const IndexMask &get_static_index_mask_for_min_size(const int64_t min_size)
   /* Make sure we are never requesting a size that's larger than what was statically allocated.
    * If that's ever needed, we can either increase #size_shift or dynamically allocate an even
    * larger mask. */
-  BLI_assert(min_size <= max_size);
+  BLI_assume_assert(min_size <= max_size);
   UNUSED_VARS_NDEBUG(min_size);
 
   static IndexMask static_mask = []() {
@@ -143,7 +143,7 @@ IndexMask IndexMask::slice(const RawMaskIterator first_it,
                            const RawMaskIterator last_it,
                            const int64_t size) const
 {
-  BLI_assert(this->iterator_to_index(last_it) - this->iterator_to_index(first_it) + 1 == size);
+  BLI_assume_assert(this->iterator_to_index(last_it) - this->iterator_to_index(first_it) + 1 == size);
   IndexMask sliced = *this;
   sliced.indices_num_ = size;
   sliced.segments_num_ = last_it.segment_i - first_it.segment_i + 1;
@@ -205,7 +205,7 @@ IndexMask IndexMask::shift(const int64_t offset, IndexMaskMemory &memory) const
   if (indices_num_ == 0) {
     return {};
   }
-  BLI_assert(this->first() + offset >= 0);
+  BLI_assume_assert(this->first() + offset >= 0);
   if (offset == 0) {
     return *this;
   }
@@ -292,8 +292,8 @@ IndexMask IndexMask::from_segments(const Span<IndexMaskSegment> segments, IndexM
   {
     int64_t last_index = segments[0].last();
     for (const IndexMaskSegment &segment : segments.drop_front(1)) {
-      BLI_assert(std::is_sorted(segment.base_span().begin(), segment.base_span().end()));
-      BLI_assert(last_index < segment[0]);
+      BLI_assume_assert(std::is_sorted(segment.base_span().begin(), segment.base_span().end()));
+      BLI_assume_assert(last_index < segment[0]);
       last_index = segment.last();
     }
   }
@@ -362,7 +362,7 @@ static void segments_from_indices(const Span<T> indices,
             [&](const T value) { return value - offset >= max_segment_size; });
         for (const int64_t i : IndexRange(next_segment_size)) {
           const int64_t offset_index = segment_indices[i] - offset;
-          BLI_assert(offset_index < max_segment_size);
+          BLI_assume_assert(offset_index < max_segment_size);
           offset_indices[i] = int16_t(offset_index);
         }
         r_segments.append_as(offset, offset_indices.take_front(next_segment_size));
@@ -467,7 +467,7 @@ static int64_t from_bits_batch_predicate(const IndexMaskSegment universe_segment
     for (const int64_t i : universe_segment.index_range()) {
       const int64_t global_index = universe_segment[i];
       const int64_t local_index = global_index - segment_start;
-      BLI_assert(local_index < max_segment_size);
+      BLI_assume_assert(local_index < max_segment_size);
       /* It's not great to handle each index separately instead of working with bigger
        * chunks, but that works well enough for now. */
       if (bits_slice[local_index]) {
@@ -483,7 +483,7 @@ IndexMask IndexMask::from_bits(const IndexMask &universe,
                                const BitSpan bits,
                                IndexMaskMemory &memory)
 {
-  BLI_assert(bits.size() >= universe.min_array_size());
+  BLI_assume_assert(bits.size() >= universe.min_array_size());
   /* Use #from_batch_predicate because we can process many bits at once. */
   return IndexMask::from_batch_predicate(
       universe,
@@ -605,7 +605,7 @@ IndexMask IndexMask::from_bools(const IndexMask &universe,
                                 Span<bool> bools,
                                 IndexMaskMemory &memory)
 {
-  BLI_assert(bools.size() >= universe.min_array_size());
+  BLI_assume_assert(bools.size() >= universe.min_array_size());
   return IndexMask::from_batch_predicate(
       universe,
       GrainSize(max_segment_size),
@@ -752,7 +752,7 @@ IndexMask IndexMask::from_initializers(const Span<Initializer> initializers,
 
 template<typename T> void IndexMask::to_indices(MutableSpan<T> r_indices) const
 {
-  BLI_assert(this->size() == r_indices.size());
+  BLI_assume_assert(this->size() == r_indices.size());
   this->foreach_index_optimized<int64_t>(
       GrainSize(1024), [r_indices = r_indices.data()](const int64_t i, const int64_t pos) {
         r_indices[pos] = T(i);
@@ -761,7 +761,7 @@ template<typename T> void IndexMask::to_indices(MutableSpan<T> r_indices) const
 
 void IndexMask::set_bits(MutableBitSpan r_bits, const int64_t offset) const
 {
-  BLI_assert(r_bits.size() >= this->min_array_size() + offset);
+  BLI_assume_assert(r_bits.size() >= this->min_array_size() + offset);
   this->foreach_segment_optimized([&](const auto segment) {
     if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
       const IndexRange range = segment;
@@ -780,14 +780,14 @@ void IndexMask::set_bits(MutableBitSpan r_bits, const int64_t offset) const
 
 void IndexMask::to_bits(MutableBitSpan r_bits, const int64_t offset) const
 {
-  BLI_assert(r_bits.size() >= this->min_array_size() + offset);
+  BLI_assume_assert(r_bits.size() >= this->min_array_size() + offset);
   r_bits.reset_all();
   this->set_bits(r_bits, offset);
 }
 
 void IndexMask::to_bools(MutableSpan<bool> r_bools) const
 {
-  BLI_assert(r_bools.size() >= this->min_array_size());
+  BLI_assume_assert(r_bools.size() >= this->min_array_size());
   r_bools.fill(false);
   index_mask::masked_fill(r_bools, true, *this);
 }
@@ -898,7 +898,7 @@ std::optional<RawMaskIterator> IndexMask::find_larger_equal(const int64_t query_
   if (query_index < segment[0]) {
     /* The query index is the first element in this segment. */
     const int64_t index_in_segment = segment_begin_index;
-    BLI_assert(index_in_segment < max_segment_size);
+    BLI_assume_assert(index_in_segment < max_segment_size);
     return RawMaskIterator{segment_i, int16_t(index_in_segment)};
   }
   /* The query index is somewhere within this segment. */
@@ -906,7 +906,7 @@ std::optional<RawMaskIterator> IndexMask::find_larger_equal(const int64_t query_
   const int64_t index_in_segment = binary_search::first_if(
       segment.base_span(), [&](const int16_t i) { return i >= local_index; });
   const int64_t actual_index_in_segment = index_in_segment + segment_begin_index;
-  BLI_assert(actual_index_in_segment < max_segment_size);
+  BLI_assume_assert(actual_index_in_segment < max_segment_size);
   return RawMaskIterator{segment_i, int16_t(actual_index_in_segment)};
 }
 
@@ -952,7 +952,7 @@ static Array<int16_t> build_every_nth_index_array(const int64_t n)
   Array<int16_t> data(max_segment_size / n);
   for (const int64_t i : data.index_range()) {
     const int64_t index = i * n;
-    BLI_assert(index < max_segment_size);
+    BLI_assume_assert(index < max_segment_size);
     data[i] = int16_t(index);
   }
   return data;
@@ -967,8 +967,8 @@ static Span<int16_t> get_every_nth_index(const int64_t n,
                                          const int64_t repetitions,
                                          IndexMaskMemory &memory)
 {
-  BLI_assert(n >= 2);
-  BLI_assert(n * repetitions <= max_segment_size);
+  BLI_assume_assert(n >= 2);
+  BLI_assume_assert(n * repetitions <= max_segment_size);
 
   switch (n) {
     case 2: {
@@ -987,7 +987,7 @@ static Span<int16_t> get_every_nth_index(const int64_t n,
       MutableSpan<int16_t> data = memory.allocate_array<int16_t>(repetitions);
       for (const int64_t i : IndexRange(repetitions)) {
         const int64_t index = i * n;
-        BLI_assert(index < max_segment_size);
+        BLI_assume_assert(index < max_segment_size);
         data[i] = int16_t(index);
       }
       return data;
@@ -1004,7 +1004,7 @@ IndexMask IndexMask::from_repeating(const IndexMask &mask_to_repeat,
   if (mask_to_repeat.is_empty()) {
     return {};
   }
-  BLI_assert(mask_to_repeat.last() < stride);
+  BLI_assume_assert(mask_to_repeat.last() < stride);
   if (repetitions == 0) {
     return {};
   }
@@ -1038,13 +1038,13 @@ IndexMask IndexMask::from_repeating(const IndexMask &mask_to_repeat,
       for (const int64_t repetition : IndexRange(inline_repetitions_num)) {
         for (const int64_t i : src_segment.index_range()) {
           const int64_t index = src_segment[i] - src_segment[0] + repetition * stride;
-          BLI_assert(index < max_segment_size);
+          BLI_assume_assert(index < max_segment_size);
           repeated_indices_mut[repetition * src_segment.size() + i] = int16_t(index);
         }
       }
       repeated_indices = repeated_indices_mut;
     }
-    BLI_assert(repeated_indices[0] == 0);
+    BLI_assume_assert(repeated_indices[0] == 0);
 
     Vector<IndexMaskSegment, 16> repeated_segments;
     const int64_t result_segments_num = ceil_division(repetitions, inline_repetitions_num);
@@ -1075,7 +1075,7 @@ IndexMask IndexMask::from_every_nth(const int64_t n,
                                     const int64_t initial_offset,
                                     IndexMaskMemory &memory)
 {
-  BLI_assert(n >= 1);
+  BLI_assume_assert(n >= 1);
   return IndexMask::from_repeating(IndexRange(1), indices_num, n, initial_offset, memory);
 }
 
@@ -1083,7 +1083,7 @@ void IndexMask::foreach_segment_zipped(const Span<IndexMask> masks,
                                        const FunctionRef<bool(Span<IndexMaskSegment> segments)> fn)
 {
   BLI_assert(!masks.is_empty());
-  BLI_assert(std::all_of(masks.begin() + 1, masks.end(), [&](const IndexMask &maks) {
+  BLI_assume_assert(std::all_of(masks.begin() + 1, masks.end(), [&](const IndexMask &maks) {
     return masks[0].size() == maks.size();
   }));
 
@@ -1154,8 +1154,8 @@ static bool segments_is_equal(const IndexMaskSegment &a, const IndexMaskSegment 
 
   const int64_t offset_difference = int16_t(b.offset() - a.offset());
 
-  BLI_assert(a_indices[0] >= 0 && b_indices[0] >= 0);
-  BLI_assert(b_indices[0] == a_indices[0] - offset_difference);
+  BLI_assume_assert(a_indices[0] >= 0 && b_indices[0] >= 0);
+  BLI_assume_assert(b_indices[0] == a_indices[0] - offset_difference);
 
   return std::equal(a_indices.begin(),
                     a_indices.end(),
@@ -1191,7 +1191,7 @@ Vector<IndexMask, 4> IndexMask::from_group_ids(const IndexMask &universe,
                                                IndexMaskMemory &memory,
                                                VectorSet<int> &r_index_by_group_id)
 {
-  BLI_assert(group_ids.size() >= universe.min_array_size());
+  BLI_assume_assert(group_ids.size() >= universe.min_array_size());
   Vector<IndexMask, 4> result_masks;
   if (const std::optional<int> single_group_id = group_ids.get_if_single()) {
     /* Optimize for the case when all group ids are the same. */

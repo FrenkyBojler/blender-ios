@@ -325,7 +325,7 @@ static void evaluate_coarse_intersection(const Span<CourseBoundary> boundaries,
           }
         }
         /* Determine the resulting coarse segment type based on the properties computed above. */
-        BLI_assert(full_count + unknown_count + copy_count == terms_num);
+        BLI_assume_assert(full_count + unknown_count + copy_count == terms_num);
         if (full_count == terms_num) {
           prev_segment = &add_coarse_segment__full(
               prev_segment, prev_boundary_index, boundary.index, result);
@@ -369,7 +369,7 @@ static void evaluate_coarse_difference(const Span<DifferenceCourseBoundary> boun
   for (const DifferenceCourseBoundary &boundary : boundaries) {
     if (prev_boundary_index < boundary.index) {
       /* There is only one main term, so at most one main segment can be active at once. */
-      BLI_assert(active_main_segments.size() <= 1);
+      BLI_assume_assert(active_main_segments.size() <= 1);
       if (active_main_segments.size() == 1) {
         const CoarseSegment &active_main_segment = *active_main_segments[0];
         /* Compute some properties of the input segments that were active between the current and
@@ -570,7 +570,7 @@ static Span<int16_t> bits_to_indices(const BoundedBitSpan bits, LinearAllocator<
   /* TODO: Could first count the number of set bits. */
   Vector<int16_t, max_segment_size> indices_vec;
   bits::foreach_1_index(bits, [&](const int64_t i) {
-    BLI_assert(i < max_segment_size);
+    BLI_assume_assert(i < max_segment_size);
     indices_vec.append_unchecked(int16_t(i));
   });
   return allocator.construct_array_copy<int16_t>(indices_vec);
@@ -592,7 +592,7 @@ static IndexMaskSegment evaluate_exact_with_bits(const Expr &root_expression,
                                                  const IndexRange bounds,
                                                  const Span<const Expr *> eval_order)
 {
-  BLI_assert(bounds.size() <= max_segment_size);
+  BLI_assume_assert(bounds.size() <= max_segment_size);
   const int64_t bounds_min = bounds.start();
   const int expr_array_size = root_expression.expression_array_size();
 
@@ -855,7 +855,7 @@ static IndexMaskSegment evaluate_exact_with_indices(const Expr &root_expression,
                                                     const IndexRange bounds,
                                                     const Span<const Expr *> eval_order)
 {
-  BLI_assert(bounds.size() <= max_segment_size);
+  BLI_assume_assert(bounds.size() <= max_segment_size);
   const int64_t bounds_min = bounds.start();
   const int expr_array_size = root_expression.expression_array_size();
   Array<IndexMaskSegment, inline_expr_array_size> results(expr_array_size);
@@ -865,7 +865,7 @@ static IndexMaskSegment evaluate_exact_with_indices(const Expr &root_expression,
         const AtomicExpr &expr = expression->as_atomic();
         const IndexMask mask = expr.mask->slice_content(bounds);
         /* The caller should make sure that the bounds are aligned to segment bounds. */
-        BLI_assert(mask.segments_num() <= 1);
+        BLI_assume_assert(mask.segments_num() <= 1);
         if (mask.segments_num() == 1) {
           results[expression->index] = mask.segment(0);
         }
@@ -1090,7 +1090,7 @@ static void evaluate_coarse_and_split_until_segments_are_short(
           break;
         }
         case CoarseSegment::Type::Copy: {
-          BLI_assert(segment.mask);
+          BLI_assume_assert(segment.mask);
           r_evaluated_segments.append(
               {EvaluatedSegment::Type::Copy, segment.bounds, segment.mask});
           break;
@@ -1292,7 +1292,7 @@ IndexMask evaluate_expression(const Expr &expression, IndexMaskMemory &memory)
                                                     ExactEvalMode::Indices :
                                                     ExactEvalMode::Bits;
     IndexMask other_mask = evaluate_expression_impl(expression, memory, other_exact_eval_mode);
-    BLI_assert(mask == other_mask);
+    BLI_assume_assert(mask == other_mask);
   }
 #endif
   return mask;

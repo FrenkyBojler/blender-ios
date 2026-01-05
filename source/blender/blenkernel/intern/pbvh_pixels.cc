@@ -437,21 +437,21 @@ static bool update_pixels(const Depsgraph &depsgraph,
 
 NodeData &node_data_get(Node &node)
 {
-  BLI_assert(node.pixels_ != nullptr);
+  BLI_assume_assert(node.pixels_ != nullptr);
   NodeData *node_data = static_cast<NodeData *>(node.pixels_);
   return *node_data;
 }
 
 PBVHData &data_get(Tree &pbvh)
 {
-  BLI_assert(pbvh.pixels_ != nullptr);
+  BLI_assume_assert(pbvh.pixels_ != nullptr);
   PBVHData *data = static_cast<PBVHData *>(pbvh.pixels_);
   return *data;
 }
 
 void mark_image_dirty(Node &node, Image &image, ImageUser &image_user)
 {
-  BLI_assert(node.pixels_ != nullptr);
+  BLI_assume_assert(node.pixels_ != nullptr);
   NodeData *node_data = static_cast<NodeData *>(node.pixels_);
   if (node_data->flags.dirty) {
     ImageUser local_image_user = image_user;

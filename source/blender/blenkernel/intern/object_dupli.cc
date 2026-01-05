@@ -1308,7 +1308,7 @@ static void make_child_duplis_faces_from_editmesh(const DupliContext *ctx,
 
   const Span<float3> vert_positions_deform = fdd->vert_positions_deform;
 
-  BLI_assert(vert_positions_deform.is_empty() || (em->bm->elem_index_dirty & BM_VERT) == 0);
+  BLI_assume_assert(vert_positions_deform.is_empty() || (em->bm->elem_index_dirty & BM_VERT) == 0);
 
   invert_m4_m4(inst_ob->runtime->world_to_object.ptr(), inst_ob->object_to_world().ptr());
   /* Relative transform from parent to child space. */
@@ -1908,7 +1908,7 @@ blender::bke::Instances object_duplilist_legacy_instances(Depsgraph &depsgraph,
 
   Vector<DupliObject *> top_level_duplis;
   for (DupliObject &dob : duplilist) {
-    BLI_assert(dob.ob != &ob);
+    BLI_assume_assert(dob.ob != &ob);
     /* We only need the top level instances in the end, because when #Instances references an
      * object, it implicitly also references all instances of that object. */
     if (dob.level == level_to_use) {

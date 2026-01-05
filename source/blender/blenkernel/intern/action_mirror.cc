@@ -124,7 +124,7 @@ static void action_flip_pchan_cache_init(FCurve_KeyCache *fkc,
                                          const float *keyed_frames,
                                          int keyed_frames_len)
 {
-  BLI_assert(fkc->fcurve != nullptr);
+  BLI_assume_assert(fkc->fcurve != nullptr);
 
   /* Cache the F-Curve values for `keyed_frames`. */
   const int fcurve_flag = fkc->fcurve->flag;

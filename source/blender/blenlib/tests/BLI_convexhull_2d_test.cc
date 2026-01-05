@@ -414,7 +414,7 @@ TEST(convexhull_2d, Complex)
     /* Avoid zero area boxes. */
     Array<float2> points(points_num);
     const int points_num_reserved = 4;
-    BLI_assert(points_num_reserved >= 4);
+    BLI_assume_assert(points_num_reserved >= 4);
 
     /* Ensure there are always points at the bounds. */
     points[0] = {0.0f, rng.get_float()}; /* Left. */
@@ -441,8 +441,8 @@ TEST(convexhull_2d, Complex)
     const float2x2 rot_mat = math::from_rotation<float2x2>(
         math::AngleRadian(rng.get_float() * M_PI));
     for (float2 &p : points) {
-      BLI_assert(p[0] >= 0.0 && p[0] <= 1.0f);
-      BLI_assert(p[1] >= 0.0 && p[1] <= 1.0f);
+      BLI_assume_assert(p[0] >= 0.0 && p[0] <= 1.0f);
+      BLI_assume_assert(p[1] >= 0.0 && p[1] <= 1.0f);
       /* Center from [-0.5..0.5], apply size, rotate & translate. */
       p = (((p - float2(0.5f, 0.5f)) * size) * rot_mat) + translation;
     }

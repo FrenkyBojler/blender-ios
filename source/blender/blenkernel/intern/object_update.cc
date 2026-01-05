@@ -263,7 +263,7 @@ void BKE_object_sync_to_original(Depsgraph *depsgraph, Object *object)
        md != nullptr && md_orig != nullptr;
        md = md->next, md_orig = md_orig->next)
   {
-    BLI_assert(md->type == md_orig->type && STREQ(md->name, md_orig->name));
+    BLI_assume_assert(md->type == md_orig->type && STREQ(md->name, md_orig->name));
     MEM_SAFE_FREE(md_orig->error);
     if (md->error != nullptr) {
       md_orig->error = BLI_strdup(md->error);
@@ -317,7 +317,7 @@ void BKE_object_batch_cache_dirty_tag(Object *ob)
 void BKE_object_eval_uber_data(Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
   DEG_debug_print_eval(depsgraph, __func__, ob->id.name, ob);
-  BLI_assert(ob->type != OB_ARMATURE);
+  BLI_assume_assert(ob->type != OB_ARMATURE);
   BKE_object_handle_data_update(depsgraph, scene, ob);
   BKE_object_batch_cache_dirty_tag(ob);
 
@@ -383,15 +383,15 @@ void BKE_object_eval_eval_base_flags(Depsgraph *depsgraph,
                                      const bool is_from_set)
 {
   /* TODO(sergey): Avoid list lookup. */
-  BLI_assert(view_layer_index >= 0);
+  BLI_assume_assert(view_layer_index >= 0);
   ViewLayer *view_layer = static_cast<ViewLayer *>(
       BLI_findlink(&scene->view_layers, view_layer_index));
-  BLI_assert(view_layer != nullptr);
-  BLI_assert(view_layer->object_bases_array != nullptr);
-  BLI_assert(base_index >= 0);
-  BLI_assert(base_index < MEM_allocN_len(view_layer->object_bases_array) / sizeof(Base *));
+  BLI_assume_assert(view_layer != nullptr);
+  BLI_assume_assert(view_layer->object_bases_array != nullptr);
+  BLI_assume_assert(base_index >= 0);
+  BLI_assume_assert(base_index < MEM_allocN_len(view_layer->object_bases_array) / sizeof(Base *));
   Base *base = view_layer->object_bases_array[base_index];
-  BLI_assert(base->object == object);
+  BLI_assume_assert(base->object == object);
 
   DEG_debug_print_eval(depsgraph, __func__, object->id.name, object);
 
@@ -430,8 +430,8 @@ void BKE_object_eval_eval_base_flags(Depsgraph *depsgraph,
   /* Copy base flag back to the original view layer for editing. */
   if (DEG_is_active(depsgraph) && (view_layer == DEG_get_evaluated_view_layer(depsgraph))) {
     Base *base_orig = base->base_orig;
-    BLI_assert(base_orig != nullptr);
-    BLI_assert(base_orig->object != nullptr);
+    BLI_assume_assert(base_orig != nullptr);
+    BLI_assume_assert(base_orig->object != nullptr);
     base_orig->flag = base->flag;
   }
 }

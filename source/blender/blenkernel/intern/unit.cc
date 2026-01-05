@@ -1648,7 +1648,7 @@ static size_t unit_as_string(char *str,
                              const bUnitDef *unit,
                              char pad)
 {
-  BLI_assert(prec >= 0);
+  BLI_assume_assert(prec >= 0);
   if (unit == nullptr) {
     if (value == 0.0) {
       /* Use the default units since there is no way to convert. */
@@ -1748,7 +1748,7 @@ static size_t unit_as_string_split_pair(char *str,
                                         const bUnitCollection *usys,
                                         const bUnitDef *main_unit)
 {
-  BLI_assert(prec >= 0);
+  BLI_assume_assert(prec >= 0);
   const bUnitDef *unit_a, *unit_b;
   double value_a, value_b;
   unit_dual_convert(value, usys, &unit_a, &unit_b, &value_a, &value_b, main_unit);
@@ -2476,7 +2476,7 @@ void BKE_unit_name_to_alt(char *str, int str_maxncpy, const char *orig_str, int 
 
     /* Print the alt_name. */
     const int len_name = BLI_strncpy_rlen(str, unit->name_alt, str_maxncpy);
-    BLI_assert(len_name < str_maxncpy);
+    BLI_assume_assert(len_name < str_maxncpy);
     str += len_name;
     str_maxncpy -= len_name;
   }
@@ -2542,19 +2542,19 @@ int BKE_unit_base_of_type_get(int system, int type)
 const char *BKE_unit_name_get(const void *usys_pt, int index)
 {
   const bUnitCollection *usys = static_cast<const bUnitCollection *>(usys_pt);
-  BLI_assert(uint(index) < uint(usys->length));
+  BLI_assume_assert(uint(index) < uint(usys->length));
   return usys->units[index].name;
 }
 const char *BKE_unit_display_name_get(const void *usys_pt, int index)
 {
   const bUnitCollection *usys = static_cast<const bUnitCollection *>(usys_pt);
-  BLI_assert(uint(index) < uint(usys->length));
+  BLI_assume_assert(uint(index) < uint(usys->length));
   return usys->units[index].name_display;
 }
 const char *BKE_unit_identifier_get(const void *usys_pt, int index)
 {
   const bUnitCollection *usys = static_cast<const bUnitCollection *>(usys_pt);
-  BLI_assert(uint(index) < uint(usys->length));
+  BLI_assume_assert(uint(index) < uint(usys->length));
   const bUnitDef *unit = &usys->units[index];
   if (unit->identifier == nullptr) {
     BLI_assert_msg(0, "identifier for this unit is not specified yet");
@@ -2565,13 +2565,13 @@ const char *BKE_unit_identifier_get(const void *usys_pt, int index)
 double BKE_unit_scalar_get(const void *usys_pt, int index)
 {
   const bUnitCollection *usys = static_cast<const bUnitCollection *>(usys_pt);
-  BLI_assert(uint(index) < uint(usys->length));
+  BLI_assume_assert(uint(index) < uint(usys->length));
   return usys->units[index].scalar;
 }
 
 bool BKE_unit_is_suppressed(const void *usys_pt, int index)
 {
   const bUnitCollection *usys = static_cast<const bUnitCollection *>(usys_pt);
-  BLI_assert(uint(index) < uint(usys->length));
+  BLI_assume_assert(uint(index) < uint(usys->length));
   return (usys->units[index].flag & B_UNIT_DEF_SUPPRESS) != 0;
 }

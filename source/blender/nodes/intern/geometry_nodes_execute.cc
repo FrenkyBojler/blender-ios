@@ -53,7 +53,7 @@ bool input_has_attribute_toggle(const bNodeTree &node_tree, const int socket_ind
     return false;
   }
 
-  BLI_assert(node_tree.runtime->field_inferencing_interface);
+  BLI_assume_assert(node_tree.runtime->field_inferencing_interface);
   const FieldInferencingInterface &field_interface =
       *node_tree.runtime->field_inferencing_interface;
   return field_interface.inputs[socket_index] != InputSocketFieldType::None;
@@ -96,7 +96,7 @@ static void id_property_int_update_enum_items(const bNodeSocketValueMenu *value,
   }
 
   /* Node enum definitions should already be valid. */
-  BLI_assert(IDP_EnumItemsValidate(idprop_items, idprop_items_num, nullptr));
+  BLI_assume_assert(IDP_EnumItemsValidate(idprop_items, idprop_items_num, nullptr));
   ui_data->enum_items = idprop_items;
   ui_data->enum_items_num = idprop_items_num;
 }
@@ -306,7 +306,7 @@ static bool old_id_property_type_matches_socket_convert_to_new_int(const IDPrope
     return false;
   }
   if (new_property) {
-    BLI_assert(new_property->type == IDP_INT);
+    BLI_assume_assert(new_property->type == IDP_INT);
     IDP_int_set(new_property, IDP_int_get(&old_property));
   }
   return true;
@@ -322,7 +322,7 @@ static bool old_id_property_type_matches_socket_convert_to_new_float_vec(
   }
 
   if (new_property) {
-    BLI_assert(new_property->type == IDP_ARRAY && new_property->subtype == IDP_FLOAT);
+    BLI_assume_assert(new_property->type == IDP_ARRAY && new_property->subtype == IDP_FLOAT);
 
     switch (old_property.subtype) {
       case IDP_DOUBLE: {
@@ -376,7 +376,7 @@ static bool old_id_property_type_matches_socket_convert_to_new_string(
     return false;
   }
   if (new_property) {
-    BLI_assert(new_property->type == IDP_STRING && new_property->subtype == IDP_STRING_SUB_UTF8);
+    BLI_assume_assert(new_property->type == IDP_STRING && new_property->subtype == IDP_STRING_SUB_UTF8);
     IDP_AssignString(new_property, IDP_string_get(&old_property));
   }
   return true;
@@ -404,7 +404,7 @@ static bool old_id_property_type_matches_socket_convert_to_new(
         return false;
       }
       if (new_property) {
-        BLI_assert(new_property->type == IDP_FLOAT);
+        BLI_assume_assert(new_property->type == IDP_FLOAT);
         switch (old_property.type) {
           case IDP_DOUBLE:
             IDP_float_set(new_property, float(IDP_double_get(&old_property)));
@@ -443,7 +443,7 @@ static bool old_id_property_type_matches_socket_convert_to_new(
       /* Exception: Do conversion from old Integer property (for versioning from older data model),
        * but do not consider int idprop as a valid input for a bool socket. */
       if (new_property) {
-        BLI_assert(new_property->type == IDP_BOOLEAN);
+        BLI_assume_assert(new_property->type == IDP_BOOLEAN);
         switch (old_property.type) {
           case IDP_INT:
             IDP_bool_set(new_property, bool(IDP_int_get(&old_property)));
@@ -476,7 +476,7 @@ static bool old_id_property_type_matches_socket_convert_to_new(
         return false;
       }
       if (new_property) {
-        BLI_assert(new_property->type == IDP_ID);
+        BLI_assume_assert(new_property->type == IDP_ID);
         ID *id = IDP_ID_get(&old_property);
         new_property->data.pointer = id;
         id_us_plus(id);
@@ -522,7 +522,7 @@ static bke::SocketValueVariant init_socket_cpp_value_from_property(
     }
     case SOCK_VECTOR: {
       const void *property_array = IDP_array_voidp_get(&property);
-      BLI_assert(property.len >= 2 && property.len <= 4);
+      BLI_assume_assert(property.len >= 2 && property.len <= 4);
 
       float4 values = float4(0.0f);
       if (property.subtype == IDP_FLOAT) {
@@ -557,7 +557,7 @@ static bke::SocketValueVariant init_socket_cpp_value_from_property(
         vec = float4(int4(static_cast<const int *>(property_array)));
       }
       else {
-        BLI_assert(property.subtype == IDP_DOUBLE);
+        BLI_assume_assert(property.subtype == IDP_DOUBLE);
         vec = float4(double4(static_cast<const double *>(property_array)));
       }
       ColorGeometry4f value(vec);
@@ -577,7 +577,7 @@ static bke::SocketValueVariant init_socket_cpp_value_from_property(
         vec = float3(int3(static_cast<const int *>(property_array)));
       }
       else {
-        BLI_assert(property.subtype == IDP_DOUBLE);
+        BLI_assume_assert(property.subtype == IDP_DOUBLE);
         vec = float3(double3(static_cast<const double *>(property_array)));
       }
       const math::EulerXYZ euler_value = math::EulerXYZ(vec);
@@ -1154,7 +1154,7 @@ Vector<InferenceValue> get_geometry_nodes_input_inference_values(const bNodeTree
       continue;
     }
     const GPointer single_value = value.get_single_ptr();
-    BLI_assert(single_value.type() == stype->base_cpp_type);
+    BLI_assume_assert(single_value.type() == stype->base_cpp_type);
     inference_values[input_i] = InferenceValue::from_primitive(single_value.get());
   }
   return inference_values;

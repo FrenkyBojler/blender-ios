@@ -35,7 +35,7 @@ GeometryComponentPtr InstancesComponent::copy() const
 
 void InstancesComponent::clear()
 {
-  BLI_assert(this->is_mutable() || this->is_expired());
+  BLI_assume_assert(this->is_mutable() || this->is_expired());
   if (ownership_ == GeometryOwnershipType::Owned) {
     delete instances_;
   }
@@ -74,7 +74,7 @@ const Instances *InstancesComponent::get() const
 
 Instances *InstancesComponent::get_for_write()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   if (ownership_ == GeometryOwnershipType::ReadOnly) {
     instances_ = new Instances(*instances_);
     ownership_ = GeometryOwnershipType::Owned;
@@ -84,7 +84,7 @@ Instances *InstancesComponent::get_for_write()
 
 void InstancesComponent::replace(Instances *instances, GeometryOwnershipType ownership)
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   this->clear();
   instances_ = instances;
   ownership_ = ownership;
@@ -92,7 +92,7 @@ void InstancesComponent::replace(Instances *instances, GeometryOwnershipType own
 
 Instances *InstancesComponent::release()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   Instances *instance = instances_;
   instances_ = nullptr;
   return instance;

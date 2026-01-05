@@ -207,7 +207,7 @@ static std::function<ID *(const bNode &node)> get_default_id_getter(
     const bNodeTreeInterface &tree_interface, const bNodeTreeInterfaceSocket &io_socket)
 {
   const int item_index = tree_interface.find_item_index(io_socket.item);
-  BLI_assert(item_index >= 0);
+  BLI_assume_assert(item_index >= 0);
 
   /* Avoid capturing pointers that can become dangling. */
   return [item_index](const bNode &node) -> ID * {
@@ -232,7 +232,7 @@ static std::function<void(bNode &node, bNodeSocket &socket, const char *data_pat
 get_init_socket_fn(const bNodeTreeInterface &interface, const bNodeTreeInterfaceSocket &io_socket)
 {
   const int item_index = interface.find_item_index(io_socket.item);
-  BLI_assert(item_index >= 0);
+  BLI_assume_assert(item_index >= 0);
 
   /* Avoid capturing pointers that can become dangling. */
   return [item_index](bNode &node, bNodeSocket &socket, const char *data_path) {
@@ -862,8 +862,8 @@ static void group_output_declare(NodeDeclarationBuilder &b)
 
 static bool group_input_insert_link(blender::bke::NodeInsertLinkParams &params)
 {
-  BLI_assert(params.link.tonode != &params.node);
-  BLI_assert(params.link.tosock->in_out == SOCK_IN);
+  BLI_assume_assert(params.link.tonode != &params.node);
+  BLI_assume_assert(params.link.tosock->in_out == SOCK_IN);
   if (!StringRef(params.link.fromsock->identifier).startswith("__extend__")) {
     return true;
   }
@@ -883,8 +883,8 @@ static bool group_input_insert_link(blender::bke::NodeInsertLinkParams &params)
 
 static bool group_output_insert_link(blender::bke::NodeInsertLinkParams &params)
 {
-  BLI_assert(params.link.fromnode != &params.node);
-  BLI_assert(params.link.fromsock->in_out == SOCK_OUT);
+  BLI_assume_assert(params.link.fromnode != &params.node);
+  BLI_assume_assert(params.link.fromsock->in_out == SOCK_OUT);
   if (!StringRef(params.link.tosock->identifier).startswith("__extend__")) {
     return true;
   }

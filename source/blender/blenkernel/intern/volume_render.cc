@@ -35,7 +35,7 @@ static void extract_dense_voxels(const openvdb::GridBase &grid,
                                  const openvdb::CoordBBox bbox,
                                  VoxelType *r_voxels)
 {
-  BLI_assert(grid.isType<GridType>());
+  BLI_assume_assert(grid.isType<GridType>());
   blender::threading::memory_bandwidth_bound_task(bbox.volume() * sizeof(VoxelType), [&]() {
     openvdb::tools::Dense<VoxelType, openvdb::tools::LayoutXYZ> dense(bbox, r_voxels);
     openvdb::tools::copyToDense(static_cast<const GridType &>(grid), dense);
@@ -238,7 +238,7 @@ static void boxes_to_center_points(blender::Span<openvdb::CoordBBox> boxes,
                                    const openvdb::math::Transform &transform,
                                    blender::MutableSpan<blender::float3> r_verts)
 {
-  BLI_assert(boxes.size() == r_verts.size());
+  BLI_assume_assert(boxes.size() == r_verts.size());
   for (const int i : boxes.index_range()) {
     openvdb::Vec3d center = transform.indexToWorld(boxes[i].getCenter());
     r_verts[i] = blender::float3(center[0], center[1], center[2]);
@@ -249,7 +249,7 @@ static void boxes_to_corner_points(blender::Span<openvdb::CoordBBox> boxes,
                                    const openvdb::math::Transform &transform,
                                    blender::MutableSpan<blender::float3> r_verts)
 {
-  BLI_assert(boxes.size() * 8 == r_verts.size());
+  BLI_assume_assert(boxes.size() * 8 == r_verts.size());
   for (const int i : boxes.index_range()) {
     const openvdb::CoordBBox &box = boxes[i];
 

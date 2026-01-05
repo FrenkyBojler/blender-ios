@@ -660,7 +660,7 @@ static void item_copy(bNodeTreeInterfaceItem &dst,
       bNodeTreeInterfaceSocket &dst_socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(dst);
       const bNodeTreeInterfaceSocket &src_socket =
           reinterpret_cast<const bNodeTreeInterfaceSocket &>(src);
-      BLI_assert(src_socket.socket_type != nullptr);
+      BLI_assume_assert(src_socket.socket_type != nullptr);
 
       dst_socket.name = BLI_strdup_null(src_socket.name);
       dst_socket.description = BLI_strdup_null(src_socket.description);
@@ -958,7 +958,7 @@ void bNodeTreeInterfaceSocket::update_socket_type()
 
 void bNodeTreeInterfaceSocket::init_from_socket_instance(const bNodeSocket *socket)
 {
-  BLI_assert(socket_types::is_supported_socket_type(socket->idname));
+  BLI_assume_assert(socket_types::is_supported_socket_type(socket->idname));
 
   if (this->socket_data != nullptr) {
     socket_types::socket_data_free(*this, true);
@@ -1126,7 +1126,7 @@ int bNodeTreeInterfacePanel::find_valid_insert_position_for_item(
       break;
     }
   }
-  BLI_assert(min_pos <= max_pos);
+  BLI_assume_assert(min_pos <= max_pos);
   return std::clamp(initial_pos, min_pos, max_pos);
 }
 
@@ -1334,7 +1334,7 @@ static bNodeTreeInterfaceSocket *make_socket(const int uid,
   }
 
   bNodeTreeInterfaceSocket *new_socket = MEM_new_for_free<bNodeTreeInterfaceSocket>(__func__);
-  BLI_assert(new_socket);
+  BLI_assume_assert(new_socket);
 
   /* Init common socket properties. */
   new_socket->identifier = BLI_sprintfN("Socket_%d", uid);
@@ -1522,7 +1522,7 @@ bNodeTreeInterfaceSocket *bNodeTreeInterface::add_socket(const blender::StringRe
   if (parent == nullptr) {
     parent = &root_panel;
   }
-  BLI_assert(this->find_item(parent->item));
+  BLI_assume_assert(this->find_item(parent->item));
 
   bNodeTreeInterfaceSocket *new_socket = make_socket(
       this->next_uid++, name, description, socket_type, flag);
@@ -1544,7 +1544,7 @@ bNodeTreeInterfaceSocket *bNodeTreeInterface::insert_socket(const blender::Strin
   if (parent == nullptr) {
     parent = &root_panel;
   }
-  BLI_assert(this->find_item(parent->item));
+  BLI_assume_assert(this->find_item(parent->item));
 
   bNodeTreeInterfaceSocket *new_socket = make_socket(
       this->next_uid++, name, description, socket_type, flag);
@@ -1564,7 +1564,7 @@ bNodeTreeInterfacePanel *bNodeTreeInterface::add_panel(const blender::StringRef 
   if (parent == nullptr) {
     parent = &root_panel;
   }
-  BLI_assert(this->find_item(parent->item));
+  BLI_assume_assert(this->find_item(parent->item));
 
   bNodeTreeInterfacePanel *new_panel = make_panel(this->next_uid++, name, description, flag);
   if (new_panel) {
@@ -1584,7 +1584,7 @@ bNodeTreeInterfacePanel *bNodeTreeInterface::insert_panel(const blender::StringR
   if (parent == nullptr) {
     parent = &root_panel;
   }
-  BLI_assert(this->find_item(parent->item));
+  BLI_assume_assert(this->find_item(parent->item));
 
   bNodeTreeInterfacePanel *new_panel = make_panel(this->next_uid++, name, description, flag);
   if (new_panel) {
@@ -1601,7 +1601,7 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::add_item_copy(const bNodeTreeInterfa
   if (parent == nullptr) {
     parent = &root_panel;
   }
-  BLI_assert(this->find_item(parent->item));
+  BLI_assume_assert(this->find_item(parent->item));
 
   bNodeTreeInterfaceItem *citem = static_cast<bNodeTreeInterfaceItem *>(MEM_dupallocN(&item));
   item_types::item_copy(*citem, item, 0, [&]() { return this->next_uid++; });
@@ -1618,8 +1618,8 @@ bNodeTreeInterfaceItem *bNodeTreeInterface::insert_item_copy(const bNodeTreeInte
   if (parent == nullptr) {
     parent = &root_panel;
   }
-  BLI_assert(this->find_item(item));
-  BLI_assert(this->find_item(parent->item));
+  BLI_assume_assert(this->find_item(item));
+  BLI_assume_assert(this->find_item(parent->item));
 
   bNodeTreeInterfaceItem *citem = static_cast<bNodeTreeInterfaceItem *>(MEM_dupallocN(&item));
   item_types::item_copy(*citem, item, 0, [&]() { return this->next_uid++; });

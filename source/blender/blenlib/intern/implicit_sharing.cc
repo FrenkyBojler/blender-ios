@@ -11,6 +11,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_assume.hh"
 #include "BLI_implicit_sharing.hh"
 
 namespace blender::implicit_sharing {
@@ -21,7 +22,7 @@ class MEMFreeImplicitSharing : public ImplicitSharingInfo {
 
   MEMFreeImplicitSharing(void *data) : data(data)
   {
-    BLI_assert(data != nullptr);
+    BLI_assume_assert(data != nullptr);
   }
 
  private:
@@ -45,7 +46,7 @@ void *make_trivial_data_mutable_impl(void *old_data,
                                      const ImplicitSharingInfo **sharing_info)
 {
   if (!old_data) {
-    BLI_assert(size == 0);
+    BLI_assume_assert(size == 0);
     return nullptr;
   }
 
@@ -79,14 +80,14 @@ void *resize_trivial_array_impl(void *old_data,
   }
 
   if (!old_data) {
-    BLI_assert(old_size == 0);
+    BLI_assume_assert(old_size == 0);
     BLI_assert(*sharing_info == nullptr);
     void *new_data = MEM_mallocN_aligned(new_size, alignment, __func__);
     *sharing_info = info_for_mem_free(new_data);
     return new_data;
   }
 
-  BLI_assert(old_size != 0);
+  BLI_assume_assert(old_size != 0);
   if ((*sharing_info)->is_mutable()) {
     if (auto *info = const_cast<MEMFreeImplicitSharing *>(
             dynamic_cast<const MEMFreeImplicitSharing *>(*sharing_info)))

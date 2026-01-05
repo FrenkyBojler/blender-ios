@@ -53,7 +53,7 @@ static ListPtr create_repeated_list(ListPtr list, const int64_t dst_size)
   }
   if (const auto *data = std::get_if<nodes::List::ArrayData>(&list->data())) {
     const int64_t size = list->size();
-    BLI_assert(size > 0);
+    BLI_assume_assert(size > 0);
     const CPPType &cpp_type = list->cpp_type();
     List::ArrayData new_data = List::ArrayData::ForUninitialized(cpp_type, dst_size);
     const int64_t chunks = dst_size / size;
@@ -83,7 +83,7 @@ static void add_list_to_params(mf::ParamsBuilder &params,
                                const List &list)
 {
   const CPPType &cpp_type = param_type.data_type().single_type();
-  BLI_assert(cpp_type == list.cpp_type());
+  BLI_assume_assert(cpp_type == list.cpp_type());
   if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&list.data())) {
     params.add_readonly_single_input(GSpan(cpp_type, array_data->data, list.size()));
   }

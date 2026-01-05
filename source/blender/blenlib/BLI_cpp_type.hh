@@ -683,7 +683,7 @@ inline bool CPPType::can_exist_in_buffer(const int64_t buffer_size,
 
 inline void CPPType::print(const void *value, std::stringstream &ss) const
 {
-  BLI_assert(this->pointer_can_point_to_instance(value));
+  BLI_assume_assert(this->pointer_can_point_to_instance(value));
   print_(value, ss);
 }
 

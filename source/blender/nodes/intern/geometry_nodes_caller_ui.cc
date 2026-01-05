@@ -134,7 +134,7 @@ static NodesModifierData *get_modifier_data(Main &bmain,
   if (md == nullptr) {
     return nullptr;
   }
-  BLI_assert(md->type == eModifierType_Nodes);
+  BLI_assume_assert(md->type == eModifierType_Nodes);
   return reinterpret_cast<NodesModifierData *>(md);
 }
 
@@ -197,7 +197,7 @@ static void layer_name_search_update_fn(
       }
     }
   }
-  BLI_assert(items);
+  BLI_assume_assert(items);
   ui::grease_pencil_layer_search_add_items(str, layer_names.as_span(), *items, is_first);
 }
 
@@ -255,7 +255,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
   layout.label("", ICON_BLANK1);
 
   const Object *object = ed::object::context_object(&ctx.C);
-  BLI_assert(object != nullptr);
+  BLI_assume_assert(object != nullptr);
   if (object == nullptr) {
     return;
   }
@@ -370,7 +370,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                                       StringRef(socket.description));
 
   const Object *object = ed::object::context_object(&ctx.C);
-  BLI_assert(object != nullptr);
+  BLI_assume_assert(object != nullptr);
   if (object == nullptr) {
     return;
   }

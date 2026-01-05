@@ -2860,7 +2860,7 @@ static void update_flowsfluids(Depsgraph *depsgraph,
   float *forcey = manta_get_force_y(fds->fluid);
   float *forcez = manta_get_force_z(fds->fluid);
 
-  BLI_assert(forcex && forcey && forcez);
+  BLI_assume_assert(forcex && forcey && forcez);
 
   /* Either all or no components have to exist. */
   BLI_assert((color_r && color_g && color_b) || (!color_r && !color_g && !color_b));
@@ -3710,7 +3710,7 @@ static void fluid_modifier_processDomain(FluidModifierData *fmd,
     CLOG_ERROR(&LOG, "Fluid initialization failed. Should not happen!");
     return;
   }
-  BLI_assert(fds->fluid);
+  BLI_assume_assert(fds->fluid);
 
   /* Guiding parent res pointer needs initialization. */
   guide_parent = fds->guide_parent;

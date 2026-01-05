@@ -677,7 +677,7 @@ static void volume_update_simplify_level(Main *bmain, Volume *volume, const Deps
     for (const GVolumeGrid &old_grid : grids) {
       GVolumeGrid simple_grid = blender::bke::volume_grid::file_cache::get_grid_from_file(
           grids.filepath, old_grid->name(), simplify_level);
-      BLI_assert(simple_grid);
+      BLI_assume_assert(simple_grid);
       new_grids.push_back(std::move(simple_grid));
     }
     grids.swap(new_grids);
@@ -791,8 +791,8 @@ void BKE_volume_grids_backup_restore(Volume *volume, VolumeGridVector *grids, co
 #ifdef WITH_OPENVDB
   /* Restore grids after datablock was re-copied from original by depsgraph,
    * we don't want to load them again if possible. */
-  BLI_assert(volume->id.tag & ID_TAG_COPIED_ON_EVAL);
-  BLI_assert(volume->runtime->grids != nullptr && grids != nullptr);
+  BLI_assume_assert(volume->id.tag & ID_TAG_COPIED_ON_EVAL);
+  BLI_assume_assert(volume->runtime->grids != nullptr && grids != nullptr);
 
   if (!grids->is_loaded()) {
     /* No grids loaded in evaluated datablock, nothing lost by discarding. */
@@ -977,8 +977,8 @@ blender::bke::VolumeGridData *BKE_volume_grid_add_vdb(Volume &volume,
                                                       openvdb::GridBase::Ptr vdb_grid)
 {
   VolumeGridVector &grids = *volume.runtime->grids;
-  BLI_assert(BKE_volume_grid_find(&volume, name) == nullptr);
-  BLI_assert(blender::bke::volume_grid::get_type(*vdb_grid) != VOLUME_GRID_UNKNOWN);
+  BLI_assume_assert(BKE_volume_grid_find(&volume, name) == nullptr);
+  BLI_assume_assert(blender::bke::volume_grid::get_type(*vdb_grid) != VOLUME_GRID_UNKNOWN);
 
   vdb_grid->setName(name);
   grids.emplace_back(GVolumeGrid(std::move(vdb_grid)));
@@ -1131,7 +1131,7 @@ template<typename GridType>
 static typename GridType::Ptr create_grid_with_changed_resolution(const GridType &old_grid,
                                                                   const float resolution_factor)
 {
-  BLI_assert(resolution_factor > 0.0f);
+  BLI_assume_assert(resolution_factor > 0.0f);
 
   openvdb::Mat4R xform;
   xform.setToScale(openvdb::Vec3d(resolution_factor));

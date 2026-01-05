@@ -1125,8 +1125,8 @@ void CurvesGeometry::interpolate_to_evaluated(const int curve_index,
       this->nurbs_orders(),
       this->nurbs_weights(),
   };
-  BLI_assert(src.size() == this->points_by_curve()[curve_index].size());
-  BLI_assert(dst.size() == this->evaluated_points_by_curve()[curve_index].size());
+  BLI_assume_assert(src.size() == this->points_by_curve()[curve_index].size());
+  BLI_assume_assert(dst.size() == this->evaluated_points_by_curve()[curve_index].size());
   evaluate_generic_data_for_curve(eval_data, curve_index, src, dst);
 }
 
@@ -1197,7 +1197,7 @@ void CurvesGeometry::ensure_can_interpolate_to_evaluated() const
 
 void CurvesGeometry::resize(const int points_num, const int curves_num)
 {
-  BLI_assert(curves_num >= 0 && points_num >= 0);
+  BLI_assume_assert(curves_num >= 0 && points_num >= 0);
   if (points_num != this->point_num) {
     this->attribute_storage.wrap().resize(AttrDomain::Point, points_num);
     CustomData_realloc(&this->point_data, this->points_num(), points_num);

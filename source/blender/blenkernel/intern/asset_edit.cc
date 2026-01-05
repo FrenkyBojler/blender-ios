@@ -68,7 +68,7 @@ static ID *asset_link_id(Main &global_main,
   BKE_blendfile_link_append_context_free(lapp_context);
 
   /* Verify that the name matches. It must for referencing the same asset again to work. */
-  BLI_assert(local_asset == nullptr || STREQ(local_asset->name + 2, asset_name));
+  BLI_assume_assert(local_asset == nullptr || STREQ(local_asset->name + 2, asset_name));
 
   /* Tag library as being editable. */
   if (local_asset && local_asset->lib) {
@@ -89,7 +89,7 @@ static ID *asset_link_id(Main &global_main,
 static std::string asset_root_path_for_save(const bUserAssetLibrary &user_library,
                                             const ID_Type id_type)
 {
-  BLI_assert(user_library.dirpath[0] != '\0');
+  BLI_assume_assert(user_library.dirpath[0] != '\0');
 
   char libpath[FILE_MAX];
   STRNCPY(libpath, user_library.dirpath);
@@ -196,7 +196,7 @@ static bool asset_write_in_library(Main &bmain,
 
 static ID *asset_reload(Main &global_main, ID &id, ReportList *reports)
 {
-  BLI_assert(ID_IS_LINKED(&id));
+  BLI_assume_assert(ID_IS_LINKED(&id));
 
   const std::string name = BKE_id_name(id);
   const std::string filepath = id.lib->runtime->filepath_abs;
@@ -346,7 +346,7 @@ ID *asset_edit_id_from_weak_reference(Main &global_main,
     asset_lib_path = nullptr;
   }
 
-  BLI_assert(asset_name != nullptr);
+  BLI_assume_assert(asset_name != nullptr);
 
   /* Test if asset has been loaded already. */
   ID *local_asset = BKE_libblock_find_name_and_library_filepath(
@@ -424,7 +424,7 @@ ID *asset_edit_id_ensure_local(Main &global_main, ID &id)
                         &id,
                         LIB_ID_MAKELOCAL_FORCE_COPY | LIB_ID_MAKELOCAL_INDIRECT |
                             LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR);
-  BLI_assert(id.newid != nullptr);
+  BLI_assume_assert(id.newid != nullptr);
   BKE_main_library_weak_reference_add(id.newid, id.lib->filepath, id.name);
 
   return id.newid;

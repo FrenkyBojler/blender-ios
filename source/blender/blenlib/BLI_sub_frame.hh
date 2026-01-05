@@ -10,7 +10,7 @@
 
 #include <cmath>
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_hash.hh"
 #include "BLI_math_base.h"
 #include "BLI_struct_equality_utils.hh"
@@ -28,8 +28,8 @@ struct SubFrame {
  public:
   SubFrame(const int frame = 0, float subframe = 0.0f) : frame_(frame), subframe_(subframe)
   {
-    BLI_assert(subframe >= 0.0f);
-    BLI_assert(subframe < 1.0f);
+    BLI_assume_assert(subframe >= 0.0f);
+    BLI_assume_assert(subframe < 1.0f);
   }
 
   SubFrame(const float frame) : SubFrame(int(floorf(frame)), fractf(frame)) {}

@@ -6,7 +6,7 @@
  * \ingroup bli
  */
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_string.h"
 #include "BLI_uuid.h"
 
@@ -105,7 +105,7 @@ void BLI_uuid_format(char *buffer, const bUUID uuid)
       uuid.node[5]);
 
   /* Assert the string length is not clamped. */
-  BLI_assert(buffer_len_unclamped == UUID_STRING_SIZE - 1);
+  BLI_assume_assert(buffer_len_unclamped == UUID_STRING_SIZE - 1);
   UNUSED_VARS_NDEBUG(buffer_len_unclamped);
 }
 

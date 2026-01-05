@@ -24,7 +24,7 @@ namespace blender::math {
 template<typename T, typename AngleT>
 AxisAngleBase<T, AngleT>::AxisAngleBase(const VecBase<T, 3> &axis, const AngleT &angle)
 {
-  BLI_assert(is_unit_scale(axis));
+  BLI_assume_assert(is_unit_scale(axis));
   axis_ = axis;
   angle_ = angle;
 }
@@ -39,8 +39,8 @@ AxisAngleBase<T, AngleT>::AxisAngleBase(const AxisSigned axis, const AngleT &ang
 template<typename T, typename AngleT>
 AxisAngleBase<T, AngleT>::AxisAngleBase(const VecBase<T, 3> &from, const VecBase<T, 3> &to)
 {
-  BLI_assert(is_unit_scale(from));
-  BLI_assert(is_unit_scale(to));
+  BLI_assume_assert(is_unit_scale(from));
+  BLI_assume_assert(is_unit_scale(to));
 
   T sin;
   T cos = dot(from, to);
@@ -70,7 +70,7 @@ AxisAngleBase<T, AngleT>::AxisAngleBase(const VecBase<T, 3> &from, const VecBase
 template<typename T, typename AngleT>
 QuaternionBase<T> to_quaternion(const AxisAngleBase<T, AngleT> &axis_angle)
 {
-  BLI_assert(math::is_unit_scale(axis_angle.axis()));
+  BLI_assume_assert(math::is_unit_scale(axis_angle.axis()));
 
   AngleT half_angle = axis_angle.angle() / 2;
   T hs = math::sin(half_angle);

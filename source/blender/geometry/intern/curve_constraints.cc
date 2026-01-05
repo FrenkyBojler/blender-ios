@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_assume.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
 
@@ -25,7 +26,7 @@ void compute_segment_lengths(const OffsetIndices<int> points_by_curve,
                              const IndexMask &curve_selection,
                              MutableSpan<float> r_segment_lengths)
 {
-  BLI_assert(r_segment_lengths.size() == points_by_curve.total_size());
+  BLI_assume_assert(r_segment_lengths.size() == points_by_curve.total_size());
 
   curve_selection.foreach_segment(GrainSize(256), [&](const IndexMaskSegment segment) {
     for (const int curve_i : segment) {
@@ -45,7 +46,7 @@ void solve_length_constraints(const OffsetIndices<int> points_by_curve,
                               const Span<float> segment_lenghts,
                               MutableSpan<float3> positions)
 {
-  BLI_assert(segment_lenghts.size() == points_by_curve.total_size());
+  BLI_assume_assert(segment_lenghts.size() == points_by_curve.total_size());
 
   curve_selection.foreach_segment(GrainSize(256), [&](const IndexMaskSegment segment) {
     for (const int curve_i : segment) {

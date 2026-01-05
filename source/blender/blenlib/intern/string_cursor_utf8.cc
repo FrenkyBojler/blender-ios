@@ -11,10 +11,9 @@
 #include <cstdlib>
 
 #include "BLI_string_utf8.h"
+#include "BLI_assume.hh"
 #include "BLI_utildefines.h"
-
 #include "BLI_string_cursor_utf8.h" /* own include */
-
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /**
@@ -127,7 +126,7 @@ static eStrCursorDelimType cursor_delim_type_utf8(const char *ch_utf8,
                                                   const int ch_utf8_len,
                                                   const int pos)
 {
-  BLI_assert(ch_utf8_len >= 0);
+  BLI_assume_assert(ch_utf8_len >= 0);
   /* for full unicode support we really need to have large lookup tables to figure
    * out what's what in every possible char set - and python, glib both have these. */
   size_t index = size_t(pos);
@@ -138,7 +137,7 @@ static eStrCursorDelimType cursor_delim_type_utf8(const char *ch_utf8,
 bool BLI_str_cursor_step_next_utf8(const char *str, const int str_maxlen, int *pos)
 {
   /* NOTE: Keep in sync with #BLI_str_cursor_step_next_utf32. */
-  BLI_assert(str_maxlen >= 0);
+  BLI_assume_assert(str_maxlen >= 0);
   BLI_assert(*pos >= 0);
 
   if (*pos >= str_maxlen) {
@@ -160,7 +159,7 @@ bool BLI_str_cursor_step_next_utf8(const char *str, const int str_maxlen, int *p
 bool BLI_str_cursor_step_prev_utf8(const char *str, const int str_maxlen, int *pos)
 {
   /* NOTE: Keep in sync with #BLI_str_cursor_step_prev_utf32. */
-  BLI_assert(str_maxlen >= 0);
+  BLI_assume_assert(str_maxlen >= 0);
   BLI_assert(*pos >= 0);
 
   if ((*pos > 0) && (*pos <= str_maxlen)) {
@@ -183,7 +182,7 @@ void BLI_str_cursor_step_utf8(const char *str,
                               eStrCursorJumpType jump,
                               bool use_init_step)
 {
-  BLI_assert(str_maxlen >= 0);
+  BLI_assume_assert(str_maxlen >= 0);
   const int pos_orig = *pos;
 
   if (direction == STRCUR_DIR_NEXT) {
@@ -191,7 +190,7 @@ void BLI_str_cursor_step_utf8(const char *str,
       BLI_str_cursor_step_next_utf8(str, str_maxlen, pos);
     }
     else {
-      BLI_assert(jump == STRCUR_JUMP_DELIM);
+      BLI_assume_assert(jump == STRCUR_JUMP_DELIM);
     }
 
     if (jump != STRCUR_JUMP_NONE) {
@@ -223,7 +222,7 @@ void BLI_str_cursor_step_utf8(const char *str,
       BLI_str_cursor_step_prev_utf8(str, str_maxlen, pos);
     }
     else {
-      BLI_assert(jump == STRCUR_JUMP_DELIM);
+      BLI_assume_assert(jump == STRCUR_JUMP_DELIM);
     }
 
     if (jump != STRCUR_JUMP_NONE) {
@@ -260,7 +259,7 @@ void BLI_str_cursor_step_utf8(const char *str,
 bool BLI_str_cursor_step_next_utf32(const char32_t *str, const int str_maxlen, int *pos)
 {
   /* NOTE: Keep in sync with #BLI_str_cursor_step_next_utf8. */
-  BLI_assert(str_maxlen >= 0);
+  BLI_assume_assert(str_maxlen >= 0);
   BLI_assert(*pos >= 0);
 
   if (*pos >= str_maxlen) {
@@ -276,7 +275,7 @@ bool BLI_str_cursor_step_next_utf32(const char32_t *str, const int str_maxlen, i
 bool BLI_str_cursor_step_prev_utf32(const char32_t *str, const int str_maxlen, int *pos)
 {
   /* NOTE: Keep in sync with #BLI_str_cursor_step_prev_utf8. */
-  BLI_assert(str_maxlen >= 0);
+  BLI_assume_assert(str_maxlen >= 0);
   BLI_assert(*pos >= 0);
   UNUSED_VARS_NDEBUG(str_maxlen);
 
@@ -297,7 +296,7 @@ void BLI_str_cursor_step_utf32(const char32_t *str,
                                eStrCursorJumpType jump,
                                bool use_init_step)
 {
-  BLI_assert(str_maxlen >= 0);
+  BLI_assume_assert(str_maxlen >= 0);
   const int pos_orig = *pos;
 
   if (direction == STRCUR_DIR_NEXT) {
@@ -305,7 +304,7 @@ void BLI_str_cursor_step_utf32(const char32_t *str,
       BLI_str_cursor_step_next_utf32(str, str_maxlen, pos);
     }
     else {
-      BLI_assert(jump == STRCUR_JUMP_DELIM);
+      BLI_assume_assert(jump == STRCUR_JUMP_DELIM);
     }
 
     if (jump != STRCUR_JUMP_NONE) {
@@ -334,7 +333,7 @@ void BLI_str_cursor_step_utf32(const char32_t *str,
       BLI_str_cursor_step_prev_utf32(str, str_maxlen, pos);
     }
     else {
-      BLI_assert(jump == STRCUR_JUMP_DELIM);
+      BLI_assume_assert(jump == STRCUR_JUMP_DELIM);
     }
 
     if (jump != STRCUR_JUMP_NONE) {
@@ -371,8 +370,8 @@ void BLI_str_cursor_step_utf32(const char32_t *str,
 void BLI_str_cursor_step_bounds_utf8(
     const char *str, const int str_maxlen, const int pos, int *r_start, int *r_end)
 {
-  BLI_assert(str_maxlen >= 0);
-  BLI_assert(pos >= 0 && pos <= str_maxlen);
+  BLI_assume_assert(str_maxlen >= 0);
+  BLI_assume_assert(pos >= 0 && pos <= str_maxlen);
   /* Identify the type of characters are on either side of the current cursor position. */
   const eStrCursorDelimType prev = (pos > 0) ? cursor_delim_type_utf8(str, str_maxlen, pos - 1) :
                                                STRCUR_DELIM_NONE;
@@ -400,8 +399,8 @@ void BLI_str_cursor_step_bounds_utf8(
 void BLI_str_cursor_step_bounds_utf32(
     const char32_t *str, const int str_maxlen, const int pos, int *r_start, int *r_end)
 {
-  BLI_assert(str_maxlen >= 0);
-  BLI_assert(pos >= 0 && pos <= str_maxlen);
+  BLI_assume_assert(str_maxlen >= 0);
+  BLI_assume_assert(pos >= 0 && pos <= str_maxlen);
   /* Identify the type of characters are on either side of the current cursor position. */
   const eStrCursorDelimType prev = (pos > 0) ? cursor_delim_type_unicode(str[pos - 1]) :
                                                STRCUR_DELIM_NONE;

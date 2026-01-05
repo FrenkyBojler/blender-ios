@@ -12,10 +12,10 @@ namespace blender::bke::id {
 
 void IDRemapper::add(ID *old_id, ID *new_id)
 {
-  BLI_assert(old_id != nullptr);
-  BLI_assert(new_id == nullptr || this->allow_idtype_mismatch ||
+  BLI_assume_assert(old_id != nullptr);
+  BLI_assume_assert(new_id == nullptr || this->allow_idtype_mismatch ||
              (GS(old_id->name) == GS(new_id->name)));
-  BLI_assert(BKE_idtype_idcode_to_idfilter(GS(old_id->name)) != 0);
+  BLI_assume_assert(BKE_idtype_idcode_to_idfilter(GS(old_id->name)) != 0);
 
   mappings_.add(old_id, new_id);
   source_types_ |= BKE_idtype_idcode_to_idfilter(GS(old_id->name));
@@ -23,10 +23,10 @@ void IDRemapper::add(ID *old_id, ID *new_id)
 
 void IDRemapper::add_overwrite(ID *old_id, ID *new_id)
 {
-  BLI_assert(old_id != nullptr);
-  BLI_assert(new_id == nullptr || this->allow_idtype_mismatch ||
+  BLI_assume_assert(old_id != nullptr);
+  BLI_assume_assert(new_id == nullptr || this->allow_idtype_mismatch ||
              (GS(old_id->name) == GS(new_id->name)));
-  BLI_assert(BKE_idtype_idcode_to_idfilter(GS(old_id->name)) != 0);
+  BLI_assume_assert(BKE_idtype_idcode_to_idfilter(GS(old_id->name)) != 0);
 
   mappings_.add_overwrite(old_id, new_id);
   source_types_ |= BKE_idtype_idcode_to_idfilter(GS(old_id->name));
@@ -54,7 +54,7 @@ IDRemapperApplyResult IDRemapper::apply(ID **r_id_ptr,
                                         IDRemapperApplyOptions options,
                                         ID *id_self) const
 {
-  BLI_assert(r_id_ptr != nullptr);
+  BLI_assume_assert(r_id_ptr != nullptr);
   BLI_assert_msg(
       ((options & ID_REMAP_APPLY_UNMAP_WHEN_REMAPPING_TO_SELF) == 0 || id_self != nullptr),
       "ID_REMAP_APPLY_WHEN_REMAPPING_TO_SELF requires a non-null `id_self` parameter.");

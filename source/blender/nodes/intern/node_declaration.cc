@@ -7,7 +7,7 @@
 #include "NOD_socket_declarations_geometry.hh"
 #include "NOD_socket_usage_inference.hh"
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
@@ -132,7 +132,7 @@ void NodeDeclarationBuilder::use_custom_socket_order(bool enable)
 
 void NodeDeclarationBuilder::allow_any_socket_order(bool enable)
 {
-  BLI_assert(declaration_.use_custom_socket_order);
+  BLI_assume_assert(declaration_.use_custom_socket_order);
   declaration_.allow_any_socket_order = enable;
 }
 
@@ -187,7 +187,7 @@ static void assert_valid_panels_recursive(const NodeDeclaration &node_decl,
   for (const ItemDeclaration *item_decl : items) {
     if (const auto *socket_decl = dynamic_cast<const SocketDeclaration *>(item_decl)) {
       if (socket_decl->in_out == SOCK_IN) {
-        BLI_assert(node_decl.allow_any_socket_order || !found_panel);
+        BLI_assume_assert(node_decl.allow_any_socket_order || !found_panel);
         /* Panel toggles are always the first socket, breaking expected outputs-inputs ordering. */
         if (!socket_decl->is_panel_toggle) {
           found_input = true;
@@ -195,7 +195,7 @@ static void assert_valid_panels_recursive(const NodeDeclaration &node_decl,
         r_flat_inputs.append(socket_decl);
       }
       else {
-        BLI_assert(node_decl.allow_any_socket_order || (!found_input && !found_panel));
+        BLI_assume_assert(node_decl.allow_any_socket_order || (!found_input && !found_panel));
         r_flat_outputs.append(socket_decl);
       }
     }
@@ -218,8 +218,8 @@ void NodeDeclaration::assert_valid() const
   Vector<const SocketDeclaration *> flat_outputs;
   assert_valid_panels_recursive(*this, this->root_items, flat_inputs, flat_outputs);
 
-  BLI_assert(this->inputs.as_span() == flat_inputs);
-  BLI_assert(this->outputs.as_span() == flat_outputs);
+  BLI_assume_assert(this->inputs.as_span() == flat_inputs);
+  BLI_assume_assert(this->outputs.as_span() == flat_outputs);
 }
 
 bool NodeDeclaration::matches(const bNode &node) const
@@ -279,7 +279,7 @@ bNodeSocket &SocketDeclaration::update_or_build(bNodeTree &ntree,
                                                 bNodeSocket &socket) const
 {
   /* By default just rebuild. */
-  BLI_assert(socket.in_out == this->in_out);
+  BLI_assume_assert(socket.in_out == this->in_out);
   UNUSED_VARS_NDEBUG(socket);
   return this->build(ntree, node);
 }
@@ -451,7 +451,7 @@ void DeclarationListBuilder::add_separator()
 
 void DeclarationListBuilder::add_default_layout()
 {
-  BLI_assert(this->node_decl_builder.typeinfo_.draw_buttons);
+  BLI_assume_assert(this->node_decl_builder.typeinfo_.draw_buttons);
   this->add_layout([](ui::Layout &layout, bContext *C, PointerRNA *ptr) {
     const bNode &node = *static_cast<bNode *>(ptr->data);
     node.typeinfo->draw_buttons(layout, C, ptr);
@@ -541,7 +541,7 @@ const nodes::SocketDeclaration *PanelDeclaration::panel_input_decl() const
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::supports_field()
 {
-  BLI_assert(this->is_input());
+  BLI_assume_assert(this->is_input());
   decl_base_->input_field_type = InputSocketFieldType::IsSupported;
   this->structure_type(StructureType::Field);
   return *this;
@@ -550,7 +550,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::supports_field()
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::dependent_field(
     Vector<int> input_dependencies)
 {
-  BLI_assert(this->is_output());
+  BLI_assume_assert(this->is_output());
   this->reference_pass(input_dependencies);
   decl_base_->output_field_dependency = OutputFieldDependency::ForPartiallyDependentField(
       std::move(input_dependencies));
@@ -572,7 +572,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::hide_value(bool valu
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::multi_input(bool value)
 {
-  BLI_assert(this->is_input());
+  BLI_assume_assert(this->is_input());
   decl_base_->is_multi_input = value;
   return *this;
 }
@@ -586,7 +586,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compact(bool value)
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::reference_pass(
     const Span<int> input_indices)
 {
-  BLI_assert(this->is_output());
+  BLI_assume_assert(this->is_output());
   aal::RelationsInNode &relations = node_decl_builder_->get_anonymous_attribute_relations();
   for (const int from_input : input_indices) {
     aal::ReferenceRelation relation;
@@ -693,7 +693,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on_all()
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_source()
 {
-  BLI_assert(this->is_output());
+  BLI_assume_assert(this->is_output());
   decl_base_->output_field_dependency = OutputFieldDependency::ForFieldSource();
   this->structure_type(StructureType::Field);
   return *this;
@@ -702,7 +702,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_source()
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field(
     const NodeDefaultInputType default_input_type)
 {
-  BLI_assert(this->is_input());
+  BLI_assume_assert(this->is_input());
   this->hide_value();
   this->structure_type(StructureType::Dynamic);
   decl_base_->input_field_type = InputSocketFieldType::Implicit;
@@ -730,7 +730,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::implicit_field_on(
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::dependent_field()
 {
-  BLI_assert(this->is_output());
+  BLI_assume_assert(this->is_output());
   decl_base_->output_field_dependency = OutputFieldDependency::ForDependentField();
   this->structure_type(StructureType::Dynamic);
   this->reference_pass_all();
@@ -774,7 +774,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_realizati
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::compositor_domain_priority(
     int priority)
 {
-  BLI_assert(priority >= 0);
+  BLI_assume_assert(priority >= 0);
   decl_base_->compositor_domain_priority_ = priority;
   return *this;
 }
@@ -810,7 +810,7 @@ static const bNodeSocket &find_single_menu_input(const bNode &node)
       menu_input_count++;
     }
   }
-  BLI_assert(menu_input_count == 1);
+  BLI_assume_assert(menu_input_count == 1);
 #endif
 
   for (bNodeSocket &socket : node.inputs) {
@@ -930,7 +930,7 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::align_with_previous(
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::structure_type(
     const StructureType structure_type)
 {
-  BLI_assert(NodeSocketInterfaceStructureType(structure_type) !=
+  BLI_assume_assert(NodeSocketInterfaceStructureType(structure_type) !=
              NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO);
   decl_base_->structure_type = structure_type;
   return *this;

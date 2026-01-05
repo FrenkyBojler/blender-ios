@@ -8,7 +8,7 @@
 
 #include <limits>
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"

@@ -87,13 +87,13 @@ void interp_v3_v3v3_slerp_safe(float target[3], const float a[3], const float b[
     normalize_v3(ab_ortho);
     if (t < 0.5f) {
       if (UNLIKELY(!interp_v3_v3v3_slerp(target, a, ab_ortho, t * 2.0f))) {
-        BLI_assert(0);
+        BLI_assume_assert(0);
         copy_v3_v3(target, a);
       }
     }
     else {
       if (UNLIKELY(!interp_v3_v3v3_slerp(target, ab_ortho, b, (t - 0.5f) * 2.0f))) {
-        BLI_assert(0);
+        BLI_assume_assert(0);
         copy_v3_v3(target, b);
       }
     }
@@ -571,7 +571,7 @@ void ortho_basis_v3v3_v3(float r_n1[3], float r_n2[3], const float n[3])
   if (f > eps) {
     const float d = 1.0f / sqrtf(f);
 
-    BLI_assert(isfinite(d));
+    BLI_assume_assert(isfinite(d));
 
     r_n1[0] = n[1] * d;
     r_n1[1] = -n[0] * d;
@@ -592,7 +592,7 @@ void ortho_v3_v3(float out[3], const float v[3])
 {
   const int axis = axis_dominant_v3_single(v);
 
-  BLI_assert(out != v);
+  BLI_assume_assert(out != v);
 
   switch (axis) {
     case 0:
@@ -615,7 +615,7 @@ void ortho_v3_v3(float out[3], const float v[3])
 
 void ortho_v2_v2(float out[2], const float v[2])
 {
-  BLI_assert(out != v);
+  BLI_assume_assert(out != v);
 
   out[0] = -v[1];
   out[1] = v[0];
@@ -626,7 +626,7 @@ void rotate_v2_v2fl(float r[2], const float p[2], const float angle)
   const float co = cosf(angle);
   const float si = sinf(angle);
 
-  BLI_assert(r != p);
+  BLI_assume_assert(r != p);
 
   r[0] = co * p[0] - si * p[1];
   r[1] = si * p[0] + co * p[1];
@@ -658,7 +658,7 @@ void rotate_normalized_v3_v3v3fl(float out[3],
 
 void rotate_v3_v3v3fl(float r[3], const float p[3], const float axis[3], const float angle)
 {
-  BLI_assert(r != p);
+  BLI_assume_assert(r != p);
 
   float axis_n[3];
 

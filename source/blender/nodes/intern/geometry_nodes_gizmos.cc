@@ -499,7 +499,7 @@ ie::ElemVariant get_editable_gizmo_elem(const ComputeContext &gizmo_context,
 {
   std::optional<ie::ElemVariant> found_elem = ie::get_elem_variant_for_socket_type(
       eNodeSocketDatatype(gizmo_socket.type));
-  BLI_assert(found_elem.has_value());
+  BLI_assume_assert(found_elem.has_value());
 
   ie::foreach_element_on_inverse_eval_path(
       gizmo_context,
@@ -559,7 +559,7 @@ void apply_gizmo_change(
 
 bool value_node_has_gizmo(const bNodeTree &tree, const bNode &node)
 {
-  BLI_assert(partial_eval::is_supported_value_node(node));
+  BLI_assume_assert(partial_eval::is_supported_value_node(node));
   if (!tree.runtime->gizmo_propagation) {
     return false;
   }

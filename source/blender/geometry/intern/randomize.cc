@@ -18,6 +18,7 @@
 #include "BKE_global.hh"
 #include "BKE_instances.hh"
 
+#include "BLI_assume.hh"
 #include "BLI_array.hh"
 
 namespace blender::geometry {
@@ -171,7 +172,7 @@ static void reorder_customdata_groups(CustomData &data,
     const int new_i = new_by_old_map[old_i];
     const IndexRange old_range = old_offsets[old_i];
     const IndexRange new_range = new_offsets[new_i];
-    BLI_assert(old_range.size() == new_range.size());
+    BLI_assume_assert(old_range.size() == new_range.size());
     CustomData_copy_data(&data, &new_data, old_range.start(), new_range.start(), old_range.size());
   }
   CustomData_free(&data);
@@ -200,7 +201,7 @@ static void reorder_attribute_groups(bke::AttributeStorage &storage,
             const int new_i = new_by_old_map[old_i];
             const IndexRange old_range = old_offsets[old_i];
             const IndexRange new_range = new_offsets[new_i];
-            BLI_assert(old_range.size() == new_range.size());
+            BLI_assume_assert(old_range.size() == new_range.size());
             type.copy_construct_n(POINTER_OFFSET(data.data, old_range.start() * type.size),
                                   POINTER_OFFSET(new_data.data, new_range.start() * type.size),
                                   old_range.size());

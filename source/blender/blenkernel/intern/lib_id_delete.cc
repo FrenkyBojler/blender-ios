@@ -137,7 +137,7 @@ static int id_free(Main *bmain, void *idv, int flag, const bool use_flag_from_id
   const short type = GS(id->name);
 
   if (bmain && (flag & LIB_ID_FREE_NO_DEG_TAG) == 0) {
-    BLI_assert(bmain->is_locked_for_linking == false);
+    BLI_assume_assert(bmain->is_locked_for_linking == false);
 
     DEG_id_type_tag(bmain, type);
   }

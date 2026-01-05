@@ -173,8 +173,8 @@ static void ntree_copy_data(Main * /*bmain*/,
         ntree_dst, src_node, flag_subdata, src_node.name, src_node.identifier, socket_map);
     /* Parent remapping below relies on persistent identifier between the old and new tree.
      * No changes should be needed to keep identifiers unique. */
-    BLI_assert(new_node->identifier == src_node.identifier);
-    BLI_assert(ntree_dst->runtime->nodes_by_id.contains(new_node));
+    BLI_assume_assert(new_node->identifier == src_node.identifier);
+    BLI_assume_assert(ntree_dst->runtime->nodes_by_id.contains(new_node));
     new_node->runtime->index_in_tree = i;
   }
 
@@ -186,7 +186,7 @@ static void ntree_copy_data(Main * /*bmain*/,
     dst_link->fromsock = socket_map.lookup(src_link.fromsock);
     dst_link->tonode = dst_runtime.nodes_by_id.lookup_key_as(src_link.tonode->identifier);
     dst_link->tosock = socket_map.lookup(src_link.tosock);
-    BLI_assert(dst_link->tosock);
+    BLI_assume_assert(dst_link->tosock);
     dst_link->tosock->link = dst_link;
     BLI_addtail(&ntree_dst->links, dst_link);
   }
@@ -194,7 +194,7 @@ static void ntree_copy_data(Main * /*bmain*/,
   /* update node->parent pointers */
   for (bNode *node : ntree_dst->all_nodes()) {
     if (node->parent) {
-      BLI_assert(ntree_src->runtime->nodes_by_id.contains(node->parent));
+      BLI_assume_assert(ntree_src->runtime->nodes_by_id.contains(node->parent));
       node->parent = dst_runtime.nodes_by_id.lookup_key_as(node->parent->identifier);
     }
   }
@@ -588,8 +588,8 @@ static ID **node_owner_pointer_get(ID *id, const bool debug_relationship_assert)
 
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(id);
   if (debug_relationship_assert) {
-    BLI_assert(ntree->owner_id != nullptr);
-    BLI_assert(node_tree_from_id(ntree->owner_id) == ntree);
+    BLI_assume_assert(ntree->owner_id != nullptr);
+    BLI_assume_assert(node_tree_from_id(ntree->owner_id) == ntree);
   }
 
   return &ntree->owner_id;
@@ -1115,7 +1115,7 @@ static void write_node_socket(BlendWriter *writer, const bNodeSocket *sock)
   }
 
   /* This property should only be used for group node "interface" sockets. */
-  BLI_assert(sock->default_attribute_name == nullptr);
+  BLI_assume_assert(sock->default_attribute_name == nullptr);
 
   write_node_socket_default_value(writer, sock);
 }
@@ -1465,7 +1465,7 @@ static void direct_link_node_socket_legacy_data_version_do(
     void **dest_data, void **raw_data, FunctionRef<void(T &dest, T_404 &source)> copy_fn)
 {
   /* Cannot check for equality because of potential alignment offset. */
-  BLI_assert(MEM_allocN_len(*raw_data) >= sizeof(T_404));
+  BLI_assume_assert(MEM_allocN_len(*raw_data) >= sizeof(T_404));
   T_404 *orig_data = static_cast<T_404 *>(*raw_data);
   *raw_data = nullptr;
   T *final_data = MEM_new_for_free<T>(__func__);
@@ -1946,7 +1946,7 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
   if (BLO_read_fileversion_get(reader) > 300) {
     BLI_assert((ntree->id.flag & ID_FLAG_EMBEDDED_DATA) != 0 || owner_id == nullptr);
   }
-  BLI_assert(owner_id == nullptr || owner_id->lib == ntree->id.lib);
+  BLI_assume_assert(owner_id == nullptr || owner_id->lib == ntree->id.lib);
   if (owner_id != nullptr && (ntree->id.flag & ID_FLAG_EMBEDDED_DATA) == 0) {
     /* This is unfortunate, but currently a lot of existing files (including startup ones) have
      * missing `ID_FLAG_EMBEDDED_DATA` flag.
@@ -2003,7 +2003,7 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
     node_blend_read_data_storage(reader, ntree, &node);
   }
   BLO_read_struct_list(reader, bNodeLink, &ntree->links);
-  BLI_assert(ntree->all_nodes().size() == BLI_listbase_count(&ntree->nodes));
+  BLI_assume_assert(ntree->all_nodes().size() == BLI_listbase_count(&ntree->nodes));
 
   /* and we connect the rest */
   for (bNode &node : ntree->nodes) {
@@ -2226,7 +2226,7 @@ static void node_add_sockets_from_type(bNodeTree *ntree, bNode *node, bNodeType 
  */
 static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
 {
-  BLI_assert(ntree != nullptr);
+  BLI_assume_assert(ntree != nullptr);
   bNodeType *ntype = node->typeinfo;
   if (ntype == &NodeTypeUndefined) {
     return;
@@ -2268,7 +2268,7 @@ static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
 
     /* XXX WARNING: context can be nullptr in case nodes are added in do_versions.
      * Delayed init is not supported for nodes with context-based `initfunc_api` at the moment. */
-    BLI_assert(C != nullptr);
+    BLI_assume_assert(C != nullptr);
     ntype->initfunc_api(C, &ptr);
   }
 
@@ -2566,7 +2566,7 @@ void node_register_type(bNodeType &nt)
 {
   /* debug only: basic verification of registered types */
   BLI_assert(!nt.idname.empty());
-  BLI_assert(nt.poll != nullptr);
+  BLI_assume_assert(nt.poll != nullptr);
 
   RNA_def_struct_ui_text(nt.rna_ext.srna, nt.ui_name.c_str(), nt.ui_description.c_str());
 
@@ -3664,7 +3664,7 @@ void node_chain_iterator_backwards(const bNodeTree *ntree,
   }
 
   /* Limited by iter_flag type. */
-  BLI_assert(recursion_lvl < 8);
+  BLI_assume_assert(recursion_lvl < 8);
   const char recursion_mask = (1 << recursion_lvl);
 
   /* Reset flag. */
@@ -3706,7 +3706,7 @@ void node_unique_id(bNodeTree &ntree, bNode &node)
   node.identifier = new_id;
   ntree.runtime->nodes_by_id.add_new(&node);
   node.runtime->index_in_tree = ntree.runtime->nodes_by_id.index_range().last();
-  BLI_assert(node.runtime->index_in_tree == ntree.runtime->nodes_by_id.index_of(&node));
+  BLI_assume_assert(node.runtime->index_in_tree == ntree.runtime->nodes_by_id.index_of(&node));
 }
 
 bNode *node_add_node(const bContext *C,
@@ -3796,7 +3796,7 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
   bNode *node_dst = MEM_new_for_free<bNode>(__func__, node_src);
   node_dst->runtime = MEM_new<bNodeRuntime>(__func__);
   if (dst_unique_name) {
-    BLI_assert(dst_unique_name->size() < sizeof(node_dst->name));
+    BLI_assume_assert(dst_unique_name->size() < sizeof(node_dst->name));
     STRNCPY_UTF8(node_dst->name, dst_unique_name->c_str());
   }
   else if (dst_tree) {
@@ -4059,8 +4059,8 @@ static int node_count_links(const bNodeTree *ntree, const bNodeSocket *socket)
 bNodeLink &node_add_link(
     bNodeTree &ntree, bNode &fromnode, bNodeSocket &fromsock, bNode &tonode, bNodeSocket &tosock)
 {
-  BLI_assert(ntree.all_nodes().contains(&fromnode));
-  BLI_assert(ntree.all_nodes().contains(&tonode));
+  BLI_assume_assert(ntree.all_nodes().contains(&fromnode));
+  BLI_assume_assert(ntree.all_nodes().contains(&tonode));
 
   bNodeLink *link = nullptr;
   if (eNodeSocketInOut(fromsock.in_out) == SOCK_OUT && eNodeSocketInOut(tosock.in_out) == SOCK_IN)
@@ -4226,7 +4226,7 @@ void node_internal_relink(bNodeTree &ntree, bNode &node)
 
 void node_attach_node(bNodeTree &ntree, bNode &node, bNode &parent)
 {
-  BLI_assert(parent.is_frame());
+  BLI_assume_assert(parent.is_frame());
   BLI_assert(!node_is_parent_and_child(parent, node));
   node.parent = &parent;
   BKE_ntree_update_tag_parent_change(&ntree, &node);
@@ -4235,7 +4235,7 @@ void node_attach_node(bNodeTree &ntree, bNode &node, bNode &parent)
 void node_detach_node(bNodeTree &ntree, bNode &node)
 {
   if (node.parent) {
-    BLI_assert(node.parent->is_frame());
+    BLI_assume_assert(node.parent->is_frame());
     node.parent = nullptr;
     BKE_ntree_update_tag_parent_change(&ntree, &node);
   }
@@ -4260,7 +4260,7 @@ void node_position_relative(bNode &from_node,
     tot_sock_idx = BLI_findindex(&to_node.outputs, &to_sock);
   }
 
-  BLI_assert(tot_sock_idx != -1);
+  BLI_assume_assert(tot_sock_idx != -1);
 
   float offset_y = U.widget_unit * tot_sock_idx;
 
@@ -4275,7 +4275,7 @@ void node_position_relative(bNode &from_node,
     }
   }
 
-  BLI_assert(tot_sock_idx != -1);
+  BLI_assume_assert(tot_sock_idx != -1);
 
   offset_y -= U.widget_unit * tot_sock_idx;
 
@@ -4314,17 +4314,17 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
       BKE_libblock_alloc_in_lib(bmain, owner_library, ID_NT, std::string(name).c_str(), flag));
   BKE_libblock_init_empty(&ntree->id);
   if (is_embedded) {
-    BLI_assert(owner_id != nullptr);
+    BLI_assume_assert(owner_id != nullptr);
     ntree->id.flag |= ID_FLAG_EMBEDDED_DATA;
     ntree->owner_id = owner_id;
     bNodeTree **ntree_owner_ptr = node_tree_ptr_from_id(owner_id);
-    BLI_assert(ntree_owner_ptr != nullptr);
+    BLI_assume_assert(ntree_owner_ptr != nullptr);
     *ntree_owner_ptr = ntree;
     ntree->id.lib = owner_id->lib;
     ntree->id.tag |= owner_id->tag & int(ID_TAG_EXTERN | ID_TAG_INDIRECT);
   }
   else {
-    BLI_assert(owner_id == nullptr);
+    BLI_assume_assert(owner_id == nullptr);
   }
 
   idname.copy_utf8_truncated(ntree->idname);
@@ -5036,7 +5036,7 @@ static void reset_socket_declarations(ListBaseT<bNodeSocket> *sockets)
 
 void node_socket_declarations_update(bNode *node)
 {
-  BLI_assert(node->runtime->declaration != nullptr);
+  BLI_assume_assert(node->runtime->declaration != nullptr);
   if (node->runtime->declaration->skip_updating_sockets) {
     reset_socket_declarations(&node->inputs);
     reset_socket_declarations(&node->outputs);
@@ -5350,7 +5350,7 @@ static int16_t get_next_auto_legacy_type()
     return NODE_LEGACY_TYPE_GENERATION_START + rng.get_int32(100);
   }();
   const int new_type = next_legacy_type.fetch_add(1);
-  BLI_assert(new_type <= std::numeric_limits<int16_t>::max());
+  BLI_assume_assert(new_type <= std::numeric_limits<int16_t>::max());
   return new_type;
 }
 
@@ -5367,13 +5367,13 @@ void node_type_base(bNodeType &ntype, std::string idname, std::optional<int16_t>
 
   if (!ELEM(*legacy_type, NODE_CUSTOM, NODE_UNDEFINED)) {
     StructRNA *srna = RNA_struct_find(ntype.idname.c_str());
-    BLI_assert(srna != nullptr);
+    BLI_assume_assert(srna != nullptr);
     ntype.rna_ext.srna = srna;
     RNA_struct_blender_type_set(srna, &ntype);
   }
 
   /* make sure we have a valid type (everything registered) */
-  BLI_assert(ntype.idname[0] != '\0');
+  BLI_assume_assert(ntype.idname[0] != '\0');
 
   ntype.type_legacy = *legacy_type;
   ntype.nclass = NODE_CLASS_CONVERTER;
@@ -5492,7 +5492,7 @@ const CPPType *socket_type_to_geo_nodes_base_cpp_type(const eNodeSocketDatatype 
       cpp_type = slow_socket_type_to_geo_nodes_base_cpp_type(type);
       break;
   }
-  BLI_assert(cpp_type == slow_socket_type_to_geo_nodes_base_cpp_type(type));
+  BLI_assume_assert(cpp_type == slow_socket_type_to_geo_nodes_base_cpp_type(type));
   return cpp_type;
 }
 
@@ -5799,8 +5799,8 @@ bool node_tree_iterator_step(NodeTreeIterStore *ntreeiter, bNodeTree **r_nodetre
 
 void node_tree_remove_layer_n(bNodeTree *ntree, Scene *scene, const int layer_index)
 {
-  BLI_assert(layer_index != -1);
-  BLI_assert(scene != nullptr);
+  BLI_assume_assert(layer_index != -1);
+  BLI_assume_assert(scene != nullptr);
   for (bNode *node : ntree->all_nodes()) {
     if (node->type_legacy == CMP_NODE_R_LAYERS && node->id == &scene->id) {
       if (node->custom1 == layer_index) {

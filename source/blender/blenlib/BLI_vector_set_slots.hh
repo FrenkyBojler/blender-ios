@@ -67,7 +67,7 @@ template<typename Key, typename IndexT = int64_t> class SimpleVectorSetSlot {
    */
   IndexT index() const
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     return state_;
   }
 
@@ -103,7 +103,7 @@ template<typename Key, typename IndexT = int64_t> class SimpleVectorSetSlot {
    */
   void update_index(IndexT index)
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     state_ = index;
   }
 
@@ -112,7 +112,7 @@ template<typename Key, typename IndexT = int64_t> class SimpleVectorSetSlot {
    */
   void remove()
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     state_ = s_is_removed;
   }
 
@@ -130,7 +130,7 @@ template<typename Key, typename IndexT = int64_t> class SimpleVectorSetSlot {
    */
   template<typename Hash> uint64_t get_hash(const Key &key, const Hash &hash) const
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     return hash(key);
   }
 

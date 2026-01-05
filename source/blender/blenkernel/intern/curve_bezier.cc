@@ -19,7 +19,7 @@ bool segment_is_vector(const Span<int8_t> handle_types_left,
                        const Span<int8_t> handle_types_right,
                        const int segment_index)
 {
-  BLI_assert(handle_types_left.index_range().drop_back(1).contains(segment_index));
+  BLI_assume_assert(handle_types_left.index_range().drop_back(1).contains(segment_index));
   return segment_is_vector(handle_types_right[segment_index],
                            handle_types_left[segment_index + 1]);
 }
@@ -37,7 +37,7 @@ void calculate_evaluated_offsets(const Span<int8_t> handle_types_left,
                                  MutableSpan<int> evaluated_offsets)
 {
   const int size = handle_types_left.size();
-  BLI_assert(evaluated_offsets.size() == size + 1);
+  BLI_assume_assert(evaluated_offsets.size() == size + 1);
 
   evaluated_offsets.first() = 0;
   if (size == 1) {
@@ -73,7 +73,7 @@ Insertion insert(const float3 &point_prev,
                  float parameter)
 {
   /* De Casteljau Bezier subdivision. */
-  BLI_assert(parameter <= 1.0f && parameter >= 0.0f);
+  BLI_assume_assert(parameter <= 1.0f && parameter >= 0.0f);
 
   const float3 center_point = math::interpolate(handle_prev, handle_next, parameter);
 
@@ -301,7 +301,7 @@ template<typename T>
 void evaluate_segment_ex(
     const T &point_0, const T &point_1, const T &point_2, const T &point_3, MutableSpan<T> result)
 {
-  BLI_assert(result.size() > 0);
+  BLI_assume_assert(result.size() > 0);
   const float inv_len = 1.0f / float(result.size());
   const float inv_len_squared = inv_len * inv_len;
   const float inv_len_cubed = inv_len_squared * inv_len;
@@ -346,7 +346,7 @@ void calculate_evaluated_positions(const Span<float3> positions,
                                    const OffsetIndices<int> evaluated_offsets,
                                    MutableSpan<float3> evaluated_positions)
 {
-  BLI_assert(evaluated_offsets.total_size() == evaluated_positions.size());
+  BLI_assume_assert(evaluated_offsets.total_size() == evaluated_positions.size());
   if (evaluated_offsets.total_size() == 1) {
     evaluated_positions.first() = positions.first();
     return;
@@ -408,9 +408,9 @@ static void interpolate_to_evaluated(const Span<T> src,
                                      MutableSpan<T> dst)
 {
   BLI_assert(!src.is_empty());
-  BLI_assert(evaluated_offsets.total_size() == dst.size());
+  BLI_assume_assert(evaluated_offsets.total_size() == dst.size());
   if (src.size() == 1) {
-    BLI_assert(dst.size() == 1);
+    BLI_assume_assert(dst.size() == 1);
     dst.first() = src.first();
     return;
   }

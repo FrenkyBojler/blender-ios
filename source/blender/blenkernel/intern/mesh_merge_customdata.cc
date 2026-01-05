@@ -62,7 +62,7 @@ static void merge_uvs_for_vertex(const Span<int> loops_for_vert, Span<float2 *> 
   Vector<int, 32> loops_merge;
   loops_merge.reserve(loops_for_vert.size());
   for (float2 *uv_map : uv_map_layers) {
-    BLI_assert(loops_merge.is_empty());
+    BLI_assume_assert(loops_merge.is_empty());
     loops_merge.extend_unchecked(loops_for_vert);
     while (loops_merge.size() > 1) {
       uint i_last = uint(loops_merge.size()) - 1;

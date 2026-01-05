@@ -14,6 +14,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_linklist.h"
+#include "BLI_assume.hh"
 #include "BLI_math_boolean.hh"
 #include "BLI_math_vector_mpq_types.hh"
 #include "BLI_set.hh"
@@ -48,7 +49,7 @@ template<> double math_abs<double>(const double v)
 
 template<typename T> double math_to_double(const T /*v*/)
 {
-  BLI_assert(false); /* Need implementation for other type. */
+  BLI_assume_assert(false); /* Need implementation for other type. */
   return 0.0;
 }
 
@@ -1020,7 +1021,7 @@ CDTEdge<T> *CDTArrangement<T>::add_vert_to_symedge_edge(CDTVert<T> *v, SymEdge<T
 template<typename T>
 CDTEdge<T> *CDTArrangement<T>::connect_separate_parts(SymEdge<T> *se1, SymEdge<T> *se2)
 {
-  BLI_assert(se1->face == this->outer_face && se2->face == this->outer_face);
+  BLI_assume_assert(se1->face == this->outer_face && se2->face == this->outer_face);
   SymEdge<T> *se1_rot = se1->rot;
   SymEdge<T> *se1_rotsym = sym(se1_rot);
   SymEdge<T> *se2_rot = se2->rot;
@@ -1275,7 +1276,7 @@ void dc_tri(CDTArrangement<T> *cdt,
   }
   /* Recursive case. Do left (L) and right (R) halves separately, then join. */
   int n2 = n / 2;
-  BLI_assert(n2 >= 2 && end - (start + n2) >= 2);
+  BLI_assume_assert(n2 >= 2 && end - (start + n2) >= 2);
   SymEdge<T> *ldo;
   SymEdge<T> *ldi;
   SymEdge<T> *rdi;
@@ -1413,14 +1414,14 @@ void dc_tri(CDTArrangement<T> *cdt,
     }
     basel = &ebasel->symedges[0];
     basel_sym = &ebasel->symedges[1];
-    BLI_assert(basel_sym->face == cdt->outer_face);
+    BLI_assume_assert(basel_sym->face == cdt->outer_face);
     if (dbg_level > 2) {
       cdt_draw("after adding new crossedge", *cdt);
     }
   }
   *r_le = ldo;
   *r_re = rdo;
-  BLI_assert(sym(ldo)->face == cdt->outer_face && rdo->face == cdt->outer_face);
+  BLI_assume_assert(sym(ldo)->face == cdt->outer_face && rdo->face == cdt->outer_face);
 }
 
 /* Guibas-Stolfi Divide-and_Conquer algorithm. */
@@ -1643,7 +1644,7 @@ void fill_crossdata_for_through_vert(CDTVert<T> *v,
         se = se->next;
       }
     }
-    BLI_assert(se->vert == v);
+    BLI_assume_assert(se->vert == v);
     cd_next->in = se;
   }
 }
@@ -1674,8 +1675,8 @@ void fill_crossdata_for_intersect(const FatCo<T> &curco,
   CDTVert<T> *vc = t->next->next->vert;
   SymEdge<T> *se_vcvb = sym(t->next);
   SymEdge<T> *se_vcva = t->next->next;
-  BLI_assert(se_vcva->vert == vc && se_vcva->next->vert == va);
-  BLI_assert(se_vcvb->vert == vc && se_vcvb->next->vert == vb);
+  BLI_assume_assert(se_vcva->vert == vc && se_vcva->next->vert == va);
+  BLI_assume_assert(se_vcvb->vert == vc && se_vcvb->next->vert == vb);
   UNUSED_VARS_NDEBUG(vc);
   auto isect = isect_seg_seg(va->co.exact, vb->co.exact, curco.exact, v2->co.exact);
   T &lambda = isect.lambda;
@@ -1727,7 +1728,7 @@ void fill_crossdata_for_intersect(const FatCo<T> &curco,
     case isect_result<VecBase<T, 2>>::LINE_LINE_NONE: {
 #ifdef WITH_GMP
       if (std::is_same_v<T, mpq_class>) {
-        BLI_assert(false);
+        BLI_assume_assert(false);
       }
 #endif
       /* It should be very near one end or other of segment. */
@@ -1779,7 +1780,7 @@ bool get_next_crossing_from_vert(CDT_state<T> *cdt_state,
      * and vb is the next vertex (on the next rot edge around vcur, but
      * should also be the next vert of triangle starting with `vcur-va`. */
     if (t->face != cdt_state->cdt.outer_face && tri_orient(t) < 0) {
-      BLI_assert(false); /* Shouldn't happen. */
+      BLI_assume_assert(false); /* Shouldn't happen. */
     }
     CDTVert<T> *va = t->next->vert;
     CDTVert<T> *vb = t->next->next->vert;
@@ -1933,13 +1934,13 @@ void add_edge_constraint(
     constexpr int unreasonably_large_crossings = 100000;
     if (!ok || crossings.size() == unreasonably_large_crossings) {
       /* Shouldn't happen but if does, just bail out. */
-      BLI_assert(false);
+      BLI_assume_assert(false);
       return;
     }
     if (crossings[n].lambda == 0) {
       if (crossings[n].vert->visit_index == visit) {
         /* Shouldn't happen but if it does, just bail out. */
-        BLI_assert(false);
+        BLI_assume_assert(false);
         return;
       }
       crossings[n].vert->visit_index = visit;
@@ -2051,8 +2052,8 @@ void add_edge_constraint(
             break;
           }
         }
-        BLI_assert(cd_prev->lambda == 0.0);
-        BLI_assert(cd_prev->out->next->vert == cd->vert);
+        BLI_assume_assert(cd_prev->lambda == 0.0);
+        BLI_assume_assert(cd_prev->out->next->vert == cd->vert);
         edge = cd_prev->out->edge;
         add_to_input_ids(edge->input_ids, input_id);
         if (r_edges != nullptr) {
@@ -2167,7 +2168,7 @@ static int power_of_10_greater_equal_to(int x)
     return 1;
   }
   int ans = 1;
-  BLI_assert(x < std::numeric_limits<int>::max() / 10);
+  BLI_assume_assert(x < std::numeric_limits<int>::max() / 10);
   while (ans < x) {
     ans *= 10;
   }
@@ -2205,7 +2206,7 @@ int add_face_constraints(CDT_state<T> *cdt_state,
    * If we really have that many faces and that large a max face length that when multiplied
    * together the are >= INT_MAX, then the Delaunay calculation will take unreasonably long anyway.
    */
-  BLI_assert(std::numeric_limits<int>::max() / cdt_state->face_edge_offset > input_faces.size());
+  BLI_assume_assert(std::numeric_limits<int>::max() / cdt_state->face_edge_offset > input_faces.size());
   int faces_added = 0;
   for (const int f : input_faces.index_range()) {
     const Span<int> face = input_faces[f];
@@ -2236,7 +2237,7 @@ int add_face_constraints(CDT_state<T> *cdt_state,
         face_symedge0 = &face_edge->symedges[0];
         if (face_symedge0->vert != v1) {
           face_symedge0 = &face_edge->symedges[1];
-          BLI_assert(face_symedge0->vert == v1);
+          BLI_assume_assert(face_symedge0->vert == v1);
         }
       }
       BLI_linklist_free(edge_list, nullptr);
@@ -2420,7 +2421,7 @@ template<typename T> void remove_outer_edges_until_constraints(CDT_state<T> *cdt
     if (f->visit_index == visit) {
       continue;
     }
-    BLI_assert(f != cdt_state->cdt.outer_face);
+    BLI_assume_assert(f != cdt_state->cdt.outer_face);
     f->visit_index = visit;
     se_start = se = f->symedge;
     do {
@@ -2456,7 +2457,7 @@ template<typename T> void remove_faces_in_holes(CDT_state<T> *cdt_state)
       SymEdge<T> *se_start = se;
       SymEdge<T> *se_next = nullptr;
       do {
-        BLI_assert(se != nullptr);
+        BLI_assume_assert(se != nullptr);
         se_next = se->next; /* In case we delete this edge. */
         if (se->edge && !is_constrained_edge(se->edge)) {
           /* Invalidate one half of this edge. The other will be, or has already been handled
@@ -2729,7 +2730,7 @@ CDT_result<T> get_cdt_output(CDT_state<T> *cdt_state,
   for (const CDTFace<T> *f : cdt->faces) {
     if (!f->deleted && f != cdt->outer_face) {
       SymEdge<T> *se = f->symedge;
-      BLI_assert(se != nullptr);
+      BLI_assume_assert(se != nullptr);
       SymEdge<T> *se_start = se;
       do {
         result.face[f_out].append(vert_to_output_map[se->vert->index]);

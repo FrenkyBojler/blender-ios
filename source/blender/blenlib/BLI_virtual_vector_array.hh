@@ -25,7 +25,7 @@ template<typename T> class VVectorArray {
  public:
   VVectorArray(const int64_t size) : size_(size)
   {
-    BLI_assert(size >= 0);
+    BLI_assume_assert(size >= 0);
   }
 
   virtual ~VVectorArray() = default;
@@ -45,18 +45,18 @@ template<typename T> class VVectorArray {
   /* Returns the size of the vector at the given index. */
   int64_t get_vector_size(const int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < size_);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < size_);
     return this->get_vector_size_impl(index);
   }
 
   /* Returns an element from one of the vectors. */
   T get_vector_element(const int64_t index, const int64_t index_in_vector) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < size_);
-    BLI_assert(index_in_vector >= 0);
-    BLI_assert(index_in_vector < this->get_vector_size(index));
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < size_);
+    BLI_assume_assert(index_in_vector >= 0);
+    BLI_assume_assert(index_in_vector < this->get_vector_size(index));
     return this->get_vector_element_impl(index, index_in_vector);
   }
 

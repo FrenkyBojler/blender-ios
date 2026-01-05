@@ -1238,7 +1238,7 @@ const bNodeZoneType *zone_type_by_node_type(const int node_type);
 inline bool bNodeType::is_type(const StringRef query_idname) const
 {
   /* Ensure that the given idname exists to check for typos. */
-  BLI_assert(node_type_find(query_idname) != nullptr);
+  BLI_assume_assert(node_type_find(query_idname) != nullptr);
   return this->idname == query_idname;
 }
 

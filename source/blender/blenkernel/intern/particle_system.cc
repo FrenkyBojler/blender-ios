@@ -463,7 +463,7 @@ blender::Vector<ParticleTask> psys_tasks_create(ParticleThreadContext *ctx,
 
   /* Verify that all particles are accounted for. */
   if (numtasks > 0) {
-    BLI_assert(tasks[numtasks - 1].end == endpart);
+    BLI_assume_assert(tasks[numtasks - 1].end == endpart);
   }
 
   return tasks;
@@ -977,7 +977,7 @@ void psys_get_birth_coords(
           float *utan_local = tmat[2];
 
           /* use tangents */
-          BLI_assert(use_tangents == true);
+          BLI_assume_assert(use_tangents == true);
 
           /* rot_vec */
           copy_v3_v3(rot_vec_local, rot_vec);
@@ -4722,10 +4722,10 @@ static void psys_prepare_physics(ParticleSimulationData *sim)
 
   /* RNA Update must ensure this is true. */
   if (part->phystype == PART_PHYS_BOIDS) {
-    BLI_assert(part->boids != nullptr);
+    BLI_assume_assert(part->boids != nullptr);
   }
   else if (part->phystype == PART_PHYS_FLUID) {
-    BLI_assert(part->fluid != nullptr);
+    BLI_assume_assert(part->fluid != nullptr);
   }
 
   psys_check_boid_data(sim->psys);

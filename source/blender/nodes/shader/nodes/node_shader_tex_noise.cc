@@ -94,8 +94,8 @@ static void node_shader_init_tex_noise(bNodeTree * /*ntree*/, bNode *node)
 
 static const char *gpu_shader_get_name(const int dimensions, const int type)
 {
-  BLI_assert(dimensions > 0 && dimensions < 5);
-  BLI_assert(type >= 0 && type < 5);
+  BLI_assume_assert(dimensions > 0 && dimensions < 5);
+  BLI_assume_assert(type >= 0 && type < 5);
 
   switch (type) {
     case SHD_NOISE_MULTIFRACTAL:
@@ -174,8 +174,8 @@ class NoiseFunction : public mf::MultiFunction {
   NoiseFunction(int dimensions, int type, bool normalize)
       : dimensions_(dimensions), type_(type), normalize_(normalize)
   {
-    BLI_assert(dimensions >= 1 && dimensions <= 4);
-    BLI_assert(type >= 0 && type <= 4);
+    BLI_assume_assert(dimensions >= 1 && dimensions <= 4);
+    BLI_assume_assert(type >= 0 && type <= 4);
     static std::array<mf::Signature, 20> signatures{
         create_signature(1, SHD_NOISE_MULTIFRACTAL),
         create_signature(2, SHD_NOISE_MULTIFRACTAL),

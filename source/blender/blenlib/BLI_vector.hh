@@ -306,9 +306,9 @@ class Vector {
    */
   Vector(const VectorData<T, Allocator> &data) : Vector(data.allocator)
   {
-    BLI_assert(data.capacity == 0 || data.data != nullptr);
-    BLI_assert(data.size >= 0);
-    BLI_assert(data.size <= data.capacity);
+    BLI_assume_assert(data.capacity == 0 || data.data != nullptr);
+    BLI_assume_assert(data.size >= 0);
+    BLI_assume_assert(data.size <= data.capacity);
     /* Don't use the passed in buffer if it is null. Use the inline-buffer instead which is already
      * initialized by the constructor call above. */
     if (data.data != nullptr) {
@@ -344,15 +344,15 @@ class Vector {
    */
   const T &operator[](int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < this->size());
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < this->size());
     return begin_[index];
   }
 
   T &operator[](int64_t index)
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < this->size());
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < this->size());
     return begin_[index];
   }
 
@@ -408,7 +408,7 @@ class Vector {
    */
   void resize(const int64_t new_size)
   {
-    BLI_assert(new_size >= 0);
+    BLI_assume_assert(new_size >= 0);
     const int64_t old_size = this->size();
     if (new_size > old_size) {
       this->reserve(new_size);
@@ -429,7 +429,7 @@ class Vector {
    */
   void resize(const int64_t new_size, const T &value)
   {
-    BLI_assert(new_size >= 0);
+    BLI_assume_assert(new_size >= 0);
     const int64_t old_size = this->size();
     if (new_size > old_size) {
       this->reserve(new_size);
@@ -547,7 +547,7 @@ class Vector {
   }
   template<typename... ForwardT> void append_unchecked_as(ForwardT &&...value)
   {
-    BLI_assert(end_ < capacity_end_);
+    BLI_assume_assert(end_ < capacity_end_);
     new (end_) T(std::forward<ForwardT>(value)...);
     end_++;
     UPDATE_VECTOR_SIZE(this);
@@ -559,7 +559,7 @@ class Vector {
    */
   void append_n_times(const T &value, const int64_t n)
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     this->reserve(this->size() + n);
     uninitialized_fill_n(end_, n, value);
     this->increase_size_by_unchecked(n);
@@ -573,7 +573,7 @@ class Vector {
    */
   void increase_size_by_unchecked(const int64_t n) noexcept
   {
-    BLI_assert(end_ + n <= capacity_end_);
+    BLI_assume_assert(end_ + n <= capacity_end_);
     end_ += n;
     UPDATE_VECTOR_SIZE(this);
   }
@@ -604,7 +604,7 @@ class Vector {
   template<int64_t OtherInlineBufferCapacity>
   void extend(Vector<T, OtherInlineBufferCapacity, Allocator> &&other)
   {
-    BLI_assert(this != &other);
+    BLI_assume_assert(this != &other);
     this->extend(std::make_move_iterator(other.begin()), std::make_move_iterator(other.end()));
     other.clear();
   }
@@ -631,8 +631,8 @@ class Vector {
   }
   void extend_unchecked(const T *start, int64_t amount)
   {
-    BLI_assert(amount >= 0);
-    BLI_assert(begin_ + amount <= capacity_end_);
+    BLI_assume_assert(amount >= 0);
+    BLI_assume_assert(begin_ + amount <= capacity_end_);
     uninitialized_copy_n(start, amount, end_);
     end_ += amount;
     UPDATE_VECTOR_SIZE(this);
@@ -668,8 +668,8 @@ class Vector {
   }
   template<typename InputIt> void insert(const int64_t insert_index, InputIt first, InputIt last)
   {
-    BLI_assert(insert_index >= 0);
-    BLI_assert(insert_index <= this->size());
+    BLI_assume_assert(insert_index >= 0);
+    BLI_assume_assert(insert_index <= this->size());
 
     const int64_t insert_amount = std::distance(first, last);
     const int64_t old_size = this->size();
@@ -739,14 +739,14 @@ class Vector {
    */
   const T &last(const int64_t n = 0) const
   {
-    BLI_assert(n >= 0);
-    BLI_assert(n < this->size());
+    BLI_assume_assert(n >= 0);
+    BLI_assume_assert(n < this->size());
     return *(end_ - 1 - n);
   }
   T &last(const int64_t n = 0)
   {
-    BLI_assert(n >= 0);
-    BLI_assert(n < this->size());
+    BLI_assume_assert(n >= 0);
+    BLI_assume_assert(n < this->size());
     return *(end_ - 1 - n);
   }
 
@@ -756,12 +756,12 @@ class Vector {
    */
   const T &first() const
   {
-    BLI_assert(this->size() > 0);
+    BLI_assume_assert(this->size() > 0);
     return *begin_;
   }
   T &first()
   {
-    BLI_assert(this->size() > 0);
+    BLI_assume_assert(this->size() > 0);
     return *begin_;
   }
 
@@ -819,8 +819,8 @@ class Vector {
    */
   void remove_and_reorder(const int64_t index)
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < this->size());
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < this->size());
     T *element_to_remove = begin_ + index;
     T *last_element = end_ - 1;
     if (element_to_remove < last_element) {
@@ -850,8 +850,8 @@ class Vector {
    */
   void remove(const int64_t index)
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < this->size());
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < this->size());
     const int64_t last_index = this->size() - 1;
     for (int64_t i = index; i < last_index; i++) {
       begin_[i] = std::move(begin_[i + 1]);
@@ -870,9 +870,9 @@ class Vector {
   void remove(const int64_t start_index, const int64_t amount)
   {
     const int64_t old_size = this->size();
-    BLI_assert(start_index >= 0);
-    BLI_assert(amount >= 0);
-    BLI_assert(start_index + amount <= old_size);
+    BLI_assume_assert(start_index >= 0);
+    BLI_assume_assert(amount >= 0);
+    BLI_assume_assert(start_index + amount <= old_size);
     const int64_t move_amount = old_size - start_index - amount;
     for (int64_t i = 0; i < move_amount; i++) {
       begin_[start_index + i] = std::move(begin_[start_index + amount + i]);
@@ -918,7 +918,7 @@ class Vector {
   int64_t first_index_of(const T &value) const
   {
     const int64_t index = this->first_index_of_try(value);
-    BLI_assert(index >= 0);
+    BLI_assume_assert(index >= 0);
     return index;
   }
 

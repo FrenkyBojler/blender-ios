@@ -80,12 +80,12 @@ static float knot_remove_error_value(const float tan_l[3],
 static void knot_remove_error_recalculate(
     Heap *heap, const float (*points)[3], const uint points_len, Knot *k, const float error_sq_max)
 {
-  BLI_assert(k->can_remove);
+  BLI_assume_assert(k->can_remove);
   float handles[2];
 
 #ifndef NDEBUG
-  BLI_assert(equals_v3v3(points[k->prev->point_index], k->prev->co));
-  BLI_assert(equals_v3v3(points[k->next->point_index], k->next->co));
+  BLI_assume_assert(equals_v3v3(points[k->prev->point_index], k->prev->co));
+  BLI_assume_assert(equals_v3v3(points[k->next->point_index], k->next->co));
 #endif
 
   const float (*points_offset)[3];
@@ -229,7 +229,7 @@ uint BKE_curve_decimate_bezt_array(BezTriple *bezt_array,
 
 #ifndef NDEBUG
     knots[i].co = bezt_array[i].vec[1];
-    BLI_assert(equals_v3v3(knots[i].co, points[knots[i].point_index]));
+    BLI_assume_assert(equals_v3v3(knots[i].co, points[knots[i].point_index]));
 #endif
   }
 

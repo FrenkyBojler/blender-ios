@@ -36,7 +36,7 @@ class BitIteratorBase {
 
   friend bool operator!=(const BitIteratorBase &a, const BitIteratorBase &b)
   {
-    BLI_assert(a.data_ == b.data_);
+    BLI_assume_assert(a.data_ == b.data_);
     return a.bit_index_ != b.bit_index_;
   }
 };
@@ -161,8 +161,8 @@ class BitSpan {
 
   [[nodiscard]] BitRef operator[](const int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < bit_range_.size());
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < bit_range_.size());
     return {data_, bit_range_.start() + index};
   }
 
@@ -249,17 +249,17 @@ class BoundedBitSpan : public BitSpan {
 
   BoundedBitSpan(const BitInt *data, const int64_t size_in_bits) : BitSpan(data, size_in_bits)
   {
-    BLI_assert(is_bounded_span(*this));
+    BLI_assume_assert(is_bounded_span(*this));
   }
 
   BoundedBitSpan(const BitInt *data, const IndexRange bit_range) : BitSpan(data, bit_range)
   {
-    BLI_assert(is_bounded_span(*this));
+    BLI_assume_assert(is_bounded_span(*this));
   }
 
   explicit BoundedBitSpan(const BitSpan other) : BitSpan(other)
   {
-    BLI_assert(is_bounded_span(*this));
+    BLI_assume_assert(is_bounded_span(*this));
   }
 
   int64_t offset() const
@@ -313,8 +313,8 @@ class MutableBitSpan {
 
   MutableBitRef operator[](const int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < bit_range_.size());
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < bit_range_.size());
     return {data_, bit_range_.start() + index};
   }
 
@@ -394,17 +394,17 @@ class MutableBoundedBitSpan : public MutableBitSpan {
 
   MutableBoundedBitSpan(BitInt *data, const int64_t size) : MutableBitSpan(data, size)
   {
-    BLI_assert(is_bounded_span(*this));
+    BLI_assume_assert(is_bounded_span(*this));
   }
 
   MutableBoundedBitSpan(BitInt *data, const IndexRange bit_range) : MutableBitSpan(data, bit_range)
   {
-    BLI_assert(is_bounded_span(*this));
+    BLI_assume_assert(is_bounded_span(*this));
   }
 
   explicit MutableBoundedBitSpan(const MutableBitSpan other) : MutableBitSpan(other)
   {
-    BLI_assert(is_bounded_span(*this));
+    BLI_assume_assert(is_bounded_span(*this));
   }
 
   operator BoundedBitSpan() const

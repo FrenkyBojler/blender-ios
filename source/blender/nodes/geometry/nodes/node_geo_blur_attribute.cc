@@ -422,7 +422,7 @@ class BlurAttributeFieldInput final : public bke::GeometryFieldInput {
         break;
     }
 
-    BLI_assert(ELEM(result_buffer.data(), buffer_a.data(), buffer_b.data()));
+    BLI_assume_assert(ELEM(result_buffer.data(), buffer_a.data(), buffer_b.data()));
     if (result_buffer.data() == buffer_a.data()) {
       return GVArray::from_garray(std::move(buffer_a));
     }

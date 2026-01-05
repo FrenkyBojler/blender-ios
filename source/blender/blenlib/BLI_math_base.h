@@ -45,7 +45,7 @@
  * - R = result matrix
  */
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_math_constants.h"  // IWYU pragma: export
 #include "BLI_math_inline.h"     // IWYU pragma: export
 #include "BLI_sys_types.h"
@@ -345,13 +345,13 @@ float ceil_power_of_10(float f);
 
 #  define BLI_ASSERT_ZERO_M3(m) \
     { \
-      BLI_assert(dot_vn_vn((const float *)m, (const float *)m, 9) != 0.0); \
+      BLI_assume_assert(dot_vn_vn((const float *)m, (const float *)m, 9) != 0.0); \
     } \
     (void)0
 
 #  define BLI_ASSERT_ZERO_M4(m) \
     { \
-      BLI_assert(dot_vn_vn((const float *)m, (const float *)m, 16) != 0.0); \
+      BLI_assume_assert(dot_vn_vn((const float *)m, (const float *)m, 16) != 0.0); \
     } \
     (void)0
 #  define BLI_ASSERT_UNIT_M3(m) \

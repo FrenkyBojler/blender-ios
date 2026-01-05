@@ -18,9 +18,9 @@ void sample_uniform(const Span<float> accumulated_segment_lengths,
                     MutableSpan<float> r_factors)
 {
   const int count = r_segment_indices.size();
-  BLI_assert(count > 0);
-  BLI_assert(accumulated_segment_lengths.size() >= 1);
-  BLI_assert(
+  BLI_assume_assert(count > 0);
+  BLI_assume_assert(accumulated_segment_lengths.size() >= 1);
+  BLI_assume_assert(
       std::is_sorted(accumulated_segment_lengths.begin(), accumulated_segment_lengths.end()));
 
   if (count == 1) {
@@ -47,9 +47,9 @@ void sample_uniform_reverse(const Span<float> accumulated_segment_lengths,
                             MutableSpan<float> r_factors)
 {
   const int count = r_segment_indices.size();
-  BLI_assert(count > 0);
-  BLI_assert(accumulated_segment_lengths.size() >= 1);
-  BLI_assert(
+  BLI_assume_assert(count > 0);
+  BLI_assume_assert(accumulated_segment_lengths.size() >= 1);
+  BLI_assume_assert(
       std::is_sorted(accumulated_segment_lengths.begin(), accumulated_segment_lengths.end()));
 
   if (count == 1) {
@@ -75,13 +75,13 @@ void sample_at_lengths(const Span<float> accumulated_segment_lengths,
                        MutableSpan<int> r_segment_indices,
                        MutableSpan<float> r_factors)
 {
-  BLI_assert(
+  BLI_assume_assert(
       std::is_sorted(accumulated_segment_lengths.begin(), accumulated_segment_lengths.end()));
-  BLI_assert(std::is_sorted(sample_lengths.begin(), sample_lengths.end()));
+  BLI_assume_assert(std::is_sorted(sample_lengths.begin(), sample_lengths.end()));
 
   const int count = sample_lengths.size();
-  BLI_assert(count == r_segment_indices.size());
-  BLI_assert(count == r_factors.size());
+  BLI_assume_assert(count == r_segment_indices.size());
+  BLI_assume_assert(count == r_factors.size());
 
   threading::parallel_for(IndexRange(count), 512, [&](const IndexRange range) {
     SampleSegmentHint hint;

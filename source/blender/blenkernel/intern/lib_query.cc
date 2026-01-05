@@ -160,7 +160,7 @@ static bool library_foreach_ID_link(Main *bmain,
 
 void BKE_lib_query_idpropertiesForeachIDLink_callback(IDProperty *id_prop, void *user_data)
 {
-  BLI_assert(id_prop->type == IDP_ID);
+  BLI_assume_assert(id_prop->type == IDP_ID);
 
   LibraryForeachIDData *data = (LibraryForeachIDData *)user_data;
   const LibraryForeachIDCallbackFlag cb_flag = IDWALK_CB_USER |
@@ -180,7 +180,7 @@ void BKE_library_foreach_ID_embedded(LibraryForeachIDData *data, ID **id_pp)
   if (BKE_lib_query_foreachid_iter_stop(data)) {
     return;
   }
-  BLI_assert(id == *id_pp);
+  BLI_assume_assert(id == *id_pp);
 
   if (id == nullptr) {
     return;
@@ -226,7 +226,7 @@ static bool library_foreach_ID_link(Main *bmain,
   LibraryForeachIDData data{};
   data.bmain = bmain;
 
-  BLI_assert(inherit_data == nullptr || data.bmain == inherit_data->bmain);
+  BLI_assume_assert(inherit_data == nullptr || data.bmain == inherit_data->bmain);
   /* `IDWALK_NO_ORIG_POINTERS_ACCESS` is mutually exclusive with `IDWALK_RECURSE`. */
   BLI_assert((flag & (IDWALK_NO_ORIG_POINTERS_ACCESS | IDWALK_RECURSE)) !=
              (IDWALK_NO_ORIG_POINTERS_ACCESS | IDWALK_RECURSE));
@@ -297,7 +297,7 @@ static bool library_foreach_ID_link(Main *bmain,
          * In other words, it is the responsibility of the code calling this `foreach_id` process
          * to ensure that the given owner ID is valid for its own purpose, or that it is not used.
          */
-        // BLI_assert(owner_id == nullptr || BKE_id_owner_get(id) == owner_id);
+        // BLI_assume_assert(owner_id == nullptr || BKE_id_owner_get(id) == owner_id);
         if (!owner_id) {
           owner_id = BKE_id_owner_get(id, false);
         }
@@ -305,7 +305,7 @@ static bool library_foreach_ID_link(Main *bmain,
       }
     }
     else {
-      BLI_assert(ELEM(owner_id, nullptr, id));
+      BLI_assume_assert(ELEM(owner_id, nullptr, id));
       data.owner_id = id;
     }
 
@@ -748,7 +748,7 @@ static void lib_query_unused_ids_tag_id(ID *id, UnusedIDsData &data)
 
 static void lib_query_unused_ids_untag_id(ID &id, UnusedIDsData &data)
 {
-  BLI_assert(data.unused_ids.contains(&id));
+  BLI_assume_assert(data.unused_ids.contains(&id));
 
   id.tag &= ~data.id_tag;
   data.unused_ids.remove_contained(&id);
@@ -892,7 +892,7 @@ static bool lib_query_unused_ids_tag_recurse(ID *id, UnusedIDsData &data)
     if ((id_from->flag & ID_FLAG_EMBEDDED_DATA) != 0) {
       /* Directly 'by-pass' to actual real ID owner. */
       id_from = BKE_id_owner_get(id_from);
-      BLI_assert(id_from != nullptr);
+      BLI_assume_assert(id_from != nullptr);
     }
 
     if (lib_query_unused_ids_tag_recurse(id_from, data)) {
@@ -934,7 +934,7 @@ static bool lib_query_unused_ids_tag_recurse(ID *id, UnusedIDsData &data)
 
 static void lib_query_unused_ids_tag(UnusedIDsData &data)
 {
-  BLI_assert(data.bmain->relations != nullptr);
+  BLI_assume_assert(data.bmain->relations != nullptr);
   BKE_main_relations_tag_set(data.bmain, MAINIDRELATIONS_ENTRY_TAGS_PROCESSED, false);
 
   /* First loop, to only check for immediately unused IDs (those with 0 user count).
@@ -1071,7 +1071,7 @@ void BKE_lib_query_unused_ids_amounts(Main *bmain, LibQueryUnusedIDsData &parame
 
 void BKE_lib_query_unused_ids_tag(Main *bmain, const int tag, LibQueryUnusedIDsData &parameters)
 {
-  BLI_assert(tag != 0);
+  BLI_assume_assert(tag != 0);
 
   parameters.num_total.fill(0);
   parameters.num_local.fill(0);

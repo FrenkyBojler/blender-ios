@@ -260,7 +260,7 @@ class InplacePriorityQueue {
 
   int64_t get_parent(const int64_t child) const
   {
-    BLI_assert(child > 0);
+    BLI_assume_assert(child > 0);
     return (child - 1) / 2;
   }
 

@@ -43,6 +43,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_assume.hh"
 #include "BLI_fileops.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
@@ -353,7 +354,7 @@ bool BLI_file_touch(const char *filepath)
  */
 static bool dir_create_recursive(const char *dirname, const int len)
 {
-  BLI_assert(strlen(dirname) == len);
+  BLI_assume_assert(strlen(dirname) == len);
   /* Caller must ensure the path doesn't have trailing slashes. */
   BLI_assert_msg(len && !BLI_path_slash_is_native_compat(dirname[len - 1]),
                  "Paths must not end with a slash!");
@@ -440,7 +441,7 @@ bool BLI_dir_create_recursive(const char *dirname)
   const bool ret = (len > 0) && dir_create_recursive(dirname_mut, len);
 
   /* Ensure the string was properly restored. */
-  BLI_assert(memcmp(dirname, dirname_mut, len) == 0);
+  BLI_assume_assert(memcmp(dirname, dirname_mut, len) == 0);
 
   if (dirname_mut != dirname_static_buf) {
     MEM_freeN(dirname_mut);
@@ -950,7 +951,7 @@ static void strbuf_free(StrBuf *buf)
  */
 static void strbuf_append_path(StrBuf *buf, const char *filename)
 {
-  BLI_assert(strlen(buf->str) == buf->str_len);
+  BLI_assume_assert(strlen(buf->str) == buf->str_len);
   BLI_assert(!path_has_trailing_slash(buf->str));
   bool has_slash = (buf->str_len > 0 &&
                     BLI_path_slash_is_native_compat(buf->str[buf->str_len - 1]));
@@ -966,12 +967,12 @@ static void strbuf_append_path(StrBuf *buf, const char *filename)
   }
   memcpy(buf->str + buf->str_len, filename, filename_len + 1);
   buf->str_len += filename_len;
-  BLI_assert(buf->str_len <= buf->str_len_alloc);
+  BLI_assume_assert(buf->str_len <= buf->str_len_alloc);
 }
 
 static void strbuf_trim(StrBuf *buf, size_t len)
 {
-  BLI_assert(len <= buf->str_len);
+  BLI_assume_assert(len <= buf->str_len);
   buf->str_len = len;
   buf->str[len] = '\0';
 }

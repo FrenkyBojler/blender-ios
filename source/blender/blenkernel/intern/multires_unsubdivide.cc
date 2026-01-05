@@ -702,7 +702,7 @@ static void multires_unsubdivide_extract_single_grid_from_face_edge(
 
   const int grid_size = CCG_grid_size(context->num_new_levels);
   const int unsubdiv_grid_size = grid->grid_size = CCG_grid_size(context->num_total_levels);
-  BLI_assert(grid->grid_co == nullptr);
+  BLI_assume_assert(grid->grid_co == nullptr);
   grid->grid_size = unsubdiv_grid_size;
   grid->grid_co = MEM_calloc_arrayN<float[3]>(
       size_t(unsubdiv_grid_size) * size_t(unsubdiv_grid_size), "grids coordinates");
@@ -1174,7 +1174,7 @@ static void multires_create_grids_in_unsubdivided_base_mesh(MultiresUnsubdivideC
   const int totdisp = pow_i(CCG_grid_size(context->num_total_levels), 2);
   const int totloop = base_mesh->corners_num;
 
-  BLI_assert(base_mesh->corners_num == context->num_grids);
+  BLI_assume_assert(base_mesh->corners_num == context->num_grids);
 
   /* Allocate the MDISPS grids and copy the extracted data from context. */
   for (int i = 0; i < totloop; i++) {

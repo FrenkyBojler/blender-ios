@@ -285,25 +285,25 @@ inline InstanceReference::Type InstanceReference::type() const
 
 inline Object &InstanceReference::object() const
 {
-  BLI_assert(type_ == Type::Object);
+  BLI_assume_assert(type_ == Type::Object);
   return *(Object *)data_;
 }
 
 inline Collection &InstanceReference::collection() const
 {
-  BLI_assert(type_ == Type::Collection);
+  BLI_assume_assert(type_ == Type::Collection);
   return *(Collection *)data_;
 }
 
 inline GeometrySet &InstanceReference::geometry_set()
 {
-  BLI_assert(type_ == Type::GeometrySet);
+  BLI_assume_assert(type_ == Type::GeometrySet);
   return *geometry_set_;
 }
 
 inline const GeometrySet &InstanceReference::geometry_set() const
 {
-  BLI_assert(type_ == Type::GeometrySet);
+  BLI_assume_assert(type_ == Type::GeometrySet);
   return *geometry_set_;
 }
 

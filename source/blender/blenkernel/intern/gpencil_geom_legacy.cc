@@ -33,7 +33,7 @@ void BKE_gpencil_stroke_2d_flat(const bGPDspoint *points,
                                 float (*points2d)[2],
                                 int *r_direction)
 {
-  BLI_assert(totpoints >= 2);
+  BLI_assume_assert(totpoints >= 2);
 
   const bGPDspoint *pt0 = &points[0];
   const bGPDspoint *pt1 = &points[1];
@@ -149,7 +149,7 @@ static void gpencil_calc_stroke_fill_uv(const float (*points2d)[2],
 
 void BKE_gpencil_stroke_fill_triangulate(bGPDstroke *gps)
 {
-  BLI_assert(gps->totpoints >= 3);
+  BLI_assume_assert(gps->totpoints >= 3);
 
   /* allocate memory for temporary areas */
   gps->tot_triangles = gps->totpoints - 2;

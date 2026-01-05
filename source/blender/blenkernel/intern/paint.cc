@@ -628,7 +628,7 @@ static bool paint_brush_update_from_asset_reference(Main *bmain, Paint *paint)
 
   Brush *brush = reinterpret_cast<Brush *>(blender::bke::asset_edit_id_from_weak_reference(
       *bmain, ID_BR, *paint->brush_asset_reference));
-  BLI_assert(brush == nullptr || blender::bke::asset_edit_id_is_editable(brush->id));
+  BLI_assume_assert(brush == nullptr || blender::bke::asset_edit_id_is_editable(brush->id));
 
   /* Ensure we have a brush with appropriate mode to assign.
    * Could happen if contents of asset blend was manually changed. */
@@ -682,7 +682,7 @@ bool BKE_paint_brush_set(Main *bmain,
 
   Brush *brush = reinterpret_cast<Brush *>(
       blender::bke::asset_edit_id_from_weak_reference(*bmain, ID_BR, brush_asset_reference));
-  BLI_assert(brush == nullptr || !ID_IS_LINKED(brush) ||
+  BLI_assume_assert(brush == nullptr || !ID_IS_LINKED(brush) ||
              blender::bke::asset_edit_id_is_editable(brush->id));
 
   /* Ensure we have a brush with appropriate mode to assign.
@@ -698,7 +698,7 @@ bool BKE_paint_brush_set(Main *bmain,
     MEM_delete(paint->brush_asset_reference);
     paint->brush_asset_reference = nullptr;
     if (brush != nullptr) {
-      BLI_assert(blender::bke::asset_edit_weak_reference_from_id(brush->id) ==
+      BLI_assume_assert(blender::bke::asset_edit_weak_reference_from_id(brush->id) ==
                  brush_asset_reference);
       paint->brush_asset_reference = MEM_new<AssetWeakReference>(__func__, brush_asset_reference);
     }
@@ -805,7 +805,7 @@ static void paint_brush_set_essentials_reference(Paint *paint, const char *name)
   /* Set brush asset reference to a named brush in the essentials asset library. */
   MEM_delete(paint->brush_asset_reference);
 
-  BLI_assert(paint->runtime->initialized);
+  BLI_assume_assert(paint->runtime->initialized);
   paint->brush_asset_reference = paint_brush_asset_reference_ptr_from_essentials(
       name, paint->runtime->paint_mode);
   paint->brush = nullptr;
@@ -816,7 +816,7 @@ static void paint_eraser_brush_set_essentials_reference(Paint *paint, const char
   /* Set brush asset reference to a named brush in the essentials asset library. */
   MEM_delete(paint->eraser_brush_asset_reference);
 
-  BLI_assert(paint->runtime->initialized);
+  BLI_assume_assert(paint->runtime->initialized);
   paint->eraser_brush_asset_reference = paint_brush_asset_reference_ptr_from_essentials(
       name, paint->runtime->paint_mode);
   paint->eraser_brush = nullptr;
@@ -1155,7 +1155,7 @@ static bool paint_eraser_brush_set_from_asset_reference(Main *bmain, Paint *pain
 
   Brush *brush = reinterpret_cast<Brush *>(blender::bke::asset_edit_id_from_weak_reference(
       *bmain, ID_BR, *paint->eraser_brush_asset_reference));
-  BLI_assert(brush == nullptr || blender::bke::asset_edit_id_is_editable(brush->id));
+  BLI_assume_assert(brush == nullptr || blender::bke::asset_edit_id_is_editable(brush->id));
 
   /* Ensure we have a brush with appropriate mode to assign.
    * Could happen if contents of asset blend was manually changed. */
@@ -1746,7 +1746,7 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
       paint_runtime_init(ts, *r_paint);
     }
     else {
-      BLI_assert(ELEM(*r_paint,
+      BLI_assume_assert(ELEM(*r_paint,
                       /* Cast is annoying, but prevent nullptr-pointer access. */
                       (Paint *)ts->gp_paint,
                       (Paint *)ts->gp_vertexpaint,
@@ -1762,7 +1762,7 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
       paint_runtime_init(ts, *r_paint);
       /* Swap so debug doesn't hide errors when release fails. */
       blender::dna::shallow_swap(**r_paint, paint_test);
-      BLI_assert(paint_test.runtime->ob_mode == (*r_paint)->runtime->ob_mode);
+      BLI_assume_assert(paint_test.runtime->ob_mode == (*r_paint)->runtime->ob_mode);
 #endif
     }
     return true;
@@ -2433,7 +2433,7 @@ void SculptSession::set_active_vert(const ActiveVert vert)
 
 std::optional<PersistentMultiresData> SculptSession::persistent_multires_data()
 {
-  BLI_assert(subdiv_ccg);
+  BLI_assume_assert(subdiv_ccg);
   if (persistent.grids_num == -1 || persistent.grid_size == -1) {
     return std::nullopt;
   }
@@ -2510,7 +2510,7 @@ MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob)
 int BKE_sculpt_get_grid_num_verts(const Object &object)
 {
   const SculptSession &ss = *object.sculpt;
-  BLI_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
+  BLI_assume_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
   return ss.subdiv_ccg->grids_num * key.grid_area;
 }
@@ -2518,7 +2518,7 @@ int BKE_sculpt_get_grid_num_verts(const Object &object)
 int BKE_sculpt_get_grid_num_faces(const Object &object)
 {
   const SculptSession &ss = *object.sculpt;
-  BLI_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
+  BLI_assume_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
   const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
   return ss.subdiv_ccg->grids_num * square_i(key.grid_size - 1);
 }
@@ -2584,7 +2584,7 @@ static void sculpt_update_object(Depsgraph *depsgraph,
   Mesh *mesh_eval = BKE_object_get_evaluated_mesh_unchecked(ob_eval);
   MultiresModifierData *mmd = sculpt_multires_modifier_get(scene, ob, true);
 
-  BLI_assert(mesh_eval != nullptr);
+  BLI_assume_assert(mesh_eval != nullptr);
 
   /* This is for handling a newly opened file with no object visible,
    * causing `mesh_eval == nullptr`. */
@@ -2631,7 +2631,7 @@ static void sculpt_update_object(Depsgraph *depsgraph,
       {
         BKE_sculptsession_free_deformMats(&ss);
 
-        BLI_assert(me_eval_deform->verts_num == mesh_orig->verts_num);
+        BLI_assume_assert(me_eval_deform->verts_num == mesh_orig->verts_num);
 
         ss.deform_cos = mesh_eval->vert_positions();
         BKE_pbvh_vert_coords_apply(pbvh, ss.deform_cos);
@@ -2804,7 +2804,7 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object)
 
 void BKE_sculpt_update_object_for_edit(Depsgraph *depsgraph, Object *ob_orig, bool is_paint_tool)
 {
-  BLI_assert(ob_orig == DEG_get_original(ob_orig));
+  BLI_assume_assert(ob_orig == DEG_get_original(ob_orig));
 
   Object *ob_eval = DEG_get_evaluated(depsgraph, ob_orig);
 
@@ -3027,7 +3027,7 @@ pbvh::Tree &pbvh_ensure(Depsgraph &depsgraph, Object &object)
   if (pbvh::Tree *pbvh = pbvh_get(object)) {
     return *pbvh;
   }
-  BLI_assert(object.sculpt != nullptr);
+  BLI_assume_assert(object.sculpt != nullptr);
   SculptSession &ss = *object.sculpt;
 
   if (ss.bm != nullptr) {
@@ -3059,7 +3059,7 @@ const pbvh::Tree *pbvh_get(const Object &object)
 
 pbvh::Tree *pbvh_get(Object &object)
 {
-  BLI_assert(object.type == OB_MESH);
+  BLI_assume_assert(object.type == OB_MESH);
   if (!object.sculpt) {
     return nullptr;
   }

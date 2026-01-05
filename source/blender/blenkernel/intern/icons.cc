@@ -171,7 +171,7 @@ static int get_next_free_id()
 
 void BKE_icons_init(int first_dyn_id)
 {
-  BLI_assert(BLI_thread_is_main());
+  BLI_assume_assert(BLI_thread_is_main());
 
   gNextIconId = first_dyn_id;
   gFirstIconId = first_dyn_id;
@@ -181,7 +181,7 @@ void BKE_icons_init(int first_dyn_id)
 
 void BKE_icons_free()
 {
-  BLI_assert(BLI_thread_is_main());
+  BLI_assume_assert(BLI_thread_is_main());
 
   GlobalIconsMap &gIcons = get_global_icons_map();
   for (Icon *icon : gIcons.values()) {
@@ -223,8 +223,8 @@ void BKE_icon_changed(const int icon_id)
   }
 
   /* We *only* expect ID-tied icons here, not non-ID icon/preview! */
-  BLI_assert(icon->id_type != 0);
-  BLI_assert(icon->obj_type == ICON_DATA_ID);
+  BLI_assume_assert(icon->id_type != 0);
+  BLI_assume_assert(icon->obj_type == ICON_DATA_ID);
 
   /* Do not enforce creation of previews for valid ID types using BKE_previewimg_id_ensure()
    * here, we only want to ensure *existing* preview images are properly tagged as
@@ -264,7 +264,7 @@ static Icon *icon_create(int icon_id, int obj_type, void *obj)
 
 static int icon_id_ensure_create_icon(ID *id)
 {
-  BLI_assert(BLI_thread_is_main());
+  BLI_assume_assert(BLI_thread_is_main());
 
   Icon *icon = icon_create(id->icon_id, ICON_DATA_ID, id);
   icon->id_type = GS(id->name);
@@ -276,7 +276,7 @@ static int icon_id_ensure_create_icon(ID *id)
 int BKE_icon_id_ensure(ID *id)
 {
   /* Never handle icons in non-main thread! */
-  BLI_assert(BLI_thread_is_main());
+  BLI_assume_assert(BLI_thread_is_main());
 
   if (!id || G.background) {
     return 0;
@@ -296,7 +296,7 @@ int BKE_icon_id_ensure(ID *id)
   /* Ensure we synchronize ID icon_id with its previewimage if it has one. */
   PreviewImage **p_prv = BKE_previewimg_id_get_p(id);
   if (p_prv && *p_prv) {
-    BLI_assert(ELEM((*p_prv)->runtime->icon_id, 0, id->icon_id));
+    BLI_assume_assert(ELEM((*p_prv)->runtime->icon_id, 0, id->icon_id));
     (*p_prv)->runtime->icon_id = id->icon_id;
   }
 
@@ -305,7 +305,7 @@ int BKE_icon_id_ensure(ID *id)
 
 static int icon_gplayer_color_ensure_create_icon(bGPDlayer *gpl)
 {
-  BLI_assert(BLI_thread_is_main());
+  BLI_assume_assert(BLI_thread_is_main());
 
   /* NOTE: The color previews for GP Layers don't really need
    * to be "rendered" to image per-se (as it will just be a plain
@@ -321,7 +321,7 @@ static int icon_gplayer_color_ensure_create_icon(bGPDlayer *gpl)
 int BKE_icon_gplayer_color_ensure(bGPDlayer *gpl)
 {
   /* Never handle icons in non-main thread! */
-  BLI_assert(BLI_thread_is_main());
+  BLI_assume_assert(BLI_thread_is_main());
 
   if (!gpl || G.background) {
     return 0;
@@ -348,7 +348,7 @@ int BKE_icon_preview_ensure(ID *id, PreviewImage *preview)
   }
 
   if (id) {
-    BLI_assert(BKE_previewimg_id_ensure(id) == preview);
+    BLI_assume_assert(BKE_previewimg_id_ensure(id) == preview);
   }
 
   if (preview->runtime->icon_id) {
@@ -408,7 +408,7 @@ ImBuf *BKE_icon_imbuf_get_buffer(int icon_id)
 
 Icon *BKE_icon_get(const int icon_id)
 {
-  BLI_assert(BLI_thread_is_main());
+  BLI_assume_assert(BLI_thread_is_main());
 
   Icon *icon = nullptr;
 
@@ -509,7 +509,7 @@ bool BKE_icon_delete_unmanaged(const int icon_id)
 
 int BKE_icon_geom_ensure(Icon_Geom *geom)
 {
-  BLI_assert(BLI_thread_is_main());
+  BLI_assume_assert(BLI_thread_is_main());
 
   if (geom->icon_id) {
     return geom->icon_id;
@@ -525,7 +525,7 @@ int BKE_icon_geom_ensure(Icon_Geom *geom)
 
 Icon_Geom *BKE_icon_geom_from_memory(uchar *data, size_t data_len)
 {
-  BLI_assert(BLI_thread_is_main());
+  BLI_assume_assert(BLI_thread_is_main());
   if (data_len <= 8) {
     return nullptr;
   }
@@ -564,7 +564,7 @@ Icon_Geom *BKE_icon_geom_from_memory(uchar *data, size_t data_len)
 
 Icon_Geom *BKE_icon_geom_from_file(const char *filename)
 {
-  BLI_assert(BLI_thread_is_main());
+  BLI_assume_assert(BLI_thread_is_main());
   size_t data_len;
   uchar *data = (uchar *)BLI_file_read_binary_as_mem(filename, 0, &data_len);
   if (data == nullptr) {

@@ -97,7 +97,7 @@ static void threaded_id_offset_copy(const OffsetIndices<int> offsets,
                                     const Span<int> src,
                                     MutableSpan<int> all_dst)
 {
-  BLI_assert(offsets.total_size() == all_dst.size());
+  BLI_assume_assert(offsets.total_size() == all_dst.size());
   threading::parallel_for(offsets.index_range(), 512, [&](IndexRange range) {
     for (const int i : range) {
       MutableSpan<int> dst = all_dst.slice(offsets[i]);

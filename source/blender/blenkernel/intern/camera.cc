@@ -1205,7 +1205,7 @@ float BKE_camera_multiview_shift_x(const RenderData *rd,
   const bool is_multiview = (rd && rd->scemode & R_MULTIVIEW) != 0;
   const Camera *data = static_cast<const Camera *>(camera->data);
 
-  BLI_assert(camera->type == OB_CAMERA);
+  BLI_assume_assert(camera->type == OB_CAMERA);
 
   if (!is_multiview) {
     return data->shiftx;

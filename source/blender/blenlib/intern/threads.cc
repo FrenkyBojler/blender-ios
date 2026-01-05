@@ -14,6 +14,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_assume.hh"
 #include "BLI_listbase.h"
 #include "BLI_threads.h"
 #include "BLI_time.h"
@@ -644,7 +645,7 @@ void BLI_thread_queue_free(ThreadQueue *queue)
 
 uint64_t BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPriority priority)
 {
-  BLI_assert(work);
+  BLI_assume_assert(work);
 
   pthread_mutex_lock(&queue->mutex);
 

@@ -194,7 +194,7 @@ static void fill_target_map_recursive(const PolyFill *__restrict pf_list,
       /* All intersections have already been identified for this polygon. */
       continue;
     }
-    BLI_assert(pf_b_index != pf_test);
+    BLI_assume_assert(pf_b_index != pf_test);
     const PolyFill *pf_b = pf_list + pf_b_index;
     if (boundisect(pf_a, pf_b)) {
       target_map[pf_b_index] = pf_target;
@@ -772,7 +772,7 @@ static uint scanfill(ScanFillContext *sf_ctx, PolyFill *pf, const int flag)
 
   MEM_freeN(scdata);
 
-  BLI_assert(totface <= maxface);
+  BLI_assume_assert(totface <= maxface);
 
   return totface;
 }
@@ -804,7 +804,7 @@ void BLI_scanfill_end(ScanFillContext *sf_ctx)
 void BLI_scanfill_end_arena(ScanFillContext *sf_ctx, MemArena *arena)
 {
   BLI_memarena_clear(arena);
-  BLI_assert(sf_ctx->arena == arena);
+  BLI_assume_assert(sf_ctx->arena == arena);
 
   BLI_listbase_clear(&sf_ctx->fillvertbase);
   BLI_listbase_clear(&sf_ctx->filledgebase);
@@ -836,16 +836,16 @@ uint BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float n
   for (ScanFillVert &eve : sf_ctx->fillvertbase) {
     /* These values used to be set,
      * however they should always be zeroed so check instead. */
-    BLI_assert(eve.f == 0);
-    BLI_assert(sf_ctx->poly_nr || eve.poly_nr == 0);
-    BLI_assert(eve.edge_count == 0);
+    BLI_assume_assert(eve.f == 0);
+    BLI_assume_assert(sf_ctx->poly_nr || eve.poly_nr == 0);
+    BLI_assume_assert(eve.edge_count == 0);
   }
 #endif
 
   /* first test vertices if they are in edges */
   /* including resetting of flags */
   for (ScanFillEdge &eed : sf_ctx->filledgebase) {
-    BLI_assert(sf_ctx->poly_nr != SF_POLY_UNSET || eed.poly_nr == SF_POLY_UNSET);
+    BLI_assume_assert(sf_ctx->poly_nr != SF_POLY_UNSET || eed.poly_nr == SF_POLY_UNSET);
     eed.v1->f = SF_VERT_AVAILABLE;
     eed.v2->f = SF_VERT_AVAILABLE;
   }
@@ -1017,8 +1017,8 @@ uint BLI_scanfill_calc_ex(ScanFillContext *sf_ctx, const int flag, const float n
 #ifndef NDEBUG
     /* ensure we're right! */
     for (ScanFillEdge &eed : sf_ctx->filledgebase) {
-      BLI_assert(eed.v1->edge_count != 1);
-      BLI_assert(eed.v2->edge_count != 1);
+      BLI_assume_assert(eed.v1->edge_count != 1);
+      BLI_assume_assert(eed.v2->edge_count != 1);
     }
 #endif
   }

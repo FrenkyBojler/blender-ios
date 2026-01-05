@@ -230,7 +230,7 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
       if (node->is_type("GeometryNodeSimulationOutput")) {
         const int output_index = socket->index();
         if (output_index >= 1) {
-          BLI_assert(dynamic_cast<const bke::SimulationZoneComputeContext *>(socket.context));
+          BLI_assume_assert(dynamic_cast<const bke::SimulationZoneComputeContext *>(socket.context));
           add_if_new({socket.context->parent(), &node->output_socket(output_index - 1)},
                      bundle_path);
         }
@@ -253,7 +253,7 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
         continue;
       }
       if (node->is_type("GeometryNodeRepeatOutput")) {
-        BLI_assert(dynamic_cast<const bke::RepeatZoneComputeContext *>(socket.context));
+        BLI_assume_assert(dynamic_cast<const bke::RepeatZoneComputeContext *>(socket.context));
         add_if_new({socket.context->parent(), &node->output_socket(socket->index())}, bundle_path);
         continue;
       }
@@ -383,8 +383,8 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
             const std::optional<nodes::ClosureSourceLocation> &source_location =
                 evaluate_closure_context->closure_source_location();
             /* This is expected to be available during value tracing. */
-            BLI_assert(source_location);
-            BLI_assert(source_location->compute_context);
+            BLI_assume_assert(source_location);
+            BLI_assume_assert(source_location->compute_context);
             compute_context = source_location->compute_context;
           }
           else {
@@ -533,7 +533,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
       if (node->is_type("GeometryNodeSimulationInput")) {
         const int output_index = socket->index();
         if (output_index >= 1) {
-          BLI_assert(dynamic_cast<const bke::SimulationZoneComputeContext *>(socket.context));
+          BLI_assume_assert(dynamic_cast<const bke::SimulationZoneComputeContext *>(socket.context));
           add_if_new({socket.context->parent(), &node->input_socket(output_index - 1)},
                      bundle_path);
         }
@@ -549,7 +549,7 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
       if (node->is_type("GeometryNodeRepeatInput")) {
         const int index = socket->index();
         if (index >= 1) {
-          BLI_assert(dynamic_cast<const bke::RepeatZoneComputeContext *>(socket.context));
+          BLI_assume_assert(dynamic_cast<const bke::RepeatZoneComputeContext *>(socket.context));
           add_if_new({socket.context->parent(), &node->input_socket(index)}, bundle_path);
         }
         continue;

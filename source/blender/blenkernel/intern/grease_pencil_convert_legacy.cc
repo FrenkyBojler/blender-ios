@@ -572,7 +572,7 @@ class AnimDataConvertor {
                                               ListBaseT<FCurve> &fcurves_src,
                                               const Span<FCurve *> fcurves) {
       for (FCurve *fcurve : fcurves) {
-        BLI_assert(BLI_findindex(&fcurves_src, fcurve) >= 0);
+        BLI_assume_assert(BLI_findindex(&fcurves_src, fcurve) >= 0);
         BLI_remlink(&fcurves_src, fcurve);
         BLI_addtail(&fcurves_dst, fcurve);
       }
@@ -844,7 +844,7 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(
   const int num_vertex_groups = BLI_listbase_count(&vertex_group_names);
   find_used_vertex_groups(
       gpf, vertex_group_names, num_vertex_groups, stroke_vertex_group_names, stroke_def_nr_map);
-  BLI_assert(BLI_listbase_is_empty(&curves.vertex_group_names));
+  BLI_assume_assert(BLI_listbase_is_empty(&curves.vertex_group_names));
   curves.vertex_group_names = stroke_vertex_group_names;
   const bool use_dverts = !BLI_listbase_is_empty(&curves.vertex_group_names);
 
@@ -946,7 +946,7 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(
                                                        MutableSpan<MDeformVert>();
 
     if (curve_types[stroke_i] == CURVE_TYPE_POLY) {
-      BLI_assert(points.size() == gps.totpoints);
+      BLI_assume_assert(points.size() == gps.totpoints);
       const Span<bGPDspoint> src_points{gps.points, gps.totpoints};
       threading::parallel_for(src_points.index_range(), 4096, [&](const IndexRange range) {
         for (const int point_i : range) {
@@ -965,8 +965,8 @@ static Drawing legacy_gpencil_frame_to_grease_pencil_drawing(
       });
     }
     else if (curve_types[stroke_i] == CURVE_TYPE_BEZIER) {
-      BLI_assert(gps.editcurve != nullptr);
-      BLI_assert(points.size() == gps.editcurve->tot_curve_points);
+      BLI_assume_assert(gps.editcurve != nullptr);
+      BLI_assume_assert(points.size() == gps.editcurve->tot_curve_points);
       Span<bGPDcurve_point> src_curve_points{gps.editcurve->curve_points,
                                              gps.editcurve->tot_curve_points};
 
@@ -2807,7 +2807,7 @@ static void legacy_object_modifier_simplify(ConversionData &conversion_data,
 
 static void legacy_object_modifiers(ConversionData &conversion_data, Object &object)
 {
-  BLI_assert(BLI_listbase_is_empty(&object.modifiers));
+  BLI_assume_assert(BLI_listbase_is_empty(&object.modifiers));
 
   while (GpencilModifierData *gpd_md = static_cast<GpencilModifierData *>(
              BLI_pophead(&object.greasepencil_modifiers)))
@@ -2977,7 +2977,7 @@ static void legacy_gpencil_sanitize_annotations(Main &bmain)
     }
 
     /* Assign the annotation duplicate ID to the annotation pointer. */
-    BLI_assert(new_annotation_gpd->flag & GP_DATA_ANNOTATIONS);
+    BLI_assume_assert(new_annotation_gpd->flag & GP_DATA_ANNOTATIONS);
     id_us_min(&legacy_gpd->id);
     *legacy_gpd_p = new_annotation_gpd;
     id_us_plus_no_lib(&new_annotation_gpd->id);

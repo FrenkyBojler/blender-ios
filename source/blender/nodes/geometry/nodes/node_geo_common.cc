@@ -27,7 +27,7 @@ static void register_node_type_geo_group()
   ntype.ui_class = node_group_ui_class;
   ntype.ui_description_fn = node_group_ui_description;
   ntype.rna_ext.srna = RNA_struct_find("GeometryNodeGroup");
-  BLI_assert(ntype.rna_ext.srna != nullptr);
+  BLI_assume_assert(ntype.rna_ext.srna != nullptr);
   RNA_struct_blender_type_set(ntype.rna_ext.srna, &ntype);
 
   bke::node_type_size(ntype, GROUP_NODE_DEFAULT_WIDTH, GROUP_NODE_MIN_WIDTH, GROUP_NODE_MAX_WIDTH);

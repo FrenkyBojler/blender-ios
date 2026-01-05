@@ -70,7 +70,7 @@ static void colorband_init_from_table_rgba_simple(ColorBand *coba,
 {
   /* No Re-sample, just de-duplicate. */
   const float eps = (1.0f / 255.0f) + 1e-6f;
-  BLI_assert(array_len < MAXCOLORBAND);
+  BLI_assume_assert(array_len < MAXCOLORBAND);
   int stops = min_ii(MAXCOLORBAND, array_len);
   if (stops) {
     const float step_size = 1.0f / float(max_ii(stops - 1, 1));
@@ -159,7 +159,7 @@ static void colorband_init_from_table_rgba_resample(ColorBand *coba,
                                                     const int array_len,
                                                     bool filter_samples)
 {
-  BLI_assert(array_len >= 2);
+  BLI_assume_assert(array_len >= 2);
   const float eps_2x = ((1.0f / 255.0f) + 1e-6f);
   ColorResampleElem *c, *carr = MEM_malloc_arrayN<ColorResampleElem>(size_t(array_len), __func__);
   int carr_len = array_len;
@@ -220,7 +220,7 @@ static void colorband_init_from_table_rgba_resample(ColorBand *coba,
 
   /* First member is never removed. */
   int i = 0;
-  BLI_assert(carr_len < MAXCOLORBAND);
+  BLI_assume_assert(carr_len < MAXCOLORBAND);
   if (filter_samples == false) {
     for (c = carr; c != nullptr; c = c->next, i++) {
       copy_v4_v4(&coba->data[i].r, c->rgba);
@@ -245,7 +245,7 @@ static void colorband_init_from_table_rgba_resample(ColorBand *coba,
           int j = steps_prev;
           for (ColorResampleElem *c_other = c - 1; c_other != c->prev; c_other--, j--) {
             const float step_pos = float(j) * step_size;
-            BLI_assert(step_pos > 0.0f && step_pos < 1.0f);
+            BLI_assume_assert(step_pos > 0.0f && step_pos < 1.0f);
             const float f = filter_gauss(step_pos);
             madd_v4_v4fl(rgba, c_other->rgba, f);
             rgba_accum += f;
@@ -256,7 +256,7 @@ static void colorband_init_from_table_rgba_resample(ColorBand *coba,
           int j = steps_next;
           for (ColorResampleElem *c_other = c + 1; c_other != c->next; c_other++, j--) {
             const float step_pos = float(j) * step_size;
-            BLI_assert(step_pos > 0.0f && step_pos < 1.0f);
+            BLI_assume_assert(step_pos > 0.0f && step_pos < 1.0f);
             const float f = filter_gauss(step_pos);
             madd_v4_v4fl(rgba, c_other->rgba, f);
             rgba_accum += f;
@@ -269,7 +269,7 @@ static void colorband_init_from_table_rgba_resample(ColorBand *coba,
       coba->data[i].cur = i;
     }
   }
-  BLI_assert(i == carr_len);
+  BLI_assume_assert(i == carr_len);
   coba->tot = i;
   coba->cur = 0;
 
@@ -319,8 +319,8 @@ static float colorband_hue_interp(
   h1 = HUE_MOD(h1);
   h2 = HUE_MOD(h2);
 
-  BLI_assert(h1 >= 0.0f && h1 < 1.0f);
-  BLI_assert(h2 >= 0.0f && h2 < 1.0f);
+  BLI_assume_assert(h1 >= 0.0f && h1 < 1.0f);
+  BLI_assume_assert(h2 >= 0.0f && h2 < 1.0f);
 
   switch (ipotype_hue) {
     case COLBAND_HUE_NEAR: {
@@ -385,7 +385,7 @@ static float colorband_hue_interp(
       break;
   }
 
-  BLI_assert(h_interp >= 0.0f && h_interp < 1.0f);
+  BLI_assume_assert(h_interp >= 0.0f && h_interp < 1.0f);
 
 #undef HUE_INTERP
 #undef HUE_MOD

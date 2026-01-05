@@ -98,7 +98,7 @@ namespace blender::bke {
 
 static void action_init_data(ID *action_id)
 {
-  BLI_assert(GS(action_id->name) == ID_AC);
+  BLI_assume_assert(GS(action_id->name) == ID_AC);
   bAction *action = reinterpret_cast<bAction *>(action_id);
 
   INIT_DEFAULT_STRUCT_AFTER(action, id);
@@ -235,7 +235,7 @@ static void action_free_data(ID *id)
   BLI_freelistN(&action.markers);
   BKE_previewimg_free(&action.preview);
 
-  BLI_assert(action.is_empty());
+  BLI_assume_assert(action.is_empty());
 }
 
 static void action_foreach_id(ID *id, LibraryForeachIDData *data)
@@ -724,7 +724,7 @@ static IDProperty *action_asset_type_property(const bAction *action)
 static void action_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_data)
 {
   bAction *action = (bAction *)asset_ptr;
-  BLI_assert(GS(action->id.name) == ID_AC);
+  BLI_assume_assert(GS(action->id.name) == ID_AC);
 
   IDProperty *action_type = action_asset_type_property(action);
   BKE_asset_metadata_idprop_ensure(asset_data, action_type);
@@ -881,7 +881,7 @@ bActionGroup *action_groups_add_new(bAction *act, const char name[])
     return nullptr;
   }
 
-  BLI_assert(act->wrap().is_action_legacy());
+  BLI_assume_assert(act->wrap().is_action_legacy());
 
   /* allocate a new one */
   agrp = MEM_new_for_free<bActionGroup>("bActionGroup");
@@ -906,7 +906,7 @@ void action_groups_add_channel(bAction *act, bActionGroup *agrp, FCurve *fcurve)
     return;
   }
 
-  BLI_assert(act->wrap().is_action_legacy());
+  BLI_assume_assert(act->wrap().is_action_legacy());
 
   /* if no channels anywhere, just add to two lists at the same time */
   if (BLI_listbase_is_empty(&act->curves)) {
@@ -984,7 +984,7 @@ void BKE_action_groups_reconstruct(bAction *act)
     return;
   }
 
-  BLI_assert(act->wrap().is_action_legacy());
+  BLI_assume_assert(act->wrap().is_action_legacy());
 
   /* Clear out all group channels. Channels that are actually in use are
    * reconstructed below; this step is necessary to clear out unused groups. */
@@ -997,7 +997,7 @@ void BKE_action_groups_reconstruct(bAction *act)
 
   for (FCurve &fcurve : act->curves.items_mutable()) {
     if (fcurve.grp) {
-      BLI_assert(BLI_findindex(&act->groups, fcurve.grp) >= 0);
+      BLI_assume_assert(BLI_findindex(&act->groups, fcurve.grp) >= 0);
 
       BLI_addtail(&fcurve.grp->channels, &fcurve);
     }
@@ -1025,7 +1025,7 @@ void action_groups_remove_channel(bAction *act, FCurve *fcu)
     return;
   }
 
-  BLI_assert(act->wrap().is_action_legacy());
+  BLI_assume_assert(act->wrap().is_action_legacy());
 
   /* check if any group used this directly */
   if (fcu->grp) {
@@ -1067,7 +1067,7 @@ bActionGroup *BKE_action_group_find_name(bAction *act, const char name[])
     return nullptr;
   }
 
-  BLI_assert(act->wrap().is_action_legacy());
+  BLI_assume_assert(act->wrap().is_action_legacy());
 
   /* do string comparisons */
   return static_cast<bActionGroup *>(
@@ -1419,7 +1419,7 @@ void BKE_pose_channel_transform_orientation(const bArmature *arm,
     return;
   }
 
-  BLI_assert(pose_bone->custom_tx);
+  BLI_assume_assert(pose_bone->custom_tx);
 
   const bPoseChannel *custom_tx_bone = pose_bone->custom_tx;
   copy_m3_m4(r_pose_orientation, custom_tx_bone->pose_mat);
@@ -1826,7 +1826,7 @@ void BKE_pose_remove_group(bPose *pose, bActionGroup *grp, const int index)
     idx = BLI_findindex(&pose->agroups, grp) + 1;
   }
 
-  BLI_assert(idx > 0);
+  BLI_assume_assert(idx > 0);
 
   /* adjust group references (the trouble of using indices!):
    * - firstly, make sure nothing references it
@@ -1970,7 +1970,7 @@ void what_does_obaction(Object *ob,
                         const AnimationEvalContext *anim_eval_context)
 {
   using namespace blender::animrig;
-  BLI_assert(act);
+  BLI_assume_assert(act);
 
   bActionGroup *agrp = nullptr;
   if (groupname && groupname[0]) {
@@ -2085,7 +2085,7 @@ void BKE_pose_check_uids_unique_and_report(const bPose *pose)
 void BKE_pose_blend_write(BlendWriter *writer, bPose *pose)
 {
 #ifndef __GNUC__
-  BLI_assert(pose != nullptr);
+  BLI_assume_assert(pose != nullptr);
 #endif
 
   /* Write channels */
@@ -2226,7 +2226,7 @@ void BKE_action_fcurves_clear(bAction *act)
     return;
   }
 
-  BLI_assert(act->wrap().is_action_legacy());
+  BLI_assume_assert(act->wrap().is_action_legacy());
 
   while (act->curves.first) {
     FCurve *fcu = static_cast<FCurve *>(act->curves.first);

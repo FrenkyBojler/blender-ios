@@ -63,7 +63,7 @@ static InputSocketFieldType get_interface_input_field_type(const bNode &node,
   const NodeDeclaration *node_decl = node.declaration();
 
   /* Node declarations should be implemented for nodes involved here. */
-  BLI_assert(node_decl != nullptr);
+  BLI_assume_assert(node_decl != nullptr);
 
   /* Get the field type from the declaration. */
   const SocketDeclaration &socket_decl = *node_decl->inputs[socket.index()];
@@ -96,7 +96,7 @@ static OutputFieldDependency get_interface_output_field_dependency(const bNode &
   const NodeDeclaration *node_decl = node.declaration();
 
   /* Node declarations should be implemented for nodes involved here. */
-  BLI_assert(node_decl != nullptr);
+  BLI_assume_assert(node_decl != nullptr);
 
   /* Use the socket declaration. */
   const SocketDeclaration &socket_decl = *node_decl->outputs[socket.index()];
@@ -709,7 +709,7 @@ static void prepare_inferencing_interfaces(
 
 bool update_field_inferencing(const bNodeTree &tree)
 {
-  BLI_assert(tree.type == NTREE_GEOMETRY);
+  BLI_assume_assert(tree.type == NTREE_GEOMETRY);
   tree.ensure_topology_cache();
   tree.ensure_interface_cache();
 

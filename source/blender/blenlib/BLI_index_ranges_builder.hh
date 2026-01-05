@@ -56,9 +56,9 @@ template<typename T> class IndexRangesBuilder : NonCopyable, NonMovable {
   bool add_range(const T start, const T end)
   {
     /* Indices have to be added in ascending order. */
-    BLI_assert(start >= *c_);
-    BLI_assert(start >= 0);
-    BLI_assert(start < end);
+    BLI_assume_assert(start >= *c_);
+    BLI_assume_assert(start >= 0);
+    BLI_assume_assert(start < end);
 
     const bool is_new_range = start > *c_;
 

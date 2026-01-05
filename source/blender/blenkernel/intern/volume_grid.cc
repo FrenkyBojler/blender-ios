@@ -44,9 +44,9 @@ VolumeGridData::VolumeGridData(const VolumeGridType grid_type)
 VolumeGridData::VolumeGridData(std::shared_ptr<openvdb::GridBase> grid)
     : grid_(std::move(grid)), tree_loaded_(true), transform_loaded_(true), meta_data_loaded_(true)
 {
-  BLI_assert(grid_);
-  BLI_assert(grid_.use_count() == 1);
-  BLI_assert(grid_->isTreeUnique());
+  BLI_assume_assert(grid_);
+  BLI_assume_assert(grid_.use_count() == 1);
+  BLI_assume_assert(grid_->isTreeUnique());
 
   tree_sharing_info_ = OpenvdbTreeSharingInfo::make(grid_->baseTreePtr());
   tree_access_token_ = std::make_shared<AccessToken>(*this);
@@ -92,7 +92,7 @@ std::shared_ptr<const openvdb::GridBase> VolumeGridData::grid_ptr(
 std::shared_ptr<openvdb::GridBase> VolumeGridData::grid_ptr_for_write(
     VolumeTreeAccessToken &r_token)
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   std::lock_guard lock{mutex_};
   this->ensure_grid_loaded();
   r_token.token_ = tree_access_token_;
@@ -120,7 +120,7 @@ const openvdb::math::Transform &VolumeGridData::transform() const
 
 openvdb::math::Transform &VolumeGridData::transform_for_write()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   std::lock_guard lock{mutex_};
   if (!transform_loaded_) {
     this->ensure_grid_loaded();
@@ -139,7 +139,7 @@ std::string VolumeGridData::name() const
 
 void VolumeGridData::set_name(const StringRef name)
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   std::lock_guard lock{mutex_};
   if (!meta_data_loaded_) {
     this->ensure_grid_loaded();
@@ -310,7 +310,7 @@ void VolumeGridData::ensure_grid_loaded() const
   if (tree_loaded_ && transform_loaded_ && meta_data_loaded_) {
     return;
   }
-  BLI_assert(lazy_load_grid_);
+  BLI_assume_assert(lazy_load_grid_);
   LazyLoadedGrid loaded_grid;
   /* Isolate because the a mutex is locked. */
   threading::isolate_task([&]() {
@@ -339,18 +339,18 @@ void VolumeGridData::ensure_grid_loaded() const
     /* Create a dummy grid. We can't really know the expected data type here. */
     loaded_grid.grid = openvdb::FloatGrid::create();
   }
-  BLI_assert(loaded_grid.grid);
-  BLI_assert(loaded_grid.grid.use_count() == 1);
+  BLI_assume_assert(loaded_grid.grid);
+  BLI_assume_assert(loaded_grid.grid.use_count() == 1);
 
   if (!loaded_grid.tree_sharing_info) {
-    BLI_assert(loaded_grid.grid->isTreeUnique());
+    BLI_assume_assert(loaded_grid.grid->isTreeUnique());
     loaded_grid.tree_sharing_info = OpenvdbTreeSharingInfo::make(loaded_grid.grid->baseTreePtr());
   }
 
   if (grid_) {
     /* Keep the existing grid pointer and just insert the newly loaded data. */
     BLI_assert(!tree_loaded_);
-    BLI_assert(meta_data_loaded_);
+    BLI_assume_assert(meta_data_loaded_);
     grid_->setTree(loaded_grid.grid->baseTreePtr());
     if (!transform_loaded_) {
       grid_->setTransform(loaded_grid.grid->transformPtr());
@@ -361,7 +361,7 @@ void VolumeGridData::ensure_grid_loaded() const
   }
 
   BLI_assert(!tree_sharing_info_);
-  BLI_assert(loaded_grid.tree_sharing_info);
+  BLI_assume_assert(loaded_grid.tree_sharing_info);
   tree_sharing_info_ = std::move(loaded_grid.tree_sharing_info);
 
   tree_loaded_ = true;
@@ -718,7 +718,7 @@ void set_grid_values(openvdb::GridBase &grid_base,
                      const GSpan values,
                      const Span<openvdb::Coord> voxels)
 {
-  BLI_assert(values.size() == voxels.size());
+  BLI_assume_assert(values.size() == voxels.size());
   to_typed_grid(grid_base, [&](auto &grid) {
     using GridT = std::decay_t<decltype(grid)>;
     using ValueType = typename GridT::ValueType;
@@ -735,7 +735,7 @@ void set_tile_values(openvdb::GridBase &grid_base,
                      const GSpan values,
                      const Span<openvdb::CoordBBox> tiles)
 {
-  BLI_assert(values.size() == tiles.size());
+  BLI_assume_assert(values.size() == tiles.size());
   to_typed_grid(grid_base, [&](auto &grid) {
     using GridT = typename std::decay_t<decltype(grid)>;
     using TreeT = typename GridT::TreeType;
@@ -746,7 +746,7 @@ void set_tile_values(openvdb::GridBase &grid_base,
 
     const auto set_tile_value = [&](auto &node, const openvdb::Coord &coord_in_tile, auto value) {
       const openvdb::Index n = node.coordToOffset(coord_in_tile);
-      BLI_assert(node.isChildMaskOff(n));
+      BLI_assume_assert(node.isChildMaskOff(n));
       /* TODO: Figure out how to do this without const_cast, although the same is done in
        * `openvdb_ax/openvdb_ax/compiler/VolumeExecutable.cc` which has a similar purpose.
        * It seems like OpenVDB generally allows that, but it does not have a proper public
@@ -796,7 +796,7 @@ void set_grid_background(openvdb::GridBase &grid_base, const GPointer value)
     using ValueType = typename GridT::ValueType;
     auto &tree = grid.tree();
 
-    BLI_assert(value.type()->size == sizeof(ValueType));
+    BLI_assume_assert(value.type()->size == sizeof(ValueType));
     tree.root().setBackground(*static_cast<const ValueType *>(value.get()), true);
   });
 }

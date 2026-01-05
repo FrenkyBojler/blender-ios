@@ -36,7 +36,7 @@ template<typename T, int64_t ChunkLen = 64> class Pool : NonCopyable {
   ~Pool()
   {
     /* All elements need to be freed before freeing the pool. */
-    BLI_assert(this->size() == 0);
+    BLI_assume_assert(this->size() == 0);
   }
 
   /**

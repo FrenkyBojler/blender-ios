@@ -106,8 +106,8 @@ static void node_shader_init_tex_voronoi(bNodeTree * /*ntree*/, bNode *node)
 
 static const char *gpu_shader_get_name(const int feature, const int dimensions)
 {
-  BLI_assert(feature >= 0 && feature < 5);
-  BLI_assert(dimensions > 0 && dimensions < 5);
+  BLI_assume_assert(feature >= 0 && feature < 5);
+  BLI_assume_assert(dimensions > 0 && dimensions < 5);
 
   switch (feature) {
     case SHD_VORONOI_F1:
@@ -235,8 +235,8 @@ class VoronoiMetricFunction : public mf::MultiFunction {
   VoronoiMetricFunction(int dimensions, int feature, int metric, bool normalize)
       : dimensions_(dimensions), feature_(feature), metric_(metric), normalize_(normalize)
   {
-    BLI_assert(dimensions >= 1 && dimensions <= 4);
-    BLI_assert(feature >= 0 && feature <= 4);
+    BLI_assume_assert(dimensions >= 1 && dimensions <= 4);
+    BLI_assume_assert(feature >= 0 && feature <= 4);
     if (ELEM(metric_, SHD_VORONOI_MINKOWSKI)) {
       static std::array<mf::Signature, 12> signatures{
           create_signature(1, SHD_VORONOI_F1, SHD_VORONOI_MINKOWSKI),
@@ -539,7 +539,7 @@ class VoronoiDistToEdgeFunction : public mf::MultiFunction {
   VoronoiDistToEdgeFunction(int dimensions, bool normalize)
       : dimensions_(dimensions), normalize_(normalize)
   {
-    BLI_assert(dimensions >= 1 && dimensions <= 4);
+    BLI_assume_assert(dimensions >= 1 && dimensions <= 4);
     static std::array<mf::Signature, 4> signatures{
         create_signature(1),
         create_signature(2),
@@ -685,7 +685,7 @@ class VoronoiNSphereFunction : public mf::MultiFunction {
  public:
   VoronoiNSphereFunction(int dimensions) : dimensions_(dimensions)
   {
-    BLI_assert(dimensions >= 1 && dimensions <= 4);
+    BLI_assume_assert(dimensions >= 1 && dimensions <= 4);
     static std::array<mf::Signature, 4> signatures{
         create_signature(1),
         create_signature(2),

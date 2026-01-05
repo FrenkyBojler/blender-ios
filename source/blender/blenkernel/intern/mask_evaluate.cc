@@ -870,7 +870,7 @@ void BKE_mask_layer_evaluate_animation(MaskLayer *masklay, const float ctime)
     }
     else {
       /* always fail, should never happen */
-      BLI_assert(found == 2);
+      BLI_assume_assert(found == 2);
     }
   }
 }

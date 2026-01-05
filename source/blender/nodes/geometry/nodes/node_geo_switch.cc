@@ -128,7 +128,7 @@ class LazyFunctionForSwitchNode : public LazyFunction {
         break;
       }
     }
-    BLI_assert(socket_type != nullptr);
+    BLI_assume_assert(socket_type != nullptr);
     const CPPType &cpp_type = CPPType::get<SocketValueVariant>();
     base_type_ = socket_type->base_cpp_type;
 
@@ -221,7 +221,7 @@ class LazyFunctionForSwitchNode : public LazyFunction {
         switch_multi_function = &switch_fn;
       }
     });
-    BLI_assert(switch_multi_function != nullptr);
+    BLI_assume_assert(switch_multi_function != nullptr);
     return *switch_multi_function;
   }
 };
@@ -285,7 +285,7 @@ namespace blender::nodes {
 std::unique_ptr<LazyFunction> get_switch_node_lazy_function(const bNode &node)
 {
   using namespace node_geo_switch_cc;
-  BLI_assert(node.type_legacy == GEO_NODE_SWITCH);
+  BLI_assume_assert(node.type_legacy == GEO_NODE_SWITCH);
   return std::make_unique<LazyFunctionForSwitchNode>(node);
 }
 

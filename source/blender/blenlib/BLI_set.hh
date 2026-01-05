@@ -479,8 +479,8 @@ class Set {
 
     friend bool operator!=(const Iterator &a, const Iterator &b)
     {
-      BLI_assert(a.slots_ == b.slots_);
-      BLI_assert(a.total_slots_ == b.total_slots_);
+      BLI_assume_assert(a.slots_ == b.slots_);
+      BLI_assume_assert(a.total_slots_ == b.total_slots_);
       return a.current_slot_ != b.current_slot_;
     }
 
@@ -520,7 +520,7 @@ class Set {
   {
     /* The const cast is valid because this method itself is not const. */
     Slot &slot = const_cast<Slot &>(it.current_slot());
-    BLI_assert(slot.is_occupied());
+    BLI_assume_assert(slot.is_occupied());
     slot.remove();
     removed_slots_++;
   }
@@ -714,7 +714,7 @@ class Set {
     int64_t total_slots, usable_slots;
     max_load_factor_.compute_total_and_usable_slots(
         SlotArray::inline_buffer_capacity(), min_usable_slots, &total_slots, &usable_slots);
-    BLI_assert(total_slots >= 1);
+    BLI_assume_assert(total_slots >= 1);
     const uint64_t new_slot_mask = uint64_t(total_slots) - 1;
 
     /**
@@ -800,7 +800,7 @@ class Set {
   template<typename ForwardKey>
   const Key &lookup_key__impl(const ForwardKey &key, const uint64_t hash) const
   {
-    BLI_assert(this->contains_as(key));
+    BLI_assume_assert(this->contains_as(key));
 
     SET_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.contains(key, is_equal_, hash)) {
@@ -833,7 +833,7 @@ class Set {
     SET_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash);
-        BLI_assert(hash_(*slot.key()) == hash);
+        BLI_assume_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return;
       }
@@ -848,7 +848,7 @@ class Set {
     SET_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash);
-        BLI_assert(hash_(*slot.key()) == hash);
+        BLI_assume_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return true;
       }
@@ -866,14 +866,14 @@ class Set {
     SET_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash);
-        BLI_assert(hash_(*slot.key()) == hash);
+        BLI_assume_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return true;
       }
       if (slot.contains(key, is_equal_, hash)) {
         Key &stored_key = *slot.key();
         stored_key = std::forward<ForwardKey>(key);
-        BLI_assert(hash_(stored_key) == hash);
+        BLI_assume_assert(hash_(stored_key) == hash);
         return false;
       }
     }
@@ -898,7 +898,7 @@ class Set {
   template<typename ForwardKey>
   void remove_contained__impl(const ForwardKey &key, const uint64_t hash)
   {
-    BLI_assert(this->contains_as(key));
+    BLI_assume_assert(this->contains_as(key));
 
     SET_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.contains(key, is_equal_, hash)) {
@@ -921,7 +921,7 @@ class Set {
       }
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash);
-        BLI_assert(hash_(*slot.key()) == hash);
+        BLI_assume_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return *slot.key();
       }
@@ -942,7 +942,7 @@ class Set {
       }
       if (slot.is_empty()) {
         slot.occupy(create_key(), hash);
-        BLI_assert(hash_(*slot.key()) == hash);
+        BLI_assume_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return *slot.key();
       }
@@ -971,7 +971,7 @@ class Set {
   {
     if (occupied_and_removed_slots_ >= usable_slots_) {
       this->realloc_and_reinsert(this->size() + 1);
-      BLI_assert(occupied_and_removed_slots_ < usable_slots_);
+      BLI_assume_assert(occupied_and_removed_slots_ < usable_slots_);
     }
   }
 };

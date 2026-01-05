@@ -15,19 +15,19 @@
 #pragma once
 
 /* Specify a function is a compute shader entry point. */
-#define compute maybe_unused
+#define compute
 /* Specify a function is a vertex shader entry point. */
-#define vertex maybe_unused
+#define vertex
 /* Specify a function is a fragment shader entry point. */
-#define fragment maybe_unused
+#define fragment
 /* Set compute shader workgroup size. */
-#define local_size(...) maybe_unused
+#define local_size(...)
 /* Request performing fragment tests before the fragment function executes. */
-#define early_fragment_tests maybe_unused
+#define early_fragment_tests
 
 /* In a compute function, specify an input variable containing the 3-dimensional index of the local
  * work invocation within the work group that the current shader is executing in. */
-#define local_invocation_id maybe_unused
+#define local_invocation_id
 /* In a compute function, specify a derived input variable containing the 3-dimensional index of
  * the work invocation within the global work group that the current shader is executing on. The
  * value is equal to work_group_id * work_group_size + local_invocation_id.  */

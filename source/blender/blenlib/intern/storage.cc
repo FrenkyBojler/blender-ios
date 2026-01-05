@@ -54,6 +54,7 @@
 #include "BLI_fileops.h"
 #include "BLI_linklist.h"
 #include "BLI_path_utils.hh"
+#include "BLI_assume.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -62,7 +63,7 @@
 #if !defined(__APPLE__)
 bool BLI_change_working_dir(const char *dir)
 {
-  BLI_assert(BLI_thread_is_main());
+  BLI_assume_assert(BLI_thread_is_main());
 
   if (!BLI_is_dir(dir)) {
     return false;

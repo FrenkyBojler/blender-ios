@@ -75,13 +75,13 @@ struct ReferenceSetInfo {
 
   ReferenceSetInfo(ReferenceSetType type, const int index) : type(type), index(index)
   {
-    BLI_assert(
+    BLI_assume_assert(
         ELEM(type, ReferenceSetType::GroupInputReferenceSet, ReferenceSetType::GroupOutputData));
   }
 
   ReferenceSetInfo(ReferenceSetType type, const bNodeSocket *socket) : type(type), socket(socket)
   {
-    BLI_assert(ELEM(type,
+    BLI_assume_assert(ELEM(type,
                     ReferenceSetType::LocalReferenceSet,
                     ReferenceSetType::ClosureInputReferenceSet,
                     ReferenceSetType::ClosureOutputData));

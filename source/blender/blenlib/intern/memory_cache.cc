@@ -11,6 +11,7 @@
 
 #include "BLI_concurrent_map.hh"
 #include "BLI_memory_cache.hh"
+#include "BLI_assume.hh"
 #include "BLI_memory_counter.hh"
 #include "BLI_mutex.hh"
 
@@ -92,7 +93,7 @@ std::shared_ptr<CachedValue> get_base(const GenericKey &key,
    * the time. It may be possible to implement something smarter in the future. */
   std::shared_ptr<CachedValue> result = compute_fn();
   /* Result should be valid. Use exception to propagate error if necessary. */
-  BLI_assert(result);
+  BLI_assume_assert(result);
 
   {
     CacheMap::MutableAccessor accessor;
@@ -170,7 +171,7 @@ void remove_if(const FunctionRef<bool(const GenericKey &)> predicate)
     }
     /* The value should be removed. */
     const bool success = cache.map.remove(key);
-    BLI_assert(success);
+    BLI_assume_assert(success);
     UNUSED_VARS_NDEBUG(success);
   }
   /* Remove all removed keys from the vector too. */

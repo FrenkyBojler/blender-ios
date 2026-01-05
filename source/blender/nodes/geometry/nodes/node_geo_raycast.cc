@@ -212,7 +212,7 @@ class RaycastFunction : public mf::MultiFunction {
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
-    BLI_assert(target_.has_mesh());
+    BLI_assume_assert(target_.has_mesh());
     const Mesh &mesh = *target_.get_mesh();
 
     raycast_to_mesh(mask,

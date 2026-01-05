@@ -87,7 +87,7 @@ template<typename T> class GVectorArray_TypedMutableRef {
  public:
   GVectorArray_TypedMutableRef(GVectorArray &vector_array) : vector_array_(&vector_array)
   {
-    BLI_assert(vector_array_->type().is<T>());
+    BLI_assume_assert(vector_array_->type().is<T>());
   }
 
   int64_t size() const

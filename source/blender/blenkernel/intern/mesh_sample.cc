@@ -56,7 +56,7 @@ void sample_point_attribute(const Span<int> corner_verts,
                             const IndexMask &mask,
                             const GMutableSpan dst)
 {
-  BLI_assert(src.type() == dst.type());
+  BLI_assume_assert(src.type() == dst.type());
 
   const CPPType &type = src.type();
   attribute_math::convert_to_static_type(type, [&](auto dummy) {
@@ -107,7 +107,7 @@ void sample_corner_attribute(const Span<int3> corner_tris,
                              const IndexMask &mask,
                              const GMutableSpan dst)
 {
-  BLI_assert(src.type() == dst.type());
+  BLI_assume_assert(src.type() == dst.type());
 
   const CPPType &type = src.type();
   attribute_math::convert_to_static_type(type, [&](auto dummy) {
@@ -137,7 +137,7 @@ void sample_face_attribute(const Span<int> corner_tri_faces,
                            const IndexMask &mask,
                            const GMutableSpan dst)
 {
-  BLI_assert(src.type() == dst.type());
+  BLI_assume_assert(src.type() == dst.type());
 
   const CPPType &type = src.type();
   attribute_math::convert_to_static_type(type, [&](auto dummy) {

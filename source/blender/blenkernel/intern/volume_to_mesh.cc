@@ -63,7 +63,7 @@ struct VolumeToMeshOp {
   typename GridType::Ptr create_grid_with_changed_resolution(const GridType &old_grid,
                                                              const float resolution_factor)
   {
-    BLI_assert(resolution_factor > 0.0f);
+    BLI_assume_assert(resolution_factor > 0.0f);
 
     openvdb::Mat4R xform;
     xform.setToScale(openvdb::Vec3d(resolution_factor));

@@ -421,7 +421,7 @@ static int format_int_to_string(const FormatSpecifier &format,
                                 const int64_t integer_value,
                                 char r_output_string[FORMAT_BUFFER_SIZE])
 {
-  BLI_assert(format.type != FormatSpecifierType::SYNTAX_ERROR);
+  BLI_assume_assert(format.type != FormatSpecifierType::SYNTAX_ERROR);
 
   r_output_string[0] = '\0';
   int output_length = 0;
@@ -435,7 +435,7 @@ static int format_int_to_string(const FormatSpecifier &format,
     }
 
     case FormatSpecifierType::INTEGER: {
-      BLI_assert(format.integer_digit_count.has_value());
+      BLI_assume_assert(format.integer_digit_count.has_value());
       BLI_assert(*format.integer_digit_count > 0);
       output_length = fmt::format_to_n(r_output_string,
                                        FORMAT_BUFFER_SIZE - 1,
@@ -452,7 +452,7 @@ static int format_int_to_string(const FormatSpecifier &format,
        * formatter for this because we could lose precision with very large
        * numbers. Instead we simply print the integer, and then append ".000..."
        * to it. */
-      BLI_assert(format.fractional_digit_count.has_value());
+      BLI_assume_assert(format.fractional_digit_count.has_value());
       BLI_assert(*format.fractional_digit_count > 0);
 
       if (format.integer_digit_count.has_value()) {
@@ -505,7 +505,7 @@ static int format_float_to_string(const FormatSpecifier &format,
                                   const double float_value,
                                   char r_output_string[FORMAT_BUFFER_SIZE])
 {
-  BLI_assert(format.type != FormatSpecifierType::SYNTAX_ERROR);
+  BLI_assume_assert(format.type != FormatSpecifierType::SYNTAX_ERROR);
 
   r_output_string[0] = '\0';
   int output_length = 0;
@@ -539,7 +539,7 @@ static int format_float_to_string(const FormatSpecifier &format,
     }
 
     case FormatSpecifierType::FLOAT: {
-      BLI_assert(format.fractional_digit_count.has_value());
+      BLI_assume_assert(format.fractional_digit_count.has_value());
       BLI_assert(*format.fractional_digit_count > 0);
 
       if (format.integer_digit_count.has_value()) {
@@ -961,7 +961,7 @@ blender::Vector<Error> BKE_path_apply_template(char *path,
                                                int path_maxncpy,
                                                const VariableMap &template_variables)
 {
-  BLI_assert(path != nullptr);
+  BLI_assume_assert(path != nullptr);
 
   blender::Vector<char> path_buffer(path_maxncpy);
 

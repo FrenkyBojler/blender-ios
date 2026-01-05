@@ -217,7 +217,7 @@ static bool subdiv_ccg_evaluate_grids(SubdivCCG &subdiv_ccg,
   const blender::opensubdiv::TopologyRefinerImpl *topology_refiner = subdiv.topology_refiner;
   const int num_faces = topology_refiner->base_level().GetNumFaces();
   const Span<int> face_ptex_offset = face_ptex_offset_get(&subdiv);
-  BLI_assert(face_ptex_offset.size() == subdiv_ccg.faces.size() + 1);
+  BLI_assume_assert(face_ptex_offset.size() == subdiv_ccg.faces.size() + 1);
   threading::parallel_for(IndexRange(num_faces), 1024, [&](const IndexRange range) {
     for (const int face_index : range) {
       if (subdiv_ccg.faces[face_index].size() == 4) {
@@ -399,7 +399,7 @@ std::unique_ptr<SubdivCCG> BKE_subdiv_to_ccg(Subdiv &subdiv,
   subdiv_ccg->grids_num = subdiv_ccg->faces.total_size();
   subdiv_ccg->grid_to_face_map = coarse_mesh.corner_to_face_map();
   if (coarse_mesh.corners_num) {
-    BLI_assert(subdiv.topology_refiner);
+    BLI_assume_assert(subdiv.topology_refiner);
     subdiv_ccg_alloc_elements(*subdiv_ccg, subdiv, settings);
     subdiv_ccg_init_faces_neighborhood(*subdiv_ccg);
     if (!subdiv_ccg_evaluate_grids(*subdiv_ccg, subdiv, mask_evaluator)) {
@@ -967,7 +967,7 @@ BLI_INLINE bool is_inner_edge_grid_coordinate(const SubdivCCG &subdiv_ccg,
 BLI_INLINE SubdivCCGCoord coord_at_prev_row(const SubdivCCG & /*subdiv_ccg*/,
                                             const SubdivCCGCoord &coord)
 {
-  BLI_assert(coord.y > 0);
+  BLI_assume_assert(coord.y > 0);
   SubdivCCGCoord result = coord;
   result.y -= 1;
   return result;
@@ -976,7 +976,7 @@ BLI_INLINE SubdivCCGCoord coord_at_next_row(const SubdivCCG &subdiv_ccg,
                                             const SubdivCCGCoord &coord)
 {
   UNUSED_VARS_NDEBUG(subdiv_ccg);
-  BLI_assert(coord.y < subdiv_ccg.grid_size - 1);
+  BLI_assume_assert(coord.y < subdiv_ccg.grid_size - 1);
   SubdivCCGCoord result = coord;
   result.y += 1;
   return result;
@@ -985,7 +985,7 @@ BLI_INLINE SubdivCCGCoord coord_at_next_row(const SubdivCCG &subdiv_ccg,
 BLI_INLINE SubdivCCGCoord coord_at_prev_col(const SubdivCCG & /*subdiv_ccg*/,
                                             const SubdivCCGCoord &coord)
 {
-  BLI_assert(coord.x > 0);
+  BLI_assume_assert(coord.x > 0);
   SubdivCCGCoord result = coord;
   result.x -= 1;
   return result;
@@ -994,7 +994,7 @@ BLI_INLINE SubdivCCGCoord coord_at_next_col(const SubdivCCG &subdiv_ccg,
                                             const SubdivCCGCoord &coord)
 {
   UNUSED_VARS_NDEBUG(subdiv_ccg);
-  BLI_assert(coord.x < subdiv_ccg.grid_size - 1);
+  BLI_assume_assert(coord.x < subdiv_ccg.grid_size - 1);
   SubdivCCGCoord result = coord;
   result.x += 1;
   return result;
@@ -1169,7 +1169,7 @@ static int adjacent_edge_index_from_coord(const SubdivCCG &subdiv_ccg, const Sub
     adjacent_edge_index = face_edges[face_grid_index];
   }
   else {
-    BLI_assert(coord.y == grid_size_1);
+    BLI_assume_assert(coord.y == grid_size_1);
     adjacent_edge_index = face_edges[face_grid_index == 0 ? face.size() - 1 : face_grid_index - 1];
   }
 
@@ -1200,7 +1200,7 @@ static int adjacent_edge_point_index_from_coord(const SubdivCCG &subdiv_ccg,
     directional_edge_vertex_index = edge_vertices_indices[0];
   }
   else {
-    BLI_assert(coord.y == grid_size_1);
+    BLI_assume_assert(coord.y == grid_size_1);
     adjacent_edge_point_index = subdiv_ccg.grid_size + coord.x;
     directional_edge_vertex_index = edge_vertices_indices[1];
   }
@@ -1303,7 +1303,7 @@ static void neighbor_coords_edge_get(const SubdivCCG &subdiv_ccg,
       duplicate_i++;
     }
   }
-  BLI_assert(duplicate_i - num_adjacent_faces == num_duplicates);
+  BLI_assume_assert(duplicate_i - num_adjacent_faces == num_duplicates);
 }
 
 /* The corner is at the middle of edge between faces. */
@@ -1421,12 +1421,12 @@ void BKE_subdiv_ccg_neighbor_coords_get(const SubdivCCG &subdiv_ccg,
                                         SubdivCCGNeighbors &r_neighbors)
 {
 #ifdef WITH_OPENSUBDIV
-  BLI_assert(coord.grid_index >= 0);
-  BLI_assert(coord.grid_index < subdiv_ccg.grids_num);
-  BLI_assert(coord.x >= 0);
-  BLI_assert(coord.x < subdiv_ccg.grid_size);
-  BLI_assert(coord.y >= 0);
-  BLI_assert(coord.y < subdiv_ccg.grid_size);
+  BLI_assume_assert(coord.grid_index >= 0);
+  BLI_assume_assert(coord.grid_index < subdiv_ccg.grids_num);
+  BLI_assume_assert(coord.x >= 0);
+  BLI_assume_assert(coord.x < subdiv_ccg.grid_size);
+  BLI_assume_assert(coord.y >= 0);
+  BLI_assume_assert(coord.y < subdiv_ccg.grid_size);
 
   if (is_corner_grid_coord(subdiv_ccg, coord)) {
     neighbor_coords_corner_get(subdiv_ccg, coord, include_duplicates, r_neighbors);
@@ -1440,7 +1440,7 @@ void BKE_subdiv_ccg_neighbor_coords_get(const SubdivCCG &subdiv_ccg,
 
 #  ifndef NDEBUG
   for (const int i : r_neighbors.coords.index_range()) {
-    BLI_assert(BKE_subdiv_ccg_check_coord_valid(subdiv_ccg, r_neighbors.coords[i]));
+    BLI_assume_assert(BKE_subdiv_ccg_check_coord_valid(subdiv_ccg, r_neighbors.coords[i]));
   }
 #  endif
 #else

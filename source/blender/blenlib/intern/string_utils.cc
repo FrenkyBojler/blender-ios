@@ -20,6 +20,7 @@
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
+#include "BLI_assume.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -41,7 +42,7 @@ char *BLI_string_replaceN(const char *__restrict str,
   size_t len_old = strlen(substr_old);
   const char *match;
 
-  BLI_assert(substr_old[0] != '\0');
+  BLI_assume_assert(substr_old[0] != '\0');
 
   /* While we can still find a match for the old sub-string that we're searching for,
    * keep dicing and replacing. */
@@ -130,8 +131,8 @@ size_t BLI_string_replace_range(
     char *string, size_t string_maxncpy, int src_beg, int src_end, const char *dst)
 {
   int string_len = int(strlen(string));
-  BLI_assert(src_beg <= src_end);
-  BLI_assert(src_end <= string_len);
+  BLI_assume_assert(src_beg <= src_end);
+  BLI_assume_assert(src_end <= string_len);
   const int src_len = src_end - src_beg;
   int dst_len = int(strlen(dst));
 
@@ -151,7 +152,7 @@ size_t BLI_string_replace_range(
     if (string_len + ofs >= int(string_maxncpy)) {
       string_len = (int(string_maxncpy) - ofs) - 1;
       string[string_len] = '\0';
-      BLI_assert(src_end <= string_len);
+      BLI_assume_assert(src_end <= string_len);
     }
 
     /* Grow. */
@@ -165,13 +166,13 @@ size_t BLI_string_replace_range(
     string_len -= ofs;
   }
   else { /* Simple case, no resizing. */
-    BLI_assert(src_len == dst_len);
+    BLI_assume_assert(src_len == dst_len);
   }
 
   if (dst_len > 0) {
     memcpy(string + src_beg, dst, size_t(dst_len));
   }
-  BLI_assert(string[string_len] == '\0');
+  BLI_assume_assert(string[string_len] == '\0');
   return size_t(string_len);
 }
 
@@ -487,7 +488,7 @@ void BLI_uniquename(const ListBase *list,
                     int name_offset,
                     size_t name_maxncpy)
 {
-  BLI_assert(name_maxncpy > 1);
+  BLI_assume_assert(name_maxncpy > 1);
 
   /* See if we are given an empty string */
   if (ELEM(nullptr, vlink)) {
@@ -594,7 +595,7 @@ char *BLI_string_join_arrayN(const char *strings[], uint strings_num)
   }
   /* Only needed when `strings_num == 0`. */
   *c = '\0';
-  BLI_assert(result + result_size == c + 1);
+  BLI_assume_assert(result + result_size == c + 1);
   return result;
 }
 
@@ -615,7 +616,7 @@ char *BLI_string_join_array_by_sep_charN(char sep, const char *strings[], uint s
     c--;
   }
   *c = '\0';
-  BLI_assert(result + result_size == c + 1);
+  BLI_assume_assert(result + result_size == c + 1);
   return result;
 }
 
@@ -647,7 +648,7 @@ char *BLI_string_join_array_by_sep_char_with_tableN(char sep,
     c--;
   }
   *c = '\0';
-  BLI_assert(result + result_size == c + 1);
+  BLI_assume_assert(result + result_size == c + 1);
   return result;
 }
 

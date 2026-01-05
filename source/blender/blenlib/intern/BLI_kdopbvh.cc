@@ -851,7 +851,7 @@ BVHTree *BLI_bvhtree_new(int maxsize, float epsilon, char tree_type, char axis)
 {
   int numnodes, i;
 
-  BLI_assert(tree_type >= 2 && tree_type <= MAX_TREETYPE);
+  BLI_assume_assert(tree_type >= 2 && tree_type <= MAX_TREETYPE);
 
   BVHTree *tree = MEM_callocN<BVHTree>(__func__);
 
@@ -935,7 +935,7 @@ void BLI_bvhtree_balance(BVHTree *tree)
 
   /* This function should only be called once
    * (some big bug goes here if its being called more than once per tree) */
-  BLI_assert(tree->branch_num == 0);
+  BLI_assume_assert(tree->branch_num == 0);
 
   /* Build the implicit tree */
   non_recursive_bvh_div_nodes(
@@ -976,7 +976,7 @@ void BLI_bvhtree_insert(BVHTree *tree, int index, const float co[3], int numpoin
   BVHNode *node = nullptr;
 
   /* insert should only possible as long as tree->branch_num is 0 */
-  BLI_assert(tree->branch_num <= 0);
+  BLI_assume_assert(tree->branch_num <= 0);
   BLI_assert((size_t)tree->leaf_num < MEM_allocN_len(tree->nodes) / sizeof(*(tree->nodes)));
 
   node = tree->nodes[tree->leaf_num] = &(tree->nodearray[tree->leaf_num]);
@@ -1051,7 +1051,7 @@ void BLI_bvhtree_get_bounding_box(const BVHTree *tree, float r_bb_min[3], float 
     copy_v3_v3(r_bb_max, bb_max);
   }
   else {
-    BLI_assert(false);
+    BLI_assume_assert(false);
     zero_v3(r_bb_min);
     zero_v3(r_bb_max);
   }
@@ -1328,7 +1328,7 @@ BVHTreeOverlap *BLI_bvhtree_overlap_ex(
   bool use_self = (flag & BVH_OVERLAP_SELF) != 0;
 
   /* 'RETURN_PAIRS' was not implemented without 'max_interactions'. */
-  BLI_assert(overlap_pairs || max_interactions);
+  BLI_assume_assert(overlap_pairs || max_interactions);
   /* Self-overlap does not support max interactions (it's not symmetrical). */
   BLI_assert(!use_self || (tree1 == tree2 && !max_interactions));
 
@@ -1345,7 +1345,7 @@ BVHTreeOverlap *BLI_bvhtree_overlap_ex(
   if (UNLIKELY((tree1->axis != tree2->axis) && (tree1->axis == 14 || tree2->axis == 14) &&
                (tree1->axis == 18 || tree2->axis == 18)))
   {
-    BLI_assert(0);
+    BLI_assume_assert(0);
     return nullptr;
   }
 
@@ -2058,7 +2058,7 @@ void BLI_bvhtree_ray_cast_all_ex(const BVHTree *tree,
   BVHNode *root = tree->nodes[tree->leaf_num];
 
   BLI_ASSERT_UNIT_V3(dir);
-  BLI_assert(callback != nullptr);
+  BLI_assume_assert(callback != nullptr);
 
   data.tree = tree;
 

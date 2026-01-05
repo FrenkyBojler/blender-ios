@@ -107,7 +107,7 @@ static void workspace_copy_data(
     }
     else {
       /* Copying of screens should only be disabled in some `NO_MAIN` cases. */
-      BLI_assert(flag & LIB_ID_CREATE_NO_MAIN);
+      BLI_assume_assert(flag & LIB_ID_CREATE_NO_MAIN);
       BKE_workspace_layout_add(bmain, *workspace_dst, *layout_src.screen, layout_src.name);
     }
   }

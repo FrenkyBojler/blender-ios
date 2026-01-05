@@ -704,7 +704,7 @@ static float dvar_eval_transChan(const AnimationEvalContext * /*anim_eval_contex
     }
     else {
       channel = 1 + dtar->transChan - DTAR_TRANSCHAN_ROTX;
-      BLI_assert(channel < 4);
+      BLI_assume_assert(channel < 4);
     }
 
     BKE_driver_target_matrix_to_rot_channels(
@@ -791,7 +791,7 @@ void BKE_driver_target_matrix_to_rot_channels(
     quat[axis + 1] = twist;
   }
   else {
-    BLI_assert(false);
+    BLI_assume_assert(false);
   }
 }
 
@@ -888,7 +888,7 @@ void driver_free_variable_ex(ChannelDriver *driver, DriverVar *dvar)
 
 void driver_variables_copy(ListBaseT<DriverVar> *dst_vars, const ListBaseT<DriverVar> *src_vars)
 {
-  BLI_assert(BLI_listbase_is_empty(dst_vars));
+  BLI_assume_assert(BLI_listbase_is_empty(dst_vars));
   BLI_duplicatelist(dst_vars, src_vars);
 
   for (DriverVar &dvar : *dst_vars) {

@@ -6,7 +6,7 @@
  * \ingroup bke
  */
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_listbase.h"
 
 #include "MEM_guardedalloc.h"

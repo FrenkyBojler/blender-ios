@@ -190,7 +190,7 @@ static inline void convexhull_2d_stack_push(const float2 *points,
  */
 static int convexhull_2d_sorted_impl(const float2 *points, const int points_num, int r_points[])
 {
-  BLI_assert(points_num >= 2); /* Doesn't handle trivial cases. */
+  BLI_assume_assert(points_num >= 2); /* Doesn't handle trivial cases. */
   /* The output array `r_points[]` will be used as the stack. */
   int bot = 0;
   /* Indices for bottom and top of the stack. */
@@ -220,7 +220,7 @@ static int convexhull_2d_sorted_impl(const float2 *points, const int points_num,
       /* A nontrivial segment. */
       convexhull_2d_stack_push(points, r_points, top, minmax);
     }
-    BLI_assert(top + 1 <= points_num);
+    BLI_assume_assert(top + 1 <= points_num);
     return top;
   }
 
@@ -235,7 +235,7 @@ static int convexhull_2d_sorted_impl(const float2 *points, const int points_num,
   maxmin = i + 1;
 
   /* Compute the lower hull on the stack `r_points`. */
-  BLI_assert(top < 2);
+  BLI_assume_assert(top < 2);
   convexhull_2d_stack_push(points, r_points, top, minmin);
 
   i = minmax;
@@ -277,7 +277,7 @@ static int convexhull_2d_sorted_impl(const float2 *points, const int points_num,
     }
 
     if (points[i][0] == points[r_points[0]][0] && points[i][1] == points[r_points[0]][1]) {
-      BLI_assert(top + 1 <= points_num);
+      BLI_assume_assert(top + 1 <= points_num);
       return top; /* Special case (mgomes). */
     }
     convexhull_2d_stack_push(points, r_points, top, i);
@@ -288,7 +288,7 @@ static int convexhull_2d_sorted_impl(const float2 *points, const int points_num,
     convexhull_2d_stack_push(points, r_points, top, minmin);
   }
 
-  BLI_assert(top + 1 <= points_num);
+  BLI_assume_assert(top + 1 <= points_num);
   return top;
 }
 
@@ -312,7 +312,7 @@ static blender::int2 convexhull_2d_sorted(const float2 *points,
 int BLI_convexhull_2d(blender::Span<float2> points, int r_points[])
 {
   const int points_num = int(points.size());
-  BLI_assert(points_num >= 0);
+  BLI_assume_assert(points_num >= 0);
   if (points_num < 2) {
     if (points_num == 1) {
       r_points[0] = 0;
@@ -360,7 +360,7 @@ int BLI_convexhull_2d(blender::Span<float2> points, int r_points[])
   MEM_freeN(points_sort);
 
   const int points_hull_num = (points_hull_range[1] - points_hull_range[0]) + 1;
-  BLI_assert(points_hull_num <= points_num);
+  BLI_assume_assert(points_hull_num <= points_num);
   return points_hull_num;
 }
 
@@ -469,8 +469,8 @@ static float2 sincos_canonical(const float2 &sincos)
 
   /* The range is [1.0, 0.0], it will approach but never return [0.0, 1.0],
    * as the canonical version of this value gets flipped to [1.0, 0.0]. */
-  BLI_assert(result[0] > 0.0f);
-  BLI_assert(result[1] >= 0.0f);
+  BLI_assume_assert(result[0] > 0.0f);
+  BLI_assume_assert(result[1] >= 0.0f);
   return result;
 }
 
@@ -555,7 +555,7 @@ static void hull_angle_insert_ordered(HullAngleIter &hiter, HullAngleStep *inser
 
 static bool convexhull_2d_angle_iter_step_on_axis(const HullAngleIter &hiter, HullAngleStep &hstep)
 {
-  BLI_assert(hstep.index != -1);
+  BLI_assume_assert(hstep.index != -1);
   while (hstep.index != hstep.index_max) {
     const int i_curr = hstep.index;
     const int i_next = (hstep.index + 1) % hiter.points_hull_num;
@@ -674,7 +674,7 @@ static void convexhull_2d_angle_iter_step(HullAngleIter &hiter)
 #ifdef USE_ANGLE_ITER_ORDER_ASSERT
   if (hiter.axis_ordered) {
     hstep = hiter.axis_ordered;
-    BLI_assert(hull_angle_canonical_cmp(angle_prev, hiter.axis_ordered->angle) > 0);
+    BLI_assume_assert(hull_angle_canonical_cmp(angle_prev, hiter.axis_ordered->angle) > 0);
     UNUSED_VARS_NDEBUG(angle_prev);
   }
 #endif
@@ -779,7 +779,7 @@ static float convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], int poin
     const float2 sincos_test = convexhull_aabb_fit_hull_2d_brute_force(points_hull,
                                                                        points_hull_num);
     if (sincos_best != sincos_test) {
-      BLI_assert(sincos_best == sincos_test);
+      BLI_assume_assert(sincos_best == sincos_test);
     }
   }
 #endif
@@ -790,7 +790,7 @@ static float convexhull_aabb_fit_hull_2d(const float (*points_hull)[2], int poin
 float BLI_convexhull_aabb_fit_points_2d(blender::Span<float2> points)
 {
   const int points_num = int(points.size());
-  BLI_assert(points_num >= 0);
+  BLI_assume_assert(points_num >= 0);
   float angle = 0.0f;
 
   int *index_map = MEM_malloc_arrayN<int>(size_t(points_num), __func__);

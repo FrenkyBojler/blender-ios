@@ -39,7 +39,7 @@ GeometryComponentPtr MeshComponent::copy() const
 
 void MeshComponent::clear()
 {
-  BLI_assert(this->is_mutable() || this->is_expired());
+  BLI_assume_assert(this->is_mutable() || this->is_expired());
   if (mesh_ != nullptr) {
     if (ownership_ == GeometryOwnershipType::Owned) {
       BKE_id_free(nullptr, mesh_);
@@ -55,7 +55,7 @@ bool MeshComponent::has_mesh() const
 
 void MeshComponent::replace(Mesh *mesh, GeometryOwnershipType ownership)
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   this->clear();
   mesh_ = mesh;
   ownership_ = ownership;
@@ -63,7 +63,7 @@ void MeshComponent::replace(Mesh *mesh, GeometryOwnershipType ownership)
 
 Mesh *MeshComponent::release()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   Mesh *mesh = mesh_;
   mesh_ = nullptr;
   return mesh;
@@ -76,7 +76,7 @@ const Mesh *MeshComponent::get() const
 
 Mesh *MeshComponent::get_for_write()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   if (ownership_ == GeometryOwnershipType::ReadOnly) {
     mesh_ = BKE_mesh_copy_for_eval(*mesh_);
     ownership_ = GeometryOwnershipType::Owned;
@@ -96,7 +96,7 @@ bool MeshComponent::owns_direct_data() const
 
 void MeshComponent::ensure_owns_direct_data()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   if (ownership_ != GeometryOwnershipType::Owned) {
     if (mesh_) {
       mesh_ = BKE_mesh_copy_for_eval(*mesh_);

@@ -233,7 +233,7 @@ template<typename T> inline void SocketValueVariant::set(T &&value)
 
 inline const void *SocketValueVariant::get_single_ptr_raw() const
 {
-  BLI_assert(kind_ == Kind::Single);
+  BLI_assume_assert(kind_ == Kind::Single);
   return value_.get();
 }
 

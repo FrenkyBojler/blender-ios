@@ -53,7 +53,7 @@ class GArray {
    */
   GArray(const CPPType &type, int64_t size, Allocator allocator = {}) : GArray(type, allocator)
   {
-    BLI_assert(size >= 0);
+    BLI_assume_assert(size >= 0);
     size_ = size;
     data_ = this->allocate(size_);
     type_->default_construct_n(data_, size_);
@@ -74,9 +74,9 @@ class GArray {
   GArray(const CPPType &type, void *buffer, int64_t size, Allocator allocator = {})
       : GArray(type, allocator)
   {
-    BLI_assert(size >= 0);
-    BLI_assert(buffer != nullptr || size == 0);
-    BLI_assert(type_->pointer_has_valid_alignment(buffer));
+    BLI_assume_assert(size >= 0);
+    BLI_assume_assert(buffer != nullptr || size == 0);
+    BLI_assume_assert(type_->pointer_has_valid_alignment(buffer));
 
     data_ = buffer;
     size_ = size;
@@ -126,7 +126,7 @@ class GArray {
 
   const CPPType &type() const
   {
-    BLI_assert(type_ != nullptr);
+    BLI_assume_assert(type_ != nullptr);
     return *type_;
   }
 
@@ -157,25 +157,25 @@ class GArray {
 
   const void *operator[](int64_t index) const
   {
-    BLI_assert(index < size_);
+    BLI_assume_assert(index < size_);
     return POINTER_OFFSET(data_, type_->size * index);
   }
 
   void *operator[](int64_t index)
   {
-    BLI_assert(index < size_);
+    BLI_assume_assert(index < size_);
     return POINTER_OFFSET(data_, type_->size * index);
   }
 
   operator GSpan() const
   {
-    BLI_assert(size_ == 0 || type_ != nullptr);
+    BLI_assume_assert(size_ == 0 || type_ != nullptr);
     return GSpan(type_, data_, size_);
   }
 
   operator GMutableSpan()
   {
-    BLI_assert(size_ == 0 || type_ != nullptr);
+    BLI_assume_assert(size_ == 0 || type_ != nullptr);
     return GMutableSpan(type_, data_, size_);
   }
 
@@ -207,7 +207,7 @@ class GArray {
    */
   void reinitialize(const int64_t new_size)
   {
-    BLI_assert(new_size >= 0);
+    BLI_assume_assert(new_size >= 0);
     int64_t old_size = size_;
 
     type_->destruct_n(data_, size_);

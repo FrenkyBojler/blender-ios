@@ -144,7 +144,7 @@ void BKE_lattice_deform_data_eval_co(LatticeDeformData *lattice_deform_data,
 {
   float *latticedata = lattice_deform_data->latticedata;
   float *lattice_weights = lattice_deform_data->lattice_weights;
-  BLI_assert(latticedata);
+  BLI_assume_assert(latticedata);
   const Lattice *lt = lattice_deform_data->lt;
   float u, v, w, tu[4], tv[4], tw[4];
   float vec[3];

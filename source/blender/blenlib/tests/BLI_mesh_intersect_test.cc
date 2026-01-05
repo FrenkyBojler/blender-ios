@@ -838,7 +838,7 @@ static void fill_sphere_data(int nrings,
   int verts_num;
   int faces_num;
   get_sphere_params(nrings, nsegs, triangulate, &verts_num, &faces_num);
-  BLI_assert(faces_num == face.size());
+  BLI_assume_assert(faces_num == face.size());
   Array<const Vert *> vert(verts_num);
   const bool nrings_even = (nrings % 2 == 0);
   int half_nrings = nrings / 2;
@@ -1058,7 +1058,7 @@ static void fill_grid_data(int x_subdiv,
   int verts_num;
   int faces_num;
   get_grid_params(x_subdiv, y_subdiv, triangulate, &verts_num, &faces_num);
-  BLI_assert(face.size() == faces_num);
+  BLI_assume_assert(face.size() == faces_num);
   Array<const Vert *> vert(verts_num);
   auto vert_index_fn = [x_subdiv](int ix, int iy) { return iy * x_subdiv + ix; };
   auto face_index_fn = [x_subdiv](int ix, int iy) { return iy * (x_subdiv - 1) + ix; };

@@ -41,7 +41,7 @@ GAttributeWriter attribute_to_writer(void *owner,
   switch (attribute.storage_type()) {
     case AttrStorageType::Array: {
       auto &data = std::get<Attribute::ArrayData>(attribute.data_for_write());
-      BLI_assert(data.size == domain_size);
+      BLI_assume_assert(data.size == domain_size);
 
       std::function<void()> tag_modified_fn;
       if (const AttrUpdateOnChange update_fn = changed_tags.lookup_default(attribute.name(),
@@ -80,7 +80,7 @@ Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_type,
     case AttributeInit::Type::VArray: {
       const auto &init = static_cast<const AttributeInitVArray &>(initializer);
       const GVArray &varray = init.varray;
-      BLI_assert(varray.size() == domain_size);
+      BLI_assume_assert(varray.size() == domain_size);
       const CPPType &type = varray.type();
       Attribute::ArrayData data;
       data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
@@ -161,7 +161,7 @@ std::optional<GSpan> get_span_attribute(const AttributeStorage &storage,
     return {};
   }
   if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data())) {
-    BLI_assert(array_data->size == domain_size);
+    BLI_assume_assert(array_data->size == domain_size);
     UNUSED_VARS_NDEBUG(domain_size);
     return GSpan(cpp_type, array_data->data, array_data->size);
   }
@@ -201,7 +201,7 @@ GMutableSpan get_mutable_attribute(AttributeStorage &storage,
       type,
       bke::Attribute::ArrayData::from_value({cpp_type, default_value}, domain_size));
   auto &array_data = std::get<bke::Attribute::ArrayData>(attr.data_for_write());
-  BLI_assert(array_data.size == domain_size);
+  BLI_assume_assert(array_data.size == domain_size);
   return GMutableSpan(cpp_type, array_data.data, domain_size);
 }
 

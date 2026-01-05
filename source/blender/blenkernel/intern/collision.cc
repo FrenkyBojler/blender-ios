@@ -1094,7 +1094,7 @@ static void cloth_selfcollision(void *__restrict userdata,
   const blender::int3 vert_tri_a = clmd->clothObject->vert_tris[indexA];
   const blender::int3 vert_tri_b = clmd->clothObject->vert_tris[indexB];
 
-  BLI_assert(cloth_bvh_selfcollision_is_active(clmd, clmd->clothObject, vert_tri_a, vert_tri_b));
+  BLI_assume_assert(cloth_bvh_selfcollision_is_active(clmd, clmd->clothObject, vert_tri_a, vert_tri_b));
 
   /* Compute distance and normal. */
   distance = compute_collision_point_tri_tri(verts1[vert_tri_a[0]].tx,

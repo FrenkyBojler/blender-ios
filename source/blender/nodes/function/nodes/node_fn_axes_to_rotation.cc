@@ -56,7 +56,7 @@ class AxesToRotationFunction : public mf::MultiFunction {
   AxesToRotationFunction(const math::Axis primary_axis, const math::Axis secondary_axis)
       : primary_axis_(primary_axis), secondary_axis_(secondary_axis)
   {
-    BLI_assert(primary_axis_ != secondary_axis_);
+    BLI_assume_assert(primary_axis_ != secondary_axis_);
 
     /* Through cancellation this will set the last axis to be the one that's neither the primary
      * nor secondary axis. */
@@ -119,8 +119,8 @@ class AxesToRotationFunction : public mf::MultiFunction {
       mat[primary_axis_.as_int()] = primary;
       mat[secondary_axis_.as_int()] = secondary;
       mat[tertiary_axis_.as_int()] = tertiary_factor * tertiary;
-      BLI_assert(math::is_orthonormal(mat));
-      BLI_assert(std::abs(math::determinant(mat) - 1.0f) < 0.0001f);
+      BLI_assume_assert(math::is_orthonormal(mat));
+      BLI_assume_assert(std::abs(math::determinant(mat) - 1.0f) < 0.0001f);
 
       r_rotations[i] = math::to_quaternion(mat);
     });

@@ -252,7 +252,7 @@ static void object_copy_data(Main *bmain,
   BLI_listbase_clear(&ob_dst->greasepencil_modifiers);
   /* NOTE: Also takes care of soft-body and particle systems copying. */
   BKE_object_modifier_stack_copy(ob_dst, ob_src, true, flag_subdata);
-  BLI_assert(BKE_modifiers_persistent_uids_are_valid(*ob_dst));
+  BLI_assume_assert(BKE_modifiers_persistent_uids_are_valid(*ob_dst));
 
   BLI_listbase_clear(&ob_dst->pc_ids);
 
@@ -640,7 +640,7 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BLO_write_char_array(writer, ob->totcol, ob->matbits);
 
   if (ob->pose) {
-    BLI_assert(ob->type == OB_ARMATURE);
+    BLI_assume_assert(ob->type == OB_ARMATURE);
     BKE_pose_blend_write(writer, ob->pose);
   }
   BKE_constraint_blend_write(writer, &ob->constraints);
@@ -946,7 +946,7 @@ static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
      * Within a file (no library linking) this should never happen.
      * see: #139133. */
 
-    BLI_assert(GS(static_cast<ID *>(ob->data)->name) == ID_CU_LEGACY);
+    BLI_assume_assert(GS(static_cast<ID *>(ob->data)->name) == ID_CU_LEGACY);
     /* Don't recalculate any internal curve data is this is low level logic
      * intended to avoid errors when switching between font/curve types. */
     BKE_curve_type_test(ob, false);
@@ -1059,7 +1059,7 @@ static IDProperty *object_asset_dimensions_property(Object *ob)
 static void object_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_data)
 {
   Object *ob = (Object *)asset_ptr;
-  BLI_assert(GS(ob->id.name) == ID_OB);
+  BLI_assume_assert(GS(ob->id.name) == ID_OB);
 
   /* Update dimensions hint for the asset. */
   if (IDProperty *dimensions_prop = object_asset_dimensions_property(ob)) {
@@ -1225,7 +1225,7 @@ void BKE_object_modifier_set_active(Object *ob, ModifierData *md)
   }
 
   if (md != nullptr) {
-    BLI_assert(BLI_findindex(&ob->modifiers, md) != -1);
+    BLI_assume_assert(BLI_findindex(&ob->modifiers, md) != -1);
     md->flag |= eModifierFlag_Active;
   }
 }
@@ -1240,7 +1240,7 @@ ModifierData *BKE_object_active_modifier(const Object *ob)
       active_count++;
     }
   }
-  BLI_assert(ELEM(active_count, 0, 1));
+  BLI_assume_assert(ELEM(active_count, 0, 1));
 #endif
 
   for (ModifierData &md : ob->modifiers) {
@@ -1415,7 +1415,7 @@ bool BKE_object_copy_modifier(Main *bmain,
       case eModifierType_Fluid:
         if (psys_dst != nullptr) {
           FluidModifierData *fmd_dst = (FluidModifierData *)md_dst;
-          BLI_assert(fmd_dst->type == MOD_FLUID_TYPE_FLOW && fmd_dst->flow != nullptr &&
+          BLI_assume_assert(fmd_dst->type == MOD_FLUID_TYPE_FLOW && fmd_dst->flow != nullptr &&
                      fmd_dst->flow->psys != nullptr);
           fmd_dst->flow->psys = psys_dst;
         }
@@ -1423,7 +1423,7 @@ bool BKE_object_copy_modifier(Main *bmain,
       case eModifierType_DynamicPaint:
         if (psys_dst != nullptr) {
           DynamicPaintModifierData *dpmd_dst = (DynamicPaintModifierData *)md_dst;
-          BLI_assert(dpmd_dst->brush != nullptr && dpmd_dst->brush->psys != nullptr);
+          BLI_assume_assert(dpmd_dst->brush != nullptr && dpmd_dst->brush->psys != nullptr);
           dpmd_dst->brush->psys = psys_dst;
         }
         break;
@@ -1490,7 +1490,7 @@ void BKE_object_link_modifiers(Object *ob_dst, const Object *ob_src)
  */
 static void copy_ccg_data(Mesh *mesh_dst, Mesh *mesh_src, const eCustomDataType layer_type)
 {
-  BLI_assert(mesh_dst->corners_num == mesh_src->corners_num);
+  BLI_assume_assert(mesh_dst->corners_num == mesh_src->corners_num);
   CustomData *data_dst = &mesh_dst->corner_data;
   CustomData *data_src = &mesh_src->corner_data;
   const int num_elements = mesh_src->corners_num;
@@ -1501,7 +1501,7 @@ static void copy_ccg_data(Mesh *mesh_dst, Mesh *mesh_src, const eCustomDataType 
   CustomData_free_layer(data_dst, layer_type, layer_index);
   BLI_assert(!CustomData_has_layer(data_dst, layer_type));
   CustomData_add_layer(data_dst, eCustomDataType(layer_type), CD_SET_DEFAULT, num_elements);
-  BLI_assert(CustomData_has_layer(data_dst, layer_type));
+  BLI_assume_assert(CustomData_has_layer(data_dst, layer_type));
   CustomData_copy_layer_type_data(data_src, data_dst, layer_type, 0, 0, num_elements);
 }
 
@@ -1579,9 +1579,9 @@ static void object_update_from_subsurf_ccg(Object *object)
 
 void BKE_object_eval_assign_data(Object *object_eval, ID *data_eval, bool is_owned)
 {
-  BLI_assert(object_eval->id.tag & ID_TAG_COPIED_ON_EVAL);
-  BLI_assert(object_eval->runtime->data_eval == nullptr);
-  BLI_assert(data_eval->tag & ID_TAG_NO_MAIN);
+  BLI_assume_assert(object_eval->id.tag & ID_TAG_COPIED_ON_EVAL);
+  BLI_assume_assert(object_eval->runtime->data_eval == nullptr);
+  BLI_assume_assert(data_eval->tag & ID_TAG_NO_MAIN);
 
   if (is_owned) {
     /* Set flag for debugging. */
@@ -1743,7 +1743,7 @@ bool BKE_object_is_in_editmode_vgroup(const Object *ob)
 bool BKE_object_data_is_in_editmode(const Object *ob, const ID *id)
 {
   const short type = GS(id->name);
-  BLI_assert(OB_DATA_SUPPORT_EDITMODE(type));
+  BLI_assume_assert(OB_DATA_SUPPORT_EDITMODE(type));
   switch (type) {
     case ID_ME:
       return ((const Mesh *)id)->runtime->edit_mesh != nullptr;
@@ -2247,7 +2247,7 @@ ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys, const int f
      * creation. */
     // BLI_assert((psys->flag & PSYS_SHARED_CACHES) == 0);
     psysn->flag |= PSYS_SHARED_CACHES;
-    BLI_assert(psysn->pointcache != nullptr);
+    BLI_assume_assert(psysn->pointcache != nullptr);
   }
   else {
     psysn->pointcache = BKE_ptcache_copy_list(&psysn->ptcaches, &psys->ptcaches, flag);
@@ -3157,7 +3157,7 @@ static void give_parvert(const Object *par, int nr, float vec[3], const bool use
     tot = latt->pntsu * latt->pntsv * latt->pntsw;
 
     /* ensure dl is correct size */
-    BLI_assert(dl == nullptr || dl->nr == tot);
+    BLI_assume_assert(dl == nullptr || dl->nr == tot);
 
     if (nr < tot) {
       if (co) {
@@ -3657,7 +3657,7 @@ bool BKE_object_empty_image_frame_is_visible_in_view3d(const Object *ob, const R
 bool BKE_object_empty_image_data_is_visible_in_view3d(const Object *ob, const RegionView3D *rv3d)
 {
   /* Caller is expected to check this. */
-  BLI_assert(BKE_object_empty_image_frame_is_visible_in_view3d(ob, rv3d));
+  BLI_assume_assert(BKE_object_empty_image_frame_is_visible_in_view3d(ob, rv3d));
 
   const char visibility_flag = ob->empty_image_visibility_flag;
 
@@ -3703,7 +3703,7 @@ bool BKE_object_empty_image_data_is_visible_in_view3d(const Object *ob, const Re
 
 bool BKE_object_minmax_empty_drawtype(const Object *ob, float r_min[3], float r_max[3])
 {
-  BLI_assert(ob->type == OB_EMPTY);
+  BLI_assume_assert(ob->type == OB_EMPTY);
   float3 min(0), max(0);
 
   bool ok = false;
@@ -4185,11 +4185,11 @@ Mesh *BKE_object_get_evaluated_mesh(const Object *object_eval)
 
 const Mesh *BKE_object_get_pre_modified_mesh(const Object *object)
 {
-  BLI_assert(object->type == OB_MESH);
+  BLI_assume_assert(object->type == OB_MESH);
   if (const ID *data_orig = object->runtime->data_orig) {
-    BLI_assert(object->id.tag & ID_TAG_COPIED_ON_EVAL);
-    BLI_assert(object->id.orig_id != nullptr);
-    BLI_assert(data_orig->orig_id == ((const Object *)object->id.orig_id)->data);
+    BLI_assume_assert(object->id.tag & ID_TAG_COPIED_ON_EVAL);
+    BLI_assume_assert(object->id.orig_id != nullptr);
+    BLI_assume_assert(data_orig->orig_id == ((const Object *)object->id.orig_id)->data);
     BLI_assert((data_orig->tag & ID_TAG_COPIED_ON_EVAL) != 0);
     BLI_assert((data_orig->tag & ID_TAG_COPIED_ON_EVAL_FINAL_RESULT) == 0);
     if (GS(data_orig->name) != ID_ME) {
@@ -4212,7 +4212,7 @@ Mesh *BKE_object_get_original_mesh(const Object *object)
     BLI_assert((object->id.tag & ID_TAG_COPIED_ON_EVAL) != 0);
     result = (Mesh *)((Object *)object->id.orig_id)->data;
   }
-  BLI_assert(result != nullptr);
+  BLI_assume_assert(result != nullptr);
   BLI_assert((result->id.tag & (ID_TAG_COPIED_ON_EVAL | ID_TAG_COPIED_ON_EVAL_FINAL_RESULT)) == 0);
   return result;
 }
@@ -4220,7 +4220,7 @@ Mesh *BKE_object_get_original_mesh(const Object *object)
 const Mesh *BKE_object_get_editmesh_eval_final(const Object *object)
 {
   BLI_assert(!DEG_is_original(object));
-  BLI_assert(object->type == OB_MESH);
+  BLI_assume_assert(object->type == OB_MESH);
 
   const Mesh *mesh = static_cast<const Mesh *>(object->data);
   if (mesh->runtime->edit_mesh == nullptr) {
@@ -4235,7 +4235,7 @@ const Mesh *BKE_object_get_editmesh_eval_final(const Object *object)
 const Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)
 {
   BLI_assert(!DEG_is_original(object));
-  BLI_assert(object->type == OB_MESH);
+  BLI_assume_assert(object->type == OB_MESH);
 
   return object->runtime->editmesh_eval_cage;
 }
@@ -4243,7 +4243,7 @@ const Mesh *BKE_object_get_editmesh_eval_cage(const Object *object)
 const Mesh *BKE_object_get_mesh_deform_eval(const Object *object)
 {
   BLI_assert(!DEG_is_original(object));
-  BLI_assert(object->type == OB_MESH);
+  BLI_assume_assert(object->type == OB_MESH);
   return object->runtime->mesh_deform_eval;
 }
 
@@ -4533,7 +4533,7 @@ bool BKE_object_shapekey_remove(Main *bmain, Object *ob, KeyBlock *kb)
   BKE_animdata_drivers_remove_for_rna_struct(key->id, RNA_ShapeKey, kb);
 
   kb_index = BLI_findindex(&key->block, kb);
-  BLI_assert(kb_index != -1);
+  BLI_assume_assert(kb_index != -1);
 
   for (KeyBlock &rkb : key->block) {
     if (rkb.relative == kb_index) {

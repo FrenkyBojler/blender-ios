@@ -407,7 +407,7 @@ bool BKE_animsys_read_from_rna_path(PathResolvedRNA *anim_rna, float *r_value)
   float orig_value;
 
   /* caller must ensure this is animatable */
-  BLI_assert(RNA_property_animateable(ptr, prop) || ptr->owner_id == nullptr);
+  BLI_assume_assert(RNA_property_animateable(ptr, prop) || ptr->owner_id == nullptr);
 
   switch (RNA_property_type(prop)) {
     case PROP_BOOLEAN: {
@@ -469,7 +469,7 @@ bool BKE_animsys_write_to_rna_path(PathResolvedRNA *anim_rna,
   int array_index = anim_rna->prop_index;
 
   /* caller must ensure this is animatable */
-  BLI_assert(RNA_property_animateable(ptr, prop) || ptr->owner_id == nullptr);
+  BLI_assume_assert(RNA_property_animateable(ptr, prop) || ptr->owner_id == nullptr);
 
   if (!force_write) {
     /* Check whether value is new. Otherwise we skip all the updates. */
@@ -606,7 +606,7 @@ static void animsys_quaternion_evaluate_fcurves(PathResolvedRNA quat_rna,
                                                 const AnimationEvalContext *anim_eval_context,
                                                 float r_quaternion[4])
 {
-  BLI_assert(quat_fcurves.size() <= 4);
+  BLI_assume_assert(quat_fcurves.size() <= 4);
 
   /* Initialize r_quaternion to the unit quaternion so that half-keyed quaternions at least have
    * *some* value in there. */
@@ -637,7 +637,7 @@ static void animsys_blend_fcurves_quaternion(PathResolvedRNA *anim_rna,
                                              const AnimationEvalContext *anim_eval_context,
                                              const float blend_factor)
 {
-  BLI_assert(quaternion_fcurves.size() <= 4);
+  BLI_assume_assert(quaternion_fcurves.size() <= 4);
 
   float current_quat[4];
   RNA_property_float_get_array(&anim_rna->ptr, anim_rna->prop, current_quat);
@@ -667,7 +667,7 @@ static void animsys_blend_in_fcurves(PointerRNA *ptr,
     if (num_channels_to_skip) {
       /* For skipping already-handled rotation channels. Rotation channels are handled per group,
        * and not per individual channel. */
-      BLI_assert(channel_to_skip != nullptr);
+      BLI_assume_assert(channel_to_skip != nullptr);
       if (STREQ(channel_to_skip, fcu->rna_path)) {
         /* This is indeed the channel we want to skip. */
         num_channels_to_skip--;
@@ -1214,7 +1214,7 @@ static void nlaevalchan_snapshot_free(NlaEvalChannelSnapshot *nec_snapshot)
 static void nlaevalchan_snapshot_copy(NlaEvalChannelSnapshot *dst,
                                       const NlaEvalChannelSnapshot *src)
 {
-  BLI_assert(dst->channel == src->channel);
+  BLI_assume_assert(dst->channel == src->channel);
 
   memcpy(dst->values, src->values, sizeof(float) * dst->length);
 }
@@ -1410,7 +1410,7 @@ static void nlaevalchan_get_default_values(NlaEvalChannel *nec, float *r_values)
    * in NLA strips a lot, e.g. scale) are set correctly.
    */
   if (RNA_property_array_check(prop)) {
-    BLI_assert(length == RNA_property_array_length(ptr, prop));
+    BLI_assume_assert(length == RNA_property_array_length(ptr, prop));
     bool *tmp_bool;
     int *tmp_int;
 
@@ -1439,7 +1439,7 @@ static void nlaevalchan_get_default_values(NlaEvalChannel *nec, float *r_values)
     }
   }
   else {
-    BLI_assert(length == 1);
+    BLI_assume_assert(length == 1);
 
     switch (RNA_property_type(prop)) {
       case PROP_BOOLEAN:
@@ -1982,7 +1982,7 @@ static bool nla_combine_quaternion_get_inverted_strip_values(const float lower_v
 static void nlaevalchan_assert_nonNull(const NlaEvalChannelSnapshot *necs)
 {
   UNUSED_VARS_NDEBUG(necs);
-  BLI_assert(necs != nullptr && necs->channel != nullptr);
+  BLI_assume_assert(necs != nullptr && necs->channel != nullptr);
 }
 
 /* Assert that the channels given can be blended or combined together. */
@@ -1993,8 +1993,8 @@ static void nlaevalchan_assert_blendOrcombine_compatible(
 {
   UNUSED_VARS_NDEBUG(lower_necs, upper_necs, blended_necs);
   BLI_assert(!ELEM(nullptr, lower_necs, blended_necs));
-  BLI_assert(upper_necs == nullptr || lower_necs->length == upper_necs->length);
-  BLI_assert(lower_necs->length == blended_necs->length);
+  BLI_assume_assert(upper_necs == nullptr || lower_necs->length == upper_necs->length);
+  BLI_assume_assert(lower_necs->length == blended_necs->length);
 }
 
 /**
@@ -2024,7 +2024,7 @@ static void nlaevalchan_assert_blendOrcombine_compatible_quaternion(
     NlaEvalChannelSnapshot *blended_necs)
 {
   nlaevalchan_assert_blendOrcombine_compatible(lower_necs, upper_necs, blended_necs);
-  BLI_assert(lower_necs->length == 4);
+  BLI_assume_assert(lower_necs->length == 4);
 }
 
 static void nlaevalchan_copy_values(NlaEvalChannelSnapshot *dst, const NlaEvalChannelSnapshot *src)
@@ -2940,7 +2940,7 @@ static void nlastrip_evaluate_meta(const int evaluation_mode,
    * equivalent. The output of nlastrips_ctime_get_strip() may return a list of strips. The only
    * case difference should be the evaluation order.
    */
-  BLI_assert(ELEM(evaluation_mode,
+  BLI_assume_assert(ELEM(evaluation_mode,
                   STRIP_EVAL_BLEND,
                   STRIP_EVAL_BLEND_GET_INVERTED_LOWER_SNAPSHOT,
                   STRIP_EVAL_NOBLEND));
@@ -3700,7 +3700,7 @@ NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
   /* The PointerRNA needs to point to an ID because animsys_evaluate_nla_for_keyframing uses
    * F-Curve paths to resolve properties. Since F-Curve paths are always relative to the ID this
    * would fail if the PointerRNA was e.g. a bone. */
-  BLI_assert(RNA_struct_is_ID(ptr->type));
+  BLI_assume_assert(RNA_struct_is_ID(ptr->type));
 
   /* No remapping needed if NLA is off or no action. */
   if ((adt == nullptr) || (adt->action == nullptr) || (adt->nla_tracks.first == nullptr) ||
@@ -3730,7 +3730,7 @@ NlaKeyframingContext *BKE_animsys_get_nla_keyframing_context(
     nlaeval_init(&ctx->lower_eval_data);
     animsys_evaluate_nla_for_keyframing(ptr, adt, anim_eval_context, ctx);
 
-    BLI_assert(ELEM(ctx->strip.act, nullptr, adt->action));
+    BLI_assume_assert(ELEM(ctx->strip.act, nullptr, adt->action));
     BLI_addtail(cache, ctx);
   }
 
@@ -3800,7 +3800,7 @@ void BKE_animsys_nla_remap_keyframe_values(NlaKeyframingContext *context,
   key.prop = prop;
 
   NlaEvalChannel *nec = nlaevalchan_verify_key(eval_data, nullptr, &key);
-  BLI_assert(nec);
+  BLI_assume_assert(nec);
   if (nec->base_snapshot.length != count) {
     BLI_assert_msg(0, "invalid value count");
     nlaeval_snapshot_free_data(&blended_snapshot);
@@ -4168,7 +4168,7 @@ void BKE_animsys_update_driver_array(ID *id)
 
 void BKE_animsys_eval_driver_unshare(Depsgraph *depsgraph, ID *id_eval)
 {
-  BLI_assert(DEG_is_evaluated(id_eval));
+  BLI_assume_assert(DEG_is_evaluated(id_eval));
 
   AnimData *adt = BKE_animdata_from_id(id_eval);
   PointerRNA id_ptr = RNA_id_pointer_create(id_eval);
@@ -4199,7 +4199,7 @@ void BKE_animsys_eval_driver_unshare(Depsgraph *depsgraph, ID *id_eval)
 
 void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCurve *fcu_orig)
 {
-  BLI_assert(fcu_orig != nullptr);
+  BLI_assume_assert(fcu_orig != nullptr);
 
   /* TODO(sergey): De-duplicate with BKE animsys. */
   bool ok = false;

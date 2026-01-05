@@ -65,7 +65,7 @@ class RandomNumberGenerator {
    */
   int32_t get_int32(int32_t max_exclusive)
   {
-    BLI_assert(max_exclusive > 0);
+    BLI_assume_assert(max_exclusive > 0);
     return this->get_int32() % max_exclusive;
   }
 
@@ -88,7 +88,7 @@ class RandomNumberGenerator {
   template<typename T> void shuffle(MutableSpan<T> values)
   {
     /* Cannot shuffle arrays of this size yet. */
-    BLI_assert(values.size() <= INT32_MAX);
+    BLI_assume_assert(values.size() <= INT32_MAX);
 
     for (int i = values.size() - 1; i >= 2; i--) {
       int j = this->get_int32(i);

@@ -341,7 +341,7 @@ static void interpolate_curve_shapes(bke::CurvesGeometry &child_curves,
       const IndexRange points = child_points_by_curve[child_curve_i];
       const int neighbor_count = all_neighbor_counts[child_curve_i];
       const float3 child_up = points_up[child_curve_i];
-      BLI_assert(math::is_unit_scale(child_up));
+      BLI_assume_assert(math::is_unit_scale(child_up));
       const float3 &child_root_position = point_positions[child_curve_i];
       MutableSpan<float3> child_positions = children_positions.slice(points);
 
@@ -364,7 +364,7 @@ static void interpolate_curve_shapes(bke::CurvesGeometry &child_curves,
         const Span<float3> neighbor_positions = guide_positions.slice(guide_points);
         const float3 &neighbor_root = neighbor_positions.first();
         const float3 neighbor_up = guides_up[neighbor_index];
-        BLI_assert(math::is_unit_scale(neighbor_up));
+        BLI_assume_assert(math::is_unit_scale(neighbor_up));
 
         const bool is_same_up_vector = neighbor_up == child_up;
 
@@ -511,7 +511,7 @@ static void interpolate_curve_attributes(bke::CurvesGeometry &child_curves,
       dst_generic.finish();
     }
     else {
-      BLI_assert(iter.domain == AttrDomain::Point);
+      BLI_assume_assert(iter.domain == AttrDomain::Point);
       const GVArraySpan src_generic = *iter.get(AttrDomain::Point, type);
       GSpanAttributeWriter dst_generic = children_attributes.lookup_or_add_for_write_only_span(
           iter.name, AttrDomain::Point, type);

@@ -49,7 +49,7 @@ static void draw_item_socket(CustomSocketDrawParams &params, const int index)
   }
   const auto &menu_switch_storage = *static_cast<const NodeMenuSwitch *>(
       menu_switch_node->storage);
-  BLI_assert(menu_switch_storage.data_type == SOCK_INT);
+  BLI_assume_assert(menu_switch_storage.data_type == SOCK_INT);
   const NodeEnumItem *found_item = nullptr;
   for (const int i : IndexRange(menu_switch_storage.enum_definition.items_num)) {
     const NodeEnumItem &item = menu_switch_storage.enum_definition.items_array[i];
@@ -196,7 +196,7 @@ static void node_init(bNodeTree *tree, bNode *node)
   data->data_type = tree->type == NTREE_GEOMETRY ? SOCK_FLOAT : SOCK_RGBA;
   data->next_identifier = 0;
 
-  BLI_assert(data->items == nullptr);
+  BLI_assume_assert(data->items == nullptr);
   const int default_items_num = 2;
   data->items = MEM_new_array_for_free<IndexSwitchItem>(default_items_num, __func__);
   for (const int i : IndexRange(default_items_num)) {
@@ -540,7 +540,7 @@ std::unique_ptr<LazyFunction> get_index_switch_node_lazy_function(
     const bNode &node, GeometryNodesLazyFunctionGraphInfo &lf_graph_info)
 {
   using namespace node_geo_index_switch_cc;
-  BLI_assert(node.type_legacy == GEO_NODE_INDEX_SWITCH);
+  BLI_assume_assert(node.type_legacy == GEO_NODE_INDEX_SWITCH);
   return std::make_unique<LazyFunctionForIndexSwitchNode>(node, lf_graph_info);
 }
 

@@ -572,13 +572,13 @@ namespace curves {
  */
 inline int segments_num(const int points_num, const bool cyclic)
 {
-  BLI_assert(points_num > 0);
+  BLI_assume_assert(points_num > 0);
   return (cyclic && points_num > 1) ? points_num : points_num - 1;
 }
 
 inline float2 encode_surface_bary_coord(const float3 &v)
 {
-  BLI_assert(std::abs(v.x + v.y + v.z - 1.0f) < 0.00001f);
+  BLI_assume_assert(std::abs(v.x + v.y + v.z - 1.0f) < 0.00001f);
   return {v.x, v.y};
 }
 
@@ -840,7 +840,7 @@ float4 calculate_basis(const float parameter);
 template<typename T>
 T interpolate(const T &a, const T &b, const T &c, const T &d, const float parameter)
 {
-  BLI_assert(0.0f <= parameter && parameter <= 1.0f);
+  BLI_assume_assert(0.0f <= parameter && parameter <= 1.0f);
   const float4 weights = calculate_basis(parameter);
   if constexpr (is_same_any_v<T, float, float2, float3>) {
     /* Save multiplications by adjusting weights after mix. */
@@ -1043,7 +1043,7 @@ inline const std::array<int, CURVE_TYPES_NUM> &CurvesGeometry::curve_type_counts
   if (this->runtime->check_type_counts) {
     const std::array<int, CURVE_TYPES_NUM> actual_type_counts = calculate_type_counts(
         this->curve_types());
-    BLI_assert(this->runtime->type_counts == actual_type_counts);
+    BLI_assume_assert(this->runtime->type_counts == actual_type_counts);
     this->runtime->check_type_counts = false;
   }
 #endif
@@ -1074,7 +1074,7 @@ inline Span<int> CurvesGeometry::bezier_evaluated_offsets_for_curve(const int cu
 inline IndexRange CurvesGeometry::lengths_range_for_curve(const int curve_index,
                                                           const bool cyclic) const
 {
-  BLI_assert(cyclic == this->cyclic()[curve_index]);
+  BLI_assume_assert(cyclic == this->cyclic()[curve_index]);
   const IndexRange points = this->evaluated_points_by_curve()[curve_index];
   const int start = points.start() + curve_index;
   return {start, curves::segments_num(points.size(), cyclic)};

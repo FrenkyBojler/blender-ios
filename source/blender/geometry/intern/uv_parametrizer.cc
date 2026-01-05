@@ -17,6 +17,7 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
+#include "BLI_assume.hh"
 #include "BLI_math_vector.h"
 #include "BLI_polyfill_2d.h"
 #include "BLI_polyfill_2d_beautify.h"
@@ -3054,7 +3055,7 @@ static void p_chart_extrema_verts(PChart *chart, PVert **pin1, PVert **pin2)
 
 static void p_chart_lscm_begin(PChart *chart, bool live, bool abf)
 {
-  BLI_assert(chart->context == nullptr);
+  BLI_assume_assert(chart->context == nullptr);
 
   bool select = false;
   bool deselect = false;
@@ -3767,7 +3768,7 @@ ParamHandle::~ParamHandle()
 
 void uv_parametrizer_aspect_ratio(ParamHandle *phandle, const float aspect_y)
 {
-  BLI_assert(aspect_y > 0.0f);
+  BLI_assume_assert(aspect_y > 0.0f);
   phandle->aspect_y = aspect_y;
 }
 
@@ -3925,8 +3926,8 @@ void uv_parametrizer_face_add(ParamHandle *phandle,
                               const bool *pin,
                               const bool *select)
 {
-  BLI_assert(nverts >= 3);
-  BLI_assert(phandle->state == PHANDLE_STATE_ALLOCATED);
+  BLI_assume_assert(nverts >= 3);
+  BLI_assume_assert(phandle->state == PHANDLE_STATE_ALLOCATED);
 
   if (nverts > 3) {
     /* Protect against (manifold) geometry which has a non-manifold triangulation.
@@ -3944,7 +3945,7 @@ void uv_parametrizer_face_add(ParamHandle *phandle,
        * For pentagons and higher, we might miss internal duplicate triangles, but note
        * that such cases are rare if the source geometry is manifold and non-intersecting. */
       const int pm = int(permute.size());
-      BLI_assert(pm > 3);
+      BLI_assume_assert(pm > 3);
       int i0 = permute[i];
       int i1 = permute[(i + 1) % pm];
       int i2 = permute[(i + 2) % pm];
@@ -4010,7 +4011,7 @@ void uv_parametrizer_face_add(ParamHandle *phandle,
 
 void uv_parametrizer_edge_set_seam(ParamHandle *phandle, const ParamKey *vkeys)
 {
-  BLI_assert(phandle->state == PHANDLE_STATE_ALLOCATED);
+  BLI_assume_assert(phandle->state == PHANDLE_STATE_ALLOCATED);
 
   PEdge *e = p_edge_lookup(phandle, vkeys);
   if (e) {
@@ -4025,7 +4026,7 @@ void uv_parametrizer_construct_end(ParamHandle *phandle,
 {
   int i, j;
 
-  BLI_assert(phandle->state == PHANDLE_STATE_ALLOCATED);
+  BLI_assume_assert(phandle->state == PHANDLE_STATE_ALLOCATED);
 
   phandle->ncharts = p_connect_pairs(phandle, topology_from_uvs);
   phandle->charts = p_split_charts(phandle, phandle->construction_chart, phandle->ncharts);
@@ -4069,7 +4070,7 @@ void uv_parametrizer_construct_end(ParamHandle *phandle,
 
 void uv_parametrizer_lscm_begin(ParamHandle *phandle, bool live, bool abf)
 {
-  BLI_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
+  BLI_assume_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
   phandle->state = PHANDLE_STATE_LSCM;
 
   for (int i = 0; i < phandle->ncharts; i++) {
@@ -4082,7 +4083,7 @@ void uv_parametrizer_lscm_begin(ParamHandle *phandle, bool live, bool abf)
 
 void uv_parametrizer_lscm_solve(ParamHandle *phandle, int *count_changed, int *count_failed)
 {
-  BLI_assert(phandle->state == PHANDLE_STATE_LSCM);
+  BLI_assume_assert(phandle->state == PHANDLE_STATE_LSCM);
 
   for (int i = 0; i < phandle->ncharts; i++) {
     PChart *chart = phandle->charts[i];
@@ -4120,7 +4121,7 @@ void uv_parametrizer_lscm_solve(ParamHandle *phandle, int *count_changed, int *c
 
 void uv_parametrizer_lscm_end(ParamHandle *phandle)
 {
-  BLI_assert(phandle->state == PHANDLE_STATE_LSCM);
+  BLI_assume_assert(phandle->state == PHANDLE_STATE_LSCM);
 
   for (int i = 0; i < phandle->ncharts; i++) {
     p_chart_lscm_end(phandle->charts[i]);
@@ -4134,7 +4135,7 @@ void uv_parametrizer_lscm_end(ParamHandle *phandle)
 
 void uv_parametrizer_stretch_begin(ParamHandle *phandle)
 {
-  BLI_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
+  BLI_assume_assert(phandle->state == PHANDLE_STATE_CONSTRUCTED);
   phandle->state = PHANDLE_STATE_STRETCH;
 
   phandle->rng = BLI_rng_new(31415926);
@@ -4158,13 +4159,13 @@ void uv_parametrizer_stretch_begin(ParamHandle *phandle)
 
 void uv_parametrizer_stretch_blend(ParamHandle *phandle, float blend)
 {
-  BLI_assert(phandle->state == PHANDLE_STATE_STRETCH);
+  BLI_assume_assert(phandle->state == PHANDLE_STATE_STRETCH);
   phandle->blend = blend;
 }
 
 void uv_parametrizer_stretch_iter(ParamHandle *phandle)
 {
-  BLI_assert(phandle->state == PHANDLE_STATE_STRETCH);
+  BLI_assume_assert(phandle->state == PHANDLE_STATE_STRETCH);
   for (int i = 0; i < phandle->ncharts; i++) {
     p_chart_stretch_minimize(phandle->charts[i], phandle->rng);
   }
@@ -4172,7 +4173,7 @@ void uv_parametrizer_stretch_iter(ParamHandle *phandle)
 
 void uv_parametrizer_stretch_end(ParamHandle *phandle)
 {
-  BLI_assert(phandle->state == PHANDLE_STATE_STRETCH);
+  BLI_assume_assert(phandle->state == PHANDLE_STATE_STRETCH);
   phandle->state = PHANDLE_STATE_CONSTRUCTED;
 }
 
@@ -4738,9 +4739,9 @@ static bool p_chart_correct_degenerate_triangles2(PChart *chart, float min_area,
       e = e->next;
     } while (e != f->edge);
 
-    BLI_assert(max_edge);
-    BLI_assert(min_edge);
-    BLI_assert(middle_edge);
+    BLI_assume_assert(max_edge);
+    BLI_assume_assert(min_edge);
+    BLI_assume_assert(middle_edge);
 
     bool small_uniside_tri = (face_area <= min_area) && (min_edge == max_edge);
 
@@ -4750,13 +4751,13 @@ static bool p_chart_correct_degenerate_triangles2(PChart *chart, float min_area,
     }
 
     if (min_edge == max_edge) {
-      BLI_assert(face_area > min_area);
+      BLI_assume_assert(face_area > min_area);
       f->flag |= PFACE_DONE;
       continue;
     }
 
-    BLI_assert(middle_edge != max_edge);
-    BLI_assert(middle_edge != min_edge);
+    BLI_assume_assert(middle_edge != max_edge);
+    BLI_assume_assert(middle_edge != min_edge);
 
     float M[3][3];
     if (!p_edge_matrix(M, max_edge)) {
@@ -4869,13 +4870,13 @@ static bool UNUSED_FUNCTION_NO_SLIM(p_chart_correct_degenerate_triangles)(PChart
     else {
 #ifndef NDEBUG
       float f_area = p_face_area(f);
-      BLI_assert(f_area > (min_area - CORR_ZERO_AREA_EPS));
+      BLI_assume_assert(f_area > (min_area - CORR_ZERO_AREA_EPS));
 
       PVert *vert1 = f->edge->vert;
       PVert *vert2 = f->edge->next->vert;
       PVert *vert3 = f->edge->next->next->vert;
 
-      BLI_assert(p_validate_triangle_angles(vert1, vert2, vert3, min_angle_cos));
+      BLI_assume_assert(p_validate_triangle_angles(vert1, vert2, vert3, min_angle_cos));
 #endif
     }
 

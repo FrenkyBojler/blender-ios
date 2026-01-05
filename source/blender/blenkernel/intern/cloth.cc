@@ -1476,8 +1476,8 @@ static bool cloth_build_springs(ClothModifierData *clmd, const Mesh *mesh)
 
   /* NOTE: handling ownership of springs and edgeset is quite sloppy
    * currently they are never initialized but assert just to be sure */
-  BLI_assert(cloth->springs == nullptr);
-  BLI_assert(cloth->edgeset.is_empty());
+  BLI_assume_assert(cloth->springs == nullptr);
+  BLI_assume_assert(cloth->edgeset.is_empty());
 
   cloth->springs = nullptr;
 
@@ -1582,7 +1582,7 @@ static bool cloth_build_springs(ClothModifierData *clmd, const Mesh *mesh)
 
   if (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_SEW) {
     /* cloth->sew_edge_graph should not exist before this */
-    BLI_assert(cloth->sew_edge_graph.is_empty());
+    BLI_assume_assert(cloth->sew_edge_graph.is_empty());
   }
 
   /* Structural springs. */

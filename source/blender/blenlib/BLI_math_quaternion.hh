@@ -153,7 +153,7 @@ template<typename T> QuaternionBase<T> QuaternionBase<T>::swing(const Axis axis)
   /* Compute swing by multiplying the original quaternion by inverted twist. */
   QuaternionBase<T> swing = input * invert_normalized(input.twist(axis));
 
-  BLI_assert(math::abs(VecBase<T, 4>(swing)[axis.as_int() + 1]) <
+  BLI_assume_assert(math::abs(VecBase<T, 4>(swing)[axis.as_int() + 1]) <
              0.0002f /*BLI_ASSERT_UNIT_EPSILON*/);
   return swing;
 }
@@ -176,7 +176,7 @@ template<typename T> QuaternionBase<T> QuaternionBase<T>::twist(const Axis axis)
 template<typename T>
 QuaternionBase<T> QuaternionBase<T>::wrapped_around(const QuaternionBase<T> &reference) const
 {
-  BLI_assert(is_unit_scale(*this));
+  BLI_assume_assert(is_unit_scale(*this));
   const QuaternionBase<T> &input = *this;
   T len;
   QuaternionBase<T> reference_normalized = normalize_and_get_length(reference, len);
@@ -201,7 +201,7 @@ template<typename T>
 
 template<typename T> [[nodiscard]] QuaternionBase<T> pow(const QuaternionBase<T> &q, const T &y)
 {
-  BLI_assert(is_unit_scale(q));
+  BLI_assume_assert(is_unit_scale(q));
   /* Reference material:
    * https://en.wikipedia.org/wiki/Quaternion
    *
@@ -241,7 +241,7 @@ template<typename T> [[nodiscard]] inline QuaternionBase<T> invert(const Quatern
 template<typename T>
 [[nodiscard]] inline QuaternionBase<T> invert_normalized(const QuaternionBase<T> &q)
 {
-  BLI_assert(is_unit_scale(q));
+  BLI_assume_assert(is_unit_scale(q));
   return conjugate(q);
 }
 
@@ -272,7 +272,7 @@ template<typename T>
 {
   const T eps = T(1e-4);
 
-  BLI_assert(IN_RANGE_INCL(cosom, T(-1.0001), T(1.0001)));
+  BLI_assume_assert(IN_RANGE_INCL(cosom, T(-1.0001), T(1.0001)));
 
   VecBase<T, 2> w;
   T abs_cosom = math::abs(cosom);
@@ -303,8 +303,8 @@ template<typename T>
                                                    T t)
 {
   using Vec4T = VecBase<T, 4>;
-  BLI_assert(is_unit_scale(a));
-  BLI_assert(is_unit_scale(b));
+  BLI_assume_assert(is_unit_scale(a));
+  BLI_assume_assert(is_unit_scale(b));
   VecBase<T, 2> w = interpolate_dot_slerp(t, dot(a, b));
   return QuaternionBase<T>(w[0] * Vec4T(a) + w[1] * Vec4T(b));
 }
@@ -347,7 +347,7 @@ DualQuaternionBase<T>::DualQuaternionBase(const QuaternionBase<T> &non_dual,
                                           const QuaternionBase<T> &dual)
     : quat(non_dual), trans(dual), scale_weight(0), quat_weight(1)
 {
-  BLI_assert(is_unit_scale(non_dual));
+  BLI_assume_assert(is_unit_scale(non_dual));
 }
 
 template<typename T>
@@ -356,7 +356,7 @@ DualQuaternionBase<T>::DualQuaternionBase(const QuaternionBase<T> &non_dual,
                                           const MatBase<T, 4, 4> &scale_mat)
     : quat(non_dual), trans(dual), scale(scale_mat), scale_weight(1), quat_weight(1)
 {
-  BLI_assert(is_unit_scale(non_dual));
+  BLI_assume_assert(is_unit_scale(non_dual));
 }
 
 /* -------------- Operators -------------- */
@@ -410,7 +410,7 @@ DualQuaternionBase<T> &DualQuaternionBase<T>::operator+=(const DualQuaternionBas
 
 template<typename T> DualQuaternionBase<T> &DualQuaternionBase<T>::operator*=(const T &t) &
 {
-  BLI_assert(t >= 0);
+  BLI_assume_assert(t >= 0);
   DualQuaternionBase<T> &q = *this;
 
   q.quat.w *= t;
@@ -487,8 +487,8 @@ template<typename T>
                                             const VecBase<T, 3> &point,
                                             MatBase<T, 3, 3> *r_crazy_space_mat = nullptr)
 {
-  BLI_assert(is_normalized(dq));
-  BLI_assert(is_unit_scale(dq.quat));
+  BLI_assume_assert(is_normalized(dq));
+  BLI_assume_assert(is_unit_scale(dq.quat));
   /**
    * From:
    * "Skinning with Dual Quaternions"
@@ -623,7 +623,7 @@ namespace blender::math {
 template<typename T, typename AngleT = AngleRadian>
 AxisAngleBase<T, AngleT> to_axis_angle(const QuaternionBase<T> &quat)
 {
-  BLI_assert(is_unit_scale(quat));
+  BLI_assume_assert(is_unit_scale(quat));
 
   VecBase<T, 3> axis = VecBase<T, 3>(quat.x, quat.y, quat.z);
   T cos_half_angle = quat.w;
@@ -632,7 +632,7 @@ AxisAngleBase<T, AngleT> to_axis_angle(const QuaternionBase<T> &quat)
   if (sin_half_angle < T(0.0005)) {
     using AngleAxisT = typename AxisAngleBase<T, AngleT>::vec3_type;
     const AngleAxisT identity_axis = AxisAngleBase<T, AngleT>::identity().axis();
-    BLI_assert(abs(cos_half_angle) > 0.0005);
+    BLI_assume_assert(abs(cos_half_angle) > 0.0005);
     AxisAngleBase<T, AngleT> identity(identity_axis * sign(cos_half_angle), AngleT(0));
     return identity;
   }
@@ -654,7 +654,7 @@ AxisAngleBase<T, AngleT> to_axis_angle(const QuaternionBase<T> &quat)
 template<typename T> EulerXYZBase<T> to_euler(const QuaternionBase<T> &quat)
 {
   using Mat3T = MatBase<T, 3, 3>;
-  BLI_assert(is_unit_scale(quat));
+  BLI_assume_assert(is_unit_scale(quat));
   Mat3T unit_mat = from_rotation<Mat3T>(quat);
   return to_euler<T>(unit_mat);
 }
@@ -662,7 +662,7 @@ template<typename T> EulerXYZBase<T> to_euler(const QuaternionBase<T> &quat)
 template<typename T> Euler3Base<T> to_euler(const QuaternionBase<T> &quat, EulerOrder order)
 {
   using Mat3T = MatBase<T, 3, 3>;
-  BLI_assert(is_unit_scale(quat));
+  BLI_assume_assert(is_unit_scale(quat));
   Mat3T unit_mat = from_rotation<Mat3T>(quat);
   return to_euler<T>(unit_mat, order);
 }
@@ -692,7 +692,7 @@ template<typename T> QuaternionBase<T> QuaternionBase<T>::expmap(const VecBase<T
 template<typename T> VecBase<T, 3> QuaternionBase<T>::expmap() const
 {
   using AxisAngleT = AxisAngleBase<T, AngleRadianBase<T>>;
-  BLI_assert(is_unit_scale(*this));
+  BLI_assume_assert(is_unit_scale(*this));
   const AxisAngleT axis_angle = to_axis_angle(*this);
   return axis_angle.axis() * axis_angle.angle().radian();
 }

@@ -41,14 +41,14 @@ GeometryComponentPtr CurveComponent::copy() const
 
 void CurveComponent::clear()
 {
-  BLI_assert(this->is_mutable() || this->is_expired());
+  BLI_assume_assert(this->is_mutable() || this->is_expired());
   if (curves_ != nullptr) {
     if (ownership_ == GeometryOwnershipType::Owned) {
       BKE_id_free(nullptr, curves_);
     }
     if (curve_for_render_ != nullptr) {
       /* The curve created by this component should not have any edit mode data. */
-      BLI_assert(curve_for_render_->editfont == nullptr && curve_for_render_->editnurb == nullptr);
+      BLI_assume_assert(curve_for_render_->editfont == nullptr && curve_for_render_->editnurb == nullptr);
       BKE_id_free(nullptr, curve_for_render_);
       curve_for_render_ = nullptr;
     }
@@ -64,7 +64,7 @@ bool CurveComponent::has_curves() const
 
 void CurveComponent::replace(Curves *curves, GeometryOwnershipType ownership)
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   this->clear();
   curves_ = curves;
   ownership_ = ownership;
@@ -72,7 +72,7 @@ void CurveComponent::replace(Curves *curves, GeometryOwnershipType ownership)
 
 Curves *CurveComponent::release()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   Curves *curves = curves_;
   curves_ = nullptr;
   return curves;
@@ -85,7 +85,7 @@ const Curves *CurveComponent::get() const
 
 Curves *CurveComponent::get_for_write()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   if (ownership_ == GeometryOwnershipType::ReadOnly) {
     curves_ = BKE_curves_copy_for_eval(curves_);
     ownership_ = GeometryOwnershipType::Owned;
@@ -105,7 +105,7 @@ bool CurveComponent::owns_direct_data() const
 
 void CurveComponent::ensure_owns_direct_data()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   if (ownership_ != GeometryOwnershipType::Owned) {
     if (curves_) {
       curves_ = BKE_curves_copy_for_eval(curves_);

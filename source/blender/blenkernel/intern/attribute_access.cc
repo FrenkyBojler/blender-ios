@@ -642,7 +642,7 @@ bool CustomDataAttributeProvider::foreach_attribute(
     if (this->type_is_supported(cd_type)) {
       const auto get_fn = [&]() {
         const CPPType *type = custom_data_type_to_cpp_type(cd_type);
-        BLI_assert(type);
+        BLI_assume_assert(type);
         GSpan data{*type, layer.data, custom_data_access_.get_element_num(owner)};
         return GAttributeReader{GVArray::from_span(data), domain_, layer.sharing_info};
       };
@@ -726,7 +726,7 @@ GAttributeReader AttributeAccessor::lookup(const StringRef attribute_id,
 GAttributeReader AttributeIter::get(std::optional<AttrDomain> domain,
                                     std::optional<AttrType> data_type) const
 {
-  BLI_assert(this->accessor != nullptr);
+  BLI_assume_assert(this->accessor != nullptr);
   return adapt_domain_and_type_if_necessary(this->get(), domain, data_type, *accessor);
 }
 
@@ -1103,7 +1103,7 @@ void copy_attributes(const AttributeAccessor src_attributes,
                      const AttributeFilter &attribute_filter,
                      MutableAttributeAccessor dst_attributes)
 {
-  BLI_assert(src_attributes.domain_size(src_domain) == dst_attributes.domain_size(dst_domain));
+  BLI_assume_assert(src_attributes.domain_size(src_domain) == dst_attributes.domain_size(dst_domain));
   gather_attributes(src_attributes,
                     src_domain,
                     dst_domain,

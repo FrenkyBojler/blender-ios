@@ -162,7 +162,7 @@ static void merge_vert_dir(ShrinkwrapBoundaryVertData *vdata,
                            const float edge_dir[3],
                            signed char side)
 {
-  BLI_assert(index >= 0);
+  BLI_assume_assert(index >= 0);
   float *direction = vdata[index].direction;
 
   /* Invert the direction vector if either:
@@ -451,7 +451,7 @@ bool BKE_shrinkwrap_project_normal(char options,
 #endif
     }
 
-    BLI_assert(hit_tmp.dist <= hit->dist);
+    BLI_assume_assert(hit_tmp.dist <= hit->dist);
 
     memcpy(hit, &hit_tmp, sizeof(hit_tmp));
     return true;

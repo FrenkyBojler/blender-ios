@@ -16,7 +16,7 @@
 #include "BLI_utildefines_variadic.h"  // IWYU prama: export
 
 /* We could remove in future. */
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 
 /* include after _VA_NARGS macro */
 #include "BLI_compiler_typecheck.h"
@@ -179,25 +179,25 @@ extern "C" {
 #ifdef __cplusplus
 inline constexpr int64_t is_power_of_2(const int64_t x)
 {
-  BLI_assert(x >= 0);
+  BLI_assume_assert(x >= 0);
   return (x & (x - 1)) == 0;
 }
 
 inline constexpr int64_t log2_floor(const int64_t x)
 {
-  BLI_assert(x >= 0);
+  BLI_assume_assert(x >= 0);
   return x <= 1 ? 0 : 1 + log2_floor(x >> 1);
 }
 
 inline constexpr int64_t log2_ceil(const int64_t x)
 {
-  BLI_assert(x >= 0);
+  BLI_assume_assert(x >= 0);
   return (is_power_of_2(int(x))) ? log2_floor(x) : log2_floor(x) + 1;
 }
 
 inline constexpr int64_t power_of_2_max(const int64_t x)
 {
-  BLI_assert(x >= 0);
+  BLI_assume_assert(x >= 0);
   return 1ll << log2_ceil(x);
 }
 #endif
@@ -403,7 +403,7 @@ extern bool BLI_memory_is_zero(const void *arr, size_t arr_size);
 #define INIT_DEFAULT_STRUCT_AFTER(struct_dst, member) \
   { \
     const typename std::remove_reference<decltype(*(struct_dst))>::type struct_src; \
-    BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO_OR_EQUAL(struct_dst, &struct_src, member)); \
+    BLI_assume_assert(MEMCMP_STRUCT_AFTER_IS_ZERO_OR_EQUAL(struct_dst, &struct_src, member)); \
     MEMCPY_STRUCT_AFTER(struct_dst, &struct_src, member); \
   }
 

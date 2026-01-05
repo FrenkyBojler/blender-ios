@@ -28,14 +28,13 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "BLI_assume.hh"
 #include "BLI_asan.h"
 #include "BLI_utildefines.h"
-
 #include "BLI_memiter.h" /* own include */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 #include "MEM_guardedalloc.h"
-
-#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* TODO: Valgrind. */
 
@@ -94,7 +93,7 @@ static void memiter_set_rewind_offset(BLI_memiter *mi)
   BLI_asan_unpoison(elem, sizeof(BLI_memiter_elem));
 
   elem->size = (offset_t)(((data_t *)mi->tail) - mi->data_curr);
-  BLI_assert(elem->size < 0);
+  BLI_assume_assert(elem->size < 0);
 }
 
 static void memiter_init(BLI_memiter *mi)
@@ -152,7 +151,7 @@ void *BLI_memiter_alloc(BLI_memiter *mi, uint elem_size)
         sizeof(BLI_memiter_chunk) + (chunk_size * sizeof(data_t)), "BLI_memiter_chunk"));
 
     if (mi->head == nullptr) {
-      BLI_assert(mi->tail == nullptr);
+      BLI_assume_assert(mi->tail == nullptr);
       mi->head = chunk;
     }
     else {
@@ -168,7 +167,7 @@ void *BLI_memiter_alloc(BLI_memiter *mi, uint elem_size)
     BLI_asan_poison(chunk->data, chunk_size * sizeof(data_t));
   }
 
-  BLI_assert(data_curr_next <= mi->data_last);
+  BLI_assume_assert(data_curr_next <= mi->data_last);
 
   BLI_memiter_elem *elem = (BLI_memiter_elem *)mi->data_curr;
 
@@ -287,11 +286,11 @@ bool BLI_memiter_iter_done(const BLI_memiter_handle *iter)
 
 BLI_INLINE void memiter_chunk_step(BLI_memiter_handle *iter)
 {
-  BLI_assert(iter->elem->size < 0);
+  BLI_assume_assert(iter->elem->size < 0);
   BLI_memiter_chunk *chunk = (BLI_memiter_chunk *)(((data_t *)iter->elem) + iter->elem->size);
   chunk = chunk->next;
   iter->elem = chunk ? (BLI_memiter_elem *)chunk->data : nullptr;
-  BLI_assert(iter->elem == nullptr || iter->elem->size >= 0);
+  BLI_assume_assert(iter->elem == nullptr || iter->elem->size >= 0);
 }
 
 void *BLI_memiter_iter_step_size(BLI_memiter_handle *iter, uint *r_size)
@@ -301,7 +300,7 @@ void *BLI_memiter_iter_step_size(BLI_memiter_handle *iter, uint *r_size)
     if (UNLIKELY(iter->elem->size < 0)) {
       memiter_chunk_step(iter);
     }
-    BLI_assert(iter->elem->size >= 0);
+    BLI_assume_assert(iter->elem->size >= 0);
     uint size = uint(iter->elem->size);
     *r_size = size; /* <-- only difference */
     data_t *data = iter->elem->data;
@@ -318,7 +317,7 @@ void *BLI_memiter_iter_step(BLI_memiter_handle *iter)
     if (UNLIKELY(iter->elem->size < 0)) {
       memiter_chunk_step(iter);
     }
-    BLI_assert(iter->elem->size >= 0);
+    BLI_assume_assert(iter->elem->size >= 0);
     uint size = uint(iter->elem->size);
     data_t *data = iter->elem->data;
     iter->elem = (BLI_memiter_elem *)&data[data_offset_from_size(size)];

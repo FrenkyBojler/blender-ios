@@ -542,7 +542,7 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
 {
   using namespace blender;
   using namespace blender::bke;
-  BLI_assert(ob->type == OB_MESH);
+  BLI_assume_assert(ob->type == OB_MESH);
   const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   if (!ob_eval) {
     return;
@@ -588,7 +588,7 @@ void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
 {
   using namespace blender;
   using namespace blender::bke;
-  BLI_assert(ob->type == OB_POINTCLOUD);
+  BLI_assume_assert(ob->type == OB_POINTCLOUD);
 
   const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   const GeometrySet geometry = object_get_evaluated_geometry_set(*ob_eval);
@@ -687,7 +687,7 @@ static void object_for_curve_to_mesh_free(Object *temp_object)
  */
 static void curve_to_mesh_eval_ensure(Object &object)
 {
-  BLI_assert(GS(static_cast<ID *>(object.data)->name) == ID_CU_LEGACY);
+  BLI_assume_assert(GS(static_cast<ID *>(object.data)->name) == ID_CU_LEGACY);
   Curve &curve = *static_cast<Curve *>(object.data);
   /* Clear all modifiers for the bevel object.
    *
@@ -866,7 +866,7 @@ static Mesh *mesh_new_from_mesh_object_with_layers(Depsgraph *depsgraph,
     Mesh *result_maybe_subdiv = BKE_mesh_wrapper_ensure_subdivision(result);
     if (result != result_maybe_subdiv) {
       /* Expected, but assert this is the case. */
-      BLI_assert(result->runtime->mesh_eval == result_maybe_subdiv);
+      BLI_assume_assert(result->runtime->mesh_eval == result_maybe_subdiv);
       if (result->runtime->mesh_eval == result_maybe_subdiv) {
         result->runtime->mesh_eval = nullptr;
         BKE_id_free(nullptr, result);
@@ -938,7 +938,7 @@ Mesh *BKE_mesh_new_from_object(Depsgraph *depsgraph,
 
   /* The result must have 0 users, since it's just a mesh which is free-dangling data-block.
    * All the conversion functions are supposed to ensure mesh is not counted. */
-  BLI_assert(new_mesh->id.us == 0);
+  BLI_assume_assert(new_mesh->id.us == 0);
 
   /* It is possible that mesh came from modifier stack evaluation, which preserves edit_mesh
    * pointer (which allows draw manager to access edit mesh when drawing). Normally this does
@@ -988,7 +988,7 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
                                         Object *object,
                                         bool preserve_all_data_layers)
 {
-  BLI_assert(ELEM(object->type, OB_FONT, OB_CURVES_LEGACY, OB_SURF, OB_MBALL, OB_MESH));
+  BLI_assume_assert(ELEM(object->type, OB_FONT, OB_CURVES_LEGACY, OB_SURF, OB_MBALL, OB_MESH));
 
   Mesh *mesh = BKE_mesh_new_from_object(depsgraph, object, preserve_all_data_layers, false, true);
   if (mesh == nullptr) {
@@ -1034,7 +1034,7 @@ Mesh *BKE_mesh_new_from_object_to_bmain(Main *bmain,
       nullptr, &mesh_in_bmain->id, foreach_libblock_make_usercounts_callback, nullptr, IDWALK_NOP);
 
   /* Make sure user count from BKE_mesh_add() is the one we expect here and bring it down to 0. */
-  BLI_assert(mesh_in_bmain->id.us == 1);
+  BLI_assume_assert(mesh_in_bmain->id.us == 1);
   id_us_min(&mesh_in_bmain->id);
 
   return mesh_in_bmain;
@@ -1121,9 +1121,9 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
 void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, bool process_shape_keys)
 {
   using namespace blender::bke;
-  BLI_assert(mesh_src->id.tag & ID_TAG_NO_MAIN);
+  BLI_assume_assert(mesh_src->id.tag & ID_TAG_NO_MAIN);
   if (ob) {
-    BLI_assert(mesh_dst == ob->data);
+    BLI_assume_assert(mesh_dst == ob->data);
   }
 
   const bool verts_num_changed = mesh_dst->verts_num != mesh_src->verts_num;
@@ -1189,7 +1189,7 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, bool pr
 
 void BKE_mesh_nomain_to_meshkey(Mesh *mesh_src, Mesh *mesh_dst, KeyBlock *kb)
 {
-  BLI_assert(mesh_src->id.tag & ID_TAG_NO_MAIN);
+  BLI_assume_assert(mesh_src->id.tag & ID_TAG_NO_MAIN);
 
   const int totvert = mesh_src->verts_num;
 

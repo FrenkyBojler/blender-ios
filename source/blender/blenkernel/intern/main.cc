@@ -200,7 +200,7 @@ static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main 
    *
    * NOTE: E.g. `id_1` may be null, in case `id_2` is a Library ID which path is the filepath of
    * `bmain_1`. */
-  BLI_assert(id_1 || id_2);
+  BLI_assume_assert(id_1 || id_2);
 
   /* Special handling for libraries, since their filepaths is used then, not their ID names.
    *
@@ -220,7 +220,7 @@ static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main 
     Library *lib_2 = reinterpret_cast<Library *>(id_2);
 
     if (lib_1 && lib_2) {
-      BLI_assert(STREQ(lib_1->runtime->filepath_abs, lib_2->runtime->filepath_abs));
+      BLI_assume_assert(STREQ(lib_1->runtime->filepath_abs, lib_2->runtime->filepath_abs));
     }
     if (lib_1) {
       BLI_assert(!STREQ(lib_1->runtime->filepath_abs, bmain_1->filepath));
@@ -228,7 +228,7 @@ static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main 
         BLI_assert(!STREQ(lib_1->runtime->filepath_abs, bmain_2->filepath));
       }
       else {
-        BLI_assert(STREQ(lib_1->runtime->filepath_abs, bmain_2->filepath));
+        BLI_assume_assert(STREQ(lib_1->runtime->filepath_abs, bmain_2->filepath));
       }
     }
     if (lib_2) {
@@ -237,7 +237,7 @@ static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main 
         BLI_assert(!STREQ(lib_2->runtime->filepath_abs, bmain_1->filepath));
       }
       else {
-        BLI_assert(STREQ(lib_2->runtime->filepath_abs, bmain_1->filepath));
+        BLI_assume_assert(STREQ(lib_2->runtime->filepath_abs, bmain_1->filepath));
       }
     }
 
@@ -246,8 +246,8 @@ static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main 
 
   /* Now both IDs are expected to be valid data, and caller is expected to have ensured already
    * that they have the same name. */
-  BLI_assert(id_1 && id_2);
-  BLI_assert(STREQ(id_1->name, id_2->name));
+  BLI_assume_assert(id_1 && id_2);
+  BLI_assume_assert(STREQ(id_1->name, id_2->name));
 
   if (!id_1->lib && !id_2->lib) {
     return true;
@@ -367,7 +367,7 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
         /* Archive libraries are never merged per-se, since they are only 'namespace' containers
          * for packed linked data. Existing matching archive libraries will be re-used for packed
          * IDs in the destination Main, or new ones will be created as needed. */
-        BLI_assert(lib_dst->archive_parent_library);
+        BLI_assume_assert(lib_dst->archive_parent_library);
         continue;
       }
       BLI_assert(!id_map_dst.contains(lib_dst->runtime->filepath_abs));
@@ -403,7 +403,7 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
     if (is_library) {
       Library *lib_src = reinterpret_cast<Library *>(id_iter_src);
       if (lib_src->flag & LIBRARY_FLAG_IS_ARCHIVE) {
-        BLI_assert(lib_src->archive_parent_library);
+        BLI_assume_assert(lib_src->archive_parent_library);
         continue;
       }
     }
@@ -425,7 +425,7 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
                        id_iter_src->name,
           {});
       if (is_library) {
-        BLI_assert(ids_dst.size() <= 1);
+        BLI_assume_assert(ids_dst.size() <= 1);
       }
       if (ids_dst.is_empty()) {
         main_merge_add_id_to_move(
@@ -503,7 +503,7 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
                                    ID_REMAP_TYPE_REMAP,
                                    id_remapper_libraries,
                                    ID_REMAP_DO_LIBRARY_POINTERS);
-      BLI_assert(id_iter_src->lib);
+      BLI_assume_assert(id_iter_src->lib);
     }
     BKE_libblock_management_main_add(bmain_dst, id_iter_src);
   }
@@ -530,7 +530,7 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
    * need to be re-sorted. */
   BKE_main_namemap_clear(*bmain_dst);
 
-  BLI_assert(BKE_main_namemap_validate(*bmain_dst));
+  BLI_assume_assert(BKE_main_namemap_validate(*bmain_dst));
 
   BKE_main_free(bmain_src);
   *r_bmain_src = nullptr;
@@ -587,7 +587,7 @@ static int main_relations_create_idlink_cb(LibraryIDLinkCallbackData *cb_data)
             entry->session_uid = self_id->session_uid;
             return entry;
           });
-      BLI_assert(entry->session_uid == self_id->session_uid);
+      BLI_assume_assert(entry->session_uid == self_id->session_uid);
       MainIDRelationsEntryItem *to_id_entry = static_cast<MainIDRelationsEntryItem *>(
           BLI_mempool_alloc(bmain_relations->entry_items_pool));
       to_id_entry->next = entry->to_ids;
@@ -606,7 +606,7 @@ static int main_relations_create_idlink_cb(LibraryIDLinkCallbackData *cb_data)
             entry->session_uid = (*id_pointer)->session_uid;
             return entry;
           });
-      BLI_assert(entry->session_uid == (*id_pointer)->session_uid);
+      BLI_assume_assert(entry->session_uid == (*id_pointer)->session_uid);
       MainIDRelationsEntryItem *from_id_entry = static_cast<MainIDRelationsEntryItem *>(
           BLI_mempool_alloc(bmain_relations->entry_items_pool));
       from_id_entry->next = entry->from_ids;
@@ -648,7 +648,7 @@ void BKE_main_relations_create(Main *bmain, const short flag)
           entry->session_uid = id->session_uid;
           return entry;
         });
-    BLI_assert(entry->session_uid == id->session_uid);
+    BLI_assume_assert(entry->session_uid == id->session_uid);
     UNUSED_VARS_NDEBUG(entry);
 
     BKE_library_foreach_ID_link(
@@ -739,7 +739,7 @@ MainLibraryWeakReferenceMap *BKE_main_library_weak_reference_create(Main *bmain)
     if (!BKE_idtype_idcode_append_is_reusable(GS(id_iter->name))) {
       continue;
     }
-    BLI_assert(BKE_idtype_idcode_is_linkable(GS(id_iter->name)));
+    BLI_assume_assert(BKE_idtype_idcode_is_linkable(GS(id_iter->name)));
 
     FOREACH_MAIN_LISTBASE_ID_BEGIN (lb, id_iter) {
       if (id_iter->library_weak_reference == nullptr) {
@@ -777,9 +777,9 @@ void BKE_main_library_weak_reference_add_item(
     const char *library_id_name,
     ID *new_id)
 {
-  BLI_assert(GS(library_id_name) == GS(new_id->name));
-  BLI_assert(new_id->library_weak_reference == nullptr);
-  BLI_assert(BKE_idtype_idcode_append_is_reusable(GS(new_id->name)));
+  BLI_assume_assert(GS(library_id_name) == GS(new_id->name));
+  BLI_assume_assert(new_id->library_weak_reference == nullptr);
+  BLI_assume_assert(BKE_idtype_idcode_append_is_reusable(GS(new_id->name)));
 
   const LibWeakRefKey key{library_filepath, library_id_name};
   /* With packed IDs and archive libraries, it is now possible to have several instances of the
@@ -802,15 +802,15 @@ void BKE_main_library_weak_reference_update_item(
     ID *old_id,
     ID *new_id)
 {
-  BLI_assert(GS(library_id_name) == GS(old_id->name));
-  BLI_assert(GS(library_id_name) == GS(new_id->name));
-  BLI_assert(old_id->library_weak_reference != nullptr);
-  BLI_assert(new_id->library_weak_reference == nullptr);
-  BLI_assert(STREQ(old_id->library_weak_reference->library_filepath, library_filepath));
-  BLI_assert(STREQ(old_id->library_weak_reference->library_id_name, library_id_name));
+  BLI_assume_assert(GS(library_id_name) == GS(old_id->name));
+  BLI_assume_assert(GS(library_id_name) == GS(new_id->name));
+  BLI_assume_assert(old_id->library_weak_reference != nullptr);
+  BLI_assume_assert(new_id->library_weak_reference == nullptr);
+  BLI_assume_assert(STREQ(old_id->library_weak_reference->library_filepath, library_filepath));
+  BLI_assume_assert(STREQ(old_id->library_weak_reference->library_id_name, library_id_name));
 
   const LibWeakRefKey key{library_filepath, library_id_name};
-  BLI_assert(library_weak_reference_mapping->map.lookup(key) == old_id);
+  BLI_assume_assert(library_weak_reference_mapping->map.lookup(key) == old_id);
   library_weak_reference_mapping->map.add_overwrite(key, new_id);
 
   new_id->library_weak_reference = old_id->library_weak_reference;
@@ -823,12 +823,12 @@ void BKE_main_library_weak_reference_remove_item(
     const char *library_id_name,
     ID *old_id)
 {
-  BLI_assert(GS(library_id_name) == GS(old_id->name));
-  BLI_assert(old_id->library_weak_reference != nullptr);
+  BLI_assume_assert(GS(library_id_name) == GS(old_id->name));
+  BLI_assume_assert(old_id->library_weak_reference != nullptr);
 
   const LibWeakRefKey key{library_filepath, library_id_name};
 
-  BLI_assert(library_weak_reference_mapping->map.lookup(key) == old_id);
+  BLI_assume_assert(library_weak_reference_mapping->map.lookup(key) == old_id);
   library_weak_reference_mapping->map.remove(key);
 
   MEM_SAFE_FREE(old_id->library_weak_reference);

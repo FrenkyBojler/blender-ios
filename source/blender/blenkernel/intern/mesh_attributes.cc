@@ -26,7 +26,7 @@ static void adapt_mesh_domain_corner_to_point_impl(const Mesh &mesh,
                                                    const VArray<T> &src,
                                                    MutableSpan<T> r_dst)
 {
-  BLI_assert(r_dst.size() == mesh.verts_num);
+  BLI_assume_assert(r_dst.size() == mesh.verts_num);
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const Span<int> corner_verts = mesh.corner_verts();
   const OffsetIndices<int> faces = mesh.faces();
@@ -51,7 +51,7 @@ void adapt_mesh_domain_corner_to_point_impl(const Mesh &mesh,
                                             const VArray<bool> &src,
                                             MutableSpan<bool> r_dst)
 {
-  BLI_assert(r_dst.size() == mesh.verts_num);
+  BLI_assume_assert(r_dst.size() == mesh.verts_num);
   const Span<int> corner_verts = mesh.corner_verts();
 
   r_dst.fill(true);
@@ -154,7 +154,7 @@ static void adapt_mesh_domain_corner_to_edge_impl(const Mesh &mesh,
                                                   const VArray<T> &old_values,
                                                   MutableSpan<T> r_values)
 {
-  BLI_assert(r_values.size() == mesh.edges_num);
+  BLI_assume_assert(r_values.size() == mesh.edges_num);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_edges = mesh.corner_edges();
 
@@ -181,7 +181,7 @@ void adapt_mesh_domain_corner_to_edge_impl(const Mesh &mesh,
                                            const VArray<bool> &old_values,
                                            MutableSpan<bool> r_values)
 {
-  BLI_assert(r_values.size() == mesh.edges_num);
+  BLI_assume_assert(r_values.size() == mesh.edges_num);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_edges = mesh.corner_edges();
 
@@ -265,7 +265,7 @@ void adapt_mesh_domain_face_to_corner_impl(const Mesh &mesh,
                                            const VArray<T> &old_values,
                                            MutableSpan<T> r_values)
 {
-  BLI_assert(r_values.size() == mesh.corners_num);
+  BLI_assume_assert(r_values.size() == mesh.corners_num);
   const OffsetIndices faces = mesh.faces();
 
   threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
@@ -294,7 +294,7 @@ void adapt_mesh_domain_face_to_edge_impl(const Mesh &mesh,
                                          const VArray<T> &old_values,
                                          MutableSpan<T> r_values)
 {
-  BLI_assert(r_values.size() == mesh.edges_num);
+  BLI_assume_assert(r_values.size() == mesh.edges_num);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_edges = mesh.corner_edges();
 
@@ -315,7 +315,7 @@ void adapt_mesh_domain_face_to_edge_impl(const Mesh &mesh,
                                          const VArray<bool> &old_values,
                                          MutableSpan<bool> r_values)
 {
-  BLI_assert(r_values.size() == mesh.edges_num);
+  BLI_assume_assert(r_values.size() == mesh.edges_num);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_edges = mesh.corner_edges();
 
@@ -417,7 +417,7 @@ void adapt_mesh_domain_edge_to_corner_impl(const Mesh &mesh,
                                            const VArray<T> &old_values,
                                            MutableSpan<T> r_values)
 {
-  BLI_assert(r_values.size() == mesh.corners_num);
+  BLI_assume_assert(r_values.size() == mesh.corners_num);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_edges = mesh.corner_edges();
 
@@ -445,7 +445,7 @@ void adapt_mesh_domain_edge_to_corner_impl(const Mesh &mesh,
                                            const VArray<bool> &old_values,
                                            MutableSpan<bool> r_values)
 {
-  BLI_assert(r_values.size() == mesh.corners_num);
+  BLI_assume_assert(r_values.size() == mesh.corners_num);
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_edges = mesh.corner_edges();
 
@@ -484,7 +484,7 @@ static void adapt_mesh_domain_edge_to_point_impl(const Mesh &mesh,
                                                  const VArray<T> &old_values,
                                                  MutableSpan<T> r_values)
 {
-  BLI_assert(r_values.size() == mesh.verts_num);
+  BLI_assume_assert(r_values.size() == mesh.verts_num);
   const Span<int2> edges = mesh.edges();
 
   attribute_math::DefaultMixer<T> mixer(r_values);
@@ -505,7 +505,7 @@ void adapt_mesh_domain_edge_to_point_impl(const Mesh &mesh,
                                           const VArray<bool> &old_values,
                                           MutableSpan<bool> r_values)
 {
-  BLI_assert(r_values.size() == mesh.verts_num);
+  BLI_assume_assert(r_values.size() == mesh.verts_num);
   const Span<int2> edges = mesh.edges();
 
   /* Multiple threads can write to the same index here, but they are only
@@ -739,7 +739,7 @@ class MeshVertexGroupsAttributeProvider final : public DynamicAttributesProvider
                                               const Span<MDeformVert> dverts,
                                               const int vertex_group_index) const
   {
-    BLI_assert(vertex_group_index >= 0);
+    BLI_assume_assert(vertex_group_index >= 0);
     if (dverts.is_empty()) {
       return {VArray<float>::from_single(0.0f, mesh.verts_num), AttrDomain::Point};
     }

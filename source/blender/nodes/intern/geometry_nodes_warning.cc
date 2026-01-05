@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_assume.hh"
 #include "BLT_translation.hh"
 
 #include "NOD_geometry_nodes_warning.hh"
@@ -46,7 +47,7 @@ StringRefNull node_warning_type_name(const NodeWarningType type)
   const char *name = nullptr;
   RNA_enum_name_gettexted(
       rna_enum_node_warning_type_items, int(type), BLT_I18NCONTEXT_DEFAULT, &name);
-  BLI_assert(name);
+  BLI_assume_assert(name);
   return name;
 }
 

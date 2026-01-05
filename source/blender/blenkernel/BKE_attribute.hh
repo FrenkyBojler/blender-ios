@@ -600,7 +600,7 @@ class AttributeAccessor {
    */
   GPointer get_builtin_default(const StringRef attribute_id) const
   {
-    BLI_assert(this->is_builtin(attribute_id));
+    BLI_assume_assert(this->is_builtin(attribute_id));
     return fn_->get_builtin_default(owner_, attribute_id);
   }
 

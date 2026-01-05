@@ -73,7 +73,7 @@ class BokehBlurOperation : public NodeOperation {
    * enabled. */
   int compute_extended_boundary_size(const Result &size)
   {
-    BLI_assert(this->get_extend_bounds());
+    BLI_assume_assert(this->get_extend_bounds());
 
     /* For constant sized blur, the extension should just be the blur radius. */
     if (size.is_single_value()) {

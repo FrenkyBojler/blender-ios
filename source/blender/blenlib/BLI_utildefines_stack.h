@@ -51,8 +51,8 @@
 #define STACK_POP_PTR(stack) ((_##stack##_index) ? &((stack)[--(_##stack##_index)]) : NULL)
 #define STACK_POP_DEFAULT(stack, r) ((_##stack##_index) ? ((stack)[--(_##stack##_index)]) : (r))
 /** look at last item (assumes non-empty stack) */
-#define STACK_PEEK(stack) (BLI_assert(_##stack##_index), ((stack)[_##stack##_index - 1]))
-#define STACK_PEEK_PTR(stack) (BLI_assert(_##stack##_index), &((stack)[_##stack##_index - 1]))
+#define STACK_PEEK(stack) (BLI_assume_assert(_##stack##_index), ((stack)[_##stack##_index - 1]))
+#define STACK_PEEK_PTR(stack) (BLI_assume_assert(_##stack##_index), &((stack)[_##stack##_index - 1]))
 /** remove any item from the stack, take care, re-orders */
 #define STACK_REMOVE(stack, i) \
   { \
@@ -66,7 +66,7 @@
 #define STACK_DISCARD(stack, n) \
   { \
     const unsigned int _n = n; \
-    BLI_assert(_##stack##_index >= _n); \
+    BLI_assume_assert(_##stack##_index >= _n); \
     (void)stack; \
     _##stack##_index -= _n; \
   } \

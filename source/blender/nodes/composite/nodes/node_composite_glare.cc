@@ -19,7 +19,7 @@
 #endif
 
 #include "BLI_array.hh"
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_fftw.hh"
 #include "BLI_index_range.hh"
 #include "BLI_math_angle_types.hh"

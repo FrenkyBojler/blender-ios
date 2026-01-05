@@ -4,6 +4,8 @@
 
 #include "NOD_geometry_nodes_lazy_function.hh"
 
+#include "BLI_assume.hh"
+
 #include "BKE_anonymous_attribute_make.hh"
 #include "BKE_compute_contexts.hh"
 #include "BKE_curves.hh"
@@ -87,11 +89,11 @@ struct ForeachElementComponent {
     if (this->id.component_type == GeometryComponent::Type::GreasePencil &&
         ELEM(this->id.domain, AttrDomain::Point, AttrDomain::Curve))
     {
-      BLI_assert(this->id.layer_index.has_value());
+      BLI_assume_assert(this->id.layer_index.has_value());
       GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write();
       const bke::greasepencil::Layer &layer = grease_pencil->layer(*this->id.layer_index);
       bke::greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(layer);
-      BLI_assert(drawing);
+      BLI_assume_assert(drawing);
       return drawing->strokes_for_write().attributes_for_write();
     }
     GeometryComponent &component = geometry.get_component_for_write(this->id.component_type);
@@ -279,7 +281,7 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
     const auto &node_storage = *static_cast<const NodeGeometryForeachGeometryElementOutput *>(
         output_bnode_.storage);
     const AttrDomain iteration_domain = AttrDomain(node_storage.domain);
-    BLI_assert(zone_.input_node()->output_socket(1).is_available() ==
+    BLI_assume_assert(zone_.input_node()->output_socket(1).is_available() ==
                (iteration_domain != AttrDomain::Corner));
 
     const int input_items_num = node_storage.input_items.items_num;
@@ -471,7 +473,7 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
       component_info.emplace_field_context(eval_storage.main_geometry);
 
       const int domain_size = component_info.input_attributes().domain_size(id.domain);
-      BLI_assert(domain_size > 0);
+      BLI_assume_assert(domain_size > 0);
 
       /* Prepare field evaluation for the zone inputs. */
       component_info.field_evaluator.emplace(*component_info.field_context, domain_size);
@@ -718,7 +720,7 @@ class LazyFunctionForForeachGeometryElementZone : public LazyFunction {
     /* Link up body outputs to reduce function. */
     const int body_main_outputs_num = node_storage.main_items.items_num +
                                       node_storage.generation_items.items_num;
-    BLI_assert(body_main_outputs_num == body_fn_.indices.outputs.main.size());
+    BLI_assume_assert(body_main_outputs_num == body_fn_.indices.outputs.main.size());
     for (const int i : IndexRange(eval_storage.total_iterations_num)) {
       lf::FunctionNode &lf_body_node = *lf_body_nodes[i];
       for (const int item_i : IndexRange(node_storage.main_items.items_num)) {

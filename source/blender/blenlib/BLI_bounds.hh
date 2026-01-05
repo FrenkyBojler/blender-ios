@@ -115,7 +115,7 @@ template<typename T, typename RadiusT>
 [[nodiscard]] inline std::optional<Bounds<T>> min_max_with_radii(const Span<T> values,
                                                                  const Span<RadiusT> radii)
 {
-  BLI_assert(values.size() == radii.size());
+  BLI_assume_assert(values.size() == radii.size());
   if (values.is_empty()) {
     return std::nullopt;
   }
@@ -317,14 +317,14 @@ template<typename T> [[nodiscard]] inline Bounds<T> segment_bounds(const T &star
 template<typename T>
 [[nodiscard]] inline bool rational_greater_than(const T &p1, const T &q1, const T &p2, const T &q2)
 {
-  BLI_assert(q1 > T(0) && q2 > T(0));
+  BLI_assume_assert(q1 > T(0) && q2 > T(0));
   return p1 * q2 > p2 * q1;
 }
 /** Returns true if (p1 / q1) < (p2 / q2). */
 template<typename T>
 [[nodiscard]] inline bool rational_less_than(const T &p1, const T &q1, const T &p2, const T &q2)
 {
-  BLI_assert(q1 > T(0) && q2 > T(0));
+  BLI_assume_assert(q1 > T(0) && q2 > T(0));
   return p1 * q2 < p2 * q1;
 }
 

@@ -110,7 +110,7 @@ static int get_orig_index(const Span<Vector<int>> out_to_orig, int orig_index)
 
 template<typename T> static double math_to_double(const T /*v*/)
 {
-  BLI_assert(false); /* Need implementation for other type. */
+  BLI_assume_assert(false); /* Need implementation for other type. */
   return 0.0;
 }
 
@@ -1817,12 +1817,12 @@ void text_test(
           ccw = false;
           break;
         default:
-          BLI_assert(false);
+          BLI_assume_assert(false);
       }
       VecBase<T, 2> start_co = b_vert[arc_origin_vert];
       VecBase<T, 2> end_co = b_vert[arc_terminal_vert];
       VecBase<T, 2> center_co = 0.5 * (start_co + end_co);
-      BLI_assert(start_co[0] == end_co[0]);
+      BLI_assume_assert(start_co[0] == end_co[0]);
       double radius = abs(math_to_double<T>(end_co[1] - center_co[1]));
       double angle_delta = M_PI / (arc_points_num + 1);
       int start_vert = b_before_arcs_in.vert.size() + arc * arc_points_num;

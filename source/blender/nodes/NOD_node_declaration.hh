@@ -8,6 +8,7 @@
 #include <functional>
 #include <type_traits>
 
+#include "BLI_assume.hh"
 #include "BLI_array.hh"
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
@@ -777,7 +778,7 @@ inline typename DeclType::Builder &DeclarationListBuilder::add_socket(StringRef 
   static_assert(std::is_base_of_v<SocketDeclaration, DeclType>);
   using SocketBuilder = typename DeclType::Builder;
 
-  BLI_assert(ELEM(in_out, SOCK_IN, SOCK_OUT));
+  BLI_assume_assert(ELEM(in_out, SOCK_IN, SOCK_OUT));
 
   std::unique_ptr<SocketBuilder> socket_decl_builder_ptr = std::make_unique<SocketBuilder>();
   SocketBuilder &socket_decl_builder = *socket_decl_builder_ptr;

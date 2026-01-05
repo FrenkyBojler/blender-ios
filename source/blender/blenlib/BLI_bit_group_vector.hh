@@ -60,8 +60,8 @@ class BitGroupVector {
         aligned_group_size_(align_group_size(group_size)),
         data_(size_in_groups * aligned_group_size_, value, allocator)
   {
-    BLI_assert(group_size >= 0);
-    BLI_assert(size_in_groups >= 0);
+    BLI_assume_assert(group_size >= 0);
+    BLI_assume_assert(size_in_groups >= 0);
   }
 
   BitGroupVector(const BitGroupVector &other)
@@ -91,7 +91,7 @@ class BitGroupVector {
   /** Get all the bits at an index. */
   BoundedBitSpan operator[](const int64_t i) const
   {
-    BLI_assert(this->index_range().contains(i));
+    BLI_assume_assert(this->index_range().contains(i));
     const int64_t offset = aligned_group_size_ * i;
     return {data_.data() + (offset >> BitToIntIndexShift),
             IndexRange(offset & BitIndexMask, group_size_)};
@@ -100,7 +100,7 @@ class BitGroupVector {
   /** Get all the bits at an index. */
   MutableBoundedBitSpan operator[](const int64_t i)
   {
-    BLI_assert(this->index_range().contains(i));
+    BLI_assume_assert(this->index_range().contains(i));
     const int64_t offset = aligned_group_size_ * i;
     return {data_.data() + (offset >> BitToIntIndexShift),
             IndexRange(offset & BitIndexMask, group_size_)};
@@ -149,7 +149,7 @@ class BitGroupVector {
   {
     /* This can still be optimized due to the additional knowledge we have how consecutive groups
      * are laid out in memory. It is possible to updated multiple small groups at once. */
-    BLI_assert(bits.size() == group_size_);
+    BLI_assume_assert(bits.size() == group_size_);
     for (const int64_t i : this->index_range()) {
       MutableBoundedBitSpan group = (*this)[i];
       group &= bits;

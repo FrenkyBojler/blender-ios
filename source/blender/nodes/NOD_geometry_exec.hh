@@ -112,7 +112,7 @@ class GeoNodeExecParams {
     const int index = this->get_input_index(identifier);
     if constexpr (is_GeoNodesMultiInput_v<T>) {
       using ValueT = typename T::value_type;
-      BLI_assert(node_.input_by_identifier(identifier)->is_multi_input());
+      BLI_assume_assert(node_.input_by_identifier(identifier)->is_multi_input());
       if constexpr (std::is_same_v<ValueT, SocketValueVariant>) {
         return params_.extract_input<T>(index);
       }
@@ -159,7 +159,7 @@ class GeoNodeExecParams {
     const int index = this->get_input_index(identifier);
     if constexpr (is_GeoNodesMultiInput_v<T>) {
       using ValueT = typename T::value_type;
-      BLI_assert(node_.input_by_identifier(identifier)->is_multi_input());
+      BLI_assume_assert(node_.input_by_identifier(identifier)->is_multi_input());
       if constexpr (std::is_same_v<ValueT, SocketValueVariant>) {
         return params_.get_input<T>(index);
       }

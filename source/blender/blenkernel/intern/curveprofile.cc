@@ -210,7 +210,7 @@ bool BKE_curveprofile_remove_point(CurveProfile *profile, CurveProfilePoint *poi
       size_t(profile->path_len), __func__);
 
   int i_delete = int(point - profile->path);
-  BLI_assert(i_delete > 0);
+  BLI_assume_assert(i_delete > 0);
 
   /* Copy the before and after the deleted point. */
   memcpy(new_path, profile->path, sizeof(CurveProfilePoint) * i_delete);
@@ -351,7 +351,7 @@ void BKE_curveprofile_reverse(CurveProfile *profile)
   /* Mirror the new points across the y = x line */
   for (int i = 0; i < profile->path_len; i++) {
     int i_reversed = profile->path_len - i - 1;
-    BLI_assert(i_reversed >= 0);
+    BLI_assume_assert(i_reversed >= 0);
     new_path[i_reversed] = mirror_point(&profile->path[i]);
     new_path[i_reversed].profile = profile;
 
@@ -681,7 +681,7 @@ static void create_samples(CurveProfile *profile,
 {
   CurveProfilePoint *path = profile->path;
   int totpoints = profile->path_len;
-  BLI_assert(n_segments > 0);
+  BLI_assume_assert(n_segments > 0);
 
   int totedges = totpoints - 1;
 
@@ -709,7 +709,7 @@ static void create_samples(CurveProfile *profile,
 
       /* Assign the points that fill fit evenly to the edges. */
       if (n_common > 0) {
-        BLI_assert(n_common < INT16_MAX);
+        BLI_assume_assert(n_common < INT16_MAX);
         for (int i = 0; i < totedges; i++) {
           n_samples[i] = n_common;
           n_added += n_common;
@@ -734,7 +734,7 @@ static void create_samples(CurveProfile *profile,
         for (int i = 0; i < totedges; i++) {
           /* Add the common number if it's a curved edge or if edges are curved. */
           if (is_curved_edge(path, i) || n_curved_edges == totedges) {
-            BLI_assert(n_common + n_samples[i] < INT16_MAX);
+            BLI_assume_assert(n_common + n_samples[i] < INT16_MAX);
             n_samples[i] += n_common;
             n_added += n_common;
           }
@@ -752,14 +752,14 @@ static void create_samples(CurveProfile *profile,
     n_left = n_segments;
   }
   /* Assign the remainder of the points that couldn't be spread out evenly. */
-  BLI_assert(n_left < totedges);
+  BLI_assume_assert(n_left < totedges);
   for (int i = 0; i < n_left; i++) {
-    BLI_assert(n_samples[curve_sorted[i].point_index] < INT16_MAX);
+    BLI_assume_assert(n_samples[curve_sorted[i].point_index] < INT16_MAX);
     n_samples[curve_sorted[i].point_index]++;
     n_added++;
   }
 
-  BLI_assert(n_added == n_segments); /* n_added is just used for this assert, could remove it. */
+  BLI_assume_assert(n_added == n_segments); /* n_added is just used for this assert, could remove it. */
   UNUSED_VARS_NDEBUG(n_added);
 
   /* Sample the points and add them to the locations table. */
@@ -773,7 +773,7 @@ static void create_samples(CurveProfile *profile,
         r_samples[j].flag = 0;
         r_samples[j].h1 = HD_AUTO;
         r_samples[j].h2 = HD_AUTO;
-        BLI_assert(j < n_segments);
+        BLI_assume_assert(j < n_segments);
       }
 
       /* Sample from the bezier points. X then Y values. */
@@ -793,7 +793,7 @@ static void create_samples(CurveProfile *profile,
                                     sizeof(CurveProfilePoint));
     }
     i_sample += n_samples[i]; /* Add the next set of points after the ones we just added. */
-    BLI_assert(i_sample <= n_segments);
+    BLI_assume_assert(i_sample <= n_segments);
   }
 
   MEM_freeN(curve_sorted);
@@ -839,7 +839,7 @@ void BKE_curveprofile_init(CurveProfile *profile, short segments_len)
  */
 static float curveprofile_distance_to_next_table_point(const CurveProfile *profile, int i)
 {
-  BLI_assert(i < BKE_curveprofile_table_size(profile));
+  BLI_assume_assert(i < BKE_curveprofile_table_size(profile));
 
   return len_v2v2(&profile->table[i].x, &profile->table[i + 1].x);
 }
@@ -895,7 +895,7 @@ static void create_samples_even_spacing(CurveProfile *profile,
                    (distance_to_previous_table_point + distance_to_next_table_point);
     r_samples[i].x = interpf(profile->table[i_table + 1].x, profile->table[i_table].x, factor);
     r_samples[i].y = interpf(profile->table[i_table + 1].y, profile->table[i_table].y, factor);
-    BLI_assert(factor <= 1.0f && factor >= 0.0f);
+    BLI_assume_assert(factor <= 1.0f && factor >= 0.0f);
 #ifdef DEBUG_CURVEPROFILE_EVALUATE
     printf("segment_left: %.3f\n", segment_left);
     printf("i_table: %d\n", i_table);
@@ -979,7 +979,7 @@ void BKE_curveprofile_update(CurveProfile *profile, const int update_flags)
         points[i].y = clamp_f(points[i].y, clipr->ymin, clipr->ymax);
 
         /* Extra sanity assert to make sure the points have the right profile pointer. */
-        BLI_assert(points[i].profile == profile);
+        BLI_assume_assert(points[i].profile == profile);
       }
     }
     /* Ensure zoom-level respects clipping. */

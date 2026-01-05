@@ -221,15 +221,15 @@ struct alignas(Alignment) MatBase : public vec_struct_base<VecBase<T, NumRow>, N
 
   const col_type &operator[](int index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < NumCol);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < NumCol);
     return reinterpret_cast<const col_type *>(this)[index];
   }
 
   col_type &operator[](int index)
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < NumCol);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < NumCol);
     return reinterpret_cast<col_type *>(this)[index];
   }
 
@@ -531,8 +531,8 @@ struct MatView : NonCopyable, NonMovable {
 
   const col_type &operator[](int index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < NumCol);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < NumCol);
     return *reinterpret_cast<const col_type *>(&mat[index + SrcStartCol][SrcStartRow]);
   }
 

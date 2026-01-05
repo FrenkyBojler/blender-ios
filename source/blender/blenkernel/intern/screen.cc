@@ -534,7 +534,7 @@ ARegion *BKE_spacedata_find_region_type(const SpaceLink *slink,
                                                              &slink->regionbase;
   ARegion *region = nullptr;
 
-  BLI_assert(BLI_findindex(&area->spacedata, slink) != -1);
+  BLI_assume_assert(BLI_findindex(&area->spacedata, slink) != -1);
 
   for (ARegion &region_iter : *regionbase) {
     if (region_iter.regiontype == region_type) {

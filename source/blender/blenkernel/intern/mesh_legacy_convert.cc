@@ -214,7 +214,7 @@ static void mesh_calc_edges_mdata(const MVert * /*allvert*/,
     }
   }
 
-  BLI_assert(totedge_final > 0);
+  BLI_assume_assert(totedge_final > 0);
   *r_medge = edges;
   *r_totedge = totedge_final;
 }
@@ -242,7 +242,7 @@ void BKE_mesh_calc_edges_legacy(Mesh *mesh)
       &totedge);
 
   if (totedge == 0) {
-    BLI_assert(edges == nullptr);
+    BLI_assume_assert(edges == nullptr);
     mesh->edges_num = 0;
     return;
   }
@@ -419,7 +419,7 @@ static void bm_corners_to_loops_ex(ID *id,
       /* Empty #MDisp layers appear in at least one of the `sintel.blend` files.
        * Not sure why this happens, but it seems fine to just ignore them here.
        * If `corners == 0` for a non-empty layer though, something went wrong. */
-      BLI_assert(fd->totdisp == 0);
+      BLI_assume_assert(fd->totdisp == 0);
     }
     else {
       const int side = int(sqrtf(float(fd->totdisp / corners)));
@@ -1154,7 +1154,7 @@ static int mesh_tessface_calc(Mesh &mesh,
   CustomData_free(fdata_legacy);
   totface = mface_index;
 
-  BLI_assert(totface <= corner_tris_num);
+  BLI_assume_assert(totface <= corner_tris_num);
 
   /* Not essential but without this we store over-allocated memory in the #CustomData layers. */
   if (LIKELY(corner_tris_num != totface)) {

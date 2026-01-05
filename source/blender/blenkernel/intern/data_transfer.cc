@@ -492,7 +492,7 @@ static void data_transfer_layersmapping_add_item(
 {
   CustomDataTransferLayerMap item{};
 
-  BLI_assert(std::visit([](const auto &value) { return bool(value); }, data_dst));
+  BLI_assume_assert(std::visit([](const auto &value) { return bool(value); }, data_dst));
 
   item.data_type = cddata_type;
   item.mix_mode = mix_mode;

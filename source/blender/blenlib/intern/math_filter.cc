@@ -8,7 +8,7 @@
 
 #include <cmath>
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_math_constants.h"
 #include "BLI_math_filter.hh"
 

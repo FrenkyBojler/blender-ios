@@ -20,7 +20,7 @@ OffsetIndices<int> accumulate_counts_to_offsets(MutableSpan<int> counts_to_offse
 
   for (const int i : counts_to_offsets.index_range().drop_back(1)) {
     const int count = counts_to_offsets[i];
-    BLI_assert(count >= 0);
+    BLI_assume_assert(count >= 0);
     counts_to_offsets[i] = offset;
     offset += count;
 #ifndef NDEBUG
@@ -44,7 +44,7 @@ std::optional<OffsetIndices<int>> accumulate_counts_to_offsets_with_overflow_che
   int64_t offset = start_offset;
   for (const int i : counts_to_offsets.index_range().drop_back(1)) {
     const int count = counts_to_offsets[i];
-    BLI_assert(count >= 0);
+    BLI_assume_assert(count >= 0);
     counts_to_offsets[i] = offset;
     offset += count;
   }
@@ -151,7 +151,7 @@ void build_reverse_map(OffsetIndices<int> offsets, MutableSpan<int> r_map)
 
 void build_reverse_offsets(const Span<int> indices, MutableSpan<int> offsets)
 {
-  BLI_assert(std::all_of(offsets.begin(), offsets.end(), [](int value) { return value == 0; }));
+  BLI_assume_assert(std::all_of(offsets.begin(), offsets.end(), [](int value) { return value == 0; }));
   array_utils::count_indices(indices, offsets);
   offset_indices::accumulate_counts_to_offsets(offsets);
 }

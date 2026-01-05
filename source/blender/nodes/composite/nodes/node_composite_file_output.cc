@@ -8,7 +8,7 @@
 
 #include <cstring>
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_index_range.hh"
@@ -650,7 +650,7 @@ class FileOutputOperation : public NodeOperation {
    * value result. */
   float *inflate_result(const Result &result, const int2 size)
   {
-    BLI_assert(result.is_single_value());
+    BLI_assume_assert(result.is_single_value());
 
     const int64_t length = int64_t(size.x) * size.y;
     const int64_t buffer_size = length * result.channels_count();

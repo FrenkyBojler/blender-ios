@@ -14,6 +14,7 @@
 #include "BLI_bounds.hh"
 #include "BLI_boxpack_2d.h"
 #include "BLI_convexhull_2d.hh"
+#include "BLI_assume.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -157,7 +158,7 @@ void PackIsland::add_polygon(const Span<float2> uvs, MemArena *arena, Heap *heap
   /* Internally, PackIsland uses triangles as the primitive, so we have to triangulate. */
 
   int vert_count = int(uvs.size());
-  BLI_assert(vert_count >= 3);
+  BLI_assume_assert(vert_count >= 3);
   int nfilltri = vert_count - 2;
   if (nfilltri == 1) {
     /* Trivial case, just one triangle. */
@@ -210,8 +211,8 @@ static float angle_match(float angle_radians, float target_radians)
 static float angle_wrap(float angle_radians)
 {
   angle_radians = angle_radians - floorf((angle_radians + M_PI_2) / M_PI) * M_PI;
-  BLI_assert(DEG2RADF(-90.0f) <= angle_radians);
-  BLI_assert(angle_radians <= DEG2RADF(90.0f));
+  BLI_assume_assert(DEG2RADF(-90.0f) <= angle_radians);
+  BLI_assume_assert(angle_radians <= DEG2RADF(90.0f));
   return angle_radians;
 }
 
@@ -222,8 +223,8 @@ static float plusminus_90_angle(float angle_radians)
   angle_radians = angle_match(angle_radians, DEG2RADF(-90.0f));
   angle_radians = angle_match(angle_radians, DEG2RADF(0.0f));
   angle_radians = angle_match(angle_radians, DEG2RADF(90.0f));
-  BLI_assert(DEG2RADF(-90.0f) <= angle_radians);
-  BLI_assert(angle_radians <= DEG2RADF(90.0f));
+  BLI_assume_assert(DEG2RADF(-90.0f) <= angle_radians);
+  BLI_assume_assert(angle_radians <= DEG2RADF(90.0f));
   return angle_radians;
 }
 
@@ -238,7 +239,7 @@ void PackIsland::calculate_pre_rotation_(const UVPackIsland_Params &params)
     return; /* Nothing to do. */
   }
 
-  BLI_assert(ELEM(params.rotate_method,
+  BLI_assume_assert(ELEM(params.rotate_method,
                   ED_UVPACK_ROTATION_ANY,
                   ED_UVPACK_ROTATION_AXIS_ALIGNED,
                   ED_UVPACK_ROTATION_AXIS_ALIGNED_X,
@@ -313,7 +314,7 @@ void PackIsland::calculate_pre_rotation_(const UVPackIsland_Params &params)
 
 void PackIsland::finalize_geometry_(const UVPackIsland_Params &params, MemArena *arena, Heap *heap)
 {
-  BLI_assert(BLI_heap_len(heap) == 0);
+  BLI_assume_assert(BLI_heap_len(heap) == 0);
 
   /* After all the triangles and polygons have been added to a #PackIsland, but before we can start
    * running packing algorithms, there is a one-time finalization process where we can
@@ -322,7 +323,7 @@ void PackIsland::finalize_geometry_(const UVPackIsland_Params &params, MemArena 
    * In the future, we might also detect special-cases for speed or efficiency, such as
    * rectangle approximation, circle approximation, detecting if the shape has any holes,
    * analyzing the shape for rotational symmetry or removing overlaps. */
-  BLI_assert(triangle_vertices_.size() >= 3);
+  BLI_assume_assert(triangle_vertices_.size() >= 3);
 
   calculate_pre_rotation_(params);
 
@@ -381,8 +382,8 @@ void PackIsland::calculate_pivot_()
   Bounds<float2> triangle_bounds = *bounds::min_max(triangle_vertices_.as_span());
   pivot_ = (triangle_bounds.min + triangle_bounds.max) * 0.5f;
   half_diagonal_ = (triangle_bounds.max - triangle_bounds.min) * 0.5f;
-  BLI_assert(half_diagonal_.x >= 0.0f);
-  BLI_assert(half_diagonal_.y >= 0.0f);
+  BLI_assume_assert(half_diagonal_.x >= 0.0f);
+  BLI_assume_assert(half_diagonal_.y >= 0.0f);
 }
 
 void PackIsland::place_(const float scale, const UVPhi phi)
@@ -519,7 +520,7 @@ static void update_hole_rotate(float2 &hole,
                                const float u1,
                                const float v1)
 {
-  BLI_assert(hole_diagonal.x <= hole_diagonal.y); /* Confirm invariants. */
+  BLI_assume_assert(hole_diagonal.x <= hole_diagonal.y); /* Confirm invariants. */
 
   const float hole_area = hole_diagonal.x * hole_diagonal.y;
   const float quad_area = (u1 - u0) * (v1 - v0);
@@ -539,10 +540,10 @@ static void update_hole_rotate(float2 &hole,
   }
 
   const float updated_area = hole_diagonal.x * hole_diagonal.y;
-  BLI_assert(hole_area < updated_area); /* Confirm hole grew in size. */
+  BLI_assume_assert(hole_area < updated_area); /* Confirm hole grew in size. */
   UNUSED_VARS(updated_area);
 
-  BLI_assert(hole_diagonal.x <= hole_diagonal.y); /* Confirm invariants. */
+  BLI_assume_assert(hole_diagonal.x <= hole_diagonal.y); /* Confirm invariants. */
 }
 
 /**
@@ -1162,7 +1163,7 @@ Occupancy::Occupancy(const float initial_scale) : bitmap_(bitmap_radix * bitmap_
 
 void Occupancy::increase_scale()
 {
-  BLI_assert(bitmap_scale_reciprocal > 0.0f); /* TODO: Packing has failed, report error. */
+  BLI_assume_assert(bitmap_scale_reciprocal > 0.0f); /* TODO: Packing has failed, report error. */
 
   bitmap_scale_reciprocal *= 0.5f;
   clear();
@@ -1192,11 +1193,11 @@ static float signed_distance_fat_triangle(const float2 probe,
   if (result_ssq < 0.0f) {
     return -sqrtf(-result_ssq);
   }
-  BLI_assert(result_ssq >= 0.0f);
+  BLI_assume_assert(result_ssq >= 0.0f);
   result_ssq = std::min(result_ssq, math::length_squared(probe - uv0));
   result_ssq = std::min(result_ssq, math::length_squared(probe - uv1));
   result_ssq = std::min(result_ssq, math::length_squared(probe - uv2));
-  BLI_assert(result_ssq >= 0.0f);
+  BLI_assume_assert(result_ssq >= 0.0f);
   return sqrtf(result_ssq);
 }
 
@@ -2013,27 +2014,27 @@ static float pack_islands_margin_fraction(const Span<PackIsland *> islands,
     float scale = 1.0f;
 
     if (iteration == 0) {
-      BLI_assert(iteration == 0);
-      BLI_assert(scale == 1.0f);
-      BLI_assert(scale_low == 0.0f);
-      BLI_assert(scale_high == 0.0f);
+      BLI_assume_assert(iteration == 0);
+      BLI_assume_assert(scale == 1.0f);
+      BLI_assume_assert(scale_low == 0.0f);
+      BLI_assume_assert(scale_high == 0.0f);
     }
     else if (scale_low == 0.0f) {
-      BLI_assert(scale_high > 0.0f);
+      BLI_assume_assert(scale_high > 0.0f);
       /* Search mode, shrink layout until we can find a scale that fits. */
       scale = scale_high * 0.1f;
     }
     else if (scale_high == 0.0f) {
-      BLI_assert(scale_low > 0.0f);
+      BLI_assume_assert(scale_low > 0.0f);
       /* Search mode, grow layout until we can find a scale that doesn't fit. */
       scale = scale_low * 10.0f;
     }
     else {
       /* Bracket mode, use modified secant method to find root. */
-      BLI_assert(scale_low > 0.0f);
-      BLI_assert(scale_high > 0.0f);
-      BLI_assert(value_low <= 0.0f);
-      BLI_assert(value_high >= 0.0f);
+      BLI_assume_assert(scale_low > 0.0f);
+      BLI_assume_assert(scale_high > 0.0f);
+      BLI_assume_assert(value_low <= 0.0f);
+      BLI_assume_assert(value_high >= 0.0f);
       if (scale_high < scale_low * 1.0001f) {
         /* Convergence. */
         break;
@@ -2049,8 +2050,8 @@ static float pack_islands_margin_fraction(const Span<PackIsland *> islands,
         scale = sqrtf(scale * sqrtf(scale_low * scale_high));
       }
 
-      BLI_assert(scale_low < scale);
-      BLI_assert(scale < scale_high);
+      BLI_assume_assert(scale_low < scale);
+      BLI_assume_assert(scale < scale_high);
     }
 
     scale = std::max(scale, min_scale_roundoff);
@@ -2259,8 +2260,8 @@ static void finalize_geometry(const Span<PackIsland *> islands, const UVPackIsla
 
 float pack_islands(const Span<PackIsland *> islands, const UVPackIsland_Params &params)
 {
-  BLI_assert(0.0f <= params.margin);
-  BLI_assert(0.0f <= params.target_aspect_y);
+  BLI_assume_assert(0.0f <= params.margin);
+  BLI_assume_assert(0.0f <= params.target_aspect_y);
 
   if (islands.is_empty()) {
     return 1.0f; /* Nothing to do, just create a safe default. */
@@ -2321,7 +2322,7 @@ float pack_islands(const Span<PackIsland *> islands, const UVPackIsland_Params &
   const float max_uv = pack_islands_scale_margin(islands, scale, margin, params, phis);
   const float result = can_scale_count && max_uv > 1e-14f ? params.target_extent / max_uv : 1.0f;
   for (const int64_t i : islands.index_range()) {
-    BLI_assert(result == 1.0f || islands[i]->can_scale_(params));
+    BLI_assume_assert(result == 1.0f || islands[i]->can_scale_(params));
     islands[i]->place_(scale, phis[i]);
   }
   return result;

@@ -26,7 +26,7 @@ class GMutablePointer {
   GMutablePointer(const CPPType *type, void *data = nullptr) : type_(type), data_(data)
   {
     /* If there is data, there has to be a type. */
-    BLI_assert(data_ == nullptr || type_ != nullptr);
+    BLI_assume_assert(data_ == nullptr || type_ != nullptr);
   }
 
   GMutablePointer(const CPPType &type, void *data = nullptr) : GMutablePointer(&type, data) {}
@@ -53,7 +53,7 @@ class GMutablePointer {
 
   template<typename T> T *get() const
   {
-    BLI_assert(this->is_type<T>());
+    BLI_assume_assert(this->is_type<T>());
     return static_cast<T *>(data_);
   }
 
@@ -64,7 +64,7 @@ class GMutablePointer {
 
   template<typename T> T relocate_out()
   {
-    BLI_assert(this->is_type<T>());
+    BLI_assume_assert(this->is_type<T>());
     T value;
     type_->relocate_assign(data_, &value);
     data_ = nullptr;
@@ -74,7 +74,7 @@ class GMutablePointer {
 
   void destruct()
   {
-    BLI_assert(data_ != nullptr);
+    BLI_assume_assert(data_ != nullptr);
     type_->destruct(data_);
   }
 };
@@ -95,7 +95,7 @@ class GPointer {
   GPointer(const CPPType *type, const void *data = nullptr) : type_(type), data_(data)
   {
     /* If there is data, there has to be a type. */
-    BLI_assert(data_ == nullptr || type_ != nullptr);
+    BLI_assume_assert(data_ == nullptr || type_ != nullptr);
   }
 
   GPointer(const CPPType &type, const void *data = nullptr) : type_(&type), data_(data) {}
@@ -122,7 +122,7 @@ class GPointer {
 
   template<typename T> const T *get() const
   {
-    BLI_assert(this->is_type<T>());
+    BLI_assume_assert(this->is_type<T>());
     return static_cast<const T *>(data_);
   }
 

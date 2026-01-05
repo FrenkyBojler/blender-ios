@@ -241,7 +241,7 @@ class Stack {
    */
   T pop()
   {
-    BLI_assert(size_ > 0);
+    BLI_assume_assert(size_ > 0);
     T value = std::move(*(top_ - 1));
     top_--;
     top_->~T();
@@ -262,14 +262,14 @@ class Stack {
    */
   T &peek()
   {
-    BLI_assert(size_ > 0);
-    BLI_assert(top_ > top_chunk_->begin);
+    BLI_assume_assert(size_ > 0);
+    BLI_assume_assert(top_ > top_chunk_->begin);
     return *(top_ - 1);
   }
   const T &peek() const
   {
-    BLI_assert(size_ > 0);
-    BLI_assert(top_ > top_chunk_->begin);
+    BLI_assume_assert(size_ > 0);
+    BLI_assume_assert(top_ > top_chunk_->begin);
     return *(top_ - 1);
   }
 
@@ -357,7 +357,7 @@ class Stack {
    */
   void activate_next_chunk(const int64_t size_hint)
   {
-    BLI_assert(top_ == top_chunk_->capacity_end);
+    BLI_assume_assert(top_ == top_chunk_->capacity_end);
     if (top_chunk_->above == nullptr) {
       const int64_t new_capacity = std::max(size_hint, top_chunk_->capacity() * 2 + 10);
 

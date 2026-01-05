@@ -263,10 +263,10 @@ static bool values_different(const T value1,
   /* GCC 15.x triggers an array-bounds warning unless `component_i` is assumed to be in range. */
 #if (defined(__GNUC__) && (__GNUC__ >= 15) && !defined(__clang__))
 #  define ASSERT_AND_ASSUME(expr) \
-    BLI_assert(expr); \
+    BLI_assume_assert(expr); \
     [[assume(expr)]];
 #else
-#  define ASSERT_AND_ASSUME(expr) BLI_assert(expr);
+#  define ASSERT_AND_ASSUME(expr) BLI_assume_assert(expr);
 #endif
 
   if constexpr (is_same_any_v<T, float2>) {
@@ -808,7 +808,7 @@ static std::optional<GeoMismatch> construct_vert_mapping(const Mesh &mesh1,
     verts.set_sizes[sorted_i] = 1;
   }
 
-  BLI_assert(all_set_sizes_one(verts.set_sizes));
+  BLI_assume_assert(all_set_sizes_one(verts.set_sizes));
 
   verts.recalculate_inverse_maps();
 

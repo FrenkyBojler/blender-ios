@@ -41,7 +41,7 @@ bool multires_reshape_assign_final_coords_from_ccg(const MultiresReshapeContext 
         ReshapeGridElement grid_element = multires_reshape_grid_element_for_grid_coord(
             reshape_context, &grid_coord);
 
-        BLI_assert(grid_element.displacement != nullptr);
+        BLI_assume_assert(grid_element.displacement != nullptr);
         *grid_element.displacement = positions[vert];
 
         /* NOTE: The sculpt mode might have SubdivCCG's data out of sync from what is stored in

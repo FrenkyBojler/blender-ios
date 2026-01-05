@@ -279,7 +279,7 @@ void foreach_element_on_inverse_eval_path(
                      const bNodeSocket &socket,
                      const ElemVariant &elem)> foreach_socket_fn)
 {
-  BLI_assert(initial_socket_elem.socket->is_input());
+  BLI_assume_assert(initial_socket_elem.socket->is_input());
   if (!initial_socket_elem.elem) {
     return;
   }
@@ -702,7 +702,7 @@ bool backpropagate_socket_values(bContext &C,
   /* Gather starting values for the backpropagation. */
   for (const SocketToUpdate &socket_to_update : sockets_to_update) {
     if (socket_to_update.multi_input_link) {
-      BLI_assert(socket_to_update.multi_input_link->tosock == socket_to_update.socket);
+      BLI_assume_assert(socket_to_update.multi_input_link->tosock == socket_to_update.socket);
       const std::optional<SocketValueVariant> converted_value = convert_single_socket_value(
           *socket_to_update.socket,
           *socket_to_update.multi_input_link->fromsock,

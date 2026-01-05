@@ -285,13 +285,13 @@ struct NodeTreeRelations {
 
   Span<ObjectModifierPair> get_modifier_users(bNodeTree *ntree)
   {
-    BLI_assert(modifiers_users_.has_value());
+    BLI_assume_assert(modifiers_users_.has_value());
     return modifiers_users_->lookup(ntree);
   }
 
   Span<TreeNodePair> get_group_node_users(bNodeTree *ntree)
   {
-    BLI_assert(group_node_users_.has_value());
+    BLI_assume_assert(group_node_users_.has_value());
     return group_node_users_->lookup(ntree);
   }
 
@@ -584,9 +584,9 @@ class NodeTreeMainUpdater {
     const Span<const bNode *> nodes = ntree.all_nodes();
     for (const int i : nodes.index_range()) {
       const bNode &node = *nodes[i];
-      BLI_assert(node.identifier > 0);
+      BLI_assume_assert(node.identifier > 0);
       node_identifiers.add_new(node.identifier);
-      BLI_assert(node.runtime->index_in_tree == i);
+      BLI_assume_assert(node.runtime->index_in_tree == i);
     }
 #endif
 
@@ -628,7 +628,7 @@ class NodeTreeMainUpdater {
         }
         if (ntype.declare) {
           /* Should have been created when the node was registered. */
-          BLI_assert(ntype.static_declaration != nullptr);
+          BLI_assume_assert(ntype.static_declaration != nullptr);
           if (ntype.static_declaration->is_context_dependent) {
             nodes::update_node_declaration_and_sockets(ntree, *node);
           }
@@ -1094,7 +1094,7 @@ class NodeTreeMainUpdater {
       Vector<bNodeSocket *> locally_defined_enums;
       if (node->is_type("GeometryNodeMenuSwitch")) {
         bNodeSocket &enum_input = node->input_socket(0);
-        BLI_assert(enum_input.is_available() && enum_input.type == SOCK_MENU);
+        BLI_assume_assert(enum_input.is_available() && enum_input.type == SOCK_MENU);
         /* Generate new enum items when the node has changed, otherwise keep existing items. */
         if (node_updated) {
           const NodeMenuSwitch &storage = *static_cast<NodeMenuSwitch *>(node->storage);
@@ -1166,9 +1166,9 @@ class NodeTreeMainUpdater {
         for (const int socket_i : group_tree->interface_inputs().index_range()) {
           bNodeSocket &input = *node->input_sockets()[socket_i];
           const bNodeTreeInterfaceSocket &iosocket = *group_tree->interface_inputs()[socket_i];
-          BLI_assert(STREQ(input.identifier, iosocket.identifier));
+          BLI_assume_assert(STREQ(input.identifier, iosocket.identifier));
           if (input.is_available() && input.type == SOCK_MENU) {
-            BLI_assert(STREQ(iosocket.socket_type, "NodeSocketMenu"));
+            BLI_assume_assert(STREQ(iosocket.socket_type, "NodeSocketMenu"));
             this->update_socket_enum_definition(
                 *input.default_value_typed<bNodeSocketValueMenu>(),
                 *static_cast<bNodeSocketValueMenu *>(iosocket.socket_data));
@@ -1188,7 +1188,7 @@ class NodeTreeMainUpdater {
       }
       else if (node->is_type("GeometryNodeForeachGeometryElementInput")) {
         /* Propagate menu from element inputs to field inputs. */
-        BLI_assert(node->input_sockets().size() == node->output_sockets().size());
+        BLI_assume_assert(node->input_sockets().size() == node->output_sockets().size());
         /* Inputs Geometry, Selection and outputs Index, Element are ignored. */
         const IndexRange sockets = node->input_sockets().index_range().drop_front(2);
         for (const int socket_i : sockets) {
@@ -1336,7 +1336,7 @@ class NodeTreeMainUpdater {
 
   void clear_enum_reference(bNodeSocket &socket)
   {
-    BLI_assert(socket.is_available() && socket.type == SOCK_MENU);
+    BLI_assume_assert(socket.is_available() && socket.type == SOCK_MENU);
     bNodeSocketValueMenu &default_value = *socket.default_value_typed<bNodeSocketValueMenu>();
     this->reset_enum_ptr(default_value);
     default_value.runtime_flag &= ~NODE_MENU_ITEMS_CONFLICT;
@@ -1346,7 +1346,7 @@ class NodeTreeMainUpdater {
   {
     if (dst.has_conflict()) {
       /* Target enum already has a conflict. */
-      BLI_assert(dst.enum_items == nullptr);
+      BLI_assume_assert(dst.enum_items == nullptr);
       return;
     }
 
@@ -1755,9 +1755,9 @@ class NodeTreeMainUpdater {
           /* The Image Texture node has a special case. The behavior of the color output changes
            * depending on whether the Alpha output is linked. */
           if (node.is_type("ShaderNodeTexImage") && socket.index() == 0) {
-            BLI_assert(STREQ(socket.name, "Color"));
+            BLI_assume_assert(STREQ(socket.name, "Color"));
             const bNodeSocket &alpha_socket = node.output_socket(1);
-            BLI_assert(STREQ(alpha_socket.name, "Alpha"));
+            BLI_assume_assert(STREQ(alpha_socket.name, "Alpha"));
             if (alpha_socket.is_directly_linked()) {
               socket_hash = noise::hash(socket_hash);
             }
@@ -1766,7 +1766,7 @@ class NodeTreeMainUpdater {
       }
       hash_by_socket_id[socket.index_in_tree()] = socket_hash;
       /* Check that nothing has been pushed in the meantime. */
-      BLI_assert(sockets_to_check.peek() == &socket);
+      BLI_assume_assert(sockets_to_check.peek() == &socket);
       sockets_to_check.pop();
     }
 
@@ -1860,9 +1860,9 @@ class NodeTreeMainUpdater {
         if ((node.is_type("ShaderNodeNormal") || node.is_type("CompositorNodeNormal")) &&
             socket.index() == 1)
         {
-          BLI_assert(STREQ(socket.name, "Dot"));
+          BLI_assume_assert(STREQ(socket.name, "Dot"));
           const bNodeSocket &normal_output = node.output_socket(0);
-          BLI_assert(STREQ(normal_output.name, "Normal"));
+          BLI_assume_assert(STREQ(normal_output.name, "Normal"));
           bool &pushed = pushed_by_socket_id[normal_output.index_in_tree()];
           if (!pushed) {
             sockets_to_check.push(&normal_output);
@@ -2190,7 +2190,7 @@ void BKE_ntree_update_after_single_tree_change(Main &bmain,
 
 void BKE_ntree_update_without_main(bNodeTree &tree)
 {
-  BLI_assert(tree.id.tag & ID_TAG_NO_MAIN);
+  BLI_assume_assert(tree.id.tag & ID_TAG_NO_MAIN);
   if (is_updating) {
     return;
   }

@@ -42,7 +42,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_utildefines.h"
 
 #include "BLI_array_store.h" /* Own include. */
@@ -66,7 +66,7 @@ static size_t find_byte_not_equal_to(const uint8_t *data,
                                      const size_t size,
                                      const uint8_t value)
 {
-  BLI_assert(offset <= size);
+  BLI_assume_assert(offset <= size);
 
 #ifdef USE_FIND_FASTPATH
   using fast_int = uintptr_t;
@@ -118,7 +118,7 @@ static size_t find_byte_not_equal_to(const uint8_t *data,
     /* Not aligned, but this doesn't matter as it's only used for comparison. */
     const fast_int *p_fast_last = reinterpret_cast<const fast_int *>(data +
                                                                      (size - sizeof(fast_int)));
-    BLI_assert(p_fast <= p_fast_last);
+    BLI_assume_assert(p_fast <= p_fast_last);
     fast_int value_fast;
     memset(&value_fast, value, sizeof(value_fast));
     do {
@@ -280,7 +280,7 @@ uint8_t *BLI_array_store_rle_encode(const uint8_t *data_dec,
     const size_t span = ofs_dec_next - ofs_dec;
     if (span >= rle_skip_threshold) {
       /* Catch off by one errors. */
-      BLI_assert(data_dec[ofs_dec] == data_dec[(ofs_dec + span) - 1]);
+      BLI_assume_assert(data_dec[ofs_dec] == data_dec[(ofs_dec + span) - 1]);
       BLI_assert((ofs_dec + span == data_dec_len) ||
                  (data_dec[ofs_dec] != data_dec[(ofs_dec + span)]));
       e->head.span_size = span;
@@ -301,7 +301,7 @@ uint8_t *BLI_array_store_rle_encode(const uint8_t *data_dec,
           if (value_start == data_dec[ofs_dec_test]) {
             ofs_dec_test += 1;
             const size_t span_test = ofs_dec_test - ofs_dec_test_start;
-            BLI_assert(span_test <= rle_skip_threshold);
+            BLI_assume_assert(span_test <= rle_skip_threshold);
             if (span_test == rle_skip_threshold) {
               /* Write the span of non-RLE data,
                * then start scanning the magnitude of the RLE span at the start of the loop. */
@@ -311,7 +311,7 @@ uint8_t *BLI_array_store_rle_encode(const uint8_t *data_dec,
             }
           }
           else {
-            BLI_assert(ofs_dec_test - ofs_dec_test_start < rle_skip_threshold);
+            BLI_assume_assert(ofs_dec_test - ofs_dec_test_start < rle_skip_threshold);
             value_start = data_dec[ofs_dec_test];
             ofs_dec_test_start = ofs_dec_test;
             ofs_dec_test += 1;
@@ -347,7 +347,7 @@ uint8_t *BLI_array_store_rle_encode(const uint8_t *data_dec,
   RLE_ElemChunkIter link_block_iter;
   rle_link_chunk_iter_new(link_blocks_first, &link_block_iter);
   while (RLE_Elem *e = rle_link_chunk_iter_step(&link_block_iter)) {
-    BLI_assert(ofs_dec <= data_dec_len);
+    BLI_assume_assert(ofs_dec <= data_dec_len);
 
     if (e->head.span_size) {
       memcpy(data_enc + ofs_enc, &e->span, sizeof(RLE_Span));
@@ -357,7 +357,7 @@ uint8_t *BLI_array_store_rle_encode(const uint8_t *data_dec,
     else {
       memcpy(data_enc + ofs_enc, &e->literal, sizeof(RLE_Literal));
       ofs_enc += sizeof(RLE_Literal);
-      BLI_assert(e->literal.value > 0);
+      BLI_assume_assert(e->literal.value > 0);
       const size_t non_rle_span = e->literal.value;
       memcpy(data_enc + ofs_enc, data_dec + ofs_dec, non_rle_span);
       ofs_enc += non_rle_span;
@@ -365,8 +365,8 @@ uint8_t *BLI_array_store_rle_encode(const uint8_t *data_dec,
     }
   }
   rle_link_chunk_free_all(link_blocks_first);
-  BLI_assert(data_enc_extra_size + ofs_enc + sizeof(RLE_Literal) == data_enc_alloc_size);
-  BLI_assert(ofs_dec == data_dec_len);
+  BLI_assume_assert(data_enc_extra_size + ofs_enc + sizeof(RLE_Literal) == data_enc_alloc_size);
+  BLI_assume_assert(ofs_dec == data_dec_len);
 
   /* Set the `RLE_Literal` span & value to 0 to terminate. */
   memset(data_enc + ofs_enc, 0x0, sizeof(RLE_Literal));
@@ -416,8 +416,8 @@ void BLI_array_store_rle_decode(const uint8_t *data_enc,
       }
     }
   }
-  BLI_assert(ofs_enc == data_enc_len);
-  BLI_assert(ofs_dec == data_dec_len);
+  BLI_assume_assert(ofs_enc == data_enc_len);
+  BLI_assume_assert(ofs_dec == data_dec_len);
   UNUSED_VARS_NDEBUG(data_enc_len, data_dec_len);
 }
 

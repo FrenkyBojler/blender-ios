@@ -606,7 +606,7 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
           break;
         }
         default:
-          BLI_assert(0);
+          BLI_assume_assert(0);
           break;
       }
     }
@@ -650,7 +650,7 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
             break;
           }
           default:
-            BLI_assert(0);
+            BLI_assume_assert(0);
             break;
         }
 
@@ -714,7 +714,7 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
            * `BKE_ntree_update(G.main, oop)`. */
           fromsock->link = &blender::bke::node_add_link(
               *ntree, *fromnode, *fromsock, *tonode, *tosock);
-          BLI_assert(fromsock->link);
+          BLI_assume_assert(fromsock->link);
         }
       }
     }

@@ -125,7 +125,7 @@ ViewLayer *BKE_view_layer_default_view(const Scene *scene)
     }
   }
 
-  BLI_assert(scene->view_layers.first);
+  BLI_assume_assert(scene->view_layers.first);
   return static_cast<ViewLayer *>(scene->view_layers.first);
 }
 
@@ -137,7 +137,7 @@ ViewLayer *BKE_view_layer_default_render(const Scene *scene)
     }
   }
 
-  BLI_assert(scene->view_layers.first);
+  BLI_assume_assert(scene->view_layers.first);
   return static_cast<ViewLayer *>(scene->view_layers.first);
 }
 
@@ -154,7 +154,7 @@ ViewLayer *BKE_view_layer_find(const Scene *scene, const char *layer_name)
 
 ViewLayer *BKE_view_layer_context_active_PLACEHOLDER(const Scene *scene)
 {
-  BLI_assert(scene->view_layers.first);
+  BLI_assume_assert(scene->view_layers.first);
   return static_cast<ViewLayer *>(scene->view_layers.first);
 }
 
@@ -393,8 +393,8 @@ Base *BKE_view_layer_base_find(ViewLayer *view_layer, Object *ob)
 
 void BKE_view_layer_base_deselect_all(const Scene *scene, ViewLayer *view_layer)
 {
-  BLI_assert(scene);
-  BLI_assert(view_layer);
+  BLI_assume_assert(scene);
+  BLI_assume_assert(view_layer);
 
   BKE_view_layer_synced_ensure(scene, view_layer);
   for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
@@ -427,7 +427,7 @@ static void layer_aov_copy_data(ViewLayer *view_layer_dst,
   const ViewLayerAOV *aov_src = static_cast<const ViewLayerAOV *>(aovs_src->first);
 
   while (aov_dst != nullptr) {
-    BLI_assert(aov_src);
+    BLI_assume_assert(aov_src);
     if (aov_src == view_layer_src->active_aov) {
       view_layer_dst->active_aov = aov_dst;
     }
@@ -451,7 +451,7 @@ static void layer_lightgroup_copy_data(ViewLayer *view_layer_dst,
       lightgroups_src->first);
 
   while (lightgroup_dst != nullptr) {
-    BLI_assert(lightgroup_src);
+    BLI_assume_assert(lightgroup_src);
     if (lightgroup_src == view_layer_src->active_lightgroup) {
       view_layer_dst->active_lightgroup = lightgroup_dst;
     }
@@ -780,15 +780,15 @@ static std::atomic<int32_t> no_resync = 0;
 
 void BKE_layer_collection_resync_forbid()
 {
-  BLI_assert(no_resync >= 0);
-  BLI_assert(no_resync < no_resync_recurse_max - 1);
+  BLI_assume_assert(no_resync >= 0);
+  BLI_assume_assert(no_resync < no_resync_recurse_max - 1);
   no_resync++;
 }
 
 void BKE_layer_collection_resync_allow()
 {
-  BLI_assert(no_resync > 0);
-  BLI_assert(no_resync < no_resync_recurse_max);
+  BLI_assume_assert(no_resync > 0);
+  BLI_assume_assert(no_resync < no_resync_recurse_max);
   no_resync--;
 }
 
@@ -890,8 +890,8 @@ static LayerCollectionResync *layer_collection_resync_find(LayerCollectionResync
    * A queue is used to ensure this order of preferences.
    */
 
-  BLI_assert(layer_resync->collection != child_collection);
-  BLI_assert(child_collection != nullptr);
+  BLI_assume_assert(layer_resync->collection != child_collection);
+  BLI_assume_assert(child_collection != nullptr);
 
   LayerCollectionResync *current_layer_resync = nullptr;
   LayerCollectionResync *root_layer_resync = layer_resync;
@@ -984,8 +984,8 @@ void BKE_view_layer_need_resync_tag(ViewLayer *view_layer)
 
 bool BKE_view_layer_synced_ensure(const Scene *scene, ViewLayer *view_layer)
 {
-  BLI_assert(scene);
-  BLI_assert(view_layer);
+  BLI_assume_assert(scene);
+  BLI_assume_assert(view_layer);
 
   bool is_all_resynced = true;
   if (view_layer->flag & VIEW_LAYER_OUT_OF_SYNC) {
@@ -1123,7 +1123,7 @@ static void layer_collection_sync(ViewLayer *view_layer,
   /* Temporary storage for all valid (new or reused) children layers. */
   ListBaseT<LayerCollection> new_lb_layer = {nullptr, nullptr};
 
-  BLI_assert(layer_resync->is_used);
+  BLI_assume_assert(layer_resync->is_used);
 
   uint64_t skipped_children = 0;
   for (CollectionChild &child : layer_resync->collection->children) {
@@ -1137,9 +1137,9 @@ static void layer_collection_sync(ViewLayer *view_layer,
                                                                              child_collection);
 
     if (child_layer_resync != nullptr) {
-      BLI_assert(child_layer_resync->collection != nullptr);
-      BLI_assert(child_layer_resync->layer != nullptr);
-      BLI_assert(child_layer_resync->is_usable);
+      BLI_assume_assert(child_layer_resync->collection != nullptr);
+      BLI_assume_assert(child_layer_resync->layer != nullptr);
+      BLI_assume_assert(child_layer_resync->is_usable);
 
       if (child_layer_resync->is_used) {
         CLOG_DEBUG(&LOG,
@@ -1242,7 +1242,7 @@ static void layer_collection_sync(ViewLayer *view_layer,
 
   /* Replace layer collection list with new one. */
   layer_resync->layer->layer_collections = new_lb_layer;
-  BLI_assert(BLI_listbase_count(&layer_resync->collection->children) - skipped_children ==
+  BLI_assume_assert(BLI_listbase_count(&layer_resync->collection->children) - skipped_children ==
              BLI_listbase_count(&new_lb_layer));
   UNUSED_VARS_NDEBUG(skipped_children);
 
@@ -1404,8 +1404,8 @@ bool BKE_layer_collection_sync(const Scene *scene, ViewLayer *view_layer)
       /* Those asserts are commented, since they are too expensive to perform even in debug, as
        * this layer resync function currently gets called way too often. */
 #if 0
-      BLI_assert(BLI_findindex(&new_object_bases, base) == -1);
-      BLI_assert(BLI_findptr(&new_object_bases, base->object, offsetof(Base, object)) == nullptr);
+      BLI_assume_assert(BLI_findindex(&new_object_bases, base) == -1);
+      BLI_assume_assert(BLI_findptr(&new_object_bases, base->object, offsetof(Base, object)) == nullptr);
 #endif
       view_layer->object_bases_hash->remove(base.object);
     }
@@ -1654,7 +1654,7 @@ bool BKE_base_is_visible(const View3D *v3d, const Base *base)
 
 bool BKE_object_is_visible_in_viewport(const View3D *v3d, const Object *ob)
 {
-  BLI_assert(v3d != nullptr);
+  BLI_assume_assert(v3d != nullptr);
 
   if (ob->visibility_flag & OB_HIDE_VIEWPORT) {
     return false;
@@ -2280,7 +2280,7 @@ void BKE_view_layer_bases_in_mode_iterator_begin(BLI_Iterator *iter, void *data_
   Base *base = data->base_active;
 
   /* In this case the result will always be empty, the caller must check for no mode. */
-  BLI_assert(data->object_mode != 0);
+  BLI_assume_assert(data->object_mode != 0);
 
   /* when there are no objects */
   if (base == nullptr) {
@@ -2389,10 +2389,10 @@ static void layer_eval_view_layer(Depsgraph *depsgraph, Scene *scene, ViewLayer 
 
 void BKE_layer_eval_view_layer_indexed(Depsgraph *depsgraph, Scene *scene, int view_layer_index)
 {
-  BLI_assert(view_layer_index >= 0);
+  BLI_assume_assert(view_layer_index >= 0);
   ViewLayer *view_layer = static_cast<ViewLayer *>(
       BLI_findlink(&scene->view_layers, view_layer_index));
-  BLI_assert(view_layer != nullptr);
+  BLI_assume_assert(view_layer != nullptr);
   layer_eval_view_layer(depsgraph, scene, view_layer);
 }
 
@@ -2536,7 +2536,7 @@ static void viewlayer_aov_make_name_unique(ViewLayer *view_layer)
 static void viewlayer_aov_active_set(ViewLayer *view_layer, ViewLayerAOV *aov)
 {
   if (aov != nullptr) {
-    BLI_assert(BLI_findindex(&view_layer->aovs, aov) != -1);
+    BLI_assume_assert(BLI_findindex(&view_layer->aovs, aov) != -1);
     view_layer->active_aov = aov;
   }
   else {
@@ -2558,8 +2558,8 @@ ViewLayerAOV *BKE_view_layer_add_aov(ViewLayer *view_layer)
 
 void BKE_view_layer_remove_aov(ViewLayer *view_layer, ViewLayerAOV *aov)
 {
-  BLI_assert(BLI_findindex(&view_layer->aovs, aov) != -1);
-  BLI_assert(aov != nullptr);
+  BLI_assume_assert(BLI_findindex(&view_layer->aovs, aov) != -1);
+  BLI_assume_assert(aov != nullptr);
   if (view_layer->active_aov == aov) {
     if (aov->next) {
       viewlayer_aov_active_set(view_layer, aov->next);
@@ -2655,7 +2655,7 @@ static void viewlayer_lightgroup_make_name_unique(ViewLayer *view_layer,
 static void viewlayer_lightgroup_active_set(ViewLayer *view_layer, ViewLayerLightgroup *lightgroup)
 {
   if (lightgroup != nullptr) {
-    BLI_assert(BLI_findindex(&view_layer->lightgroups, lightgroup) != -1);
+    BLI_assume_assert(BLI_findindex(&view_layer->lightgroups, lightgroup) != -1);
     view_layer->active_lightgroup = lightgroup;
   }
   else {
@@ -2676,8 +2676,8 @@ ViewLayerLightgroup *BKE_view_layer_add_lightgroup(ViewLayer *view_layer, const 
 
 void BKE_view_layer_remove_lightgroup(ViewLayer *view_layer, ViewLayerLightgroup *lightgroup)
 {
-  BLI_assert(BLI_findindex(&view_layer->lightgroups, lightgroup) != -1);
-  BLI_assert(lightgroup != nullptr);
+  BLI_assume_assert(BLI_findindex(&view_layer->lightgroups, lightgroup) != -1);
+  BLI_assume_assert(lightgroup != nullptr);
   if (view_layer->active_lightgroup == lightgroup) {
     if (lightgroup->next) {
       viewlayer_lightgroup_active_set(view_layer, lightgroup->next);

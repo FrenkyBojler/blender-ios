@@ -11,6 +11,7 @@
 #include "BLI_multi_value_map.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
+#include "BLI_assume.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_string_search.hh"
 #include "BLI_string_utf8.h"
@@ -105,7 +106,7 @@ int get_fuzzy_match_errors(StringRef query, StringRef full)
   if (query_size == 1) {
     return -1;
   }
-  BLI_assert(query.size() >= 2);
+  BLI_assume_assert(query.size() >= 2);
 
   /* Allow more errors when the size grows larger. */
   const int max_errors = query_size <= 1 ? 0 : query_size / 8 + 1;
@@ -222,7 +223,7 @@ static std::optional<InitialsMatch> match_word_initials(StringRef query,
       /* Skip words that the caller does not want us to use. */
       if (word_match_map[word_index] != unused_word) {
         word_index++;
-        BLI_assert(char_index == 0);
+        BLI_assume_assert(char_index == 0);
         continue;
       }
 
@@ -424,11 +425,11 @@ void extract_normalized_words(StringRef str,
   const uint32_t unicode_slash = uint32_t('/');
   const uint32_t unicode_right_triangle = UI_MENU_ARROW_SEP_UNICODE;
 
-  BLI_assert(unicode_space == BLI_str_utf8_as_unicode_safe(" "));
-  BLI_assert(unicode_dash == BLI_str_utf8_as_unicode_safe("-"));
-  BLI_assert(unicode_underscore == BLI_str_utf8_as_unicode_safe("_"));
-  BLI_assert(unicode_slash == BLI_str_utf8_as_unicode_safe("/"));
-  BLI_assert(unicode_right_triangle == BLI_str_utf8_as_unicode_safe(UI_MENU_ARROW_SEP));
+  BLI_assume_assert(unicode_space == BLI_str_utf8_as_unicode_safe(" "));
+  BLI_assume_assert(unicode_dash == BLI_str_utf8_as_unicode_safe("-"));
+  BLI_assume_assert(unicode_underscore == BLI_str_utf8_as_unicode_safe("_"));
+  BLI_assume_assert(unicode_slash == BLI_str_utf8_as_unicode_safe("/"));
+  BLI_assume_assert(unicode_right_triangle == BLI_str_utf8_as_unicode_safe(UI_MENU_ARROW_SEP));
 
   auto is_separator = [&](uint32_t unicode) {
     return ELEM(unicode,
@@ -485,7 +486,7 @@ void extract_normalized_words(StringRef str,
 
 void StringSearchBase::add_impl(const StringRef str, void *user_data, const float weight)
 {
-  BLI_assert(BLI_str_utf8_invalid_byte(str.data(), str.size()) == -1);
+  BLI_assume_assert(BLI_str_utf8_invalid_byte(str.data(), str.size()) == -1);
   Vector<StringRef, 64> words;
   Vector<int, 64> word_group_ids;
   string_search::extract_normalized_words(str, allocator_, words, word_group_ids);

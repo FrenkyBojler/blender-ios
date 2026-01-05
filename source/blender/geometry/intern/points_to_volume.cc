@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_math_base.hh"
+#include "BLI_assume.hh"
 
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
@@ -33,7 +34,7 @@ class OpenVDBParticleList {
                       const float voxel_size)
       : positions_(positions), radii_(radii), voxel_size_inv_(math::rcp(voxel_size))
   {
-    BLI_assert(voxel_size > 0.0f);
+    BLI_assume_assert(voxel_size > 0.0f);
   }
 
   size_t size() const

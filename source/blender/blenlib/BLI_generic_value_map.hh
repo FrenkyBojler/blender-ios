@@ -92,7 +92,7 @@ template<typename Key> class GValueMap {
   {
     GMutablePointer value = values_.pop_as(key);
     const CPPType &type = *value.type();
-    BLI_assert(type.is<T>());
+    BLI_assume_assert(type.is<T>());
     T return_value;
     type.relocate_assign(value.get(), &return_value);
     return return_value;
@@ -101,8 +101,8 @@ template<typename Key> class GValueMap {
   template<typename T, typename ForwardKey> const T &lookup(const ForwardKey &key) const
   {
     GMutablePointer value = values_.lookup_as(key);
-    BLI_assert(value.is_type<T>());
-    BLI_assert(value.get() != nullptr);
+    BLI_assume_assert(value.is_type<T>());
+    BLI_assume_assert(value.get() != nullptr);
     return *(const T *)value.get();
   }
 

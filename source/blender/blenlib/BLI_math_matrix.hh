@@ -797,14 +797,14 @@ namespace detail {
 
 template<typename T> AngleRadianBase<T> normalized_to_angle(const MatBase<T, 2, 2> &mat)
 {
-  BLI_assert(math::is_unit_scale(mat));
+  BLI_assume_assert(math::is_unit_scale(mat));
   return AngleRadianBase(mat[0][0], mat[0][1]);
 }
 
 template<typename T>
 void normalized_to_eul2(const MatBase<T, 3, 3> &mat, EulerXYZBase<T> &eul1, EulerXYZBase<T> &eul2)
 {
-  BLI_assert(math::is_unit_scale(mat));
+  BLI_assume_assert(math::is_unit_scale(mat));
 
   const T cy = math::hypot(mat[0][0], mat[0][1]);
   if (cy > T(16) * std::numeric_limits<T>::epsilon()) {
@@ -827,7 +827,7 @@ void normalized_to_eul2(const MatBase<T, 3, 3> &mat, EulerXYZBase<T> &eul1, Eule
 template<typename T>
 void normalized_to_eul2(const MatBase<T, 3, 3> &mat, Euler3Base<T> &eul1, Euler3Base<T> &eul2)
 {
-  BLI_assert(math::is_unit_scale(mat));
+  BLI_assume_assert(math::is_unit_scale(mat));
   const int i_index = eul1.i_index();
   const int j_index = eul1.j_index();
   const int k_index = eul1.k_index();
@@ -869,7 +869,7 @@ extern template void normalized_to_eul2(const double3x3 &mat,
 
 template<typename T> QuaternionBase<T> normalized_to_quat_fast(const MatBase<T, 3, 3> &mat)
 {
-  BLI_assert(math::is_unit_scale(mat));
+  BLI_assume_assert(math::is_unit_scale(mat));
   /* Caller must ensure matrices aren't negative for valid results, see: #24291, #94231. */
   BLI_assert(!math::is_negative(mat));
 
@@ -967,7 +967,7 @@ template<typename T> QuaternionBase<T> normalized_to_quat_fast(const MatBase<T, 
     q.w *= q_len_inv;
   }
 
-  BLI_assert(math::is_unit_scale(VecBase<T, 4>(q)));
+  BLI_assume_assert(math::is_unit_scale(VecBase<T, 4>(q)));
   return q;
 }
 
@@ -1084,7 +1084,7 @@ template<typename T, int NumCol, int NumRow>
 [[nodiscard]] MatBase<T, NumCol, NumRow> from_rotation(const DualQuaternionBase<T> &rotation)
 {
   using MatT = MatBase<T, NumCol, NumRow>;
-  BLI_assert(is_normalized(rotation));
+  BLI_assume_assert(is_normalized(rotation));
   /**
    * From:
    * "Skinning with Dual Quaternions"
@@ -1129,7 +1129,7 @@ MatBase<T, NumCol, NumRow> from_rotation(const AxisAngleBase<T, AngleT> &rotatio
   const T angle_cos = cos(rotation.angle());
   const Vec3T &axis = rotation.axis();
 
-  BLI_assert(is_unit_scale(axis));
+  BLI_assume_assert(is_unit_scale(axis));
 
   T ico = (T(1) - angle_cos);
   Vec3T nsi = axis * angle_sin;
@@ -1476,7 +1476,7 @@ template<typename MatT, int ScaleDim>
 
 template<typename T> MatBase<T, 2, 2> from_direction(const VecBase<T, 2> &direction)
 {
-  BLI_assert(is_unit_scale(direction));
+  BLI_assume_assert(is_unit_scale(direction));
   return MatBase<T, 2, 2>(direction,
                           VecBase<T, 2>(direction.y, direction.x) * VecBase<T, 2>(-1, 1));
 }
@@ -1484,8 +1484,8 @@ template<typename T> MatBase<T, 2, 2> from_direction(const VecBase<T, 2> &direct
 template<typename MatT, typename VectorT>
 [[nodiscard]] MatT from_orthonormal_axes(const VectorT forward, const VectorT up)
 {
-  BLI_assert(is_unit_scale(forward));
-  BLI_assert(is_unit_scale(up));
+  BLI_assume_assert(is_unit_scale(forward));
+  BLI_assume_assert(is_unit_scale(up));
 
   /* TODO(fclem): This is wrong. Forward is Y. */
   MatT matrix;
@@ -1510,7 +1510,7 @@ template<typename MatT, typename VectorT>
 
 template<typename MatT, typename VectorT> [[nodiscard]] MatT from_up_axis(const VectorT up)
 {
-  BLI_assert(is_unit_scale(up));
+  BLI_assume_assert(is_unit_scale(up));
   using T = typename MatT::base_type;
   using Vec3T = VecBase<T, 3>;
   /* Duff, Tom, et al. "Building an orthonormal basis, revisited." JCGT 6.1 (2017). */

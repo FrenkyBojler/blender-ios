@@ -6,6 +6,7 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_index_mask_expression.hh"
+#include "BLI_assume.hh"
 #include "BLI_index_ranges_builder.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -355,7 +356,7 @@ struct TriKey {
       : tri_index(tri_index), tri_lower_vert(tris[tri_index][0])
   {
     [[maybe_unused]] const int3 &tri_verts = tris[tri_index];
-    BLI_assert(std::is_sorted(&tri_verts[0], &tri_verts[0] + 3));
+    BLI_assume_assert(std::is_sorted(&tri_verts[0], &tri_verts[0] + 3));
   }
 };
 
@@ -367,7 +368,7 @@ struct FaceHash {
 
   uint64_t operator()(const int3 value) const
   {
-    BLI_assert(std::is_sorted(&value[0], &value[0] + 3));
+    BLI_assume_assert(std::is_sorted(&value[0], &value[0] + 3));
     return uint64_t(value[0]);
   }
 };
@@ -381,7 +382,7 @@ struct FacesEquality {
 
   bool operator()(const int3 a, const TriKey b) const
   {
-    BLI_assert(std::is_sorted(&a[0], &a[0] + 3));
+    BLI_assume_assert(std::is_sorted(&a[0], &a[0] + 3));
     return b.tri_lower_vert == a[0] && tris[b.tri_index] == a;
   }
 };
@@ -448,7 +449,7 @@ static IndexMask tris_in_set(const IndexMask &tri_mask,
                              IndexMaskMemory &memory)
 {
   return IndexMask::from_predicate(tri_mask, GrainSize(4096), memory, [&](const int face_i) {
-    BLI_assert(faces[face_i].size() == 3);
+    BLI_assume_assert(faces[face_i].size() == 3);
     const int3 corner_tri(&corner_verts[faces[face_i].start()]);
     return unique_tris.contains_as(tri_to_ordered(corner_tri));
   });
@@ -456,7 +457,7 @@ static IndexMask tris_in_set(const IndexMask &tri_mask,
 
 static void face_keys_to_face_indices(const Span<TriKey> faces, MutableSpan<int> indices)
 {
-  BLI_assert(faces.size() == indices.size());
+  BLI_assume_assert(faces.size() == indices.size());
   threading::parallel_for(faces.index_range(), 4096, [&](const IndexRange range) {
     for (const int face_i : range) {
       indices[face_i] = faces[face_i].tri_index;
@@ -466,7 +467,7 @@ static void face_keys_to_face_indices(const Span<TriKey> faces, MutableSpan<int>
 
 static void quad_indices_of_tris(const IndexMask &quads, MutableSpan<int> indices)
 {
-  BLI_assert(quads.size() * 2 == indices.size());
+  BLI_assume_assert(quads.size() * 2 == indices.size());
   quads.foreach_index_optimized<int>(GrainSize(4096), [&](const int index, const int pos) {
     indices[2 * pos + 0] = index;
     indices[2 * pos + 1] = index;
@@ -477,8 +478,8 @@ static void ngon_indices_of_tris(const IndexMask &ngons,
                                  const OffsetIndices<int> tris_by_ngon,
                                  MutableSpan<int> indices)
 {
-  BLI_assert(tris_by_ngon.size() == ngons.size());
-  BLI_assert(tris_by_ngon.total_size() == indices.size());
+  BLI_assume_assert(tris_by_ngon.size() == ngons.size());
+  BLI_assume_assert(tris_by_ngon.total_size() == indices.size());
   ngons.foreach_index_optimized<int>(GrainSize(4096), [&](const int index, const int pos) {
     indices.slice(tris_by_ngon[pos]).fill(index);
   });
@@ -706,7 +707,7 @@ std::optional<Mesh *> mesh_triangulate(const Mesh &src_mesh,
   if (src_mesh.no_overlapping_topology()) {
     mesh->tag_overlapping_none();
   }
-  BLI_assert(bke::mesh_is_valid(*mesh));
+  BLI_assume_assert(bke::mesh_is_valid(*mesh));
   return mesh;
 }
 

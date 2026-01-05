@@ -216,8 +216,8 @@ static void calc_boundaries(const Mesh &mesh,
                             MutableSpan<VertexType> r_vertex_types,
                             MutableSpan<EdgeType> r_edge_types)
 {
-  BLI_assert(r_vertex_types.size() == mesh.verts_num);
-  BLI_assert(r_edge_types.size() == mesh.edges_num);
+  BLI_assume_assert(r_vertex_types.size() == mesh.verts_num);
+  BLI_assume_assert(r_edge_types.size() == mesh.edges_num);
   const Span<int2> edges = mesh.edges();
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_edges = mesh.corner_edges();
@@ -417,7 +417,7 @@ static bool sort_vertex_faces(const Span<int2> edges,
       shared_edge_i = corner_edges[corner_1];
     }
   }
-  BLI_assert(shared_edge_i != -1);
+  BLI_assume_assert(shared_edge_i != -1);
 
   for (const int i : IndexRange(connected_faces.size() - 1)) {
     r_shared_edges[i] = shared_edge_i;

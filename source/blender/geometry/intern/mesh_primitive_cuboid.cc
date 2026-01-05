@@ -5,6 +5,8 @@
 #include "BKE_attribute.hh"
 #include "BKE_mesh.hh"
 
+#include "BLI_assume.hh"
+
 #include "GEO_mesh_primitive_cuboid.hh"
 
 namespace blender::geometry {
@@ -30,7 +32,7 @@ struct CuboidConfig {
         edges_y(verts_y - 1),
         edges_z(verts_z - 1)
   {
-    BLI_assert(edges_x > 0 && edges_y > 0 && edges_z > 0);
+    BLI_assume_assert(edges_x > 0 && edges_y > 0 && edges_z > 0);
     this->vertex_count = this->get_vertex_count();
     this->face_count = this->get_face_count();
     this->loop_count = this->face_count * 4;

@@ -306,7 +306,7 @@ void RandomNumberGenerator::seed_random(uint32_t seed)
 int RandomNumberGenerator::round_probabilistic(float x)
 {
   /* Support for negative values can be added when necessary. */
-  BLI_assert(x >= 0.0f);
+  BLI_assume_assert(x >= 0.0f);
   const float round_up_probability = fractf(x);
   const bool round_up = round_up_probability > this->get_float();
   return int(x) + int(round_up);
@@ -390,7 +390,7 @@ void RandomNumberGenerator::get_bytes(MutableSpan<char> r_bytes)
   const char *data_src = (const char *)&x_;
   int64_t i = 0;
   while (i != trim_len) {
-    BLI_assert(i < trim_len);
+    BLI_assume_assert(i < trim_len);
     /* NOTE: this is endianness-sensitive.
      * Big Endian needs to iterate in reverse, with a `mask_bytes - 1` offset. */
     for (int64_t j = 0; j != rand_stride; j++) {

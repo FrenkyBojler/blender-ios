@@ -17,7 +17,7 @@
 #  include <numeric>
 
 #  include "BLI_array.hh"
-#  include "BLI_assert.h"
+#  include "BLI_assume.hh"
 #  include "BLI_delaunay_2d.hh"
 #  include "BLI_kdopbvh.hh"
 #  include "BLI_map.hh"
@@ -563,7 +563,7 @@ void IMesh::populate_vert(int max_verts)
       }
       int index = vert_to_index_.lookup_default(v, NO_INDEX);
       if (index == NO_INDEX) {
-        BLI_assert(next_allocate_index < UINT_MAX - 2);
+        BLI_assume_assert(next_allocate_index < UINT_MAX - 2);
         vert_to_index_.add(v, next_allocate_index++);
       }
     }
@@ -572,7 +572,7 @@ void IMesh::populate_vert(int max_verts)
   vert_ = Array<const Vert *>(tot_v);
   for (auto item : vert_to_index_.items()) {
     int index = item.value;
-    BLI_assert(index < tot_v);
+    BLI_assume_assert(index < tot_v);
     vert_[index] = item.key;
   }
   /* Easier debugging (at least when there are no merged input verts)
@@ -636,7 +636,7 @@ bool IMesh::erase_face_positions(int f_index, Span<bool> face_pos_erase, IMeshAr
       ++new_index;
     }
   }
-  BLI_assert(new_index == new_len);
+  BLI_assume_assert(new_index == new_len);
   this->face_[f_index] = arena->add_face(new_vert, cur_f->orig, new_edge_orig, new_is_intersect);
   return false;
 }
@@ -855,7 +855,7 @@ class CoplanarClusterInfo {
 
   int tri_cluster(int t) const
   {
-    BLI_assert(t < tri_cluster_.size());
+    BLI_assume_assert(t < tri_cluster_.size());
     return tri_cluster_[t];
   }
 
@@ -863,7 +863,7 @@ class CoplanarClusterInfo {
   {
     int c_index = clusters_.append_and_get_index(cl);
     for (int t : cl) {
-      BLI_assert(t < tri_cluster_.size());
+      BLI_assume_assert(t < tri_cluster_.size());
       tri_cluster_[t] = c_index;
     }
     return c_index;
@@ -891,7 +891,7 @@ class CoplanarClusterInfo {
 
   const CoplanarCluster &cluster(int index) const
   {
-    BLI_assert(index < clusters_.size());
+    BLI_assume_assert(index < clusters_.size());
     return clusters_[index];
   }
 };
@@ -942,7 +942,7 @@ static mpq2 project_3d_to_2d(const mpq3 &p3d, int proj_axis)
       break;
     }
     default:
-      BLI_assert(false);
+      BLI_assume_assert(false);
   }
   return p2d;
 }
@@ -1060,7 +1060,7 @@ static inline mpq3 tti_interp(
   ac = a;
   ac -= c;
   mpq_class den = math::dot_with_buffer(ab, n, dotbuf);
-  BLI_assert(den != 0);
+  BLI_assume_assert(den != 0);
   mpq_class alpha = math::dot_with_buffer(ac, n, dotbuf) / den;
   return a - alpha * ab;
 }
@@ -1279,7 +1279,7 @@ static ITT_value intersect_tri_tri(const IMesh &tm, int t1, int t2)
 #  endif
   const Face &tri1 = *tm.face(t1);
   const Face &tri2 = *tm.face(t2);
-  BLI_assert(tri1.plane_populated() && tri2.plane_populated());
+  BLI_assume_assert(tri1.plane_populated() && tri2.plane_populated());
   const Vert *vp1 = tri1[0];
   const Vert *vq1 = tri1[1];
   const Vert *vr1 = tri1[2];
@@ -1525,8 +1525,8 @@ static int prepare_need_vert(CDT_data &cd, const mpq3 &p3d)
 static mpq3 unproject_cdt_vert(const CDT_data &cd, const mpq2 &p2d)
 {
   mpq3 p3d;
-  BLI_assert(cd.t_plane->exact_populated());
-  BLI_assert(cd.t_plane->norm_exact[cd.proj_axis] != 0);
+  BLI_assume_assert(cd.t_plane->exact_populated());
+  BLI_assume_assert(cd.t_plane->norm_exact[cd.proj_axis] != 0);
   const mpq3 &n = cd.t_plane->norm_exact;
   const mpq_class &d = cd.t_plane->d_exact;
   switch (cd.proj_axis) {
@@ -1555,7 +1555,7 @@ static mpq3 unproject_cdt_vert(const CDT_data &cd, const mpq2 &p2d)
       break;
     }
     default:
-      BLI_assert(false);
+      BLI_assume_assert(false);
   }
   return p3d;
 }
@@ -1576,7 +1576,7 @@ static void prepare_need_tri(CDT_data &cd, const IMesh &tm, int t)
   bool rev;
   /* How to get CCW orientation of projected triangle? Note that when look down y axis
    * as opposed to x or z, the orientation of the other two axes is not right-and-up. */
-  BLI_assert(cd.t_plane->exact_populated());
+  BLI_assume_assert(cd.t_plane->exact_populated());
   if (tri.plane->norm_exact[cd.proj_axis] >= 0) {
     rev = cd.proj_axis == 1;
   }
@@ -1600,9 +1600,9 @@ static void prepare_need_tri(CDT_data &cd, const IMesh &tm, int t)
 static CDT_data prepare_cdt_input(const IMesh &tm, int t, const Span<ITT_value> itts)
 {
   CDT_data ans;
-  BLI_assert(tm.face(t)->plane_populated());
+  BLI_assume_assert(tm.face(t)->plane_populated());
   ans.t_plane = tm.face(t)->plane;
-  BLI_assert(ans.t_plane->exact_populated());
+  BLI_assume_assert(ans.t_plane->exact_populated());
   ans.proj_axis = math::dominant_axis(ans.t_plane->norm_exact);
   prepare_need_tri(ans, tm, t);
   for (const ITT_value &itt : itts) {
@@ -1632,13 +1632,13 @@ static CDT_data prepare_cdt_input_for_cluster(const IMesh &tm,
                                               const Span<ITT_value> itts)
 {
   CDT_data ans;
-  BLI_assert(c < clinfo.tot_cluster());
+  BLI_assume_assert(c < clinfo.tot_cluster());
   const CoplanarCluster &cl = clinfo.cluster(c);
-  BLI_assert(cl.tot_tri() > 0);
+  BLI_assume_assert(cl.tot_tri() > 0);
   int t0 = cl.tri(0);
-  BLI_assert(tm.face(t0)->plane_populated());
+  BLI_assume_assert(tm.face(t0)->plane_populated());
   ans.t_plane = tm.face(t0)->plane;
-  BLI_assert(ans.t_plane->exact_populated());
+  BLI_assume_assert(ans.t_plane->exact_populated());
   ans.proj_axis = math::dominant_axis(ans.t_plane->norm_exact);
   for (const int t : cl) {
     prepare_need_tri(ans, tm, t);
@@ -1799,9 +1799,9 @@ static int get_cdt_edge_orig(
         /* We need to retrieve the edge orig field from the Face used to populate the
          * in_face_index'th face of the CDT, at the pos'th position of the face. */
         int in_tm_face_index = cd.input_face[in_face_index];
-        BLI_assert(in_tm_face_index < in_tm.face_size());
+        BLI_assume_assert(in_tm_face_index < in_tm.face_size());
         const Face *facep = in_tm.face(in_tm_face_index);
-        BLI_assert(pos < facep->size());
+        BLI_assume_assert(pos < facep->size());
         bool is_rev = cd.is_reversed[in_face_index];
         int eorig = is_rev ? facep->edge_orig[2 - pos] : facep->edge_orig[pos];
         if (eorig != NO_INDEX) {
@@ -1843,7 +1843,7 @@ static Face *cdt_tri_as_imesh_face(
 {
   const CDT_result<mpq_class> &cdt_out = cd.cdt_out;
   int t_orig = tm.face(cd.input_face[cdt_in_t])->orig;
-  BLI_assert(cdt_out.face[cdt_out_t].size() == 3);
+  BLI_assume_assert(cdt_out.face[cdt_out_t].size() == 3);
   int i0 = cdt_out.face[cdt_out_t][0];
   int i1 = cdt_out.face[cdt_out_t][1];
   int i2 = cdt_out.face[cdt_out_t][2];
@@ -1909,7 +1909,7 @@ static Array<Face *> polyfill_triangulate_poly(Face *f, IMeshArena *arena)
 {
   /* Similar to loop body in #BM_mesh_calc_tessellation. */
   int flen = f->size();
-  BLI_assert(flen >= 4);
+  BLI_assume_assert(flen >= 4);
   if (!f->plane_populated()) {
     f->populate_plane(false);
   }
@@ -1958,7 +1958,7 @@ static Array<Face *> polyfill_triangulate_poly(Face *f, IMeshArena *arena)
     int eo[3];
     const Vert *v[3];
     for (int k = 0; k < 3; k++) {
-      BLI_assert(tri[k] < flen);
+      BLI_assume_assert(tri[k] < flen);
       v[k] = (*f)[tri[k]];
       /* If tri edge goes between two successive indices in
        * the original face, then it is an original edge. */
@@ -2057,12 +2057,12 @@ static Array<Face *> exact_triangulate_poly(Face *f, IMeshArena *arena)
       std::pair<int, int> vpair(i_v_out[i], i_v_out[(i + 1) % 3]);
       std::pair<int, int> vpair_canon = sorted_int_pair(vpair);
       int e_out = verts_to_edge.lookup_default(vpair_canon, NO_INDEX);
-      BLI_assert(e_out != NO_INDEX);
+      BLI_assume_assert(e_out != NO_INDEX);
       eo[i] = NO_INDEX;
       for (int orig : cdt_out.edge_orig[e_out]) {
         if (orig >= foff) {
           int pos = orig % foff;
-          BLI_assert(pos < f->size());
+          BLI_assume_assert(pos < f->size());
           eo[i] = f->edge_orig[pos];
           break;
         }
@@ -2205,7 +2205,7 @@ static IMesh extract_subdivided_tri(const CDT_data &cd,
   }
   if (t_in_cdt == -1) {
     std::cout << "Could not find " << t << " in cdt input tris\n";
-    BLI_assert(false);
+    BLI_assume_assert(false);
     return IMesh();
   }
   constexpr int inline_buf_size = 20;
@@ -2411,7 +2411,7 @@ static void calc_overlap_itts_range_func(void *__restrict userdata,
   if (dbg_level > 0) {
     std::cout << "result of intersecting " << a << " and " << b << " = " << itt << "\n";
   }
-  BLI_assert(data->itt_map.contains(tri_pair));
+  BLI_assume_assert(data->itt_map.contains(tri_pair));
   data->itt_map.add_overwrite(tri_pair, itt);
 }
 
@@ -2571,7 +2571,7 @@ static void calc_cluster_tris(Array<IMesh> &tri_subdivided,
      */
     int n_cluster_tris = cl.tot_tri();
     const CDT_result<mpq_class> &cdt_out = cd.cdt_out;
-    BLI_assert(cd.input_face.size() == n_cluster_tris);
+    BLI_assume_assert(cd.input_face.size() == n_cluster_tris);
     Array<Vector<Face *>> face_vec(n_cluster_tris);
     for (int cdt_out_t : cdt_out.face.index_range()) {
       for (int cdt_in_t : cdt_out.face_orig[cdt_out_t]) {
@@ -2581,7 +2581,7 @@ static void calc_cluster_tris(Array<IMesh> &tri_subdivided,
     }
     for (int cdt_in_t : cd.input_face.index_range()) {
       int tm_t = cd.input_face[cdt_in_t];
-      BLI_assert(tri_subdivided[tm_t].face_size() == 0);
+      BLI_assume_assert(tri_subdivided[tm_t].face_size() == 0);
       tri_subdivided[tm_t] = IMesh(face_vec[cdt_in_t]);
     }
   }
@@ -2595,7 +2595,7 @@ static CDT_data calc_cluster_subdivided(const CoplanarClusterInfo &clinfo,
                                         IMeshArena * /*arena*/)
 {
   constexpr int dbg_level = 0;
-  BLI_assert(c < clinfo.tot_cluster());
+  BLI_assume_assert(c < clinfo.tot_cluster());
   const CoplanarCluster &cl = clinfo.cluster(c);
   /* Make a CDT input with triangles from C and intersects from other triangles in tm. */
   if (dbg_level > 0) {
@@ -2693,7 +2693,7 @@ static CoplanarClusterInfo find_clusters(const IMesh &tm,
      * We can't just store the canonical version in the face
      * since canonicalizing loses the orientation of the normal. */
     Plane tplane = *tm.face(t)->plane;
-    BLI_assert(tplane.exact_populated());
+    BLI_assume_assert(tplane.exact_populated());
     tplane.make_canonical();
     if (dbg_level > 0) {
       std::cout << "plane for tri " << t << " = " << &tplane << "\n";
@@ -2854,7 +2854,7 @@ IMesh trimesh_nary_intersect(const IMesh &tm_in,
     std::cout << "\nTRIMESH_NARY_INTERSECT nshapes=" << nshapes << " use_self=" << use_self
               << "\n";
     for (const Face *f : tm_in.faces()) {
-      BLI_assert(f->is_tri());
+      BLI_assume_assert(f->is_tri());
       UNUSED_VARS_NDEBUG(f);
     }
     if (dbg_level > 1) {
@@ -3050,7 +3050,7 @@ void write_obj_mesh(IMesh &m, const std::string &objname)
     f << "f ";
     for (const Vert *v : *face) {
       int i = m.lookup_vert(v);
-      BLI_assert(i != NO_INDEX);
+      BLI_assume_assert(i != NO_INDEX);
       /* OBJ files use 1-indexing for vertices. */
       f << i + 1 << " ";
     }

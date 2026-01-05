@@ -13,12 +13,12 @@
 #  include <intrin.h>
 #endif
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_math_bits.h"
 
 MINLINE unsigned int bitscan_forward_uint(unsigned int a)
 {
-  BLI_assert(a != 0);
+  BLI_assume_assert(a != 0);
 #ifdef _MSC_VER
   unsigned long ctz;
   _BitScanForward(&ctz, a);
@@ -30,7 +30,7 @@ MINLINE unsigned int bitscan_forward_uint(unsigned int a)
 
 MINLINE unsigned int bitscan_forward_uint64(unsigned long long a)
 {
-  BLI_assert(a != 0);
+  BLI_assume_assert(a != 0);
 #ifdef _MSC_VER
   unsigned long ctz;
   _BitScanForward64(&ctz, a);
@@ -66,7 +66,7 @@ MINLINE int bitscan_forward_clear_i(int *a)
 
 MINLINE unsigned int bitscan_reverse_uint(unsigned int a)
 {
-  BLI_assert(a != 0);
+  BLI_assume_assert(a != 0);
 #ifdef _MSC_VER
   unsigned long clz;
   _BitScanReverse(&clz, a);
@@ -78,7 +78,7 @@ MINLINE unsigned int bitscan_reverse_uint(unsigned int a)
 
 MINLINE unsigned int bitscan_reverse_uint64(unsigned long long a)
 {
-  BLI_assert(a != 0);
+  BLI_assume_assert(a != 0);
 #ifdef _MSC_VER
   unsigned long clz;
   _BitScanReverse64(&clz, a);

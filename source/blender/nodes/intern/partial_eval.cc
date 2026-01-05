@@ -4,6 +4,8 @@
 
 #include <queue>
 
+#include "BLI_assume.hh"
+
 #include "NOD_partial_eval.hh"
 
 #include "BKE_compute_contexts.hh"
@@ -34,7 +36,7 @@ static Vector<int> get_global_node_sort_vector_right_to_left(const ComputeContex
   for (const ComputeContext *context = initial_context; context; context = context->parent()) {
     if (const auto *group_context = dynamic_cast<const bke::GroupNodeComputeContext *>(context)) {
       const bNode *caller_group_node = group_context->node();
-      BLI_assert(caller_group_node != nullptr);
+      BLI_assume_assert(caller_group_node != nullptr);
       vec.append(caller_group_node->runtime->toposort_right_to_left_index);
     }
   }
@@ -51,7 +53,7 @@ static Vector<int> get_global_node_sort_vector_left_to_right(const ComputeContex
   for (const ComputeContext *context = initial_context; context; context = context->parent()) {
     if (const auto *group_context = dynamic_cast<const bke::GroupNodeComputeContext *>(context)) {
       const bNode *caller_group_node = group_context->node();
-      BLI_assert(caller_group_node != nullptr);
+      BLI_assume_assert(caller_group_node != nullptr);
       vec.append(caller_group_node->runtime->toposort_left_to_right_index);
     }
   }
@@ -126,7 +128,7 @@ void eval_downstream(
   const auto forward_group_node_input_into_group =
       [&](const SocketInContext &ctx_group_node_input) {
         const bNode &node = ctx_group_node_input.socket->owner_node();
-        BLI_assert(node.is_group());
+        BLI_assume_assert(node.is_group());
         const bNodeTree *group_tree = reinterpret_cast<const bNodeTree *>(node.id);
         if (!group_tree) {
           return;

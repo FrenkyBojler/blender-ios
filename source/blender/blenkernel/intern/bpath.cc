@@ -101,7 +101,7 @@ void BKE_bpath_foreach_path_id(BPathForeachPathData *bpath_data, ID *id)
 
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id);
 
-  BLI_assert(id_type != nullptr);
+  BLI_assume_assert(id_type != nullptr);
   if (id_type == nullptr || id_type->foreach_path == nullptr) {
     return;
   }
@@ -484,8 +484,8 @@ void BKE_bpath_relative_rebase(Main *bmain,
   BPathRebase_Data data = {nullptr};
   const int flag = (BKE_BPATH_FOREACH_PATH_SKIP_LINKED | BKE_BPATH_FOREACH_PATH_SKIP_MULTIFILE);
 
-  BLI_assert(basedir_src[0] != '\0');
-  BLI_assert(basedir_dst[0] != '\0');
+  BLI_assume_assert(basedir_src[0] != '\0');
+  BLI_assume_assert(basedir_dst[0] != '\0');
 
   data.basedir_src = basedir_src;
   data.basedir_dst = basedir_dst;
@@ -594,7 +594,7 @@ static void bpath_absolute_relative_convert(Main *bmain,
   BPathRemap_Data data = {nullptr};
   const int flag = BKE_BPATH_FOREACH_PATH_SKIP_LINKED;
 
-  BLI_assert(basedir[0] != '\0');
+  BLI_assume_assert(basedir[0] != '\0');
   if (basedir[0] == '\0') {
     CLOG_ERROR(&LOG, "basedir='', this is a bug");
     return;
@@ -720,7 +720,7 @@ void BKE_bpath_list_free(void *path_list_handle)
   ListBaseT<PathStore> *path_list = static_cast<ListBaseT<PathStore> *>(path_list_handle);
   /* The whole list should have been consumed by #BKE_bpath_list_restore, see also comment in
    * #bpath_list_restore. */
-  BLI_assert(BLI_listbase_is_empty(path_list));
+  BLI_assume_assert(BLI_listbase_is_empty(path_list));
 
   BLI_freelistN(path_list);
   MEM_freeN(path_list);

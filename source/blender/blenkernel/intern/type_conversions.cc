@@ -680,7 +680,7 @@ void DataTypeConversions::convert_to_uninitialized(const CPPType &from_type,
 
   const ConversionFunctions *functions = this->get_conversion_functions(
       DataType::ForSingle(from_type), DataType::ForSingle(to_type));
-  BLI_assert(functions != nullptr);
+  BLI_assume_assert(functions != nullptr);
 
   functions->convert_single_to_uninitialized(from_value, to_value);
 }
@@ -709,8 +709,8 @@ void DataTypeConversions::convert_to_initialized_n(GSpan from_span, GMutableSpan
   const CPPType &from_type = from_span.type();
   const CPPType &to_type = to_span.type();
 
-  BLI_assert(from_span.size() == to_span.size());
-  BLI_assert(this->is_convertible(from_type, to_type));
+  BLI_assume_assert(from_span.size() == to_span.size());
+  BLI_assume_assert(this->is_convertible(from_type, to_type));
 
   const mf::MultiFunction *fn = this->get_conversion_multi_function(DataType::ForSingle(from_type),
                                                                     DataType::ForSingle(to_type));

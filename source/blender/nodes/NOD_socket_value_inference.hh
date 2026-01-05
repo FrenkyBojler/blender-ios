@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_assume.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_resource_scope.hh"
 
@@ -35,7 +36,7 @@ class InferenceValue {
  public:
   static InferenceValue from_primitive(const void *value)
   {
-    BLI_assert(value != nullptr);
+    BLI_assume_assert(value != nullptr);
     return InferenceValue(value);
   }
 
@@ -56,13 +57,13 @@ class InferenceValue {
 
   const void *get_primitive_ptr() const
   {
-    BLI_assert(this->is_primitive_value());
+    BLI_assume_assert(this->is_primitive_value());
     return value_;
   }
 
   template<typename T> T get_primitive() const
   {
-    BLI_assert(this->is_primitive_value());
+    BLI_assume_assert(this->is_primitive_value());
     return *static_cast<const T *>(this->value_);
   }
 

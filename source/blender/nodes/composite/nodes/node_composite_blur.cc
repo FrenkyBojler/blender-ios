@@ -6,7 +6,7 @@
  * \ingroup cmpnodes
  */
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -138,7 +138,7 @@ class BlurOperation : public NodeOperation {
    * enabled. */
   int2 compute_extended_boundary_size(const Result &size)
   {
-    BLI_assert(this->get_extend_bounds());
+    BLI_assume_assert(this->get_extend_bounds());
 
     /* For constant sized blur, the extension should just be the blur radius. */
     if (size.is_single_value()) {
@@ -426,7 +426,7 @@ class BlurOperation : public NodeOperation {
 
   float2 get_blur_size()
   {
-    BLI_assert(this->get_input("Size").is_single_value());
+    BLI_assume_assert(this->get_input("Size").is_single_value());
     return math::max(float2(0.0f), this->get_input("Size").get_single_value<float2>());
   }
 

@@ -60,7 +60,7 @@ BMEditMesh *BKE_editmesh_copy(BMEditMesh *em)
 
 BMEditMesh *BKE_editmesh_from_object(Object *ob)
 {
-  BLI_assert(ob->type == OB_MESH);
+  BLI_assume_assert(ob->type == OB_MESH);
   return ((Mesh *)ob->data)->runtime->edit_mesh.get();
 }
 
@@ -106,7 +106,7 @@ void BKE_editmesh_looptris_calc_with_partial_ex(BMEditMesh *em,
                                                 BMPartialUpdate *bmpinfo,
                                                 const BMeshCalcTessellation_Params *params)
 {
-  BLI_assert(em->looptris.size() == poly_to_tri_count(em->bm->totface, em->bm->totloop));
+  BLI_assume_assert(em->looptris.size() == poly_to_tri_count(em->bm->totface, em->bm->totloop));
   BLI_assert(!(em->bm->totface && em->looptris.is_empty()));
 
   BM_mesh_calc_tessellation_with_partial_ex(em->bm, em->looptris, bmpinfo, params);
@@ -191,7 +191,7 @@ Span<float3> BKE_editmesh_vert_coords_when_deformed(
 
   Span<float3> vert_positions;
   if (mesh_cage && mesh_cage->runtime->deformed_only) {
-    BLI_assert(BKE_mesh_wrapper_vert_len(mesh_cage) == em->bm->totvert);
+    BLI_assume_assert(BKE_mesh_wrapper_vert_len(mesh_cage) == em->bm->totvert);
     /* Deformed, and we have deformed coords already. */
     vert_positions = BKE_mesh_wrapper_vert_coords(mesh_cage);
   }
@@ -202,7 +202,7 @@ Span<float3> BKE_editmesh_vert_coords_when_deformed(
 
     /* If this is not empty, it's value should be assigned to `vert_positions`
      * however the `mesh_cage` check above should handle this case. */
-    BLI_assert(BKE_mesh_wrapper_vert_coords(mesh_cage).is_empty());
+    BLI_assume_assert(BKE_mesh_wrapper_vert_coords(mesh_cage).is_empty());
   }
   else {
     /* Constructive modifiers have been used, we need to allocate coordinates. */

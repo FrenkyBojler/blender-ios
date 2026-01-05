@@ -131,7 +131,7 @@ class SocketUsageInferencerImpl {
       return false;
     }
 
-    BLI_assert(usage_tasks_.is_empty());
+    BLI_assume_assert(usage_tasks_.is_empty());
     usage_tasks_.push(socket);
 
     while (!usage_tasks_.is_empty()) {
@@ -170,7 +170,7 @@ class SocketUsageInferencerImpl {
     if (socket->owner_tree().has_available_link_cycle()) {
       return true;
     }
-    BLI_assert(disabled_output_tasks_.is_empty());
+    BLI_assume_assert(disabled_output_tasks_.is_empty());
     disabled_output_tasks_.push(socket);
 
     while (!disabled_output_tasks_.is_empty()) {
@@ -315,8 +315,8 @@ class SocketUsageInferencerImpl {
           is_selected_socket)
   {
     const NodeInContext node = socket.owner_node();
-    BLI_assert(node->input_sockets().size() >= 1);
-    BLI_assert(node->output_sockets().size() >= 1);
+    BLI_assume_assert(node->input_sockets().size() >= 1);
+    BLI_assume_assert(node->output_sockets().size() >= 1);
 
     if (socket->type == SOCK_CUSTOM && STREQ(socket->idname, "NodeSocketVirtual")) {
       all_socket_usages_.add_new(socket, false);
@@ -581,7 +581,7 @@ class SocketUsageInferencerImpl {
         /* The condition is not known, so it may be true. */
         continue;
       }
-      BLI_assert(condition_input_ptr->type == SOCK_BOOLEAN);
+      BLI_assume_assert(condition_input_ptr->type == SOCK_BOOLEAN);
       if (!condition_value.get_primitive<bool>()) {
         all_condition_inputs_true = false;
         break;
@@ -948,7 +948,7 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
                                         Span<const bNodeSocket *> input_sockets,
                                         MutableSpan<SocketUsage> r_input_usages)
 {
-  BLI_assert(group.interface_inputs().size() == input_sockets.size());
+  BLI_assume_assert(group.interface_inputs().size() == input_sockets.size());
 
   AlignedBuffer<1024, 8> allocator_buffer;
   ResourceScope scope;
@@ -1029,7 +1029,7 @@ std::optional<bool> SocketUsageParams::any_output_is_used() const
 
 bool SocketUsageParams::menu_input_may_be(const StringRef identifier, const int enum_value) const
 {
-  BLI_assert(this->node.input_by_identifier(identifier)->type == SOCK_MENU);
+  BLI_assume_assert(this->node.input_by_identifier(identifier)->type == SOCK_MENU);
   const InferenceValue value = this->get_input(identifier);
   if (!value.is_primitive_value()) {
     /* The value is unknown, so it may be the requested enum value. */

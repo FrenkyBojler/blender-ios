@@ -647,7 +647,7 @@ void BKE_mball_data_update(Depsgraph *depsgraph, Scene *scene, Object *ob)
 {
   using namespace blender;
   using namespace blender::bke;
-  BLI_assert(ob->type == OB_MBALL);
+  BLI_assume_assert(ob->type == OB_MBALL);
 
   BKE_object_free_derived_caches(ob);
 

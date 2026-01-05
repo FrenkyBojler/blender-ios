@@ -581,7 +581,7 @@ void BKE_curve_calc_modifiers_pre(Depsgraph *depsgraph,
     keyVerts = BKE_key_evaluate_object(ob, &numElems);
 
     if (keyVerts) {
-      BLI_assert(BKE_keyblock_curve_element_count(source_nurb) == numElems);
+      BLI_assume_assert(BKE_keyblock_curve_element_count(source_nurb) == numElems);
 
       /* split coords from key data, the latter also includes
        * tilts, which is passed through in the modifier stack.
@@ -795,7 +795,7 @@ static blender::bke::GeometrySet evaluate_surface_object(Depsgraph *depsgraph,
                                                          const bool for_render,
                                                          ListBaseT<DispList> *r_dispbase)
 {
-  BLI_assert(ob->type == OB_SURF);
+  BLI_assume_assert(ob->type == OB_SURF);
   const Curve *cu = (const Curve *)ob->data;
 
   ListBaseT<Nurb> *deformed_nurbs = &ob->runtime->curve_cache->deformed_nurbs;
@@ -1104,7 +1104,7 @@ static blender::bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph
                                                             const bool for_render,
                                                             ListBaseT<DispList> *r_dispbase)
 {
-  BLI_assert(ELEM(ob->type, OB_CURVES_LEGACY, OB_FONT));
+  BLI_assume_assert(ELEM(ob->type, OB_CURVES_LEGACY, OB_FONT));
   const Curve *cu = (const Curve *)ob->data;
 
   ListBaseT<Nurb> *deformed_nurbs = &ob->runtime->curve_cache->deformed_nurbs;
@@ -1324,7 +1324,7 @@ void BKE_displist_make_curveTypes(Depsgraph *depsgraph,
                                   Object *ob,
                                   const bool for_render)
 {
-  BLI_assert(ELEM(ob->type, OB_SURF, OB_CURVES_LEGACY, OB_FONT));
+  BLI_assume_assert(ELEM(ob->type, OB_SURF, OB_CURVES_LEGACY, OB_FONT));
 
   BKE_object_free_derived_caches(ob);
 

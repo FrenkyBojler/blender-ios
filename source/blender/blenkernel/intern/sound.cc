@@ -258,7 +258,7 @@ BLI_INLINE void sound_verify_evaluated_id(const ID *id)
    *
    * NOTE: We consider ID evaluated if ANY of those flags is set. We do NOT require ALL of them.
    */
-  BLI_assert(id->tag &
+  BLI_assume_assert(id->tag &
              (ID_TAG_COPIED_ON_EVAL | ID_TAG_COPIED_ON_EVAL_FINAL_RESULT | ID_TAG_NO_MAIN));
 }
 
@@ -433,7 +433,7 @@ static void sound_device_use_begin()
 
 static void sound_device_use_end_after(const std::chrono::milliseconds after_ms)
 {
-  BLI_assert(g_state.num_device_users > 0);
+  BLI_assume_assert(g_state.num_device_users > 0);
   if (g_state.num_device_users == 0) {
     return;
   }
@@ -1075,7 +1075,7 @@ void BKE_sound_play_scene(Scene *scene)
 void BKE_sound_stop_scene(Scene *scene)
 {
   std::lock_guard lock(g_state.sound_device_mutex);
-  BLI_assert(g_state.sound_device);
+  BLI_assume_assert(g_state.sound_device);
   if (scene->runtime->audio.playback_handle) {
     AUD_Handle_pause(scene->runtime->audio.playback_handle);
 

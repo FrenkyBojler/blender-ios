@@ -585,7 +585,7 @@ static int image_path_ext_from_imformat_impl(const char imtype,
     r_ext[ext_num++] = ".jpg";
     r_ext[ext_num++] = ".jpeg";
   }
-  BLI_assert(ext_num < BKE_IMAGE_PATH_EXT_MAX);
+  BLI_assume_assert(ext_num < BKE_IMAGE_PATH_EXT_MAX);
   r_ext[ext_num] = nullptr;
   return ext_num;
 }

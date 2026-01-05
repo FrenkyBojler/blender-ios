@@ -4,6 +4,8 @@
 
 #include "NOD_geometry_nodes_dependencies.hh"
 
+#include "BLI_assume.hh"
+
 #include "DNA_ID.h"
 #include "DNA_object_types.h"
 
@@ -55,7 +57,7 @@ void GeometryNodesEvalDependencies::merge(const GeometryNodesEvalDependencies &o
   }
   for (const auto &&item : other.objects_info.items()) {
     ID *id = other.ids.lookup(item.key);
-    BLI_assert(GS(id->name) == ID_OB);
+    BLI_assume_assert(GS(id->name) == ID_OB);
     this->add_object(reinterpret_cast<Object *>(id), item.value);
   }
   this->needs_own_transform |= other.needs_own_transform;

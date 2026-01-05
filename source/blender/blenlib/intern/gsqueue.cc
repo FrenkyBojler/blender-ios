@@ -13,6 +13,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_assume.hh"
 #include "BLI_gsqueue.h"
 #include "BLI_utildefines.h"
 
@@ -126,7 +127,7 @@ void BLI_gsqueue_push(GSQueue *queue, const void *item)
     queue->chunk_last_index = 0;
   }
 
-  BLI_assert(queue->chunk_last_index < queue->chunk_elem_max);
+  BLI_assume_assert(queue->chunk_last_index < queue->chunk_elem_max);
 
   /* Return last of queue */
   memcpy(queue_get_last_elem(queue), item, queue->elem_size);
@@ -134,7 +135,7 @@ void BLI_gsqueue_push(GSQueue *queue, const void *item)
 
 void BLI_gsqueue_pop(GSQueue *queue, void *r_item)
 {
-  BLI_assert(BLI_gsqueue_is_empty(queue) == false);
+  BLI_assume_assert(BLI_gsqueue_is_empty(queue) == false);
 
   memcpy(r_item, queue_get_first_elem(queue), queue->elem_size);
   queue->chunk_first_index++;

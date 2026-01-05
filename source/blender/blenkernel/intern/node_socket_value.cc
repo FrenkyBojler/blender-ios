@@ -183,7 +183,7 @@ template<typename T> T SocketValueVariant::extract()
       case Kind::List:
       case Kind::Grid: {
         const CPPType *cpp_type = socket_type_to_geo_nodes_base_cpp_type(socket_type_);
-        BLI_assert(cpp_type);
+        BLI_assume_assert(cpp_type);
         return fn::make_constant_field(*cpp_type, cpp_type->default_value());
       }
       case Kind::None: {
@@ -193,7 +193,7 @@ template<typename T> T SocketValueVariant::extract()
     }
   }
   else if constexpr (fn::is_field_v<T>) {
-    BLI_assert(static_type_is_base_socket_type<typename T::base_type>(socket_type_));
+    BLI_assume_assert(static_type_is_base_socket_type<typename T::base_type>(socket_type_));
     return T(this->extract<fn::GField>());
   }
   else if constexpr (std::is_same_v<T, nodes::ListPtr>) {
@@ -206,14 +206,14 @@ template<typename T> T SocketValueVariant::extract()
   else if constexpr (std::is_same_v<T, GVolumeGrid>) {
     switch (kind_) {
       case Kind::Grid: {
-        BLI_assert(value_);
+        BLI_assume_assert(value_);
         return std::move(value_.get<GVolumeGrid>());
       }
       case Kind::Single:
       case Kind::List:
       case Kind::Field: {
         const std::optional<VolumeGridType> grid_type = socket_type_to_grid_type(socket_type_);
-        BLI_assert(grid_type);
+        BLI_assume_assert(grid_type);
         return GVolumeGrid(*grid_type);
       }
       case Kind::None: {
@@ -223,12 +223,12 @@ template<typename T> T SocketValueVariant::extract()
     }
   }
   else if constexpr (is_VolumeGrid_v<T>) {
-    BLI_assert(static_type_is_base_socket_type<typename T::base_type>(socket_type_));
+    BLI_assume_assert(static_type_is_base_socket_type<typename T::base_type>(socket_type_));
     return this->extract<GVolumeGrid>().typed<typename T::base_type>();
   }
 #endif
   else {
-    BLI_assert(static_type_is_base_socket_type<T>(socket_type_));
+    BLI_assume_assert(static_type_is_base_socket_type<T>(socket_type_));
     if (kind_ == Kind::Single) {
       return std::move(value_.get<T>());
     }
@@ -259,7 +259,7 @@ template<typename T> void SocketValueVariant::store_impl(T value)
   if constexpr (std::is_same_v<T, fn::GField>) {
     const std::optional<eNodeSocketDatatype> new_socket_type =
         geo_nodes_base_cpp_type_to_socket_type(value.cpp_type());
-    BLI_assert(new_socket_type);
+    BLI_assume_assert(new_socket_type);
     socket_type_ = *new_socket_type;
     kind_ = Kind::Field;
     value_.emplace<fn::GField>(std::move(value));
@@ -272,29 +272,29 @@ template<typename T> void SocketValueVariant::store_impl(T value)
     kind_ = Kind::List;
     const std::optional<eNodeSocketDatatype> new_socket_type =
         geo_nodes_base_cpp_type_to_socket_type(value->cpp_type());
-    BLI_assert(new_socket_type);
+    BLI_assume_assert(new_socket_type);
     socket_type_ = *new_socket_type;
     value_.emplace<nodes::ListPtr>(std::move(value));
   }
 #ifdef WITH_OPENVDB
   else if constexpr (std::is_same_v<T, GVolumeGrid>) {
-    BLI_assert(value);
+    BLI_assume_assert(value);
     const VolumeGridType volume_grid_type = value->grid_type();
     const std::optional<eNodeSocketDatatype> new_socket_type = grid_type_to_socket_type(
         volume_grid_type);
-    BLI_assert(new_socket_type);
+    BLI_assume_assert(new_socket_type);
     socket_type_ = *new_socket_type;
     kind_ = Kind::Grid;
     value_.emplace<GVolumeGrid>(std::move(value));
   }
   else if constexpr (is_VolumeGrid_v<T>) {
-    BLI_assert(value);
+    BLI_assume_assert(value);
     this->store_impl<GVolumeGrid>(std::move(value));
   }
 #endif
   else {
     const std::optional<eNodeSocketDatatype> new_socket_type = static_type_to_socket_type<T>();
-    BLI_assert(new_socket_type);
+    BLI_assume_assert(new_socket_type);
     socket_type_ = *new_socket_type;
     kind_ = Kind::Single;
     value_.emplace<T>(std::move(value));
@@ -465,9 +465,9 @@ void SocketValueVariant::convert_to_single()
 
 GPointer SocketValueVariant::get_single_ptr() const
 {
-  BLI_assert(kind_ == Kind::Single);
+  BLI_assume_assert(kind_ == Kind::Single);
   const CPPType *type = socket_type_to_geo_nodes_base_cpp_type(socket_type_);
-  BLI_assert(type != nullptr);
+  BLI_assume_assert(type != nullptr);
   const void *data = value_.get();
   return GPointer(*type, data);
 }
@@ -591,7 +591,7 @@ void SocketValueVariant::ensure_owns_direct_data()
       break;
     }
   }
-  BLI_assert(this->owns_direct_data());
+  BLI_assume_assert(this->owns_direct_data());
 }
 
 bool SocketValueVariant::owns_direct_data() const

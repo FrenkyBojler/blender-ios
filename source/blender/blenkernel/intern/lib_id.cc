@@ -179,7 +179,7 @@ static bool lib_id_library_local_paths_callback(BPathForeachPathData *bpath_data
  */
 static void lib_id_library_local_paths(Main *bmain, Library *lib_to, Library *lib_from, ID *id)
 {
-  BLI_assert(lib_to || lib_from);
+  BLI_assume_assert(lib_to || lib_from);
   const char *bpath_user_data[2] = {
       lib_to ? lib_to->runtime->filepath_abs : BKE_main_blendfile_path(bmain),
       lib_from ? lib_from->runtime->filepath_abs : BKE_main_blendfile_path(bmain)};
@@ -291,7 +291,7 @@ void BKE_lib_id_clear_library_data(Main *bmain, ID *id, const int flags)
 void id_lib_extern(ID *id)
 {
   if (id && ID_IS_LINKED(id)) {
-    BLI_assert(BKE_idtype_idcode_is_linkable(GS(id->name)));
+    BLI_assume_assert(BKE_idtype_idcode_is_linkable(GS(id->name)));
     if (id->tag & ID_TAG_INDIRECT) {
       id->tag &= ~ID_TAG_INDIRECT;
       id->flag &= ~ID_FLAG_INDIRECT_WEAK_LINK;
@@ -304,7 +304,7 @@ void id_lib_extern(ID *id)
 void id_lib_indirect_weak_link(ID *id)
 {
   if (id && ID_IS_LINKED(id)) {
-    BLI_assert(BKE_idtype_idcode_is_linkable(GS(id->name)));
+    BLI_assume_assert(BKE_idtype_idcode_is_linkable(GS(id->name)));
     if (id->tag & ID_TAG_INDIRECT) {
       id->flag |= ID_FLAG_INDIRECT_WEAK_LINK;
     }
@@ -334,7 +334,7 @@ void id_us_clear_real(ID *id)
   if (id && (id->tag & ID_TAG_EXTRAUSER)) {
     if (id->tag & ID_TAG_EXTRAUSER_SET) {
       id->us--;
-      BLI_assert(id->us >= ID_FAKE_USERS(id));
+      BLI_assume_assert(id->us >= ID_FAKE_USERS(id));
     }
     id->tag &= ~(ID_TAG_EXTRAUSER | ID_TAG_EXTRAUSER_SET);
   }
@@ -344,13 +344,13 @@ void id_us_plus_no_lib(ID *id)
 {
   if (id) {
     if ((id->tag & ID_TAG_EXTRAUSER) && (id->tag & ID_TAG_EXTRAUSER_SET)) {
-      BLI_assert(id->us >= 1);
+      BLI_assume_assert(id->us >= 1);
       /* No need to increase count, just tag extra user as no more set.
        * Avoids annoying & inconsistent +1 in user count. */
       id->tag &= ~ID_TAG_EXTRAUSER_SET;
     }
     else {
-      BLI_assert(id->us >= 0);
+      BLI_assume_assert(id->us >= 0);
       id->us++;
     }
   }
@@ -505,7 +505,7 @@ void BKE_lib_id_make_local_generic_action_define(
 {
   bool force_local = (flags & LIB_ID_MAKELOCAL_FORCE_LOCAL) != 0;
   bool force_copy = (flags & LIB_ID_MAKELOCAL_FORCE_COPY) != 0;
-  BLI_assert(force_copy == false || force_copy != force_local);
+  BLI_assume_assert(force_copy == false || force_copy != force_local);
 
   if (force_local || force_copy) {
     /* Already set by caller code, nothing to do here. */
@@ -648,7 +648,7 @@ static int id_copy_libmanagement_cb(LibraryIDLinkCallbackData *cb_data)
   /* Increase used IDs refcount if needed and required. */
   if ((data->flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0 && (cb_flag & IDWALK_CB_USER)) {
     if ((data->flag & LIB_ID_CREATE_NO_MAIN) != 0) {
-      BLI_assert(cb_data->self_id->tag & ID_TAG_NO_MAIN);
+      BLI_assume_assert(cb_data->self_id->tag & ID_TAG_NO_MAIN);
       id_us_plus_no_lib(id);
     }
     else if (ID_IS_LINKED(cb_data->owner_id)) {
@@ -920,7 +920,7 @@ static void id_swap(Main *bmain,
                     IDRemapper *input_remapper_id_b,
                     const int self_remap_flags)
 {
-  BLI_assert(GS(id_a->name) == GS(id_b->name));
+  BLI_assume_assert(GS(id_a->name) == GS(id_b->name));
 
   IDRemapper *remapper_id_a = input_remapper_id_a;
   IDRemapper *remapper_id_b = input_remapper_id_b;
@@ -934,7 +934,7 @@ static void id_swap(Main *bmain,
   }
 
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_id(id_a);
-  BLI_assert(id_type != nullptr);
+  BLI_assume_assert(id_type != nullptr);
   const size_t id_struct_size = id_type->struct_size;
 
   const ID id_a_back = *id_a;
@@ -1029,7 +1029,7 @@ static void id_embedded_swap(Main *bmain,
                              IDRemapper *remapper_id_b)
 {
   if (embedded_id_a != nullptr && *embedded_id_a != nullptr) {
-    BLI_assert(embedded_id_b != nullptr);
+    BLI_assume_assert(embedded_id_b != nullptr);
 
     if (*embedded_id_b == nullptr) {
       /* Cannot swap anything if one of the embedded IDs is nullptr. */
@@ -1125,7 +1125,7 @@ void BKE_libblock_management_main_add(Main *bmain, void *idv)
 {
   ID *id = static_cast<ID *>(idv);
 
-  BLI_assert(bmain != nullptr);
+  BLI_assume_assert(bmain != nullptr);
   if ((id->tag & ID_TAG_NO_MAIN) == 0) {
     return;
   }
@@ -1141,7 +1141,7 @@ void BKE_libblock_management_main_add(Main *bmain, void *idv)
   }
 
   if (ID_IS_PACKED(id)) {
-    BLI_assert(ID_IS_LINKED(id));
+    BLI_assume_assert(ID_IS_LINKED(id));
     if ((id->lib->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0) {
       /* If the packed ID is currently using a regular library, find or create a suitable archive
        * one, and assign it to the id before adding it to the Main. */
@@ -1170,7 +1170,7 @@ void BKE_libblock_management_main_remove(Main *bmain, void *idv)
 {
   ID *id = static_cast<ID *>(idv);
 
-  BLI_assert(bmain != nullptr);
+  BLI_assume_assert(bmain != nullptr);
   if ((id->tag & ID_TAG_NO_MAIN) != 0) {
     return;
   }
@@ -1393,7 +1393,7 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
     if ((flag & LIB_ID_CREATE_NO_MAIN) == 0) {
       /* Note that 2.8x versioning has tested not to cause conflicts. Node trees are
        * skipped in this check to allow adding a geometry node tree for versioning. */
-      BLI_assert(bmain->is_locked_for_linking == false || ELEM(type, ID_WS, ID_GR, ID_NT));
+      BLI_assume_assert(bmain->is_locked_for_linking == false || ELEM(type, ID_WS, ID_GR, ID_NT));
       ListBaseT<ID> *lb = which_libbase(bmain, type);
 
       /* This is important in "read-file do-version after lib-link" context mainly, but is a good
@@ -1433,7 +1433,7 @@ void *BKE_libblock_alloc_in_lib(Main *bmain,
 
       /* This assert avoids having to keep name_map consistency when changing the library of an ID,
        * if this check is not true anymore it will have to be done here too. */
-      BLI_assert(bmain->curlib == nullptr || bmain->curlib->runtime->name_map == nullptr);
+      BLI_assume_assert(bmain->curlib == nullptr || bmain->curlib->runtime->name_map == nullptr);
 
       /* TODO: to be removed from here! */
       if ((flag & LIB_ID_CREATE_NO_DEG_TAG) == 0) {
@@ -1511,7 +1511,7 @@ void *BKE_id_new_in_lib(Main *bmain,
                         const char *name)
 
 {
-  BLI_assert(bmain != nullptr);
+  BLI_assume_assert(bmain != nullptr);
 
   if (name == nullptr) {
     name = DATA_(BKE_idtype_idcode_to_name(type));
@@ -1596,7 +1596,7 @@ void BKE_libblock_copy_in_lib(Main *bmain,
     new_id = static_cast<ID *>(
         BKE_libblock_alloc_in_lib(bmain, owner_library, GS(id->name), BKE_id_name(*id), flag));
   }
-  BLI_assert(new_id != nullptr);
+  BLI_assume_assert(new_id != nullptr);
 
   if ((flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) != 0) {
     new_id->tag |= ID_TAG_COPIED_ON_EVAL;
@@ -1628,7 +1628,7 @@ void BKE_libblock_copy_in_lib(Main *bmain,
    */
   if (new_owner_id.has_value()) {
     const IDTypeInfo *idtype = BKE_idtype_get_info_from_id(new_id);
-    BLI_assert(idtype->owner_pointer_get != nullptr);
+    BLI_assume_assert(idtype->owner_pointer_get != nullptr);
     ID **owner_id_pointer = idtype->owner_pointer_get(new_id, false);
     if (owner_id_pointer) {
       *owner_id_pointer = const_cast<ID *>(*new_owner_id);
@@ -1725,7 +1725,7 @@ ID *BKE_libblock_find_name(Main *bmain,
                            const std::optional<Library *> lib)
 {
   const ListBaseT<ID> *lb = which_libbase(bmain, type);
-  BLI_assert(lb != nullptr);
+  BLI_assume_assert(lb != nullptr);
 
   ID *id = static_cast<ID *>(BLI_findstring(lb, name, offsetof(ID, name) + 2));
   if (lib) {
@@ -1740,7 +1740,7 @@ ID *BKE_libblock_find_name(Main *bmain,
 ID *BKE_libblock_find_session_uid(Main *bmain, const short type, const uint32_t session_uid)
 {
   const ListBaseT<ID> *lb = which_libbase(bmain, type);
-  BLI_assert(lb != nullptr);
+  BLI_assume_assert(lb != nullptr);
   for (ID &id : *lb) {
     if (id.session_uid == session_uid) {
       return &id;
@@ -1814,7 +1814,7 @@ void id_sort_by_name(ListBaseT<ID> *lb, ID *id, ID *id_sorting_hint)
 
   /* Check if we can actually insert id before or after id_sorting_hint, if given. */
   if (!ELEM(id_sorting_hint, nullptr, id) && id_sorting_hint->lib == id->lib) {
-    BLI_assert(BLI_findindex(lb, id_sorting_hint) >= 0);
+    BLI_assume_assert(BLI_findindex(lb, id_sorting_hint) >= 0);
 
     ID *id_sorting_hint_next = static_cast<ID *>(id_sorting_hint->next);
     if (BLI_strcasecmp(id_sorting_hint->name, id->name) < 0 &&
@@ -1969,7 +1969,7 @@ IDNewNameResult BKE_id_new_name_validate(Main &bmain,
     }
 
     ID *id_other = BKE_libblock_find_name(&bmain, GS(id.name), orig_name, id.lib);
-    BLI_assert(id_other);
+    BLI_assume_assert(id_other);
 
     /* In case of #RenameExistingSameRoot, the existing ID (`id_other`) is only renamed if it has
      * the same 'root' name as the current name of the renamed `id`. */
@@ -2244,7 +2244,7 @@ void BKE_library_make_local(Main *bmain,
   for (LinkNode *it = todo_ids; it; it = it->next) {
     library_make_local_copying_check(
         static_cast<ID *>(it->link), loop_tags, bmain->relations, done_ids);
-    BLI_assert(loop_tags.is_empty());
+    BLI_assume_assert(loop_tags.is_empty());
   }
 
   /* Next step will most likely add new IDs, better to get rid of this mapping now. */
@@ -2320,8 +2320,8 @@ void BKE_library_make_local(Main *bmain,
   for (LinkNode *it = copied_ids; it; it = it->next) {
     ID *id = static_cast<ID *>(it->link);
 
-    BLI_assert(id->newid != nullptr);
-    BLI_assert(ID_IS_LINKED(id));
+    BLI_assume_assert(id->newid != nullptr);
+    BLI_assume_assert(ID_IS_LINKED(id));
 
     BKE_libblock_remap(bmain, id, id->newid, ID_REMAP_SKIP_INDIRECT_USAGE);
     if (old_to_new_ids) {
@@ -2381,7 +2381,7 @@ IDNewNameResult BKE_libblock_rename(Main &bmain,
                                     blender::StringRefNull name,
                                     const IDNewNameMode mode)
 {
-  BLI_assert(BKE_id_is_in_main(&bmain, &id));
+  BLI_assume_assert(BKE_id_is_in_main(&bmain, &id));
 
   if (STREQ(BKE_id_name(id), name.c_str())) {
     return {IDNewNameResult::Action::UNCHANGED, nullptr};
@@ -2429,7 +2429,7 @@ IDNewNameResult BKE_id_rename(Main &bmain,
       deg_tag_id(id);
       break;
     case IDNewNameResult::Action::RENAMED_COLLISION_FORCED:
-      BLI_assert(result.other_id);
+      BLI_assume_assert(result.other_id);
       deg_tag_id(*result.other_id);
       deg_tag_id(id);
       break;

@@ -177,7 +177,7 @@ template<typename T> struct AngleCartesianBase {
    */
   AngleCartesianBase(const T &x, const T &y) : cos_(x), sin_(y)
   {
-    BLI_assert(math::abs(x * x + y * y - T(1)) < T(1e-4));
+    BLI_assume_assert(math::abs(x * x + y * y - T(1)) < T(1e-4));
   }
 
   /**
@@ -593,8 +593,8 @@ template<typename T = float> struct AngleFraction {
   operator AngleCartesianBase<T>() const
   {
     AngleFraction a = this->wrapped();
-    BLI_assert(abs(a.numerator_) <= a.denominator_);
-    BLI_assert(a.denominator_ > 0);
+    BLI_assume_assert(abs(a.numerator_) <= a.denominator_);
+    BLI_assume_assert(a.denominator_ > 0);
 
     /* By default, creating a circle from an integer: calling #sinf & #cosf on the fraction
      * doesn't create symmetrical values (because floats can't represent Pi exactly). Resolve this
@@ -660,7 +660,7 @@ template<typename T = float> struct AngleFraction {
           BLI_assert_unreachable();
       }
       /* Resulting angle should be oscillating in [0..pi/4] range. */
-      BLI_assert(a.numerator_ >= 0 && a.numerator_ <= a.denominator_ / 4);
+      BLI_assume_assert(a.numerator_ >= 0 && a.numerator_ <= a.denominator_ / 4);
       T angle = T(numbers::pi) * (T(a.numerator_) / T(a.denominator_));
       x = math::cos(angle);
       y = math::sin(angle);

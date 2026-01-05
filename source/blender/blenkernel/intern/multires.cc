@@ -81,7 +81,7 @@ static BLI_bitmap *multires_mdisps_downsample_hidden(const BLI_bitmap *old_hidde
   const int new_gridsize = CCG_grid_size(new_level);
   const int old_gridsize = CCG_grid_size(old_level);
 
-  BLI_assert(new_level <= old_level);
+  BLI_assume_assert(new_level <= old_level);
   const int factor = CCG_grid_factor(new_level, old_level);
   BLI_bitmap *new_hidden = BLI_BITMAP_NEW(square_i(new_gridsize), "downsample hidden");
 
@@ -560,7 +560,7 @@ void multires_stitch_grids(Object *ob)
   if (subdiv_ccg == nullptr) {
     return;
   }
-  BLI_assert(bke::object::pbvh_get(*ob) &&
+  BLI_assume_assert(bke::object::pbvh_get(*ob) &&
              bke::object::pbvh_get(*ob)->type() == blender::bke::pbvh::Type::Grids);
   BKE_subdiv_ccg_average_stitch_faces(*subdiv_ccg, IndexMask(subdiv_ccg->faces.size()));
 }

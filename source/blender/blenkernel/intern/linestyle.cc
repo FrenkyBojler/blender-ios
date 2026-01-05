@@ -1945,7 +1945,7 @@ void BKE_linestyle_default_shader(const bContext *C, FreestyleLineStyle *linesty
   bNodeSocket *fromsock, *tosock;
   bNodeTree *ntree;
 
-  BLI_assert(linestyle->nodetree == nullptr);
+  BLI_assume_assert(linestyle->nodetree == nullptr);
 
   ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &linestyle->id, "stroke_shader", "ShaderNodeTree");

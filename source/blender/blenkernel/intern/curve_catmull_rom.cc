@@ -117,7 +117,7 @@ static void interpolate_to_evaluated(const Span<T> src,
                                      MutableSpan<T> dst)
 
 {
-  BLI_assert(dst.size() == calculate_evaluated_num(src.size(), cyclic, resolution));
+  BLI_assume_assert(dst.size() == calculate_evaluated_num(src.size(), cyclic, resolution));
   interpolate_to_evaluated(
       src,
       cyclic,

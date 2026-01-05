@@ -108,8 +108,8 @@ static ID **shapekey_owner_pointer_get(ID *id, const bool debug_relationship_ass
   Key *key = (Key *)id;
 
   if (debug_relationship_assert) {
-    BLI_assert(key->from != nullptr);
-    BLI_assert(BKE_key_from_id(key->from) == key);
+    BLI_assume_assert(key->from != nullptr);
+    BLI_assume_assert(BKE_key_from_id(key->from) == key);
   }
 
   return &key->from;
@@ -1610,7 +1610,7 @@ KeyBlock *BKE_keyblock_add(Key *key, const char *name)
 
 KeyBlock *BKE_keyblock_duplicate(Key *key, KeyBlock *kb_src)
 {
-  BLI_assert(BLI_findindex(&key->block, kb_src) != -1);
+  BLI_assume_assert(BLI_findindex(&key->block, kb_src) != -1);
   KeyBlock *kb_dst = BKE_keyblock_add(key, kb_src->name);
   kb_dst->totelem = kb_src->totelem;
   kb_dst->data = MEM_dupallocN(kb_src->data);
@@ -1718,7 +1718,7 @@ std::optional<std::string> BKE_keyblock_curval_rnapath_get(const Key *key, const
 void BKE_keyblock_update_from_lattice(const Lattice *lt, KeyBlock *kb)
 {
 
-  BLI_assert(kb->totelem == lt->pntsu * lt->pntsv * lt->pntsw);
+  BLI_assume_assert(kb->totelem == lt->pntsu * lt->pntsv * lt->pntsw);
 
   const int tot = kb->totelem;
   if (tot == 0) {
@@ -1791,7 +1791,7 @@ void BKE_keyblock_update_from_curve(const Curve * /*cu*/,
                                     KeyBlock *kb,
                                     const ListBaseT<Nurb> *nurb)
 {
-  BLI_assert(BKE_keyblock_curve_element_count(nurb) == kb->totelem);
+  BLI_assume_assert(BKE_keyblock_curve_element_count(nurb) == kb->totelem);
 
   const int tot = kb->totelem;
   if (tot == 0) {
@@ -1910,7 +1910,7 @@ void BKE_keyblock_convert_to_curve(KeyBlock *kb, Curve * /*cu*/, ListBaseT<Nurb>
 
 void BKE_keyblock_update_from_mesh(const Mesh *mesh, KeyBlock *kb)
 {
-  BLI_assert(mesh->verts_num == kb->totelem);
+  BLI_assume_assert(mesh->verts_num == kb->totelem);
 
   const int tot = mesh->verts_num;
   if (tot == 0) {

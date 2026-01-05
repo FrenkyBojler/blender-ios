@@ -357,8 +357,8 @@ inline bool spans_equal(const BitSpanT1 &a, const BitSpanT2 &b)
 template<typename BitSpanT1, typename BitSpanT2, typename BitSpanT3>
 inline bool spans_equal_masked(const BitSpanT1 &a, const BitSpanT2 &b, const BitSpanT3 &mask)
 {
-  BLI_assert(mask.size() == a.size());
-  BLI_assert(mask.size() == b.size());
+  BLI_assume_assert(mask.size() == a.size());
+  BLI_assume_assert(mask.size() == b.size());
   return !bits::any_set_expr(
       [](const BitInt a, const BitInt b, const BitInt mask) { return (a ^ b) & mask; },
       a,

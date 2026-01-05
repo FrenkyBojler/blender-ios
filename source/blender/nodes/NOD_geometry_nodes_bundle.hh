@@ -159,9 +159,9 @@ template<typename T> inline const bke::bNodeSocketType *socket_type_info_by_stat
   if constexpr (fn::is_field_v<T>) {
     const std::optional<eNodeSocketDatatype> socket_type =
         bke::geo_nodes_base_cpp_type_to_socket_type(CPPType::get<typename T::base_type>());
-    BLI_assert(socket_type);
+    BLI_assume_assert(socket_type);
     const bke::bNodeSocketType *socket_type_info = bke::node_socket_type_find_static(*socket_type);
-    BLI_assert(socket_type_info);
+    BLI_assume_assert(socket_type_info);
     return socket_type_info;
   }
   else {

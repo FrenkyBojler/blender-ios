@@ -17,7 +17,7 @@
 
 #include "DNA_listBase.h"
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_listbase.h"
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
@@ -66,8 +66,8 @@ void BLI_movelisttolist_reverse(ListBase *dst, ListBase *src)
 
 void BLI_listbase_split_after(ListBase *original_listbase, ListBase *split_listbase, void *vlink)
 {
-  BLI_assert(BLI_listbase_is_empty(split_listbase));
-  BLI_assert(vlink == nullptr || BLI_findindex(original_listbase, vlink) >= 0);
+  BLI_assume_assert(BLI_listbase_is_empty(split_listbase));
+  BLI_assume_assert(vlink == nullptr || BLI_findindex(original_listbase, vlink) >= 0);
 
   if (vlink == original_listbase->last) {
     /* Nothing to split, and `split_listbase` is assumed already empty (see assert above). */
@@ -82,7 +82,7 @@ void BLI_listbase_split_after(ListBase *original_listbase, ListBase *split_listb
 
   Link *link = static_cast<Link *>(vlink);
   Link *next_link = link->next;
-  BLI_assert(next_link != nullptr);
+  BLI_assume_assert(next_link != nullptr);
   Link *last_link = static_cast<Link *>(original_listbase->last);
 
   original_listbase->last = link;
@@ -447,7 +447,7 @@ bool BLI_listbase_link_move(ListBase *listbase, void *vlink, int step)
   if (step == 0) {
     return false;
   }
-  BLI_assert(BLI_findindex(listbase, link) != -1);
+  BLI_assume_assert(BLI_findindex(listbase, link) != -1);
 
   /* find link to insert before/after */
   const int abs_step = abs(step);

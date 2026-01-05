@@ -7,6 +7,7 @@
 
 #include "GEO_reverse_uv_sampler.hh"
 
+#include "BLI_assume.hh"
 #include "BLI_bounds.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_linear_allocator_chunked_list.hh"
@@ -301,7 +302,7 @@ ReverseUVSampler::~ReverseUVSampler() = default;
 void ReverseUVSampler::sample_many(const Span<float2> query_uvs,
                                    MutableSpan<Result> r_results) const
 {
-  BLI_assert(query_uvs.size() == r_results.size());
+  BLI_assume_assert(query_uvs.size() == r_results.size());
   threading::parallel_for(query_uvs.index_range(), 256, [&](const IndexRange range) {
     for (const int i : range) {
       r_results[i] = this->sample(query_uvs[i]);

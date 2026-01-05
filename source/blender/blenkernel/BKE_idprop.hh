@@ -301,7 +301,7 @@ const IDProperty *_IDP_assert_type_mask(const IDProperty *prop, int ty_mask);
 #define IDP_int_set(prop, value) \
   { \
     IDProperty *prop_ = (prop); \
-    BLI_assert(prop_->type == IDP_INT); \
+    BLI_assume_assert(prop_->type == IDP_INT); \
     prop_->data.val = value; \
   } \
   ((void)0)
@@ -310,7 +310,7 @@ const IDProperty *_IDP_assert_type_mask(const IDProperty *prop, int ty_mask);
 #define IDP_bool_set(prop, value) \
   { \
     IDProperty *prop_ = (prop); \
-    BLI_assert(prop_->type == IDP_BOOLEAN); \
+    BLI_assume_assert(prop_->type == IDP_BOOLEAN); \
     prop_->data.val = value; \
   } \
   ((void)0)
@@ -320,7 +320,7 @@ const IDProperty *_IDP_assert_type_mask(const IDProperty *prop, int ty_mask);
 #define IDP_int_or_bool_set(prop, value) \
   { \
     IDProperty *prop_ = (prop); \
-    BLI_assert(ELEM(prop_->type, IDP_INT, IDP_BOOLEAN)); \
+    BLI_assume_assert(ELEM(prop_->type, IDP_INT, IDP_BOOLEAN)); \
     prop_->data.val = value; \
   } \
   ((void)0)
@@ -329,7 +329,7 @@ const IDProperty *_IDP_assert_type_mask(const IDProperty *prop, int ty_mask);
 #define IDP_float_set(prop, value) \
   { \
     IDProperty *prop_ = (prop); \
-    BLI_assert(prop_->type == IDP_FLOAT); \
+    BLI_assume_assert(prop_->type == IDP_FLOAT); \
     (*(float *)&(prop_)->data.val) = value; \
   } \
   ((void)0)
@@ -338,7 +338,7 @@ const IDProperty *_IDP_assert_type_mask(const IDProperty *prop, int ty_mask);
 #define IDP_double_set(prop, value) \
   { \
     IDProperty *prop_ = (prop); \
-    BLI_assert(prop_->type == IDP_DOUBLE); \
+    BLI_assume_assert(prop_->type == IDP_DOUBLE); \
     (*(double *)&(prop_)->data.val) = value; \
   } \
   ((void)0)

@@ -575,7 +575,7 @@ namespace blender::nodes {
 
 bool get_bake_draw_context(const bContext *C, const bNode &node, BakeDrawContext &r_ctx)
 {
-  BLI_assert(ELEM(node.type_legacy, GEO_NODE_BAKE, GEO_NODE_SIMULATION_OUTPUT));
+  BLI_assume_assert(ELEM(node.type_legacy, GEO_NODE_BAKE, GEO_NODE_SIMULATION_OUTPUT));
   r_ctx.node = &node;
   r_ctx.snode = CTX_wm_space_node(C);
   if (!r_ctx.snode) {
@@ -861,7 +861,7 @@ std::unique_ptr<LazyFunction> get_bake_lazy_function(
     const bNode &node, GeometryNodesLazyFunctionGraphInfo &lf_graph_info)
 {
   namespace file_ns = blender::nodes::node_geo_bake_cc;
-  BLI_assert(node.type_legacy == GEO_NODE_BAKE);
+  BLI_assume_assert(node.type_legacy == GEO_NODE_BAKE);
   return std::make_unique<file_ns::LazyFunctionForBakeNode>(node, lf_graph_info);
 }
 

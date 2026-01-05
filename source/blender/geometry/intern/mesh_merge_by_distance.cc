@@ -5,7 +5,7 @@
 // #define USE_WELD_DEBUG
 // #define USE_WELD_DEBUG_TIME
 
-#include "BKE_attribute_math.hh"
+#include "BLI_assume.hh"
 #include "BLI_array.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_index_mask.hh"
@@ -15,6 +15,7 @@
 #include "BLI_offset_indices.hh"
 #include "BLI_vector.hh"
 
+#include "BKE_attribute_math.hh"
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
@@ -22,6 +23,7 @@
 #include "DNA_meshdata_types.h"
 
 #include "DNA_object_types.h"
+
 #include "GEO_mesh_merge_by_distance.hh"
 #include "GEO_randomize.hh"
 
@@ -160,7 +162,7 @@ static void weld_assert_edge_kill_len(Span<int> edge_dest_map, const int expecte
       kills++;
     }
   }
-  BLI_assert(kills == expected_kill_len);
+  BLI_assume_assert(kills == expected_kill_len);
 }
 
 static void weld_assert_poly_and_loop_kill_len(WeldMesh *weld_mesh,
@@ -245,8 +247,8 @@ static void weld_assert_poly_and_loop_kill_len(WeldMesh *weld_mesh,
     }
   }
 
-  BLI_assert(poly_kills == expected_faces_kill_len);
-  BLI_assert(loop_kills == expected_loop_kill_len);
+  BLI_assume_assert(poly_kills == expected_faces_kill_len);
+  BLI_assume_assert(loop_kills == expected_loop_kill_len);
 }
 
 static void weld_assert_poly_no_vert_repetition(const WeldPoly *wp,
@@ -257,7 +259,7 @@ static void weld_assert_poly_no_vert_repetition(const WeldPoly *wp,
 {
   int i = 0;
   if (wp->loop_len == 0) {
-    BLI_assert(wp->flag == ELEM_COLLAPSED);
+    BLI_assume_assert(wp->flag == ELEM_COLLAPSED);
     return;
   }
 
@@ -274,13 +276,13 @@ static void weld_assert_poly_no_vert_repetition(const WeldPoly *wp,
     } while (weld_iter_loop_of_poly_next(iter));
   }
 
-  BLI_assert(i == wp->loop_len);
+  BLI_assume_assert(i == wp->loop_len);
 
   for (i = 0; i < wp->loop_len; i++) {
     int va = verts[i];
     for (int j = i + 1; j < wp->loop_len; j++) {
       int vb = verts[j];
-      BLI_assert(va != vb);
+      BLI_assume_assert(va != vb);
     }
   }
 }
@@ -396,8 +398,8 @@ static void weld_edge_find_doubles(Span<WeldEdge> weld_edges,
   Array<int> v_links(mvert_num + 1, 0);
 
   for (const WeldEdge &we : weld_edges) {
-    BLI_assert(r_edge_dest_map[we.edge_orig] != ELEM_COLLAPSED);
-    BLI_assert(we.vert_a != we.vert_b);
+    BLI_assume_assert(r_edge_dest_map[we.edge_orig] != ELEM_COLLAPSED);
+    BLI_assume_assert(we.vert_a != we.vert_b);
     v_links[we.vert_a]++;
     v_links[we.vert_b]++;
   }
@@ -409,13 +411,13 @@ static void weld_edge_find_doubles(Span<WeldEdge> weld_edges,
   }
   v_links.last() = link_len;
 
-  BLI_assert(link_len > 0);
+  BLI_assume_assert(link_len > 0);
   Array<int> link_edge_buffer(link_len);
 
   /* Use a reverse for loop to ensure that indexes are assigned in ascending order. */
   for (int i = weld_edges.size(); i--;) {
     const WeldEdge &we = weld_edges[i];
-    BLI_assert(r_edge_dest_map[we.edge_orig] != ELEM_COLLAPSED);
+    BLI_assume_assert(r_edge_dest_map[we.edge_orig] != ELEM_COLLAPSED);
     int dst_vert_a = we.vert_a;
     int dst_vert_b = we.vert_b;
 
@@ -425,7 +427,7 @@ static void weld_edge_find_doubles(Span<WeldEdge> weld_edges,
 
   for (const int i : weld_edges.index_range()) {
     const WeldEdge &we = weld_edges[i];
-    BLI_assert(r_edge_dest_map[we.edge_orig] != OUT_OF_CONTEXT);
+    BLI_assume_assert(r_edge_dest_map[we.edge_orig] != OUT_OF_CONTEXT);
     if (r_edge_dest_map[we.edge_orig] != we.edge_orig) {
       /* Already a duplicate. */
       continue;
@@ -467,10 +469,10 @@ static void weld_edge_find_doubles(Span<WeldEdge> weld_edges,
       int e_ctx_b = *edges_ctx_b;
       if (e_ctx_a == e_ctx_b) {
         const WeldEdge &we_b = weld_edges[e_ctx_b];
-        BLI_assert(ELEM(we_b.vert_a, dst_vert_a, dst_vert_b));
-        BLI_assert(ELEM(we_b.vert_b, dst_vert_a, dst_vert_b));
-        BLI_assert(we_b.edge_orig != edge_orig);
-        BLI_assert(r_edge_dest_map[we_b.edge_orig] == we_b.edge_orig);
+        BLI_assume_assert(ELEM(we_b.vert_a, dst_vert_a, dst_vert_b));
+        BLI_assume_assert(ELEM(we_b.vert_b, dst_vert_a, dst_vert_b));
+        BLI_assume_assert(we_b.edge_orig != edge_orig);
+        BLI_assume_assert(r_edge_dest_map[we_b.edge_orig] == we_b.edge_orig);
         r_edge_dest_map[we_b.edge_orig] = edge_orig;
         edge_double_kill_len++;
       }
@@ -506,8 +508,8 @@ static bool weld_iter_loop_of_poly_next(WeldLoopOfPolyIter &iter)
   if (loop_ctx != OUT_OF_CONTEXT) {
     const WeldLoop *wl = &wloop[loop_ctx];
 #ifdef USE_WELD_DEBUG
-    BLI_assert(wl->flag != ELEM_COLLAPSED);
-    BLI_assert(iter.v != wl->vert);
+    BLI_assume_assert(wl->flag != ELEM_COLLAPSED);
+    BLI_assume_assert(iter.v != wl->vert);
 #endif
     iter.v = wl->vert;
     iter.e = wl->edge;
@@ -528,7 +530,7 @@ static bool weld_iter_loop_of_poly_next(WeldLoopOfPolyIter &iter)
   }
   else {
 #ifdef USE_WELD_DEBUG
-    BLI_assert(iter.v != iter.corner_verts[l]);
+    BLI_assume_assert(iter.v != iter.corner_verts[l]);
 #endif
     iter.v = iter.corner_verts[l];
     iter.e = iter.corner_edges[l];
@@ -722,7 +724,7 @@ static void weld_poly_split_recursive(int poly_loop_len,
     }
 
     WeldLoop *wla = &wloop[loop_ctx_a];
-    BLI_assert(wla->flag != ELEM_COLLAPSED);
+    BLI_assume_assert(wla->flag != ELEM_COLLAPSED);
 
     int vert_a = wla->vert;
     if (vert_dest_map[vert_a] == OUT_OF_CONTEXT) {
@@ -747,7 +749,7 @@ static void weld_poly_split_recursive(int poly_loop_len,
       }
 
       WeldLoop *wlb = &wloop[loop_ctx_b];
-      BLI_assert(wlb->flag != ELEM_COLLAPSED);
+      BLI_assume_assert(wlb->flag != ELEM_COLLAPSED);
       int vert_b = wlb->vert;
       if (vert_a != vert_b) {
         dist_a++;
@@ -759,9 +761,9 @@ static void weld_poly_split_recursive(int poly_loop_len,
 
       int dist_b = poly_loop_len - dist_a;
 
-      BLI_assert(dist_a != 0 && dist_b != 0);
+      BLI_assume_assert(dist_a != 0 && dist_b != 0);
       if (dist_a == 1 || dist_b == 1) {
-        BLI_assert(dist_a != dist_b);
+        BLI_assume_assert(dist_a != dist_b);
         BLI_assert((wla->flag == ELEM_COLLAPSED) || (wlb->flag == ELEM_COLLAPSED));
       }
       else if (dist_a == 2 && dist_b == 2) {
@@ -793,13 +795,13 @@ static void weld_poly_split_recursive(int poly_loop_len,
         }
 
         if (dist_a == 2) {
-          BLI_assert(wlb_prev->flag != ELEM_COLLAPSED);
+          BLI_assume_assert(wlb_prev->flag != ELEM_COLLAPSED);
           wla->flag = ELEM_COLLAPSED;
           wlb_prev->flag = ELEM_COLLAPSED;
           loop_kill += 2;
         }
         else if (dist_b == 2) {
-          BLI_assert(wla_prev->flag != ELEM_COLLAPSED);
+          BLI_assume_assert(wla_prev->flag != ELEM_COLLAPSED);
           wlb->flag = ELEM_COLLAPSED;
           wla_prev->flag = ELEM_COLLAPSED;
           loop_kill += 2;
@@ -933,7 +935,7 @@ static void weld_poly_loop_ctx_setup_collapsed_and_split(const int remain_edge_c
           wl_prev->loop_next = l;
         }
         wl_prev = wl;
-        BLI_assert(wl->loop_next == l + 1 || l == wp.loop_end);
+        BLI_assume_assert(wl->loop_next == l + 1 || l == wp.loop_end);
       }
     } while (l++ != wp.loop_end);
 
@@ -963,7 +965,7 @@ static void weld_poly_loop_ctx_setup_collapsed_and_split(const int remain_edge_c
         }
 
         wl = &wloop[loop_ctx];
-        BLI_assert(wl->flag != ELEM_COLLAPSED);
+        BLI_assume_assert(wl->flag != ELEM_COLLAPSED);
       }
 #endif
 
@@ -1085,7 +1087,7 @@ static int poly_find_doubles(const OffsetIndices<int> poly_corners_offsets,
     int link_offs = linked_faces_offset[elem_index];
     int faces_a_num = linked_faces_offset[elem_index + 1] - link_offs;
     if (faces_a_num == 1) {
-      BLI_assert(linked_faces_buffer[linked_faces_offset[elem_index]] == face_index);
+      BLI_assume_assert(linked_faces_buffer[linked_faces_offset[elem_index]] == face_index);
       continue;
     }
 
@@ -1131,7 +1133,7 @@ static int poly_find_doubles(const OffsetIndices<int> poly_corners_offsets,
 
     if (doubles_num) {
       for (const int poly_double : Span<int>{isect_result, doubles_num}) {
-        BLI_assert(poly_double > face_index);
+        BLI_assume_assert(poly_double > face_index);
         is_double[poly_double].set();
       }
       doubles_buffer_num += doubles_num;
@@ -1207,7 +1209,7 @@ static void weld_poly_find_doubles(const Span<int> corner_verts,
         const int wpoly_index = doubles_buffer[offset];
         WeldPoly &wp = wpoly[wpoly_index];
 
-        BLI_assert(wp.poly_dst == OUT_OF_CONTEXT);
+        BLI_assume_assert(wp.poly_dst == OUT_OF_CONTEXT);
         wp.poly_dst = poly_dst;
         loop_kill_num += poly_offs[wpoly_index].size();
       }
@@ -1305,7 +1307,7 @@ static void merge_groups_create(Span<int> dest_map,
                                 MutableSpan<int> r_groups_offsets,
                                 Array<int> &r_groups_buffer)
 {
-  BLI_assert(r_groups_offsets.size() == dest_map.size() + 1);
+  BLI_assume_assert(r_groups_offsets.size() == dest_map.size() + 1);
   r_groups_offsets.fill(0);
 
   /* TODO: Check using #array_utils::count_indices instead. At the moment it cannot be used
@@ -1324,7 +1326,7 @@ static void merge_groups_create(Span<int> dest_map,
   r_groups_offsets.last() = offs;
 
   r_groups_buffer.reinitialize(offs);
-  BLI_assert(r_groups_buffer.size() == double_elems.size());
+  BLI_assume_assert(r_groups_buffer.size() == double_elems.size());
 
   /* Use a reverse for loop to ensure that indices are assigned in ascending order. */
   for (int i = double_elems.size(); i--;) {
@@ -1403,11 +1405,11 @@ static void merge_customdata_all(Span<int> dest_map,
     }
     else {
       const int elem_dest = dest_map[i];
-      BLI_assert(elem_dest != OUT_OF_CONTEXT);
-      BLI_assert(dest_map[elem_dest] == elem_dest);
+      BLI_assume_assert(elem_dest != OUT_OF_CONTEXT);
+      BLI_assume_assert(dest_map[elem_dest] == elem_dest);
       if (elem_dest < i) {
         r_final_map[i] = r_final_map[elem_dest];
-        BLI_assert(r_final_map[i] < dest_size);
+        BLI_assume_assert(r_final_map[i] < dest_size);
       }
       else {
         /* Mark as negative to set at the end. */
@@ -1421,15 +1423,15 @@ static void merge_customdata_all(Span<int> dest_map,
     for (const int i : r_final_map.index_range()) {
       if (r_final_map[i] < 0) {
         r_final_map[i] = r_final_map[-r_final_map[i]];
-        BLI_assert(r_final_map[i] < dest_size);
+        BLI_assume_assert(r_final_map[i] < dest_size);
       }
-      BLI_assert(r_final_map[i] >= 0);
+      BLI_assume_assert(r_final_map[i] >= 0);
     }
   }
 
   r_src_index_offsets.append_unchecked(r_src_index_data.size());
 
-  BLI_assert(dest_index == dest_size);
+  BLI_assume_assert(dest_index == dest_size);
 }
 
 /** \} */
@@ -1729,8 +1731,8 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
     r_i++;
   }
 
-  BLI_assert(int(r_i) == result_nfaces);
-  BLI_assert(loop_cur == result_nloops);
+  BLI_assume_assert(int(r_i) == result_nfaces);
+  BLI_assume_assert(loop_cur == result_nloops);
 
   corner_src_index_offset_data.append_unchecked(corner_src_index_data.size());
 

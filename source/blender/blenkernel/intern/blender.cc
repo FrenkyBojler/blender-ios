@@ -219,7 +219,7 @@ void BKE_blender_globals_clear()
   if (G_MAIN == nullptr) {
     return;
   }
-  BLI_assert(G_MAIN->is_global_main);
+  BLI_assume_assert(G_MAIN->is_global_main);
   BKE_main_free(G_MAIN); /* free all lib data */
 
   G_MAIN = nullptr;
@@ -236,7 +236,7 @@ void BKE_blender_globals_main_replace(Main *bmain)
 Main *BKE_blender_globals_main_swap(Main *new_gmain)
 {
   Main *old_gmain = G_MAIN;
-  BLI_assert(old_gmain->is_global_main);
+  BLI_assume_assert(old_gmain->is_global_main);
   BLI_assert(!new_gmain->is_global_main);
   new_gmain->is_global_main = true;
   G_MAIN = new_gmain;

@@ -73,36 +73,36 @@ bool AttributeOwner::is_valid() const
 
 Mesh *AttributeOwner::get_mesh() const
 {
-  BLI_assert(this->is_valid());
-  BLI_assert(type_ == AttributeOwnerType::Mesh);
+  BLI_assume_assert(this->is_valid());
+  BLI_assume_assert(type_ == AttributeOwnerType::Mesh);
   return reinterpret_cast<Mesh *>(ptr_);
 }
 
 PointCloud *AttributeOwner::get_pointcloud() const
 {
-  BLI_assert(this->is_valid());
-  BLI_assert(type_ == AttributeOwnerType::PointCloud);
+  BLI_assume_assert(this->is_valid());
+  BLI_assume_assert(type_ == AttributeOwnerType::PointCloud);
   return reinterpret_cast<PointCloud *>(ptr_);
 }
 
 Curves *AttributeOwner::get_curves() const
 {
-  BLI_assert(this->is_valid());
-  BLI_assert(type_ == AttributeOwnerType::Curves);
+  BLI_assume_assert(this->is_valid());
+  BLI_assume_assert(type_ == AttributeOwnerType::Curves);
   return reinterpret_cast<Curves *>(ptr_);
 }
 
 GreasePencil *AttributeOwner::get_grease_pencil() const
 {
-  BLI_assert(this->is_valid());
-  BLI_assert(type_ == AttributeOwnerType::GreasePencil);
+  BLI_assume_assert(this->is_valid());
+  BLI_assume_assert(type_ == AttributeOwnerType::GreasePencil);
   return reinterpret_cast<GreasePencil *>(ptr_);
 }
 
 GreasePencilDrawing *AttributeOwner::get_grease_pencil_drawing() const
 {
-  BLI_assert(this->is_valid());
-  BLI_assert(type_ == AttributeOwnerType::GreasePencilDrawing);
+  BLI_assume_assert(this->is_valid());
+  BLI_assume_assert(type_ == AttributeOwnerType::GreasePencilDrawing);
   return reinterpret_cast<GreasePencilDrawing *>(ptr_);
 }
 
@@ -120,7 +120,7 @@ blender::bke::AttributeStorage *AttributeOwner::get_storage() const
     case AttributeOwnerType::GreasePencilDrawing:
       return &this->get_grease_pencil_drawing()->geometry.attribute_storage.wrap();
   }
-  BLI_assert(false);
+  BLI_assume_assert(false);
   return nullptr;
 }
 
@@ -129,7 +129,7 @@ std::optional<blender::bke::MutableAttributeAccessor> AttributeOwner::get_access
   switch (type_) {
     case AttributeOwnerType::Mesh:
       /* The attribute API isn't implemented for BMesh, so edit mode meshes are not supported. */
-      BLI_assert(this->get_mesh()->runtime->edit_mesh == nullptr);
+      BLI_assume_assert(this->get_mesh()->runtime->edit_mesh == nullptr);
       return this->get_mesh()->attributes_for_write();
     case AttributeOwnerType::PointCloud:
       return this->get_pointcloud()->attributes_for_write();
@@ -140,7 +140,7 @@ std::optional<blender::bke::MutableAttributeAccessor> AttributeOwner::get_access
     case AttributeOwnerType::GreasePencilDrawing:
       return this->get_grease_pencil_drawing()->geometry.wrap().attributes_for_write();
   }
-  BLI_assert(false);
+  BLI_assume_assert(false);
   return std::nullopt;
 }
 
@@ -1020,8 +1020,8 @@ bool BKE_id_attributes_color_find(const ID *id, const StringRef name)
 
 StringRef BKE_uv_map_pin_name_get(const StringRef uv_map_name, char *buffer)
 {
-  BLI_assert(strlen(UV_PINNED_NAME) == 2);
-  BLI_assert(uv_map_name.size() < MAX_CUSTOMDATA_LAYER_NAME - 4);
+  BLI_assume_assert(strlen(UV_PINNED_NAME) == 2);
+  BLI_assume_assert(uv_map_name.size() < MAX_CUSTOMDATA_LAYER_NAME - 4);
   const auto result = fmt::format_to_n(
       buffer, MAX_CUSTOMDATA_LAYER_NAME, ".{}.{}", UV_PINNED_NAME, uv_map_name);
   return StringRef(buffer, result.size);

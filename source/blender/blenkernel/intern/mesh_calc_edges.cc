@@ -238,7 +238,7 @@ void mesh_calc_edges(Mesh &mesh,
 {
 
   if (mesh.edges_num == 0 && mesh.corners_num == 0) {
-    /* BLI_assert(mesh_is_valid(mesh)); */
+    /* BLI_assume_assert(mesh_is_valid(mesh)); */
     return;
   }
 
@@ -246,18 +246,18 @@ void mesh_calc_edges(Mesh &mesh,
     CustomData_free(&mesh.edge_data);
     mesh.edges_num = 0;
     mesh.tag_loose_edges_none();
-    /* BLI_assert(mesh_is_valid(mesh)); */
+    /* BLI_assume_assert(mesh_is_valid(mesh)); */
     return;
   }
 
-  BLI_assert(std::all_of(mesh.edges().begin(), mesh.edges().end(), [&](const int2 edge) {
+  BLI_assume_assert(std::all_of(mesh.edges().begin(), mesh.edges().end(), [&](const int2 edge) {
     return edge.x != edge.y;
   }));
 
   /* Parallelization is achieved by having multiple hash tables for different subsets of edges.
    * Each edge is assigned to one of the hash maps based on the lower bits of a hash value. */
   const int parallel_maps = calc_edges::get_parallel_maps_count(mesh);
-  BLI_assert(is_power_of_2_i(parallel_maps));
+  BLI_assume_assert(is_power_of_2_i(parallel_maps));
   const uint32_t parallel_mask = uint32_t(parallel_maps) - 1;
   Array<calc_edges::EdgeMap> edge_maps(parallel_maps);
   calc_edges::reserve_hash_maps(mesh, keep_existing_edges, edge_maps);
@@ -272,7 +272,7 @@ void mesh_calc_edges(Mesh &mesh,
   const bool original_edges_are_distinct = original_unique_edge_num == mesh.edges_num;
 
   if (mesh.corners_num == 0 && keep_existing_edges && original_edges_are_distinct) {
-    /* BLI_assert(mesh_is_valid(&mesh)); */
+    /* BLI_assume_assert(mesh_is_valid(&mesh)); */
     return;
   }
 
@@ -308,7 +308,7 @@ void mesh_calc_edges(Mesh &mesh,
     array_utils::gather(edge_map_to_result_index.as_span(), corner_edges.as_span(), corner_edges);
 
     BLI_assert(!corner_edges.contains(-1));
-    BLI_assert(mesh_is_valid(mesh));
+    BLI_assume_assert(mesh_is_valid(mesh));
     return;
   }
 
@@ -335,7 +335,7 @@ void mesh_calc_edges(Mesh &mesh,
                                                               edge_offsets,
                                                               memory);
     }
-    BLI_assert(src_to_dst_mask.size() == original_unique_edge_num);
+    BLI_assume_assert(src_to_dst_mask.size() == original_unique_edge_num);
 
     array_utils::gather(
         original_edges, src_to_dst_mask, edge_verts.take_front(original_unique_edge_num));
@@ -367,7 +367,7 @@ void mesh_calc_edges(Mesh &mesh,
     }
 
     if (!no_new_edges) {
-      BLI_assert(edge_offsets.data().size() == original_edge_maps_prefix.data().size());
+      BLI_assume_assert(edge_offsets.data().size() == original_edge_maps_prefix.data().size());
 
       /* TODO: Check if all new edges are range. */
       const int new_edges_start = original_unique_edge_num;
@@ -461,7 +461,7 @@ void mesh_calc_edges(Mesh &mesh,
     }
     else {
       back_range_of_new_edges = IndexRange(result_edges_num);
-      BLI_assert(original_edge_maps_prefix.total_size() == 0);
+      BLI_assume_assert(original_edge_maps_prefix.total_size() == 0);
       calc_edges::update_edge_indices_in_face_loops(
           faces, corner_verts, edge_maps, parallel_mask, edge_offsets, corner_edges);
       calc_edges::serialize_and_initialize_deduplicated_edges(
@@ -469,14 +469,14 @@ void mesh_calc_edges(Mesh &mesh,
     }
   }
 
-  BLI_assert(std::all_of(
+  BLI_assume_assert(std::all_of(
       edge_verts.begin(), edge_verts.end(), [&](const int2 edge) { return edge.x != edge.y; }));
 
   BLI_assert(!corner_edges.contains(-1));
   BLI_assert(!edge_verts.contains(int2(-1)));
 
-  BLI_assert(src_to_dst_mask.size() + back_range_of_new_edges.size() == result_edges_num);
-  BLI_assert(back_range_of_new_edges.one_after_last() == result_edges_num);
+  BLI_assume_assert(src_to_dst_mask.size() + back_range_of_new_edges.size() == result_edges_num);
+  BLI_assume_assert(back_range_of_new_edges.one_after_last() == result_edges_num);
 
   Vector<std::string> attributes_to_drop;
   /* TODO: Need ::all_pass() on #attribute_filter to know if this loop can be skipped. */
@@ -512,7 +512,7 @@ void mesh_calc_edges(Mesh &mesh,
       }
       else {
         const CPPType *type = custom_data_type_to_cpp_type(eCustomDataType(layer.type));
-        BLI_assert(type != nullptr);
+        BLI_assume_assert(type != nullptr);
         const GSpan src(type, src_data, mesh.edges_num);
         GMutableSpan dst(type, dst_data, result_edges_num);
         array_utils::gather(src, src_to_dst_mask, dst.take_front(src_to_dst_mask.size()));
@@ -558,7 +558,7 @@ void mesh_calc_edges(Mesh &mesh,
   /* Explicitly clear edge maps, because that way it can be parallelized. */
   calc_edges::clear_hash_tables(edge_maps);
 
-  /* BLI_assert(mesh_is_valid(mesh)); */
+  /* BLI_assume_assert(mesh_is_valid(mesh)); */
 }
 
 void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, const bool select_new_edges)

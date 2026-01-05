@@ -13,7 +13,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_listbase.h"
 #include "BLI_string_utf8.h"
 
@@ -36,7 +36,7 @@ void BKE_light_linking_ensure(Object *object)
 
 void BKE_light_linking_copy(Object *object_dst, const Object *object_src, const int copy_flags)
 {
-  BLI_assert(ELEM(object_dst->light_linking, nullptr, object_src->light_linking));
+  BLI_assume_assert(ELEM(object_dst->light_linking, nullptr, object_src->light_linking));
   if (object_src->light_linking) {
     object_dst->light_linking = MEM_dupallocN<LightLinking>(__func__,
                                                             *(object_src->light_linking));
@@ -407,7 +407,7 @@ void BKE_light_linking_add_receiver_to_collection_before(
     const ID *before,
     const eCollectionLightLinkingState link_state)
 {
-  BLI_assert(before);
+  BLI_assume_assert(before);
 
   BKE_light_linking_add_receiver_to_collection(bmain, collection, receiver, link_state);
 
@@ -431,7 +431,7 @@ void BKE_light_linking_add_receiver_to_collection_after(
     const ID *after,
     const eCollectionLightLinkingState link_state)
 {
-  BLI_assert(after);
+  BLI_assume_assert(after);
 
   BKE_light_linking_add_receiver_to_collection(bmain, collection, receiver, link_state);
 

@@ -49,8 +49,8 @@ static void copy_with_stride(const IndexMask &mask,
                              const int64_t dst_begin,
                              MutableSpan<float> dst)
 {
-  BLI_assert(src_begin < src_step);
-  BLI_assert(dst_begin < dst_step);
+  BLI_assume_assert(src_begin < src_step);
+  BLI_assume_assert(dst_begin < dst_step);
   devirtualize_varray(src, [&](const auto src) {
     mask.foreach_index_optimized<int>([&](const int64_t index) {
       dst[dst_begin + dst_step * index] = src[src_begin + src_step * index];

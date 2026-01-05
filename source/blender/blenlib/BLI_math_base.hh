@@ -126,9 +126,9 @@ template<typename T> inline T round(const T &a)
  */
 template<typename T> inline T mod_periodic(const T &a, const T &b)
 {
-  BLI_assert(b != 0);
+  BLI_assume_assert(b != 0);
   if constexpr (std::is_integral_v<T>) {
-    BLI_assert(std::numeric_limits<T>::max() - math::abs(a) >= b);
+    BLI_assume_assert(std::numeric_limits<T>::max() - math::abs(a) >= b);
     return ((a % b) + b) % b;
   }
 

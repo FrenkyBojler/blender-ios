@@ -149,7 +149,7 @@ static std::string make_independent_file_name(const StringRef base_name,
 BlobSlice DiskBlobWriter::write_as_stream(const StringRef file_extension,
                                           const FunctionRef<void(std::ostream &)> fn)
 {
-  BLI_assert(file_extension.startswith("."));
+  BLI_assume_assert(file_extension.startswith("."));
   independent_file_count_++;
   const std::string file_name = make_independent_file_name(
       base_name_, independent_file_count_, file_extension);
@@ -202,7 +202,7 @@ BlobSlice MemoryBlobWriter::write(const void *data, int64_t size)
 BlobSlice MemoryBlobWriter::write_as_stream(const StringRef file_extension,
                                             const FunctionRef<void(std::ostream &)> fn)
 {
-  BLI_assert(file_extension.startswith("."));
+  BLI_assume_assert(file_extension.startswith("."));
   independent_file_count_++;
   const std::string name = make_independent_file_name(
       base_name_, independent_file_count_, file_extension);
@@ -249,7 +249,7 @@ DictionaryValuePtr BlobWriteSharing::write_implicitly_shared(
       /* Potentially modify existing value. */
       [&](StoredByRuntimeValue *value) {
         const int64_t new_version = sharing_info->version();
-        BLI_assert(value->sharing_info_version <= new_version);
+        BLI_assume_assert(value->sharing_info_version <= new_version);
         if (value->sharing_info_version < new_version) {
           value->io_data = write_fn();
           value->sharing_info_version = new_version;
@@ -295,7 +295,7 @@ std::optional<ImplicitSharingInfoAndData> BlobReadSharing::read_shared(
 
 static StringRefNull get_endian_io_name(const int endian)
 {
-  BLI_assert(endian == L_ENDIAN);
+  BLI_assume_assert(endian == L_ENDIAN);
   UNUSED_VARS_NDEBUG(endian);
   return "little";
 }
@@ -408,7 +408,7 @@ static std::shared_ptr<DictionaryValue> write_blob_simple_gspan(BlobWriter &blob
                                                                 const GSpan data)
 {
   const CPPType &type = data.type();
-  BLI_assert(type.is_trivial);
+  BLI_assume_assert(type.is_trivial);
   if (type.size == 1 || type.is<ColorGeometry4b>()) {
     return write_blob_raw_bytes(blob_writer, blob_sharing, data.data(), data.size_in_bytes());
   }
@@ -421,7 +421,7 @@ static std::shared_ptr<DictionaryValue> write_blob_simple_gspan(BlobWriter &blob
                                                  GMutableSpan r_data)
 {
   const CPPType &type = r_data.type();
-  BLI_assert(type.is_trivial);
+  BLI_assume_assert(type.is_trivial);
   if (type.size == 1 || type.is<ColorGeometry4b>()) {
     return read_blob_raw_bytes(blob_reader, io_data, r_data.size_in_bytes(), r_data.data());
   }
@@ -1680,7 +1680,7 @@ static std::unique_ptr<BakeItem> deserialize_bake_item(const DictionaryValue &io
         return {};
       }
       const CPPType *cpp_type = custom_data_type_to_cpp_type(*data_type);
-      BLI_assert(cpp_type);
+      BLI_assume_assert(cpp_type);
       if (const std::shared_ptr<io::serialize::Value> *io_value = io_item.lookup("value")) {
         BUFFER_FOR_CPP_TYPE_VALUE(*cpp_type, buffer);
         if (!deserialize_primitive_value(**io_value, *data_type, buffer)) {

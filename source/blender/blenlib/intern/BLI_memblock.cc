@@ -12,13 +12,12 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "BLI_assume.hh"
 #include "BLI_utildefines.h"
-
 #include "BLI_memblock.h" /* own include */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 #include "MEM_guardedalloc.h"
-
-#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 #define CHUNK_LIST_SIZE 16
 
@@ -45,7 +44,7 @@ struct BLI_memblock {
 
 BLI_memblock *BLI_memblock_create_ex(uint elem_size, uint chunk_size)
 {
-  BLI_assert(elem_size < chunk_size);
+  BLI_assume_assert(elem_size < chunk_size);
 
   BLI_memblock *mblk = MEM_callocN<BLI_memblock>("BLI_memblock");
   mblk->elem_size = int(elem_size);
@@ -174,7 +173,7 @@ void *BLI_memblock_iterstep(BLI_memblock_iter *iter)
 
 void *BLI_memblock_elem_get(BLI_memblock *mblk, int chunk, int elem)
 {
-  BLI_assert(chunk < mblk->chunk_len);
+  BLI_assume_assert(chunk < mblk->chunk_len);
   int elem_per_chunk = mblk->chunk_size / mblk->elem_size;
   chunk += elem / elem_per_chunk;
   elem = elem % elem_per_chunk;

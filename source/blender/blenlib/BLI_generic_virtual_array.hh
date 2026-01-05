@@ -357,8 +357,8 @@ template<typename T> class VArrayImpl_For_GVArray : public VArrayImpl<T> {
  public:
   VArrayImpl_For_GVArray(GVArray varray) : VArrayImpl<T>(varray.size()), varray_(std::move(varray))
   {
-    BLI_assert(varray_);
-    BLI_assert(varray_.type().template is<T>());
+    BLI_assume_assert(varray_);
+    BLI_assume_assert(varray_.type().template is<T>());
   }
 
  protected:
@@ -481,8 +481,8 @@ template<typename T> class VMutableArrayImpl_For_GVMutableArray : public VMutabl
   VMutableArrayImpl_For_GVMutableArray(GVMutableArray varray)
       : VMutableArrayImpl<T>(varray.size()), varray_(varray)
   {
-    BLI_assert(varray_);
-    BLI_assert(varray_.type().template is<T>());
+    BLI_assume_assert(varray_);
+    BLI_assume_assert(varray_.type().template is<T>());
   }
 
  private:
@@ -630,7 +630,7 @@ inline constexpr bool is_trivial_extended_v<GVArrayImpl_For_SingleValueRef_final
 inline GVArrayImpl::GVArrayImpl(const CPPType &type, const int64_t size)
     : type_(&type), size_(size)
 {
-  BLI_assert(size_ >= 0);
+  BLI_assume_assert(size_ >= 0);
 }
 
 inline const CPPType &GVArrayImpl::type() const
@@ -651,29 +651,29 @@ inline int64_t GVArrayImpl::size() const
 
 inline void GVMutableArray::set_by_copy(const int64_t index, const void *value)
 {
-  BLI_assert(index >= 0);
-  BLI_assert(index < this->size());
+  BLI_assume_assert(index >= 0);
+  BLI_assume_assert(index < this->size());
   this->get_impl()->set_by_copy(index, value);
 }
 
 inline void GVMutableArray::set_by_move(const int64_t index, void *value)
 {
-  BLI_assert(index >= 0);
-  BLI_assert(index < this->size());
+  BLI_assume_assert(index >= 0);
+  BLI_assume_assert(index < this->size());
   this->get_impl()->set_by_move(index, value);
 }
 
 inline void GVMutableArray::set_by_relocate(const int64_t index, void *value)
 {
-  BLI_assert(index >= 0);
-  BLI_assert(index < this->size());
+  BLI_assume_assert(index >= 0);
+  BLI_assume_assert(index < this->size());
   this->get_impl()->set_by_relocate(index, value);
 }
 
 template<typename T>
 inline bool GVMutableArray::try_assign_VMutableArray(VMutableArray<T> &varray) const
 {
-  BLI_assert(impl_->type().is<T>());
+  BLI_assume_assert(impl_->type().is<T>());
   return this->get_impl()->try_assign_VMutableArray(&varray);
 }
 
@@ -705,16 +705,16 @@ template<typename ImplT, typename... Args> inline void GVArrayCommon::emplace(Ar
  * expected to point to initialized memory. */
 inline void GVArrayCommon::get(const int64_t index, void *r_value) const
 {
-  BLI_assert(index >= 0);
-  BLI_assert(index < this->size());
+  BLI_assume_assert(index >= 0);
+  BLI_assume_assert(index < this->size());
   impl_->get(index, r_value);
 }
 
 template<typename T> inline T GVArrayCommon::get(const int64_t index) const
 {
-  BLI_assert(index >= 0);
-  BLI_assert(index < this->size());
-  BLI_assert(this->type().is<T>());
+  BLI_assume_assert(index >= 0);
+  BLI_assume_assert(index < this->size());
+  BLI_assume_assert(this->type().is<T>());
   T value{};
   impl_->get(index, &value);
   return value;
@@ -723,14 +723,14 @@ template<typename T> inline T GVArrayCommon::get(const int64_t index) const
 /* Same as `get`, but `r_value` is expected to point to uninitialized memory. */
 inline void GVArrayCommon::get_to_uninitialized(const int64_t index, void *r_value) const
 {
-  BLI_assert(index >= 0);
-  BLI_assert(index < this->size());
+  BLI_assume_assert(index >= 0);
+  BLI_assume_assert(index < this->size());
   impl_->get_to_uninitialized(index, r_value);
 }
 
 template<typename T> inline bool GVArrayCommon::try_assign_VArray(VArray<T> &varray) const
 {
-  BLI_assert(impl_->type().is<T>());
+  BLI_assume_assert(impl_->type().is<T>());
   return impl_->try_assign_VArray(&varray);
 }
 
@@ -869,7 +869,7 @@ template<typename T> inline VArray<T> GVArray::typed() const
   if (!*this) {
     return {};
   }
-  BLI_assert(impl_->type().is<T>());
+  BLI_assume_assert(impl_->type().is<T>());
   const CommonVArrayInfo info = this->common_info();
   if (info.type == CommonVArrayInfo::Type::Single) {
     return VArray<T>::from_single(*static_cast<const T *>(info.data), this->size());
@@ -923,7 +923,7 @@ template<typename T> inline VMutableArray<T> GVMutableArray::typed() const
   if (!*this) {
     return {};
   }
-  BLI_assert(this->type().is<T>());
+  BLI_assume_assert(this->type().is<T>());
   const CommonVArrayInfo info = this->common_info();
   if (info.type == CommonVArrayInfo::Type::Span && !info.may_have_ownership) {
     return VMutableArray<T>::from_span(

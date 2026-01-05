@@ -92,7 +92,7 @@ static GAttributeReader reader_for_vertex_group_index(const CurvesGeometry &curv
                                                       const Span<MDeformVert> dverts,
                                                       const int vertex_group_index)
 {
-  BLI_assert(vertex_group_index >= 0);
+  BLI_assume_assert(vertex_group_index >= 0);
   if (dverts.is_empty()) {
     return {VArray<float>::from_single(0.0f, curves.points_num()), AttrDomain::Point};
   }

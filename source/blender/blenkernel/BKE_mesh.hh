@@ -349,7 +349,7 @@ inline int2 face_find_adjacent_verts(const IndexRange face,
  */
 inline int face_triangles_num(const int face_size)
 {
-  BLI_assert(face_size > 2);
+  BLI_assume_assert(face_size > 2);
   return face_size - 2;
 }
 
@@ -369,9 +369,9 @@ inline IndexRange face_triangles_range(OffsetIndices<int> faces, int face_i)
  */
 inline int edge_other_vert(const int2 edge, const int vert)
 {
-  BLI_assert(ELEM(vert, edge[0], edge[1]));
-  BLI_assert(edge[0] >= 0);
-  BLI_assert(edge[1] >= 0);
+  BLI_assume_assert(ELEM(vert, edge[0], edge[1]));
+  BLI_assume_assert(edge[0] >= 0);
+  BLI_assume_assert(edge[1] >= 0);
   /* Order is important to avoid overflow. */
   return (edge[0] - vert) + edge[1];
 }

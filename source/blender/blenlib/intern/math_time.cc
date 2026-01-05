@@ -16,7 +16,7 @@ void BLI_math_time_seconds_decompose(double seconds,
                                      double *r_seconds,
                                      double *r_milliseconds)
 {
-  BLI_assert(r_days != nullptr || r_hours != nullptr || r_minutes != nullptr ||
+  BLI_assume_assert(r_days != nullptr || r_hours != nullptr || r_minutes != nullptr ||
              r_seconds != nullptr || r_milliseconds != nullptr);
 
   if (r_days != nullptr) {

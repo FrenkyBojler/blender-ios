@@ -26,7 +26,7 @@ template<typename T = int64_t> class DisjointSet {
    */
   DisjointSet(const int64_t size) : parents_(size), ranks_(size, 0)
   {
-    BLI_assert(size >= 0);
+    BLI_assume_assert(size >= 0);
     for (const int64_t i : IndexRange(size)) {
       parents_[i] = T(i);
     }

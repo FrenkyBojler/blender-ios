@@ -675,7 +675,7 @@ void BKE_armature_copy_bone_transforms(bArmature *armature_dst, const bArmature 
   Bone *bone_dst = static_cast<Bone *>(armature_dst->bonebase.first);
   const Bone *bone_src = static_cast<const Bone *>(armature_src->bonebase.first);
   while (bone_dst != nullptr) {
-    BLI_assert(bone_src != nullptr);
+    BLI_assume_assert(bone_src != nullptr);
     copy_bone_transform(bone_dst, bone_src);
     bone_dst = bone_dst->next;
     bone_src = bone_src->next;
@@ -1712,7 +1712,7 @@ static void compute_bbone_segment_boundaries(bPoseChannel *pchan)
    * The actual space partitioning includes two extra virtual segments for the ends. */
   const int bsp_depth = int(ceilf(log2f(bone->segments + 2)));
 
-  BLI_assert(bsp_depth <= bone->segments);
+  BLI_assume_assert(bsp_depth <= bone->segments);
 
   /* Maximum half-width of the smoothing band at the bsp tree root plane, in segments.
    * The tuning coefficient was chosen by trial and error (see PR #110758). */
@@ -1737,7 +1737,7 @@ void BKE_pchan_bbone_segments_cache_compute(bPoseChannel *pchan)
   Bone *bone = pchan->bone;
   int segments = bone->segments;
 
-  BLI_assert(segments > 1);
+  BLI_assume_assert(segments > 1);
 
   /* Allocate the cache if needed. */
   const bool use_curved_mapping = bone->bbone_mapping_mode == BBONE_MAPPING_CURVED;
@@ -1756,7 +1756,7 @@ void BKE_pchan_bbone_segments_cache_compute(bPoseChannel *pchan)
 
   /* Compute segment boundaries. */
   if (runtime->bbone_segment_boundaries) {
-    BLI_assert(use_curved_mapping);
+    BLI_assume_assert(use_curved_mapping);
     compute_bbone_segment_boundaries(pchan);
   }
 
@@ -1821,7 +1821,7 @@ void BKE_pchan_bbone_segments_cache_copy(bPoseChannel *pchan, bPoseChannel *pcha
              sizeof(bPoseChannel_BBoneSegmentBoundary) * (1 + segments));
     }
     else {
-      BLI_assert(runtime->bbone_segment_boundaries == nullptr);
+      BLI_assume_assert(runtime->bbone_segment_boundaries == nullptr);
     }
   }
 }
@@ -1898,7 +1898,7 @@ static void find_bbone_segment_index_curved(const bPoseChannel *pchan,
   while (end - start > 1) {
     const int mid = (start + end + bias) / 2;
 
-    BLI_assert(start < mid && mid < end);
+    BLI_assume_assert(start < mid && mid < end);
 
     const float dist = bbone_segment_bsp_signed_distance(boundaries[mid], co);
 
@@ -2053,7 +2053,7 @@ void BKE_armature_loc_world_to_pose(Object *ob, const float inloc[3], float outl
 
 void BKE_bone_offset_matrix_get(const Bone *bone, float offs_bone[4][4])
 {
-  BLI_assert(bone->parent != nullptr);
+  BLI_assume_assert(bone->parent != nullptr);
 
   /* Bone transform itself. */
   copy_m4_m3(offs_bone, bone->bone_mat);
@@ -2933,7 +2933,7 @@ void BKE_pose_ensure(Main *bmain, Object *ob, bArmature *arm, const bool do_id_u
 {
   BLI_assert(!ELEM(nullptr, arm, ob));
   if (ob->type == OB_ARMATURE && ((ob->pose == nullptr) || (ob->pose->flag & POSE_RECALC))) {
-    BLI_assert(GS(arm->id.name) == ID_AR);
+    BLI_assume_assert(GS(arm->id.name) == ID_AR);
     BKE_pose_rebuild(bmain, ob, arm, do_id_user);
   }
 }
@@ -3150,7 +3150,7 @@ void BKE_pchan_minmax(const Object *ob,
     /* This should not be possible, protected against in RNA code and
      * BKE_pose_blend_read_after_liblink(). Just for safety do another check
      * here, as otherwise this code can end in an infinite loop. */
-    BLI_assert(pchan->custom->type != OB_ARMATURE);
+    BLI_assume_assert(pchan->custom->type != OB_ARMATURE);
 
     if (pchan->custom->type != OB_ARMATURE) {
       ob_custom = pchan->custom;
@@ -3202,7 +3202,7 @@ std::optional<Bounds<blender::float3>> BKE_pose_minmax(const Object *ob, const b
   blender::float3 min(std::numeric_limits<float>::max());
   blender::float3 max(std::numeric_limits<float>::lowest());
 
-  BLI_assert(ob->type == OB_ARMATURE);
+  BLI_assume_assert(ob->type == OB_ARMATURE);
   const bArmature *arm = static_cast<const bArmature *>(ob->data);
 
   bool found_pchan = false;
@@ -3264,7 +3264,7 @@ bPoseChannel *BKE_armature_splineik_solver_find_root(bPoseChannel *pchan,
 {
   bPoseChannel *rootchan = pchan;
   int segcount = 0;
-  BLI_assert(rootchan != nullptr);
+  BLI_assume_assert(rootchan != nullptr);
   while (rootchan->parent) {
     /* Continue up chain, until we reach target number of items. */
     segcount++;

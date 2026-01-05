@@ -204,7 +204,7 @@ static void curve_deform_coords_impl(const Object *ob_curve,
                                      const short defaxis,
                                      const BMEditMesh *em_target)
 {
-  BLI_assert(ushort(defaxis) < 6);
+  BLI_assume_assert(ushort(defaxis) < 6);
   Curve *cu;
   int a;
   CurveDeform cd;

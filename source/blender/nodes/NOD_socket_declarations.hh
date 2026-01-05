@@ -575,7 +575,7 @@ inline VectorBuilder &VectorBuilder::subtype(PropertySubType subtype)
 
 inline VectorBuilder &VectorBuilder::dimensions(int dimensions)
 {
-  BLI_assert(dimensions >= 2 && dimensions <= 4);
+  BLI_assume_assert(dimensions >= 2 && dimensions <= 4);
   decl_->dimensions = dimensions;
   return *this;
 }

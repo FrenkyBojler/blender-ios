@@ -7,7 +7,7 @@
  */
 
 #include "BLI_mmap.h"
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_fileops.h"
 #include "BLI_mutex.hh"
 #include "BLI_string_utils.hh"
@@ -211,7 +211,7 @@ static bool try_map_zeros(BLI_mmap_file *file)
     return false;
   }
 
-  BLI_assert(memory == file->memory);
+  BLI_assume_assert(memory == file->memory);
 
   return true;
 }
@@ -297,7 +297,7 @@ static struct sigaction next_handler = {};
 static void sigbus_handler(int sig, siginfo_t *siginfo, void *ptr) noexcept
 {
   /* We only handle SIGBUS here for now. */
-  BLI_assert(sig == SIGBUS);
+  BLI_assume_assert(sig == SIGBUS);
 
   if (try_handle_error_for_address(siginfo->si_addr)) {
     return;

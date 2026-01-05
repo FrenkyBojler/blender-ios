@@ -85,7 +85,7 @@ template<typename T> class VArrayImpl {
  public:
   VArrayImpl(const int64_t size) : size_(size)
   {
-    BLI_assert(size_ >= 0);
+    BLI_assume_assert(size_ >= 0);
   }
 
   virtual ~VArrayImpl() = default;
@@ -681,8 +681,8 @@ template<typename T> class VArrayCommon {
   T operator[](const int64_t index) const
   {
     BLI_assert(*this);
-    BLI_assert(index >= 0);
-    BLI_assert(index < this->size());
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < this->size());
     return impl_->get(index);
   }
 
@@ -752,7 +752,7 @@ template<typename T> class VArrayCommon {
    */
   Span<T> get_internal_span() const
   {
-    BLI_assert(this->is_span());
+    BLI_assume_assert(this->is_span());
     const CommonVArrayInfo info = impl_->common_info();
     return Span<T>(static_cast<const T *>(info.data), this->size());
   }
@@ -771,7 +771,7 @@ template<typename T> class VArrayCommon {
    */
   T get_internal_single() const
   {
-    BLI_assert(this->is_single());
+    BLI_assume_assert(this->is_single());
     const CommonVArrayInfo info = impl_->common_info();
     return *static_cast<const T *>(info.data);
   }
@@ -797,7 +797,7 @@ template<typename T> class VArrayCommon {
   /** Copy some indices of the virtual array into a span. */
   void materialize(const IndexMask &mask, MutableSpan<T> r_span) const
   {
-    BLI_assert(mask.min_array_size() <= this->size());
+    BLI_assume_assert(mask.min_array_size() <= this->size());
     impl_->materialize(mask, r_span.data(), false);
   }
 
@@ -808,7 +808,7 @@ template<typename T> class VArrayCommon {
 
   void materialize_to_uninitialized(const IndexMask &mask, MutableSpan<T> r_span) const
   {
-    BLI_assert(mask.min_array_size() <= this->size());
+    BLI_assume_assert(mask.min_array_size() <= this->size());
     impl_->materialize(mask, r_span.data(), true);
   }
 
@@ -1048,7 +1048,7 @@ template<typename T> class VMutableArray : public VArrayCommon<T> {
    */
   MutableSpan<T> get_internal_span() const
   {
-    BLI_assert(this->is_span());
+    BLI_assume_assert(this->is_span());
     const CommonVArrayInfo info = this->get_impl()->common_info();
     return MutableSpan<T>(const_cast<T *>(static_cast<const T *>(info.data)), this->size());
   }
@@ -1058,8 +1058,8 @@ template<typename T> class VMutableArray : public VArrayCommon<T> {
    */
   void set(const int64_t index, T value)
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < this->size());
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < this->size());
     this->get_impl()->set(index, std::move(value));
   }
 
@@ -1068,7 +1068,7 @@ template<typename T> class VMutableArray : public VArrayCommon<T> {
    */
   void set_all(Span<T> src)
   {
-    BLI_assert(src.size() == this->size());
+    BLI_assume_assert(src.size() == this->size());
     this->get_impl()->set_all(src);
   }
 
@@ -1281,7 +1281,7 @@ template<typename T> class SingleAsSpan {
  public:
   SingleAsSpan(T value, int64_t size) : value_(std::move(value)), size_(size)
   {
-    BLI_assert(size_ >= 0);
+    BLI_assume_assert(size_ >= 0);
   }
 
   SingleAsSpan(const VArray<T> &varray) : SingleAsSpan(varray.get_internal_single(), varray.size())
@@ -1290,8 +1290,8 @@ template<typename T> class SingleAsSpan {
 
   const T &operator[](const int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < size_);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < size_);
     UNUSED_VARS_NDEBUG(index);
     return value_;
   }

@@ -280,7 +280,7 @@ void BKE_constraint_mat_convertspace(Object *ob,
       {
         if (to == CONSTRAINT_SPACE_CUSTOM) {
           /* World to custom. */
-          BLI_assert(cob);
+          BLI_assume_assert(cob);
           invert_m4_m4(imat, cob->space_obj_world_matrix);
           mul_m4_m4m4(mat, imat, mat);
         }
@@ -420,7 +420,7 @@ void BKE_constraint_mat_convertspace(Object *ob,
       case CONSTRAINT_SPACE_CUSTOM: /* -------------- FROM CUSTOM SPACE ---------- */
       {
         /* Custom to world. */
-        BLI_assert(cob);
+        BLI_assume_assert(cob);
         mul_m4_m4m4(mat, cob->space_obj_world_matrix, mat);
 
         /* Use world-space as stepping stone for other spaces. */
@@ -467,7 +467,7 @@ void BKE_constraint_mat_convertspace(Object *ob,
       }
       else if (to == CONSTRAINT_SPACE_CUSTOM) {
         /* 'subtract' custom objects's effects from owner. */
-        BLI_assert(cob);
+        BLI_assume_assert(cob);
         invert_m4_m4_safe(imat, cob->space_obj_world_matrix);
         mul_m4_m4m4(mat, imat, mat);
       }
@@ -494,14 +494,14 @@ void BKE_constraint_mat_convertspace(Object *ob,
       }
       if (to == CONSTRAINT_SPACE_CUSTOM) {
         /* 'subtract' objects's effects from owner. */
-        BLI_assert(cob);
+        BLI_assume_assert(cob);
         invert_m4_m4_safe(imat, cob->space_obj_world_matrix);
         mul_m4_m4m4(mat, imat, mat);
       }
     }
     else if (from == CONSTRAINT_SPACE_CUSTOM) {
       /* Custom to world. */
-      BLI_assert(cob);
+      BLI_assume_assert(cob);
       mul_m4_m4m4(mat, cob->space_obj_world_matrix, mat);
 
       /* Use world-space as stepping stone for other spaces. */
@@ -2157,7 +2157,7 @@ static void rotlike_evaluate(bConstraint *con,
         break;
 
       default:
-        BLI_assert(false);
+        BLI_assume_assert(false);
     }
 
     loc_rot_size_to_mat4(cob->matrix, loc, newrot, size);
@@ -2857,7 +2857,7 @@ static bool actcon_get_tarmat(Depsgraph *depsgraph,
       axis = data->type - 20;
     }
 
-    BLI_assert(uint(axis) < 3);
+    BLI_assume_assert(uint(axis) < 3);
 
     /* Convert the target's value into a [0, 1] value that's later used to find the Action frame
      * to apply. This compares to the min/max boundary values first, before doing the
@@ -6572,7 +6572,7 @@ void BKE_constraint_targets_flush(bConstraint *con,
   bConstraintTarget *ct = (bConstraintTarget *)targets->last;
 
   if (ct && (ct->flag & CONSTRAINT_TAR_CUSTOM_SPACE)) {
-    BLI_assert(is_custom_space_needed(con));
+    BLI_assume_assert(is_custom_space_needed(con));
 
     if (!no_copy) {
       con->space_object = ct->tar;

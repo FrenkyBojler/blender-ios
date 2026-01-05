@@ -310,7 +310,7 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
     can_be_field_ = socket_type_supports_fields(data_type);
     const bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(data_type);
-    BLI_assert(socket_type != nullptr);
+    BLI_assume_assert(socket_type != nullptr);
     field_base_type_ = socket_type->base_cpp_type;
 
     MutableSpan<int> lf_index_by_bsocket = lf_graph_info.mapping.lf_index_by_bsocket;
@@ -601,14 +601,14 @@ std::unique_ptr<LazyFunction> get_menu_switch_node_lazy_function(
     const bNode &node, GeometryNodesLazyFunctionGraphInfo &lf_graph_info)
 {
   using namespace node_geo_menu_switch_cc;
-  BLI_assert(node.type_legacy == GEO_NODE_MENU_SWITCH);
+  BLI_assume_assert(node.type_legacy == GEO_NODE_MENU_SWITCH);
   return std::make_unique<LazyFunctionForMenuSwitchNode>(node, lf_graph_info);
 }
 
 std::unique_ptr<LazyFunction> get_menu_switch_node_socket_usage_lazy_function(const bNode &node)
 {
   using namespace node_geo_menu_switch_cc;
-  BLI_assert(node.type_legacy == GEO_NODE_MENU_SWITCH);
+  BLI_assume_assert(node.type_legacy == GEO_NODE_MENU_SWITCH);
   return std::make_unique<LazyFunctionForMenuSwitchSocketUsage>(node);
 }
 

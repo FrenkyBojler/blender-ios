@@ -29,7 +29,7 @@ static void flip_custom_data_type(const OffsetIndices<int> faces,
                                   const IndexMask &face_selection,
                                   const eCustomDataType data_type)
 {
-  BLI_assert(sizeof(T) == CustomData_sizeof(data_type));
+  BLI_assume_assert(sizeof(T) == CustomData_sizeof(data_type));
   for (const int i : IndexRange(CustomData_number_of_layers(&corner_data, data_type))) {
     T *data = static_cast<T *>(
         CustomData_get_layer_n_for_write(&corner_data, data_type, i, faces.total_size()));

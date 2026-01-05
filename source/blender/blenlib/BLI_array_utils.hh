@@ -28,7 +28,7 @@ void copy(const GVArray &src, GMutableSpan dst, int64_t grain_size = 4096);
 template<typename T>
 inline void copy(const VArray<T> &src, MutableSpan<T> dst, const int64_t grain_size = 4096)
 {
-  BLI_assert(src.size() == dst.size());
+  BLI_assume_assert(src.size() == dst.size());
   threading::parallel_for(src.index_range(), grain_size, [&](const IndexRange range) {
     src.materialize_to_uninitialized(range, dst);
   });
@@ -41,7 +41,7 @@ inline void copy(const VArray<T> &src, MutableSpan<T> dst, const int64_t grain_s
 template<typename T>
 inline void copy(const Span<T> src, MutableSpan<T> dst, const int64_t grain_size = 4096)
 {
-  BLI_assert(src.size() == dst.size());
+  BLI_assume_assert(src.size() == dst.size());
   threading::parallel_for(src.index_range(), grain_size, [&](const IndexRange range) {
     dst.slice(range).copy_from(src.slice(range));
   });
@@ -66,7 +66,7 @@ inline void copy(const Span<T> src,
                  MutableSpan<T> dst,
                  const int64_t grain_size = 4096)
 {
-  BLI_assert(src.size() == dst.size());
+  BLI_assume_assert(src.size() == dst.size());
   selection.foreach_index_optimized<int64_t>(GrainSize(grain_size),
                                              [&](const int64_t i) { dst[i] = src[i]; });
 }
@@ -103,7 +103,7 @@ inline void scatter(const Span<T> src,
                     MutableSpan<T> dst,
                     const int64_t grain_size = 4096)
 {
-  BLI_assert(indices.size() == src.size());
+  BLI_assume_assert(indices.size() == src.size());
   threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
     for (const int64_t i : range) {
       dst[indices[i]] = src[i];
@@ -117,8 +117,8 @@ inline void scatter(const Span<T> src,
                     MutableSpan<T> dst,
                     const int64_t grain_size = 4096)
 {
-  BLI_assert(indices.size() == src.size());
-  BLI_assert(indices.min_array_size() <= dst.size());
+  BLI_assume_assert(indices.size() == src.size());
+  BLI_assume_assert(indices.min_array_size() <= dst.size());
   indices.foreach_index_optimized<int64_t>(
       GrainSize(grain_size),
       [&](const int64_t index, const int64_t pos) { dst[index] = src[pos]; });
@@ -146,7 +146,7 @@ inline void gather(const VArray<T> &src,
                    MutableSpan<T> dst,
                    const int64_t grain_size = 4096)
 {
-  BLI_assert(indices.size() == dst.size());
+  BLI_assume_assert(indices.size() == dst.size());
   threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
     src.materialize_compressed_to_uninitialized(indices.slice(range), dst.slice(range));
   });
@@ -161,7 +161,7 @@ inline void gather(const Span<T> src,
                    MutableSpan<T> dst,
                    const int64_t grain_size = 4096)
 {
-  BLI_assert(indices.size() == dst.size());
+  BLI_assume_assert(indices.size() == dst.size());
   indices.foreach_segment(GrainSize(grain_size),
                           [&](const IndexMaskSegment segment, const int64_t segment_pos) {
                             for (const int64_t i : segment.index_range()) {
@@ -179,7 +179,7 @@ inline void gather(const Span<T> src,
                    MutableSpan<T> dst,
                    const int64_t grain_size = 4096)
 {
-  BLI_assert(indices.size() == dst.size());
+  BLI_assume_assert(indices.size() == dst.size());
   threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
     for (const int64_t i : range) {
       dst[i] = src[indices[i]];
@@ -196,7 +196,7 @@ inline void gather(const VArray<T> &src,
                    MutableSpan<T> dst,
                    const int64_t grain_size = 4096)
 {
-  BLI_assert(indices.size() == dst.size());
+  BLI_assume_assert(indices.size() == dst.size());
   devirtualize_varray(src, [&](const auto &src) {
     threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
       for (const int64_t i : range) {
@@ -329,7 +329,7 @@ template<typename T> inline void fill_index_range(MutableSpan<T> span, const T s
 template<typename T>
 bool indexed_data_equal(const Span<T> all_values, const Span<int> indices, const Span<T> values)
 {
-  BLI_assert(indices.size() == values.size());
+  BLI_assume_assert(indices.size() == values.size());
   for (const int i : indices.index_range()) {
     if (all_values[indices[i]] != values[i]) {
       return false;

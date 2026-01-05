@@ -180,8 +180,8 @@ PackedFileCount BKE_packedfile_count_all(Main *bmain)
 void BKE_packedfile_free(PackedFile *pf)
 {
   if (pf) {
-    BLI_assert(pf->data != nullptr);
-    BLI_assert(pf->sharing_info != nullptr);
+    BLI_assume_assert(pf->data != nullptr);
+    BLI_assume_assert(pf->sharing_info != nullptr);
 
     pf->sharing_info->remove_user_and_delete_if_last();
     MEM_freeN(pf);
@@ -193,8 +193,8 @@ void BKE_packedfile_free(PackedFile *pf)
 
 PackedFile *BKE_packedfile_duplicate(const PackedFile *pf_src)
 {
-  BLI_assert(pf_src != nullptr);
-  BLI_assert(pf_src->data != nullptr);
+  BLI_assume_assert(pf_src != nullptr);
+  BLI_assume_assert(pf_src->data != nullptr);
 
   PackedFile *pf_dst;
 
@@ -208,7 +208,7 @@ PackedFile *BKE_packedfile_new_from_memory(const void *mem,
                                            int memlen,
                                            const ImplicitSharingInfo *sharing_info)
 {
-  BLI_assert(mem != nullptr);
+  BLI_assume_assert(mem != nullptr);
   if (!sharing_info) {
     /* Assume we are the only owner of that memory currently. */
     sharing_info = blender::implicit_sharing::info_for_mem_free(const_cast<void *>(mem));
@@ -1001,7 +1001,7 @@ void BKE_packedfile_blend_read(BlendDataReader *reader, PackedFile **pf_p, Strin
               "%s: nullptr packedfile data (source: '%s'), cleaning up...",
               __func__,
               filepath.c_str());
-    BLI_assert(pf->sharing_info == nullptr);
+    BLI_assume_assert(pf->sharing_info == nullptr);
     MEM_SAFE_FREE(*pf_p);
   }
 }

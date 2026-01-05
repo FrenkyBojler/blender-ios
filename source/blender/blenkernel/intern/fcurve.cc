@@ -758,7 +758,7 @@ float *BKE_fcurves_calc_keyed_frames_ex(FCurve **fcurve_array,
     for (int i = 0; i < fcu->totvert; i++) {
       const BezTriple *bezt = &fcu->bezt[i];
       const double value = round(double(bezt->vec[1][0]) / interval_db);
-      BLI_assert(value > INT_MIN && value < INT_MAX);
+      BLI_assume_assert(value > INT_MIN && value < INT_MAX);
       frames_unique.add(int(value));
     }
   }
@@ -1631,7 +1631,7 @@ bool BKE_fcurve_bezt_subdivide_handles(BezTriple *bezt,
 
 void BKE_fcurve_bezt_resize(FCurve *fcu, const int new_totvert)
 {
-  BLI_assert(new_totvert >= 0);
+  BLI_assume_assert(new_totvert >= 0);
 
   /* No early return when new_totvert == fcu->totvert. There is no way to know the intention of the
    * caller, nor the history of the FCurve so far, so `fcu->bezt` may actually have allocated space
@@ -1686,10 +1686,10 @@ void BKE_fcurve_delete_key(FCurve *fcu, int index)
 
 void BKE_fcurve_delete_keys(FCurve *fcu, blender::uint2 index_range)
 {
-  BLI_assert(fcu != nullptr);
-  BLI_assert(fcu->bezt != nullptr);
-  BLI_assert(index_range[1] > index_range[0]);
-  BLI_assert(index_range[1] <= fcu->totvert);
+  BLI_assume_assert(fcu != nullptr);
+  BLI_assume_assert(fcu->bezt != nullptr);
+  BLI_assume_assert(index_range[1] > index_range[0]);
+  BLI_assume_assert(index_range[1] <= fcu->totvert);
 
   const int removed_index_count = index_range[1] - index_range[0];
   memmove(&fcu->bezt[index_range[0]],
@@ -2387,7 +2387,7 @@ static float evaluate_fcurve_ex(const FCurve *fcu, float evaltime, float cvalue)
 
 float evaluate_fcurve(const FCurve *fcu, float evaltime)
 {
-  BLI_assert(fcu->driver == nullptr);
+  BLI_assume_assert(fcu->driver == nullptr);
 
   return evaluate_fcurve_ex(fcu, evaltime, 0.0);
 }
@@ -2405,7 +2405,7 @@ float evaluate_fcurve_driver(PathResolvedRNA *anim_rna,
                              ChannelDriver *driver_orig,
                              const AnimationEvalContext *anim_eval_context)
 {
-  BLI_assert(fcu->driver != nullptr);
+  BLI_assume_assert(fcu->driver != nullptr);
   float cvalue = 0.0f;
   float evaltime = anim_eval_context->eval_time;
 

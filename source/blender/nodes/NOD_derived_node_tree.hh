@@ -13,6 +13,7 @@
  * node group that is used multiple times.
  */
 
+#include "BLI_assume.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_linear_allocator.hh"
 #include "BLI_vector_set.hh"
@@ -282,7 +283,7 @@ inline bool DTreeContext::is_root() const
 inline DNode::DNode(const DTreeContext *context, const bNode *bnode)
     : context_(context), bnode_(bnode)
 {
-  BLI_assert(bnode == nullptr || bnode->runtime->owner_tree == &context->btree());
+  BLI_assume_assert(bnode == nullptr || bnode->runtime->owner_tree == &context->btree());
 }
 
 inline const DTreeContext *DNode::context() const
@@ -307,7 +308,7 @@ inline const bNode *DNode::operator->() const
 
 inline const bNode &DNode::operator*() const
 {
-  BLI_assert(bnode_ != nullptr);
+  BLI_assume_assert(bnode_ != nullptr);
   return *bnode_;
 }
 
@@ -345,7 +346,7 @@ inline DOutputSocket DNode::output_by_identifier(StringRef identifier) const
 inline DSocket::DSocket(const DTreeContext *context, const bNodeSocket *bsocket)
     : context_(context), bsocket_(bsocket)
 {
-  BLI_assert(bsocket == nullptr ||
+  BLI_assume_assert(bsocket == nullptr ||
              bsocket->runtime->owner_node->runtime->owner_tree == &context->btree());
 }
 
@@ -381,7 +382,7 @@ inline const bNodeSocket *DSocket::operator->() const
 
 inline const bNodeSocket &DSocket::operator*() const
 {
-  BLI_assert(bsocket_ != nullptr);
+  BLI_assume_assert(bsocket_ != nullptr);
   return *bsocket_;
 }
 
@@ -392,7 +393,7 @@ inline uint64_t DSocket::hash() const
 
 inline DNode DSocket::node() const
 {
-  BLI_assert(bsocket_ != nullptr);
+  BLI_assume_assert(bsocket_ != nullptr);
   return {context_, bsocket_->runtime->owner_node};
 }
 
@@ -409,7 +410,7 @@ inline DInputSocket::DInputSocket(const DTreeContext *context, const bNodeSocket
 
 inline DInputSocket::DInputSocket(const DSocket &base_socket) : DSocket(base_socket)
 {
-  BLI_assert(base_socket->is_input());
+  BLI_assume_assert(base_socket->is_input());
 }
 
 /** \} */
@@ -425,7 +426,7 @@ inline DOutputSocket::DOutputSocket(const DTreeContext *context, const bNodeSock
 
 inline DOutputSocket::DOutputSocket(const DSocket &base_socket) : DSocket(base_socket)
 {
-  BLI_assert(base_socket->is_output());
+  BLI_assume_assert(base_socket->is_output());
 }
 
 /** \} */

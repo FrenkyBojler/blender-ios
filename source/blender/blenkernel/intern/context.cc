@@ -575,7 +575,7 @@ static void *ctx_data_pointer_get(const bContext *C, const char *member)
 {
   bContextDataResult result;
   if (C && ctx_data_get((bContext *)C, member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::Pointer);
+    BLI_assume_assert(result.type == ContextDataType::Pointer);
     return result.ptr.data;
   }
 
@@ -592,7 +592,7 @@ static bool ctx_data_pointer_verify(const bContext *C, const char *member, void 
 
   bContextDataResult result;
   if (ctx_data_get((bContext *)C, member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::Pointer);
+    BLI_assume_assert(result.type == ContextDataType::Pointer);
     *pointer = result.ptr.data;
     return true;
   }
@@ -607,7 +607,7 @@ static bool ctx_data_collection_get(const bContext *C,
 {
   bContextDataResult result;
   if (ctx_data_get((bContext *)C, member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::Collection);
+    BLI_assume_assert(result.type == ContextDataType::Collection);
     *list = std::move(result.list);
     return true;
   }
@@ -654,7 +654,7 @@ PointerRNA CTX_data_pointer_get(const bContext *C, const char *member)
 {
   bContextDataResult result;
   if (ctx_data_get((bContext *)C, member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::Pointer);
+    BLI_assume_assert(result.type == ContextDataType::Pointer);
     return result.ptr;
   }
 
@@ -695,7 +695,7 @@ Vector<PointerRNA> CTX_data_collection_get(const bContext *C, const char *member
 {
   bContextDataResult result;
   if (ctx_data_get((bContext *)C, member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::Collection);
+    BLI_assume_assert(result.type == ContextDataType::Collection);
     return result.list;
   }
   return {};
@@ -713,7 +713,7 @@ std::optional<blender::StringRefNull> CTX_data_string_get(const bContext *C, con
 {
   bContextDataResult result;
   if (ctx_data_get((bContext *)C, member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::String);
+    BLI_assume_assert(result.type == ContextDataType::String);
     return result.str;
   }
 
@@ -724,7 +724,7 @@ std::optional<int64_t> CTX_data_int_get(const bContext *C, const char *member)
 {
   bContextDataResult result;
   if (ctx_data_get((bContext *)C, member, &result) == CTX_RESULT_OK) {
-    BLI_assert(result.type == ContextDataType::Int64);
+    BLI_assume_assert(result.type == ContextDataType::Int64);
     return result.int_value;
   }
 
@@ -1247,7 +1247,7 @@ void CTX_wm_region_set(bContext *C, ARegion *region)
 
 void CTX_wm_region_popup_set(bContext *C, ARegion *region_popup)
 {
-  BLI_assert(region_popup == nullptr || region_popup->regiontype == RGN_TYPE_TEMPORARY);
+  BLI_assume_assert(region_popup == nullptr || region_popup->regiontype == RGN_TYPE_TEMPORARY);
   C->wm.region_popup = region_popup;
 }
 
@@ -1748,7 +1748,7 @@ Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext *C, bool rna_write
   if (rna_write_check && !CTX_member_rna_write_check(C)) {
     return depsgraph;
   }
-  BLI_assert(CTX_member_rna_write_check(C) || DEG_is_fully_evaluated(depsgraph));
+  BLI_assume_assert(CTX_member_rna_write_check(C) || DEG_is_fully_evaluated(depsgraph));
 
   Main *bmain = CTX_data_main(C);
   BKE_scene_graph_evaluated_ensure(depsgraph, bmain);

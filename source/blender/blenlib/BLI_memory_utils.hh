@@ -237,8 +237,8 @@ class alignas(ReservedAlignment) DynamicStackBuffer {
  public:
   DynamicStackBuffer(const int64_t size, const int64_t alignment)
   {
-    BLI_assert(size >= 0);
-    BLI_assert(alignment >= 0);
+    BLI_assume_assert(size >= 0);
+    BLI_assume_assert(alignment >= 0);
     if (size <= ReservedSize && alignment <= ReservedAlignment) {
       buffer_ = reserved_buffer_;
     }

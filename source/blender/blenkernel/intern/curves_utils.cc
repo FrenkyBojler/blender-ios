@@ -275,7 +275,7 @@ void copy_custom_knots(const bke::CurvesGeometry &src_curves,
                        const IndexMask &exclude_curves,
                        bke::CurvesGeometry &dst_curves)
 {
-  BLI_assert(src_curves.curves_num() == dst_curves.curves_num());
+  BLI_assume_assert(src_curves.curves_num() == dst_curves.curves_num());
 
   if (src_curves.nurbs_has_custom_knots()) {
     /* Ensure excluded curves don't have NURBS_KNOT_MODE_CUSTOM set. */

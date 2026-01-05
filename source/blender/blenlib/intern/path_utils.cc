@@ -14,6 +14,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_fnmatch.h"
+#include "BLI_assume.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
@@ -171,7 +172,7 @@ static int path_normalize_impl(char *path, bool check_blend_relative_prefix)
       memmove(path, path + i, (path_len - i) + 1);
       path_len -= i;
     }
-    BLI_assert(path_len == strlen(path));
+    BLI_assume_assert(path_len == strlen(path));
   }
 
 #ifdef WIN32
@@ -181,7 +182,7 @@ static int path_normalize_impl(char *path, bool check_blend_relative_prefix)
     int path_unc_len = BLI_path_unc_prefix_len(path);
     if (path_unc_len) {
       path_unc_len -= 1;
-      BLI_assert(path_unc_len > 0 && path[path_unc_len] == SEP);
+      BLI_assume_assert(path_unc_len > 0 && path[path_unc_len] == SEP);
       path += path_unc_len;
       path_len -= path_unc_len;
     }
@@ -217,7 +218,7 @@ static int path_normalize_impl(char *path, bool check_blend_relative_prefix)
         const int i_end = i;
         do {
           /* Stepping over elements assumes 'i' references a separator. */
-          BLI_assert(path[i] == SEP);
+          BLI_assume_assert(path[i] == SEP);
           if (path[i - 1] == SEP) {
             i -= 1; /* Found `//`, replace with `/`. */
           }
@@ -232,7 +233,7 @@ static int path_normalize_impl(char *path, bool check_blend_relative_prefix)
         if (i < i_end) {
           memmove(path + i, path + i_end, (path_len - i_end) + 1);
           path_len -= i_end - i;
-          BLI_assert(strlen(path) == path_len);
+          BLI_assume_assert(strlen(path) == path_len);
         }
       }
     }
@@ -285,20 +286,20 @@ static int path_normalize_impl(char *path, bool check_blend_relative_prefix)
                              nullptr))
     {
       start = start_temp + 1; /* Skip the `/`. */
-      BLI_assert(start_base != start);
+      BLI_assume_assert(start_base != start);
 
       /* Step `end_all` forwards (over all `..`). */
       char *end_all = start;
       do {
-        BLI_assert(IS_PARENT_DIR(end_all));
+        BLI_assume_assert(IS_PARENT_DIR(end_all));
         end_all += 3;
-        BLI_assert(end_all <= path + path_len + 1);
+        BLI_assume_assert(end_all <= path + path_len + 1);
       } while (IS_PARENT_DIR(end_all));
 
       /* Step `start` backwards (until `end` meets `end_all` or `start` meets `start_base`). */
       char *end = start;
       do {
-        BLI_assert(start_base < start);
+        BLI_assume_assert(start_base < start);
         BLI_assert(*(start - 1) == SEP);
         /* Step `start` backwards one. */
         do {
@@ -314,11 +315,11 @@ static int path_normalize_impl(char *path, bool check_blend_relative_prefix)
         end--;
         end_all--;
       }
-      BLI_assert(start < end && start >= start_base);
+      BLI_assume_assert(start < end && start >= start_base);
       const size_t start_len = path_len - (end - path);
       memmove(start, end, start_len + 1);
       path_len -= end - start;
-      BLI_assert(strlen(path) == path_len);
+      BLI_assume_assert(strlen(path) == path_len);
       /* Other `..` directories may have been moved to the front, step `start_base` past them. */
       if (UNLIKELY(start == start_base && (end != end_all))) {
         start_base += (end_all - end);
@@ -327,7 +328,7 @@ static int path_normalize_impl(char *path, bool check_blend_relative_prefix)
     }
   }
 
-  BLI_assert(strlen(path) == path_len);
+  BLI_assume_assert(strlen(path) == path_len);
   /* Characters before the `start_base` must *only* be `../../../` (multiples of 3). */
   BLI_assert((start_base - path_first_non_slash_part) % 3 == 0);
   /* All `..` ahead of `start_base` were collapsed (including trailing `/..`). */
@@ -357,14 +358,14 @@ static int path_normalize_impl(char *path, bool check_blend_relative_prefix)
        * as these directories are expected to be skipped. */
       BLI_assert(!IS_PARENT_DIR(start));
       const size_t start_len = path_len - (start - path);
-      BLI_assert(strlen(start) == start_len);
+      BLI_assume_assert(strlen(start) == start_len);
       memmove(path_first_non_slash_part, start, start_len + 1);
       path_len -= start - path_first_non_slash_part;
-      BLI_assert(strlen(path) == path_len);
+      BLI_assume_assert(strlen(path) == path_len);
     }
   }
 
-  BLI_assert(strlen(path) == path_len);
+  BLI_assume_assert(strlen(path) == path_len);
 
 #undef IS_PARENT_DIR
 
@@ -1128,7 +1129,7 @@ bool BLI_path_abs(char path[FILE_MAX], const char *basepath)
     const size_t root_dir_len = 3;
     char *p = path;
     BLI_windows_get_default_root_dir(tmp);
-    BLI_assert(strlen(tmp) == root_dir_len);
+    BLI_assume_assert(strlen(tmp) == root_dir_len);
 
     /* Step over the slashes at the beginning of the path. */
     p = (char *)BLI_path_slash_skip(p);
@@ -1411,8 +1412,8 @@ static bool path_extension_check_ex(const char *path,
                                     const char *ext,
                                     const size_t ext_len)
 {
-  BLI_assert(strlen(path) == path_len);
-  BLI_assert(strlen(ext) == ext_len);
+  BLI_assume_assert(strlen(path) == path_len);
+  BLI_assume_assert(strlen(ext) == ext_len);
 
   return (((path_len == 0 || ext_len == 0 || ext_len >= path_len) == 0) &&
           (BLI_strcasecmp(ext, path + path_len - ext_len) == 0));
@@ -1687,7 +1688,7 @@ size_t BLI_path_join_array(char *__restrict dst,
                            const char *path_array[],
                            const int path_array_num)
 {
-  BLI_assert(path_array_num > 0);
+  BLI_assume_assert(path_array_num > 0);
   BLI_string_debug_size(dst, dst_maxncpy);
 
   if (UNLIKELY(dst_maxncpy == 0)) {
@@ -1781,7 +1782,7 @@ size_t BLI_path_join_array(char *__restrict dst,
     }
   }
 
-  BLI_assert(ofs <= dst_last);
+  BLI_assume_assert(ofs <= dst_last);
   dst[ofs] = '\0';
 
   return ofs;
@@ -1798,7 +1799,7 @@ static bool path_name_at_index_forward(const char *__restrict path,
                                        int *__restrict r_offset,
                                        int *__restrict r_len)
 {
-  BLI_assert(index >= 0);
+  BLI_assume_assert(index >= 0);
   int index_step = 0;
   int prev = -1;
   int i = 0;
@@ -1833,7 +1834,7 @@ static bool path_name_at_index_backward(const char *__restrict path,
                                         int *__restrict r_len)
 {
   /* Negative number, reverse where -1 is the last element. */
-  BLI_assert(index < 0);
+  BLI_assume_assert(index < 0);
   int index_step = -1;
   int prev = strlen(path);
   int i = prev - 1;
@@ -1937,8 +1938,8 @@ const char *BLI_path_slash_rfind(const char *path)
 int BLI_path_slash_ensure_ex(char *path, size_t path_maxncpy, size_t path_len)
 {
   BLI_string_debug_size_after_nil(path, path_maxncpy);
-  BLI_assert(strlen(path) == path_len);
-  BLI_assert(path_len < path_maxncpy);
+  BLI_assume_assert(strlen(path) == path_len);
+  BLI_assume_assert(path_len < path_maxncpy);
   if (path_len == 0 || !BLI_path_slash_is_native_compat(path[path_len - 1])) {
     /* Avoid unlikely buffer overflow. */
     if (path_len + 1 < path_maxncpy) {

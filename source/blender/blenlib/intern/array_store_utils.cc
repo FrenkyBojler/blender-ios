@@ -42,7 +42,7 @@ BArrayStore *BLI_array_store_at_size_ensure(BArrayStore_AtSize *bs_stride,
 
 BArrayStore *BLI_array_store_at_size_get(BArrayStore_AtSize *bs_stride, const int stride)
 {
-  BLI_assert(stride > 0 && stride <= bs_stride->stride_table_len);
+  BLI_assume_assert(stride > 0 && stride <= bs_stride->stride_table_len);
   return bs_stride->stride_table[stride - 1];
 }
 

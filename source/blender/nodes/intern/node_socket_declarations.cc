@@ -132,7 +132,7 @@ bool Float::can_connect(const bNodeSocket &socket) const
 bNodeSocket &Float::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
   if (socket.type != SOCK_FLOAT) {
-    BLI_assert(socket.in_out == this->in_out);
+    BLI_assume_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
   if (socket.typeinfo->subtype != this->subtype) {
@@ -201,7 +201,7 @@ bool Int::can_connect(const bNodeSocket &socket) const
 bNodeSocket &Int::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
   if (socket.type != SOCK_INT) {
-    BLI_assert(socket.in_out == this->in_out);
+    BLI_assume_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
   if (socket.typeinfo->subtype != this->subtype) {
@@ -275,7 +275,7 @@ bool Vector::can_connect(const bNodeSocket &socket) const
 bNodeSocket &Vector::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
   if (socket.type != SOCK_VECTOR) {
-    BLI_assert(socket.in_out == this->in_out);
+    BLI_assume_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
   if (socket.typeinfo->subtype != this->subtype) {
@@ -336,7 +336,7 @@ bool Bool::can_connect(const bNodeSocket &socket) const
 bNodeSocket &Bool::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
   if (socket.type != SOCK_BOOLEAN) {
-    BLI_assert(socket.in_out == this->in_out);
+    BLI_assume_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
   this->set_common_flags(socket);
@@ -386,7 +386,7 @@ bool Color::can_connect(const bNodeSocket &socket) const
 bNodeSocket &Color::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
   if (socket.type != SOCK_RGBA) {
-    BLI_assert(socket.in_out == this->in_out);
+    BLI_assume_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
   this->set_common_flags(socket);
@@ -438,7 +438,7 @@ bool Rotation::can_connect(const bNodeSocket &socket) const
 bNodeSocket &Rotation::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
   if (socket.type != SOCK_ROTATION) {
-    BLI_assert(socket.in_out == this->in_out);
+    BLI_assume_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
   this->set_common_flags(socket);
@@ -489,7 +489,7 @@ bool Matrix::can_connect(const bNodeSocket &socket) const
 bNodeSocket &Matrix::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
   if (socket.type != SOCK_MATRIX) {
-    BLI_assert(socket.in_out == this->in_out);
+    BLI_assume_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
   this->set_common_flags(socket);
@@ -538,7 +538,7 @@ bool String::can_connect(const bNodeSocket &socket) const
 bNodeSocket &String::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
   if (socket.type != SOCK_STRING) {
-    BLI_assert(socket.in_out == this->in_out);
+    BLI_assume_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
   if (socket.typeinfo->subtype != this->subtype) {
@@ -552,7 +552,7 @@ bNodeSocket &String::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
 
 StringBuilder &StringBuilder::path_filter(std::optional<std::string> filter)
 {
-  BLI_assert(decl_->subtype == PROP_FILEPATH);
+  BLI_assume_assert(decl_->subtype == PROP_FILEPATH);
   decl_->path_filter = std::move(filter);
   return *this;
 }
@@ -597,7 +597,7 @@ bool Menu::can_connect(const bNodeSocket &socket) const
 bNodeSocket &Menu::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
   if (socket.type != SOCK_MENU) {
-    BLI_assert(socket.in_out == this->in_out);
+    BLI_assume_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
   this->set_common_flags(socket);
@@ -669,7 +669,7 @@ bool Bundle::can_connect(const bNodeSocket &socket) const
 bNodeSocket &Bundle::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
   if (socket.type != SOCK_BUNDLE) {
-    BLI_assert(socket.in_out == this->in_out);
+    BLI_assume_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
   this->set_common_flags(socket);
@@ -678,7 +678,7 @@ bNodeSocket &Bundle::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
 
 BundleBuilder &BundleBuilder::pass_through_input_index(const std::optional<int> index)
 {
-  BLI_assert(this->is_output());
+  BLI_assume_assert(this->is_output());
   decl_->pass_through_input_index = std::move(index);
   return *this;
 }
@@ -724,7 +724,7 @@ bool Closure::can_connect(const bNodeSocket &socket) const
 bNodeSocket &Closure::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &socket) const
 {
   if (socket.type != SOCK_CLOSURE) {
-    BLI_assert(socket.in_out == this->in_out);
+    BLI_assume_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
   this->set_common_flags(socket);
@@ -773,7 +773,7 @@ bNodeSocket &IDSocketDeclaration::update_or_build(bNodeTree &ntree,
                                                   bNodeSocket &socket) const
 {
   if (StringRef(socket.idname) != this->idname) {
-    BLI_assert(socket.in_out == this->in_out);
+    BLI_assume_assert(socket.in_out == this->in_out);
     return this->build(ntree, node);
   }
   this->set_common_flags(socket);

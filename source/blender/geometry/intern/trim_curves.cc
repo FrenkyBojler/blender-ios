@@ -6,6 +6,7 @@
  * \ingroup bke
  */
 
+#include "BLI_assume.hh"
 #include "BLI_length_parameterize.hh"
 
 #include "BKE_attribute.hh"
@@ -172,7 +173,7 @@ static bke::curves::CurvePoint lookup_curve_point(
     return lookup_point_polygonal(accumulated_lengths, sample_length, cyclic, num_curve_points);
   }
   /* Handle evaluated curve. */
-  BLI_assert(resolution > 0);
+  BLI_assume_assert(resolution > 0);
   return lookup_point_polygonal(
       accumulated_lengths, sample_length, cyclic, evaluated_points_by_curve[curve_index].size());
 }
@@ -247,7 +248,7 @@ static T interpolate_catmull_rom(const Span<T> src_data,
                                  const bke::curves::CurvePoint insertion_point,
                                  const bool src_cyclic)
 {
-  BLI_assert(insertion_point.index >= 0 && insertion_point.next_index < src_data.size());
+  BLI_assume_assert(insertion_point.index >= 0 && insertion_point.next_index < src_data.size());
   int i0;
   if (insertion_point.index == 0) {
     i0 = src_cyclic ? src_data.size() - 1 : insertion_point.index;
@@ -272,7 +273,7 @@ static bke::curves::bezier::Insertion knot_insert_bezier(
     const Span<float3> handles_right,
     const bke::curves::CurvePoint insertion_point)
 {
-  BLI_assert(
+  BLI_assume_assert(
       insertion_point.index + 1 == insertion_point.next_index ||
       (insertion_point.next_index >= 0 && insertion_point.next_index < insertion_point.index));
   return bke::curves::bezier::insert(positions[insertion_point.index],
@@ -330,7 +331,7 @@ static void sample_interval_linear(const Span<T> src_data,
 
   dst_index = copy_point_data_between_endpoints(src_data, dst_data, src_range, dst_index);
   if (dst_range.size() == 1) {
-    BLI_assert(dst_index == dst_range.one_after_last());
+    BLI_assume_assert(dst_index == dst_range.one_after_last());
     return;
   }
 
@@ -345,7 +346,7 @@ static void sample_interval_linear(const Span<T> src_data,
     ++dst_index;
 #endif
   }
-  BLI_assert(dst_index == dst_range.one_after_last());
+  BLI_assume_assert(dst_index == dst_range.one_after_last());
 }
 
 template<typename T>
@@ -369,7 +370,7 @@ static void sample_interval_catmull_rom(const Span<T> src_data,
 
   dst_index = copy_point_data_between_endpoints(src_data, dst_data, src_range, dst_index);
   if (dst_range.size() == 1) {
-    BLI_assert(dst_index == dst_range.one_after_last());
+    BLI_assume_assert(dst_index == dst_range.one_after_last());
     return;
   }
 
@@ -383,7 +384,7 @@ static void sample_interval_catmull_rom(const Span<T> src_data,
     ++dst_index;
 #endif
   }
-  BLI_assert(dst_index == dst_range.one_after_last());
+  BLI_assume_assert(dst_index == dst_range.one_after_last());
 }
 
 template<bool include_start_point = true>
@@ -443,7 +444,7 @@ static void sample_interval_bezier(const Span<float3> src_positions,
   dst_index += increment;
 
   if (dst_range.size() == 1) {
-    BLI_assert(dst_index == dst_range.one_after_last());
+    BLI_assume_assert(dst_index == dst_range.one_after_last());
     return;
   }
 
@@ -471,7 +472,7 @@ static void sample_interval_bezier(const Span<float3> src_positions,
       /* Start point is same point or in the same segment. */
       if (start_point.parameter == 0.0f) {
         /* Same point. */
-        BLI_assert(dst_range.size() == 1LL + src_range.size_range());
+        BLI_assume_assert(dst_range.size() == 1LL + src_range.size_range());
         dst_handles_l[dst_range.first()] = dst_positions[dst_range.first()];
         dst_handles_r[dst_range.last()] = dst_positions[dst_range.first()];
       }
@@ -480,7 +481,7 @@ static void sample_interval_bezier(const Span<float3> src_positions,
       }
       else {
         /* Within the segment. */
-        BLI_assert(dst_range.size() == 1LL + src_range.size_range() || dst_range.size() == 2);
+        BLI_assume_assert(dst_range.size() == 1LL + src_range.size_range() || dst_range.size() == 2);
         dst_handles_r[dst_range.last()] = start_point_insert.handle_prev;
       }
     }
@@ -491,7 +492,7 @@ static void sample_interval_bezier(const Span<float3> src_positions,
       /* Start point is same or in 'next' segment. */
       if (start_point.parameter == 0.0f) {
         /* Same point */
-        BLI_assert(dst_range.size() == 1LL + src_range.size_range());
+        BLI_assume_assert(dst_range.size() == 1LL + src_range.size_range());
         dst_handles_l[dst_range.first()] = dst_positions[dst_range.first()];
         dst_handles_r[dst_range.last()] = dst_positions[dst_range.first()];
       }
@@ -500,7 +501,7 @@ static void sample_interval_bezier(const Span<float3> src_positions,
       }
       else {
         /* In next segment. */
-        BLI_assert(dst_range.size() == 1LL + src_range.size_range() || dst_range.size() == 2);
+        BLI_assume_assert(dst_range.size() == 1LL + src_range.size_range() || dst_range.size() == 2);
         dst_handles_r[dst_range.last()] = start_point_insert.handle_prev;
       }
     }
@@ -509,12 +510,12 @@ static void sample_interval_bezier(const Span<float3> src_positions,
     /* Trimmed in both ends within the same (and only) segment! Ensure both end points is not a
      * loop. */
     if (start_point.index == end_point.index && start_point.parameter < 1.0f) {
-      BLI_assert(dst_range.size() == 2 || dst_range.size() == 2ll + src_range.size_range() ||
+      BLI_assume_assert(dst_range.size() == 2 || dst_range.size() == 2ll + src_range.size_range() ||
                  dst_range.size() == 1LL + src_range.size_range());
 
       if (start_point.parameter > end_point.parameter && start_point.parameter < 1.0f) {
         /* Start point comes after the endpoint within the segment. */
-        BLI_assert(end_point.parameter >= 0.0f);
+        BLI_assume_assert(end_point.parameter >= 0.0f);
 
         const float parameter = end_point.parameter / start_point.parameter;
         end_point_insert = bke::curves::bezier::insert(dst_positions[dst_index - 1],
@@ -568,7 +569,7 @@ static void sample_interval_bezier(const Span<float3> src_positions,
     ++dst_index;
 #endif
   }
-  BLI_assert(dst_index == dst_range.one_after_last());
+  BLI_assume_assert(dst_index == dst_range.one_after_last());
 }
 
 /** \} */
@@ -847,7 +848,7 @@ static void compute_curve_trim_parameters(const bke::CurvesGeometry &curves,
 
     const bool cyclic = src_cyclic[curve_i];
     const Span<float> lengths = curves.evaluated_lengths_for_curve(curve_i, cyclic);
-    BLI_assert(lengths.size() > 0);
+    BLI_assume_assert(lengths.size() > 0);
 
     const float start_length = trim_sample_length(lengths, starts[curve_i], mode);
     float end_length;
@@ -896,7 +897,7 @@ static void compute_curve_trim_parameters(const bke::CurvesGeometry &curves,
                                   start_points[curve_i], end_points[curve_i], point_count)
                                   .push_loop();
         const int count = 1 + !start_points[curve_i].is_controlpoint() + point_count;
-        BLI_assert(count > 1);
+        BLI_assume_assert(count > 1);
         dst_curve_size[curve_i] = count;
       }
     }
@@ -916,10 +917,10 @@ static void compute_curve_trim_parameters(const bke::CurvesGeometry &curves,
           start_points[curve_i], end_points[curve_i], point_count);
       const int count = src_ranges[curve_i].size() + !start_points[curve_i].is_controlpoint() +
                         !end_points[curve_i].is_controlpoint();
-      BLI_assert(count > 1);
+      BLI_assume_assert(count > 1);
       dst_curve_size[curve_i] = count;
     }
-    BLI_assert(dst_curve_size[curve_i] > 0);
+    BLI_assume_assert(dst_curve_size[curve_i] > 0);
   });
 }
 
@@ -936,10 +937,10 @@ bke::CurvesGeometry trim_curves(const bke::CurvesGeometry &src_curves,
   IndexMaskMemory memory;
   const IndexMask unselected = selection.complement(src_curves.curves_range(), memory);
 
-  BLI_assert(selection.size() > 0);
-  BLI_assert(selection.last() <= src_curves.curves_num());
-  BLI_assert(starts.size() == src_curves.curves_num());
-  BLI_assert(starts.size() == ends.size());
+  BLI_assume_assert(selection.size() > 0);
+  BLI_assume_assert(selection.last() <= src_curves.curves_num());
+  BLI_assume_assert(starts.size() == src_curves.curves_num());
+  BLI_assume_assert(starts.size() == ends.size());
   src_curves.ensure_evaluated_lengths();
 
   bke::CurvesGeometry dst_curves = bke::curves::copy_only_curve_domain(src_curves);

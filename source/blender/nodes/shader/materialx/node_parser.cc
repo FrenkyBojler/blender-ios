@@ -134,7 +134,7 @@ NodeItem NodeParser::empty() const
 
 NodeItem NodeParser::texcoord_node(NodeItem::Type type, const std::string &attribute_name)
 {
-  BLI_assert(ELEM(type, NodeItem::Type::Vector2, NodeItem::Type::Vector3));
+  BLI_assume_assert(ELEM(type, NodeItem::Type::Vector2, NodeItem::Type::Vector3));
   std::string name = TEXCOORD_NODE_NAME;
   if (type == NodeItem::Type::Vector3) {
     name += "_vector3";

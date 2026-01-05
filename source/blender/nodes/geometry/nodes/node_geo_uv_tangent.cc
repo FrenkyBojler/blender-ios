@@ -69,7 +69,7 @@ static void calc_uv_tangents_simple(const Span<float3> positions,
                                     const Span<float3> uvs,
                                     MutableSpan<float3> r_corner_tangents)
 {
-  BLI_assert(r_corner_tangents.size() == corner_verts.size());
+  BLI_assume_assert(r_corner_tangents.size() == corner_verts.size());
 
   /* Compute a tangent vector for each triangle. */
   threading::parallel_for(corner_tris.index_range(), 256, [&](const IndexRange range) {

@@ -442,7 +442,7 @@ using BKE_scene_collections_Cb = void (*)(Collection *ob, void *data);
        _base = _base->next) \
   { \
     Object *_object = _base->object; \
-    BLI_assert(_object != NULL);
+    BLI_assume_assert(_object != NULL);
 
 #define FOREACH_COLLECTION_OBJECT_RECURSIVE_END \
   } \

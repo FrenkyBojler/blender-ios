@@ -2066,7 +2066,7 @@ static Mesh *dynamicPaint_Modifier_apply(DynamicPaintModifierData *pmd, Object *
   /* make a copy of mesh to use as brush data */
   else if (pmd->brush && pmd->type == MOD_DYNAMICPAINT_TYPE_BRUSH) {
     DynamicPaintRuntime *runtime_data = dynamicPaint_Modifier_runtime_ensure(pmd);
-    BLI_assert(runtime_data != nullptr);
+    BLI_assume_assert(runtime_data != nullptr);
     std::lock_guard lock(runtime_data->brush_mutex);
     if (runtime_data->brush_mesh != nullptr) {
       BKE_id_free(nullptr, runtime_data->brush_mesh);
@@ -2428,7 +2428,7 @@ static float dist_squared_to_corner_tris_uv_edges(const blender::Span<int3> corn
                                                   int tri_index,
                                                   const float point[2])
 {
-  BLI_assert(tri_index >= 0);
+  BLI_assume_assert(tri_index >= 0);
 
   float min_distance = FLT_MAX;
 
@@ -2781,7 +2781,7 @@ static bool dynamicPaint_symmetrizeAdjData(PaintAdjData *ed, int active_points)
         new_n_num[index] = ed->n_num[index];
       }
 
-      BLI_assert(n_pos == total_targets);
+      BLI_assume_assert(n_pos == total_targets);
 
       /* Add symmetrized - this loop behavior must exactly match the count pass above */
       for (int index = 0; index < active_points; index++) {
@@ -3379,7 +3379,7 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface,
           break;
         }
         default:
-          BLI_assert(0);
+          BLI_assume_assert(0);
           break;
       }
       break;
@@ -3399,7 +3399,7 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface,
         case 1:
           break;
         default:
-          BLI_assert(0);
+          BLI_assume_assert(0);
           break;
       }
       break;
@@ -3419,12 +3419,12 @@ void dynamicPaint_outputSurfaceImage(DynamicPaintSurface *surface,
         case 1:
           break;
         default:
-          BLI_assert(0);
+          BLI_assume_assert(0);
           break;
       }
       break;
     default:
-      BLI_assert(0);
+      BLI_assume_assert(0);
       break;
   }
 
@@ -3636,7 +3636,7 @@ static void dynamicPaint_mixWaveHeight(PaintWavePoint *wPoint,
         }
         break;
       default:
-        BLI_assert(0);
+        BLI_assume_assert(0);
         break;
     }
   }
@@ -5463,7 +5463,7 @@ static void dynamic_paint_effect_drip_cb(void *__restrict userdata,
       {
         uint8_t ret = atomic_fetch_and_and_uint8(&point_locks[epointlock_idx],
                                                  ~epointlock_bitmask);
-        BLI_assert(ret & epointlock_bitmask);
+        BLI_assume_assert(ret & epointlock_bitmask);
       }
 #else
       atomic_fetch_and_and_uint8(&point_locks[epointlock_idx], ~epointlock_bitmask);
@@ -5486,7 +5486,7 @@ static void dynamic_paint_effect_drip_cb(void *__restrict userdata,
 #ifndef NDEBUG
     {
       uint8_t ret = atomic_fetch_and_and_uint8(&point_locks[ppointlock_idx], ~ppointlock_bitmask);
-      BLI_assert(ret & ppointlock_bitmask);
+      BLI_assume_assert(ret & ppointlock_bitmask);
     }
 #else
     atomic_fetch_and_and_uint8(&point_locks[ppointlock_idx], ~ppointlock_bitmask);

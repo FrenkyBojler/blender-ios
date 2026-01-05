@@ -121,7 +121,7 @@ static void library_foreach_id(ID *id, LibraryForeachIDData *data)
     }
 
     /* Archive libraries should never 'own' other archives. */
-    BLI_assert(lib->runtime->archived_libraries.is_empty());
+    BLI_assume_assert(lib->runtime->archived_libraries.is_empty());
     if (foreach_flag & IDWALK_DO_INTERNAL_RUNTIME_POINTERS) {
       for (Library *&lib_p : lib->runtime->archived_libraries) {
         BKE_LIB_FOREACHID_PROCESS_ID(
@@ -204,7 +204,7 @@ static void library_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id
 {
   Library *lib = reinterpret_cast<Library *>(id);
   if (lib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
-    BLI_assert(lib->archive_parent_library);
+    BLI_assume_assert(lib->archive_parent_library);
     lib->archive_parent_library->runtime->archived_libraries.append(lib);
   }
 }
@@ -290,7 +290,7 @@ static void rebuild_hierarchy_best_parent_find(Main *bmain,
       }
       if (ID_IS_PACKED(id_iter)) {
         /* Packed data and their archive libraries do not participate to linked data hierarchy. */
-        BLI_assert(id_iter->lib->flag & LIBRARY_FLAG_IS_ARCHIVE);
+        BLI_assume_assert(id_iter->lib->flag & LIBRARY_FLAG_IS_ARCHIVE);
         continue;
       }
       MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_iter);
@@ -310,7 +310,7 @@ static void rebuild_hierarchy_best_parent_find(Main *bmain,
         }
         if (directly_used_libs.contains(from_id_lib)) {
           /* Found the first best possible candidate, no need to search further. */
-          BLI_assert(best_parent_lib == nullptr || best_parent_lib->runtime->temp_index > 0);
+          BLI_assume_assert(best_parent_lib == nullptr || best_parent_lib->runtime->temp_index > 0);
           best_parent_lib = from_id_lib;
           do_break = true;
           break;
@@ -412,7 +412,7 @@ void BKE_library_main_rebuild_hierarchy(Main *bmain)
   for (Library &lib_iter : bmain->libraries) {
     /* A directly used library. */
     if (directly_used_libs.contains(&lib_iter)) {
-      BLI_assert(lib_iter.runtime->temp_index == 0);
+      BLI_assume_assert(lib_iter.runtime->temp_index == 0);
       continue;
     }
 
@@ -462,21 +462,21 @@ void BKE_library_main_rebuild_hierarchy(Main *bmain)
   for (Library &lib_iter : bmain->libraries) {
     /* A directly used library. */
     if (directly_used_libs.contains(&lib_iter)) {
-      BLI_assert(lib_iter.runtime->temp_index == 0);
+      BLI_assume_assert(lib_iter.runtime->temp_index == 0);
       continue;
     }
 
     if (lib_iter.runtime->parent) {
-      BLI_assert(lib_iter.runtime->temp_index > 0);
+      BLI_assume_assert(lib_iter.runtime->temp_index > 0);
     }
     else {
       BLI_assert_msg((lib_iter.flag & LIBRARY_FLAG_IS_ARCHIVE) == 0,
                      "Archived libraries are always direct parent of their owner regular library, "
                      "this should have already been ensured at the start of this function.");
-      BLI_assert(lib_iter.runtime->temp_index == 0);
+      BLI_assume_assert(lib_iter.runtime->temp_index == 0);
       blender::Set<Library *> libs_in_hierarchy;
       rebuild_hierarchy_best_parent_find(bmain, directly_used_libs, libs_in_hierarchy, &lib_iter);
-      BLI_assert(libs_in_hierarchy.is_empty());
+      BLI_assume_assert(libs_in_hierarchy.is_empty());
     }
   }
 
@@ -537,14 +537,14 @@ static Library *add_archive_library(Main &bmain, Library &reference_library)
 Library *blender::bke::library::ensure_archive_library(
     Main &bmain, ID &id, Library &reference_library, const IDHash &id_deep_hash, bool &is_new)
 {
-  BLI_assert(ID_IS_LINKED(&id));
+  BLI_assume_assert(ID_IS_LINKED(&id));
   BLI_assert((reference_library.flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
 
   Library *archive_library = nullptr;
   for (Library *lib_iter : reference_library.runtime->archived_libraries) {
     BLI_assert((lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) != 0);
-    BLI_assert(lib_iter->archive_parent_library != nullptr);
-    BLI_assert(lib_iter->archive_parent_library == &reference_library);
+    BLI_assume_assert(lib_iter->archive_parent_library != nullptr);
+    BLI_assume_assert(lib_iter->archive_parent_library == &reference_library);
     /* Check if current archive library already contains an ID of same type and name. */
     if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(id.name), BKE_id_name(id))) {
 #ifndef NDEBUG
@@ -568,7 +568,7 @@ Library *blender::bke::library::ensure_archive_library(
   else {
     is_new = false;
   }
-  BLI_assert(reference_library.runtime->archived_libraries.contains(archive_library));
+  BLI_assume_assert(reference_library.runtime->archived_libraries.contains(archive_library));
   return archive_library;
 }
 
@@ -579,7 +579,7 @@ static void pack_linked_id(Main &bmain,
                            blender::VectorSet<ID *> &ids_to_remap,
                            blender::bke::id::IDRemapper &id_remapper)
 {
-  BLI_assert(linked_id->newid == nullptr);
+  BLI_assume_assert(linked_id->newid == nullptr);
 
   const IDHash linked_id_deep_hash = deep_hashes.hashes.lookup(linked_id);
   ID *packed_id = already_packed_ids.lookup_default(linked_id_deep_hash, nullptr);
@@ -589,12 +589,12 @@ static void pack_linked_id(Main &bmain,
      * re-use these packed data. */
 
     auto existing_id_process = [&deep_hashes, &id_remapper](ID *linked_id, ID *packed_id) {
-      BLI_assert(packed_id);
-      BLI_assert(ID_IS_PACKED(packed_id));
+      BLI_assume_assert(packed_id);
+      BLI_assume_assert(ID_IS_PACKED(packed_id));
       /* Note: linked_id and packed_id may have the same deep hash while still coming from
        * different original libraries. This easily happens copying an asset file such that each
        * asset exists twice. */
-      BLI_assert(packed_id->deep_hash == deep_hashes.hashes.lookup(linked_id));
+      BLI_assume_assert(packed_id->deep_hash == deep_hashes.hashes.lookup(linked_id));
       UNUSED_VARS_NDEBUG(deep_hashes);
 
       id_remapper.add(linked_id, packed_id);
@@ -609,7 +609,7 @@ static void pack_linked_id(Main &bmain,
     Key *linked_key = BKE_key_from_id(linked_id);
     if (linked_key) {
       Key *packed_key = BKE_key_from_id(packed_id);
-      BLI_assert(packed_key);
+      BLI_assume_assert(packed_key);
       existing_id_process(&linked_key->id, &packed_key->id);
     }
   }
@@ -626,9 +626,9 @@ static void pack_linked_id(Main &bmain,
     auto copied_id_process =
         [&archive_lib, &deep_hashes, &ids_to_remap, &id_remapper, &already_packed_ids](
             ID *linked_id, ID *packed_id) {
-          BLI_assert(packed_id);
-          BLI_assert(ID_IS_PACKED(packed_id));
-          BLI_assert(packed_id->lib == archive_lib);
+          BLI_assume_assert(packed_id);
+          BLI_assume_assert(ID_IS_PACKED(packed_id));
+          BLI_assume_assert(packed_id->lib == archive_lib);
           UNUSED_VARS_NDEBUG(archive_lib);
 
           if (GS(packed_id->name) == ID_SCE) {
@@ -656,7 +656,7 @@ static void pack_linked_id(Main &bmain,
     Key *linked_key = BKE_key_from_id(linked_id);
     if (linked_key) {
       Key *embedded_key = BKE_key_from_id(packed_id);
-      BLI_assert(embedded_key);
+      BLI_assume_assert(embedded_key);
       copied_id_process(&linked_key->id, &embedded_key->id);
     }
   }
@@ -674,7 +674,7 @@ static void pack_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_pack)
   blender::bke::id::IDRemapper id_remapper;
 
   for (ID *id : ids_to_pack) {
-    BLI_assert(ID_IS_LINKED(id));
+    BLI_assume_assert(ID_IS_LINKED(id));
     if (ID_IS_PACKED(id)) {
       /* Should not happen, but also not critical issue. */
       CLOG_ERROR(&LOG,
@@ -726,7 +726,7 @@ static void pack_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_pack)
 
 void blender::bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
 {
-  BLI_assert(ID_IS_LINKED(&root_id));
+  BLI_assume_assert(ID_IS_LINKED(&root_id));
   BLI_assert(!ID_IS_PACKED(&root_id));
 
   blender::Set<ID *> ids_to_pack;
@@ -754,7 +754,7 @@ void blender::bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
         if (ID_IS_PACKED(referenced_id)) {
           /* A linked ID can use another packed linked ID, as long as it is not from the same
            * library. */
-          BLI_assert(referenced_id->lib && referenced_id->lib->archive_parent_library);
+          BLI_assume_assert(referenced_id->lib && referenced_id->lib->archive_parent_library);
           if (referenced_id->lib->archive_parent_library == self_id->lib) {
             CLOG_ERROR(&LOG,
                        "Non-packed data-block references packed data-block from the same library, "
@@ -799,7 +799,7 @@ void blender::bke::library::main_cleanup_parent_archives(Main &bmain)
         }
         i_insert_curr++;
       }
-      BLI_assert(i_insert_curr <= i_read_curr);
+      BLI_assume_assert(i_insert_curr <= i_read_curr);
       if (i_insert_curr < i_read_curr) {
         lib.runtime->archived_libraries.resize(i_insert_curr);
       }

@@ -89,16 +89,16 @@ IDNameLib_Map *BKE_main_idmap_create(Main *bmain,
     IDNameLib_TypeMap *type_map = &id_map->type_maps[index];
     type_map->map = nullptr;
     type_map->id_type = BKE_idtype_idcode_iter_step(&index);
-    BLI_assert(type_map->id_type != 0);
+    BLI_assume_assert(type_map->id_type != 0);
   }
-  BLI_assert(index == INDEX_ID_MAX);
+  BLI_assume_assert(index == INDEX_ID_MAX);
   id_map->type_maps_keys_pool = nullptr;
 
   if (idmap_types & MAIN_IDMAP_TYPE_UID) {
     ID *id;
     id_map->uid_map = MEM_new<blender::Map<uint32_t, ID *>>(__func__);
     FOREACH_MAIN_ID_BEGIN (bmain, id) {
-      BLI_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
+      BLI_assume_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
       id_map->uid_map->add_new(id->session_uid, id);
     }
     FOREACH_MAIN_ID_END;
@@ -128,7 +128,7 @@ void BKE_main_idmap_insert_id(IDNameLib_Map *id_map, ID *id)
 
     /* No need to do anything if map has not been lazily created yet. */
     if (LIKELY(type_map != nullptr) && type_map->map != nullptr) {
-      BLI_assert(id_map->type_maps_keys_pool != nullptr);
+      BLI_assume_assert(id_map->type_maps_keys_pool != nullptr);
 
       IDNameLib_Key *key = static_cast<IDNameLib_Key *>(
           BLI_mempool_alloc(id_map->type_maps_keys_pool));
@@ -139,8 +139,8 @@ void BKE_main_idmap_insert_id(IDNameLib_Map *id_map, ID *id)
   }
 
   if (id_map->idmap_types & MAIN_IDMAP_TYPE_UID) {
-    BLI_assert(id_map->uid_map != nullptr);
-    BLI_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
+    BLI_assume_assert(id_map->uid_map != nullptr);
+    BLI_assume_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
     id_map->uid_map->add_new(id->session_uid, id);
   }
 }
@@ -153,7 +153,7 @@ void BKE_main_idmap_remove_id(IDNameLib_Map *id_map, const ID *id)
 
     /* No need to do anything if map has not been lazily created yet. */
     if (LIKELY(type_map != nullptr) && type_map->map != nullptr) {
-      BLI_assert(id_map->type_maps_keys_pool != nullptr);
+      BLI_assume_assert(id_map->type_maps_keys_pool != nullptr);
 
       /* NOTE: We cannot free the key from the MemPool here, would need new API from GHash to also
        * retrieve key pointer. Not a big deal for now */
@@ -163,8 +163,8 @@ void BKE_main_idmap_remove_id(IDNameLib_Map *id_map, const ID *id)
   }
 
   if (id_map->idmap_types & MAIN_IDMAP_TYPE_UID) {
-    BLI_assert(id_map->uid_map != nullptr);
-    BLI_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
+    BLI_assume_assert(id_map->uid_map != nullptr);
+    BLI_assume_assert(id->session_uid != MAIN_ID_SESSION_UID_UNSET);
     id_map->uid_map->remove(id->session_uid);
   }
 }
@@ -282,7 +282,7 @@ void BKE_main_idmap_destroy(IDNameLib_Map *id_map)
     MEM_delete(id_map->uid_map);
   }
 
-  BLI_assert(id_map->type_maps_keys_pool == nullptr);
+  BLI_assume_assert(id_map->type_maps_keys_pool == nullptr);
 
   MEM_delete(id_map->valid_id_pointers);
   MEM_freeN(id_map);

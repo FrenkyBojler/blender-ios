@@ -11,8 +11,8 @@
 #include "BLI_math_base_safe.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-
+#include "BLI_assume.hh"
+#include "BLI_math_base.h"
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /******************************** Quaternions ********************************/
@@ -567,7 +567,7 @@ float quat_split_swing_and_twist(const float q_in[4],
                                  float r_swing[4],
                                  float r_twist[4])
 {
-  BLI_assert(axis >= 0 && axis <= 2);
+  BLI_assume_assert(axis >= 0 && axis <= 2);
 
   /* The calculation requires a canonical quaternion. */
   float q[4];
@@ -715,8 +715,8 @@ void vec_to_quat(float q[4], const float vec[3], short axis, const short upflag)
   float nor[3], tvec[3];
   float angle, si, co, len;
 
-  BLI_assert(axis >= 0 && axis <= 5);
-  BLI_assert(upflag >= 0 && upflag <= 2);
+  BLI_assume_assert(axis >= 0 && axis <= 5);
+  BLI_assume_assert(upflag >= 0 && upflag <= 2);
 
   /* first set the quat to unit */
   unit_qt(q);
@@ -869,7 +869,7 @@ void interp_dot_slerp(const float t, const float cosom, float r_w[2])
 {
   const float eps = 1e-4f;
 
-  BLI_assert(IN_RANGE_INCL(cosom, -1.0001f, 1.0001f));
+  BLI_assume_assert(IN_RANGE_INCL(cosom, -1.0001f, 1.0001f));
 
   /* within [-1..1] range, avoid aligned axis */
   if (LIKELY(fabsf(cosom) < (1.0f - eps))) {
@@ -996,9 +996,9 @@ void sin_cos_from_fraction(int numerator, int denominator, float *r_sin, float *
    * Cases 2, 4, 5 and 7, use the trigonometric identity sin(-x) == -sin(x).
    * Cases 1, 2, 5 and 6, swap the pointers `r_sin` and `r_cos`.
    */
-  BLI_assert(0 <= numerator);
-  BLI_assert(numerator <= denominator);
-  BLI_assert(denominator > 0);
+  BLI_assume_assert(0 <= numerator);
+  BLI_assume_assert(numerator <= denominator);
+  BLI_assume_assert(denominator > 0);
 
   numerator *= 8;                             /* Multiply numerator the same as denominator. */
   const int octant = numerator / denominator; /* Determine the octant. */
@@ -1033,8 +1033,8 @@ void sin_cos_from_fraction(int numerator, int denominator, float *r_sin, float *
   }
 
   BLI_assert(-denominator / 4 <= numerator); /* Numerator may be negative. */
-  BLI_assert(numerator <= denominator / 4);
-  BLI_assert(ELEM(cos_sign, -1.0f, 1.0f));
+  BLI_assume_assert(numerator <= denominator / 4);
+  BLI_assume_assert(ELEM(cos_sign, -1.0f, 1.0f));
 
   const float angle = float(2.0 * M_PI) * (float(numerator) / float(denominator));
   *r_sin = sinf(angle);
@@ -1293,7 +1293,7 @@ void axis_angle_to_quat_single(float q[4], const char axis, const float angle)
   const float angle_sin = sinf(angle_half);
   const int axis_index = (axis - 'X');
 
-  BLI_assert(axis >= 'X' && axis <= 'Z');
+  BLI_assume_assert(axis >= 'X' && axis <= 'Z');
 
   q[0] = angle_cos;
   zero_v3(q + 1);
@@ -1490,7 +1490,7 @@ void rotate_eul(float beul[3], const char axis, const float angle)
 {
   float eul[3], mat1[3][3], mat2[3][3], totmat[3][3];
 
-  BLI_assert(axis >= 'X' && axis <= 'Z');
+  BLI_assume_assert(axis >= 'X' && axis <= 'Z');
 
   eul[0] = eul[1] = eul[2] = 0.0f;
   if (axis == 'X') {
@@ -1625,7 +1625,7 @@ static const RotOrderInfo rotOrders[] = {
  */
 static const RotOrderInfo *get_rotation_order_info(const short order)
 {
-  BLI_assert(order >= 0 && order <= 6);
+  BLI_assume_assert(order >= 0 && order <= 6);
   if (order < 1) {
     return &rotOrders[0];
   }
@@ -1886,7 +1886,7 @@ void rotate_eulO(float beul[3], const short order, const char axis, const float 
 {
   float eul[3], mat1[3][3], mat2[3][3], totmat[3][3];
 
-  BLI_assert(axis >= 'X' && axis <= 'Z');
+  BLI_assume_assert(axis >= 'X' && axis <= 'Z');
 
   zero_v3(eul);
 
@@ -2242,8 +2242,8 @@ void quat_apply_track(float quat[4], short axis, short upflag)
       {0.0, sqrt_1_2, sqrt_1_2, 0.0},
   };
 
-  BLI_assert(axis >= 0 && axis <= 5);
-  BLI_assert(upflag >= 0 && upflag <= 2);
+  BLI_assume_assert(axis >= 0 && axis <= 5);
+  BLI_assume_assert(upflag >= 0 && upflag <= 2);
 
   mul_qt_qtqt(quat, quat, quat_track[axis]);
 
@@ -2265,7 +2265,7 @@ void vec_apply_track(float vec[3], short axis)
 {
   float tvec[3];
 
-  BLI_assert(axis >= 0 && axis <= 5);
+  BLI_assume_assert(axis >= 0 && axis <= 5);
 
   copy_v3_v3(tvec, vec);
 
@@ -2446,7 +2446,7 @@ bool mat3_from_axis_conversion(
       }
     }
   }
-  //  BLI_assert(0);
+  //  BLI_assume_assert(0);
   return false;
 }
 

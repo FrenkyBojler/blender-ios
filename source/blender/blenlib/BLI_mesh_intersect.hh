@@ -283,20 +283,20 @@ class IMesh {
 
   const Vert *vert(int index) const
   {
-    BLI_assert(vert_populated_);
+    BLI_assume_assert(vert_populated_);
     return vert_[index];
   }
 
   /** Returns index in vert_ where v is, or #NO_INDEX. */
   int lookup_vert(const Vert *v) const
   {
-    BLI_assert(vert_populated_);
+    BLI_assume_assert(vert_populated_);
     return vert_to_index_.lookup_default(v, NO_INDEX);
   }
 
   IndexRange vert_index_range() const
   {
-    BLI_assert(vert_populated_);
+    BLI_assume_assert(vert_populated_);
     return IndexRange(vert_.size());
   }
 
@@ -307,7 +307,7 @@ class IMesh {
 
   Span<const Vert *> vertices() const
   {
-    BLI_assert(vert_populated_);
+    BLI_assume_assert(vert_populated_);
     return Span<const Vert *>(vert_);
   }
 

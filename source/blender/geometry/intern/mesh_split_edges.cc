@@ -5,6 +5,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_ordered_edge.hh"
+#include "BLI_assume.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
@@ -116,7 +117,7 @@ static int corner_on_edge_connected_to_vert(const Span<int> corner_verts,
     return corner;
   }
   const int other = bke::mesh::face_corner_next(face, corner);
-  BLI_assert(corner_verts[other] == vert);
+  BLI_assume_assert(corner_verts[other] == vert);
   return other;
 }
 

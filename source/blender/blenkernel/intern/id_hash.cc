@@ -77,7 +77,7 @@ static std::optional<XXH128_hash_t> compute_file_hash(const StringRefNull path)
   /* First try the memory map the file, because it avoids an extra copy. */
   if (const std::optional<XXH128_hash_t> hash = compute_file_hash_with_memory_map(path)) {
     /* Make sure both code paths are tested even if memory mapping should almost always work. */
-    BLI_assert(hash->low64 == compute_file_hash_with_file_read(path)->low64);
+    BLI_assume_assert(hash->low64 == compute_file_hash_with_file_read(path)->low64);
     return hash;
   }
   if (const std::optional<XXH128_hash_t> hash = compute_file_hash_with_file_read(path)) {
@@ -130,7 +130,7 @@ static std::optional<XXH128_hash_t> get_source_file_hash(const ID &id, DeepHashE
 
 static std::optional<XXH128_hash_t> get_id_shallow_hash(const ID &id, DeepHashErrors &r_errors)
 {
-  BLI_assert(ID_IS_LINKED(&id));
+  BLI_assume_assert(ID_IS_LINKED(&id));
   const StringRefNull id_name = id.name;
   const std::optional<XXH128_hash_t> file_hash = get_source_file_hash(id, r_errors);
   if (!file_hash) {
@@ -234,7 +234,7 @@ IDHashResult compute_linked_id_deep_hashes(const Main &bmain, Span<const ID *> i
 {
 #ifndef NDEBUG
   for (const ID *id : ids) {
-    BLI_assert(ID_IS_LINKED(id));
+    BLI_assume_assert(ID_IS_LINKED(id));
   }
 #endif
 

@@ -12,6 +12,7 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_map.hh"
 #include "BLI_sort.hh"
+#include "BLI_assume.hh"
 #include "BLI_task.hh"
 
 namespace blender {
@@ -35,7 +36,7 @@ static void update_first_occurrence(Map<int, int> &map, const int root, const in
 
 int AtomicDisjointSet::calc_reduced_ids(MutableSpan<int> result) const
 {
-  BLI_assert(result.size() == items_.size());
+  BLI_assume_assert(result.size() == items_.size());
 
   const int size = result.size();
 

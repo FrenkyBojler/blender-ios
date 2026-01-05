@@ -376,7 +376,7 @@ struct Rows {
 
   void find_copy_source(Pixel &pixel, const NonManifoldTileEdges &tile_edges)
   {
-    BLI_assert(pixel.type == PixelType::SelectedForCloserExamination);
+    BLI_assume_assert(pixel.type == PixelType::SelectedForCloserExamination);
 
     rcti bounds;
     BLI_rcti_init(&bounds,

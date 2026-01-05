@@ -19,6 +19,7 @@
 #include <optional>
 #include <variant>
 
+#include "BLI_assume.hh"
 #include "BLI_hash.hh"
 #include "BLI_struct_equality_utils.hh"
 
@@ -217,7 +218,7 @@ struct ElemVariant {
 
   void merge(const ElemVariant &other)
   {
-    BLI_assert(this->elem.index() == other.elem.index());
+    BLI_assume_assert(this->elem.index() == other.elem.index());
     std::visit(
         [&](auto &value) {
           using T = std::decay_t<decltype(value)>;
@@ -228,7 +229,7 @@ struct ElemVariant {
 
   void intersect(const ElemVariant &other)
   {
-    BLI_assert(this->elem.index() == other.elem.index());
+    BLI_assume_assert(this->elem.index() == other.elem.index());
     std::visit(
         [&](auto &value) {
           using T = std::decay_t<decltype(value)>;

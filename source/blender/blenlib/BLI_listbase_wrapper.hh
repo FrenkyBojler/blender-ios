@@ -27,7 +27,7 @@ template<typename LB, typename T> class ListBaseWrapperTemplate {
  public:
   ListBaseWrapperTemplate(LB *listbase) : listbase_(listbase)
   {
-    BLI_assert(listbase);
+    BLI_assume_assert(listbase);
   }
 
   ListBaseWrapperTemplate(LB &listbase) : ListBaseWrapperTemplate(&listbase) {}
@@ -78,7 +78,7 @@ template<typename LB, typename T> class ListBaseWrapperTemplate {
   T *get(uint index) const
   {
     void *ptr = BLI_findlink(listbase_, index);
-    BLI_assert(ptr);
+    BLI_assume_assert(ptr);
     return static_cast<T *>(ptr);
   }
 
@@ -91,7 +91,7 @@ template<typename LB, typename T> class ListBaseWrapperTemplate {
       }
       index++;
     }
-    BLI_assert(false);
+    BLI_assume_assert(false);
     return -1;
   }
 };

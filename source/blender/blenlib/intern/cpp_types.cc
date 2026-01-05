@@ -36,14 +36,14 @@ void VectorCPPType::register_self()
 const VectorCPPType *VectorCPPType::get_from_self(const CPPType &self)
 {
   const VectorCPPType *type = get_vector_from_self_map().lookup_default(&self, nullptr);
-  BLI_assert(type == nullptr || type->self == self);
+  BLI_assume_assert(type == nullptr || type->self == self);
   return type;
 }
 
 const VectorCPPType *VectorCPPType::get_from_value(const CPPType &value)
 {
   const VectorCPPType *type = get_vector_from_value_map().lookup_default(&value, nullptr);
-  BLI_assert(type == nullptr || type->value == value);
+  BLI_assume_assert(type == nullptr || type->value == value);
   return type;
 }
 

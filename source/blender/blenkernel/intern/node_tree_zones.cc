@@ -213,7 +213,7 @@ static void update_zone_border_links(const bNodeTree &tree, bNodeTreeZones &tree
     if (from_zone == to_zone) {
       continue;
     }
-    BLI_assert(from_zone == nullptr || from_zone->contains_zone_recursively(*to_zone));
+    BLI_assume_assert(from_zone == nullptr || from_zone->contains_zone_recursively(*to_zone));
     for (bNodeTreeZone *zone = to_zone; zone != from_zone; zone = zone->parent_zone) {
       zone->border_links.append(link);
     }
@@ -304,7 +304,7 @@ static std::unique_ptr<bNodeTreeZones> discover_tree_zones(const bNodeTree &tree
   /* Set parent and child pointers in zones. */
   for (const ZoneRelation &relation : *zone_relations) {
     relation.parent->child_zones.append(relation.child);
-    BLI_assert(relation.child->parent_zone == nullptr);
+    BLI_assume_assert(relation.child->parent_zone == nullptr);
     relation.child->parent_zone = relation.parent;
   }
 
@@ -461,8 +461,8 @@ bool bNodeTreeZones::link_between_zones_is_allowed(const bNodeTreeZone *from_zon
 bool bNodeTreeZones::link_between_sockets_is_allowed(const bNodeSocket &from,
                                                      const bNodeSocket &to) const
 {
-  BLI_assert(from.in_out == SOCK_OUT);
-  BLI_assert(to.in_out == SOCK_IN);
+  BLI_assume_assert(from.in_out == SOCK_OUT);
+  BLI_assume_assert(to.in_out == SOCK_IN);
   const bNodeTreeZone *from_zone = this->get_zone_by_socket(from);
   const bNodeTreeZone *to_zone = this->get_zone_by_socket(to);
   return this->link_between_zones_is_allowed(from_zone, to_zone);
@@ -471,7 +471,7 @@ bool bNodeTreeZones::link_between_sockets_is_allowed(const bNodeSocket &from,
 Vector<const bNodeTreeZone *> bNodeTreeZones::get_zones_to_enter(
     const bNodeTreeZone *outer_zone, const bNodeTreeZone *inner_zone) const
 {
-  BLI_assert(this->link_between_zones_is_allowed(outer_zone, inner_zone));
+  BLI_assume_assert(this->link_between_zones_is_allowed(outer_zone, inner_zone));
   Vector<const bNodeTreeZone *> zones_to_enter;
   for (const bNodeTreeZone *zone = inner_zone; zone != outer_zone; zone = zone->parent_zone) {
     zones_to_enter.append(zone);

@@ -5,6 +5,8 @@
 #include "BKE_attribute.hh"
 #include "BKE_mesh.hh"
 
+#include "BLI_assume.hh"
+
 #include "GEO_mesh_primitive_grid.hh"
 
 namespace blender::geometry {
@@ -43,7 +45,7 @@ Mesh *create_grid_mesh(const int verts_x,
                        const float size_y,
                        const std::optional<StringRef> uv_map_id)
 {
-  BLI_assert(verts_x > 0 && verts_y > 0);
+  BLI_assume_assert(verts_x > 0 && verts_y > 0);
   const int edges_x = verts_x - 1;
   const int edges_y = verts_y - 1;
   Mesh *mesh = BKE_mesh_new_nomain(verts_x * verts_y,

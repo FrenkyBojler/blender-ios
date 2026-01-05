@@ -60,7 +60,7 @@ int BLI_bitmap_find_first_unset(const BLI_bitmap *bitmap, const size_t bits)
   if (index < blocks_num) {
     /* Found a partially used block: find the lowest unused bit. */
     const uint m = ~bitmap[index];
-    BLI_assert(m != 0);
+    BLI_assume_assert(m != 0);
     const uint bit_index = bitscan_forward_uint(m);
     result = bit_index + (index << _BITMAP_POWER);
   }

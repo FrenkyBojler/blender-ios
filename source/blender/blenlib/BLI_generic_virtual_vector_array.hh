@@ -47,8 +47,8 @@ class GVVectorArray {
   /* Returns the size of the vector at the given index. */
   int64_t get_vector_size(const int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < size_);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < size_);
     return this->get_vector_size_impl(index);
   }
 
@@ -56,10 +56,10 @@ class GVVectorArray {
    * initialized memory. */
   void get_vector_element(const int64_t index, const int64_t index_in_vector, void *r_value) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < size_);
-    BLI_assert(index_in_vector >= 0);
-    BLI_assert(index_in_vector < this->get_vector_size(index));
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < size_);
+    BLI_assume_assert(index_in_vector >= 0);
+    BLI_assume_assert(index_in_vector < this->get_vector_size(index));
     this->get_vector_element_impl(index, index_in_vector, r_value);
   }
 

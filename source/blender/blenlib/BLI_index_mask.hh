@@ -543,9 +543,9 @@ inline const IndexMask &IndexMaskFromSegment::update(const IndexMaskSegment segm
 {
   const Span<int16_t> indices = segment.base_span();
   BLI_assert(!indices.is_empty());
-  BLI_assert(std::is_sorted(indices.begin(), indices.end()));
-  BLI_assert(indices[0] >= 0);
-  BLI_assert(indices.last() < max_segment_size);
+  BLI_assume_assert(std::is_sorted(indices.begin(), indices.end()));
+  BLI_assume_assert(indices[0] >= 0);
+  BLI_assume_assert(indices.last() < max_segment_size);
   const int64_t indices_num = indices.size();
 
   IndexMaskData &data = mask_.data_for_inplace_construction();
@@ -639,7 +639,7 @@ inline IndexMaskSegment IndexMaskSegment::slice(const int64_t start, const int64
 
 inline IndexMaskSegment IndexMaskSegment::shift(const int64_t shift) const
 {
-  BLI_assert(this->is_empty() || (*this)[0] + shift >= 0);
+  BLI_assume_assert(this->is_empty() || (*this)[0] + shift >= 0);
   return IndexMaskSegment(this->offset() + shift, this->base_span());
 }
 
@@ -724,13 +724,13 @@ inline IndexRange IndexMask::bounds() const
 
 inline int64_t IndexMask::first() const
 {
-  BLI_assert(indices_num_ > 0);
+  BLI_assume_assert(indices_num_ > 0);
   return segment_offsets_[0] + indices_by_segment_[0][begin_index_in_segment_];
 }
 
 inline int64_t IndexMask::last() const
 {
-  BLI_assert(indices_num_ > 0);
+  BLI_assume_assert(indices_num_ > 0);
   const int64_t last_segment_i = segments_num_ - 1;
   return segment_offsets_[last_segment_i] +
          indices_by_segment_[last_segment_i][end_index_in_segment_ - 1];
@@ -746,8 +746,8 @@ inline int64_t IndexMask::min_array_size() const
 
 inline RawMaskIterator IndexMask::index_to_iterator(const int64_t index) const
 {
-  BLI_assert(index >= 0);
-  BLI_assert(index < indices_num_);
+  BLI_assume_assert(index >= 0);
+  BLI_assume_assert(index < indices_num_);
   RawMaskIterator it;
   const int64_t full_index = index + cumulative_segment_sizes_[0] + begin_index_in_segment_;
   it.segment_i = binary_search::last_if(
@@ -760,10 +760,10 @@ inline RawMaskIterator IndexMask::index_to_iterator(const int64_t index) const
 
 inline int64_t IndexMask::iterator_to_index(const RawMaskIterator &it) const
 {
-  BLI_assert(it.segment_i >= 0);
-  BLI_assert(it.segment_i < segments_num_);
-  BLI_assert(it.index_in_segment >= 0);
-  BLI_assert(it.index_in_segment < cumulative_segment_sizes_[it.segment_i + 1] -
+  BLI_assume_assert(it.segment_i >= 0);
+  BLI_assume_assert(it.segment_i < segments_num_);
+  BLI_assume_assert(it.index_in_segment >= 0);
+  BLI_assume_assert(it.index_in_segment < cumulative_segment_sizes_[it.segment_i + 1] -
                                        cumulative_segment_sizes_[it.segment_i]);
   return it.index_in_segment + cumulative_segment_sizes_[it.segment_i] -
          cumulative_segment_sizes_[0] - begin_index_in_segment_;
@@ -787,8 +787,8 @@ inline int64_t IndexMask::segments_num() const
 
 inline IndexMaskSegment IndexMask::segment(const int64_t segment_i) const
 {
-  BLI_assert(segment_i >= 0);
-  BLI_assert(segment_i < segments_num_);
+  BLI_assume_assert(segment_i >= 0);
+  BLI_assume_assert(segment_i < segments_num_);
   const int64_t full_segment_size = cumulative_segment_sizes_[segment_i + 1] -
                                     cumulative_segment_sizes_[segment_i];
   const int64_t begin_index = (segment_i == 0) ? begin_index_in_segment_ : 0;
@@ -853,7 +853,7 @@ template<typename T, typename Fn>
 #endif
 inline void optimized_foreach_index(const IndexMaskSegment segment, const Fn fn)
 {
-  BLI_assert(segment.last() < std::numeric_limits<T>::max());
+  BLI_assume_assert(segment.last() < std::numeric_limits<T>::max());
   if (unique_sorted_indices::non_empty_is_range(segment.base_span())) {
     const T start = T(segment[0]);
     const T last = T(segment.last());
@@ -876,8 +876,8 @@ inline void optimized_foreach_index_with_pos(const IndexMaskSegment segment,
                                              const int64_t segment_pos,
                                              const Fn fn)
 {
-  BLI_assert(segment.last() < std::numeric_limits<T>::max());
-  BLI_assert(segment.size() + segment_pos < std::numeric_limits<T>::max());
+  BLI_assume_assert(segment.last() < std::numeric_limits<T>::max());
+  BLI_assume_assert(segment.size() + segment_pos < std::numeric_limits<T>::max());
   if (unique_sorted_indices::non_empty_is_range(segment.base_span())) {
     const T start = T(segment[0]);
     const T last = T(segment.last());
@@ -1050,7 +1050,7 @@ inline IndexMask IndexMask::from_predicate(const IndexMask &universe,
           *r_current = local_index;
           /* This expects the boolean to be either 0 or 1 which is generally the case but may not
            * be if the values are uninitialized. */
-          BLI_assert(ELEM(int8_t(condition), 0, 1));
+          BLI_assume_assert(ELEM(int8_t(condition), 0, 1));
           /* Branchless conditional increment. */
           r_current += condition;
         }

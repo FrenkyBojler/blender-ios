@@ -4,6 +4,7 @@
 
 #include "GEO_extract_elements.hh"
 
+#include "BLI_assume.hh"
 #include "BLI_index_mask.hh"
 
 #include "BKE_attribute.hh"
@@ -29,7 +30,7 @@ Array<Mesh *> extract_mesh_vertices(const Mesh &mesh,
                                     const IndexMask &mask,
                                     const bke::AttributeFilter &attribute_filter)
 {
-  BLI_assert(mask.min_array_size() <= mesh.verts_num);
+  BLI_assume_assert(mask.min_array_size() <= mesh.verts_num);
   Array<Mesh *> elements(mask.size(), nullptr);
 
   const bke::AttributeAccessor src_attributes = mesh.attributes();
@@ -75,7 +76,7 @@ Array<Mesh *> extract_mesh_edges(const Mesh &mesh,
                                  const IndexMask &mask,
                                  const bke::AttributeFilter &attribute_filter)
 {
-  BLI_assert(mask.min_array_size() <= mesh.edges_num);
+  BLI_assume_assert(mask.min_array_size() <= mesh.edges_num);
   Array<Mesh *> elements(mask.size(), nullptr);
 
   const Span<int2> src_edges = mesh.edges();
@@ -149,7 +150,7 @@ Array<Mesh *> extract_mesh_faces(const Mesh &mesh,
                                  const IndexMask &mask,
                                  const bke::AttributeFilter &attribute_filter)
 {
-  BLI_assert(mask.min_array_size() <= mesh.faces_num);
+  BLI_assume_assert(mask.min_array_size() <= mesh.faces_num);
   Array<Mesh *> elements(mask.size(), nullptr);
 
   const Span<int> src_corner_verts = mesh.corner_verts();
@@ -246,7 +247,7 @@ Array<PointCloud *> extract_pointcloud_points(const PointCloud &pointcloud,
                                               const IndexMask &mask,
                                               const bke::AttributeFilter &attribute_filter)
 {
-  BLI_assert(mask.min_array_size() <= pointcloud.totpoint);
+  BLI_assume_assert(mask.min_array_size() <= pointcloud.totpoint);
   Array<PointCloud *> elements(mask.size(), nullptr);
 
   const bke::AttributeAccessor src_attributes = pointcloud.attributes();
@@ -272,7 +273,7 @@ Array<Curves *> extract_curves_points(const Curves &curves,
                                       const IndexMask &mask,
                                       const bke::AttributeFilter &attribute_filter)
 {
-  BLI_assert(mask.min_array_size() <= curves.geometry.point_num);
+  BLI_assume_assert(mask.min_array_size() <= curves.geometry.point_num);
   Array<Curves *> elements(mask.size(), nullptr);
 
   const bke::CurvesGeometry &src_curves = curves.geometry.wrap();
@@ -310,7 +311,7 @@ Array<Curves *> extract_curves(const Curves &curves,
                                const IndexMask &mask,
                                const bke::AttributeFilter &attribute_filter)
 {
-  BLI_assert(mask.min_array_size() <= curves.geometry.curve_num);
+  BLI_assume_assert(mask.min_array_size() <= curves.geometry.curve_num);
   Array<Curves *> elements(mask.size(), nullptr);
 
   const bke::CurvesGeometry &src_curves = curves.geometry.wrap();
@@ -348,7 +349,7 @@ Array<bke::Instances *> extract_instances(const bke::Instances &instances,
                                           const bke::AttributeFilter &attribute_filter)
 {
   using bke::Instances;
-  BLI_assert(mask.min_array_size() <= instances.instances_num());
+  BLI_assume_assert(mask.min_array_size() <= instances.instances_num());
   Array<Instances *> elements(mask.size(), nullptr);
 
   const bke::AttributeAccessor src_attributes = instances.attributes();
@@ -384,7 +385,7 @@ Array<GreasePencil *> extract_greasepencil_layers(const GreasePencil &grease_pen
                                                   const bke::AttributeFilter &attribute_filter)
 {
   using namespace bke::greasepencil;
-  BLI_assert(mask.min_array_size() <= grease_pencil.layers().size());
+  BLI_assume_assert(mask.min_array_size() <= grease_pencil.layers().size());
 
   Array<GreasePencil *> elements(mask.size(), nullptr);
   const bke::AttributeAccessor src_attributes = grease_pencil.attributes();

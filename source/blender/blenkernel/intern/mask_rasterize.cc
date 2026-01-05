@@ -96,10 +96,10 @@
 #  define FACE_ASSERT(face, vert_max) \
     { \
       uint *_t = face; \
-      BLI_assert(_t[0] < vert_max); \
-      BLI_assert(_t[1] < vert_max); \
-      BLI_assert(_t[2] < vert_max); \
-      BLI_assert(_t[3] < vert_max || _t[3] == TRI_VERT); \
+      BLI_assume_assert(_t[0] < vert_max); \
+      BLI_assume_assert(_t[1] < vert_max); \
+      BLI_assume_assert(_t[2] < vert_max); \
+      BLI_assume_assert(_t[3] < vert_max || _t[3] == TRI_VERT); \
     } \
     (void)0
 #else
@@ -499,9 +499,9 @@ static void layer_bucket_init(MaskRasterLayer *layer, const float pixel_size)
               /* correct but do in outer loop */
               // uint bucket_index = (layer->buckets_x * yi) + xi;
 
-              BLI_assert(xi < layer->buckets_x);
-              BLI_assert(yi < layer->buckets_y);
-              BLI_assert(bucket_index < bucket_tot);
+              BLI_assume_assert(xi < layer->buckets_x);
+              BLI_assume_assert(yi < layer->buckets_y);
+              BLI_assume_assert(bucket_index < bucket_tot);
 
               /* Check if the bucket intersects with the face. */
               /* NOTE: there is a trade off here since checking box/tri intersections isn't as
@@ -640,7 +640,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
       if (do_feather) {
         diff_feather_points = BKE_mask_spline_feather_differentiated_points_with_resolution(
             &spline, resol, false, &tot_diff_feather_points);
-        BLI_assert(diff_feather_points);
+        BLI_assume_assert(diff_feather_points);
       }
       else {
         tot_diff_feather_points = 0;
@@ -739,7 +739,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
           }
 
           if (diff_feather_points) {
-            BLI_assert(tot_diff_feather_points == tot_diff_point);
+            BLI_assume_assert(tot_diff_feather_points == tot_diff_point);
 
             /* NOTE: only added for convenience, we don't in fact use these to scan-fill,
              * only to create feather faces after scan-fill. */
@@ -996,7 +996,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
               }
             }
           }
-          BLI_assert(edge_index == sf_edge_array_num);
+          BLI_assume_assert(edge_index == sf_edge_array_num);
         }
       }
 
@@ -1029,14 +1029,14 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
       /* start of feather faces... if we have this set,
        * 'face_index' is kept from loop above */
 
-      BLI_assert(face_index == sf_tri_tot);
+      BLI_assume_assert(face_index == sf_tri_tot);
       UNUSED_VARS_NDEBUG(face_index);
 
       if (sf_edge_array) {
-        BLI_assert(tot_feather_quads);
+        BLI_assume_assert(tot_feather_quads);
         for (uint i = 0; i < sf_edge_array_num; i++) {
           ScanFillEdge *sf_edge = sf_edge_array[i];
-          BLI_assert(sf_edge->tmp.c == SF_EDGE_IS_BOUNDARY);
+          BLI_assume_assert(sf_edge->tmp.c == SF_EDGE_IS_BOUNDARY);
           *(face++) = sf_edge->v1->tmp.u;
           *(face++) = sf_edge->v2->tmp.u;
           *(face++) = sf_edge->v2->keyindex;
@@ -1053,7 +1053,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
 
 #ifdef USE_SCANFILL_EDGE_WORKAROUND
       if (tot_boundary_found != tot_boundary_used) {
-        BLI_assert(tot_boundary_found < tot_boundary_used);
+        BLI_assume_assert(tot_boundary_found < tot_boundary_used);
       }
 #endif
 
@@ -1070,7 +1070,7 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
         /* subtract one since we reference next vertex triple */
         for (k = 0; k < vertex_total - 1; k++, j += 3) {
 
-          BLI_assert(j == vertex_offset + (k * 3));
+          BLI_assume_assert(j == vertex_offset + (k * 3));
 
           *(face++) = j + 3; /* next span */ /* z 1 */
           *(face++) = j + 0;                 /* z 1 */
@@ -1184,10 +1184,10 @@ void BKE_maskrasterize_handle_init(MaskRasterHandle *mr_handle,
 #endif
 
 #ifdef USE_SCANFILL_EDGE_WORKAROUND
-      BLI_assert(face_index + (tot_boundary_used - tot_boundary_found) ==
+      BLI_assume_assert(face_index + (tot_boundary_used - tot_boundary_found) ==
                  sf_tri_tot + tot_feather_quads);
 #else
-      BLI_assert(face_index == sf_tri_tot + tot_feather_quads);
+      BLI_assume_assert(face_index == sf_tri_tot + tot_feather_quads);
 #endif
       {
         MaskRasterLayer *layer = &mr_handle->layers[masklay_index];
@@ -1320,7 +1320,7 @@ static float maskrasterize_layer_isect(const uint *face,
 
 BLI_INLINE uint layer_bucket_index_from_xy(MaskRasterLayer *layer, const float xy[2])
 {
-  BLI_assert(BLI_rctf_isect_pt_v(&layer->bounds, xy));
+  BLI_assume_assert(BLI_rctf_isect_pt_v(&layer->bounds, xy));
 
   return uint((xy[0] - layer->bounds.xmin) * layer->buckets_xy_scalar[0]) +
          (uint((xy[1] - layer->bounds.ymin) * layer->buckets_xy_scalar[1]) * layer->buckets_x);
@@ -1438,7 +1438,7 @@ float BKE_maskrasterize_handle_sample(MaskRasterHandle *mr_handle, const float x
         break;
       default: /* same as add */
         CLOG_ERROR(&LOG, "unhandled blend type: %d", layer->blend);
-        BLI_assert(0);
+        BLI_assume_assert(0);
         value += value_layer;
         break;
     }

@@ -796,7 +796,7 @@ static const IDPropertySerializer &serializer_for(StringRef idprop_typename)
 
 std::unique_ptr<ArrayValue> convert_to_serialize_values(const IDProperty *properties)
 {
-  BLI_assert(properties != nullptr);
+  BLI_assume_assert(properties != nullptr);
   std::unique_ptr<ArrayValue> result = std::make_unique<ArrayValue>();
   const IDProperty *current_property = properties;
   while (current_property != nullptr) {

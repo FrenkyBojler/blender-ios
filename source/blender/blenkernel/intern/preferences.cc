@@ -248,7 +248,7 @@ bUserExtensionRepo *BKE_preferences_extension_repo_add_default_system(UserDef *u
 
 void BKE_preferences_extension_repo_add_defaults_all(UserDef *userdef)
 {
-  BLI_assert(BLI_listbase_is_empty(&userdef->extension_repos));
+  BLI_assume_assert(BLI_listbase_is_empty(&userdef->extension_repos));
   BKE_preferences_extension_repo_add_default_remote(userdef);
   BKE_preferences_extension_repo_add_default_user(userdef);
   BKE_preferences_extension_repo_add_default_system(userdef);
@@ -559,7 +559,7 @@ static bUserAssetShelfSettings *asset_shelf_settings_new(UserDef *userdef,
   bUserAssetShelfSettings *settings = MEM_new_for_free<bUserAssetShelfSettings>(__func__);
   BLI_addtail(&userdef->asset_shelves_settings, settings);
   STRNCPY(settings->shelf_idname, shelf_idname);
-  BLI_assert(BLI_listbase_is_empty(&settings->enabled_catalog_paths));
+  BLI_assume_assert(BLI_listbase_is_empty(&settings->enabled_catalog_paths));
   return settings;
 }
 

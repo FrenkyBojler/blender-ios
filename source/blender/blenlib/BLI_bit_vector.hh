@@ -226,8 +226,8 @@ class BitVector {
    */
   [[nodiscard]] BitRef operator[](const int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < size_in_bits_);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < size_in_bits_);
     return {data_, index};
   }
 
@@ -236,8 +236,8 @@ class BitVector {
    */
   [[nodiscard]] MutableBitRef operator[](const int64_t index)
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < size_in_bits_);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < size_in_bits_);
     return {data_, index};
   }
 
@@ -283,7 +283,7 @@ class BitVector {
    */
   void resize(const int64_t new_size_in_bits, const bool value = false)
   {
-    BLI_assert(new_size_in_bits >= 0);
+    BLI_assume_assert(new_size_in_bits >= 0);
     const int64_t old_size_in_bits = size_in_bits_;
     if (new_size_in_bits > old_size_in_bits) {
       this->reserve(new_size_in_bits);

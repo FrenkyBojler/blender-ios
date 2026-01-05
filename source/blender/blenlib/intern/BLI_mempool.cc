@@ -200,7 +200,7 @@ static BLI_freenode *mempool_chunk_add(BLI_mempool *pool,
     pool->chunk_tail->next = mpchunk;
   }
   else {
-    BLI_assert(pool->chunks == nullptr);
+    BLI_assume_assert(pool->chunks == nullptr);
     pool->chunks = mpchunk;
   }
 
@@ -344,7 +344,7 @@ BLI_mempool *BLI_mempool_create(uint esize, uint elem_num, uint pchunk, uint fla
   /* Optimize chunk size to powers of 2, accounting for slop-space. */
 #ifdef USE_CHUNK_POW2
   {
-    BLI_assert(power_of_2_max_u(pchunk * esize) > CHUNK_OVERHEAD);
+    BLI_assume_assert(power_of_2_max_u(pchunk * esize) > CHUNK_OVERHEAD);
     pchunk = (power_of_2_max_u(pchunk * esize) - CHUNK_OVERHEAD) / esize;
   }
 #endif
@@ -405,7 +405,7 @@ void *BLI_mempool_alloc(BLI_mempool *pool)
   VALGRIND_MAKE_MEM_DEFINED(free_pop, pool->esize - POISON_REDZONE_SIZE);
 #endif
 
-  BLI_assert(pool->chunk_tail->next == nullptr);
+  BLI_assume_assert(pool->chunk_tail->next == nullptr);
 
   if (pool->flag & BLI_MEMPOOL_ALLOW_ITER) {
     free_pop->freeword = USEDWORD;
@@ -458,7 +458,7 @@ void BLI_mempool_free(BLI_mempool *pool, void *addr)
   if (pool->flag & BLI_MEMPOOL_ALLOW_ITER) {
 #ifndef NDEBUG
     /* This will detect double free's. */
-    BLI_assert(newhead->freeword != FREEWORD);
+    BLI_assume_assert(newhead->freeword != FREEWORD);
 #endif
     newhead->freeword = FREEWORD;
   }
@@ -529,7 +529,7 @@ void *BLI_mempool_findelem(BLI_mempool *pool, uint index)
 {
   mempool_asan_lock(pool);
 
-  BLI_assert(pool->flag & BLI_MEMPOOL_ALLOW_ITER);
+  BLI_assume_assert(pool->flag & BLI_MEMPOOL_ALLOW_ITER);
 
   if (index < pool->totused) {
     /* We could have some faster mem chunk stepping code inline. */
@@ -555,7 +555,7 @@ void BLI_mempool_as_array(BLI_mempool *pool, void *data)
   const char *elem;
   char *p = static_cast<char *>(data);
 
-  BLI_assert(pool->flag & BLI_MEMPOOL_ALLOW_ITER);
+  BLI_assume_assert(pool->flag & BLI_MEMPOOL_ALLOW_ITER);
 
   mempool_asan_lock(pool);
   BLI_mempool_iternew(pool, &iter);
@@ -576,7 +576,7 @@ void *BLI_mempool_as_arrayN(BLI_mempool *pool, const char *allocstr)
 
 void BLI_mempool_iternew(BLI_mempool *pool, BLI_mempool_iter *iter)
 {
-  BLI_assert(pool->flag & BLI_MEMPOOL_ALLOW_ITER);
+  BLI_assume_assert(pool->flag & BLI_MEMPOOL_ALLOW_ITER);
 
   iter->pool = pool;
   iter->curchunk = pool->chunks;
@@ -591,7 +591,7 @@ static void mempool_threadsafe_iternew(BLI_mempool *pool, BLI_mempool_threadsafe
 
 ParallelMempoolTaskData *mempool_iter_threadsafe_create(BLI_mempool *pool, const size_t iter_num)
 {
-  BLI_assert(pool->flag & BLI_MEMPOOL_ALLOW_ITER);
+  BLI_assume_assert(pool->flag & BLI_MEMPOOL_ALLOW_ITER);
 
   ParallelMempoolTaskData *iter_arr = MEM_calloc_arrayN<ParallelMempoolTaskData>(iter_num,
                                                                                  __func__);
@@ -612,7 +612,7 @@ ParallelMempoolTaskData *mempool_iter_threadsafe_create(BLI_mempool *pool, const
 
 void mempool_iter_threadsafe_destroy(ParallelMempoolTaskData *iter_arr)
 {
-  BLI_assert(iter_arr->ts_iter.curchunk_threaded_shared != nullptr);
+  BLI_assume_assert(iter_arr->ts_iter.curchunk_threaded_shared != nullptr);
 
   MEM_freeN(iter_arr->ts_iter.curchunk_threaded_shared);
   MEM_freeN(iter_arr);

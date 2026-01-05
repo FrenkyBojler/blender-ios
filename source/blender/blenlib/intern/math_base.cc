@@ -13,7 +13,7 @@
 int pow_i(int base, int exp)
 {
   int result = 1;
-  BLI_assert(exp >= 0);
+  BLI_assume_assert(exp >= 0);
   while (exp) {
     if (exp & 1) {
       result *= base;

@@ -12,6 +12,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 
+#include "BLI_assume.hh"
 #include "BLI_array.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
@@ -184,7 +185,7 @@ static meshintersect::IMesh meshes_to_imesh(Span<const Mesh *> meshes,
                                             MeshesToIMeshInfo *r_info)
 {
   int nmeshes = meshes.size();
-  BLI_assert(nmeshes > 0);
+  BLI_assume_assert(nmeshes > 0);
   r_info->meshes = meshes;
   const int totvert = r_info->mesh_offsets.vert_offsets.total_size();
   const int faces_num = r_info->mesh_offsets.face_offsets.total_size();
@@ -320,7 +321,7 @@ static int fill_orig_loops(const meshintersect::Face *f,
   if (f->size() != orig_mplen) {
     return 0;
   }
-  BLI_assert(r_orig_loops.size() == orig_mplen);
+  BLI_assume_assert(r_orig_loops.size() == orig_mplen);
   /* We'll look for the case where the first vertex in f has an original vertex
    * that is the same as one in orig_me (after correcting for offset in mim meshes).
    * Then see that loop and any subsequent ones have the same start and end vertex.
@@ -599,8 +600,8 @@ static Mesh *mesh_boolean_mesh_arr(Span<const Mesh *> meshes,
                                    const meshintersect::BoolOpType boolean_mode,
                                    Vector<int> *r_intersecting_edges)
 {
-  BLI_assert(transforms.is_empty() || meshes.size() == transforms.size());
-  BLI_assert(material_remaps.is_empty() || material_remaps.size() == meshes.size());
+  BLI_assume_assert(transforms.is_empty() || meshes.size() == transforms.size());
+  BLI_assume_assert(material_remaps.is_empty() || material_remaps.size() == meshes.size());
   if (meshes.size() <= 0) {
     return nullptr;
   }
@@ -690,7 +691,7 @@ static BMesh *mesh_bm_concat(Span<const Mesh *> meshes,
                              Array<std::array<BMLoop *, 3>> &r_looptris)
 {
   const int meshes_num = meshes.size();
-  BLI_assert(meshes_num >= 1);
+  BLI_assume_assert(meshes_num >= 1);
   Array<bool> is_negative_transform(meshes_num);
   Array<bool> is_flip(meshes_num);
   const int tsize = transforms.size();
@@ -824,8 +825,8 @@ static Mesh *mesh_boolean_float(Span<const Mesh *> meshes,
                                 const int boolean_mode,
                                 Vector<int> * /*r_intersecting_edges*/)
 {
-  BLI_assert(meshes.size() == transforms.size() || transforms.size() == 0);
-  BLI_assert(material_remaps.size() == 0 || material_remaps.size() == meshes.size());
+  BLI_assume_assert(meshes.size() == transforms.size() || transforms.size() == 0);
+  BLI_assume_assert(material_remaps.size() == 0 || material_remaps.size() == meshes.size());
   if (meshes.is_empty()) {
     return nullptr;
   }

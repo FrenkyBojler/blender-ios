@@ -206,7 +206,7 @@ void BKE_modifier_free(ModifierData *md)
 
 void BKE_modifier_remove_from_list(Object *ob, ModifierData *md)
 {
-  BLI_assert(BLI_findindex(&ob->modifiers, md) != -1);
+  BLI_assume_assert(BLI_findindex(&ob->modifiers, md) != -1);
 
   if (md->flag & eModifierFlag_Active) {
     /* Prefer the previous modifier but use the next if this modifier is the first in the list. */
@@ -329,7 +329,7 @@ void BKE_modifier_copydata_generic(const ModifierData *md_src,
   const size_t data_size = sizeof(ModifierData);
   const char *md_src_data = ((const char *)md_src) + data_size;
   char *md_dst_data = ((char *)md_dst) + data_size;
-  BLI_assert(data_size <= size_t(mti->struct_size));
+  BLI_assume_assert(data_size <= size_t(mti->struct_size));
   memcpy(md_dst_data, md_src_data, size_t(mti->struct_size) - data_size);
 
   /* Runtime fields are never to be preserved. */
@@ -421,7 +421,7 @@ void BKE_modifier_set_error(const Object *ob, ModifierData *md, const char *_for
 #ifndef NDEBUG
   if ((md->mode & eModifierMode_Virtual) == 0) {
     /* Ensure correct object is passed in. */
-    BLI_assert(BKE_modifier_get_original(ob, md) != nullptr);
+    BLI_assume_assert(BKE_modifier_get_original(ob, md) != nullptr);
   }
 #endif
 
@@ -452,7 +452,7 @@ void BKE_modifier_set_warning(const Object *ob, ModifierData *md, const char *_f
 #ifndef NDEBUG
   if ((md->mode & eModifierMode_Virtual) == 0) {
     /* Ensure correct object is passed in. */
-    BLI_assert(BKE_modifier_get_original(ob, md) != nullptr);
+    BLI_assume_assert(BKE_modifier_get_original(ob, md) != nullptr);
   }
 #endif
 
@@ -1076,7 +1076,7 @@ void BKE_modifiers_persistent_uid_init(const Object &object, ModifierData &md)
                                      blender::StringRef(object.id.lib->runtime->filepath_abs));
   }
   if (ID_IS_OVERRIDE_LIBRARY_REAL(&object)) {
-    BLI_assert(ID_IS_LINKED(object.id.override_library->reference));
+    BLI_assume_assert(ID_IS_LINKED(object.id.override_library->reference));
     hash = blender::get_default_hash(
         hash,
         blender::StringRef(object.id.override_library->reference->lib->runtime->filepath_abs));

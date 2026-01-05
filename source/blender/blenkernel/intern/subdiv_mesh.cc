@@ -1072,7 +1072,7 @@ static void subdiv_mesh_vert_corner(const ForeachContext *foreach_context,
                                     const int /*coarse_corner*/,
                                     const int subdiv_vert_index)
 {
-  BLI_assert(coarse_vert_index != ORIGINDEX_NONE);
+  BLI_assume_assert(coarse_vert_index != ORIGINDEX_NONE);
   SubdivMeshContext *ctx = static_cast<SubdivMeshContext *>(foreach_context->user_data);
   evaluate_vert_and_apply_displacement_copy(
       ctx, ptex_face_index, u, v, coarse_vert_index, subdiv_vert_index);
@@ -1409,8 +1409,8 @@ static void subdiv_mesh_vert_of_loose_edge_interpolate(SubdivMeshContext *ctx,
                                                        const int subdiv_vert_index)
 {
   /* This is never used for end-points (which are copied from the original). */
-  BLI_assert(u > 0.0f);
-  BLI_assert(u < 1.0f);
+  BLI_assume_assert(u > 0.0f);
+  BLI_assume_assert(u < 1.0f);
   const std::array<int, 2> coarse_vert_indices{coarse_edge[0], coarse_edge[1]};
   mix_attrs(ctx->coarse_vert_attr_spans,
             coarse_vert_indices,
@@ -1590,7 +1590,7 @@ Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh 
 
 void calculate_limit_positions(Mesh *mesh, MutableSpan<float3> limit_positions)
 {
-  BLI_assert(mesh->verts_num == limit_positions.size());
+  BLI_assume_assert(mesh->verts_num == limit_positions.size());
 
   limit_positions.copy_from(mesh->vert_positions());
 

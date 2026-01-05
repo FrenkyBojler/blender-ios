@@ -171,7 +171,7 @@ BLI_NOINLINE static void process_leaf_node(const Span<fn::GField> fields,
       auto &tree = grid.tree();
       auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf);
       /* Should have been added before. */
-      BLI_assert(leaf_node);
+      BLI_assume_assert(leaf_node);
 
       /* Boolean grids are special because they encode the values as bitmask. */
       if constexpr (std::is_same_v<ValueT, bool>) {

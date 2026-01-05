@@ -160,8 +160,8 @@ Array<std::unique_ptr<BakeItem>> move_socket_values_to_bake_items(
     const BakeSocketConfig &config,
     BakeDataBlockMap *data_block_map)
 {
-  BLI_assert(socket_values.size() == config.types.size());
-  BLI_assert(socket_values.size() == config.geometries_by_attribute.size());
+  BLI_assume_assert(socket_values.size() == config.types.size());
+  BLI_assume_assert(socket_values.size() == config.geometries_by_attribute.size());
 
   Array<std::unique_ptr<BakeItem>> bake_items(socket_values.size());
 
@@ -206,7 +206,7 @@ Array<std::unique_ptr<BakeItem>> move_socket_values_to_bake_items(
           const std::string attribute_name = ".bake_" + std::to_string(i);
           const Span<int> geometry_indices = config.geometries_by_attribute[i];
           for (const int geometry_i : geometry_indices) {
-            BLI_assert(config.types[geometry_i] == SOCK_GEOMETRY);
+            BLI_assume_assert(config.types[geometry_i] == SOCK_GEOMETRY);
             GeometrySet &geometry =
                 static_cast<GeometryBakeItem *>(bake_items[geometry_i].get())->geometry;
             capture_field_on_geometry_components(geometry, field, domain, attribute_name);

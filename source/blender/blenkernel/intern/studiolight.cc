@@ -452,7 +452,7 @@ static void studiolight_create_equirect_radiance_gputexture(StudioLight *sl)
 
 static void studiolight_create_matcap_gputexture(StudioLightImage *sli)
 {
-  BLI_assert(sli->ibuf);
+  BLI_assume_assert(sli->ibuf);
   ImBuf *ibuf = sli->ibuf;
   const size_t ibuf_pixel_count = IMB_get_pixel_count(ibuf);
   float *gpu_matcap_3components = MEM_calloc_arrayN<float>(3 * ibuf_pixel_count, __func__);
@@ -1052,7 +1052,7 @@ void BKE_studiolight_set_free_function(StudioLight *sl,
 
 void BKE_studiolight_unset_icon_id(StudioLight *sl, int icon_id)
 {
-  BLI_assert(sl != nullptr);
+  BLI_assume_assert(sl != nullptr);
   if (sl->icon_id_radiance == icon_id) {
     sl->icon_id_radiance = 0;
   }

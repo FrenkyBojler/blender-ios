@@ -4,6 +4,8 @@
 
 #include <cstring>
 
+#include "BLI_assume.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "NOD_geometry.hh"
@@ -162,7 +164,7 @@ void register_node_tree_type_geo()
 bool is_layer_selection_field(const bNodeTreeInterfaceSocket &socket)
 {
   const blender::bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
-  BLI_assert(typeinfo != nullptr);
+  BLI_assume_assert(typeinfo != nullptr);
 
   if (typeinfo->type != SOCK_BOOLEAN) {
     return false;

@@ -2466,7 +2466,7 @@ static void ensure_layer_data_is_mutable(CustomDataLayer &layer, const int totel
   if (layer.data == nullptr) {
     return;
   }
-  BLI_assert(layer.sharing_info != nullptr);
+  BLI_assume_assert(layer.sharing_info != nullptr);
   if (layer.sharing_info->is_mutable()) {
     layer.sharing_info->tag_ensured_mutable();
   }
@@ -2506,7 +2506,7 @@ void CustomData_realloc(CustomData *data,
                         const int new_size,
                         const eCDAllocType alloctype)
 {
-  BLI_assert(new_size >= 0);
+  BLI_assume_assert(new_size >= 0);
   for (int i = 0; i < data->totlayer; i++) {
     CustomDataLayer *layer = &data->layers[i];
     const LayerTypeInfo *typeInfo = layerType_getInfo(eCustomDataType(layer->type));
@@ -2523,11 +2523,11 @@ void CustomData_realloc(CustomData *data,
           typeInfo->copy(layer->data, new_layer_data, std::min(old_size, new_size));
         }
         else {
-          BLI_assert(layer->data != nullptr);
+          BLI_assume_assert(layer->data != nullptr);
           memcpy(new_layer_data, layer->data, std::min(old_size_in_bytes, new_size_in_bytes));
         }
       }
-      BLI_assert(layer->sharing_info != nullptr);
+      BLI_assume_assert(layer->sharing_info != nullptr);
       layer->sharing_info->remove_user_and_delete_if_last();
       layer->sharing_info = nullptr;
     }
@@ -2670,7 +2670,7 @@ int CustomData_get_layer_index(const CustomData *data, const eCustomDataType typ
 
 int CustomData_get_layer_index_n(const CustomData *data, const eCustomDataType type, const int n)
 {
-  BLI_assert(n >= 0);
+  BLI_assume_assert(n >= 0);
   int i = CustomData_get_layer_index(data, type);
 
   if (i != -1) {
@@ -2832,7 +2832,7 @@ bool CustomData_layer_is_anonymous(const CustomData *data, eCustomDataType type,
 {
   const int layer_index = CustomData_get_layer_index_n(data, type, n);
 
-  BLI_assert(layer_index >= 0);
+  BLI_assume_assert(layer_index >= 0);
 
   return blender::bke::attribute_name_is_anonymous(data->layers[layer_index].name);
 }
@@ -2860,7 +2860,7 @@ static CustomDataLayer *customData_add_layer__internal(
   if (!type_info.defaultname && CustomData_has_layer(data, type)) {
     /* This function doesn't support dealing with existing layer data for these layer types when
      * the layer already exists. */
-    BLI_assert(layer_data_to_assign == nullptr);
+    BLI_assume_assert(layer_data_to_assign == nullptr);
     return &data->layers[CustomData_get_layer_index(data, type)];
   }
 
@@ -3037,11 +3037,11 @@ bool CustomData_free_layer(CustomData *data, const eCustomDataType type, const i
   const int index_first = CustomData_get_layer_index(data, type);
   const int n = index - index_first;
 
-  BLI_assert(index >= index_first);
+  BLI_assume_assert(index >= index_first);
   if ((index_first == -1) || (n < 0)) {
     return false;
   }
-  BLI_assert(data->layers[index].type == type);
+  BLI_assume_assert(data->layers[index].type == type);
 
   customData_free_layer__internal(&data->layers[index]);
 
@@ -3196,7 +3196,7 @@ void CustomData_copy_data_layer(const CustomData *source,
 {
   const LayerTypeInfo *typeInfo;
 
-  BLI_assert(layer_is_mutable(dest->layers[dst_layer_index]));
+  BLI_assume_assert(layer_is_mutable(dest->layers[dst_layer_index]));
 
   const void *src_data = source->layers[src_layer_index].data;
   void *dst_data = dest->layers[dst_layer_index].data;
@@ -3294,7 +3294,7 @@ void CustomData_free_elem(CustomData *data, const int index, const int count)
 
     if (typeInfo->free) {
       size_t offset = size_t(index) * typeInfo->size;
-      BLI_assert(layer_is_mutable(data->layers[i]));
+      BLI_assume_assert(layer_is_mutable(data->layers[i]));
 
       typeInfo->free(POINTER_OFFSET(data->layers[i].data, offset), count);
     }
@@ -3401,7 +3401,7 @@ void *CustomData_get_for_write(CustomData *data,
                                const eCustomDataType type,
                                int totelem)
 {
-  BLI_assert(index >= 0);
+  BLI_assume_assert(index >= 0);
   void *layer_data = CustomData_get_layer_for_write(data, type, totelem);
   if (!layer_data) {
     return nullptr;
@@ -3412,7 +3412,7 @@ void *CustomData_get_for_write(CustomData *data,
 void *CustomData_get_n_for_write(
     CustomData *data, const eCustomDataType type, const int index, const int n, int totelem)
 {
-  BLI_assert(index >= 0);
+  BLI_assume_assert(index >= 0);
   void *layer_data = CustomData_get_layer_n_for_write(data, type, n, totelem);
   if (!layer_data) {
     return nullptr;
@@ -3554,7 +3554,7 @@ void CustomData_bmesh_init_pool(CustomData *data, const int totelem, const char 
   int chunksize;
 
   /* Dispose old pools before calling here to avoid leaks */
-  BLI_assert(data->pool == nullptr);
+  BLI_assume_assert(data->pool == nullptr);
 
   switch (htype) {
     case BM_VERT:
@@ -4058,8 +4058,8 @@ void CustomData_bmesh_interp_n(CustomData *data,
                                void *dst_block_ofs,
                                int n)
 {
-  BLI_assert(weights != nullptr);
-  BLI_assert(count > 0);
+  BLI_assume_assert(weights != nullptr);
+  BLI_assume_assert(count > 0);
 
   CustomDataLayer *layer = &data->layers[n];
   const LayerTypeInfo *typeInfo = layerType_getInfo(eCustomDataType(layer->type));
@@ -4272,9 +4272,9 @@ bool CustomData_verify_versions(CustomData *data, const int index)
 
 static bool CustomData_layer_ensure_data_exists(CustomDataLayer *layer, size_t count)
 {
-  BLI_assert(layer);
+  BLI_assume_assert(layer);
   const LayerTypeInfo *typeInfo = layerType_getInfo(eCustomDataType(layer->type));
-  BLI_assert(typeInfo);
+  BLI_assume_assert(typeInfo);
 
   if (layer->data || count == 0) {
     return false;
@@ -4287,7 +4287,7 @@ static bool CustomData_layer_ensure_data_exists(CustomDataLayer *layer, size_t c
     case CD_PROP_FLOAT2: /* See #90620. */
       layer->data = MEM_calloc_arrayN(
           count, typeInfo->size, layerType_getName(eCustomDataType(layer->type)));
-      BLI_assert(layer->data);
+      BLI_assume_assert(layer->data);
       if (typeInfo->set_default_value) {
         typeInfo->set_default_value(layer->data, count);
       }
@@ -4308,9 +4308,9 @@ static bool CustomData_layer_ensure_data_exists(CustomDataLayer *layer, size_t c
 
 bool CustomData_layer_validate(CustomDataLayer *layer, const uint totitems, const bool do_fixes)
 {
-  BLI_assert(layer);
+  BLI_assume_assert(layer);
   const LayerTypeInfo *typeInfo = layerType_getInfo(eCustomDataType(layer->type));
-  BLI_assert(typeInfo);
+  BLI_assume_assert(typeInfo);
 
   if (do_fixes) {
     CustomData_layer_ensure_data_exists(layer, totitems);
@@ -4615,8 +4615,8 @@ static void customdata_data_transfer_interp_generic(const CustomDataTransferLaye
                                                     const int count,
                                                     const float mix_factor)
 {
-  BLI_assert(weights != nullptr);
-  BLI_assert(count > 0);
+  BLI_assume_assert(weights != nullptr);
+  BLI_assume_assert(count > 0);
 
   /* Fake interpolation, we actually copy highest weighted source to dest.
    * Note we also handle bitflags here,
@@ -4662,7 +4662,7 @@ static void customdata_data_transfer_interp_generic(const CustomDataTransferLaye
     }
   }
 
-  BLI_assert(best_src_idx >= 0);
+  BLI_assume_assert(best_src_idx >= 0);
 
   if (interp_cd) {
     interp_cd(sources, weights, count, tmp_dst);
@@ -4696,11 +4696,11 @@ void customdata_data_transfer_interp_normal_normals(const CustomDataTransferLaye
                                                     const int count,
                                                     const float mix_factor)
 {
-  BLI_assert(weights != nullptr);
-  BLI_assert(count > 0);
+  BLI_assume_assert(weights != nullptr);
+  BLI_assume_assert(count > 0);
 
   const eCustomDataType data_type = eCustomDataType(laymap->data_type);
-  BLI_assert(data_type == CD_NORMAL);
+  BLI_assume_assert(data_type == CD_NORMAL);
   const int mix_mode = laymap->mix_mode;
 
   SpaceTransform *space_transform = static_cast<SpaceTransform *>(laymap->interp_data);

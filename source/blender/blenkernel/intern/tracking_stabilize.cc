@@ -268,7 +268,7 @@ static void retrieve_next_higher_usable_frame(
 {
   MovieTrackingMarker *markers = track->markers;
   int end = track->markersnr;
-  BLI_assert(0 <= i && i < end);
+  BLI_assume_assert(0 <= i && i < end);
 
   while (i < end &&
          (markers[i].framenr < ref_frame || is_effectively_disabled(ctx, track, &markers[i])))
@@ -276,7 +276,7 @@ static void retrieve_next_higher_usable_frame(
     i++;
   }
   if (i < end && markers[i].framenr < *next_higher) {
-    BLI_assert(markers[i].framenr >= ref_frame);
+    BLI_assume_assert(markers[i].framenr >= ref_frame);
     *next_higher = markers[i].framenr;
   }
 }
@@ -285,14 +285,14 @@ static void retrieve_next_lower_usable_frame(
     StabContext *ctx, MovieTrackingTrack *track, int i, int ref_frame, int *next_lower)
 {
   MovieTrackingMarker *markers = track->markers;
-  BLI_assert(0 <= i && i < track->markersnr);
+  BLI_assume_assert(0 <= i && i < track->markersnr);
   while (i >= 0 &&
          (markers[i].framenr > ref_frame || is_effectively_disabled(ctx, track, &markers[i])))
   {
     i--;
   }
   if (0 <= i && markers[i].framenr > *next_lower) {
-    BLI_assert(markers[i].framenr <= ref_frame);
+    BLI_assume_assert(markers[i].framenr <= ref_frame);
     *next_lower = markers[i].framenr;
   }
 }
@@ -462,7 +462,7 @@ static float rotation_contribution(TrackStabilizationBase *track_ref,
   len += SCALE_ERROR_LIMIT_BIAS;
 
   *result_scale = len * track_ref->stabilization_scale_base;
-  BLI_assert(0.0 < *result_scale);
+  BLI_assume_assert(0.0 < *result_scale);
 
   return quality;
 }
@@ -524,7 +524,7 @@ static bool average_track_contributions(StabContext *ctx,
   MovieTrackingStabilization *stab = &tracking->stabilization;
   MovieTrackingObject *tracking_camera_object = BKE_tracking_object_get_camera(ctx->tracking);
   float ref_pos[2];
-  BLI_assert(stab->flag & TRACKING_2D_STABILIZATION);
+  BLI_assume_assert(stab->flag & TRACKING_2D_STABILIZATION);
 
   zero_v2(r_translation);
   *r_scale_step = 0.0f; /* logarithm */
@@ -544,7 +544,7 @@ static bool average_track_contributions(StabContext *ctx,
       if (marker) {
         TrackStabilizationBase *stabilization_base = access_stabilization_baseline_data(ctx,
                                                                                         &track);
-        BLI_assert(stabilization_base != nullptr);
+        BLI_assume_assert(stabilization_base != nullptr);
         float offset[2];
         weight_sum += weight;
         translation_contribution(stabilization_base, marker, offset);
@@ -582,7 +582,7 @@ static bool average_track_contributions(StabContext *ctx,
       if (marker) {
         TrackStabilizationBase *stabilization_base = access_stabilization_baseline_data(ctx,
                                                                                         &track);
-        BLI_assert(stabilization_base != nullptr);
+        BLI_assume_assert(stabilization_base != nullptr);
         float rotation, scale, quality;
         quality = rotation_contribution(
             stabilization_base, marker, aspect, r_pivot, &rotation, &scale);
@@ -702,9 +702,9 @@ static bool interpolate_averaged_track_contributions(StabContext *ctx,
   float pivot_a[2], pivot_b[2];
   bool success = false;
 
-  BLI_assert(frame_a <= frame_b);
-  BLI_assert(frame_a <= framenr);
-  BLI_assert(framenr <= frame_b);
+  BLI_assume_assert(frame_a <= frame_b);
+  BLI_assume_assert(frame_a <= framenr);
+  BLI_assume_assert(framenr <= frame_b);
 
   t = (float(framenr) - frame_a) / (frame_b - frame_a);
   s = 1.0f - t;
@@ -832,8 +832,8 @@ static void init_track_for_stabilization(StabContext *ctx,
   /* Logic for initialization order ensures there *is* a marker on that
    * very frame.
    */
-  BLI_assert(marker != nullptr);
-  BLI_assert(local_data != nullptr);
+  BLI_assume_assert(marker != nullptr);
+  BLI_assume_assert(local_data != nullptr);
 
   /* Per track baseline value for translation. */
   sub_v2_v2v2(local_data->stabilization_offset_base, average_translation, marker->pos);
@@ -876,7 +876,7 @@ static void init_all_tracks(StabContext *ctx, float aspect)
       local_data = MEM_callocN<TrackStabilizationBase>("2D stabilization per track baseline data");
       attach_stabilization_baseline_data(ctx, &track, local_data);
     }
-    BLI_assert(local_data != nullptr);
+    BLI_assume_assert(local_data != nullptr);
     local_data->track_weight_curve = retrieve_track_weight_animation(clip, &track);
     local_data->is_init_for_stabilization = false;
 
@@ -1237,7 +1237,7 @@ static float calculate_autoscale_factor(StabContext *ctx, int size, float aspect
 static StabContext *init_stabilizer(MovieClip *clip, int size, float aspect)
 {
   StabContext *ctx = init_stabilization_working_context(clip);
-  BLI_assert(ctx != nullptr);
+  BLI_assume_assert(ctx != nullptr);
   init_all_tracks(ctx, aspect);
   if (ctx->stab->flag & TRACKING_AUTOSCALE) {
     ctx->stab->scale = 1.0;

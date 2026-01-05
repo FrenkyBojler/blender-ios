@@ -17,7 +17,7 @@ bool or_bytes_into_bits(const Span<char> bytes,
                         const int64_t allowed_overshoot,
                         const ByteToBit &byte_to_bit)
 {
-  BLI_assert(r_bits.size() >= bytes.size());
+  BLI_assume_assert(r_bits.size() >= bytes.size());
   if (bytes.is_empty()) {
     return false;
   }

@@ -6,6 +6,7 @@
  * \ingroup texnodes
  */
 
+#include "BLI_assume.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "node_texture_util.hh"
@@ -308,7 +309,7 @@ static void valuefn(float *out, TexParams *p, bNode *node, bNodeStack **in, shor
     }
 
     default: {
-      BLI_assert(0);
+      BLI_assume_assert(0);
       break;
     }
   }

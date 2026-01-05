@@ -4,9 +4,10 @@
 
 #include <fmt/format.h>
 
-#include "BKE_node_socket_value.hh"
+#include "BLI_assume.hh"
 #include "BLI_cpp_type.hh"
 
+#include "BKE_node_socket_value.hh"
 #include "BKE_node_runtime.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
@@ -76,7 +77,7 @@ BundlePtr Bundle::create()
 
 void Bundle::add_new(const StringRef key, const BundleItemValue &value)
 {
-  BLI_assert(is_valid_key(key));
+  BLI_assume_assert(is_valid_key(key));
   items_.add_new_as(key, value);
 }
 
@@ -105,7 +106,7 @@ static BundleItemValue create_nested_bundle_item()
 
 void Bundle::add_path_override(const StringRef path, const BundleItemValue &value)
 {
-  BLI_assert(is_valid_path(path));
+  BLI_assume_assert(is_valid_path(path));
   const Vector<StringRef> path_elems = *split_path(path);
   Bundle *current = this;
   for (const StringRef path_elem : path_elems.as_span().drop_back(1)) {
@@ -162,7 +163,7 @@ const BundleItemValue *Bundle::lookup_path(const Span<StringRef> path) const
 
 const BundleItemValue *Bundle::lookup_path(const StringRef path) const
 {
-  BLI_assert(is_valid_path(path));
+  BLI_assume_assert(is_valid_path(path));
   const Vector<StringRef> path_elems = *split_path(path);
   return this->lookup_path(path_elems);
 }
@@ -198,20 +199,20 @@ BundlePtr Bundle::copy() const
 
 bool Bundle::remove(const StringRef key)
 {
-  BLI_assert(is_valid_key(key));
+  BLI_assume_assert(is_valid_key(key));
   return items_.remove_as(key);
 }
 
 bool Bundle::remove_path(const StringRef path)
 {
-  BLI_assert(is_valid_path(path));
+  BLI_assume_assert(is_valid_path(path));
   const Vector<StringRef> path_elems = *split_path(path);
   return this->remove_path(path_elems);
 }
 
 bool Bundle::remove_path(const Span<StringRef> path)
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   BLI_assert(!path.is_empty());
   if (!this->contains_path(path)) {
     return false;
@@ -228,7 +229,7 @@ bool Bundle::remove_path(const Span<StringRef> path)
 
 bool Bundle::contains(const StringRef key) const
 {
-  BLI_assert(is_valid_key(key));
+  BLI_assume_assert(is_valid_key(key));
   return items_.contains_as(key);
 }
 
@@ -269,7 +270,7 @@ NodeSocketInterfaceStructureType get_structure_type_for_bundle_signature(
 BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node,
                                                           const bool allow_auto_structure_type)
 {
-  BLI_assert(node.is_type("NodeCombineBundle"));
+  BLI_assume_assert(node.is_type("NodeCombineBundle"));
   const auto &storage = *static_cast<const NodeCombineBundle *>(node.storage);
   BundleSignature signature;
   for (const int i : IndexRange(storage.items_num)) {
@@ -290,7 +291,7 @@ BundleSignature BundleSignature::from_combine_bundle_node(const bNode &node,
 BundleSignature BundleSignature::from_separate_bundle_node(const bNode &node,
                                                            const bool allow_auto_structure_type)
 {
-  BLI_assert(node.is_type("NodeSeparateBundle"));
+  BLI_assume_assert(node.is_type("NodeSeparateBundle"));
   const auto &storage = *static_cast<const NodeSeparateBundle *>(node.storage);
   BundleSignature signature;
   for (const int i : IndexRange(storage.items_num)) {

@@ -630,7 +630,7 @@ static void prepare_required_data_for_group_outputs(
     const Span<const bNodeSocket *> sockets = group_output_node->input_sockets().drop_back(1);
     for (const int reference_set_i : group_output_set_sources) {
       const ReferenceSetInfo &reference_set = reference_sets[reference_set_i];
-      BLI_assert(reference_set.type == ReferenceSetType::GroupOutputData);
+      BLI_assume_assert(reference_set.type == ReferenceSetType::GroupOutputData);
       const int index = sockets[reference_set.index]->index_in_tree();
       r_required_data_by_socket[index][reference_set_i].set();
     }
@@ -674,7 +674,7 @@ static void prepare_required_data_for_closure_outputs(
     const Span<int> closure_output_set_sources = output_set_sources_by_closure_zone.lookup(zone);
     for (const int reference_set_i : closure_output_set_sources) {
       const ReferenceSetInfo &reference_set = reference_sets[reference_set_i];
-      BLI_assert(reference_set.type == ReferenceSetType::ClosureOutputData);
+      BLI_assume_assert(reference_set.type == ReferenceSetType::ClosureOutputData);
       r_required_data_by_socket[reference_set.socket->index_in_tree()][reference_set_i].set();
     }
     BitVector<> potential_output_references(reference_sets.size(), false);

@@ -136,14 +136,14 @@ bool BKE_blendfile_library_path_explode(const char *path,
   }
 
   if (slash[1] != '\0') {
-    BLI_assert(strlen(slash + 1) < BLO_GROUP_MAX);
+    BLI_assume_assert(strlen(slash + 1) < BLO_GROUP_MAX);
     if (r_group) {
       *r_group = slash + 1;
     }
   }
 
   if (prev_slash && (prev_slash[1] != '\0')) {
-    BLI_assert(strlen(prev_slash + 1) < MAX_ID_NAME - 2);
+    BLI_assume_assert(strlen(prev_slash + 1) < MAX_ID_NAME - 2);
     if (r_name) {
       *r_name = prev_slash + 1;
     }
@@ -317,7 +317,7 @@ static bool reuse_bmain_data_remapper_is_id_remapped(id::IDRemapper &remapper, I
   }
   BLI_assert_msg(result != ID_REMAP_RESULT_SOURCE_NOT_MAPPABLE,
                  "There should never be a non-mappable (i.e. null) input here.");
-  BLI_assert(result == ID_REMAP_RESULT_SOURCE_UNAVAILABLE);
+  BLI_assume_assert(result == ID_REMAP_RESULT_SOURCE_UNAVAILABLE);
   return false;
 }
 
@@ -356,8 +356,8 @@ static bool reuse_bmain_move_id(ReuseOldBMainData *reuse_data,
   }
 
   /* If ID is already in the new_bmain, this should not have been called. */
-  BLI_assert(BLI_findindex(new_lb, id) < 0);
-  BLI_assert(BLI_findindex(old_lb, id) >= 0);
+  BLI_assume_assert(BLI_findindex(new_lb, id) < 0);
+  BLI_assume_assert(BLI_findindex(old_lb, id) >= 0);
 
   /* Move from one list to another, and ensure name is valid. */
   BLI_remlink_safe(old_lb, id);
@@ -594,8 +594,8 @@ static void swap_old_bmain_data_for_blendfile(ReuseOldBMainData *reuse_data, con
 
   /* NOTE: Full swapping is only supported for ID types that are assumed to be only local
    * data-blocks (like UI-like ones). Otherwise, the swapping could fail in many funny ways. */
-  BLI_assert(BLI_listbase_is_empty(old_lb) || !ID_IS_LINKED(old_lb->last));
-  BLI_assert(BLI_listbase_is_empty(new_lb) || !ID_IS_LINKED(new_lb->last));
+  BLI_assume_assert(BLI_listbase_is_empty(old_lb) || !ID_IS_LINKED(old_lb->last));
+  BLI_assume_assert(BLI_listbase_is_empty(new_lb) || !ID_IS_LINKED(new_lb->last));
 
   std::swap(*new_lb, *old_lb);
 
@@ -663,8 +663,8 @@ static void swap_wm_data_for_blendfile(ReuseOldBMainData *reuse_data, const bool
   ListBaseT<wmWindowManager> *new_wm_list = &new_bmain->wm;
 
   /* Currently there should never be more than one WM in a main. */
-  BLI_assert(BLI_listbase_count_at_most(new_wm_list, 2) <= 1);
-  BLI_assert(BLI_listbase_count_at_most(old_wm_list, 2) <= 1);
+  BLI_assume_assert(BLI_listbase_count_at_most(new_wm_list, 2) <= 1);
+  BLI_assume_assert(BLI_listbase_count_at_most(old_wm_list, 2) <= 1);
 
   wmWindowManager *old_wm = static_cast<wmWindowManager *>(old_wm_list->first);
   wmWindowManager *new_wm = static_cast<wmWindowManager *>(new_wm_list->first);
@@ -729,7 +729,7 @@ static int swap_old_bmain_data_for_blendfile_dependencies_process_cb(
   }
 
   IDNameLib_Map *id_map = reuse_data->id_map;
-  BLI_assert(id_map != nullptr);
+  BLI_assume_assert(id_map != nullptr);
 
   ID *id_new = BKE_main_idmap_lookup_id(id_map, id);
   remapper.add(id, id_new);
@@ -743,7 +743,7 @@ static void swap_old_bmain_data_dependencies_process(ReuseOldBMainData *reuse_da
   Main *new_bmain = reuse_data->new_bmain;
   ListBaseT<ID> *new_lb = which_libbase(new_bmain, id_code);
 
-  BLI_assert(reuse_data->id_map != nullptr);
+  BLI_assume_assert(reuse_data->id_map != nullptr);
 
   ID *new_id_iter;
   FOREACH_MAIN_LISTBASE_ID_BEGIN (new_lb, new_id_iter) {
@@ -934,7 +934,7 @@ static void setup_app_data(bContext *C,
   } mode;
 
   if (params->undo_direction != STEP_INVALID) {
-    BLI_assert(bfd->curscene != nullptr);
+    BLI_assume_assert(bfd->curscene != nullptr);
     mode = LOAD_UNDO;
   }
   else if (bfd->fileflags & G_FILE_ASSET_EDIT_FILE) {
@@ -946,7 +946,7 @@ static void setup_app_data(bContext *C,
      * window-manager, scene, ... and potentially user created data. Use #Main.is_asset_edit_file
      * to detect if saving this file needs extra protections. */
     bfd->fileflags &= ~G_FILE_ASSET_EDIT_FILE;
-    BLI_assert(bfd->main->is_asset_edit_file);
+    BLI_assume_assert(bfd->main->is_asset_edit_file);
     mode = LOAD_UI_OFF;
   }
   /* May happen with library files, loading undo-data should never have a null `curscene`
@@ -974,7 +974,7 @@ static void setup_app_data(bContext *C,
     clean_paths(bfd->main);
   }
 
-  BLI_assert(BKE_main_namemap_validate(*bfd->main));
+  BLI_assume_assert(BKE_main_namemap_validate(*bfd->main));
 
   /* Temporary data to handle swapping around IDs between old and new mains,
    * and accumulate the required remapping accordingly. */
@@ -999,7 +999,7 @@ static void setup_app_data(bContext *C,
     }
 
     /* Needs to happen after all data from `old_bmain` has been moved into new one. */
-    BLI_assert(reuse_data.id_map == nullptr);
+    BLI_assume_assert(reuse_data.id_map == nullptr);
     reuse_data.id_map = BKE_main_idmap_create(
         reuse_data.new_bmain, true, reuse_data.old_bmain, MAIN_IDMAP_TYPE_NAME);
 
@@ -1084,14 +1084,14 @@ static void setup_app_data(bContext *C,
     }
   }
 
-  BLI_assert(BKE_main_namemap_validate(*bfd->main));
+  BLI_assume_assert(BKE_main_namemap_validate(*bfd->main));
 
   /* Apply remapping of ID pointers caused by re-using part of the data from the 'old' main into
    * the new one. */
   if (reuse_data.remapper != nullptr) {
     /* In undo case all "keeping old data" and remapping logic is now handled
      * in file reading code itself, so there should never be any remapping to do here. */
-    BLI_assert(mode != LOAD_UNDO);
+    BLI_assume_assert(mode != LOAD_UNDO);
 
     /* Handle all pending remapping from swapping old and new IDs around. */
     BKE_libblock_remap_multiple_raw(bfd->main,
@@ -1123,7 +1123,7 @@ static void setup_app_data(bContext *C,
     wm_data_consistency_ensure(CTX_wm_manager(C), curscene, cur_view_layer);
   }
 
-  BLI_assert(BKE_main_namemap_validate(*bfd->main));
+  BLI_assume_assert(BKE_main_namemap_validate(*bfd->main));
 
   if (mode != LOAD_UI) {
     if (win) {
@@ -1150,7 +1150,7 @@ static void setup_app_data(bContext *C,
   }
   CTX_data_scene_set(C, curscene);
 
-  BLI_assert(BKE_main_namemap_validate(*bfd->main));
+  BLI_assume_assert(BKE_main_namemap_validate(*bfd->main));
 
   /* This frees the `old_bmain`. */
   BKE_blender_globals_main_replace(bfd->main);
@@ -1158,7 +1158,7 @@ static void setup_app_data(bContext *C,
   bfd->main = nullptr;
   CTX_data_main_set(C, bmain);
 
-  BLI_assert(BKE_main_namemap_validate(*bmain));
+  BLI_assume_assert(BKE_main_namemap_validate(*bmain));
 
   /* These context data should remain valid if old UI is being re-used. */
   if (mode == LOAD_UI) {
@@ -1171,7 +1171,7 @@ static void setup_app_data(bContext *C,
     CTX_wm_region_set(C, nullptr);
     CTX_wm_region_popup_set(C, nullptr);
   }
-  BLI_assert(CTX_wm_manager(C) == static_cast<wmWindowManager *>(bmain->wm.first));
+  BLI_assume_assert(CTX_wm_manager(C) == static_cast<wmWindowManager *>(bmain->wm.first));
 
   /* Keep state from preferences. */
   const int fileflags_keep = G_FILE_FLAG_ALL_RUNTIME;
@@ -1250,7 +1250,7 @@ static void setup_app_data(bContext *C,
    * and safer to fully redo reference-counting. This is a relatively cheap process anyway. */
   BKE_main_id_refcount_recompute(bmain, false);
 
-  BLI_assert(BKE_main_namemap_validate(*bmain));
+  BLI_assume_assert(BKE_main_namemap_validate(*bmain));
 
   if (mode != LOAD_UNDO && liboverride::is_auto_resync_enabled()) {
     reports->duration.lib_overrides_resync = BLI_time_now_seconds();
@@ -1795,7 +1795,7 @@ void PartialWriteContext::preempt_session_uid(ID *ctx_id, uint session_uid)
   ID *matching_ctx_id = BKE_main_idmap_lookup_uid(matching_uid_map_, session_uid);
   if (matching_ctx_id == ctx_id) {
     /* That ID has already been added to the context, nothing to do. */
-    BLI_assert(matching_ctx_id->session_uid == session_uid);
+    BLI_assume_assert(matching_ctx_id->session_uid == session_uid);
     return;
   }
   if (matching_ctx_id != nullptr) {
@@ -1812,7 +1812,7 @@ void PartialWriteContext::preempt_session_uid(ID *ctx_id, uint session_uid)
   /* NOTE: In theory, there should never be any session uid collision currently, since these are
    * generated session-wide, regardless of the type/source of the IDs. */
   matching_ctx_id = BKE_main_idmap_lookup_uid(this->bmain.id_map, session_uid);
-  BLI_assert(matching_ctx_id != ctx_id);
+  BLI_assume_assert(matching_ctx_id != ctx_id);
   if (matching_ctx_id) {
     CLOG_DEBUG(&LOG_PARTIALWRITE,
                "Non-matching IDs sharing the same session UID in the partial write context.");
@@ -1822,7 +1822,7 @@ void PartialWriteContext::preempt_session_uid(ID *ctx_id, uint session_uid)
     BKE_lib_libblock_session_uid_renew(matching_ctx_id);
     matching_ctx_id->tag |= ID_TAG_TEMP_MAIN;
     BKE_main_idmap_insert_id(this->bmain.id_map, matching_ctx_id);
-    BLI_assert(BKE_main_idmap_lookup_uid(this->bmain.id_map, session_uid) == nullptr);
+    BLI_assume_assert(BKE_main_idmap_lookup_uid(this->bmain.id_map, session_uid) == nullptr);
   }
   ctx_id->session_uid = session_uid;
 }
@@ -1850,7 +1850,7 @@ void PartialWriteContext::process_added_id(ID *ctx_id,
 ID *PartialWriteContext::id_add_copy(const ID *id, const bool regenerate_session_uid)
 {
   ID *ctx_root_id = nullptr;
-  BLI_assert(BKE_main_idmap_lookup_uid(matching_uid_map_, id->session_uid) == nullptr);
+  BLI_assume_assert(BKE_main_idmap_lookup_uid(matching_uid_map_, id->session_uid) == nullptr);
   const int copy_flags = (LIB_ID_CREATE_LOCALIZE |
                           /* NOTE: Could make this an option if needed in the future */
                           LIB_ID_COPY_ASSET_METADATA);
@@ -1871,7 +1871,7 @@ ID *PartialWriteContext::id_add_copy(const ID *id, const bool regenerate_session
   if (regenerate_session_uid) {
     /* Calling #BKE_lib_libblock_session_uid_renew is not needed here, copying already generated a
      * new one. */
-    BLI_assert(BKE_main_idmap_lookup_uid(matching_uid_map_, id->session_uid) == nullptr);
+    BLI_assume_assert(BKE_main_idmap_lookup_uid(matching_uid_map_, id->session_uid) == nullptr);
   }
   else {
     this->preempt_session_uid(ctx_root_id, id->session_uid);
@@ -1917,7 +1917,7 @@ Library *PartialWriteContext::ensure_library(ID *ctx_id)
   Library *src_lib = ctx_id->lib;
   const bool is_archive_lib = (src_lib->flag & LIBRARY_FLAG_IS_ARCHIVE) != 0;
   Library *src_base_lib = is_archive_lib ? src_lib->archive_parent_library : src_lib;
-  BLI_assert(src_base_lib);
+  BLI_assume_assert(src_base_lib);
   BLI_assert((is_archive_lib && src_lib != src_base_lib && !ctx_id->deep_hash.is_null()) ||
              (!is_archive_lib && src_lib == src_base_lib && ctx_id->deep_hash.is_null()));
 
@@ -1925,7 +1925,7 @@ Library *PartialWriteContext::ensure_library(ID *ctx_id)
   Library *ctx_base_lib = this->libraries_map_.lookup_default(lib_path, nullptr);
   if (!ctx_base_lib) {
     ctx_base_lib = reinterpret_cast<Library *>(id_add_copy(&src_base_lib->id, true));
-    BLI_assert(ctx_base_lib);
+    BLI_assume_assert(ctx_base_lib);
     this->libraries_map_.add(lib_path, ctx_base_lib);
   }
   /* The mapping should only contain real libraries, never packed ones. */
@@ -1976,7 +1976,7 @@ ID *PartialWriteContext::id_add(
   const bool add_dependencies = (options.operations & ADD_DEPENDENCIES) != 0;
   const bool clear_dependencies = (options.operations & CLEAR_DEPENDENCIES) != 0;
   const bool duplicate_dependencies = (options.operations & DUPLICATE_DEPENDENCIES) != 0;
-  BLI_assert(clear_dependencies || add_dependencies || dependencies_filter_cb);
+  BLI_assume_assert(clear_dependencies || add_dependencies || dependencies_filter_cb);
   BLI_assert(!clear_dependencies || !(add_dependencies || duplicate_dependencies));
   UNUSED_VARS_NDEBUG(add_dependencies, clear_dependencies, duplicate_dependencies);
 
@@ -1993,7 +1993,7 @@ ID *PartialWriteContext::id_add(
   if (ctx_root_id) {
     /* If the root orig ID is already in the context, assume all of its dependencies are as well.
      */
-    BLI_assert(ctx_root_id->session_uid == id->session_uid);
+    BLI_assume_assert(ctx_root_id->session_uid == id->session_uid);
     this->process_added_id(ctx_root_id, options.operations);
     return ctx_root_id;
   }
@@ -2016,7 +2016,7 @@ ID *PartialWriteContext::id_add(
     return ctx_root_id;
   }
 
-  BLI_assert(ctx_root_id->session_uid == id->session_uid);
+  BLI_assume_assert(ctx_root_id->session_uid == id->session_uid);
   local_ctx_id_map.add(id, ctx_root_id);
   post_process_ids_todo.append({ctx_root_id, options.operations});
   this->process_added_id(ctx_root_id, options.operations);
@@ -2063,7 +2063,7 @@ ID *PartialWriteContext::id_add(
     const bool add_dependencies = (operations_final & ADD_DEPENDENCIES) != 0;
     const bool clear_dependencies = (operations_final & CLEAR_DEPENDENCIES) != 0;
     const bool duplicate_dependencies = (operations_final & DUPLICATE_DEPENDENCIES) != 0;
-    BLI_assert(clear_dependencies || add_dependencies);
+    BLI_assume_assert(clear_dependencies || add_dependencies);
     BLI_assert(!clear_dependencies || !(add_dependencies || duplicate_dependencies));
     UNUSED_VARS_NDEBUG(add_dependencies);
 
@@ -2120,10 +2120,10 @@ ID *PartialWriteContext::id_add(
       post_process_ids_todo.append({ctx_deps_id, operations_final});
     }
     if (duplicate_dependencies) {
-      BLI_assert(ctx_deps_id->session_uid != orig_deps_id->session_uid);
+      BLI_assume_assert(ctx_deps_id->session_uid != orig_deps_id->session_uid);
     }
     else {
-      BLI_assert(ctx_deps_id->session_uid == orig_deps_id->session_uid);
+      BLI_assume_assert(ctx_deps_id->session_uid == orig_deps_id->session_uid);
     }
     this->process_added_id(ctx_deps_id, operations_final);
     /* In-place remapping. */
@@ -2304,7 +2304,7 @@ bool PartialWriteContext::write(const char *write_filepath,
   }
   make_local_libs.clear();
 
-  BLI_assert(this->is_valid());
+  BLI_assume_assert(this->is_valid());
 
   BlendFileWriteParams blend_file_write_params{};
   blend_file_write_params.remap_mode = eBLO_WritePathRemap(remap_mode);

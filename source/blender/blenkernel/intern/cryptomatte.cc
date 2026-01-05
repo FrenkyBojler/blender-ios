@@ -218,7 +218,7 @@ void BKE_cryptomatte_add_layer(CryptomatteSession *session, const char *layer_na
 
 void BKE_cryptomatte_free(CryptomatteSession *session)
 {
-  BLI_assert(session != nullptr);
+  BLI_assume_assert(session != nullptr);
   delete session;
 }
 
@@ -233,7 +233,7 @@ uint32_t BKE_cryptomatte_object_hash(CryptomatteSession *session,
                                      const Object *object)
 {
   blender::bke::cryptomatte::CryptomatteLayer *layer = session->layers.lookup_ptr(layer_name);
-  BLI_assert(layer);
+  BLI_assume_assert(layer);
   return layer->add_ID(object->id);
 }
 
@@ -245,7 +245,7 @@ uint32_t BKE_cryptomatte_material_hash(CryptomatteSession *session,
     return 0.0f;
   }
   blender::bke::cryptomatte::CryptomatteLayer *layer = session->layers.lookup_ptr(layer_name);
-  BLI_assert(layer);
+  BLI_assume_assert(layer);
   return layer->add_ID(material->id);
 }
 
@@ -597,7 +597,7 @@ std::string CryptomatteLayer::manifest() const
 
 StringRef CryptomatteStampDataCallbackData::extract_layer_hash(StringRefNull key)
 {
-  BLI_assert(key.startswith("cryptomatte/"));
+  BLI_assume_assert(key.startswith("cryptomatte/"));
 
   size_t start_index = key.find_first_of('/');
   size_t end_index = key.find_last_of('/');

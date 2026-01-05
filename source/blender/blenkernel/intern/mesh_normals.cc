@@ -154,7 +154,7 @@ float3 face_normal_calc(const Span<float3> vert_positions, const Span<int> face_
                               vert_positions[face_verts[2]]);
   }
   else {
-    BLI_assert(face_verts.size() > 4);
+    BLI_assume_assert(face_verts.size() > 4);
     normal = normal_calc_ngon(vert_positions, face_verts);
   }
 
@@ -180,7 +180,7 @@ void normals_calc_faces(const Span<float3> positions,
                         const Span<int> corner_verts,
                         MutableSpan<float3> face_normals)
 {
-  BLI_assert(faces.size() == face_normals.size());
+  BLI_assume_assert(faces.size() == face_normals.size());
   threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
     for (const int i : range) {
       face_normals[i] = normal_calc_ngon(positions, corner_verts.slice(faces[i]));
@@ -537,7 +537,7 @@ void BKE_lnor_spacearr_init(MLoopNorSpaceArray *lnors_spacearr,
 
     lnors_spacearr->spaces_num = 0;
   }
-  BLI_assert(ELEM(data_type, MLNOR_SPACEARR_BMLOOP_PTR, MLNOR_SPACEARR_LOOP_INDEX));
+  BLI_assume_assert(ELEM(data_type, MLNOR_SPACEARR_BMLOOP_PTR, MLNOR_SPACEARR_LOOP_INDEX));
   lnors_spacearr->data_type = data_type;
 }
 
@@ -551,8 +551,8 @@ void BKE_lnor_spacearr_tls_init(MLoopNorSpaceArray *lnors_spacearr,
 void BKE_lnor_spacearr_tls_join(MLoopNorSpaceArray *lnors_spacearr,
                                 MLoopNorSpaceArray *lnors_spacearr_tls)
 {
-  BLI_assert(lnors_spacearr->data_type == lnors_spacearr_tls->data_type);
-  BLI_assert(lnors_spacearr->mem != lnors_spacearr_tls->mem);
+  BLI_assume_assert(lnors_spacearr->data_type == lnors_spacearr_tls->data_type);
+  BLI_assume_assert(lnors_spacearr->mem != lnors_spacearr_tls->mem);
   lnors_spacearr->spaces_num += lnors_spacearr_tls->spaces_num;
   BLI_memarena_merge(lnors_spacearr->mem, lnors_spacearr_tls->mem);
   BLI_memarena_free(lnors_spacearr_tls->mem);
@@ -622,7 +622,7 @@ static CornerNormalSpace corner_fan_space_define(const float3 &lnor,
      * but there is one case where we only have two edges for two loops:
      * a smooth vertex with only two edges and two faces (our Monkey's nose has that, e.g.).
      */
-    BLI_assert(edge_vectors.size() >= 2);
+    BLI_assume_assert(edge_vectors.size() >= 2);
     lnor_space.ref_alpha = alpha / float(edge_vectors.size());
   }
   else {
@@ -683,7 +683,7 @@ void BKE_lnor_space_add_loop(MLoopNorSpaceArray *lnors_spacearr,
     bm_loop = POINTER_FROM_INT(corner);
   }
   if (is_single) {
-    BLI_assert(lnor_space->loops == nullptr);
+    BLI_assume_assert(lnor_space->loops == nullptr);
     lnor_space->flags |= MLNOR_SPACE_IS_SINGLE;
     lnor_space->loops = (LinkNode *)bm_loop;
   }
@@ -1246,10 +1246,10 @@ void normals_calc_corners(const Span<float3> vert_positions,
                           CornerNormalSpaceArray *r_fan_spaces,
                           MutableSpan<float3> r_corner_normals)
 {
-  BLI_assert(corner_verts.size() == corner_edges.size());
-  BLI_assert(custom_normals.is_empty() || corner_verts.size() == custom_normals.size());
-  BLI_assert(corner_verts.size() == r_corner_normals.size());
-  BLI_assert(corner_verts.size() == vert_to_face_map.offsets.total_size());
+  BLI_assume_assert(corner_verts.size() == corner_edges.size());
+  BLI_assume_assert(custom_normals.is_empty() || corner_verts.size() == custom_normals.size());
+  BLI_assume_assert(corner_verts.size() == r_corner_normals.size());
+  BLI_assume_assert(corner_verts.size() == vert_to_face_map.offsets.total_size());
 
   /* Mesh is not empty, but there are no faces, so no normals. */
   if (corner_verts.is_empty()) {
@@ -1331,13 +1331,13 @@ void normals_calc_corners(const Span<float3> vert_positions,
 
         local_corner_visited.as_mutable_span().fill_indices(corners_in_fan.as_span(), true);
         BLI_assert(!local_corner_visited.as_span().take_front(start_local_corner).contains(false));
-        BLI_assert(local_corner_visited.as_span().drop_front(start_local_corner).contains(false));
+        BLI_assume_assert(local_corner_visited.as_span().drop_front(start_local_corner).contains(false));
         /* Will start traversing the next smooth fan mixed in shared index space. */
         while (local_corner_visited[start_local_corner]) {
           start_local_corner++;
         }
       }
-      BLI_assert(visited_count == corner_infos.size());
+      BLI_assume_assert(visited_count == corner_infos.size());
     }
   });
 

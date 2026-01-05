@@ -46,7 +46,7 @@ template<typename T> inline bool non_empty_is_range(const Span<T> indices)
 template<typename T> inline IndexRange non_empty_as_range(const Span<T> indices)
 {
   BLI_assert(!indices.is_empty());
-  BLI_assert(non_empty_is_range(indices));
+  BLI_assume_assert(non_empty_is_range(indices));
   return IndexRange(indices.first(), indices.size());
 }
 
@@ -119,7 +119,7 @@ inline int64_t split_to_ranges_and_spans(
     const int64_t range_threshold,
     Vector<std::variant<IndexRange, Span<T>>, InlineBufferSize> &r_segments)
 {
-  BLI_assert(range_threshold >= 1);
+  BLI_assume_assert(range_threshold >= 1);
   const int64_t old_segments_num = r_segments.size();
   Span<T> remaining_indices = indices;
   while (!remaining_indices.is_empty()) {

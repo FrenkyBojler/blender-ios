@@ -288,8 +288,8 @@ constexpr bool StringRefBase::endswith(StringRef suffix) const
 constexpr StringRef StringRefBase::substr(const int64_t start,
                                           const int64_t max_size = INT64_MAX) const
 {
-  BLI_assert(max_size >= 0);
-  BLI_assert(start >= 0);
+  BLI_assume_assert(max_size >= 0);
+  BLI_assume_assert(start >= 0);
   const int64_t substr_size = std::min(max_size, size_ - start);
   return StringRef(data_ + start, substr_size);
 }
@@ -299,7 +299,7 @@ constexpr StringRef StringRefBase::substr(const int64_t start,
  */
 constexpr const char &StringRefBase::front() const
 {
-  BLI_assert(size_ >= 1);
+  BLI_assume_assert(size_ >= 1);
   return data_[0];
 }
 
@@ -308,7 +308,7 @@ constexpr const char &StringRefBase::front() const
  */
 constexpr const char &StringRefBase::back() const
 {
-  BLI_assert(size_ >= 1);
+  BLI_assume_assert(size_ >= 1);
   return data_[size_ - 1];
 }
 
@@ -323,73 +323,73 @@ constexpr int64_t index_or_npos_to_int64(size_t index)
 
 constexpr int64_t StringRefBase::find(char c, int64_t pos) const
 {
-  BLI_assert(pos >= 0);
+  BLI_assume_assert(pos >= 0);
   return index_or_npos_to_int64(std::string_view(*this).find(c, size_t(pos)));
 }
 
 constexpr int64_t StringRefBase::find(StringRef str, int64_t pos) const
 {
-  BLI_assert(pos >= 0);
+  BLI_assume_assert(pos >= 0);
   return index_or_npos_to_int64(std::string_view(*this).find(str, size_t(pos)));
 }
 
 constexpr int64_t StringRefBase::rfind(char c, int64_t pos) const
 {
-  BLI_assert(pos >= 0);
+  BLI_assume_assert(pos >= 0);
   return index_or_npos_to_int64(std::string_view(*this).rfind(c, size_t(pos)));
 }
 
 constexpr int64_t StringRefBase::rfind(StringRef str, int64_t pos) const
 {
-  BLI_assert(pos >= 0);
+  BLI_assume_assert(pos >= 0);
   return index_or_npos_to_int64(std::string_view(*this).rfind(str, size_t(pos)));
 }
 
 constexpr int64_t StringRefBase::find_first_of(StringRef chars, int64_t pos) const
 {
-  BLI_assert(pos >= 0);
+  BLI_assume_assert(pos >= 0);
   return index_or_npos_to_int64(std::string_view(*this).find_first_of(chars, size_t(pos)));
 }
 
 constexpr int64_t StringRefBase::find_first_of(char c, int64_t pos) const
 {
-  BLI_assert(pos >= 0);
+  BLI_assume_assert(pos >= 0);
   return index_or_npos_to_int64(std::string_view(*this).find_first_of(c, size_t(pos)));
 }
 
 constexpr int64_t StringRefBase::find_last_of(StringRef chars, int64_t pos) const
 {
-  BLI_assert(pos >= 0);
+  BLI_assume_assert(pos >= 0);
   return index_or_npos_to_int64(std::string_view(*this).find_last_of(chars, size_t(pos)));
 }
 
 constexpr int64_t StringRefBase::find_last_of(char c, int64_t pos) const
 {
-  BLI_assert(pos >= 0);
+  BLI_assume_assert(pos >= 0);
   return index_or_npos_to_int64(std::string_view(*this).find_last_of(c, size_t(pos)));
 }
 
 constexpr int64_t StringRefBase::find_first_not_of(StringRef chars, int64_t pos) const
 {
-  BLI_assert(pos >= 0);
+  BLI_assume_assert(pos >= 0);
   return index_or_npos_to_int64(std::string_view(*this).find_first_not_of(chars, size_t(pos)));
 }
 
 constexpr int64_t StringRefBase::find_first_not_of(char c, int64_t pos) const
 {
-  BLI_assert(pos >= 0);
+  BLI_assume_assert(pos >= 0);
   return index_or_npos_to_int64(std::string_view(*this).find_first_not_of(c, size_t(pos)));
 }
 
 constexpr int64_t StringRefBase::find_last_not_of(StringRef chars, int64_t pos) const
 {
-  BLI_assert(pos >= 0);
+  BLI_assume_assert(pos >= 0);
   return index_or_npos_to_int64(std::string_view(*this).find_last_not_of(chars, size_t(pos)));
 }
 
 constexpr int64_t StringRefBase::find_last_not_of(char c, int64_t pos) const
 {
-  BLI_assert(pos >= 0);
+  BLI_assume_assert(pos >= 0);
   return index_or_npos_to_int64(std::string_view(*this).find_last_not_of(c, size_t(pos)));
 }
 
@@ -441,7 +441,7 @@ constexpr StringRefNull::StringRefNull() : StringRefBase("", 0) {}
 constexpr StringRefNull::StringRefNull(const char *str, const int64_t size)
     : StringRefBase(str, size)
 {
-  BLI_assert(int64_t(std::char_traits<char>::length(str)) == size);
+  BLI_assume_assert(int64_t(std::char_traits<char>::length(str)) == size);
 }
 
 /**
@@ -451,8 +451,8 @@ constexpr StringRefNull::StringRefNull(const char *str, const int64_t size)
 constexpr StringRefNull::StringRefNull(const char *str)
     : StringRefBase(str, int64_t(std::char_traits<char>::length(str)))
 {
-  BLI_assert(str != nullptr);
-  BLI_assert(data_[size_] == '\0');
+  BLI_assume_assert(str != nullptr);
+  BLI_assume_assert(data_[size_] == '\0');
 }
 
 /**
@@ -469,9 +469,9 @@ inline StringRefNull::StringRefNull(const std::string &str)
  */
 constexpr char StringRefNull::operator[](const int64_t index) const
 {
-  BLI_assert(index >= 0);
+  BLI_assume_assert(index >= 0);
   /* Use '<=' instead of just '<', so that the null character can be accessed as well. */
-  BLI_assert(index <= size_);
+  BLI_assume_assert(index <= size_);
   return data_[index];
 }
 
@@ -516,7 +516,7 @@ constexpr StringRef::StringRef(const char *str, const int64_t length) : StringRe
  */
 constexpr StringRef StringRef::drop_prefix(const int64_t n) const
 {
-  BLI_assert(n >= 0);
+  BLI_assume_assert(n >= 0);
   const int64_t clamped_n = std::min(n, size_);
   const int64_t new_size = size_ - clamped_n;
   return StringRef(data_ + clamped_n, new_size);
@@ -528,7 +528,7 @@ constexpr StringRef StringRef::drop_prefix(const int64_t n) const
  */
 constexpr StringRef StringRef::drop_known_prefix(StringRef prefix) const
 {
-  BLI_assert(this->startswith(prefix));
+  BLI_assume_assert(this->startswith(prefix));
   return this->drop_prefix(prefix.size());
 }
 
@@ -538,7 +538,7 @@ constexpr StringRef StringRef::drop_known_prefix(StringRef prefix) const
  */
 constexpr StringRef StringRef::drop_suffix(const int64_t n) const
 {
-  BLI_assert(n >= 0);
+  BLI_assume_assert(n >= 0);
   const int64_t new_size = std::max<int64_t>(0, size_ - n);
   return StringRef(data_, new_size);
 }
@@ -549,7 +549,7 @@ constexpr StringRef StringRef::drop_suffix(const int64_t n) const
  */
 constexpr StringRef StringRef::drop_known_suffix(StringRef suffix) const
 {
-  BLI_assert(this->endswith(suffix));
+  BLI_assume_assert(this->endswith(suffix));
   return this->drop_suffix(suffix.size());
 }
 
@@ -558,8 +558,8 @@ constexpr StringRef StringRef::drop_known_suffix(StringRef suffix) const
  */
 constexpr char StringRef::operator[](int64_t index) const
 {
-  BLI_assert(index >= 0);
-  BLI_assert(index < size_);
+  BLI_assume_assert(index >= 0);
+  BLI_assume_assert(index < size_);
   return data_[index];
 }
 
@@ -570,7 +570,7 @@ constexpr char StringRef::operator[](int64_t index) const
 constexpr StringRef::StringRef(const char *begin, const char *one_after_end)
     : StringRefBase(begin, int64_t(one_after_end - begin))
 {
-  BLI_assert(begin <= one_after_end);
+  BLI_assume_assert(begin <= one_after_end);
 }
 
 /**

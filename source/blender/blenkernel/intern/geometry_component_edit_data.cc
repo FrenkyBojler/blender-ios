@@ -39,7 +39,7 @@ void GeometryComponentEditData::ensure_owns_direct_data()
 
 void GeometryComponentEditData::clear()
 {
-  BLI_assert(this->is_mutable() || this->is_expired());
+  BLI_assume_assert(this->is_mutable() || this->is_expired());
   curves_edit_hints_.reset();
   grease_pencil_edit_hints_.reset();
   gizmo_edit_hints_.reset();

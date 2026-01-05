@@ -141,7 +141,7 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports,
 
   /* Adding 1 because the avs range is inclusive on both ends. */
   const int expected_length = (avs->path_ef - avs->path_sf) + 1;
-  BLI_assert(expected_length > 1); /* Because the `if` above. */
+  BLI_assume_assert(expected_length > 1); /* Because the `if` above. */
 
   /* If there is already a motionpath, just return that, provided its settings
    * are ok (saves extra free+alloc). */

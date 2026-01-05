@@ -579,7 +579,7 @@ static uint rand_range_i(RNG *rng, uint min_i, uint max_i, uint step)
   if (min_i == max_i) {
     return min_i;
   }
-  BLI_assert(min_i <= max_i);
+  BLI_assume_assert(min_i <= max_i);
   BLI_assert(((min_i % step) == 0) && ((max_i % step) == 0));
   uint range = (max_i - min_i);
   uint value = BLI_rng_get_uint(rng) % range;
@@ -767,7 +767,7 @@ static void random_chunk_mutate_helper(const int chunks_per_buffer,
       BLI_rng_shuffle_array(rng, chunks_array, sizeof(TestChunk *), chunks_per_buffer);
       size_t data_len;
       char *data = testchunk_as_data_array(chunks_array, chunks_per_buffer, &data_len);
-      BLI_assert(data_len == chunks_per_buffer * chunk_count * stride);
+      BLI_assume_assert(data_len == chunks_per_buffer * chunk_count * stride);
       testbuffer_list_add(&lb, (const void *)data, data_len);
     }
     BLI_rng_free(rng);
@@ -849,7 +849,7 @@ static void array_store_test_random_span_rle_encode(const size_t data_size,
                                                     const size_t span_size,
                                                     const int permitations)
 {
-  BLI_assert(data_size > span_size);
+  BLI_assume_assert(data_size > span_size);
 
   RNG *rng = BLI_rng_new(1);
   uint8_t *data = MEM_malloc_arrayN<uint8_t>(data_size, __func__);

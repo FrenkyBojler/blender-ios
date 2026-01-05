@@ -8,6 +8,7 @@
 #include "DNA_listBase.h"
 #include "DNA_object_types.h"
 
+#include "BLI_assume.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.hh"
@@ -386,8 +387,8 @@ static bool skip_transform(const float4x4 &transform)
 
 static void threaded_copy(const GSpan src, GMutableSpan dst)
 {
-  BLI_assert(src.size() == dst.size());
-  BLI_assert(src.type() == dst.type());
+  BLI_assume_assert(src.size() == dst.size());
+  BLI_assume_assert(src.type() == dst.type());
   threading::parallel_for(IndexRange(src.size()), 1024, [&](const IndexRange range) {
     src.type().copy_construct_n(src.slice(range).data(), dst.slice(range).data(), range.size());
   });
@@ -972,7 +973,7 @@ static void execute_instances_tasks(
     const Span<blender::geometry::AttributeFallbacksArray> attribute_fallback,
     bke::GeometrySet &r_realized_geometry)
 {
-  BLI_assert(src_components.size() == src_base_transforms.size() &&
+  BLI_assume_assert(src_components.size() == src_base_transforms.size() &&
              src_components.size() == attribute_fallback.size());
   if (src_components.is_empty()) {
     return;
@@ -1185,7 +1186,7 @@ static void execute_realize_pointcloud_task(
       task.attribute_fallbacks,
       ordered_attributes,
       [&](const bke::AttrDomain domain) {
-        BLI_assert(domain == bke::AttrDomain::Point);
+        BLI_assume_assert(domain == bke::AttrDomain::Point);
         UNUSED_VARS_NDEBUG(domain);
         return point_slice;
       },
@@ -1701,7 +1702,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   const Mesh &first_mesh = *first_task.mesh_info->mesh;
   BKE_mesh_copy_parameters_for_eval(dst_mesh, &first_mesh);
 
-  BLI_assert(BLI_listbase_count(&dst_mesh->vertex_group_names) ==
+  BLI_assume_assert(BLI_listbase_count(&dst_mesh->vertex_group_names) ==
              BLI_listbase_count(&first_mesh.vertex_group_names));
   copy_vertex_group_names(
       *dst_mesh, ordered_attributes, all_meshes_info.order.as_span().drop_front(1));
@@ -2281,7 +2282,7 @@ static void execute_realize_grease_pencil_task(
       task.attribute_fallbacks,
       ordered_attributes,
       [&](const bke::AttrDomain domain) {
-        BLI_assert(domain == bke::AttrDomain::Layer);
+        BLI_assume_assert(domain == bke::AttrDomain::Layer);
         UNUSED_VARS_NDEBUG(domain);
         return dst_layers_slice;
       },

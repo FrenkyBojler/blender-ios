@@ -25,15 +25,15 @@ namespace blender {
 
 template<typename IntT> constexpr IntT ceil_division(const IntT x, const IntT y)
 {
-  BLI_assert(x >= 0);
-  BLI_assert(y >= 0);
+  BLI_assume_assert(x >= 0);
+  BLI_assume_assert(y >= 0);
   return x / y + ((x % y) != 0);
 }
 
 template<typename IntT> constexpr IntT floor_division(const IntT x, const IntT y)
 {
-  BLI_assert(x >= 0);
-  BLI_assert(y >= 0);
+  BLI_assume_assert(x >= 0);
+  BLI_assume_assert(y >= 0);
   return x / y;
 }
 
@@ -78,8 +78,8 @@ class LoadFactor {
   constexpr LoadFactor(uint8_t numerator, uint8_t denominator)
       : numerator_(numerator), denominator_(denominator)
   {
-    BLI_assert(numerator > 0);
-    BLI_assert(numerator < denominator);
+    BLI_assume_assert(numerator > 0);
+    BLI_assume_assert(numerator < denominator);
   }
 
   constexpr void compute_total_and_usable_slots(int64_t min_total_slots,
@@ -87,13 +87,13 @@ class LoadFactor {
                                                 int64_t *r_total_slots,
                                                 int64_t *r_usable_slots) const
   {
-    BLI_assert(is_power_of_2(int(min_total_slots)));
+    BLI_assume_assert(is_power_of_2(int(min_total_slots)));
 
     int64_t total_slots = this->compute_total_slots(min_usable_slots, numerator_, denominator_);
     total_slots = std::max(total_slots, min_total_slots);
     const int64_t usable_slots = floor_multiplication_with_fraction(
         total_slots, numerator_, denominator_);
-    BLI_assert(min_usable_slots <= usable_slots);
+    BLI_assume_assert(min_usable_slots <= usable_slots);
 
     *r_total_slots = total_slots;
     *r_usable_slots = usable_slots;

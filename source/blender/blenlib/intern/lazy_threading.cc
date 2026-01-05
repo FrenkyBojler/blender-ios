@@ -8,6 +8,7 @@
 
 #include "BLI_lazy_threading.hh"
 #include "BLI_stack.hh"
+#include "BLI_assume.hh"
 #include "BLI_vector.hh"
 
 namespace blender::lazy_threading {
@@ -49,7 +50,7 @@ ReceiverIsolation::ReceiverIsolation()
 
 ReceiverIsolation::~ReceiverIsolation()
 {
-  BLI_assert(hint_receivers.peek().is_empty());
+  BLI_assume_assert(hint_receivers.peek().is_empty());
   hint_receivers.pop();
 }
 

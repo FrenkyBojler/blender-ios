@@ -82,7 +82,7 @@ BLI_INLINE void interpolate_nearest_wrapmode_fl(const float *buffer,
                                                 InterpWrapMode wrap_u,
                                                 InterpWrapMode wrap_v)
 {
-  BLI_assert(buffer);
+  BLI_assume_assert(buffer);
   int x = wrap_coord(u, width, wrap_u);
   int y = wrap_coord(v, height, wrap_v);
   if (x < 0 || y < 0) {
@@ -111,7 +111,7 @@ BLI_INLINE void interpolate_nearest_wrapmode_fl(const float *buffer,
 inline void interpolate_nearest_border_byte(
     const uchar *buffer, uchar *output, int width, int height, float u, float v)
 {
-  BLI_assert(buffer);
+  BLI_assume_assert(buffer);
   int x = int(u);
   int y = int(v);
 
@@ -139,7 +139,7 @@ inline void interpolate_nearest_border_byte(
 inline void interpolate_nearest_border_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v)
 {
-  BLI_assert(buffer);
+  BLI_assume_assert(buffer);
   int x = int(u);
   int y = int(v);
 
@@ -178,7 +178,7 @@ inline void interpolate_nearest_border_fl(
 inline void interpolate_nearest_byte(
     const uchar *buffer, uchar *output, int width, int height, float u, float v)
 {
-  BLI_assert(buffer);
+  BLI_assume_assert(buffer);
   const int x = u > 0 ? (u < width ? int(u) : width - 1) : 0;
   const int y = v > 0 ? (v < height ? int(v) : height - 1) : 0;
 
@@ -200,7 +200,7 @@ inline void interpolate_nearest_byte(
 inline void interpolate_nearest_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v)
 {
-  BLI_assert(buffer);
+  BLI_assume_assert(buffer);
   const int x = u > 0 ? (u < width ? int(u) : width - 1) : 0;
   const int y = v > 0 ? (v < height ? int(v) : height - 1) : 0;
 
@@ -239,10 +239,10 @@ inline void interpolate_nearest_fl(
 inline void interpolate_nearest_wrap_byte(
     const uchar *buffer, uchar *output, int width, int height, float u, float v)
 {
-  BLI_assert(buffer);
+  BLI_assume_assert(buffer);
   int x = wrap_coord(u, width);
   int y = wrap_coord(v, height);
-  BLI_assert(x >= 0 && y >= 0 && x < width && y < height);
+  BLI_assume_assert(x >= 0 && y >= 0 && x < width && y < height);
 
   const uchar *data = buffer + (int64_t(width) * y + x) * 4;
   output[0] = data[0];
@@ -262,10 +262,10 @@ inline void interpolate_nearest_wrap_byte(
 inline void interpolate_nearest_wrap_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v)
 {
-  BLI_assert(buffer);
+  BLI_assume_assert(buffer);
   int x = wrap_coord(u, width);
   int y = wrap_coord(v, height);
-  BLI_assert(x >= 0 && y >= 0 && x < width && y < height);
+  BLI_assume_assert(x >= 0 && y >= 0 && x < width && y < height);
 
   const float *data = buffer + (int64_t(width) * y + x) * components;
   for (int i = 0; i < components; i++) {
@@ -294,8 +294,8 @@ BLI_INLINE void interpolate_bilinear_wrapmode_fl(const float *buffer,
                                                  InterpWrapMode wrap_x,
                                                  InterpWrapMode wrap_y)
 {
-  BLI_assert(buffer && output);
-  BLI_assert(components > 0 && components <= 4);
+  BLI_assume_assert(buffer && output);
+  BLI_assume_assert(components > 0 && components <= 4);
 
   int x1 = wrap_coord(u, width, wrap_x);
   int x2 = wrap_coord(u + 1, width, wrap_x);

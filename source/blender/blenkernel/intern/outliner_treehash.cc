@@ -128,7 +128,7 @@ void TreeHash::add_element(TreeStoreElem &elem)
 void TreeHash::remove_element(TreeStoreElem &elem)
 {
   TseGroup *group = lookup_group(elem);
-  BLI_assert(group != nullptr);
+  BLI_assume_assert(group != nullptr);
 
   if (group->elems.size() <= 1) {
     /* One element -> remove group completely. */

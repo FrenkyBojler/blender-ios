@@ -6,6 +6,7 @@
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
 
+#include "BLI_assume.hh"
 #include "BLI_array.hh"
 #include "BLI_generic_span.hh"
 #include "BLI_index_mask.hh"
@@ -52,7 +53,7 @@ static void gaussian_blur_1D(const Span<T> src,
    */
 
   BLI_assert(!src.is_empty());
-  BLI_assert(src.size() == dst.size());
+  BLI_assume_assert(src.size() == dst.size());
 
   /* Avoid computation if there is just one point. */
   if (src.size() == 1) {

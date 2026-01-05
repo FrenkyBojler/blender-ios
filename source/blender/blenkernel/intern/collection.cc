@@ -259,8 +259,8 @@ static ID **collection_owner_pointer_get(ID *id, const bool debug_relationship_a
   Collection *master_collection = (Collection *)id;
   BLI_assert((master_collection->flag & COLLECTION_IS_MASTER) != 0);
   if (debug_relationship_assert) {
-    BLI_assert(master_collection->owner_id != nullptr);
-    BLI_assert(GS(master_collection->owner_id->name) == ID_SCE);
+    BLI_assume_assert(master_collection->owner_id != nullptr);
+    BLI_assume_assert(GS(master_collection->owner_id->name) == ID_SCE);
     BLI_assert(((Scene *)master_collection->owner_id)->master_collection == master_collection);
   }
 
@@ -319,7 +319,7 @@ void BKE_collection_blend_read_data(BlendDataReader *reader, Collection *collect
   if (BLO_read_fileversion_get(reader) > 300) {
     BLI_assert((collection->id.flag & ID_FLAG_EMBEDDED_DATA) != 0 || owner_id == nullptr);
   }
-  BLI_assert(owner_id == nullptr || owner_id->lib == collection->id.lib);
+  BLI_assume_assert(owner_id == nullptr || owner_id->lib == collection->id.lib);
   if (owner_id != nullptr && (collection->id.flag & ID_FLAG_EMBEDDED_DATA) == 0) {
     /* This is unfortunate, but currently a lot of existing files (including startup ones) have
      * missing `ID_FLAG_EMBEDDED_DATA` flag.
@@ -366,7 +366,7 @@ static void collection_blend_read_after_liblink(BlendLibReader * /*reader*/, ID 
   Collection *collection = reinterpret_cast<Collection *>(id);
 
   /* Sanity check over Collection/Object data. */
-  BLI_assert(collection->runtime->gobject_hash == nullptr);
+  BLI_assume_assert(collection->runtime->gobject_hash == nullptr);
   for (CollectionObject &cob : collection->gobject.items_mutable()) {
     if (cob.ob == nullptr) {
       BLI_freelinkN(&collection->gobject, &cob);
@@ -376,7 +376,7 @@ static void collection_blend_read_after_liblink(BlendLibReader * /*reader*/, ID 
   /* foreach_id code called by generic lib_link process has most likely set this flag, however it
    * is not needed during readfile process since the runtime data is affects are not yet built, so
    * just clear it here. */
-  BLI_assert(collection->runtime->gobject_hash == nullptr);
+  BLI_assume_assert(collection->runtime->gobject_hash == nullptr);
   collection->runtime->tag &= ~COLLECTION_TAG_COLLECTION_OBJECT_DIRTY;
 }
 
@@ -627,7 +627,7 @@ static Collection *collection_duplicate_recursive(Main *bmain,
   if (is_collection_master) {
     /* We never duplicate master collections here, but we can still deep-copy their objects and
      * collections. */
-    BLI_assert(parent == nullptr);
+    BLI_assume_assert(parent == nullptr);
     collection_new = collection_old;
     do_full_process = true;
   }
@@ -924,7 +924,7 @@ static void collection_object_cache_free(const Main *bmain,
    * parent hierarchy as well. */
   if (id_recalc_flag && (id_create_flag & (LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_DEG_TAG)) == 0)
   {
-    BLI_assert(bmain != nullptr);
+    BLI_assume_assert(bmain != nullptr);
     DEG_id_tag_update_ex(const_cast<Main *>(bmain), &collection->id, id_recalc_flag);
   }
 }
@@ -954,7 +954,7 @@ void BKE_collection_object_cache_free(const Main *bmain,
                                       Collection *collection,
                                       const int id_create_flag)
 {
-  BLI_assert(collection != nullptr);
+  BLI_assume_assert(collection != nullptr);
   collection_object_cache_free_parent_recursive(
       bmain, collection, id_create_flag, ID_RECALC_HIERARCHY | ID_RECALC_GEOMETRY);
 }
@@ -995,7 +995,7 @@ Base *BKE_collection_or_layer_objects(const Scene *scene,
 
 Collection *BKE_collection_master_add(Scene *scene)
 {
-  BLI_assert(scene != nullptr && scene->master_collection == nullptr);
+  BLI_assume_assert(scene != nullptr && scene->master_collection == nullptr);
 
   /* Not an actual datablock, but owned by scene. */
   Collection *master_collection = static_cast<Collection *>(BKE_libblock_alloc_in_lib(
@@ -1005,7 +1005,7 @@ Collection *BKE_collection_master_add(Scene *scene)
   master_collection->flag |= COLLECTION_IS_MASTER;
   master_collection->color_tag = COLLECTION_COLOR_NONE;
 
-  BLI_assert(scene->id.lib == master_collection->id.lib);
+  BLI_assume_assert(scene->id.lib == master_collection->id.lib);
   master_collection->runtime = MEM_new<blender::bke::CollectionRuntime>(__func__);
 
   return master_collection;
@@ -1092,7 +1092,7 @@ bool BKE_collection_has_object_recursive_instanced(Collection *collection, Objec
 bool BKE_collection_has_object_recursive_instanced_orig_id(Collection *collection_eval,
                                                            Object *object_eval)
 {
-  BLI_assert(collection_eval->id.tag & ID_TAG_COPIED_ON_EVAL);
+  BLI_assume_assert(collection_eval->id.tag & ID_TAG_COPIED_ON_EVAL);
   const Object *ob_orig = DEG_get_original(object_eval);
   const ListBaseT<Base> objects = BKE_collection_object_cache_instanced_get(collection_eval);
   for (Base &base : objects) {
@@ -1186,12 +1186,12 @@ static void collection_gobject_hash_create(Collection *collection)
   CollectionObjectMap *gobject_hash = collection_gobject_hash_alloc(collection);
   for (CollectionObject &cob : collection->gobject) {
     if (UNLIKELY(cob.ob == nullptr)) {
-      BLI_assert(collection->runtime->tag & COLLECTION_TAG_COLLECTION_OBJECT_DIRTY);
+      BLI_assume_assert(collection->runtime->tag & COLLECTION_TAG_COLLECTION_OBJECT_DIRTY);
       continue;
     }
     /* Do not overwrite an already existing entry. */
     if (!gobject_hash->add(cob.ob, &cob)) {
-      BLI_assert(collection->runtime->tag & COLLECTION_TAG_COLLECTION_OBJECT_DIRTY);
+      BLI_assume_assert(collection->runtime->tag & COLLECTION_TAG_COLLECTION_OBJECT_DIRTY);
     }
   }
   collection->runtime->gobject_hash = gobject_hash;
@@ -1327,10 +1327,10 @@ static void collection_gobject_assert_internal_consistency(Collection *collectio
 #ifndef NDEBUG
   CollectionObjectMap *gobject_hash = collection->runtime->gobject_hash;
   for (CollectionObject &cob : collection->gobject) {
-    BLI_assert(cob.ob != nullptr);
+    BLI_assume_assert(cob.ob != nullptr);
     /* If there are more than one #CollectionObject for the same object,
      * at most one of them will pass this test. */
-    BLI_assert(gobject_hash->lookup_default(cob.ob, nullptr) == &cob);
+    BLI_assume_assert(gobject_hash->lookup_default(cob.ob, nullptr) == &cob);
   }
 #endif
 }
@@ -1541,7 +1541,7 @@ bool BKE_collection_object_add_notest(Main *bmain, Collection *collection, Objec
 
   /* Only case where this pointer can be nullptr is when scene itself is linked, this case should
    * never be reached. */
-  BLI_assert(collection != nullptr);
+  BLI_assume_assert(collection != nullptr);
   if (collection == nullptr) {
     return false;
   }
@@ -2046,7 +2046,7 @@ void BKE_collection_parent_relations_rebuild(Collection *collection)
       continue;
     }
 
-    BLI_assert(collection_find_parent(child.collection, collection) == nullptr);
+    BLI_assume_assert(collection_find_parent(child.collection, collection) == nullptr);
     CollectionParent *cparent = MEM_callocN<CollectionParent>(__func__);
     cparent->collection = collection;
     BLI_addtail(&child.collection->runtime->parents, cparent);
@@ -2088,7 +2088,7 @@ void BKE_main_collections_parent_relations_rebuild(Main *bmain)
      * nullptr.
      */
     if (scene.master_collection != nullptr) {
-      BLI_assert(BLI_listbase_is_empty(&scene.master_collection->runtime->parents));
+      BLI_assume_assert(BLI_listbase_is_empty(&scene.master_collection->runtime->parents));
       scene.master_collection->runtime->tag |= COLLECTION_TAG_RELATION_REBUILD;
       collection_parents_rebuild_recursive(scene.master_collection);
     }
@@ -2286,7 +2286,7 @@ static void scene_collections_array(Scene *scene,
   }
 
   Collection *collection = scene->master_collection;
-  BLI_assert(collection != nullptr);
+  BLI_assume_assert(collection != nullptr);
   scene_collection_callback(collection, scene_collections_count, r_collections_array_len);
 
   BLI_assert(*r_collections_array_len > 0);
@@ -2308,7 +2308,7 @@ void BKE_scene_collections_iterator_begin(BLI_Iterator *iter, void *data_in)
   iter->data = data;
 
   scene_collections_array(scene, (Collection ***)&data->array, &data->tot);
-  BLI_assert(data->tot != 0);
+  BLI_assume_assert(data->tot != 0);
 
   data->cur = 0;
   iter->current = data->array[data->cur];

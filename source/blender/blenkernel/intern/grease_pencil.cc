@@ -177,7 +177,7 @@ static void grease_pencil_initialize_drawing_user_counts_after_read(GreasePencil
   using namespace blender;
   using namespace blender::bke::greasepencil;
   const Array<int> user_counts = grease_pencil.count_frame_users_for_drawings();
-  BLI_assert(user_counts.size() == grease_pencil.drawings().size());
+  BLI_assume_assert(user_counts.size() == grease_pencil.drawings().size());
   for (const int drawing_i : grease_pencil.drawings().index_range()) {
     GreasePencilDrawingBase *drawing_base = grease_pencil.drawing(drawing_i);
     if (drawing_base->type != GP_DRAWING_REFERENCE) {
@@ -212,7 +212,7 @@ static void grease_pencil_copy_data(Main * /*bmain*/,
   if (grease_pencil_src->get_active_node()) {
     bke::greasepencil::TreeNode *active_node = grease_pencil_dst->find_node_by_name(
         grease_pencil_src->get_active_node()->name());
-    BLI_assert(active_node);
+    BLI_assume_assert(active_node);
     grease_pencil_dst->set_active_node(active_node);
   }
 
@@ -1005,7 +1005,7 @@ DrawingReference::~DrawingReference() = default;
 void copy_drawing_array(Span<const GreasePencilDrawingBase *> src_drawings,
                         MutableSpan<GreasePencilDrawingBase *> dst_drawings)
 {
-  BLI_assert(src_drawings.size() == dst_drawings.size());
+  BLI_assume_assert(src_drawings.size() == dst_drawings.size());
   for (const int i : src_drawings.index_range()) {
     const GreasePencilDrawingBase *src_drawing_base = src_drawings[i];
     switch (src_drawing_base->type) {
@@ -1272,7 +1272,7 @@ GreasePencilFrame *Layer::add_frame_internal(const FramesMapKeyT frame_number)
 
 GreasePencilFrame *Layer::add_frame(const FramesMapKeyT key, const int duration)
 {
-  BLI_assert(duration >= 0);
+  BLI_assume_assert(duration >= 0);
   GreasePencilFrame *frame = this->add_frame_internal(key);
   if (frame == nullptr) {
     return nullptr;
@@ -1698,14 +1698,14 @@ TreeNode &LayerGroup::add_node(TreeNode &node)
 }
 void LayerGroup::add_node_before(TreeNode &node, TreeNode &link)
 {
-  BLI_assert(BLI_findindex(&this->children, &link) != -1);
+  BLI_assume_assert(BLI_findindex(&this->children, &link) != -1);
   BLI_insertlinkbefore(&this->children, &link, &node);
   node.parent = reinterpret_cast<GreasePencilLayerTreeGroup *>(this);
   this->tag_nodes_cache_dirty();
 }
 void LayerGroup::add_node_after(TreeNode &node, TreeNode &link)
 {
-  BLI_assert(BLI_findindex(&this->children, &link) != -1);
+  BLI_assume_assert(BLI_findindex(&this->children, &link) != -1);
   BLI_insertlinkafter(&this->children, &link, &node);
   node.parent = reinterpret_cast<GreasePencilLayerTreeGroup *>(this);
   this->tag_nodes_cache_dirty();
@@ -2127,7 +2127,7 @@ void BKE_grease_pencil_nomain_to_grease_pencil(GreasePencil *grease_pencil_src,
 
   grease_pencil_dst->root_group_ptr = MEM_new<bke::greasepencil::LayerGroup>(
       __func__, grease_pencil_src->root_group_ptr->wrap());
-  BLI_assert(grease_pencil_src->layers().size() == grease_pencil_dst->layers().size());
+  BLI_assume_assert(grease_pencil_src->layers().size() == grease_pencil_dst->layers().size());
 
   /* Reset the active node. */
   grease_pencil_dst->active_node = nullptr;
@@ -2728,9 +2728,9 @@ void BKE_grease_pencil_material_remap(GreasePencil *grease_pencil, const uint *r
     if (!material_indices) {
       continue;
     }
-    BLI_assert(material_indices.domain == AttrDomain::Curve);
+    BLI_assume_assert(material_indices.domain == AttrDomain::Curve);
     for (const int i : material_indices.span.index_range()) {
-      BLI_assert(blender::IndexRange(totcol).contains(remap[material_indices.span[i]]));
+      BLI_assume_assert(blender::IndexRange(totcol).contains(remap[material_indices.span[i]]));
       UNUSED_VARS_NDEBUG(totcol);
       material_indices.span[i] = remap[material_indices.span[i]];
     }
@@ -2754,7 +2754,7 @@ void BKE_grease_pencil_material_index_remove(GreasePencil *grease_pencil, const 
     if (!material_indices) {
       continue;
     }
-    BLI_assert(material_indices.domain == AttrDomain::Curve);
+    BLI_assume_assert(material_indices.domain == AttrDomain::Curve);
     for (const int i : material_indices.span.index_range()) {
       if (material_indices.span[i] > 0 && material_indices.span[i] >= index) {
         material_indices.span[i]--;
@@ -2847,7 +2847,7 @@ void BKE_grease_pencil_batch_cache_free(GreasePencil *grease_pencil)
 
 template<typename T> static void grow_array(T **array, int *num, const int add_num)
 {
-  BLI_assert(add_num > 0);
+  BLI_assume_assert(add_num > 0);
   const int new_array_num = *num + add_num;
   T *new_array = MEM_calloc_arrayN<T>(new_array_num, __func__);
 
@@ -2861,7 +2861,7 @@ template<typename T> static void grow_array(T **array, int *num, const int add_n
 }
 template<typename T> static void shrink_array(T **array, int *num, const int shrink_num)
 {
-  BLI_assert(shrink_num > 0);
+  BLI_assume_assert(shrink_num > 0);
   const int new_array_num = *num - shrink_num;
   if (new_array_num == 0) {
     MEM_freeN(*array);
@@ -2910,7 +2910,7 @@ static void delete_drawing(GreasePencilDrawingBase *drawing_base)
 void GreasePencil::resize_drawings(const int new_num)
 {
   using namespace blender;
-  BLI_assert(new_num >= 0);
+  BLI_assume_assert(new_num >= 0);
 
   const int prev_num = int(this->drawings().size());
   if (new_num == prev_num) {
@@ -2936,7 +2936,7 @@ void GreasePencil::resize_drawings(const int new_num)
 void GreasePencil::add_empty_drawings(const int add_num)
 {
   using namespace blender;
-  BLI_assert(add_num > 0);
+  BLI_assume_assert(add_num > 0);
   const int prev_num = this->drawings().size();
   grow_array<GreasePencilDrawingBase *>(&this->drawing_array, &this->drawing_array_num, add_num);
   MutableSpan<GreasePencilDrawingBase *> new_drawings = this->drawings().drop_front(prev_num);
@@ -2950,7 +2950,7 @@ void GreasePencil::add_duplicate_drawings(const int duplicate_num,
                                           const blender::bke::greasepencil::Drawing &drawing)
 {
   using namespace blender;
-  BLI_assert(duplicate_num > 0);
+  BLI_assume_assert(duplicate_num > 0);
   const int prev_num = this->drawings().size();
   grow_array<GreasePencilDrawingBase *>(
       &this->drawing_array, &this->drawing_array_num, duplicate_num);
@@ -2977,7 +2977,7 @@ blender::bke::greasepencil::Drawing *GreasePencil::insert_frame(
   frame->type = int8_t(keytype);
 
   GreasePencilDrawingBase *drawing_base = this->drawings().last();
-  BLI_assert(drawing_base->type == GP_DRAWING);
+  BLI_assume_assert(drawing_base->type == GP_DRAWING);
   GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
   return &drawing->wrap();
 }
@@ -2994,7 +2994,7 @@ void GreasePencil::insert_frames(Span<blender::bke::greasepencil::Layer *> layer
   Vector<GreasePencilFrame *> frames;
   frames.reserve(layers.size());
   for (bke::greasepencil::Layer *layer : layers) {
-    BLI_assert(layer != nullptr);
+    BLI_assume_assert(layer != nullptr);
     GreasePencilFrame *frame = layer->add_frame(frame_number, duration);
     if (frame != nullptr) {
       frames.append(frame);
@@ -3147,7 +3147,7 @@ void GreasePencil::copy_frames_from_layer(blender::bke::greasepencil::Layer &dst
       dst_drawing_index = this->drawings().size() - 1;
       drawing_index_map[src_drawing_index] = dst_drawing_index;
     }
-    BLI_assert(this->drawings().index_range().contains(dst_drawing_index));
+    BLI_assume_assert(this->drawings().index_range().contains(dst_drawing_index));
 
     GreasePencilFrame *dst_frame = dst_layer.add_frame(frame_number);
     dst_frame->flag = src_frame.flag;
@@ -3169,7 +3169,7 @@ void GreasePencil::add_layers_with_empty_drawings_for_eval(const int num)
       const int new_layer_i = old_layers_num + i;
       Layer &layer = this->layer(new_layer_i);
       GreasePencilFrame *frame = layer.add_frame(this->runtime->eval_frame);
-      BLI_assert(frame);
+      BLI_assume_assert(frame);
       frame->drawing_index = new_drawing_i;
     }
   });
@@ -3233,11 +3233,11 @@ void GreasePencil::remove_drawings_with_no_users()
   /* `last_used_drawing` is expected to be exactly the item before the first unused drawing, once
    * the loop above is fully done and all unused drawings are supposed to be at the end of the
    * array. */
-  BLI_assert(last_used_drawing == first_unused_drawing - 1);
+  BLI_assume_assert(last_used_drawing == first_unused_drawing - 1);
 #ifndef NDEBUG
   for (const int i : drawings.index_range()) {
     if (i < first_unused_drawing) {
-      BLI_assert(is_drawing_used(i));
+      BLI_assume_assert(is_drawing_used(i));
     }
     else {
       BLI_assert(!is_drawing_used(i));
@@ -3294,7 +3294,7 @@ void GreasePencil::update_drawing_users_for_layer(const blender::bke::greasepenc
 {
   using namespace blender;
   for (const auto &[key, value] : layer.frames().items()) {
-    BLI_assert(this->drawings().index_range().contains(value.drawing_index));
+    BLI_assume_assert(this->drawings().index_range().contains(value.drawing_index));
     GreasePencilDrawingBase *drawing_base = this->drawing(value.drawing_index);
     if (drawing_base->type != GP_DRAWING) {
       continue;
@@ -3546,37 +3546,37 @@ std::optional<int> GreasePencil::material_index_max_eval() const
 
 blender::Span<const blender::bke::greasepencil::Layer *> GreasePencil::layers() const
 {
-  BLI_assert(this->runtime != nullptr);
+  BLI_assume_assert(this->runtime != nullptr);
   return this->root_group().layers();
 }
 
 blender::Span<blender::bke::greasepencil::Layer *> GreasePencil::layers_for_write()
 {
-  BLI_assert(this->runtime != nullptr);
+  BLI_assume_assert(this->runtime != nullptr);
   return this->root_group().layers_for_write();
 }
 
 blender::Span<const blender::bke::greasepencil::LayerGroup *> GreasePencil::layer_groups() const
 {
-  BLI_assert(this->runtime != nullptr);
+  BLI_assume_assert(this->runtime != nullptr);
   return this->root_group().groups();
 }
 
 blender::Span<blender::bke::greasepencil::LayerGroup *> GreasePencil::layer_groups_for_write()
 {
-  BLI_assert(this->runtime != nullptr);
+  BLI_assume_assert(this->runtime != nullptr);
   return this->root_group().groups_for_write();
 }
 
 blender::Span<const blender::bke::greasepencil::TreeNode *> GreasePencil::nodes() const
 {
-  BLI_assert(this->runtime != nullptr);
+  BLI_assume_assert(this->runtime != nullptr);
   return this->root_group().nodes();
 }
 
 blender::Span<blender::bke::greasepencil::TreeNode *> GreasePencil::nodes_for_write()
 {
-  BLI_assert(this->runtime != nullptr);
+  BLI_assume_assert(this->runtime != nullptr);
   return this->root_group().nodes_for_write();
 }
 
@@ -3784,7 +3784,7 @@ blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
   using namespace blender;
   std::string unique_name = unique_layer_name(duplicate_layer.name());
   std::optional<int> duplicate_layer_idx = get_layer_index(duplicate_layer);
-  BLI_assert(duplicate_layer_idx.has_value());
+  BLI_assume_assert(duplicate_layer_idx.has_value());
   const int numLayers = layers().size();
   bke::greasepencil::Layer *new_layer = MEM_new<bke::greasepencil::Layer>(__func__,
                                                                           duplicate_layer);
@@ -3808,7 +3808,7 @@ blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
       bke::greasepencil::Drawing *dst_drawing = this->insert_frame(
           *new_layer, frame_number, duration, eBezTriple_KeyframeType(frame.type));
       if (duplicate_drawings) {
-        BLI_assert(dst_drawing != nullptr);
+        BLI_assume_assert(dst_drawing != nullptr);
         /* TODO: This can fail (return `nullptr`) if the drawing is a drawing reference! */
         const bke::greasepencil::Drawing &src_drawing = *this->get_drawing_at(duplicate_layer,
                                                                               frame_number);
@@ -3900,17 +3900,17 @@ static void reorder_layer_data(GreasePencil &grease_pencil,
   /* Execute the callback that changes the order of the layers. */
   do_layer_order_changes();
   layers = grease_pencil.layers();
-  BLI_assert(layers.size() == old_layer_index_by_layer.size());
+  BLI_assume_assert(layers.size() == old_layer_index_by_layer.size());
 
   /* Compose the mapping from old layer indices to new layer indices */
   Array<int> new_by_old_map(layers.size());
   for (const int layer_i_new : layers.index_range()) {
     const bke::greasepencil::Layer *layer = layers[layer_i_new];
-    BLI_assert(old_layer_index_by_layer.contains(layer));
+    BLI_assume_assert(old_layer_index_by_layer.contains(layer));
     const int layer_i_old = old_layer_index_by_layer.pop(layer);
     new_by_old_map[layer_i_new] = layer_i_old;
   }
-  BLI_assert(old_layer_index_by_layer.is_empty());
+  BLI_assume_assert(old_layer_index_by_layer.is_empty());
 
   /* Use the mapping to re-order the custom data */
   reorder_attribute_domain(
@@ -4314,7 +4314,7 @@ void GreasePencil::remove_group(blender::bke::greasepencil::LayerGroup &group,
           BLI_assert_unreachable();
       }
     }
-    BLI_assert(BLI_listbase_is_empty(&group.children));
+    BLI_assume_assert(BLI_listbase_is_empty(&group.children));
   }
 
   /* Unlink then delete active group node. */
@@ -4335,7 +4335,7 @@ blender::Array<int> GreasePencil::count_frame_users_for_drawings() const
   Array<int> user_counts(this->drawings().size(), 0);
   for (const Layer *layer : this->layers()) {
     for (const auto &[frame, value] : layer->frames().items()) {
-      BLI_assert(this->drawings().index_range().contains(value.drawing_index));
+      BLI_assume_assert(this->drawings().index_range().contains(value.drawing_index));
       user_counts[value.drawing_index]++;
     }
   }
@@ -4352,7 +4352,7 @@ void GreasePencil::validate_drawing_user_counts()
     if (drawing_base->type != GP_DRAWING_REFERENCE) {
       const Drawing &drawing = reinterpret_cast<const GreasePencilDrawing *>(drawing_base)->wrap();
       /* Ignore `fake_user` flag. */
-      BLI_assert(drawing.user_count() == actual_user_counts[drawing_i]);
+      BLI_assume_assert(drawing.user_count() == actual_user_counts[drawing_i]);
     }
   }
 #endif

@@ -47,7 +47,7 @@
 static Lattice *object_defgroup_lattice_get(ID *id)
 {
   Lattice *lt = (Lattice *)id;
-  BLI_assert(GS(id->name) == ID_LT);
+  BLI_assume_assert(GS(id->name) == ID_LT);
   return (lt->editlatt) ? lt->editlatt->latt : lt;
 }
 
@@ -292,7 +292,7 @@ static void object_defgroup_remove_object_mode(Object *ob, bDeformGroup *dg)
 
   const int def_nr = BLI_findindex(defbase, dg);
 
-  BLI_assert(def_nr != -1);
+  BLI_assume_assert(def_nr != -1);
 
   BKE_object_defgroup_array_get(static_cast<ID *>(ob->data), &dvert_array, &dvert_tot);
 
@@ -324,7 +324,7 @@ static void object_defgroup_remove_edit_mode(Object *ob, bDeformGroup *dg)
   const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
   const int def_nr = BLI_findindex(defbase, dg);
 
-  BLI_assert(def_nr != -1);
+  BLI_assume_assert(def_nr != -1);
 
   /* Make sure that no verts are using this group - if none were removed,
    * we can skip next per-vert update. */
@@ -583,7 +583,7 @@ bool *BKE_object_defgroup_validmap_get(Object *ob, const int defbase_tot)
     BLI_ghash_insert(gh, dg.name, nullptr);
   }
 
-  BLI_assert(BLI_ghash_len(gh) == defbase_tot);
+  BLI_assume_assert(BLI_ghash_len(gh) == defbase_tot);
 
   /* now loop through the armature modifiers and identify deform bones */
   for (md = static_cast<ModifierData *>(ob->modifiers.first); md;
@@ -624,7 +624,7 @@ bool *BKE_object_defgroup_validmap_get(Object *ob, const int defbase_tot)
     defgroup_validmap[i] = (BLI_ghash_lookup(gh, dg->name) != nullptr);
   }
 
-  BLI_assert(i == BLI_ghash_len(gh));
+  BLI_assume_assert(i == BLI_ghash_len(gh));
 
   BLI_ghash_free(gh, nullptr, nullptr);
 

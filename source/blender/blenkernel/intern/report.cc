@@ -140,7 +140,7 @@ void BKE_reports_unlock(ReportList *reports)
 
 void BKE_reports_move_to_reports(ReportList *reports_dst, ReportList *reports_src)
 {
-  BLI_assert(reports_dst);
+  BLI_assume_assert(reports_dst);
   if (!reports_src) {
     return;
   }
@@ -216,7 +216,7 @@ void BKE_reportf(ReportList *reports, eReportType type, const char *_format, ...
 static void reports_prepend_impl(ReportList *reports, const char *prepend)
 {
   /* Caller must ensure. */
-  BLI_assert(reports && reports->list.first);
+  BLI_assume_assert(reports && reports->list.first);
 
   std::scoped_lock lock(*reports->lock);
 
@@ -226,7 +226,7 @@ static void reports_prepend_impl(ReportList *reports, const char *prepend)
     MEM_freeN(report.message);
     report.message = message;
     report.len += prefix_len;
-    BLI_assert(report.len == strlen(message));
+    BLI_assume_assert(report.len == strlen(message));
   }
 }
 

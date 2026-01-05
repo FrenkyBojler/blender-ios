@@ -150,7 +150,7 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
                                        MutableSpan<int> faces,
                                        Vector<MeshNode> &nodes)
 {
-  BLI_assert(parent_index >= -1);
+  BLI_assume_assert(parent_index >= -1);
 
   MeshNode &node = nodes[node_index];
   node.parent_ = parent_index;
@@ -386,7 +386,7 @@ static void build_nodes_recursive_grids(const Span<int> material_indices,
                                         MutableSpan<int> faces,
                                         Vector<GridsNode> &nodes)
 {
-  BLI_assert(parent_index >= -1);
+  BLI_assume_assert(parent_index >= -1);
 
   GridsNode &node = nodes[node_index];
   node.parent_ = parent_index;
@@ -918,7 +918,7 @@ static PositionSourceResult cache_source_get(const Object &object_orig, const Ob
 {
   const SculptSession &ss = *object_orig.sculpt;
   const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
-  BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
+  BLI_assume_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
   if (object_orig.mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
     if (const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(&object_eval)) {
       if (mesh_topology_count_matches(*mesh_eval, mesh_orig)) {
@@ -926,7 +926,7 @@ static PositionSourceResult cache_source_get(const Object &object_orig, const Ob
       }
     }
     if (!ss.deform_cos.is_empty()) {
-      BLI_assert(ss.deform_cos.size() == mesh_orig.verts_num);
+      BLI_assume_assert(ss.deform_cos.size() == mesh_orig.verts_num);
       return {PositionSource::RuntimeDeform, nullptr};
     }
     if (const Mesh *mesh_eval = BKE_object_get_mesh_deform_eval(&object_eval)) {
@@ -935,7 +935,7 @@ static PositionSourceResult cache_source_get(const Object &object_orig, const Ob
   }
 
   if (!ss.deform_cos.is_empty()) {
-    BLI_assert(ss.deform_cos.size() == mesh_orig.verts_num);
+    BLI_assume_assert(ss.deform_cos.size() == mesh_orig.verts_num);
     return {PositionSource::RuntimeDeform, nullptr};
   }
 
@@ -947,7 +947,7 @@ static const SharedCache<Vector<float3>> &vert_normals_cache_eval(const Object &
 {
   const SculptSession &ss = *object_orig.sculpt;
   const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
-  BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
+  BLI_assume_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
 
   const PositionSourceResult result = cache_source_get(object_orig, object_eval);
   switch (result.cache_source) {
@@ -975,7 +975,7 @@ static const SharedCache<Vector<float3>> &face_normals_cache_eval(const Object &
 {
   const SculptSession &ss = *object_orig.sculpt;
   const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
-  BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
+  BLI_assume_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
   const PositionSourceResult result = cache_source_get(object_orig, object_eval);
   switch (result.cache_source) {
     case PositionSource::EvalDeform:
@@ -1001,7 +1001,7 @@ static Span<float3> vert_positions_eval(const Object &object_orig, const Object 
 {
   const SculptSession &ss = *object_orig.sculpt;
   const Mesh &mesh_orig = *static_cast<const Mesh *>(object_orig.data);
-  BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
+  BLI_assume_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
   const PositionSourceResult result = cache_source_get(object_orig, object_eval);
   switch (result.cache_source) {
     case PositionSource::EvalDeform:
@@ -1021,7 +1021,7 @@ static MutableSpan<float3> vert_positions_eval_for_write(Object &object_orig, Ob
 {
   SculptSession &ss = *object_orig.sculpt;
   Mesh &mesh_orig = *static_cast<Mesh *>(object_orig.data);
-  BLI_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
+  BLI_assume_assert(bke::object::pbvh_get(object_orig)->type() == Type::Mesh);
   const PositionSourceResult result = cache_source_get(object_orig, object_eval);
   switch (result.cache_source) {
     case PositionSource::EvalDeform:
@@ -1256,7 +1256,7 @@ void Tree::update_normals(Object &object_orig, Object &object_eval)
 
 void update_normals(const Depsgraph &depsgraph, Object &object_orig, Tree &pbvh)
 {
-  BLI_assert(DEG_is_original(&object_orig));
+  BLI_assume_assert(DEG_is_original(&object_orig));
   Object &object_eval = *DEG_get_evaluated(&depsgraph, &object_orig);
   pbvh.update_normals(object_orig, object_eval);
 }
@@ -1478,7 +1478,7 @@ void update_mask_grids(const SubdivCCG &subdiv_ccg, const IndexMask &node_mask, 
 
 void node_update_mask_bmesh(const int mask_offset, BMeshNode &node)
 {
-  BLI_assert(mask_offset != -1);
+  BLI_assume_assert(mask_offset != -1);
   bool fully_masked = true;
   bool fully_unmasked = true;
   for (const BMVert *vert : node.bm_unique_verts_) {
@@ -1694,7 +1694,7 @@ void BKE_pbvh_mark_rebuild_pixels(blender::bke::pbvh::Tree &pbvh)
 
 void BKE_pbvh_node_fully_hidden_set(blender::bke::pbvh::Node &node, int fully_hidden)
 {
-  BLI_assert(node.flag_ & blender::bke::pbvh::Node::Leaf);
+  BLI_assume_assert(node.flag_ & blender::bke::pbvh::Node::Leaf);
 
   if (fully_hidden) {
     node.flag_ |= blender::bke::pbvh::Node::FullyHidden;
@@ -1712,7 +1712,7 @@ bool BKE_pbvh_node_fully_hidden_get(const blender::bke::pbvh::Node &node)
 
 void BKE_pbvh_node_fully_masked_set(blender::bke::pbvh::Node &node, int fully_masked)
 {
-  BLI_assert(node.flag_ & blender::bke::pbvh::Node::Leaf);
+  BLI_assume_assert(node.flag_ & blender::bke::pbvh::Node::Leaf);
 
   if (fully_masked) {
     node.flag_ |= blender::bke::pbvh::Node::FullyMasked;
@@ -1730,7 +1730,7 @@ bool BKE_pbvh_node_fully_masked_get(const blender::bke::pbvh::Node &node)
 
 void BKE_pbvh_node_fully_unmasked_set(blender::bke::pbvh::Node &node, int fully_masked)
 {
-  BLI_assert(node.flag_ & blender::bke::pbvh::Node::Leaf);
+  BLI_assume_assert(node.flag_ & blender::bke::pbvh::Node::Leaf);
 
   if (fully_masked) {
     node.flag_ |= blender::bke::pbvh::Node::FullyUnmasked;

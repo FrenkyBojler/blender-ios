@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_assume.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_task.hh"
 
@@ -27,8 +28,8 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     return src_curves;
   }
 
-  BLI_assert(thresholds.size() == src_curves.curves_num());
-  BLI_assert(corners.size() == src_curves.points_num());
+  BLI_assume_assert(thresholds.size() == src_curves.curves_num());
+  BLI_assume_assert(corners.size() == src_curves.points_num());
 
   const OffsetIndices src_points_by_curve = src_curves.offsets();
   const Span<float3> src_positions = src_curves.positions();
@@ -129,7 +130,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     success.store(true, std::memory_order_relaxed);
 
     const int dst_points_num = cubic_array_size;
-    BLI_assert(dst_points_num > 0);
+    BLI_assume_assert(dst_points_num > 0);
 
     dst_curve_sizes[curve_i] = dst_points_num;
     dst_curve_types[curve_i] = CURVE_TYPE_BEZIER;
@@ -211,7 +212,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
 
     if (dst_curve_types[curve_i] == CURVE_TYPE_POLY) {
       /* Handle the curves for which the curve fitting has failed. */
-      BLI_assert(src_points.size() == dst_points.size());
+      BLI_assume_assert(src_points.size() == dst_points.size());
       positions.copy_from(src_positions.slice(src_points));
       dst_handles_left.slice(dst_points).copy_from(src_positions.slice(src_points));
       dst_handles_right.slice(dst_points).copy_from(src_positions.slice(src_points));
@@ -222,7 +223,7 @@ bke::CurvesGeometry fit_poly_to_bezier_curves(const bke::CurvesGeometry &src_cur
     }
 
     const Span<float3> cubic_array = cubic_array_per_curve[pos];
-    BLI_assert(dst_points.size() * 3 == cubic_array.size());
+    BLI_assume_assert(dst_points.size() * 3 == cubic_array.size());
     MutableSpan<float3> left_handles = dst_handles_left.slice(dst_points);
     MutableSpan<float3> right_handles = dst_handles_right.slice(dst_points);
     threading::parallel_for(dst_points.index_range(), 8192, [&](const IndexRange range) {

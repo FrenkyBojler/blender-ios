@@ -113,8 +113,8 @@ BLI_INLINE void bicubic_interpolation(const T *src_buffer,
                                       InterpWrapMode wrap_u,
                                       InterpWrapMode wrap_v)
 {
-  BLI_assert(src_buffer && output);
-  BLI_assert(components > 0 && components <= 4);
+  BLI_assume_assert(src_buffer && output);
+  BLI_assume_assert(components > 0 && components <= 4);
 
   /* GCC 15.x can't reliably detect that `components` is never over 4. */
 #if (defined(__GNUC__) && (__GNUC__ >= 15) && !defined(__clang__))
@@ -222,7 +222,7 @@ BLI_INLINE void bicubic_interpolation(const T *src_buffer,
 template<bool border>
 BLI_INLINE uchar4 bilinear_byte_impl(const uchar *buffer, int width, int height, float u, float v)
 {
-  BLI_assert(buffer);
+  BLI_assume_assert(buffer);
   uchar4 res;
 
 #if BLI_HAVE_SSE4
@@ -425,7 +425,7 @@ uchar4 interpolate_bilinear_wrap_byte(const uchar *buffer, int width, int height
   int y1 = wrap_coord(v, height);
   int y2 = wrap_coord(v + 1, height);
 
-  BLI_assert(x1 >= 0 && x1 < width && y1 >= 0 && y1 < height);
+  BLI_assume_assert(x1 >= 0 && x1 < width && y1 >= 0 && y1 < height);
 
   float a = u - floorf(u);
   float b = v - floorf(v);

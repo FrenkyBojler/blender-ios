@@ -50,7 +50,7 @@ bDeformGroup *BKE_object_defgroup_new(Object *ob, const StringRef name)
 {
   bDeformGroup *defgroup;
 
-  BLI_assert(OB_TYPE_SUPPORT_VGROUP(ob->type));
+  BLI_assume_assert(OB_TYPE_SUPPORT_VGROUP(ob->type));
 
   defgroup = MEM_new_for_free<bDeformGroup>(__func__);
 
@@ -84,7 +84,7 @@ void BKE_defgroup_copy_list(ListBaseT<bDeformGroup> *outbase,
 bDeformGroup *BKE_defgroup_duplicate(const bDeformGroup *ingroup)
 {
   if (!ingroup) {
-    BLI_assert(0);
+    BLI_assume_assert(0);
     return nullptr;
   }
 
@@ -224,7 +224,7 @@ void BKE_defvert_remap(MDeformVert *dvert, const int *map, const int map_len)
   MDeformWeight *dw = dvert->dw;
   for (int i = dvert->totweight; i != 0; i--, dw++) {
     if (dw->def_nr < map_len) {
-      BLI_assert(map[dw->def_nr] >= 0);
+      BLI_assume_assert(map[dw->def_nr] >= 0);
 
       dw->def_nr = map[dw->def_nr];
     }
@@ -497,7 +497,7 @@ const ListBaseT<bDeformGroup> *BKE_id_defgroup_list_get(const ID *id)
 
 static const int *object_defgroup_active_index_get_p(const Object *ob)
 {
-  BLI_assert(BKE_object_supports_vertex_groups(ob));
+  BLI_assume_assert(BKE_object_supports_vertex_groups(ob));
   switch (ob->type) {
     case OB_MESH: {
       const Mesh *mesh = (const Mesh *)ob->data;
@@ -588,7 +588,7 @@ bool BKE_id_defgroup_name_find(ID *id, const StringRef name, int *r_index, bDefo
 
 const ListBaseT<bDeformGroup> *BKE_object_defgroup_list(const Object *ob)
 {
-  BLI_assert(BKE_object_supports_vertex_groups(ob));
+  BLI_assume_assert(BKE_object_supports_vertex_groups(ob));
   return BKE_id_defgroup_list_get((const ID *)ob->data);
 }
 
@@ -599,7 +599,7 @@ int BKE_object_defgroup_name_index(const Object *ob, const StringRef name)
 
 ListBaseT<bDeformGroup> *BKE_object_defgroup_list_mutable(Object *ob)
 {
-  BLI_assert(BKE_object_supports_vertex_groups(ob));
+  BLI_assume_assert(BKE_object_supports_vertex_groups(ob));
   return BKE_id_defgroup_list_get_mutable((ID *)ob->data);
 }
 
@@ -820,7 +820,7 @@ MDeformWeight *BKE_defvert_find_index(const MDeformVert *dvert, const int defgro
     }
   }
   else {
-    BLI_assert(0);
+    BLI_assume_assert(0);
   }
 
   return nullptr;
@@ -832,7 +832,7 @@ MDeformWeight *BKE_defvert_ensure_index(MDeformVert *dvert, const int defgroup)
 
   /* do this check always, this function is used to check for it */
   if (!dvert || defgroup < 0) {
-    BLI_assert(0);
+    BLI_assume_assert(0);
     return nullptr;
   }
 
@@ -865,7 +865,7 @@ void BKE_defvert_add_index_notest(MDeformVert *dvert, const int defgroup, const 
 
   /* do this check always, this function is used to check for it */
   if (!dvert || defgroup < 0) {
-    BLI_assert(0);
+    BLI_assume_assert(0);
     return;
   }
 
@@ -898,7 +898,7 @@ void BKE_defvert_remove_group(MDeformVert *dvert, MDeformWeight *dw)
   /* If there are still other deform weights attached to this vert then remove
    * this deform weight, and reshuffle the others. */
   if (dvert->totweight) {
-    BLI_assert(dvert->dw != nullptr);
+    BLI_assume_assert(dvert->dw != nullptr);
 
     if (i != dvert->totweight) {
       dvert->dw[i] = dvert->dw[dvert->totweight];
@@ -1247,7 +1247,7 @@ static void vgroups_datatransfer_interp(const CustomDataTransferLayerMap *laymap
 
   /* Do not create a destination MDeformWeight data if we had no sources at all. */
   if (!has_dw_sources) {
-    BLI_assert(weight_src == 0.0f);
+    BLI_assume_assert(weight_src == 0.0f);
     if (dw_dst) {
       dw_dst->weight = weight_src;
     }
@@ -1446,7 +1446,7 @@ bool data_transfer_layersmapping_vgroups(blender::Vector<CustomDataTransferLayer
       /* NOTE: in this case we assume layer exists! */
       idx_dst = tolayers;
       const ListBaseT<bDeformGroup> *dst_defbase = BKE_object_defgroup_list(ob_dst);
-      BLI_assert(idx_dst < BLI_listbase_count(dst_defbase));
+      BLI_assume_assert(idx_dst < BLI_listbase_count(dst_defbase));
       UNUSED_VARS_NDEBUG(dst_defbase);
     }
     else if (tolayers == DT_LAYERS_ACTIVE_DST) {
@@ -1796,7 +1796,7 @@ MDeformVert mix_deform_verts(const Span<MDeformVert> src,
                              const Span<float> weights,
                              MDeformWeightSet &dw_buffer)
 {
-  BLI_assert(weights.is_empty() || indices.size() == weights.size());
+  BLI_assume_assert(weights.is_empty() || indices.size() == weights.size());
   MDeformVert dst_dvert{};
 
   if (indices.size() == 1) {

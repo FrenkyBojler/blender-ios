@@ -20,7 +20,7 @@ namespace blender::bke::node_tree_runtime {
 
 void preprocess_geometry_node_tree_for_evaluation(bNodeTree &tree_cow)
 {
-  BLI_assert(tree_cow.type == NTREE_GEOMETRY);
+  BLI_assume_assert(tree_cow.type == NTREE_GEOMETRY);
   /* Rebuild geometry nodes lazy function graph. */
   tree_cow.runtime->geometry_nodes_lazy_function_graph_info_mutex.tag_dirty();
   blender::nodes::ensure_geometry_nodes_lazy_function_graph(tree_cow);
@@ -49,8 +49,8 @@ static void update_link_vector(const bNodeTree &ntree)
   tree_runtime.links.clear();
   for (bNodeLink &link : ntree.links) {
     /* Check that the link connects nodes within this tree. */
-    BLI_assert(tree_runtime.nodes_by_id.contains(link.fromnode));
-    BLI_assert(tree_runtime.nodes_by_id.contains(link.tonode));
+    BLI_assume_assert(tree_runtime.nodes_by_id.contains(link.fromnode));
+    BLI_assume_assert(tree_runtime.nodes_by_id.contains(link.tonode));
 
     tree_runtime.links.append(&link);
   }
@@ -132,8 +132,8 @@ static void update_directly_linked_links_and_sockets(const bNodeTree &ntree)
       link->fromnode->runtime->has_available_linked_outputs = true;
       link->tonode->runtime->has_available_linked_inputs = true;
     }
-    BLI_assert(link->fromsock->runtime->owner_node == link->fromnode);
-    BLI_assert(link->tosock->runtime->owner_node == link->tonode);
+    BLI_assume_assert(link->fromsock->runtime->owner_node == link->fromnode);
+    BLI_assume_assert(link->tosock->runtime->owner_node == link->tonode);
   }
   for (bNodeSocket *socket : tree_runtime.input_sockets) {
     if (socket->flag & SOCK_MULTI_INPUT) {
@@ -460,7 +460,7 @@ static void update_toposort(const bNodeTree &ntree,
     }
   }
 
-  BLI_assert(tree_runtime.nodes_by_id.size() == r_sorted_nodes.size());
+  BLI_assume_assert(tree_runtime.nodes_by_id.size() == r_sorted_nodes.size());
 }
 
 static void update_root_frames(const bNodeTree &ntree)
@@ -528,7 +528,7 @@ static void update_dangling_reroute_nodes(const bNodeTree &ntree)
       node_runtime.is_dangling_reroute = true;
       continue;
     }
-    BLI_assert(links.size() == 1);
+    BLI_assume_assert(links.size() == 1);
     const bNode &source_node = *links.first()->fromnode;
     node_runtime.is_dangling_reroute = source_node.runtime->is_dangling_reroute;
   }
@@ -711,8 +711,8 @@ static void ensure_inference_usage_cache(const bNodeTree &tree)
 
 bool bNodeSocket::affects_node_output() const
 {
-  BLI_assert(this->is_input());
-  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  BLI_assume_assert(this->is_input());
+  BLI_assume_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
   const bNodeTree &tree = this->owner_tree();
   ensure_inference_usage_cache(tree);
   return tree.runtime->inferenced_socket_usage[this->index_in_tree()].is_used;
@@ -720,7 +720,7 @@ bool bNodeSocket::affects_node_output() const
 
 bool bNodeSocket::inferred_socket_visibility() const
 {
-  BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
+  BLI_assume_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
   const bNode &node = this->owner_node();
   if (node.typeinfo->ignore_inferred_input_socket_visibility) {
     return true;

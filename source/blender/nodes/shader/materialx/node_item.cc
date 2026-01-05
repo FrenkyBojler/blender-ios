@@ -6,7 +6,7 @@
 #include "node_graph.h"
 #include "node_parser.h"
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_utildefines.h"
 
 namespace blender::nodes::materialx {
@@ -188,7 +188,7 @@ NodeItem NodeItem::operator^(const NodeItem &other) const
 
 NodeItem NodeItem::operator[](int index) const
 {
-  BLI_assert(is_arithmetic(type()));
+  BLI_assume_assert(is_arithmetic(type()));
 
   if (value) {
     float v = 0.0f;
@@ -344,7 +344,7 @@ NodeItem NodeItem::mix(const NodeItem &val1, const NodeItem &val2) const
 
   Type type1 = val1.type();
   if (ELEM(type1, Type::BSDF, Type::EDF)) {
-    BLI_assert(val2.type() == type1);
+    BLI_assume_assert(val2.type() == type1);
 
     /* Special case: mix BSDF/EDF shaders */
     return create_node("mix", type1, {{"bg", val1}, {"fg", val2}, {"mix", *this}});
@@ -380,9 +380,9 @@ NodeItem NodeItem::clamp(float min_val, float max_val) const
 
 NodeItem NodeItem::rotate(const NodeItem &angle, const NodeItem &axis)
 {
-  BLI_assert(type() == Type::Vector3);
-  BLI_assert(angle.type() == Type::Float);
-  BLI_assert(axis.type() == Type::Vector3);
+  BLI_assume_assert(type() == Type::Vector3);
+  BLI_assume_assert(angle.type() == Type::Float);
+  BLI_assume_assert(axis.type() == Type::Vector3);
 
   return create_node(
       "rotate3d", NodeItem::Type::Vector3, {{"in", *this}, {"amount", angle}, {"axis", axis}});
@@ -992,7 +992,7 @@ NodeItem NodeItem::arithmetic(const std::string &category, std::function<float(f
 {
   NodeItem res = empty();
   Type type = this->type();
-  BLI_assert(is_arithmetic(type));
+  BLI_assume_assert(is_arithmetic(type));
 
   if (value) {
     switch (type) {

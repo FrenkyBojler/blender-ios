@@ -212,8 +212,8 @@ static void linear_grids_allocate(LinearGrids *linear_grids, int num_grids, int 
 static LinearGridElement *linear_grid_element_get(LinearGrids *linear_grids,
                                                   const GridCoord *grid_coord)
 {
-  BLI_assert(grid_coord->grid_index >= 0);
-  BLI_assert(grid_coord->grid_index < linear_grids->num_grids);
+  BLI_assume_assert(grid_coord->grid_index >= 0);
+  BLI_assume_assert(grid_coord->grid_index < linear_grids->num_grids);
 
   const int grid_size = linear_grids->grid_size;
 
@@ -308,7 +308,7 @@ static int get_face_grid_index(const MultiresReshapeSmoothContext *reshape_smoot
 #  ifndef NDEBUG
   for (const int corner_index : face) {
     const Corner *corner = &reshape_smooth_context->geometry.corners[corner_index];
-    BLI_assert(corner->grid_index == grid_index);
+    BLI_assume_assert(corner->grid_index == grid_index);
   }
 #  endif
 
@@ -332,17 +332,17 @@ static std::array<std::optional<GridCoord>, 4> grid_coords_from_face_verts(
     MultiresReshapeSmoothContext *reshape_smooth_context, const blender::IndexRange face)
 {
   std::array<std::optional<GridCoord>, 4> result;
-  BLI_assert(face.size() == 4);
+  BLI_assume_assert(face.size() == 4);
 
   const int grid_index = get_face_grid_index(reshape_smooth_context, face);
-  BLI_assert(grid_index != -1);
+  BLI_assume_assert(grid_index != -1);
 
   for (const int i : face.index_range()) {
     const int corner_index = face[i];
     Corner *corner = &reshape_smooth_context->geometry.corners[corner_index];
     result[i] = vert_grid_coord_with_grid_index(
         &reshape_smooth_context->geometry.vertices[corner->vert_index], grid_index);
-    BLI_assert(result[i].has_value());
+    BLI_assume_assert(result[i].has_value());
   }
   return result;
 }
@@ -505,7 +505,7 @@ static void foreach_single_vert(const blender::bke::subdiv::ForeachContext *fore
   MultiresReshapeSmoothContext *reshape_smooth_context =
       static_cast<MultiresReshapeSmoothContext *>(foreach_context->user_data);
 
-  BLI_assert(subdiv_vert_index < reshape_smooth_context->geometry.vertices.size());
+  BLI_assume_assert(subdiv_vert_index < reshape_smooth_context->geometry.vertices.size());
 
   Vertex *vert = &reshape_smooth_context->geometry.vertices[subdiv_vert_index];
 
@@ -644,7 +644,7 @@ static void foreach_loop(const blender::bke::subdiv::ForeachContext *foreach_con
       static_cast<MultiresReshapeSmoothContext *>(foreach_context->user_data);
   const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
 
-  BLI_assert(subdiv_loop_index < reshape_smooth_context->geometry.corners.size());
+  BLI_assume_assert(subdiv_loop_index < reshape_smooth_context->geometry.corners.size());
 
   Corner *corner = &reshape_smooth_context->geometry.corners[subdiv_loop_index];
   corner->vert_index = subdiv_vert_index;
@@ -674,7 +674,7 @@ static void store_edge(MultiresReshapeSmoothContext *reshape_smooth_context,
   /* This is a bit overhead to use atomics in such a simple function called from many threads,
    * but this allows to save quite measurable amount of memory. */
   const int edge_index = atomic_fetch_and_add_z(&reshape_smooth_context->geometry.num_edges, 1);
-  BLI_assert(edge_index < reshape_smooth_context->geometry.max_edges);
+  BLI_assume_assert(edge_index < reshape_smooth_context->geometry.max_edges);
 
   Edge *edge = &reshape_smooth_context->geometry.edges[edge_index];
   edge->v1 = subdiv_v1;
@@ -823,7 +823,7 @@ static void get_face_vertices(const OpenSubdiv_Converter *converter,
 {
   const MultiresReshapeSmoothContext *reshape_smooth_context =
       static_cast<const MultiresReshapeSmoothContext *>(converter->user_data);
-  BLI_assert(face_index < reshape_smooth_context->geometry.faces().size());
+  BLI_assume_assert(face_index < reshape_smooth_context->geometry.faces().size());
 
   const blender::IndexRange face = reshape_smooth_context->geometry.faces()[face_index];
 
@@ -847,7 +847,7 @@ static void get_edge_vertices(const OpenSubdiv_Converter *converter,
 {
   const MultiresReshapeSmoothContext *reshape_smooth_context =
       static_cast<const MultiresReshapeSmoothContext *>(converter->user_data);
-  BLI_assert(edge_index < reshape_smooth_context->geometry.num_edges);
+  BLI_assume_assert(edge_index < reshape_smooth_context->geometry.num_edges);
 
   const Edge *edge = &reshape_smooth_context->geometry.edges[edge_index];
   edge_vertices[0] = edge->v1;
@@ -858,7 +858,7 @@ static float get_edge_sharpness(const OpenSubdiv_Converter *converter, const int
 {
   const MultiresReshapeSmoothContext *reshape_smooth_context =
       static_cast<const MultiresReshapeSmoothContext *>(converter->user_data);
-  BLI_assert(edge_index < reshape_smooth_context->geometry.num_edges);
+  BLI_assume_assert(edge_index < reshape_smooth_context->geometry.num_edges);
 
   const Edge *edge = &reshape_smooth_context->geometry.edges[edge_index];
   return edge->sharpness;
@@ -868,7 +868,7 @@ static float get_vert_sharpness(const OpenSubdiv_Converter *converter, const int
 {
   const MultiresReshapeSmoothContext *reshape_smooth_context =
       static_cast<const MultiresReshapeSmoothContext *>(converter->user_data);
-  BLI_assert(vert_index < reshape_smooth_context->geometry.vertices.size());
+  BLI_assume_assert(vert_index < reshape_smooth_context->geometry.vertices.size());
 
   const Vertex *vertex = &reshape_smooth_context->geometry.vertices[vert_index];
   return vertex->sharpness;
@@ -879,7 +879,7 @@ static bool is_infinite_sharp_vertex(const OpenSubdiv_Converter *converter, int 
   const MultiresReshapeSmoothContext *reshape_smooth_context =
       static_cast<const MultiresReshapeSmoothContext *>(converter->user_data);
 
-  BLI_assert(vert_index < reshape_smooth_context->geometry.vertices.size());
+  BLI_assume_assert(vert_index < reshape_smooth_context->geometry.vertices.size());
 
   const Vertex *vertex = &reshape_smooth_context->geometry.vertices[vert_index];
   return vertex->is_infinite_sharp;

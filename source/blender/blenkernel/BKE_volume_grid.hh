@@ -465,7 +465,7 @@ template<typename T> inline void VolumeGrid<T>::assert_correct_type() const
   if (data_) {
     const VolumeGridType expected_type = VolumeGridTraits<T>::EnumType;
     if (const std::optional<VolumeGridType> actual_type = data_->grid_type_without_load()) {
-      BLI_assert(expected_type == *actual_type);
+      BLI_assume_assert(expected_type == *actual_type);
     }
   }
 #  endif

@@ -126,9 +126,9 @@ class IndexRangeCyclic {
                                               const int iterator_size,
                                               const int iterable_range_size)
   {
-    BLI_assert(start_index >= 0);
-    BLI_assert(iterator_size >= 0);
-    BLI_assert(iterable_range_size > 0);
+    BLI_assume_assert(start_index >= 0);
+    BLI_assume_assert(iterator_size >= 0);
+    BLI_assume_assert(iterable_range_size > 0);
     const int num_until_loop = iterable_range_size - start_index;
     if (iterator_size < num_until_loop) {
       return IndexRangeCyclic(start_index, start_index + iterator_size, iterable_range_size, 0);
@@ -155,14 +155,14 @@ class IndexRangeCyclic {
                                                       const CurvePoint end_point,
                                                       const int iterable_range_size)
   {
-    BLI_assert(iterable_range_size > 0);
+    BLI_assume_assert(iterable_range_size > 0);
     const int start_index = start_point.parameter == 0.0 ? start_point.index :
                                                            start_point.next_index;
     int end_index = end_point.parameter == 0.0 ? end_point.index : end_point.next_index;
     int cycles;
 
     if (end_point.is_controlpoint()) {
-      BLI_assert(end_index < iterable_range_size);
+      BLI_assume_assert(end_index < iterable_range_size);
       ++end_index;
       if (end_index == iterable_range_size) {
         end_index = 0;
@@ -218,7 +218,7 @@ class IndexRangeCyclic {
    */
   constexpr IndexRangeCyclic push_front(const int n = 1) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     int new_start = this->start_ - n;
     int num_cycles = this->cycles_;
     if (new_start < 0) {
@@ -228,8 +228,8 @@ class IndexRangeCyclic {
       new_start = remainder + (underflow ? this->size_range() : 0);
       num_cycles += new_cycles + int(underflow);
     }
-    BLI_assert(num_cycles >= 0);
-    BLI_assert(num_cycles > 0 ||
+    BLI_assume_assert(num_cycles >= 0);
+    BLI_assume_assert(num_cycles > 0 ||
                (new_start <= this->end_ || (this->end_ == 0 && new_start < this->size_range())));
     return {new_start, this->end_, this->range_size_, num_cycles};
   }
@@ -240,7 +240,7 @@ class IndexRangeCyclic {
    */
   constexpr IndexRangeCyclic push_back(const int n = 1) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     int new_end = this->end_ + n;
     int num_cycles = this->cycles_;
     if (this->size_range() <= new_end) {
@@ -250,8 +250,8 @@ class IndexRangeCyclic {
       new_end = remainder - (overflow ? this->size_range() : 0);
       num_cycles += new_cycles + int(overflow);
     }
-    BLI_assert(num_cycles >= 0);
-    BLI_assert(num_cycles > 0 || (this->start_ <= new_end || new_end == 0));
+    BLI_assume_assert(num_cycles >= 0);
+    BLI_assume_assert(num_cycles > 0 || (this->start_ <= new_end || new_end == 0));
     return {this->start_, new_end, this->range_size_, num_cycles};
   }
 
@@ -261,7 +261,7 @@ class IndexRangeCyclic {
    */
   constexpr IndexRangeCyclic drop_front(const int n = 1) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     int new_start = this->start_ + n;
     int num_cycles = this->cycles_;
     if (this->size_range() <= new_start) {
@@ -271,8 +271,8 @@ class IndexRangeCyclic {
       new_start = remainder - (overflow ? this->size_range() : 0);
       num_cycles -= dropped_cycles + int(overflow);
     }
-    BLI_assert(num_cycles >= 0);
-    BLI_assert(num_cycles > 0 ||
+    BLI_assume_assert(num_cycles >= 0);
+    BLI_assume_assert(num_cycles > 0 ||
                (new_start <= this->end_ || (this->end_ == 0 && new_start < this->size_range())));
     return {new_start, this->end_, this->range_size_, num_cycles};
   }
@@ -283,7 +283,7 @@ class IndexRangeCyclic {
    */
   constexpr IndexRangeCyclic drop_back(const int n = 1) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     int new_end = this->end_ - n;
     int num_cycles = this->cycles_;
     if (0 >= new_end) {
@@ -293,8 +293,8 @@ class IndexRangeCyclic {
       new_end = remainder + (underflow ? this->size_range() : 0);
       num_cycles -= dropped_cycles + int(underflow);
     }
-    BLI_assert(num_cycles >= 0);
-    BLI_assert(num_cycles > 0 || (this->start_ <= new_end || new_end == 0));
+    BLI_assume_assert(num_cycles >= 0);
+    BLI_assume_assert(num_cycles > 0 || (this->start_ <= new_end || new_end == 0));
     return {this->start_, new_end, this->range_size_, num_cycles};
   }
 
@@ -373,7 +373,7 @@ class IndexRangeCyclic {
 
   constexpr int last() const
   {
-    BLI_assert(this->size() > 0);
+    BLI_assume_assert(this->size() > 0);
     return int(this->end_ - 1);
   }
 
@@ -410,7 +410,7 @@ class IndexRangeCyclic {
     constexpr CyclicIterator(const int range_end, const int index, const int cycles)
         : index_(index), range_end_(range_end), cycles_(cycles)
     {
-      BLI_assert(0 <= index && index <= range_end);
+      BLI_assume_assert(0 <= index && index <= range_end);
     }
 
     constexpr CyclicIterator(const CyclicIterator &copy) = default;

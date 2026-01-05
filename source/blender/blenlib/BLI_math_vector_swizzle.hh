@@ -8,7 +8,7 @@
  * \ingroup bli
  */
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 
 #include <array>
 #include <type_traits>

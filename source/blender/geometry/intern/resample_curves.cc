@@ -6,7 +6,7 @@
 #include "BLI_math_color.hh"
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_vector.hh"
-
+#include "BLI_assume.hh"
 #include "BLI_length_parameterize.hh"
 #include "BLI_task.hh"
 
@@ -467,7 +467,7 @@ CurvesGeometry resample_to_count(const CurvesGeometry &src_curves,
   /* Fill the counts for the curves that aren't selected and accumulate the counts into offsets. */
   offset_indices::copy_group_sizes(src_points_by_curve, unselected, dst_offsets);
   /* We assume the counts are at least 1. */
-  BLI_assert(std::all_of(dst_offsets.begin(),
+  BLI_assume_assert(std::all_of(dst_offsets.begin(),
                          dst_offsets.drop_back(1).end(),
                          [&](const int count) { return count > 0; }));
   offset_indices::accumulate_counts_to_offsets(dst_offsets);

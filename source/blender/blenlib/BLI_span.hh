@@ -93,13 +93,13 @@ template<typename T> class Span {
 
   constexpr Span(const T *start, int64_t size) : data_(start), size_(size)
   {
-    BLI_assert(size >= 0);
+    BLI_assume_assert(size >= 0);
   }
 
   template<typename U, BLI_ENABLE_IF((is_span_convertible_pointer_v<U, T>))>
   constexpr Span(const U *start, int64_t size) : data_(static_cast<const T *>(start)), size_(size)
   {
-    BLI_assert(size >= 0);
+    BLI_assume_assert(size >= 0);
   }
 
   /**
@@ -136,9 +136,9 @@ template<typename T> class Span {
    */
   constexpr Span slice(int64_t start, int64_t size) const
   {
-    BLI_assert(start >= 0);
-    BLI_assert(size >= 0);
-    BLI_assert(start + size <= size_ || size == 0);
+    BLI_assume_assert(start >= 0);
+    BLI_assume_assert(size >= 0);
+    BLI_assume_assert(start + size <= size_ || size == 0);
     return Span(data_ + start, size);
   }
 
@@ -153,8 +153,8 @@ template<typename T> class Span {
    */
   constexpr Span slice_safe(const int64_t start, const int64_t size) const
   {
-    BLI_assert(start >= 0);
-    BLI_assert(size >= 0);
+    BLI_assume_assert(start >= 0);
+    BLI_assume_assert(size >= 0);
     const int64_t new_size = std::max<int64_t>(0, std::min(size, size_ - start));
     return Span(data_ ? data_ + start : nullptr, new_size);
   }
@@ -170,7 +170,7 @@ template<typename T> class Span {
    */
   constexpr Span drop_front(int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::max<int64_t>(0, size_ - n);
     return Span(data_ + n, new_size);
   }
@@ -181,7 +181,7 @@ template<typename T> class Span {
    */
   constexpr Span drop_back(int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::max<int64_t>(0, size_ - n);
     return Span(data_, new_size);
   }
@@ -192,7 +192,7 @@ template<typename T> class Span {
    */
   constexpr Span take_front(int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::min<int64_t>(size_, n);
     return Span(data_, new_size);
   }
@@ -203,7 +203,7 @@ template<typename T> class Span {
    */
   constexpr Span take_back(int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::min<int64_t>(size_, n);
     return Span(data_ + size_ - new_size, new_size);
   }
@@ -241,8 +241,8 @@ template<typename T> class Span {
    */
   constexpr const T &operator[](int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < size_);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < size_);
     return data_[index];
   }
 
@@ -314,7 +314,7 @@ template<typename T> class Span {
    */
   constexpr const T &first() const
   {
-    BLI_assert(size_ > 0);
+    BLI_assume_assert(size_ > 0);
     return data_[0];
   }
 
@@ -324,8 +324,8 @@ template<typename T> class Span {
    */
   constexpr const T &last(const int64_t n = 0) const
   {
-    BLI_assert(n >= 0);
-    BLI_assert(n < size_);
+    BLI_assume_assert(n >= 0);
+    BLI_assume_assert(n < size_);
     return data_[size_ - 1 - n];
   }
 
@@ -337,7 +337,7 @@ template<typename T> class Span {
   {
     /* The size should really be smaller than that. If it is not, the calling code should be
      * changed. */
-    BLI_assert(size_ < 1000);
+    BLI_assume_assert(size_ < 1000);
 
     for (int64_t i = 0; i < size_; i++) {
       const T &value = data_[i];
@@ -359,7 +359,7 @@ template<typename T> class Span {
   {
     /* The size should really be smaller than that. If it is not, the calling code should be
      * changed. */
-    BLI_assert(size_ < 1000);
+    BLI_assume_assert(size_ < 1000);
 
     for (int64_t i = 0; i < size_; i++) {
       const T &value = data_[i];
@@ -377,7 +377,7 @@ template<typename T> class Span {
   constexpr int64_t first_index(const T &search_value) const
   {
     const int64_t index = this->first_index_try(search_value);
-    BLI_assert(index >= 0);
+    BLI_assume_assert(index >= 0);
     return index;
   }
 
@@ -527,7 +527,7 @@ template<typename T> class MutableSpan {
   {
     static_assert(std::is_integral_v<IndexT>);
     for (IndexT i : indices) {
-      BLI_assert(i < size_);
+      BLI_assume_assert(i < size_);
       data_[i] = value;
     }
   }
@@ -561,8 +561,8 @@ template<typename T> class MutableSpan {
 
   constexpr T &operator[](const int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < size_);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < size_);
     return data_[index];
   }
 
@@ -572,9 +572,9 @@ template<typename T> class MutableSpan {
    */
   constexpr MutableSpan slice(const int64_t start, const int64_t size) const
   {
-    BLI_assert(start >= 0);
-    BLI_assert(size >= 0);
-    BLI_assert(start + size <= size_ || size == 0);
+    BLI_assume_assert(start >= 0);
+    BLI_assume_assert(size >= 0);
+    BLI_assume_assert(start + size <= size_ || size == 0);
     return MutableSpan(data_ + start, size);
   }
 
@@ -589,8 +589,8 @@ template<typename T> class MutableSpan {
    */
   constexpr MutableSpan slice_safe(const int64_t start, const int64_t size) const
   {
-    BLI_assert(start >= 0);
-    BLI_assert(size >= 0);
+    BLI_assume_assert(start >= 0);
+    BLI_assume_assert(size >= 0);
     const int64_t new_size = std::max<int64_t>(0, std::min(size, size_ - start));
     return MutableSpan(data_ + start, new_size);
   }
@@ -606,7 +606,7 @@ template<typename T> class MutableSpan {
    */
   constexpr MutableSpan drop_front(const int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::max<int64_t>(0, size_ - n);
     return MutableSpan(data_ + n, new_size);
   }
@@ -617,7 +617,7 @@ template<typename T> class MutableSpan {
    */
   constexpr MutableSpan drop_back(const int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::max<int64_t>(0, size_ - n);
     return MutableSpan(data_, new_size);
   }
@@ -628,7 +628,7 @@ template<typename T> class MutableSpan {
    */
   constexpr MutableSpan take_front(const int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::min<int64_t>(size_, n);
     return MutableSpan(data_, new_size);
   }
@@ -639,7 +639,7 @@ template<typename T> class MutableSpan {
    */
   constexpr MutableSpan take_back(const int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::min<int64_t>(size_, n);
     return MutableSpan(data_ + size_ - new_size, new_size);
   }
@@ -678,7 +678,7 @@ template<typename T> class MutableSpan {
    */
   constexpr T &first() const
   {
-    BLI_assert(size_ > 0);
+    BLI_assume_assert(size_ > 0);
     return data_[0];
   }
 
@@ -688,8 +688,8 @@ template<typename T> class MutableSpan {
    */
   constexpr T &last(const int64_t n = 0) const
   {
-    BLI_assert(n >= 0);
-    BLI_assert(n < size_);
+    BLI_assume_assert(n >= 0);
+    BLI_assume_assert(n < size_);
     return data_[size_ - 1 - n];
   }
 
@@ -738,7 +738,7 @@ template<typename T> class MutableSpan {
    */
   constexpr void copy_from(Span<T> values) const
   {
-    BLI_assert(size_ == values.size());
+    BLI_assume_assert(size_ == values.size());
     initialized_copy_n(values.data(), size_, data_);
   }
 

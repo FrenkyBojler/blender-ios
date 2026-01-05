@@ -17,10 +17,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_assume.hh"
 #include "BLI_string.h"
-
 #include "BLI_utildefines.h"
-
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /* -------------------------------------------------------------------- */
@@ -69,7 +68,7 @@ char *BLI_strncpy(char *__restrict dst, const char *__restrict src, const size_t
 {
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  BLI_assert(dst_maxncpy != 0);
+  BLI_assume_assert(dst_maxncpy != 0);
   size_t srclen = BLI_strnlen(src, dst_maxncpy - 1);
 
   memcpy(dst, src, srclen);
@@ -83,7 +82,7 @@ char *BLI_strncpy_ensure_pad(char *__restrict dst,
                              size_t dst_maxncpy)
 {
   BLI_string_debug_size(dst, dst_maxncpy);
-  BLI_assert(dst_maxncpy != 0);
+  BLI_assume_assert(dst_maxncpy != 0);
 
   if (src[0] == '\0') {
     dst[0] = '\0';
@@ -121,7 +120,7 @@ size_t BLI_strncpy_rlen(char *__restrict dst, const char *__restrict src, const 
   BLI_string_debug_size(dst, dst_maxncpy);
 
   size_t srclen = BLI_strnlen(src, dst_maxncpy - 1);
-  BLI_assert(dst_maxncpy != 0);
+  BLI_assume_assert(dst_maxncpy != 0);
 
   memcpy(dst, src, srclen);
   dst[srclen] = '\0';
@@ -158,9 +157,9 @@ size_t BLI_vsnprintf(char *__restrict dst,
 {
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  BLI_assert(dst != nullptr);
-  BLI_assert(dst_maxncpy > 0);
-  BLI_assert(format != nullptr);
+  BLI_assume_assert(dst != nullptr);
+  BLI_assume_assert(dst_maxncpy > 0);
+  BLI_assume_assert(format != nullptr);
 
   const size_t n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
   if (n < dst_maxncpy) {
@@ -180,9 +179,9 @@ size_t BLI_vsnprintf_rlen(char *__restrict dst,
 {
   BLI_string_debug_size(dst, dst_maxncpy);
 
-  BLI_assert(dst != nullptr);
-  BLI_assert(dst_maxncpy > 0);
-  BLI_assert(format != nullptr);
+  BLI_assume_assert(dst != nullptr);
+  BLI_assume_assert(dst_maxncpy > 0);
+  BLI_assume_assert(format != nullptr);
 
   size_t n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
   if (n < dst_maxncpy) {
@@ -250,7 +249,7 @@ char *BLI_sprintfN_with_buffer(
   va_start(args, format);
   retval = vsnprintf(result, size, format, args);
   va_end(args);
-  BLI_assert(size_t(retval + 1) == size);
+  BLI_assume_assert(size_t(retval + 1) == size);
   UNUSED_VARS_NDEBUG(retval);
   return result;
 }
@@ -283,7 +282,7 @@ char *BLI_vsprintfN_with_buffer(char *fixed_buf,
   const size_t size = size_t(retval) + 1;
   char *result = MEM_malloc_arrayN<char>(size, __func__);
   retval = vsnprintf(result, size, format, args);
-  BLI_assert(size_t(retval + 1) == size);
+  BLI_assume_assert(size_t(retval + 1) == size);
   UNUSED_VARS_NDEBUG(retval);
   return result;
 }
@@ -329,7 +328,7 @@ char *BLI_vsprintfN(const char *__restrict format, va_list args)
 
 size_t BLI_str_escape(char *__restrict dst, const char *__restrict src, const size_t dst_maxncpy)
 {
-  BLI_assert(dst_maxncpy != 0);
+  BLI_assume_assert(dst_maxncpy != 0);
   BLI_string_debug_size(dst, dst_maxncpy);
 
   size_t len = 0;
@@ -1045,7 +1044,7 @@ size_t BLI_str_partition_ex(const char *str,
 {
   const char *d;
 
-  BLI_assert(end == nullptr || end > str);
+  BLI_assume_assert(end == nullptr || end > str);
 
   *sep = *suf = nullptr;
 

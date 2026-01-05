@@ -495,7 +495,7 @@ bGPDframe *BKE_gpencil_frame_addnew(bGPDlayer *gpl, int cframe)
     MEM_freeN(gpf);
 
     /* return existing frame instead... */
-    BLI_assert(gf != nullptr);
+    BLI_assume_assert(gf != nullptr);
     gpf = gf;
   }
   else if (state == 0) {
@@ -702,7 +702,7 @@ void BKE_gpencil_stroke_weights_duplicate(bGPDstroke *gps_src, bGPDstroke *gps_d
   if (gps_src == nullptr) {
     return;
   }
-  BLI_assert(gps_src->totpoints == gps_dst->totpoints);
+  BLI_assume_assert(gps_src->totpoints == gps_dst->totpoints);
 
   BKE_defvert_array_copy(gps_dst->dvert, gps_src->dvert, gps_src->totpoints);
 }
@@ -820,7 +820,7 @@ bGPdata *BKE_gpencil_data_duplicate(Main *bmain, const bGPdata *gpd_src, bool in
     gpd_dst = static_cast<bGPdata *>(MEM_dupallocN(gpd_src));
   }
   else {
-    BLI_assert(bmain != nullptr);
+    BLI_assume_assert(bmain != nullptr);
     gpd_dst = (bGPdata *)BKE_id_copy(bmain, &gpd_src->id);
   }
 
@@ -1145,8 +1145,8 @@ void BKE_gpencil_layer_delete(bGPdata *gpd, bGPDlayer *gpl)
 
 void BKE_gpencil_brush_material_set(Brush *brush, Material *ma)
 {
-  BLI_assert(brush);
-  BLI_assert(brush->gpencil_settings);
+  BLI_assume_assert(brush);
+  BLI_assume_assert(brush->gpencil_settings);
   if (brush->gpencil_settings->material != ma) {
     if (brush->gpencil_settings->material) {
       id_us_min(&brush->gpencil_settings->material->id);
@@ -1205,7 +1205,7 @@ void BKE_gpencil_palette_ensure(Main *bmain, Scene *scene)
     }
   }
 
-  BLI_assert(palette != nullptr);
+  BLI_assume_assert(palette != nullptr);
   BKE_paint_palette_set(&ts->gp_paint->paint, palette);
   BKE_paint_palette_set(&ts->gp_vertexpaint->paint, palette);
 }

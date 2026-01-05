@@ -118,7 +118,7 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
 
 static std::optional<StringRef> find_format_specifier(const StringRef format)
 {
-  BLI_assert(format[0] == '{');
+  BLI_assume_assert(format[0] == '{');
   int64_t braces_depth = 1;
   for (const char &c : format.substr(1)) {
     if (c == '{') {
@@ -517,7 +517,7 @@ static void format_with_python_compatible_syntax(const StringRef format_pattern,
       preprocess_python_compatible_syntax(
           format_pattern, format_outer, type, inputs_lookup, r_error);
   if (!processed_format.has_value()) {
-    BLI_assert(r_error);
+    BLI_assume_assert(r_error);
     return;
   }
   format_with_fmt(fmt::runtime(processed_format->fmt_format_str),

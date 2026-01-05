@@ -553,13 +553,13 @@ class Map {
   template<typename ForwardKey> const Value &lookup_as(const ForwardKey &key) const
   {
     const Value *ptr = this->lookup_ptr_as(key);
-    BLI_assert(ptr != nullptr);
+    BLI_assume_assert(ptr != nullptr);
     return *ptr;
   }
   template<typename ForwardKey> Value &lookup_as(const ForwardKey &key)
   {
     Value *ptr = this->lookup_ptr_as(key);
-    BLI_assert(ptr != nullptr);
+    BLI_assume_assert(ptr != nullptr);
     return *ptr;
   }
 
@@ -737,8 +737,8 @@ class Map {
 
     friend bool operator!=(const BaseIterator &a, const BaseIterator &b)
     {
-      BLI_assert(a.slots_ == b.slots_);
-      BLI_assert(a.total_slots_ == b.total_slots_);
+      BLI_assume_assert(a.slots_ == b.slots_);
+      BLI_assume_assert(a.total_slots_ == b.total_slots_);
       return a.current_slot_ != b.current_slot_;
     }
 
@@ -934,7 +934,7 @@ class Map {
   void remove(const BaseIterator &iterator)
   {
     Slot &slot = iterator.current_slot();
-    BLI_assert(slot.is_occupied());
+    BLI_assume_assert(slot.is_occupied());
     slot.remove();
     removed_slots_++;
   }
@@ -1105,7 +1105,7 @@ class Map {
     int64_t total_slots, usable_slots;
     max_load_factor_.compute_total_and_usable_slots(
         SlotArray::inline_buffer_capacity(), min_usable_slots, &total_slots, &usable_slots);
-    BLI_assert(total_slots >= 1);
+    BLI_assume_assert(total_slots >= 1);
     const uint64_t new_slot_mask = uint64_t(total_slots) - 1;
 
     /**
@@ -1178,7 +1178,7 @@ class Map {
     MAP_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash, std::forward<ForwardValue>(value)...);
-        BLI_assert(hash_(*slot.key()) == hash);
+        BLI_assume_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return;
       }
@@ -1194,7 +1194,7 @@ class Map {
     MAP_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash, std::forward<ForwardValue>(value)...);
-        BLI_assert(hash_(*slot.key()) == hash);
+        BLI_assume_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return true;
       }
@@ -1254,7 +1254,7 @@ class Map {
     MAP_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash, create_value());
-        BLI_assert(hash_(*slot.key()) == hash);
+        BLI_assume_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return *slot.value();
       }
@@ -1273,7 +1273,7 @@ class Map {
     MAP_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.is_empty()) {
         slot.occupy(std::forward<ForwardKey>(key), hash, std::forward<ForwardValue>(value)...);
-        BLI_assert(hash_(*slot.key()) == hash);
+        BLI_assume_assert(hash_(*slot.key()) == hash);
         occupied_and_removed_slots_++;
         return *slot.value();
       }
@@ -1302,7 +1302,7 @@ class Map {
   template<typename ForwardKey>
   const Slot &lookup_slot(const ForwardKey &key, const uint64_t hash) const
   {
-    BLI_assert(this->contains_as(key));
+    BLI_assume_assert(this->contains_as(key));
     MAP_SLOT_PROBING_BEGIN (hash, slot) {
       if (slot.contains(key, is_equal_, hash)) {
         return slot;
@@ -1356,7 +1356,7 @@ class Map {
   {
     if (occupied_and_removed_slots_ >= usable_slots_) {
       this->realloc_and_reinsert(this->size() + 1);
-      BLI_assert(occupied_and_removed_slots_ < usable_slots_);
+      BLI_assume_assert(occupied_and_removed_slots_ < usable_slots_);
     }
   }
 };

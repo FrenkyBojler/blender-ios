@@ -336,7 +336,7 @@ static void eval_displacement(Displacement *displacement,
 {
   MultiresDisplacementData &data = *static_cast<MultiresDisplacementData *>(
       displacement->user_data);
-  BLI_assert(data.is_initialized);
+  BLI_assume_assert(data.is_initialized);
   const int grid_size = data.grid_size;
   /* Get displacement in tangent space. */
   const MDisps *displacement_grid;

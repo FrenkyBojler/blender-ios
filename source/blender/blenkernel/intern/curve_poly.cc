@@ -75,7 +75,7 @@ void calculate_tangents(const Span<float3> positions,
                         const bool is_cyclic,
                         MutableSpan<float3> tangents)
 {
-  BLI_assert(positions.size() == tangents.size());
+  BLI_assume_assert(positions.size() == tangents.size());
 
   if (positions.is_empty()) {
     return;
@@ -125,7 +125,7 @@ void calculate_tangents(const Span<float3> positions,
 
 void calculate_normals_z_up(const Span<float3> tangents, MutableSpan<float3> normals)
 {
-  BLI_assert(normals.size() == tangents.size());
+  BLI_assume_assert(normals.size() == tangents.size());
 
   /* Same as in `vec_to_quat`. */
   const float epsilon = 1e-4f;
@@ -167,7 +167,7 @@ void calculate_normals_minimum(const Span<float3> tangents,
                                const bool cyclic,
                                MutableSpan<float3> normals)
 {
-  BLI_assert(normals.size() == tangents.size());
+  BLI_assume_assert(normals.size() == tangents.size());
 
   if (normals.is_empty()) {
     return;

@@ -288,7 +288,7 @@ static void update_active_strip(AnimData *adt_dest,
                                 const AnimData *adt_source,
                                 const NlaTrack *track_source)
 {
-  BLI_assert(BLI_listbase_count(&track_source->strips) == BLI_listbase_count(&track_dest->strips));
+  BLI_assume_assert(BLI_listbase_count(&track_source->strips) == BLI_listbase_count(&track_dest->strips));
 
   NlaStrip *active_strip = find_active_strip_from_listbase(
       adt_source->actstrip, &track_source->strips, &track_dest->strips);
@@ -304,7 +304,7 @@ static void update_active_track(AnimData *adt_dest, const AnimData *adt_source)
     return;
   }
 
-  BLI_assert(BLI_listbase_count(&adt_source->nla_tracks) ==
+  BLI_assume_assert(BLI_listbase_count(&adt_source->nla_tracks) ==
              BLI_listbase_count(&adt_dest->nla_tracks));
 
   NlaTrack *track_dest = static_cast<NlaTrack *>(adt_dest->nla_tracks.first);
@@ -390,8 +390,8 @@ void BKE_nlatrack_insert_after(ListBaseT<NlaTrack> *nla_tracks,
                                NlaTrack *new_track,
                                const bool is_liboverride)
 {
-  BLI_assert(nla_tracks);
-  BLI_assert(new_track);
+  BLI_assume_assert(nla_tracks);
+  BLI_assume_assert(new_track);
 
   /* If nullptr, then caller intends to insert a new head. But, tracks are not allowed to be
    * placed before library overrides. So it must inserted after the last override. */
@@ -665,7 +665,7 @@ void BKE_nla_strip_foreach_id(NlaStrip *strip, LibraryForeachIDData *data)
 
 void BKE_nlatrack_remove(ListBaseT<NlaTrack> *tracks, NlaTrack *nlt)
 {
-  BLI_assert(tracks);
+  BLI_assume_assert(tracks);
   BLI_remlink(tracks, nlt);
 }
 
@@ -1368,7 +1368,7 @@ bool BKE_nlatrack_add_strip(NlaTrack *nlt, NlaStrip *strip, const bool is_libove
 
 void BKE_nlatrack_remove_strip(NlaTrack *track, NlaStrip *strip)
 {
-  BLI_assert(track);
+  BLI_assume_assert(track);
   BKE_nlastrip_remove(&track->strips, strip);
 }
 
@@ -1502,7 +1502,7 @@ NlaStrip *BKE_nlastrip_find_active(NlaTrack *nlt)
 
 void BKE_nlastrip_remove(ListBaseT<NlaStrip> *strips, NlaStrip *strip)
 {
-  BLI_assert(strips);
+  BLI_assume_assert(strips);
   BLI_remlink(strips, strip);
 }
 
@@ -2190,7 +2190,7 @@ bool BKE_nla_action_stash(const OwnedAnimData owned_adt, const bool is_liboverri
 
   nlt = BKE_nlatrack_new_after(&adt->nla_tracks, prev_track, is_liboverride);
   BKE_nlatrack_set_active(&adt->nla_tracks, nlt);
-  BLI_assert(nlt != nullptr);
+  BLI_assume_assert(nlt != nullptr);
 
   /* We need to ensure that if there wasn't any previous instance,
    * it must go to be bottom of the stack. */
@@ -2207,7 +2207,7 @@ bool BKE_nla_action_stash(const OwnedAnimData owned_adt, const bool is_liboverri
    * NOTE: a new user is created here
    */
   strip = BKE_nlastrip_new_for_slot(adt->action, adt->slot_handle, owned_adt.owner_id);
-  BLI_assert(strip != nullptr);
+  BLI_assume_assert(strip != nullptr);
 
   BKE_nlatrack_add_strip(nlt, strip, is_liboverride);
   BKE_nlastrip_validate_name(adt, strip);
@@ -2759,8 +2759,8 @@ void BKE_nla_blend_read_data(BlendDataReader *reader, ID *id_owner, ListBaseT<Nl
 void BKE_nla_liboverride_post_process(ID *id, AnimData *adt)
 {
   /* TODO(Sybren): replace these two parameters with an OwnedAnimData struct. */
-  BLI_assert(id);
-  BLI_assert(adt);
+  BLI_assume_assert(id);
+  BLI_assume_assert(adt);
 
   /* The 'id' parameter is unused as it's not necessary here, but still can be useful when
    * debugging. And with the NLA complexity the way it is, debugging comfort is kinda nice. */

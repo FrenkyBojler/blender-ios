@@ -585,7 +585,7 @@ class ArmatureDeformTestBase {
 
     BLI_assert(!grease_pencil->drawings().is_empty());
     GreasePencilDrawingBase *drawing_base = grease_pencil->drawings()[0];
-    BLI_assert(drawing_base->type == GP_DRAWING);
+    BLI_assume_assert(drawing_base->type == GP_DRAWING);
     greasepencil::Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base)->wrap();
     bke::CurvesGeometry &curves = drawing.geometry.wrap();
 

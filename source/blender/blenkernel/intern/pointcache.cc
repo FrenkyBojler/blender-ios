@@ -644,7 +644,7 @@ static int ptcache_cloth_totpoint(void *cloth_v, int /*cfra*/)
 static void ptcache_cloth_error(const ID *owner_id, void *cloth_v, const char *message)
 {
   ClothModifierData *clmd = static_cast<ClothModifierData *>(cloth_v);
-  BLI_assert(GS(owner_id->name) == ID_OB);
+  BLI_assume_assert(GS(owner_id->name) == ID_OB);
   if (clmd->hairdata == nullptr) {
     /* If there is hair data, this modifier does not actually exist on the object. */
     BKE_modifier_set_error((Object *)owner_id, &clmd->modifier, "%s", message);
@@ -1353,7 +1353,7 @@ static size_t ptcache_filepath_ext_append(PTCacheID *pid,
 
   /* PointCaches are inserted in object's list on demand, we need a valid index now. */
   if (pid->cache->index < 0) {
-    BLI_assert(GS(pid->owner_id->name) == ID_OB);
+    BLI_assume_assert(GS(pid->owner_id->name) == ID_OB);
     pid->cache->index = pid->stack_index = BKE_object_insert_ptcache((Object *)pid->owner_id);
   }
 
@@ -3110,7 +3110,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
       else if (pid->type == PTCACHE_TYPE_SMOKE_HIGHRES) {
         /* get all pids from the object and search for smoke low res */
         ListBaseT<PTCacheID> pidlist2;
-        BLI_assert(GS(pid->owner_id->name) == ID_OB);
+        BLI_assume_assert(GS(pid->owner_id->name) == ID_OB);
         BKE_ptcache_ids_from_object(&pidlist2, (Object *)pid->owner_id, scene, MAX_DUPLI_RECUR);
         for (PTCacheID &pid2 : pidlist2) {
           if (pid2.type == PTCACHE_TYPE_SMOKE_DOMAIN) {

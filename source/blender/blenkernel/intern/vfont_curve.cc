@@ -716,11 +716,11 @@ static bool vfont_to_curve(Object *ob,
   /* NOTE: do calculations including the trailing `\0` of a string
    * because the cursor can be at that location. */
 
-  BLI_assert(ob == nullptr || ob->type == OB_FONT);
+  BLI_assume_assert(ob == nullptr || ob->type == OB_FONT);
 
   /* Read-file ensures non-null, must have become null at run-time, this is a bug! */
   if (UNLIKELY(!(cu.str && cu.tb && (ef ? ef->textbufinfo : cu.strinfo)))) {
-    BLI_assert(0);
+    BLI_assume_assert(0);
     return false;
   }
 
@@ -850,7 +850,7 @@ static bool vfont_to_curve(Object *ob,
     if (info->flag & CU_CHINFO_SMALLCAPS) {
       charcode = towupper(charcode);
       if (mem[i] != charcode) {
-        BLI_assert(ct == &chartransdata[i]);
+        BLI_assume_assert(ct == &chartransdata[i]);
         ct->is_smallcaps = true;
       }
     }
@@ -923,7 +923,7 @@ static bool vfont_to_curve(Object *ob,
             do_break = true;
             break;
           }
-          BLI_assert(chartransdata[j].do_break == 0);
+          BLI_assume_assert(chartransdata[j].do_break == 0);
         }
 
         if (do_break) {
@@ -1249,7 +1249,7 @@ static bool vfont_to_curve(Object *ob,
   /* TEXT ON CURVE */
   /* NOTE: Only #OB_CURVES_LEGACY objects could have a path. */
   if (cu.textoncurve && cu.textoncurve->type == OB_CURVES_LEGACY) {
-    BLI_assert(cu.textoncurve->runtime->curve_cache != nullptr);
+    BLI_assume_assert(cu.textoncurve->runtime->curve_cache != nullptr);
     if (cu.textoncurve->runtime->curve_cache != nullptr &&
         cu.textoncurve->runtime->curve_cache->anim_path_accum_length != nullptr)
     {
@@ -1321,7 +1321,7 @@ static bool vfont_to_curve(Object *ob,
 
         /* Rotate around center character. */
         info = &custrinfo[i];
-        BLI_assert(ct == &chartransdata[i]);
+        BLI_assume_assert(ct == &chartransdata[i]);
         const char32_t charcode = vfont_char_apply_smallcaps(mem[i], ct->is_smallcaps);
 
         vfont_info_context_update(&vfinfo_ctx, cu, info);
@@ -1580,7 +1580,7 @@ static bool vfont_to_curve(Object *ob,
 
   if (iter_data.status == VFONT_TO_CURVE_SCALE_ONCE) {
     /* That means we were in a final run, just exit. */
-    BLI_assert(cu.overflow == CU_OVERFLOW_SCALE);
+    BLI_assume_assert(cu.overflow == CU_OVERFLOW_SCALE);
     iter_data.status = VFONT_TO_CURVE_DONE;
   }
   else if (cu.overflow == CU_OVERFLOW_NONE) {
@@ -1643,7 +1643,7 @@ static bool vfont_to_curve(Object *ob,
         }
       }
       else {
-        BLI_assert(iter_data.status == VFONT_TO_CURVE_BISECT);
+        BLI_assume_assert(iter_data.status == VFONT_TO_CURVE_BISECT);
         /* Try to get the highest scale that gives us the exactly
          * number of lines we need. */
         bool valid = false;
@@ -1777,7 +1777,7 @@ static bool vfont_to_curve(Object *ob,
       cursor_params->r_string_offset = i;
     }
     /* Must be cleared & freed. */
-    BLI_assert(tb_bounds_for_cursor == nullptr);
+    BLI_assume_assert(tb_bounds_for_cursor == nullptr);
   }
 
   /* Scale to fit only works for single text box layouts. */
@@ -1911,7 +1911,7 @@ int BKE_vfont_cursor_to_text_index(Object *ob, const blender::float2 &cursor_loc
 
 bool BKE_vfont_to_curve_nubase(Object *ob, const eEditFontMode mode, ListBaseT<Nurb> *r_nubase)
 {
-  BLI_assert(ob->type == OB_FONT);
+  BLI_assume_assert(ob->type == OB_FONT);
   const Curve &cu = *static_cast<const Curve *>(ob->data);
   return BKE_vfont_to_curve_ex(
       ob, cu, mode, r_nubase, nullptr, nullptr, nullptr, nullptr, nullptr);

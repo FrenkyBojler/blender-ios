@@ -362,15 +362,15 @@ struct VecBase : public vec_struct_base<T, Size, std::is_trivial_v<T>> {
 
   const T &operator[](int index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < Size);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < Size);
     return reinterpret_cast<const T *>(this)[index];
   }
 
   T &operator[](int index)
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < Size);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < Size);
     return reinterpret_cast<T *>(this)[index];
   }
 
@@ -463,35 +463,35 @@ struct VecBase : public vec_struct_base<T, Size, std::is_trivial_v<T>> {
   friend VecBase operator/(const VecBase &a, const VecBase &b)
   {
     for (int i = 0; i < Size; i++) {
-      BLI_assert(b[i] != T(0));
+      BLI_assume_assert(b[i] != T(0));
     }
     BLI_UNROLL_MATH_VEC_OP_VEC_VEC(/, a, b);
   }
 
   friend VecBase operator/(const VecBase &a, T b)
   {
-    BLI_assert(b != T(0));
+    BLI_assume_assert(b != T(0));
     BLI_UNROLL_MATH_VEC_OP_VEC_SCALAR(/, a, b);
   }
 
   friend VecBase operator/(T a, const VecBase &b)
   {
     for (int i = 0; i < Size; i++) {
-      BLI_assert(b[i] != T(0));
+      BLI_assume_assert(b[i] != T(0));
     }
     BLI_UNROLL_MATH_VEC_OP_SCALAR_VEC(/, a, b);
   }
 
   VecBase &operator/=(T b) &
   {
-    BLI_assert(b != T(0));
+    BLI_assume_assert(b != T(0));
     BLI_UNROLL_MATH_VEC_OP_ASSIGN_SCALAR(/=, b);
   }
 
   VecBase &operator/=(const VecBase &b) &
   {
     for (int i = 0; i < Size; i++) {
-      BLI_assert(b[i] != T(0));
+      BLI_assume_assert(b[i] != T(0));
     }
     BLI_UNROLL_MATH_VEC_OP_ASSIGN_VEC(/=, b);
   }
@@ -625,21 +625,21 @@ struct VecBase : public vec_struct_base<T, Size, std::is_trivial_v<T>> {
   BLI_INT_OP(T) friend VecBase operator%(const VecBase &a, const VecBase &b)
   {
     for (int i = 0; i < Size; i++) {
-      BLI_assert(b[i] != T(0));
+      BLI_assume_assert(b[i] != T(0));
     }
     BLI_UNROLL_MATH_VEC_OP_VEC_VEC(%, a, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator%(const VecBase &a, T b)
   {
-    BLI_assert(b != 0);
+    BLI_assume_assert(b != 0);
     BLI_UNROLL_MATH_VEC_OP_VEC_SCALAR(%, a, b);
   }
 
   BLI_INT_OP(T) friend VecBase operator%(T a, const VecBase &b)
   {
     for (int i = 0; i < Size; i++) {
-      BLI_assert(b[i] != T(0));
+      BLI_assume_assert(b[i] != T(0));
     }
     BLI_UNROLL_MATH_VEC_OP_SCALAR_VEC(%, a, b);
   }

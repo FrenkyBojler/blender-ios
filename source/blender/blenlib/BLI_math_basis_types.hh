@@ -64,7 +64,7 @@ class Axis {
   constexpr static Axis from_char(char axis_char)
   {
     const Axis axis = static_cast<Value>(axis_char - 'X');
-    BLI_assert(int(Value::X) <= axis.as_int() && axis.as_int() <= int(Value::Z));
+    BLI_assume_assert(int(Value::X) <= axis.as_int() && axis.as_int() <= int(Value::Z));
     return axis;
   }
 
@@ -72,7 +72,7 @@ class Axis {
   constexpr static Axis from_int(const int axis_int)
   {
     const Axis axis = static_cast<Value>(axis_int);
-    BLI_assert(Axis::X <= axis && axis <= Axis::Z);
+    BLI_assume_assert(Axis::X <= axis && axis <= Axis::Z);
     return axis;
   }
 
@@ -131,7 +131,7 @@ class AxisSigned {
   constexpr static AxisSigned from_int(int axis_int)
   {
     const AxisSigned axis = static_cast<Value>(axis_int);
-    BLI_assert(AxisSigned::X_POS <= axis && axis <= AxisSigned::Z_NEG);
+    BLI_assume_assert(AxisSigned::X_POS <= axis && axis <= AxisSigned::Z_NEG);
     return axis;
   }
 
@@ -321,7 +321,7 @@ template<> inline AxisSigned abs(const AxisSigned &axis)
 /** Create basis vector. */
 template<typename T> T to_vector(const Axis axis)
 {
-  BLI_assert(axis.as_int() < T::type_length);
+  BLI_assume_assert(axis.as_int() < T::type_length);
   T vec{};
   vec[axis.as_int()] = 1;
   return vec;
@@ -330,7 +330,7 @@ template<typename T> T to_vector(const Axis axis)
 /** Create signed basis vector. */
 template<typename T> T to_vector(const AxisSigned axis)
 {
-  BLI_assert(abs(axis) <= AxisSigned::from_int(T::type_length - 1));
+  BLI_assume_assert(abs(axis) <= AxisSigned::from_int(T::type_length - 1));
   T vec{};
   vec[abs(axis).as_int()] = axis.is_negative() ? -1 : 1;
   return vec;
@@ -357,9 +357,9 @@ struct CartesianBasis {
    */
   CartesianBasis(const AxisSigned x, const AxisSigned y, const AxisSigned z) : axes(x, y, z)
   {
-    BLI_assert(abs(x) != abs(y));
-    BLI_assert(abs(y) != abs(z));
-    BLI_assert(abs(z) != abs(x));
+    BLI_assume_assert(abs(x) != abs(y));
+    BLI_assume_assert(abs(y) != abs(z));
+    BLI_assume_assert(abs(z) != abs(x));
   }
 
   const AxisSigned &x() const
@@ -405,7 +405,7 @@ struct CartesianBasis {
 [[nodiscard]] inline CartesianBasis from_orthonormal_axes(const AxisSigned forward,
                                                           const AxisSigned up)
 {
-  BLI_assert(math::abs(forward) != math::abs(up));
+  BLI_assume_assert(math::abs(forward) != math::abs(up));
   return {cross(forward, up), forward, up};
 }
 

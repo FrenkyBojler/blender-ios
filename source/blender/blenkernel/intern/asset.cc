@@ -101,7 +101,7 @@ static AssetTag *asset_metadata_tag_add(AssetMetaData *asset_data, const char *c
   BLI_addtail(&asset_data->tags, tag);
   asset_data->tot_tags++;
   /* Invariant! */
-  BLI_assert(BLI_listbase_count(&asset_data->tags) == asset_data->tot_tags);
+  BLI_assume_assert(BLI_listbase_count(&asset_data->tags) == asset_data->tot_tags);
 
   return tag;
 }
@@ -137,11 +137,11 @@ AssetTagEnsureResult BKE_asset_metadata_tag_ensure(AssetMetaData *asset_data, co
 
 void BKE_asset_metadata_tag_remove(AssetMetaData *asset_data, AssetTag *tag)
 {
-  BLI_assert(BLI_findindex(&asset_data->tags, tag) >= 0);
+  BLI_assume_assert(BLI_findindex(&asset_data->tags, tag) >= 0);
   BLI_freelinkN(&asset_data->tags, tag);
   asset_data->tot_tags--;
   /* Invariant! */
-  BLI_assert(BLI_listbase_count(&asset_data->tags) == asset_data->tot_tags);
+  BLI_assume_assert(BLI_listbase_count(&asset_data->tags) == asset_data->tot_tags);
 }
 
 void BKE_asset_library_reference_init_default(AssetLibraryReference *library_ref)
@@ -226,5 +226,5 @@ void BKE_asset_metadata_read(BlendDataReader *reader, AssetMetaData *asset_data)
   BLO_read_string(reader, &asset_data->license);
 
   BLO_read_struct_list(reader, AssetTag, &asset_data->tags);
-  BLI_assert(BLI_listbase_count(&asset_data->tags) == asset_data->tot_tags);
+  BLI_assume_assert(BLI_listbase_count(&asset_data->tags) == asset_data->tot_tags);
 }

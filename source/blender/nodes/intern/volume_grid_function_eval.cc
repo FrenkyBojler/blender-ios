@@ -103,7 +103,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
       grid::to_typed_grid(*grid_base, [&](const auto &grid) {
         using GridT = typename std::decay_t<decltype(grid)>;
         using ValueT = typename GridT::ValueType;
-        BLI_assert(param_cpp_type.size == sizeof(ValueT));
+        BLI_assume_assert(param_cpp_type.size == sizeof(ValueT));
         const auto &tree = grid.tree();
 
         if (const auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf)) {
@@ -186,7 +186,7 @@ BLI_NOINLINE static void process_leaf_node(const mf::MultiFunction &fn,
       auto &tree = grid.tree();
       auto *leaf_node = tree.probeLeaf(any_voxel_in_leaf);
       /* Should have been added before. */
-      BLI_assert(leaf_node);
+      BLI_assume_assert(leaf_node);
 
       /* Boolean grids are special because they encode the values as bitmask. */
       if constexpr (std::is_same_v<ValueT, bool>) {
@@ -268,7 +268,7 @@ BLI_NOINLINE static void process_voxels(const mf::MultiFunction &fn,
           const openvdb::Coord &coord = voxels[i];
           values[i] = tree.getValue(coord, accessor);
         }
-        BLI_assert(param_cpp_type.size == sizeof(ValueType));
+        BLI_assume_assert(param_cpp_type.size == sizeof(ValueType));
         params.add_readonly_single_input(GSpan(param_cpp_type, values.data(), voxels_num));
       });
     }
@@ -362,7 +362,7 @@ BLI_NOINLINE static void process_tiles(const mf::MultiFunction &fn,
           const openvdb::Coord any_coord_in_tile = tile.min();
           values[i] = tree.getValue(any_coord_in_tile, accessor);
         }
-        BLI_assert(param_cpp_type.size == sizeof(ValueType));
+        BLI_assume_assert(param_cpp_type.size == sizeof(ValueType));
         params.add_readonly_single_input(GSpan(param_cpp_type, values.data(), tiles_num));
       });
     }
@@ -435,7 +435,7 @@ BLI_NOINLINE static void process_background(const mf::MultiFunction &fn,
 #  ifndef NDEBUG
         using GridT = std::decay_t<decltype(grid)>;
         using ValueType = typename GridT::ValueType;
-        BLI_assert(param_cpp_type.size == sizeof(ValueType));
+        BLI_assume_assert(param_cpp_type.size == sizeof(ValueType));
 #  endif
         const auto &tree = grid.tree();
         params.add_readonly_single_input(GPointer(param_cpp_type, &tree.background()));

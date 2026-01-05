@@ -163,7 +163,7 @@ template<typename T, int Size>
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> mod(const VecBase<T, Size> &a, const T &b)
 {
-  BLI_assert(b != 0);
+  BLI_assume_assert(b != 0);
   VecBase<T, Size> result;
   for (int i = 0; i < Size; i++) {
     result[i] = math::mod(a[i], b);
@@ -203,7 +203,7 @@ template<typename T, int Size>
 {
   VecBase<T, Size> result;
   for (int i = 0; i < Size; i++) {
-    BLI_assert(b[i] != 0);
+    BLI_assume_assert(b[i] != 0);
     result[i] = math::floored_mod(a[i], b[i]);
   }
   return result;
@@ -212,7 +212,7 @@ template<typename T, int Size>
 template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> floored_mod(const VecBase<T, Size> &a, const T &b)
 {
-  BLI_assert(b != 0);
+  BLI_assume_assert(b != 0);
   VecBase<T, Size> result;
   for (int i = 0; i < Size; i++) {
     result[i] = math::floored_mod(a[i], b);
@@ -298,8 +298,8 @@ template<typename T, int Size>
 {
   VecBase<T, Size> result;
   for (int i = 0; i < Size; i++) {
-    BLI_assert(a[i] >= 0);
-    BLI_assert(b[i] > 0);
+    BLI_assume_assert(a[i] >= 0);
+    BLI_assume_assert(b[i] > 0);
     result[i] = ((a[i] + b[i] - 1) / b[i]) * b[i];
   }
   return result;
@@ -315,8 +315,8 @@ template<typename T, int Size>
 {
   VecBase<T, Size> result;
   for (int i = 0; i < Size; i++) {
-    BLI_assert(a[i] >= 0);
-    BLI_assert(b[i] > 0);
+    BLI_assume_assert(a[i] >= 0);
+    BLI_assume_assert(b[i] > 0);
     result[i] = (a[i] + b[i] - 1) / b[i];
   }
   return result;
@@ -486,7 +486,7 @@ template<typename T, int Size>
 [[nodiscard]] inline VecBase<T, Size> reflect(const VecBase<T, Size> &incident,
                                               const VecBase<T, Size> &normal)
 {
-  BLI_assert(is_unit_scale(normal));
+  BLI_assume_assert(is_unit_scale(normal));
   return incident - 2.0 * dot(normal, incident) * normal;
 }
 

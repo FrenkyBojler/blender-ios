@@ -2,14 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_math_quaternion.hh"
-
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 
+#include "BLI_assume.hh"
+#include "BLI_math_quaternion.hh"
 #include "BLI_array_utils.hh"
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_length_parameterize.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
@@ -60,10 +60,10 @@ static void assign_samples_to_segments(const int num_dst_points,
                                        MutableSpan<int> dst_sample_offsets)
 {
   const IndexRange src_points = src_positions.index_range();
-  BLI_assert(src_points.size() > 0);
-  BLI_assert(num_dst_points > 0);
-  BLI_assert(num_dst_points >= src_points.size());
-  BLI_assert(dst_sample_offsets.size() == src_points.size() + 1);
+  BLI_assume_assert(src_points.size() > 0);
+  BLI_assume_assert(num_dst_points > 0);
+  BLI_assume_assert(num_dst_points >= src_points.size());
+  BLI_assume_assert(dst_sample_offsets.size() == src_points.size() + 1);
 
   /* Extra points of the destination curve that need to be distributed on source segments. */
   const int num_free_samples = num_dst_points - int(src_points.size());
@@ -90,7 +90,7 @@ void sample_curve_padded(const Span<float3> positions,
                          MutableSpan<float> r_factors)
 {
   const int num_dst_points = r_indices.size();
-  BLI_assert(r_factors.size() == num_dst_points);
+  BLI_assume_assert(r_factors.size() == num_dst_points);
   const IndexRange src_points = positions.index_range();
 
   if (num_dst_points == 0) {
@@ -206,8 +206,8 @@ void sample_curve_padded(const bke::CurvesGeometry &curves,
                          MutableSpan<int> r_indices,
                          MutableSpan<float> r_factors)
 {
-  BLI_assert(curves.curves_range().contains(curve_index));
-  BLI_assert(r_indices.size() == r_factors.size());
+  BLI_assume_assert(curves.curves_range().contains(curve_index));
+  BLI_assume_assert(r_indices.size() == r_factors.size());
   const IndexRange points = curves.points_by_curve()[curve_index];
   const Span<float3> positions = curves.positions().slice(points);
 
@@ -298,7 +298,7 @@ static AttributesForInterpolation retrieve_attribute_spans(const Span<StringRef>
     else {
       const GVArray src_to_attribute = *src_to_attributes.lookup(ids[i], domain);
       /* Attribute should exist on at least one of the geometries. */
-      BLI_assert(src_to_attribute);
+      BLI_assume_assert(src_to_attribute);
 
       data_type = bke::cpp_type_to_attribute_type(src_to_attribute.type());
 
@@ -391,7 +391,7 @@ static void sample_curve_attribute(const bke::CurvesGeometry &src_curves,
                                    GMutableSpan dst_data)
 {
   const CPPType &type = src_data.type();
-  BLI_assert(dst_data.type() == type);
+  BLI_assume_assert(dst_data.type() == type);
 
   const OffsetIndices<int> src_points_by_curve = src_curves.points_by_curve();
   const OffsetIndices<int> src_evaluated_points_by_curve = src_curves.evaluated_points_by_curve();
@@ -400,8 +400,8 @@ static void sample_curve_attribute(const bke::CurvesGeometry &src_curves,
 
 #ifndef NDEBUG
   const int dst_points_num = dst_data.size();
-  BLI_assert(dst_sample_indices.size() == dst_points_num);
-  BLI_assert(dst_sample_factors.size() == dst_points_num);
+  BLI_assume_assert(dst_sample_indices.size() == dst_points_num);
+  BLI_assume_assert(dst_sample_factors.size() == dst_points_num);
 #endif
 
   bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
@@ -766,10 +766,10 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
 
 #ifndef NDEBUG
   const int dst_points_num = dst_positions.size();
-  BLI_assert(dst_handles_left.size() == dst_points_num);
-  BLI_assert(dst_handles_right.size() == dst_points_num);
-  BLI_assert(dst_sample_indices.size() == dst_points_num);
-  BLI_assert(dst_sample_factors.size() == dst_points_num);
+  BLI_assume_assert(dst_handles_left.size() == dst_points_num);
+  BLI_assume_assert(dst_handles_right.size() == dst_points_num);
+  BLI_assume_assert(dst_sample_indices.size() == dst_points_num);
+  BLI_assume_assert(dst_sample_factors.size() == dst_points_num);
 #endif
 
   dst_curve_mask.foreach_index([&](const int i_dst_curve, const int pos) {
@@ -808,7 +808,7 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
     }
     else if (src_types[i_src_curve] == CURVE_TYPE_NURBS) {
       /* NURBS take priority over Bézier, so we should never be trying to be Bézier. */
-      BLI_assert(dst_types[i_dst_curve] != CURVE_TYPE_BEZIER);
+      BLI_assume_assert(dst_types[i_dst_curve] != CURVE_TYPE_BEZIER);
 
       length_parameterize::interpolate(src_pos, dst_indices, dst_factors, dst_pos);
     }
@@ -827,8 +827,8 @@ static void sample_curve_positions_and_handles(const bke::CurvesGeometry &src_cu
                                                  dst_types_right);
     }
     else if (src_types[i_src_curve] == CURVE_TYPE_BEZIER) {
-      BLI_assert(src_handle_left);
-      BLI_assert(src_handle_right);
+      BLI_assume_assert(src_handle_left);
+      BLI_assume_assert(src_handle_right);
 
       sample_bezier_curve_positions_handles(cyclic,
                                             src_points,
@@ -1002,12 +1002,12 @@ void interpolate_curves_with_samples(const CurvesGeometry &from_curves,
                                      CurvesGeometry &dst_curves,
                                      IndexMaskMemory &memory)
 {
-  BLI_assert(from_curve_indices.size() == dst_curve_mask.size());
-  BLI_assert(to_curve_indices.size() == dst_curve_mask.size());
-  BLI_assert(from_sample_indices.size() == dst_curves.points_num());
-  BLI_assert(to_sample_indices.size() == dst_curves.points_num());
-  BLI_assert(from_sample_factors.size() == dst_curves.points_num());
-  BLI_assert(to_sample_factors.size() == dst_curves.points_num());
+  BLI_assume_assert(from_curve_indices.size() == dst_curve_mask.size());
+  BLI_assume_assert(to_curve_indices.size() == dst_curve_mask.size());
+  BLI_assume_assert(from_sample_indices.size() == dst_curves.points_num());
+  BLI_assume_assert(to_sample_indices.size() == dst_curves.points_num());
+  BLI_assume_assert(from_sample_factors.size() == dst_curves.points_num());
+  BLI_assume_assert(to_sample_factors.size() == dst_curves.points_num());
 
   if (from_curves.is_empty() || to_curves.is_empty()) {
     return;

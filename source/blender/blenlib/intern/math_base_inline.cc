@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_math_inline.h"
 #include "BLI_sys_types.h"
 
@@ -460,7 +460,7 @@ MINLINE int compare_ff(float a, float b, const float max_diff)
 
 MINLINE uint ulp_diff_ff(float a, float b)
 {
-  BLI_assert(sizeof(float) == sizeof(uint));
+  BLI_assume_assert(sizeof(float) == sizeof(uint));
 
   const uint sign_bit = 0x80000000;
   const uint infinity = 0x7f800000;
@@ -491,7 +491,7 @@ MINLINE uint ulp_diff_ff(float a, float b)
 
 MINLINE int compare_ff_relative(float a, float b, const float max_diff, const int max_ulps)
 {
-  BLI_assert(max_ulps >= 0 && max_ulps < (1 << 22));
+  BLI_assume_assert(max_ulps >= 0 && max_ulps < (1 << 22));
 
   if (fabsf(a - b) <= max_diff) {
     return 1;

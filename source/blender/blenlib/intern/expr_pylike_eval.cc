@@ -600,7 +600,7 @@ static bool parse_add_func(ExprParseState *state,
     parse_add_op(state, OPCODE_FUNC3, -2)->arg.func3 = func;
   }
   else {
-    BLI_assert(false);
+    BLI_assume_assert(false);
     return false;
   }
 
@@ -1053,7 +1053,7 @@ ExprPyLike_Parsed *BLI_expr_pylike_parse(const char *expression,
   ExprPyLike_Parsed *expr = MEM_new<ExprPyLike_Parsed>("ExprPyLike_Parsed(empty)");
 
   if (parse_next_token(&state) && parse_expr(&state) && state.token == 0) {
-    BLI_assert(state.stack_ptr == 1);
+    BLI_assume_assert(state.stack_ptr == 1);
 
     expr->max_stack = state.max_stack;
     expr->ops = std::move(state.ops);

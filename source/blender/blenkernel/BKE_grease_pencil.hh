@@ -1058,12 +1058,12 @@ inline const blender::bke::greasepencil::LayerGroup &GreasePencilLayerTreeGroup:
 
 inline const GreasePencilDrawingBase *GreasePencil::drawing(const int64_t index) const
 {
-  BLI_assert(index >= 0 && index < this->drawings().size());
+  BLI_assume_assert(index >= 0 && index < this->drawings().size());
   return this->drawings()[index];
 }
 inline GreasePencilDrawingBase *GreasePencil::drawing(const int64_t index)
 {
-  BLI_assert(index >= 0 && index < this->drawings().size());
+  BLI_assume_assert(index >= 0 && index < this->drawings().size());
   return this->drawings()[index];
 }
 

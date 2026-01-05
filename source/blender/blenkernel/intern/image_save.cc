@@ -1201,7 +1201,7 @@ bool BKE_image_render_write(ReportList *reports,
     }
   }
   else { /* R_IMF_VIEWS_STEREO_3D */
-    BLI_assert(image_format.views_format == R_IMF_VIEWS_STEREO_3D);
+    BLI_assume_assert(image_format.views_format == R_IMF_VIEWS_STEREO_3D);
 
     char filepath[FILE_MAX];
     STRNCPY(filepath, filepath_basis);

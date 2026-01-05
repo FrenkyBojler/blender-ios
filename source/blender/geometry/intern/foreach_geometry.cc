@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_assume.hh"
+
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 
@@ -52,12 +54,12 @@ static void reinsert_modified_geometry_recursive(bke::GeometrySet &geometry,
     return;
   }
   bke::Instances *instances = geometry.get_instances_for_write();
-  BLI_assert(instances);
+  BLI_assume_assert(instances);
   const int reference_i = path.first();
   const MutableSpan<bke::InstanceReference> references = instances->references_for_write();
-  BLI_assert(reference_i < references.size());
+  BLI_assume_assert(reference_i < references.size());
   bke::InstanceReference &reference = references[reference_i];
-  BLI_assert(reference.type() == bke::InstanceReference::Type::GeometrySet);
+  BLI_assume_assert(reference.type() == bke::InstanceReference::Type::GeometrySet);
   bke::GeometrySet &sub_geometry = reference.geometry_set();
   reinsert_modified_geometry_recursive(sub_geometry, geometry_to_insert, path.drop_front(1));
 }

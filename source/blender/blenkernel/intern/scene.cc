@@ -436,7 +436,7 @@ static void scene_free_data(ID *id)
   }
 
   /* These are freed on `do_versions`. */
-  BLI_assert(scene->layer_properties == nullptr);
+  BLI_assume_assert(scene->layer_properties == nullptr);
 
   MEM_delete(scene->runtime);
 }
@@ -484,7 +484,7 @@ static void scene_foreach_toolsettings_id_pointer_process(
         break;
       }
       if (id_old_new != nullptr) {
-        BLI_assert(id_old == id_old_new->orig_id);
+        BLI_assume_assert(id_old == id_old_new->orig_id);
         *id_old_p = id_old_new;
         if (cb_flag & IDWALK_CB_USER) {
           id_us_plus_no_lib(id_old_new);
@@ -564,7 +564,7 @@ static void scene_foreach_paint(LibraryForeachIDData *data,
    *
    * This function should never be called in case the old toolsettings do not have the relevant
    * `paint_old` data. */
-  BLI_assert(paint_old != nullptr);
+  BLI_assume_assert(paint_old != nullptr);
 
   Brush *brush_tmp = nullptr;
   Brush **brush_p = paint ? &paint->brush : &brush_tmp;
@@ -608,7 +608,7 @@ static void scene_foreach_toolsettings(LibraryForeachIDData *data,
    *
    * In undo_preserve case, both pointers may be different (see #lib_link_all for why they may be
    * the same in some cases). */
-  BLI_assert(do_undo_restore || (toolsett == toolsett_old));
+  BLI_assume_assert(do_undo_restore || (toolsett == toolsett_old));
   BLI_assert(!ELEM(nullptr, toolsett, toolsett_old));
 
   /* NOTE: In 'undo_preserve' case, the 'old' data is the source of truth here, since it is the one
@@ -771,7 +771,7 @@ static void scene_foreach_layer_collection(LibraryForeachIDData *data,
 
   for (LayerCollection &lc : *lb) {
     if ((data_flags & IDWALK_NO_ORIG_POINTERS_ACCESS) == 0 && lc.collection != nullptr) {
-      BLI_assert(is_master == ((lc.collection->id.flag & ID_FLAG_EMBEDDED_DATA) != 0));
+      BLI_assume_assert(is_master == ((lc.collection->id.flag & ID_FLAG_EMBEDDED_DATA) != 0));
     }
     const LibraryForeachIDCallbackFlag cb_flag = is_master ? IDWALK_CB_EMBEDDED_NOT_OWNING :
                                                              IDWALK_CB_NOP;
@@ -1277,7 +1277,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   BKE_screen_view3d_shading_blend_write(writer, &sce->display.shading);
 
   /* Freed on `do_versions()`. */
-  BLI_assert(sce->layer_properties == nullptr);
+  BLI_assume_assert(sce->layer_properties == nullptr);
 }
 
 static void direct_link_paint_helper(BlendDataReader *reader, const Scene *scene, Paint **paint)
@@ -1938,7 +1938,7 @@ Scene *BKE_scene_duplicate(Main *bmain,
         BKE_id_copy_for_duplicate(bmain, (ID *)sce, duplicate_flags, copy_flags));
   }
   else {
-    BLI_assert(sce->id.newid == nullptr);
+    BLI_assume_assert(sce->id.newid == nullptr);
     sce_copy = blender::id_cast<Scene *>(BKE_id_copy(bmain, (ID *)sce));
     id_us_min(&sce_copy->id);
     /* Usages of the duplicated scene also need to be remapped in new duplicated IDs. */
@@ -2073,7 +2073,7 @@ Scene *BKE_scene_find_replacement(const Main &bmain,
                                   blender::FunctionRef<bool(const Scene &scene)> scene_validate_cb)
 {
   UNUSED_VARS_NDEBUG(bmain);
-  BLI_assert(BLI_findindex(&bmain.scenes, &scene) >= 0);
+  BLI_assume_assert(BLI_findindex(&bmain.scenes, &scene) >= 0);
 
   /* Simply return a closest neighbor scene, unless a validate callback is provided and it rejects
    * the iterated scene. */
@@ -2422,8 +2422,8 @@ float BKE_scene_frame_snap_by_seconds(const Scene *scene,
                                       const double interval_in_seconds,
                                       const float frame)
 {
-  BLI_assert(interval_in_seconds > 0);
-  BLI_assert(scene->frames_per_second() > 0);
+  BLI_assume_assert(interval_in_seconds > 0);
+  BLI_assume_assert(scene->frames_per_second() > 0);
 
   const double interval_in_frames = scene->frames_per_second() * interval_in_seconds;
   const double second_prev = interval_in_frames * floor(frame / interval_in_frames);
@@ -2507,7 +2507,7 @@ TransformOrientationSlot *BKE_scene_orientation_slot_get(Scene *scene, int slot_
 
 TransformOrientationSlot *BKE_scene_orientation_slot_get_from_flag(Scene *scene, int flag)
 {
-  BLI_assert(flag && !(flag & ~(V3D_GIZMO_SHOW_OBJECT_TRANSLATE | V3D_GIZMO_SHOW_OBJECT_ROTATE |
+  BLI_assume_assert(flag && !(flag & ~(V3D_GIZMO_SHOW_OBJECT_TRANSLATE | V3D_GIZMO_SHOW_OBJECT_ROTATE |
                                 V3D_GIZMO_SHOW_OBJECT_SCALE)));
   int slot_index = SCE_ORIENT_DEFAULT;
   if (flag & V3D_GIZMO_SHOW_OBJECT_TRANSLATE) {
@@ -2635,7 +2635,7 @@ void BKE_scene_update_sound(Depsgraph *depsgraph, Main *bmain)
 
 void BKE_scene_update_tag_audio_volume(Depsgraph * /*depsgraph*/, Scene *scene)
 {
-  BLI_assert(DEG_is_evaluated(scene));
+  BLI_assume_assert(DEG_is_evaluated(scene));
   /* The volume is actually updated in BKE_scene_update_sound(), from either
    * scene_graph_update_tagged() or from BKE_scene_graph_update_for_newframe(). */
   scene->id.recalc |= ID_RECALC_AUDIO_VOLUME;
@@ -3276,7 +3276,7 @@ void BKE_scene_multiview_view_prefix_get(Scene *scene,
   if (*r_ext == nullptr) {
     return;
   }
-  BLI_assert(basename_len > 0);
+  BLI_assume_assert(basename_len > 0);
 
   /* Split base name into prefix and known suffix. */
   for (SceneRenderView &srv : scene->r.views) {
@@ -3421,9 +3421,9 @@ static Depsgraph **scene_get_depsgraph_p(Scene *scene,
                                          const bool allocate_ghash_entry)
 {
   /* bmain may be nullptr here! */
-  BLI_assert(scene != nullptr);
-  BLI_assert(view_layer != nullptr);
-  BLI_assert(BKE_scene_has_view_layer(scene, view_layer));
+  BLI_assume_assert(scene != nullptr);
+  BLI_assume_assert(view_layer != nullptr);
+  BLI_assume_assert(BKE_scene_has_view_layer(scene, view_layer));
 
   /* Make sure hash itself exists. */
   if (allocate_ghash_entry) {
@@ -3445,7 +3445,7 @@ static Depsgraph **scene_get_depsgraph_p(Scene *scene,
 
 static Depsgraph **scene_ensure_depsgraph_p(Main *bmain, Scene *scene, ViewLayer *view_layer)
 {
-  BLI_assert(bmain != nullptr);
+  BLI_assume_assert(bmain != nullptr);
 
   Depsgraph **depsgraph_ptr = scene_get_depsgraph_p(scene, view_layer, true);
   if (depsgraph_ptr == nullptr) {
@@ -3477,7 +3477,7 @@ static Depsgraph **scene_ensure_depsgraph_p(Main *bmain, Scene *scene, ViewLayer
 
 Depsgraph *BKE_scene_get_depsgraph(const Scene *scene, const ViewLayer *view_layer)
 {
-  BLI_assert(BKE_scene_has_view_layer(scene, view_layer));
+  BLI_assume_assert(BKE_scene_has_view_layer(scene, view_layer));
 
   if (scene->depsgraph_hash == nullptr) {
     return nullptr;
@@ -3506,7 +3506,7 @@ static char *scene_undo_depsgraph_gen_key(Scene *scene, ViewLayer *view_layer, c
         key_full + key_full_offset, scene->id.lib->filepath, FILE_MAX);
   }
   key_full_offset += BLI_strncpy_rlen(key_full + key_full_offset, view_layer->name, MAX_NAME);
-  BLI_assert(key_full_offset < MAX_ID_NAME + FILE_MAX + MAX_NAME);
+  BLI_assume_assert(key_full_offset < MAX_ID_NAME + FILE_MAX + MAX_NAME);
 
   return key_full;
 }
@@ -3555,7 +3555,7 @@ void BKE_scene_undo_depsgraphs_restore(Main *bmain, GHash *depsgraph_extract)
       BLI_assert(*depsgraph_extract_ptr != nullptr);
 
       Depsgraph **depsgraph_scene_ptr = scene_get_depsgraph_p(&scene, &view_layer, true);
-      BLI_assert(depsgraph_scene_ptr != nullptr);
+      BLI_assume_assert(depsgraph_scene_ptr != nullptr);
       BLI_assert(*depsgraph_scene_ptr == nullptr);
 
       /* We steal the depsgraph back from our 'extract' storage to the scene. */
@@ -3589,7 +3589,7 @@ void BKE_scene_transform_orientation_remove(Scene *scene, TransformOrientation *
       orient_slot->index_custom = -1;
     }
     else if (orient_slot->index_custom > orientation_index) {
-      BLI_assert(orient_slot->type == V3D_ORIENT_CUSTOM);
+      BLI_assume_assert(orient_slot->type == V3D_ORIENT_CUSTOM);
       orient_slot->index_custom--;
     }
   }

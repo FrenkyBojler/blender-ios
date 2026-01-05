@@ -41,11 +41,11 @@ static int get_bevlist_seg_array_size(const BevList *bl)
 
 int BKE_anim_path_get_array_size(const CurveCache *curve_cache)
 {
-  BLI_assert(curve_cache != nullptr);
+  BLI_assume_assert(curve_cache != nullptr);
 
   BevList *bl = static_cast<BevList *>(curve_cache->bev.first);
 
-  BLI_assert(bl != nullptr && bl->nr > 1);
+  BLI_assume_assert(bl != nullptr && bl->nr > 1);
 
   return get_bevlist_seg_array_size(bl);
 }
@@ -109,9 +109,9 @@ static void get_curve_points_from_idx(const int idx,
                                       BevPoint const **r_p2,
                                       BevPoint const **r_p3)
 {
-  BLI_assert(idx >= 0);
-  BLI_assert(idx < bl->nr - 1 || (is_cyclic && idx < bl->nr));
-  BLI_assert(bl->nr > 1);
+  BLI_assume_assert(idx >= 0);
+  BLI_assume_assert(idx < bl->nr - 1 || (is_cyclic && idx < bl->nr));
+  BLI_assume_assert(bl->nr > 1);
 
   const BevPoint *bp_arr = bl->bevpoints;
 
@@ -193,7 +193,7 @@ static bool binary_search_anim_path(const float *accum_len_arr,
   }
 
   while (true) {
-    BLI_assert(cur_idx + 1 < seg_size);
+    BLI_assume_assert(cur_idx + 1 < seg_size);
     cur_idx = cur_base + cur_step / 2;
     left_len = accum_len_arr[cur_idx];
     right_len = accum_len_arr[cur_idx + 1];

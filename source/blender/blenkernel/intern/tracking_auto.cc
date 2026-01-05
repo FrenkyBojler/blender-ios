@@ -357,8 +357,8 @@ static void autotrack_context_init_clips(AutoTrackContext *context,
  * NOTE: Clips should be initialized first. */
 static void autotrack_context_init_tracks_for_clip(AutoTrackContext *context, int clip_index)
 {
-  BLI_assert(clip_index >= 0);
-  BLI_assert(clip_index < context->num_clips);
+  BLI_assume_assert(clip_index >= 0);
+  BLI_assume_assert(clip_index < context->num_clips);
 
   const AutoTrackClip *autotrack_clip = &context->autotrack_clips[clip_index];
   MovieClip *clip = autotrack_clip->clip;
@@ -389,7 +389,7 @@ static void autotrack_context_init_tracks_for_clip(AutoTrackContext *context, in
  * NOTE: Clips should be initialized first. */
 static void autotrack_context_init_tracks(AutoTrackContext *context)
 {
-  BLI_assert(context->num_clips >= 1);
+  BLI_assume_assert(context->num_clips >= 1);
 
   for (int clip_index = 0; clip_index < context->num_clips; ++clip_index) {
     autotrack_context_init_tracks_for_clip(context, clip_index);
@@ -399,7 +399,7 @@ static void autotrack_context_init_tracks(AutoTrackContext *context)
 /* NOTE: Clips should be initialized first. */
 static void autotrack_context_init_image_accessor(AutoTrackContext *context)
 {
-  BLI_assert(context->num_clips >= 1);
+  BLI_assume_assert(context->num_clips >= 1);
 
   /* Planarize arrays of clips and tracks, storing pointers to their base "objects".
    * This allows image accessor to be independent, but adds some overhead here. Could be solved
@@ -667,7 +667,7 @@ static void autotrack_context_step_cb(void *__restrict userdata,
                              &libmv_reference_marker);
   }
   else {
-    BLI_assert(track.pattern_match == TRACK_MATCH_PREVIOUS_FRAME);
+    BLI_assume_assert(track.pattern_match == TRACK_MATCH_PREVIOUS_FRAME);
     autotrack_result->libmv_marker.reference_frame = libmv_current_marker.frame;
     libmv_reference_marker = libmv_current_marker;
   }
@@ -794,7 +794,7 @@ void BKE_autotrack_context_sync(AutoTrackContext *context)
     if (marker.framenr == first_result_frame) {
       MovieTrackingMarker *prev_marker = BKE_tracking_marker_get_exact(
           track, marker.framenr - frame_delta);
-      BLI_assert(prev_marker != nullptr);
+      BLI_assume_assert(prev_marker != nullptr);
 
       tracking_marker_insert_disabled(track, prev_marker, !context->is_backwards, false);
     }

@@ -13,6 +13,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_pointcloud.hh"
 
+#include "BLI_assume.hh"
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_multi_value_map.hh"
@@ -317,7 +318,7 @@ static void copy_and_reorder_instaces(const bke::Instances &src_instances,
   for (const bke::InstanceReference &reference : src_instances.references()) {
     dst_instances.add_reference(reference);
   }
-  BLI_assert(src_instances.references() == dst_instances.references());
+  BLI_assume_assert(src_instances.references() == dst_instances.references());
 
   const Span<float4x4> old_transforms = src_instances.transforms();
   MutableSpan<float4x4> new_transforms = dst_instances.transforms_for_write();

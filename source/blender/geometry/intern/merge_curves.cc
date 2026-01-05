@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_assume.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_stack.hh"
 
@@ -98,7 +99,7 @@ static Vector<int> toposort_connected_curves(const Span<int> connect_to_curve)
     }
   }
 
-  BLI_assert(sorted_curves.size() == range.size());
+  BLI_assume_assert(sorted_curves.size() == range.size());
   return sorted_curves;
 }
 
@@ -289,7 +290,7 @@ bke::CurvesGeometry curves_merge_endpoints(const bke::CurvesGeometry &src_curves
                                            Span<bool> flip_direction,
                                            const bke::AttributeFilter & /*attribute_filter*/)
 {
-  BLI_assert(connect_to_curve.size() == src_curves.curves_num());
+  BLI_assume_assert(connect_to_curve.size() == src_curves.curves_num());
   const VArraySpan<bool> src_cyclic = src_curves.cyclic();
 
   Vector<int> old_by_new_map = toposort_connected_curves(connect_to_curve);

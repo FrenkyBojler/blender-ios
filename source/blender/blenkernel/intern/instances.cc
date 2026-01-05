@@ -203,8 +203,8 @@ void Instances::resize(int capacity)
 
 void Instances::add_instance(const int instance_handle, const float4x4 &transform)
 {
-  BLI_assert(instance_handle >= 0);
-  BLI_assert(instance_handle < references_.size());
+  BLI_assume_assert(instance_handle >= 0);
+  BLI_assume_assert(instance_handle < references_.size());
   instances_num_++;
   attributes_.resize(AttrDomain::Instance, instances_num_);
   this->reference_handles_for_write().last() = instance_handle;
@@ -242,7 +242,7 @@ GeometrySet &Instances::geometry_set_from_reference(const int reference_index)
 {
   /* If this assert fails, it means #ensure_geometry_instances must be called first or that the
    * reference can't be converted to a geometry set. */
-  BLI_assert(references_[reference_index].type() == InstanceReference::Type::GeometrySet);
+  BLI_assume_assert(references_[reference_index].type() == InstanceReference::Type::GeometrySet);
 
   return references_[reference_index].geometry_set();
 }
@@ -336,7 +336,7 @@ void Instances::remove_unused_references()
 
     for (const int i : range) {
       const int handle = reference_handles[i];
-      BLI_assert(handle >= 0 && handle < tot_references_before);
+      BLI_assume_assert(handle >= 0 && handle < tot_references_before);
       local_usage_by_handle[handle] = true;
     }
 

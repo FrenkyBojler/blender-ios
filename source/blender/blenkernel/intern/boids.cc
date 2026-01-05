@@ -341,7 +341,7 @@ static bool rule_avoid_collision(BoidRule *rule,
     ParticleSystem *epsys = psys_get_target_system(bbd->sim->ob, &pt);
 
     if (epsys) {
-      BLI_assert(epsys->tree != nullptr);
+      BLI_assume_assert(epsys->tree != nullptr);
       neighbors = blender::kdtree_3d_range_search_with_len_squared_cb(
           epsys->tree,
           pa->prev_state.co,
@@ -490,7 +490,7 @@ static bool rule_follow_leader(BoidRule *rule,
   float vec[3] = {0.0f, 0.0f, 0.0f}, loc[3] = {0.0f, 0.0f, 0.0f};
   float mul, len;
   const int n = (flbr->queue_size <= 1) ? bbd->sim->psys->totpart : flbr->queue_size;
-  BLI_assert(ARRAY_HAS_ITEM(pa, bbd->sim->psys->particles, bbd->sim->psys->totpart));
+  BLI_assume_assert(ARRAY_HAS_ITEM(pa, bbd->sim->psys->particles, bbd->sim->psys->totpart));
   const int p = int(pa - bbd->sim->psys->particles);
   int i;
   bool ret = false;

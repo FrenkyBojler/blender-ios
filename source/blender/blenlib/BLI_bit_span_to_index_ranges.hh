@@ -35,7 +35,7 @@ inline void bits_to_index_ranges(const BitSpan bits, IndexRangesBuilder<IntT> &b
   UNUSED_VARS_NDEBUG(max_index);
 
   auto append_range = [&](const IndexRange range) {
-    BLI_assert(range.last() <= max_index);
+    BLI_assume_assert(range.last() <= max_index);
     builder.add_range(IntT(range.start()), IntT(range.one_after_last()));
   };
 

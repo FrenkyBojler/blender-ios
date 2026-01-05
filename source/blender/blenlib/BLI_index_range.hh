@@ -40,7 +40,7 @@
 #include <algorithm>
 #include <iosfwd>
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_random_access_iterator_mixin.hh"
 
 namespace blender {
@@ -57,13 +57,13 @@ class IndexRange {
 
   constexpr explicit IndexRange(int64_t size) : size_(size)
   {
-    BLI_assert(size >= 0);
+    BLI_assume_assert(size >= 0);
   }
 
   constexpr IndexRange(const int64_t start, const int64_t size) : start_(start), size_(size)
   {
-    BLI_assert(start >= 0);
-    BLI_assert(size >= 0);
+    BLI_assume_assert(start >= 0);
+    BLI_assume_assert(size >= 0);
   }
 
   constexpr static IndexRange from_begin_size(const int64_t begin, const int64_t size)
@@ -129,8 +129,8 @@ class IndexRange {
    */
   constexpr int64_t operator[](int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < this->size());
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < this->size());
     return start_ + index;
   }
 
@@ -180,7 +180,7 @@ class IndexRange {
    */
   constexpr IndexRange after(int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     return IndexRange(start_ + size_, n);
   }
 
@@ -189,7 +189,7 @@ class IndexRange {
    */
   constexpr IndexRange before(int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     return IndexRange(start_ - n, n);
   }
 
@@ -199,7 +199,7 @@ class IndexRange {
    */
   constexpr int64_t first() const
   {
-    BLI_assert(this->size() > 0);
+    BLI_assume_assert(this->size() > 0);
     return start_;
   }
 
@@ -209,9 +209,9 @@ class IndexRange {
    */
   constexpr int64_t last(const int64_t n = 0) const
   {
-    BLI_assert(n >= 0);
-    BLI_assert(n < size_);
-    BLI_assert(this->size() > 0);
+    BLI_assume_assert(n >= 0);
+    BLI_assume_assert(n < size_);
+    BLI_assume_assert(this->size() > 0);
     return start_ + size_ - 1 - n;
   }
 
@@ -221,7 +221,7 @@ class IndexRange {
    */
   constexpr int64_t one_before_start() const
   {
-    BLI_assert(start_ > 0);
+    BLI_assume_assert(start_ > 0);
     return start_ - 1;
   }
 
@@ -271,10 +271,10 @@ class IndexRange {
    */
   constexpr IndexRange slice(int64_t start, int64_t size) const
   {
-    BLI_assert(start >= 0);
-    BLI_assert(size >= 0);
+    BLI_assume_assert(start >= 0);
+    BLI_assume_assert(size >= 0);
     int64_t new_start = start_ + start;
-    BLI_assert(new_start + size <= start_ + size_ || size == 0);
+    BLI_assume_assert(new_start + size <= start_ + size_ || size == 0);
     return IndexRange(new_start, size);
   }
   constexpr IndexRange slice(IndexRange range) const
@@ -301,7 +301,7 @@ class IndexRange {
    */
   constexpr IndexRange drop_front(int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::max<int64_t>(0, size_ - n);
     return IndexRange(start_ + n, new_size);
   }
@@ -312,7 +312,7 @@ class IndexRange {
    */
   constexpr IndexRange drop_back(int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::max<int64_t>(0, size_ - n);
     return IndexRange(start_, new_size);
   }
@@ -323,7 +323,7 @@ class IndexRange {
    */
   constexpr IndexRange take_front(int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::min<int64_t>(size_, n);
     return IndexRange(start_, new_size);
   }
@@ -334,7 +334,7 @@ class IndexRange {
    */
   constexpr IndexRange take_back(int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::min<int64_t>(size_, n);
     return IndexRange(start_ + size_ - new_size, new_size);
   }

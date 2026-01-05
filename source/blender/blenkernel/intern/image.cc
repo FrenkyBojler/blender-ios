@@ -331,7 +331,7 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   ImagePackedFile *imapf;
 
-  BLI_assert(ima->packedfile == nullptr);
+  BLI_assume_assert(ima->packedfile == nullptr);
   if (!is_undo) {
     /* Do not store packed files in case this is a library override ID. */
     if (ID_IS_OVERRIDE_LIBRARY(ima)) {
@@ -793,7 +793,7 @@ bool BKE_image_has_opengl_texture(Image *ima)
 
 static int image_get_tile_number_from_iuser(const Image *ima, const ImageUser *iuser)
 {
-  BLI_assert(ima != nullptr && ima->tiles.first);
+  BLI_assume_assert(ima != nullptr && ima->tiles.first);
   ImageTile *tile = static_cast<ImageTile *>(ima->tiles.first);
   return (iuser && iuser->tile) ? iuser->tile : tile->tile_number;
 }
@@ -1334,7 +1334,7 @@ Image *BKE_image_add_from_imbuf(Main *bmain, ImBuf *ibuf, const char *name)
 
 void BKE_image_replace_imbuf(Image *image, ImBuf *ibuf)
 {
-  BLI_assert(image->type == IMA_TYPE_IMAGE &&
+  BLI_assume_assert(image->type == IMA_TYPE_IMAGE &&
              ELEM(image->source, IMA_SRC_FILE, IMA_SRC_GENERATED));
 
   BKE_image_free_buffers(image);
@@ -3957,7 +3957,7 @@ static void image_init_after_load(Image *ima, ImageUser *iuser, ImBuf * /*ibuf*/
   ImageTile *tile = BKE_image_get_tile_from_iuser(ima, iuser);
   /* Images should never get loaded if the corresponding tile does not exist,
    * but we should at least not crash if it happens due to a bug elsewhere. */
-  BLI_assert(tile != nullptr);
+  BLI_assume_assert(tile != nullptr);
   UNUSED_VARS_NDEBUG(tile);
 }
 
@@ -4269,7 +4269,7 @@ static ImBuf *image_load_image_file(
   }
   else {
     const int totviews = BLI_listbase_count(&ima->views);
-    BLI_assert(totviews > 0);
+    BLI_assume_assert(totviews > 0);
 
     Array<ImBuf *> ibuf_arr(totviews);
     Array<bool> cache_ibuf_arr(totviews);
@@ -4776,7 +4776,7 @@ ImBuf *BKE_image_acquire_multilayer_view_ibuf(const RenderData &render_data,
   IMB_freeImBuf(tmp_ibuf);
 
   if (BKE_image_is_multilayer(&image)) {
-    BLI_assert(pass_name);
+    BLI_assume_assert(pass_name);
 
     if (!image.rr) {
       return nullptr;

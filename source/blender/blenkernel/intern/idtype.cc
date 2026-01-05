@@ -49,7 +49,7 @@ static void id_type_init()
 
 #define INIT_TYPE(_id_code) \
   { \
-    BLI_assert(IDType_##_id_code.main_listbase_index == INDEX_##_id_code); \
+    BLI_assume_assert(IDType_##_id_code.main_listbase_index == INDEX_##_id_code); \
     id_types[INDEX_##_id_code] = &IDType_##_id_code; \
     init_types_num++; \
   } \
@@ -96,7 +96,7 @@ static void id_type_init()
   INIT_TYPE(ID_GP);
 
   /* Special case. */
-  BLI_assert(IDType_ID_LINK_PLACEHOLDER.main_listbase_index == INDEX_ID_NULL);
+  BLI_assume_assert(IDType_ID_LINK_PLACEHOLDER.main_listbase_index == INDEX_ID_NULL);
   id_types[INDEX_ID_NULL] = &IDType_ID_LINK_PLACEHOLDER;
   init_types_num++;
 
@@ -164,28 +164,28 @@ static const IDTypeInfo *idtype_get_info_from_name(const char *idtype_name)
 const char *BKE_idtype_idcode_to_name(const short idcode)
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_idcode(idcode);
-  BLI_assert(id_type != nullptr);
+  BLI_assume_assert(id_type != nullptr);
   return id_type != nullptr ? id_type->name : nullptr;
 }
 
 const char *BKE_idtype_idcode_to_name_plural(const short idcode)
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_idcode(idcode);
-  BLI_assert(id_type != nullptr);
+  BLI_assume_assert(id_type != nullptr);
   return id_type != nullptr ? id_type->name_plural : nullptr;
 }
 
 const char *BKE_idtype_idcode_to_translation_context(const short idcode)
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_idcode(idcode);
-  BLI_assert(id_type != nullptr);
+  BLI_assume_assert(id_type != nullptr);
   return id_type != nullptr ? id_type->translation_context : BLT_I18NCONTEXT_DEFAULT;
 }
 
 short BKE_idtype_idcode_from_name(const char *idtype_name)
 {
   const IDTypeInfo *id_type = idtype_get_info_from_name(idtype_name);
-  BLI_assert(id_type);
+  BLI_assume_assert(id_type);
   return id_type != nullptr ? id_type->id_code : 0;
 }
 
@@ -197,14 +197,14 @@ bool BKE_idtype_idcode_is_valid(const short idcode)
 bool BKE_idtype_idcode_is_linkable(const short idcode)
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_idcode(idcode);
-  BLI_assert(id_type != nullptr);
+  BLI_assume_assert(id_type != nullptr);
   return id_type != nullptr ? (id_type->flags & IDTYPE_FLAGS_NO_LIBLINKING) == 0 : false;
 }
 
 bool BKE_idtype_idcode_is_only_appendable(const short idcode)
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_idcode(idcode);
-  BLI_assert(id_type != nullptr);
+  BLI_assume_assert(id_type != nullptr);
   if (id_type != nullptr && (id_type->flags & IDTYPE_FLAGS_ONLY_APPEND) != 0) {
     /* Only appendable ID types should also always be linkable. */
     BLI_assert((id_type->flags & IDTYPE_FLAGS_NO_LIBLINKING) == 0);
@@ -216,7 +216,7 @@ bool BKE_idtype_idcode_is_only_appendable(const short idcode)
 bool BKE_idtype_idcode_append_is_reusable(const short idcode)
 {
   const IDTypeInfo *id_type = BKE_idtype_get_info_from_idcode(idcode);
-  BLI_assert(id_type != nullptr);
+  BLI_assume_assert(id_type != nullptr);
   if (id_type != nullptr && (id_type->flags & IDTYPE_FLAGS_APPEND_IS_REUSABLE) != 0) {
     /* All appendable ID types should also always be linkable. */
     BLI_assert((id_type->flags & IDTYPE_FLAGS_NO_LIBLINKING) == 0);

@@ -19,6 +19,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_assume.hh"
 #include "BLI_asan.h"
 #include "BLI_memarena.h"
 #include "BLI_utildefines.h"
@@ -162,10 +163,10 @@ void *BLI_memarena_calloc(MemArena *ma, size_t size)
   void *ptr;
 
   /* No need to use this function call if we're calloc'ing by default. */
-  BLI_assert(ma->use_calloc == false);
+  BLI_assume_assert(ma->use_calloc == false);
 
   ptr = BLI_memarena_alloc(ma, size);
-  BLI_assert(ptr != nullptr);
+  BLI_assume_assert(ptr != nullptr);
   memset(ptr, 0, size);
 
   return ptr;
@@ -174,17 +175,17 @@ void *BLI_memarena_calloc(MemArena *ma, size_t size)
 void BLI_memarena_merge(MemArena *ma_dst, MemArena *ma_src)
 {
   /* Memory arenas must be compatible. */
-  BLI_assert(ma_dst != ma_src);
-  BLI_assert(ma_dst->align == ma_src->align);
-  BLI_assert(ma_dst->use_calloc == ma_src->use_calloc);
-  BLI_assert(ma_dst->bufsize == ma_src->bufsize);
+  BLI_assume_assert(ma_dst != ma_src);
+  BLI_assume_assert(ma_dst->align == ma_src->align);
+  BLI_assume_assert(ma_dst->use_calloc == ma_src->use_calloc);
+  BLI_assume_assert(ma_dst->bufsize == ma_src->bufsize);
 
   if (ma_src->bufs == nullptr) {
     return;
   }
 
   if (UNLIKELY(ma_dst->bufs == nullptr)) {
-    BLI_assert(ma_dst->curbuf == nullptr);
+    BLI_assume_assert(ma_dst->curbuf == nullptr);
     ma_dst->bufs = ma_src->bufs;
     ma_dst->curbuf = ma_src->curbuf;
     ma_dst->cursize = ma_src->cursize;

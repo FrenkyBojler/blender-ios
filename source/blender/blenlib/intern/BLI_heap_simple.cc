@@ -17,9 +17,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_assume.hh"
 #include "BLI_heap_simple.h"
 #include "BLI_utildefines.h"
-
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 #define HEAP_PARENT(i) (((i) - 1) >> 1)
@@ -197,14 +197,14 @@ uint BLI_heapsimple_len(const HeapSimple *heap)
 
 float BLI_heapsimple_top_value(const HeapSimple *heap)
 {
-  BLI_assert(heap->size != 0);
+  BLI_assume_assert(heap->size != 0);
 
   return heap->tree[0].value;
 }
 
 void *BLI_heapsimple_pop_min(HeapSimple *heap)
 {
-  BLI_assert(heap->size != 0);
+  BLI_assume_assert(heap->size != 0);
 
   void *ptr = heap->tree[0].ptr;
 

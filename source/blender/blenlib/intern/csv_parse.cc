@@ -9,6 +9,7 @@
 #include "BLI_csv_parse.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_task.hh"
+#include "BLI_assume.hh"
 
 #include <atomic>
 
@@ -160,7 +161,7 @@ std::optional<Vector<Any<>>> parse_csv_in_chunks(
   /* Prepare the return value. */
   Vector<Any<>> results;
   for (std::optional<Any<>> &result : chunk_results) {
-    BLI_assert(result.has_value());
+    BLI_assume_assert(result.has_value());
     results.append(std::move(result.value()));
   }
   return results;

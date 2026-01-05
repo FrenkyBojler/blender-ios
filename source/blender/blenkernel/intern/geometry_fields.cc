@@ -24,13 +24,13 @@ namespace blender::bke {
 MeshFieldContext::MeshFieldContext(const Mesh &mesh, const AttrDomain domain)
     : mesh_(mesh), domain_(domain)
 {
-  BLI_assert(mesh.attributes().domain_supported(domain_));
+  BLI_assume_assert(mesh.attributes().domain_supported(domain_));
 }
 
 CurvesFieldContext::CurvesFieldContext(const CurvesGeometry &curves, const AttrDomain domain)
     : curves_(curves), domain_(domain)
 {
-  BLI_assert(curves.attributes().domain_supported(domain));
+  BLI_assume_assert(curves.attributes().domain_supported(domain));
 }
 
 CurvesFieldContext::CurvesFieldContext(const Curves &curves_id, const AttrDomain domain)
@@ -78,7 +78,7 @@ GeometryFieldContext::GeometryFieldContext(const void *geometry,
       domain_(domain),
       grease_pencil_layer_index_(grease_pencil_layer_index)
 {
-  BLI_assert(ELEM(type,
+  BLI_assume_assert(ELEM(type,
                   GeometryComponent::Type::Mesh,
                   GeometryComponent::Type::Curve,
                   GeometryComponent::Type::PointCloud,
@@ -114,7 +114,7 @@ GeometryFieldContext::GeometryFieldContext(const GeometryComponent &component,
           static_cast<const GreasePencilComponent &>(component);
       geometry_ = grease_pencil_component.get();
       /* Need to use another constructor for other domains. */
-      BLI_assert(domain == AttrDomain::Layer);
+      BLI_assume_assert(domain == AttrDomain::Layer);
       break;
     }
     case GeometryComponent::Type::Instance: {
@@ -837,7 +837,7 @@ bool try_capture_fields_on_geometry(MutableAttributeAccessor attributes,
                                     const fn::Field<bool> &selection,
                                     const Span<fn::GField> fields)
 {
-  BLI_assert(attribute_ids.size() == fields.size());
+  BLI_assume_assert(attribute_ids.size() == fields.size());
   const int domain_size = attributes.domain_size(domain);
   if (domain_size == 0) {
     bool all_added = true;

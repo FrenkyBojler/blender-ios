@@ -575,20 +575,20 @@ void BKE_lattice_modifiers_calc(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
 MDeformVert *BKE_lattice_deform_verts_get(const Object *oblatt)
 {
-  BLI_assert(oblatt->type == OB_LATTICE);
+  BLI_assume_assert(oblatt->type == OB_LATTICE);
   Lattice *lt = BKE_object_get_lattice(oblatt);
   return lt->dvert;
 }
 
 BPoint *BKE_lattice_active_point_get(Lattice *lt)
 {
-  BLI_assert(GS(lt->id.name) == ID_LT);
+  BLI_assume_assert(GS(lt->id.name) == ID_LT);
 
   if (lt->editlatt) {
     lt = lt->editlatt->latt;
   }
 
-  BLI_assert(lt->actbp < lt->pntsu * lt->pntsv * lt->pntsw);
+  BLI_assume_assert(lt->actbp < lt->pntsu * lt->pntsv * lt->pntsw);
 
   if ((lt->actbp != LT_ACTBP_NONE) && (lt->actbp < lt->pntsu * lt->pntsv * lt->pntsw)) {
     return &lt->def[lt->actbp];

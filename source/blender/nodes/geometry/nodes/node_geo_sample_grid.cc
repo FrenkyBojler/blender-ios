@@ -191,7 +191,7 @@ class SampleGridFunction : public mf::MultiFunction {
   SampleGridFunction(bke::GVolumeGrid grid, InterpolationMode interpolation)
       : grid_(std::move(grid)), interpolation_(interpolation)
   {
-    BLI_assert(grid_);
+    BLI_assume_assert(grid_);
 
     const std::optional<eNodeSocketDatatype> data_type = bke::grid_type_to_socket_type(
         grid_->grid_type());

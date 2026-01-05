@@ -31,7 +31,7 @@ GeometryComponentPtr VolumeComponent::copy() const
 
 void VolumeComponent::clear()
 {
-  BLI_assert(this->is_mutable() || this->is_expired());
+  BLI_assume_assert(this->is_mutable() || this->is_expired());
   if (volume_ != nullptr) {
     if (ownership_ == GeometryOwnershipType::Owned) {
       BKE_id_free(nullptr, volume_);
@@ -47,7 +47,7 @@ bool VolumeComponent::has_volume() const
 
 void VolumeComponent::replace(Volume *volume, GeometryOwnershipType ownership)
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   this->clear();
   volume_ = volume;
   ownership_ = ownership;
@@ -55,7 +55,7 @@ void VolumeComponent::replace(Volume *volume, GeometryOwnershipType ownership)
 
 Volume *VolumeComponent::release()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   Volume *volume = volume_;
   volume_ = nullptr;
   return volume;
@@ -68,7 +68,7 @@ const Volume *VolumeComponent::get() const
 
 Volume *VolumeComponent::get_for_write()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   if (ownership_ == GeometryOwnershipType::ReadOnly) {
     volume_ = BKE_volume_copy_for_eval(volume_);
     ownership_ = GeometryOwnershipType::Owned;
@@ -83,7 +83,7 @@ bool VolumeComponent::owns_direct_data() const
 
 void VolumeComponent::ensure_owns_direct_data()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   if (ownership_ != GeometryOwnershipType::Owned) {
     if (volume_) {
       volume_ = BKE_volume_copy_for_eval(volume_);

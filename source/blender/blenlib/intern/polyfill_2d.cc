@@ -233,7 +233,7 @@ static void kdtree2d_init(KDTree2D *tree, const uint32_t coords_num, const PolyI
     }
   }
 
-  BLI_assert(tree->node_num == uint32_t(node - tree->nodes));
+  BLI_assume_assert(tree->node_num == uint32_t(node - tree->nodes));
 }
 
 static uint32_t kdtree2d_balance_recursive(KDTreeNode2D *nodes,
@@ -313,7 +313,7 @@ static void kdtree2d_init_mapping(KDTree2D *tree)
     }
 
     /* build map */
-    BLI_assert(tree->nodes_map[node->index] == KDNODE_UNSET);
+    BLI_assume_assert(tree->nodes_map[node->index] == KDNODE_UNSET);
     tree->nodes_map[node->index] = i;
   }
 
@@ -342,12 +342,12 @@ static void kdtree2d_node_remove(KDTree2D *tree, uint32_t index)
   {
     KDTreeNode2D *node_parent = &tree->nodes[node->parent];
 
-    BLI_assert(uint32_t(node - tree->nodes) == node_index);
+    BLI_assume_assert(uint32_t(node - tree->nodes) == node_index);
     if (node_parent->neg == node_index) {
       node_parent->neg = KDNODE_UNSET;
     }
     else {
-      BLI_assert(node_parent->pos == node_index);
+      BLI_assume_assert(node_parent->pos == node_index);
       node_parent->pos = KDNODE_UNSET;
     }
 
@@ -416,7 +416,7 @@ static bool kdtree2d_isect_tri_recursive(const KDTree2D *tree,
 #  undef KDTREE2D_ISECT_TRI_RECURSE_NEG
 #  undef KDTREE2D_ISECT_TRI_RECURSE_POS
 
-  BLI_assert(node->index != KDNODE_UNSET);
+  BLI_assume_assert(node->index != KDNODE_UNSET);
 
   return false;
 }
@@ -704,7 +704,7 @@ static bool pf_ear_tip_check(PolyFill *pf, PolyIndex *pi_ear_tip, const eSign si
         coords_num_concave_test += 1;
       }
     } while ((pi_iter = pi_iter->next) != pi_ear_tip);
-    BLI_assert(coords_num_concave_test == pf->coords_num_concave);
+    BLI_assume_assert(coords_num_concave_test == pf->coords_num_concave);
   }
 #  endif
 
@@ -812,10 +812,10 @@ static void polyfill_prepare(PolyFill *pf,
 #ifdef USE_STRICT_ASSERT
 #  ifndef NDEBUG
     if (coords_sign == 1) {
-      BLI_assert(cross_poly_v2(coords, coords_num) <= 0.0f);
+      BLI_assume_assert(cross_poly_v2(coords, coords_num) <= 0.0f);
     }
     else {
-      BLI_assert(cross_poly_v2(coords, coords_num) >= 0.0f);
+      BLI_assume_assert(cross_poly_v2(coords, coords_num) >= 0.0f);
     }
 #  endif
 #endif

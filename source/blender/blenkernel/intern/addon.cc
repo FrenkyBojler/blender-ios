@@ -116,7 +116,7 @@ void BKE_addon_pref_type_remove(const bAddonPrefType *apt)
 
 void BKE_addon_pref_type_init()
 {
-  BLI_assert(global_addonpreftype_hash == nullptr);
+  BLI_assume_assert(global_addonpreftype_hash == nullptr);
   global_addonpreftype_hash = BLI_ghash_str_new(__func__);
 }
 

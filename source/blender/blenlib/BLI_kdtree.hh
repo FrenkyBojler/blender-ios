@@ -76,7 +76,7 @@ inline void kdtree_insert(KDTree<CoordT> *tree, int index, const CoordT &co)
   KDTreeNode<CoordT> *node = &tree->nodes[tree->nodes_len++];
 
 #ifndef NDEBUG
-  BLI_assert(tree->nodes_len <= tree->nodes_len_capacity);
+  BLI_assume_assert(tree->nodes_len <= tree->nodes_len_capacity);
 #endif
 
   /* NOTE: array isn't calloc'd,
@@ -347,7 +347,7 @@ inline int kdtree_find_nearest_cb(const KDTree<CoordT> *tree,
       return false;
     }
 
-    BLI_assert(result == -1);
+    BLI_assume_assert(result == -1);
     return true;
   };
 
@@ -651,7 +651,7 @@ inline int kdtree_range_search_with_len_squared_cb(
     len_sq_fn = [](const CoordT &co_search, const CoordT &co_test, const void * /*user_data*/) {
       return math::distance_squared(co_search, co_test);
     };
-    BLI_assert(user_data == nullptr);
+    BLI_assume_assert(user_data == nullptr);
   }
 
   stack = stack_default;
@@ -1047,7 +1047,7 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
       continue;
     }
 
-    BLI_assert(cluster.is_empty());
+    BLI_assume_assert(cluster.is_empty());
     const CoordT &search_co = tree->nodes[index_to_node_index[node_index]].co;
     auto accumulate_neighbors_fn =
         [&duplicates, &cluster](int neighbor_index,
@@ -1067,7 +1067,7 @@ inline int kdtree_calc_duplicates_cb(const KDTree<CoordT> *tree,
     cluster.append(node_index);
 
     const int cluster_index = duplicates_cb(user_data, cluster.data(), int(cluster.size()));
-    BLI_assert(uint(cluster_index) < uint(cluster.size()));
+    BLI_assume_assert(uint(cluster_index) < uint(cluster.size()));
     const int target_index = cluster[cluster_index];
     for (const int cluster_node_index : cluster) {
       duplicates[cluster_node_index] = target_index;

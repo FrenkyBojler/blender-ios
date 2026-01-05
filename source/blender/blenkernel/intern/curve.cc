@@ -338,7 +338,7 @@ static void curve_editNurb_keyIndex_cv_free_cb(CVKeyIndex *index)
 
 void BKE_curve_editNurb_keyIndex_delCV(CVKeyIndexMap *keyindex, const void *cv)
 {
-  BLI_assert(keyindex != nullptr);
+  BLI_assume_assert(keyindex != nullptr);
   if (CVKeyIndex *index = keyindex->pop_default(cv, nullptr)) {
     curve_editNurb_keyIndex_cv_free_cb(index);
   }
@@ -383,7 +383,7 @@ void BKE_curve_init(Curve *cu, const short curve_type)
 
     cu->str = MEM_malloc_arrayN<char>(len_bytes + 1, "str");
     memcpy(cu->str, str, len_bytes + 1);
-    BLI_assert(cu->str[len_bytes] == '\0');
+    BLI_assume_assert(cu->str[len_bytes] == '\0');
 
     cu->len = len_bytes;
     cu->len_char32 = cu->pos = len_char32;
@@ -914,7 +914,7 @@ void BKE_nurb_index_to_uv(Nurb *nu, int index, int *r_u, int *r_v)
 {
   const int totu = nu->pntsu;
   const int totv = nu->pntsv;
-  BLI_assert(index >= 0 && index < (nu->pntsu * nu->pntsv));
+  BLI_assume_assert(index >= 0 && index < (nu->pntsu * nu->pntsv));
   *r_u = (index % totu);
   *r_v = (index / totu) % totv;
 }
@@ -923,7 +923,7 @@ BezTriple *BKE_nurb_bezt_get_next(Nurb *nu, BezTriple *bezt)
 {
   BezTriple *bezt_next;
 
-  BLI_assert(ARRAY_HAS_ITEM(bezt, nu->bezt, nu->pntsu));
+  BLI_assume_assert(ARRAY_HAS_ITEM(bezt, nu->bezt, nu->pntsu));
 
   if (bezt == &nu->bezt[nu->pntsu - 1]) {
     if (nu->flagu & CU_NURB_CYCLIC) {
@@ -944,7 +944,7 @@ BPoint *BKE_nurb_bpoint_get_next(Nurb *nu, BPoint *bp)
 {
   BPoint *bp_next;
 
-  BLI_assert(ARRAY_HAS_ITEM(bp, nu->bp, nu->pntsu));
+  BLI_assume_assert(ARRAY_HAS_ITEM(bp, nu->bp, nu->pntsu));
 
   if (bp == &nu->bp[nu->pntsu - 1]) {
     if (nu->flagu & CU_NURB_CYCLIC) {
@@ -965,8 +965,8 @@ BezTriple *BKE_nurb_bezt_get_prev(Nurb *nu, BezTriple *bezt)
 {
   BezTriple *bezt_prev;
 
-  BLI_assert(ARRAY_HAS_ITEM(bezt, nu->bezt, nu->pntsu));
-  BLI_assert(nu->pntsv <= 1);
+  BLI_assume_assert(ARRAY_HAS_ITEM(bezt, nu->bezt, nu->pntsu));
+  BLI_assume_assert(nu->pntsv <= 1);
 
   if (bezt == nu->bezt) {
     if (nu->flagu & CU_NURB_CYCLIC) {
@@ -987,8 +987,8 @@ BPoint *BKE_nurb_bpoint_get_prev(Nurb *nu, BPoint *bp)
 {
   BPoint *bp_prev;
 
-  BLI_assert(ARRAY_HAS_ITEM(bp, nu->bp, nu->pntsu));
-  BLI_assert(nu->pntsv == 1);
+  BLI_assume_assert(ARRAY_HAS_ITEM(bp, nu->bp, nu->pntsu));
+  BLI_assume_assert(nu->pntsv == 1);
 
   if (bp == nu->bp) {
     if (nu->flagu & CU_NURB_CYCLIC) {
@@ -2699,7 +2699,7 @@ void BKE_curve_bevelList_make(Object *ob, const ListBaseT<Nurb> *nurbs, const bo
       sub_v3_v3v3(bevp->dir, prevbezt->vec[2], prevbezt->vec[1]);
       normalize_v3(bevp->dir);
 
-      BLI_assert(segcount >= a);
+      BLI_assume_assert(segcount >= a);
 
       while (a--) {
         if (prevbezt->h2 == HD_VECT && bezt->h1 == HD_VECT) {
@@ -3212,7 +3212,7 @@ static void calchandleNurb_intern(BezTriple *bezt,
         }
       }
       if (leftviolate || rightviolate) { /* align left handle */
-        BLI_assert(is_fcurve);
+        BLI_assume_assert(is_fcurve);
         /* simple 2d calculation */
         float h1_x = p2_h1[0] - p2[0];
         float h2_x = p2[0] - p2_h2[0];
@@ -3716,8 +3716,8 @@ static void bezier_handle_calc_smooth_fcurve(
     return;
   }
 
-  BLI_assert(start < total - 1 && count <= total);
-  BLI_assert(start + count <= total || cycle);
+  BLI_assume_assert(start < total - 1 && count <= total);
+  BLI_assume_assert(start + count <= total || cycle);
 
   bool full_cycle = (start == 0 && count == total && cycle);
 
@@ -5003,11 +5003,11 @@ void *BKE_curve_vert_active_get(Curve *cu)
 int BKE_curve_nurb_vert_index_get(const Nurb *nu, const void *vert)
 {
   if (nu->type == CU_BEZIER) {
-    BLI_assert(ARRAY_HAS_ITEM((BezTriple *)vert, nu->bezt, nu->pntsu));
+    BLI_assume_assert(ARRAY_HAS_ITEM((BezTriple *)vert, nu->bezt, nu->pntsu));
     return (BezTriple *)vert - nu->bezt;
   }
 
-  BLI_assert(ARRAY_HAS_ITEM((BPoint *)vert, nu->bp, nu->pntsu * nu->pntsv));
+  BLI_assume_assert(ARRAY_HAS_ITEM((BPoint *)vert, nu->bp, nu->pntsu * nu->pntsv));
   return (BPoint *)vert - nu->bp;
 }
 
@@ -5039,7 +5039,7 @@ bool BKE_curve_nurb_vert_active_get(Curve *cu, Nurb **r_nu, void **r_vert)
 
     if (nu) {
       if (nu->type == CU_BEZIER) {
-        BLI_assert(nu->pntsu > cu->actvert);
+        BLI_assume_assert(nu->pntsu > cu->actvert);
         vert = &nu->bezt[cu->actvert];
       }
       else {
@@ -5368,7 +5368,7 @@ void BKE_curve_material_remap(Curve *cu, const uint *remap, uint remap_len)
 
 #define MAT_NR_REMAP(n) \
   if (n < remap_len_short) { \
-    BLI_assert(n >= 0 && remap[n] < remap_len_short); \
+    BLI_assume_assert(n >= 0 && remap[n] < remap_len_short); \
     n = remap[n]; \
   } \
   ((void)0)

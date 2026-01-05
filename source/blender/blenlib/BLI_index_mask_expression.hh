@@ -73,25 +73,25 @@ inline int Expr::expression_array_size() const
 
 inline const AtomicExpr &Expr::as_atomic() const
 {
-  BLI_assert(this->type == Type::Atomic);
+  BLI_assume_assert(this->type == Type::Atomic);
   return static_cast<const AtomicExpr &>(*this);
 }
 
 inline const UnionExpr &Expr::as_union() const
 {
-  BLI_assert(this->type == Type::Union);
+  BLI_assume_assert(this->type == Type::Union);
   return static_cast<const UnionExpr &>(*this);
 }
 
 inline const IntersectionExpr &Expr::as_intersection() const
 {
-  BLI_assert(this->type == Type::Intersection);
+  BLI_assume_assert(this->type == Type::Intersection);
   return static_cast<const IntersectionExpr &>(*this);
 }
 
 inline const DifferenceExpr &Expr::as_difference() const
 {
-  BLI_assert(this->type == Type::Difference);
+  BLI_assume_assert(this->type == Type::Difference);
   return static_cast<const DifferenceExpr &>(*this);
 }
 

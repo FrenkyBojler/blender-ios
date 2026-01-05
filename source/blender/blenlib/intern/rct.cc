@@ -440,7 +440,7 @@ void BLI_rctf_sanitize(rctf *rect)
     SWAP(float, rect->ymin, rect->ymax);
   }
 
-  BLI_assert(BLI_rctf_is_valid(rect));
+  BLI_assume_assert(BLI_rctf_is_valid(rect));
 }
 
 void BLI_rcti_sanitize(rcti *rect)
@@ -452,7 +452,7 @@ void BLI_rcti_sanitize(rcti *rect)
     SWAP(int, rect->ymin, rect->ymax);
   }
 
-  BLI_assert(BLI_rcti_is_valid(rect));
+  BLI_assume_assert(BLI_rcti_is_valid(rect));
 }
 
 void BLI_rctf_init_pt_radius(rctf *rect, const float xy[2], float size)
@@ -538,7 +538,7 @@ void BLI_rctf_transform_pt_v(const rctf *dst,
 void BLI_rctf_transform_calc_m4_pivot_min_ex(
     const rctf *dst, const rctf *src, float matrix[4][4], uint x, uint y)
 {
-  BLI_assert(x < 3 && y < 3);
+  BLI_assume_assert(x < 3 && y < 3);
 
   unit_m4(matrix);
 
@@ -691,9 +691,9 @@ void BLI_rctf_pad_y(rctf *rect,
                     const float pad_min,
                     const float pad_max)
 {
-  BLI_assert(pad_max >= 0.0f);
-  BLI_assert(pad_min >= 0.0f);
-  BLI_assert(boundary_size > 0.0f);
+  BLI_assume_assert(pad_max >= 0.0f);
+  BLI_assume_assert(pad_min >= 0.0f);
+  BLI_assume_assert(boundary_size > 0.0f);
 
   float total_pad = pad_max + pad_min;
   if (total_pad == 0.0f) {

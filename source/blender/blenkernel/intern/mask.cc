@@ -538,7 +538,7 @@ float BKE_mask_spline_project_co(MaskSpline *spline,
   float u = -1.0f, du = 1.0f / N, u1 = start_u, u2 = start_u;
   float ang = -1.0f;
 
-  BLI_assert(abs(sign) <= 1); /* (-1, 0, 1) */
+  BLI_assume_assert(abs(sign) <= 1); /* (-1, 0, 1) */
 
   while (u1 > 0.0f || u2 < 1.0f) {
     float n1[2], n2[2], co1[2], co2[2];
@@ -1398,7 +1398,7 @@ void BKE_mask_calc_handle_adjacent_interp(MaskSpline *spline,
 
   MaskSplinePoint *point_prev, *point_next;
 
-  BLI_assert(u >= 0.0f && u <= 1.0f);
+  BLI_assume_assert(u >= 0.0f && u <= 1.0f);
 
   BKE_mask_get_handle_point_adjacent(spline, point, &point_prev, &point_next);
 

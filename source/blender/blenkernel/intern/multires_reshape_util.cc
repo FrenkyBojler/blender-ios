@@ -112,8 +112,8 @@ static void context_init_grid_pointers(MultiresReshapeContext *reshape_context)
 
 static void context_init_common(MultiresReshapeContext *reshape_context)
 {
-  BLI_assert(reshape_context->subdiv != nullptr);
-  BLI_assert(reshape_context->base_mesh != nullptr);
+  BLI_assume_assert(reshape_context->subdiv != nullptr);
+  BLI_assume_assert(reshape_context->base_mesh != nullptr);
 
   reshape_context->face_ptex_offset = blender::bke::subdiv::face_ptex_offset_get(
       reshape_context->subdiv);
@@ -358,8 +358,8 @@ void multires_reshape_context_free(MultiresReshapeContext *reshape_context)
 int multires_reshape_grid_to_face_index(const MultiresReshapeContext *reshape_context,
                                         int grid_index)
 {
-  BLI_assert(grid_index >= 0);
-  BLI_assert(grid_index < reshape_context->num_grids);
+  BLI_assume_assert(grid_index >= 0);
+  BLI_assume_assert(grid_index < reshape_context->num_grids);
 
   /* TODO(sergey): Optimization: when SubdivCCG is known we can calculate face index using
    * SubdivCCG::grid_faces and SubdivCCG::faces, saving memory used by grid_to_face_index. */
@@ -369,8 +369,8 @@ int multires_reshape_grid_to_face_index(const MultiresReshapeContext *reshape_co
 
 int multires_reshape_grid_to_corner(const MultiresReshapeContext *reshape_context, int grid_index)
 {
-  BLI_assert(grid_index >= 0);
-  BLI_assert(grid_index < reshape_context->num_grids);
+  BLI_assume_assert(grid_index >= 0);
+  BLI_assume_assert(grid_index < reshape_context->num_grids);
 
   /* TODO(sergey): Optimization: when SubdivCCG is known we can calculate face index using
    * SubdivCCG::grid_faces and SubdivCCG::faces, saving memory used by grid_to_face_index. */

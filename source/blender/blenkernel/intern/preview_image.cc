@@ -162,7 +162,7 @@ void BKE_previewimg_id_copy(ID *new_id, const ID *old_id)
   PreviewImage **new_prv_p = BKE_previewimg_id_get_p(new_id);
 
   if (old_prv_p && *old_prv_p) {
-    BLI_assert(new_prv_p != nullptr && ELEM(*new_prv_p, nullptr, *old_prv_p));
+    BLI_assume_assert(new_prv_p != nullptr && ELEM(*new_prv_p, nullptr, *old_prv_p));
     //      const int new_icon_id = get_next_free_id();
 
     //      if (new_icon_id == 0) {
@@ -283,7 +283,7 @@ PreviewImage *BKE_previewimg_cached_ensure(const char *name)
 
   PreviewImage *prv = get_cached_previews_map().lookup_or_add_cb_as(
       name, [&]() { return BKE_previewimg_create(); });
-  BLI_assert(prv);
+  BLI_assume_assert(prv);
   return prv;
 }
 
@@ -302,8 +302,8 @@ PreviewImage *BKE_previewimg_cached_thumbnail_read(const char *name,
 
   if (prv_p) {
     prv = *prv_p;
-    BLI_assert(prv);
-    BLI_assert(prv->runtime->deferred_loading_data);
+    BLI_assume_assert(prv);
+    BLI_assume_assert(prv->runtime->deferred_loading_data);
   }
 
   if (prv && force_update) {

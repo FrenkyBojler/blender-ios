@@ -297,7 +297,7 @@ static int position_tail_on_spline(bSplineIKConstraint *ik_data,
   const float spline_len = BKE_anim_path_get_length(cache);
   const float guessed_len = *r_new_curve_pos * spline_len;
 
-  BLI_assert(prev_seg_idx >= 0);
+  BLI_assume_assert(prev_seg_idx >= 0);
   int cur_seg_idx = prev_seg_idx;
   while (cur_seg_idx < max_seg_idx && guessed_len > seg_accum_len[cur_seg_idx]) {
     cur_seg_idx++;
@@ -804,24 +804,24 @@ void BKE_pose_pchan_index_rebuild(bPose *pose)
 BLI_INLINE bPoseChannel *pose_pchan_get_indexed(Object *ob, int pchan_index)
 {
   bPose *pose = ob->pose;
-  BLI_assert(pose != nullptr);
-  BLI_assert(pose->chan_array != nullptr);
-  BLI_assert(pchan_index >= 0);
-  BLI_assert(pchan_index < MEM_allocN_len(pose->chan_array) / sizeof(bPoseChannel *));
+  BLI_assume_assert(pose != nullptr);
+  BLI_assume_assert(pose->chan_array != nullptr);
+  BLI_assume_assert(pchan_index >= 0);
+  BLI_assume_assert(pchan_index < MEM_allocN_len(pose->chan_array) / sizeof(bPoseChannel *));
   return pose->chan_array[pchan_index];
 }
 
 void BKE_pose_eval_init(Depsgraph *depsgraph, Scene * /*scene*/, Object *object)
 {
   bPose *pose = object->pose;
-  BLI_assert(pose != nullptr);
+  BLI_assume_assert(pose != nullptr);
 
   DEG_debug_print_eval(depsgraph, __func__, object->id.name, object);
 
-  BLI_assert(object->type == OB_ARMATURE);
+  BLI_assume_assert(object->type == OB_ARMATURE);
 
   /* We demand having proper pose. */
-  BLI_assert(object->pose != nullptr);
+  BLI_assume_assert(object->pose != nullptr);
   BLI_assert((object->pose->flag & POSE_RECALC) == 0);
 
   /* world_to_object is needed for solvers. */
@@ -839,13 +839,13 @@ void BKE_pose_eval_init(Depsgraph *depsgraph, Scene * /*scene*/, Object *object)
     }
   }
 
-  BLI_assert(pose->chan_array != nullptr || BLI_listbase_is_empty(&pose->chanbase));
+  BLI_assume_assert(pose->chan_array != nullptr || BLI_listbase_is_empty(&pose->chanbase));
 }
 
 void BKE_pose_eval_init_ik(Depsgraph *depsgraph, Scene *scene, Object *object)
 {
   DEG_debug_print_eval(depsgraph, __func__, object->id.name, object);
-  BLI_assert(object->type == OB_ARMATURE);
+  BLI_assume_assert(object->type == OB_ARMATURE);
   const float ctime = BKE_scene_ctime_get(scene); /* not accurate... */
   bArmature *armature = (bArmature *)object->data;
   if (armature->flag & ARM_RESTPOS) {
@@ -868,7 +868,7 @@ void BKE_pose_eval_bone(Depsgraph *depsgraph, Scene *scene, Object *object, int 
   bPoseChannel *pchan = pose_pchan_get_indexed(object, pchan_index);
   DEG_debug_print_eval_subdata(
       depsgraph, __func__, object->id.name, object, "pchan", pchan->name, pchan);
-  BLI_assert(object->type == OB_ARMATURE);
+  BLI_assume_assert(object->type == OB_ARMATURE);
   if (armature->flag & ARM_RESTPOS) {
     Bone *bone = pchan->bone;
     if (bone) {
@@ -1000,7 +1000,7 @@ void BKE_pose_iktree_evaluate(Depsgraph *depsgraph,
   bPoseChannel *rootchan = pose_pchan_get_indexed(object, rootchan_index);
   DEG_debug_print_eval_subdata(
       depsgraph, __func__, object->id.name, object, "rootchan", rootchan->name, rootchan);
-  BLI_assert(object->type == OB_ARMATURE);
+  BLI_assume_assert(object->type == OB_ARMATURE);
   const float ctime = BKE_scene_ctime_get(scene); /* not accurate... */
   if (armature->flag & ARM_RESTPOS) {
     return;
@@ -1021,7 +1021,7 @@ void BKE_pose_splineik_evaluate(Depsgraph *depsgraph,
   bPoseChannel *rootchan = pose_pchan_get_indexed(object, rootchan_index);
   DEG_debug_print_eval_subdata(
       depsgraph, __func__, object->id.name, object, "rootchan", rootchan->name, rootchan);
-  BLI_assert(object->type == OB_ARMATURE);
+  BLI_assume_assert(object->type == OB_ARMATURE);
   const float ctime = BKE_scene_ctime_get(scene); /* not accurate... */
   if (armature->flag & ARM_RESTPOS) {
     return;
@@ -1032,28 +1032,28 @@ void BKE_pose_splineik_evaluate(Depsgraph *depsgraph,
 static void pose_eval_cleanup_common(Object *object)
 {
   bPose *pose = object->pose;
-  BLI_assert(pose != nullptr);
-  BLI_assert(pose->chan_array != nullptr || BLI_listbase_is_empty(&pose->chanbase));
+  BLI_assume_assert(pose != nullptr);
+  BLI_assume_assert(pose->chan_array != nullptr || BLI_listbase_is_empty(&pose->chanbase));
   UNUSED_VARS_NDEBUG(pose);
 }
 
 void BKE_pose_eval_done(Depsgraph *depsgraph, Object *object)
 {
   bPose *pose = object->pose;
-  BLI_assert(pose != nullptr);
+  BLI_assume_assert(pose != nullptr);
   UNUSED_VARS_NDEBUG(pose);
   DEG_debug_print_eval(depsgraph, __func__, object->id.name, object);
-  BLI_assert(object->type == OB_ARMATURE);
+  BLI_assume_assert(object->type == OB_ARMATURE);
 }
 
 void BKE_pose_eval_cleanup(Depsgraph *depsgraph, Scene *scene, Object *object)
 {
   bPose *pose = object->pose;
-  BLI_assert(pose != nullptr);
+  BLI_assume_assert(pose != nullptr);
   UNUSED_VARS_NDEBUG(pose);
   const float ctime = BKE_scene_ctime_get(scene); /* not accurate... */
   DEG_debug_print_eval(depsgraph, __func__, object->id.name, object);
-  BLI_assert(object->type == OB_ARMATURE);
+  BLI_assume_assert(object->type == OB_ARMATURE);
   /* Release the IK tree. */
   BIK_release_tree(scene, object, ctime);
   pose_eval_cleanup_common(object);

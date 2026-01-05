@@ -183,6 +183,7 @@ set(SRC
   BLI_array_utils.hh
   BLI_asan.h
   BLI_assert.h
+  BLI_assume.hh
   BLI_astar.h
   BLI_atomic_disjoint_set.hh
   BLI_binary_search.hh

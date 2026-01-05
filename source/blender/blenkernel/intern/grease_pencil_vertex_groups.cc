@@ -59,7 +59,7 @@ int ensure_vertex_group(const StringRef name, ListBaseT<bDeformGroup> &vertex_gr
     name.copy_utf8_truncated(defgroup->name);
     BLI_addtail(&vertex_group_names, defgroup);
     def_nr = BLI_listbase_count(&vertex_group_names) - 1;
-    BLI_assert(def_nr >= 0);
+    BLI_assume_assert(def_nr >= 0);
   }
   return def_nr;
 }
@@ -83,7 +83,7 @@ void assign_to_vertex_group_from_mask(bke::CurvesGeometry &curves,
     name.copy_utf8_truncated(defgroup->name);
     BLI_addtail(&vertex_group_names, defgroup);
     def_nr = BLI_listbase_count(&vertex_group_names) - 1;
-    BLI_assert(def_nr >= 0);
+    BLI_assume_assert(def_nr >= 0);
   }
 
   const MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
@@ -117,7 +117,7 @@ void assign_to_vertex_group(Drawing &drawing, const StringRef name, const float 
 
         BLI_addtail(&vertex_group_names, defgroup);
         def_nr = BLI_listbase_count(&vertex_group_names) - 1;
-        BLI_assert(def_nr >= 0);
+        BLI_assume_assert(def_nr >= 0);
       }
 
       MDeformWeight *dw = BKE_defvert_ensure_index(&dverts[i], def_nr);

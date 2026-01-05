@@ -70,7 +70,7 @@ static void idp_str_append_escape(ReprState *state,
       }
       char buf[5];
       uint len = uint(SNPRINTF_RLEN(buf, "\\x%02x", c));
-      BLI_assert(len == 4);
+      BLI_assume_assert(len == 4);
       state->str_append_fn(state->user_data, buf, len);
       i_prev = i + 1;
     }

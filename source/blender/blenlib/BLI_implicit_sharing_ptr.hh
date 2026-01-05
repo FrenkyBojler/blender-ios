@@ -76,13 +76,13 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
 
   const T *operator->() const
   {
-    BLI_assert(data_ != nullptr);
+    BLI_assume_assert(data_ != nullptr);
     return data_;
   }
 
   const T &operator*() const
   {
-    BLI_assert(data_ != nullptr);
+    BLI_assume_assert(data_ != nullptr);
     return *data_;
   }
 
@@ -126,12 +126,12 @@ template<typename T = ImplicitSharingInfo, bool IsStrong = true> class ImplicitS
    */
   T &ensure_mutable_inplace()
   {
-    BLI_assert(data_);
+    BLI_assume_assert(data_);
     if (!data_->is_mutable()) {
       /* The data is shared and therefore immutable. Make a mutable copy.*/
       *this = data_->copy();
     }
-    BLI_assert(data_->is_mutable());
+    BLI_assume_assert(data_->is_mutable());
     data_->tag_ensured_mutable();
     return const_cast<T &>(*data_);
   }

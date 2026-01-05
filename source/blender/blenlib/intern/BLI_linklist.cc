@@ -14,7 +14,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_linklist.h"
 #include "BLI_memarena.h"
 #include "BLI_mempool.h"
@@ -186,7 +186,7 @@ void BLI_linklist_append_nlink(LinkNodePair *list_pair, void *ptr, LinkNode *nli
     list_pair->last_node->next = nlink;
   }
   else {
-    BLI_assert(list_pair->last_node == nullptr);
+    BLI_assume_assert(list_pair->last_node == nullptr);
     list_pair->list = nlink;
   }
 

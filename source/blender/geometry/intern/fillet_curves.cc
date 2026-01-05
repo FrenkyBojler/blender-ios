@@ -6,6 +6,7 @@
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
 
+#include "BLI_assume.hh"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_task.hh"
 
@@ -274,7 +275,7 @@ static void calculate_bezier_handles_bezier_mode(const Span<float3> src_handles_
         dst_types_r[arc.first()] = src_types_r[i_src];
         continue;
       }
-      BLI_assert(arc.size() == 2);
+      BLI_assume_assert(arc.size() == 2);
       const int i_dst_a = arc.first();
       const int i_dst_b = arc.last();
 

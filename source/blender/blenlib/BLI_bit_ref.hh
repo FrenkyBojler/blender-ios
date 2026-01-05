@@ -35,8 +35,8 @@ static constexpr BitInt BitIndexMask = (BitInt(1) << BitToIntIndexShift) - 1;
 
 inline BitInt mask_first_n_bits(const int64_t n)
 {
-  BLI_assert(n >= 0);
-  BLI_assert(n <= BitsPerInt);
+  BLI_assume_assert(n >= 0);
+  BLI_assume_assert(n <= BitsPerInt);
   if (n == BitsPerInt) {
     return BitInt(-1);
   }
@@ -50,10 +50,10 @@ inline BitInt mask_last_n_bits(const int64_t n)
 
 inline BitInt mask_range_bits(const int64_t start, const int64_t size)
 {
-  BLI_assert(start >= 0);
-  BLI_assert(size >= 0);
+  BLI_assume_assert(start >= 0);
+  BLI_assume_assert(size >= 0);
   const int64_t end = start + size;
-  BLI_assert(end <= BitsPerInt);
+  BLI_assume_assert(end <= BitsPerInt);
   if (end == BitsPerInt) {
     return mask_last_n_bits(size);
   }
@@ -62,8 +62,8 @@ inline BitInt mask_range_bits(const int64_t start, const int64_t size)
 
 inline BitInt mask_single_bit(const int64_t bit_index)
 {
-  BLI_assert(bit_index >= 0);
-  BLI_assert(bit_index < BitsPerInt);
+  BLI_assume_assert(bit_index >= 0);
+  BLI_assume_assert(bit_index < BitsPerInt);
   return BitInt(1) << bit_index;
 }
 
@@ -207,7 +207,7 @@ class MutableBitRef {
   void set_branchless(const bool value)
   {
     const BitInt value_int = BitInt(value);
-    BLI_assert(ELEM(value_int, 0, 1));
+    BLI_assume_assert(ELEM(value_int, 0, 1));
     const BitInt old = *int_;
     *int_ =
         /* Unset bit. */

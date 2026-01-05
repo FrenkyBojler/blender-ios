@@ -249,7 +249,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
     /* This is expected to work when the closure is created. */
     std::shared_ptr<const GeometryNodesLazyFunctionGraphInfo> lf_graph_info =
         lf_graph_info_.lock();
-    BLI_assert(lf_graph_info);
+    BLI_assume_assert(lf_graph_info);
     /* The closure has to take ownership of its execution information. */
     closure_scope->add(std::move(lf_graph_info));
 

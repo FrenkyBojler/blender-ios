@@ -453,7 +453,7 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
    * rather than default negative slope */
   if (slope == CurveMapSlopeType::Positive) {
     if (ELEM(preset, CURVE_PRESET_LINE, CURVE_PRESET_CONSTANT_MEDIAN)) {
-      BLI_assert(cuma->totpoint == 2);
+      BLI_assume_assert(cuma->totpoint == 2);
       /* The LINE and CONSTANT_MEDIAN presets are defined by a single pair of points, relative to
        * the clip region. */
       std::swap(cuma->curve[0].y, cuma->curve[1].y);
@@ -466,7 +466,7 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
       /* For all curves other than the LINE and CONSTANT_MEDIAN curves, we assume that the x period
        * is from [0.0, 1.0] inclusive. Resetting the curve for these presets does not take into
        * account the current clipping region. */
-      BLI_assert(cuma->curve[0].x == 0.0f && cuma->curve[last].x == 1.0f);
+      BLI_assume_assert(cuma->curve[0].x == 0.0f && cuma->curve[last].x == 1.0f);
       CurveMapPoint *newpoints = static_cast<CurveMapPoint *>(MEM_dupallocN(cuma->curve));
       for (i = 0; i < cuma->totpoint; i++) {
         newpoints[i].x = 1.0f - cuma->curve[last - i].x;
@@ -1934,7 +1934,7 @@ void BKE_color_managed_view_settings_init(ColorManagedViewSettings *view_setting
 {
   const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(
       display_settings->display_device);
-  BLI_assert(display);
+  BLI_assume_assert(display);
 
   if (!view_transform) {
     view_transform = IMB_colormanagement_display_get_default_view_transform_name(display);

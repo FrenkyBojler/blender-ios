@@ -19,6 +19,7 @@
 
 #include <optional>
 
+#include "BLI_assume.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 
@@ -176,7 +177,7 @@ inline void set_item_name_and_make_unique(bNode &node,
       validated_name);
 
   /* The unique name should still be valid. */
-  BLI_assert(unique_name == get_validated_name<Accessor>(unique_name));
+  BLI_assume_assert(unique_name == get_validated_name<Accessor>(unique_name));
 
   char **item_name = Accessor::get_name(item);
   MEM_SAFE_FREE(*item_name);
@@ -224,9 +225,9 @@ inline typename Accessor::ItemT *add_item_with_socket_type_and_name(
     std::optional<int> dimensions = std::nullopt)
 {
   using ItemT = typename Accessor::ItemT;
-  BLI_assert(Accessor::supports_socket_type(socket_type, ntree.type));
+  BLI_assume_assert(Accessor::supports_socket_type(socket_type, ntree.type));
   BLI_assert(!(dimensions.has_value() && socket_type != SOCK_VECTOR));
-  BLI_assert(ELEM(dimensions.value_or(3), 2, 3, 4));
+  BLI_assume_assert(ELEM(dimensions.value_or(3), 2, 3, 4));
   UNUSED_VARS_NDEBUG(ntree);
   ItemT &new_item = detail::add_item_to_array<Accessor>(node);
   if constexpr (Accessor::has_vector_dimensions) {

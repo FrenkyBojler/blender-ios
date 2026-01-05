@@ -96,7 +96,7 @@ template<typename T, int64_t CapacityStart = 32, int64_t CapacityMax = 4096> cla
    */
   T &first()
   {
-    BLI_assert(size() > 0);
+    BLI_assume_assert(size() > 0);
     return vectors_.first().first();
   }
 
@@ -106,7 +106,7 @@ template<typename T, int64_t CapacityStart = 32, int64_t CapacityMax = 4096> cla
    */
   T &last()
   {
-    BLI_assert(size() > 0);
+    BLI_assume_assert(size() > 0);
     return vectors_[used_vectors_ - 1].last();
   }
 
@@ -173,8 +173,8 @@ template<typename T, int64_t CapacityStart = 32, int64_t CapacityMax = 4096> cla
    */
   std::pair<int64_t, int64_t> global_index_to_index_pair(int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < this->size());
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < this->size());
 
     auto log2 = [](int64_t value) -> int64_t {
       return 31 - bitscan_reverse_uint(uint32_t(value));

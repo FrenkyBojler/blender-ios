@@ -402,7 +402,7 @@ short *BKE_object_material_len_p(Object *ob)
 Material ***BKE_id_material_array_p(ID *id)
 {
   /* ensure we don't try get materials from non-obdata */
-  BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
+  BLI_assume_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
 
   switch (GS(id->name)) {
     case ID_ME:
@@ -430,7 +430,7 @@ Material ***BKE_id_material_array_p(ID *id)
 short *BKE_id_material_len_p(ID *id)
 {
   /* ensure we don't try get materials from non-obdata */
-  BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
+  BLI_assume_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
 
   switch (GS(id->name)) {
     case ID_ME:
@@ -458,7 +458,7 @@ short *BKE_id_material_len_p(ID *id)
 static void material_data_index_remove_id(ID *id, short index)
 {
   /* ensure we don't try get materials from non-obdata */
-  BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
+  BLI_assume_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
 
   switch (GS(id->name)) {
     case ID_ME:
@@ -517,7 +517,7 @@ bool BKE_object_material_slot_used(Object *object, short actcol)
 static void material_data_index_clear_id(ID *id)
 {
   /* ensure we don't try get materials from non-obdata */
-  BLI_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
+  BLI_assume_assert(OB_DATA_SUPPORT_ID(GS(id->name)));
 
   switch (GS(id->name)) {
     case ID_ME:
@@ -755,7 +755,7 @@ Material *BKE_object_material_get_eval(Object *ob, short act)
 
 const Material *BKE_object_material_get_eval(const Object &ob, const ID &data, const short act)
 {
-  BLI_assert(DEG_is_evaluated(&ob));
+  BLI_assume_assert(DEG_is_evaluated(&ob));
 
   const int slots_num = BKE_object_material_count_eval(ob, data);
 
@@ -795,11 +795,11 @@ const Material *BKE_object_material_get_eval(const Object &ob, const ID &data, c
 
 int BKE_object_material_count_eval(const Object *ob)
 {
-  BLI_assert(DEG_is_evaluated(ob));
+  BLI_assume_assert(DEG_is_evaluated(ob));
   if (ob->type == OB_EMPTY) {
     return 0;
   }
-  BLI_assert(ob->data != nullptr);
+  BLI_assume_assert(ob->data != nullptr);
   const ID *id = get_evaluated_object_data_with_materials(const_cast<Object *>(ob));
   const short *len_p = BKE_id_material_len_p(const_cast<ID *>(id));
   return std::max(ob->totcol, len_p ? *len_p : 0);
@@ -807,11 +807,11 @@ int BKE_object_material_count_eval(const Object *ob)
 
 int BKE_object_material_count_eval(const Object &ob, const ID &data)
 {
-  BLI_assert(DEG_is_evaluated(&ob));
+  BLI_assume_assert(DEG_is_evaluated(&ob));
   if (ob.type == OB_EMPTY) {
     return 0;
   }
-  BLI_assert(ob.data != nullptr);
+  BLI_assume_assert(ob.data != nullptr);
   const short *len_p = BKE_id_material_len_p(const_cast<ID *>(&data));
   return std::max(ob.totcol, len_p ? *len_p : 0);
 }
@@ -865,7 +865,7 @@ int BKE_object_material_used_with_fallback_eval(const Object &ob)
 
 void BKE_id_material_eval_assign(ID *id, int slot, Material *material)
 {
-  BLI_assert(slot >= 1);
+  BLI_assume_assert(slot >= 1);
   Material ***materials_ptr = BKE_id_material_array_p(id);
   short *len_ptr = BKE_id_material_len_p(id);
   if (ELEM(nullptr, materials_ptr, len_ptr)) {
@@ -1062,7 +1062,7 @@ void BKE_objects_materials_sync_length_all(Main *bmain, ID *id)
       BKE_object_material_resize(bmain, ob, *totcol, false);
       object_material_active_index_sanitize(ob);
       processed_objects++;
-      BLI_assert(processed_objects <= id->us && processed_objects > 0);
+      BLI_assume_assert(processed_objects <= id->us && processed_objects > 0);
       if (processed_objects == id->us) {
         break;
       }
@@ -1252,7 +1252,7 @@ void BKE_object_material_remap(Object *ob, const uint *remap)
   }
   else {
     /* add support for this object data! */
-    BLI_assert(matar == nullptr);
+    BLI_assume_assert(matar == nullptr);
   }
 }
 

@@ -357,7 +357,7 @@ static void text_from_buf(Text *text, const uchar *buffer, const int len)
 {
   int i, llen, lines_count;
 
-  BLI_assert(BLI_listbase_is_empty(&text->lines));
+  BLI_assume_assert(BLI_listbase_is_empty(&text->lines));
 
   llen = 0;
   lines_count = 0;
@@ -621,7 +621,7 @@ static TextLine *txt_new_linen(const char *str, int str_len)
   tmp->len = str_len;
   tmp->next = tmp->prev = nullptr;
 
-  BLI_assert(strlen(tmp->line) == str_len);
+  BLI_assume_assert(strlen(tmp->line) == str_len);
 
   return tmp;
 }
@@ -1540,7 +1540,7 @@ char *txt_sel_to_buf(const Text *text, size_t *r_buf_strlen)
 
 void txt_insert_buf(Text *text, const char *in_buffer, int in_buffer_len)
 {
-  BLI_assert(in_buffer_len == strlen(in_buffer));
+  BLI_assume_assert(in_buffer_len == strlen(in_buffer));
 
   int l = 0;
   size_t i = 0, j;
@@ -2180,7 +2180,7 @@ void txt_move_lines(Text *text, const int direction)
 {
   TextLine *line_other;
 
-  BLI_assert(ELEM(direction, TXT_MOVE_LINE_UP, TXT_MOVE_LINE_DOWN));
+  BLI_assume_assert(ELEM(direction, TXT_MOVE_LINE_UP, TXT_MOVE_LINE_DOWN));
 
   if (!text->curl || !text->sell) {
     return;

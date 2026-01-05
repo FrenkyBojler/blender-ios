@@ -271,7 +271,7 @@ const bNodeSocket *evaluate_closure_node_internally_linked_input(const bNodeSock
 {
   const bNode &node = output_socket.owner_node();
   const bNodeTree &tree = node.owner_tree();
-  BLI_assert(node.is_type("NodeEvaluateClosure"));
+  BLI_assume_assert(node.is_type("NodeEvaluateClosure"));
   const auto &storage = *static_cast<const NodeEvaluateClosure *>(node.storage);
   if (output_socket.index() >= storage.output_items.items_num) {
     return nullptr;

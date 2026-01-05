@@ -65,25 +65,25 @@ void MutableBitSpan::reset_all()
 
 void MutableBitSpan::copy_from(const BitSpan other)
 {
-  BLI_assert(this->size() == other.size());
+  BLI_assume_assert(this->size() == other.size());
   copy_from_or(*this, other);
 }
 
 void MutableBitSpan::copy_from(const BoundedBitSpan other)
 {
-  BLI_assert(this->size() == other.size());
+  BLI_assume_assert(this->size() == other.size());
   copy_from_or(*this, other);
 }
 
 void MutableBoundedBitSpan::copy_from(const BitSpan other)
 {
-  BLI_assert(this->size() == other.size());
+  BLI_assume_assert(this->size() == other.size());
   copy_from_or(*this, other);
 }
 
 void MutableBoundedBitSpan::copy_from(const BoundedBitSpan other)
 {
-  BLI_assert(this->size() == other.size());
+  BLI_assume_assert(this->size() == other.size());
   copy_from_or(*this, other);
 }
 

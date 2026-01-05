@@ -86,12 +86,12 @@ class RawAllocator {
  public:
   void *allocate(size_t size, size_t alignment, const char * /*name*/)
   {
-    BLI_assert(is_power_of_2(int(alignment)));
+    BLI_assume_assert(is_power_of_2(int(alignment)));
     void *ptr = malloc(size + alignment + sizeof(MemHead));
     void *used_ptr = reinterpret_cast<void *>(
         uintptr_t(POINTER_OFFSET(ptr, alignment + sizeof(MemHead))) & ~(uintptr_t(alignment) - 1));
     int offset = int(intptr_t(used_ptr) - intptr_t(ptr));
-    BLI_assert(offset >= int(sizeof(MemHead)));
+    BLI_assume_assert(offset >= int(sizeof(MemHead)));
     (static_cast<MemHead *>(used_ptr) - 1)->offset = offset;
     return used_ptr;
   }

@@ -74,13 +74,13 @@ static int oedge_cmp(const void *a1, const void *a2)
     return -1;
   }
   /* Should never get here, no two edges should be the same. */
-  BLI_assert(false);
+  BLI_assume_assert(false);
   return 0;
 }
 
 BLI_INLINE bool is_boundary_edge(uint i_a, uint i_b, const uint coord_last)
 {
-  BLI_assert(i_a < i_b);
+  BLI_assume_assert(i_a < i_b);
   return ((i_a + 1 == i_b) || UNLIKELY((i_a == 0) && (i_b == coord_last)));
 }
 float BLI_polyfill_beautify_quad_rotate_calc_ex(const float v1[2],
@@ -407,14 +407,14 @@ void BLI_polyfill_beautify(const float (*coords)[2],
       }
     }
   }
-  BLI_assert(edges_len * 2 == order_edges_len);
+  BLI_assume_assert(edges_len * 2 == order_edges_len);
 
   qsort(order_edges, order_edges_len, sizeof(OrderEdge), oedge_cmp);
 
   for (uint i = 0, base_index = 0; i < order_edges_len; base_index++) {
     const OrderEdge *oe_a = &order_edges[i++];
     const OrderEdge *oe_b = &order_edges[i++];
-    BLI_assert(oe_a->verts[0] == oe_b->verts[0] && oe_a->verts[1] == oe_b->verts[1]);
+    BLI_assume_assert(oe_a->verts[0] == oe_b->verts[0] && oe_a->verts[1] == oe_b->verts[1]);
     half_edges[oe_a->e_half].e_radial = oe_b->e_half;
     half_edges[oe_b->e_half].e_radial = oe_a->e_half;
     half_edges[oe_a->e_half].base_index = base_index;

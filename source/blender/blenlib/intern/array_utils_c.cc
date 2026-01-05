@@ -79,7 +79,7 @@ void _bli_array_permute(
   memcpy(arr_orig, arr, len);
 
   for (i = 0; i < arr_len; i++) {
-    BLI_assert(order[i] < arr_len);
+    BLI_assume_assert(order[i] < arr_len);
     memcpy(POINTER_OFFSET(arr, arr_stride_uint * i),
            POINTER_OFFSET(arr_orig, arr_stride_uint * order[i]),
            arr_stride);
@@ -209,7 +209,7 @@ bool _bli_array_iter_span(const void *arr,
   else {
     return false;
   }
-  BLI_assert(i_curr < arr_len);
+  BLI_assume_assert(i_curr < arr_len);
 
   const void *item_curr = POINTER_OFFSET(arr, i_curr * arr_stride_uint);
 
@@ -291,7 +291,7 @@ bool _bli_array_iter_spiral_square(const void *arr_v,
                                    bool (*test_fn)(const void *arr_item, void *user_data),
                                    void *user_data)
 {
-  BLI_assert(center[0] >= 0 && center[1] >= 0 && center[0] < arr_shape[0] &&
+  BLI_assume_assert(center[0] >= 0 && center[1] >= 0 && center[0] < arr_shape[0] &&
              center[1] < arr_shape[1]);
 
   const char *arr = static_cast<const char *>(arr_v);

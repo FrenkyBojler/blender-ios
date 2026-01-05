@@ -598,7 +598,7 @@ static Entry *ghash_pop(GHash *gh, GHashIterState *state)
   curr_bucket = ghash_find_next_bucket_index(gh, curr_bucket);
 
   Entry *e = gh->buckets[curr_bucket];
-  BLI_assert(e);
+  BLI_assume_assert(e);
 
   ghash_remove_ex(gh, e->key, nullptr, nullptr, curr_bucket);
 
@@ -613,7 +613,7 @@ static void ghash_free_cb(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP va
 {
   uint i;
 
-  BLI_assert(keyfreefp || valfreefp);
+  BLI_assume_assert(keyfreefp || valfreefp);
   BLI_assert(!valfreefp || !(gh->flag & GHASH_FLAG_IS_GSET));
 
   for (i = 0; i < gh->nbuckets; i++) {
@@ -645,7 +645,7 @@ static GHash *ghash_copy(const GHash *gh, GHashKeyCopyFP keycopyfp, GHashValCopy
   gh_new = ghash_new(gh->hashfp, gh->cmpfp, __func__, 0, gh->flag);
   ghash_buckets_expand(gh_new, reserve_nentries_new, false);
 
-  BLI_assert(gh_new->nbuckets == gh->nbuckets);
+  BLI_assume_assert(gh_new->nbuckets == gh->nbuckets);
 
   for (i = 0; i < gh->nbuckets; i++) {
     Entry *e;
@@ -859,7 +859,7 @@ void BLI_ghash_clear(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfree
 
 void BLI_ghash_free(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
 {
-  BLI_assert(int(gh->nentries) == BLI_mempool_len(gh->entrypool));
+  BLI_assume_assert(int(gh->nentries) == BLI_mempool_len(gh->entrypool));
   if (keyfreefp || valfreefp) {
     ghash_free_cb(gh, keyfreefp, valfreefp);
   }

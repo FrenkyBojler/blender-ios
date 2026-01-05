@@ -12,7 +12,7 @@
 
 /* Based on https://github.com/jarikomppa/ipc (Unlicense) */
 
-#  include "BLI_assert.h"
+#  include "BLI_assume.hh"
 #  include "BLI_path_utils.hh"
 #  include "BLI_string_utf8.h"
 #  include <iostream>
@@ -52,7 +52,7 @@ static void check(bool result, const char *function, const char *msg)
 {
   if (!result) {
     print_last_error(function, msg);
-    BLI_assert(false);
+    BLI_assume_assert(false);
   }
 }
 
@@ -90,10 +90,10 @@ class ProcessGroup {
 
 bool BlenderSubprocess::create(Span<StringRefNull> args)
 {
-  BLI_assert(handle_ == nullptr);
+  BLI_assume_assert(handle_ == nullptr);
 
   if (!check_arguments_are_valid(args)) {
-    BLI_assert(false);
+    BLI_assume_assert(false);
     return false;
   }
 
@@ -258,7 +258,7 @@ static void check(int result, const char *function, const char *msg)
 {
   if (result == -1) {
     print_last_error(function, msg);
-    BLI_assert(false);
+    BLI_assume_assert(false);
   }
 }
 
@@ -268,7 +268,7 @@ static void check(int result, const char *function, const char *msg)
 bool BlenderSubprocess::create(Span<StringRefNull> args)
 {
   if (!check_arguments_are_valid(args)) {
-    BLI_assert(false);
+    BLI_assume_assert(false);
     return false;
   }
 

@@ -233,7 +233,7 @@ static void convert_storage_to_customdata(
     CustomData &custom_data = custom_data_domains.lookup(attribute.domain()).data;
     const int domain_size = custom_data_domains.lookup(attribute.domain()).size;
     if (const auto *array_data = std::get_if<Attribute::ArrayData>(&attribute.data())) {
-      BLI_assert(array_data->size == domain_size);
+      BLI_assume_assert(array_data->size == domain_size);
       CustomData_add_layer_named_with_data(&custom_data,
                                            *data_type,
                                            array_data->data,

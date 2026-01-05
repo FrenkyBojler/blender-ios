@@ -2,8 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_assume.hh"
 #include "BLI_math_vector.hh"
-
 #include "BLI_kdtree.hh"
 #include "BLI_length_parameterize.hh"
 #include "BLI_math_matrix.h"
@@ -348,7 +348,7 @@ AddCurvesOnMeshOutputs add_curves_on_mesh(CurvesGeometry &curves,
 
   Array<NeighborCurves> neighbors_per_curve;
   if (use_interpolation) {
-    BLI_assert(inputs.old_roots_kdtree != nullptr);
+    BLI_assume_assert(inputs.old_roots_kdtree != nullptr);
     neighbors_per_curve = find_curve_neighbors(root_positions_cu, *inputs.old_roots_kdtree);
   }
 

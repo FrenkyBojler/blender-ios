@@ -104,13 +104,13 @@ bNodeInstanceKey DNode::instance_key() const
 DOutputSocket DInputSocket::get_corresponding_group_node_output() const
 {
   BLI_assert(*this);
-  BLI_assert(bsocket_->owner_node().is_group_output());
-  BLI_assert(bsocket_->index() < bsocket_->owner_node().input_sockets().size() - 1);
+  BLI_assume_assert(bsocket_->owner_node().is_group_output());
+  BLI_assume_assert(bsocket_->index() < bsocket_->owner_node().input_sockets().size() - 1);
 
   const DTreeContext *parent_context = context_->parent_context();
   const bNode *parent_node = context_->parent_node();
-  BLI_assert(parent_context != nullptr);
-  BLI_assert(parent_node != nullptr);
+  BLI_assume_assert(parent_context != nullptr);
+  BLI_assume_assert(parent_node != nullptr);
 
   const int socket_index = bsocket_->index();
   return {parent_context, &parent_node->output_socket(socket_index)};
@@ -119,10 +119,10 @@ DOutputSocket DInputSocket::get_corresponding_group_node_output() const
 Vector<DOutputSocket> DInputSocket::get_corresponding_group_input_sockets() const
 {
   BLI_assert(*this);
-  BLI_assert(bsocket_->owner_node().is_group());
+  BLI_assume_assert(bsocket_->owner_node().is_group());
 
   const DTreeContext *child_context = context_->child_context(bsocket_->owner_node());
-  BLI_assert(child_context != nullptr);
+  BLI_assume_assert(child_context != nullptr);
 
   const bNodeTree &child_tree = child_context->btree();
   Span<const bNode *> group_input_nodes = child_tree.group_input_nodes();
@@ -137,13 +137,13 @@ Vector<DOutputSocket> DInputSocket::get_corresponding_group_input_sockets() cons
 DInputSocket DOutputSocket::get_corresponding_group_node_input() const
 {
   BLI_assert(*this);
-  BLI_assert(bsocket_->owner_node().is_group_input());
-  BLI_assert(bsocket_->index() < bsocket_->owner_node().output_sockets().size() - 1);
+  BLI_assume_assert(bsocket_->owner_node().is_group_input());
+  BLI_assume_assert(bsocket_->index() < bsocket_->owner_node().output_sockets().size() - 1);
 
   const DTreeContext *parent_context = context_->parent_context();
   const bNode *parent_node = context_->parent_node();
-  BLI_assert(parent_context != nullptr);
-  BLI_assert(parent_node != nullptr);
+  BLI_assume_assert(parent_context != nullptr);
+  BLI_assume_assert(parent_node != nullptr);
 
   const int socket_index = bsocket_->index();
   return {parent_context, &parent_node->input_socket(socket_index)};
@@ -152,7 +152,7 @@ DInputSocket DOutputSocket::get_corresponding_group_node_input() const
 DInputSocket DOutputSocket::get_active_corresponding_group_output_socket() const
 {
   BLI_assert(*this);
-  BLI_assert(bsocket_->owner_node().is_group());
+  BLI_assume_assert(bsocket_->owner_node().is_group());
 
   const DTreeContext *child_context = context_->child_context(bsocket_->owner_node());
   if (child_context == nullptr) {

@@ -154,7 +154,7 @@ class SampleGridIndexFunction : public mf::MultiFunction {
  public:
   SampleGridIndexFunction(bke::GVolumeGrid grid) : grid_(std::move(grid))
   {
-    BLI_assert(grid_);
+    BLI_assume_assert(grid_);
 
     const std::optional<eNodeSocketDatatype> data_type = bke::grid_type_to_socket_type(
         grid_->grid_type());

@@ -65,9 +65,9 @@ template<typename Allocator = GuardedAllocator> class LinearAllocator : NonCopya
    */
   void *allocate(const int64_t size, const int64_t alignment)
   {
-    BLI_assert(size >= 0);
-    BLI_assert(alignment >= 1);
-    BLI_assert(is_power_of_2(alignment));
+    BLI_assume_assert(size >= 0);
+    BLI_assume_assert(alignment >= 1);
+    BLI_assume_assert(is_power_of_2(alignment));
 
     const uintptr_t alignment_mask = alignment - 1;
     const uintptr_t potential_allocation_begin = (current_begin_ + alignment_mask) &
@@ -216,7 +216,7 @@ template<typename Allocator = GuardedAllocator> class LinearAllocator : NonCopya
    */
   void provide_buffer(void *buffer, const int64_t size)
   {
-    BLI_assert(owned_buffers_.is_empty());
+    BLI_assume_assert(owned_buffers_.is_empty());
     current_begin_ = uintptr_t(buffer);
     current_end_ = current_begin_ + size;
   }
@@ -245,7 +245,7 @@ template<typename Allocator = GuardedAllocator> class LinearAllocator : NonCopya
      * case, we can't free the end of it anymore. */
     if (original_allocation_size <= large_buffer_threshold) {
       const int64_t new_begin = uintptr_t(free_after);
-      BLI_assert(new_begin <= current_begin_);
+      BLI_assume_assert(new_begin <= current_begin_);
 #ifndef NDEBUG
       /* This condition is not really necessary but it helps finding the cases where memory was
        * freed. */

@@ -115,7 +115,7 @@ struct SocketValue {
     }
     if (const auto *input_socket_value = std::get_if<InputSocketValue>(&this->value)) {
       const bNodeSocket &socket = *input_socket_value->socket;
-      BLI_assert(socket.type == type.type);
+      BLI_assume_assert(socket.type == type.type);
       if (!socket.runtime->declaration) {
         return std::nullopt;
       }
@@ -246,7 +246,7 @@ class ShaderNodesInliner {
       if (scheduled_sockets_stack_.size() == old_stack_size) {
         /* No additional dependencies were pushed, so this socket is fully handled and can be
          * popped from the stack. */
-        BLI_assert(socket == scheduled_sockets_stack_.peek());
+        BLI_assume_assert(socket == scheduled_sockets_stack_.peek());
         scheduled_sockets_stack_.pop();
       }
     }
@@ -441,7 +441,7 @@ class ShaderNodesInliner {
    */
   bool input_socket_may_have_dangling_value(const SocketInContext &socket)
   {
-    BLI_assert(socket->is_input());
+    BLI_assume_assert(socket->is_input());
     const NodeInContext node = socket.owner_node();
     return node->is_reroute() || node->is_muted();
   }
@@ -598,7 +598,7 @@ class ShaderNodesInliner {
        * node. */
       const ComputeContext *parent_compute_context = group_node_compute_context->parent();
       const bNode *group_node = group_node_compute_context->node();
-      BLI_assert(group_node);
+      BLI_assume_assert(group_node);
       const bNodeSocket &group_node_input = group_node->input_socket(socket->index());
       const SocketInContext group_input_socket_ctx = {parent_compute_context, &group_node_input};
       this->forward_value_or_schedule(socket, group_input_socket_ctx);
@@ -609,7 +609,7 @@ class ShaderNodesInliner {
 
   bool should_preserve_repeat_zone_node(const bNode &repeat_zone_node) const
   {
-    BLI_assert(repeat_zone_node.is_type("GeometryNodeRepeatOutput") ||
+    BLI_assume_assert(repeat_zone_node.is_type("GeometryNodeRepeatOutput") ||
                repeat_zone_node.is_type("GeometryNodeRepeatInput"));
     if (!params_.allow_preserving_repeat_zones) {
       return false;
@@ -1185,7 +1185,7 @@ class ShaderNodesInliner {
                               bNodeSocket &dst_socket,
                               const SocketValue &value)
   {
-    BLI_assert(dst_socket.is_input());
+    BLI_assume_assert(dst_socket.is_input());
     if (dst_socket.flag & SOCK_HIDE_VALUE) {
       if (const auto *input_socket_value = std::get_if<InputSocketValue>(&value.value)) {
         if (input_socket_value->socket->flag & SOCK_HIDE_VALUE) {
@@ -1449,7 +1449,7 @@ bool inline_shader_node_tree(const bNodeTree &src_tree,
     }
     for (bNodeLink &link : dst_tree.links) {
       link.tosock->link = &link;
-      BLI_assert(dst_tree.typeinfo->validate_link(link.fromsock->typeinfo->type,
+      BLI_assume_assert(dst_tree.typeinfo->validate_link(link.fromsock->typeinfo->type,
                                                   link.tosock->typeinfo->type));
       link.flag |= NODE_LINK_VALID;
     }

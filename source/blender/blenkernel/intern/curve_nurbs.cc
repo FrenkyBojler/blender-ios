@@ -69,7 +69,7 @@ static int count_nonzero_knot_spans(const int points_num,
                                     const bool cyclic,
                                     const Span<float> knots)
 {
-  BLI_assert(points_num > 0);
+  BLI_assume_assert(points_num > 0);
   const int degree = order - 1;
   int span_num = 0;
 
@@ -119,7 +119,7 @@ void calculate_knots(const int points_num,
                      const bool cyclic,
                      MutableSpan<float> knots)
 {
-  BLI_assert(knots.size() == knots_num(points_num, order, cyclic));
+  BLI_assume_assert(knots.size() == knots_num(points_num, order, cyclic));
   UNUSED_VARS_NDEBUG(points_num);
 
   const bool is_bezier = ELEM(mode, NURBS_KNOT_MODE_BEZIER, NURBS_KNOT_MODE_ENDPOINT_BEZIER);
@@ -204,10 +204,10 @@ static void calculate_basis_for_point(const Span<float> knots,
                                       MutableSpan<float> r_weights,
                                       int &r_start_index)
 {
-  BLI_assert(degree >= 1);
-  BLI_assert(span_index >= degree);
-  BLI_assert(span_index + degree < knots.size());
-  BLI_assert(knots[span_index + 1] > knots[span_index]);
+  BLI_assume_assert(degree >= 1);
+  BLI_assume_assert(span_index >= degree);
+  BLI_assume_assert(span_index + degree < knots.size());
+  BLI_assume_assert(knots[span_index + 1] > knots[span_index]);
   const int order = degree + 1;
 
   r_start_index = span_index - degree;
@@ -238,7 +238,7 @@ void calculate_basis_cache(const int points_num,
                            const Span<float> knots,
                            BasisCache &basis_cache)
 {
-  BLI_assert(points_num > 0);
+  BLI_assume_assert(points_num > 0);
 
   const int8_t degree = order - 1;
   const int wrapped_points_num = control_points_num(points_num, order, cyclic);
@@ -273,7 +273,7 @@ void calculate_basis_cache(const int points_num,
       span_offsets[breakpoint_count++] = span_index;
     }
   }
-  BLI_assert(breakpoint_count == breakpoint_num);
+  BLI_assume_assert(breakpoint_count == breakpoint_num);
 
   /* Build the basis cache, sampling each evaluated span at intervals. */
   threading::parallel_for(span_offsets.index_range(), 4096, [&](const IndexRange range) {
@@ -283,7 +283,7 @@ void calculate_basis_cache(const int points_num,
 
       const float knot_delta = knots[span_index + 1] - knots[span_index];
       const float knot_step = knot_delta / resolution;
-      BLI_assert(knot_delta > 0.0f);
+      BLI_assume_assert(knot_delta > 0.0f);
 
       for (const int step : IndexRange::from_begin_size(0, resolution)) {
         const float parameter = knots[span_index] + step * knot_step;
@@ -361,7 +361,7 @@ void interpolate_to_evaluated(const BasisCache &basis_cache,
     return;
   }
 
-  BLI_assert(dst.size() == basis_cache.start_indices.size());
+  BLI_assume_assert(dst.size() == basis_cache.start_indices.size());
   attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
     using T = decltype(dummy);
     if constexpr (!std::is_void_v<attribute_math::DefaultMixer<T>>) {

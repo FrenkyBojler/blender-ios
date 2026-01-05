@@ -234,7 +234,7 @@ static void tracking_plane_tracks_copy(
     for (int i = 0; i < plane_track_dst->point_tracksnr; i++) {
       plane_track_dst->point_tracks[i] = ctx->old_to_new_track_map->lookup(
           plane_track_src.point_tracks[i]);
-      BLI_assert(plane_track_dst->point_tracks[i] != nullptr);
+      BLI_assume_assert(plane_track_dst->point_tracks[i] != nullptr);
     }
     if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
       id_us_plus(&plane_track_dst->image->id);
@@ -284,12 +284,12 @@ static void tracking_object_copy(MovieTrackingObject *tracking_object_dst,
   if (tracking_object_src->active_track) {
     tracking_object_dst->active_track = ctx.old_to_new_track_map->lookup(
         tracking_object_src->active_track);
-    BLI_assert(tracking_object_dst->active_track != nullptr);
+    BLI_assume_assert(tracking_object_dst->active_track != nullptr);
   }
   if (tracking_object_src->active_plane_track) {
     tracking_object_dst->active_plane_track = ctx.old_to_new_plane_track_map->lookup(
         tracking_object_src->active_plane_track);
-    BLI_assert(tracking_object_dst->active_plane_track != nullptr);
+    BLI_assume_assert(tracking_object_dst->active_plane_track != nullptr);
   }
 
   tracking_copy_context_delete(&ctx);
@@ -372,7 +372,7 @@ void BKE_tracking_settings_init(MovieTracking *tracking)
 
 void BKE_tracking_get_camera_object_matrix(const Object *camera_object, float mat[4][4])
 {
-  BLI_assert(camera_object != nullptr);
+  BLI_assume_assert(camera_object != nullptr);
   /* NOTE: Construct matrix from scratch rather than using obmat because the camera object here
    * will have camera solver constraint taken into account. But here we do not want or need it:
    * object is solved in camera space (as in, camera is stationary and object is moving).
@@ -608,7 +608,7 @@ void BKE_tracking_track_first_last_frame_get(const MovieTrackingTrack *track,
                                              int *r_first_frame,
                                              int *r_last_frame)
 {
-  BLI_assert(track->markersnr > 0);
+  BLI_assume_assert(track->markersnr > 0);
   const int last_marker_index = track->markersnr - 1;
   *r_first_frame = track->markers[0].framenr;
   *r_last_frame = track->markers[last_marker_index].framenr;
@@ -911,7 +911,7 @@ void BKE_tracking_tracks_join(MovieTracking *tracking,
 static void accumulate_marker(MovieTrackingMarker *dst_marker,
                               const MovieTrackingMarker *src_marker)
 {
-  BLI_assert(dst_marker->framenr == src_marker->framenr);
+  BLI_assume_assert(dst_marker->framenr == src_marker->framenr);
 
   if (src_marker->flag & MARKER_DISABLED) {
     return;
@@ -924,8 +924,8 @@ static void accumulate_marker(MovieTrackingMarker *dst_marker,
   add_v2_v2(dst_marker->search_min, src_marker->search_min);
   add_v2_v2(dst_marker->search_max, src_marker->search_max);
 
-  BLI_assert(is_finite_v2(src_marker->search_min));
-  BLI_assert(is_finite_v2(src_marker->search_max));
+  BLI_assume_assert(is_finite_v2(src_marker->search_min));
+  BLI_assume_assert(is_finite_v2(src_marker->search_max));
 
   dst_marker->flag &= ~MARKER_DISABLED;
   if ((src_marker->flag & MARKER_TRACKED) == 0) {
@@ -1381,7 +1381,7 @@ MovieTrackingMarker *BKE_tracking_marker_get(MovieTrackingTrack *track, int fram
       left_boundary = median_index + 1;
     }
     else {
-      BLI_assert(marker->framenr > framenr);
+      BLI_assume_assert(marker->framenr > framenr);
       right_boundary = median_index - 1;
     }
   }
@@ -1422,7 +1422,7 @@ MovieTrackingMarker *BKE_tracking_marker_ensure(MovieTrackingTrack *track, int f
 static const MovieTrackingMarker *get_usable_marker_for_interpolation(
     MovieTrackingTrack *track, const MovieTrackingMarker *anchor_marker, const int direction)
 {
-  BLI_assert(ELEM(direction, -1, 1));
+  BLI_assume_assert(ELEM(direction, -1, 1));
 
   const MovieTrackingMarker *last_marker = track->markers + track->markersnr - 1;
   const MovieTrackingMarker *current_marker = anchor_marker;

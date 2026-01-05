@@ -408,7 +408,7 @@ static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &nod
  */
 static bool hide_new_group_input_sockets(const bNode &node)
 {
-  BLI_assert(node.is_group_input());
+  BLI_assume_assert(node.is_group_input());
   /* Check needed to handle newly added group input nodes. */
   if (const bNodeSocket *extension_socket = static_cast<bNodeSocket *>(node.outputs.last)) {
     return extension_socket->is_user_hidden();
@@ -987,13 +987,13 @@ static bke::bNodeSocketType *make_standard_socket_type(
   /* set the RNA type
    * uses the exact same identifier as the socket type idname */
   srna = stype->ext_socket.srna = RNA_struct_find(socket_idname.c_str());
-  BLI_assert(srna != nullptr);
+  BLI_assume_assert(srna != nullptr);
   /* associate the RNA type with the socket type */
   RNA_struct_blender_type_set(srna, stype);
 
   /* set the interface RNA type */
   srna = stype->ext_interface.srna = RNA_struct_find(interface_idname.c_str());
-  BLI_assert(srna != nullptr);
+  BLI_assume_assert(srna != nullptr);
   /* associate the RNA type with the socket type */
   RNA_struct_blender_type_set(srna, stype);
 
@@ -1029,7 +1029,7 @@ static bke::bNodeSocketType *make_socket_type_virtual()
   /* set the RNA type
    * uses the exact same identifier as the socket type idname */
   srna = stype->ext_socket.srna = RNA_struct_find(socket_idname);
-  BLI_assert(srna != nullptr);
+  BLI_assume_assert(srna != nullptr);
   /* associate the RNA type with the socket type */
   RNA_struct_blender_type_set(srna, stype);
 

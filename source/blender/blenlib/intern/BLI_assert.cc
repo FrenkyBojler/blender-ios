@@ -5,10 +5,10 @@
 /** \file
  * \ingroup bli
  *
- * Helper functions for BLI_assert.h header.
+ * Helper functions for BLI_assume.hh header.
  */
 
-#include "BLI_assert.h" /* Own include. */
+#include "BLI_assume.hh" /* Own include. */
 
 #ifndef NDEBUG
 #  include "BLI_system.h"

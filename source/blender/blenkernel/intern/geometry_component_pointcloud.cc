@@ -38,7 +38,7 @@ GeometryComponentPtr PointCloudComponent::copy() const
 
 void PointCloudComponent::clear()
 {
-  BLI_assert(this->is_mutable() || this->is_expired());
+  BLI_assume_assert(this->is_mutable() || this->is_expired());
   if (pointcloud_ != nullptr) {
     if (ownership_ == GeometryOwnershipType::Owned) {
       BKE_id_free(nullptr, pointcloud_);
@@ -54,7 +54,7 @@ bool PointCloudComponent::has_pointcloud() const
 
 void PointCloudComponent::replace(PointCloud *pointcloud, GeometryOwnershipType ownership)
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   this->clear();
   pointcloud_ = pointcloud;
   ownership_ = ownership;
@@ -62,7 +62,7 @@ void PointCloudComponent::replace(PointCloud *pointcloud, GeometryOwnershipType 
 
 PointCloud *PointCloudComponent::release()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   PointCloud *pointcloud = pointcloud_;
   pointcloud_ = nullptr;
   return pointcloud;
@@ -75,7 +75,7 @@ const PointCloud *PointCloudComponent::get() const
 
 PointCloud *PointCloudComponent::get_for_write()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   if (ownership_ == GeometryOwnershipType::ReadOnly) {
     pointcloud_ = BKE_pointcloud_copy_for_eval(pointcloud_);
     ownership_ = GeometryOwnershipType::Owned;
@@ -95,7 +95,7 @@ bool PointCloudComponent::owns_direct_data() const
 
 void PointCloudComponent::ensure_owns_direct_data()
 {
-  BLI_assert(this->is_mutable());
+  BLI_assume_assert(this->is_mutable());
   if (ownership_ != GeometryOwnershipType::Owned) {
     if (pointcloud_) {
       pointcloud_ = BKE_pointcloud_copy_for_eval(pointcloud_);

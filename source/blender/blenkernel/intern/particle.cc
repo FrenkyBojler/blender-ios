@@ -1857,17 +1857,17 @@ int psys_particle_dm_face_lookup(Mesh *mesh_final,
       CustomData_get_layer(&mesh_final->fdata_legacy, CD_ORIGINDEX));
   index_mp_to_orig = static_cast<const int *>(
       CustomData_get_layer(&mesh_final->face_data, CD_ORIGINDEX));
-  BLI_assert(index_mf_to_mpoly);
+  BLI_assume_assert(index_mf_to_mpoly);
 
   if (mesh_original) {
     index_mf_to_mpoly_deformed = static_cast<const int *>(
         CustomData_get_layer(&mesh_original->fdata_legacy, CD_ORIGINDEX));
   }
   else {
-    BLI_assert(mesh_final->runtime->deformed_only);
+    BLI_assume_assert(mesh_final->runtime->deformed_only);
     index_mf_to_mpoly_deformed = index_mf_to_mpoly;
   }
-  BLI_assert(index_mf_to_mpoly_deformed);
+  BLI_assume_assert(index_mf_to_mpoly_deformed);
 
   pindex_orig = index_mf_to_mpoly_deformed[findex_orig];
 
@@ -3078,7 +3078,7 @@ static void psys_thread_create_path(ParticleTask *task,
       if (i >= ctx->totparent) {
         pa = &psys->particles[cpa->parent];
         /* this is now threadsafe, virtual parents are calculated before rest of children */
-        BLI_assert(cpa->parent < psys->totchildcache);
+        BLI_assume_assert(cpa->parent < psys->totchildcache);
         par = cache[cpa->parent];
       }
     }
@@ -3141,7 +3141,7 @@ static void exec_child_path_cache(TaskPool *__restrict /*pool*/, void *taskdata)
 
   cpa = psys->child + task->begin;
   for (i = task->begin; i < task->end; i++, cpa++) {
-    BLI_assert(i < psys->totchildcache);
+    BLI_assume_assert(i < psys->totchildcache);
     psys_thread_create_path(task, cpa, cache[i], i);
   }
 }

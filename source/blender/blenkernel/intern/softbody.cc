@@ -2659,7 +2659,7 @@ static void mesh_to_softbody(Object *ob)
      */
 
     if (ob->softflag & OB_SB_GOAL) {
-      BLI_assert(bp->goal == sb->defgoal);
+      BLI_assume_assert(bp->goal == sb->defgoal);
     }
     if ((ob->softflag & OB_SB_GOAL) && (defgroup_index != -1)) {
       bp->goal *= BKE_defvert_find_weight(&dvert[a], defgroup_index);
@@ -2884,7 +2884,7 @@ static void lattice_to_softbody(Object *ob)
   for (a = 0; a < totvert; a++, bp++, bpnt++) {
 
     if (ob->softflag & OB_SB_GOAL) {
-      BLI_assert(bp->goal == sb->defgoal);
+      BLI_assume_assert(bp->goal == sb->defgoal);
     }
 
     if ((ob->softflag & OB_SB_GOAL) && (defgroup_index != -1)) {

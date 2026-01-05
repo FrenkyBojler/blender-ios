@@ -11,7 +11,7 @@
 #include <cstdint>
 #include <memory>
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 
 namespace blender {
 
@@ -47,7 +47,7 @@ class GenericKey {
   {
     const bool are_equal = a.equal_to(b);
     /* Ensure that equality check is symmetric. */
-    BLI_assert(are_equal == b.equal_to(a));
+    BLI_assume_assert(are_equal == b.equal_to(a));
     return are_equal;
   }
 

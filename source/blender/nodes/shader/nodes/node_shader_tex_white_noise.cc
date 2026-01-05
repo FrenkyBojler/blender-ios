@@ -44,7 +44,7 @@ static void node_shader_init_tex_white_noise(bNodeTree * /*ntree*/, bNode *node)
 
 static const char *gpu_shader_get_name(const int dimensions)
 {
-  BLI_assert(dimensions >= 1 && dimensions <= 4);
+  BLI_assume_assert(dimensions >= 1 && dimensions <= 4);
   return std::array{"node_white_noise_1d",
                     "node_white_noise_2d",
                     "node_white_noise_3d",
@@ -77,7 +77,7 @@ class WhiteNoiseFunction : public mf::MultiFunction {
  public:
   WhiteNoiseFunction(int dimensions) : dimensions_(dimensions)
   {
-    BLI_assert(dimensions >= 1 && dimensions <= 4);
+    BLI_assume_assert(dimensions >= 1 && dimensions <= 4);
     static std::array<mf::Signature, 4> signatures{
         create_signature(1),
         create_signature(2),

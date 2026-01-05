@@ -137,7 +137,7 @@ class LazyFunctionForGeometryNode : public LazyFunction {
         own_lf_graph_info_(own_lf_graph_info),
         is_attribute_output_bsocket_(node.output_sockets().size(), false)
   {
-    BLI_assert(node.typeinfo->geometry_node_execute != nullptr);
+    BLI_assume_assert(node.typeinfo->geometry_node_execute != nullptr);
     debug_name_ = node.name;
     lazy_function_interface_from_node(
         node, inputs_, outputs_, own_lf_graph_info.mapping.lf_index_by_bsocket);
@@ -188,7 +188,7 @@ class LazyFunctionForGeometryNode : public LazyFunction {
     const ScopedNodeTimer node_timer{context, node_};
 
     GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
-    BLI_assert(user_data != nullptr);
+    BLI_assume_assert(user_data != nullptr);
 
     bool used_non_attribute_output_exists = false;
     for (const int output_bsocket_index : node_.output_sockets().index_range()) {
@@ -314,7 +314,7 @@ class LazyFunctionForMultiInput : public LazyFunction {
   LazyFunctionForMultiInput(const bNodeSocket &socket)
   {
     debug_name_ = "Multi Input";
-    BLI_assert(socket.is_multi_input());
+    BLI_assume_assert(socket.is_multi_input());
     for (const bNodeLink *link : socket.directly_linked_links()) {
       if (link->is_muted() || !link->fromsock->is_available() ||
           link->fromnode->is_dangling_reroute())
@@ -354,8 +354,8 @@ class LazyFunctionForRerouteNode : public LazyFunction {
   {
     void *input_value = params.try_get_input_data_ptr(0);
     void *output_value = params.get_output_data_ptr(0);
-    BLI_assert(input_value != nullptr);
-    BLI_assert(output_value != nullptr);
+    BLI_assume_assert(input_value != nullptr);
+    BLI_assume_assert(output_value != nullptr);
     const CPPType &type = *inputs_[0].type;
     type.move_construct(input_value, output_value);
     params.output_set(0);
@@ -387,7 +387,7 @@ class LazyFunctionForUndefinedNode : public LazyFunction {
 
 void construct_socket_default_value(const bke::bNodeSocketType &stype, void *r_value)
 {
-  BLI_assert(stype.geometry_nodes_default_value);
+  BLI_assume_assert(stype.geometry_nodes_default_value);
   new (r_value) SocketValueVariant(*stype.geometry_nodes_default_value);
 }
 
@@ -587,8 +587,8 @@ class LazyFunctionForImplicitConversion : public LazyFunction {
   {
     SocketValueVariant *from_value = params.try_get_input_data_ptr<SocketValueVariant>(0);
     SocketValueVariant *to_value = new (params.get_output_data_ptr(0)) SocketValueVariant();
-    BLI_assert(from_value != nullptr);
-    BLI_assert(to_value != nullptr);
+    BLI_assume_assert(from_value != nullptr);
+    BLI_assume_assert(to_value != nullptr);
     std::string error_message;
     if (!execute_multi_function_on_value_variant(
             fn_, {from_value}, {to_value}, nullptr, error_message))
@@ -710,7 +710,7 @@ class LazyFunctionForMultiFunctionNode : public LazyFunction {
                                    MutableSpan<int> r_lf_index_by_bsocket)
       : node_(node), fn_item_(std::move(fn_item))
   {
-    BLI_assert(fn_item_.fn != nullptr);
+    BLI_assume_assert(fn_item_.fn != nullptr);
     debug_name_ = node.name;
     lazy_function_interface_from_node(node, inputs_, outputs_, r_lf_index_by_bsocket);
   }
@@ -859,7 +859,7 @@ class LazyFunctionForViewerInputUsage : public LazyFunction {
   void execute_impl(lf::Params &params, const lf::Context &context) const override
   {
     GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
-    BLI_assert(user_data != nullptr);
+    BLI_assume_assert(user_data != nullptr);
     if (!user_data->call_data->side_effect_nodes) {
       params.set_output<bool>(0, false);
       return;
@@ -1143,7 +1143,7 @@ class LazyFunctionForGroupNode : public LazyFunction {
   {
     const ScopedNodeTimer node_timer{context, group_node_};
     GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
-    BLI_assert(user_data != nullptr);
+    BLI_assume_assert(user_data != nullptr);
 
     if (has_many_nodes_) {
       /* If the called node group has many nodes, it's likely that executing it takes a while even
@@ -1810,7 +1810,7 @@ class GeometryNodesLazyFunctionLogger : public lf::GraphExecutor::Logger {
     std::lock_guard lock{dump_error_context_mutex};
 
     GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
-    BLI_assert(user_data != nullptr);
+    BLI_assume_assert(user_data != nullptr);
     user_data->compute_context->print_stack(std::cout, node.name());
     std::cout << "Missing outputs:\n";
     for (const lf::OutputSocket *socket : missing_sockets) {
@@ -1829,7 +1829,7 @@ class GeometryNodesLazyFunctionLogger : public lf::GraphExecutor::Logger {
        << target_socket.node().name() << ":" << target_socket.name();
 
     GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
-    BLI_assert(user_data != nullptr);
+    BLI_assume_assert(user_data != nullptr);
     user_data->compute_context->print_stack(std::cout, ss.str());
   }
 
@@ -1899,7 +1899,7 @@ class GeometryNodesLazyFunctionSideEffectProvider : public lf::GraphExecutor::Si
       const lf::Context &context) const override
   {
     GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
-    BLI_assert(user_data != nullptr);
+    BLI_assume_assert(user_data != nullptr);
     const GeoNodesCallData &call_data = *user_data->call_data;
     if (!call_data.side_effect_nodes) {
       return {};
@@ -2820,7 +2820,7 @@ struct GeometryNodesLazyFunctionBuilder {
       const ReferenceSetIndex reference_set_i = item.key;
       const int child_zone_input_i = item.value;
       lf::InputSocket &lf_reference_set_input = child_zone_node.input(child_zone_input_i);
-      BLI_assert(lf_reference_set_input.type().is<GeometryNodesReferenceSet>());
+      BLI_assume_assert(lf_reference_set_input.type().is<GeometryNodesReferenceSet>());
       graph_params.lf_reference_set_inputs.add(reference_set_i, &lf_reference_set_input);
     }
   }
@@ -3140,7 +3140,7 @@ struct GeometryNodesLazyFunctionBuilder {
       const int lf_input_index =
           mapping_
               ->lf_input_index_for_output_bsocket_usage[output_bsocket->index_in_all_outputs()];
-      BLI_assert(lf_input_index >= 0);
+      BLI_assume_assert(lf_input_index >= 0);
       lf::InputSocket &lf_socket = lf_group_node.input(lf_input_index);
       if (lf::OutputSocket *lf_output_is_used = graph_params.usage_by_bsocket.lookup_default(
               output_bsocket, nullptr))
@@ -3670,10 +3670,10 @@ struct GeometryNodesLazyFunctionBuilder {
     lf::FunctionNode &lf_node = graph_params.lf_graph.add_function(*function.lazy_function);
     const int inputs_num = bnode.input_sockets().size() - 1;
     const int outputs_num = bnode.output_sockets().size() - 1;
-    BLI_assert(inputs_num == function.indices.inputs.main.size());
-    BLI_assert(inputs_num == function.indices.outputs.input_usages.size());
-    BLI_assert(outputs_num == function.indices.outputs.main.size());
-    BLI_assert(outputs_num == function.indices.inputs.output_usages.size());
+    BLI_assume_assert(inputs_num == function.indices.inputs.main.size());
+    BLI_assume_assert(inputs_num == function.indices.outputs.input_usages.size());
+    BLI_assume_assert(outputs_num == function.indices.outputs.main.size());
+    BLI_assume_assert(outputs_num == function.indices.inputs.output_usages.size());
 
     mapping_->possible_side_effect_node_map.add(bnode.identifier, &lf_node);
 

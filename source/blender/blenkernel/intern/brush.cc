@@ -197,8 +197,8 @@ static void brush_make_local(Main *bmain, ID *id, const int flags)
 
     id_us_min(&brush_new->id);
 
-    BLI_assert(brush_new->id.flag & ID_FLAG_FAKEUSER);
-    BLI_assert(brush_new->id.us == 1);
+    BLI_assume_assert(brush_new->id.flag & ID_FLAG_FAKEUSER);
+    BLI_assume_assert(brush_new->id.us == 1);
 
     /* Setting `newid` is mandatory for complex #make_lib_local logic. */
     ID_NEW_SET(brush, brush_new);
@@ -473,7 +473,7 @@ static void brush_asset_metadata_ensure(void *asset_ptr, AssetMetaData *asset_da
   using namespace blender::bke;
 
   Brush *brush = reinterpret_cast<Brush *>(asset_ptr);
-  BLI_assert(GS(brush->id.name) == ID_BR);
+  BLI_assume_assert(GS(brush->id.name) == ID_BR);
 
   /* Most names copied from brush RNA (not all are available there though). */
   constexpr std::array mode_map{
@@ -1447,7 +1447,7 @@ void BKE_brush_calc_curve_factors(const eBrushCurvePreset preset,
                                   const float brush_radius,
                                   const blender::MutableSpan<float> factors)
 {
-  BLI_assert(factors.size() == distances.size());
+  BLI_assume_assert(factors.size() == distances.size());
 
   const float radius_rcp = blender::math::rcp(brush_radius);
   switch (preset) {
@@ -1575,8 +1575,8 @@ float BKE_brush_curve_strength(const eBrushCurvePreset preset,
                                const float distance,
                                const float brush_radius)
 {
-  BLI_assert(distance >= 0.0f);
-  BLI_assert(brush_radius >= 0.0f);
+  BLI_assume_assert(distance >= 0.0f);
+  BLI_assume_assert(brush_radius >= 0.0f);
 
   float p = distance;
   float strength = 1.0f;

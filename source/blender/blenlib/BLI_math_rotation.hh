@@ -122,7 +122,7 @@ template<typename T> [[nodiscard]] MatBase<T, 3, 3> to_gimbal_axis(const Euler3B
  */
 template<typename T> [[nodiscard]] AngleRadianBase<T> angle_of(const QuaternionBase<T> &q)
 {
-  BLI_assert(is_unit_scale(q));
+  BLI_assume_assert(is_unit_scale(q));
   return T(2) * math::safe_acos(q.w);
 }
 
@@ -136,7 +136,7 @@ template<typename T> [[nodiscard]] AngleRadianBase<T> angle_of(const QuaternionB
  */
 template<typename T> [[nodiscard]] AngleRadianBase<T> angle_of_signed(const QuaternionBase<T> &q)
 {
-  BLI_assert(is_unit_scale(q));
+  BLI_assume_assert(is_unit_scale(q));
   return T(2) * ((q.w >= T(0)) ? math::safe_acos(q.w) : -math::safe_acos(-q.w));
 }
 
@@ -155,8 +155,8 @@ template<typename T>
 template<typename T>
 [[nodiscard]] AngleRadianBase<T> angle_between(const VecBase<T, 3> &a, const VecBase<T, 3> &b)
 {
-  BLI_assert(is_unit_scale(a));
-  BLI_assert(is_unit_scale(b));
+  BLI_assume_assert(is_unit_scale(a));
+  BLI_assume_assert(is_unit_scale(b));
   return math::safe_acos(dot(a, b));
 }
 template<typename T>
@@ -350,7 +350,7 @@ template<typename T>
 template<typename T>
 [[nodiscard]] QuaternionBase<T> from_tracking(AxisSigned forward_axis, Axis up_axis)
 {
-  BLI_assert(forward_axis.axis() != up_axis);
+  BLI_assume_assert(forward_axis.axis() != up_axis);
 
   /* Curve have Z forward, Y up, X left. */
   return QuaternionBase<T>(

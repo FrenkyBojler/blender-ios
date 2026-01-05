@@ -96,7 +96,7 @@ static Mesh *hull_from_bullet(const Mesh *mesh, Span<float3> coords)
     edges[0] = int2(0, 1);
     edge_index++;
   }
-  BLI_assert(edge_index == edges_num);
+  BLI_assume_assert(edge_index == edges_num);
 
   /* Copy faces. */
   Array<int> loops;
@@ -109,7 +109,7 @@ static Mesh *hull_from_bullet(const Mesh *mesh, Span<float3> coords)
   for (const int i : IndexRange(faces_num)) {
     const int len = plConvexHullGetFaceSize(hull, i);
 
-    BLI_assert(len > 2);
+    BLI_assume_assert(len > 2);
 
     /* Get face loop indices. */
     loops.reinitialize(len);

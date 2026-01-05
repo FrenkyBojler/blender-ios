@@ -600,7 +600,7 @@ static ImBuf *accessor_get_preprocessed_ibuf(TrackingImageAccessor *accessor,
   ImBuf *ibuf;
   int scene_frame;
 
-  BLI_assert(clip_index < accessor->num_clips);
+  BLI_assume_assert(clip_index < accessor->num_clips);
 
   clip = accessor->clips[clip_index];
   scene_frame = BKE_movieclip_remap_clip_to_scene_frame(clip, frame);
@@ -616,7 +616,7 @@ static ImBuf *make_grayscale_ibuf_copy(ImBuf *ibuf)
 {
   ImBuf *grayscale = IMB_allocImBuf(ibuf->x, ibuf->y, 32, 0);
 
-  BLI_assert(ELEM(ibuf->channels, 3, 4));
+  BLI_assume_assert(ELEM(ibuf->channels, 3, 4));
 
   /* TODO(sergey): Bummer, currently IMB API only allows to create 4 channels
    * float buffer, so we do it manually here.
@@ -641,7 +641,7 @@ static ImBuf *make_grayscale_ibuf_copy(ImBuf *ibuf)
 
 static void ibuf_to_float_image(const ImBuf *ibuf, libmv_FloatImage *float_image)
 {
-  BLI_assert(ibuf->float_buffer.data != nullptr);
+  BLI_assume_assert(ibuf->float_buffer.data != nullptr);
   float_image->buffer = ibuf->float_buffer.data;
   float_image->width = ibuf->x;
   float_image->height = ibuf->y;
@@ -759,11 +759,11 @@ static ImBuf *accessor_get_ibuf(TrackingImageAccessor *accessor,
   }
   /* Transform number of channels. */
   if (input_mode == LIBMV_IMAGE_MODE_RGBA) {
-    BLI_assert(ELEM(orig_ibuf->channels, 3, 4));
+    BLI_assume_assert(ELEM(orig_ibuf->channels, 3, 4));
     /* pass */
   }
   else /* if (input_mode == LIBMV_IMAGE_MODE_MONO) */ {
-    BLI_assert(input_mode == LIBMV_IMAGE_MODE_MONO);
+    BLI_assume_assert(input_mode == LIBMV_IMAGE_MODE_MONO);
     if (final_ibuf->channels != 1) {
       ImBuf *grayscale_ibuf = make_grayscale_ibuf_copy(final_ibuf);
       if (final_ibuf != orig_ibuf) {
@@ -799,7 +799,7 @@ static libmv_CacheKey accessor_get_image_callback(libmv_FrameAccessorUserData *u
   TrackingImageAccessor *accessor = (TrackingImageAccessor *)user_data;
   ImBuf *ibuf;
 
-  BLI_assert(clip_index >= 0 && clip_index < accessor->num_clips);
+  BLI_assume_assert(clip_index >= 0 && clip_index < accessor->num_clips);
 
   ibuf = accessor_get_ibuf(accessor, clip_index, frame, input_mode, downscale, region, transform);
 
@@ -836,8 +836,8 @@ static libmv_CacheKey accessor_get_mask_for_track_callback(libmv_FrameAccessorUs
 {
   /* Perform sanity checks first. */
   TrackingImageAccessor *accessor = (TrackingImageAccessor *)user_data;
-  BLI_assert(clip_index < accessor->num_clips);
-  BLI_assert(track_index < accessor->num_tracks);
+  BLI_assume_assert(clip_index < accessor->num_clips);
+  BLI_assume_assert(track_index < accessor->num_tracks);
   MovieTrackingTrack *track = accessor->tracks[track_index];
   /* Early output, track does not use mask. */
   if ((track->algorithm_flag & TRACK_ALGORITHM_FLAG_USE_MASK) == 0) {
@@ -887,7 +887,7 @@ TrackingImageAccessor *tracking_image_accessor_new(MovieClip *clips[MAX_ACCESSOR
 {
   TrackingImageAccessor *accessor = MEM_callocN<TrackingImageAccessor>("tracking image accessor");
 
-  BLI_assert(num_clips <= MAX_ACCESSOR_CLIP);
+  BLI_assume_assert(num_clips <= MAX_ACCESSOR_CLIP);
 
   memcpy(accessor->clips, clips, num_clips * sizeof(MovieClip *));
   accessor->num_clips = num_clips;

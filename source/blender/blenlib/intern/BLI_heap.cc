@@ -13,9 +13,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_assume.hh"
 #include "BLI_heap.h"
 #include "BLI_utildefines.h"
-
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /***/
@@ -283,14 +283,14 @@ HeapNode *BLI_heap_top(const Heap *heap)
 
 float BLI_heap_top_value(const Heap *heap)
 {
-  BLI_assert(heap->size != 0);
+  BLI_assume_assert(heap->size != 0);
 
   return heap->tree[0]->value;
 }
 
 void *BLI_heap_pop_min(Heap *heap)
 {
-  BLI_assert(heap->size != 0);
+  BLI_assume_assert(heap->size != 0);
 
   void *ptr = heap->tree[0]->ptr;
 
@@ -306,7 +306,7 @@ void *BLI_heap_pop_min(Heap *heap)
 
 void BLI_heap_remove(Heap *heap, HeapNode *node)
 {
-  BLI_assert(heap->size != 0);
+  BLI_assume_assert(heap->size != 0);
 
   uint i = node->index;
 

@@ -180,7 +180,7 @@ static blender::gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *m
     }
   }
 
-  BLI_assert(arraywidth > 0 && arrayheight > 0);
+  BLI_assume_assert(arraywidth > 0 && arrayheight > 0);
 
   BLI_listbase_sort(&boxes, compare_packtile);
   int arraylayers = 0;
@@ -188,7 +188,7 @@ static blender::gpu::Texture *gpu_texture_create_tile_array(Image *ima, ImBuf *m
   while (boxes.first != nullptr) {
     ListBaseT<FixedSizeBoxPack> packed = {nullptr};
     BLI_box_pack_2d_fixedarea(&boxes, arraywidth, arrayheight, &packed);
-    BLI_assert(packed.first != nullptr);
+    BLI_assume_assert(packed.first != nullptr);
 
     for (const FixedSizeBoxPack &fixedpack : packed) {
       const PackTile *packtile = reinterpret_cast<const PackTile *>(&fixedpack);
@@ -275,8 +275,8 @@ static blender::gpu::Texture **get_image_gpu_texture_ptr(Image *ima,
                                                          const int multiview_eye)
 {
   const bool in_range = (int(textarget) >= 0) && (textarget < TEXTARGET_COUNT);
-  BLI_assert(in_range);
-  BLI_assert(ELEM(multiview_eye, 0, 1));
+  BLI_assume_assert(in_range);
+  BLI_assume_assert(ELEM(multiview_eye, 0, 1));
 
   if (in_range) {
     return &(ima->runtime->gputexture[textarget][multiview_eye]);

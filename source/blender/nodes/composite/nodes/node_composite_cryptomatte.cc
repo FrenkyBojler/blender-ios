@@ -13,7 +13,7 @@
 
 #include "node_composite_util.hh"
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
@@ -68,7 +68,7 @@ static blender::bke::cryptomatte::CryptomatteSessionPtr cryptomatte_init_from_no
   if (!scene) {
     return session;
   }
-  BLI_assert(GS(scene->id.name) == ID_SCE);
+  BLI_assume_assert(GS(scene->id.name) == ID_SCE);
 
   session = blender::bke::cryptomatte::CryptomatteSessionPtr(
       BKE_cryptomatte_init_from_scene(scene, build_meta_data));
@@ -83,7 +83,7 @@ static blender::bke::cryptomatte::CryptomatteSessionPtr cryptomatte_init_from_no
   if (!image) {
     return session;
   }
-  BLI_assert(GS(image->id.name) == ID_IM);
+  BLI_assume_assert(GS(image->id.name) == ID_IM);
 
   /* Construct an image user to retrieve the first image in the sequence, since the frame number
    * might correspond to a non-existing image. We explicitly do not support the case where the
@@ -161,7 +161,7 @@ static void cryptomatte_remove(NodeCryptomatte &n, float encoded_hash)
 
 void ntreeCompositCryptomatteSyncFromAdd(bNode *node)
 {
-  BLI_assert(ELEM(node->type_legacy, CMP_NODE_CRYPTOMATTE, CMP_NODE_CRYPTOMATTE_LEGACY));
+  BLI_assume_assert(ELEM(node->type_legacy, CMP_NODE_CRYPTOMATTE, CMP_NODE_CRYPTOMATTE_LEGACY));
   NodeCryptomatte *n = static_cast<NodeCryptomatte *>(node->storage);
   if (n->runtime.add[0] != 0.0f) {
     cryptomatte_add(*node, *n, n->runtime.add[0]);
@@ -171,7 +171,7 @@ void ntreeCompositCryptomatteSyncFromAdd(bNode *node)
 
 void ntreeCompositCryptomatteSyncFromRemove(bNode *node)
 {
-  BLI_assert(ELEM(node->type_legacy, CMP_NODE_CRYPTOMATTE, CMP_NODE_CRYPTOMATTE_LEGACY));
+  BLI_assume_assert(ELEM(node->type_legacy, CMP_NODE_CRYPTOMATTE, CMP_NODE_CRYPTOMATTE_LEGACY));
   NodeCryptomatte *n = static_cast<NodeCryptomatte *>(node->storage);
   if (n->runtime.remove[0] != 0.0f) {
     cryptomatte_remove(*n, n->runtime.remove[0]);
@@ -180,7 +180,7 @@ void ntreeCompositCryptomatteSyncFromRemove(bNode *node)
 }
 void ntreeCompositCryptomatteUpdateLayerNames(bNode *node)
 {
-  BLI_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE);
+  BLI_assume_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE);
   NodeCryptomatte *n = static_cast<NodeCryptomatte *>(node->storage);
   BLI_freelistN(&n->runtime.layers);
 
@@ -200,7 +200,7 @@ void ntreeCompositCryptomatteUpdateLayerNames(bNode *node)
 
 void ntreeCompositCryptomatteLayerPrefix(const bNode *node, char *r_prefix, size_t prefix_maxncpy)
 {
-  BLI_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE);
+  BLI_assume_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE);
   NodeCryptomatte *node_cryptomatte = (NodeCryptomatte *)node->storage;
   blender::bke::cryptomatte::CryptomatteSessionPtr session = cryptomatte_init_from_node(*node,
                                                                                         false);
@@ -599,14 +599,14 @@ static void node_init_api_cryptomatte(const bContext *C, PointerRNA *ptr)
 {
   Scene *scene = CTX_data_scene(C);
   bNode *node = static_cast<bNode *>(ptr->data);
-  BLI_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE);
+  BLI_assume_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE);
   node->id = &scene->id;
   id_us_plus(node->id);
 }
 
 static void node_free_cryptomatte(bNode *node)
 {
-  BLI_assert(ELEM(node->type_legacy, CMP_NODE_CRYPTOMATTE, CMP_NODE_CRYPTOMATTE_LEGACY));
+  BLI_assume_assert(ELEM(node->type_legacy, CMP_NODE_CRYPTOMATTE, CMP_NODE_CRYPTOMATTE_LEGACY));
   NodeCryptomatte *nc = static_cast<NodeCryptomatte *>(node->storage);
 
   if (nc) {
@@ -874,7 +874,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
    * image. In case of an invalid image, fall back to the domain inferred from the input. */
   Domain compute_image_domain()
   {
-    BLI_assert(get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE);
+    BLI_assume_assert(get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE);
 
     Image *image = get_image();
     if (!image) {
@@ -894,10 +894,10 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
 
   ImageUser get_image_user()
   {
-    BLI_assert(this->get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE);
+    BLI_assume_assert(this->get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE);
 
     Image *image = this->get_image();
-    BLI_assert(image);
+    BLI_assume_assert(image);
 
     /* Compute the effective frame number of the image if it was animated. */
     ImageUser image_user_for_frame = node_storage(node()).iuser;
@@ -908,13 +908,13 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
 
   Scene *get_scene()
   {
-    BLI_assert(get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER);
+    BLI_assume_assert(get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER);
     return reinterpret_cast<Scene *>(node().id);
   }
 
   Image *get_image()
   {
-    BLI_assert(get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE);
+    BLI_assume_assert(get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE);
     return reinterpret_cast<Image *>(node().id);
   }
 
@@ -965,14 +965,14 @@ NOD_REGISTER_NODE(register_node_type_cmp_cryptomatte)
 
 void ntreeCompositCryptomatteAddSocket(bNode *node)
 {
-  BLI_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE_LEGACY);
+  BLI_assume_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE_LEGACY);
   NodeCryptomatte *n = static_cast<NodeCryptomatte *>(node->storage);
   n->inputs_num++;
 }
 
 bool ntreeCompositCryptomatteRemoveSocket(bNode *node)
 {
-  BLI_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE_LEGACY);
+  BLI_assume_assert(node->type_legacy == CMP_NODE_CRYPTOMATTE_LEGACY);
   NodeCryptomatte *n = static_cast<NodeCryptomatte *>(node->storage);
   if (n->inputs_num < 2) {
     return false;

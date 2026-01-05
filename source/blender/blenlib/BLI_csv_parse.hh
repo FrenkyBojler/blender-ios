@@ -152,7 +152,7 @@ inline IndexRange CsvRecord::index_range() const
 
 inline Span<char> CsvRecord::field(const int64_t index) const
 {
-  BLI_assert(index >= 0);
+  BLI_assume_assert(index >= 0);
   if (index >= fields_.size()) {
     return {};
   }

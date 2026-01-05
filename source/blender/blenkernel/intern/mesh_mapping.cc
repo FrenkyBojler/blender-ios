@@ -206,7 +206,7 @@ void BKE_mesh_origindex_map_create(MeshElemMap **r_map,
   /* count face users */
   for (i = 0; i < totfinal; i++) {
     if (final_origindex[i] != ORIGINDEX_NONE) {
-      BLI_assert(final_origindex[i] < totsource);
+      BLI_assume_assert(final_origindex[i] < totsource);
       map[final_origindex[i]].count++;
     }
   }
@@ -564,7 +564,7 @@ static void face_edge_loop_islands_calc(const int totedge,
 
     while (ps_curr_idx != ps_end_idx) {
       face = face_stack[ps_curr_idx++];
-      BLI_assert(face_groups[face] == face_group_id);
+      BLI_assume_assert(face_groups[face] == face_group_id);
 
       for (const int64_t loop : faces[face]) {
         const int edge = corner_edges[loop];
@@ -575,7 +575,7 @@ static void face_edge_loop_islands_calc(const int totedge,
         if (!edge_boundary_check(face, int(loop), edge, i, map_ele)) {
           for (; i--; p++) {
             /* if we meet other non initialized its a bug */
-            BLI_assert(ELEM(face_groups[*p], 0, face_group_id));
+            BLI_assume_assert(ELEM(face_groups[*p], 0, face_group_id));
 
             if (face_groups[*p] == 0) {
               face_groups[*p] = face_group_id;
@@ -787,9 +787,9 @@ void BKE_mesh_loop_islands_init(MeshIslandStore *island_store,
   }
   /* else memarena should be cleared */
 
-  BLI_assert(
+  BLI_assume_assert(
       ELEM(item_type, MISLAND_TYPE_VERT, MISLAND_TYPE_EDGE, MISLAND_TYPE_POLY, MISLAND_TYPE_LOOP));
-  BLI_assert(ELEM(
+  BLI_assume_assert(ELEM(
       island_type, MISLAND_TYPE_VERT, MISLAND_TYPE_EDGE, MISLAND_TYPE_POLY, MISLAND_TYPE_LOOP));
 
   island_store->item_type = item_type;

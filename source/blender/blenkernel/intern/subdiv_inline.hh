@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_compiler_compat.h"
 
 #include "BKE_subdiv.hh"
@@ -67,7 +67,7 @@ BLI_INLINE int rotate_quad_to_corner(const float quad_u,
     *r_corner_v = 2.0f * (1.0f - quad_v);
   }
   else {
-    BLI_assert(quad_u <= 0.5f && quad_v >= 0.5f);
+    BLI_assume_assert(quad_u <= 0.5f && quad_v >= 0.5f);
     corner = 3;
     *r_corner_u = 2.0f * (1.0f - quad_v);
     *r_corner_v = 2.0f * quad_u;
@@ -86,7 +86,7 @@ BLI_INLINE float2 rotate_quad_to_corner(const int corner, const float2 &quad)
       return 2.0f * (1.0f - quad);
     case 3:
     default:
-      BLI_assert(corner == 3);
+      BLI_assume_assert(corner == 3);
       return {2.0f * (1.0f - quad.y), 2.0f * quad.x};
   }
 }
@@ -107,7 +107,7 @@ BLI_INLINE void rotate_grid_to_quad(
     *r_quad_v = 0.5f + grid_u * 0.5f;
   }
   else {
-    BLI_assert(corner == 3);
+    BLI_assume_assert(corner == 3);
     *r_quad_u = 0.5f - grid_u * 0.5f;
     *r_quad_v = 0.5f + grid_v * 0.5f;
   }

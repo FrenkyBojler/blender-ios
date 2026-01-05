@@ -8,7 +8,7 @@
  * \ingroup bke
  */
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_math_vector_types.hh"
 
 struct CCGSubSurf;
@@ -55,13 +55,13 @@ inline blender::float3 &CCG_elem_co(const CCGKey & /*key*/, CCGElem *elem)
 
 inline blender::float3 &CCG_elem_no(const CCGKey &key, CCGElem *elem)
 {
-  BLI_assert(key.has_normals);
+  BLI_assume_assert(key.has_normals);
   return *reinterpret_cast<blender::float3 *>(reinterpret_cast<char *>(elem) + key.normal_offset);
 }
 
 inline float &CCG_elem_mask(const CCGKey &key, CCGElem *elem)
 {
-  BLI_assert(key.has_mask);
+  BLI_assume_assert(key.has_mask);
   return *reinterpret_cast<float *>(reinterpret_cast<char *>(elem) + (key.mask_offset));
 }
 
@@ -77,7 +77,7 @@ inline int CCG_grid_xy_to_index(const int grid_size, const int x, const int y)
 
 inline CCGElem *CCG_grid_elem(const CCGKey &key, CCGElem *elem, int x, int y)
 {
-  //  BLI_assert(x < key.grid_size && y < key.grid_size);
+  //  BLI_assume_assert(x < key.grid_size && y < key.grid_size);
   return CCG_elem_offset(key, elem, CCG_grid_xy_to_index(key.grid_size, x, y));
 }
 
@@ -103,13 +103,13 @@ inline blender::float3 &CCG_elem_offset_co(const CCGKey &key, CCGElem *elem, int
 
 inline int CCG_grid_size(const int level)
 {
-  BLI_assert(level > 0);
+  BLI_assume_assert(level > 0);
   return (1 << (level - 1)) + 1;
 }
 
 inline int CCG_grid_factor(int low_level, int high_level)
 {
-  BLI_assert(low_level > 0 && high_level > 0);
-  BLI_assert(low_level <= high_level);
+  BLI_assume_assert(low_level > 0 && high_level > 0);
+  BLI_assume_assert(low_level <= high_level);
   return 1 << (high_level - low_level);
 }

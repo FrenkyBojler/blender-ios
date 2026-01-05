@@ -8,6 +8,7 @@
 
 #include "BLI_index_range.hh"
 #include "BLI_utildefines.h"
+#include "BLI_assume.hh"
 
 #include <ostream>
 
@@ -15,7 +16,7 @@ namespace blender {
 
 AlignedIndexRanges split_index_range_by_alignment(const IndexRange range, const int64_t alignment)
 {
-  BLI_assert(is_power_of_2(alignment));
+  BLI_assume_assert(is_power_of_2(alignment));
   const int64_t mask = alignment - 1;
 
   AlignedIndexRanges aligned_ranges;

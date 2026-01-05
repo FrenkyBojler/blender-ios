@@ -28,10 +28,10 @@ class GSpan {
   GSpan(const CPPType *type, const void *buffer, int64_t size)
       : type_(type), data_(buffer), size_(size)
   {
-    BLI_assert(size >= 0);
-    BLI_assert(buffer != nullptr || size == 0);
-    BLI_assert(size == 0 || type != nullptr);
-    BLI_assert(type == nullptr || type->pointer_has_valid_alignment(buffer));
+    BLI_assume_assert(size >= 0);
+    BLI_assume_assert(buffer != nullptr || size == 0);
+    BLI_assume_assert(size == 0 || type != nullptr);
+    BLI_assume_assert(type == nullptr || type->pointer_has_valid_alignment(buffer));
   }
 
   GSpan(const CPPType &type, const void *buffer, int64_t size) : GSpan(&type, buffer, size) {}
@@ -54,7 +54,7 @@ class GSpan {
 
   const CPPType &type() const
   {
-    BLI_assert(type_ != nullptr);
+    BLI_assume_assert(type_ != nullptr);
     return *type_;
   }
 
@@ -85,22 +85,22 @@ class GSpan {
 
   const void *operator[](int64_t index) const
   {
-    BLI_assert(index < size_);
+    BLI_assume_assert(index < size_);
     return POINTER_OFFSET(data_, type_->size * index);
   }
 
   template<typename T> Span<T> typed() const
   {
-    BLI_assert(size_ == 0 || type_ != nullptr);
-    BLI_assert(type_ == nullptr || type_->is<T>());
+    BLI_assume_assert(size_ == 0 || type_ != nullptr);
+    BLI_assume_assert(type_ == nullptr || type_->is<T>());
     return Span<T>(static_cast<const T *>(data_), size_);
   }
 
   GSpan slice(const int64_t start, int64_t size) const
   {
-    BLI_assert(start >= 0);
-    BLI_assert(size >= 0);
-    BLI_assert(start + size <= size_ || size == 0);
+    BLI_assume_assert(start >= 0);
+    BLI_assume_assert(size >= 0);
+    BLI_assume_assert(start + size <= size_ || size == 0);
     return GSpan(type_, POINTER_OFFSET(data_, type_->size * start), size);
   }
 
@@ -111,28 +111,28 @@ class GSpan {
 
   GSpan drop_front(const int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::max<int64_t>(0, size_ - n);
     return GSpan(*type_, POINTER_OFFSET(data_, type_->size * n), new_size);
   }
 
   GSpan drop_back(const int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::max<int64_t>(0, size_ - n);
     return GSpan(*type_, data_, new_size);
   }
 
   GSpan take_front(const int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::min<int64_t>(size_, n);
     return GSpan(*type_, data_, new_size);
   }
 
   GSpan take_back(const int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::min<int64_t>(size_, n);
     return GSpan(*type_, POINTER_OFFSET(data_, type_->size * (size_ - new_size)), new_size);
   }
@@ -154,10 +154,10 @@ class GMutableSpan {
   GMutableSpan(const CPPType *type, void *buffer, int64_t size)
       : type_(type), data_(buffer), size_(size)
   {
-    BLI_assert(size >= 0);
-    BLI_assert(buffer != nullptr || size == 0);
-    BLI_assert(size == 0 || type != nullptr);
-    BLI_assert(type == nullptr || type->pointer_has_valid_alignment(buffer));
+    BLI_assume_assert(size >= 0);
+    BLI_assume_assert(buffer != nullptr || size == 0);
+    BLI_assume_assert(size == 0 || type != nullptr);
+    BLI_assume_assert(type == nullptr || type->pointer_has_valid_alignment(buffer));
   }
 
   GMutableSpan(const CPPType &type, void *buffer, int64_t size) : GMutableSpan(&type, buffer, size)
@@ -181,7 +181,7 @@ class GMutableSpan {
 
   const CPPType &type() const
   {
-    BLI_assert(type_ != nullptr);
+    BLI_assume_assert(type_ != nullptr);
     return *type_;
   }
 
@@ -212,23 +212,23 @@ class GMutableSpan {
 
   void *operator[](int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < size_);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < size_);
     return POINTER_OFFSET(data_, type_->size * index);
   }
 
   template<typename T> MutableSpan<T> typed() const
   {
-    BLI_assert(size_ == 0 || type_ != nullptr);
-    BLI_assert(type_ == nullptr || type_->is<T>());
+    BLI_assume_assert(size_ == 0 || type_ != nullptr);
+    BLI_assume_assert(type_ == nullptr || type_->is<T>());
     return MutableSpan<T>(static_cast<T *>(data_), size_);
   }
 
   GMutableSpan slice(const int64_t start, int64_t size) const
   {
-    BLI_assert(start >= 0);
-    BLI_assert(size >= 0);
-    BLI_assert(start + size <= size_ || size == 0);
+    BLI_assume_assert(start >= 0);
+    BLI_assume_assert(size >= 0);
+    BLI_assume_assert(start + size <= size_ || size == 0);
     return GMutableSpan(type_, POINTER_OFFSET(data_, type_->size * start), size);
   }
 
@@ -239,28 +239,28 @@ class GMutableSpan {
 
   GMutableSpan drop_front(const int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::max<int64_t>(0, size_ - n);
     return GMutableSpan(*type_, POINTER_OFFSET(data_, type_->size * n), new_size);
   }
 
   GMutableSpan drop_back(const int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::max<int64_t>(0, size_ - n);
     return GMutableSpan(*type_, data_, new_size);
   }
 
   GMutableSpan take_front(const int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::min<int64_t>(size_, n);
     return GMutableSpan(*type_, data_, new_size);
   }
 
   GMutableSpan take_back(const int64_t n) const
   {
-    BLI_assert(n >= 0);
+    BLI_assume_assert(n >= 0);
     const int64_t new_size = std::min<int64_t>(size_, n);
     return GMutableSpan(*type_, POINTER_OFFSET(data_, type_->size * (size_ - new_size)), new_size);
   }
@@ -272,8 +272,8 @@ class GMutableSpan {
    */
   void copy_from(GSpan values)
   {
-    BLI_assert(type_ == &values.type());
-    BLI_assert(size_ == values.size());
+    BLI_assume_assert(type_ == &values.type());
+    BLI_assume_assert(size_ == values.size());
     type_->copy_assign_n(values.data(), data_, size_);
   }
 };

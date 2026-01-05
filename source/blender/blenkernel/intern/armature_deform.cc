@@ -518,7 +518,7 @@ static void armature_deform_coords(const Object &ob_arm,
       const MDeformVert *dvert = nullptr;
       if (deform_params.use_dverts || deform_params.armature_def_nr >= 0) {
         if (me_target) {
-          BLI_assert(i < me_target->verts_num);
+          BLI_assume_assert(i < me_target->verts_num);
           if (dverts) {
             dvert = &(*dverts)[i];
           }
@@ -634,7 +634,7 @@ void BKE_armature_deform_coords_with_curves(
 
   /* Vertex groups must be provided explicitly, cannot rely on object vertex groups since this is
    * used for Grease Pencil layers as well. */
-  BLI_assert(dverts.size() == vert_coords.size());
+  BLI_assume_assert(dverts.size() == vert_coords.size());
 
   bke::armature_deform_coords(ob_arm,
                               ob_target,

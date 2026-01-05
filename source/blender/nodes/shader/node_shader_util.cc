@@ -266,7 +266,7 @@ static void data_from_gpu_stack_list(ListBaseT<bNodeSocket> *sockets,
 
 bool blender::bke::node_supports_active_flag(const bNode &node, int sub_activity)
 {
-  BLI_assert(ELEM(sub_activity, NODE_ACTIVE_TEXTURE, NODE_ACTIVE_PAINT_CANVAS));
+  BLI_assume_assert(ELEM(sub_activity, NODE_ACTIVE_TEXTURE, NODE_ACTIVE_PAINT_CANVAS));
   switch (sub_activity) {
     case NODE_ACTIVE_TEXTURE:
       return node.typeinfo->nclass == NODE_CLASS_TEXTURE;
@@ -278,7 +278,7 @@ bool blender::bke::node_supports_active_flag(const bNode &node, int sub_activity
 
 static bNode *node_get_active(bNodeTree *ntree, int sub_activity)
 {
-  BLI_assert(ELEM(sub_activity, NODE_ACTIVE_TEXTURE, NODE_ACTIVE_PAINT_CANVAS));
+  BLI_assume_assert(ELEM(sub_activity, NODE_ACTIVE_TEXTURE, NODE_ACTIVE_PAINT_CANVAS));
   /* this is the node we texture paint and draw in textured draw */
   bNode *inactivenode = nullptr, *activetexnode = nullptr, *activegroup = nullptr;
   bool hasgroup = false;

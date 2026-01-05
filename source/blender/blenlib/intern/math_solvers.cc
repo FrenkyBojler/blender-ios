@@ -29,7 +29,7 @@ bool BLI_eigen_solve_selfadjoint_m3(const float m3[3][3],
 #ifndef NDEBUG
   /* We must assert given matrix is self-adjoint (i.e. symmetric) */
   if ((m3[0][1] != m3[1][0]) || (m3[0][2] != m3[2][0]) || (m3[1][2] != m3[2][1])) {
-    BLI_assert(0);
+    BLI_assume_assert(0);
   }
 #endif
 

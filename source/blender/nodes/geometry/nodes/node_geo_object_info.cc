@@ -112,7 +112,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
-  BLI_assert(object != self_object);
+  BLI_assume_assert(object != self_object);
 
   if (!object_geometry_evaluated) {
     params.error_message_add(

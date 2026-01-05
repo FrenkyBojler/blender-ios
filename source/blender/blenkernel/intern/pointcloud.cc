@@ -248,7 +248,7 @@ PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
 
 void BKE_pointcloud_nomain_to_pointcloud(PointCloud *pointcloud_src, PointCloud *pointcloud_dst)
 {
-  BLI_assert(pointcloud_src->id.tag & ID_TAG_NO_MAIN);
+  BLI_assume_assert(pointcloud_src->id.tag & ID_TAG_NO_MAIN);
 
   pointcloud_dst->totpoint = pointcloud_src->totpoint;
   pointcloud_dst->attribute_storage.wrap() = std::move(pointcloud_src->attribute_storage.wrap());

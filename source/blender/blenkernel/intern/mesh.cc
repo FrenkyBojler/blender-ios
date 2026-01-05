@@ -1080,8 +1080,8 @@ Mesh *BKE_mesh_add(Main *bmain, const char *name)
 
 void BKE_mesh_face_offsets_ensure_alloc(Mesh *mesh)
 {
-  BLI_assert(mesh->face_offset_indices == nullptr);
-  BLI_assert(mesh->runtime->face_offsets_sharing_info == nullptr);
+  BLI_assume_assert(mesh->face_offset_indices == nullptr);
+  BLI_assume_assert(mesh->runtime->face_offsets_sharing_info == nullptr);
   if (mesh->faces_num == 0) {
     return;
   }
@@ -1394,13 +1394,13 @@ void BKE_mesh_copy_parameters(Mesh *me_dst, const Mesh *me_src)
 void BKE_mesh_copy_parameters_for_eval(Mesh *me_dst, const Mesh *me_src)
 {
   /* User counts aren't handled, don't copy into a mesh from #G_MAIN. */
-  BLI_assert(me_dst->id.tag & (ID_TAG_NO_MAIN | ID_TAG_COPIED_ON_EVAL));
+  BLI_assume_assert(me_dst->id.tag & (ID_TAG_NO_MAIN | ID_TAG_COPIED_ON_EVAL));
 
   BKE_mesh_copy_parameters(me_dst, me_src);
   copy_attribute_names(*me_src, *me_dst);
 
   /* Copy vertex group names. */
-  BLI_assert(BLI_listbase_is_empty(&me_dst->vertex_group_names));
+  BLI_assume_assert(BLI_listbase_is_empty(&me_dst->vertex_group_names));
   BKE_defgroup_copy_list(&me_dst->vertex_group_names, &me_src->vertex_group_names);
 
   /* Copy materials. */
@@ -1510,7 +1510,7 @@ Mesh *BKE_mesh_from_bmesh_nomain(BMesh *bm,
                                  const BMeshToMeshParams *params,
                                  const Mesh *me_settings)
 {
-  BLI_assert(params->calc_object_remap == false);
+  BLI_assume_assert(params->calc_object_remap == false);
   Mesh *mesh = BKE_id_new_nomain<Mesh>(nullptr);
   BM_mesh_bm_to_me(nullptr, bm, mesh, params);
   BKE_mesh_copy_parameters_for_eval(mesh, me_settings);
@@ -1538,7 +1538,7 @@ static void ensure_orig_index_layer(CustomData &data, const int size)
 
 void BKE_mesh_ensure_default_orig_index_customdata(Mesh *mesh)
 {
-  BLI_assert(mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_MDATA);
+  BLI_assume_assert(mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_MDATA);
   BKE_mesh_ensure_default_orig_index_customdata_no_check(mesh);
 }
 
@@ -1769,7 +1769,7 @@ void BKE_mesh_material_remap(Mesh *mesh, const uint *remap, uint remap_len)
 
 #define MAT_NR_REMAP(n) \
   if (n < remap_len_short) { \
-    BLI_assert(n >= 0 && remap[n] < remap_len_short); \
+    BLI_assume_assert(n >= 0 && remap[n] < remap_len_short); \
     n = remap[n]; \
   } \
   ((void)0)
@@ -2101,7 +2101,7 @@ void BKE_mesh_mselect_validate(Mesh *mesh)
 
 int BKE_mesh_mselect_find(const Mesh *mesh, int index, int type)
 {
-  BLI_assert(ELEM(type, ME_VSEL, ME_ESEL, ME_FSEL));
+  BLI_assume_assert(ELEM(type, ME_VSEL, ME_ESEL, ME_FSEL));
 
   for (int i = 0; i < mesh->totselect; i++) {
     if ((mesh->mselect[i].index == index) && (mesh->mselect[i].type == type)) {
@@ -2114,7 +2114,7 @@ int BKE_mesh_mselect_find(const Mesh *mesh, int index, int type)
 
 int BKE_mesh_mselect_active_get(const Mesh *mesh, int type)
 {
-  BLI_assert(ELEM(type, ME_VSEL, ME_ESEL, ME_FSEL));
+  BLI_assume_assert(ELEM(type, ME_VSEL, ME_ESEL, ME_FSEL));
 
   if (mesh->totselect) {
     if (mesh->mselect[mesh->totselect - 1].type == type) {

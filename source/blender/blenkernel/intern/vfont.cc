@@ -393,7 +393,7 @@ VFont *BKE_vfont_builtin_ensure()
    * for assigning a user, otherwise an additional user would be added, see: #100819. */
   VFont *vfont = BKE_vfont_load(G_MAIN, FO_BUILTIN_NAME);
   id_us_min(&vfont->id);
-  BLI_assert(vfont->id.us == 0);
+  BLI_assume_assert(vfont->id.us == 0);
   return vfont;
 }
 
@@ -412,10 +412,10 @@ int BKE_vfont_select_get(const Curve *cu, int *r_start, int *r_end)
     return 0;
   }
 
-  BLI_assert(ef->len >= 0);
-  BLI_assert(ef->selstart >= 0 && ef->selstart <= ef->len + 1);
-  BLI_assert(ef->selend >= 0 && ef->selend <= ef->len + 1);
-  BLI_assert(ef->pos >= 0 && ef->pos <= ef->len);
+  BLI_assume_assert(ef->len >= 0);
+  BLI_assume_assert(ef->selstart >= 0 && ef->selstart <= ef->len + 1);
+  BLI_assume_assert(ef->selend >= 0 && ef->selend <= ef->len + 1);
+  BLI_assume_assert(ef->pos >= 0 && ef->pos <= ef->len);
 
   if (ef->selstart == 0) {
     return 0;
@@ -436,7 +436,7 @@ int BKE_vfont_select_get(const Curve *cu, int *r_start, int *r_end)
     return 0;
   }
 
-  BLI_assert(start < end + 1);
+  BLI_assume_assert(start < end + 1);
   *r_start = start;
   *r_end = end;
   return direction;

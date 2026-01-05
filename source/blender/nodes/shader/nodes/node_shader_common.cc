@@ -93,7 +93,7 @@ void register_node_type_sh_group()
   ntype.ui_class = node_group_ui_class;
   ntype.ui_description_fn = node_group_ui_description;
   ntype.rna_ext.srna = RNA_struct_find("ShaderNodeGroup");
-  BLI_assert(ntype.rna_ext.srna != nullptr);
+  BLI_assume_assert(ntype.rna_ext.srna != nullptr);
   RNA_struct_blender_type_set(ntype.rna_ext.srna, &ntype);
 
   blender::bke::node_type_size(

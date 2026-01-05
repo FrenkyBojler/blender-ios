@@ -70,13 +70,13 @@ template<typename T> static bool item_is_type(const bNodeTreeInterfaceItem &item
 
 template<typename T> T &get_item_as(bNodeTreeInterfaceItem &item)
 {
-  BLI_assert(detail::item_is_type<T>(item));
+  BLI_assume_assert(detail::item_is_type<T>(item));
   return reinterpret_cast<T &>(item);
 }
 
 template<typename T> const T &get_item_as(const bNodeTreeInterfaceItem &item)
 {
-  BLI_assert(detail::item_is_type<T>(item));
+  BLI_assume_assert(detail::item_is_type<T>(item));
   return reinterpret_cast<const T &>(item);
 }
 
@@ -365,13 +365,13 @@ template<typename T> bool socket_data_is_type(const char *socket_type)
 
 template<typename T> T &get_socket_data_as(bNodeTreeInterfaceSocket &item)
 {
-  BLI_assert(socket_data_is_type<T>(item.socket_type));
+  BLI_assume_assert(socket_data_is_type<T>(item.socket_type));
   return *static_cast<T *>(item.socket_data);
 }
 
 template<typename T> const T &get_socket_data_as(const bNodeTreeInterfaceSocket &item)
 {
-  BLI_assert(socket_data_is_type<T>(item.socket_type));
+  BLI_assume_assert(socket_data_is_type<T>(item.socket_type));
   return *static_cast<const T *>(item.socket_data);
 }
 

@@ -532,7 +532,7 @@ void BKE_movieclip_convert_multilayer_ibuf(ImBuf *ibuf)
                              movieclip_convert_multilayer_add_layer,
                              movieclip_convert_multilayer_add_pass);
   if (ctx.combined_pass != nullptr) {
-    BLI_assert(ibuf->float_buffer.data == nullptr);
+    BLI_assume_assert(ibuf->float_buffer.data == nullptr);
     IMB_assign_float_buffer(ibuf, ctx.combined_pass, IB_TAKE_OWNERSHIP);
     ibuf->channels = ctx.num_combined_channels;
   }

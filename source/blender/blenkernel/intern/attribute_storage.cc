@@ -4,7 +4,7 @@
 
 #include "CLG_log.h"
 
-#include "BLI_assert.h"
+#include "BLI_assume.hh"
 #include "BLI_color_types.hh"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_memory_counter.hh"
@@ -77,7 +77,7 @@ Attribute::ArrayData Attribute::ArrayData::from_value(const GPointer &value,
   }
 
   data.size = domain_size;
-  BLI_assert(type.is_trivially_destructible);
+  BLI_assume_assert(type.is_trivially_destructible);
   data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
   return data;
 }
@@ -94,7 +94,7 @@ Attribute::ArrayData Attribute::ArrayData::from_uninitialized(const CPPType &typ
   Attribute::ArrayData data{};
   data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
   data.size = domain_size;
-  BLI_assert(type.is_trivially_destructible);
+  BLI_assume_assert(type.is_trivially_destructible);
   data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
   return data;
 }
@@ -113,7 +113,7 @@ Attribute::SingleData Attribute::SingleData::from_value(const GPointer &value)
   const CPPType &type = *value.type();
   data.value = MEM_mallocN_aligned(type.size, type.alignment, __func__);
   type.copy_construct(value.get(), data.value);
-  BLI_assert(type.is_trivially_destructible);
+  BLI_assume_assert(type.is_trivially_destructible);
   data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.value));
   return data;
 }
@@ -169,7 +169,7 @@ Attribute::DataVariant &Attribute::data_for_write()
 {
   if (auto *data = std::get_if<Attribute::ArrayData>(&data_)) {
     if (!data->sharing_info) {
-      BLI_assert(data->size == 0);
+      BLI_assume_assert(data->size == 0);
       return data_;
     }
     if (data->sharing_info->is_mutable()) {

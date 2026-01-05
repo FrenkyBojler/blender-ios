@@ -271,9 +271,9 @@ template<int BufferSize> class GVArrayImpl_For_SmallTrivialSingleValue : public 
                                           const void *value)
       : GVArrayImpl(type, size)
   {
-    BLI_assert(type.is_trivial);
-    BLI_assert(type.alignment <= 8);
-    BLI_assert(type.size <= BufferSize);
+    BLI_assume_assert(type.is_trivial);
+    BLI_assume_assert(type.alignment <= 8);
+    BLI_assume_assert(type.size <= BufferSize);
     type.copy_construct(value, &buffer_);
   }
 
@@ -488,7 +488,7 @@ class GVArrayImpl_For_SlicedGVArray : public GVArrayImpl {
         offset_(slice.start()),
         slice_(slice)
   {
-    BLI_assert(slice.one_after_last() <= varray_.size());
+    BLI_assume_assert(slice.one_after_last() <= varray_.size());
   }
 
   void get(const int64_t index, void *r_value) const override
@@ -588,7 +588,7 @@ void GVArrayCommon::materialize_to_uninitialized(void *dst) const
 
 void GVArrayCommon::materialize_to_uninitialized(const IndexMask &mask, void *dst) const
 {
-  BLI_assert(mask.min_array_size() <= impl_->size());
+  BLI_assume_assert(mask.min_array_size() <= impl_->size());
   impl_->materialize(mask, dst, true);
 }
 
@@ -630,7 +630,7 @@ bool GVArrayCommon::is_span() const
 
 GSpan GVArrayCommon::get_internal_span() const
 {
-  BLI_assert(this->is_span());
+  BLI_assume_assert(this->is_span());
   const CommonVArrayInfo info = impl_->common_info();
   return GSpan(this->type(), info.data, this->size());
 }
@@ -643,7 +643,7 @@ bool GVArrayCommon::is_single() const
 
 void GVArrayCommon::get_internal_single(void *r_value) const
 {
-  BLI_assert(this->is_single());
+  BLI_assume_assert(this->is_single());
   const CommonVArrayInfo info = impl_->common_info();
   this->type().copy_assign(info.data, r_value);
 }
@@ -817,7 +817,7 @@ void GVMutableArray::set_all(const void *src)
 
 GMutableSpan GVMutableArray::get_internal_span() const
 {
-  BLI_assert(this->is_span());
+  BLI_assume_assert(this->is_span());
   const CommonVArrayInfo info = impl_->common_info();
   return GMutableSpan(this->type(), const_cast<void *>(info.data), this->size());
 }

@@ -321,7 +321,7 @@ class Any {
   /** Get a pointer to the stored value. */
   void *get()
   {
-    BLI_assert(info_ != nullptr);
+    BLI_assume_assert(info_ != nullptr);
     if (info_->get != nullptr) {
       return const_cast<void *>(info_->get(&buffer_));
     }
@@ -331,7 +331,7 @@ class Any {
   /** Get a pointer to the stored value. */
   const void *get() const
   {
-    BLI_assert(info_ != nullptr);
+    BLI_assume_assert(info_ != nullptr);
     if (info_->get != nullptr) {
       return info_->get(&buffer_);
     }
@@ -354,14 +354,14 @@ class Any {
    */
   template<typename T> const T &get() const
   {
-    BLI_assert(this->is<T>());
+    BLI_assume_assert(this->is<T>());
     const void *buffer;
     /* Can avoid the `info_->get == nullptr` check because the result is known statically. */
     if constexpr (is_inline_v<T>) {
       buffer = &buffer_;
     }
     else {
-      BLI_assert(info_->get != nullptr);
+      BLI_assume_assert(info_->get != nullptr);
       buffer = info_->get(&buffer_);
     }
     return *static_cast<const T *>(buffer);
@@ -372,7 +372,7 @@ class Any {
    */
   const RealExtraInfo &extra_info() const
   {
-    BLI_assert(info_ != nullptr);
+    BLI_assume_assert(info_ != nullptr);
     return info_->extra_info;
   }
 };

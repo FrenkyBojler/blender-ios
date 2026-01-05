@@ -987,7 +987,7 @@ TEST(path_utils, ExtensionCheck)
 #define PATH_EXTENSION_REPLACE_WITH_MAXLEN( \
     input_path, input_ext, expect_result, expect_path, maxlen) \
   { \
-    BLI_assert(maxlen <= FILE_MAX); \
+    BLI_assume_assert(maxlen <= FILE_MAX); \
     char path[FILE_MAX]; \
     STRNCPY(path, input_path); \
     const bool ret = BLI_path_extension_replace(path, maxlen, input_ext); \
@@ -1058,7 +1058,7 @@ TEST(path_utils, ExtensionReplace_Overflow)
 #define PATH_EXTENSION_ENSURE_WITH_MAXLEN( \
     input_path, input_ext, expect_result, expect_path, maxlen) \
   { \
-    BLI_assert(maxlen <= FILE_MAX); \
+    BLI_assume_assert(maxlen <= FILE_MAX); \
     char path[FILE_MAX]; \
     STRNCPY(path, input_path); \
     const bool ret = BLI_path_extension_ensure(path, maxlen, input_ext); \

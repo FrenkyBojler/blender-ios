@@ -93,7 +93,7 @@ void BKE_keyconfig_pref_type_remove(const wmKeyConfigPrefType_Runtime *kpt_rt)
 
 void BKE_keyconfig_pref_type_init()
 {
-  BLI_assert(global_keyconfigpreftype_hash == nullptr);
+  BLI_assume_assert(global_keyconfigpreftype_hash == nullptr);
   global_keyconfigpreftype_hash = BLI_ghash_str_new(__func__);
 }
 

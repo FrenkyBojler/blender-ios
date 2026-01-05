@@ -96,8 +96,8 @@ void BKE_mesh_wrapper_ensure_mdata(Mesh *mesh)
       mesh->faces_num = 0;
       mesh->corners_num = 0;
 
-      BLI_assert(mesh->runtime->edit_mesh != nullptr);
-      BLI_assert(mesh->runtime->edit_data != nullptr);
+      BLI_assume_assert(mesh->runtime->edit_mesh != nullptr);
+      BLI_assume_assert(mesh->runtime->edit_data != nullptr);
 
       BMEditMesh *em = mesh->runtime->edit_mesh.get();
       BM_mesh_bm_to_me_for_eval(*em->bm, *mesh, &mesh->runtime->cd_mask_extra);
@@ -214,7 +214,7 @@ void BKE_mesh_wrapper_vert_coords_copy_with_mat4(const Mesh *mesh,
   switch (mesh->runtime->wrapper_type) {
     case ME_WRAPPER_TYPE_BMESH: {
       BMesh *bm = mesh->runtime->edit_mesh->bm;
-      BLI_assert(vert_coords_len == bm->totvert);
+      BLI_assume_assert(vert_coords_len == bm->totvert);
       const blender::bke::EditMeshData &edit_data = *mesh->runtime->edit_data;
       if (!edit_data.vert_positions.is_empty()) {
         for (int i = 0; i < vert_coords_len; i++) {
@@ -233,7 +233,7 @@ void BKE_mesh_wrapper_vert_coords_copy_with_mat4(const Mesh *mesh,
     }
     case ME_WRAPPER_TYPE_MDATA:
     case ME_WRAPPER_TYPE_SUBD: {
-      BLI_assert(vert_coords_len == mesh->verts_num);
+      BLI_assume_assert(vert_coords_len == mesh->verts_num);
       const Span<float3> positions = mesh->vert_positions();
       for (int i = 0; i < vert_coords_len; i++) {
         mul_v3_m4v3(vert_coords[i], mat, positions[i]);
@@ -369,7 +369,7 @@ static Mesh *mesh_wrapper_ensure_subdivision(Mesh *mesh)
     }
     mesh->runtime->mesh_eval = subdiv_mesh;
     mesh->runtime->wrapper_type = ME_WRAPPER_TYPE_SUBD;
-    BLI_assert(mesh->runtime->mesh_eval != nullptr);
+    BLI_assume_assert(mesh->runtime->mesh_eval != nullptr);
   }
 
   return mesh->runtime->mesh_eval;

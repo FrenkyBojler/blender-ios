@@ -147,7 +147,7 @@ template<typename Ret, typename... Params> class FunctionRef<Ret(Params...)> {
    */
   Ret operator()(Params... params) const
   {
-    BLI_assert(callback_ != nullptr);
+    BLI_assume_assert(callback_ != nullptr);
     return callback_(callable_, std::forward<Params>(params)...);
   }
 

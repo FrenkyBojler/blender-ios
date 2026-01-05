@@ -1074,7 +1074,7 @@ bool invert_m4_m4_fallback(float inverse[4][4], const float mat[4][4])
   float max;
   int maxj;
 
-  BLI_assert(inverse != mat);
+  BLI_assume_assert(inverse != mat);
 
   /* Set inverse to identity */
   for (i = 0; i < 4; i++) {
@@ -1194,7 +1194,7 @@ void transpose_m3(float R[3][3])
 
 void transpose_m3_m3(float R[3][3], const float M[3][3])
 {
-  BLI_assert(R != M);
+  BLI_assume_assert(R != M);
 
   R[0][0] = M[0][0];
   R[0][1] = M[1][0];
@@ -1250,7 +1250,7 @@ void transpose_m4(float R[4][4])
 
 void transpose_m4_m4(float R[4][4], const float M[4][4])
 {
-  BLI_assert(R != M);
+  BLI_assume_assert(R != M);
 
   R[0][0] = M[0][0];
   R[0][1] = M[1][0];
@@ -2088,7 +2088,7 @@ void rotate_m4(float mat[4][4], const char axis, const float angle)
   const float angle_cos = cosf(angle);
   const float angle_sin = sinf(angle);
 
-  BLI_assert(axis >= 'X' && axis <= 'Z');
+  BLI_assume_assert(axis >= 'X' && axis <= 'Z');
 
   switch (axis) {
     case 'X':

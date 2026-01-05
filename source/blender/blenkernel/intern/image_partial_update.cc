@@ -273,8 +273,8 @@ struct TileChangeset {
   /** \brief Merge the given changeset into the receiver. */
   void merge(const TileChangeset &other)
   {
-    BLI_assert(chunk_x_len == other.chunk_x_len);
-    BLI_assert(chunk_y_len == other.chunk_y_len);
+    BLI_assume_assert(chunk_x_len == other.chunk_x_len);
+    BLI_assume_assert(chunk_y_len == other.chunk_y_len);
     const int chunk_len = chunk_x_len * chunk_y_len;
 
     for (int chunk_index = 0; chunk_index < chunk_len; chunk_index++) {
@@ -472,7 +472,7 @@ ePartialUpdateCollectResult BKE_image_partial_update_collect_changes(Image *imag
 {
   PartialUpdateUserImpl *user_impl = unwrap(user);
 #ifdef NDEBUG
-  BLI_assert(image == user_impl->debug_image_);
+  BLI_assume_assert(image == user_impl->debug_image_);
 #endif
 
   user_impl->clear_updated_regions();

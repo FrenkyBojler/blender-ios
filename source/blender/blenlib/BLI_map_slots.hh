@@ -163,7 +163,7 @@ template<typename Key, typename Value> class SimpleMapSlot {
    */
   template<typename Hash> uint64_t get_hash(const Hash &hash)
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     return hash(*key_buffer_);
   }
 
@@ -217,7 +217,7 @@ template<typename Key, typename Value> class SimpleMapSlot {
    */
   void remove()
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     key_buffer_.ref().~Key();
     value_buffer_.ref().~Value();
     state_ = Removed;
@@ -293,14 +293,14 @@ template<typename Key, typename Value, typename KeyInfo> class IntrusiveMapSlot 
 
   template<typename Hash> uint64_t get_hash(const Hash &hash)
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     return hash(key_);
   }
 
   template<typename ForwardKey, typename IsEqual>
   bool contains(const ForwardKey &key, const IsEqual &is_equal, uint64_t /*hash*/) const
   {
-    BLI_assert(KeyInfo::is_not_empty_or_removed(key));
+    BLI_assume_assert(KeyInfo::is_not_empty_or_removed(key));
     if constexpr (std::is_same_v<std::decay_t<IsEqual>, DefaultEquality<Key>>) {
       return is_equal(key, key_);
     }
@@ -316,7 +316,7 @@ template<typename Key, typename Value, typename KeyInfo> class IntrusiveMapSlot 
   void occupy(ForwardKey &&key, uint64_t hash, ForwardValue &&...value)
   {
     BLI_assert(!this->is_occupied());
-    BLI_assert(KeyInfo::is_not_empty_or_removed(key));
+    BLI_assume_assert(KeyInfo::is_not_empty_or_removed(key));
     new (&value_buffer_) Value(std::forward<ForwardValue>(value)...);
     this->occupy_no_value(std::forward<ForwardKey>(key), hash);
   }
@@ -324,7 +324,7 @@ template<typename Key, typename Value, typename KeyInfo> class IntrusiveMapSlot 
   template<typename ForwardKey> void occupy_no_value(ForwardKey &&key, uint64_t /*hash*/)
   {
     BLI_assert(!this->is_occupied());
-    BLI_assert(KeyInfo::is_not_empty_or_removed(key));
+    BLI_assume_assert(KeyInfo::is_not_empty_or_removed(key));
     try {
       key_ = std::forward<ForwardKey>(key);
     }
@@ -336,7 +336,7 @@ template<typename Key, typename Value, typename KeyInfo> class IntrusiveMapSlot 
 
   void remove()
   {
-    BLI_assert(this->is_occupied());
+    BLI_assume_assert(this->is_occupied());
     value_buffer_.ref().~Value();
     KeyInfo::remove(key_);
   }

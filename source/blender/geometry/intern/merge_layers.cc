@@ -4,6 +4,7 @@
 
 #include "GEO_merge_layers.hh"
 
+#include "BLI_assume.hh"
 #include "BLI_math_matrix.hh"
 
 #include "BKE_attribute_math.hh"
@@ -19,7 +20,7 @@ static bke::CurvesGeometry join_curves(const GreasePencil &src_grease_pencil,
                                        const Span<float4x4> transforms_to_apply,
                                        const bke::AttributeFilter &attribute_filter)
 {
-  BLI_assert(all_src_curves.size() == transforms_to_apply.size());
+  BLI_assume_assert(all_src_curves.size() == transforms_to_apply.size());
   Vector<bke::GeometrySet> src_geometries(all_src_curves.size());
   for (const int src_curves_i : all_src_curves.index_range()) {
     bke::CurvesGeometry src_curves = *all_src_curves[src_curves_i];
@@ -64,7 +65,7 @@ GreasePencil *merge_layers(const GreasePencil &src_grease_pencil,
     layer.set_name(first_src_layer.name());
     layer.opacity = first_src_layer.opacity;
     Drawing *drawing = new_grease_pencil->get_eval_drawing(layer);
-    BLI_assert(drawing != nullptr);
+    BLI_assume_assert(drawing != nullptr);
     curves_by_new_layer[new_layer_i] = &drawing->strokes_for_write();
   }
 

@@ -80,7 +80,7 @@ class SocketValueInferencerImpl {
       return InferenceValue::Unknown();
     }
 
-    BLI_assert(value_tasks_.is_empty());
+    BLI_assume_assert(value_tasks_.is_empty());
     value_tasks_.push(socket);
 
     while (!value_tasks_.is_empty()) {
@@ -548,8 +548,8 @@ class SocketValueInferencerImpl {
           is_selected_socket)
   {
     const NodeInContext node = socket.owner_node();
-    BLI_assert(node->input_sockets().size() >= 1);
-    BLI_assert(node->output_sockets().size() >= 1);
+    BLI_assume_assert(node->input_sockets().size() >= 1);
+    BLI_assume_assert(node->output_sockets().size() >= 1);
 
     const SocketInContext condition_socket{socket.context,
                                            get_first_available_bsocket(node->input_sockets())};

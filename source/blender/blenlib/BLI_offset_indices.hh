@@ -41,7 +41,7 @@ template<typename T> class OffsetIndices {
   OffsetIndices() = default;
   OffsetIndices(const Span<T> offsets) : offsets_(offsets)
   {
-    BLI_assert(offsets_.size() < 2 || std::is_sorted(offsets_.begin(), offsets_.end()));
+    BLI_assume_assert(offsets_.size() < 2 || std::is_sorted(offsets_.begin(), offsets_.end()));
   }
 
   /**
@@ -78,8 +78,8 @@ template<typename T> class OffsetIndices {
 
   IndexRange operator[](const int64_t index) const
   {
-    BLI_assert(index >= 0);
-    BLI_assert(index < offsets_.size() - 1);
+    BLI_assume_assert(index >= 0);
+    BLI_assume_assert(index < offsets_.size() - 1);
     const int64_t begin = offsets_[index];
     const int64_t end = offsets_[index + 1];
     return IndexRange::from_begin_end(begin, end);
@@ -99,7 +99,7 @@ template<typename T> class OffsetIndices {
    */
   OffsetIndices slice(const IndexRange range) const
   {
-    BLI_assert(range.is_empty() || offsets_.index_range().drop_back(1).contains(range.last()));
+    BLI_assume_assert(range.is_empty() || offsets_.index_range().drop_back(1).contains(range.last()));
     return OffsetIndices(offsets_.slice(range.start(), range.size() + 1));
   }
 
@@ -124,7 +124,7 @@ template<typename T> struct GroupedSpan {
   GroupedSpan() = default;
   GroupedSpan(OffsetIndices<int> offsets, Span<T> data) : offsets(offsets), data(data)
   {
-    BLI_assert(this->offsets.total_size() == this->data.size());
+    BLI_assume_assert(this->offsets.total_size() == this->data.size());
   }
 
   Span<T> operator[](const int64_t index) const

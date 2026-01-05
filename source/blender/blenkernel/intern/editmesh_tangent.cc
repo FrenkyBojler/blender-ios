@@ -62,7 +62,7 @@ struct SGLSLEditMeshToTangent {
 
   const BMLoop *GetLoop(const uint face_num, uint vert_index)
   {
-    // BLI_assert(vert_index >= 0 && vert_index < 4);
+    // BLI_assume_assert(vert_index >= 0 && vert_index < 4);
     BMLoop *const *ltri;
     const BMLoop *l;
 
@@ -219,7 +219,7 @@ Array<Array<float4>> BKE_editmesh_uv_tangents_calc(BMEditMesh *em,
       mesh2tangent.corner_normals = corner_normals;
       mesh2tangent.cd_loop_uv_offset = CustomData_get_offset_named(
           &bm->ldata, CD_PROP_FLOAT2, uv_names[n]);
-      BLI_assert(mesh2tangent.cd_loop_uv_offset != -1);
+      BLI_assume_assert(mesh2tangent.cd_loop_uv_offset != -1);
 
       mesh2tangent.looptris = em->looptris;
       result[n].reinitialize(bm->totloop);
