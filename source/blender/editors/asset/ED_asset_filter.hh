@@ -21,6 +21,7 @@
 
 struct AssetLibraryReference;
 struct AssetMetaData;
+struct AssetTag;
 struct bContext;
 namespace blender::asset_system {
 class AssetLibrary;
@@ -32,7 +33,7 @@ namespace blender::ed::asset {
 struct AssetFilterSettings {
   /** Tags to match against. These are newly allocated, and compared against the
    * #AssetMetaData.tags. */
-  ListBase tags;     /* AssetTag */
+  ListBaseT<AssetTag> tags;
   uint64_t id_types; /* rna_enum_id_type_filter_items */
 };
 
@@ -64,7 +65,7 @@ struct AssetItemTree {
 asset_system::AssetCatalogTree build_filtered_catalog_tree(
     const asset_system::AssetLibrary &library,
     const AssetLibraryReference &library_ref,
-    blender::FunctionRef<bool(const asset_system::AssetRepresentation &)> is_asset_visible_fn);
+    FunctionRef<bool(const asset_system::AssetRepresentation &)> is_asset_visible_fn);
 AssetItemTree build_filtered_all_catalog_tree(
     const AssetLibraryReference &library_ref,
     const bContext &C,

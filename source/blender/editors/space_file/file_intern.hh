@@ -21,6 +21,7 @@ struct ARegionType;
 struct bContextDataResult;
 struct FileAssetSelectParams;
 struct FileSelectParams;
+struct FolderList;
 struct Main;
 struct SpaceFile;
 struct View2D;
@@ -61,7 +62,7 @@ bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegio
 void file_draw_check_ex(bContext *C, ScrArea *area);
 void file_draw_check(bContext *C);
 /**
- * For use with; #UI_block_func_set.
+ * For use with; #block_func_set.
  */
 void file_draw_check_cb(bContext *C, void *arg1, void *arg2);
 bool file_draw_check_exists(SpaceFile *sfile);
@@ -216,15 +217,15 @@ void file_on_reload_callback_register(SpaceFile *sfile,
 /* folder_history.cc */
 
 /* not listbase itself */
-void folderlist_free(ListBase *folderlist);
-void folderlist_popdir(ListBase *folderlist, char *dir);
-void folderlist_pushdir(ListBase *folderlist, const char *dir);
-const char *folderlist_peeklastdir(ListBase *folderlist);
+void folderlist_free(ListBaseT<FolderList> *folderlist);
+void folderlist_popdir(ListBaseT<FolderList> *folderlist, char *dir);
+void folderlist_pushdir(ListBaseT<FolderList> *folderlist, const char *dir);
+const char *folderlist_peeklastdir(ListBaseT<FolderList> *folderlist);
 bool folderlist_clear_next(SpaceFile *sfile);
 
 void folder_history_list_ensure_for_active_browse_mode(SpaceFile *sfile);
 void folder_history_list_free(SpaceFile *sfile);
-ListBase folder_history_list_duplicate(ListBase *listbase);
+ListBaseT<FileFolderHistory> folder_history_list_duplicate(ListBaseT<FileFolderHistory> *listbase);
 
 /* `file_panels.cc` */
 

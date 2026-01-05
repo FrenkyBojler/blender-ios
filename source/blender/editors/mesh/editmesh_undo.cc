@@ -200,6 +200,8 @@ enum {
 };
 #  define ARRAY_STORE_INDEX_NUM (ARRAY_STORE_INDEX_MSEL + 1)
 
+struct UndoMesh;
+
 static struct {
   BArrayStore_AtSize bs_stride[ARRAY_STORE_INDEX_NUM];
   int users;
@@ -208,7 +210,7 @@ static struct {
    * A list of #UndoMesh items ordered from oldest to newest
    * used to access previous undo data for a mesh.
    */
-  ListBase local_links;
+  ListBaseT<UndoMesh> local_links;
 
 #  ifdef USE_ARRAY_STORE_THREAD
   TaskPool *task_pool;
@@ -345,6 +347,10 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
                                     const size_t data_len)
 {
   using namespace blender;
+  if (bcd == nullptr) {
+    return;
+  }
+
   MutableSpan all_layers(cdata->layers, cdata->totlayer);
   for (const auto &item : bcd->non_trivial_arrays.items()) {
     const eCustomDataType type = item.key;
@@ -406,6 +412,10 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
 static void um_arraystore_cd_free(BArrayCustomData *bcd, const int bs_index)
 {
   using namespace blender;
+  if (bcd == nullptr) {
+    return;
+  }
+
   for (Array<ImplicitSharingInfoAndData> &states : bcd->non_trivial_arrays.values()) {
     for (ImplicitSharingInfoAndData &state : states) {
       state.sharing_info->remove_user_and_delete_if_last();
@@ -438,8 +448,16 @@ static void um_arraystore_compact(UndoMesh *um, const UndoMesh *um_ref)
    * At the moment it seems fast enough to split by domain.
    * Since this is itself a background thread, using too many threads here could
    * interfere with foreground tasks. */
+
+#  ifdef USE_ARRAY_STORE_THREAD
+  const bool use_threading = 4096 < (mesh->verts_num + mesh->edges_num + mesh->corners_num +
+                                     mesh->faces_num);
+#  else
+  const bool use_threading = false;
+#  endif
+
   blender::threading::parallel_invoke(
-      4096 < (mesh->verts_num + mesh->edges_num + mesh->corners_num + mesh->faces_num),
+      use_threading,
       [&]() {
         um->store.vdata = um_arraystore_cd_create(&mesh->vert_data,
                                                   mesh->verts_num,
@@ -490,8 +508,7 @@ static void um_arraystore_compact(UndoMesh *um, const UndoMesh *um_ref)
               &um_arraystore.bs_stride[ARRAY_STORE_INDEX_SHAPE],
               stride,
               array_chunk_size_calc(stride));
-          um->store.keyblocks = static_cast<BArrayState **>(
-              MEM_mallocN(mesh->key->totkey * sizeof(*um->store.keyblocks), __func__));
+          um->store.keyblocks = MEM_malloc_arrayN<BArrayState *>(mesh->key->totkey, __func__);
 
           KeyBlock *keyblock = static_cast<KeyBlock *>(mesh->key->block.first);
           for (int i = 0; i < mesh->key->totkey; i++, keyblock = keyblock->next) {
@@ -790,7 +807,7 @@ static UndoMesh **mesh_undostep_reference_elems_from_objects(Object **object, in
 static void *undomesh_from_editmesh(UndoMesh *um,
                                     BMEditMesh *em,
                                     Key *key,
-                                    const ListBase *vertex_group_names,
+                                    const ListBaseT<bDeformGroup> *vertex_group_names,
                                     const int vertex_group_active_index,
                                     UndoMesh *um_ref)
 {
@@ -884,7 +901,7 @@ static void *undomesh_from_editmesh(UndoMesh *um,
  */
 static void undomesh_to_editmesh(UndoMesh *um,
                                  BMEditMesh *em,
-                                 ListBase *vertex_group_names,
+                                 ListBaseT<bDeformGroup> *vertex_group_names,
                                  int *vertex_group_active_index)
 {
   BMEditMesh *em_tmp;

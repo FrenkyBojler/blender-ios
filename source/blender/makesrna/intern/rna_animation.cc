@@ -88,11 +88,16 @@ const EnumPropertyItem rna_enum_keying_flag_api_items[] = {
 
 #  include <algorithm>
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_base.h"
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 
 #  include "BKE_anim_data.hh"
 #  include "BKE_animsys.h"
+#  include "BKE_context.hh"
 #  include "BKE_fcurve.hh"
+#  include "BKE_lib_id.hh"
 #  include "BKE_nla.hh"
 
 #  include "ANIM_action.hh"
@@ -550,7 +555,7 @@ static bool rna_KeyingSetInfo_unregister(Main *bmain, StructRNA *type)
 
   /* free RNA data referencing this */
   RNA_struct_free_extension(type, &ksi->rna_ext);
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
 
   WM_main_add_notifier(NC_WINDOW, nullptr);
 
@@ -620,7 +625,7 @@ static StructRNA *rna_KeyingSetInfo_register(Main *bmain,
   memcpy(ksi, &dummy_ksi, sizeof(KeyingSetInfo));
 
   /* set RNA-extensions info */
-  ksi->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, ksi->idname, &RNA_KeyingSetInfo);
+  ksi->rna_ext.srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), ksi->idname, &RNA_KeyingSetInfo);
   ksi->rna_ext.data = data;
   ksi->rna_ext.call = call;
   ksi->rna_ext.free = free;
