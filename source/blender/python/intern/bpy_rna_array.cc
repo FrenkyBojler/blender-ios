@@ -156,7 +156,9 @@ static int validate_array_type(PyObject *seq,
   }
   else {
     /* check that items are of correct type */
-    const int seq_size = PySequence_Size(seq);
+    PyObject *seq_fast = PySequence_Fast(seq, "validate_array_type sequence conversion");
+    const int seq_size = PySequence_Fast_GET_SIZE(seq_fast);
+
     if (seq_size == -1) {
       PyErr_Format(PyExc_ValueError,
                    "%s sequence expected at dimension %d, not '%s'",
@@ -175,8 +177,9 @@ static int validate_array_type(PyObject *seq,
       return -1;
     }
 
+    PyObject **seq_fast_items = PySequence_Fast_ITEMS(seq_fast);
     for (i = 0; i < seq_size; i++) {
-      PyObject *item = PySequence_GetItem(seq, i);
+      PyObject *item = seq_fast_items[i];
 
       if (item == nullptr) {
         PyErr_Format(PyExc_TypeError,
@@ -447,7 +450,13 @@ static char *copy_values(PyObject *seq,
                          RNA_SetIndexFunc rna_set_index)
 {
   const int totdim = RNA_property_array_dimension(ptr, prop, nullptr);
-  const Py_ssize_t seq_size = PySequence_Size(seq);
+
+  const PyObject *seq_fast = PySequence_Fast(seq, "bpy_rna_array sequence conversion");
+  if (seq_fast == NULL) {
+    return NULL;
+  }
+
+  const Py_ssize_t seq_size = PySequence_Fast_GET_SIZE(seq_fast);
   Py_ssize_t i;
 
   /* Regarding PySequence_GetItem() failing.
@@ -479,8 +488,9 @@ static char *copy_values(PyObject *seq,
   }
 #endif /* USE_MATHUTILS */
 
+  PyObject **seq_fast_items = PySequence_Fast_ITEMS(seq_fast);
   for (i = 0; i < seq_size; i++) {
-    PyObject *item = PySequence_GetItem(seq, i);
+    PyObject *item = seq_fast_items[i];
     if (item) {
       if (dim + 1 < totdim) {
         data = copy_values(
