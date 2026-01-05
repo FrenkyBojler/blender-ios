@@ -293,7 +293,7 @@ PopupBlockHandle *popover_panel_create(bContext *C,
     WM_event_add_mousemove(window);
     handle->popup = true;
   }
-  UI_popup_keymap_handler_add(CTX_wm_manager(C), &window->modalhandlers, handle->region);
+  popup_keymap_handler_add(CTX_wm_manager(C), &window->runtime->modalhandlers, handle->region);
 
   return handle;
 }

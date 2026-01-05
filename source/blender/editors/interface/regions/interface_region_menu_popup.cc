@@ -429,7 +429,7 @@ static PopupBlockHandle *ui_popup_menu_create_impl(
     popup_handlers_add(C, &window->runtime->modalhandlers, handle, 0);
     WM_event_add_mousemove(window);
   }
-  UI_popup_keymap_handler_add(CTX_wm_manager(C), &window->modalhandlers, handle->region);
+  popup_keymap_handler_add(CTX_wm_manager(C), &window->runtime->modalhandlers, handle->region);
 
   return handle;
 }

@@ -2171,14 +2171,16 @@ bool panel_list_matches_data(ARegion *region,
  * as screen/ if ED_KEYMAP_UI is set, or internally in popup functions. */
 
 void region_handlers_add(ListBaseT<wmEventHandler> *handlers);
-void UI_popup_keymap_handler_add(const wmWindowManager *wm,
-                                 ListBase *handlers,
-                                 ARegion *popup_region);
+void popup_keymap_handler_add(const wmWindowManager *wm,
+                              ListBaseT<wmEventHandler> *handlers,
+                              ARegion *popup_region);
 void popup_handlers_add(bContext *C,
                         ListBaseT<wmEventHandler> *handlers,
                         PopupBlockHandle *popup,
                         char flag);
-void popup_handlers_remove(bContext *C, ListBaseT<wmEventHandler> *handlers, PopupBlockHandle *popup);
+void popup_handlers_remove(bContext *C,
+                           ListBaseT<wmEventHandler> *handlers,
+                           PopupBlockHandle *popup);
 void popup_handlers_remove_all(bContext *C, ListBaseT<wmEventHandler> *handlers);
 
 /* Module
