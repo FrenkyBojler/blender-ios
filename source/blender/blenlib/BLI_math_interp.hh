@@ -94,12 +94,18 @@ struct SamplerOptions {
 };
 
 /** All arguments to sampler functions that don't vary per-pixel.
+ * The stride/step can be used to sample from cropped rectangles out of
+ * a larger buffer, to do transpose or mirroring, or to pull the image
+ * out of one with a different number of components.
  */
 struct SamplerSource : public SamplerOptions {
-  const float *buffer;
+  const float *buffer; /* points at x=y=0 */
   int width;
   int height;
   int components;
+  int stride; /* distance between y and y+1 */
+  int step; /* distance between x and x+1 */
+  const float *row(int y) const { return buffer + y * int64_t(stride); }
 };
 
 /* -------------------------------------------------------------------- */

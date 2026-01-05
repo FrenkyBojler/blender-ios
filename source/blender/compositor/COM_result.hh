@@ -534,11 +534,14 @@ BLI_INLINE_METHOD GMutableSpan Result::cpu_data()
 BLI_INLINE_METHOD math::SamplerSource Result::samplerSource(
     const math::SamplerOptions &options) const
 {
+  const int components = int(channels_count());
   return math::SamplerSource{options,
                              static_cast<const float *>(cpu_data_.data()),
                              domain_.data_size.x,
                              domain_.data_size.y,
-                             int(channels_count())};
+                             components,
+                             domain_.data_size.x * components,
+                             components};
 }
 
 template<typename T> BLI_INLINE_METHOD const T &Result::get_single_value() const

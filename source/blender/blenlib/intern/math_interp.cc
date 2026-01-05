@@ -651,10 +651,10 @@ static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const 
   __m128 sum = _mm_set1_ps(0.0f);
   for (int i = 0; i < ny; i++) {
     __m128 sumx = _mm_set1_ps(0.0f);
-    const float *p = source.buffer + positions_y[i] * source.width * 4;
+    const float *p = source.row(positions_y[i]);
     for (int j = 0; j < nx; j++) {
       sumx = _mm_add_ps(
-          sumx, _mm_mul_ps(_mm_loadu_ps(p + positions_x[j] * 4), _mm_set1_ps(weights_x[j])));
+          sumx, _mm_mul_ps(_mm_loadu_ps(p + positions_x[j] * source.step), _mm_set1_ps(weights_x[j])));
     }
     sum = _mm_add_ps(sum, _mm_mul_ps(sumx, _mm_set1_ps(weights_y[i])));
   }
@@ -663,9 +663,9 @@ static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const 
   float4 sum{0.0f};
   for (int i = 0; i < ny; i++) {
     float4 sumx{0.0f};
-    const float *p = source.buffer + positions_y[i] * source.width * 4;
+    const float *p = source.row(positions_y[i]);
     for (int j = 0; j < nx; j++) {
-      sumx += *(float4 *)(p + positions_x[j] * 4) * weights_x[j];
+      sumx += *(float4 *)(p + positions_x[j] * source.step) * weights_x[j];
     }
     sum += sumx * weights_y[i];
   }
@@ -684,7 +684,7 @@ float4 _sample_rect<Sampler::Nearest>(const SamplerSource &source,
   if (x < 0 || y < 0) {
     return float4(0.0f);
   }
-  return *(float4 *)(source.buffer + (int64_t(source.width) * y + x) * 4);
+  return *(float4 *)(source.row(y) + x * source.step);
 }
 
 template<>
@@ -700,10 +700,10 @@ float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source,
   const int y1 = wrap_coord_noclip(y, source.height, source.wrap_y);
   const int y2 = wrap_coord_noclip(y + 1, source.height, source.wrap_y);
 
-  const float *row1 = source.buffer + (int64_t(source.width) * y1 + x1) * 4;
-  const float *row2 = source.buffer + (int64_t(source.width) * y2 + x1) * 4;
-  const float *row3 = source.buffer + (int64_t(source.width) * y1 + x2) * 4;
-  const float *row4 = source.buffer + (int64_t(source.width) * y2 + x2) * 4;
+  const float *row1 = source.row(y1) + x1 * source.step;
+  const float *row2 = source.row(y2) + x1 * source.step;
+  const float *row3 = source.row(y1) + x2 * source.step;
+  const float *row4 = source.row(y2) + x2 * source.step;
 
   float a = x - floorf(x);
   float b = y - floorf(y);
@@ -826,30 +826,8 @@ static void read_callback(void *userdata, int u, int v, float result[4])
     result[0] = result[1] = result[2] = result[3] = 0.0f;
     return;
   }
-  const float *data = source.buffer + (int64_t(source.width) * y + x) * source.components;
-  switch (source.components) {
-    default:
-      result[0] = result[1] = result[2] = result[3] = *data;
-      break;
-    case 2:
-      result[0] = data[0];
-      result[1] = data[1];
-      result[2] = 0.0f;
-      result[3] = 1.0f;
-      break;
-    case 3:
-      result[0] = data[0];
-      result[1] = data[1];
-      result[2] = data[2];
-      result[3] = 1.0f;
-      break;
-    case 4:
-      result[0] = data[0];
-      result[1] = data[1];
-      result[2] = data[2];
-      result[3] = data[3];
-      break;
-  }
+  const float *data = source.row(y) + x * source.step;
+  memcpy(result, data, 4 * sizeof(float));
 }
 
 static float4 sample_anisotropic(const SamplerSource &source,
