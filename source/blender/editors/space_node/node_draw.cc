@@ -3712,7 +3712,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
     rgba_float_args_set(bgcolor, node.color[0], node.color[1], node.color[2], 1.0f);
   }
   else {
-    /* Checking for Nested Frames */
+    /* Checking for nested frames. */
     int depth = 0;
     for (const bNode *parent = node.parent; parent; parent = parent->parent) {
       depth++;
@@ -3725,7 +3725,7 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
     }
   }
 
-  /* The Text color changes according to background color */
+  /* The Text color changes according to background color. */
   uchar text_color[3];
   if (srgb_to_grayscale(bgcolor) > 0.5f) {
     /* Light background -> dark text. */
