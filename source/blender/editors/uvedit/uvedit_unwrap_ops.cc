@@ -1484,7 +1484,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
       only_selected_faces = false;
       only_selected_uvs = false;
     }
-    ListBase island_list = {nullptr};
+    ListBaseT<FaceIsland> island_list = {nullptr};
     bm_mesh_calc_uv_islands(scene,
                             bm,
                             &island_list,
@@ -1495,15 +1495,15 @@ static void uvedit_pack_islands_multi(const Scene *scene,
                             offsets);
 
     /* Remove from linked list and append to blender::Vector. */
-    LISTBASE_FOREACH_MUTABLE (FaceIsland *, island, &island_list) {
-      BLI_remlink(&island_list, island);
-      const bool pinned = island_has_pins(scene, bm, island, params);
+    for (FaceIsland &island : island_list.items_mutable()) {
+      BLI_remlink(&island_list, &island);
+      const bool pinned = island_has_pins(scene, bm, &island, params);
       if (ignore_pinned && pinned) {
-        MEM_freeN(island->faces);
-        MEM_freeN(island);
+        MEM_freeN(island.faces);
+        MEM_freeN(&island);
         continue;
       }
-      island_vector.append(island);
+      island_vector.append(&island);
       pinned_vector.append(pinned);
     }
   }
@@ -3305,8 +3305,8 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
     }
 
     /* After finding projection vectors, we find the uv positions. */
-    LinkNode **thickface_project_groups = static_cast<LinkNode **>(
-        MEM_callocN(sizeof(*thickface_project_groups) * project_normal_array.size(), __func__));
+    LinkNode **thickface_project_groups = MEM_calloc_arrayN<LinkNode *>(
+        project_normal_array.size(), __func__);
 
     BLI_memarena_clear(arena);
 

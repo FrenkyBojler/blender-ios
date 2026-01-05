@@ -292,7 +292,9 @@ const EnumPropertyItem rna_enum_property_string_search_flag_items[] = {
 /** \} */
 
 #ifdef RNA_RUNTIME
+
 #  include "BLI_ghash.h"
+#  include "BLI_listbase.h"
 #  include "BLI_string.h"
 
 #  include "MEM_guardedalloc.h"
@@ -2273,9 +2275,9 @@ void rna_property_override_diff_default(Main *bmain, RNAPropertyOverrideDiffCont
          * them, otherwise we'd end up with a mess of opop's every time something changes. */
         op = BKE_lib_override_library_property_find(liboverride, rna_path);
         if (op != nullptr) {
-          LISTBASE_FOREACH_MUTABLE (IDOverrideLibraryPropertyOperation *, opop, &op->operations) {
-            if (ELEM(opop->operation, LIBOVERRIDE_OP_INSERT_AFTER, LIBOVERRIDE_OP_INSERT_BEFORE)) {
-              BKE_lib_override_library_property_operation_delete(op, opop);
+          for (IDOverrideLibraryPropertyOperation &opop : op->operations.items_mutable()) {
+            if (ELEM(opop.operation, LIBOVERRIDE_OP_INSERT_AFTER, LIBOVERRIDE_OP_INSERT_BEFORE)) {
+              BKE_lib_override_library_property_operation_delete(op, &opop);
             }
           }
           op = nullptr;

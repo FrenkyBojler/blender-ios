@@ -123,14 +123,16 @@ static const EnumPropertyItem part_fluid_type_items[] = {
 
 #  include <fmt/format.h>
 
-#  include "BLI_string_utils.hh"
-
 #  include "DNA_cloth_types.h"
 #  include "DNA_mesh_types.h"
 #  include "DNA_meshdata_types.h"
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_matrix.h"
 #  include "BLI_math_vector.h"
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
+#  include "BLI_string_utils.hh"
 
 #  include "BKE_boids.h"
 #  include "BKE_cloth.hh"
@@ -138,6 +140,8 @@ static const EnumPropertyItem part_fluid_type_items[] = {
 #  include "BKE_customdata.hh"
 #  include "BKE_deform.hh"
 #  include "BKE_effect.h"
+#  include "BKE_lib_id.hh"
+#  include "BKE_main.hh"
 #  include "BKE_material.hh"
 #  include "BKE_mesh.hh"
 #  include "BKE_mesh_legacy_convert.hh"
@@ -427,8 +431,8 @@ static const EnumPropertyItem *rna_Particle_Material_itemf(bContext *C,
   Object *ob_found = nullptr;
 
   if (Object *ob_context = static_cast<Object *>(CTX_data_pointer_get(C, "object").data)) {
-    LISTBASE_FOREACH (ParticleSystem *, psys, &ob_context->particlesystem) {
-      if (psys->part == part) {
+    for (ParticleSystem &psys : ob_context->particlesystem) {
+      if (psys.part == part) {
         ob_found = ob_context;
         break;
       }
@@ -441,8 +445,8 @@ static const EnumPropertyItem *rna_Particle_Material_itemf(bContext *C,
          ob && (ob_found == nullptr);
          ob = static_cast<Object *>(ob->id.next))
     {
-      LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
-        if (psys->part == part) {
+      for (ParticleSystem &psys : ob->particlesystem) {
+        if (psys.part == part) {
           ob_found = ob;
           break;
         }
@@ -540,10 +544,10 @@ static void rna_Particle_change_type(Main *bmain, Scene * /*scene*/, PointerRNA 
   for (Object *ob = static_cast<Object *>(bmain->objects.first); ob;
        ob = static_cast<Object *>(ob->id.next))
   {
-    LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
-      if (psys->part == part) {
-        psys_changed_type(ob, psys);
-        psys->recalc |= ID_RECALC_PSYS_RESET;
+    for (ParticleSystem &psys : ob->particlesystem) {
+      if (psys.part == part) {
+        psys_changed_type(ob, &psys);
+        psys.recalc |= ID_RECALC_PSYS_RESET;
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       }
     }
@@ -1208,7 +1212,7 @@ static void psys_vg_name_get__internal(PointerRNA *ptr, char *value, int index)
 {
   Object *ob = (Object *)ptr->owner_id;
   ParticleSystem *psys = (ParticleSystem *)ptr->data;
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
 
   if (psys->vgroup[index] > 0) {
     bDeformGroup *defGroup = static_cast<bDeformGroup *>(
@@ -1228,7 +1232,7 @@ static int psys_vg_name_len__internal(PointerRNA *ptr, int index)
   ParticleSystem *psys = (ParticleSystem *)ptr->data;
 
   if (psys->vgroup[index] > 0) {
-    const ListBase *defbase = BKE_object_defgroup_list(ob);
+    const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
     bDeformGroup *defGroup = static_cast<bDeformGroup *>(
         BLI_findlink(defbase, psys->vgroup[index] - 1));
 
