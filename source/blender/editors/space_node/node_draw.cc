@@ -3726,15 +3726,26 @@ static void frame_node_draw_label(TreeDrawContext &tree_draw_ctx,
   }
 
   /* The Text color changes according to background color. */
-  uchar text_color[3];
+  float text_color_rgb[3];
+  ui::theme::get_color_3fv(TH_TEXT, text_color_rgb);
+
+  float text_color_hsl[3];
+  rgb_to_hsl_v(text_color_rgb, text_color_hsl);
+
   if (srgb_to_grayscale(bgcolor) > 0.5f) {
     /* Light background -> dark text. */
-    text_color[0] = text_color[1] = text_color[2] = 0;
+    text_color_hsl[2] = 0.05f;
   }
   else {
     /* Dark background -> light text. */
-    text_color[0] = text_color[1] = text_color[2] = 255;
+    text_color_hsl[2] = 0.95f;
   }
+
+  hsl_to_rgb_v(text_color_hsl, text_color_rgb);
+
+  uchar text_color[3];
+  rgb_float_to_uchar(text_color, text_color_rgb);
+
   BLF_color3ubv(fontid, text_color);
 
   const float label_width = BLF_width(fontid, node.label, strlen(node.label));
