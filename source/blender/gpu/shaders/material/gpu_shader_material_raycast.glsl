@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+[[node]]
 void node_raycast(float3 position,
                   float3 direction,
                   float length,
@@ -14,6 +15,7 @@ void node_raycast(float3 position,
   is_hit = hit ? 1.0f : 0.0f;
 }
 
+[[node]]
 void node_raycast_only_local(float3 position,
                              float3 direction,
                              float length,
