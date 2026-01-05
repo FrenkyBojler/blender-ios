@@ -1263,7 +1263,7 @@ wmWindow *WM_window_open(bContext *C,
   rcti rect;
 
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win_prev->runtime->ghostwin);
-  const float native_pixel_size = ghost_window->getNativePixelSize();
+  const float native_pixel_size = ghost_window ? ghost_window->getNativePixelSize() : 1.0f;
   /* Convert to native OS window coordinates. */
   rect.xmin = x / native_pixel_size;
   rect.ymin = y / native_pixel_size;
