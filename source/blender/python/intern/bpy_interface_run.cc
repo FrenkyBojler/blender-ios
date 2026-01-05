@@ -355,11 +355,10 @@ static IDProperty *pyobject_to_idprop(PyObject *obj)
  *
  * This assumes that the Python environment has been set up (i.e. the GIL has been acquired).
  */
-static bool run_string_with_locals(bContext *C,
-                                   const blender::StringRefNull script,
-                                   IDProperty &locals,
-                                   blender::FunctionRef<void(PyObject *py_locals)> on_exec_ok)
-
+static bool run_string_with_locals_assume_gil(
+    const blender::StringRefNull script,
+    IDProperty &locals,
+    blender::FunctionRef<void(PyObject *py_locals)> on_exec_ok)
 {
   /* Set up locals & globals. */
   BLI_assert(locals.type == IDP_GROUP);
@@ -388,11 +387,30 @@ static bool run_string_with_locals(bContext *C,
   return ok;
 }
 
+static bool run_string_with_locals_acquire_gil(
+    bContext *C,
+    const blender::StringRefNull script,
+    IDProperty &locals,
+    blender::FunctionRef<void(PyObject *py_locals)> on_exec_ok)
+{
+  PyGILState_STATE gilstate;
+  bpy_context_set(C, &gilstate);
+
+  PyObject *main_mod_backup = PyC_MainModule_Backup();
+
+  const bool ok = run_string_with_locals_assume_gil(script, locals, on_exec_ok);
+
+  PyC_MainModule_Restore(main_mod_backup);
+  bpy_context_clear(C, &gilstate);
+
+  return ok;
+}
+
 bool BPY_run_string_with_locals(bContext *C,
                                 const blender::StringRefNull script,
                                 IDProperty &locals)
 {
-  return run_string_with_locals(C, script, locals, nullptr);
+  return run_string_with_locals_acquire_gil(C, script, locals, nullptr);
 }
 
 std::optional<IDProperty *> BPY_run_string_with_locals_return_idprop(
@@ -419,7 +437,7 @@ std::optional<IDProperty *> BPY_run_string_with_locals_return_idprop(
     }
   };
 
-  const bool exec_ok = run_string_with_locals(C, script, locals, on_exec_ok);
+  const bool exec_ok = run_string_with_locals_acquire_gil(C, script, locals, on_exec_ok);
   if (!exec_ok) {
     BLI_assert(!result_idprop.has_value());
     return std::nullopt;
