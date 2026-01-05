@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
@@ -38,7 +39,7 @@ NodeGroupOperation::NodeGroupOperation(Context &context,
                                        const bNodeInstanceKey instance_key)
     : Operation(context),
       node_group_(node_group),
-      needed_outputs_(needed_outputs),
+      needed_output_types_(needed_outputs),
       node_previews_(node_previews),
       active_node_group_instance_key_(active_node_group_instance_key),
       instance_key_(instance_key)
@@ -58,9 +59,17 @@ NodeGroupOperation::NodeGroupOperation(Context &context,
 
 void NodeGroupOperation::execute()
 {
+  Set<StringRef> needed_outputs;
+  for (const bNodeTreeInterfaceSocket *output : node_group_.interface_outputs()) {
+    if (this->get_result(output->identifier).should_compute()) {
+      needed_outputs.add_new(output->identifier);
+    }
+  }
+
   const VectorSet<const bNode *> schedule = compute_schedule(this->context(),
                                                              node_group_,
-                                                             needed_outputs_,
+                                                             needed_output_types_,
+                                                             needed_outputs,
                                                              instance_key_,
                                                              active_node_group_instance_key_);
   CompileState compile_state(this->context(), schedule);
@@ -83,12 +92,12 @@ void NodeGroupOperation::execute()
     }
   }
 
-  /* Allocate outputs that are not allocated already as invalid. This could happen for instance
-   * when no Group Output node exist or when the evaluation gets canceled before the output is
-   * written. */
+  /* Allocate outputs as invalid if they are not allocated already and are needed. This could
+   * happen for instance when no Group Output node exist or when the evaluation gets canceled
+   * before the output is written. */
   for (const bNodeTreeInterfaceSocket *output : node_group_.interface_outputs()) {
     Result &result = this->get_result(output->identifier);
-    if (!result.is_allocated()) {
+    if (!result.is_allocated() && result.should_compute()) {
       result.allocate_invalid();
     }
   }
@@ -128,7 +137,7 @@ NodeOperation *NodeGroupOperation::get_node_operation(const bNode &node)
 
   if (node.is_group()) {
     return get_group_node_operation(
-        this->context(), node, needed_outputs_, active_node_group_instance_key_);
+        this->context(), node, needed_output_types_, active_node_group_instance_key_);
   }
 
   if (node.is_group_output()) {
@@ -152,15 +161,16 @@ void NodeGroupOperation::map_node_operation_inputs_to_their_results(const bNode 
     }
 
     const bNodeSocket *output = get_output_linked_to_input(*input);
-    if (output) {
-      /* The input is linked. So map the input to the result we get from the output. */
+    if (output && compile_state.get_schedule().contains(&output->owner_node())) {
+      /* The input is linked to a node that is part of the schedule. So map the input to the result
+       * we get from the output. */
       Result &result = compile_state.get_result_from_output_socket(*output);
       operation->map_input_to_result(input->identifier, &result);
       continue;
     }
 
-    /* Otherwise, the input is unlinked. So map the input to the result of a newly created Input
-     * Single Value Operation. */
+    /* Otherwise, the input is essentially unlinked. So map the input to the result of a newly
+     * created Input Single Value Operation. */
     SingleValueNodeInputOperation *input_operation = new SingleValueNodeInputOperation(
         this->context(), *input);
     operations_stream_.append(std::unique_ptr<SingleValueNodeInputOperation>(input_operation));

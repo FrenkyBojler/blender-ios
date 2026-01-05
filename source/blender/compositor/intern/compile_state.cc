@@ -4,6 +4,8 @@
 
 #include <limits>
 
+#include "BLI_set.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_vector_set.hh"
 
 #include "DNA_node_types.h"

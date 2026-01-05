@@ -87,16 +87,6 @@ class CompositorContext : public compositor::Context {
     return *render_data_.scene;
   }
 
-  compositor::NodeGroupOutputTypes needed_outputs() const
-  {
-    compositor::NodeGroupOutputTypes needed_outputs =
-        compositor::NodeGroupOutputTypes::GroupOutputNode;
-    if (!render_data_.render) {
-      needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
-    }
-    return needed_outputs;
-  }
-
   bool treat_viewer_as_group_output() const override
   {
     return true;
@@ -156,6 +146,16 @@ class CompositorContext : public compositor::Context {
     return false;
   }
 
+  compositor::NodeGroupOutputTypes needed_outputs() const
+  {
+    compositor::NodeGroupOutputTypes needed_outputs =
+        compositor::NodeGroupOutputTypes::GroupOutputNode;
+    if (!render_data_.render) {
+      needed_outputs |= compositor::NodeGroupOutputTypes::ViewerNode;
+    }
+    return needed_outputs;
+  }
+
   void evaluate()
   {
     using namespace compositor;
@@ -168,7 +168,17 @@ class CompositorContext : public compositor::Context {
                                             node_group.active_viewer_key,
                                             bke::NODE_INSTANCE_KEY_BASE);
 
+    /* Set the reference count for the outputs, only the first color output is actually needed,
+     * while the rest are ignored. */
     node_group.ensure_interface_cache();
+    for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
+      const bool is_fisrt_output = output_socket == node_group.interface_outputs().first();
+      Result &output_result = node_group_operation.get_result(output_socket->identifier);
+      const bool is_color = output_result.type() == ResultType::Color;
+      output_result.set_reference_count(is_fisrt_output && is_color ? 1 : 0);
+    }
+
+    /* Map the inputs to the operation. */
     Vector<std::unique_ptr<Result>> inputs;
     for (const bNodeTreeInterfaceSocket *input_socket : node_group.interface_inputs()) {
       Result *input_result = new Result(
@@ -195,17 +205,10 @@ class CompositorContext : public compositor::Context {
 
     node_group_operation.evaluate();
 
+    /* Write the outputs of the operation. */
     for (const bNodeTreeInterfaceSocket *output_socket : node_group.interface_outputs()) {
       Result &output_result = node_group_operation.get_result(output_socket->identifier);
-      /* We only care about the first output, the rest are ignored. */
-      if (output_socket != node_group.interface_outputs().first()) {
-        output_result.release();
-        continue;
-      }
-
-      /* We expect a color output. */
-      if (output_result.type() != ResultType::Color) {
-        output_result.release();
+      if (!output_result.should_compute()) {
         continue;
       }
 

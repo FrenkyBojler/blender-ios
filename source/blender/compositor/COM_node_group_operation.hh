@@ -102,7 +102,7 @@ class NodeGroupOperation : public Operation {
   /* The node group that this operation represents. */
   const bNodeTree &node_group_;
   /* The node group outputs that should be computed. See NodeGroupOutputTypes for more details. */
-  const NodeGroupOutputTypes needed_outputs_;
+  const NodeGroupOutputTypes needed_output_types_;
   /* A map that associates each node instance identified by its node instance key to its node
    * preview. This could be nullptr if node previews are not needed. */
   Map<bNodeInstanceKey, bke::bNodePreview> *node_previews_ = nullptr;

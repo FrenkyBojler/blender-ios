@@ -69,9 +69,23 @@ class GroupNodeOperation : public NodeOperation {
                                  active_node_group_instance_key_,
                                  this->get_instance_key());
 
+    this->set_reference_counts(operation);
     Vector<std::unique_ptr<Result>> temporary_inputs = this->map_inputs(operation);
     operation.evaluate();
     this->write_outputs(operation);
+  }
+
+  /* Sets the reference counts of the node group operation according to the needed status of the
+   * outputs of the group node. */
+  void set_reference_counts(Operation &operation)
+  {
+    const bNodeTree *node_group = this->get_node_group();
+    node_group->ensure_interface_cache();
+    for (const bNodeTreeInterfaceSocket *output_socket : node_group->interface_outputs()) {
+      Result &node_group_result = operation.get_result(output_socket->identifier);
+      Result &group_node_result = this->get_result(output_socket->identifier);
+      node_group_result.set_reference_count(group_node_result.should_compute() ? 1 : 0);
+    }
   }
 
   /* Maps the input results of the node group operation to this group node's inputs through
@@ -93,7 +107,7 @@ class GroupNodeOperation : public NodeOperation {
   }
 
   /* Writes the output results of the node group operation to this group node operation by sharing
-   * its data, then freeing the results. */
+   * its data and freeing the results. */
   void write_outputs(Operation &operation)
   {
     const bNodeTree *node_group = this->get_node_group();
@@ -103,8 +117,8 @@ class GroupNodeOperation : public NodeOperation {
       Result &group_node_result = this->get_result(output_socket->identifier);
       if (group_node_result.should_compute()) {
         group_node_result.share_data(node_group_result);
+        node_group_result.release();
       }
-      node_group_result.release();
     }
   }
 

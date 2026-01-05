@@ -7,6 +7,7 @@
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 #include "BLI_stack.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 
@@ -207,7 +208,8 @@ using NeededBuffers = Map<const bNode *, int>;
  *   implementation because it rarely affects the output and is done by very few nodes.
  * - The compiler may decide to compiler the schedule differently depending on runtime information
  *   which we can merely speculate at scheduling-time as described above. */
-static NeededBuffers compute_number_of_needed_buffers(Stack<const bNode *> &output_nodes)
+static NeededBuffers compute_number_of_needed_buffers(Stack<const bNode *> &output_nodes,
+                                                      const Set<StringRef> &needed_outputs)
 {
   NeededBuffers needed_buffers;
 
@@ -230,6 +232,10 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<const bNode *> &outp
     Set<const bNode *> pushed_nodes;
     for (const bNodeSocket *input : node.input_sockets()) {
       if (!is_socket_available(input)) {
+        continue;
+      }
+
+      if (node.is_group_output() && !needed_outputs.contains(input->identifier)) {
         continue;
       }
 
@@ -268,6 +274,10 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<const bNode *> &outp
     int buffers_needed_by_dependencies = 0;
     for (const bNodeSocket *input : node.input_sockets()) {
       if (!is_socket_available(input)) {
+        continue;
+      }
+
+      if (node.is_group_output() && !needed_outputs.contains(input->identifier)) {
         continue;
       }
 
@@ -339,7 +349,8 @@ static NeededBuffers compute_number_of_needed_buffers(Stack<const bNode *> &outp
  * all buffers will have roughly the same size, which may not always be the case. */
 VectorSet<const bNode *> compute_schedule(const Context &context,
                                           const bNodeTree &node_group,
-                                          NodeGroupOutputTypes needed_outputs,
+                                          NodeGroupOutputTypes needed_outputs_types,
+                                          const Set<StringRef> &needed_outputs,
                                           const bNodeInstanceKey instance_key,
                                           const bNodeInstanceKey active_node_group_instance_key)
 {
@@ -358,7 +369,7 @@ VectorSet<const bNode *> compute_schedule(const Context &context,
   /* Add the output nodes whose result should be computed to the stack. */
   add_output_nodes(context,
                    node_group,
-                   needed_outputs,
+                   needed_outputs_types,
                    instance_key,
                    active_node_group_instance_key,
                    node_stack);
@@ -369,7 +380,8 @@ VectorSet<const bNode *> compute_schedule(const Context &context,
   }
 
   /* Compute the number of buffers needed by each node connected to the outputs. */
-  const NeededBuffers needed_buffers = compute_number_of_needed_buffers(node_stack);
+  const NeededBuffers needed_buffers = compute_number_of_needed_buffers(node_stack,
+                                                                        needed_outputs);
 
   /* Traverse the node group in a post order depth first manner, scheduling the nodes in an order
    * informed by the number of buffers needed by each node. Post order traversal guarantee that all
@@ -388,6 +400,10 @@ VectorSet<const bNode *> compute_schedule(const Context &context,
     Vector<const bNode *> sorted_dependency_nodes;
     for (const bNodeSocket *input : node.input_sockets()) {
       if (!is_socket_available(input)) {
+        continue;
+      }
+
+      if (node.is_group_output() && !needed_outputs.contains(input->identifier)) {
         continue;
       }
 

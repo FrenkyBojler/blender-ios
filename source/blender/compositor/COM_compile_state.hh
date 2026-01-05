@@ -139,7 +139,7 @@ class CompileState {
   std::optional<Domain> pixel_compile_unit_domain_;
 
  public:
-  /* Construct a compile state from the node execution schedule being compiled. */
+  /* Construct a compile state from the node group execution schedule being compiled. */
   CompileState(const Context &context, const VectorSet<const bNode *> &schedule);
 
   /* Get a reference to the node execution schedule being compiled. */
