@@ -941,7 +941,9 @@ static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
     const char *msg = selOnly ? "None of the %d copied bones are selected now" :
                                 "None of the %d copied bones could be pasted";
     BKE_reportf(op->reports, RPT_WARNING, msg, num_copied_bones);
-    return OPERATOR_CANCELLED;
+    /* Return OPERATOR_FINISHED to show the redo panel. It should be possible to
+     * turn off "Selected Only" if necessary. */
+    return OPERATOR_FINISHED;
   }
 
   if (num_pasted_bones + num_skipped_bones == num_copied_bones) {
