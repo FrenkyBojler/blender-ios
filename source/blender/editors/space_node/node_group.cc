@@ -1182,10 +1182,8 @@ static void node_group_make_insert_selected(const bContext &C,
   update_nested_node_refs_after_moving_nodes_into_group(ntree, group, *gnode, node_identifier_map);
 
   if (ELEM(group.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
-    BKE_ntree_update(*bmain, Span<bNodeTree *>{&group});
+    BKE_main_ensure_invariants(*bmain, Span<ID *>{&group.id});
   }
-
-  nodes::update_node_declaration_and_sockets(ntree, *gnode);
 
   /* Add new links to inputs outside of the group. */
   for (const auto item : input_links.items()) {
@@ -1581,8 +1579,6 @@ static wmOperatorStatus node_group_insert_exec(bContext *C, wmOperator *op)
   }
 
   node_group_make_insert_selected(*C, *ntree, gnode, nodes_to_group);
-  /* Make sure the evaluated node tree is updated. */
-  DEG_id_tag_update(&ntree->id, ID_RECALC_SYNC_TO_EVAL);
 
   bke::node_set_active(*ntree, *gnode);
   ED_node_tree_push(region, snode, ngroup, gnode);
