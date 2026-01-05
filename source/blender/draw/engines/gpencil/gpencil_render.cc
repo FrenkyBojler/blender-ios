@@ -97,7 +97,7 @@ static void render_init_buffers(const DRWContext *draw_ctx,
 
   const bool has_full_rect = (rect->xmin == 0 && rect->ymin == 0 && rect->xmax == size.x &&
                               rect->ymax == size.y);
-  const bool do_region = (!use_separated_pass) && !has_full_rect;
+  const bool do_region = !use_separated_pass && !has_full_rect;
   const bool do_clear_z = !pix_z || do_region;
   const bool do_clear_col = use_separated_pass || (!pix_col) || do_region;
 
