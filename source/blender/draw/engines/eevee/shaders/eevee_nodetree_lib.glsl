@@ -296,9 +296,9 @@ void raycast_eval(float3 position,
                   float3 direction,
                   float max_distance,
                   bool self_only,
-                  inout bool is_hit,
-                  inout float3 hit_position,
-                  inout float hit_distance)
+                  bool &is_hit,
+                  float3 &hit_position,
+                  float &hit_distance)
 {
   is_hit = false;
   hit_position = float3(0.0f);

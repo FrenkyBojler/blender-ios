@@ -222,8 +222,8 @@ Ray raytrace_thickness_ray_amend(Ray ray, ClosureUndetermined cl, float3 V, floa
   return ray;
 }
 
-bool clip_ray(inout float3 start,
-              inout float3 end,
+bool clip_ray(float3 &start,
+              float3 &end,
               const float3 direction,
               const float max_distance,
               const float4 frustum_planes[6])

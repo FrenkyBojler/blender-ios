@@ -5,9 +5,9 @@
 void node_raycast(float3 position,
                   float3 direction,
                   float length,
-                  out float is_hit,
-                  out float3 hit_position,
-                  out float hit_distance)
+                  float &is_hit,
+                  float3 &hit_position,
+                  float &hit_distance)
 {
   bool hit = false;
   raycast_eval(position, direction, length, false, hit, hit_position, hit_distance);
@@ -17,9 +17,9 @@ void node_raycast(float3 position,
 void node_raycast_only_local(float3 position,
                              float3 direction,
                              float length,
-                             out float is_hit,
-                             out float3 hit_position,
-                             out float hit_distance)
+                             float &is_hit,
+                             float3 &hit_position,
+                             float &hit_distance)
 {
   bool hit = false;
   raycast_eval(position, direction, length, true, hit, hit_position, hit_distance);
