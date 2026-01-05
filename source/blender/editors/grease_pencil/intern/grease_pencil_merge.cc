@@ -29,11 +29,11 @@ static void copy_layer_groups_without_layers(GreasePencil &dst_grease_pencil,
 {
   using namespace bke::greasepencil;
   /* Note: Don't loop over all children, just the direct children. */
-  LISTBASE_FOREACH (GreasePencilLayerTreeNode *, node, &src_parent.children) {
-    if (!node->wrap().is_group()) {
+  for (GreasePencilLayerTreeNode &node : src_parent.children) {
+    if (!node.wrap().is_group()) {
       continue;
     }
-    const LayerGroup &src_group = node->wrap().as_group();
+    const LayerGroup &src_group = node.wrap().as_group();
     LayerGroup &new_group = dst_grease_pencil.add_layer_group(dst_parent, src_group.name(), false);
     BKE_grease_pencil_copy_layer_group_parameters(src_group, new_group);
     /* Repeat recursively for groups in group. */
@@ -201,9 +201,7 @@ void merge_layers(const GreasePencil &src_grease_pencil,
         BLI_assert(duration >= 0);
         dst_frames.add_or_modify(
             item.key,
-            [&](InsertKeyframe *frame) {
-              *frame = {item.value, duration};
-            },
+            [&](InsertKeyframe *frame) { *frame = {item.value, duration}; },
             [&](InsertKeyframe *frame) {
               /* The destination frame is always an implicit hold if at least on of the source
                * frame is an implicit hold. */

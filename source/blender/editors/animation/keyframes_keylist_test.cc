@@ -198,7 +198,7 @@ class KeylistSummaryTest : public testing::Test {
   Bone *bone1;
   Bone *bone2;
 
-  SpaceAction saction = {nullptr};
+  SpaceAction saction = {};
   bAnimContext ac = {nullptr};
 
   static void SetUpTestSuite()
@@ -224,8 +224,8 @@ class KeylistSummaryTest : public testing::Test {
     cube = BKE_object_add_only_object(bmain, OB_EMPTY, "Küüübus");
 
     armature_data = BKE_armature_add(bmain, "ARArmature");
-    bone1 = reinterpret_cast<Bone *>(MEM_callocN(sizeof(Bone), "KeylistSummaryTest"));
-    bone2 = reinterpret_cast<Bone *>(MEM_callocN(sizeof(Bone), "KeylistSummaryTest"));
+    bone1 = MEM_new_for_free<Bone>("KeylistSummaryTest");
+    bone2 = MEM_new_for_free<Bone>("KeylistSummaryTest");
     STRNCPY_UTF8(bone1->name, "Bone.001");
     STRNCPY_UTF8(bone2->name, "Bone.002");
     BLI_addtail(&armature_data->bonebase, bone1);
@@ -343,14 +343,18 @@ TEST_F(KeylistSummaryTest, slot_summary_bone_selection)
   ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&bone2_loc_x, {3.0, 3.0}, {}, {}));
 
   /* Select only Bone.001. */
-  bone1->flag |= BONE_SELECTED;
-  bone2->flag &= ~BONE_SELECTED;
+  bPoseChannel *pose_bone1 = BKE_pose_channel_find_name(armature->pose, bone1->name);
+  ASSERT_NE(pose_bone1, nullptr);
+  pose_bone1->flag |= POSE_SELECTED;
+  bPoseChannel *pose_bone2 = BKE_pose_channel_find_name(armature->pose, bone2->name);
+  pose_bone2->flag &= ~POSE_SELECTED;
 
   /* Generate slot summary keylist. */
   AnimKeylist *keylist = ED_keylist_create();
   saction.ads.filterflag = ADS_FILTER_ONLYSEL; /* Filter by selection. */
   ac.obact = armature;
   ac.active_action_user = &armature->id;
+  ac.filters.flag = eDopeSheet_FilterFlag(saction.ads.filterflag);
   action_slot_summary_to_keylist(
       &ac, &armature->id, *action, slot_armature.handle, keylist, 0, {0.0, 6.0});
   ED_keylist_prepare_for_direct_access(keylist);

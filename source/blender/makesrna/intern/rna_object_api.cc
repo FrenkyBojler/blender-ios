@@ -42,12 +42,18 @@ static const EnumPropertyItem space_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include "BLI_listbase.h"
+#  include "BLI_math_matrix.h"
+#  include "BLI_string.h"
+
 #  include "BKE_bvhutils.hh"
+#  include "BKE_camera.h"
 #  include "BKE_constraint.h"
 #  include "BKE_context.hh"
 #  include "BKE_crazyspace.hh"
 #  include "BKE_customdata.hh"
 #  include "BKE_global.hh"
+#  include "BKE_key.hh"
 #  include "BKE_layer.hh"
 #  include "BKE_main.hh"
 #  include "BKE_mball.hh"
@@ -63,6 +69,7 @@ static const EnumPropertyItem space_items[] = {
 #  include "ED_screen.hh"
 
 #  include "DNA_curve_types.h"
+#  include "DNA_key_types.h"
 #  include "DNA_mesh_types.h"
 #  include "DNA_scene_types.h"
 #  include "DNA_view3d_types.h"
@@ -70,6 +77,8 @@ static const EnumPropertyItem space_items[] = {
 #  include "DEG_depsgraph_query.hh"
 
 #  include "MEM_guardedalloc.h"
+
+#  include "WM_api.hh"
 
 static Base *find_view_layer_base_with_synced_ensure(
     Object *ob, bContext *C, PointerRNA *view_layer_ptr, Scene **r_scene, ViewLayer **r_view_layer)
@@ -285,7 +294,7 @@ static void rna_Object_mat_convert_space(Object *ob,
                                          int from,
                                          int to)
 {
-  copy_m4_m4((float(*)[4])mat_ret, (float(*)[4])mat);
+  copy_m4_m4((float (*)[4])mat_ret, (float (*)[4])mat);
 
   BLI_assert(!ELEM(from, CONSTRAINT_SPACE_OWNLOCAL));
   BLI_assert(!ELEM(to, CONSTRAINT_SPACE_OWNLOCAL));
@@ -331,7 +340,7 @@ static void rna_Object_mat_convert_space(Object *ob,
     return;
   }
 
-  BKE_constraint_mat_convertspace(ob, pchan, nullptr, (float(*)[4])mat_ret, from, to, false);
+  BKE_constraint_mat_convertspace(ob, pchan, nullptr, (float (*)[4])mat_ret, from, to, false);
 }
 
 static void rna_Object_calc_matrix_camera(Object *ob,
@@ -353,7 +362,7 @@ static void rna_Object_calc_matrix_camera(Object *ob,
   BKE_camera_params_compute_viewplane(&params, width, height, scalex, scaley);
   BKE_camera_params_compute_matrix(&params);
 
-  copy_m4_m4((float(*)[4])mat_ret, params.winmat);
+  copy_m4_m4((float (*)[4])mat_ret, params.winmat);
 }
 
 static void rna_Object_camera_fit_coords(Object *ob,
@@ -364,7 +373,7 @@ static void rna_Object_camera_fit_coords(Object *ob,
                                          float *scale_ret)
 {
   BKE_camera_view_frame_fit_to_coords(
-      depsgraph, (const float(*)[3])cos, cos_num / 3, ob, co_ret, scale_ret);
+      depsgraph, (const float (*)[3])cos, cos_num / 3, ob, co_ret, scale_ret);
 }
 
 static void rna_Object_crazyspace_eval(Object *object,
@@ -890,7 +899,7 @@ void RNA_api_object(StructRNA *srna)
   RNA_def_function_ui_description(func, "Get the local view state for this object");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   parm = RNA_def_pointer(func, "viewport", "SpaceView3D", "", "Viewport in local view");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
   parm = RNA_def_boolean(func, "result", false, "", "Object local view state");
   RNA_def_function_return(func, parm);
 
@@ -898,7 +907,7 @@ void RNA_api_object(StructRNA *srna)
   RNA_def_function_ui_description(func, "Set the local view state for this object");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   parm = RNA_def_pointer(func, "viewport", "SpaceView3D", "", "Viewport in local view");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR | PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR | PARM_REQUIRED);
   parm = RNA_def_boolean(func, "state", false, "", "Local view state to define");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
@@ -907,7 +916,7 @@ void RNA_api_object(StructRNA *srna)
   RNA_def_function_ui_description(
       func, "Check for local view and local collections for this viewport and object");
   parm = RNA_def_pointer(func, "viewport", "SpaceView3D", "", "Viewport in local collections");
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
   parm = RNA_def_boolean(func, "result", false, "", "Object viewport visibility");
   RNA_def_function_return(func, parm);
 

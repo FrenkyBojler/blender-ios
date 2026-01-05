@@ -21,7 +21,6 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_colorband_types.h"
-#include "DNA_defaults.h"
 #include "DNA_fluid_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -53,7 +52,7 @@
 #  include "DNA_scene_types.h"
 
 #  include "BLI_kdopbvh.hh"
-#  include "BLI_kdtree.h"
+#  include "BLI_kdtree.hh"
 #  include "BLI_math_vector.hh"
 #  include "BLI_mutex.hh"
 #  include "BLI_threads.h"
@@ -567,16 +566,16 @@ static int get_light(Scene *scene, ViewLayer *view_layer, float *light)
 
   /* Try to find a lamp, preferably local. */
   BKE_view_layer_synced_ensure(scene, view_layer);
-  LISTBASE_FOREACH (Base *, base_tmp, BKE_view_layer_object_bases_get(view_layer)) {
-    if (base_tmp->object->type == OB_LAMP) {
-      Light *la = static_cast<Light *>(base_tmp->object->data);
+  for (Base &base_tmp : *BKE_view_layer_object_bases_get(view_layer)) {
+    if (base_tmp.object->type == OB_LAMP) {
+      Light *la = static_cast<Light *>(base_tmp.object->data);
 
       if (la->type == LA_LOCAL) {
-        copy_v3_v3(light, base_tmp->object->object_to_world().location());
+        copy_v3_v3(light, base_tmp.object->object_to_world().location());
         return 1;
       }
       if (!found_light) {
-        copy_v3_v3(light, base_tmp->object->object_to_world().location());
+        copy_v3_v3(light, base_tmp.object->object_to_world().location());
         found_light = 1;
       }
     }
@@ -1473,7 +1472,7 @@ static void update_obstacles(Depsgraph *depsgraph,
 
 struct EmitFromParticlesData {
   FluidFlowSettings *ffs;
-  KDTree_3d *tree;
+  blender::KDTree_3d *tree;
 
   FluidObjectBB *bb;
   float *particle_vel;
@@ -1498,9 +1497,9 @@ static void emit_from_particles_task_cb(void *__restrict userdata,
       const float ray_start[3] = {float(x) + 0.5f, float(y) + 0.5f, float(z) + 0.5f};
 
       /* Find particle distance from the kdtree. */
-      KDTreeNearest_3d nearest;
+      blender::KDTreeNearest_3d nearest;
       const float range = data->solid + data->smooth;
-      BLI_kdtree_3d_find_nearest(data->tree, ray_start, &nearest);
+      blender::kdtree_3d_find_nearest(data->tree, ray_start, &nearest);
 
       if (nearest.dist < range) {
         bb->influence[index] = (nearest.dist < data->solid) ?
@@ -1539,7 +1538,7 @@ static void emit_from_particles(Object *flow_ob,
     /* radius based flow */
     const float solid = ffs->particle_size * 0.5f;
     const float smooth = 0.5f; /* add 0.5 cells of linear falloff to reduce aliasing */
-    KDTree_3d *tree = nullptr;
+    blender::KDTree_3d *tree = nullptr;
 
     sim.depsgraph = depsgraph;
     sim.scene = scene;
@@ -1564,7 +1563,7 @@ static void emit_from_particles(Object *flow_ob,
 
     /* setup particle radius emission if enabled */
     if (ffs->flags & FLUID_FLOW_USE_PART_SIZE) {
-      tree = BLI_kdtree_3d_new(psys->totpart + psys->totchild);
+      tree = blender::kdtree_3d_new(psys->totpart + psys->totchild);
       bounds_margin = int(ceil(solid + smooth));
     }
 
@@ -1603,7 +1602,7 @@ static void emit_from_particles(Object *flow_ob,
       mul_mat3_m4_v3(fds->imat, &particle_vel[valid_particles * 3]);
 
       if (ffs->flags & FLUID_FLOW_USE_PART_SIZE) {
-        BLI_kdtree_3d_insert(tree, valid_particles, pos);
+        blender::kdtree_3d_insert(tree, valid_particles, pos);
       }
 
       /* calculate emission map bounds */
@@ -1656,7 +1655,7 @@ static void emit_from_particles(Object *flow_ob,
         res[i] = bb->res[i];
       }
 
-      BLI_kdtree_3d_balance(tree);
+      blender::kdtree_3d_balance(tree);
 
       EmitFromParticlesData data{};
       data.ffs = ffs;
@@ -1676,7 +1675,7 @@ static void emit_from_particles(Object *flow_ob,
     }
 
     if (ffs->flags & FLUID_FLOW_USE_PART_SIZE) {
-      BLI_kdtree_3d_free(tree);
+      blender::kdtree_3d_free(tree);
     }
 
     /* free data */
@@ -3063,7 +3062,7 @@ static void update_flowsfluids(Depsgraph *depsgraph,
 struct UpdateEffectorsData {
   Scene *scene;
   FluidDomainSettings *fds;
-  ListBase *effectors;
+  ListBaseT<EffectorCache> *effectors;
 
   float *density;
   float *fuel;
@@ -3148,7 +3147,7 @@ static void update_effectors_task_cb(void *__restrict userdata,
 static void update_effectors(
     Depsgraph *depsgraph, Scene *scene, Object *ob, FluidDomainSettings *fds, float /*dt*/)
 {
-  ListBase *effectors;
+  ListBaseT<EffectorCache> *effectors;
   /* make sure smoke flow influence is 0.0f */
   fds->effector_weights->weight[PFIELD_FLUIDFLOW] = 0.0f;
   effectors = BKE_effectors_create(depsgraph, ob, nullptr, fds->effector_weights, false);
@@ -3220,9 +3219,9 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   if (!mesh) {
     return nullptr;
   }
-  blender::MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
-  blender::MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
-  blender::MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
+  MutableSpan<blender::float3> positions = mesh->vert_positions_for_write();
+  MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
+  MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
 
   if (orgmesh->attributes().domain_size(AttrDomain::Face) > 0) {
     const bool is_sharp = orgmesh->attributes()
@@ -3363,9 +3362,9 @@ static Mesh *create_smoke_geometry(FluidDomainSettings *fds, Mesh *orgmesh, Obje
   }
 
   result = BKE_mesh_new_nomain(num_verts, 0, num_faces, num_faces * 4);
-  blender::MutableSpan<blender::float3> positions = result->vert_positions_for_write();
-  blender::MutableSpan<int> face_offsets = result->face_offsets_for_write();
-  blender::MutableSpan<int> corner_verts = result->corner_verts_for_write();
+  MutableSpan<blender::float3> positions = result->vert_positions_for_write();
+  MutableSpan<int> face_offsets = result->face_offsets_for_write();
+  MutableSpan<int> corner_verts = result->corner_verts_for_write();
 
   if (num_verts) {
     /* Volume bounds. */
@@ -4427,7 +4426,7 @@ void BKE_fluid_particle_system_create(Main *bmain,
 
   /* add particle system */
   part = BKE_particlesettings_add(bmain, pset_name);
-  psys = MEM_callocN<ParticleSystem>(__func__);
+  psys = MEM_new_for_free<ParticleSystem>(__func__);
 
   part->type = psys_type;
   part->totpart = 0;
@@ -4783,7 +4782,7 @@ void BKE_fluid_modifier_create_type_data(FluidModifierData *fmd)
       fluid_modifier_freeDomain(fmd);
     }
 
-    fmd->domain = DNA_struct_default_alloc(FluidDomainSettings);
+    fmd->domain = MEM_new_for_free<FluidDomainSettings>(__func__);
     fmd->domain->fmd = fmd;
 
     /* Turn off incompatible options. */
@@ -4815,7 +4814,7 @@ void BKE_fluid_modifier_create_type_data(FluidModifierData *fmd)
       fluid_modifier_freeFlow(fmd);
     }
 
-    fmd->flow = DNA_struct_default_alloc(FluidFlowSettings);
+    fmd->flow = MEM_new_for_free<FluidFlowSettings>(__func__);
     fmd->flow->fmd = fmd;
   }
   else if (fmd->type & MOD_FLUID_TYPE_EFFEC) {
@@ -4823,7 +4822,7 @@ void BKE_fluid_modifier_create_type_data(FluidModifierData *fmd)
       fluid_modifier_freeEffector(fmd);
     }
 
-    fmd->effector = DNA_struct_default_alloc(FluidEffectorSettings);
+    fmd->effector = MEM_new_for_free<FluidEffectorSettings>(__func__);
     fmd->effector->fmd = fmd;
   }
 }

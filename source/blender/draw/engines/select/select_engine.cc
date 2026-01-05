@@ -8,6 +8,8 @@
  * Engine for drawing a selection map where the pixels indicate the selection indices.
  */
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_editmesh.hh"
 #include "BKE_mesh_types.hh"
 #include "BLI_math_matrix.h"
@@ -82,7 +84,7 @@ struct Instance : public DrawEngine {
     }
   };
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "SelectID";
   }
@@ -91,7 +93,7 @@ struct Instance : public DrawEngine {
   {
     this->draw_ctx = DRW_context_get();
     StaticData &e_data = StaticData::get();
-    GPUShaderConfig sh_cfg = (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) ?
+    GPUShaderConfig sh_cfg = RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d) ?
                                  GPU_SHADER_CFG_CLIPPED :
                                  GPU_SHADER_CFG_DEFAULT;
 
@@ -111,7 +113,7 @@ struct Instance : public DrawEngine {
   void begin_sync() final
   {
     StaticData &e_data = StaticData::get();
-    GPUShaderConfig sh_cfg = (RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d)) ?
+    GPUShaderConfig sh_cfg = RV3D_CLIPPING_ENABLED(draw_ctx->v3d, draw_ctx->rv3d) ?
                                  GPU_SHADER_CFG_CLIPPED :
                                  GPU_SHADER_CFG_DEFAULT;
 
@@ -174,7 +176,10 @@ struct Instance : public DrawEngine {
       select_face_flat = nullptr;
       if (e_data.context.select_mode & SCE_SELECT_FACE) {
         auto &sub = select_face_ps.sub("Face");
+        const float vertex_size = U.pixelsize *
+                                  blender::draw::overlay::Resources::vertex_size_get();
         sub.shader_set(sh->select_id_flat);
+        sub.push_constant("vertex_size", float(2 * vertex_size));
         sub.push_constant("retopology_offset", retopology_offset);
         select_face_flat = &sub;
       }

@@ -1034,7 +1034,13 @@ class CYCLES_RENDER_PT_passes_data(CyclesButtonsPanel, Panel):
 
         col = layout.column(heading="Debug", align=True)
         col.prop(cycles_view_layer, "pass_debug_sample_count", text="Sample Count")
-        col.prop(cycles_view_layer, "pass_render_time", text="Render Time")
+
+        # Render Time pass - disabled for GPU devices
+        scene = context.scene
+        cscene = scene.cycles
+        row = col.row()
+        row.enabled = (cscene.device == 'CPU')
+        row.prop(cycles_view_layer, "pass_render_time", text="Render Time")
 
         layout.prop(view_layer, "pass_alpha_threshold")
 
@@ -1204,7 +1210,7 @@ class CYCLES_CAMERA_PT_lens_custom_parameters(CyclesButtonsPanel, Panel):
 
         col = layout.column()
         for key in ccam.keys():
-            col.prop(ccam, f'["{key}"]')
+            col.prop(ccam, f'["{key}"]', text=bpy.path.display_name(key))
 
 
 class CYCLES_PT_context_material(CyclesButtonsPanel, Panel):
@@ -1404,6 +1410,7 @@ class CYCLES_OBJECT_PT_visibility(CyclesButtonsPanel, Panel):
         ob = context.object
 
         layout.prop(ob, "hide_select", text="Selectable", invert_checkbox=True, toggle=False)
+        layout.prop(ob, "hide_surface_pick", text="Surface Picking", toggle=False, invert_checkbox=True)
 
         col = layout.column(heading="Show In")
         col.prop(ob, "hide_viewport", text="Viewports", invert_checkbox=True, toggle=False)

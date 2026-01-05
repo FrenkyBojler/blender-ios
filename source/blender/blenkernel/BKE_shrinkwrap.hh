@@ -158,7 +158,7 @@ void shrinkwrapParams_deform(const ShrinkwrapParams &params,
                              blender::MutableSpan<blender::float3> positions);
 
 /**
- * Used in `editmesh_mask_extract.cc` to shrink-wrap the extracted mesh to the sculpt.
+ * Used in `sculpt_mask_extract.cc` to shrink-wrap the extracted mesh to the sculpt.
  */
 void BKE_shrinkwrap_mesh_nearest_surface_deform(Depsgraph *depsgraph,
                                                 Scene *scene,
@@ -239,17 +239,17 @@ void BKE_shrinkwrap_snap_point_to_surface(const ShrinkwrapTreeData *tree,
  */
 #define NULL_ShrinkwrapCalcData \
   { \
-    NULL, \
+      NULL, \
   }
 #define NULL_BVHTreeFromMesh \
   { \
-    NULL, \
+      NULL, \
   }
 #define NULL_BVHTreeRayHit \
   { \
-    NULL, \
+      NULL, \
   }
 #define NULL_BVHTreeNearest \
   { \
-    0, \
+      0, \
   }

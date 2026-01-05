@@ -36,6 +36,7 @@
 #include "BLT_translation.hh"
 
 #include "DNA_material_types.h"
+#include "DNA_object_types.h"
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
@@ -681,6 +682,7 @@ void USDCurvesWriter::do_write(HierarchyContext &context)
   }
 
   auto prim = usd_curves->GetPrim();
+  add_to_prim_map(prim.GetPath(), &curves_id->id);
   write_id_properties(prim, curves_id->id, time);
 
   this->author_extent(*usd_curves, curves.bounds_min_max(), time);

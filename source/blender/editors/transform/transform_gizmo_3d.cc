@@ -27,6 +27,7 @@
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_curve.hh"
+#include "BKE_curves_utils.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
@@ -363,27 +364,27 @@ static void gizmo_get_axis_color(const int axis_idx,
     case MAN_AXIS_SCALE_X:
     case MAN_AXIS_TRANS_YZ:
     case MAN_AXIS_SCALE_YZ:
-      UI_GetThemeColor4fv(TH_AXIS_X, r_col);
+      ui::theme::get_color_4fv(TH_AXIS_X, r_col);
       break;
     case MAN_AXIS_TRANS_Y:
     case MAN_AXIS_ROT_Y:
     case MAN_AXIS_SCALE_Y:
     case MAN_AXIS_TRANS_ZX:
     case MAN_AXIS_SCALE_ZX:
-      UI_GetThemeColor4fv(TH_AXIS_Y, r_col);
+      ui::theme::get_color_4fv(TH_AXIS_Y, r_col);
       break;
     case MAN_AXIS_TRANS_Z:
     case MAN_AXIS_ROT_Z:
     case MAN_AXIS_SCALE_Z:
     case MAN_AXIS_TRANS_XY:
     case MAN_AXIS_SCALE_XY:
-      UI_GetThemeColor4fv(TH_AXIS_Z, r_col);
+      ui::theme::get_color_4fv(TH_AXIS_Z, r_col);
       break;
     case MAN_AXIS_TRANS_C:
     case MAN_AXIS_ROT_C:
     case MAN_AXIS_SCALE_C:
     case MAN_AXIS_ROT_T:
-      UI_GetThemeColor4fv(TH_GIZMO_VIEW_ALIGN, r_col);
+      ui::theme::get_color_4fv(TH_GIZMO_VIEW_ALIGN, r_col);
       break;
   }
 
@@ -556,7 +557,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
     invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr()); \
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode( \
         scene, view_layer, CTX_wm_view3d(C)); \
-    for (Object * ob_iter : objects) { \
+    for (Object *ob_iter : objects) { \
       const bool use_mat_local = (ob_iter != obedit);
 
 #define FOREACH_EDIT_OBJECT_END() \
@@ -603,24 +604,24 @@ static int gizmo_3d_foreach_selected(const bContext *C,
           mul_m4_m4m4(
               mat_local, obedit->world_to_object().ptr(), ob_iter->object_to_world().ptr());
         }
-        LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
-          if (blender::animrig::bone_is_visible(arm, ebo)) {
-            if (ebo->flag & BONE_TIPSEL) {
-              run_coord_with_matrix(ebo->tail, use_mat_local, mat_local);
+        for (EditBone &ebo : *arm->edbo) {
+          if (blender::animrig::bone_is_visible(arm, &ebo)) {
+            if (ebo.flag & BONE_TIPSEL) {
+              run_coord_with_matrix(ebo.tail, use_mat_local, mat_local);
               totsel++;
             }
-            if ((ebo->flag & BONE_ROOTSEL) &&
+            if ((ebo.flag & BONE_ROOTSEL) &&
                 /* Don't include same point multiple times. */
-                ((ebo->flag & BONE_CONNECTED) && (ebo->parent != nullptr) &&
-                 (ebo->parent->flag & BONE_TIPSEL) &&
-                 blender::animrig::bone_is_visible(arm, ebo->parent)) == 0)
+                ((ebo.flag & BONE_CONNECTED) && (ebo.parent != nullptr) &&
+                 (ebo.parent->flag & BONE_TIPSEL) &&
+                 blender::animrig::bone_is_visible(arm, ebo.parent)) == 0)
             {
-              run_coord_with_matrix(ebo->head, use_mat_local, mat_local);
+              run_coord_with_matrix(ebo.head, use_mat_local, mat_local);
               totsel++;
 
               if (r_drawflags) {
-                if (ebo->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)) {
-                  if (ebo->flag & BONE_EDITMODE_LOCKED) {
+                if (ebo.flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)) {
+                  if (ebo.flag & BONE_EDITMODE_LOCKED) {
                     protectflag_to_drawflags(OB_LOCK_LOC | OB_LOCK_ROT | OB_LOCK_SCALE,
                                              r_drawflags);
                   }
@@ -637,7 +638,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
         Curve *cu = static_cast<Curve *>(ob_iter->data);
         BezTriple *bezt;
         BPoint *bp;
-        ListBase *nurbs = BKE_curve_editNurbs_get(cu);
+        ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get(cu);
 
         float mat_local[4][4];
         if (use_mat_local) {
@@ -706,9 +707,9 @@ static int gizmo_3d_foreach_selected(const bContext *C,
               mat_local, obedit->world_to_object().ptr(), ob_iter->object_to_world().ptr());
         }
 
-        LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
-          if (ml->flag & SELECT) {
-            run_coord_with_matrix(&ml->x, use_mat_local, mat_local);
+        for (MetaElem &ml : *mb->editelems) {
+          if (ml.flag & SELECT) {
+            run_coord_with_matrix(&ml.x, use_mat_local, mat_local);
             totsel++;
           }
         }
@@ -750,12 +751,25 @@ static int gizmo_3d_foreach_selected(const bContext *C,
         }
 
         IndexMaskMemory memory;
-        const IndexMask selected_points = ed::curves::retrieve_selected_points(curves, memory);
-        const Span<float3> positions = deformation.positions;
-        totsel += selected_points.size();
-        selected_points.foreach_index([&](const int point_i) {
-          run_coord_with_matrix(positions[point_i], use_mat_local, mat_local.ptr());
-        });
+        const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+            curves, CURVE_TYPE_BEZIER, memory);
+
+        auto run_points = [&](const Span<float3> positions, const StringRef selection_name) {
+          const IndexMask selected_points = ed::curves::retrieve_selected_points(
+              curves, selection_name, bezier_points, memory);
+
+          totsel += selected_points.size();
+          selected_points.foreach_index([&](const int point_i) {
+            run_coord_with_matrix(positions[point_i], use_mat_local, mat_local.ptr());
+          });
+        };
+
+        run_points(deformation.positions, ".selection");
+
+        if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+          run_points(*curves.handle_positions_left(), ".selection_handle_left");
+          run_points(*curves.handle_positions_right(), ".selection_handle_right");
+        }
       }
       FOREACH_EDIT_OBJECT_END();
     }
@@ -805,13 +819,29 @@ static int gizmo_3d_foreach_selected(const bContext *C,
                   mat_local * grease_pencil.layer(info.layer_index).to_object_space(*ob_iter);
 
               IndexMaskMemory memory;
-              const IndexMask selected_points = ed::curves::retrieve_selected_points(curves,
-                                                                                     memory);
-              const Span<float3> positions = deformation.positions;
-              totsel += selected_points.size();
-              selected_points.foreach_index([&](const int point_i) {
-                run_coord_with_matrix(positions[point_i], true, layer_transform.ptr());
-              });
+              const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
+                  *ob, info.drawing, info.layer_index, memory);
+              const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+                  curves, CURVE_TYPE_BEZIER, memory);
+
+              auto run_points = [&](const Span<float3> positions, const StringRef selection_name) {
+                const IndexMask selected_points = ed::curves::retrieve_selected_points(
+                    curves, selection_name, bezier_points, memory);
+                const IndexMask selected_editable_points = IndexMask::from_intersection(
+                    editable_points, selected_points, memory);
+
+                totsel += selected_editable_points.size();
+                selected_editable_points.foreach_index([&](const int point_i) {
+                  run_coord_with_matrix(positions[point_i], true, layer_transform.ptr());
+                });
+              };
+
+              run_points(deformation.positions, ".selection");
+
+              if (curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+                run_points(*curves.handle_positions_left(), ".selection_handle_left");
+                run_points(*curves.handle_positions_right(), ".selection_handle_right");
+              }
             });
       }
       FOREACH_EDIT_OBJECT_END();
@@ -839,13 +869,13 @@ static int gizmo_3d_foreach_selected(const bContext *C,
 
       bArmature *arm = static_cast<bArmature *>(ob_iter->data);
       /* Use channels to get stats. */
-      LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
-        if (!(pchan->bone->flag & BONE_TRANSFORM)) {
+      for (bPoseChannel &pchan : ob_iter->pose->chanbase) {
+        if (!(pchan.runtime.flag & POSE_RUNTIME_TRANSFORM)) {
           continue;
         }
 
         float pchan_pivot[3];
-        BKE_pose_channel_transform_location(arm, pchan, pchan_pivot);
+        BKE_pose_channel_transform_location(arm, &pchan, pchan_pivot);
         run_coord_with_matrix(pchan_pivot, use_mat_local, mat_local);
         totsel++;
 
@@ -853,7 +883,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
           /* Protect-flags apply to local space in pose mode, so only let them influence axis
            * visibility if we show the global orientation, otherwise it's confusing. */
           if (ELEM(orient_index, V3D_ORIENT_LOCAL, V3D_ORIENT_GIMBAL)) {
-            protectflag_to_drawflags(pchan->protectflag, r_drawflags);
+            protectflag_to_drawflags(pchan.protectflag, r_drawflags);
           }
         }
       }
@@ -899,29 +929,29 @@ static int gizmo_3d_foreach_selected(const bContext *C,
       }
     }
 
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-      if (!BASE_SELECTED_EDITABLE(v3d, base)) {
+    for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+      if (!BASE_SELECTED_EDITABLE(v3d, &base)) {
         continue;
       }
       if (ob == nullptr) {
-        ob = base->object;
+        ob = base.object;
       }
 
       /* Get the boundbox out of the evaluated object. */
       std::optional<std::array<float3, 8>> bb;
       if (use_only_center == false) {
-        if (std::optional<Bounds<float3>> bounds = BKE_object_boundbox_get(base->object)) {
+        if (std::optional<Bounds<float3>> bounds = BKE_object_boundbox_get(base.object)) {
           bb.emplace(bounds::corners(*bounds));
         }
       }
 
       if (use_only_center || !bb) {
-        user_fn(base->object->object_to_world().location());
+        user_fn(base.object->object_to_world().location());
       }
       else {
         for (uint j = 0; j < 8; j++) {
           float co[3];
-          mul_v3_m4v3(co, base->object->object_to_world().ptr(), (*bb)[j]);
+          mul_v3_m4v3(co, base.object->object_to_world().ptr(), (*bb)[j]);
           user_fn(co);
         }
       }
@@ -931,10 +961,10 @@ static int gizmo_3d_foreach_selected(const bContext *C,
           /* Ignore scale/rotate lock flag while global orientation is active.
            * Otherwise when object is rotated, global and local axes are misaligned, implying wrong
            * axis as hidden/locked, see: !133286. */
-          protectflag_to_drawflags(base->object->protectflag & OB_LOCK_LOC, r_drawflags);
+          protectflag_to_drawflags(base.object->protectflag & OB_LOCK_LOC, r_drawflags);
         }
         else if (ELEM(orient_index, V3D_ORIENT_LOCAL, V3D_ORIENT_GIMBAL)) {
-          protectflag_to_drawflags(base->object->protectflag, r_drawflags);
+          protectflag_to_drawflags(base.object->protectflag, r_drawflags);
         }
       }
     }
@@ -1098,7 +1128,7 @@ static bool gizmo_3d_calc_pos(const bContext *C,
 
       float co_sum[3] = {0.0f, 0.0f, 0.0f};
       const auto gizmo_3d_calc_center_fn = [&](const float3 &co) { add_v3_v3(co_sum, co); };
-      const float(*r_mat)[4] = nullptr;
+      const float (*r_mat)[4] = nullptr;
       int totsel;
       totsel = gizmo_3d_foreach_selected(C,
                                          0,
@@ -1684,8 +1714,8 @@ static wmOperatorStatus gizmo_modal(bContext *C,
     calc_params.use_only_center = true;
     if (calc_gizmo_stats(C, &calc_params, &tbounds, rv3d)) {
       gizmo_prepare_mat(C, rv3d, &tbounds);
-      LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {
-        WM_gizmo_set_matrix_location(gz, rv3d->twmat[3]);
+      for (wmGizmo &gz : gzgroup->gizmos) {
+        WM_gizmo_set_matrix_location(&gz, rv3d->twmat[3]);
       }
     }
   }
@@ -2315,11 +2345,11 @@ static wmGizmoGroup *gizmogroup_xform_find(TransInfo *t)
   }
   else {
     /* See #WM_gizmomap_group_find_ptr. */
-    LISTBASE_FOREACH (wmGizmoGroup *, gzgroup, WM_gizmomap_group_list(gizmo_map)) {
-      if (ELEM(gzgroup->type, g_GGT_xform_gizmo, g_GGT_xform_gizmo_context)) {
+    for (wmGizmoGroup &gzgroup : *WM_gizmomap_group_list(gizmo_map)) {
+      if (ELEM(gzgroup.type, g_GGT_xform_gizmo, g_GGT_xform_gizmo_context)) {
         /* Choose the one that has been initialized. */
-        if (gzgroup->customdata) {
-          return gzgroup;
+        if (gzgroup.customdata) {
+          return &gzgroup;
         }
       }
     }
@@ -2400,7 +2430,7 @@ void transform_gizmo_3d_model_from_constraint_and_mode_set(TransInfo *t)
   wmGizmo *gizmo_modal_current = WM_gizmomap_get_modal(t->region->runtime->gizmo_map);
   if (axis_idx != -1) {
     RegionView3D *rv3d = static_cast<RegionView3D *>(t->region->regiondata);
-    float(*mat_cmp)[3] = t->orient[t->orient_curr != O_DEFAULT ? t->orient_curr : O_SCENE].matrix;
+    float (*mat_cmp)[3] = t->orient[t->orient_curr != O_DEFAULT ? t->orient_curr : O_SCENE].matrix;
 
     bool update_orientation = !(equals_v3v3(rv3d->twmat[0], mat_cmp[0]) &&
                                 equals_v3v3(rv3d->twmat[1], mat_cmp[1]) &&

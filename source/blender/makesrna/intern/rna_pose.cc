@@ -58,6 +58,7 @@ const EnumPropertyItem rna_enum_color_sets_items[] = {
 
 #  include <fmt/format.h>
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_vector.h"
 #  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
@@ -606,14 +607,14 @@ static bool rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key, Pointe
 static void rna_PoseChannel_matrix_basis_get(PointerRNA *ptr, float *values)
 {
   bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-  BKE_pchan_to_mat4(pchan, (float(*)[4])values);
+  BKE_pchan_to_mat4(pchan, (float (*)[4])values);
 }
 
 static void rna_PoseChannel_matrix_basis_set(PointerRNA *ptr, const float *values)
 {
   bPoseChannel *pchan = (bPoseChannel *)ptr->data;
   /* No compatibility for predictable result. */
-  BKE_pchan_apply_mat4(pchan, (const float(*)[4])values, false);
+  BKE_pchan_apply_mat4(pchan, (const float (*)[4])values, false);
 }
 
 static void rna_PoseChannel_matrix_set(PointerRNA *ptr, const float *values)
@@ -622,7 +623,7 @@ static void rna_PoseChannel_matrix_set(PointerRNA *ptr, const float *values)
   Object *ob = (Object *)ptr->owner_id;
   float tmat[4][4];
 
-  BKE_armature_mat_pose_to_bone_ex(nullptr, ob, pchan, (const float(*)[4])values, tmat);
+  BKE_armature_mat_pose_to_bone_ex(nullptr, ob, pchan, (const float (*)[4])values, tmat);
 
   /* No compatibility for predictable result. */
   BKE_pchan_apply_mat4(pchan, tmat, false);
@@ -680,6 +681,29 @@ void rna_Pose_custom_shape_set(PointerRNA *ptr, PointerRNA value, struct ReportL
 bool rna_Pose_custom_shape_object_poll(PointerRNA * /*ptr*/, PointerRNA value)
 {
   return (reinterpret_cast<Object *>(value.owner_id))->type != OB_ARMATURE;
+}
+
+static void rna_Pose_select_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+{
+  ID *id = ptr->owner_id;
+
+  if (!id) {
+    /* There shouldn't be a pose bone without an object. */
+    BLI_assert_unreachable();
+    return;
+  }
+  BLI_assert(GS(id->name) == ID_OB);
+  Object *ob = (Object *)id;
+  bArmature *arm = (bArmature *)ob->data;
+
+  if (arm->flag & ARM_HAS_VIZ_DEPS) {
+    DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+  }
+
+  DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
+
+  WM_main_add_notifier(NC_GEOM | ND_DATA, id);
+  WM_main_add_notifier(NC_ANIMATION | ND_ANIMCHAN, id);
 }
 
 #else
@@ -865,7 +889,6 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_PROPORTIONAL);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_array_func(prop, "rna_PoseChannel_scale_editable");
-  RNA_def_property_float_array_default(prop, rna_default_scale_3d);
   RNA_def_property_ui_text(prop, "Scale", "");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_IK_update");
 
@@ -873,7 +896,6 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "quat");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_array_func(prop, "rna_PoseChannel_rotation_4d_editable");
-  RNA_def_property_float_array_default(prop, rna_default_quaternion);
   RNA_def_property_ui_text(prop, "Quaternion Rotation", "Rotation in Quaternions");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
@@ -1151,7 +1173,6 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   prop = RNA_def_property(srna, "custom_shape_scale_xyz", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_float_sdna(prop, nullptr, "custom_scale_xyz");
   RNA_def_property_flag(prop, PROP_PROPORTIONAL);
-  RNA_def_property_float_array_default(prop, rna_default_scale_3d);
   RNA_def_property_ui_text(prop, "Custom Shape Scale", "Adjust the size of the custom shape");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
@@ -1198,12 +1219,19 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
-
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_boolean_sdna(prop, nullptr, "drawflag", PCHAN_DRAW_HIDDEN);
   RNA_def_property_ui_text(prop, "Hide", "Bone is not visible except for Edit Mode");
   RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_PoseBone_visibility_update");
+
+  prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", POSE_SELECTED);
+  RNA_def_property_ui_text(prop, "Select", "Bone is selected in Pose Mode");
+  RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, 0, "rna_Pose_select_update");
 
   prop = RNA_def_property(srna, "custom_shape_transform", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "custom_tx");

@@ -330,11 +330,17 @@ static wmOperatorStatus gizmo_arrow_modal(bContext *C,
                                           const wmEvent *event,
                                           eWM_GizmoFlagTweak tweak_flag)
 {
+  GizmoInteraction *inter = static_cast<GizmoInteraction *>(gz->interaction_data);
+
+  /* Can happen if another (e.g. Python-based) modal operator finishes, see #151241. */
+  if (inter == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
   if (event->type != MOUSEMOVE) {
     return OPERATOR_RUNNING_MODAL;
   }
   ArrowGizmo3D *arrow = (ArrowGizmo3D *)gz;
-  GizmoInteraction *inter = static_cast<GizmoInteraction *>(gz->interaction_data);
   ARegion *region = CTX_wm_region(C);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
@@ -412,7 +418,6 @@ static wmOperatorStatus gizmo_arrow_modal(bContext *C,
 
   /* tag the region for redraw */
   ED_region_tag_redraw_editor_overlays(region);
-  WM_event_add_mousemove(CTX_wm_window(C));
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -429,8 +434,8 @@ static void gizmo_arrow_setup(wmGizmo *gz)
 static wmOperatorStatus gizmo_arrow_invoke(bContext * /*C*/, wmGizmo *gz, const wmEvent *event)
 {
   ArrowGizmo3D *arrow = (ArrowGizmo3D *)gz;
-  GizmoInteraction *inter = static_cast<GizmoInteraction *>(
-      MEM_callocN(sizeof(ArrowGizmoInteraction), __func__));
+  ArrowGizmoInteraction *arrow_inter = MEM_callocN<ArrowGizmoInteraction>(__func__);
+  GizmoInteraction *inter = &arrow_inter->inter;
   wmGizmoProperty *gz_prop = WM_gizmo_target_property_find(gz, "offset");
 
   /* Some gizmos don't use properties. */
@@ -446,9 +451,9 @@ static wmOperatorStatus gizmo_arrow_invoke(bContext * /*C*/, wmGizmo *gz, const 
   gizmo_arrow_matrix_basis_get(gz, inter->init_matrix_basis);
   WM_gizmo_calc_matrix_final(gz, inter->init_matrix_final);
 
-  ((ArrowGizmoInteraction *)inter)->init_arrow_length = RNA_float_get(gz->ptr, "length");
+  arrow_inter->init_arrow_length = RNA_float_get(gz->ptr, "length");
 
-  gz->interaction_data = inter;
+  gz->interaction_data = arrow_inter;
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -471,6 +476,10 @@ static void gizmo_arrow_exit(bContext *C, wmGizmo *gz, const bool cancel)
 
   if (cancel) {
     GizmoInteraction *inter = static_cast<GizmoInteraction *>(gz->interaction_data);
+    /* Can happen if another (e.g. Python-based) modal operator finishes, see #151241. */
+    if (inter == nullptr) {
+      return;
+    }
     if (is_prop_valid) {
       gizmo_property_value_reset(C, gz, inter, gz_prop);
     }

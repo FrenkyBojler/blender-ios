@@ -320,6 +320,19 @@ static void rna_Sculpt_update(bContext *C, PointerRNA * /*ptr*/)
   }
 }
 
+static void rna_Paint_update(bContext *C, PointerRNA * /*ptr*/)
+{
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *ob = BKE_view_layer_active_object_get(view_layer);
+
+  if (ob) {
+    DEG_id_tag_update(&ob->id, ID_RECALC_SHADING);
+    WM_main_add_notifier(NC_OBJECT | ND_OB_SHADING, ob);
+  }
+}
+
 static std::optional<std::string> rna_Sculpt_path(const PointerRNA * /*ptr*/)
 {
   return "tool_settings.sculpt";
@@ -628,6 +641,19 @@ static void rna_def_paint_curve(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_CURVE_BEZCURVE);
 }
 
+static void rna_def_paint_curve_visibility_flag(StructRNA *srna,
+                                                const char *prop_name,
+                                                const char *ui_name,
+                                                const int64_t flag)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, prop_name, PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "curve_visibility_flags", flag);
+  RNA_def_property_ui_text(prop, ui_name, nullptr);
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+}
+
 static void rna_def_paint(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -702,6 +728,13 @@ static void rna_def_paint(BlenderRNA *brna)
       "Update the geometry when it enters the view, providing faster view navigation");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
+  prop = RNA_def_property(srna, "show_bvh_nodes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "debug_flags", PAINT_DEBUG_SHOW_BVH_NODES);
+  RNA_def_property_ui_text(
+      prop, "Show BVH Nodes", "Show the underlying BVH nodes as differently colored faces");
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Paint_update");
+
   prop = RNA_def_property(srna, "use_symmetry_x", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "symmetry_flags", PAINT_SYMM_X);
   RNA_def_property_ui_text(prop, "Symmetry X", "Mirror brush across the X axis");
@@ -757,21 +790,12 @@ static void rna_def_paint(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Tile Z", "Tile along Z axis");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
-  prop = RNA_def_property(srna, "show_strength_curve", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "curve_visibility_flags", PAINT_CURVE_SHOW_STRENGTH);
-  RNA_def_property_ui_text(prop, "Show Strength Curve", "Show strength curve");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "show_size_curve", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "curve_visibility_flags", PAINT_CURVE_SHOW_SIZE);
-  RNA_def_property_ui_text(prop, "Show Size Curve", "Show size curve");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
-
-  prop = RNA_def_property(srna, "show_jitter_curve", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "curve_visibility_flags", PAINT_CURVE_SHOW_JITTER);
-  RNA_def_property_ui_text(prop, "Show Jitter Curve", "Show jitter curve");
-  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, nullptr);
+  rna_def_paint_curve_visibility_flag(
+      srna, "show_strength_curve", "Show Strength Curve", PAINT_CURVE_SHOW_STRENGTH);
+  rna_def_paint_curve_visibility_flag(
+      srna, "show_size_curve", "Show Size Curve", PAINT_CURVE_SHOW_SIZE);
+  rna_def_paint_curve_visibility_flag(
+      srna, "show_jitter_curve", "Show Jitter Curve", PAINT_CURVE_SHOW_JITTER);
 
   /* Unified Paint Settings */
   prop = RNA_def_property(srna, "unified_paint_settings", PROP_POINTER, PROP_NONE);

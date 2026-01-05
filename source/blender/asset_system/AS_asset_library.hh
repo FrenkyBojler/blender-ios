@@ -108,7 +108,11 @@ class AssetLibrary {
    *              #ASSET_LIBRARY_CUSTOM ones.
    * \param root_path: If this is an asset library on disk, the top-level directory path.
    */
-  AssetLibrary(eAssetLibraryType library_type, StringRef name = "", StringRef root_path = "");
+  AssetLibrary(
+      eAssetLibraryType library_type,
+      StringRef name = "",
+      StringRef root_path = "",
+      std::optional<AssetCatalogService::read_only_tag> catalogs_read_only_tag = std::nullopt);
   virtual ~AssetLibrary();
 
   /**
@@ -150,7 +154,7 @@ class AssetLibrary {
                                                         int id_type,
                                                         std::unique_ptr<AssetMetaData> metadata);
   /** See #AssetLibrary::add_external_asset(). */
-  std::weak_ptr<AssetRepresentation> add_local_id_asset(StringRef relative_asset_path, ID &id);
+  std::weak_ptr<AssetRepresentation> add_local_id_asset(ID &id);
   /**
    * Remove an asset from the library that was added using #add_external_asset() or
    * #add_local_id_asset(). Can usually be expected to be constant time complexity (worst case may

@@ -20,18 +20,32 @@
 
 #ifdef RNA_RUNTIME
 
+#  include "DNA_screen_types.h"
+
+#  include "BLI_math_matrix.h"
+#  include "BLI_math_vector.h"
+
 #  include "BKE_editmesh.hh"
 #  include "BKE_global.hh"
 #  include "BKE_image.hh"
+#  include "BKE_image_format.hh"
+#  include "BKE_main.hh"
 #  include "BKE_scene.hh"
+#  include "BKE_screen.hh"
 
 #  include "DEG_depsgraph_query.hh"
 
+#  include "ED_mesh.hh"
 #  include "ED_transform.hh"
 #  include "ED_transform_snap_object_context.hh"
 #  include "ED_uvedit.hh"
 
 #  include "MOV_write.hh"
+
+#  include "SEQ_sequencer.hh"
+
+#  include "WM_api.hh"
+#  include "WM_types.hh"
 
 #  ifdef WITH_PYTHON
 #    include "BPY_extern.hh"
@@ -157,6 +171,7 @@ static void rna_Scene_ray_cast(Scene *scene,
 
   blender::ed::transform::SnapObjectParams snap_object_params{};
   snap_object_params.snap_target_select = SCE_SNAP_TARGET_ALL;
+  snap_object_params.ignore_editmode_filtering = true;
 
   bool ret = blender::ed::transform::snap_object_project_ray_ex(sctx,
                                                                 depsgraph,
@@ -169,7 +184,7 @@ static void rna_Scene_ray_cast(Scene *scene,
                                                                 r_normal,
                                                                 r_index,
                                                                 (const Object **)(r_ob),
-                                                                (float(*)[4])r_obmat);
+                                                                (float (*)[4])r_obmat);
 
   blender::ed::transform::snap_object_context_destroy(sctx);
 
@@ -183,7 +198,7 @@ static void rna_Scene_ray_cast(Scene *scene,
   else {
     *r_success = false;
 
-    unit_m4((float(*)[4])r_obmat);
+    unit_m4((float (*)[4])r_obmat);
     zero_v3(r_location);
     zero_v3(r_normal);
   }

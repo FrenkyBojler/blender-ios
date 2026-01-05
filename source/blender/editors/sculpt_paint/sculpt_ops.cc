@@ -343,7 +343,7 @@ static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &s
   Mesh &mesh = *static_cast<Mesh *>(ob.data);
   if (mesh.attributes().contains(".sculpt_face_set")) {
     /* Here we can detect geometry that was just added to Sculpt Mode as it has the
-     * SCULPT_FACE_SET_NONE assigned, so we can create a new Face Set for it. */
+     * SCULPT_FACE_SET_NONE assigned, so we can create a new face set for it. */
     /* In sculpt mode all geometry that is assigned to SCULPT_FACE_SET_NONE is considered as not
      * initialized, which is used is some operators that modify the mesh topology to perform
      * certain actions in the new faces. After these operations are finished, all faces should have
@@ -430,14 +430,8 @@ void object_sculpt_mode_enter(Main &bmain,
       if (flag == 0) {
         /* pass */
       }
-      else if (flag & dyntopo::VDATA) {
-        message_unsupported = RPT_("vertex data");
-      }
-      else if (flag & dyntopo::EDATA) {
-        message_unsupported = RPT_("edge data");
-      }
-      else if (flag & dyntopo::LDATA) {
-        message_unsupported = RPT_("face data");
+      else if (flag & dyntopo::ATTRIBUTES) {
+        message_unsupported = RPT_("attributes");
       }
       else if (flag & dyntopo::MODIFIER) {
         message_unsupported = RPT_("constructive modifier");
@@ -602,71 +596,6 @@ static void SCULPT_OT_sculptmode_toggle(wmOperatorType *ot)
   ot->poll = ED_operator_object_active_editable_mesh;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Sample Color Operator
- * \{ */
-
-static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
-{
-  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
-  Scene &scene = *CTX_data_scene(C);
-  Object &ob = *CTX_data_active_object(C);
-  Brush &brush = *BKE_paint_brush(&sd.paint);
-  SculptSession &ss = *ob.sculpt;
-
-  if (!color_supported_check(scene, ob, op->reports)) {
-    return OPERATOR_CANCELLED;
-  }
-
-  const View3D *v3d = CTX_wm_view3d(C);
-  const Base *base = CTX_data_active_base(C);
-  if (!BKE_base_is_visible(v3d, base)) {
-    return OPERATOR_CANCELLED;
-  }
-
-  BKE_sculpt_update_object_for_edit(CTX_data_depsgraph_pointer(C), &ob, false);
-
-  const Mesh &mesh = *static_cast<const Mesh *>(ob.data);
-  const OffsetIndices<int> faces = mesh.faces();
-  const Span<int> corner_verts = mesh.corner_verts();
-  const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-  const bke::GAttributeReader color_attribute = color::active_color_attribute(mesh);
-
-  float4 active_vertex_color;
-  if (!color_attribute || std::holds_alternative<std::monostate>(ss.active_vert())) {
-    active_vertex_color = float4(1.0f);
-  }
-  else {
-    const GVArraySpan colors = *color_attribute;
-    active_vertex_color = color::color_vert_get(faces,
-                                                corner_verts,
-                                                vert_to_face_map,
-                                                colors,
-                                                color_attribute.domain,
-                                                std::get<int>(ss.active_vert()));
-  }
-
-  BKE_brush_color_set(&sd.paint, &brush, active_vertex_color);
-
-  WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, &brush);
-
-  return OPERATOR_FINISHED;
-}
-
-static void SCULPT_OT_sample_color(wmOperatorType *ot)
-{
-  ot->name = "Sample Color";
-  ot->idname = "SCULPT_OT_sample_color";
-  ot->description = "Sample the vertex color of the active vertex";
-
-  ot->invoke = sample_color_invoke;
-  ot->poll = SCULPT_mode_poll;
-
-  ot->flag = OPTYPE_REGISTER | OPTYPE_DEPENDS_ON_CURSOR;
 }
 
 /** \} */
@@ -1277,12 +1206,12 @@ static wmOperatorStatus mask_from_cavity_exec(bContext *C, wmOperator *op)
 
 static void mask_from_cavity_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
   Scene *scene = CTX_data_scene(C);
   Sculpt *sd = scene->toolsettings ? scene->toolsettings->sculpt : nullptr;
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
   MaskSettingsSource source = (MaskSettingsSource)RNA_enum_get(op->ptr, "settings_source");
 
   if (!sd) {
@@ -1291,16 +1220,16 @@ static void mask_from_cavity_ui(bContext *C, wmOperator *op)
 
   switch (source) {
     case MaskSettingsSource::Operator: {
-      layout->prop(op->ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "blur_steps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "invert", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "use_curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "blur_steps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "invert", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "use_curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       if (sd && RNA_boolean_get(op->ptr, "use_curve")) {
         PointerRNA sculpt_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Sculpt, sd);
-        uiTemplateCurveMapping(layout,
+        template_curve_mapping(&layout,
                                &sculpt_ptr,
                                "automasking_cavity_curve_op",
                                'v',
@@ -1314,8 +1243,8 @@ static void mask_from_cavity_ui(bContext *C, wmOperator *op)
     }
     case MaskSettingsSource::Brush:
     case MaskSettingsSource::Scene:
-      layout->prop(op->ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
       break;
   }
@@ -1466,12 +1395,12 @@ static wmOperatorStatus mask_from_boundary_exec(bContext *C, wmOperator *op)
 
 static void mask_from_boundary_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
   Scene *scene = CTX_data_scene(C);
   Sculpt *sd = scene->toolsettings ? scene->toolsettings->sculpt : nullptr;
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
   MaskSettingsSource source = (MaskSettingsSource)RNA_enum_get(op->ptr, "settings_source");
 
   if (!sd) {
@@ -1480,16 +1409,16 @@ static void mask_from_boundary_ui(bContext *C, wmOperator *op)
 
   switch (source) {
     case MaskSettingsSource::Operator: {
-      layout->prop(op->ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "boundary_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "propagation_steps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "boundary_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "propagation_steps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     }
     case MaskSettingsSource::Brush:
     case MaskSettingsSource::Scene:
-      layout->prop(op->ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "mix_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
   }
 }
@@ -1570,7 +1499,6 @@ void operatortypes_sculpt()
   WM_operatortype_append(trim::SCULPT_OT_trim_polyline_gesture);
   WM_operatortype_append(project::SCULPT_OT_project_line_gesture);
 
-  WM_operatortype_append(SCULPT_OT_sample_color);
   WM_operatortype_append(color::SCULPT_OT_color_filter);
   WM_operatortype_append(mask::SCULPT_OT_mask_by_color);
   WM_operatortype_append(dyntopo::SCULPT_OT_dyntopo_detail_size_edit);
@@ -1579,6 +1507,9 @@ void operatortypes_sculpt()
   WM_operatortype_append(expand::SCULPT_OT_expand);
   WM_operatortype_append(mask::SCULPT_OT_mask_from_cavity);
   WM_operatortype_append(mask::SCULPT_OT_mask_from_boundary);
+  WM_operatortype_append(SCULPT_OT_paint_mask_extract);
+  WM_operatortype_append(SCULPT_OT_face_set_extract);
+  WM_operatortype_append(SCULPT_OT_paint_mask_slice);
 }
 
 void keymap_sculpt(wmKeyConfig *keyconf)

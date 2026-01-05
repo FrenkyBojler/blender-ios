@@ -6,6 +6,7 @@
  * \ingroup edcurves
  */
 
+#include "BLI_array_utils.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
@@ -23,6 +24,7 @@
 
 #include "WM_api.hh"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute_math.hh"
 #include "BKE_bvhutils.hh"
 #include "BKE_context.hh"
@@ -291,9 +293,9 @@ static void try_convert_single_object(Object &curves_ob,
   }
 
   ParticleSystem *particle_system = nullptr;
-  LISTBASE_FOREACH (ParticleSystem *, psys, &surface_ob.particlesystem) {
-    if (STREQ(psys->name, curves_ob.id.name + 2)) {
-      particle_system = psys;
+  for (ParticleSystem &psys : surface_ob.particlesystem) {
+    if (STREQ(psys.name, curves_ob.id.name + 2)) {
+      particle_system = &psys;
       break;
     }
   }
@@ -311,7 +313,7 @@ static void try_convert_single_object(Object &curves_ob,
   settings.totpart = 0;
   psys_changed_type(&surface_ob, particle_system);
 
-  MutableSpan<ParticleData> particles{MEM_calloc_arrayN<ParticleData>(hair_num, __func__),
+  MutableSpan<ParticleData> particles{MEM_new_array_for_free<ParticleData>(hair_num, __func__),
                                       hair_num};
 
   /* The old hair system still uses #MFace, so make sure those are available on the mesh. */
@@ -530,11 +532,11 @@ static wmOperatorStatus curves_convert_from_particle_system_exec(bContext *C, wm
   }
   Object *ob_from_eval = DEG_get_evaluated(&depsgraph, ob_from_orig);
   ParticleSystem *psys_eval = nullptr;
-  LISTBASE_FOREACH (ModifierData *, md, &ob_from_eval->modifiers) {
-    if (md->type != eModifierType_ParticleSystem) {
+  for (ModifierData &md : ob_from_eval->modifiers) {
+    if (md.type != eModifierType_ParticleSystem) {
       continue;
     }
-    ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
+    ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(&md);
     if (!STREQ(psmd->psys->name, psys_orig->name)) {
       continue;
     }
@@ -931,10 +933,10 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
 
 static void select_random_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
+  layout.prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "probability", ui::ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
 }
 
 static void CURVES_OT_select_random(wmOperatorType *ot)
@@ -1008,14 +1010,14 @@ static wmOperatorStatus select_ends_exec(bContext *C, wmOperator *op)
 
 static void select_ends_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  uiLayout *col = &layout->column(true);
-  col->use_property_decorate_set(false);
-  col->prop(op->ptr, "amount_start", UI_ITEM_NONE, IFACE_("Amount Start"), ICON_NONE);
-  col->prop(op->ptr, "amount_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
+  ui::Layout &col = layout.column(true);
+  col.use_property_decorate_set(false);
+  col.prop(op->ptr, "amount_start", UI_ITEM_NONE, IFACE_("Amount Start"), ICON_NONE);
+  col.prop(op->ptr, "amount_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
 }
 
 static void CURVES_OT_select_ends(wmOperatorType *ot)
@@ -1192,8 +1194,7 @@ static wmOperatorStatus surface_set_exec(bContext *C, wmOperator *op)
   Object &new_surface_ob = *CTX_data_active_object(C);
 
   Mesh &new_surface_mesh = *static_cast<Mesh *>(new_surface_ob.data);
-  const char *new_uv_map_name = CustomData_get_active_layer_name(&new_surface_mesh.corner_data,
-                                                                 CD_PROP_FLOAT2);
+  const StringRef new_uv_map_name = new_surface_mesh.active_uv_map_name();
 
   CTX_DATA_BEGIN (C, Object *, selected_ob, selected_objects) {
     if (selected_ob->type != OB_CURVES) {
@@ -1203,8 +1204,8 @@ static wmOperatorStatus surface_set_exec(bContext *C, wmOperator *op)
     Curves &curves_id = *static_cast<Curves *>(curves_ob.data);
 
     MEM_SAFE_FREE(curves_id.surface_uv_map);
-    if (new_uv_map_name != nullptr) {
-      curves_id.surface_uv_map = BLI_strdup(new_uv_map_name);
+    if (!new_uv_map_name.is_empty()) {
+      curves_id.surface_uv_map = BLI_strdupn(new_uv_map_name.data(), new_uv_map_name.size());
     }
 
     bool missing_uvs;
@@ -1383,8 +1384,7 @@ static wmOperatorStatus exec(bContext *C, wmOperator * /*op*/)
 
     bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
         "cyclic", bke::AttrDomain::Curve);
-    selection.foreach_index(GrainSize(4096),
-                            [&](const int i) { cyclic.span[i] = !cyclic.span[i]; });
+    array_utils::invert_booleans(cyclic.span, selection);
     cyclic.finish();
 
     if (!cyclic.span.contains(true)) {
@@ -1779,6 +1779,7 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
     });
 
     curves.calculate_bezier_auto_handles();
+    curves.calculate_bezier_aligned_handles();
     curves.tag_topology_changed();
 
     DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
@@ -1792,22 +1793,22 @@ static wmOperatorStatus exec(bContext *C, wmOperator *op)
 const EnumPropertyItem rna_enum_set_handle_type_items[] = {
     {int(SetHandleType::Auto),
      "AUTO",
-     0,
+     ICON_HANDLE_AUTO,
      "Auto",
      "The location is automatically calculated to be smooth"},
     {int(SetHandleType::Vector),
      "VECTOR",
-     0,
+     ICON_HANDLE_VECTOR,
      "Vector",
      "The location is calculated to point to the next/previous control point"},
     {int(SetHandleType::Align),
      "ALIGN",
-     0,
+     ICON_HANDLE_ALIGNED,
      "Align",
      "The location is constrained to point in the opposite direction as the other handle"},
     {int(SetHandleType::Free),
      "FREE_ALIGN",
-     0,
+     ICON_HANDLE_FREE,
      "Free",
      "The handle can be moved anywhere, and does not influence the point's other handle"},
     {int(SetHandleType::Toggle),

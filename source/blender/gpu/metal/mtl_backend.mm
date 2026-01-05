@@ -53,8 +53,8 @@ void MTLBackend::delete_resources()
   MEM_delete(compiler_);
 }
 
-void MTLBackend::samplers_update(){
-    /* Placeholder -- Handled in MTLContext. */
+void MTLBackend::samplers_update() {
+  /* Placeholder -- Handled in MTLContext. */
 };
 
 Context *MTLBackend::context_alloc(void *ghost_window, void *ghost_context)
@@ -493,6 +493,7 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
                                16384 :
                                8192;
   GCaps.max_texture_3d_size = 2048;
+  GCaps.max_buffer_texture_size = UINT_MAX;
   GCaps.max_texture_layers = 2048;
   GCaps.max_textures = (MTLBackend::capabilities.supports_family_mac1) ?
                            128 :

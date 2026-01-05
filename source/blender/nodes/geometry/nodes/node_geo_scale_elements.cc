@@ -30,13 +30,13 @@ static const EnumPropertyItem scale_mode_items[] = {
     {GEO_NODE_SCALE_ELEMENTS_UNIFORM,
      "UNIFORM",
      ICON_NONE,
-     "Uniform",
-     "Scale elements by the same factor in every direction"},
+     N_("Uniform"),
+     N_("Scale elements by the same factor in every direction")},
     {GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS,
      "SINGLE_AXIS",
      ICON_NONE,
-     "Single Axis",
-     "Scale elements in a single direction"},
+     N_("Single Axis"),
+     N_("Scale elements in a single direction")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -69,9 +69,9 @@ static void node_declare(NodeDeclarationBuilder &b)
       .usage_by_single_menu(GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS);
 };
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

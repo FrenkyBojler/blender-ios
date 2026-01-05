@@ -12,6 +12,7 @@
 #include "BLI_math_vector_types.hh"
 
 #include "DNA_curve_types.h"
+#include "DNA_listBase.h"
 
 #include "ANIM_action.hh"
 
@@ -21,7 +22,6 @@ struct FCurve;
 struct GreasePencil;
 struct GreasePencilLayer;
 struct GreasePencilLayerTreeGroup;
-struct ListBase;
 struct MaskLayer;
 struct Object;
 struct Scene;
@@ -55,7 +55,7 @@ struct ActKeyBlockInfo {
 
 /** Keyframe Column Struct. */
 struct ActKeyColumn {
-  /* ListBase linkage */
+  /* ListBaseT linkage */
   ActKeyColumn *next, *prev;
 
   /* sorting-tree linkage */
@@ -88,10 +88,14 @@ enum eActKeyBlock_Hold {
   ACTKEYBLOCK_FLAG_STATIC_HOLD = (1 << 1),
   /** Key block represents any kind of hold. */
   ACTKEYBLOCK_FLAG_ANY_HOLD = (1 << 2),
-  /** The curve segment uses non-bezier interpolation. */
-  ACTKEYBLOCK_FLAG_NON_BEZIER = (1 << 3),
   /** The block is grease pencil. */
   ACTKEYBLOCK_FLAG_GPENCIL = (1 << 4),
+  /** The curve segment uses linear interpolation. */
+  ACTKEYBLOCK_FLAG_IPO_LINEAR = (1 << 5),
+  /** The curve segment uses constant interpolation. */
+  ACTKEYBLOCK_FLAG_IPO_CONSTANT = (1 << 6),
+  /** The curve segment uses easing or dynamic interpolation. */
+  ACTKEYBLOCK_FLAG_IPO_OTHER = (1 << 7),
 };
 
 /* *********************** Keyframe Drawing ****************************** */
@@ -143,7 +147,7 @@ const ActKeyColumn *ED_keylist_find_closest(const AnimKeylist *keylist, float cf
 const ActKeyColumn *ED_keylist_find_any_between(const AnimKeylist *keylist,
                                                 const blender::Bounds<float> frame_range);
 bool ED_keylist_is_empty(const AnimKeylist *keylist);
-const ListBase /*ActKeyColumn*/ *ED_keylist_listbase(const AnimKeylist *keylist);
+const ListBaseT<ActKeyColumn> *ED_keylist_listbase(const AnimKeylist *keylist);
 bool ED_keylist_all_keys_frame_range(const AnimKeylist *keylist,
                                      blender::Bounds<float> *r_frame_range);
 /**

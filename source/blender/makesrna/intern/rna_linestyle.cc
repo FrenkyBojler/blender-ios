@@ -115,8 +115,11 @@ const EnumPropertyItem rna_enum_linestyle_geometry_modifier_type_items[] = {
 
 #  include <fmt/format.h>
 
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 #  include "BLI_string_utils.hh"
 
+#  include "BKE_context.hh"
 #  include "BKE_linestyle.h"
 #  include "BKE_texture.h"
 
@@ -1765,16 +1768,20 @@ static void rna_def_linestyle(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem panel_items[] = {
-    {LS_PANEL_STROKES, "STROKES", 0, "Strokes", "Show the panel for stroke construction"},
-    {LS_PANEL_COLOR, "COLOR", 0, "Color", "Show the panel for line color options"},
-    {LS_PANEL_ALPHA, "ALPHA", 0, "Alpha", "Show the panel for alpha transparency options"},
-    {LS_PANEL_THICKNESS, "THICKNESS", 0, "Thickness", "Show the panel for line thickness options"},
-    {LS_PANEL_GEOMETRY, "GEOMETRY", 0, "Geometry", "Show the panel for stroke geometry options"},
-    {LS_PANEL_TEXTURE, "TEXTURE", 0, "Texture", "Show the panel for stroke texture options"},
+      {LS_PANEL_STROKES, "STROKES", 0, "Strokes", "Show the panel for stroke construction"},
+      {LS_PANEL_COLOR, "COLOR", 0, "Color", "Show the panel for line color options"},
+      {LS_PANEL_ALPHA, "ALPHA", 0, "Alpha", "Show the panel for alpha transparency options"},
+      {LS_PANEL_THICKNESS,
+       "THICKNESS",
+       0,
+       "Thickness",
+       "Show the panel for line thickness options"},
+      {LS_PANEL_GEOMETRY, "GEOMETRY", 0, "Geometry", "Show the panel for stroke geometry options"},
+      {LS_PANEL_TEXTURE, "TEXTURE", 0, "Texture", "Show the panel for stroke texture options"},
 #  if 0 /* hidden for now */
     {LS_PANEL_MISC, "MISC", 0, "Misc", "Show the panel for miscellaneous options"},
 #  endif
-    {0, nullptr, 0, nullptr, nullptr},
+      {0, nullptr, 0, nullptr, nullptr},
   };
   static const EnumPropertyItem chaining_items[] = {
       {LS_CHAINING_PLAIN, "PLAIN", 0, "Plain", "Plain chaining"},

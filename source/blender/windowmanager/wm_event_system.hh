@@ -16,6 +16,7 @@ struct GHOST_TabletData;
 struct ScrArea;
 struct wmEvent;
 struct wmKeyMap;
+struct wmDropBox;
 struct wmKeyMapItem;
 
 namespace blender::wm {
@@ -123,8 +124,9 @@ struct wmEventHandler_Op {
   /** Operator can be NULL. */
   wmOperator *op;
 
-  /** Hack, special case for file-select. */
+  /** Workaround: special cases for file-select and XR. */
   bool is_fileselect;
+  bool is_xr;
 
   /** Store context for this handler for derived/modal handlers. */
   struct {
@@ -145,7 +147,7 @@ struct wmEventHandler_Dropbox {
   wmEventHandler head;
 
   /** Never NULL. */
-  ListBase *dropboxes;
+  ListBaseT<wmDropBox> *dropboxes;
 };
 
 /* `wm_event_system.cc` */

@@ -16,8 +16,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_input<decl::Bundle>("Bundle").multi_input().description(
       "Bundles to join together on the top level for each bundle. When there are duplicates, only "
-      "the first occurence is used");
-  b.add_output<decl::Bundle>("Bundle").align_with_previous();
+      "the first occurrence is used");
+  b.add_output<decl::Bundle>("Bundle").align_with_previous().propagate_all().reference_pass_all();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -43,13 +43,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!output_bundle) {
     output_bundle = Bundle::create();
   }
-  else if (!output_bundle->is_mutable()) {
-    output_bundle = output_bundle->copy();
-  }
-  else {
-    output_bundle->tag_ensured_mutable();
-  }
-  Bundle &mutable_output_bundle = const_cast<Bundle &>(*output_bundle);
+  Bundle &mutable_output_bundle = output_bundle.ensure_mutable_inplace();
 
   VectorSet<StringRef> overridden_keys;
   for (; bundle_i < bundles.values.size(); bundle_i++) {
@@ -57,7 +51,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!bundle) {
       continue;
     }
-    for (const Bundle::StoredItem &item : bundle->items()) {
+    for (const auto &item : bundle->items()) {
       if (!mutable_output_bundle.add(item.key, item.value)) {
         overridden_keys.add(item.key);
       }

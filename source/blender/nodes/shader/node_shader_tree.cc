@@ -7,7 +7,6 @@
  */
 
 #include <cstring>
-#include <stack>
 
 #include "DNA_light_types.h"
 #include "DNA_linestyle_types.h"
@@ -20,8 +19,10 @@
 #include "BLI_array.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
+#include "BLI_stack.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
@@ -128,18 +129,18 @@ static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback f
 static void localize(bNodeTree *localtree, bNodeTree * /*ntree*/)
 {
   /* replace muted nodes and reroute nodes by internal links */
-  LISTBASE_FOREACH_MUTABLE (bNode *, node, &localtree->nodes) {
-    if (node->is_muted() || node->is_reroute()) {
-      if (node->is_group() && node->id) {
+  for (bNode &node : localtree->nodes.items_mutable()) {
+    if (node.is_muted() || node.is_reroute()) {
+      if (node.is_group() && node.id) {
         /* Free the group like in #ntree_shader_groups_flatten. */
-        bNodeTree *group = reinterpret_cast<bNodeTree *>(node->id);
+        bNodeTree *group = reinterpret_cast<bNodeTree *>(node.id);
         blender::bke::node_tree_free_tree(*group);
         MEM_freeN(group);
-        node->id = nullptr;
+        node.id = nullptr;
       }
 
-      blender::bke::node_internal_relink(*localtree, *node);
-      blender::bke::node_tree_free_local_node(*localtree, *node);
+      blender::bke::node_internal_relink(*localtree, node);
+      blender::bke::node_tree_free_local_node(*localtree, node);
     }
   }
 }
@@ -219,34 +220,32 @@ bNode *ntreeShaderOutputNode(bNodeTree *ntree, int target)
    * multiple, we prefer exact target match and active nodes. */
   bNode *output_node = nullptr;
 
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (!ELEM(node->type_legacy,
-              SH_NODE_OUTPUT_MATERIAL,
-              SH_NODE_OUTPUT_WORLD,
-              SH_NODE_OUTPUT_LIGHT))
+  for (bNode &node : ntree->nodes) {
+    if (!ELEM(
+            node.type_legacy, SH_NODE_OUTPUT_MATERIAL, SH_NODE_OUTPUT_WORLD, SH_NODE_OUTPUT_LIGHT))
     {
       continue;
     }
 
-    if (node->custom1 == SHD_OUTPUT_ALL) {
+    if (node.custom1 == SHD_OUTPUT_ALL) {
       if (output_node == nullptr) {
-        output_node = node;
+        output_node = &node;
       }
       else if (output_node->custom1 == SHD_OUTPUT_ALL) {
-        if ((node->flag & NODE_DO_OUTPUT) && !(output_node->flag & NODE_DO_OUTPUT)) {
-          output_node = node;
+        if ((node.flag & NODE_DO_OUTPUT) && !(output_node->flag & NODE_DO_OUTPUT)) {
+          output_node = &node;
         }
       }
     }
-    else if (node->custom1 == target) {
+    else if (node.custom1 == target) {
       if (output_node == nullptr) {
-        output_node = node;
+        output_node = &node;
       }
       else if (output_node->custom1 == SHD_OUTPUT_ALL) {
-        output_node = node;
+        output_node = &node;
       }
-      else if ((node->flag & NODE_DO_OUTPUT) && !(output_node->flag & NODE_DO_OUTPUT)) {
-        output_node = node;
+      else if ((node.flag & NODE_DO_OUTPUT) && !(output_node->flag & NODE_DO_OUTPUT)) {
+        output_node = &node;
       }
     }
   }
@@ -255,11 +254,12 @@ bNode *ntreeShaderOutputNode(bNodeTree *ntree, int target)
 }
 
 /* Find socket with a specified identifier. */
-static bNodeSocket *ntree_shader_node_find_socket(ListBase *sockets, const char *identifier)
+static bNodeSocket *ntree_shader_node_find_socket(ListBaseT<bNodeSocket> *sockets,
+                                                  const char *identifier)
 {
-  LISTBASE_FOREACH (bNodeSocket *, sock, sockets) {
-    if (STREQ(sock->identifier, identifier)) {
-      return sock;
+  for (bNodeSocket &sock : *sockets) {
+    if (STREQ(sock.identifier, identifier)) {
+      return &sock;
     }
   }
   return nullptr;
@@ -294,14 +294,15 @@ static void ntree_shader_unlink_script_nodes(bNodeTree *ntree)
   /* To avoid more trouble in the node tree processing (especially inside
    * `ntree_shader_weight_tree_invert()`) we disconnect the script node since they are not
    * supported in EEVEE (see #101702). */
-  LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree->links) {
-    if ((link->tonode->type_legacy == SH_NODE_SCRIPT) ||
-        (link->fromnode->type_legacy == SH_NODE_SCRIPT))
+  for (bNodeLink &link : ntree->links.items_mutable()) {
+    if ((link.tonode->type_legacy == SH_NODE_SCRIPT) ||
+        (link.fromnode->type_legacy == SH_NODE_SCRIPT))
     {
-      blender::bke::node_remove_link(ntree, *link);
+      blender::bke::node_remove_link(ntree, link);
     }
   }
 }
+
 struct branchIterData {
   bool (*node_filter)(const bNode *node);
   int node_count;
@@ -340,8 +341,8 @@ static void ntree_shader_copy_branch(bNodeTree *ntree,
       ntree, start_node, gather_branch_nodes, &branch_nodes, 0);
 
   /* Initialize `runtime->tmp_flag`. */
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    node->runtime->tmp_flag = -1;
+  for (bNode &node : ntree->nodes) {
+    node.runtime->tmp_flag = -1;
   }
   /* Count and tag all nodes inside the displacement branch of the tree. */
   branchIterData iter_data;
@@ -352,14 +353,14 @@ static void ntree_shader_copy_branch(bNodeTree *ntree,
   /* Copies of the non-filtered nodes on the branch. */
   Array<bNode *> nodes_copy(iter_data.node_count);
 
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->runtime->tmp_flag >= 0) {
-      int id = node->runtime->tmp_flag;
+  for (bNode &node : ntree->nodes) {
+    if (node.runtime->tmp_flag >= 0) {
+      int id = node.runtime->tmp_flag;
       /* Avoid creating unique names in the new tree, since it is very slow.
        * The names on the new nodes will be invalid. */
       blender::Map<const bNodeSocket *, bNodeSocket *> socket_map;
       nodes_copy[id] = blender::bke::node_copy_with_mapping(ntree,
-                                                            *node,
+                                                            node,
                                                             LIB_ID_CREATE_NO_USER_REFCOUNT |
                                                                 LIB_ID_CREATE_NO_MAIN,
                                                             std::nullopt,
@@ -369,49 +370,48 @@ static void ntree_shader_copy_branch(bNodeTree *ntree,
 
       bNode *copy = nodes_copy[id];
       copy->runtime->tmp_flag = -2; /* Copy */
-      copy->runtime->original = node->runtime->original;
+      copy->runtime->original = node.runtime->original;
       /* Make sure to clear all sockets links as they are invalid. */
-      LISTBASE_FOREACH (bNodeSocket *, sock, &copy->inputs) {
-        sock->link = nullptr;
+      for (bNodeSocket &sock : copy->inputs) {
+        sock.link = nullptr;
       }
-      LISTBASE_FOREACH (bNodeSocket *, sock, &copy->outputs) {
-        sock->link = nullptr;
+      for (bNodeSocket &sock : copy->outputs) {
+        sock.link = nullptr;
       }
     }
   }
 
   /* Unlink the original nodes from this branch and link the copies. */
-  LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree->links) {
-    bool from_copy = link->fromnode->runtime->tmp_flag >= 0;
-    bool to_copy = link->tonode->runtime->tmp_flag >= 0;
+  for (bNodeLink &link : ntree->links.items_mutable()) {
+    bool from_copy = link.fromnode->runtime->tmp_flag >= 0;
+    bool to_copy = link.tonode->runtime->tmp_flag >= 0;
     if (from_copy && to_copy) {
-      bNode *from_node = nodes_copy[link->fromnode->runtime->tmp_flag];
-      bNode *to_node = nodes_copy[link->tonode->runtime->tmp_flag];
+      bNode *from_node = nodes_copy[link.fromnode->runtime->tmp_flag];
+      bNode *to_node = nodes_copy[link.tonode->runtime->tmp_flag];
       blender::bke::node_add_link(
           *ntree,
           *from_node,
-          *ntree_shader_node_find_output(from_node, link->fromsock->identifier),
+          *ntree_shader_node_find_output(from_node, link.fromsock->identifier),
           *to_node,
-          *ntree_shader_node_find_input(to_node, link->tosock->identifier));
+          *ntree_shader_node_find_input(to_node, link.tosock->identifier));
     }
     else if (to_copy) {
-      bNode *to_node = nodes_copy[link->tonode->runtime->tmp_flag];
-      blender::bke::node_add_link(
-          *ntree,
-          *link->fromnode,
-          *link->fromsock,
-          *to_node,
-          *ntree_shader_node_find_input(to_node, link->tosock->identifier));
+      bNode *to_node = nodes_copy[link.tonode->runtime->tmp_flag];
+      blender::bke::node_add_link(*ntree,
+                                  *link.fromnode,
+                                  *link.fromsock,
+                                  *to_node,
+                                  *ntree_shader_node_find_input(to_node, link.tosock->identifier));
     }
-    else if (from_copy && branch_nodes.contains(link->tonode)) {
-      bNode *from_node = nodes_copy[link->fromnode->runtime->tmp_flag];
+    else if (from_copy && branch_nodes.contains(link.tonode)) {
+      bNode *from_node = nodes_copy[link.fromnode->runtime->tmp_flag];
       blender::bke::node_add_link(
           *ntree,
           *from_node,
-          *ntree_shader_node_find_output(from_node, link->fromsock->identifier),
-          *link->tonode,
-          *link->tosock);
-      blender::bke::node_remove_link(ntree, *link);
+          *ntree_shader_node_find_output(from_node, link.fromsock->identifier),
+          *link.tonode,
+          *link.tosock);
+      blender::bke::node_remove_link(ntree, link);
     }
   }
 }
@@ -422,26 +422,25 @@ static void ntree_shader_copy_branch(bNodeTree *ntree,
 static bool ntree_shader_implicit_closure_cast(bNodeTree *ntree)
 {
   bool modified = false;
-  LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &ntree->links) {
-    if ((link->fromsock->type != SOCK_SHADER) && (link->tosock->type == SOCK_SHADER)) {
+  for (bNodeLink &link : ntree->links.items_mutable()) {
+    if ((link.fromsock->type != SOCK_SHADER) && (link.tosock->type == SOCK_SHADER)) {
       bNode *emission_node = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_EMISSION);
       bNodeSocket *in_sock = ntree_shader_node_find_input(emission_node, "Color");
       bNodeSocket *out_sock = ntree_shader_node_find_output(emission_node, "Emission");
       blender::bke::node_add_link(
-          *ntree, *link->fromnode, *link->fromsock, *emission_node, *in_sock);
-      blender::bke::node_add_link(*ntree, *emission_node, *out_sock, *link->tonode, *link->tosock);
-      blender::bke::node_remove_link(ntree, *link);
+          *ntree, *link.fromnode, *link.fromsock, *emission_node, *in_sock);
+      blender::bke::node_add_link(*ntree, *emission_node, *out_sock, *link.tonode, *link.tosock);
+      blender::bke::node_remove_link(ntree, link);
       modified = true;
     }
-    else if ((link->fromsock->type == SOCK_SHADER) && (link->tosock->type != SOCK_SHADER)) {
-      /* Meh. Not directly visible to the user. But better than nothing. */
-      fprintf(stderr, "Shader Nodetree Error: Invalid implicit socket conversion\n");
-      BKE_ntree_update_after_single_tree_change(*G.main, *ntree);
-      return false;
+    else if ((link.fromsock->type == SOCK_SHADER) && (link.tosock->type != SOCK_SHADER)) {
+      blender::bke::node_remove_link(ntree, link);
+      BKE_ntree_update_without_main(*ntree);
+      modified = true;
     }
   }
   if (modified) {
-    BKE_ntree_update_after_single_tree_change(*G.main, *ntree);
+    BKE_ntree_update_without_main(*ntree);
   }
   return true;
 }
@@ -509,8 +508,8 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
     thickness_output->link = nullptr;
   }
   /* Init tmp flag. */
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    node->runtime->tmp_flag = -1;
+  for (bNode &node : ntree->nodes) {
+    node.runtime->tmp_flag = -1;
   }
   /* Tag nodes from the weight tree. Only tag output node and mix/add shader nodes. */
   output_node->runtime->tmp_flag = 0;
@@ -519,11 +518,11 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
       ntree, output_node, ntree_weight_tree_tag_nodes, &node_count, 0);
   /* Make a mirror copy of the weight tree. */
   Array<bNode *> nodes_copy(node_count);
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->runtime->tmp_flag >= 0) {
-      int id = node->runtime->tmp_flag;
+  for (bNode &node : ntree->nodes) {
+    if (node.runtime->tmp_flag >= 0) {
+      int id = node.runtime->tmp_flag;
 
-      switch (node->type_legacy) {
+      switch (node.type_legacy) {
         case SH_NODE_SHADERTORGB:
         case SH_NODE_OUTPUT_LIGHT:
         case SH_NODE_OUTPUT_WORLD:
@@ -568,7 +567,7 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
           ((bNodeSocketValueFloat *)ntree_shader_node_input_get(nodes_copy[id], 0)->default_value)
               ->value = 0.0f;
           /* Copy default value if no link present. */
-          bNodeSocket *fac_sock = ntree_shader_node_find_input(node, "Fac");
+          bNodeSocket *fac_sock = ntree_shader_node_find_input(&node, "Fac");
           if (!fac_sock->link) {
             float default_value = ((bNodeSocketValueFloat *)fac_sock->default_value)->value;
             bNodeSocket *dst_sock = ntree_shader_node_input_get(nodes_copy[id], 1);
@@ -613,39 +612,39 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
     }
   }
   /* Recreate links between copied nodes. */
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->runtime->tmp_flag >= 0) {
+  for (bNode &node : ntree->nodes) {
+    if (node.runtime->tmp_flag >= 0) {
       /* Naming can be confusing here. We use original node-link name for from/to prefix.
        * The final link is in reversed order. */
-      int socket_index;
-      LISTBASE_FOREACH_INDEX (bNodeSocket *, sock, &node->inputs, socket_index) {
+
+      for (const auto [socket_index, sock] : node.inputs.enumerate()) {
         bNodeSocket *tosock;
         bNode *tonode;
 
-        switch (node->type_legacy) {
+        switch (node.type_legacy) {
           case SH_NODE_SHADERTORGB:
           case SH_NODE_OUTPUT_LIGHT:
           case SH_NODE_OUTPUT_WORLD:
           case SH_NODE_OUTPUT_MATERIAL:
           case SH_NODE_ADD_SHADER: {
-            tonode = nodes_copy[node->runtime->tmp_flag];
+            tonode = nodes_copy[node.runtime->tmp_flag];
             tosock = ntree_shader_node_output_get(tonode, 0);
             break;
           }
           case SH_NODE_MIX_SHADER: {
             if (socket_index == 0) {
               /* Mix Factor. */
-              tonode = nodes_copy[node->runtime->tmp_flag + 2];
+              tonode = nodes_copy[node.runtime->tmp_flag + 2];
               tosock = ntree_shader_node_input_get(tonode, 1);
             }
             else if (socket_index == 1) {
               /* Shader 1. */
-              tonode = nodes_copy[node->runtime->tmp_flag + 1];
+              tonode = nodes_copy[node.runtime->tmp_flag + 1];
               tosock = ntree_shader_node_output_get(tonode, 0);
             }
             else {
               /* Shader 2. */
-              tonode = nodes_copy[node->runtime->tmp_flag];
+              tonode = nodes_copy[node.runtime->tmp_flag];
               tosock = ntree_shader_node_output_get(tonode, 0);
             }
             break;
@@ -655,9 +654,9 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
             break;
         }
 
-        if (sock->link) {
+        if (sock.link) {
           bNodeSocket *fromsock;
-          bNode *fromnode = sock->link->fromnode;
+          bNode *fromnode = sock.link->fromnode;
 
           switch (fromnode->type_legacy) {
             case SH_NODE_ADD_SHADER: {
@@ -707,7 +706,7 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
               }
               break;
             default:
-              fromsock = sock->link->fromsock;
+              fromsock = sock.link->fromsock;
               break;
           }
 
@@ -735,7 +734,7 @@ static void ntree_shader_weight_tree_invert(bNodeTree *ntree, bNode *output_node
                                 *output_node,
                                 *thickness_output);
   }
-  BKE_ntree_update_after_single_tree_change(*G.main, *ntree);
+  BKE_ntree_update_without_main(*ntree);
 }
 
 static bool closure_node_filter(const bNode *node)
@@ -775,9 +774,9 @@ static bool closure_node_filter(const bNode *node)
 static void ntree_shader_shader_to_rgba_branches(bNodeTree *ntree)
 {
   Vector<bNode *> shader_to_rgba_nodes;
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type_legacy == SH_NODE_SHADERTORGB) {
-      shader_to_rgba_nodes.append(node);
+  for (bNode &node : ntree->nodes) {
+    if (node.type_legacy == SH_NODE_SHADERTORGB) {
+      shader_to_rgba_nodes.append(&node);
     }
   }
 
@@ -787,42 +786,45 @@ static void ntree_shader_shader_to_rgba_branches(bNodeTree *ntree)
       continue;
     }
     ntree_shader_copy_branch(ntree, shader_to_rgba, closure_node_filter);
-    BKE_ntree_update_after_single_tree_change(*G.main, *ntree);
+    BKE_ntree_update_without_main(*ntree);
 
     ntree_shader_weight_tree_invert(ntree, shader_to_rgba);
   }
 }
 
-static void iter_shader_to_rgba_depth_count(bNode *start_node, int16_t &max_depth)
+static void iter_shader_to_rgba_depth_count(bNodeTree *ntree,
+                                            bNode *node_start,
+                                            int16_t &max_depth)
 {
   struct StackNode {
     bNode *node;
     int16_t depth;
   };
 
-  std::stack<StackNode> stack;
-  stack.push({start_node, 0});
+  blender::Stack<StackNode> stack;
+  blender::Stack<StackNode> zone_stack;
+  stack.push({node_start, 0});
 
-  while (!stack.empty()) {
-    StackNode s_node = stack.top();
-    stack.pop();
+  while (!stack.is_empty() || !zone_stack.is_empty()) {
+    StackNode s_node = !stack.is_empty() ? stack.pop() : zone_stack.pop();
 
     bNode *node = s_node.node;
     int16_t depth_level = s_node.depth;
+
+    if (node->runtime->tmp_flag >= depth_level) {
+      /* We already iterated this branch at this or a greater depth. */
+      continue;
+    }
 
     if (node->type_legacy == SH_NODE_SHADERTORGB) {
       depth_level++;
       max_depth = std::max(max_depth, depth_level);
     }
 
-    if (node->runtime->tmp_flag >= depth_level) {
-      /* We already iterated this branch at this or a greater depth. */
-      continue;
-    }
     node->runtime->tmp_flag = std::max(node->runtime->tmp_flag, depth_level);
 
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-      bNodeLink *link = sock->link;
+    for (bNodeSocket &sock : node->inputs) {
+      bNodeLink *link = sock.link;
       if (link == nullptr) {
         continue;
       }
@@ -831,6 +833,18 @@ static void iter_shader_to_rgba_depth_count(bNode *start_node, int16_t &max_dept
         continue;
       }
       stack.push({link->fromnode, depth_level});
+    }
+
+    /* Zone input nodes are linked to their corresponding zone output nodes, even if there is no
+     * bNodeLink between them. */
+    if (const blender::bke::bNodeZoneType *zone_type = blender::bke::zone_type_by_node_type(
+            node->type_legacy))
+    {
+      if (zone_type->output_type == node->type_legacy) {
+        if (bNode *zone_input_node = zone_type->get_corresponding_input(*ntree, *node)) {
+          zone_stack.push({zone_input_node, depth_level});
+        }
+      }
     }
   }
 }
@@ -887,35 +901,35 @@ static void shader_node_disconnect_inactive_mix_branch(bNodeTree *ntree,
 
 static void ntree_shader_disconnect_inactive_mix_branches(bNodeTree *ntree)
 {
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->typeinfo->type_legacy == SH_NODE_MIX_SHADER) {
-      shader_node_disconnect_inactive_mix_branch(ntree, node, 0, 1, 2, true);
+  for (bNode &node : ntree->nodes) {
+    if (node.typeinfo->type_legacy == SH_NODE_MIX_SHADER) {
+      shader_node_disconnect_inactive_mix_branch(ntree, &node, 0, 1, 2, true);
     }
-    else if (node->typeinfo->type_legacy == SH_NODE_MIX) {
-      const NodeShaderMix *storage = static_cast<NodeShaderMix *>(node->storage);
+    else if (node.typeinfo->type_legacy == SH_NODE_MIX) {
+      const NodeShaderMix *storage = static_cast<NodeShaderMix *>(node.storage);
       if (storage->data_type == SOCK_FLOAT) {
-        shader_node_disconnect_inactive_mix_branch(ntree, node, 0, 2, 3, storage->clamp_factor);
+        shader_node_disconnect_inactive_mix_branch(ntree, &node, 0, 2, 3, storage->clamp_factor);
         /* Disconnect links from data_type-specific sockets that are not currently in use */
         for (int i : {1, 4, 5, 6, 7}) {
-          shader_node_disconnect_input(ntree, node, i);
+          shader_node_disconnect_input(ntree, &node, i);
         }
       }
       else if (storage->data_type == SOCK_VECTOR) {
         int factor_socket = storage->factor_mode == NODE_MIX_MODE_UNIFORM ? 0 : 1;
         shader_node_disconnect_inactive_mix_branch(
-            ntree, node, factor_socket, 4, 5, storage->clamp_factor);
+            ntree, &node, factor_socket, 4, 5, storage->clamp_factor);
         /* Disconnect links from data_type-specific sockets that are not currently in use */
         int unused_factor_socket = factor_socket == 0 ? 1 : 0;
         for (int i : {unused_factor_socket, 2, 3, 6, 7}) {
-          shader_node_disconnect_input(ntree, node, i);
+          shader_node_disconnect_input(ntree, &node, i);
         }
       }
       else if (storage->data_type == SOCK_RGBA) {
         /* Branch A can't be optimized-out, since its alpha is always used regardless of factor */
-        shader_node_disconnect_inactive_mix_branch(ntree, node, 0, -1, 7, storage->clamp_factor);
+        shader_node_disconnect_inactive_mix_branch(ntree, &node, 0, -1, 7, storage->clamp_factor);
         /* Disconnect links from data_type-specific sockets that are not currently in use */
         for (int i : {1, 2, 3, 4, 5}) {
-          shader_node_disconnect_input(ntree, node, i);
+          shader_node_disconnect_input(ntree, &node, i);
         }
       }
     }
@@ -938,8 +952,8 @@ static void ntree_shader_pruned_unused(bNodeTree *ntree, bNode *output_node)
 
   bool changed = false;
 
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    node->runtime->tmp_flag = 0;
+  for (bNode &node : ntree->nodes) {
+    node.runtime->tmp_flag = 0;
   }
 
   /* Avoid deleting the output node if it is the only node in the tree. */
@@ -949,23 +963,23 @@ static void ntree_shader_pruned_unused(bNodeTree *ntree, bNode *output_node)
         ntree, output_node, ntree_branch_node_tag, nullptr, 0);
   }
 
-  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-    if (node->type_legacy == SH_NODE_OUTPUT_AOV) {
-      node->runtime->tmp_flag = 1;
-      blender::bke::node_chain_iterator_backwards(ntree, node, ntree_branch_node_tag, nullptr, 0);
+  for (bNode &node : ntree->nodes) {
+    if (node.type_legacy == SH_NODE_OUTPUT_AOV) {
+      node.runtime->tmp_flag = 1;
+      blender::bke::node_chain_iterator_backwards(ntree, &node, ntree_branch_node_tag, nullptr, 0);
     }
   }
 
-  LISTBASE_FOREACH_MUTABLE (bNode *, node, &ntree->nodes) {
-    if (node->runtime->tmp_flag == 0) {
-      blender::bke::node_unlink_node(*ntree, *node);
-      blender::bke::node_free_node(ntree, *node);
+  for (bNode &node : ntree->nodes.items_mutable()) {
+    if (node.runtime->tmp_flag == 0) {
+      blender::bke::node_unlink_node(*ntree, node);
+      blender::bke::node_free_node(ntree, node);
       changed = true;
     }
   }
 
   if (changed) {
-    BKE_ntree_update_after_single_tree_change(*G.main, *ntree);
+    BKE_ntree_update_without_main(*ntree);
   }
 }
 
@@ -991,22 +1005,22 @@ void ntreeGPUMaterialNodes(bNodeTree *localtree, GPUMaterial *mat)
   /* Execute nodes ordered by the number of ShaderToRGB nodes found in their path,
    * so all closures can be properly evaluated. */
   int16_t max_depth = 0;
-  LISTBASE_FOREACH (bNode *, node, &localtree->nodes) {
-    node->runtime->tmp_flag = -1;
+  for (bNode &node : localtree->nodes) {
+    node.runtime->tmp_flag = -1;
   }
   if (output != nullptr) {
-    iter_shader_to_rgba_depth_count(output, max_depth);
+    iter_shader_to_rgba_depth_count(localtree, output, max_depth);
   }
-  LISTBASE_FOREACH (bNode *, node, &localtree->nodes) {
-    if (node->type_legacy == SH_NODE_OUTPUT_AOV) {
-      iter_shader_to_rgba_depth_count(node, max_depth);
+  for (bNode &node : localtree->nodes) {
+    if (node.type_legacy == SH_NODE_OUTPUT_AOV) {
+      iter_shader_to_rgba_depth_count(localtree, &node, max_depth);
     }
   }
   for (int depth = max_depth; depth >= 0; depth--) {
     ntreeExecGPUNodes(exec, mat, output, &depth);
-    LISTBASE_FOREACH (bNode *, node, &localtree->nodes) {
-      if (node->type_legacy == SH_NODE_OUTPUT_AOV) {
-        ntreeExecGPUNodes(exec, mat, node, &depth);
+    for (bNode &node : localtree->nodes) {
+      if (node.type_legacy == SH_NODE_OUTPUT_AOV) {
+        ntreeExecGPUNodes(exec, mat, &node, &depth);
       }
     }
   }
@@ -1024,10 +1038,11 @@ bNodeTreeExec *ntreeShaderBeginExecTree_internal(bNodeExecContext *context,
   bNodeTreeExec *exec = ntree_exec_begin(context, ntree, parent_key);
 
   /* allocate the thread stack listbase array */
-  exec->threadstack = MEM_calloc_arrayN<ListBase>(BLENDER_MAX_THREADS, "thread stack array");
+  exec->threadstack = MEM_calloc_arrayN<ListBaseT<bNodeThreadStack>>(BLENDER_MAX_THREADS,
+                                                                     "thread stack array");
 
-  LISTBASE_FOREACH (bNode *, node, &exec->nodetree->nodes) {
-    node->runtime->need_exec = 1;
+  for (bNode &node : exec->nodetree->nodes) {
+    node.runtime->need_exec = 1;
   }
 
   return exec;
@@ -1059,9 +1074,9 @@ void ntreeShaderEndExecTree_internal(bNodeTreeExec *exec)
 {
   if (exec->threadstack) {
     for (int a = 0; a < BLENDER_MAX_THREADS; a++) {
-      LISTBASE_FOREACH (bNodeThreadStack *, nts, &exec->threadstack[a]) {
-        if (nts->stack) {
-          MEM_freeN(nts->stack);
+      for (bNodeThreadStack &nts : exec->threadstack[a]) {
+        if (nts.stack) {
+          MEM_freeN(nts.stack);
         }
       }
       BLI_freelistN(&exec->threadstack[a]);

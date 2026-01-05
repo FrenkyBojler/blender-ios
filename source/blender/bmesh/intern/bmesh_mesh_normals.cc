@@ -539,10 +539,10 @@ static int bm_mesh_loops_calc_normals_for_loop(BMesh *bm,
       BKE_lnor_space_add_loop(r_lnors_spacearr, lnor_space, l_curr_index, l_curr, true);
 
       if (has_clnors) {
-        const short(*clnor)[2] = clnors_data ?
-                                     &clnors_data[l_curr_index] :
-                                     static_cast<const short(*)[2]>(
-                                         BM_ELEM_CD_GET_VOID_P(l_curr, cd_loop_clnors_offset));
+        const short (*clnor)[2] = clnors_data ?
+                                      &clnors_data[l_curr_index] :
+                                      static_cast<const short (*)[2]>(
+                                          BM_ELEM_CD_GET_VOID_P(l_curr, cd_loop_clnors_offset));
         BKE_lnor_space_custom_data_to_normal(lnor_space, *clnor, r_lnos[l_curr_index]);
       }
     }
@@ -576,7 +576,7 @@ static int bm_mesh_loops_calc_normals_for_loop(BMesh *bm,
 
     /* We validate clnors data on the fly - cheapest way to do! */
     int clnors_avg[2] = {0, 0};
-    const short(*clnor_ref)[2] = nullptr;
+    const short (*clnor_ref)[2] = nullptr;
     int clnors_count = 0;
     bool clnors_invalid = false;
 
@@ -644,10 +644,10 @@ static int bm_mesh_loops_calc_normals_for_loop(BMesh *bm,
 
         if (has_clnors) {
           /* Accumulate all clnors, if they are not all equal we have to fix that! */
-          const short(*clnor)[2] = clnors_data ?
-                                       &clnors_data[lfan_pivot_index] :
-                                       static_cast<const short(*)[2]>(BM_ELEM_CD_GET_VOID_P(
-                                           lfan_pivot, cd_loop_clnors_offset));
+          const short (*clnor)[2] = clnors_data ?
+                                        &clnors_data[lfan_pivot_index] :
+                                        static_cast<const short (*)[2]>(BM_ELEM_CD_GET_VOID_P(
+                                            lfan_pivot, cd_loop_clnors_offset));
           if (clnors_count) {
             clnors_invalid |= ((*clnor_ref)[0] != (*clnor)[0] || (*clnor_ref)[1] != (*clnor)[1]);
           }
@@ -1001,7 +1001,7 @@ static void bm_mesh_loops_calc_normals_for_vert_without_clnors(
     BMVert *v)
 {
   const bool has_clnors = false;
-  const short(*clnors_data)[2] = nullptr;
+  const short (*clnors_data)[2] = nullptr;
   /* When false the caller must have already tagged the edges. */
   const bool do_edge_tag = (split_angle_cos != EDGE_TAG_FROM_SPLIT_ANGLE_BYPASS);
   const int cd_loop_clnors_offset = -1;
@@ -1601,11 +1601,10 @@ static void bm_mesh_loops_custom_normals_set(BMesh *bm,
                              EDGE_TAG_FROM_SPLIT_ANGLE_BYPASS);
 
   /* Extract new normals from the data layer if necessary. */
-  float(*custom_lnors)[3] = new_lnors;
+  float (*custom_lnors)[3] = new_lnors;
 
   if (new_lnors == nullptr) {
-    custom_lnors = static_cast<float(*)[3]>(
-        MEM_mallocN(sizeof(*new_lnors) * bm->totloop, __func__));
+    custom_lnors = MEM_malloc_arrayN<float[3]>(bm->totloop, __func__);
 
     BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
       BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
@@ -1836,7 +1835,7 @@ void BM_lnorspace_rebuild(BMesh *bm, bool preserve_clnor)
         if (BM_ELEM_API_FLAG_TEST(l, BM_LNORSPACE_UPDATE) ||
             bm->spacearr_dirty & BM_SPACEARR_DIRTY_ALL)
         {
-          short(*clnor)[2] = static_cast<short(*)[2]>(
+          short (*clnor)[2] = static_cast<short (*)[2]>(
               BM_ELEM_CD_GET_VOID_P(l, cd_loop_clnors_offset));
           int l_index = BM_elem_index_get(l);
 
@@ -1859,7 +1858,7 @@ void BM_lnorspace_rebuild(BMesh *bm, bool preserve_clnor)
           bm->spacearr_dirty & BM_SPACEARR_DIRTY_ALL)
       {
         if (preserve_clnor) {
-          short(*clnor)[2] = static_cast<short(*)[2]>(
+          short (*clnor)[2] = static_cast<short (*)[2]>(
               BM_ELEM_CD_GET_VOID_P(l, cd_loop_clnors_offset));
           int l_index = BM_elem_index_get(l);
           BKE_lnor_space_custom_normal_to_data(
@@ -2169,14 +2168,14 @@ static int bm_loop_normal_mark_indiv(BMesh *bm, BLI_bitmap *loops, const bool do
      * but it is not designed to be used with huge selection sets,
      * rather with only a few items selected at most. */
     /* Goes from last selected to the first selected element. */
-    LISTBASE_FOREACH_BACKWARD (BMEditSelection *, ese, &bm->selected) {
-      if (ese->htype == BM_FACE) {
+    for (BMEditSelection &ese : bm->selected.items_reversed()) {
+      if (ese.htype == BM_FACE) {
         /* If current face is selected,
          * then any verts to be edited must have been selected before it. */
-        for (BMEditSelection *ese_prev = ese->prev; ese_prev; ese_prev = ese_prev->prev) {
+        for (BMEditSelection *ese_prev = ese.prev; ese_prev; ese_prev = ese_prev->prev) {
           if (ese_prev->htype == BM_VERT) {
             bm_loop_normal_mark_indiv_do_loop(
-                BM_face_vert_share_loop((BMFace *)ese->ele, (BMVert *)ese_prev->ele),
+                BM_face_vert_share_loop((BMFace *)ese.ele, (BMVert *)ese_prev->ele),
                 loops,
                 bm->lnor_spacearr,
                 &totloopsel,
@@ -2184,13 +2183,13 @@ static int bm_loop_normal_mark_indiv(BMesh *bm, BLI_bitmap *loops, const bool do
           }
           else if (ese_prev->htype == BM_EDGE) {
             BMEdge *e = (BMEdge *)ese_prev->ele;
-            bm_loop_normal_mark_indiv_do_loop(BM_face_vert_share_loop((BMFace *)ese->ele, e->v1),
+            bm_loop_normal_mark_indiv_do_loop(BM_face_vert_share_loop((BMFace *)ese.ele, e->v1),
                                               loops,
                                               bm->lnor_spacearr,
                                               &totloopsel,
                                               do_all_loops_of_vert);
 
-            bm_loop_normal_mark_indiv_do_loop(BM_face_vert_share_loop((BMFace *)ese->ele, e->v2),
+            bm_loop_normal_mark_indiv_do_loop(BM_face_vert_share_loop((BMFace *)ese.ele, e->v2),
                                               loops,
                                               bm->lnor_spacearr,
                                               &totloopsel,

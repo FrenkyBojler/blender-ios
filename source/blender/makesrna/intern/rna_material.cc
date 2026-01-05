@@ -65,13 +65,20 @@ const EnumPropertyItem rna_enum_ramp_blend_items[] = {
 #  include "DNA_screen_types.h"
 #  include "DNA_space_types.h"
 
+#  include "BLI_string_utf8.h"
+
+#  include "BKE_attribute.h"
 #  include "BKE_attribute.hh"
 #  include "BKE_colorband.hh"
 #  include "BKE_context.hh"
+#  include "BKE_editmesh.hh"
 #  include "BKE_gpencil_legacy.h"
 #  include "BKE_grease_pencil.hh"
+#  include "BKE_lib_id.hh"
 #  include "BKE_main.hh"
 #  include "BKE_material.hh"
+#  include "BKE_mesh.hh"
+#  include "BKE_mesh_types.hh"
 #  include "BKE_node.hh"
 #  include "BKE_paint.hh"
 #  include "BKE_scene.hh"
@@ -149,6 +156,7 @@ static void rna_Material_texpaint_begin(CollectionPropertyIterator *iter, Pointe
 
 static void rna_Material_active_paint_texture_index_update(bContext *C, PointerRNA *ptr)
 {
+  using namespace blender;
   Main *bmain = CTX_data_main(C);
   Material *ma = (Material *)ptr->owner_id;
 
@@ -168,14 +176,22 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
     }
 
     /* For compatibility reasons with vertex paint we activate the color attribute. */
-    if (slot->attribute_name) {
+    if (const char *name = slot->attribute_name) {
       Object *ob = CTX_data_active_object(C);
       if (ob != nullptr && ob->type == OB_MESH) {
         Mesh *mesh = static_cast<Mesh *>(ob->data);
-        const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh->id,
-                                                                    slot->attribute_name);
-        if (layer != nullptr) {
-          BKE_id_attributes_active_color_set(&mesh->id, layer->name);
+        if (mesh->runtime->edit_mesh) {
+          if (const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm,
+                                                                  name))
+          {
+            BKE_id_attributes_active_color_set(&mesh->id, name);
+          }
+        }
+        else {
+          const bke::AttributeAccessor attributes = mesh->attributes();
+          if (bke::mesh::is_color_attribute(attributes.lookup_meta_data(name))) {
+            BKE_id_attributes_active_color_set(&mesh->id, name);
+          }
         }
         DEG_id_tag_update(&ob->id, 0);
         WM_main_add_notifier(NC_GEOM | ND_DATA, &ob->id);
@@ -785,7 +801,6 @@ static void rna_def_material_lineart(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_GPENCIL | ND_SHADING, "rna_MaterialLineArt_update");
 
   prop = RNA_def_property(srna, "mat_occlusion", PROP_INT, PROP_NONE);
-  RNA_def_property_int_default(prop, 1);
   RNA_def_property_ui_range(prop, 0.0f, 5.0f, 1.0f, 1);
   RNA_def_property_ui_text(
       prop,
@@ -1214,7 +1229,7 @@ void rna_def_mtex_common(BlenderRNA *brna,
 
   prop = RNA_def_property(srna, "active_texture", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Texture");
-  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   if (activeeditable) {
     RNA_def_property_editable_func(prop, activeeditable);
   }

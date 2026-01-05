@@ -19,13 +19,13 @@ static EnumPropertyItem mode_items[] = {
     {GEO_NODE_MERGE_BY_DISTANCE_MODE_ALL,
      "ALL",
      0,
-     "All",
-     "Merge all close selected points, whether or not they are connected"},
+     N_("All"),
+     N_("Merge all close selected points, whether or not they are connected")},
     {GEO_NODE_MERGE_BY_DISTANCE_MODE_CONNECTED,
      "CONNECTED",
      0,
-     "Connected",
-     "Only merge mesh vertices along existing edges. This method can be much faster"},
+     N_("Connected"),
+     N_("Only merge mesh vertices along existing edges. This method can be much faster")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -45,7 +45,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   /* Still used for forward compatibility. */
-  node->storage = MEM_callocN<NodeGeometryMergeByDistance>(__func__);
+  node->storage = MEM_new_for_free<NodeGeometryMergeByDistance>(__func__);
 }
 
 static PointCloud *pointcloud_merge_by_distance(const PointCloud &src_points,

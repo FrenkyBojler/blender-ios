@@ -116,7 +116,7 @@ static void adjust_for_hdr_image_file(const LibOCIOConfig &config,
 
   const ColorSpace *image_display_colorspace = config.get_color_space_for_hdr_image(
       display_colorspace->name());
-  if (image_display_colorspace == nullptr || image_display_colorspace == display_colorspace) {
+  if (ELEM(image_display_colorspace, nullptr, display_colorspace)) {
     return;
   }
 
@@ -462,7 +462,7 @@ OCIO_NAMESPACE::ConstProcessorRcPtr create_ocio_display_processor(
     }
   }
   else {
-    /* Untonemapped case, directly to extended sRGB. */
+    /* Un-tone-mapped case, directly to extended sRGB. */
     group->appendTransform(create_untonemapped_ocio_display_transform(
         config, display_parameters.display, from_colorspace, display_parameters.use_hdr_buffer));
   }

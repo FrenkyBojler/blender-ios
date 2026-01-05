@@ -9,8 +9,10 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
 
 #include "BLI_struct_equality_utils.hh"
+#include "BLI_utildefines.h"
 
 namespace blender {
 
@@ -62,7 +64,7 @@ namespace blender {
  * Extending this file:
  * - This file can be extended with `ColorHex/Hsl/Hsv` for different representations
  *   of rgb based colors. `ColorHsl4f<eSpace::SceneLinear, eAlpha::Premultiplied>`
- * - Add non RGB spaces/storages ColorXyz.
+ * - Add non RGB spaces/storage for ColorXyz.
  */
 
 /** Enumeration containing the different alpha modes. */
@@ -134,6 +136,16 @@ template<eAlpha Alpha>
 class ColorSceneLinear4f final : public ColorRGBA<float, eSpace::SceneLinear, Alpha> {
  public:
   constexpr ColorSceneLinear4f() = default;
+
+  constexpr explicit ColorSceneLinear4f(float value)
+      : ColorRGBA<float, eSpace::SceneLinear, Alpha>(value, value, value, value)
+  {
+  }
+
+  template<typename U, BLI_ENABLE_IF((std::is_convertible_v<U, float>))>
+  constexpr explicit ColorSceneLinear4f(U value) : ColorSceneLinear4f(float(value))
+  {
+  }
 
   constexpr ColorSceneLinear4f(const float *rgba)
       : ColorRGBA<float, eSpace::SceneLinear, Alpha>(rgba)

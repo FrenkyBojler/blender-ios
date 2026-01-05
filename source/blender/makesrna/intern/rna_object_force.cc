@@ -47,7 +47,12 @@ static const EnumPropertyItem effector_shape_items[] = {
 
 #  include <fmt/format.h>
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_base.h"
+#  include "BLI_path_utils.hh"
+#  include "BLI_string.h"
+
+#  include "BKE_lib_id.hh"
 
 #  include "RNA_access.hh"
 
@@ -118,7 +123,7 @@ static const EnumPropertyItem empty_vortex_shape_items[] = {
 
 #  include "ED_object.hh"
 
-static bool rna_Cache_get_valid_owner_ID(PointerRNA *ptr, Object **ob, Scene **scene)
+static bool rna_Cache_get_valid_owner_ID(const PointerRNA *ptr, Object **ob, Scene **scene)
 {
   switch (GS(ptr->owner_id->name)) {
     case ID_OB:
@@ -139,10 +144,27 @@ static bool rna_Cache_get_valid_owner_ID(PointerRNA *ptr, Object **ob, Scene **s
 
 static std::optional<std::string> rna_PointCache_path(const PointerRNA *ptr)
 {
-  ModifierData *md;
-  Object *ob = (Object *)ptr->owner_id;
   PointCache *cache = static_cast<PointCache *>(ptr->data);
 
+  Object *ob = nullptr;
+  Scene *scene = nullptr;
+
+  if (!rna_Cache_get_valid_owner_ID(ptr, &ob, &scene)) {
+    return std::nullopt;
+  }
+
+  /* Scene rigid body. */
+  if (scene != nullptr && scene->rigidbody_world->shared != nullptr) {
+    if (scene->rigidbody_world->shared->pointcache == cache) {
+      return "rigidbody_world.point_cache";
+    }
+  }
+
+  if (!ob) {
+    return std::nullopt;
+  }
+
+  ModifierData *md;
   for (md = static_cast<ModifierData *>(ob->modifiers.first); md; md = md->next) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
@@ -198,6 +220,7 @@ static std::optional<std::string> rna_PointCache_path(const PointerRNA *ptr)
       }
     }
   }
+
   return std::nullopt;
 }
 
@@ -296,7 +319,7 @@ static void rna_Cache_idname_change(Main * /*bmain*/, Scene * /*scene*/, Pointer
   }
   else {
     PTCacheID *pid = nullptr, *pid2 = nullptr;
-    ListBase pidlist;
+    ListBaseT<PTCacheID> pidlist;
 
     BKE_ptcache_ids_from_object(&pidlist, ob, scene, 0);
 
@@ -334,7 +357,7 @@ static void rna_Cache_idname_change(Main * /*bmain*/, Scene * /*scene*/, Pointer
 static void rna_Cache_list_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   PointCache *cache = static_cast<PointCache *>(ptr->data);
-  ListBase lb;
+  ListBaseT<PointCache> lb;
 
   while (cache->prev) {
     cache = cache->prev;

@@ -27,6 +27,8 @@
 #include "GPU_common_types.hh"
 #include "GPU_texture.hh"
 
+#include "BLI_enum_flags.hh"
+
 namespace blender::gpu {
 class Texture;
 class FrameBuffer;
@@ -38,7 +40,7 @@ enum GPUFrameBufferBits {
   GPU_STENCIL_BIT = (1 << 2),
 };
 
-ENUM_OPERATORS(GPUFrameBufferBits, GPU_STENCIL_BIT)
+ENUM_OPERATORS(GPUFrameBufferBits)
 
 /* Guaranteed by the spec and is never greater than 16 on any hardware or implementation. */
 constexpr static int GPU_MAX_VIEWPORTS = 16;
@@ -138,14 +140,9 @@ struct GPULoadStore {
 };
 
 /* Empty bind point. */
-#define NULL_ATTACHMENT_COLOR \
-  { \
-    0.0, 0.0, 0.0, 0.0 \
-  }
+#define NULL_ATTACHMENT_COLOR {0.0, 0.0, 0.0, 0.0}
 #define NULL_LOAD_STORE \
-  { \
-    GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_DONT_CARE, NULL_ATTACHMENT_COLOR \
-  }
+  {GPU_LOADACTION_DONT_CARE, GPU_STOREACTION_DONT_CARE, NULL_ATTACHMENT_COLOR}
 
 /**
  * Load store config array (load_store_actions) matches attachment structure of
@@ -262,32 +259,44 @@ void GPU_framebuffer_config_array(blender::gpu::FrameBuffer *fb,
 /** Empty bind point. */
 #define GPU_ATTACHMENT_NONE \
   { \
-    nullptr, -1, 0, \
+      nullptr, \
+      -1, \
+      0, \
   }
 /** Leave currently bound texture in this slot. DEPRECATED: Specify all textures for clarity. */
 #define GPU_ATTACHMENT_LEAVE \
   { \
-    nullptr, -1, -1, \
+      nullptr, \
+      -1, \
+      -1, \
   }
 /** Bind the first mip level of a texture (all layers). */
 #define GPU_ATTACHMENT_TEXTURE(_texture) \
   { \
-    _texture, -1, 0, \
+      _texture, \
+      -1, \
+      0, \
   }
 /** Bind the \a _mip level of a texture (all layers). */
 #define GPU_ATTACHMENT_TEXTURE_MIP(_texture, _mip) \
   { \
-    _texture, -1, _mip, \
+      _texture, \
+      -1, \
+      _mip, \
   }
 /** Bind the \a _layer layer of the first mip level of a texture. */
 #define GPU_ATTACHMENT_TEXTURE_LAYER(_texture, _layer) \
   { \
-    _texture, _layer, 0, \
+      _texture, \
+      _layer, \
+      0, \
   }
 /** Bind the \a _layer layer of the \a _mip level of a texture. */
 #define GPU_ATTACHMENT_TEXTURE_LAYER_MIP(_texture, _layer, _mip) \
   { \
-    _texture, _layer, _mip, \
+      _texture, \
+      _layer, \
+      _mip, \
   }
 
 /** NOTE: The cube-face variants are equivalent to the layer ones but give better semantic. */
@@ -295,12 +304,16 @@ void GPU_framebuffer_config_array(blender::gpu::FrameBuffer *fb,
 /** Bind the first mip level of a cube-map \a _face texture. */
 #define GPU_ATTACHMENT_TEXTURE_CUBEFACE(_texture, _face) \
   { \
-    _texture, _face, 0, \
+      _texture, \
+      _face, \
+      0, \
   }
 /** Bind the \a _mip level of a cube-map \a _face texture. */
 #define GPU_ATTACHMENT_TEXTURE_CUBEFACE_MIP(_texture, _face, _mip) \
   { \
-    _texture, _face, _mip, \
+      _texture, \
+      _face, \
+      _mip, \
   }
 
 /**

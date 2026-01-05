@@ -59,7 +59,7 @@ struct BasisCache {
   Vector<int> start_indices;
 
   /**
-   * The result of #check_valid_num_and_order, to avoid retrieving its inputs later on.
+   * The result of #check_valid_eval_params, to avoid retrieving its inputs later on.
    * If this is true, the data above will be invalid, and original data should be copied
    * to the evaluated result.
    */
@@ -463,7 +463,15 @@ class CurvesGeometry : public ::CurvesGeometry {
   void translate(const float3 &translation);
   void transform(const float4x4 &matrix);
 
+  /**
+   * Calculate handle positions for `Auto`, `Vector` handle types.
+   */
   void calculate_bezier_auto_handles();
+  /**
+   * Calculate handle positions for `Align` handle types. Ensure that both handles position fall on
+   * the same line, both handle will be moved unless the handles are already aligned.
+   */
+  void calculate_bezier_aligned_handles();
 
   void remove_points(const IndexMask &points_to_delete, const AttributeFilter &attribute_filter);
   void remove_curves(const IndexMask &curves_to_delete, const AttributeFilter &attribute_filter);
@@ -732,11 +740,17 @@ void calculate_auto_handles(bool cyclic,
                             MutableSpan<float3> positions_left,
                             MutableSpan<float3> positions_right);
 
+void calculate_single_aligned_handles(const IndexMask &selection,
+                                      Span<float3> positions,
+                                      Span<float3> align_by,
+                                      MutableSpan<float3> align);
+
 void calculate_aligned_handles(const IndexMask &selection,
                                Span<float3> positions,
-                               Span<float3> align_by,
-                               MutableSpan<float3> align);
-
+                               Span<float3> handles_left,
+                               Span<float3> handles_right,
+                               MutableSpan<float3> align_handles_left,
+                               MutableSpan<float3> align_handles_right);
 /**
  * Change the handles of a single control point, aligning any aligned (#BEZIER_HANDLE_ALIGN)
  * handles on the other side of the control point.
@@ -850,7 +864,8 @@ namespace nurbs {
 /**
  * Checks the conditions that a NURBS curve needs to evaluate.
  */
-bool check_valid_num_and_order(int points_num, int8_t order, bool cyclic, KnotsMode knots_mode);
+bool check_valid_eval_params(
+    int points_num, int8_t order, bool cyclic, KnotsMode knots_mode, int resolution);
 
 /**
  * Calculate the standard evaluated size for a NURBS curve, using the standard that
@@ -924,6 +939,7 @@ void calculate_basis_cache(int points_num,
                            int8_t order,
                            int resolution,
                            bool cyclic,
+                           KnotsMode knots_mode,
                            Span<float> knots,
                            BasisCache &basis_cache);
 

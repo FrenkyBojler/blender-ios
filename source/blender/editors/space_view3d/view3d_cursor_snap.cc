@@ -53,7 +53,7 @@ struct SnapStateIntern {
 
 struct SnapCursorDataIntern {
   V3DSnapCursorState state_default;
-  ListBase state_intern;
+  ListBaseT<SnapStateIntern> state_intern;
   V3DSnapCursorData snap_data;
 
   blender::ed::transform::SnapObjectContext *snap_context_v3d;
@@ -184,8 +184,7 @@ static void v3d_cursor_plane_draw_grid(const int resolution,
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
   const size_t coords_len = resolution * resolution;
-  float(*coords)[3] = static_cast<float(*)[3]>(
-      MEM_mallocN(sizeof(*coords) * coords_len, __func__));
+  float (*coords)[3] = MEM_malloc_arrayN<float[3]>(coords_len, __func__);
 
   const int axis_x = (plane_axis + 0) % 3;
   const int axis_y = (plane_axis + 1) % 3;
@@ -411,6 +410,12 @@ static void cursor_point_draw(
       immVertex3f(attr_pos, +size_b, -size_b, 0.0f);
       immEnd();
       break;
+    case SCE_SNAP_TO_FACE_MIDPOINT:
+      imm_draw_circle_wire_3d(attr_pos, 0.0f, 0.0f, 1.0f, 24);
+      immBegin(GPU_PRIM_POINTS, 1);
+      immVertex3f(attr_pos, 0.0f, 0.0f, 0.0f);
+      immEnd();
+      break;
     case SCE_SNAP_TO_FACE:
     default:
       imm_draw_circle_wire_3d(attr_pos, 0.0f, 0.0f, 1.0f, 24);
@@ -434,7 +439,7 @@ void ED_view3d_cursor_snap_draw_util(RegionView3D *rv3d,
 
   /* The size of the symbol is larger than the vertex size.
    * This prevents overlaps. */
-  float radius = 2.5f * UI_GetThemeValuef(TH_VERTEX_SIZE);
+  float radius = 2.5f * blender::ui::theme::get_value_f(TH_VERTEX_SIZE);
   uint pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
@@ -537,16 +542,16 @@ static bool v3d_cursor_is_snap_invert(SnapCursorDataIntern *data_intern, uint8_t
 
   const wmWindowManager *wm = static_cast<wmWindowManager *>(G.main->wm.first);
   wmKeyMap *keymap = WM_keymap_active(wm, data_intern->keymap);
-  LISTBASE_FOREACH (const wmKeyMapItem *, kmi, &keymap->items) {
-    if (kmi->flag & KMI_INACTIVE) {
+  for (const wmKeyMapItem &kmi : keymap->items) {
+    if (kmi.flag & KMI_INACTIVE) {
       continue;
     }
 
-    if (kmi->propvalue == snap_on) {
-      if ((ELEM(kmi->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) && (event_modifier & KM_CTRL)) ||
-          (ELEM(kmi->type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) && (event_modifier & KM_SHIFT)) ||
-          (ELEM(kmi->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event_modifier & KM_ALT)) ||
-          ((kmi->type == EVT_OSKEY) && (event_modifier & KM_OSKEY)))
+    if (kmi.propvalue == snap_on) {
+      if ((ELEM(kmi.type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) && (event_modifier & KM_CTRL)) ||
+          (ELEM(kmi.type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) && (event_modifier & KM_SHIFT)) ||
+          (ELEM(kmi.type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event_modifier & KM_ALT)) ||
+          ((kmi.type == EVT_OSKEY) && (event_modifier & KM_OSKEY)))
       {
         return true;
       }
@@ -592,8 +597,8 @@ static void v3d_cursor_snap_context_ensure(Scene *scene)
 static bool v3d_cursor_snap_calc_plane()
 {
   /* If any of the states require the plane, calculate the `plane_omat`. */
-  LISTBASE_FOREACH (SnapStateIntern *, state, &g_data_intern.state_intern) {
-    if (state->snap_state.draw_plane || state->snap_state.draw_box) {
+  for (SnapStateIntern &state : g_data_intern.state_intern) {
+    if (state.snap_state.draw_plane || state.snap_state.draw_box) {
       return true;
     }
   }
@@ -806,7 +811,7 @@ static void v3d_cursor_snap_update(V3DSnapCursorState *state,
   {
     snap_elem_index[1] = index;
   }
-  else if (snap_elem == SCE_SNAP_TO_FACE) {
+  else if (snap_elem & (SCE_SNAP_TO_FACE | SCE_SNAP_TO_FACE_MIDPOINT)) {
     snap_elem_index[2] = index;
   }
 
@@ -845,7 +850,7 @@ static bool v3d_cursor_snap_poll_fn(bContext *C)
     }
     /* Sometimes the cursor may be on an invisible part of an overlapping region. */
     wmWindow *win = CTX_wm_window(C);
-    const wmEvent *event = win->eventstate;
+    const wmEvent *event = win->runtime->eventstate;
     if (ED_region_overlap_isect_xy(region, event->xy)) {
       return false;
     }
@@ -894,7 +899,7 @@ static void v3d_cursor_snap_draw_fn(bContext *C,
   Scene *scene = DEG_get_input_scene(depsgraph);
 
   const wmWindow *win = CTX_wm_window(C);
-  const wmEvent *event = win->eventstate;
+  const wmEvent *event = win->runtime->eventstate;
   if (event && v3d_cursor_eventstate_has_changed(data_intern, state, mval, event->modifier)) {
     View3D *v3d = CTX_wm_view3d(C);
     v3d_cursor_snap_update(state, C, depsgraph, scene, region, v3d, mval, event->modifier);
@@ -1036,8 +1041,7 @@ V3DSnapCursorState *ED_view3d_cursor_snap_state_create()
     v3d_cursor_snap_activate();
   }
 
-  SnapStateIntern *state_intern = static_cast<SnapStateIntern *>(
-      MEM_mallocN(sizeof(*state_intern), __func__));
+  SnapStateIntern *state_intern = MEM_mallocN<SnapStateIntern>(__func__);
   state_intern->snap_state = g_data_intern.state_default;
   BLI_addtail(&g_data_intern.state_intern, state_intern);
 
@@ -1081,7 +1085,7 @@ void ED_view3d_cursor_snap_data_update(V3DSnapCursorState *state,
                                        const blender::int2 &mval)
 {
   SnapCursorDataIntern *data_intern = &g_data_intern;
-  const wmEvent *event = CTX_wm_window(C)->eventstate;
+  const wmEvent *event = CTX_wm_window(C)->runtime->eventstate;
   if (event && v3d_cursor_eventstate_has_changed(data_intern, state, mval, event->modifier)) {
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     Scene *scene = DEG_get_input_scene(depsgraph);

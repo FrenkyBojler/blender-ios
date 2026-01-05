@@ -10,7 +10,6 @@
 
 #include "BLI_math_matrix.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
@@ -53,10 +52,7 @@ using bke::greasepencil::Drawing;
 static void init_data(ModifierData *md)
 {
   auto *tmd = reinterpret_cast<GreasePencilTintModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(tmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(tmd, DNA_struct_default_get(GreasePencilTintModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(tmd, modifier);
   modifier::greasepencil::init_influence_data(&tmd->influence, true);
 
   /* Add default color ramp. */
@@ -422,46 +418,46 @@ static void modify_geometry_set(ModifierData *md,
 
 static void panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
   const GreasePencilTintModifierMode tint_mode = GreasePencilTintModifierMode(
       RNA_enum_get(ptr, "tint_mode"));
   const bool use_weight_as_factor = RNA_boolean_get(ptr, "use_weight_as_factor");
 
-  layout->prop(ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiLayout *row = &layout->row(true);
-  row->active_set(!use_weight_as_factor);
-  row->prop(ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  row->prop(ptr, "use_weight_as_factor", UI_ITEM_NONE, "", ICON_MOD_VERTEX_WEIGHT);
+  ui::Layout &row = layout.row(true);
+  row.active_set(!use_weight_as_factor);
+  row.prop(ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  row.prop(ptr, "use_weight_as_factor", UI_ITEM_NONE, "", ICON_MOD_VERTEX_WEIGHT);
 
-  layout->prop(ptr, "tint_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "tint_mode", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   switch (tint_mode) {
     case MOD_GREASE_PENCIL_TINT_UNIFORM:
-      layout->prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     case MOD_GREASE_PENCIL_TINT_GRADIENT:
-      uiLayout *col = &layout->column(false);
-      col->use_property_split_set(false);
-      uiTemplateColorRamp(col, ptr, "color_ramp", true);
-      layout->separator();
-      layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      ui::Layout &col = layout.column(false);
+      col.use_property_split_set(false);
+      template_color_ramp(&col, ptr, "color_ramp", true);
+      layout.separator();
+      layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
   }
 
-  if (uiLayout *influence_panel = layout->panel_prop(
+  if (ui::Layout *influence_panel = layout.panel_prop(
           C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
-    modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_vertex_group_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_custom_curve_settings(C, influence_panel, ptr);
+    modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
+    modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);
+    modifier::greasepencil::draw_vertex_group_settings(C, *influence_panel, ptr);
+    modifier::greasepencil::draw_custom_curve_settings(C, *influence_panel, ptr);
   }
 
   modifier_error_message_draw(layout, ptr);
@@ -476,10 +472,10 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *tmd = reinterpret_cast<const GreasePencilTintModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilTintModifierData, tmd);
+  writer->write_struct(tmd);
   modifier::greasepencil::write_influence_data(writer, &tmd->influence);
   if (tmd->color_ramp) {
-    BLO_write_struct(writer, ColorBand, tmd->color_ramp);
+    writer->write_struct(tmd->color_ramp);
   }
 }
 

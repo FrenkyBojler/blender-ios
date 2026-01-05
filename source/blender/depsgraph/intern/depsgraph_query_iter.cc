@@ -154,7 +154,13 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
     }
   }
 
-  DEG_iterator_temp_object_free_properties(data->dupli_object_current, &data->temp_dupli_object);
+  /* Even if the `dupli_list` is not empty, it may happen that none of its entry is displayed (e.g.
+   * #DEG_iterator_dupli_is_visible return `false` for all of the duplis). In such cases,
+   * `dupli_object_current` will also be `nullptr`, and nothing needs to be freed here.
+   * See also #149673 for a reproducible case. */
+  if (data->dupli_object_current) {
+    DEG_iterator_temp_object_free_properties(data->dupli_object_current, &data->temp_dupli_object);
+  }
   data->dupli_list.clear();
   data->dupli_parent = nullptr;
   data->dupli_object_next = nullptr;
@@ -489,7 +495,7 @@ bool evil::DEG_iterator_temp_object_from_dupli(const Object *dupli_parent,
                                                eEvaluationMode eval_mode,
                                                bool do_matrix_setup,
                                                Object *r_temp_object,
-                                               ObjectRuntimeHandle *r_temp_runtime)
+                                               blender::bke::ObjectRuntime *r_temp_runtime)
 {
   *r_temp_object = blender::dna::shallow_copy(*dupli->ob);
   r_temp_object->runtime = r_temp_runtime;

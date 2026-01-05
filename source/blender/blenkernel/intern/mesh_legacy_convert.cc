@@ -12,6 +12,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_customdata_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -32,6 +33,7 @@
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_global.hh"
@@ -386,9 +388,9 @@ static void bm_corners_to_loops_ex(ID *id,
   }
 
   if (CustomData_has_layer(fdata_legacy, CD_TESSLOOPNORMAL)) {
-    float(*loop_normals)[3] = (float(*)[3])CustomData_get_for_write(
+    float (*loop_normals)[3] = (float (*)[3])CustomData_get_for_write(
         ldata, loopstart, CD_NORMAL, totloop);
-    const short(*tessloop_normals)[3] = (short(*)[3])CustomData_get_for_write(
+    const short (*tessloop_normals)[3] = (short (*)[3])CustomData_get_for_write(
         fdata_legacy, findex, CD_TESSLOOPNORMAL, totface);
     const int max = mf->v4 ? 4 : 3;
 
@@ -401,7 +403,7 @@ static void bm_corners_to_loops_ex(ID *id,
     MDisps *ld = (MDisps *)CustomData_get_for_write(ldata, loopstart, CD_MDISPS, totloop);
     const MDisps *fd = (const MDisps *)CustomData_get_for_write(
         fdata_legacy, findex, CD_MDISPS, totface);
-    const float(*disps)[3] = fd->disps;
+    const float (*disps)[3] = fd->disps;
     int tot = mf->v4 ? 4 : 3;
     int corners;
 
@@ -591,12 +593,6 @@ static void update_active_fdata_layers(Mesh &mesh, CustomData *fdata_legacy, Cus
 
     act = CustomData_get_render_layer(ldata, CD_PROP_FLOAT2);
     CustomData_set_layer_render(fdata_legacy, CD_MTFACE, act);
-
-    act = CustomData_get_clone_layer(ldata, CD_PROP_FLOAT2);
-    CustomData_set_layer_clone(fdata_legacy, CD_MTFACE, act);
-
-    act = CustomData_get_stencil_layer(ldata, CD_PROP_FLOAT2);
-    CustomData_set_layer_stencil(fdata_legacy, CD_MTFACE, act);
   }
 
   if (CustomData_has_layer(ldata, CD_PROP_BYTE_COLOR)) {
@@ -615,12 +611,6 @@ static void update_active_fdata_layers(Mesh &mesh, CustomData *fdata_legacy, Cus
         CustomData_set_layer_render(fdata_legacy, CD_MCOL, act);
       }
     }
-
-    act = CustomData_get_clone_layer(ldata, CD_PROP_BYTE_COLOR);
-    CustomData_set_layer_clone(fdata_legacy, CD_MCOL, act);
-
-    act = CustomData_get_stencil_layer(ldata, CD_PROP_BYTE_COLOR);
-    CustomData_set_layer_stencil(fdata_legacy, CD_MCOL, act);
   }
 }
 
@@ -767,12 +757,6 @@ static void CustomData_bmesh_do_versions_update_active_layers(CustomData *fdata_
 
     act = CustomData_get_render_layer(fdata_legacy, CD_MTFACE);
     CustomData_set_layer_render(corner_data, CD_PROP_FLOAT2, act);
-
-    act = CustomData_get_clone_layer(fdata_legacy, CD_MTFACE);
-    CustomData_set_layer_clone(corner_data, CD_PROP_FLOAT2, act);
-
-    act = CustomData_get_stencil_layer(fdata_legacy, CD_MTFACE);
-    CustomData_set_layer_stencil(corner_data, CD_PROP_FLOAT2, act);
   }
 
   if (CustomData_has_layer(fdata_legacy, CD_MCOL)) {
@@ -781,12 +765,6 @@ static void CustomData_bmesh_do_versions_update_active_layers(CustomData *fdata_
 
     act = CustomData_get_render_layer(fdata_legacy, CD_MCOL);
     CustomData_set_layer_render(corner_data, CD_PROP_BYTE_COLOR, act);
-
-    act = CustomData_get_clone_layer(fdata_legacy, CD_MCOL);
-    CustomData_set_layer_clone(corner_data, CD_PROP_BYTE_COLOR, act);
-
-    act = CustomData_get_stencil_layer(fdata_legacy, CD_MCOL);
-    CustomData_set_layer_stencil(corner_data, CD_PROP_BYTE_COLOR, act);
   }
 }
 
@@ -900,10 +878,10 @@ static void mesh_loops_to_tessdata(CustomData *fdata_legacy,
   }
 
   if (hasLoopNormal) {
-    short(*face_normals)[4][3] = (short(*)[4][3])CustomData_get_layer(fdata_legacy,
-                                                                      CD_TESSLOOPNORMAL);
-    const float(*loop_normals)[3] = (const float(*)[3])CustomData_get_layer(corner_data,
-                                                                            CD_NORMAL);
+    short (*face_normals)[4][3] = (short (*)[4][3])CustomData_get_layer(fdata_legacy,
+                                                                        CD_TESSLOOPNORMAL);
+    const float (*loop_normals)[3] = (const float (*)[3])CustomData_get_layer(corner_data,
+                                                                              CD_NORMAL);
 
     for (findex = 0, lidx = loopindices; findex < num_faces; lidx++, findex++, face_normals++) {
       for (j = (mface ? mface[findex].v4 : (*lidx)[3]) ? 4 : 3; j--;) {
@@ -1099,7 +1077,7 @@ static int mesh_tessface_calc(Mesh &mesh,
       float normal[3];
 
       float axis_mat[3][3];
-      float(*projverts)[2];
+      float (*projverts)[2];
       uint(*tris)[3];
 
       const uint totfilltri = mp_totloop - 2;
@@ -1109,7 +1087,7 @@ static int mesh_tessface_calc(Mesh &mesh,
       }
 
       tris = (uint(*)[3])BLI_memarena_alloc(arena, sizeof(*tris) * size_t(totfilltri));
-      projverts = (float(*)[2])BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(mp_totloop));
+      projverts = (float (*)[2])BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(mp_totloop));
 
       zero_v3(normal);
 
@@ -1233,7 +1211,7 @@ void BKE_mesh_tessface_calc(Mesh *mesh)
       &mesh->fdata_legacy,
       &mesh->corner_data,
       &mesh->face_data,
-      reinterpret_cast<float(*)[3]>(mesh->vert_positions_for_write().data()),
+      reinterpret_cast<float (*)[3]>(mesh->vert_positions_for_write().data()),
       mesh->totface_legacy,
       mesh->corners_num,
       mesh->faces_num);
@@ -1378,20 +1356,20 @@ static void move_face_map_data_to_attributes(Mesh *mesh)
 
 void BKE_mesh_legacy_face_map_to_generic(Main *bmain)
 {
-  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
-    move_face_map_data_to_attributes(mesh);
+  for (Mesh &mesh : bmain->meshes) {
+    move_face_map_data_to_attributes(&mesh);
   }
 
-  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-    if (object->type != OB_MESH) {
+  for (Object &object : bmain->objects) {
+    if (object.type != OB_MESH) {
       continue;
     }
-    Mesh *mesh = static_cast<Mesh *>(object->data);
-    int i;
-    LISTBASE_FOREACH_INDEX (bFaceMap *, face_map, &object->fmaps, i) {
-      mesh->attributes_for_write().rename(".temp_face_map_" + std::to_string(i), face_map->name);
+    Mesh *mesh = static_cast<Mesh *>(object.data);
+
+    for (const auto [i, face_map] : object.fmaps.enumerate()) {
+      mesh->attributes_for_write().rename(".temp_face_map_" + std::to_string(i), face_map.name);
     }
-    BLI_freelistN(&object->fmaps);
+    BLI_freelistN(&object.fmaps);
   }
 }
 
@@ -1710,15 +1688,7 @@ void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh)
         [](const uint32_t a, const uint32_t b) { return a | b; });
 
     float2 *coords = MEM_malloc_arrayN<float2>(size_t(mesh->corners_num), __func__);
-    bool *vert_selection = nullptr;
-    bool *edge_selection = nullptr;
     bool *pin = nullptr;
-    if (needed_boolean_attributes & MLOOPUV_VERTSEL) {
-      vert_selection = MEM_malloc_arrayN<bool>(size_t(mesh->corners_num), __func__);
-    }
-    if (needed_boolean_attributes & MLOOPUV_EDGESEL) {
-      edge_selection = MEM_malloc_arrayN<bool>(size_t(mesh->corners_num), __func__);
-    }
     if (needed_boolean_attributes & MLOOPUV_PINNED) {
       pin = MEM_malloc_arrayN<bool>(size_t(mesh->corners_num), __func__);
     }
@@ -1726,16 +1696,6 @@ void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh)
     threading::parallel_for(IndexRange(mesh->corners_num), 4096, [&](IndexRange range) {
       for (const int i : range) {
         coords[i] = mloopuv[i].uv;
-      }
-      if (vert_selection) {
-        for (const int i : range) {
-          vert_selection[i] = mloopuv[i].flag & MLOOPUV_VERTSEL;
-        }
-      }
-      if (edge_selection) {
-        for (const int i : range) {
-          edge_selection[i] = mloopuv[i].flag & MLOOPUV_EDGESEL;
-        }
       }
       if (pin) {
         for (const int i : range) {
@@ -1753,22 +1713,6 @@ void BKE_mesh_legacy_convert_uvs_to_generic(Mesh *mesh)
     CustomData_add_layer_named_with_data(
         &mesh->corner_data, CD_PROP_FLOAT2, coords, mesh->corners_num, new_name, nullptr);
     char buffer[MAX_CUSTOMDATA_LAYER_NAME];
-    if (vert_selection) {
-      CustomData_add_layer_named_with_data(&mesh->corner_data,
-                                           CD_PROP_BOOL,
-                                           vert_selection,
-                                           mesh->corners_num,
-                                           BKE_uv_map_vert_select_name_get(new_name, buffer),
-                                           nullptr);
-    }
-    if (edge_selection) {
-      CustomData_add_layer_named_with_data(&mesh->corner_data,
-                                           CD_PROP_BOOL,
-                                           edge_selection,
-                                           mesh->corners_num,
-                                           BKE_uv_map_edge_select_name_get(new_name, buffer),
-                                           nullptr);
-    }
     if (pin) {
       CustomData_add_layer_named_with_data(&mesh->corner_data,
                                            CD_PROP_BOOL,
@@ -2104,7 +2048,7 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
   bNodeTree *group = node_tree_add_in_lib(
       &bmain, owner_library, DATA_("Auto Smooth"), "GeometryNodeTree");
   if (!group->geometry_node_asset_traits) {
-    group->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+    group->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
   }
   group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
 
@@ -2125,17 +2069,17 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
   bNode *group_input_angle = node_add_node(nullptr, *group, "NodeGroupInput");
   group_input_angle->location[0] = -420.0f;
   group_input_angle->location[1] = -300.0f;
-  LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_angle->outputs) {
-    if (!STREQ(socket->identifier, "Socket_2")) {
-      socket->flag |= SOCK_HIDDEN;
+  for (bNodeSocket &socket : group_input_angle->outputs) {
+    if (!STREQ(socket.identifier, "Socket_2")) {
+      socket.flag |= SOCK_HIDDEN;
     }
   }
   bNode *group_input_mesh = node_add_node(nullptr, *group, "NodeGroupInput");
   group_input_mesh->location[0] = -60.0f;
   group_input_mesh->location[1] = -100.0f;
-  LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_mesh->outputs) {
-    if (!STREQ(socket->identifier, "Socket_1")) {
-      socket->flag |= SOCK_HIDDEN;
+  for (bNodeSocket &socket : group_input_mesh->outputs) {
+    if (!STREQ(socket.identifier, "Socket_1")) {
+      socket.flag |= SOCK_HIDDEN;
     }
   }
   bNode *shade_smooth_edge = node_add_node(nullptr, *group, "GeometryNodeSetShadeSmooth");
@@ -2211,8 +2155,8 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
                 *shade_smooth_edge,
                 *node_find_socket(*shade_smooth_edge, SOCK_IN, "Shade Smooth"));
 
-  LISTBASE_FOREACH (bNode *, node, &group->nodes) {
-    node_set_selected(*node, false);
+  for (bNode &node : group->nodes) {
+    node_set_selected(node, false);
   }
 
   BKE_ntree_update_after_single_tree_change(bmain, *group);
@@ -2224,11 +2168,11 @@ static VectorSet<const bNodeSocket *> build_socket_indices(const Span<const bNod
 {
   VectorSet<const bNodeSocket *> result;
   for (const bNode *node : nodes) {
-    LISTBASE_FOREACH (const bNodeSocket *, socket, &node->inputs) {
-      result.add_new(socket);
+    for (const bNodeSocket &socket : node->inputs) {
+      result.add_new(&socket);
     }
-    LISTBASE_FOREACH (const bNodeSocket *, socket, &node->outputs) {
-      result.add_new(socket);
+    for (const bNodeSocket &socket : node->outputs) {
+      result.add_new(&socket);
     }
   }
   return result;
@@ -2291,12 +2235,12 @@ static bool is_auto_smooth_node_tree(const bNodeTree &group)
   const std::array<int, 9> link_from_socket_indices({16, 15, 3, 36, 19, 5, 18, 11, 22});
   const std::array<int, 9> link_to_socket_indices({23, 0, 24, 20, 21, 8, 9, 12, 10});
   const VectorSet<const bNodeSocket *> socket_indices = build_socket_indices(nodes);
-  int i;
-  LISTBASE_FOREACH_INDEX (const bNodeLink *, link, &group.links, i) {
-    if (socket_indices.index_of(link->fromsock) != link_from_socket_indices[i]) {
+
+  for (const auto [i, link] : group.links.enumerate()) {
+    if (socket_indices.index_of(link.fromsock) != link_from_socket_indices[i]) {
       return false;
     }
-    if (socket_indices.index_of(link->tosock) != link_to_socket_indices[i]) {
+    if (socket_indices.index_of(link.tosock) != link_to_socket_indices[i]) {
       return false;
     }
   }
@@ -2344,13 +2288,13 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
       return *group;
     }
     /* Try to find an existing group added by previous versioning to avoid adding duplicates. */
-    LISTBASE_FOREACH (bNodeTree *, existing_group, &bmain.nodetrees) {
-      if (existing_group->id.lib != owner_library) {
+    for (bNodeTree &existing_group : bmain.nodetrees) {
+      if (existing_group.id.lib != owner_library) {
         continue;
       }
-      if (is_auto_smooth_node_tree(*existing_group)) {
-        group_by_library.add_new(owner_library, existing_group);
-        return existing_group;
+      if (is_auto_smooth_node_tree(existing_group)) {
+        group_by_library.add_new(owner_library, &existing_group);
+        return &existing_group;
       }
     }
     bNodeTree *new_group = add_auto_smooth_node_tree(bmain, owner_library);
@@ -2360,11 +2304,11 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
     return new_group;
   };
 
-  LISTBASE_FOREACH (Object *, object, &bmain.objects) {
-    if (object->type != OB_MESH) {
+  for (Object &object : bmain.objects) {
+    if (object.type != OB_MESH) {
       continue;
     }
-    Mesh *mesh = static_cast<Mesh *>(object->data);
+    Mesh *mesh = static_cast<Mesh *>(object.data);
     const float angle = mesh->smoothresh_legacy;
     if (!(mesh->flag & ME_AUTOSMOOTH_LEGACY)) {
       continue;
@@ -2383,25 +2327,25 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
     /* The "Weighted Normal" modifier has a "Keep Sharp" option that used to recalculate the sharp
      * edge tags based on the mesh's smoothing angle. To keep the same behavior, a new modifier has
      * to be added before that modifier when the option is on. */
-    LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-      if (ELEM(md->type, eModifierType_WeightedNormal, eModifierType_NormalEdit)) {
+    for (ModifierData &md : object.modifiers) {
+      if (ELEM(md.type, eModifierType_WeightedNormal, eModifierType_NormalEdit)) {
         has_custom_normals = true;
       }
-      if (md->type == eModifierType_Bevel) {
-        BevelModifierData *bmd = reinterpret_cast<BevelModifierData *>(md);
+      if (md.type == eModifierType_Bevel) {
+        BevelModifierData *bmd = reinterpret_cast<BevelModifierData *>(&md);
         if (bmd->flags & MOD_BEVEL_HARDEN_NORMALS) {
           has_custom_normals = true;
         }
       }
-      if (md->type == eModifierType_WeightedNormal) {
-        WeightedNormalModifierData *nmd = reinterpret_cast<WeightedNormalModifierData *>(md);
+      if (md.type == eModifierType_WeightedNormal) {
+        WeightedNormalModifierData *nmd = reinterpret_cast<WeightedNormalModifierData *>(&md);
         if ((nmd->flag & MOD_WEIGHTEDNORMAL_KEEP_SHARP) != 0) {
-          ModifierData *new_md = create_auto_smooth_modifier(*object, add_node_group, angle);
-          BLI_insertlinkbefore(&object->modifiers, object->modifiers.last, new_md);
+          ModifierData *new_md = create_auto_smooth_modifier(object, add_node_group, angle);
+          BLI_insertlinkbefore(&object.modifiers, object.modifiers.last, new_md);
         }
       }
-      if (md->type == eModifierType_Nodes) {
-        NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
+      if (md.type == eModifierType_Nodes) {
+        NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
         if (nmd->node_group && is_auto_smooth_node_tree(*nmd->node_group)) {
           /* This object has already been processed by versioning. If the mesh is linked from
            * another file its auto-smooth flag may not be cleared, so this check is necessary to
@@ -2419,23 +2363,23 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
       continue;
     }
 
-    ModifierData *last_md = static_cast<ModifierData *>(object->modifiers.last);
-    ModifierData *new_md = create_auto_smooth_modifier(*object, add_node_group, angle);
+    ModifierData *last_md = static_cast<ModifierData *>(object.modifiers.last);
+    ModifierData *new_md = create_auto_smooth_modifier(object, add_node_group, angle);
     if (last_md && last_md->type == eModifierType_Subsurf && has_custom_normals &&
         (reinterpret_cast<SubsurfModifierData *>(last_md)->flags &
          eSubsurfModifierFlag_UseCustomNormals) != 0)
     {
       /* Add the auto smooth node group before the last subdivision surface modifier if possible.
        * Subdivision surface modifiers have special handling for interpolating custom normals. */
-      BLI_insertlinkbefore(&object->modifiers, object->modifiers.last, new_md);
+      BLI_insertlinkbefore(&object.modifiers, object.modifiers.last, new_md);
     }
     else {
-      BLI_addtail(&object->modifiers, new_md);
+      BLI_addtail(&object.modifiers, new_md);
     }
   }
 
-  LISTBASE_FOREACH (Mesh *, mesh, &bmain.meshes) {
-    mesh->flag &= ~ME_AUTOSMOOTH_LEGACY;
+  for (Mesh &mesh : bmain.meshes) {
+    mesh.flag &= ~ME_AUTOSMOOTH_LEGACY;
   }
 }
 
@@ -2549,6 +2493,11 @@ void mesh_freestyle_marks_to_legacy(AttributeStorage::BlendWriteData &attr_write
             edge_layers.begin(),
             edge_layers.end(),
             [](const CustomDataLayer &a, const CustomDataLayer &b) { return a.type < b.type; });
+        if (!edge_data.layers) {
+          /* edge_data.layers must not be null, or the layers will not be written. Its address
+           * doesn't really matter, but it must be unique within this ID.*/
+          edge_data.layers = edge_layers.data();
+        }
         edge_data.totlayer = edge_layers.size();
         edge_data.maxlayer = edge_data.totlayer;
         attrs_to_remove[i] = true;
@@ -2568,6 +2517,11 @@ void mesh_freestyle_marks_to_legacy(AttributeStorage::BlendWriteData &attr_write
             face_layers.begin(),
             face_layers.end(),
             [](const CustomDataLayer &a, const CustomDataLayer &b) { return a.type < b.type; });
+        if (!face_data.layers) {
+          /* face_data.layers must not be null, or the layers will not be written. Its address
+           * doesn't really matter, but it must be unique within this ID.*/
+          face_data.layers = face_layers.data();
+        }
         face_data.totlayer = face_layers.size();
         face_data.maxlayer = face_data.totlayer;
         attrs_to_remove[i] = true;
@@ -2611,7 +2565,78 @@ void mesh_custom_normals_to_generic(Mesh &mesh)
   }
 }
 
-//
+void mesh_uv_select_to_single_attribute(Mesh &mesh)
+{
+  const char *name = CustomData_get_active_layer_name(&mesh.corner_data, CD_PROP_FLOAT2);
+  if (!name) {
+    return;
+  }
+  const std::string uv_select_vert_name_shared = ".uv_select_vert";
+  const std::string uv_select_edge_name_shared = ".uv_select_edge";
+  const std::string uv_select_face_name_shared = ".uv_select_face";
+
+  const std::string uv_select_vert_prefix = ".vs.";
+  const std::string uv_select_edge_prefix = ".es.";
+
+  const std::string uv_select_vert_name = uv_select_vert_prefix + name;
+  const std::string uv_select_edge_name = uv_select_edge_prefix + name;
+
+  const int uv_select_vert = CustomData_get_named_layer_index(
+      &mesh.corner_data, CD_PROP_BOOL, uv_select_vert_name);
+  const int uv_select_edge = CustomData_get_named_layer_index(
+      &mesh.corner_data, CD_PROP_BOOL, uv_select_edge_name);
+
+  if (uv_select_vert != -1 && uv_select_edge != -1) {
+    /* Unlikely either exist but ensure there are no duplicate names. */
+    CustomData_free_layer_named(&mesh.corner_data, uv_select_vert_name_shared);
+    CustomData_free_layer_named(&mesh.corner_data, uv_select_edge_name_shared);
+    CustomData_free_layer_named(&mesh.face_data, uv_select_face_name_shared);
+
+    STRNCPY_UTF8(mesh.corner_data.layers[uv_select_vert].name, uv_select_vert_name_shared.c_str());
+    STRNCPY_UTF8(mesh.corner_data.layers[uv_select_edge].name, uv_select_edge_name_shared.c_str());
+
+    bool *uv_select_face = MEM_malloc_arrayN<bool>(mesh.faces_num, __func__);
+    CustomData_add_layer_named_with_data(&mesh.face_data,
+                                         CD_PROP_BOOL,
+                                         uv_select_face,
+                                         mesh.faces_num,
+                                         uv_select_face_name_shared,
+                                         nullptr);
+
+    /* Create a face selection layer (flush from edges). */
+    if (mesh.faces_num > 0) {
+      const OffsetIndices<int> faces = mesh.faces();
+      const Span<bool> uv_select_edge_data(
+          static_cast<bool *>(mesh.corner_data.layers[uv_select_edge].data), mesh.corners_num);
+      threading::parallel_for(faces.index_range(), 1024, [&](const IndexRange range) {
+        for (const int face : range) {
+          uv_select_face[face] = !uv_select_edge_data.slice(faces[face]).contains(false);
+        }
+      });
+    }
+  }
+
+  /* Logically a set as names are expected to be unique.
+   * If there are duplicates, this will remove those too. */
+  Vector<std::string> attributes_to_remove;
+  for (const int i : IndexRange(mesh.corner_data.totlayer)) {
+    const CustomDataLayer &layer = mesh.corner_data.layers[i];
+    if (layer.type != CD_PROP_BOOL) {
+      continue;
+    }
+    StringRef layer_name = StringRef(layer.name);
+    if (layer_name.startswith(uv_select_vert_prefix) ||
+        layer_name.startswith(uv_select_edge_prefix))
+    {
+      attributes_to_remove.append(layer.name);
+    }
+  }
+
+  for (const StringRef name_to_remove : attributes_to_remove) {
+    CustomData_free_layer_named(&mesh.corner_data, name_to_remove);
+  }
+}
+
 }  // namespace blender::bke
 
 /** \} */

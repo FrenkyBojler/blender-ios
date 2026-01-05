@@ -11,12 +11,12 @@
 
 #include "CLG_log.h"
 
+#include "DNA_defs.h"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_array_utils.hh"
 #include "DNA_curve_types.h"
-#include "DNA_defaults.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_material_types.h"
@@ -184,28 +184,7 @@ ModifierData *modifier_add(
     /* get new modifier data to add */
     new_md = BKE_modifier_new(type);
 
-    ModifierData *next_md = nullptr;
-    LISTBASE_FOREACH_BACKWARD (ModifierData *, md, &ob->modifiers) {
-      if (md->flag & eModifierFlag_PinLast) {
-        next_md = md;
-      }
-      else {
-        break;
-      }
-    }
-    if (mti->flags & eModifierTypeFlag_RequiresOriginalData) {
-      next_md = static_cast<ModifierData *>(ob->modifiers.first);
-
-      while (next_md && BKE_modifier_get_info((ModifierType)next_md->type)->type ==
-                            ModifierTypeType::OnlyDeform)
-      {
-        if (next_md->next && (next_md->next->flag & eModifierFlag_PinLast) != 0) {
-          break;
-        }
-        next_md = next_md->next;
-      }
-    }
-    BLI_insertlinkbefore(&ob->modifiers, next_md, new_md);
+    BKE_modifiers_add_at_end_if_possible(ob, new_md);
     BKE_modifiers_persistent_uid_init(*ob, *new_md);
 
     if (name) {
@@ -213,7 +192,6 @@ ModifierData *modifier_add(
     }
 
     /* make sure modifier data has unique name */
-
     BKE_modifier_unique_name(&ob->modifiers, new_md);
 
     /* special cases */
@@ -260,8 +238,8 @@ ModifierData *modifier_add(
  * the modifier pointed to be 'exclude', otherwise returns false. */
 static bool object_has_modifier(const Object *ob, const ModifierData *exclude, ModifierType type)
 {
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-    if ((md != exclude) && (md->type == type)) {
+  for (ModifierData &md : ob->modifiers) {
+    if ((&md != exclude) && (md.type == type)) {
       return true;
     }
   }
@@ -317,9 +295,9 @@ bool multires_update_totlevels(Object *ob, void *totlevel_v)
 {
   int totlevel = *((char *)totlevel_v);
 
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-    if (md->type == eModifierType_Multires) {
-      multires_set_tot_level(ob, (MultiresModifierData *)md, totlevel);
+  for (ModifierData &md : ob->modifiers) {
+    if (md.type == eModifierType_Multires) {
+      multires_set_tot_level(ob, (MultiresModifierData *)&md, totlevel);
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     }
   }
@@ -628,7 +606,7 @@ bool modifier_copy_to_object(Main *bmain,
     return false;
   }
 
-  WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob_dst);
+  WM_main_add_notifier(NC_OBJECT | ND_MODIFIER | NA_ADDED, ob_dst);
   DEG_id_tag_update(&ob_dst->id, ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
   DEG_relations_tag_update(bmain);
   return true;
@@ -756,28 +734,28 @@ static void add_shapekey_layers(Mesh &mesh_dest, const Mesh &mesh_src)
   if (!mesh_src.key) {
     return;
   }
-  int i;
-  LISTBASE_FOREACH_INDEX (const KeyBlock *, kb, &mesh_src.key->block, i) {
+
+  for (const auto [i, kb] : mesh_src.key->block.enumerate()) {
     void *array;
-    if (mesh_src.verts_num != kb->totelem) {
+    if (mesh_src.verts_num != kb.totelem) {
       CLOG_ERROR(&LOG,
                  "vertex size mismatch (Mesh '%s':%d != KeyBlock '%s':%d)",
                  mesh_src.id.name + 2,
                  mesh_src.verts_num,
-                 kb->name,
-                 kb->totelem);
+                 kb.name,
+                 kb.totelem);
       array = MEM_calloc_arrayN<float[3]>(mesh_src.verts_num, __func__);
     }
     else {
       array = MEM_malloc_arrayN<float[3]>(size_t(mesh_src.verts_num), __func__);
-      memcpy(array, kb->data, sizeof(float[3]) * size_t(mesh_src.verts_num));
+      memcpy(array, kb.data, sizeof(float[3]) * size_t(mesh_src.verts_num));
     }
 
     CustomData_add_layer_with_data(
         &mesh_dest.vert_data, CD_SHAPEKEY, array, mesh_dest.verts_num, nullptr);
     const int ci = CustomData_get_layer_index_n(&mesh_dest.vert_data, CD_SHAPEKEY, i);
 
-    mesh_dest.vert_data.layers[ci].uid = kb->uid;
+    mesh_dest.vert_data.layers[ci].uid = kb.uid;
   }
 }
 
@@ -1257,12 +1235,12 @@ static bool modifier_apply_obdata(ReportList *reports,
 
   /* lattice modifier can be applied to particle system too */
   if (ob->particlesystem.first) {
-    LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
-      if (psys->part->type != PART_HAIR) {
+    for (ParticleSystem &psys : ob->particlesystem) {
+      if (psys.part->type != PART_HAIR) {
         continue;
       }
 
-      psys_apply_hair_lattice(depsgraph, scene, ob, psys);
+      psys_apply_hair_lattice(depsgraph, scene, ob, &psys);
     }
   }
 
@@ -1428,7 +1406,7 @@ static wmOperatorStatus modifier_add_exec(bContext *C, wmOperator *op)
       continue;
     }
     changed = true;
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
   }
   if (!changed) {
     return OPERATOR_CANCELLED;
@@ -1646,9 +1624,12 @@ static bool edit_modifier_invoke_properties_with_hover(bContext *C,
     return true;
   }
 
-  PointerRNA *panel_ptr = UI_region_panel_custom_data_under_cursor(C, event);
+  PointerRNA *panel_ptr = ui::region_panel_custom_data_under_cursor(C, event);
   if (panel_ptr == nullptr || RNA_pointer_is_null(panel_ptr)) {
-    *r_retval = OPERATOR_CANCELLED;
+    /* The operators using this function can typically be called from UIs that aren't related to
+     * the modifiers UI at all. So include #OPERATOR_PASS_THROUGH to not block events from reaching
+     * other operators/handlers. */
+    *r_retval = (OPERATOR_PASS_THROUGH | OPERATOR_CANCELLED);
     return false;
   }
 
@@ -1709,7 +1690,7 @@ static wmOperatorStatus modifier_remove_exec(bContext *C, wmOperator *op)
 
     changed = true;
 
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_REMOVED, ob);
 
     /* if cloth/softbody was removed, particle mode could be cleared */
     if (mode_orig & OB_MODE_PARTICLE_EDIT) {
@@ -2093,7 +2074,7 @@ static wmOperatorStatus modifier_apply_invoke(bContext *C, wmOperator *op, const
             IFACE_("Apply Modifier"),
             IFACE_("Make data single-user, apply modifier, and remove it from the list."),
             IFACE_("Apply"),
-            ALERT_ICON_WARNING,
+            ui::AlertIcon::Warning,
             false);
       }
     }
@@ -2280,7 +2261,7 @@ static wmOperatorStatus modifier_copy_exec(bContext *C, wmOperator *op)
     changed = true;
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
     DEG_relations_tag_update(bmain);
-    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+    WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, ob);
   }
 
   if (!changed) {
@@ -2345,18 +2326,6 @@ static wmOperatorStatus modifier_set_active_invoke(bContext *C,
   return retval;
 }
 
-static bool modifier_set_active_poll(bContext *C)
-{
-  /* Only make this operator work in the Modifiers tab of the Properties editor.
-   * Otherwise it may eat up too many mouse click events. */
-  SpaceProperties *space_properties = CTX_wm_space_properties(C);
-  if (!(space_properties && space_properties->mainb == BCONTEXT_MODIFIER)) {
-    return false;
-  }
-
-  return ED_operator_object_active_only(C);
-}
-
 void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 {
   ot->name = "Set Active Modifier";
@@ -2365,7 +2334,7 @@ void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 
   ot->invoke = modifier_set_active_invoke;
   ot->exec = modifier_set_active_exec;
-  ot->poll = modifier_set_active_poll;
+  ot->poll = ED_operator_object_active_only;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);
@@ -2507,8 +2476,8 @@ static wmOperatorStatus object_modifiers_copy_exec(bContext *C, wmOperator *op)
     if (object == active_object) {
       continue;
     }
-    LISTBASE_FOREACH (const ModifierData *, md, &active_object->modifiers) {
-      if (modifier_copy_to_object(bmain, scene, active_object, md, object, op->reports)) {
+    for (const ModifierData &md : active_object->modifiers) {
+      if (modifier_copy_to_object(bmain, scene, active_object, &md, object, op->reports)) {
         WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER | NA_ADDED, object);
       }
     }
@@ -2582,7 +2551,7 @@ static bool skin_edit_poll(bContext *C)
           !ID_IS_OVERRIDE_LIBRARY(ob) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
-static void skin_root_clear(BMVert *bm_vert, GSet *visited, const int cd_vert_skin_offset)
+static void skin_root_clear(BMVert *bm_vert, Set<BMVert *> &visited, const int cd_vert_skin_offset)
 {
   BMEdge *bm_edge;
   BMIter bm_iter;
@@ -2590,7 +2559,7 @@ static void skin_root_clear(BMVert *bm_vert, GSet *visited, const int cd_vert_sk
   BM_ITER_ELEM (bm_edge, &bm_iter, bm_vert, BM_EDGES_OF_VERT) {
     BMVert *v2 = BM_edge_other_vert(bm_edge, bm_vert);
 
-    if (BLI_gset_add(visited, v2)) {
+    if (visited.add(v2)) {
       MVertSkin *vs = static_cast<MVertSkin *>(BM_ELEM_CD_GET_VOID_P(v2, cd_vert_skin_offset));
 
       /* clear vertex root flag and add to visited set */
@@ -2607,7 +2576,7 @@ static wmOperatorStatus skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
 
-  GSet *visited = BLI_gset_ptr_new(__func__);
+  Set<BMVert *> visited;
 
   BKE_mesh_ensure_skin_customdata(static_cast<Mesh *>(ob->data));
 
@@ -2616,7 +2585,7 @@ static wmOperatorStatus skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
   BMVert *bm_vert;
   BMIter bm_iter;
   BM_ITER_MESH (bm_vert, &bm_iter, bm, BM_VERTS_OF_MESH) {
-    if (BM_elem_flag_test(bm_vert, BM_ELEM_SELECT) && BLI_gset_add(visited, bm_vert)) {
+    if (BM_elem_flag_test(bm_vert, BM_ELEM_SELECT) && visited.add(bm_vert)) {
       MVertSkin *vs = static_cast<MVertSkin *>(
           BM_ELEM_CD_GET_VOID_P(bm_vert, cd_vert_skin_offset));
 
@@ -2627,8 +2596,6 @@ static wmOperatorStatus skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
       skin_root_clear(bm_vert, visited, cd_vert_skin_offset);
     }
   }
-
-  BLI_gset_free(visited, nullptr);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
@@ -2819,7 +2786,7 @@ static Object *modifier_skin_armature_create(Depsgraph *depsgraph, Main *bmain, 
   ANIM_armature_bonecoll_show_all(arm);
   arm_ob->dtx |= OB_DRAW_IN_FRONT;
   arm->drawtype = ARM_DRAW_TYPE_STICK;
-  arm->edbo = MEM_callocN<ListBase>("edbo armature");
+  arm->edbo = MEM_callocN<ListBaseT<EditBone>>("edbo armature");
 
   MVertSkin *mvert_skin = static_cast<MVertSkin *>(
       CustomData_get_layer_for_write(&mesh->vert_data, CD_MVERT_SKIN, mesh->verts_num));
@@ -3627,7 +3594,7 @@ static wmOperatorStatus dash_modifier_segment_add_exec(bContext *C, wmOperator *
   }
 
   GreasePencilDashModifierSegment *new_segments =
-      MEM_malloc_arrayN<GreasePencilDashModifierSegment>(dmd->segments_num + 1, __func__);
+      MEM_new_array_for_free<GreasePencilDashModifierSegment>(dmd->segments_num + 1, __func__);
 
   const int new_active_index = std::clamp(dmd->segment_active_index + 1, 0, dmd->segments_num);
   if (dmd->segments_num != 0) {
@@ -3643,9 +3610,7 @@ static wmOperatorStatus dash_modifier_segment_add_exec(bContext *C, wmOperator *
 
   /* Create the new segment. */
   GreasePencilDashModifierSegment *ds = &new_segments[new_active_index];
-  memcpy(ds,
-         DNA_struct_default_get(GreasePencilDashModifierSegment),
-         sizeof(GreasePencilDashModifierSegment));
+  *ds = GreasePencilDashModifierSegment();
   BLI_uniquename_cb(
       [&](const StringRef name) {
         for (const GreasePencilDashModifierSegment &ds : dmd->segments()) {
@@ -3863,7 +3828,7 @@ static wmOperatorStatus time_modifier_segment_add_exec(bContext *C, wmOperator *
   }
 
   GreasePencilTimeModifierSegment *new_segments =
-      MEM_malloc_arrayN<GreasePencilTimeModifierSegment>(tmd->segments_num + 1, __func__);
+      MEM_new_array_for_free<GreasePencilTimeModifierSegment>(tmd->segments_num + 1, __func__);
 
   const int new_active_index = std::clamp(tmd->segment_active_index + 1, 0, tmd->segments_num);
   if (tmd->segments_num != 0) {
@@ -3879,9 +3844,7 @@ static wmOperatorStatus time_modifier_segment_add_exec(bContext *C, wmOperator *
 
   /* Create the new segment. */
   GreasePencilTimeModifierSegment *segment = &new_segments[new_active_index];
-  memcpy(segment,
-         DNA_struct_default_get(GreasePencilTimeModifierSegment),
-         sizeof(GreasePencilTimeModifierSegment));
+  *segment = GreasePencilTimeModifierSegment();
   BLI_uniquename_cb(
       [&](const StringRef name) {
         for (const GreasePencilTimeModifierSegment &segment : tmd->segments()) {

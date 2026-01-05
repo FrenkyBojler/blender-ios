@@ -12,7 +12,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -192,10 +191,7 @@ enum {
 static void init_data(ModifierData *md)
 {
   SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
-
-  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SurfaceDeformModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -982,7 +978,7 @@ static void bindVert(void *__restrict userdata,
     return;
   }
 
-  sdvert->binds = MEM_calloc_arrayN<SDefBind>(bwdata->binds_num, "SDefVertBindData");
+  sdvert->binds = MEM_new_array_for_free<SDefBind>(bwdata->binds_num, "SDefVertBindData");
   if (sdvert->binds == nullptr) {
     data->success = MOD_SDEF_BIND_RESULT_MEM_ERR;
     sdvert->binds_num = 0;
@@ -1146,7 +1142,7 @@ static void compactSparseBinds(SurfaceDeformModifierData *smd)
     }
   }
 
-  SDefVert *new_verts = MEM_malloc_arrayN<SDefVert>(size_t(smd->bind_verts_num), __func__);
+  SDefVert *new_verts = MEM_new_array_for_free<SDefVert>(size_t(smd->bind_verts_num), __func__);
 
   /* Move data to new_verts. */
   BLI_assert(smd->verts_sharing_info->is_mutable());
@@ -1175,13 +1171,18 @@ static bool surfacedeformBind(Object *ob,
                               Mesh *mesh)
 {
   using namespace blender;
-  const blender::Span<blender::float3> positions = target->vert_positions();
-  const blender::Span<blender::int2> edges = target->edges();
-  const blender::OffsetIndices polys = target->faces();
-  const blender::Span<int> corner_verts = target->corner_verts();
-  const blender::Span<int> corner_edges = target->corner_edges();
+  const Span<blender::float3> positions = target->vert_positions();
+  const Span<blender::int2> edges = target->edges();
+  const OffsetIndices polys = target->faces();
+  const Span<int> corner_verts = target->corner_verts();
+  const Span<int> corner_edges = target->corner_edges();
   uint tedges_num = target->edges_num;
   int adj_result;
+
+  if (target->faces_num == 0) {
+    BKE_modifier_set_error(ob, (ModifierData *)smd_eval, "Target has no faces");
+    return false;
+  }
 
   SDefAdjacencyArray *vert_edges = MEM_calloc_arrayN<SDefAdjacencyArray>(target_verts_num,
                                                                          "SDefVertEdgeMap");
@@ -1206,7 +1207,7 @@ static bool surfacedeformBind(Object *ob,
     return false;
   }
 
-  smd_orig->verts = MEM_malloc_arrayN<SDefVert>(size_t(verts_num), "SDefBindVerts");
+  smd_orig->verts = MEM_new_array_for_free<SDefVert>(size_t(verts_num), "SDefBindVerts");
   if (smd_orig->verts == nullptr) {
     BKE_modifier_set_error(ob, (ModifierData *)smd_eval, "Out of memory");
     freeAdjacencyMap(vert_edges, adj_array, edge_polys);
@@ -1370,7 +1371,7 @@ static void deformVert(void *__restrict userdata,
     }
 
     normal_poly_v3(
-        norm, reinterpret_cast<const float(*)[3]>(coords_buffer.data()), sdbind->verts_num);
+        norm, reinterpret_cast<const float (*)[3]>(coords_buffer.data()), sdbind->verts_num);
     zero_v3(temp);
 
     switch (sdbind->mode) {
@@ -1394,7 +1395,7 @@ static void deformVert(void *__restrict userdata,
       case MOD_SDEF_MODE_CENTROID: {
         float cent[3];
         mid_v3_v3_array(
-            cent, reinterpret_cast<const float(*)[3]>(coords_buffer.data()), sdbind->verts_num);
+            cent, reinterpret_cast<const float (*)[3]>(coords_buffer.data()), sdbind->verts_num);
 
         madd_v3_v3fl(temp, data->targetCos[sdbind->vert_inds[0]], sdbind->vert_weights[0]);
         madd_v3_v3fl(temp, data->targetCos[sdbind->vert_inds[1]], sdbind->vert_weights[1]);
@@ -1565,7 +1566,7 @@ static void deform_verts(ModifierData *md,
 {
   surfacedeformModifier_do(md,
                            ctx,
-                           reinterpret_cast<float(*)[3]>(positions.data()),
+                           reinterpret_cast<float (*)[3]>(positions.data()),
                            positions.size(),
                            ctx->object,
                            mesh);
@@ -1586,8 +1587,7 @@ static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_re
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -1596,25 +1596,25 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   bool is_bound = RNA_boolean_get(ptr, "is_bound");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  col = &layout->column(false);
+  blender::ui::Layout *col = &layout.column(false);
   col->active_set(!is_bound);
   col->prop(ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "falloff", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->prop(ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   col->enabled_set(!is_bound);
   col->active_set(!is_bound && RNA_string_length(ptr, "vertex_group") != 0);
   col->prop(ptr, "use_sparse_bind", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->separator();
+  layout.separator();
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   if (is_bound) {
     col->op("OBJECT_OT_surfacedeform_bind", IFACE_("Unbind"), ICON_NONE);
   }
@@ -1647,8 +1647,6 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
     }
   }
 
-  BLO_write_struct_at_address(writer, SurfaceDeformModifierData, md, &smd);
-
   if (smd.verts != nullptr) {
     BLO_write_shared(
         writer, smd.verts, sizeof(SDefVert) * smd.bind_verts_num, smd.verts_sharing_info, [&]() {
@@ -1679,6 +1677,8 @@ static void blend_write(BlendWriter *writer, const ID *id_owner, const ModifierD
           }
         });
   }
+
+  BLO_write_struct_at_address(writer, SurfaceDeformModifierData, md, &smd);
 }
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)

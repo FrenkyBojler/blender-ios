@@ -18,6 +18,7 @@
 #include <cstddef>
 #include <optional>
 
+#include "DNA_listBase.h"
 #include "RNA_path.hh"
 #include "RNA_types.hh"
 
@@ -467,6 +468,16 @@ void pyrna_write_set(bool val)
 
   rna_disallow_writes = !val;
 }
+
+void pyrna_context_init(bContext *C)
+{
+  CTX_rna_disallow_write_set_p(C, &rna_disallow_writes);
+}
+
+void pyrna_context_clear(bContext *C)
+{
+  CTX_rna_disallow_write_set_p(C, nullptr);
+}
 #else  /* USE_PEDANTIC_WRITE */
 bool pyrna_write_check()
 {
@@ -480,6 +491,8 @@ void pyrna_write_set(bool /*val*/)
 
   /* pass */
 }
+void pyrna_context_init(bContext * /*C*/) {}
+void pyrna_context_clear(bContext * /*C*/) {}
 #endif /* USE_PEDANTIC_WRITE */
 
 static Py_ssize_t pyrna_prop_collection_length(BPy_PropertyRNA *self);
@@ -3995,6 +4008,138 @@ static PyObject *pyrna_struct_path_resolve(BPy_StructRNA *self, PyObject *args)
 
 PyDoc_STRVAR(
     /* Wrap. */
+    pyrna_struct_path_from_module_doc,
+    ".. method:: path_from_module(property=\"\", index=-1, /)\n"
+    "\n"
+    "   Returns the full data path to this struct (as a string) from the bpy module.\n"
+    "\n"
+    "   :arg property: Optional property name to get the full path from\n"
+    "   :type property: str\n"
+    "   :arg index: Optional index of the property.\n"
+    "      \"-1\" means that the property has no indices.\n"
+    "   :type index: int\n"
+    "   :return: The full path to the data.\n"
+    "   :rtype: str\n"
+    "\n"
+    "   :raises ValueError:\n"
+    "      if the input data cannot be converted into a full data path.\n"
+    "\n"
+    "      .. note:: Even if all input data is correct, this function might\n"
+    "         error out because Blender cannot derive a valid path.\n"
+    "         The incomplete path will be printed in the error message.\n");
+static PyObject *pyrna_struct_path_from_module(BPy_StructRNA *self, PyObject *args)
+{
+  const char *error_prefix = "path_from_module(...)";
+  const char *name = nullptr;
+  PropertyRNA *prop;
+  int index = -1;
+
+  PYRNA_STRUCT_CHECK_OBJ(self);
+
+  if (!PyArg_ParseTuple(args, "|si:path_from_module", &name, &index)) {
+    return nullptr;
+  }
+  if (index < -1) {
+    PyErr_Format(PyExc_ValueError, "%s: indices below -1 are not supported", error_prefix);
+    return nullptr;
+  }
+
+  std::optional<std::string> path;
+  if (name) {
+    prop = RNA_struct_find_property(&self->ptr.value(), name);
+    if (prop == nullptr) {
+      PyErr_Format(PyExc_AttributeError,
+                   "%.200s.path_from_module(\"%.200s\") not found",
+                   RNA_struct_identifier(self->ptr->type),
+                   name);
+      return nullptr;
+    }
+    path = RNA_path_full_property_py_ex(&self->ptr.value(), prop, index, true);
+  }
+  else {
+    if (RNA_struct_is_ID(self->ptr->type)) {
+      path = RNA_path_full_ID_py(self->ptr->owner_id);
+    }
+    else {
+      path = RNA_path_full_struct_py(&self->ptr.value());
+    }
+  }
+
+  if (!path) {
+    if (name) {
+      PyErr_Format(PyExc_ValueError,
+                   "%.200s.path_from_module(\"%s\", %d) found, but does not support path creation",
+                   RNA_struct_identifier(self->ptr->type),
+                   name,
+                   index);
+    }
+    else {
+      PyErr_Format(PyExc_ValueError,
+                   "%.200s.path_from_module() does not support path creation for this type",
+                   RNA_struct_identifier(self->ptr->type));
+    }
+    return nullptr;
+  }
+
+  if (path.value().back() == '.') {
+    PyErr_Format(PyExc_ValueError,
+                 "%.200s.path_from_module() could not derive a complete path for this type.\n"
+                 "Only got \"%.200s\" as an incomplete path",
+                 RNA_struct_identifier(self->ptr->type),
+                 path.value().c_str());
+    return nullptr;
+  }
+
+  return PyC_UnicodeFromStdStr(path.value());
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_prop_path_from_module_doc,
+    ".. method:: path_from_module()\n"
+    "\n"
+    "   Returns the full data path to this struct (as a string) from the bpy module.\n"
+    "\n"
+    "   :return: The full path to the data.\n"
+    "   :rtype: str\n"
+    "\n"
+    "   :raises ValueError:\n"
+    "      if the input data cannot be converted into a full data path.\n"
+    "\n"
+    "      .. note:: Even if all input data is correct, this function might\n"
+    "         error out because Blender cannot derive a valid path.\n"
+    "         The incomplete path will be printed in the error message.\n");
+static PyObject *pyrna_prop_path_from_module(BPy_PropertyRNA *self)
+{
+  PropertyRNA *prop = self->prop;
+
+  const std::optional<std::string> path = RNA_path_full_property_py_ex(
+      &self->ptr.value(), prop, -1, true);
+
+  if (!path) {
+    PyErr_Format(PyExc_ValueError,
+                 "%.200s.%.200s.path_from_module() does not support path creation for this type",
+                 RNA_struct_identifier(self->ptr->type),
+                 RNA_property_identifier(prop));
+    return nullptr;
+  }
+
+  if (path.value().back() == '.') {
+    PyErr_Format(
+        PyExc_ValueError,
+        "%.200s.%.200s.path_from_module() could not derive a complete path for this type.\n"
+        "Only got \"%.200s\" as an incomplete path",
+        RNA_struct_identifier(self->ptr->type),
+        RNA_property_identifier(prop),
+        path.value().c_str());
+    return nullptr;
+  }
+
+  return PyC_UnicodeFromStdStr(path.value());
+}
+
+PyDoc_STRVAR(
+    /* Wrap. */
     pyrna_struct_path_from_id_doc,
     ".. method:: path_from_id(property=\"\", /)\n"
     "\n"
@@ -4385,10 +4530,10 @@ static PyObject *pyrna_struct_dir(BPy_StructRNA *self)
   pyrna_dir_members_rna(ret, &self->ptr.value());
 
   if (self->ptr->type == &RNA_Context) {
-    ListBase lb = CTX_data_dir_get(static_cast<const bContext *>(self->ptr->data));
+    ListBaseT<LinkData> lb = CTX_data_dir_get(static_cast<const bContext *>(self->ptr->data));
 
-    LISTBASE_FOREACH (LinkData *, link, &lb) {
-      PyList_APPEND(ret, PyUnicode_FromString(static_cast<const char *>(link->data)));
+    for (LinkData &link : lb) {
+      PyList_APPEND(ret, PyUnicode_FromString(static_cast<const char *>(link.data)));
     }
 
     BLI_freelistN(&lb);
@@ -4429,7 +4574,7 @@ static PyObject *pyrna_struct_id_properties_ensure(BPy_StructRNA *self)
   /* This is a paranoid check that theoretically might not be necessary.
    * It allows the possibility that some structs can't ensure IDProperties. */
   if (idprops == nullptr) {
-    return Py_None;
+    Py_RETURN_NONE;
   }
 
   BPy_IDProperty *group = PyObject_New(BPy_IDProperty, &BPy_IDGroup_Type);
@@ -4467,7 +4612,7 @@ static PyObject *pyrna_struct_id_properties_ui(BPy_StructRNA *self, PyObject *ar
   /* This is a paranoid check that theoretically might not be necessary.
    * It allows the possibility that some structs can't ensure IDProperties. */
   if (parent_group == nullptr) {
-    return Py_None;
+    Py_RETURN_NONE;
   }
 
   IDProperty *property = IDP_GetPropertyFromGroup(parent_group, key);
@@ -6238,6 +6383,10 @@ static PyMethodDef pyrna_struct_methods[] = {
      (PyCFunction)pyrna_struct_path_from_id,
      METH_VARARGS,
      pyrna_struct_path_from_id_doc},
+    {"path_from_module",
+     (PyCFunction)pyrna_struct_path_from_module,
+     METH_VARARGS,
+     pyrna_struct_path_from_module_doc},
     {"type_recast",
      (PyCFunction)pyrna_struct_type_recast,
      METH_NOARGS,
@@ -6291,6 +6440,10 @@ static PyMethodDef pyrna_prop_methods[] = {
      (PyCFunction)pyrna_prop_path_from_id,
      METH_NOARGS,
      pyrna_prop_path_from_id_doc},
+    {"path_from_module",
+     (PyCFunction)pyrna_prop_path_from_module,
+     METH_NOARGS,
+     pyrna_prop_path_from_module_doc},
     {"as_bytes", (PyCFunction)pyrna_prop_as_bytes, METH_NOARGS, pyrna_prop_as_bytes_doc},
     {"update", (PyCFunction)pyrna_prop_update, METH_NOARGS, pyrna_prop_update_doc},
     {"__dir__", (PyCFunction)pyrna_prop_dir, METH_NOARGS, nullptr},
@@ -6956,7 +7109,7 @@ PyTypeObject pyrna_struct_meta_idprop_Type = {
     /*tp_hash*/ nullptr,
     /*tp_call*/ nullptr,
     /*tp_str*/ nullptr,
-    /*tp_getattro*/ nullptr, /* Sub-classed: #pyrna_struct_meta_idprop_getattro. */
+    /*tp_getattro*/ nullptr, /* Subclassed: #pyrna_struct_meta_idprop_getattro. */
     /*tp_setattro*/ (setattrofunc)pyrna_struct_meta_idprop_setattro,
     /*tp_as_buffer*/ nullptr,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
@@ -7358,7 +7511,7 @@ PyTypeObject pyrna_prop_array_Type = {
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ pyrna_prop_array_methods,
     /*tp_members*/ nullptr,
-    /*tp_getset*/ nullptr /* Sub-classed: #pyrna_prop_getseters. */,
+    /*tp_getset*/ nullptr /* Subclassed: #pyrna_prop_getseters. */,
     /*tp_base*/ &pyrna_prop_Type,
     /*tp_dict*/ nullptr,
     /*tp_descr_get*/ nullptr,
@@ -7390,7 +7543,7 @@ PyTypeObject pyrna_prop_collection_Type = {
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_as_async*/ nullptr,
-    /*tp_repr*/ nullptr, /* Sub-classed, no need to define. */
+    /*tp_repr*/ nullptr, /* Subclassed, no need to define. */
     /*tp_as_number*/ &pyrna_prop_collection_as_number,
     /*tp_as_sequence*/ &pyrna_prop_collection_as_sequence,
     /*tp_as_mapping*/ &pyrna_prop_collection_as_mapping,
@@ -7414,7 +7567,7 @@ PyTypeObject pyrna_prop_collection_Type = {
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ pyrna_prop_collection_methods,
     /*tp_members*/ nullptr,
-    /*tp_getset*/ nullptr /*Sub-classed: see #pyrna_prop_getseters. */,
+    /*tp_getset*/ nullptr /* Subclassed: see #pyrna_prop_getseters. */,
     /*tp_base*/ &pyrna_prop_Type,
     /*tp_dict*/ nullptr,
     /*tp_descr_get*/ nullptr,
@@ -7447,7 +7600,7 @@ static PyTypeObject pyrna_prop_collection_idprop_Type = {
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_compare*/ nullptr, /* DEPRECATED. */
-    /*tp_repr*/ nullptr,    /* Sub-classed, no need to define. */
+    /*tp_repr*/ nullptr,    /* Subclassed, no need to define. */
     /*tp_as_number*/ nullptr,
     /*tp_as_sequence*/ nullptr,
     /*tp_as_mapping*/ nullptr,
@@ -7471,7 +7624,7 @@ static PyTypeObject pyrna_prop_collection_idprop_Type = {
     /*tp_iternext*/ nullptr,
     /*tp_methods*/ pyrna_prop_collection_idprop_methods,
     /*tp_members*/ nullptr,
-    /*tp_getset*/ nullptr /* Sub-classed: #pyrna_prop_getseters. */,
+    /*tp_getset*/ nullptr /* Subclassed: #pyrna_prop_getseters. */,
     /*tp_base*/ &pyrna_prop_collection_Type,
     /*tp_dict*/ nullptr,
     /*tp_descr_get*/ nullptr,
@@ -8043,11 +8196,9 @@ static void pyrna_subtype_set_rna(PyObject *newclass, StructRNA *srna)
   /* Add `staticmethod` and `classmethod` functions. */
   {
     const PointerRNA func_ptr = {nullptr, srna, nullptr};
-    const ListBase *lb;
-
-    lb = RNA_struct_type_functions(srna);
-    LISTBASE_FOREACH (Link *, link, lb) {
-      FunctionRNA *func = (FunctionRNA *)link;
+    const ListBaseT<FunctionRNA> *lb = RNA_struct_type_functions(srna);
+    for (const Link &link : lb->cast<Link>()) {
+      FunctionRNA *func = (FunctionRNA *)&link;
       const int flag = RNA_function_flag(func);
       if ((flag & FUNC_NO_SELF) &&         /* Is `staticmethod` or `classmethod`. */
           (flag & FUNC_REGISTER) == false) /* Is not for registration. */
@@ -8160,7 +8311,7 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
   /* Stupid/simple case. */
   if (srna == nullptr) {
     newclass = nullptr; /* Nothing to do. */
-  }                     /* The class may have already been declared & allocated. */
+  } /* The class may have already been declared & allocated. */
   else if ((newclass = static_cast<PyObject *>(RNA_struct_py_type_get(srna)))) {
     /* Add a reference for the return value. */
     Py_INCREF(newclass);
@@ -9160,15 +9311,14 @@ int pyrna_deferred_register_class(StructRNA *srna, PyTypeObject *py_class)
 
 static int rna_function_register_arg_count(FunctionRNA *func, int *min_count)
 {
-  const ListBase *lb = RNA_function_defined_parameters(func);
-  PropertyRNA *parm;
+  const ListBaseT<PropertyRNA> *lb = RNA_function_defined_parameters(func);
   const int flag = RNA_function_flag(func);
   const bool is_staticmethod = (flag & FUNC_NO_SELF) && !(flag & FUNC_USE_SELF_TYPE);
   int count = is_staticmethod ? 0 : 1;
   bool done_min_count = false;
 
-  LISTBASE_FOREACH (Link *, link, lb) {
-    parm = (PropertyRNA *)link;
+  for (const Link &link : lb->cast<Link>()) {
+    PropertyRNA *parm = (PropertyRNA *)&link;
     if (!(RNA_parameter_flag(parm) & PARM_OUTPUT)) {
       if (!done_min_count && (RNA_parameter_flag(parm) & PARM_PYFUNC_REGISTER_OPTIONAL)) {
         /* From now on, the following parameters are optional in a Python function. */
@@ -9200,7 +9350,6 @@ static int bpy_class_validate_recursive(PointerRNA *dummy_ptr,
                                         void *py_data,
                                         bool *have_function)
 {
-  const ListBase *lb;
   const char *class_type = RNA_struct_identifier(srna);
   StructRNA *srna_base = RNA_struct_base(srna);
   PyObject *py_class = (PyObject *)py_data;
@@ -9225,10 +9374,10 @@ static int bpy_class_validate_recursive(PointerRNA *dummy_ptr,
   }
 
   /* Verify callback functions. */
-  lb = RNA_struct_type_functions(srna);
+  const ListBaseT<FunctionRNA> *lb_func = RNA_struct_type_functions(srna);
   i = 0;
-  LISTBASE_FOREACH (Link *, link, lb) {
-    FunctionRNA *func = (FunctionRNA *)link;
+  for (const Link &link : lb_func->cast<Link>()) {
+    FunctionRNA *func = (FunctionRNA *)&link;
     const int flag = RNA_function_flag(func);
     if (!(flag & FUNC_REGISTER)) {
       continue;
@@ -9352,9 +9501,9 @@ static int bpy_class_validate_recursive(PointerRNA *dummy_ptr,
   };
 
   /* Verify properties. */
-  lb = RNA_struct_type_properties(srna);
-  LISTBASE_FOREACH (Link *, link, lb) {
-    PropertyRNA *prop = (PropertyRNA *)link;
+  const ListBaseT<PropertyRNA> *lb_prop = RNA_struct_type_properties(srna);
+  for (Link &link : *reinterpret_cast<const ListBaseT<Link> *>(lb_prop)) {
+    PropertyRNA *prop = (PropertyRNA *)&link;
     const int flag = RNA_property_flag(prop);
 
     if (!(flag & PROP_REGISTER)) {
@@ -10166,6 +10315,24 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
     return nullptr;
   }
 
+  /* Update 'struct name property' of the new type, in case:
+   *  - it already has a `name_property` defined;
+   *  - the current type has a different string property using the same identifier.
+   *
+   * This allows to keep using the default PropertyGroup `name` property (see the call to
+   * #RNA_def_struct_name_property on 'PropertyGroup' StructRNA, in #rna_def_ID_properties), while
+   * allowing to override it by another `name` string property in Python sub-types when required.
+   */
+  PropertyRNA *parent_name_prop = RNA_struct_name_property(srna_new);
+  if (parent_name_prop) {
+    PropertyRNA *name_prop = RNA_struct_type_find_property(
+        srna_new, RNA_property_identifier(parent_name_prop));
+    if (name_prop && name_prop != parent_name_prop && RNA_property_type(name_prop) == PROP_STRING)
+    {
+      RNA_def_struct_name_property(srna_new, name_prop, true);
+    }
+  }
+
   /* Call classed register method.
    * Note that zero falls through, no attribute, no error. */
   switch (PyObject_GetOptionalAttr(py_class, bpy_intern_str_register, &py_cls_meth)) {
@@ -10195,10 +10362,10 @@ static int pyrna_srna_contains_pointer_prop_srna(StructRNA *srna_props,
   PropertyRNA *prop;
 
   /* Verify properties. */
-  const ListBase *lb = RNA_struct_type_properties(srna);
+  const ListBaseT<PropertyRNA> *lb = RNA_struct_type_properties(srna);
 
-  LISTBASE_FOREACH (LinkData *, link, lb) {
-    prop = (PropertyRNA *)link;
+  for (const Link &link : lb->cast<Link>()) {
+    prop = (PropertyRNA *)&link;
     if (RNA_property_type(prop) == PROP_POINTER && !RNA_property_builtin(prop)) {
       PointerRNA tptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, srna_props);
 

@@ -428,8 +428,11 @@ void bmo_extrude_face_region_exec(BMesh *bm, BMOperator *op)
     BMO_op_exec(bm, &delop);
   }
 
-  /* if not delorig, reverse loops of original face */
-  if (!delorig) {
+  const bool skip_input_flip = BMO_slot_bool_get(op->slots_in, "skip_input_flip");
+
+  /* Flip input faces only when originals are kept (!delorig)
+   * and the caller didn't request to skip flipping (!skip_input_flip).*/
+  if (!delorig && !skip_input_flip) {
     BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
       if (BMO_face_flag_test(bm, f, EXT_INPUT)) {
         BM_face_normal_flip(bm, f);
@@ -454,8 +457,7 @@ void bmo_extrude_face_region_exec(BMesh *bm, BMOperator *op)
     int boundary_edges_len = BMO_slot_map_len(dupeop.slots_out, "boundary_map.out");
     /* We do not know the real number of boundary vertices. */
     int boundary_verts_len_maybe = 2 * boundary_edges_len;
-    dissolve_verts = static_cast<BMVert **>(
-        MEM_mallocN(boundary_verts_len_maybe * sizeof(*dissolve_verts), __func__));
+    dissolve_verts = MEM_malloc_arrayN<BMVert *>(boundary_verts_len_maybe, __func__);
   }
 
   BMO_slot_copy(&dupeop, slots_out, "geom.out", op, slots_out, "geom.out");

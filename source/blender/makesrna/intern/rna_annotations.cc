@@ -22,6 +22,7 @@
 
 #  include "BLT_translation.hh"
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_base.h"
 #  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
@@ -29,7 +30,7 @@
 
 #  include "BKE_animsys.h"
 #  include "BKE_gpencil_legacy.h"
-#  include "BKE_icons.h"
+#  include "BKE_icons.hh"
 #  include "BKE_report.hh"
 
 #  include "DEG_depsgraph.hh"
@@ -169,10 +170,10 @@ static void rna_annotation_layer_info_set(PointerRNA *ptr, const char *value)
   BKE_animdata_fix_paths_rename_all(&gpd->id, "layers", oldname, gpl->info);
 
   /* Fix mask layers. */
-  LISTBASE_FOREACH (bGPDlayer *, gpl_, &gpd->layers) {
-    LISTBASE_FOREACH (bGPDlayer_Mask *, mask, &gpl_->mask_layers) {
-      if (STREQ(mask->name, oldname)) {
-        STRNCPY(mask->name, gpl->info);
+  for (bGPDlayer &gpl_ : gpd->layers) {
+    for (bGPDlayer_Mask &mask : gpl_.mask_layers) {
+      if (STREQ(mask.name, oldname)) {
+        STRNCPY(mask.name, gpl->info);
       }
     }
   }
@@ -356,9 +357,6 @@ static void rna_def_annotation_layer(BlenderRNA *brna)
   StructRNA *srna;
   PropertyRNA *prop;
 
-  static const float default_onion_color_b[] = {0.302f, 0.851f, 0.302f};
-  static const float default_onion_color_a[] = {0.250f, 0.1f, 1.0f};
-
   srna = RNA_def_struct(brna, "AnnotationLayer", nullptr);
   RNA_def_struct_sdna(srna, "bGPDlayer");
   RNA_def_struct_ui_text(srna, "Annotation Layer", "Collection of related sketches");
@@ -437,7 +435,6 @@ static void rna_def_annotation_layer(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "gcolor_prev");
   RNA_def_property_array(prop, 3);
   RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_float_array_default(prop, default_onion_color_b);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Before Color", "Base color for ghosts before the active frame");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_annotation_update");
@@ -446,7 +443,6 @@ static void rna_def_annotation_layer(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "gcolor_next");
   RNA_def_property_array(prop, 3);
   RNA_def_property_range(prop, 0.0f, 1.0f);
-  RNA_def_property_float_array_default(prop, default_onion_color_a);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "After Color", "Base color for ghosts after the active frame");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_annotation_update");

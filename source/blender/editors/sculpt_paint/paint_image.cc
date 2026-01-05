@@ -353,7 +353,7 @@ bool paint_use_opacity_masking(const Paint *paint, const Brush *brush)
                        IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
                   (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ||
                   (brush->flag & BRUSH_USE_GRADIENT) ||
-                  (BKE_brush_color_jitter_get_settings(paint, brush)) ||
+                  BKE_brush_color_jitter_get_settings(paint, brush) ||
                   (brush->mtex.tex && !ELEM(brush->mtex.brush_map_mode,
                                             MTEX_MAP_MODE_TILED,
                                             MTEX_MAP_MODE_STENCIL,
@@ -484,12 +484,12 @@ void ED_space_image_paint_update(Main *bmain, wmWindowManager *wm, Scene *scene)
   ImagePaintSettings *imapaint = &settings->imapaint;
   bool enabled = false;
 
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    bScreen *screen = WM_window_get_active_screen(win);
+  for (wmWindow &win : wm->windows) {
+    bScreen *screen = WM_window_get_active_screen(&win);
 
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      if (area->spacetype == SPACE_IMAGE) {
-        if (((SpaceImage *)area->spacedata.first)->mode == SI_MODE_PAINT) {
+    for (ScrArea &area : screen->areabase) {
+      if (area.spacetype == SPACE_IMAGE) {
+        if (((SpaceImage *)area.spacedata.first)->mode == SI_MODE_PAINT) {
           enabled = true;
         }
       }
@@ -572,9 +572,10 @@ static wmOperatorStatus grab_clone_modal(bContext *C, wmOperator *op, const wmEv
       return OPERATOR_FINISHED;
     case MOUSEMOVE:
       /* mouse moved, so move the clone image */
-      UI_view2d_region_to_view(
+      blender::ui::view2d_region_to_view(
           &region->v2d, cmv->startx - xmin, cmv->starty - ymin, &startfx, &startfy);
-      UI_view2d_region_to_view(&region->v2d, event->xy[0] - xmin, event->xy[1] - ymin, &fx, &fy);
+      blender::ui::view2d_region_to_view(
+          &region->v2d, event->xy[0] - xmin, event->xy[1] - ymin, &fx, &fy);
 
       delta[0] = fx - startfx;
       delta[1] = fy - startfy;

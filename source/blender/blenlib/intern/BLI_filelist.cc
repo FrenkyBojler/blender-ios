@@ -108,6 +108,7 @@ struct BuildDirCtx {
  */
 static void bli_builddir(BuildDirCtx *dir_ctx, const char *dirname)
 {
+  BLI_assert(!BLI_path_is_rel(dirname));
   DIR *dir = opendir(dirname);
   if (UNLIKELY(dir == nullptr)) {
     fprintf(stderr,
@@ -117,7 +118,7 @@ static void bli_builddir(BuildDirCtx *dir_ctx, const char *dirname)
     return;
   }
 
-  ListBase dirbase = {nullptr, nullptr};
+  ListBaseT<dirlink> dirbase = {nullptr, nullptr};
   int newnum = 0;
   const dirent *fname;
   bool has_current = false, has_parent = false;

@@ -181,8 +181,7 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
     transform_mode_init(t, nullptr, TFM_TRANSLATION);
   }
 
-  SnapSouceCustomData *customdata = static_cast<SnapSouceCustomData *>(
-      MEM_callocN(sizeof(*customdata), __func__));
+  SnapSouceCustomData *customdata = MEM_callocN<SnapSouceCustomData>(__func__);
   customdata->mode_info_prev = t->mode_info;
 
   customdata->target_operation_prev = t->tsnap.target_operation;
@@ -242,7 +241,7 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
 #ifdef REMOVE_GIZMO
   wmGizmo *gz = WM_gizmomap_get_modal(t->region->runtime->gizmo_map);
   if (gz) {
-    const wmEvent *event = CTX_wm_window(t->context)->eventstate;
+    const wmEvent *event = CTX_wm_window(t->context)->runtime->eventstate;
 #  ifdef RESET_TRANSFORMATION
     wmGizmoFnModal modal_fn = gz->custom_modal ? gz->custom_modal : gz->type->modal;
     if (modal_fn) {

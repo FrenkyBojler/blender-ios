@@ -180,14 +180,14 @@ MultiresModifierData *get_multires_modifier(Scene *scene, Object *ob, const bool
   MultiresModifierData *mmd = nullptr, *firstmmd = nullptr;
 
   /* find first active multires modifier */
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-    if (md->type == eModifierType_Multires) {
+  for (ModifierData &md : ob->modifiers) {
+    if (md.type == eModifierType_Multires) {
       if (!firstmmd) {
-        firstmmd = reinterpret_cast<MultiresModifierData *>(md);
+        firstmmd = reinterpret_cast<MultiresModifierData *>(&md);
       }
 
-      if (BKE_modifier_is_enabled(scene, md, eModifierMode_Realtime)) {
-        mmd = reinterpret_cast<MultiresModifierData *>(md);
+      if (BKE_modifier_is_enabled(scene, &md, eModifierMode_Realtime)) {
+        mmd = reinterpret_cast<MultiresModifierData *>(&md);
         break;
       }
     }
@@ -489,11 +489,11 @@ static void multires_del_higher(MultiresModifierData *mmd, Object *ob, const int
           MDisps *mdisp = &mdisps[corner];
           const int totdisp = multires_grid_tot[lvl];
 
-          float(*disps)[3] = MEM_calloc_arrayN<float[3]>(totdisp, "multires disps");
+          float (*disps)[3] = MEM_calloc_arrayN<float[3]>(totdisp, "multires disps");
 
           if (mdisp->disps != nullptr) {
-            float(*ndisps)[3] = disps;
-            float(*hdisps)[3] = mdisp->disps;
+            float (*ndisps)[3] = disps;
+            float (*hdisps)[3] = mdisp->disps;
 
             multires_copy_grid(ndisps, hdisps, nsize, hsize);
             if (mdisp->hidden) {

@@ -10,9 +10,13 @@
 
 #include "bmesh_class.hh"
 
+#include "BLI_set.hh"
+
 /*
  * NOTE: do NOT modify topology while walking a mesh!
  */
+
+struct BMwGenericWalker;
 
 enum BMWOrder {
   BMW_DEPTH_FIRST,
@@ -39,7 +43,7 @@ struct BMWalker {
 
   BMesh *bm;
   BLI_mempool *worklist;
-  ListBase states;
+  ListBaseT<BMwGenericWalker> states;
 
   /* these masks are to be tested against elements BMO_elem_flag_test(),
    * should never be accessed directly only through BMW_init() and bmw_mask_check_*() functions */
@@ -49,8 +53,8 @@ struct BMWalker {
 
   BMWFlag flag;
 
-  struct GSet *visit_set;
-  struct GSet *visit_set_alt;
+  blender::Set<const void *> *visit_set;
+  blender::Set<const void *> *visit_set_alt;
   int depth;
 };
 

@@ -38,7 +38,6 @@ class CurveRefinePass;
 class View;
 }  // namespace blender::draw
 struct GPUMaterial;
-struct GSet;
 
 /* -------------------------------------------------------------------- */
 /** \name Memory Pools
@@ -49,7 +48,7 @@ struct DRWData {
   /** Instance data. */
   DRWInstanceDataList *idatalist;
   /** List of smoke textures to free after drawing. */
-  ListBase smoke_textures;
+  ListBaseT<LinkData> smoke_textures;
   /** Per stereo view data. Contains engine data and default frame-buffers. */
   DRWViewData *view_data[2];
   /** Module storage. */

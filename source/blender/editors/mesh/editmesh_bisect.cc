@@ -155,8 +155,7 @@ static wmOperatorStatus mesh_bisect_invoke(bContext *C, wmOperator *op, const wm
     gesture->user_data.data = opdata;
 
     opdata->backup_len = objects.size();
-    opdata->backup = static_cast<BisectData::BisectDataBackup *>(
-        MEM_callocN(sizeof(*opdata->backup) * objects.size(), __func__));
+    opdata->backup = MEM_calloc_arrayN<BisectData::BisectDataBackup>(objects.size(), __func__);
 
     /* Store the mesh backups. */
     for (const int ob_index : objects.index_range()) {
@@ -387,7 +386,10 @@ static wmOperatorStatus mesh_bisect_exec(bContext *C, wmOperator *op)
       params.calc_normals = false;
       params.is_destructive = true;
       EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+
       EDBM_selectmode_flush(em);
+      EDBM_uvselect_clear(em);
+
       ret = OPERATOR_FINISHED;
     }
   }
@@ -697,9 +699,9 @@ static void gizmo_mesh_bisect_setup(const bContext *C, wmGizmoGroup *gzgroup)
   ggd->translate_c = WM_gizmo_new_ptr(gzt_move, gzgroup, nullptr);
   ggd->rotate_c = WM_gizmo_new_ptr(gzt_dial, gzgroup, nullptr);
 
-  UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, ggd->translate_z->color);
-  UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, ggd->translate_c->color);
-  UI_GetThemeColor3fv(TH_GIZMO_SECONDARY, ggd->rotate_c->color);
+  blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, ggd->translate_z->color);
+  blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, ggd->translate_c->color);
+  blender::ui::theme::get_color_3fv(TH_GIZMO_SECONDARY, ggd->rotate_c->color);
 
   RNA_enum_set(ggd->translate_z->ptr, "draw_style", ED_GIZMO_ARROW_STYLE_NORMAL);
   RNA_enum_set(ggd->translate_c->ptr, "draw_style", ED_GIZMO_MOVE_STYLE_RING_2D);

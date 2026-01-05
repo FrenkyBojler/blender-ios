@@ -25,7 +25,9 @@
 #include "DNA_listBase.h"
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_set.hh"
 #include "BLI_sys_types.h"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector_set.hh"
@@ -35,7 +37,6 @@
 struct BLI_mempool;
 struct BlendThumbnail;
 struct GHash;
-struct GSet;
 struct ID;
 struct IDNameLib_Map;
 struct ImBuf;
@@ -43,6 +44,83 @@ struct Library;
 struct MainLock;
 struct ReportList;
 struct UniqueName_Map;
+struct Scene;
+struct Object;
+struct Mesh;
+struct Curve;
+struct MetaBall;
+struct Material;
+struct Tex;
+struct Image;
+struct Lattice;
+struct Light;
+struct Camera;
+struct Key;
+struct World;
+struct bScreen;
+struct VFont;
+struct Text;
+struct Speaker;
+struct LightProbe;
+struct bSound;
+struct Collection;
+struct bArmature;
+struct bAction;
+struct bNodeTree;
+struct Brush;
+struct ParticleSettings;
+struct Palette;
+struct PaintCurve;
+struct wmWindowManager;
+struct bGPdata;
+struct GreasePencil;
+struct MovieClip;
+struct Mask;
+struct FreestyleLineStyle;
+struct CacheFile;
+struct WorkSpace;
+struct Curves;
+struct PointCloud;
+struct Volume;
+
+struct Brush;
+struct CacheFile;
+struct Camera;
+struct Collection;
+struct Curve;
+struct Curves;
+struct FreestyleLineStyle;
+struct GreasePencil;
+struct Image;
+struct Key;
+struct Lattice;
+struct Light;
+struct LightProbe;
+struct Mask;
+struct Material;
+struct Mesh;
+struct MetaBall;
+struct MovieClip;
+struct Object;
+struct PaintCurve;
+struct Palette;
+struct ParticleSettings;
+struct PointCloud;
+struct Scene;
+struct Speaker;
+struct Tex;
+struct Text;
+struct VFont;
+struct Volume;
+struct WorkSpace;
+struct World;
+struct bAction;
+struct bArmature;
+struct bGPdata;
+struct bNodeTree;
+struct bScreen;
+struct bSound;
+struct wmWindowManager;
 
 /**
  * Blender thumbnail, as written to the `.blend` file (width, height, and data as char RGBA).
@@ -127,7 +205,7 @@ struct MainIDRelations {
    * Mapping from an ID pointer to all of its parents (IDs using it) and children (IDs it uses).
    * Values are `MainIDRelationsEntry` pointers.
    */
-  GHash *relations_from_pointers;
+  blender::Map<const ID *, MainIDRelationsEntry *> *relations_from_pointers;
   /* NOTE: we could add more mappings when needed (e.g. from session uid?). */
 
   short flag;
@@ -142,16 +220,16 @@ enum {
 };
 
 struct MainColorspace {
-  /*
-   * File working colorspace for all scene linear colors.
+  /**
+   * File working color-space for all scene linear colors.
    * The name is only for the user interface and is not a unique identifier, the matrix is
-   * the XYZ colorspace is the source of truth.
+   * the XYZ color-space is the source of truth.
    * */
   char scene_linear_name[64 /*MAX_COLORSPACE_NAME*/] = "";
   blender::float3x3 scene_linear_to_xyz = blender::float3x3::zero();
 
-  /*
-   * A colorspace, view or display was not found, which likely means the OpenColorIO config
+  /**
+   * A color-space, view or display was not found, which likely means the OpenColorIO config
    * used to create this blend file is missing.
    */
   bool is_missing_opencolorio_config = false;
@@ -162,6 +240,11 @@ struct Main : blender::NonCopyable, blender::NonMovable {
    * Runtime vector storing all split Mains (one Main for each library data), during readfile or
    * linking process.
    * Shared across all of the split mains when defined.
+   *
+   * \note The order stability properties of #VectorSet elements is used in readfile code (in
+   * particular during memfile/undo reading), to ensure that the local Main is always the first
+   * item, even once library ones are moved between the old and new Mains (see also
+   * #read_undo_move_libmain_data).
    */
   std::shared_ptr<blender::VectorSet<Main *>> split_mains = {};
   /**
@@ -268,58 +351,58 @@ struct Main : blender::NonCopyable, blender::NonMovable {
    */
   Library *curlib = nullptr;
 
-  /*
-   * Colorspace information for this file.
+  /**
+   * Color-space information for this file.
    */
   MainColorspace colorspace;
 
   /* List bases for all ID types, containing all IDs for the current #Main. */
 
-  ListBase scenes = {};
-  ListBase libraries = {};
-  ListBase objects = {};
-  ListBase meshes = {};
-  ListBase curves = {};
-  ListBase metaballs = {};
-  ListBase materials = {};
-  ListBase textures = {};
-  ListBase images = {};
-  ListBase lattices = {};
-  ListBase lights = {};
-  ListBase cameras = {};
-  ListBase shapekeys = {};
-  ListBase worlds = {};
-  ListBase screens = {};
-  ListBase fonts = {};
-  ListBase texts = {};
-  ListBase speakers = {};
-  ListBase lightprobes = {};
-  ListBase sounds = {};
-  ListBase collections = {};
-  ListBase armatures = {};
-  ListBase actions = {};
-  ListBase nodetrees = {};
-  ListBase brushes = {};
-  ListBase particles = {};
-  ListBase palettes = {};
-  ListBase paintcurves = {};
+  ListBaseT<Scene> scenes = {};
+  ListBaseT<Library> libraries = {};
+  ListBaseT<Object> objects = {};
+  ListBaseT<Mesh> meshes = {};
+  ListBaseT<Curve> curves = {};
+  ListBaseT<MetaBall> metaballs = {};
+  ListBaseT<Material> materials = {};
+  ListBaseT<Tex> textures = {};
+  ListBaseT<Image> images = {};
+  ListBaseT<Lattice> lattices = {};
+  ListBaseT<Light> lights = {};
+  ListBaseT<Camera> cameras = {};
+  ListBaseT<Key> shapekeys = {};
+  ListBaseT<World> worlds = {};
+  ListBaseT<bScreen> screens = {};
+  ListBaseT<VFont> fonts = {};
+  ListBaseT<Text> texts = {};
+  ListBaseT<Speaker> speakers = {};
+  ListBaseT<LightProbe> lightprobes = {};
+  ListBaseT<bSound> sounds = {};
+  ListBaseT<Collection> collections = {};
+  ListBaseT<bArmature> armatures = {};
+  ListBaseT<bAction> actions = {};
+  ListBaseT<bNodeTree> nodetrees = {};
+  ListBaseT<Brush> brushes = {};
+  ListBaseT<ParticleSettings> particles = {};
+  ListBaseT<Palette> palettes = {};
+  ListBaseT<PaintCurve> paintcurves = {};
   /** Singleton (exception). */
-  ListBase wm = {};
+  ListBaseT<wmWindowManager> wm = {};
   /** Legacy Grease Pencil. */
-  ListBase gpencils = {};
-  ListBase grease_pencils = {};
-  ListBase movieclips = {};
-  ListBase masks = {};
-  ListBase linestyles = {};
-  ListBase cachefiles = {};
-  ListBase workspaces = {};
+  ListBaseT<bGPdata> gpencils = {};
+  ListBaseT<GreasePencil> grease_pencils = {};
+  ListBaseT<MovieClip> movieclips = {};
+  ListBaseT<Mask> masks = {};
+  ListBaseT<FreestyleLineStyle> linestyles = {};
+  ListBaseT<CacheFile> cachefiles = {};
+  ListBaseT<WorkSpace> workspaces = {};
   /**
    * \note The name `hair_curves` is chosen to be different than `curves`,
    * but they are generic curve data-blocks, not just for hair.
    */
-  ListBase hair_curves = {};
-  ListBase pointclouds = {};
-  ListBase volumes = {};
+  ListBaseT<Curves> hair_curves = {};
+  ListBaseT<PointCloud> pointclouds = {};
+  ListBaseT<Volume> volumes = {};
 
   /**
    * Must be generated, used and freed by same code - never assume this is valid data unless you
@@ -439,12 +522,12 @@ void BKE_main_relations_free(Main *bmain);
 void BKE_main_relations_tag_set(Main *bmain, eMainIDRelationsEntryTags tag, bool value);
 
 /**
- * Create a #GSet storing all IDs present in given \a bmain, by their pointers.
+ * Create a #Set storing all IDs present in given \a bmain, by their pointers.
  *
- * \param gset: If not NULL, given GSet will be extended with IDs from given \a bmain,
+ * \param set: If not NULL, given Set will be extended with IDs from given \a bmain,
  * instead of creating a new one.
  */
-GSet *BKE_main_gset_create(Main *bmain, GSet *gset);
+blender::Set<const ID *> *BKE_main_set_create(Main *bmain, blender::Set<const ID *> *set);
 
 /* Temporary runtime API to allow re-using local (already appended)
  * IDs instead of appending a new copy again. */
@@ -576,7 +659,7 @@ void BKE_main_library_weak_reference_add(ID *local_id,
  * #FOREACH_MAIN_LISTBASE_ID instead if you need that kind of control flow. */
 #define FOREACH_MAIN_ID_BEGIN(_bmain, _id) \
   { \
-    ListBase *_lb; \
+    ListBaseT<ID> *_lb; \
     FOREACH_MAIN_LISTBASE_BEGIN ((_bmain), _lb) { \
       FOREACH_MAIN_LISTBASE_ID_BEGIN (_lb, (_id))
 
@@ -631,22 +714,26 @@ const char *BKE_main_blendfile_path(const Main *bmain) ATTR_NONNULL();
  * you should always try to get a valid Main pointer from context.
  */
 const char *BKE_main_blendfile_path_from_global();
+/**
+ * Return the absolute file-path of a library.
+ */
+const char *BKE_main_blendfile_path_from_library(const Library &library);
 
 /**
- * \return A pointer to the \a ListBase of given \a bmain for requested \a type ID type.
+ * \return A pointer to the \a ListBaseT of given \a bmain for requested \a type ID type.
  */
-ListBase *which_libbase(Main *bmain, short type);
+ListBaseT<ID> *which_libbase(Main *bmain, short type);
 
 /** Subtracting 1, because #INDEX_ID_NULL is ignored here. */
-using MainListsArray = std::array<ListBase *, INDEX_ID_MAX - 1>;
+using MainListsArray = std::array<ListBaseT<ID> *, INDEX_ID_MAX - 1>;
 
 /**
- * Returns the pointers to all the #ListBase structs in given `bmain`.
+ * Returns the pointers to all the #ListBaseT structs in given `bmain`.
  *
  * This is useful for generic traversal of all the blocks in a #Main (by traversing all the lists
  * in turn), without worrying about block types.
  *
- * \note The order of each ID type #ListBase in the array is determined by the `INDEX_ID_<IDTYPE>`
+ * \note The order of each ID type #ListBaseT in the array is determined by the `INDEX_ID_<IDTYPE>`
  * enum definitions in `DNA_ID.h`. See also the #FOREACH_MAIN_ID_BEGIN macro in `BKE_main.hh`
  */
 MainListsArray BKE_main_lists_get(Main &bmain);
@@ -663,13 +750,14 @@ MainListsArray BKE_main_lists_get(Main &bmain);
   ((main)->versionfile < (ver) || \
    ((main)->versionfile == (ver) && (main)->subversionfile <= (subver)))
 
-/* NOTE: in case versionfile is 0, this check is invalid, always return false then. This happens
+/**
+ * \note in case `versionfile` is 0, this check is invalid, always return false then. This happens
  * typically when a library is missing, by definition its data (placeholder IDs) does not need
- * versionning anyway then. */
+ * versioning anyway then.
+ */
 #define LIBRARY_VERSION_FILE_ATLEAST(lib, ver, subver) \
-  (((lib)->runtime->versionfile != 0) && \
-   ((lib)->runtime->versionfile > (ver) || \
-    ((lib)->runtime->versionfile == (ver) && (lib)->runtime->subversionfile >= (subver))))
+  ((lib)->runtime->versionfile == 0 || (lib)->runtime->versionfile > (ver) || \
+   ((lib)->runtime->versionfile == (ver) && (lib)->runtime->subversionfile >= (subver)))
 
 /**
  * The size of thumbnails (optionally) stored in the `.blend` files header.

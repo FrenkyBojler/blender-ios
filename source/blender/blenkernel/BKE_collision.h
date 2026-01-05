@@ -9,10 +9,13 @@
 
 #include "BLI_math_vector_types.hh"
 
+#include "DNA_listBase.h"
+
 struct BVHTree;
 struct Collection;
 struct CollisionModifierData;
 struct Depsgraph;
+struct ListBase;
 struct Object;
 
 /* -------------------------------------------------------------------- */
@@ -22,16 +25,16 @@ struct Object;
  * \{ */
 
 /* COLLISION FLAGS */
-typedef enum {
+enum COLLISION_FLAGS {
   COLLISION_IN_FUTURE = (1 << 1),
 #ifdef WITH_ELTOPO
   COLLISION_USE_COLLFACE = (1 << 2),
   COLLISION_IS_EDGES = (1 << 3),
 #endif
   COLLISION_INACTIVE = (1 << 4),
-} COLLISION_FLAGS;
+};
 
-typedef struct CollPair {
+struct CollPair {
   unsigned int face1; /* cloth face */
   unsigned int face2; /* object face */
   float distance;
@@ -52,25 +55,25 @@ typedef struct CollPair {
   /* Barycentric weights of the collision point. */
   float aw1, aw2, aw3, bw1, bw2, bw3;
   int pointsb[4];
-} CollPair;
+};
 
-typedef struct EdgeCollPair {
+struct EdgeCollPair {
   unsigned int p11, p12, p21, p22;
   float normal[3];
   float vector[3];
   float time;
   int lastsign;
   float pa[3], pb[3]; /* collision point p1 on face1, p2 on face2 */
-} EdgeCollPair;
+};
 
-typedef struct FaceCollPair {
+struct FaceCollPair {
   unsigned int p11, p12, p13, p21;
   float normal[3];
   float vector[3];
   float time;
   int lastsign;
   float pa[3], pb[3]; /* collision point p1 on face1, p2 on face2 */
-} FaceCollPair;
+};
 
 /** \} */
 
@@ -120,20 +123,20 @@ void collision_get_collider_velocity(float vel_old[3],
  * Collision relations for dependency graph build.
  * \{ */
 
-typedef struct CollisionRelation {
+struct CollisionRelation {
   struct CollisionRelation *next, *prev;
   struct Object *ob;
-} CollisionRelation;
+};
 
 /**
  * Create list of collision relations in the collection or entire scene.
  * This is used by the depsgraph to build relations, as well as faster
  * lookup of colliders during evaluation.
  */
-struct ListBase *BKE_collision_relations_create(struct Depsgraph *depsgraph,
-                                                struct Collection *collection,
-                                                unsigned int modifier_type);
-void BKE_collision_relations_free(struct ListBase *relations);
+ListBaseT<CollisionRelation> *BKE_collision_relations_create(struct Depsgraph *depsgraph,
+                                                             struct Collection *collection,
+                                                             unsigned int modifier_type);
+void BKE_collision_relations_free(ListBaseT<CollisionRelation> *relations);
 
 /* Collision object lists for physics simulation evaluation. */
 
@@ -154,19 +157,19 @@ void BKE_collision_objects_free(struct Object **objects);
 /** \name Collision Cache
  * \{ */
 
-typedef struct ColliderCache {
+struct ColliderCache {
   struct ColliderCache *next, *prev;
   struct Object *ob;
   struct CollisionModifierData *collmd;
-} ColliderCache;
+};
 
 /**
  * Create effective list of colliders from relations built beforehand.
  * Self will be excluded.
  */
-struct ListBase *BKE_collider_cache_create(struct Depsgraph *depsgraph,
-                                           struct Object *self,
-                                           struct Collection *collection);
-void BKE_collider_cache_free(struct ListBase **colliders);
+ListBaseT<ColliderCache> *BKE_collider_cache_create(struct Depsgraph *depsgraph,
+                                                    struct Object *self,
+                                                    struct Collection *collection);
+void BKE_collider_cache_free(ListBaseT<ColliderCache> **colliders);
 
 /** \} */

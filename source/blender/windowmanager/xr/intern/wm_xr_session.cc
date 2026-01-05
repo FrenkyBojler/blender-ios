@@ -71,11 +71,15 @@ static void wm_xr_session_create_cb()
     settings->base_scale = 1.0f;
   }
   state->prev_base_scale = settings->base_scale;
+
+  /* Initialize vignette. */
+  state->vignette_data = MEM_callocN<wmXrVignetteData>(__func__);
+  WM_xr_session_state_vignette_reset(state);
 }
 
 static void wm_xr_session_controller_data_free(wmXrSessionState *state)
 {
-  ListBase *lb = &state->controllers;
+  ListBaseT<wmXrController> *lb = &state->controllers;
   while (wmXrController *c = static_cast<wmXrController *>(BLI_pophead(lb))) {
     if (c->model) {
       GPU_batch_discard(c->model);
@@ -84,9 +88,18 @@ static void wm_xr_session_controller_data_free(wmXrSessionState *state)
   }
 }
 
+static void wm_xr_session_vignette_data_free(wmXrSessionState *state)
+{
+  if (state->vignette_data) {
+    MEM_freeN(state->vignette_data);
+    state->vignette_data = nullptr;
+  }
+}
+
 void wm_xr_session_data_free(wmXrSessionState *state)
 {
   wm_xr_session_controller_data_free(state);
+  wm_xr_session_vignette_data_free(state);
 }
 
 static void wm_xr_session_exit_cb(void *customdata)
@@ -335,6 +348,42 @@ void wm_xr_session_draw_data_update(wmXrSessionState *state,
   }
 }
 
+static void wm_xr_session_state_update_navigation_scale(wmXrSessionState *state,
+                                                        const wmXrDrawData *draw_data,
+                                                        const XrSessionSettings *settings)
+{
+  using namespace blender;
+
+  /* Set the navigation scale from the scene unit scale and VR view scale. */
+  const float scene_scale = draw_data->scene->unit.scale_length;
+  const float new_nav_scale = scene_scale * settings->view_scale;
+
+  BLI_assert(state->nav_scale != 0 && new_nav_scale != 0);
+
+  if (state->nav_scale == new_nav_scale) {
+    return;
+  }
+
+  /* Adjust nav position to keep the viewer at the same relative location after scale change. */
+  /* Calculate view offset from the current navigation origin. */
+  const float3 viewer_location = float3(state->viewer_pose.position);
+  const float3 nav_location = float3(state->nav_pose.position);
+  const float3 viewer_base_offset = (viewer_location - nav_location) / state->nav_scale;
+
+  const float offset_val = state->nav_scale - new_nav_scale;
+  const float3 view_scaling_offset = viewer_base_offset * offset_val;
+
+  /* On X/Y axes: Add the scaling offset to maintain relative horizontal world position. */
+  state->nav_pose.position[0] += view_scaling_offset.x;
+  state->nav_pose.position[1] += view_scaling_offset.y;
+  /* On Z axis: Scale proportionally for the scaling change to be visible. */
+  state->nav_pose.position[2] *= new_nav_scale / state->nav_scale;
+
+  /* Set nav scale and tag navigation to be recalculated. */
+  state->nav_scale = new_nav_scale;
+  state->is_navigation_dirty = true;
+}
+
 void wm_xr_session_state_update(const XrSessionSettings *settings,
                                 const wmXrDrawData *draw_data,
                                 const GHOST_XrDrawViewInfo *draw_view,
@@ -384,6 +433,9 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
   state->is_view_data_set = true;
   /* Assume this was already done through wm_xr_session_draw_data_update(). */
   state->force_reset_to_base_pose = false;
+
+  WM_xr_session_state_vignette_update(state);
+  wm_xr_session_state_update_navigation_scale(state, draw_data, settings);
 }
 
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr)
@@ -572,6 +624,52 @@ void WM_xr_session_state_navigation_reset(wmXrSessionState *state)
   unit_qt(state->nav_pose.orientation_quat);
   state->nav_scale = 1.0f;
   state->is_navigation_dirty = true;
+  state->swap_hands = false;
+}
+
+void WM_xr_session_state_vignette_reset(wmXrSessionState *state)
+{
+  wmXrVignetteData *data = state->vignette_data;
+
+  /* Reset vignette state */
+  data->aperture = 1.0f;
+  data->aperture_velocity = 0.0f;
+
+  /* Set default vignette parameters */
+  data->initial_aperture = 0.25f;
+  data->initial_aperture_velocity = -0.03f;
+
+  data->aperture_min = 0.08f;
+  data->aperture_max = 0.3f;
+
+  data->aperture_velocity_max = 0.002f;
+  data->aperture_velocity_delta = 0.01f;
+}
+
+void WM_xr_session_state_vignette_activate(wmXrData *xr)
+{
+  if (WM_xr_session_exists(xr)) {
+    wmXrVignetteData *data = xr->runtime->session_state.vignette_data;
+    data->aperture_velocity = data->initial_aperture_velocity;
+    data->aperture = min_ff(data->aperture, data->initial_aperture);
+  }
+}
+
+void WM_xr_session_state_vignette_update(wmXrSessionState *state)
+{
+  wmXrVignetteData *data = state->vignette_data;
+
+  const float vignette_intensity = U.xr_navigation.vignette_intensity;
+  const float aperture_min = interpf(
+      data->aperture_min, data->aperture_max, vignette_intensity * 0.01f);
+  data->aperture_velocity = min_ff(data->aperture_velocity_max,
+                                   data->aperture_velocity + data->aperture_velocity_delta);
+
+  if (data->aperture == aperture_min) {
+    data->aperture_velocity = data->aperture_velocity_max;
+  }
+
+  data->aperture = clamp_f(data->aperture + data->aperture_velocity, aperture_min, 1.0f);
 }
 
 /* -------------------------------------------------------------------- */
@@ -622,7 +720,6 @@ static void wm_xr_session_controller_data_update(const XrSessionSettings *settin
   BLI_assert(grip_action->count_subaction_paths == aim_action->count_subaction_paths);
   BLI_assert(grip_action->count_subaction_paths == BLI_listbase_count(&state->controllers));
 
-  uint subaction_idx = 0;
   float view_ofs[3], base_mat[4][4], nav_mat[4][4];
 
   if ((settings->flag & XR_SESSION_USE_POSITION_TRACKING) == 0) {
@@ -638,32 +735,32 @@ static void wm_xr_session_controller_data_update(const XrSessionSettings *settin
   wm_xr_pose_scale_to_mat(&state->prev_base_pose, state->prev_base_scale, base_mat);
   wm_xr_pose_scale_to_mat(&state->nav_pose, state->nav_scale, nav_mat);
 
-  LISTBASE_FOREACH_INDEX (wmXrController *, controller, &state->controllers, subaction_idx) {
-    controller->grip_active = ((GHOST_XrPose *)grip_action->states)[subaction_idx].is_active;
+  for (auto [subaction_idx, controller] : state->controllers.enumerate()) {
+    controller.grip_active = ((GHOST_XrPose *)grip_action->states)[subaction_idx].is_active;
     wm_xr_session_controller_pose_calc(&((GHOST_XrPose *)grip_action->states)[subaction_idx],
                                        view_ofs,
                                        base_mat,
                                        nav_mat,
-                                       &controller->grip_pose,
-                                       controller->grip_mat,
-                                       controller->grip_mat_base);
-    controller->aim_active = ((GHOST_XrPose *)aim_action->states)[subaction_idx].is_active;
+                                       &controller.grip_pose,
+                                       controller.grip_mat,
+                                       controller.grip_mat_base);
+    controller.aim_active = ((GHOST_XrPose *)aim_action->states)[subaction_idx].is_active;
     wm_xr_session_controller_pose_calc(&((GHOST_XrPose *)aim_action->states)[subaction_idx],
                                        view_ofs,
                                        base_mat,
                                        nav_mat,
-                                       &controller->aim_pose,
-                                       controller->aim_mat,
-                                       controller->aim_mat_base);
+                                       &controller.aim_pose,
+                                       controller.aim_mat,
+                                       controller.aim_mat_base);
 
-    if (!controller->model) {
+    if (!controller.model) {
       /* Notify GHOST to load/continue loading the controller model data. This can be called more
        * than once since the model may not be available from the runtime yet. The batch itself will
        * be created in wm_xr_draw_controllers(). */
-      GHOST_XrLoadControllerModel(xr_context, controller->subaction_path);
+      GHOST_XrLoadControllerModel(xr_context, controller.subaction_path);
     }
     else {
-      GHOST_XrUpdateControllerModelComponents(xr_context, controller->subaction_path);
+      GHOST_XrUpdateControllerModelComponents(xr_context, controller.subaction_path);
     }
   }
 }
@@ -721,7 +818,7 @@ BLI_INLINE bool test_vec2f_state(const float state[2], float threshold, eXrAxisF
   return (len_v2(state) > threshold);
 }
 
-static bool wm_xr_session_modal_action_test(const ListBase *active_modal_actions,
+static bool wm_xr_session_modal_action_test(const ListBaseT<LinkData> *active_modal_actions,
                                             const wmXrAction *action,
                                             bool *r_found)
 {
@@ -729,8 +826,8 @@ static bool wm_xr_session_modal_action_test(const ListBase *active_modal_actions
     *r_found = false;
   }
 
-  LISTBASE_FOREACH (LinkData *, ld, active_modal_actions) {
-    wmXrAction *active_modal_action = static_cast<wmXrAction *>(ld->data);
+  for (LinkData &ld : *active_modal_actions) {
+    wmXrAction *active_modal_action = static_cast<wmXrAction *>(ld.data);
     if (action == active_modal_action) {
       if (r_found) {
         *r_found = true;
@@ -749,7 +846,7 @@ static bool wm_xr_session_modal_action_test(const ListBase *active_modal_actions
   return true;
 }
 
-static void wm_xr_session_modal_action_test_add(ListBase *active_modal_actions,
+static void wm_xr_session_modal_action_test_add(ListBaseT<LinkData> *active_modal_actions,
                                                 const wmXrAction *action)
 {
   bool found;
@@ -760,30 +857,31 @@ static void wm_xr_session_modal_action_test_add(ListBase *active_modal_actions,
   }
 }
 
-static void wm_xr_session_modal_action_remove(ListBase *active_modal_actions,
+static void wm_xr_session_modal_action_remove(ListBaseT<LinkData> *active_modal_actions,
                                               const wmXrAction *action)
 {
-  LISTBASE_FOREACH (LinkData *, ld, active_modal_actions) {
-    if (action == ld->data) {
-      BLI_freelinkN(active_modal_actions, ld);
+  for (LinkData &ld : *active_modal_actions) {
+    if (action == ld.data) {
+      BLI_freelinkN(active_modal_actions, &ld);
       return;
     }
   }
 }
 
-static wmXrHapticAction *wm_xr_session_haptic_action_find(ListBase *active_haptic_actions,
-                                                          const wmXrAction *action,
-                                                          const char *subaction_path)
+static wmXrHapticAction *wm_xr_session_haptic_action_find(
+    ListBaseT<wmXrHapticAction> *active_haptic_actions,
+    const wmXrAction *action,
+    const char *subaction_path)
 {
-  LISTBASE_FOREACH (wmXrHapticAction *, ha, active_haptic_actions) {
-    if ((action == ha->action) && (subaction_path == ha->subaction_path)) {
-      return ha;
+  for (wmXrHapticAction &ha : *active_haptic_actions) {
+    if ((action == ha.action) && (subaction_path == ha.subaction_path)) {
+      return &ha;
     }
   }
   return nullptr;
 }
 
-static void wm_xr_session_haptic_action_add(ListBase *active_haptic_actions,
+static void wm_xr_session_haptic_action_add(ListBaseT<wmXrHapticAction> *active_haptic_actions,
                                             const wmXrAction *action,
                                             const char *subaction_path,
                                             int64_t time_now)
@@ -803,36 +901,38 @@ static void wm_xr_session_haptic_action_add(ListBase *active_haptic_actions,
   }
 }
 
-static void wm_xr_session_haptic_action_remove(ListBase *active_haptic_actions,
+static void wm_xr_session_haptic_action_remove(ListBaseT<wmXrHapticAction> *active_haptic_actions,
                                                const wmXrAction *action)
 {
-  LISTBASE_FOREACH (wmXrHapticAction *, ha, active_haptic_actions) {
-    if (action == ha->action) {
-      BLI_freelinkN(active_haptic_actions, ha);
+  for (wmXrHapticAction &ha : *active_haptic_actions) {
+    if (action == ha.action) {
+      BLI_freelinkN(active_haptic_actions, &ha);
       return;
     }
   }
 }
 
-static void wm_xr_session_haptic_timers_check(ListBase *active_haptic_actions, int64_t time_now)
+static void wm_xr_session_haptic_timers_check(ListBaseT<wmXrHapticAction> *active_haptic_actions,
+                                              int64_t time_now)
 {
-  LISTBASE_FOREACH_MUTABLE (wmXrHapticAction *, ha, active_haptic_actions) {
-    if (time_now - ha->time_start >= ha->action->haptic_duration) {
-      BLI_freelinkN(active_haptic_actions, ha);
+  for (wmXrHapticAction &ha : active_haptic_actions->items_mutable()) {
+    if (time_now - ha.time_start >= ha.action->haptic_duration) {
+      BLI_freelinkN(active_haptic_actions, &ha);
     }
   }
 }
 
-static void wm_xr_session_action_states_interpret(wmXrData *xr,
-                                                  const char *action_set_name,
-                                                  wmXrAction *action,
-                                                  uint subaction_idx,
-                                                  ListBase *active_modal_actions,
-                                                  ListBase *active_haptic_actions,
-                                                  int64_t time_now,
-                                                  bool modal,
-                                                  bool haptic,
-                                                  short *r_val)
+static void wm_xr_session_action_states_interpret(
+    wmXrData *xr,
+    const char *action_set_name,
+    wmXrAction *action,
+    uint subaction_idx,
+    ListBaseT<LinkData> *active_modal_actions,
+    ListBaseT<wmXrHapticAction> *active_haptic_actions,
+    int64_t time_now,
+    bool modal,
+    bool haptic,
+    short *r_val)
 {
   const char *haptic_subaction_path = ((action->haptic_flag & XR_HAPTIC_MATCHUSERPATHS) != 0) ?
                                           action->subaction_paths[subaction_idx] :
@@ -871,8 +971,8 @@ static void wm_xr_session_action_states_interpret(wmXrData *xr,
       break;
     }
     case XR_VECTOR2F_INPUT: {
-      const float(*state)[2] = &((float(*)[2])action->states)[subaction_idx];
-      float(*state_prev)[2] = &((float(*)[2])action->states_prev)[subaction_idx];
+      const float (*state)[2] = &((float (*)[2])action->states)[subaction_idx];
+      float (*state_prev)[2] = &((float (*)[2])action->states_prev)[subaction_idx];
       if (test_vec2f_state(
               *state, action->float_thresholds[subaction_idx], action->axis_flags[subaction_idx]))
       {
@@ -1009,7 +1109,7 @@ static bool wm_xr_session_action_test_bimanual(const wmXrSessionState *session_s
       break;
     }
     case XR_VECTOR2F_INPUT: {
-      const float(*state)[2] = &((float(*)[2])action->states)[*r_subaction_idx_other];
+      const float (*state)[2] = &((float (*)[2])action->states)[*r_subaction_idx_other];
       if (test_vec2f_state(*state,
                            action->float_thresholds[*r_subaction_idx_other],
                            action->axis_flags[*r_subaction_idx_other]))
@@ -1064,9 +1164,9 @@ static wmXrActionData *wm_xr_session_event_create(const char *action_set_name,
       data->float_threshold = action->float_thresholds[subaction_idx];
       break;
     case XR_VECTOR2F_INPUT:
-      copy_v2_v2(data->state, ((float(*)[2])action->states)[subaction_idx]);
+      copy_v2_v2(data->state, ((float (*)[2])action->states)[subaction_idx]);
       if (bimanual) {
-        copy_v2_v2(data->state_other, ((float(*)[2])action->states)[subaction_idx_other]);
+        copy_v2_v2(data->state_other, ((float (*)[2])action->states)[subaction_idx_other]);
       }
       data->float_threshold = action->float_thresholds[subaction_idx];
       break;
@@ -1117,8 +1217,8 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
 
   const int64_t time_now = int64_t(BLI_time_now_seconds() * 1000);
 
-  ListBase *active_modal_actions = &action_set->active_modal_actions;
-  ListBase *active_haptic_actions = &action_set->active_haptic_actions;
+  ListBaseT<LinkData> *active_modal_actions = &action_set->active_modal_actions;
+  ListBaseT<wmXrHapticAction> *active_haptic_actions = &action_set->active_haptic_actions;
 
   wmXrAction **actions = MEM_calloc_arrayN<wmXrAction *>(count, __func__);
 
@@ -1258,7 +1358,7 @@ void wm_xr_session_controller_data_populate(const wmXrAction *grip_action,
   UNUSED_VARS(aim_action); /* Only used for asserts. */
 
   wmXrSessionState *state = &xr->runtime->session_state;
-  ListBase *controllers = &state->controllers;
+  ListBaseT<wmXrController> *controllers = &state->controllers;
 
   BLI_assert(grip_action->count_subaction_paths == aim_action->count_subaction_paths);
   const uint count = grip_action->count_subaction_paths;
@@ -1439,7 +1539,7 @@ bool wm_xr_session_surface_offscreen_ensure(wmXrSurfaceData *surface_data,
 static void wm_xr_session_surface_free_data(wmSurface *surface)
 {
   wmXrSurfaceData *data = static_cast<wmXrSurfaceData *>(surface->customdata);
-  ListBase *lb = &data->viewports;
+  ListBaseT<wmXrViewportPair> *lb = &data->viewports;
 
   while (wmXrViewportPair *vp = static_cast<wmXrViewportPair *>(BLI_pophead(lb))) {
     if (vp->viewport) {

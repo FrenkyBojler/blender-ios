@@ -96,7 +96,7 @@ static bool bm_vert_pair_share_splittable_face_cb(BMFace * /*f*/,
                                                   BMLoop *l_b,
                                                   void *userdata)
 {
-  float(*data)[3] = static_cast<float(*)[3]>(userdata);
+  float (*data)[3] = static_cast<float (*)[3]>(userdata);
   float *v_a_co = data[0];
   float *v_a_b_dir = data[1];
   const float range_min = -FLT_EPSILON;
@@ -695,8 +695,7 @@ bool BM_mesh_intersect_edges(
     int edgexvert_pair_len = edgexelem_pair_len - edgexedge_pair_len;
 
     if (edgexelem_pair_len) {
-      pair_array = static_cast<EDBMSplitElem(*)[2]>(
-          MEM_mallocN(sizeof(*pair_array) * pair_len, __func__));
+      pair_array = MEM_malloc_arrayN<EDBMSplitElem[2]>(pair_len, __func__);
 
       pair_iter = pair_array;
       for (i = 0; i < BLI_STACK_PAIR_LEN; i++) {
@@ -806,8 +805,7 @@ bool BM_mesh_intersect_edges(
 
   if (r_targetmap) {
     if (pair_len && pair_array == nullptr) {
-      pair_array = static_cast<EDBMSplitElem(*)[2]>(
-          MEM_mallocN(sizeof(*pair_array) * pair_len, __func__));
+      pair_array = MEM_malloc_arrayN<EDBMSplitElem[2]>(pair_len, __func__);
       pair_iter = pair_array;
       for (i = 0; i < BLI_STACK_PAIR_LEN; i++) {
         if (pair_stack[i]) {

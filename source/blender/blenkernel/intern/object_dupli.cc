@@ -34,6 +34,7 @@
 #include "DNA_collection_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_pointcloud_types.h"
@@ -213,7 +214,7 @@ static bool copy_dupli_context(DupliContext *r_ctx,
   r_ctx->object = ob;
   r_ctx->instance_stack = ctx->instance_stack;
   if (mat) {
-    mul_m4_m4m4(r_ctx->space_mat, (float(*)[4])ctx->space_mat, mat);
+    mul_m4_m4m4(r_ctx->space_mat, (float (*)[4])ctx->space_mat, mat);
   }
   r_ctx->persistent_id[r_ctx->level] = index;
   r_ctx->instance_idx[r_ctx->level] = instance_index;
@@ -279,7 +280,7 @@ static DupliObject *make_dupli(const DupliContext *ctx,
 
   dob->ob = ob;
   dob->ob_data = const_cast<ID *>(object_data);
-  mul_m4_m4m4(dob->mat, (float(*)[4])ctx->space_mat, mat);
+  mul_m4_m4m4(dob->mat, (float (*)[4])ctx->space_mat, mat);
   dob->type = ctx->gen == nullptr ? 0 : ctx->dupli_gen_type_stack->last();
   dob->preview_base_geometry = ctx->preview_base_geometry;
   dob->preview_instance_index = ctx->preview_instance_index;
@@ -779,7 +780,7 @@ static void make_duplis_verts(const DupliContext *ctx)
     vdd.totvert = mesh_eval->verts_num;
     vdd.vert_positions = mesh_eval->vert_positions();
     vdd.vert_normals = mesh_eval->vert_normals();
-    vdd.orco = (const float(*)[3])CustomData_get_layer(&mesh_eval->vert_data, CD_ORCO);
+    vdd.orco = (const float (*)[3])CustomData_get_layer(&mesh_eval->vert_data, CD_ORCO);
 
     make_child_duplis(ctx, &vdd, make_child_duplis_verts_from_mesh);
   }
@@ -812,12 +813,12 @@ static Object *find_family_object(
   ch_utf8[ch_utf8_len] = '\0';
   ch_utf8_len += 1; /* Compare with null terminator. */
 
-  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-    if (STREQLEN(ob->id.name + 2 + family_len, ch_utf8, ch_utf8_len)) {
-      if (STREQLEN(ob->id.name + 2, family, family_len)) {
+  for (Object &ob : bmain->objects) {
+    if (STREQLEN(ob.id.name + 2 + family_len, ch_utf8, ch_utf8_len)) {
+      if (STREQLEN(ob.id.name + 2, family, family_len)) {
         /* Inserted value can be nullptr, just to save searches in future. */
-        BLI_ghash_insert(family_gh, ch_key, ob);
-        return ob;
+        BLI_ghash_insert(family_gh, ch_key, &ob);
+        return &ob;
       }
     }
   }
@@ -1149,7 +1150,7 @@ static void get_dupliface_transform_from_coords(Span<float3> coords,
   /* Scale. */
   float scale;
   if (use_scale) {
-    const float area = area_poly_v3((const float(*)[3])coords.data(), uint(coords.size()));
+    const float area = area_poly_v3((const float (*)[3])coords.data(), uint(coords.size()));
     scale = sqrtf(area) * scale_fac;
   }
   else {
@@ -1255,7 +1256,7 @@ static void make_child_duplis_faces_from_mesh(const DupliContext *ctx,
                                               Object *inst_ob)
 {
   FaceDupliData_Mesh *fdd = (FaceDupliData_Mesh *)userdata;
-  const float(*orco)[3] = fdd->orco;
+  const float (*orco)[3] = fdd->orco;
   const float2 *uv_map = fdd->uv_map;
   const int totface = fdd->totface;
   const bool use_scale = fdd->params.use_scale;
@@ -1334,6 +1335,7 @@ static void make_child_duplis_faces_from_editmesh(const DupliContext *ctx,
 
 static void make_duplis_faces(const DupliContext *ctx)
 {
+  using namespace blender;
   Object *parent = ctx->object;
 
   /* Gather mesh info. */
@@ -1348,30 +1350,29 @@ static void make_duplis_faces(const DupliContext *ctx)
   FaceDupliData_Params fdd_params = {ctx, (parent->transflag & OB_DUPLIFACES_SCALE) != 0};
 
   if (em != nullptr) {
-    const int uv_idx = CustomData_get_render_layer(&em->bm->ldata, CD_PROP_FLOAT2);
+    const int cd_loop_uv_offset = CustomData_get_offset_named(
+        &em->bm->ldata, CD_PROP_FLOAT2, mesh_eval->active_uv_map_name());
     FaceDupliData_EditMesh fdd{};
     fdd.params = fdd_params;
     fdd.em = em;
     fdd.vert_positions_deform = vert_positions_deform;
     fdd.has_orco = !vert_positions_deform.is_empty();
-    fdd.has_uvs = (uv_idx != -1);
-    fdd.cd_loop_uv_offset = (uv_idx != -1) ?
-                                CustomData_get_n_offset(&em->bm->ldata, CD_PROP_FLOAT2, uv_idx) :
-                                -1;
+    fdd.has_uvs = (cd_loop_uv_offset != -1);
+    fdd.cd_loop_uv_offset = cd_loop_uv_offset;
     make_child_duplis(ctx, &fdd, make_child_duplis_faces_from_editmesh);
   }
   else {
-    const int uv_idx = CustomData_get_render_layer(&mesh_eval->corner_data, CD_PROP_FLOAT2);
+    const bke::AttributeAccessor attributes = mesh_eval->attributes();
+    const VArraySpan uv_map = *attributes.lookup<float2>(mesh_eval->default_uv_map_name(),
+                                                         bke::AttrDomain::Corner);
     FaceDupliData_Mesh fdd{};
     fdd.params = fdd_params;
     fdd.totface = mesh_eval->faces_num;
     fdd.faces = mesh_eval->faces();
     fdd.corner_verts = mesh_eval->corner_verts();
     fdd.vert_positions = mesh_eval->vert_positions();
-    fdd.uv_map = (uv_idx != -1) ? (const float2 *)CustomData_get_layer_n(
-                                      &mesh_eval->corner_data, CD_PROP_FLOAT2, uv_idx) :
-                                  nullptr;
-    fdd.orco = (const float(*)[3])CustomData_get_layer(&mesh_eval->vert_data, CD_ORCO);
+    fdd.uv_map = uv_map.is_empty() ? nullptr : uv_map.data();
+    fdd.orco = (const float (*)[3])CustomData_get_layer(&mesh_eval->vert_data, CD_ORCO);
 
     make_child_duplis(ctx, &fdd, make_child_duplis_faces_from_mesh);
   }
@@ -1457,7 +1458,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
         return;
       }
 
-      const ListBase dup_collection_objects = BKE_collection_object_cache_get(
+      const ListBaseT<Base> dup_collection_objects = BKE_collection_object_cache_get(
           part->instance_collection);
       if (BLI_listbase_is_empty(&dup_collection_objects)) {
         return;
@@ -1494,12 +1495,12 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
     if (part->ren_as == PART_DRAW_GR) {
       if (use_collection_count) {
         psys_find_group_weights(part);
-        LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
+        for (ParticleDupliWeight &dw : part->instance_weights) {
           FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (
               part->instance_collection, object, mode)
           {
-            if (dw->ob == object) {
-              totcollection += dw->count;
+            if (dw.ob == object) {
+              totcollection += dw.count;
               break;
             }
           }
@@ -1519,13 +1520,13 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
       if (use_collection_count) {
         a = 0;
-        LISTBASE_FOREACH (ParticleDupliWeight *, dw, &part->instance_weights) {
+        for (ParticleDupliWeight &dw : part->instance_weights) {
           FOREACH_COLLECTION_VISIBLE_OBJECT_RECURSIVE_BEGIN (
               part->instance_collection, object, mode)
           {
-            if (dw->ob == object) {
-              for (b = 0; b < dw->count; b++, a++) {
-                oblist[a] = dw->ob;
+            if (dw.ob == object) {
+              for (b = 0; b < dw.count; b++, a++) {
+                oblist[a] = dw.ob;
               }
               break;
             }
@@ -1720,12 +1721,12 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 static void make_duplis_particles(const DupliContext *ctx)
 {
   /* Particle system take up one level in id, the particles another. */
-  int psysid;
-  LISTBASE_FOREACH_INDEX (ParticleSystem *, psys, &ctx->object->particlesystem, psysid) {
+
+  for (const auto [psysid, psys] : ctx->object->particlesystem.enumerate()) {
     /* Particles create one more level for persistent `psys` index. */
     DupliContext pctx;
     if (copy_dupli_context(&pctx, ctx, ctx->object, nullptr, psysid)) {
-      make_duplis_particle_system(&pctx, psys);
+      make_duplis_particle_system(&pctx, &psys);
     }
   }
 }
@@ -1850,11 +1851,11 @@ void object_duplilist_preview(Depsgraph *depsgraph,
 
   Object *ob_orig = DEG_get_original(ob_eval);
 
-  LISTBASE_FOREACH (ModifierData *, md_orig, &ob_orig->modifiers) {
-    if (md_orig->type != eModifierType_Nodes) {
+  for (ModifierData &md_orig : ob_orig->modifiers) {
+    if (md_orig.type != eModifierType_Nodes) {
       continue;
     }
-    NodesModifierData *nmd_orig = reinterpret_cast<NodesModifierData *>(md_orig);
+    NodesModifierData *nmd_orig = reinterpret_cast<NodesModifierData *>(&md_orig);
     if (!nmd_orig->runtime->eval_log) {
       continue;
     }

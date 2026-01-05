@@ -277,7 +277,7 @@ static int UNUSED_FUNCTION(cloth_calc_helper_forces)(
     Object * /*ob*/, ClothModifierData *clmd, float (*initial_cos)[3], float /*step*/, float dt)
 {
   Cloth *cloth = clmd->clothObject;
-  float(*cos)[3] = MEM_calloc_arrayN<float[3]>(cloth->mvert_num, "cos cloth_calc_helper_forces");
+  float (*cos)[3] = MEM_calloc_arrayN<float[3]>(cloth->mvert_num, "cos cloth_calc_helper_forces");
   float *masses = MEM_calloc_arrayN<float>(cloth->mvert_num, "cos cloth_calc_helper_forces");
   LinkNode *node;
   ClothSpring *spring;
@@ -563,8 +563,11 @@ static void hair_get_boundbox(ClothModifierData *clmd,
   }
 }
 
-static void cloth_calc_force(
-    Scene *scene, ClothModifierData *clmd, float /*frame*/, ListBase *effectors, float time)
+static void cloth_calc_force(Scene *scene,
+                             ClothModifierData *clmd,
+                             float /*frame*/,
+                             ListBaseT<EffectorCache> *effectors,
+                             float time)
 {
   /* Collect forces and derivatives: F, dFdX, dFdV. */
   Cloth *cloth = clmd->clothObject;
@@ -699,8 +702,8 @@ static void cloth_calc_force(
     bool has_wind = false, has_force = false;
 
     /* cache per-vertex forces to avoid redundant calculation */
-    float(*winvec)[3] = MEM_calloc_arrayN<float[3]>(mvert_num * 2, "effector forces");
-    float(*forcevec)[3] = is_not_hair ? winvec + mvert_num : winvec;
+    float (*winvec)[3] = MEM_calloc_arrayN<float[3]>(mvert_num * 2, "effector forces");
+    float (*forcevec)[3] = is_not_hair ? winvec + mvert_num : winvec;
 
     for (i = 0; i < cloth->mvert_num; i++) {
       float x[3], v[3];
@@ -1251,8 +1254,11 @@ static void cloth_record_result(ClothModifierData *clmd, ImplicitSolverResult *r
   sres->status |= result->status;
 }
 
-int SIM_cloth_solve(
-    Depsgraph *depsgraph, Object *ob, float frame, ClothModifierData *clmd, ListBase *effectors)
+int SIM_cloth_solve(Depsgraph *depsgraph,
+                    Object *ob,
+                    float frame,
+                    ClothModifierData *clmd,
+                    ListBaseT<EffectorCache> *effectors)
 {
   /* Hair currently is a cloth sim in disguise ...
    * Collision detection and volumetrics work differently then.

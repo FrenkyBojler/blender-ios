@@ -7,15 +7,16 @@
  * \ingroup bke
  */
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
 
-#include "DNA_modifier_types.h" /* Needed for all enum type definitions. */
-
 #include "DNA_customdata_types.h"
+#include "DNA_listBase.h"
+#include "DNA_modifier_types.h" /* Needed for all enum type definitions. */
 
 namespace blender::bke {
 struct GeometrySet;
@@ -30,7 +31,6 @@ struct DepsNodeHandle;
 struct Depsgraph;
 struct ID;
 struct IDTypeForeachColorFunctionCallback;
-struct ListBase;
 struct Main;
 struct Mesh;
 struct ModifierData;
@@ -129,7 +129,7 @@ enum ModifierTypeFlag {
   /** Accepts #GreasePencil data input. */
   eModifierTypeFlag_AcceptsGreasePencil = (1 << 12),
 };
-ENUM_OPERATORS(ModifierTypeFlag, eModifierTypeFlag_AcceptsGreasePencil)
+ENUM_OPERATORS(ModifierTypeFlag)
 
 using IDWalkFunc = void (*)(void *user_data,
                             Object *ob,
@@ -164,7 +164,7 @@ enum ModifierApplyFlag {
    */
   MOD_APPLY_TO_ORIGINAL = 1 << 4,
 };
-ENUM_OPERATORS(ModifierApplyFlag, MOD_APPLY_TO_ORIGINAL);
+ENUM_OPERATORS(ModifierApplyFlag);
 
 struct ModifierUpdateDepsgraphContext {
   Scene *scene;
@@ -448,7 +448,7 @@ void BKE_modifier_free(ModifierData *md);
  */
 void BKE_modifier_remove_from_list(Object *ob, ModifierData *md);
 
-void BKE_modifier_unique_name(ListBase *modifiers, ModifierData *md);
+void BKE_modifier_unique_name(ListBaseT<ModifierData> *modifiers, ModifierData *md);
 
 ModifierData *BKE_modifier_copy_ex(const ModifierData *md, int flag);
 
@@ -545,9 +545,16 @@ bool BKE_modifiers_uses_multires(Object *ob);
 bool BKE_modifiers_uses_armature(Object *ob, bArmature *arm);
 bool BKE_modifiers_is_correctable_deformed(const Scene *scene, Object *ob);
 void BKE_modifier_free_temporary_data(ModifierData *md);
+/**
+ * Add a modifier at the end of the stack, but respect if there are modifiers which are "pinned to
+ * last" (put the new modifier before then). Also take into account that some modifiers can only be
+ * added after "only-deforming" modifiers (but need to stay before e.g. "generating" modifiers).
+ * Shares logic with #object_modifier_check_move_after().
+ */
+void BKE_modifiers_add_at_end_if_possible(Object *ob, ModifierData *new_md);
 
 struct CDMaskLink {
-  CDMaskLink *next;
+  CDMaskLink *next = nullptr;
   CustomData_MeshMasks mask;
 };
 
@@ -627,8 +634,12 @@ void BKE_modifier_deform_vertsEM(ModifierData *md,
  */
 Mesh *BKE_modifier_get_evaluated_mesh_from_evaluated_object(Object *ob_eval);
 
-void BKE_modifier_blend_write(BlendWriter *writer, const ID *id_owner, ListBase *modbase);
-void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object *ob);
+void BKE_modifier_blend_write(BlendWriter *writer,
+                              const ID *id_owner,
+                              ListBaseT<ModifierData> *modbase);
+void BKE_modifier_blend_read_data(BlendDataReader *reader,
+                                  ListBaseT<ModifierData> *lb,
+                                  Object *ob);
 
 namespace blender::bke {
 

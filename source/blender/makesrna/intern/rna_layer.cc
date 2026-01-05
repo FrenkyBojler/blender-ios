@@ -29,15 +29,19 @@
 
 #  include "RNA_access.hh"
 
+#  include "BKE_context.hh"
 #  include "BKE_idprop.hh"
 #  include "BKE_layer.hh"
+#  include "BKE_main.hh"
 #  include "BKE_mesh.hh"
 #  include "BKE_node.hh"
+#  include "BKE_node_tree_update.hh"
 #  include "BKE_scene.hh"
 
 #  include "NOD_composite.hh"
 
 #  include "BLI_listbase.h"
+#  include "BLI_string.h"
 
 #  include "DEG_depsgraph_build.hh"
 #  include "DEG_depsgraph_query.hh"
@@ -149,19 +153,18 @@ static bool rna_LayerCollection_visible_get(LayerCollection *layer_collection, b
   return false;
 }
 
-static void rna_ViewLayer_update_render_passes(ID *id)
+static void rna_ViewLayer_update_render_passes(ID *id, Main *bmain)
 {
   Scene *scene = (Scene *)id;
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   RenderEngineType *engine_type = RE_engines_find(scene->r.engine);
   if (engine_type->update_render_passes) {
     RenderEngine *engine = RE_engine_create(engine_type);
     if (engine) {
-      LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-        BKE_view_layer_verify_aov(engine, scene, view_layer);
+      for (ViewLayer &view_layer : scene->view_layers) {
+        BKE_view_layer_verify_aov(engine, scene, &view_layer);
       }
     }
     RE_engine_free(engine);
@@ -368,10 +371,10 @@ static bool rna_LayerCollection_has_selected_objects(LayerCollection *lc,
                                                      Main *bmain,
                                                      ViewLayer *view_layer)
 {
-  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    LISTBASE_FOREACH (ViewLayer *, scene_view_layer, &scene->view_layers) {
-      if (scene_view_layer == view_layer) {
-        return BKE_layer_collection_has_selected_objects(scene, view_layer, lc);
+  for (Scene &scene : bmain->scenes) {
+    for (ViewLayer &scene_view_layer : scene.view_layers) {
+      if (&scene_view_layer == view_layer) {
+        return BKE_layer_collection_has_selected_objects(&scene, view_layer, lc);
       }
     }
   }
@@ -415,9 +418,9 @@ static bool rna_LayerCollection_children_lookupstring(PointerRNA *ptr,
   ViewLayer *view_layer = BKE_view_layer_find_from_collection(scene, lc);
   BKE_view_layer_synced_ensure(scene, view_layer);
 
-  LISTBASE_FOREACH (LayerCollection *, child, &lc->layer_collections) {
-    if (STREQ(child->collection->id.name + 2, key)) {
-      rna_pointer_create_with_ancestors(*ptr, &RNA_LayerCollection, child, *r_ptr);
+  for (LayerCollection &child : lc->layer_collections) {
+    if (STREQ(child.collection->id.name + 2, key)) {
+      rna_pointer_create_with_ancestors(*ptr, &RNA_LayerCollection, &child, *r_ptr);
       return true;
     }
   }
@@ -622,7 +625,7 @@ void RNA_def_view_layer(BlenderRNA *brna)
   func = RNA_def_function(srna, "update_render_passes", "rna_ViewLayer_update_render_passes");
   RNA_def_function_ui_description(func,
                                   "Requery the enabled render passes from the render engine");
-  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_NO_SELF);
+  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_NO_SELF);
 
   prop = RNA_def_property(srna, "layer_collection", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "LayerCollection");
@@ -706,6 +709,7 @@ void RNA_def_view_layer(BlenderRNA *brna)
   /* Dependency Graph */
   prop = RNA_def_property(srna, "depsgraph", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "Depsgraph");
+  RNA_def_property_flag_hide_from_ui_workaround(prop);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop, "Dependency Graph", "Dependencies in the scene data");
   RNA_def_property_pointer_funcs(prop, "rna_ViewLayer_depsgraph_get", nullptr, nullptr, nullptr);

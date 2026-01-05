@@ -266,7 +266,7 @@ struct GPUPickState {
     SubRectStride sub_rect;
 
     /** List of #DepthBufCache, sized of 'src.clip_rect'. */
-    ListBase bufs;
+    ListBaseT<DepthBufCache> bufs;
   } cache;
 
   /** Picking methods. */
@@ -367,8 +367,7 @@ void gpu_select_pick_begin(GPUSelectBuffer *buffer, const rcti *input, GPUSelect
   }
 
   if (mode == GPU_SELECT_PICK_ALL) {
-    ps->all.hits = static_cast<DepthID *>(
-        MEM_mallocN(sizeof(*ps->all.hits) * ALLOC_DEPTHS, __func__));
+    ps->all.hits = MEM_malloc_arrayN<DepthID>(ALLOC_DEPTHS, __func__);
     ps->all.hits_len = 0;
     ps->all.hits_len_alloc = ALLOC_DEPTHS;
   }
@@ -587,8 +586,7 @@ uint gpu_select_pick_end()
 
     /* Over allocate (unlikely we have as many depths as pixels). */
     uint depth_data_len_first_pass = 0;
-    depth_data = static_cast<DepthID *>(
-        MEM_mallocN(ps->dst.rect_len * sizeof(*depth_data), __func__));
+    depth_data = MEM_malloc_arrayN<DepthID>(ps->dst.rect_len, __func__);
 
     /* Partially de-duplicating copy,
      * when contiguous ID's are found - update their closest depth.
@@ -731,19 +729,19 @@ void gpu_select_pick_cache_load_id()
 #ifdef DEBUG_PRINT
   printf("%s (building depth from cache)\n", __func__);
 #endif
-  LISTBASE_FOREACH (DepthBufCache *, rect_depth, &ps->cache.bufs) {
-    if (rect_depth->next != nullptr) {
+  for (DepthBufCache &rect_depth : ps->cache.bufs) {
+    if (rect_depth.next != nullptr) {
       /* We know the buffers differ, but this sub-region may not.
        * Double check before adding an id-pass. */
       if (g_pick_state.mode == GPU_SELECT_PICK_ALL) {
-        if (depth_buf_subrect_depth_any(rect_depth->next, &ps->cache.sub_rect)) {
-          gpu_select_load_id_pass_all(rect_depth->next);
+        if (depth_buf_subrect_depth_any(rect_depth.next, &ps->cache.sub_rect)) {
+          gpu_select_load_id_pass_all(rect_depth.next);
         }
       }
       else {
-        if (depth_buf_subrect_depth_any_filled(rect_depth, rect_depth->next, &ps->cache.sub_rect))
+        if (depth_buf_subrect_depth_any_filled(&rect_depth, rect_depth.next, &ps->cache.sub_rect))
         {
-          gpu_select_load_id_pass_nearest(rect_depth, rect_depth->next);
+          gpu_select_load_id_pass_nearest(&rect_depth, rect_depth.next);
         }
       }
     }

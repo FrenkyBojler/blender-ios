@@ -10,10 +10,10 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_iterator.h"
 #include "BLI_set.hh"
-#include "BLI_utildefines.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -29,7 +29,6 @@ struct CustomData_MeshMasks;
 struct Depsgraph;
 struct DupliObject;
 struct ID;
-struct ListBase;
 struct PointerRNA;
 struct Scene;
 struct ViewLayer;
@@ -214,7 +213,7 @@ enum DegIterFlag {
   DEG_ITER_OBJECT_FLAG_VISIBLE = (1 << 3),
   DEG_ITER_OBJECT_FLAG_DUPLI = (1 << 4),
 };
-ENUM_OPERATORS(DegIterFlag, DEG_ITER_OBJECT_FLAG_DUPLI)
+ENUM_OPERATORS(DegIterFlag)
 
 struct DEGObjectIterSettings {
   Depsgraph *depsgraph;
@@ -350,12 +349,13 @@ namespace evil {
  * \param do_matrix_setup: If false, the temp_object won't have valid
  * object_to_world/world_to_object matrices, and the OB_NEG_SCALE flag will never be set.
  */
-[[nodiscard]] bool DEG_iterator_temp_object_from_dupli(const Object *dupli_parent,
-                                                       const DupliObject *dupli,
-                                                       eEvaluationMode eval_mode,
-                                                       bool do_matrix_setup,
-                                                       Object *r_temp_object,
-                                                       ObjectRuntimeHandle *r_temp_runtime);
+[[nodiscard]] bool DEG_iterator_temp_object_from_dupli(
+    const Object *dupli_parent,
+    const DupliObject *dupli,
+    eEvaluationMode eval_mode,
+    bool do_matrix_setup,
+    Object *r_temp_object,
+    blender::bke::ObjectRuntime *r_temp_runtime);
 
 /**
  * WARNING: DON'T USE!!!
@@ -425,5 +425,17 @@ void DEG_foreach_dependent_ID_component(const Depsgraph *depsgraph,
                                         DEGForeachIDComponentCallback callback);
 
 void DEG_foreach_ID(const Depsgraph *depsgraph, DEGForeachIDCallback callback);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name DEG query evaluation timings
+ * \{ */
+
+/**
+ * Return the last evaluation time of \a depsgraph in seconds or #std::nullopt if \a depsgraph
+ * hasn't been (fully) evaluated.
+ */
+std::optional<double> DEG_get_last_evaluation_time(const Depsgraph *depsgraph);
 
 /** \} */

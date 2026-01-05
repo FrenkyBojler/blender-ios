@@ -16,7 +16,6 @@
 #include "IMB_imbuf_enums.h"
 
 struct Depsgraph;
-struct ListBase;
 struct Main;
 struct Scene;
 struct Strip;
@@ -33,8 +32,8 @@ bool proxy_rebuild_context(Main *bmain,
                            Depsgraph *depsgraph,
                            Scene *scene,
                            Strip *strip,
-                           blender::Set<std::string> *processed_paths,
-                           ListBase *queue,
+                           Set<std::string> *processed_paths,
+                           ListBaseT<LinkData> *queue,
                            bool build_only_on_bad_performance);
 void proxy_rebuild(IndexBuildContext *context, wmJobWorkerStatus *worker_status);
 void proxy_rebuild_finish(IndexBuildContext *context, bool stop);
@@ -47,7 +46,7 @@ struct ProxyJob {
   Main *main;
   Depsgraph *depsgraph;
   Scene *scene;
-  ListBase queue;
+  ListBaseT<LinkData> queue;
   int stop;
 };
 

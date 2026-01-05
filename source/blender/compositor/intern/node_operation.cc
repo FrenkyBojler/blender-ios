@@ -51,7 +51,7 @@ NodeOperation::NodeOperation(Context &context, DNode node) : Operation(context),
 void NodeOperation::evaluate()
 {
   if (context().use_gpu()) {
-    GPU_debug_group_begin(node().bnode()->typeinfo->idname.c_str());
+    GPU_debug_group_begin(node_.bnode()->typeinfo->idname.c_str());
   }
   const timeit::TimePoint before_time = timeit::Clock::now();
   Operation::evaluate();
@@ -66,10 +66,12 @@ void NodeOperation::evaluate()
 
 void NodeOperation::compute_preview()
 {
-  if (bool(context().needed_outputs() & OutputTypes::Previews) && is_node_preview_needed(node())) {
+  if (flag_is_set(context().needed_outputs(), OutputTypes::Previews) &&
+      is_node_preview_needed(node_))
+  {
     const Result *result = get_preview_result();
     if (result) {
-      compositor::compute_preview(context(), node(), *result);
+      compositor::compute_preview(context(), node_, *result);
     }
   }
 }
@@ -77,7 +79,7 @@ void NodeOperation::compute_preview()
 Result *NodeOperation::get_preview_result()
 {
   /* Find the first linked output. */
-  for (const bNodeSocket *output : node()->output_sockets()) {
+  for (const bNodeSocket *output : node_->output_sockets()) {
     if (!is_socket_available(output)) {
       continue;
     }
@@ -89,12 +91,12 @@ Result *NodeOperation::get_preview_result()
   }
 
   /* No linked outputs, but no inputs either, so nothing to preview. */
-  if (node()->input_sockets().is_empty()) {
+  if (node_->input_sockets().is_empty()) {
     return nullptr;
   }
 
   /* Find the first allocated input. */
-  for (const bNodeSocket *input : node()->input_sockets()) {
+  for (const bNodeSocket *input : node_->input_sockets()) {
     if (!is_socket_available(input)) {
       continue;
     }
@@ -111,12 +113,12 @@ Result *NodeOperation::get_preview_result()
 
 void NodeOperation::compute_results_reference_counts(const Schedule &schedule)
 {
-  for (const bNodeSocket *output : this->node()->output_sockets()) {
+  for (const bNodeSocket *output : node_->output_sockets()) {
     if (!is_socket_available(output)) {
       continue;
     }
 
-    const DOutputSocket doutput{node().context(), output};
+    const DOutputSocket doutput{node_.context(), output};
 
     const int reference_count = number_of_inputs_linked_to_output_conditioned(
         doutput, [&](DInputSocket input) { return schedule.contains(input.node()); });
@@ -125,12 +127,7 @@ void NodeOperation::compute_results_reference_counts(const Schedule &schedule)
   }
 }
 
-const DNode &NodeOperation::node() const
-{
-  return node_;
-}
-
-const bNode &NodeOperation::bnode() const
+const bNode &NodeOperation::node() const
 {
   return *node_;
 }

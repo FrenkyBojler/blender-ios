@@ -162,7 +162,7 @@ void WM_gizmo_free(wmGizmo *gz)
   MEM_freeN(static_cast<void *>(gz));
 }
 
-void WM_gizmo_unlink(ListBase *gizmolist, wmGizmoMap *gzmap, wmGizmo *gz, bContext *C)
+void WM_gizmo_unlink(ListBaseT<wmGizmo> *gizmolist, wmGizmoMap *gzmap, wmGizmo *gz, bContext *C)
 {
   if (gz->state & WM_GIZMO_STATE_HIGHLIGHT) {
     wm_gizmomap_highlight_set(gzmap, C, nullptr, 0);
@@ -215,7 +215,7 @@ PointerRNA *WM_gizmo_operator_set(wmGizmo *gz,
   if (gzop.ptr.data) {
     WM_operator_properties_free(&gzop.ptr);
   }
-  WM_operator_properties_create_ptr(&gzop.ptr, ot);
+  gzop.ptr = WM_operator_properties_create_ptr(ot);
 
   if (properties) {
     gzop.ptr.data = properties;
@@ -523,12 +523,12 @@ void WM_gizmo_calc_matrix_final_params(const wmGizmo *gz,
                                        const WM_GizmoMatrixParams *params,
                                        float r_mat[4][4])
 {
-  const float(*const matrix_space)[4] = params->matrix_space ? params->matrix_space :
-                                                               gz->matrix_space;
-  const float(*const matrix_basis)[4] = params->matrix_basis ? params->matrix_basis :
-                                                               gz->matrix_basis;
-  const float(*const matrix_offset)[4] = params->matrix_offset ? params->matrix_offset :
-                                                                 gz->matrix_offset;
+  const float (*const matrix_space)[4] = params->matrix_space ? params->matrix_space :
+                                                                gz->matrix_space;
+  const float (*const matrix_basis)[4] = params->matrix_basis ? params->matrix_basis :
+                                                                gz->matrix_basis;
+  const float (*const matrix_offset)[4] = params->matrix_offset ? params->matrix_offset :
+                                                                  gz->matrix_offset;
   const float *scale_final = params->scale_final ? params->scale_final : &gz->scale_final;
 
   float final_matrix[4][4];

@@ -28,10 +28,7 @@ static blender::bke::bNodeSocketTemplate outputs_color_only[] = {{SOCK_RGBA, N_(
 /* Inputs common to all, #defined because nodes will need their own inputs too */
 #define I 2 /* count */
 #define COMMON_INPUTS \
-  {SOCK_RGBA, "Color 1", 0.0f, 0.0f, 0.0f, 1.0f}, \
-  { \
-    SOCK_RGBA, "Color 2", 1.0f, 1.0f, 1.0f, 1.0f \
-  }
+  {SOCK_RGBA, "Color 1", 0.0f, 0.0f, 0.0f, 1.0f}, {SOCK_RGBA, "Color 2", 1.0f, 1.0f, 1.0f, 1.0f}
 
 /* Calls multitex and copies the result to the outputs.
  * Called by xxx_exec, which handles inputs. */
@@ -73,11 +70,7 @@ static void texfn(
 
 static int count_outputs(bNode *node)
 {
-  int num = 0;
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-    num++;
-  }
-  return num;
+  return BLI_listbase_count(&node->outputs);
 }
 
 /* Boilerplate generators */
@@ -239,7 +232,7 @@ ProcDef(stucci);
 
 static void init(bNodeTree * /*ntree*/, bNode *node)
 {
-  Tex *tex = MEM_callocN<Tex>("Tex");
+  Tex *tex = MEM_new_for_free<Tex>("Tex");
   node->storage = tex;
 
   BKE_texture_default(tex);
