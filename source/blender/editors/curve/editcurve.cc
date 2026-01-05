@@ -1057,6 +1057,7 @@ static void fcurve_path_rename(const char *orig_rna_path,
 
       if (ch && (STRPREFIX(ch, ".bezier_points") || STRPREFIX(ch, ".points"))) {
         fcurves_to_remove.append(fcu);
+        processed_fcurves.add(fcu);
       }
     }
   }
