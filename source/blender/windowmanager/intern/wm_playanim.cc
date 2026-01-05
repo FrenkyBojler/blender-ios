@@ -215,6 +215,8 @@ struct PlayDisplayContext {
 #endif
 };
 
+struct PlayAnimPict;
+
 /**
  * The current state of the player.
  *
@@ -264,7 +266,7 @@ struct PlayState {
   int frame_step;
 
   /** Picture #PlayAnimPict, list (both image-sequence or videos) in-memory. */
-  ListBase picsbase;
+  ListBaseT<PlayAnimPict> picsbase;
 
   /** Current frame (picture). */
   struct PlayAnimPict *picture;
@@ -464,7 +466,7 @@ static struct {
 #ifdef USE_FRAME_CACHE_LIMIT
 static struct {
   /** A list of #LinkData nodes referencing #PlayAnimPict to track cached frames. */
-  ListBase pics;
+  ListBaseT<LinkData> pics;
   /** Number if elements in `pics`. */
   int pics_len;
   /** Keep track of memory used by #g_frame_cache.pics when `g_frame_cache.memory_limit != 0`. */
@@ -972,7 +974,7 @@ static void playanim_toscreen(PlayState &ps, const PlayAnimPict *picture, ImBuf 
                        frame_indicator_factor);
 }
 
-static void build_pict_list_from_anim(ListBase &picsbase,
+static void build_pict_list_from_anim(ListBaseT<PlayAnimPict> &picsbase,
                                       GhostData &ghost_data,
                                       const PlayDisplayContext &display_ctx,
                                       const char *filepath_first,
@@ -1007,7 +1009,7 @@ static void build_pict_list_from_anim(ListBase &picsbase,
   }
 }
 
-static void build_pict_list_from_image_sequence(ListBase &picsbase,
+static void build_pict_list_from_image_sequence(ListBaseT<PlayAnimPict> &picsbase,
                                                 GhostData &ghost_data,
                                                 const PlayDisplayContext &display_ctx,
                                                 const char *filepath_first,
@@ -1124,7 +1126,7 @@ static void build_pict_list_from_image_sequence(ListBase &picsbase,
   }
 }
 
-static void build_pict_list(ListBase &picsbase,
+static void build_pict_list(ListBaseT<PlayAnimPict> &picsbase,
                             GhostData &ghost_data,
                             const PlayDisplayContext &display_ctx,
                             const char *filepath_first,

@@ -93,11 +93,11 @@ struct RenderLayer {
 
   int rectx, recty;
 
-  ListBase passes;
+  ListBaseT<RenderPass> passes;
 };
 
 struct RenderResult {
-  struct RenderResult *next, *prev;
+  struct RenderResult *next = nullptr, *prev = nullptr;
 
   /* The number of users of this render result. Default value is 0. The result is freed when
    * #RE_FreeRenderResult is called with the render result with 0 users. In a way this is
@@ -108,30 +108,30 @@ struct RenderResult {
    * the number of users goes to 0.
    *
    * TODO: Make it atomic. Currently it is not to allow shallow copying. */
-  int user_counter;
+  int user_counter = 0;
 
   /* target image size */
-  int rectx, recty;
+  int rectx = 0, recty = 0;
 
   /* The temporary storage to pass image data from #RE_AcquireResultImage.
    * Is null pointer when the RenderResult is not coming from the #RE_AcquireResultImage, and is
    * a pointer to an existing ibuf in either RenderView or a RenderPass otherwise. */
-  struct ImBuf *ibuf;
+  struct ImBuf *ibuf = nullptr;
 
   /* coordinates within final image (after cropping) */
   rcti tilerect;
 
   /* the main buffers */
-  ListBase layers;
+  ListBaseT<RenderLayer> layers = {};
 
   /* multiView maps to a StringVector in OpenEXR */
-  ListBase views; /* RenderView */
+  ListBaseT<RenderView> views = {};
 
   /* Render layer to display. */
-  RenderLayer *renlay;
+  RenderLayer *renlay = nullptr;
 
   /* for render results in Image, verify validity for sequences */
-  int framenr;
+  int framenr = 0;
 
   /**
    * Pixels per meter (for image output).
@@ -142,15 +142,15 @@ struct RenderResult {
   double ppm[2];
 
   /* for acquire image, to indicate if it there is a combined layer */
-  bool have_combined;
+  bool have_combined = false;
 
   /* render info text */
-  char *text;
-  char *error;
+  char *text = nullptr;
+  char *error = nullptr;
 
-  struct StampData *stamp_data;
+  struct StampData *stamp_data = nullptr;
 
-  bool passes_allocated;
+  bool passes_allocated = false;
 };
 
 struct RenderStats {
@@ -242,7 +242,7 @@ void RE_ReleaseResult(struct Render *re);
 /**
  * Same as #RE_AcquireResultImage but creating the necessary views to store the result
  * fill provided result struct with a copy of thew views of what is done so far the
- * #RenderResult.views #ListBase needs to be freed after with #RE_ReleaseResultImageViews
+ * #RenderResult.views #ListBaseT needs to be freed after with #RE_ReleaseResultImageViews
  */
 void RE_AcquireResultImageViews(struct Render *re, struct RenderResult *rr);
 /**
@@ -315,7 +315,7 @@ void RE_create_render_pass(struct RenderResult *rr,
 void RE_InitState(struct Render *re,
                   struct Render *source,
                   struct RenderData *rd,
-                  struct ListBase *render_layers,
+                  ListBaseT<ViewLayer> *render_layers,
                   struct ViewLayer *single_layer,
                   int winx,
                   int winy,
@@ -435,13 +435,6 @@ void RE_current_scene_update_cb(struct Render *re,
 
 GHOST_IContext *RE_system_gpu_context_get(Render *re);
 void *RE_blender_gpu_context_ensure(Render *re);
-
-/**
- * \param x: ranges from -1 to 1.
- *
- * TODO: Should move to kernel once... still unsure on how/where.
- */
-float RE_filter_value(int type, float x);
 
 bool RE_seq_render_active(struct Scene *scene, struct RenderData *rd);
 

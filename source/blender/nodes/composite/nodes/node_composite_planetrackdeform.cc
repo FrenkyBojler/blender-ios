@@ -11,7 +11,6 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_utf8.h"
 
-#include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
 
@@ -104,7 +103,7 @@ static void init(const bContext *C, PointerRNA *ptr)
 {
   bNode *node = (bNode *)ptr->data;
 
-  NodePlaneTrackDeformData *data = MEM_callocN<NodePlaneTrackDeformData>(__func__);
+  NodePlaneTrackDeformData *data = MEM_new_for_free<NodePlaneTrackDeformData>(__func__);
   node->storage = data;
 
   const Scene *scene = CTX_data_scene(C);
@@ -398,19 +397,19 @@ class PlaneTrackDeformOperation : public NodeOperation {
     }
 
     MovieTrackingObject *tracking_object = BKE_tracking_object_get_named(
-        &movie_clip->tracking, node_storage(bnode()).tracking_object);
+        &movie_clip->tracking, node_storage(node()).tracking_object);
 
     if (!tracking_object) {
       return nullptr;
     }
 
     return BKE_tracking_object_find_plane_track_with_name(tracking_object,
-                                                          node_storage(bnode()).plane_track_name);
+                                                          node_storage(node()).plane_track_name);
   }
 
   int2 get_movie_clip_size()
   {
-    MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+    MovieClipUser user = {};
     BKE_movieclip_user_set_frame(&user, context().get_frame_number());
 
     int2 size;
@@ -438,7 +437,7 @@ class PlaneTrackDeformOperation : public NodeOperation {
 
   MovieClip *get_movie_clip()
   {
-    return reinterpret_cast<MovieClip *>(bnode().id);
+    return reinterpret_cast<MovieClip *>(node().id);
   }
 };
 

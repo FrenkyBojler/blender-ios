@@ -1475,7 +1475,7 @@ static wmOperatorStatus edbm_select_similar_region_exec(bContext *C, wmOperator 
   BM_mesh_elem_table_ensure(bm, BM_FACE);
 
   for (i = 0; i < group_tot; i++) {
-    ListBase faces_regions;
+    ListBaseT<LinkData> faces_regions;
     int tot;
 
     const int fg_sta = group_index[i][0];
@@ -3120,16 +3120,16 @@ static bool bm_interior_edge_is_manifold_except_face_index(BMEdge *e,
  * Calculate the cost of the face group.
  * A higher value means it's more likely to remove first.
  */
-static float bm_interior_face_group_calc_cost(ListBase *ls, const float *edge_lengths)
+static float bm_interior_face_group_calc_cost(ListBaseT<BMFaceLink> *ls, const float *edge_lengths)
 {
   /* Dividing by the area is important so larger face groups (which will become the outer shell)
    * aren't detected as having a high cost. */
   float area = 0.0f;
   float cost = 0.0f;
   bool found = false;
-  LISTBASE_FOREACH (BMFaceLink *, f_link, ls) {
-    BMFace *f = f_link->face;
-    area += f_link->area;
+  for (BMFaceLink &f_link : *ls) {
+    BMFace *f = f_link.face;
+    area += f_link.area;
     int i = BM_elem_index_get(f);
     BLI_assert(i != -1);
     BMLoop *l_iter, *l_first;
@@ -3226,7 +3226,8 @@ bool EDBM_select_interior_faces(BMEditMesh *em)
   }
   bm->elem_index_dirty |= BM_FACE;
 
-  ListBase *fgroup_listbase = MEM_calloc_arrayN<ListBase>(fgroup_len, __func__);
+  ListBaseT<BMFaceLink> *fgroup_listbase = MEM_calloc_arrayN<ListBaseT<BMFaceLink>>(fgroup_len,
+                                                                                    __func__);
   BMFaceLink *f_link_array = MEM_calloc_arrayN<BMFaceLink>(bm->totface, __func__);
 
   for (int i = 0; i < fgroup_len; i++) {
@@ -3332,8 +3333,8 @@ bool EDBM_select_interior_faces(BMEditMesh *em)
             }
 
             /* Merge the groups. */
-            LISTBASE_FOREACH (LinkData *, n, &fgroup_listbase[i_b]) {
-              BMFace *f_iter = static_cast<BMFace *>(n->data);
+            for (BMFaceLink &n : fgroup_listbase[i_b]) {
+              BMFace *f_iter = n.face;
               BM_elem_index_set(f_iter, i_a);
             }
             BLI_movelisttolist(&fgroup_listbase[i_a], &fgroup_listbase[i_b]);
@@ -5408,8 +5409,7 @@ static wmOperatorStatus edbm_select_random_exec(bContext *C, wmOperator *op)
 
     if (em->selectmode & SCE_SELECT_VERTEX) {
       int elem_map_len = 0;
-      BMVert **elem_map = static_cast<BMVert **>(
-          MEM_mallocN(sizeof(*elem_map) * em->bm->totvert, __func__));
+      BMVert **elem_map = MEM_malloc_arrayN<BMVert *>(em->bm->totvert, __func__);
       BMVert *eve;
       BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
         if (!BM_elem_flag_test(eve, BM_ELEM_HIDDEN)) {
@@ -5426,8 +5426,7 @@ static wmOperatorStatus edbm_select_random_exec(bContext *C, wmOperator *op)
     }
     else if (em->selectmode & SCE_SELECT_EDGE) {
       int elem_map_len = 0;
-      BMEdge **elem_map = static_cast<BMEdge **>(
-          MEM_mallocN(sizeof(*elem_map) * em->bm->totedge, __func__));
+      BMEdge **elem_map = MEM_malloc_arrayN<BMEdge *>(em->bm->totedge, __func__);
       BMEdge *eed;
       BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
         if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
@@ -5443,8 +5442,7 @@ static wmOperatorStatus edbm_select_random_exec(bContext *C, wmOperator *op)
     }
     else {
       int elem_map_len = 0;
-      BMFace **elem_map = static_cast<BMFace **>(
-          MEM_mallocN(sizeof(*elem_map) * em->bm->totface, __func__));
+      BMFace **elem_map = MEM_malloc_arrayN<BMFace *>(em->bm->totface, __func__);
       BMFace *efa;
       BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
         if (!BM_elem_flag_test(efa, BM_ELEM_HIDDEN)) {
@@ -5506,7 +5504,7 @@ static bool edbm_select_ungrouped_poll(bContext *C)
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     const int cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
 
-    const ListBase *defbase = BKE_object_defgroup_list(obedit);
+    const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(obedit);
     if ((em->selectmode & SCE_SELECT_VERTEX) == 0) {
       CTX_wm_operator_poll_msg_set(C, "Must be in vertex selection mode");
     }

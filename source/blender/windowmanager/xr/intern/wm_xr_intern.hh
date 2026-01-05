@@ -25,6 +25,7 @@ struct Object;
 struct wmWindow;
 struct wmWindowManager;
 struct wmXrActionSet;
+struct wmXrController;
 struct wmXrData;
 
 struct wmXrSessionState {
@@ -67,7 +68,7 @@ struct wmXrSessionState {
   bool is_navigation_dirty;
 
   /** Last known controller data. */
-  ListBase controllers; /* #wmXrController. */
+  ListBaseT<wmXrController> controllers;
 
   /** The currently active action set that will be updated on calls to
    * #wm_xr_session_actions_update(). If NULL, all action sets will be treated as active and
@@ -94,7 +95,7 @@ struct wmXrRuntimeData {
   wmXrSessionState session_state;
   wmXrSessionExitFn exit_fn;
 
-  ListBase actionmaps; /* #XrActionMap. */
+  ListBaseT<XrActionMap> actionmaps;
   short actactionmap;
   short selactionmap;
 };
@@ -107,7 +108,7 @@ struct wmXrViewportPair {
 
 struct wmXrSurfaceData {
   /** Off-screen buffers/viewports for each view. */
-  ListBase viewports; /* #wmXrViewportPair. */
+  ListBaseT<wmXrViewportPair> viewports;
 
   /** Dummy region type for controller draw callback. */
   struct ARegionType *controller_art;
@@ -201,9 +202,9 @@ struct wmXrActionSet {
   wmXrAction *controller_aim_action;
 
   /** Currently active modal actions. */
-  ListBase active_modal_actions;
+  ListBaseT<LinkData> active_modal_actions;
   /** Currently active haptic actions. */
-  ListBase active_haptic_actions;
+  ListBaseT<wmXrHapticAction> active_haptic_actions;
 };
 
 struct wmXrVignetteData {

@@ -97,14 +97,16 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
 
 static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 {
+  UserDef U_default = {};
+
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS);
   BLI_assert(sfile->op == nullptr);
 
   FileAssetSelectParams *asset_params = sfile->asset_params;
 
   if (!asset_params) {
-    asset_params = sfile->asset_params = static_cast<FileAssetSelectParams *>(
-        MEM_callocN(sizeof(*asset_params), "FileAssetSelectParams"));
+    asset_params = sfile->asset_params = MEM_new_for_free<FileAssetSelectParams>(
+        "FileAssetSelectParams");
     asset_params->base_params.details_flags = U_default.file_space_data.details_flags;
     asset_params->asset_library_ref.type = ASSET_LIBRARY_ALL;
     asset_params->asset_library_ref.custom_library_index = -1;
@@ -142,6 +144,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 {
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_FILES);
 
+  UserDef U_default = {};
   FileSelectParams *params;
   wmOperator *op = sfile->op;
 
@@ -149,7 +152,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 
   /* create new parameters if necessary */
   if (!sfile->params) {
-    sfile->params = MEM_callocN<FileSelectParams>("fileselparams");
+    sfile->params = MEM_new_for_free<FileSelectParams>("fileselparams");
     /* set path to most recently opened .blend */
     BLI_path_split_dir_file(blendfile_path,
                             sfile->params->dir,
