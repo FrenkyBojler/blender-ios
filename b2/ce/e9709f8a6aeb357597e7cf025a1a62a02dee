@@ -1,1 +1,2 @@
 Referenced by issue #152417, Main no longer compiles with CUDA 13
+Referenced by pull request #152419, Fix #152417: Main no longer compiles with CUDA 13
