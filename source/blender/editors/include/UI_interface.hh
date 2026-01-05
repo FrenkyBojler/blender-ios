@@ -47,7 +47,7 @@ enum {
   POPUP_DIRECTION_HORIZONTAL = 1,
 };
 
-}
+}  // namespace blender::ui
 
 namespace blender::ui {
 

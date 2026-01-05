@@ -1615,7 +1615,13 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
-  parm = RNA_def_enum(func, "direction", popup_draw_direction_items, 0, "Popup Direction", "The direction in which the popup panel is drawn relative to button position");
+  parm = RNA_def_enum(
+      func,
+      "direction",
+      popup_draw_direction_items,
+      0,
+      "Popup Direction",
+      "The direction in which the popup panel is drawn relative to button position");
 
   func = RNA_def_function(srna, "popover_group", "rna_uiItemPopoverPanelFromGroup");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT);
