@@ -6221,8 +6221,6 @@ static float get_uv_face_needle(const eUVSelectSimilar type,
       }
       break;
     }
-    case UV_SSIM_MATERIAL:
-      return face->mat_nr;
     case UV_SSIM_WINDING:
       return signum_i(BM_face_calc_area_uv_signed(face, offsets.uv));
     default:
@@ -6532,6 +6530,9 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
     /* TODO: Get a tighter bounds */
   }
 
+  /* For UV_SSIM_MATERIAL we dont use a KDTree... */
+  blender::Set<const Material *> materials_set;
+  /* ... otherwise we do. */
   int tree_index = 0;
   KDTree_1d *tree_1d = kdtree_1d_new(max_faces_selected_all);
 
@@ -6540,6 +6541,14 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
     BMesh *bm = BKE_editmesh_from_object(ob)->bm;
     if (bm->totvertsel == 0) {
       continue;
+    }
+
+    Material ***material_array = nullptr;
+    if (type == UV_SSIM_MATERIAL) {
+      if (ob->totcol == 0) {
+        continue;
+      }
+      material_array = BKE_object_material_array_p(ob);
     }
 
     float ob_m3[3][3];
@@ -6557,9 +6566,17 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      float needle = get_uv_face_needle(type, face, ob_index, ob_m3, offsets);
-      if (tree_1d) {
-        kdtree_1d_insert(tree_1d, tree_index++, &needle);
+      if (type == UV_SSIM_MATERIAL) {
+        Material *material = (*material_array)[face->mat_nr];
+        if (material != nullptr) {
+          materials_set.add(material);
+        }
+      }
+      else {
+        float needle = get_uv_face_needle(type, face, ob_index, ob_m3, offsets);
+        if (tree_1d) {
+          kdtree_1d_insert(tree_1d, tree_index++, &needle);
+        }
       }
     }
   }
@@ -6577,6 +6594,14 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
       if (!(ts->uv_flag & UV_FLAG_SELECT_SYNC)) {
         continue;
       }
+    }
+
+    Material ***material_array = nullptr;
+    if (type == UV_SSIM_MATERIAL) {
+      if (ob->totcol == 0) {
+        continue;
+      }
+      material_array = BKE_object_material_array_p(ob);
     }
 
     if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
@@ -6599,9 +6624,21 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      float needle = get_uv_face_needle(type, face, ob_index, ob_m3, offsets);
+      bool select = false;
+      if (type == UV_SSIM_MATERIAL) {
+        const Material *material = (*material_array)[face->mat_nr];
+        if (material == nullptr) {
+          continue;
+        }
+        if (materials_set.contains(material)) {
+          select = true;
+        }
+      }
+      else {
+        float needle = get_uv_face_needle(type, face, ob_index, ob_m3, offsets);
+        select = ED_select_similar_compare_float_tree(tree_1d, needle, threshold, compare);
+      }
 
-      bool select = ED_select_similar_compare_float_tree(tree_1d, needle, threshold, compare);
       if (select) {
         uvedit_face_select_set(scene, bm, face, select);
         changed = true;
