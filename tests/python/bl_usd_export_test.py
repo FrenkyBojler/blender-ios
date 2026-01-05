@@ -9,7 +9,7 @@ import pprint
 import sys
 import tempfile
 import unittest
-from pxr import Gf, Sdf, Usd, UsdGeom, UsdMtlx, UsdShade, UsdSkel, UsdUI, UsdUtils, UsdVol
+from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdMtlx, UsdShade, UsdSkel, UsdUI, UsdUtils, UsdVol
 
 import bpy
 
@@ -486,6 +486,40 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(shader_attr.GetOutput("result").GetTypeName().type.typeName, "GfVec3f")
         self.assertEqual(shader_attr1.GetOutput("result").GetTypeName().type.typeName, "float")
         self.assertEqual(shader_attr2.GetOutput("result").GetTypeName().type.typeName, "GfVec3f")
+
+    def test_export_material_world(self):
+        """Validate world material (dome light) export."""
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_materials_world.blend"))
+
+        # Export each World separately
+        bpy.context.scene.world = bpy.data.worlds["WorldDefault"]
+        export_default = self.tempdir / "usd_materials_world-default.usda"
+        self.export_and_validate(filepath=str(export_default), convert_world_material=True, evaluation_mode="RENDER")
+
+        bpy.context.scene.world = bpy.data.worlds["WorldSimple"]
+        export_simple = self.tempdir / "usd_materials_world-simple.usda"
+        self.export_and_validate(filepath=str(export_simple), convert_world_material=True, evaluation_mode="RENDER")
+
+        bpy.context.scene.world = bpy.data.worlds["WorldMapping"]
+        export_mapping = self.tempdir / "usd_materials_world-mapping.usda"
+        self.export_and_validate(filepath=str(export_mapping), convert_world_material=True, evaluation_mode="RENDER")
+
+        # Validate relevant information
+        stage = Usd.Stage.Open(str(export_default))
+        dome_prim = UsdLux.DomeLight(stage.GetPrimAtPath("/root/env_light"))
+        self.assertEqual(round(dome_prim.GetIntensityAttr().Get(), 4), 0.2)
+        self.assertEqual(dome_prim.GetTextureFileAttr().Get().authoredPath, "./textures/color_0C0C0C.exr")
+
+        stage = Usd.Stage.Open(str(export_simple))
+        dome_prim = UsdLux.DomeLight(stage.GetPrimAtPath("/root/env_light"))
+        self.assertEqual(self.round_vector(dome_prim.GetRotateXYZOp().Get()), [90, 0, 90])
+        self.assertEqual(dome_prim.GetTextureFileAttr().Get().authoredPath, "./textures/test_single.png")
+
+        stage = Usd.Stage.Open(str(export_mapping))
+        dome_prim = UsdLux.DomeLight(stage.GetPrimAtPath("/root/env_light"))
+        self.assertEqual(self.round_vector(dome_prim.GetRotateXYZOp().Get()), [67.754, -1.033, 61.9707])
+        self.assertEqual(dome_prim.GetTextureFileAttr().Get().authoredPath, "./textures/test_single.png")
 
     def test_export_metaballs(self):
         """Validate correct export of Metaball objects. These are written out as Meshes."""
@@ -1847,8 +1881,8 @@ class USDExportTest(AbstractUSDTest):
              'total_instances': 16,
              'total_prototypes': 1,
              'extent': {
-                 "/root/Plane/Mesh": [Gf.Vec3f(-1.0999999, -1.0999999, -0.1),
-                                      Gf.Vec3f(1.1, 1.1, 0.1)]}},
+                 "/root/Plane/Plane": [Gf.Vec3f(-1.0999999, -1.0999999, -0.1),
+                                       Gf.Vec3f(1.1, 1.1, 0.1)]}},
             # collection reference from single point instancer
             {'input_file': str(self.testdir / "usd_point_instancer_collection_ref.blend"),
              'output_file': self.tempdir / "usd_export_point_instancer_collection_ref.usda",
@@ -1857,8 +1891,8 @@ class USDExportTest(AbstractUSDTest):
              'total_instances': 32,
              'total_prototypes': 2,
              'extent': {
-                 "/root/Plane/Mesh": [Gf.Vec3f(-1.1758227, -1.1, -0.1),
-                                      Gf.Vec3f(1.1, 1.1526861, 0.14081651)]}},
+                 "/root/Plane/Plane": [Gf.Vec3f(-1.1758227, -1.1, -0.1),
+                                       Gf.Vec3f(1.1, 1.1526861, 0.14081651)]}},
             # collection references in nested point instancer
             {'input_file': str(self.testdir / "usd_point_instancer_nested.blend"),
              'output_file': self.tempdir / "usd_export_point_instancer_nested.usda",
@@ -1983,16 +2017,18 @@ class USDExportTest(AbstractUSDTest):
     def test_export_accessibility(self):
         """Validate that writing UsdUIAccessibilityAPI metadata exports correctly."""
 
-        def verify_accessibility_api(prim, namespace, label, description=None, priority=None):
+        def verify_accessibility_api(prim, namespace, label, description, priority=None):
+            self.assertTrue(prim.IsValid())
             self.assertTrue(prim.HasAPI(UsdUI.AccessibilityAPI))
             accessibility_api = UsdUI.AccessibilityAPI(prim, namespace)
             label_attr = accessibility_api.GetLabelAttr()
             self.assertTrue(label_attr.HasAuthoredValue())
             self.assertEqual(label_attr.Get(), label)
-            if description is not None:
-                description_attr = accessibility_api.GetDescriptionAttr()
-                self.assertTrue(description_attr.HasAuthoredValue())
-                self.assertEqual(description_attr.Get(), description)
+
+            description_attr = accessibility_api.GetDescriptionAttr()
+            self.assertTrue(description_attr.HasAuthoredValue())
+            self.assertEqual(description_attr.Get(), description)
+
             if priority is not None:
                 priority_attr = accessibility_api.GetPriorityAttr()
                 self.assertTrue(priority_attr.HasAuthoredValue())
@@ -2028,9 +2064,7 @@ class USDExportTest(AbstractUSDTest):
 
         stage = Usd.Stage.Open(str(export_path))
         root_prim = stage.GetPrimAtPath("/root")
-        self.assertTrue(root_prim.IsValid())
         sphere_prim = stage.GetPrimAtPath(f"/root/{sphere.name}")
-        self.assertTrue(sphere_prim.IsValid())
 
         # Check the accessibility metadata on the root prim (set via the export args).
         verify_accessibility_api(root_prim, UsdUI.Tokens.default_, root_label, root_description)
@@ -2055,7 +2089,6 @@ class USDExportTest(AbstractUSDTest):
 
         stage = Usd.Stage.Open(str(export_path))
         root_prim = stage.GetPrimAtPath(f"/{sphere.name}")
-        self.assertTrue(root_prim.IsValid())
 
         # Check that the accessibility information is pulled from the export args.
         verify_accessibility_api(root_prim, UsdUI.Tokens.default_, root_label, root_description)

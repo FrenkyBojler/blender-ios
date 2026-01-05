@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include "parser.hh"
+#include "token_stream.hh"
 
 namespace blender::gpu::shader::parser {
 
@@ -81,6 +81,7 @@ enum TokenType : char {
   Private = 'v',
   Public = 'V',
   Inline = 'l',
+  Union = 'o',
 };
 
 static inline TokenType to_type(const char c)
@@ -164,7 +165,7 @@ struct Token {
   /* String view for nicer debugging experience. Isn't actually used. */
   std::string_view str_view;
 
-  const Parser *data = nullptr;
+  const TokenStream *data = nullptr;
   int64_t index = 0;
 
   static Token invalid()
@@ -172,7 +173,7 @@ struct Token {
     return {};
   }
 
-  static Token from_position(const Parser *data, int64_t index)
+  static Token from_position(const TokenStream *data, int64_t index)
   {
     if (data == nullptr || index < 0 || index > (data->token_offsets.offsets.size() - 2)) {
       return invalid();
@@ -217,7 +218,7 @@ struct Token {
     return tok;
   }
 
-  /* Return start of namespace identifier is the token is part of one. */
+  /* Return start of namespace identifier if the token is part of one. */
   Token namespace_start() const
   {
     if (*this != Word) {

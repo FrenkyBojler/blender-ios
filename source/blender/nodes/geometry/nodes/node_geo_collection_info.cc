@@ -47,7 +47,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCollectionInfo *data = MEM_callocN<NodeGeometryCollectionInfo>(__func__);
+  NodeGeometryCollectionInfo *data = MEM_new_for_free<NodeGeometryCollectionInfo>(__func__);
   data->transform_space = GEO_NODE_TRANSFORM_SPACE_ORIGINAL;
   node->storage = data;
 }
@@ -93,12 +93,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (separate_children) {
     const bool reset_children = params.extract_input<bool>("Reset Children");
     Vector<Collection *> children_collections;
-    LISTBASE_FOREACH (CollectionChild *, collection_child, &collection->children) {
-      children_collections.append(collection_child->collection);
+    for (CollectionChild &collection_child : collection->children) {
+      children_collections.append(collection_child.collection);
     }
     Vector<Object *> children_objects;
-    LISTBASE_FOREACH (CollectionObject *, collection_object, &collection->gobject) {
-      children_objects.append(collection_object->ob);
+    for (CollectionObject &collection_object : collection->gobject) {
+      children_objects.append(collection_object.ob);
     }
 
     Vector<InstanceListEntry> entries;

@@ -9,7 +9,6 @@
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
 #include "DNA_array_utils.hh"
-#include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_listbase.h"
@@ -78,7 +77,7 @@ constexpr const char *layer_default_name = "Layer";
 
 static animrig::Layer &ActionLayer_alloc()
 {
-  ActionLayer *layer = DNA_struct_default_alloc(ActionLayer);
+  ActionLayer *layer = MEM_new_for_free<ActionLayer>(__func__);
   return layer->wrap();
 }
 
@@ -216,10 +215,10 @@ static void array_shift_range(
 
 bool Action::is_empty() const
 {
-  /* The check for emptiness has to include the check for an empty `groups` ListBase because of the
-   * animation filtering code. With the functions `rearrange_action_channels` and
+  /* The check for emptiness has to include the check for an empty `groups` ListBaseT because of
+   * the animation filtering code. With the functions `rearrange_action_channels` and
    * `join_groups_action_temp` the ownership of FCurves is temporarily transferred to the `groups`
-   * ListBase leaving `curves` potentially empty. */
+   * ListBaseT leaving `curves` potentially empty. */
   return this->layer_array_num == 0 && this->slot_array_num == 0 &&
          BLI_listbase_is_empty(&this->curves) && BLI_listbase_is_empty(&this->groups);
 }
@@ -446,7 +445,7 @@ void Action::slot_identifier_define(Slot &slot, const StringRefNull new_identifi
 void Action::slot_identifier_propagate(Main &bmain, const Slot &slot)
 {
   /* Just loop over all animatable IDs in the main database. */
-  ListBase *lb;
+  ListBaseT<ID> *lb;
   ID *id;
   FOREACH_MAIN_LISTBASE_BEGIN (&bmain, lb) {
     FOREACH_MAIN_LISTBASE_ID_BEGIN (lb, id) {
@@ -893,7 +892,7 @@ static float2 get_frame_range_of_fcurves(Span<const FCurve *> fcurves,
 
 Layer *Layer::duplicate_with_shallow_strip_copies(const StringRefNull allocation_name) const
 {
-  ActionLayer *copy = MEM_callocN<ActionLayer>(allocation_name.c_str());
+  ActionLayer *copy = MEM_new_for_free<ActionLayer>(allocation_name.c_str());
   *copy = *reinterpret_cast<const ActionLayer *>(this);
 
   /* Make a shallow copy of the Strips, without copying their data. */
@@ -991,7 +990,7 @@ int64_t Layer::find_strip_index(const Strip &strip) const
 Slot::Slot()
 {
   /* Zero-initialize the DNA struct. 'this' is a C++ class, and shouldn't be memset like this. */
-  memset(static_cast<ActionSlot *>(this), 0, sizeof(ActionSlot));
+  _DNA_internal_memzero(this, sizeof(ActionSlot));
   this->runtime = MEM_new<SlotRuntime>(__func__);
 }
 
@@ -1566,8 +1565,7 @@ std::optional<std::pair<Action *, Slot *>> get_action_slot_pair(ID &animated_id)
 Strip &Strip::create(Action &owning_action, const Strip::Type type)
 {
   /* Create the strip. */
-  ActionStrip *strip = MEM_callocN<ActionStrip>(__func__);
-  *strip = *DNA_struct_default_get(ActionStrip);
+  ActionStrip *strip = MEM_new_for_free<ActionStrip>(__func__);
   strip->strip_type = int8_t(type);
 
   /* Create the strip's data on the owning Action. */
@@ -2299,7 +2297,7 @@ int Channelbag::channel_group_containing_index(const int fcurve_array_index)
 
 bActionGroup &Channelbag::channel_group_create(StringRefNull name)
 {
-  bActionGroup *new_group = MEM_callocN<bActionGroup>(__func__);
+  bActionGroup *new_group = MEM_new_for_free<bActionGroup>(__func__);
 
   /* Find the end fcurve index of the current channel groups, to be used as the
    * start of the new channel group. */
@@ -2632,14 +2630,14 @@ Vector<FCurve *> fcurves_in_span_filtered(Span<FCurve *> fcurves,
   return found;
 }
 
-Vector<FCurve *> fcurves_in_listbase_filtered(ListBase /* FCurve * */ fcurves,
+Vector<FCurve *> fcurves_in_listbase_filtered(ListBaseT<FCurve> fcurves,
                                               FunctionRef<bool(const FCurve &fcurve)> predicate)
 {
   Vector<FCurve *> found;
 
-  LISTBASE_FOREACH (FCurve *, fcurve, &fcurves) {
-    if (predicate(*fcurve)) {
-      found.append(fcurve);
+  for (FCurve &fcurve : fcurves) {
+    if (predicate(fcurve)) {
+      found.append(&fcurve);
     }
   }
 
@@ -2976,25 +2974,24 @@ Action *convert_to_layered_action(Main &bmain, const Action &legacy_action)
   bag->fcurve_array = MEM_calloc_arrayN<FCurve *>(fcu_count, "Convert to layered action");
   bag->fcurve_array_num = fcu_count;
 
-  int i = 0;
-  Map<FCurve *, FCurve *> old_new_fcurve_map;
-  LISTBASE_FOREACH_INDEX (FCurve *, fcu, &legacy_action.curves, i) {
-    bag->fcurve_array[i] = BKE_fcurve_copy(fcu);
+  Map<const FCurve *, FCurve *> old_new_fcurve_map;
+  for (auto [i, fcu] : legacy_action.curves.enumerate()) {
+    bag->fcurve_array[i] = BKE_fcurve_copy(&fcu);
     bag->fcurve_array[i]->grp = nullptr;
-    old_new_fcurve_map.add(fcu, bag->fcurve_array[i]);
+    old_new_fcurve_map.add(&fcu, bag->fcurve_array[i]);
   }
 
-  LISTBASE_FOREACH (bActionGroup *, group, &legacy_action.groups) {
+  for (bActionGroup &group : legacy_action.groups) {
     /* The resulting group might not have the same name, because the legacy system allowed
      * duplicate names while the new system ensures uniqueness. */
-    bActionGroup &converted_group = bag->channel_group_create(group->name);
-    LISTBASE_FOREACH (FCurve *, fcu, &group->channels) {
-      if (fcu->grp != group) {
+    bActionGroup &converted_group = bag->channel_group_create(group.name);
+    for (FCurve &fcu : group.channels) {
+      if (fcu.grp != &group) {
         /* Since the group listbase points to the action listbase, it won't stop iterating when
          * reaching the end of the group but iterate to the end of the action FCurves. */
         break;
       }
-      FCurve *new_fcurve = old_new_fcurve_map.lookup(fcu);
+      FCurve *new_fcurve = old_new_fcurve_map.lookup(&fcu);
       bag->fcurve_assign_to_channel_group(*new_fcurve, converted_group);
     }
   }
@@ -3009,7 +3006,7 @@ Action *convert_to_layered_action(Main &bmain, const Action &legacy_action)
  */
 static void clone_slot(const Slot &from, Slot &to)
 {
-  ActionSlotRuntimeHandle *runtime = to.runtime;
+  SlotRuntime *runtime = to.runtime;
   slot_handle_t handle = to.handle;
   *reinterpret_cast<ActionSlot *>(&to) = *reinterpret_cast<const ActionSlot *>(&from);
   to.runtime = runtime;
