@@ -26,7 +26,7 @@ static int process_disabled_scope(parser::IntermediateForm &parser, Token start_
   Token hash = start_tok;
   while ((hash = hash.find_next(Hash)).is_valid()) {
     Token directive = hash.next();
-    string_view directive_str = directive.str();
+    string_view directive_str = directive.str_view();
     if (directive_str.substr(0, 2) == "if") {
       stack++;
     }
@@ -58,22 +58,22 @@ static void process_directives(parser::IntermediateForm &parser,
     return;
   }
   /* Preprocessor. */
-  if (t.str() == "define") {
-    defines.insert(t.next().str());
+  if (t.str_view() == "define") {
+    defines.insert(t.next().str_view());
   }
-  else if (t.str() == "ifndef") {
-    if (defines.find(t.next().str()) != defines.end()) {
+  else if (t.str_view() == "ifndef") {
+    if (defines.find(t.next().str_view()) != defines.end()) {
       cursor = process_disabled_scope(parser, t.prev());
     }
   }
-  else if (t.str() == "ifdef") {
-    if (defines.find(t.next().str()) == defines.end()) {
+  else if (t.str_view() == "ifdef") {
+    if (defines.find(t.next().str_view()) == defines.end()) {
       cursor = process_disabled_scope(parser, t.prev());
     }
   }
-  else if (t.str() == "if") {
-    if (t.next().str() == "defined") {
-      if (defines.find(t.next().next().next().str()) == defines.end()) {
+  else if (t.str_view() == "if") {
+    if (t.next().str_view() == "defined") {
+      if (defines.find(t.next().next().next().str_view()) == defines.end()) {
         cursor = process_disabled_scope(parser, t.prev());
       }
     }
@@ -104,7 +104,7 @@ static void process_functions(parser::IntermediateForm & /*parser*/,
   Token fn_name = par_tok.prev();
   if (scope_type == ScopeType::FunctionArgs && fn_name.prev() == Word) {
     /* Definition. */
-    auto [it, success] = functions.map.emplace(fn_name.str(), 0);
+    auto [it, success] = functions.map.emplace(fn_name.str_view(), 0);
     FunctionGraph::FnId &id = it->second;
 
     if (success) {
@@ -120,7 +120,7 @@ static void process_functions(parser::IntermediateForm & /*parser*/,
   }
 
   if (current_function != -1) {
-    auto it = functions.map.find(fn_name.str());
+    auto it = functions.map.find(fn_name.str_view());
     if (it == functions.map.end()) {
       /* Functions not defined: builtins, macros etc... */
     }

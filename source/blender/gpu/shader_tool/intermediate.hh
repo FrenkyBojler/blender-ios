@@ -256,7 +256,7 @@ struct IntermediateForm {
   void insert_directive(Token at, const std::string directive)
   {
     insert_after(at, "\n" + directive + "\n");
-    std::string_view content = at.str_with_whitespace();
+    std::string_view content = at.str_view_with_whitespace();
     size_t lines = std::count(content.begin(), content.end(), '\n');
     insert_line_number(at, at.line_number() + lines);
     size_t line_break = data_.str.find_last_of("\n", at.str_index_last() + 1);

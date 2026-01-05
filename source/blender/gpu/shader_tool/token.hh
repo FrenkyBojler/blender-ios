@@ -216,28 +216,44 @@ struct Token {
     return (pos == std::string::npos) ? (data->str.size() - 1) : (pos - 1);
   }
 
-  std::string_view str_with_whitespace() const
+  std::string_view str_view_with_whitespace() const
   {
     return std::string_view(data->str).substr(index_range().start, index_range().size);
   }
 
-  std::string_view str() const
+  std::string str_with_whitespace() const
+  {
+    return std::string(str_view_with_whitespace());
+  }
+
+  std::string_view str_view() const
   {
     if (is_invalid()) {
       return "";
     }
-    std::string_view str = this->str_with_whitespace();
+    std::string_view str = this->str_view_with_whitespace();
     return str.substr(0, str.find_last_not_of(" \n") + 1);
   }
 
-  /* Return the content without the first and last characters. */
-  std::string_view str_exclusive() const
+  std::string str() const
   {
-    std::string_view str = this->str();
+    return std::string(str_view());
+  }
+
+  /* Return the content without the first and last characters. */
+  std::string_view str_view_exclusive() const
+  {
+    std::string_view str = this->str_view();
     if (str.length() < 2) {
       return "";
     }
     return str.substr(1, str.length() - 2);
+  }
+
+  /* Return the content without the first and last characters. */
+  std::string str_exclusive() const
+  {
+    return std::string(str_view_exclusive());
   }
 
   /* Return the line number this token is found at. Take into account the #line directives.
