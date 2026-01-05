@@ -59,6 +59,10 @@ def select_nodes(tree, selected_nodes, active_node=None):
     tree.nodes.active = active_node if active_node else (selected_nodes[0] if selected_nodes else None)
 
 
+def node_centroid(nodes):
+    return sum((node.location for node in nodes), Vector((0.0, 0.0))) / max(len(nodes), 1)
+
+
 # Provide a valid context override to run node editor operators
 def node_editor_context_override(context, tree, selected_nodes=[], active_node=None):
     window = context.window if context.window else next(window for window in context.window_manager.windows if window.screen is not None)
@@ -133,7 +137,7 @@ def execute_make_group(test_case, test_tree, expected_tree=None):
 
 def execute_group_insert(test_case, test_tree, expected_tree=None):
     test_name, test_nodes, test_frame = test_case
-    centroid = sum((node.location for node in test_nodes), Vector((0.0, 0.0))) / max(len(test_nodes), 1)
+    centroid = node_centroid(test_nodes)
 
     # Make empty node group.
     group_tree = bpy.data.node_groups.new(f"{test_name}_GroupInsert", 'GeometryNodeTree')
@@ -208,10 +212,13 @@ def execute_group_separate(type, test_case, test_tree, expected_tree=None):
         # Select all nodes for separating.
         select_nodes(group_node.node_tree, selected_nodes=group_node.node_tree.nodes)
         bpy.ops.node.group_separate(type=type)
-    # internal_nodes = [node for node in test_tree.nodes if node.select]
-    # # Re-attach to the parent frame to identify the operator result.
-    # for node in internal_nodes:
-    #     node.parent = test_frame
+    separated_nodes = [node for node in test_tree.nodes if node.select]
+    centroid = node_centroid(separated_nodes)
+    # Re-attach to the parent frame to identify the operator result.
+    for node in separated_nodes:
+        offset = node.location - centroid
+        node.parent = test_frame
+        node.location = group_node.location + Vector((0, -1000)) + offset
 
     if expected_tree:
         # Map resulting nodes to expected nodes.
@@ -402,7 +409,7 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
         expected_tree = bpy.data.node_groups["ExpectedGroupSeparateCopy"]
         for test_case in test_cases(test_tree):
             with self.subTest(case=test_case[0]):
-                mapping = execute_ungroup(test_case, test_tree, expected_tree)
+                mapping = execute_group_separate('COPY', test_case, test_tree, expected_tree)
                 self.compare(mapping)
 
 
@@ -412,7 +419,7 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
         expected_tree = bpy.data.node_groups["ExpectedGroupSeparateMove"]
         for test_case in test_cases(test_tree):
             with self.subTest(case=test_case[0]):
-                mapping = execute_ungroup(test_case, test_tree, expected_tree)
+                mapping = execute_group_separate('MOVE', test_case, test_tree, expected_tree)
                 self.compare(mapping)
 
 
