@@ -62,6 +62,9 @@ const EnumPropertyItem rna_enum_uilist_layout_type_items[] = {
 #  include "RNA_access.hh"
 
 #  include "BLI_dynstr.h"
+#  include "BLI_listbase.h"
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 
 #  include "BKE_context.hh"
 #  include "BKE_main.hh"
@@ -1109,7 +1112,7 @@ static StructRNA *rna_Menu_refine(PointerRNA *mtr)
 /* Asset Shelf */
 
 static bool asset_shelf_asset_poll(const AssetShelfType *shelf_type,
-                                   const AssetRepresentationHandle *asset)
+                                   const blender::asset_system::AssetRepresentation *asset)
 {
   extern FunctionRNA rna_AssetShelf_asset_poll_func;
 
@@ -1180,7 +1183,7 @@ static const AssetWeakReference *asset_shelf_get_active_asset(const AssetShelfTy
 
 static void asset_shelf_draw_context_menu(const bContext *C,
                                           const AssetShelfType *shelf_type,
-                                          const AssetRepresentationHandle *asset,
+                                          const blender::asset_system::AssetRepresentation *asset,
                                           Layout &layout)
 {
   extern FunctionRNA rna_AssetShelf_draw_context_menu_func;

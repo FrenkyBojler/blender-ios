@@ -14,6 +14,7 @@
 #include <unordered_set>
 
 #include "intermediate.hh"
+#include "time_it.hh"
 
 using namespace blender::gpu::shader;
 using namespace blender::gpu::shader::parser;
@@ -140,16 +141,16 @@ static void first_pass(parser::IntermediateForm &parser, FunctionGraph &function
 
   FunctionGraph::FnId current_function = -1;
 
-  TokenStream *data = &parser.data_;
+  const TokenStream &data = parser.data_get();
 
-  for (int cursor = 0; cursor < data->token_types.size(); cursor++) {
-    TokenType tok_type = TokenType(data->token_types[cursor]);
+  for (int cursor = 0; cursor < data.token_types.size(); cursor++) {
+    TokenType tok_type = TokenType(data.token_types[cursor]);
     if (tok_type == Word) {
       /* Disabled scopes will advance the cursor so we don't parse anything in them. */
-      process_directives(parser, Token::from_position(data, cursor), defines, cursor);
+      process_directives(parser, Token::from_position(&data, cursor), defines, cursor);
     }
     else if (tok_type == ParOpen) {
-      process_functions(parser, Token::from_position(data, cursor), functions, current_function);
+      process_functions(parser, Token::from_position(&data, cursor), functions, current_function);
     }
     else if (tok_type == BracketOpen) {
       bracket_scope_depth++;

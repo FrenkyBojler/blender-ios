@@ -43,9 +43,9 @@ namespace blender::gpu::shader::parser {
 /* Structure holding an intermediate form of the source code.
  * It is made for fast traversal and mutation of source code. */
 struct IntermediateForm {
+ private:
   TokenStream data_;
 
- private:
   struct Mutation {
     /* Range of the original string to replace. */
     IndexRange src_range;
@@ -70,12 +70,16 @@ struct IntermediateForm {
 
   report_callback &report_error;
 
+  ParserStage stop_parser_after_stage;
+
  public:
-  IntermediateForm(const std::string &input, report_callback &report_error)
-      : report_error(report_error)
+  IntermediateForm(const std::string &input,
+                   report_callback &report_error,
+                   ParserStage stop_parser_after_stage = ParserStage::BuildScopeTree)
+      : report_error(report_error), stop_parser_after_stage(stop_parser_after_stage)
   {
     data_.str = input;
-    parse(report_error);
+    parse(stop_parser_after_stage, report_error);
   }
 
   /* Main access operator. Returns the root scope (aka global scope). */
@@ -127,15 +131,15 @@ struct IntermediateForm {
   /* Replace everything from `from` to `to` (inclusive). */
   void replace(size_t from, size_t to, const std::string &replacement)
   {
-    // #ifdef NDEBUG
-    //     bool success = replace_try(from, to, replacement);
-    //     assert(success);
-    //     (void)success;
-    // #else
+#ifdef NDEBUG
+    bool success = replace_try(from, to, replacement);
+    assert(success);
+    (void)success;
+#else
     /* No check in release. */
     IndexRange range = IndexRange(from, to + 1 - from);
     mutations_.emplace_back(range, replacement);
-    // #endif
+#endif
   }
   /* Replace everything from `from` to `to` (inclusive). */
   void replace(Token from,
@@ -273,7 +277,7 @@ struct IntermediateForm {
   {
     bool applied = only_apply_mutations();
     if (applied) {
-      this->parse(report_error);
+      this->parse(stop_parser_after_stage, report_error);
     }
     return applied;
   }
@@ -316,26 +320,16 @@ struct IntermediateForm {
   }
 
  private:
-  TimeIt::Duration tokenize_time;
-  TimeIt::Duration parse_scope_time;
+  uint64_t lexical_time;
+  uint64_t semantic_time;
 
-  void parse(report_callback &report_error)
-  {
-    {
-      TimeIt time_it(parse_scope_time);
-      data_.tokenize();
-    }
-    {
-      TimeIt time_it(tokenize_time);
-      data_.parse_scopes(report_error);
-    }
-  }
+  void parse(ParserStage stop_after, report_callback &report_error);
 
  public:
   void print_stats()
   {
-    std::cout << "Tokenize time: " << tokenize_time.count() << " µs" << std::endl;
-    std::cout << "Parser time:   " << parse_scope_time.count() << " µs" << std::endl;
+    std::cout << "Lexical Analysis time: " << lexical_time << " µs" << std::endl;
+    std::cout << "Semantic Analysis time:   " << semantic_time << " µs" << std::endl;
     std::cout << "String len: " << std::to_string(data_.str.size()) << std::endl;
     std::cout << "Token len:  " << std::to_string(data_.token_types.size()) << std::endl;
     std::cout << "Scope len:  " << std::to_string(data_.scope_types.size()) << std::endl;

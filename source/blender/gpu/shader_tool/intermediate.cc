@@ -9,10 +9,12 @@
 
 #include "intermediate.hh"
 #include "scope.hh"
+#include "time_it.hh"
 #include "token.hh"
 #include "token_stream.hh"
 
 #include <algorithm>
+#include <array>
 #include <stack>
 
 #if defined(_MSC_VER)
@@ -93,7 +95,7 @@ struct TokenData {
   std::vector<uint32_t> sizes;
 };
 
-void TokenStream::tokenize()
+void TokenStream::lexical_analysis(ParserStage stop_after)
 {
   if (str.empty()) {
     *this = {};
@@ -102,9 +104,20 @@ void TokenStream::tokenize()
 
   TokenData data;
 
-  token_parse(data);
-  token_merge(data);
-  token_types_populate(data);
+  tokenize(data);
+  if (stop_after == Tokenize) {
+    goto end;
+  }
+
+  merge_tokens(data);
+  if (stop_after == MergeTokens) {
+    goto end;
+  }
+
+  identify_keywords(data);
+
+end:
+  /* TODO(fclem): Get rid of this.*/
   /* Convert vector of char to string for faster lookups. */
   this->token_types = std::string(reinterpret_cast<char *>(data.types.data()), data.types.size());
   this->token_offsets = std::move(data.offsets);
@@ -215,7 +228,7 @@ static always_inline std::pair<TokenType, bool> to_type_table(const unsigned cha
   return token_table[c];
 }
 
-void TokenStream::token_parse(TokenData &tokens)
+void TokenStream::tokenize(TokenData &tokens)
 {
   /* Reserve space inside the data structures. Allocate 1 token per char as we do not want to
    * resize or check for size inside the hot loop. */
@@ -298,7 +311,7 @@ static always_inline bool is_whitespace(TokenType t)
   return (t == ' ') || (t == '\n');
 }
 
-void TokenStream::token_merge(TokenData &tokens)
+void TokenStream::merge_tokens(TokenData &tokens)
 {
   tokens.sizes.resize(tokens.types.size());
 
@@ -613,7 +626,7 @@ static always_inline TokenType type_lookup(std::string_view s)
   return Word;
 }
 
-void TokenStream::token_types_populate(TokenData &tokens)
+void TokenStream::identify_keywords(TokenData &tokens)
 {
   int tok_id = -1;
   for (TokenType &type : tokens.types) {
@@ -625,10 +638,16 @@ void TokenStream::token_types_populate(TokenData &tokens)
   }
 }
 
-void TokenStream::parse_scopes(report_callback &report_error)
+void TokenStream::semantic_analysis(ParserStage stop_after, report_callback &report_error)
 {
-  scope_parse(report_error);
-  scope_token_populate();
+  if (stop_after == IdentifyKeywords) {
+    this->scope_types = "G";
+    this->scope_ranges = {IndexRange(0, token_types.size())};
+  }
+  else {
+    build_scope_tree(report_error);
+  }
+  build_token_to_scope_map();
 }
 
 struct ScopeStack {
@@ -681,7 +700,7 @@ struct ScopeStack {
   }
 };
 
-void TokenStream::scope_parse(report_callback &report_error)
+void TokenStream::build_scope_tree(report_callback &report_error)
 {
   Token error_token = Token::invalid();
   const char *error_msg = nullptr;
@@ -778,6 +797,9 @@ void TokenStream::scope_parse(report_callback &report_error)
           stack.enter_scope(ScopeType::FunctionArgs, tok_id);
         }
         else if ((current_scope == ScopeType::Function || current_scope == ScopeType::Local ||
+                  current_scope == ScopeType::Assignment ||
+                  current_scope == ScopeType::FunctionParam ||
+                  current_scope == ScopeType::Subscript ||
                   current_scope == ScopeType::Attribute) &&
                  (tok_id >= 1 && token_types[tok_id - 1] == Word))
         {
@@ -954,7 +976,7 @@ error:
   *this = {};
 }
 
-void TokenStream::scope_token_populate()
+void TokenStream::build_token_to_scope_map()
 {
   token_scope.clear();
   token_scope.resize(scope_ranges[0].size);
@@ -1010,6 +1032,21 @@ bool IntermediateForm::only_apply_mutations()
     data_.str.pop_back();
   }
   return true;
+}
+
+void IntermediateForm::parse(ParserStage stop_after, report_callback &report_error)
+{
+  TimeIt::Duration lex_time, sem_time;
+  {
+    TimeIt time_it(lex_time);
+    data_.lexical_analysis(stop_after);
+  }
+  {
+    TimeIt time_it(sem_time);
+    data_.semantic_analysis(stop_after, report_error);
+  }
+  lexical_time = lex_time.count();
+  semantic_time = sem_time.count();
 }
 
 }  // namespace blender::gpu::shader::parser
