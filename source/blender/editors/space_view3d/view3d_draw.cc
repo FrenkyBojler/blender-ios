@@ -2110,6 +2110,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
                                       const bool restore_rv3d_mats,
                                       GPUOffScreen *ofs,
                                       GPUViewport *viewport,
+                                      const bool use_camera_view_bounds,
                                       /* output vars */
                                       char err_out[256])
 {
@@ -2162,7 +2163,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   ImBuf *ibuf = IMB_allocImBuf(sizex, sizey, 32, imbuf_flag);
 
   /* render 3d view */
-  if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
+  if (use_camera_view_bounds && rv3d->persp == RV3D_CAMOB && v3d->camera) {
     CameraParams params;
     Object *camera = BKE_camera_multiview_render(scene, v3d->camera, viewname);
     const Object *camera_eval = DEG_get_evaluated(depsgraph, camera);
@@ -2376,6 +2377,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
                                         true,
                                         ofs,
                                         viewport,
+                                        true,
                                         err_out);
 }
 
@@ -2790,10 +2792,10 @@ void ED_view3d_screen_datamask(const Scene *scene,
   CustomData_MeshMasks_update(r_cddata_masks, &CD_MASK_BAREMESH);
 
   /* Check if we need UV or color data due to the view mode. */
-  LISTBASE_FOREACH (const ScrArea *, area, &screen->areabase) {
-    if (area->spacetype == SPACE_VIEW3D) {
+  for (const ScrArea &area : screen->areabase) {
+    if (area.spacetype == SPACE_VIEW3D) {
       ED_view3d_datamask(
-          scene, view_layer, static_cast<View3D *>(area->spacedata.first), r_cddata_masks);
+          scene, view_layer, static_cast<View3D *>(area.spacedata.first), r_cddata_masks);
     }
   }
 }
