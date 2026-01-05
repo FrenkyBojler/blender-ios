@@ -350,32 +350,31 @@ static IDProperty *pyobject_to_idprop(PyObject *obj)
   return IDP_New(prop_type, &prop_template, "_result");
 }
 
+/**
+ * Run the given script with the given local variables.
+ *
+ * This assumes that the Python environment has been set up (i.e. the GIL has been acquired).
+ */
 static bool run_string_with_locals(bContext *C,
                                    const blender::StringRefNull script,
                                    IDProperty &locals,
                                    blender::FunctionRef<void(PyObject *py_locals)> on_exec_ok)
+
 {
+  /* Set up locals & globals. */
   BLI_assert(locals.type == IDP_GROUP);
-
-  PyGILState_STATE gilstate;
-  bpy_context_set(C, &gilstate);
-
-  PyObject *main_mod_backup = PyC_MainModule_Backup();
-  PyObject *py_globals = PyC_DefaultNameSpace("<BPY_run_string_with_locals>");
-
-  /* Construct the 'locals' dictionary. */
   PyObject *py_locals = BPy_IDGroup_MapDataToPy(&locals);
+  if (!py_locals) {
+    return false;
+  }
+
+  PyObject *py_globals = PyC_DefaultNameSpace("<BPY_run_string_with_locals>");
+  BLI_assert(py_globals);
 
   /* Run the script. */
   PyObject *result = PyRun_String(script.c_str(), Py_file_input, py_globals, py_locals);
   const bool ok = (result != nullptr);
-  if (!ok) {
-    if (ReportList *wm_reports = C ? CTX_wm_reports(C) : nullptr) {
-      BPy_errors_to_report(wm_reports);
-    }
-    PyErr_Print();
-  }
-  else {
+  if (ok) {
     Py_DECREF(result);
     if (on_exec_ok) {
       on_exec_ok(py_locals);
@@ -385,9 +384,6 @@ static bool run_string_with_locals(bContext *C,
   /* Clean up references. */
   Py_DECREF(py_globals);
   Py_DECREF(py_locals);
-
-  PyC_MainModule_Restore(main_mod_backup);
-  bpy_context_clear(C, &gilstate);
 
   return ok;
 }
