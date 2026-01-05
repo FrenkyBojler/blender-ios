@@ -38,7 +38,7 @@ static bActionGroup *action_groups_add_new(bAction *act, const char name[])
     return nullptr;
   }
   BLI_assert(act->wrap().is_action_legacy());
-  bActionGroup *agrp = MEM_callocN<bActionGroup>("bActionGroup");
+  bActionGroup *agrp = MEM_new_for_free<bActionGroup>("bActionGroup");
   agrp->flag = AGRP_SELECTED;
   STRNCPY_UTF8(agrp->name, name[0] ? name : "Group");
   BLI_addtail(&act->groups, agrp);
