@@ -246,7 +246,7 @@ class GHOST_Wintab {
   static bool debug_;
 
   /** Whether to use fallback method to get the actual HWND for tablet events. */
-  bool m_untrusted_hwnd;
+  bool untrusted_hwnd_;
 
   GHOST_Wintab(unique_hmodule handle,
                GHOST_WIN32_WTInfo info,
