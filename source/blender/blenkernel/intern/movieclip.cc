@@ -24,7 +24,6 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
 
 #include "DNA_movieclip_types.h"
@@ -87,9 +86,7 @@ static void movie_clip_runtime_reset(MovieClip *clip)
 static void movie_clip_init_data(ID *id)
 {
   MovieClip *movie_clip = (MovieClip *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(movie_clip, id));
-
-  MEMCPY_STRUCT_AFTER(movie_clip, DNA_struct_default_get(MovieClip), id);
+  INIT_DEFAULT_STRUCT_AFTER(movie_clip, id);
 
   BKE_tracking_settings_init(&movie_clip->tracking);
   BKE_color_managed_colorspace_settings_init(&movie_clip->colorspace_settings);
@@ -134,12 +131,12 @@ static void movie_clip_foreach_id(ID *id, LibraryForeachIDData *data)
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, movie_clip->gpd, IDWALK_CB_USER);
 
-  LISTBASE_FOREACH (MovieTrackingObject *, object, &tracking->objects) {
-    LISTBASE_FOREACH (MovieTrackingTrack *, track, &object->tracks) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, track->gpd, IDWALK_CB_USER);
+  for (MovieTrackingObject &object : tracking->objects) {
+    for (MovieTrackingTrack &track : object.tracks) {
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, track.gpd, IDWALK_CB_USER);
     }
-    LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, &object->plane_tracks) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, plane_track->image, IDWALK_CB_USER);
+    for (MovieTrackingPlaneTrack &plane_track : object.plane_tracks) {
+      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, plane_track.image, IDWALK_CB_USER);
     }
   }
 }
@@ -165,13 +162,13 @@ static void movie_clip_foreach_path(ID *id, BPathForeachPathData *bpath_data)
       bpath_data, movie_clip->filepath, sizeof(movie_clip->filepath));
 }
 
-static void write_movieTracks(BlendWriter *writer, ListBase *tracks)
+static void write_movieTracks(BlendWriter *writer, ListBaseT<MovieTrackingTrack> *tracks)
 {
   MovieTrackingTrack *track;
 
   track = static_cast<MovieTrackingTrack *>(tracks->first);
   while (track) {
-    BLO_write_struct(writer, MovieTrackingTrack, track);
+    writer->write_struct(track);
 
     if (track->markers) {
       BLO_write_struct_array(writer, MovieTrackingMarker, track->markersnr, track->markers);
@@ -181,14 +178,15 @@ static void write_movieTracks(BlendWriter *writer, ListBase *tracks)
   }
 }
 
-static void write_moviePlaneTracks(BlendWriter *writer, ListBase *plane_tracks_base)
+static void write_moviePlaneTracks(BlendWriter *writer,
+                                   ListBaseT<MovieTrackingPlaneTrack> *plane_tracks_base)
 {
-  LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, plane_tracks_base) {
-    BLO_write_struct(writer, MovieTrackingPlaneTrack, plane_track);
+  for (MovieTrackingPlaneTrack &plane_track : *plane_tracks_base) {
+    writer->write_struct(&plane_track);
 
-    BLO_write_pointer_array(writer, plane_track->point_tracksnr, plane_track->point_tracks);
+    BLO_write_pointer_array(writer, plane_track.point_tracksnr, plane_track.point_tracks);
     BLO_write_struct_array(
-        writer, MovieTrackingPlaneMarker, plane_track->markersnr, plane_track->markers);
+        writer, MovieTrackingPlaneMarker, plane_track.markersnr, plane_track.markers);
   }
 }
 
@@ -215,11 +213,11 @@ static void movieclip_blend_write(BlendWriter *writer, ID *id, const void *id_ad
   BLO_write_id_struct(writer, MovieClip, id_address, &clip->id);
   BKE_id_blend_write(writer, &clip->id);
 
-  LISTBASE_FOREACH (MovieTrackingObject *, object, &tracking->objects) {
-    BLO_write_struct(writer, MovieTrackingObject, object);
-    write_movieTracks(writer, &object->tracks);
-    write_moviePlaneTracks(writer, &object->plane_tracks);
-    write_movieReconstruction(writer, &object->reconstruction);
+  for (MovieTrackingObject &object : tracking->objects) {
+    writer->write_struct(&object);
+    write_movieTracks(writer, &object.tracks);
+    write_moviePlaneTracks(writer, &object.plane_tracks);
+    write_movieReconstruction(writer, &object.reconstruction);
   }
 }
 
@@ -230,28 +228,29 @@ static void direct_link_movieReconstruction(BlendDataReader *reader,
       reader, MovieReconstructedCamera, reconstruction->camnr, &reconstruction->cameras);
 }
 
-static void direct_link_movieTracks(BlendDataReader *reader, ListBase *tracksbase)
+static void direct_link_movieTracks(BlendDataReader *reader,
+                                    ListBaseT<MovieTrackingTrack> *tracksbase)
 {
   BLO_read_struct_list(reader, MovieTrackingTrack, tracksbase);
 
-  LISTBASE_FOREACH (MovieTrackingTrack *, track, tracksbase) {
-    BLO_read_struct_array(reader, MovieTrackingMarker, track->markersnr, &track->markers);
+  for (MovieTrackingTrack &track : *tracksbase) {
+    BLO_read_struct_array(reader, MovieTrackingMarker, track.markersnr, &track.markers);
   }
 }
 
-static void direct_link_moviePlaneTracks(BlendDataReader *reader, ListBase *plane_tracks_base)
+static void direct_link_moviePlaneTracks(BlendDataReader *reader,
+                                         ListBaseT<MovieTrackingPlaneTrack> *plane_tracks_base)
 {
   BLO_read_struct_list(reader, MovieTrackingPlaneTrack, plane_tracks_base);
 
-  LISTBASE_FOREACH (MovieTrackingPlaneTrack *, plane_track, plane_tracks_base) {
-    BLO_read_pointer_array(
-        reader, plane_track->point_tracksnr, (void **)&plane_track->point_tracks);
-    for (int i = 0; i < plane_track->point_tracksnr; i++) {
-      BLO_read_struct(reader, MovieTrackingTrack, &plane_track->point_tracks[i]);
+  for (MovieTrackingPlaneTrack &plane_track : *plane_tracks_base) {
+    BLO_read_pointer_array(reader, plane_track.point_tracksnr, (void **)&plane_track.point_tracks);
+    for (int i = 0; i < plane_track.point_tracksnr; i++) {
+      BLO_read_struct(reader, MovieTrackingTrack, &plane_track.point_tracks[i]);
     }
 
     BLO_read_struct_array(
-        reader, MovieTrackingPlaneMarker, plane_track->markersnr, &plane_track->markers);
+        reader, MovieTrackingPlaneMarker, plane_track.markersnr, &plane_track.markers);
   }
 }
 
@@ -280,13 +279,13 @@ static void movieclip_blend_read_data(BlendDataReader *reader, ID *id)
 
   BLO_read_struct_list(reader, MovieTrackingObject, &tracking->objects);
 
-  LISTBASE_FOREACH (MovieTrackingObject *, object, &tracking->objects) {
-    direct_link_movieTracks(reader, &object->tracks);
-    direct_link_moviePlaneTracks(reader, &object->plane_tracks);
-    direct_link_movieReconstruction(reader, &object->reconstruction);
+  for (MovieTrackingObject &object : tracking->objects) {
+    direct_link_movieTracks(reader, &object.tracks);
+    direct_link_moviePlaneTracks(reader, &object.plane_tracks);
+    direct_link_movieReconstruction(reader, &object.reconstruction);
 
-    BLO_read_struct(reader, MovieTrackingTrack, &object->active_track);
-    BLO_read_struct(reader, MovieTrackingPlaneTrack, &object->active_plane_track);
+    BLO_read_struct(reader, MovieTrackingTrack, &object.active_track);
+    BLO_read_struct(reader, MovieTrackingPlaneTrack, &object.active_plane_track);
   }
 
   movie_clip_runtime_reset(clip);
@@ -923,7 +922,7 @@ static MovieClip *movieclip_alloc(Main *bmain, const char *name)
 static void movieclip_load_get_size(MovieClip *clip)
 {
   int width, height;
-  MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+  MovieClipUser user = {};
 
   user.framenr = BKE_movieclip_remap_clip_to_scene_frame(clip, 1);
   BKE_movieclip_get_size(clip, &user, &width, &height);
@@ -2014,7 +2013,7 @@ static blender::gpu::Texture **movieclip_get_gputexture_ptr(MovieClip *clip,
 
   /* If not, allocate a new one. */
   if (tex == nullptr) {
-    tex = MEM_mallocN<MovieClip_RuntimeGPUTexture>(__func__);
+    tex = MEM_new_for_free<MovieClip_RuntimeGPUTexture>(__func__);
 
     for (int i = 0; i < TEXTARGET_COUNT; i++) {
       tex->gputexture[i] = nullptr;

@@ -36,7 +36,7 @@ static void node_shader_buts_tex_magic(ui::Layout &layout, bContext * /*C*/, Poi
 
 static void node_shader_init_tex_magic(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexMagic *tex = MEM_callocN<NodeTexMagic>(__func__);
+  NodeTexMagic *tex = MEM_new_for_free<NodeTexMagic>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->depth = 2;
@@ -161,7 +161,7 @@ class MagicFunction : public mf::MultiFunction {
       r_color[i] = ColorGeometry4f(0.5f - x, 0.5f - y, 0.5f - z, 1.0f);
     });
     if (compute_factor) {
-      mask.foreach_index([&](const int64_t i) {
+      mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
         r_fac[i] = (r_color[i].r + r_color[i].g + r_color[i].b) * (1.0f / 3.0f);
       });
     }

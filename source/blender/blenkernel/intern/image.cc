@@ -49,7 +49,6 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_camera_types.h"
-#include "DNA_defaults.h"
 #include "DNA_image_types.h"
 #include "DNA_light_types.h"
 #include "DNA_material_types.h"
@@ -122,7 +121,8 @@ static CLG_LogRef LOG = {"image"};
 
 static void image_init(Image *ima, short source, short type);
 static void image_free_packedfiles(Image *ima);
-static void copy_image_packedfiles(ListBase *lb_dst, const ListBase *lb_src);
+static void copy_image_packedfiles(ListBaseT<ImagePackedFile> *lb_dst,
+                                   const ListBaseT<ImagePackedFile> *lb_src);
 
 /* -------------------------------------------------------------------- */
 /** \name Image #IDTypeInfo API
@@ -169,8 +169,8 @@ static void image_copy_data(Main * /*bmain*/,
   image_dst->rr = nullptr;
 
   BLI_duplicatelist(&image_dst->renderslots, &image_src->renderslots);
-  LISTBASE_FOREACH (RenderSlot *, slot, &image_dst->renderslots) {
-    slot->render = nullptr;
+  for (RenderSlot &slot : image_dst->renderslots) {
+    slot.render = nullptr;
   }
 
   BLI_listbase_clear(&image_dst->anims);
@@ -194,10 +194,10 @@ static void image_free_data(ID *id)
 
   image_free_packedfiles(image);
 
-  LISTBASE_FOREACH (RenderSlot *, slot, &image->renderslots) {
-    if (slot->render) {
-      RE_FreeRenderResult(slot->render);
-      slot->render = nullptr;
+  for (RenderSlot &slot : image->renderslots) {
+    if (slot.render) {
+      RE_FreeRenderResult(slot.render);
+      slot.render = nullptr;
     }
   }
   BLI_freelistN(&image->renderslots);
@@ -230,19 +230,19 @@ static void image_foreach_cache(ID *id,
   key.identifier = offsetof(Image, rr);
   function_callback(id, &key, (void **)&image->rr, 0, user_data);
 
-  LISTBASE_FOREACH (RenderSlot *, slot, &image->renderslots) {
-    key.identifier = size_t(BLI_ghashutil_strhash_p(slot->name));
-    function_callback(id, &key, (void **)&slot->render, 0, user_data);
+  for (RenderSlot &slot : image->renderslots) {
+    key.identifier = size_t(BLI_ghashutil_strhash_p(slot.name));
+    function_callback(id, &key, (void **)&slot.render, 0, user_data);
   }
 
   /* Ensure we don't collide with the identifiers used above. */
   constexpr size_t runtime_base_id = size_t(1) << 32u;
 
-  key.identifier = runtime_base_id + offsetof(ImageRuntimeHandle, cache);
+  key.identifier = runtime_base_id + offsetof(blender::bke::ImageRuntime, cache);
   function_callback(id, &key, (void **)&image->runtime->cache, 0, user_data);
 
   auto gputexture_offset = [image](int target, int eye) {
-    constexpr size_t base_offset = offsetof(ImageRuntimeHandle, gputexture);
+    constexpr size_t base_offset = offsetof(blender::bke::ImageRuntime, gputexture);
     blender::gpu::Texture **first = &image->runtime->gputexture[0][0];
     const size_t array_offset = sizeof(*first) *
                                 (&image->runtime->gputexture[target][eye] - first);
@@ -350,17 +350,17 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   BLO_write_id_struct(writer, Image, id_address, &ima->id);
   BKE_id_blend_write(writer, &ima->id);
 
-  LISTBASE_FOREACH (ImagePackedFile *, imapf, &ima->packedfiles) {
-    BLO_write_struct(writer, ImagePackedFile, imapf);
-    BKE_packedfile_blend_write(writer, imapf->packedfile);
+  for (ImagePackedFile &imapf : ima->packedfiles) {
+    writer->write_struct(&imapf);
+    BKE_packedfile_blend_write(writer, imapf.packedfile);
   }
 
   BKE_previewimg_blend_write(writer, ima->preview);
 
-  LISTBASE_FOREACH (ImageView *, iv, &ima->views) {
-    BLO_write_struct(writer, ImageView, iv);
+  for (ImageView &iv : ima->views) {
+    writer->write_struct(&iv);
   }
-  BLO_write_struct(writer, Stereo3dFormat, ima->stereo3d_format);
+  writer->write_struct(ima->stereo3d_format);
 
   BLO_write_struct_list(writer, ImageTile, &ima->tiles);
 
@@ -384,11 +384,11 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_list(reader, ImagePackedFile, &(ima->packedfiles));
 
   if (ima->packedfiles.first) {
-    LISTBASE_FOREACH_MUTABLE (ImagePackedFile *, imapf, &ima->packedfiles) {
-      BKE_packedfile_blend_read(reader, &imapf->packedfile, imapf->filepath);
-      if (!imapf->packedfile) {
-        BLI_remlink(&ima->packedfiles, imapf);
-        MEM_freeN(imapf);
+    for (ImagePackedFile &imapf : ima->packedfiles.items_mutable()) {
+      BKE_packedfile_blend_read(reader, &imapf.packedfile, imapf.filepath);
+      if (!imapf.packedfile) {
+        BLI_remlink(&ima->packedfiles, &imapf);
+        MEM_freeN(&imapf);
       }
     }
     ima->packedfile = nullptr;
@@ -625,7 +625,7 @@ void BKE_image_free_data(Image *ima)
 
 static ImageTile *imagetile_alloc(int tile_number)
 {
-  ImageTile *tile = MEM_callocN<ImageTile>("Image Tile");
+  ImageTile *tile = MEM_new_for_free<ImageTile>("Image Tile");
   tile->tile_number = tile_number;
   tile->gen_x = 1024;
   tile->gen_y = 1024;
@@ -636,9 +636,7 @@ static ImageTile *imagetile_alloc(int tile_number)
 /* only image block itself */
 static void image_init(Image *ima, short source, short type)
 {
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(ima, id));
-
-  MEMCPY_STRUCT_AFTER(ima, DNA_struct_default_get(Image), id);
+  INIT_DEFAULT_STRUCT_AFTER(ima, id);
 
   ima->source = source;
   ima->type = type;
@@ -659,7 +657,7 @@ static void image_init(Image *ima, short source, short type)
   ima->runtime = MEM_new<blender::bke::ImageRuntime>(__func__);
 
   BKE_color_managed_colorspace_settings_init(&ima->colorspace_settings);
-  ima->stereo3d_format = MEM_callocN<Stereo3dFormat>("Image Stereo Format");
+  ima->stereo3d_format = MEM_new_for_free<Stereo3dFormat>("Image Stereo Format");
 }
 
 static Image *image_alloc(Main *bmain,
@@ -714,7 +712,8 @@ static void image_remove_ibuf(Image *ima, int index, int entry)
   imagecache_remove(ima, index);
 }
 
-static void copy_image_packedfiles(ListBase *lb_dst, const ListBase *lb_src)
+static void copy_image_packedfiles(ListBaseT<ImagePackedFile> *lb_dst,
+                                   const ListBaseT<ImagePackedFile> *lb_src)
 {
   const ImagePackedFile *imapf_src;
 
@@ -722,7 +721,7 @@ static void copy_image_packedfiles(ListBase *lb_dst, const ListBase *lb_src)
   for (imapf_src = static_cast<const ImagePackedFile *>(lb_src->first); imapf_src;
        imapf_src = imapf_src->next)
   {
-    ImagePackedFile *imapf_dst = MEM_mallocN<ImagePackedFile>("Image Packed Files (copy)");
+    ImagePackedFile *imapf_dst = MEM_new_for_free<ImagePackedFile>("Image Packed Files (copy)");
 
     imapf_dst->view = imapf_src->view;
     imapf_dst->tile_number = imapf_src->tile_number;
@@ -816,9 +815,9 @@ ImageTile *BKE_image_get_tile(Image *ima, int tile_number)
     return nullptr;
   }
 
-  LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
-    if (tile->tile_number == tile_number) {
-      return tile;
+  for (ImageTile &tile : ima->tiles) {
+    if (tile.tile_number == tile_number) {
+      return &tile;
     }
   }
 
@@ -931,9 +930,9 @@ int BKE_image_find_nearest_tile_with_offset(const Image *image,
   /* Distance squared to the closest UDIM tile. */
   float dist_best_sq = FLT_MAX;
 
-  LISTBASE_FOREACH (const ImageTile *, tile, &image->tiles) {
+  for (const ImageTile &tile : image->tiles) {
     float uv_offset[2];
-    BKE_image_get_tile_uv(image, tile->tile_number, uv_offset);
+    BKE_image_get_tile_uv(image, tile.tile_number, uv_offset);
 
     /* Distance squared between #co and closest point on UDIM tile. */
     const float dist_sq = distance_squared_to_udim(co, uv_offset);
@@ -950,7 +949,7 @@ int BKE_image_find_nearest_tile_with_offset(const Image *image,
       /* Tile is better than previous best, update. */
       dist_best_sq = dist_sq;
       copy_v2_v2(r_uv_offset, uv_offset);
-      tile_number_best = tile->tile_number;
+      tile_number_best = tile.tile_number;
     }
   }
   return tile_number_best;
@@ -1380,7 +1379,7 @@ static bool image_memorypack_imbuf(
   const int encoded_size = ibuf->encoded_size;
   PackedFile *pf = BKE_packedfile_new_from_memory(IMB_steal_encoded_buffer(ibuf), encoded_size);
 
-  imapf = MEM_mallocN<ImagePackedFile>("Image PackedFile");
+  imapf = MEM_new_for_free<ImagePackedFile>("Image PackedFile");
   STRNCPY(imapf->filepath, filepath);
   imapf->packedfile = pf;
   imapf->view = view;
@@ -1407,9 +1406,9 @@ bool BKE_image_memorypack(Image *ima)
   char tiled_filepath[FILE_MAX];
 
   for (int view = 0; view < tot_viewfiles; view++) {
-    LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
+    for (ImageTile &tile : ima->tiles) {
       int index = (is_multiview || is_tiled) ? view : IMA_NO_INDEX;
-      int entry = is_tiled ? tile->tile_number : 0;
+      int entry = is_tiled ? tile.tile_number : 0;
       ImBuf *ibuf = image_get_cached_ibuf_for_index_entry(ima, index, entry, nullptr);
       if (!ibuf) {
         ok = false;
@@ -1418,7 +1417,7 @@ bool BKE_image_memorypack(Image *ima)
 
       const char *filepath = ibuf->filepath;
       if (is_tiled) {
-        iuser.tile = tile->tile_number;
+        iuser.tile = tile.tile_number;
         BKE_image_user_file_path(&iuser, ima, tiled_filepath);
         filepath = tiled_filepath;
       }
@@ -1432,7 +1431,7 @@ bool BKE_image_memorypack(Image *ima)
         filepath = iv->filepath;
       }
 
-      ok = ok && image_memorypack_imbuf(ima, ibuf, view, tile->tile_number, filepath);
+      ok = ok && image_memorypack_imbuf(ima, ibuf, view, tile.tile_number, filepath);
       IMB_freeImBuf(ibuf);
     }
   }
@@ -1451,8 +1450,8 @@ bool BKE_image_memorypack(Image *ima)
 
     /* Clear the per-tile generated flag if all tiles were ok.
      * Mirrors similar processing inside #BKE_image_save. */
-    LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
-      tile->gen_flag &= ~IMA_GEN_TILE;
+    for (ImageTile &tile : ima->tiles) {
+      tile.gen_flag &= ~IMA_GEN_TILE;
     }
   }
 
@@ -1467,17 +1466,17 @@ void BKE_image_packfiles(ReportList *reports, Image *ima, const char *basepath)
   BKE_imageuser_default(&iuser);
   for (int view = 0; view < tot_viewfiles; view++) {
     iuser.view = view;
-    LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
-      iuser.tile = tile->tile_number;
+    for (ImageTile &tile : ima->tiles) {
+      iuser.tile = tile.tile_number;
       char filepath[FILE_MAX];
       BKE_image_user_file_path(&iuser, ima, filepath);
 
-      ImagePackedFile *imapf = MEM_mallocN<ImagePackedFile>("Image packed file");
+      ImagePackedFile *imapf = MEM_new_for_free<ImagePackedFile>("Image packed file");
       BLI_addtail(&ima->packedfiles, imapf);
 
       imapf->packedfile = BKE_packedfile_new(reports, filepath, basepath);
       imapf->view = view;
-      imapf->tile_number = tile->tile_number;
+      imapf->tile_number = tile.tile_number;
       if (imapf->packedfile) {
         STRNCPY(imapf->filepath, filepath);
       }
@@ -1502,7 +1501,7 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
     BKE_report(reports, RPT_ERROR, "Cannot pack tiled images from raw data currently...");
   }
   else {
-    ImagePackedFile *imapf = MEM_mallocN<ImagePackedFile>(__func__);
+    ImagePackedFile *imapf = MEM_new_for_free<ImagePackedFile>(__func__);
     BLI_addtail(&ima->packedfiles, imapf);
     imapf->packedfile = BKE_packedfile_new_from_memory(data, data_len);
     imapf->view = 0;
@@ -1694,7 +1693,7 @@ struct StampData {
    *
    * NOTE: This fields are not stamped onto the image. At least for now.
    */
-  ListBase custom_fields;
+  ListBaseT<StampDataCustomField> custom_fields;
 };
 #undef STAMP_NAME_SIZE
 
@@ -2405,9 +2404,9 @@ void BKE_stamp_info_callback(void *data,
   CALL(memory, "Memory");
   CALL(hostname, "Hostname");
 
-  LISTBASE_FOREACH (StampDataCustomField *, custom_field, &stamp_data->custom_fields) {
-    if (noskip || custom_field->value[0]) {
-      callback(data, custom_field->key, custom_field->value, strlen(custom_field->value) + 1);
+  for (StampDataCustomField &custom_field : stamp_data->custom_fields) {
+    if (noskip || custom_field.value[0]) {
+      callback(data, custom_field.key, custom_field.value, strlen(custom_field.value) + 1);
     }
   }
 
@@ -2450,8 +2449,8 @@ StampData *BKE_stamp_data_copy(const StampData *stamp_data)
   StampData *stamp_datan = static_cast<StampData *>(MEM_dupallocN(stamp_data));
   BLI_duplicatelist(&stamp_datan->custom_fields, &stamp_data->custom_fields);
 
-  LISTBASE_FOREACH (StampDataCustomField *, custom_fieldn, &stamp_datan->custom_fields) {
-    custom_fieldn->value = static_cast<char *>(MEM_dupallocN(custom_fieldn->value));
+  for (StampDataCustomField &custom_fieldn : stamp_datan->custom_fields) {
+    custom_fieldn.value = static_cast<char *>(MEM_dupallocN(custom_fieldn.value));
   }
 
   return stamp_datan;
@@ -2462,8 +2461,8 @@ void BKE_stamp_data_free(StampData *stamp_data)
   if (stamp_data == nullptr) {
     return;
   }
-  LISTBASE_FOREACH (StampDataCustomField *, custom_field, &stamp_data->custom_fields) {
-    MEM_freeN(custom_field->value);
+  for (StampDataCustomField &custom_field : stamp_data->custom_fields) {
+    MEM_freeN(custom_field.value);
   }
   BLI_freelistN(&stamp_data->custom_fields);
   MEM_freeN(stamp_data);
@@ -2693,11 +2692,11 @@ static void image_viewer_create_views(const RenderData *rd, Image *ima)
     image_add_view(ima, "", "");
   }
   else {
-    LISTBASE_FOREACH (SceneRenderView *, srv, &rd->views) {
-      if (BKE_scene_multiview_is_render_view_active(rd, srv) == false) {
+    for (SceneRenderView &srv : rd->views) {
+      if (BKE_scene_multiview_is_render_view_active(rd, &srv) == false) {
         continue;
       }
-      image_add_view(ima, srv->name, "");
+      image_add_view(ima, srv.name, "");
     }
   }
 }
@@ -2726,9 +2725,9 @@ static bool image_views_match_render_views(const Image *image, const RenderData 
   /* The render data is multi-view, so we need to check that for every view in the image, a
    * corresponding active render view with the same name exists, noting that they may not
    * necessarily be in the same order. */
-  LISTBASE_FOREACH (ImageView *, image_view, &image->views) {
+  for (ImageView &image_view : image->views) {
     SceneRenderView *scene_render_view = static_cast<SceneRenderView *>(
-        BLI_findstring(&render_data->views, image_view->name, offsetof(SceneRenderView, name)));
+        BLI_findstring(&render_data->views, image_view.name, offsetof(SceneRenderView, name)));
     /* A render view doesn't exist for that image view with the same name, so the views don't
      * match. */
     if (!scene_render_view) {
@@ -2820,16 +2819,16 @@ static void image_walk_ntree_all_users(
 
 static void image_walk_gpu_materials(
     ID *id,
-    ListBase *gpu_materials,
+    ListBaseT<LinkData> *gpu_materials,
     void *customdata,
     void callback(Image *ima, ID *iuser_id, ImageUser *iuser, void *customdata))
 {
-  LISTBASE_FOREACH (LinkData *, link, gpu_materials) {
-    GPUMaterial *gpu_material = (GPUMaterial *)link->data;
-    ListBase textures = GPU_material_textures(gpu_material);
-    LISTBASE_FOREACH (GPUMaterialTexture *, gpu_material_texture, &textures) {
-      if (gpu_material_texture->iuser_available) {
-        callback(gpu_material_texture->ima, id, &gpu_material_texture->iuser, customdata);
+  for (LinkData &link : *gpu_materials) {
+    GPUMaterial *gpu_material = (GPUMaterial *)link.data;
+    ListBaseT<GPUMaterialTexture> textures = GPU_material_textures(gpu_material);
+    for (GPUMaterialTexture &gpu_material_texture : textures) {
+      if (gpu_material_texture.iuser_available) {
+        callback(gpu_material_texture.ima, id, &gpu_material_texture.iuser, customdata);
       }
     }
   }
@@ -2859,7 +2858,7 @@ static void image_walk_id_all_users(
     }
     case ID_LA: {
       Light *light = (Light *)id;
-      if (light->nodetree && light->use_nodes && !skip_nested_nodes) {
+      if (light->nodetree && !skip_nested_nodes) {
         image_walk_ntree_all_users(light->nodetree, &light->id, customdata, callback);
       }
       break;
@@ -2889,19 +2888,19 @@ static void image_walk_id_all_users(
     }
     case ID_CA: {
       Camera *cam = (Camera *)id;
-      LISTBASE_FOREACH (CameraBGImage *, bgpic, &cam->bg_images) {
-        callback(bgpic->ima, nullptr, &bgpic->iuser, customdata);
+      for (CameraBGImage &bgpic : cam->bg_images) {
+        callback(bgpic.ima, nullptr, &bgpic.iuser, customdata);
       }
       break;
     }
     case ID_WM: {
       wmWindowManager *wm = (wmWindowManager *)id;
-      LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-        const bScreen *screen = BKE_workspace_active_screen_get(win->workspace_hook);
+      for (wmWindow &win : wm->windows) {
+        const bScreen *screen = BKE_workspace_active_screen_get(win.workspace_hook);
 
-        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-          if (area->spacetype == SPACE_IMAGE) {
-            SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+        for (ScrArea &area : screen->areabase) {
+          if (area.spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
             callback(sima->image, nullptr, &sima->iuser, customdata);
           }
         }
@@ -3179,15 +3178,15 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
           BKE_image_packfiles(nullptr, ima, ID_BLEND_PATH(bmain, &ima->id));
         }
         else {
-          LISTBASE_FOREACH (ImagePackedFile *, imapf, &ima->packedfiles) {
+          for (ImagePackedFile &imapf : ima->packedfiles) {
             PackedFile *pf;
-            pf = BKE_packedfile_new(nullptr, imapf->filepath, ID_BLEND_PATH(bmain, &ima->id));
+            pf = BKE_packedfile_new(nullptr, imapf.filepath, ID_BLEND_PATH(bmain, &ima->id));
             if (pf) {
-              BKE_packedfile_free(imapf->packedfile);
-              imapf->packedfile = pf;
+              BKE_packedfile_free(imapf.packedfile);
+              imapf.packedfile = pf;
             }
             else {
-              printf("ERROR: Image \"%s\" not available. Keeping packed image\n", imapf->filepath);
+              printf("ERROR: Image \"%s\" not available. Keeping packed image\n", imapf.filepath);
             }
           }
         }
@@ -3201,7 +3200,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
       }
 
       if (ima->source == IMA_SRC_TILED) {
-        ListBase new_tiles = {nullptr, nullptr};
+        ListBaseT<LinkData> new_tiles = {nullptr, nullptr};
         int new_start, new_range;
 
         char filepath[FILE_MAX];
@@ -3223,8 +3222,8 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
            * the generation flag from the remaining tile in case this was previously a generated
            * image. */
           base_tile->gen_flag &= ~IMA_GEN_TILE;
-          LISTBASE_FOREACH (LinkData *, new_tile, &new_tiles) {
-            int new_tile_number = POINTER_AS_INT(new_tile->data);
+          for (LinkData &new_tile : new_tiles) {
+            int new_tile_number = POINTER_AS_INT(new_tile.data);
             BKE_image_add_tile(ima, new_tile_number, nullptr);
             if (new_tile_number == remaining_tile_number) {
               needs_final_cleanup = false;
@@ -3333,7 +3332,10 @@ int BKE_image_get_tile_label(const Image *ima,
   return BLI_snprintf_rlen(label, label_maxncpy, "%d", tile->tile_number);
 }
 
-bool BKE_image_get_tile_info(char *filepath, ListBase *tiles, int *r_tile_start, int *r_tile_range)
+bool BKE_image_get_tile_info(char *filepath,
+                             ListBaseT<LinkData> *tiles,
+                             int *r_tile_start,
+                             int *r_tile_range)
 {
   char filename[FILE_MAXFILE], dirname[FILE_MAXDIR];
   BLI_path_split_dir_file(filepath, dirname, sizeof(dirname), filename, sizeof(filename));
@@ -3775,9 +3777,9 @@ static void image_init_multilayer_multiview(Image *ima, RenderResult *rr)
   BKE_image_free_views(ima);
 
   if (rr) {
-    LISTBASE_FOREACH (RenderView *, rv, &rr->views) {
-      ImageView *iv = MEM_callocN<ImageView>("Viewer Image View");
-      STRNCPY_UTF8(iv->name, rv->name);
+    for (RenderView &rv : rr->views) {
+      ImageView *iv = MEM_new_for_free<ImageView>("Viewer Image View");
+      STRNCPY_UTF8(iv->name, rv.name);
       BLI_addtail(&ima->views, iv);
     }
   }
@@ -3887,9 +3889,7 @@ void BKE_image_backup_render(Scene *scene, Image *ima, bool free_current_slot)
 
 static void image_add_view(Image *ima, const char *viewname, const char *filepath)
 {
-  ImageView *iv;
-
-  iv = MEM_mallocN<ImageView>("Viewer Image View");
+  ImageView *iv = MEM_new_for_free<ImageView>("Viewer Image View");
   STRNCPY_UTF8(iv->name, viewname);
   STRNCPY(iv->filepath, filepath);
 
@@ -4099,7 +4099,7 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
 
     for (int i = 0; i < tot_viewfiles; i++) {
       /* allocate the ImageAnim */
-      ImageAnim *ia = MEM_callocN<ImageAnim>("Image Anim");
+      ImageAnim *ia = MEM_new_for_free<ImageAnim>("Image Anim");
       BLI_addtail(&ima->anims, ia);
     }
   }
@@ -4155,11 +4155,11 @@ static ImBuf *load_image_single(Image *ima,
 
   /* is there a PackedFile with this image ? */
   if (has_packed && !is_sequence) {
-    LISTBASE_FOREACH (ImagePackedFile *, imapf, &ima->packedfiles) {
-      if (imapf->view == view_id && imapf->tile_number == tile_number) {
-        if (imapf->packedfile) {
-          ibuf = IMB_load_image_from_memory((uchar *)imapf->packedfile->data,
-                                            imapf->packedfile->size,
+    for (ImagePackedFile &imapf : ima->packedfiles) {
+      if (imapf.view == view_id && imapf.tile_number == tile_number) {
+        if (imapf.packedfile) {
+          ibuf = IMB_load_image_from_memory((uchar *)imapf.packedfile->data,
+                                            imapf.packedfile->size,
                                             flag,
                                             "<packed data>",
                                             nullptr,
@@ -4218,7 +4218,7 @@ static ImBuf *load_image_single(Image *ima,
 
       /* Make packed file for auto-pack. */
       if (!is_sequence && (has_packed == false) && (G.fileflags & G_FILE_AUTOPACK)) {
-        ImagePackedFile *imapf = MEM_mallocN<ImagePackedFile>("Image Pack-file");
+        ImagePackedFile *imapf = MEM_new_for_free<ImagePackedFile>("Image Pack-file");
         BLI_addtail(&ima->packedfiles, imapf);
 
         STRNCPY(imapf->filepath, filepath);
@@ -4881,7 +4881,7 @@ struct ImagePoolItem {
 };
 
 struct ImagePool {
-  ListBase image_buffers = {};
+  ListBaseT<ImagePoolItem> image_buffers = {};
   BLI_mempool *memory_pool = nullptr;
   blender::Mutex mutex;
 };
@@ -4916,10 +4916,10 @@ void BKE_image_pool_free(ImagePool *pool)
 BLI_INLINE ImBuf *image_pool_find_item(
     ImagePool *pool, Image *image, int entry, int index, bool *r_found)
 {
-  LISTBASE_FOREACH (ImagePoolItem *, item, &pool->image_buffers) {
-    if (item->image == image && item->entry == entry && item->index == index) {
+  for (ImagePoolItem &item : pool->image_buffers) {
+    if (item.image == image && item.entry == entry && item.index == index) {
       *r_found = true;
-      return item->ibuf;
+      return item.ibuf;
     }
   }
 
@@ -5530,11 +5530,11 @@ static void image_update_views_format(Image *ima, ImageUser *iuser)
     }
 
     /* create all the image views */
-    LISTBASE_FOREACH (SceneRenderView *, srv, &scene->r.views) {
-      if (BKE_scene_multiview_is_render_view_active(&scene->r, srv)) {
+    for (SceneRenderView &srv : scene->r.views) {
+      if (BKE_scene_multiview_is_render_view_active(&scene->r, &srv)) {
         char filepath_view[FILE_MAX];
-        SNPRINTF(filepath_view, "%s%s%s", prefix, srv->suffix, ext);
-        image_add_view(ima, srv->name, filepath_view);
+        SNPRINTF(filepath_view, "%s%s%s", prefix, srv.suffix, ext);
+        image_add_view(ima, srv.name, filepath_view);
       }
     }
 
@@ -5576,7 +5576,7 @@ static void image_update_views_format(Image *ima, ImageUser *iuser)
 
 RenderSlot *BKE_image_add_renderslot(Image *ima, const char *name)
 {
-  RenderSlot *slot = MEM_callocN<RenderSlot>("Image new Render Slot");
+  RenderSlot *slot = MEM_new_for_free<RenderSlot>("Image new Render Slot");
   if (name && name[0]) {
     STRNCPY_UTF8(slot->name, name);
   }

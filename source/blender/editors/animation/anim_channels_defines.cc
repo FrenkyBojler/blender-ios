@@ -32,6 +32,7 @@
 #include "DNA_grease_pencil_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_light_types.h"
 #include "DNA_lightprobe_types.h"
 #include "DNA_linestyle_types.h"
@@ -303,7 +304,6 @@ static short acf_generic_group_offset(bAnimContext *ac, bAnimListElem *ale)
       switch (ale->type) {
         case ANIMTYPE_FCURVE:
         case ANIMTYPE_GROUP: {
-          const bAction *action = reinterpret_cast<bAction *>(ale->fcurve_owner_id);
           offset += short(0.35f * U.widget_unit);
           break;
         }
@@ -5042,7 +5042,7 @@ void ANIM_channel_setting_set(bAnimContext *ac,
 /* --------------------------- */
 
 /** Size of icons. */
-#define ICON_WIDTH (0.85f * U.widget_unit)
+#define ICON_WIDTH (0.8f * U.widget_unit)
 /** Width of sliders. */
 #define SLIDER_WIDTH (4 * U.widget_unit)
 /** Min-width of rename text-boxes. */
@@ -5200,7 +5200,8 @@ void ANIM_channel_draw(
 
   /* calculate appropriate y-coordinates for icon buttons */
   y = (ymaxc - yminc) / 2 + yminc;
-  ymid = y - 0.5f * ICON_WIDTH;
+  ymid = yminc - 1;
+
   /* y-coordinates for text is only 4 down from middle */
   ytext = y - 0.2f * U.widget_unit;
 
@@ -5508,7 +5509,7 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
 {
   bAnimListElem *ale_setting = static_cast<bAnimListElem *>(ale_npoin);
   bAnimContext ac;
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter;
   const eAnimChannel_Settings setting = eAnimChannel_Settings(POINTER_AS_INT(setting_wrap));
   short on = 0;
@@ -5609,7 +5610,7 @@ static void achannel_setting_slider_cb(bContext *C, void *id_poin, void *fcu_poi
   Scene *scene = CTX_data_scene(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
   ToolSettings *ts = scene->toolsettings;
-  ListBase nla_cache = {nullptr, nullptr};
+  ListBaseT<NlaKeyframingContext> nla_cache = {nullptr, nullptr};
   PointerRNA ptr;
   PropertyRNA *prop;
   eInsertKeyFlags flag = INSERTKEY_NOFLAGS;
@@ -6104,7 +6105,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
   }
 
   /* calculate appropriate y-coordinates for icon buttons */
-  ymid = BLI_rctf_cent_y(rect) - 0.5f * ICON_WIDTH;
+  ymid = rect->ymin - 1;
 
   /* no button backdrop behind icons */
   block_emboss_set(block, blender::ui::EmbossType::None);

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-16 11:27+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-10-14 21:59+0000\n"
 "Last-Translator: Hoang Duy Tran <hoangduytran1960@googlemail.com>\n"
 "Language-Team: Vietnamese <https://translate.blender.org/projects/blender-ui/ui/vi/>\n"
@@ -34297,12 +34297,88 @@ msgid "Editor menu containing buttons"
 msgstr "Trình đơn của trình biên soạn có chứa các nút"
 
 
-msgid "Mirror"
-msgstr "Phản Chiếu Đối Xứng"
+msgid "Show/Hide"
+msgstr "Hiện/Ẩn Giấu"
+
+
+msgid "Names"
+msgstr "Tên"
+
+
+msgid "Bone Roll"
+msgstr "Lăn Xương"
+
+
+msgid "Math"
+msgstr "Toán"
+
+
+msgid "Utilities"
+msgstr "Thường Trình"
+
+
+msgid "Clean Up"
+msgstr "Dọn Dẹp"
+
+
+msgid "Pivot Point"
+msgstr "Điểm Tựa"
 
 
 msgid "Snap"
 msgstr "Bám Dính"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Suy Giảm Dần trong Biên Soạn Cân Đối"
+
+
+msgid "Mask Edit"
+msgstr "Biên Soạn Màn Chắn Lọc"
+
+
+msgid "Automasking"
+msgstr "Tự Động Chắn Lọc"
+
+
+msgid "Read"
+msgstr "Đọc"
+
+
+msgid "Sample"
+msgstr "Lấy Mẫu Vật"
+
+
+msgid "Face Sets Edit"
+msgstr "Biên Soạn các Mặt Ấn Định"
+
+
+msgid "Write"
+msgstr "Viết"
+
+
+msgid "Vertex Group Locks"
+msgstr "Khóa của Nhóm Điểm Đỉnh"
+
+
+msgid "Primitives"
+msgstr "Hình Cơ Bản"
+
+
+msgid "Gizmo"
+msgstr "Dụng Cụ"
+
+
+msgid "Instances"
+msgstr "Thực Thể"
+
+
+msgid "Import"
+msgstr "Nhập Khẩu"
+
+
+msgid "Mirror"
+msgstr "Phản Chiếu Đối Xứng"
 
 
 msgid "UV Mapping"
@@ -34321,6 +34397,10 @@ msgid "Navigation"
 msgstr "Điều Hướng"
 
 
+msgid "Deprecated"
+msgstr "Lỗi Thời"
+
+
 msgid "Align View"
 msgstr "Căn Chỉnh Góc Nhìn"
 
@@ -34335,6 +34415,14 @@ msgstr "Vùng Góc Nhìn"
 
 msgid "Select More/Less"
 msgstr "Tăng/Giảm Lựa Chọn"
+
+
+msgid "List"
+msgstr "Nâng"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -34361,10 +34449,6 @@ msgid "Metaball"
 msgstr "Siêu Cầu"
 
 
-msgid "Layout"
-msgstr "Bố Trí"
-
-
 msgid "Light"
 msgstr "Nguồn/Ánh Sáng/Đèn"
 
@@ -34381,52 +34465,20 @@ msgid "Relations"
 msgstr "Mối Quan Hệ"
 
 
-msgid "Adjust"
-msgstr "Điều Chỉnh"
-
-
 msgid "Rigid Body"
 msgstr "Thân Cứng"
-
-
-msgid "Keying"
-msgstr "Khóa Hóa"
 
 
 msgid "Apply"
 msgstr "Áp Dụng"
 
 
-msgid "Tracking"
-msgstr "Giám Sát"
-
-
 msgid "Track"
 msgstr "Giám Sát"
 
 
-msgid "Utilities"
-msgstr "Thường Trình"
-
-
-msgid "Math"
-msgstr "Toán"
-
-
 msgid "Quick Effects"
 msgstr "Hiệu Ứng Nhanh"
-
-
-msgid "Creative"
-msgstr "Kiến Tạo"
-
-
-msgid "Show/Hide"
-msgstr "Hiện/Ẩn Giấu"
-
-
-msgid "Clean Up"
-msgstr "Dọn Dẹp"
 
 
 msgid "Asset"
@@ -34449,16 +34501,8 @@ msgid "Hooks"
 msgstr "Móc"
 
 
-msgid "Vertex Group Locks"
-msgstr "Khóa của Nhóm Điểm Đỉnh"
-
-
 msgid "Trim/Add"
 msgstr "Cắt Xén/Thêm"
-
-
-msgid "Render Preview"
-msgstr "Góc Nhìn Kết Xuất"
 
 
 msgid "Sculpt Set Pivot"
@@ -34467,6 +34511,10 @@ msgstr "Điêu Khắc: Đặt Điểm Tựa"
 
 msgid "Face Sets Init"
 msgstr "Khởi Thủy các Mặt Ấn Định"
+
+
+msgid "Layout"
+msgstr "Bố Trí"
 
 
 msgid "Random Mask"
@@ -34489,8 +34537,8 @@ msgid "Bone Collections"
 msgstr "Bộ Sưu Tập Xương"
 
 
-msgid "Names"
-msgstr "Tên"
+msgid "Adjust"
+msgstr "Điều Chỉnh"
 
 
 msgid "Toggle Bone Options"
@@ -34501,8 +34549,16 @@ msgid "Enable Bone Options"
 msgstr "Bật các Tùy Chọn về Xương"
 
 
+msgid "Keying"
+msgstr "Khóa Hóa"
+
+
 msgid "Disable Bone Options"
 msgstr "Tắt các Tùy Chọn về Xương"
+
+
+msgid "Tracking"
+msgstr "Giám Sát"
 
 
 msgid "Mesh Select Mode"
@@ -34511,6 +34567,10 @@ msgstr "Chế Độ Chọn Khung Lưới"
 
 msgid "Face Data"
 msgstr "Dữ Liệu Mặt"
+
+
+msgid "Creative"
+msgstr "Kiến Tạo"
 
 
 msgid "Select by Face Strength"
@@ -34525,20 +34585,8 @@ msgid "Merge"
 msgstr "Hợp Nhất"
 
 
-msgid "Read"
-msgstr "Đọc"
-
-
-msgid "Sample"
-msgstr "Lấy Mẫu Vật"
-
-
-msgid "Write"
-msgstr "Viết"
-
-
-msgid "Primitives"
-msgstr "Hình Cơ Bản"
+msgid "Render Preview"
+msgstr "Góc Nhìn Kết Xuất"
 
 
 msgid "Special Characters"
@@ -34547,54 +34595,6 @@ msgstr "Các Ký Tự Đặc Biệt"
 
 msgid "Kerning"
 msgstr "Tinh Chỉnh Khoảng Cách Ký Tự"
-
-
-msgid "Gizmo"
-msgstr "Dụng Cụ"
-
-
-msgid "Instances"
-msgstr "Thực Thể"
-
-
-msgid "Bone Roll"
-msgstr "Lăn Xương"
-
-
-msgid "Import"
-msgstr "Nhập Khẩu"
-
-
-msgid "Deprecated"
-msgstr "Lỗi Thời"
-
-
-msgid "List"
-msgstr "Nâng"
-
-
-msgid "Pivot Point"
-msgstr "Điểm Tựa"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Suy Giảm Dần trong Biên Soạn Cân Đối"
-
-
-msgid "Mask Edit"
-msgstr "Biên Soạn Màn Chắn Lọc"
-
-
-msgid "Automasking"
-msgstr "Tự Động Chắn Lọc"
-
-
-msgid "Face Sets Edit"
-msgstr "Biên Soạn các Mặt Ấn Định"
 
 
 msgid "Keyframe Insert Pie"
@@ -55485,15 +55485,6 @@ msgstr "Duy cái Chưa Sử Dụng"
 
 msgid "Only unused (Fake User only) actions get considered"
 msgstr "Chỉ những hành động chưa sử dụng đến (duy Người Dùng Giả mà thôi) là được cân nhắc đến"
-
-
-msgctxt "Operator"
-msgid "Convert Legacy Action"
-msgstr "Chuyển Đổi Hành Động Cũ"
-
-
-msgid "Convert a legacy Action to a layered Action on the active object"
-msgstr "Chuyển đổi một Hành Động cũ thành một Hành Động có tầng lớp trên đối tượng đang hoạt động"
 
 
 msgctxt "Operator"
@@ -80353,10 +80344,6 @@ msgid "Project the geometry onto a plane defined by a line"
 msgstr "Phóng chiếu hình học lên một bình diện được định nghĩa bởi một đường thẳng"
 
 
-msgid "Sample the vertex color of the active vertex"
-msgstr "Lấy mẫu màu điểm đỉnh của điểm đỉnh đang hoạt động"
-
-
 msgctxt "Operator"
 msgid "Sample Detail Size"
 msgstr "Lấy Mẫu Vật Cỡ Chi Tiết"
@@ -89172,6 +89159,54 @@ msgid "Panel containing UI elements"
 msgstr "Bảng có chứa các phần tử Giao Diện Người Dùng (UI)"
 
 
+msgid "glTF Variants"
+msgstr "Biến Thể glTF"
+
+
+msgid "glTF Material Variants"
+msgstr "Biến Thể Nguyên Vật Liệu glTF"
+
+
+msgid "glTF Animations"
+msgstr "Hoạt Họa glTF"
+
+
+msgid "Active Tool"
+msgstr "Công Cụ đang Hoạt Động"
+
+
+msgid "View Lock"
+msgstr "Khóa Góc Nhìn"
+
+
+msgid "Selectability & Visibility"
+msgstr "Khả Năng Lựa Chọn & Tính Hữu Hình"
+
+
+msgid "Wireframe Color"
+msgstr "Màu Khung Dây"
+
+
+msgid "Shadow Settings"
+msgstr "Sắp Đặt về Bóng Tối"
+
+
+msgid "SSAO Settings"
+msgstr "Sắp Đặt về SSAO"
+
+
+msgid "Cavity"
+msgstr "Khe Hốc"
+
+
+msgid "Render Pass"
+msgstr "Lượt Kết Xuất"
+
+
+msgid "Compositor"
+msgstr "Trình Tổng Hợp"
+
+
 msgid "Overlays"
 msgstr "Lớp Vẽ Lồng"
 
@@ -89262,54 +89297,6 @@ msgstr "Virtual Reality: Thực Tế Ảo"
 
 msgid "VR Info"
 msgstr "Thông Tin VR"
-
-
-msgid "glTF Variants"
-msgstr "Biến Thể glTF"
-
-
-msgid "glTF Material Variants"
-msgstr "Biến Thể Nguyên Vật Liệu glTF"
-
-
-msgid "glTF Animations"
-msgstr "Hoạt Họa glTF"
-
-
-msgid "Active Tool"
-msgstr "Công Cụ đang Hoạt Động"
-
-
-msgid "View Lock"
-msgstr "Khóa Góc Nhìn"
-
-
-msgid "Selectability & Visibility"
-msgstr "Khả Năng Lựa Chọn & Tính Hữu Hình"
-
-
-msgid "Wireframe Color"
-msgstr "Màu Khung Dây"
-
-
-msgid "Shadow Settings"
-msgstr "Sắp Đặt về Bóng Tối"
-
-
-msgid "SSAO Settings"
-msgstr "Sắp Đặt về SSAO"
-
-
-msgid "Cavity"
-msgstr "Khe Hốc"
-
-
-msgid "Render Pass"
-msgstr "Lượt Kết Xuất"
-
-
-msgid "Compositor"
-msgstr "Trình Tổng Hợp"
 
 
 msgid "Import Settings"
@@ -94312,10 +94299,6 @@ msgid "Catalan - Català"
 msgstr "Tiếng Catalunya (Català)"
 
 
-msgid "Croatian - Hrvatski"
-msgstr "Tiếng Croatia (Hrvatski)"
-
-
 msgid "Czech - Čeština"
 msgstr "Tiếng Séc (Čeština)"
 
@@ -94352,10 +94335,6 @@ msgid "Greek - Ελληνικά"
 msgstr "Tiếng Hy Lạp (Ελληνικά)"
 
 
-msgid "Hausa - Hausa"
-msgstr "Tiếng Hausa (Hausa)"
-
-
 msgid "Hebrew - תירִבְעִ"
 msgstr "Tiếng Hê-Bơ-Rơ (תירִבְעִ)"
 
@@ -94380,10 +94359,6 @@ msgid "Japanese - 日本語"
 msgstr "Tiếng Nhật (日本語)"
 
 
-msgid "Khmer - ខ្មែរ"
-msgstr "Tiếng Khmer (ខ្មែរ)"
-
-
 msgid "Korean - 한국어"
 msgstr "Tiếng Hàn Quốc (한국어)"
 
@@ -94394,10 +94369,6 @@ msgstr "Tiếng Kyrgyz (Кыргыз тили)"
 
 msgid "Lithuanian - Lietuviškai"
 msgstr "Tiếng Litva (Lietuviškai)"
-
-
-msgid "Nepali - नेपाली"
-msgstr "Tiếng Nepal (नेपाली)"
 
 
 msgid "Persian - ﯽﺳﺭﺎﻓ"
@@ -126745,6 +126716,18 @@ msgid "particles"
 msgstr "hạt"
 
 
+msgid "Object was not yet evaluated"
+msgstr "Đối tượng chưa được tính toán"
+
+
+msgid "Mesh has no UV data"
+msgstr "Khung lưới không có dữ liệu UV"
+
+
+msgid "Mesh has no VCol data"
+msgstr "Khung lưới không có dữ liệu màu điểm đỉnh (VCol)"
+
+
 msgid "Unsaved"
 msgstr "Chưa Lưu"
 
@@ -127406,18 +127389,6 @@ msgid "color_index is invalid"
 msgstr "chỉ số màu (color_index) không hợp lệ"
 
 
-msgid "Compositor node tree has cyclic links!"
-msgstr "Cây nút trình tổng hợp có các liên kết tuần hoàn!"
-
-
-msgid "Compositor node tree has undefined nodes or sockets!"
-msgstr "Cây nút trình tổng hợp có các nút hoặc ổ cắm chưa xác định!"
-
-
-msgid "Compositor node tree has unsupported nodes."
-msgstr "Cây nút tổng hợp có các nút không được hỗ trợ."
-
-
 msgid "Error: Too many AOVs"
 msgstr "Lỗi: Quá nhiều AOV"
 
@@ -127666,10 +127637,6 @@ msgid "No active action to operate on"
 msgstr "Không có hành động đang hoạt động nào để vận hành cả"
 
 
-msgid "Active action is not layered"
-msgstr "Hành động đang hoạt động chưa được phân tầng lớp"
-
-
 msgid "No active object"
 msgstr "Không có đối tượng đang hoạt động"
 
@@ -127765,10 +127732,6 @@ msgstr "Thất bại trong việc hợp nhất bất kỳ hoạt họa nào. Lư
 
 msgid "Expected an animation area to be active"
 msgstr "Dự kiến là một khu vực hoạt họa sẽ đi vào tình trạng hoạt động"
-
-
-msgid "Action is already layered"
-msgstr "Hành động đã được phân tầng lớp rồi"
 
 
 msgid "Active object has no action"
@@ -130504,18 +130467,6 @@ msgid "Loop cut does not work well on deformed edit mesh display"
 msgstr "Mạch lưới cắt không hoạt động bình thường khi hiển thị khung lưới biên soạn bị biến dạng"
 
 
-msgid "Create Mesh From Paint Mask"
-msgstr "Tạo Khung Lưới Từ Màn Chắn Sơn"
-
-
-msgid "Extract"
-msgstr "Trích Xuất"
-
-
-msgid "The geometry cannot be extracted with dyntopo activated"
-msgstr "Không thể trích xuất hình học khi cấu trúc liên kết động đã được kích hoạt"
-
-
 msgid "Path selection requires two matching elements to be selected"
 msgstr "Việc lựa chọn đường dẫn đòi hỏi hai phần tử xứng khớp đã được chọn rồi"
 
@@ -133162,6 +133113,18 @@ msgid "Texture mapping not set to 3D, results may be unpredictable"
 msgstr "Ánh xạ chất liệu không được đặt là 3D. Kết quả có thể là bất định"
 
 
+msgid "Create Mesh From Paint Mask"
+msgstr "Tạo Khung Lưới Từ Màn Chắn Sơn"
+
+
+msgid "Extract"
+msgstr "Trích Xuất"
+
+
+msgid "The geometry cannot be extracted with dyntopo activated"
+msgstr "Không thể trích xuất hình học khi cấu trúc liên kết động đã được kích hoạt"
+
+
 msgid "non-triangle face"
 msgstr "mặt phi tam giác"
 
@@ -133741,10 +133704,6 @@ msgstr "Video"
 
 msgid "OneDrive"
 msgstr "MộtỔCứng"
-
-
-msgid "Movies"
-msgstr "Phim"
 
 
 msgid "Cursor X"
@@ -134408,10 +134367,6 @@ msgstr "Không thể hoán đổi các dải đã chọn vì chúng sẽ chồng
 
 msgid "Cannot swap selected strips as they will not be able to fit in their new places"
 msgstr "Không thể tráo đổi các dải đã chọn vì chúng không khít vừa chỗ mới của chúng được"
-
-
-msgid "Action '%s' does not specify what data-blocks it can be used on (try setting the 'ID Root Type' setting from the data-blocks editor for this action to avoid future problems)"
-msgstr "Hành động '%s' không xác định khối dữ liệu nào nó có thể sử dụng (thử đặt 'ID Root Type' (Loại Gốc ID) trong trình biên soạn khối dữ liệu hành động này để tránh những vấn đề trong tương lai)"
 
 
 msgid "Could not add action '%s' as it cannot be used relative to ID-blocks of type '%s'"
@@ -138792,18 +138747,6 @@ msgstr "Mục tiêu không hợp lệ!"
 
 msgid "uv_on_emitter() requires a modifier from an evaluated object"
 msgstr "uv_on_emitter() đòi hỏi bộ điều chỉnh từ một đối tượng đã tính toán"
-
-
-msgid "Mesh has no UV data"
-msgstr "Khung lưới không có dữ liệu UV"
-
-
-msgid "Object was not yet evaluated"
-msgstr "Đối tượng chưa được tính toán"
-
-
-msgid "Mesh has no VCol data"
-msgstr "Khung lưới không có dữ liệu màu điểm đỉnh (VCol)"
 
 
 msgid "Cannot edit bone groups for library overrides"

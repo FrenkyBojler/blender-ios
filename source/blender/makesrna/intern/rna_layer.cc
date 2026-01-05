@@ -29,8 +29,10 @@
 
 #  include "RNA_access.hh"
 
+#  include "BKE_context.hh"
 #  include "BKE_idprop.hh"
 #  include "BKE_layer.hh"
+#  include "BKE_main.hh"
 #  include "BKE_mesh.hh"
 #  include "BKE_node.hh"
 #  include "BKE_node_tree_update.hh"
@@ -39,6 +41,7 @@
 #  include "NOD_composite.hh"
 
 #  include "BLI_listbase.h"
+#  include "BLI_string.h"
 
 #  include "DEG_depsgraph_build.hh"
 #  include "DEG_depsgraph_query.hh"
@@ -160,8 +163,8 @@ static void rna_ViewLayer_update_render_passes(ID *id, Main *bmain)
   if (engine_type->update_render_passes) {
     RenderEngine *engine = RE_engine_create(engine_type);
     if (engine) {
-      LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-        BKE_view_layer_verify_aov(engine, scene, view_layer);
+      for (ViewLayer &view_layer : scene->view_layers) {
+        BKE_view_layer_verify_aov(engine, scene, &view_layer);
       }
     }
     RE_engine_free(engine);
@@ -368,10 +371,10 @@ static bool rna_LayerCollection_has_selected_objects(LayerCollection *lc,
                                                      Main *bmain,
                                                      ViewLayer *view_layer)
 {
-  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    LISTBASE_FOREACH (ViewLayer *, scene_view_layer, &scene->view_layers) {
-      if (scene_view_layer == view_layer) {
-        return BKE_layer_collection_has_selected_objects(scene, view_layer, lc);
+  for (Scene &scene : bmain->scenes) {
+    for (ViewLayer &scene_view_layer : scene.view_layers) {
+      if (&scene_view_layer == view_layer) {
+        return BKE_layer_collection_has_selected_objects(&scene, view_layer, lc);
       }
     }
   }
@@ -415,9 +418,9 @@ static bool rna_LayerCollection_children_lookupstring(PointerRNA *ptr,
   ViewLayer *view_layer = BKE_view_layer_find_from_collection(scene, lc);
   BKE_view_layer_synced_ensure(scene, view_layer);
 
-  LISTBASE_FOREACH (LayerCollection *, child, &lc->layer_collections) {
-    if (STREQ(child->collection->id.name + 2, key)) {
-      rna_pointer_create_with_ancestors(*ptr, &RNA_LayerCollection, child, *r_ptr);
+  for (LayerCollection &child : lc->layer_collections) {
+    if (STREQ(child.collection->id.name + 2, key)) {
+      rna_pointer_create_with_ancestors(*ptr, &RNA_LayerCollection, &child, *r_ptr);
       return true;
     }
   }

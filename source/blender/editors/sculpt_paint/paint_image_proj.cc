@@ -267,6 +267,8 @@ struct LoopSeamData {
   float corner_dist_sq[2];
 };
 
+struct VertSeam;
+
 /* Main projection painting struct passed to all projection painting functions */
 struct ProjPaintState {
   View3D *v3d;
@@ -436,7 +438,7 @@ struct ProjPaintState {
   /** Only needed for when seam_bleed_px is enabled, use to find UV seams. */
   LinkNode **vertFaces;
   /** Seams per vert, to find adjacent seams. */
-  ListBase *vertSeams;
+  ListBaseT<VertSeam> *vertSeams;
 #endif
 
   SpinLock *tile_lock;
@@ -1220,7 +1222,7 @@ static VertSeam *find_adjacent_seam(const ProjPaintState *ps,
                                     uint vert_index,
                                     VertSeam **r_seam)
 {
-  ListBase *vert_seams = &ps->vertSeams[vert_index];
+  ListBaseT<VertSeam> *vert_seams = &ps->vertSeams[vert_index];
   VertSeam *seam = static_cast<VertSeam *>(vert_seams->first);
   VertSeam *adjacent = nullptr;
 
@@ -1421,7 +1423,7 @@ static void insert_seam_vert_array(const ProjPaintState *ps,
 
   for (uint i = 0; i < 2; i++) {
     const int vert = ps->corner_verts_eval[tri[fidx[i]]];
-    ListBase *list = &ps->vertSeams[vert];
+    ListBaseT<VertSeam> *list = &ps->vertSeams[vert];
     VertSeam *item = static_cast<VertSeam *>(list->first);
 
     while (item && item->angle < vseam[i].angle) {
@@ -3832,8 +3834,7 @@ static void proj_paint_state_screen_coords_init(ProjPaintState *ps, const int di
 
   INIT_MINMAX2(ps->screenMin, ps->screenMax);
 
-  ps->screenCoords = static_cast<float (*)[4]>(
-      MEM_mallocN(sizeof(float) * ps->totvert_eval * 4, "ProjectPaint ScreenVerts"));
+  ps->screenCoords = MEM_malloc_arrayN<float[4]>(ps->totvert_eval, "ProjectPaint ScreenVerts");
   projScreenCo = *ps->screenCoords;
 
   if (ps->is_ortho) {
@@ -3910,8 +3911,7 @@ static void proj_paint_state_cavity_init(ProjPaintState *ps)
 
   if (ps->do_mask_cavity) {
     int *counter = MEM_calloc_arrayN<int>(ps->totvert_eval, "counter");
-    float (*edges)[3] = static_cast<float (*)[3]>(
-        MEM_callocN(sizeof(float[3]) * ps->totvert_eval, "edges"));
+    float (*edges)[3] = MEM_calloc_arrayN<float[3]>(ps->totvert_eval, "edges");
     ps->cavities = MEM_malloc_arrayN<float>(ps->totvert_eval, "ProjectPaint Cavities");
     cavities = ps->cavities;
 
@@ -3949,7 +3949,7 @@ static void proj_paint_state_seam_bleed_init(ProjPaintState *ps)
     ps->faceSeamFlags = MEM_calloc_arrayN<ushort>(ps->corner_tris_eval.size(), __func__);
     ps->faceWindingFlags = MEM_calloc_arrayN<char>(ps->corner_tris_eval.size(), __func__);
     ps->loopSeamData = MEM_malloc_arrayN<LoopSeamData>(ps->totloop_eval, "paint-loopSeamUVs");
-    ps->vertSeams = MEM_calloc_arrayN<ListBase>(ps->totvert_eval, "paint-vertSeams");
+    ps->vertSeams = MEM_calloc_arrayN<ListBaseT<VertSeam>>(ps->totvert_eval, "paint-vertSeams");
   }
 }
 #endif
@@ -4075,8 +4075,7 @@ static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *p
   /* Build final material array, we use this a lot here. */
   /* materials start from 1, default material is 0 */
   const int totmat = ob->totcol + 1;
-  ps->mat_array = static_cast<Material **>(
-      MEM_malloc_arrayN(totmat, sizeof(*ps->mat_array), __func__));
+  ps->mat_array = MEM_malloc_arrayN<Material *>(totmat, __func__);
   /* We leave last material as empty - rationale here is being able to index
    * the materials by using the mf->mat_nr directly and leaving the last
    * material as nullptr in case no materials exist on mesh, so indexing will not fail. */
@@ -4131,8 +4130,8 @@ static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *p
   ps->corner_tris_eval = ps->mesh_eval->corner_tris();
   ps->corner_tri_faces_eval = ps->mesh_eval->corner_tri_faces();
 
-  ps->poly_to_loop_uv = static_cast<const blender::float2 **>(
-      MEM_mallocN(ps->faces_num_eval * sizeof(const blender::float2 **), "proj_paint_mtfaces"));
+  ps->poly_to_loop_uv = MEM_malloc_arrayN<const blender::float2 *>(ps->faces_num_eval,
+                                                                   "proj_paint_mtfaces");
 
   return true;
 }
@@ -4152,8 +4151,8 @@ static void proj_paint_layer_clone_init(ProjPaintState *ps, ProjPaintLayerClone 
 
   /* use clone mtface? */
   if (ps->do_layer_clone) {
-    ps->poly_to_loop_uv_clone = static_cast<const blender::float2 **>(
-        MEM_mallocN(ps->faces_num_eval * sizeof(const blender::float2 **), "proj_paint_mtfaces"));
+    ps->poly_to_loop_uv_clone = MEM_malloc_arrayN<const blender::float2 *>(ps->faces_num_eval,
+                                                                           "proj_paint_mtfaces");
 
     if (const bke::GAttributeReader attr = attributes.lookup(mesh_orig.clone_uv_map_attribute)) {
       if (attr.domain == bke::AttrDomain::Corner && attr.varray.type().is<float2>()) {
@@ -4342,7 +4341,7 @@ struct PrepareImageEntry {
 
 static void project_paint_build_proj_ima(ProjPaintState *ps,
                                          MemArena *arena,
-                                         ListBase *used_images)
+                                         ListBaseT<PrepareImageEntry> *used_images)
 {
   ProjPaintImage *projIma;
   PrepareImageEntry *entry;
@@ -4390,7 +4389,7 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
   const bke::AttributeAccessor attributes = ps->mesh_eval->attributes();
   const StringRef active_uv_name = ps->mesh_eval->active_uv_map_name();
   /* Image Vars - keep track of images we have used */
-  ListBase used_images = {nullptr};
+  ListBaseT<PrepareImageEntry> used_images = {nullptr};
 
   Image *tpage_last = nullptr, *tpage;
   TexPaintSlot *slot_last = nullptr;
@@ -4550,7 +4549,7 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
           iuser.tile = tile;
           iuser.framenr = tpage->lastframe;
           if (BKE_image_has_ibuf(tpage, &iuser)) {
-            PrepareImageEntry *e = MEM_callocN<PrepareImageEntry>("PrepareImageEntry");
+            PrepareImageEntry *e = MEM_new_for_free<PrepareImageEntry>("PrepareImageEntry");
             e->ima = tpage;
             e->iuser = iuser;
             BLI_addtail(&used_images, e);
@@ -6444,7 +6443,7 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
   v3d_copy.flag = V3D_HIDE_HELPLINES;
   v3d_copy.gizmo_flag = V3D_GIZMO_HIDE;
 
-  memset(&v3d_copy.overlay, 0, sizeof(View3DOverlay));
+  _DNA_internal_memzero(&v3d_copy.overlay, sizeof(View3DOverlay));
   v3d_copy.overlay.flag = V3D_OVERLAY_HIDE_CURSOR | V3D_OVERLAY_HIDE_TEXT |
                           V3D_OVERLAY_HIDE_MOTION_PATHS | V3D_OVERLAY_HIDE_BONES |
                           V3D_OVERLAY_HIDE_OBJECT_XTRAS | V3D_OVERLAY_HIDE_OBJECT_ORIGINS;
@@ -6463,6 +6462,7 @@ static wmOperatorStatus texture_paint_image_from_view_exec(bContext *C, wmOperat
                                         false,
                                         nullptr,
                                         nullptr,
+                                        true,
                                         err_out);
 
   if (!ibuf) {

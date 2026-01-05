@@ -53,8 +53,6 @@ static void cache_file_init_data(ID *id)
 {
   CacheFile *cache_file = (CacheFile *)id;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(cache_file, id));
-
   cache_file->scale = 1.0f;
   cache_file->velocity_unit = CACHEFILE_VELOCITY_UNIT_SECOND;
   STRNCPY(cache_file->velocity_name, ".velocities");
@@ -104,8 +102,8 @@ static void cache_file_blend_write(BlendWriter *writer, ID *id, const void *id_a
   BKE_id_blend_write(writer, &cache_file->id);
 
   /* write layers */
-  LISTBASE_FOREACH (CacheFileLayer *, layer, &cache_file->layers) {
-    BLO_write_struct(writer, CacheFileLayer, layer);
+  for (CacheFileLayer &layer : cache_file->layers) {
+    writer->write_struct(&layer);
   }
 }
 
@@ -416,15 +414,15 @@ double BKE_cachefile_frame_offset(const CacheFile *cache_file, const double time
 
 CacheFileLayer *BKE_cachefile_add_layer(CacheFile *cache_file, const char filepath[1024])
 {
-  LISTBASE_FOREACH (CacheFileLayer *, layer, &cache_file->layers) {
-    if (STREQ(layer->filepath, filepath)) {
+  for (CacheFileLayer &layer : cache_file->layers) {
+    if (STREQ(layer.filepath, filepath)) {
       return nullptr;
     }
   }
 
   const int num_layers = BLI_listbase_count(&cache_file->layers);
 
-  CacheFileLayer *layer = MEM_callocN<CacheFileLayer>("CacheFileLayer");
+  CacheFileLayer *layer = MEM_new_for_free<CacheFileLayer>("CacheFileLayer");
   STRNCPY(layer->filepath, filepath);
 
   BLI_addtail(&cache_file->layers, layer);

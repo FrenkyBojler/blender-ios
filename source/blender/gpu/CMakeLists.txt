@@ -106,7 +106,9 @@ set(SRC
   intern/gpu_viewport.cc
   intern/gpu_worker.cc
 
-  shader_tool/parser.cc
+  shader_tool/intermediate.cc
+  shader_tool/metadata.cc
+  shader_tool/processor.cc
 
   GPU_attribute_convert.hh
   GPU_batch.hh
@@ -463,7 +465,6 @@ endif()
 
 set(GLSL_SRC
   GPU_shader_shared.hh
-  GPU_xr_defines.hh
 
   shaders/infos/gpu_clip_planes_infos.hh
   shaders/infos/gpu_index_load_infos.hh
@@ -478,7 +479,6 @@ set(GLSL_SRC
   shaders/infos/gpu_shader_2D_image_rect_color_infos.hh
   shaders/infos/gpu_shader_2D_image_shuffle_color_infos.hh
   shaders/infos/gpu_shader_2D_node_socket_infos.hh
-  shaders/infos/gpu_shader_2D_nodelink_infos.hh
   shaders/infos/gpu_shader_2D_point_uniform_size_uniform_color_aa_infos.hh
   shaders/infos/gpu_shader_2D_point_uniform_size_uniform_color_outline_aa_infos.hh
   shaders/infos/gpu_shader_2D_point_varying_size_varying_color_infos.hh
@@ -511,14 +511,12 @@ set(GLSL_SRC
   shaders/gpu_shader_2D_vert.glsl
   shaders/gpu_shader_2D_area_borders_vert.glsl
   shaders/gpu_shader_2D_area_borders_frag.glsl
-  shaders/gpu_shader_2D_widget_base_vert.glsl
-  shaders/gpu_shader_2D_widget_base_frag.glsl
+  shaders/gpu_shader_2D_widget_base.bsl.hh
   shaders/gpu_shader_2D_widget_shadow_vert.glsl
   shaders/gpu_shader_2D_widget_shadow_frag.glsl
   shaders/gpu_shader_2D_node_socket_frag.glsl
   shaders/gpu_shader_2D_node_socket_vert.glsl
-  shaders/gpu_shader_2D_nodelink_frag.glsl
-  shaders/gpu_shader_2D_nodelink_vert.glsl
+  shaders/gpu_shader_2D_nodelink.bsl.hh
   shaders/gpu_shader_2D_line_dashed_frag.glsl
   shaders/gpu_shader_2D_image_vert.glsl
   shaders/gpu_shader_2D_image_rect_vert.glsl
@@ -807,9 +805,21 @@ if(WITH_VULKAN_BACKEND)
   list(APPEND GLSL_SRC ${VULKAN_BACKEND_GLSL_SRC})
 endif()
 
+set(GLSL_INC
+  .
+
+  intern
+  shaders
+  shaders/common
+  shaders/material
+  shaders/infos
+
+  vulkan/shaders
+)
+
 set(GLSL_C)
 foreach(GLSL_FILE ${GLSL_SRC})
-  glsl_to_c(${GLSL_FILE} GLSL_C)
+  glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
 
 set(SHADER_C)
