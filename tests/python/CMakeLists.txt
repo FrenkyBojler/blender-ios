@@ -215,6 +215,11 @@ add_blender_test(
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_http_downloader.py
 )
 
+add_blender_test(
+  script_disk_file_hash_service_test
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_disk_file_hash_service_test.py
+)
+
 # test running operators doesn't segfault under various conditions
 if(WITH_TESTS_EXPERIMENTAL)
   add_blender_test(
@@ -1442,6 +1447,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_sculpt_mask_filter
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_filter_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/sculpting"
+  )
+
+  add_blender_test(
+    bl_sculpt_mask_flood_fill
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_flood_fill_test.py
     --
     --testdir "${TEST_SRC_DIR}/sculpting"
   )

@@ -107,7 +107,7 @@ FCurve *alloc_driver_fcurve(const char rna_path[],
 
   if (!ELEM(creation_mode, DRIVER_FCURVE_LOOKUP_ONLY, DRIVER_FCURVE_EMPTY)) {
     /* add some new driver data */
-    fcu->driver = MEM_callocN<ChannelDriver>("ChannelDriver");
+    fcu->driver = MEM_new_for_free<ChannelDriver>("ChannelDriver");
 
     /* Add 2 keyframes so that user has something to work with
      * - These are configured to 0,0 and 1,1 to give a 1-1 mapping
@@ -662,7 +662,7 @@ bool ANIM_paste_driver(
 /* Driver Management API - Copy/Paste Driver Variables */
 
 /* Copy/Paste Buffer for Driver Variables... */
-static ListBase driver_vars_copybuf = {nullptr, nullptr};
+static ListBaseT<DriverVar> driver_vars_copybuf = {nullptr, nullptr};
 
 void ANIM_driver_vars_copybuf_free()
 {
@@ -712,7 +712,7 @@ bool ANIM_driver_vars_copy(ReportList *reports, FCurve *fcu)
 bool ANIM_driver_vars_paste(ReportList *reports, FCurve *fcu, bool replace)
 {
   ChannelDriver *driver = (fcu) ? fcu->driver : nullptr;
-  ListBase tmp_list = {nullptr, nullptr};
+  ListBaseT<DriverVar> tmp_list = {nullptr, nullptr};
 
   /* sanity checks */
   if (BLI_listbase_is_empty(&driver_vars_copybuf)) {

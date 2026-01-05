@@ -214,7 +214,7 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
     float snap_frame;
     bool valid_snap;
 
-    valid_snap = transform::snap_sequencer_to_closest_strip_calc(
+    valid_snap = transform::snap_sequencer_calc_drag_drop(
         scene, region, start_frame, end_frame, &snap_delta, &snap_frame);
 
     if (valid_snap) {
@@ -279,8 +279,8 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
      * current displayed frame. */
     Scene *scene = CTX_data_sequencer_scene(C);
     Editing *ed = seq::editing_ensure(scene);
-    ListBase *seqbase = seq::active_seqbase_get(ed);
-    ListBase *channels = seq::channels_displayed_get(ed);
+    ListBaseT<Strip> *seqbase = seq::active_seqbase_get(ed);
+    ListBaseT<SeqTimelineChannel> *channels = seq::channels_displayed_get(ed);
     SpaceSeq *sseq = CTX_wm_space_seq(C);
 
     VectorSet strips = seq::query_rendered_strips(
@@ -396,7 +396,9 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
   blender::ui::theme::theme_set(SPACE_SEQ, RGN_TYPE_WINDOW);
 
   if (coords->use_snapping) {
-    transform::sequencer_snap_point(region, coords->snap_point_x);
+    ui::view2d_view_ortho(&region->v2d);
+    transform::snap_sequencer_draw_drag_drop(region, coords->snap_point_x);
+    ui::view2d_view_restore(C);
   }
 
   /* Init GPU drawing. */
@@ -681,7 +683,7 @@ static void nop_draw_droptip_fn(bContext * /*C*/,
 }
 
 /* This region dropbox definition. */
-static void sequencer_dropboxes_add_to_lb(ListBase *lb)
+static void sequencer_dropboxes_add_to_lb(ListBaseT<wmDropBox> *lb)
 {
   wmDropBox *drop;
   drop = WM_dropbox_add(
@@ -746,7 +748,7 @@ static bool sound_drop_preview_poll(bContext * /*C*/, wmDrag *drag, const wmEven
   return WM_drag_is_ID_type(drag, ID_SO);
 }
 
-static void sequencer_preview_dropboxes_add_to_lb(ListBase *lb)
+static void sequencer_preview_dropboxes_add_to_lb(ListBaseT<wmDropBox> *lb)
 {
   WM_dropbox_add(lb,
                  "SEQUENCER_OT_image_strip_add",
@@ -772,7 +774,7 @@ static void sequencer_preview_dropboxes_add_to_lb(ListBase *lb)
 
 void sequencer_dropboxes()
 {
-  ListBase *lb = WM_dropboxmap_find("Sequencer", SPACE_SEQ, RGN_TYPE_WINDOW);
+  ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Sequencer", SPACE_SEQ, RGN_TYPE_WINDOW);
   sequencer_dropboxes_add_to_lb(lb);
   lb = WM_dropboxmap_find("Sequencer", SPACE_SEQ, RGN_TYPE_PREVIEW);
   sequencer_preview_dropboxes_add_to_lb(lb);

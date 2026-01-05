@@ -18,7 +18,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_screen_types.h"
@@ -45,10 +44,7 @@
 static void init_data(ModifierData *md)
 {
   ParticleInstanceModifierData *pimd = (ParticleInstanceModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(pimd, modifier));
-
-  MEMCPY_STRUCT_AFTER(pimd, DNA_struct_default_get(ParticleInstanceModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(pimd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -82,9 +78,9 @@ static bool is_disabled(const Scene *scene, ModifierData *md, bool use_render_pa
   /* If the psys modifier is disabled we cannot use its data.
    * First look up the psys modifier from the object, then check if it is enabled.
    */
-  LISTBASE_FOREACH (ModifierData *, ob_md, &pimd->ob->modifiers) {
-    if (ob_md->type == eModifierType_ParticleSystem) {
-      ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)ob_md;
+  for (ModifierData &ob_md : pimd->ob->modifiers) {
+    if (ob_md.type == eModifierType_ParticleSystem) {
+      ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)&ob_md;
       if (psmd->psys == psys) {
         int required_mode;
 
@@ -95,7 +91,7 @@ static bool is_disabled(const Scene *scene, ModifierData *md, bool use_render_pa
           required_mode = eModifierMode_Realtime;
         }
 
-        if (!BKE_modifier_is_enabled(scene, ob_md, required_mode)) {
+        if (!BKE_modifier_is_enabled(scene, &ob_md, required_mode)) {
           return true;
         }
 
