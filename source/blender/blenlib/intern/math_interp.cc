@@ -538,7 +538,17 @@ void interpolate_cubic_mitchell_fl(
 static const int MAX_PER_RADIUS = 8;
 static const int MAX_SAMPLES = 4 * MAX_PER_RADIUS + 1;
 
-/* Compute 1-d filters and sample locations. */
+template<Sampler sampler>
+BLI_INLINE float weight(float x);
+
+template<>
+float weight<Sampler::Bspline>(float x)
+{
+  return x < 1.0f ? (0.5f * x - 1.0f) * x * x + 4.0f / 6.0f :
+    ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
+}
+
+/* Compute 1-d filters and wrapped sample locations. */
 template<Sampler sampler>
 BLI_INLINE int make_samples(int width,
                             InterpWrapMode wrap,
@@ -547,36 +557,55 @@ BLI_INLINE int make_samples(int width,
                             int positions[MAX_SAMPLES],
                             float weights[MAX_SAMPLES])
 {
-  /* this test is written so that NaN turns into 1.0f */
   if (!(w >= 1.0f)) {
     w = 1.0f;
   }
-  float r;
-  if constexpr (sampler == Sampler::Bspline) {
-    r = 2.0f * w;
-  }
-  else { /* sampler == Sampler::Box */
-    r = (w + 1.0f) / 2.0f;
-  }
+  float r = 2.0f * w; /* this is correct for cubic filters */
   float d = ceilf(w / MAX_PER_RADIUS);
   float v = ceilf(u - r - 0.5f) + 0.5f; /* first non-zero pixel */
   int count = 0;
   float sum = 0.0f;
-  for (float xx = v - u; xx < r; xx += d) {
-    float x = math::abs(xx / w);
-    float weight;
-    if constexpr (sampler == Sampler::Bspline) {
-      weight = x < 1.0f ? (0.5f * x - 1.0f) * x * x + 4.0f / 6.0f :
-                          ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
-    }
-    else { /* sampler == Sampler::Box */
-      weight = math::min(r - math::abs(xx), 1.0f);
-    }
-    sum += weight;
-    int y = wrap_coord(u + xx, width, wrap);
+  for (float x = v - u; x < r; x += d) {
+    float wt = weight<sampler>(math::abs(x / w));
+    sum += wt;
+    int y = wrap_coord(u + x, width, wrap);
     if (y >= 0) {
       positions[count] = y;
-      weights[count] = weight;
+      weights[count] = wt;
+      count++;
+    }
+  }
+  float m = 1.0f / sum;
+  for (int i = 0; i < count; ++i) {
+    weights[i] *= m;
+  }
+  return count;
+}
+
+/* Box is computed differently, it needs x & w, not x/w */
+template<>
+int make_samples<Sampler::Box>(int width,
+                               InterpWrapMode wrap,
+                               float u,
+                               float w,
+                               int positions[MAX_SAMPLES],
+                               float weights[MAX_SAMPLES])
+{
+  if (!(w >= 1.0f)) {
+    w = 1.0f;
+  }
+  float r = (w + 1.0f) / 2.0f;
+  float d = ceilf(w / MAX_PER_RADIUS);
+  float v = ceilf(u - r - 0.5f) + 0.5f; /* first non-zero pixel */
+  int count = 0;
+  float sum = 0.0f;
+  for (float x = v - u; x < r; x += d) {
+    float wt = math::min(r - math::abs(x), 1.0f);
+    sum += wt;
+    int y = wrap_coord(u + x, width, wrap);
+    if (y >= 0) {
+      positions[count] = y;
+      weights[count] = wt;
       count++;
     }
   }

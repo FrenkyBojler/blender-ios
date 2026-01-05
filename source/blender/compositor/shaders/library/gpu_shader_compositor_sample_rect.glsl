@@ -2,11 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-static inline float weight_box(float x, float w)
-{
-  return min((w + 1) / 2 - abs(x), 1.0f);
-}
-
 // Sample orthogonal rectangle of size wh centered on uv.
 float4 sample_box(float2 uv, float2 wh)
 {
@@ -19,26 +14,26 @@ float4 sample_box(float2 uv, float2 wh)
   float2 xfilter[33];  // pairs of u,weight
   float divx = 0.0f;
   int nx = 0;
-  for (float u = a.x - uv.x; u < r.x; u += 2 * d.x) {
-    float weight = weight_box(u, w1.x);
-    float u2 = u + 1.0f;  // next pixel over
-    float weight2 = u2 < r.x ? weight_box(u2, w1.x) : 0.0f;
+  for (float x = a.x - uv.x; x < r.x; x += 2 * d.x) {
+    float weight = min(r.x - abs(x), 1.0f);
+    float x2 = x + 1.0f;  // next pixel over
+    float weight2 = clamp(r.x - abs(x2), 0.0f, 1.0f);
     weight += weight2;
-    u2 = (u + uv.x + weight2 / weight) * scale.x;
-    xfilter[nx++] = float2(u2, weight);
+    x2 = (x + uv.x + weight2 / weight) * scale.x;
+    xfilter[nx++] = float2(x2, weight);
     divx += weight;
   }
   float4 sum = float4(0.0f);
   float div = 0.0f;
-  for (float v = a.y - uv.y; v < r.y; v += 2 * d.y) {
-    float weight = weight_box(v, w1.y);
-    float v2 = v + 1.0f;
-    float weight2 = v2 < r.y ? weight_box(v2, w1.y) : 0.0f;
+  for (float x = a.y - uv.y; x < r.y; x += 2 * d.y) {
+    float weight = min(r.y - abs(x), 1.0f);
+    float x2 = x + 1.0f;
+    float weight2 = clamp(r.y - abs(x2), 0.0f, 1.0f);
     weight += weight2;
-    v2 = (v + uv.y + weight2 / weight) * scale.y;
+    x2 = (x + uv.y + weight2 / weight) * scale.y;
     float4 sumx = float4(0.0f);
     for (int j = 0; j < nx; j++) {
-      sumx += texture(input_tx, float2(xfilter[j].x, v2)) * xfilter[j].y;
+      sumx += texture(input_tx, float2(xfilter[j].x, x2)) * xfilter[j].y;
     }
     sum += sumx * weight;
     div += weight;
@@ -46,9 +41,8 @@ float4 sample_box(float2 uv, float2 wh)
   return sum / (div * divx);
 }
 
-static inline float weight_bspline(float x, float w)
+static inline float weight_bspline(float x)
 {
-  x = abs(x / w);
   return x < 1 ? (0.5 * x - 1) * x * x + 4.0 / 6 : ((-1 / 6.0 * x + 1) * x - 2) * x + 4.0 / 3;
 }
 
@@ -63,26 +57,26 @@ float4 sample_bspline(float2 uv, float2 wh)
   float2 xfilter[33];  // pairs of u,weight
   float divx = 0.0f;
   int nx = 0;
-  for (float u = a.x - uv.x; u < r.x; u += 2 * d.x) {
-    float weight = weight_bspline(u, w1.x);
-    float u2 = u + 1.0f;  // next pixel over
-    float weight2 = u2 < r.x ? weight_bspline(u2, w1.x) : 0.0f;
+  for (float x = a.x - uv.x; x < r.x; x += 2 * d.x) {
+    float weight = weight_bspline(abs(x / w1.x));
+    float x2 = x + 1.0f;  // next pixel over
+    float weight2 = x2 < r.x ? weight_bspline(abs(x2 / w1.x)) : 0.0f;
     weight += weight2;
-    u2 = (u + uv.x + weight2 / weight) * scale.x;
-    xfilter[nx++] = float2(u2, weight);
+    x2 = (x + uv.x + weight2 / weight) * scale.x;
+    xfilter[nx++] = float2(x2, weight);
     divx += weight;
   }
   float4 sum = float4(0.0f);
   float div = 0.0f;
-  for (float v = a.y - uv.y; v < r.y; v += 2 * d.y) {
-    float weight = weight_bspline(v, w1.y);
-    float v2 = v + 1.0f;
-    float weight2 = v2 < r.y ? weight_bspline(v2, w1.y) : 0.0f;
+  for (float x = a.y - uv.y; x < r.y; x += 2 * d.y) {
+    float weight = weight_bspline(abs(x / w1.y));
+    float x2 = x + 1.0f;
+    float weight2 = x2 < r.y ? weight_bspline(abs(x2 / w1.y)) : 0.0f;
     weight += weight2;
-    v2 = (v + uv.y + weight2 / weight) * scale.y;
+    x2 = (x + uv.y + weight2 / weight) * scale.y;
     float4 sumx = float4(0.0f);
     for (int j = 0; j < nx; j++) {
-      sumx += texture(input_tx, float2(xfilter[j].x, v2)) * xfilter[j].y;
+      sumx += texture(input_tx, float2(xfilter[j].x, x2)) * xfilter[j].y;
     }
     sum += sumx * weight;
     div += weight;
