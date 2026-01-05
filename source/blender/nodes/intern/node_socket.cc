@@ -106,7 +106,7 @@ bNodeSocket *node_add_socket_from_template(bNodeTree *ntree,
 static bNodeSocket *verify_socket_template(bNodeTree *ntree,
                                            bNode *node,
                                            eNodeSocketInOut in_out,
-                                           ListBase *socklist,
+                                           ListBaseT<bNodeSocket> *socklist,
                                            bke::bNodeSocketTemplate *stemp)
 {
   bNodeSocket *sock;
@@ -137,7 +137,7 @@ static bNodeSocket *verify_socket_template(bNodeTree *ntree,
 static void verify_socket_template_list(bNodeTree *ntree,
                                         bNode *node,
                                         eNodeSocketInOut in_out,
-                                        ListBase *socklist,
+                                        ListBaseT<bNodeSocket> *socklist,
                                         bke::bNodeSocketTemplate *stemp_first)
 {
   bNodeSocket *sock, *nextsock;
@@ -226,12 +226,12 @@ static void refresh_node_socket(bNodeTree &ntree,
       }
       else {
         /* Move links to new socket with same identifier. */
-        LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
-          if (link->fromsock == old_socket_with_same_identifier) {
-            link->fromsock = new_socket;
+        for (bNodeLink &link : ntree.links) {
+          if (link.fromsock == old_socket_with_same_identifier) {
+            link.fromsock = new_socket;
           }
-          else if (link->tosock == old_socket_with_same_identifier) {
-            link->tosock = new_socket;
+          else if (link.tosock == old_socket_with_same_identifier) {
+            link.tosock = new_socket;
           }
         }
         for (bNodeLink &internal_link : node.runtime->internal_links) {
@@ -382,21 +382,21 @@ static const char *get_current_socket_identifier_for_future_socket(
  */
 static void do_forward_compat_versioning(bNode &node, const NodeDeclaration &node_decl)
 {
-  LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
-    if (socket->is_available()) {
+  for (bNodeSocket &socket : node.inputs) {
+    if (socket.is_available()) {
       if (const char *new_identifier = get_current_socket_identifier_for_future_socket(
-              node, *socket, node_decl.inputs))
+              node, socket, node_decl.inputs))
       {
-        STRNCPY_UTF8(socket->identifier, new_identifier);
+        STRNCPY_UTF8(socket.identifier, new_identifier);
       }
     }
   }
-  LISTBASE_FOREACH (bNodeSocket *, socket, &node.outputs) {
-    if (socket->is_available()) {
+  for (bNodeSocket &socket : node.outputs) {
+    if (socket.is_available()) {
       if (const char *new_identifier = get_current_socket_identifier_for_future_socket(
-              node, *socket, node_decl.outputs))
+              node, socket, node_decl.outputs))
       {
-        STRNCPY_UTF8(socket->identifier, new_identifier);
+        STRNCPY_UTF8(socket.identifier, new_identifier);
       }
     }
   }
@@ -435,13 +435,13 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
   }
 
   Vector<bNodeSocket *> old_inputs;
-  LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
-    old_inputs.append(socket);
+  for (bNodeSocket &socket : node.inputs) {
+    old_inputs.append(&socket);
   }
 
   Vector<bNodeSocket *> old_outputs;
-  LISTBASE_FOREACH (bNodeSocket *, socket, &node.outputs) {
-    old_outputs.append(socket);
+  for (bNodeSocket &socket : node.outputs) {
+    old_outputs.append(&socket);
   }
 
   const bool hide_new_sockets = node.is_group_input() ? hide_new_group_input_sockets(node) : false;
@@ -451,7 +451,7 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
   /* New panel states buffer. */
   MEM_SAFE_FREE(node.panel_states_array);
   node.num_panel_states = new_num_panels;
-  node.panel_states_array = MEM_calloc_arrayN<bNodePanelState>(new_num_panels, __func__);
+  node.panel_states_array = MEM_new_array_for_free<bNodePanelState>(new_num_panels, __func__);
 
   /* Find list of sockets to add, mixture of old and new sockets. */
   VectorSet<bNodeSocket *> new_inputs;
@@ -477,14 +477,14 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
   }
 
   /* Destroy any remaining sockets that are no longer in the declaration. */
-  LISTBASE_FOREACH_MUTABLE (bNodeSocket *, old_socket, &node.inputs) {
-    if (!new_inputs.contains(old_socket)) {
-      blender::bke::node_remove_socket_ex(ntree, node, *old_socket, do_id_user);
+  for (bNodeSocket &old_socket : node.inputs.items_mutable()) {
+    if (!new_inputs.contains(&old_socket)) {
+      blender::bke::node_remove_socket_ex(ntree, node, old_socket, do_id_user);
     }
   }
-  LISTBASE_FOREACH_MUTABLE (bNodeSocket *, old_socket, &node.outputs) {
-    if (!new_outputs.contains(old_socket)) {
-      blender::bke::node_remove_socket_ex(ntree, node, *old_socket, do_id_user);
+  for (bNodeSocket &old_socket : node.outputs.items_mutable()) {
+    if (!new_outputs.contains(&old_socket)) {
+      blender::bke::node_remove_socket_ex(ntree, node, old_socket, do_id_user);
     }
   }
 
@@ -613,7 +613,8 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
 
   switch (datatype) {
     case SOCK_FLOAT: {
-      bNodeSocketValueFloat *dval = MEM_callocN<bNodeSocketValueFloat>("node socket value float");
+      bNodeSocketValueFloat *dval = MEM_new_for_free<bNodeSocketValueFloat>(
+          "node socket value float");
       dval->subtype = subtype;
       dval->value = 0.0f;
       dval->min = -FLT_MAX;
@@ -623,7 +624,7 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_INT: {
-      bNodeSocketValueInt *dval = MEM_callocN<bNodeSocketValueInt>("node socket value int");
+      bNodeSocketValueInt *dval = MEM_new_for_free<bNodeSocketValueInt>("node socket value int");
       dval->subtype = subtype;
       dval->value = 0;
       dval->min = INT_MIN;
@@ -633,7 +634,7 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_BOOLEAN: {
-      bNodeSocketValueBoolean *dval = MEM_callocN<bNodeSocketValueBoolean>(
+      bNodeSocketValueBoolean *dval = MEM_new_for_free<bNodeSocketValueBoolean>(
           "node socket value bool");
       dval->value = false;
 
@@ -641,13 +642,13 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_ROTATION: {
-      bNodeSocketValueRotation *dval = MEM_callocN<bNodeSocketValueRotation>(__func__);
+      bNodeSocketValueRotation *dval = MEM_new_for_free<bNodeSocketValueRotation>(__func__);
       *data = dval;
       break;
     }
     case SOCK_VECTOR: {
       static float default_value[] = {0.0f, 0.0f, 0.0f};
-      bNodeSocketValueVector *dval = MEM_callocN<bNodeSocketValueVector>(
+      bNodeSocketValueVector *dval = MEM_new_for_free<bNodeSocketValueVector>(
           "node socket value vector");
       dval->subtype = subtype;
       dval->dimensions = 3;
@@ -660,14 +661,15 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
     }
     case SOCK_RGBA: {
       static float default_value[] = {0.0f, 0.0f, 0.0f, 1.0f};
-      bNodeSocketValueRGBA *dval = MEM_callocN<bNodeSocketValueRGBA>("node socket value color");
+      bNodeSocketValueRGBA *dval = MEM_new_for_free<bNodeSocketValueRGBA>(
+          "node socket value color");
       copy_v4_v4(dval->value, default_value);
 
       *data = dval;
       break;
     }
     case SOCK_STRING: {
-      bNodeSocketValueString *dval = MEM_callocN<bNodeSocketValueString>(
+      bNodeSocketValueString *dval = MEM_new_for_free<bNodeSocketValueString>(
           "node socket value string");
       dval->subtype = subtype;
       dval->value[0] = '\0';
@@ -676,14 +678,15 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_MENU: {
-      bNodeSocketValueMenu *dval = MEM_callocN<bNodeSocketValueMenu>("node socket value menu");
+      bNodeSocketValueMenu *dval = MEM_new_for_free<bNodeSocketValueMenu>(
+          "node socket value menu");
       dval->value = -1;
 
       *data = dval;
       break;
     }
     case SOCK_OBJECT: {
-      bNodeSocketValueObject *dval = MEM_callocN<bNodeSocketValueObject>(
+      bNodeSocketValueObject *dval = MEM_new_for_free<bNodeSocketValueObject>(
           "node socket value object");
       dval->value = nullptr;
 
@@ -691,14 +694,15 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_IMAGE: {
-      bNodeSocketValueImage *dval = MEM_callocN<bNodeSocketValueImage>("node socket value image");
+      bNodeSocketValueImage *dval = MEM_new_for_free<bNodeSocketValueImage>(
+          "node socket value image");
       dval->value = nullptr;
 
       *data = dval;
       break;
     }
     case SOCK_COLLECTION: {
-      bNodeSocketValueCollection *dval = MEM_callocN<bNodeSocketValueCollection>(
+      bNodeSocketValueCollection *dval = MEM_new_for_free<bNodeSocketValueCollection>(
           "node socket value object");
       dval->value = nullptr;
 
@@ -706,7 +710,7 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_TEXTURE: {
-      bNodeSocketValueTexture *dval = MEM_callocN<bNodeSocketValueTexture>(
+      bNodeSocketValueTexture *dval = MEM_new_for_free<bNodeSocketValueTexture>(
           "node socket value texture");
       dval->value = nullptr;
 
@@ -714,7 +718,7 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_MATERIAL: {
-      bNodeSocketValueMaterial *dval = MEM_callocN<bNodeSocketValueMaterial>(
+      bNodeSocketValueMaterial *dval = MEM_new_for_free<bNodeSocketValueMaterial>(
           "node socket value material");
       dval->value = nullptr;
 
@@ -722,31 +726,36 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
       break;
     }
     case SOCK_FONT: {
-      bNodeSocketValueFont *dval = MEM_callocN<bNodeSocketValueFont>("node socket value font");
+      bNodeSocketValueFont *dval = MEM_new_for_free<bNodeSocketValueFont>(
+          "node socket value font");
       dval->value = nullptr;
       *data = dval;
       break;
     }
     case SOCK_SCENE: {
-      bNodeSocketValueScene *dval = MEM_callocN<bNodeSocketValueScene>("node socket value scene");
+      bNodeSocketValueScene *dval = MEM_new_for_free<bNodeSocketValueScene>(
+          "node socket value scene");
       dval->value = nullptr;
       *data = dval;
       break;
     }
     case SOCK_TEXT_ID: {
-      bNodeSocketValueText *dval = MEM_callocN<bNodeSocketValueText>("node socket value text");
+      bNodeSocketValueText *dval = MEM_new_for_free<bNodeSocketValueText>(
+          "node socket value text");
       dval->value = nullptr;
       *data = dval;
       break;
     }
     case SOCK_MASK: {
-      bNodeSocketValueMask *dval = MEM_callocN<bNodeSocketValueMask>("node socket value mask");
+      bNodeSocketValueMask *dval = MEM_new_for_free<bNodeSocketValueMask>(
+          "node socket value mask");
       dval->value = nullptr;
       *data = dval;
       break;
     }
     case SOCK_SOUND: {
-      bNodeSocketValueSound *dval = MEM_callocN<bNodeSocketValueSound>("node socket value sound");
+      bNodeSocketValueSound *dval = MEM_new_for_free<bNodeSocketValueSound>(
+          "node socket value sound");
       dval->value = nullptr;
       *data = dval;
       break;

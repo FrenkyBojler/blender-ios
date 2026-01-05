@@ -9,8 +9,8 @@
 
 #pragma once
 
-#include "parser.hh"
 #include "token.hh"
+#include "token_stream.hh"
 
 #include <cassert>
 
@@ -52,10 +52,10 @@ struct Scope {
   std::string_view token_view;
   std::string_view str_view;
 
-  const Parser *data;
+  const TokenStream *data;
   int64_t index;
 
-  static Scope from_position(const Parser *data, int64_t index)
+  static Scope from_position(const TokenStream *data, int64_t index)
   {
     IndexRange index_range = data->scope_ranges[index];
     int str_start = data->token_offsets[index_range.start].start;
@@ -117,6 +117,13 @@ struct Scope {
     return is_invalid() ? ScopeType::Invalid : ScopeType(data->scope_types[index]);
   }
 
+  /* WORKAROUND: Only used for semantic tagging of scopes after parsing pass.
+   * The type is only retained until the next parsing pass. */
+  void set_type(ScopeType type)
+  {
+    const_cast<TokenStream *>(data)->scope_types[index] = char(type);
+  }
+
   /* Returns the scope that contains this scope. */
   Scope scope() const
   {
@@ -154,6 +161,12 @@ struct Scope {
       parent = parent.scope();
     }
     return parent == *this;
+  }
+
+  /* Returns true if scope contains the substring. */
+  bool contains(const std::string &str) const
+  {
+    return this->str().find(str) != std::string::npos;
   }
 
   std::string str_with_whitespace() const

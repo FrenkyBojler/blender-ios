@@ -248,7 +248,7 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, but kept for forward compatibility. */
-  NodeGlare *ndg = MEM_callocN<NodeGlare>(__func__);
+  NodeGlare *ndg = MEM_new_for_free<NodeGlare>(__func__);
   node->storage = ndg;
 }
 
@@ -1551,11 +1551,14 @@ class GlareOperation : public NodeOperation {
                              highlights,
                              small_ghost_result,
                              float2(get_small_ghost_radius()),
-                             R_FILTER_GAUSS);
+                             math::FilterKernel::Gauss);
 
     Result big_ghost_result = context().create_result(ResultType::Color);
-    symmetric_separable_blur(
-        context(), highlights, big_ghost_result, float2(get_big_ghost_radius()), R_FILTER_GAUSS);
+    symmetric_separable_blur(context(),
+                             highlights,
+                             big_ghost_result,
+                             float2(get_big_ghost_radius()),
+                             math::FilterKernel::Gauss);
 
     Result base_ghost_result = context().create_result(ResultType::Color);
     if (this->context().use_gpu()) {
