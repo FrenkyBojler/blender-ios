@@ -460,7 +460,6 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
     }
     else if (preset == CURVE_PRESET_MID8) {
       /* All points in the MID8 preset have y = 0.5, so no action is needed. */
-      BLI_assert(cuma->curve[0].x == 0.0f && cuma->curve[cuma->totpoint - 1].x != 1.0f);
     }
     else {
       int i, last = cuma->totpoint - 1;
