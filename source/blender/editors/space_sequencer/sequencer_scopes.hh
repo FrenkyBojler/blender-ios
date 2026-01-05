@@ -8,9 +8,14 @@
 
 #pragma once
 
+#include <cmath>
+
 #include "BLI_array.hh"
+#include "BLI_math_base.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_utility_mixins.hh"
+
+#include "DNA_scene_types.h"
 
 struct ColorManagedViewSettings;
 struct ColorManagedDisplaySettings;
@@ -46,6 +51,38 @@ struct ScopeHistogram {
   }
 };
 
+struct AudioMeter {
+  static constexpr float MIN_DB = -60.0f;
+  static constexpr float MAX_DB = 0.0f;
+
+  float rms_left = 0.0f;
+  float rms_right = 0.0f;
+
+  float peak_left = 0.0f;
+  float peak_right = 0.0f;
+
+  static float linear_to_dB(float value)
+  {
+    if (value <= 1e-5) {
+      return MIN_DB;
+    }
+    return 20.0f * log10f(value);
+  }
+
+  static float dB_to_normalized(float dB)
+  {
+    dB = clamp_f(dB, MIN_DB, MAX_DB);
+
+    float normalized = (dB - MIN_DB) / (MAX_DB - MIN_DB);
+
+    return normalized;
+  }
+
+  void reset();
+
+  void update_audio_meter_data(const bContext *C, Scene *scene);
+};
+
 struct SeqScopes : public NonCopyable {
   /* Multiplier to map YUV U,V range (+-0.436, +-0.615) to +-0.5 on both axes. */
   static constexpr float VECSCOPE_U_SCALE = 0.5f / 0.436f;
@@ -55,6 +92,7 @@ struct SeqScopes : public NonCopyable {
   int last_timeline_frame = 0;
   bool last_ibuf_float = false;
   ScopeHistogram histogram;
+  AudioMeter audio_meter;
 
   SeqScopes() = default;
   ~SeqScopes();

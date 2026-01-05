@@ -16,6 +16,7 @@ set(INC_SYS
 set(SRC
   sequencer_add.cc
   sequencer_add_menu_scene.cc
+  sequencer_audio_meter.cc
   sequencer_buttons.cc
   sequencer_channels_draw.cc
   sequencer_channels_edit.cc

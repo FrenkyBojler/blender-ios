@@ -6222,6 +6222,14 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
         {
           redraw = true;
         }
+        /* Temporary Hack to allow the audio meter to redraw. This will not be needed when the
+         * audio meter becomes a part of the scopes view. */
+        else if (area->spacetype == SPACE_SEQ && region->regiontype == RGN_TYPE_TOOLS) {
+          SpaceSeq *sseq = (SpaceSeq *)area->spacedata.first;
+          if (sseq->view == SEQ_VIEW_SEQUENCE) {
+            redraw = true;
+          }
+        }
 
         if (redraw) {
           screen_animation_region_tag_redraw(

@@ -806,6 +806,11 @@ static void sequencer_tools_region_draw(const bContext *C, ARegion *region)
   }
 
   ED_region_panels_ex(C, region, op_context, nullptr);
+
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  if (sseq && sseq->view == SEQ_VIEW_SEQUENCE) {
+    draw_audio_meter(C, region);
+  }
 }
 /* *********************** preview region ************************ */
 

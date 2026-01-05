@@ -127,6 +127,9 @@ struct TimelineDrawContext {
   SeqQuadsBatch *quads;
 };
 
+/* `sequencer_audio_meter.cc` */
+void draw_audio_meter(const bContext *C, ARegion *region);
+
 /* `sequencer_timeline_draw.cc` */
 
 /* Returns value in frames (view-space), 5px for large strips, 1/4 of the strip for smaller. */
