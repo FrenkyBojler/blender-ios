@@ -497,7 +497,7 @@ void DRWContext::release_data()
   DRW_view_data_reset(this->view_data_active);
 
   /* reset to avoid unbounded growth & stale hysteresis */
-  this->lod_state_map.clear();
+  this->lod_state_map.clear(); // FIXME(Tri): lifetime
 
   if (this->data != nullptr && this->viewport == nullptr) {
     DRW_viewport_data_free(this->data);
@@ -790,6 +790,103 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
     int visibility = BKE_object_visibility(ob, eval_mode);
     bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
 
+    /* Fast-path: object has no LODs, fall back to regular behavior.
+    * NOTE: This block intentionally mirrors upstream behavior to preserve
+    * baseline performance for objects without LODs. */
+    if (BLI_listbase_is_empty(&ob->lod_items)) {
+
+      if (ob_visible && should_draw_object_cb(*ob)) {
+        ObjectRef ob_ref(ob, data_.dupli_parent, data_.dupli_object_current);
+        draw_object_cb(ob_ref);
+      }
+
+      bool is_preview_dupli = data_.dupli_parent && data_.dupli_object_current;
+      if (is_preview_dupli) {
+        continue;
+      }
+
+      const bool instances_visible = (visibility & OB_VISIBLE_INSTANCES) &&
+                                      ((ob->transflag & OB_DUPLI) ||
+                                      ob->runtime->geometry_set_eval != nullptr);
+
+      if (!instances_visible) {
+        continue;
+      }
+
+      duplilist.clear();
+      object_duplilist(
+          draw_ctx.depsgraph, draw_ctx.scene, ob, deg_iter_settings.included_objects, duplilist);
+
+      if (duplilist.is_empty()) {
+        continue;
+      }
+
+      dupli_map.clear();
+      for (DupliObject &dupli : duplilist) {
+
+        if (!DEG_iterator_dupli_is_visible(&dupli, eval_mode)) {
+          continue;
+        }
+
+        if (!engines_support_handle_ranges || !supports_handle_ranges(&dupli, ob)) {
+          if (!evil::DEG_iterator_temp_object_from_dupli(
+                  ob, &dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
+              !should_draw_object_cb(tmp_object))
+          {
+            evil::DEG_iterator_temp_object_free_properties(&dupli, &tmp_object);
+            continue;
+          }
+
+          tmp_object.light_linking = ob->light_linking;
+          SET_FLAG_FROM_TEST(tmp_object.transflag, is_negative_m4(dupli.mat), OB_NEG_SCALE);
+          tmp_object.runtime->object_to_world = float4x4(dupli.mat);
+          tmp_object.runtime->world_to_object = invert(tmp_object.runtime->object_to_world);
+
+          blender::draw::ObjectRef ob_ref(&tmp_object, ob, &dupli);
+          draw_object_cb(ob_ref);
+
+          evil::DEG_iterator_temp_object_free_properties(&dupli, &tmp_object);
+          continue;
+        }
+
+        InstancesFlags flags = InstancesFlags(0);
+        SET_FLAG_FROM_TEST(flags, is_negative_m4(dupli.mat), InstancesFlags::IsNegativeScale);
+
+        InstancesKey key(dupli.ob,
+                        dupli.ob_data,
+                        flags,
+                        dupli.preview_base_geometry,
+                        dupli.preview_instance_index);
+
+        dupli_map.lookup_or_add_default(key).append(&dupli);
+      }
+
+      for (const auto &[key, instances] : dupli_map.items()) {
+        DupliObject *first_dupli = instances.first();
+        if (!evil::DEG_iterator_temp_object_from_dupli(
+                ob, first_dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
+            !should_draw_object_cb(tmp_object))
+        {
+          evil::DEG_iterator_temp_object_free_properties(first_dupli, &tmp_object);
+          continue;
+        }
+
+        tmp_object.light_linking = ob->light_linking;
+        SET_FLAG_FROM_TEST(tmp_object.transflag,
+                          flag_is_set(key.flags, InstancesFlags::IsNegativeScale),
+                          OB_NEG_SCALE);
+        tmp_object.runtime->object_to_world = float4x4();
+        tmp_object.runtime->world_to_object = float4x4();
+
+        blender::draw::ObjectRef ob_ref(tmp_object, ob, instances);
+        draw_object_cb(ob_ref);
+
+        evil::DEG_iterator_temp_object_free_properties(first_dupli, &tmp_object);
+      }
+
+      continue;
+    }
+
     const bool is_viewport_draw = (draw_ctx.v3d != nullptr);
     const bool is_render_draw = !is_viewport_draw;
 
@@ -807,8 +904,17 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       ((is_viewport_draw && draw_ctx.scene->lod.use_viewport) ||
       (is_render_draw && draw_ctx.scene->lod.use_render));
 
+    const bool instances_visible = (visibility & OB_VISIBLE_INSTANCES) &&
+                                    ((ob->transflag & OB_DUPLI) ||
+                                    ob->runtime->geometry_set_eval != nullptr);
+
+    /* Skip LOD probing entirely if neither base nor instances can draw. */
+    if (!ob_visible && !instances_visible) {
+      continue;
+    }
+
     Object *lod_target = nullptr;
-    if (allow_lod_swap) {
+    if (allow_lod_swap && (ob_visible || instances_visible)) {
       /* Base-object LOD selection probe */
       ObjectRef ob_ref_probe(ob, data_.dupli_parent, data_.dupli_object_current);
       lod_target = DRW_object_lod_select(ob_ref_probe, draw_ctx, data_.dupli_object_current);
@@ -830,7 +936,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
     }
 
     /* Render time visibility guard */
-    if (lod_target && is_render_draw) { // This code is fine
+    if (lod_target && is_render_draw) {
       const int target_vis = BKE_object_visibility(lod_target, eval_mode);
       if ((target_vis & OB_VISIBLE_SELF) == 0) {
         lod_target = nullptr;
@@ -839,13 +945,11 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
 
     bool is_preview_dupli = data_.dupli_parent && data_.dupli_object_current;
     if (is_preview_dupli) {
+      /* Don't create duplis from temporary preview objects, object_duplilist_preview already takes
+       * care of everything. (See #146194, #146211) */
       /* object_duplilist_preview already handled by DEG iterator */
       continue;
     }
-
-    bool instances_visible = (visibility & OB_VISIBLE_INSTANCES) &&
-                             ((ob->transflag & OB_DUPLI) ||
-                              ob->runtime->geometry_set_eval != nullptr);
 
     /* Allow LOD even if instances are not visible */
     if (!instances_visible && !lod_target) {
