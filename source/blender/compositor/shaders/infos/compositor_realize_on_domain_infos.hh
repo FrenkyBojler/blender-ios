@@ -17,8 +17,16 @@ GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_shared)
 LOCAL_GROUP_SIZE(16, 16)
 PUSH_CONSTANT(float4x4, inverse_matrix)
 PUSH_CONSTANT(float2, wh)
+PUSH_CONSTANT(int, clip)
 SAMPLER(0, sampler2D, input_tx)
 COMPUTE_SOURCE("compositor_realize_on_domain.glsl")
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_bilinear_float4)
+ADDITIONAL_INFO(compositor_realize_on_domain_shared)
+IMAGE(0, SFLOAT_16_16_16_16, write, image2D, domain_img)
+COMPUTE_FUNCTION("realize_on_domain_bilinear")
+DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_box_float4)
@@ -42,12 +50,13 @@ COMPUTE_FUNCTION("realize_on_domain_anisotropic")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-/* Nearest and Bilinear sampling, does not use wh */
+/* Nearest and Bilinear sampling, does not use wh or clip */
 
 GPU_SHADER_CREATE_INFO(compositor_realize_on_domain_texture)
 LOCAL_GROUP_SIZE(16, 16)
 PUSH_CONSTANT(float4x4, inverse_matrix)
 PUSH_CONSTANT(float2, wh)
+PUSH_CONSTANT(int, clip)
 COMPUTE_SOURCE("compositor_realize_on_domain.glsl")
 COMPUTE_FUNCTION("realize_on_domain_texture")
 GPU_SHADER_CREATE_END()

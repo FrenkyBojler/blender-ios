@@ -129,7 +129,18 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
   Result &input = this->get_input();
 
   bool nearest = options.sampler == math::Sampler::Nearest;
-  bool fast = (nearest || options.sampler == math::Sampler::Bilinear);
+  int clip = 0;
+  GPUSamplerExtendMode extend_x = map_wrap_mode_to_extend_mode(options.wrap_x);
+  if (!nearest && extend_x == GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER) {
+    clip = 1;
+    extend_x = GPU_SAMPLER_EXTEND_MODE_EXTEND;
+  }
+  GPUSamplerExtendMode extend_y = map_wrap_mode_to_extend_mode(options.wrap_y);
+  if (!nearest && extend_y == GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER) {
+    clip |= 2;
+    extend_y = GPU_SAMPLER_EXTEND_MODE_EXTEND;
+  }
+  bool fast = (nearest || (options.sampler == math::Sampler::Bilinear && !clip));
   bool anisotropic = options.sampler == math::Sampler::Anisotropic;
 
   const char *shader_name = nullptr;
@@ -145,6 +156,8 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
         shader_name = "compositor_realize_on_domain_anisotropic";
       else if (options.sampler == math::Sampler::Bspline)
         shader_name = "compositor_realize_on_domain_bspline_float4";
+      else if (options.sampler == math::Sampler::Bilinear)
+        shader_name = "compositor_realize_on_domain_bilinear_float4";
       else
         shader_name = "compositor_realize_on_domain_box_float4";
       break;
@@ -181,6 +194,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
     GPU_shader_uniform_mat3_as_mat4(shader, "inverse_matrix", inverse_transformation.ptr());
     GPU_shader_uniform_2fv(shader, "wh", wh);
   }
+  GPU_shader_uniform_1i(shader, "clip", clip);
 
   if (anisotropic) {
     GPU_texture_anisotropic_filter(input, true);
@@ -189,8 +203,8 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
   } else {
     GPU_texture_filter_mode(input, !nearest);
   }
-  GPU_texture_extend_mode_x(input, map_wrap_mode_to_extend_mode(options.wrap_x));
-  GPU_texture_extend_mode_y(input, map_wrap_mode_to_extend_mode(options.wrap_y));
+  GPU_texture_extend_mode_x(input, extend_x);
+  GPU_texture_extend_mode_y(input, extend_y);
   input.bind_as_texture(shader, "input_tx");
 
   Result &output = this->get_result();

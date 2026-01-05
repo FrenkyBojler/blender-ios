@@ -6,18 +6,25 @@
 
 #include "gpu_shader_compositor_sample_rect.glsl"
 
+void realize_on_domain_bilinear()
+{
+  const int2 texel = int2(gl_GlobalInvocationID.xy);
+  float2 uv = to_float2x2(inverse_matrix) * float2(texel) + inverse_matrix[2].xy;
+  imageStore(domain_img, texel, sample_bilinear(uv, wh, clip));
+}
+
 void realize_on_domain_box()
 {
   const int2 texel = int2(gl_GlobalInvocationID.xy);
   float2 uv = to_float2x2(inverse_matrix) * float2(texel) + inverse_matrix[2].xy;
-  imageStore(domain_img, texel, sample_box(uv, wh));
+  imageStore(domain_img, texel, sample_box(uv, wh, clip));
 }
 
 void realize_on_domain_bspline()
 {
   const int2 texel = int2(gl_GlobalInvocationID.xy);
   float2 uv = to_float2x2(inverse_matrix) * float2(texel) + inverse_matrix[2].xy;
-  imageStore(domain_img, texel, sample_bspline(uv, wh));
+  imageStore(domain_img, texel, sample_bspline(uv, wh, clip));
 }
 
 /* For Nearest & Bilinear sampline, matrix has been pre-multiplied to produce
