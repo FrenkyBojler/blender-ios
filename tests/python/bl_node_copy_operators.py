@@ -198,11 +198,13 @@ def execute_group_separate(type, test_case, test_tree, expected_tree=None):
     group_node = test_nodes[0]
     assert isinstance(group_node, bpy.types.GeometryNodeGroup)
 
+    # Ensure single-user node group, so that moving nodes out does not modify a shared tree.
+    group_node.node_tree = group_node.node_tree.copy()
+
     with node_editor_context_override(bpy.context, test_tree, selected_nodes=[group_node]):
-        # Note: enter/exit operator has no execute function, have to use invoke.
-        # bpy.ops.node.group_enter_exit('INVOKE_DEFAULT')
         bpy.ops.node.group_edit(exit=False)
         # Stay in current context so that the tree path has a valid "parent" tree to copy nodes into.
+
         # Select all nodes for separating.
         select_nodes(group_node.node_tree, selected_nodes=group_node.node_tree.nodes)
         bpy.ops.node.group_separate(type=type)
@@ -388,6 +390,26 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
         # Start with grouped nodes.
         test_tree = bpy.data.node_groups["ExpectedMakeGroup"]
         expected_tree = bpy.data.node_groups["ExpectedUngroup"]
+        for test_case in test_cases(test_tree):
+            with self.subTest(case=test_case[0]):
+                mapping = execute_ungroup(test_case, test_tree, expected_tree)
+                self.compare(mapping)
+
+
+    def test_group_separate_copy(self):
+        # Start with grouped nodes.
+        test_tree = bpy.data.node_groups["ExpectedMakeGroup"]
+        expected_tree = bpy.data.node_groups["ExpectedGroupSeparateCopy"]
+        for test_case in test_cases(test_tree):
+            with self.subTest(case=test_case[0]):
+                mapping = execute_ungroup(test_case, test_tree, expected_tree)
+                self.compare(mapping)
+
+
+    def test_group_separate_move(self):
+        # Start with grouped nodes.
+        test_tree = bpy.data.node_groups["ExpectedMakeGroup"]
+        expected_tree = bpy.data.node_groups["ExpectedGroupSeparateMove"]
         for test_case in test_cases(test_tree):
             with self.subTest(case=test_case[0]):
                 mapping = execute_ungroup(test_case, test_tree, expected_tree)
