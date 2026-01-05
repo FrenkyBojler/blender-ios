@@ -9,8 +9,6 @@
  * \brief General operations, lookup, etc. for blender objects.
  */
 
-#include <optional>
-
 #include "BLI_bounds_types.hh"
 #include "BLI_compiler_attrs.h"
 #include "BLI_function_ref.hh"
@@ -21,8 +19,6 @@
 
 #include "DNA_object_enums.h"
 #include "DNA_userdef_enums.h"
-
-// FIXME(Tre): 
 #include "DNA_object_types.h"
 
 struct Base;

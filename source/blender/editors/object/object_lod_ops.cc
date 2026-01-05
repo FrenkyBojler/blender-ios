@@ -49,13 +49,13 @@ static wmOperatorStatus object_lod_add_exec(bContext *C, wmOperator * /*op*/)
     Lod *lod = static_cast<Lod *>(BLI_findlink(&ob->lod_items, prev_len));
 
     if (prev && lod) {
-      lod->distance = max_ff(prev->distance + 10.0f, prev->distance);
+      lod->distance = max_ff(prev->distance + 25.0f, prev->distance);
     }
   }
   else {
     Lod *lod = static_cast<Lod *>(ob->lod_items.first);
     if (lod) {
-      lod->distance = 10.0f;
+      lod->distance = 25.0f;
     }
   }
 

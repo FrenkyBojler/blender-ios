@@ -24,7 +24,7 @@ void BKE_object_lod_add(Object *ob)
 
   Lod *lod = static_cast<Lod *>(MEM_callocN(sizeof(Lod), __func__));
 
-  lod->distance = 10.0f;
+  lod->distance = 25.0f;
   lod->target = nullptr;
 
   BLI_addtail(&ob->lod_items, lod);
