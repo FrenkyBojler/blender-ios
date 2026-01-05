@@ -158,6 +158,7 @@ static int validate_array_type(PyObject *seq,
     /* check that items are of correct type */
     PyObject *seq_fast = PySequence_Fast(seq, "validate_array_type sequence conversion");
     const int seq_size = PySequence_Fast_GET_SIZE(seq_fast);
+    BLI_SCOPED_DEFER([&] { Py_DECREF(seq_fast); })
 
     if (seq_size == -1) {
       PyErr_Format(PyExc_ValueError,
@@ -198,8 +199,6 @@ static int validate_array_type(PyObject *seq,
                      Py_TYPE(item)->tp_name);
         return -1;
       }
-
-      Py_DECREF(item);
     }
   }
 
@@ -452,9 +451,10 @@ static char *copy_values(PyObject *seq,
   const int totdim = RNA_property_array_dimension(ptr, prop, nullptr);
 
   const PyObject *seq_fast = PySequence_Fast(seq, "bpy_rna_array sequence conversion");
-  if (seq_fast == NULL) {
-    return NULL;
+  if (seq_fast == nullptr) {
+    return nullptr;
   }
+  BLI_SCOPED_DEFER([&] { Py_DECREF(seq_fast); })
 
   const Py_ssize_t seq_size = PySequence_Fast_GET_SIZE(seq_fast);
   Py_ssize_t i;
@@ -500,8 +500,6 @@ static char *copy_values(PyObject *seq,
         data = copy_value_single(
             item, ptr, prop, data, item_size, index, convert_item, rna_set_index);
       }
-
-      Py_DECREF(item);
 
       /* data may be nullptr, but the for loop checks */
     }
