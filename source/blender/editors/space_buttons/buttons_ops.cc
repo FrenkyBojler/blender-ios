@@ -310,12 +310,31 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
         BKE_build_template_variables_for_prop(C, &ptr, prop);
     BLI_assert(variables.has_value());
 
-    const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
-        path, FILE_MAX, *variables);
-    if (!errors.is_empty()) {
+    const int output_size = BKE_path_length_after_apply_template(path, *variables);
+
+    if (output_size == -1) {
+      /* There was a validation error. */
+      const blender::Vector<blender::bke::path_templates::Error> errors =
+          BKE_path_validate_template(path, *variables);
+      BLI_assert(!errors.is_empty());
       BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
       return OPERATOR_CANCELLED;
     }
+
+    const int needed_buffer_size = output_size + 1;
+
+    /* `path` only has exactly the space needed for its contents, so if path
+     * template application will exceed that we need to re-allocate. */
+    if (needed_buffer_size > strlen(path) + 1) {
+      char *new_path_buffer = MEM_malloc_arrayN<char>(needed_buffer_size, __func__);
+      BLI_strncpy(new_path_buffer, path, needed_buffer_size);
+      MEM_freeN(path);
+      path = new_path_buffer;
+    }
+
+    const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
+        path, needed_buffer_size, *variables);
+    BLI_assert(errors.is_empty());
   }
 
   /* Useful yet irritating feature, Shift+Click to open the file
