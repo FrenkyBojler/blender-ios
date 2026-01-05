@@ -1535,7 +1535,7 @@ static void ASSET_OT_screenshot_preview(wmOperatorType *ot)
 static wmOperatorStatus asset_edit_metadata_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  const AssetRepresentationHandle *asset = CTX_wm_asset(C);
+  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
   if (!asset) {
     return OPERATOR_CANCELLED;
   }
@@ -1573,7 +1573,7 @@ static wmOperatorStatus asset_edit_metadata_exec(bContext *C, wmOperator *op)
 
 static bool asset_save_metadata_poll(bContext *C)
 {
-  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  const blender::asset_system::AssetRepresentation *asset_handle = CTX_wm_asset(C);
 
   if (asset_handle && asset_handle->is_local_id()) {
     /* This operator makes no sense for local assets. Just saving the file is enough. */
