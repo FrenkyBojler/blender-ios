@@ -516,7 +516,7 @@ ShapingData::ShapingData(FontBLF *font, GlyphCacheBLF *gc, const char *str, size
 
       pen_x += advance;
       max_width = pen_x;
-      max_height = std::max(ft_pix_from_int(g->pos[1]), max_height);
+      max_height = std::max(g->box_ymax - g->box_ymin, max_height);
     }
 
     this->width = max_width;
