@@ -2580,7 +2580,7 @@ static inline int f_anchor_div(int r, int nv, int ns)
   return f_ringlen(r, nv, ns) / nv;
 }
 
-[[maybe_unused]] static int3 v_ring_anchor_offset(int v, int nv, int ns)
+static int3 v_ring_anchor_offset(int v, int nv, int ns)
 {
   int ring = vertex_ring(v, nv, ns);
   int ring_offset = v - v_ringstart(ring, nv, ns);
@@ -4289,6 +4289,31 @@ SmallIntArray MeshPattern::verts_for_centerline(const int first_anchor) const
 SmallIntArray MeshPattern::corners_for_vert(const int vert) const
 {
   if (kind == MeshKind::Adj) {
+    /*
+     * The faces along the "anchor line" have vertices numbered
+     * starting at the outside vert on the anchor line.
+     * The other faces start at the outside-left vert.
+     * In both cases, vertices continue CCW from their starts.
+     *
+     * Cases of vertices.
+     * Let (r,a,o) = the vertex ring, anchor, offset.
+     * Let fr_i = face ring inside the vertex.
+     * Let fr_o = face_ring outside the vertex.
+     *
+     * A) o == 0: vert is on the "anchor line"
+     *  A.1) r == 0, even segs: center vert
+     *  A.2) r == 0, odd segs: fr_i is center poly
+     *  A.2) r > 0, 4 faces starting at fr_o, offset 0,
+     *              fr_o, offset 1, fr_i, offset 0, fr_o, offset -1
+     * B) o != 0: vert is not on the "anchor line". We must have r > 0
+     *  B.1) r == 1, even segs: must have o == 1.
+     *               poly (1, a, 1), corner 2
+     *               poly (1, a, 2), corner 3
+     *               poly (0, a, 0), corner 1
+     *               poly (0, a_next, 0) corner 3
+     *  B.2) r == 1, odd segs, o == 1:
+     *               poly (1, a, 0), corner
+     */
     const bool odd = (num_segs % 2) == 1;
     if (vert == 0 && !odd) {
       /* We want the corners around the center vert. */
@@ -4302,6 +4327,8 @@ SmallIntArray MeshPattern::corners_for_vert(const int vert) const
     const int r = rao[0];
     const int a = rao[1];
     const int o = rao[2];
+    const int a_next = (a + 1) % num_anchors;
+    const int div = adj::v_anchor_div(r, num_anchors, num_segs);
     const int inside_face_r = odd ? r : r - 1;
     const int outside_face_r = inside_face_r + 1;
     const int outer_r = adj::v_num_rings(num_segs) - 1;
@@ -4328,8 +4355,26 @@ SmallIntArray MeshPattern::corners_for_vert(const int vert) const
                               adj::face_start_corner(f3, num_anchors, num_segs) + 1});
       }
     }
+    else if (o == 1) {
+      /* Vert is oorner just after anchor. */
+      if (r == outer_r) {
+        const int f0 = adj::rao_to_face(inside_face_r, a)
+
+      }
+      else {
+        
+      }
+    }
+    else if (o == div - 1) {
+      /* Vert is corner just before next anchor. */
+      if (r == outer_r) {
+      }
+      else {
+        
+      }
+    }
     else {
-      /* o != 0 */
+      /* Vert is between two internal-to-anchor faces. */
       if (r == outer_r) {
         /* Two boundary verts only. Put them in CCW order around boundary. */
         const int f1 = adj::rao_to_face(inside_face_r, a, 0, num_anchors, num_segs) + o;
