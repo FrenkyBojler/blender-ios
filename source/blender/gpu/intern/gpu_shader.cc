@@ -18,7 +18,7 @@
 #include "GPU_matrix.hh"
 #include "GPU_platform.hh"
 
-#include "shader_tool/shader_tool.hh"
+#include "shader_tool/processor.hh"
 
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
@@ -234,9 +234,9 @@ std::string GPU_shader_preprocess_source(StringRefNull original,
   if (original.is_empty()) {
     return original;
   }
-  gpu::shader::Preprocessor processor;
-  gpu::shader::metadata::Source metadata;
-  std::string processed_str = processor.process(original, metadata);
+  gpu::shader::SourceProcessor processor(original, "python_shader.glsl", shader::Language::GLSL);
+  auto [processed_str, metadata] = processor.convert();
+
   for (auto builtin : metadata.builtins) {
     info.builtins(gpu::shader::convert_builtin_bit(builtin));
   }
@@ -256,8 +256,20 @@ blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateIn
       "gpu_shader_python_typedef_lib.glsl",
   };
 
+  if (!info.typedef_source_generated.empty()) {
+    info.generated_sources.append(
+        {"gpu_shader_python_typedef_lib.glsl", {}, "\n" + info.typedef_source_generated});
+  }
+  else {
+    /* Add emtpy source to avoid warning and importing the placeholder file. */
+    info.generated_sources.append({"gpu_shader_python_typedef_lib.glsl", {}, "\n"});
+  }
+
+  info.builtins_ |= BuiltinBits::NO_BUFFER_TYPE_LINTING;
+
   auto preprocess_source = [&](const std::string &input_src) {
     std::string processed_str;
+    processed_str += "\n";
     processed_str += "#ifdef CREATE_INFO_RES_PASS_pyGPU_Shader\n";
     processed_str += "CREATE_INFO_RES_PASS_pyGPU_Shader\n";
     processed_str += "#endif\n";
@@ -827,6 +839,16 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
   std::string resources = shader->resources_declare(info);
 
   defines += info.resource_guard_defines(info.compilation_constants_);
+
+  if (!info.compute_entry_fn_.is_empty()) {
+    defines += "#define ENTRY_POINT_" + info.compute_entry_fn_ + "\n";
+  }
+  if (!info.fragment_entry_fn_.is_empty()) {
+    defines += "#define ENTRY_POINT_" + info.fragment_entry_fn_ + "\n";
+  }
+  if (!info.vertex_entry_fn_.is_empty()) {
+    defines += "#define ENTRY_POINT_" + info.vertex_entry_fn_ + "\n";
+  }
 
   /* Compilation constants declaration for static branches evaluation.
    * In the future, these can be compiled using function constants on metal to reduce compilation

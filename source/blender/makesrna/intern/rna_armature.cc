@@ -490,7 +490,7 @@ static PointerRNA rna_BoneCollection_bones_get(CollectionPropertyIterator *iter)
 static void rna_Bone_collections_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Bone *bone = (Bone *)ptr->data;
-  ListBase /*BoneCollectionReference*/ bone_collection_refs = bone->runtime.collections;
+  ListBaseT<BoneCollectionReference> bone_collection_refs = bone->runtime.collections;
   rna_iterator_listbase_begin(iter, ptr, &bone_collection_refs, nullptr);
 }
 
@@ -506,7 +506,7 @@ static PointerRNA rna_Bone_collections_get(CollectionPropertyIterator *iter)
 static void rna_EditBone_collections_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   EditBone *ebone = (EditBone *)ptr->data;
-  ListBase /*BoneCollectionReference*/ bone_collection_refs = ebone->bone_collections;
+  ListBaseT<BoneCollectionReference> bone_collection_refs = ebone->bone_collections;
   rna_iterator_listbase_begin(iter, ptr, &bone_collection_refs, nullptr);
 }
 
@@ -567,9 +567,9 @@ static std::optional<std::string> rna_BoneColor_path_posebone(const PointerRNA *
   BLI_assert(GS(ptr->owner_id->name) == ID_OB);
   const Object *ob = reinterpret_cast<const Object *>(ptr->owner_id);
   bool found = false;
-  LISTBASE_FOREACH (bPoseChannel *, checkBone, &ob->pose->chanbase) {
-    if (&checkBone->color == ptr->data) {
-      BLI_assert_msg(checkBone == bone,
+  for (bPoseChannel &checkBone : ob->pose->chanbase) {
+    if (&checkBone.color == ptr->data) {
+      BLI_assert_msg(&checkBone == bone,
                      "pointer magic to find the pose bone failed (found the wrong bone)");
       found = true;
       break;
@@ -624,9 +624,9 @@ static std::optional<std::string> rna_BoneColor_path_editbone(const PointerRNA *
   const bArmature *arm = reinterpret_cast<const bArmature *>(ptr->owner_id);
 
   bool found = false;
-  LISTBASE_FOREACH (const EditBone *, checkBone, arm->edbo) {
-    if (&checkBone->color == ptr->data) {
-      BLI_assert_msg(checkBone == bone,
+  for (const EditBone &checkBone : *arm->edbo) {
+    if (&checkBone.color == ptr->data) {
+      BLI_assert_msg(&checkBone == bone,
                      "pointer magic to find the pose bone failed (found the wrong bone)");
       found = true;
       break;
@@ -1260,7 +1260,6 @@ void rna_def_bone_curved_common(StructRNA *srna, bool is_posebone, bool is_editb
   RNA_def_property_array(prop, 3);
   RNA_def_property_flag(prop, PROP_PROPORTIONAL);
   RNA_def_property_ui_range(prop, 0.0f, FLT_MAX, 1, 3);
-  RNA_def_property_float_array_default(prop, rna_default_scale_3d);
   RNA_def_property_ui_text(
       prop,
       "Scale In",
@@ -1272,7 +1271,6 @@ void rna_def_bone_curved_common(StructRNA *srna, bool is_posebone, bool is_editb
   RNA_def_property_array(prop, 3);
   RNA_def_property_flag(prop, PROP_PROPORTIONAL);
   RNA_def_property_ui_range(prop, 0.0f, FLT_MAX, 1, 3);
-  RNA_def_property_float_array_default(prop, rna_default_scale_3d);
   RNA_def_property_ui_text(
       prop,
       "Scale Out",

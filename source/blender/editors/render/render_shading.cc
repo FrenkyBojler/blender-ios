@@ -357,13 +357,13 @@ static wmOperatorStatus material_slot_assign_exec(bContext *C, wmOperator * /*op
       }
     }
     else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
-      ListBase *nurbs = BKE_curve_editNurbs_get((Curve *)ob->data);
+      ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get((Curve *)ob->data);
 
       if (nurbs) {
-        LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-          if (ED_curve_nurb_select_check(v3d, nu)) {
+        for (Nurb &nu : *nurbs) {
+          if (ED_curve_nurb_select_check(v3d, &nu)) {
             changed = true;
-            nu->mat_nr = mat_nr_active;
+            nu.mat_nr = mat_nr_active;
           }
         }
       }
@@ -441,17 +441,17 @@ static wmOperatorStatus material_slot_de_select(bContext *C, bool select)
       }
     }
     else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
-      ListBase *nurbs = BKE_curve_editNurbs_get((Curve *)ob->data);
+      ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get((Curve *)ob->data);
       BPoint *bp;
       BezTriple *bezt;
       int a;
 
       if (nurbs) {
-        LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-          if (nu->mat_nr == mat_nr_active) {
-            if (nu->bezt) {
-              a = nu->pntsu;
-              bezt = nu->bezt;
+        for (Nurb &nu : *nurbs) {
+          if (nu.mat_nr == mat_nr_active) {
+            if (nu.bezt) {
+              a = nu.pntsu;
+              bezt = nu.bezt;
               while (a--) {
                 if (bezt->hide == 0) {
                   changed = true;
@@ -469,9 +469,9 @@ static wmOperatorStatus material_slot_de_select(bContext *C, bool select)
                 bezt++;
               }
             }
-            else if (nu->bp) {
-              a = nu->pntsu * nu->pntsv;
-              bp = nu->bp;
+            else if (nu.bp) {
+              a = nu.pntsu * nu.pntsv;
+              bp = nu.bp;
               while (a--) {
                 if (bp->hide == 0) {
                   changed = true;
@@ -558,8 +558,7 @@ static wmOperatorStatus material_slot_copy_exec(bContext *C, wmOperator * /*op*/
 
   Material ***matar_object = &ob->mat;
 
-  Material **matar = static_cast<Material **>(
-      MEM_callocN(sizeof(*matar) * size_t(ob->totcol), __func__));
+  Material **matar = MEM_calloc_arrayN<Material *>(size_t(ob->totcol), __func__);
   for (int i = ob->totcol; i--;) {
     matar[i] = ob->matbits[i] ? (*matar_object)[i] : (*matar_obdata)[i];
   }
@@ -1149,9 +1148,9 @@ static wmOperatorStatus view_layer_add_aov_exec(bContext *C, wmOperator * /*op*/
     engine = nullptr;
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1201,9 +1200,9 @@ static wmOperatorStatus view_layer_remove_aov_exec(bContext *C, wmOperator * /*o
     engine = nullptr;
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1244,8 +1243,8 @@ static wmOperatorStatus view_layer_add_lightgroup_exec(bContext *C, wmOperator *
     RNA_string_get(op->ptr, "name", name);
     /* Ensure that there are no dots in the name. */
     BLI_string_replace_char(name, '.', '_');
-    LISTBASE_FOREACH (ViewLayerLightgroup *, lightgroup, &view_layer->lightgroups) {
-      if (STREQ(lightgroup->name, name)) {
+    for (ViewLayerLightgroup &lightgroup : view_layer->lightgroups) {
+      if (STREQ(lightgroup.name, name)) {
         return OPERATOR_CANCELLED;
       }
     }
@@ -1253,9 +1252,9 @@ static wmOperatorStatus view_layer_add_lightgroup_exec(bContext *C, wmOperator *
 
   BKE_view_layer_add_lightgroup(view_layer, name);
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1303,9 +1302,9 @@ static wmOperatorStatus view_layer_remove_lightgroup_exec(bContext *C, wmOperato
 
   BKE_view_layer_remove_lightgroup(view_layer, view_layer->active_lightgroup);
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1367,9 +1366,9 @@ static wmOperatorStatus view_layer_add_used_lightgroups_exec(bContext *C, wmOper
     }
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -1404,15 +1403,15 @@ static wmOperatorStatus view_layer_remove_unused_lightgroups_exec(bContext *C, w
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   blender::Set<blender::StringRefNull> used_lightgroups = get_used_lightgroups(scene);
-  LISTBASE_FOREACH_MUTABLE (ViewLayerLightgroup *, lightgroup, &view_layer->lightgroups) {
-    if (!used_lightgroups.contains_as(lightgroup->name)) {
-      BKE_view_layer_remove_lightgroup(view_layer, lightgroup);
+  for (ViewLayerLightgroup &lightgroup : view_layer->lightgroups.items_mutable()) {
+    if (!used_lightgroups.contains_as(lightgroup.name)) {
+      BKE_view_layer_remove_lightgroup(view_layer, &lightgroup);
     }
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  Main *bmain = CTX_data_main(C);
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   DEG_relations_tag_update(CTX_data_main(C));
@@ -2789,7 +2788,7 @@ static int paste_material_nodetree_ids_relink_or_clear(LibraryIDLinkCallbackData
     if (cb_data->cb_flag & IDWALK_CB_USER) {
       id_us_min(*id_p);
     }
-    ListBase *lb = which_libbase(bmain, GS((*id_p)->name));
+    ListBaseT<ID> *lb = which_libbase(bmain, GS((*id_p)->name));
     ID *id_local = static_cast<ID *>(
         BLI_findstring(lb, (*id_p)->name + 2, offsetof(ID, name) + 2));
     *id_p = id_local;
@@ -2849,9 +2848,9 @@ static wmOperatorStatus paste_material_exec(bContext *C, wmOperator *op)
   /* There may be multiple materials,
    * check for a property that marks this as the active material. */
   Material *ma_from = nullptr;
-  LISTBASE_FOREACH (Material *, ma_iter, &temp_bmain->materials) {
-    if (ma_iter->id.flag & ID_FLAG_CLIPBOARD_MARK) {
-      ma_from = ma_iter;
+  for (Material &ma_iter : temp_bmain->materials) {
+    if (ma_iter.id.flag & ID_FLAG_CLIPBOARD_MARK) {
+      ma_from = &ma_iter;
       break;
     }
   }
@@ -3030,7 +3029,7 @@ static void paste_mtex_copybuf(ID *id)
 
   if (mtex) {
     if (*mtex == nullptr) {
-      *mtex = MEM_callocN<MTex>("mtex copy");
+      *mtex = MEM_new_for_free<MTex>("mtex copy");
     }
     else if ((*mtex)->tex) {
       id_us_min(&(*mtex)->tex->id);

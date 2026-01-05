@@ -18,6 +18,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_listBase.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -906,9 +907,9 @@ static bool ui_but_extra_icons_equals_old(const ButtonExtraOpIcon *new_extra_ico
 static ButtonExtraOpIcon *ui_but_extra_icon_find_old(const ButtonExtraOpIcon *new_extra_icon,
                                                      const Button *old_but)
 {
-  LISTBASE_FOREACH (ButtonExtraOpIcon *, op_icon, &old_but->extra_op_icons) {
-    if (ui_but_extra_icons_equals_old(new_extra_icon, op_icon)) {
-      return op_icon;
+  for (ButtonExtraOpIcon &op_icon : old_but->extra_op_icons) {
+    if (ui_but_extra_icons_equals_old(new_extra_icon, &op_icon)) {
+      return &op_icon;
     }
   }
   return nullptr;
@@ -919,11 +920,11 @@ static void ui_but_extra_icons_update_from_old_but(const Button *new_but, const 
   /* Specifically for keeping some state info for the active button. */
   BLI_assert(old_but->active || old_but->semi_modal_state);
 
-  LISTBASE_FOREACH (ButtonExtraOpIcon *, new_extra_icon, &new_but->extra_op_icons) {
-    ButtonExtraOpIcon *old_extra_icon = ui_but_extra_icon_find_old(new_extra_icon, old_but);
+  for (ButtonExtraOpIcon &new_extra_icon : new_but->extra_op_icons) {
+    ButtonExtraOpIcon *old_extra_icon = ui_but_extra_icon_find_old(&new_extra_icon, old_but);
     /* Keep the highlighting state, and let handling update it later. */
     if (old_extra_icon) {
-      new_extra_icon->highlighted = old_extra_icon->highlighted;
+      new_extra_icon.highlighted = old_extra_icon->highlighted;
     }
   }
 }
@@ -1783,8 +1784,8 @@ static void ui_but_extra_operator_icon_free(ButtonExtraOpIcon *extra_icon)
 
 void button_extra_operator_icons_free(Button *but)
 {
-  LISTBASE_FOREACH_MUTABLE (ButtonExtraOpIcon *, op_icon, &but->extra_op_icons) {
-    ui_but_extra_operator_icon_free(op_icon);
+  for (ButtonExtraOpIcon &op_icon : but->extra_op_icons.items_mutable()) {
+    ui_but_extra_operator_icon_free(&op_icon);
   }
   BLI_listbase_clear(&but->extra_op_icons);
 }
@@ -1940,8 +1941,8 @@ static void ui_but_predefined_extra_operator_icons_add(Button *but)
   }
 
   if (optype) {
-    LISTBASE_FOREACH (ButtonExtraOpIcon *, op_icon, &but->extra_op_icons) {
-      if ((op_icon->optype_params->optype == optype) && (op_icon->icon == icon)) {
+    for (ButtonExtraOpIcon &op_icon : but->extra_op_icons) {
+      if ((op_icon.optype_params->optype == optype) && (op_icon.icon == icon)) {
         /* Don't add the same operator icon twice (happens if button is kept alive while active).
          */
         return;
@@ -2086,9 +2087,9 @@ void block_end_ex(const bContext *C,
       }
     }
 
-    LISTBASE_FOREACH (ButtonExtraOpIcon *, op_icon, &but->extra_op_icons) {
-      if (!button_context_poll_operator_ex((bContext *)C, but.get(), op_icon->optype_params)) {
-        op_icon->disabled = true;
+    for (ButtonExtraOpIcon &op_icon : but->extra_op_icons) {
+      if (!button_context_poll_operator_ex((bContext *)C, but.get(), op_icon.optype_params)) {
+        op_icon.disabled = true;
       }
     }
 
@@ -2260,7 +2261,7 @@ void block_draw(const bContext *C, Block *block)
                        &style,
                        block,
                        &rect,
-                       panel_category_is_visible(region),
+                       panel_category_tabs_is_visible(region),
                        panel_should_show_background(region, block->panel->type),
                        region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE);
   }
@@ -2287,6 +2288,17 @@ void block_draw(const bContext *C, Block *block)
     /* Optimization: Don't draw buttons that are not visible (outside view bounds). */
     if (!ui_but_pixelrect_in_view(region, &rect)) {
       continue;
+    }
+
+    /* Don't draw buttons that are wider than enclosing panel. #150173 */
+    if (block->panel && block->panel->sizex > 0) {
+      int panel_width = int(ceil(float(block->panel->sizex) / block->aspect));
+      if (panel_should_show_background(region, block->panel->type)) {
+        panel_width -= int(floor(UI_PANEL_MARGIN_X / block->aspect * 2.0f));
+      }
+      if (BLI_rcti_size_x(&rect) > int(float(panel_width) * 1.2f)) {
+        continue;
+      }
     }
 
     /* XXX: figure out why invalid coordinates happen when closing render window */
@@ -2332,8 +2344,8 @@ static void block_message_subscribe(ARegion *region, wmMsgBus *mbus, Block *bloc
 
 void region_message_subscribe(ARegion *region, wmMsgBus *mbus)
 {
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    block_message_subscribe(region, mbus, block);
+  for (Block &block : region->runtime->uiblocks) {
+    block_message_subscribe(region, mbus, &block);
   }
 }
 
@@ -3751,46 +3763,46 @@ void block_listen(const Block *block, const wmRegionListenerParams *listener_par
   /* Note that #Block.active shouldn't be checked here, since notifier listening happens before
    * drawing, so there are no active blocks at this point. */
 
-  LISTBASE_FOREACH (BlockDynamicListener *, listener, &block->dynamic_listeners) {
-    listener->listener_func(listener_params);
+  for (BlockDynamicListener &listener : block->dynamic_listeners) {
+    listener.listener_func(listener_params);
   }
 
   block_views_listen(block, listener_params);
 }
 
-void blocklist_update_window_matrix(const bContext *C, const ListBase *lb)
+void blocklist_update_window_matrix(const bContext *C, const ListBaseT<Block> *lb)
 {
   ARegion *region = CTX_wm_region(C);
   wmWindow *window = CTX_wm_window(C);
 
-  LISTBASE_FOREACH (Block *, block, lb) {
-    if (block->active) {
-      ui_update_window_matrix(window, region, block);
+  for (Block &block : *lb) {
+    if (block.active) {
+      ui_update_window_matrix(window, region, &block);
     }
   }
 }
 
-void blocklist_update_view_for_buttons(const bContext *C, const ListBase *lb)
+void blocklist_update_view_for_buttons(const bContext *C, const ListBaseT<Block> *lb)
 {
-  LISTBASE_FOREACH (Block *, block, lb) {
-    if (block->active) {
-      button_update_view_for_active(C, block);
+  for (Block &block : *lb) {
+    if (block.active) {
+      button_update_view_for_active(C, &block);
     }
   }
 }
 
-void blocklist_draw(const bContext *C, const ListBase *lb)
+void blocklist_draw(const bContext *C, const ListBaseT<Block> *lb)
 {
-  LISTBASE_FOREACH (Block *, block, lb) {
-    if (block->active) {
-      block_draw(C, block);
+  for (Block &block : *lb) {
+    if (block.active) {
+      block_draw(C, &block);
     }
   }
 }
 
 void blocklist_free(const bContext *C, ARegion *region)
 {
-  ListBase *lb = &region->runtime->uiblocks;
+  ListBaseT<Block> *lb = &region->runtime->uiblocks;
   while (Block *block = static_cast<Block *>(BLI_pophead(lb))) {
     block_free(C, block);
   }
@@ -3799,19 +3811,19 @@ void blocklist_free(const bContext *C, ARegion *region)
 
 void blocklist_free_inactive(const bContext *C, ARegion *region)
 {
-  ListBase *lb = &region->runtime->uiblocks;
+  ListBaseT<Block> *lb = &region->runtime->uiblocks;
 
-  LISTBASE_FOREACH_MUTABLE (Block *, block, lb) {
-    if (!block->handle) {
-      if (block->active) {
-        block->active = false;
+  for (Block &block : lb->items_mutable()) {
+    if (!block.handle) {
+      if (block.active) {
+        block.active = false;
       }
       else {
-        if (region->runtime->block_name_map.lookup_default(block->name, nullptr) == block) {
-          region->runtime->block_name_map.remove_as(block->name);
+        if (region->runtime->block_name_map.lookup_default(block.name, nullptr) == &block) {
+          region->runtime->block_name_map.remove_as(block.name);
         }
-        BLI_remlink(lb, block);
-        block_free(C, block);
+        BLI_remlink(lb, &block);
+        block_free(C, &block);
       }
     }
   }
@@ -3819,7 +3831,7 @@ void blocklist_free_inactive(const bContext *C, ARegion *region)
 
 void block_region_set(Block *block, ARegion *region)
 {
-  ListBase *lb = &region->runtime->uiblocks;
+  ListBaseT<Block> *lb = &region->runtime->uiblocks;
   Block *oldblock = nullptr;
 
   /* each listbase only has one block with this name, free block
@@ -3862,7 +3874,7 @@ Block *block_begin(const bContext *C,
     STRNCPY_UTF8(block->display_device, scene->display_settings.display_device);
 
     /* Copy to avoid crash when scene gets deleted with UI still open. */
-    UnitSettings *unit = MEM_callocN<UnitSettings>(__func__);
+    UnitSettings *unit = MEM_new_for_free<UnitSettings>(__func__);
     memcpy(unit, &scene->unit, sizeof(scene->unit));
     block->unit = unit;
   }
@@ -3901,8 +3913,7 @@ Block *block_begin(const bContext *C, ARegion *region, std::string name, EmbossT
 void block_add_dynamic_listener(Block *block,
                                 void (*listener_func)(const wmRegionListenerParams *params))
 {
-  BlockDynamicListener *listener = static_cast<BlockDynamicListener *>(
-      MEM_mallocN(sizeof(*listener), __func__));
+  BlockDynamicListener *listener = MEM_mallocN<BlockDynamicListener>(__func__);
   listener->listener_func = listener_func;
   BLI_addtail(&block->dynamic_listeners, listener);
 }
@@ -4264,46 +4275,6 @@ static std::unique_ptr<Button> ui_but_new(const ButtonType type)
   }
 
   but->type = type;
-  return but;
-}
-
-Button *button_change_type(Button *but, ButtonType new_type)
-{
-  if (but->type == new_type) {
-    /* Nothing to do. */
-    return but;
-  }
-
-  const int64_t but_index = but->block->but_index(but);
-
-  /* Remove old button address */
-  std::unique_ptr<Button> old_but_ptr = std::move(but->block->buttons[but_index]);
-
-  /* Button may have pointer to a member within itself, this will have to be updated. */
-  const bool has_poin_ptr_to_self = but->poin == (char *)but;
-
-  /* Copy construct button with the new type. */
-  but->block->buttons[but_index] = ui_but_new(new_type);
-  but = but->block->buttons[but_index].get();
-  *but = *old_but_ptr;
-  /* We didn't mean to override this :) */
-  but->type = new_type;
-  if (has_poin_ptr_to_self) {
-    but->poin = (char *)but;
-  }
-
-  if (but->layout) {
-    const bool found_layout = layout_replace_but_ptr(but->layout, old_but_ptr.get(), but);
-    BLI_assert(found_layout);
-    UNUSED_VARS_NDEBUG(found_layout);
-    button_group_replace_but_ptr(but->layout->block(), old_but_ptr.get(), but);
-  }
-#ifdef WITH_PYTHON
-  if (editsource_enable_check()) {
-    editsource_but_replace(old_but_ptr.get(), but);
-  }
-#endif
-
   return but;
 }
 
@@ -5907,13 +5878,13 @@ void button_operator_set_never_call(Button *but)
 
 /* cruft to make Block and Button private */
 
-int blocklist_min_y_get(ListBase *lb)
+int blocklist_min_y_get(ListBaseT<Block> *lb)
 {
   int min = 0;
 
-  LISTBASE_FOREACH (Block *, block, lb) {
-    if (block == lb->first || block->rect.ymin < min) {
-      min = block->rect.ymin;
+  for (Block &block : *lb) {
+    if (&block == lb->first || block.rect.ymin < min) {
+      min = block.rect.ymin;
     }
   }
 
@@ -6160,13 +6131,13 @@ void button_func_rename_set(Button *but, ButtonHandleRenameFunc func, void *arg1
 void button_func_rename_full_set(Button *but,
                                  std::function<void(std::string &new_name)> rename_full_func)
 {
-  but->rename_full_func = rename_full_func;
+  but->rename_full_func = std::move(rename_full_func);
 }
 
 void button_func_drawextra_set(Block *block,
                                std::function<void(const bContext *C, rcti *rect)> func)
 {
-  block->drawextra = func;
+  block->drawextra = std::move(func);
 }
 
 void button_func_set(Button *but, ButtonHandleFunc func, void *arg1, void *arg2)
@@ -6246,7 +6217,7 @@ void button_func_tooltip_custom_set(Button *but,
 
 void button_func_pushed_state_set(Button *but, std::function<bool(const Button &)> func)
 {
-  but->pushed_state_func = func;
+  but->pushed_state_func = std::move(func);
   button_update(but);
 }
 

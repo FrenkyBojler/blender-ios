@@ -153,10 +153,12 @@ static void mesh_cd_calc_active_mask_uv_layer(const Object &object,
                                               DRW_MeshCDMask &cd_used)
 {
   const Mesh &me_final = editmesh_final_or_this(object, mesh);
-  const CustomData &cd_ldata = mesh_cd_ldata_get_from_mesh(me_final);
-  int layer = CustomData_get_stencil_layer_index(&cd_ldata, CD_PROP_FLOAT2);
-  if (layer != -1) {
-    cd_used.uv.add_as(cd_ldata.layers[layer].name);
+  StringRef name = me_final.stencil_uv_map_attribute;
+  if (name.is_empty()) {
+    name = mesh.active_uv_map_name();
+  }
+  if (!name.is_empty()) {
+    cd_used.uv.add_as(name);
   }
 }
 
@@ -193,10 +195,10 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
     if (gpumat == nullptr) {
       continue;
     }
-    ListBase gpu_attrs = GPU_material_attributes(gpumat);
-    LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
+    ListBaseT<GPUMaterialAttribute> gpu_attrs = GPU_material_attributes(gpumat);
+    for (GPUMaterialAttribute &gpu_attr : gpu_attrs) {
 
-      if (gpu_attr->is_default_color) {
+      if (gpu_attr.is_default_color) {
         const StringRef default_color_name = me_final.default_color_attribute;
         if (attribute_exists(me_final, default_color_name)) {
           drw_attributes_add_request(r_attributes, default_color_name);
@@ -204,14 +206,14 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
         continue;
       }
 
-      if (gpu_attr->type == CD_ORCO) {
+      if (gpu_attr.type == CD_ORCO) {
         r_cd_used->orco = true;
         continue;
       }
 
-      StringRef name = gpu_attr->name;
+      StringRef name = gpu_attr.name;
 
-      if (gpu_attr->type == CD_TANGENT) {
+      if (gpu_attr.type == CD_TANGENT) {
         if (name.is_empty()) {
           const StringRef default_name = me_final.default_uv_map_name();
           if (!default_name.is_empty()) {

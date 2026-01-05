@@ -32,6 +32,7 @@
 
 #  include "DNA_userdef_types.h"
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_vector.h"
 #  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
@@ -1325,8 +1326,8 @@ static void rna_WindowManager_extensions_statusbar_update(Main * /*bmain*/,
   }
 
   wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    WM_window_status_area_tag_redraw(win);
+  for (wmWindow &win : wm->windows) {
+    WM_window_status_area_tag_redraw(&win);
   }
 }
 
@@ -1362,7 +1363,7 @@ static bool rna_wmKeyConfigPref_unregister(Main * /*bmain*/, StructRNA *type)
   }
 
   RNA_struct_free_extension(type, &kpt_rt->rna_ext);
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
 
   /* Possible we're not in the preferences if they have been reset. */
   BKE_keyconfig_pref_type_remove(kpt_rt);
@@ -1434,7 +1435,8 @@ static StructRNA *rna_wmKeyConfigPref_register(Main *bmain,
 
   BKE_keyconfig_pref_type_add(kpt_rt);
 
-  kpt_rt->rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, identifier, &RNA_KeyConfigPreferences);
+  kpt_rt->rna_ext.srna = RNA_def_struct_ptr(
+      &RNA_blender_rna_get(), identifier, &RNA_KeyConfigPreferences);
   kpt_rt->rna_ext.data = data;
   kpt_rt->rna_ext.call = call;
   kpt_rt->rna_ext.free = free;
@@ -1853,7 +1855,8 @@ static StructRNA *rna_Operator_register(Main *bmain,
    * for now just remove from `dir(bpy.types)`. */
 
   /* create a new operator type */
-  dummy_ot.rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummy_ot.idname, &RNA_Operator);
+  dummy_ot.rna_ext.srna = RNA_def_struct_ptr(
+      &RNA_blender_rna_get(), dummy_ot.idname, &RNA_Operator);
 
   /* Operator properties are registered separately. */
   RNA_def_struct_flag(dummy_ot.rna_ext.srna, STRUCT_NO_IDPROPERTIES);
@@ -1906,7 +1909,7 @@ static bool rna_Operator_unregister(Main *bmain, StructRNA *type)
 
   /* Not to be confused with the RNA_struct_free that WM_operatortype_remove calls,
    * they are 2 different srna's. */
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
 
   MEM_freeN(idname);
   return true;
@@ -2027,7 +2030,8 @@ static StructRNA *rna_MacroOperator_register(Main *bmain,
    * for now just remove from `dir(bpy.types)`. */
 
   /* create a new operator type */
-  dummy_ot.rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummy_ot.idname, &RNA_Operator);
+  dummy_ot.rna_ext.srna = RNA_def_struct_ptr(
+      &RNA_blender_rna_get(), dummy_ot.idname, &RNA_Operator);
   RNA_def_struct_translation_context(dummy_ot.rna_ext.srna, dummy_ot.translation_context);
   dummy_ot.rna_ext.data = data;
   dummy_ot.rna_ext.call = call;

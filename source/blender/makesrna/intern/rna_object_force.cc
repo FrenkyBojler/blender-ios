@@ -47,7 +47,12 @@ static const EnumPropertyItem effector_shape_items[] = {
 
 #  include <fmt/format.h>
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_base.h"
+#  include "BLI_path_utils.hh"
+#  include "BLI_string.h"
+
+#  include "BKE_lib_id.hh"
 
 #  include "RNA_access.hh"
 
@@ -314,7 +319,7 @@ static void rna_Cache_idname_change(Main * /*bmain*/, Scene * /*scene*/, Pointer
   }
   else {
     PTCacheID *pid = nullptr, *pid2 = nullptr;
-    ListBase pidlist;
+    ListBaseT<PTCacheID> pidlist;
 
     BKE_ptcache_ids_from_object(&pidlist, ob, scene, 0);
 
@@ -352,7 +357,7 @@ static void rna_Cache_idname_change(Main * /*bmain*/, Scene * /*scene*/, Pointer
 static void rna_Cache_list_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   PointCache *cache = static_cast<PointCache *>(ptr->data);
-  ListBase lb;
+  ListBaseT<PointCache> lb;
 
   while (cache->prev) {
     cache = cache->prev;
