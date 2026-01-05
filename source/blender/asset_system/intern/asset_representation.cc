@@ -195,19 +195,7 @@ bool AssetRepresentation::is_editable() const
     return true;
   }
 
-  const std::optional<AssetLibraryReference> library_ref =
-      this->owner_asset_library().library_reference();
-
-  if (!library_ref) {
-    BLI_assert_unreachable();
-    return false;
-  }
-
-  if (library_ref.value().type == ASSET_LIBRARY_ESSENTIALS) {
-    return false;
-  }
-
-  return blender::StringRef(this->full_library_path()).endswith(BLENDER_ASSET_FILE_SUFFIX);
+  return is_potentially_editable_asset_blend();
 }
 
 }  // namespace blender::asset_system
