@@ -293,9 +293,9 @@ static void image_view_all(SpaceImage *sima, ARegion *region, wmOperator *op)
     }
     else {
       x_tiles = y_tiles = 1;
-      LISTBASE_FOREACH (ImageTile *, tile, &sima->image->tiles) {
-        int tile_x = (tile->tile_number - 1001) % 10;
-        int tile_y = (tile->tile_number - 1001) / 10;
+      for (ImageTile &tile : sima->image->tiles) {
+        int tile_x = (tile.tile_number - 1001) % 10;
+        int tile_y = (tile.tile_number - 1001) / 10;
         x_tiles = max_ii(x_tiles, tile_x + 1);
         y_tiles = max_ii(y_tiles, tile_y + 1);
       }
@@ -652,7 +652,8 @@ static void image_zoom_apply(ViewZoomData *vpd,
                              const short viewzoom,
                              const short zoom_invert,
                              const bool zoom_to_pos,
-                             const bool snap)
+                             const bool snap,
+                             const bool precision)
 {
   float factor;
   float delta;
@@ -675,6 +676,10 @@ static void image_zoom_apply(ViewZoomData *vpd,
     delta = -delta;
   }
 
+  if (precision) {
+    delta /= 10.0f;
+  }
+
   if (viewzoom == USER_ZOOM_CONTINUE) {
     double time = BLI_time_now_seconds();
     float time_step = float(time - vpd->timer_lastdraw);
@@ -692,8 +697,14 @@ static void image_zoom_apply(ViewZoomData *vpd,
   if (snap) {
     zoom = round(zoom * 10.0f) / 10.0f;
   }
-  char str[5];
-  SNPRINTF(str, "%i%%", int(round(vpd->sima->zoom * 100.0f)));
+  char str[10];
+  if (precision) {
+    SNPRINTF(str, "%4.2f%%", vpd->sima->zoom * 100.0f);
+  }
+  else {
+    SNPRINTF(str, "%i%%", int(round(vpd->sima->zoom * 100.0f)));
+  }
+
   ED_area_status_text(vpd->area, str);
 
   RNA_float_set(op->ptr, "factor", factor);
@@ -709,6 +720,7 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
 
   WorkspaceStatus status(C);
   status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
+  status.item_bool(IFACE_("Precision"), event->modifier & KM_SHIFT, ICON_EVENT_SHIFT);
 
   /* Execute the events. */
   if (event->type == MOUSEMOVE) {
@@ -736,7 +748,8 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
                        U.viewzoom,
                        (U.uiflag & USER_ZOOM_INVERT) != 0,
                        (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)),
-                       event->modifier & KM_CTRL);
+                       event->modifier & KM_CTRL,
+                       event->modifier & KM_SHIFT);
       break;
     }
     case VIEW_CONFIRM: {
@@ -1360,8 +1373,8 @@ static Image *image_open_single(Main *bmain,
       ima->source = IMA_SRC_TILED;
       ImageTile *first_tile = static_cast<ImageTile *>(ima->tiles.first);
       first_tile->tile_number = range->offset;
-      LISTBASE_FOREACH (LinkData *, node, &range->udim_tiles) {
-        BKE_image_add_tile(ima, POINTER_AS_INT(node->data), nullptr);
+      for (LinkData &node : range->udim_tiles) {
+        BKE_image_add_tile(ima, POINTER_AS_INT(node.data), nullptr);
       }
     }
     else if (range->length > 1) {
@@ -1396,19 +1409,20 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
   blender::StringRefNull root_path = owner_library ? owner_library->runtime->filepath_abs :
                                                      blendfile_path;
 
-  ListBase ranges = ED_image_filesel_detect_sequences(blendfile_path, root_path, op, use_udim);
-  LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
-    Image *ima_range = image_open_single(bmain, owner_library, op, range, use_multiview);
+  ListBaseT<ImageFrameRange> ranges = ED_image_filesel_detect_sequences(
+      blendfile_path, root_path, op, use_udim);
+  for (ImageFrameRange &range : ranges) {
+    Image *ima_range = image_open_single(bmain, owner_library, op, &range, use_multiview);
 
     /* take the first image */
     if ((ima == nullptr) && ima_range) {
       ima = ima_range;
-      frame_seq_len = range->length;
-      frame_ofs = range->offset;
+      frame_seq_len = range.length;
+      frame_ofs = range.offset;
     }
 
-    BLI_freelistN(&range->udim_tiles);
-    BLI_freelistN(&range->frames);
+    BLI_freelistN(&range.udim_tiles);
+    BLI_freelistN(&range.frames);
   }
   BLI_freelistN(&ranges);
 
@@ -1449,9 +1463,9 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
       Camera *cam = static_cast<Camera *>(
           CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
       if (cam) {
-        LISTBASE_FOREACH (CameraBGImage *, bgpic, &cam->bg_images) {
-          if (bgpic->ima == ima) {
-            iuser = &bgpic->iuser;
+        for (CameraBGImage &bgpic : cam->bg_images) {
+          if (bgpic.ima == ima) {
+            iuser = &bgpic.iuser;
             break;
           }
         }
@@ -1938,7 +1952,7 @@ static ImageSaveData *image_save_as_init(bContext *C, wmOperator *op)
   ImageUser *iuser = image_user_from_context(C);
   Scene *scene = CTX_data_scene(C);
 
-  ImageSaveData *isd = MEM_callocN<ImageSaveData>(__func__);
+  ImageSaveData *isd = MEM_new_for_free<ImageSaveData>(__func__);
   isd->image = image;
   isd->iuser = iuser;
 
@@ -2193,6 +2207,16 @@ static bool image_save_poll(bContext *C)
   /* Can't save if there are no pixels. */
   if (image_from_context_has_data_poll(C) == false) {
     return false;
+  }
+
+  if (G.is_rendering) {
+    /* no need to nullptr check here */
+    Image *ima = image_from_context(C);
+
+    if (ima->source == IMA_SRC_VIEWER) {
+      CTX_wm_operator_poll_msg_set(C, "Cannot save image while rendering");
+      return false;
+    }
   }
 
   /* Check if there is a valid file path and image format we can write
@@ -3307,8 +3331,8 @@ static wmOperatorStatus image_scale_exec(bContext *C, wmOperator *op)
   }
   else {
     /* Ensure that an image buffer can be acquired for all UDIM tiles. */
-    LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
-      iuser.tile = current_tile->tile_number;
+    for (ImageTile &current_tile : ima->tiles) {
+      iuser.tile = current_tile.tile_number;
 
       ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
 
@@ -3321,8 +3345,8 @@ static wmOperatorStatus image_scale_exec(bContext *C, wmOperator *op)
     }
 
     ED_image_undo_push_begin_with_image_all_udims(op->type->name, ima, &iuser);
-    LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
-      iuser.tile = current_tile->tile_number;
+    for (ImageTile &current_tile : ima->tiles) {
+      iuser.tile = current_tile.tile_number;
 
       ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
 
@@ -4369,9 +4393,9 @@ static wmOperatorStatus tile_add_invoke(bContext *C, wmOperator *op, const wmEve
   /* Find the first gap in tile numbers or the number after the last if
    * no gap exists. */
   int next_number = 0;
-  LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
-    next_number = tile->tile_number + 1;
-    if (tile->next == nullptr || tile->next->tile_number > next_number) {
+  for (ImageTile &tile : ima->tiles) {
+    next_number = tile.tile_number + 1;
+    if (tile.next == nullptr || tile.next->tile_number > next_number) {
       break;
     }
   }

@@ -403,8 +403,7 @@ static void curve_draw_stroke_3d(const bContext * /*C*/, ARegion * /*region*/, v
   }
 
   if (stroke_len > 1) {
-    float (*coord_array)[3] = static_cast<float (*)[3]>(
-        MEM_mallocN(sizeof(*coord_array) * stroke_len, __func__));
+    float (*coord_array)[3] = MEM_malloc_arrayN<float[3]>(stroke_len, __func__);
 
     {
       BLI_mempool_iter iter;
@@ -724,8 +723,7 @@ static void curve_draw_exec_precalc(wmOperator *op)
     StrokeElem *selem, *selem_prev;
 
     float *lengths = MEM_malloc_arrayN<float>(stroke_len, __func__);
-    StrokeElem **selem_array = static_cast<StrokeElem **>(
-        MEM_mallocN(sizeof(*selem_array) * stroke_len, __func__));
+    StrokeElem **selem_array = MEM_malloc_arrayN<StrokeElem *>(stroke_len, __func__);
     lengths[0] = 0.0f;
 
     float len_3d = 0.0f;
@@ -780,7 +778,7 @@ static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
   const CurvePaintSettings *cps = &cdd->vc.scene->toolsettings->curve_paint_settings;
   Object *obedit = cdd->vc.obedit;
   Curve *cu = static_cast<Curve *>(obedit->data);
-  ListBase *nurblist = object_editcurve_get(obedit);
+  ListBaseT<Nurb> *nurblist = object_editcurve_get(obedit);
 
   int stroke_len = BLI_mempool_len(cdd->stroke_elem_pool);
 
@@ -799,7 +797,7 @@ static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
   const float radius_max = cps->radius_max;
   const float radius_range = cps->radius_max - cps->radius_min;
 
-  Nurb *nu = MEM_callocN<Nurb>(__func__);
+  Nurb *nu = MEM_new_for_free<Nurb>(__func__);
   nu->pntsv = 0;
   nu->resolu = cu->resolu;
   nu->resolv = cu->resolv;
@@ -974,7 +972,7 @@ static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
 
 #else
     nu->pntsu = stroke_len;
-    nu->bezt = MEM_callocN(nu->pntsu * sizeof(BezTriple), __func__);
+    nu->bezt = MEM_calloc_arrayN<BezTriple>(nu->pntsu, __func__);
 
     BezTriple *bezt = nu->bezt;
 

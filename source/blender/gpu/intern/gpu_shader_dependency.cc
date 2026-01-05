@@ -32,7 +32,7 @@
 #  include "opensubdiv_evaluator_capi.hh"
 #endif
 
-#include "../shader_tool/shader_tool.hh"
+#include "../shader_tool/metadata.hh"
 
 extern "C" {
 #define SHADER_SOURCE(filename_underscore, filename, filepath) \
@@ -88,6 +88,8 @@ shader::BuiltinBits convert_builtin_bit(shader::metadata::Builtin builtin)
       return BuiltinBits::WORK_GROUP_ID;
     case Builtin::WorkGroupSize:
       return BuiltinBits::WORK_GROUP_SIZE;
+    case Builtin::ClipDistance:
+      return BuiltinBits::CLIP_DISTANCES;
     case Builtin::drw_debug:
 #ifndef NDEBUG
       return BuiltinBits::USE_DEBUG_DRAW;
