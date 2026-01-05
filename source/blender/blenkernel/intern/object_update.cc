@@ -216,7 +216,7 @@ void BKE_object_handle_data_update(Depsgraph *depsgraph, Scene *scene, Object *o
   /* Cache the contained geometry types of the #geometry_set_eval. */
   if (ob->runtime->geometry_set_eval) {
     for (const blender::bke::GeometryComponent::Type type :
-         ob->runtime->geometry_set_eval->gather_component_types())
+         ob->runtime->geometry_set_eval->gather_component_types(true, true))
     {
       ob->runtime->contained_geometry_types |= uint16_t(1 << size_t(type));
     }

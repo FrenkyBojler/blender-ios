@@ -997,7 +997,8 @@ static void duplicate_points(GeometrySet &geometry_set,
                              const IndexAttributes &attribute_outputs,
                              const AttributeFilter &attribute_filter)
 {
-  Vector<GeometryComponent::Type> component_types = geometry_set.gather_component_types();
+  Vector<GeometryComponent::Type> component_types = geometry_set.gather_component_types(true,
+                                                                                        true);
   for (const GeometryComponent::Type component_type : component_types) {
     switch (component_type) {
       case GeometryComponent::Type::PointCloud:

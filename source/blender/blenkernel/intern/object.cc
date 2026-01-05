@@ -167,6 +167,11 @@ static CLG_LogRef LOG = {"object"};
 static blender::Mutex vparent_lock;
 #endif
 
+/* The flag `contained_geometry_types` in the object runtime uses a bit for each geoemtry type.
+ * Statically check that there are enough bits to be used. */
+static_assert(sizeof(blender::bke::ObjectRuntime::contained_geometry_types) * 8 >=
+              GEO_COMPONENT_TYPE_ENUM_SIZE);
+
 static void copy_object_pose(Object *obn, const Object *ob, const int flag);
 
 static void object_init_data(ID *id)

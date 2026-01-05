@@ -10,8 +10,6 @@
 
 #include <optional>
 
-#include "BKE_geometry_set.hh"
-
 #include "BLI_array.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_math_matrix_types.hh"
@@ -142,7 +140,5 @@ struct ObjectRuntime {
   uint64_t last_update_geometry = 0;
   uint64_t last_update_shading = 0;
 };
-
-static_assert(sizeof(ObjectRuntime::contained_geometry_types) * 8 >= GEO_COMPONENT_TYPE_ENUM_SIZE);
 
 }  // namespace blender::bke
