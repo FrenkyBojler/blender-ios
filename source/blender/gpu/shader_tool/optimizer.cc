@@ -80,9 +80,22 @@ static void process_directives(parser::IntermediateForm &parser,
   }
 }
 
+struct FunctionGraph {
+  /* Function ID that is unique for each function and all its overloads. */
+  using FnId = int;
+  int counter = 0;
+  /* Map declarations (name token) to a function id. */
+  vector<pair<Token, FnId>> decl;
+  /* Map identifier to id. */
+  unordered_map<string_view, FnId> map;
+  /* Function call (from, to). */
+  vector<pair<FnId, FnId>> edges;
+};
+
 static void process_functions(parser::IntermediateForm & /*parser*/,
                               Token par_tok,
-                              unordered_map<string_view, Token> &functions)
+                              FunctionGraph &functions,
+                              FunctionGraph::FnId &current_function)
 {
   ScopeType scope_type = par_tok.scope().type();
   if (scope_type != ScopeType::FunctionArgs && scope_type != ScopeType::FunctionCall) {
@@ -91,24 +104,41 @@ static void process_functions(parser::IntermediateForm & /*parser*/,
   Token fn_name = par_tok.prev();
   if (scope_type == ScopeType::FunctionArgs && fn_name.prev() == Word) {
     /* Definition. */
-    functions.emplace(fn_name.str(), fn_name);
+    auto [it, success] = functions.map.emplace(fn_name.str(), 0);
+    FunctionGraph::FnId &id = it->second;
+
+    if (success) {
+      id = functions.counter++;
+    }
+
+    functions.decl.emplace_back(fn_name, id);
+
+    if (par_tok.scope().back().next() == '{') {
+      current_function = id;
+    }
     return;
   }
 
-  auto it = functions.find(fn_name.str());
-  if (it == functions.end()) {
-    /* Functions not defined: builtins, macros etc... */
-  }
-  else {
-    /* Functions Call. */
-    it->second = Token::invalid();
+  if (current_function != -1) {
+    auto it = functions.map.find(fn_name.str());
+    if (it == functions.map.end()) {
+      /* Functions not defined: builtins, macros etc... */
+    }
+    else {
+      /* Functions Call. */
+      FunctionGraph::FnId &id = it->second;
+      functions.edges.emplace_back(current_function, id);
+    }
   }
 }
 
-static void first_pass(parser::IntermediateForm &parser,
-                       unordered_map<string_view, Token> &functions)
+static void first_pass(parser::IntermediateForm &parser, FunctionGraph &functions)
 {
   unordered_set<string_view> defines;
+
+  int bracket_scope_depth = 0;
+
+  FunctionGraph::FnId current_function = -1;
 
   TokenStream *data = &parser.data_;
 
@@ -119,42 +149,99 @@ static void first_pass(parser::IntermediateForm &parser,
       process_directives(parser, Token::from_position(data, cursor), defines, cursor);
     }
     else if (tok_type == ParOpen) {
-      process_functions(parser, Token::from_position(data, cursor), functions);
+      process_functions(parser, Token::from_position(data, cursor), functions, current_function);
+    }
+    else if (tok_type == BracketOpen) {
+      bracket_scope_depth++;
+    }
+    else if (tok_type == BracketClose) {
+      bracket_scope_depth--;
+      if (bracket_scope_depth == 0) {
+        current_function = -1;
+      }
     }
   }
 }
+using FnId = FunctionGraph::FnId;
 
-static void prune_functions(parser::IntermediateForm &parser,
-                            unordered_map<string_view, Token> &functions)
+static unordered_map<FnId, vector<FnId>> build_adjacency(const FunctionGraph &g)
 {
-  int count = 0, worked = 0, prototypes = 0;
-  for (auto [_, name_tok] : functions) {
-    if (name_tok.is_valid() && name_tok.str() != "main") {
-      Token type = name_tok.prev();
-      Token end_of_args = name_tok.next().scope().back();
-      if (end_of_args.next() == '{') {
-        /* Full definition. */
-        Token end_of_body = end_of_args.next().scope().back();
-        count++;
-        // parser.erase(type, end_of_body);
-        bool success = parser.replace_try(type, end_of_body, "");
-        worked += success;
-        if (!success) {
-          // std::cout << "Failed deleting \"" << parser.substr_range_inclusive(type, end_of_body)
-          //           << "\"" << std::endl;
+  unordered_map<FnId, vector<FnId>> adj;
+  adj.reserve(g.counter);
+
+  for (const auto &[from, to] : g.edges) {
+    adj[from].push_back(to);
+  }
+  return adj;
+}
+
+unordered_set<FnId> compute_used_functions(const FunctionGraph &g, const vector<FnId> &roots)
+{
+  unordered_set<FnId> used;
+  used.reserve(g.counter);
+
+  auto adj = build_adjacency(g);
+
+  std::vector<FnId> stack;
+  stack.reserve(64);
+
+  for (FnId root : roots) {
+    if (used.insert(root).second) {
+      stack.push_back(root);
+    }
+
+    while (!stack.empty()) {
+      FnId f = stack.back();
+      stack.pop_back();
+
+      auto it = adj.find(f);
+      if (it == adj.end()) {
+        continue;
+      }
+
+      for (FnId callee : it->second) {
+        if (used.insert(callee).second) {
+          stack.push_back(callee);
         }
       }
-      else {
-        /* Prototype. */
-        count++;
-        prototypes++;
-        parser.erase(type, end_of_args);
-        // bool success = parser.replace_try(type, end_of_args, "");
-        // if (!success) {
-        //   std::cout << "Failed deleting \"" << parser.substr_range_inclusive(type, end_of_args)
-        //             << "\"" << std::endl;
-        // }
+    }
+  }
+
+  return used;
+}
+
+static void prune_functions(parser::IntermediateForm &parser, FunctionGraph &functions)
+{
+  unordered_set<FnId> used = compute_used_functions(functions, {functions.map["main"]});
+  // std::cout << "functions.decl " << functions.decl.size() << std::endl;
+  // std::cout << "functions.edges " << functions.edges.size() << std::endl;
+  // std::cout << "functions.map " << functions.map.size() << std::endl;
+  // std::cout << "used " << used.size() << std::endl;
+
+  for (auto [name_tok, id] : functions.decl) {
+    if (used.find(id) != used.end()) {
+      continue;
+    }
+    Token type = name_tok.prev();
+    Token end_of_args = name_tok.next().scope().back();
+    if (end_of_args.next() == '{') {
+      /* Full definition. */
+      Token end_of_body = end_of_args.next().scope().back();
+      // parser.erase(type, end_of_body);
+      bool success = parser.replace_try(type, end_of_body, "");
+      if (!success) {
+        // std::cout << "Failed deleting \"" << parser.substr_range_inclusive(type, end_of_body)
+        //           << "\"" << std::endl;
       }
+    }
+    else {
+      /* Prototype. */
+      parser.erase(type, end_of_args);
+      // bool success = parser.replace_try(type, end_of_args, "");
+      // if (!success) {
+      //   std::cout << "Failed deleting \"" << parser.substr_range_inclusive(type, end_of_args)
+      //             << "\"" << std::endl;
+      // }
     }
   }
   // std::cout << "Removed functions " << worked << " / " << functions.size() << std::endl;
@@ -230,7 +317,7 @@ int main(int argc, char **argv)
       parser::IntermediateForm parser(test, report_error);
 
       {
-        unordered_map<string_view, Token> functions;
+        FunctionGraph functions;
         first_pass(parser, functions);
         prune_functions(parser, functions);
       }
