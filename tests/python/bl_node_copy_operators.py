@@ -51,6 +51,14 @@ def save_test_file():
     bpy.ops.wm.save_mainfile(filepath=str(args.testdir / testfile))
 
 
+def select_nodes(tree, selected_nodes, active_node=None):
+    for node in tree.nodes:
+        node.select = False
+    for node in selected_nodes:
+        node.select = True
+    tree.nodes.active = active_node if active_node else (selected_nodes[0] if selected_nodes else None)
+
+
 # Provide a valid context override to run node editor operators
 def node_editor_context_override(context, tree, selected_nodes=[], active_node=None):
     window = context.window if context.window else next(window for window in context.window_manager.windows if window.screen is not None)
@@ -59,8 +67,12 @@ def node_editor_context_override(context, tree, selected_nodes=[], active_node=N
     region = next(region for region in area.regions if region.type == 'WINDOW')
     space = area.spaces[0]
 
-    if active_node is None:
-        active_node = selected_nodes[0] if selected_nodes else None
+    # Explicitly set the space tree, otherwise requires a context update to ensure
+    # that the space tree matches the active modifier tree.
+    space.node_tree = tree
+    # Relying on context.selected_nodes and context.active_node does not work for many/most node operators
+    # because they rely on actual selected/active nodes in the tree, rather than the context.
+    select_nodes(tree, selected_nodes, active_node)
 
     context_override = context.copy()
     context_override["window"] = window
@@ -69,20 +81,7 @@ def node_editor_context_override(context, tree, selected_nodes=[], active_node=N
     context_override["region"] = region
     context_override["space_data"] = space
     context_override["selected_nodes"] = selected_nodes
-    context_override["active_node"] = active_node
-
-    # Explicitly set the space tree, otherwise requires a context update to ensure
-    # that the space tree matches the active modifier tree.
-    space.node_tree = tree
-
-    # Relying on context.selected_nodes and context.active_node does not work for many/most node operators
-    # because they rely on actual selected/active nodes in the tree, rather than the context.
-    for node in tree.nodes:
-        node.select = False
-    for node in selected_nodes:
-        node.select = True
-    tree.nodes.active = active_node
-
+    context_override["active_node"] = tree.nodes.active
     return context.temp_override(**context_override)
 
 
@@ -178,13 +177,45 @@ def execute_ungroup(test_case, test_tree, expected_tree=None):
 
     with node_editor_context_override(bpy.context, test_tree, selected_nodes=test_nodes):
         bpy.ops.node.group_ungroup()
-        internal_nodes = [node for node in test_tree.nodes if node.select]
+    internal_nodes = [node for node in test_tree.nodes if node.select]
+    # Re-attach to the parent frame to identify the operator result.
+    for node in internal_nodes:
+        node.parent = test_frame
 
     if expected_tree:
         # Map resulting nodes to expected nodes.
         expected_nodes = find_expected_nodes(expected_tree, test_name)
         mapping = NodeMapping()
         mapping.extend_nodes(internal_nodes, expected_nodes)
+        return mapping
+
+
+def execute_group_separate(type, test_case, test_tree, expected_tree=None):
+    test_name, test_nodes, test_frame = test_case
+
+    # Test nodes should be node groups
+    assert len(test_nodes) == 1
+    group_node = test_nodes[0]
+    assert isinstance(group_node, bpy.types.GeometryNodeGroup)
+
+    with node_editor_context_override(bpy.context, test_tree, selected_nodes=[group_node]):
+        # Note: enter/exit operator has no execute function, have to use invoke.
+        # bpy.ops.node.group_enter_exit('INVOKE_DEFAULT')
+        bpy.ops.node.group_edit(exit=False)
+        # Stay in current context so that the tree path has a valid "parent" tree to copy nodes into.
+        # Select all nodes for separating.
+        select_nodes(group_node.node_tree, selected_nodes=group_node.node_tree.nodes)
+        bpy.ops.node.group_separate(type=type)
+    # internal_nodes = [node for node in test_tree.nodes if node.select]
+    # # Re-attach to the parent frame to identify the operator result.
+    # for node in internal_nodes:
+    #     node.parent = test_frame
+
+    if expected_tree:
+        # Map resulting nodes to expected nodes.
+        expected_nodes = find_expected_nodes(expected_tree, test_name)
+        mapping = NodeMapping()
+        # mapping.extend_nodes(internal_nodes, expected_nodes)
         return mapping
 
 
@@ -402,7 +433,19 @@ def generate_test_data():
     # Use result of grouping as starting point for ungrouping.
     tree_ungroup = copy_tree(tree_make_group, mod_ungroup)
     for test_case in test_cases(tree_ungroup):
-        execute_group_insert(test_case, tree_ungroup)
+        execute_ungroup(test_case, tree_ungroup)
+
+    # mod_group_separate_copy = ob.modifiers["ExpectedSeparateCopy"]
+    # # Use result of grouping as starting point for separating.
+    # tree_group_separate_copy = copy_tree(tree_make_group, mod_group_separate_copy)
+    # for test_case in test_cases(tree_group_separate_copy):
+    #     execute_group_separate('COPY', test_case, tree_group_separate_copy)
+
+    # mod_group_separate_move = ob.modifiers["ExpectedSeparateMove"]
+    # # Use result of grouping as starting point for separating.
+    # tree_group_separate_move = copy_tree(tree_make_group, mod_group_separate_move)
+    # for test_case in test_cases(tree_group_separate_move):
+    #     execute_group_separate('MOVE', test_case, tree_group_separate_move)
 
     save_test_file()
 
