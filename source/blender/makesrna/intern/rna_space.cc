@@ -167,7 +167,9 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
      ICON_PREFERENCES,
      "Preferences",
      "Edit persistent configuration settings"},
+#ifdef WITH_BLENDER_PROJECTS
     {SPACE_PROJECT, "PROJECT", ICON_PROJECT, "Project", "Manage the current Blender project"},
+#endif
     {0, nullptr, 0, nullptr, nullptr},
 };
 

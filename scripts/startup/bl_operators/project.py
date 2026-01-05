@@ -221,6 +221,10 @@ class PROJECT_OP_NewProject(Operator):
         return context.project.data is None and bpy.data.filepath != ""
 
     def execute(self, context):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
+            return {'CANCELLED'}
+
         if self.directory == "":
             self.report({'ERROR'}, "Cannot create a project with an empty directory path.")
             return {'CANCELLED'}
@@ -274,6 +278,10 @@ class PROJECT_OP_SaveProject(Operator):
         return context.project.data is not None
 
     def execute(self, context):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
+            return {'CANCELLED'}
+
         try:
             save_project(context.project)
         except ProjectSaveException as e:
@@ -311,6 +319,10 @@ class PROJECT_OP_OpenBlendInProject(Operator):
         return True
 
     def execute(self, context):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            self.report({'ERROR'}, "Blender Projects experimental feature not enabled.")
+            return {'CANCELLED'}
+
         if not blend_file_is_in_valid_project(Path(self.filepath)):
             self.report(
                 {'ERROR'},
@@ -332,6 +344,9 @@ class PROJECT_OP_OpenBlendInProject(Operator):
 
 @bpy.app.handlers.persistent
 def on_blend_load(blend_path):
+    if not bpy.context.preferences.experimental.use_blender_projects:
+        return
+
     # Auto-save the current project before loading a different blend file.
     if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
         save_project(bpy.context.project)
@@ -343,6 +358,9 @@ def on_blend_load(blend_path):
 
 @bpy.app.handlers.persistent
 def on_blend_save(blend_path):
+    if not bpy.context.preferences.experimental.use_blender_projects:
+        return
+
     # Auto-save project when saving the current blend file.
     if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
         save_project(bpy.context.project)
@@ -360,6 +378,9 @@ def on_blend_save(blend_path):
 
 
 def on_exit():
+    if not bpy.context.preferences.experimental.use_blender_projects:
+        return
+
     if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
         # We omit clearing the dirty flag here because:
         #

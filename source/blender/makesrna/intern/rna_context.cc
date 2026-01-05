@@ -212,10 +212,12 @@ static PointerRNA rna_Context_preferences_get(PointerRNA * /*ptr*/)
   return newptr;
 }
 
+#  ifdef WITH_BLENDER_PROJECTS
 static PointerRNA rna_Context_project_get(PointerRNA * /*ptr*/)
 {
   return RNA_pointer_create_discrete(nullptr, &RNA_BlenderProject, &BKE_blender_project());
 }
+#  endif
 
 static int rna_Context_mode_get(PointerRNA *ptr)
 {

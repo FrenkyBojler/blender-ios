@@ -18,6 +18,9 @@ class PROJECT_HT_header(Header):
     bl_space_type = 'PROJECT'
 
     def draw(self, context):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            return
+
         layout = self.layout
 
         layout.template_header()
@@ -30,7 +33,9 @@ class PROJECT_MT_editor_menus(Menu):
     bl_label = ""
 
     def draw(self, context):
-        del context
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            return
+
         layout = self.layout
         layout.menu("PROJECT_MT_view")
         layout.menu("PROJECT_MT_save_load", text="Project")
@@ -40,6 +45,9 @@ class PROJECT_MT_view(Menu):
     bl_label = "View"
 
     def draw(self, context):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            return
+
         layout = self.layout
         project_space = context.space_data
 
@@ -54,6 +62,9 @@ class PROJECT_MT_save_load(Menu):
     bl_label = "Save & Load"
 
     def draw(self, context):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            return
+
         layout = self.layout
         project_space = context.space_data
 
@@ -77,6 +88,9 @@ class PROJECT_PT_save_project(Panel):
         return True
 
     def draw(self, context):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            return
+
         layout = self.layout.row()
         layout.operator_context = 'EXEC_AREA'
 
@@ -109,6 +123,9 @@ class PROJECT_PT_navigation_bar(Panel):
         return True
 
     def draw(self, context):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            return
+
         layout = self.layout
 
         space_data = context.space_data
@@ -141,6 +158,9 @@ class CenterAlignMixIn:
     """
 
     def draw(self, context):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            return
+
         layout = self.layout
         width = context.region.width
         ui_scale = context.preferences.system.ui_scale
@@ -182,6 +202,9 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
         col_flow.separator_spacer()
 
     def draw_centered(self, context, layout):
+        if not bpy.context.preferences.experimental.use_blender_projects:
+            return
+
         project = context.project
 
         col = layout.column()
@@ -223,12 +246,24 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
 # -------------------------------------------------------------
 # Register
 
-classes = (
-    PROJECT_HT_header,
-    PROJECT_MT_editor_menus,
-    PROJECT_MT_view,
-    PROJECT_MT_save_load,
-    PROJECT_PT_navigation_bar,
-    PROJECT_PT_save_project,
-    PROJECT_PT_main,
-)
+# This conditional is awkward: it means the user has to restart Blender after
+# enabling the experimental feature to actually get access to the UI.
+#
+# However, this seems to be the only way to handle things in the current system
+# for experimental features if we want to hide the project space type in
+# non-experimental builds. If we don't do this, then there are Python errors
+# when loading Blender due to `bl_space_type = 'PROJECT'` in the UI classes.
+#
+# Would love another way to do this!
+if bpy.context.preferences.experimental.use_blender_projects:
+    classes = (
+        PROJECT_HT_header,
+        PROJECT_MT_editor_menus,
+        PROJECT_MT_view,
+        PROJECT_MT_save_load,
+        PROJECT_PT_navigation_bar,
+        PROJECT_PT_save_project,
+        PROJECT_PT_main,
+    )
+else:
+    classes = ()
