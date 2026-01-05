@@ -350,6 +350,19 @@ blender::Vector<blender::bke::path_templates::Error> BKE_path_validate_template(
     blender::StringRef path, const blender::bke::path_templates::VariableMap &template_variables);
 
 /**
+ * Computes how long the path will be after applying templates.
+ *
+ * This can be used to determine how much space needs to be allocated for the
+ * output buffer before actually applying templates. However, note that the
+ * returned length does *not* include the space needed for a terminating null
+ * byte.
+ *
+ * If there are path template errors, returns -1. Otherwise returns the length.
+ */
+int BKE_path_length_after_apply_template(
+    const char *path, const blender::bke::path_templates::VariableMap &template_variables);
+
+/**
  * Perform variable substitution and escaping on the given path.
  *
  * This mutates the path in-place. `path` must be a null-terminated string.

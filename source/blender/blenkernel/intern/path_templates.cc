@@ -822,10 +822,15 @@ bool BKE_path_contains_template_syntax(blender::StringRef path)
  * \param out_path_maxncpy: The maximum length that template expansion is
  * allowed to make the template-expanded path (in bytes), including the null
  * terminator. In general, this should be the size of the underlying allocation
- * of `out_path`.
+ * of `out_path`. Only used when `out_path` is provided.
  *
  * \param template_variables: map of variables and their values to use during
  * template substitution.
+ *
+ * \param r_out_path_length: optional pointer to an integer to store the output
+ * path length in. This is computed even when `out_path` is not provided, and
+ * thus can be used as a pre-pass to determine how much space to allocate for
+ * the `out_path` buffer.
  *
  * \return An empty vector on success, or a vector of templating errors on
  * failure. Note that even if there are errors, `out_path` may get modified, and
@@ -834,10 +839,18 @@ bool BKE_path_contains_template_syntax(blender::StringRef path)
 static blender::Vector<Error> eval_template(char *out_path,
                                             const int out_path_maxncpy,
                                             blender::StringRef in_path,
-                                            const VariableMap &template_variables)
+                                            const VariableMap &template_variables,
+                                            int *r_out_length)
 {
+  if (r_out_length) {
+    *r_out_length = in_path.size();
+  }
+
   if (out_path) {
     in_path.copy_bytes_truncated(out_path, out_path_maxncpy);
+    if (r_out_length) {
+      *r_out_length = strlen(out_path);
+    }
   }
 
   const blender::Vector<Token> tokens = parse_template(in_path);
@@ -942,10 +955,14 @@ static blender::Vector<Error> eval_template(char *out_path,
                                token.byte_range.start() + length_diff,
                                token.byte_range.one_after_last() + length_diff,
                                replacement_string);
-
-      length_diff -= token.byte_range.size();
-      length_diff += strlen(replacement_string);
     }
+
+    length_diff -= token.byte_range.size();
+    length_diff += strlen(replacement_string);
+  }
+
+  if (r_out_length) {
+    *r_out_length = in_path.size() + length_diff;
   }
 
   return errors;
@@ -954,7 +971,23 @@ static blender::Vector<Error> eval_template(char *out_path,
 blender::Vector<Error> BKE_path_validate_template(
     blender::StringRef path, const blender::bke::path_templates::VariableMap &template_variables)
 {
-  return eval_template(nullptr, 0, path, template_variables);
+  return eval_template(nullptr, 0, path, template_variables, nullptr);
+}
+
+int BKE_path_length_after_apply_template(const char *path, const VariableMap &template_variables)
+{
+  BLI_assert(path != nullptr);
+
+  int length_after_application = 0;
+
+  const blender::Vector<Error> errors = eval_template(
+      nullptr, 0, path, template_variables, &length_after_application);
+
+  if (!errors.is_empty()) {
+    return -1;
+  }
+
+  return length_after_application;
 }
 
 blender::Vector<Error> BKE_path_apply_template(char *path,
@@ -966,7 +999,7 @@ blender::Vector<Error> BKE_path_apply_template(char *path,
   blender::Vector<char> path_buffer(path_maxncpy);
 
   const blender::Vector<Error> errors = eval_template(
-      path_buffer.data(), path_buffer.size(), path, template_variables);
+      path_buffer.data(), path_buffer.size(), path, template_variables, nullptr);
 
   if (errors.is_empty()) {
     /* No errors, so copy the modified path back to the original. */

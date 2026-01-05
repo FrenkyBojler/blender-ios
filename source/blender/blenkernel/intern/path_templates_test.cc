@@ -447,4 +447,80 @@ TEST(path_templates, validate_and_apply_template)
   }
 }
 
+struct PathTemplateLengthTestCase {
+  char path_in[FILE_MAX];
+  int expected_length;
+};
+
+TEST(path_templates, precompute_output_path_length)
+{
+  VariableMap variables;
+  {
+    variables.add_string("long", "This string is exactly 32 bytes.");
+    variables.add_string("short", "hi");
+    variables.add_string("empty", "");
+    variables.add_integer("number", 42);
+  }
+
+  const Vector<PathTemplateLengthTestCase> test_cases = {
+      {
+          "{long}{short}{empty}{number}",
+          36,
+      },
+      {
+          "foo{long}bar",
+          38,
+      },
+      {
+          "foo{short}bar",
+          8,
+      },
+      {
+          "foo{empty}bar",
+          6,
+      },
+      {
+          "foo{number}bar",
+          8,
+      },
+      {
+          "foo{number:####}bar",
+          10,
+      },
+      {
+          "{empty}",
+          0,
+      },
+
+      /* No template expressions. */
+      {
+          "",
+          0,
+      },
+      {
+          "No template expressions here.",
+          29,
+      },
+
+      /* Errors. */
+      {
+          "foo{non_existant_variable}bar",
+          -1,
+      },
+      {
+          "foo{bar",
+          -1,
+      },
+  };
+
+  for (const PathTemplateLengthTestCase &test_case : test_cases) {
+    char path[FILE_MAX];
+    STRNCPY(path, test_case.path_in);
+    const int length = BKE_path_length_after_apply_template(path, variables);
+
+    EXPECT_EQ(length, test_case.expected_length)
+        << "  Note: test_case.path_in = " << test_case.path_in << std::endl;
+  }
+}
+
 }  // namespace blender::bke::tests
