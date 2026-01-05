@@ -276,8 +276,8 @@ void action_groups_reconstruct(bAction *act)
     BLI_listbase_clear(&group.channels);
   }
   /* Sort the channels into the group lists, destroying the act->curves list. */
-  ListBase ungrouped = {nullptr, nullptr};
-  for (FCurve &fcurve : act->curves) {
+  ListBaseT<FCurve> ungrouped = {nullptr, nullptr};
+  for (FCurve &fcurve : act->curves.items_mutable()) {
     if (fcurve.grp) {
       BLI_assert(BLI_findindex(&act->groups, fcurve.grp) >= 0);
       BLI_addtail(&fcurve.grp->channels, &fcurve);

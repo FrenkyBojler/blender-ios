@@ -84,7 +84,7 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports);
  * Reorders the main channel list to match group order.
  *
  * Only used in versioning code since this only works with legacy actions which
- * not longer exist in new files.
+ * no longer exist in new files.
  */
 void action_groups_reconstruct(bAction *act);
 
