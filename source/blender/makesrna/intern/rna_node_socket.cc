@@ -52,9 +52,12 @@ const EnumPropertyItem rna_enum_node_socket_type_items[] = {
 
 #  include "DNA_material_types.h"
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_vector.h"
+#  include "BLI_string.h"
 #  include "BLI_string_ref.hh"
 
+#  include "BKE_context.hh"
 #  include "BKE_main_invariants.hh"
 #  include "BKE_node.hh"
 #  include "BKE_node_enum.hh"
@@ -247,7 +250,7 @@ static std::optional<std::string> rna_NodeSocket_path(const PointerRNA *ptr)
   const bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
 
   const bNode &node = blender::bke::node_find_node(*ntree, *sock);
-  const ListBase *sockets = (sock->in_out == SOCK_IN) ? &node.inputs : &node.outputs;
+  const ListBaseT<bNodeSocket> *sockets = (sock->in_out == SOCK_IN) ? &node.inputs : &node.outputs;
   const int socketindex = BLI_findindex(sockets, sock);
 
   char name_esc[sizeof(node.name) * 2];
