@@ -3,3 +3,4 @@ Referenced by issue #123529, Export Alembic hair cause crash (request to backpor
 Referenced by issue #120259, Fix #117338: Texture paint sampling broken with modifiers
 Referenced by issue #117338, Regression: Texture Painting: Subdiv modifier breaks texture color sampling
 Referenced by issue #116307, Regression: Crash with data transfer modifier in 4.0
+Referenced by pull request #152337, Fix #152067: Apply Subdivision Surface modifier when converting Mesh to Curve
