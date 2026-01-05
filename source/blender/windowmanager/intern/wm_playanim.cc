@@ -1761,7 +1761,7 @@ static GHOST_IWindow *playanim_window_open(
 
   {
     bool screen_size_valid = false;
-    uint32_t screen_size[2];
+    uint32_t screen_size[2] = {};
     ghost_system->getMainDisplayDimensions(screen_size[0], screen_size[1]);
 
     if (screen_size[0] > 0 && screen_size[1] > 0) {

@@ -191,11 +191,14 @@ static uint8_t wm_ghost_modifier_query(const enum ModSide side);
 
 bool wm_get_screensize(int r_size[2])
 {
-  uint32_t uiwidth, uiheight;
+  uint32_t uiwidth = 0;
+  uint32_t uiheight = 0;
   g_system->getMainDisplayDimensions(uiwidth, uiheight);
+
   if (uiwidth == 0 && uiheight == 0) {
     return false;
   }
+
   r_size[0] = uiwidth;
   r_size[1] = uiheight;
   return true;
@@ -203,11 +206,14 @@ bool wm_get_screensize(int r_size[2])
 
 bool wm_get_desktopsize(int r_size[2])
 {
-  uint32_t uiwidth, uiheight;
+  uint32_t uiwidth = 0;
+  uint32_t uiheight = 0;
   g_system->getAllDisplayDimensions(uiwidth, uiheight);
+
   if (uiwidth == 0 && uiheight == 0) {
     return false;
   }
+
   r_size[0] = uiwidth;
   r_size[1] = uiheight;
   return true;
