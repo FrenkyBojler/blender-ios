@@ -3282,6 +3282,14 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
         }
 
+        const float aspect = (rmd->region->v2d.flag & V2D_IS_INIT) ?
+                                 (BLI_rctf_size_x(&rmd->region->v2d.cur) /
+                                  (BLI_rcti_size_x(&rmd->region->v2d.mask) + 1)) :
+                                 1.0f;
+        if (rmd->region->sizex * aspect > UI_PANEL_CATEGORY_MIN_WIDTH) {
+          rmd->region->runtime->type->prefsizex = rmd->region->sizex;
+        }
+
         region_scale_exit(op);
 
         return OPERATOR_FINISHED;

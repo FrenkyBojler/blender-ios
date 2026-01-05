@@ -972,6 +972,15 @@ static bool rna_Space_show_region_ui_get(PointerRNA *ptr)
 }
 static void rna_Space_show_region_ui_set(PointerRNA *ptr, bool value)
 {
+  if (value) {
+    ScrArea *area = rna_area_from_space(ptr);
+    ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_UI);
+    if (region->sizex >= UI_PANEL_CATEGORY_MIN_WIDTH) {
+      const int new_width = region->runtime->type->prefsizex ? region->runtime->type->prefsizex :
+                                                               250.0f;
+      region->sizex = new_width;
+    }
+  }
   rna_Space_bool_from_region_flag_set_by_type(ptr, RGN_TYPE_UI, RGN_FLAG_HIDDEN, !value);
 }
 static void rna_Space_show_region_ui_update(bContext *C, PointerRNA *ptr)

@@ -2596,7 +2596,10 @@ int handler_panel_region(bContext *C,
                                               aspect));
         if (too_narrow) {
           /* Enlarge region. */
-          ui_panel_region_width_set(region, aspect, 250.0f);
+          const int new_width = region->runtime->type->prefsizex ?
+                                    region->runtime->type->prefsizex :
+                                    250.0f;
+          ui_panel_region_width_set(region, aspect, new_width);
           WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
         }
         else if (already_active) {
