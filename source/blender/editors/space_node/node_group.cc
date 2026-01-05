@@ -39,6 +39,7 @@
 
 #include "ANIM_action.hh"
 
+#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
 #include "ED_node.hh"
@@ -1580,6 +1581,8 @@ static wmOperatorStatus node_group_insert_exec(bContext *C, wmOperator *op)
   }
 
   node_group_make_insert_selected(*C, *ntree, gnode, nodes_to_group);
+  /* Make sure the evaluated node tree is updated. */
+  DEG_id_tag_update(&ntree->id, ID_RECALC_SYNC_TO_EVAL);
 
   bke::node_set_active(*ntree, *gnode);
   ED_node_tree_push(region, snode, ngroup, gnode);
