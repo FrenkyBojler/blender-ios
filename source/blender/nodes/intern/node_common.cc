@@ -63,11 +63,11 @@ namespace node_interface = blender::bke::node_interface;
 /** \name Node Group
  * \{ */
 
-static bNodeSocket *find_matching_socket(ListBase &sockets, StringRef identifier)
+static bNodeSocket *find_matching_socket(ListBaseT<bNodeSocket> &sockets, StringRef identifier)
 {
-  LISTBASE_FOREACH (bNodeSocket *, socket, &sockets) {
-    if (socket->identifier == identifier) {
-      return socket;
+  for (bNodeSocket &socket : sockets) {
+    if (socket.identifier == identifier) {
+      return &socket;
     }
   }
   return nullptr;
@@ -798,9 +798,9 @@ bool blender::bke::node_is_connected_to_output(const bNodeTree &ntree, const bNo
 
 bNodeSocket *node_group_input_find_socket(bNode *node, const StringRef identifier)
 {
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-    if (sock->identifier == identifier) {
-      return sock;
+  for (bNodeSocket &sock : node->outputs) {
+    if (sock.identifier == identifier) {
+      return &sock;
     }
   }
   return nullptr;
@@ -993,9 +993,9 @@ void register_node_type_group_input()
 
 bNodeSocket *node_group_output_find_socket(bNode *node, const StringRef identifier)
 {
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-    if (sock->identifier == identifier) {
-      return sock;
+  for (bNodeSocket &sock : node->inputs) {
+    if (sock.identifier == identifier) {
+      return &sock;
     }
   }
   return nullptr;
