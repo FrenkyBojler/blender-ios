@@ -435,13 +435,13 @@ def generate_test_data():
     for test_case in test_cases(tree_ungroup):
         execute_ungroup(test_case, tree_ungroup)
 
-    mod_group_separate_copy = ob.modifiers["ExpectedSeparateCopy"]
+    mod_group_separate_copy = ob.modifiers["ExpectedGroupSeparateCopy"]
     # Use result of grouping as starting point for separating.
     tree_group_separate_copy = copy_tree(tree_make_group, mod_group_separate_copy)
     for test_case in test_cases(tree_group_separate_copy):
         execute_group_separate('COPY', test_case, tree_group_separate_copy)
 
-    mod_group_separate_move = ob.modifiers["ExpectedSeparateMove"]
+    mod_group_separate_move = ob.modifiers["ExpectedGroupSeparateMove"]
     # Use result of grouping as starting point for separating.
     tree_group_separate_move = copy_tree(tree_make_group, mod_group_separate_move)
     for test_case in test_cases(tree_group_separate_move):
