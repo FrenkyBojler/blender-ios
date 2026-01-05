@@ -142,8 +142,7 @@ static void file_init(wmWindowManager * /*wm*/, ScrArea *area)
   }
 
   if (sfile->runtime == nullptr) {
-    sfile->runtime = static_cast<SpaceFile_Runtime *>(
-        MEM_callocN(sizeof(*sfile->runtime), __func__));
+    sfile->runtime = MEM_callocN<SpaceFile_Runtime>(__func__);
     BKE_reports_init(&sfile->runtime->is_blendfile_readable_reports, RPT_STORE);
   }
   /* Validate the params right after file read. */
@@ -820,7 +819,7 @@ static void filepath_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
 /* region dropbox definition */
 static void file_dropboxes()
 {
-  ListBase *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
   WM_dropbox_add(
       lb, "FILE_OT_filepath_drop", filepath_drop_poll, filepath_drop_copy, nullptr, nullptr);
@@ -836,8 +835,8 @@ static void file_space_subtype_set(ScrArea *area, int value)
 {
   SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
   /* Force re-init. */
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    region->v2d.flag &= ~V2D_IS_INIT;
+  for (ARegion &region : area->regionbase) {
+    region.v2d.flag &= ~V2D_IS_INIT;
   }
   sfile->browse_mode = value;
 }
