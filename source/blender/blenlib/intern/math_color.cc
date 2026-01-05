@@ -208,25 +208,25 @@ bool hex_to_rgba(const char *hexcol, float *r_r, float *r_g, float *r_b, float *
   bool alpha_parsed = false;
 
   switch (hex_len) {
-    case 8: // #RRGGBBAA
+    case 8: /* #RRGGBBAA */
       if (sscanf(hexcol, "%2x%2x%2x%2x", &r, &g, &b, &a) != 4) {
         return false;
       }
       alpha_parsed = true;
       break;
-    case 7: // #RRGGBBA -> #RRGGBBA0
+    case 7: /* #RRGGBBA -> #RRGGBBA0 */
       if (sscanf(hexcol, "%2x%2x%2x%1x", &r, &g, &b, &a) != 4) {
         return false;
       }
       a <<= 4;
       alpha_parsed = true;
       break;
-    case 6: // #RRGGBB
+    case 6: /* #RRGGBB */
       if (sscanf(hexcol, "%2x%2x%2x", &r, &g, &b) != 3) {
         return false;
       }
       break;
-    case 5: // #RGBAA -> #RRGGBBAA
+    case 5: /* #RGBAA -> #RRGGBBAA */
       if (sscanf(hexcol, "%1x%1x%1x%2x", &r, &g, &b, &a) != 4) {
         return false;
       }
@@ -235,7 +235,7 @@ bool hex_to_rgba(const char *hexcol, float *r_r, float *r_g, float *r_b, float *
       b = (b << 4) | b;
       alpha_parsed = true;
       break;
-    case 4: // #RGBA -> #RRGGBBAA
+    case 4: /* #RGBA -> #RRGGBBAA */
       if (sscanf(hexcol, "%1x%1x%1x%1x", &r, &g, &b, &a) != 4) {
         return false;
       }
@@ -245,7 +245,7 @@ bool hex_to_rgba(const char *hexcol, float *r_r, float *r_g, float *r_b, float *
       a = (a << 4) | a;
       alpha_parsed = true;
       break;
-    case 3: // #RGB -> #RRGGBB
+    case 3: /* #RGB -> #RRGGBB */
       if (sscanf(hexcol, "%1x%1x%1x", &r, &g, &b) != 3) {
         return false;
       }
@@ -253,32 +253,40 @@ bool hex_to_rgba(const char *hexcol, float *r_r, float *r_g, float *r_b, float *
       g = (g << 4) | g;
       b = (b << 4) | b;
       break;
-    case 2: // #AB -> #ABABAB
+    case 2: /* #AB -> #ABABAB */
       if (sscanf(hexcol, "%2x", &r) != 1) {
         return false;
       }
-      g = b = r;
+      g = r;
+      b = r;
       break;
-    case 1: // #A -> #AAAAAA
+    case 1: /* #A -> #AAAAAA */
       if (sscanf(hexcol, "%1x", &r) != 1) {
         return false;
       }
-      g = b = r = (r << 4) | r;
+      r = (r << 4) | r;
+      g = r;
+      b = r;
       break;
     default:
-      // Invalid hex color length - leave color unchanged.
+      /* Invalid hex color length - leave color unchanged. */
       return false;
   }
 
-  // Convert integer color channels to float.
+  /* Convert integer color channels to float. */
   const float scale = 1.0f / 255.0f;
   *r_r = float(r) * scale;
   *r_g = float(g) * scale;
   *r_b = float(b) * scale;
 
-  // Assign alpha if present.
+  CLAMP(*r_r, 0.0f, 1.0f);
+  CLAMP(*r_g, 0.0f, 1.0f);
+  CLAMP(*r_b, 0.0f, 1.0f);
+
+  /* Assign alpha if present. */
   if (r_a && alpha_parsed) {
     *r_a = float(a) * scale;
+    CLAMP(*r_a, 0.0f, 1.0f);
   }
   return true;
 }

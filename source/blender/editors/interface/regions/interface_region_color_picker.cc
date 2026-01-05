@@ -423,7 +423,7 @@ static void ui_colorpicker_hex_rna_cb(bContext * /*C*/, void *bt1, void *bt2)
   }
   /* Override the current color with the parsed Hex string, preserving the original Alpha if the
    * hex string doesn't contain it. */
-  bool is_parsed = hex_to_rgba(hexcol, rgba, rgba + 1, rgba + 2, rgba + 3);
+  const bool is_parsed = hex_to_rgba(hexcol, rgba, rgba + 1, rgba + 2, rgba + 3);
 
   /* Hex code is assumed to be in sRGB space (coming from other applications, web, etc...).
    * Only apply conversion if the hex string was successfully parsed. */
