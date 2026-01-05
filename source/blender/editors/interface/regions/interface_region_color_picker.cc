@@ -11,8 +11,6 @@
 #include <cstdarg>
 #include <cstdlib>
 #include <cstring>
-#include <string>
-#include <utility>
 
 #include "MEM_guardedalloc.h"
 
@@ -517,13 +515,12 @@ static void ui_colorpicker_update_type_space_cb(bContext * /*C*/, void *picker_b
 
 /** Get localized tooltips for the current color picker type.
  *
- * \return Pair of tooltips:
- * - first: Tooltip describing the color area (e.g., "Hue/Saturation").
- * - second: Tooltip describing the slider (e.g., "Lightness").
+ * \param r_area_tooltip Tooltip describing the color area (e.g., "Hue/Saturation").
+ * \param r_slider_tooltip Tooltip describing the slider (e.g., "Lightness" or "Value").
  */
-static std::pair<std::string, std::string> ui_colorpicker_tooltips()
+static void ui_colorpicker_tooltips(const char **r_area_tooltip, const char **r_slider_tooltip)
 {
-  char buf_area_tooltip[128];
+  static thread_local char buf_area_tooltip[128];
 
   const char *name_hue = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Hue");
   const char *name_sat = CTX_TIP_(BLT_I18NCONTEXT_COLOR, "Saturation");
@@ -562,12 +559,15 @@ static std::pair<std::string, std::string> ui_colorpicker_tooltips()
       slider = name_sat;
       break;
     default:
-      return {name_color, name_val};
+      *r_area_tooltip = name_color;
+      *r_slider_tooltip = name_val;
+      return;
   }
 
   SNPRINTF_UTF8(buf_area_tooltip, "%s/%s", axis_x, axis_y);
 
-  return {buf_area_tooltip, slider};
+  *r_area_tooltip = buf_area_tooltip;
+  *r_slider_tooltip = slider;
 }
 
 static void ui_colorpicker_circle(Block *block,
@@ -577,10 +577,10 @@ static void ui_colorpicker_circle(Block *block,
 {
   Button *bt;
   ButtonHSVCube *hsv_but;
+  const char *circle_tooltip;
+  const char *slider_tooltip;
 
-  std::pair<std::string, std::string> tooltips = ui_colorpicker_tooltips();
-  StringRef circle_tooltip = tooltips.first;
-  StringRef slider_tooltip = tooltips.second;
+  ui_colorpicker_tooltips(&circle_tooltip, &slider_tooltip);
 
   /* Color circle (Hue/Saturation) */
   bt = uiDefButR_prop(block,
@@ -622,10 +622,10 @@ static void ui_colorpicker_square(
     Block *block, PointerRNA *ptr, PropertyRNA *prop, eButGradientType type, ColorPicker *cpicker)
 {
   ButtonHSVCube *hsv_but;
+  const char *square_tooltip;
+  const char *slider_tooltip;
 
-  std::pair<std::string, std::string> tooltips = ui_colorpicker_tooltips();
-  StringRef square_tooltip = tooltips.first;
-  StringRef slider_tooltip = tooltips.second;
+  ui_colorpicker_tooltips(&square_tooltip, &slider_tooltip);
 
   BLI_assert(type <= GRAD_HS);
 
