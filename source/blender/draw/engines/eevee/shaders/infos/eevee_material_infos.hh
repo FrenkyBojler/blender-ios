@@ -47,6 +47,7 @@
 GPU_SHADER_CREATE_INFO(eevee_material_stub)
 /* Dummy uniform buffer to detect overlap with material node-tree. */
 UNIFORM_BUF(0, int, node_tree)
+DEFINE("MAT_NODETREE")
 GPU_SHADER_CREATE_END()
 
 /* clang-format off */
