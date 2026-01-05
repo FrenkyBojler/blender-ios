@@ -1983,8 +1983,14 @@ void foreach_id_idproperty_container(ID &id,
     idtype->foreach_idproperty_container(id, function_callback);
   }
   else {
-    function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-    function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+    IDTypeInfoIDPropertyCallbackParams params;
+    params.idproperty_p = &id.properties;
+    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+    function_callback(params);
+
+    params.idproperty_p = &id.system_properties;
+    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+    function_callback(params);
   }
 }
 

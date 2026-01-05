@@ -124,14 +124,17 @@ struct IDTypeForeachColorFunctionCallback {
 };
 using IDTypeForeachColorFunction = void (*)(ID *id, const IDTypeForeachColorFunctionCallback &cb);
 
-enum class eIDTypeInfoIDPropertyCallbackFlags {
-  /** A 'user-defined' (a.k.a. custom properties) IDProperty. */
-  user_defined,
-  /** A 'system-defined' (a.k.a. runtima RNA backend storage) IDProperty. */
-  system_defined,
+struct IDTypeInfoIDPropertyCallbackParams {
+  IDProperty **idproperty_p;
+  enum class eFlags {
+    /** A 'user-defined' (a.k.a. custom properties) IDProperty. */
+    user_defined,
+    /** A 'system-defined' (a.k.a. runtima RNA backend storage) IDProperty. */
+    system_defined,
+  } flags;
 };
 using IDTypeForeachIDPropertyContainerCallback =
-    blender::FunctionRef<void(IDProperty **, const eIDTypeInfoIDPropertyCallbackFlags)>;
+    blender::FunctionRef<void(IDTypeInfoIDPropertyCallbackParams &params)>;
 using IDTypeForeachIDPropertyContainer =
     void (*)(ID &id, IDTypeForeachIDPropertyContainerCallback function_callback);
 

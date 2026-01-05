@@ -183,8 +183,14 @@ static void material_foreach_id(ID *id, LibraryForeachIDData *data)
 static void material_foreach_idproperty_container(
     ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
 {
-  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+  IDTypeInfoIDPropertyCallbackParams params;
+  params.idproperty_p = &id.properties;
+  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+  function_callback(params);
+
+  params.idproperty_p = &id.system_properties;
+  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  function_callback(params);
 
   Material &material = blender::id_cast<Material &>(id);
   if (material.nodetree) {

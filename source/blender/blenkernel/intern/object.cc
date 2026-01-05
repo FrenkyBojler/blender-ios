@@ -515,8 +515,14 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
 static void object_foreach_idproperty_container(
     ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
 {
-  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+  IDTypeInfoIDPropertyCallbackParams params;
+  params.idproperty_p = &id.properties;
+  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+  function_callback(params);
+
+  params.idproperty_p = &id.system_properties;
+  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  function_callback(params);
 
   Object &object = blender::id_cast<Object &>(id);
 
@@ -524,9 +530,13 @@ static void object_foreach_idproperty_container(
 
   if (object.pose) {
     for (bPoseChannel &pchan : object.pose->chanbase) {
-      function_callback(&pchan.prop, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-      function_callback(&pchan.system_properties,
-                        eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+      params.idproperty_p = &pchan.prop;
+      params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+      function_callback(params);
+
+      params.idproperty_p = &pchan.system_properties;
+      params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+      function_callback(params);
     }
   }
 }

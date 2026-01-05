@@ -189,18 +189,18 @@ TEST_F(IDPropContainerIteratorFixture, idproperties_container_iterator)
 {
   struct SeenResult {
     IDProperty *idproperty;
-    eIDTypeInfoIDPropertyCallbackFlags flags;
+    IDTypeInfoIDPropertyCallbackParams params;
   };
   blender::Vector<SeenResult> seen_idproperties_containers;
   int seen_properties_pointers = 0;
 
   blender::bke::idprop::foreach_id_idproperty_container(
       this->arm.id,
-      [&seen_idproperties_containers, &seen_properties_pointers](
-          IDProperty **idproperty, const eIDTypeInfoIDPropertyCallbackFlags flags) -> void {
+      [&seen_idproperties_containers,
+       &seen_properties_pointers](IDTypeInfoIDPropertyCallbackParams &params) -> void {
         seen_properties_pointers++;
-        if (*idproperty) {
-          seen_idproperties_containers.append({*idproperty, flags});
+        if (*params.idproperty_p) {
+          seen_idproperties_containers.append({*params.idproperty_p, params});
         }
       });
 
@@ -208,14 +208,14 @@ TEST_F(IDPropContainerIteratorFixture, idproperties_container_iterator)
             this->created_user_properties.size() + this->created_system_properties.size());
   EXPECT_EQ(seen_properties_pointers, 8);
   for (SeenResult &result : seen_idproperties_containers) {
-    if (result.flags == eIDTypeInfoIDPropertyCallbackFlags::user_defined) {
+    if (result.params.flags == IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined) {
       EXPECT_TRUE(this->created_user_properties.contains(result.idproperty));
     }
-    else if (result.flags == eIDTypeInfoIDPropertyCallbackFlags::system_defined) {
+    else if (result.params.flags == IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined) {
       EXPECT_TRUE(this->created_system_properties.contains(result.idproperty));
     }
     else {
-      FAIL() << "Unexpected eIDTypeInfoIDPropertyCallbackFlags value" << int(result.flags);
+      FAIL() << "Unexpected eIDTypeInfoIDPropertyCallbackFlags value" << int(result.params.flags);
     }
   }
 }

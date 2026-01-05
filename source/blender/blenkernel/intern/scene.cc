@@ -958,8 +958,14 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
 static void scene_foreach_idproperty_container(
     ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
 {
-  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+  IDTypeInfoIDPropertyCallbackParams params;
+  params.idproperty_p = &id.properties;
+  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+  function_callback(params);
+
+  params.idproperty_p = &id.system_properties;
+  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  function_callback(params);
 
   Scene &scene = blender::id_cast<Scene &>(id);
   if (scene.nodetree) {
@@ -971,9 +977,14 @@ static void scene_foreach_idproperty_container(
   }
 
   auto seq_strip_foreach_idproperty_container_func = [&function_callback](Strip *strip) -> bool {
-    function_callback(&strip->prop, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-    function_callback(&strip->system_properties,
-                      eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+    IDTypeInfoIDPropertyCallbackParams params;
+    params.idproperty_p = &strip->prop;
+    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+    function_callback(params);
+
+    params.idproperty_p = &strip->system_properties;
+    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+    function_callback(params);
     return true;
   };
   if (scene.ed) {
@@ -981,13 +992,19 @@ static void scene_foreach_idproperty_container(
   }
 
   for (ViewLayer &view_layer : scene.view_layers) {
-    function_callback(&view_layer.id_properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-    function_callback(&view_layer.system_properties,
-                      eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+    params.idproperty_p = &view_layer.id_properties;
+    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+    function_callback(params);
+
+    params.idproperty_p = &view_layer.system_properties;
+    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+    function_callback(params);
   }
 
   for (TimeMarker &marker : scene.markers) {
-    function_callback(&marker.prop, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+    params.idproperty_p = &marker.prop;
+    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+    function_callback(params);
   }
 }
 

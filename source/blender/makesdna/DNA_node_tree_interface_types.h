@@ -30,9 +30,9 @@ struct LibraryForeachIDData;
 struct BlendWriter;
 struct BlendDataReader;
 
-enum class eIDTypeInfoIDPropertyCallbackFlags;
+struct IDTypeInfoIDPropertyCallbackParams;
 using IDTypeForeachIDPropertyContainerCallback =
-    blender::FunctionRef<void(IDProperty **, const eIDTypeInfoIDPropertyCallbackFlags)>;
+    blender::FunctionRef<void(IDTypeInfoIDPropertyCallbackParams &params)>;
 
 /** Type of interface item. */
 enum eNodeTreeInterfaceItemType {

@@ -862,7 +862,10 @@ static void item_foreach_idproperty_container(
   switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
       bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
-      function_callback(&socket.properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+      IDTypeInfoIDPropertyCallbackParams params;
+      params.idproperty_p = &socket.properties;
+      params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+      function_callback(params);
       break;
     }
     case NODE_INTERFACE_PANEL: {

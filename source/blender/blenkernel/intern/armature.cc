@@ -287,8 +287,14 @@ static void armature_foreach_id(ID *id, LibraryForeachIDData *data)
 static void armature_foreach_idproperty_container_bone(
     Bone &bone, IDTypeForeachIDPropertyContainerCallback function_callback)
 {
-  function_callback(&bone.prop, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-  function_callback(&bone.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+  IDTypeInfoIDPropertyCallbackParams params;
+  params.idproperty_p = &bone.prop;
+  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+  function_callback(params);
+
+  params.idproperty_p = &bone.system_properties;
+  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  function_callback(params);
 
   for (Bone &curbone : bone.childbase) {
     armature_foreach_idproperty_container_bone(curbone, function_callback);
@@ -298,8 +304,14 @@ static void armature_foreach_idproperty_container_bone(
 static void armature_foreach_idproperty_container(
     ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
 {
-  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+  IDTypeInfoIDPropertyCallbackParams params;
+  params.idproperty_p = &id.properties;
+  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+  function_callback(params);
+
+  params.idproperty_p = &id.system_properties;
+  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  function_callback(params);
 
   bArmature &arm = id_cast<bArmature &>(id);
   for (Bone &bone : arm.bonebase) {
@@ -308,16 +320,24 @@ static void armature_foreach_idproperty_container(
 
   if (arm.edbo != nullptr) {
     for (EditBone &edit_bone : *arm.edbo) {
-      function_callback(&edit_bone.prop, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-      function_callback(&edit_bone.system_properties,
-                        eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+      params.idproperty_p = &edit_bone.prop;
+      params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+      function_callback(params);
+
+      params.idproperty_p = &edit_bone.prop;
+      params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+      function_callback(params);
     }
   }
 
   for (BoneCollection *bcoll : arm.collections_span()) {
-    function_callback(&bcoll->prop, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-    function_callback(&bcoll->system_properties,
-                      eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+    params.idproperty_p = &bcoll->prop;
+    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+    function_callback(params);
+
+    params.idproperty_p = &bcoll->system_properties;
+    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+    function_callback(params);
   }
 }
 

@@ -12,7 +12,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
 
-#include "BKE_idtype.hh"    /* For LibraryForeachIDCallbackFlag. */
+#include "BKE_idtype.hh"
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
 
 #include "DNA_customdata_types.h"

@@ -442,18 +442,25 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
 static void node_foreach_idproperty_container(
     ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
 {
-  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+  IDTypeInfoIDPropertyCallbackParams params;
+  params.idproperty_p = &id.properties;
+  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+  function_callback(params);
+
+  params.idproperty_p = &id.system_properties;
+  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  function_callback(params);
 
   bNodeTree &ntree = reinterpret_cast<bNodeTree &>(id);
 
-  auto node_node_foreach_idproperty_container_func = [&function_callback](bNode *node) -> void {
-    function_callback(&node->prop, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
-    function_callback(&node->system_properties,
-                      eIDTypeInfoIDPropertyCallbackFlags::system_defined);
-  };
   for (bNode *node : ntree.all_nodes()) {
-    node_node_foreach_idproperty_container_func(node);
+    params.idproperty_p = &node->prop;
+    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+    function_callback(params);
+
+    params.idproperty_p = &node->system_properties;
+    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+    function_callback(params);
   }
 
   ntree.tree_interface.foreach_idproperty_container(function_callback);

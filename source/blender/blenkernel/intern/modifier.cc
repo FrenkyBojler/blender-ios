@@ -301,8 +301,11 @@ void BKE_modifiers_foreach_idproperty_container(
      * future it will likely be best to add another callback to the #ModifierTypeInfo struct. */
     if (md.type == eModifierType_Nodes) {
       NodesModifierData &nmd = reinterpret_cast<NodesModifierData &>(md);
-      function_callback(&nmd.settings.properties,
-                        eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+
+      IDTypeInfoIDPropertyCallbackParams params;
+      params.idproperty_p = &nmd.settings.properties;
+      params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+      function_callback(params);
     }
   }
 }
