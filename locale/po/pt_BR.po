@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2025-12-16 11:27+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-11-11 12:13+0000\n"
 "Last-Translator: Rafael Teixeira de Avila Soares <rafaeltas@gmail.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
@@ -21231,12 +21231,48 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
-msgid "Mirror"
-msgstr "Espelhar"
+msgid "Show/Hide"
+msgstr "Mostrar ou ocultar"
+
+
+msgid "Names"
+msgstr "Nomes"
+
+
+msgid "Bone Roll"
+msgstr "Rolagem dos ossos"
+
+
+msgid "Math"
+msgstr "Matemática"
+
+
+msgid "Clean Up"
+msgstr "Limpeza"
+
+
+msgid "Pivot Point"
+msgstr "Pontos de pivô"
 
 
 msgid "Snap"
 msgstr "Atrair"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Tipo de decaimento para edição proporcional"
+
+
+msgid "Instances"
+msgstr "Instâncias"
+
+
+msgid "Import"
+msgstr "Importar"
+
+
+msgid "Mirror"
+msgstr "Espelhar"
 
 
 msgid "UV Mapping"
@@ -21271,6 +21307,10 @@ msgid "Select More/Less"
 msgstr "Selecionar mais ou menos"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Select Similar"
 msgstr "Selecionar por similaridades"
 
@@ -21289,10 +21329,6 @@ msgstr "Selecionar anéis"
 
 msgid "Metaball"
 msgstr "Meta-esfera"
-
-
-msgid "Layout"
-msgstr "Organizar"
 
 
 msgid "Light"
@@ -21315,36 +21351,16 @@ msgid "Rigid Body"
 msgstr "Corpo rígido"
 
 
-msgid "Keying"
-msgstr "Inserção de chaves"
-
-
 msgid "Apply"
 msgstr "Aplicar"
-
-
-msgid "Tracking"
-msgstr "Rastreamento"
 
 
 msgid "Track"
 msgstr "Rastrear"
 
 
-msgid "Math"
-msgstr "Matemática"
-
-
 msgid "Quick Effects"
 msgstr "Efeitos instantâneos"
-
-
-msgid "Show/Hide"
-msgstr "Mostrar ou ocultar"
-
-
-msgid "Clean Up"
-msgstr "Limpeza"
 
 
 msgid "Make Single User"
@@ -21357,6 +21373,10 @@ msgstr "Converter"
 
 msgid "Hooks"
 msgstr "Ganchos"
+
+
+msgid "Layout"
+msgstr "Organizar"
 
 
 msgid "Random Mask"
@@ -21375,10 +21395,6 @@ msgid "Propagate"
 msgstr "Propagar"
 
 
-msgid "Names"
-msgstr "Nomes"
-
-
 msgid "Toggle Bone Options"
 msgstr "Alternar opções de ossos"
 
@@ -21387,8 +21403,16 @@ msgid "Enable Bone Options"
 msgstr "Habilitar opções de ossos"
 
 
+msgid "Keying"
+msgstr "Inserção de chaves"
+
+
 msgid "Disable Bone Options"
 msgstr "Desabilitar as opções de ossos"
+
+
+msgid "Tracking"
+msgstr "Rastreamento"
 
 
 msgid "Mesh Select Mode"
@@ -21405,30 +21429,6 @@ msgstr "Fundir"
 
 msgid "Special Characters"
 msgstr "Caracteres especiais"
-
-
-msgid "Instances"
-msgstr "Instâncias"
-
-
-msgid "Bone Roll"
-msgstr "Rolagem dos ossos"
-
-
-msgid "Import"
-msgstr "Importar"
-
-
-msgid "Pivot Point"
-msgstr "Pontos de pivô"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Tipo de decaimento para edição proporcional"
 
 
 msgid "Basic"
@@ -48295,6 +48295,10 @@ msgid "Active Palette Color"
 msgstr "Cor ativa da paleta"
 
 
+msgid "Render Pass"
+msgstr "Passo de renderização"
+
+
 msgid "Motion Tracking"
 msgstr "Captura de movimentos"
 
@@ -48309,10 +48313,6 @@ msgstr "Exibição Quadrante"
 
 msgid "Stereoscopy"
 msgstr "Estereoscopia"
-
-
-msgid "Render Pass"
-msgstr "Passo de renderização"
 
 
 msgid "Bone Constraints"
@@ -62888,6 +62888,14 @@ msgid "ParticleSettings"
 msgstr "Configurações de partículas"
 
 
+msgid "Mesh has no UV data"
+msgstr "Malha não possui dados UV"
+
+
+msgid "Mesh has no VCol data"
+msgstr "A malha não possui dados de cores de vértices."
+
+
 msgid "%i frames found!"
 msgstr "%i quadros encontrados !"
 
@@ -65881,10 +65889,6 @@ msgid "Cannot swap selected strips as they will not be able to fit in their new 
 msgstr "Não é possível alternar as faixas selecionadas pois estas não se encaixam em seus novos locais."
 
 
-msgid "Action '%s' does not specify what data-blocks it can be used on (try setting the 'ID Root Type' setting from the data-blocks editor for this action to avoid future problems)"
-msgstr "A ação '%s' não especifica em quais blocos de dados pode ser usada. (tente configurar o \"Tipo de identificador raiz\" a partir do editor de blocos de dados nesta ação para evitar problemas futuros)."
-
-
 msgid "Could not add action '%s' as it cannot be used relative to ID-blocks of type '%s'"
 msgstr "Não foi possível adicionar ação '%s' pelo fato de não poder ser usada estando relacionada aos identificadores de blocos do tipo '%s'"
 
@@ -67093,14 +67097,6 @@ msgstr "Objeto '%s' não pode criar dados internos para encontrar o ponto mais p
 
 msgid "Palette '%s' does not contain color given"
 msgstr "A paleta '%s' não contém a cor fornecida."
-
-
-msgid "Mesh has no UV data"
-msgstr "Malha não possui dados UV"
-
-
-msgid "Mesh has no VCol data"
-msgstr "A malha não possui dados de cores de vértices."
 
 
 msgid "Constraint '%s' not found in pose bone '%s'"

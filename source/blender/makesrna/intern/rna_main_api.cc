@@ -19,6 +19,9 @@
 
 #ifdef RNA_RUNTIME
 
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
+
 #  include "BKE_action.hh"
 #  include "BKE_armature.hh"
 #  include "BKE_brush.hh"
@@ -31,6 +34,7 @@
 #  include "BKE_idtype.hh"
 #  include "BKE_image.hh"
 #  include "BKE_lattice.hh"
+#  include "BKE_lib_id.hh"
 #  include "BKE_lib_remap.hh"
 #  include "BKE_library.hh"
 #  include "BKE_light.h"
@@ -821,7 +825,7 @@ static Volume *rna_Main_volumes_new(Main *bmain, const char *name)
 #  define RNA_MAIN_ID_TAG_FUNCS_DEF(_func_name, _listbase_name, _id_type) \
     static void rna_Main_##_func_name##_tag(Main *bmain, bool value) \
     { \
-      BKE_main_id_tag_listbase(&bmain->_listbase_name, ID_TAG_DOIT, value); \
+      BKE_main_id_tag_listbase(&bmain->_listbase_name.cast<ID>(), ID_TAG_DOIT, value); \
     }
 
 RNA_MAIN_ID_TAG_FUNCS_DEF(cameras, cameras, ID_CA)

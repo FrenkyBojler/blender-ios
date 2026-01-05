@@ -161,7 +161,7 @@ static void cmp_node_keying_declare(NodeDeclarationBuilder &b)
 static void node_composit_init_keying(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, only kept for forward compatibility. */
-  NodeKeyingData *data = MEM_callocN<NodeKeyingData>(__func__);
+  NodeKeyingData *data = MEM_new_for_free<NodeKeyingData>(__func__);
   node->storage = data;
 }
 
@@ -241,7 +241,7 @@ class KeyingOperation : public NodeOperation {
 
     Result blurred_chroma = context().create_result(ResultType::Color);
     symmetric_separable_blur(
-        context(), chroma, blurred_chroma, float2(blur_size) / 2, R_FILTER_BOX);
+        context(), chroma, blurred_chroma, float2(blur_size) / 2, math::FilterKernel::Box);
     chroma.release();
 
     Result blurred_input = replace_input_chroma(blurred_chroma);
@@ -661,7 +661,7 @@ class KeyingOperation : public NodeOperation {
 
     Result blurred_matte = context().create_result(ResultType::Float);
     symmetric_separable_blur(
-        context(), input_matte, blurred_matte, float2(blur_size) / 2, R_FILTER_BOX);
+        context(), input_matte, blurred_matte, float2(blur_size) / 2, math::FilterKernel::Box);
 
     return blurred_matte;
   }

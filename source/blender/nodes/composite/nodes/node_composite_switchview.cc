@@ -32,11 +32,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (scene != nullptr) {
     /* add the new views */
-    LISTBASE_FOREACH (SceneRenderView *, srv, &scene->r.views) {
-      if (srv->viewflag & SCE_VIEW_DISABLE) {
+    for (SceneRenderView &srv : scene->r.views) {
+      if (srv.viewflag & SCE_VIEW_DISABLE) {
         continue;
       }
-      b.add_input<decl::Color>(srv->name)
+      b.add_input<decl::Color>(srv.name)
           .default_value({0.0f, 0.0f, 0.0f, 1.0f})
           .structure_type(StructureType::Dynamic);
     }
@@ -64,13 +64,13 @@ class SwitchViewOperation : public NodeOperation {
     Result &result = get_result("Image");
 
     /* A context that is not multi view, pass the first input through as a fallback. */
-    if (context().get_view_name().is_empty()) {
-      const Result &input = get_input(node().input(0)->identifier);
+    if (this->context().get_view_name().is_empty()) {
+      const Result &input = this->get_input(this->node().input_socket(0).identifier);
       result.share_data(input);
       return;
     }
 
-    const Result &input = get_input(context().get_view_name());
+    const Result &input = this->get_input(this->context().get_view_name());
     result.share_data(input);
   }
 };

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-16 11:27+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-12-11 18:12+0000\n"
 "Last-Translator: Jackson Zheng <business.jackson.zheng@gmail.com>\n"
 "Language-Team: English (United Kingdom) <https://translate.blender.org/projects/blender-ui/ui/en_GB/>\n"
@@ -34918,12 +34918,88 @@ msgid "Editor menu containing buttons"
 msgstr "Editor menu containing buttons"
 
 
-msgid "Mirror"
-msgstr "Mirror"
+msgid "Show/Hide"
+msgstr "Show/Hide"
+
+
+msgid "Names"
+msgstr "Names"
+
+
+msgid "Bone Roll"
+msgstr "Bone Roll"
+
+
+msgid "Math"
+msgstr "Maths"
+
+
+msgid "Utilities"
+msgstr "Utilities"
+
+
+msgid "Clean Up"
+msgstr "Clean Up"
+
+
+msgid "Pivot Point"
+msgstr "Pivot Point"
 
 
 msgid "Snap"
 msgstr "Snap"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proportional Editing Falloff"
+
+
+msgid "Mask Edit"
+msgstr "Mask Edit"
+
+
+msgid "Automasking"
+msgstr "Automasking"
+
+
+msgid "Read"
+msgstr "Read"
+
+
+msgid "Sample"
+msgstr "Sample"
+
+
+msgid "Face Sets Edit"
+msgstr "Face Sets Edit"
+
+
+msgid "Write"
+msgstr "Write"
+
+
+msgid "Vertex Group Locks"
+msgstr "Vertex Group Locks"
+
+
+msgid "Primitives"
+msgstr "Primitives"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Instances"
+
+
+msgid "Import"
+msgstr "Import"
+
+
+msgid "Mirror"
+msgstr "Mirror"
 
 
 msgid "UV Mapping"
@@ -34942,6 +35018,10 @@ msgid "Navigation"
 msgstr "Navigation"
 
 
+msgid "Deprecated"
+msgstr "Deprecated"
+
+
 msgid "Align View"
 msgstr "Align View"
 
@@ -34956,6 +35036,14 @@ msgstr "View Regions"
 
 msgid "Select More/Less"
 msgstr "Select More/Less"
+
+
+msgid "List"
+msgstr "List"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -34982,10 +35070,6 @@ msgid "Metaball"
 msgstr "Metaball"
 
 
-msgid "Layout"
-msgstr "Layout"
-
-
 msgid "Light"
 msgstr "Light"
 
@@ -35002,52 +35086,20 @@ msgid "Relations"
 msgstr "Relations"
 
 
-msgid "Adjust"
-msgstr "Adjust"
-
-
 msgid "Rigid Body"
 msgstr "Rigid Body"
-
-
-msgid "Keying"
-msgstr "Keying"
 
 
 msgid "Apply"
 msgstr "Apply"
 
 
-msgid "Tracking"
-msgstr "Tracking"
-
-
 msgid "Track"
 msgstr "Track"
 
 
-msgid "Utilities"
-msgstr "Utilities"
-
-
-msgid "Math"
-msgstr "Maths"
-
-
 msgid "Quick Effects"
 msgstr "Quick Effects"
-
-
-msgid "Creative"
-msgstr "Creative"
-
-
-msgid "Show/Hide"
-msgstr "Show/Hide"
-
-
-msgid "Clean Up"
-msgstr "Clean Up"
 
 
 msgid "Asset"
@@ -35070,16 +35122,8 @@ msgid "Hooks"
 msgstr "Hooks"
 
 
-msgid "Vertex Group Locks"
-msgstr "Vertex Group Locks"
-
-
 msgid "Trim/Add"
 msgstr "Trim/Add"
-
-
-msgid "Render Preview"
-msgstr "Render Preview"
 
 
 msgid "Sculpt Set Pivot"
@@ -35088,6 +35132,10 @@ msgstr "Sculpt Set Pivot"
 
 msgid "Face Sets Init"
 msgstr "Face Sets Init"
+
+
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Random Mask"
@@ -35110,8 +35158,8 @@ msgid "Bone Collections"
 msgstr "Bone Collections"
 
 
-msgid "Names"
-msgstr "Names"
+msgid "Adjust"
+msgstr "Adjust"
 
 
 msgid "Toggle Bone Options"
@@ -35122,8 +35170,16 @@ msgid "Enable Bone Options"
 msgstr "Enable Bone Options"
 
 
+msgid "Keying"
+msgstr "Keying"
+
+
 msgid "Disable Bone Options"
 msgstr "Disable Bone Options"
+
+
+msgid "Tracking"
+msgstr "Tracking"
 
 
 msgid "Mesh Select Mode"
@@ -35132,6 +35188,10 @@ msgstr "Mesh Select Mode"
 
 msgid "Face Data"
 msgstr "Face Data"
+
+
+msgid "Creative"
+msgstr "Creative"
 
 
 msgid "Select by Face Strength"
@@ -35146,20 +35206,8 @@ msgid "Merge"
 msgstr "Merge"
 
 
-msgid "Read"
-msgstr "Read"
-
-
-msgid "Sample"
-msgstr "Sample"
-
-
-msgid "Write"
-msgstr "Write"
-
-
-msgid "Primitives"
-msgstr "Primitives"
+msgid "Render Preview"
+msgstr "Render Preview"
 
 
 msgid "Special Characters"
@@ -35168,54 +35216,6 @@ msgstr "Special Characters"
 
 msgid "Kerning"
 msgstr "Kerning"
-
-
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Instances"
-
-
-msgid "Bone Roll"
-msgstr "Bone Roll"
-
-
-msgid "Import"
-msgstr "Import"
-
-
-msgid "Deprecated"
-msgstr "Deprecated"
-
-
-msgid "List"
-msgstr "List"
-
-
-msgid "Pivot Point"
-msgstr "Pivot Point"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proportional Editing Falloff"
-
-
-msgid "Mask Edit"
-msgstr "Mask Edit"
-
-
-msgid "Automasking"
-msgstr "Automasking"
-
-
-msgid "Face Sets Edit"
-msgstr "Face Sets Edit"
 
 
 msgid "Keyframe Insert Pie"
@@ -56918,15 +56918,6 @@ msgstr "Only Unused"
 
 msgid "Only unused (Fake User only) actions get considered"
 msgstr "Only unused (Fake User only) actions get considered"
-
-
-msgctxt "Operator"
-msgid "Convert Legacy Action"
-msgstr "Convert Legacy Action"
-
-
-msgid "Convert a legacy Action to a layered Action on the active object"
-msgstr "Convert a legacy Action to a layered Action on the active object"
 
 
 msgctxt "Operator"
@@ -82327,10 +82318,6 @@ msgid "Project the geometry onto a plane defined by a line"
 msgstr "Project the geometry onto a plane defined by a line"
 
 
-msgid "Sample the vertex color of the active vertex"
-msgstr "Sample the vertex colour of the active vertex"
-
-
 msgctxt "Operator"
 msgid "Sample Detail Size"
 msgstr "Sample Detail Size"
@@ -91574,6 +91561,58 @@ msgid "Panel containing UI elements"
 msgstr "Panel containing UI elements"
 
 
+msgid "glTF Variants"
+msgstr "glTF Variants"
+
+
+msgid "glTF Material Variants"
+msgstr "glTF Material Variants"
+
+
+msgid "glTF"
+msgstr "glTF"
+
+
+msgid "glTF Animations"
+msgstr "glTF Animations"
+
+
+msgid "Active Tool"
+msgstr "Active Tool"
+
+
+msgid "View Lock"
+msgstr "View Lock"
+
+
+msgid "Selectability & Visibility"
+msgstr "Selectability & Visibility"
+
+
+msgid "Wireframe Color"
+msgstr "Wireframe Colour"
+
+
+msgid "Shadow Settings"
+msgstr "Shadow Settings"
+
+
+msgid "SSAO Settings"
+msgstr "SSAO Settings"
+
+
+msgid "Cavity"
+msgstr "Cavity"
+
+
+msgid "Render Pass"
+msgstr "Render Pass"
+
+
+msgid "Compositor"
+msgstr "Compositor"
+
+
 msgid "Overlays"
 msgstr "Overlays"
 
@@ -91664,58 +91703,6 @@ msgstr "VR"
 
 msgid "VR Info"
 msgstr "VR Info"
-
-
-msgid "glTF Variants"
-msgstr "glTF Variants"
-
-
-msgid "glTF Material Variants"
-msgstr "glTF Material Variants"
-
-
-msgid "glTF"
-msgstr "glTF"
-
-
-msgid "glTF Animations"
-msgstr "glTF Animations"
-
-
-msgid "Active Tool"
-msgstr "Active Tool"
-
-
-msgid "View Lock"
-msgstr "View Lock"
-
-
-msgid "Selectability & Visibility"
-msgstr "Selectability & Visibility"
-
-
-msgid "Wireframe Color"
-msgstr "Wireframe Colour"
-
-
-msgid "Shadow Settings"
-msgstr "Shadow Settings"
-
-
-msgid "SSAO Settings"
-msgstr "SSAO Settings"
-
-
-msgid "Cavity"
-msgstr "Cavity"
-
-
-msgid "Render Pass"
-msgstr "Render Pass"
-
-
-msgid "Compositor"
-msgstr "Compositor"
 
 
 msgid "Import Settings"
@@ -96950,14 +96937,6 @@ msgid "Chinese (Traditional) - 繁體中文"
 msgstr "Chinese (Traditional) - 繁體中文"
 
 
-msgid "Croatian - Hrvatski"
-msgstr "Croatian - Hrvatski"
-
-
-msgid "Locale code: hr_HR. Translation progress: 0%"
-msgstr "Locale code: hr_HR. Translation progress: 0%"
-
-
 msgid "Czech - Čeština"
 msgstr "Czech - Čeština"
 
@@ -97038,14 +97017,6 @@ msgid "Locale code: el_GR. Translation progress: 1%"
 msgstr "Locale code: el_GR. Translation progress: 1%"
 
 
-msgid "Hausa - Hausa"
-msgstr "Hausa - Hausa"
-
-
-msgid "Locale code: ha. Translation progress: 0%"
-msgstr "Locale code: ha. Translation progress: 0%"
-
-
 msgid "Hebrew - תירִבְעִ"
 msgstr "Hebrew - תירִבְעִ"
 
@@ -97074,16 +97045,8 @@ msgid "Indonesian - Bahasa indonesia"
 msgstr "Indonesian - Bahasa indonesia"
 
 
-msgid "Locale code: id_ID. Translation progress: 21%"
-msgstr "Locale code: id_ID. Translation progress: 21%"
-
-
 msgid "Italian - Italiano"
 msgstr "Italian - Italiano"
-
-
-msgid "Locale code: it_IT. Translation progress: 45%"
-msgstr "Locale code: it_IT. Translation progress: 45%"
 
 
 msgid "Japanese - 日本語"
@@ -97092,14 +97055,6 @@ msgstr "Japanese - 日本語"
 
 msgid "Locale code: ja_JP. Translation progress: 99%"
 msgstr "Locale code: ja_JP. Translation progress: 99%"
-
-
-msgid "Khmer - ខ្មែរ"
-msgstr "Khmer - ខ្មែរ"
-
-
-msgid "Locale code: km. Translation progress: 0%"
-msgstr "Locale code: km. Translation progress: 0%"
 
 
 msgid "Korean - 한국어"
@@ -97134,14 +97089,6 @@ msgid "Locale code: ml. Translation progress: 0%"
 msgstr "Locale code: ml. Translation progress: 0%"
 
 
-msgid "Nepali - नेपाली"
-msgstr "Nepali - नेपाली"
-
-
-msgid "Locale code: ne_NP. Translation progress: 0%"
-msgstr "Locale code: ne_NP. Translation progress: 0%"
-
-
 msgid "Norwegian (Bokmål) - Norsk bokmål"
 msgstr "Norwegian (Bokmål) - Norsk bokmål"
 
@@ -97168,10 +97115,6 @@ msgstr "Portuguese (Brazil) - Português brasileiro"
 
 msgid "Portuguese (Portugal) - Português europeu"
 msgstr "Portuguese (Portugal) - Português europeu"
-
-
-msgid "Locale code: pt_PT. Translation progress: 73%"
-msgstr "Locale code: pt_PT. Translation progress: 73%"
 
 
 msgid "Romanian - Român"
@@ -97242,10 +97185,6 @@ msgid "Swedish - Svenska"
 msgstr "Swedish - Svenska"
 
 
-msgid "Locale code: sv_SE. Translation progress: 22%"
-msgstr "Locale code: sv_SE. Translation progress: 22%"
-
-
 msgid "Tamil - தமிழ்"
 msgstr "Tamil - தமிழ்"
 
@@ -97288,10 +97227,6 @@ msgstr "Locale code: ur. Translation progress: 87%"
 
 msgid "Vietnamese - Tiếng Việt"
 msgstr "Vietnamese - Tiếng Việt"
-
-
-msgid "Locale code: vi_VN. Translation progress: 95%"
-msgstr "Locale code: vi_VN. Translation progress: 95%"
 
 
 msgid "Reference Sphere Size"
@@ -131041,6 +130976,18 @@ msgid "particles"
 msgstr "particles"
 
 
+msgid "Object was not yet evaluated"
+msgstr "Object was not yet evaluated"
+
+
+msgid "Mesh has no UV data"
+msgstr "Mesh has no UV data"
+
+
+msgid "Mesh has no VCol data"
+msgstr "Mesh has no VCol data"
+
+
 msgid "Unsaved"
 msgstr "Unsaved"
 
@@ -131818,18 +131765,6 @@ msgid "color_index is invalid"
 msgstr "color_index is invalid"
 
 
-msgid "Compositor node tree has cyclic links!"
-msgstr "Compositor node tree has cyclic links!"
-
-
-msgid "Compositor node tree has undefined nodes or sockets!"
-msgstr "Compositor node tree has undefined nodes or sockets!"
-
-
-msgid "Compositor node tree has unsupported nodes."
-msgstr "Compositor node tree has unsupported nodes."
-
-
 msgid "Error: Too many AOVs"
 msgstr "Error: Too many AOVs"
 
@@ -132090,10 +132025,6 @@ msgid "No active action to operate on"
 msgstr "No active action to operate on"
 
 
-msgid "Active action is not layered"
-msgstr "Active action is not layered"
-
-
 msgid "No active object"
 msgstr "No active object"
 
@@ -132189,10 +132120,6 @@ msgstr "Failed to merge any animation. Note that NLA strips cannot be merged"
 
 msgid "Expected an animation area to be active"
 msgstr "Expected an animation area to be active"
-
-
-msgid "Action is already layered"
-msgstr "Action is already layered"
 
 
 msgid "Active object has no action"
@@ -135152,18 +135079,6 @@ msgid "Loop cut does not work well on deformed edit mesh display"
 msgstr "Loop cut does not work well on deformed edit mesh display"
 
 
-msgid "Create Mesh From Paint Mask"
-msgstr "Create Mesh From Paint Mask"
-
-
-msgid "Extract"
-msgstr "Extract"
-
-
-msgid "The geometry cannot be extracted with dyntopo activated"
-msgstr "The geometry cannot be extracted with dyntopo activated"
-
-
 msgid "Path selection requires two matching elements to be selected"
 msgstr "Path selection requires two matching elements to be selected"
 
@@ -138063,6 +137978,18 @@ msgid "Texture mapping not set to 3D, results may be unpredictable"
 msgstr "Texture mapping not set to 3D, results may be unpredictable"
 
 
+msgid "Create Mesh From Paint Mask"
+msgstr "Create Mesh From Paint Mask"
+
+
+msgid "Extract"
+msgstr "Extract"
+
+
+msgid "The geometry cannot be extracted with dyntopo activated"
+msgstr "The geometry cannot be extracted with dyntopo activated"
+
+
 msgid "non-triangle face"
 msgstr "non-triangle face"
 
@@ -138686,10 +138613,6 @@ msgstr "Videos"
 
 msgid "OneDrive"
 msgstr "OneDrive"
-
-
-msgid "Movies"
-msgstr "Movies"
 
 
 msgid "Cursor X"
@@ -139357,10 +139280,6 @@ msgstr "Cannot swap selected strips because they will overlap each other in thei
 
 msgid "Cannot swap selected strips as they will not be able to fit in their new places"
 msgstr "Cannot swap selected strips as they will not be able to fit in their new places"
-
-
-msgid "Action '%s' does not specify what data-blocks it can be used on (try setting the 'ID Root Type' setting from the data-blocks editor for this action to avoid future problems)"
-msgstr "Action '%s' does not specify what data-blocks it can be used on (try setting the 'ID Root Type' setting from the data-blocks editor for this action to avoid future problems)"
 
 
 msgid "Could not add action '%s' as it cannot be used relative to ID-blocks of type '%s'"
@@ -144261,18 +144180,6 @@ msgstr "Invalid target!"
 
 msgid "uv_on_emitter() requires a modifier from an evaluated object"
 msgstr "uv_on_emitter() requires a modifier from an evaluated object"
-
-
-msgid "Mesh has no UV data"
-msgstr "Mesh has no UV data"
-
-
-msgid "Object was not yet evaluated"
-msgstr "Object was not yet evaluated"
-
-
-msgid "Mesh has no VCol data"
-msgstr "Mesh has no VCol data"
 
 
 msgid "Cannot edit bone groups for library overrides"
