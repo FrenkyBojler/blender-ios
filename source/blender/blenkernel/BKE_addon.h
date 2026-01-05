@@ -7,11 +7,8 @@
  * \ingroup bke
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "DNA_listBase.h"
 
-struct ListBase;
 struct bAddon;
 
 #ifdef __RNA_TYPES_H__
@@ -35,11 +32,7 @@ void BKE_addon_pref_type_init(void);
 void BKE_addon_pref_type_free(void);
 
 struct bAddon *BKE_addon_new(void);
-struct bAddon *BKE_addon_find(const struct ListBase *addon_list, const char *module);
-struct bAddon *BKE_addon_ensure(struct ListBase *addon_list, const char *module);
-bool BKE_addon_remove_safe(struct ListBase *addon_list, const char *module);
+struct bAddon *BKE_addon_find(const ListBaseT<bAddon> *addon_list, const char *module);
+struct bAddon *BKE_addon_ensure(ListBaseT<bAddon> *addon_list, const char *module);
+bool BKE_addon_remove_safe(ListBaseT<bAddon> *addon_list, const char *module);
 void BKE_addon_free(struct bAddon *addon);
-
-#ifdef __cplusplus
-}
-#endif

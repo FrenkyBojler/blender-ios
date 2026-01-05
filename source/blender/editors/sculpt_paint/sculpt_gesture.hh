@@ -11,8 +11,8 @@
 #include "BLI_array.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_index_mask.hh"
-#include "BLI_math_matrix.hh"
-#include "BLI_vector.hh"
+#include "BLI_math_matrix_types.hh"
+#include "BLI_math_vector_types.hh"
 
 #include "DNA_scene_enums.h"
 #include "DNA_vec_types.h"
@@ -69,6 +69,9 @@ struct Operation;
 
 /* Common data used for executing a gesture operation. */
 struct GestureData {
+  const Paint *paint;
+  const Brush *brush;
+
   SculptSession *ss;
   ViewContext vc;
 

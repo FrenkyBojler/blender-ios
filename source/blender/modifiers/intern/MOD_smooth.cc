@@ -13,17 +13,17 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_screen_types.h"
 
 #include "BKE_deform.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
+#include "RNA_types.hh"
 
 #include "MOD_modifiertypes.hh"
 #include "MOD_ui_common.hh"
@@ -32,10 +32,7 @@
 static void init_data(ModifierData *md)
 {
   SmoothModifierData *smd = (SmoothModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
-
-  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SmoothModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -69,14 +66,12 @@ static void smoothModifier_do(
     return;
   }
 
-  float(*accumulated_vecs)[3] = static_cast<float(*)[3]>(
-      MEM_calloc_arrayN(size_t(verts_num), sizeof(*accumulated_vecs), __func__));
+  float (*accumulated_vecs)[3] = MEM_calloc_arrayN<float[3]>(verts_num, __func__);
   if (!accumulated_vecs) {
     return;
   }
 
-  uint *accumulated_vecs_count = static_cast<uint *>(
-      MEM_calloc_arrayN(size_t(verts_num), sizeof(*accumulated_vecs_count), __func__));
+  uint *accumulated_vecs_count = MEM_calloc_arrayN<uint>(verts_num, __func__);
   if (!accumulated_vecs_count) {
     MEM_freeN(accumulated_vecs);
     return;
@@ -173,32 +168,32 @@ static void deform_verts(ModifierData *md,
 {
   SmoothModifierData *smd = (SmoothModifierData *)md;
   smoothModifier_do(
-      smd, ctx->object, mesh, reinterpret_cast<float(*)[3]>(positions.data()), positions.size());
+      smd, ctx->object, mesh, reinterpret_cast<float (*)[3]>(positions.data()), positions.size());
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row, *col;
-  uiLayout *layout = panel->layout;
-  const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
+  blender::ui::Layout &layout = *panel->layout;
+  const blender::ui::eUI_Item_Flag toggles_flag = blender::ui::ITEM_R_TOGGLE |
+                                                  blender::ui::ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
-  row = uiLayoutRowWithHeading(layout, true, IFACE_("Axis"));
-  uiItemR(row, ptr, "use_x", toggles_flag, std::nullopt, ICON_NONE);
-  uiItemR(row, ptr, "use_y", toggles_flag, std::nullopt, ICON_NONE);
-  uiItemR(row, ptr, "use_z", toggles_flag, std::nullopt, ICON_NONE);
+  blender::ui::Layout &row = layout.row(true, IFACE_("Axis"));
+  row.prop(ptr, "use_x", toggles_flag, std::nullopt, ICON_NONE);
+  row.prop(ptr, "use_y", toggles_flag, std::nullopt, ICON_NONE);
+  row.prop(ptr, "use_z", toggles_flag, std::nullopt, ICON_NONE);
 
-  col = uiLayoutColumn(layout, false);
-  uiItemR(col, ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(col, ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  blender::ui::Layout &col = layout.column(false);
+  col.prop(ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -240,4 +235,5 @@ ModifierTypeInfo modifierType_Smooth = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

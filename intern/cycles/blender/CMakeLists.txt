@@ -4,8 +4,9 @@
 
 set(INC
   ..
-  ../../mikktspace
-  ${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
+  ../../../source/blender/makesrna
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -33,7 +34,6 @@ set(SRC
   session.cpp
   shader.cpp
   sync.cpp
-  texture.cpp
   viewport.cpp
   volume.cpp
 
@@ -48,19 +48,22 @@ set(SRC
   output_driver.h
   sync.h
   session.h
-  texture.h
   util.h
   viewport.h
 )
 
 set(LIB
   PRIVATE bf::blenkernel
+  PRIVATE bf::depsgraph
   PRIVATE bf::blenlib
   PRIVATE bf::dna
+  PRIVATE bf::imbuf
+  PRIVATE bf::geometry
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::clog
+  PRIVATE bf::nodes
   PRIVATE bf::render
-  PRIVATE bf::rna
   cycles_bvh
   cycles_device
   cycles_graph
@@ -70,19 +73,10 @@ set(LIB
   cycles_subd
   cycles_util
 
-  bf_intern_mikktspace
-
   ${Epoxy_LIBRARIES}
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
 )
-
-if(WITH_CYCLES_LOGGING)
-  list(APPEND LIB
-    ${GLOG_LIBRARIES}
-    ${GFLAGS_LIBRARIES}
-  )
-endif()
 
 set(ADDON_FILES
   addon/__init__.py
@@ -113,25 +107,11 @@ if(WITH_TBB)
 endif()
 
 if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
   list(APPEND INC
     ../../openvdb
   )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
   list(APPEND LIB
     ${OPENVDB_LIBRARIES}
-  )
-endif()
-
-if(WITH_ALEMBIC)
-  add_definitions(-DWITH_ALEMBIC)
-  list(APPEND INC_SYS
-    ${ALEMBIC_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${ALEMBIC_LIBRARIES}
   )
 endif()
 
@@ -150,5 +130,6 @@ endif()
 
 blender_add_lib(bf_intern_cycles "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
+add_dependencies(bf_intern_cycles bf_rna)
 
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${ADDON_FILES}" ${CYCLES_INSTALL_PATH})

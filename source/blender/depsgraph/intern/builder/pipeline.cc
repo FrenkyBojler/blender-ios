@@ -4,7 +4,10 @@
 
 #include "pipeline.h"
 
+#include "BLI_listbase.h"
 #include "BLI_time.h"
+
+#include "CLG_log.h"
 
 #include "BKE_global.hh"
 
@@ -15,7 +18,62 @@
 #include "deg_builder_relations.h"
 #include "deg_builder_transitive.h"
 
+static CLG_LogRef LOG = {"depsgraph"};
+
 namespace blender::deg {
+
+static bool need_sanity_checks()
+{
+#if !defined(NDEBUG)
+  return true;
+#endif
+  return G.debug & G_DEBUG_DEPSGRAPH_BUILD;
+}
+
+static void do_sanity_checks(const Depsgraph *graph,
+                             const Set<const ID *> &ids_build_by_node_builder,
+                             const Set<const ID *> &ids_build_by_relations_builder)
+{
+  if (ids_build_by_node_builder != ids_build_by_relations_builder) {
+    CLOG_ERROR(&LOG, "Some IDs missed nodes or relations building.");
+    for (const ID *id_iter : ids_build_by_node_builder) {
+      if (!ids_build_by_relations_builder.contains(id_iter)) {
+        CLOG_ERROR(&LOG, "\t- ID '%s' was not built for relations.", id_iter->name);
+      }
+    }
+    for (const ID *id_iter : ids_build_by_relations_builder) {
+      if (!ids_build_by_node_builder.contains(id_iter)) {
+        CLOG_ERROR(&LOG, "\t- ID '%s' was not built for nodes.", id_iter->name);
+      }
+    }
+  }
+
+  for (const IDNode *id_node : graph->id_nodes) {
+    if (!ids_build_by_node_builder.contains(id_node->id_orig)) {
+      CLOG_ERROR(&LOG,
+                 "\t+ ID '%s' is in depsgraph but was not built for nodes.",
+                 id_node->id_orig->name);
+    }
+
+    if (!ids_build_by_relations_builder.contains(id_node->id_orig)) {
+      CLOG_ERROR(&LOG,
+                 "\t+ ID '%s' is in depsgraph but was not built for relations.",
+                 id_node->id_orig->name);
+    }
+  }
+
+  for (const ID *id : ids_build_by_node_builder) {
+    if (graph->find_id_node(id) == nullptr) {
+      CLOG_ERROR(&LOG, "\t* ID '%s' was built for nodes but is not in Depsgraph.", id->name);
+    }
+  }
+
+  for (const ID *id : ids_build_by_relations_builder) {
+    if (graph->find_id_node(id) == nullptr) {
+      CLOG_ERROR(&LOG, "\t* ID '%s' was built for relations but is not in Depsgraph.", id->name);
+    }
+  }
+}
 
 AbstractBuilderPipeline::AbstractBuilderPipeline(::Depsgraph *graph)
     : deg_graph_(reinterpret_cast<Depsgraph *>(graph)),
@@ -37,6 +95,10 @@ void AbstractBuilderPipeline::build()
   build_step_relations();
   build_step_finalize();
 
+  if (need_sanity_checks()) {
+    do_sanity_checks(deg_graph_, ids_build_by_node_builder_, ids_build_by_relations_builder_);
+  }
+
   if (G.debug & (G_DEBUG_DEPSGRAPH_BUILD | G_DEBUG_DEPSGRAPH_TIME)) {
     printf("Depsgraph built in %f seconds.\n", BLI_time_now_seconds() - start_time);
   }
@@ -52,20 +114,28 @@ void AbstractBuilderPipeline::build_step_sanity_check()
 void AbstractBuilderPipeline::build_step_nodes()
 {
   /* Generate all the nodes in the graph first */
-  unique_ptr<DepsgraphNodeBuilder> node_builder = construct_node_builder();
+  std::unique_ptr<DepsgraphNodeBuilder> node_builder = construct_node_builder();
   node_builder->begin_build();
   build_nodes(*node_builder);
   node_builder->end_build();
+
+  if (need_sanity_checks()) {
+    ids_build_by_node_builder_ = node_builder->get_built_ids();
+  }
 }
 
 void AbstractBuilderPipeline::build_step_relations()
 {
   /* Hook up relationships between operations - to determine evaluation order. */
-  unique_ptr<DepsgraphRelationBuilder> relation_builder = construct_relation_builder();
+  std::unique_ptr<DepsgraphRelationBuilder> relation_builder = construct_relation_builder();
   relation_builder->begin_build();
   build_relations(*relation_builder);
   relation_builder->build_copy_on_write_relations();
   relation_builder->build_driver_relations();
+
+  if (need_sanity_checks()) {
+    ids_build_by_relations_builder_ = relation_builder->get_built_ids();
+  }
 }
 
 void AbstractBuilderPipeline::build_step_finalize()
@@ -94,12 +164,12 @@ void AbstractBuilderPipeline::build_step_finalize()
   deg_graph_->need_update_relations = false;
 }
 
-unique_ptr<DepsgraphNodeBuilder> AbstractBuilderPipeline::construct_node_builder()
+std::unique_ptr<DepsgraphNodeBuilder> AbstractBuilderPipeline::construct_node_builder()
 {
   return std::make_unique<DepsgraphNodeBuilder>(bmain_, deg_graph_, &builder_cache_);
 }
 
-unique_ptr<DepsgraphRelationBuilder> AbstractBuilderPipeline::construct_relation_builder()
+std::unique_ptr<DepsgraphRelationBuilder> AbstractBuilderPipeline::construct_relation_builder()
 {
   return std::make_unique<DepsgraphRelationBuilder>(bmain_, deg_graph_, &builder_cache_);
 }

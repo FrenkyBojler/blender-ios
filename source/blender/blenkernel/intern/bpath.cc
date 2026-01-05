@@ -29,6 +29,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_fileops.h"
+#include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -36,6 +37,7 @@
 #include "DEG_depsgraph.hh"
 
 #include "BKE_idtype.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 #include "BKE_report.hh"
@@ -45,10 +47,10 @@
 #include "CLG_log.h"
 
 #ifndef _MSC_VER
-#  include "BLI_strict_flags.h" /* Keep last. */
+#  include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 #endif
 
-static CLG_LogRef LOG = {"bke.bpath"};
+static CLG_LogRef LOG = {"lib.bpath"};
 
 /* -------------------------------------------------------------------- */
 /** \name Generic Utilities
@@ -231,7 +233,7 @@ static bool check_missing_files_foreach_path_cb(BPathForeachPathData *bpath_data
                     "Path '%s' not found, from linked data-block '%s' (from library '%s')",
                     path_src,
                     owner_id->name,
-                    owner_id->lib->runtime.filepath_abs);
+                    owner_id->lib->runtime->filepath_abs);
       }
       else {
         BKE_reportf(reports,
@@ -303,6 +305,7 @@ static bool missing_files_find__recursive(const char *search_directory,
   int64_t size;
   bool found = false;
 
+  BLI_assert(!BLI_path_is_rel(search_directory));
   dir = opendir(search_directory);
 
   if (dir == nullptr) {
@@ -648,7 +651,7 @@ static bool bpath_list_append(BPathForeachPathData *bpath_data,
                               size_t /*path_dst_maxncpy*/,
                               const char *path_src)
 {
-  ListBase *path_list = static_cast<ListBase *>(bpath_data->user_data);
+  ListBaseT<PathStore> *path_list = static_cast<ListBaseT<PathStore> *>(bpath_data->user_data);
   size_t path_size = strlen(path_src) + 1;
 
   /* NOTE: the PathStore and its string are allocated together in a single alloc. */
@@ -667,7 +670,7 @@ static bool bpath_list_restore(BPathForeachPathData *bpath_data,
                                size_t path_dst_maxncpy,
                                const char *path_src)
 {
-  ListBase *path_list = static_cast<ListBase *>(bpath_data->user_data);
+  ListBaseT<PathStore> *path_list = static_cast<ListBaseT<PathStore> *>(bpath_data->user_data);
 
   /* `ls->first` should never be nullptr, because the number of paths should not change.
    * If this happens, there is a bug in caller code. */
@@ -688,7 +691,7 @@ static bool bpath_list_restore(BPathForeachPathData *bpath_data,
 
 void *BKE_bpath_list_backup(Main *bmain, const eBPathForeachFlag flag)
 {
-  ListBase *path_list = static_cast<ListBase *>(MEM_callocN(sizeof(ListBase), __func__));
+  ListBaseT<PathStore> *path_list = MEM_callocN<ListBaseT<PathStore>>(__func__);
 
   BPathForeachPathData path_data{};
   path_data.bmain = bmain;
@@ -702,7 +705,7 @@ void *BKE_bpath_list_backup(Main *bmain, const eBPathForeachFlag flag)
 
 void BKE_bpath_list_restore(Main *bmain, const eBPathForeachFlag flag, void *path_list_handle)
 {
-  ListBase *path_list = static_cast<ListBase *>(path_list_handle);
+  ListBaseT<PathStore> *path_list = static_cast<ListBaseT<PathStore> *>(path_list_handle);
 
   BPathForeachPathData path_data{};
   path_data.bmain = bmain;
@@ -714,7 +717,7 @@ void BKE_bpath_list_restore(Main *bmain, const eBPathForeachFlag flag, void *pat
 
 void BKE_bpath_list_free(void *path_list_handle)
 {
-  ListBase *path_list = static_cast<ListBase *>(path_list_handle);
+  ListBaseT<PathStore> *path_list = static_cast<ListBaseT<PathStore> *>(path_list_handle);
   /* The whole list should have been consumed by #BKE_bpath_list_restore, see also comment in
    * #bpath_list_restore. */
   BLI_assert(BLI_listbase_is_empty(path_list));

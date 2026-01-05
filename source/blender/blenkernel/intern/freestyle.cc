@@ -11,8 +11,9 @@
 #include "DNA_collection_types.h"
 #include "DNA_freestyle_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
@@ -22,9 +23,9 @@
 #include "BKE_linestyle.h"
 
 /* Function declarations. */
-static FreestyleLineSet *alloc_lineset(void);
+static FreestyleLineSet *alloc_lineset();
 static void copy_lineset(FreestyleLineSet *new_lineset, FreestyleLineSet *lineset, const int flag);
-static FreestyleModuleConfig *alloc_module(void);
+static FreestyleModuleConfig *alloc_module();
 static void copy_module(FreestyleModuleConfig *new_module, FreestyleModuleConfig *module);
 
 void BKE_freestyle_config_init(FreestyleConfig *config)
@@ -42,18 +43,18 @@ void BKE_freestyle_config_init(FreestyleConfig *config)
 
 void BKE_freestyle_config_free(FreestyleConfig *config, const bool do_id_user)
 {
-  LISTBASE_FOREACH (FreestyleLineSet *, lineset, &config->linesets) {
-    if (lineset->group) {
+  for (FreestyleLineSet &lineset : config->linesets) {
+    if (lineset.group) {
       if (do_id_user) {
-        id_us_min(&lineset->group->id);
+        id_us_min(&lineset.group->id);
       }
-      lineset->group = nullptr;
+      lineset.group = nullptr;
     }
-    if (lineset->linestyle) {
+    if (lineset.linestyle) {
       if (do_id_user) {
-        id_us_min(&lineset->linestyle->id);
+        id_us_min(&lineset.linestyle->id);
       }
-      lineset->linestyle = nullptr;
+      lineset.linestyle = nullptr;
     }
   }
   BLI_freelistN(&config->linesets);
@@ -74,16 +75,16 @@ void BKE_freestyle_config_copy(FreestyleConfig *new_config,
   new_config->crease_angle = config->crease_angle;
 
   BLI_listbase_clear(&new_config->linesets);
-  LISTBASE_FOREACH (FreestyleLineSet *, lineset, &config->linesets) {
+  for (FreestyleLineSet &lineset : config->linesets) {
     new_lineset = alloc_lineset();
-    copy_lineset(new_lineset, lineset, flag);
+    copy_lineset(new_lineset, &lineset, flag);
     BLI_addtail(&new_config->linesets, (void *)new_lineset);
   }
 
   BLI_listbase_clear(&new_config->modules);
-  LISTBASE_FOREACH (FreestyleModuleConfig *, module, &config->modules) {
+  for (FreestyleModuleConfig &module : config->modules) {
     new_module = alloc_module();
-    copy_module(new_module, module);
+    copy_module(new_module, &module);
     BLI_addtail(&new_config->modules, (void *)new_module);
   }
 }
@@ -99,7 +100,7 @@ static void copy_lineset(FreestyleLineSet *new_lineset, FreestyleLineSet *linese
   new_lineset->edge_types = lineset->edge_types;
   new_lineset->exclude_edge_types = lineset->exclude_edge_types;
   new_lineset->group = lineset->group;
-  STRNCPY(new_lineset->name, lineset->name);
+  STRNCPY_UTF8(new_lineset->name, lineset->name);
 
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
     id_us_plus((ID *)new_lineset->linestyle);
@@ -109,8 +110,7 @@ static void copy_lineset(FreestyleLineSet *new_lineset, FreestyleLineSet *linese
 
 static FreestyleModuleConfig *alloc_module()
 {
-  return (FreestyleModuleConfig *)MEM_callocN(sizeof(FreestyleModuleConfig),
-                                              "style module configuration");
+  return MEM_new_for_free<FreestyleModuleConfig>("style module configuration");
 }
 
 FreestyleModuleConfig *BKE_freestyle_module_add(FreestyleConfig *config)
@@ -157,7 +157,7 @@ void BKE_freestyle_lineset_unique_name(FreestyleConfig *config, FreestyleLineSet
 
 static FreestyleLineSet *alloc_lineset()
 {
-  return (FreestyleLineSet *)MEM_callocN(sizeof(FreestyleLineSet), "Freestyle line set");
+  return MEM_new_for_free<FreestyleLineSet>("Freestyle line set");
 }
 
 FreestyleLineSet *BKE_freestyle_lineset_add(Main *bmain, FreestyleConfig *config, const char *name)
@@ -179,13 +179,13 @@ FreestyleLineSet *BKE_freestyle_lineset_add(Main *bmain, FreestyleConfig *config
   lineset->exclude_edge_types = 0;
   lineset->group = nullptr;
   if (name) {
-    STRNCPY(lineset->name, name);
+    STRNCPY_UTF8(lineset->name, name);
   }
   else if (lineset_index > 0) {
-    SNPRINTF(lineset->name, DATA_("LineSet %i"), lineset_index + 1);
+    SNPRINTF_UTF8(lineset->name, DATA_("LineSet %i"), lineset_index + 1);
   }
   else {
-    STRNCPY(lineset->name, DATA_("LineSet"));
+    STRNCPY_UTF8(lineset->name, DATA_("LineSet"));
   }
   BKE_freestyle_lineset_unique_name(config, lineset);
 
@@ -211,9 +211,9 @@ bool BKE_freestyle_lineset_delete(FreestyleConfig *config, FreestyleLineSet *lin
 
 FreestyleLineSet *BKE_freestyle_lineset_get_active(FreestyleConfig *config)
 {
-  LISTBASE_FOREACH (FreestyleLineSet *, lineset, &config->linesets) {
-    if (lineset->flags & FREESTYLE_LINESET_CURRENT) {
-      return lineset;
+  for (FreestyleLineSet &lineset : config->linesets) {
+    if (lineset.flags & FREESTYLE_LINESET_CURRENT) {
+      return &lineset;
     }
   }
   return nullptr;

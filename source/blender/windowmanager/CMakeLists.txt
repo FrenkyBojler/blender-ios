@@ -8,8 +8,12 @@ set(INC
   gizmo/intern
   ../compositor
   ../editors/include
+  ../gpu
+  ../makesrna
   ../../../intern/memutil
 
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 set(INC_SYS
 )
@@ -22,6 +26,7 @@ set(SRC
   intern/wm_event_query.cc
   intern/wm_event_system.cc
   intern/wm_files.cc
+  intern/wm_files_colorspace.cc
   intern/wm_files_link.cc
   intern/wm_gesture.cc
   intern/wm_gesture_ops.cc
@@ -54,6 +59,7 @@ set(SRC
   gizmo/intern/wm_gizmo_target_props.cc
   gizmo/intern/wm_gizmo_type.cc
   message_bus/intern/wm_message_bus.cc
+  message_bus/intern/wm_message_bus_remote_io.cc
   message_bus/intern/wm_message_bus_rna.cc
   message_bus/intern/wm_message_bus_static.cc
 
@@ -103,7 +109,6 @@ set(LIB
   PRIVATE bf::animrig
   PRIVATE bf::nodes
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::sequencer
   bf_intern_ghost
   bf_compositor
@@ -111,6 +116,24 @@ set(LIB
 
 if(WIN32)
   add_definitions(-DNOMINMAX)
+endif()
+
+if(WITH_HEADLESS)
+  add_definitions(-DWITH_HEADLESS)
+else()
+  # SVG cursors.
+  list(APPEND LIB
+    PRIVATE bf::extern::nanosvg
+    PRIVATE bf::editor::datafiles
+  )
+endif()
+
+if(WITH_GHOST_CSD)
+  list(APPEND SRC
+    intern/wm_window_csd_draw.cc
+    intern/wm_window_csd_layout.cc
+  )
+  add_definitions(-DWITH_GHOST_CSD)
 endif()
 
 if(WITH_AUDASPACE)
@@ -136,10 +159,6 @@ endif()
 
 if(WITH_VULKAN_BACKEND)
   add_definitions(-DWITH_VULKAN_BACKEND)
-endif()
-
-if(WITH_OPENCOLLADA)
-  add_definitions(-DWITH_COLLADA)
 endif()
 
 if(WITH_CODEC_FFMPEG)
@@ -203,6 +222,8 @@ endif()
 blender_add_lib_nolist(bf_windowmanager "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_library(bf::windowmanager ALIAS bf_windowmanager)
 
+# RNA_prototypes.hh
+add_dependencies(bf_windowmanager bf_rna)
 
 if(WITH_GTESTS)
   set(TEST_INC

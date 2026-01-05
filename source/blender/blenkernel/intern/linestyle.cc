@@ -15,13 +15,16 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_defaults.h"
+#include "DNA_layer_types.h"
 #include "DNA_material_types.h" /* for ramp blend */
 #include "DNA_object_types.h"
+#include "DNA_sdna_type_ids.hh"
 #include "DNA_texture_types.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
 
@@ -36,18 +39,18 @@
 #include "BKE_lib_query.hh"
 #include "BKE_linestyle.h"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_texture.h"
 
 #include "BLO_read_write.hh"
 
+using blender::dna::sdna_struct_id_get;
+
 static void linestyle_init_data(ID *id)
 {
   FreestyleLineStyle *linestyle = (FreestyleLineStyle *)id;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(linestyle, id));
-
-  MEMCPY_STRUCT_AFTER(linestyle, DNA_struct_default_get(FreestyleLineStyle), id);
+  INIT_DEFAULT_STRUCT_AFTER(linestyle, id);
 
   BKE_linestyle_geometry_modifier_add(linestyle, nullptr, LS_MODIFIER_SAMPLING);
 }
@@ -68,7 +71,7 @@ static void linestyle_copy_data(Main *bmain,
 
   for (int a = 0; a < MAX_MTEX; a++) {
     if (linestyle_src->mtex[a]) {
-      linestyle_dst->mtex[a] = static_cast<MTex *>(MEM_callocN(sizeof(MTex), __func__));
+      linestyle_dst->mtex[a] = MEM_new_for_free<MTex>(__func__);
       *linestyle_dst->mtex[a] = blender::dna::shallow_copy(*linestyle_src->mtex[a]);
     }
   }
@@ -83,23 +86,23 @@ static void linestyle_copy_data(Main *bmain,
   }
 
   BLI_listbase_clear(&linestyle_dst->color_modifiers);
-  LISTBASE_FOREACH (LineStyleModifier *, linestyle_modifier, &linestyle_src->color_modifiers) {
-    BKE_linestyle_color_modifier_copy(linestyle_dst, linestyle_modifier, flag_subdata);
+  for (LineStyleModifier &linestyle_modifier : linestyle_src->color_modifiers) {
+    BKE_linestyle_color_modifier_copy(linestyle_dst, &linestyle_modifier, flag_subdata);
   }
 
   BLI_listbase_clear(&linestyle_dst->alpha_modifiers);
-  LISTBASE_FOREACH (LineStyleModifier *, linestyle_modifier, &linestyle_src->alpha_modifiers) {
-    BKE_linestyle_alpha_modifier_copy(linestyle_dst, linestyle_modifier, flag_subdata);
+  for (LineStyleModifier &linestyle_modifier : linestyle_src->alpha_modifiers) {
+    BKE_linestyle_alpha_modifier_copy(linestyle_dst, &linestyle_modifier, flag_subdata);
   }
 
   BLI_listbase_clear(&linestyle_dst->thickness_modifiers);
-  LISTBASE_FOREACH (LineStyleModifier *, linestyle_modifier, &linestyle_src->thickness_modifiers) {
-    BKE_linestyle_thickness_modifier_copy(linestyle_dst, linestyle_modifier, flag_subdata);
+  for (LineStyleModifier &linestyle_modifier : linestyle_src->thickness_modifiers) {
+    BKE_linestyle_thickness_modifier_copy(linestyle_dst, &linestyle_modifier, flag_subdata);
   }
 
   BLI_listbase_clear(&linestyle_dst->geometry_modifiers);
-  LISTBASE_FOREACH (LineStyleModifier *, linestyle_modifier, &linestyle_src->geometry_modifiers) {
-    BKE_linestyle_geometry_modifier_copy(linestyle_dst, linestyle_modifier, flag_subdata);
+  for (LineStyleModifier &linestyle_modifier : linestyle_src->geometry_modifiers) {
+    BKE_linestyle_geometry_modifier_copy(linestyle_dst, &linestyle_modifier, flag_subdata);
   }
 }
 
@@ -149,280 +152,291 @@ static void linestyle_foreach_id(ID *id, LibraryForeachIDData *data)
         data, BKE_library_foreach_ID_embedded(data, (ID **)&linestyle->nodetree));
   }
 
-  LISTBASE_FOREACH (LineStyleModifier *, lsm, &linestyle->color_modifiers) {
-    if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-      LineStyleColorModifier_DistanceFromObject *p = (LineStyleColorModifier_DistanceFromObject *)
-          lsm;
+  for (LineStyleModifier &lsm : linestyle->color_modifiers) {
+    if (lsm.type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
+      LineStyleColorModifier_DistanceFromObject *p =
+          (LineStyleColorModifier_DistanceFromObject *)&lsm;
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
     }
   }
-  LISTBASE_FOREACH (LineStyleModifier *, lsm, &linestyle->alpha_modifiers) {
-    if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
-      LineStyleAlphaModifier_DistanceFromObject *p = (LineStyleAlphaModifier_DistanceFromObject *)
-          lsm;
+  for (LineStyleModifier &lsm : linestyle->alpha_modifiers) {
+    if (lsm.type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
+      LineStyleAlphaModifier_DistanceFromObject *p =
+          (LineStyleAlphaModifier_DistanceFromObject *)&lsm;
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
     }
   }
-  LISTBASE_FOREACH (LineStyleModifier *, lsm, &linestyle->thickness_modifiers) {
-    if (lsm->type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
+  for (LineStyleModifier &lsm : linestyle->thickness_modifiers) {
+    if (lsm.type == LS_MODIFIER_DISTANCE_FROM_OBJECT) {
       LineStyleThicknessModifier_DistanceFromObject *p =
-          (LineStyleThicknessModifier_DistanceFromObject *)lsm;
+          (LineStyleThicknessModifier_DistanceFromObject *)&lsm;
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
     }
   }
 }
 
-static void write_linestyle_color_modifiers(BlendWriter *writer, ListBase *modifiers)
+static void linestyle_foreach_working_space_color(ID *id,
+                                                  const IDTypeForeachColorFunctionCallback &fn)
 {
-  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
+  FreestyleLineStyle *linestyle = (FreestyleLineStyle *)id;
+
+  fn.single(&linestyle->r);
+}
+
+static void write_linestyle_color_modifiers(BlendWriter *writer,
+                                            ListBaseT<LineStyleModifier> *modifiers)
+{
+  for (LineStyleModifier &m : *modifiers) {
     int struct_nr;
-    switch (m->type) {
+    switch (m.type) {
       case LS_MODIFIER_ALONG_STROKE:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleColorModifier_AlongStroke);
+        struct_nr = sdna_struct_id_get<LineStyleColorModifier_AlongStroke>();
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleColorModifier_DistanceFromCamera);
+        struct_nr = sdna_struct_id_get<LineStyleColorModifier_DistanceFromCamera>();
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleColorModifier_DistanceFromObject);
+        struct_nr = sdna_struct_id_get<LineStyleColorModifier_DistanceFromObject>();
         break;
       case LS_MODIFIER_MATERIAL:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleColorModifier_Material);
+        struct_nr = sdna_struct_id_get<LineStyleColorModifier_Material>();
         break;
       case LS_MODIFIER_TANGENT:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleColorModifier_Tangent);
+        struct_nr = sdna_struct_id_get<LineStyleColorModifier_Tangent>();
         break;
       case LS_MODIFIER_NOISE:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleColorModifier_Noise);
+        struct_nr = sdna_struct_id_get<LineStyleColorModifier_Noise>();
         break;
       case LS_MODIFIER_CREASE_ANGLE:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleColorModifier_CreaseAngle);
+        struct_nr = sdna_struct_id_get<LineStyleColorModifier_CreaseAngle>();
         break;
       case LS_MODIFIER_CURVATURE_3D:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleColorModifier_Curvature_3D);
+        struct_nr = sdna_struct_id_get<LineStyleColorModifier_Curvature_3D>();
         break;
       default:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleModifier); /* this should not happen */
+        struct_nr = sdna_struct_id_get<LineStyleModifier>(); /* this should not happen */
     }
-    BLO_write_struct_by_id(writer, struct_nr, m);
+    writer->write_struct_by_id(struct_nr, &m);
   }
-  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
-    switch (m->type) {
+  for (LineStyleModifier &m : *modifiers) {
+    switch (m.type) {
       case LS_MODIFIER_ALONG_STROKE:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_AlongStroke *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_AlongStroke *)&m)->color_ramp);
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-        BLO_write_struct(
-            writer, ColorBand, ((LineStyleColorModifier_DistanceFromCamera *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_DistanceFromCamera *)&m)->color_ramp);
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-        BLO_write_struct(
-            writer, ColorBand, ((LineStyleColorModifier_DistanceFromObject *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_DistanceFromObject *)&m)->color_ramp);
         break;
       case LS_MODIFIER_MATERIAL:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_Material *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Material *)&m)->color_ramp);
         break;
       case LS_MODIFIER_TANGENT:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_Tangent *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Tangent *)&m)->color_ramp);
         break;
       case LS_MODIFIER_NOISE:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_Noise *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Noise *)&m)->color_ramp);
         break;
       case LS_MODIFIER_CREASE_ANGLE:
-        BLO_write_struct(writer, ColorBand, ((LineStyleColorModifier_CreaseAngle *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_CreaseAngle *)&m)->color_ramp);
         break;
       case LS_MODIFIER_CURVATURE_3D:
-        BLO_write_struct(
-            writer, ColorBand, ((LineStyleColorModifier_Curvature_3D *)m)->color_ramp);
+        writer->write_struct(((LineStyleColorModifier_Curvature_3D *)&m)->color_ramp);
         break;
     }
   }
 }
 
-static void write_linestyle_alpha_modifiers(BlendWriter *writer, ListBase *modifiers)
+static void write_linestyle_alpha_modifiers(BlendWriter *writer,
+                                            ListBaseT<LineStyleModifier> *modifiers)
 {
-  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
+  for (LineStyleModifier &m : *modifiers) {
     int struct_nr;
-    switch (m->type) {
+    switch (m.type) {
       case LS_MODIFIER_ALONG_STROKE:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleAlphaModifier_AlongStroke);
+        struct_nr = sdna_struct_id_get<LineStyleAlphaModifier_AlongStroke>();
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleAlphaModifier_DistanceFromCamera);
+        struct_nr = sdna_struct_id_get<LineStyleAlphaModifier_DistanceFromCamera>();
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleAlphaModifier_DistanceFromObject);
+        struct_nr = sdna_struct_id_get<LineStyleAlphaModifier_DistanceFromObject>();
         break;
       case LS_MODIFIER_MATERIAL:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleAlphaModifier_Material);
+        struct_nr = sdna_struct_id_get<LineStyleAlphaModifier_Material>();
         break;
       case LS_MODIFIER_TANGENT:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleAlphaModifier_Tangent);
+        struct_nr = sdna_struct_id_get<LineStyleAlphaModifier_Tangent>();
         break;
       case LS_MODIFIER_NOISE:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleAlphaModifier_Noise);
+        struct_nr = sdna_struct_id_get<LineStyleAlphaModifier_Noise>();
         break;
       case LS_MODIFIER_CREASE_ANGLE:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleAlphaModifier_CreaseAngle);
+        struct_nr = sdna_struct_id_get<LineStyleAlphaModifier_CreaseAngle>();
         break;
       case LS_MODIFIER_CURVATURE_3D:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleAlphaModifier_Curvature_3D);
+        struct_nr = sdna_struct_id_get<LineStyleAlphaModifier_Curvature_3D>();
         break;
       default:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleModifier); /* this should not happen */
+        struct_nr = sdna_struct_id_get<LineStyleModifier>(); /* this should not happen */
     }
-    BLO_write_struct_by_id(writer, struct_nr, m);
+    writer->write_struct_by_id(struct_nr, &m);
   }
-  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
-    switch (m->type) {
+  for (LineStyleModifier &m : *modifiers) {
+    switch (m.type) {
       case LS_MODIFIER_ALONG_STROKE:
-        BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_AlongStroke *)m)->curve);
+        BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_AlongStroke *)&m)->curve);
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
         BKE_curvemapping_blend_write(writer,
-                                     ((LineStyleAlphaModifier_DistanceFromCamera *)m)->curve);
+                                     ((LineStyleAlphaModifier_DistanceFromCamera *)&m)->curve);
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
         BKE_curvemapping_blend_write(writer,
-                                     ((LineStyleAlphaModifier_DistanceFromObject *)m)->curve);
+                                     ((LineStyleAlphaModifier_DistanceFromObject *)&m)->curve);
         break;
       case LS_MODIFIER_MATERIAL:
-        BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_Material *)m)->curve);
+        BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_Material *)&m)->curve);
         break;
       case LS_MODIFIER_TANGENT:
-        BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_Tangent *)m)->curve);
+        BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_Tangent *)&m)->curve);
         break;
       case LS_MODIFIER_NOISE:
-        BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_Noise *)m)->curve);
+        BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_Noise *)&m)->curve);
         break;
       case LS_MODIFIER_CREASE_ANGLE:
-        BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_CreaseAngle *)m)->curve);
+        BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_CreaseAngle *)&m)->curve);
         break;
       case LS_MODIFIER_CURVATURE_3D:
-        BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_Curvature_3D *)m)->curve);
+        BKE_curvemapping_blend_write(writer, ((LineStyleAlphaModifier_Curvature_3D *)&m)->curve);
         break;
     }
   }
 }
 
-static void write_linestyle_thickness_modifiers(BlendWriter *writer, ListBase *modifiers)
+static void write_linestyle_thickness_modifiers(BlendWriter *writer,
+                                                ListBaseT<LineStyleModifier> *modifiers)
 {
-  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
+  for (LineStyleModifier &m : *modifiers) {
     int struct_nr;
-    switch (m->type) {
+    switch (m.type) {
       case LS_MODIFIER_ALONG_STROKE:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleThicknessModifier_AlongStroke);
+        struct_nr = sdna_struct_id_get<LineStyleThicknessModifier_AlongStroke>();
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleThicknessModifier_DistanceFromCamera);
+        struct_nr = sdna_struct_id_get<LineStyleThicknessModifier_DistanceFromCamera>();
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleThicknessModifier_DistanceFromObject);
+        struct_nr = sdna_struct_id_get<LineStyleThicknessModifier_DistanceFromObject>();
         break;
       case LS_MODIFIER_MATERIAL:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleThicknessModifier_Material);
+        struct_nr = sdna_struct_id_get<LineStyleThicknessModifier_Material>();
         break;
       case LS_MODIFIER_CALLIGRAPHY:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleThicknessModifier_Calligraphy);
+        struct_nr = sdna_struct_id_get<LineStyleThicknessModifier_Calligraphy>();
         break;
       case LS_MODIFIER_TANGENT:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleThicknessModifier_Tangent);
+        struct_nr = sdna_struct_id_get<LineStyleThicknessModifier_Tangent>();
         break;
       case LS_MODIFIER_NOISE:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleThicknessModifier_Noise);
+        struct_nr = sdna_struct_id_get<LineStyleThicknessModifier_Noise>();
         break;
       case LS_MODIFIER_CREASE_ANGLE:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleThicknessModifier_CreaseAngle);
+        struct_nr = sdna_struct_id_get<LineStyleThicknessModifier_CreaseAngle>();
         break;
       case LS_MODIFIER_CURVATURE_3D:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleThicknessModifier_Curvature_3D);
+        struct_nr = sdna_struct_id_get<LineStyleThicknessModifier_Curvature_3D>();
         break;
       default:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleModifier); /* this should not happen */
+        struct_nr = sdna_struct_id_get<LineStyleModifier>(); /* this should not happen */
     }
-    BLO_write_struct_by_id(writer, struct_nr, m);
+    writer->write_struct_by_id(struct_nr, &m);
   }
-  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
-    switch (m->type) {
+  for (LineStyleModifier &m : *modifiers) {
+    switch (m.type) {
       case LS_MODIFIER_ALONG_STROKE:
-        BKE_curvemapping_blend_write(writer, ((LineStyleThicknessModifier_AlongStroke *)m)->curve);
+        BKE_curvemapping_blend_write(writer,
+                                     ((LineStyleThicknessModifier_AlongStroke *)&m)->curve);
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
         BKE_curvemapping_blend_write(writer,
-                                     ((LineStyleThicknessModifier_DistanceFromCamera *)m)->curve);
+                                     ((LineStyleThicknessModifier_DistanceFromCamera *)&m)->curve);
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
         BKE_curvemapping_blend_write(writer,
-                                     ((LineStyleThicknessModifier_DistanceFromObject *)m)->curve);
+                                     ((LineStyleThicknessModifier_DistanceFromObject *)&m)->curve);
         break;
       case LS_MODIFIER_MATERIAL:
-        BKE_curvemapping_blend_write(writer, ((LineStyleThicknessModifier_Material *)m)->curve);
+        BKE_curvemapping_blend_write(writer, ((LineStyleThicknessModifier_Material *)&m)->curve);
         break;
       case LS_MODIFIER_TANGENT:
-        BKE_curvemapping_blend_write(writer, ((LineStyleThicknessModifier_Tangent *)m)->curve);
+        BKE_curvemapping_blend_write(writer, ((LineStyleThicknessModifier_Tangent *)&m)->curve);
         break;
       case LS_MODIFIER_CREASE_ANGLE:
-        BKE_curvemapping_blend_write(writer, ((LineStyleThicknessModifier_CreaseAngle *)m)->curve);
+        BKE_curvemapping_blend_write(writer,
+                                     ((LineStyleThicknessModifier_CreaseAngle *)&m)->curve);
         break;
       case LS_MODIFIER_CURVATURE_3D:
         BKE_curvemapping_blend_write(writer,
-                                     ((LineStyleThicknessModifier_Curvature_3D *)m)->curve);
+                                     ((LineStyleThicknessModifier_Curvature_3D *)&m)->curve);
         break;
     }
   }
 }
 
-static void write_linestyle_geometry_modifiers(BlendWriter *writer, ListBase *modifiers)
+static void write_linestyle_geometry_modifiers(BlendWriter *writer,
+                                               ListBaseT<LineStyleModifier> *modifiers)
 {
-  LISTBASE_FOREACH (LineStyleModifier *, m, modifiers) {
+  for (LineStyleModifier &m : *modifiers) {
     int struct_nr;
-    switch (m->type) {
+    switch (m.type) {
       case LS_MODIFIER_SAMPLING:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_Sampling);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_Sampling>();
         break;
       case LS_MODIFIER_BEZIER_CURVE:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_BezierCurve);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_BezierCurve>();
         break;
       case LS_MODIFIER_SINUS_DISPLACEMENT:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_SinusDisplacement);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_SinusDisplacement>();
         break;
       case LS_MODIFIER_SPATIAL_NOISE:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_SpatialNoise);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_SpatialNoise>();
         break;
       case LS_MODIFIER_PERLIN_NOISE_1D:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_PerlinNoise1D);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_PerlinNoise1D>();
         break;
       case LS_MODIFIER_PERLIN_NOISE_2D:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_PerlinNoise2D);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_PerlinNoise2D>();
         break;
       case LS_MODIFIER_BACKBONE_STRETCHER:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_BackboneStretcher);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_BackboneStretcher>();
         break;
       case LS_MODIFIER_TIP_REMOVER:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_TipRemover);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_TipRemover>();
         break;
       case LS_MODIFIER_POLYGONIZATION:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_Polygonalization);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_Polygonalization>();
         break;
       case LS_MODIFIER_GUIDING_LINES:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_GuidingLines);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_GuidingLines>();
         break;
       case LS_MODIFIER_BLUEPRINT:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_Blueprint);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_Blueprint>();
         break;
       case LS_MODIFIER_2D_OFFSET:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_2DOffset);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_2DOffset>();
         break;
       case LS_MODIFIER_2D_TRANSFORM:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_2DTransform);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_2DTransform>();
         break;
       case LS_MODIFIER_SIMPLIFICATION:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleGeometryModifier_Simplification);
+        struct_nr = sdna_struct_id_get<LineStyleGeometryModifier_Simplification>();
         break;
       default:
-        struct_nr = SDNA_TYPE_FROM_STRUCT(LineStyleModifier); /* this should not happen */
+        struct_nr = sdna_struct_id_get<LineStyleModifier>(); /* this should not happen */
     }
-    BLO_write_struct_by_id(writer, struct_nr, m);
+    writer->write_struct_by_id(struct_nr, &m);
   }
 }
 
@@ -439,7 +453,7 @@ static void linestyle_blend_write(BlendWriter *writer, ID *id, const void *id_ad
   write_linestyle_geometry_modifiers(writer, &linestyle->geometry_modifiers);
   for (int a = 0; a < MAX_MTEX; a++) {
     if (linestyle->mtex[a]) {
-      BLO_write_struct(writer, MTex, linestyle->mtex[a]);
+      writer->write_struct(linestyle->mtex[a]);
     }
   }
   if (linestyle->nodetree) {
@@ -621,20 +635,20 @@ static void linestyle_blend_read_data(BlendDataReader *reader, ID *id)
   FreestyleLineStyle *linestyle = (FreestyleLineStyle *)id;
 
   BLO_read_struct_list(reader, LineStyleModifier, &linestyle->color_modifiers);
-  LISTBASE_FOREACH (LineStyleModifier *, modifier, &linestyle->color_modifiers) {
-    direct_link_linestyle_color_modifier(reader, modifier);
+  for (LineStyleModifier &modifier : linestyle->color_modifiers) {
+    direct_link_linestyle_color_modifier(reader, &modifier);
   }
   BLO_read_struct_list(reader, LineStyleModifier, &linestyle->alpha_modifiers);
-  LISTBASE_FOREACH (LineStyleModifier *, modifier, &linestyle->alpha_modifiers) {
-    direct_link_linestyle_alpha_modifier(reader, modifier);
+  for (LineStyleModifier &modifier : linestyle->alpha_modifiers) {
+    direct_link_linestyle_alpha_modifier(reader, &modifier);
   }
   BLO_read_struct_list(reader, LineStyleModifier, &linestyle->thickness_modifiers);
-  LISTBASE_FOREACH (LineStyleModifier *, modifier, &linestyle->thickness_modifiers) {
-    direct_link_linestyle_thickness_modifier(reader, modifier);
+  for (LineStyleModifier &modifier : linestyle->thickness_modifiers) {
+    direct_link_linestyle_thickness_modifier(reader, &modifier);
   }
   BLO_read_struct_list(reader, LineStyleModifier, &linestyle->geometry_modifiers);
-  LISTBASE_FOREACH (LineStyleModifier *, modifier, &linestyle->geometry_modifiers) {
-    direct_link_linestyle_geometry_modifier(reader, modifier);
+  for (LineStyleModifier &modifier : linestyle->geometry_modifiers) {
+    direct_link_linestyle_geometry_modifier(reader, &modifier);
   }
   for (int a = 0; a < MAX_MTEX; a++) {
     BLO_read_struct(reader, MTex, &linestyle->mtex[a]);
@@ -642,7 +656,7 @@ static void linestyle_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_LS = {
-    /*id_code*/ ID_LS,
+    /*id_code*/ FreestyleLineStyle::id_type,
     /*id_filter*/ FILTER_ID_LS,
     /*dependencies_id_types*/ FILTER_ID_TE | FILTER_ID_OB,
     /*main_listbase_index*/ INDEX_ID_LS,
@@ -660,6 +674,7 @@ IDTypeInfo IDType_ID_LS = {
     /*foreach_id*/ linestyle_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ linestyle_foreach_working_space_color,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ linestyle_blend_write,
@@ -712,14 +727,14 @@ static LineStyleModifier *new_modifier(const char *name, int type, size_t size)
   }
   m = (LineStyleModifier *)MEM_callocN(size, "line style modifier");
   m->type = type;
-  STRNCPY(m->name, DATA_(name));
+  STRNCPY_UTF8(m->name, DATA_(name));
   m->influence = 1.0f;
   m->flags = LS_MODIFIER_ENABLED | LS_MODIFIER_EXPANDED;
 
   return m;
 }
 
-static void add_to_modifier_list(ListBase *lb, LineStyleModifier *m)
+static void add_to_modifier_list(ListBaseT<LineStyleModifier> *lb, LineStyleModifier *m)
 {
   BLI_addtail(lb, (void *)m);
   BLI_uniquename(
@@ -1815,31 +1830,32 @@ bool BKE_linestyle_geometry_modifier_move(FreestyleLineStyle *linestyle,
   return BLI_listbase_link_move(&linestyle->geometry_modifiers, modifier, direction);
 }
 
-void BKE_linestyle_modifier_list_color_ramps(FreestyleLineStyle *linestyle, ListBase *listbase)
+void BKE_linestyle_modifier_list_color_ramps(FreestyleLineStyle *linestyle,
+                                             ListBaseT<LinkData> *listbase)
 {
   ColorBand *color_ramp;
   LinkData *link;
 
   BLI_listbase_clear(listbase);
 
-  LISTBASE_FOREACH (LineStyleModifier *, m, &linestyle->color_modifiers) {
-    switch (m->type) {
+  for (LineStyleModifier &m : linestyle->color_modifiers) {
+    switch (m.type) {
       case LS_MODIFIER_ALONG_STROKE:
-        color_ramp = ((LineStyleColorModifier_AlongStroke *)m)->color_ramp;
+        color_ramp = ((LineStyleColorModifier_AlongStroke *)&m)->color_ramp;
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-        color_ramp = ((LineStyleColorModifier_DistanceFromCamera *)m)->color_ramp;
+        color_ramp = ((LineStyleColorModifier_DistanceFromCamera *)&m)->color_ramp;
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-        color_ramp = ((LineStyleColorModifier_DistanceFromObject *)m)->color_ramp;
+        color_ramp = ((LineStyleColorModifier_DistanceFromObject *)&m)->color_ramp;
         break;
       case LS_MODIFIER_MATERIAL:
-        color_ramp = ((LineStyleColorModifier_Material *)m)->color_ramp;
+        color_ramp = ((LineStyleColorModifier_Material *)&m)->color_ramp;
         break;
       default:
         continue;
     }
-    link = (LinkData *)MEM_callocN(sizeof(LinkData), "link to color ramp");
+    link = MEM_callocN<LinkData>("link to color ramp");
     link->data = color_ramp;
     BLI_addtail(listbase, link);
   }
@@ -1850,53 +1866,53 @@ std::optional<std::string> BKE_linestyle_path_to_color_ramp(FreestyleLineStyle *
 {
   bool found = false;
 
-  LISTBASE_FOREACH (LineStyleModifier *, m, &linestyle->color_modifiers) {
-    switch (m->type) {
+  for (LineStyleModifier &m : linestyle->color_modifiers) {
+    switch (m.type) {
       case LS_MODIFIER_ALONG_STROKE:
-        if (color_ramp == ((LineStyleColorModifier_AlongStroke *)m)->color_ramp) {
+        if (color_ramp == ((LineStyleColorModifier_AlongStroke *)&m)->color_ramp) {
           found = true;
         }
         break;
       case LS_MODIFIER_DISTANCE_FROM_CAMERA:
-        if (color_ramp == ((LineStyleColorModifier_DistanceFromCamera *)m)->color_ramp) {
+        if (color_ramp == ((LineStyleColorModifier_DistanceFromCamera *)&m)->color_ramp) {
           found = true;
         }
         break;
       case LS_MODIFIER_DISTANCE_FROM_OBJECT:
-        if (color_ramp == ((LineStyleColorModifier_DistanceFromObject *)m)->color_ramp) {
+        if (color_ramp == ((LineStyleColorModifier_DistanceFromObject *)&m)->color_ramp) {
           found = true;
         }
         break;
       case LS_MODIFIER_MATERIAL:
-        if (color_ramp == ((LineStyleColorModifier_Material *)m)->color_ramp) {
+        if (color_ramp == ((LineStyleColorModifier_Material *)&m)->color_ramp) {
           found = true;
         }
         break;
       case LS_MODIFIER_TANGENT:
-        if (color_ramp == ((LineStyleColorModifier_Tangent *)m)->color_ramp) {
+        if (color_ramp == ((LineStyleColorModifier_Tangent *)&m)->color_ramp) {
           found = true;
         }
         break;
       case LS_MODIFIER_NOISE:
-        if (color_ramp == ((LineStyleColorModifier_Noise *)m)->color_ramp) {
+        if (color_ramp == ((LineStyleColorModifier_Noise *)&m)->color_ramp) {
           found = true;
         }
         break;
       case LS_MODIFIER_CREASE_ANGLE:
-        if (color_ramp == ((LineStyleColorModifier_CreaseAngle *)m)->color_ramp) {
+        if (color_ramp == ((LineStyleColorModifier_CreaseAngle *)&m)->color_ramp) {
           found = true;
         }
         break;
       case LS_MODIFIER_CURVATURE_3D:
-        if (color_ramp == ((LineStyleColorModifier_Curvature_3D *)m)->color_ramp) {
+        if (color_ramp == ((LineStyleColorModifier_Curvature_3D *)&m)->color_ramp) {
           found = true;
         }
         break;
     }
 
     if (found) {
-      char name_esc[sizeof(m->name) * 2];
-      BLI_str_escape(name_esc, m->name, sizeof(name_esc));
+      char name_esc[sizeof(m.name) * 2];
+      BLI_str_escape(name_esc, m.name, sizeof(name_esc));
       return fmt::format("color_modifiers[\"{}\"].color_ramp", name_esc);
     }
   }
@@ -1908,8 +1924,8 @@ bool BKE_linestyle_use_textures(FreestyleLineStyle *linestyle, const bool use_sh
 {
   if (use_shading_nodes) {
     if (linestyle && linestyle->use_nodes && linestyle->nodetree) {
-      LISTBASE_FOREACH (bNode *, node, &linestyle->nodetree->nodes) {
-        if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
+      for (bNode &node : linestyle->nodetree->nodes) {
+        if (node.typeinfo->nclass == NODE_CLASS_TEXTURE) {
           return true;
         }
       }
@@ -1934,30 +1950,30 @@ void BKE_linestyle_default_shader(const bContext *C, FreestyleLineStyle *linesty
   ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &linestyle->id, "stroke_shader", "ShaderNodeTree");
 
-  uv_along_stroke = blender::bke::node_add_static_node(C, ntree, SH_NODE_UVALONGSTROKE);
-  uv_along_stroke->location[0] = 0.0f;
-  uv_along_stroke->location[1] = 300.0f;
+  uv_along_stroke = blender::bke::node_add_static_node(C, *ntree, SH_NODE_UVALONGSTROKE);
+  uv_along_stroke->location[0] = -200.0f;
+  uv_along_stroke->location[1] = 100.0f;
   uv_along_stroke->custom1 = 0; /* use_tips */
 
-  input_texture = blender::bke::node_add_static_node(C, ntree, SH_NODE_TEX_IMAGE);
-  input_texture->location[0] = 200.0f;
-  input_texture->location[1] = 300.0f;
+  input_texture = blender::bke::node_add_static_node(C, *ntree, SH_NODE_TEX_IMAGE);
+  input_texture->location[0] = 0.0f;
+  input_texture->location[1] = 100.0f;
 
-  output_linestyle = blender::bke::node_add_static_node(C, ntree, SH_NODE_OUTPUT_LINESTYLE);
-  output_linestyle->location[0] = 400.0f;
-  output_linestyle->location[1] = 300.0f;
+  output_linestyle = blender::bke::node_add_static_node(C, *ntree, SH_NODE_OUTPUT_LINESTYLE);
+  output_linestyle->location[0] = 300.0f;
+  output_linestyle->location[1] = 100.0f;
   output_linestyle->custom1 = MA_RAMP_BLEND;
   output_linestyle->custom2 = 0; /* use_clamp */
 
-  blender::bke::node_set_active(ntree, input_texture);
+  blender::bke::node_set_active(*ntree, *input_texture);
 
   fromsock = static_cast<bNodeSocket *>(BLI_findlink(&uv_along_stroke->outputs, 0)); /* UV */
   tosock = static_cast<bNodeSocket *>(BLI_findlink(&input_texture->inputs, 0));      /* UV */
-  blender::bke::node_add_link(ntree, uv_along_stroke, fromsock, input_texture, tosock);
+  blender::bke::node_add_link(*ntree, *uv_along_stroke, *fromsock, *input_texture, *tosock);
 
   fromsock = static_cast<bNodeSocket *>(BLI_findlink(&input_texture->outputs, 0)); /* Color */
   tosock = static_cast<bNodeSocket *>(BLI_findlink(&output_linestyle->inputs, 0)); /* Color */
-  blender::bke::node_add_link(ntree, input_texture, fromsock, output_linestyle, tosock);
+  blender::bke::node_add_link(*ntree, *input_texture, *fromsock, *output_linestyle, *tosock);
 
-  BKE_ntree_update_main_tree(CTX_data_main(C), ntree, nullptr);
+  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
 }

@@ -5,7 +5,6 @@
 import os
 import sys
 from pathlib import Path
-import bpy
 
 
 def dll_path() -> Path:
@@ -26,6 +25,7 @@ def dll_path() -> Path:
 
     if library_name is None:
         print('WARNING', 'Unsupported platform {}, Draco mesh compression is unavailable'.format(sys.platform))
+
 
 def dll_exists(quiet=False) -> bool:
     """

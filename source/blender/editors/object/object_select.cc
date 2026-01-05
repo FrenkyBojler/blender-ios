@@ -7,7 +7,6 @@
  */
 
 #include <cctype>
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -35,7 +34,7 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_material.h"
+#include "BKE_material.hh"
 #include "BKE_particle.h"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -53,10 +52,12 @@
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyingsets.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -99,7 +100,7 @@ void base_active_refresh(Main *bmain, Scene *scene, ViewLayer *view_layer)
 {
   WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
   DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  wmMsgBus *mbus = ((wmWindowManager *)bmain->wm.first)->message_bus;
+  wmMsgBus *mbus = ((wmWindowManager *)bmain->wm.first)->runtime->message_bus;
   if (mbus != nullptr) {
     WM_msg_publish_rna_prop(mbus, &scene->id, view_layer, LayerObjects, active);
   }
@@ -225,17 +226,17 @@ Base *find_first_by_data_id(const Scene *scene, ViewLayer *view_layer, ID *id)
   Base *base_best = nullptr;
   int priority_best = 0;
 
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    if (base->object && base->object->data == id) {
-      if (base->flag & BASE_SELECTED) {
-        return base;
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    if (base.object && base.object->data == id) {
+      if (base.flag & BASE_SELECTED) {
+        return &base;
       }
 
-      int priority_test = get_base_select_priority(base);
+      int priority_test = get_base_select_priority(&base);
 
       if (priority_test > priority_best) {
         priority_best = priority_test;
-        base_best = base;
+        base_best = &base;
       }
     }
   }
@@ -325,7 +326,7 @@ bool jump_to_bone(bContext *C, Object *ob, const char *bone_name, const bool rev
     if (pchan != nullptr) {
       if (reveal_hidden) {
         /* Unhide the bone. */
-        pchan->bone->flag &= ~BONE_HIDDEN_P;
+        pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;
         ANIM_armature_bonecoll_show_from_pchan(arm, pchan);
       }
 
@@ -371,7 +372,7 @@ static bool objects_selectable_poll(bContext *C)
 /** \name Select by Type
  * \{ */
 
-static int object_select_by_type_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_by_type_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -407,7 +408,7 @@ void OBJECT_OT_select_by_type(wmOperatorType *ot)
   ot->description = "Select all visible objects that are of a type";
   ot->idname = "OBJECT_OT_select_by_type";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_select_by_type_exec;
   ot->poll = objects_selectable_poll;
@@ -526,8 +527,8 @@ static bool object_select_all_by_particle(bContext *C, Object *ob)
   CTX_DATA_BEGIN (C, Base *, base, visible_bases) {
     if (((base->flag & BASE_SELECTED) == 0) && ((base->flag & BASE_SELECTABLE) != 0)) {
       /* Loop through other particles. */
-      LISTBASE_FOREACH (ParticleSystem *, psys, &base->object->particlesystem) {
-        if (psys->part == psys_act->part) {
+      for (ParticleSystem &psys : base->object->particlesystem) {
+        if (psys.part == psys_act->part) {
           base_select(base, BA_SELECT);
           changed = true;
           break;
@@ -600,7 +601,7 @@ void select_linked_by_id(bContext *C, ID *id)
   }
 }
 
-static int object_select_linked_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_linked_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -691,7 +692,7 @@ void OBJECT_OT_select_linked(wmOperatorType *ot)
   ot->description = "Select all visible objects that are linked";
   ot->idname = "OBJECT_OT_select_linked";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_select_linked_exec;
   ot->poll = objects_selectable_poll;
@@ -801,8 +802,6 @@ static bool select_grouped_collection(bContext *C, Object *ob)
   bool changed = false;
   Collection *collection, *ob_collections[COLLECTION_MENU_MAX];
   int collection_count = 0, i;
-  uiPopupMenu *pup;
-  uiLayout *layout;
 
   for (collection = static_cast<Collection *>(bmain->collections.first);
        collection && (collection_count < COLLECTION_MENU_MAX);
@@ -832,20 +831,17 @@ static bool select_grouped_collection(bContext *C, Object *ob)
   }
 
   /* build the menu. */
-  pup = UI_popup_menu_begin(C, IFACE_("Select Collection"), ICON_NONE);
-  layout = UI_popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Select Collection"), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
   for (i = 0; i < collection_count; i++) {
     collection = ob_collections[i];
-    uiItemStringO(layout,
-                  collection->id.name + 2,
-                  ICON_NONE,
-                  "OBJECT_OT_select_same_collection",
-                  "collection",
-                  collection->id.name + 2);
+    PointerRNA op_ptr = layout.op(
+        "OBJECT_OT_select_same_collection", collection->id.name + 2, ICON_NONE);
+    RNA_string_set(&op_ptr, "collection", collection->id.name + 2);
   }
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
   return changed; /* The operator already handle this! */
 }
 
@@ -859,9 +855,9 @@ static bool select_grouped_object_hooks(bContext *C, Object *ob)
   Base *base;
   HookModifierData *hmd;
 
-  LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-    if (md->type == eModifierType_Hook) {
-      hmd = (HookModifierData *)md;
+  for (ModifierData &md : ob->modifiers) {
+    if (md.type == eModifierType_Hook) {
+      hmd = (HookModifierData *)&md;
       if (hmd->object) {
         BKE_view_layer_synced_ensure(scene, view_layer);
         base = BKE_view_layer_base_find(view_layer, hmd->object);
@@ -987,9 +983,9 @@ static bool select_grouped_keyingset(bContext *C, Object * /*ob*/, ReportList *r
     if ((base->flag & BASE_SELECTED) == 0) {
       /* This is the slow way... we could end up with > 500 items here,
        * with none matching, but end up doing this on 1000 objects. */
-      LISTBASE_FOREACH (KS_Path *, ksp, &ks->paths) {
+      for (KS_Path &ksp : ks->paths) {
         /* if id matches, select then stop looping (match found) */
-        if (ksp->id == (ID *)base->object) {
+        if (ksp.id == (ID *)base->object) {
           base_select(base, BA_SELECT);
           changed = true;
           break;
@@ -1002,7 +998,7 @@ static bool select_grouped_keyingset(bContext *C, Object * /*ob*/, ReportList *r
   return changed;
 }
 
-static int object_select_grouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_grouped_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1083,7 +1079,7 @@ void OBJECT_OT_select_grouped(wmOperatorType *ot)
   ot->description = "Select all visible objects grouped by various properties";
   ot->idname = "OBJECT_OT_select_grouped";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_select_grouped_exec;
   ot->poll = objects_selectable_poll;
@@ -1106,7 +1102,7 @@ void OBJECT_OT_select_grouped(wmOperatorType *ot)
 /** \name (De)select All
  * \{ */
 
-static int object_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_all_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -1140,7 +1136,7 @@ void OBJECT_OT_select_all(wmOperatorType *ot)
   ot->description = "Change selection of all visible objects in scene";
   ot->idname = "OBJECT_OT_select_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_all_exec;
   ot->poll = objects_selectable_poll;
 
@@ -1156,11 +1152,11 @@ void OBJECT_OT_select_all(wmOperatorType *ot)
 /** \name Select In The Same Collection
  * \{ */
 
-static int object_select_same_collection_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_same_collection_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Collection *collection;
-  char collection_name[MAX_ID_NAME];
+  char collection_name[MAX_ID_NAME - 2];
 
   /* passthrough if no objects are visible */
   if (CTX_DATA_COUNT(C, visible_bases) == 0) {
@@ -1201,7 +1197,7 @@ void OBJECT_OT_select_same_collection(wmOperatorType *ot)
   ot->description = "Select object in the same collection";
   ot->idname = "OBJECT_OT_select_same_collection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_same_collection_exec;
   ot->poll = objects_selectable_poll;
 
@@ -1211,7 +1207,7 @@ void OBJECT_OT_select_same_collection(wmOperatorType *ot)
   RNA_def_string(ot->srna,
                  "collection",
                  nullptr,
-                 MAX_ID_NAME,
+                 MAX_ID_NAME - 2,
                  "Collection",
                  "Name of the collection to select");
 }
@@ -1222,7 +1218,7 @@ void OBJECT_OT_select_same_collection(wmOperatorType *ot)
 /** \name Select Mirror
  * \{ */
 
-static int object_select_mirror_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_mirror_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -1272,7 +1268,7 @@ void OBJECT_OT_select_mirror(wmOperatorType *ot)
       "Select the mirror objects of the selected object e.g. \"L.sword\" and \"R.sword\"";
   ot->idname = "OBJECT_OT_select_mirror";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_mirror_exec;
   ot->poll = objects_selectable_poll;
 
@@ -1298,8 +1294,8 @@ static bool object_select_more_less(bContext *C, const bool select)
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   BKE_view_layer_synced_ensure(scene, view_layer);
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    Object *ob = base->object;
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    Object *ob = base.object;
     ob->flag &= ~OB_DONE;
     ob->id.tag &= ~ID_TAG_DOIT;
     /* parent may be in another scene */
@@ -1343,7 +1339,7 @@ static bool object_select_more_less(bContext *C, const bool select)
   return changed;
 }
 
-static int object_select_more_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus object_select_more_exec(bContext *C, wmOperator * /*op*/)
 {
   bool changed = object_select_more_less(C, true);
 
@@ -1366,7 +1362,7 @@ void OBJECT_OT_select_more(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_select_more";
   ot->description = "Select connected parent/child objects";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_more_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -1374,7 +1370,7 @@ void OBJECT_OT_select_more(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int object_select_less_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus object_select_less_exec(bContext *C, wmOperator * /*op*/)
 {
   bool changed = object_select_more_less(C, false);
 
@@ -1397,7 +1393,7 @@ void OBJECT_OT_select_less(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_select_less";
   ot->description = "Deselect objects at the boundaries of parent/child relationships";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_select_less_exec;
   ot->poll = ED_operator_objectmode;
 
@@ -1411,7 +1407,7 @@ void OBJECT_OT_select_less(wmOperatorType *ot)
 /** \name Select Random
  * \{ */
 
-static int object_select_random_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus object_select_random_exec(bContext *C, wmOperator *op)
 {
   const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
   const float randfac = RNA_float_get(op->ptr, "ratio");
@@ -1450,7 +1446,7 @@ void OBJECT_OT_select_random(wmOperatorType *ot)
   ot->description = "Select or deselect random visible objects";
   ot->idname = "OBJECT_OT_select_random";
 
-  /* api callbacks */
+  /* API callbacks. */
   // ot->invoke = object_select_random_invoke; /* TODO: need a number popup. */
   ot->exec = object_select_random_exec;
   ot->poll = objects_selectable_poll;

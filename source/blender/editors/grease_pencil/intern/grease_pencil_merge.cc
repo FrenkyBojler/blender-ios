@@ -6,8 +6,8 @@
  * \ingroup edgreasepencil
  */
 
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
+#include "BLI_listbase.h"
+#include "BLI_math_matrix.hh"
 
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
@@ -29,11 +29,11 @@ static void copy_layer_groups_without_layers(GreasePencil &dst_grease_pencil,
 {
   using namespace bke::greasepencil;
   /* Note: Don't loop over all children, just the direct children. */
-  LISTBASE_FOREACH (GreasePencilLayerTreeNode *, node, &src_parent.children) {
-    if (!node->wrap().is_group()) {
+  for (GreasePencilLayerTreeNode &node : src_parent.children) {
+    if (!node.wrap().is_group()) {
       continue;
     }
-    const LayerGroup &src_group = node->wrap().as_group();
+    const LayerGroup &src_group = node.wrap().as_group();
     LayerGroup &new_group = dst_grease_pencil.add_layer_group(dst_parent, src_group.name(), false);
     BKE_grease_pencil_copy_layer_group_parameters(src_group, new_group);
     /* Repeat recursively for groups in group. */
@@ -201,9 +201,7 @@ void merge_layers(const GreasePencil &src_grease_pencil,
         BLI_assert(duration >= 0);
         dst_frames.add_or_modify(
             item.key,
-            [&](InsertKeyframe *frame) {
-              *frame = {item.value, duration};
-            },
+            [&](InsertKeyframe *frame) { *frame = {item.value, duration}; },
             [&](InsertKeyframe *frame) {
               /* The destination frame is always an implicit hold if at least on of the source
                * frame is an implicit hold. */
@@ -332,15 +330,15 @@ void merge_layers(const GreasePencil &src_grease_pencil,
   const bke::AttributeAccessor src_attributes = src_grease_pencil.attributes();
   bke::MutableAttributeAccessor dst_attributes = dst_grease_pencil.attributes_for_write();
   src_attributes.foreach_attribute([&](const blender::bke::AttributeIter &iter) {
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
-    bke::GAttributeReader src_attribute = src_attributes.lookup(iter.name);
-    if (!src_attribute) {
-      return;
-    }
+    bke::GAttributeReader src_attribute = iter.get();
     bke::GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, bke::AttrDomain::Layer, iter.data_type);
+    if (!dst_attribute) {
+      return;
+    }
 
     const CPPType &type = dst_attribute.span.type();
     bke::attribute_math::convert_to_static_type(type, [&](auto type) {

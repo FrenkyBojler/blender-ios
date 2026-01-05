@@ -83,26 +83,26 @@ static int node_shader_gpu_volume_principled(GPUMaterial *mat,
   /* Get volume attributes. */
   GPUNodeLink *density = nullptr, *color = nullptr, *temperature = nullptr;
 
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-    if (sock->typeinfo->type != SOCK_STRING) {
+  for (bNodeSocket &sock : node->inputs) {
+    if (sock.typeinfo->type != SOCK_STRING) {
       continue;
     }
 
-    bNodeSocketValueString *value = (bNodeSocketValueString *)sock->default_value;
+    bNodeSocketValueString *value = (bNodeSocketValueString *)sock.default_value;
     const char *attribute_name = value->value;
     if (attribute_name[0] == '\0') {
       continue;
     }
 
-    if (STREQ(sock->name, "Density Attribute")) {
+    if (STREQ(sock.name, "Density Attribute")) {
       density = GPU_attribute_with_default(mat, CD_AUTO_FROM_NAME, attribute_name, GPU_DEFAULT_1);
       attribute_post_process(mat, attribute_name, &density);
     }
-    else if (STREQ(sock->name, "Color Attribute")) {
+    else if (STREQ(sock.name, "Color Attribute")) {
       color = GPU_attribute_with_default(mat, CD_AUTO_FROM_NAME, attribute_name, GPU_DEFAULT_1);
       attribute_post_process(mat, attribute_name, &color);
     }
-    else if (use_blackbody && STREQ(sock->name, "Temperature Attribute")) {
+    else if (use_blackbody && STREQ(sock.name, "Temperature Attribute")) {
       temperature = GPU_attribute(mat, CD_AUTO_FROM_NAME, attribute_name);
       attribute_post_process(mat, attribute_name, &temperature);
     }
@@ -124,11 +124,11 @@ static int node_shader_gpu_volume_principled(GPUMaterial *mat,
   const int size = CM_TABLE + 1;
   float *data, layer;
   if (use_blackbody) {
-    data = (float *)MEM_mallocN(sizeof(float) * size * 4, "blackbody texture");
+    data = MEM_malloc_arrayN<float>(size * 4, "blackbody texture");
     IMB_colormanagement_blackbody_temperature_to_rgb_table(data, size, 800.0f, 12000.0f);
   }
   else {
-    data = (float *)MEM_callocN(sizeof(float) * size * 4, "blackbody black");
+    data = MEM_calloc_arrayN<float>(size * 4, "blackbody black");
   }
   GPUNodeLink *spectrummap = GPU_color_band(mat, size, data, &layer);
 
@@ -164,11 +164,14 @@ void register_node_type_sh_volume_principled()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_VOLUME_PRINCIPLED, "Principled Volume", NODE_CLASS_SHADER);
+  sh_node_type_base(&ntype, "ShaderNodeVolumePrincipled", SH_NODE_VOLUME_PRINCIPLED);
+  ntype.ui_name = "Principled Volume";
+  ntype.ui_description = "Combine all volume shading components into a single easy to use node";
   ntype.enum_name_legacy = "PRINCIPLED_VOLUME";
+  ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
   ntype.gpu_fn = file_ns::node_shader_gpu_volume_principled;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

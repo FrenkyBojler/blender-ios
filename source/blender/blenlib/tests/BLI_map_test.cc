@@ -14,7 +14,7 @@
 #include "BLI_timeit.hh"
 #include "BLI_vector.hh"
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 namespace blender::tests {
 
@@ -191,7 +191,7 @@ TEST(map, ValueIterator)
   map.add(1, 2.0f);
   map.add(7, -2.0f);
 
-  blender::Set<float> values;
+  Set<float> values;
 
   int iterations = 0;
   for (float value : map.values()) {
@@ -212,7 +212,7 @@ TEST(map, KeyIterator)
   map.add(2, 4.0f);
   map.add(1, 3.0f);
 
-  blender::Set<int> keys;
+  Set<int> keys;
 
   int iterations = 0;
   for (int key : map.keys()) {
@@ -233,8 +233,8 @@ TEST(map, ItemIterator)
   map.add(2, 9.0f);
   map.add(1, 0.0f);
 
-  blender::Set<int> keys;
-  blender::Set<float> values;
+  Set<int> keys;
+  Set<float> values;
 
   int iterations = 0;
   const Map<int, float> &const_map = map;
@@ -763,6 +763,57 @@ TEST(map, Equality)
   EXPECT_NE(a, b);
 }
 
+TEST(map, AddCbMove)
+{
+  Map<std::string, int> map;
+  std::string value = "a";
+  bool value_checked = false;
+  map.lookup_or_add_cb(std::move(value), [&]() {
+    EXPECT_EQ(value, "a");
+    value_checked = true;
+    return 10;
+  });
+  EXPECT_TRUE(value_checked);
+  EXPECT_EQ(value, "");
+}
+
+struct IntMapKey {
+  int value;
+};
+
+struct IntMapKeyHash {
+  uint64_t operator()(const IntMapKey *key) const
+  {
+    return uint64_t(key->value);
+  }
+};
+
+struct IntMapKeyEq {
+  bool operator()(const IntMapKey *a, const IntMapKey *b) const
+  {
+    return a->value == b->value;
+  }
+};
+
+TEST(map, PointerKeyCustomEq)
+{
+  IntMapKey key1a{1};
+  IntMapKey key1b{1};
+  IntMapKey key2{2};
+  Map<const IntMapKey *, int, 4, DefaultProbingStrategy, IntMapKeyHash, IntMapKeyEq> map;
+  EXPECT_TRUE(map.add(&key1a, 10));
+  EXPECT_FALSE(map.add(&key1b, 11));
+  EXPECT_EQ(map.lookup(&key1a), 10);
+  EXPECT_EQ(map.lookup(&key1b), 10);
+  EXPECT_TRUE(map.add(&key2, 20));
+  EXPECT_TRUE(map.remove(&key1b));
+  EXPECT_FALSE(map.contains(&key1a));
+  EXPECT_FALSE(map.contains(&key1b));
+  EXPECT_TRUE(map.remove(&key2));
+  EXPECT_FALSE(map.remove(&key1a));
+  EXPECT_FALSE(map.remove(&key2));
+}
+
 /**
  * Set this to 1 to activate the benchmark. It is disabled by default, because it prints a lot.
  */
@@ -808,7 +859,7 @@ BLI_NOINLINE void benchmark_random_ints(StringRef name, int amount, int factor)
  */
 template<typename Key, typename Value> class StdUnorderedMapWrapper {
  private:
-  using MapType = std::unordered_map<Key, Value, blender::DefaultHash<Key>>;
+  using MapType = std::unordered_map<Key, Value, DefaultHash<Key>>;
   MapType map_;
 
  public:
@@ -872,16 +923,14 @@ template<typename Key, typename Value> class StdUnorderedMapWrapper {
 TEST(map, Benchmark)
 {
   for (int i = 0; i < 3; i++) {
-    benchmark_random_ints<blender::Map<int, int>>("blender::Map          ", 1000000, 1);
-    benchmark_random_ints<blender::StdUnorderedMapWrapper<int, int>>(
-        "std::unordered_map", 1000000, 1);
+    benchmark_random_ints<Map<int, int>>("blender::Map          ", 1000000, 1);
+    benchmark_random_ints<StdUnorderedMapWrapper<int, int>>("std::unordered_map", 1000000, 1);
   }
   std::cout << "\n";
   for (int i = 0; i < 3; i++) {
     uint32_t factor = (3 << 10);
-    benchmark_random_ints<blender::Map<int, int>>("blender::Map          ", 1000000, factor);
-    benchmark_random_ints<blender::StdUnorderedMapWrapper<int, int>>(
-        "std::unordered_map", 1000000, factor);
+    benchmark_random_ints<Map<int, int>>("blender::Map          ", 1000000, factor);
+    benchmark_random_ints<StdUnorderedMapWrapper<int, int>>("std::unordered_map", 1000000, factor);
   }
 }
 

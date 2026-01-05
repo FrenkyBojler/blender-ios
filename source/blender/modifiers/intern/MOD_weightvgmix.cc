@@ -6,18 +6,20 @@
  * \ingroup modifiers
  */
 
+#include <cfloat>
+
 #include "BLI_utildefines.h"
 
 #include "BLI_listbase.h"
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_texture_types.h"
 
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
@@ -26,7 +28,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_texture.h" /* Texture masking. */
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -120,10 +122,7 @@ static float mix_weight(float weight, float weight2, char mix_mode)
 static void init_data(ModifierData *md)
 {
   WeightVGMixModifierData *wmd = (WeightVGMixModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(wmd, DNA_struct_default_get(WeightVGMixModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -159,7 +158,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
 {
-  PointerRNA ptr = RNA_pointer_create(&ob->id, &RNA_Modifier, md);
+  PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, "mask_texture");
   walk(user_data, ob, md, &ptr, prop);
 }
@@ -247,7 +246,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     }
   }
 
-  const bool has_mdef = CustomData_has_layer(&mesh->vert_data, CD_MDEFORMVERT);
+  const bool has_mdef = !mesh->deform_verts().is_empty();
   /* If no vertices were ever added to an object's vgroup, dvert might be nullptr. */
   if (!has_mdef) {
     /* If not affecting all vertices, just return. */
@@ -264,11 +263,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   }
 
   /* Find out which vertices to work on. */
-  tidx = static_cast<int *>(MEM_malloc_arrayN(verts_num, sizeof(int), __func__));
-  tdw1 = static_cast<MDeformWeight **>(
-      MEM_malloc_arrayN(verts_num, sizeof(MDeformWeight *), __func__));
-  tdw2 = static_cast<MDeformWeight **>(
-      MEM_malloc_arrayN(verts_num, sizeof(MDeformWeight *), __func__));
+  tidx = MEM_malloc_arrayN<int>(size_t(verts_num), __func__);
+  tdw1 = MEM_malloc_arrayN<MDeformWeight *>(size_t(verts_num), __func__);
+  tdw2 = MEM_malloc_arrayN<MDeformWeight *>(size_t(verts_num), __func__);
   switch (wmd->mix_set) {
     case MOD_WVG_SET_A:
       /* All vertices in first vgroup. */
@@ -344,14 +341,12 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     return mesh;
   }
   if (index_num != -1) {
-    indices = static_cast<int *>(MEM_malloc_arrayN(index_num, sizeof(int), __func__));
+    indices = MEM_malloc_arrayN<int>(size_t(index_num), __func__);
     memcpy(indices, tidx, sizeof(int) * index_num);
-    dw1 = static_cast<MDeformWeight **>(
-        MEM_malloc_arrayN(index_num, sizeof(MDeformWeight *), __func__));
+    dw1 = MEM_malloc_arrayN<MDeformWeight *>(size_t(index_num), __func__);
     memcpy(dw1, tdw1, sizeof(MDeformWeight *) * index_num);
     MEM_freeN(tdw1);
-    dw2 = static_cast<MDeformWeight **>(
-        MEM_malloc_arrayN(index_num, sizeof(MDeformWeight *), __func__));
+    dw2 = MEM_malloc_arrayN<MDeformWeight *>(size_t(index_num), __func__);
     memcpy(dw2, tdw2, sizeof(MDeformWeight *) * index_num);
     MEM_freeN(tdw2);
   }
@@ -364,8 +359,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   }
   MEM_freeN(tidx);
 
-  org_w = static_cast<float *>(MEM_malloc_arrayN(index_num, sizeof(float), __func__));
-  new_w = static_cast<float *>(MEM_malloc_arrayN(index_num, sizeof(float), __func__));
+  org_w = MEM_malloc_arrayN<float>(size_t(index_num), __func__);
+  new_w = MEM_malloc_arrayN<float>(size_t(index_num), __func__);
 
   /* Mix weights. */
   for (i = 0; i < index_num; i++) {
@@ -443,35 +438,35 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout.use_property_split_set(true);
 
   modifier_vgroup_ui(
       layout, ptr, &ob_ptr, "vertex_group_a", "invert_vertex_group_a", std::nullopt);
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group_b", "invert_vertex_group_b", IFACE_("B"));
 
-  uiItemS(layout);
+  layout.separator();
 
-  uiItemR(layout, ptr, "default_weight_a", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "default_weight_b", UI_ITEM_NONE, IFACE_("B"), ICON_NONE);
+  layout.prop(ptr, "default_weight_a", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "default_weight_b", UI_ITEM_NONE, IFACE_("B"), ICON_NONE);
 
-  uiItemS(layout);
+  layout.separator();
 
-  uiItemR(layout, ptr, "mix_set", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "mix_set", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "mix_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  uiItemR(layout, ptr, "normalize", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "normalize", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void influence_panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -521,4 +516,5 @@ ModifierTypeInfo modifierType_WeightVGMix = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

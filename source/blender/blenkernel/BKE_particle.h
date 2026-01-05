@@ -11,24 +11,21 @@
 
 #include <optional>
 
-#include "BLI_buffer.h"
 #include "BLI_compiler_attrs.h"
 #include "BLI_map.hh"
 #include "BLI_ordered_edge.hh"
-#include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
 
 #include "DNA_particle_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct ParticleKey;
 struct ParticleSettings;
 struct ParticleSystem;
 struct ParticleSystemModifierData;
+struct ColliderCache;
+struct EffectorCache;
 
 struct BVHTreeRay;
 struct BVHTreeRayHit;
@@ -37,7 +34,6 @@ struct BlendLibReader;
 struct BlendWriter;
 struct CustomData_MeshMasks;
 struct Depsgraph;
-struct KDTree_3d;
 struct LinkNode;
 struct MCol;
 struct MFace;
@@ -45,6 +41,7 @@ struct MTFace;
 struct Main;
 struct ModifierData;
 struct Object;
+struct ReportList;
 struct RNG;
 struct Scene;
 
@@ -60,7 +57,6 @@ struct Scene;
 #define LOOP_SHOWN_PARTICLES \
   for (p = 0, pa = psys->particles; p < psys->totpart; p++, pa++) \
     if (!(pa->flag & (PARS_UNEXIST | PARS_NO_DISP)))
-/* OpenMP: Can only advance one variable within loop definition. */
 #define LOOP_DYNAMIC_PARTICLES \
   for (p = 0; p < psys->totpart; p++) \
     if ((pa = psys->particles + p)->state.time > 0.0f)
@@ -76,7 +72,7 @@ typedef struct ParticleSimulationData {
   struct Object *ob;
   struct ParticleSystem *psys;
   struct ParticleSystemModifierData *psmd;
-  struct ListBase *colliders;
+  ListBaseT<ColliderCache> *colliders;
   /* Courant number. This is used to implement an adaptive time step. Only the
    * maximum value per time step is important. Only sph_integrate makes use of
    * this at the moment. Other solvers could, too. */
@@ -89,8 +85,11 @@ typedef struct SPHData {
   ParticleSystem *psys[10];
   ParticleData *pa;
   float mass;
-  std::optional<blender::Map<blender::OrderedEdge, int>> eh;
-  float *gravity;
+  const blender::Map<blender::OrderedEdge, int> *eh;
+
+  /** The gravity as a `float[3]`, may also be null when the simulation doesn't use gravity. */
+  const float *gravity;
+
   float hfac;
   /* Average distance to neighbors (other particles in the support domain),
    * for calculating the Courant number (adaptive time step). */
@@ -99,7 +98,7 @@ typedef struct SPHData {
   float flow[3];
 
   /* Temporary thread-local buffer for springs created during this step. */
-  BLI_Buffer new_springs;
+  blender::Vector<ParticleSpring> new_springs;
 
   /* Integrator callbacks. This allows different SPH implementations. */
   void (*force_cb)(void *sphdata_v, ParticleKey *state, float *force, float *impulse);
@@ -137,7 +136,7 @@ typedef struct ParticleThreadContext {
   struct Material *ma;
 
   /* distribution */
-  struct KDTree_3d *tree;
+  KDTree3d *tree;
 
   struct ParticleSeam *seams;
   int totseam;
@@ -168,9 +167,9 @@ typedef struct ParticleThreadContext {
 } ParticleThreadContext;
 
 typedef struct ParticleTask {
-  ParticleThreadContext *ctx;
-  struct RNG *rng, *rng_path;
-  int begin, end;
+  ParticleThreadContext *ctx = nullptr;
+  struct RNG *rng = nullptr, *rng_path = nullptr;
+  int begin = 0, end = 0;
 } ParticleTask;
 
 typedef struct ParticleCollisionElement {
@@ -345,7 +344,7 @@ bool psys_render_simplify_params(struct ParticleSystem *psys,
                                  struct ChildParticle *cpa,
                                  float *params);
 
-void psys_interpolate_uvs(const struct MTFace *tface, int quad, const float w[4], float uvco[2]);
+void psys_interpolate_uvs(const struct MTFace *tface, int quad, const float w[4], float r_uv[2]);
 void psys_interpolate_mcol(const struct MCol *mcol, int quad, const float w[4], struct MCol *mc);
 
 void copy_particle_key(struct ParticleKey *to, struct ParticleKey *from, int time);
@@ -405,11 +404,11 @@ void psys_cache_child_paths(struct ParticleSimulationData *sim,
                             bool use_render_params);
 bool do_guides(struct Depsgraph *depsgraph,
                struct ParticleSettings *part,
-               struct ListBase *effectors,
+               ListBaseT<EffectorCache> *effectors,
                ParticleKey *state,
                int index,
                float time);
-void precalc_guides(struct ParticleSimulationData *sim, struct ListBase *effectors);
+void precalc_guides(struct ParticleSimulationData *sim, ListBaseT<EffectorCache> *effectors);
 float psys_get_timestep(struct ParticleSimulationData *sim);
 float psys_get_child_time(struct ParticleSystem *psys,
                           struct ChildParticle *cpa,
@@ -442,7 +441,7 @@ void BKE_particlesettings_clump_curve_init(struct ParticleSettings *part);
 void BKE_particlesettings_rough_curve_init(struct ParticleSettings *part);
 void BKE_particlesettings_twist_curve_init(struct ParticleSettings *part);
 void psys_apply_child_modifiers(struct ParticleThreadContext *ctx,
-                                struct ListBase *modifiers,
+                                ListBaseT<ModifierData> *modifiers,
                                 struct ChildParticle *cpa,
                                 struct ParticleTexture *ptex,
                                 const float orco[3],
@@ -451,7 +450,6 @@ void psys_apply_child_modifiers(struct ParticleThreadContext *ctx,
                                 struct ParticleCacheKey *parent_keys,
                                 const float parent_orco[3]);
 
-void psys_sph_init(struct ParticleSimulationData *sim, struct SPHData *sphdata);
 void psys_sph_finalize(struct SPHData *sphdata);
 /**
  * Sample the density field at a point in space.
@@ -480,12 +478,10 @@ void psys_get_dupli_path_transform(struct ParticleSimulationData *sim,
 void psys_thread_context_init(struct ParticleThreadContext *ctx,
                               struct ParticleSimulationData *sim);
 void psys_thread_context_free(struct ParticleThreadContext *ctx);
-void psys_tasks_create(struct ParticleThreadContext *ctx,
-                       int startpart,
-                       int endpart,
-                       struct ParticleTask **r_tasks,
-                       int *r_numtasks);
-void psys_tasks_free(struct ParticleTask *tasks, int numtasks);
+blender::Vector<ParticleTask> psys_tasks_create(struct ParticleThreadContext *ctx,
+                                                int startpart,
+                                                int endpart);
+void psys_tasks_free(blender::Vector<ParticleTask> &tasks);
 
 void psys_apply_hair_lattice(struct Depsgraph *depsgraph,
                              struct Scene *scene,
@@ -670,6 +666,28 @@ void reset_particle(struct ParticleSimulationData *sim,
 
 float psys_get_current_display_percentage(struct ParticleSystem *psys, bool use_render_params);
 
+void BKE_particle_co_hair(const ParticleSystem *particlesystem,
+                          const Object *object,
+                          int particle_no,
+                          int step,
+                          float n_co[3]);
+
+void BKE_particle_uv_on_emitter(ParticleSystem *particlesystem,
+                                ReportList *reports,
+                                ParticleSystemModifierData *modifier,
+                                ParticleData *particle,
+                                int particle_no,
+                                int uv_no,
+                                float r_uv[2]);
+
+void BKE_particle_mcol_on_emitter(ParticleSystem *particlesystem,
+                                  ReportList *reports,
+                                  ParticleSystemModifierData *modifier,
+                                  ParticleData *particle,
+                                  int particle_no,
+                                  int vcol_no,
+                                  float r_mcol[3]);
+
 /* psys_reset */
 #define PSYS_RESET_ALL 1
 #define PSYS_RESET_DEPSGRAPH 2
@@ -703,14 +721,11 @@ extern void (*BKE_particle_batch_cache_free_cb)(struct ParticleSystem *psys);
 
 void BKE_particle_partdeflect_blend_read_data(struct BlendDataReader *reader,
                                               struct PartDeflect *pd);
-void BKE_particle_system_blend_write(struct BlendWriter *writer, struct ListBase *particles);
+void BKE_particle_system_blend_write(struct BlendWriter *writer,
+                                     ListBaseT<ParticleSystem> *particles);
 void BKE_particle_system_blend_read_data(struct BlendDataReader *reader,
-                                         struct ListBase *particles);
+                                         ListBaseT<ParticleSystem> *particles);
 void BKE_particle_system_blend_read_after_liblink(struct BlendLibReader *reader,
                                                   struct Object *ob,
                                                   struct ID *id,
-                                                  struct ListBase *particles);
-
-#ifdef __cplusplus
-}
-#endif
+                                                  ListBaseT<ParticleSystem> *particles);

@@ -15,7 +15,6 @@
 #include "BLI_array.hh"
 #include "BLI_linklist.h"
 #include "BLI_math_boolean.hh"
-#include "BLI_math_mpq.hh"
 #include "BLI_math_vector_mpq_types.hh"
 #include "BLI_set.hh"
 #include "BLI_task.hh"
@@ -183,7 +182,7 @@ template<typename T> struct CDTVert {
   /** Some edge attached to it. */
   SymEdge<T> *symedge{nullptr};
   /** Set of corresponding vertex input ids. Not used if don't need_ids. */
-  blender::Set<int> input_ids;
+  Set<int> input_ids;
   /** Index into array that #CDTArrangement keeps. */
   int index{-1};
   /** Index of a CDTVert that this has merged to. -1 if no merge. */
@@ -199,7 +198,7 @@ template<typename T> struct CDTEdge {
   /** Set of input edge ids that this is part of.
    * If don't need_ids, then should contain 0 if it is a constrained edge,
    * else empty. */
-  blender::Set<int> input_ids;
+  Set<int> input_ids;
   /** The directed edges for this edge. */
   SymEdge<T> symedges[2]{SymEdge<T>(), SymEdge<T>()};
 
@@ -212,7 +211,7 @@ template<typename T> struct CDTFace {
   /** Set of input face ids that this is part of.
    * If don't need_ids, then should contain 0 if it is part of a constrained face,
    * else empty. */
-  blender::Set<int> input_ids;
+  Set<int> input_ids;
   /** Used by algorithms operating on CDT structures. */
   int visit_index{0};
   /** Marks this face no longer used. */
@@ -513,7 +512,7 @@ template<typename T> void cdt_draw(const std::string &label, const CDTArrangemen
   }
   double scale = view_width / width;
 
-#  define SX(x) (((x)-minx) * scale)
+#  define SX(x) (((x) - minx) * scale)
 #  define SY(y) ((maxy - (y)) * scale)
 
   std::ofstream f;
@@ -866,7 +865,7 @@ CDT_state<T>::CDT_state(
 }
 
 /* Is any id in (range_start, range_start+1, ... , range_end) in id_list? */
-static bool id_range_in_list(const blender::Set<int> &id_list, int range_start, int range_end)
+static bool id_range_in_list(const Set<int> &id_list, int range_start, int range_end)
 {
   for (int id : id_list) {
     if (id >= range_start && id <= range_end) {
@@ -876,12 +875,12 @@ static bool id_range_in_list(const blender::Set<int> &id_list, int range_start, 
   return false;
 }
 
-static void add_to_input_ids(blender::Set<int> &dst, int input_id)
+static void add_to_input_ids(Set<int> &dst, int input_id)
 {
   dst.add(input_id);
 }
 
-static void add_list_to_input_ids(blender::Set<int> &dst, const blender::Set<int> &src)
+static void add_list_to_input_ids(Set<int> &dst, const Set<int> &src)
 {
   for (int value : src) {
     dst.add(value);
@@ -1449,7 +1448,7 @@ template<typename T> void dc_triangulate(CDTArrangement<T> *cdt, Array<SiteInfo<
 
 /**
  * Do a Delaunay Triangulation of the points in cdt.verts.
- * This  is only a first step in the Constrained Delaunay triangulation,
+ * This is only a first step in the Constrained Delaunay triangulation,
  * because it doesn't yet deal with the segment constraints.
  * The algorithm used is the Divide & Conquer algorithm from the
  * Guibas-Stolfi "Primitives for the Manipulation of General Subdivision
@@ -1683,7 +1682,7 @@ void fill_crossdata_for_intersect(const FatCo<T> &curco,
   switch (isect.kind) {
     case isect_result<VecBase<T, 2>>::LINE_LINE_CROSS: {
 #ifdef WITH_GMP
-      if (!std::is_same<T, mpq_class>::value)
+      if (!std::is_same_v<T, mpq_class>)
 #else
       if (true)
 #endif
@@ -1727,7 +1726,7 @@ void fill_crossdata_for_intersect(const FatCo<T> &curco,
     }
     case isect_result<VecBase<T, 2>>::LINE_LINE_NONE: {
 #ifdef WITH_GMP
-      if (std::is_same<T, mpq_class>::value) {
+      if (std::is_same_v<T, mpq_class>) {
         BLI_assert(false);
       }
 #endif
@@ -2460,9 +2459,8 @@ template<typename T> void remove_faces_in_holes(CDT_state<T> *cdt_state)
         BLI_assert(se != nullptr);
         se_next = se->next; /* In case we delete this edge. */
         if (se->edge && !is_constrained_edge(se->edge)) {
-          /* Invalidate one half of this edge. The other has will be or has been
-           * handled with the adjacent triangle is processed: it should be part of the same hole.
-           */
+          /* Invalidate one half of this edge. The other will be, or has already been handled
+           * with the adjacent triangle is processed: it should be part of the same hole. */
           se->next = nullptr;
         }
         se = se_next;
@@ -2777,15 +2775,14 @@ CDT_result<T> delaunay_calc(const CDT_input<T> &input, CDT_output_type output_ty
   return get_cdt_output(&cdt_state, input, output_type);
 }
 
-blender::meshintersect::CDT_result<double> delaunay_2d_calc(const CDT_input<double> &input,
-                                                            CDT_output_type output_type)
+CDT_result<double> delaunay_2d_calc(const CDT_input<double> &input, CDT_output_type output_type)
 {
   return delaunay_calc(input, output_type);
 }
 
 #ifdef WITH_GMP
-blender::meshintersect::CDT_result<mpq_class> delaunay_2d_calc(const CDT_input<mpq_class> &input,
-                                                               CDT_output_type output_type)
+CDT_result<mpq_class> delaunay_2d_calc(const CDT_input<mpq_class> &input,
+                                       CDT_output_type output_type)
 {
   return delaunay_calc(input, output_type);
 }

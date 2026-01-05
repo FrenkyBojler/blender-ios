@@ -7,7 +7,6 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_callbacks.hh"
 
@@ -16,7 +15,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-static ListBase callback_slots[BKE_CB_EVT_TOT] = {{nullptr}};
+static ListBaseT<bCallbackFuncStore> callback_slots[BKE_CB_EVT_TOT] = {{nullptr}};
 
 static bool callbacks_initialized = false;
 
@@ -30,9 +29,9 @@ void BKE_callback_exec(Main *bmain, PointerRNA **pointers, const int num_pointer
   ASSERT_CALLBACKS_INITIALIZED();
 
   /* Use mutable iteration so handlers are able to remove themselves. */
-  ListBase *lb = &callback_slots[evt];
-  LISTBASE_FOREACH_MUTABLE (bCallbackFuncStore *, funcstore, lb) {
-    funcstore->func(bmain, pointers, num_pointers, funcstore->arg);
+  ListBaseT<bCallbackFuncStore> *lb = &callback_slots[evt];
+  for (bCallbackFuncStore &funcstore : lb->items_mutable()) {
+    funcstore.func(bmain, pointers, num_pointers, funcstore.arg);
   }
 }
 
@@ -54,7 +53,7 @@ void BKE_callback_exec_id_depsgraph(Main *bmain, ID *id, Depsgraph *depsgraph, e
 {
   PointerRNA id_ptr = RNA_id_pointer_create(id);
 
-  PointerRNA depsgraph_ptr = RNA_pointer_create(nullptr, &RNA_Depsgraph, depsgraph);
+  PointerRNA depsgraph_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
 
   PointerRNA *pointers[2] = {&id_ptr, &depsgraph_ptr};
 
@@ -65,7 +64,7 @@ void BKE_callback_exec_string(Main *bmain, eCbEvent evt, const char *str)
 {
   PrimitiveStringRNA data = {nullptr};
   data.value = str;
-  PointerRNA str_ptr = RNA_pointer_create(nullptr, &RNA_PrimitiveString, &data);
+  PointerRNA str_ptr = RNA_pointer_create_discrete(nullptr, &RNA_PrimitiveString, &data);
 
   PointerRNA *pointers[1] = {&str_ptr};
 
@@ -75,7 +74,7 @@ void BKE_callback_exec_string(Main *bmain, eCbEvent evt, const char *str)
 void BKE_callback_add(bCallbackFuncStore *funcstore, eCbEvent evt)
 {
   ASSERT_CALLBACKS_INITIALIZED();
-  ListBase *lb = &callback_slots[evt];
+  ListBaseT<bCallbackFuncStore> *lb = &callback_slots[evt];
   BLI_addtail(lb, funcstore);
 }
 
@@ -88,7 +87,7 @@ void BKE_callback_remove(bCallbackFuncStore *funcstore, eCbEvent evt)
     return;
   }
 
-  ListBase *lb = &callback_slots[evt];
+  ListBaseT<bCallbackFuncStore> *lb = &callback_slots[evt];
 
   /* Be noisy about potential programming errors. */
   BLI_assert_msg(BLI_findindex(lb, funcstore) != -1, "To-be-removed callback not found");
@@ -109,7 +108,7 @@ void BKE_callback_global_finalize()
 {
   for (int evt_i = 0; evt_i < BKE_CB_EVT_TOT; evt_i++) {
     const eCbEvent evt = eCbEvent(evt_i);
-    ListBase *lb = &callback_slots[evt];
+    ListBaseT<bCallbackFuncStore> *lb = &callback_slots[evt];
     bCallbackFuncStore *funcstore;
     bCallbackFuncStore *funcstore_next;
     for (funcstore = static_cast<bCallbackFuncStore *>(lb->first); funcstore;

@@ -9,9 +9,7 @@
 #include "BLI_listbase.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_customdata.hh"
 #include "BKE_deform.hh"
-#include "BKE_geometry_fields.hh"
 #include "BKE_mesh.hh"
 
 #include "GEO_mesh_copy_selection.hh"
@@ -100,8 +98,8 @@ static void gather_vert_attributes(const Mesh &mesh_src,
                                    Mesh &mesh_dst)
 {
   Set<std::string> vertex_group_names;
-  LISTBASE_FOREACH (bDeformGroup *, group, &mesh_src.vertex_group_names) {
-    vertex_group_names.add(group->name);
+  for (bDeformGroup &group : mesh_src.vertex_group_names) {
+    vertex_group_names.add(group.name);
   }
 
   const Span<MDeformVert> src = mesh_src.deform_verts();

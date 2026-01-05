@@ -8,6 +8,7 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "BKE_appdir.hh"
 #include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
@@ -18,6 +19,7 @@
 #include "testing/testing.h"
 #include "gmock/gmock.h"
 
+#include "IMB_imbuf.hh"
 #include "IMB_moviecache.hh"
 
 #include "DNA_image_types.h"
@@ -242,6 +244,8 @@ class ImageTest : public ::testing::Test {
 
   void SetUp() override
   {
+    BKE_appdir_init();
+    IMB_init();
     IMB_moviecache_init();
 
     bmain_ = BKE_main_new();
@@ -254,11 +258,13 @@ class ImageTest : public ::testing::Test {
     G_MAIN = nullptr;
 
     IMB_moviecache_destruct();
+    IMB_exit();
+    BKE_appdir_exit();
   }
 
   Image *load_image(const char *path)
   {
-    const std::string asset_dir = blender::tests::flags_test_asset_dir().c_str();
+    const std::string asset_dir = blender::tests::flags_test_asset_dir();
     return BKE_image_load(bmain_, (asset_dir + SEP_STR + "imbuf_io" + SEP_STR + path).c_str());
   }
 
@@ -271,8 +277,8 @@ class ImageTest : public ::testing::Test {
     }
 
     Vector<std::string> layer_names;
-    LISTBASE_FOREACH (const RenderLayer *, layer, &render_result->layers) {
-      layer_names.append(layer->name);
+    for (const RenderLayer &layer : render_result->layers) {
+      layer_names.append(layer.name);
     }
 
     return layer_names;
@@ -286,11 +292,11 @@ class ImageTest : public ::testing::Test {
       return {};
     }
 
-    LISTBASE_FOREACH (const RenderLayer *, layer, &render_result->layers) {
-      if (layer->name == layer_name) {
+    for (const RenderLayer &layer : render_result->layers) {
+      if (layer.name == layer_name) {
         Vector<std::string> pass_names;
-        LISTBASE_FOREACH (const RenderPass *, pass, &layer->passes) {
-          pass_names.append(pass->name);
+        for (const RenderPass &pass : layer.passes) {
+          pass_names.append(pass.name);
         }
         return pass_names;
       }

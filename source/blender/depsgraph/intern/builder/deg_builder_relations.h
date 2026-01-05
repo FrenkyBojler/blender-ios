@@ -8,18 +8,14 @@
 
 #pragma once
 
-#include <cstdio>
 #include <cstring>
 
 #include "intern/depsgraph_type.hh"
 
 #include "DNA_ID.h"
-
-#include "RNA_path.hh"
+#include "DNA_listBase.h"
 
 #include "BLI_span.hh"
-#include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
 
@@ -48,11 +44,11 @@ struct Key;
 struct LayerCollection;
 struct Light;
 struct LightProbe;
-struct ListBase;
 struct Main;
 struct Mask;
 struct Material;
 struct MovieClip;
+struct NlaStrip;
 struct Object;
 struct ParticleSettings;
 struct ParticleSystem;
@@ -163,7 +159,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_constraints(ID *id,
                                  NodeType component_type,
                                  const char *component_subdata,
-                                 ListBase *constraints,
+                                 ListBaseT<bConstraint> *constraints,
                                  RootPChanMap *root_map);
   virtual void build_animdata(ID *id);
   virtual void build_animdata_curves(ID *id);
@@ -175,7 +171,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_animdata_curves_targets(ID *id,
                                              ComponentKey &adt_key,
                                              OperationNode *operation_from,
-                                             ListBase *curves);
+                                             ListBaseT<FCurve> *curves);
   virtual void build_animdata_action_targets(ID *id,
                                              int32_t slot_handle,
                                              ComponentKey &adt_key,
@@ -184,7 +180,7 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_animdata_nlastrip_targets(ID *id,
                                                ComponentKey &adt_key,
                                                OperationNode *operation_from,
-                                               ListBase *strips);
+                                               ListBaseT<NlaStrip> *strips);
   virtual void build_animdata_drivers(ID *id);
   virtual void build_animdata_force(ID *id);
   virtual void build_animation_images(ID *id);
@@ -240,8 +236,8 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   virtual void build_rig(Object *object);
   virtual void build_shapekeys(Key *key);
   virtual void build_armature(bArmature *armature);
-  virtual void build_armature_bones(ListBase *bones);
-  virtual void build_armature_bone_collections(blender::Span<BoneCollection *> collections);
+  virtual void build_armature_bones(ListBaseT<Bone> *bones);
+  virtual void build_armature_bone_collections(Span<BoneCollection *> collections);
   virtual void build_camera(Camera *camera);
   virtual void build_light(Light *lamp);
   virtual void build_nodetree(bNodeTree *ntree);
@@ -286,6 +282,8 @@ class DepsgraphRelationBuilder : public DepsgraphBuilder {
   template<typename KeyType> OperationNode *find_operation_node(const KeyType &key);
 
   Depsgraph *getGraph();
+
+  virtual Set<const ID *> get_built_ids() const;
 
  protected:
   TimeSourceNode *get_node(const TimeSourceKey &key) const;
@@ -366,4 +364,4 @@ struct DepsNodeHandle {
 
 }  // namespace blender::deg
 
-#include "intern/builder/deg_builder_relations_impl.h"
+#include "intern/builder/deg_builder_relations_impl.h"  // IWYU pragma: export

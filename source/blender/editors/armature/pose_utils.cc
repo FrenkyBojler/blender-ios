@@ -8,9 +8,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
@@ -58,7 +59,7 @@
  * Types of transforms applied to the given item:
  * - these are the return flags for get_item_transform_flags()
  */
-typedef enum eAction_TransformFlags {
+enum eAction_TransformFlags {
   ACT_TRANS_LOC = (1 << 0),
   ACT_TRANS_ROT = (1 << 1),
   ACT_TRANS_SCALE = (1 << 2),
@@ -69,11 +70,11 @@ typedef enum eAction_TransformFlags {
 
   ACT_TRANS_ONLY = (ACT_TRANS_LOC | ACT_TRANS_ROT | ACT_TRANS_SCALE),
   ACT_TRANS_ALL = (ACT_TRANS_ONLY | ACT_TRANS_PROP),
-} eAction_TransformFlags;
+};
 
 static eAction_TransformFlags get_item_transform_flags_and_fcurves(Object &ob,
                                                                    bPoseChannel &pchan,
-                                                                   ListBase &r_curves)
+                                                                   ListBaseT<LinkData> &r_curves)
 {
   if (!ob.adt || !ob.adt->action) {
     return eAction_TransformFlags(0);
@@ -83,7 +84,7 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(Object &ob,
   short flags = 0;
 
   /* Build PointerRNA from provided data to obtain the paths to use. */
-  PointerRNA ptr = RNA_pointer_create((ID *)&ob, &RNA_PoseBone, &pchan);
+  PointerRNA ptr = RNA_pointer_create_discrete(reinterpret_cast<ID *>(&ob), &RNA_PoseBone, &pchan);
 
   /* Get the basic path to the properties of interest. */
   const std::optional<std::string> basePath = RNA_path_from_ID_to_struct(&ptr);
@@ -164,27 +165,28 @@ static eAction_TransformFlags get_item_transform_flags_and_fcurves(Object &ob,
 }
 
 /* helper for poseAnim_mapping_get() -> get the relevant F-Curves per PoseChannel */
-static void fcurves_to_pchan_links_get(ListBase &pfLinks, Object &ob, bPoseChannel &pchan)
+static void fcurves_to_pchan_links_get(ListBaseT<tPChanFCurveLink> &pfLinks,
+                                       Object &ob,
+                                       bPoseChannel &pchan)
 {
-  ListBase curves = {nullptr, nullptr};
+  ListBaseT<LinkData> curves = {nullptr, nullptr};
   const eAction_TransformFlags transFlags = get_item_transform_flags_and_fcurves(
       ob, pchan, curves);
 
-  pchan.flag &= ~(POSE_LOC | POSE_ROT | POSE_SIZE | POSE_BBONE_SHAPE);
+  pchan.flag &= ~(POSE_LOC | POSE_ROT | POSE_SCALE | POSE_BBONE_SHAPE);
 
   if (!transFlags) {
     return;
   }
 
-  tPChanFCurveLink *pfl = static_cast<tPChanFCurveLink *>(
-      MEM_callocN(sizeof(tPChanFCurveLink), "tPChanFCurveLink"));
+  tPChanFCurveLink *pfl = MEM_callocN<tPChanFCurveLink>("tPChanFCurveLink");
 
   pfl->ob = &ob;
   pfl->fcurves = curves;
   pfl->pchan = &pchan;
 
   /* Get the RNA path to this pchan - this needs to be freed! */
-  PointerRNA ptr = RNA_pointer_create((ID *)&ob, &RNA_PoseBone, &pchan);
+  PointerRNA ptr = RNA_pointer_create_discrete(reinterpret_cast<ID *>(&ob), &RNA_PoseBone, &pchan);
   pfl->pchan_path = BLI_strdup(RNA_path_from_ID_to_struct(&ptr).value_or("").c_str());
 
   BLI_addtail(&pfLinks, pfl);
@@ -197,7 +199,7 @@ static void fcurves_to_pchan_links_get(ListBase &pfLinks, Object &ob, bPoseChann
     pchan.flag |= POSE_ROT;
   }
   if (transFlags & ACT_TRANS_SCALE) {
-    pchan.flag |= POSE_SIZE;
+    pchan.flag |= POSE_SCALE;
   }
   if (transFlags & ACT_TRANS_BBONE) {
     pchan.flag |= POSE_BBONE_SHAPE;
@@ -205,7 +207,7 @@ static void fcurves_to_pchan_links_get(ListBase &pfLinks, Object &ob, bPoseChann
 
   copy_v3_v3(pfl->oldloc, pchan.loc);
   copy_v3_v3(pfl->oldrot, pchan.eul);
-  copy_v3_v3(pfl->oldscale, pchan.size);
+  copy_v3_v3(pfl->oldscale, pchan.scale);
   copy_qt_qt(pfl->oldquat, pchan.quat);
   copy_v3_v3(pfl->oldaxis, pchan.rotAxis);
   pfl->oldangle = pchan.rotAngle;
@@ -224,8 +226,13 @@ static void fcurves_to_pchan_links_get(ListBase &pfLinks, Object &ob, bPoseChann
   copy_v3_v3(pfl->scale_out, pchan.scale_out);
 
   /* Make copy of custom properties. */
-  if (pchan.prop && (transFlags & ACT_TRANS_PROP)) {
-    pfl->oldprops = IDP_CopyProperty(pchan.prop);
+  if (transFlags & ACT_TRANS_PROP) {
+    if (pchan.prop) {
+      pfl->oldprops = IDP_CopyProperty(pchan.prop);
+    }
+    if (pchan.system_properties) {
+      pfl->old_system_properties = IDP_CopyProperty(pchan.system_properties);
+    }
   }
 }
 
@@ -238,7 +245,7 @@ Object *poseAnim_object_get(Object *ob_)
   return nullptr;
 }
 
-void poseAnim_mapping_get(bContext *C, ListBase *pfLinks)
+void poseAnim_mapping_get(bContext *C, ListBaseT<tPChanFCurveLink> *pfLinks)
 {
   BLI_assert(pfLinks != nullptr);
   /* For each Pose-Channel which gets affected, get the F-Curves for that channel
@@ -294,7 +301,7 @@ void poseAnim_mapping_get(bContext *C, ListBase *pfLinks)
   }
 }
 
-void poseAnim_mapping_free(ListBase *pfLinks)
+void poseAnim_mapping_free(ListBaseT<tPChanFCurveLink> *pfLinks)
 {
   tPChanFCurveLink *pfl, *pfln = nullptr;
 
@@ -331,41 +338,47 @@ void poseAnim_mapping_refresh(bContext *C, Scene * /*scene*/, Object *ob)
   }
 }
 
-void poseAnim_mapping_reset(ListBase *pfLinks)
+void poseAnim_mapping_reset(ListBaseT<tPChanFCurveLink> *pfLinks)
 {
   /* iterate over each pose-channel affected, restoring all channels to their original values */
-  LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pfLinks) {
-    bPoseChannel *pchan = pfl->pchan;
+  for (tPChanFCurveLink &pfl : *pfLinks) {
+    bPoseChannel *pchan = pfl.pchan;
 
     /* just copy all the values over regardless of whether they changed or not */
-    copy_v3_v3(pchan->loc, pfl->oldloc);
-    copy_v3_v3(pchan->eul, pfl->oldrot);
-    copy_v3_v3(pchan->size, pfl->oldscale);
-    copy_qt_qt(pchan->quat, pfl->oldquat);
-    copy_v3_v3(pchan->rotAxis, pfl->oldaxis);
-    pchan->rotAngle = pfl->oldangle;
+    copy_v3_v3(pchan->loc, pfl.oldloc);
+    copy_v3_v3(pchan->eul, pfl.oldrot);
+    copy_v3_v3(pchan->scale, pfl.oldscale);
+    copy_qt_qt(pchan->quat, pfl.oldquat);
+    copy_v3_v3(pchan->rotAxis, pfl.oldaxis);
+    pchan->rotAngle = pfl.oldangle;
 
     /* store current bbone values */
-    pchan->roll1 = pfl->roll1;
-    pchan->roll2 = pfl->roll2;
-    pchan->curve_in_x = pfl->curve_in_x;
-    pchan->curve_in_z = pfl->curve_in_z;
-    pchan->curve_out_x = pfl->curve_out_x;
-    pchan->curve_out_z = pfl->curve_out_z;
-    pchan->ease1 = pfl->ease1;
-    pchan->ease2 = pfl->ease2;
+    pchan->roll1 = pfl.roll1;
+    pchan->roll2 = pfl.roll2;
+    pchan->curve_in_x = pfl.curve_in_x;
+    pchan->curve_in_z = pfl.curve_in_z;
+    pchan->curve_out_x = pfl.curve_out_x;
+    pchan->curve_out_z = pfl.curve_out_z;
+    pchan->ease1 = pfl.ease1;
+    pchan->ease2 = pfl.ease2;
 
-    copy_v3_v3(pchan->scale_in, pfl->scale_in);
-    copy_v3_v3(pchan->scale_out, pfl->scale_out);
+    copy_v3_v3(pchan->scale_in, pfl.scale_in);
+    copy_v3_v3(pchan->scale_out, pfl.scale_out);
 
     /* just overwrite values of properties from the stored copies (there should be some) */
-    if (pfl->oldprops) {
-      IDP_SyncGroupValues(pfl->pchan->prop, pfl->oldprops);
+    if (pfl.oldprops) {
+      IDP_SyncGroupValues(pfl.pchan->prop, pfl.oldprops);
+    }
+    if (pfl.old_system_properties) {
+      IDP_SyncGroupValues(pfl.pchan->system_properties, pfl.old_system_properties);
     }
   }
 }
 
-void poseAnim_mapping_autoKeyframe(bContext *C, Scene *scene, ListBase *pfLinks, float cframe)
+void poseAnim_mapping_autoKeyframe(bContext *C,
+                                   Scene *scene,
+                                   ListBaseT<tPChanFCurveLink> *pfLinks,
+                                   float cframe)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -400,15 +413,15 @@ void poseAnim_mapping_autoKeyframe(bContext *C, Scene *scene, ListBase *pfLinks,
   /* XXX: here we already have the information about what transforms exist, though
    * it might be easier to just overwrite all using normal mechanisms
    */
-  LISTBASE_FOREACH (tPChanFCurveLink *, pfl, pfLinks) {
-    bPoseChannel *pchan = pfl->pchan;
+  for (tPChanFCurveLink &pfl : *pfLinks) {
+    bPoseChannel *pchan = pfl.pchan;
 
-    if ((pfl->ob->id.tag & ID_TAG_DOIT) == 0) {
+    if ((pfl.ob->id.tag & ID_TAG_DOIT) == 0) {
       continue;
     }
 
     /* Add data-source override for the PoseChannel, to be used later. */
-    blender::animrig::relative_keyingset_add_source(sources, &pfl->ob->id, &RNA_PoseBone, pchan);
+    blender::animrig::relative_keyingset_add_source(sources, &pfl.ob->id, &RNA_PoseBone, pchan);
   }
 
   /* insert keyframes for all relevant bones in one go */
@@ -433,7 +446,9 @@ void poseAnim_mapping_autoKeyframe(bContext *C, Scene *scene, ListBase *pfLinks,
 
 /* ------------------------- */
 
-LinkData *poseAnim_mapping_getNextFCurve(ListBase *fcuLinks, LinkData *prev, const char *path)
+LinkData *poseAnim_mapping_getNextFCurve(ListBaseT<LinkData> *fcuLinks,
+                                         LinkData *prev,
+                                         const char *path)
 {
   LinkData *first = static_cast<LinkData *>((prev)     ? prev->next :
                                             (fcuLinks) ? fcuLinks->first :
@@ -442,7 +457,7 @@ LinkData *poseAnim_mapping_getNextFCurve(ListBase *fcuLinks, LinkData *prev, con
 
   /* check each link to see if the linked F-Curve has a matching path */
   for (ld = first; ld; ld = ld->next) {
-    const FCurve *fcu = (const FCurve *)ld->data;
+    const FCurve *fcu = static_cast<const FCurve *>(ld->data);
 
     /* check if paths match */
     if (STREQ(path, fcu->rna_path)) {

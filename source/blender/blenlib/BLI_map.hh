@@ -160,7 +160,7 @@ class Map {
 
   /** The max load factor is 1/2 = 50% by default. */
 #define LOAD_FACTOR 1, 2
-  LoadFactor max_load_factor_ = LoadFactor(LOAD_FACTOR);
+  static constexpr LoadFactor max_load_factor_ = LoadFactor(LOAD_FACTOR);
   using SlotArray =
       Array<Slot, LoadFactor::compute_total_slots(InlineBufferCapacity, LOAD_FACTOR), Allocator>;
 #undef LOAD_FACTOR
@@ -578,9 +578,7 @@ class Map {
     if (ptr != nullptr) {
       return *ptr;
     }
-    else {
-      return Value(std::forward<ForwardValue>(default_value)...);
-    }
+    return Value(std::forward<ForwardValue>(default_value)...);
   }
 
   /**
@@ -615,7 +613,8 @@ class Map {
    * the map, it will be newly added.
    *
    * The create_value callback is only called when the key did not exist yet. It is expected to
-   * take no parameters and return the value to be inserted.
+   * take no parameters and return the value to be inserted. The callback is called before the key
+   * is copied/moved into the map.
    */
   template<typename CreateValueF>
   Value &lookup_or_add_cb(const Key &key, const CreateValueF &create_value)
@@ -1099,6 +1098,10 @@ class Map {
  private:
   BLI_NOINLINE void realloc_and_reinsert(int64_t min_usable_slots)
   {
+    /* Avoid rebuilding the hash table just to get rid of a few removed slots. In this case, also
+     * increase the map size to avoid a bad edge case. */
+    min_usable_slots = std::max(min_usable_slots, this->size() * 2);
+
     int64_t total_slots, usable_slots;
     max_load_factor_.compute_total_and_usable_slots(
         SlotArray::inline_buffer_capacity(), min_usable_slots, &total_slots, &usable_slots);
@@ -1198,6 +1201,10 @@ class Map {
       if (slot.contains(key, is_equal_, hash)) {
         return false;
       }
+      /* This intentionally does not check if the slot is in removed state because that would cause
+       * additional overhead in the common case when nothing is ever removed from the map. These
+       * slots will be cleaned up when the map is rebuilt. There could be alternative methods or
+       * template arguments in the future to enable overridding removed slots here. */
     }
     MAP_SLOT_PROBING_END();
   }

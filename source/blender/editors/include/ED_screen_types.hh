@@ -8,9 +8,11 @@
 
 #pragma once
 
-#include "BLI_rect.h"
+#include "DNA_vec_types.h"
 
 struct ARegion;
+struct Scene;
+struct ViewLayer;
 
 /* ----------------------------------------------------- */
 
@@ -20,6 +22,13 @@ struct ARegion;
 struct ScreenAnimData {
   /** Do not read from this, only for comparing if region exists. */
   ARegion *region;
+
+  /* The Scene and the View Layer that the animation timer is playing. */
+  Scene *scene;
+  ViewLayer *view_layer;
+  /* For sequencer scenes, account for scene syncing during playback. */
+  bool do_scene_syncing;
+
   short redraws;
   /** Flags for playback */
   short flag;
@@ -104,6 +113,10 @@ enum {
    * - When a region is expanded, use the action zone to resize the region.
    */
   AZONE_REGION,
+  /**
+   * Widget at the very center of the 3D Viewport Quad View for resizing.
+   */
+  AZONE_REGION_QUAD,
   /**
    * Used when in editor full-screen draw a corner to return to normal mode.
    */

@@ -13,6 +13,7 @@
 
 #include "BLI_alloca.h"
 #include "BLI_dynstr.h"
+#include "BLI_hash.hh"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
@@ -33,6 +34,14 @@
 
 #include "rna_access_internal.hh"
 #include "rna_internal.hh"
+
+int64_t RNAPath::hash() const
+{
+  if (key.has_value()) {
+    return blender::get_default_hash(path, key.value());
+  }
+  return blender::get_default_hash(path, index.value_or(0));
+};
 
 bool operator==(const RNAPath &left, const RNAPath &right)
 {
@@ -70,8 +79,7 @@ static char *rna_path_token(const char **path, char *fixedbuf, int fixedlen)
   }
 
   /* Try to use fixed buffer if possible. */
-  char *buf = (len + 1 < fixedlen) ? fixedbuf :
-                                     (char *)MEM_mallocN(sizeof(char) * (len + 1), __func__);
+  char *buf = (len + 1 < fixedlen) ? fixedbuf : MEM_malloc_arrayN<char>(size_t(len) + 1, __func__);
   memcpy(buf, *path, sizeof(char) * len);
   buf[len] = '\0';
 
@@ -150,8 +158,7 @@ static char *rna_path_token_in_brackets(const char **path,
   }
 
   /* Try to use fixed buffer if possible. */
-  char *buf = (len + 1 < fixedlen) ? fixedbuf :
-                                     (char *)MEM_mallocN(sizeof(char) * (len + 1), __func__);
+  char *buf = (len + 1 < fixedlen) ? fixedbuf : MEM_malloc_arrayN<char>(size_t(len) + 1, __func__);
 
   /* Copy string, taking into account escaped ']' */
   if (quoted) {
@@ -372,7 +379,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
                            PropertyRNA **r_prop,
                            int *r_index,
                            PointerRNA *r_item_ptr,
-                           ListBase *r_elements,
+                           ListBaseT<PropertyElemRNA> *r_elements,
                            const bool eval_pointer)
 {
   BLI_assert(r_item_ptr == nullptr || !eval_pointer);
@@ -385,7 +392,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
   const bool do_item_ptr = r_item_ptr != nullptr && !eval_pointer;
 
   if (do_item_ptr) {
-    RNA_POINTER_INVALIDATE(&nextptr);
+    nextptr.invalidate();
   }
 
   prop = nullptr;
@@ -397,7 +404,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
 
   while (*path) {
     if (do_item_ptr) {
-      RNA_POINTER_INVALIDATE(&nextptr);
+      nextptr.invalidate();
     }
 
     const bool use_id_prop = (*path == '[');
@@ -598,7 +605,9 @@ bool RNA_path_resolve_property_and_item_pointer_full(const PointerRNA *ptr,
 
   return r_ptr->data != nullptr && *r_prop != nullptr;
 }
-bool RNA_path_resolve_elements(PointerRNA *ptr, const char *path, ListBase *r_elements)
+bool RNA_path_resolve_elements(PointerRNA *ptr,
+                               const char *path,
+                               ListBaseT<PropertyElemRNA> *r_elements)
 {
   return rna_path_parse(ptr, path, nullptr, nullptr, nullptr, nullptr, r_elements, false);
 }
@@ -729,7 +738,7 @@ const char *RNA_path_array_index_token_find(const char *rna_path, const Property
   if (UNLIKELY(rna_path[0] == '\0')) {
     return nullptr;
   }
-  size_t rna_path_len = size_t(strlen(rna_path)) - 1;
+  size_t rna_path_len = strlen(rna_path) - 1;
   if (rna_path[rna_path_len] != ']') {
     return nullptr;
   }
@@ -877,7 +886,7 @@ static char *rna_idp_path(PointerRNA *ptr,
     }
     else if (iter->type == IDP_IDPARRAY) {
       if (prop->type == PROP_COLLECTION) {
-        const IDProperty *array = IDP_IDPArray(iter);
+        const IDProperty *array = IDP_property_array_get(iter);
         if (needle >= array && needle < (iter->len + array)) { /* found! */
           link.name = iter->name;
           link.index = int(needle - array);
@@ -913,7 +922,7 @@ static char *rna_idp_path(PointerRNA *ptr,
 std::optional<std::string> RNA_path_from_struct_to_idproperty(PointerRNA *ptr,
                                                               const IDProperty *needle)
 {
-  const IDProperty *haystack = RNA_struct_idprops(ptr, false);
+  const IDProperty *haystack = RNA_struct_system_idprops(ptr, false);
 
   if (!haystack) { /* can fail when called on bones */
     return std::nullopt;
@@ -925,7 +934,7 @@ std::optional<std::string> RNA_path_from_struct_to_idproperty(PointerRNA *ptr,
   }
 
   std::string string_path(path);
-  MEM_freeN((void *)path);
+  MEM_freeN(path);
 
   return string_path;
 }
@@ -1192,7 +1201,7 @@ std::optional<std::string> RNA_path_resolve_from_type_to_property(const PointerR
 {
   /* Try to recursively find an "type"'d ancestor,
    * to handle situations where path from ID is not enough. */
-  ListBase path_elems = {nullptr};
+  ListBaseT<PropertyElemRNA> path_elems = {nullptr};
   const std::optional<std::string> full_path = RNA_path_from_ID_to_property(ptr, prop);
   if (!full_path) {
     return std::nullopt;
@@ -1202,10 +1211,9 @@ std::optional<std::string> RNA_path_resolve_from_type_to_property(const PointerR
 
   std::optional<std::string> path;
   if (RNA_path_resolve_elements(&idptr, full_path->c_str(), &path_elems)) {
-    LISTBASE_FOREACH_BACKWARD (PropertyElemRNA *, prop_elem, &path_elems) {
-      if (RNA_struct_is_a(prop_elem->ptr.type, type)) {
-        if (const std::optional<std::string> ref_path = RNA_path_from_ID_to_struct(
-                &prop_elem->ptr))
+    for (PropertyElemRNA &prop_elem : path_elems.items_reversed()) {
+      if (RNA_struct_is_a(prop_elem.ptr.type, type)) {
+        if (const std::optional<std::string> ref_path = RNA_path_from_ID_to_struct(&prop_elem.ptr))
         {
           path = blender::StringRef(*full_path).drop_prefix(ref_path->size() + 1);
         }
@@ -1213,8 +1221,8 @@ std::optional<std::string> RNA_path_resolve_from_type_to_property(const PointerR
       }
     }
 
-    LISTBASE_FOREACH_MUTABLE (PropertyElemRNA *, prop_elem, &path_elems) {
-      MEM_delete(prop_elem);
+    for (PropertyElemRNA &prop_elem : path_elems.items_mutable()) {
+      MEM_delete(&prop_elem);
     }
     BLI_listbase_clear(&path_elems);
   }
@@ -1337,7 +1345,7 @@ std::optional<std::string> RNA_path_struct_property_py(PointerRNA *ptr,
   }
 
   if ((index == -1) || (RNA_property_array_check(prop) == false)) {
-    return *data_path;
+    return data_path;
   }
   return fmt::format("{}[{}]", data_path.value_or(""), index);
 }

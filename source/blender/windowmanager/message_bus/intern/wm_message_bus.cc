@@ -33,6 +33,7 @@ using wmMsgTypeInitFn = void (*)(wmMsgTypeInfo *);
 static wmMsgTypeInitFn wm_msg_init_fn[WM_MSG_TYPE_NUM] = {
     WM_msgtypeinfo_init_rna,
     WM_msgtypeinfo_init_static,
+    WM_msgtypeinfo_init_remote_io,
 };
 
 void WM_msgbus_types_init()
@@ -44,7 +45,7 @@ void WM_msgbus_types_init()
 
 wmMsgBus *WM_msgbus_create()
 {
-  wmMsgBus *mbus = static_cast<wmMsgBus *>(MEM_callocN(sizeof(*mbus), __func__));
+  wmMsgBus *mbus = MEM_callocN<wmMsgBus>(__func__);
   const uint gset_reserve = 512;
   for (uint i = 0; i < WM_MSG_TYPE_NUM; i++) {
     wmMsgTypeInfo *info = &wm_msg_types[i];
@@ -104,10 +105,10 @@ void WM_msgbus_clear_by_owner(wmMsgBus *mbus, void *owner)
 void WM_msg_dump(wmMsgBus *mbus, const char *info_str)
 {
   printf(">>>> %s\n", info_str);
-  LISTBASE_FOREACH (wmMsgSubscribeKey *, key, &mbus->messages) {
-    const wmMsg *msg = wm_msg_subscribe_value_msg_cast(key);
+  for (wmMsgSubscribeKey &key : mbus->messages) {
+    const wmMsg *msg = wm_msg_subscribe_value_msg_cast(&key);
     const wmMsgTypeInfo *info = &wm_msg_types[msg->type];
-    info->repr(stdout, key);
+    info->repr(stdout, &key);
   }
   printf("<<<< %s\n", info_str);
 }
@@ -124,11 +125,11 @@ void WM_msgbus_handle(wmMsgBus *mbus, bContext *C)
   }
 
   // uint a = 0, b = 0;
-  LISTBASE_FOREACH (wmMsgSubscribeKey *, key, &mbus->messages) {
-    LISTBASE_FOREACH (wmMsgSubscribeValueLink *, msg_lnk, &key->values) {
-      if (msg_lnk->params.tag) {
-        msg_lnk->params.notify(C, key, &msg_lnk->params);
-        msg_lnk->params.tag = false;
+  for (wmMsgSubscribeKey &key : mbus->messages) {
+    for (wmMsgSubscribeValueLink &msg_lnk : key.values) {
+      if (msg_lnk.params.tag) {
+        msg_lnk.params.notify(C, &key, &msg_lnk.params);
+        msg_lnk.params.tag = false;
         mbus->messages_tag_count -= 1;
       }
       // b++;
@@ -152,24 +153,23 @@ wmMsgSubscribeKey *WM_msg_subscribe_with_key(wmMsgBus *mbus,
 
   void **r_key;
   if (!BLI_gset_ensure_p_ex(mbus->messages_gset[type], msg_key_test, &r_key)) {
-    key = static_cast<wmMsgSubscribeKey *>(*r_key = MEM_mallocN(info->msg_key_size, __func__));
-    memcpy(key, msg_key_test, info->msg_key_size);
+    *r_key = info->gset.key_duplicate_fn(msg_key_test);
+    key = static_cast<wmMsgSubscribeKey *>(*r_key);
     BLI_addtail(&mbus->messages, key);
   }
   else {
     key = static_cast<wmMsgSubscribeKey *>(*r_key);
-    LISTBASE_FOREACH (wmMsgSubscribeValueLink *, msg_lnk, &key->values) {
-      if ((msg_lnk->params.notify == msg_val_params->notify) &&
-          (msg_lnk->params.owner == msg_val_params->owner) &&
-          (msg_lnk->params.user_data == msg_val_params->user_data))
+    for (wmMsgSubscribeValueLink &msg_lnk : key->values) {
+      if ((msg_lnk.params.notify == msg_val_params->notify) &&
+          (msg_lnk.params.owner == msg_val_params->owner) &&
+          (msg_lnk.params.user_data == msg_val_params->user_data))
       {
         return key;
       }
     }
   }
 
-  wmMsgSubscribeValueLink *msg_lnk = static_cast<wmMsgSubscribeValueLink *>(
-      MEM_mallocN(sizeof(wmMsgSubscribeValueLink), __func__));
+  wmMsgSubscribeValueLink *msg_lnk = MEM_mallocN<wmMsgSubscribeValueLink>(__func__);
   msg_lnk->params = *msg_val_params;
   BLI_addtail(&key->values, msg_lnk);
   return key;
@@ -177,19 +177,18 @@ wmMsgSubscribeKey *WM_msg_subscribe_with_key(wmMsgBus *mbus,
 
 void WM_msg_publish_with_key(wmMsgBus *mbus, wmMsgSubscribeKey *msg_key)
 {
-  CLOG_INFO(WM_LOG_MSGBUS_SUB,
-            2,
-            "tagging subscribers: (ptr=%p, len=%d)",
-            msg_key,
-            BLI_listbase_count(&msg_key->values));
+  CLOG_DEBUG(WM_LOG_MSGBUS_SUB,
+             "tagging subscribers: (ptr=%p, len=%d)",
+             msg_key,
+             BLI_listbase_count(&msg_key->values));
 
-  LISTBASE_FOREACH (wmMsgSubscribeValueLink *, msg_lnk, &msg_key->values) {
+  for (wmMsgSubscribeValueLink &msg_lnk : msg_key->values) {
     if (false) { /* Make an option? */
-      msg_lnk->params.notify(nullptr, msg_key, &msg_lnk->params);
+      msg_lnk.params.notify(nullptr, msg_key, &msg_lnk.params);
     }
     else {
-      if (msg_lnk->params.tag == false) {
-        msg_lnk->params.tag = true;
+      if (msg_lnk.params.tag == false) {
+        msg_lnk.params.tag = true;
         mbus->messages_tag_count += 1;
       }
     }

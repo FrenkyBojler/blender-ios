@@ -11,15 +11,15 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_cloth_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_task.h"
-#include "BLI_threads.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_cloth.hh"
 #include "BKE_collection.hh"
@@ -296,7 +296,7 @@ static float compute_collision_point_tri_tri(const float a1[3],
       }
     }
 
-    /* If no point is found, will fallback onto regular proximity test below. */
+    /* If no point is found, will fall back onto regular proximity test below. */
     if (found) {
       sub_v3_v3v3(r_vec, r_b, r_a);
 
@@ -483,7 +483,7 @@ static float compute_collision_point_edge_tri(const float a1[3],
       }
     }
 
-    /* If no point is found, will fallback onto regular proximity test below. */
+    /* If no point is found, will fall back onto regular proximity test below. */
     if (found) {
       sub_v3_v3v3(r_vec, r_b, r_a);
 
@@ -586,16 +586,10 @@ static void collision_compute_barycentric(const float pv[3],
   }
 
   w1[0] = float((e * c - b * f) / d);
-
-  if (w1[0] < 0) {
-    w1[0] = 0;
-  }
+  w1[0] = std::max<float>(w1[0], 0);
 
   w2[0] = float((f - b * double(w1[0])) / c);
-
-  if (w2[0] < 0) {
-    w2[0] = 0;
-  }
+  w2[0] = std::max<float>(w2[0], 0);
 
   w3[0] = 1.0f - w1[0] - w2[0];
 
@@ -1228,7 +1222,7 @@ static void hair_collision(void *__restrict userdata,
   }
 }
 
-static void add_collision_object(ListBase *relations,
+static void add_collision_object(ListBaseT<CollisionRelation> *relations,
                                  Object *ob,
                                  int level,
                                  const ModifierType modifier_type)
@@ -1237,7 +1231,7 @@ static void add_collision_object(ListBase *relations,
   ModifierData *cmd = BKE_modifiers_findby_type(ob, modifier_type);
 
   if (cmd) {
-    CollisionRelation *relation = MEM_cnew<CollisionRelation>(__func__);
+    CollisionRelation *relation = MEM_callocN<CollisionRelation>(__func__);
     relation->ob = ob;
     BLI_addtail(relations, relation);
   }
@@ -1256,9 +1250,9 @@ static void add_collision_object(ListBase *relations,
   }
 }
 
-ListBase *BKE_collision_relations_create(Depsgraph *depsgraph,
-                                         Collection *collection,
-                                         uint modifier_type)
+ListBaseT<CollisionRelation> *BKE_collision_relations_create(Depsgraph *depsgraph,
+                                                             Collection *collection,
+                                                             uint modifier_type)
 {
   const Scene *scene = DEG_get_input_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
@@ -1266,7 +1260,7 @@ ListBase *BKE_collision_relations_create(Depsgraph *depsgraph,
   const bool for_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   const int base_flag = (for_render) ? BASE_ENABLED_RENDER : BASE_ENABLED_VIEWPORT;
 
-  ListBase *relations = MEM_cnew<ListBase>(__func__);
+  ListBaseT<CollisionRelation> *relations = MEM_callocN<ListBaseT<CollisionRelation>>(__func__);
 
   for (; base; base = base->next) {
     if (base->flag & base_flag) {
@@ -1277,7 +1271,7 @@ ListBase *BKE_collision_relations_create(Depsgraph *depsgraph,
   return relations;
 }
 
-void BKE_collision_relations_free(ListBase *relations)
+void BKE_collision_relations_free(ListBaseT<CollisionRelation> *relations)
 {
   if (relations) {
     BLI_freelistN(relations);
@@ -1291,7 +1285,8 @@ Object **BKE_collision_objects_create(Depsgraph *depsgraph,
                                       uint *numcollobj,
                                       uint modifier_type)
 {
-  ListBase *relations = DEG_get_collision_relations(depsgraph, collection, modifier_type);
+  ListBaseT<CollisionRelation> *relations = DEG_get_collision_relations(
+      depsgraph, collection, modifier_type);
 
   if (!relations) {
     *numcollobj = 0;
@@ -1300,11 +1295,11 @@ Object **BKE_collision_objects_create(Depsgraph *depsgraph,
 
   int maxnum = BLI_listbase_count(relations);
   int num = 0;
-  Object **objects = MEM_cnew_array<Object *>(maxnum, __func__);
+  Object **objects = MEM_calloc_arrayN<Object *>(maxnum, __func__);
 
-  LISTBASE_FOREACH (CollisionRelation *, relation, relations) {
+  for (CollisionRelation &relation : *relations) {
     /* Get evaluated object. */
-    Object *ob = (Object *)DEG_get_evaluated_id(depsgraph, &relation->ob->id);
+    Object *ob = DEG_get_evaluated(depsgraph, relation.ob);
 
     if (modifier_type == eModifierType_Collision && !(ob->pd && ob->pd->deflect)) {
       continue;
@@ -1332,19 +1327,21 @@ void BKE_collision_objects_free(Object **objects)
   }
 }
 
-ListBase *BKE_collider_cache_create(Depsgraph *depsgraph, Object *self, Collection *collection)
+ListBaseT<ColliderCache> *BKE_collider_cache_create(Depsgraph *depsgraph,
+                                                    Object *self,
+                                                    Collection *collection)
 {
-  ListBase *relations = DEG_get_collision_relations(
+  ListBaseT<CollisionRelation> *relations = DEG_get_collision_relations(
       depsgraph, collection, eModifierType_Collision);
-  ListBase *cache = nullptr;
+  ListBaseT<ColliderCache> *cache = nullptr;
 
   if (!relations) {
     return nullptr;
   }
 
-  LISTBASE_FOREACH (CollisionRelation *, relation, relations) {
+  for (CollisionRelation &relation : *relations) {
     /* Get evaluated object. */
-    Object *ob = (Object *)DEG_get_evaluated_id(depsgraph, &relation->ob->id);
+    Object *ob = DEG_get_evaluated(depsgraph, relation.ob);
 
     if (ob == self) {
       continue;
@@ -1354,10 +1351,10 @@ ListBase *BKE_collider_cache_create(Depsgraph *depsgraph, Object *self, Collecti
         ob, eModifierType_Collision);
     if (cmd && cmd->bvhtree) {
       if (cache == nullptr) {
-        cache = MEM_cnew<ListBase>(__func__);
+        cache = MEM_callocN<ListBaseT<ColliderCache>>(__func__);
       }
 
-      ColliderCache *col = MEM_cnew<ColliderCache>(__func__);
+      ColliderCache *col = MEM_callocN<ColliderCache>(__func__);
       col->ob = ob;
       col->collmd = cmd;
       /* make sure collider is properly set up */
@@ -1369,7 +1366,7 @@ ListBase *BKE_collider_cache_create(Depsgraph *depsgraph, Object *self, Collecti
   return cache;
 }
 
-void BKE_collider_cache_free(ListBase **colliders)
+void BKE_collider_cache_free(ListBaseT<ColliderCache> **colliders)
 {
   if (*colliders) {
     BLI_freelistN(*colliders);
@@ -1387,7 +1384,7 @@ static bool cloth_bvh_objcollisions_nearcheck(ClothModifierData *clmd,
                                               bool use_normal)
 {
   const bool is_hair = (clmd->hairdata != nullptr);
-  *collisions = (CollPair *)MEM_mallocN(sizeof(CollPair) * numresult, "collision array");
+  *collisions = MEM_malloc_arrayN<CollPair>(size_t(numresult), "collision array");
 
   ColDetectData data{};
   data.clmd = clmd;
@@ -1461,7 +1458,7 @@ static int cloth_bvh_objcollisions_resolve(ClothModifierData *clmd,
     /* Apply impulses in parallel. */
     if (result) {
       for (i = 0; i < mvert_num; i++) {
-        // calculate "velocities" (just xnew = xold + v; no dt in v)
+        /* Calculate "velocities" (just `xnew = xold + v`; no `dt` in `v`). */
         if (verts[i].impulse_count) {
           add_v3_v3(verts[i].tv, verts[i].impulse);
           add_v3_v3(verts[i].dcvel, verts[i].impulse);
@@ -1584,8 +1581,8 @@ int cloth_bvh_collision(
                                             eModifierType_Collision);
 
     if (collobjs) {
-      coll_counts_obj = MEM_cnew_array<uint>(numcollobj, "CollCounts");
-      overlap_obj = MEM_cnew_array<BVHTreeOverlap *>(numcollobj, "BVHOverlap");
+      coll_counts_obj = MEM_calloc_arrayN<uint>(numcollobj, "CollCounts");
+      overlap_obj = MEM_calloc_arrayN<BVHTreeOverlap *>(numcollobj, "BVHOverlap");
 
       for (i = 0; i < numcollobj; i++) {
         Object *collob = collobjs[i];
@@ -1625,7 +1622,7 @@ int cloth_bvh_collision(
       CollPair **collisions;
       bool collided = false;
 
-      collisions = MEM_cnew_array<CollPair *>(numcollobj, "CollPair");
+      collisions = MEM_calloc_arrayN<CollPair *>(numcollobj, "CollPair");
 
       for (i = 0; i < numcollobj; i++) {
         Object *collob = collobjs[i];
@@ -1671,8 +1668,7 @@ int cloth_bvh_collision(
 
       if (cloth->bvhselftree) {
         if (coll_count_self && overlap_self) {
-          collisions = (CollPair *)MEM_mallocN(sizeof(CollPair) * coll_count_self,
-                                               "collision array");
+          collisions = MEM_malloc_arrayN<CollPair>(coll_count_self, "collision array");
 
           if (cloth_bvh_selfcollisions_nearcheck(clmd, collisions, coll_count_self, overlap_self))
           {

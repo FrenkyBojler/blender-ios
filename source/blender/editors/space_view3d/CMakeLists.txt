@@ -5,9 +5,12 @@
 set(INC
   ../asset
   ../include
+  ../../makesrna
   ../../modifiers
   ../../../../intern/mantaflow/extern
 
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -21,6 +24,7 @@ set(SRC
   view3d_context.cc
   view3d_cursor_snap.cc
   view3d_draw.cc
+  view3d_dropboxes.cc
   view3d_edit.cc
   view3d_gizmo_armature.cc
   view3d_gizmo_camera.cc
@@ -81,13 +85,13 @@ set(LIB
   bf_editor_curves
   bf_editor_lattice
   bf_editor_mesh
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::functions
   PRIVATE bf::gpu
   PRIVATE bf::imbuf
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::nodes
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
 )
 
@@ -105,3 +109,6 @@ if(WITH_XR_OPENXR)
 endif()
 
 blender_add_lib(bf_editor_space_view3d "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+# RNA_prototypes.hh
+add_dependencies(bf_editor_space_view3d bf_rna)

@@ -12,20 +12,22 @@
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 
-#include "BKE_layer.hh"
 #include "BKE_object.hh"
 
 #include "id.hh"
 #include "material.hh"
 
+struct Material;
+
 namespace blender::io::hydra {
+
+class HydraSceneDelegate;
 
 class ObjectData : public IdData {
  public:
   pxr::GfMatrix4d transform;
   bool visible = true;
 
- public:
   ObjectData(HydraSceneDelegate *scene_delegate,
              const Object *object,
              pxr::SdfPath const &prim_id);

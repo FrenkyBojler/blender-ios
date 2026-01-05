@@ -9,14 +9,16 @@
 #include "MEM_guardedalloc.h"
 #include <cstring>
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_base.h"
+#include "BLI_string.h"
 
 #include "BKE_global.hh"
 
 #include "gpu_backend.hh"
 #include "gpu_node_graph.hh"
 
+#include "GPU_capabilities.hh"
 #include "GPU_context.hh"
 #include "GPU_material.hh"
 
@@ -57,10 +59,10 @@ UniformBuf::~UniformBuf()
  * We need to pad some data types (vec3) on the C side
  * To match the GPU expected memory block alignment.
  */
-static eGPUType get_padded_gpu_type(LinkData *link)
+static GPUType get_padded_gpu_type(LinkData *link)
 {
   GPUInput *input = (GPUInput *)link->data;
-  eGPUType gputype = input->type;
+  GPUType gputype = input->type;
   /* Metal cannot pack floats after vec3. */
   if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
     return (gputype == GPU_VEC3) ? GPU_VEC4 : gputype;
@@ -90,7 +92,7 @@ static int inputs_cmp(const void *a, const void *b)
  * Make sure we respect the expected alignment of UBOs.
  * mat4, vec4, pad vec3 as vec4, then vec2, then floats.
  */
-static void buffer_from_list_inputs_sort(ListBase *inputs)
+static void buffer_from_list_inputs_sort(ListBaseT<LinkData> *inputs)
 {
 /* Only support up to this type, if you want to extend it, make sure static void
  * inputs_sobuffer_size_compute *inputs) padding logic is correct for the new types. */
@@ -106,10 +108,10 @@ static void buffer_from_list_inputs_sort(ListBase *inputs)
 
   /* Creates a lookup table for the different types. */
   LinkData *inputs_lookup[MAX_UBO_GPU_TYPE + 1] = {nullptr};
-  eGPUType cur_type = static_cast<eGPUType>(MAX_UBO_GPU_TYPE + 1);
+  GPUType cur_type = static_cast<GPUType>(MAX_UBO_GPU_TYPE + 1);
 
-  LISTBASE_FOREACH (LinkData *, link, inputs) {
-    GPUInput *input = (GPUInput *)link->data;
+  for (LinkData &link : *inputs) {
+    GPUInput *input = (GPUInput *)link.data;
 
     if (input->type == GPU_MAT3) {
       /* Alignment for mat3 is not handled currently, so not supported */
@@ -125,7 +127,7 @@ static void buffer_from_list_inputs_sort(ListBase *inputs)
       continue;
     }
 
-    inputs_lookup[input->type] = link;
+    inputs_lookup[input->type] = &link;
     cur_type = input->type;
   }
 
@@ -157,11 +159,11 @@ static void buffer_from_list_inputs_sort(ListBase *inputs)
 #undef MAX_UBO_GPU_TYPE
 }
 
-static inline size_t buffer_size_from_list(ListBase *inputs)
+static inline size_t buffer_size_from_list(ListBaseT<LinkData> *inputs)
 {
   size_t buffer_size = 0;
-  LISTBASE_FOREACH (LinkData *, link, inputs) {
-    const eGPUType gputype = get_padded_gpu_type(link);
+  for (LinkData &link : *inputs) {
+    const GPUType gputype = get_padded_gpu_type(&link);
     buffer_size += gputype * sizeof(float);
   }
   /* Round up to size of vec4. (Opengl Requirement) */
@@ -171,14 +173,14 @@ static inline size_t buffer_size_from_list(ListBase *inputs)
   return buffer_size;
 }
 
-static inline void buffer_fill_from_list(void *data, ListBase *inputs)
+static inline void buffer_fill_from_list(void *data, ListBaseT<LinkData> *inputs)
 {
   /* Now that we know the total ubo size we can start populating it. */
   float *offset = (float *)data;
-  LISTBASE_FOREACH (LinkData *, link, inputs) {
-    GPUInput *input = (GPUInput *)link->data;
+  for (LinkData &link : *inputs) {
+    GPUInput *input = (GPUInput *)link.data;
     memcpy(offset, input->vec, input->type * sizeof(float));
-    offset += get_padded_gpu_type(link);
+    offset += get_padded_gpu_type(&link);
   }
 }
 
@@ -190,7 +192,7 @@ static inline void buffer_fill_from_list(void *data, ListBase *inputs)
 
 using namespace blender::gpu;
 
-GPUUniformBuf *GPU_uniformbuf_create_ex(size_t size, const void *data, const char *name)
+blender::gpu::UniformBuf *GPU_uniformbuf_create_ex(size_t size, const void *data, const char *name)
 {
   UniformBuf *ubo = GPUBackend::get()->uniformbuf_alloc(size, name);
   /* Direct init. */
@@ -203,10 +205,11 @@ GPUUniformBuf *GPU_uniformbuf_create_ex(size_t size, const void *data, const cha
     blender::Vector<uchar> uninitialized_data(size, 0xFF);
     ubo->update(uninitialized_data.data());
   }
-  return wrap(ubo);
+  return ubo;
 }
 
-GPUUniformBuf *GPU_uniformbuf_create_from_list(ListBase *inputs, const char *name)
+blender::gpu::UniformBuf *GPU_uniformbuf_create_from_list(ListBaseT<LinkData> *inputs,
+                                                          const char *name)
 {
   /* There is no point on creating an UBO if there is no arguments. */
   if (BLI_listbase_is_empty(inputs)) {
@@ -218,35 +221,38 @@ GPUUniformBuf *GPU_uniformbuf_create_from_list(ListBase *inputs, const char *nam
   void *data = MEM_mallocN(buffer_size, __func__);
   buffer_fill_from_list(data, inputs);
 
-  UniformBuf *ubo = GPUBackend::get()->uniformbuf_alloc(buffer_size, name);
-  /* Defer data upload. */
-  ubo->attach_data(data);
-  return wrap(ubo);
+  UniformBuf *ubo = nullptr;
+  if (buffer_size <= GPU_max_uniform_buffer_size()) {
+    ubo = GPUBackend::get()->uniformbuf_alloc(buffer_size, name);
+    /* Defer data upload. */
+    ubo->attach_data(data);
+  }
+  return ubo;
 }
 
-void GPU_uniformbuf_free(GPUUniformBuf *ubo)
+void GPU_uniformbuf_free(blender::gpu::UniformBuf *ubo)
 {
-  delete unwrap(ubo);
+  delete ubo;
 }
 
-void GPU_uniformbuf_update(GPUUniformBuf *ubo, const void *data)
+void GPU_uniformbuf_update(blender::gpu::UniformBuf *ubo, const void *data)
 {
-  unwrap(ubo)->update(data);
+  ubo->update(data);
 }
 
-void GPU_uniformbuf_bind(GPUUniformBuf *ubo, int slot)
+void GPU_uniformbuf_bind(blender::gpu::UniformBuf *ubo, int slot)
 {
-  unwrap(ubo)->bind(slot);
+  ubo->bind(slot);
 }
 
-void GPU_uniformbuf_bind_as_ssbo(GPUUniformBuf *ubo, int slot)
+void GPU_uniformbuf_bind_as_ssbo(blender::gpu::UniformBuf *ubo, int slot)
 {
-  unwrap(ubo)->bind_as_ssbo(slot);
+  ubo->bind_as_ssbo(slot);
 }
 
-void GPU_uniformbuf_unbind(GPUUniformBuf *ubo)
+void GPU_uniformbuf_unbind(blender::gpu::UniformBuf *ubo)
 {
-  unwrap(ubo)->unbind();
+  ubo->unbind();
 }
 
 void GPU_uniformbuf_debug_unbind_all()
@@ -254,9 +260,9 @@ void GPU_uniformbuf_debug_unbind_all()
   Context::get()->debug_unbind_all_ubo();
 }
 
-void GPU_uniformbuf_clear_to_zero(GPUUniformBuf *ubo)
+void GPU_uniformbuf_clear_to_zero(blender::gpu::UniformBuf *ubo)
 {
-  unwrap(ubo)->clear_to_zero();
+  ubo->clear_to_zero();
 }
 
 /** \} */

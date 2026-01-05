@@ -8,6 +8,18 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
+struct ARegion;
+struct ARegionType;
+struct PointerRNA;
+struct SpaceNla;
+struct bAnimContext;
+struct bAnimListElem;
+struct bContext;
+struct wmKeyConfig;
+struct wmOperatorType;
+
 /* internal exports only */
 
 /* **************************************** */
@@ -30,7 +42,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *region);
 void draw_nla_track_list(const bContext *C,
                          bAnimContext *ac,
                          ARegion *region,
-                         const ListBase /*bAnimListElem*/ &anim_data);
+                         const ListBaseT<bAnimListElem> &anim_data);
 
 /* **************************************** */
 /* `nla_select.cc` */

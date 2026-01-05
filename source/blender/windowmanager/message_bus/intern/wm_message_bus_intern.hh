@@ -10,10 +10,12 @@
 
 #include "../wm_message_bus.hh"
 
+struct GSet;
+
 struct wmMsgBus {
   GSet *messages_gset[WM_MSG_TYPE_NUM];
   /** Messages in order of being added. */
-  ListBase messages;
+  ListBaseT<wmMsgSubscribeKey> messages;
   /** Avoid checking messages when no tags exist. */
   uint messages_tag_count;
 };

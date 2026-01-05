@@ -13,7 +13,7 @@
 /* avoid many includes for now */
 #include "BLI_compiler_compat.h"
 #include "BLI_sys_types.h"
-#include "BLI_utildefines_variadic.h"
+#include "BLI_utildefines_variadic.h"  // IWYU prama: export
 
 /* We could remove in future. */
 #include "BLI_assert.h"
@@ -334,11 +334,8 @@ inline constexpr int64_t power_of_2_max(const int64_t x)
 /** \name Pointer Macros
  * \{ */
 
-#if defined(__GNUC__) || defined(__clang__)
-#  define POINTER_OFFSET(v, ofs) ((typeof(v))((char *)(v) + (ofs)))
-#else
-#  define POINTER_OFFSET(v, ofs) ((void *)((char *)(v) + (ofs)))
-#endif
+#define POINTER_OFFSET(v, ofs) \
+  (reinterpret_cast<typename std::remove_reference<decltype(v)>::type>((char *)(v) + (ofs)))
 
 /* Warning-free macros for storing ints in pointers. Use these _only_
  * for storing an int in a pointer, not a pointer in an int (64bit)! */
@@ -358,7 +355,7 @@ inline constexpr int64_t power_of_2_max(const int64_t x)
  *
  * \{ */
 
-/** Performs `offsetof(typeof(data), member) + sizeof((data)->member)` for non-gcc compilers. */
+/** Performs `offsetof(decltype(data), member) + sizeof((data)->member)` for non-gcc compilers. */
 #define OFFSETOF_STRUCT_AFTER(_struct, _member) \
   ((size_t)(((const char *)&((_struct)->_member)) - ((const char *)(_struct))) + \
    sizeof((_struct)->_member))
@@ -396,9 +393,19 @@ inline constexpr int64_t power_of_2_max(const int64_t x)
 extern bool BLI_memory_is_zero(const void *arr, size_t arr_size);
 #endif
 
-#define MEMCMP_STRUCT_AFTER_IS_ZERO(struct_var, member) \
-  (BLI_memory_is_zero((const char *)(struct_var) + OFFSETOF_STRUCT_AFTER(struct_var, member), \
-                      sizeof(*(struct_var)) - OFFSETOF_STRUCT_AFTER(struct_var, member)))
+#define MEMCMP_STRUCT_AFTER_IS_ZERO_OR_EQUAL(struct_dst, struct_src, member) \
+  (BLI_memory_is_zero((const char *)(struct_dst) + OFFSETOF_STRUCT_AFTER(struct_dst, member), \
+                      sizeof(*(struct_dst)) - OFFSETOF_STRUCT_AFTER(struct_dst, member)) || \
+   (memcmp((const char *)(struct_dst) + OFFSETOF_STRUCT_AFTER(struct_dst, member), \
+           (const char *)(struct_src) + OFFSETOF_STRUCT_AFTER(struct_src, member), \
+           sizeof(*(struct_dst)) - OFFSETOF_STRUCT_AFTER(struct_dst, member)) == 0))
+
+#define INIT_DEFAULT_STRUCT_AFTER(struct_dst, member) \
+  { \
+    const typename std::remove_reference<decltype(*(struct_dst))>::type struct_src; \
+    BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO_OR_EQUAL(struct_dst, &struct_src, member)); \
+    MEMCPY_STRUCT_AFTER(struct_dst, &struct_src, member); \
+  }
 
 /** \} */
 
@@ -546,50 +553,6 @@ extern bool BLI_memory_is_zero(const void *arr, size_t arr_size);
     } \
   } \
   ((void)0)
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name C++ Macros
- * \{ */
-
-#ifdef __cplusplus
-
-/* Useful to port C code using enums to C++ where enums are strongly typed.
- * To use after the enum declaration. */
-/* If any enumerator `C` is set to say `A|B`, then `C` would be the max enum value. */
-#  define ENUM_OPERATORS(_enum_type, _max_enum_value) \
-    extern "C++" { \
-    inline constexpr _enum_type operator|(_enum_type a, _enum_type b) \
-    { \
-      return (_enum_type)(uint64_t(a) | uint64_t(b)); \
-    } \
-    inline constexpr _enum_type operator&(_enum_type a, _enum_type b) \
-    { \
-      return (_enum_type)(uint64_t(a) & uint64_t(b)); \
-    } \
-    inline constexpr _enum_type operator~(_enum_type a) \
-    { \
-      return (_enum_type)(~uint64_t(a) & (2 * uint64_t(_max_enum_value) - 1)); \
-    } \
-    inline _enum_type &operator|=(_enum_type &a, _enum_type b) \
-    { \
-      return a = (_enum_type)(uint64_t(a) | uint64_t(b)); \
-    } \
-    inline _enum_type &operator&=(_enum_type &a, _enum_type b) \
-    { \
-      return a = (_enum_type)(uint64_t(a) & uint64_t(b)); \
-    } \
-    inline _enum_type &operator^=(_enum_type &a, _enum_type b) \
-    { \
-      return a = (_enum_type)(uint64_t(a) ^ uint64_t(b)); \
-    } \
-    } /* extern "C++" */
-
-#else
-/* Output nothing. */
-#  define ENUM_OPERATORS(_type, _max)
-#endif
 
 /** \} */
 

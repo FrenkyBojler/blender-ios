@@ -6,7 +6,7 @@
 
 #include "BLI_string.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BKE_node_runtime.hh"
@@ -49,9 +49,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Shader>("Volume").translation_context(BLT_I18NCONTEXT_ID_ID);
 }
 
-static void node_shader_buts_scatter(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_scatter(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "phase", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "phase", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_scatter(bNodeTree * /*ntree*/, bNode *node)
@@ -63,19 +63,19 @@ static void node_shader_update_scatter(bNodeTree *ntree, bNode *node)
 {
   const int phase_function = node->custom1;
 
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-    if (STR_ELEM(sock->name, "IOR", "Backscatter")) {
-      bke::node_set_socket_availability(ntree, sock, phase_function == SHD_PHASE_FOURNIER_FORAND);
+  for (bNodeSocket &sock : node->inputs) {
+    if (STR_ELEM(sock.name, "IOR", "Backscatter")) {
+      bke::node_set_socket_availability(*ntree, sock, phase_function == SHD_PHASE_FOURNIER_FORAND);
     }
-    else if (STR_ELEM(sock->name, "Anisotropy")) {
+    else if (STR_ELEM(sock.name, "Anisotropy")) {
       bke::node_set_socket_availability(
-          ntree, sock, ELEM(phase_function, SHD_PHASE_HENYEY_GREENSTEIN, SHD_PHASE_DRAINE));
+          *ntree, sock, ELEM(phase_function, SHD_PHASE_HENYEY_GREENSTEIN, SHD_PHASE_DRAINE));
     }
-    else if (STR_ELEM(sock->name, "Alpha")) {
-      bke::node_set_socket_availability(ntree, sock, phase_function == SHD_PHASE_DRAINE);
+    else if (STR_ELEM(sock.name, "Alpha")) {
+      bke::node_set_socket_availability(*ntree, sock, phase_function == SHD_PHASE_DRAINE);
     }
-    else if (STR_ELEM(sock->name, "Diameter")) {
-      bke::node_set_socket_availability(ntree, sock, phase_function == SHD_PHASE_MIE);
+    else if (STR_ELEM(sock.name, "Diameter")) {
+      bke::node_set_socket_availability(*ntree, sock, phase_function == SHD_PHASE_MIE);
     }
   }
 }
@@ -106,15 +106,19 @@ void register_node_type_sh_volume_scatter()
 
   static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_VOLUME_SCATTER, "Volume Scatter", NODE_CLASS_SHADER);
+  sh_node_type_base(&ntype, "ShaderNodeVolumeScatter", SH_NODE_VOLUME_SCATTER);
+  ntype.ui_name = "Volume Scatter";
+  ntype.ui_description =
+      "Scatter light as it passes through the volume, often used to add fog to a scene";
   ntype.enum_name_legacy = "VOLUME_SCATTER";
+  ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;
   ntype.draw_buttons = file_ns::node_shader_buts_scatter;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.initfunc = file_ns::node_shader_init_scatter;
   ntype.gpu_fn = file_ns::node_shader_gpu_volume_scatter;
   ntype.updatefunc = file_ns::node_shader_update_scatter;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

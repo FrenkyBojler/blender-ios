@@ -5,6 +5,9 @@
 set(INC
   ../include
   ../../ikplugin
+  ../../makesrna
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 set(INC_SYS
 )
@@ -34,6 +37,7 @@ set(SRC
   transform_convert_object_texspace.cc
   transform_convert_paintcurve.cc
   transform_convert_particle.cc
+  transform_convert_pointcloud.cc
   transform_convert_sculpt.cc
   transform_convert_sequencer.cc
   transform_convert_sequencer_image.cc
@@ -114,10 +118,13 @@ set(LIB
   bf_editor_mask
   PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::nodes
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
 )
 
 blender_add_lib(bf_editor_transform "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+# RNA_prototypes.hh
+add_dependencies(bf_editor_transform bf_rna)

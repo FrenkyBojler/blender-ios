@@ -23,16 +23,6 @@ set(LIB
   cycles_util
 )
 
-if(WITH_ALEMBIC)
-  add_definitions(-DWITH_ALEMBIC)
-  list(APPEND INC_SYS
-    ${ALEMBIC_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    ${ALEMBIC_LIBRARIES}
-  )
-endif()
-
 if(WITH_CYCLES_OSL)
   list(APPEND LIB cycles_kernel_osl)
 endif()
@@ -115,9 +105,9 @@ if(WITH_CYCLES_STANDALONE)
         " -framework GameController"
       )
       set_property(
-          TARGET cycles
-          APPEND PROPERTY LINK_FLAGS
-          "${_cycles_sdl_frameworks}"
+        TARGET cycles
+        APPEND PROPERTY LINK_FLAGS
+        "${_cycles_sdl_frameworks}"
       )
     endif()
   endif()

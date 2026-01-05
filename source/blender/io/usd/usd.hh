@@ -10,13 +10,15 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_modifier_types.h"
+
 #include "RNA_types.hh"
 
 struct bContext;
 struct CacheArchiveHandle;
+struct CacheObjectPath;
 struct CacheReader;
-struct ListBase;
 struct Mesh;
 struct Object;
 struct ReportList;
@@ -51,7 +53,7 @@ enum eUSDMtlPurpose {
  *  attributes / properties outside
  *  a prim's regular schema.
  */
-enum eUSDAttrImportMode {
+enum eUSDPropertyImportMode {
   USD_ATTR_IMPORT_NONE = 0,
   USD_ATTR_IMPORT_USER = 1,
   USD_ATTR_IMPORT_ALL = 2,
@@ -113,10 +115,20 @@ enum eUSDTexExportMode {
   USD_TEX_EXPORT_NEW_PATH,
 };
 
+enum eUSDSceneUnits {
+  USD_SCENE_UNITS_CUSTOM = -1,
+  USD_SCENE_UNITS_METERS = 0,
+  USD_SCENE_UNITS_KILOMETERS = 1,
+  USD_SCENE_UNITS_CENTIMETERS = 2,
+  USD_SCENE_UNITS_MILLIMETERS = 3,
+  USD_SCENE_UNITS_INCHES = 4,
+  USD_SCENE_UNITS_FEET = 5,
+  USD_SCENE_UNITS_YARDS = 6,
+};
+
 struct USDExportParams {
   bool export_animation = false;
   bool selected_objects_only = false;
-  bool visible_objects_only = true;
 
   bool export_meshes = true;
   bool export_lights = true;
@@ -141,7 +153,7 @@ struct USDExportParams {
   bool use_instancing = false;
   bool export_custom_properties = true;
   bool author_blender_name = true;
-  bool allow_unicode = false;
+  bool allow_unicode = true;
 
   eSubdivExportMode export_subdiv = USD_SUBDIV_BEST_MATCH;
   enum eEvaluationMode evaluation_mode = DAG_EVAL_VIEWPORT;
@@ -165,9 +177,15 @@ struct USDExportParams {
   eUSDZTextureDownscaleSize usdz_downscale_size = eUSDZTextureDownscaleSize::USD_TEXTURE_SIZE_KEEP;
   int usdz_downscale_custom_size = 128;
 
-  char root_prim_path[1024] = ""; /* FILE_MAX */
-  char collection[MAX_IDPROP_NAME] = "";
+  std::string root_prim_path = "";
+  char collection[MAX_ID_NAME - 2] = "";
   char custom_properties_namespace[MAX_IDPROP_NAME] = "";
+
+  std::string accessibility_label = "";
+  std::string accessibility_description = "";
+
+  eUSDSceneUnits convert_scene_units = eUSDSceneUnits::USD_SCENE_UNITS_METERS;
+  float custom_meters_per_unit = 1.0f;
 
   /** Communication structure between the wmJob management code and the worker code. Currently used
    * to generate safely reports from the worker thread. */
@@ -175,15 +193,16 @@ struct USDExportParams {
 };
 
 struct USDImportParams {
-  char *prim_path_mask;
   float scale;
   float light_intensity_scale;
+  bool apply_unit_conversion_scale;
 
   char mesh_read_flag;
   bool set_frame_range;
   bool is_sequence;
   int sequence_len;
   int offset;
+  bool relative_path;
 
   bool import_defined_only;
   bool import_visible_only;
@@ -195,7 +214,7 @@ struct USDImportParams {
   bool import_all_materials;
   bool import_meshes;
   bool import_points;
-  bool import_subdiv;
+  bool import_subdivision;
   bool import_volumes;
 
   bool import_shapes;
@@ -219,9 +238,10 @@ struct USDImportParams {
   eUSDMtlNameCollisionMode mtl_name_collision_mode;
   eUSDTexImportMode import_textures_mode;
 
-  char import_textures_dir[768]; /* FILE_MAXDIR */
+  std::string prim_path_mask;
+  char import_textures_dir[/*FILE_MAXDIR*/ 768];
   eUSDTexNameCollisionMode tex_name_collision_mode;
-  eUSDAttrImportMode attr_import_mode;
+  eUSDPropertyImportMode property_import_mode;
 
   /**
    * Communication structure between the wmJob management code and the worker code. Currently used
@@ -272,7 +292,9 @@ int USD_get_version();
  * attempting to normalize the path. */
 void USD_path_abs(char *path, const char *basepath, bool for_import);
 
-CacheArchiveHandle *USD_create_handle(Main *bmain, const char *filepath, ListBase *object_paths);
+CacheArchiveHandle *USD_create_handle(Main *bmain,
+                                      const char *filepath,
+                                      ListBaseT<CacheObjectPath> *object_paths);
 
 void USD_free_handle(CacheArchiveHandle *handle);
 
@@ -306,7 +328,7 @@ struct USDHook {
   /* Identifier used as label. */
   char name[64];
   /* Short help/description. */
-  char description[1024]; /* #RNA_DYN_DESCR_MAX */
+  char description[/*RNA_DYN_DESCR_MAX*/ 1024];
 
   /* rna_ext.data points to the USDHook class PyObject. */
   ExtensionRNA rna_ext;
@@ -317,7 +339,9 @@ void USD_register_hook(std::unique_ptr<USDHook> hook);
  * Remove the given entry from the list of registered hooks and
  * free the allocated memory for the hook instance.
  */
-void USD_unregister_hook(USDHook *hook);
+void USD_unregister_hook(const USDHook *hook);
 USDHook *USD_find_hook_name(const char idname[]);
+
+double get_meters_per_unit(const USDExportParams &params);
 
 };  // namespace blender::io::usd

@@ -10,7 +10,7 @@
 
 #include "deg_builder_cache.h"
 
-#include "intern/depsgraph_type.hh"
+#include "BLI_set.hh"
 
 struct Depsgraph;
 struct Main;
@@ -45,8 +45,8 @@ class AbstractBuilderPipeline {
   ViewLayer *view_layer_;
   DepsgraphBuilderCache builder_cache_;
 
-  virtual unique_ptr<DepsgraphNodeBuilder> construct_node_builder();
-  virtual unique_ptr<DepsgraphRelationBuilder> construct_relation_builder();
+  virtual std::unique_ptr<DepsgraphNodeBuilder> construct_node_builder();
+  virtual std::unique_ptr<DepsgraphRelationBuilder> construct_relation_builder();
 
   virtual void build_step_sanity_check();
   void build_step_nodes();
@@ -55,6 +55,9 @@ class AbstractBuilderPipeline {
 
   virtual void build_nodes(DepsgraphNodeBuilder &node_builder) = 0;
   virtual void build_relations(DepsgraphRelationBuilder &relation_builder) = 0;
+
+  Set<const ID *> ids_build_by_node_builder_;
+  Set<const ID *> ids_build_by_relations_builder_;
 };
 
 }  // namespace blender::deg

@@ -5,6 +5,9 @@
 set(INC
   ../include
   ../uvedit
+  ../../makesrna
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -27,7 +30,6 @@ set(SRC
   editmesh_knife.cc
   editmesh_knife_project.cc
   editmesh_loopcut.cc
-  editmesh_mask_extract.cc
   editmesh_path.cc
   editmesh_polybuild.cc
   editmesh_preselect_edgering.cc
@@ -41,6 +43,7 @@ set(SRC
   editmesh_undo.cc
   editmesh_utils.cc
   mesh_data.cc
+  mesh_join.cc
   mesh_mirror.cc
   mesh_ops.cc
   meshtools.cc
@@ -65,7 +68,6 @@ set(LIB
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
 )
 
@@ -82,3 +84,6 @@ if(WITH_GMP)
 endif()
 
 blender_add_lib(bf_editor_mesh "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+# RNA_prototypes.hh
+add_dependencies(bf_editor_mesh bf_rna)

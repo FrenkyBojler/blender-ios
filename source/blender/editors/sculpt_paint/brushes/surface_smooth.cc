@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "editors/sculpt_paint/brushes/types.hh"
+#include "editors/sculpt_paint/brushes/brushes.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
@@ -15,10 +15,8 @@
 #include "BKE_subdiv_ccg.hh"
 
 #include "BLI_array.hh"
-#include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_task.hh"
-#include "BLI_virtual_array.hh"
 
 #include "editors/sculpt_paint/mesh_brush_common.hh"
 #include "editors/sculpt_paint/sculpt_automask.hh"
@@ -27,7 +25,7 @@
 
 #include "bmesh.hh"
 
-namespace blender::ed::sculpt_paint {
+namespace blender::ed::sculpt_paint::brushes {
 
 inline namespace surface_smooth_cc {
 
@@ -67,7 +65,7 @@ BLI_NOINLINE static void do_surface_smooth_brush_mesh(const Depsgraph &depsgraph
   const OffsetIndices faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-  const MeshAttributeData attribute_data(mesh.attributes());
+  const MeshAttributeData attribute_data(mesh);
 
   const PositionDeformData position_data(depsgraph, object);
   const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(depsgraph, object);
@@ -389,6 +387,13 @@ void do_surface_smooth_brush(const Depsgraph &depsgraph,
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
+  if (ss.cache->surface_smooth_laplacian_disp.is_empty()) {
+    BLI_assert_msg(SCULPT_stroke_is_first_brush_step(*ss.cache),
+                   "Should only be allocated on the first step");
+    ss.cache->surface_smooth_laplacian_disp = Array<float3>(SCULPT_vertex_count_get(object),
+                                                            float3(0));
+  }
+
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh:
       do_surface_smooth_brush_mesh(
@@ -400,14 +405,14 @@ void do_surface_smooth_brush(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BM_mesh_elem_index_ensure(ss.bm, BM_VERT);
+      vert_random_access_ensure(object);
       do_surface_smooth_brush_bmesh(
           depsgraph, sd, brush, node_mask, object, ss.cache->surface_smooth_laplacian_disp);
       break;
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::update_bounds(depsgraph, object, pbvh);
+  pbvh.update_bounds(depsgraph, object);
 }
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace blender::ed::sculpt_paint::brushes

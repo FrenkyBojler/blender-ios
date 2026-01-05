@@ -7,8 +7,11 @@ set(INC
   intern
   intern/lineart
   ../editors/include
+  ../makesrna
   ../../../intern/eigen
 
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -140,9 +143,9 @@ set(LIB
   PRIVATE bf::geometry
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::extern::xxhash
   PRIVATE bf::nodes
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
 )
 
@@ -195,7 +198,7 @@ if(WITH_BULLET)
   add_definitions(-DWITH_BULLET)
 endif()
 
-# To disable adaptive subdivision test in subsurf UI without cycles
+# To disable adaptive subdivision test in subdivision-surface UI without cycles.
 if(WITH_CYCLES)
   add_definitions(-DWITH_CYCLES)
 endif()
@@ -220,20 +223,6 @@ if(WITH_TBB)
   endif()
 endif()
 
-if(WITH_OPENVDB)
-  list(APPEND INC
-    ../../../intern/openvdb
-  )
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
-  list(APPEND LIB
-    bf_intern_openvdb
-    ${OPENVDB_LIBRARIES}
-  )
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-endif()
-
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
 endif()
@@ -241,3 +230,6 @@ endif()
 # So we can have special tricks in modifier system.
 
 blender_add_lib(bf_modifiers "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+# RNA_prototypes.hh
+add_dependencies(bf_modifiers bf_rna)

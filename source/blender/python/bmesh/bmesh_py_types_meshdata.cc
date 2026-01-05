@@ -46,14 +46,15 @@
 struct BPy_BMLoopUV {
   PyObject_VAR_HEAD
   float *uv;
-  /* vert_select, edge_select and pin could be nullptr, signifying those layers don't exist.
-   * Currently those layers are always created on a BMesh because adding layers to an existing
-   * BMesh is slow and invalidates existing python objects having pointers into the original
-   * datablocks (adding a layer re-generates all blocks). But eventually the plan is to lazily
-   * allocate the bool layers 'on demand'. Therefore the code tries to handle all cases where
-   * the layers don't exist. */
-  bool *vert_select;
-  bool *edge_select;
+  /**
+   * Pin may be null, signifying the layer doesn't exist.
+   *
+   * Currently its always created on a #BMesh because adding UV layers to an existing #BMesh is
+   * slow and invalidates existing Python objects having pointers into the original data-blocks
+   * (since adding a layer re-generates all blocks).
+   * But eventually the plan is to lazily allocate the boolean layers "on demand".
+   * Therefore the code handles cases where the pin layer doesn't exist.
+   */
   bool *pin;
   BMLoop *loop;
 };
@@ -63,7 +64,7 @@ PyDoc_STRVAR(
     bpy_bmloopuv_uv_doc,
     "Loops UV (as a 2D Vector).\n"
     "\n"
-    ":type: :class:`mathutils.Vector`");
+    ":type: :class:`mathutils.Vector`\n");
 static PyObject *bpy_bmloopuv_uv_get(BPy_BMLoopUV *self, void * /*closure*/)
 {
   return Vector_CreatePyObject_wrap(self->uv, 2, nullptr);
@@ -80,29 +81,30 @@ static int bpy_bmloopuv_uv_set(BPy_BMLoopUV *self, PyObject *value, void * /*clo
   return -1;
 }
 
+static bool bpy_bmloopuv_pin_uv_ok_or_error(const BPy_BMLoopUV *self)
+{
+  if (self->pin == nullptr) {
+    PyErr_SetString(PyExc_RuntimeError,
+                    "active uv layer has no associated pin layer. This is a bug!");
+    return false;
+  }
+  return true;
+}
+
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmloopuv_pin_uv_doc,
     "UV pin state.\n"
     "\n"
-    ":type: bool");
-PyDoc_STRVAR(
-    /* Wrap. */
-    bpy_bmloopuv_select_doc,
-    "UV select state.\n"
-    "\n"
-    ":type: bool");
-PyDoc_STRVAR(
-    /* Wrap. */
-    bpy_bmloopuv_select_edge_doc,
-    "UV edge select state.\n"
-    "\n"
-    ":type: bool");
+    ":type: bool\n");
 
 static PyObject *bpy_bmloopuv_pin_uv_get(BPy_BMLoopUV *self, void * /*closure*/)
 {
-  /* A non existing pin layer means nothing is currently pinned */
-  return self->pin ? PyBool_FromLong(*self->pin) : nullptr;
+  /* A non existing pin layer means nothing is currently pinned. */
+  if (UNLIKELY(!bpy_bmloopuv_pin_uv_ok_or_error(self))) {
+    return nullptr;
+  }
+  return PyBool_FromLong(*self->pin);
 }
 
 static int bpy_bmloopuv_pin_uv_set(BPy_BMLoopUV *self, PyObject *value, void * /*closure*/)
@@ -113,54 +115,10 @@ static int bpy_bmloopuv_pin_uv_set(BPy_BMLoopUV *self, PyObject *value, void * /
    * existing python objects. So for now lazy allocation isn't done and self->pin should
    * never be nullptr. */
   BLI_assert(self->pin);
-  if (self->pin) {
-    *self->pin = PyC_Long_AsBool(value);
-  }
-  else {
-    PyErr_SetString(PyExc_RuntimeError,
-                    "active uv layer has no associated pin layer. This is a bug!");
+  if (UNLIKELY(!bpy_bmloopuv_pin_uv_ok_or_error(self))) {
     return -1;
   }
-  return 0;
-}
-
-static PyObject *bpy_bmloopuv_select_get(BPy_BMLoopUV *self, void * /*closure*/)
-{
-  /* A non existing vert_select layer means nothing is currently selected */
-  return self->vert_select ? PyBool_FromLong(*self->vert_select) : nullptr;
-}
-static int bpy_bmloopuv_select_set(BPy_BMLoopUV *self, PyObject *value, void * /*closure*/)
-{
-  /* TODO: see comment above on bpy_bmloopuv_pin_uv_set(), the same applies here. */
-  BLI_assert(self->vert_select);
-  if (self->vert_select) {
-    *self->vert_select = PyC_Long_AsBool(value);
-  }
-  else {
-    PyErr_SetString(PyExc_RuntimeError,
-                    "active uv layer has no associated vertex selection layer. This is a bug!");
-    return -1;
-  }
-  return 0;
-}
-
-static PyObject *bpy_bmloopuv_select_edge_get(BPy_BMLoopUV *self, void * /*closure*/)
-{
-  /* A non existing edge_select layer means nothing is currently selected */
-  return self->edge_select ? PyBool_FromLong(*self->edge_select) : nullptr;
-}
-static int bpy_bmloopuv_select_edge_set(BPy_BMLoopUV *self, PyObject *value, void * /*closure*/)
-{
-  /* TODO: see comment above on bpy_bmloopuv_pin_uv_set(), the same applies here. */
-  BLI_assert(self->edge_select);
-  if (self->edge_select) {
-    *self->edge_select = PyC_Long_AsBool(value);
-  }
-  else {
-    PyErr_SetString(PyExc_RuntimeError,
-                    "active uv layer has no associated edge selection layer. This is a bug!");
-    return -1;
-  }
+  *self->pin = PyC_Long_AsBool(value);
   return 0;
 }
 
@@ -172,17 +130,6 @@ static PyGetSetDef bpy_bmloopuv_getseters[] = {
      (setter)bpy_bmloopuv_pin_uv_set,
      bpy_bmloopuv_pin_uv_doc,
      nullptr},
-    {"select",
-     (getter)bpy_bmloopuv_select_get,
-     (setter)bpy_bmloopuv_select_set,
-     bpy_bmloopuv_select_doc,
-     nullptr},
-    {"select_edge",
-     (getter)bpy_bmloopuv_select_edge_get,
-     (setter)bpy_bmloopuv_select_edge_set,
-     bpy_bmloopuv_select_edge_doc,
-     nullptr},
-
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };
 
@@ -211,18 +158,10 @@ int BPy_BMLoopUV_AssignPyObject(BMesh *bm, BMLoop *loop, PyObject *value)
   }
 
   BPy_BMLoopUV *src = (BPy_BMLoopUV *)value;
-  const BMUVOffsets offsets = BM_uv_map_get_offsets(bm);
+  const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
   float *luv = BM_ELEM_CD_GET_FLOAT_P(loop, offsets.uv);
   copy_v2_v2(luv, src->uv);
-
-  if (src->vert_select) {
-    BM_ELEM_CD_SET_BOOL(loop, offsets.select_vert, *src->vert_select);
-  }
-
-  if (src->edge_select) {
-    BM_ELEM_CD_SET_BOOL(loop, offsets.select_edge, *src->edge_select);
-  }
   if (src->pin) {
     BM_ELEM_CD_SET_BOOL(loop, offsets.pin, *src->pin);
   }
@@ -233,13 +172,9 @@ PyObject *BPy_BMLoopUV_CreatePyObject(BMesh *bm, BMLoop *loop, int layer)
 {
   BPy_BMLoopUV *self = PyObject_New(BPy_BMLoopUV, &BPy_BMLoopUV_Type);
 
-  const BMUVOffsets offsets = BM_uv_map_get_offsets_from_layer(bm, layer);
+  const BMUVOffsets offsets = BM_uv_map_offsets_from_layer(bm, layer);
 
   self->uv = BM_ELEM_CD_GET_FLOAT_P(loop, offsets.uv);
-  self->vert_select = offsets.select_vert >= 0 ? BM_ELEM_CD_GET_BOOL_P(loop, offsets.select_vert) :
-                                                 nullptr;
-  self->edge_select = offsets.select_edge >= 0 ? BM_ELEM_CD_GET_BOOL_P(loop, offsets.select_edge) :
-                                                 nullptr;
   self->pin = offsets.pin >= 0 ? BM_ELEM_CD_GET_BOOL_P(loop, offsets.pin) : nullptr;
 
   return (PyObject *)self;
@@ -262,7 +197,7 @@ PyDoc_STRVAR(
     bpy_bmvertskin_radius_doc,
     "Vert skin radii (as a 2D Vector).\n"
     "\n"
-    ":type: :class:`mathutils.Vector`");
+    ":type: :class:`mathutils.Vector`\n");
 static PyObject *bpy_bmvertskin_radius_get(BPy_BMVertSkin *self, void * /*closure*/)
 {
   return Vector_CreatePyObject_wrap(self->data->radius, 2, nullptr);
@@ -284,13 +219,13 @@ PyDoc_STRVAR(
     bpy_bmvertskin_flag__use_root_doc,
     "Use as root vertex. Setting this flag does not clear other roots in the same mesh island.\n"
     "\n"
-    ":type: bool");
+    ":type: bool\n");
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bmvertskin_flag__use_loose_doc,
     "Use loose vertex.\n"
     "\n"
-    ":type: bool");
+    ":type: bool\n");
 
 static PyObject *bpy_bmvertskin_flag_get(BPy_BMVertSkin *self, void *flag_p)
 {
@@ -360,7 +295,7 @@ int BPy_BMVertSkin_AssignPyObject(MVertSkin *mvertskin, PyObject *value)
     return -1;
   }
 
-  *((MVertSkin *)mvertskin) = *(((BPy_BMVertSkin *)value)->data);
+  *(mvertskin) = *(((BPy_BMVertSkin *)value)->data);
   return 0;
 }
 
@@ -491,12 +426,12 @@ PyObject *BPy_BMLoopColor_CreatePyObject(MLoopCol *mloopcol)
  * \endcode
  *
  * \note There is nothing BMesh specific here,
- * its only that BMesh is the only part of blender that uses a hand written api like this.
+ * its only that BMesh is the only part of blender that uses a hand written API like this.
  * This type could eventually be used to access lattice weights.
  *
  * \note Many of Blender-API's dictionary-like-wrappers act like ordered dictionaries,
  * This is intentionally _not_ ordered, the weights can be in any order and it won't matter,
- * the order should not be used in the api in any meaningful way (as with a python dict)
+ * the order should not be used in the API in any meaningful way (as with a python dict)
  * only expose as mapping, not a sequence.
  */
 
@@ -556,7 +491,7 @@ static int bpy_bmdeformvert_ass_subscript(BPy_BMDeformVert *self, PyObject *key,
       if (i < 0) {
         PyErr_SetString(PyExc_KeyError,
                         "BMDeformVert[key] = x: "
-                        "weight keys can't be negative");
+                        "weight keys cannot be negative");
         return -1;
       }
 
@@ -747,9 +682,14 @@ static PyObject *bpy_bmdeformvert_clear(BPy_BMDeformVert *self)
   Py_RETURN_NONE;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef bpy_bmdeformvert_methods[] = {
@@ -762,8 +702,12 @@ static PyMethodDef bpy_bmdeformvert_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyTypeObject BPy_BMDeformVert_Type; /* bm.loops.layers.uv.active */

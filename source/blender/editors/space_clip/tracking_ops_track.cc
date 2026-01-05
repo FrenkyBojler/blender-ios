@@ -8,16 +8,17 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_time.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -57,10 +58,10 @@ static int track_count_markers(SpaceClip *sc, MovieClip *clip, const int framenr
 {
   int tot = 0;
   const MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
-  LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
-    bool selected = (sc != nullptr) ? TRACK_VIEW_SELECTED(sc, track) : TRACK_SELECTED(track);
-    if (selected && (track->flag & TRACK_LOCKED) == 0) {
-      MovieTrackingMarker *marker = BKE_tracking_marker_get(track, framenr);
+  for (MovieTrackingTrack &track : tracking_object->tracks) {
+    bool selected = (sc != nullptr) ? TRACK_VIEW_SELECTED(sc, &track) : TRACK_SELECTED(&track);
+    if (selected && (track.flag & TRACK_LOCKED) == 0) {
+      MovieTrackingMarker *marker = BKE_tracking_marker_get(&track, framenr);
       if (!marker || (marker->flag & MARKER_DISABLED) == 0) {
         tot++;
       }
@@ -79,17 +80,17 @@ static void track_init_markers(SpaceClip *sc,
   if (sc != nullptr) {
     clip_tracking_clear_invisible_track_selection(sc, clip);
   }
-  LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
-    bool selected = (sc != nullptr) ? TRACK_VIEW_SELECTED(sc, track) : TRACK_SELECTED(track);
+  for (MovieTrackingTrack &track : tracking_object->tracks) {
+    bool selected = (sc != nullptr) ? TRACK_VIEW_SELECTED(sc, &track) : TRACK_SELECTED(&track);
     if (selected) {
-      if ((track->flag & TRACK_HIDDEN) == 0 && (track->flag & TRACK_LOCKED) == 0) {
-        BKE_tracking_marker_ensure(track, framenr);
-        if (track->frames_limit) {
+      if ((track.flag & TRACK_HIDDEN) == 0 && (track.flag & TRACK_LOCKED) == 0) {
+        BKE_tracking_marker_ensure(&track, framenr);
+        if (track.frames_limit) {
           if (frames_limit == 0) {
-            frames_limit = track->frames_limit;
+            frames_limit = track.frames_limit;
           }
           else {
-            frames_limit = min_ii(frames_limit, int(track->frames_limit));
+            frames_limit = min_ii(frames_limit, int(track.frames_limit));
           }
         }
       }
@@ -195,7 +196,7 @@ static bool track_markers_initjob(bContext *C, TrackMarkersJob *tmj, bool backwa
     return false;
   }
 
-  WM_set_locked_interface(tmj->wm, true);
+  WM_locked_interface_set(tmj->wm, true);
 
   return true;
 }
@@ -278,12 +279,12 @@ static void track_markers_freejob(void *tmv)
 {
   TrackMarkersJob *tmj = (TrackMarkersJob *)tmv;
   tmj->clip->tracking_context = nullptr;
-  WM_set_locked_interface(tmj->wm, false);
+  WM_locked_interface_set(tmj->wm, false);
   BKE_autotrack_context_free(tmj->context);
   MEM_freeN(tmj);
 }
 
-static int track_markers(bContext *C, wmOperator *op, bool use_job)
+static wmOperatorStatus track_markers(bContext *C, wmOperator *op, bool use_job)
 {
   TrackMarkersJob *tmj;
   SpaceClip *sc = CTX_wm_space_clip(C);
@@ -306,7 +307,7 @@ static int track_markers(bContext *C, wmOperator *op, bool use_job)
     return OPERATOR_CANCELLED;
   }
 
-  tmj = MEM_cnew<TrackMarkersJob>("TrackMarkersJob data");
+  tmj = MEM_callocN<TrackMarkersJob>("TrackMarkersJob data");
   if (!track_markers_initjob(C, tmj, backwards, sequence)) {
     track_markers_freejob(tmj);
     return OPERATOR_CANCELLED;
@@ -317,7 +318,7 @@ static int track_markers(bContext *C, wmOperator *op, bool use_job)
     wm_job = WM_jobs_get(CTX_wm_manager(C),
                          CTX_wm_window(C),
                          CTX_data_scene(C),
-                         "Track Markers",
+                         "Tracking markers...",
                          WM_JOB_PROGRESS,
                          WM_JOB_TYPE_CLIP_TRACK_MARKERS);
     WM_jobs_customdata_set(wm_job, tmj, track_markers_freejob);
@@ -354,17 +355,19 @@ static int track_markers(bContext *C, wmOperator *op, bool use_job)
   return OPERATOR_FINISHED;
 }
 
-static int track_markers_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus track_markers_exec(bContext *C, wmOperator *op)
 {
   return track_markers(C, op, false);
 }
 
-static int track_markers_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus track_markers_invoke(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
 {
   return track_markers(C, op, true);
 }
 
-static int track_markers_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus track_markers_modal(bContext *C, wmOperator * /*op*/, const wmEvent *event)
 {
   /* No running tracking, remove handler and pass through. */
   if (0 == WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_ANY)) {
@@ -375,6 +378,9 @@ static int track_markers_modal(bContext *C, wmOperator * /*op*/, const wmEvent *
   switch (event->type) {
     case EVT_ESCKEY:
       return OPERATOR_RUNNING_MODAL;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_PASS_THROUGH;
@@ -411,7 +417,7 @@ void CLIP_OT_track_markers(wmOperatorType *ot)
   ot->description = "Track selected markers";
   ot->idname = "CLIP_OT_track_markers";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = track_markers_exec;
   ot->invoke = track_markers_invoke;
   ot->modal = track_markers_modal;
@@ -433,7 +439,7 @@ void CLIP_OT_track_markers(wmOperatorType *ot)
 
 /********************** Refine track position operator *********************/
 
-static int refine_marker_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus refine_marker_exec(bContext *C, wmOperator *op)
 {
   SpaceClip *sc = CTX_wm_space_clip(C);
   MovieClip *clip = ED_space_clip_get_clip(sc);
@@ -441,10 +447,10 @@ static int refine_marker_exec(bContext *C, wmOperator *op)
   const bool backwards = RNA_boolean_get(op->ptr, "backwards");
   const int framenr = ED_space_clip_get_clip_frame_number(sc);
 
-  LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
-    if (TRACK_VIEW_SELECTED(sc, track)) {
-      MovieTrackingMarker *marker = BKE_tracking_marker_get(track, framenr);
-      BKE_tracking_refine_marker(clip, track, marker, backwards);
+  for (MovieTrackingTrack &track : tracking_object->tracks) {
+    if (TRACK_VIEW_SELECTED(sc, &track)) {
+      MovieTrackingMarker *marker = BKE_tracking_marker_get(&track, framenr);
+      BKE_tracking_refine_marker(clip, &track, marker, backwards);
     }
   }
 
@@ -464,7 +470,7 @@ void CLIP_OT_refine_markers(wmOperatorType *ot)
       "to current frame";
   ot->idname = "CLIP_OT_refine_markers";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = refine_marker_exec;
   ot->poll = ED_space_clip_tracking_poll;
 

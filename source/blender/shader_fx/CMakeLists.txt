@@ -6,7 +6,10 @@ set(INC
   .
   intern
   ../editors/include
+  ../makesrna
   ../../../intern/eigen
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
@@ -14,7 +17,7 @@ set(INC_SYS
 )
 
 set(SRC
-  intern/FX_shader_util.h
+  intern/FX_shader_util.hh
   intern/FX_ui_common.cc
 
   intern/FX_shader_blur.cc
@@ -28,8 +31,8 @@ set(SRC
   intern/FX_shader_util.cc
   intern/FX_shader_wave.cc
 
-  intern/FX_ui_common.h
-  FX_shader_types.h
+  intern/FX_ui_common.hh
+  FX_shader_types.hh
 )
 
 set(LIB
@@ -42,9 +45,11 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
 )
 
 
 blender_add_lib(bf_shader_fx "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+
+# RNA_prototypes.hh
+add_dependencies(bf_shader_fx bf_rna)

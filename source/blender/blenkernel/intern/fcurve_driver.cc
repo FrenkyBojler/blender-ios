@@ -20,9 +20,9 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_mutex.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -49,13 +49,14 @@
 #  include "BPY_extern.hh"
 #endif
 
+#include <algorithm>
 #include <cstring>
 
 #ifdef WITH_PYTHON
-static ThreadMutex python_driver_lock = BLI_MUTEX_INITIALIZER;
+static blender::Mutex python_driver_lock;
 #endif
 
-static CLG_LogRef LOG = {"bke.fcurve"};
+static CLG_LogRef LOG = {"anim.fcurve"};
 
 /* -------------------------------------------------------------------- */
 /** \name Driver Variables
@@ -109,7 +110,7 @@ static bool driver_get_target_context_property(const DriverTargetContext *driver
       return true;
 
     case DTAR_CONTEXT_PROPERTY_ACTIVE_VIEW_LAYER: {
-      *r_property_ptr = RNA_pointer_create(
+      *r_property_ptr = RNA_pointer_create_discrete(
           &driver_target_context->scene->id, &RNA_ViewLayer, driver_target_context->view_layer);
       return true;
     }
@@ -432,7 +433,7 @@ static float dvar_eval_rotDiff(const AnimationEvalContext * /*anim_eval_context*
     return 0.0f;
   }
 
-  const float(*mat[2])[4];
+  const float (*mat[2])[4];
 
   /* NOTE: for now, these are all just world-space. */
   for (int i = 0; i < 2; i++) {
@@ -469,7 +470,7 @@ static float dvar_eval_rotDiff(const AnimationEvalContext * /*anim_eval_context*
   angle = 2.0f * safe_acosf(quat[0]);
   angle = fabsf(angle);
 
-  return (angle > float(M_PI)) ? float((2.0f * float(M_PI)) - angle) : float(angle);
+  return (angle > float(M_PI)) ? ((2.0f * float(M_PI)) - angle) : angle;
 }
 
 /**
@@ -852,7 +853,7 @@ static const DriverVarTypeInfo *get_dvar_typeinfo(int type)
 /** \name Driver API
  * \{ */
 
-void driver_free_variable(ListBase *variables, DriverVar *dvar)
+void driver_free_variable(ListBaseT<DriverVar> *variables, DriverVar *dvar)
 {
   /* Sanity checks. */
   if (dvar == nullptr) {
@@ -885,14 +886,14 @@ void driver_free_variable_ex(ChannelDriver *driver, DriverVar *dvar)
   BKE_driver_invalidate_expression(driver, false, true);
 }
 
-void driver_variables_copy(ListBase *dst_vars, const ListBase *src_vars)
+void driver_variables_copy(ListBaseT<DriverVar> *dst_vars, const ListBaseT<DriverVar> *src_vars)
 {
   BLI_assert(BLI_listbase_is_empty(dst_vars));
   BLI_duplicatelist(dst_vars, src_vars);
 
-  LISTBASE_FOREACH (DriverVar *, dvar, dst_vars) {
+  for (DriverVar &dvar : *dst_vars) {
     /* Need to go over all targets so that we don't leave any dangling paths. */
-    DRIVER_TARGETS_LOOPER_BEGIN (dvar) {
+    DRIVER_TARGETS_LOOPER_BEGIN (&dvar) {
       /* Make a copy of target's rna path if available. */
       if (dtar->rna_path) {
         dtar->rna_path = static_cast<char *>(MEM_dupallocN(dtar->rna_path));
@@ -1002,7 +1003,7 @@ void driver_variable_name_validate(DriverVar *dvar)
 
 void driver_variable_unique_name(DriverVar *dvar)
 {
-  ListBase variables = BLI_listbase_from_link((Link *)dvar);
+  ListBaseT<DriverVar> variables = {dvar, dvar};
   BLI_uniquename(&variables, dvar, dvar->name, '_', offsetof(DriverVar, name), sizeof(dvar->name));
 }
 
@@ -1016,17 +1017,16 @@ DriverVar *driver_add_new_variable(ChannelDriver *driver)
   }
 
   /* Make a new variable. */
-  dvar = static_cast<DriverVar *>(MEM_callocN(sizeof(DriverVar), "DriverVar"));
+  dvar = MEM_new_for_free<DriverVar>("DriverVar");
   BLI_addtail(&driver->variables, dvar);
 
+  /* Don't use translations as this is referenced as a literal in #ChannelDriver::expression. */
+  const char *name_default = "var";
+
   /* Give the variable a 'unique' name. */
-  STRNCPY_UTF8(dvar->name, CTX_DATA_(BLT_I18NCONTEXT_ID_ACTION, "var"));
-  BLI_uniquename(&driver->variables,
-                 dvar,
-                 CTX_DATA_(BLT_I18NCONTEXT_ID_ACTION, "var"),
-                 '_',
-                 offsetof(DriverVar, name),
-                 sizeof(dvar->name));
+  STRNCPY_UTF8(dvar->name, name_default);
+  BLI_uniquename(
+      &driver->variables, dvar, name_default, '_', offsetof(DriverVar, name), sizeof(dvar->name));
 
   /* Set the default type to 'single prop'. */
   driver_change_variable_type(dvar, DVAR_TYPE_SINGLE_PROP);
@@ -1118,8 +1118,8 @@ static ExprPyLike_Parsed *driver_compile_simple_expr_impl(ChannelDriver *driver)
 
   names[VAR_INDEX_FRAME] = "frame";
 
-  LISTBASE_FOREACH (DriverVar *, dvar, &driver->variables) {
-    names[i++] = dvar->name;
+  for (DriverVar &dvar : driver->variables) {
+    names[i++] = dvar.name;
   }
 
   return BLI_expr_pylike_parse(driver->expression, names, names_len + VAR_INDEX_CUSTOM);
@@ -1144,8 +1144,8 @@ static bool driver_evaluate_simple_expr(const AnimationEvalContext *anim_eval_co
 
   vars[VAR_INDEX_FRAME] = time;
 
-  LISTBASE_FOREACH (DriverVar *, dvar, &driver->variables) {
-    vars[i++] = driver_get_variable_value(anim_eval_context, driver, dvar);
+  for (DriverVar &dvar : driver->variables) {
+    vars[i++] = driver_get_variable_value(anim_eval_context, driver, &dvar);
   }
 
   /* Evaluate expression. */
@@ -1327,8 +1327,8 @@ static void evaluate_driver_sum(const AnimationEvalContext *anim_eval_context,
   int tot = 0;
 
   /* Loop through targets, adding (hopefully we don't get any overflow!). */
-  LISTBASE_FOREACH (DriverVar *, dvar, &driver->variables) {
-    value += driver_get_variable_value(anim_eval_context, driver, dvar);
+  for (DriverVar &dvar : driver->variables) {
+    value += driver_get_variable_value(anim_eval_context, driver, &dvar);
     tot++;
   }
 
@@ -1347,24 +1347,20 @@ static void evaluate_driver_min_max(const AnimationEvalContext *anim_eval_contex
   float value = 0.0f;
 
   /* Loop through the variables, getting the values and comparing them to existing ones. */
-  LISTBASE_FOREACH (DriverVar *, dvar, &driver->variables) {
+  for (DriverVar &dvar : driver->variables) {
     /* Get value. */
-    float tmp_val = driver_get_variable_value(anim_eval_context, driver, dvar);
+    float tmp_val = driver_get_variable_value(anim_eval_context, driver, &dvar);
 
     /* Store this value if appropriate. */
-    if (dvar->prev) {
+    if (dvar.prev) {
       /* Check if greater/smaller than the baseline. */
       if (driver->type == DRIVER_TYPE_MAX) {
         /* Max? */
-        if (tmp_val > value) {
-          value = tmp_val;
-        }
+        value = std::max(tmp_val, value);
       }
       else {
         /* Min? */
-        if (tmp_val < value) {
-          value = tmp_val;
-        }
+        value = std::min(tmp_val, value);
       }
     }
     else {
@@ -1395,11 +1391,10 @@ static void evaluate_driver_python(PathResolvedRNA *anim_rna,
 #ifdef WITH_PYTHON
     /* This evaluates the expression using Python, and returns its result:
      * - on errors it reports, then returns 0.0f. */
-    BLI_mutex_lock(&python_driver_lock);
+    std::scoped_lock lock(python_driver_lock);
 
     driver->curval = BPY_driver_exec(anim_rna, driver, driver_orig, anim_eval_context);
 
-    BLI_mutex_unlock(&python_driver_lock);
 #else  /* WITH_PYTHON */
     UNUSED_VARS(anim_rna, anim_eval_context);
 #endif /* WITH_PYTHON */

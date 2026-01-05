@@ -8,13 +8,13 @@
 
 #include "DNA_node_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
-#include "NOD_common.h"
+#include "NOD_common.hh"
 #include "node_common.h"
 #include "node_exec.hh"
 #include "node_texture_util.hh"
@@ -67,9 +67,9 @@ static void group_copy_inputs(bNode *gnode, bNodeStack **in, bNodeStack *gstack)
   bNodeStack *ns;
   int a;
 
-  LISTBASE_FOREACH (bNode *, node, &ngroup->nodes) {
-    if (node->type == NODE_GROUP_INPUT) {
-      for (sock = static_cast<bNodeSocket *>(node->outputs.first), a = 0; sock;
+  for (bNode &node : ngroup->nodes) {
+    if (node.is_group_input()) {
+      for (sock = static_cast<bNodeSocket *>(node.outputs.first), a = 0; sock;
            sock = sock->next, a++)
       {
         if (in[a]) { /* shouldn't need to check this #36694. */
@@ -87,22 +87,21 @@ static void group_copy_inputs(bNode *gnode, bNodeStack **in, bNodeStack *gstack)
  */
 static void group_copy_outputs(bNode *gnode, bNodeStack **out, bNodeStack *gstack)
 {
-  const bNodeTree &ngroup = *reinterpret_cast<bNodeTree *>(gnode->id);
+  bNodeTree &ngroup = *reinterpret_cast<bNodeTree *>(gnode->id);
 
   ngroup.ensure_topology_cache();
-  const bNode *group_output_node = ngroup.group_output_node();
+  bNode *group_output_node = ngroup.group_output_node();
   if (!group_output_node) {
     return;
   }
 
-  int a;
-  LISTBASE_FOREACH_INDEX (bNodeSocket *, sock, &group_output_node->inputs, a) {
+  for (auto [a, sock] : group_output_node->inputs.enumerate()) {
     if (!out[a]) {
       /* shouldn't need to check this #36694. */
       continue;
     }
 
-    bNodeStack *ns = node_get_socket_stack(gstack, sock);
+    bNodeStack *ns = node_get_socket_stack(gstack, &sock);
     if (ns) {
       copy_stack(out[a], ns);
     }
@@ -126,8 +125,8 @@ static void group_execute(void *data,
   /* XXX same behavior as trunk: all nodes inside group are executed.
    * it's stupid, but just makes it work. compo redesign will do this better.
    */
-  LISTBASE_FOREACH (bNode *, inode, &exec->nodetree->nodes) {
-    inode->runtime->need_exec = 1;
+  for (bNode &inode : exec->nodetree->nodes) {
+    inode.runtime->need_exec = 1;
   }
 
   nts = ntreeGetThreadStack(exec, thread);
@@ -147,9 +146,9 @@ void register_node_type_tex_group()
    * to the shared #NODE_GROUP integer type id. */
 
   blender::bke::node_type_base_custom(
-      &ntype, "TextureNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
+      ntype, "TextureNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
   ntype.enum_name_legacy = "GROUP";
-  ntype.type = NODE_GROUP;
+  ntype.type_legacy = NODE_GROUP;
   ntype.poll = tex_node_poll_default;
   ntype.poll_instance = node_group_poll_instance;
   ntype.insert_link = node_insert_link_default;
@@ -157,12 +156,13 @@ void register_node_type_tex_group()
   BLI_assert(ntype.rna_ext.srna != nullptr);
   RNA_struct_blender_type_set(ntype.rna_ext.srna, &ntype);
 
-  blender::bke::node_type_size(&ntype, 140, 60, 400);
+  blender::bke::node_type_size(
+      ntype, GROUP_NODE_DEFAULT_WIDTH, GROUP_NODE_MIN_WIDTH, GROUP_NODE_MAX_WIDTH);
   ntype.labelfunc = node_group_label;
   ntype.declare = blender::nodes::node_group_declare;
   ntype.init_exec_fn = group_initexec;
   ntype.free_exec_fn = group_freeexec;
   ntype.exec_fn = group_execute;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

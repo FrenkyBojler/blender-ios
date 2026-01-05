@@ -87,7 +87,7 @@ ColorGeometry4fMixer::ColorGeometry4fMixer(MutableSpan<ColorGeometry4f> buffer,
     : buffer_(buffer), default_color_(default_color), total_weights_(buffer.size(), 0.0f)
 {
   const ColorGeometry4f zero{0.0f, 0.0f, 0.0f, 0.0f};
-  mask.foreach_index([&](const int64_t i) { buffer_[i] = zero; });
+  index_mask::masked_fill(buffer_, zero, mask);
 }
 
 void ColorGeometry4fMixer::set(const int64_t index,
@@ -151,7 +151,7 @@ ColorGeometry4bMixer::ColorGeometry4bMixer(MutableSpan<ColorGeometry4b> buffer,
       accumulation_buffer_(buffer.size(), float4(0, 0, 0, 0))
 {
   const ColorGeometry4b zero{0, 0, 0, 0};
-  mask.foreach_index([&](const int64_t i) { buffer_[i] = zero; });
+  index_mask::masked_fill(buffer_, zero, mask);
 }
 
 void ColorGeometry4bMixer::ColorGeometry4bMixer::set(int64_t index,
@@ -282,6 +282,24 @@ void gather_group_to_group(const OffsetIndices<int> src_offsets,
     using T = decltype(dummy);
     array_utils::gather_group_to_group(
         src_offsets, dst_offsets, selection, src.typed<T>(), dst.typed<T>());
+  });
+}
+
+void gather_ranges_to_groups(const Span<IndexRange> src_ranges,
+                             const OffsetIndices<int> dst_offsets,
+                             const GSpan src,
+                             GMutableSpan dst)
+{
+  attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
+    using T = decltype(dummy);
+    Span<T> src_span = src.typed<T>();
+    MutableSpan<T> dst_span = dst.typed<T>();
+
+    threading::parallel_for(src_ranges.index_range(), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        dst_span.slice(dst_offsets[i]).copy_from(src_span.slice(src_ranges[i]));
+      }
+    });
   });
 }
 

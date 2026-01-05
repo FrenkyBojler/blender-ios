@@ -8,17 +8,14 @@
  * \ingroup bke
  */
 
-#include "DNA_curve_types.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "DNA_listBase.h"
 
 struct AnimationEvalContext;
 struct ChannelDriver;
 struct DriverTarget;
 struct DriverVar;
 struct FCurve;
+struct ListBase;
 struct PathResolvedRNA;
 struct PointerRNA;
 struct PropertyRNA;
@@ -35,16 +32,16 @@ struct ViewLayer;
 /* convenience looper over ALL driver targets for a given variable (even the unused ones) */
 #define DRIVER_TARGETS_LOOPER_BEGIN(dvar) \
   { \
-    DriverTarget *dtar = &dvar->targets[0]; \
+    auto *dtar = &(dvar)->targets[0]; \
     int tarIndex = 0; \
     for (; tarIndex < MAX_DRIVER_TARGETS; tarIndex++, dtar++)
 
 /* convenience looper over USED driver targets only */
 #define DRIVER_TARGETS_USED_LOOPER_BEGIN(dvar) \
   { \
-    DriverTarget *dtar = &dvar->targets[0]; \
+    auto *dtar = &(dvar)->targets[0]; \
     int tarIndex = 0; \
-    for (; tarIndex < dvar->num_targets; tarIndex++, dtar++)
+    for (; tarIndex < (dvar)->num_targets; tarIndex++, dtar++)
 
 /* tidy up for driver targets loopers */
 #define DRIVER_TARGETS_LOOPER_END \
@@ -91,7 +88,7 @@ bool driver_get_target_property(const DriverTargetContext *driver_target_context
 /**
  * Copy driver variables from src_vars list to dst_vars list.
  */
-void driver_variables_copy(struct ListBase *dst_vars, const struct ListBase *src_vars);
+void driver_variables_copy(ListBaseT<DriverVar> *dst_vars, const ListBaseT<DriverVar> *src_vars);
 
 /**
  * Compute channel values for a rotational Transform Channel driver variable.
@@ -102,7 +99,7 @@ void BKE_driver_target_matrix_to_rot_channels(
 /**
  * Perform actual freeing driver variable and remove it from the given list.
  */
-void driver_free_variable(struct ListBase *variables, struct DriverVar *dvar);
+void driver_free_variable(ListBaseT<DriverVar> *variables, struct DriverVar *dvar);
 /**
  * Free the driver variable and do extra updates.
  */
@@ -142,8 +139,10 @@ typedef enum eDriverVariablePropertyResult {
   DRIVER_VAR_PROPERTY_FALLBACK,
   /** The target property could not be resolved. */
   DRIVER_VAR_PROPERTY_INVALID,
-  /** The property was resolved (output parameters are set),
-   *  but the array index is out of bounds. */
+  /**
+   * The property was resolved (output parameters are set),
+   * but the array index is out of bounds.
+   */
   DRIVER_VAR_PROPERTY_INVALID_INDEX
 } eDriverVariablePropertyResult;
 
@@ -187,7 +186,3 @@ float evaluate_driver(struct PathResolvedRNA *anim_rna,
                       struct ChannelDriver *driver,
                       struct ChannelDriver *driver_orig,
                       const struct AnimationEvalContext *anim_eval_context);
-
-#ifdef __cplusplus
-}
-#endif

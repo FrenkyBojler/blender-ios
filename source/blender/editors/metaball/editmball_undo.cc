@@ -6,7 +6,6 @@
  * \ingroup edmeta
  */
 
-#include <cmath>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
@@ -15,9 +14,7 @@
 
 #include "BLI_array_utils.h"
 #include "BLI_listbase.h"
-#include "BLI_utildefines.h"
 
-#include "DNA_defs.h"
 #include "DNA_layer_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
@@ -40,20 +37,20 @@
 #include "WM_types.hh"
 
 /** We only need this locally. */
-static CLG_LogRef LOG = {"ed.undo.mball"};
+static CLG_LogRef LOG = {"undo.mball"};
 
 /* -------------------------------------------------------------------- */
 /** \name Undo Conversion
  * \{ */
 
 struct UndoMBall {
-  ListBase editelems;
+  ListBaseT<MetaElem> editelems;
   int lastelem_index;
   size_t undo_size;
 };
 
-/* free all MetaElems from ListBase */
-static void freeMetaElemlist(ListBase *lb)
+/* free all MetaElems from ListBaseT */
+static void freeMetaElemlist(ListBaseT<MetaElem> *lb)
 {
   if (lb == nullptr) {
     return;
@@ -86,10 +83,10 @@ static void *editmball_from_undomball(UndoMBall *umb, MetaBall *mb)
 {
   BLI_assert(BLI_array_is_zeroed(umb, 1));
 
-  /* allocate memory for undo ListBase */
+  /* allocate memory for undo ListBaseT */
   umb->lastelem_index = -1;
 
-  /* copy contents of current ListBase to the undo ListBase */
+  /* copy contents of current ListBaseT to the undo ListBaseT */
   int index = 0;
   for (MetaElem *ml_edit = static_cast<MetaElem *>(mb->editelems->first); ml_edit;
        ml_edit = ml_edit->next, index += 1)
@@ -105,7 +102,7 @@ static void *editmball_from_undomball(UndoMBall *umb, MetaBall *mb)
   return umb;
 }
 
-/* free undo ListBase of MetaElems */
+/* free undo ListBaseT of MetaElems */
 static void undomball_free_data(UndoMBall *umb)
 {
   freeMetaElemlist(&umb->editelems);
@@ -163,8 +160,7 @@ static bool mball_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
   blender::Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(scene, view_layer);
 
   us->scene_ref.ptr = scene;
-  us->elems = static_cast<MBallUndoStep_Elem *>(
-      MEM_callocN(sizeof(*us->elems) * objects.size(), __func__));
+  us->elems = MEM_calloc_arrayN<MBallUndoStep_Elem>(objects.size(), __func__);
   us->elems_len = objects.size();
 
   for (uint i = 0; i < objects.size(); i++) {

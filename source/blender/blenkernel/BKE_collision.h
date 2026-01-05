@@ -9,15 +9,20 @@
 
 #include "BLI_math_vector_types.hh"
 
+#include "DNA_listBase.h"
+
 struct BVHTree;
 struct Collection;
 struct CollisionModifierData;
 struct Depsgraph;
+struct ListBase;
 struct Object;
 
-////////////////////////////////////////
-// used for collisions in collision.cc
-////////////////////////////////////////
+/* -------------------------------------------------------------------- */
+/** \name Collision Data Types
+ *
+ * Used for collisions in `collision.cc`.
+ * \{ */
 
 /* COLLISION FLAGS */
 typedef enum {
@@ -29,10 +34,6 @@ typedef enum {
   COLLISION_INACTIVE = (1 << 4),
 } COLLISION_FLAGS;
 
-////////////////////////////////////////
-// used for collisions in collision.cc
-////////////////////////////////////////
-/* used for collisions in collision.cc */
 typedef struct CollPair {
   unsigned int face1; /* cloth face */
   unsigned int face2; /* object face */
@@ -56,7 +57,6 @@ typedef struct CollPair {
   int pointsb[4];
 } CollPair;
 
-/* used for collisions in collision.cc */
 typedef struct EdgeCollPair {
   unsigned int p11, p12, p21, p22;
   float normal[3];
@@ -66,7 +66,6 @@ typedef struct EdgeCollPair {
   float pa[3], pb[3]; /* collision point p1 on face1, p2 on face2 */
 } EdgeCollPair;
 
-/* used for collisions in collision.cc */
 typedef struct FaceCollPair {
   unsigned int p11, p12, p13, p21;
   float normal[3];
@@ -76,16 +75,15 @@ typedef struct FaceCollPair {
   float pa[3], pb[3]; /* collision point p1 on face1, p2 on face2 */
 } FaceCollPair;
 
-////////////////////////////////////////
+/** \} */
 
-/////////////////////////////////////////////////
-// forward declarations
-/////////////////////////////////////////////////
+/* Forward declarations. */
 
-/////////////////////////////////////////////////
-// used in modifier.cc from collision.cc
-/////////////////////////////////////////////////
-
+/* -------------------------------------------------------------------- */
+/** \name BVH Tree Utilities
+ *
+ *  Used in `modifier.cc` from `collision.cc`.
+ * \{ */
 struct BVHTree *bvhtree_build_from_mvert(const float (*positions)[3],
                                          const blender::int3 *vert_tris,
                                          int tri_num,
@@ -96,8 +94,11 @@ void bvhtree_update_from_mvert(struct BVHTree *bvhtree,
                                const blender::int3 *vert_tris,
                                int tri_num,
                                bool moving);
+/** \} */
 
-/////////////////////////////////////////////////
+/* -------------------------------------------------------------------- */
+/** \name Collision Modifier Data
+ * \{ */
 
 /**
  * Move Collision modifier object inter-frame with step = [0,1]
@@ -114,7 +115,13 @@ void collision_get_collider_velocity(float vel_old[3],
                                      struct CollisionModifierData *collmd,
                                      struct CollPair *collpair);
 
-/* Collision relations for dependency graph build. */
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Collision Relations
+ *
+ * Collision relations for dependency graph build.
+ * \{ */
 
 typedef struct CollisionRelation {
   struct CollisionRelation *next, *prev;
@@ -126,10 +133,10 @@ typedef struct CollisionRelation {
  * This is used by the depsgraph to build relations, as well as faster
  * lookup of colliders during evaluation.
  */
-struct ListBase *BKE_collision_relations_create(struct Depsgraph *depsgraph,
-                                                struct Collection *collection,
-                                                unsigned int modifier_type);
-void BKE_collision_relations_free(struct ListBase *relations);
+ListBaseT<CollisionRelation> *BKE_collision_relations_create(struct Depsgraph *depsgraph,
+                                                             struct Collection *collection,
+                                                             unsigned int modifier_type);
+void BKE_collision_relations_free(ListBaseT<CollisionRelation> *relations);
 
 /* Collision object lists for physics simulation evaluation. */
 
@@ -144,6 +151,12 @@ struct Object **BKE_collision_objects_create(struct Depsgraph *depsgraph,
                                              unsigned int modifier_type);
 void BKE_collision_objects_free(struct Object **objects);
 
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Collision Cache
+ * \{ */
+
 typedef struct ColliderCache {
   struct ColliderCache *next, *prev;
   struct Object *ob;
@@ -154,11 +167,9 @@ typedef struct ColliderCache {
  * Create effective list of colliders from relations built beforehand.
  * Self will be excluded.
  */
-struct ListBase *BKE_collider_cache_create(struct Depsgraph *depsgraph,
-                                           struct Object *self,
-                                           struct Collection *collection);
-void BKE_collider_cache_free(struct ListBase **colliders);
+ListBaseT<ColliderCache> *BKE_collider_cache_create(struct Depsgraph *depsgraph,
+                                                    struct Object *self,
+                                                    struct Collection *collection);
+void BKE_collider_cache_free(ListBaseT<ColliderCache> **colliders);
 
-/////////////////////////////////////////////////
-
-/////////////////////////////////////////////////
+/** \} */

@@ -9,7 +9,6 @@
 #include <algorithm> /* For `min/max`. */
 #include <cfloat>
 #include <cmath>
-#include <cstddef>
 #include <cstdio>
 #include <cstring>
 
@@ -22,17 +21,15 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_noise.h"
 #include "BLI_noise.hh"
 #include "BLI_utildefines.h"
 
 #include "BKE_fcurve.hh"
-#include "BKE_idprop.hh"
 
-static CLG_LogRef LOG = {"bke.fmodifier"};
+static CLG_LogRef LOG = {"anim.fmodifier"};
 
 /* -------------------------------------------------------------------- */
 /** \name F-Curve Modifier Types
@@ -119,8 +116,7 @@ static void fcm_generator_new_data(void *mdata)
   /* set default generator to be linear 0-1 (gradient = 1, y-offset = 0) */
   data->poly_order = 1;
   data->arraysize = 2;
-  cp = data->coefficients = static_cast<float *>(
-      MEM_callocN(sizeof(float) * 2, "FMod_Generator_Coefs"));
+  cp = data->coefficients = MEM_calloc_arrayN<float>(2, "FMod_Generator_Coefs");
   cp[0] = 0; /* y-offset */
   cp[1] = 1; /* gradient */
 }
@@ -171,8 +167,7 @@ static void fcm_generator_evaluate(const FCurve * /*fcu*/,
     case FCM_GENERATOR_POLYNOMIAL: /* expanded polynomial expression */
     {
       /* we overwrite cvalue with the sum of the polynomial */
-      float *powers = static_cast<float *>(
-          MEM_callocN(sizeof(float) * data->arraysize, "Poly Powers"));
+      float *powers = MEM_calloc_arrayN<float>(data->arraysize, "Poly Powers");
       float value = 0.0f;
 
       /* for each x^n, precalculate value based on previous one first... this should be
@@ -356,7 +351,7 @@ static void fcm_fn_generator_evaluate(const FCurve * /*fcu*/,
 
   /* execute function callback to set value if appropriate */
   if (fn) {
-    float value = float(data->amplitude * float(fn(arg)) + data->value_offset);
+    float value = (data->amplitude * float(fn(arg)) + data->value_offset);
 
     if (data->flag & FCM_GENERATOR_ADDITIVE) {
       *cvalue += value;
@@ -722,10 +717,10 @@ static float fcm_cycles_time(
     /* check if 'cyclic extrapolation', and thus calculate y-offset for this cycle */
     if (mode == FCM_EXTRAPOLATE_CYCLIC_OFFSET) {
       if (side < 0) {
-        cycyofs = float(floor((evaltime - ofs) / cycdx));
+        cycyofs = floor((evaltime - ofs) / cycdx);
       }
       else {
-        cycyofs = float(ceil((evaltime - ofs) / cycdx));
+        cycyofs = ceil((evaltime - ofs) / cycdx);
       }
       cycyofs *= cycdy;
     }
@@ -844,7 +839,7 @@ static void fcm_noise_evaluate(const FCurve * /*fcu*/,
     /* Using float2 to generate a phase offset. Offsetting the evaltime by `offset` to ensure that
      * the noise at full frames isn't always at 0. */
     noise = blender::noise::perlin_fbm<blender::float2>(
-        blender::float2(evaltime * scale - data->offset + offset, data->phase),
+        blender::float2((evaltime - data->offset) * scale + offset, data->phase),
         data->depth,
         data->roughness,
         data->lacunarity,
@@ -1005,7 +1000,7 @@ static FModifierTypeInfo FMI_STEPPED = {
 /* -------------------------------------------------------------------- */
 /** \name F-Curve Modifier Type API
  *
- * all of the f-curve modifier api functions use #fmodifiertypeinfo structs to carry out
+ * all of the f-curve modifier API functions use #fmodifiertypeinfo structs to carry out
  * and operations that involve f-curve modifier specific code.
  * \{ */
 
@@ -1074,7 +1069,7 @@ const FModifierTypeInfo *fmodifier_get_typeinfo(const FModifier *fcm)
 /** \name F-Curve Modifier Public API
  * \{ */
 
-FModifier *add_fmodifier(ListBase *modifiers, int type, FCurve *owner_fcu)
+FModifier *add_fmodifier(ListBaseT<FModifier> *modifiers, int type, FCurve *owner_fcu)
 {
   const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
   FModifier *fcm;
@@ -1095,7 +1090,7 @@ FModifier *add_fmodifier(ListBase *modifiers, int type, FCurve *owner_fcu)
   }
 
   /* add modifier itself */
-  fcm = static_cast<FModifier *>(MEM_callocN(sizeof(FModifier), "F-Curve Modifier"));
+  fcm = MEM_new_for_free<FModifier>("F-Curve Modifier");
   fcm->type = type;
   fcm->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT; /* Expand the main panel, not the sub-panels. */
   fcm->curve = owner_fcu;
@@ -1154,7 +1149,7 @@ FModifier *copy_fmodifier(const FModifier *src)
   return dst;
 }
 
-void copy_fmodifiers(ListBase *dst, const ListBase *src)
+void copy_fmodifiers(ListBaseT<FModifier> *dst, const ListBaseT<FModifier> *src)
 {
   FModifier *fcm, *srcfcm;
 
@@ -1182,7 +1177,7 @@ void copy_fmodifiers(ListBase *dst, const ListBase *src)
   }
 }
 
-bool remove_fmodifier(ListBase *modifiers, FModifier *fcm)
+bool remove_fmodifier(ListBaseT<FModifier> *modifiers, FModifier *fcm)
 {
   const FModifierTypeInfo *fmi = fmodifier_get_typeinfo(fcm);
 
@@ -1222,7 +1217,7 @@ bool remove_fmodifier(ListBase *modifiers, FModifier *fcm)
   return false;
 }
 
-void free_fmodifiers(ListBase *modifiers)
+void free_fmodifiers(ListBaseT<FModifier> *modifiers)
 {
   FModifier *fcm, *fmn;
 
@@ -1238,7 +1233,7 @@ void free_fmodifiers(ListBase *modifiers)
   }
 }
 
-FModifier *find_active_fmodifier(ListBase *modifiers)
+FModifier *find_active_fmodifier(ListBaseT<FModifier> *modifiers)
 {
   /* sanity checks */
   if (ELEM(nullptr, modifiers, modifiers->first)) {
@@ -1246,9 +1241,9 @@ FModifier *find_active_fmodifier(ListBase *modifiers)
   }
 
   /* loop over modifiers until 'active' one is found */
-  LISTBASE_FOREACH (FModifier *, fcm, modifiers) {
-    if (fcm->flag & FMODIFIER_FLAG_ACTIVE) {
-      return fcm;
+  for (FModifier &fcm : *modifiers) {
+    if (fcm.flag & FMODIFIER_FLAG_ACTIVE) {
+      return &fcm;
     }
   }
 
@@ -1256,7 +1251,7 @@ FModifier *find_active_fmodifier(ListBase *modifiers)
   return nullptr;
 }
 
-void set_active_fmodifier(ListBase *modifiers, FModifier *fcm)
+void set_active_fmodifier(ListBaseT<FModifier> *modifiers, FModifier *fcm)
 {
   /* sanity checks */
   if (ELEM(nullptr, modifiers, modifiers->first)) {
@@ -1264,8 +1259,8 @@ void set_active_fmodifier(ListBase *modifiers, FModifier *fcm)
   }
 
   /* deactivate all, and set current one active */
-  LISTBASE_FOREACH (FModifier *, fm, modifiers) {
-    fm->flag &= ~FMODIFIER_FLAG_ACTIVE;
+  for (FModifier &fm : *modifiers) {
+    fm.flag &= ~FMODIFIER_FLAG_ACTIVE;
   }
 
   /* make given modifier active */
@@ -1274,7 +1269,7 @@ void set_active_fmodifier(ListBase *modifiers, FModifier *fcm)
   }
 }
 
-bool list_has_suitable_fmodifier(const ListBase *modifiers, int mtype, short acttype)
+bool list_has_suitable_fmodifier(const ListBaseT<FModifier> *modifiers, int mtype, short acttype)
 {
   /* if there are no specific filtering criteria, just skip */
   if ((mtype == 0) && (acttype == 0)) {
@@ -1287,13 +1282,13 @@ bool list_has_suitable_fmodifier(const ListBase *modifiers, int mtype, short act
   }
 
   /* Find the first modifier fitting these criteria. */
-  LISTBASE_FOREACH (FModifier *, fcm, modifiers) {
-    const FModifierTypeInfo *fmi = fmodifier_get_typeinfo(fcm);
+  for (FModifier &fcm : *modifiers) {
+    const FModifierTypeInfo *fmi = fmodifier_get_typeinfo(&fcm);
     short mOk = 1, aOk = 1; /* by default 1, so that when only one test, won't fail */
 
     /* check if applicable ones are fulfilled */
     if (mtype) {
-      mOk = (fcm->type == mtype);
+      mOk = (fcm.type == mtype);
     }
     if (acttype > -1) {
       aOk = (fmi->acttype == acttype);
@@ -1311,7 +1306,7 @@ bool list_has_suitable_fmodifier(const ListBase *modifiers, int mtype, short act
 
 /* Evaluation API --------------------------- */
 
-uint evaluate_fmodifiers_storage_size_per_modifier(const ListBase *modifiers)
+uint evaluate_fmodifiers_storage_size_per_modifier(const ListBaseT<FModifier> *modifiers)
 {
   /* Sanity checks. */
   if (ELEM(nullptr, modifiers, modifiers->first)) {
@@ -1320,8 +1315,8 @@ uint evaluate_fmodifiers_storage_size_per_modifier(const ListBase *modifiers)
 
   uint max_size = 0;
 
-  LISTBASE_FOREACH (FModifier *, fcm, modifiers) {
-    const FModifierTypeInfo *fmi = fmodifier_get_typeinfo(fcm);
+  for (FModifier &fcm : *modifiers) {
+    const FModifierTypeInfo *fmi = fmodifier_get_typeinfo(&fcm);
 
     if (fmi == nullptr) {
       continue;
@@ -1384,7 +1379,7 @@ static float eval_fmodifier_influence(FModifier *fcm, float evaltime)
 }
 
 float evaluate_time_fmodifiers(FModifiersStackStorage *storage,
-                               const ListBase *modifiers,
+                               const ListBaseT<FModifier> *modifiers,
                                const FCurve *fcu,
                                float cvalue,
                                float evaltime)
@@ -1444,7 +1439,7 @@ float evaluate_time_fmodifiers(FModifiersStackStorage *storage,
 }
 
 void evaluate_value_fmodifiers(FModifiersStackStorage *storage,
-                               const ListBase *modifiers,
+                               const ListBaseT<FModifier> *modifiers,
                                const FCurve *fcu,
                                float *cvalue,
                                float evaltime)

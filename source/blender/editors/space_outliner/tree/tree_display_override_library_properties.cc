@@ -28,9 +28,10 @@ TreeDisplayOverrideLibraryProperties::TreeDisplayOverrideLibraryProperties(
 {
 }
 
-ListBase TreeDisplayOverrideLibraryProperties::build_tree(const TreeSourceData &source_data)
+ListBaseT<TreeElement> TreeDisplayOverrideLibraryProperties::build_tree(
+    const TreeSourceData &source_data)
 {
-  ListBase tree = add_library_contents(*source_data.bmain);
+  ListBaseT<TreeElement> tree = add_library_contents(*source_data.bmain);
 
   for (TreeElement *top_level_te : List<TreeElement>(tree)) {
     TreeStoreElem *tselem = TREESTORE(top_level_te);
@@ -42,23 +43,21 @@ ListBase TreeDisplayOverrideLibraryProperties::build_tree(const TreeSourceData &
   return tree;
 }
 
-ListBase TreeDisplayOverrideLibraryProperties::add_library_contents(Main &mainvar)
+ListBaseT<TreeElement> TreeDisplayOverrideLibraryProperties::add_library_contents(Main &mainvar)
 {
-  ListBase tree = {nullptr};
+  ListBaseT<TreeElement> tree = {nullptr};
 
   const short filter_id_type = id_filter_get();
 
-  ListBase *lbarray[INDEX_ID_MAX];
-  int tot;
+  Vector<ListBaseT<ID> *> lbarray;
   if (filter_id_type) {
-    lbarray[0] = which_libbase(&mainvar, space_outliner_.filter_id_type);
-    tot = 1;
+    lbarray.append(which_libbase(&mainvar, space_outliner_.filter_id_type));
   }
   else {
-    tot = set_listbasepointers(&mainvar, lbarray);
+    lbarray.extend(BKE_main_lists_get(mainvar));
   }
 
-  for (int a = 0; a < tot; a++) {
+  for (int a = 0; a < lbarray.size(); a++) {
     if (!lbarray[a] || !lbarray[a]->first) {
       continue;
     }
@@ -79,7 +78,7 @@ ListBase TreeDisplayOverrideLibraryProperties::add_library_contents(Main &mainva
 
     /* Create data-block list parent element on demand. */
     TreeElement *id_base_te = nullptr;
-    ListBase *lb_to_expand = &tree;
+    ListBaseT<TreeElement> *lb_to_expand = &tree;
 
     if (!filter_id_type) {
       id_base_te = add_element(&tree, nullptr, lbarray[a], nullptr, TSE_ID_BASE, 0);
@@ -102,9 +101,9 @@ ListBase TreeDisplayOverrideLibraryProperties::add_library_contents(Main &mainva
   }
 
   /* Remove ID base elements that turn out to be empty. */
-  LISTBASE_FOREACH_MUTABLE (TreeElement *, te, &tree) {
-    if (BLI_listbase_is_empty(&te->subtree)) {
-      outliner_free_tree_element(te, &tree);
+  for (TreeElement &te : tree.items_mutable()) {
+    if (BLI_listbase_is_empty(&te.subtree)) {
+      outliner_free_tree_element(&te, &tree);
     }
   }
 

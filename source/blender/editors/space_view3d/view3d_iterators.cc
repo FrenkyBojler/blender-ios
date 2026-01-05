@@ -11,11 +11,11 @@
 #include "DNA_lattice_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_rect.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
@@ -30,15 +30,13 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 
-#include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "ANIM_bone_collections.hh"
+#include "ANIM_armature.hh"
 
 #include "bmesh.hh"
 
 #include "ED_armature.hh"
-#include "ED_screen.hh"
 #include "ED_view3d.hh"
 
 /* -------------------------------------------------------------------- */
@@ -295,7 +293,7 @@ void meshobject_foreachScreenVert(const ViewContext *vc,
   BLI_assert((clip_flag & V3D_PROJ_TEST_CLIP_CONTENT) == 0);
   foreachScreenObjectVert_userData data;
 
-  const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, vc->obact);
+  const Object *ob_eval = DEG_get_evaluated(vc->depsgraph, vc->obact);
   const Mesh *mesh = BKE_object_get_evaluated_mesh(ob_eval);
   const bke::AttributeAccessor attributes = mesh->attributes();
 
@@ -616,7 +614,7 @@ void nurbs_foreachScreenVert(const ViewContext *vc,
 {
   Curve *cu = static_cast<Curve *>(vc->obedit->data);
   int i;
-  ListBase *nurbs = BKE_curve_editNurbs_get(cu);
+  ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get(cu);
   /* If no point in the triple is selected, the handles are invisible. */
   const bool only_selected = (vc->v3d->overlay.handle_display == CURVE_HANDLE_SELECTED);
 
@@ -627,10 +625,10 @@ void nurbs_foreachScreenVert(const ViewContext *vc,
                              vc->obedit->object_to_world().ptr()); /* for local clipping lookups */
   }
 
-  LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-    if (nu->type == CU_BEZIER) {
-      for (i = 0; i < nu->pntsu; i++) {
-        BezTriple *bezt = &nu->bezt[i];
+  for (Nurb &nu : *nurbs) {
+    if (nu.type == CU_BEZIER) {
+      for (i = 0; i < nu.pntsu; i++) {
+        BezTriple *bezt = &nu.bezt[i];
 
         if (bezt->hide == 0) {
           const bool handles_visible = (vc->v3d->overlay.handle_display != CURVE_HANDLE_NONE) &&
@@ -644,7 +642,7 @@ void nurbs_foreachScreenVert(const ViewContext *vc,
                     screen_co,
                     eV3DProjTest(V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN)) == V3D_PROJ_RET_OK)
             {
-              func(user_data, nu, nullptr, bezt, 1, false, screen_co);
+              func(user_data, &nu, nullptr, bezt, 1, false, screen_co);
             }
           }
           else {
@@ -654,7 +652,7 @@ void nurbs_foreachScreenVert(const ViewContext *vc,
                     screen_co,
                     eV3DProjTest(V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN)) == V3D_PROJ_RET_OK)
             {
-              func(user_data, nu, nullptr, bezt, 0, true, screen_co);
+              func(user_data, &nu, nullptr, bezt, 0, true, screen_co);
             }
             if (ED_view3d_project_float_object(
                     vc->region,
@@ -662,7 +660,7 @@ void nurbs_foreachScreenVert(const ViewContext *vc,
                     screen_co,
                     eV3DProjTest(V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN)) == V3D_PROJ_RET_OK)
             {
-              func(user_data, nu, nullptr, bezt, 1, true, screen_co);
+              func(user_data, &nu, nullptr, bezt, 1, true, screen_co);
             }
             if (ED_view3d_project_float_object(
                     vc->region,
@@ -670,15 +668,15 @@ void nurbs_foreachScreenVert(const ViewContext *vc,
                     screen_co,
                     eV3DProjTest(V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN)) == V3D_PROJ_RET_OK)
             {
-              func(user_data, nu, nullptr, bezt, 2, true, screen_co);
+              func(user_data, &nu, nullptr, bezt, 2, true, screen_co);
             }
           }
         }
       }
     }
     else {
-      for (i = 0; i < nu->pntsu * nu->pntsv; i++) {
-        BPoint *bp = &nu->bp[i];
+      for (i = 0; i < nu.pntsu * nu.pntsv; i++) {
+        BPoint *bp = &nu.bp[i];
 
         if (bp->hide == 0) {
           float screen_co[2];
@@ -688,7 +686,7 @@ void nurbs_foreachScreenVert(const ViewContext *vc,
                   screen_co,
                   eV3DProjTest(V3D_PROJ_RET_CLIP_BB | V3D_PROJ_RET_CLIP_WIN)) == V3D_PROJ_RET_OK)
           {
-            func(user_data, nu, bp, nullptr, -1, false, screen_co);
+            func(user_data, &nu, bp, nullptr, -1, false, screen_co);
           }
         }
       }
@@ -713,12 +711,11 @@ void mball_foreachScreenElem(const ViewContext *vc,
 
   ED_view3d_check_mats_rv3d(vc->rv3d);
 
-  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
+  for (MetaElem &ml : *mb->editelems) {
     float screen_co[2];
-    if (ED_view3d_project_float_object(vc->region, &ml->x, screen_co, clip_flag) ==
-        V3D_PROJ_RET_OK)
+    if (ED_view3d_project_float_object(vc->region, &ml.x, screen_co, clip_flag) == V3D_PROJ_RET_OK)
     {
-      func(user_data, ml, screen_co);
+      func(user_data, &ml, screen_co);
     }
   }
 }
@@ -796,13 +793,13 @@ void armature_foreachScreenBone(const ViewContext *vc,
     content_planes_len = 0;
   }
 
-  LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-    if (!EBONE_VISIBLE(arm, ebone)) {
+  for (EditBone &ebone : *arm->edbo) {
+    if (!blender::animrig::bone_is_visible(arm, &ebone)) {
       continue;
     }
 
     float screen_co_a[2], screen_co_b[2];
-    const float *v_a = ebone->head, *v_b = ebone->tail;
+    const float *v_a = ebone.head, *v_b = ebone.tail;
 
     if (clip_flag & V3D_PROJ_TEST_CLIP_CONTENT) {
       if (!view3d_project_segment_to_screen_with_content_clip_planes(vc->region,
@@ -826,7 +823,7 @@ void armature_foreachScreenBone(const ViewContext *vc,
       }
     }
 
-    func(user_data, ebone, screen_co_a, screen_co_b);
+    func(user_data, &ebone, screen_co_a, screen_co_b);
   }
 }
 
@@ -846,7 +843,7 @@ void pose_foreachScreenBone(const ViewContext *vc,
 {
   /* Almost _exact_ copy of #armature_foreachScreenBone */
 
-  const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, vc->obact);
+  const Object *ob_eval = DEG_get_evaluated(vc->depsgraph, vc->obact);
   const bArmature *arm_eval = static_cast<const bArmature *>(ob_eval->data);
   bPose *pose = vc->obact->pose;
 
@@ -868,12 +865,12 @@ void pose_foreachScreenBone(const ViewContext *vc,
     content_planes_len = 0;
   }
 
-  LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
-    if (!PBONE_VISIBLE(arm_eval, pchan->bone)) {
+  for (bPoseChannel &pchan : pose->chanbase) {
+    if (!blender::animrig::bone_is_visible(arm_eval, &pchan)) {
       continue;
     }
 
-    bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, pchan->name);
+    bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, pchan.name);
     float screen_co_a[2], screen_co_b[2];
     const float *v_a = pchan_eval->pose_head, *v_b = pchan_eval->pose_tail;
 
@@ -899,7 +896,7 @@ void pose_foreachScreenBone(const ViewContext *vc,
       }
     }
 
-    func(user_data, pchan, screen_co_a, screen_co_b);
+    func(user_data, &pchan, screen_co_a, screen_co_b);
   }
 }
 

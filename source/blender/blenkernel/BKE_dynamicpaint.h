@@ -8,24 +8,20 @@
  * \ingroup bke
  */
 
-#include "BLI_utildefines.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct Depsgraph;
 struct DynamicPaintCanvasSettings;
 struct DynamicPaintModifierData;
 struct DynamicPaintRuntime;
+struct ImgSeqFormatData;
 struct Object;
+struct PaintAdjData;
 struct Scene;
 
 /* Actual surface point */
 typedef struct PaintSurfaceData {
-  void *format_data;             /* special data for each surface "format" */
+  ImgSeqFormatData *format_data; /* extra data for image sequence format */
   void *type_data;               /* data used by specific surface type */
-  struct PaintAdjData *adj_data; /* adjacency data for current surface */
+  PaintAdjData *adj_data;        /* adjacency data for current surface */
 
   struct PaintBakeData *bData; /* temporary per step data used for frame calculation */
   int total_points;
@@ -145,7 +141,3 @@ void dynamicPaint_outputSurfaceImage(struct DynamicPaintSurface *surface,
 #define DPAINT_WAVE_NONE 0
 #define DPAINT_WAVE_OBSTACLE 1
 #define DPAINT_WAVE_REFLECT_ONLY 2
-
-#ifdef __cplusplus
-}
-#endif

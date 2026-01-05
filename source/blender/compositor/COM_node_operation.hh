@@ -52,11 +52,8 @@ class NodeOperation : public Operation {
   /* Compute a node preview using the result returned from the get_preview_result method. */
   void compute_preview() override;
 
-  /* Returns a reference to the derived node that this operation represents. */
-  const DNode &node() const;
-
   /* Returns a reference to the node that this operation represents. */
-  const bNode &bnode() const;
+  const bNode &node() const;
 
   /* Returns true if the output identified by the given identifier is needed and should be
    * computed, otherwise returns false. */
@@ -64,9 +61,8 @@ class NodeOperation : public Operation {
 
  private:
   /* Get the result which will be previewed in the node, this is chosen as the first linked output
-   * of the node, if no outputs exist, then the first allocated input will be chosen. Nullptr is
-   * guaranteed not to be returned, since the node will always either have a linked output or an
-   * allocated input. */
+   * of the node, if no outputs exist, then the first allocated input will be chosen. Returns
+   * nullptr if no result is viewable. */
   Result *get_preview_result();
 };
 

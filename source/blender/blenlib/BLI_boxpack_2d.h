@@ -8,11 +8,7 @@
  * \ingroup bli
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct ListBase;
+#include "DNA_listBase.h"
 
 /* Box Packer */
 
@@ -68,11 +64,7 @@ typedef struct FixedSizeBoxPack {
  * larger boxes should come first, though how exactly size is best defined (e.g. area, perimeter)
  * depends on the particular application.
  */
-void BLI_box_pack_2d_fixedarea(struct ListBase *boxes,
+void BLI_box_pack_2d_fixedarea(ListBaseT<FixedSizeBoxPack> *boxes,
                                int width,
                                int height,
-                               struct ListBase *packed);
-
-#ifdef __cplusplus
-}
-#endif
+                               ListBaseT<FixedSizeBoxPack> *packed);

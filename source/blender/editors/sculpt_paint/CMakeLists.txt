@@ -7,12 +7,17 @@ set(INC
 
   ../asset
   ../include
+  ../mesh
   ../uvedit
   ../../blenlib
+  ../../makesrna
   ../../../../intern/eigen
+  # RNA_prototypes.hh
+  ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
 set(INC_SYS
+  ${ZSTD_INCLUDE_DIRS}
 )
 
 set(SRC
@@ -70,6 +75,7 @@ set(SRC
   paint_image_proj.cc
   paint_mask.cc
   paint_ops.cc
+  paint_sample_color.cc
   paint_stroke.cc
   paint_utils.cc
   paint_vertex.cc
@@ -93,6 +99,7 @@ set(SRC
   sculpt_geodesic.cc
   sculpt_gesture.cc
   sculpt_hide.cc
+  sculpt_mask_extract.cc
   sculpt_mask_init.cc
   sculpt_ops.cc
   sculpt_paint_color.cc
@@ -160,7 +167,7 @@ set(SRC
   brushes/thumb.cc
   brushes/topology_slide.cc
 
-  brushes/types.hh
+  brushes/brushes.hh
 )
 
 set(LIB
@@ -184,7 +191,6 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::nodes
   PRIVATE bf::render
-  PRIVATE bf::rna
   PRIVATE bf::windowmanager
 )
 
@@ -204,7 +210,11 @@ endif()
 
 if(WITH_GTESTS)
   set(TEST_SRC
+    mesh_brush_common_tests.cc
+    paint_test.cc
+    sculpt_boundary_tests.cc
     sculpt_detail_test.cc
+    sculpt_undo_test.cc
   )
   set(TEST_INC
   )
@@ -222,3 +232,5 @@ if(WITH_TBB AND MSVC_CLANG)
 endif()
 
 blender_add_lib(bf_editor_sculpt_paint "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+# RNA_prototypes.hh
+add_dependencies(bf_editor_sculpt_paint bf_rna)

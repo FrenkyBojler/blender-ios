@@ -10,20 +10,21 @@
  */
 
 #include "BLI_filereader.h"
-#include "BLI_listbase.h"
+#include "BLI_implicit_sharing.hh"
 #include "BLI_map.hh"
 
-namespace blender {
-class ImplicitSharingInfo;
-}
+#include "DNA_listBase.h"
+
 struct Main;
 struct Scene;
+struct WriteData;
+struct WriteDataStableAddressIDs;
 
 struct MemFileSharedStorage {
   /**
-   * Maps the data pointer to the sharing info that it is owned by.
+   * Maps the address id to the shared data and corresponding sharing info..
    */
-  blender::Map<const void *, const blender::ImplicitSharingInfo *> map;
+  blender::Map<uint64_t, blender::ImplicitSharingInfoAndData> sharing_info_by_address_id;
 
   ~MemFileSharedStorage();
 };
@@ -45,13 +46,19 @@ struct MemFileChunk {
 };
 
 struct MemFile {
-  ListBase chunks;
+  ListBaseT<MemFileChunk> chunks;
   size_t size;
   /**
    * Some data is not serialized into a new buffer because the undo-step can take ownership of it
    * without making a copy. This is faster and requires less memory.
    */
   MemFileSharedStorage *shared_storage;
+
+  /**
+   * Partial storage of the WriteData's generated stable pointers data, to be re-used when writing
+   * the next undo step.
+   */
+  WriteDataStableAddressIDs *stable_address_ids;
 };
 
 struct MemFileWriteData {
@@ -66,7 +73,7 @@ struct MemFileWriteData {
 };
 
 struct MemFileUndoData {
-  char filepath[1024]; /* FILE_MAX */
+  char filepath[/*FILE_MAX*/ 1024];
   MemFile memfile;
   size_t undo_size;
 };
@@ -83,10 +90,11 @@ struct UndoReader {
 
 /* Actually only used `writefile.cc`. */
 
-void BLO_memfile_write_init(MemFileWriteData *mem_data,
+void BLO_memfile_write_init(WriteData *wd,
+                            MemFileWriteData *mem_data,
                             MemFile *written_memfile,
                             MemFile *reference_memfile);
-void BLO_memfile_write_finalize(MemFileWriteData *mem_data);
+void BLO_memfile_write_finalize(WriteData *wd, MemFileWriteData *mem_data);
 
 void BLO_memfile_chunk_add(MemFileWriteData *mem_data, const char *buf, size_t size);
 

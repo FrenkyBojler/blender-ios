@@ -8,12 +8,10 @@
 
 #include "DNA_node_types.h"
 
-#include "BLI_utildefines.h"
-
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
-#include "NOD_common.h"
+#include "NOD_common.hh"
 #include "NOD_shader.h"
 #include "node_common.h"
 #include "node_exec.hh"
@@ -28,10 +26,10 @@ static void group_gpu_copy_inputs(bNode *gnode, GPUNodeStack *in, bNodeStack *gs
   bNodeTree *ngroup = (bNodeTree *)gnode->id;
 
   for (bNode *node : ngroup->all_nodes()) {
-    if (node->type == NODE_GROUP_INPUT) {
-      int a;
-      LISTBASE_FOREACH_INDEX (bNodeSocket *, sock, &node->outputs, a) {
-        bNodeStack *ns = node_get_socket_stack(gstack, sock);
+    if (node->is_group_input()) {
+
+      for (const auto [a, sock] : node->outputs.enumerate()) {
+        bNodeStack *ns = node_get_socket_stack(gstack, &sock);
         if (ns) {
           /* convert the external gpu stack back to internal node stack data */
           node_data_from_gpu_stack(ns, &in[a]);
@@ -45,20 +43,19 @@ static void group_gpu_copy_inputs(bNode *gnode, GPUNodeStack *in, bNodeStack *gs
  */
 static void group_gpu_move_outputs(bNode *gnode, GPUNodeStack *out, bNodeStack *gstack)
 {
-  const bNodeTree &ngroup = *reinterpret_cast<bNodeTree *>(gnode->id);
+  bNodeTree &ngroup = *reinterpret_cast<bNodeTree *>(gnode->id);
 
   ngroup.ensure_topology_cache();
-  const bNode *group_output_node = ngroup.group_output_node();
+  bNode *group_output_node = ngroup.group_output_node();
   if (!group_output_node) {
     return;
   }
 
-  int a;
-  LISTBASE_FOREACH_INDEX (bNodeSocket *, sock, &group_output_node->inputs, a) {
-    bNodeStack *ns = node_get_socket_stack(gstack, sock);
+  for (const auto [a, sock] : group_output_node->inputs.enumerate()) {
+    bNodeStack *ns = node_get_socket_stack(gstack, &sock);
     if (ns) {
       /* convert the node stack data result back to gpu stack */
-      node_gpu_stack_from_data(&out[a], sock->type, ns);
+      node_gpu_stack_from_data(&out[a], &sock, ns);
     }
   }
 }
@@ -87,9 +84,9 @@ void register_node_type_sh_group()
    * to the shared #NODE_GROUP integer type id. */
 
   blender::bke::node_type_base_custom(
-      &ntype, "ShaderNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
+      ntype, "ShaderNodeGroup", "Group", "GROUP", NODE_CLASS_GROUP);
   ntype.enum_name_legacy = "GROUP";
-  ntype.type = NODE_GROUP;
+  ntype.type_legacy = NODE_GROUP;
   ntype.poll = sh_node_poll_default;
   ntype.poll_instance = node_group_poll_instance;
   ntype.insert_link = node_insert_link_default;
@@ -99,12 +96,13 @@ void register_node_type_sh_group()
   BLI_assert(ntype.rna_ext.srna != nullptr);
   RNA_struct_blender_type_set(ntype.rna_ext.srna, &ntype);
 
-  blender::bke::node_type_size(&ntype, 140, 60, 400);
+  blender::bke::node_type_size(
+      ntype, GROUP_NODE_DEFAULT_WIDTH, GROUP_NODE_MIN_WIDTH, GROUP_NODE_MAX_WIDTH);
   ntype.labelfunc = node_group_label;
   ntype.declare = blender::nodes::node_group_declare;
   ntype.gpu_fn = gpu_group_execute;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 
 void register_node_type_sh_custom_group(blender::bke::bNodeType *ntype)

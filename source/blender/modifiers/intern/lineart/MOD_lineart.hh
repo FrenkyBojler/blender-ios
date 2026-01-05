@@ -8,8 +8,8 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
 #include "BLI_linklist.h"
-#include "BLI_listbase.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
@@ -18,11 +18,18 @@
 #include "ED_grease_pencil.hh"
 
 #include <algorithm>
-#include <math.h>
+#include <cmath>
 
 struct LineartBoundingArea;
 struct LineartEdge;
+struct LineartEdgeChain;
+struct LineartEdgeChainItem;
+struct LineartEdgeSegment;
+struct LineartElementLinkNode;
+struct LineartShadowSegment;
+struct LineartStaticMemPoolNode;
 struct LineartVert;
+struct LinkData;
 struct Mesh;
 struct Object;
 
@@ -41,7 +48,7 @@ struct LineartStaticMemPoolNode {
 };
 
 struct LineartStaticMemPool {
-  ListBase pools;
+  ListBaseT<LineartStaticMemPoolNode> pools;
   SpinLock lock_mem;
 };
 
@@ -93,7 +100,7 @@ enum eLineArtElementNodeFlag {
   LRT_ELEMENT_NO_INTERSECTION = (1 << 2),
   LRT_ELEMENT_INTERSECTION_DATA = (1 << 3),
 };
-ENUM_OPERATORS(eLineArtElementNodeFlag, LRT_ELEMENT_INTERSECTION_DATA);
+ENUM_OPERATORS(eLineArtElementNodeFlag);
 
 struct LineartElementLinkNode {
   LineartElementLinkNode *next, *prev;
@@ -136,7 +143,7 @@ struct LineartShadowEdge {
   LineartEdge *e_ref;
   LineartEdge *e_ref_light_contour;
   LineartEdgeSegment *es_ref; /* Only for 3rd stage casting. */
-  ListBase shadow_segments;
+  ListBaseT<LineartShadowSegment> shadow_segments;
 };
 
 enum eLineartShadowSegmentFlag {
@@ -177,7 +184,7 @@ struct LineartEdge {
    * reprojection, So we can easily find out the line which results come from. */
   LineartTriangle *t1, *t2;
 
-  ListBase segments;
+  ListBaseT<LineartEdgeSegment> segments;
   int8_t min_occ;
 
   /** Also for line type determination on chaining. */
@@ -212,7 +219,7 @@ struct LineartEdge {
 
 struct LineartEdgeChain {
   LineartEdgeChain *next, *prev;
-  ListBase chain;
+  ListBaseT<LineartEdgeChainItem> chain;
 
   /** Calculated before draw command. */
   float length;
@@ -327,14 +334,14 @@ struct LineartData {
 
   struct _geom {
 
-    ListBase vertex_buffer_pointers;
-    ListBase line_buffer_pointers;
-    ListBase triangle_buffer_pointers;
+    ListBaseT<LineartElementLinkNode> vertex_buffer_pointers;
+    ListBaseT<LineartElementLinkNode> line_buffer_pointers;
+    ListBaseT<LineartElementLinkNode> triangle_buffer_pointers;
 
     /** This one's memory is not from main pool and is free()ed after culling stage. */
-    ListBase triangle_adjacent_pointers;
+    ListBaseT<LineartElementLinkNode> triangle_adjacent_pointers;
 
-    ListBase intersecting_vertex_buffer;
+    ListBaseT<LineartElementLinkNode> intersecting_vertex_buffer;
 
   } geom;
 
@@ -425,10 +432,10 @@ struct LineartData {
   LineartShadowEdge *shadow_edges;
   int shadow_edges_count;
 
-  ListBase chains;
+  ListBaseT<LineartEdgeChain> chains;
 
-  ListBase wasted_cuts;
-  ListBase wasted_shadow_cuts;
+  ListBaseT<LineartEdgeSegment> wasted_cuts;
+  ListBaseT<LineartShadowSegment> wasted_shadow_cuts;
   SpinLock lock_cuts;
   SpinLock lock_task;
 };
@@ -441,11 +448,11 @@ struct LineartCache {
   LineartStaticMemPool shadow_data_pool;
 
   /** A copy of ld->chains so we have that data available after ld has been destroyed. */
-  ListBase chains;
+  ListBaseT<LineartEdgeChain> chains;
 
   /** Shadow-computed feature lines from original meshes to be matched with the second load of
    * meshes thus providing lit/shade info in the second run of line art. */
-  ListBase shadow_elns;
+  ListBaseT<LineartElementLinkNode> shadow_elns;
 
   /** Cache only contains edge types specified in this variable. */
   uint16_t all_enabled_edge_types;
@@ -537,7 +544,7 @@ struct LineartObjectLoadTaskInfo {
   LineartObjectInfo *pending;
   /* Used to spread the load across several threads. This can not overflow. */
   uint64_t total_faces;
-  ListBase *shadow_elns;
+  ListBaseT<LineartElementLinkNode> *shadow_elns;
 };
 
 /**
@@ -573,10 +580,10 @@ struct LineartBoundingArea {
 
   SpinLock lock;
 
-  ListBase lp;
-  ListBase rp;
-  ListBase up;
-  ListBase bp;
+  ListBaseT<LinkData> lp;
+  ListBaseT<LinkData> rp;
+  ListBaseT<LinkData> up;
+  ListBaseT<LinkData> bp;
 
   uint32_t triangle_count;
   uint32_t max_triangle_count;
@@ -589,7 +596,7 @@ struct LineartBoundingArea {
   LineartEdge **linked_lines;
 
   /** Reserved for image space reduction && multi-thread chaining. */
-  ListBase linked_chains;
+  ListBaseT<LineartChainRegisterEntry> linked_chains;
 };
 
 #define LRT_TILE(tile, r, c, CCount) tile[r * CCount + c]
@@ -605,10 +612,10 @@ struct LineartBoundingArea {
 #define LRT_MIN3_INDEX_ABC(x, y, z) (x < y ? (x < z ? a : (y < z ? b : c)) : (y < z ? b : c))
 
 #define DBL_LOOSER 1e-5
-#define LRT_DOUBLE_CLOSE_LOOSER(a, b) (((a) + DBL_LOOSER) >= (b) && ((a)-DBL_LOOSER) <= (b))
-#define LRT_DOUBLE_CLOSE_ENOUGH(a, b) (((a) + DBL_EDGE_LIM) >= (b) && ((a)-DBL_EDGE_LIM) <= (b))
+#define LRT_DOUBLE_CLOSE_LOOSER(a, b) (((a) + DBL_LOOSER) >= (b) && ((a) - DBL_LOOSER) <= (b))
+#define LRT_DOUBLE_CLOSE_ENOUGH(a, b) (((a) + DBL_EDGE_LIM) >= (b) && ((a) - DBL_EDGE_LIM) <= (b))
 #define LRT_DOUBLE_CLOSE_ENOUGH_TRI(a, b) \
-  (((a) + DBL_TRIANGLE_LIM) >= (b) && ((a)-DBL_TRIANGLE_LIM) <= (b))
+  (((a) + DBL_TRIANGLE_LIM) >= (b) && ((a) - DBL_TRIANGLE_LIM) <= (b))
 
 #define LRT_CLOSE_LOOSER_v3(a, b) \
   (LRT_DOUBLE_CLOSE_LOOSER(a[0], b[0]) && LRT_DOUBLE_CLOSE_LOOSER(a[1], b[1]) && \
@@ -851,9 +858,9 @@ BLI_INLINE int lineart_line_isec_2d_ignore_line2pos(const double a1[2],
       k1 = (a2[1] - a1[1]) / x_diff;
       k2 = (b2[1] - b1[1]) / x_diff2;
 
-      if ((k1 == k2))
+      if ((k1 == k2)) {
         return 0;
-
+      }
       x = (a1[1] - b1[1] - k1 * a1[0] + k2 * b1[0]) / (k2 - k1);
 
       ratio = (x - a1[0]) / x_diff;
@@ -862,9 +869,9 @@ BLI_INLINE int lineart_line_isec_2d_ignore_line2pos(const double a1[2],
     }
   }
 
-  if (ratio <= 0 || ratio >= 1)
+  if (ratio <= 0 || ratio >= 1) {
     return 0;
-
+  }
   return 1;
 #endif
 }

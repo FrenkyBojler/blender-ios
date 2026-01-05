@@ -3,6 +3,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+__all__ = (
+    "main",
+)
+
 import unittest
 
 from check_utils import (
@@ -15,7 +19,7 @@ class UnitTesting(ScriptUnitTesting):
     def test_requestsImports(self):
         self.checkScript("requests_import")
 
-    def test_requestsBasicAccess(self):
+    def test_requestsBasicHttpAccess(self):
         self.checkScript("requests_basic_access")
 
 
