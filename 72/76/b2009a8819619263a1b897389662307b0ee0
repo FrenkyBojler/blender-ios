@@ -14,3 +14,4 @@ Referenced by issue #147978, Custom properties for child bones in parent-child r
 Referenced by pull request #150713, Assets: Add second IDProps to MetaData, to support py-defined RNA data.
 Referenced by issue #151032, Leftover system properties from addon can cause issues
 Referenced by issue #151345, Custom Properties get lost on load with Library Overridden Linked Armatures.
+Referenced by issue #152381, Blender 5.0 duplicates custom properties
