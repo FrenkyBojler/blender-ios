@@ -2301,14 +2301,19 @@ static bool wm_autosave_write_try(Main *bmain, wmWindowManager *wm)
    * compared to when the #MemFile undo step was used for saving undo-steps. So for now just skip
    * auto-save when we are in a mode where auto-save wouldn't have worked previously anyway. This
    * check can be removed once the performance regressions have been solved. */
-  if (ED_undosys_stack_memfile_get_if_active(wm->runtime->undo_stack) != nullptr) {
+  if (ED_undosys_autosave_compatible(wm->runtime->undo_stack)) {
     WM_autosave_write(wm, bmain);
+    BKE_report(&wm->runtime->reports, RPT_INFO, "Creating autosave");
+    printf("Autosaved!\n");
     return true;
   }
   if ((U.uiflag & USER_GLOBALUNDO) == 0) {
+    BKE_report(&wm->runtime->reports, RPT_INFO, "Creating autosave");
     WM_autosave_write(wm, bmain);
+    printf("Autosaved!\n");
     return true;
   }
+  printf("Unable to autosave, attempt later\n");
   /* Can't auto-save with MemFile right now, try again later. */
   return false;
 }
@@ -2321,6 +2326,7 @@ bool WM_autosave_is_scheduled(wmWindowManager *wm)
 void WM_autosave_write(wmWindowManager *wm, Main *bmain)
 {
   ED_editors_flush_edits(bmain);
+  ED_image_internal_autosave_flush(bmain);
 
   char filepath[FILE_MAX];
   wm_autosave_location(filepath);

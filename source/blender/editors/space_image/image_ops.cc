@@ -6,6 +6,8 @@
  * \ingroup spimage
  */
 
+#include "CLG_log.h"
+
 #include <cerrno>
 #include <cstddef>
 #include <cstdlib>
@@ -89,6 +91,8 @@
 #include "RE_engine.h"
 
 #include "image_intern.hh"
+
+static CLG_LogRef LOG = {"image"};
 
 using blender::Vector;
 
@@ -2526,6 +2530,22 @@ bool ED_image_save_all_modified(const bContext *C, ReportList *reports)
     }
   }
   return ok;
+}
+
+void ED_image_internal_autosave_flush(const Main *bmain)
+{
+  for (Image *ima = static_cast<Image *>(bmain->images.first); ima;
+       ima = static_cast<Image *>(ima->id.next))
+  {
+    bool is_format_writable;
+
+    if (image_should_be_saved(ima, &is_format_writable)) {
+      if (BKE_image_has_packedfile(ima) || image_should_pack_during_save_all(ima)) {
+        BKE_image_memorypack(ima);
+        CLOG_INFO(&LOG, "Packing %s for autosave", ima->id.name);
+      }
+    }
+  }
 }
 
 static bool image_save_all_modified_poll(bContext *C)

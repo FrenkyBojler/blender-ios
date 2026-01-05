@@ -116,6 +116,7 @@
 #include "ANIM_keyingsets.hh"
 
 #include "DRW_engine.hh"
+#include "ED_image.hh"
 
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_OPERATORS, "operator");
 CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_EVENTS, "event");
@@ -472,6 +473,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
       BLI_path_join(filepath, sizeof(filepath), BKE_tempdir_base(), BLENDER_QUIT_FILE);
 
       ED_editors_flush_edits(bmain);
+      ED_image_internal_autosave_flush(bmain);
 
       BlendFileWriteParams blend_file_write_params{};
       if (BLO_write_file(bmain, filepath, fileflags, &blend_file_write_params, nullptr)) {
