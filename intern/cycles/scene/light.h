@@ -27,34 +27,18 @@ class Shader;
 
 class Light : public Geometry {
  public:
-  NODE_DECLARE;
+  NODE_ABSTRACT_DECLARE;
 
-  Light();
+  // Light();
+  Light(const NodeType *node_type);
 
   NODE_SOCKET_API(LightType, light_type)
   NODE_SOCKET_API(float3, strength)
-
-  NODE_SOCKET_API(float, size)
-  NODE_SOCKET_API(float, angle)
-
-  NODE_SOCKET_API(float, sizeu)
-  NODE_SOCKET_API(float, sizev)
-  NODE_SOCKET_API(bool, ellipse)
-  NODE_SOCKET_API(float, spread)
-
-  NODE_SOCKET_API(int, map_resolution)
-  NODE_SOCKET_API(float, average_radiance)
-
-  NODE_SOCKET_API(bool, is_sphere)
-
-  NODE_SOCKET_API(float, spot_angle)
-  NODE_SOCKET_API(float, spot_smooth)
 
   NODE_SOCKET_API(bool, cast_shadow)
   NODE_SOCKET_API(bool, use_mis)
   NODE_SOCKET_API(bool, use_caustics)
 
-  NODE_SOCKET_API(bool, is_portal)
   NODE_SOCKET_API(bool, is_enabled)
 
   NODE_SOCKET_API(int, max_bounces)
@@ -70,7 +54,7 @@ class Light : public Geometry {
   /* Shader */
   Shader *get_shader() const;
 
-  float area(const Transform &tfm) const;
+  virtual float area(const Transform &tfm) const = 0;
 
   /* Geometry */
   void compute_bounds() override;
@@ -78,8 +62,80 @@ class Light : public Geometry {
   void get_uv_tiles(ustring map, unordered_set<int> &tiles) override;
   PrimitiveType primitive_type() const override;
 
+  bool is_spot_light() const;
+  bool is_point_light() const;
+  bool is_area_light() const;
+  bool is_sun_light() const;
+  bool is_background_light() const;
+  bool is_distant_light() const;
+  bool is_portal() const;
+
   friend class LightManager;
   friend class LightTree;
+};
+
+class PointLight : public Light {
+ public:
+  NODE_DECLARE;
+
+  PointLight();
+  PointLight(const NodeType *node_type) : Light(node_type) {};
+
+  float area(const Transform &tfm) const override;
+
+  NODE_SOCKET_API(float, radius)
+  NODE_SOCKET_API(bool, is_sphere)
+};
+
+class SpotLight : public PointLight {
+ public:
+  NODE_DECLARE;
+
+  SpotLight();
+
+  NODE_SOCKET_API(float, angle)
+  NODE_SOCKET_API(float, smooth)
+};
+
+class AreaLight : public Light {
+ public:
+  NODE_DECLARE;
+
+  AreaLight();
+
+  float area(const Transform &tfm) const override;
+
+  /* TODO(weizhen): I removed `size` become it's always set to 1 in `blender/light.cpp`, but will
+   * external applications set it differently? */
+
+  NODE_SOCKET_API(float, sizeu)
+  NODE_SOCKET_API(float, sizev)
+  NODE_SOCKET_API(bool, ellipse)
+  NODE_SOCKET_API(float, spread)
+  NODE_SOCKET_API(bool, is_portal)
+};
+
+class SunLight : public Light {
+ public:
+  NODE_DECLARE;
+
+  SunLight();
+
+  float area(const Transform &tfm) const override;
+
+  NODE_SOCKET_API(float, angle)
+};
+
+class BackgroundLight : public Light {
+ public:
+  NODE_DECLARE;
+
+  BackgroundLight();
+
+  float area(const Transform &tfm) const override;
+
+  NODE_SOCKET_API(int, map_resolution)
+  NODE_SOCKET_API(float, average_radiance)
 };
 
 class LightManager {

@@ -13,58 +13,54 @@
 
 CCL_NAMESPACE_BEGIN
 
+Geometry *BlenderSync::create_light(BObjectInfo &b_ob_info)
+{
+  blender::Light &b_light = *blender::id_cast<blender::Light *>(b_ob_info.object_data);
+  switch (b_light.type) {
+    case blender::LA_LOCAL:
+      return scene->create_light_node<PointLight>();
+    case blender::LA_SPOT:
+      return scene->create_light_node<SpotLight>();
+    case blender::LA_SUN:
+      return scene->create_light_node<SunLight>();
+    case blender::LA_AREA:
+      return scene->create_light_node<AreaLight>();
+    default:
+      assert(false);
+      return nullptr;
+  }
+}
+
 void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
 {
   blender::Light &b_light = *blender::id_cast<blender::Light *>(b_ob_info.object_data);
 
   light->name = b_light.id.name + 2;
 
-  /* type */
-  switch (b_light.type) {
-    case blender::LA_LOCAL: {
-      light->set_size(b_light.radius);
-      light->set_light_type(LIGHT_POINT);
-      light->set_is_sphere(!(b_light.mode & blender::LA_USE_SOFT_FALLOFF));
-      break;
+  if (PointLight *point_light = dynamic_cast<PointLight *>(light)) {
+    point_light->set_radius(b_light.radius);
+    point_light->set_is_sphere(!(b_light.mode & blender::LA_USE_SOFT_FALLOFF));
+  }
+  else if (AreaLight *area_light = dynamic_cast<AreaLight *>(light)) {
+    area_light->set_sizeu(b_light.area_size);
+    area_light->set_spread(b_light.area_spread);
+    if (b_light.area_shape == blender::LA_AREA_SQUARE ||
+        b_light.area_shape == blender::LA_AREA_DISK)
+    {
+      area_light->set_sizev(area_light->get_sizeu());
     }
-    case blender::LA_SPOT: {
-      light->set_size(b_light.radius);
-      light->set_light_type(LIGHT_SPOT);
-      light->set_spot_angle(b_light.spotsize);
-      light->set_spot_smooth(b_light.spotblend);
-      light->set_is_sphere(!(b_light.mode & blender::LA_USE_SOFT_FALLOFF));
-      break;
+    else {
+      area_light->set_sizev(b_light.area_sizey);
     }
-    case blender::LA_SUN: {
-      light->set_angle(b_light.sun_angle);
-      light->set_light_type(LIGHT_DISTANT);
-      break;
-    }
-    case blender::LA_AREA: {
-      light->set_size(1.0f);
-      light->set_sizeu(b_light.area_size);
-      light->set_spread(b_light.area_spread);
-      switch (b_light.area_shape) {
-        case blender::LA_AREA_SQUARE:
-          light->set_sizev(light->get_sizeu());
-          light->set_ellipse(false);
-          break;
-        case blender::LA_AREA_RECT:
-          light->set_sizev(b_light.area_sizey);
-          light->set_ellipse(false);
-          break;
-        case blender::LA_AREA_DISK:
-          light->set_sizev(light->get_sizeu());
-          light->set_ellipse(true);
-          break;
-        case blender::LA_AREA_ELLIPSE:
-          light->set_sizev(b_light.area_sizey);
-          light->set_ellipse(true);
-          break;
-      }
-      light->set_light_type(LIGHT_AREA);
-      break;
-    }
+    area_light->set_ellipse(b_light.area_shape == blender::LA_AREA_DISK ||
+                            b_light.area_shape == blender::LA_AREA_ELLIPSE);
+  }
+  else if (SunLight *sun_light = dynamic_cast<SunLight *>(light)) {
+    sun_light->set_angle(b_light.sun_angle);
+  }
+  if (SpotLight *spot_light = dynamic_cast<SpotLight *>(light)) {
+    spot_light->set_angle(b_light.spotsize);
+    spot_light->set_smooth(b_light.spotblend);
   }
 
   blender::PointerRNA light_rna_ptr = RNA_id_pointer_create(&b_light.id);
@@ -93,11 +89,8 @@ void BlenderSync::sync_light(BObjectInfo &b_ob_info, Light *light)
 
   light->set_max_bounces(get_int(clight, "max_bounces"));
 
-  if (light->get_light_type() == LIGHT_AREA) {
-    light->set_is_portal(get_boolean(clight, "is_portal"));
-  }
-  else {
-    light->set_is_portal(false);
+  if (AreaLight *area_light = dynamic_cast<AreaLight *>(light)) {
+    area_light->set_is_portal(get_boolean(clight, "is_portal"));
   }
 
   /* tag */
@@ -137,7 +130,7 @@ void BlenderSync::sync_background_light(blender::bScreen *b_screen, blender::Vie
       update |= geometry_map.update(geom, &b_world->id);
     }
     else {
-      geom = scene->create_node<Light>();
+      geom = scene->create_light_node<BackgroundLight>();
       geometry_map.add(geom_key, geom);
       object->set_geometry(geom);
       update = true;
@@ -145,13 +138,11 @@ void BlenderSync::sync_background_light(blender::bScreen *b_screen, blender::Vie
 
     if (update || world_recalc || b_world != world_map) {
       /* Initialize light geometry. */
-      Light *light = static_cast<Light *>(geom);
+      BackgroundLight *light = static_cast<BackgroundLight *>(geom);
 
       array<Node *> used_shaders;
       used_shaders.push_back_slow(scene->default_background);
       light->set_used_shaders(used_shaders);
-
-      light->set_light_type(LIGHT_BACKGROUND);
 
       if (sampling_method == SAMPLING_MANUAL) {
         light->set_map_resolution(get_int(cworld, "sample_map_resolution"));

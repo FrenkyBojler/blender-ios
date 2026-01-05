@@ -108,8 +108,9 @@ Geometry *BlenderSync::sync_geometry(BObjectInfo &b_ob_info,
   bool sync = true;
   if (geom == nullptr) {
     /* Add new geometry if it did not exist yet. */
+    /* TODO(weizhen): tag update when light type changes */
     if (geom_type == Geometry::LIGHT) {
-      geom = scene->create_node<Light>();
+      geom = create_light(b_ob_info);
     }
     else if (geom_type == Geometry::HAIR) {
       geom = scene->create_node<Hair>();

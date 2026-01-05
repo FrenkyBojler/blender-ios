@@ -82,9 +82,9 @@ static void shade_background_pixels(Device *device,
 
 /* Light */
 
-NODE_DEFINE(Light)
+NODE_ABSTRACT_DEFINE(Light)
 {
-  NodeType *type = NodeType::add("light", create, NodeType::NONE, Geometry::get_node_base_type());
+  NodeType *type = NodeType::add("light", nullptr, NodeType::NONE, Geometry::get_node_base_type());
 
   static NodeEnum type_enum;
   type_enum.insert("point", LIGHT_POINT);
@@ -96,29 +96,12 @@ NODE_DEFINE(Light)
 
   SOCKET_COLOR(strength, "Strength", one_float3());
 
-  SOCKET_FLOAT(size, "Size", 0.0f);
-  SOCKET_FLOAT(angle, "Angle", 0.0f);
-
-  SOCKET_FLOAT(sizeu, "Size U", 1.0f);
-  SOCKET_FLOAT(sizev, "Size V", 1.0f);
-  SOCKET_BOOLEAN(ellipse, "Ellipse", false);
-  SOCKET_FLOAT(spread, "Spread", M_PI_F);
-
-  SOCKET_INT(map_resolution, "Map Resolution", 0);
-  SOCKET_FLOAT(average_radiance, "Average Radiance", 0.0f);
-
-  SOCKET_BOOLEAN(is_sphere, "Is Sphere", true);
-
-  SOCKET_FLOAT(spot_angle, "Spot Angle", M_PI_4_F);
-  SOCKET_FLOAT(spot_smooth, "Spot Smooth", 0.0f);
-
   SOCKET_BOOLEAN(cast_shadow, "Cast Shadow", true);
   SOCKET_BOOLEAN(use_mis, "Use Mis", false);
   SOCKET_BOOLEAN(use_caustics, "Shadow Caustics", false);
 
   SOCKET_INT(max_bounces, "Max Bounces", 1024);
 
-  SOCKET_BOOLEAN(is_portal, "Is Portal", false);
   SOCKET_BOOLEAN(is_enabled, "Is Enabled", true);
 
   SOCKET_BOOLEAN(normalize, "Normalize", true);
@@ -126,9 +109,119 @@ NODE_DEFINE(Light)
   return type;
 }
 
-Light::Light() : Geometry(get_node_type(), Geometry::LIGHT)
+// Light::Light() : Geometry(get_node_base_type(), Geometry::LIGHT)
+// {
+/* TODO(weizhen): why is this not in destructor? */
+// dereference_all_used_nodes();
+// }
+
+Light::Light(const NodeType *node_type) : Geometry(node_type, Geometry::LIGHT) {}
+
+NODE_DEFINE(PointLight)
 {
-  dereference_all_used_nodes();
+  NodeType *type = NodeType::add(
+      "pointlight", create, NodeType::NONE, Light::get_node_base_type());
+
+  SOCKET_FLOAT(radius, "Radius", 0.0f);
+  SOCKET_BOOLEAN(is_sphere, "Is Sphere", true);
+
+  return type;
+}
+
+PointLight::PointLight() : Light(get_node_type())
+{
+  light_type = LIGHT_POINT;
+}
+
+float PointLight::area(const Transform & /*tfm*/) const
+{
+  /* Sphere area. */
+  const float area = 4.0f * M_PI_F * sqr(radius);
+  return (area == 0.0f) ? 4.0f : area;
+}
+
+NODE_DEFINE(SpotLight)
+{
+  NodeType *type = NodeType::add("spotlight", create, NodeType::NONE, PointLight::get_node_type());
+
+  SOCKET_FLOAT(angle, "Angle", M_PI_4_F);
+  SOCKET_FLOAT(smooth, "Smooth", 0.0f);
+
+  return type;
+}
+
+SpotLight::SpotLight() : PointLight(get_node_type())
+{
+  light_type = LIGHT_SPOT;
+}
+
+NODE_DEFINE(AreaLight)
+{
+  NodeType *type = NodeType::add("arealight", create, NodeType::NONE, Light::get_node_base_type());
+
+  SOCKET_FLOAT(sizeu, "Size U", 1.0f);
+  SOCKET_FLOAT(sizev, "Size V", 1.0f);
+  SOCKET_BOOLEAN(ellipse, "Ellipse", false);
+  SOCKET_FLOAT(spread, "Spread", M_PI_F);
+  SOCKET_BOOLEAN(is_portal, "Is Portal", false);
+
+  return type;
+}
+
+AreaLight::AreaLight() : Light(get_node_type())
+{
+  light_type = LIGHT_AREA;
+}
+
+float AreaLight::area(const Transform &tfm) const
+{
+  const float3 axisu = transform_get_column(&tfm, 0);
+  const float3 axisv = transform_get_column(&tfm, 1);
+
+  /* Rectangle area. */
+  const float area = len(axisu * sizeu) * len(axisv * sizev);
+  return ellipse ? area * M_PI_4_F : area;
+}
+
+NODE_DEFINE(SunLight)
+{
+  NodeType *type = NodeType::add("sunlight", create, NodeType::NONE, Light::get_node_base_type());
+
+  SOCKET_FLOAT(angle, "Angle", 0.0f);
+
+  return type;
+}
+
+SunLight::SunLight() : Light(get_node_type())
+{
+  light_type = LIGHT_DISTANT;
+}
+
+float SunLight::area(const Transform & /*tfm*/) const
+{
+  /* Sun disk area. */
+  return (angle > 0.0f) ? M_PI_F * sqr(sinf(angle * 0.5f)) : 1.0f;
+}
+
+NODE_DEFINE(BackgroundLight)
+{
+  NodeType *type = NodeType::add(
+      "backgroundlight", create, NodeType::NONE, Light::get_node_base_type());
+
+  SOCKET_INT(map_resolution, "Map Resolution", 0);
+  SOCKET_FLOAT(average_radiance, "Average Radiance", 0.0f);
+
+  return type;
+}
+
+BackgroundLight::BackgroundLight() : Light(get_node_type())
+{
+  light_type = LIGHT_BACKGROUND;
+}
+
+float BackgroundLight::area(const Transform & /*tfm*/) const
+{
+  return 1.0f;
 }
 
 void Light::tag_update(Scene *scene)
@@ -153,15 +246,16 @@ bool Light::has_contribution(const Scene *scene, const Object *object)
   if (strength == zero_float3()) {
     return false;
   }
-  if (is_portal) {
+  if (is_portal()) {
     return false;
   }
-  if (light_type == LIGHT_BACKGROUND) {
+  if (is_background_light()) {
     /* Will be determined after finishing processing all the lights. */
     return true;
   }
-  if (light_type == LIGHT_AREA) {
-    if ((get_sizeu() * get_sizev() * get_size() == 0.0f) ||
+  if (is_area_light()) {
+    const AreaLight *light = static_cast<AreaLight *>(this);
+    if ((light->get_sizeu() * light->get_sizev() == 0.0f) ||
         is_zero(transform_get_column(&object->get_tfm(), 0)) ||
         is_zero(transform_get_column(&object->get_tfm(), 1)))
     {
@@ -181,48 +275,22 @@ Shader *Light::get_shader() const
 
 void Light::compute_bounds()
 {
-  /* To be implemented when this becomes actual geometry. */
+  /* TODO: implement when this becomes actual geometry. */
 }
 
 void Light::apply_transform(const Transform & /*tfm*/, const bool /*apply_to_motion*/)
 {
-  /* To be implemented when this becomes actual geometry. */
+  /* TODO: implement when this becomes actual geometry. */
 }
 
 void Light::get_uv_tiles(ustring /*map*/, unordered_set<int> & /*tiles*/)
 {
-  /* To be implemented when this becomes actual geometry. */
+  /* TODO: implement when this becomes actual geometry. */
 }
 
 PrimitiveType Light::primitive_type() const
 {
   return PRIMITIVE_LAMP;
-}
-
-float Light::area(const Transform &tfm) const
-{
-  if (light_type == LIGHT_POINT || light_type == LIGHT_SPOT) {
-    /* Sphere area. */
-    const float area = 4.0f * M_PI_F * size * size;
-    return (area == 0.0f) ? 4.0f : area;
-  }
-  if (light_type == LIGHT_AREA) {
-    /* Rectangle area. */
-    const float3 axisu = transform_get_column(&tfm, 0);
-    const float3 axisv = transform_get_column(&tfm, 1);
-    float area = len(axisu * sizeu * size) * len(axisv * sizev * size);
-    if (ellipse) {
-      area *= M_PI_4_F;
-    }
-    return area;
-  }
-  if (light_type == LIGHT_DISTANT) {
-    /* Sun disk area. */
-    const float half_angle = angle / 2.0f;
-    return (half_angle > 0.0f) ? M_PI_F * sqr(sinf(half_angle)) : 1.0f;
-  }
-
-  return 1.0f;
 }
 
 /* Light Manager */
@@ -243,7 +311,7 @@ bool LightManager::has_background_light(Scene *scene)
     }
 
     Light *light = static_cast<Light *>(object->get_geometry());
-    if (light->light_type == LIGHT_BACKGROUND && light->is_enabled) {
+    if (light->is_background_light() && light->is_enabled) {
       return true;
     }
   }
@@ -256,7 +324,7 @@ void LightManager::test_enabled_lights(Scene *scene)
    * needed for finer-tuning of settings (for example, check whether we've
    * got portals or not).
    */
-  vector<Light *> background_lights;
+  vector<BackgroundLight *> background_lights;
   size_t num_lights = 0;
   bool has_portal = false;
   for (Object *object : scene->objects) {
@@ -266,10 +334,10 @@ void LightManager::test_enabled_lights(Scene *scene)
 
     Light *light = static_cast<Light *>(object->get_geometry());
     light->is_enabled = light->has_contribution(scene, object);
-    has_portal |= light->is_portal;
+    has_portal |= light->is_portal();
 
-    if (light->light_type == LIGHT_BACKGROUND) {
-      background_lights.push_back(light);
+    if (light->is_background_light()) {
+      background_lights.push_back(static_cast<BackgroundLight *>(light));
     }
 
     num_lights += light->is_enabled;
@@ -286,11 +354,11 @@ void LightManager::test_enabled_lights(Scene *scene)
      * - If we don't need it (no HDRs etc.)
      */
     Shader *shader = scene->background->get_shader(scene);
-    for (Light *light : background_lights) {
+    for (BackgroundLight *light : background_lights) {
       light->is_enabled = has_portal || (light->use_mis && shader->has_surface_spatial_varying);
       if (light->is_enabled) {
         background_enabled = true;
-        background_resolution = light->map_resolution;
+        background_resolution = light->get_map_resolution();
       }
     }
 
@@ -972,7 +1040,7 @@ void LightManager::device_update_background(Device *device,
 {
   KernelIntegrator *kintegrator = &dscene->data.integrator;
   KernelBackground *kbackground = &dscene->data.background;
-  Light *background_light = nullptr;
+  BackgroundLight *background_light = nullptr;
 
   bool background_mis = false;
 
@@ -983,8 +1051,8 @@ void LightManager::device_update_background(Device *device,
     }
 
     Light *light = static_cast<Light *>(object->get_geometry());
-    if (light->light_type == LIGHT_BACKGROUND && light->is_enabled) {
-      background_light = light;
+    if (light->is_background_light() && light->is_enabled) {
+      background_light = static_cast<BackgroundLight *>(light);
       background_mis |= light->use_mis;
     }
   }
@@ -1069,7 +1137,8 @@ void LightManager::device_update_background(Device *device,
                           kbackground->sun_weight) > 0.0f;
 
   /* get the resolution from the light's size (we stuff it in there) */
-  int2 res = make_int2(background_light->map_resolution, background_light->map_resolution / 2);
+  int2 res = make_int2(background_light->get_map_resolution(),
+                       background_light->get_map_resolution() / 2);
   /* If the resolution isn't set manually, try to find an environment texture. */
   if (res.x == 0) {
     res = environment_res;
@@ -1163,22 +1232,18 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
     Light *light = static_cast<Light *>(object->get_geometry());
     if (light->is_enabled) {
       num_lights++;
+      num_distant_lights += light->is_distant_light();
+      num_background_lights += light->is_background_light();
 
-      if (light->light_type == LIGHT_DISTANT) {
-        num_distant_lights++;
+      if (light->is_point_light() || light->is_spot_light()) {
+        use_light_mis |= (static_cast<const PointLight *>(light)->get_radius() > 0.0f &&
+                          light->use_mis);
       }
-      else if (light->light_type == LIGHT_POINT || light->light_type == LIGHT_SPOT) {
-        use_light_mis |= (light->size > 0.0f && light->use_mis);
-      }
-      else if (light->light_type == LIGHT_AREA) {
+      else if (light->is_area_light()) {
         use_light_mis |= light->use_mis;
       }
-      else if (light->light_type == LIGHT_BACKGROUND) {
-        num_distant_lights++;
-        num_background_lights++;
-      }
     }
-    if (light->is_portal) {
+    if (light->is_portal()) {
       num_portals++;
     }
   }
@@ -1213,11 +1278,10 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
 
     /* Consider moving portals update to their own function
      * keeping this one more manageable. */
-    if (light->is_portal) {
-      assert(light->light_type == LIGHT_AREA);
-
-      const float3 extentu = axisu * (light->sizeu * light->size);
-      const float3 extentv = axisv * (light->sizev * light->size);
+    if (light->is_portal()) {
+      const AreaLight *area_light = static_cast<const AreaLight *>(light);
+      const float3 extentu = axisu * area_light->get_sizeu();
+      const float3 extentv = axisv * area_light->get_sizev();
 
       float len_u;
       float len_v;
@@ -1225,7 +1289,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       const float3 axis_v = normalize_len(extentv, &len_v);
       const float area = light->area(object->get_tfm());
       float invarea = (area != 0.0f) ? 1.0f / area : 1.0f;
-      if (light->ellipse) {
+      if (area_light->get_ellipse()) {
         /* Negative inverse area indicates ellipse. */
         invarea = -invarea;
       }
@@ -1261,8 +1325,8 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
     klights[light_index].strength[1] = light->strength.y;
     klights[light_index].strength[2] = light->strength.z;
 
-    if (light->light_type == LIGHT_POINT || light->light_type == LIGHT_SPOT) {
-      const float radius = light->size;
+    if (const PointLight *point_light = dynamic_cast<PointLight *>(light)) {
+      const float radius = point_light->get_radius();
       const float invarea = (light->normalize) ? 1.0f / light->area(object->get_tfm()) : 1.0f;
 
       /* Convert radiant flux to radiance or radiant intensity. */
@@ -1275,10 +1339,10 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       klights[light_index].co = co;
       klights[light_index].spot.radius = radius;
       klights[light_index].spot.eval_fac = eval_fac;
-      klights[light_index].spot.is_sphere = light->get_is_sphere() && radius != 0.0f;
+      klights[light_index].spot.is_sphere = point_light->get_is_sphere() && radius != 0.0f;
     }
-    else if (light->light_type == LIGHT_DISTANT) {
-      const float angle = light->angle / 2.0f;
+    else if (light->is_sun_light()) {
+      const float angle = static_cast<const SunLight *>(light)->get_angle() / 2.0f;
 
       if (light->use_mis && angle > 0.0f) {
         shader_id |= SHADER_USE_MIS;
@@ -1298,7 +1362,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
                                                                  0.0f :
                                                                  0.5f / sinf(0.5f * angle);
     }
-    else if (light->light_type == LIGHT_BACKGROUND) {
+    else if (light->is_background_light()) {
       const uint visibility = scene->background->get_visibility();
 
       shader_id |= SHADER_USE_MIS;
@@ -1316,24 +1380,25 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
         shader_id |= SHADER_EXCLUDE_SCATTER;
       }
     }
-    else if (light->light_type == LIGHT_AREA) {
-      const float light_size = light->size;
-      const float3 extentu = axisu * (light->sizeu * light_size);
-      const float3 extentv = axisv * (light->sizev * light_size);
+    else if (light->is_area_light()) {
+      const AreaLight *area_light = static_cast<const AreaLight *>(light);
+      const float3 extentu = axisu * area_light->get_sizeu();
+      const float3 extentv = axisv * area_light->get_sizev();
 
       float len_u;
       float len_v;
       const float3 axis_u = normalize_len(extentu, &len_u);
       const float3 axis_v = normalize_len(extentv, &len_v);
-      const float area = light->area(object->get_tfm());
-      float invarea = light->normalize ? 1.0f / area : 1.0f;
-      if (light->ellipse) {
+      const float area = area_light->area(object->get_tfm());
+      float invarea = area_light->get_normalize() ? 1.0f / area : 1.0f;
+      if (area_light->get_ellipse()) {
         /* Negative inverse area indicates ellipse. */
         invarea = -invarea;
       }
 
-      const float half_spread = 0.5f * fmaxf(light->spread, 0.0f);
-      const float tan_half_spread = light->spread == M_PI_F ? FLT_MAX : tanf(half_spread);
+      const float half_spread = 0.5f * fmaxf(area_light->get_spread(), 0.0f);
+      const float tan_half_spread = area_light->get_spread() == M_PI_F ? FLT_MAX :
+                                                                         tanf(half_spread);
       /* Normalization computed using:
        * integrate cos(x) * (1 - tan(x) / tan(a)) * sin(x) from x = 0 to a, a being half_spread.
        * Divided by tan_half_spread to simplify the attenuation computation in `area.h`. */
@@ -1344,7 +1409,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
                                               3.0f / powf(half_spread, 3.0f)) :
                                          FLT_MAX;
 
-      if (light->use_mis && area != 0.0f && light->spread > 0.0f) {
+      if (light->use_mis && area != 0.0f && area_light->get_spread() > 0.0f) {
         shader_id |= SHADER_USE_MIS;
       }
 
@@ -1358,10 +1423,11 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
       klights[light_index].area.tan_half_spread = tan_half_spread;
       klights[light_index].area.normalize_spread = normalize_spread;
     }
-    if (light->light_type == LIGHT_SPOT) {
-      const float cos_half_spot_angle = cosf(light->spot_angle * 0.5f);
-      const float spot_smooth = 1.0f / ((1.0f - cos_half_spot_angle) * light->spot_smooth);
-      const float tan_half_spot_angle = tanf(light->spot_angle * 0.5f);
+    if (light->is_spot_light()) {
+      const SpotLight *spot_light = static_cast<const SpotLight *>(light);
+      const float cos_half_spot_angle = cosf(spot_light->get_angle() * 0.5f);
+      const float spot_smooth = 1.0f / ((1.0f - cos_half_spot_angle) * spot_light->get_smooth());
+      const float tan_half_spot_angle = tanf(spot_light->get_angle() * 0.5f);
 
       const float len_w_sq = len_squared(dir);
       const float len_u_sq = len_squared(axisu);
@@ -1377,7 +1443,7 @@ void LightManager::device_update_lights(DeviceScene *dscene, Scene *scene)
           1.0f + tan_sq * fmaxf(len_u_sq, len_v_sq) / len_w_sq);
       /* radius / sin(half_angle_small) */
       klights[light_index].spot.ray_segment_dp =
-          light->size * sqrtf(1.0f + len_w_sq / (tan_sq * fminf(len_u_sq, len_v_sq)));
+          spot_light->get_radius() * sqrtf(1.0f + len_w_sq / (tan_sq * fminf(len_u_sq, len_v_sq)));
     }
 
     klights[light_index].shader_id = shader_id;
@@ -1588,6 +1654,45 @@ void LightManager::device_update_ies(DeviceScene *dscene)
 
     dscene->ies_lights.copy_to_device();
   }
+}
+
+bool Light::is_point_light() const
+{
+  return light_type == LIGHT_POINT;
+}
+
+bool Light::is_spot_light() const
+{
+  return light_type == LIGHT_SPOT;
+}
+
+bool Light::is_area_light() const
+{
+  return light_type == LIGHT_AREA;
+}
+
+bool Light::is_sun_light() const
+{
+  return light_type == LIGHT_DISTANT;
+}
+
+bool Light::is_background_light() const
+{
+  return light_type == LIGHT_BACKGROUND;
+}
+
+bool Light::is_distant_light() const
+{
+  return light_type == LIGHT_BACKGROUND || light_type == LIGHT_DISTANT;
+}
+
+bool Light::is_portal() const
+{
+  if (!is_area_light()) {
+    return false;
+  }
+
+  return static_cast<const AreaLight *>(this)->get_is_portal();
 }
 
 CCL_NAMESPACE_END
