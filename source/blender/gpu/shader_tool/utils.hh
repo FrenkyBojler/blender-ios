@@ -11,10 +11,8 @@
 
 #pragma once
 
-#include <chrono>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <string>
 #include <vector>
 
@@ -58,23 +56,6 @@ struct OffsetIndices {
   {
     offsets.clear();
   };
-};
-
-struct TimeIt {
-  using Duration = std::chrono::microseconds;
-
-  Duration &time;
-  std::chrono::high_resolution_clock::time_point start;
-
-  TimeIt(Duration &time) : time(time)
-  {
-    start = std::chrono::high_resolution_clock::now();
-  }
-  ~TimeIt()
-  {
-    auto end = std::chrono::high_resolution_clock::now();
-    time = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-  }
 };
 
 /** Return the line number this token is found at. Take into account the #line directives. */
