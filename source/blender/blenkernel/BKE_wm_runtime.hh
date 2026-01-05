@@ -18,6 +18,7 @@ struct wmGesture;
 struct wmJob;
 struct wmDrag;
 struct wmPaintCursor;
+struct WindowDrawCB;
 
 #include "BKE_report.hh"
 
@@ -133,6 +134,9 @@ struct WindowRuntime {
 
   /** Priority handlers, handled first. */
   ListBaseT<wmEventHandler> modalhandlers = {nullptr, nullptr};
+
+  /** Custom drawing callbacks. */
+  ListBaseT<WindowDrawCB> drawcalls = {nullptr, nullptr};
 
   /** Gesture stuff. */
   ListBaseT<wmGesture> gesture = {nullptr, nullptr};
