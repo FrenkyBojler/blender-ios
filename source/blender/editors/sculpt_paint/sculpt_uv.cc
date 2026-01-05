@@ -400,7 +400,7 @@ static void relaxation_iteration_uv(UvSculptData *sculptdata,
   UvElement **head_table = BM_uv_element_map_ensure_head_table(sculptdata->elementMap);
 
   const int total_uvs = sculptdata->elementMap->total_uvs;
-  float (*delta_buf)[3] = (float (*)[3])MEM_callocN(total_uvs * sizeof(float[3]), __func__);
+  float (*delta_buf)[3] = MEM_calloc_arrayN<float[3]>(total_uvs, __func__);
 
   const UvElement *storage = sculptdata->elementMap->storage;
   for (int j = 0; j < total_uvs; j++) {
@@ -492,7 +492,7 @@ static void uv_sculpt_stroke_apply(bContext *C,
   float alpha = sculptdata->uvsculpt->strength;
 
   float co[2];
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
+  blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
   SpaceImage *sima = CTX_wm_space_image(C);
 
@@ -705,7 +705,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
   }
 
   /* Mouse coordinates, useful for some functions like grab and sculpt all islands */
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
+  blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &co[0], &co[1]);
 
   /* We need to find the active island here. */
   if (do_island_optimization) {
@@ -871,8 +871,7 @@ static UvSculptData *uv_sculpt_stroke_init(bContext *C, wmOperator *op, const wm
     const float radius_sq = radius * radius;
 
     /* Allocate selection stack */
-    data->initial_stroke = static_cast<UVInitialStroke *>(
-        MEM_mallocN(sizeof(*data->initial_stroke), __func__));
+    data->initial_stroke = MEM_mallocN<UVInitialStroke>(__func__);
     if (!data->initial_stroke) {
       uv_sculpt_stroke_exit(C, op);
     }
@@ -964,7 +963,7 @@ static wmOperatorStatus uv_sculpt_stroke_modal(bContext *C, wmOperator *op, cons
 
   ED_region_tag_redraw(CTX_wm_region(C));
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
-  DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
+  DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_GEOMETRY);
   return OPERATOR_RUNNING_MODAL;
 }
 

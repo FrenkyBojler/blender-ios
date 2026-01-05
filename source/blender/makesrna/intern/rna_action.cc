@@ -88,6 +88,7 @@ const EnumPropertyItem default_ActionSlot_target_id_type_items[] = {
 
 #  include <algorithm>
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_base.h"
 #  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
@@ -312,7 +313,7 @@ static std::optional<std::string> rna_ActionSlot_path(const PointerRNA *ptr)
 int rna_ActionSlot_target_id_type_icon_get(PointerRNA *ptr)
 {
   animrig::Slot &slot = rna_data_slot(ptr);
-  return UI_icon_from_idcode(slot.idtype);
+  return blender::ui::icon_from_idcode(slot.idtype);
 }
 
 /* Name functions that ignore the first two ID characters */
@@ -945,7 +946,7 @@ static PointerRNA rna_ActionGroup_channels_get(CollectionPropertyIterator *iter)
 
 static TimeMarker *rna_Action_pose_markers_new(bAction *act, const char name[])
 {
-  TimeMarker *marker = MEM_callocN<TimeMarker>("TimeMarker");
+  TimeMarker *marker = MEM_new_for_free<TimeMarker>("TimeMarker");
   marker->flag = SELECT;
   marker->frame = 1;
   STRNCPY_UTF8(marker->name, name);
@@ -1157,40 +1158,6 @@ bool rna_Action_id_poll(PointerRNA *ptr, PointerRNA value)
 }
 
 /**
- * Used to check if an action (value pointer)
- * can be assigned to Action Editor given current mode.
- */
-bool rna_Action_actedit_assign_poll(PointerRNA *ptr, PointerRNA value)
-{
-  SpaceAction *saction = (SpaceAction *)ptr->data;
-  bAction *action = (bAction *)value.owner_id;
-
-  if (!saction) {
-    /* Unable to determine what this Action is going to be assigned to, so
-     * reject it for now. This is mostly to have a non-functional refactor of
-     * this code; personally I (Sybren) wouldn't mind to always return `true` in
-     * this case. */
-    return false;
-  }
-
-  switch (saction->mode) {
-    case SACTCONT_ACTION:
-      return blender::animrig::is_action_assignable_to(action, ID_OB);
-    case SACTCONT_SHAPEKEY:
-      return blender::animrig::is_action_assignable_to(action, ID_KE);
-    case SACTCONT_GPENCIL:
-    case SACTCONT_DOPESHEET:
-    case SACTCONT_MASK:
-    case SACTCONT_CACHEFILE:
-      break;
-  }
-
-  /* Same as above, I (Sybren) wouldn't mind returning `true` here to just
-   * always show all Actions in an unexpected place. */
-  return false;
-}
-
-/**
  * Iterate the FCurves of the given bAnimContext and validate the RNA path. Sets the flag
  * #FCURVE_DISABLED if the path can't be resolved.
  */
@@ -1202,15 +1169,15 @@ static void reevaluate_fcurve_errors(bAnimContext *ac)
   if (filtering_enabled) {
     ac->filters.flag &= ~ADS_FILTER_ONLY_ERRORS;
   }
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FCURVESONLY;
   ANIM_animdata_filter(ac, &anim_data, filter, ac->data, eAnimCont_Types(ac->datatype));
 
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = (FCurve *)ale->key_data;
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = (FCurve *)ale.key_data;
     PointerRNA ptr;
     PropertyRNA *prop;
-    PointerRNA id_ptr = RNA_id_pointer_create(ale->id);
+    PointerRNA id_ptr = RNA_id_pointer_create(ale.id);
     if (RNA_path_resolve_property(&id_ptr, fcu->rna_path, &ptr, &prop)) {
       fcu->flag &= ~FCURVE_DISABLED;
     }
@@ -1247,24 +1214,23 @@ static std::optional<std::string> rna_DopeSheet_path(const PointerRNA *ptr)
   if (GS(ptr->owner_id->name) == ID_SCR) {
     const bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
     const bDopeSheet *ads = static_cast<bDopeSheet *>(ptr->data);
-    int area_index;
-    int space_index;
-    LISTBASE_FOREACH_INDEX (ScrArea *, area, &screen->areabase, area_index) {
-      LISTBASE_FOREACH_INDEX (SpaceLink *, sl, &area->spacedata, space_index) {
-        if (sl->spacetype == SPACE_GRAPH) {
-          SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(sl);
+
+    for (const auto [area_index, area] : screen->areabase.enumerate()) {
+      for (const auto [space_index, sl] : area.spacedata.enumerate()) {
+        if (sl.spacetype == SPACE_GRAPH) {
+          const SpaceGraph *sipo = reinterpret_cast<const SpaceGraph *>(&sl);
           if (sipo->ads == ads) {
             return fmt::format("areas[{}].spaces[{}].dopesheet", area_index, space_index);
           }
         }
-        else if (sl->spacetype == SPACE_NLA) {
-          SpaceNla *snla = reinterpret_cast<SpaceNla *>(sl);
+        else if (sl.spacetype == SPACE_NLA) {
+          const SpaceNla *snla = reinterpret_cast<const SpaceNla *>(&sl);
           if (snla->ads == ads) {
             return fmt::format("areas[{}].spaces[{}].dopesheet", area_index, space_index);
           }
         }
-        else if (sl->spacetype == SPACE_ACTION) {
-          SpaceAction *saction = reinterpret_cast<SpaceAction *>(sl);
+        else if (sl.spacetype == SPACE_ACTION) {
+          const SpaceAction *saction = reinterpret_cast<const SpaceAction *>(&sl);
           if (&saction->ads == ads) {
             return fmt::format("areas[{}].spaces[{}].dopesheet", area_index, space_index);
           }

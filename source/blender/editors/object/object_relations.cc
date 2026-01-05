@@ -167,7 +167,7 @@ static wmOperatorStatus vertex_parent_set_exec(bContext *C, wmOperator *op)
     }
   }
   else if (ELEM(obedit->type, OB_SURF, OB_CURVES_LEGACY)) {
-    ListBase *editnurb = object_editcurve_get(obedit);
+    ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
     int curr_index = 0;
     for (Nurb *nu = static_cast<Nurb *>(editnurb->first); nu != nullptr; nu = nu->next) {
       if (nu->type == CU_BEZIER) {
@@ -552,8 +552,7 @@ static bool parent_set_with_depsgraph(ReportList *reports,
         /* get or create F-Curve */
         bAction *act = animrig::id_action_ensure(bmain, &cu->id);
         PointerRNA id_ptr = RNA_id_pointer_create(&cu->id);
-        FCurve *fcu = animrig::action_fcurve_ensure_ex(
-            bmain, act, nullptr, &id_ptr, {"eval_time", 0});
+        FCurve *fcu = animrig::action_fcurve_ensure_ex(bmain, act, &id_ptr, {"eval_time", 0});
 
         /* setup dummy 'generator' modifier here to get 1-1 correspondence still working */
         if (!fcu->bezt && !fcu->fpt && !fcu->modifiers.first) {
@@ -807,17 +806,14 @@ bool parent_set(ReportList *reports,
                                    vert_par);
 }
 
-static void parent_set_vert_find(blender::KDTree_3d *tree,
-                                 Object *child,
-                                 int vert_par[3],
-                                 bool is_tri)
+static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3], bool is_tri)
 {
   const float *co_find = child->object_to_world().location();
   if (is_tri) {
-    blender::KDTreeNearest_3d nearest[3];
+    KDTreeNearest_3d nearest[3];
     int tot;
 
-    tot = blender::BLI_kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
+    tot = kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
     BLI_assert(tot == 3);
     UNUSED_VARS(tot);
 
@@ -828,7 +824,7 @@ static void parent_set_vert_find(blender::KDTree_3d *tree,
     BLI_assert(min_iii(UNPACK3(vert_par)) >= 0);
   }
   else {
-    vert_par[0] = blender::BLI_kdtree_3d_find_nearest(tree, co_find, nullptr);
+    vert_par[0] = kdtree_3d_find_nearest(tree, co_find, nullptr);
     BLI_assert(vert_par[0] >= 0);
     vert_par[1] = 0;
     vert_par[2] = 0;
@@ -879,7 +875,7 @@ static bool parent_set_nonvertex_parent(bContext *C, ParentingContext *parenting
 
 static bool parent_set_vertex_parent_with_kdtree(bContext *C,
                                                  ParentingContext *parenting_context,
-                                                 blender::KDTree_3d *tree)
+                                                 KDTree_3d *tree)
 {
   int vert_par[3] = {0, 0, 0};
 
@@ -910,7 +906,7 @@ static bool parent_set_vertex_parent_with_kdtree(bContext *C,
 
 static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_context)
 {
-  blender::KDTree_3d *tree = nullptr;
+  KDTree_3d *tree = nullptr;
   int tree_tot;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -921,12 +917,12 @@ static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_co
 
   if (tree_tot < (parenting_context->is_vertex_tri ? 3 : 1)) {
     BKE_report(parenting_context->reports, RPT_ERROR, "Not enough vertices for vertex-parent");
-    blender::BLI_kdtree_3d_free(tree);
+    kdtree_3d_free(tree);
     return false;
   }
 
   const bool ok = parent_set_vertex_parent_with_kdtree(C, parenting_context, tree);
-  blender::BLI_kdtree_3d_free(tree);
+  kdtree_3d_free(tree);
   return ok;
 }
 
@@ -964,8 +960,8 @@ static wmOperatorStatus parent_set_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
 {
   Object *parent = context_active_object(C);
-  uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Set Parent To"), ICON_NONE);
-  ui::Layout &layout = *UI_popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Set Parent To"), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
   PointerRNA opptr = layout.op(
       ot, IFACE_("Object"), ICON_NONE, wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
@@ -1069,7 +1065,7 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
     RNA_enum_set(&op_ptr, "type", PAR_VERTEX_TRI);
   }
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -1425,7 +1421,7 @@ static void link_to_scene(Main * /*bmain*/, ushort /*nr*/)
 
   for (base = FIRSTBASE; base; base = base->next) {
     if (BASE_SELECTED(v3d, base)) {
-      nbase = MEM_mallocN(sizeof(Base), "newbase");
+      nbase = MEM_mallocN<Base>("newbase");
       *nbase = *base;
       BLI_addhead(&(sce->base), nbase);
       id_us_plus((ID *)base->object);
@@ -1789,8 +1785,8 @@ static void libblock_relink_collection(Main *bmain,
     BKE_libblock_relink_to_newid(bmain, &cob->ob->id, 0);
   }
 
-  LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
-    libblock_relink_collection(bmain, child->collection, true);
+  for (CollectionChild &child : collection->children) {
+    libblock_relink_collection(bmain, child.collection, true);
   }
 }
 
@@ -1811,8 +1807,8 @@ static Collection *single_object_users_collection(Main *bmain,
   }
 
   /* We do not remap to new objects here, this is done in separate step. */
-  LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
-    Object *ob = cob->ob;
+  for (CollectionObject &cob : collection->gobject) {
+    Object *ob = cob.ob;
     /* an object may be in more than one collection */
     if ((ob->id.newid == nullptr) && ((ob->flag & flag) == flag)) {
       if (!ID_IS_LINKED(ob) && BKE_object_scenes_users_get(bmain, ob) > 1) {
@@ -2216,14 +2212,14 @@ static bool make_local_all__instance_indirect_unused(Main *bmain,
   return changed;
 }
 
-static void make_local_animdata_tag_strips(ListBase *strips)
+static void make_local_animdata_tag_strips(ListBaseT<NlaStrip> *strips)
 {
-  LISTBASE_FOREACH (NlaStrip *, strip, strips) {
-    if (strip->act) {
-      strip->act->id.tag &= ~ID_TAG_PRE_EXISTING;
+  for (NlaStrip &strip : *strips) {
+    if (strip.act) {
+      strip.act->id.tag &= ~ID_TAG_PRE_EXISTING;
     }
 
-    make_local_animdata_tag_strips(&strip->strips);
+    make_local_animdata_tag_strips(&strip.strips);
   }
 }
 
@@ -2243,8 +2239,8 @@ static void make_local_animdata_tag(AnimData *adt)
     /* TODO: need to handle the ID-targets too? */
 
     /* NLA Data */
-    LISTBASE_FOREACH (NlaTrack *, nlt, &adt->nla_tracks) {
-      make_local_animdata_tag_strips(&nlt->strips);
+    for (NlaTrack &nlt : adt->nla_tracks) {
+      make_local_animdata_tag_strips(&nlt.strips);
     }
   }
 }
@@ -2295,8 +2291,8 @@ static wmOperatorStatus make_local_exec(bContext *C, wmOperator *op)
 
       ob->id.tag &= ~ID_TAG_PRE_EXISTING;
       make_local_animdata_tag(BKE_animdata_from_id(&ob->id));
-      LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
-        psys->part->id.tag &= ~ID_TAG_PRE_EXISTING;
+      for (ParticleSystem &psys : ob->particlesystem) {
+        psys.part->id.tag &= ~ID_TAG_PRE_EXISTING;
       }
 
       if (mode == MAKE_LOCAL_SELECT_OBDATA_MATERIAL) {
@@ -2377,13 +2373,13 @@ static bool make_override_library_object_overridable_check(Main *bmain, Object *
 {
   /* An object is actually overridable only if it is in at least one local collection.
    * Unfortunately 'direct link' flag is not enough here. */
-  LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
-    if (!ID_IS_LINKED(collection) && BKE_collection_has_object(collection, object)) {
+  for (Collection &collection : bmain->collections) {
+    if (!ID_IS_LINKED(&collection) && BKE_collection_has_object(&collection, object)) {
       return true;
     }
   }
-  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    if (!ID_IS_LINKED(scene) && BKE_collection_has_object(scene->master_collection, object)) {
+  for (Scene &scene : bmain->scenes) {
+    if (!ID_IS_LINKED(&scene) && BKE_collection_has_object(scene.master_collection, object)) {
       return true;
     }
   }
@@ -2464,8 +2460,8 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
   /** Currently there is no 'all editable' option from the 3DView. */
   const bool do_fully_editable = false;
 
-  std::unique_ptr<blender::Set<uint32_t>> user_overrides_objects_uids =
-      do_fully_editable ? nullptr : std::make_unique<blender::Set<uint32_t>>();
+  std::unique_ptr<Set<uint32_t>> user_overrides_objects_uids =
+      do_fully_editable ? nullptr : std::make_unique<Set<uint32_t>>();
 
   if (do_fully_editable) {
     /* Pass. */
@@ -2493,14 +2489,14 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
    * While this may not be the absolute best behavior in all cases, in most common one this
    * should match the expected result. */
   if (user_overrides_objects_uids != nullptr) {
-    LISTBASE_FOREACH (Collection *, coll_iter, &bmain->collections) {
-      if (ID_IS_LINKED(coll_iter)) {
+    for (Collection &coll_iter : bmain->collections) {
+      if (ID_IS_LINKED(&coll_iter)) {
         continue;
       }
-      LISTBASE_FOREACH (CollectionObject *, coll_ob_iter, &coll_iter->gobject) {
-        if (user_overrides_objects_uids->contains(coll_ob_iter->ob->id.session_uid)) {
+      for (CollectionObject &coll_ob_iter : coll_iter.gobject) {
+        if (user_overrides_objects_uids->contains(coll_ob_iter.ob->id.session_uid)) {
           /* Tag for remapping when creating overrides. */
-          coll_iter->id.tag |= ID_TAG_DOIT;
+          coll_iter.id.tag |= ID_TAG_DOIT;
           break;
         }
       }
@@ -2550,15 +2546,15 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
       switch (GS(id_root->name)) {
         case ID_GR: {
           Collection *collection_root = (Collection *)id_root;
-          LISTBASE_FOREACH_MUTABLE (
-              CollectionParent *, collection_parent, &collection_root->runtime->parents)
+          for (CollectionParent &collection_parent :
+               collection_root->runtime->parents.items_mutable())
           {
-            if (ID_IS_LINKED(collection_parent->collection) ||
-                !BKE_view_layer_has_collection(view_layer, collection_parent->collection))
+            if (ID_IS_LINKED(collection_parent.collection) ||
+                !BKE_view_layer_has_collection(view_layer, collection_parent.collection))
             {
               continue;
             }
-            BKE_collection_child_remove(bmain, collection_parent->collection, collection_root);
+            BKE_collection_child_remove(bmain, collection_parent.collection, collection_root);
           }
           break;
         }
@@ -2612,32 +2608,32 @@ static wmOperatorStatus make_override_library_invoke(bContext *C,
   }
 
   VectorSet<Collection *> potential_root_collections;
-  LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
+  for (Collection &collection : bmain->collections) {
     /* Only check for linked collections from the same library, in the current view-layer. */
-    if (!ID_IS_LINKED(&collection->id) || collection->id.lib != obact->id.lib ||
-        !BKE_view_layer_has_collection(view_layer, collection))
+    if (!ID_IS_LINKED(&collection.id) || collection.id.lib != obact->id.lib ||
+        !BKE_view_layer_has_collection(view_layer, &collection))
     {
       continue;
     }
-    if (!BKE_collection_has_object_recursive(collection, obact)) {
+    if (!BKE_collection_has_object_recursive(&collection, obact)) {
       continue;
     }
     if (potential_root_collections.is_empty()) {
-      potential_root_collections.add_new(collection);
+      potential_root_collections.add_new(&collection);
     }
     else {
       bool has_parents_in_potential_roots = false;
       bool is_potential_root = false;
       for (auto *collection_root_iter : potential_root_collections) {
-        if (BKE_collection_has_collection(collection_root_iter, collection)) {
-          BLI_assert_msg(!BKE_collection_has_collection(collection, collection_root_iter),
+        if (BKE_collection_has_collection(collection_root_iter, &collection)) {
+          BLI_assert_msg(!BKE_collection_has_collection(&collection, collection_root_iter),
                          "Invalid loop in collection hierarchy");
           /* Current potential root is already 'better' (higher up in the collection hierarchy)
            * than current collection, nothing else to do. */
           has_parents_in_potential_roots = true;
         }
-        else if (BKE_collection_has_collection(collection, collection_root_iter)) {
-          BLI_assert_msg(!BKE_collection_has_collection(collection_root_iter, collection),
+        else if (BKE_collection_has_collection(&collection, collection_root_iter)) {
+          BLI_assert_msg(!BKE_collection_has_collection(collection_root_iter, &collection),
                          "Invalid loop in collection hierarchy");
           /* Current potential root is in the current collection's hierarchy, so the later is a
            * better candidate as root collection. */
@@ -2653,7 +2649,7 @@ static wmOperatorStatus make_override_library_invoke(bContext *C,
       /* Only add the current collection as potential root if it is not a descendant of any
        * already known potential root collections. */
       if (is_potential_root && !has_parents_in_potential_roots) {
-        potential_root_collections.add_new(collection);
+        potential_root_collections.add_new(&collection);
       }
     }
   }
@@ -3185,7 +3181,7 @@ static wmOperatorStatus object_unlink_data_exec(bContext *C, wmOperator *op)
   ID *id;
   PropertyPointerRNA pprop;
 
-  UI_context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
+  ui::context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
 
   if (pprop.prop == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "Incorrect context for running object data unlink");

@@ -272,11 +272,11 @@ static void bone_collection_assign_editbones(bContext *C,
   bArmature *arm = static_cast<bArmature *>(ob->data);
   ED_armature_edit_sync_selection(arm->edbo);
 
-  LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-    if (!EBONE_EDITABLE(ebone) || !blender::animrig::bone_is_visible(arm, ebone)) {
+  for (EditBone &ebone : *arm->edbo) {
+    if (!EBONE_EDITABLE(&ebone) || !blender::animrig::bone_is_visible(arm, &ebone)) {
       continue;
     }
-    *made_any_changes |= assign_func(bcoll, ebone);
+    *made_any_changes |= assign_func(bcoll, &ebone);
     *had_bones_to_assign = true;
   }
 
@@ -725,8 +725,8 @@ void ARMATURE_OT_collection_unassign_named(wmOperatorType *ot)
 
 static bool editbone_is_member(const EditBone *ebone, const BoneCollection *bcoll)
 {
-  LISTBASE_FOREACH (BoneCollectionReference *, ref, &ebone->bone_collections) {
-    if (ref->bcoll == bcoll) {
+  for (BoneCollectionReference &ref : ebone->bone_collections) {
+    if (ref.bcoll == bcoll) {
       return true;
     }
   }
@@ -778,14 +778,14 @@ static void bone_collection_select(bContext *C,
   const bool is_editmode = armature->edbo != nullptr;
 
   if (is_editmode) {
-    LISTBASE_FOREACH (EditBone *, ebone, armature->edbo) {
-      if (!EBONE_SELECTABLE(armature, ebone)) {
+    for (EditBone &ebone : *armature->edbo) {
+      if (!EBONE_SELECTABLE(armature, &ebone)) {
         continue;
       }
-      if (!editbone_is_member(ebone, bcoll)) {
+      if (!editbone_is_member(&ebone, bcoll)) {
         continue;
       }
-      ED_armature_ebone_select_set(ebone, select);
+      ED_armature_ebone_select_set(&ebone, select);
     }
   }
   else {
@@ -795,8 +795,8 @@ static void bone_collection_select(bContext *C,
       BLI_assert_unreachable();
       return;
     }
-    LISTBASE_FOREACH (BoneCollectionMember *, member, &bcoll->bones) {
-      Bone *bone = member->bone;
+    for (BoneCollectionMember &member : bcoll->bones) {
+      Bone *bone = member.bone;
       bPoseChannel *pose_bone = BKE_pose_channel_find_name(active_object->pose, bone->name);
       BLI_assert_msg(pose_bone != nullptr, "The pose bones and armature bones are out of sync");
       if (!blender::animrig::bone_is_visible(armature, pose_bone)) {
@@ -807,10 +807,10 @@ static void bone_collection_select(bContext *C,
       }
 
       if (select) {
-        pose_bone->flag |= POSE_SELECTED;
+        blender::animrig::bone_select(pose_bone);
       }
       else {
-        pose_bone->flag &= ~POSE_SELECTED;
+        blender::animrig::bone_deselect(pose_bone);
       }
     }
     DEG_id_tag_update(&active_object->id, ID_RECALC_SELECT);
@@ -1177,13 +1177,13 @@ static void move_to_collection_menu_create(bContext *C,
 static wmOperatorStatus move_to_collection_regular_invoke(bContext *C, wmOperator *op)
 {
   const char *title = CTX_IFACE_(op->type->translation_context, op->type->name);
-  uiPopupMenu *pup = UI_popup_menu_begin(C, title, ICON_NONE);
-  blender::ui::Layout *layout = UI_popup_menu_layout(pup);
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(C, title, ICON_NONE);
+  blender::ui::Layout *layout = popup_menu_layout(pup);
 
   const bool is_move_operation = STREQ(op->type->idname, "ARMATURE_OT_move_to_collection");
   move_to_collection_menu_create(C, layout, menu_custom_data_encode(-1, is_move_operation));
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }

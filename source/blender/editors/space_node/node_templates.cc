@@ -109,9 +109,9 @@ static void node_tag_recursive(bNode *node)
 
   node->flag |= NODE_TEST;
 
-  LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
-    if (input->link) {
-      node_tag_recursive(input->link->fromnode);
+  for (bNodeSocket &input : node->inputs) {
+    if (input.link) {
+      node_tag_recursive(input.link->fromnode);
     }
   }
 }
@@ -124,9 +124,9 @@ static void node_clear_recursive(bNode *node)
 
   node->flag &= ~NODE_TEST;
 
-  LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
-    if (input->link) {
-      node_clear_recursive(input->link->fromnode);
+  for (bNodeSocket &input : node->inputs) {
+    if (input.link) {
+      node_clear_recursive(input.link->fromnode);
     }
   }
 }
@@ -149,9 +149,9 @@ static void node_remove_linked(Main *bmain, bNodeTree *ntree, bNode *rem_node)
   /* clear tags on nodes that are still used by other nodes */
   for (bNode *node : ntree->all_nodes()) {
     if (!(node->flag & NODE_TEST)) {
-      LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-        if (sock->link && sock->link->fromnode != rem_node) {
-          node_clear_recursive(sock->link->fromnode);
+      for (bNodeSocket &sock : node->inputs) {
+        if (sock.link && sock.link->fromnode != rem_node) {
+          node_clear_recursive(sock.link->fromnode);
         }
       }
     }
@@ -261,25 +261,24 @@ static void node_socket_add_replace(const bContext *C,
 
   /* copy input sockets from previous node */
   if (node_prev && node_from != node_prev) {
-    LISTBASE_FOREACH (bNodeSocket *, sock_prev, &node_prev->inputs) {
-      LISTBASE_FOREACH (bNodeSocket *, sock_from, &node_from->inputs) {
-        if (bke::node_count_socket_links(*ntree, *sock_from) >=
-            bke::node_socket_link_limit(*sock_from))
+    for (bNodeSocket &sock_prev : node_prev->inputs) {
+      for (bNodeSocket &sock_from : node_from->inputs) {
+        if (bke::node_count_socket_links(*ntree, sock_from) >=
+            bke::node_socket_link_limit(sock_from))
         {
           continue;
         }
 
-        if (STREQ(sock_prev->identifier, sock_from->identifier) &&
-            sock_prev->type == sock_from->type)
+        if (STREQ(sock_prev.identifier, sock_from.identifier) && sock_prev.type == sock_from.type)
         {
-          bNodeLink *link = sock_prev->link;
+          bNodeLink *link = sock_prev.link;
 
           if (link && link->fromnode) {
-            bke::node_add_link(*ntree, *link->fromnode, *link->fromsock, *node_from, *sock_from);
+            bke::node_add_link(*ntree, *link->fromnode, *link->fromsock, *node_from, sock_from);
             bke::node_remove_link(ntree, *link);
           }
 
-          node_socket_copy_default_value(sock_from, sock_prev);
+          node_socket_copy_default_value(&sock_from, &sock_prev);
         }
       }
     }
@@ -328,23 +327,23 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
   Vector<NodeLinkItem> items;
 
   if (arg->node_type->type_legacy == NODE_GROUP) {
-    LISTBASE_FOREACH (bNodeTree *, ngroup, &arg->bmain->nodetrees) {
-      if (BKE_id_name(ngroup->id)[0] == '.') {
+    for (bNodeTree &ngroup : arg->bmain->nodetrees) {
+      if (BKE_id_name(ngroup.id)[0] == '.') {
         /* Don't display hidden node groups, just like the add menu. */
         continue;
       }
 
       const char *disabled_hint;
-      if ((ngroup->type != arg->ntree->type) ||
-          !bke::node_group_poll(arg->ntree, ngroup, &disabled_hint))
+      if ((ngroup.type != arg->ntree->type) ||
+          !bke::node_group_poll(arg->ntree, &ngroup, &disabled_hint))
       {
         continue;
       }
 
-      ngroup->ensure_interface_cache();
+      ngroup.ensure_interface_cache();
       Span<bNodeTreeInterfaceSocket *> iosockets = (in_out == SOCK_IN ?
-                                                        ngroup->interface_inputs() :
-                                                        ngroup->interface_outputs());
+                                                        ngroup.interface_inputs() :
+                                                        ngroup.interface_outputs());
       for (const int index : iosockets.index_range()) {
         bNodeTreeInterfaceSocket *iosock = iosockets[index];
         NodeLinkItem item;
@@ -356,8 +355,8 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
         const bke::bNodeSocketType *typeinfo = iosock->socket_typeinfo();
         item.socket_type = typeinfo->type;
         item.socket_name = iosock->name;
-        item.node_name = ngroup->id.name + 2;
-        item.ngroup = ngroup;
+        item.node_name = ngroup.id.name + 2;
+        item.ngroup = &ngroup;
 
         items.append(item);
       }
@@ -484,13 +483,13 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   bNodeSocket *sock = arg->sock;
   ui::Layout *layout = arg->layout;
   ui::Layout *column = nullptr;
-  uiBlock *block = layout->block();
-  uiBut *but;
+  ui::Block *block = layout->block();
+  ui::Button *but;
   NodeLinkArg *argN;
   int first = 1;
 
   /* generate array of node types sorted by UI name */
-  blender::Vector<bke::bNodeType *> sorted_ntypes;
+  Vector<bke::bNodeType *> sorted_ntypes;
 
   for (blender::bke::bNodeType *ntype : blender::bke::node_types_get()) {
     const char *disabled_hint;
@@ -554,7 +553,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
           /* XXX Do not use ui::Layout::label here,
            * it would add an empty icon as we are in a menu! */
           uiDefBut(block,
-                   ButType::Label,
+                   ui::ButtonType::Label,
                    IFACE_(cur_node_name),
                    0,
                    0,
@@ -575,7 +574,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
       }
 
       but = uiDefIconTextBut(block,
-                             ButType::But,
+                             ui::ButtonType::But,
                              icon,
                              name,
                              0,
@@ -587,7 +586,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 
       argN = (NodeLinkArg *)MEM_dupallocN(arg);
       argN->item = item;
-      UI_but_funcN_set(but, ui_node_link, argN, nullptr);
+      button_funcN_set(but, ui_node_link, argN, nullptr);
     }
   }
 }
@@ -605,8 +604,8 @@ static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *bu
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  uiBlock *block = layout->block();
-  uiBut *but = (uiBut *)but_p;
+  ui::Block *block = layout->block();
+  ui::Button *but = (ui::Button *)but_p;
   ui::Layout *split, *column;
   NodeLinkArg *arg = (NodeLinkArg *)but->func_argN;
   bNodeSocket *sock = arg->sock;
@@ -629,10 +628,10 @@ static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *bu
   if (sock->link) {
     column->label(IFACE_("Link"), ICON_NONE);
     but = block->buttons.last().get();
-    but->drawflag = UI_BUT_TEXT_LEFT;
+    but->drawflag = ui::BUT_TEXT_LEFT;
 
     but = uiDefBut(block,
-                   ButType::But,
+                   ui::ButtonType::But,
                    CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"),
                    0,
                    0,
@@ -642,10 +641,10 @@ static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *bu
                    0.0,
                    0.0,
                    TIP_("Remove nodes connected to the input"));
-    UI_but_funcN_set(but, ui_node_link, MEM_dupallocN(arg), POINTER_FROM_INT(UI_NODE_LINK_REMOVE));
+    button_funcN_set(but, ui_node_link, MEM_dupallocN(arg), POINTER_FROM_INT(UI_NODE_LINK_REMOVE));
 
     but = uiDefBut(block,
-                   ButType::But,
+                   ui::ButtonType::But,
                    IFACE_("Disconnect"),
                    0,
                    0,
@@ -655,7 +654,7 @@ static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *bu
                    0.0,
                    0.0,
                    TIP_("Disconnect nodes connected to the input"));
-    UI_but_funcN_set(
+    button_funcN_set(
         but, ui_node_link, MEM_dupallocN(arg), POINTER_FROM_INT(UI_NODE_LINK_DISCONNECT));
   }
 
@@ -669,9 +668,9 @@ void uiTemplateNodeLink(
 {
   using namespace blender::ed::space_node;
 
-  uiBlock *block = layout->block();
+  blender::ui::Block *block = layout->block();
   NodeLinkArg *arg;
-  uiBut *but;
+  blender::ui::Button *but;
   float socket_col[4];
 
   arg = MEM_callocN<NodeLinkArg>("NodeLinkArg");
@@ -696,9 +695,9 @@ void uiTemplateNodeLink(
         block, ui_template_node_link_menu, nullptr, ICON_NONE, 0, 0, UI_UNIT_X, UI_UNIT_Y, "");
   }
 
-  UI_but_type_set_menu_from_pulldown(but);
-  UI_but_node_link_set(but, input, socket_col);
-  UI_but_drawflag_enable(but, UI_BUT_ICON_LEFT);
+  button_type_set_menu_from_pulldown(but);
+  button_node_link_set(but, input, socket_col);
+  button_drawflag_enable(but, blender::ui::BUT_ICON_LEFT);
 
   but->poin = (char *)but;
   but->func_argN = arg;
@@ -707,12 +706,12 @@ void uiTemplateNodeLink(
 
   if (input->link && input->link->fromnode) {
     if (input->link->fromnode->flag & NODE_ACTIVE_TEXTURE) {
-      but->flag |= UI_BUT_NODE_ACTIVE;
+      but->flag |= blender::ui::BUT_NODE_ACTIVE;
     }
   }
 
   if (!ID_IS_EDITABLE(ntree)) {
-    UI_but_disable(but, "Cannot edit linked node tree");
+    button_disable(but, "Cannot edit linked node tree");
   }
 }
 
@@ -741,7 +740,7 @@ static void ui_node_draw_recursive(ui::Layout &layout,
   const StringRef panel_translation_context = panel_decl.translation_context.has_value() ?
                                                   *panel_decl.translation_context :
                                                   "";
-  PanelLayout panel_layout = layout.panel(&C, panel_id.c_str(), panel_decl.default_collapsed);
+  ui::PanelLayout panel_layout = layout.panel(&C, panel_id.c_str(), panel_decl.default_collapsed);
   if (panel_toggle_decl) {
     panel_layout.header->use_property_split_set(false);
     panel_layout.header->use_property_decorate_set(false);
@@ -841,8 +840,8 @@ static void ui_node_draw_node(
   }
   else {
     /* Draw socket values using the flat inputs list. */
-    LISTBASE_FOREACH (bNodeSocket *, input, &node.inputs) {
-      ui_node_draw_input(layout, C, ntree, node, *input, depth + 1, nullptr);
+    for (bNodeSocket &input : node.inputs) {
+      ui_node_draw_input(layout, C, ntree, node, input, depth + 1, nullptr);
     }
   }
 }
@@ -855,7 +854,7 @@ static void ui_node_draw_input(ui::Layout &layout,
                                int depth,
                                const char *panel_label)
 {
-  uiBlock *block = layout.block();
+  ui::Block *block = layout.block();
   ui::Layout *row = nullptr;
   bool dependency_loop;
 
@@ -878,7 +877,7 @@ static void ui_node_draw_input(ui::Layout &layout,
 
   row = &layout.row(true);
 
-  uiPropertySplitWrapper split_wrapper = uiItemPropertySplitWrapperCreate(row);
+  ui::PropertySplitWrapper split_wrapper = uiItemPropertySplitWrapperCreate(row);
   /* Decorations are added manually here. */
   row->use_property_decorate_set(false);
   /* Empty decorator item for alignment. */
@@ -888,7 +887,7 @@ static void ui_node_draw_input(ui::Layout &layout,
     ui::Layout *sub = &split_wrapper.label_column->row(true);
 
     if (depth > 0) {
-      UI_block_emboss_set(block, ui::EmbossType::None);
+      block_emboss_set(block, ui::EmbossType::None);
 
       if (lnode) {
         /* Input linked to a node, we can expand/collapse if
@@ -915,11 +914,11 @@ static void ui_node_draw_input(ui::Layout &layout,
         }
         if (can_expand) {
           int icon = (input.flag & SOCK_COLLAPSED) ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT;
-          sub->prop(&inputptr, "show_expanded", UI_ITEM_R_ICON_ONLY, "", icon);
+          sub->prop(&inputptr, "show_expanded", ui::ITEM_R_ICON_ONLY, "", icon);
         }
       }
 
-      UI_block_emboss_set(block, ui::EmbossType::Emboss);
+      block_emboss_set(block, ui::EmbossType::Emboss);
     }
 
     sub = &sub->row(true);

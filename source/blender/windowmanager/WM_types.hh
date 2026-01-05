@@ -104,6 +104,7 @@ struct wmDrag;
 struct wmDropBox;
 struct wmEvent;
 struct wmOperator;
+struct wmOperatorTypeMacro;
 struct wmWindowManager;
 
 #include <memory>
@@ -133,7 +134,6 @@ struct wmWindowManager;
 namespace blender::asset_system {
 class AssetRepresentation;
 }
-using AssetRepresentationHandle = blender::asset_system::AssetRepresentation;
 
 using wmGenericUserDataFreeFn = void (*)(void *data);
 
@@ -219,6 +219,9 @@ enum {
 
   /** Handle events before modal operators without this flag. */
   OPTYPE_MODAL_PRIORITY = (1 << 12),
+
+  /** Operator is registered from a local node group or a node group asset. */
+  OPTYPE_NODE_TOOL = (1 << 13),
 };
 
 /** For #WM_cursor_grab_enable wrap axis. */
@@ -799,7 +802,7 @@ struct wmEvent {
    *
    * - #EVT_ACTIONZONE_AREA / #EVT_ACTIONZONE_FULLSCREEN / #EVT_ACTIONZONE_FULLSCREEN:
    *   Uses #sActionzoneData.
-   * - #EVT_DROP: uses #ListBase of #wmDrag (also #wmEvent::custom == #EVT_DATA_DRAGDROP).
+   * - #EVT_DROP: uses #ListBaseT<wmDrag> (also #wmEvent::custom == #EVT_DATA_DRAGDROP).
    *   Typically set to #wmWindowManger::drags.
    * - #EVT_FILESELECT: uses #wmOperator.
    * - #EVT_XR_ACTION: uses #wmXrActionData (also #wmEvent::custom == #EVT_DATA_XR).
@@ -1040,6 +1043,12 @@ struct wmJobWorkerStatus {
 };
 
 struct wmOperatorType {
+
+  /** Subclassed to store data for additional information for specific operator types. */
+  struct TypeData {
+    virtual ~TypeData() = default;
+  };
+
   /** Text for UI, undo (should not exceed #OP_MAX_TYPENAME). */
   const char *name = nullptr;
   /** Unique identifier (must not exceed #OP_MAX_TYPENAME). */
@@ -1145,18 +1154,21 @@ struct wmOperatorType {
    * menus, enum search... etc. Example: Enum 'type' for a Delete menu.
    *
    * When assigned a string/number property,
-   * immediately edit the value when used in a popup. see: #UI_BUT_ACTIVATE_ON_INIT.
+   * immediately edit the value when used in a popup. see: #BUT_ACTIVATE_ON_INIT.
    */
   PropertyRNA *prop = nullptr;
 
   /** #wmOperatorTypeMacro. */
-  ListBase macro = {};
+  ListBaseT<wmOperatorTypeMacro> macro = {};
 
   /** Pointer to modal keymap. Do not free! */
   wmKeyMap *modalkeymap = nullptr;
 
   /** Python needs the operator type as well. */
   bool (*pyop_poll)(bContext *C, wmOperatorType *ot) ATTR_WARN_UNUSED_RESULT = nullptr;
+
+  /** Extra information used statically for this operator type. */
+  std::unique_ptr<TypeData> custom_data;
 
   /** RNA integration. */
   ExtensionRNA rna_ext = {};
@@ -1251,7 +1263,7 @@ struct wmDragID {
 };
 
 struct wmDragAsset {
-  const AssetRepresentationHandle *asset;
+  const blender::asset_system::AssetRepresentation *asset;
   AssetImportSettings import_settings;
 };
 
@@ -1352,9 +1364,9 @@ struct wmDrag {
   eWM_DragFlags flags;
 
   /** List of wmDragIDs, all are guaranteed to have the same ID type. */
-  ListBase ids;
+  ListBaseT<wmDragID> ids;
   /** List of `wmDragAssetListItem`s. */
-  ListBase asset_items;
+  ListBaseT<wmDragAssetListItem> asset_items;
 };
 
 /**
@@ -1403,7 +1415,7 @@ struct wmDropBox {
   /**
    * Called with the draw buffer (#GPUViewport) set up for drawing into the region's view.
    * \note Only setups the drawing buffer for drawing in view, not the GPU transform matrices.
-   * The callback has to do that itself, with for example #UI_view2d_view_ortho.
+   * The callback has to do that itself, with for example #view2d_view_ortho.
    * \param xy: Cursor location in window coordinates (#wmEvent.xy compatible).
    */
   void (*draw_in_view)(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);

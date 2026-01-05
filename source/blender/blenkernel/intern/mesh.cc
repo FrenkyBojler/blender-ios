@@ -13,7 +13,6 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_defaults.h"
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -92,10 +91,7 @@ static void mesh_tessface_clear_intern(Mesh *mesh, int free_customdata);
 static void mesh_init_data(ID *id)
 {
   Mesh *mesh = reinterpret_cast<Mesh *>(id);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mesh, id));
-
-  MEMCPY_STRUCT_AFTER(mesh, DNA_struct_default_get(Mesh), id);
+  INIT_DEFAULT_STRUCT_AFTER(mesh, id);
 
   CustomData_reset(&mesh->vert_data);
   CustomData_reset(&mesh->edge_data);
@@ -211,6 +207,10 @@ static void mesh_copy_data(Main *bmain,
       MEM_dupallocN(mesh_src->active_uv_map_attribute));
   mesh_dst->default_uv_map_attribute = static_cast<char *>(
       MEM_dupallocN(mesh_src->default_uv_map_attribute));
+  mesh_dst->stencil_uv_map_attribute = static_cast<char *>(
+      MEM_dupallocN(mesh_src->stencil_uv_map_attribute));
+  mesh_dst->clone_uv_map_attribute = static_cast<char *>(
+      MEM_dupallocN(mesh_src->clone_uv_map_attribute));
 
   CustomData_init_from(
       &mesh_src->vert_data, &mesh_dst->vert_data, mask.vmask, mesh_dst->verts_num);
@@ -260,6 +260,8 @@ static void mesh_free_data(ID *id)
   MEM_SAFE_FREE(mesh->default_color_attribute);
   MEM_SAFE_FREE(mesh->active_uv_map_attribute);
   MEM_SAFE_FREE(mesh->default_uv_map_attribute);
+  MEM_SAFE_FREE(mesh->stencil_uv_map_attribute);
+  MEM_SAFE_FREE(mesh->clone_uv_map_attribute);
   mesh->attribute_storage.wrap().~AttributeStorage();
   if (mesh->face_offset_indices) {
     blender::implicit_sharing::free_shared_data(&mesh->face_offset_indices,
@@ -388,6 +390,8 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   BLO_write_string(writer, mesh->default_color_attribute);
   BLO_write_string(writer, mesh->active_uv_map_attribute);
   BLO_write_string(writer, mesh->default_uv_map_attribute);
+  BLO_write_string(writer, mesh->stencil_uv_map_attribute);
+  BLO_write_string(writer, mesh->clone_uv_map_attribute);
 
   BLO_write_pointer_array(writer, mesh->totcol, mesh->mat);
   BLO_write_struct_array(writer, MSelect, mesh->totselect, mesh->mselect);
@@ -454,6 +458,8 @@ static void mesh_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_string(reader, &mesh->default_color_attribute);
   BLO_read_string(reader, &mesh->active_uv_map_attribute);
   BLO_read_string(reader, &mesh->default_uv_map_attribute);
+  BLO_read_string(reader, &mesh->stencil_uv_map_attribute);
+  BLO_read_string(reader, &mesh->clone_uv_map_attribute);
 
   /* Forward compatibility. To be removed when runtime format changes. */
   blender::bke::mesh_convert_storage_to_customdata(*mesh);
@@ -620,6 +626,12 @@ void mesh_remove_invalid_attribute_strings(Mesh &mesh)
   }
   if (!mesh::is_uv_map(attributes.lookup_meta_data(mesh.default_uv_map_name()))) {
     MEM_SAFE_FREE(mesh.default_uv_map_attribute);
+  }
+  if (!mesh::is_uv_map(attributes.lookup_meta_data(mesh.stencil_uv_map_attribute))) {
+    MEM_SAFE_FREE(mesh.stencil_uv_map_attribute);
+  }
+  if (!mesh::is_uv_map(attributes.lookup_meta_data(mesh.clone_uv_map_attribute))) {
+    MEM_SAFE_FREE(mesh.clone_uv_map_attribute);
   }
 }
 
@@ -902,12 +914,6 @@ void mesh_apply_spatial_organization(Mesh &mesh)
   }
   corner_verts.copy_from(new_corner_verts);
 
-  MutableSpan<int> face_offsets = mesh.face_offsets_for_write();
-  Vector<int> face_sizes(new_face_order.size());
-  gather_group_sizes(old_faces, new_face_order, face_sizes);
-  face_offsets.take_front(face_sizes.size()).copy_from(face_sizes);
-  offset_indices::accumulate_counts_to_offsets(face_offsets);
-
   MutableAttributeAccessor attributes_for_write = mesh.attributes_for_write();
   attributes_for_write.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.domain == bke::AttrDomain::Face) {
@@ -944,6 +950,12 @@ void mesh_apply_spatial_organization(Mesh &mesh)
       attribute.finish();
     }
   });
+
+  Vector<int> face_sizes(new_face_order.size());
+  gather_group_sizes(old_faces, new_face_order, face_sizes);
+  MutableSpan<int> face_offsets = mesh.face_offsets_for_write();
+  face_offsets.take_front(face_sizes.size()).copy_from(face_sizes);
+  offset_indices::accumulate_counts_to_offsets(face_offsets);
 
   for (NonContiguousGroup &local_group : local_groups) {
     for (int &vert_idx : local_group.unique_verts) {
@@ -1032,6 +1044,8 @@ static void clear_attribute_names(Mesh &mesh)
   MEM_SAFE_FREE(mesh.default_color_attribute);
   MEM_SAFE_FREE(mesh.active_uv_map_attribute);
   MEM_SAFE_FREE(mesh.default_uv_map_attribute);
+  MEM_SAFE_FREE(mesh.stencil_uv_map_attribute);
+  MEM_SAFE_FREE(mesh.clone_uv_map_attribute);
 }
 
 void BKE_mesh_clear_geometry(Mesh *mesh)
@@ -1344,6 +1358,14 @@ static void copy_attribute_names(const Mesh &mesh_src, Mesh &mesh_dst)
   if (mesh_src.default_uv_map_attribute) {
     MEM_SAFE_FREE(mesh_dst.default_uv_map_attribute);
     mesh_dst.default_uv_map_attribute = BLI_strdup(mesh_src.default_uv_map_attribute);
+  }
+  if (mesh_src.stencil_uv_map_attribute) {
+    MEM_SAFE_FREE(mesh_dst.stencil_uv_map_attribute);
+    mesh_dst.stencil_uv_map_attribute = BLI_strdup(mesh_src.stencil_uv_map_attribute);
+  }
+  if (mesh_src.clone_uv_map_attribute) {
+    MEM_SAFE_FREE(mesh_dst.clone_uv_map_attribute);
+    mesh_dst.clone_uv_map_attribute = BLI_strdup(mesh_src.clone_uv_map_attribute);
   }
 }
 
@@ -1965,8 +1987,8 @@ void mesh_translate(Mesh &mesh, const float3 &translation, const bool do_shape_k
   translate_positions(mesh.vert_positions_for_write(), translation);
 
   if (do_shape_keys && mesh.key) {
-    LISTBASE_FOREACH (KeyBlock *, kb, &mesh.key->block) {
-      translate_positions({static_cast<float3 *>(kb->data), kb->totelem}, translation);
+    for (KeyBlock &kb : mesh.key->block) {
+      translate_positions({static_cast<float3 *>(kb.data), kb.totelem}, translation);
     }
   }
 
@@ -1984,8 +2006,8 @@ void mesh_transform(Mesh &mesh, const float4x4 &transform, bool do_shape_keys)
   math::transform_points(transform, mesh.vert_positions_for_write());
 
   if (do_shape_keys && mesh.key) {
-    LISTBASE_FOREACH (KeyBlock *, kb, &mesh.key->block) {
-      math::transform_points(transform, MutableSpan(static_cast<float3 *>(kb->data), kb->totelem));
+    for (KeyBlock &kb : mesh.key->block) {
+      math::transform_points(transform, MutableSpan(static_cast<float3 *>(kb.data), kb.totelem));
     }
   }
   MutableAttributeAccessor attributes = mesh.attributes_for_write();

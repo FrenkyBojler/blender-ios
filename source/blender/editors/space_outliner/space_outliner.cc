@@ -59,7 +59,7 @@ SpaceOutliner_Runtime::SpaceOutliner_Runtime(const SpaceOutliner_Runtime & /*oth
 
 static void outliner_main_region_init(wmWindowManager *wm, ARegion *region)
 {
-  ListBase *lb;
+  ListBaseT<wmDropBox> *lb;
   wmKeyMap *keymap;
 
   region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
@@ -75,7 +75,7 @@ static void outliner_main_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.keeptot = V2D_KEEPTOT_STRICT;
   region->v2d.minzoom = region->v2d.maxzoom = 1.0f;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* own keymap */
   keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Outliner", SPACE_OUTLINER, RGN_TYPE_WINDOW);
@@ -94,25 +94,25 @@ static void outliner_main_region_draw(const bContext *C, ARegion *region)
   const rctf v2d_cur_prev = v2d->cur;
 #endif
 
-  UI_ThemeClearColor(TH_BACK);
+  ui::theme::frame_buffer_clear(TH_BACK);
   draw_outliner(C, true);
 
 #ifdef USE_OUTLINER_DRAW_CLAMPS_SCROLL_HACK
   /* This happens when scrolling is clamped & occasionally when resizing the area.
    * In practice this isn't often which is important as that would hurt performance. */
   if (!BLI_rctf_compare(&v2d->cur, &v2d_cur_prev, FLT_EPSILON)) {
-    UI_ThemeClearColor(TH_BACK);
+    ui::theme::frame_buffer_clear(TH_BACK);
     draw_outliner(C, false);
   }
 #endif
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  ui::view2d_view_restore(C);
 
   ED_region_draw_overflow_indication(CTX_wm_area(C), region);
 
   /* scrollers */
-  UI_view2d_scrollers_draw(v2d, nullptr);
+  ui::view2d_scrollers_draw(v2d, nullptr);
 }
 
 static void outliner_main_region_free(ARegion * /*region*/) {}
@@ -384,7 +384,7 @@ static SpaceLink *outliner_create(const ScrArea * /*area*/, const Scene * /*scen
   ARegion *region;
   SpaceOutliner *space_outliner;
 
-  space_outliner = MEM_callocN<SpaceOutliner>("initoutliner");
+  space_outliner = MEM_new_for_free<SpaceOutliner>("initoutliner");
   space_outliner->runtime = MEM_new<SpaceOutliner_Runtime>(__func__);
   space_outliner->spacetype = SPACE_OUTLINER;
   space_outliner->filter_id_type = ID_GR;
@@ -594,7 +594,7 @@ static void write_space_outliner(BlendWriter *writer, const SpaceOutliner *space
                                   nullptr;
 
     if (data) {
-      BLO_write_struct(writer, SpaceOutliner, space_outliner);
+      writer->write_struct_cast<SpaceOutliner>(space_outliner);
 
       /* To store #TreeStore (instead of the mempool), two unique memory addresses are needed,
        * which can be used to identify the data on read:
@@ -633,7 +633,7 @@ static void write_space_outliner(BlendWriter *writer, const SpaceOutliner *space
     }
   }
   else {
-    BLO_write_struct(writer, SpaceOutliner, space_outliner);
+    writer->write_struct_cast<SpaceOutliner>(space_outliner);
   }
 }
 
