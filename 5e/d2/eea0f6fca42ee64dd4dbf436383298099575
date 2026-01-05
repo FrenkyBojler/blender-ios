@@ -1,2 +1,3 @@
 Referenced by issue #117509, Grease Pencil canvas shortcut change not registering and saving.
 Referenced by pull request #152422, Fix #152405: Texture Color sampling in 3DView is offset half a pixel
+Referenced by commit 13400d351f7175de63c3393b9dedc366b0cd7e84, Fix #152405: Texture Color sampling in 3DView is offset half a pixel
