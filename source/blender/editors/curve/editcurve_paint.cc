@@ -780,7 +780,7 @@ static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
   const CurvePaintSettings *cps = &cdd->vc.scene->toolsettings->curve_paint_settings;
   Object *obedit = cdd->vc.obedit;
   Curve *cu = static_cast<Curve *>(obedit->data);
-  ListBase *nurblist = object_editcurve_get(obedit);
+  ListBaseT<Nurb> *nurblist = object_editcurve_get(obedit);
 
   int stroke_len = BLI_mempool_len(cdd->stroke_elem_pool);
 
@@ -799,7 +799,7 @@ static wmOperatorStatus curve_draw_exec(bContext *C, wmOperator *op)
   const float radius_max = cps->radius_max;
   const float radius_range = cps->radius_max - cps->radius_min;
 
-  Nurb *nu = MEM_callocN<Nurb>(__func__);
+  Nurb *nu = MEM_new_for_free<Nurb>(__func__);
   nu->pntsv = 0;
   nu->resolu = cu->resolu;
   nu->resolv = cu->resolv;

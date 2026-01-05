@@ -200,6 +200,8 @@ enum {
 };
 #  define ARRAY_STORE_INDEX_NUM (ARRAY_STORE_INDEX_MSEL + 1)
 
+struct UndoMesh;
+
 static struct {
   BArrayStore_AtSize bs_stride[ARRAY_STORE_INDEX_NUM];
   int users;
@@ -208,7 +210,7 @@ static struct {
    * A list of #UndoMesh items ordered from oldest to newest
    * used to access previous undo data for a mesh.
    */
-  ListBase local_links;
+  ListBaseT<UndoMesh> local_links;
 
 #  ifdef USE_ARRAY_STORE_THREAD
   TaskPool *task_pool;
@@ -345,6 +347,10 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
                                     const size_t data_len)
 {
   using namespace blender;
+  if (bcd == nullptr) {
+    return;
+  }
+
   MutableSpan all_layers(cdata->layers, cdata->totlayer);
   for (const auto &item : bcd->non_trivial_arrays.items()) {
     const eCustomDataType type = item.key;
@@ -406,6 +412,10 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
 static void um_arraystore_cd_free(BArrayCustomData *bcd, const int bs_index)
 {
   using namespace blender;
+  if (bcd == nullptr) {
+    return;
+  }
+
   for (Array<ImplicitSharingInfoAndData> &states : bcd->non_trivial_arrays.values()) {
     for (ImplicitSharingInfoAndData &state : states) {
       state.sharing_info->remove_user_and_delete_if_last();
@@ -798,7 +808,7 @@ static UndoMesh **mesh_undostep_reference_elems_from_objects(Object **object, in
 static void *undomesh_from_editmesh(UndoMesh *um,
                                     BMEditMesh *em,
                                     Key *key,
-                                    const ListBase *vertex_group_names,
+                                    const ListBaseT<bDeformGroup> *vertex_group_names,
                                     const int vertex_group_active_index,
                                     UndoMesh *um_ref)
 {
@@ -892,7 +902,7 @@ static void *undomesh_from_editmesh(UndoMesh *um,
  */
 static void undomesh_to_editmesh(UndoMesh *um,
                                  BMEditMesh *em,
-                                 ListBase *vertex_group_names,
+                                 ListBaseT<bDeformGroup> *vertex_group_names,
                                  int *vertex_group_active_index)
 {
   BMEditMesh *em_tmp;

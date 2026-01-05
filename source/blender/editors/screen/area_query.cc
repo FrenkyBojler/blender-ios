@@ -57,12 +57,12 @@ bool ED_region_overlap_isect_xy(const ARegion *region, const int event_xy[2])
 
 bool ED_region_overlap_isect_any_xy(const ScrArea *area, const int event_xy[2])
 {
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (!region->runtime->visible) {
+  for (ARegion &region : area->regionbase) {
+    if (!region.runtime->visible) {
       continue;
     }
-    if (ED_region_is_overlap(area->spacetype, region->regiontype)) {
-      if (ED_region_overlap_isect_xy(region, event_xy)) {
+    if (ED_region_is_overlap(area->spacetype, region.regiontype)) {
+      if (ED_region_overlap_isect_xy(&region, event_xy)) {
         return true;
       }
     }
@@ -73,7 +73,7 @@ bool ED_region_overlap_isect_any_xy(const ScrArea *area, const int event_xy[2])
 bool ED_region_panel_category_gutter_calc_rect(const ARegion *region, rcti *r_region_gutter)
 {
   *r_region_gutter = region->winrct;
-  if (blender::ui::panel_category_is_visible(region)) {
+  if (blender::ui::panel_category_tabs_is_visible(region)) {
     const int category_tabs_width = round_fl_to_int(blender::ui::view2d_scale_get_x(&region->v2d) *
                                                     UI_PANEL_CATEGORY_MARGIN_WIDTH);
     const int alignment = RGN_ALIGN_ENUM_FROM_MASK(region->alignment);
@@ -205,24 +205,24 @@ ARegion *ED_area_find_region_xy_visual(const ScrArea *area,
   }
 
   /* Check overlapped regions first. */
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (!region->overlap) {
+  for (ARegion &region : area->regionbase) {
+    if (!region.overlap) {
       continue;
     }
-    if (ELEM(regiontype, RGN_TYPE_ANY, region->regiontype)) {
-      if (ED_region_contains_xy(region, event_xy)) {
-        return region;
+    if (ELEM(regiontype, RGN_TYPE_ANY, region.regiontype)) {
+      if (ED_region_contains_xy(&region, event_xy)) {
+        return &region;
       }
     }
   }
   /* Now non-overlapping ones. */
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->overlap) {
+  for (ARegion &region : area->regionbase) {
+    if (region.overlap) {
       continue;
     }
-    if (ELEM(regiontype, RGN_TYPE_ANY, region->regiontype)) {
-      if (ED_region_contains_xy(region, event_xy)) {
-        return region;
+    if (ELEM(regiontype, RGN_TYPE_ANY, region.regiontype)) {
+      if (ED_region_contains_xy(&region, event_xy)) {
+        return &region;
       }
     }
   }

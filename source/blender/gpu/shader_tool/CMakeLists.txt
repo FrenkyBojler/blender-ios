@@ -6,13 +6,15 @@
 # -----------------------------------------------------------------------------
 # Build `shader_tool` executable.
 set(SRC
+  intermediate.cc
+  metadata.cc
+  processor.cc
   shader_tool.cc
-  parser.cc
 
-  shader_tool.hh
   intermediate.hh
-  parser.hh
+  processor.hh
   scope.hh
+  token_stream.hh
   token.hh
 )
 

@@ -144,7 +144,8 @@ const EnumPropertyItem rna_enum_mesh_select_mode_uv_items[] = {
   {SCE_SNAP_TO_FACE, "FACE", ICON_SNAP_FACE, "Face", "Snap by projecting onto faces"}, \
   {SCE_SNAP_TO_VOLUME, "VOLUME", ICON_SNAP_VOLUME, "Volume", "Snap to volume"}, \
   {SCE_SNAP_TO_EDGE_MIDPOINT, "EDGE_MIDPOINT", ICON_SNAP_MIDPOINT, "Edge Center", "Snap to the middle of edges"}, \
-  {SCE_SNAP_TO_EDGE_PERPENDICULAR, "EDGE_PERPENDICULAR", ICON_SNAP_PERPENDICULAR, "Edge Perpendicular", "Snap to the nearest point on an edge"}
+  {SCE_SNAP_TO_EDGE_PERPENDICULAR, "EDGE_PERPENDICULAR", ICON_SNAP_PERPENDICULAR, "Edge Perpendicular", "Snap to the nearest point on an edge"}, \
+  {SCE_SNAP_TO_FACE_MIDPOINT, "FACE_MIDPOINT", ICON_SNAP_FACE_CENTER,"Face Center","Snap to the middle of faces"}
 /* clang-format on */
 
 const EnumPropertyItem rna_enum_snap_element_items[] = {
@@ -898,8 +899,8 @@ static void rna_all_grease_pencil_update(bContext *C, PointerRNA * /*ptr*/)
 {
   /* FIXME: We shouldn't have to tag all the Grease Pencil IDs for an update! */
   Main *bmain = CTX_data_main(C);
-  LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
-    DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
+  for (GreasePencil &grease_pencil : bmain->grease_pencils) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   }
   WM_main_add_notifier(NC_GPENCIL | NA_EDITED, nullptr);
 }
@@ -1195,7 +1196,7 @@ static void rna_Scene_active_keying_set_index_set(PointerRNA *ptr, int value)
 
 /* XXX: evil... builtin_keyingsets is defined in `blender::animrig::keyingsets.cc`! */
 /* TODO: make API function to retrieve this... */
-extern ListBase builtin_keyingsets;
+extern ListBaseT<KeyingSet> builtin_keyingsets;
 
 static void rna_Scene_all_keyingsets_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
@@ -1902,15 +1903,14 @@ void rna_Scene_freestyle_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-void rna_Scene_use_freestyle_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
+void rna_Scene_use_freestyle_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
 
   DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 }
 
 void rna_Scene_compositor_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
@@ -1989,9 +1989,8 @@ void rna_ViewLayer_pass_update(Main *bmain, Scene *activescene, PointerRNA *ptr)
     }
   }
 
-  if (scene->compositing_node_group) {
-    ntreeCompositUpdateRLayers(scene->compositing_node_group);
-  }
+  BKE_ntree_update_tag_id_changed(bmain, &scene->id);
+  BKE_ntree_update(*bmain);
 
   rna_Scene_render_update(bmain, activescene, ptr);
 }
@@ -2105,9 +2104,9 @@ static void rna_Scene_editmesh_select_mode_set(PointerRNA *ptr, const bool *valu
 
     /* Update select mode in all the workspaces in mesh edit mode. */
     wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      const Scene *scene = WM_window_get_active_scene(win);
-      ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+    for (wmWindow &win : wm->windows) {
+      const Scene *scene = WM_window_get_active_scene(&win);
+      ViewLayer *view_layer = WM_window_get_active_view_layer(&win);
       if (view_layer) {
         BKE_view_layer_synced_ensure(scene, view_layer);
         Object *object = BKE_view_layer_active_object_get(view_layer);
@@ -2226,7 +2225,7 @@ static void rna_Scene_simplify_update_impl(Main *bmain,
   Scene *sce_iter;
   Base *base;
 
-  BKE_main_id_tag_listbase(&bmain->objects, ID_TAG_DOIT, true);
+  BKE_main_id_tag_listbase(&bmain->objects.cast<ID>(), ID_TAG_DOIT, true);
   FOREACH_SCENE_OBJECT_BEGIN (sce, ob) {
     object_simplify_update(sce, ob, update_normals, depsgraph);
   }
@@ -2425,7 +2424,7 @@ static std::optional<std::string> rna_View3DCursor_path(const PointerRNA * /*ptr
 
 static TimeMarker *rna_TimeLine_add(Scene *scene, const char name[], int frame)
 {
-  TimeMarker *marker = MEM_callocN<TimeMarker>("TimeMarker");
+  TimeMarker *marker = MEM_new_for_free<TimeMarker>("TimeMarker");
   marker->flag = SELECT;
   marker->frame = frame;
   STRNCPY_UTF8(marker->name, name);
@@ -2879,14 +2878,16 @@ static const EnumPropertyItem *rna_TransformOrientation_impl_itemf(Scene *scene,
 
   RNA_enum_items_add(&item, &totitem, rna_enum_transform_orientation_items);
 
-  const ListBase *transform_orientations = scene ? &scene->transform_spaces : nullptr;
+  const ListBaseT<TransformOrientation> *transform_orientations = scene ?
+                                                                      &scene->transform_spaces :
+                                                                      nullptr;
 
   if (transform_orientations && (BLI_listbase_is_empty(transform_orientations) == false)) {
     RNA_enum_item_add_separator(&item, &totitem);
 
-    LISTBASE_FOREACH (TransformOrientation *, ts, transform_orientations) {
-      tmp.identifier = ts->name;
-      tmp.name = ts->name;
+    for (TransformOrientation &ts : *transform_orientations) {
+      tmp.identifier = ts.name;
+      tmp.name = ts.name;
       tmp.value = i++;
       RNA_enum_item_add(&item, &totitem, &tmp);
     }

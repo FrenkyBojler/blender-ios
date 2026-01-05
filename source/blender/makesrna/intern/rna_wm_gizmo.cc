@@ -241,14 +241,14 @@ static wmGizmo *rna_GizmoProperties_find_operator(PointerRNA *ptr)
        screen = static_cast<bScreen *>(screen->id.next))
   {
     IDProperty *properties = static_cast<IDProperty *>(ptr->data);
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-        if (region->runtime->gizmo_map) {
-          wmGizmoMap *gzmap = region->runtime->gizmo_map;
-          LISTBASE_FOREACH (wmGizmoGroup *, gzgroup, WM_gizmomap_group_list(gzmap)) {
-            LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {
-              if (gz->properties == properties) {
-                return gz;
+    for (ScrArea &area : screen->areabase) {
+      for (ARegion &region : area.regionbase) {
+        if (region.runtime->gizmo_map) {
+          wmGizmoMap *gzmap = region.runtime->gizmo_map;
+          for (wmGizmoGroup &gzgroup : *WM_gizmomap_group_list(gzmap)) {
+            for (wmGizmo &gz : gzgroup.gizmos) {
+              if (gz.properties == properties) {
+                return &gz;
               }
             }
           }
@@ -484,7 +484,7 @@ static StructRNA *rna_Gizmo_register(Main *bmain,
   }
 
   /* create a new gizmo type */
-  dummy_gt.rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummy_gt.idname, &RNA_Gizmo);
+  dummy_gt.rna_ext.srna = RNA_def_struct_ptr(&RNA_blender_rna_get(), dummy_gt.idname, &RNA_Gizmo);
   /* gizmo properties are registered separately */
   RNA_def_struct_flag(dummy_gt.rna_ext.srna, STRUCT_NO_IDPROPERTIES);
   dummy_gt.rna_ext.data = data;
@@ -527,7 +527,7 @@ static bool rna_Gizmo_unregister(Main *bmain, StructRNA *type)
 
   /* Free extension after removing instances so `__del__` doesn't crash, see: #85567. */
   RNA_struct_free_extension(type, &gzt->rna_ext);
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
 
   /* Free gizmo group after the extension as it owns the identifier memory. */
   WM_gizmotype_free_ptr(gzt);
@@ -881,7 +881,8 @@ static StructRNA *rna_GizmoGroup_register(Main *bmain,
   }
 
   /* create a new gizmogroup type */
-  dummy_wgt.rna_ext.srna = RNA_def_struct_ptr(&BLENDER_RNA, dummy_wgt.idname, &RNA_GizmoGroup);
+  dummy_wgt.rna_ext.srna = RNA_def_struct_ptr(
+      &RNA_blender_rna_get(), dummy_wgt.idname, &RNA_GizmoGroup);
 
   /* Gizmo group properties are registered separately. */
   RNA_def_struct_flag(dummy_wgt.rna_ext.srna, STRUCT_NO_IDPROPERTIES);
@@ -931,7 +932,7 @@ static bool rna_GizmoGroup_unregister(Main *bmain, StructRNA *type)
 
   /* Free extension after removing instances so `__del__` doesn't crash, see: #85567. */
   RNA_struct_free_extension(type, &gzgt->rna_ext);
-  RNA_struct_free(&BLENDER_RNA, type);
+  RNA_struct_free(&RNA_blender_rna_get(), type);
 
   /* Free gizmo group after the extension as it owns the identifier memory. */
   WM_gizmo_group_type_free_ptr(gzgt);
