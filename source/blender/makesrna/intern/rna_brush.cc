@@ -1705,6 +1705,15 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, ParameterFlag(0));
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 
+  /* Threshold distance for Bezier points. */
+  prop = RNA_def_property(srna, "bezier_threshold", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, nullptr, "bezier_threshold");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_float_default(prop, 0.001f);
+  RNA_def_property_ui_text(prop, "Threshold", "Threshold distance for between points");
+  RNA_def_parameter_clear_flags(prop, PROP_ANIMATABLE, ParameterFlag(0));
+  RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
+
   /* Flags */
   prop = RNA_def_property(srna, "use_pressure", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", GP_BRUSH_USE_PRESSURE);
@@ -1974,6 +1983,13 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Auto-Remove Fill Guides",
                            "Automatically remove fill guide strokes after fill operation");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
+
+  prop = RNA_def_property(srna, "use_bezier_type", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", GP_BRUSH_BEZIER_STROKE);
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_ui_text(prop, "Bézier", "Convert to Bézier type");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_BrushGpencilSettings_update");
 

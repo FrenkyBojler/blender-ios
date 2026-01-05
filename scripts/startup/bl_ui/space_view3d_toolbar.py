@@ -2034,6 +2034,13 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_post_processing(View3DPanel, Panel)
         row2.enabled = gp_settings.use_settings_outline
         row2.prop(gp_settings, "outline_thickness_factor")
 
+        row = col.row(heading="Bézier", align=True)
+        row.prop(gp_settings, "use_bezier_type", text="")
+
+        row2 = row.row(align=True)
+        row2.prop(gp_settings, "bezier_threshold", text="")
+        row2.enabled = gp_settings.use_bezier_type
+
 
 class VIEW3D_PT_tools_grease_pencil_v3_brush_random(View3DPanel, Panel):
     bl_context = ".grease_pencil_paint"

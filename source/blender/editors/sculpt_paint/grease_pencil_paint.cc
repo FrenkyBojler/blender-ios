@@ -39,6 +39,7 @@
 #include "ED_grease_pencil.hh"
 #include "ED_view3d.hh"
 
+#include "GEO_fit_curves.hh"
 #include "GEO_join_geometries.hh"
 #include "GEO_simplify_curves.hh"
 #include "GEO_smooth_curves.hh"
@@ -1491,17 +1492,22 @@ static void deselect_stroke(Scene *scene,
   const bke::AttrDomain selection_domain = ED_grease_pencil_edit_selection_domain_get(
       scene->toolsettings);
 
-  bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
-      curves, selection_domain, bke::AttrType::Bool);
+  for (const StringRef selection_attribute_name :
+       ed::curves::get_curves_selection_attribute_names(curves))
+  {
+    bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+        curves, selection_domain, bke::AttrType::Bool, selection_attribute_name);
 
-  if (selection_domain == bke::AttrDomain::Curve) {
-    ed::curves::fill_selection_false(selection.span.slice(IndexRange::from_single(active_curve)));
-  }
-  else if (selection_domain == bke::AttrDomain::Point) {
-    ed::curves::fill_selection_false(selection.span.slice(points));
-  }
+    if (selection_domain == bke::AttrDomain::Curve) {
+      ed::curves::fill_selection_false(
+          selection.span.slice(IndexRange::from_single(active_curve)));
+    }
+    else if (selection_domain == bke::AttrDomain::Point) {
+      ed::curves::fill_selection_false(selection.span.slice(points));
+    }
 
-  selection.finish();
+    selection.finish();
+  }
 }
 
 static void process_stroke_weights(const Scene &scene,
@@ -1668,9 +1674,6 @@ void PaintOperation::on_stroke_done(const bContext &C)
   /* Remove trailing points with radii close to zero. */
   trim_end_points(drawing, 1e-5f, on_back, active_curve);
 
-  /* Set the selection of the newly drawn stroke to false. */
-  deselect_stroke(scene_, drawing, active_curve);
-
   if (do_post_processing) {
     if (settings->draw_smoothfac > 0.0f && settings->draw_smoothlvl > 0) {
       smooth_stroke(drawing, settings->draw_smoothfac, settings->draw_smoothlvl, active_curve);
@@ -1699,7 +1702,24 @@ void PaintOperation::on_stroke_done(const bContext &C)
                      material_index,
                      on_back);
     }
+    if ((settings->flag & GP_BRUSH_BEZIER_STROKE) != 0) {
+      const IndexMask selection = IndexRange::from_single(active_curve);
+
+      const CurvesGeometry &curves = drawing.strokes();
+
+      const float threshold = settings->bezier_threshold;
+      const VArray<float> thresholds = VArray<float>::from_single(threshold, curves.curves_num());
+
+      /* TODO: Detect or manually provide corners. */
+      const VArray<bool> corners = VArray<bool>::from_single(false, curves.points_num());
+      drawing.strokes_for_write() = geometry::fit_poly_to_bezier_curves(
+          curves, selection, thresholds, corners, geometry::FitMethod::Refit, {});
+    }
   }
+
+  /* Set the selection of the newly drawn stroke to false. */
+  deselect_stroke(scene_, drawing, active_curve);
+
   /* Remove the temporary attribute. */
   attributes.remove(".draw_tool_screen_space_positions");
 
