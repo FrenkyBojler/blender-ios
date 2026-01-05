@@ -1473,7 +1473,7 @@ static const EnumPropertyItem *rna_preference_gpu_preferred_device_itemf(bContex
     item.value = index;
     item.identifier = gpu_device.identifier.c_str();
     item.name = gpu_device.name.c_str();
-    item.description = gpu_device.name.c_str();
+    item.description = gpu_device.description.c_str();
     RNA_enum_item_add(&result, &totitem, &item);
     index += 1;
   }

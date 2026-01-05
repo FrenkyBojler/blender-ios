@@ -349,16 +349,34 @@ static void init_device_list(GHOST_ContextHandle ghost_context)
     if (missing_capabilities_get(vk_physical_device).is_empty() &&
         GPU_vulkan_is_supported_driver(vk_physical_device))
     {
-      VkPhysicalDeviceProperties vk_properties = {};
-      vkGetPhysicalDeviceProperties(vk_physical_device, &vk_properties);
+      VkPhysicalDeviceVulkan12Properties vk_properties12 = {
+          VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES};
+      VkPhysicalDeviceProperties2 vk_properties = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+                                                   &vk_properties12};
+      vkGetPhysicalDeviceProperties2(vk_physical_device, &vk_properties);
+
       std::stringstream identifier;
-      identifier << std::hex << vk_properties.vendorID << "/" << vk_properties.deviceID << "/"
-                 << index;
+      identifier << std::hex << vk_properties.properties.vendorID << "/"
+                 << vk_properties.properties.deviceID << "/" << index;
+
+      std::stringstream name;
+      name << vk_properties.properties.deviceName;
+
+      std::stringstream description;
+      description << vk_properties.properties.deviceName;
+      if (vk_properties12.driverName[0] != '\0') {
+        description << "/" << vk_properties12.driverName;
+      }
+      if (vk_properties12.driverInfo[0] != '\0') {
+        description << "/" << vk_properties12.driverInfo;
+      }
+
       GPG.devices.append({identifier.str(),
                           index,
-                          vk_properties.vendorID,
-                          vk_properties.deviceID,
-                          std::string(vk_properties.deviceName)});
+                          vk_properties.properties.vendorID,
+                          vk_properties.properties.deviceID,
+                          name.str(),
+                          description.str()});
     }
     index++;
   }

@@ -73,6 +73,7 @@ struct GPUDevice {
   uint32_t vendor_id;
   uint32_t device_id;
   std::string name;
+  std::string description;
 };
 
 /* GPU Types */
