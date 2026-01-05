@@ -237,7 +237,7 @@ struct GlobalData {
   bool is_strand;
 };
 
-#ifdef MAT_NODETREE
+#if defined(MAT_NODETREE) || defined(GLSL_CPP_STUBS)
 GlobalData g_data;
 #endif
 
