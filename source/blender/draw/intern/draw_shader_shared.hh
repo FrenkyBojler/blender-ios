@@ -137,7 +137,7 @@ struct [[host_shared]] ObjectMatrices {
 #endif
 };
 
-enum eObjectInfoFlag : uint32_t {
+enum [[host_shared]] eObjectInfoFlag : uint32_t {
   OBJECT_SELECTED = (1u << 0u),
   OBJECT_FROM_DUPLI = (1u << 1u),
   OBJECT_FROM_SET = (1u << 2u),
@@ -257,10 +257,13 @@ struct [[host_shared]] CurvesInfos {
 };
 
 #pragma pack(push, 4)
-struct ObjectAttribute {
+struct [[host_shared]] ObjectAttribute {
   /* Workaround the padding cost from alignment requirements.
    * (see GL spec : 7.6.2.2 Standard Uniform Block Layout) */
-  float data_x, data_y, data_z, data_w;
+  float data_x;
+  float data_y;
+  float data_z;
+  float data_w;
   uint hash_code;
 
 #ifndef GPU_SHADER
@@ -276,19 +279,17 @@ struct ObjectAttribute {
  * C++ compiler gives us the same size. */
 BLI_STATIC_ASSERT_ALIGN(ObjectAttribute, 20)
 
-#pragma pack(push, 4)
-struct LayerAttribute {
+struct [[host_shared]] LayerAttribute {
   float4 data;
   uint hash_code;
   uint buffer_length; /* Only in the first record. */
-  uint _pad1, _pad2;
+  uint _pad1;
+  uint _pad2;
 
 #ifndef GPU_SHADER
   bool sync(const Scene *scene, const ViewLayer *layer, const GPULayerAttr &attr);
 #endif
 };
-#pragma pack(pop)
-BLI_STATIC_ASSERT_ALIGN(LayerAttribute, 32)
 
 /** \} */
 

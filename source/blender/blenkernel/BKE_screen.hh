@@ -17,6 +17,8 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "DNA_listBase.h"
+#include "DNA_space_types.h"
 #include "DNA_vec_types.h"
 
 #include "RNA_types.hh"
@@ -37,17 +39,21 @@ struct Block;
 }  // namespace blender::ui
 
 struct ARegion;
+struct ARegionType;
 struct AssetShelfType;
 struct BlendDataReader;
 struct BlendLibReader;
 struct BlendWriter;
 struct Header;
+struct HeaderType;
 struct ID;
 struct LayoutPanelState;
 struct LibraryForeachIDData;
-struct ListBase;
 struct Menu;
 struct Panel;
+struct PanelType;
+struct PanelCategoryDyn;
+struct RegionDrawCB;
 struct Scene;
 struct ScrArea;
 struct ScrAreaMap;
@@ -61,6 +67,7 @@ struct bContext;
 struct bScreen;
 struct uiList;
 struct wmDrawBuffer;
+struct wmEventHandler;
 struct wmGizmoMap;
 struct wmKeyConfig;
 struct wmMsgBus;
@@ -68,6 +75,12 @@ struct wmNotifier;
 struct wmTimer;
 struct wmWindow;
 struct wmWindowManager;
+struct RegionDrawCB;
+struct PanelType;
+struct HeaderType;
+struct ARegionType;
+struct wmEventHandler;
+struct PanelCategoryDyn;
 
 /* spacetype has everything stored to get an editor working, it gets initialized via
  * #ED_spacetypes_init() in `editors/space_api/spacetypes.cc` */
@@ -162,7 +175,7 @@ struct SpaceType {
   void (*blend_write)(BlendWriter *writer, SpaceLink *space_link);
 
   /** Region type definitions. */
-  ListBase regiontypes;
+  ListBaseT<ARegionType> regiontypes;
 
   /* read and write... */
 
@@ -301,13 +314,13 @@ struct ARegionType {
   ARegionTypeFlag flag;
 
   /** Custom drawing callbacks. */
-  ListBase drawcalls;
+  ListBaseT<RegionDrawCB> drawcalls;
 
   /** Panels type definitions. */
-  ListBase paneltypes;
+  ListBaseT<PanelType> paneltypes;
 
   /** Header type definitions. */
-  ListBase headertypes;
+  ListBaseT<HeaderType> headertypes;
 
   /** Hardcoded constraints, smaller than these values region is not visible. */
   int minsizex, minsizey;
@@ -398,7 +411,7 @@ struct PanelType {
 
   /** Sub panels. */
   PanelType *parent;
-  ListBase children;
+  ListBaseT<LinkData> children;
 
   /** RNA integration. */
   ExtensionRNA rna_ext;
@@ -476,6 +489,15 @@ struct Panel_Runtime {
 
 namespace blender::bke {
 
+/** #ARegionRuntime.quadview_index */
+enum class ARegionQuadviewIndex : uint8_t {
+  None = 0,
+  BottomLeft = 1,
+  TopLeft = 2,
+  BottomRight = 3,
+  TopRight = 4,
+};
+
 struct ARegionRuntime {
   /** Callbacks for this region type. */
   struct ARegionType *type;
@@ -503,11 +525,9 @@ struct ARegionRuntime {
 
   /** Maps #ui::Block::name to ui::Block for faster lookups. */
   Map<std::string, blender::ui::Block *> block_name_map;
-  /** #ui::Block. */
-  ListBase uiblocks = {};
+  ListBaseT<ui::Block> uiblocks = {};
 
-  /** #wmEventHandler. */
-  ListBase handlers = {};
+  ListBaseT<wmEventHandler> handlers = {};
 
   /** Use this string to draw info. */
   char *headerstr = nullptr;
@@ -521,7 +541,7 @@ struct ARegionRuntime {
   wmDrawBuffer *draw_buffer = nullptr;
 
   /** Panel categories runtime. */
-  ListBase panels_category = {};
+  ListBaseT<PanelCategoryDyn> panels_category = {};
 
   /** Region is currently visible on screen. */
   short visible = 0;
@@ -531,6 +551,8 @@ struct ARegionRuntime {
 
   /** Private, cached notifier events. */
   short do_draw_paintcursor;
+
+  ARegionQuadviewIndex quadview_index = ARegionQuadviewIndex::None;
 
   /** Dummy panel used in popups so they can support layout panels. */
   Panel *popup_block_panel = nullptr;
@@ -739,11 +761,11 @@ bool BKE_regiontype_uses_category_tabs(const ARegionType *region_type);
 
 /* Space-data. */
 
-void BKE_spacedata_freelist(ListBase *lb);
+void BKE_spacedata_freelist(ListBaseT<SpaceLink> *lb);
 /**
  * \param lb_dst: should be empty (will be cleared).
  */
-void BKE_spacedata_copylist(ListBase *lb_dst, ListBase *lb_src);
+void BKE_spacedata_copylist(ListBaseT<SpaceLink> *lb_dst, ListBaseT<SpaceLink> *lb_src);
 
 /**
  * Facility to set locks for drawing to survive (render) threads accessing drawing data.
@@ -779,7 +801,7 @@ ARegion *BKE_area_region_new();
  * Doesn't free the region itself.
  */
 void BKE_area_region_free(SpaceType *st, ARegion *region);
-void BKE_area_region_panels_free(ListBase *panels);
+void BKE_area_region_panels_free(ListBaseT<Panel> *panels);
 /**
  * Create and free panels.
  */
@@ -810,7 +832,8 @@ LayoutPanelState *BKE_panel_layout_panel_state_ensure(Panel *panel,
  * \note this is useful for versioning where either the #Area or #SpaceLink regionbase are typical
  * inputs
  */
-ARegion *BKE_region_find_in_listbase_by_type(const ListBase *regionbase, const int region_type);
+ARegion *BKE_region_find_in_listbase_by_type(const ListBaseT<ARegion> *regionbase,
+                                             const int region_type);
 
 void BKE_area_copy(ScrArea *area_dst, ScrArea *area_src);
 
@@ -926,7 +949,7 @@ bool BKE_screen_area_map_blend_read_data(BlendDataReader *reader, ScrAreaMap *ar
  * And as patch for 2.48 and older.
  * For the saved 2.50 files without `regiondata`.
  */
-void BKE_screen_view3d_do_versions_250(View3D *v3d, ListBase *regions);
+void BKE_screen_view3d_do_versions_250(View3D *v3d, ListBaseT<ARegion> *regions);
 
 /**
  * Called after lib linking process is done, to perform some validation on the read data, or some

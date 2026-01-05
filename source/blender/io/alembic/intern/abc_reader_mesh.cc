@@ -68,8 +68,8 @@ namespace utils {
 static std::map<std::string, Material *> build_material_map(const Main *bmain)
 {
   std::map<std::string, Material *> mat_map;
-  LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-    mat_map[material->id.name + 2] = material;
+  for (Material &material : bmain->materials) {
+    mat_map[material.id.name + 2] = &material;
   }
   return mat_map;
 }
@@ -262,7 +262,7 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
    * data has been loaded, unfortunately means any remaining data will be lost. */
   if (!all_faces_ok) {
     if (config.modifier_error_message) {
-      *config.modifier_error_message = "Mesh hash invalid geometry";
+      *config.modifier_error_message = "Mesh has invalid geometry";
     }
     bke::mesh_validate(*config.mesh, false);
 

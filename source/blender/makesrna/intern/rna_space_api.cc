@@ -14,11 +14,19 @@
 
 #ifdef RNA_RUNTIME
 
+#  include "BLI_listbase.h"
+
+#  include "BKE_context.hh"
 #  include "BKE_global.hh"
+#  include "BKE_scene.hh"
+#  include "BKE_screen.hh"
 
 #  include "ED_fileselect.hh"
 #  include "ED_screen.hh"
 #  include "ED_text.hh"
+#  include "ED_view3d.hh"
+
+#  include "WM_api.hh"
 
 int rna_object_type_visibility_icon_get_common(int object_type_exclude_viewport,
                                                const int *object_type_exclude_select)
@@ -49,10 +57,10 @@ static void rna_RegionView3D_update(ID *id, RegionView3D *rv3d, bContext *C)
     View3D *v3d = static_cast<View3D *>(area->spacedata.first);
     wmWindowManager *wm = CTX_wm_manager(C);
 
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      if (WM_window_get_active_screen(win) == screen) {
-        Scene *scene = WM_window_get_active_scene(win);
-        ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+    for (wmWindow &win : wm->windows) {
+      if (WM_window_get_active_screen(&win) == screen) {
+        Scene *scene = WM_window_get_active_scene(&win);
+        ViewLayer *view_layer = WM_window_get_active_view_layer(&win);
         Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
 
         ED_view3d_update_viewmat(depsgraph, scene, v3d, region, nullptr, nullptr, nullptr, false);
