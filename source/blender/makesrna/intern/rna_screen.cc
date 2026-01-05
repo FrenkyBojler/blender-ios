@@ -50,9 +50,12 @@ const EnumPropertyItem rna_enum_region_panel_category_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include "BLI_listbase.h"
+
 #  include "RNA_access.hh"
 
 #  include "BKE_global.hh"
+#  include "BKE_main.hh"
 #  include "BKE_screen.hh"
 #  include "BKE_workspace.hh"
 
@@ -355,13 +358,11 @@ const EnumPropertyItem *rna_region_active_panel_category_itemf(const ARegion *re
   EnumPropertyItem *items = nullptr;
   EnumPropertyItem item = {0, "", 0, "", ""};
   int totitems = 0;
-  int category_index;
-  LISTBASE_FOREACH_INDEX (
-      PanelCategoryDyn *, pc_dyn, &region->runtime->panels_category, category_index)
-  {
+
+  for (const auto [category_index, pc_dyn] : region->runtime->panels_category.enumerate()) {
     item.value = category_index;
-    item.identifier = pc_dyn->idname;
-    item.name = pc_dyn->idname;
+    item.identifier = pc_dyn.idname;
+    item.name = pc_dyn.idname;
     RNA_enum_item_add(&items, &totitems, &item);
   }
 

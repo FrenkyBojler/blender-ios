@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-12-06 08:12+0000\n"
 "Last-Translator: Banditer1483 <pleum.wongvarit@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
@@ -1319,6 +1319,22 @@ msgid "Shader"
 msgstr "เชดเดอร์"
 
 
+msgid "Font"
+msgstr "ฟอนต์"
+
+
+msgid "Text"
+msgstr "ช้อความ"
+
+
+msgid "Mask"
+msgstr "หน้ากาก"
+
+
+msgid "Sound"
+msgstr "เสียง"
+
+
 msgid "Border"
 msgstr "เส้นขอบ"
 
@@ -1472,10 +1488,6 @@ msgstr "ความละเอียด V"
 
 msgid "Path"
 msgstr "เส้นทาง"
-
-
-msgid "Font"
-msgstr "ฟอนต์"
 
 
 msgid "Font Bold"
@@ -1818,10 +1830,6 @@ msgid "Animation Editors"
 msgstr "ตัวแก้ไขแอนิเมชัน"
 
 
-msgid "Sound"
-msgstr "เสียง"
-
-
 msgid "Memory"
 msgstr "หน่วยความจำ"
 
@@ -2017,60 +2025,12 @@ msgid "Mix Color"
 msgstr "ผสมสี"
 
 
-msgid "Mask"
-msgstr "หน้ากาก"
-
-
-msgid "Metaball"
-msgstr "เมตาบอล"
-
-
-msgid "Light"
-msgstr "แสง"
-
-
-msgid "Add Image"
-msgstr "เพิ่มภาพ"
-
-
-msgid "Apply"
-msgstr "นำไปใช้"
-
-
-msgid "Track"
-msgstr "แทร็ค"
-
-
-msgid "Layout"
-msgstr "เค้าโครง"
-
-
-msgid "Hooks"
-msgstr "ตะขอ"
-
-
-msgid "Keying"
-msgstr "คีย์"
-
-
-msgid "Math"
-msgstr "คณิตศาสตร์"
-
-
 msgid "Names"
 msgstr "ชื่อ"
 
 
-msgid "Face Data"
-msgstr "ข้อมูลด้าน"
-
-
-msgid "Merge"
-msgstr "ผสาน"
-
-
-msgid "Text"
-msgstr "ช้อความ"
+msgid "Math"
+msgstr "คณิตศาสตร์"
 
 
 msgid "Pivot Point"
@@ -2091,10 +2051,6 @@ msgstr "การแก้ไขหน้ากาก"
 
 msgid "Import"
 msgstr "นำเข้า"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Mirror"
@@ -2123,6 +2079,50 @@ msgstr "จัดมุมมองไปยังที่วัตถุใช
 
 msgid "View Regions"
 msgstr "ขอบเขตมุมมอง"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Metaball"
+msgstr "เมตาบอล"
+
+
+msgid "Light"
+msgstr "แสง"
+
+
+msgid "Add Image"
+msgstr "เพิ่มภาพ"
+
+
+msgid "Apply"
+msgstr "นำไปใช้"
+
+
+msgid "Track"
+msgstr "แทร็ค"
+
+
+msgid "Hooks"
+msgstr "ตะขอ"
+
+
+msgid "Layout"
+msgstr "เค้าโครง"
+
+
+msgid "Keying"
+msgstr "คีย์"
+
+
+msgid "Face Data"
+msgstr "ข้อมูลด้าน"
+
+
+msgid "Merge"
+msgstr "ผสาน"
 
 
 msgid "Zoom"

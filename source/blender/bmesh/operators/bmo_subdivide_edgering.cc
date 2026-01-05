@@ -157,14 +157,14 @@ static bool bm_edgeloop_check_overlap_all(BMesh *bm,
                                           BMEdgeLoopStore *el_store_b)
 {
   bool has_overlap = true;
-  ListBase *lb_a = BM_edgeloop_verts_get(el_store_a);
-  ListBase *lb_b = BM_edgeloop_verts_get(el_store_b);
+  ListBaseT<LinkData> *lb_a = BM_edgeloop_verts_get(el_store_a);
+  ListBaseT<LinkData> *lb_b = BM_edgeloop_verts_get(el_store_b);
 
   bm_edgeloop_vert_tag(el_store_a, false);
   bm_edgeloop_vert_tag(el_store_b, true);
 
-  LISTBASE_FOREACH (LinkData *, node, lb_a) {
-    if (bm_vert_is_tag_edge_connect(bm, static_cast<BMVert *>(node->data)) == false) {
+  for (LinkData &node : *lb_a) {
+    if (bm_vert_is_tag_edge_connect(bm, static_cast<BMVert *>(node.data)) == false) {
       has_overlap = false;
       goto finally;
     }
@@ -173,8 +173,8 @@ static bool bm_edgeloop_check_overlap_all(BMesh *bm,
   bm_edgeloop_vert_tag(el_store_a, true);
   bm_edgeloop_vert_tag(el_store_b, false);
 
-  LISTBASE_FOREACH (LinkData *, node, lb_b) {
-    if (bm_vert_is_tag_edge_connect(bm, static_cast<BMVert *>(node->data)) == false) {
+  for (LinkData &node : *lb_b) {
+    if (bm_vert_is_tag_edge_connect(bm, static_cast<BMVert *>(node.data)) == false) {
       has_overlap = false;
       goto finally;
     }
@@ -196,8 +196,8 @@ finally:
 
 using BMEdgeLoopStorePair = std::pair<BMEdgeLoopStore *, BMEdgeLoopStore *>;
 
-static blender::VectorSet<BMEdgeLoopStorePair> bm_edgering_pair_calc(BMesh *bm,
-                                                                     ListBase *eloops_rim)
+static blender::VectorSet<BMEdgeLoopStorePair> bm_edgering_pair_calc(
+    BMesh *bm, ListBaseT<BMEdgeLoopStore> *eloops_rim)
 {
   /**
    * Method for finding pairs:
@@ -269,7 +269,7 @@ static blender::VectorSet<BMEdgeLoopStorePair> bm_edgering_pair_calc(BMesh *bm,
  * \{ */
 
 static void bm_edge_subdiv_as_loop(
-    BMesh *bm, ListBase *eloops, BMEdge *e, BMVert *v_a, const int cuts)
+    BMesh *bm, ListBaseT<BMEdgeLoopStore> *eloops, BMEdge *e, BMVert *v_a, const int cuts)
 {
   BMEdgeLoopStore *eloop;
   BMVert **v_arr = BLI_array_alloca(v_arr, cuts + 2);
@@ -458,10 +458,8 @@ static LoopPairStore *bm_edgering_pair_store_create(BMesh *bm,
     BM_edgeloop_edges_get(el_store_a, e_arr_a);
     BM_edgeloop_edges_get(el_store_b, e_arr_b);
 
-    lpair->nors_a = static_cast<float (*)[3]>(
-        MEM_mallocN(sizeof(*lpair->nors_a) * len_a, __func__));
-    lpair->nors_b = static_cast<float (*)[3]>(
-        MEM_mallocN(sizeof(*lpair->nors_b) * len_b, __func__));
+    lpair->nors_a = MEM_malloc_arrayN<float[3]>(len_a, __func__);
+    lpair->nors_b = MEM_malloc_arrayN<float[3]>(len_b, __func__);
 
     nors_pair[0] = lpair->nors_a;
     nors_pair[1] = lpair->nors_b;
@@ -486,7 +484,7 @@ static LoopPairStore *bm_edgering_pair_store_create(BMesh *bm,
     for (side_index = 0; side_index < 2; side_index++) {
       /* iter vars */
       BMEdgeLoopStore *el_store = el_store_pair[side_index];
-      ListBase *lb = BM_edgeloop_verts_get(el_store);
+      ListBaseT<LinkData> *lb = BM_edgeloop_verts_get(el_store);
       blender::Map<BMVert *, uint> *nors_gh_iter = nors_gh_pair[side_index];
       float (*nor)[3] = nors_pair[side_index];
 
@@ -533,7 +531,7 @@ static void bm_edgering_pair_interpolate(BMesh *bm,
                                          LoopPairStore *lpair,
                                          BMEdgeLoopStore *el_store_a,
                                          BMEdgeLoopStore *el_store_b,
-                                         ListBase *eloops_ring,
+                                         ListBaseT<BMEdgeLoopStore> *eloops_ring,
                                          const int interp_mode,
                                          const int cuts,
                                          const float smooth,
@@ -603,8 +601,7 @@ static void bm_edgering_pair_interpolate(BMesh *bm,
     add_v3_v3(handle_a, el_store_a_co);
     add_v3_v3(handle_b, el_store_b_co);
 
-    coord_array_main = static_cast<float (*)[3]>(
-        MEM_mallocN(dims * (resolu) * sizeof(float), __func__));
+    coord_array_main = MEM_malloc_arrayN<float[3]>(resolu, __func__);
 
     for (i = 0; i < dims; i++) {
       BKE_curve_forward_diff_bezier(el_store_a_co[i],
@@ -620,8 +617,7 @@ static void bm_edgering_pair_interpolate(BMesh *bm,
   switch (interp_mode) {
     case SUBD_RING_INTERP_LINEAR: {
       if (falloff_cache) {
-        float (*coord_array)[3] = static_cast<float (*)[3]>(
-            MEM_mallocN(dims * (resolu) * sizeof(float), __func__));
+        float (*coord_array)[3] = MEM_malloc_arrayN<float[3]>(resolu, __func__);
         for (i = 0; i < resolu; i++) {
           interp_v3_v3v3(
               coord_array[i], el_store_a_co, el_store_b_co, float(i) / float(resolu - 1));
@@ -630,7 +626,7 @@ static void bm_edgering_pair_interpolate(BMesh *bm,
         for (el_store_ring = static_cast<BMEdgeLoopStore *>(eloops_ring->first); el_store_ring;
              el_store_ring = BM_EDGELOOP_NEXT(el_store_ring))
         {
-          ListBase *lb_ring = BM_edgeloop_verts_get(el_store_ring);
+          ListBaseT<LinkData> *lb_ring = BM_edgeloop_verts_get(el_store_ring);
           LinkData *v_iter;
 
           for (v_iter = static_cast<LinkData *>(lb_ring->first), i = 0; v_iter;
@@ -654,12 +650,9 @@ static void bm_edgering_pair_interpolate(BMesh *bm,
       break;
     }
     case SUBD_RING_INTERP_PATH: {
-      float (*direction_array)[3] = static_cast<float (*)[3]>(
-          MEM_mallocN(dims * (resolu) * sizeof(float), __func__));
-      float (*quat_array)[4] = static_cast<float (*)[4]>(
-          MEM_mallocN(resolu * sizeof(*quat_array), __func__));
-      float (*tri_array)[3][3] = static_cast<float (*)[3][3]>(
-          MEM_mallocN(resolu * sizeof(*tri_array), __func__));
+      float (*direction_array)[3] = MEM_malloc_arrayN<float[3]>(resolu, __func__);
+      float (*quat_array)[4] = MEM_malloc_arrayN<float[4]>(resolu, __func__);
+      float (*tri_array)[3][3] = MEM_malloc_arrayN<float[3][3]>(resolu, __func__);
       float (*tri_sta)[3], (*tri_end)[3], (*tri_tmp)[3];
 
       /* very similar to make_bevel_list_3D_minimum_twist */
@@ -721,7 +714,7 @@ static void bm_edgering_pair_interpolate(BMesh *bm,
       for (el_store_ring = static_cast<BMEdgeLoopStore *>(eloops_ring->first); el_store_ring;
            el_store_ring = BM_EDGELOOP_NEXT(el_store_ring))
       {
-        ListBase *lb_ring = BM_edgeloop_verts_get(el_store_ring);
+        ListBaseT<LinkData> *lb_ring = BM_edgeloop_verts_get(el_store_ring);
         LinkData *v_iter;
 
         BMVert *v_a = static_cast<BMVert *>(((LinkData *)lb_ring->first)->data);
@@ -748,14 +741,13 @@ static void bm_edgering_pair_interpolate(BMesh *bm,
       break;
     }
     case SUBD_RING_INTERP_SURF: {
-      float (*coord_array)[3] = static_cast<float (*)[3]>(
-          MEM_mallocN(dims * (resolu) * sizeof(float), __func__));
+      float (*coord_array)[3] = MEM_malloc_arrayN<float[3]>(resolu, __func__);
 
       /* calculate a bezier handle per edge ring */
       for (el_store_ring = static_cast<BMEdgeLoopStore *>(eloops_ring->first); el_store_ring;
            el_store_ring = BM_EDGELOOP_NEXT(el_store_ring))
       {
-        ListBase *lb_ring = BM_edgeloop_verts_get(el_store_ring);
+        ListBaseT<LinkData> *lb_ring = BM_edgeloop_verts_get(el_store_ring);
         LinkData *v_iter;
 
         BMVert *v_a = static_cast<BMVert *>(((LinkData *)lb_ring->first)->data);
@@ -857,8 +849,8 @@ static bool bm_edgering_pair_order_is_flipped(BMesh * /*bm*/,
                                               BMEdgeLoopStore *el_store_a,
                                               BMEdgeLoopStore *el_store_b)
 {
-  ListBase *lb_a = BM_edgeloop_verts_get(el_store_a);
-  ListBase *lb_b = BM_edgeloop_verts_get(el_store_b);
+  ListBaseT<LinkData> *lb_a = BM_edgeloop_verts_get(el_store_a);
+  ListBaseT<LinkData> *lb_b = BM_edgeloop_verts_get(el_store_b);
 
   LinkData *v_iter_a_first = static_cast<LinkData *>(lb_a->first);
   LinkData *v_iter_b_first = static_cast<LinkData *>(lb_b->first);
@@ -903,8 +895,8 @@ static void bm_edgering_pair_order(BMesh *bm,
                                    BMEdgeLoopStore *el_store_a,
                                    BMEdgeLoopStore *el_store_b)
 {
-  ListBase *lb_a = BM_edgeloop_verts_get(el_store_a);
-  ListBase *lb_b = BM_edgeloop_verts_get(el_store_b);
+  ListBaseT<LinkData> *lb_a = BM_edgeloop_verts_get(el_store_a);
+  ListBaseT<LinkData> *lb_b = BM_edgeloop_verts_get(el_store_b);
 
   LinkData *node;
 
@@ -972,11 +964,11 @@ static void bm_edgering_pair_order(BMesh *bm,
 static void bm_edgering_pair_subdiv(BMesh *bm,
                                     BMEdgeLoopStore *el_store_a,
                                     BMEdgeLoopStore *el_store_b,
-                                    ListBase *eloops_ring,
+                                    ListBaseT<BMEdgeLoopStore> *eloops_ring,
                                     const int cuts)
 {
-  ListBase *lb_a = BM_edgeloop_verts_get(el_store_a);
-  // ListBase *lb_b = BM_edgeloop_verts_get(el_store_b);
+  ListBaseT<LinkData> *lb_a = BM_edgeloop_verts_get(el_store_a);
+  // ListBaseT<LinkData> *lb_b = BM_edgeloop_verts_get(el_store_b);
   const int stack_max = max_ii(BM_edgeloop_length_get(el_store_a),
                                BM_edgeloop_length_get(el_store_b)) *
                         2;
@@ -994,12 +986,12 @@ static void bm_edgering_pair_subdiv(BMesh *bm,
   bm_edgeloop_vert_tag(el_store_a, false);
   bm_edgeloop_vert_tag(el_store_b, true);
 
-  LISTBASE_FOREACH (LinkData *, node, lb_a) {
+  for (LinkData &node : *lb_a) {
     BMIter eiter;
 
-    BM_ITER_ELEM (e, &eiter, (BMVert *)node->data, BM_EDGES_OF_VERT) {
+    BM_ITER_ELEM (e, &eiter, (BMVert *)node.data, BM_EDGES_OF_VERT) {
       if (!BMO_edge_flag_test(bm, e, EDGE_IN_STACK)) {
-        BMVert *v_other = BM_edge_other_vert(e, (BMVert *)node->data);
+        BMVert *v_other = BM_edge_other_vert(e, (BMVert *)node.data);
         if (BM_elem_flag_test(v_other, BM_ELEM_TAG)) {
           BMIter fiter;
 
@@ -1068,7 +1060,7 @@ static void bm_edgering_pair_ringsubd(BMesh *bm,
                                       const float smooth,
                                       const float *falloff_cache)
 {
-  ListBase eloops_ring = {nullptr};
+  ListBaseT<BMEdgeLoopStore> eloops_ring = {nullptr};
   bm_edgering_pair_order(bm, el_store_a, el_store_b);
   bm_edgering_pair_subdiv(bm, el_store_a, el_store_b, &eloops_ring, cuts);
   bm_edgering_pair_interpolate(
@@ -1086,7 +1078,7 @@ void bmo_subdivide_edgering_exec(BMesh *bm, BMOperator *op)
 {
   /* NOTE: keep this operator fast, its used in a modifier. */
 
-  ListBase eloops_rim = {nullptr};
+  ListBaseT<BMEdgeLoopStore> eloops_rim = {nullptr};
   BMOIter siter;
   BMEdge *e;
   int count;
