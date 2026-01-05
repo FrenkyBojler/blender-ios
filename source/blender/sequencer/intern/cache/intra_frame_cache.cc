@@ -7,6 +7,7 @@
  */
 
 #include "BLI_map.hh"
+#include "BLI_mutex.hh"
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
@@ -32,6 +33,7 @@ struct IntraFrameCache {
   int view_id = -1;
   int width = -1;
   int height = -1;
+  Mutex mutex;
 
   ~IntraFrameCache()
   {
@@ -52,6 +54,7 @@ void intra_frame_cache_invalidate(Scene *scene)
 {
   IntraFrameCache *cache = query_intra_frame_cache(scene);
   if (cache != nullptr) {
+    std::lock_guard lock(cache->mutex);
     cache->preprocessed.clear();
     cache->composite.clear();
     cache->timeline_frame = -1.0f;
@@ -68,6 +71,7 @@ void intra_frame_cache_invalidate(Scene *scene, const Strip *strip)
   }
   IntraFrameCache *cache = query_intra_frame_cache(scene);
   if (cache != nullptr) {
+    std::lock_guard lock(cache->mutex);
     cache->preprocessed.invalidate(strip);
     cache->composite.invalidate(strip);
   }
@@ -122,6 +126,7 @@ ImBuf *intra_frame_cache_get_preprocessed(Scene *scene, const Strip *strip)
   if (strip == nullptr || cache == nullptr) {
     return nullptr;
   }
+  std::lock_guard lock(cache->mutex);
   return cache->preprocessed.get(strip);
 }
 
@@ -131,6 +136,7 @@ ImBuf *intra_frame_cache_get_composite(Scene *scene, const Strip *strip)
   if (strip == nullptr || cache == nullptr) {
     return nullptr;
   }
+  std::lock_guard lock(cache->mutex);
   return cache->composite.get(strip);
 }
 
@@ -143,6 +149,7 @@ void intra_frame_cache_put_preprocessed(Scene *scene, const Strip *strip, ImBuf 
   if (cache == nullptr) {
     cache = MEM_new<IntraFrameCache>(__func__);
   }
+  std::lock_guard lock(cache->mutex);
   cache->preprocessed.put(strip, image);
 }
 
@@ -155,6 +162,7 @@ void intra_frame_cache_put_composite(Scene *scene, const Strip *strip, ImBuf *im
   if (cache == nullptr) {
     cache = MEM_new<IntraFrameCache>(__func__);
   }
+  std::lock_guard lock(cache->mutex);
   cache->composite.put(strip, image);
 }
 
@@ -170,6 +178,7 @@ void intra_frame_cache_set_cur_frame(Scene *scene, float frame, int view_id, int
 {
   IntraFrameCache *cache = query_intra_frame_cache(scene);
   if (cache != nullptr) {
+    std::lock_guard lock(cache->mutex);
     if (cache->timeline_frame != frame || cache->view_id != view_id || cache->width != width ||
         cache->height != height)
     {
