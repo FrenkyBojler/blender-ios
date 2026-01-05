@@ -369,7 +369,7 @@ struct KD_Symmetry_Data {
 
 static bool bm_edge_symmetry_check_cb(void *user_data,
                                       int index,
-                                      const float /*co*/[3],
+                                      const blender::float3 & /*co*/,
                                       float /*dist_sq*/)
 {
   KD_Symmetry_Data *sym_data = static_cast<KD_Symmetry_Data *>(user_data);
@@ -607,8 +607,7 @@ static void bm_decim_triangulate_end(BMesh *bm, const int edges_tri_tot)
   BMEdge *e;
 
   /* we need to collect before merging for ngons since the loops indices will be lost */
-  BMEdge **edges_tri = static_cast<BMEdge **>(
-      MEM_mallocN(std::min(edges_tri_tot, bm->totedge) * sizeof(*edges_tri), __func__));
+  BMEdge **edges_tri = MEM_malloc_arrayN<BMEdge *>(std::min(edges_tri_tot, bm->totedge), __func__);
   STACK_DECLARE(edges_tri);
 
   STACK_INIT(edges_tri, std::min(edges_tri_tot, bm->totedge));

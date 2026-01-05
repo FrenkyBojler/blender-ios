@@ -313,16 +313,22 @@ static const EnumPropertyItem target_space_object_items[] = {
 
 #  include "DNA_cachefile_types.h"
 
+#  include "BLI_listbase.h"
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
+
 #  include "BKE_action.hh"
 #  include "BKE_animsys.h"
 #  include "BKE_constraint.h"
 #  include "BKE_context.hh"
+#  include "BKE_lib_id.hh"
 
 #  ifdef WITH_ALEMBIC
 #    include "ABC_alembic.h"
 #  endif
 
 #  include "ANIM_action.hh"
+
 #  include "rna_action_tools.hh"
 
 static StructRNA *rna_ConstraintType_refine(PointerRNA *ptr)
@@ -420,7 +426,8 @@ static void rna_Constraint_name_set(PointerRNA *ptr, const char *value)
   /* make sure name is unique */
   if (ptr->owner_id) {
     Object *ob = (Object *)ptr->owner_id;
-    ListBase *list = blender::ed::object::constraint_list_from_constraint(ob, con, nullptr);
+    ListBaseT<bConstraint> *list = blender::ed::object::constraint_list_from_constraint(
+        ob, con, nullptr);
 
     /* if we have the list, check for unique name, otherwise give up */
     if (list) {
@@ -435,7 +442,8 @@ static void rna_Constraint_name_set(PointerRNA *ptr, const char *value)
 static std::optional<std::string> rna_Constraint_do_compute_path(Object *ob, bConstraint *con)
 {
   bPoseChannel *pchan;
-  ListBase *lb = blender::ed::object::constraint_list_from_constraint(ob, con, &pchan);
+  ListBaseT<bConstraint> *lb = blender::ed::object::constraint_list_from_constraint(
+      ob, con, &pchan);
 
   if (lb == nullptr) {
     printf("%s: internal error, constraint '%s' not found in object '%s'\n",
@@ -603,7 +611,7 @@ static const EnumPropertyItem *rna_Constraint_target_space_itemf(bContext * /*C*
                                                                  bool * /*r_free*/)
 {
   bConstraint *con = (bConstraint *)ptr->data;
-  ListBase targets = {nullptr, nullptr};
+  ListBaseT<bConstraintTarget> targets = {nullptr, nullptr};
   bConstraintTarget *ct;
 
   if (BKE_constraint_targets_get(con, &targets)) {
@@ -626,7 +634,7 @@ static const EnumPropertyItem *rna_Constraint_target_space_itemf(bContext * /*C*
 static bConstraintTarget *rna_ArmatureConstraint_target_new(ID *id, bConstraint *con, Main *bmain)
 {
   bArmatureConstraint *acon = static_cast<bArmatureConstraint *>(con->data);
-  bConstraintTarget *tgt = MEM_callocN<bConstraintTarget>("Constraint Target");
+  bConstraintTarget *tgt = MEM_new_for_free<bConstraintTarget>("Constraint Target");
 
   tgt->weight = 1.0f;
   BLI_addtail(&acon->targets, tgt);
