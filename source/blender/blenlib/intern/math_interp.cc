@@ -548,6 +548,30 @@ float weight<Sampler::Bspline>(float x)
     ((-1.0f / 6.0f * x + 1.0f) * x - 2.0f) * x + 4.0f / 3.0f;
 }
 
+/* Same as wrap_coord but Border is treated as Extend */
+BLI_INLINE int32_t wrap_coord_noclip(float u, int32_t size, InterpWrapMode wrap)
+{
+  if (u >= 0) {
+    if (u < float(size)) {
+      return int32_t(u);
+    }
+    switch (wrap) {
+      default: /* case InterpWrapMode::Extend: */
+        return size - 1;
+      case InterpWrapMode::Repeat:
+        return int32_t(uint32_t(u) % uint32_t(size));
+    }
+  }
+  switch (wrap) {
+    default: /* case InterpWrapMode::Extend: */
+      return 0;
+    case InterpWrapMode::Repeat: {
+      int32_t x = int32_t(uint32_t(-floorf(u)) % uint32_t(size));
+      return x ? size - x : 0;
+    }
+  }
+}
+
 /* Compute 1-d filters and wrapped sample locations. */
 template<Sampler sampler>
 BLI_INLINE int make_samples(int width,
@@ -568,12 +592,9 @@ BLI_INLINE int make_samples(int width,
   for (float x = v - u; x < r; x += d) {
     float wt = weight<sampler>(math::abs(x / w));
     sum += wt;
-    int y = wrap_coord(u + x, width, wrap);
-    if (y >= 0) {
-      positions[count] = y;
-      weights[count] = wt;
-      count++;
-    }
+    positions[count] = wrap_coord_noclip(u + x, width, wrap);
+    weights[count] = wt;
+    count++;
   }
   float m = 1.0f / sum;
   for (int i = 0; i < count; ++i) {
@@ -602,12 +623,9 @@ int make_samples<Sampler::Box>(int width,
   for (float x = v - u; x < r; x += d) {
     float wt = math::min(r - math::abs(x), 1.0f);
     sum += wt;
-    int y = wrap_coord(u + x, width, wrap);
-    if (y >= 0) {
-      positions[count] = y;
-      weights[count] = wt;
-      count++;
-    }
+    positions[count] = wrap_coord_noclip(u + x, width, wrap);
+    weights[count] = wt;
+    count++;
   }
   float m = 1.0f / sum;
   for (int i = 0; i < count; ++i) {
@@ -655,6 +673,7 @@ static float4 _sample_rect(const SamplerSource &source, const float2 &uv, const 
 #endif
 }
 
+/* nearest sampling does the clipping, so there is no _clip version */
 template<>
 float4 _sample_rect<Sampler::Nearest>(const SamplerSource &source,
                                       const float2 &uv,
@@ -674,35 +693,17 @@ float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source,
                                        const float2 &)
 {
   const float x = uv.x - 0.5f; /* convert to pixel-center coordinates*/
-  const int x1 = wrap_coord(x, source.width, source.wrap_x);
-  const int x2 = wrap_coord(x + 1, source.width, source.wrap_x);
+  const int x1 = wrap_coord_noclip(x, source.width, source.wrap_x);
+  const int x2 = wrap_coord_noclip(x + 1, source.width, source.wrap_x);
 
   const float y = uv.y - 0.5f; /* convert to pixel-center coordinates*/
-  const int y1 = wrap_coord(y, source.height, source.wrap_y);
-  const int y2 = wrap_coord(y + 1, source.height, source.wrap_y);
+  const int y1 = wrap_coord_noclip(y, source.height, source.wrap_y);
+  const int y2 = wrap_coord_noclip(y + 1, source.height, source.wrap_y);
 
   const float *row1 = source.buffer + (int64_t(source.width) * y1 + x1) * 4;
   const float *row2 = source.buffer + (int64_t(source.width) * y2 + x1) * 4;
   const float *row3 = source.buffer + (int64_t(source.width) * y1 + x2) * 4;
   const float *row4 = source.buffer + (int64_t(source.width) * y2 + x2) * 4;
-
-  static const float empty[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-  if (x1 < 0) {
-    if (x2 < 0)
-      return float4(0.0f);
-    row1 = row2 = empty;
-  }
-  else if (x2 < 0) {
-    row3 = row4 = empty;
-  }
-  if (y1 < 0) {
-    if (y2 < 0)
-      return float4(0.0f);
-    row1 = row3 = empty;
-  }
-  else if (y2 < 0) {
-    row2 = row4 = empty;
-  }
 
   float a = x - floorf(x);
   float b = y - floorf(y);
@@ -722,18 +723,37 @@ float4 _sample_rect<Sampler::Bilinear>(const SamplerSource &source,
 #endif
 }
 
+template<Sampler sampler>
+static float4 _sample_rect_clip(const SamplerSource &source, const float2 &uv, const float2 &wh)
+{
+  /* compute intersection of wh with image border */
+  float m = 1;
+  if (source.wrap_x == InterpWrapMode::Border) {
+    float v = math::min(uv.x, float(source.width) - uv.x) / wh.x + 0.5f;
+    if (v <= 0.0f) return float4(0.0f);
+    if (v < 1.0f) m = v;
+  }
+  if (source.wrap_y == InterpWrapMode::Border) {
+    float v = math::min(uv.y, float(source.height) - uv.y) / wh.y + 0.5f;
+    if (v <= 0.0f) return float4(0.0f);
+    if (v < 1.0f) m *= v;
+  }
+  return _sample_rect<sampler>(source, uv, wh) * m;
+}
+
 SampleRect sample_rect(const SamplerSource &source)
 {
   BLI_assert(source.components == 4);
+  bool clip = source.wrap_x == InterpWrapMode::Border || source.wrap_y == InterpWrapMode::Border;
   switch (source.sampler) {
     case Sampler::Nearest:
       return _sample_rect<Sampler::Nearest>;
     case Sampler::Bilinear:
-      return _sample_rect<Sampler::Bilinear>;
+      return clip ? _sample_rect_clip<Sampler::Bilinear> : _sample_rect<Sampler::Bilinear>;
     default: /* case Sampler::Box */
-      return _sample_rect<Sampler::Box>;
+      return clip ? _sample_rect_clip<Sampler::Box> : _sample_rect<Sampler::Box>;
     case Sampler::Bspline:
-      return _sample_rect<Sampler::Bspline>;
+      return clip ? _sample_rect_clip<Sampler::Bspline> : _sample_rect<Sampler::Bspline>;
   }
 }
 
