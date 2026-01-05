@@ -448,31 +448,26 @@ def generate_test_data():
     test_tree = bpy.data.node_groups["Tests"]
     ob = bpy.data.objects["TestObject"]
 
-    mod_make_group = ob.modifiers["ExpectedMakeGroup"]
-    tree_make_group = copy_tree(test_tree, mod_make_group)
+    tree_make_group = copy_tree(test_tree, ob.modifiers["ExpectedMakeGroup"])
     for test_case in test_cases(tree_make_group):
         execute_make_group(test_case, tree_make_group)
 
-    mod_group_insert = ob.modifiers["ExpectedGroupInsert"]
-    tree_group_insert = copy_tree(test_tree, mod_group_insert)
+    tree_group_insert = copy_tree(test_tree, ob.modifiers["ExpectedGroupInsert"])
     for test_case in test_cases(tree_group_insert):
         execute_group_insert(test_case, tree_group_insert)
 
-    mod_ungroup = ob.modifiers["ExpectedUngroup"]
     # Use result of grouping as starting point for ungrouping.
-    tree_ungroup = copy_tree(tree_make_group, mod_ungroup)
+    tree_ungroup = copy_tree(tree_make_group, ob.modifiers["ExpectedUngroup"])
     for test_case in test_cases(tree_ungroup):
         execute_ungroup(test_case, tree_ungroup)
 
-    mod_group_separate_copy = ob.modifiers["ExpectedGroupSeparateCopy"]
     # Use result of grouping as starting point for separating.
-    tree_group_separate_copy = copy_tree(tree_make_group, mod_group_separate_copy)
+    tree_group_separate_copy = copy_tree(tree_make_group, ob.modifiers["ExpectedGroupSeparateCopy"])
     for test_case in test_cases(tree_group_separate_copy):
         execute_group_separate('COPY', test_case, tree_group_separate_copy)
 
-    mod_group_separate_move = ob.modifiers["ExpectedGroupSeparateMove"]
     # Use result of grouping as starting point for separating.
-    tree_group_separate_move = copy_tree(tree_make_group, mod_group_separate_move)
+    tree_group_separate_move = copy_tree(tree_make_group, ob.modifiers["ExpectedGroupSeparateMove"])
     for test_case in test_cases(tree_group_separate_move):
         execute_group_separate('MOVE', test_case, tree_group_separate_move)
 
