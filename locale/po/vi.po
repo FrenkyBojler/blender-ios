@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-10-14 21:59+0000\n"
 "Last-Translator: Hoang Duy Tran <hoangduytran1960@googlemail.com>\n"
 "Language-Team: Vietnamese <https://translate.blender.org/projects/blender-ui/ui/vi/>\n"
@@ -34297,6 +34297,94 @@ msgid "Editor menu containing buttons"
 msgstr "Trình đơn của trình biên soạn có chứa các nút"
 
 
+msgid "Show/Hide"
+msgstr "Hiện/Ẩn Giấu"
+
+
+msgid "Names"
+msgstr "Tên"
+
+
+msgid "Bone Roll"
+msgstr "Lăn Xương"
+
+
+msgid "Math"
+msgstr "Toán"
+
+
+msgid "Utilities"
+msgstr "Thường Trình"
+
+
+msgid "Clean Up"
+msgstr "Dọn Dẹp"
+
+
+msgid "Pivot Point"
+msgstr "Điểm Tựa"
+
+
+msgid "Snap"
+msgstr "Bám Dính"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Suy Giảm Dần trong Biên Soạn Cân Đối"
+
+
+msgid "Mask Edit"
+msgstr "Biên Soạn Màn Chắn Lọc"
+
+
+msgid "Automasking"
+msgstr "Tự Động Chắn Lọc"
+
+
+msgid "Read"
+msgstr "Đọc"
+
+
+msgid "Sample"
+msgstr "Lấy Mẫu Vật"
+
+
+msgid "Face Sets Edit"
+msgstr "Biên Soạn các Mặt Ấn Định"
+
+
+msgid "Write"
+msgstr "Viết"
+
+
+msgid "Vertex Group Locks"
+msgstr "Khóa của Nhóm Điểm Đỉnh"
+
+
+msgid "Primitives"
+msgstr "Hình Cơ Bản"
+
+
+msgid "Gizmo"
+msgstr "Dụng Cụ"
+
+
+msgid "Instances"
+msgstr "Thực Thể"
+
+
+msgid "Import"
+msgstr "Nhập Khẩu"
+
+
+msgid "Mirror"
+msgstr "Phản Chiếu Đối Xứng"
+
+
+msgid "UV Mapping"
+msgstr "Ánh Xạ UV"
+
+
 msgid "Local View"
 msgstr "Góc Nhìn Cục Bộ"
 
@@ -34307,6 +34395,10 @@ msgstr "Điểm Nhìn"
 
 msgid "Navigation"
 msgstr "Điều Hướng"
+
+
+msgid "Deprecated"
+msgstr "Lỗi Thời"
 
 
 msgid "Align View"
@@ -34323,6 +34415,14 @@ msgstr "Vùng Góc Nhìn"
 
 msgid "Select More/Less"
 msgstr "Tăng/Giảm Lựa Chọn"
+
+
+msgid "List"
+msgstr "Nâng"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -34357,10 +34457,6 @@ msgid "Light Probe"
 msgstr "Đầu Dò Ánh Sáng"
 
 
-msgid "Layout"
-msgstr "Bố Trí"
-
-
 msgid "Add Image"
 msgstr "Thêm Hình Ảnh"
 
@@ -34381,24 +34477,8 @@ msgid "Track"
 msgstr "Giám Sát"
 
 
-msgid "Adjust"
-msgstr "Điều Chỉnh"
-
-
 msgid "Quick Effects"
 msgstr "Hiệu Ứng Nhanh"
-
-
-msgid "Show/Hide"
-msgstr "Hiện/Ẩn Giấu"
-
-
-msgid "Clean Up"
-msgstr "Dọn Dẹp"
-
-
-msgid "Keying"
-msgstr "Khóa Hóa"
 
 
 msgid "Asset"
@@ -34409,10 +34489,6 @@ msgid "Make Single User"
 msgstr "Biến Thành Đơn Người Dùng"
 
 
-msgid "Tracking"
-msgstr "Giám Sát"
-
-
 msgid "Convert"
 msgstr "Chuyển Đổi"
 
@@ -34421,24 +34497,8 @@ msgid "Link/Transfer Data"
 msgstr "Kết Nối/Thuyên Chuyển Dữ Liệu"
 
 
-msgid "Utilities"
-msgstr "Thường Trình"
-
-
 msgid "Hooks"
 msgstr "Móc"
-
-
-msgid "Math"
-msgstr "Toán"
-
-
-msgid "Creative"
-msgstr "Kiến Tạo"
-
-
-msgid "Vertex Group Locks"
-msgstr "Khóa của Nhóm Điểm Đỉnh"
 
 
 msgid "Trim/Add"
@@ -34453,6 +34513,10 @@ msgid "Face Sets Init"
 msgstr "Khởi Thủy các Mặt Ấn Định"
 
 
+msgid "Layout"
+msgstr "Bố Trí"
+
+
 msgid "Random Mask"
 msgstr "Màn Chắn Lọc Ngẫu Nhiên"
 
@@ -34465,10 +34529,6 @@ msgid "In-Betweens"
 msgstr "Bước Trung Gian"
 
 
-msgid "Render Preview"
-msgstr "Góc Nhìn Kết Xuất"
-
-
 msgid "Propagate"
 msgstr "Lan Truyền"
 
@@ -34477,8 +34537,8 @@ msgid "Bone Collections"
 msgstr "Bộ Sưu Tập Xương"
 
 
-msgid "Names"
-msgstr "Tên"
+msgid "Adjust"
+msgstr "Điều Chỉnh"
 
 
 msgid "Toggle Bone Options"
@@ -34489,8 +34549,16 @@ msgid "Enable Bone Options"
 msgstr "Bật các Tùy Chọn về Xương"
 
 
+msgid "Keying"
+msgstr "Khóa Hóa"
+
+
 msgid "Disable Bone Options"
 msgstr "Tắt các Tùy Chọn về Xương"
+
+
+msgid "Tracking"
+msgstr "Giám Sát"
 
 
 msgid "Mesh Select Mode"
@@ -34499,6 +34567,10 @@ msgstr "Chế Độ Chọn Khung Lưới"
 
 msgid "Face Data"
 msgstr "Dữ Liệu Mặt"
+
+
+msgid "Creative"
+msgstr "Kiến Tạo"
 
 
 msgid "Select by Face Strength"
@@ -34513,88 +34585,16 @@ msgid "Merge"
 msgstr "Hợp Nhất"
 
 
-msgid "Read"
-msgstr "Đọc"
+msgid "Render Preview"
+msgstr "Góc Nhìn Kết Xuất"
 
 
 msgid "Special Characters"
 msgstr "Các Ký Tự Đặc Biệt"
 
 
-msgid "Sample"
-msgstr "Lấy Mẫu Vật"
-
-
 msgid "Kerning"
 msgstr "Tinh Chỉnh Khoảng Cách Ký Tự"
-
-
-msgid "Write"
-msgstr "Viết"
-
-
-msgid "Primitives"
-msgstr "Hình Cơ Bản"
-
-
-msgid "Bone Roll"
-msgstr "Lăn Xương"
-
-
-msgid "Gizmo"
-msgstr "Dụng Cụ"
-
-
-msgid "Instances"
-msgstr "Thực Thể"
-
-
-msgid "Import"
-msgstr "Nhập Khẩu"
-
-
-msgid "Pivot Point"
-msgstr "Điểm Tựa"
-
-
-msgid "Snap"
-msgstr "Bám Dính"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Suy Giảm Dần trong Biên Soạn Cân Đối"
-
-
-msgid "Deprecated"
-msgstr "Lỗi Thời"
-
-
-msgid "Mask Edit"
-msgstr "Biên Soạn Màn Chắn Lọc"
-
-
-msgid "Automasking"
-msgstr "Tự Động Chắn Lọc"
-
-
-msgid "Face Sets Edit"
-msgstr "Biên Soạn các Mặt Ấn Định"
-
-
-msgid "List"
-msgstr "Nâng"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Phản Chiếu Đối Xứng"
-
-
-msgid "UV Mapping"
-msgstr "Ánh Xạ UV"
 
 
 msgid "Keyframe Insert Pie"
@@ -80344,10 +80344,6 @@ msgid "Project the geometry onto a plane defined by a line"
 msgstr "Phóng chiếu hình học lên một bình diện được định nghĩa bởi một đường thẳng"
 
 
-msgid "Sample the vertex color of the active vertex"
-msgstr "Lấy mẫu màu điểm đỉnh của điểm đỉnh đang hoạt động"
-
-
 msgctxt "Operator"
 msgid "Sample Detail Size"
 msgstr "Lấy Mẫu Vật Cỡ Chi Tiết"
@@ -89163,78 +89159,6 @@ msgid "Panel containing UI elements"
 msgstr "Bảng có chứa các phần tử Giao Diện Người Dùng (UI)"
 
 
-msgid "Curve Edit Mode"
-msgstr "Chế Độ Biên Soạn Đường Cong"
-
-
-msgid "Curves Edit Mode"
-msgstr "Chế Độ Biên Soạn Đường Cong"
-
-
-msgid "Transform Orientations"
-msgstr "Các Định Hướng Biến Hóa"
-
-
-msgid "Stroke Placement"
-msgstr "Phương Pháp Đặt Nét Vẽ"
-
-
-msgid "Drawing Plane"
-msgstr "Bề Diện Tác Họa"
-
-
-msgid "Guides"
-msgstr "Hướng Dẫn"
-
-
-msgid "Grease Pencil Options"
-msgstr "Các Tùy Chọn Bút Chì Dầu"
-
-
-msgid "Quad View"
-msgstr "Bốn Góc Nhìn"
-
-
-msgid "Onion Skin"
-msgstr "Bóc Vỏ Hành"
-
-
-msgid "Stereoscopy"
-msgstr "Lập Thể"
-
-
-msgid "Multi Frame"
-msgstr "Đa Khung Hình"
-
-
-msgid "Auto-Masking"
-msgstr "Tự Động Chắn Lọc"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "Điêu Khắc Đường Cong: Các Tùy Chọn về Thêm Đường Cong"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "Điêu Khắc Đường Cong Tham Số Suy Giảm Dần"
-
-
-msgid "Curves Grow/Shrink Scaling"
-msgstr "Tỷ Lệ Phình Ra/Thu Lại của Đường Cong"
-
-
-msgid "Viewport Debug"
-msgstr "Hiệu Chỉnh Lỗi Cổng Nhìn"
-
-
-msgid "VR"
-msgstr "Virtual Reality: Thực Tế Ảo"
-
-
-msgid "VR Info"
-msgstr "Thông Tin VR"
-
-
 msgid "glTF Variants"
 msgstr "Biến Thể glTF"
 
@@ -89287,6 +89211,10 @@ msgid "Overlays"
 msgstr "Lớp Vẽ Lồng"
 
 
+msgid "Guides"
+msgstr "Hướng Dẫn"
+
+
 msgid "Viewer Node"
 msgstr "Nút Quan Sát"
 
@@ -89301,6 +89229,74 @@ msgstr "Chế Độ Biên Soạn Khung Lưới"
 
 msgid "Measurement"
 msgstr "Đo Lường"
+
+
+msgid "Curve Edit Mode"
+msgstr "Chế Độ Biên Soạn Đường Cong"
+
+
+msgid "Curves Edit Mode"
+msgstr "Chế Độ Biên Soạn Đường Cong"
+
+
+msgid "Transform Orientations"
+msgstr "Các Định Hướng Biến Hóa"
+
+
+msgid "Stroke Placement"
+msgstr "Phương Pháp Đặt Nét Vẽ"
+
+
+msgid "Drawing Plane"
+msgstr "Bề Diện Tác Họa"
+
+
+msgid "Grease Pencil Options"
+msgstr "Các Tùy Chọn Bút Chì Dầu"
+
+
+msgid "Quad View"
+msgstr "Bốn Góc Nhìn"
+
+
+msgid "Onion Skin"
+msgstr "Bóc Vỏ Hành"
+
+
+msgid "Stereoscopy"
+msgstr "Lập Thể"
+
+
+msgid "Multi Frame"
+msgstr "Đa Khung Hình"
+
+
+msgid "Auto-Masking"
+msgstr "Tự Động Chắn Lọc"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "Điêu Khắc Đường Cong: Các Tùy Chọn về Thêm Đường Cong"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "Điêu Khắc Đường Cong Tham Số Suy Giảm Dần"
+
+
+msgid "Curves Grow/Shrink Scaling"
+msgstr "Tỷ Lệ Phình Ra/Thu Lại của Đường Cong"
+
+
+msgid "Viewport Debug"
+msgstr "Hiệu Chỉnh Lỗi Cổng Nhìn"
+
+
+msgid "VR"
+msgstr "Virtual Reality: Thực Tế Ảo"
+
+
+msgid "VR Info"
+msgstr "Thông Tin VR"
 
 
 msgid "Import Settings"
@@ -127391,10 +127387,6 @@ msgstr "Các vành đai-cạnh không kết nối với nhau"
 
 msgid "color_index is invalid"
 msgstr "chỉ số màu (color_index) không hợp lệ"
-
-
-msgid "Compositor node tree has cyclic links!"
-msgstr "Cây nút trình tổng hợp có các liên kết tuần hoàn!"
 
 
 msgid "Error: Too many AOVs"

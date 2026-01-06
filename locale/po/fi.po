@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -7244,8 +7244,48 @@ msgid "ID Type"
 msgstr "ID-tyyppi"
 
 
+msgid "Show/Hide"
+msgstr "Näytä/Piilota"
+
+
+msgid "Names"
+msgstr "Nimet"
+
+
+msgid "Math"
+msgstr "Matematiikka"
+
+
+msgid "Utilities"
+msgstr "Työkalut"
+
+
+msgid "Read"
+msgstr "Lue"
+
+
+msgid "Write"
+msgstr "Kirjoita"
+
+
+msgid "Instances"
+msgstr "Instanssit"
+
+
+msgid "Import"
+msgstr "Tuo"
+
+
+msgid "UV Mapping"
+msgstr "UV-kartoittaminen"
+
+
 msgid "Select More/Less"
 msgstr "Valitse enemmän/vähemmän"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -7280,56 +7320,16 @@ msgid "Track"
 msgstr "Raide"
 
 
-msgid "Show/Hide"
-msgstr "Näytä/Piilota"
-
-
-msgid "Utilities"
-msgstr "Työkalut"
-
-
 msgid "Hooks"
 msgstr "Koukut"
-
-
-msgid "Math"
-msgstr "Matematiikka"
 
 
 msgid "Random Mask"
 msgstr "Satunnainen maski"
 
 
-msgid "Names"
-msgstr "Nimet"
-
-
 msgid "Mesh Select Mode"
 msgstr "Muodon valintatila"
-
-
-msgid "Read"
-msgstr "Lue"
-
-
-msgid "Write"
-msgstr "Kirjoita"
-
-
-msgid "Instances"
-msgstr "Instanssit"
-
-
-msgid "Import"
-msgstr "Tuo"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "UV Mapping"
-msgstr "UV-kartoittaminen"
 
 
 msgid "Basic"

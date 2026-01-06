@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-10-17 15:15+0000\n"
 "Last-Translator: Gorazd Gorup <gorupgorazd@gmail.com>\n"
 "Language-Team: Slovenian <https://translate.blender.org/projects/blender-ui/ui/sl/>\n"
@@ -25524,6 +25524,86 @@ msgid "Use Material Mask"
 msgstr "Uporabi masko materiala"
 
 
+msgid "Show/Hide"
+msgstr "Pokaži / skrij"
+
+
+msgid "Names"
+msgstr "Imena"
+
+
+msgid "Bone Roll"
+msgstr "Zasukaj kost"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Utilities"
+msgstr "Pripomočki"
+
+
+msgid "Clean Up"
+msgstr "Počisti"
+
+
+msgid "Pivot Point"
+msgstr "Osišče"
+
+
+msgid "Snap"
+msgstr "Pritrdi"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Slabljenje sorazmernega urejanja"
+
+
+msgid "Mask Edit"
+msgstr "Urejanje maske"
+
+
+msgid "Automasking"
+msgstr "Samodejno maskiranje"
+
+
+msgid "Read"
+msgstr "Branje"
+
+
+msgid "Sample"
+msgstr "Vzorčenje"
+
+
+msgid "Write"
+msgstr "Zapiši"
+
+
+msgid "Primitives"
+msgstr "Primitivi"
+
+
+msgid "Gizmo"
+msgstr "Manipulator"
+
+
+msgid "Instances"
+msgstr "Primerki"
+
+
+msgid "Import"
+msgstr "Uvozi"
+
+
+msgid "Mirror"
+msgstr "Zrcali"
+
+
+msgid "UV Mapping"
+msgstr "Preslikanje UV"
+
+
 msgid "Local View"
 msgstr "Krajevni pogled"
 
@@ -25534,6 +25614,10 @@ msgstr "Gledišče"
 
 msgid "Navigation"
 msgstr "Navigacija"
+
+
+msgid "Deprecated"
+msgstr "Zastarelo"
 
 
 msgid "Align View"
@@ -25550,6 +25634,14 @@ msgstr "Področja pogleda"
 
 msgid "Select More/Less"
 msgstr "Izberi več / manj"
+
+
+msgid "List"
+msgstr "Seznam"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -25584,10 +25676,6 @@ msgid "Light Probe"
 msgstr "Svetlobna sonda"
 
 
-msgid "Layout"
-msgstr "Ureditev"
-
-
 msgid "Add Image"
 msgstr "Dodaj sliko"
 
@@ -25608,24 +25696,8 @@ msgid "Track"
 msgstr "Obriši"
 
 
-msgid "Adjust"
-msgstr "Prilagoditev"
-
-
 msgid "Quick Effects"
 msgstr "Učinki na hitro"
-
-
-msgid "Show/Hide"
-msgstr "Pokaži / skrij"
-
-
-msgid "Clean Up"
-msgstr "Počisti"
-
-
-msgid "Keying"
-msgstr "Ključenje"
 
 
 msgid "Asset"
@@ -25636,10 +25708,6 @@ msgid "Make Single User"
 msgstr "Naredi edinstveno uporabniku"
 
 
-msgid "Tracking"
-msgstr "Sledenje"
-
-
 msgid "Convert"
 msgstr "Pretvori"
 
@@ -25648,24 +25716,16 @@ msgid "Link/Transfer Data"
 msgstr "Poveži / prenesi podatke"
 
 
-msgid "Utilities"
-msgstr "Pripomočki"
-
-
 msgid "Hooks"
 msgstr "Kavlji"
 
 
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "Creative"
-msgstr "Ustvarjanje"
-
-
 msgid "Trim/Add"
 msgstr "Poreži / dodaj"
+
+
+msgid "Layout"
+msgstr "Ureditev"
 
 
 msgid "Random Mask"
@@ -25680,10 +25740,6 @@ msgid "In-Betweens"
 msgstr "Vmesni okvirji"
 
 
-msgid "Render Preview"
-msgstr "Predogled upodobitve"
-
-
 msgid "Propagate"
 msgstr "Razširjanje"
 
@@ -25692,12 +25748,24 @@ msgid "Bone Collections"
 msgstr "Zbirke kosti"
 
 
-msgid "Names"
-msgstr "Imena"
+msgid "Adjust"
+msgstr "Prilagoditev"
+
+
+msgid "Keying"
+msgstr "Ključenje"
+
+
+msgid "Tracking"
+msgstr "Sledenje"
 
 
 msgid "Face Data"
 msgstr "Podatki lic"
+
+
+msgid "Creative"
+msgstr "Ustvarjanje"
 
 
 msgid "Select by Face Strength"
@@ -25712,84 +25780,16 @@ msgid "Merge"
 msgstr "Združi"
 
 
-msgid "Read"
-msgstr "Branje"
+msgid "Render Preview"
+msgstr "Predogled upodobitve"
 
 
 msgid "Special Characters"
 msgstr "Posebni znaki"
 
 
-msgid "Sample"
-msgstr "Vzorčenje"
-
-
 msgid "Kerning"
 msgstr "Spodsekavanje"
-
-
-msgid "Write"
-msgstr "Zapiši"
-
-
-msgid "Primitives"
-msgstr "Primitivi"
-
-
-msgid "Bone Roll"
-msgstr "Zasukaj kost"
-
-
-msgid "Gizmo"
-msgstr "Manipulator"
-
-
-msgid "Instances"
-msgstr "Primerki"
-
-
-msgid "Import"
-msgstr "Uvozi"
-
-
-msgid "Pivot Point"
-msgstr "Osišče"
-
-
-msgid "Snap"
-msgstr "Pritrdi"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Slabljenje sorazmernega urejanja"
-
-
-msgid "Deprecated"
-msgstr "Zastarelo"
-
-
-msgid "Mask Edit"
-msgstr "Urejanje maske"
-
-
-msgid "Automasking"
-msgstr "Samodejno maskiranje"
-
-
-msgid "List"
-msgstr "Seznam"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Zrcali"
-
-
-msgid "UV Mapping"
-msgstr "Preslikanje UV"
 
 
 msgid "Animals"
@@ -49228,66 +49228,6 @@ msgid "Panel containing UI elements"
 msgstr "Plošča, ki vsebuje elemente uporabniškega vmesnika"
 
 
-msgid "Curve Edit Mode"
-msgstr "Krivuljni urejevalni način"
-
-
-msgid "Curves Edit Mode"
-msgstr "Urejevalni način za krivulje"
-
-
-msgid "Transform Orientations"
-msgstr "Usmerjenost transformacij"
-
-
-msgid "Stroke Placement"
-msgstr "Postavitev poteze"
-
-
-msgid "Drawing Plane"
-msgstr "Risalna ravnina"
-
-
-msgid "Guides"
-msgstr "Vodnice"
-
-
-msgid "Grease Pencil Options"
-msgstr "Možnosti Grease Pencil"
-
-
-msgid "Quad View"
-msgstr "Četverni pogled"
-
-
-msgid "Onion Skin"
-msgstr "Čebuljenje"
-
-
-msgid "Stereoscopy"
-msgstr "Stereoskopija"
-
-
-msgid "Multi Frame"
-msgstr "Multiokvir"
-
-
-msgid "Auto-Masking"
-msgstr "Samodejno maskiranje"
-
-
-msgid "Viewport Debug"
-msgstr "Razhroščevanje 3D pogleda"
-
-
-msgid "VR"
-msgstr "VR"
-
-
-msgid "VR Info"
-msgstr "Informacije VR"
-
-
 msgid "glTF"
 msgstr "glTF"
 
@@ -49336,6 +49276,10 @@ msgid "Overlays"
 msgstr "Pomagala"
 
 
+msgid "Guides"
+msgstr "Vodnice"
+
+
 msgid "Viewer Node"
 msgstr "Predogledno vozlišče"
 
@@ -49350,6 +49294,62 @@ msgstr "Mrežni urejevalni način"
 
 msgid "Measurement"
 msgstr "Meritev"
+
+
+msgid "Curve Edit Mode"
+msgstr "Krivuljni urejevalni način"
+
+
+msgid "Curves Edit Mode"
+msgstr "Urejevalni način za krivulje"
+
+
+msgid "Transform Orientations"
+msgstr "Usmerjenost transformacij"
+
+
+msgid "Stroke Placement"
+msgstr "Postavitev poteze"
+
+
+msgid "Drawing Plane"
+msgstr "Risalna ravnina"
+
+
+msgid "Grease Pencil Options"
+msgstr "Možnosti Grease Pencil"
+
+
+msgid "Quad View"
+msgstr "Četverni pogled"
+
+
+msgid "Onion Skin"
+msgstr "Čebuljenje"
+
+
+msgid "Stereoscopy"
+msgstr "Stereoskopija"
+
+
+msgid "Multi Frame"
+msgstr "Multiokvir"
+
+
+msgid "Auto-Masking"
+msgstr "Samodejno maskiranje"
+
+
+msgid "Viewport Debug"
+msgstr "Razhroščevanje 3D pogleda"
+
+
+msgid "VR"
+msgstr "VR"
+
+
+msgid "VR Info"
+msgstr "Informacije VR"
 
 
 msgid "Import Settings"
@@ -70597,10 +70597,6 @@ msgstr "Robni obroči niso povezani"
 
 msgid "color_index is invalid"
 msgstr "color_index je neveljaven"
-
-
-msgid "Compositor node tree has cyclic links!"
-msgstr "Vozlišča stavljenja slike imajo ciklične povezave!"
 
 
 msgid "Error: Too many AOVs"

@@ -206,8 +206,11 @@ static const EnumPropertyItem rna_enum_preferences_asset_import_method_items[] =
 
 #ifdef RNA_RUNTIME
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_vector.h"
 #  include "BLI_memory_cache.hh"
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 #  include "BLI_string_utils.hh"
 
 #  include "DNA_object_types.h"
@@ -1009,7 +1012,7 @@ static void rna_userdef_autosave_update(Main *bmain, Scene *scene, PointerRNA *p
 
 static bAddon *rna_userdef_addon_new()
 {
-  ListBase *addons_list = &U.addons;
+  ListBaseT<bAddon> *addons_list = &U.addons;
   bAddon *addon = BKE_addon_new();
   BLI_addtail(addons_list, addon);
   USERDEF_TAG_DIRTY;
@@ -1018,7 +1021,7 @@ static bAddon *rna_userdef_addon_new()
 
 static void rna_userdef_addon_remove(ReportList *reports, PointerRNA *addon_ptr)
 {
-  ListBase *addons_list = &U.addons;
+  ListBaseT<bAddon> *addons_list = &U.addons;
   bAddon *addon = static_cast<bAddon *>(addon_ptr->data);
   if (BLI_findindex(addons_list, addon) == -1) {
     BKE_report(reports, RPT_ERROR, "Add-on is no longer valid");
@@ -1322,7 +1325,7 @@ static void rna_ThemeUI_roundness_set(PointerRNA *ptr, float value)
 /* Studio Light */
 static void rna_UserDef_studiolight_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  rna_iterator_listbase_begin(iter, ptr, BKE_studiolight_listbase(), nullptr);
+  rna_iterator_listbase_begin(iter, ptr, &BKE_studiolight_listbase(), nullptr);
 }
 
 static void rna_StudioLights_refresh(UserDef * /*userdef*/)

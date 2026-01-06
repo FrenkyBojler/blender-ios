@@ -5531,10 +5531,8 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
   int data_index = 0;
 
   int face_len_alloc = 3;
-  float (*uv_verts)[2] = static_cast<float (*)[2]>(
-      MEM_mallocN(sizeof(*uv_verts) * face_len_alloc, "UvOverlapCoords"));
-  uint(*indices)[3] = static_cast<uint(*)[3]>(
-      MEM_mallocN(sizeof(*indices) * (face_len_alloc - 2), "UvOverlapTris"));
+  float (*uv_verts)[2] = MEM_malloc_arrayN<float[2]>(face_len_alloc, "UvOverlapCoords");
+  uint(*indices)[3] = MEM_malloc_arrayN<uint[3]>(face_len_alloc - 2, "UvOverlapTris");
 
   MemArena *arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
   Heap *heap = BLI_heap_new_ex(BLI_POLYFILL_ALLOC_NGON_RESERVE);
@@ -5562,10 +5560,8 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       if (face_len_alloc < face_len) {
         MEM_freeN(uv_verts);
         MEM_freeN(indices);
-        uv_verts = static_cast<float (*)[2]>(
-            MEM_mallocN(sizeof(*uv_verts) * face_len, "UvOverlapCoords"));
-        indices = static_cast<uint(*)[3]>(
-            MEM_mallocN(sizeof(*indices) * tri_len, "UvOverlapTris"));
+        uv_verts = MEM_malloc_arrayN<float[2]>(face_len, "UvOverlapCoords");
+        indices = MEM_malloc_arrayN<uint[3]>(tri_len, "UvOverlapTris");
         face_len_alloc = face_len;
       }
 
@@ -6331,7 +6327,8 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
 
-  ListBase *island_list_ptr = MEM_calloc_arrayN<ListBase>(objects.size(), __func__);
+  ListBaseT<FaceIsland> *island_list_ptr = MEM_calloc_arrayN<ListBaseT<FaceIsland>>(objects.size(),
+                                                                                    __func__);
   int island_list_len = 0;
 
   const bool face_selected = !(scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC);
@@ -6345,8 +6342,7 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
         scene, bm, &island_list_ptr[ob_index], face_selected, false, false, aspect_y, offsets);
   }
 
-  FaceIsland **island_array = static_cast<FaceIsland **>(
-      MEM_callocN(sizeof(*island_array) * island_list_len, __func__));
+  FaceIsland **island_array = MEM_calloc_arrayN<FaceIsland *>(island_list_len, __func__);
 
   int tree_index = 0;
   blender::KDTree_1d *tree_1d = blender::kdtree_1d_new(island_list_len);
@@ -6358,13 +6354,12 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
     float ob_m3[3][3];
     copy_m3_m4(ob_m3, obedit->object_to_world().ptr());
 
-    int index;
-    LISTBASE_FOREACH_INDEX (FaceIsland *, island, &island_list_ptr[ob_index], index) {
-      island_array[index] = island;
-      if (!uv_island_selected(scene, bm, island)) {
+    for (const auto [index, island] : island_list_ptr[ob_index].enumerate()) {
+      island_array[index] = &island;
+      if (!uv_island_selected(scene, bm, &island)) {
         continue;
       }
-      float needle = get_uv_island_needle(type, island, ob_m3, island->offsets);
+      float needle = get_uv_island_needle(type, &island, ob_m3, island.offsets);
       if (tree_1d) {
         blender::kdtree_1d_insert(tree_1d, tree_index++, &needle);
       }
@@ -6389,19 +6384,19 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
     copy_m3_m4(ob_m3, obedit->object_to_world().ptr());
 
     bool changed = false;
-    int index;
-    LISTBASE_FOREACH_INDEX (FaceIsland *, island, &island_list_ptr[ob_index], index) {
-      island_array[tot_island_index++] = island; /* To deallocate later. */
-      if (uv_island_selected(scene, bm, island)) {
+
+    for (const auto [index, island] : island_list_ptr[ob_index].enumerate()) {
+      island_array[tot_island_index++] = &island; /* To deallocate later. */
+      if (uv_island_selected(scene, bm, &island)) {
         continue;
       }
-      float needle = get_uv_island_needle(type, island, ob_m3, island->offsets);
+      float needle = get_uv_island_needle(type, &island, ob_m3, island.offsets);
       bool select = ED_select_similar_compare_float_tree(tree_1d, needle, threshold, compare);
       if (!select) {
         continue;
       }
-      for (int j = 0; j < island->faces_len; j++) {
-        uvedit_face_select_set(scene, bm, island->faces[j], select);
+      for (int j = 0; j < island.faces_len; j++) {
+        uvedit_face_select_set(scene, bm, island.faces[j], select);
       }
       changed = true;
     }
