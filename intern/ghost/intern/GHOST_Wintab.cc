@@ -243,7 +243,7 @@ GHOST_Wintab::GHOST_Wintab(unique_hmodule handle,
       context_{std::move(hctx)},
       tablet_coord_{tablet},
       system_coord_{system},
-      pkts_{queueSize}
+      pkts_{queueSize},
       untrusted_hwnd_{untrusted_hwnd}
 {
   fp_info_(WTI_INTERFACE, IFC_NDEVICES, &num_devices_);
