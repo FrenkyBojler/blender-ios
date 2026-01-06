@@ -64,6 +64,7 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 
 #  include "DNA_userdef_types.h"
 
+#  include "BLI_listbase.h"
 #  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
 
@@ -72,6 +73,8 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
 #  include "BKE_undo_system.hh"
+
+#  include "UI_interface_c.hh"
 
 #  include "WM_types.hh"
 
@@ -126,6 +129,7 @@ static int rna_Operator_ui_popup(bContext *C, wmOperator *op, int width)
 
 static bool rna_event_modal_handler_add(bContext *C, ReportList *reports, wmOperator *op)
 {
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   if (win == nullptr) {
     BKE_report(reports, RPT_ERROR, "No active window in context!");
@@ -133,7 +137,7 @@ static bool rna_event_modal_handler_add(bContext *C, ReportList *reports, wmOper
   }
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
-  return WM_event_add_modal_handler_ex(win, area, region, op) != nullptr;
+  return WM_event_add_modal_handler_ex(wm, win, area, region, op) != nullptr;
 }
 
 static wmTimer *rna_event_timer_add(wmWindowManager *wm, float time_step, wmWindow *win)
@@ -624,14 +628,14 @@ static PointerRNA rna_PopMenuBegin(bContext *C,
     return PointerRNA_NULL;
   }
 
-  void *data = (void *)UI_popup_menu_begin(C, title, icon);
+  void *data = (void *)blender::ui::popup_menu_begin(C, title, icon);
   PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPopupMenu, data);
   return ptr_result;
 }
 
 static void rna_PopMenuEnd(bContext *C, PointerRNA *handle)
 {
-  UI_popup_menu_end(C, static_cast<uiPopupMenu *>(handle->data));
+  blender::ui::popup_menu_end(C, static_cast<blender::ui::PopupMenu *>(handle->data));
 }
 
 /* popover wrapper */
@@ -644,14 +648,15 @@ static PointerRNA rna_PopoverBegin(bContext *C,
     return PointerRNA_NULL;
   }
 
-  void *data = (void *)UI_popover_begin(C, U.widget_unit * ui_units_x, from_active_button);
+  void *data = (void *)blender::ui::popover_begin(
+      C, U.widget_unit * ui_units_x, from_active_button);
   PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPopover, data);
   return ptr_result;
 }
 
 static void rna_PopoverEnd(bContext *C, PointerRNA *handle, wmKeyMap *keymap)
 {
-  UI_popover_end(C, static_cast<uiPopover *>(handle->data), keymap);
+  blender::ui::popover_end(C, static_cast<blender::ui::Popover *>(handle->data), keymap);
 }
 
 /* pie menu wrapper */
@@ -662,7 +667,7 @@ static PointerRNA rna_PieMenuBegin(
     return PointerRNA_NULL;
   }
 
-  void *data = (void *)UI_pie_menu_begin(
+  void *data = (void *)blender::ui::pie_menu_begin(
       C, title, icon, static_cast<const wmEvent *>(event->data));
 
   PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPieMenu, data);
@@ -671,7 +676,7 @@ static PointerRNA rna_PieMenuBegin(
 
 static void rna_PieMenuEnd(bContext *C, PointerRNA *handle)
 {
-  UI_pie_menu_end(C, static_cast<uiPieMenu *>(handle->data));
+  blender::ui::pie_menu_end(C, static_cast<blender::ui::PieMenu *>(handle->data));
 }
 
 static void rna_WindowManager_print_undo_steps(wmWindowManager *wm)
@@ -747,7 +752,7 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
     }
   }
 
-  wmEvent e = *win->eventstate;
+  wmEvent e = *win->runtime->eventstate;
   e.type = wmEventType(type);
   e.val = value;
   e.flag = eWM_EventFlag(0);
@@ -1012,7 +1017,7 @@ void RNA_api_wm(StructRNA *srna)
 
   api_ui_item_common_translation(func);
 
-  /* wrap UI_popup_menu_begin */
+  /* wrap popup_menu_begin */
   func = RNA_def_function(srna, "popmenu_begin__internal", "rna_PopMenuBegin");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "title", nullptr, 0, "", "");
@@ -1024,13 +1029,13 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
-  /* wrap UI_popup_menu_end */
+  /* wrap popup_menu_end */
   func = RNA_def_function(srna, "popmenu_end__internal", "rna_PopMenuEnd");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "menu", "UIPopupMenu", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR | PARM_REQUIRED);
 
-  /* wrap UI_popover_begin */
+  /* wrap popover_begin */
   func = RNA_def_function(srna, "popover_begin__internal", "rna_PopoverBegin");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   RNA_def_property(func, "ui_units_x", PROP_INT, PROP_UNSIGNED);
@@ -1041,14 +1046,14 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_boolean(
       func, "from_active_button", false, "Use Button", "Use the active button for positioning");
 
-  /* wrap UI_popover_end */
+  /* wrap popover_end */
   func = RNA_def_function(srna, "popover_end__internal", "rna_PopoverEnd");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "menu", "UIPopover", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR | PARM_REQUIRED);
   RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Active key map");
 
-  /* wrap uiPieMenuBegin */
+  /* wrap blender::ui::PieMenuBegin */
   func = RNA_def_function(srna, "piemenu_begin__internal", "rna_PieMenuBegin");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "title", nullptr, 0, "", "");
@@ -1062,7 +1067,7 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
-  /* wrap uiPieMenuEnd */
+  /* wrap blender::ui::PieMenuEnd */
   func = RNA_def_function(srna, "piemenu_end__internal", "rna_PieMenuEnd");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "menu", "UIPieMenu", "", "");

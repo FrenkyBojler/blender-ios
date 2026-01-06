@@ -97,8 +97,8 @@ static bool UNUSED_FUNCTION(object_has_shaderfx)(const Object *ob,
                                                  const ShaderFxData *exclude,
                                                  ShaderFxType type)
 {
-  LISTBASE_FOREACH (ShaderFxData *, fx, &ob->shader_fx) {
-    if ((fx != exclude) && (fx->type == type)) {
+  for (ShaderFxData &fx : ob->shader_fx) {
+    if ((&fx != exclude) && (fx.type == type)) {
       return true;
     }
   }
@@ -425,7 +425,7 @@ static bool edit_shaderfx_invoke_properties(bContext *C,
 
   /* Check the custom data of panels under the mouse for an effect. */
   if (event != nullptr) {
-    PointerRNA *panel_ptr = UI_region_panel_custom_data_under_cursor(C, event);
+    PointerRNA *panel_ptr = ui::region_panel_custom_data_under_cursor(C, event);
 
     if (!(panel_ptr == nullptr || RNA_pointer_is_null(panel_ptr))) {
       if (RNA_struct_is_a(panel_ptr->type, &RNA_ShaderFx)) {

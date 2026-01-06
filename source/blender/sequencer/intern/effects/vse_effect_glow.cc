@@ -40,7 +40,7 @@ static void glow_blur_bitmap(
   Array<float4> temp(width * height);
 
   /* Initialize the gaussian filter.
-   * TODO: use code from #RE_filter_value. */
+   * TODO: use code from #filter_kernel_value. */
   Array<float> filter(halfWidth * 2);
   const float k = -1.0f / (2.0f * float(M_PI) * blur * blur);
   float weight = 0;
@@ -127,7 +127,7 @@ static void blur_isolate_highlights(const float4 *in,
 static void init_glow_effect(Strip *strip)
 {
   MEM_SAFE_FREE(strip->effectdata);
-  GlowVars *data = MEM_callocN<GlowVars>("glowvars");
+  GlowVars *data = MEM_new_for_free<GlowVars>("glowvars");
   strip->effectdata = data;
   data->fMini = 0.25f;
   data->fClamp = 1.0f;

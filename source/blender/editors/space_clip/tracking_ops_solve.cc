@@ -19,9 +19,9 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_report.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -35,16 +35,16 @@
 /********************** solve camera operator *********************/
 
 struct SolveCameraJob {
-  wmWindowManager *wm;
-  Scene *scene;
-  MovieClip *clip;
+  wmWindowManager *wm = nullptr;
+  Scene *scene = nullptr;
+  MovieClip *clip = nullptr;
   MovieClipUser user;
 
-  ReportList *reports;
+  ReportList *reports = nullptr;
 
-  char stats_message[256];
+  char stats_message[256] = "";
 
-  MovieReconstructContext *context;
+  MovieReconstructContext *context = nullptr;
 };
 
 static bool solve_camera_initjob(
@@ -77,7 +77,7 @@ static bool solve_camera_initjob(
                                                          width,
                                                          height);
 
-  tracking->stats = MEM_callocN<MovieTrackingStats>("solve camera stats");
+  tracking->stats = MEM_new_for_free<MovieTrackingStats>("solve camera stats");
 
   WM_locked_interface_set(scj->wm, true);
 
@@ -180,7 +180,7 @@ static wmOperatorStatus solve_camera_exec(bContext *C, wmOperator *op)
 {
   SolveCameraJob *scj;
   char error_msg[256] = "\0";
-  scj = MEM_callocN<SolveCameraJob>("SolveCameraJob data");
+  scj = MEM_new_for_free<SolveCameraJob>("SolveCameraJob data");
   if (!solve_camera_initjob(C, scj, op, error_msg, sizeof(error_msg))) {
     if (error_msg[0]) {
       BKE_report(op->reports, RPT_ERROR, error_msg);
@@ -210,7 +210,7 @@ static wmOperatorStatus solve_camera_invoke(bContext *C, wmOperator *op, const w
     return OPERATOR_CANCELLED;
   }
 
-  scj = MEM_callocN<SolveCameraJob>("SolveCameraJob data");
+  scj = MEM_new_for_free<SolveCameraJob>("SolveCameraJob data");
   if (!solve_camera_initjob(C, scj, op, error_msg, sizeof(error_msg))) {
     if (error_msg[0]) {
       BKE_report(op->reports, RPT_ERROR, error_msg);
@@ -292,8 +292,8 @@ static wmOperatorStatus clear_solution_exec(bContext *C, wmOperator * /*op*/)
   MovieTrackingObject *tracking_object = BKE_tracking_object_get_active(&clip->tracking);
   MovieTrackingReconstruction *reconstruction = &tracking_object->reconstruction;
 
-  LISTBASE_FOREACH (MovieTrackingTrack *, track, &tracking_object->tracks) {
-    track->flag &= ~TRACK_HAS_BUNDLE;
+  for (MovieTrackingTrack &track : tracking_object->tracks) {
+    track.flag &= ~TRACK_HAS_BUNDLE;
   }
 
   MEM_SAFE_FREE(reconstruction->cameras);

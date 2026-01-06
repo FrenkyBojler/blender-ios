@@ -21,7 +21,7 @@
 namespace blender::nodes::node_geo_closure_cc {
 
 /** Shared between closure input and output node. */
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_node_ptr)
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_node_ptr)
 {
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(current_node_ptr->owner_id);
   bNode *current_node = static_cast<bNode *>(current_node_ptr->data);
@@ -39,15 +39,15 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   }
   bNode &output_node = const_cast<bNode &>(*zone->output_node());
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   PointerRNA output_node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &output_node);
 
-  layout->op("node.sockets_sync", IFACE_("Sync"), ICON_FILE_REFRESH);
-  layout->prop(&output_node_ptr, "define_signature", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.op("node.sockets_sync", IFACE_("Sync"), ICON_FILE_REFRESH);
+  layout.prop(&output_node_ptr, "define_signature", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (current_node->type_legacy == NODE_CLOSURE_INPUT) {
-    if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
+    if (ui::Layout *panel = layout.panel(C, "input_items", false, IFACE_("Input Items"))) {
       socket_items::ui::draw_items_list_with_operators<ClosureInputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ClosureInputItemsAccessor>(
@@ -63,7 +63,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
     }
   }
   else {
-    if (uiLayout *panel = layout->panel(C, "output_items", false, IFACE_("Output Items"))) {
+    if (ui::Layout *panel = layout.panel(C, "output_items", false, IFACE_("Output Items"))) {
       socket_items::ui::draw_items_list_with_operators<ClosureOutputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ClosureOutputItemsAccessor>(
@@ -120,7 +120,7 @@ static void node_label(const bNodeTree * /*ntree*/,
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeClosureInput *data = MEM_callocN<NodeClosureInput>(__func__);
+  NodeClosureInput *data = MEM_new_for_free<NodeClosureInput>(__func__);
   node->storage = data;
 }
 
@@ -184,14 +184,15 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeClosureOutput *data = MEM_callocN<NodeClosureOutput>(__func__);
+  NodeClosureOutput *data = MEM_new_for_free<NodeClosureOutput>(__func__);
   node->storage = data;
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeClosureOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_dupallocN<NodeClosureOutput>(__func__, src_storage);
+  auto *dst_storage = MEM_new_for_free<NodeClosureOutput>(__func__,
+                                                          blender::dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<ClosureInputItemsAccessor>(*src_node, *dst_node);

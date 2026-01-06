@@ -498,7 +498,7 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, const bool use_select, const bool re
   if (totuv == 0) {
     return nullptr;
   }
-  UvVertMap *vmap = (UvVertMap *)MEM_callocN(sizeof(*vmap), "UvVertMap");
+  UvVertMap *vmap = MEM_callocN<UvVertMap>("UvVertMap");
   if (!vmap) {
     return nullptr;
   }
@@ -596,8 +596,7 @@ UvElement **BM_uv_element_map_ensure_head_table(UvElementMap *element_map)
   }
 
   /* For each UvElement, locate the "separate" UvElement that precedes it in the linked list. */
-  element_map->head_table = static_cast<UvElement **>(
-      MEM_mallocN(sizeof(*element_map->head_table) * element_map->total_uvs, __func__));
+  element_map->head_table = MEM_malloc_arrayN<UvElement *>(element_map->total_uvs, __func__);
   UvElement **head_table = element_map->head_table;
   for (int i = 0; i < element_map->total_uvs; i++) {
     UvElement *head = element_map->storage + i;
@@ -618,8 +617,7 @@ UvElement **BM_uv_element_map_ensure_head_table(UvElementMap *element_map)
 int *BM_uv_element_map_ensure_unique_index(UvElementMap *element_map)
 {
   if (!element_map->unique_index_table) {
-    element_map->unique_index_table = static_cast<int *>(
-        MEM_callocN(element_map->total_uvs * sizeof(*element_map->unique_index_table), __func__));
+    element_map->unique_index_table = MEM_calloc_arrayN<int>(element_map->total_uvs, __func__);
 
     int j = 0;
     for (int i = 0; i < element_map->total_uvs; i++) {
@@ -689,8 +687,7 @@ static int bm_uv_edge_select_build_islands(UvElementMap *element_map,
   int nislands = 0;
   int islandbufsize = 0;
   int stack_upper_bound = total_uvs;
-  UvElement **stack_uv = static_cast<UvElement **>(
-      MEM_mallocN(sizeof(*stack_uv) * stack_upper_bound, __func__));
+  UvElement **stack_uv = MEM_malloc_arrayN<UvElement *>(stack_upper_bound, __func__);
   int stacksize_uv = 0;
   for (int i = 0; i < total_uvs; i++) {
     UvElement *element = element_map->storage + i;
@@ -1053,12 +1050,10 @@ UvElementMap *BM_uv_element_map_create(BMesh *bm,
     return nullptr;
   }
 
-  UvElementMap *element_map = (UvElementMap *)MEM_callocN(sizeof(*element_map), "UvElementMap");
+  UvElementMap *element_map = MEM_callocN<UvElementMap>("UvElementMap");
   element_map->total_uvs = totuv;
-  element_map->vertex = (UvElement **)MEM_callocN(sizeof(*element_map->vertex) * bm->totvert,
-                                                  "UvElementVerts");
-  element_map->storage = (UvElement *)MEM_callocN(sizeof(*element_map->storage) * totuv,
-                                                  "UvElement");
+  element_map->vertex = MEM_calloc_arrayN<UvElement *>(bm->totvert, "UvElementVerts");
+  element_map->storage = MEM_calloc_arrayN<UvElement>(totuv, "UvElement");
 
   bool *winding = use_winding ? MEM_calloc_arrayN<bool>(bm->totface, "winding") : nullptr;
 
@@ -1323,7 +1318,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
   const float maxdist_sq = square_f(maxdist);
 
   /* one or the other is used depending if topo is enabled */
-  KDTree_3d *tree = nullptr;
+  blender::KDTree_3d *tree = nullptr;
   MirrTopoStore_t mesh_topo_store = {nullptr, -1, -1, false};
 
   BM_mesh_elem_table_ensure(bm, BM_VERT);
@@ -1350,15 +1345,15 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
     ED_mesh_mirrtopo_init(em, nullptr, &mesh_topo_store, true);
   }
   else {
-    tree = BLI_kdtree_3d_new(bm->totvert);
+    tree = blender::kdtree_3d_new(bm->totvert);
     BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
       if (respecthide && BM_elem_flag_test(v, BM_ELEM_HIDDEN)) {
         continue;
       }
 
-      BLI_kdtree_3d_insert(tree, i, v->co);
+      blender::kdtree_3d_insert(tree, i, v->co);
     }
-    BLI_kdtree_3d_balance(tree);
+    blender::kdtree_3d_balance(tree);
   }
 
 #define VERT_INTPTR(_v, _i) \
@@ -1392,7 +1387,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
       co[axis] *= -1.0f;
 
       v_mirr = nullptr;
-      i_mirr = BLI_kdtree_3d_find_nearest(tree, co, nullptr);
+      i_mirr = blender::kdtree_3d_find_nearest(tree, co, nullptr);
       if (i_mirr != -1) {
         BMVert *v_test = BM_vert_at_index(bm, i_mirr);
         if (len_squared_v3v3(co, v_test->co) < maxdist_sq) {
@@ -1418,7 +1413,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
     ED_mesh_mirrtopo_free(&mesh_topo_store);
   }
   else {
-    BLI_kdtree_3d_free(tree);
+    blender::kdtree_3d_free(tree);
   }
 }
 
@@ -1802,8 +1797,8 @@ void EDBM_update(Mesh *mesh, const EDBMUpdate_Params *params)
 
 #ifndef NDEBUG
   {
-    LISTBASE_FOREACH (BMEditSelection *, ese, &em->bm->selected) {
-      BLI_assert(BM_elem_flag_test(ese->ele, BM_ELEM_SELECT));
+    for (BMEditSelection &ese : em->bm->selected) {
+      BLI_assert(BM_elem_flag_test(ese.ele, BM_ELEM_SELECT));
     }
   }
 #endif
@@ -2082,3 +2077,21 @@ void EDBM_project_snap_verts(
 }
 
 /** \} */
+
+bool EDBM_smooth_vert(BMEditMesh *em, wmOperator *op)
+{
+  return EDBM_op_callf(em,
+                       op,
+                       "smooth_vert verts=%hv factor=%f mirror_clip_x=%b mirror_clip_y=%b "
+                       "mirror_clip_z=%b "
+                       "clip_dist=%f use_axis_x=%b use_axis_y=%b use_axis_z=%b",
+                       BM_ELEM_TAG,
+                       1.0,
+                       false,
+                       false,
+                       false,
+                       0.1,
+                       true,
+                       true,
+                       true);
+}

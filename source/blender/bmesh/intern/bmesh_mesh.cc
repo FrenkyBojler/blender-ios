@@ -132,7 +132,7 @@ void BM_mesh_elem_toolflags_clear(BMesh *bm)
 BMesh *BM_mesh_create(const BMAllocTemplate *allocsize, const BMeshCreateParams *params)
 {
   /* allocate the structure */
-  BMesh *bm = MEM_callocN<BMesh>(__func__);
+  BMesh *bm = MEM_new_for_free<BMesh>(__func__);
 
   /* allocate the memory pools for the mesh elements */
   bm_mempool_init(bm, allocsize, params->use_toolflags);
@@ -301,7 +301,7 @@ void bmesh_edit_begin(BMesh * /*bm*/, BMOpTypeFlag /*type_flag*/)
 
 void bmesh_edit_end(BMesh *bm, BMOpTypeFlag type_flag)
 {
-  ListBase select_history;
+  ListBaseT<BMEditSelection> select_history;
 
   /* BMO_OPTYPE_FLAG_UNTAN_MULTIRES disabled for now, see comment above in bmesh_edit_begin. */
 #ifdef BMOP_UNTAN_MULTIRES_ENABLED
@@ -592,8 +592,7 @@ void BM_mesh_elem_table_ensure(BMesh *bm, const char htype)
       if (bm->vtable) {
         MEM_freeN(bm->vtable);
       }
-      bm->vtable = static_cast<BMVert **>(
-          MEM_mallocN(sizeof(void **) * bm->totvert, "bm->vtable"));
+      bm->vtable = MEM_malloc_arrayN<BMVert *>(bm->totvert, "bm->vtable");
       bm->vtable_tot = bm->totvert;
     }
     BM_iter_as_array(bm, BM_VERTS_OF_MESH, nullptr, (void **)bm->vtable, bm->totvert);
@@ -606,8 +605,7 @@ void BM_mesh_elem_table_ensure(BMesh *bm, const char htype)
       if (bm->etable) {
         MEM_freeN(bm->etable);
       }
-      bm->etable = static_cast<BMEdge **>(
-          MEM_mallocN(sizeof(void **) * bm->totedge, "bm->etable"));
+      bm->etable = MEM_malloc_arrayN<BMEdge *>(bm->totedge, "bm->etable");
       bm->etable_tot = bm->totedge;
     }
     BM_iter_as_array(bm, BM_EDGES_OF_MESH, nullptr, (void **)bm->etable, bm->totedge);
@@ -620,8 +618,7 @@ void BM_mesh_elem_table_ensure(BMesh *bm, const char htype)
       if (bm->ftable) {
         MEM_freeN(bm->ftable);
       }
-      bm->ftable = static_cast<BMFace **>(
-          MEM_mallocN(sizeof(void **) * bm->totface, "bm->ftable"));
+      bm->ftable = MEM_malloc_arrayN<BMFace *>(bm->totface, "bm->ftable");
       bm->ftable_tot = bm->totface;
     }
     BM_iter_as_array(bm, BM_FACES_OF_MESH, nullptr, (void **)bm->ftable, bm->totface);
@@ -986,24 +983,24 @@ void BM_mesh_remap(BMesh *bm, const uint *vert_idx, const uint *edge_idx, const 
 
   /* Selection history */
   {
-    LISTBASE_FOREACH (BMEditSelection *, ese, &bm->selected) {
-      switch (ese->htype) {
+    for (BMEditSelection &ese : bm->selected) {
+      switch (ese.htype) {
         case BM_VERT:
           if (vptr_map) {
-            ese->ele = reinterpret_cast<BMElem *>(
-                vptr_map->lookup(reinterpret_cast<BMVert *>(ese->ele)));
+            ese.ele = reinterpret_cast<BMElem *>(
+                vptr_map->lookup(reinterpret_cast<BMVert *>(ese.ele)));
           }
           break;
         case BM_EDGE:
           if (eptr_map) {
-            ese->ele = reinterpret_cast<BMElem *>(
-                eptr_map->lookup(reinterpret_cast<BMEdge *>(ese->ele)));
+            ese.ele = reinterpret_cast<BMElem *>(
+                eptr_map->lookup(reinterpret_cast<BMEdge *>(ese.ele)));
           }
           break;
         case BM_FACE:
           if (fptr_map) {
-            ese->ele = reinterpret_cast<BMElem *>(
-                fptr_map->lookup(reinterpret_cast<BMFace *>(ese->ele)));
+            ese.ele = reinterpret_cast<BMElem *>(
+                fptr_map->lookup(reinterpret_cast<BMFace *>(ese.ele)));
           }
           break;
       }
@@ -1197,21 +1194,21 @@ void BM_mesh_rebuild(BMesh *bm,
     }
   }
 
-  LISTBASE_FOREACH (BMEditSelection *, ese, &bm->selected) {
-    switch (ese->htype) {
+  for (BMEditSelection &ese : bm->selected) {
+    switch (ese.htype) {
       case BM_VERT:
         if (remap & BM_VERT) {
-          ese->ele = (BMElem *)MAP_VERT(ese->ele);
+          ese.ele = (BMElem *)MAP_VERT(ese.ele);
         }
         break;
       case BM_EDGE:
         if (remap & BM_EDGE) {
-          ese->ele = (BMElem *)MAP_EDGE(ese->ele);
+          ese.ele = (BMElem *)MAP_EDGE(ese.ele);
         }
         break;
       case BM_FACE:
         if (remap & BM_FACE) {
-          ese->ele = (BMElem *)MAP_FACE(ese->ele);
+          ese.ele = (BMElem *)MAP_FACE(ese.ele);
         }
         break;
     }

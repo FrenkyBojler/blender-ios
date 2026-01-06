@@ -60,11 +60,11 @@ namespace node_interface = blender::bke::node_interface;
 /** \name Node Group
  * \{ */
 
-static bNodeSocket *find_matching_socket(ListBase &sockets, StringRef identifier)
+static bNodeSocket *find_matching_socket(ListBaseT<bNodeSocket> &sockets, StringRef identifier)
 {
-  LISTBASE_FOREACH (bNodeSocket *, socket, &sockets) {
-    if (socket->identifier == identifier) {
-      return socket;
+  for (bNodeSocket &socket : sockets) {
+    if (socket.identifier == identifier) {
+      return &socket;
     }
   }
   return nullptr;
@@ -370,6 +370,31 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
                     .default_value_fn(get_default_id_getter(tree.tree_interface, io_socket));
         break;
       }
+      case SOCK_FONT: {
+        decl = &b.add_socket<decl::Font>(name, identifier, in_out)
+                    .default_value_fn(get_default_id_getter(tree.tree_interface, io_socket));
+        break;
+      }
+      case SOCK_SCENE: {
+        decl = &b.add_socket<decl::Scene>(name, identifier, in_out)
+                    .default_value_fn(get_default_id_getter(tree.tree_interface, io_socket));
+        break;
+      }
+      case SOCK_TEXT_ID: {
+        decl = &b.add_socket<decl::Text>(name, identifier, in_out)
+                    .default_value_fn(get_default_id_getter(tree.tree_interface, io_socket));
+        break;
+      }
+      case SOCK_MASK: {
+        decl = &b.add_socket<decl::Mask>(name, identifier, in_out)
+                    .default_value_fn(get_default_id_getter(tree.tree_interface, io_socket));
+        break;
+      }
+      case SOCK_SOUND: {
+        decl = &b.add_socket<decl::Sound>(name, identifier, in_out)
+                    .default_value_fn(get_default_id_getter(tree.tree_interface, io_socket));
+        break;
+      }
       case SOCK_BUNDLE: {
         decl = &b.add_socket<decl::Bundle>(name, identifier, in_out);
         break;
@@ -426,7 +451,7 @@ static void node_group_declare_panel_recursive(
   };
 
   for (const bNodeTreeInterfaceItem *item : io_parent_panel.items()) {
-    switch (NodeTreeInterfaceItemType(item->item_type)) {
+    switch (eNodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_SOCKET: {
         const auto &io_socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(*item);
         const eNodeSocketInOut in_out = (io_socket.flag & NODE_INTERFACE_SOCKET_INPUT) ? SOCK_IN :
@@ -524,7 +549,7 @@ void node_group_declare(NodeDeclarationBuilder &b)
 
 static void node_frame_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeFrame *data = MEM_callocN<NodeFrame>("frame node storage");
+  NodeFrame *data = MEM_new_for_free<NodeFrame>("frame node storage");
   node->storage = data;
 
   data->flag |= NODE_FRAME_SHRINK;
@@ -579,7 +604,7 @@ static void node_reroute_declare(blender::nodes::NodeDeclarationBuilder &b)
 
 static void node_reroute_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeReroute *data = MEM_callocN<NodeReroute>(__func__);
+  NodeReroute *data = MEM_new_for_free<NodeReroute>(__func__);
   STRNCPY(data->type_idname, "NodeSocketColor");
   node->storage = data;
 }
@@ -770,9 +795,9 @@ bool blender::bke::node_is_connected_to_output(const bNodeTree &ntree, const bNo
 
 bNodeSocket *node_group_input_find_socket(bNode *node, const StringRef identifier)
 {
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-    if (sock->identifier == identifier) {
-      return sock;
+  for (bNodeSocket &sock : node->outputs) {
+    if (sock.identifier == identifier) {
+      return &sock;
     }
   }
   return nullptr;
@@ -787,7 +812,7 @@ static void group_input_declare(NodeDeclarationBuilder &b)
     return;
   }
   node_tree->tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
-    switch (NodeTreeInterfaceItemType(item.item_type)) {
+    switch (eNodeTreeInterfaceItemType(item.item_type)) {
       case NODE_INTERFACE_SOCKET: {
         const bNodeTreeInterfaceSocket &socket =
             node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
@@ -817,7 +842,7 @@ static void group_output_declare(NodeDeclarationBuilder &b)
     return;
   }
   node_tree->tree_interface.foreach_item([&](const bNodeTreeInterfaceItem &item) {
-    switch (NodeTreeInterfaceItemType(item.item_type)) {
+    switch (eNodeTreeInterfaceItemType(item.item_type)) {
       case NODE_INTERFACE_SOCKET: {
         const bNodeTreeInterfaceSocket &socket =
             node_interface::get_item_as<bNodeTreeInterfaceSocket>(item);
@@ -877,14 +902,14 @@ static bool group_output_insert_link(blender::bke::NodeInsertLinkParams &params)
   return true;
 }
 
-static void node_group_input_layout(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_group_input_layout(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  ed::space_node::node_tree_interface_draw(*C, *layout, *id_cast<bNodeTree *>(ptr->owner_id));
+  ed::space_node::node_tree_interface_draw(*C, layout, *id_cast<bNodeTree *>(ptr->owner_id));
 }
 
-static void node_group_output_layout(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_group_output_layout(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  ed::space_node::node_tree_interface_draw(*C, *layout, *id_cast<bNodeTree *>(ptr->owner_id));
+  ed::space_node::node_tree_interface_draw(*C, layout, *id_cast<bNodeTree *>(ptr->owner_id));
 }
 
 }  // namespace blender::nodes
@@ -919,9 +944,9 @@ void register_node_type_group_input()
 
 bNodeSocket *node_group_output_find_socket(bNode *node, const StringRef identifier)
 {
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-    if (sock->identifier == identifier) {
-      return sock;
+  for (bNodeSocket &sock : node->inputs) {
+    if (sock.identifier == identifier) {
+      return &sock;
     }
   }
   return nullptr;

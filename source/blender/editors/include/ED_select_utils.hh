@@ -12,9 +12,13 @@
 
 #include "BLI_compiler_attrs.h"
 
-struct KDTree_1d;
 struct PointerRNA;
 struct wmOperatorType;
+
+namespace blender {
+template<typename CoordT> struct KDTree;
+template<typename T, int Size> struct VecBase;
+}  // namespace blender
 
 enum {
   SEL_TOGGLE = 0,
@@ -64,7 +68,7 @@ int ED_select_op_action(eSelectOp sel_op, bool is_select, bool is_inside);
 int ED_select_op_action_deselected(eSelectOp sel_op, bool is_select, bool is_inside);
 
 bool ED_select_similar_compare_float(float delta, float thresh, eSimilarCmp compare);
-bool ED_select_similar_compare_float_tree(const KDTree_1d *tree,
+bool ED_select_similar_compare_float_tree(const blender::KDTree<blender::float1> *tree,
                                           float length,
                                           float thresh,
                                           eSimilarCmp compare);

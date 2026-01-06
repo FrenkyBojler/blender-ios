@@ -40,7 +40,7 @@ class GroupOutputOperation : public NodeOperation {
   {
     /* Get the first input to be written to the output. The rest of the inputs are ignored. Only
      * color sockets are supported. */
-    const bNodeSocket *input_socket = this->node()->input_sockets()[0];
+    const bNodeSocket *input_socket = this->node().input_sockets()[0];
     if (input_socket->type != SOCK_RGBA) {
       return;
     }
@@ -51,7 +51,7 @@ class GroupOutputOperation : public NodeOperation {
 
   Domain compute_domain() override
   {
-    if (this->context().use_context_bounds_for_input_output()) {
+    if (this->context().use_compositing_domain_for_input_output()) {
       return this->context().get_compositing_domain();
     }
     return NodeOperation::compute_domain();
