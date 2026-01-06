@@ -409,6 +409,14 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
   bool is_multiview_loaded = false;
   const int totfiles = seq_num_files(scene, load_data->views_format, load_data->use_multiview);
   Array<MovieReader *> anim_arr(totfiles, nullptr);
+  BLI_SCOPED_DEFER([&]() {
+    for (MovieReader *mr : anim_arr) {
+      if (mr) {
+        MOV_close(mr);
+      }
+    }
+  });
+
   int orig_width = 0;
   int orig_height = 0;
 
@@ -479,15 +487,6 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBaseT<Strip> *seqbase, Loa
   if (load_data->stereo3d_format) {
     strip->stereo3d_format = MEM_new_for_free<Stereo3dFormat>("strip stereo3d format");
     *strip->stereo3d_format = *load_data->stereo3d_format;
-  }
-
-  for (MovieReader *anim : anim_arr) {
-    if (anim) {
-      strip->runtime->movie_readers.append(anim);
-    }
-    else {
-      break;
-    }
   }
 
   if (anim_arr[0] != nullptr) {
