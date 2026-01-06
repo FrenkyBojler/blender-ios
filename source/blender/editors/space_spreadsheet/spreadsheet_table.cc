@@ -95,7 +95,7 @@ void spreadsheet_table_id_blend_write(BlendWriter *writer, const SpreadsheetTabl
   switch (eSpreadsheetTableIDType(table_id->type)) {
     case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
       const auto *table_id_ = reinterpret_cast<const SpreadsheetTableIDGeometry *>(table_id);
-      BLO_write_struct(writer, SpreadsheetTableIDGeometry, table_id_);
+      writer->write_struct(table_id_);
       spreadsheet_table_id_blend_write_content_geometry(writer, table_id_);
       break;
     }
@@ -197,7 +197,7 @@ void spreadsheet_table_free(SpreadsheetTable *table)
 
 void spreadsheet_table_blend_write(BlendWriter *writer, const SpreadsheetTable *table)
 {
-  BLO_write_struct(writer, SpreadsheetTable, table);
+  writer->write_struct(table);
   spreadsheet_table_id_blend_write(writer, table->id);
   BLO_write_pointer_array(writer, table->num_columns, table->columns);
   for (const int i : IndexRange(table->num_columns)) {
@@ -287,10 +287,9 @@ void spreadsheet_table_remove_unused(SpaceSpreadsheet &sspreadsheet)
           case SPREADSHEET_TABLE_ID_TYPE_GEOMETRY: {
             const SpreadsheetTableIDGeometry &table_id =
                 *reinterpret_cast<const SpreadsheetTableIDGeometry *>(table->id);
-            LISTBASE_FOREACH (ViewerPathElem *, elem, &table_id.viewer_path.path) {
-              if (elem->type == VIEWER_PATH_ELEM_TYPE_ID) {
-                const IDViewerPathElem &id_elem = reinterpret_cast<const IDViewerPathElem &>(
-                    *elem);
+            for (ViewerPathElem &elem : table_id.viewer_path.path) {
+              if (elem.type == VIEWER_PATH_ELEM_TYPE_ID) {
+                const IDViewerPathElem &id_elem = reinterpret_cast<const IDViewerPathElem &>(elem);
                 if (!id_elem.id) {
                   /* Remove tables which reference an ID that does not exist anymore. */
                   return true;

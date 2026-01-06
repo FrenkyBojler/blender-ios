@@ -51,6 +51,32 @@ enum eReportType : uint16_t;
 
 struct BlendWriter {
   WriteData *wd = nullptr;
+
+  void write_struct_by_name(const char *struct_name, const void *data);
+  void write_struct_by_id(int struct_id, const void *data);
+  void write_struct_at_address_by_id(int struct_id, const void *address, const void *data);
+  void write_struct_at_address_by_id_with_filecode(int filecode,
+                                                   int struct_id,
+                                                   const void *address,
+                                                   const void *data);
+  void write_struct_array_by_name(const char *struct_name, int64_t array_size, const void *data);
+  void write_struct_array_by_id(int struct_id, int64_t array_size, const void *data);
+  void write_struct_array_at_address_by_id(int struct_id,
+                                           int64_t array_size,
+                                           const void *address,
+                                           const void *data);
+  void write_struct_list_by_name(const char *struct_name, ListBase *list);
+  void write_struct_list_by_id(int struct_id, const ListBase *list);
+
+  template<typename T> void write_struct(const T *data)
+  {
+    this->write_struct_by_id(blender::dna::sdna_struct_id_get<T>(), data);
+  }
+
+  template<typename T> void write_struct_cast(const void *data)
+  {
+    this->write_struct_by_id(blender::dna::sdna_struct_id_get<T>(), data);
+  }
 };
 
 struct BlendDataReader {
@@ -110,68 +136,39 @@ struct BlendLibReader {
 int BLO_get_struct_id_by_name(const BlendWriter *writer, const char *struct_name);
 
 /**
- * Write single struct.
- */
-void BLO_write_struct_by_name(BlendWriter *writer, const char *struct_name, const void *data_ptr);
-void BLO_write_struct_by_id(BlendWriter *writer, int struct_id, const void *data_ptr);
-#define BLO_write_struct(writer, struct_name, data_ptr) \
-  BLO_write_struct_by_id(writer, blender::dna::sdna_struct_id_get<struct_name>(), data_ptr)
-
-/**
  * Write single struct at address.
  */
-void BLO_write_struct_at_address_by_id(BlendWriter *writer,
-                                       int struct_id,
-                                       const void *address,
-                                       const void *data_ptr);
 #define BLO_write_struct_at_address(writer, struct_name, address, data_ptr) \
-  BLO_write_struct_at_address_by_id( \
-      writer, blender::dna::sdna_struct_id_get<struct_name>(), address, data_ptr)
+  (writer)->write_struct_at_address_by_id( \
+      blender::dna::sdna_struct_id_get<struct_name>(), address, data_ptr)
 
 /**
  * Write single struct at address and specify a file-code.
  */
-void BLO_write_struct_at_address_by_id_with_filecode(
-    BlendWriter *writer, int filecode, int struct_id, const void *address, const void *data_ptr);
 #define BLO_write_struct_at_address_with_filecode( \
     writer, filecode, struct_name, address, data_ptr) \
-  BLO_write_struct_at_address_by_id_with_filecode( \
-      writer, filecode, blender::dna::sdna_struct_id_get<struct_name>(), address, data_ptr)
+  (writer)->write_struct_at_address_by_id_with_filecode( \
+      filecode, blender::dna::sdna_struct_id_get<struct_name>(), address, data_ptr)
 
 /**
  * Write struct array.
  */
-void BLO_write_struct_array_by_name(BlendWriter *writer,
-                                    const char *struct_name,
-                                    int64_t array_size,
-                                    const void *data_ptr);
-void BLO_write_struct_array_by_id(BlendWriter *writer,
-                                  int struct_id,
-                                  int64_t array_size,
-                                  const void *data_ptr);
 #define BLO_write_struct_array(writer, struct_name, array_size, data_ptr) \
-  BLO_write_struct_array_by_id( \
-      writer, blender::dna::sdna_struct_id_get<struct_name>(), array_size, data_ptr)
+  (writer)->write_struct_array_by_id( \
+      blender::dna::sdna_struct_id_get<struct_name>(), array_size, data_ptr)
 
 /**
  * Write struct array at address.
  */
-void BLO_write_struct_array_at_address_by_id(BlendWriter *writer,
-                                             int struct_id,
-                                             int64_t array_size,
-                                             const void *address,
-                                             const void *data_ptr);
 #define BLO_write_struct_array_at_address(writer, struct_name, array_size, address, data_ptr) \
-  BLO_write_struct_array_at_address_by_id( \
-      writer, blender::dna::sdna_struct_id_get<struct_name>(), array_size, address, data_ptr)
+  (writer)->write_struct_array_at_address_by_id( \
+      blender::dna::sdna_struct_id_get<struct_name>(), array_size, address, data_ptr)
 
 /**
  * Write struct list.
  */
-void BLO_write_struct_list_by_name(BlendWriter *writer, const char *struct_name, ListBase *list);
-void BLO_write_struct_list_by_id(BlendWriter *writer, int struct_id, const ListBase *list);
 #define BLO_write_struct_list(writer, struct_name, list_ptr) \
-  BLO_write_struct_list_by_id(writer, blender::dna::sdna_struct_id_get<struct_name>(), list_ptr)
+  (writer)->write_struct_list_by_id(blender::dna::sdna_struct_id_get<struct_name>(), list_ptr)
 
 /**
  * Write id struct.
@@ -284,7 +281,7 @@ bool BLO_write_is_undo(BlendWriter *writer);
  * Examples of matching calls:
  *
  * \code{.c}
- * BLO_write_struct(writer, ClothSimSettings, clmd->sim_parms);
+ * writer->write_struct(clmd->sim_parms);
  * BLO_read_struct(reader, ClothSimSettings, &clmd->sim_parms);
  *
  * BLO_write_struct_list(writer, TimeMarker, &action->markers);
@@ -337,7 +334,7 @@ void *BLO_read_struct_array_with_size(BlendDataReader *reader,
  * Similar to #BLO_read_struct_array_with_size, but can use a (DNA) type name instead of the type
  * itself to find the expected data size.
  *
- * Somewhat mirrors #BLO_write_struct_array_by_name.
+ * Somewhat mirrors #BlendWriter::write_struct_array_by_name.
  */
 void *BLO_read_struct_by_name_array(BlendDataReader *reader,
                                     const char *struct_name,

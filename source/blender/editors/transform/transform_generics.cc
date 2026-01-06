@@ -170,8 +170,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   /* Many kinds of transform only use a single handle. */
   if (t->data_container == nullptr) {
-    t->data_container = static_cast<TransDataContainer *>(
-        MEM_callocN(sizeof(*t->data_container), __func__));
+    t->data_container = MEM_callocN<TransDataContainer>(__func__);
     t->data_container_len = 1;
   }
 
@@ -695,13 +694,13 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     wmWindowManager *wm = CTX_wm_manager(C);
     wmKeyMap *keymap = WM_keymap_active(wm, op->type->modalkeymap);
     const wmKeyMapItem *kmi_passthrough = nullptr;
-    LISTBASE_FOREACH (const wmKeyMapItem *, kmi, &keymap->items) {
-      if (kmi->flag & KMI_INACTIVE) {
+    for (const wmKeyMapItem &kmi : keymap->items) {
+      if (kmi.flag & KMI_INACTIVE) {
         continue;
       }
 
-      if (kmi->propvalue == TFM_MODAL_PASSTHROUGH_NAVIGATE) {
-        kmi_passthrough = kmi;
+      if (kmi.propvalue == TFM_MODAL_PASSTHROUGH_NAVIGATE) {
+        kmi_passthrough = &kmi;
         break;
       }
     }

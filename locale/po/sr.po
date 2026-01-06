@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-16 11:27+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -8497,12 +8497,32 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
-msgid "Mirror"
-msgstr "Огледало"
+msgid "Show/Hide"
+msgstr "Прикажи/сакриј"
+
+
+msgid "Names"
+msgstr "Имена"
+
+
+msgid "Bone Roll"
+msgstr "Ролна костију"
+
+
+msgid "Math"
+msgstr "Математика"
 
 
 msgid "Snap"
 msgstr "Лепљење"
+
+
+msgid "Import"
+msgstr "Увоз"
+
+
+msgid "Mirror"
+msgstr "Огледало"
 
 
 msgid "UV Mapping"
@@ -8519,6 +8539,10 @@ msgstr "Навигација"
 
 msgid "Align View"
 msgstr "Поравнај поглед"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Linked"
@@ -8541,32 +8565,16 @@ msgid "Rigid Body"
 msgstr "Круто тело"
 
 
-msgid "Keying"
-msgstr "Збирка тастера"
-
-
 msgid "Apply"
 msgstr "Примени"
-
-
-msgid "Tracking"
-msgstr "Праћење"
 
 
 msgid "Track"
 msgstr "Стаза"
 
 
-msgid "Math"
-msgstr "Математика"
-
-
 msgid "Quick Effects"
 msgstr "Брзи ефекти"
-
-
-msgid "Show/Hide"
-msgstr "Прикажи/сакриј"
 
 
 msgid "Hooks"
@@ -8585,10 +8593,6 @@ msgid "Propagate"
 msgstr "Пренеси"
 
 
-msgid "Names"
-msgstr "Имена"
-
-
 msgid "Toggle Bone Options"
 msgstr "Мање/више информација"
 
@@ -8597,8 +8601,16 @@ msgid "Enable Bone Options"
 msgstr "Омогући опције костију"
 
 
+msgid "Keying"
+msgstr "Збирка тастера"
+
+
 msgid "Disable Bone Options"
 msgstr "Онемогући опције костију"
+
+
+msgid "Tracking"
+msgstr "Праћење"
 
 
 msgid "Mesh Select Mode"
@@ -8611,18 +8623,6 @@ msgstr "Сједини"
 
 msgid "Special Characters"
 msgstr "Специјални знаци"
-
-
-msgid "Bone Roll"
-msgstr "Ролна костију"
-
-
-msgid "Import"
-msgstr "Увоз"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Basic"

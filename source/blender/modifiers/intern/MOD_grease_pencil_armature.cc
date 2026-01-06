@@ -133,6 +133,10 @@ static void modify_curves(ModifierData &md,
                            std::optional<MutableSpan<float3x3>> deform_mats,
                            Span<MDeformVert> dverts,
                            const OffsetIndices<int> points_by_curve) {
+    /* Deform verts attribute can be empty after converting Bezier curves (#152102). */
+    if (dverts.is_empty()) {
+      return;
+    }
     curves_mask.foreach_index(blender::GrainSize(128), [&](const int curve_i) {
       const IndexRange points = points_by_curve[curve_i];
       std::optional<Span<float3>> old_positions_for_curve;
@@ -289,7 +293,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *amd = reinterpret_cast<const GreasePencilArmatureModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilArmatureModifierData, amd);
+  writer->write_struct(amd);
   modifier::greasepencil::write_influence_data(writer, &amd->influence);
 }
 

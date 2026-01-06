@@ -14,13 +14,13 @@
 #include "DNA_curves_types.h"
 #include "DNA_listBase.h"
 
-#ifdef __cplusplus
-#  include "BLI_bounds_types.hh"
-#  include "BLI_index_mask_fwd.hh"
-#  include "BLI_map.hh"
-#  include "BLI_math_vector_types.hh"
-#  include "BLI_memory_counter_fwd.hh"
-#  include "BLI_span.hh"
+#include "BLI_bounds_types.hh"
+#include "BLI_index_mask_fwd.hh"
+#include "BLI_map.hh"
+#include "BLI_math_vector_types.hh"
+#include "BLI_memory_counter_fwd.hh"
+#include "BLI_span.hh"
+
 namespace blender::bke {
 class AttributeAccessor;
 class MutableAttributeAccessor;
@@ -37,16 +37,6 @@ class LayerGroup;
 class LayerGroupRuntime;
 }  // namespace greasepencil
 }  // namespace blender::bke
-using GreasePencilRuntimeHandle = blender::bke::GreasePencilRuntime;
-using GreasePencilDrawingRuntimeHandle = blender::bke::greasepencil::DrawingRuntime;
-using GreasePencilLayerRuntimeHandle = blender::bke::greasepencil::LayerRuntime;
-using GreasePencilLayerGroupRuntimeHandle = blender::bke::greasepencil::LayerGroupRuntime;
-#else
-struct GreasePencilRuntimeHandle;
-struct GreasePencilDrawingRuntimeHandle;
-struct GreasePencilLayerRuntimeHandle;
-struct GreasePencilLayerGroupRuntimeHandle;
-#endif
 
 struct Main;
 struct GreasePencil;
@@ -226,7 +216,7 @@ struct GreasePencilDrawing {
   /**
    * Runtime data on the drawing.
    */
-  GreasePencilDrawingRuntimeHandle *runtime = nullptr;
+  blender::bke::greasepencil::DrawingRuntime *runtime = nullptr;
 #ifdef __cplusplus
   blender::bke::greasepencil::Drawing &wrap();
   const blender::bke::greasepencil::Drawing &wrap() const;
@@ -306,7 +296,7 @@ struct GreasePencilLayerMask {
 
 struct GreasePencilLayerTreeGroup;
 struct GreasePencilLayerTreeNode {
-  /* ListBase pointers. */
+  /* ListBaseT pointers. */
   struct GreasePencilLayerTreeNode *next = nullptr, *prev = nullptr;
   /* Parent pointer. Can be null. */
   struct GreasePencilLayerTreeGroup *parent = nullptr;
@@ -351,10 +341,7 @@ struct GreasePencilLayer {
    * Opacity of the layer.
    */
   float opacity = 0;
-  /**
-   * List of `GreasePencilLayerMask`.
-   */
-  ListBase masks = {nullptr, nullptr};
+  ListBaseT<GreasePencilLayerMask> masks = {nullptr, nullptr};
   int active_mask_index = 0;
   char _pad2[4] = {};
   /**
@@ -378,7 +365,7 @@ struct GreasePencilLayer {
   /**
    * Runtime struct pointer.
    */
-  GreasePencilLayerRuntimeHandle *runtime = nullptr;
+  blender::bke::greasepencil::LayerRuntime *runtime = nullptr;
 #ifdef __cplusplus
   blender::bke::greasepencil::Layer &wrap();
   const blender::bke::greasepencil::Layer &wrap() const;
@@ -387,10 +374,7 @@ struct GreasePencilLayer {
 
 struct GreasePencilLayerTreeGroup {
   GreasePencilLayerTreeNode base;
-  /**
-   * List of `GreasePencilLayerTreeNode`.
-   */
-  ListBase children = {nullptr, nullptr};
+  ListBaseT<GreasePencilLayerTreeNode> children = {nullptr, nullptr};
   /**
    * Icon color tag.
    */
@@ -399,7 +383,7 @@ struct GreasePencilLayerTreeGroup {
   /**
    * Runtime struct pointer.
    */
-  GreasePencilLayerGroupRuntimeHandle *runtime = nullptr;
+  blender::bke::greasepencil::LayerGroupRuntime *runtime = nullptr;
 #ifdef __cplusplus
   blender::bke::greasepencil::LayerGroup &wrap();
   const blender::bke::greasepencil::LayerGroup &wrap() const;
@@ -498,7 +482,7 @@ struct GreasePencil {
    */
   uint32_t flag = GREASE_PENCIL_ANIM_CHANNEL_EXPANDED;
 
-  ListBase vertex_group_names = {nullptr, nullptr};
+  ListBaseT<bDeformGroup> vertex_group_names = {nullptr, nullptr};
   int vertex_group_active_index = 0;
   char _pad4[4] = {};
 
@@ -509,7 +493,7 @@ struct GreasePencil {
   /**
    * Runtime struct pointer.
    */
-  GreasePencilRuntimeHandle *runtime = nullptr;
+  blender::bke::GreasePencilRuntime *runtime = nullptr;
 #ifdef __cplusplus
   /* Root group. */
   const blender::bke::greasepencil::LayerGroup &root_group() const;
