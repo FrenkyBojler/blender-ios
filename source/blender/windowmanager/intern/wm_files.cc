@@ -2303,17 +2303,13 @@ static bool wm_autosave_write_try(Main *bmain, wmWindowManager *wm)
    * check can be removed once the performance regressions have been solved. */
   if (ED_undosys_autosave_compatible(wm->runtime->undo_stack)) {
     WM_autosave_write(wm, bmain);
-    BKE_report(&wm->runtime->reports, RPT_INFO, "Creating autosave");
-    printf("Autosaved!\n");
     return true;
   }
   if ((U.uiflag & USER_GLOBALUNDO) == 0) {
-    BKE_report(&wm->runtime->reports, RPT_INFO, "Creating autosave");
     WM_autosave_write(wm, bmain);
-    printf("Autosaved!\n");
     return true;
   }
-  printf("Unable to autosave, attempt later\n");
+  CLOG_INFO(&LOG, "Unable to autosave, will attempt later");
   /* Can't auto-save with MemFile right now, try again later. */
   return false;
 }
@@ -2336,6 +2332,7 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain)
 
   /* Error reporting into console. */
   BlendFileWriteParams params{};
+  BKE_reportf(&wm->runtime->reports, RPT_INFO, "Creating autosave at %s", filepath);
   BLO_write_file(bmain, filepath, fileflags, &params, nullptr);
 
   /* Restart auto-save timer. */
