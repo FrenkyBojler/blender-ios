@@ -1,1 +1,2 @@
 Referenced by pull request #152483, Fix: Crash changing working space to ACEScg after recent shader tool change
+Referenced by commit 458a0519c42acdf03ba7b18b9f3c50e0bb9a726a, Fix: Crash with ACEScg working space after recent shader tool change
