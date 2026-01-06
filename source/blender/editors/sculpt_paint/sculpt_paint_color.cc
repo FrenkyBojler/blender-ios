@@ -917,9 +917,9 @@ void do_smear_brush(const Depsgraph &depsgraph,
 }
 
 void do_blur_brush(const Depsgraph &depsgraph,
-                    const Sculpt &sd,
-                    Object &ob,
-                    const IndexMask &node_mask)
+                   const Sculpt &sd,
+                   Object &ob,
+                   const IndexMask &node_mask)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   SculptSession &ss = *ob.sculpt;

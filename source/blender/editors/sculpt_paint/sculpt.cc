@@ -3903,22 +3903,23 @@ static void smooth_brush_toggle_on(Main *bmain, Paint *paint, StrokeCache *cache
     return;
   }
 
-  /* Switch to smooth brush if possible */
+  /* Switch to the smooth brush if possible. */
   if (brush_type_is_paint(cur_brush->sculpt_brush_type)) {
-    BKE_paint_brush_set_essentials(bmain, paint, "Blur");
-  } else {
-    BKE_paint_brush_set_essentials(bmain, paint, "Smooth");
+    if (!BKE_paint_brush_set_essentials(bmain, paint, "Blur")) {
+      BKE_paint_brush_set(paint, cur_brush);
+      CLOG_WARN(&LOG, "Unable to switch to the 'Blur' essentials brush asset");
+      cache->saved_active_brush = nullptr;
+      return;
+    }
   }
-
-  Brush *smooth_brush = BKE_paint_brush(paint);
-
-  if (!smooth_brush) {
+  else if (!BKE_paint_brush_set_essentials(bmain, paint, "Smooth")) {
     BKE_paint_brush_set(paint, cur_brush);
-    CLOG_WARN(&LOG, "Switching to the smooth brush not possible, corresponding brush not");
+    CLOG_WARN(&LOG, "Unable to switch to the 'Smooth' essentials brush asset");
     cache->saved_active_brush = nullptr;
     return;
   }
 
+  Brush *smooth_brush = BKE_paint_brush(paint);
   int cur_brush_size = BKE_brush_size_get(paint, cur_brush);
 
   cache->saved_active_brush = cur_brush;

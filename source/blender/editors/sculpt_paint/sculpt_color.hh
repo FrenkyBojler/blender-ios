@@ -75,9 +75,9 @@ void do_smear_brush(const Depsgraph &depsgraph,
                     Object &ob,
                     const IndexMask &node_mask);
 void do_blur_brush(const Depsgraph &depsgraph,
-                    const Sculpt &sd,
-                    Object &ob,
-                    const IndexMask &node_mask);
+                   const Sculpt &sd,
+                   Object &ob,
+                   const IndexMask &node_mask);
 }  // namespace ed::sculpt_paint::color
 
 }  // namespace blender
