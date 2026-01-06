@@ -104,9 +104,9 @@ bool BPY_run_string_eval(bContext *C, const char *imports[], const char *expr);
  * \param C: Optional context (may be null),
  *  used for `bpy.context` and reporting errors to `CTX_wm_reports(C)`.
  *
- * \param script The Python script to run, can be multiple lines.
+ * \param script: The Python script to run, can be multiple lines.
  *
- * \param locals group property with string keys, defining the script's local variables.
+ * \param locals: group property with string keys, defining the script's local variables.
  */
 bool BPY_run_string_exec_with_locals(bContext *C,
                                      const blender::StringRefNull script,
