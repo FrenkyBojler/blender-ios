@@ -15,6 +15,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
 #include "draw_view_lib.glsl"
+#include "draw_view_reconstruction_lib.glsl"
 #ifdef DRW_VIEW_CULLING_INFO
 #  include "draw_intersect_lib.glsl"
 #endif
@@ -297,12 +298,16 @@ void raycast_eval(float3 position,
                   float max_distance,
                   bool self_only,
                   bool &is_hit,
+                  float &hit_distance,
                   float3 &hit_position,
-                  float &hit_distance)
+                  float3 &hit_normal,
+                  float3 &hit_true_normal)
 {
   is_hit = false;
-  hit_position = float3(0.0f);
   hit_distance = max_distance;
+  hit_position = float3(0.0f);
+  hit_normal = float3(0.0f);
+  hit_true_normal = float3(0.0f);
 
   direction = normalize(direction);
 
@@ -335,6 +340,13 @@ void raycast_eval(float3 position,
     is_hit = true;
     hit_distance = result;
     hit_position = ws_start + direction * hit_distance;
+    hit_true_normal = drw_normal_view_to_world(
+        view_reconstruct_from_depth(
+            hiz_tx,
+            uniform_buf.film.render_extent,
+            int2(drw_point_world_to_screen(hit_position).xy * uniform_buf.film.render_extent))
+            .vNg);
+    hit_normal = hit_true_normal;
   }
 #endif
 }
