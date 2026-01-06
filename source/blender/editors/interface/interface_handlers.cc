@@ -418,7 +418,6 @@ struct HandleButtonData {
   wmTimer *flashtimer = nullptr;
 
   TextEdit text_edit;
-  bool text_select_on_drag_activation = false;
   wmTimer *text_select_auto_scroll = nullptr;
 
   double value = 0.0f;
@@ -3771,13 +3770,7 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
   else {
     but->selsta = 0;
   }
-  if (but->type == ButtonType::TextBox && data->text_select_on_drag_activation) {
-    const float2 event_xy = {float(data->dragstartx), float(data->dragstarty)};
-    ui_textedit_set_cursor_pos(but, data->region, event_xy);
-  }
-  else {
-    but->selend = len;
-  }
+  but->selend = len;
 
   /* Initialize undo history tracking. */
   text_edit.undo_stack_text = textedit_undo_stack_create();
@@ -4010,22 +4003,9 @@ static int ui_do_but_textedit(
   ButtonTextBox *textbox = but->type == ButtonType::TextBox ? static_cast<ButtonTextBox *>(but) :
                                                               nullptr;
   int prev_pos = but->pos;
-  const bool text_select_on_drag_activation = data->text_select_on_drag_activation;
-  if (event->type != INBETWEEN_MOUSEMOVE) {
-    data->text_select_on_drag_activation = false;
-  }
   switch (event->type) {
     case MOUSEMOVE:
     case MOUSEPAN:
-      if (text_select_on_drag_activation) {
-        ui_textedit_set_cursor_pos(but, data->region, float2(event->xy));
-        but->selsta = but->selend = but->pos;
-        text_edit.sel_pos_init = but->pos;
-
-        button_activate_state(C, but, BUTTON_STATE_TEXT_SELECTING);
-        retval = WM_UI_HANDLER_BREAK;
-        break;
-      }
       if (data->searchbox) {
 #ifdef USE_KEYNAV_LIMIT
         if ((event->type == MOUSEMOVE) &&
@@ -5319,10 +5299,12 @@ static int ui_do_but_TEX(
       else {
         if (!ui_but_extra_operator_icon_mouse_over_get(but, data->region, event)) {
           HandleButtonData *data = but->active;
-          data->dragstartx = event->xy[0];
-          data->dragstarty = event->xy[1];
-          data->text_select_on_drag_activation = event->type == LEFTMOUSE;
           button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
+          if (event->type == LEFTMOUSE && but->type == ButtonType::TextBox) {
+            ui_textedit_set_cursor_pos(but, data->region, float2(event->xy));
+            but->selsta = but->selend = data->text_edit.sel_pos_init = but->pos;
+            button_activate_state(C, but, BUTTON_STATE_TEXT_SELECTING);
+          }
         }
         return WM_UI_HANDLER_BREAK;
       }
