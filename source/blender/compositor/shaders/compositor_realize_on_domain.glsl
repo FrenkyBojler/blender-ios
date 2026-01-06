@@ -10,21 +10,21 @@ void realize_on_domain_bilinear()
 {
   const int2 texel = int2(gl_GlobalInvocationID.xy);
   float2 uv = to_float2x2(inverse_matrix) * float2(texel) + inverse_matrix[2].xy;
-  imageStore(domain_img, texel, sample_bilinear(uv, wh, clip));
+  imageStore(domain_img, texel, sample_bilinear(input_tx, uv, wh, clip));
 }
 
 void realize_on_domain_box()
 {
   const int2 texel = int2(gl_GlobalInvocationID.xy);
   float2 uv = to_float2x2(inverse_matrix) * float2(texel) + inverse_matrix[2].xy;
-  imageStore(domain_img, texel, sample_box(uv, wh, clip));
+  imageStore(domain_img, texel, sample_box(input_tx, uv, wh, clip));
 }
 
 void realize_on_domain_bspline()
 {
   const int2 texel = int2(gl_GlobalInvocationID.xy);
   float2 uv = to_float2x2(inverse_matrix) * float2(texel) + inverse_matrix[2].xy;
-  imageStore(domain_img, texel, sample_bspline(uv, wh, clip));
+  imageStore(domain_img, texel, sample_bspline(input_tx, uv, wh, clip));
 }
 
 /* For Nearest & Bilinear sampline, matrix has been pre-multiplied to produce

@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 // bilinear sampling but with "sharp" clipping
-float4 sample_bilinear(float2 uv, float2 wh, int clip)
+float4 sample_bilinear(sampler2D source, float2 uv, float2 wh, int clip)
 {
-  float2 pixels = textureSize(input_tx, 0);
+  float2 pixels = textureSize(source, 0);
   float m = 1.0f;
   if (bool(clip)) {
     float2 v = min(uv, pixels - uv) / wh + 0.5f;
@@ -26,13 +26,13 @@ float4 sample_bilinear(float2 uv, float2 wh, int clip)
       }
     }
   }
-  return m * texture(input_tx, uv / pixels);
+  return m * texture(source, uv / pixels);
 }
 
 // Sample orthogonal rectangle of size wh centered on uv.
-float4 sample_box(float2 uv, float2 wh, int clip)
+float4 sample_box(sampler2D source, float2 uv, float2 wh, int clip)
 {
-  float2 pixels = textureSize(input_tx, 0);
+  float2 pixels = textureSize(source, 0);
   float m = 1.0f;
   if (bool(clip)) {
     float2 v = min(uv, pixels - uv) / wh + 0.5f;
@@ -81,7 +81,7 @@ float4 sample_box(float2 uv, float2 wh, int clip)
     x2 = (x + uv.y + weight2 / weight) * scale.y;
     float4 sumx = float4(0.0f);
     for (int j = 0; j < nx; j++) {
-      sumx += texture(input_tx, float2(xfilter[j].x, x2)) * xfilter[j].y;
+      sumx += texture(source, float2(xfilter[j].x, x2)) * xfilter[j].y;
     }
     sum += sumx * weight;
     div += weight;
@@ -94,9 +94,9 @@ static inline float weight_bspline(float x)
   return x < 1 ? (0.5 * x - 1) * x * x + 4.0 / 6 : ((-1 / 6.0 * x + 1) * x - 2) * x + 4.0 / 3;
 }
 
-float4 sample_bspline(float2 uv, float2 wh, int clip)
+float4 sample_bspline(sampler2D source, float2 uv, float2 wh, int clip)
 {
-  float2 pixels = textureSize(input_tx, 0);
+  float2 pixels = textureSize(source, 0);
   float m = 1.0f;
   if (bool(clip)) {
     float2 v = min(uv, pixels - uv) / wh + 0.5f;
@@ -145,7 +145,7 @@ float4 sample_bspline(float2 uv, float2 wh, int clip)
     x2 = (x + uv.y + weight2 / weight) * scale.y;
     float4 sumx = float4(0.0f);
     for (int j = 0; j < nx; j++) {
-      sumx += texture(input_tx, float2(xfilter[j].x, x2)) * xfilter[j].y;
+      sumx += texture(source, float2(xfilter[j].x, x2)) * xfilter[j].y;
     }
     sum += sumx * weight;
     div += weight;
