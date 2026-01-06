@@ -286,19 +286,10 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
         self._tempdir.cleanup()
 
     def compare_value(self, bl_idname, value_a, value_b):
-        vector_value_types = {
-            "NodeSocketMatrix", "NodeSocketRotation", "NodeSocketVector", "NodeSocketVectorFactor",
-            "NodeSocketVectorPercentage", "NodeSocketVectorTranslation", "NodeSocketVectorDirection",
-            "NodeSocketVectorVelocity", "NodeSocketVectorAcceleration", "NodeSocketVectorEuler",
-            "NodeSocketVectorXYZ", "NodeSocketVector2D", "NodeSocketVectorFactor2D",
-            "NodeSocketVectorPercentage2D", "NodeSocketVectorTranslation2D", "NodeSocketVectorDirection2D",
-            "NodeSocketVectorVelocity2D", "NodeSocketVectorAcceleration2D", "NodeSocketVectorEuler2D",
-            "NodeSocketVectorXYZ2D", "NodeSocketVector4D", "NodeSocketVectorFactor4D",
-            "NodeSocketVectorPercentage4D", "NodeSocketVectorTranslation4D", "NodeSocketVectorDirection4D",
-            "NodeSocketVectorVelocity4D", "NodeSocketVectorAcceleration4D", "NodeSocketVectorEuler4D",
-            "NodeSocketVectorXYZ4D", "NodeSocketColor"
-        }
-        if bl_idname in vector_value_types:
+        # Note: Socket subtypes are not actually subclasses of the base types.
+        # We rely on name prefixes instead of python issubclass tests here, to keep this check compact.
+        vector_socket_prefixes = ["NodeSocketColor", "NodeSocketMatrix", "NodeSocketRotation", "NodeSocketVector"]
+        if any(bl_idname.startswith(prefix) for prefix in vector_socket_prefixes):
             for comp_a, comp_b in zip(value_a, value_b):
                 self.assertEqual(comp_a, comp_b)
         else:
