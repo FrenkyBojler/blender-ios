@@ -54,23 +54,23 @@ static void sh_node_tex_wave_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Factor", "Fac").no_muted_links();
 }
 
-static void node_shader_buts_tex_wave(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_tex_wave(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "wave_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "wave_type", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   int type = RNA_enum_get(ptr, "wave_type");
   if (type == SHD_WAVE_BANDS) {
-    layout->prop(ptr, "bands_direction", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout.prop(ptr, "bands_direction", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   }
   else { /* SHD_WAVE_RINGS */
-    layout->prop(ptr, "rings_direction", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout.prop(ptr, "rings_direction", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   }
 
-  layout->prop(ptr, "wave_profile", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "wave_profile", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_tex_wave(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexWave *tex = MEM_callocN<NodeTexWave>(__func__);
+  NodeTexWave *tex = MEM_new_for_free<NodeTexWave>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->wave_type = SHD_WAVE_BANDS;
@@ -222,7 +222,7 @@ class WaveFunction : public mf::MultiFunction {
       r_fac[i] = val;
     });
     if (!r_color.is_empty()) {
-      mask.foreach_index([&](const int64_t i) {
+      mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
         r_color[i] = ColorGeometry4f(r_fac[i], r_fac[i], r_fac[i], 1.0f);
       });
     }

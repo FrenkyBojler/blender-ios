@@ -48,15 +48,15 @@ static void sh_node_map_range_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Vector");
 }
 
-static void node_shader_buts_map_range(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_map_range(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  layout->prop(ptr, "interpolation_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "data_type", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "interpolation_type", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   if (!ELEM(RNA_enum_get(ptr, "interpolation_type"),
             NODE_MAP_RANGE_SMOOTHSTEP,
             NODE_MAP_RANGE_SMOOTHERSTEP))
   {
-    layout->prop(ptr, "clamp", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "clamp", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
 }
 
@@ -79,12 +79,11 @@ static void node_shader_update_map_range(bNodeTree *ntree, bNode *node)
   Array<bool> new_input_availability(BLI_listbase_count(&node->inputs));
   Array<bool> new_output_availability(BLI_listbase_count(&node->outputs));
 
-  int index;
-  LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, &node->inputs, index) {
-    new_input_availability[index] = socket->type == type;
+  for (const auto [index, socket] : node->inputs.enumerate()) {
+    new_input_availability[index] = socket.type == type;
   }
-  LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, &node->outputs, index) {
-    new_output_availability[index] = socket->type == type;
+  for (const auto [index, socket] : node->outputs.enumerate()) {
+    new_output_availability[index] = socket.type == type;
   }
 
   if (storage.interpolation_type != NODE_MAP_RANGE_STEPPED) {
@@ -96,17 +95,17 @@ static void node_shader_update_map_range(bNodeTree *ntree, bNode *node)
     }
   }
 
-  LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, &node->inputs, index) {
-    bke::node_set_socket_availability(*ntree, *socket, new_input_availability[index]);
+  for (const auto [index, socket] : node->inputs.enumerate()) {
+    bke::node_set_socket_availability(*ntree, socket, new_input_availability[index]);
   }
-  LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, &node->outputs, index) {
-    bke::node_set_socket_availability(*ntree, *socket, new_output_availability[index]);
+  for (const auto [index, socket] : node->outputs.enumerate()) {
+    bke::node_set_socket_availability(*ntree, socket, new_output_availability[index]);
   }
 }
 
 static void node_shader_init_map_range(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeMapRange *data = MEM_callocN<NodeMapRange>(__func__);
+  NodeMapRange *data = MEM_new_for_free<NodeMapRange>(__func__);
   data->clamp = 1;
   data->data_type = CD_PROP_FLOAT;
   data->interpolation_type = NODE_MAP_RANGE_LINEAR;

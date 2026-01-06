@@ -645,7 +645,7 @@ static void cage2d_draw_rect_corner_handles(const rctf *r,
       immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   const float rad[2] = {margin[0] / 3, margin[1] / 3};
 
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  immBindBuiltinProgram(GPU_SHADER_3D_POINT_UNIFORM_COLOR);
   immUniformColor3fv(color);
 
   /* Should really divide by two, but looks too bulky. */
@@ -1388,14 +1388,16 @@ static void gizmo_cage2d_exit(bContext *C, wmGizmo *gz, const bool cancel)
     data->dial = nullptr;
   }
 
+  wmGizmoProperty *gz_prop = WM_gizmo_target_property_find(gz, "matrix");
+
   if (!cancel) {
+    if (WM_gizmo_target_property_is_valid(gz_prop)) {
+      WM_gizmo_target_property_anim_autokey(C, gz, gz_prop);
+    }
     return;
   }
 
-  wmGizmoProperty *gz_prop;
-
   /* reset properties */
-  gz_prop = WM_gizmo_target_property_find(gz, "matrix");
   if (gz_prop->type != nullptr) {
     WM_gizmo_target_property_float_set_array(C, gz, gz_prop, &data->orig_matrix_offset[0][0]);
   }

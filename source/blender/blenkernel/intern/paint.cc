@@ -17,7 +17,6 @@
 
 #include "DNA_asset_types.h"
 #include "DNA_brush_types.h"
-#include "DNA_defaults.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -91,7 +90,7 @@ static void palette_init_data(ID *id)
 {
   Palette *palette = (Palette *)id;
 
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(palette, id));
+  INIT_DEFAULT_STRUCT_AFTER(palette, id);
 
   /* Enable fake user by default. */
   id_fake_user_set(&palette->id);
@@ -121,9 +120,9 @@ static void palette_foreach_working_space_color(ID *id,
 {
   Palette *palette = (Palette *)id;
 
-  LISTBASE_FOREACH (PaletteColor *, color, &palette->colors) {
-    fn.single(color->color);
-    BKE_palette_color_sync_legacy(color);
+  for (PaletteColor &color : palette->colors) {
+    fn.single(color.color);
+    BKE_palette_color_sync_legacy(&color);
   }
 }
 
@@ -721,6 +720,8 @@ bool BKE_paint_brush_set(Paint *paint, Brush *brush)
   if (brush != nullptr) {
     paint->brush_asset_reference = asset_reference_create_from_brush(brush);
   }
+
+  BKE_paint_invalidate_overlay_all();
 
   return true;
 }
@@ -1431,7 +1432,7 @@ Palette *BKE_palette_add(Main *bmain, const char *name)
 
 PaletteColor *BKE_palette_color_add(Palette *palette)
 {
-  PaletteColor *color = MEM_callocN<PaletteColor>(__func__);
+  PaletteColor *color = MEM_new_for_free<PaletteColor>(__func__);
   BLI_addtail(&palette->colors, color);
   return color;
 }
@@ -1585,7 +1586,7 @@ bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name)
   const int totpal = BLI_ghash_len(color_table);
 
   if (totpal > 0) {
-    color_array = MEM_calloc_arrayN<tPaletteColorHSV>(totpal, __func__);
+    color_array = MEM_new_array_for_free<tPaletteColorHSV>(totpal, __func__);
     /* Put all colors in an array. */
     GHashIterator gh_iter;
     int t = 0;
@@ -1714,7 +1715,7 @@ eObjectMode BKE_paint_object_mode_from_paintmode(const PaintMode mode)
 
 static void paint_init_data(Paint &paint)
 {
-  const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
+  const UnifiedPaintSettings &default_ups = UnifiedPaintSettings();
   paint.unified_paint_settings.size = default_ups.size;
   paint.unified_paint_settings.input_samples = default_ups.input_samples;
   paint.unified_paint_settings.unprojected_size = default_ups.unprojected_size;
@@ -1768,40 +1769,38 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
   }
 
   if (((VPaint **)r_paint == &ts->vpaint) || ((VPaint **)r_paint == &ts->wpaint)) {
-    VPaint *data = MEM_callocN<VPaint>(__func__);
+    VPaint *data = MEM_new_for_free<VPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if ((Sculpt **)r_paint == &ts->sculpt) {
-    Sculpt *data = MEM_callocN<Sculpt>(__func__);
-
-    *data = blender::dna::shallow_copy(*DNA_struct_default_get(Sculpt));
+    Sculpt *data = MEM_new_for_free<Sculpt>(__func__);
 
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if ((GpPaint **)r_paint == &ts->gp_paint) {
-    GpPaint *data = MEM_callocN<GpPaint>(__func__);
+    GpPaint *data = MEM_new_for_free<GpPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if ((GpVertexPaint **)r_paint == &ts->gp_vertexpaint) {
-    GpVertexPaint *data = MEM_callocN<GpVertexPaint>(__func__);
+    GpVertexPaint *data = MEM_new_for_free<GpVertexPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if ((GpSculptPaint **)r_paint == &ts->gp_sculptpaint) {
-    GpSculptPaint *data = MEM_callocN<GpSculptPaint>(__func__);
+    GpSculptPaint *data = MEM_new_for_free<GpSculptPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if ((GpWeightPaint **)r_paint == &ts->gp_weightpaint) {
-    GpWeightPaint *data = MEM_callocN<GpWeightPaint>(__func__);
+    GpWeightPaint *data = MEM_new_for_free<GpWeightPaint>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
   else if ((CurvesSculpt **)r_paint == &ts->curves_sculpt) {
-    CurvesSculpt *data = MEM_callocN<CurvesSculpt>(__func__);
+    CurvesSculpt *data = MEM_new_for_free<CurvesSculpt>(__func__);
     paint = &data->paint;
     paint_init_data(*paint);
   }
@@ -1858,13 +1857,12 @@ void BKE_paint_free(Paint *paint)
   MEM_delete(paint->tool_brush_bindings.main_brush_asset_reference);
   MEM_delete(paint->eraser_brush_asset_reference);
 
-  LISTBASE_FOREACH_MUTABLE (NamedBrushAssetReference *,
-                            brush_ref,
-                            &paint->tool_brush_bindings.active_brush_per_brush_type)
+  for (NamedBrushAssetReference &brush_ref :
+       paint->tool_brush_bindings.active_brush_per_brush_type.items_mutable())
   {
-    MEM_delete(brush_ref->name);
-    MEM_delete(brush_ref->brush_asset_reference);
-    MEM_delete(brush_ref);
+    MEM_delete(brush_ref.name);
+    MEM_delete(brush_ref.brush_asset_reference);
+    MEM_delete(&brush_ref);
   }
 
   BKE_curvemapping_free(paint->unified_paint_settings.curve_rand_hue);
@@ -1892,12 +1890,11 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
   }
   BLI_duplicatelist(&dst->tool_brush_bindings.active_brush_per_brush_type,
                     &src->tool_brush_bindings.active_brush_per_brush_type);
-  LISTBASE_FOREACH (
-      NamedBrushAssetReference *, brush_ref, &dst->tool_brush_bindings.active_brush_per_brush_type)
+  for (NamedBrushAssetReference &brush_ref : dst->tool_brush_bindings.active_brush_per_brush_type)
   {
-    brush_ref->name = BLI_strdup(brush_ref->name);
-    brush_ref->brush_asset_reference = MEM_new<AssetWeakReference>(
-        __func__, *brush_ref->brush_asset_reference);
+    brush_ref.name = BLI_strdup(brush_ref.name);
+    brush_ref.brush_asset_reference = MEM_new<AssetWeakReference>(
+        __func__, *brush_ref.brush_asset_reference);
   }
 
   dst->unified_paint_settings.curve_rand_hue = BKE_curvemapping_copy(
@@ -2037,12 +2034,10 @@ void BKE_paint_blend_write(BlendWriter *writer, Paint *paint)
     }
     BLO_write_struct_list(
         writer, NamedBrushAssetReference, &tool_brush_bindings.active_brush_per_brush_type);
-    LISTBASE_FOREACH (
-        NamedBrushAssetReference *, brush_ref, &tool_brush_bindings.active_brush_per_brush_type)
-    {
-      BLO_write_string(writer, brush_ref->name);
-      if (brush_ref->brush_asset_reference) {
-        BKE_asset_weak_reference_write(writer, brush_ref->brush_asset_reference);
+    for (NamedBrushAssetReference &brush_ref : tool_brush_bindings.active_brush_per_brush_type) {
+      BLO_write_string(writer, brush_ref.name);
+      if (brush_ref.brush_asset_reference) {
+        BKE_asset_weak_reference_write(writer, brush_ref.brush_asset_reference);
       }
     }
   }
@@ -2090,14 +2085,12 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
 
     BLO_read_struct_list(
         reader, NamedBrushAssetReference, &tool_brush_bindings.active_brush_per_brush_type);
-    LISTBASE_FOREACH (
-        NamedBrushAssetReference *, brush_ref, &tool_brush_bindings.active_brush_per_brush_type)
-    {
-      BLO_read_string(reader, &brush_ref->name);
+    for (NamedBrushAssetReference &brush_ref : tool_brush_bindings.active_brush_per_brush_type) {
+      BLO_read_string(reader, &brush_ref.name);
 
-      BLO_read_struct(reader, AssetWeakReference, &brush_ref->brush_asset_reference);
-      if (brush_ref->brush_asset_reference) {
-        BKE_asset_weak_reference_read(reader, brush_ref->brush_asset_reference);
+      BLO_read_struct(reader, AssetWeakReference, &brush_ref.brush_asset_reference);
+      if (brush_ref.brush_asset_reference) {
+        BKE_asset_weak_reference_read(reader, brush_ref.brush_asset_reference);
       }
     }
   }
@@ -2299,7 +2292,7 @@ void BKE_sculptsession_free_pbvh(Object &object)
 
   ss->preview_verts = {};
 
-  ss->vertex_info.boundary.clear_and_shrink();
+  ss->boundary_info_cache.reset();
   ss->fake_neighbors.fake_neighbor_index = {};
   ss->topology_island_cache.reset();
 
@@ -2512,6 +2505,22 @@ static MultiresModifierData *sculpt_multires_modifier_get(const Scene *scene,
 MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob)
 {
   return sculpt_multires_modifier_get(scene, ob, false);
+}
+
+int BKE_sculpt_get_grid_num_verts(const Object &object)
+{
+  const SculptSession &ss = *object.sculpt;
+  BLI_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
+  return ss.subdiv_ccg->grids_num * key.grid_area;
+}
+
+int BKE_sculpt_get_grid_num_faces(const Object &object)
+{
+  const SculptSession &ss = *object.sculpt;
+  BLI_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
+  return ss.subdiv_ccg->grids_num * square_i(key.grid_size - 1);
 }
 
 /* Checks if there are any supported deformation modifiers active */
@@ -2775,7 +2784,7 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object)
   using namespace blender::bke;
   Mesh *orig_me = BKE_object_get_original_mesh(object);
 
-  if (BKE_color_attribute_supported(*orig_me, orig_me->active_color_attribute)) {
+  if (BKE_id_attributes_color_find(&orig_me->id, orig_me->active_color_attribute)) {
     return;
   }
 
@@ -2887,28 +2896,28 @@ void BKE_sculpt_toolsettings_data_ensure(Main *bmain, Scene *scene)
 
   Sculpt *sd = scene->toolsettings->sculpt;
 
-  const Sculpt *defaults = DNA_struct_default_get(Sculpt);
+  const Sculpt defaults = {};
 
   /* We have file versioning code here for historical
    * reasons.  Don't add more checks here, do it properly
    * in blenloader.
    */
   if (sd->automasking_start_normal_limit == 0.0f) {
-    sd->automasking_start_normal_limit = defaults->automasking_start_normal_limit;
-    sd->automasking_start_normal_falloff = defaults->automasking_start_normal_falloff;
+    sd->automasking_start_normal_limit = defaults.automasking_start_normal_limit;
+    sd->automasking_start_normal_falloff = defaults.automasking_start_normal_falloff;
 
-    sd->automasking_view_normal_limit = defaults->automasking_view_normal_limit;
-    sd->automasking_view_normal_falloff = defaults->automasking_view_normal_limit;
+    sd->automasking_view_normal_limit = defaults.automasking_view_normal_limit;
+    sd->automasking_view_normal_falloff = defaults.automasking_view_normal_limit;
   }
 
   if (sd->detail_percent == 0.0f) {
-    sd->detail_percent = defaults->detail_percent;
+    sd->detail_percent = defaults.detail_percent;
   }
   if (sd->constant_detail == 0.0f) {
-    sd->constant_detail = defaults->constant_detail;
+    sd->constant_detail = defaults.constant_detail;
   }
   if (sd->detail_size == 0.0f) {
-    sd->detail_size = defaults->detail_size;
+    sd->detail_size = defaults.detail_size;
   }
 
   /* Set sane default tiling offsets. */
@@ -3086,7 +3095,7 @@ bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const RegionView3D *rv3d)
   return true;
 }
 
-/* Returns the Face Set random color for rendering in the overlay given its ID and a color seed. */
+/* Returns the face set random color for rendering in the overlay given its ID and a color seed. */
 #define GOLDEN_RATIO_CONJUGATE 0.618033988749895f
 void BKE_paint_face_set_overlay_color_get(const int face_set, const int seed, uchar r_color[4])
 {

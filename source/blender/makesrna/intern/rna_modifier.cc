@@ -842,12 +842,17 @@ static const EnumPropertyItem grease_pencil_build_time_mode_items[] = {
 #  include "DNA_object_force_types.h"
 #  include "DNA_particle_types.h"
 
+#  include "BLI_listbase.h"
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
+
 #  include "BKE_cachefile.hh"
 #  include "BKE_compute_contexts.hh"
 #  include "BKE_context.hh"
 #  include "BKE_curveprofile.h"
 #  include "BKE_deform.hh"
 #  include "BKE_fluid.h"
+#  include "BKE_lib_id.hh"
 #  include "BKE_material.hh"
 #  include "BKE_mesh_runtime.hh"
 #  include "BKE_modifier.hh"
@@ -1549,7 +1554,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
 
       RNA_enum_item_add_separator(&item, &totitem);
 
-      const ListBase *defbase = BKE_object_defgroup_list(ob_src);
+      const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob_src);
       for (i = 0, dg = static_cast<const bDeformGroup *>(defbase->first); dg; i++, dg = dg->next) {
         tmp_item.value = i;
         tmp_item.identifier = tmp_item.name = dg->name;
@@ -1564,8 +1569,6 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
     Object *ob_src = dtmd->ob_source;
 
     if (ob_src) {
-      int num_data, i;
-
       Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
       const Object *ob_eval = DEG_get_evaluated(depsgraph, ob_src);
       if (!ob_eval) {
@@ -1580,14 +1583,14 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_src_itemf(
         return item;
       }
 
-      num_data = CustomData_number_of_layers(&mesh_eval->corner_data, CD_PROP_FLOAT2);
+      const VectorSet<StringRefNull> uv_map_names = mesh_eval->uv_map_names();
+      const int num_data = uv_map_names.size();
 
       RNA_enum_item_add_separator(&item, &totitem);
 
-      for (i = 0; i < num_data; i++) {
+      for (int i = 0; i < num_data; i++) {
         tmp_item.value = i;
-        tmp_item.identifier = tmp_item.name = CustomData_get_layer_name(
-            &mesh_eval->corner_data, CD_PROP_FLOAT2, i);
+        tmp_item.identifier = tmp_item.name = uv_map_names[i].c_str();
         RNA_enum_item_add(&item, &totitem, &tmp_item);
       }
     }
@@ -1653,6 +1656,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_dst_itemf(
                                                                                 PropertyRNA *prop,
                                                                                 bool *r_free)
 {
+  using namespace blender;
   DataTransferModifierData *dtmd = (DataTransferModifierData *)ptr->data;
   EnumPropertyItem *item = nullptr, tmp_item = {0};
   int totitem = 0;
@@ -1678,7 +1682,7 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_dst_itemf(
 
         RNA_enum_item_add_separator(&item, &totitem);
 
-        const ListBase *defbase = BKE_object_defgroup_list(ob_dst);
+        const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob_dst);
         for (i = 0, dg = static_cast<const bDeformGroup *>(defbase->first); dg; i++, dg = dg->next)
         {
           tmp_item.value = i;
@@ -1697,20 +1701,15 @@ static const EnumPropertyItem *rna_DataTransferModifier_layers_select_dst_itemf(
       Object *ob_dst = CTX_data_active_object(C); /* XXX Is this OK? */
 
       if (ob_dst && ob_dst->data) {
-        Mesh *me_dst;
-        CustomData *corner_data;
-        int num_data, i;
-
-        me_dst = static_cast<Mesh *>(ob_dst->data);
-        corner_data = &me_dst->corner_data;
-        num_data = CustomData_number_of_layers(corner_data, CD_PROP_FLOAT2);
+        Mesh *me_dst = static_cast<Mesh *>(ob_dst->data);
+        const VectorSet<StringRefNull> uv_map_names = me_dst->uv_map_names();
+        const int num_data = uv_map_names.size();
 
         RNA_enum_item_add_separator(&item, &totitem);
 
-        for (i = 0; i < num_data; i++) {
+        for (int i = 0; i < num_data; i++) {
           tmp_item.value = i;
-          tmp_item.identifier = tmp_item.name = CustomData_get_layer_name(
-              corner_data, CD_PROP_FLOAT2, i);
+          tmp_item.identifier = tmp_item.name = uv_map_names[i].c_str();
           RNA_enum_item_add(&item, &totitem, &tmp_item);
         }
       }
@@ -2013,11 +2012,11 @@ static void rna_Lineart_end_level_set(PointerRNA *ptr, int value)
 static const NodesModifierData *find_nodes_modifier_by_bake(const Object &object,
                                                             const NodesModifierBake &bake)
 {
-  LISTBASE_FOREACH (const ModifierData *, md, &object.modifiers) {
-    if (md->type != eModifierType_Nodes) {
+  for (const ModifierData &md : object.modifiers) {
+    if (md.type != eModifierType_Nodes) {
       continue;
     }
-    const NodesModifierData *nmd = reinterpret_cast<const NodesModifierData *>(md);
+    const NodesModifierData *nmd = reinterpret_cast<const NodesModifierData *>(&md);
     const blender::Span<NodesModifierBake> bakes{nmd->bakes, nmd->bakes_num};
     if (bakes.contains_ptr(&bake)) {
       return nmd;
@@ -2176,9 +2175,9 @@ static void rna_GreasePencilOpacityModifier_opacity_factor_max_set(PointerRNA *p
 static const GreasePencilDashModifierData *find_grease_pencil_dash_modifier_of_segment(
     const Object &ob, const GreasePencilDashModifierSegment &dash_segment)
 {
-  LISTBASE_FOREACH (const ModifierData *, md, &ob.modifiers) {
-    if (md->type == eModifierType_GreasePencilDash) {
-      const auto *dmd = reinterpret_cast<const GreasePencilDashModifierData *>(md);
+  for (const ModifierData &md : ob.modifiers) {
+    if (md.type == eModifierType_GreasePencilDash) {
+      const auto *dmd = reinterpret_cast<const GreasePencilDashModifierData *>(&md);
       if (dmd->segments().contains_ptr(&dash_segment)) {
         return dmd;
       }
@@ -2280,9 +2279,9 @@ const EnumPropertyItem *grease_pencil_build_time_mode_filter(bContext * /*C*/,
 static const GreasePencilTimeModifierData *find_grease_pencil_time_modifier_of_segment(
     const Object &ob, const GreasePencilTimeModifierSegment &time_segment)
 {
-  LISTBASE_FOREACH (const ModifierData *, md, &ob.modifiers) {
-    if (md->type == eModifierType_GreasePencilTime) {
-      const auto *tmd = reinterpret_cast<const GreasePencilTimeModifierData *>(md);
+  for (const ModifierData &md : ob.modifiers) {
+    if (md.type == eModifierType_GreasePencilTime) {
+      const auto *tmd = reinterpret_cast<const GreasePencilTimeModifierData *>(&md);
       if (tmd->segments().contains_ptr(&time_segment)) {
         return tmd;
       }
@@ -7935,6 +7934,7 @@ static void rna_def_modifier_nodes_bake(BlenderRNA *brna)
   prop = RNA_def_property(srna, "bake_target", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, bake_target_in_node_items);
   RNA_def_property_ui_text(prop, "Bake Target", "Where to store the baked data");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CACHEFILE);
   RNA_def_property_update(prop, 0, "rna_NodesModifier_bake_update");
 
   prop = RNA_def_property(srna, "bake_mode", PROP_ENUM, PROP_NONE);
@@ -8069,6 +8069,7 @@ static void rna_def_modifier_nodes(BlenderRNA *brna)
   prop = RNA_def_property(srna, "bake_target", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, bake_target_in_modifier_items);
   RNA_def_property_ui_text(prop, "Bake Target", "Where to store the baked data");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_CACHEFILE);
   RNA_def_property_update(prop, 0, "rna_NodesModifier_bake_update");
 
   prop = RNA_def_property(srna, "bakes", PROP_COLLECTION, PROP_NONE);

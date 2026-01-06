@@ -75,6 +75,10 @@ const EnumPropertyItem rna_enum_nla_mode_extend_items[] = {
 #  include <math.h>
 #  include <stdio.h>
 
+#  include "BLI_listbase.h"
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
+
 /* needed for some of the validation stuff... */
 #  include "BKE_anim_data.hh"
 #  include "BKE_fcurve.hh"
@@ -86,6 +90,8 @@ const EnumPropertyItem rna_enum_nla_mode_extend_items[] = {
 
 #  include "DEG_depsgraph.hh"
 #  include "DEG_depsgraph_build.hh"
+
+#  include "rna_action_tools.hh"
 
 static void rna_NlaStrip_name_set(PointerRNA *ptr, const char *value)
 {
@@ -599,7 +605,7 @@ static NlaStrip *rna_NlaStrip_new(ID *id,
                                   Main *bmain,
                                   bContext *C,
                                   ReportList *reports,
-                                  const char * /*name*/,
+                                  const char *name,
                                   int start,
                                   bAction *action)
 {
@@ -648,7 +654,7 @@ static NlaStrip *rna_NlaStrip_new(ID *id,
     }
     adt.nla_tracks.last = nlt_p;
 
-    /* now we can just auto-name as usual */
+    STRNCPY(strip->name, name);
     BKE_nlastrip_validate_name(&adt, strip);
   }
 
@@ -1133,7 +1139,7 @@ static void rna_api_nlatrack_strips(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_flag(func,
                         FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   RNA_def_function_ui_description(func, "Add a new Action-Clip strip to the track");
-  parm = RNA_def_string(func, "name", "NlaStrip", 0, "", "Name for the NLA Strips");
+  parm = RNA_def_string(func, "name", "NlaStrip", 0, "", "Name for the NLA Strip");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_int(func,
                      "start",

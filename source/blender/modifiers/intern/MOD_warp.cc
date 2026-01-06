@@ -16,7 +16,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -46,10 +45,7 @@
 static void init_data(ModifierData *md)
 {
   WarpModifierData *wmd = (WarpModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(wmd, DNA_struct_default_get(WarpModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
 
   wmd->curfalloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
 }
@@ -341,15 +337,14 @@ static void deform_verts(ModifierData *md,
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  col = &layout->column(true);
+  blender::ui::Layout *col = &layout.column(true);
   col->prop(ptr, "object_from", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   PointerRNA from_obj_ptr = RNA_pointer_get(ptr, "object_from");
   if (!RNA_pointer_is_null(&from_obj_ptr) && RNA_enum_get(&from_obj_ptr, "type") == OB_ARMATURE) {
@@ -359,7 +354,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
         ptr, "bone_from", &from_obj_data_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
   }
 
-  col = &layout->column(true);
+  col = &layout.column(true);
   col->prop(ptr, "object_to", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   PointerRNA to_obj_ptr = RNA_pointer_get(ptr, "object_to");
   if (!RNA_pointer_is_null(&to_obj_ptr) && RNA_enum_get(&to_obj_ptr, "type") == OB_ARMATURE) {
@@ -367,9 +362,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
     col->prop_search(ptr, "bone_to", &to_obj_data_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
   }
 
-  layout->prop(ptr, "use_volume_preserve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "use_volume_preserve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->prop(ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
@@ -378,59 +373,58 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
 static void falloff_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
   bool use_falloff = (RNA_enum_get(ptr, "falloff_type") != eWarp_Falloff_None);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "falloff_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "falloff_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (use_falloff) {
-    layout->prop(ptr, "falloff_radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "falloff_radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (use_falloff && RNA_enum_get(ptr, "falloff_type") == eWarp_Falloff_Curve) {
-    uiTemplateCurveMapping(layout, ptr, "falloff_curve", 0, false, false, false, false, false);
+    template_curve_mapping(&layout, ptr, "falloff_curve", 0, false, false, false, false, false);
   }
 }
 
 static void texture_panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   int texture_coords = RNA_enum_get(ptr, "texture_coords");
 
-  uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
+  template_id(&layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  col = &layout->column(false);
-  col->prop(ptr, "texture_coords", UI_ITEM_NONE, IFACE_("Coordinates"), ICON_NONE);
+  blender::ui::Layout &col = layout.column(false);
+  col.prop(ptr, "texture_coords", UI_ITEM_NONE, IFACE_("Coordinates"), ICON_NONE);
   if (texture_coords == MOD_DISP_MAP_OBJECT) {
-    col->prop(ptr, "texture_coords_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
+    col.prop(ptr, "texture_coords_object", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
     PointerRNA texture_coords_obj_ptr = RNA_pointer_get(ptr, "texture_coords_object");
     if (!RNA_pointer_is_null(&texture_coords_obj_ptr) &&
         (RNA_enum_get(&texture_coords_obj_ptr, "type") == OB_ARMATURE))
     {
       PointerRNA texture_coords_obj_data_ptr = RNA_pointer_get(&texture_coords_obj_ptr, "data");
-      col->prop_search(ptr,
-                       "texture_coords_bone",
-                       &texture_coords_obj_data_ptr,
-                       "bones",
-                       IFACE_("Bone"),
-                       ICON_NONE);
+      col.prop_search(ptr,
+                      "texture_coords_bone",
+                      &texture_coords_obj_data_ptr,
+                      "bones",
+                      IFACE_("Bone"),
+                      ICON_NONE);
     }
   }
   else if (texture_coords == MOD_DISP_MAP_UV && RNA_enum_get(&ob_ptr, "type") == OB_MESH) {
     PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
-    col->prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
+    col.prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
   }
 }
 
@@ -447,7 +441,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const WarpModifierData *wmd = (const WarpModifierData *)md;
 
-  BLO_write_struct(writer, WarpModifierData, wmd);
+  writer->write_struct(wmd);
 
   if (wmd->curfalloff) {
     BKE_curvemapping_blend_write(writer, wmd->curfalloff);

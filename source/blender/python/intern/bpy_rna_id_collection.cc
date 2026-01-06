@@ -116,6 +116,7 @@ static int foreach_libblock_id_user_map_callback(LibraryIDLinkCallbackData *cb_d
     if ((set = PyDict_GetItem(data->user_map, key)) == nullptr) {
       /* limit to key's added already */
       if (data->is_subset) {
+        Py_DECREF(key);
         return IDWALK_RET_NOP;
       }
 
@@ -164,7 +165,7 @@ static PyObject *bpy_user_map(PyObject *self, PyObject *args, PyObject *kwds)
     return nullptr;
   }
 
-  ListBase *lb;
+  ListBaseT<ID> *lb;
   ID *id;
 
   PyObject *subset = nullptr;
@@ -471,7 +472,7 @@ static PyObject *bpy_file_path_map(PyObject *self, PyObject *args, PyObject *kwd
     Py_DECREF(subset_fast);
   }
   else {
-    ListBase *lb;
+    ListBaseT<ID> *lb;
     ID *id;
     filepathmap_data.file_path_map = PyDict_New();
 
@@ -570,14 +571,6 @@ const EnumPropertyItem rna_enum_file_path_foreach_flag_items[] = {
      "Reload Edited",
      "Reload data when the path is edited"},
     {0, nullptr, 0, nullptr, nullptr},
-};
-
-/** Wrapper for MEM_SAFE_FREE() as deallocator for std::unique_ptr. */
-struct MEM_freeN_smart_ptr_deleter {
-  void operator()(void *pointer) const noexcept
-  {
-    MEM_SAFE_FREE(pointer);
-  }
 };
 
 static bool foreach_id_file_path_foreach_callback(BPathForeachPathData *bpath_data,
@@ -788,7 +781,7 @@ static PyObject *bpy_file_path_foreach(PyObject *self, PyObject *args, PyObject 
   }
   else {
     /* Visit all IDs, filtered by type if necessary. */
-    ListBase *lb;
+    ListBaseT<ID> *lb;
     FOREACH_MAIN_LISTBASE_BEGIN (bmain, lb) {
       ID *id;
       FOREACH_MAIN_LISTBASE_ID_BEGIN (lb, id) {

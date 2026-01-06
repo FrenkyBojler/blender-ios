@@ -198,7 +198,7 @@ class KeylistSummaryTest : public testing::Test {
   Bone *bone1;
   Bone *bone2;
 
-  SpaceAction saction = {nullptr};
+  SpaceAction saction = {};
   bAnimContext ac = {nullptr};
 
   static void SetUpTestSuite()
@@ -224,8 +224,8 @@ class KeylistSummaryTest : public testing::Test {
     cube = BKE_object_add_only_object(bmain, OB_EMPTY, "Küüübus");
 
     armature_data = BKE_armature_add(bmain, "ARArmature");
-    bone1 = reinterpret_cast<Bone *>(MEM_callocN(sizeof(Bone), "KeylistSummaryTest"));
-    bone2 = reinterpret_cast<Bone *>(MEM_callocN(sizeof(Bone), "KeylistSummaryTest"));
+    bone1 = MEM_new_for_free<Bone>("KeylistSummaryTest");
+    bone2 = MEM_new_for_free<Bone>("KeylistSummaryTest");
     STRNCPY_UTF8(bone1->name, "Bone.001");
     STRNCPY_UTF8(bone2->name, "Bone.002");
     BLI_addtail(&armature_data->bonebase, bone1);
@@ -354,6 +354,7 @@ TEST_F(KeylistSummaryTest, slot_summary_bone_selection)
   saction.ads.filterflag = ADS_FILTER_ONLYSEL; /* Filter by selection. */
   ac.obact = armature;
   ac.active_action_user = &armature->id;
+  ac.filters.flag = eDopeSheet_FilterFlag(saction.ads.filterflag);
   action_slot_summary_to_keylist(
       &ac, &armature->id, *action, slot_armature.handle, keylist, 0, {0.0, 6.0});
   ED_keylist_prepare_for_direct_access(keylist);

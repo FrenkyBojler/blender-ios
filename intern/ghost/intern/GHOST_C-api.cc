@@ -233,6 +233,18 @@ GHOST_WindowHandle GHOST_GetWindowUnderCursor(GHOST_SystemHandle systemhandle,
   return (GHOST_WindowHandle)window;
 }
 
+void GHOST_SetWindowCSD(GHOST_SystemHandle systemhandle, GHOST_CSD_Params *params)
+{
+  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
+  system->setWindowCSD(*params);
+}
+
+extern const GHOST_CSD_Layout *GHOST_GetWindowCSD_Layout(GHOST_SystemHandle systemhandle)
+{
+  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
+  return &system->getWindowCSD_Layout();
+}
+
 bool GHOST_ProcessEvents(GHOST_SystemHandle systemhandle, bool waitForEvent)
 {
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
@@ -582,11 +594,11 @@ char *GHOST_GetTitle(GHOST_WindowHandle windowhandle)
   return ctitle;
 }
 
-GHOST_TSuccess GHOST_SetPath(GHOST_WindowHandle windowhandle, const char *filepath)
+void GHOST_SetPath(GHOST_WindowHandle windowhandle, const char *filepath)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
-  return window->setPath(filepath);
+  window->setPath(filepath);
 }
 
 GHOST_TWindowDecorationStyleFlags GHOST_GetWindowDecorationStyleFlags(

@@ -53,7 +53,6 @@ struct DRWData;
 struct DRWViewData;
 struct GPUViewport;
 struct DRWTextStore;
-struct GSet;
 struct GPUViewport;
 namespace blender::draw {
 class TextureFromPool;
@@ -225,6 +224,9 @@ struct DRWContext {
  private:
   /** Render State: No persistent data between draw calls. */
   static thread_local DRWContext *g_context;
+  /** Timings recorded for performance overlay. */
+  float last_sync_time_;
+  float last_submission_time_;
 
   /* TODO(fclem): Private? */
  public:
@@ -285,7 +287,7 @@ struct DRWContext {
   DRWTextStore **text_store_p = nullptr;
 
   /** Contains list of objects that needs to be extracted from other objects. */
-  GSet *delayed_extraction = nullptr;
+  blender::Set<Object *> delayed_extraction;
 
   /* TODO(fclem): Public. */
 
@@ -414,6 +416,14 @@ struct DRWContext {
   bool is_viewport_image_render() const
   {
     return ELEM(mode, VIEWPORT_RENDER);
+  }
+  float last_sync_time() const
+  {
+    return last_sync_time_;
+  }
+  float last_submission_time() const
+  {
+    return last_submission_time_;
   }
 
   /** True if current viewport is drawn during playback. */

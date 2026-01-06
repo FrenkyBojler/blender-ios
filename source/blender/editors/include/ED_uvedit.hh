@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "DNA_listBase.h"
+
 #include "BLI_function_ref.hh"
 #include "BLI_vector_list.hh"
 
@@ -23,7 +25,6 @@ struct BMVert;
 struct BMesh;
 struct Image;
 struct ImageUser;
-struct ListBase;
 struct Main;
 struct Object;
 struct Scene;
@@ -106,13 +107,13 @@ class UVSyncSelectFromMesh : NonCopyable {
   char uv_sticky_;
   BMesh &bm_;
 
-  blender::VectorList<BMVert *> bm_verts_select_;
-  blender::VectorList<BMEdge *> bm_edges_select_;
-  blender::VectorList<BMFace *> bm_faces_select_;
+  VectorList<BMVert *> bm_verts_select_;
+  VectorList<BMEdge *> bm_edges_select_;
+  VectorList<BMFace *> bm_faces_select_;
 
-  blender::VectorList<BMVert *> bm_verts_deselect_;
-  blender::VectorList<BMEdge *> bm_edges_deselect_;
-  blender::VectorList<BMFace *> bm_faces_deselect_;
+  VectorList<BMVert *> bm_verts_deselect_;
+  VectorList<BMEdge *> bm_edges_deselect_;
+  VectorList<BMFace *> bm_faces_deselect_;
 
  public:
   UVSyncSelectFromMesh(BMesh &bm, char uv_sticky) : uv_sticky_(uv_sticky), bm_(bm) {}
@@ -277,6 +278,7 @@ void uvedit_edge_select_set_noflush(const Scene *scene,
  */
 void ED_uvedit_selectmode_clean(const Scene *scene, Object *obedit);
 void ED_uvedit_selectmode_clean_multi(bContext *C);
+void ED_uvedit_select_sync_multi(bContext *C);
 void ED_uvedit_sticky_selectmode_update(bContext *C);
 
 /**
@@ -378,7 +380,7 @@ struct FaceIsland {
  */
 int bm_mesh_calc_uv_islands(const Scene *scene,
                             BMesh *bm,
-                            ListBase *island_list,
+                            ListBaseT<FaceIsland> *island_list,
                             const bool only_selected_faces,
                             const bool only_selected_uvs,
                             const bool use_seams,

@@ -67,7 +67,7 @@ void ShaderOperation::execute()
   bind_inputs(shader);
   bind_outputs(shader);
 
-  compute_dispatch_threads_at_least(shader, domain.size);
+  compute_dispatch_threads_at_least(shader, domain.data_size);
 
   GPU_texture_unbind_all();
   GPU_texture_image_unbind_all();
@@ -86,11 +86,11 @@ void ShaderOperation::bind_material_resources(gpu::Shader *shader)
   }
 
   /* Bind color band textures needed by curve and ramp nodes. */
-  ListBase textures = GPU_material_textures(material_);
-  LISTBASE_FOREACH (GPUMaterialTexture *, texture, &textures) {
-    if (texture->colorband) {
-      const int texture_image_unit = GPU_shader_get_sampler_binding(shader, texture->sampler_name);
-      GPU_texture_bind(*texture->colorband, texture_image_unit);
+  ListBaseT<GPUMaterialTexture> textures = GPU_material_textures(material_);
+  for (GPUMaterialTexture &texture : textures) {
+    if (texture.colorband) {
+      const int texture_image_unit = GPU_shader_get_sampler_binding(shader, texture.sampler_name);
+      GPU_texture_bind(*texture.colorband, texture_image_unit);
     }
   }
 }
@@ -99,9 +99,9 @@ void ShaderOperation::bind_inputs(gpu::Shader *shader)
 {
   /* Attributes represents the inputs of the operation and their names match those of the inputs of
    * the operation as well as the corresponding texture samples in the shader. */
-  ListBase attributes = GPU_material_attributes(material_);
-  LISTBASE_FOREACH (GPUMaterialAttribute *, attribute, &attributes) {
-    get_input(attribute->name).bind_as_texture(shader, attribute->name);
+  ListBaseT<GPUMaterialAttribute> attributes = GPU_material_attributes(material_);
+  for (GPUMaterialAttribute &attribute : attributes) {
+    get_input(attribute.name).bind_as_texture(shader, attribute.name);
   }
 }
 
@@ -213,7 +213,7 @@ static void initialize_input_stack_value(const DInputSocket input, GPUNodeStack 
       break;
     }
     case SOCK_RGBA: {
-      const float4 value = float4(input->default_value_typed<bNodeSocketValueRGBA>()->value);
+      const Color value = Color(input->default_value_typed<bNodeSocketValueRGBA>()->value);
       copy_v4_v4(stack.vec, value);
       break;
     }
@@ -538,6 +538,22 @@ void ShaderOperation::generate_code(void *thunk,
    * functions that writes the outputs are defined outside the evaluate function. */
   shader_create_info.compute_source("gpu_shader_compositor_main.glsl");
 
+  std::string generated_resource_header = shader_create_info.typedef_source_generated;
+  /* Insert resource declaration after types declaration. */
+  generated_resource_header += "#ifdef CREATE_INFO_RES_PASS_compositor_nodetrees\n";
+  generated_resource_header += "CREATE_INFO_RES_PASS_compositor_nodetrees\n";
+  generated_resource_header += "#endif\n";
+  generated_resource_header += "#ifdef CREATE_INFO_RES_BATCH_compositor_nodetrees\n";
+  generated_resource_header += "CREATE_INFO_RES_BATCH_compositor_nodetrees\n";
+  generated_resource_header += "#endif\n";
+  generated_resource_header += "#ifdef CREATE_INFO_RES_GEOMETRY_compositor_nodetrees\n";
+  generated_resource_header += "CREATE_INFO_RES_GEOMETRY_compositor_nodetrees\n";
+  generated_resource_header += "#endif\n";
+  generated_resource_header += "\n";
+
+  shader_create_info.generated_sources.append(
+      {"gpu_shader_compositor_nodetree_type.glsl", {}, generated_resource_header});
+
   std::string store_code = operation->generate_code_for_outputs(shader_create_info);
   shader_create_info.generated_sources.append(
       {"gpu_shader_compositor_store.glsl", {}, store_code});
@@ -551,9 +567,25 @@ void ShaderOperation::generate_code(void *thunk,
 
   eval_code += "}\n";
 
-  shader_create_info.generated_sources.append({"gpu_shader_compositor_eval.glsl",
-                                               code_generator_output->composite.dependencies,
-                                               eval_code});
+  /* Bit of a workaround. Make sure that the nodetree UBO is part of the compositor_nodetrees
+   * interface and not the interface with the shader name. */
+  for (auto &res : shader_create_info.batch_resources_) {
+    res.info_name = "compositor_nodetrees";
+  }
+  for (auto &res : shader_create_info.pass_resources_) {
+    res.info_name = "compositor_nodetrees";
+  }
+  for (auto &res : shader_create_info.geometry_resources_) {
+    res.info_name = "compositor_nodetrees";
+  }
+
+  Vector<StringRefNull> dependencies = code_generator_output->composite.dependencies;
+  dependencies.prepend("compositor_node_tree_infos.hh");
+  dependencies.prepend("gpu_shader_compositor_texture_utilities.glsl");
+  dependencies.prepend("gpu_shader_compositor_code_generation.glsl");
+
+  shader_create_info.generated_sources.append(
+      {"gpu_shader_compositor_eval.glsl", dependencies, eval_code});
 }
 
 /* Texture storers in the shader always take a [i]vec4 as an argument, so encode each type in an
@@ -661,6 +693,8 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
   store_int2_function << store_int2_function_header << store_function_start;
   store_bool_function << store_bool_function_header << store_function_start;
   store_menu_function << store_menu_function_header << store_function_start;
+
+  shader_create_info.builtins(BuiltinBits::GLOBAL_INVOCATION_ID);
 
   int output_index = 0;
   for (StringRefNull output_identifier : output_sockets_to_output_identifiers_map_.values()) {
@@ -812,7 +846,7 @@ std::string ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
                                                       ShaderCreateInfo &shader_create_info)
 {
   /* The attributes of the GPU material represents the inputs of the operation. */
-  ListBase attributes = GPU_material_attributes(material);
+  ListBaseT<GPUMaterialAttribute> attributes = GPU_material_attributes(material);
 
   if (BLI_listbase_is_empty(&attributes)) {
     return "";
@@ -823,13 +857,13 @@ std::string ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
   /* Add a texture sampler for each of the inputs with the same name as the attribute, we start
    * counting the sampler slot location from the number of textures in the material, since some
    * sampler slots may be reserved for things like color band textures. */
-  const ListBase textures = GPU_material_textures(material);
+  const ListBaseT<GPUMaterialTexture> textures = GPU_material_textures(material);
   int input_slot_location = BLI_listbase_count(&textures);
-  LISTBASE_FOREACH (GPUMaterialAttribute *, attribute, &attributes) {
-    const InputDescriptor &input_descriptor = get_input_descriptor(attribute->name);
+  for (GPUMaterialAttribute &attribute : attributes) {
+    const InputDescriptor &input_descriptor = get_input_descriptor(attribute.name);
     shader_create_info.sampler(input_slot_location,
                                gpu_image_type_from_result_type(input_descriptor.type),
-                               attribute->name,
+                               attribute.name,
                                Frequency::PASS);
     input_slot_location++;
   }
@@ -839,10 +873,10 @@ std::string ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
    * corresponding to the input. Such names are expected by the code generator. */
   std::stringstream declare_attributes;
   declare_attributes << "struct {\n";
-  LISTBASE_FOREACH (GPUMaterialAttribute *, attribute, &attributes) {
-    const InputDescriptor &input_descriptor = get_input_descriptor(attribute->name);
+  for (GPUMaterialAttribute &attribute : attributes) {
+    const InputDescriptor &input_descriptor = get_input_descriptor(attribute.name);
     const std::string type = glsl_type_from_result_type(input_descriptor.type);
-    declare_attributes << "  " << type << " v" << attribute->id << ";\n";
+    declare_attributes << "  " << type << " v" << attribute.id << ";\n";
   }
   declare_attributes << "} var_attrs;\n\n";
 
@@ -855,12 +889,12 @@ std::string ShaderOperation::generate_code_for_inputs(GPUMaterial *material,
   /* Initialize each member of the previously declared struct by loading its corresponding texture
    * with an appropriate swizzle and cast for its type. */
   std::stringstream initialize_attributes;
-  LISTBASE_FOREACH (GPUMaterialAttribute *, attribute, &attributes) {
-    const InputDescriptor &input_descriptor = get_input_descriptor(attribute->name);
+  for (GPUMaterialAttribute &attribute : attributes) {
+    const InputDescriptor &input_descriptor = get_input_descriptor(attribute.name);
     const std::string swizzle = glsl_swizzle_from_result_type(input_descriptor.type);
     const std::string type = glsl_type_from_result_type(input_descriptor.type);
-    initialize_attributes << "var_attrs.v" << attribute->id << " = " << type << "("
-                          << "texture_load(" << attribute->name
+    initialize_attributes << "var_attrs.v" << attribute.id << " = " << type << "("
+                          << "texture_load(" << attribute.name
                           << ", ivec2(gl_GlobalInvocationID.xy))." << swizzle << ")"
                           << ";\n";
   }

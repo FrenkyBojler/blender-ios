@@ -95,7 +95,7 @@ static void library_copy_data(Main *bmain,
     library_dst->packedfile = BKE_packedfile_duplicate(library_src->packedfile);
   }
 
-  /* Only explicitely copy a sub-set of the runtime data. */
+  /* Only explicitly copy a sub-set of the runtime data. */
   library_dst->runtime = MEM_new<LibraryRuntime>(__func__);
   BLI_strncpy(library_dst->runtime->filepath_abs,
               library_src->runtime->filepath_abs,
@@ -165,6 +165,14 @@ static void library_blend_write_data(BlendWriter *writer, ID *id, const void *id
   Library *library = reinterpret_cast<Library *>(id);
   const bool is_undo = BLO_write_is_undo(writer);
 
+  /* Runtime tags need to be preserved across undo steps. */
+  if (is_undo) {
+    library->undo_runtime_tag = library->runtime->tag;
+  }
+  else {
+    library->undo_runtime_tag = 0;
+  }
+
   /* Clear runtime data. */
   library->runtime = nullptr;
 
@@ -180,10 +188,16 @@ static void library_blend_write_data(BlendWriter *writer, ID *id, const void *id
   }
 }
 
-static void library_blend_read_data(BlendDataReader * /*reader*/, ID *id)
+static void library_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Library *lib = reinterpret_cast<Library *>(id);
+  const bool is_undo = BLO_read_data_is_undo(reader);
+
   lib->runtime = MEM_new<LibraryRuntime>(__func__);
+  if (is_undo) {
+    lib->runtime->tag = lib->undo_runtime_tag;
+    lib->undo_runtime_tag = 0;
+  }
 }
 
 static void library_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
@@ -253,28 +267,44 @@ void BKE_library_filepath_set(Main *bmain, Library *lib, const char *filepath)
 
 static void rebuild_hierarchy_best_parent_find(Main *bmain,
                                                blender::Set<Library *> &directly_used_libs,
+                                               blender::Set<Library *> &libs_in_hierarchy,
                                                Library *lib)
 {
   BLI_assert(!directly_used_libs.contains(lib));
 
+  /* Avoid infinite recursion in dependency loops between libraries (note: might be 'fake
+   * positives' caused only by the library `parent` pointers themselves). */
+  if (libs_in_hierarchy.contains(lib)) {
+    return;
+  }
+  libs_in_hierarchy.add(lib);
+
   Library *best_parent_lib = nullptr;
   bool do_break = false;
-  ListBase *lb;
+  ListBaseT<ID> *lb;
   ID *id_iter;
   FOREACH_MAIN_LISTBASE_BEGIN (bmain, lb) {
     FOREACH_MAIN_LISTBASE_ID_BEGIN (lb, id_iter) {
       if (!ID_IS_LINKED(id_iter) || id_iter->lib != lib) {
         continue;
       }
-      MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-          BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_iter));
+      if (ID_IS_PACKED(id_iter)) {
+        /* Packed data and their archive libraries do not participate to linked data hierarchy. */
+        BLI_assert(id_iter->lib->flag & LIBRARY_FLAG_IS_ARCHIVE);
+        continue;
+      }
+      MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_iter);
       for (MainIDRelationsEntryItem *item = entry->from_ids; item; item = item->next) {
         ID *from_id = item->id_pointer.from;
         if (!ID_IS_LINKED(from_id)) {
           BLI_assert_unreachable();
           continue;
         }
+        if (ID_IS_PACKED(from_id)) {
+          continue;
+        }
         Library *from_id_lib = from_id->lib;
+        BLI_assert((from_id_lib->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
         if (from_id_lib == lib) {
           continue;
         }
@@ -286,7 +316,8 @@ static void rebuild_hierarchy_best_parent_find(Main *bmain,
           break;
         }
         if (!from_id_lib->runtime->parent) {
-          rebuild_hierarchy_best_parent_find(bmain, directly_used_libs, from_id_lib);
+          rebuild_hierarchy_best_parent_find(
+              bmain, directly_used_libs, libs_in_hierarchy, from_id_lib);
         }
         if (!best_parent_lib ||
             best_parent_lib->runtime->temp_index > from_id_lib->runtime->temp_index)
@@ -294,7 +325,15 @@ static void rebuild_hierarchy_best_parent_find(Main *bmain,
           best_parent_lib = from_id_lib;
           if (best_parent_lib->runtime->temp_index == 0) {
             /* Found the first best possible candidate, no need to search further. */
-            BLI_assert(directly_used_libs.contains(best_parent_lib));
+            if (!directly_used_libs.contains(best_parent_lib)) {
+              /* This can happen when deleting a library: some of its dependencies may not have any
+               * local usages anymore, creating an archipelago of unused indirectly linked
+               * libraries and their linked IDs. */
+              CLOG_INFO(&LOG,
+                        "Library '%s' seems to be part of an archipelago of unused libraries now.",
+                        best_parent_lib->runtime->filepath_abs);
+              best_parent_lib->runtime->temp_index = 1;
+            }
             do_break = true;
             break;
           }
@@ -323,6 +362,8 @@ static void rebuild_hierarchy_best_parent_find(Main *bmain,
     lib->runtime->temp_index = 0;
     directly_used_libs.add(lib);
   }
+
+  libs_in_hierarchy.remove(lib);
 }
 
 void BKE_library_main_rebuild_hierarchy(Main *bmain)
@@ -331,8 +372,16 @@ void BKE_library_main_rebuild_hierarchy(Main *bmain)
 
   /* Reset all values, they may have been set to irrelevant values by other processes (like the
    * liboverride handling e.g., see #lib_override_libraries_index_define). */
-  LISTBASE_FOREACH (Library *, lib_iter, &bmain->libraries) {
-    lib_iter->runtime->temp_index = 0;
+  for (Library &lib_iter : bmain->libraries) {
+    /* By definition, archive libraries are always contained/owned by a regular library, so they
+     * are never 'root' libraries in the hierarchy. */
+    if (lib_iter.flag & LIBRARY_FLAG_IS_ARCHIVE) {
+      lib_iter.runtime->parent = lib_iter.archive_parent_library;
+      lib_iter.runtime->temp_index = 1;
+    }
+    else {
+      lib_iter.runtime->temp_index = 0;
+    }
   }
 
   /* Find all libraries with directly linked IDs (i.e. IDs used by local data). */
@@ -342,12 +391,14 @@ void BKE_library_main_rebuild_hierarchy(Main *bmain)
     if (!ID_IS_LINKED(id_iter)) {
       continue;
     }
-    id_iter->lib->runtime->temp_index = 0;
+    if (ID_IS_PACKED(id_iter)) {
+      /* Packed data and their archive libraries do not participate to linked data hierarchy. */
+      continue;
+    }
     if (directly_used_libs.contains(id_iter->lib)) {
       continue;
     }
-    MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-        BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_iter));
+    MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_iter);
     for (MainIDRelationsEntryItem *item = entry->from_ids; item; item = item->next) {
       if (!ID_IS_LINKED(item->id_pointer.from)) {
         directly_used_libs.add(id_iter->lib);
@@ -358,31 +409,44 @@ void BKE_library_main_rebuild_hierarchy(Main *bmain)
   }
   FOREACH_MAIN_ID_END;
 
-  LISTBASE_FOREACH (Library *, lib_iter, &bmain->libraries) {
+  for (Library &lib_iter : bmain->libraries) {
     /* A directly used library. */
-    if (directly_used_libs.contains(lib_iter)) {
-      BLI_assert(lib_iter->runtime->temp_index == 0);
+    if (directly_used_libs.contains(&lib_iter)) {
+      BLI_assert(lib_iter.runtime->temp_index == 0);
       continue;
     }
 
     /* Assume existing parent is still valid, since it was not cleared in previous loop above.
      * Just compute 'hierarchy value' in temp index, if needed. */
-    if (lib_iter->runtime->parent) {
-      if (lib_iter->runtime->temp_index > 0) {
+    if (lib_iter.runtime->parent) {
+      if (lib_iter.runtime->temp_index > 0) {
         continue;
       }
-      blender::Vector<Library *> parent_libraries;
-      for (Library *parent_lib_iter = lib_iter;
+      if (lib_iter.flag & LIBRARY_FLAG_IS_ARCHIVE) {
+        /* Archive library parent is always their owner regular library, has already been
+         * reset/ensured at the start of this function, so this should never be reached. */
+        BLI_assert_unreachable();
+        continue;
+      }
+      blender::VectorSet<Library *> parent_libraries;
+      for (Library *parent_lib_iter = &lib_iter;
            parent_lib_iter && parent_lib_iter->runtime->temp_index == 0;
            parent_lib_iter = parent_lib_iter->runtime->parent)
       {
-        parent_libraries.append(parent_lib_iter);
+        if (parent_libraries.contains(parent_lib_iter)) {
+          /* Dependency loop between libraries (note: might be 'fake positives' caused only by the
+           * library `parent` pointers themselves). */
+          break;
+        }
+        parent_libraries.add(parent_lib_iter);
       }
-      int parent_temp_index = parent_libraries.last()->runtime->temp_index +
-                              int(parent_libraries.size()) - 1;
+      Library *most_remote_ancestor_library = parent_libraries.as_span().last();
+      int parent_temp_index =
+          (most_remote_ancestor_library->runtime->parent ?
+               most_remote_ancestor_library->runtime->parent->runtime->temp_index :
+               0) +
+          int(parent_libraries.size()) - 1;
       for (Library *parent_lib_iter : parent_libraries) {
-        BLI_assert(parent_lib_iter != parent_libraries.last() ||
-                   parent_lib_iter->runtime->temp_index == parent_temp_index);
         parent_lib_iter->runtime->temp_index = parent_temp_index--;
       }
       continue;
@@ -395,36 +459,41 @@ void BKE_library_main_rebuild_hierarchy(Main *bmain)
 
   /* For all libraries known to be indirect, but without a known parent, find a best valid parent
    * (i.e. a 'most directly used' library). */
-  LISTBASE_FOREACH (Library *, lib_iter, &bmain->libraries) {
+  for (Library &lib_iter : bmain->libraries) {
     /* A directly used library. */
-    if (directly_used_libs.contains(lib_iter)) {
-      BLI_assert(lib_iter->runtime->temp_index == 0);
+    if (directly_used_libs.contains(&lib_iter)) {
+      BLI_assert(lib_iter.runtime->temp_index == 0);
       continue;
     }
 
-    if (lib_iter->runtime->parent) {
-      BLI_assert(lib_iter->runtime->temp_index > 0);
+    if (lib_iter.runtime->parent) {
+      BLI_assert(lib_iter.runtime->temp_index > 0);
     }
     else {
-      BLI_assert(lib_iter->runtime->temp_index == 0);
-      rebuild_hierarchy_best_parent_find(bmain, directly_used_libs, lib_iter);
+      BLI_assert_msg((lib_iter.flag & LIBRARY_FLAG_IS_ARCHIVE) == 0,
+                     "Archived libraries are always direct parent of their owner regular library, "
+                     "this should have already been ensured at the start of this function.");
+      BLI_assert(lib_iter.runtime->temp_index == 0);
+      blender::Set<Library *> libs_in_hierarchy;
+      rebuild_hierarchy_best_parent_find(bmain, directly_used_libs, libs_in_hierarchy, &lib_iter);
+      BLI_assert(libs_in_hierarchy.is_empty());
     }
   }
 
   BKE_main_relations_free(bmain);
 }
 
-Library *blender::bke::library::search_filepath_abs(ListBase *libraries,
+Library *blender::bke::library::search_filepath_abs(ListBaseT<Library> *libraries,
                                                     blender::StringRef filepath_abs)
 {
-  LISTBASE_FOREACH (Library *, lib_iter, libraries) {
-    if (lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+  for (Library &lib_iter : *libraries) {
+    if (lib_iter.flag & LIBRARY_FLAG_IS_ARCHIVE) {
       /* Skip archive libraries because there may be multiple of those for the same path and there
        * should also be a non-archive one. */
       continue;
     }
-    if (filepath_abs == lib_iter->runtime->filepath_abs) {
-      return lib_iter;
+    if (filepath_abs == lib_iter.runtime->filepath_abs) {
+      return &lib_iter;
     }
   }
   return nullptr;
@@ -561,6 +630,11 @@ static void pack_linked_id(Main &bmain,
           BLI_assert(ID_IS_PACKED(packed_id));
           BLI_assert(packed_id->lib == archive_lib);
           UNUSED_VARS_NDEBUG(archive_lib);
+
+          if (GS(packed_id->name) == ID_SCE) {
+            /* Like in #scene_blend_read_data. */
+            id_us_ensure_real(packed_id);
+          }
 
           packed_id->deep_hash = deep_hashes.hashes.lookup(linked_id);
           id_remapper.add(linked_id, packed_id);
@@ -708,26 +782,26 @@ void blender::bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
 
 void blender::bke::library::main_cleanup_parent_archives(Main &bmain)
 {
-  LISTBASE_FOREACH (Library *, lib, &bmain.libraries) {
-    if (lib->flag & LIBRARY_FLAG_IS_ARCHIVE) {
-      BLI_assert(!lib->runtime || lib->runtime->archived_libraries.is_empty());
+  for (Library &lib : bmain.libraries) {
+    if (lib.flag & LIBRARY_FLAG_IS_ARCHIVE) {
+      BLI_assert(!lib.runtime || lib.runtime->archived_libraries.is_empty());
     }
     else {
       int i_read_curr = 0;
       int i_insert_curr = 0;
-      for (; i_read_curr < lib->runtime->archived_libraries.size(); i_read_curr++) {
-        if (!lib->runtime->archived_libraries[i_read_curr]) {
+      for (; i_read_curr < lib.runtime->archived_libraries.size(); i_read_curr++) {
+        if (!lib.runtime->archived_libraries[i_read_curr]) {
           continue;
         }
         if (i_insert_curr < i_read_curr) {
-          lib->runtime->archived_libraries[i_insert_curr] =
-              lib->runtime->archived_libraries[i_read_curr];
+          lib.runtime->archived_libraries[i_insert_curr] =
+              lib.runtime->archived_libraries[i_read_curr];
         }
         i_insert_curr++;
       }
       BLI_assert(i_insert_curr <= i_read_curr);
       if (i_insert_curr < i_read_curr) {
-        lib->runtime->archived_libraries.resize(i_insert_curr);
+        lib.runtime->archived_libraries.resize(i_insert_curr);
       }
     }
   }

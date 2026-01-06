@@ -6,7 +6,6 @@
 #include "usd_asset_utils.hh"
 #include "usd_hash_types.hh"
 #include "usd_reader_utils.hh"
-#include "usd_utils.hh"
 
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
@@ -15,6 +14,7 @@
 #include "BKE_material.hh"
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_report.hh"
 
@@ -30,8 +30,11 @@
 #include "BLI_vector.hh"
 
 #include "DNA_material_types.h"
+#include "DNA_node_types.h"
 
 #include "IMB_colormanagement.hh"
+
+#include "WM_types.hh"
 
 #include <pxr/base/gf/vec3f.h>
 #include <pxr/usd/ar/packageUtils.h>
@@ -159,12 +162,12 @@ static blender::Vector<int> get_udim_tiles(const std::string &file_path)
   blender::Vector<int> udim_tiles;
 
   /* Extract the tile numbers from all files on disk. */
-  ListBase tiles = {nullptr, nullptr};
+  ListBaseT<LinkData> tiles = {nullptr, nullptr};
   int tile_start, tile_range;
   bool result = BKE_image_get_tile_info(base_udim_path, &tiles, &tile_start, &tile_range);
   if (result) {
-    LISTBASE_FOREACH (LinkData *, tile, &tiles) {
-      int tile_number = POINTER_AS_INT(tile->data);
+    for (LinkData &tile : tiles) {
+      int tile_number = POINTER_AS_INT(tile.data);
       udim_tiles.append(tile_number);
     }
   }
@@ -179,8 +182,20 @@ static void add_udim_tiles(Image *image, const blender::Vector<int> &indices)
 {
   image->source = IMA_SRC_TILED;
 
+  /* All images are created with a default, 1001, first tile. If this tile does not end up being
+   * used, it should be removed. */
+  ImageTile *first_tile = BKE_image_get_tile(image, 0);
+  bool remove_first = true;
+
   for (int tile_number : indices) {
     BKE_image_add_tile(image, tile_number, nullptr);
+    if (tile_number == first_tile->tile_number) {
+      remove_first = false;
+    }
+  }
+
+  if (remove_first) {
+    BKE_image_remove_tile(image, first_tile);
   }
 }
 
@@ -417,7 +432,7 @@ float2 NodePlacementContext::compute_node_loc(const int column)
 }
 
 std::string NodePlacementContext::get_key(const pxr::UsdShadeShader &usd_shader,
-                                          const blender::StringRef tag) const
+                                          const StringRef tag) const
 {
   std::string key = usd_shader.GetPath().GetAsString();
   if (!tag.is_empty()) {
@@ -428,14 +443,14 @@ std::string NodePlacementContext::get_key(const pxr::UsdShadeShader &usd_shader,
 }
 
 bNode *NodePlacementContext::get_cached_node(const pxr::UsdShadeShader &usd_shader,
-                                             const blender::StringRef tag) const
+                                             const StringRef tag) const
 {
   return node_cache_.lookup_default(get_key(usd_shader, tag), nullptr);
 }
 
 void NodePlacementContext::cache_node(const pxr::UsdShadeShader &usd_shader,
                                       bNode *node,
-                                      const blender::StringRef tag)
+                                      const StringRef tag)
 {
   node_cache_.add_new(get_key(usd_shader, tag), node);
 }
@@ -443,6 +458,11 @@ void NodePlacementContext::cache_node(const pxr::UsdShadeShader &usd_shader,
 USDMaterialReader::USDMaterialReader(const USDImportParams &params, Main &bmain)
     : params_(params), bmain_(bmain)
 {
+}
+
+ReportList *USDMaterialReader::reports() const
+{
+  return params_.worker_status ? params_.worker_status->reports : nullptr;
 }
 
 Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_material,
@@ -458,7 +478,7 @@ Material *USDMaterialReader::add_material(const pxr::UsdShadeMaterial &usd_mater
   Material *mtl = BKE_material_add(&bmain_, mtl_name.c_str());
   mtl->nodetree = blender::bke::node_tree_add_tree_embedded(
       &bmain_, &mtl->id, "USD Material Node Tree", "ShaderNodeTree");
-  // id_us_min(&mtl->id);
+  id_us_min(&mtl->id);
 
   if (read_usd_preview) {
     import_usd_preview(mtl, usd_material);
@@ -569,7 +589,7 @@ void USDMaterialReader::set_principled_node_inputs(bNode *principled,
 
   bNodeSocket *emission_strength_sock = blender::bke::node_find_socket(
       *principled, SOCK_IN, "Emission Strength");
-  ((bNodeSocketValueFloat *)emission_strength_sock->default_value)->value = emission_strength;
+  emission_strength_sock->default_value_typed<bNodeSocketValueFloat>()->value = emission_strength;
 
   if (pxr::UsdShadeInput specular_input = usd_shader.GetInput(usdtokens::specularColor)) {
     set_node_input(specular_input, principled, "Specular Tint", ntree, column, context);
@@ -640,9 +660,9 @@ bool USDMaterialReader::set_displacement_node_inputs(bNodeTree *ntree,
         *displacement_node, SOCK_IN, "Midlevel");
     bNodeSocket *sock_scale = blender::bke::node_find_socket(*displacement_node, SOCK_IN, "Scale");
 
-    ((bNodeSocketValueFloat *)sock_height->default_value)->value += 0.5f;
-    ((bNodeSocketValueFloat *)sock_mid->default_value)->value = 0.5f;
-    ((bNodeSocketValueFloat *)sock_scale->default_value)->value = 1.0f;
+    sock_height->default_value_typed<bNodeSocketValueFloat>()->value += 0.5f;
+    sock_mid->default_value_typed<bNodeSocketValueFloat>()->value = 0.5f;
+    sock_scale->default_value_typed<bNodeSocketValueFloat>()->value = 1.0f;
   }
 
   /* Connect the Displacement node to the output node. */
@@ -687,32 +707,32 @@ bool USDMaterialReader::set_node_input(const pxr::UsdShadeInput &usd_input,
   switch (sock->type) {
     case SOCK_FLOAT:
       if (val.IsHolding<float>()) {
-        ((bNodeSocketValueFloat *)sock->default_value)->value = val.UncheckedGet<float>();
+        sock->default_value_typed<bNodeSocketValueFloat>()->value = val.UncheckedGet<float>();
         return true;
       }
       else if (val.IsHolding<pxr::GfVec3f>()) {
         pxr::GfVec3f v3f = val.UncheckedGet<pxr::GfVec3f>();
         float average = (v3f[0] + v3f[1] + v3f[2]) / 3.0f;
-        ((bNodeSocketValueFloat *)sock->default_value)->value = average;
+        sock->default_value_typed<bNodeSocketValueFloat>()->value = average;
         return true;
       }
       break;
     case SOCK_RGBA:
       if (val.IsHolding<pxr::GfVec3f>()) {
         pxr::GfVec3f v3f = val.UncheckedGet<pxr::GfVec3f>();
-        copy_v3_v3(((bNodeSocketValueRGBA *)sock->default_value)->value, v3f.data());
+        copy_v3_v3(sock->default_value_typed<bNodeSocketValueRGBA>()->value, v3f.data());
         return true;
       }
       break;
     case SOCK_VECTOR:
       if (val.IsHolding<pxr::GfVec3f>()) {
         pxr::GfVec3f v3f = val.UncheckedGet<pxr::GfVec3f>();
-        copy_v3_v3(((bNodeSocketValueVector *)sock->default_value)->value, v3f.data());
+        copy_v3_v3(sock->default_value_typed<bNodeSocketValueVector>()->value, v3f.data());
         return true;
       }
       else if (val.IsHolding<pxr::GfVec2f>()) {
         pxr::GfVec2f v2f = val.UncheckedGet<pxr::GfVec2f>();
-        copy_v2_v2(((bNodeSocketValueVector *)sock->default_value)->value, v2f.data());
+        copy_v2_v2(sock->default_value_typed<bNodeSocketValueVector>()->value, v2f.data());
         return true;
       }
       break;
@@ -803,8 +823,8 @@ static IntermediateNode add_scale_bias(const pxr::UsdShadeShader &usd_shader,
   bNodeSocket *sock_scale = blender::bke::node_find_socket(
       *scale_bias.node, SOCK_IN, "Vector_001");
   bNodeSocket *sock_bias = blender::bke::node_find_socket(*scale_bias.node, SOCK_IN, "Vector_002");
-  copy_v3_v3(((bNodeSocketValueVector *)sock_scale->default_value)->value, scale.data());
-  copy_v3_v3(((bNodeSocketValueVector *)sock_bias->default_value)->value, bias.data());
+  copy_v3_v3(sock_scale->default_value_typed<bNodeSocketValueVector>()->value, scale.data());
+  copy_v3_v3(sock_bias->default_value_typed<bNodeSocketValueVector>()->value, bias.data());
 
   return scale_bias;
 }
@@ -823,8 +843,8 @@ static IntermediateNode add_scale_bias_adjust(bNodeTree *ntree,
 
   bNodeSocket *sock_scale = blender::bke::node_find_socket(*adjust.node, SOCK_IN, "Vector_001");
   bNodeSocket *sock_bias = blender::bke::node_find_socket(*adjust.node, SOCK_IN, "Vector_002");
-  copy_v3_fl3(((bNodeSocketValueVector *)sock_scale->default_value)->value, 0.5f, 0.5f, 0.5f);
-  copy_v3_fl3(((bNodeSocketValueVector *)sock_bias->default_value)->value, 0.5f, 0.5f, 0.5f);
+  copy_v3_fl3(sock_scale->default_value_typed<bNodeSocketValueVector>()->value, 0.5f, 0.5f, 0.5f);
+  copy_v3_fl3(sock_bias->default_value_typed<bNodeSocketValueVector>()->value, 0.5f, 0.5f, 0.5f);
 
   return adjust;
 }
@@ -881,7 +901,7 @@ static IntermediateNode add_lessthan(bNodeTree *ntree,
   lessthan.sock_output_name = "Value";
 
   bNodeSocket *thresh_sock = blender::bke::node_find_socket(*lessthan.node, SOCK_IN, "Value_001");
-  ((bNodeSocketValueFloat *)thresh_sock->default_value)->value = threshold;
+  thresh_sock->default_value_typed<bNodeSocketValueFloat>()->value = threshold;
 
   return lessthan;
 }
@@ -898,7 +918,7 @@ static IntermediateNode add_oneminus(bNodeTree *ntree, int column, NodePlacement
   oneminus.sock_output_name = "Value";
 
   bNodeSocket *val_sock = blender::bke::node_find_socket(*oneminus.node, SOCK_IN, "Value");
-  ((bNodeSocketValueFloat *)val_sock->default_value)->value = 1.0f;
+  val_sock->default_value_typed<bNodeSocketValueFloat>()->value = 1.0f;
 
   return oneminus;
 }
@@ -925,8 +945,8 @@ static void configure_displacement(const pxr::UsdShadeShader &usd_shader, bNode 
 
   bNodeSocket *sock_mid = blender::bke::node_find_socket(*displacement_node, SOCK_IN, "Midlevel");
   bNodeSocket *sock_scale = blender::bke::node_find_socket(*displacement_node, SOCK_IN, "Scale");
-  ((bNodeSocketValueFloat *)sock_mid->default_value)->value = -1.0f * (bias_avg / scale_avg);
-  ((bNodeSocketValueFloat *)sock_scale->default_value)->value = scale_avg;
+  sock_mid->default_value_typed<bNodeSocketValueFloat>()->value = -1.0f * (bias_avg / scale_avg);
+  sock_scale->default_value_typed<bNodeSocketValueFloat>()->value = scale_avg;
 }
 
 static pxr::UsdShadeShader node_graph_output_source(const pxr::UsdShadeNodeGraph &node_graph,
@@ -1217,7 +1237,7 @@ void USDMaterialReader::convert_usd_transform_2d(const pxr::UsdShadeShader &usd_
         if (scale_input.Get(&val) && val.CanCast<pxr::GfVec2f>()) {
           pxr::GfVec2f scale_val = val.Cast<pxr::GfVec2f>().UncheckedGet<pxr::GfVec2f>();
           float scale[3] = {scale_val[0], scale_val[1], 1.0f};
-          copy_v3_v3(((bNodeSocketValueVector *)scale_socket->default_value)->value, scale);
+          copy_v3_v3(scale_socket->default_value_typed<bNodeSocketValueVector>()->value, scale);
         }
       }
     }
@@ -1228,7 +1248,7 @@ void USDMaterialReader::convert_usd_transform_2d(const pxr::UsdShadeShader &usd_
         if (trans_input.Get(&val) && val.CanCast<pxr::GfVec2f>()) {
           pxr::GfVec2f trans_val = val.Cast<pxr::GfVec2f>().UncheckedGet<pxr::GfVec2f>();
           float location[3] = {trans_val[0], trans_val[1], 0.0f};
-          copy_v3_v3(((bNodeSocketValueVector *)loc_socket->default_value)->value, location);
+          copy_v3_v3(loc_socket->default_value_typed<bNodeSocketValueVector>()->value, location);
         }
       }
     }
@@ -1239,7 +1259,7 @@ void USDMaterialReader::convert_usd_transform_2d(const pxr::UsdShadeShader &usd_
         if (rot_input.Get(&val) && val.CanCast<float>()) {
           float rot_val = val.Cast<float>().UncheckedGet<float>() * M_PI / 180.0f;
           float rot[3] = {0.0f, 0.0f, rot_val};
-          copy_v3_v3(((bNodeSocketValueVector *)rot_socket->default_value)->value, rot);
+          copy_v3_v3(rot_socket->default_value_typed<bNodeSocketValueVector>()->value, rot);
         }
       }
     }
@@ -1345,7 +1365,7 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
 
   /* If this is a UDIM texture, this will store the
    * UDIM tile indices. */
-  blender::Vector<int> udim_tiles;
+  Vector<int> udim_tiles;
 
   if (is_udim_path(file_path)) {
     udim_tiles = get_udim_tiles(file_path);
@@ -1545,20 +1565,19 @@ void USDMaterialReader::convert_usd_primvar_reader_generic(const pxr::UsdShadeSh
   }
 }
 
-void build_material_map(const Main *bmain, blender::Map<std::string, Material *> &r_mat_map)
+void build_material_map(const Main *bmain, Map<std::string, Material *> &r_mat_map)
 {
   BLI_assert_msg(r_mat_map.is_empty(), "The incoming material map should be empty");
 
-  LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-    std::string usd_name = make_safe_name(material->id.name + 2, true);
-    r_mat_map.add_new(usd_name, material);
+  for (Material &material : bmain->materials) {
+    r_mat_map.add_new(material.id.name + 2, &material);
   }
 }
 
 Material *find_existing_material(const pxr::SdfPath &usd_mat_path,
                                  const USDImportParams &params,
-                                 const blender::Map<std::string, Material *> &mat_map,
-                                 const blender::Map<pxr::SdfPath, Material *> &usd_path_to_mat)
+                                 const Map<std::string, Material *> &mat_map,
+                                 const Map<pxr::SdfPath, Material *> &usd_path_to_mat)
 {
   if (params.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
     /* Check if we've already created the Blender material with a modified name. */

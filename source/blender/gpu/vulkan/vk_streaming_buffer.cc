@@ -34,8 +34,7 @@ VkDeviceSize VKStreamingBuffer::update(VKContext &context, const void *data, siz
     VKBuffer &host_buffer = *host_buffer_.value().get();
     host_buffer.create(vk_buffer_size_,
                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                       VMA_MEMORY_USAGE_AUTO,
                        VMA_ALLOCATION_CREATE_MAPPED_BIT |
                            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
                        0.4f);
@@ -60,7 +59,7 @@ VkDeviceSize VKStreamingBuffer::update(VKContext &context, const void *data, siz
       data,
       data_size);
 
-  /* Increace the region size to copy to include the min offset alignment. */
+  /* Increase the region size to copy to include the min offset alignment. */
   render_graph::VKCopyBufferNode::Data &copy_buffer_data = render_graph.get_node_data(
       copy_buffer_handle_);
   copy_buffer_data.region.size += offset_ - start_offset;

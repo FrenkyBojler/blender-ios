@@ -607,12 +607,10 @@ static int particle_batch_cache_fill_segments(ParticleSystem *psys,
   const bool is_child = (particle_source == PARTICLE_SOURCE_CHILDREN);
   if (is_simple && *r_parent_uvs == nullptr) {
     /* TODO(sergey): For edit mode it should be edit->totcached. */
-    *r_parent_uvs = static_cast<float (**)[2]>(
-        MEM_callocN(sizeof(*r_parent_uvs) * psys->totpart, "Parent particle UVs"));
+    *r_parent_uvs = MEM_calloc_arrayN<float (*)[2]>(psys->totpart, "Parent particle UVs");
   }
   if (is_simple && *r_parent_mcol == nullptr) {
-    *r_parent_mcol = static_cast<MCol **>(
-        MEM_callocN(sizeof(*r_parent_mcol) * psys->totpart, "Parent particle MCol"));
+    *r_parent_mcol = MEM_calloc_arrayN<MCol *>(psys->totpart, "Parent particle MCol");
   }
   int curr_point = start_index;
   for (int i = 0; i < num_path_keys; i++) {
@@ -780,65 +778,59 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
   HairAttributeID attr_id;
   uint *uv_id = nullptr;
   uint *col_id = nullptr;
-  int num_uv_layers = 0;
+  Vector<StringRef> color_attribute_names;
   int num_col_layers = 0;
-  int active_uv = 0;
-  int active_col = 0;
   const MTFace **mtfaces = nullptr;
   const MCol **mcols = nullptr;
   float (**parent_uvs)[2] = nullptr;
   MCol **parent_mcol = nullptr;
 
+  VectorSet<StringRefNull> uv_map_names;
   if (psmd != nullptr) {
-    if (CustomData_has_layer(&psmd->mesh_final->corner_data, CD_PROP_FLOAT2)) {
-      num_uv_layers = CustomData_number_of_layers(&psmd->mesh_final->corner_data, CD_PROP_FLOAT2);
-      active_uv = CustomData_get_active_layer(&psmd->mesh_final->corner_data, CD_PROP_FLOAT2);
-    }
-    if (CustomData_has_layer(&psmd->mesh_final->corner_data, CD_PROP_BYTE_COLOR)) {
-      num_col_layers = CustomData_number_of_layers(&psmd->mesh_final->corner_data,
-                                                   CD_PROP_BYTE_COLOR);
-      if (psmd->mesh_final->active_color_attribute != nullptr) {
-        active_col = CustomData_get_named_layer(&psmd->mesh_final->corner_data,
-                                                CD_PROP_BYTE_COLOR,
-                                                psmd->mesh_final->active_color_attribute);
+    psmd->mesh_final->uv_map_names();
+    psmd->mesh_final->attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
+      if (iter.domain == bke::AttrDomain::Corner && iter.data_type == bke::AttrType::ColorByte) {
+        color_attribute_names.append(iter.name);
       }
-    }
+    });
+    num_col_layers = color_attribute_names.size();
   }
+  int num_uv_layers = uv_map_names.size();
 
   attr_id.pos = GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
   attr_id.tan = GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SFLOAT_32_32_32);
   attr_id.ind = GPU_vertformat_attr_add(&format, "ind", gpu::VertAttrType::SINT_32);
 
   if (psmd) {
+    const StringRef active_uv = psmd->mesh_final->default_uv_map_name();
+    const char *active_col = psmd->mesh_final->active_color_attribute;
     uv_id = MEM_malloc_arrayN<uint>(num_uv_layers, "UV attr format");
-    col_id = MEM_malloc_arrayN<uint>(num_col_layers, "Col attr format");
+    col_id = MEM_malloc_arrayN<uint>(color_attribute_names.size(), "Col attr format");
 
     for (int i = 0; i < num_uv_layers; i++) {
 
       char uuid[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-      const char *name = CustomData_get_layer_name(
-          &psmd->mesh_final->corner_data, CD_PROP_FLOAT2, i);
+      const StringRef name = uv_map_names[i];
       GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
       SNPRINTF_UTF8(uuid, "a%s", attr_safe_name);
       uv_id[i] = GPU_vertformat_attr_add(&format, uuid, blender::gpu::VertAttrType::SFLOAT_32_32);
 
-      if (i == active_uv) {
+      if (name == active_uv) {
         GPU_vertformat_alias_add(&format, "a");
       }
     }
 
     for (int i = 0; i < num_col_layers; i++) {
+      const StringRef name = color_attribute_names[i];
       char uuid[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-      const char *name = CustomData_get_layer_name(
-          &psmd->mesh_final->corner_data, CD_PROP_BYTE_COLOR, i);
       GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
 
       SNPRINTF_UTF8(uuid, "a%s", attr_safe_name);
       col_id[i] = GPU_vertformat_attr_add(
           &format, uuid, blender::gpu::VertAttrType::UNORM_16_16_16_16);
 
-      if (i == active_col) {
+      if (name == active_col) {
         GPU_vertformat_alias_add(&format, "c");
       }
     }
@@ -853,16 +845,14 @@ static void particle_batch_cache_ensure_pos_and_seg(PTCacheEdit *edit,
   if (num_uv_layers || num_col_layers) {
     BKE_mesh_tessface_ensure(psmd->mesh_final);
     if (num_uv_layers) {
-      mtfaces = static_cast<const MTFace **>(
-          MEM_mallocN(sizeof(*mtfaces) * num_uv_layers, "Faces UV layers"));
+      mtfaces = MEM_malloc_arrayN<const MTFace *>(num_uv_layers, "Faces UV layers");
       for (int i = 0; i < num_uv_layers; i++) {
         mtfaces[i] = (const MTFace *)CustomData_get_layer_n(
             &psmd->mesh_final->fdata_legacy, CD_MTFACE, i);
       }
     }
     if (num_col_layers) {
-      mcols = static_cast<const MCol **>(
-          MEM_mallocN(sizeof(*mcols) * num_col_layers, "Color layers"));
+      mcols = MEM_malloc_arrayN<const MCol *>(num_col_layers, "Color layers");
       for (int i = 0; i < num_col_layers; i++) {
         mcols[i] = (const MCol *)CustomData_get_layer_n(
             &psmd->mesh_final->fdata_legacy, CD_MCOL, i);
@@ -1502,9 +1492,9 @@ void CurvesEvalCache::ensure_attributes(CurvesModule &module,
 
   if (gpu_material) {
     VectorSet<std::string> attrs_needed;
-    ListBase gpu_attrs = GPU_material_attributes(gpu_material);
-    LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
-      StringRef name = gpu_attr->name;
+    ListBaseT<GPUMaterialAttribute> gpu_attrs = GPU_material_attributes(gpu_material);
+    for (GPUMaterialAttribute &gpu_attr : gpu_attrs) {
+      StringRef name = gpu_attr.name;
       if (name.is_empty()) {
         if (std::optional<StringRef> uv_name = get_first_uv_name(attributes)) {
           drw_attributes_add_request(&attrs_needed, *uv_name);
@@ -1614,7 +1604,7 @@ void CurvesEvalCache::ensure_positions(CurvesModule &module, ParticleDrawSource 
 
   this->evaluated_pos_rad_buf = gpu::VertBuf::device_only<float4>(src.evaluated_points_num());
 
-  float4x4 transform = src.object->world_to_object();
+  float4x4 transform = float4x4(src.psys->imat);
 
   module.evaluate_positions(true,
                             false,
