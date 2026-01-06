@@ -217,8 +217,9 @@ void IDPropertyView::build_tree()
     return;
   }
   int index = 0;
-  LISTBASE_FOREACH_INDEX (IDProperty *, id_property, &id_->properties->data.group, index) {
-    this->add_tree_item<IDPropertyItem>(id_, id_property, index);
+  for (IDProperty &id_property : id_->properties->data.group) {
+    this->add_tree_item<IDPropertyItem>(id_, &id_property, index);
+    index++;
   }
 }
 
@@ -238,7 +239,7 @@ void template_tree(ui::Layout *layout, bContext *C, ID *id)
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
 
-void draw_id_properties_value(ui::Layout *layout, bContext */*C*/, ID *id)
+void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id)
 {
   if (!id->properties) {
     return;
