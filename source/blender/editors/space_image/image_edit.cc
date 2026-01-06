@@ -70,14 +70,14 @@ void ED_space_image_set(Main *bmain, SpaceImage *sima, Image *ima, bool automati
 void ED_space_image_sync(Main *bmain, Image *image, bool ignore_render_viewer)
 {
   wmWindowManager *wm = (wmWindowManager *)bmain->wm.first;
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    const bScreen *screen = WM_window_get_active_screen(win);
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-        if (sl->spacetype != SPACE_IMAGE) {
+  for (wmWindow &win : wm->windows) {
+    const bScreen *screen = WM_window_get_active_screen(&win);
+    for (ScrArea &area : screen->areabase) {
+      for (SpaceLink &sl : area.spacedata) {
+        if (sl.spacetype != SPACE_IMAGE) {
           continue;
         }
-        SpaceImage *sima = (SpaceImage *)sl;
+        SpaceImage *sima = (SpaceImage *)&sl;
         if (sima->pin) {
           continue;
         }
@@ -330,7 +330,7 @@ void ED_image_mouse_pos(SpaceImage *sima, const ARegion *region, const int mval[
   ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
   ED_space_image_get_size(sima, &width, &height);
 
-  UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
+  blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
 
   co[0] = ((mval[0] - sx) / zoomx) / width;
   co[1] = ((mval[1] - sy) / zoomy) / height;
@@ -357,7 +357,7 @@ void ED_image_point_pos(
   ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
   ED_space_image_get_size(sima, &width, &height);
 
-  UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
+  blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
 
   *r_x = ((x - sx) / zoomx) / width;
   *r_y = ((y - sy) / zoomy) / height;
@@ -372,7 +372,7 @@ void ED_image_point_pos__reverse(SpaceImage *sima,
   int width, height;
   int sx, sy;
 
-  UI_view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
+  blender::ui::view2d_view_to_region(&region->v2d, 0.0f, 0.0f, &sx, &sy);
   ED_space_image_get_size(sima, &width, &height);
   ED_space_image_get_zoom(sima, region, &zoomx, &zoomy);
 

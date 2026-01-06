@@ -118,7 +118,16 @@ static void node_declare(NodeDeclarationBuilder &b)
       input.supports_field();
     }
     /* Labels are ugly in combination with data-block pickers and are usually disabled. */
-    input.optional_label(ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL));
+    input.optional_label(ELEM(data_type,
+                              SOCK_OBJECT,
+                              SOCK_IMAGE,
+                              SOCK_COLLECTION,
+                              SOCK_MATERIAL,
+                              SOCK_FONT,
+                              SOCK_SCENE,
+                              SOCK_TEXT_ID,
+                              SOCK_MASK,
+                              SOCK_SOUND));
     input.structure_type(value_structure_type);
   }
 
@@ -135,27 +144,27 @@ static void node_declare(NodeDeclarationBuilder &b)
   output.structure_type(value_structure_type);
 
   b.add_input<decl::Extend>("", "__extend__").custom_draw([](CustomSocketDrawParams &params) {
-    uiLayout &layout = params.layout;
+    ui::Layout &layout = params.layout;
     layout.emboss_set(ui::EmbossType::None);
     PointerRNA op_ptr = layout.op("node.index_switch_item_add", "", ICON_ADD);
     RNA_int_set(&op_ptr, "node_identifier", params.node.identifier);
   });
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNode &node = *static_cast<bNode *>(ptr->data);
   NodeIndexSwitch &storage = node_storage(node);
-  if (uiLayout *panel = layout->panel(C, "index_switch_items", false, IFACE_("Items"))) {
+  if (ui::Layout *panel = layout.panel(C, "index_switch_items", false, IFACE_("Items"))) {
     panel->op("node.index_switch_item_add", IFACE_("Add Item"), ICON_ADD);
-    uiLayout *col = &panel->column(false);
+    ui::Layout *col = &panel->column(false);
     for (const int i : IndexRange(storage.items_num)) {
-      uiLayout *row = &col->row(false);
+      ui::Layout *row = &col->row(false);
       row->label(node.input_socket(i + 1).name, ICON_NONE);
       PointerRNA op_ptr = row->op("node.index_switch_item_remove", "", ICON_REMOVE);
       RNA_int_set(&op_ptr, "index", i);
@@ -183,13 +192,13 @@ static void node_operators()
 
 static void node_init(bNodeTree *tree, bNode *node)
 {
-  NodeIndexSwitch *data = MEM_callocN<NodeIndexSwitch>(__func__);
+  NodeIndexSwitch *data = MEM_new_for_free<NodeIndexSwitch>(__func__);
   data->data_type = tree->type == NTREE_GEOMETRY ? SOCK_FLOAT : SOCK_RGBA;
   data->next_identifier = 0;
 
   BLI_assert(data->items == nullptr);
   const int default_items_num = 2;
-  data->items = MEM_calloc_arrayN<IndexSwitchItem>(default_items_num, __func__);
+  data->items = MEM_new_array_for_free<IndexSwitchItem>(default_items_num, __func__);
   for (const int i : IndexRange(default_items_num)) {
     data->items[i].identifier = data->next_identifier++;
   }
@@ -404,8 +413,8 @@ class IndexSwitchOperation : public NodeOperation {
   void execute() override
   {
     Result &output = this->get_result("Output");
-    const int index = this->get_input("Index").get_single_value_default(0);
-    const NodeIndexSwitch &storage = node_storage(bnode());
+    const int index = this->get_input("Index").get_single_value_default<int>();
+    const NodeIndexSwitch &storage = node_storage(node());
 
     if (!IndexRange(storage.items_num).contains(index)) {
       output.allocate_invalid();
@@ -454,13 +463,14 @@ static void node_rna(StructRNA *srna)
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<IndexSwitchItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_freeN(reinterpret_cast<NodeIndexSwitch *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeIndexSwitch &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_dupallocN<NodeIndexSwitch>(__func__, src_storage);
+  auto *dst_storage = MEM_new_for_free<NodeIndexSwitch>(__func__,
+                                                        blender::dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<IndexSwitchItemsAccessor>(*src_node, *dst_node);

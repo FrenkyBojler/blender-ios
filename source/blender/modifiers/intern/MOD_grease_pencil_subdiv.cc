@@ -12,7 +12,6 @@
 
 #include "BLO_read_write.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 #include "DNA_screen_types.h"
 
@@ -35,10 +34,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   GreasePencilSubdivModifierData *gpmd = reinterpret_cast<GreasePencilSubdivModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(gpmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(gpmd, DNA_struct_default_get(GreasePencilSubdivModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
   modifier::greasepencil::init_influence_data(&gpmd->influence, false);
 }
 
@@ -65,7 +61,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
   const GreasePencilSubdivModifierData *mmd =
       reinterpret_cast<const GreasePencilSubdivModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilSubdivModifierData, mmd);
+  writer->write_struct(mmd);
   modifier::greasepencil::write_influence_data(writer, &mmd->influence);
 }
 
@@ -164,20 +160,20 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "subdivision_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "level", UI_ITEM_NONE, IFACE_("Subdivisions"), ICON_NONE);
+  layout.prop(ptr, "subdivision_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "level", UI_ITEM_NONE, IFACE_("Subdivisions"), ICON_NONE);
 
-  if (uiLayout *influence_panel = layout->panel_prop(
+  if (ui::Layout *influence_panel = layout.panel_prop(
           C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
-    modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
-    modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
+    modifier::greasepencil::draw_layer_filter_settings(C, *influence_panel, ptr);
+    modifier::greasepencil::draw_material_filter_settings(C, *influence_panel, ptr);
   }
 
   modifier_error_message_draw(layout, ptr);

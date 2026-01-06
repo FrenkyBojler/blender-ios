@@ -22,29 +22,24 @@
 
 #ifdef RNA_RUNTIME
 
-// #include "DNA_anim_types.h"
-#  include "DNA_image_types.h"
 #  include "DNA_mask_types.h"
-#  include "DNA_sound_types.h"
 
-#  include "BLI_path_utils.hh" /* #BLI_path_split_dir_file */
-
-#  include "BKE_image.hh"
-#  include "BKE_mask.h"
-#  include "BKE_movieclip.h"
+#  include "BLI_listbase.h"
+#  include "BLI_path_utils.hh"
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
 
 #  include "BKE_report.hh"
 
-#  include "IMB_imbuf.hh"
-#  include "IMB_imbuf_types.hh"
-
 #  include "SEQ_add.hh"
-#  include "SEQ_edit.hh"
 #  include "SEQ_effects.hh"
 #  include "SEQ_relations.hh"
 #  include "SEQ_render.hh"
 #  include "SEQ_retiming.hh"
-#  include "SEQ_time.hh"
+#  include "SEQ_utils.hh"
+
+#  include "DEG_depsgraph.hh"
+#  include "DEG_depsgraph_build.hh"
 
 #  include "WM_api.hh"
 
@@ -96,7 +91,7 @@ static Strip *rna_Strip_split(ID *id,
                               bool ignore_connections)
 {
   Scene *scene = (Scene *)id;
-  ListBase *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
+  ListBaseT<Strip> *seqbase = blender::seq::get_seqbase_by_strip(scene, strip);
 
   const char *error_msg = nullptr;
   Strip *strip_split = blender::seq::edit_strip_split(bmain,
@@ -127,7 +122,7 @@ static Strip *rna_Strip_parent_meta(ID *id, Strip *strip_self)
 }
 
 static Strip *rna_Strips_new_clip(ID *id,
-                                  ListBase *seqbase,
+                                  ListBaseT<Strip> *seqbase,
                                   Main *bmain,
                                   const char *name,
                                   MovieClip *clip,
@@ -170,7 +165,7 @@ static Strip *rna_Strips_meta_new_clip(ID *id,
 }
 
 static Strip *rna_Strips_new_mask(ID *id,
-                                  ListBase *seqbase,
+                                  ListBaseT<Strip> *seqbase,
                                   Main *bmain,
                                   const char *name,
                                   Mask *mask,
@@ -202,7 +197,7 @@ static Strip *rna_Strips_meta_new_mask(
 }
 
 static Strip *rna_Strips_new_scene(ID *id,
-                                   ListBase *seqbase,
+                                   ListBaseT<Strip> *seqbase,
                                    Main *bmain,
                                    const char *name,
                                    Scene *sce_strip,
@@ -245,7 +240,7 @@ static Strip *rna_Strips_meta_new_scene(ID *id,
 }
 
 static Strip *rna_Strips_new_image(ID *id,
-                                   ListBase *seqbase,
+                                   ListBaseT<Strip> *seqbase,
                                    Main *bmain,
                                    ReportList *reports,
                                    const char *name,
@@ -316,7 +311,7 @@ static Strip *rna_Strips_meta_new_image(ID *id,
 }
 
 static Strip *rna_Strips_new_movie(ID *id,
-                                   ListBase *seqbase,
+                                   ListBaseT<Strip> *seqbase,
                                    Main *bmain,
                                    ReportList *reports,
                                    const char *name,
@@ -390,7 +385,7 @@ static Strip *rna_Strips_meta_new_movie(ID *id,
 
 #  ifdef WITH_AUDASPACE
 static Strip *rna_Strips_new_sound(ID *id,
-                                   ListBase *seqbase,
+                                   ListBaseT<Strip> *seqbase,
                                    Main *bmain,
                                    ReportList *reports,
                                    const char *name,
@@ -417,7 +412,7 @@ static Strip *rna_Strips_new_sound(ID *id,
 }
 #  else  /* WITH_AUDASPACE */
 static Strip *rna_Strips_new_sound(ID * /*id*/,
-                                   ListBase * /*seqbase*/,
+                                   ListBaseT<Strip> * /*seqbase*/,
                                    Main * /*bmain*/,
                                    ReportList *reports,
                                    const char * /*name*/,
@@ -459,7 +454,7 @@ static Strip *rna_Strips_meta_new_sound(ID *id,
  * Possibility to create an empty meta to avoid plenty of meta toggling
  * Created meta have a length equal to 1, must be set through the API. */
 static Strip *rna_Strips_new_meta(
-    ID *id, ListBase *seqbase, const char *name, int channel, int frame_start)
+    ID *id, ListBaseT<Strip> *seqbase, const char *name, int channel, int frame_start)
 {
   Scene *scene = (Scene *)id;
   blender::seq::LoadData load_data;
@@ -482,7 +477,7 @@ static Strip *rna_Strips_meta_new_meta(
 }
 
 static Strip *rna_Strips_new_effect(ID *id,
-                                    ListBase *seqbase,
+                                    ListBaseT<Strip> *seqbase,
                                     ReportList *reports,
                                     const char *name,
                                     int type,
@@ -569,7 +564,7 @@ static Strip *rna_Strips_meta_new_effect(ID *id,
 }
 
 static void rna_Strips_remove(
-    ID *id, ListBase *seqbase, Main *bmain, ReportList *reports, PointerRNA *strip_ptr)
+    ID *id, ListBaseT<Strip> *seqbase, Main *bmain, ReportList *reports, PointerRNA *strip_ptr)
 {
   Strip *strip = static_cast<Strip *>(strip_ptr->data);
   Scene *scene = (Scene *)id;
@@ -639,7 +634,7 @@ static void rna_StripElements_pop(ID *id, Strip *strip, ReportList *reports, int
     return;
   }
 
-  new_se = MEM_calloc_arrayN<StripElem>(size_t(strip->len) - 1, "StripElements_pop");
+  new_se = MEM_new_array_for_free<StripElem>((strip->len - 1), "StripElements_pop");
   strip->len--;
 
   if (strip->len == 1) {
@@ -733,20 +728,22 @@ void RNA_api_strip(StructRNA *srna)
   func = RNA_def_function(srna, "swap", "rna_Strip_swap_internal");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID);
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
-  parm = RNA_def_pointer(func, "other", "Strip", "Other", "");
+  RNA_def_function_ui_description(func, "Swap the position of this strip with another");
+  parm = RNA_def_pointer(func, "other", "Strip", "Other", "Other strip to swap with");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
   func = RNA_def_function(srna, "move_to_meta", "rna_Strips_move_strip_to_meta");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_SELF_ID | FUNC_USE_MAIN);
+  RNA_def_function_ui_description(func, "Move this strip into a meta Strip");
   parm = RNA_def_pointer(
       func, "meta_sequence", "Strip", "Destination Meta Strip", "Meta to move the strip into");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
 
   func = RNA_def_function(srna, "parent_meta", "rna_Strip_parent_meta");
   RNA_def_function_flag(func, FUNC_USE_SELF_ID);
-  RNA_def_function_ui_description(func, "Parent meta");
+  RNA_def_function_ui_description(func, "Returns parent meta Strip");
   /* return type */
-  parm = RNA_def_pointer(func, "sequence", "Strip", "", "Parent Meta");
+  parm = RNA_def_pointer(func, "sequence", "Strip", "", "Parent meta strip");
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "invalidate_cache", "rna_Strip_invalidate_cache_rnafunc");

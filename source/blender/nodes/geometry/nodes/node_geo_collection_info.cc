@@ -40,14 +40,14 @@ static void node_declare(NodeDeclarationBuilder &b)
           "Instance of the collection or instances of all the children in the collection");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "transform_space", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "transform_space", ui::ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 static void node_node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCollectionInfo *data = MEM_callocN<NodeGeometryCollectionInfo>(__func__);
+  NodeGeometryCollectionInfo *data = MEM_new_for_free<NodeGeometryCollectionInfo>(__func__);
   data->transform_space = GEO_NODE_TRANSFORM_SPACE_ORIGINAL;
   node->storage = data;
 }
@@ -93,12 +93,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (separate_children) {
     const bool reset_children = params.extract_input<bool>("Reset Children");
     Vector<Collection *> children_collections;
-    LISTBASE_FOREACH (CollectionChild *, collection_child, &collection->children) {
-      children_collections.append(collection_child->collection);
+    for (CollectionChild &collection_child : collection->children) {
+      children_collections.append(collection_child.collection);
     }
     Vector<Object *> children_objects;
-    LISTBASE_FOREACH (CollectionObject *, collection_object, &collection->gobject) {
-      children_objects.append(collection_object->ob);
+    for (CollectionObject &collection_object : collection->gobject) {
+      children_objects.append(collection_object.ob);
     }
 
     Vector<InstanceListEntry> entries;

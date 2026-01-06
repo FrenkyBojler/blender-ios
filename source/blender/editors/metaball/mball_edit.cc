@@ -219,16 +219,19 @@ static const EnumPropertyItem prop_similar_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void mball_select_similar_type_get(
-    Object *obedit, MetaBall *mb, int type, KDTree_1d *tree_1d, KDTree_3d *tree_3d)
+static void mball_select_similar_type_get(Object *obedit,
+                                          MetaBall *mb,
+                                          int type,
+                                          blender::KDTree_1d *tree_1d,
+                                          blender::KDTree_3d *tree_3d)
 {
   float tree_entry[3] = {0.0f, 0.0f, 0.0f};
   int tree_index = 0;
-  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
-    if (ml->flag & SELECT) {
+  for (MetaElem &ml : *mb->editelems) {
+    if (ml.flag & SELECT) {
       switch (type) {
         case SIMMBALL_RADIUS: {
-          float radius = ml->rad;
+          float radius = ml.rad;
           /* Radius in world space. */
           float smat[3][3];
           float radius_vec[3] = {radius, radius, radius};
@@ -239,13 +242,13 @@ static void mball_select_similar_type_get(
           break;
         }
         case SIMMBALL_STIFFNESS: {
-          tree_entry[0] = ml->s;
+          tree_entry[0] = ml.s;
           break;
         }
         case SIMMBALL_ROTATION: {
           float dir[3] = {1.0f, 0.0f, 0.0f};
           float rmat[3][3];
-          mul_qt_v3(ml->quat, dir);
+          mul_qt_v3(ml.quat, dir);
           BKE_object_rot_to_mat3(obedit, rmat, true);
           mul_m3_v3(rmat, dir);
           copy_v3_v3(tree_entry, dir);
@@ -253,10 +256,10 @@ static void mball_select_similar_type_get(
         }
       }
       if (tree_1d) {
-        BLI_kdtree_1d_insert(tree_1d, tree_index++, tree_entry);
+        blender::kdtree_1d_insert(tree_1d, tree_index++, tree_entry);
       }
       else {
-        BLI_kdtree_3d_insert(tree_3d, tree_index++, tree_entry);
+        blender::kdtree_3d_insert(tree_3d, tree_index++, tree_entry);
       }
     }
   }
@@ -265,16 +268,16 @@ static void mball_select_similar_type_get(
 static bool mball_select_similar_type(Object *obedit,
                                       MetaBall *mb,
                                       int type,
-                                      const KDTree_1d *tree_1d,
-                                      const KDTree_3d *tree_3d,
+                                      const blender::KDTree_1d *tree_1d,
+                                      const blender::KDTree_3d *tree_3d,
                                       const float thresh)
 {
   bool changed = false;
-  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
+  for (MetaElem &ml : *mb->editelems) {
     bool select = false;
     switch (type) {
       case SIMMBALL_RADIUS: {
-        float radius = ml->rad;
+        float radius = ml.rad;
         /* Radius in world space is the average of the
          * scaled radius in x, y and z directions. */
         float smat[3][3];
@@ -289,7 +292,7 @@ static bool mball_select_similar_type(Object *obedit,
         break;
       }
       case SIMMBALL_STIFFNESS: {
-        float s = ml->s;
+        float s = ml.s;
         if (ED_select_similar_compare_float_tree(tree_1d, s, thresh, SIM_CMP_EQ)) {
           select = true;
         }
@@ -298,14 +301,14 @@ static bool mball_select_similar_type(Object *obedit,
       case SIMMBALL_ROTATION: {
         float dir[3] = {1.0f, 0.0f, 0.0f};
         float rmat[3][3];
-        mul_qt_v3(ml->quat, dir);
+        mul_qt_v3(ml.quat, dir);
         BKE_object_rot_to_mat3(obedit, rmat, true);
         mul_m3_v3(rmat, dir);
 
         float thresh_cos = cosf(thresh * float(M_PI_2));
 
-        KDTreeNearest_3d nearest;
-        if (BLI_kdtree_3d_find_nearest(tree_3d, dir, &nearest) != -1) {
+        blender::KDTreeNearest_3d nearest;
+        if (blender::kdtree_3d_find_nearest(tree_3d, dir, &nearest) != -1) {
           float orient = angle_normalized_v3v3(dir, nearest.co);
           /* Map to 0-1 to compare orientation. */
           float delta = thresh_cos - fabsf(cosf(orient));
@@ -319,7 +322,7 @@ static bool mball_select_similar_type(Object *obedit,
 
     if (select) {
       changed = true;
-      ml->flag |= SELECT;
+      ml.flag |= SELECT;
     }
   }
   return changed;
@@ -339,16 +342,16 @@ static wmOperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
   tot_mball_selected_all = BKE_mball_select_count_multi(bases);
 
   short type_ref = 0;
-  KDTree_1d *tree_1d = nullptr;
-  KDTree_3d *tree_3d = nullptr;
+  blender::KDTree_1d *tree_1d = nullptr;
+  blender::KDTree_3d *tree_3d = nullptr;
 
   switch (type) {
     case SIMMBALL_RADIUS:
     case SIMMBALL_STIFFNESS:
-      tree_1d = BLI_kdtree_1d_new(tot_mball_selected_all);
+      tree_1d = blender::kdtree_1d_new(tot_mball_selected_all);
       break;
     case SIMMBALL_ROTATION:
-      tree_3d = BLI_kdtree_3d_new(tot_mball_selected_all);
+      tree_3d = blender::kdtree_3d_new(tot_mball_selected_all);
       break;
   }
 
@@ -359,9 +362,9 @@ static wmOperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
 
     switch (type) {
       case SIMMBALL_TYPE: {
-        LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
-          if (ml->flag & SELECT) {
-            short mball_type = 1 << (ml->type + 1);
+        for (MetaElem &ml : *mb->editelems) {
+          if (ml.flag & SELECT) {
+            short mball_type = 1 << (ml.type + 1);
             type_ref |= mball_type;
           }
         }
@@ -379,12 +382,12 @@ static wmOperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
   }
 
   if (tree_1d != nullptr) {
-    BLI_kdtree_1d_deduplicate(tree_1d);
-    BLI_kdtree_1d_balance(tree_1d);
+    blender::kdtree_1d_deduplicate(tree_1d);
+    blender::kdtree_1d_balance(tree_1d);
   }
   if (tree_3d != nullptr) {
-    BLI_kdtree_3d_deduplicate(tree_3d);
-    BLI_kdtree_3d_balance(tree_3d);
+    blender::kdtree_3d_deduplicate(tree_3d);
+    blender::kdtree_3d_balance(tree_3d);
   }
   /* Select MetaBalls with desired type. */
   for (Base *base : bases) {
@@ -394,10 +397,10 @@ static wmOperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
 
     switch (type) {
       case SIMMBALL_TYPE: {
-        LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
-          short mball_type = 1 << (ml->type + 1);
+        for (MetaElem &ml : *mb->editelems) {
+          short mball_type = 1 << (ml.type + 1);
           if (mball_type & type_ref) {
-            ml->flag |= SELECT;
+            ml.flag |= SELECT;
             changed = true;
           }
         }
@@ -420,10 +423,10 @@ static wmOperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
   }
 
   if (tree_1d != nullptr) {
-    BLI_kdtree_1d_free(tree_1d);
+    blender::kdtree_1d_free(tree_1d);
   }
   if (tree_3d != nullptr) {
-    BLI_kdtree_3d_free(tree_3d);
+    blender::kdtree_3d_free(tree_3d);
   }
   return OPERATOR_FINISHED;
 }
@@ -480,13 +483,13 @@ static wmOperatorStatus select_random_metaelems_exec(bContext *C, wmOperator *op
 
     RNG *rng = BLI_rng_new_srandom(seed_iter);
 
-    LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
+    for (MetaElem &ml : *mb->editelems) {
       if (BLI_rng_get_float(rng) < randfac) {
         if (select) {
-          ml->flag |= SELECT;
+          ml.flag |= SELECT;
         }
         else {
-          ml->flag &= ~SELECT;
+          ml.flag &= ~SELECT;
         }
       }
     }
@@ -707,10 +710,10 @@ static wmOperatorStatus reveal_metaelems_exec(bContext *C, wmOperator *op)
   const bool select = RNA_boolean_get(op->ptr, "select");
   bool changed = false;
 
-  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
-    if (ml->flag & MB_HIDE) {
-      SET_FLAG_FROM_TEST(ml->flag, select, SELECT);
-      ml->flag &= ~MB_HIDE;
+  for (MetaElem &ml : *mb->editelems) {
+    if (ml.flag & MB_HIDE) {
+      SET_FLAG_FROM_TEST(ml.flag, select, SELECT);
+      ml.flag &= ~MB_HIDE;
       changed = true;
     }
   }

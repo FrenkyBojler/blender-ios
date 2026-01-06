@@ -50,7 +50,7 @@
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "BLT_translation.hh"
 
@@ -65,13 +65,11 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "ANIM_action.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_armature.hh"
-#include "ED_keyframing.hh"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
@@ -79,7 +77,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
 #include "object_intern.hh"
@@ -541,22 +538,22 @@ static void ignore_parent_tx(Main *bmain, Depsgraph *depsgraph, Scene *scene, Ob
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
 
   /* a change was made, adjust the children to compensate */
-  LISTBASE_FOREACH (Object *, ob_child, &bmain->objects) {
-    if (ob_child->parent == ob) {
-      Object *ob_child_eval = DEG_get_evaluated(depsgraph, ob_child);
+  for (Object &ob_child : bmain->objects) {
+    if (ob_child.parent == ob) {
+      Object *ob_child_eval = DEG_get_evaluated(depsgraph, &ob_child);
       BKE_object_apply_mat4(ob_child_eval, ob_child_eval->object_to_world().ptr(), true, false);
-      invert_m4_m4(ob_child->parentinv,
+      invert_m4_m4(ob_child.parentinv,
                    BKE_object_calc_parent(depsgraph, scene, ob_child_eval).ptr());
       /* Copy result of BKE_object_apply_mat4(). */
-      BKE_object_transform_copy(ob_child, ob_child_eval);
+      BKE_object_transform_copy(&ob_child, ob_child_eval);
       /* Make sure evaluated object is in a consistent state with the original one.
        * It might be needed for applying transform on its children. */
-      copy_m4_m4(ob_child_eval->parentinv, ob_child->parentinv);
+      copy_m4_m4(ob_child_eval->parentinv, ob_child.parentinv);
       BKE_object_eval_transform_all(depsgraph, scene_eval, ob_child_eval);
       /* Tag for update.
        * This is because parent matrix did change, so in theory the child object might now be
        * evaluated to a different location in another editing context. */
-      DEG_id_tag_update(&ob_child->id, ID_RECALC_TRANSFORM);
+      DEG_id_tag_update(&ob_child.id, ID_RECALC_TRANSFORM);
     }
   }
 }
@@ -1378,12 +1375,12 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     }
   }
 
-  LISTBASE_FOREACH (Object *, tob, &bmain->objects) {
-    if (tob->data) {
-      ((ID *)tob->data)->tag &= ~ID_TAG_DOIT;
+  for (Object &tob : bmain->objects) {
+    if (tob.data) {
+      ((ID *)tob.data)->tag &= ~ID_TAG_DOIT;
     }
-    if (tob->instance_collection) {
-      ((ID *)tob->instance_collection)->tag &= ~ID_TAG_DOIT;
+    if (tob.instance_collection) {
+      ((ID *)tob.instance_collection)->tag &= ~ID_TAG_DOIT;
     }
   }
 
@@ -1824,15 +1821,15 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     }
   }
 
-  LISTBASE_FOREACH (Object *, tob, &bmain->objects) {
-    if (tob->data && (((ID *)tob->data)->tag & ID_TAG_DOIT)) {
-      BKE_object_batch_cache_dirty_tag(tob);
-      DEG_id_tag_update(&tob->id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
+  for (Object &tob : bmain->objects) {
+    if (tob.data && (((ID *)tob.data)->tag & ID_TAG_DOIT)) {
+      BKE_object_batch_cache_dirty_tag(&tob);
+      DEG_id_tag_update(&tob.id, ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY);
     }
     /* Special support for dupli-groups. */
-    else if (tob->instance_collection && tob->instance_collection->id.tag & ID_TAG_DOIT) {
-      DEG_id_tag_update(&tob->id, ID_RECALC_TRANSFORM);
-      DEG_id_tag_update(&tob->instance_collection->id, ID_RECALC_SYNC_TO_EVAL);
+    else if (tob.instance_collection && tob.instance_collection->id.tag & ID_TAG_DOIT) {
+      DEG_id_tag_update(&tob.id, ID_RECALC_TRANSFORM);
+      DEG_id_tag_update(&tob.instance_collection->id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
 

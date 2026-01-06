@@ -57,6 +57,8 @@
 
 #include "eyedropper_intern.hh"
 
+namespace blender::ui {
+
 struct Eyedropper {
   const ColorManagedDisplay *display = nullptr;
 
@@ -108,9 +110,9 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
     eye->is_undo = true;
   }
   else {
-    uiBut *but = UI_context_active_but_prop_get(C, &eye->ptr, &eye->prop, &eye->index);
+    Button *but = context_active_but_prop_get(C, &eye->ptr, &eye->prop, &eye->index);
     if (but != nullptr) {
-      eye->is_undo = UI_but_flag_is_set(but, UI_BUT_UNDO);
+      eye->is_undo = button_flag_is_set(but, BUT_UNDO);
     }
   }
 
@@ -195,10 +197,10 @@ static bool eyedropper_cryptomatte_sample_view3d_fl(bContext *C,
   }
 
   const ID *id = nullptr;
-  if (blender::StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_OBJECT)) {
+  if (StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_OBJECT)) {
     id = &object->id;
   }
-  else if (blender::StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_MATERIAL)) {
+  else if (StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_MATERIAL)) {
     Material *material = BKE_object_material_get(object, material_slot);
     if (!material) {
       return false;
@@ -241,22 +243,22 @@ static bool eyedropper_cryptomatte_sample_renderlayer_fl(RenderLayer *render_lay
                                             prefix + 1 + render_layer_name_len :
                                             prefix;
 
-  LISTBASE_FOREACH (RenderPass *, render_pass, &render_layer->passes) {
-    if (STRPREFIX(render_pass->name, render_pass_name_prefix) &&
-        !STREQLEN(render_pass->name, render_pass_name_prefix, sizeof(render_pass->name)))
+  for (RenderPass &render_pass : render_layer->passes) {
+    if (STRPREFIX(render_pass.name, render_pass_name_prefix) &&
+        !STREQLEN(render_pass.name, render_pass_name_prefix, sizeof(render_pass.name)))
     {
-      BLI_assert(render_pass->channels == 4);
+      BLI_assert(render_pass.channels == 4);
 
       /* Pass was allocated but not rendered yet. */
-      if (!render_pass->ibuf) {
+      if (!render_pass.ibuf) {
         return false;
       }
 
-      const int x = int(fpos[0] * render_pass->rectx);
-      const int y = int(fpos[1] * render_pass->recty);
-      const int offset = 4 * (y * render_pass->rectx + x);
+      const int x = int(fpos[0] * render_pass.rectx);
+      const int y = int(fpos[1] * render_pass.recty);
+      const int offset = 4 * (y * render_pass.rectx + x);
       zero_v3(r_col);
-      r_col[0] = render_pass->ibuf->float_buffer.data[offset];
+      r_col[0] = render_pass.ibuf->float_buffer.data[offset];
       return true;
     }
   }
@@ -277,8 +279,8 @@ static bool eyedropper_cryptomatte_sample_render_fl(const bNode *node,
   if (re) {
     RenderResult *rr = RE_AcquireResultRead(re);
     if (rr) {
-      LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-        RenderLayer *render_layer = RE_GetRenderLayer(rr, view_layer->name);
+      for (ViewLayer &view_layer : scene->view_layers) {
+        RenderLayer *render_layer = RE_GetRenderLayer(rr, view_layer.name);
         success = eyedropper_cryptomatte_sample_renderlayer_fl(render_layer, prefix, fpos, r_col);
         if (success) {
           break;
@@ -309,8 +311,8 @@ static bool eyedropper_cryptomatte_sample_image_fl(bContext *C,
   if (image && image->type == IMA_TYPE_MULTILAYER) {
     ImBuf *ibuf = BKE_image_acquire_ibuf(image, &image_user_for_frame, nullptr);
     if (image->rr) {
-      LISTBASE_FOREACH (RenderLayer *, render_layer, &image->rr->layers) {
-        success = eyedropper_cryptomatte_sample_renderlayer_fl(render_layer, prefix, fpos, r_col);
+      for (RenderLayer &render_layer : image->rr->layers) {
+        success = eyedropper_cryptomatte_sample_renderlayer_fl(&render_layer, prefix, fpos, r_col);
         if (success) {
           break;
         }
@@ -658,7 +660,7 @@ static wmOperatorStatus eyedropper_invoke(bContext *C, wmOperator *op, const wmE
   if (eyedropper_init(C, op)) {
     wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    UI_context_active_but_clear(C, win, CTX_wm_region(C));
+    context_active_but_clear(C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
@@ -719,3 +721,5 @@ void UI_OT_eyedropper_color(wmOperatorType *ot)
                         "Path of property to be set with the depth");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
+
+}  // namespace blender::ui

@@ -24,6 +24,7 @@
 #include "DNA_workspace_types.h"
 
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_threads.h"
@@ -103,6 +104,8 @@ struct bContext {
     void *py_context_orig;
     /** True if logging is enabled for context members (can be set programmatically). */
     bool log_access;
+    /** Optional flag to disallow writing via RNA. */
+    const bool *rna_disallow_writes;
   } data;
 };
 
@@ -276,6 +279,11 @@ void CTX_py_state_pop(bContext *C, bContext_PyState *pystate)
 {
   C->data.py_context = pystate->py_context;
   C->data.py_context_orig = pystate->py_context_orig;
+}
+
+void CTX_rna_disallow_write_set_p(bContext *C, const bool *rna_disallow_writes)
+{
+  C->data.rna_disallow_writes = rna_disallow_writes;
 }
 
 /* data context utility functions */
@@ -756,7 +764,7 @@ int /*eContextResult*/ CTX_data_get(const bContext *C,
   return ret;
 }
 
-static void data_dir_add(ListBase *lb, const char *member, const bool use_all)
+static void data_dir_add(ListBaseT<LinkData> *lb, const char *member, const bool use_all)
 {
   LinkData *link;
 
@@ -773,13 +781,13 @@ static void data_dir_add(ListBase *lb, const char *member, const bool use_all)
   BLI_addtail(lb, link);
 }
 
-ListBase CTX_data_dir_get_ex(const bContext *C,
-                             const bool use_store,
-                             const bool use_rna,
-                             const bool use_all)
+ListBaseT<LinkData> CTX_data_dir_get_ex(const bContext *C,
+                                        const bool use_store,
+                                        const bool use_rna,
+                                        const bool use_all)
 {
   bContextDataResult result{};
-  ListBase lb;
+  ListBaseT<LinkData> lb;
   bScreen *screen;
   ScrArea *area;
   ARegion *region;
@@ -842,7 +850,7 @@ ListBase CTX_data_dir_get_ex(const bContext *C,
   return lb;
 }
 
-ListBase CTX_data_dir_get(const bContext *C)
+ListBaseT<LinkData> CTX_data_dir_get(const bContext *C)
 {
   return CTX_data_dir_get_ex(C, true, false, false);
 }
@@ -1734,9 +1742,14 @@ Depsgraph *CTX_data_expect_evaluated_depsgraph(const bContext *C)
   return depsgraph;
 }
 
-Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext *C)
+Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext *C, bool rna_write_check)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  if (rna_write_check && !CTX_member_rna_write_check(C)) {
+    return depsgraph;
+  }
+  BLI_assert(CTX_member_rna_write_check(C) || DEG_is_fully_evaluated(depsgraph));
+
   Main *bmain = CTX_data_main(C);
   BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
   return depsgraph;
@@ -1757,4 +1770,9 @@ void CTX_member_logging_set(bContext *C, bool enable)
 bool CTX_member_logging_get(const bContext *C)
 {
   return C->data.log_access;
+}
+
+bool CTX_member_rna_write_check(const bContext *C)
+{
+  return C->data.rna_disallow_writes ? !(*C->data.rna_disallow_writes) : true;
 }

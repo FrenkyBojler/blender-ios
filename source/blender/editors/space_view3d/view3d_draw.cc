@@ -93,7 +93,7 @@ using blender::float4;
 
 #define M_GOLDEN_RATIO_CONJUGATE 0.618033988749895f
 
-#define VIEW3D_OVERLAY_LINEHEIGHT (UI_style_get()->widget.points * UI_SCALE_FAC * 1.6f)
+#define VIEW3D_OVERLAY_LINEHEIGHT (blender::ui::style_get()->widget.points * UI_SCALE_FAC * 1.6f)
 
 /* -------------------------------------------------------------------- */
 /** \name General Functions
@@ -731,7 +731,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
       /* draw */
       immUniformThemeColorAlpha(TH_VIEW_OVERLAY, 0.75f);
 
-      UI_draw_safe_areas(
+      blender::ui::draw_safe_areas(
           shdr_pos, &margins_rect, scene->safe_areas.title, scene->safe_areas.action);
 
       if (ca->flag & CAM_SHOW_SAFE_CENTER) {
@@ -740,10 +740,10 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
         center_rect.xmax = x2;
         center_rect.ymin = y1;
         center_rect.ymax = y2;
-        UI_draw_safe_areas(shdr_pos,
-                           &center_rect,
-                           scene->safe_areas.title_center,
-                           scene->safe_areas.action_center);
+        blender::ui::draw_safe_areas(shdr_pos,
+                                     &center_rect,
+                                     scene->safe_areas.title_center,
+                                     scene->safe_areas.action_center);
       }
     }
 
@@ -782,7 +782,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
       immUniformThemeColorShadeAlpha(TH_VIEW_OVERLAY, 100, 255);
 
       /* TODO: Was using:
-       * `UI_draw_roundbox_4fv(false, rect.xmin, rect.ymin, rect.xmax, rect.ymax, 2.0f, color);`
+       * `draw_roundbox_4fv(false, rect.xmin, rect.ymin, rect.xmax, rect.ymax, 2.0f, color);`
        * We'll probably need a new imm_draw_line_roundbox_dashed or that - though in practice the
        * 2.0f round corner effect was nearly not visible anyway. */
       imm_draw_box_wire_2d(shdr_pos, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
@@ -796,7 +796,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
 
   /* camera name - draw in highlighted text color */
   if (ca && ((v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0) && (ca->flag & CAM_SHOWNAME)) {
-    UI_FontThemeColor(BLF_default(), TH_TEXT_HI);
+    blender::ui::theme::font_theme_color_set(BLF_default(), TH_TEXT_HI);
     BLF_draw_default(x1i,
                      y1i - (0.7f * U.widget_unit),
                      0.0f,
@@ -994,8 +994,8 @@ static void draw_view_axis(RegionView3D *rv3d, const rcti *rect)
     axis_pos[i][1] = starty + vec[1] * k;
 
     /* get color of each axis */
-    UI_GetThemeColorShade3fv(TH_AXIS_X + i, bright, axis_col[i]); /* rgb */
-    axis_col[i][3] = hypotf(vec[0], vec[1]);                      /* alpha */
+    blender::ui::theme::get_color_shade_3fv(TH_AXIS_X + i, bright, axis_col[i]); /* rgb */
+    axis_col[i][3] = hypotf(vec[0], vec[1]);                                     /* alpha */
   }
 
   /* draw axis lines */
@@ -1208,10 +1208,14 @@ static void view3d_draw_grease_pencil(const bContext * /*C*/)
 static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
 {
   const char *name = nullptr;
+  const bool is_locked = RV3D_LOCK_FLAGS(rv3d) & RV3D_LOCK_ROTATION;
 
   switch (rv3d->view) {
     case RV3D_VIEW_FRONT:
-      if (rv3d->persp == RV3D_ORTHO) {
+      if (is_locked) {
+        name = IFACE_("Front");
+      }
+      else if (rv3d->persp == RV3D_ORTHO) {
         name = IFACE_("Front Orthographic");
       }
       else {
@@ -1219,7 +1223,10 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
       }
       break;
     case RV3D_VIEW_BACK:
-      if (rv3d->persp == RV3D_ORTHO) {
+      if (is_locked) {
+        name = IFACE_("Back");
+      }
+      else if (rv3d->persp == RV3D_ORTHO) {
         name = IFACE_("Back Orthographic");
       }
       else {
@@ -1227,7 +1234,10 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
       }
       break;
     case RV3D_VIEW_TOP:
-      if (rv3d->persp == RV3D_ORTHO) {
+      if (is_locked) {
+        name = IFACE_("Top");
+      }
+      else if (rv3d->persp == RV3D_ORTHO) {
         name = IFACE_("Top Orthographic");
       }
       else {
@@ -1235,7 +1245,10 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
       }
       break;
     case RV3D_VIEW_BOTTOM:
-      if (rv3d->persp == RV3D_ORTHO) {
+      if (is_locked) {
+        name = IFACE_("Bottom");
+      }
+      else if (rv3d->persp == RV3D_ORTHO) {
         name = IFACE_("Bottom Orthographic");
       }
       else {
@@ -1243,7 +1256,10 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
       }
       break;
     case RV3D_VIEW_RIGHT:
-      if (rv3d->persp == RV3D_ORTHO) {
+      if (is_locked) {
+        name = IFACE_("Right");
+      }
+      else if (rv3d->persp == RV3D_ORTHO) {
         name = IFACE_("Right Orthographic");
       }
       else {
@@ -1251,7 +1267,10 @@ static const char *view3d_get_name(View3D *v3d, RegionView3D *rv3d)
       }
       break;
     case RV3D_VIEW_LEFT:
-      if (rv3d->persp == RV3D_ORTHO) {
+      if (is_locked) {
+        name = IFACE_("Left");
+      }
+      else if (rv3d->persp == RV3D_ORTHO) {
         name = IFACE_("Left Orthographic");
       }
       else {
@@ -1463,13 +1482,13 @@ static void draw_selected_name(
 
     /* color depends on whether there is a keyframe */
     if (is_grease_pencil_with_layer_keyframe(*ob)) {
-      UI_FontThemeColor(font_id, TH_TIME_GP_KEYFRAME);
+      blender::ui::theme::font_theme_color_set(font_id, TH_TIME_GP_KEYFRAME);
     }
 
     if (blender::animrig::id_frame_has_keyframe((ID *)ob,
                                                 /* BKE_scene_ctime_get(scene) */ float(cfra)))
     {
-      UI_FontThemeColor(font_id, TH_KEYTYPE_KEYFRAME_SELECT);
+      blender::ui::theme::font_theme_color_set(font_id, TH_KEYTYPE_KEYFRAME_SELECT);
     }
   }
 
@@ -1523,7 +1542,7 @@ static float4 get_low_fps_color()
 {
   float alert_rgb[4];
   float alert_hsv[4];
-  UI_GetThemeColor4fv(TH_REDALERT, alert_rgb);
+  blender::ui::theme::get_color_4fv(TH_REDALERT, alert_rgb);
   /* Brighten since we favor dark shadows to increase contrast.
    * This gives similar results to the old hardcoded 225, 36, 36. */
   rgb_to_hsv_v(alert_rgb, alert_hsv);
@@ -1655,7 +1674,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     int yoffset = rect->ymax - (0.1f * U.widget_unit);
 
     const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
-    UI_fontstyle_set(fstyle);
+    blender::ui::fontstyle_set(fstyle);
     BLF_default_size(fstyle->points);
     BLF_set_default();
 
@@ -1667,8 +1686,13 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     BLF_shadow_offset(font_id, 0, 0);
     BLF_shadow(font_id, FontShadowType::Outline, shadow_color);
 
+    /* If in Quadview only draw on the top-left region. */
+    bool region_ok = (region->alignment != RGN_ALIGN_QSPLIT ||
+                      region->runtime->quadview_index ==
+                          blender::bke::ARegionQuadviewIndex::TopLeft);
+
     if ((v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0) {
-      if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_no_scrub(wm)) {
+      if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_no_scrub(wm) && region_ok) {
         ED_scene_draw_fps(scene, xoffset, &yoffset);
         BLF_color4fv(font_id, text_color);
       }
@@ -1676,27 +1700,29 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
         draw_viewport_name(region, v3d, xoffset, &yoffset);
       }
 
-      if (U.uiflag & USER_DRAWVIEWINFO) {
+      if (U.uiflag & USER_DRAWVIEWINFO && region_ok) {
         BKE_view_layer_synced_ensure(scene, view_layer);
         Object *ob = BKE_view_layer_active_object_get(view_layer);
         draw_selected_name(v3d, scene, view_layer, ob, xoffset, &yoffset);
         BLF_color4fv(font_id, text_color);
       }
 
-      if (v3d->gridflag & (V3D_SHOW_FLOOR | V3D_SHOW_X | V3D_SHOW_Y | V3D_SHOW_Z)) {
+      if (v3d->gridflag & (V3D_SHOW_FLOOR | V3D_SHOW_X | V3D_SHOW_Y | V3D_SHOW_Z) && region_ok) {
         /* draw below the viewport name */
         draw_grid_unit_name(scene, region, v3d, xoffset, &yoffset);
       }
 
-      DRW_draw_region_engine_info(xoffset, &yoffset, VIEW3D_OVERLAY_LINEHEIGHT);
+      if (region_ok) {
+        DRW_draw_region_engine_info(xoffset, &yoffset, VIEW3D_OVERLAY_LINEHEIGHT);
+      }
     }
 
-    if (v3d->overlay.flag & V3D_OVERLAY_PERFORMANCE) {
+    if (v3d->overlay.flag & V3D_OVERLAY_PERFORMANCE && region_ok) {
       draw_performance_stats(
           depsgraph, scene, v3d, text_color, xoffset, &yoffset, VIEW3D_OVERLAY_LINEHEIGHT);
     }
 
-    if (v3d->overlay.flag & V3D_OVERLAY_STATS) {
+    if (v3d->overlay.flag & V3D_OVERLAY_STATS && region_ok) {
       View3D *v3d_local = v3d->localvd ? v3d : nullptr;
       ED_info_draw_stats(
           bmain, scene, view_layer, v3d_local, xoffset, &yoffset, VIEW3D_OVERLAY_LINEHEIGHT);
@@ -1832,7 +1858,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
 
   /* Store `orig` variables. */
   struct {
-    bThemeState theme_state;
+    blender::ui::theme::bThemeState theme_state;
 
     /* #View3D */
     eDrawType v3d_shading_type;
@@ -1860,8 +1886,8 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
   orig.rv3d_persp = rv3d->persp;
   orig.rv3d_mats = ED_view3d_mats_rv3d_backup(static_cast<RegionView3D *>(region->regiondata));
 
-  UI_Theme_Store(&orig.theme_state);
-  UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
+  blender::ui::theme::theme_store(&orig.theme_state);
+  blender::ui::theme::theme_set(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   /* Set temporary new size. */
   region->winx = winx;
@@ -1939,7 +1965,7 @@ void ED_view3d_draw_offscreen(Depsgraph *depsgraph,
   MEM_freeN(orig.rv3d_mats);
   rv3d->persp = orig.rv3d_persp;
 
-  UI_Theme_Restore(&orig.theme_state);
+  blender::ui::theme::theme_restore(&orig.theme_state);
 
   v3d->shading.type = orig.v3d_shading_type;
   v3d->camera = orig.v3d_camera;
@@ -1974,7 +2000,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
   ARegion ar = {nullptr};
   blender::bke::ARegionRuntime region_runtime{};
   ar.runtime = &region_runtime;
-  RegionView3D rv3d = {{{0}}};
+  RegionView3D rv3d;
 
   v3d.regionbase.first = v3d.regionbase.last = &ar;
   ar.regiondata = &rv3d;
@@ -2084,6 +2110,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
                                       const bool restore_rv3d_mats,
                                       GPUOffScreen *ofs,
                                       GPUViewport *viewport,
+                                      const bool use_camera_view_bounds,
                                       /* output vars */
                                       char err_out[256])
 {
@@ -2136,7 +2163,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   ImBuf *ibuf = IMB_allocImBuf(sizex, sizey, 32, imbuf_flag);
 
   /* render 3d view */
-  if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
+  if (use_camera_view_bounds && rv3d->persp == RV3D_CAMOB && v3d->camera) {
     CameraParams params;
     Object *camera = BKE_camera_multiview_render(scene, v3d->camera, viewname);
     const Object *camera_eval = DEG_get_evaluated(depsgraph, camera);
@@ -2253,7 +2280,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
   ARegion region = {nullptr};
   blender::bke::ARegionRuntime region_runtime{};
   region.runtime = &region_runtime;
-  RegionView3D rv3d = {{{0}}};
+  RegionView3D rv3d;
 
   /* connect data */
   v3d.regionbase.first = v3d.regionbase.last = &region;
@@ -2350,6 +2377,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
                                         true,
                                         ofs,
                                         viewport,
+                                        true,
                                         err_out);
 }
 
@@ -2589,7 +2617,7 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
       return;
     }
   }
-  bThemeState theme_state;
+  blender::ui::theme::bThemeState theme_state;
   Scene *scene = DEG_get_evaluated_scene(depsgraph);
   RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
 
@@ -2607,8 +2635,8 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
   }
 
   /* Tools may request depth outside of regular drawing code. */
-  UI_Theme_Store(&theme_state);
-  UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
+  blender::ui::theme::theme_store(&theme_state);
+  blender::ui::theme::theme_set(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   ED_view3d_draw_setup_view(static_cast<wmWindowManager *>(G_MAIN->wm.first),
                             nullptr,
@@ -2666,7 +2694,7 @@ void ED_view3d_depth_override(Depsgraph *depsgraph,
   v3d->flag2 = flag2;
   v3d->runtime.flag |= V3D_RUNTIME_DEPTHBUF_OVERRIDDEN;
 
-  UI_Theme_Restore(&theme_state);
+  blender::ui::theme::theme_restore(&theme_state);
 }
 
 void ED_view3d_depths_free(ViewDepths *depths)
@@ -2764,10 +2792,10 @@ void ED_view3d_screen_datamask(const Scene *scene,
   CustomData_MeshMasks_update(r_cddata_masks, &CD_MASK_BAREMESH);
 
   /* Check if we need UV or color data due to the view mode. */
-  LISTBASE_FOREACH (const ScrArea *, area, &screen->areabase) {
-    if (area->spacetype == SPACE_VIEW3D) {
+  for (const ScrArea &area : screen->areabase) {
+    if (area.spacetype == SPACE_VIEW3D) {
       ED_view3d_datamask(
-          scene, view_layer, static_cast<View3D *>(area->spacedata.first), r_cddata_masks);
+          scene, view_layer, static_cast<View3D *>(area.spacedata.first), r_cddata_masks);
     }
   }
 }
@@ -2797,8 +2825,7 @@ struct RV3DMatrixStore {
 
 RV3DMatrixStore *ED_view3d_mats_rv3d_backup(RegionView3D *rv3d)
 {
-  RV3DMatrixStore *rv3dmat = static_cast<RV3DMatrixStore *>(
-      MEM_mallocN(sizeof(*rv3dmat), __func__));
+  RV3DMatrixStore *rv3dmat = MEM_mallocN<RV3DMatrixStore>(__func__);
   copy_m4_m4(rv3dmat->winmat, rv3d->winmat);
   copy_m4_m4(rv3dmat->viewmat, rv3d->viewmat);
   copy_m4_m4(rv3dmat->persmat, rv3d->persmat);

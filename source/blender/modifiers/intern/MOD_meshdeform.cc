@@ -16,7 +16,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -44,10 +43,7 @@
 static void init_data(ModifierData *md)
 {
   MeshDeformModifierData *mmd = (MeshDeformModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(mmd, DNA_struct_default_get(MeshDeformModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(mmd, modifier);
 }
 
 static void free_data(ModifierData *md)
@@ -457,7 +453,7 @@ void BKE_modifier_mdef_compact_influences(ModifierData *md)
   }
 
   /* allocate bind influences */
-  mmd->bindinfluences = MEM_calloc_arrayN<MDefInfluence>(mmd->influences_num, __func__);
+  mmd->bindinfluences = MEM_new_array_for_free<MDefInfluence>(mmd->influences_num, __func__);
   mmd->bindinfluences_sharing_info = implicit_sharing::info_for_mem_free(mmd->bindinfluences);
   mmd->bindoffsets = MEM_calloc_arrayN<int>(size_t(verts_num) + 1, __func__);
   mmd->bindoffsets_sharing_info = implicit_sharing::info_for_mem_free(mmd->bindoffsets);
@@ -499,28 +495,27 @@ void BKE_modifier_mdef_compact_influences(ModifierData *md)
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   bool is_bound = RNA_boolean_get(ptr, "is_bound");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  col = &layout->column(true);
+  blender::ui::Layout *col = &layout.column(true);
   col->enabled_set(!is_bound);
   col->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   col->enabled_set(!is_bound);
   col->prop(ptr, "precision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "use_dynamic_bind", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->op("OBJECT_OT_meshdeform_bind", is_bound ? IFACE_("Unbind") : IFACE_("Bind"), ICON_NONE);
+  layout.op("OBJECT_OT_meshdeform_bind", is_bound ? IFACE_("Unbind") : IFACE_("Bind"), ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }
