@@ -10,7 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
+#include "BLI_array.hh"
 #include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -73,11 +73,14 @@ static BMFace *remdoubles_createface(BMesh *bm,
   BMEdge *e_new;
 
   /* New ordered edges. */
-  BMEdge **edges = BLI_array_alloca(edges, f->len);
+  blender::Array<BMEdge *, BM_DEFAULT_NGON_STACK_SIZE> edges_buf(f->len);
+  BMEdge **edges = edges_buf.data();
   /* New ordered verts. */
-  BMVert **verts = BLI_array_alloca(verts, f->len);
+  blender::Array<BMVert *, BM_DEFAULT_NGON_STACK_SIZE> verts_buf(f->len);
+  BMVert **verts = verts_buf.data();
   /* Original ordered loops to copy attributes into the new face. */
-  BMLoop **loops = BLI_array_alloca(loops, f->len);
+  blender::Array<BMLoop *, BM_DEFAULT_NGON_STACK_SIZE> loops_buf(f->len);
+  BMLoop **loops = loops_buf.data();
 
   STACK_DECLARE(edges);
   STACK_DECLARE(loops);
@@ -309,7 +312,8 @@ void bmo_weld_verts_exec(BMesh *bm, BMOperator *op)
             bmesh_face_swap_data(f_new, f);
 
             if (bm->use_toolflags) {
-              std::swap(((BMFace_OFlag *)f)->oflags, ((BMFace_OFlag *)f_new)->oflags);
+              std::swap((reinterpret_cast<BMFace_OFlag *>(f))->oflags,
+                        (reinterpret_cast<BMFace_OFlag *>(f_new))->oflags);
             }
 
             BMO_face_flag_disable(bm, f, ELE_DEL);
@@ -527,7 +531,7 @@ void bmo_collapse_exec(BMesh *bm, BMOperator *op)
       mul_v3_fl(center, 1.0f / count);
 
       /* Snap edges to a point.  for initial testing purposes anyway. */
-      e = *(BMEdge **)BLI_stack_peek(edge_stack);
+      e = *static_cast<BMEdge **>(BLI_stack_peek(edge_stack));
       v_tar = e->v1;
 
       while (!BLI_stack_is_empty(edge_stack)) {
@@ -827,7 +831,7 @@ static void bmesh_find_doubles_common(BMesh *bm,
   const bool use_connected = BMO_slot_bool_get(op->slots_in, "use_connected");
 
   const BMOpSlot *slot_verts = BMO_slot_get(op->slots_in, "verts");
-  BMVert *const *verts = (BMVert **)slot_verts->data.buf;
+  BMVert *const *verts = reinterpret_cast<BMVert **>(slot_verts->data.buf);
   const int verts_len = slot_verts->len;
 
   bool has_keep_vert = false;

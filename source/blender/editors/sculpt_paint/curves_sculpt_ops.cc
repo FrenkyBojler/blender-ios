@@ -132,10 +132,16 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
 
   const CurvesSculpt &curves_sculpt = *scene.toolsettings->curves_sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&curves_sculpt.paint);
-  const eBrushCurvesSculptType brush_type = (mode == BRUSH_STROKE_SMOOTH) ?
-                                                CURVES_SCULPT_BRUSH_TYPE_SMOOTH :
-                                                eBrushCurvesSculptType(
-                                                    brush.curves_sculpt_brush_type);
+  const eBrushCurvesSculptType brush_type = eBrushCurvesSculptType(brush.curves_sculpt_brush_type);
+  if (mode == BRUSH_STROKE_SMOOTH) {
+    if (brush_type == CURVES_SCULPT_BRUSH_TYPE_SELECTION_PAINT) {
+      /* The selection brush uses the BRUSH_STROKE_SMOOTH mode to indicate that the current
+       * selection should be added to. It should not toggle to the smooth brush itself. */
+    }
+    else {
+      return new_smooth_operation();
+    }
+  }
 
   switch (brush_type) {
     case CURVES_SCULPT_BRUSH_TYPE_COMB:
@@ -310,7 +316,8 @@ static void curves_sculptmode_enter(bContext *C)
   wmMsgBus *mbus = CTX_wm_message_bus(C);
 
   Object *ob = CTX_data_active_object(C);
-  BKE_paint_ensure(scene->toolsettings, (Paint **)&scene->toolsettings->curves_sculpt);
+  BKE_paint_ensure(scene->toolsettings,
+                   reinterpret_cast<Paint **>(&scene->toolsettings->curves_sculpt));
   CurvesSculpt *curves_sculpt = scene->toolsettings->curves_sculpt;
 
   ob->mode = OB_MODE_SCULPT_CURVES;
@@ -758,7 +765,7 @@ static wmOperatorStatus select_grow_invoke(bContext *C, wmOperator *op, const wm
 
   op_data->initial_mouse_x = event->xy[0];
 
-  Curves &curves_id = *static_cast<Curves *>(active_ob->data);
+  Curves &curves_id = *blender::id_cast<Curves *>(active_ob->data);
   auto curve_op_data = std::make_unique<GrowOperatorDataPerCurve>();
   curve_op_data->curves_id = &curves_id;
   select_grow_invoke_per_curve(curves_id, *active_ob, *region, *v3d, *rv3d, *curve_op_data);
@@ -1043,7 +1050,7 @@ static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, co
   Scene *scene = CTX_data_scene(C);
 
   Object &curves_ob_orig = *CTX_data_active_object(C);
-  Curves &curves_id_orig = *static_cast<Curves *>(curves_ob_orig.data);
+  Curves &curves_id_orig = *blender::id_cast<Curves *>(curves_ob_orig.data);
   Object &surface_ob_orig = *curves_id_orig.surface;
   Object *surface_ob_eval = DEG_get_evaluated(depsgraph, &surface_ob_orig);
   if (surface_ob_eval == nullptr) {
