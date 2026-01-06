@@ -8,10 +8,8 @@
 
 #pragma once
 
-#ifdef __cplusplus
-#  include "BLI_math_matrix_types.hh"
-#  include "BLI_math_quaternion_types.hh"
-#endif
+#include "BLI_math_matrix_types.hh"
+#include "BLI_math_quaternion_types.hh"
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
@@ -20,6 +18,8 @@
 #include "DNA_space_enums.h"
 #include "DNA_view3d_enums.h"
 #include "DNA_viewer_path_types.h"
+
+namespace blender {
 
 struct BoundBox;
 struct Object;
@@ -548,11 +548,11 @@ struct View3DCursor {
 
 #ifdef __cplusplus
   template<typename T> T matrix() const;
-  blender::math::Quaternion rotation() const;
+  math::Quaternion rotation() const;
 
-  void set_rotation(const blender::math::Quaternion &quat, bool use_compat);
-  void set_matrix(const blender::float3x3 &mat, bool use_compat);
-  void set_matrix(const blender::float4x4 &mat, bool use_compat);
+  void set_rotation(const math::Quaternion &quat, bool use_compat);
+  void set_matrix(const float3x3 &mat, bool use_compat);
+  void set_matrix(const float4x4 &mat, bool use_compat);
 #endif
 };
 
@@ -695,7 +695,7 @@ struct View3D {
 
   struct SpaceLink *next = nullptr, *prev = nullptr;
   /** Storage of regions for inactive spaces. */
-  ListBase regionbase = {nullptr, nullptr};
+  ListBaseT<ARegion> regionbase = {nullptr, nullptr};
   char spacetype = SPACE_VIEW3D;
   char link_flag = 0;
   char _pad0[6] = {};
@@ -802,3 +802,5 @@ struct View3D {
 /** #BKE_screen_view3d_zoom_to_fac() values above */
 #define RV3D_CAMZOOM_MIN_FACTOR 0.1657359312880714853f
 #define RV3D_CAMZOOM_MAX_FACTOR 44.9852813742385702928f
+
+}  // namespace blender

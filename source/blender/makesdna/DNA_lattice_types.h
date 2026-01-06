@@ -12,6 +12,8 @@
 #include "DNA_defs.h"
 #include "DNA_key_types.h"
 
+namespace blender {
+
 struct AnimData;
 struct BPoint;
 struct Key;
@@ -71,7 +73,7 @@ struct Lattice {
   /** Multiply the influence. */
   char vgroup[/*MAX_VGROUP_NAME*/ 64] = "";
   /** List of bDeformGroup names and flag only. */
-  ListBase vertex_group_names = {nullptr, nullptr};
+  ListBaseT<struct bDeformGroup> vertex_group_names = {nullptr, nullptr};
   int vertex_group_active_index = 0;
 
   char _pad0[4] = {};
@@ -79,3 +81,5 @@ struct Lattice {
   struct EditLatt *editlatt = nullptr;
   void *batch_cache = nullptr;
 };
+
+}  // namespace blender
