@@ -205,14 +205,16 @@ static always_inline TokenType to_type(const char c)
   }
 }
 
-static always_inline bool always_split_token(const TokenType c)
+static always_inline bool always_split_token(const TokenType c, bool is_preprocessor = false)
 {
   switch (c) {
     case TokenType::Number:
     case TokenType::Word:
-    case TokenType::NewLine:
     case TokenType::Space:
       return false;
+    case TokenType::NewLine:
+      /* Split new lines for the preprocessor so that we know when to end a directive. */
+      return is_preprocessor;
     default:
       return true;
   }
@@ -235,7 +237,7 @@ static const std::array<std::pair<TokenType, bool>, 256> token_table_preprocesso
     if (type == Number) {
       type = Word;
     }
-    t[i] = {type, always_split_token(type)};
+    t[i] = {type, always_split_token(type, true)};
   }
   return t;
 }();

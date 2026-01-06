@@ -35,12 +35,13 @@ static Token end_of_directive(Token define_tok)
       tok = tok.next().next();
     }
   }
-  return tok;
+  return tok.prev();
 }
 
-static std::string expand_macro(Token /*expanded_tok*/,
+static std::string expand_macro(Token expanded_tok,
                                 Token macro_name,
-                                const Map<StringRef, Token> &defines)
+                                const Map<StringRef, Token> &defines,
+                                Set<StringRef> &visited_macros)
 {
   Token tok = macro_name.next();
   /* Skip spaces. */
@@ -56,31 +57,40 @@ static std::string expand_macro(Token /*expanded_tok*/,
     /* TODO; Functions */
   }
 
-  std::string macro;
-  macro.reserve(256);
+  StringRef macro_name_str = str(macro_name);
+  /* Add to the set to avoid infinite recursion. */
+  if (!visited_macros.add(macro_name_str)) {
+    /* Recursion. Do not expand. Still replace by the original token. */
+    return macro_name_str;
+  }
+
+  std::string expanded;
+  expanded.reserve(256);
 
   while (tok != NewLine) {
     if (tok == ' ') {
       /* Replace multiple spaces by only one. Shrinks final codebase. */
-      macro += ' ';
+      expanded += ' ';
     }
     else if (tok == Word) {
-      //   Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
-      //   /* TODO(fclem): Functional macro args. */
-      //   if (macro_tok.is_valid()) {
-      //     // macro_tok = arguments.lookup_default(str(tok), Token::invalid());
-      //   }
+      Token macro_tok = Token::invalid();
 
-      //   if (macro_tok.is_valid()) {
-      //     macro += expand_macro(tok, macro_tok, defines);
-      //   }
-      //   else {
-      //     macro += str(tok);
-      //   }
-      macro += str(tok);
+      /* TODO(fclem): Functional macro args. */
+      // macro_tok = arguments.lookup_default(str(tok), Token::invalid());
+
+      if (macro_tok.is_invalid()) {
+        macro_tok = defines.lookup_default(str(tok), Token::invalid());
+        if (macro_tok.is_valid()) {
+          expanded += expand_macro(tok, macro_tok, defines, visited_macros);
+        }
+      }
+
+      if (macro_tok.is_invalid()) {
+        expanded += str(tok);
+      }
     }
     else {
-      macro += str(tok);
+      expanded += str(tok);
     }
 
     tok = tok.next();
@@ -92,14 +102,16 @@ static std::string expand_macro(Token /*expanded_tok*/,
       /* Preprocessor new line. Skip and continue. */
       tok = tok.next().next();
       /* Still insert a space to avoid merging tokens. */
-      macro += ' ';
+      expanded += ' ';
     }
     else if (tok == Invalid) {
       /* Error. */
       break;
     }
   }
-  return macro;
+
+  visited_macros.remove(macro_name_str);
+  return expanded;
 }
 
 static Token find_next_conditional_directive(Token hash_tok)
@@ -236,13 +248,15 @@ static void preprocessor(IntermediateForm &parser)
   int count = 0;
   const TokenStream &data = parser.data_get();
 
+  Set<StringRef> visited_macros;
+
   for (int cursor = 0; cursor < data.token_types.size(); cursor++) {
     TokenType tok_type = TokenType(data.token_types[cursor]);
     if (tok_type == Word) {
       Token tok = Token::from_position(&data, cursor);
       Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
       if (macro_tok.is_valid()) {
-        parser.replace(tok, expand_macro(tok, macro_tok, defines));
+        parser.replace(tok, expand_macro(tok, macro_tok, defines, visited_macros));
         count++;
       }
     }
