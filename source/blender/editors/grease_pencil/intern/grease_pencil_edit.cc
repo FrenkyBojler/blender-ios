@@ -4923,7 +4923,7 @@ static wmOperatorStatus grease_pencil_separate_shapes_exec(bContext *C, wmOperat
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(object->data);
 
   const bool individual = RNA_boolean_get(op->ptr, "individual");
 
