@@ -23,15 +23,15 @@ class TexturePool {
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
 
-  /* Internal packet for texture with and associated counter that supports `Set` insertion.
-   * The counter tracks texture acquire/retain mismatches in `acquire_`, or the number
-   * of unused cycles before deallocation in `pool_`. */
+  /* Internal packet for texture, which supports set insertion. */
   struct TextureHandle {
     Texture *texture;
-    int counter;
+    /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
+    int users_count = 1;
+    /* Counter to track the number of unused cycles before deallocation in `pool_`. */
+    int unused_cycles_count = 0;
 
-    /* We use the pointer as hash/comparator, as a TextureHandle cannot be acquired twice.
-     * This means we can find the handle without knowing the internal counter. */
+    /* We use the pointer as hash/comparator, as a texture cannot be acquired twice. */
     inline uint64_t hash() const
     {
       return get_default_hash(texture);
@@ -69,7 +69,7 @@ class TexturePool {
 
   /* Modify the internal counter of an acquired texture.
    * Used by `TextureFromPool::retain()` in `DRW_gpu_wrapper.hh`. */
-  void offset_texture_counter(Texture *tex, int offset);
+  void offset_users_count(Texture *tex, int offset);
 };
 
 }  // namespace blender::gpu

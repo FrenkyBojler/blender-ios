@@ -1091,10 +1091,9 @@ class TextureFromPool : public Texture, NonMovable {
       }
       return true;
     }
-    else {
-      pool_->offset_texture_counter(tx_, 1);
-      return false;
-    }
+
+    pool_->offset_users_count(tx_, 1);
+    return false;
   }
 
   /* Invalidate the acquired texture for this frame. Multiple releases can be done safely. */
@@ -1111,7 +1110,7 @@ class TextureFromPool : public Texture, NonMovable {
   /* Allow for the texture to survive into the next cycle. */
   void retain()
   {
-    pool_->offset_texture_counter(tx_, -1);
+    pool_->offset_users_count(tx_, -1);
   }
 
   /* Swap the contents of the two textures as well as their owning pool. */

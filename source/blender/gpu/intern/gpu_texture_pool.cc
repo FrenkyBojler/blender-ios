@@ -27,11 +27,10 @@ TexturePool::~TexturePool()
 
 Texture *TexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUTextureUsage usage)
 {
-  /* Search pool for compatible released texture first. */
+  /* Search pool for compatible available texture first. */
   int64_t match_index = -1;
   for (uint64_t i : pool_.index_range()) {
     Texture *tex = pool_[i].texture;
-    /* TODO(@fclem): We could reuse texture using texture views if the formats are compatible. */
     if ((GPU_texture_format(tex) == format) && (GPU_texture_width(tex) == extent.x) &&
         (GPU_texture_height(tex) == extent.y) && (GPU_texture_usage(tex) == usage))
     {
@@ -40,38 +39,39 @@ Texture *TexturePool::acquire_texture(int2 extent, TextureFormat format, eGPUTex
     }
   }
 
-  /* If compatible pool texture was found, acquire and return it. */
+  /* If a compatible pool texture was found, acquire and return it. */
   if (match_index != -1) {
-    Texture *tex = pool_[match_index].texture;
-    acquired_.add({tex, 1}); /* Internal counter set to 1 on acquire. */
+    TextureHandle handle = {pool_[match_index].texture};
+    acquired_.add(handle);
     pool_.remove_and_reorder(match_index);
-    return tex;
+    return handle.texture;
   }
 
-  /* Otherwise, allocate a new texture as a new resort. */
-  /* TODO(@fclem): Rename each allocation using texture views. */
+  /* Otherwise, allocate a new texture as a last resort. */
   char name[16] = "TexFromPool";
   if (G.debug & G_DEBUG_GPU) {
     int texture_id = pool_.size();
     SNPRINTF(name, "TexFromPool_%d", texture_id);
   }
-  Texture *tex = GPU_texture_create_2d(name, UNPACK2(extent), 1, format, usage, nullptr);
-  acquired_.add({tex, 1}); /* Internal counter set to 1 on acquire. */
-
-  return tex;
+  TextureHandle handle = {GPU_texture_create_2d(name, UNPACK2(extent), 1, format, usage, nullptr)};
+  acquired_.add(handle);
+  return handle.texture;
 }
 
 void TexturePool::release_texture(Texture *tex)
 {
-  pool_.append({tex, 0});
-  BLI_assert_msg(acquired_.remove({tex, 1}),
+  BLI_assert_msg(acquired_.contains({tex}),
                  "Unacquired texture passed to TexturePool::release_texture()");
+  acquired_.remove({tex});
+  pool_.append({tex});
 }
 
-void TexturePool::offset_texture_counter(Texture *tex, int offset)
+void TexturePool::offset_users_count(Texture *tex, int offset)
 {
-  int counter = acquired_.lookup_key({tex, 0}).counter;
-  acquired_.add_overwrite({tex, counter + offset});
+  BLI_assert_msg(acquired_.contains({tex}),
+                 "Unacquired texture passed to TexturePool::offset_users_count()");
+  int users_count = acquired_.lookup_key({tex}).users_count;
+  acquired_.add_overwrite({tex, users_count + offset, 0});
 }
 
 void TexturePool::reset(bool force_free)
@@ -80,7 +80,7 @@ void TexturePool::reset(bool force_free)
   /* Iterate acquired textures, and ensure the internal counter equals 0; otherwise
    * this indicates a missing `::retain()` or `::release()`. */
   for (const TextureHandle &tex : acquired_) {
-    BLI_assert_msg(tex.counter == 0,
+    BLI_assert_msg(tex.users_count == 0,
                    "Missing texture release/retain. Likely TextureFromPool::release(), "
                    "TextureFromPool::retain() or TexturePool::release_texture().");
   }
@@ -89,12 +89,12 @@ void TexturePool::reset(bool force_free)
   /* Reverse iterate pool textures, to make sure we only reorder known good handles. */
   for (int i = pool_.size() - 1; i >= 0; i--) {
     TextureHandle &tex = pool_[i];
-    if (tex.counter >= max_unused_cycles_ || force_free) {
+    if (tex.unused_cycles_count >= max_unused_cycles_ || force_free) {
       GPU_texture_free(tex.texture);
       pool_.remove_and_reorder(i);
     }
     else {
-      tex.counter++;
+      tex.unused_cycles_count++;
     }
   }
 }
