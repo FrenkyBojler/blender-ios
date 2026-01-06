@@ -2,12 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# This script can be invoked with an additional argument '--generate' to update the ground truth test data.
-# Example:
-# ./bin/blender "--background" "--factory-startup"
-#     "--python" "<SOURCEPATH>/tests/python/bl_node_copy_operators.py"
-#     "--" "--testdir" "<SOURCEPATH>/tests/files/node_group" "--generate"
-
 import pathlib
 import sys
 import tempfile
@@ -15,6 +9,23 @@ import unittest
 from mathutils import Vector
 
 import bpy
+
+# This test is based around the "Tests" node group in the test file.
+# Test cases are added by frame nodes in the node group. Each frame represents one sub-test.
+# Operators are applied to each frame and compared to expected results,
+# stored in separate node trees:
+#   - bpy.data.node_groups["ExpectedMakeGroup"]:            Result of node.make_group operator.
+#   - bpy.data.node_groups["ExpectedGroupInsert"]:          Result of node.group_insert operator.
+#   - bpy.data.node_groups["ExpectedUngroup"]:              Result of node.ungroup operator.
+#   - bpy.data.node_groups["ExpectedGroupSeparateCopy"]:    Result of node.group_separate operator with type='COPY'.
+#   - bpy.data.node_groups["ExpectedGroupSeparateMove"]:    Result of node.group_separate operator with type='MOVE'.
+# 
+# The script can be invoked with an additional argument '--generate' to update the ground truth test data.
+# This will replace all the "Expected***" node trees with the result of operators applied to the "Tests" node tree.
+# Example:
+# ./bin/blender "--background" "--factory-startup"
+#     "--python" "<SOURCEPATH>/tests/python/bl_node_copy_operators.py"
+#     "--" "--testdir" "<SOURCEPATH>/tests/files/node_group" "--generate"
 
 args = None
 testfile = "node_copy_operators.blend"
@@ -89,6 +100,8 @@ def node_editor_context_override(context, tree, selected_nodes=[], active_node=N
     return context.temp_override(**context_override)
 
 
+# Find all top-level frames in a tree and declare them as test cases.
+# Returns an iterator over (test_label, test_nodes, parent_frame).
 def test_cases(tree):
     # Groups of nodes with top level frame parents.
     # Note: using nested frames in particular can lead to invalid node pointers after the first grouping operation.
@@ -108,12 +121,14 @@ def test_cases(tree):
         yield frame.label, group, frame
 
 
+# Find nodes in a frame of the same name, for comparing test results.
 def find_expected_nodes(expected_tree, test_name):
     for label, nodes, frame in test_cases(expected_tree):
         if label == test_name:
             return nodes
 
 
+# Run the 'node.make_group' operator on test nodes.
 def execute_make_group(test_case, test_tree, expected_tree=None):
     test_name, test_nodes, test_frame = test_case
 
@@ -135,6 +150,7 @@ def execute_make_group(test_case, test_tree, expected_tree=None):
         return mapping
 
 
+# Run the 'node.group_insert' operator on test nodes.
 def execute_group_insert(test_case, test_tree, expected_tree=None):
     test_name, test_nodes, test_frame = test_case
     centroid = node_centroid(test_nodes)
@@ -176,6 +192,7 @@ def execute_group_insert(test_case, test_tree, expected_tree=None):
         return mapping
 
 
+# Run the 'node.ungroup' operator on test nodes.
 def execute_ungroup(test_case, test_tree, expected_tree=None):
     test_name, test_nodes, test_frame = test_case
 
@@ -194,6 +211,8 @@ def execute_ungroup(test_case, test_tree, expected_tree=None):
         return mapping
 
 
+# Run the 'node.group_separate' operator on test nodes.
+# type can be 'COPY' or 'MOVE'.
 def execute_group_separate(type, test_case, test_tree, expected_tree=None):
     test_name, test_nodes, test_frame = test_case
 
@@ -425,7 +444,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
 
 ################
 # Code for generating ground truth test data, sharing functions with test code.
-# This only runs when executing the script inside the test file.
 
 def copy_tree(src_tree, dst_modifier):
     ob = dst_modifier.id_data
