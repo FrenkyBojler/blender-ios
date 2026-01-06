@@ -232,21 +232,35 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
     const Span<float2> svg_path_data = Span<float>(path->pts, 2 * path->npts).cast<float2>();
 
     const IndexRange points = points_by_curve[curve_index];
-    for (const int i : points.index_range()) {
+    const ColorGeometry4f point_color = convert_svg_color(shape.stroke);
+
+    {
+      const float2 pos_center = svg_path_data.first();
+      const float2 pos_handle_left = closed ? svg_path_data[points.size() * 3 - 1] : pos_center;
+
+      const float2 pos_handle_right = svg_path_data[1];
+      positions[points.first()] = math::transform_point(transform, float3(pos_center, 0.0f));
+      handle_positions_left[points.first()] = math::transform_point(transform,
+                                                                    float3(pos_handle_left, 0.0f));
+      handle_positions_right[points.first()] = math::transform_point(
+          transform, float3(pos_handle_right, 0.0f));
+      handle_types_left[points.first()] = BEZIER_HANDLE_FREE;
+      handle_types_right[points.first()] = BEZIER_HANDLE_FREE;
+
+      radii.span[points.first()] = shape.strokeWidth * path_width_scale;
+
+      if (vertex_colors) {
+        vertex_colors.span[points.first()] = point_color;
+      }
+      if (point_opacities) {
+        point_opacities.span[points.first()] = point_color.a;
+      }
+    }
+
+    for (const int i : points.index_range().drop_front(1)) {
       const int point_index = points[i];
       const float2 pos_center = svg_path_data[i * 3];
-      float2 pos_handle_left;
-      if (i == 0) {
-        if (closed) {
-          pos_handle_left = svg_path_data[points.size() * 3 - 1];
-        }
-        else {
-          pos_handle_left = pos_center;
-        }
-      }
-      else {
-        pos_handle_left = svg_path_data[i * 3 - 1];
-      }
+      float2 pos_handle_left = svg_path_data[i * 3 - 1];
       const float2 pos_handle_right = (i < points.size() - 1 + closed) ? svg_path_data[i * 3 + 1] :
                                                                          pos_center;
       positions[point_index] = math::transform_point(transform, float3(pos_center, 0.0f));
@@ -259,7 +273,6 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
 
       radii.span[point_index] = shape.strokeWidth * path_width_scale;
 
-      const ColorGeometry4f point_color = convert_svg_color(shape.stroke);
       if (vertex_colors) {
         vertex_colors.span[point_index] = point_color;
       }
