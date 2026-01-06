@@ -305,22 +305,27 @@ bool BPY_run_string_exec(bContext *C, const char *imports[], const char *expr)
 /**
  * Run the given script with the given local variables.
  *
- * This assumes that the Python environment has been set up (i.e. the GIL has been acquired).
+ * This assumes that the Python environment has been set up (i.e. the GIL has been acquired). In
+ * case of a Python exception, this function returns `false` and the caller is responsible for
+ * dealing with the exception.
  */
-static bool run_string_with_locals(const blender::StringRefNull script, IDProperty &locals)
+static bool BPY_run_string_exec_with_locals_impl(const blender::StringRefNull script,
+                                                 IDProperty &locals)
 {
   /* Set up locals & globals. */
   BLI_assert(locals.type == IDP_GROUP);
   PyObject *py_locals = BPy_IDGroup_MapDataToPy(&locals);
   if (!py_locals) {
+    /* Leave the printing of the exception to the caller. */
     return false;
   }
 
-  PyObject *py_globals = PyC_DefaultNameSpace("<BPY_run_string_with_locals>");
+  PyObject *py_globals = PyC_DefaultNameSpace("<BPY_run_string_exec_with_locals>");
   BLI_assert(py_globals);
 
-  /* Run the script. The result object itself is not used, but its existence indicates that the
-   * script ran without uncaught exceptions. */
+  /* Run the script. The result object itself is not used, but its existence
+   * indicates that the script ran without uncaught exceptions. The printing of
+   * any exception is left to the caller. */
   PyObject *result = PyRun_String(script.c_str(), Py_file_input, py_globals, py_locals);
   const bool ok = (result != nullptr);
   if (result) {
@@ -334,16 +339,16 @@ static bool run_string_with_locals(const blender::StringRefNull script, IDProper
   return ok;
 }
 
-bool BPY_run_string_with_locals(bContext *C,
-                                const blender::StringRefNull script,
-                                IDProperty &locals)
+bool BPY_run_string_exec_with_locals(bContext *C,
+                                     const blender::StringRefNull script,
+                                     IDProperty &locals)
 {
   PyGILState_STATE gilstate;
   bpy_context_set(C, &gilstate);
 
   PyObject *main_mod_backup = PyC_MainModule_Backup();
 
-  const bool ok = run_string_with_locals(script, locals);
+  const bool ok = BPY_run_string_exec_with_locals_impl(script, locals);
   if (!ok) {
     if (ReportList *wm_reports = C ? CTX_wm_reports(C) : nullptr) {
       BPy_errors_to_report(wm_reports);

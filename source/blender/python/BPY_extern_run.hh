@@ -108,9 +108,9 @@ bool BPY_run_string_eval(bContext *C, const char *imports[], const char *expr);
  *
  * \param locals group property with string keys, defining the script's local variables.
  */
-bool BPY_run_string_with_locals(bContext *C,
-                                const blender::StringRefNull script,
-                                IDProperty &locals);
+bool BPY_run_string_exec_with_locals(bContext *C,
+                                     const blender::StringRefNull script,
+                                     IDProperty &locals);
 
 /** \} */
 
