@@ -3856,11 +3856,11 @@ static void sculpt_init_mirror_clipping(const Object &ob, const SculptSession &s
 {
   ss.cache->mirror_modifier_clip.mat = float4x4::identity();
 
-  LISTBASE_FOREACH (ModifierData *, md, &ob.modifiers) {
-    if (!(md->type == eModifierType_Mirror && (md->mode & eModifierMode_Realtime))) {
+  for (ModifierData &md : ob.modifiers) {
+    if (!(md.type == eModifierType_Mirror && (md.mode & eModifierMode_Realtime))) {
       continue;
     }
-    MirrorModifierData *mmd = (MirrorModifierData *)md;
+    MirrorModifierData *mmd = (MirrorModifierData *)&md;
 
     if (!(mmd->flag & MOD_MIR_CLIPPING)) {
       continue;
@@ -3911,16 +3911,14 @@ static void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache 
   }
 
   /* Switch to the smooth brush if possible. */
-  BKE_paint_brush_set_essentials(bmain, paint, "Smooth");
-  Brush *smooth_brush = BKE_paint_brush(paint);
-
-  if (!smooth_brush) {
+  if (!BKE_paint_brush_set_essentials(bmain, paint, "Smooth")) {
     BKE_paint_brush_set(paint, cur_brush);
-    CLOG_WARN(&LOG, "Switching to the smooth brush not possible, corresponding brush not");
+    CLOG_WARN(&LOG, "Unable to switch to the 'Smooth' essentials brush asset");
     cache->saved_active_brush = nullptr;
     return;
   }
 
+  Brush *smooth_brush = BKE_paint_brush(paint);
   int cur_brush_size = BKE_brush_size_get(paint, cur_brush);
 
   cache->saved_active_brush = cur_brush;
@@ -5308,10 +5306,10 @@ void flush_update_done(const bContext *C, Object &ob, const UpdateType update_ty
   }
 
   const wmWindowManager &wm = *CTX_wm_manager(C);
-  LISTBASE_FOREACH (wmWindow *, win, &wm.windows) {
-    const bScreen &screen = *WM_window_get_active_screen(win);
-    LISTBASE_FOREACH (ScrArea *, area, &screen.areabase) {
-      const SpaceLink &sl = *static_cast<SpaceLink *>(area->spacedata.first);
+  for (wmWindow &win : wm.windows) {
+    const bScreen &screen = *WM_window_get_active_screen(&win);
+    for (ScrArea &area : screen.areabase) {
+      const SpaceLink &sl = *static_cast<SpaceLink *>(area.spacedata.first);
       if (sl.spacetype != SPACE_VIEW3D) {
         continue;
       }
@@ -5319,25 +5317,25 @@ void flush_update_done(const bContext *C, Object &ob, const UpdateType update_ty
       /* Tag all 3D viewports for redraw now that we are done. Other
        * viewports did not get a full redraw, and anti-aliasing for the
        * current viewport was deactivated. */
-      LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-        if (region->regiontype == RGN_TYPE_WINDOW) {
-          const RegionView3D *other_rv3d = static_cast<RegionView3D *>(region->regiondata);
+      for (ARegion &region : area.regionbase) {
+        if (region.regiontype == RGN_TYPE_WINDOW) {
+          const RegionView3D *other_rv3d = static_cast<RegionView3D *>(region.regiondata);
           if (other_rv3d != current_rv3d) {
             need_tag |= !BKE_sculptsession_use_pbvh_draw(&ob, other_rv3d);
           }
 
-          ED_region_tag_redraw(region);
+          ED_region_tag_redraw(&region);
         }
       }
     }
 
     if (update_type == UpdateType::Image) {
-      LISTBASE_FOREACH (ScrArea *, area, &screen.areabase) {
-        const SpaceLink &sl = *static_cast<SpaceLink *>(area->spacedata.first);
+      for (ScrArea &area : screen.areabase) {
+        const SpaceLink &sl = *static_cast<SpaceLink *>(area.spacedata.first);
         if (sl.spacetype != SPACE_IMAGE) {
           continue;
         }
-        ED_area_tag_redraw_regiontype(area, RGN_TYPE_WINDOW);
+        ED_area_tag_redraw_regiontype(&area, RGN_TYPE_WINDOW);
       }
     }
   }
@@ -5458,8 +5456,8 @@ void store_mesh_from_eval(const wmOperator &op,
   else {
     /* Detect attributes present in the new mesh which no longer match the original. */
     VectorSet<StringRef> vertex_group_names;
-    LISTBASE_FOREACH (const bDeformGroup *, vertex_group, &mesh.vertex_group_names) {
-      vertex_group_names.add(vertex_group->name);
+    for (const bDeformGroup &vertex_group : mesh.vertex_group_names) {
+      vertex_group_names.add(vertex_group.name);
     }
 
     VectorSet<StringRef> changed_attributes;
@@ -7565,10 +7563,10 @@ std::optional<ShapeKeyData> ShapeKeyData::from_object(Object &object)
   if (const std::optional<Array<bool>> dependent = BKE_keyblock_get_dependent_keys(keys,
                                                                                    active_index))
   {
-    int i;
-    LISTBASE_FOREACH_INDEX (KeyBlock *, other_key, &keys->block, i) {
-      if ((other_key != active_key) && (*dependent)[i]) {
-        data.dependent_keys.append({static_cast<float3 *>(other_key->data), other_key->totelem});
+
+    for (const auto [i, other_key] : keys->block.enumerate()) {
+      if ((&other_key != active_key) && (*dependent)[i]) {
+        data.dependent_keys.append({static_cast<float3 *>(other_key.data), other_key.totelem});
       }
     }
   }
@@ -7699,7 +7697,7 @@ OffsetIndices<int> create_node_vert_offsets(const Span<bke::pbvh::MeshNode> node
                                             Array<int> &node_data)
 {
   node_data.reinitialize(node_mask.size() + 1);
-  node_mask.foreach_index(
+  node_mask.foreach_index_optimized<int>(
       [&](const int i, const int pos) { node_data[pos] = nodes[i].verts().size(); });
   return offset_indices::accumulate_counts_to_offsets(node_data);
 }
@@ -7710,7 +7708,7 @@ OffsetIndices<int> create_node_vert_offsets(const CCGKey &key,
                                             Array<int> &node_data)
 {
   node_data.reinitialize(node_mask.size() + 1);
-  node_mask.foreach_index([&](const int i, const int pos) {
+  node_mask.foreach_index_optimized<int>([&](const int i, const int pos) {
     node_data[pos] = nodes[i].grids().size() * key.grid_area;
   });
   return offset_indices::accumulate_counts_to_offsets(node_data);
