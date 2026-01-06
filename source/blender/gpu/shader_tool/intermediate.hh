@@ -102,6 +102,17 @@ struct IntermediateForm {
     return substr_range_inclusive(start.str_index_start(), end.str_index_last());
   }
 
+  /* Access internal string without applying pending mutations. */
+  std::string_view substr_range_inclusive_view(size_t start, size_t end)
+  {
+    return std::string_view(data_.str).substr(start, end - start + 1);
+  }
+  /* Access internal string without applying pending mutations. */
+  std::string_view substr_range_inclusive_view(Token start, Token end)
+  {
+    return substr_range_inclusive_view(start.str_index_start(), end.str_index_last());
+  }
+
   /* Replace everything from `from` to `to` (inclusive).
    * Return true on success. */
   bool replace_try(size_t from, size_t to, const std::string &replacement)
@@ -131,7 +142,7 @@ struct IntermediateForm {
   /* Replace everything from `from` to `to` (inclusive). */
   void replace(size_t from, size_t to, const std::string &replacement)
   {
-#ifdef NDEBUG
+#ifndef NDEBUG
     bool success = replace_try(from, to, replacement);
     assert(success);
     (void)success;

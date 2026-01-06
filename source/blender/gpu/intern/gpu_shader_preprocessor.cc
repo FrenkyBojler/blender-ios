@@ -20,6 +20,7 @@ struct Preprocessor {
 
   Map<StringRef, Token> defines;
   Set<StringRef> visited_macros;
+  Map<StringRef, StringRef> macro_parameters;
   /* Token cursor. */
   int cursor;
 
@@ -47,61 +48,156 @@ struct Preprocessor {
     return tok.prev();
   }
 
-  std::string expand_macro(Token expanded_tok, Token macro_name)
+  static Token skip_whitespace(Token tok)
   {
-    Token tok = macro_name.next();
-    /* Skip spaces. */
     if (tok == Space) {
+      tok = skip_whitespace(tok.next());
+    }
+    return tok;
+  }
+
+  static Token get_end_of_parameter(Token tok)
+  {
+    /* Avoid matching coma inside parameter function calls. */
+    int stack = 1;
+    tok = tok.next();
+    while (tok.is_valid()) {
+      if (tok == '(') {
+        stack++;
+      }
+      else if (tok == ')') {
+        stack--;
+      }
+      if (stack == 0) {
+        return tok;
+      }
+      if (stack == 1 && tok == ',') {
+        return tok;
+      }
       tok = tok.next();
     }
+    return tok;
+  }
+
+  struct ExpandedResult {
+    /* Replacement content. */
+    std::string str;
+    /* End of range to replace. */
+    Token end_of_expansion;
+  };
+
+  ExpandedResult expand_macro(Token expanded_tok, Token macro_name)
+  {
+    Token tok = macro_name.next();
+    const bool is_function = (tok == '(');
+
+    Token end_of_expansion = expanded_tok;
+
+    tok = skip_whitespace(tok);
+
     /* Empty definition. */
     if (tok == '\n') {
-      return "";
+      return {"", end_of_expansion};
     }
 
     StringRef macro_name_str = str(macro_name);
     /* Add to the set to avoid infinite recursion. */
     if (!visited_macros.add(macro_name_str)) {
       /* Recursion. Do not expand. Still replace by the original token. */
-      return macro_name_str;
+      return {macro_name_str, end_of_expansion};
     }
 
-    if (tok == '(') {
+    if (is_function) {
       /* This is a functional macro. */
 
-      /* Parse parameters. */
-      Token parameter_open = expanded_tok.next();
-      if (parameter_open != '(') {
+      Token param = expanded_tok.next();
+      if (param != '(') {
         /* Error, macro doesn't have parameters. */
         visited_macros.remove(macro_name_str);
-        return macro_name_str;
+        return {macro_name_str, end_of_expansion};
       }
 
-      /* Parse arguments. */
+      /* Parse parameters & arguments. */
+      macro_parameters.clear_and_keep_capacity();
+      while (tok != ')') {
+        /* Continue to the next name. */
+        tok = skip_whitespace(tok.next());
+
+        Token param_start = param;
+        Token param_end = get_end_of_parameter(param_start);
+
+        Token argument_name = tok;
+        macro_parameters.add(
+            str(argument_name),
+            parser.substr_range_inclusive_view(param_start.next(), param_end.prev()));
+
+        /* Continue to the next separator. */
+        tok = skip_whitespace(tok.next());
+        param = param_end;
+
+        if (tok == Invalid) {
+          break;
+        }
+      }
+      /* Skip closing parenthesis. */
+      tok = skip_whitespace(tok.next());
+      /* Make sure to replace the whole call. */
+      end_of_expansion = param;
     }
 
     std::string expanded;
     expanded.reserve(256);
 
     while (tok != NewLine) {
+      if (tok == '#' && tok.next() == '#') {
+        /* Token concat. */
+        tok = tok.next().next();
+        continue;
+      }
+
+      if (tok == '\\' && tok.next() == '\n') {
+        /* Preprocessor new line. Skip and continue. */
+        tok = tok.next().next();
+        /* Still insert a space to avoid merging tokens. */
+        expanded += ' ';
+        continue;
+      }
+
+      if (tok == Invalid) {
+        /* Error. */
+        break;
+      }
+
       if (tok == ' ') {
         /* Replace multiple spaces by only one. Shrinks final codebase. */
         expanded += ' ';
       }
       else if (tok == Word) {
-        Token macro_tok = Token::invalid();
+        bool replaced = false;
 
-        /* TODO(fclem): Functional macro args. */
-        // macro_tok = arguments.lookup_default(str(tok), Token::invalid());
-
-        if (macro_tok.is_invalid()) {
-          macro_tok = defines.lookup_default(str(tok), Token::invalid());
-          if (macro_tok.is_valid()) {
-            expanded += expand_macro(tok, macro_tok);
+        if (is_function) {
+          /* Lookup macro arguments. */
+          StringRef *macro_str = macro_parameters.lookup_ptr(str(tok));
+          if (macro_str) {
+            expanded += *macro_str;
+            replaced = true;
           }
         }
 
-        if (macro_tok.is_invalid()) {
+        if (!replaced) {
+          /* Try recursive expansion. */
+          Token macro_tok = Token::invalid();
+          macro_tok = defines.lookup_default(str(tok), Token::invalid());
+          if (macro_tok.is_valid()) {
+            auto [str, end_of_expand] = expand_macro(tok, macro_tok);
+            tok = end_of_expand;
+            expanded += str;
+            replaced = true;
+          }
+        }
+
+        if (!replaced) {
+          /* Fallback to no expansion. */
           expanded += str(tok);
         }
       }
@@ -110,24 +206,10 @@ struct Preprocessor {
       }
 
       tok = tok.next();
-      if (tok == '#' && tok.next() == '#') {
-        /* Token concat. */
-        tok = tok.next().next();
-      }
-      if (tok == '\\' && tok.next() == '\n') {
-        /* Preprocessor new line. Skip and continue. */
-        tok = tok.next().next();
-        /* Still insert a space to avoid merging tokens. */
-        expanded += ' ';
-      }
-      else if (tok == Invalid) {
-        /* Error. */
-        break;
-      }
     }
 
     visited_macros.remove(macro_name_str);
-    return expanded;
+    return {expanded, end_of_expansion};
   }
 
   static Token find_next_conditional_directive(Token hash_tok)
@@ -187,11 +269,7 @@ struct Preprocessor {
     }
 #endif
 
-    Token dir_tok = hash_tok.next();
-    /* Skip optional spaces after hash token. */
-    if (dir_tok == Space) {
-      dir_tok = dir_tok.next();
-    }
+    Token dir_tok = skip_whitespace(hash_tok.next());
 
     if (dir_tok != Word) {
       return; /* TODO(fclem): Error. */
@@ -263,7 +341,9 @@ struct Preprocessor {
         Token tok = Token::from_position(&data, cursor);
         Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
         if (macro_tok.is_valid()) {
-          parser.replace(tok, expand_macro(tok, macro_tok));
+          auto [replacement, end] = expand_macro(tok, macro_tok);
+          parser.replace(tok, end, replacement);
+          cursor = end.index;
           macro_replacement_count++;
         }
       }
