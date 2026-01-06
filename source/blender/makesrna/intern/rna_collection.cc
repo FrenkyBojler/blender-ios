@@ -49,6 +49,8 @@ BLI_STATIC_ASSERT(ARRAY_SIZE(rna_enum_collection_color_items) - 2 == COLLECTION_
 #  include "DEG_depsgraph_build.hh"
 #  include "DEG_depsgraph_query.hh"
 
+#  include "BLI_listbase.h"
+
 #  include "BKE_collection.hh"
 #  include "BKE_global.hh"
 #  include "BKE_idprop.hh"
@@ -65,8 +67,8 @@ BLI_STATIC_ASSERT(ARRAY_SIZE(rna_enum_collection_color_items) - 2 == COLLECTION_
 
 static void rna_Collection_all_objects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  Collection *collection = (Collection *)ptr->data;
-  ListBase collection_objects = BKE_collection_object_cache_get(collection);
+  Collection *collection = static_cast<Collection *>(ptr->data);
+  ListBaseT<Base> collection_objects = BKE_collection_object_cache_get(collection);
   rna_iterator_listbase_begin(iter, ptr, &collection_objects, nullptr);
 }
 
@@ -75,13 +77,13 @@ static PointerRNA rna_Collection_all_objects_get(CollectionPropertyIterator *ite
   ListBaseIterator *internal = &iter->internal.listbase;
 
   /* we are actually iterating a ObjectBase list, so override get */
-  Base *base = (Base *)internal->link;
+  Base *base = reinterpret_cast<Base *>(internal->link);
   return RNA_id_pointer_create(&base->object->id);
 }
 
 static void rna_Collection_objects_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  Collection *collection = (Collection *)ptr->data;
+  Collection *collection = static_cast<Collection *>(ptr->data);
   rna_iterator_listbase_begin(iter, ptr, &collection->gobject, nullptr);
 }
 
@@ -90,7 +92,7 @@ static PointerRNA rna_Collection_objects_get(CollectionPropertyIterator *iter)
   ListBaseIterator *internal = &iter->internal.listbase;
 
   /* we are actually iterating a ObjectBase list, so override get */
-  CollectionObject *cob = (CollectionObject *)internal->link;
+  CollectionObject *cob = reinterpret_cast<CollectionObject *>(internal->link);
   return RNA_id_pointer_create(&cob->ob->id);
 }
 
@@ -184,7 +186,7 @@ static bool rna_Collection_objects_override_apply(Main *bmain,
                  "Unsupported RNA override operation on collections' objects");
   UNUSED_VARS_NDEBUG(opop);
 
-  Collection *coll_dst = (Collection *)ptr_dst->owner_id;
+  Collection *coll_dst = blender::id_cast<Collection *>(ptr_dst->owner_id);
 
   if (ptr_item_dst->type == nullptr || ptr_item_src->type == nullptr) {
     // BLI_assert_msg(0, "invalid source or destination object.");
@@ -209,7 +211,7 @@ static bool rna_Collection_objects_override_apply(Main *bmain,
 
 static void rna_Collection_children_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  Collection *collection = (Collection *)ptr->data;
+  Collection *collection = static_cast<Collection *>(ptr->data);
   rna_iterator_listbase_begin(iter, ptr, &collection->children, nullptr);
 }
 
@@ -218,7 +220,7 @@ static PointerRNA rna_Collection_children_get(CollectionPropertyIterator *iter)
   ListBaseIterator *internal = &iter->internal.listbase;
 
   /* we are actually iterating a CollectionChild list, so override get */
-  CollectionChild *child = (CollectionChild *)internal->link;
+  CollectionChild *child = reinterpret_cast<CollectionChild *>(internal->link);
   return RNA_id_pointer_create(&child->collection->id);
 }
 
@@ -312,7 +314,7 @@ static bool rna_Collection_children_override_apply(Main *bmain,
                  "Unsupported RNA override operation on collections' children");
   UNUSED_VARS_NDEBUG(opop);
 
-  Collection *coll_dst = (Collection *)ptr_dst->owner_id;
+  Collection *coll_dst = blender::id_cast<Collection *>(ptr_dst->owner_id);
 
   if (ptr_item_dst->type == nullptr || ptr_item_src->type == nullptr) {
     /* This can happen when reference and overrides differ, just ignore then. */
@@ -345,7 +347,7 @@ static bool rna_Collection_children_override_apply(Main *bmain,
 
 static void rna_Collection_flag_set(PointerRNA *ptr, const bool value, const int flag)
 {
-  Collection *collection = (Collection *)ptr->data;
+  Collection *collection = static_cast<Collection *>(ptr->data);
 
   if (collection->flag & COLLECTION_IS_MASTER) {
     return;
@@ -376,7 +378,7 @@ static void rna_Collection_hide_render_set(PointerRNA *ptr, bool value)
 
 static void rna_Collection_flag_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  Collection *collection = (Collection *)ptr->data;
+  Collection *collection = static_cast<Collection *>(ptr->data);
   BKE_collection_object_cache_free(bmain, collection, 0);
   BKE_main_collection_sync(bmain);
 
@@ -387,14 +389,14 @@ static void rna_Collection_flag_update(Main *bmain, Scene *scene, PointerRNA *pt
 
 static int rna_Collection_color_tag_get(PointerRNA *ptr)
 {
-  Collection *collection = (Collection *)ptr->data;
+  Collection *collection = static_cast<Collection *>(ptr->data);
 
   return collection->color_tag;
 }
 
 static void rna_Collection_color_tag_set(PointerRNA *ptr, int value)
 {
-  Collection *collection = (Collection *)ptr->data;
+  Collection *collection = static_cast<Collection *>(ptr->data);
 
   if (collection->flag & COLLECTION_IS_MASTER) {
     return;
@@ -412,28 +414,29 @@ static void rna_Collection_instance_offset_update(Main * /*bmain*/,
                                                   Scene * /*scene*/,
                                                   PointerRNA *ptr)
 {
-  Collection *collection = (Collection *)ptr->data;
+  Collection *collection = static_cast<Collection *>(ptr->data);
   DEG_id_tag_update(&collection->id, ID_RECALC_GEOMETRY);
 }
 
 static std::optional<std::string> rna_CollectionLightLinking_path(const PointerRNA *ptr)
 {
-  Collection *collection = (Collection *)ptr->owner_id;
-  CollectionLightLinking *collection_light_linking = (CollectionLightLinking *)ptr->data;
+  Collection *collection = blender::id_cast<Collection *>(ptr->owner_id);
+  CollectionLightLinking *collection_light_linking = static_cast<CollectionLightLinking *>(
+      ptr->data);
 
   int counter;
 
   counter = 0;
-  LISTBASE_FOREACH (CollectionObject *, collection_object, &collection->gobject) {
-    if (&collection_object->light_linking == collection_light_linking) {
+  for (CollectionObject &collection_object : collection->gobject) {
+    if (&collection_object.light_linking == collection_light_linking) {
       return fmt::format("collection_objects[{}].light_linking", counter);
     }
     ++counter;
   }
 
   counter = 0;
-  LISTBASE_FOREACH (CollectionChild *, collection_child, &collection->children) {
-    if (&collection_child->light_linking == collection_light_linking) {
+  for (CollectionChild &collection_child : collection->children) {
+    if (&collection_child.light_linking == collection_light_linking) {
       return fmt::format("collection_children[{}].light_linking", counter);
     }
     ++counter;
@@ -472,7 +475,7 @@ static CollectionExport *rna_CollectionExport_new(Collection *collection,
   }
   if (fh) {
     CollectionExport *exporter = BKE_collection_exporter_add(
-        collection, fh->idname, name ? (char *)name : fh->label);
+        collection, fh->idname, name ? const_cast<char *>(name) : fh->label);
 
     WM_main_add_notifier(NC_SCENE, nullptr);
     return exporter;

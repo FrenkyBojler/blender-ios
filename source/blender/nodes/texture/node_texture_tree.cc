@@ -58,7 +58,7 @@ static void texture_get_from_context(const bContext *C,
     }
 
     if (brush) {
-      *r_from = (ID *)brush;
+      *r_from = reinterpret_cast<ID *>(brush);
       tx = give_current_brush_texture(brush);
       if (tx) {
         *r_id = &tx->id;
@@ -69,7 +69,7 @@ static void texture_get_from_context(const bContext *C,
   else if (snode->texfrom == SNODE_TEX_LINESTYLE) {
     FreestyleLineStyle *linestyle = BKE_linestyle_active_from_view_layer(view_layer);
     if (linestyle) {
-      *r_from = (ID *)linestyle;
+      *r_from = blender::id_cast<ID *>(linestyle);
       tx = give_current_linestyle_texture(linestyle);
       if (tx) {
         *r_id = &tx->id;
@@ -156,10 +156,10 @@ void register_node_tree_type_tex()
 
 bNodeThreadStack *ntreeGetThreadStack(bNodeTreeExec *exec, int thread)
 {
-  ListBase *lb = &exec->threadstack[thread];
+  ListBaseT<bNodeThreadStack> *lb = &exec->threadstack[thread];
   bNodeThreadStack *nts;
 
-  for (nts = (bNodeThreadStack *)lb->first; nts; nts = nts->next) {
+  for (nts = static_cast<bNodeThreadStack *>(lb->first); nts; nts = nts->next) {
     if (!nts->used) {
       nts->used = true;
       break;
@@ -168,7 +168,7 @@ bNodeThreadStack *ntreeGetThreadStack(bNodeTreeExec *exec, int thread)
 
   if (!nts) {
     nts = MEM_callocN<bNodeThreadStack>("bNodeThreadStack");
-    nts->stack = (bNodeStack *)MEM_dupallocN(exec->stack);
+    nts->stack = static_cast<bNodeStack *>(MEM_dupallocN(exec->stack));
     nts->used = true;
     BLI_addtail(lb, nts);
   }
@@ -219,10 +219,11 @@ bNodeTreeExec *ntreeTexBeginExecTree_internal(bNodeExecContext *context,
   exec = ntree_exec_begin(context, ntree, parent_key);
 
   /* allocate the thread stack listbase array */
-  exec->threadstack = MEM_calloc_arrayN<ListBase>(BLENDER_MAX_THREADS, "thread stack array");
+  exec->threadstack = MEM_calloc_arrayN<ListBaseT<bNodeThreadStack>>(BLENDER_MAX_THREADS,
+                                                                     "thread stack array");
 
-  LISTBASE_FOREACH (bNode *, node, &exec->nodetree->nodes) {
-    node->runtime->need_exec = 1;
+  for (bNode &node : exec->nodetree->nodes) {
+    node.runtime->need_exec = 1;
   }
 
   return exec;
@@ -257,8 +258,8 @@ static void tex_free_delegates(bNodeTreeExec *exec)
   int th, a;
 
   for (th = 0; th < BLENDER_MAX_THREADS; th++) {
-    LISTBASE_FOREACH (bNodeThreadStack *, nts, &exec->threadstack[th]) {
-      for (ns = nts->stack, a = 0; a < exec->stacksize; a++, ns++) {
+    for (bNodeThreadStack &nts : exec->threadstack[th]) {
+      for (ns = nts.stack, a = 0; a < exec->stacksize; a++, ns++) {
         if (ns->data && !ns->is_copy) {
           MEM_freeN(ns->data);
         }
@@ -275,9 +276,9 @@ void ntreeTexEndExecTree_internal(bNodeTreeExec *exec)
     tex_free_delegates(exec);
 
     for (a = 0; a < BLENDER_MAX_THREADS; a++) {
-      LISTBASE_FOREACH (bNodeThreadStack *, nts, &exec->threadstack[a]) {
-        if (nts->stack) {
-          MEM_freeN(nts->stack);
+      for (bNodeThreadStack &nts : exec->threadstack[a]) {
+        if (nts.stack) {
+          MEM_freeN(nts.stack);
         }
       }
       BLI_freelistN(&exec->threadstack[a]);

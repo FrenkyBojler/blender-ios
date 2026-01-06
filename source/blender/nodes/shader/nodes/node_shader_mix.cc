@@ -181,8 +181,8 @@ static void sh_node_mix_update(bNodeTree *ntree, bNode *node)
     bke::node_set_socket_availability(*ntree, *socket, socket->type == data_type);
   }
 
-  LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
-    bke::node_set_socket_availability(*ntree, *socket, socket->type == data_type);
+  for (bNodeSocket &socket : node->outputs) {
+    bke::node_set_socket_availability(*ntree, socket, socket.type == data_type);
   }
 }
 
@@ -292,7 +292,7 @@ static void node_mix_gather_link_searches(GatherLinkSearchOpParams &params)
 
 static void node_mix_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeShaderMix *data = MEM_callocN<NodeShaderMix>(__func__);
+  NodeShaderMix *data = MEM_new_for_free<NodeShaderMix>(__func__);
   data->data_type = SOCK_FLOAT;
   data->factor_mode = NODE_MIX_MODE_UNIFORM;
   data->clamp_factor = 1;
@@ -472,7 +472,7 @@ class MixColorFunction : public mf::MultiFunction {
 
 static const mf::MultiFunction *get_multi_function(const bNode &node)
 {
-  const NodeShaderMix *data = (NodeShaderMix *)node.storage;
+  const NodeShaderMix *data = static_cast<NodeShaderMix *>(node.storage);
   bool uniform_factor = data->factor_mode == NODE_MIX_MODE_UNIFORM;
   const bool clamp_factor = data->clamp_factor;
   switch (data->data_type) {

@@ -301,7 +301,7 @@ static PTCacheEdit *pe_get_current(Depsgraph *depsgraph, Scene *scene, Object *o
 {
   ParticleEditSettings *pset = PE_settings(scene);
   PTCacheEdit *edit = nullptr;
-  ListBase pidlist;
+  ListBaseT<PTCacheID> pidlist;
   PTCacheID *pid;
 
   if (pset == nullptr || ob == nullptr) {
@@ -447,7 +447,7 @@ void PE_hide_keys_time(Scene *scene, PTCacheEdit *edit, float cfra)
 static int pe_x_mirror(Object *ob)
 {
   if (ob->type == OB_MESH) {
-    return (((Mesh *)ob->data)->symmetry & ME_SYMMETRY_X);
+    return ((blender::id_cast<Mesh *>(ob->data))->symmetry & ME_SYMMETRY_X);
   }
 
   return 0;
@@ -843,7 +843,7 @@ static void foreach_mouse_hit_key_iter(void *__restrict iter_data_v,
                                        const int iter,
                                        const TaskParallelTLS *__restrict /*tls*/)
 {
-  KeyIterData *iter_data = (KeyIterData *)iter_data_v;
+  KeyIterData *iter_data = static_cast<KeyIterData *>(iter_data_v);
   PEData *data = iter_data->data;
   PTCacheEdit *edit = data->edit;
   PTCacheEditPoint *point = &edit->points[iter];
@@ -1204,7 +1204,7 @@ static void deflect_emitter_iter(void *__restrict iter_data_v,
                                  const int iter,
                                  const TaskParallelTLS *__restrict /*tls*/)
 {
-  DeflectEmitterIter *iter_data = (DeflectEmitterIter *)iter_data_v;
+  DeflectEmitterIter *iter_data = static_cast<DeflectEmitterIter *>(iter_data_v);
   PTCacheEdit *edit = iter_data->edit;
   PTCacheEditPoint *point = &edit->points[iter];
   if ((point->flag & PEP_EDIT_RECALC) == 0) {
@@ -1307,7 +1307,7 @@ static void apply_lengths_iter(void *__restrict iter_data_v,
                                const int iter,
                                const TaskParallelTLS *__restrict /*tls*/)
 {
-  ApplyLengthsIterData *iter_data = (ApplyLengthsIterData *)iter_data_v;
+  ApplyLengthsIterData *iter_data = static_cast<ApplyLengthsIterData *>(iter_data_v);
   PTCacheEdit *edit = iter_data->edit;
   PTCacheEditPoint *point = &edit->points[iter];
   if ((point->flag & PEP_EDIT_RECALC) == 0) {
@@ -1356,7 +1356,7 @@ static void iterate_lengths_iter(void *__restrict iter_data_v,
                                  const int iter,
                                  const TaskParallelTLS *__restrict /*tls*/)
 {
-  IterateLengthsIterData *iter_data = (IterateLengthsIterData *)iter_data_v;
+  IterateLengthsIterData *iter_data = static_cast<IterateLengthsIterData *>(iter_data_v);
   PTCacheEdit *edit = iter_data->edit;
   PTCacheEditPoint *point = &edit->points[iter];
   if ((point->flag & PEP_EDIT_RECALC) == 0) {
@@ -1458,8 +1458,7 @@ void recalc_emitter_field(Depsgraph * /*depsgraph*/, Object * /*ob*/, ParticleSy
   totface = mesh->totface_legacy;
   // int totvert = dm->getNumVerts(dm); /* UNUSED */
 
-  edit->emitter_cosnos = static_cast<float *>(
-      MEM_callocN(sizeof(float[6]) * totface, "emitter cosnos"));
+  edit->emitter_cosnos = MEM_calloc_arrayN<float>(6 * totface, "emitter cosnos");
 
   edit->emitter_field = blender::kdtree_3d_new(totface);
 
@@ -1468,7 +1467,8 @@ void recalc_emitter_field(Depsgraph * /*depsgraph*/, Object * /*ob*/, ParticleSy
 
   const blender::Span<blender::float3> positions = mesh->vert_positions();
   const blender::Span<blender::float3> vert_normals = mesh->vert_normals();
-  const MFace *mfaces = (const MFace *)CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE);
+  const MFace *mfaces = static_cast<const MFace *>(
+      CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE));
   for (i = 0; i < totface; i++, vec += 6, nor += 6) {
     const MFace *mface = &mfaces[i];
 
@@ -2945,7 +2945,7 @@ static int remove_tagged_particles(Object *ob, ParticleSystem *psys, int mirror)
 
   if (new_totpart != psys->totpart) {
     if (new_totpart) {
-      npa = new_pars = MEM_calloc_arrayN<ParticleData>(new_totpart, "ParticleData array");
+      npa = new_pars = MEM_new_array_for_free<ParticleData>(new_totpart, "ParticleData array");
       npoint = new_points = MEM_calloc_arrayN<PTCacheEditPoint>(new_totpart,
                                                                 "PTCacheEditKey array");
 
@@ -3017,8 +3017,8 @@ static void remove_tagged_keys(Depsgraph *depsgraph, Object *ob, ParticleSystem 
   if (pe_x_mirror(ob)) {
     /* mirror key tags */
     ParticleSystemModifierData *psmd = psys_get_modifier(ob, psys);
-    ParticleSystemModifierData *psmd_eval = (ParticleSystemModifierData *)
-        BKE_modifier_get_evaluated(depsgraph, ob, &psmd->modifier);
+    ParticleSystemModifierData *psmd_eval = reinterpret_cast<ParticleSystemModifierData *>(
+        BKE_modifier_get_evaluated(depsgraph, ob, &psmd->modifier));
 
     LOOP_POINTS {
       LOOP_TAGGED_KEYS {
@@ -3528,7 +3528,7 @@ void PARTICLE_OT_delete(wmOperatorType *ot)
 
 static void PE_mirror_x(Depsgraph *depsgraph, Scene *scene, Object *ob, int tagged)
 {
-  Mesh *mesh = (Mesh *)(ob->data);
+  Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
   ParticleSystemModifierData *psmd_eval;
   PTCacheEdit *edit = PE_get_current(depsgraph, scene, ob);
   ParticleSystem *psys = edit->psys;
@@ -3587,13 +3587,13 @@ static void PE_mirror_x(Depsgraph *depsgraph, Scene *scene, Object *ob, int tagg
 
   if (newtotpart != psys->totpart) {
     const MFace *mtessface = use_dm_final_indices ?
-                                 (const MFace *)CustomData_get_layer(
-                                     &psmd_eval->mesh_final->fdata_legacy, CD_MFACE) :
-                                 (const MFace *)CustomData_get_layer(&mesh->fdata_legacy,
-                                                                     CD_MFACE);
+                                 static_cast<const MFace *>(CustomData_get_layer(
+                                     &psmd_eval->mesh_final->fdata_legacy, CD_MFACE)) :
+                                 static_cast<const MFace *>(
+                                     CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE));
 
     /* allocate new arrays and copy existing */
-    new_pars = MEM_calloc_arrayN<ParticleData>(newtotpart, "ParticleData new");
+    new_pars = MEM_new_array_for_free<ParticleData>(newtotpart, "ParticleData new");
     new_points = MEM_calloc_arrayN<PTCacheEditPoint>(newtotpart, "PTCacheEditPoint new");
 
     if (psys->particles) {
@@ -4204,7 +4204,7 @@ static int particle_intersect_mesh(Depsgraph *depsgraph,
   }
 
   totface = mesh->totface_legacy;
-  mface = (const MFace *)CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE);
+  mface = static_cast<const MFace *>(CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE));
   blender::Span<blender::float3> positions = mesh->vert_positions();
 
   /* lets intersect the faces */
@@ -4321,7 +4321,7 @@ static void brush_add_count_iter(void *__restrict iter_data_v,
                                  const int iter,
                                  const TaskParallelTLS *__restrict tls_v)
 {
-  BrushAddCountIterData *iter_data = (BrushAddCountIterData *)iter_data_v;
+  BrushAddCountIterData *iter_data = static_cast<BrushAddCountIterData *>(iter_data_v);
   Depsgraph *depsgraph = iter_data->depsgraph;
   PEData *data = iter_data->data;
   PTCacheEdit *edit = data->edit;
@@ -4406,15 +4406,15 @@ static void brush_add_count_iter_reduce(const void *__restrict /*userdata*/,
                                         void *__restrict join_v,
                                         void *__restrict chunk_v)
 {
-  BrushAddCountIterTLSData *join = (BrushAddCountIterTLSData *)join_v;
-  BrushAddCountIterTLSData *tls = (BrushAddCountIterTLSData *)chunk_v;
+  BrushAddCountIterTLSData *join = static_cast<BrushAddCountIterTLSData *>(join_v);
+  BrushAddCountIterTLSData *tls = static_cast<BrushAddCountIterTLSData *>(chunk_v);
   join->num_added += tls->num_added;
 }
 
 static void brush_add_count_iter_free(const void *__restrict /*userdata_v*/,
                                       void *__restrict chunk_v)
 {
-  BrushAddCountIterTLSData *tls = (BrushAddCountIterTLSData *)chunk_v;
+  BrushAddCountIterTLSData *tls = static_cast<BrushAddCountIterTLSData *>(chunk_v);
   if (tls->rng != nullptr) {
     BLI_rng_free(tls->rng);
   }
@@ -4444,7 +4444,7 @@ static int brush_add(const bContext *C, PEData *data, short number)
     return 0;
   }
 
-  add_pars = MEM_calloc_arrayN<ParticleData>(number, "ParticleData add");
+  add_pars = MEM_new_array_for_free<ParticleData>(number, "ParticleData add");
 
   rng = BLI_rng_new_srandom(psys->seed + data->mval[0] + data->mval[1]);
 
@@ -4511,7 +4511,8 @@ static int brush_add(const bContext *C, PEData *data, short number)
     int newtotpart = totpart + n;
     float hairmat[4][4], cur_co[3];
     blender::KDTree_3d *tree = nullptr;
-    ParticleData *pa, *new_pars = MEM_calloc_arrayN<ParticleData>(newtotpart, "ParticleData new");
+    ParticleData *pa,
+        *new_pars = MEM_new_array_for_free<ParticleData>(newtotpart, "ParticleData new");
     PTCacheEditPoint *point, *new_points = MEM_calloc_arrayN<PTCacheEditPoint>(
                                  newtotpart, "PTCacheEditPoint array new");
     PTCacheEditKey *key;
@@ -5324,8 +5325,8 @@ void PE_create_particle_edit(
   int totpoint;
 
   if (psmd != nullptr) {
-    psmd_eval = (ParticleSystemModifierData *)BKE_modifiers_findby_name(ob_eval,
-                                                                        psmd->modifier.name);
+    psmd_eval = reinterpret_cast<ParticleSystemModifierData *>(
+        BKE_modifiers_findby_name(ob_eval, psmd->modifier.name));
   }
 
   /* no psmd->dm happens in case particle system modifier is not enabled */
@@ -5350,7 +5351,8 @@ void PE_create_particle_edit(
       psys_copy_particles(psys, psys_eval);
     }
 
-    totpoint = psys ? psys->totpart : int(((PTCacheMem *)cache->mem_cache.first)->totpoint);
+    totpoint = psys ? psys->totpart :
+                      int((static_cast<PTCacheMem *>(cache->mem_cache.first))->totpoint);
 
     edit = MEM_callocN<PTCacheEdit>("PE_create_particle_edit");
     edit->points = MEM_calloc_arrayN<PTCacheEditPoint>(totpoint, "PTCacheEditPoints");
@@ -5397,14 +5399,12 @@ void PE_create_particle_edit(
       cache->free_edit = PE_free_ptcache_edit;
       edit->psys = nullptr;
 
-      LISTBASE_FOREACH (PTCacheMem *, pm, &cache->mem_cache) {
-        totframe++;
-      }
+      totframe += BLI_listbase_count(&cache->mem_cache);
 
-      LISTBASE_FOREACH (PTCacheMem *, pm, &cache->mem_cache) {
+      for (PTCacheMem &pm : cache->mem_cache) {
         LOOP_POINTS {
           void *cur[BPHYS_TOT_DATA];
-          if (BKE_ptcache_mem_pointers_seek(p, pm, cur) == 0) {
+          if (BKE_ptcache_mem_pointers_seek(p, &pm, cur) == 0) {
             continue;
           }
 
@@ -5419,7 +5419,7 @@ void PE_create_particle_edit(
           key->co = static_cast<float *>(cur[BPHYS_DATA_LOCATION]);
           key->vel = static_cast<float *>(cur[BPHYS_DATA_VELOCITY]);
           key->rot = static_cast<float *>(cur[BPHYS_DATA_ROTATION]);
-          key->ftime = float(pm->frame);
+          key->ftime = float(pm.frame);
           key->time = &key->ftime;
           BKE_ptcache_mem_pointers_incr(cur);
 
@@ -5492,8 +5492,8 @@ void ED_object_particle_edit_mode_enter_ex(Depsgraph *depsgraph, Scene *scene, O
      * with possible changes applied when object was outside of the
      * edit mode. */
     Object *object_eval = DEG_get_evaluated(depsgraph, ob);
-    edit->psmd_eval = (ParticleSystemModifierData *)BKE_modifiers_findby_name(
-        object_eval, edit->psmd->modifier.name);
+    edit->psmd_eval = reinterpret_cast<ParticleSystemModifierData *>(
+        BKE_modifiers_findby_name(object_eval, edit->psmd->modifier.name));
     recalc_emitter_field(depsgraph, ob, edit->psys);
   }
 

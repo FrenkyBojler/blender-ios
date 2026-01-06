@@ -6,7 +6,6 @@
  * \ingroup spimage
  */
 
-#include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_image_types.h"
 #include "DNA_mask_types.h"
@@ -61,11 +60,11 @@
 
 static void image_scopes_tag_refresh(ScrArea *area)
 {
-  SpaceImage *sima = (SpaceImage *)area->spacedata.first;
+  SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
 
   /* only while histogram is visible */
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->regiontype == RGN_TYPE_TOOL_PROPS && region->flag & RGN_FLAG_HIDDEN) {
+  for (ARegion &region : area->regionbase) {
+    if (region.regiontype == RGN_TYPE_TOOL_PROPS && region.flag & RGN_FLAG_HIDDEN) {
       return;
     }
   }
@@ -102,7 +101,7 @@ static SpaceLink *image_create(const ScrArea * /*area*/, const Scene * /*scene*/
   ARegion *region;
   SpaceImage *simage;
 
-  simage = MEM_callocN<SpaceImage>("initimage");
+  simage = MEM_new_for_free<SpaceImage>("initimage");
   simage->spacetype = SPACE_IMAGE;
   simage->zoom = 1.0f;
   simage->lock = true;
@@ -126,7 +125,7 @@ static SpaceLink *image_create(const ScrArea * /*area*/, const Scene * /*scene*/
   simage->custom_grid_subdiv[0] = 10;
   simage->custom_grid_subdiv[1] = 10;
 
-  simage->mask_info = *DNA_struct_default_get(MaskSpaceInfo);
+  simage->mask_info = MaskSpaceInfo();
 
   /* header */
   region = BKE_area_region_new();
@@ -178,13 +177,13 @@ static SpaceLink *image_create(const ScrArea * /*area*/, const Scene * /*scene*/
   BLI_addtail(&simage->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
 
-  return (SpaceLink *)simage;
+  return reinterpret_cast<SpaceLink *>(simage);
 }
 
 /* Doesn't free the space-link itself. */
 static void image_free(SpaceLink *sl)
 {
-  SpaceImage *simage = (SpaceImage *)sl;
+  SpaceImage *simage = reinterpret_cast<SpaceImage *>(sl);
 
   BKE_scopes_free(&simage->scopes);
 }
@@ -192,7 +191,7 @@ static void image_free(SpaceLink *sl)
 /* spacetype; init callback, add handlers */
 static void image_init(wmWindowManager * /*wm*/, ScrArea *area)
 {
-  ListBase *lb = WM_dropboxmap_find("Image", SPACE_IMAGE, RGN_TYPE_WINDOW);
+  ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Image", SPACE_IMAGE, RGN_TYPE_WINDOW);
 
   /* add drop boxes */
   WM_event_add_dropbox_handler(&area->handlers, lb);
@@ -206,7 +205,7 @@ static SpaceLink *image_duplicate(SpaceLink *sl)
 
   BKE_scopes_new(&simagen->scopes);
 
-  return (SpaceLink *)simagen;
+  return reinterpret_cast<SpaceLink *>(simagen);
 }
 
 static void image_operatortypes()
@@ -303,7 +302,7 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
   wmWindow *win = params->window;
   ScrArea *area = params->area;
   const wmNotifier *wmn = params->notifier;
-  SpaceImage *sima = (SpaceImage *)area->spacedata.first;
+  SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
 
   /* context changes */
   switch (wmn->category) {
@@ -458,7 +457,7 @@ static int /*eContextResult*/ image_context(const bContext *C,
     // return CTX_RESULT_OK; /* TODO(@sybren). */
   }
   else if (CTX_data_equals(member, "edit_image")) {
-    CTX_data_id_pointer_set(result, (ID *)ED_space_image(sima));
+    CTX_data_id_pointer_set(result, blender::id_cast<ID *>(ED_space_image(sima)));
     return CTX_RESULT_OK;
   }
   else if (CTX_data_equals(member, "edit_mask")) {
@@ -1108,7 +1107,7 @@ static void image_id_remap(ScrArea * /*area*/,
                            SpaceLink *slink,
                            const blender::bke::id::IDRemapper &mappings)
 {
-  SpaceImage *simg = (SpaceImage *)slink;
+  SpaceImage *simg = reinterpret_cast<SpaceImage *>(slink);
 
   if (!mappings.contains_mappings_for_any(FILTER_ID_IM | FILTER_ID_GD_LEGACY | FILTER_ID_MSK)) {
     return;
@@ -1192,7 +1191,7 @@ static int image_space_icon_get(const ScrArea *area)
 
 static void image_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)
 {
-  SpaceImage *sima = (SpaceImage *)sl;
+  SpaceImage *sima = reinterpret_cast<SpaceImage *>(sl);
 
   sima->iuser.scene = nullptr;
   sima->scopes.waveform_1 = nullptr;
@@ -1215,7 +1214,7 @@ static void image_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink 
 
 static void image_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceImage, sl);
+  writer->write_struct_cast<SpaceImage>(sl);
 }
 
 /**************************** spacetype *****************************/

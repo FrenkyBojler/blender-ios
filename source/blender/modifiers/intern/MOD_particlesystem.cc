@@ -13,7 +13,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_screen_types.h"
 
@@ -38,15 +37,12 @@
 
 static void init_data(ModifierData *md)
 {
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(psmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(psmd, DNA_struct_default_get(ParticleSystemModifierData), modifier);
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(psmd, modifier);
 }
 static void free_data(ModifierData *md)
 {
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
 
   if (psmd->mesh_final) {
     BKE_id_free(nullptr, psmd->mesh_final);
@@ -70,7 +66,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 #if 0
   const ParticleSystemModifierData *psmd = (const ParticleSystemModifierData *)md;
 #endif
-  ParticleSystemModifierData *tpsmd = (ParticleSystemModifierData *)target;
+  ParticleSystemModifierData *tpsmd = reinterpret_cast<ParticleSystemModifierData *>(target);
 
   BKE_modifier_copydata_generic(md, target, flag);
 
@@ -86,7 +82,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
 
   psys_emitter_customdata_mask(psmd->psys, r_cddata_masks);
 }
@@ -97,7 +93,7 @@ static void deform_verts(ModifierData *md,
                          Mesh *mesh,
                          blender::MutableSpan<blender::float3> positions)
 {
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
   ParticleSystem *psys = nullptr;
 
   if (ctx->object->particlesystem.first) {
@@ -163,7 +159,7 @@ static void deform_verts(ModifierData *md,
       }
       else {
         /* Otherwise get regular mesh. */
-        mesh_original = static_cast<Mesh *>(ctx->object->data);
+        mesh_original = blender::id_cast<Mesh *>(ctx->object->data);
       }
     }
     else {
@@ -206,7 +202,8 @@ static void deform_verts(ModifierData *md,
     Object *object_orig = DEG_get_original(ctx->object);
     ModifierData *md_orig = BKE_modifiers_findby_name(object_orig, psmd->modifier.name);
     BLI_assert(md_orig != nullptr);
-    ParticleSystemModifierData *psmd_orig = (ParticleSystemModifierData *)md_orig;
+    ParticleSystemModifierData *psmd_orig = reinterpret_cast<ParticleSystemModifierData *>(
+        md_orig);
     psmd_orig->flag = psmd->flag;
   }
 }
@@ -219,8 +216,8 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   Object *ob = static_cast<Object *>(ob_ptr.data);
-  ModifierData *md = (ModifierData *)ptr->data;
-  ParticleSystem *psys = ((ParticleSystemModifierData *)md)->psys;
+  ModifierData *md = static_cast<ModifierData *>(ptr->data);
+  ParticleSystem *psys = (reinterpret_cast<ParticleSystemModifierData *>(md))->psys;
 
   layout.label(RPT_("Settings are inside the Particles tab"), ICON_NONE);
 
@@ -247,7 +244,7 @@ static void panel_register(ARegionType *region_type)
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
-  ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
+  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
 
   psmd->mesh_final = nullptr;
   psmd->mesh_original = nullptr;

@@ -190,7 +190,7 @@ static void stats_object(Object *ob,
         break;
       }
 
-      const GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
+      const GreasePencil *grease_pencil = blender::id_cast<GreasePencil *>(ob->data);
 
       for (const GreasePencilDrawingBase *drawing_base : grease_pencil->drawings()) {
         const GreasePencilDrawing *drawing = reinterpret_cast<const GreasePencilDrawing *>(
@@ -210,7 +210,7 @@ static void stats_object(Object *ob,
     }
     case OB_CURVES: {
       using namespace blender;
-      const Curves &curves_id = *static_cast<Curves *>(ob->data);
+      const Curves &curves_id = *blender::id_cast<Curves *>(ob->data);
       const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
       stats->totpoints += curves.points_num();
       break;
@@ -240,29 +240,29 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
   }
   else if (obedit->type == OB_ARMATURE) {
     /* Armature Edit */
-    bArmature *arm = static_cast<bArmature *>(obedit->data);
+    bArmature *arm = blender::id_cast<bArmature *>(obedit->data);
 
-    LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
+    for (EditBone &ebo : *arm->edbo) {
       stats->totbone++;
 
-      if ((ebo->flag & BONE_CONNECTED) && ebo->parent) {
+      if ((ebo.flag & BONE_CONNECTED) && ebo.parent) {
         stats->totvert--;
       }
 
-      if (ebo->flag & BONE_TIPSEL) {
+      if (ebo.flag & BONE_TIPSEL) {
         stats->totvertsel++;
       }
-      if (ebo->flag & BONE_ROOTSEL) {
+      if (ebo.flag & BONE_ROOTSEL) {
         stats->totvertsel++;
       }
 
-      if (ebo->flag & BONE_SELECTED) {
+      if (ebo.flag & BONE_SELECTED) {
         stats->totbonesel++;
       }
 
       /* if this is a connected child and its parent is being moved, remove our root */
-      if ((ebo->flag & BONE_CONNECTED) && (ebo->flag & BONE_ROOTSEL) && ebo->parent &&
-          (ebo->parent->flag & BONE_TIPSEL))
+      if ((ebo.flag & BONE_CONNECTED) && (ebo.flag & BONE_ROOTSEL) && ebo.parent &&
+          (ebo.parent->flag & BONE_TIPSEL))
       {
         stats->totvertsel--;
       }
@@ -272,16 +272,16 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
   }
   else if (ELEM(obedit->type, OB_CURVES_LEGACY, OB_SURF)) { /* OB_FONT has no cu->editnurb */
     /* Curve Edit */
-    Curve *cu = static_cast<Curve *>(obedit->data);
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
     BezTriple *bezt;
     BPoint *bp;
     int a;
-    ListBase *nurbs = BKE_curve_editNurbs_get(cu);
+    ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get(cu);
 
-    LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-      if (nu->type == CU_BEZIER) {
-        bezt = nu->bezt;
-        a = nu->pntsu;
+    for (Nurb &nu : *nurbs) {
+      if (nu.type == CU_BEZIER) {
+        bezt = nu.bezt;
+        a = nu.pntsu;
         while (a--) {
           stats->totvert += 3;
           if (bezt->f1 & SELECT) {
@@ -297,8 +297,8 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
         }
       }
       else {
-        bp = nu->bp;
-        a = nu->pntsu * nu->pntsv;
+        bp = nu.bp;
+        a = nu.pntsu * nu.pntsv;
         while (a--) {
           stats->totvert++;
           if (bp->f1 & SELECT) {
@@ -311,18 +311,18 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
   }
   else if (obedit->type == OB_MBALL) {
     /* MetaBall Edit */
-    MetaBall *mball = static_cast<MetaBall *>(obedit->data);
+    MetaBall *mball = blender::id_cast<MetaBall *>(obedit->data);
 
-    LISTBASE_FOREACH (MetaElem *, ml, mball->editelems) {
+    for (MetaElem &ml : *mball->editelems) {
       stats->totvert++;
-      if (ml->flag & SELECT) {
+      if (ml.flag & SELECT) {
         stats->totvertsel++;
       }
     }
   }
   else if (obedit->type == OB_LATTICE) {
     /* Lattice Edit */
-    Lattice *lt = static_cast<Lattice *>(obedit->data);
+    Lattice *lt = blender::id_cast<Lattice *>(obedit->data);
     Lattice *editlatt = lt->editlatt->latt;
     BPoint *bp;
     int a;
@@ -340,7 +340,7 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
   }
   else if (obedit->type == OB_CURVES) {
     using namespace blender;
-    const Curves &curves_id = *static_cast<Curves *>(obedit->data);
+    const Curves &curves_id = *blender::id_cast<Curves *>(obedit->data);
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     const VArray<bool> selection = *curves.attributes().lookup_or_default<bool>(
         ".selection", bke::AttrDomain::Point, true);
@@ -349,7 +349,7 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
   }
   else if (obedit->type == OB_POINTCLOUD) {
     using namespace blender;
-    PointCloud &pointcloud = *static_cast<PointCloud *>(obedit->data);
+    PointCloud &pointcloud = *blender::id_cast<PointCloud *>(obedit->data);
     const VArray<bool> selection = *pointcloud.attributes().lookup_or_default<bool>(
         ".selection", bke::AttrDomain::Point, true);
     stats->totvertsel = array_utils::count_booleans(selection);
@@ -360,12 +360,12 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
 static void stats_object_pose(const Object *ob, SceneStats *stats)
 {
   if (ob->pose) {
-    bArmature *arm = static_cast<bArmature *>(ob->data);
+    bArmature *arm = blender::id_cast<bArmature *>(ob->data);
 
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
+    for (bPoseChannel &pchan : ob->pose->chanbase) {
       stats->totbone++;
-      if ((pchan->flag & POSE_SELECTED)) {
-        if (BKE_pose_is_bonecoll_visible(arm, pchan)) {
+      if ((pchan.flag & POSE_SELECTED)) {
+        if (BKE_pose_is_bonecoll_visible(arm, &pchan)) {
           stats->totbonesel++;
         }
       }
@@ -391,7 +391,7 @@ static void stats_object_sculpt(const Object *ob, SceneStats *stats)
 
       switch (pbvh->type()) {
         case blender::bke::pbvh::Type::Mesh: {
-          const Mesh &mesh = *static_cast<const Mesh *>(ob->data);
+          const Mesh &mesh = *blender::id_cast<const Mesh *>(ob->data);
           stats->totvertsculpt = mesh.verts_num;
           stats->totfacesculpt = mesh.faces_num;
           break;
@@ -408,7 +408,7 @@ static void stats_object_sculpt(const Object *ob, SceneStats *stats)
       break;
     }
     case OB_CURVES: {
-      const Curves &curves_id = *static_cast<Curves *>(ob->data);
+      const Curves &curves_id = *blender::id_cast<Curves *>(ob->data);
       const blender::bke::CurvesGeometry &curves = curves_id.geometry.wrap();
       stats->totvertsculpt += curves.points_num();
       break;
@@ -491,15 +491,15 @@ void ED_info_stats_clear(wmWindowManager *wm, ViewLayer *view_layer)
 {
   MEM_SAFE_FREE(view_layer->stats);
 
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    ViewLayer *view_layer_test = WM_window_get_active_view_layer(win);
+  for (wmWindow &win : wm->windows) {
+    ViewLayer *view_layer_test = WM_window_get_active_view_layer(&win);
     if (view_layer != view_layer_test) {
       continue;
     }
-    const bScreen *screen = WM_window_get_active_screen(win);
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      if (area->spacetype == SPACE_VIEW3D) {
-        View3D *v3d = (View3D *)area->spacedata.first;
+    const bScreen *screen = WM_window_get_active_screen(&win);
+    for (ScrArea &area : screen->areabase) {
+      if (area.spacetype == SPACE_VIEW3D) {
+        View3D *v3d = static_cast<View3D *>(area.spacedata.first);
         if (v3d->localvd) {
           ED_view3d_local_stats_free(v3d);
         }
@@ -520,7 +520,7 @@ static bool format_stats(
   SceneStats **stats_p = (v3d_local) ? &v3d_local->runtime.local_stats : &view_layer->stats;
   if (*stats_p == nullptr) {
     /* Don't access dependency graph if interface is marked as locked. */
-    wmWindowManager *wm = (wmWindowManager *)bmain->wm.first;
+    wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
     if (wm->runtime->is_interface_locked) {
       return false;
     }
@@ -576,7 +576,7 @@ static void get_stats_string(char *info,
 {
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  eObjectMode object_mode = ob ? (eObjectMode)ob->mode : OB_MODE_OBJECT;
+  eObjectMode object_mode = ob ? eObjectMode(ob->mode) : OB_MODE_OBJECT;
   LayerCollection *layer_collection = BKE_view_layer_active_collection_get(view_layer);
 
   if (object_mode == OB_MODE_OBJECT) {
@@ -706,7 +706,7 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
 {
   char formatted_mem[BLI_STR_FORMAT_INT64_BYTE_UNIT_SIZE];
   size_t ofs = 0;
-  static char info[256];
+  static char info[384];
   int len = sizeof(info);
 
   info[0] = '\0';
@@ -749,7 +749,7 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
     }
     uintptr_t mem_in_use = MEM_get_memory_in_use();
     BLI_str_format_byte_unit(formatted_mem, mem_in_use, false);
-    ofs += BLI_snprintf_utf8_rlen(info + ofs, len, IFACE_("Memory: %s"), formatted_mem);
+    ofs += BLI_snprintf_utf8_rlen(info + ofs, len - ofs, IFACE_("Memory: %s"), formatted_mem);
   }
 
   /* GPU VRAM status. */
@@ -829,7 +829,7 @@ void ED_info_draw_stats(
 
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  eObjectMode object_mode = ob ? (eObjectMode)ob->mode : OB_MODE_OBJECT;
+  eObjectMode object_mode = ob ? eObjectMode(ob->mode) : OB_MODE_OBJECT;
   const int font_id = BLF_default();
 
   /* Translated labels for each stat row. */

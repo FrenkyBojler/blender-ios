@@ -14,7 +14,6 @@
 /* Allow using deprecated functionality for .blend file I/O. */
 #define DNA_DEPRECATED_ALLOW
 
-#include "DNA_defaults.h"
 #include "DNA_light_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
@@ -40,12 +39,12 @@
 
 #include "BLO_read_write.hh"
 
+#include "NOD_defaults.hh"
+
 static void light_init_data(ID *id)
 {
-  Light *la = (Light *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(la, id));
-
-  MEMCPY_STRUCT_AFTER(la, DNA_struct_default_get(Light), id);
+  Light *la = blender::id_cast<Light *>(id);
+  INIT_DEFAULT_STRUCT_AFTER(la, id);
 }
 
 /**
@@ -64,8 +63,8 @@ static void light_copy_data(Main *bmain,
                             const ID *id_src,
                             const int flag)
 {
-  Light *la_dst = (Light *)id_dst;
-  const Light *la_src = (const Light *)id_src;
+  Light *la_dst = blender::id_cast<Light *>(id_dst);
+  const Light *la_src = blender::id_cast<const Light *>(id_src);
 
   const bool is_localized = (flag & LIB_ID_CREATE_LOCAL) != 0;
   /* We always need allocation of our private ID data.
@@ -98,7 +97,7 @@ static void light_copy_data(Main *bmain,
 
 static void light_free_data(ID *id)
 {
-  Light *la = (Light *)id;
+  Light *la = blender::id_cast<Light *>(id);
 
   /* is no lib link block, but light extension */
   if (la->nodetree) {
@@ -125,20 +124,23 @@ static void light_foreach_id(ID *id, LibraryForeachIDData *data)
 
 static void light_foreach_working_space_color(ID *id, const IDTypeForeachColorFunctionCallback &fn)
 {
-  Light *la = (Light *)id;
+  Light *la = blender::id_cast<Light *>(id);
 
   fn.single(&la->r);
 }
 
 static void light_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  Light *la = (Light *)id;
+  Light *la = blender::id_cast<Light *>(id);
 
   /* Forward compatibility for energy. */
   la->energy_deprecated = la->energy * exp2f(la->exposure);
   if (la->type == LA_AREA) {
     la->energy_deprecated /= M_PI_4;
   }
+
+  /* Forward compatibiilty for Use Nodes. */
+  la->use_nodes = true;
 
   /* write LibData */
   BLO_write_id_struct(writer, Light, id_address, &la->id);
@@ -157,7 +159,7 @@ static void light_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
 static void light_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  Light *la = (Light *)id;
+  Light *la = blender::id_cast<Light *>(id);
 
   BLO_read_struct(reader, PreviewImage, &la->preview);
   BKE_previewimg_blend_read(reader, la->preview);
@@ -199,6 +201,8 @@ Light *BKE_light_add(Main *bmain, const char *name)
   Light *la;
 
   la = BKE_id_new<Light>(bmain, name);
+
+  blender::nodes::node_tree_shader_default(nullptr, bmain, &la->id);
 
   return la;
 }

@@ -11,6 +11,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_cloth_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -959,7 +960,7 @@ static void cloth_collision(void *__restrict userdata,
                             const int index,
                             const TaskParallelTLS *__restrict /*tls*/)
 {
-  ColDetectData *data = (ColDetectData *)userdata;
+  ColDetectData *data = static_cast<ColDetectData *>(userdata);
 
   ClothModifierData *clmd = data->clmd;
   CollisionModifierData *collmd = data->collmd;
@@ -1074,7 +1075,7 @@ static void cloth_selfcollision(void *__restrict userdata,
                                 const int index,
                                 const TaskParallelTLS *__restrict /*tls*/)
 {
-  SelfColDetectData *data = (SelfColDetectData *)userdata;
+  SelfColDetectData *data = static_cast<SelfColDetectData *>(userdata);
 
   ClothModifierData *clmd = data->clmd;
   CollPair *collpair = data->collisions;
@@ -1154,7 +1155,7 @@ static void hair_collision(void *__restrict userdata,
                            const int index,
                            const TaskParallelTLS *__restrict /*tls*/)
 {
-  ColDetectData *data = (ColDetectData *)userdata;
+  ColDetectData *data = static_cast<ColDetectData *>(userdata);
 
   ClothModifierData *clmd = data->clmd;
   CollisionModifierData *collmd = data->collmd;
@@ -1221,7 +1222,7 @@ static void hair_collision(void *__restrict userdata,
   }
 }
 
-static void add_collision_object(ListBase *relations,
+static void add_collision_object(ListBaseT<CollisionRelation> *relations,
                                  Object *ob,
                                  int level,
                                  const ModifierType modifier_type)
@@ -1249,9 +1250,9 @@ static void add_collision_object(ListBase *relations,
   }
 }
 
-ListBase *BKE_collision_relations_create(Depsgraph *depsgraph,
-                                         Collection *collection,
-                                         uint modifier_type)
+ListBaseT<CollisionRelation> *BKE_collision_relations_create(Depsgraph *depsgraph,
+                                                             Collection *collection,
+                                                             uint modifier_type)
 {
   const Scene *scene = DEG_get_input_scene(depsgraph);
   ViewLayer *view_layer = DEG_get_input_view_layer(depsgraph);
@@ -1259,7 +1260,7 @@ ListBase *BKE_collision_relations_create(Depsgraph *depsgraph,
   const bool for_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   const int base_flag = (for_render) ? BASE_ENABLED_RENDER : BASE_ENABLED_VIEWPORT;
 
-  ListBase *relations = MEM_callocN<ListBase>(__func__);
+  ListBaseT<CollisionRelation> *relations = MEM_callocN<ListBaseT<CollisionRelation>>(__func__);
 
   for (; base; base = base->next) {
     if (base->flag & base_flag) {
@@ -1270,7 +1271,7 @@ ListBase *BKE_collision_relations_create(Depsgraph *depsgraph,
   return relations;
 }
 
-void BKE_collision_relations_free(ListBase *relations)
+void BKE_collision_relations_free(ListBaseT<CollisionRelation> *relations)
 {
   if (relations) {
     BLI_freelistN(relations);
@@ -1284,7 +1285,8 @@ Object **BKE_collision_objects_create(Depsgraph *depsgraph,
                                       uint *numcollobj,
                                       uint modifier_type)
 {
-  ListBase *relations = DEG_get_collision_relations(depsgraph, collection, modifier_type);
+  ListBaseT<CollisionRelation> *relations = DEG_get_collision_relations(
+      depsgraph, collection, modifier_type);
 
   if (!relations) {
     *numcollobj = 0;
@@ -1295,9 +1297,9 @@ Object **BKE_collision_objects_create(Depsgraph *depsgraph,
   int num = 0;
   Object **objects = MEM_calloc_arrayN<Object *>(maxnum, __func__);
 
-  LISTBASE_FOREACH (CollisionRelation *, relation, relations) {
+  for (CollisionRelation &relation : *relations) {
     /* Get evaluated object. */
-    Object *ob = DEG_get_evaluated(depsgraph, relation->ob);
+    Object *ob = DEG_get_evaluated(depsgraph, relation.ob);
 
     if (modifier_type == eModifierType_Collision && !(ob->pd && ob->pd->deflect)) {
       continue;
@@ -1325,29 +1327,31 @@ void BKE_collision_objects_free(Object **objects)
   }
 }
 
-ListBase *BKE_collider_cache_create(Depsgraph *depsgraph, Object *self, Collection *collection)
+ListBaseT<ColliderCache> *BKE_collider_cache_create(Depsgraph *depsgraph,
+                                                    Object *self,
+                                                    Collection *collection)
 {
-  ListBase *relations = DEG_get_collision_relations(
+  ListBaseT<CollisionRelation> *relations = DEG_get_collision_relations(
       depsgraph, collection, eModifierType_Collision);
-  ListBase *cache = nullptr;
+  ListBaseT<ColliderCache> *cache = nullptr;
 
   if (!relations) {
     return nullptr;
   }
 
-  LISTBASE_FOREACH (CollisionRelation *, relation, relations) {
+  for (CollisionRelation &relation : *relations) {
     /* Get evaluated object. */
-    Object *ob = DEG_get_evaluated(depsgraph, relation->ob);
+    Object *ob = DEG_get_evaluated(depsgraph, relation.ob);
 
     if (ob == self) {
       continue;
     }
 
-    CollisionModifierData *cmd = (CollisionModifierData *)BKE_modifiers_findby_type(
-        ob, eModifierType_Collision);
+    CollisionModifierData *cmd = reinterpret_cast<CollisionModifierData *>(
+        BKE_modifiers_findby_type(ob, eModifierType_Collision));
     if (cmd && cmd->bvhtree) {
       if (cache == nullptr) {
-        cache = MEM_callocN<ListBase>(__func__);
+        cache = MEM_callocN<ListBaseT<ColliderCache>>(__func__);
       }
 
       ColliderCache *col = MEM_callocN<ColliderCache>(__func__);
@@ -1362,7 +1366,7 @@ ListBase *BKE_collider_cache_create(Depsgraph *depsgraph, Object *self, Collecti
   return cache;
 }
 
-void BKE_collider_cache_free(ListBase **colliders)
+void BKE_collider_cache_free(ListBaseT<ColliderCache> **colliders)
 {
   if (*colliders) {
     BLI_freelistN(*colliders);
@@ -1442,8 +1446,8 @@ static int cloth_bvh_objcollisions_resolve(ClothModifierData *clmd,
 
     for (i = 0; i < numcollobj; i++) {
       Object *collob = collobjs[i];
-      CollisionModifierData *collmd = (CollisionModifierData *)BKE_modifiers_findby_type(
-          collob, eModifierType_Collision);
+      CollisionModifierData *collmd = reinterpret_cast<CollisionModifierData *>(
+          BKE_modifiers_findby_type(collob, eModifierType_Collision));
 
       if (collmd->bvhtree) {
         result += cloth_collision_response_static(
@@ -1515,7 +1519,7 @@ static int cloth_bvh_selfcollisions_resolve(ClothModifierData *clmd,
 
 static bool cloth_bvh_obj_overlap_cb(void *userdata, int index_a, int /*index_b*/, int /*thread*/)
 {
-  ClothModifierData *clmd = (ClothModifierData *)userdata;
+  ClothModifierData *clmd = static_cast<ClothModifierData *>(userdata);
   Cloth *clothObject = clmd->clothObject;
   const blender::int3 tri_a = clothObject->vert_tris[index_a];
 
@@ -1527,7 +1531,7 @@ static bool cloth_bvh_self_overlap_cb(void *userdata, int index_a, int index_b, 
   /* This shouldn't happen, but just in case. Note that equal combinations
    * (eg. (0,1) & (1,0)) would be filtered out by BLI_bvhtree_overlap_self. */
   if (index_a != index_b) {
-    ClothModifierData *clmd = (ClothModifierData *)userdata;
+    ClothModifierData *clmd = static_cast<ClothModifierData *>(userdata);
     Cloth *clothObject = clmd->clothObject;
     const blender::int3 tri_a = clothObject->vert_tris[index_a];
     const blender::int3 tri_b = clothObject->vert_tris[index_b];
@@ -1582,8 +1586,8 @@ int cloth_bvh_collision(
 
       for (i = 0; i < numcollobj; i++) {
         Object *collob = collobjs[i];
-        CollisionModifierData *collmd = (CollisionModifierData *)BKE_modifiers_findby_type(
-            collob, eModifierType_Collision);
+        CollisionModifierData *collmd = reinterpret_cast<CollisionModifierData *>(
+            BKE_modifiers_findby_type(collob, eModifierType_Collision));
 
         if (!collmd->bvhtree) {
           continue;
@@ -1622,8 +1626,8 @@ int cloth_bvh_collision(
 
       for (i = 0; i < numcollobj; i++) {
         Object *collob = collobjs[i];
-        CollisionModifierData *collmd = (CollisionModifierData *)BKE_modifiers_findby_type(
-            collob, eModifierType_Collision);
+        CollisionModifierData *collmd = reinterpret_cast<CollisionModifierData *>(
+            BKE_modifiers_findby_type(collob, eModifierType_Collision));
 
         if (!collmd->bvhtree) {
           continue;

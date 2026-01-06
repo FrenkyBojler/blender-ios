@@ -58,7 +58,7 @@ using MapFn = void (*)(Tex *tex, bNodeStack **in, TexParams *p, const short thre
 static void texfn(
     float *result, TexParams *p, bNode *node, bNodeStack **in, MapFn map_inputs, short thread)
 {
-  Tex tex = blender::dna::shallow_copy(*((Tex *)(node->storage)));
+  Tex tex = blender::dna::shallow_copy(*(static_cast<Tex *>(node->storage)));
   float col1[4], col2[4];
   tex_input_rgba(col1, in[0], p, thread);
   tex_input_rgba(col2, in[1], p, thread);
@@ -70,11 +70,7 @@ static void texfn(
 
 static int count_outputs(bNode *node)
 {
-  int num = 0;
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-    num++;
-  }
-  return num;
+  return BLI_listbase_count(&node->outputs);
 }
 
 /* Boilerplate generators */
@@ -236,7 +232,7 @@ ProcDef(stucci);
 
 static void init(bNodeTree * /*ntree*/, bNode *node)
 {
-  Tex *tex = MEM_callocN<Tex>("Tex");
+  Tex *tex = MEM_new_for_free<Tex>("Tex");
   node->storage = tex;
 
   BKE_texture_default(tex);

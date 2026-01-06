@@ -60,10 +60,12 @@ inline constexpr AnyTypeInfo<ExtraInfo> info_for_inline = {
 template<typename T> using Ptr = std::unique_ptr<T>;
 template<typename ExtraInfo, typename T>
 inline constexpr AnyTypeInfo<ExtraInfo> info_for_unique_ptr = {
-    [](void *dst, const void *src) { new (dst) Ptr<T>(new T(**(const Ptr<T> *)src)); },
-    [](void *dst, void *src) { new (dst) Ptr<T>(new T(std::move(**(Ptr<T> *)src))); },
-    [](void *src) { std::destroy_at((Ptr<T> *)src); },
-    [](const void *src) -> const void * { return &**(const Ptr<T> *)src; },
+    [](void *dst, const void *src) {
+      new (dst) Ptr<T>(new T(**static_cast<const Ptr<T> *>(src)));
+    },
+    [](void *dst, void *src) { new (dst) Ptr<T>(new T(std::move(**static_cast<Ptr<T> *>(src)))); },
+    [](void *src) { std::destroy_at(static_cast<Ptr<T> *>(src)); },
+    [](const void *src) -> const void * { return &**static_cast<const Ptr<T> *>(src); },
     ExtraInfo::template get<T>()};
 
 /**
@@ -99,8 +101,8 @@ class Any {
  private:
   /* Makes it possible to use void in the template parameters. */
   using RealExtraInfo =
-      std::conditional_t<std::is_void_v<ExtraInfo>, blender::detail::NoExtraInfo, ExtraInfo>;
-  using Info = blender::detail::AnyTypeInfo<RealExtraInfo>;
+      std::conditional_t<std::is_void_v<ExtraInfo>, detail::NoExtraInfo, ExtraInfo>;
+  using Info = detail::AnyTypeInfo<RealExtraInfo>;
   static constexpr size_t RealInlineBufferCapacity = std::max(InlineBufferCapacity,
                                                               sizeof(std::unique_ptr<int>));
 

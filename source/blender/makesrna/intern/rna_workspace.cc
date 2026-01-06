@@ -46,7 +46,7 @@ static void rna_window_update_all(Main * /*bmain*/, Scene * /*scene*/, PointerRN
 
 void rna_workspace_screens_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  WorkSpace *workspace = (WorkSpace *)ptr->owner_id;
+  WorkSpace *workspace = blender::id_cast<WorkSpace *>(ptr->owner_id);
   rna_iterator_listbase_begin(iter, ptr, &workspace->layouts, nullptr);
 }
 
@@ -62,7 +62,7 @@ static PointerRNA rna_workspace_screens_item_get(CollectionPropertyIterator *ite
 
 static wmOwnerID *rna_WorkSpace_owner_ids_new(WorkSpace *workspace, const char *name)
 {
-  wmOwnerID *owner_id = MEM_callocN<wmOwnerID>(__func__);
+  wmOwnerID *owner_id = MEM_new_for_free<wmOwnerID>(__func__);
   BLI_addtail(&workspace->owner_ids, owner_id);
   STRNCPY(owner_id->name, name);
   WM_main_add_notifier(NC_WINDOW, nullptr);

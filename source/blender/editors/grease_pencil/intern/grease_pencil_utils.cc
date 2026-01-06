@@ -969,7 +969,7 @@ IndexMask retrieve_editable_strokes(Object &object,
     return IndexMask(curves_range);
   }
 
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(object.data);
   const bke::greasepencil::Layer &layer = *grease_pencil.layers()[layer_index];
 
   /* If we're not using material locking, the entire curves range is editable. */
@@ -1081,7 +1081,7 @@ IndexMask retrieve_editable_points(Object &object,
     return IndexMask(points_range);
   }
 
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(object.data);
   const bke::greasepencil::Layer &layer = *grease_pencil.layers()[layer_index];
 
   /* If we're not using material locking, the entire points range is editable. */
@@ -1674,7 +1674,7 @@ wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(object->data);
   if (!grease_pencil.has_active_layer()) {
     BKE_report(op->reports, RPT_ERROR, "No active Grease Pencil layer");
     return OPERATOR_CANCELLED;
@@ -1762,7 +1762,7 @@ GreasePencil *from_context(bContext &C)
   if (grease_pencil == nullptr) {
     Object *object = CTX_data_active_object(&C);
     if (object && object->type == OB_GREASE_PENCIL) {
-      grease_pencil = static_cast<GreasePencil *>(object->data);
+      grease_pencil = blender::id_cast<GreasePencil *>(object->data);
     }
   }
   return grease_pencil;
@@ -1989,8 +1989,8 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
   /* Gather the original vertex group names. */
   Set<StringRef> orig_vgroup_names;
-  LISTBASE_FOREACH (bDeformGroup *, dg, &orig_grease_pencil.vertex_group_names) {
-    orig_vgroup_names.add(dg->name);
+  for (bDeformGroup &dg : orig_grease_pencil.vertex_group_names) {
+    orig_vgroup_names.add(dg.name);
   }
 
   /* Update the drawings. */
@@ -2005,9 +2005,9 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
       CurvesGeometry &eval_strokes = drawing_eval->strokes_for_write();
 
       /* Check for new vertex groups in CurvesGeometry. */
-      LISTBASE_FOREACH (bDeformGroup *, dg, &eval_strokes.vertex_group_names) {
-        if (!orig_vgroup_names.contains(dg->name)) {
-          new_vgroup_names.add(dg->name);
+      for (bDeformGroup &dg : eval_strokes.vertex_group_names) {
+        if (!orig_vgroup_names.contains(dg.name)) {
+          new_vgroup_names.add(dg.name);
         }
       }
 
@@ -2022,7 +2022,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
 
   /* Add new vertex groups to GreasePencil object. */
   for (StringRef new_vgroup_name : new_vgroup_names) {
-    bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
+    bDeformGroup *dst = MEM_new_for_free<bDeformGroup>(__func__);
     new_vgroup_name.copy_utf8_truncated(dst->name);
     BLI_addtail(&orig_grease_pencil.vertex_group_names, dst);
   }

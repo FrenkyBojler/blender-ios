@@ -45,7 +45,7 @@ static SpaceLink *text_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   ARegion *region;
   SpaceText *stext;
 
-  stext = MEM_callocN<SpaceText>("inittext");
+  stext = MEM_new_for_free<SpaceText>("inittext");
   stext->spacetype = SPACE_TEXT;
 
   stext->lheight = 12;
@@ -55,7 +55,7 @@ static SpaceLink *text_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   stext->showlinenrs = true;
   stext->flags |= ST_FIND_WRAP;
 
-  stext->runtime = MEM_new<SpaceText_Runtime>(__func__);
+  stext->runtime = MEM_new<blender::ed::text::SpaceText_Runtime>(__func__);
 
   /* Header. */
   region = BKE_area_region_new();
@@ -84,13 +84,13 @@ static SpaceLink *text_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   BLI_addtail(&stext->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
 
-  return (SpaceLink *)stext;
+  return reinterpret_cast<SpaceLink *>(stext);
 }
 
 /* Doesn't free the space-link itself. */
 static void text_free(SpaceLink *sl)
 {
-  SpaceText *stext = (SpaceText *)sl;
+  SpaceText *stext = reinterpret_cast<SpaceText *>(sl);
   space_text_free_caches(stext);
   MEM_delete(stext->runtime);
   stext->text = nullptr;
@@ -104,9 +104,9 @@ static SpaceLink *text_duplicate(SpaceLink *sl)
   SpaceText *stextn = static_cast<SpaceText *>(MEM_dupallocN(sl));
 
   /* Add its own runtime data. */
-  stextn->runtime = MEM_new<SpaceText_Runtime>(__func__);
+  stextn->runtime = MEM_new<blender::ed::text::SpaceText_Runtime>(__func__);
 
-  return (SpaceLink *)stextn;
+  return reinterpret_cast<SpaceLink *>(stextn);
 }
 
 static void text_listener(const wmSpaceTypeListenerParams *params)
@@ -251,7 +251,7 @@ static int /*eContextResult*/ text_context(const bContext *C,
 static void text_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
-  ListBase *lb;
+  ListBaseT<wmDropBox> *lb;
 
   view2d_region_reinit(
       &region->v2d, blender::ui::V2D_COMMONVIEW_STANDARD, region->winx, region->winy);
@@ -350,7 +350,7 @@ static void text_drop_string_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *dro
 /* This region dropbox definition. */
 static void text_dropboxes()
 {
-  ListBase *lb = WM_dropboxmap_find("Text", SPACE_TEXT, RGN_TYPE_WINDOW);
+  ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Text", SPACE_TEXT, RGN_TYPE_WINDOW);
 
   WM_dropbox_add(lb, "TEXT_OT_open", text_drop_path_poll, text_drop_path_copy, nullptr, nullptr);
   WM_dropbox_add(lb, "TEXT_OT_insert", text_drop_id_poll, text_drop_id_copy, nullptr, nullptr);
@@ -397,7 +397,7 @@ static void text_id_remap(ScrArea * /*area*/,
                           SpaceLink *slink,
                           const blender::bke::id::IDRemapper &mappings)
 {
-  SpaceText *stext = (SpaceText *)slink;
+  SpaceText *stext = reinterpret_cast<SpaceText *>(slink);
   mappings.apply(reinterpret_cast<ID **>(&stext->text), ID_REMAP_APPLY_ENSURE_REAL);
 }
 
@@ -410,13 +410,13 @@ static void text_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data)
 
 static void text_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)
 {
-  SpaceText *st = (SpaceText *)sl;
-  st->runtime = MEM_new<SpaceText_Runtime>(__func__);
+  SpaceText *st = reinterpret_cast<SpaceText *>(sl);
+  st->runtime = MEM_new<blender::ed::text::SpaceText_Runtime>(__func__);
 }
 
 static void text_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceText, sl);
+  writer->write_struct_cast<SpaceText>(sl);
 }
 
 /********************* registration ********************/

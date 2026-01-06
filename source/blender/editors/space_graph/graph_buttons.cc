@@ -81,7 +81,7 @@ static bool graph_panel_context(const bContext *C, bAnimListElem **ale, FCurve *
   }
 
   if (fcu) {
-    *fcu = (FCurve *)elem->data;
+    *fcu = static_cast<FCurve *>(elem->data);
   }
   if (ale) {
     *ale = elem;
@@ -273,7 +273,7 @@ static bool get_active_fcurve_keyframe_edit(const FCurve *fcu,
 /* update callback for active keyframe properties - base updates stuff */
 static void graphedit_activekey_update_cb(bContext * /*C*/, void *fcu_ptr, void * /*bezt_ptr*/)
 {
-  FCurve *fcu = (FCurve *)fcu_ptr;
+  FCurve *fcu = static_cast<FCurve *>(fcu_ptr);
 
   /* make sure F-Curve and its handles are still valid after this editing */
   sort_time_fcurve(fcu);
@@ -283,7 +283,7 @@ static void graphedit_activekey_update_cb(bContext * /*C*/, void *fcu_ptr, void 
 /* update callback for active keyframe properties - handle-editing wrapper */
 static void graphedit_activekey_handles_cb(bContext *C, void *fcu_ptr, void *bezt_ptr)
 {
-  BezTriple *bezt = (BezTriple *)bezt_ptr;
+  BezTriple *bezt = static_cast<BezTriple *>(bezt_ptr);
 
   /* since editing the handles, make sure they're set to types which are receptive to editing
    * see transform_conversions.c :: createTransGraphEditData(), last step in second loop
@@ -301,13 +301,27 @@ static void graphedit_activekey_handles_cb(bContext *C, void *fcu_ptr, void *bez
   graphedit_activekey_update_cb(C, fcu_ptr, bezt_ptr);
 }
 
+static void graphedit_activekey_handle_left_cb(bContext *C, void *fcu_ptr, void *bezt_ptr)
+{
+  BKE_fcurve_update_handle_flag_from_opposite(*static_cast<BezTriple *>(bezt_ptr),
+                                              HandleSide::LEFT);
+  graphedit_activekey_update_cb(C, fcu_ptr, bezt_ptr);
+}
+
+static void graphedit_activekey_handle_right_cb(bContext *C, void *fcu_ptr, void *bezt_ptr)
+{
+  BKE_fcurve_update_handle_flag_from_opposite(*static_cast<BezTriple *>(bezt_ptr),
+                                              HandleSide::RIGHT);
+  graphedit_activekey_update_cb(C, fcu_ptr, bezt_ptr);
+}
+
 /* update callback for editing coordinates of right handle in active keyframe properties
  * NOTE: we cannot just do graphedit_activekey_handles_cb() due to "order of computation"
  *       weirdness (see calchandleNurb_intern() and #39911)
  */
 static void graphedit_activekey_left_handle_coord_cb(bContext *C, void *fcu_ptr, void *bezt_ptr)
 {
-  BezTriple *bezt = (BezTriple *)bezt_ptr;
+  BezTriple *bezt = static_cast<BezTriple *>(bezt_ptr);
 
   const char f1 = bezt->f1;
   const char f3 = bezt->f3;
@@ -325,7 +339,7 @@ static void graphedit_activekey_left_handle_coord_cb(bContext *C, void *fcu_ptr,
 
 static void graphedit_activekey_right_handle_coord_cb(bContext *C, void *fcu_ptr, void *bezt_ptr)
 {
-  BezTriple *bezt = (BezTriple *)bezt_ptr;
+  BezTriple *bezt = static_cast<BezTriple *>(bezt_ptr);
 
   /* original state of handle selection - to be restored after performing the recalculation */
   const char f1 = bezt->f1;
@@ -477,7 +491,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       0,
                       "Type of left handle");
       button_retval_set(but, B_REDR);
-      button_func_set(but, graphedit_activekey_handles_cb, fcu, bezt);
+      button_func_set(but, graphedit_activekey_handle_left_cb, fcu, bezt);
 
       uiItemL_respect_property_split(&col, IFACE_("Frame"), ICON_NONE);
       but = uiDefButR(block,
@@ -535,7 +549,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
                       0,
                       "Type of right handle");
       button_retval_set(but, B_REDR);
-      button_func_set(but, graphedit_activekey_handles_cb, fcu, bezt);
+      button_func_set(but, graphedit_activekey_handle_right_cb, fcu, bezt);
 
       uiItemL_respect_property_split(&col, IFACE_("Frame"), ICON_NONE);
       but = uiDefButR(block,
@@ -646,7 +660,7 @@ static void do_graph_region_driver_buttons(bContext *C, void *id_v, int event)
 /* callback to add a target variable to the active driver */
 static void driver_add_var_cb(bContext *C, void *driver_v, void * /*arg*/)
 {
-  ChannelDriver *driver = (ChannelDriver *)driver_v;
+  ChannelDriver *driver = static_cast<ChannelDriver *>(driver_v);
 
   /* add a new variable */
   driver_add_new_variable(driver);
@@ -656,8 +670,8 @@ static void driver_add_var_cb(bContext *C, void *driver_v, void * /*arg*/)
 /* callback to remove target variable from active driver */
 static void driver_delete_var_cb(bContext *C, void *driver_v, void *dvar_v)
 {
-  ChannelDriver *driver = (ChannelDriver *)driver_v;
-  DriverVar *dvar = (DriverVar *)dvar_v;
+  ChannelDriver *driver = static_cast<ChannelDriver *>(driver_v);
+  DriverVar *dvar = static_cast<DriverVar *>(dvar_v);
 
   /* remove the active variable */
   driver_free_variable_ex(driver, dvar);
@@ -671,7 +685,7 @@ static void driver_dvar_invalid_name_query_cb(bContext *C, void *dvar_v, void * 
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Invalid Variable Name"), ICON_NONE);
   blender::ui::Layout &layout = *popup_menu_layout(pup);
 
-  DriverVar *dvar = (DriverVar *)dvar_v;
+  DriverVar *dvar = static_cast<DriverVar *>(dvar_v);
 
   if (dvar->flag & DVAR_FLAG_INVALID_EMPTY) {
     layout.label(RPT_("It cannot be left blank"), ICON_ERROR);
@@ -704,7 +718,7 @@ static void driver_dvar_invalid_name_query_cb(bContext *C, void *dvar_v, void * 
 /* callback to reset the driver's flags */
 static void driver_update_flags_cb(bContext * /*C*/, void *fcu_v, void * /*arg*/)
 {
-  FCurve *fcu = (FCurve *)fcu_v;
+  FCurve *fcu = static_cast<FCurve *>(fcu_v);
   ChannelDriver *driver = fcu->driver;
 
   /* clear invalid flags */
@@ -784,7 +798,7 @@ static void graph_panel_driverVar__rotDiff(blender::ui::Layout &layout, ID *id, 
     blender::StringRef name = i == 1 ? IFACE_("Object 1") : IFACE_("Object 2");
     col.prop(&ptr, "id", UI_ITEM_NONE, name, ICON_NONE);
 
-    Object *ob = (Object *)dtar->id;
+    Object *ob = blender::id_cast<Object *>(dtar->id);
     if (dtar->id && GS(dtar->id->name) == ID_OB && ob->pose) {
       PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar->id, &RNA_Pose, ob->pose);
       col.prop_search(&ptr, "bone_target", &tar_ptr, "bones", "", ICON_BONE_DATA);
@@ -807,7 +821,7 @@ static void graph_panel_driverVar__locDiff(blender::ui::Layout &layout, ID *id, 
     blender::StringRef name = i == 1 ? IFACE_("Object 1") : IFACE_("Object 2");
     col.prop(&ptr, "id", UI_ITEM_NONE, name, ICON_NONE);
 
-    Object *ob = (Object *)dtar->id;
+    Object *ob = blender::id_cast<Object *>(dtar->id);
 
     if (dtar->id && GS(dtar->id->name) == ID_OB && ob->pose) {
       PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar->id, &RNA_Pose, ob->pose);
@@ -825,7 +839,7 @@ static void graph_panel_driverVar__locDiff(blender::ui::Layout &layout, ID *id, 
 static void graph_panel_driverVar__transChan(blender::ui::Layout &layout, ID *id, DriverVar *dvar)
 {
   DriverTarget *dtar = &dvar->targets[0];
-  Object *ob = (Object *)dtar->id;
+  Object *ob = blender::id_cast<Object *>(dtar->id);
 
   /* initialize RNA pointer to the target */
   PointerRNA dtar_ptr = RNA_pointer_create_discrete(id, &RNA_DriverTarget, dtar);
@@ -1091,14 +1105,14 @@ static void graph_draw_driver_settings_panel(blender::ui::Layout &layout,
   }
 
   /* loop over targets, drawing them */
-  LISTBASE_FOREACH (DriverVar *, dvar, &driver->variables) {
+  for (DriverVar &dvar : driver->variables) {
 
     /* sub-layout column for this variable's settings */
     blender::ui::Layout &col = layout.column(true);
 
     /* 1) header panel */
     blender::ui::Layout &header_box = col.box();
-    PointerRNA dvar_ptr = RNA_pointer_create_discrete(id, &RNA_DriverVariable, dvar);
+    PointerRNA dvar_ptr = RNA_pointer_create_discrete(id, &RNA_DriverVariable, &dvar);
 
     /* 1.1) variable type and name */
     blender::ui::Layout &sub = header_box.row(false).row(true);
@@ -1126,7 +1140,7 @@ static void graph_draw_driver_settings_panel(blender::ui::Layout &layout,
     /* 1.2) invalid name? */
     block_emboss_set(block, blender::ui::EmbossType::None);
 
-    if (dvar->flag & DVAR_FLAG_INVALID_NAME) {
+    if (dvar.flag & DVAR_FLAG_INVALID_NAME) {
       but = uiDefIconBut(block,
                          blender::ui::ButtonType::But,
                          ICON_ERROR,
@@ -1139,7 +1153,7 @@ static void graph_draw_driver_settings_panel(blender::ui::Layout &layout,
                          0.0,
                          TIP_("Invalid variable name, click here for details"));
       button_retval_set(but, B_IPO_DEPCHANGE);
-      button_func_set(but, driver_dvar_invalid_name_query_cb, dvar, nullptr); /* XXX: reports? */
+      button_func_set(but, driver_dvar_invalid_name_query_cb, &dvar, nullptr); /* XXX: reports? */
     }
 
     /* 1.3) remove button */
@@ -1155,27 +1169,27 @@ static void graph_draw_driver_settings_panel(blender::ui::Layout &layout,
                        0.0,
                        TIP_("Delete target variable"));
     button_retval_set(but, B_IPO_DEPCHANGE);
-    button_func_set(but, driver_delete_var_cb, driver, dvar);
+    button_func_set(but, driver_delete_var_cb, driver, &dvar);
     block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
     /* 2) variable type settings */
     blender::ui::Layout &box = col.box();
     /* controls to draw depends on the type of variable */
-    switch (dvar->type) {
+    switch (dvar.type) {
       case DVAR_TYPE_SINGLE_PROP: /* single property */
-        graph_panel_driverVar__singleProp(box, id, dvar);
+        graph_panel_driverVar__singleProp(box, id, &dvar);
         break;
       case DVAR_TYPE_ROT_DIFF: /* rotational difference */
-        graph_panel_driverVar__rotDiff(box, id, dvar);
+        graph_panel_driverVar__rotDiff(box, id, &dvar);
         break;
       case DVAR_TYPE_LOC_DIFF: /* location difference */
-        graph_panel_driverVar__locDiff(box, id, dvar);
+        graph_panel_driverVar__locDiff(box, id, &dvar);
         break;
       case DVAR_TYPE_TRANSFORM_CHAN: /* transform channel */
-        graph_panel_driverVar__transChan(box, id, dvar);
+        graph_panel_driverVar__transChan(box, id, &dvar);
         break;
       case DVAR_TYPE_CONTEXT_PROP: /* context property */
-        graph_panel_driverVar__contextProp(box, id, dvar);
+        graph_panel_driverVar__contextProp(box, id, &dvar);
         break;
     }
 
@@ -1186,22 +1200,22 @@ static void graph_draw_driver_settings_panel(blender::ui::Layout &layout,
       blender::ui::Layout &sub = col.box().row(true);
       sub.label(IFACE_("Value:"), ICON_NONE);
 
-      if ((dvar->type == DVAR_TYPE_ROT_DIFF) ||
-          (dvar->type == DVAR_TYPE_TRANSFORM_CHAN &&
-           ELEM(dvar->targets[0].transChan,
+      if ((dvar.type == DVAR_TYPE_ROT_DIFF) ||
+          (dvar.type == DVAR_TYPE_TRANSFORM_CHAN &&
+           ELEM(dvar.targets[0].transChan,
                 DTAR_TRANSCHAN_ROTX,
                 DTAR_TRANSCHAN_ROTY,
                 DTAR_TRANSCHAN_ROTZ,
                 DTAR_TRANSCHAN_ROTW) &&
-           dvar->targets[0].rotation_mode != DTAR_ROTMODE_QUATERNION))
+           dvar.targets[0].rotation_mode != DTAR_ROTMODE_QUATERNION))
       {
         SNPRINTF_UTF8(valBuf,
                       "%.3f (%4.1f" BLI_STR_UTF8_DEGREE_SIGN ")",
-                      dvar->curval,
-                      RAD2DEGF(dvar->curval));
+                      dvar.curval,
+                      RAD2DEGF(dvar.curval));
       }
       else {
-        SNPRINTF_UTF8(valBuf, "%.3f", dvar->curval);
+        SNPRINTF_UTF8(valBuf, "%.3f", dvar.curval);
       }
 
       sub.label(valBuf, ICON_NONE);
@@ -1271,7 +1285,7 @@ static void graph_panel_drivers(const bContext *C, Panel *panel)
  * as this is only to be used as a popup elsewhere. */
 static bool graph_panel_drivers_popover_poll(const bContext *C, PanelType * /*pt*/)
 {
-  return ED_operator_graphedit_active((bContext *)C) == false;
+  return ED_operator_graphedit_active(const_cast<bContext *>(C)) == false;
 }
 
 /* popover panel for driver editing anywhere in ui */
@@ -1291,7 +1305,7 @@ static void graph_panel_drivers_popover(const bContext *C, Panel *panel)
     bool driven, special;
 
     fcu = BKE_fcurve_find_by_rna_context_ui(
-        (bContext *)C, &ptr, prop, index, nullptr, nullptr, &driven, &special);
+        const_cast<bContext *>(C), &ptr, prop, index, nullptr, nullptr, &driven, &special);
 
     /* Hack: Force all buttons in this panel to be able to know the driver button
      * this panel is getting spawned from, so that things like the "Open Drivers Editor"
@@ -1338,7 +1352,7 @@ static void graph_panel_drivers_popover(const bContext *C, Panel *panel)
 
 static void graph_fmodifier_panel_id(void *fcm_link, char *r_name)
 {
-  FModifier *fcm = (FModifier *)fcm_link;
+  FModifier *fcm = static_cast<FModifier *>(fcm_link);
   eFModifier_Types type = eFModifier_Types(fcm->type);
   const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(type);
 

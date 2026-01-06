@@ -36,7 +36,7 @@
 using blender::float4;
 
 /* Statics */
-static ListBase studiolights;
+static ListBaseT<StudioLight> studiolights;
 static int last_studiolight_id = 0;
 #define STUDIOLIGHT_PASSNAME_DIFFUSE "diffuse"
 #define STUDIOLIGHT_PASSNAME_SPECULAR "specular"
@@ -149,7 +149,7 @@ static void studiolight_free_temp_resources(StudioLight *sl)
 
 static StudioLight *studiolight_create(int flag)
 {
-  StudioLight *sl = MEM_callocN<StudioLight>(__func__);
+  StudioLight *sl = MEM_new_for_free<StudioLight>(__func__);
   sl->filepath[0] = 0x00;
   sl->name[0] = 0x00;
   sl->free_function = nullptr;
@@ -457,8 +457,8 @@ static void studiolight_create_matcap_gputexture(StudioLightImage *sli)
   const size_t ibuf_pixel_count = IMB_get_pixel_count(ibuf);
   float *gpu_matcap_3components = MEM_calloc_arrayN<float>(3 * ibuf_pixel_count, __func__);
 
-  const float (*offset4)[4] = (const float (*)[4])ibuf->float_buffer.data;
-  float (*offset3)[3] = (float (*)[3])gpu_matcap_3components;
+  const float (*offset4)[4] = reinterpret_cast<const float (*)[4]>(ibuf->float_buffer.data);
+  float (*offset3)[3] = reinterpret_cast<float (*)[3]>(gpu_matcap_3components);
   for (size_t i = 0; i < ibuf_pixel_count; i++, offset4++, offset3++) {
     copy_v3_v3(*offset3, *offset4);
   }
@@ -895,15 +895,15 @@ StudioLight *BKE_studiolight_find_default(int flag)
     default_name = STUDIOLIGHT_MATCAP_DEFAULT;
   }
 
-  LISTBASE_FOREACH (StudioLight *, sl, &studiolights) {
-    if ((sl->flag & flag) && STREQ(sl->name, default_name)) {
-      return sl;
+  for (StudioLight &sl : studiolights) {
+    if ((sl.flag & flag) && STREQ(sl.name, default_name)) {
+      return &sl;
     }
   }
 
-  LISTBASE_FOREACH (StudioLight *, sl, &studiolights) {
-    if (sl->flag & flag) {
-      return sl;
+  for (StudioLight &sl : studiolights) {
+    if (sl.flag & flag) {
+      return &sl;
     }
   }
   return nullptr;
@@ -911,10 +911,10 @@ StudioLight *BKE_studiolight_find_default(int flag)
 
 StudioLight *BKE_studiolight_find(const char *name, int flag)
 {
-  LISTBASE_FOREACH (StudioLight *, sl, &studiolights) {
-    if (STREQLEN(sl->name, name, FILE_MAXFILE)) {
-      if (sl->flag & flag) {
-        return sl;
+  for (StudioLight &sl : studiolights) {
+    if (STREQLEN(sl.name, name, FILE_MAXFILE)) {
+      if (sl.flag & flag) {
+        return &sl;
       }
 
       /* flags do not match, so use default */
@@ -927,18 +927,18 @@ StudioLight *BKE_studiolight_find(const char *name, int flag)
 
 StudioLight *BKE_studiolight_findindex(int index, int flag)
 {
-  LISTBASE_FOREACH (StudioLight *, sl, &studiolights) {
-    if (sl->index == index) {
-      return sl;
+  for (StudioLight &sl : studiolights) {
+    if (sl.index == index) {
+      return &sl;
     }
   }
   /* When not found, use the default studio light */
   return BKE_studiolight_find_default(flag);
 }
 
-ListBase *BKE_studiolight_listbase()
+ListBaseT<StudioLight> &BKE_studiolight_listbase()
 {
-  return &studiolights;
+  return studiolights;
 }
 
 void BKE_studiolight_preview(uint *icon_buffer, StudioLight *sl, int icon_id_type)

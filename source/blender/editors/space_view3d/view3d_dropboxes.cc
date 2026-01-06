@@ -124,7 +124,7 @@ static void view3d_ob_drop_on_enter(wmDropBox *drop, wmDrag *drag)
 
   float dimensions[3] = {0.0f};
   if (drag->type == WM_DRAG_ID) {
-    Object *ob = (Object *)WM_drag_get_local_ID(drag, ID_OB);
+    Object *ob = blender::id_cast<Object *>(WM_drag_get_local_ID(drag, ID_OB));
     BKE_object_dimensions_eval_cached_get(ob, dimensions);
   }
   else {
@@ -369,7 +369,7 @@ static void view3d_ob_drop_copy_local_id(bContext * /*C*/, wmDrag *drag, wmDropB
   V3DSnapCursorState *snap_state = ED_view3d_cursor_snap_state_active_get();
   float obmat_final[4][4];
 
-  view3d_ob_drop_matrix_from_snap(snap_state, (Object *)id, obmat_final);
+  view3d_ob_drop_matrix_from_snap(snap_state, blender::id_cast<Object *>(id), obmat_final);
 
   RNA_float_set_array(drop->ptr, "matrix", &obmat_final[0][0]);
 }
@@ -391,16 +391,16 @@ static void make_selected_objects_local(Main &bmain,
 
   if (localize_parent_collections) {
     /* Collect the collections containing the selected objects. */
-    LISTBASE_FOREACH (Collection *, collection, &bmain.collections) {
-      if (ID_IS_LINKED(collection) &&
+    for (Collection &collection : bmain.collections) {
+      if (ID_IS_LINKED(&collection) &&
           /* This #BKE_view_layer_has_collection() check requires the view layer to be synced.
            * That's why we first collect the collections before doing any changes. Otherwise we'd
            * have to sync the view layer after every "make local" operation. */
-          BKE_view_layer_has_collection(&view_layer, collection))
+          BKE_view_layer_has_collection(&view_layer, &collection))
       {
         FOREACH_SELECTED_OBJECT_BEGIN (&view_layer, &v3d, ob_selected) {
-          if (BKE_collection_has_object(collection, ob_selected)) {
-            collections_to_localize.add(collection);
+          if (BKE_collection_has_object(&collection, ob_selected)) {
+            collections_to_localize.add(&collection);
             break;
           }
         }
@@ -481,7 +481,7 @@ static void view3d_ob_drop_copy_external_asset(bContext *C, wmDrag *drag, wmDrop
   WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
 
   BKE_view_layer_synced_ensure(scene, view_layer);
-  Base *base = BKE_view_layer_base_find(view_layer, (Object *)id);
+  Base *base = BKE_view_layer_base_find(view_layer, blender::id_cast<Object *>(id));
   if (base != nullptr) {
     BKE_view_layer_base_select_and_set_active(view_layer, base);
     WM_main_add_notifier(NC_SCENE | ND_OB_ACTIVE, scene);
@@ -512,7 +512,7 @@ static void view3d_ob_drop_copy_external_asset(bContext *C, wmDrag *drag, wmDrop
   if (snap_state) {
     float obmat_final[4][4];
 
-    view3d_ob_drop_matrix_from_snap(snap_state, (Object *)id, obmat_final);
+    view3d_ob_drop_matrix_from_snap(snap_state, blender::id_cast<Object *>(id), obmat_final);
 
     RNA_float_set_array(drop->ptr, "matrix", &obmat_final[0][0]);
   }
@@ -579,7 +579,7 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
   if (!id) {
     return;
   }
-  Collection *collection = (Collection *)id;
+  Collection *collection = blender::id_cast<Collection *>(id);
 
   /* Reset temporary override. */
   asset_drag->import_settings.use_instance_collections = use_instance_collections;
@@ -675,7 +675,7 @@ static void view3d_id_path_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 
 void view3d_dropboxes()
 {
-  ListBase *lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
+  ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("View3D", SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   wmDropBox *drop;
   drop = WM_dropbox_add(lb,

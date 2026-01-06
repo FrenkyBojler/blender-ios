@@ -8,6 +8,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
 #include "BLT_translation.hh"
@@ -155,8 +156,7 @@ static wmOperatorStatus mesh_bisect_invoke(bContext *C, wmOperator *op, const wm
     gesture->user_data.data = opdata;
 
     opdata->backup_len = objects.size();
-    opdata->backup = static_cast<BisectData::BisectDataBackup *>(
-        MEM_callocN(sizeof(*opdata->backup) * objects.size(), __func__));
+    opdata->backup = MEM_calloc_arrayN<BisectData::BisectDataBackup>(objects.size(), __func__);
 
     /* Store the mesh backups. */
     for (const int ob_index : objects.index_range()) {
@@ -386,7 +386,7 @@ static wmOperatorStatus mesh_bisect_exec(bContext *C, wmOperator *op)
       params.calc_looptris = true;
       params.calc_normals = false;
       params.is_destructive = true;
-      EDBM_update(static_cast<Mesh *>(obedit->data), &params);
+      EDBM_update(blender::id_cast<Mesh *>(obedit->data), &params);
 
       EDBM_selectmode_flush(em);
       EDBM_uvselect_clear(em);
@@ -711,7 +711,7 @@ static void gizmo_mesh_bisect_setup(const bContext *C, wmGizmoGroup *gzgroup)
   WM_gizmo_set_flag(ggd->rotate_c, WM_GIZMO_DRAW_VALUE, true);
 
   {
-    ggd->data.context = (bContext *)C;
+    ggd->data.context = const_cast<bContext *>(C);
     ggd->data.op = op;
     ggd->data.prop_plane_co = RNA_struct_find_property(op->ptr, "plane_co");
     ggd->data.prop_plane_no = RNA_struct_find_property(op->ptr, "plane_no");

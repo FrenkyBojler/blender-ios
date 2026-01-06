@@ -138,8 +138,8 @@ static void WIDGETGROUP_empty_image_setup(const bContext * /*C*/, wmGizmoGroup *
   blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
 
   /* All gizmos must perform undo. */
-  LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {
-    WM_gizmo_set_flag(gz, WM_GIZMO_NEEDS_UNDO, true);
+  for (wmGizmo &gz : gzgroup->gizmos) {
+    WM_gizmo_set_flag(&gz, WM_GIZMO_NEEDS_UNDO, true);
   }
 }
 
@@ -163,10 +163,10 @@ static void WIDGETGROUP_empty_image_refresh(const bContext *C, wmGizmoGroup *gzg
 
   /* Use dimensions for aspect. */
   if (ob->data != nullptr) {
-    const Image *image = static_cast<const Image *>(ob->data);
+    const Image *image = blender::id_cast<const Image *>(ob->data);
     ImageUser iuser = *ob->iuser;
     float size[2];
-    BKE_image_get_size_fl(static_cast<Image *>(ob->data), &iuser, size);
+    BKE_image_get_size_fl(blender::id_cast<Image *>(ob->data), &iuser, size);
 
     /* Get the image aspect even if the buffer is invalid */
     if (image->aspx > image->aspy) {

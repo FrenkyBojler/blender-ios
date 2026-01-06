@@ -6,7 +6,6 @@
  * \ingroup modifiers
  */
 
-#include "DNA_defaults.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
@@ -46,10 +45,7 @@ using bke::greasepencil::Drawing;
 static void init_data(ModifierData *md)
 {
   auto *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(amd, modifier));
-
-  MEMCPY_STRUCT_AFTER(amd, DNA_struct_default_get(GreasePencilArmatureModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(amd, modifier);
   modifier::greasepencil::init_influence_data(&amd->influence, false);
 }
 
@@ -74,7 +70,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 {
   auto *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(md);
   modifier::greasepencil::foreach_influence_ID_link(&amd->influence, ob, walk, user_data);
-  walk(user_data, ob, (ID **)&amd->object, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&amd->object), IDWALK_CB_NOP);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -137,6 +133,10 @@ static void modify_curves(ModifierData &md,
                            std::optional<MutableSpan<float3x3>> deform_mats,
                            Span<MDeformVert> dverts,
                            const OffsetIndices<int> points_by_curve) {
+    /* Deform verts attribute can be empty after converting Bezier curves (#152102). */
+    if (dverts.is_empty()) {
+      return;
+    }
     curves_mask.foreach_index(blender::GrainSize(128), [&](const int curve_i) {
       const IndexRange points = points_by_curve[curve_i];
       std::optional<Span<float3>> old_positions_for_curve;
@@ -293,7 +293,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *amd = reinterpret_cast<const GreasePencilArmatureModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilArmatureModifierData, amd);
+  writer->write_struct(amd);
   modifier::greasepencil::write_influence_data(writer, &amd->influence);
 }
 

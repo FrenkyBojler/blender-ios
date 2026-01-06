@@ -65,7 +65,7 @@ static bool WIDGETGROUP_camera_poll(const bContext *C, wmGizmoGroupType * /*gzgt
   if (base && BASE_SELECTABLE(v3d, base)) {
     Object *ob = base->object;
     if (ob->type == OB_CAMERA) {
-      const Camera *camera = static_cast<Camera *>(ob->data);
+      const Camera *camera = blender::id_cast<Camera *>(ob->data);
       /* TODO: support overrides. */
       if (BKE_id_is_editable(CTX_data_main(C), &camera->id)) {
         return true;
@@ -123,8 +123,8 @@ static void WIDGETGROUP_camera_setup(const bContext *C, wmGizmoGroup *gzgroup)
   }
 
   /* All gizmos must perform undo. */
-  LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {
-    WM_gizmo_set_flag(gz, WM_GIZMO_NEEDS_UNDO, true);
+  for (wmGizmo &gz : gzgroup->gizmos) {
+    WM_gizmo_set_flag(&gz, WM_GIZMO_NEEDS_UNDO, true);
   }
 }
 
@@ -140,7 +140,7 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Camera *ca = static_cast<Camera *>(ob->data);
+  Camera *ca = blender::id_cast<Camera *>(ob->data);
   float dir[3];
 
   PointerRNA camera_ptr = RNA_pointer_create_discrete(&ca->id, &RNA_Camera, ca);
@@ -263,7 +263,7 @@ static void WIDGETGROUP_camera_message_subscribe(const bContext *C,
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Camera *ca = static_cast<Camera *>(ob->data);
+  Camera *ca = blender::id_cast<Camera *>(ob->data);
 
   wmMsgSubscribeValue msg_sub_value_gz_tag_refresh{};
   msg_sub_value_gz_tag_refresh.owner = region;
@@ -416,7 +416,7 @@ static bool WIDGETGROUP_camera_view_poll(const bContext *C, wmGizmoGroupType * /
 
 static void WIDGETGROUP_camera_view_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
-  CameraViewWidgetGroup *viewgroup = MEM_mallocN<CameraViewWidgetGroup>(__func__);
+  CameraViewWidgetGroup *viewgroup = MEM_new_for_free<CameraViewWidgetGroup>(__func__);
 
   viewgroup->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
 

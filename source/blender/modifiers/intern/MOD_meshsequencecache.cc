@@ -15,7 +15,6 @@
 #include "BLT_translation.hh"
 
 #include "DNA_cachefile_types.h"
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -62,14 +61,8 @@ using namespace blender;
 static void init_data(ModifierData *md)
 {
   MeshSeqCacheModifierData *mcmd = reinterpret_cast<MeshSeqCacheModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mcmd, modifier));
-
-  mcmd->cache_file = nullptr;
-  mcmd->object_path[0] = '\0';
+  INIT_DEFAULT_STRUCT_AFTER(mcmd, modifier);
   mcmd->read_flag = MOD_MESHSEQ_READ_ALL;
-
-  MEMCPY_STRUCT_AFTER(mcmd, DNA_struct_default_get(MeshSeqCacheModifierData), modifier);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -77,7 +70,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 #if 0
   const MeshSeqCacheModifierData *mcmd = (const MeshSeqCacheModifierData *)md;
 #endif
-  MeshSeqCacheModifierData *tmcmd = (MeshSeqCacheModifierData *)target;
+  MeshSeqCacheModifierData *tmcmd = reinterpret_cast<MeshSeqCacheModifierData *>(target);
 
   BKE_modifier_copydata_generic(md, target, flag);
 
@@ -232,8 +225,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   MeshSeqCacheModifierData *mcmd = reinterpret_cast<MeshSeqCacheModifierData *>(md);
 
   /* Only used to check whether we are operating on org data or not... */
-  Mesh *object_mesh = (ctx->object->type == OB_MESH) ? static_cast<Mesh *>(ctx->object->data) :
-                                                       nullptr;
+  Mesh *object_mesh = (ctx->object->type == OB_MESH) ?
+                          blender::id_cast<Mesh *>(ctx->object->data) :
+                          nullptr;
   Mesh *org_mesh = mesh;
 
   Scene *scene = DEG_get_evaluated_scene(ctx->depsgraph);

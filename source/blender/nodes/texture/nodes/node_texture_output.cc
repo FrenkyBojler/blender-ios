@@ -27,7 +27,7 @@ static void exec(void *data,
                  bNodeStack **in,
                  bNodeStack ** /*out*/)
 {
-  TexCallData *cdata = (TexCallData *)data;
+  TexCallData *cdata = static_cast<TexCallData *>(data);
   TexResult *target = cdata->target;
 
   if (cdata->do_preview) {
@@ -52,7 +52,7 @@ static void exec(void *data,
 
 static void unique_name(bNode *node)
 {
-  TexNodeOutput *tno = (TexNodeOutput *)node->storage;
+  TexNodeOutput *tno = static_cast<TexNodeOutput *>(node->storage);
   char new_name[sizeof(tno->name)];
   int new_len = 0;
   int suffix;
@@ -119,7 +119,7 @@ check_index:
 
 static void init(bNodeTree * /*ntree*/, bNode *node)
 {
-  TexNodeOutput *tno = MEM_callocN<TexNodeOutput>("TEX_output");
+  TexNodeOutput *tno = MEM_new_for_free<TexNodeOutput>("TEX_output");
   node->storage = tno;
 
   STRNCPY(tno->name, "Default");

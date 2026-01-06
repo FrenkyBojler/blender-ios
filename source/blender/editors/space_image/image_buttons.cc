@@ -82,11 +82,10 @@ static void ui_imageuser_slot_menu(bContext *C, blender::ui::Layout *layout, voi
   Scene *scene = CTX_data_scene(C);
   bool has_active_render = scene && (RE_GetSceneRender(scene) != nullptr);
 
-  int slot_id;
-  LISTBASE_FOREACH_INDEX (RenderSlot *, slot, &image->renderslots, slot_id) {
+  for (const auto [slot_id, slot] : image->renderslots.enumerate()) {
     char str[64];
-    if (slot->name[0] != '\0') {
-      STRNCPY_UTF8(str, slot->name);
+    if (slot.name[0] != '\0') {
+      STRNCPY_UTF8(str, slot.name);
     }
     else {
       SNPRINTF_UTF8(str, IFACE_("Slot %d"), slot_id + 1);
@@ -98,7 +97,7 @@ static void ui_imageuser_slot_menu(bContext *C, blender::ui::Layout *layout, voi
         icon = ICON_RENDER_RESULT;
       }
     }
-    else if (slot->render != nullptr) {
+    else if (slot.render != nullptr) {
       icon = ICON_DOT;
     }
     blender::ui::Button *but = uiDefIconTextBut(block,
@@ -112,7 +111,8 @@ static void ui_imageuser_slot_menu(bContext *C, blender::ui::Layout *layout, voi
                                                 nullptr,
                                                 "");
     button_retval_set(but, B_NOP);
-    button_func_set(but, [image, slot_id](bContext & /*C*/) { image->render_slot = slot_id; });
+    button_func_set(
+        but, [image, slot_id = slot_id](bContext & /*C*/) { image->render_slot = slot_id; });
   }
 
   layout->separator();
@@ -165,8 +165,7 @@ struct ImageUI_Data {
 
 static ImageUI_Data *ui_imageuser_data_copy(const ImageUI_Data *rnd_pt_src)
 {
-  ImageUI_Data *rnd_pt_dst = static_cast<ImageUI_Data *>(
-      MEM_mallocN(sizeof(*rnd_pt_src), __func__));
+  ImageUI_Data *rnd_pt_dst = MEM_mallocN<ImageUI_Data>(__func__);
   memcpy(rnd_pt_dst, rnd_pt_src, sizeof(*rnd_pt_src));
   return rnd_pt_dst;
 }
@@ -263,7 +262,7 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, blender::ui::Layout *layout
 
   nr = (rl == nullptr) ? 1 : 0;
 
-  ListBase added_passes;
+  ListBaseT<LinkData> added_passes;
   BLI_listbase_clear(&added_passes);
 
   /* rendered results don't have a Combined pass */
@@ -685,9 +684,9 @@ static void uiblock_layer_pass_buttons(blender::ui::Layout &layout,
   {
     int nr = 0;
 
-    LISTBASE_FOREACH (ImageView *, iv, &image->views) {
+    for (ImageView &iv : image->views) {
       if (nr++ == iuser->view) {
-        display_name = iv->name;
+        display_name = iv.name;
         break;
       }
     }
@@ -720,7 +719,7 @@ struct RNAUpdateCb {
 
 static void rna_update_cb(bContext *C, void *arg_cb, void * /*arg*/)
 {
-  RNAUpdateCb *cb = (RNAUpdateCb *)arg_cb;
+  RNAUpdateCb *cb = static_cast<RNAUpdateCb *>(arg_cb);
 
   /* we call update here on the pointer property, this way the
    * owner of the image pointer can still define its own update
@@ -1269,7 +1268,7 @@ void uiTemplateImageInfo(blender::ui::Layout *layout, bContext *C, Image *ima, I
     int duration = 0;
 
     if (ima->source == IMA_SRC_MOVIE && BKE_image_has_anim(ima)) {
-      MovieReader *anim = ((ImageAnim *)ima->anims.first)->anim;
+      MovieReader *anim = (static_cast<ImageAnim *>(ima->anims.first))->anim;
       if (anim) {
         duration = MOV_get_duration_frames(anim, IMB_TC_RECORD_RUN);
       }

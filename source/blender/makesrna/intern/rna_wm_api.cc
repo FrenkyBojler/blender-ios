@@ -64,6 +64,7 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 
 #  include "DNA_userdef_types.h"
 
+#  include "BLI_listbase.h"
 #  include "BLI_string.h"
 #  include "BLI_string_utf8.h"
 
@@ -72,6 +73,8 @@ const EnumPropertyItem rna_enum_window_cursor_items[] = {
 #  include "BKE_main.hh"
 #  include "BKE_report.hh"
 #  include "BKE_undo_system.hh"
+
+#  include "UI_interface_c.hh"
 
 #  include "WM_types.hh"
 
@@ -625,7 +628,7 @@ static PointerRNA rna_PopMenuBegin(bContext *C,
     return PointerRNA_NULL;
   }
 
-  void *data = (void *)blender::ui::popup_menu_begin(C, title, icon);
+  void *data = static_cast<void *>(blender::ui::popup_menu_begin(C, title, icon));
   PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPopupMenu, data);
   return ptr_result;
 }
@@ -645,8 +648,8 @@ static PointerRNA rna_PopoverBegin(bContext *C,
     return PointerRNA_NULL;
   }
 
-  void *data = (void *)blender::ui::popover_begin(
-      C, U.widget_unit * ui_units_x, from_active_button);
+  void *data = static_cast<void *>(
+      blender::ui::popover_begin(C, U.widget_unit * ui_units_x, from_active_button));
   PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPopover, data);
   return ptr_result;
 }

@@ -47,7 +47,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryDeleteGeometry *data = MEM_callocN<NodeGeometryDeleteGeometry>(__func__);
+  NodeGeometryDeleteGeometry *data = MEM_new_for_free<NodeGeometryDeleteGeometry>(__func__);
   data->domain = int(AttrDomain::Point);
   data->mode = GEO_NODE_DELETE_GEOMETRY_MODE_ALL;
 
@@ -66,7 +66,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const NodeGeometryDeleteGeometry &storage = node_storage(params.node());
   const AttrDomain domain = AttrDomain(storage.domain);
-  const GeometryNodeDeleteGeometryMode mode = (GeometryNodeDeleteGeometryMode)storage.mode;
+  const GeometryNodeDeleteGeometryMode mode = GeometryNodeDeleteGeometryMode(storage.mode);
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Geometry");
 

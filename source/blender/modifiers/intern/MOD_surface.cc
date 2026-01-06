@@ -12,7 +12,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -37,16 +36,13 @@
 
 static void init_data(ModifierData *md)
 {
-  SurfaceModifierData *surmd = (SurfaceModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(surmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(surmd, DNA_struct_default_get(SurfaceModifierData), modifier);
+  SurfaceModifierData *surmd = reinterpret_cast<SurfaceModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(surmd, modifier);
 }
 
 static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const int flag)
 {
-  SurfaceModifierData *surmd_dst = (SurfaceModifierData *)md_dst;
+  SurfaceModifierData *surmd_dst = reinterpret_cast<SurfaceModifierData *>(md_dst);
 
   BKE_modifier_copydata_generic(md_src, md_dst, flag);
 
@@ -55,7 +51,7 @@ static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const in
 
 static void free_data(ModifierData *md)
 {
-  SurfaceModifierData *surmd = (SurfaceModifierData *)md;
+  SurfaceModifierData *surmd = reinterpret_cast<SurfaceModifierData *>(md);
 
   if (surmd) {
     MEM_SAFE_DELETE(surmd->runtime.bvhtree);
@@ -81,7 +77,7 @@ static void deform_verts(ModifierData *md,
                          Mesh *mesh,
                          blender::MutableSpan<blender::float3> positions)
 {
-  SurfaceModifierData *surmd = (SurfaceModifierData *)md;
+  SurfaceModifierData *surmd = reinterpret_cast<SurfaceModifierData *>(md);
   const int cfra = int(DEG_get_ctime(ctx->depsgraph));
 
   /* Free mesh and BVH cache. */
@@ -175,7 +171,7 @@ static void panel_register(ARegionType *region_type)
 
 static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
 {
-  SurfaceModifierData *surmd = (SurfaceModifierData *)md;
+  SurfaceModifierData *surmd = reinterpret_cast<SurfaceModifierData *>(md);
 
   surmd->runtime = SurfaceModifierData_Runtime{};
 }

@@ -19,8 +19,10 @@
 #ifdef RNA_RUNTIME
 
 #  include "BKE_idprop.hh"
+#  include "BKE_main.hh"
 #  include "BKE_scene.hh"
 #  include "BKE_screen.hh"
+
 #  include "WM_api.hh"
 
 #  include "DEG_depsgraph_build.hh"
@@ -40,7 +42,7 @@ static void rna_TimelineMarker_update(Main * /*bmain*/, Scene * /*scene*/, Point
 static void rna_TimelineMarker_camera_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  Scene *scene = (Scene *)ptr->owner_id;
+  Scene *scene = blender::id_cast<Scene *>(ptr->owner_id);
 
   BKE_scene_camera_switch_update(scene);
   WM_windows_scene_data_sync(&wm->windows, scene);

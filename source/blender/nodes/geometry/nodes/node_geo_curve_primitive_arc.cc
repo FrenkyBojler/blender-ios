@@ -123,7 +123,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurvePrimitiveArc *data = MEM_callocN<NodeGeometryCurvePrimitiveArc>(__func__);
+  NodeGeometryCurvePrimitiveArc *data = MEM_new_for_free<NodeGeometryCurvePrimitiveArc>(__func__);
 
   data->mode = GEO_NODE_CURVE_PRIMITIVE_ARC_TYPE_RADIUS;
   node->storage = data;
@@ -304,7 +304,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryCurvePrimitiveArc &storage = node_storage(params.node());
 
-  const GeometryNodeCurvePrimitiveArcMode mode = (GeometryNodeCurvePrimitiveArcMode)storage.mode;
+  const GeometryNodeCurvePrimitiveArcMode mode = GeometryNodeCurvePrimitiveArcMode(storage.mode);
 
   switch (mode) {
     case GEO_NODE_CURVE_PRIMITIVE_ARC_TYPE_POINTS: {

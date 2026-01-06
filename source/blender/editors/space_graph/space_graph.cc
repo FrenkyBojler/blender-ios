@@ -61,12 +61,12 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   SpaceGraph *sipo;
 
   /* Graph Editor - general stuff */
-  sipo = MEM_callocN<SpaceGraph>("init graphedit");
+  sipo = MEM_new_for_free<SpaceGraph>("init graphedit");
   sipo->spacetype = SPACE_GRAPH;
 
   /* allocate DopeSheet data for Graph Editor */
-  sipo->ads = MEM_callocN<bDopeSheet>("GraphEdit DopeSheet");
-  sipo->ads->source = (ID *)scene;
+  sipo->ads = MEM_new_for_free<bDopeSheet>("GraphEdit DopeSheet");
+  sipo->ads->source = blender::id_cast<ID *>(const_cast<Scene *>(scene));
 
   /* settings for making it easier by default to just see what you're interested in tweaking */
   sipo->ads->filterflag |= ADS_FILTER_ONLYSEL;
@@ -127,13 +127,13 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
 
   region->v2d.keeptot = 0;
 
-  return (SpaceLink *)sipo;
+  return reinterpret_cast<SpaceLink *>(sipo);
 }
 
 /* Doesn't free the space-link itself. */
 static void graph_free(SpaceLink *sl)
 {
-  SpaceGraph *si = (SpaceGraph *)sl;
+  SpaceGraph *si = reinterpret_cast<SpaceGraph *>(sl);
 
   if (si->ads) {
     BLI_freelistN(&si->ads->chanbase);
@@ -148,13 +148,13 @@ static void graph_free(SpaceLink *sl)
 /* spacetype; init callback */
 static void graph_init(wmWindowManager *wm, ScrArea *area)
 {
-  SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
+  SpaceGraph *sipo = static_cast<SpaceGraph *>(area->spacedata.first);
 
   /* Init dope-sheet if non-existent (i.e. for old files). */
   if (sipo->ads == nullptr) {
     wmWindow *win = WM_window_find_by_area(wm, area);
-    sipo->ads = MEM_callocN<bDopeSheet>("GraphEdit DopeSheet");
-    sipo->ads->source = win ? (ID *)WM_window_get_active_scene(win) : nullptr;
+    sipo->ads = MEM_new_for_free<bDopeSheet>("GraphEdit DopeSheet");
+    sipo->ads->source = win ? blender::id_cast<ID *>(WM_window_get_active_scene(win)) : nullptr;
   }
 
   /* force immediate init of any invalid F-Curve colors */
@@ -172,10 +172,11 @@ static SpaceLink *graph_duplicate(SpaceLink *sl)
   sipon->runtime = SpaceGraph_Runtime{};
 
   /* clear or remove stuff from old */
-  BLI_duplicatelist(&sipon->runtime.ghost_curves, &((SpaceGraph *)sl)->runtime.ghost_curves);
+  BLI_duplicatelist(&sipon->runtime.ghost_curves,
+                    &(reinterpret_cast<SpaceGraph *>(sl))->runtime.ghost_curves);
   sipon->ads = static_cast<bDopeSheet *>(MEM_dupallocN(sipon->ads));
 
-  return (SpaceLink *)sipon;
+  return reinterpret_cast<SpaceLink *>(sipon);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -429,7 +430,7 @@ static void graph_channel_region_draw(const bContext *C, ARegion *region)
   /* clear and setup matrix */
   blender::ui::theme::frame_buffer_clear(TH_BACK);
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                                     ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
   const size_t item_count = ANIM_animdata_filter(
@@ -438,7 +439,7 @@ static void graph_channel_region_draw(const bContext *C, ARegion *region)
   blender::ui::view2d_view_ortho(v2d);
 
   /* draw channels */
-  graph_draw_channel_names((bContext *)C, &ac, region, anim_data);
+  graph_draw_channel_names(const_cast<bContext *>(C), &ac, region, anim_data);
 
   /* channel filter next to scrubbing area */
   ED_time_scrub_channel_search_draw(C, region, ac.ads);
@@ -612,7 +613,7 @@ static void graph_listener(const wmSpaceTypeListenerParams *params)
 {
   ScrArea *area = params->area;
   const wmNotifier *wmn = params->notifier;
-  SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
+  SpaceGraph *sipo = static_cast<SpaceGraph *>(area->spacedata.first);
 
   /* context changes */
   switch (wmn->category) {
@@ -692,7 +693,7 @@ static void graph_refresh_fcurve_colors(const bContext *C)
 {
   bAnimContext ac;
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   bAnimListElem *ale;
   size_t items;
   int filter;
@@ -716,7 +717,7 @@ static void graph_refresh_fcurve_colors(const bContext *C)
   for (ale = static_cast<bAnimListElem *>(anim_data.first), i = 0; ale; ale = ale->next, i++) {
     BLI_assert_msg(ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE),
                    "Expecting only FCurves when using the ANIMFILTER_FCURVESONLY filter");
-    FCurve *fcu = (FCurve *)ale->data;
+    FCurve *fcu = static_cast<FCurve *>(ale->data);
 
     /* set color of curve here */
     switch (fcu->color_mode) {
@@ -799,7 +800,7 @@ static void graph_refresh_fcurve_colors(const bContext *C)
 
 static void graph_refresh(const bContext *C, ScrArea *area)
 {
-  SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
+  SpaceGraph *sipo = static_cast<SpaceGraph *>(area->spacedata.first);
 
   /* updates to data needed depends on Graph Editor mode... */
   switch (sipo->mode) {
@@ -846,7 +847,7 @@ static void graph_id_remap(ScrArea * /*area*/,
                            SpaceLink *slink,
                            const blender::bke::id::IDRemapper &mappings)
 {
-  SpaceGraph *sgraph = (SpaceGraph *)slink;
+  SpaceGraph *sgraph = reinterpret_cast<SpaceGraph *>(slink);
   if (!sgraph->ads) {
     return;
   }
@@ -913,7 +914,7 @@ static int graph_space_icon_get(const ScrArea *area)
 
 static void graph_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
-  SpaceGraph *sipo = (SpaceGraph *)sl;
+  SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(sl);
 
   BLO_read_struct(reader, bDopeSheet, &sipo->ads);
   sipo->runtime = SpaceGraph_Runtime{};
@@ -921,15 +922,15 @@ static void graph_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 
 static void graph_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  SpaceGraph *sipo = (SpaceGraph *)sl;
-  ListBase tmpGhosts = sipo->runtime.ghost_curves;
+  SpaceGraph *sipo = reinterpret_cast<SpaceGraph *>(sl);
+  ListBaseT<FCurve> tmpGhosts = sipo->runtime.ghost_curves;
 
   /* temporarily disable ghost curves when saving */
   BLI_listbase_clear(&sipo->runtime.ghost_curves);
 
-  BLO_write_struct(writer, SpaceGraph, sl);
+  writer->write_struct_cast<SpaceGraph>(sl);
   if (sipo->ads) {
-    BLO_write_struct(writer, bDopeSheet, sipo->ads);
+    writer->write_struct(sipo->ads);
   }
 
   /* Re-enable ghost curves. */
@@ -994,7 +995,7 @@ void ED_spacetype_ipo()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: footer */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype graphedit region"));
+  art = MEM_callocN<ARegionType>("spacetype graphedit region");
   art->regionid = RGN_TYPE_FOOTER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;

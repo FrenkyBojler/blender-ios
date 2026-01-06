@@ -45,7 +45,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMeshCircle *node_storage = MEM_callocN<NodeGeometryMeshCircle>(__func__);
+  NodeGeometryMeshCircle *node_storage = MEM_new_for_free<NodeGeometryMeshCircle>(__func__);
 
   node_storage->fill_type = GEO_NODE_MESH_CIRCLE_FILL_NONE;
 
@@ -189,7 +189,7 @@ static Mesh *create_circle_mesh(const float radius,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryMeshCircle &storage = node_storage(params.node());
-  const GeometryNodeMeshCircleFillType fill = (GeometryNodeMeshCircleFillType)storage.fill_type;
+  const GeometryNodeMeshCircleFillType fill = GeometryNodeMeshCircleFillType(storage.fill_type);
 
   const float radius = params.extract_input<float>("Radius");
   const int verts_num = params.extract_input<int>("Vertices");

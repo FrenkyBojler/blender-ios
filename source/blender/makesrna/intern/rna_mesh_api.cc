@@ -22,6 +22,7 @@
 
 #  include "BKE_anim_data.hh"
 #  include "BKE_attribute.hh"
+#  include "BKE_customdata.hh"
 #  include "BKE_geometry_compare.hh"
 #  include "BKE_mesh.h"
 #  include "BKE_mesh.hh"
@@ -143,7 +144,7 @@ static void rna_Mesh_normals_split_custom_set(Mesh *mesh,
                                               int normals_num)
 {
   using namespace blender;
-  float3 *corner_normals = (float3 *)normals;
+  float3 *corner_normals = reinterpret_cast<float3 *>(const_cast<float *>(normals));
   const int numloops = mesh->corners_num;
   if (normals_num != numloops * 3) {
     BKE_reportf(reports,
@@ -165,7 +166,7 @@ static void rna_Mesh_normals_split_custom_set_from_vertices(Mesh *mesh,
                                                             int normals_num)
 {
   using namespace blender;
-  float3 *vert_normals = (float3 *)normals;
+  float3 *vert_normals = reinterpret_cast<float3 *>(const_cast<float *>(normals));
   const int numverts = mesh->verts_num;
   if (normals_num != numverts * 3) {
     BKE_reportf(reports,

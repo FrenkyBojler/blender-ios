@@ -37,7 +37,8 @@ static void node_shader_buts_vect_transform(ui::Layout &layout, bContext * /*C*/
 
 static void node_shader_init_vect_transform(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderVectTransform *vect = MEM_callocN<NodeShaderVectTransform>("NodeShaderVectTransform");
+  NodeShaderVectTransform *vect = MEM_new_for_free<NodeShaderVectTransform>(
+      "NodeShaderVectTransform");
 
   /* Convert World into Object Space per default */
   vect->convert_to = 1;
@@ -96,7 +97,7 @@ static int gpu_shader_vect_transform(GPUMaterial *mat,
 {
   GPUNodeLink *inputlink;
 
-  NodeShaderVectTransform *nodeprop = (NodeShaderVectTransform *)node->storage;
+  NodeShaderVectTransform *nodeprop = static_cast<NodeShaderVectTransform *>(node->storage);
 
   if (in[0].hasinput) {
     inputlink = in[0].link;

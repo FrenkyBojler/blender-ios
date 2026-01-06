@@ -48,17 +48,17 @@ static void cmp_node_moviedistortion_declare(NodeDeclarationBuilder &b)
 
 static void init(const bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
+  bNode *node = static_cast<bNode *>(ptr->data);
   Scene *scene = CTX_data_scene(C);
 
-  node->id = (ID *)scene->clip;
+  node->id = blender::id_cast<ID *>(scene->clip);
   id_us_plus(node->id);
 }
 
 static void storage_free(bNode *node)
 {
   if (node->storage) {
-    BKE_tracking_distortion_free((MovieDistortion *)node->storage);
+    BKE_tracking_distortion_free(static_cast<MovieDistortion *>(node->storage));
   }
 
   node->storage = nullptr;
@@ -67,7 +67,8 @@ static void storage_free(bNode *node)
 static void storage_copy(bNodeTree * /*dst_ntree*/, bNode *dest_node, const bNode *src_node)
 {
   if (src_node->storage) {
-    dest_node->storage = BKE_tracking_distortion_copy((MovieDistortion *)src_node->storage);
+    dest_node->storage = BKE_tracking_distortion_copy(
+        static_cast<MovieDistortion *>(src_node->storage));
   }
 }
 
@@ -140,21 +141,18 @@ class MovieDistortionOperation : public NodeOperation {
 
     parallel_for(distortion_grid.domain().data_size, [&](const int2 texel) {
       output.store_pixel(
-          texel, Color(input.sample_bilinear_zero(distortion_grid.load_pixel<float2>(texel))));
+          texel, input.sample_bilinear_zero<Color>(distortion_grid.load_pixel<float2>(texel)));
     });
   }
 
   DistortionType get_distortion_type()
   {
-    const Result &input = this->get_input("Type");
-    const MenuValue default_menu_value = MenuValue(DistortionType::Distort);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<DistortionType>(menu_value.value);
+    return DistortionType(this->get_input("Type").get_single_value_default<MenuValue>().value);
   }
 
   MovieClip *get_movie_clip()
   {
-    return reinterpret_cast<MovieClip *>(bnode().id);
+    return reinterpret_cast<MovieClip *>(node().id);
   }
 };
 

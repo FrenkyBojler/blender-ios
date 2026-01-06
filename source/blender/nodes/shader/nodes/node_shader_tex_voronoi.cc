@@ -93,7 +93,7 @@ static void node_shader_buts_tex_voronoi(ui::Layout &layout, bContext * /*C*/, P
 
 static void node_shader_init_tex_voronoi(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexVoronoi *tex = MEM_callocN<NodeTexVoronoi>(__func__);
+  NodeTexVoronoi *tex = MEM_new_for_free<NodeTexVoronoi>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->dimensions = 3;
@@ -158,7 +158,7 @@ static int node_shader_gpu_tex_voronoi(GPUMaterial *mat,
   node_shader_gpu_default_tex_coord(mat, node, &in[0].link);
   node_shader_gpu_tex_mapping(mat, node, in, out);
 
-  NodeTexVoronoi *tex = (NodeTexVoronoi *)node->storage;
+  NodeTexVoronoi *tex = static_cast<NodeTexVoronoi *>(node->storage);
   float metric = tex->distance;
   float normalize = tex->normalize;
 

@@ -16,7 +16,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -52,16 +51,13 @@ static void uv_warp_from_mat4_pair(float uv_dst[2],
 
 static void init_data(ModifierData *md)
 {
-  UVWarpModifierData *umd = (UVWarpModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(umd, modifier));
-
-  MEMCPY_STRUCT_AFTER(umd, DNA_struct_default_get(UVWarpModifierData), modifier);
+  UVWarpModifierData *umd = reinterpret_cast<UVWarpModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(umd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  UVWarpModifierData *umd = (UVWarpModifierData *)md;
+  UVWarpModifierData *umd = reinterpret_cast<UVWarpModifierData *>(md);
 
   /* Ask for vertex-groups if we need them. */
   if (umd->vgroup_name[0] != '\0') {
@@ -130,7 +126,7 @@ static void uv_warp_compute(void *__restrict userdata,
 
 static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
-  UVWarpModifierData *umd = (UVWarpModifierData *)md;
+  UVWarpModifierData *umd = reinterpret_cast<UVWarpModifierData *>(md);
   const MDeformVert *dvert;
   int defgrp_index;
   float warp_mat[4][4];
@@ -226,15 +222,15 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
-  UVWarpModifierData *umd = (UVWarpModifierData *)md;
+  UVWarpModifierData *umd = reinterpret_cast<UVWarpModifierData *>(md);
 
-  walk(user_data, ob, (ID **)&umd->object_dst, IDWALK_CB_NOP);
-  walk(user_data, ob, (ID **)&umd->object_src, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&umd->object_dst), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&umd->object_src), IDWALK_CB_NOP);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  UVWarpModifierData *umd = (UVWarpModifierData *)md;
+  UVWarpModifierData *umd = reinterpret_cast<UVWarpModifierData *>(md);
 
   MOD_depsgraph_update_object_bone_relation(
       ctx->node, umd->object_src, umd->bone_src, "UVWarp Modifier");

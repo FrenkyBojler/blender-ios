@@ -19,7 +19,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_defaults.h"
 #include "DNA_scene_types.h" /* min/max frames */
 #include "DNA_userdef_types.h"
 
@@ -1248,7 +1247,9 @@ static void do_movie_proxy(void *pjv,
   MovieDistortion *distortion = nullptr;
 
   if (pj->proxy_builder) {
-    MOV_proxy_builder_process(pj->proxy_builder, stop, do_update, progress);
+    MOV_proxy_builder_process(pj->proxy_builder, stop, do_update, [&](const float new_progress) {
+      *progress = new_progress;
+    });
   }
 
   if (!build_undistort_count) {
@@ -1324,7 +1325,7 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
 
   std::lock_guard lock(queue->mutex);
   if (!*queue->stop && queue->cfra <= queue->efra) {
-    MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
+    MovieClipUser user = {};
     char filepath[FILE_MAX];
     int file;
 
@@ -1365,8 +1366,8 @@ static uchar *proxy_thread_next_frame(ProxyQueue *queue,
 
 static void proxy_task_func(TaskPool *__restrict pool, void *task_data)
 {
-  ProxyThread *data = (ProxyThread *)task_data;
-  ProxyQueue *queue = (ProxyQueue *)BLI_task_pool_user_data(pool);
+  ProxyThread *data = static_cast<ProxyThread *>(task_data);
+  ProxyQueue *queue = static_cast<ProxyQueue *>(BLI_task_pool_user_data(pool));
   uchar *mem;
   size_t size;
   int cfra;

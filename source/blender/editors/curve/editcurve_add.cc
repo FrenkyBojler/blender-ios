@@ -105,12 +105,12 @@ Nurb *ED_curve_add_nurbs_primitive(
     bContext *C, Object *obedit, float mat[4][4], int type, int newob)
 {
   static int xzproj = 0; /* this function calls itself... */
-  ListBase *editnurb = object_editcurve_get(obedit);
+  ListBaseT<Nurb> *editnurb = object_editcurve_get(obedit);
   RegionView3D *rv3d = ED_view3d_context_rv3d(C);
   Nurb *nu = nullptr;
   BezTriple *bezt;
   BPoint *bp;
-  Curve *cu = (Curve *)obedit->data;
+  Curve *cu = blender::id_cast<Curve *>(obedit->data);
   float vec[3], zvec[3] = {0.0f, 0.0f, 1.0f};
   float umat[4][4], viewmat[4][4];
   float fac;
@@ -131,7 +131,7 @@ Nurb *ED_curve_add_nurbs_primitive(
 
   /* these types call this function to return a Nurb */
   if (!ELEM(stype, CU_PRIM_TUBE, CU_PRIM_DONUT)) {
-    nu = MEM_callocN<Nurb>("addNurbprim");
+    nu = MEM_new_for_free<Nurb>("addNurbprim");
     nu->type = cutype;
     nu->resolu = cu->resolu;
     nu->resolv = cu->resolv;
@@ -500,7 +500,7 @@ static wmOperatorStatus curvesurf_prim_add(bContext *C, wmOperator *op, int type
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obedit = BKE_view_layer_edit_object_get(view_layer);
-  ListBase *editnurb;
+  ListBaseT<Nurb> *editnurb;
   Nurb *nu;
   bool newob = false;
   bool enter_editmode;
@@ -522,7 +522,7 @@ static wmOperatorStatus curvesurf_prim_add(bContext *C, wmOperator *op, int type
           C, OB_CURVES_LEGACY, name, loc, rot, true, local_view_bits);
       newob = true;
 
-      cu = (Curve *)obedit->data;
+      cu = blender::id_cast<Curve *>(obedit->data);
 
       if (type & CU_PRIM_PATH) {
         cu->flag |= CU_PATH | CU_3D;

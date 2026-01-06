@@ -12,7 +12,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_defaults.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -97,7 +96,7 @@ static bool uvedit_ensure_uvs(Object *obedit)
   BMIter iter;
 
   if (em && em->bm->totface && !CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {
-    ED_mesh_uv_add(static_cast<Mesh *>(obedit->data), nullptr, true, true, nullptr);
+    ED_mesh_uv_add(blender::id_cast<Mesh *>(obedit->data), nullptr, true, true, nullptr);
   }
 
   /* Happens when there are no faces. */
@@ -620,7 +619,7 @@ static void construct_param_handle_face_add(ParamHandle *handle,
 
     /* Optional vertex group weighting. */
     if (cd_weight_offset >= 0 && cd_weight_index >= 0) {
-      MDeformVert *dv = (MDeformVert *)BM_ELEM_CD_GET_VOID_P(l->v, cd_weight_offset);
+      MDeformVert *dv = static_cast<MDeformVert *> BM_ELEM_CD_GET_VOID_P(l->v, cd_weight_offset);
       weight[i] = BKE_defvert_find_weight(dv, cd_weight_index);
     }
     else {
@@ -830,7 +829,7 @@ static Mesh *subdivide_edit_mesh(const Object *object,
 {
   using namespace blender;
   Mesh *me_from_em = BKE_mesh_from_bmesh_for_eval_nomain(
-      em->bm, nullptr, static_cast<const Mesh *>(object->data));
+      em->bm, nullptr, blender::id_cast<const Mesh *>(object->data));
   BKE_mesh_ensure_default_orig_index_customdata(me_from_em);
 
   bke::subdiv::Settings settings = BKE_subsurf_modifier_settings_init(smd, false);
@@ -890,7 +889,7 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
 
   /* number of subdivisions to perform */
   ModifierData *md = static_cast<ModifierData *>(ob->modifiers.first);
-  smd_real = (SubsurfModifierData *)md;
+  smd_real = reinterpret_cast<SubsurfModifierData *>(md);
 
   smd.levels = smd_real->levels;
   smd.subdivType = smd_real->subdivType;
@@ -958,11 +957,11 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
 
     /* We will not check for v4 here. Sub-surface faces always have 4 vertices. */
     BLI_assert(poly_corner_verts.size() == 4);
-    key = (ParamKey)i;
-    vkeys[0] = (ParamKey)poly_corner_verts[0];
-    vkeys[1] = (ParamKey)poly_corner_verts[1];
-    vkeys[2] = (ParamKey)poly_corner_verts[2];
-    vkeys[3] = (ParamKey)poly_corner_verts[3];
+    key = ParamKey(i);
+    vkeys[0] = ParamKey(poly_corner_verts[0]);
+    vkeys[1] = ParamKey(poly_corner_verts[1]);
+    vkeys[2] = ParamKey(poly_corner_verts[2]);
+    vkeys[3] = ParamKey(poly_corner_verts[3]);
 
     co[0] = subsurf_positions[poly_corner_verts[0]];
     co[1] = subsurf_positions[poly_corner_verts[1]];
@@ -1032,8 +1031,8 @@ static ParamHandle *construct_param_handle_subsurfed(const Scene *scene,
     if ((edgeMap[i] != nullptr) && BM_elem_flag_test(edgeMap[i], BM_ELEM_SEAM)) {
       const blender::int2 &edge = subsurf_edges[i];
       ParamKey vkeys[2];
-      vkeys[0] = (ParamKey)edge[0];
-      vkeys[1] = (ParamKey)edge[1];
+      vkeys[0] = ParamKey(edge[0]);
+      vkeys[1] = ParamKey(edge[1]);
       blender::geometry::uv_parametrizer_edge_set_seam(handle, vkeys);
     }
   }
@@ -1485,7 +1484,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
       only_selected_faces = false;
       only_selected_uvs = false;
     }
-    ListBase island_list = {nullptr};
+    ListBaseT<FaceIsland> island_list = {nullptr};
     bm_mesh_calc_uv_islands(scene,
                             bm,
                             &island_list,
@@ -1496,15 +1495,15 @@ static void uvedit_pack_islands_multi(const Scene *scene,
                             offsets);
 
     /* Remove from linked list and append to blender::Vector. */
-    LISTBASE_FOREACH_MUTABLE (FaceIsland *, island, &island_list) {
-      BLI_remlink(&island_list, island);
-      const bool pinned = island_has_pins(scene, bm, island, params);
+    for (FaceIsland &island : island_list.items_mutable()) {
+      BLI_remlink(&island_list, &island);
+      const bool pinned = island_has_pins(scene, bm, &island, params);
       if (ignore_pinned && pinned) {
-        MEM_freeN(island->faces);
-        MEM_freeN(island);
+        MEM_freeN(island.faces);
+        MEM_freeN(&island);
         continue;
       }
-      island_vector.append(island);
+      island_vector.append(&island);
       pinned_vector.append(pinned);
     }
   }
@@ -2981,7 +2980,7 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
 
 void UV_OT_unwrap(wmOperatorType *ot)
 {
-  const ToolSettings *tool_settings_default = DNA_struct_default_get(ToolSettings);
+  const ToolSettings tool_settings_default = {};
 
   static const EnumPropertyItem method_items[] = {
       {UVCALC_UNWRAP_METHOD_ANGLE, "ANGLE_BASED", 0, "Angle Based", ""},
@@ -3008,13 +3007,13 @@ void UV_OT_unwrap(wmOperatorType *ot)
       ot->srna,
       "method",
       method_items,
-      tool_settings_default->unwrapper,
+      tool_settings_default.unwrapper,
       "Method",
       "Unwrapping method (Angle Based usually gives better results than Conformal, while "
       "being somewhat slower)");
   RNA_def_boolean(ot->srna,
                   "fill_holes",
-                  tool_settings_default->uvcalc_flag & UVCALC_FILLHOLES,
+                  tool_settings_default.uvcalc_flag & UVCALC_FILLHOLES,
                   "Fill Holes",
                   "Virtually fill holes in mesh before unwrapping, to better avoid overlaps and "
                   "preserve symmetry");
@@ -3039,14 +3038,14 @@ void UV_OT_unwrap(wmOperatorType *ot)
   /* SLIM only */
   RNA_def_boolean(ot->srna,
                   "no_flip",
-                  tool_settings_default->uvcalc_flag & UVCALC_UNWRAP_NO_FLIP,
+                  tool_settings_default.uvcalc_flag & UVCALC_UNWRAP_NO_FLIP,
                   "No Flip",
                   "Prevent flipping UV's, "
                   "flipping may lower distortion depending on the position of pins");
 
   RNA_def_int(ot->srna,
               "iterations",
-              tool_settings_default->uvcalc_iterations,
+              tool_settings_default.uvcalc_iterations,
               0,
               10000,
               "Iterations",
@@ -3056,19 +3055,19 @@ void UV_OT_unwrap(wmOperatorType *ot)
 
   RNA_def_boolean(ot->srna,
                   "use_weights",
-                  tool_settings_default->uvcalc_flag & UVCALC_UNWRAP_USE_WEIGHTS,
+                  tool_settings_default.uvcalc_flag & UVCALC_UNWRAP_USE_WEIGHTS,
                   "Importance Weights",
                   "Whether to take into account per-vertex importance weights");
   RNA_def_string(ot->srna,
                  "weight_group",
-                 tool_settings_default->uvcalc_weight_group,
+                 tool_settings_default.uvcalc_weight_group,
                  MAX_ID_NAME,
                  "Weight Group",
                  "Vertex group name for importance weights (modulating the deform)");
   RNA_def_float(
       ot->srna,
       "weight_factor",
-      tool_settings_default->uvcalc_weight_factor,
+      tool_settings_default.uvcalc_weight_factor,
       -10000.0,
       10000.0,
       "Weight Factor",
@@ -3093,8 +3092,8 @@ struct ThickFace {
 
 static int smart_uv_project_thickface_area_cmp_fn(const void *tf_a_p, const void *tf_b_p)
 {
-  const ThickFace *tf_a = (ThickFace *)tf_a_p;
-  const ThickFace *tf_b = (ThickFace *)tf_b_p;
+  const ThickFace *tf_a = static_cast<ThickFace *>(const_cast<void *>(tf_a_p));
+  const ThickFace *tf_b = static_cast<ThickFace *>(const_cast<void *>(tf_b_p));
 
   /* Ignore the area of small faces.
    * Also, order checks so `!isfinite(...)` values are counted as zero area. */
@@ -3306,8 +3305,8 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
     }
 
     /* After finding projection vectors, we find the uv positions. */
-    LinkNode **thickface_project_groups = static_cast<LinkNode **>(
-        MEM_callocN(sizeof(*thickface_project_groups) * project_normal_array.size(), __func__));
+    LinkNode **thickface_project_groups = MEM_calloc_arrayN<LinkNode *>(
+        project_normal_array.size(), __func__);
 
     BLI_memarena_clear(arena);
 
@@ -3655,7 +3654,7 @@ static wmOperatorStatus reset_exec(bContext *C, wmOperator * /*op*/)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, v3d);
   for (Object *obedit : objects) {
-    Mesh *mesh = (Mesh *)obedit->data;
+    Mesh *mesh = blender::id_cast<Mesh *>(obedit->data);
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
 
     if (em->bm->totfacesel == 0) {
@@ -4325,7 +4324,7 @@ void UV_OT_cube_project(wmOperatorType *ot)
 
 void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
 {
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
   bool sync_selection = (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
 
   BMeshCreateParams create_params{};

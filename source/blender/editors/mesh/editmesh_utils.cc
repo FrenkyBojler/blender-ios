@@ -272,7 +272,7 @@ bool EDBM_op_call_silentf(BMEditMesh *em, const char *fmt, ...)
  */
 static int object_shapenr_basis_index_ensured(const Object *ob)
 {
-  const Mesh *mesh = static_cast<const Mesh *>(ob->data);
+  const Mesh *mesh = blender::id_cast<const Mesh *>(ob->data);
   if (UNLIKELY((ob->shapenr == 0) && (mesh->key && !BLI_listbase_is_empty(&mesh->key->block)))) {
     return 1;
   }
@@ -281,7 +281,7 @@ static int object_shapenr_basis_index_ensured(const Object *ob)
 
 void EDBM_mesh_make(Object *ob, const int select_mode, const bool add_key_index)
 {
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
   EDBM_mesh_make_from_mesh(ob, mesh, select_mode, add_key_index);
 }
 
@@ -290,7 +290,7 @@ void EDBM_mesh_make_from_mesh(Object *ob,
                               const int select_mode,
                               const bool add_key_index)
 {
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
   BMeshCreateParams create_params{};
   create_params.use_toolflags = true;
   /* Clamp the index, so the behavior of enter & exit edit-mode matches, see #43998. */
@@ -318,7 +318,7 @@ void EDBM_mesh_make_from_mesh(Object *ob,
 
 void EDBM_mesh_load_ex(Main *bmain, Object *ob, bool free_data)
 {
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
   BMesh *bm = mesh->runtime->edit_mesh->bm;
 
   /* Workaround for #42360, 'ob->shapenr' should be 1 in this case.
@@ -498,7 +498,7 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, const bool use_select, const bool re
   if (totuv == 0) {
     return nullptr;
   }
-  UvVertMap *vmap = (UvVertMap *)MEM_callocN(sizeof(*vmap), "UvVertMap");
+  UvVertMap *vmap = MEM_callocN<UvVertMap>("UvVertMap");
   if (!vmap) {
     return nullptr;
   }
@@ -596,8 +596,7 @@ UvElement **BM_uv_element_map_ensure_head_table(UvElementMap *element_map)
   }
 
   /* For each UvElement, locate the "separate" UvElement that precedes it in the linked list. */
-  element_map->head_table = static_cast<UvElement **>(
-      MEM_mallocN(sizeof(*element_map->head_table) * element_map->total_uvs, __func__));
+  element_map->head_table = MEM_malloc_arrayN<UvElement *>(element_map->total_uvs, __func__);
   UvElement **head_table = element_map->head_table;
   for (int i = 0; i < element_map->total_uvs; i++) {
     UvElement *head = element_map->storage + i;
@@ -618,8 +617,7 @@ UvElement **BM_uv_element_map_ensure_head_table(UvElementMap *element_map)
 int *BM_uv_element_map_ensure_unique_index(UvElementMap *element_map)
 {
   if (!element_map->unique_index_table) {
-    element_map->unique_index_table = static_cast<int *>(
-        MEM_callocN(element_map->total_uvs * sizeof(*element_map->unique_index_table), __func__));
+    element_map->unique_index_table = MEM_calloc_arrayN<int>(element_map->total_uvs, __func__);
 
     int j = 0;
     for (int i = 0; i < element_map->total_uvs; i++) {
@@ -689,8 +687,7 @@ static int bm_uv_edge_select_build_islands(UvElementMap *element_map,
   int nislands = 0;
   int islandbufsize = 0;
   int stack_upper_bound = total_uvs;
-  UvElement **stack_uv = static_cast<UvElement **>(
-      MEM_mallocN(sizeof(*stack_uv) * stack_upper_bound, __func__));
+  UvElement **stack_uv = MEM_malloc_arrayN<UvElement *>(stack_upper_bound, __func__);
   int stacksize_uv = 0;
   for (int i = 0; i < total_uvs; i++) {
     UvElement *element = element_map->storage + i;
@@ -1053,12 +1050,10 @@ UvElementMap *BM_uv_element_map_create(BMesh *bm,
     return nullptr;
   }
 
-  UvElementMap *element_map = (UvElementMap *)MEM_callocN(sizeof(*element_map), "UvElementMap");
+  UvElementMap *element_map = MEM_callocN<UvElementMap>("UvElementMap");
   element_map->total_uvs = totuv;
-  element_map->vertex = (UvElement **)MEM_callocN(sizeof(*element_map->vertex) * bm->totvert,
-                                                  "UvElementVerts");
-  element_map->storage = (UvElement *)MEM_callocN(sizeof(*element_map->storage) * totuv,
-                                                  "UvElement");
+  element_map->vertex = MEM_calloc_arrayN<UvElement *>(bm->totvert, "UvElementVerts");
+  element_map->storage = MEM_calloc_arrayN<UvElement>(totuv, "UvElement");
 
   bool *winding = use_winding ? MEM_calloc_arrayN<bool>(bm->totface, "winding") : nullptr;
 
@@ -1282,7 +1277,7 @@ bool EDBM_vert_color_check(BMEditMesh *em)
 static BMVert *cache_mirr_intptr_as_bmvert(const intptr_t *index_lookup, int index)
 {
   intptr_t eve_i = index_lookup[index];
-  return (eve_i == -1) ? nullptr : (BMVert *)eve_i;
+  return (eve_i == -1) ? nullptr : reinterpret_cast<BMVert *>(eve_i);
 }
 
 /**
@@ -1802,8 +1797,8 @@ void EDBM_update(Mesh *mesh, const EDBMUpdate_Params *params)
 
 #ifndef NDEBUG
   {
-    LISTBASE_FOREACH (BMEditSelection *, ese, &em->bm->selected) {
-      BLI_assert(BM_elem_flag_test(ese->ele, BM_ELEM_SELECT));
+    for (BMEditSelection &ese : em->bm->selected) {
+      BLI_assert(BM_elem_flag_test(ese.ele, BM_ELEM_SELECT));
     }
   }
 #endif
@@ -1842,13 +1837,13 @@ bool EDBM_view3d_poll(bContext *C)
 BMElem *EDBM_elem_from_selectmode(BMEditMesh *em, BMVert *eve, BMEdge *eed, BMFace *efa)
 {
   if ((em->selectmode & SCE_SELECT_VERTEX) && eve) {
-    return (BMElem *)eve;
+    return reinterpret_cast<BMElem *>(eve);
   }
   if ((em->selectmode & SCE_SELECT_EDGE) && eed) {
-    return (BMElem *)eed;
+    return reinterpret_cast<BMElem *>(eed);
   }
   if ((em->selectmode & SCE_SELECT_FACE) && efa) {
-    return (BMElem *)efa;
+    return reinterpret_cast<BMElem *>(efa);
   }
   return nullptr;
 }
@@ -1881,15 +1876,15 @@ BMElem *EDBM_elem_from_index_any(BMEditMesh *em, uint index)
   BMesh *bm = em->bm;
 
   if (index < bm->totvert) {
-    return (BMElem *)BM_vert_at_index_find_or_table(bm, index);
+    return reinterpret_cast<BMElem *>(BM_vert_at_index_find_or_table(bm, index));
   }
   index -= bm->totvert;
   if (index < bm->totedge) {
-    return (BMElem *)BM_edge_at_index_find_or_table(bm, index);
+    return reinterpret_cast<BMElem *>(BM_edge_at_index_find_or_table(bm, index));
   }
   index -= bm->totedge;
   if (index < bm->totface) {
-    return (BMElem *)BM_face_at_index_find_or_table(bm, index);
+    return reinterpret_cast<BMElem *>(BM_face_at_index_find_or_table(bm, index));
   }
 
   return nullptr;
@@ -2082,3 +2077,21 @@ void EDBM_project_snap_verts(
 }
 
 /** \} */
+
+bool EDBM_smooth_vert(BMEditMesh *em, wmOperator *op)
+{
+  return EDBM_op_callf(em,
+                       op,
+                       "smooth_vert verts=%hv factor=%f mirror_clip_x=%b mirror_clip_y=%b "
+                       "mirror_clip_z=%b "
+                       "clip_dist=%f use_axis_x=%b use_axis_y=%b use_axis_z=%b",
+                       BM_ELEM_TAG,
+                       1.0,
+                       false,
+                       false,
+                       false,
+                       0.1,
+                       true,
+                       true,
+                       true);
+}

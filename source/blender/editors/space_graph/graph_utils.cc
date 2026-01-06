@@ -37,7 +37,7 @@
 
 void ED_drivers_editor_init(bContext *C, ScrArea *area)
 {
-  SpaceGraph *sipo = (SpaceGraph *)area->spacedata.first;
+  SpaceGraph *sipo = static_cast<SpaceGraph *>(area->spacedata.first);
 
   /* Set mode */
   sipo->mode = SIPO_MODE_DRIVERS;
@@ -80,7 +80,7 @@ void ED_drivers_editor_init(bContext *C, ScrArea *area)
 
 bAnimListElem *get_active_fcurve_channel(bAnimContext *ac)
 {
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_ACTIVE |
                 ANIMFILTER_FCURVESONLY);
   size_t items = ANIM_animdata_filter(
@@ -90,7 +90,7 @@ bAnimListElem *get_active_fcurve_channel(bAnimContext *ac)
    * if they were from linked data.
    */
   if (items) {
-    bAnimListElem *ale = (bAnimListElem *)anim_data.first;
+    bAnimListElem *ale = static_cast<bAnimListElem *>(anim_data.first);
 
     /* remove first item from list, then free the rest of the list and return the stored one */
     BLI_remlink(&anim_data, ale);
@@ -112,7 +112,7 @@ bAnimListElem *get_active_fcurve_channel(bAnimContext *ac)
 bool graphop_visible_keyframes_poll(bContext *C)
 {
   bAnimContext ac;
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   ScrArea *area = CTX_wm_area(C);
   size_t items;
   int filter;
@@ -139,8 +139,8 @@ bool graphop_visible_keyframes_poll(bContext *C)
     return found;
   }
 
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    const FCurve *fcu = (const FCurve *)ale->data;
+  for (bAnimListElem &ale : anim_data) {
+    const FCurve *fcu = static_cast<const FCurve *>(ale.data);
 
     /* visible curves for selection must fulfill the following criteria:
      * - it has bezier keyframes
@@ -164,7 +164,7 @@ bool graphop_visible_keyframes_poll(bContext *C)
 bool graphop_editable_keyframes_poll(bContext *C)
 {
   bAnimContext ac;
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   ScrArea *area = CTX_wm_area(C);
   size_t items;
   int filter;
@@ -193,8 +193,8 @@ bool graphop_editable_keyframes_poll(bContext *C)
     return found;
   }
 
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    const FCurve *fcu = (const FCurve *)ale->data;
+  for (bAnimListElem &ale : anim_data) {
+    const FCurve *fcu = static_cast<const FCurve *>(ale.data);
 
     /* editable curves must fulfill the following criteria:
      * - it has bezier keyframes
@@ -249,7 +249,7 @@ bool graphop_active_fcurve_poll(bContext *C)
    */
   has_fcurve = ((ale->data) && ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE));
   if (has_fcurve) {
-    const FCurve *fcu = (const FCurve *)ale->data;
+    const FCurve *fcu = static_cast<const FCurve *>(ale->data);
     has_fcurve = (fcu->flag & FCURVE_VISIBLE) != 0;
   }
 
@@ -270,7 +270,7 @@ bool graphop_active_editable_fcurve_ctx_poll(bContext *C)
 bool graphop_selected_fcurve_poll(bContext *C)
 {
   bAnimContext ac;
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   ScrArea *area = CTX_wm_area(C);
   size_t items;
   int filter;

@@ -82,6 +82,10 @@ static const EnumPropertyItem rna_enum_glow_blend_modes_items[] = {
 
 #  include <fmt/format.h>
 
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
+
+#  include "BKE_lib_id.hh"
 #  include "BKE_shader_fx.hh"
 
 #  include "DEG_depsgraph.hh"
@@ -89,9 +93,9 @@ static const EnumPropertyItem rna_enum_glow_blend_modes_items[] = {
 
 static StructRNA *rna_ShaderFx_refine(PointerRNA *ptr)
 {
-  ShaderFxData *md = (ShaderFxData *)ptr->data;
+  ShaderFxData *md = static_cast<ShaderFxData *>(ptr->data);
 
-  switch ((ShaderFxType)md->type) {
+  switch (ShaderFxType(md->type)) {
     case eShaderFxType_Blur:
       return &RNA_ShaderFxBlur;
     case eShaderFxType_Colorize:
@@ -133,7 +137,7 @@ static void rna_ShaderFx_name_set(PointerRNA *ptr, const char *value)
 
   /* make sure the name is truly unique */
   if (ptr->owner_id) {
-    Object *ob = (Object *)ptr->owner_id;
+    Object *ob = blender::id_cast<Object *>(ptr->owner_id);
     BKE_shaderfx_unique_name(&ob->shader_fx, gmd);
   }
 
@@ -170,7 +174,7 @@ static void shaderfx_object_set(Object *self, Object **ob_p, int type, PointerRN
 
   if (!self || ob != self) {
     if (!ob || type == OB_EMPTY || ob->type == type) {
-      id_lib_extern((ID *)ob);
+      id_lib_extern(blender::id_cast<ID *>(ob));
       *ob_p = ob;
     }
   }

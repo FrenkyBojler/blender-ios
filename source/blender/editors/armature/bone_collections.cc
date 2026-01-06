@@ -218,7 +218,7 @@ void ARMATURE_OT_collection_move(wmOperatorType *ot)
 
 static BoneCollection *get_bonecoll_named_or_active(bContext * /*C*/, wmOperator *op, Object *ob)
 {
-  bArmature *armature = static_cast<bArmature *>(ob->data);
+  bArmature *armature = blender::id_cast<bArmature *>(ob->data);
 
   char bcoll_name[MAX_NAME];
   RNA_string_get(op->ptr, "name", bcoll_name);
@@ -258,7 +258,7 @@ static void bone_collection_assign_pchans(bContext *C,
 
   WM_event_add_notifier(C, NC_OBJECT | ND_POSE, ob);
 
-  bArmature *arm = static_cast<bArmature *>(ob->data);
+  bArmature *arm = blender::id_cast<bArmature *>(ob->data);
   DEG_id_tag_update(&arm->id, ID_RECALC_SELECT); /* Recreate the draw buffers. */
 }
 
@@ -269,14 +269,14 @@ static void bone_collection_assign_editbones(bContext *C,
                                              bool *made_any_changes,
                                              bool *had_bones_to_assign)
 {
-  bArmature *arm = static_cast<bArmature *>(ob->data);
+  bArmature *arm = blender::id_cast<bArmature *>(ob->data);
   ED_armature_edit_sync_selection(arm->edbo);
 
-  LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-    if (!EBONE_EDITABLE(ebone) || !blender::animrig::bone_is_visible(arm, ebone)) {
+  for (EditBone &ebone : *arm->edbo) {
+    if (!EBONE_EDITABLE(&ebone) || !blender::animrig::bone_is_visible(arm, &ebone)) {
       continue;
     }
-    *made_any_changes |= assign_func(bcoll, ebone);
+    *made_any_changes |= assign_func(bcoll, &ebone);
     *had_bones_to_assign = true;
   }
 
@@ -332,7 +332,7 @@ static bool bone_collection_assign_named_mode_specific(bContext *C,
                                                        bool *made_any_changes,
                                                        bool *had_bones_to_assign)
 {
-  bArmature *arm = static_cast<bArmature *>(ob->data);
+  bArmature *arm = blender::id_cast<bArmature *>(ob->data);
 
   switch (CTX_data_mode_enum(C)) {
     case CTX_MODE_POSE: {
@@ -382,7 +382,7 @@ static bool bone_collection_assign_poll(bContext *C)
     return false;
   }
 
-  bArmature *armature = static_cast<bArmature *>(ob->data);
+  bArmature *armature = blender::id_cast<bArmature *>(ob->data);
   if (armature != ED_armature_context(C)) {
     CTX_wm_operator_poll_msg_set(C, "Pinned armature is not active in the 3D viewport");
     return false;
@@ -420,7 +420,7 @@ static wmOperatorStatus bone_collection_assign_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bArmature *armature = static_cast<bArmature *>(ob->data);
+  bArmature *armature = blender::id_cast<bArmature *>(ob->data);
   if (!ANIM_armature_bonecoll_is_editable(armature, bcoll)) {
     BKE_reportf(op->reports, RPT_ERROR, "Cannot assign to linked bone collection %s", bcoll->name);
     return OPERATOR_CANCELLED;
@@ -493,7 +493,7 @@ static bool bone_collection_create_and_assign_poll(bContext *C)
     return false;
   }
 
-  bArmature *armature = static_cast<bArmature *>(ob->data);
+  bArmature *armature = blender::id_cast<bArmature *>(ob->data);
   if (!ID_IS_EDITABLE(armature) && !ID_IS_OVERRIDE_LIBRARY(armature)) {
     CTX_wm_operator_poll_msg_set(
         C, "Cannot edit bone collections on linked Armatures without override");
@@ -517,7 +517,7 @@ static wmOperatorStatus bone_collection_create_and_assign_exec(bContext *C, wmOp
     return OPERATOR_CANCELLED;
   }
 
-  bArmature *armature = static_cast<bArmature *>(ob->data);
+  bArmature *armature = blender::id_cast<bArmature *>(ob->data);
 
   char bcoll_name[MAX_NAME];
   RNA_string_get(op->ptr, "name", bcoll_name);
@@ -725,8 +725,8 @@ void ARMATURE_OT_collection_unassign_named(wmOperatorType *ot)
 
 static bool editbone_is_member(const EditBone *ebone, const BoneCollection *bcoll)
 {
-  LISTBASE_FOREACH (BoneCollectionReference *, ref, &ebone->bone_collections) {
-    if (ref->bcoll == bcoll) {
+  for (BoneCollectionReference &ref : ebone->bone_collections) {
+    if (ref.bcoll == bcoll) {
       return true;
     }
   }
@@ -755,7 +755,9 @@ static bool armature_bone_select_poll(bContext *C)
   const bool is_editmode = armature->edbo != nullptr;
   if (!is_editmode) {
     Object *active_object = blender::ed::object::context_active_object(C);
-    if (!active_object || active_object->type != OB_ARMATURE || active_object->data != armature) {
+    if (!active_object || active_object->type != OB_ARMATURE ||
+        active_object->data != blender::id_cast<const ID *>(armature))
+    {
       /* There has to be an active object in order to hide a pose bone that points to the correct
        * armature. With pinning, the active object may not be an armature. */
       CTX_wm_operator_poll_msg_set(C, "The active object does not match the armature");
@@ -778,25 +780,27 @@ static void bone_collection_select(bContext *C,
   const bool is_editmode = armature->edbo != nullptr;
 
   if (is_editmode) {
-    LISTBASE_FOREACH (EditBone *, ebone, armature->edbo) {
-      if (!EBONE_SELECTABLE(armature, ebone)) {
+    for (EditBone &ebone : *armature->edbo) {
+      if (!EBONE_SELECTABLE(armature, &ebone)) {
         continue;
       }
-      if (!editbone_is_member(ebone, bcoll)) {
+      if (!editbone_is_member(&ebone, bcoll)) {
         continue;
       }
-      ED_armature_ebone_select_set(ebone, select);
+      ED_armature_ebone_select_set(&ebone, select);
     }
   }
   else {
     Object *active_object = blender::ed::object::context_active_object(C);
-    if (!active_object || active_object->type != OB_ARMATURE || active_object->data != armature) {
+    if (!active_object || active_object->type != OB_ARMATURE ||
+        active_object->data != blender::id_cast<const ID *>(armature))
+    {
       /* This is covered by the poll function. */
       BLI_assert_unreachable();
       return;
     }
-    LISTBASE_FOREACH (BoneCollectionMember *, member, &bcoll->bones) {
-      Bone *bone = member->bone;
+    for (BoneCollectionMember &member : bcoll->bones) {
+      Bone *bone = member.bone;
       bPoseChannel *pose_bone = BKE_pose_channel_find_name(active_object->pose, bone->name);
       BLI_assert_msg(pose_bone != nullptr, "The pose bones and armature bones are out of sync");
       if (!blender::animrig::bone_is_visible(armature, pose_bone)) {
@@ -807,10 +811,10 @@ static void bone_collection_select(bContext *C,
       }
 
       if (select) {
-        pose_bone->flag |= POSE_SELECTED_ALL;
+        blender::animrig::bone_select(pose_bone);
       }
       else {
-        pose_bone->flag &= ~POSE_SELECTED_ALL;
+        blender::animrig::bone_deselect(pose_bone);
       }
     }
     DEG_id_tag_update(&active_object->id, ID_RECALC_SELECT);
@@ -947,7 +951,7 @@ static wmOperatorStatus add_or_move_to_collection_exec(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  bArmature *arm = static_cast<bArmature *>(ob->data);
+  bArmature *arm = blender::id_cast<bArmature *>(ob->data);
   BoneCollection *target_bcoll = add_or_move_to_collection_bcoll(op, arm);
   if (!target_bcoll) {
     /* add_or_move_to_collection_bcoll() already reported the reason. */
@@ -1013,7 +1017,7 @@ static bool move_to_collection_poll(bContext *C)
     return false;
   }
 
-  const bArmature *armature = static_cast<bArmature *>(ob->data);
+  const bArmature *armature = blender::id_cast<bArmature *>(ob->data);
   if (!ID_IS_EDITABLE(armature) && !ID_IS_OVERRIDE_LIBRARY(armature)) {
     CTX_wm_operator_poll_msg_set(C, "This needs a local Armature or an override");
     return false;
@@ -1113,7 +1117,7 @@ static void move_to_collection_menu_create(bContext *C,
   std::tie(parent_bcoll_index, is_move_operation) = menu_custom_data_decode(menu_custom_data);
 
   const Object *ob = blender::ed::object::context_object(C);
-  const bArmature *arm = static_cast<bArmature *>(ob->data);
+  const bArmature *arm = blender::id_cast<bArmature *>(ob->data);
 
   /* The "Create a new collection" mode of this operator has its own menu, and should thus be
    * invoked. */

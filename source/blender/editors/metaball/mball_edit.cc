@@ -61,7 +61,7 @@ using blender::Vector;
 
 void ED_mball_editmball_free(Object *obedit)
 {
-  MetaBall *mb = (MetaBall *)obedit->data;
+  MetaBall *mb = blender::id_cast<MetaBall *>(obedit->data);
 
   mb->editelems = nullptr;
   mb->lastelem = nullptr;
@@ -69,7 +69,7 @@ void ED_mball_editmball_free(Object *obedit)
 
 void ED_mball_editmball_make(Object *obedit)
 {
-  MetaBall *mb = (MetaBall *)obedit->data;
+  MetaBall *mb = blender::id_cast<MetaBall *>(obedit->data);
   MetaElem *ml; /*, *newml;*/
 
   ml = static_cast<MetaElem *>(mb->elems.first);
@@ -110,7 +110,7 @@ bool ED_mball_deselect_all_multi(bContext *C)
 MetaElem *ED_mball_add_primitive(
     bContext * /*C*/, Object *obedit, bool obedit_is_new, float mat[4][4], float dia, int type)
 {
-  MetaBall *mball = (MetaBall *)obedit->data;
+  MetaBall *mball = blender::id_cast<MetaBall *>(obedit->data);
   MetaElem *ml;
 
   /* Deselect all existing metaelems */
@@ -173,7 +173,7 @@ static wmOperatorStatus mball_select_all_exec(bContext *C, wmOperator *op)
 
   for (Base *base : bases) {
     Object *obedit = base->object;
-    MetaBall *mb = (MetaBall *)obedit->data;
+    MetaBall *mb = blender::id_cast<MetaBall *>(obedit->data);
     DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);
     WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
   }
@@ -227,11 +227,11 @@ static void mball_select_similar_type_get(Object *obedit,
 {
   float tree_entry[3] = {0.0f, 0.0f, 0.0f};
   int tree_index = 0;
-  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
-    if (ml->flag & SELECT) {
+  for (MetaElem &ml : *mb->editelems) {
+    if (ml.flag & SELECT) {
       switch (type) {
         case SIMMBALL_RADIUS: {
-          float radius = ml->rad;
+          float radius = ml.rad;
           /* Radius in world space. */
           float smat[3][3];
           float radius_vec[3] = {radius, radius, radius};
@@ -242,13 +242,13 @@ static void mball_select_similar_type_get(Object *obedit,
           break;
         }
         case SIMMBALL_STIFFNESS: {
-          tree_entry[0] = ml->s;
+          tree_entry[0] = ml.s;
           break;
         }
         case SIMMBALL_ROTATION: {
           float dir[3] = {1.0f, 0.0f, 0.0f};
           float rmat[3][3];
-          mul_qt_v3(ml->quat, dir);
+          mul_qt_v3(ml.quat, dir);
           BKE_object_rot_to_mat3(obedit, rmat, true);
           mul_m3_v3(rmat, dir);
           copy_v3_v3(tree_entry, dir);
@@ -273,11 +273,11 @@ static bool mball_select_similar_type(Object *obedit,
                                       const float thresh)
 {
   bool changed = false;
-  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
+  for (MetaElem &ml : *mb->editelems) {
     bool select = false;
     switch (type) {
       case SIMMBALL_RADIUS: {
-        float radius = ml->rad;
+        float radius = ml.rad;
         /* Radius in world space is the average of the
          * scaled radius in x, y and z directions. */
         float smat[3][3];
@@ -292,7 +292,7 @@ static bool mball_select_similar_type(Object *obedit,
         break;
       }
       case SIMMBALL_STIFFNESS: {
-        float s = ml->s;
+        float s = ml.s;
         if (ED_select_similar_compare_float_tree(tree_1d, s, thresh, SIM_CMP_EQ)) {
           select = true;
         }
@@ -301,7 +301,7 @@ static bool mball_select_similar_type(Object *obedit,
       case SIMMBALL_ROTATION: {
         float dir[3] = {1.0f, 0.0f, 0.0f};
         float rmat[3][3];
-        mul_qt_v3(ml->quat, dir);
+        mul_qt_v3(ml.quat, dir);
         BKE_object_rot_to_mat3(obedit, rmat, true);
         mul_m3_v3(rmat, dir);
 
@@ -322,7 +322,7 @@ static bool mball_select_similar_type(Object *obedit,
 
     if (select) {
       changed = true;
-      ml->flag |= SELECT;
+      ml.flag |= SELECT;
     }
   }
   return changed;
@@ -358,13 +358,13 @@ static wmOperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
   /* Get type of selected MetaBall */
   for (Base *base : bases) {
     Object *obedit = base->object;
-    MetaBall *mb = (MetaBall *)obedit->data;
+    MetaBall *mb = blender::id_cast<MetaBall *>(obedit->data);
 
     switch (type) {
       case SIMMBALL_TYPE: {
-        LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
-          if (ml->flag & SELECT) {
-            short mball_type = 1 << (ml->type + 1);
+        for (MetaElem &ml : *mb->editelems) {
+          if (ml.flag & SELECT) {
+            short mball_type = 1 << (ml.type + 1);
             type_ref |= mball_type;
           }
         }
@@ -392,15 +392,15 @@ static wmOperatorStatus mball_select_similar_exec(bContext *C, wmOperator *op)
   /* Select MetaBalls with desired type. */
   for (Base *base : bases) {
     Object *obedit = base->object;
-    MetaBall *mb = (MetaBall *)obedit->data;
+    MetaBall *mb = blender::id_cast<MetaBall *>(obedit->data);
     bool changed = false;
 
     switch (type) {
       case SIMMBALL_TYPE: {
-        LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
-          short mball_type = 1 << (ml->type + 1);
+        for (MetaElem &ml : *mb->editelems) {
+          short mball_type = 1 << (ml.type + 1);
           if (mball_type & type_ref) {
-            ml->flag |= SELECT;
+            ml.flag |= SELECT;
             changed = true;
           }
         }
@@ -470,7 +470,7 @@ static wmOperatorStatus select_random_metaelems_exec(bContext *C, wmOperator *op
       scene, view_layer, CTX_wm_view3d(C));
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
-    MetaBall *mb = (MetaBall *)obedit->data;
+    MetaBall *mb = blender::id_cast<MetaBall *>(obedit->data);
     if (!BKE_mball_is_any_unselected(mb)) {
       continue;
     }
@@ -483,13 +483,13 @@ static wmOperatorStatus select_random_metaelems_exec(bContext *C, wmOperator *op
 
     RNG *rng = BLI_rng_new_srandom(seed_iter);
 
-    LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
+    for (MetaElem &ml : *mb->editelems) {
       if (BLI_rng_get_float(rng) < randfac) {
         if (select) {
-          ml->flag |= SELECT;
+          ml.flag |= SELECT;
         }
         else {
-          ml->flag &= ~SELECT;
+          ml.flag &= ~SELECT;
         }
       }
     }
@@ -534,7 +534,7 @@ static wmOperatorStatus duplicate_metaelems_exec(bContext *C, wmOperator * /*op*
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    MetaBall *mb = (MetaBall *)obedit->data;
+    MetaBall *mb = blender::id_cast<MetaBall *>(obedit->data);
     MetaElem *ml, *newml;
 
     if (!BKE_mball_is_any_selected(mb)) {
@@ -589,7 +589,7 @@ static wmOperatorStatus delete_metaelems_exec(bContext *C, wmOperator * /*op*/)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
-    MetaBall *mb = (MetaBall *)obedit->data;
+    MetaBall *mb = blender::id_cast<MetaBall *>(obedit->data);
     MetaElem *ml, *next;
 
     if (!BKE_mball_is_any_selected(mb)) {
@@ -658,7 +658,7 @@ void MBALL_OT_delete_metaelems(wmOperatorType *ot)
 static wmOperatorStatus hide_metaelems_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
-  MetaBall *mb = (MetaBall *)obedit->data;
+  MetaBall *mb = blender::id_cast<MetaBall *>(obedit->data);
   MetaElem *ml;
   const bool invert = RNA_boolean_get(op->ptr, "unselected") ? SELECT : false;
 
@@ -706,14 +706,14 @@ void MBALL_OT_hide_metaelems(wmOperatorType *ot)
 static wmOperatorStatus reveal_metaelems_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
-  MetaBall *mb = (MetaBall *)obedit->data;
+  MetaBall *mb = blender::id_cast<MetaBall *>(obedit->data);
   const bool select = RNA_boolean_get(op->ptr, "select");
   bool changed = false;
 
-  LISTBASE_FOREACH (MetaElem *, ml, mb->editelems) {
-    if (ml->flag & MB_HIDE) {
-      SET_FLAG_FROM_TEST(ml->flag, select, SELECT);
-      ml->flag &= ~MB_HIDE;
+  for (MetaElem &ml : *mb->editelems) {
+    if (ml.flag & MB_HIDE) {
+      SET_FLAG_FROM_TEST(ml.flag, select, SELECT);
+      ml.flag &= ~MB_HIDE;
       changed = true;
     }
   }
@@ -765,7 +765,7 @@ Base *ED_mball_base_and_elem_from_select_buffer(const Span<Base *> bases,
   }
   if (base != nullptr) {
     const uint hit_elem = (select_id & ~MBALLSEL_ANY) >> 16;
-    MetaBall *mb = static_cast<MetaBall *>(base->object->data);
+    MetaBall *mb = blender::id_cast<MetaBall *>(base->object->data);
     ml = static_cast<MetaElem *>(BLI_findlink(mb->editelems, hit_elem));
   }
   *r_ml = ml;
@@ -806,7 +806,7 @@ static bool ed_mball_findnearest_metaelem(bContext *C,
   if (use_cycle) {
     /* When cycling, use the hit directly after the current active meta-element (when set). */
     const int base_index = vc.obact->runtime->select_id;
-    MetaBall *mb = (MetaBall *)vc.obact->data;
+    MetaBall *mb = blender::id_cast<MetaBall *>(vc.obact->data);
     MetaElem *ml = mb->lastelem;
     if (ml && (ml->flag & SELECT)) {
       const int ml_index = BLI_findindex(mb->editelems, ml);
@@ -911,7 +911,7 @@ bool ED_mball_select_pick(bContext *C, const int mval[2], const SelectPick_Param
     }
     const Scene *scene = CTX_data_scene(C);
     ViewLayer *view_layer = CTX_data_view_layer(C);
-    MetaBall *mb = (MetaBall *)base->object->data;
+    MetaBall *mb = blender::id_cast<MetaBall *>(base->object->data);
     mb->lastelem = ml;
 
     DEG_id_tag_update(&mb->id, ID_RECALC_SELECT);

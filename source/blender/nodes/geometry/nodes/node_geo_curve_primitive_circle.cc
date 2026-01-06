@@ -83,7 +83,8 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurvePrimitiveCircle *data = MEM_callocN<NodeGeometryCurvePrimitiveCircle>(__func__);
+  NodeGeometryCurvePrimitiveCircle *data = MEM_new_for_free<NodeGeometryCurvePrimitiveCircle>(
+      __func__);
 
   data->mode = GEO_NODE_CURVE_PRIMITIVE_CIRCLE_TYPE_RADIUS;
   node->storage = data;
@@ -177,8 +178,8 @@ static Curves *create_radius_circle_curve(const int resolution, const float radi
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryCurvePrimitiveCircle &storage = node_storage(params.node());
-  const GeometryNodeCurvePrimitiveCircleMode mode = (GeometryNodeCurvePrimitiveCircleMode)
-                                                        storage.mode;
+  const GeometryNodeCurvePrimitiveCircleMode mode = GeometryNodeCurvePrimitiveCircleMode(
+      storage.mode);
 
   Curves *curves = nullptr;
   if (mode == GEO_NODE_CURVE_PRIMITIVE_CIRCLE_TYPE_POINTS) {

@@ -70,7 +70,7 @@ static void node_shader_buts_tex_wave(ui::Layout &layout, bContext * /*C*/, Poin
 
 static void node_shader_init_tex_wave(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexWave *tex = MEM_callocN<NodeTexWave>(__func__);
+  NodeTexWave *tex = MEM_new_for_free<NodeTexWave>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->wave_type = SHD_WAVE_BANDS;
@@ -89,7 +89,7 @@ static int node_shader_gpu_tex_wave(GPUMaterial *mat,
   node_shader_gpu_default_tex_coord(mat, node, &in[0].link);
   node_shader_gpu_tex_mapping(mat, node, in, out);
 
-  NodeTexWave *tex = (NodeTexWave *)node->storage;
+  NodeTexWave *tex = static_cast<NodeTexWave *>(node->storage);
   float wave_type = tex->wave_type;
   float bands_direction = tex->bands_direction;
   float rings_direction = tex->rings_direction;
@@ -222,7 +222,7 @@ class WaveFunction : public mf::MultiFunction {
       r_fac[i] = val;
     });
     if (!r_color.is_empty()) {
-      mask.foreach_index([&](const int64_t i) {
+      mask.foreach_index_optimized<int64_t>([&](const int64_t i) {
         r_color[i] = ColorGeometry4f(r_fac[i], r_fac[i], r_fac[i], 1.0f);
       });
     }
@@ -232,7 +232,7 @@ class WaveFunction : public mf::MultiFunction {
 static void sh_node_wave_tex_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
   const bNode &node = builder.node();
-  NodeTexWave *tex = (NodeTexWave *)node.storage;
+  NodeTexWave *tex = static_cast<NodeTexWave *>(node.storage);
   builder.construct_and_set_matching_fn<WaveFunction>(
       tex->wave_type, tex->bands_direction, tex->rings_direction, tex->wave_profile);
 }

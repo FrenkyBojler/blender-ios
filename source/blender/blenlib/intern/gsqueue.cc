@@ -28,7 +28,7 @@ struct QueueChunk {
   char data[0];
 };
 
-struct _GSQueue {
+struct GSQueue {
   QueueChunk *chunk_first;  /* first active chunk to pop from */
   QueueChunk *chunk_last;   /* last active chunk to push onto */
   QueueChunk *chunk_free;   /* free chunks to reuse */
@@ -41,12 +41,14 @@ struct _GSQueue {
 
 static void *queue_get_first_elem(GSQueue *queue)
 {
-  return ((char *)(queue)->chunk_first->data) + ((queue)->elem_size * (queue)->chunk_first_index);
+  return (static_cast<char *>((queue)->chunk_first->data)) +
+         ((queue)->elem_size * (queue)->chunk_first_index);
 }
 
 static void *queue_get_last_elem(GSQueue *queue)
 {
-  return ((char *)(queue)->chunk_last->data) + ((queue)->elem_size * (queue)->chunk_last_index);
+  return (static_cast<char *>((queue)->chunk_last->data)) +
+         ((queue)->elem_size * (queue)->chunk_last_index);
 }
 
 /**

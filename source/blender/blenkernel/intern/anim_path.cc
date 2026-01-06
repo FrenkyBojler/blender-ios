@@ -238,7 +238,7 @@ bool BKE_where_on_path(const Object *ob,
   if (ob == nullptr || ob->type != OB_CURVES_LEGACY) {
     return false;
   }
-  Curve *cu = static_cast<Curve *>(ob->data);
+  Curve *cu = blender::id_cast<Curve *>(ob->data);
   if (ob->runtime->curve_cache == nullptr) {
     CLOG_WARN(&LOG, "No curve cache!");
     return false;
@@ -316,7 +316,7 @@ bool BKE_where_on_path(const Object *ob,
   }
   //}
 
-  const ListBase *nurbs = BKE_curve_editNurbs_get(cu);
+  const ListBaseT<Nurb> *nurbs = BKE_curve_editNurbs_get(cu);
   if (!nurbs) {
     nurbs = &cu->nurb;
   }

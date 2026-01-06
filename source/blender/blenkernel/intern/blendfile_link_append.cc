@@ -395,10 +395,10 @@ struct LooseDataInstantiateContext {
 
 static bool object_in_any_scene(Main *bmain, Object *ob)
 {
-  LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
+  for (Scene &sce : bmain->scenes) {
     /* #BKE_scene_has_object checks bases cache of the scenes' view-layer, not actual content of
      * their collections. */
-    if (BKE_collection_has_object_recursive(sce->master_collection, ob)) {
+    if (BKE_collection_has_object_recursive(sce.master_collection, ob)) {
       return true;
     }
   }
@@ -408,8 +408,8 @@ static bool object_in_any_scene(Main *bmain, Object *ob)
 
 static bool collection_instantiated_by_any_object(Main *bmain, Collection *collection)
 {
-  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-    if (ob->type == OB_EMPTY && ob->instance_collection == collection) {
+  for (Object &ob : bmain->objects) {
+    if (ob.type == OB_EMPTY && ob.instance_collection == collection) {
       return true;
     }
   }
@@ -545,10 +545,10 @@ static void loose_data_instantiate_obdata_preprocess(
     Object *ob = reinterpret_cast<Object *>(id);
     Object *new_ob = reinterpret_cast<Object *>(id->newid);
     if (ob->data != nullptr) {
-      (static_cast<ID *>(ob->data))->tag &= ~ID_TAG_DOIT;
+      (ob->data)->tag &= ~ID_TAG_DOIT;
     }
     if (new_ob != nullptr && new_ob->data != nullptr) {
-      (static_cast<ID *>(new_ob->data))->tag &= ~ID_TAG_DOIT;
+      (new_ob->data)->tag &= ~ID_TAG_DOIT;
     }
   }
 }
@@ -604,7 +604,7 @@ static void loose_data_instantiate_collection_process(
      * NOTE: We only check object directly into that collection, not recursively into its
      * children.
      */
-    Collection *collection = (Collection *)id;
+    Collection *collection = blender::id_cast<Collection *>(id);
     /* The collection could be linked/appended together with an Empty object instantiating it,
      * better not instantiate the collection in the view-layer in that case.
      *
@@ -618,8 +618,8 @@ static void loose_data_instantiate_collection_process(
      * This avoids cluttering the view-layers, user can instantiate themselves specific collections
      * or objects easily from the Outliner if needed. */
     if (!do_add_collection && do_append && !collection_is_instantiated) {
-      LISTBASE_FOREACH (CollectionObject *, coll_ob, &collection->gobject) {
-        Object *ob = coll_ob->ob;
+      for (CollectionObject &coll_ob : collection->gobject) {
+        Object *ob = coll_ob.ob;
         if (!object_in_any_scene(bmain, ob)) {
           do_add_collection = true;
           break;
@@ -775,7 +775,7 @@ static void loose_data_instantiate_object_process(LooseDataInstantiateContext *i
       continue;
     }
 
-    Object *ob = (Object *)id;
+    Object *ob = blender::id_cast<Object *>(id);
 
     if (instanciated_objects.contains(ob)) {
       continue;
@@ -833,7 +833,7 @@ static void loose_data_instantiate_obdata_process(LooseDataInstantiateContext *i
     Object *ob = BKE_object_add_only_object(bmain, type, id->name + 2);
     ob->data = id;
     id_us_plus(id);
-    BKE_object_materials_sync_length(bmain, ob, static_cast<ID *>(ob->data));
+    BKE_object_materials_sync_length(bmain, ob, ob->data);
 
     loose_data_instantiate_object_base_instance_init(bmain,
                                                      active_collection,
@@ -2034,9 +2034,9 @@ static void blendfile_relocate_postprocess_cleanup(BlendfileLinkAppendContext &l
   ids_to_delete.clear();
 
   /* Get rid of no more used libraries... */
-  ListBase *libraries = which_libbase(&bmain, ID_LI);
-  LISTBASE_FOREACH (ID *, id_iter, libraries) {
-    ids_to_delete.add(id_iter);
+  ListBaseT<ID> *libraries = which_libbase(&bmain, ID_LI);
+  for (ID &id_iter : *libraries) {
+    ids_to_delete.add(&id_iter);
   }
   FOREACH_MAIN_ID_BEGIN (&bmain, id_iter) {
     if (id_iter->lib) {

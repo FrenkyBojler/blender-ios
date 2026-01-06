@@ -43,7 +43,7 @@ static SpaceLink *topbar_create(const ScrArea * /*area*/, const Scene * /*scene*
   ARegion *region;
   SpaceTopBar *stopbar;
 
-  stopbar = MEM_callocN<SpaceTopBar>("init topbar");
+  stopbar = MEM_new_for_free<SpaceTopBar>("init topbar");
   stopbar->spacetype = SPACE_TOPBAR;
 
   /* header */
@@ -61,7 +61,7 @@ static SpaceLink *topbar_create(const ScrArea * /*area*/, const Scene * /*scene*
   BLI_addtail(&stopbar->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
 
-  return (SpaceLink *)stopbar;
+  return reinterpret_cast<SpaceLink *>(stopbar);
 }
 
 /* Doesn't free the space-link itself. */
@@ -76,7 +76,7 @@ static SpaceLink *topbar_duplicate(SpaceLink *sl)
 
   /* clear or remove stuff from old */
 
-  return (SpaceLink *)stopbarn;
+  return reinterpret_cast<SpaceLink *>(stopbarn);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -231,9 +231,9 @@ static void undo_history_draw_menu(const bContext *C, Menu *menu)
 
   int undo_step_count = 0;
   int undo_step_count_all = 0;
-  LISTBASE_FOREACH_BACKWARD (UndoStep *, us, &wm->runtime->undo_stack->steps) {
+  for (UndoStep &us : wm->runtime->undo_stack->steps.items_reversed()) {
     undo_step_count_all += 1;
-    if (us->skip) {
+    if (us.skip) {
       continue;
     }
     undo_step_count += 1;
@@ -282,7 +282,7 @@ static void undo_history_menu_register()
 
 static void topbar_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceTopBar, sl);
+  writer->write_struct_cast<SpaceTopBar>(sl);
 }
 
 void ED_spacetype_topbar()

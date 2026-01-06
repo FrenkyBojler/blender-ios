@@ -63,7 +63,7 @@ void bmo_extrude_discrete_faces_exec(BMesh *bm, BMOperator *op)
       BMEditSelection *ese;
       ese = static_cast<BMEditSelection *>(BLI_ghash_lookup(select_history_map, f_org));
       if (ese) {
-        ese->ele = (BMElem *)f_new;
+        ese->ele = reinterpret_cast<BMElem *>(f_new);
       }
     }
 
@@ -94,11 +94,11 @@ void bmo_extrude_discrete_faces_exec(BMesh *bm, BMOperator *op)
 
         ese = static_cast<BMEditSelection *>(BLI_ghash_lookup(select_history_map, l_org->v));
         if (ese) {
-          ese->ele = (BMElem *)l_new->v;
+          ese->ele = reinterpret_cast<BMElem *>(l_new->v);
         }
         ese = static_cast<BMEditSelection *>(BLI_ghash_lookup(select_history_map, l_org->e));
         if (ese) {
-          ese->ele = (BMElem *)l_new->e;
+          ese->ele = reinterpret_cast<BMElem *>(l_new->e);
         }
       }
 
@@ -258,7 +258,7 @@ void bmo_extrude_vert_indiv_exec(BMesh *bm, BMOperator *op)
       BMEditSelection *ese;
       ese = static_cast<BMEditSelection *>(BLI_ghash_lookup(select_history_map, v));
       if (ese) {
-        ese->ele = (BMElem *)dupev;
+        ese->ele = reinterpret_cast<BMElem *>(dupev);
       }
     }
 
@@ -457,8 +457,7 @@ void bmo_extrude_face_region_exec(BMesh *bm, BMOperator *op)
     int boundary_edges_len = BMO_slot_map_len(dupeop.slots_out, "boundary_map.out");
     /* We do not know the real number of boundary vertices. */
     int boundary_verts_len_maybe = 2 * boundary_edges_len;
-    dissolve_verts = static_cast<BMVert **>(
-        MEM_mallocN(boundary_verts_len_maybe * sizeof(*dissolve_verts), __func__));
+    dissolve_verts = MEM_malloc_arrayN<BMVert *>(boundary_verts_len_maybe, __func__);
   }
 
   BMO_slot_copy(&dupeop, slots_out, "geom.out", op, slots_out, "geom.out");

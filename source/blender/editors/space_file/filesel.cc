@@ -97,14 +97,16 @@ static void fileselect_initialize_params_common(SpaceFile *sfile, FileSelectPara
 
 static void fileselect_ensure_updated_asset_params(SpaceFile *sfile)
 {
+  UserDef U_default = {};
+
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_ASSETS);
   BLI_assert(sfile->op == nullptr);
 
   FileAssetSelectParams *asset_params = sfile->asset_params;
 
   if (!asset_params) {
-    asset_params = sfile->asset_params = static_cast<FileAssetSelectParams *>(
-        MEM_callocN(sizeof(*asset_params), "FileAssetSelectParams"));
+    asset_params = sfile->asset_params = MEM_new_for_free<FileAssetSelectParams>(
+        "FileAssetSelectParams");
     asset_params->base_params.details_flags = U_default.file_space_data.details_flags;
     asset_params->asset_library_ref.type = ASSET_LIBRARY_ALL;
     asset_params->asset_library_ref.custom_library_index = -1;
@@ -142,6 +144,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 {
   BLI_assert(sfile->browse_mode == FILE_BROWSE_MODE_FILES);
 
+  UserDef U_default = {};
   FileSelectParams *params;
   wmOperator *op = sfile->op;
 
@@ -149,7 +152,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 
   /* create new parameters if necessary */
   if (!sfile->params) {
-    sfile->params = MEM_callocN<FileSelectParams>("fileselparams");
+    sfile->params = MEM_new_for_free<FileSelectParams>("fileselparams");
     /* set path to most recently opened .blend */
     BLI_path_split_dir_file(blendfile_path,
                             sfile->params->dir,
@@ -359,7 +362,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
 
 FileSelectParams *ED_fileselect_ensure_active_params(SpaceFile *sfile)
 {
-  switch ((eFileBrowse_Mode)sfile->browse_mode) {
+  switch (eFileBrowse_Mode(sfile->browse_mode)) {
     case FILE_BROWSE_MODE_FILES:
       if (!sfile->params) {
         fileselect_ensure_updated_file_params(sfile);
@@ -383,11 +386,11 @@ FileSelectParams *ED_fileselect_get_active_params(const SpaceFile *sfile)
     return nullptr;
   }
 
-  switch ((eFileBrowse_Mode)sfile->browse_mode) {
+  switch (eFileBrowse_Mode(sfile->browse_mode)) {
     case FILE_BROWSE_MODE_FILES:
       return sfile->params;
     case FILE_BROWSE_MODE_ASSETS:
-      return (FileSelectParams *)sfile->asset_params;
+      return reinterpret_cast<FileSelectParams *>(sfile->asset_params);
   }
 
   BLI_assert_msg(0, "Invalid browse mode set in file space.");
@@ -549,7 +552,7 @@ int ED_fileselect_asset_import_method_get(const SpaceFile *sfile, const FileDirE
 
 static void on_reload_activate_by_id(SpaceFile *sfile, onReloadFnData custom_data)
 {
-  ID *asset_id = (ID *)custom_data;
+  ID *asset_id = static_cast<ID *>(custom_data);
   ED_fileselect_activate_by_id(sfile, asset_id, false);
 }
 
@@ -601,7 +604,8 @@ void ED_fileselect_activate_by_relpath(SpaceFile *sfile, const char *relative_pa
   if (files == nullptr || filelist_pending(files) || filelist_needs_force_reset(files)) {
     /* Casting away the constness of `relative_path` is safe here, because eventually it just ends
      * up in another call to this function, and then it's a const char* again. */
-    file_on_reload_callback_register(sfile, on_reload_select_by_relpath, (char *)relative_path);
+    file_on_reload_callback_register(
+        sfile, on_reload_select_by_relpath, const_cast<char *>(relative_path));
     return;
   }
 

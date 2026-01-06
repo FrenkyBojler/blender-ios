@@ -11,8 +11,8 @@
 #include "BLO_read_write.hh"
 
 #include "DNA_collection_types.h"
-#include "DNA_defaults.h"
 #include "DNA_gpencil_modifier_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_lineart_types.h"
 #include "DNA_scene_types.h"
 
@@ -77,11 +77,8 @@ static bool is_last_line_art(const GreasePencilLineartModifierData &md, const bo
 
 static void init_data(ModifierData *md)
 {
-  GreasePencilLineartModifierData *gpmd = (GreasePencilLineartModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(gpmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(gpmd, DNA_struct_default_get(GreasePencilLineartModifierData), modifier);
+  GreasePencilLineartModifierData *gpmd = reinterpret_cast<GreasePencilLineartModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -95,7 +92,11 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   GreasePencilLineartModifierData *target_lmd =
       reinterpret_cast<GreasePencilLineartModifierData *>(target);
 
-  target_lmd->runtime = MEM_new<LineartModifierRuntime>(__func__, *source_runtime);
+  if (source_runtime) {
+    /* `source_runtime` can be nullptr when line art is imported from asset. `target_lmd->runtime`
+     * Will also re-init before calculation/depsgraph evaluation if it's nullptr anyway.  */
+    target_lmd->runtime = MEM_new<LineartModifierRuntime>(__func__, *source_runtime);
+  }
 }
 
 static void free_data(ModifierData *md)
@@ -109,7 +110,7 @@ static void free_data(ModifierData *md)
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
-  GreasePencilLineartModifierData *lmd = (GreasePencilLineartModifierData *)md;
+  GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(md);
 
   if (lmd->target_layer[0] == '\0' || !lmd->target_material) {
     return true;
@@ -166,7 +167,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 {
   DEG_add_object_relation(ctx->node, ctx->object, DEG_OB_COMP_TRANSFORM, "Line Art Modifier");
 
-  GreasePencilLineartModifierData *lmd = (GreasePencilLineartModifierData *)md;
+  GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(md);
 
   /* Always add whole master collection because line art will need the whole scene for
    * visibility computation. Line art exclusion is handled inside #add_this_collection. */
@@ -206,14 +207,14 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
-  GreasePencilLineartModifierData *lmd = (GreasePencilLineartModifierData *)md;
+  GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(md);
 
-  walk(user_data, ob, (ID **)&lmd->target_material, IDWALK_CB_USER);
-  walk(user_data, ob, (ID **)&lmd->source_collection, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&lmd->target_material), IDWALK_CB_USER);
+  walk(user_data, ob, reinterpret_cast<ID **>(&lmd->source_collection), IDWALK_CB_NOP);
 
-  walk(user_data, ob, (ID **)&lmd->source_object, IDWALK_CB_NOP);
-  walk(user_data, ob, (ID **)&lmd->source_camera, IDWALK_CB_NOP);
-  walk(user_data, ob, (ID **)&lmd->light_contour_object, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&lmd->source_object), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&lmd->source_camera), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&lmd->light_contour_object), IDWALK_CB_NOP);
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -862,7 +863,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *lmd = reinterpret_cast<const GreasePencilLineartModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilLineartModifierData, lmd);
+  writer->write_struct(lmd);
 }
 
 static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)

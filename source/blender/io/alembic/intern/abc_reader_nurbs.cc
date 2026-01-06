@@ -104,7 +104,7 @@ void AbcNurbsReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSele
   std::vector<std::pair<INuPatchSchema, IObject>>::iterator it;
 
   for (it = m_schemas.begin(); it != m_schemas.end(); ++it) {
-    Nurb *nu = MEM_callocN<Nurb>("abc_getnurb");
+    Nurb *nu = MEM_new_for_free<Nurb>("abc_getnurb");
     nu->flag = CU_SMOOTH;
     nu->type = CU_NURBS;
     nu->resolu = cu->resolu;
@@ -189,7 +189,7 @@ void AbcNurbsReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSele
   }
 
   m_object = BKE_object_add_only_object(bmain, OB_SURF, m_object_name.c_str());
-  m_object->data = cu;
+  m_object->data = blender::id_cast<ID *>(cu);
 }
 
 void AbcNurbsReader::getNurbsPatches(const IObject &obj)
