@@ -372,19 +372,19 @@ static EnumPropertyItem rna_enum_gpencil_brush_modes_items[] = {
 
 static bool rna_TextureCapabilities_has_random_texture_angle_get(PointerRNA *ptr)
 {
-  MTex *mtex = (MTex *)ptr->data;
+  MTex *mtex = static_cast<MTex *>(ptr->data);
   return ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_AREA, MTEX_MAP_MODE_RANDOM);
 }
 
 static bool rna_TextureCapabilities_has_texture_angle_get(PointerRNA *ptr)
 {
-  MTex *mtex = (MTex *)ptr->data;
+  MTex *mtex = static_cast<MTex *>(ptr->data);
   return mtex->brush_map_mode != MTEX_MAP_MODE_3D;
 }
 
 static bool rna_TextureCapabilities_has_texture_angle_source_get(PointerRNA *ptr)
 {
-  MTex *mtex = (MTex *)ptr->data;
+  MTex *mtex = static_cast<MTex *>(ptr->data);
   return ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_VIEW, MTEX_MAP_MODE_AREA, MTEX_MAP_MODE_RANDOM);
 }
 
@@ -858,7 +858,7 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C,
         case SCULPT_BRUSH_TYPE_SMOOTH:
           return prop_smooth_direction_items;
         case SCULPT_BRUSH_TYPE_MASK:
-          switch ((BrushMaskTool)me->mask_tool) {
+          switch (BrushMaskTool(me->mask_tool)) {
             case BRUSH_MASK_DRAW:
               return prop_direction_items;
 
@@ -1002,7 +1002,7 @@ static void rna_BrushGpencilSettings_use_material_pin_update(bContext *C, Pointe
 
 static bool rna_BrushGpencilSettings_material_poll(PointerRNA * /*ptr*/, PointerRNA value)
 {
-  Material *ma = (Material *)value.data;
+  Material *ma = static_cast<Material *>(value.data);
 
   /* GP materials only */
   return (ma->gp_style != nullptr);
@@ -3130,8 +3130,11 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
-  RNA_def_property_ui_text(
-      prop, "Stabilize Normal", "Stabilize the orientation of the brush plane.");
+  RNA_def_property_ui_text(prop,
+                           "Stabilize Normal",
+                           "How stable the plane normal is over the course of the stroke. "
+                           "A value of 0 corresponds to using the current normal, "
+                           "and a value of 1 corresponds to using the initial normal.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "stabilize_plane", PROP_FLOAT, PROP_FACTOR);
@@ -3139,7 +3142,11 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
-  RNA_def_property_ui_text(prop, "Stabilize Plane", "Stabilize the center of the brush plane.");
+  RNA_def_property_ui_text(prop,
+                           "Stabilize Center",
+                           "How stable the plane center is over the course of the stroke. "
+                           "A value of 0 corresponds to using the current center, "
+                           "and a value of 1 corresponds to using the initial center.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "texture_sample_bias", PROP_FLOAT, PROP_DISTANCE);

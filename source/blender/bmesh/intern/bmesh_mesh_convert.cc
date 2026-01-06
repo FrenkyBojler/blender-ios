@@ -79,7 +79,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
 #include "BLI_array.hh"
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
@@ -345,9 +344,8 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   if (is_new == false) {
     tot_shape_keys = min_ii(tot_shape_keys, CustomData_number_of_layers(&bm->vdata, CD_SHAPEKEY));
   }
-  const float (**shape_key_table)[3] = tot_shape_keys ? (const float (**)[3])BLI_array_alloca(
-                                                            shape_key_table, tot_shape_keys) :
-                                                        nullptr;
+  blender::Array<const float (*)[3], 32> shape_key_table_buf(tot_shape_keys);
+  const float (**shape_key_table)[3] = tot_shape_keys ? shape_key_table_buf.data() : nullptr;
 
   if ((params->active_shapekey != 0) && tot_shape_keys > 0) {
     actkey = static_cast<KeyBlock *>(BLI_findlink(&mesh->key->block, params->active_shapekey - 1));
@@ -467,7 +465,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
 
     /* Set shape-key data. */
     if (tot_shape_keys) {
-      float (*co_dst)[3] = (float (*)[3])BM_ELEM_CD_GET_VOID_P(v, cd_shape_key_offset);
+      float (*co_dst)[3] = static_cast<float (*)[3]> BM_ELEM_CD_GET_VOID_P(v, cd_shape_key_offset);
       for (int j = 0; j < tot_shape_keys; j++, co_dst++) {
         copy_v3_v3(*co_dst, shape_key_table[j][i]);
       }
@@ -605,13 +603,13 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
       BMElem **ele_p;
       switch (msel.type) {
         case ME_VSEL:
-          ele_p = (BMElem **)&vtable[msel.index];
+          ele_p = reinterpret_cast<BMElem **>(&vtable[msel.index]);
           break;
         case ME_ESEL:
-          ele_p = (BMElem **)&etable[msel.index];
+          ele_p = reinterpret_cast<BMElem **>(&etable[msel.index]);
           break;
         case ME_FSEL:
-          ele_p = (BMElem **)&ftable[msel.index];
+          ele_p = reinterpret_cast<BMElem **>(&ftable[msel.index]);
           break;
         default:
           continue;
@@ -801,7 +799,7 @@ static void bm_to_mesh_shape(BMesh *bm,
     }
 
     KeyBlock *currkey;
-    for (currkey = (KeyBlock *)key->block.first; currkey; currkey = currkey->next) {
+    for (currkey = static_cast<KeyBlock *>(key->block.first); currkey; currkey = currkey->next) {
       if (currkey->uid == bm->vdata.layers[i].uid) {
         break;
       }
@@ -848,7 +846,7 @@ static void bm_to_mesh_shape(BMesh *bm,
       const int keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset);
       /* Check the vertex existed when entering edit-mode (otherwise don't apply an offset). */
       if (keyi != ORIGINDEX_NONE) {
-        float *co_orig = (float *)BM_ELEM_CD_GET_VOID_P(eve, cd_shape_offset);
+        float *co_orig = static_cast<float *> BM_ELEM_CD_GET_VOID_P(eve, cd_shape_offset);
         /* Could use 'eve->co' or the destination position, they're the same at this point. */
         sub_v3_v3v3(ofs[i], eve->co, co_orig);
       }
@@ -906,11 +904,11 @@ static void bm_to_mesh_shape(BMesh *bm,
         currkey.data = MEM_reallocN(currkey.data, key->elemsize * bm->totvert);
         currkey.totelem = bm->totvert;
       }
-      currkey_data = (float (*)[3])currkey.data;
+      currkey_data = static_cast<float (*)[3]>(currkey.data);
 
       int i;
       BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, i) {
-        float *co_orig = (float *)BM_ELEM_CD_GET_VOID_P(eve, cd_shape_offset);
+        float *co_orig = static_cast<float *> BM_ELEM_CD_GET_VOID_P(eve, cd_shape_offset);
 
         if (&currkey == actkey) {
           copy_v3_v3(currkey_data[i], eve->co);
@@ -919,7 +917,8 @@ static void bm_to_mesh_shape(BMesh *bm,
             BLI_assert(actkey != key->refkey);
             keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset);
             if (keyi != ORIGINDEX_NONE) {
-              float *co_refkey = (float *)BM_ELEM_CD_GET_VOID_P(eve, cd_shape_offset_refkey);
+              float *co_refkey = static_cast<float *> BM_ELEM_CD_GET_VOID_P(
+                  eve, cd_shape_offset_refkey);
               copy_v3_v3(positions[i], co_refkey);
             }
           }
@@ -1016,7 +1015,9 @@ static void bmesh_to_mesh_calc_object_remap(Main &bmain,
   BMVert *eve;
 
   for (Object &ob : bmain.objects) {
-    if ((ob.parent) && (ob.parent->data == &mesh) && ELEM(ob.partype, PARVERT1, PARVERT3)) {
+    if ((ob.parent) && (ob.parent->data == blender::id_cast<ID *>(&mesh)) &&
+        ELEM(ob.partype, PARVERT1, PARVERT3))
+    {
 
       if (vertMap == nullptr) {
         vertMap = bm_to_mesh_vertex_map(&bm, old_totvert);
@@ -1041,10 +1042,10 @@ static void bmesh_to_mesh_calc_object_remap(Main &bmain,
         }
       }
     }
-    if (ob.data == &mesh) {
+    if (ob.data == blender::id_cast<ID *>(&mesh)) {
       for (ModifierData &md : ob.modifiers) {
         if (md.type == eModifierType_Hook) {
-          HookModifierData *hmd = (HookModifierData *)&md;
+          HookModifierData *hmd = reinterpret_cast<HookModifierData *>(&md);
 
           if (vertMap == nullptr) {
             vertMap = bm_to_mesh_vertex_map(&bm, old_totvert);
