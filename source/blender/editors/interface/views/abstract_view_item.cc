@@ -472,10 +472,6 @@ bool view_item_drag_start(bContext &C, AbstractViewItem &item)
   }
   drag_controller->on_drag_start(C);
 
-  /* Make sure the view item is highlighted as active when dragging from it. This is useful user
-   * feedback. */
-  item.set_selected(true);
-
   return true;
 }
 
