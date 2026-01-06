@@ -217,7 +217,7 @@ TEST(path_templates, VariableMap_add_path_up_to_file)
 
 struct PathTemplateTestCase {
   char path_in[FILE_MAX];
-  char path_result[FILE_MAX];
+  char path_expected_out[FILE_MAX];
   Vector<Error> expected_errors;
 };
 
@@ -442,17 +442,12 @@ TEST(path_templates, validate_and_apply_template)
         << "  Template errors: " << errors_to_string(application_errors) << std::endl
         << "  Expected errors: " << errors_to_string(test_case.expected_errors) << std::endl
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl;
-    EXPECT_EQ(StringRef(path), test_case.path_result)
+    EXPECT_EQ(StringRef(path), test_case.path_expected_out)
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl;
   }
 }
 
-struct PathTemplateLengthTestCase {
-  char path_in[FILE_MAX];
-  int expected_length;
-};
-
-TEST(path_templates, precompute_output_path_length)
+TEST(path_templates, apply_template_alloc)
 {
   VariableMap variables;
   {
@@ -462,64 +457,102 @@ TEST(path_templates, precompute_output_path_length)
     variables.add_integer("number", 42);
   }
 
-  const Vector<PathTemplateLengthTestCase> test_cases = {
+  const int max_output_alloc_size = 40;
+  const Vector<PathTemplateTestCase> test_cases = {
       {
           "{long}{short}{empty}{number}",
-          36,
+          "This string is exactly 32 bytes.hi42",
+          {},
       },
       {
           "foo{long}bar",
-          38,
+          "fooThis string is exactly 32 bytes.bar",
+          {},
       },
       {
           "foo{short}bar",
-          8,
+          "foohibar",
+          {},
       },
       {
           "foo{empty}bar",
-          6,
+          "foobar",
+          {},
       },
       {
           "foo{number}bar",
-          8,
+          "foo42bar",
+          {},
       },
       {
           "foo{number:####}bar",
-          10,
+          "foo0042bar",
+          {},
       },
       {
           "{empty}",
-          0,
+          "",
+          {},
       },
 
       /* No template expressions. */
       {
           "",
-          0,
+          "",
+          {},
       },
       {
           "No template expressions here.",
-          29,
+          "No template expressions here.",
+          {},
+      },
+
+      /* Truncated due to exceeding max specified length. */
+      {
+          "foo{long}{long}{long}{long}bar",
+          "fooThis string is exactly 32 bytes.This",
+          {},
       },
 
       /* Errors. */
       {
           "foo{non_existant_variable}bar",
-          -1,
+          "foo{non_existant_variable}bar",
+          {
+              {ErrorType::UNKNOWN_VARIABLE, IndexRange(3, 23)},
+          },
       },
       {
           "foo{bar",
-          -1,
+          "foo{bar",
+          {{ErrorType::VARIABLE_SYNTAX, IndexRange(3, 4)}},
+      },
+
+      /* Error where the error isn't until after the truncation point. Should
+       * still be flagged as an error. */
+      {
+          "foo{long}{long}{long}{long}{long}{long}{long}{bar",
+          "foo{long}{long}{long}{long}{long}{long}{long}{bar",
+          {{ErrorType::VARIABLE_SYNTAX, IndexRange(45, 4)}},
       },
   };
 
-  for (const PathTemplateLengthTestCase &test_case : test_cases) {
-    char path[FILE_MAX];
-    STRNCPY(path, test_case.path_in);
-    const int length = BKE_path_length_after_apply_template(path, variables);
+  for (const PathTemplateTestCase &test_case : test_cases) {
+    const int in_size = strlen(test_case.path_in) + 1;
+    char *buffer = MEM_malloc_arrayN<char>(in_size, __func__);
+    BLI_strncpy(buffer, test_case.path_in, in_size);
 
-    EXPECT_EQ(length, test_case.expected_length)
+    const Vector<Error> application_errors = BKE_path_apply_template_alloc(
+        &buffer, max_output_alloc_size, variables);
+    EXPECT_EQ(application_errors, test_case.expected_errors)
+        << "  Template errors: " << errors_to_string(application_errors) << std::endl
+        << "  Expected errors: " << errors_to_string(test_case.expected_errors) << std::endl
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl;
+    EXPECT_EQ(StringRef(buffer), test_case.path_expected_out)
+        << "  Note: test_case.path_in = " << test_case.path_in << std::endl
+        << "  Note: test_case.path_expected_out = " << test_case.path_expected_out << std::endl;
+
+    MEM_freeN(buffer);
   }
 }
 

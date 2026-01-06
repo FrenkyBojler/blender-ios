@@ -819,7 +819,8 @@ bool BKE_path_contains_template_syntax(blender::StringRef path)
  *
  * \param out_path: buffer to write the evaluated path to. May be null, in which
  * case writing is skipped, and this function just acts to validate the
- * templating in the path.
+ * templating in the path. If there are errors returned, there are no guarantees
+ * about its contents aside from it being a valid string.
  *
  * \param out_path_maxncpy: The maximum length that template expansion is
  * allowed to make the template-expanded path (in bytes), including the null
@@ -832,7 +833,7 @@ bool BKE_path_contains_template_syntax(blender::StringRef path)
  * \param r_out_path_length: optional pointer to an integer to store the output
  * path length in. This is computed even when `out_path` is not provided, and
  * thus can be used as a pre-pass to determine how much space to allocate for
- * the `out_path` buffer.
+ * the `out_path` buffer. If errors are returned, this number is invalid.
  *
  * \return An empty vector on success, or a vector of templating errors on
  * failure. Note that even if there are errors, `out_path` may get modified, and
@@ -844,31 +845,35 @@ static blender::Vector<Error> eval_template(char *out_path,
                                             const VariableMap &template_variables,
                                             int *r_out_length)
 {
-  if (r_out_length) {
-    *r_out_length = in_path.size();
-  }
-
   if (out_path) {
-    in_path.copy_bytes_truncated(out_path, out_path_maxncpy);
-    if (r_out_length) {
-      *r_out_length = strlen(out_path);
-    }
+    /* Just in case. */
+    out_path[0] = '\0';
   }
 
   const blender::Vector<Token> tokens = parse_template(in_path);
 
   if (tokens.is_empty()) {
-    /* No tokens found, so nothing to do. */
+    /* No tokens found, so the output is the same as the input (but possibly
+     * truncated). */
+    if (out_path) {
+      in_path.copy_bytes_truncated(out_path, out_path_maxncpy);
+      if (r_out_length) {
+        *r_out_length = strlen(out_path);
+      }
+    }
+    else if (r_out_length) {
+      *r_out_length = in_path.size();
+    }
     return {};
   }
 
   /* Accumulates errors as we process the tokens. */
   blender::Vector<Error> errors;
 
-  /* Tracks the change in string length due to the modifications as we go. We
-   * need this to properly map the token byte ranges to the being-modified
-   * string. */
-  int length_diff = 0;
+  /* Byte indices that track where we are in the input and output while copying
+   * things over. */
+  int in_head = 0;
+  int out_head = 0;
 
   for (const Token &token : tokens) {
     /* Syntax errors. */
@@ -878,6 +883,7 @@ static blender::Vector<Error> eval_template(char *out_path,
     }
 
     char replacement_string[FORMAT_BUFFER_SIZE];
+    replacement_string[0] = '\0'; /* Just in case. */
 
     switch (token.type) {
       /* Syntax errors should have been handled above. */
@@ -945,26 +951,37 @@ static blender::Vector<Error> eval_template(char *out_path,
       }
     }
 
-    /* Perform the actual substitution with the expanded value. */
-    if (out_path) {
-      /* We're off the end of the available space. */
-      if (token.byte_range.start() + length_diff >= out_path_maxncpy) {
-        break;
-      }
-
-      BLI_string_replace_range(out_path,
-                               out_path_maxncpy,
-                               token.byte_range.start() + length_diff,
-                               token.byte_range.one_after_last() + length_diff,
-                               replacement_string);
+    /* Copy over any non-token text that precedes the token. */
+    if (out_path && out_head < out_path_maxncpy) {
+      in_path.substr(in_head, token.byte_range.start())
+          .copy_bytes_truncated(out_path + out_head, out_path_maxncpy - out_head);
     }
+    out_head += token.byte_range.start() - in_head;
+    in_head = token.byte_range.start();
 
-    length_diff -= token.byte_range.size();
-    length_diff += strlen(replacement_string);
+    /* Copy over the token replacement text. */
+    blender::StringRef replacement = blender::StringRef(replacement_string);
+    if (out_path && out_head < out_path_maxncpy) {
+      replacement.copy_bytes_truncated(out_path + out_head, out_path_maxncpy - out_head);
+    }
+    out_head += replacement.size();
+    in_head += token.byte_range.size();
   }
 
-  if (r_out_length) {
-    *r_out_length = in_path.size() + length_diff;
+  /* Copy any remaining non-token text after the last token. */
+  if (out_path && out_head < out_path_maxncpy) {
+    in_path.substr(in_head).copy_bytes_truncated(out_path + out_head, out_path_maxncpy - out_head);
+  }
+  out_head += in_path.size() - in_head;
+
+  /* Compute final output length. */
+  if (errors.is_empty() && r_out_length) {
+    if (out_path) {
+      *r_out_length = strlen(out_path);
+    }
+    else {
+      *r_out_length = out_head;
+    }
   }
 
   return errors;
@@ -974,22 +991,6 @@ blender::Vector<Error> BKE_path_validate_template(
     blender::StringRef path, const blender::bke::path_templates::VariableMap &template_variables)
 {
   return eval_template(nullptr, 0, path, template_variables, nullptr);
-}
-
-int BKE_path_length_after_apply_template(const char *path, const VariableMap &template_variables)
-{
-  BLI_assert(path != nullptr);
-
-  int length_after_application = 0;
-
-  const blender::Vector<Error> errors = eval_template(
-      nullptr, 0, path, template_variables, &length_after_application);
-
-  if (!errors.is_empty()) {
-    return -1;
-  }
-
-  return length_after_application;
 }
 
 blender::Vector<Error> BKE_path_apply_template(char *path,
