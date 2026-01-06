@@ -17,7 +17,7 @@ import bpy
 # ./bin/blender --factory-startup --python <SOURCEPATH>/tests/python/bl_node_copy_operators.py
 #     --
 #     --testdir <SOURCEPATH>/tests/files/node_group --subtest <NAME>
-# 
+#
 # Operators are applied to each frame and compared to expected results,
 # stored in separate node trees:
 #   - bpy.data.node_groups["ExpectedMakeGroup"]:            Result of node.make_group operator.
@@ -25,10 +25,10 @@ import bpy
 #   - bpy.data.node_groups["ExpectedUngroup"]:              Result of node.ungroup operator.
 #   - bpy.data.node_groups["ExpectedGroupSeparateCopy"]:    Result of node.group_separate operator with type='COPY'.
 #   - bpy.data.node_groups["ExpectedGroupSeparateMove"]:    Result of node.group_separate operator with type='MOVE'.
-# 
+#
 # The script can be invoked with an additional argument '--generate' to update the ground truth test data.
 # Nodes in the "Expected***" node trees are replaced with the result of operators applied to the "Tests" node tree.
-# 
+#
 # ./bin/blender --factory-startup --python <SOURCEPATH>/tests/python/bl_node_copy_operators.py
 #     --
 #     --testdir <SOURCEPATH>/tests/files/node_group --generate
@@ -82,7 +82,8 @@ def node_centroid(nodes):
 
 # Provide a valid context override to run node editor operators
 def node_editor_context_override(context, tree, selected_nodes=[], active_node=None):
-    window = context.window if context.window else next(window for window in context.window_manager.windows if window.screen is not None)
+    window = context.window if context.window else next(
+        window for window in context.window_manager.windows if window.screen is not None)
     screen = context.screen if context.screen else window.screen
     area = next(area for area in screen.areas if area.type == 'NODE_EDITOR')
     region = next(region for region in area.regions if region.type == 'WINDOW')
@@ -106,6 +107,8 @@ def node_editor_context_override(context, tree, selected_nodes=[], active_node=N
     return context.temp_override(**context_override)
 
 # Find all top-level frames in a tree.
+
+
 def top_level_frames(tree):
     for node in tree.nodes:
         if isinstance(node, bpy.types.NodeFrame) and node.parent is None:
@@ -187,8 +190,8 @@ def execute_group_insert(test_case, test_tree, expected_tree=None):
     with node_editor_context_override(bpy.context, test_tree):
         bpy.ops.node.add_node(
             settings=[
-                {"name":"name", "value":f"'{test_case}_GroupNode'"},
-                {"name":"node_tree", "value":f"bpy.data.node_groups['{group_tree.name}']"},
+                {"name": "name", "value": f"'{test_case}_GroupNode'"},
+                {"name": "node_tree", "value": f"bpy.data.node_groups['{group_tree.name}']"},
             ],
             type='GeometryNodeGroup',
         )
@@ -320,7 +323,10 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
                 expected_has_value = hasattr(expected_socket, "default_value")
                 self.assertEqual(test_has_value, expected_has_value)
                 if test_has_value and expected_has_value:
-                    self.compare_value(expected_socket.bl_idname, test_socket.default_value, expected_socket.default_value)
+                    self.compare_value(
+                        expected_socket.bl_idname,
+                        test_socket.default_value,
+                        expected_socket.default_value)
 
             # Links
             self.assertEqual(test_socket.is_linked, expected_socket.is_linked)
@@ -329,13 +335,30 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
                 for test_link, expected_link in zip(test_socket.links, expected_socket.links):
                     # If there is no entry in the mapping for the connected test socket yet then the expected socket is use as default.
                     # External connections are not usually added to the map to keep test cases simple.
-                    # This ensures that any socket with external links is in fact connected, without specifying the exact external node.
+                    # This ensures that any socket with external links is in fact connected,
+                    # without specifying the exact external node.
                     if expected_socket.is_output:
-                        self.assertEqual(mapping.node_map.setdefault(test_link.to_node, expected_link.to_node), expected_link.to_node)
-                        self.assertEqual(mapping.socket_map.setdefault(test_link.to_socket, expected_link.to_socket), expected_link.to_socket)
+                        self.assertEqual(
+                            mapping.node_map.setdefault(
+                                test_link.to_node,
+                                expected_link.to_node),
+                            expected_link.to_node)
+                        self.assertEqual(
+                            mapping.socket_map.setdefault(
+                                test_link.to_socket,
+                                expected_link.to_socket),
+                            expected_link.to_socket)
                     else:
-                        self.assertEqual(mapping.node_map.setdefault(test_link.from_node, expected_link.from_node), expected_link.from_node)
-                        self.assertEqual(mapping.socket_map.setdefault(test_link.from_socket, expected_link.from_socket), expected_link.from_socket)
+                        self.assertEqual(
+                            mapping.node_map.setdefault(
+                                test_link.from_node,
+                                expected_link.from_node),
+                            expected_link.from_node)
+                        self.assertEqual(
+                            mapping.socket_map.setdefault(
+                                test_link.from_socket,
+                                expected_link.from_socket),
+                            expected_link.from_socket)
 
     # Validate a node against the expected data using the node map.
     def compare_node(self, test_node, expected_node, mapping):
@@ -381,7 +404,10 @@ class AbstractNodeCopyOperatorTest(unittest.TestCase):
                 self.assertEqual(test_item.default_input, expected_item.default_input)
                 self.assertEqual(test_item.menu_expanded, expected_item.menu_expanded)
                 if hasattr(expected_item, "default_value"):
-                    self.compare_value(expected_item.bl_socket_idname, test_item.default_value, expected_item.default_value)
+                    self.compare_value(
+                        expected_item.bl_socket_idname,
+                        test_item.default_value,
+                        expected_item.default_value)
                 if hasattr(expected_item, "min_value"):
                     self.assertEqual(test_item.min_value, expected_item.min_value)
                 if hasattr(expected_item, "max_value"):
@@ -421,7 +447,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                 mapping = execute_make_group(test_case, test_tree, expected_tree)
                 self.compare(mapping)
 
-
     def test_group_insert(self):
         test_tree = bpy.data.node_groups["Tests"]
         expected_tree = bpy.data.node_groups["ExpectedGroupInsert"]
@@ -429,7 +454,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
             with self.subTest(case=test_case):
                 mapping = execute_group_insert(test_case, test_tree, expected_tree)
                 self.compare(mapping)
-
 
     def test_ungroup(self):
         # Start with grouped nodes.
@@ -440,7 +464,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
                 mapping = execute_ungroup(test_case, test_tree, expected_tree)
                 self.compare(mapping)
 
-
     def test_group_separate_copy(self):
         # Start with grouped nodes.
         test_tree = bpy.data.node_groups["ExpectedMakeGroup"]
@@ -449,7 +472,6 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
             with self.subTest(case=test_case):
                 mapping = execute_group_separate('COPY', test_case, test_tree, expected_tree)
                 self.compare(mapping)
-
 
     def test_group_separate_move(self):
         # Start with grouped nodes.
@@ -472,7 +494,7 @@ def copy_tree(src_tree, dst_modifier):
     dst_modifier.node_group = None
     # Note: calling bpy.data.orphans_purge() directly does not work for some reason.
     bpy.ops.outliner.orphans_purge()
-    
+
     dst_tree = src_tree.copy()
     dst_tree.name = dst_modifier.name
     dst_modifier.node_group = dst_tree
@@ -521,7 +543,10 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--testdir', required=True, type=pathlib.Path)
-    parser.add_argument('--generate', action='store_true', help="Generate ground truth test data instead of running the test")
+    parser.add_argument(
+        '--generate',
+        action='store_true',
+        help="Generate ground truth test data instead of running the test")
     parser.add_argument('--subtest', default=None, help="Select a single test case")
     args, remaining = parser.parse_known_args(argv)
 
