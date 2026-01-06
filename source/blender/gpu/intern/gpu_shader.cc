@@ -136,7 +136,6 @@ static void standard_defines(Vector<StringRefNull> &sources)
   /* Version and specialization constants needs to be first.
    * Exact values will be added by implementation. */
   sources.append("version");
-  sources.append("/* specialization_constants */");
   /* Define to identify code usage in shading language. */
   sources.append("#define GPU_SHADER\n");
   /* some useful defines to detect GPU type */
