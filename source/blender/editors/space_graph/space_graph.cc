@@ -429,7 +429,7 @@ static void graph_channel_region_draw(const bContext *C, ARegion *region)
   /* clear and setup matrix */
   blender::ui::theme::frame_buffer_clear(TH_BACK);
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                                     ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
   const size_t item_count = ANIM_animdata_filter(
@@ -692,7 +692,7 @@ static void graph_refresh_fcurve_colors(const bContext *C)
 {
   bAnimContext ac;
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   bAnimListElem *ale;
   size_t items;
   int filter;
@@ -994,7 +994,7 @@ void ED_spacetype_ipo()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: footer */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype graphedit region"));
+  art = MEM_callocN<ARegionType>("spacetype graphedit region");
   art->regionid = RGN_TYPE_FOOTER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;

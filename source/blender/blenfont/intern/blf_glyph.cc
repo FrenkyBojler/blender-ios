@@ -790,8 +790,8 @@ static FT_UInt blf_glyph_index_from_charcode(FontBLF **font, const uint charcode
     return glyph_index;
   }
 
-  /* Fonts managed by the cache can fallback. Unless specifically forbidden. */
-  if (!((*font)->flags & BLF_CACHED) || ((*font)->flags & BLF_NO_FALLBACK)) {
+  /* Fallback disabled. */
+  if ((*font)->flags & BLF_NO_FALLBACK) {
     return 0;
   }
 
@@ -1669,7 +1669,7 @@ void blf_glyph_draw(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, const int x, 
  */
 
 static void blf_glyph_to_curves(const FT_Outline &ftoutline,
-                                ListBase *nurbsbase,
+                                ListBaseT<Nurb> *nurbsbase,
                                 const float scale)
 {
   const float eps = 0.0001f;
@@ -1890,7 +1890,7 @@ static FT_GlyphSlot blf_glyphslot_ensure_outline(FontBLF *font, uint charcode, b
 
 bool blf_character_to_curves(FontBLF *font,
                              uint unicode,
-                             ListBase *nurbsbase,
+                             ListBaseT<Nurb> *nurbsbase,
                              const float scale,
                              bool use_fallback,
                              float *r_advance)

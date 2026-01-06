@@ -24,7 +24,6 @@ struct Scene;
 struct VFont;
 struct bSound;
 
-#ifdef __cplusplus
 namespace blender::seq {
 struct FinalImageCache;
 struct IntraFrameCache;
@@ -37,28 +36,6 @@ struct SourceImageCache;
 struct StripLookup;
 struct StripRuntime;
 }  // namespace blender::seq
-using FinalImageCache = blender::seq::FinalImageCache;
-using IntraFrameCache = blender::seq::IntraFrameCache;
-using MediaPresence = blender::seq::MediaPresence;
-using PreviewCache = blender::seq::PreviewCache;
-using ThumbnailCache = blender::seq::ThumbnailCache;
-using TextVarsRuntime = blender::seq::TextVarsRuntime;
-using PrefetchJob = blender::seq::PrefetchJob;
-using SourceImageCache = blender::seq::SourceImageCache;
-using StripLookup = blender::seq::StripLookup;
-using StripRuntime = blender::seq::StripRuntime;
-#else
-struct FinalImageCache;
-struct IntraFrameCache;
-struct MediaPresence;
-struct PreviewCache;
-struct ThumbnailCache;
-struct TextVarsRuntime;
-struct PrefetchJob;
-struct SourceImageCache;
-struct StripLookup;
-struct StripRuntime;
-#endif
 
 /** #Strip.flag */
 enum eStripFlag {
@@ -475,7 +452,7 @@ struct Strip {
   int retiming_keys_num = 0;
   char _pad6[4] = {};
 
-  StripRuntime *runtime = nullptr;
+  blender::seq::StripRuntime *runtime = nullptr;
 
 #ifdef __cplusplus
   bool is_effect() const;
@@ -522,13 +499,10 @@ struct Strip {
    */
   void right_handle_set(const Scene *scene, int timeline_frame);
   /**
-   * This function has same effect as calling @Strip::right_handle_frame_set and
-   * @Strip::left_handle_frame_set. If both handles are to be set after strip length changes, it is
-   * recommended to use this function as the order of setting handles is important. See #131731.
+   * Set the left and right handles of the strip.
+   * \note `left_frame` must be less than `right_frame`.
    */
-  void handles_set(const Scene *scene,
-                   int left_handle_timeline_frame,
-                   int right_handle_timeline_frame);
+  void handles_set(const Scene *scene, int left_frame, int right_frame);
   /**
    * Test if strip intersects with timeline frame.
    * \note This checks if strip would be rendered at this frame. For rendering it is assumed, that
@@ -622,13 +596,13 @@ enum eEditingRuntimeFlag {
 };
 
 struct EditingRuntime {
-  StripLookup *strip_lookup = nullptr;
-  MediaPresence *media_presence = nullptr;
-  ThumbnailCache *thumbnail_cache = nullptr;
-  IntraFrameCache *intra_frame_cache = nullptr;
-  SourceImageCache *source_image_cache = nullptr;
-  FinalImageCache *final_image_cache = nullptr;
-  PreviewCache *preview_cache = nullptr;
+  blender::seq::StripLookup *strip_lookup = nullptr;
+  blender::seq::MediaPresence *media_presence = nullptr;
+  blender::seq::ThumbnailCache *thumbnail_cache = nullptr;
+  blender::seq::IntraFrameCache *intra_frame_cache = nullptr;
+  blender::seq::SourceImageCache *source_image_cache = nullptr;
+  blender::seq::FinalImageCache *final_image_cache = nullptr;
+  blender::seq::PreviewCache *preview_cache = nullptr;
   /** Used for rendering a different frame using sequencer_draw_get_transform_preview from the box
    * blade tool. */
   int transform_preview_frame = 0;
@@ -660,7 +634,7 @@ struct Editing {
   int show_missing_media_flag = 0; /* eEditingShowMissingMediaFlag */
   int cache_flag = 0;              /* eEditingCacheFlag */
 
-  PrefetchJob *prefetch_job = nullptr;
+  blender::seq::PrefetchJob *prefetch_job = nullptr;
 
   EditingRuntime runtime;
 
@@ -854,7 +828,7 @@ struct TextVars {
   char anchor_x = 0; /* eEffectTextAlignX */
   char anchor_y = 0; /* eEffectTextAlignY */
   char _pad1 = {};
-  TextVarsRuntime *runtime = nullptr;
+  blender::seq::TextVarsRuntime *runtime = nullptr;
 
   /* Fixed size text buffer, only exists for forward/backward compatibility.
    * #TextVars::text_ptr and #TextVars::text_len_bytes are used for full text. */

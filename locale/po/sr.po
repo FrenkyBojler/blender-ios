@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -8497,6 +8497,38 @@ msgid "Material slot name"
 msgstr "Назив слота материјала"
 
 
+msgid "Show/Hide"
+msgstr "Прикажи/сакриј"
+
+
+msgid "Names"
+msgstr "Имена"
+
+
+msgid "Bone Roll"
+msgstr "Ролна костију"
+
+
+msgid "Math"
+msgstr "Математика"
+
+
+msgid "Snap"
+msgstr "Лепљење"
+
+
+msgid "Import"
+msgstr "Увоз"
+
+
+msgid "Mirror"
+msgstr "Огледало"
+
+
+msgid "UV Mapping"
+msgstr "UV Мапирање"
+
+
 msgid "Local View"
 msgstr "Локални поглед"
 
@@ -8507,6 +8539,10 @@ msgstr "Навигација"
 
 msgid "Align View"
 msgstr "Поравнај поглед"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Linked"
@@ -8541,24 +8577,8 @@ msgid "Quick Effects"
 msgstr "Брзи ефекти"
 
 
-msgid "Show/Hide"
-msgstr "Прикажи/сакриј"
-
-
-msgid "Keying"
-msgstr "Збирка тастера"
-
-
-msgid "Tracking"
-msgstr "Праћење"
-
-
 msgid "Hooks"
 msgstr "Удице"
-
-
-msgid "Math"
-msgstr "Математика"
 
 
 msgid "Clear Transform"
@@ -8573,10 +8593,6 @@ msgid "Propagate"
 msgstr "Пренеси"
 
 
-msgid "Names"
-msgstr "Имена"
-
-
 msgid "Toggle Bone Options"
 msgstr "Мање/више информација"
 
@@ -8585,8 +8601,16 @@ msgid "Enable Bone Options"
 msgstr "Омогући опције костију"
 
 
+msgid "Keying"
+msgstr "Збирка тастера"
+
+
 msgid "Disable Bone Options"
 msgstr "Онемогући опције костију"
+
+
+msgid "Tracking"
+msgstr "Праћење"
 
 
 msgid "Mesh Select Mode"
@@ -8599,30 +8623,6 @@ msgstr "Сједини"
 
 msgid "Special Characters"
 msgstr "Специјални знаци"
-
-
-msgid "Bone Roll"
-msgstr "Ролна костију"
-
-
-msgid "Import"
-msgstr "Увоз"
-
-
-msgid "Snap"
-msgstr "Лепљење"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Огледало"
-
-
-msgid "UV Mapping"
-msgstr "UV Мапирање"
 
 
 msgid "Basic"
@@ -19135,12 +19135,12 @@ msgid "Restrict"
 msgstr "Ограничи"
 
 
-msgid "Transform Orientations"
-msgstr "Трансформација оријентација"
-
-
 msgid "Motion Tracking"
 msgstr "Праћење покрета"
+
+
+msgid "Transform Orientations"
+msgstr "Трансформација оријентација"
 
 
 msgid "Bone Constraints"
