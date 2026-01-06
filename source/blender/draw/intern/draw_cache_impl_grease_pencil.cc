@@ -1332,12 +1332,6 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       copy_v4_v4(c_vert.vcol, vertex_colors[point_i]);
       copy_v4_v4(c_vert.fcol, stroke_fill_colors[first_curve]);
       c_vert.fcol[3] = (int(c_vert.fcol[3] * 10000.0f) * 10.0f) + fill_opacities[first_curve];
-
-      int v_mat = (verts_range[idx] << GP_VERTEX_ID_SHIFT) | GP_IS_STROKE_VERTEX_BIT;
-      triangle_ibo_data[triangle_ibo_index] = uint3(v_mat + 0, v_mat + 1, v_mat + 2);
-      triangle_ibo_index++;
-      triangle_ibo_data[triangle_ibo_index] = uint3(v_mat + 2, v_mat + 1, v_mat + 3);
-      triangle_ibo_index++;
     };
 
     auto populate_curve = [&](const int curve_i,
@@ -1346,6 +1340,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
                               const float4x2 &texture_matrix) {
       const IndexRange points = points_by_curve[curve_i];
       const bool is_cyclic = cyclic[curve_i] && (points.size() > 2);
+      const int verts_start_offset = verts_start_offsets[curve_i];
       const int num_verts = 1 + points.size() + (is_cyclic ? 1 : 0) + 1;
       const IndexRange verts_range = IndexRange(verts_start_offset, num_verts);
       MutableSpan<GreasePencilStrokeVert> verts_slice = verts.slice(verts_range);
@@ -1405,13 +1400,66 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     };
 
     if (!shapes) {
-      visible_shapes.foreach_index([&](const int shape_index) {
-        const Span<int3> tris_slice = triangles[shape_index];
+      threading::parallel_for(
+          visible_shapes.index_range(),
+          1024,
+          [&](const IndexRange range) {
+            visible_shapes.slice(range).foreach_index([&](const int64_t shape_index) {
+              const int first_curve = shape_index;
+              const int first_vert = verts_start_offsets[first_curve];
+              const float4x2 texture_matrix = texture_matrices[first_curve] *
+                                              object_space_to_layer_space;
 
+              const int curve_i = first_curve;
+              populate_curve(curve_i, first_curve, first_vert, texture_matrix);
+            });
+          },
+          threading::accumulated_task_sizes([&](const IndexRange range) {
+            return offset_indices::sum_group_sizes(points_by_curve, visible_shapes.slice(range));
+          }));
+    }
+    else {
+      threading::parallel_for(
+          visible_shapes.index_range(),
+          1024,
+          [&](const IndexRange range) {
+            visible_shapes.slice(range).foreach_index([&](const int64_t shape_index) {
+              const Span<int> shape = (*shapes)[shape_index];
+
+              const int first_curve = shape.first();
+              const int first_vert = verts_start_offsets[first_curve];
+              const float4x2 texture_matrix = texture_matrices[first_curve] *
+                                              object_space_to_layer_space;
+
+              for (const int pos : shape.index_range()) {
+                const int curve_i = shape[pos];
+                populate_curve(curve_i, first_curve, first_vert, texture_matrix);
+              }
+            });
+          },
+          threading::accumulated_task_sizes([&](const IndexRange range) {
+            int value = 0;
+            visible_shapes.slice(range).foreach_index([&](const int64_t shape_index) {
+              const Span<int> shape = (*shapes)[shape_index];
+              value += offset_indices::sum_group_sizes(points_by_curve, shape);
+            });
+            return value;
+          }));
+    }
+
+    /* Fill in IBO in series. */
+    if (!shapes) {
+      visible_shapes.foreach_index([&](const int shape_index, const int pos) {
+        const Span<int3> tris_slice = triangles[shape_index];
         const int first_curve = shape_index;
+
+        const IndexRange points = points_by_curve[first_curve];
+        const bool is_cyclic = cyclic[first_curve] && (points.size() > 2);
+        const int verts_start_offset = verts_start_offsets[pos];
+        const int num_verts = 1 + points.size() + (is_cyclic ? 1 : 0) + 1;
+        const IndexRange verts_range = IndexRange(verts_start_offset, num_verts);
+
         const int first_vert = verts_start_offsets[first_curve];
-        const float4x2 texture_matrix = texture_matrices[first_curve] *
-                                        object_space_to_layer_space;
 
         auto point_to_id = [&](int32_t p) { return (1 + p + first_vert) << GP_VERTEX_ID_SHIFT; };
 
@@ -1422,8 +1470,24 @@ static void grease_pencil_geom_batch_ensure(Object &object,
           triangle_ibo_index++;
         }
 
-        const int curve_i = first_curve;
-        populate_curve(curve_i, first_curve, first_vert, texture_matrix);
+        for (const int i : points.index_range()) {
+          const int idx = i + 1;
+          int v_mat = (verts_range[idx] << GP_VERTEX_ID_SHIFT) | GP_IS_STROKE_VERTEX_BIT;
+          triangle_ibo_data[triangle_ibo_index] = uint3(v_mat + 0, v_mat + 1, v_mat + 2);
+          triangle_ibo_index++;
+          triangle_ibo_data[triangle_ibo_index] = uint3(v_mat + 2, v_mat + 1, v_mat + 3);
+          triangle_ibo_index++;
+        }
+
+        if (is_cyclic) {
+          const int idx = points.size() + 1;
+
+          int v_mat = (verts_range[idx] << GP_VERTEX_ID_SHIFT) | GP_IS_STROKE_VERTEX_BIT;
+          triangle_ibo_data[triangle_ibo_index] = uint3(v_mat + 0, v_mat + 1, v_mat + 2);
+          triangle_ibo_index++;
+          triangle_ibo_data[triangle_ibo_index] = uint3(v_mat + 2, v_mat + 1, v_mat + 3);
+          triangle_ibo_index++;
+        }
       });
     }
     else {
@@ -1431,10 +1495,6 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         const Span<int3> tris_slice = triangles[shape_index];
 
         const Span<int> shape = (*shapes)[shape_index];
-        const int first_curve = shape.first();
-        const int first_vert = verts_start_offsets[first_curve];
-        const float4x2 texture_matrix = texture_matrices[first_curve] *
-                                        object_space_to_layer_space;
 
         int shape_points_index = 0;
         Array<int> shape_point_offset_data(shape.size() + 1);
@@ -1445,6 +1505,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
           shape_point_offset_data[pos] = shape_points_index;
           shape_points_index += points.size();
         }
+
         shape_point_offset_data.last() = shape_points_index;
         OffsetIndices<int> shape_point_offset = OffsetIndices<int>(shape_point_offset_data);
 
@@ -1469,7 +1530,30 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
         for (const int pos : shape.index_range()) {
           const int curve_i = shape[pos];
-          populate_curve(curve_i, first_curve, first_vert, texture_matrix);
+          const IndexRange points = points_by_curve[curve_i];
+          const bool is_cyclic = cyclic[curve_i] && (points.size() > 2);
+          const int verts_start_offset = verts_start_offsets[curve_i];
+          const int num_verts = 1 + points.size() + (is_cyclic ? 1 : 0) + 1;
+          const IndexRange verts_range = IndexRange(verts_start_offset, num_verts);
+
+          for (const int i : points.index_range()) {
+            const int idx = i + 1;
+            int v_mat = (verts_range[idx] << GP_VERTEX_ID_SHIFT) | GP_IS_STROKE_VERTEX_BIT;
+            triangle_ibo_data[triangle_ibo_index] = uint3(v_mat + 0, v_mat + 1, v_mat + 2);
+            triangle_ibo_index++;
+            triangle_ibo_data[triangle_ibo_index] = uint3(v_mat + 2, v_mat + 1, v_mat + 3);
+            triangle_ibo_index++;
+          }
+
+          if (is_cyclic) {
+            const int idx = points.size() + 1;
+
+            int v_mat = (verts_range[idx] << GP_VERTEX_ID_SHIFT) | GP_IS_STROKE_VERTEX_BIT;
+            triangle_ibo_data[triangle_ibo_index] = uint3(v_mat + 0, v_mat + 1, v_mat + 2);
+            triangle_ibo_index++;
+            triangle_ibo_data[triangle_ibo_index] = uint3(v_mat + 2, v_mat + 1, v_mat + 3);
+            triangle_ibo_index++;
+          }
         }
       });
     }
