@@ -38,11 +38,6 @@ static CLG_LogRef LOG = {"gpu.shader"};
 
 namespace blender::gpu {
 
-std::string Shader::run_preprocessor(StringRef source)
-{
-  return source;
-}
-
 void Shader::dump_source_to_disk(StringRef shader_name,
                                  StringRef shader_name_with_stage_name,
                                  StringRef extension,
