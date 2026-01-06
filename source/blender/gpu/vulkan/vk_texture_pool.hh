@@ -17,27 +17,29 @@ class VKTexturePool : public TexturePool {
    * functions (selection / display) causing constant allocation / deallocation (See #113024). */
   static constexpr int max_unused_cycles_ = 8;
 
-  /* Struct to store unused allocations. The internal counter increments on every
-   * `::reset()`, and the allocation is deallocated when it reaches `max_unused_cycles_`. */
+  /* Struct to store a memory allocation. */
   struct AllocationHandle {
     VmaAllocation allocation = VK_NULL_HANDLE;
     VmaAllocationInfo allocation_info = {};
-    int counter = 0;
+
+    /* Counter to track the number of unused cycles before deallocation in `pool_`. */
+    int unused_cycles_count = 0;
 
     /* Allocate/deallocate the handle internals. */
-    void init(VkMemoryRequirements memory_requirements);
+    bool init(VkMemoryRequirements memory_requirements);
     void free();
   };
 
-  /* Struct to store acquired textures and the backing allocation. The internal counter is set to 1
-   * on `::acquire()` and decrements on `::release()/::retain()`, and must be 0 on `::reset()`. */
+  /* Struct to store an acquired texture and its backing allocation. */
   struct TextureHandle {
     VKTexture *texture = nullptr;
     AllocationHandle allocation_handle = {};
-    int counter = 1;
+
+    /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
+    int users_count = 1;
 
     /* Create or destroy the VKTexture+VkImage backing the internal pointer. */
-    void init(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name);
+    bool init(int2 extent, TextureFormat format, eGPUTextureUsage usage, const char *name);
     void free();
 
     /* We use the pointer as hash/comparator, as a TextureHandle cannot be acquired twice.
@@ -58,12 +60,16 @@ class VKTexturePool : public TexturePool {
 
  public:
   ~VKTexturePool();
+
   Texture *acquire_texture(int2 extent,
                            TextureFormat format,
                            eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL) override;
+
   void release_texture(Texture *tex) override;
+
   void reset(bool force_free = false) override;
-  void offset_texture_counter(Texture *tex, int offset) override;
+
+  void offset_users_count(Texture *tex, int offset) override;
 };
 
 }  // namespace blender::gpu
