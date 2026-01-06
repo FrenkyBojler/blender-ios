@@ -1010,11 +1010,11 @@ static IDProperty *idp_from_DatablockPointer(IDProperty *prop_exist,
   return prop;
 }
 
-static IDProperty *idp_from_PyObject(IDProperty *prop_exist,
-                                     const char *name,
-                                     PyObject *ob,
-                                     const bool do_conversion,
-                                     const bool can_create)
+IDProperty *idp_from_PyObject(IDProperty *prop_exist,
+                              const char *name,
+                              PyObject *ob,
+                              const bool do_conversion,
+                              const bool can_create)
 {
   if (name == nullptr) {
     return nullptr;

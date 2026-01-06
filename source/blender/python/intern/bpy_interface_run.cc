@@ -314,40 +314,12 @@ bool BPY_run_string_exec(bContext *C, const char *imports[], const char *expr)
  * \return IDProperty The converted property, or nullptr if the Python value was None. The caller
  * owns the pointer, and is responsible for freeing it.
  */
-static IDProperty *pyobject_to_idprop(PyObject *obj)
+static IDProperty *pyobject_to_idprop(const blender::StringRefNull prop_name, PyObject *py_object)
 {
-  if (obj == Py_None) {
+  if (py_object == Py_None) {
     return nullptr;
   }
-
-  IDPropertyTemplate prop_template{0};
-  eIDPropertyType prop_type;
-  if (PyBool_Check(obj)) {
-    prop_type = IDP_BOOLEAN;
-    prop_template.i = (obj == Py_True);
-  }
-  else if (PyLong_Check(obj)) {
-    prop_type = IDP_INT;
-    prop_template.i = PyLong_AsLongLong(obj);
-  }
-  else if (PyFloat_Check(obj)) {
-    prop_type = IDP_FLOAT;
-    prop_template.i = PyC_Long_AsI32(obj);
-  }
-  else if (PyUnicode_Check(obj)) {
-    prop_type = IDP_STRING;
-    Py_ssize_t strlen = 0;
-    prop_template.string.str = PyUnicode_AsUTF8AndSize(obj, &strlen);
-    /* Should include the null byte, but only if the string is not nullptr. */
-    prop_template.string.len = prop_template.string.str ? strlen + 1 : 0;
-  }
-  else {
-    // Unsupported type
-    PyErr_SetString(PyExc_TypeError, "Unsupported _result type");
-    return nullptr;
-  }
-
-  return IDP_New(prop_type, &prop_template, "_result");
+  return idp_from_PyObject(nullptr, prop_name.c_str(), py_object, false, true);
 }
 
 /**
@@ -447,7 +419,7 @@ std::optional<IDProperty *> BPY_run_string_exec_with_locals_return_idprop(
       return;
     }
 
-    result_idprop = pyobject_to_idprop(py_ret);
+    result_idprop = pyobject_to_idprop(result_var_name, py_ret);
     if (!result_idprop) {
       PyErr_Print();
     }
