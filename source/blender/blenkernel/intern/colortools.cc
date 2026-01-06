@@ -458,6 +458,9 @@ void BKE_curvemap_reset(CurveMap *cuma, const rctf *clipr, int preset, CurveMapS
        * the clip region. */
       std::swap(cuma->curve[0].y, cuma->curve[1].y);
     }
+    else if (preset == CURVE_PRESET_MID8) {
+      /* All points in the MID8 preset have y = 0.5, so no action is needed. */
+    }
     else {
       int i, last = cuma->totpoint - 1;
       /* For all curves other than the LINE and CONSTANT_MEDIAN curves, we assume that the x period
@@ -1412,7 +1415,7 @@ void BKE_curvemapping_table_RGBA(const CurveMapping *cumap, float **array, int *
 
 void BKE_curvemapping_blend_write(BlendWriter *writer, const CurveMapping *cumap)
 {
-  BLO_write_struct(writer, CurveMapping, cumap);
+  writer->write_struct(cumap);
   BKE_curvemapping_curves_blend_write(writer, cumap);
 }
 

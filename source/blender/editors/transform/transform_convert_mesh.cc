@@ -10,12 +10,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
+#include "BLI_array.hh"
 #include "BLI_linklist_stack.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_memarena.h"
 
 #include "BKE_context.hh"
@@ -103,7 +104,7 @@ static TransCustomDataMesh *mesh_customdata_ensure(TransDataContainer *tc)
   BLI_assert(tc->custom.type.data == nullptr ||
              tc->custom.type.free_cb == mesh_customdata_free_fn);
   if (tc->custom.type.data == nullptr) {
-    tc->custom.type.data = MEM_callocN(sizeof(TransCustomDataMesh), __func__);
+    tc->custom.type.data = MEM_callocN<TransCustomDataMesh>(__func__);
     tc->custom.type.free_cb = mesh_customdata_free_fn;
     tcmd = static_cast<TransCustomDataMesh *>(tc->custom.type.data);
     tcmd->partial_update_state_prev.for_looptris = PARTIAL_NONE;
@@ -271,9 +272,8 @@ static void mesh_customdatacorrect_init_vert(TransCustomDataLayer *tcld,
   // BM_ITER_ELEM (l, &liter, sv->v, BM_LOOPS_OF_VERT) {
   BM_iter_init(&liter, bm, BM_LOOPS_OF_VERT, v);
   l_num = liter.count;
-  loop_weights = tcld->use_merge_group ?
-                     static_cast<float *>(BLI_array_alloca(loop_weights, l_num)) :
-                     nullptr;
+  Array<float, BM_DEFAULT_TOPOLOGY_STACK_SIZE> loop_weights_buf(tcld->use_merge_group ? l_num : 0);
+  loop_weights = tcld->use_merge_group ? loop_weights_buf.data() : nullptr;
   for (j = 0; j < l_num; j++) {
     BMLoop *l = static_cast<BMLoop *>(BM_iter_step(&liter));
     BMLoop *l_prev, *l_next;
@@ -387,8 +387,7 @@ static TransCustomDataLayer *mesh_customdatacorrect_create_impl(TransDataContain
     return nullptr;
   }
 
-  TransCustomDataLayer *tcld = static_cast<TransCustomDataLayer *>(
-      MEM_callocN(sizeof(*tcld), __func__));
+  TransCustomDataLayer *tcld = MEM_callocN<TransCustomDataLayer>(__func__);
   tcld->bm = bm;
   tcld->arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
 
@@ -542,8 +541,8 @@ static void mesh_customdatacorrect_apply_vert(TransCustomDataLayer *tcld,
   // BM_ITER_ELEM (l, &liter, sv->v, BM_LOOPS_OF_VERT)
   BM_iter_init(&liter, bm, BM_LOOPS_OF_VERT, v);
   l_num = liter.count;
-  loop_weights = do_loop_weight ? static_cast<float *>(BLI_array_alloca(loop_weights, l_num)) :
-                                  nullptr;
+  Array<float, BM_DEFAULT_TOPOLOGY_STACK_SIZE> loop_weights_buf(do_loop_weight ? l_num : 0);
+  loop_weights = do_loop_weight ? loop_weights_buf.data() : nullptr;
   for (j = 0; j < l_num; j++) {
     BMFace *f_copy; /* The copy of 'f'. */
     BMLoop *l = static_cast<BMLoop *>(BM_iter_step(&liter));
@@ -632,7 +631,7 @@ static void mesh_customdatacorrect_apply_vert(TransCustomDataLayer *tcld,
    */
   const bool update_loop_mdisps = is_moved && do_loop_mdisps && (tcld->cd_loop_mdisp_offset != -1);
   if (update_loop_mdisps) {
-    float (*faces_center)[3] = static_cast<float (*)[3]>(BLI_array_alloca(faces_center, l_num));
+    Array<float3, BM_DEFAULT_TOPOLOGY_STACK_SIZE> faces_center(l_num);
     BMLoop *l;
 
     BM_ITER_ELEM_INDEX (l, &liter, v, BM_LOOPS_OF_VERT, j) {
@@ -754,8 +753,7 @@ void transform_convert_mesh_islands_calc(BMEditMesh *em,
     return;
   }
 
-  data.island_vert_map = static_cast<int *>(
-      MEM_mallocN(sizeof(*data.island_vert_map) * bm->totvert, __func__));
+  data.island_vert_map = MEM_malloc_arrayN<int>(bm->totvert, __func__);
   /* We shouldn't need this, but with incorrect selection flushing
    * its possible we have a selected vertex that's not in a face,
    * for now best not crash in that case. */
@@ -781,13 +779,11 @@ void transform_convert_mesh_islands_calc(BMEditMesh *em,
 
     BLI_assert(data.island_tot);
     if (calc_island_center) {
-      data.center = static_cast<float (*)[3]>(
-          MEM_mallocN(sizeof(*data.center) * data.island_tot, __func__));
+      data.center = MEM_malloc_arrayN<float[3]>(data.island_tot, __func__);
     }
 
     if (calc_island_axismtx) {
-      data.axismtx = static_cast<float (*)[3][3]>(
-          MEM_mallocN(sizeof(*data.axismtx) * data.island_tot, __func__));
+      data.axismtx = MEM_malloc_arrayN<float[3][3]>(data.island_tot, __func__);
     }
 
     BM_mesh_elem_table_ensure(bm, htype);
@@ -1235,7 +1231,7 @@ void transform_convert_mesh_mirrordata_calc(BMEditMesh *em,
       continue;
     }
 
-    index[a] = static_cast<int *>(MEM_mallocN(totvert * sizeof(*index[a]), __func__));
+    index[a] = MEM_malloc_arrayN<int>(totvert, __func__);
     EDBM_verts_mirror_cache_begin_ex(
         em, a, false, test_selected_only, true, use_topology, TRANSFORM_MAXDIST_MIRROR, index[a]);
 
@@ -1355,8 +1351,7 @@ void transform_convert_mesh_crazyspace_detect(TransInfo *t,
     {
       const Array<float3> mappedcos = BKE_crazyspace_get_mapped_editverts(t->depsgraph,
                                                                           tc->obedit);
-      quats = static_cast<float (*)[4]>(
-          MEM_mallocN(em->bm->totvert * sizeof(*quats), "crazy quats"));
+      quats = MEM_malloc_arrayN<float[4]>(em->bm->totvert, "crazy quats");
       BKE_crazyspace_set_quats_editmesh(em, defcos, mappedcos, quats, !prop_mode);
     }
   }
@@ -1582,8 +1577,8 @@ static void createTransEditVerts(bContext * /*C*/, TransInfo *t)
 
       if (mirror_data.vert_map) {
         tc->data_mirror_len = mirror_data.mirror_elem_len;
-        tc->data_mirror = static_cast<TransDataMirror *>(
-            MEM_callocN(mirror_data.mirror_elem_len * sizeof(*tc->data_mirror), __func__));
+        tc->data_mirror = MEM_calloc_arrayN<TransDataMirror>(mirror_data.mirror_elem_len,
+                                                             __func__);
 
         BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, a) {
           if (prop_mode || BM_elem_flag_test(eve, BM_ELEM_SELECT)) {

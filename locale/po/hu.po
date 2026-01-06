@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7d4876cf0c11')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-16 11:27+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -6577,6 +6577,18 @@ msgid "Use Material Mask"
 msgstr "Anyagmaszk használata"
 
 
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
+
+
+msgid "Clean Up"
+msgstr "Tisztítás"
+
+
+msgid "Import"
+msgstr "Importálás"
+
+
 msgid "Mirror"
 msgstr "Tükrözés"
 
@@ -6591,6 +6603,10 @@ msgstr "Navigáció"
 
 msgid "Align View"
 msgstr "Nézet igazítása"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Metaball"
@@ -6609,40 +6625,24 @@ msgid "Rigid Body"
 msgstr "Szilárd test"
 
 
-msgid "Keying"
-msgstr "Kulcsozás"
-
-
 msgid "Apply"
 msgstr "Elfogadás"
-
-
-msgid "Tracking"
-msgstr "Követés"
 
 
 msgid "Track"
 msgstr "Nyom"
 
 
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
+msgid "Keying"
+msgstr "Kulcsozás"
 
 
-msgid "Clean Up"
-msgstr "Tisztítás"
+msgid "Tracking"
+msgstr "Követés"
 
 
 msgid "Merge"
 msgstr "Összefésülés"
-
-
-msgid "Import"
-msgstr "Importálás"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgctxt "MovieClip"
@@ -12797,12 +12797,12 @@ msgid "Detail Size"
 msgstr "Részlet mérete"
 
 
-msgid "Motion Tracking"
-msgstr "Mozgáskövetés"
-
-
 msgid "Render Pass"
 msgstr "Render vezeték"
+
+
+msgid "Motion Tracking"
+msgstr "Mozgáskövetés"
 
 
 msgid "Chain Scaling"

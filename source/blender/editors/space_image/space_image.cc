@@ -63,8 +63,8 @@ static void image_scopes_tag_refresh(ScrArea *area)
   SpaceImage *sima = (SpaceImage *)area->spacedata.first;
 
   /* only while histogram is visible */
-  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    if (region->regiontype == RGN_TYPE_TOOL_PROPS && region->flag & RGN_FLAG_HIDDEN) {
+  for (ARegion &region : area->regionbase) {
+    if (region.regiontype == RGN_TYPE_TOOL_PROPS && region.flag & RGN_FLAG_HIDDEN) {
       return;
     }
   }
@@ -191,7 +191,7 @@ static void image_free(SpaceLink *sl)
 /* spacetype; init callback, add handlers */
 static void image_init(wmWindowManager * /*wm*/, ScrArea *area)
 {
-  ListBase *lb = WM_dropboxmap_find("Image", SPACE_IMAGE, RGN_TYPE_WINDOW);
+  ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Image", SPACE_IMAGE, RGN_TYPE_WINDOW);
 
   /* add drop boxes */
   WM_event_add_dropbox_handler(&area->handlers, lb);
@@ -1214,7 +1214,7 @@ static void image_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink 
 
 static void image_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceImage, sl);
+  writer->write_struct_cast<SpaceImage>(sl);
 }
 
 /**************************** spacetype *****************************/

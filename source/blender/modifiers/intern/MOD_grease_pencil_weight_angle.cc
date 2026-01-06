@@ -83,7 +83,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
   const GreasePencilWeightAngleModifierData *mmd =
       reinterpret_cast<const GreasePencilWeightAngleModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilWeightAngleModifierData, mmd);
+  writer->write_struct(mmd);
   modifier::greasepencil::write_influence_data(writer, &mmd->influence);
 }
 
@@ -95,7 +95,7 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 }
 
 static bool target_vertex_group_available(const StringRefNull name,
-                                          const ListBase &vertex_group_names)
+                                          const ListBaseT<bDeformGroup> &vertex_group_names)
 {
   const int def_nr = BKE_defgroup_name_index(&vertex_group_names, name);
   if (def_nr < 0) {
