@@ -2332,7 +2332,10 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain)
 
   /* Error reporting into console. */
   BlendFileWriteParams params{};
-  BKE_reportf(&wm->runtime->reports, RPT_INFO, "Creating autosave at %s", filepath);
+  /* Direclty using wm->runtime->reports prevents the report from being shown to the user. */
+  /* TODO: Maybe make an "autosave" report, since this function and the callers live at an odd
+   * abstraction level? */
+  WM_global_reportf(RPT_INFO, "Creating autosave at %s", filepath);
   BLO_write_file(bmain, filepath, fileflags, &params, nullptr);
 
   /* Restart auto-save timer. */
