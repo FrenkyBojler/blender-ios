@@ -380,8 +380,6 @@ else()
   add_definitions(-DCERES_RESTRICT_SCHUR_SPECIALIZATION)
 endif()
 
-add_definitions(-DCERES_NO_PROTOCOL_BUFFERS)
-
 add_definitions(${GFLAGS_DEFINES})
 add_definitions(${GLOG_DEFINES})
 
