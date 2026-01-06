@@ -126,7 +126,7 @@ bool BPY_run_string_exec_with_locals(bContext *C,
  *
  * \param locals: group property with string keys, defining the script's local variables.
  *
- * \param result_variable: the name of the local variable that the script assigns its result to.
+ * \param result_var_name: the name of the local variable that the script assigns its result to.
  * This MUST be a valid Python identifier.
  *
  * \returns the value of the result variable (see above) after the script finished. If the result
@@ -137,7 +137,7 @@ std::optional<IDProperty *> BPY_run_string_exec_with_locals_return_idprop(
     bContext *C,
     blender::StringRefNull script,
     IDProperty &locals,
-    blender::StringRefNull result_variable);
+    blender::StringRefNull result_var_name);
 
 /** \} */
 

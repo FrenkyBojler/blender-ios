@@ -428,14 +428,14 @@ std::optional<IDProperty *> BPY_run_string_exec_with_locals_return_idprop(
     bContext *C,
     const blender::StringRefNull script,
     IDProperty &locals,
-    const blender::StringRefNull result_variable)
+    const blender::StringRefNull result_var_name)
 {
-  BLI_assert(!result_variable.is_empty());
+  BLI_assert(!result_var_name.is_empty());
 
   std::optional<IDProperty *> result_idprop;
 
-  const auto on_exec_ok = [&result_variable, &result_idprop](PyObject *py_locals) {
-    PyObject *py_ret = PyDict_GetItemString(py_locals, result_variable.c_str());
+  const auto on_exec_ok = [&result_var_name, &result_idprop](PyObject *py_locals) {
+    PyObject *py_ret = PyDict_GetItemString(py_locals, result_var_name.c_str());
     if (!py_ret) {
       /* _result was not defined by the script, translates to 'no value'. */
       return;
