@@ -4358,11 +4358,9 @@ SmallIntArray MeshPattern::corners_for_vert(const int vert) const
     else if (o == 1) {
       /* Vert is oorner just after anchor. */
       if (r == outer_r) {
-        const int f0 = adj::rao_to_face(inside_face_r, a)
-
+        const int f0 = adj::rao_to_face(inside_face_r, a, 0, num_anchors, num_segs);
       }
       else {
-        
       }
     }
     else if (o == div - 1) {
@@ -4370,7 +4368,6 @@ SmallIntArray MeshPattern::corners_for_vert(const int vert) const
       if (r == outer_r) {
       }
       else {
-        
       }
     }
     else {
