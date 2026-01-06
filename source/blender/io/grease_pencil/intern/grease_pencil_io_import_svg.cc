@@ -234,6 +234,7 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
     const IndexRange points = points_by_curve[curve_index];
     const ColorGeometry4f point_color = convert_svg_color(shape.stroke);
 
+    /* Handle first point separately. */
     {
       const float2 pos_center = svg_path_data.first();
       const float2 pos_handle_left = closed ? svg_path_data[points.size() * 3 - 1] : pos_center;
