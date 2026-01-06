@@ -498,7 +498,7 @@ static bool bake_object_check(const Scene *scene,
   }
 
   if (target == R_BAKE_TARGET_VERTEX_COLORS) {
-    if (!BKE_color_attribute_supported(*mesh, mesh->active_color_attribute)) {
+    if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "Mesh does not have an active color attribute \"%s\"",
@@ -540,10 +540,10 @@ static bool bake_object_check(const Scene *scene,
           }
         }
 
-        LISTBASE_FOREACH (ImageTile *, tile, &image->tiles) {
+        for (ImageTile &tile : image->tiles) {
           ImageUser iuser;
           BKE_imageuser_default(&iuser);
-          iuser.tile = tile->tile_number;
+          iuser.tile = tile.tile_number;
 
           void *lock;
           ImBuf *ibuf = BKE_image_acquire_ibuf(image, &iuser, &lock);
@@ -708,9 +708,9 @@ static bool bake_objects_check(Main *bmain,
 /* it needs to be called after bake_objects_check since the image tagging happens there */
 static void bake_targets_clear(Main *bmain, const bool is_tangent)
 {
-  LISTBASE_FOREACH (Image *, image, &bmain->images) {
-    if ((image->id.tag & ID_TAG_DOIT) != 0) {
-      RE_bake_ibuf_clear(image, is_tangent);
+  for (Image &image : bmain->images) {
+    if ((image.id.tag & ID_TAG_DOIT) != 0) {
+      RE_bake_ibuf_clear(&image, is_tangent);
     }
   }
 }
@@ -777,12 +777,12 @@ static bool bake_targets_init_image_textures(const BakeAPIRender *bkr,
     /* Some materials have no image, we just ignore those cases.
      * Also setup each image only once. */
     if (image && !(image->id.tag & ID_TAG_DOIT)) {
-      LISTBASE_FOREACH (ImageTile *, tile, &image->tiles) {
+      for (ImageTile &tile : image->tiles) {
         /* Add bake image. */
         targets->images = static_cast<BakeImage *>(
             MEM_recallocN(targets->images, sizeof(BakeImage) * (targets->images_num + 1)));
         targets->images[targets->images_num].image = image;
-        targets->images[targets->images_num].tile_number = tile->tile_number;
+        targets->images[targets->images_num].tile_number = tile.tile_number;
         targets->images_num++;
       }
 
@@ -932,7 +932,7 @@ static bool bake_targets_output_external(const BakeAPIRender *bkr,
     BakeData *bake = &bkr->scene->r.bake;
     char filepath[FILE_MAX];
 
-    const blender::Vector<bke::path_templates::Error> errors = BKE_image_path_from_imtype(
+    const Vector<bke::path_templates::Error> errors = BKE_image_path_from_imtype(
         filepath,
         bkr->filepath,
         BKE_main_blendfile_path(bkr->main),
@@ -1017,7 +1017,7 @@ static bool bake_targets_init_vertex_colors(Main *bmain,
   }
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  if (!BKE_color_attribute_supported(*mesh, mesh->active_color_attribute)) {
+  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
     BKE_report(reports, RPT_ERROR, "No active color attribute to bake to");
     return false;
   }
@@ -1492,16 +1492,11 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
       }
       else {
         ob_cage_eval = DEG_get_evaluated(depsgraph, ob_cage);
-        if (ob_cage_eval->id.orig_id != &ob_cage->id) {
-          BKE_reportf(reports,
-                      RPT_ERROR,
-                      "Cage object \"%s\" not found in evaluated scene, it may be hidden",
-                      ob_cage->id.name + 2);
-          goto cleanup;
+        if (ob_cage_eval) {
+          ob_cage_eval->visibility_flag |= OB_HIDE_RENDER;
+          ob_cage_eval->base_flag &= ~(BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+                                       BASE_ENABLED_RENDER);
         }
-        ob_cage_eval->visibility_flag |= OB_HIDE_RENDER;
-        ob_cage_eval->base_flag &= ~(BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
-                                     BASE_ENABLED_RENDER);
       }
     }
   }
@@ -1523,6 +1518,15 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
 
   /* get the mesh as it arrives in the renderer */
   me_low_eval = bake_mesh_new_from_object(depsgraph, ob_low_eval, preserve_origindex);
+
+  /* Ensure cage object was evaluated by the depsgraph. */
+  if (ob_cage && (ob_cage_eval == nullptr || (ob_cage_eval->id.orig_id != &ob_cage->id))) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Cage object \"%s\" not found in evaluated scene, it may be hidden",
+                ob_cage->id.name + 2);
+    goto cleanup;
+  }
 
   /* Initialize bake targets. */
   if (!bake_targets_init(bkr, &targets, ob_low, ob_low_eval, reports)) {

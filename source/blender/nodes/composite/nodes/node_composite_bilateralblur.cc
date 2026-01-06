@@ -69,7 +69,7 @@ class BilateralBlurOperation : public NodeOperation {
                                input_image,
                                output_image,
                                float2(this->get_blur_radius()),
-                               R_FILTER_BOX);
+                               math::FilterKernel::Box);
       return;
     }
 
@@ -100,7 +100,7 @@ class BilateralBlurOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output_image.unbind_as_image();
@@ -120,7 +120,7 @@ class BilateralBlurOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       float4 center_determinator = float4(determinator_image.load_pixel<Color>(texel));
 
       /* Go over the pixels in the blur window of the specified radius around the center pixel, and
@@ -154,12 +154,12 @@ class BilateralBlurOperation : public NodeOperation {
 
   int get_blur_radius()
   {
-    return math::max(0, this->get_input("Size").get_single_value_default(0));
+    return math::max(0, this->get_input("Size").get_single_value_default<int>());
   }
 
   float get_threshold()
   {
-    return math::max(0.0f, this->get_input("Threshold").get_single_value_default(0.1f));
+    return math::max(0.0f, this->get_input("Threshold").get_single_value_default<float>());
   }
 };
 

@@ -234,8 +234,7 @@ static void bm_grid_fill_array(BMesh *bm,
 #endif
 
   if (use_interp_simple || use_vert_interp || use_loop_interp) {
-    weight_table = static_cast<float (*)[4]>(
-        MEM_mallocN(sizeof(*weight_table) * size_t(xtot * ytot), __func__));
+    weight_table = MEM_malloc_arrayN<float[4]>(xtot * ytot, __func__);
     barycentric_weights_v2_grid_cache(xtot, ytot, weight_table);
   }
   else {
@@ -481,11 +480,11 @@ static void bm_grid_fill(BMesh *bm,
   LinkData *el;
   bool use_flip = false;
 
-  ListBase *lb_a = BM_edgeloop_verts_get(estore_a);
-  ListBase *lb_b = BM_edgeloop_verts_get(estore_b);
+  ListBaseT<LinkData> *lb_a = BM_edgeloop_verts_get(estore_a);
+  ListBaseT<LinkData> *lb_b = BM_edgeloop_verts_get(estore_b);
 
-  ListBase *lb_rail_a = BM_edgeloop_verts_get(estore_rail_a);
-  ListBase *lb_rail_b = BM_edgeloop_verts_get(estore_rail_b);
+  ListBaseT<LinkData> *lb_rail_a = BM_edgeloop_verts_get(estore_rail_a);
+  ListBaseT<LinkData> *lb_rail_b = BM_edgeloop_verts_get(estore_rail_b);
 
   BMVert **v_grid = MEM_calloc_arrayN<BMVert *>(size_t(xtot * ytot), __func__);
   /**
@@ -532,7 +531,7 @@ static void bm_grid_fill(BMesh *bm,
 
 #ifdef USE_FLIP_DETECT
   {
-    ListBase *lb_iter[4] = {lb_a, lb_b, lb_rail_a, lb_rail_b};
+    ListBaseT<LinkData> *lb_iter[4] = {lb_a, lb_b, lb_rail_a, lb_rail_b};
     const int lb_iter_dir[4] = {-1, 1, 1, -1};
     int winding_votes = 0;
 
@@ -590,8 +589,8 @@ static bool bm_edge_test_rail_cb(BMEdge *e, void * /*bm_v*/)
 
 void bmo_grid_fill_exec(BMesh *bm, BMOperator *op)
 {
-  ListBase eloops = {nullptr, nullptr};
-  ListBase eloops_rail = {nullptr, nullptr};
+  ListBaseT<BMEdgeLoopStore> eloops = {nullptr, nullptr};
+  ListBaseT<BMEdgeLoopStore> eloops_rail = {nullptr, nullptr};
   BMEdgeLoopStore *estore_a, *estore_b;
   BMEdgeLoopStore *estore_rail_a, *estore_rail_b;
   BMVert *v_a_first, *v_a_last;
@@ -599,7 +598,7 @@ void bmo_grid_fill_exec(BMesh *bm, BMOperator *op)
   const short mat_nr = short(BMO_slot_int_get(op->slots_in, "mat_nr"));
   const bool use_smooth = BMO_slot_bool_get(op->slots_in, "use_smooth");
   const bool use_interp_simple = BMO_slot_bool_get(op->slots_in, "use_interp_simple");
-  GSet *split_edges = nullptr;
+  std::unique_ptr<blender::Set<BMEdge *>> split_edges;
 
   int count;
   bool changed = false;
@@ -692,14 +691,14 @@ void bmo_grid_fill_exec(BMesh *bm, BMOperator *op)
       const int len_b = BM_edgeloop_length_get(estore_pairs[i][1]);
       if (len_a != len_b) {
         if (split_edges == nullptr) {
-          split_edges = BLI_gset_ptr_new(__func__);
+          split_edges = std::make_unique<blender::Set<BMEdge *>>();
         }
 
         if (len_a < len_b) {
-          BM_edgeloop_expand(bm, estore_pairs[i][0], len_b, true, split_edges);
+          BM_edgeloop_expand(bm, estore_pairs[i][0], len_b, true, split_edges.get());
         }
         else {
-          BM_edgeloop_expand(bm, estore_pairs[i][1], len_a, true, split_edges);
+          BM_edgeloop_expand(bm, estore_pairs[i][1], len_a, true, split_edges.get());
         }
       }
     }
@@ -712,12 +711,9 @@ void bmo_grid_fill_exec(BMesh *bm, BMOperator *op)
   changed = true;
 
   if (split_edges) {
-    GSetIterator gs_iter;
-    GSET_ITER (gs_iter, split_edges) {
-      BMEdge *e = static_cast<BMEdge *>(BLI_gsetIterator_getKey(&gs_iter));
+    for (BMEdge *e : *split_edges) {
       BM_edge_collapse(bm, e, e->v2, true, true);
     }
-    BLI_gset_free(split_edges, nullptr);
   }
 
 cleanup:

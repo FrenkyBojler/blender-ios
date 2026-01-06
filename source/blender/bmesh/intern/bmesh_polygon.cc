@@ -9,14 +9,17 @@
  * with polygons (normal/area calculation, tessellation, etc)
  */
 
+#include <array>
+
 #include "DNA_modifier_types.h"
 
-#include "BLI_alloca.h"
+#include "BLI_array.hh"
 #include "BLI_linklist.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
 #include "BLI_memarena.h"
 #include "BLI_polyfill_2d.h"
 #include "BLI_polyfill_2d_beautify.h"
@@ -28,8 +31,21 @@
 
 #include "intern/bmesh_private.hh"
 
+using blender::float2;
 using blender::float3;
 using blender::Span;
+
+/**
+ * Return an angle in the range: `[0.0..M_PI * 2]`.
+ */
+static float angle_signed_v2v2_pos(const float v1[2], const float v2[2])
+{
+  const float angle = angle_signed_v2v2(v1, v2);
+  if (angle < 0.0f) {
+    return angle + (M_PI * 2);
+  }
+  return angle;
+}
 
 /**
  * \brief COMPUTE POLY NORMAL (BMFace)
@@ -138,7 +154,7 @@ void BM_face_calc_tessellation(const BMFace *f,
   }
   else {
     float axis_mat[3][3];
-    float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
+    blender::Array<float2, BM_DEFAULT_NGON_STACK_SIZE> projverts(f->len);
     int j;
 
     axis_dominant_v3_to_m3_negate(axis_mat, f->no);
@@ -152,7 +168,7 @@ void BM_face_calc_tessellation(const BMFace *f,
     } while ((l_iter = l_iter->next) != l_first);
 
     /* complete the loop */
-    BLI_polyfill_calc(projverts, f->len, 1, r_index);
+    BLI_polyfill_calc(reinterpret_cast<float (*)[2]>(projverts.data()), f->len, 1, r_index);
   }
 }
 
@@ -168,13 +184,13 @@ void BM_face_calc_point_in_face(const BMFace *f, float r_co[3])
     /* tessellation here seems overkill when in many cases this will be the center,
      * but without this we can't be sure the point is inside a concave face. */
     const int tottri = f->len - 2;
-    BMLoop **loops = BLI_array_alloca(loops, f->len);
-    uint(*index)[3] = BLI_array_alloca(index, tottri);
+    blender::Array<BMLoop *, BM_DEFAULT_NGON_STACK_SIZE> loops(f->len);
+    blender::Array<std::array<uint, 3>, BM_DEFAULT_NGON_STACK_SIZE> index(tottri);
     int j;
     int j_best = 0; /* use as fallback when unset */
     float area_best = -1.0f;
 
-    BM_face_calc_tessellation(f, false, loops, index);
+    BM_face_calc_tessellation(f, false, loops.data(), reinterpret_cast<uint(*)[3]>(index.data()));
 
     for (j = 0; j < tottri; j++) {
       const float *p1 = loops[index[j][0]]->v->co;
@@ -1023,7 +1039,7 @@ void BM_face_normal_flip(BMesh *bm, BMFace *f)
 bool BM_face_point_inside_test(const BMFace *f, const float co[3])
 {
   float axis_mat[3][3];
-  float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
+  blender::Array<float2, BM_DEFAULT_NGON_STACK_SIZE> projverts(f->len);
 
   float co_2d[2];
   BMLoop *l_iter;
@@ -1039,7 +1055,7 @@ bool BM_face_point_inside_test(const BMFace *f, const float co[3])
     mul_v2_m3v3(projverts[i], axis_mat, l_iter->v->co);
   }
 
-  return isect_point_poly_v2(co_2d, projverts, f->len);
+  return isect_point_poly_v2(co_2d, reinterpret_cast<float (*)[2]>(projverts.data()), f->len);
 }
 
 void BM_face_triangulate(BMesh *bm,
@@ -1073,8 +1089,9 @@ void BM_face_triangulate(BMesh *bm,
   BLI_assert(f->len > 3);
 
   {
-    BMLoop **loops = BLI_array_alloca(loops, f->len);
-    uint(*tris)[3] = BLI_array_alloca(tris, f->len);
+    blender::Array<BMLoop *, BM_DEFAULT_NGON_STACK_SIZE> loops(f->len);
+    blender::Array<std::array<uint, 3>, BM_DEFAULT_NGON_STACK_SIZE> tris_buf(f->len);
+    uint(*tris)[3] = reinterpret_cast<uint(*)[3]>(tris_buf.data());
     const int totfilltri = f->len - 2;
     const int last_tri = f->len - 3;
     int i;
@@ -1163,7 +1180,7 @@ void BM_face_triangulate(BMesh *bm,
     else {
       BMLoop *l_iter;
       float axis_mat[3][3];
-      float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
+      blender::Array<float2, BM_DEFAULT_NGON_STACK_SIZE> projverts(f->len);
 
       axis_dominant_v3_to_m3_negate(axis_mat, f->no);
 
@@ -1172,10 +1189,12 @@ void BM_face_triangulate(BMesh *bm,
         mul_v2_m3v3(projverts[i], axis_mat, l_iter->v->co);
       }
 
-      BLI_polyfill_calc_arena(projverts, f->len, 1, tris, pf_arena);
+      BLI_polyfill_calc_arena(
+          reinterpret_cast<float (*)[2]>(projverts.data()), f->len, 1, tris, pf_arena);
 
       if (use_beauty) {
-        BLI_polyfill_beautify(projverts, f->len, tris, pf_arena, pf_heap);
+        BLI_polyfill_beautify(
+            reinterpret_cast<float (*)[2]>(projverts.data()), f->len, tris, pf_arena, pf_heap);
       }
 
       BLI_memarena_clear(pf_arena);
@@ -1273,11 +1292,10 @@ void BM_face_triangulate(BMesh *bm,
 
 void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int len)
 {
-  blender::float2 out = {-FLT_MAX, -FLT_MAX};
   float center[2] = {0.0f, 0.0f};
   float axis_mat[3][3];
-  float (*projverts)[2] = BLI_array_alloca(projverts, f->len);
-  const float *(*edgeverts)[2] = BLI_array_alloca(edgeverts, len);
+  blender::Array<float2, BM_DEFAULT_NGON_STACK_SIZE> projverts(f->len);
+  blender::Array<std::array<const float *, 2>, BM_DEFAULT_TOPOLOGY_STACK_SIZE> edgeverts(len);
   BMLoop *l;
   int i, i_prev, j;
 
@@ -1291,7 +1309,7 @@ void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int l
   }
 
   /* first test for completely convex face */
-  if (is_poly_convex_v2(projverts, f->len)) {
+  if (is_poly_convex_v2(reinterpret_cast<float (*)[2]>(projverts.data()), f->len)) {
     return;
   }
 
@@ -1302,36 +1320,62 @@ void BM_face_splits_check_legal(BMesh *bm, BMFace *f, BMLoop *(*loops)[2], int l
 
     /* center the projection for maximum accuracy */
     sub_v2_v2(projverts[i], center);
-
-    out[0] = max_ff(out[0], projverts[i][0]);
-    out[1] = max_ff(out[1], projverts[i][1]);
   }
   bm->elem_index_dirty |= BM_LOOP;
-
-  /* ensure we are well outside the face bounds (value is arbitrary) */
-  out += 1.0f;
 
   for (i = 0; i < len; i++) {
     edgeverts[i][0] = projverts[BM_elem_index_get(loops[i][0])];
     edgeverts[i][1] = projverts[BM_elem_index_get(loops[i][1])];
   }
-
-  /* do convexity test */
+  /* Check the split is inside the face, otherwise clear it.
+   *
+   * Ensure the edge between the two corners of the face defines a line that lies within the face.
+   * Consider an edge that connects both tips of a crescent-moon shaped face.
+   * In this case the edge would span the empty region and must not be considered "legal". */
   for (i = 0; i < len; i++) {
-    float mid[2];
-    mid_v2_v2v2(mid, edgeverts[i][0], edgeverts[i][1]);
+    /* Compare the angles at the loops. */
+    BMLoop **l_pair = loops[i];
+    const float *co_pair[2] = {
+        projverts[BM_elem_index_get(l_pair[0])],
+        projverts[BM_elem_index_get(l_pair[1])],
+    };
 
-    int isect = 0;
-    int j_prev;
-    for (j = 0, j_prev = f->len - 1; j < f->len; j_prev = j++) {
-      const float *f_edge[2] = {projverts[j_prev], projverts[j]};
-      if (isect_seg_seg_v2(UNPACK2(f_edge), mid, out) == ISECT_LINE_LINE_CROSS) {
-        isect++;
-      }
+    /* Always allow cuts that overlap (unlikely but not an error). */
+    if (UNLIKELY(equals_v2v2(co_pair[0], co_pair[1]))) {
+      continue;
     }
 
-    if (isect % 2 == 0) {
-      loops[i][0] = nullptr;
+    const float2 pair_dir = blender::math::normalize(float2(co_pair[1]) - float2(co_pair[0]));
+    for (const int side : blender::IndexRange(2)) {
+      const float2 co = float2(co_pair[side]);
+      BMLoop *l_prev = l_pair[side]->prev;
+      BMLoop *l_next = l_pair[side]->next;
+
+      /* Account for zero length edges, not essential but they shouldn't break the calculation. */
+      {
+        const int limit_init = f->len - 3;
+        int limit;
+        limit = limit_init;
+        while (UNLIKELY(equals_v2v2(co, projverts[BM_elem_index_get(l_prev)])) && limit-- > 0) {
+          l_prev = l_prev->prev;
+        }
+        limit = limit_init;
+        while (UNLIKELY(equals_v2v2(co, projverts[BM_elem_index_get(l_next)])) && limit-- > 0) {
+          l_next = l_next->next;
+        }
+      }
+
+      const float2 co_prev = float2(projverts[BM_elem_index_get(l_prev)]);
+      const float2 co_next = float2(projverts[BM_elem_index_get(l_next)]);
+
+      const float2 dir_other = side == 0 ? pair_dir : -pair_dir;
+      const float2 dir_prev = blender::math::normalize(co_prev - co);
+      const float2 dir_next = blender::math::normalize(co_next - co);
+
+      if (angle_signed_v2v2_pos(dir_prev, dir_other) > angle_signed_v2v2_pos(dir_prev, dir_next)) {
+        loops[i][0] = nullptr;
+        break;
+      }
     }
   }
 

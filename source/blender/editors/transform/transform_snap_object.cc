@@ -20,6 +20,7 @@
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_layer.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -99,6 +100,16 @@ static bool test_projected_edge_dist(const DistProjectedAABBPrecalc *precalc,
   float near_co[3];
   closest_ray_to_segment_v3(precalc->ray_origin, precalc->ray_direction, va, vb, near_co);
   return test_projected_vert_dist(precalc, clip_plane, clip_plane_len, is_persp, near_co, nearest);
+}
+
+static bool test_projected_face_midpoint_dist(const DistProjectedAABBPrecalc *precalc,
+                                              const float (*clip_plane)[4],
+                                              const int clip_plane_len,
+                                              const bool is_persp,
+                                              const float center[3],
+                                              BVHTreeNearest *nearest)
+{
+  return test_projected_vert_dist(precalc, clip_plane, clip_plane_len, is_persp, center, nearest);
 }
 
 SnapData::SnapData(SnapObjectContext *sctx, const float4x4 &obmat)
@@ -397,15 +408,13 @@ static const ID *data_for_snap(Object *ob_eval, eSnapEditType edit_mode_type, bo
 
 /**
  * Mesh used for snapping (`dupli-list` instances).
- *
  * A version of #data_for_snap for instances.
  */
-static const ID *data_for_snap_dupli(Object *ob_eval, ID *ob_data)
+static const ID *data_for_snap_dupli(ID *ob_data)
 {
-  /* For curve and surface objects, use the evaluated mesh so snapping
-   * works with the final geometry instead of the coarse cage, see: #143060. */
-  if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_CURVES, OB_SURF)) {
-    return &BKE_object_get_evaluated_mesh(ob_eval)->id;
+  if (GS(ob_data->name) == ID_ME) {
+    Mesh *mesh = blender::id_cast<Mesh *>(ob_data);
+    return reinterpret_cast<const ID *>(BKE_mesh_wrapper_ensure_subdivision(mesh));
   }
   return ob_data;
 }
@@ -492,20 +501,20 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
   Base *base_act = BKE_view_layer_active_base_get(view_layer);
 
   DupliList duplilist;
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    if (!snap_object_is_snappable(sctx, snap_target_select, base_act, base)) {
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    if (!snap_object_is_snappable(sctx, snap_target_select, base_act, &base)) {
       continue;
     }
 
-    const bool is_object_active = (base == base_act);
-    Object *obj_eval = DEG_get_evaluated(sctx->runtime.depsgraph, base->object);
+    const bool is_object_active = (&base == base_act);
+    Object *obj_eval = DEG_get_evaluated(sctx->runtime.depsgraph, base.object);
     if (obj_eval->transflag & OB_DUPLI ||
         blender::bke::object_has_geometry_set_instances(*obj_eval))
     {
       object_duplilist(sctx->runtime.depsgraph, sctx->scene, obj_eval, nullptr, duplilist);
       for (DupliObject &dupli_ob : duplilist) {
         BLI_assert(DEG_is_evaluated(dupli_ob.ob));
-        const ID *ob_data = data_for_snap_dupli(dupli_ob.ob, dupli_ob.ob_data);
+        const ID *ob_data = dupli_ob.ob_data ? data_for_snap_dupli(dupli_ob.ob_data) : nullptr;
         if ((tmp = sob_callback(
                  sctx, dupli_ob.ob, ob_data, float4x4(dupli_ob.mat), is_object_active, false)) !=
             SCE_SNAP_TO_NONE)
@@ -847,6 +856,26 @@ void cb_snap_edge(void *userdata,
   }
 }
 
+void cb_snap_face_midpoint(void *userdata,
+                           const int face_index,
+                           const DistProjectedAABBPrecalc *precalc,
+                           const float (*clip_plane)[4],
+                           const int clip_plane_len,
+                           BVHTreeNearest *nearest)
+{
+  SnapData *data = static_cast<SnapData *>(userdata);
+
+  float3 center;
+  data->get_face_center(face_index, center);
+
+  if (test_projected_face_midpoint_dist(
+          precalc, clip_plane, clip_plane_len, data->is_persp, center, nearest))
+  {
+    data->copy_face_no(face_index, nearest->no);
+    nearest->index = face_index;
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1095,7 +1124,7 @@ static bool snap_object_context_runtime_init(SnapObjectContext *sctx,
                                              const float init_co[3],
                                              const float prev_co[3],
                                              const float dist_px_sq,
-                                             ListBase *hit_list)
+                                             ListBaseT<SnapObjectHitDepth> *hit_list)
 {
   if (snap_to_flag &
       (SCE_SNAP_TO_GRID | SCE_SNAP_TO_EDGE_PERPENDICULAR | SCE_SNAP_INDIVIDUAL_NEAREST))
@@ -1262,7 +1291,7 @@ bool snap_object_project_ray_all(SnapObjectContext *sctx,
                                  const float ray_normal[3],
                                  float ray_depth,
                                  bool sort,
-                                 ListBase *r_hit_list)
+                                 ListBaseT<SnapObjectHitDepth> *r_hit_list)
 {
   if (!snap_object_context_runtime_init(sctx,
                                         depsgraph,
@@ -1441,7 +1470,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
   }
 
-  if (snap_to_flag & (SCE_SNAP_TO_POINT | SNAP_TO_EDGE_ELEMENTS)) {
+  if (snap_to_flag & (SCE_SNAP_TO_POINT | SNAP_TO_EDGE_ELEMENTS | SCE_SNAP_TO_FACE_MIDPOINT)) {
     eSnapMode elem_test, elem = SCE_SNAP_TO_NONE;
 
     /* Remove what has already been computed. */
@@ -1458,7 +1487,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
 
     if (use_occlusion_plane && has_hit) {
-      /* Compute the new clip_pane but do not add it yet. */
+      /* Compute the new clip plane but do not add it yet. */
       BLI_ASSERT_UNIT_V3(sctx->ret.no);
       sctx->runtime.occlusion_plane = occlusion_plane_create(
           sctx->runtime.ray_dir, sctx->ret.loc, sctx->ret.no);
@@ -1579,7 +1608,7 @@ bool object_project_all_view3d_ex(SnapObjectContext *sctx,
                                   const float mval[2],
                                   float ray_depth,
                                   bool sort,
-                                  ListBase *r_hit_list)
+                                  ListBaseT<SnapObjectHitDepth> *r_hit_list)
 {
   float3 ray_start, ray_normal, ray_end;
   const RegionView3D *rv3d = static_cast<const RegionView3D *>(region->regiondata);

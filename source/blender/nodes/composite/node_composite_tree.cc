@@ -19,7 +19,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "UI_resources.hh"
 
@@ -122,18 +122,18 @@ static void local_merge(Main * /*bmain*/, bNodeTree *localtree, bNodeTree *ntree
   /* move over the compbufs and previews */
   blender::bke::node_preview_merge_tree(ntree, localtree, true);
 
-  LISTBASE_FOREACH (bNode *, lnode, &localtree->nodes) {
-    if (bNode *orig_node = blender::bke::node_find_node_by_name(*ntree, lnode->name)) {
-      if (lnode->type_legacy == CMP_NODE_MOVIEDISTORTION) {
+  for (bNode &lnode : localtree->nodes) {
+    if (bNode *orig_node = blender::bke::node_find_node_by_name(*ntree, lnode.name)) {
+      if (lnode.type_legacy == CMP_NODE_MOVIEDISTORTION) {
         /* special case for distortion node: distortion context is allocating in exec function
          * and to achieve much better performance on further calls this context should be
          * copied back to original node */
-        if (lnode->storage) {
+        if (lnode.storage) {
           if (orig_node->storage) {
             BKE_tracking_distortion_free((MovieDistortion *)orig_node->storage);
           }
 
-          orig_node->storage = BKE_tracking_distortion_copy((MovieDistortion *)lnode->storage);
+          orig_node->storage = BKE_tracking_distortion_copy((MovieDistortion *)lnode.storage);
         }
       }
     }
@@ -215,24 +215,6 @@ void register_node_tree_type_cmp()
 }
 
 /* *********************************************** */
-
-void ntreeCompositUpdateRLayers(bNodeTree *ntree)
-{
-  if (ntree == nullptr) {
-    return;
-  }
-
-  for (bNode *node : ntree->all_nodes()) {
-    if (node->type_legacy == CMP_NODE_R_LAYERS) {
-      node_cmp_rlayers_outputs(ntree, node);
-    }
-    else if (node->type_legacy == CMP_NODE_CRYPTOMATTE &&
-             node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_RENDER)
-    {
-      node->typeinfo->updatefunc(ntree, node);
-    }
-  }
-}
 
 void ntreeCompositTagRender(Scene *scene)
 {

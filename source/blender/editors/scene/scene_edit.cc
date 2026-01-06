@@ -60,7 +60,11 @@ static Scene *scene_add(Main *bmain, Scene *scene_old, eSceneCopyMethod method)
       ED_editors_flush_edits(bmain);
     }
 
-    scene_new = BKE_scene_duplicate(bmain, scene_old, method);
+    scene_new = BKE_scene_duplicate(bmain,
+                                    scene_old,
+                                    method,
+                                    static_cast<eDupli_ID_Flags>(U.dupflag | USER_DUP_OBJECT),
+                                    LIB_ID_DUPLICATE_IS_ROOT_ID);
   }
 
   return scene_new;
@@ -121,15 +125,15 @@ bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain.wm.first);
   WM_jobs_kill_all_from_owner(wm, &scene);
 
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    if (win->parent != nullptr) { /* We only care about main windows here... */
+  for (wmWindow &win : wm->windows) {
+    if (win.parent != nullptr) { /* We only care about main windows here... */
       continue;
     }
-    if (win->scene == &scene) {
+    if (win.scene == &scene) {
 #ifdef WITH_PYTHON
       BPy_BEGIN_ALLOW_THREADS;
 #endif
-      WM_window_set_active_scene(&bmain, &C, win, scene_new);
+      WM_window_set_active_scene(&bmain, &C, &win, scene_new);
 #ifdef WITH_PYTHON
       BPy_END_ALLOW_THREADS;
 #endif
@@ -137,16 +141,16 @@ bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene
   }
 
   /* Update scenes used by the sequencer. */
-  LISTBASE_FOREACH (WorkSpace *, workspace, &bmain.workspaces) {
-    if (workspace->sequencer_scene == &scene) {
-      workspace->sequencer_scene = scene_new;
+  for (WorkSpace &workspace : bmain.workspaces) {
+    if (workspace.sequencer_scene == &scene) {
+      workspace.sequencer_scene = scene_new;
       WM_event_add_notifier(&C, NC_WINDOW, nullptr);
     }
   }
 
   /* In theory, the call to #WM_window_set_active_scene above should have handled this through
    * calls to #ED_screen_scene_change. But there can be unusual cases (e.g. on file opening in
-   * brackground mode) where the state of available Windows may prevent this from happening. */
+   * background mode) where the state of available Windows may prevent this from happening. */
   if (CTX_data_scene(&C) == &scene) {
 #ifdef WITH_PYTHON
     BPy_BEGIN_ALLOW_THREADS;
@@ -173,6 +177,11 @@ bool ED_scene_delete(bContext *C, Main *bmain, Scene *scene)
 void ED_scene_change_update(Main *bmain, Scene *scene, ViewLayer *layer)
 {
   Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, layer);
+  /* When switching to a scene for the first time after loading a file, the dependency graph above
+   * will not be active. This can cause issues (e.g. #151159) because there might be code running
+   * immediately after that expects this dependency graph to be active and then silently fail.
+   * Similar to #CTX_data_depsgraph_pointer. */
+  DEG_make_active(depsgraph);
 
   BKE_scene_set_background(bmain, scene);
   DEG_graph_relations_update(depsgraph);
@@ -233,10 +242,10 @@ bool ED_scene_view_layer_delete(Main *bmain, Scene *scene, ViewLayer *layer, Rep
 
   /* Remove from windows. */
   wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    if (win->scene == scene && STREQ(win->view_layer_name, layer->name)) {
+  for (wmWindow &win : wm->windows) {
+    if (win.scene == scene && STREQ(win.view_layer_name, layer->name)) {
       ViewLayer *first_layer = BKE_view_layer_default_view(scene);
-      STRNCPY_UTF8(win->view_layer_name, first_layer->name);
+      STRNCPY_UTF8(win.view_layer_name, first_layer->name);
     }
   }
 
@@ -425,7 +434,7 @@ static wmOperatorStatus new_sequencer_scene_exec(bContext *C, wmOperator *op)
    * new users to the VSE. For example, this prevents the case where attempting to change
    * resolution properties would have no effect.
    *
-   * FIXME: This logic is meant to address a temporary papercut and may be removed later in 5.1+
+   * FIXME: This logic is meant to address a temporary paper-cut and may be removed later in 5.1+
    * when properties for scenes and sequencer scenes can be more properly separated. */
   WM_window_set_active_scene(bmain, C, win, new_scene);
   BKE_reportf(

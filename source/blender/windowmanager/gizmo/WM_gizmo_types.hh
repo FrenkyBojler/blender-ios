@@ -310,6 +310,7 @@ struct wmGizmoProperty {
     wmGizmoPropertyFnSet value_set_fn = nullptr;
     wmGizmoPropertyFnRangeGet range_get_fn = nullptr;
     wmGizmoPropertyFnFree free_fn = nullptr;
+    wmGizmoPropertyFnForeachRNAProp foreach_rna_prop_fn = nullptr;
     void *user_data = nullptr;
   } custom_func = {};
 };
@@ -403,7 +404,7 @@ struct wmGizmoType {
   /** RNA integration. */
   ExtensionRNA rna_ext;
 
-  ListBase target_property_defs;
+  ListBaseT<wmGizmoPropertyType> target_property_defs;
   int target_property_defs_len;
 };
 
@@ -477,7 +478,7 @@ struct wmGizmoGroup {
   wmGizmoGroup *next, *prev;
 
   wmGizmoGroupType *type;
-  ListBase gizmos;
+  ListBaseT<wmGizmo> gizmos;
 
   wmGizmoMap *parent_gzmap;
 

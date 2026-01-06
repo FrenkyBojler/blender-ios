@@ -16,6 +16,8 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_ordered_edge.hh"
+#include "BLI_set.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
@@ -331,9 +333,13 @@ struct SculptPoseIKChainPreview {
   blender::Array<blender::float3> initial_head_coords;
 };
 
-struct SculptVertexInfo {
-  /* Indexed by base mesh vertex index, stores if that vertex is a boundary. */
-  blender::BitVector<> boundary;
+struct SculptBoundaryInfoCache {
+  /* Indexed by base mesh vertex index.
+   *
+   * TODO: Evaluate whether a BitVector or a Set works better for memory footprint and lookup. */
+  blender::BitVector<> verts;
+
+  blender::Set<blender::OrderedEdge> edges;
 };
 
 /* Data used for displaying extra visuals while using the Boundary brush. */
@@ -461,7 +467,11 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
     int grid_size = -1;
   } persistent;
 
-  SculptVertexInfo vertex_info = {};
+  /* Contains information used by tools and brushes that require different logic based on boundary
+   * elements. Typically used for anything which needs to consider neighbor values.
+   *
+   * Not used for Dyntopo */
+  std::unique_ptr<SculptBoundaryInfoCache> boundary_info_cache;
   SculptFakeNeighbors fake_neighbors = {};
 
   /* Transform operator */
@@ -599,6 +609,8 @@ void BKE_sculpt_update_object_after_eval(Depsgraph *depsgraph, Object *ob_eval);
  * it's the last modifier on the stack and it is not on the first level.
  */
 MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob);
+int BKE_sculpt_get_grid_num_verts(const Object &object);
+int BKE_sculpt_get_grid_num_faces(const Object &object);
 
 /**
  * Ensures a mask layer exists. If depsgraph and bmain are non-null,

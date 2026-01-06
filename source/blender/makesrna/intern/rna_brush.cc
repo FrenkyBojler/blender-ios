@@ -92,7 +92,7 @@ const EnumPropertyItem rna_enum_brush_automasking_flag_items[] = {
      "use_automasking_face_sets",
      0,
      "Face Sets",
-     "Affect only vertices that share Face Sets with the active vertex"},
+     "Affect only vertices that share face sets with the active vertex"},
     {BRUSH_AUTOMASKING_BOUNDARY_EDGES,
      "use_automasking_boundary_edges",
      0,
@@ -102,7 +102,7 @@ const EnumPropertyItem rna_enum_brush_automasking_flag_items[] = {
      "use_automasking_boundary_face_sets",
      0,
      "Face Sets Boundary Automasking",
-     "Do not affect vertices that belong to a Face Set boundary"},
+     "Do not affect vertices that belong to a face set boundary"},
     {BRUSH_AUTOMASKING_CAVITY_NORMAL,
      "use_automasking_cavity",
      0,
@@ -1963,7 +1963,6 @@ static void rna_def_gpencil_options(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_fill", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "flag", GP_BRUSH_FILL_HIDE);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(
       prop, "Show Fill", "Show transparent lines to use as boundary for filling");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
@@ -2454,7 +2453,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
   static const EnumPropertyItem brush_pose_deform_type_items[] = {
       {BRUSH_POSE_DEFORM_ROTATE_TWIST, "ROTATE_TWIST", 0, "Rotate/Twist", ""},
-      {BRUSH_POSE_DEFORM_SCALE_TRASLATE, "SCALE_TRANSLATE", 0, "Scale/Translate", ""},
+      {BRUSH_POSE_DEFORM_SCALE_TRANSLATE, "SCALE_TRANSLATE", 0, "Scale/Translate", ""},
       {BRUSH_POSE_DEFORM_SQUASH_STRETCH, "SQUASH_STRETCH", 0, "Squash & Stretch", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -2470,12 +2469,12 @@ static void rna_def_brush(BlenderRNA *brna)
        "FACE_SETS",
        0,
        "Face Sets",
-       "Creates a pose segment per face sets, starting from the active face set"},
+       "Creates a pose segment per face set, starting from the active face set"},
       {BRUSH_POSE_ORIGIN_FACE_SETS_FK,
        "FACE_SETS_FK",
        0,
        "Face Sets FK",
-       "Simulates an FK deformation using the Face Set under the cursor as control"},
+       "Simulates an FK deformation using the face set under the cursor as control"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -3131,8 +3130,11 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
-  RNA_def_property_ui_text(
-      prop, "Stabilize Normal", "Stabilize the orientation of the brush plane.");
+  RNA_def_property_ui_text(prop,
+                           "Stabilize Normal",
+                           "How stable the plane normal is over the course of the stroke. "
+                           "A value of 0 corresponds to using the current normal, "
+                           "and a value of 1 corresponds to using the initial normal.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "stabilize_plane", PROP_FLOAT, PROP_FACTOR);
@@ -3140,7 +3142,11 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_range(prop, 0, 1.0f);
   RNA_def_property_ui_range(prop, 0, 1.0f, 1, 3);
-  RNA_def_property_ui_text(prop, "Stabilize Plane", "Stabilize the center of the brush plane.");
+  RNA_def_property_ui_text(prop,
+                           "Stabilize Center",
+                           "How stable the plane center is over the course of the stroke. "
+                           "A value of 0 corresponds to using the current center, "
+                           "and a value of 1 corresponds to using the initial center.");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
   prop = RNA_def_property(srna, "texture_sample_bias", PROP_FLOAT, PROP_DISTANCE);

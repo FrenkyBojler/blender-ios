@@ -62,7 +62,7 @@ using blender::StringRefNull;
 
 static CLG_LogRef LOG = {"geom.mesh.convert"};
 
-static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispbase)
+static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBaseT<DispList> *dispbase)
 {
   using namespace blender;
   using namespace blender::bke;
@@ -78,31 +78,31 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
   int totedge = 0;
   int faces_num = 0;
   int totloop = 0;
-  LISTBASE_FOREACH (const DispList *, dl, dispbase) {
-    if (dl->type == DL_SEGM) {
-      totvert += dl->parts * dl->nr;
-      totedge += dl->parts * (dl->nr - 1);
+  for (const DispList &dl : *dispbase) {
+    if (dl.type == DL_SEGM) {
+      totvert += dl.parts * dl.nr;
+      totedge += dl.parts * (dl.nr - 1);
     }
-    else if (dl->type == DL_POLY) {
+    else if (dl.type == DL_POLY) {
       if (conv_polys) {
-        totvert += dl->parts * dl->nr;
-        totedge += dl->parts * dl->nr;
+        totvert += dl.parts * dl.nr;
+        totedge += dl.parts * dl.nr;
       }
     }
-    else if (dl->type == DL_SURF) {
-      if (dl->parts != 0) {
+    else if (dl.type == DL_SURF) {
+      if (dl.parts != 0) {
         int tot;
-        totvert += dl->parts * dl->nr;
-        tot = (((dl->flag & DL_CYCL_U) ? 1 : 0) + (dl->nr - 1)) *
-              (((dl->flag & DL_CYCL_V) ? 1 : 0) + (dl->parts - 1));
+        totvert += dl.parts * dl.nr;
+        tot = (((dl.flag & DL_CYCL_U) ? 1 : 0) + (dl.nr - 1)) *
+              (((dl.flag & DL_CYCL_V) ? 1 : 0) + (dl.parts - 1));
         faces_num += tot;
         totloop += tot * 4;
       }
     }
-    else if (dl->type == DL_INDEX3) {
+    else if (dl.type == DL_INDEX3) {
       int tot;
-      totvert += dl->nr;
-      tot = dl->parts;
+      totvert += dl.nr;
+      tot = dl.parts;
       faces_num += tot;
       totloop += tot * 3;
     }
@@ -123,30 +123,33 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
       "material_index", AttrDomain::Face);
   SpanAttributeWriter<bool> sharp_faces = attributes.lookup_or_add_for_write_span<bool>(
       "sharp_face", AttrDomain::Face);
+  const StringRef uv_name = DATA_("UVMap");
   SpanAttributeWriter<float2> uv_attribute = attributes.lookup_or_add_for_write_span<float2>(
-      DATA_("UVMap"), AttrDomain::Corner);
+      uv_name, AttrDomain::Corner);
+  mesh->uv_maps_active_set(uv_name);
+  mesh->uv_maps_default_set(uv_name);
   MutableSpan<float2> uv_map = uv_attribute.span;
 
   int dst_vert = 0;
   int dst_edge = 0;
   int dst_poly = 0;
   int dst_loop = 0;
-  LISTBASE_FOREACH (const DispList *, dl, dispbase) {
-    const bool is_smooth = (dl->rt & CU_SMOOTH) != 0;
+  for (const DispList &dl : *dispbase) {
+    const bool is_smooth = (dl.rt & CU_SMOOTH) != 0;
 
-    if (dl->type == DL_SEGM) {
+    if (dl.type == DL_SEGM) {
       const int startvert = dst_vert;
-      a = dl->parts * dl->nr;
-      const float *data = dl->verts;
+      a = dl.parts * dl.nr;
+      const float *data = dl.verts;
       while (a--) {
         copy_v3_v3(positions[dst_vert], data);
         data += 3;
         dst_vert++;
       }
 
-      for (a = 0; a < dl->parts; a++) {
-        ofs = a * dl->nr;
-        for (b = 1; b < dl->nr; b++) {
+      for (a = 0; a < dl.parts; a++) {
+        ofs = a * dl.nr;
+        for (b = 1; b < dl.nr; b++) {
           edges[dst_edge][0] = startvert + ofs + b - 1;
           edges[dst_edge][1] = startvert + ofs + b;
 
@@ -154,22 +157,22 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
         }
       }
     }
-    else if (dl->type == DL_POLY) {
+    else if (dl.type == DL_POLY) {
       if (conv_polys) {
         const int startvert = dst_vert;
-        a = dl->parts * dl->nr;
-        const float *data = dl->verts;
+        a = dl.parts * dl.nr;
+        const float *data = dl.verts;
         while (a--) {
           copy_v3_v3(positions[dst_vert], data);
           data += 3;
           dst_vert++;
         }
 
-        for (a = 0; a < dl->parts; a++) {
-          ofs = a * dl->nr;
-          for (b = 0; b < dl->nr; b++) {
+        for (a = 0; a < dl.parts; a++) {
+          ofs = a * dl.nr;
+          for (b = 0; b < dl.nr; b++) {
             edges[dst_edge][0] = startvert + ofs + b;
-            if (b == dl->nr - 1) {
+            if (b == dl.nr - 1) {
               edges[dst_edge][1] = startvert + ofs;
             }
             else {
@@ -180,27 +183,27 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
         }
       }
     }
-    else if (dl->type == DL_INDEX3) {
+    else if (dl.type == DL_INDEX3) {
       const int startvert = dst_vert;
-      a = dl->nr;
-      const float *data = dl->verts;
+      a = dl.nr;
+      const float *data = dl.verts;
       while (a--) {
         copy_v3_v3(positions[dst_vert], data);
         data += 3;
         dst_vert++;
       }
 
-      a = dl->parts;
-      const int *index = dl->index;
+      a = dl.parts;
+      const int *index = dl.index;
       while (a--) {
         corner_verts[dst_loop + 0] = startvert + index[0];
         corner_verts[dst_loop + 1] = startvert + index[2];
         corner_verts[dst_loop + 2] = startvert + index[1];
         face_offsets[dst_poly] = dst_loop;
-        material_indices.span[dst_poly] = dl->col;
+        material_indices.span[dst_poly] = dl.col;
 
         for (int i = 0; i < 3; i++) {
-          uv_map[dst_loop + i][0] = (corner_verts[dst_loop + i] - startvert) / float(dl->nr - 1);
+          uv_map[dst_loop + i][0] = (corner_verts[dst_loop + i] - startvert) / float(dl.nr - 1);
           uv_map[dst_loop + i][1] = 0.0f;
         }
 
@@ -210,61 +213,61 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
         index += 3;
       }
     }
-    else if (dl->type == DL_SURF) {
+    else if (dl.type == DL_SURF) {
       const int startvert = dst_vert;
-      a = dl->parts * dl->nr;
-      const float *data = dl->verts;
+      a = dl.parts * dl.nr;
+      const float *data = dl.verts;
       while (a--) {
         copy_v3_v3(positions[dst_vert], data);
         data += 3;
         dst_vert++;
       }
 
-      for (a = 0; a < dl->parts; a++) {
+      for (a = 0; a < dl.parts; a++) {
 
-        if ((dl->flag & DL_CYCL_V) == 0 && a == dl->parts - 1) {
+        if ((dl.flag & DL_CYCL_V) == 0 && a == dl.parts - 1) {
           break;
         }
 
         int p1, p2, p3, p4;
-        if (dl->flag & DL_CYCL_U) {    /* p2 -> p1 -> */
-          p1 = startvert + dl->nr * a; /* p4 -> p3 -> */
-          p2 = p1 + dl->nr - 1;        /* -----> next row */
-          p3 = p1 + dl->nr;
-          p4 = p2 + dl->nr;
+        if (dl.flag & DL_CYCL_U) {    /* p2 -> p1 -> */
+          p1 = startvert + dl.nr * a; /* p4 -> p3 -> */
+          p2 = p1 + dl.nr - 1;        /* -----> next row */
+          p3 = p1 + dl.nr;
+          p4 = p2 + dl.nr;
           b = 0;
         }
         else {
-          p2 = startvert + dl->nr * a;
+          p2 = startvert + dl.nr * a;
           p1 = p2 + 1;
-          p4 = p2 + dl->nr;
-          p3 = p1 + dl->nr;
+          p4 = p2 + dl.nr;
+          p3 = p1 + dl.nr;
           b = 1;
         }
-        if ((dl->flag & DL_CYCL_V) && a == dl->parts - 1) {
-          p3 -= dl->parts * dl->nr;
-          p4 -= dl->parts * dl->nr;
+        if ((dl.flag & DL_CYCL_V) && a == dl.parts - 1) {
+          p3 -= dl.parts * dl.nr;
+          p4 -= dl.parts * dl.nr;
         }
 
-        for (; b < dl->nr; b++) {
+        for (; b < dl.nr; b++) {
           corner_verts[dst_loop + 0] = p1;
           corner_verts[dst_loop + 1] = p3;
           corner_verts[dst_loop + 2] = p4;
           corner_verts[dst_loop + 3] = p2;
           face_offsets[dst_poly] = dst_loop;
-          material_indices.span[dst_poly] = dl->col;
+          material_indices.span[dst_poly] = dl.col;
 
-          int orco_sizeu = dl->nr - 1;
-          int orco_sizev = dl->parts - 1;
+          int orco_sizeu = dl.nr - 1;
+          int orco_sizev = dl.parts - 1;
 
           /* exception as handled in convertblender.c too */
-          if (dl->flag & DL_CYCL_U) {
+          if (dl.flag & DL_CYCL_U) {
             orco_sizeu++;
-            if (dl->flag & DL_CYCL_V) {
+            if (dl.flag & DL_CYCL_V) {
               orco_sizev++;
             }
           }
-          else if (dl->flag & DL_CYCL_V) {
+          else if (dl.flag & DL_CYCL_V) {
             orco_sizev++;
           }
 
@@ -272,8 +275,8 @@ static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispba
             /* find uv based on vertex index into grid array */
             int v = corner_verts[dst_loop + i] - startvert;
 
-            uv_map[dst_loop + i][0] = (v / dl->nr) / float(orco_sizev);
-            uv_map[dst_loop + i][1] = (v % dl->nr) / float(orco_sizeu);
+            uv_map[dst_loop + i][0] = (v / dl.nr) / float(orco_sizev);
+            uv_map[dst_loop + i][1] = (v % dl.nr) / float(orco_sizeu);
 
             /* cyclic correction */
             if (ELEM(i, 1, 2) && uv_map[dst_loop + i][0] == 0.0f) {
@@ -323,7 +326,8 @@ static void mesh_copy_texture_space_from_curve_type(const Curve *cu, Mesh *mesh)
   BKE_mesh_texspace_calc(mesh);
 }
 
-Mesh *BKE_mesh_new_nomain_from_curve_displist(const Object *ob, const ListBase *dispbase)
+Mesh *BKE_mesh_new_nomain_from_curve_displist(const Object *ob,
+                                              const ListBaseT<DispList> *dispbase)
 {
   const Curve *cu = (const Curve *)ob->data;
 
@@ -337,7 +341,7 @@ Mesh *BKE_mesh_new_nomain_from_curve_displist(const Object *ob, const ListBase *
 
 Mesh *BKE_mesh_new_nomain_from_curve(const Object *ob)
 {
-  ListBase disp = {nullptr, nullptr};
+  ListBaseT<DispList> disp = {nullptr, nullptr};
 
   if (ob->runtime->curve_cache) {
     disp = ob->runtime->curve_cache->disp;
@@ -356,21 +360,23 @@ struct VertLink {
   uint index;
 };
 
-static void prependPolyLineVert(ListBase *lb, uint index)
+static void prependPolyLineVert(ListBaseT<VertLink> *lb, uint index)
 {
   VertLink *vl = MEM_callocN<VertLink>("VertLink");
   vl->index = index;
   BLI_addhead(lb, vl);
 }
 
-static void appendPolyLineVert(ListBase *lb, uint index)
+static void appendPolyLineVert(ListBaseT<VertLink> *lb, uint index)
 {
   VertLink *vl = MEM_callocN<VertLink>("VertLink");
   vl->index = index;
   BLI_addtail(lb, vl);
 }
 
-void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int edge_users_test)
+void BKE_mesh_to_curve_nurblist(const Mesh *mesh,
+                                ListBaseT<Nurb> *nurblist,
+                                const int edge_users_test)
 {
   const Span<float3> positions = mesh->vert_positions();
   const Span<blender::int2> mesh_edges = mesh->edges();
@@ -380,7 +386,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
   /* only to detect edge polylines */
   int *edge_users;
 
-  ListBase edges = {nullptr, nullptr};
+  ListBaseT<EdgeLink> edges = {nullptr, nullptr};
 
   /* get boundary edges */
   edge_users = MEM_calloc_arrayN<int>(mesh_edges.size(), __func__);
@@ -405,7 +411,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
     while (edges.first) {
       /* each iteration find a polyline and add this as a nurbs poly spline */
 
-      ListBase polyline = {nullptr, nullptr}; /* store a list of VertLink's */
+      ListBaseT<VertLink> polyline = {nullptr, nullptr}; /* store a list of VertLink's */
       bool closed = false;
       int faces_num = 0;
       blender::int2 &edge_current = *(blender::int2 *)((EdgeLink *)edges.last)->edge;
@@ -474,7 +480,7 @@ void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, const int 
         VertLink *vl;
 
         /* create new 'nurb' within the curve */
-        nu = MEM_callocN<Nurb>(__func__);
+        nu = MEM_new_for_free<Nurb>(__func__);
 
         nu->pntsu = faces_num;
         nu->pntsv = 1;
@@ -513,7 +519,7 @@ void BKE_mesh_to_curve(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/, Obj
     return;
   }
 
-  ListBase nurblist = {nullptr, nullptr};
+  ListBaseT<Nurb> nurblist = {nullptr, nullptr};
 
   BKE_mesh_to_curve_nurblist(mesh_eval, &nurblist, 0);
   BKE_mesh_to_curve_nurblist(mesh_eval, &nurblist, 1);
@@ -548,11 +554,26 @@ void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
 
   PointCloud *pointcloud = BKE_pointcloud_add(bmain, ob->id.name + 2);
   pointcloud->totpoint = mesh_eval->verts_num;
-  copy_attributes(mesh_eval->attributes(),
+
+  const AttributeAccessor src_attributes = mesh_eval->attributes();
+  MutableAttributeAccessor dst_attributes = pointcloud->attributes_for_write();
+  copy_attributes(src_attributes,
                   AttrDomain::Point,
                   AttrDomain::Point,
-                  {},
-                  pointcloud->attributes_for_write());
+                  attribute_filter_from_skip_ref({".select_vert", ".select_edge", ".select_poly"}),
+                  dst_attributes);
+
+  if (const GAttributeReader src = src_attributes.lookup(".select_vert")) {
+    const AttrType type = cpp_type_to_attribute_type(src.varray.type());
+    if (src.sharing_info && src.varray.is_span()) {
+      const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
+                                          *src.sharing_info);
+      dst_attributes.add(".selection", AttrDomain::Point, type, init);
+    }
+    else {
+      dst_attributes.add(".selection", AttrDomain::Point, type, AttributeInitVArray(src.varray));
+    }
+  }
 
   BKE_id_materials_copy(bmain, (ID *)ob->data, (ID *)pointcloud);
 
@@ -575,11 +596,26 @@ void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene * /*scene*/
   Mesh *mesh = BKE_mesh_add(bmain, ob->id.name + 2);
   if (const PointCloud *points = geometry.get_pointcloud()) {
     mesh->verts_num = points->totpoint;
-    copy_attributes(points->attributes(),
+    const AttributeAccessor src_attributes = points->attributes();
+    MutableAttributeAccessor dst_attributes = mesh->attributes_for_write();
+    copy_attributes(src_attributes,
                     AttrDomain::Point,
                     AttrDomain::Point,
-                    {},
-                    mesh->attributes_for_write());
+                    attribute_filter_from_skip_ref({".selection"}),
+                    dst_attributes);
+
+    if (const GAttributeReader src = src_attributes.lookup(".selection")) {
+      const AttrType type = cpp_type_to_attribute_type(src.varray.type());
+      if (src.sharing_info && src.varray.is_span()) {
+        const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
+                                            *src.sharing_info);
+        dst_attributes.add(".select_vert", AttrDomain::Point, type, init);
+      }
+      else {
+        const AttributeInitVArray init(src.varray);
+        dst_attributes.add(".select_vert", AttrDomain::Point, type, init);
+      }
+    }
   }
 
   BKE_id_materials_copy(bmain, (ID *)ob->data, (ID *)mesh);
@@ -1072,12 +1108,12 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
     }
   }
 
-  LISTBASE_FOREACH (KeyBlock *, kb, &key_dst.block) {
-    if (kb->totelem != mesh.verts_num) {
-      MEM_SAFE_FREE(kb->data);
-      kb->totelem = mesh.verts_num;
-      kb->data = MEM_calloc_arrayN<float3>(kb->totelem, __func__);
-      CLOG_ERROR(&LOG, "Data for shape key '%s' on mesh missing from evaluated mesh ", kb->name);
+  for (KeyBlock &kb : key_dst.block) {
+    if (kb.totelem != mesh.verts_num) {
+      MEM_SAFE_FREE(kb.data);
+      kb.totelem = mesh.verts_num;
+      kb.data = MEM_calloc_arrayN<float3>(kb.totelem, __func__);
+      CLOG_ERROR(&LOG, "Data for shape key '%s' on mesh missing from evaluated mesh ", kb.name);
     }
   }
 }
@@ -1116,6 +1152,10 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, bool pr
   /* Make sure attribute names are moved. */
   std::swap(mesh_dst->active_color_attribute, mesh_src->active_color_attribute);
   std::swap(mesh_dst->default_color_attribute, mesh_src->default_color_attribute);
+  std::swap(mesh_dst->active_uv_map_attribute, mesh_src->active_uv_map_attribute);
+  std::swap(mesh_dst->stencil_uv_map_attribute, mesh_src->stencil_uv_map_attribute);
+  std::swap(mesh_dst->clone_uv_map_attribute, mesh_src->clone_uv_map_attribute);
+  std::swap(mesh_dst->default_uv_map_attribute, mesh_src->default_uv_map_attribute);
   std::swap(mesh_dst->vertex_group_names, mesh_src->vertex_group_names);
 
   BKE_mesh_copy_parameters(mesh_dst, mesh_src);

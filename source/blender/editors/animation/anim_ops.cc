@@ -139,8 +139,8 @@ static bool change_frame_poll(bContext *C)
 static float get_snap_threshold(const ToolSettings *tool_settings, const ARegion *region)
 {
   const int snap_threshold = tool_settings->playhead_snap_distance;
-  return UI_view2d_region_to_view_x(&region->v2d, snap_threshold) -
-         UI_view2d_region_to_view_x(&region->v2d, 0);
+  return blender::ui::view2d_region_to_view_x(&region->v2d, snap_threshold) -
+         blender::ui::view2d_region_to_view_x(&region->v2d, 0);
 }
 
 static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_data)
@@ -161,9 +161,9 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
       return;
     }
 
-    ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
-    LISTBASE_FOREACH (Strip *, strip, seqbase) {
-      sequencer_strip_to_keylist(*strip, *op_data.keylist, *scene);
+    ListBaseT<Strip> *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
+    for (Strip &strip : *seqbase) {
+      sequencer_strip_to_keylist(strip, *op_data.keylist, *scene);
     }
     ED_keylist_prepare_for_direct_access(op_data.keylist);
     return;
@@ -178,7 +178,7 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
     return;
   }
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   switch (area->spacetype) {
     case SPACE_ACTION: {
@@ -196,22 +196,22 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
       break;
   }
 
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    switch (ale->datatype) {
+  for (bAnimListElem &ale : anim_data) {
+    switch (ale.datatype) {
       case ALE_FCURVE: {
-        FCurve *fcurve = static_cast<FCurve *>(ale->data);
-        fcurve_to_keylist(ale->adt, fcurve, op_data.keylist, 0, {-FLT_MAX, FLT_MAX}, true);
+        FCurve *fcurve = static_cast<FCurve *>(ale.data);
+        fcurve_to_keylist(ale.adt, fcurve, op_data.keylist, 0, {-FLT_MAX, FLT_MAX}, true);
         break;
       }
 
       case ALE_GPFRAME: {
-        gpl_to_keylist(nullptr, static_cast<bGPDlayer *>(ale->data), op_data.keylist);
+        gpl_to_keylist(nullptr, static_cast<bGPDlayer *>(ale.data), op_data.keylist);
         break;
       }
 
       case ALE_GREASE_PENCIL_CEL: {
         grease_pencil_cels_to_keylist(
-            ale->adt, static_cast<const GreasePencilLayer *>(ale->data), op_data.keylist, 0);
+            ale.adt, static_cast<const GreasePencilLayer *>(ale.data), op_data.keylist, 0);
         break;
       }
 
@@ -294,14 +294,9 @@ static void append_sequencer_strip_snap_target(blender::Span<Strip *> strips,
   float best_distance = FLT_MAX;
 
   for (Strip *strip : strips) {
-    seq_frame_snap_update_best(blender::seq::time_left_handle_frame_get(scene, strip),
-                               timeline_frame,
-                               &best_frame,
-                               &best_distance);
-    seq_frame_snap_update_best(blender::seq::time_right_handle_frame_get(scene, strip),
-                               timeline_frame,
-                               &best_frame,
-                               &best_distance);
+    seq_frame_snap_update_best(strip->left_handle(), timeline_frame, &best_frame, &best_distance);
+    seq_frame_snap_update_best(
+        strip->right_handle(scene), timeline_frame, &best_frame, &best_distance);
   }
 
   /* best_frame will be FLT_MAX if no target was found. */
@@ -320,7 +315,7 @@ static void append_nla_strip_snap_target(bContext *C,
     BLI_assert_unreachable();
   }
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                               ANIMFILTER_LIST_CHANNELS | ANIMFILTER_FCURVESONLY);
   ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
@@ -328,19 +323,19 @@ static void append_nla_strip_snap_target(bContext *C,
   float best_frame = FLT_MAX;
   float best_distance = FLT_MAX;
 
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    if (ale->type != ANIMTYPE_NLATRACK) {
+  for (bAnimListElem &ale : anim_data) {
+    if (ale.type != ANIMTYPE_NLATRACK) {
       continue;
     }
-    NlaTrack *track = static_cast<NlaTrack *>(ale->data);
-    LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
-      if (abs(strip->start - timeline_frame) < best_distance) {
-        best_distance = abs(strip->start - timeline_frame);
-        best_frame = strip->start;
+    NlaTrack *track = static_cast<NlaTrack *>(ale.data);
+    for (NlaStrip &strip : track->strips) {
+      if (abs(strip.start - timeline_frame) < best_distance) {
+        best_distance = abs(strip.start - timeline_frame);
+        best_frame = strip.start;
       }
-      if (abs(strip->end - timeline_frame) < best_distance) {
-        best_distance = abs(strip->end - timeline_frame);
-        best_frame = strip->end;
+      if (abs(strip.end - timeline_frame) < best_distance) {
+        best_distance = abs(strip.end - timeline_frame);
+        best_frame = strip.end;
       }
     }
   }
@@ -373,7 +368,7 @@ static blender::Vector<SnapTarget> seq_get_snap_targets(bContext *C,
   blender::Vector<SnapTarget> targets;
 
   if (tool_settings->snap_playhead_mode & SCE_SNAP_TO_STRIPS) {
-    ListBase *seqbase = blender::seq::active_seqbase_get(ed);
+    ListBaseT<Strip> *seqbase = blender::seq::active_seqbase_get(ed);
     append_sequencer_strip_snap_target(
         blender::seq::query_all_strips(seqbase), scene, timeline_frame, targets);
   }
@@ -605,7 +600,7 @@ static float frame_from_event(bContext *C, const wmEvent *event)
   float frame;
 
   /* convert from region coordinates to View2D 'tot' space */
-  frame = UI_view2d_region_to_view_x(&region->v2d, event->mval[0]);
+  frame = blender::ui::view2d_region_to_view_x(&region->v2d, event->mval[0]);
 
   /* respect preview range restrictions (if only allowed to move around within that range) */
   if (scene->r.flag & SCER_LOCK_FRAME_SELECTION) {
@@ -662,10 +657,11 @@ static bool sequencer_is_mouse_over_handle(const bContext *C, const wmEvent *eve
     return false;
   }
 
-  const View2D *v2d = UI_view2d_fromcontext(C);
+  const View2D *v2d = blender::ui::view2d_fromcontext(C);
 
   float mouse_co[2];
-  UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouse_co[0], &mouse_co[1]);
+  blender::ui::view2d_region_to_view(
+      v2d, event->mval[0], event->mval[1], &mouse_co[0], &mouse_co[1]);
 
   blender::ed::vse::StripSelection selection = blender::ed::vse::pick_strip_and_handle(
       scene, v2d, mouse_co);
@@ -1029,8 +1025,8 @@ static wmOperatorStatus previewrange_define_exec(bContext *C, wmOperator *op)
   WM_operator_properties_border_to_rcti(op, &rect);
 
   /* convert min/max values to frames (i.e. region to 'tot' rect) */
-  sfra = UI_view2d_region_to_view_x(&region->v2d, rect.xmin);
-  efra = UI_view2d_region_to_view_x(&region->v2d, rect.xmax);
+  sfra = blender::ui::view2d_region_to_view_x(&region->v2d, rect.xmin);
+  efra = blender::ui::view2d_region_to_view_x(&region->v2d, rect.xmax);
 
   /* set start/end frames for preview-range
    * - must clamp within allowable limits
@@ -1136,7 +1132,7 @@ static wmOperatorStatus debug_channel_list_exec(bContext *C, wmOperator * /*op*/
     return OPERATOR_CANCELLED;
   }
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   /* Same filter flags as in action_channel_region_draw() in
    * `source/blender/editors/space_action/space_action.cc`. */
   const eAnimFilter_Flags filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
@@ -1147,8 +1143,8 @@ static wmOperatorStatus debug_channel_list_exec(bContext *C, wmOperator * /*op*/
   printf("Animation Channel List:\n");
   printf("----------------------------------------------\n");
 
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    ANIM_channel_debug_print_info(ac, ale, 1);
+  for (bAnimListElem &ale : anim_data) {
+    ANIM_channel_debug_print_info(ac, &ale, 1);
   }
 
   printf("==============================================\n");
@@ -1194,7 +1190,7 @@ static wmOperatorStatus scene_range_frame_exec(bContext *C, wmOperator * /*op*/)
 
   v2d.cur = ANIM_frame_range_view2d_add_xmargin(v2d, v2d.cur);
 
-  UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), &v2d, V2D_LOCK_COPY);
+  blender::ui::view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), &v2d, V2D_LOCK_COPY);
   ED_area_tag_redraw(CTX_wm_area(C));
 
   return OPERATOR_FINISHED;
@@ -1219,76 +1215,6 @@ static void ANIM_OT_scene_range_frame(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Conversion
  * \{ */
-
-static wmOperatorStatus convert_action_exec(bContext *C, wmOperator * /*op*/)
-{
-  using namespace blender;
-
-  Object *object = CTX_data_active_object(C);
-  AnimData *adt = BKE_animdata_from_id(&object->id);
-  BLI_assert(adt != nullptr);
-  BLI_assert(adt->action != nullptr);
-
-  animrig::Action &legacy_action = adt->action->wrap();
-  Main *bmain = CTX_data_main(C);
-
-  animrig::Action *layered_action = animrig::convert_to_layered_action(*bmain, legacy_action);
-  /* We did already check if the action can be converted. */
-  BLI_assert(layered_action != nullptr);
-  const bool assign_ok = animrig::assign_action(layered_action, object->id);
-  BLI_assert_msg(assign_ok, "Expecting assigning a layered Action to always work");
-  UNUSED_VARS_NDEBUG(assign_ok);
-
-  BLI_assert(layered_action->slots().size() == 1);
-  animrig::Slot *slot = layered_action->slot(0);
-  layered_action->slot_identifier_set(*bmain, *slot, object->id.name);
-
-  const animrig::ActionSlotAssignmentResult result = animrig::assign_action_slot(slot, object->id);
-  BLI_assert(result == animrig::ActionSlotAssignmentResult::OK);
-  UNUSED_VARS_NDEBUG(result);
-
-  ANIM_id_update(bmain, &object->id);
-  DEG_relations_tag_update(bmain);
-  WM_main_add_notifier(NC_ANIMATION | ND_NLA_ACTCHANGE, nullptr);
-
-  return OPERATOR_FINISHED;
-}
-
-static bool convert_action_poll(bContext *C)
-{
-  Object *object = CTX_data_active_object(C);
-  if (!object) {
-    return false;
-  }
-
-  AnimData *adt = BKE_animdata_from_id(&object->id);
-  if (!adt || !adt->action) {
-    return false;
-  }
-
-  /* This will also convert empty actions to layered by just adding an empty slot. */
-  if (!adt->action->wrap().is_action_legacy()) {
-    CTX_wm_operator_poll_msg_set(C, "Action is already layered");
-    return false;
-  }
-
-  return true;
-}
-
-static void ANIM_OT_convert_legacy_action(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Convert Legacy Action";
-  ot->idname = "ANIM_OT_convert_legacy_action";
-  ot->description = "Convert a legacy Action to a layered Action on the active object";
-
-  /* API callbacks. */
-  ot->exec = convert_action_exec;
-  ot->poll = convert_action_poll;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
 
 static bool merge_actions_selection_poll(bContext *C)
 {
@@ -1334,9 +1260,6 @@ static wmOperatorStatus merge_actions_selection_exec(bContext *C, wmOperator *op
       }
       if (action == &active_action) {
         /* Object is already animated by the same action, no point in moving. */
-        continue;
-      }
-      if (action->is_action_legacy()) {
         continue;
       }
       if (!BKE_id_is_editable(bmain, &action->id)) {
@@ -1448,7 +1371,6 @@ void ED_operatortypes_anim()
 
   WM_operatortype_append(ANIM_OT_keying_set_active_set);
 
-  WM_operatortype_append(ANIM_OT_convert_legacy_action);
   WM_operatortype_append(ANIM_OT_merge_animation);
 
   WM_operatortype_append(blender::ed::animrig::POSELIB_OT_create_pose_asset);

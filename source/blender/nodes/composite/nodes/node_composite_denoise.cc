@@ -105,7 +105,7 @@ static void cmp_node_denoise_declare(NodeDeclarationBuilder &b)
 static void node_composit_init_denonise(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, kept for forward compatibility. */
-  NodeDenoise *ndg = MEM_callocN<NodeDenoise>(__func__);
+  NodeDenoise *ndg = MEM_new_for_free<NodeDenoise>(__func__);
   node->storage = ndg;
 }
 
@@ -126,13 +126,13 @@ static bool is_oidn_supported()
 #endif
 }
 
-static void node_composit_buts_denoise(uiLayout *layout, bContext * /*C*/, PointerRNA * /*ptr*/)
+static void node_composit_buts_denoise(ui::Layout &layout, bContext * /*C*/, PointerRNA * /*ptr*/)
 {
 #ifndef WITH_OPENIMAGEDENOISE
-  layout->label(RPT_("Disabled. Built without OpenImageDenoise"), ICON_ERROR);
+  layout.label(RPT_("Disabled. Built without OpenImageDenoise"), ICON_ERROR);
 #else
   if (!is_oidn_supported()) {
-    layout->label(RPT_("Disabled. Platform not supported"), ICON_ERROR);
+    layout.label(RPT_("Disabled. Platform not supported"), ICON_ERROR);
   }
 #endif
 }
@@ -171,8 +171,8 @@ class DenoiseOperation : public NodeOperation {
     device.set("setAffinity", false);
     device.commit();
 
-    const int width = input_image.domain().size.x;
-    const int height = input_image.domain().size.y;
+    const int width = input_image.domain().data_size.x;
+    const int height = input_image.domain().data_size.y;
     const int pixel_stride = sizeof(float) * 4;
     const eGPUDataFormat data_format = GPU_DATA_FLOAT;
 
@@ -372,23 +372,19 @@ class DenoiseOperation : public NodeOperation {
 
   bool use_hdr()
   {
-    return this->get_input("HDR").get_single_value_default(true);
+    return this->get_input("HDR").get_single_value_default<bool>();
   }
 
   CMPNodeDenoisePrefilter get_prefilter_mode()
   {
-    const Result &input = this->get_input("Prefilter");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_DENOISE_PREFILTER_ACCURATE);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeDenoisePrefilter>(menu_value.value);
+    return CMPNodeDenoisePrefilter(
+        this->get_input("Prefilter").get_single_value_default<MenuValue>().value);
   }
 
   CMPNodeDenoiseQuality get_quality_mode()
   {
-    const Result &input = this->get_input("Quality");
-    const MenuValue default_menu_value = MenuValue(CMP_NODE_DENOISE_QUALITY_SCENE);
-    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
-    return static_cast<CMPNodeDenoiseQuality>(menu_value.value);
+    return CMPNodeDenoiseQuality(
+        this->get_input("Quality").get_single_value_default<MenuValue>().value);
   }
 };
 

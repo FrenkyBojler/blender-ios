@@ -35,9 +35,10 @@ TreeDisplayOverrideLibraryHierarchies::TreeDisplayOverrideLibraryHierarchies(
 {
 }
 
-ListBase TreeDisplayOverrideLibraryHierarchies::build_tree(const TreeSourceData &source_data)
+ListBaseT<TreeElement> TreeDisplayOverrideLibraryHierarchies::build_tree(
+    const TreeSourceData &source_data)
 {
-  ListBase tree = {nullptr};
+  ListBaseT<TreeElement> tree = {nullptr};
 
   /* First step: Build "Current File" hierarchy. */
   TreeElement *current_file_te = AbstractTreeDisplay::add_element(
@@ -70,13 +71,13 @@ ListBase TreeDisplayOverrideLibraryHierarchies::build_tree(const TreeSourceData 
   }
 
   /* Remove top level library elements again that don't contain any overrides. */
-  LISTBASE_FOREACH_MUTABLE (TreeElement *, top_level_te, &tree) {
-    if (top_level_te == current_file_te) {
+  for (TreeElement &top_level_te : tree.items_mutable()) {
+    if (&top_level_te == current_file_te) {
       continue;
     }
 
-    if (BLI_listbase_is_empty(&top_level_te->subtree)) {
-      outliner_free_tree_element(top_level_te, &tree);
+    if (BLI_listbase_is_empty(&top_level_te.subtree)) {
+      outliner_free_tree_element(&top_level_te, &tree);
     }
   }
 
@@ -123,10 +124,10 @@ class OverrideIDHierarchyBuilder {
                                         TreeElement &te_to_expand);
 };
 
-ListBase TreeDisplayOverrideLibraryHierarchies::build_hierarchy_for_lib_or_main(
+ListBaseT<TreeElement> TreeDisplayOverrideLibraryHierarchies::build_hierarchy_for_lib_or_main(
     Main *bmain, TreeElement &parent_te, Library *lib)
 {
-  ListBase tree = {nullptr};
+  ListBaseT<TreeElement> tree = {nullptr};
 
   /* Ensure #Main.relations contains the latest mapping of relations. Must be freed before
    * returning. */
@@ -280,8 +281,8 @@ static void foreach_natural_hierarchy_child(const MainIDRelations &id_relations,
                                             const ID &parent_id,
                                             FunctionRef<ForeachChildReturn(ID &)> fn)
 {
-  const MainIDRelationsEntry *relations_of_id = static_cast<MainIDRelationsEntry *>(
-      BLI_ghash_lookup(id_relations.relations_from_pointers, &parent_id));
+  const MainIDRelationsEntry *relations_of_id = id_relations.relations_from_pointers->lookup(
+      &parent_id);
 
   /* Iterate over all IDs used by the parent ID (e.g. the child-collections of a collection). */
   for (MainIDRelationsEntryItem *to_id_entry = relations_of_id->to_ids; to_id_entry;

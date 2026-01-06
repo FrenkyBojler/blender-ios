@@ -158,11 +158,11 @@ static bke::bake::BakeState move_values_to_simulation_state(
 }
 
 static void draw_simulation_state(const bContext *C,
-                                  uiLayout *layout,
+                                  ui::Layout &layout,
                                   bNodeTree &ntree,
                                   bNode &output_node)
 {
-  if (uiLayout *panel = layout->panel(
+  if (ui::Layout *panel = layout.panel(
           C, "simulation_state_items", false, IFACE_("Simulation State")))
   {
     socket_items::ui::draw_items_list_with_operators<SimulationItemsAccessor>(
@@ -182,7 +182,7 @@ static void draw_simulation_state(const bContext *C,
 }
 
 /** Shared for simulation input and output node. */
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_node_ptr)
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_node_ptr)
 {
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(current_node_ptr->owner_id);
   bNode *current_node = static_cast<bNode *>(current_node_ptr->data);
@@ -204,21 +204,21 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   if (!get_bake_draw_context(C, output_node, ctx)) {
     return;
   }
-  layout->active_set(ctx.is_bakeable_in_current_context);
+  layout.active_set(ctx.is_bakeable_in_current_context);
 
   draw_simulation_state(C, layout, ntree, output_node);
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  layout->enabled_set(ID_IS_EDITABLE(ctx.object));
+  layout.enabled_set(ID_IS_EDITABLE(ctx.object));
 
   {
-    uiLayout *col = &layout->column(false);
+    ui::Layout &col = layout.column(false);
     draw_bake_button_row(ctx, col, true);
     if (const std::optional<std::string> bake_state_str = get_bake_state_string(ctx)) {
-      uiLayout *row = &col->row(true);
-      row->label(*bake_state_str, ICON_NONE);
+      ui::Layout &row = col.row(true);
+      row.label(*bake_state_str, ICON_NONE);
     }
   }
   draw_common_bake_settings(C, ctx, layout);
@@ -424,7 +424,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySimulationInput *data = MEM_callocN<NodeGeometrySimulationInput>(__func__);
+  NodeGeometrySimulationInput *data = MEM_new_for_free<NodeGeometrySimulationInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -760,11 +760,11 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySimulationOutput *data = MEM_callocN<NodeGeometrySimulationOutput>(__func__);
+  NodeGeometrySimulationOutput *data = MEM_new_for_free<NodeGeometrySimulationOutput>(__func__);
 
   data->next_identifier = 0;
 
-  data->items = MEM_calloc_arrayN<NodeSimulationItem>(1, __func__);
+  data->items = MEM_new_array_for_free<NodeSimulationItem>(1, __func__);
   data->items[0].name = BLI_strdup(DATA_("Geometry"));
   data->items[0].socket_type = SOCK_GEOMETRY;
   data->items[0].identifier = data->next_identifier++;
@@ -776,13 +776,14 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_free_storage(bNode *node)
 {
   socket_items::destruct_array<SimulationItemsAccessor>(*node);
-  MEM_freeN(node->storage);
+  MEM_freeN(reinterpret_cast<NodeGeometrySimulationOutput *>(node->storage));
 }
 
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometrySimulationOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_dupallocN<NodeGeometrySimulationOutput>(__func__, src_storage);
+  auto *dst_storage = MEM_new_for_free<NodeGeometrySimulationOutput>(
+      __func__, blender::dna::shallow_copy(src_storage));
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<SimulationItemsAccessor>(*src_node, *dst_node);

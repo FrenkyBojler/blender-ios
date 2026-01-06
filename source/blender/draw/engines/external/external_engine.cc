@@ -22,6 +22,7 @@
 #include "DNA_view3d_types.h"
 
 #include "ED_image.hh"
+#include "ED_render.hh"
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
@@ -100,12 +101,12 @@ class Prepass {
 
     ResourceHandleRange handle = {};
 
-    LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
-      if (!DRW_object_is_visible_psys_in_active_context(ob, psys)) {
+    for (ParticleSystem &psys : ob->particlesystem) {
+      if (!DRW_object_is_visible_psys_in_active_context(ob, &psys)) {
         continue;
       }
 
-      const ParticleSettings *part = psys->part;
+      const ParticleSettings *part = psys.part;
       const int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
       if (draw_as == PART_DRAW_PATH && part->draw_as == PART_DRAW_REND) {
         /* Case where the render engine should have rendered it, but we need to draw it for
@@ -114,7 +115,7 @@ class Prepass {
           handle = manager.resource_handle_for_psys(ob_ref, ob_ref.particles_matrix());
         }
 
-        gpu::Batch *geom = DRW_cache_particles_get_hair(ob, psys, nullptr);
+        gpu::Batch *geom = DRW_cache_particles_get_hair(ob, &psys, nullptr);
         mesh_ps_->draw(geom, handle);
         break;
       }
@@ -198,7 +199,7 @@ class Instance : public DrawEngine {
    * This is only needed for GPencil integration. */
   bool do_prepass = false;
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "External";
   }
@@ -206,7 +207,7 @@ class Instance : public DrawEngine {
   void init() final
   {
     draw_ctx = DRW_context_get();
-    do_prepass = DRW_gpencil_engine_needed_viewport(draw_ctx->depsgraph, draw_ctx->v3d);
+    do_prepass = DRW_render_check_grease_pencil(draw_ctx->depsgraph, draw_ctx->v3d);
   }
 
   void begin_sync() final
@@ -322,7 +323,13 @@ class Instance : public DrawEngine {
 
   void draw_scene_do_image()
   {
-    Scene *scene = draw_ctx->scene;
+    /* Get scene from the render job, to show progress for scenes render as part
+     * of compositor or sequencer. */
+    Scene *scene = ED_render_job_get_current_scene(draw_ctx->evil_C);
+    if (scene == nullptr) {
+      scene = draw_ctx->scene;
+    }
+
     Render *re = RE_GetSceneRender(scene);
     RenderEngine *engine = RE_engine_get(re);
 
@@ -449,9 +456,14 @@ RenderEngineType DRW_engine_viewport_external_type = {
 
 bool DRW_engine_external_acquire_for_image_editor(const DRWContext *draw_ctx)
 {
-  const SpaceLink *space_data = draw_ctx->space_data;
-  Scene *scene = draw_ctx->scene;
+  /* Get scene from the render job, to show progress for scenes render as part
+   * of compositor or sequencer. */
+  Scene *scene = ED_render_job_get_current_scene(draw_ctx->evil_C);
+  if (scene == nullptr) {
+    scene = draw_ctx->scene;
+  }
 
+  const SpaceLink *space_data = draw_ctx->space_data;
   if (space_data == nullptr) {
     return false;
   }

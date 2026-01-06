@@ -21,22 +21,22 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Alpha");
 }
 
-static void node_shader_buts_attribute(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_attribute(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "attribute_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr,
-               RNA_struct_find_property(ptr, "attribute_name"),
-               -1,
-               0,
-               UI_ITEM_NONE,
-               "",
-               ICON_NONE,
-               IFACE_("Name"));
+  layout.prop(ptr, "attribute_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr,
+              RNA_struct_find_property(ptr, "attribute_name"),
+              -1,
+              0,
+              UI_ITEM_NONE,
+              "",
+              ICON_NONE,
+              IFACE_("Name"));
 }
 
 static void node_shader_init_attribute(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeShaderAttribute *attr = MEM_callocN<NodeShaderAttribute>("NodeShaderAttribute");
+  NodeShaderAttribute *attr = MEM_new_for_free<NodeShaderAttribute>("NodeShaderAttribute");
   node->storage = attr;
 }
 
@@ -77,8 +77,8 @@ static int node_shader_gpu_attribute(GPUMaterial *mat,
   GPU_stack_link(mat, node, "node_attribute", in, out, cd_attr);
 
   if (is_varying) {
-    int i;
-    LISTBASE_FOREACH_INDEX (bNodeSocket *, sock, &node->outputs, i) {
+
+    for (const auto [i, sock] : node->outputs.enumerate()) {
       node_shader_gpu_bump_tex_coord(mat, node, &out[i].link);
     }
   }

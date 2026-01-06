@@ -23,6 +23,8 @@ void gpu_shader_dependency_exit();
 namespace blender::gpu::shader {
 
 BuiltinBits gpu_shader_dependency_get_builtins(const StringRefNull source_name);
+Span<ShaderCreateInfo::SharedVariable> gpu_shader_dependency_get_shared_variables(
+    const StringRefNull shader_source_name);
 
 /* Returns true is any shader code has a printf statement. */
 bool gpu_shader_dependency_has_printf();
@@ -33,6 +35,7 @@ struct PrintfFormat {
   struct Block {
     enum ArgumentType {
       NONE = 0,
+      STRING,
       UINT,
       INT,
       FLOAT,

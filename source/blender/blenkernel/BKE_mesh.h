@@ -12,6 +12,7 @@
 #include "BLI_array.hh"
 #include "BLI_string_ref.hh"
 
+#include "DNA_listBase.h"
 #include "DNA_mesh_types.h"
 
 struct BMesh;
@@ -23,7 +24,6 @@ struct CustomData_MeshMasks;
 struct Depsgraph;
 struct KeyBlock;
 struct LinkNode;
-struct ListBase;
 struct MDeformVert;
 struct MDisps;
 struct MFace;
@@ -32,6 +32,8 @@ struct MemArena;
 struct Mesh;
 struct Object;
 struct Scene;
+struct DispList;
+struct Nurb;
 
 /* TODO: Move to `BKE_mesh_types.hh` when possible. */
 enum eMeshBatchDirtyMode : int8_t {
@@ -130,7 +132,8 @@ Mesh *BKE_mesh_copy_for_eval(const Mesh &source);
  * contrary to #BKE_mesh_to_curve_nurblist which modifies ob itself.
  */
 Mesh *BKE_mesh_new_nomain_from_curve(const Object *ob);
-Mesh *BKE_mesh_new_nomain_from_curve_displist(const Object *ob, const ListBase *dispbase);
+Mesh *BKE_mesh_new_nomain_from_curve_displist(const Object *ob,
+                                              const ListBaseT<DispList> *dispbase);
 
 bool BKE_mesh_attribute_required(blender::StringRef name);
 
@@ -147,7 +150,7 @@ void BKE_mesh_orco_ensure(Object *ob, Mesh *mesh);
 
 Mesh *BKE_mesh_from_object(Object *ob);
 void BKE_mesh_assign_object(Main *bmain, Object *ob, Mesh *mesh);
-void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBase *nurblist, int edge_users_test);
+void BKE_mesh_to_curve_nurblist(const Mesh *mesh, ListBaseT<Nurb> *nurblist, int edge_users_test);
 void BKE_mesh_to_curve(Main *bmain, Depsgraph *depsgraph, Scene *scene, Object *ob);
 void BKE_mesh_to_pointcloud(Main *bmain, Depsgraph *depsgraph, Scene *scene, Object *ob);
 void BKE_pointcloud_to_mesh(Main *bmain, Depsgraph *depsgraph, Scene *scene, Object *ob);
@@ -429,27 +432,6 @@ void BKE_mesh_calc_relative_deform(const int *face_offsets,
 
                                    const float (*vert_cos_org)[3],
                                    float (*vert_cos_new)[3]);
-
-/* *** mesh_validate.cc *** */
-
-/**
- * Validates and corrects a Mesh.
- *
- * \returns true if a change is made.
- */
-bool BKE_mesh_validate(Mesh *mesh, bool do_verbose, bool cddata_check_mask);
-/**
- * Checks if a Mesh is valid without any modification. This is always verbose.
- * \returns True if the mesh is valid.
- */
-bool BKE_mesh_is_valid(Mesh *mesh);
-/**
- * Check all material indices of faces are valid, invalid ones are set to 0.
- * \returns True if the material indices are valid.
- */
-bool BKE_mesh_validate_material_indices(Mesh *mesh);
-
-void BKE_mesh_strip_loose_faces(Mesh *mesh);
 
 /* **** Depsgraph evaluation **** */
 

@@ -8,15 +8,17 @@
  * \ingroup sequencer
  */
 
+#include "DNA_listBase.h"
 #include "DNA_space_enums.h"
 
 struct Depsgraph;
 struct GPUOffScreen;
 struct GPUViewport;
 struct ImBuf;
-struct ListBase;
 struct Main;
+struct Render;
 struct Scene;
+struct SeqTimelineChannel;
 struct Strip;
 struct StripElem;
 
@@ -36,7 +38,6 @@ struct RenderData {
   eSpaceSeq_Proxy_RenderSize preview_render_size = SEQ_RENDER_SIZE_SCENE;
   bool use_proxies = false;
   bool ignore_missing_media = false;
-  int for_render = 0;
   int motion_blur_samples = 0;
   float motion_blur_shutter = 0.0f;
   bool skip_cache = false;
@@ -47,6 +48,9 @@ struct RenderData {
   int view_id = 0;
   /* ID of task for assigning temp cache entries to particular task(thread, etc.) */
   eTaskId task_id = SEQ_TASK_MAIN_RENDER;
+
+  /* Set when executing as part of a frame or animation render. */
+  Render *render = nullptr;
 
   /* special case for OpenGL render */
   GPUOffScreen *gpu_offscreen = nullptr;
@@ -68,7 +72,7 @@ void render_new_render_data(Main *bmain,
                             int rectx,
                             int recty,
                             eSpaceSeq_Proxy_RenderSize preview_render_size,
-                            int for_render,
+                            Render *render,
                             RenderData *r_context);
 StripElem *render_give_stripelem(const Scene *scene, const Strip *strip, int timeline_frame);
 
@@ -78,7 +82,7 @@ void render_pixel_from_sequencer_space_v4(const Scene *scene, float pixel[4]);
  * Check if `strip` is muted for rendering.
  * This function also checks `SeqTimelineChannel` flag.
  */
-bool render_is_muted(const ListBase *channels, const Strip *strip);
+bool render_is_muted(const ListBaseT<SeqTimelineChannel> *channels, const Strip *strip);
 
 /**
  * Calculate render scale factor relative to full size. This can be due to render

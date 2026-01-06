@@ -47,28 +47,27 @@ const EnumPropertyItem rna_enum_color_space_convert_default_items[] = {
 
 #  include "MEM_guardedalloc.h"
 
+#  include "BLI_listbase.h"
+#  include "BLI_string_utf8.h"
+
 #  include "BKE_colorband.hh"
 #  include "BKE_colortools.hh"
+#  include "BKE_context.hh"
 #  include "BKE_image.hh"
 #  include "BKE_linestyle.h"
+#  include "BKE_main.hh"
 #  include "BKE_main_invariants.hh"
-#  include "BKE_movieclip.h"
-#  include "BKE_node.hh"
 #  include "BKE_node_legacy_types.hh"
 #  include "BKE_node_tree_update.hh"
 
 #  include "DEG_depsgraph.hh"
 
-#  include "ED_node.hh"
-
 #  include "IMB_colormanagement.hh"
-#  include "IMB_imbuf.hh"
 
 #  include "MOV_read.hh"
 
 #  include "SEQ_iterator.hh"
 #  include "SEQ_relations.hh"
-#  include "SEQ_thumbnail_cache.hh"
 
 struct SeqCurveMappingUpdateData {
   Scene *scene;
@@ -80,9 +79,9 @@ static bool seq_update_modifier_curve(Strip *strip, void *user_data)
   /* Invalidate cache of any strips that have modifiers using this
    * curve mapping. */
   SeqCurveMappingUpdateData *data = static_cast<SeqCurveMappingUpdateData *>(user_data);
-  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
-    if (smd->type == eSeqModifierType_Curves) {
-      CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(smd);
+  for (StripModifierData &smd : strip->modifiers) {
+    if (smd.type == eSeqModifierType_Curves) {
+      CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(&smd);
       if (&cmd->curve_mapping == data->curve) {
         blender::seq::relations_invalidate_cache(data->scene, strip);
       }
@@ -307,7 +306,7 @@ static std::optional<std::string> rna_ColorRampElement_path(const PointerRNA *pt
         break;
       }
       case ID_LS: {
-        ListBase listbase;
+        ListBaseT<LinkData> listbase;
         LinkData *link;
 
         BKE_linestyle_modifier_list_color_ramps((FreestyleLineStyle *)id, &listbase);
@@ -820,7 +819,7 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
         Strip *strip = cb_data.r_seq;
 
         if (strip) {
-          blender::seq::relations_strip_free_anim(strip);
+          blender::seq::strip_free_movie_readers(strip);
 
           if (strip->data->proxy && strip->data->proxy->anim) {
             MOV_close(strip->data->proxy->anim);

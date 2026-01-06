@@ -24,6 +24,16 @@ namespace {
 #endif
 
 #ifdef WITH_NANOVDB
+
+/* Cubic interpolation weights. */
+ccl_device_forceinline void fill_cubic_weights(float3 w[4], float3 t)
+{
+  w[0] = (((-1.0f / 6.0f) * t + 0.5f) * t - 0.5f) * t + (1.0f / 6.0f);
+  w[1] = ((0.5f * t - 1.0f) * t) * t + (2.0f / 3.0f);
+  w[2] = ((-0.5f * t + 0.5f) * t + 0.5f) * t + (1.0f / 6.0f);
+  w[3] = (1.0f / 6.0f) * t * t * t;
+}
+
 /* -------------------------------------------------------------------- */
 /** Return the sample position for stochastical one-tap sampling.
  * From "Stochastic Texture Filtering": https://arxiv.org/abs/2305.05810
@@ -33,11 +43,8 @@ ccl_device_inline float3 interp_tricubic_stochastic(const float3 P, ccl_private 
   const float3 p = floor(P);
   const float3 t = P - p;
 
-  /* Cubic interpolation weights. */
-  const float3 w[4] = {(((-1.0f / 6.0f) * t + 0.5f) * t - 0.5f) * t + (1.0f / 6.0f),
-                       ((0.5f * t - 1.0f) * t) * t + (2.0f / 3.0f),
-                       ((-0.5f * t + 0.5f) * t + 0.5f) * t + (1.0f / 6.0f),
-                       (1.0f / 6.0f) * t * t * t};
+  float3 w[4];
+  fill_cubic_weights(w, t);
 
   /* For reservoir sampling, always accept the first in the stream. */
   float3 total_weight = w[0];
@@ -111,6 +118,11 @@ ccl_device OutT kernel_tex_image_interp_trilinear_nanovdb(ccl_private Acc &acc, 
 template<typename OutT, typename Acc>
 ccl_device OutT kernel_tex_image_interp_tricubic_nanovdb(ccl_private Acc &acc, const float3 P)
 {
+#  if defined(__KERNEL_HIP__)
+  /* Explicitly unroll for HIP compiler to unroll the loop. Without this the render result is wrong
+   * on a specific platform/compiler combinations. ALso don't rely on the `unroll` hint as it has
+   * a performance impact. See #152126 and discussion/benchmark in !152321. */
+
   const float3 floor_P = floor(P);
   const float3 t = P - floor_P;
   const int3 index = make_int3(floor_P);
@@ -118,38 +130,48 @@ ccl_device OutT kernel_tex_image_interp_tricubic_nanovdb(ccl_private Acc &acc, c
   const int xc[4] = {index.x - 1, index.x, index.x + 1, index.x + 2};
   const int yc[4] = {index.y - 1, index.y, index.y + 1, index.y + 2};
   const int zc[4] = {index.z - 1, index.z, index.z + 1, index.z + 2};
-  float u[4], v[4], w[4];
 
-  /* Some helper macros to keep code size reasonable.
-   * Lets the compiler inline all the matrix multiplications.
-   */
-#  define SET_CUBIC_SPLINE_WEIGHTS(u, t) \
-    { \
-      u[0] = (((-1.0f / 6.0f) * t + 0.5f) * t - 0.5f) * t + (1.0f / 6.0f); \
-      u[1] = ((0.5f * t - 1.0f) * t) * t + (2.0f / 3.0f); \
-      u[2] = ((-0.5f * t + 0.5f) * t + 0.5f) * t + (1.0f / 6.0f); \
-      u[3] = (1.0f / 6.0f) * t * t * t; \
-    } \
-    (void)0
+  float3 weight[4];
+  fill_cubic_weights(weight, t);
 
-#  define DATA(x, y, z) (OutT(acc.getValue(make_int3(xc[x], yc[y], zc[z]))))
-#  define COL_TERM(col, row) \
-    (v[col] * (u[0] * DATA(0, col, row) + u[1] * DATA(1, col, row) + u[2] * DATA(2, col, row) + \
-               u[3] * DATA(3, col, row)))
-#  define ROW_TERM(row) \
-    (w[row] * (COL_TERM(0, row) + COL_TERM(1, row) + COL_TERM(2, row) + COL_TERM(3, row)))
-
-  SET_CUBIC_SPLINE_WEIGHTS(u, t.x);
-  SET_CUBIC_SPLINE_WEIGHTS(v, t.y);
-  SET_CUBIC_SPLINE_WEIGHTS(w, t.z);
+#    define DATA(x, y, z) (OutT(acc.getValue(make_int3(xc[x], yc[y], zc[z]))))
+#    define COL_TERM(col, row) \
+      (weight[col].y * (weight[0].x * DATA(0, col, row) + weight[1].x * DATA(1, col, row) + \
+                        weight[2].x * DATA(2, col, row) + weight[3].x * DATA(3, col, row)))
+#    define ROW_TERM(row) \
+      (weight[row].z * (COL_TERM(0, row) + COL_TERM(1, row) + COL_TERM(2, row) + COL_TERM(3, row)))
 
   /* Actual interpolation. */
   return ROW_TERM(0) + ROW_TERM(1) + ROW_TERM(2) + ROW_TERM(3);
 
-#  undef COL_TERM
-#  undef ROW_TERM
-#  undef DATA
-#  undef SET_CUBIC_SPLINE_WEIGHTS
+#    undef COL_TERM
+#    undef ROW_TERM
+#    undef DATA
+
+#  else
+
+  const float3 floor_P = floor(P);
+  const float3 t = P - floor_P;
+  const int3 index = make_int3(floor_P) - make_int3(1);
+
+  float3 w[4];
+  fill_cubic_weights(w, t);
+
+  OutT result = make_zero<OutT>();
+
+  for (int k = 0; k < 4; k++) {
+    OutT col_term_acc = make_zero<OutT>();
+    for (int j = 0; j < 4; j++) {
+      col_term_acc += w[j].y * (w[0].x * (OutT(acc.getValue(index + make_int3(0, j, k)))) +
+                                w[1].x * (OutT(acc.getValue(index + make_int3(1, j, k)))) +
+                                w[2].x * (OutT(acc.getValue(index + make_int3(2, j, k)))) +
+                                w[3].x * (OutT(acc.getValue(index + make_int3(3, j, k)))));
+    }
+    result += w[k].z * col_term_acc;
+  }
+
+  return result;
+#  endif
 }
 
 template<typename OutT, typename T>

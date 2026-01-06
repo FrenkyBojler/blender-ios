@@ -39,14 +39,14 @@ void node_get_stack(bNode *node, bNodeStack *stack, bNodeStack **in, bNodeStack 
 {
   /* build pointer stack */
   if (in) {
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-      *(in++) = node_get_socket_stack(stack, sock);
+    for (bNodeSocket &sock : node->inputs) {
+      *(in++) = node_get_socket_stack(stack, &sock);
     }
   }
 
   if (out) {
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-      *(out++) = node_get_socket_stack(stack, sock);
+    for (bNodeSocket &sock : node->outputs) {
+      *(out++) = node_get_socket_stack(stack, &sock);
     }
   }
 }
@@ -158,7 +158,7 @@ static blender::Vector<bNode *> get_node_code_gen_order(bNodeTree &ntree)
     bNode *node = nodes[old_i];
     const bke::bNodeTreeZone *zone = zones->get_zone_by_node(node->identifier);
     if (!zone) {
-      /* Nones outside of any zone can stay where they are. */
+      /* None outside of any zone can stay where they are. */
       continue;
     }
     if (zone->output_node_id == node->identifier) {
@@ -213,18 +213,18 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
     node = nodelist[n];
 
     /* init node socket stack indexes */
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-      node_init_input_index(sock, &index);
+    for (bNodeSocket &sock : node->inputs) {
+      node_init_input_index(&sock, &index);
     }
 
     if (node->is_muted() || node->is_reroute()) {
-      LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-        node_init_output_index_muted(sock, &index, node->runtime->internal_links);
+      for (bNodeSocket &sock : node->outputs) {
+        node_init_output_index_muted(&sock, &index, node->runtime->internal_links);
       }
     }
     else {
-      LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-        node_init_output_index(sock, &index);
+      for (bNodeSocket &sock : node->outputs) {
+        node_init_output_index(&sock, &index);
       }
     }
   }
@@ -234,7 +234,7 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
   exec->nodeexec = MEM_calloc_arrayN<bNodeExec>(exec->totnodes, "node execution data");
   /* allocate data pointer for node stack */
   exec->stacksize = index;
-  exec->stack = MEM_calloc_arrayN<bNodeStack>(exec->stacksize, "bNodeStack");
+  exec->stack = MEM_new_array_for_free<bNodeStack>(exec->stacksize, "bNodeStack");
 
   /* all non-const results are considered inputs */
   int n;
@@ -248,21 +248,21 @@ bNodeTreeExec *ntree_exec_begin(bNodeExecContext *context,
     nodeexec->free_exec_fn = node->typeinfo->free_exec_fn;
 
     /* tag inputs */
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+    for (bNodeSocket &sock : node->inputs) {
       /* disable the node if an input link is invalid */
-      if (sock->link && !(sock->link->flag & NODE_LINK_VALID)) {
+      if (sock.link && !(sock.link->flag & NODE_LINK_VALID)) {
         node->runtime->need_exec = 0;
       }
 
-      ns = setup_stack(exec->stack, ntree, node, sock);
+      ns = setup_stack(exec->stack, ntree, node, &sock);
       if (ns) {
         ns->hasoutput = 1;
       }
     }
 
     /* tag all outputs */
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
-      /* ns = */ setup_stack(exec->stack, ntree, node, sock);
+    for (bNodeSocket &sock : node->outputs) {
+      /* ns = */ setup_stack(exec->stack, ntree, node, &sock);
     }
 
     nodekey = bke::node_instance_key(parent_key, ntree, node);

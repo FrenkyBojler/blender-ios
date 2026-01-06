@@ -102,7 +102,7 @@ static Result compute_max_tile_velocity_cpu(Context &context, const Result &velo
   }
 
   const int2 tile_size = int2(MOTION_BLUR_TILE_SIZE);
-  const int2 velocity_size = velocity_image.domain().size;
+  const int2 velocity_size = velocity_image.domain().data_size;
   const int2 tiles_count = math::divide_ceil(velocity_size, tile_size);
   Result output = context.create_result(ResultType::Float4);
   output.allocate_texture(Domain(tiles_count));
@@ -193,7 +193,7 @@ static Result dilate_max_velocity_cpu(Context &context,
     return output;
   }
 
-  const int2 size = max_tile_velocity.domain().size;
+  const int2 size = max_tile_velocity.domain().data_size;
   Result output = context.create_result(ResultType::Float4);
   output.allocate_texture(Domain(size));
 
@@ -319,12 +319,12 @@ static void gather_sample(const Result &input_image,
                           Accumulator &accum)
 {
   float2 sample_uv = screen_uv - offset / float2(size);
-  float4 sample_vectors = input_velocity.sample_bilinear_extended(sample_uv) *
+  float4 sample_vectors = input_velocity.sample_bilinear_extended<float4>(sample_uv) *
                           float4(float2(shutter_speed), float2(-shutter_speed));
   float2 sample_motion = (next) ? sample_vectors.zw() : sample_vectors.xy();
   float sample_motion_len = math::length(sample_motion);
-  float sample_depth = input_depth.sample_bilinear_extended(sample_uv).x;
-  float4 sample_color = input_image.sample_bilinear_extended(sample_uv);
+  float sample_depth = input_depth.sample_bilinear_extended<float>(sample_uv);
+  float4 sample_color = float4(input_image.sample_bilinear_extended<Color>(sample_uv));
 
   float2 direct_weights = sample_weights(
       center_depth, sample_depth, center_motion_len, sample_motion_len, offset_len);
@@ -418,7 +418,7 @@ static void motion_blur_cpu(const Result &input_image,
                             const int samples_count,
                             const float shutter_speed)
 {
-  const int2 size = input_image.domain().size;
+  const int2 size = input_image.domain().data_size;
   threading::parallel_for(IndexRange(size.y), 1, [&](const IndexRange sub_y_range) {
     for (const int64_t y : sub_y_range) {
       for (const int64_t x : IndexRange(size.x)) {
@@ -543,7 +543,7 @@ class VectorBlurOperation : public NodeOperation {
     input.bind_as_texture(shader, "input_tx");
 
     Result output = context().create_result(ResultType::Float4);
-    const int2 tiles_count = math::divide_ceil(input.domain().size, int2(32));
+    const int2 tiles_count = math::divide_ceil(input.domain().data_size, int2(32));
     output.allocate_texture(Domain(tiles_count));
     output.bind_as_image(shader, "output_img");
 
@@ -581,7 +581,7 @@ class VectorBlurOperation : public NodeOperation {
     const int slot = GPU_shader_get_ssbo_binding(shader, "tile_indirection_buf");
     GPU_storagebuf_bind(tile_indirection_buffer, slot);
 
-    compute_dispatch_threads_at_least(shader, max_tile_velocity.domain().size);
+    compute_dispatch_threads_at_least(shader, max_tile_velocity.domain().data_size);
 
     GPU_shader_unbind();
     max_tile_velocity.unbind_as_texture();
@@ -618,7 +618,7 @@ class VectorBlurOperation : public NodeOperation {
     output.allocate_texture(domain);
     output.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, output.domain().size);
+    compute_dispatch_threads_at_least(shader, output.domain().data_size);
 
     GPU_shader_unbind();
     input.unbind_as_texture();
@@ -657,14 +657,14 @@ class VectorBlurOperation : public NodeOperation {
 
   int get_samples_count()
   {
-    return math::clamp(this->get_input("Samples").get_single_value_default(32), 1, 256);
+    return math::clamp(this->get_input("Samples").get_single_value_default<int>(), 1, 256);
   }
 
   float get_shutter()
   {
     /* Divide by two since the motion blur algorithm expects shutter per motion step and has two
      * motion steps, while the user inputs the entire shutter across all steps. */
-    return math::max(0.0f, this->get_input("Shutter").get_single_value_default(0.5f)) / 2.0f;
+    return math::max(0.0f, this->get_input("Shutter").get_single_value_default<float>()) / 2.0f;
   }
 };
 
