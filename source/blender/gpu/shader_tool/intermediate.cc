@@ -640,12 +640,12 @@ void TokenStream::identify_keywords(TokenData &tokens)
 
 void TokenStream::semantic_analysis(ParserStage stop_after, report_callback &report_error)
 {
-  if (stop_after == IdentifyKeywords) {
-    this->scope_types = "G";
-    this->scope_ranges = {IndexRange(0, token_types.size())};
+  if (stop_after == BuildScopeTree) {
+    build_scope_tree(report_error);
   }
   else {
-    build_scope_tree(report_error);
+    this->scope_types = "G";
+    this->scope_ranges = {IndexRange(0, token_types.size())};
   }
   build_token_to_scope_map();
 }
