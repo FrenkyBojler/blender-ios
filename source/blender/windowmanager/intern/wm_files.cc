@@ -3932,7 +3932,7 @@ static wmOperatorStatus wm_save_mainfile_invoke(bContext *C,
   const bool show_save_image_dialog = prop ? RNA_property_boolean_get(op->ptr, prop) : false;
 
   int modified_images_count = ED_image_save_all_modified_info(CTX_data_main(C), nullptr);
-  if (modified_images_count > 0 && show_save_image_dialog) {
+  if (show_save_image_dialog && modified_images_count > 0) {
     RNA_property_boolean_set(op->ptr, prop, false);
     wm_operator_save_modified_images_dialog(C, op, wm_invoke_save_mainfile_after_dialog_callback);
     return OPERATOR_INTERFACE;
