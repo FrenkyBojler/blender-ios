@@ -28,11 +28,10 @@ import bpy
 # 
 # The script can be invoked with an additional argument '--generate' to update the ground truth test data.
 # Nodes in the "Expected***" node trees are replaced with the result of operators applied to the "Tests" node tree.
-# By default all test cases are updated. A single subtest can be updated using the '--subtest <NAME>' argument:
 # 
 # ./bin/blender --factory-startup --python <SOURCEPATH>/tests/python/bl_node_copy_operators.py
 #     --
-#     --testdir <SOURCEPATH>/tests/files/node_group --generate --subtest <NAME>
+#     --testdir <SOURCEPATH>/tests/files/node_group --generate
 
 args = None
 testfile = "node_copy_operators.blend"
@@ -238,6 +237,7 @@ def execute_group_separate(type, test_case, test_tree, expected_tree=None):
     test_nodes = find_expected_nodes(test_tree, test_case)
 
     # Test nodes should be node groups
+    print(f"execute_group_separate nodes={[n.name for n in test_nodes]}")
     assert len(test_nodes) == 1
     group_node = test_nodes[0]
     assert isinstance(group_node, bpy.types.GeometryNodeGroup)
@@ -466,38 +466,24 @@ class NodeMakeGroupTest(AbstractNodeCopyOperatorTest):
 ################
 # Code for generating ground truth test data, sharing functions with test code.
 
-# Returns directly linked nodes and parent frame.
-def find_expected_nodes_and_links(tree, test_name):
-    internal_nodes = find_expected_nodes(tree, test_name)
-    result = set(internal_nodes)
-    for node in internal_nodes:
-        if node.parent:
-            result.add(node.parent)
-        for socket in node.inputs:
-            for link in socket.links:
-                result.add(link.from_node)
-        for socket in node.outputs:
-            for link in socket.links:
-                result.add(link.to_node)
-    return list(result)
+def copy_tree(src_tree, dst_modifier):
+    ob = dst_modifier.id_data
+    ob.modifiers.active = dst_modifier
 
+    # Clean up old data
+    dst_modifier.node_group = None
+    # Note: calling bpy.data.orphans_purge() directly does not work for some reason.
+    bpy.ops.outliner.orphans_purge()
+    
+    dst_tree = src_tree.copy()
+    dst_tree.name = dst_modifier.name
+    dst_modifier.node_group = dst_tree
 
-# Remove nodes for a test case and replace them with original nodes.
-def reset_test_case(test_tree, expected_tree, test_case):
-    # Remove current nodes.
-    old_nodes = find_expected_nodes_and_links(expected_tree, test_case)
-    for node in old_nodes:
-        expected_tree.nodes.remove(node)
+    # Ensure a single user action for the tree to avoid destroying animation data.
+    if dst_tree.animation_data.action and dst_tree.animation_data.action.users > 1:
+        dst_tree.animation_data.action = dst_tree.animation_data.action.copy()
 
-    # Copy original nodes.
-    orig_nodes = find_expected_nodes_and_links(test_tree, test_case)
-    with node_editor_context_override(bpy.context, test_tree, selected_nodes=orig_nodes):
-        bpy.ops.node.clipboard_copy()
-    with node_editor_context_override(bpy.context, expected_tree):
-        bpy.ops.node.clipboard_paste()
-
-    # Sanity check.
-    assert len(find_expected_nodes(test_tree, test_case)) == len(find_expected_nodes(expected_tree, test_case))
+    return dst_tree
 
 
 def generate_test_data():
@@ -506,29 +492,19 @@ def generate_test_data():
     test_tree = bpy.data.node_groups["Tests"]
     ob = bpy.data.objects["TestObject"]
 
-    expected_tree__make_group = ob.modifiers["ExpectedMakeGroup"].node_group
-    expected_tree__group_insert = ob.modifiers["ExpectedGroupInsert"].node_group
-    expected_tree__ungroup = ob.modifiers["ExpectedUngroup"].node_group
-    expected_tree__group_separate_copy = ob.modifiers["ExpectedGroupSeparateCopy"].node_group
-    expected_tree__group_separate_move = ob.modifiers["ExpectedGroupSeparateMove"].node_group
-
-    for test_case in filtered_test_cases(test_tree):
-        reset_test_case(test_tree, expected_tree__make_group, test_case)
+    expected_tree__make_group = copy_tree(test_tree, ob.modifiers["ExpectedMakeGroup"])
+    # Use result of grouping as starting point for ungrouping and separating.
+    for test_case in test_cases(test_tree):
         execute_make_group(test_case, expected_tree__make_group)
 
-        reset_test_case(test_tree, expected_tree__group_insert, test_case)
+    expected_tree__group_insert = copy_tree(test_tree, ob.modifiers["ExpectedGroupInsert"])
+    expected_tree__ungroup = copy_tree(expected_tree__make_group, ob.modifiers["ExpectedUngroup"])
+    expected_tree__group_separate_copy = copy_tree(expected_tree__make_group, ob.modifiers["ExpectedGroupSeparateCopy"])
+    expected_tree__group_separate_move = copy_tree(expected_tree__make_group, ob.modifiers["ExpectedGroupSeparateMove"])
+    for test_case in test_cases(test_tree):
         execute_group_insert(test_case, expected_tree__group_insert)
-
-        # Use result of grouping as starting point for ungrouping.
-        reset_test_case(expected_tree__make_group, expected_tree__ungroup, test_case)
         execute_ungroup(test_case, expected_tree__ungroup)
-
-        # Use result of grouping as starting point for separating.
-        reset_test_case(expected_tree__make_group, expected_tree__group_separate_copy, test_case)
         execute_group_separate('COPY', test_case, expected_tree__group_separate_copy)
-
-        # Use result of grouping as starting point for separating.
-        reset_test_case(expected_tree__make_group, expected_tree__group_separate_move, test_case)
         execute_group_separate('MOVE', test_case, expected_tree__group_separate_move)
 
     save_test_file()
