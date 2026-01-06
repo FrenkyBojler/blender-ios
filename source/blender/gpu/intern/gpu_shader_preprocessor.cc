@@ -18,6 +18,7 @@ using namespace shader::parser;
 struct Preprocessor {
   IntermediateForm &parser;
 
+  Vector<Token, 8> jump_stack;
   Map<StringRef, Token> defines;
   Set<StringRef> visited_macros;
   Map<StringRef, StringRef> macro_parameters;
@@ -31,9 +32,9 @@ struct Preprocessor {
     return t.str_view_with_whitespace();
   }
 
-  static Token end_of_directive(Token define_tok)
+  static Token end_of_directive(Token dir_tok)
   {
-    Token tok = define_tok;
+    Token tok = dir_tok;
 
     while (tok != NewLine) {
       if (tok.next() == Invalid) {
@@ -50,8 +51,8 @@ struct Preprocessor {
 
   static Token skip_whitespace(Token tok)
   {
-    if (tok == Space) {
-      tok = skip_whitespace(tok.next());
+    while (tok == Space) {
+      tok = tok.next();
     }
     return tok;
   }
@@ -212,52 +213,101 @@ struct Preprocessor {
     return {expanded, end_of_expansion};
   }
 
+  /* Returns the hash token. */
   static Token find_next_conditional_directive(Token hash_tok)
   {
-    while (1) {
+    while (true) {
       hash_tok = hash_tok.find_next(Hash);
       if (hash_tok == Invalid) {
         return hash_tok;
       }
-      Token dir_tok = hash_tok.next();
-      /* Skip optional spaces after hash token. */
-      if (dir_tok == Space) {
-        dir_tok = dir_tok.next();
-      }
+      Token dir_tok = skip_whitespace(hash_tok.next());
       StringRef dir_str = str(dir_tok);
       if (ELEM(dir_str, "if", "ifdef", "ifndef", "else", "elif", "endif")) {
-        return dir_tok;
+        return hash_tok;
       }
     }
     BLI_assert_unreachable();
     return Token::invalid();
   }
 
-  // static void process_conditional(IntermediateForm &parser, Token hash_tok)
-  // {
-  //   /* Find matching endif or else. */
-  //   int stack = 1;
-  //   tok = tok.next();
-  //   while (tok.is_valid()) {
-  //     hash_tok = find_next_conditional_directive(hash_tok);
+  /* Returns the hash token. */
+  static Token find_next_matching_conditional_directive(Token hash_tok)
+  {
+    int stack = 1;
+    Token tok = hash_tok;
+    while (tok.is_valid()) {
+      tok = find_next_conditional_directive(tok);
+      StringRef dir_str = str(skip_whitespace(tok.next()));
+      if (ELEM(dir_str, "if", "ifdef", "ifndef")) {
+        stack++;
+      }
+      else if (ELEM(dir_str, "endif")) {
+        stack--;
+      }
 
-  //     if (hash_tok) {
-  //       return;
-  //     }
+      if (stack == 0) {
+        return tok;
+      }
+      if (stack == 1 && ELEM(dir_str, "else", "elif")) {
+        return tok;
+      }
+    }
+    BLI_assert_unreachable();
+    return Token::invalid();
+  }
 
-  //     if (tok == open) {
-  //       stack++;
-  //     }
-  //     else if (tok == close) {
-  //       stack--;
-  //     }
-  //     if (stack == 0) {
-  //       return tok;
-  //     }
-  //     tok = tok.next();
-  //   }
-  //   return tok; /* Not found, return Invalid. */
-  // }
+  bool evaluate_condition(Token type, Token start, Token end)
+  {
+    StringRef type_str = str(type);
+    if (type_str == "else") {
+      return true;
+    }
+    if (type_str == "ifdef") {
+      return defines.contains(str(end));
+    }
+    if (type_str == "ifndef") {
+      return !defines.contains(str(end));
+    }
+
+    if (ELEM(type_str, "if", "elif")) {
+      /* TODO(fclem): if and elif. */
+      return true;
+    }
+    BLI_assert_unreachable();
+    return true;
+  }
+
+  int process_conditional(const Token hash_tok, const Token dir_end)
+  {
+    /* Evaluate condition. */
+    const Token condition_type = skip_whitespace(hash_tok.next());
+    const Token condition_start = condition_type.next().next();
+    const Token condition_end = dir_end;
+    bool condition_result = evaluate_condition(condition_type, condition_start, condition_end);
+
+    /* Find matching endif or else. */
+    const Token next_dir = find_next_matching_conditional_directive(hash_tok);
+
+    if (condition_result == false) {
+      /* Erase the content and jump to next condition. */
+      parser.erase(hash_tok, next_dir.prev());
+      return next_dir.prev().index;
+    }
+    /* If condition is true. */
+    {
+      /* If is followed by else statement. */
+      StringRef next_dir_str = str(next_dir);
+      if (ELEM(next_dir_str, "elif", "else")) {
+        /* Record a jump statement at the next #else statement to jump & erase to the #endif. */
+        jump_stack.append(next_dir);
+      }
+      /* Erase condition and continue parsing content.
+       * The #endif will just be erased later. */
+      parser.erase(hash_tok, dir_end.prev());
+      return dir_end.index;
+    }
+  }
 
   void process_directives(Token hash_tok)
   {
@@ -304,7 +354,19 @@ struct Preprocessor {
       defines.remove(str(macro_name));
       parser.erase(hash_tok, dir_end);
     }
-    else if (dir_str == "ifndef") {
+    else if (ELEM(dir_str, "if", "ifdef", "ifndef", "elif", "else")) {
+      /* If this is part of an already evaluated statement. */
+      if (dir_tok == jump_stack.last()) {
+        jump_stack.pop_last();
+        Token endif_hash = hash_tok;
+        while (str(endif_hash) != "endif") {
+          endif_hash = find_next_matching_conditional_directive(endif_hash);
+        }
+        Token endif_end = end_of_directive(endif_hash);
+        cursor = endif_end.index;
+        parser.erase(hash_tok, endif_end);
+        return;
+      }
       /* Macro undefine. */
       Token space = dir_tok.next();
       if (space != Space) {
@@ -314,14 +376,8 @@ struct Preprocessor {
       if (macro_name != Word) {
         return; /* TODO(fclem): Error. */
       }
-      if (defines.contains(str(macro_name))) {
-        //   cursor = process_conditional(parser, hash_tok);
-      }
-    }
-    else if (dir_str == "ifdef") {
-      // if (defines.find(t.next().str_view()) == defines.end()) {
-      //   cursor = process_conditional(parser, t.prev());
-      // }
+      cursor = process_conditional(hash_tok, dir_end);
+      return;
     }
     else if (dir_str == "line") {
       parser.erase(hash_tok, dir_end);
