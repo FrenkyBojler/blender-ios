@@ -179,6 +179,8 @@ static void declare_old_linked_outputs(NodeDeclarationBuilder &b)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.add_input<decl::Int>("Frame").hide_value();
+
   const bNode *node = b.node_or_null();
   if (!node) {
     declare_default(b);
@@ -220,7 +222,7 @@ static void node_init(bNodeTree * /*node_tree*/, bNode *node)
 {
   ImageUser *iuser = MEM_new_for_free<ImageUser>(__func__);
   node->storage = iuser;
-  iuser->frames = 1;
+  iuser->frames = 250;
   iuser->sfra = 1;
   iuser->flag |= IMA_ANIM_ALWAYS;
 }
@@ -259,8 +261,9 @@ class ImageOperation : public NodeOperation {
       return;
     }
 
+    const ImageUser image_user = this->get_image_user_for_frame();
     Result cached_image = this->context().cache_manager().cached_images.get(
-        this->context(), this->get_image(), this->get_image_user(), identifier.data());
+        this->context(), this->get_image(), &image_user, identifier.data());
     if (!cached_image.is_allocated()) {
       result.allocate_invalid();
       return;
@@ -274,8 +277,9 @@ class ImageOperation : public NodeOperation {
   void compute_alpha()
   {
     Result &result = this->get_result("Alpha");
+    const ImageUser image_user = this->get_image_user_for_frame();
     Result cached_alpha = this->context().cache_manager().cached_images.get(
-        this->context(), this->get_image(), this->get_image_user(), "Alpha");
+        this->context(), this->get_image(), &image_user, "Alpha");
 
     /* For single layer images, the returned cached alpha is actually just the image, and we just
      * extract the alpha from it. */
@@ -300,7 +304,7 @@ class ImageOperation : public NodeOperation {
 
     /* Otherwise, we try to extract the alpha from the combined pass if it exists. */
     Result cached_combined_image = this->context().cache_manager().cached_images.get(
-        this->context(), this->get_image(), this->get_image_user(), RE_PASSNAME_COMBINED);
+        this->context(), this->get_image(), &image_user, RE_PASSNAME_COMBINED);
     if (!cached_combined_image.is_allocated()) {
       result.allocate_invalid();
       return;
@@ -308,14 +312,30 @@ class ImageOperation : public NodeOperation {
     extract_alpha(this->context(), cached_combined_image, result);
   }
 
+  ImageUser get_image_user_for_frame()
+  {
+    Image *image = this->get_image();
+    ImageUser image_user_for_frame = *this->get_image_user();
+    image_user_for_frame.framenr = BKE_image_is_animated(image) ? this->get_frame() : 0;
+    return image_user_for_frame;
+  }
+
+  int get_frame()
+  {
+    if (this->node().input_by_identifier("Frame")->is_directly_linked()) {
+      return this->get_input("Frame").get_single_value_default<int>();
+    }
+    return this->context().get_frame_number();
+  }
+
   Image *get_image()
   {
     return reinterpret_cast<Image *>(node().id);
   }
 
-  ImageUser *get_image_user()
+  const ImageUser *get_image_user()
   {
-    return static_cast<ImageUser *>(node().storage);
+    return static_cast<const ImageUser *>(node().storage);
   }
 };
 

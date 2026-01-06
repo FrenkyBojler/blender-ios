@@ -463,7 +463,7 @@ Result CachedImageContainer::get(Context &context,
 
   /* Compute the effective frame number of the image if it was animated. */
   ImageUser image_user_for_frame = *image_user;
-  BKE_image_user_frame_calc(image, &image_user_for_frame, context.get_frame_number());
+  BKE_image_user_frame_calc(image, &image_user_for_frame, image_user->framenr);
 
   const CachedImageKey key(image_user_for_frame, pass_name);
 
