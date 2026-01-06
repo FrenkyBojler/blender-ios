@@ -114,8 +114,7 @@ def top_level_frames(tree):
 
 # Names of test cases found in a node tree.
 def test_cases(tree):
-    for frame in top_level_frames(tree):
-        yield frame.label
+    return [frame.label for frame in top_level_frames(tree)]
 
 
 # Filter test cases based on script arguments.
