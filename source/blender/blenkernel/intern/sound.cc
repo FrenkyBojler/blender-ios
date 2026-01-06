@@ -821,6 +821,7 @@ void BKE_sound_update_scene_listener(Scene *scene)
   AUD_Sequence_setDistanceModel(sound, AUD_DistanceModel(scene->audio.distance_model));
 }
 
+// Ramon: only used to add sound of scene strips
 void *BKE_sound_scene_add_scene_sound(
     Scene *scene, Strip *strip, int startframe, int endframe, int frameskip)
 {
@@ -845,6 +846,7 @@ void *BKE_sound_scene_add_scene_sound_defaults(Scene *scene, Strip *strip)
                                          strip->startofs + strip->anim_startofs);
 }
 
+// Ramon: here the playback_handle of the strip gets added to the sound_scene
 void *BKE_sound_add_scene_sound(
     Scene *scene, Strip *strip, int startframe, int endframe, int frameskip)
 {
@@ -931,6 +933,7 @@ void BKE_sound_update_scene_sound(void *handle, bSound *sound)
 
 #endif /* WITH_AUDASPACE */
 
+// Ramon: used for applying modifier effects
 void BKE_sound_update_sequence_handle(void *handle, void *sound_handle)
 {
 #ifdef WITH_AUDASPACE
