@@ -57,7 +57,7 @@ _result = service.get_hash(Path(filepath), hash_algorithm)
   IDP_AddToGroup(locals.get(), IDP_NewString(hash_algorithm, "hash_algorithm"));
 
   /* Run the script.*/
-  std::optional<IDProperty *> idprop_optptr = BPY_run_string_with_locals_return_idprop(
+  std::optional<IDProperty *> idprop_optptr = BPY_run_string_exec_with_locals_return_idprop(
       &C, SCRIPT, *locals);
   BLI_assert(idprop_optptr.has_value());
   IDProperty *hash_idprop = *idprop_optptr;
@@ -124,7 +124,7 @@ _result = service.file_matches(Path(filepath), hash_algorithm, hexhash, size_in_
   IDP_AddToGroup(locals.get(), IDP_NewInt(size_in_bytes_low, "size_in_bytes_low"));
 
   /* Run the script.*/
-  std::optional<IDProperty *> idprop_optptr = BPY_run_string_with_locals_return_idprop(
+  std::optional<IDProperty *> idprop_optptr = BPY_run_string_exec_with_locals_return_idprop(
       &C, SCRIPT, *locals);
   BLI_assert(idprop_optptr.has_value());
   IDProperty *is_match_idprop = *idprop_optptr;
