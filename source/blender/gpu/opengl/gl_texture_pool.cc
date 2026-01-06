@@ -17,10 +17,10 @@ static bool are_formats_compatible(const TextureFormat format_a, const TextureFo
 {
   GPUTextureFormatFlag flag_a = to_format_flag(format_a);
   GPUTextureFormatFlag flag_b = to_format_flag(format_b);
-  bool is_depth_or_stencil =
-      (flag_a & GPU_FORMAT_DEPTH_STENCIL) != 0 | (flag_b & GPU_FORMAT_DEPTH_STENCIL) != 0;
-  bool is_compressed = 
-      (flag_a & GPU_FORMAT_COMPRESSED) != 0 | (flag_b & GPU_FORMAT_COMPRESSED) != 0;
+  bool is_depth_or_stencil = (flag_a & GPU_FORMAT_DEPTH_STENCIL) != 0 |
+                             (flag_b & GPU_FORMAT_DEPTH_STENCIL) != 0;
+  bool is_compressed = (flag_a & GPU_FORMAT_COMPRESSED) != 0 |
+                       (flag_b & GPU_FORMAT_COMPRESSED) != 0;
 
   /* glTextureView does not support depth/stencil formats, so we can only re-use
    * these textures if they share format. Compressed formats also have restricted

@@ -28,7 +28,7 @@ class GLTexturePool : public TexturePool {
     /* Either created texture, or aliasing view over texture. */
     GLTexture *texture = nullptr;
     /* Optional backing texture behind view. */
-    GLTexture *texture_allocation = nullptr; 
+    GLTexture *texture_allocation = nullptr;
     /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
     int users_count = 1;
 
@@ -54,7 +54,7 @@ class GLTexturePool : public TexturePool {
 
  public:
   ~GLTexturePool();
-  
+
   Texture *acquire_texture(int2 extent,
                            TextureFormat format,
                            eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL) override;
