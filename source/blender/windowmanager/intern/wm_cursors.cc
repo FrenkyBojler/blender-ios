@@ -548,11 +548,16 @@ void WM_cursor_grab_enable(wmWindow *win,
     if (win->runtime->ghostwin) {
       if (win->runtime->eventstate->tablet.is_motion_absolute == false) {
         GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
-        GHOST_Rect wrap_region_screen_rect(wrap_region_screen[0],
-                                           wrap_region_screen[1],
-                                           wrap_region_screen[2],
-                                           wrap_region_screen[3]);
-        ghost_window->setCursorGrab(mode, mode_axis, &wrap_region_screen_rect, nullptr);
+        if (wrap_region_screen) {
+          GHOST_Rect wrap_region_screen_rect(wrap_region_screen[0],
+                                             wrap_region_screen[1],
+                                             wrap_region_screen[2],
+                                             wrap_region_screen[3]);
+          ghost_window->setCursorGrab(mode, mode_axis, &wrap_region_screen_rect, nullptr);
+        }
+        else {
+          ghost_window->setCursorGrab(mode, mode_axis, nullptr, nullptr);
+        };
       }
 
       win->grabcursor = mode;
