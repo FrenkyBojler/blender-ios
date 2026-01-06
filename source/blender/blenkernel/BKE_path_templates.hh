@@ -405,6 +405,18 @@ blender::Vector<blender::bke::path_templates::Error> BKE_path_apply_template(
     char *path,
     int path_maxncpy,
     const blender::bke::path_templates::VariableMap &template_variables);
+
+/**
+ * Like `BKE_path_apply_template()`, but takes a heap-allocated path and may
+ * reallocate it.
+ *
+ * TODO: proper documentation.
+ */
+blender::Vector<blender::bke::path_templates::Error> BKE_path_apply_template_alloc(
+    char **path,
+    int path_maxncpy,
+    const blender::bke::path_templates::VariableMap &template_variables);
+
 /**
  * Produces a human-readable error message for the given template error.
  */

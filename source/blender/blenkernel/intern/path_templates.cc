@@ -22,6 +22,8 @@
 #include "DNA_ID_enums.h"
 #include "DNA_node_types.h"
 
+using namespace blender::math;
+
 namespace blender::bke::path_templates {
 
 bool VariableMap::contains(StringRef name) const
@@ -1006,6 +1008,37 @@ blender::Vector<Error> BKE_path_apply_template(char *path,
     BLI_strncpy(path, path_buffer.data(), path_maxncpy);
   }
   return errors;
+}
+
+blender::Vector<Error> BKE_path_apply_template_alloc(char **path,
+                                                     int path_maxncpy,
+                                                     const VariableMap &template_variables)
+{
+  BLI_assert(path != nullptr);
+  BLI_assert(*path != nullptr);
+
+  /* Get the needed length and check for errors at the same time. */
+  int length_after_application = 0;
+  {
+    const blender::Vector<Error> errors = eval_template(
+        nullptr, 0, *path, template_variables, &length_after_application);
+
+    if (!errors.is_empty()) {
+      return errors;
+    }
+  }
+
+  const int buffer_size = min(length_after_application + 1, path_maxncpy);
+  char *buffer = MEM_malloc_arrayN<char>(buffer_size, __func__);
+
+  const blender::Vector<Error> errors = eval_template(
+      buffer, buffer_size, *path, template_variables, nullptr);
+  BLI_assert(errors.is_empty());
+
+  MEM_freeN(*path);
+  *path = buffer;
+
+  return {};
 }
 
 std::string BKE_path_template_error_to_string(const Error &error, blender::StringRef path)
