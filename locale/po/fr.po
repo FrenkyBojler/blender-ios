@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-12-13 05:12+0000\n"
 "Last-Translator: Damien Picard <dam.pic@free.fr>\n"
 "Language-Team: French <https://translate.blender.org/projects/blender-ui/ui/fr/>\n"
@@ -34905,6 +34905,94 @@ msgid "Editor menu containing buttons"
 msgstr "Menu d’éditeur contenant des boutons"
 
 
+msgid "Show/Hide"
+msgstr "Afficher/cacher"
+
+
+msgid "Names"
+msgstr "Noms"
+
+
+msgid "Bone Roll"
+msgstr "Roulis de l’os"
+
+
+msgid "Math"
+msgstr "Maths"
+
+
+msgid "Utilities"
+msgstr "Utilitaires"
+
+
+msgid "Clean Up"
+msgstr "Nettoyer"
+
+
+msgid "Pivot Point"
+msgstr "Point de pivot"
+
+
+msgid "Snap"
+msgstr "Aimanter"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Atténuation de l’édition proportionnelle"
+
+
+msgid "Mask Edit"
+msgstr "Édition du masque"
+
+
+msgid "Automasking"
+msgstr "Masquage auto"
+
+
+msgid "Read"
+msgstr "Lecture"
+
+
+msgid "Sample"
+msgstr "Échantillonner"
+
+
+msgid "Face Sets Edit"
+msgstr "Édition des ensembles de faces"
+
+
+msgid "Write"
+msgstr "Écriture"
+
+
+msgid "Vertex Group Locks"
+msgstr "Verrouillages des groupes de sommets"
+
+
+msgid "Primitives"
+msgstr "Primitives"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Instances"
+
+
+msgid "Import"
+msgstr "Importer"
+
+
+msgid "Mirror"
+msgstr "Miroir"
+
+
+msgid "UV Mapping"
+msgstr "Placage UV"
+
+
 msgid "Local View"
 msgstr "Vue locale"
 
@@ -34915,6 +35003,10 @@ msgstr "Point de vue"
 
 msgid "Navigation"
 msgstr "Navigation"
+
+
+msgid "Deprecated"
+msgstr "Obsolète"
 
 
 msgid "Align View"
@@ -34931,6 +35023,14 @@ msgstr "Régions dans la vue"
 
 msgid "Select More/Less"
 msgstr "Sélectionner plus ou moins"
+
+
+msgid "List"
+msgstr "Liste"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Select Similar"
@@ -34965,10 +35065,6 @@ msgid "Light Probe"
 msgstr "Sonde d’éclairage"
 
 
-msgid "Layout"
-msgstr "Disposition"
-
-
 msgid "Add Image"
 msgstr "Ajouter une image"
 
@@ -34989,24 +35085,8 @@ msgid "Track"
 msgstr "Suivi"
 
 
-msgid "Adjust"
-msgstr "Ajuster"
-
-
 msgid "Quick Effects"
 msgstr "Effets rapides"
-
-
-msgid "Show/Hide"
-msgstr "Afficher/cacher"
-
-
-msgid "Clean Up"
-msgstr "Nettoyer"
-
-
-msgid "Keying"
-msgstr "Incrustation"
 
 
 msgid "Asset"
@@ -35017,10 +35097,6 @@ msgid "Make Single User"
 msgstr "Rendre mono-utilisateur"
 
 
-msgid "Tracking"
-msgstr "Suivi"
-
-
 msgid "Convert"
 msgstr "Convertir"
 
@@ -35029,24 +35105,8 @@ msgid "Link/Transfer Data"
 msgstr "Lier/transférer des données"
 
 
-msgid "Utilities"
-msgstr "Utilitaires"
-
-
 msgid "Hooks"
 msgstr "Crochets"
-
-
-msgid "Math"
-msgstr "Maths"
-
-
-msgid "Creative"
-msgstr "Créatif"
-
-
-msgid "Vertex Group Locks"
-msgstr "Verrouillages des groupes de sommets"
 
 
 msgid "Trim/Add"
@@ -35061,6 +35121,10 @@ msgid "Face Sets Init"
 msgstr "Initialiser les ensembles de faces"
 
 
+msgid "Layout"
+msgstr "Disposition"
+
+
 msgid "Random Mask"
 msgstr "Masque aléatoire"
 
@@ -35073,10 +35137,6 @@ msgid "In-Betweens"
 msgstr "Intervalles"
 
 
-msgid "Render Preview"
-msgstr "Rendu de prévisualisation"
-
-
 msgid "Propagate"
 msgstr "Propager"
 
@@ -35085,8 +35145,8 @@ msgid "Bone Collections"
 msgstr "Collections d’os"
 
 
-msgid "Names"
-msgstr "Noms"
+msgid "Adjust"
+msgstr "Ajuster"
 
 
 msgid "Toggle Bone Options"
@@ -35097,8 +35157,16 @@ msgid "Enable Bone Options"
 msgstr "Activer des options d’os"
 
 
+msgid "Keying"
+msgstr "Incrustation"
+
+
 msgid "Disable Bone Options"
 msgstr "Désactiver des options d’os"
+
+
+msgid "Tracking"
+msgstr "Suivi"
 
 
 msgid "Mesh Select Mode"
@@ -35107,6 +35175,10 @@ msgstr "Mode de sélection du maillage"
 
 msgid "Face Data"
 msgstr "Données de face"
+
+
+msgid "Creative"
+msgstr "Créatif"
 
 
 msgid "Select by Face Strength"
@@ -35121,88 +35193,16 @@ msgid "Merge"
 msgstr "Fusionner"
 
 
-msgid "Read"
-msgstr "Lecture"
+msgid "Render Preview"
+msgstr "Rendu de prévisualisation"
 
 
 msgid "Special Characters"
 msgstr "Caractères spéciaux"
 
 
-msgid "Sample"
-msgstr "Échantillonner"
-
-
 msgid "Kerning"
 msgstr "Approche"
-
-
-msgid "Write"
-msgstr "Écriture"
-
-
-msgid "Primitives"
-msgstr "Primitives"
-
-
-msgid "Bone Roll"
-msgstr "Roulis de l’os"
-
-
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Instances"
-
-
-msgid "Import"
-msgstr "Importer"
-
-
-msgid "Pivot Point"
-msgstr "Point de pivot"
-
-
-msgid "Snap"
-msgstr "Aimanter"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Atténuation de l’édition proportionnelle"
-
-
-msgid "Deprecated"
-msgstr "Obsolète"
-
-
-msgid "Mask Edit"
-msgstr "Édition du masque"
-
-
-msgid "Automasking"
-msgstr "Masquage auto"
-
-
-msgid "Face Sets Edit"
-msgstr "Édition des ensembles de faces"
-
-
-msgid "List"
-msgstr "Liste"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Miroir"
-
-
-msgid "UV Mapping"
-msgstr "Placage UV"
 
 
 msgid "Keyframe Insert Pie"
@@ -82299,10 +82299,6 @@ msgid "Project the geometry onto a plane defined by a line"
 msgstr "Projeter la géométrie sur un plan défini par une ligne"
 
 
-msgid "Sample the vertex color of the active vertex"
-msgstr "Échantillonner la couleur du sommet actif"
-
-
 msgctxt "Operator"
 msgid "Sample Detail Size"
 msgstr "Échantillonner la taille de détail"
@@ -91546,78 +91542,6 @@ msgid "Panel containing UI elements"
 msgstr "Panneau contenant des éléments d’interface"
 
 
-msgid "Curve Edit Mode"
-msgstr "Mode édition courbe"
-
-
-msgid "Curves Edit Mode"
-msgstr "Mode édition courbes"
-
-
-msgid "Transform Orientations"
-msgstr "Orientations de transformation"
-
-
-msgid "Stroke Placement"
-msgstr "Placement de trait"
-
-
-msgid "Drawing Plane"
-msgstr "Plan de dessin"
-
-
-msgid "Guides"
-msgstr "Guides"
-
-
-msgid "Grease Pencil Options"
-msgstr "Options du Grease Pencil"
-
-
-msgid "Quad View"
-msgstr "Vue quadrants"
-
-
-msgid "Onion Skin"
-msgstr "Pelures d’oignon"
-
-
-msgid "Stereoscopy"
-msgstr "Stéréoscopie"
-
-
-msgid "Multi Frame"
-msgstr "Multi-frames"
-
-
-msgid "Auto-Masking"
-msgstr "Masquage auto"
-
-
-msgid "Curves Sculpt Add Curve Options"
-msgstr "Sculpture courbes – options d’ajout de courbe"
-
-
-msgid "Curves Sculpt Parameter Falloff"
-msgstr "Sculpture courbes – atténuation le long de la courbe"
-
-
-msgid "Curves Grow/Shrink Scaling"
-msgstr "Courbes – échelle pour grandir/raccourcir"
-
-
-msgid "Viewport Debug"
-msgstr "Débugage vue 3D"
-
-
-msgid "VR"
-msgstr "VR"
-
-
-msgid "VR Info"
-msgstr "Infos VR"
-
-
 msgid "glTF Variants"
 msgstr "Variantes glTF"
 
@@ -91674,6 +91598,10 @@ msgid "Overlays"
 msgstr "Surimpressions"
 
 
+msgid "Guides"
+msgstr "Guides"
+
+
 msgid "Viewer Node"
 msgstr "Nœud visualiseur"
 
@@ -91688,6 +91616,74 @@ msgstr "Mode édition maillage"
 
 msgid "Measurement"
 msgstr "Mesure"
+
+
+msgid "Curve Edit Mode"
+msgstr "Mode édition courbe"
+
+
+msgid "Curves Edit Mode"
+msgstr "Mode édition courbes"
+
+
+msgid "Transform Orientations"
+msgstr "Orientations de transformation"
+
+
+msgid "Stroke Placement"
+msgstr "Placement de trait"
+
+
+msgid "Drawing Plane"
+msgstr "Plan de dessin"
+
+
+msgid "Grease Pencil Options"
+msgstr "Options du Grease Pencil"
+
+
+msgid "Quad View"
+msgstr "Vue quadrants"
+
+
+msgid "Onion Skin"
+msgstr "Pelures d’oignon"
+
+
+msgid "Stereoscopy"
+msgstr "Stéréoscopie"
+
+
+msgid "Multi Frame"
+msgstr "Multi-frames"
+
+
+msgid "Auto-Masking"
+msgstr "Masquage auto"
+
+
+msgid "Curves Sculpt Add Curve Options"
+msgstr "Sculpture courbes – options d’ajout de courbe"
+
+
+msgid "Curves Sculpt Parameter Falloff"
+msgstr "Sculpture courbes – atténuation le long de la courbe"
+
+
+msgid "Curves Grow/Shrink Scaling"
+msgstr "Courbes – échelle pour grandir/raccourcir"
+
+
+msgid "Viewport Debug"
+msgstr "Débugage vue 3D"
+
+
+msgid "VR"
+msgstr "VR"
+
+
+msgid "VR Info"
+msgstr "Infos VR"
 
 
 msgid "Import Settings"
@@ -131279,10 +131275,6 @@ msgstr "Les anneaux d’arêtes ne sont pas connectés"
 
 msgid "color_index is invalid"
 msgstr "Indice de couleur invalide"
-
-
-msgid "Compositor node tree has cyclic links!"
-msgstr "L’arborescence de nœuds de compositing a des liens cycliques !"
 
 
 msgid "Error: Too many AOVs"
