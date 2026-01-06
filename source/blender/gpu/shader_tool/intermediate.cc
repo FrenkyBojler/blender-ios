@@ -232,6 +232,9 @@ static const std::array<std::pair<TokenType, bool>, 256> token_table_preprocesso
   std::array<std::pair<TokenType, bool>, 256> t;
   for (int i = 0; i < 256; ++i) {
     TokenType type = to_type(i);
+    if (type == Number) {
+      type = Word;
+    }
     t[i] = {type, always_split_token(type)};
   }
   return t;
