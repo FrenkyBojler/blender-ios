@@ -11,6 +11,7 @@
 #include "BLI_virtual_array.hh"
 
 #include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
 #include "BKE_grease_pencil_shapes.hh"
 
 namespace blender::bke::greasepencil {
@@ -137,6 +138,67 @@ void separate_shape_ids(CurvesGeometry &curves, const IndexMask &strokes_to_keep
   shape_ids.finish();
 
   return;
+}
+
+IndexMask selected_mask_to_shapes(const IndexMask selected_mask,
+                                  const bke::CurvesGeometry &curves,
+                                  const bke::AttrDomain domain,
+                                  IndexMaskMemory &memory)
+{
+  const bke::AttributeAccessor attributes = curves.attributes();
+  const VArray<int> shape_ids = *attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
+
+  /* If the attribute does not exist then each curves is its own shape. */
+  if (!shape_ids) {
+    if (domain == AttrDomain::Curve) {
+      return selected_mask;
+    }
+    BLI_assert(domain == AttrDomain::Point);
+
+    Array<bool> selected(curves.points_num());
+    selected_mask.to_bools(selected);
+
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    const IndexMask selected_curves = IndexMask::from_predicate(
+        curves.curves_range(), GrainSize(512), memory, [&](const int curve_i) {
+          const IndexRange points = points_by_curve[curve_i];
+          for (const int point_i : points) {
+            if (selected[point_i]) {
+              return true;
+            }
+          }
+          return false;
+        });
+
+    return bke::curves::curve_to_point_selection(points_by_curve, selected_curves, memory);
+  }
+
+  VectorSet<int> selected_shape_ids;
+  selected_mask.foreach_index([&](const int64_t curve_i) {
+    const int shape_id = shape_ids[curve_i];
+    if (shape_id != 0) {
+      selected_shape_ids.add(shape_id);
+    }
+  });
+
+  Array<bool> src_selected_curves(curves.curves_num());
+  selected_mask.to_bools(src_selected_curves);
+
+  const IndexMask selected_curves = IndexMask::from_predicate(
+      curves.curves_range(), GrainSize(4096), memory, [&](const int64_t curve_i) {
+        const int shape_id = shape_ids[curve_i];
+        if (shape_id == 0) {
+          return src_selected_curves[curve_i];
+        }
+        return selected_shape_ids.contains(shape_id);
+      });
+
+  if (domain == AttrDomain::Curve) {
+    return selected_curves;
+  }
+  BLI_assert(domain == AttrDomain::Point);
+
+  return bke::curves::curve_to_point_selection(curves.points_by_curve(), selected_curves, memory);
 }
 
 }  // namespace blender::bke::greasepencil
