@@ -263,9 +263,10 @@ def execute_group_separate(type, test_case, test_tree, expected_tree=None):
 
     if expected_tree:
         # Map resulting nodes to expected nodes.
+        result_nodes = find_expected_nodes(test_tree, test_case)
         expected_nodes = find_expected_nodes(expected_tree, test_case)
         mapping = NodeMapping()
-        # mapping.extend_nodes(internal_nodes, expected_nodes)
+        mapping.extend_nodes(result_nodes, expected_nodes)
         return mapping
 
 
