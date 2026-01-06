@@ -341,7 +341,7 @@ enum_denoising_quality = (
 
 enum_denoising_upscale = (
     ('NONE',
-     "1x",
+     "None",
      "No upscaling",
      0),
     ('2X',
