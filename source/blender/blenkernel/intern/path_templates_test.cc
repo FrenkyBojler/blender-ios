@@ -217,7 +217,7 @@ TEST(path_templates, VariableMap_add_path_up_to_file)
 
 struct PathTemplateTestCase {
   char path_in[FILE_MAX];
-  char path_expected_out[FILE_MAX];
+  char path_result[FILE_MAX];
   Vector<Error> expected_errors;
 };
 
@@ -442,7 +442,7 @@ TEST(path_templates, validate_and_apply_template)
         << "  Template errors: " << errors_to_string(application_errors) << std::endl
         << "  Expected errors: " << errors_to_string(test_case.expected_errors) << std::endl
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl;
-    EXPECT_EQ(StringRef(path), test_case.path_expected_out)
+    EXPECT_EQ(StringRef(path), test_case.path_result)
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl;
   }
 }
@@ -548,9 +548,9 @@ TEST(path_templates, apply_template_alloc)
         << "  Template errors: " << errors_to_string(application_errors) << std::endl
         << "  Expected errors: " << errors_to_string(test_case.expected_errors) << std::endl
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl;
-    EXPECT_EQ(StringRef(buffer), test_case.path_expected_out)
+    EXPECT_EQ(StringRef(buffer), test_case.path_result)
         << "  Note: test_case.path_in = " << test_case.path_in << std::endl
-        << "  Note: test_case.path_expected_out = " << test_case.path_expected_out << std::endl;
+        << "  Note: test_case.path_result = " << test_case.path_result << std::endl;
 
     MEM_freeN(buffer);
   }

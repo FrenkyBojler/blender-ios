@@ -883,7 +883,6 @@ static blender::Vector<Error> eval_template(char *out_path,
     }
 
     char replacement_string[FORMAT_BUFFER_SIZE];
-    replacement_string[0] = '\0'; /* Just in case. */
 
     switch (token.type) {
       /* Syntax errors should have been handled above. */
