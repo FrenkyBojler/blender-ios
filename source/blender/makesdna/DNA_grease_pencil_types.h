@@ -730,6 +730,7 @@ struct GreasePencil {
    * Get the largest material index used by the evaluated layers or `nullopt` if they are empty.
    */
   std::optional<int> material_index_max_eval() const;
+  std::optional<int> material_index_max() const;
 
   void count_memory(blender::MemoryCounter &memory) const;
 
