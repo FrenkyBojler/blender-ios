@@ -110,7 +110,7 @@ struct FileListInternEntry {
 
 struct FileListIntern {
   /** FileListInternEntry items. */
-  ListBase entries;
+  ListBaseT<FileListInternEntry> entries;
   FileListInternEntry **filtered;
 
   FileUID curr_uid; /* Used to generate UID during internal listing. */
@@ -123,7 +123,7 @@ struct FileListEntryCache {
   int flags = 0;
 
   /* This one gathers all entries from both block and misc caches. Used for easy bulk-freeing. */
-  ListBase cached_entries = {};
+  ListBaseT<FileDirEntry> cached_entries = {};
 
   /* Block cache: all entries between start and end index.
    * used for part of the list on display. */
@@ -275,6 +275,10 @@ enum {
 enum FileListTags {
   /** The file list has references to main data (IDs) and needs special care. */
   FILELIST_TAGS_USES_MAIN_DATA = (1 << 0),
+  /**
+   * Apply fuzzy search on results left after applying #FileList.filter_fn.
+   */
+  FILELIST_TAGS_APPLY_FUZZY_SEARCH = (1 << 1),
   /** The file list type is not thread-safe. */
   FILELIST_TAGS_NO_THREADS = (1 << 2),
 };

@@ -12,7 +12,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -37,16 +36,13 @@
 
 static void init_data(ModifierData *md)
 {
-  CurveModifierData *cmd = (CurveModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(cmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(cmd, DNA_struct_default_get(CurveModifierData), modifier);
+  CurveModifierData *cmd = reinterpret_cast<CurveModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(cmd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  CurveModifierData *cmd = (CurveModifierData *)md;
+  CurveModifierData *cmd = reinterpret_cast<CurveModifierData *>(md);
 
   /* Ask for vertex-groups if we need them. */
   if (cmd->name[0] != '\0') {
@@ -56,7 +52,7 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
-  CurveModifierData *cmd = (CurveModifierData *)md;
+  CurveModifierData *cmd = reinterpret_cast<CurveModifierData *>(md);
 
   /* The object type check is only needed here in case we have a placeholder
    * object assigned (because the library containing the curve is missing).
@@ -68,14 +64,14 @@ static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_re
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
-  CurveModifierData *cmd = (CurveModifierData *)md;
+  CurveModifierData *cmd = reinterpret_cast<CurveModifierData *>(md);
 
-  walk(user_data, ob, (ID **)&cmd->object, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&cmd->object), IDWALK_CB_NOP);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  CurveModifierData *cmd = (CurveModifierData *)md;
+  CurveModifierData *cmd = reinterpret_cast<CurveModifierData *>(md);
   if (cmd->object != nullptr) {
     /* TODO(sergey): Need to do the same eval_flags trick for path
      * as happening in legacy depsgraph callback.
@@ -96,7 +92,7 @@ static void deform_verts(ModifierData *md,
                          Mesh *mesh,
                          blender::MutableSpan<blender::float3> positions)
 {
-  CurveModifierData *cmd = (CurveModifierData *)md;
+  CurveModifierData *cmd = reinterpret_cast<CurveModifierData *>(md);
 
   const MDeformVert *dvert = nullptr;
   int defgrp_index = -1;
@@ -126,7 +122,7 @@ static void deform_verts_EM(ModifierData *md,
     return;
   }
 
-  CurveModifierData *cmd = (CurveModifierData *)md;
+  CurveModifierData *cmd = reinterpret_cast<CurveModifierData *>(md);
   bool use_dverts = false;
   int defgrp_index = -1;
 

@@ -132,7 +132,7 @@ void BM_mesh_elem_toolflags_clear(BMesh *bm)
 BMesh *BM_mesh_create(const BMAllocTemplate *allocsize, const BMeshCreateParams *params)
 {
   /* allocate the structure */
-  BMesh *bm = MEM_callocN<BMesh>(__func__);
+  BMesh *bm = MEM_new_for_free<BMesh>(__func__);
 
   /* allocate the memory pools for the mesh elements */
   bm_mempool_init(bm, allocsize, params->use_toolflags);
@@ -301,7 +301,7 @@ void bmesh_edit_begin(BMesh * /*bm*/, BMOpTypeFlag /*type_flag*/)
 
 void bmesh_edit_end(BMesh *bm, BMOpTypeFlag type_flag)
 {
-  ListBase select_history;
+  ListBaseT<BMEditSelection> select_history;
 
   /* BMO_OPTYPE_FLAG_UNTAN_MULTIRES disabled for now, see comment above in bmesh_edit_begin. */
 #ifdef BMOP_UNTAN_MULTIRES_ENABLED
@@ -540,7 +540,7 @@ bool BM_mesh_elem_table_check(BMesh *bm)
 
   if (bm->vtable && ((bm->elem_table_dirty & BM_VERT) == 0)) {
     BM_ITER_MESH_INDEX (ele, &iter, bm, BM_VERTS_OF_MESH, i) {
-      if (ele != (BMElem *)bm->vtable[i]) {
+      if (ele != reinterpret_cast<BMElem *>(bm->vtable[i])) {
         return false;
       }
     }
@@ -548,7 +548,7 @@ bool BM_mesh_elem_table_check(BMesh *bm)
 
   if (bm->etable && ((bm->elem_table_dirty & BM_EDGE) == 0)) {
     BM_ITER_MESH_INDEX (ele, &iter, bm, BM_EDGES_OF_MESH, i) {
-      if (ele != (BMElem *)bm->etable[i]) {
+      if (ele != reinterpret_cast<BMElem *>(bm->etable[i])) {
         return false;
       }
     }
@@ -556,7 +556,7 @@ bool BM_mesh_elem_table_check(BMesh *bm)
 
   if (bm->ftable && ((bm->elem_table_dirty & BM_FACE) == 0)) {
     BM_ITER_MESH_INDEX (ele, &iter, bm, BM_FACES_OF_MESH, i) {
-      if (ele != (BMElem *)bm->ftable[i]) {
+      if (ele != reinterpret_cast<BMElem *>(bm->ftable[i])) {
         return false;
       }
     }
@@ -592,11 +592,11 @@ void BM_mesh_elem_table_ensure(BMesh *bm, const char htype)
       if (bm->vtable) {
         MEM_freeN(bm->vtable);
       }
-      bm->vtable = static_cast<BMVert **>(
-          MEM_mallocN(sizeof(void **) * bm->totvert, "bm->vtable"));
+      bm->vtable = MEM_malloc_arrayN<BMVert *>(bm->totvert, "bm->vtable");
       bm->vtable_tot = bm->totvert;
     }
-    BM_iter_as_array(bm, BM_VERTS_OF_MESH, nullptr, (void **)bm->vtable, bm->totvert);
+    BM_iter_as_array(
+        bm, BM_VERTS_OF_MESH, nullptr, reinterpret_cast<void **>(bm->vtable), bm->totvert);
   }
   if (htype_needed & BM_EDGE) {
     if (bm->etable && bm->totedge <= bm->etable_tot && bm->totedge * 2 >= bm->etable_tot) {
@@ -606,11 +606,11 @@ void BM_mesh_elem_table_ensure(BMesh *bm, const char htype)
       if (bm->etable) {
         MEM_freeN(bm->etable);
       }
-      bm->etable = static_cast<BMEdge **>(
-          MEM_mallocN(sizeof(void **) * bm->totedge, "bm->etable"));
+      bm->etable = MEM_malloc_arrayN<BMEdge *>(bm->totedge, "bm->etable");
       bm->etable_tot = bm->totedge;
     }
-    BM_iter_as_array(bm, BM_EDGES_OF_MESH, nullptr, (void **)bm->etable, bm->totedge);
+    BM_iter_as_array(
+        bm, BM_EDGES_OF_MESH, nullptr, reinterpret_cast<void **>(bm->etable), bm->totedge);
   }
   if (htype_needed & BM_FACE) {
     if (bm->ftable && bm->totface <= bm->ftable_tot && bm->totface * 2 >= bm->ftable_tot) {
@@ -620,11 +620,11 @@ void BM_mesh_elem_table_ensure(BMesh *bm, const char htype)
       if (bm->ftable) {
         MEM_freeN(bm->ftable);
       }
-      bm->ftable = static_cast<BMFace **>(
-          MEM_mallocN(sizeof(void **) * bm->totface, "bm->ftable"));
+      bm->ftable = MEM_malloc_arrayN<BMFace *>(bm->totface, "bm->ftable");
       bm->ftable_tot = bm->totface;
     }
-    BM_iter_as_array(bm, BM_FACES_OF_MESH, nullptr, (void **)bm->ftable, bm->totface);
+    BM_iter_as_array(
+        bm, BM_FACES_OF_MESH, nullptr, reinterpret_cast<void **>(bm->ftable), bm->totface);
   }
 
 finally:
@@ -986,24 +986,24 @@ void BM_mesh_remap(BMesh *bm, const uint *vert_idx, const uint *edge_idx, const 
 
   /* Selection history */
   {
-    LISTBASE_FOREACH (BMEditSelection *, ese, &bm->selected) {
-      switch (ese->htype) {
+    for (BMEditSelection &ese : bm->selected) {
+      switch (ese.htype) {
         case BM_VERT:
           if (vptr_map) {
-            ese->ele = reinterpret_cast<BMElem *>(
-                vptr_map->lookup(reinterpret_cast<BMVert *>(ese->ele)));
+            ese.ele = reinterpret_cast<BMElem *>(
+                vptr_map->lookup(reinterpret_cast<BMVert *>(ese.ele)));
           }
           break;
         case BM_EDGE:
           if (eptr_map) {
-            ese->ele = reinterpret_cast<BMElem *>(
-                eptr_map->lookup(reinterpret_cast<BMEdge *>(ese->ele)));
+            ese.ele = reinterpret_cast<BMElem *>(
+                eptr_map->lookup(reinterpret_cast<BMEdge *>(ese.ele)));
           }
           break;
         case BM_FACE:
           if (fptr_map) {
-            ese->ele = reinterpret_cast<BMElem *>(
-                fptr_map->lookup(reinterpret_cast<BMFace *>(ese->ele)));
+            ese.ele = reinterpret_cast<BMElem *>(
+                fptr_map->lookup(reinterpret_cast<BMFace *>(ese.ele)));
           }
           break;
       }
@@ -1050,10 +1050,9 @@ void BM_mesh_rebuild(BMesh *bm,
       BMVert *v_dst = static_cast<BMVert *>(BLI_mempool_alloc(vpool_dst));
       memcpy(v_dst, v_src, sizeof(BMVert));
       if (use_toolflags) {
-        ((BMVert_OFlag *)v_dst)->oflags = bm->vtoolflagpool ?
-                                              static_cast<BMFlagLayer *>(
-                                                  BLI_mempool_calloc(bm->vtoolflagpool)) :
-                                              nullptr;
+        (reinterpret_cast<BMVert_OFlag *>(v_dst))->oflags =
+            bm->vtoolflagpool ? static_cast<BMFlagLayer *>(BLI_mempool_calloc(bm->vtoolflagpool)) :
+                                nullptr;
       }
 
       vtable_dst[index] = v_dst;
@@ -1069,10 +1068,9 @@ void BM_mesh_rebuild(BMesh *bm,
       BMEdge *e_dst = static_cast<BMEdge *>(BLI_mempool_alloc(epool_dst));
       memcpy(e_dst, e_src, sizeof(BMEdge));
       if (use_toolflags) {
-        ((BMEdge_OFlag *)e_dst)->oflags = bm->etoolflagpool ?
-                                              static_cast<BMFlagLayer *>(
-                                                  BLI_mempool_calloc(bm->etoolflagpool)) :
-                                              nullptr;
+        (reinterpret_cast<BMEdge_OFlag *>(e_dst))->oflags =
+            bm->etoolflagpool ? static_cast<BMFlagLayer *>(BLI_mempool_calloc(bm->etoolflagpool)) :
+                                nullptr;
       }
 
       etable_dst[index] = e_dst;
@@ -1090,10 +1088,10 @@ void BM_mesh_rebuild(BMesh *bm,
         BMFace *f_dst = static_cast<BMFace *>(BLI_mempool_alloc(fpool_dst));
         memcpy(f_dst, f_src, sizeof(BMFace));
         if (use_toolflags) {
-          ((BMFace_OFlag *)f_dst)->oflags = bm->ftoolflagpool ?
-                                                static_cast<BMFlagLayer *>(
-                                                    BLI_mempool_calloc(bm->ftoolflagpool)) :
-                                                nullptr;
+          (reinterpret_cast<BMFace_OFlag *>(f_dst))->oflags =
+              bm->ftoolflagpool ?
+                  static_cast<BMFlagLayer *>(BLI_mempool_calloc(bm->ftoolflagpool)) :
+                  nullptr;
         }
 
         ftable_dst[index] = f_dst;
@@ -1197,21 +1195,21 @@ void BM_mesh_rebuild(BMesh *bm,
     }
   }
 
-  LISTBASE_FOREACH (BMEditSelection *, ese, &bm->selected) {
-    switch (ese->htype) {
+  for (BMEditSelection &ese : bm->selected) {
+    switch (ese.htype) {
       case BM_VERT:
         if (remap & BM_VERT) {
-          ese->ele = (BMElem *)MAP_VERT(ese->ele);
+          ese.ele = reinterpret_cast<BMElem *>(MAP_VERT(ese.ele));
         }
         break;
       case BM_EDGE:
         if (remap & BM_EDGE) {
-          ese->ele = (BMElem *)MAP_EDGE(ese->ele);
+          ese.ele = reinterpret_cast<BMElem *>(MAP_EDGE(ese.ele));
         }
         break;
       case BM_FACE:
         if (remap & BM_FACE) {
-          ese->ele = (BMElem *)MAP_FACE(ese->ele);
+          ese.ele = reinterpret_cast<BMElem *>(MAP_FACE(ese.ele));
         }
         break;
     }

@@ -54,7 +54,7 @@ struct bArgument {
 };
 
 struct bArgs {
-  ListBase docs;
+  ListBaseT<bArgDoc> docs;
   GHash *items;
   int argc;
   const char **argv;
@@ -100,7 +100,8 @@ static bool keycmp(const void *a, const void *b)
     }
     return !STREQ(ka->arg, kb->arg);
   }
-  return BLI_ghashutil_intcmp((const void *)ka->pass, (const void *)kb->pass);
+  return BLI_ghashutil_intcmp(reinterpret_cast<const void *>(ka->pass),
+                              reinterpret_cast<const void *>(kb->pass));
 }
 
 static bArgument *lookUp(bArgs *ba, const char *arg, int pass, int case_str)
@@ -316,17 +317,17 @@ void BLI_args_print_arg_doc(bArgs *ba, const char *arg)
 
 void BLI_args_print_other_doc(bArgs *ba)
 {
-  LISTBASE_FOREACH (bArgDoc *, d, &ba->docs) {
-    if (d->done == 0) {
-      internalDocPrint(ba, d);
+  for (bArgDoc &d : ba->docs) {
+    if (d.done == 0) {
+      internalDocPrint(ba, &d);
     }
   }
 }
 
 bool BLI_args_has_other_doc(const bArgs *ba)
 {
-  LISTBASE_FOREACH (const bArgDoc *, d, &ba->docs) {
-    if (d->done == 0) {
+  for (const bArgDoc &d : ba->docs) {
+    if (d.done == 0) {
       return true;
     }
   }

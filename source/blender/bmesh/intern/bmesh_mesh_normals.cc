@@ -153,7 +153,7 @@ static void bm_vert_calc_normals_cb(void * /*userdata*/,
                                     MempoolIterData *mp_v,
                                     const TaskParallelTLS *__restrict /*tls*/)
 {
-  BMVert *v = (BMVert *)mp_v;
+  BMVert *v = reinterpret_cast<BMVert *>(mp_v);
   bm_vert_calc_normals_impl(v);
 }
 
@@ -206,7 +206,7 @@ static void bm_vert_calc_normals_with_coords_cb(void *userdata,
 {
   BMVertsCalcNormalsWithCoordsData *data = static_cast<BMVertsCalcNormalsWithCoordsData *>(
       userdata);
-  BMVert *v = (BMVert *)mp_v;
+  BMVert *v = reinterpret_cast<BMVert *>(mp_v);
   bm_vert_calc_normals_with_coords(v, data);
 }
 
@@ -238,7 +238,7 @@ static void bm_face_calc_normals_cb(void * /*userdata*/,
                                     MempoolIterData *mp_f,
                                     const TaskParallelTLS *__restrict /*tls*/)
 {
-  BMFace *f = (BMFace *)mp_f;
+  BMFace *f = reinterpret_cast<BMFace *>(mp_f);
 
   BM_face_calc_normal(f, f->no);
 }
@@ -1222,7 +1222,7 @@ static void bm_mesh_loops_calc_normals_for_vert_free_fn(const void *__restrict u
 static void bm_mesh_loops_calc_normals_for_vert_with_clnors_fn(
     void *userdata, MempoolIterData *mp_v, const TaskParallelTLS *__restrict tls)
 {
-  BMVert *v = (BMVert *)mp_v;
+  BMVert *v = reinterpret_cast<BMVert *>(mp_v);
   if (v->e == nullptr) {
     return;
   }
@@ -1247,7 +1247,7 @@ static void bm_mesh_loops_calc_normals_for_vert_with_clnors_fn(
 static void bm_mesh_loops_calc_normals_for_vert_without_clnors_fn(
     void *userdata, MempoolIterData *mp_v, const TaskParallelTLS *__restrict tls)
 {
-  BMVert *v = (BMVert *)mp_v;
+  BMVert *v = reinterpret_cast<BMVert *>(mp_v);
   if (v->e == nullptr) {
     return;
   }
@@ -1509,7 +1509,7 @@ static void bm_mesh_loops_assign_normal_data(BMesh *bm,
       LinkNode *loops = lnors_spacearr->lspacearr[i]->loops;
 
       if (lnors_spacearr->lspacearr[i]->flags & MLNOR_SPACE_IS_SINGLE) {
-        BMLoop *ml = (BMLoop *)loops;
+        BMLoop *ml = reinterpret_cast<BMLoop *>(loops);
         const int lidx = BM_elem_index_get(ml);
 
         BLI_assert(lidx == i);
@@ -1604,8 +1604,7 @@ static void bm_mesh_loops_custom_normals_set(BMesh *bm,
   float (*custom_lnors)[3] = new_lnors;
 
   if (new_lnors == nullptr) {
-    custom_lnors = static_cast<float (*)[3]>(
-        MEM_mallocN(sizeof(*new_lnors) * bm->totloop, __func__));
+    custom_lnors = MEM_malloc_arrayN<float[3]>(bm->totloop, __func__);
 
     BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
       BM_ITER_ELEM (l, &liter, f, BM_LOOPS_OF_FACE) {
@@ -2169,32 +2168,35 @@ static int bm_loop_normal_mark_indiv(BMesh *bm, BLI_bitmap *loops, const bool do
      * but it is not designed to be used with huge selection sets,
      * rather with only a few items selected at most. */
     /* Goes from last selected to the first selected element. */
-    LISTBASE_FOREACH_BACKWARD (BMEditSelection *, ese, &bm->selected) {
-      if (ese->htype == BM_FACE) {
+    for (BMEditSelection &ese : bm->selected.items_reversed()) {
+      if (ese.htype == BM_FACE) {
         /* If current face is selected,
          * then any verts to be edited must have been selected before it. */
-        for (BMEditSelection *ese_prev = ese->prev; ese_prev; ese_prev = ese_prev->prev) {
+        for (BMEditSelection *ese_prev = ese.prev; ese_prev; ese_prev = ese_prev->prev) {
           if (ese_prev->htype == BM_VERT) {
             bm_loop_normal_mark_indiv_do_loop(
-                BM_face_vert_share_loop((BMFace *)ese->ele, (BMVert *)ese_prev->ele),
+                BM_face_vert_share_loop(reinterpret_cast<BMFace *>(ese.ele),
+                                        reinterpret_cast<BMVert *>(ese_prev->ele)),
                 loops,
                 bm->lnor_spacearr,
                 &totloopsel,
                 do_all_loops_of_vert);
           }
           else if (ese_prev->htype == BM_EDGE) {
-            BMEdge *e = (BMEdge *)ese_prev->ele;
-            bm_loop_normal_mark_indiv_do_loop(BM_face_vert_share_loop((BMFace *)ese->ele, e->v1),
-                                              loops,
-                                              bm->lnor_spacearr,
-                                              &totloopsel,
-                                              do_all_loops_of_vert);
+            BMEdge *e = reinterpret_cast<BMEdge *>(ese_prev->ele);
+            bm_loop_normal_mark_indiv_do_loop(
+                BM_face_vert_share_loop(reinterpret_cast<BMFace *>(ese.ele), e->v1),
+                loops,
+                bm->lnor_spacearr,
+                &totloopsel,
+                do_all_loops_of_vert);
 
-            bm_loop_normal_mark_indiv_do_loop(BM_face_vert_share_loop((BMFace *)ese->ele, e->v2),
-                                              loops,
-                                              bm->lnor_spacearr,
-                                              &totloopsel,
-                                              do_all_loops_of_vert);
+            bm_loop_normal_mark_indiv_do_loop(
+                BM_face_vert_share_loop(reinterpret_cast<BMFace *>(ese.ele), e->v2),
+                loops,
+                bm->lnor_spacearr,
+                &totloopsel,
+                do_all_loops_of_vert);
           }
         }
       }

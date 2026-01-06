@@ -45,7 +45,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeConvertToDisplay *nctd = MEM_callocN<NodeConvertToDisplay>(__func__);
+  NodeConvertToDisplay *nctd = MEM_new_for_free<NodeConvertToDisplay>(__func__);
   BKE_color_managed_display_settings_init(&nctd->display_settings);
   BKE_color_managed_view_settings_init(&nctd->view_settings, &nctd->display_settings, nullptr);
   nctd->view_settings.flag |= COLORMANAGE_VIEW_ONLY_VIEW_LOOK;
@@ -61,7 +61,7 @@ static void node_free(bNode *node)
 
 static void node_copy(bNodeTree * /*dest_ntree*/, bNode *dest_node, const bNode *src_node)
 {
-  NodeConvertToDisplay *dest = MEM_callocN<NodeConvertToDisplay>(__func__);
+  NodeConvertToDisplay *dest = MEM_new_for_free<NodeConvertToDisplay>(__func__);
   const NodeConvertToDisplay *src = static_cast<const NodeConvertToDisplay *>(src_node->storage);
   BKE_color_managed_view_settings_copy(&dest->view_settings, &src->view_settings);
   BKE_color_managed_display_settings_copy(&dest->display_settings, &src->display_settings);
@@ -102,7 +102,7 @@ class ConvertToDisplayOperation : public NodeOperation {
 
   bool do_inverse()
   {
-    return this->get_input("Invert").get_single_value_default(false);
+    return this->get_input("Invert").get_single_value_default<bool>();
   }
 
   void execute() override
@@ -123,7 +123,7 @@ class ConvertToDisplayOperation : public NodeOperation {
 
   void execute_gpu()
   {
-    const NodeConvertToDisplay &nctd = node_storage(bnode());
+    const NodeConvertToDisplay &nctd = node_storage(node());
 
     OCIOToDisplayShader &ocio_shader = context().cache_manager().ocio_to_display_shaders.get(
         context(), nctd.display_settings, nctd.view_settings, do_inverse());
@@ -154,7 +154,7 @@ class ConvertToDisplayOperation : public NodeOperation {
 
   void execute_cpu()
   {
-    const NodeConvertToDisplay &nctd = node_storage(bnode());
+    const NodeConvertToDisplay &nctd = node_storage(node());
     ColormanageProcessor *color_processor = IMB_colormanagement_display_processor_new(
         &nctd.view_settings, &nctd.display_settings, DISPLAY_SPACE_VIDEO_OUTPUT, do_inverse());
 
@@ -179,7 +179,7 @@ class ConvertToDisplayOperation : public NodeOperation {
 
   void execute_single()
   {
-    const NodeConvertToDisplay &nctd = node_storage(bnode());
+    const NodeConvertToDisplay &nctd = node_storage(node());
     ColormanageProcessor *color_processor = IMB_colormanagement_display_processor_new(
         &nctd.view_settings, &nctd.display_settings, DISPLAY_SPACE_VIDEO_OUTPUT, do_inverse());
 

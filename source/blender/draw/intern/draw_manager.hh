@@ -343,7 +343,7 @@ inline ResourceHandleRange Manager::resource_handle(const ObjectRef &ref, float 
 
       ObjectInfos &info = infos_buf.current().get_or_resize(resource_len_);
       info = proto_info;
-      info.random = dupli->random_id * (1.0f / (float)0xFFFFFFFF);
+      info.random = dupli->random_id * (1.0f / float(0xFFFFFFFF));
 
       resource_len_++;
     }
@@ -443,8 +443,8 @@ inline void Manager::extract_object_attributes(ResourceHandle handle,
     return;
   }
 
-  LISTBASE_FOREACH (const GPUUniformAttr *, attr, &attr_list->list) {
-    if (attributes_buf.get_or_resize(attribute_len_).sync(ref, *attr)) {
+  for (const GPUUniformAttr &attr : attr_list->list) {
+    if (attributes_buf.get_or_resize(attribute_len_).sync(ref, *&attr)) {
       infos.object_attrs_len++;
       attribute_len_++;
     }
@@ -467,14 +467,14 @@ inline void Manager::extract_object_attributes(ResourceHandle handle,
       continue;
     }
 
-    LISTBASE_FOREACH (const GPUUniformAttr *, attr, &attr_list->list) {
+    for (const GPUUniformAttr &attr : attr_list->list) {
       /** WATCH: Linear Search. Avoid duplicate attributes across materials. */
-      if ((mat != materials.first()) && (hash_cache.first_index_of_try(attr->hash_code) != -1)) {
+      if ((mat != materials.first()) && (hash_cache.first_index_of_try(attr.hash_code) != -1)) {
         /* Attribute has already been added to the attribute buffer by another material. */
         continue;
       }
-      hash_cache.append(attr->hash_code);
-      if (attributes_buf.get_or_resize(attribute_len_).sync(ref, *attr)) {
+      hash_cache.append(attr.hash_code);
+      if (attributes_buf.get_or_resize(attribute_len_).sync(ref, *&attr)) {
         infos.object_attrs_len++;
         attribute_len_++;
       }
@@ -484,13 +484,13 @@ inline void Manager::extract_object_attributes(ResourceHandle handle,
 
 inline void Manager::register_layer_attributes(GPUMaterial *material)
 {
-  const ListBase *attr_list = GPU_material_layer_attributes(material);
+  const ListBaseT<GPULayerAttr> *attr_list = GPU_material_layer_attributes(material);
 
   if (attr_list != nullptr) {
-    LISTBASE_FOREACH (const GPULayerAttr *, attr, attr_list) {
+    for (const GPULayerAttr &attr : *attr_list) {
       /** Since layer attributes are global to the whole render pass,
        *  this only collects a table of their names. */
-      layer_attributes.add(attr->hash_code, *attr);
+      layer_attributes.add(attr.hash_code, *&attr);
     }
   }
 }

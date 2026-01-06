@@ -8,7 +8,6 @@
 
 #include <cstring>
 
-#include "DNA_defaults.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_path_utils.hh"
@@ -30,7 +29,7 @@ namespace path_templates = blender::bke::path_templates;
 
 void BKE_image_format_init(ImageFormatData *imf)
 {
-  *imf = *DNA_struct_default_get(ImageFormatData);
+  *imf = ImageFormatData();
 
   BKE_color_managed_display_settings_init(&imf->display_settings);
 
@@ -178,7 +177,7 @@ void BKE_image_format_set(ImageFormatData *imf, ID *owner_id, const char imtype)
 
 int BKE_imtype_to_ftype(const char imtype, ImbFormatOptions *r_options)
 {
-  memset(r_options, 0, sizeof(*r_options));
+  *r_options = ImbFormatOptions();
 
   if (imtype == R_IMF_IMTYPE_TARGA) {
     return IMB_FTYPE_TGA;
@@ -413,7 +412,7 @@ char BKE_imtype_valid_depths_with_video(char imtype, const ID *owner_id)
   if (imtype == R_IMF_IMTYPE_FFMPEG) {
     const bool is_render_out = (owner_id && GS(owner_id->name) == ID_SCE);
     if (is_render_out) {
-      const Scene *scene = (const Scene *)owner_id;
+      const Scene *scene = blender::id_cast<const Scene *>(owner_id);
       depths |= MOV_codec_valid_bit_depths(scene->r.ffcodecdata.codec_id_get());
     }
   }

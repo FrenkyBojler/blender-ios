@@ -71,7 +71,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMeshCylinder *node_storage = MEM_callocN<NodeGeometryMeshCylinder>(__func__);
+  NodeGeometryMeshCylinder *node_storage = MEM_new_for_free<NodeGeometryMeshCylinder>(__func__);
 
   node_storage->fill_type = GEO_NODE_MESH_CIRCLE_FILL_NGON;
 
@@ -81,7 +81,7 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryMeshCylinder &storage = node_storage(params.node());
-  const GeometryNodeMeshCircleFillType fill = (GeometryNodeMeshCircleFillType)storage.fill_type;
+  const GeometryNodeMeshCircleFillType fill = GeometryNodeMeshCircleFillType(storage.fill_type);
 
   const float radius = params.extract_input<float>("Radius");
   const float depth = params.extract_input<float>("Depth");

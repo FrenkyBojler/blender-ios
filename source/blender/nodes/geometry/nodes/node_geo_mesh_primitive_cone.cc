@@ -69,7 +69,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMeshCone *node_storage = MEM_callocN<NodeGeometryMeshCone>(__func__);
+  NodeGeometryMeshCone *node_storage = MEM_new_for_free<NodeGeometryMeshCone>(__func__);
 
   node_storage->fill_type = GEO_NODE_MESH_CIRCLE_FILL_NGON;
 
@@ -86,7 +86,7 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryMeshCone &storage = node_storage(params.node());
-  const GeometryNodeMeshCircleFillType fill = (GeometryNodeMeshCircleFillType)storage.fill_type;
+  const GeometryNodeMeshCircleFillType fill = GeometryNodeMeshCircleFillType(storage.fill_type);
 
   const int circle_segments = params.extract_input<int>("Vertices");
   if (circle_segments < 3) {

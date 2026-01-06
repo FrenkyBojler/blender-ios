@@ -277,6 +277,8 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 #  include <fmt/format.h>
 
 #  include "BLI_bounds.hh"
+#  include "BLI_listbase.h"
+#  include "BLI_string.h"
 
 #  include "DNA_ID.h"
 #  include "DNA_constraint_types.h"
@@ -304,6 +306,7 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 #  include "BKE_global.hh"
 #  include "BKE_key.hh"
 #  include "BKE_layer.hh"
+#  include "BKE_lib_id.hh"
 #  include "BKE_library.hh"
 #  include "BKE_light_linking.h"
 #  include "BKE_material.hh"
@@ -366,7 +369,7 @@ static void rna_grease_pencil_update(Main * /*bmain*/, Scene * /*scene*/, Pointe
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   if (ob && ob->type == OB_GREASE_PENCIL) {
-    GreasePencil *grease_pencil = static_cast<GreasePencil *>(ob->data);
+    GreasePencil *grease_pencil = blender::id_cast<GreasePencil *>(ob->data);
     DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
     WM_main_add_notifier(NC_GPENCIL | NA_EDITED, nullptr);
   }
@@ -387,7 +390,7 @@ static void rna_Object_matrix_world_set(PointerRNA *ptr, const float *values)
 static void rna_Object_matrix_local_get(PointerRNA *ptr, float values[16])
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
-  BKE_object_matrix_local_get(ob, (float (*)[4])values);
+  BKE_object_matrix_local_get(ob, reinterpret_cast<float (*)[4]>(values));
 }
 
 static void rna_Object_matrix_local_set(PointerRNA *ptr, const float values[16])
@@ -401,10 +404,10 @@ static void rna_Object_matrix_local_set(PointerRNA *ptr, const float values[16])
   if (ob->parent) {
     float invmat[4][4];
     invert_m4_m4(invmat, ob->parentinv);
-    mul_m4_m4m4(local_mat, invmat, (float (*)[4])values);
+    mul_m4_m4m4(local_mat, invmat, reinterpret_cast<float (*)[4]>(const_cast<float *>(values)));
   }
   else {
-    copy_m4_m4(local_mat, (float (*)[4])values);
+    copy_m4_m4(local_mat, reinterpret_cast<float (*)[4]>(const_cast<float *>(values)));
   }
 
   /* Don't use compatible so we get predictable rotation, and do not use parenting either,
@@ -415,13 +418,14 @@ static void rna_Object_matrix_local_set(PointerRNA *ptr, const float values[16])
 static void rna_Object_matrix_basis_get(PointerRNA *ptr, float values[16])
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
-  BKE_object_to_mat4(ob, (float (*)[4])values);
+  BKE_object_to_mat4(ob, reinterpret_cast<float (*)[4]>(values));
 }
 
 static void rna_Object_matrix_basis_set(PointerRNA *ptr, const float values[16])
 {
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
-  BKE_object_apply_mat4(ob, (float (*)[4])values, false, false);
+  BKE_object_apply_mat4(
+      ob, reinterpret_cast<float (*)[4]>(const_cast<float *>(values)), false, false);
 }
 
 void rna_Object_internal_update_data_impl(PointerRNA *ptr)
@@ -449,7 +453,7 @@ static void rna_Object_active_shape_update(Main *bmain, Scene * /*scene*/, Point
     /* exit/enter editmode to get new shape */
     switch (ob->type) {
       case OB_MESH: {
-        Mesh *mesh = static_cast<Mesh *>(ob->data);
+        Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
         BMEditMesh *em = mesh->runtime->edit_mesh.get();
         int select_mode = em->selectmode;
         EDBM_mesh_load(bmain, ob);
@@ -493,7 +497,7 @@ static PointerRNA rna_Object_data_get(PointerRNA *ptr)
 {
   Object *ob = static_cast<Object *>(ptr->data);
   if (ob->type == OB_MESH) {
-    Mesh *mesh = static_cast<Mesh *>(ob->data);
+    Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
     mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
     return RNA_id_pointer_create(reinterpret_cast<ID *>(mesh));
   }
@@ -524,7 +528,7 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value, ReportList *r
 
   if (ob->type == OB_EMPTY) {
     if (ob->data) {
-      id_us_min(static_cast<ID *>(ob->data));
+      id_us_min(ob->data);
       ob->data = nullptr;
     }
 
@@ -538,7 +542,7 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value, ReportList *r
   }
   else {
     if (ob->data) {
-      id_us_min(static_cast<ID *>(ob->data));
+      id_us_min(ob->data);
     }
 
     /* no need to type-check here ID. this is done in the _typef() function */
@@ -552,7 +556,7 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value, ReportList *r
       BKE_curve_type_test(ob, true);
     }
     else if (ob->type == OB_ARMATURE) {
-      BKE_pose_rebuild(G_MAIN, ob, static_cast<bArmature *>(ob->data), true);
+      BKE_pose_rebuild(G_MAIN, ob, blender::id_cast<bArmature *>(ob->data), true);
     }
   }
 }
@@ -684,7 +688,7 @@ static bool rna_Object_parent_type_override_apply(Main *bmain,
 
   /* We need a special handling here because setting parent resets invert parent matrix,
    * which is evil in our case. */
-  Object *ob = (Object *)(ptr_dst->data);
+  Object *ob = static_cast<Object *>(ptr_dst->data);
   const int parent_type_dst = RNA_property_enum_get(ptr_dst, prop_dst);
   const int parent_type_src = RNA_property_enum_get(ptr_src, prop_src);
 
@@ -767,7 +771,7 @@ static bool rna_Object_parent_bone_override_apply(Main *bmain,
 
   /* We need a special handling here because setting parent resets invert parent matrix,
    * which is evil in our case. */
-  Object *ob = (Object *)(ptr_dst->data);
+  Object *ob = static_cast<Object *>(ptr_dst->data);
   char parent_bone_dst[MAX_ID_NAME - 2];
   RNA_property_string_get(ptr_dst, prop_dst, parent_bone_dst);
   char parent_bone_src[MAX_ID_NAME - 2];
@@ -846,7 +850,7 @@ static void rna_Object_vertex_groups_begin(CollectionPropertyIterator *iter, Poi
     return;
   }
 
-  ListBase *defbase = BKE_object_defgroup_list_mutable(ob);
+  ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list_mutable(ob);
   iter->valid = defbase != nullptr;
 
   rna_iterator_listbase_begin(iter, ptr, defbase, nullptr);
@@ -870,7 +874,7 @@ static int rna_VertexGroup_index_get(PointerRNA *ptr)
     return -1;
   }
 
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
   return BLI_findindex(defbase, ptr->data);
 }
 
@@ -881,7 +885,7 @@ static PointerRNA rna_Object_active_vertex_group_get(PointerRNA *ptr)
     return PointerRNA_NULL;
   }
 
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
 
   return RNA_pointer_create_with_parent(
       *ptr, &RNA_VertexGroup, BLI_findlink(defbase, BKE_object_defgroup_active_index_get(ob) - 1));
@@ -896,7 +900,7 @@ static void rna_Object_active_vertex_group_set(PointerRNA *ptr,
     return;
   }
 
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
 
   int index = BLI_findindex(defbase, value.data);
   if (index == -1) {
@@ -941,7 +945,7 @@ static void rna_Object_active_vertex_group_index_range(
     *max = 0;
     return;
   }
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
   *max = max_ii(0, BLI_listbase_count(defbase) - 1);
 }
 
@@ -953,7 +957,7 @@ void rna_object_vgroup_name_index_get(PointerRNA *ptr, char *value, int index)
     return;
   }
 
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
   const bDeformGroup *dg = static_cast<bDeformGroup *>(BLI_findlink(defbase, index - 1));
 
   if (dg) {
@@ -971,7 +975,7 @@ int rna_object_vgroup_name_index_length(PointerRNA *ptr, int index)
     return 0;
   }
 
-  const ListBase *defbase = BKE_object_defgroup_list(ob);
+  const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
   bDeformGroup *dg = static_cast<bDeformGroup *>(BLI_findlink(defbase, index - 1));
   return (dg) ? strlen(dg->name) : 0;
 }
@@ -1019,7 +1023,7 @@ void rna_object_uvlayer_name_set(PointerRNA *ptr,
   int a;
 
   if (ob->type == OB_MESH && ob->data) {
-    mesh = static_cast<Mesh *>(ob->data);
+    mesh = blender::id_cast<Mesh *>(ob->data);
 
     for (a = 0; a < mesh->corner_data.totlayer; a++) {
       layer = &mesh->corner_data.layers[a];
@@ -1045,7 +1049,7 @@ void rna_object_vcollayer_name_set(PointerRNA *ptr,
   int a;
 
   if (ob->type == OB_MESH && ob->data) {
-    mesh = static_cast<Mesh *>(ob->data);
+    mesh = blender::id_cast<Mesh *>(ob->data);
 
     for (a = 0; a < mesh->fdata_legacy.totlayer; a++) {
       layer = &mesh->fdata_legacy.layers[a];
@@ -1074,7 +1078,7 @@ static void rna_Object_active_material_index_set(PointerRNA *ptr, int value)
   ob->actcol = value + 1;
 
   if (ob->type == OB_MESH) {
-    Mesh *mesh = static_cast<Mesh *>(ob->data);
+    Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
 
     if (mesh->runtime->edit_mesh) {
       mesh->runtime->edit_mesh->mat_nr = value;
@@ -1810,9 +1814,9 @@ bool rna_Object_modifiers_override_apply(Main *bmain,
      * modifier).
      *
      * Try to handle this by finding already existing one here. */
-    const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)mod_src->type);
+    const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(mod_src->type));
     if (mti->flags & eModifierTypeFlag_Single) {
-      mod_dst = BKE_modifiers_findby_type(ob_dst, (ModifierType)mod_src->type);
+      mod_dst = BKE_modifiers_findby_type(ob_dst, ModifierType(mod_src->type));
     }
 
     if (mod_dst == nullptr) {
@@ -1929,7 +1933,7 @@ static void rna_Object_vgroup_remove(Object *ob,
   }
 
   bDeformGroup *defgroup = static_cast<bDeformGroup *>(defgroup_ptr->data);
-  ListBase *defbase = BKE_object_defgroup_list_mutable(ob);
+  ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list_mutable(ob);
 
   if (BLI_findindex(defbase, defgroup) == -1) {
     BKE_reportf(reports,
@@ -2068,7 +2072,7 @@ static bool mesh_symmetry_get_common(PointerRNA *ptr, const eMeshSymmetryType sy
     return false;
   }
 
-  const Mesh *mesh = static_cast<Mesh *>(ob->data);
+  const Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
   return mesh->symmetry & sym;
 }
 
@@ -2096,7 +2100,7 @@ static void mesh_symmetry_set_common(PointerRNA *ptr,
     return;
   }
 
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
   if (value) {
     mesh->symmetry |= sym;
   }
@@ -2127,7 +2131,7 @@ static int rna_Object_mesh_symmetry_yz_editable(const PointerRNA *ptr, const cha
     return 0;
   }
 
-  const Mesh *mesh = static_cast<Mesh *>(ob->data);
+  const Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
   if (ob->mode == OB_MODE_WEIGHT_PAINT && mesh->editflag & ME_EDIT_MIRROR_VERTEX_GROUPS) {
     /* Only X symmetry is available in weight-paint mode. */
     return 0;

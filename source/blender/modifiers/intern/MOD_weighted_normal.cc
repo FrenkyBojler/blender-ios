@@ -13,7 +13,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_screen_types.h"
@@ -47,8 +46,8 @@ struct ModePair {
 /* Sorting function used in modifier, sorts in decreasing order. */
 static int modepair_cmp_by_val_inverse(const void *p1, const void *p2)
 {
-  ModePair *r1 = (ModePair *)p1;
-  ModePair *r2 = (ModePair *)p2;
+  ModePair *r1 = static_cast<ModePair *>(const_cast<void *>(p1));
+  ModePair *r2 = static_cast<ModePair *>(const_cast<void *>(p2));
 
   return (r1->val < r2->val) ? 1 : ((r1->val > r2->val) ? -1 : 0);
 }
@@ -456,10 +455,11 @@ static void wn_face_with_angle(WeightedNormalModifierData *wnmd, WeightedNormalD
 static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
   using namespace blender;
-  WeightedNormalModifierData *wnmd = (WeightedNormalModifierData *)md;
+  WeightedNormalModifierData *wnmd = reinterpret_cast<WeightedNormalModifierData *>(md);
 
   Mesh *result;
-  result = (Mesh *)BKE_id_copy_ex(nullptr, &mesh->id, nullptr, LIB_ID_COPY_LOCALIZE);
+  result = blender::id_cast<Mesh *>(
+      BKE_id_copy_ex(nullptr, &mesh->id, nullptr, LIB_ID_COPY_LOCALIZE));
 
   const int verts_num = result->verts_num;
   const Span<blender::float3> positions = mesh->vert_positions();
@@ -549,16 +549,13 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void init_data(ModifierData *md)
 {
-  WeightedNormalModifierData *wnmd = (WeightedNormalModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wnmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(wnmd, DNA_struct_default_get(WeightedNormalModifierData), modifier);
+  WeightedNormalModifierData *wnmd = reinterpret_cast<WeightedNormalModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(wnmd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  WeightedNormalModifierData *wnmd = (WeightedNormalModifierData *)md;
+  WeightedNormalModifierData *wnmd = reinterpret_cast<WeightedNormalModifierData *>(md);
 
   if (wnmd->defgrp_name[0] != '\0') {
     r_cddata_masks->vmask |= CD_MASK_MDEFORMVERT;

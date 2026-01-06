@@ -59,7 +59,7 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   SpaceAction *saction;
   ARegion *region;
 
-  saction = MEM_callocN<SpaceAction>("initaction");
+  saction = MEM_new_for_free<SpaceAction>("initaction");
   saction->spacetype = SPACE_ACTION;
 
   const eAnimEdit_Context desired_mode = area ? eAnimEdit_Context(area->butspacetype_subtype) :
@@ -147,7 +147,7 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   region->v2d.align = V2D_ALIGN_NO_POS_Y;
   region->v2d.flag = V2D_VIEWSYNC_AREA_VERTICAL;
 
-  return (SpaceLink *)saction;
+  return reinterpret_cast<SpaceLink *>(saction);
 }
 
 /* Doesn't free the space-link itself. */
@@ -171,7 +171,7 @@ static SpaceLink *action_duplicate(SpaceLink *sl)
 
   /* clear or remove stuff from old */
 
-  return (SpaceLink *)sactionn;
+  return reinterpret_cast<SpaceLink *>(sactionn);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -221,7 +221,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
     region->v2d.scroll &= ~V2D_SCROLL_BOTTOM;
   }
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   const bool has_anim_context = ANIM_animdata_get_context(C, &ac);
   if (has_anim_context) {
     /* Build list of channels to draw. */
@@ -354,7 +354,7 @@ static void action_channel_region_draw(const bContext *C, ARegion *region)
 
   View2D *v2d = &region->v2d;
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
   /* Build list of channels to draw. */
   const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                                     ANIMFILTER_LIST_CHANNELS);
@@ -365,7 +365,7 @@ static void action_channel_region_draw(const bContext *C, ARegion *region)
   set_v2d_height(v2d, item_count, !BLI_listbase_is_empty(ac.markers));
 
   blender::ui::view2d_view_ortho(v2d);
-  draw_channel_names((bContext *)C, &ac, region, anim_data);
+  draw_channel_names(const_cast<bContext *>(C), &ac, region, anim_data);
 
   /* channel filter next to scrubbing area */
   ED_time_scrub_channel_search_draw(C, region, ac.ads);
@@ -576,7 +576,7 @@ static void action_listener(const wmSpaceTypeListenerParams *params)
 {
   ScrArea *area = params->area;
   const wmNotifier *wmn = params->notifier;
-  SpaceAction *saction = (SpaceAction *)area->spacedata.first;
+  SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
 
   /* context changes */
   switch (wmn->category) {
@@ -634,11 +634,11 @@ static void action_listener(const wmSpaceTypeListenerParams *params)
           ED_area_tag_redraw(area);
           break;
         case ND_FRAME_RANGE:
-          LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-            if (region->regiontype == RGN_TYPE_WINDOW) {
+          for (ARegion &region : area->regionbase) {
+            if (region.regiontype == RGN_TYPE_WINDOW) {
               Scene *scene = static_cast<Scene *>(wmn->reference);
-              region->v2d.tot.xmin = float(scene->r.sfra - 4);
-              region->v2d.tot.xmax = float(scene->r.efra + 4);
+              region.v2d.tot.xmin = float(scene->r.sfra - 4);
+              region.v2d.tot.xmax = float(scene->r.efra + 4);
               break;
             }
           }
@@ -842,7 +842,7 @@ static void action_region_listener(const wmRegionListenerParams *params)
 
 static void action_refresh(const bContext *C, ScrArea *area)
 {
-  SpaceAction *saction = (SpaceAction *)area->spacedata.first;
+  SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
 
   /* Update the state of the animchannels in response to changes from the data they represent
    * NOTE: the temp flag is used to indicate when this needs to be done,
@@ -859,8 +859,8 @@ static void action_refresh(const bContext *C, ScrArea *area)
      *   or else they don't update #28962.
      */
     ED_area_tag_redraw(area);
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      ED_region_tag_redraw(region);
+    for (ARegion &region : area->regionbase) {
+      ED_region_tag_redraw(&region);
     }
   }
 
@@ -872,7 +872,7 @@ static void action_id_remap(ScrArea * /*area*/,
                             SpaceLink *slink,
                             const blender::bke::id::IDRemapper &mappings)
 {
-  SpaceAction *sact = (SpaceAction *)slink;
+  SpaceAction *sact = reinterpret_cast<SpaceAction *>(slink);
 
   mappings.apply(reinterpret_cast<ID **>(&sact->ads.filter_grp), ID_REMAP_APPLY_DEFAULT);
   mappings.apply(&sact->ads.source, ID_REMAP_APPLY_DEFAULT);
@@ -945,13 +945,13 @@ static int action_space_icon_get(const ScrArea *area)
 
 static void action_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)
 {
-  SpaceAction *saction = (SpaceAction *)sl;
+  SpaceAction *saction = reinterpret_cast<SpaceAction *>(sl);
   saction->runtime = SpaceAction_Runtime{};
 }
 
 static void action_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceAction, sl);
+  writer->write_struct_cast<SpaceAction>(sl);
 }
 
 void ED_spacetype_action()

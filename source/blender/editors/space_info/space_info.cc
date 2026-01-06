@@ -38,7 +38,7 @@ static SpaceLink *info_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   ARegion *region;
   SpaceInfo *sinfo;
 
-  sinfo = MEM_callocN<SpaceInfo>("initinfo");
+  sinfo = MEM_new_for_free<SpaceInfo>("initinfo");
   sinfo->spacetype = SPACE_INFO;
 
   sinfo->rpt_mask = INFO_RPT_OP;
@@ -67,7 +67,7 @@ static SpaceLink *info_create(const ScrArea * /*area*/, const Scene * /*scene*/)
   /* for now, aspect ratio should be maintained, and zoom is clamped within sane default limits */
   // region->v2d.keepzoom = (V2D_KEEPASPECT|V2D_LIMITZOOM);
 
-  return (SpaceLink *)sinfo;
+  return reinterpret_cast<SpaceLink *>(sinfo);
 }
 
 /* Doesn't free the space-link itself. */
@@ -85,7 +85,7 @@ static SpaceLink *info_duplicate(SpaceLink *sl)
 
   /* clear or remove stuff from old */
 
-  return (SpaceLink *)sinfon;
+  return reinterpret_cast<SpaceLink *>(sinfon);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -247,7 +247,7 @@ static void info_header_region_message_subscribe(const wmRegionMessageSubscribeP
 
 static void info_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceInfo, sl);
+  writer->write_struct_cast<SpaceInfo>(sl);
 }
 
 void ED_spacetype_info()

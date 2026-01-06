@@ -27,6 +27,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_report.hh"
 
+#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "WM_api.hh"
@@ -451,7 +452,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
       params.calc_looptris = false;
       params.calc_normals = false;
       params.is_destructive = false;
-      EDBM_update(static_cast<Mesh *>(ob->data), &params);
+      EDBM_update(blender::id_cast<Mesh *>(ob->data), &params);
     }
   }
 
@@ -478,7 +479,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
       params.calc_looptris = false;
       params.calc_normals = false;
       params.is_destructive = false;
-      EDBM_update(static_cast<Mesh *>(ob->data), &params);
+      EDBM_update(blender::id_cast<Mesh *>(ob->data), &params);
     }
   }
 
@@ -889,7 +890,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
       params.calc_looptris = false;
       params.calc_normals = false;
       params.is_destructive = false;
-      EDBM_update(static_cast<Mesh *>(ob->data), &params);
+      EDBM_update(blender::id_cast<Mesh *>(ob->data), &params);
     }
   }
 
@@ -916,7 +917,7 @@ static wmOperatorStatus similar_edge_select_exec(bContext *C, wmOperator *op)
       params.calc_looptris = false;
       params.calc_normals = false;
       params.is_destructive = false;
-      EDBM_update(static_cast<Mesh *>(ob->data), &params);
+      EDBM_update(blender::id_cast<Mesh *>(ob->data), &params);
     }
   }
 
@@ -1059,12 +1060,12 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
       /* We store the names of the vertex groups, so we can select
        * vertex groups with the same name in different objects. */
 
-      const ListBase *defbase = BKE_object_defgroup_list(ob);
+      const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
 
       int i = 0;
-      LISTBASE_FOREACH (bDeformGroup *, dg, defbase) {
+      for (bDeformGroup &dg : *defbase) {
         if (BLI_BITMAP_TEST(defbase_selected, i)) {
-          selected_vertex_groups.add_as(dg->name);
+          selected_vertex_groups.add_as(dg.name);
         }
         i += 1;
       }
@@ -1104,7 +1105,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
       if (cd_dvert_offset == -1) {
         continue;
       }
-      const ListBase *defbase = BKE_object_defgroup_list(ob);
+      const ListBaseT<bDeformGroup> *defbase = BKE_object_defgroup_list(ob);
       defbase_len = BLI_listbase_count(defbase);
       if (defbase_len == 0) {
         continue;
@@ -1234,7 +1235,7 @@ static wmOperatorStatus similar_vert_select_exec(bContext *C, wmOperator *op)
       params.calc_looptris = false;
       params.calc_normals = false;
       params.is_destructive = false;
-      EDBM_update(static_cast<Mesh *>(ob->data), &params);
+      EDBM_update(blender::id_cast<Mesh *>(ob->data), &params);
     }
   }
 

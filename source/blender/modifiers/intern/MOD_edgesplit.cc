@@ -16,7 +16,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_screen_types.h"
 
@@ -109,17 +108,14 @@ Mesh *doEdgeSplit(const Mesh *mesh, EdgeSplitModifierData *emd)
 
 static void init_data(ModifierData *md)
 {
-  EdgeSplitModifierData *emd = (EdgeSplitModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(emd, modifier));
-
-  MEMCPY_STRUCT_AFTER(emd, DNA_struct_default_get(EdgeSplitModifierData), modifier);
+  EdgeSplitModifierData *emd = reinterpret_cast<EdgeSplitModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(emd, modifier);
 }
 
 static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
 {
   Mesh *result;
-  EdgeSplitModifierData *emd = (EdgeSplitModifierData *)md;
+  EdgeSplitModifierData *emd = reinterpret_cast<EdgeSplitModifierData *>(md);
 
   if (!(emd->flags & (MOD_EDGESPLIT_FROMANGLE | MOD_EDGESPLIT_FROMFLAG))) {
     return mesh;

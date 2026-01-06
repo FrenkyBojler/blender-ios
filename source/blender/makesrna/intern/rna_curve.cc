@@ -151,10 +151,13 @@ static const EnumPropertyItem curve2d_fill_mode_items[] = {
 
 #  include "DNA_object_types.h"
 
+#  include "BLI_listbase.h"
 #  include "BLI_math_vector.h"
+#  include "BLI_string_utf8.h"
 
 #  include "BKE_curve.hh"
 #  include "BKE_curveprofile.h"
+#  include "BKE_lib_id.hh"
 #  include "BKE_main.hh"
 #  include "BKE_vfont.hh"
 
@@ -170,7 +173,7 @@ static const EnumPropertyItem curve2d_fill_mode_items[] = {
 /* highly irritating but from RNA we can't know this */
 static Nurb *curve_nurb_from_point(Curve *cu, const void *point, int *nu_index, int *pt_index)
 {
-  ListBase *nurbs = BKE_curve_nurbs_get(cu);
+  ListBaseT<Nurb> *nurbs = BKE_curve_nurbs_get(cu);
   Nurb *nu;
   int i = 0;
 
@@ -444,7 +447,7 @@ static void rna_Curve_bevelObject_set(PointerRNA *ptr, PointerRNA value, ReportL
   if (ob) {
     /* If bevel object has got the save curve, as object, for which it's set as bevobj,
      * there could be an infinite loop in curve evaluation. */
-    if (ob->type == OB_CURVES_LEGACY && ob->data != cu) {
+    if (ob->type == OB_CURVES_LEGACY && ob->data != blender::id_cast<ID *>(cu)) {
       cu->bevobj = ob;
       id_lib_extern(&ob->id);
     }
@@ -489,7 +492,7 @@ static bool rna_Curve_otherObject_poll(PointerRNA *ptr, PointerRNA value)
   Object *ob = static_cast<Object *>(value.data);
 
   if (ob) {
-    if (ob->type == OB_CURVES_LEGACY && ob->data != cu) {
+    if (ob->type == OB_CURVES_LEGACY && ob->data != blender::id_cast<ID *>(cu)) {
       return 1;
     }
   }
@@ -517,7 +520,7 @@ static void rna_Curve_taperObject_set(PointerRNA *ptr, PointerRNA value, ReportL
   if (ob) {
     /* If taper object has got the save curve, as object, for which it's set as bevobj,
      * there could be an infinite loop in curve evaluation. */
-    if (ob->type == OB_CURVES_LEGACY && ob->data != cu) {
+    if (ob->type == OB_CURVES_LEGACY && ob->data != blender::id_cast<ID *>(cu)) {
       cu->taperobj = ob;
       id_lib_extern(&ob->id);
     }
@@ -530,10 +533,10 @@ static void rna_Curve_taperObject_set(PointerRNA *ptr, PointerRNA value, ReportL
 static void rna_Curve_resolution_u_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   Curve *cu = reinterpret_cast<Curve *>(ptr->owner_id);
-  ListBase *nurbs = BKE_curve_nurbs_get(cu);
+  ListBaseT<Nurb> *nurbs = BKE_curve_nurbs_get(cu);
 
-  LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-    nu->resolu = cu->resolu;
+  for (Nurb &nu : *nurbs) {
+    nu.resolu = cu->resolu;
   }
 
   rna_Curve_update_data(bmain, scene, ptr);
@@ -542,10 +545,10 @@ static void rna_Curve_resolution_u_update_data(Main *bmain, Scene *scene, Pointe
 static void rna_Curve_resolution_v_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   Curve *cu = reinterpret_cast<Curve *>(ptr->owner_id);
-  ListBase *nurbs = BKE_curve_nurbs_get(cu);
+  ListBaseT<Nurb> *nurbs = BKE_curve_nurbs_get(cu);
 
-  LISTBASE_FOREACH (Nurb *, nu, nurbs) {
-    nu->resolv = cu->resolv;
+  for (Nurb &nu : *nurbs) {
+    nu.resolv = cu->resolv;
   }
 
   rna_Curve_update_data(bmain, scene, ptr);
@@ -598,7 +601,7 @@ static void rna_Curve_body_set(PointerRNA *ptr, const char *value)
   cu->str = MEM_malloc_arrayN<char>(len_bytes + sizeof(char32_t), "str");
   memcpy(cu->str, value, len_bytes + 1);
 
-  cu->strinfo = MEM_calloc_arrayN<CharInfo>((len_chars + 4), "strinfo");
+  cu->strinfo = MEM_new_array_for_free<CharInfo>((len_chars + 4), "strinfo");
 }
 
 static void rna_Nurb_update_cyclic_u(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -683,7 +686,7 @@ static void rna_Curve_spline_bezpoints_add(ID *id, Nurb *nu, ReportList *reports
 
 static Nurb *rna_Curve_spline_new(Curve *cu, int type)
 {
-  Nurb *nu = MEM_callocN<Nurb>("spline.new");
+  Nurb *nu = MEM_new_for_free<Nurb>("spline.new");
 
   if (type == CU_BEZIER) {
     BezTriple *bezt = MEM_callocN<BezTriple>("spline.new.bezt");
@@ -713,7 +716,7 @@ static Nurb *rna_Curve_spline_new(Curve *cu, int type)
 static void rna_Curve_spline_remove(Curve *cu, ReportList *reports, PointerRNA *nu_ptr)
 {
   Nurb *nu = static_cast<Nurb *>(nu_ptr->data);
-  ListBase *nurbs = BKE_curve_nurbs_get(cu);
+  ListBaseT<Nurb> *nurbs = BKE_curve_nurbs_get(cu);
 
   if (BLI_remlink_safe(nurbs, nu) == false) {
     BKE_reportf(reports, RPT_ERROR, "Curve '%s' does not contain spline given", cu->id.name + 2);
@@ -729,7 +732,7 @@ static void rna_Curve_spline_remove(Curve *cu, ReportList *reports, PointerRNA *
 
 static void rna_Curve_spline_clear(Curve *cu)
 {
-  ListBase *nurbs = BKE_curve_nurbs_get(cu);
+  ListBaseT<Nurb> *nurbs = BKE_curve_nurbs_get(cu);
 
   BKE_nurbList_free(nurbs);
 
@@ -741,7 +744,7 @@ static PointerRNA rna_Curve_active_spline_get(PointerRNA *ptr)
 {
   Curve *cu = static_cast<Curve *>(ptr->data);
   Nurb *nu;
-  ListBase *nurbs = BKE_curve_nurbs_get(cu);
+  ListBaseT<Nurb> *nurbs = BKE_curve_nurbs_get(cu);
 
   /* For curve outside editmode will set to -1,
    * should be changed to be allowed outside of editmode. */
@@ -760,7 +763,7 @@ static void rna_Curve_active_spline_set(PointerRNA *ptr,
 {
   Curve *cu = static_cast<Curve *>(ptr->data);
   Nurb *nu = static_cast<Nurb *>(value.data);
-  ListBase *nubase = BKE_curve_nurbs_get(cu);
+  ListBaseT<Nurb> *nubase = BKE_curve_nurbs_get(cu);
 
   /* -1 is ok for an unset index */
   if (nu == nullptr) {
@@ -774,7 +777,7 @@ static void rna_Curve_active_spline_set(PointerRNA *ptr,
 static std::optional<std::string> rna_Curve_spline_path(const PointerRNA *ptr)
 {
   Curve *cu = reinterpret_cast<Curve *>(ptr->owner_id);
-  ListBase *nubase = BKE_curve_nurbs_get(cu);
+  ListBaseT<Nurb> *nubase = BKE_curve_nurbs_get(cu);
   Nurb *nu = static_cast<Nurb *>(ptr->data);
   int index = BLI_findindex(nubase, nu);
 

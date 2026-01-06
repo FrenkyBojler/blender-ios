@@ -10,6 +10,7 @@
  */
 
 #include "DNA_ID.h"
+#include "DNA_listBase.h"
 
 #include "BLI_map.hh"
 #include "BLI_set.hh"
@@ -18,7 +19,6 @@
 #include "BKE_main.hh"
 
 struct FileData;
-struct ListBase;
 struct Main;
 struct UniqueName_Map;
 
@@ -73,12 +73,19 @@ struct LibraryRuntime {
 
   /** Color-space information. */
   MainColorspace colorspace;
+
+  /**
+   * Temporary data used when reading a memfile undo step, to detect re-used regular linked IDs
+   * that are no more needed. See #read_undo_move_libmain_data, #read_libblock_undo_restore_linked
+   * and #read_undo_libraries_cleanup_unused_ids.
+   */
+  Set<ID *> unused_ids_on_undo;
 };
 
 /**
  * Search for given absolute filepath in all libraries in given #ListBase.
  */
-Library *search_filepath_abs(ListBase *libraries, StringRef filepath_abs);
+Library *search_filepath_abs(ListBaseT<Library> *libraries, StringRef filepath_abs);
 
 /**
  * Pack given linked ID, and all the related hierarchy.

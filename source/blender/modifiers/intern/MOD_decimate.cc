@@ -11,7 +11,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -47,16 +46,13 @@
 
 static void init_data(ModifierData *md)
 {
-  DecimateModifierData *dmd = (DecimateModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(dmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(dmd, DNA_struct_default_get(DecimateModifierData), modifier);
+  DecimateModifierData *dmd = reinterpret_cast<DecimateModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(dmd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  DecimateModifierData *dmd = (DecimateModifierData *)md;
+  DecimateModifierData *dmd = reinterpret_cast<DecimateModifierData *>(md);
 
   /* Ask for vertex-groups if we need them. */
   if (dmd->defgrp_name[0] != '\0' && (dmd->defgrp_factor > 0.0f)) {
@@ -68,7 +64,8 @@ static DecimateModifierData *getOriginalModifierData(const DecimateModifierData 
                                                      const ModifierEvalContext *ctx)
 {
   Object *ob_orig = DEG_get_original(ctx->object);
-  return (DecimateModifierData *)BKE_modifiers_findby_name(ob_orig, dmd->modifier.name);
+  return reinterpret_cast<DecimateModifierData *>(
+      BKE_modifiers_findby_name(ob_orig, dmd->modifier.name));
 }
 
 static void updateFaceCount(const ModifierEvalContext *ctx,
@@ -86,7 +83,7 @@ static void updateFaceCount(const ModifierEvalContext *ctx,
 
 static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *meshData)
 {
-  DecimateModifierData *dmd = (DecimateModifierData *)md;
+  DecimateModifierData *dmd = reinterpret_cast<DecimateModifierData *>(md);
   Mesh *mesh = meshData, *result = nullptr;
   BMesh *bm;
   bool calc_vert_normal;
@@ -188,7 +185,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     }
     case MOD_DECIM_MODE_DISSOLVE: {
       const bool do_dissolve_boundaries = (dmd->flag & MOD_DECIM_FLAG_ALL_BOUNDARY_VERTS) != 0;
-      BM_mesh_decimate_dissolve(bm, dmd->angle, do_dissolve_boundaries, (BMO_Delimit)dmd->delimit);
+      BM_mesh_decimate_dissolve(bm, dmd->angle, do_dissolve_boundaries, BMO_Delimit(dmd->delimit));
       break;
     }
   }

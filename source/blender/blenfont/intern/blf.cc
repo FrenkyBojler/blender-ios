@@ -1145,7 +1145,7 @@ bool BLF_get_vfont_metrics(int fontid, float *ascend_ratio, float *em_ratio, flo
 
 bool BLF_character_to_curves(int fontid,
                              uint unicode,
-                             ListBase *nurbsbase,
+                             ListBaseT<Nurb> *nurbsbase,
                              const float scale,
                              bool use_fallback,
                              float *r_advance)
@@ -1162,7 +1162,7 @@ void BLF_state_print(int fontid)
 {
   FontBLF *font = blf_get(fontid);
   if (font) {
-    printf("fontid %d %p\n", fontid, (void *)font);
+    printf("fontid %d %p\n", fontid, static_cast<void *>(font));
     printf("  mem_name:    '%s'\n", font->mem_name ? font->mem_name : "<none>");
     printf("  filepath:    '%s'\n", font->filepath ? font->filepath : "<none>");
     printf("  size:     %f\n", font->size);

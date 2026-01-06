@@ -18,7 +18,7 @@
 #include "GPU_matrix.hh"
 #include "GPU_platform.hh"
 
-#include "shader_tool/shader_tool.hh"
+#include "shader_tool/processor.hh"
 
 #include "gpu_backend.hh"
 #include "gpu_context_private.hh"
@@ -234,9 +234,9 @@ std::string GPU_shader_preprocess_source(StringRefNull original,
   if (original.is_empty()) {
     return original;
   }
-  gpu::shader::Preprocessor processor;
-  gpu::shader::metadata::Source metadata;
-  std::string processed_str = processor.process(original, metadata);
+  gpu::shader::SourceProcessor processor(original, "python_shader.glsl", shader::Language::GLSL);
+  auto [processed_str, metadata] = processor.convert();
+
   for (auto builtin : metadata.builtins) {
     info.builtins(gpu::shader::convert_builtin_bit(builtin));
   }
@@ -260,6 +260,12 @@ blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateIn
     info.generated_sources.append(
         {"gpu_shader_python_typedef_lib.glsl", {}, "\n" + info.typedef_source_generated});
   }
+  else {
+    /* Add emtpy source to avoid warning and importing the placeholder file. */
+    info.generated_sources.append({"gpu_shader_python_typedef_lib.glsl", {}, "\n"});
+  }
+
+  info.builtins_ |= BuiltinBits::NO_BUFFER_TYPE_LINTING;
 
   auto preprocess_source = [&](const std::string &input_src) {
     std::string processed_str;
@@ -509,7 +515,7 @@ int GPU_shader_get_constant(blender::gpu::Shader *shader, const char *name)
 int GPU_shader_get_builtin_uniform(blender::gpu::Shader *shader, int builtin)
 {
   const ShaderInterface *interface = shader->interface;
-  return interface->uniform_builtin((GPUUniformBuiltin)builtin);
+  return interface->uniform_builtin(GPUUniformBuiltin(builtin));
 }
 
 int GPU_shader_get_ssbo_binding(blender::gpu::Shader *shader, const char *name)
@@ -678,7 +684,7 @@ void GPU_shader_uniform_3iv(blender::gpu::Shader *sh, const char *name, const in
 void GPU_shader_uniform_mat4(blender::gpu::Shader *sh, const char *name, const float data[4][4])
 {
   const int loc = GPU_shader_get_uniform(sh, name);
-  GPU_shader_uniform_float_ex(sh, loc, 16, 1, (const float *)data);
+  GPU_shader_uniform_float_ex(sh, loc, 16, 1, reinterpret_cast<const float *>(data));
 }
 
 void GPU_shader_uniform_mat3_as_mat4(blender::gpu::Shader *sh,
@@ -705,7 +711,7 @@ void GPU_shader_uniform_2fv_array(blender::gpu::Shader *sh,
                                   const float (*val)[2])
 {
   const int loc = GPU_shader_get_uniform(sh, name);
-  GPU_shader_uniform_float_ex(sh, loc, 2, len, (const float *)val);
+  GPU_shader_uniform_float_ex(sh, loc, 2, len, reinterpret_cast<const float *>(val));
 }
 
 void GPU_shader_uniform_4fv_array(blender::gpu::Shader *sh,
@@ -714,7 +720,7 @@ void GPU_shader_uniform_4fv_array(blender::gpu::Shader *sh,
                                   const float (*val)[4])
 {
   const int loc = GPU_shader_get_uniform(sh, name);
-  GPU_shader_uniform_float_ex(sh, loc, 4, len, (const float *)val);
+  GPU_shader_uniform_float_ex(sh, loc, 4, len, reinterpret_cast<const float *>(val));
 }
 
 /** \} */
@@ -833,6 +839,16 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
   std::string resources = shader->resources_declare(info);
 
   defines += info.resource_guard_defines(info.compilation_constants_);
+
+  if (!info.compute_entry_fn_.is_empty()) {
+    defines += "#define ENTRY_POINT_" + info.compute_entry_fn_ + "\n";
+  }
+  if (!info.fragment_entry_fn_.is_empty()) {
+    defines += "#define ENTRY_POINT_" + info.fragment_entry_fn_ + "\n";
+  }
+  if (!info.vertex_entry_fn_.is_empty()) {
+    defines += "#define ENTRY_POINT_" + info.vertex_entry_fn_ + "\n";
+  }
 
   /* Compilation constants declaration for static branches evaluation.
    * In the future, these can be compiled using function constants on metal to reduce compilation

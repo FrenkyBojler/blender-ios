@@ -17,7 +17,6 @@
 #include "BLT_translation.hh"
 
 #include "DNA_color_types.h" /* CurveMapping. */
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
@@ -56,11 +55,8 @@
  **************************************/
 static void init_data(ModifierData *md)
 {
-  WeightVGEditModifierData *wmd = (WeightVGEditModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(wmd, DNA_struct_default_get(WeightVGEditModifierData), modifier);
+  WeightVGEditModifierData *wmd = reinterpret_cast<WeightVGEditModifierData *>(md);
+  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
 
   wmd->cmap_curve = BKE_curvemapping_add(1, 0.0, 0.0, 1.0, 1.0);
   BKE_curvemapping_init(wmd->cmap_curve);
@@ -68,14 +64,14 @@ static void init_data(ModifierData *md)
 
 static void free_data(ModifierData *md)
 {
-  WeightVGEditModifierData *wmd = (WeightVGEditModifierData *)md;
+  WeightVGEditModifierData *wmd = reinterpret_cast<WeightVGEditModifierData *>(md);
   BKE_curvemapping_free(wmd->cmap_curve);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
-  const WeightVGEditModifierData *wmd = (const WeightVGEditModifierData *)md;
-  WeightVGEditModifierData *twmd = (WeightVGEditModifierData *)target;
+  const WeightVGEditModifierData *wmd = reinterpret_cast<const WeightVGEditModifierData *>(md);
+  WeightVGEditModifierData *twmd = reinterpret_cast<WeightVGEditModifierData *>(target);
 
   BKE_modifier_copydata_generic(md, target, flag);
 
@@ -84,7 +80,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
-  WeightVGEditModifierData *wmd = (WeightVGEditModifierData *)md;
+  WeightVGEditModifierData *wmd = reinterpret_cast<WeightVGEditModifierData *>(md);
 
   /* We need vertex groups! */
   r_cddata_masks->vmask |= CD_MASK_MDEFORMVERT;
@@ -97,7 +93,7 @@ static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_
 
 static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
 {
-  WeightVGEditModifierData *wmd = (WeightVGEditModifierData *)md;
+  WeightVGEditModifierData *wmd = reinterpret_cast<WeightVGEditModifierData *>(md);
 
   if (wmd->mask_texture) {
     return BKE_texture_dependsOnTime(wmd->mask_texture);
@@ -107,10 +103,10 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
-  WeightVGEditModifierData *wmd = (WeightVGEditModifierData *)md;
+  WeightVGEditModifierData *wmd = reinterpret_cast<WeightVGEditModifierData *>(md);
 
-  walk(user_data, ob, (ID **)&wmd->mask_texture, IDWALK_CB_USER);
-  walk(user_data, ob, (ID **)&wmd->mask_tex_map_obj, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&wmd->mask_texture), IDWALK_CB_USER);
+  walk(user_data, ob, reinterpret_cast<ID **>(&wmd->mask_tex_map_obj), IDWALK_CB_NOP);
 }
 
 static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, void *user_data)
@@ -122,7 +118,7 @@ static void foreach_tex_link(ModifierData *md, Object *ob, TexWalkFunc walk, voi
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
-  WeightVGEditModifierData *wmd = (WeightVGEditModifierData *)md;
+  WeightVGEditModifierData *wmd = reinterpret_cast<WeightVGEditModifierData *>(md);
   bool need_transform_relation = false;
 
   if (wmd->mask_texture != nullptr) {
@@ -145,7 +141,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
-  WeightVGEditModifierData *wmd = (WeightVGEditModifierData *)md;
+  WeightVGEditModifierData *wmd = reinterpret_cast<WeightVGEditModifierData *>(md);
   /* If no vertex group, bypass. */
   return (wmd->defgrp_name[0] == '\0');
 }
@@ -154,7 +150,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 {
   BLI_assert(mesh != nullptr);
 
-  WeightVGEditModifierData *wmd = (WeightVGEditModifierData *)md;
+  WeightVGEditModifierData *wmd = reinterpret_cast<WeightVGEditModifierData *>(md);
 
   MDeformWeight **dw = nullptr;
   float *org_w; /* Array original weights. */
@@ -367,9 +363,9 @@ static void panel_register(ARegionType *region_type)
 
 static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const ModifierData *md)
 {
-  const WeightVGEditModifierData *wmd = (const WeightVGEditModifierData *)md;
+  const WeightVGEditModifierData *wmd = reinterpret_cast<const WeightVGEditModifierData *>(md);
 
-  BLO_write_struct(writer, WeightVGEditModifierData, wmd);
+  writer->write_struct(wmd);
 
   if (wmd->cmap_curve) {
     BKE_curvemapping_blend_write(writer, wmd->cmap_curve);
@@ -378,7 +374,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 
 static void blend_read(BlendDataReader *reader, ModifierData *md)
 {
-  WeightVGEditModifierData *wmd = (WeightVGEditModifierData *)md;
+  WeightVGEditModifierData *wmd = reinterpret_cast<WeightVGEditModifierData *>(md);
 
   BLO_read_struct(reader, CurveMapping, &wmd->cmap_curve);
   if (wmd->cmap_curve) {

@@ -121,8 +121,8 @@ static void sound_copy_data(Main * /*bmain*/,
                             const ID *id_src,
                             const int /*flag*/)
 {
-  bSound *sound_dst = (bSound *)id_dst;
-  const bSound *sound_src = (const bSound *)id_src;
+  bSound *sound_dst = blender::id_cast<bSound *>(id_dst);
+  const bSound *sound_src = blender::id_cast<const bSound *>(id_src);
 
   /* Just to be sure, should not have any value actually after reading time. */
   sound_dst->newpackedfile = nullptr;
@@ -136,7 +136,7 @@ static void sound_copy_data(Main * /*bmain*/,
 
 static void sound_free_data(ID *id)
 {
-  bSound *sound = (bSound *)id;
+  bSound *sound = blender::id_cast<bSound *>(id);
 
   if (sound->packedfile) {
     BKE_packedfile_free(sound->packedfile);
@@ -153,14 +153,14 @@ static void sound_foreach_cache(ID *id,
                                 IDTypeForeachCacheFunctionCallback function_callback,
                                 void *user_data)
 {
-  bSound *sound = (bSound *)id;
+  bSound *sound = blender::id_cast<bSound *>(id);
   IDCacheKey key = {id->session_uid, 1};
-  function_callback(id, &key, (void **)&sound->runtime->waveform, 0, user_data);
+  function_callback(id, &key, reinterpret_cast<void **>(&sound->runtime->waveform), 0, user_data);
 }
 
 static void sound_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 {
-  bSound *sound = (bSound *)id;
+  bSound *sound = blender::id_cast<bSound *>(id);
   if (sound->packedfile != nullptr && (bpath_data->flag & BKE_BPATH_FOREACH_PATH_SKIP_PACKED) != 0)
   {
     return;
@@ -172,7 +172,7 @@ static void sound_foreach_path(ID *id, BPathForeachPathData *bpath_data)
 
 static void sound_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
-  bSound *sound = (bSound *)id;
+  bSound *sound = blender::id_cast<bSound *>(id);
   const bool is_undo = BLO_write_is_undo(writer);
 
   /* Clean up, important in undo case to reduce false detection of changed datablocks. */
@@ -192,7 +192,7 @@ static void sound_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
 static void sound_blend_read_data(BlendDataReader *reader, ID *id)
 {
-  bSound *sound = (bSound *)id;
+  bSound *sound = blender::id_cast<bSound *>(id);
   sound_init_runtime(sound);
   if (BLO_read_data_is_undo(reader)) {
     sound->runtime->tags |= blender::bke::SoundTags::WaveformNoReload;
@@ -1236,62 +1236,58 @@ static void sound_update_base(Scene *scene, Object *object, blender::Set<void *>
     return;
   }
 
-  LISTBASE_FOREACH (NlaTrack *, track, &object->adt->nla_tracks) {
-    LISTBASE_FOREACH (NlaStrip *, strip, &track->strips) {
-      if (strip->type != NLASTRIP_TYPE_SOUND) {
+  for (NlaTrack &track : object->adt->nla_tracks) {
+    for (NlaStrip &strip : track.strips) {
+      if (strip.type != NLASTRIP_TYPE_SOUND) {
         continue;
       }
       speaker = (Speaker *)object->data;
 
-      if (scene->runtime->audio.speaker_handles.remove(strip->speaker_handle)) {
+      if (scene->runtime->audio.speaker_handles.remove(strip.speaker_handle)) {
         if (speaker->sound) {
-          AUD_SequenceEntry_move(strip->speaker_handle,
-                                 double(strip->start) / scene->frames_per_second(),
-                                 FLT_MAX,
-                                 0);
+          AUD_SequenceEntry_move(
+              strip.speaker_handle, double(strip.start) / scene->frames_per_second(), FLT_MAX, 0);
         }
         else {
-          AUD_Sequence_remove(scene->runtime->audio.sound_scene, strip->speaker_handle);
-          strip->speaker_handle = nullptr;
+          AUD_Sequence_remove(scene->runtime->audio.sound_scene, strip.speaker_handle);
+          strip.speaker_handle = nullptr;
         }
       }
       else {
         if (speaker->sound) {
-          strip->speaker_handle = AUD_Sequence_add(scene->runtime->audio.sound_scene,
-                                                   speaker->sound->runtime->playback_handle,
-                                                   double(strip->start) /
-                                                       scene->frames_per_second(),
-                                                   FLT_MAX,
-                                                   0);
-          AUD_SequenceEntry_setRelative(strip->speaker_handle, 0);
+          strip.speaker_handle = AUD_Sequence_add(scene->runtime->audio.sound_scene,
+                                                  speaker->sound->runtime->playback_handle,
+                                                  double(strip.start) / scene->frames_per_second(),
+                                                  FLT_MAX,
+                                                  0);
+          AUD_SequenceEntry_setRelative(strip.speaker_handle, 0);
         }
       }
 
-      if (strip->speaker_handle) {
-        const bool mute = ((strip->flag & NLASTRIP_FLAG_MUTED) || (speaker->flag & SPK_MUTED));
-        new_set.add(strip->speaker_handle);
-        AUD_SequenceEntry_setVolumeMaximum(strip->speaker_handle, speaker->volume_max);
-        AUD_SequenceEntry_setVolumeMinimum(strip->speaker_handle, speaker->volume_min);
-        AUD_SequenceEntry_setDistanceMaximum(strip->speaker_handle, speaker->distance_max);
-        AUD_SequenceEntry_setDistanceReference(strip->speaker_handle, speaker->distance_reference);
-        AUD_SequenceEntry_setAttenuation(strip->speaker_handle, speaker->attenuation);
-        AUD_SequenceEntry_setConeAngleOuter(strip->speaker_handle, speaker->cone_angle_outer);
-        AUD_SequenceEntry_setConeAngleInner(strip->speaker_handle, speaker->cone_angle_inner);
-        AUD_SequenceEntry_setConeVolumeOuter(strip->speaker_handle, speaker->cone_volume_outer);
+      if (strip.speaker_handle) {
+        const bool mute = ((strip.flag & NLASTRIP_FLAG_MUTED) || (speaker->flag & SPK_MUTED));
+        new_set.add(strip.speaker_handle);
+        AUD_SequenceEntry_setVolumeMaximum(strip.speaker_handle, speaker->volume_max);
+        AUD_SequenceEntry_setVolumeMinimum(strip.speaker_handle, speaker->volume_min);
+        AUD_SequenceEntry_setDistanceMaximum(strip.speaker_handle, speaker->distance_max);
+        AUD_SequenceEntry_setDistanceReference(strip.speaker_handle, speaker->distance_reference);
+        AUD_SequenceEntry_setAttenuation(strip.speaker_handle, speaker->attenuation);
+        AUD_SequenceEntry_setConeAngleOuter(strip.speaker_handle, speaker->cone_angle_outer);
+        AUD_SequenceEntry_setConeAngleInner(strip.speaker_handle, speaker->cone_angle_inner);
+        AUD_SequenceEntry_setConeVolumeOuter(strip.speaker_handle, speaker->cone_volume_outer);
 
         mat4_to_quat(quat, object->object_to_world().ptr());
         blender::float3 location = object->object_to_world().location();
         AUD_SequenceEntry_setAnimationData(
-            strip->speaker_handle, AUD_AP_LOCATION, scene->r.cfra, location, 1);
+            strip.speaker_handle, AUD_AP_LOCATION, scene->r.cfra, location, 1);
         AUD_SequenceEntry_setAnimationData(
-            strip->speaker_handle, AUD_AP_ORIENTATION, scene->r.cfra, quat, 1);
+            strip.speaker_handle, AUD_AP_ORIENTATION, scene->r.cfra, quat, 1);
         AUD_SequenceEntry_setAnimationData(
-            strip->speaker_handle, AUD_AP_VOLUME, scene->r.cfra, &speaker->volume, 1);
+            strip.speaker_handle, AUD_AP_VOLUME, scene->r.cfra, &speaker->volume, 1);
         AUD_SequenceEntry_setAnimationData(
-            strip->speaker_handle, AUD_AP_PITCH, scene->r.cfra, &speaker->pitch, 1);
-        AUD_SequenceEntry_setSound(strip->speaker_handle,
-                                   speaker->sound->runtime->playback_handle);
-        AUD_SequenceEntry_setMuted(strip->speaker_handle, mute);
+            strip.speaker_handle, AUD_AP_PITCH, scene->r.cfra, &speaker->pitch, 1);
+        AUD_SequenceEntry_setSound(strip.speaker_handle, speaker->sound->runtime->playback_handle);
+        AUD_SequenceEntry_setMuted(strip.speaker_handle, mute);
       }
     }
   }

@@ -223,18 +223,18 @@ static wmOperatorStatus add_reroute_exec(bContext *C, wmOperator *op)
 
   int intersection_count = 0;
 
-  LISTBASE_FOREACH (bNodeLink *, link, &ntree.links) {
+  for (bNodeLink &link : ntree.links) {
 
-    if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
+    if (node_link_is_hidden_or_dimmed(region.v2d, link)) {
       continue;
     }
-    const std::optional<float2> cut = link_path_intersection(*link, path);
+    const std::optional<float2> cut = link_path_intersection(link, path);
     if (!cut) {
       continue;
     }
-    RerouteCutsForSocket &from_cuts = cuts_per_socket.lookup_or_add_default(link->fromsock);
-    from_cuts.from_node = link->fromnode;
-    from_cuts.links.add(link, *cut);
+    RerouteCutsForSocket &from_cuts = cuts_per_socket.lookup_or_add_default(link.fromsock);
+    from_cuts.from_node = link.fromnode;
+    from_cuts.links.add(&link, *cut);
     intersection_count++;
   }
 
@@ -705,7 +705,7 @@ static wmOperatorStatus node_add_object_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bNodeSocketValueObject *socket_data = (bNodeSocketValueObject *)sock->default_value;
+  bNodeSocketValueObject *socket_data = static_cast<bNodeSocketValueObject *>(sock->default_value);
   socket_data->value = object;
   id_us_plus(&object->id);
   BKE_ntree_update_tag_socket_property(ntree, sock);
@@ -792,7 +792,8 @@ static wmOperatorStatus node_add_collection_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  bNodeSocketValueCollection *socket_data = (bNodeSocketValueCollection *)sock->default_value;
+  bNodeSocketValueCollection *socket_data = static_cast<bNodeSocketValueCollection *>(
+      sock->default_value);
   socket_data->value = collection;
   id_us_plus(&collection->id);
   BKE_ntree_update_tag_socket_property(&ntree, sock);
@@ -943,7 +944,7 @@ static wmOperatorStatus node_add_image_exec(bContext *C, wmOperator *op)
   const Vector<std::string> paths = ed::io::paths_from_operator_properties(op->ptr);
   for (const std::string &path : paths) {
     RNA_string_set(op->ptr, "filepath", path.c_str());
-    Image *image = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
+    Image *image = blender::id_cast<Image *>(WM_operator_drop_load_path(C, op, ID_IM));
     if (!image) {
       BKE_report(op->reports, RPT_WARNING, fmt::format("Could not load {}", path).c_str());
       continue;
@@ -957,7 +958,7 @@ static wmOperatorStatus node_add_image_exec(bContext *C, wmOperator *op)
 
   /* If not path is provided, try to get a ID Image from operator. */
   if (paths.is_empty()) {
-    Image *image = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
+    Image *image = blender::id_cast<Image *>(WM_operator_drop_load_path(C, op, ID_IM));
     if (image) {
       images.append(image);
     }
@@ -974,13 +975,14 @@ static wmOperatorStatus node_add_image_exec(bContext *C, wmOperator *op)
       continue;
     }
     if (type == GEO_NODE_IMAGE_TEXTURE) {
-      bNodeSocket *image_socket = (bNodeSocket *)node->inputs.first;
-      bNodeSocketValueImage *socket_value = (bNodeSocketValueImage *)image_socket->default_value;
+      bNodeSocket *image_socket = static_cast<bNodeSocket *>(node->inputs.first);
+      bNodeSocketValueImage *socket_value = static_cast<bNodeSocketValueImage *>(
+          image_socket->default_value);
       socket_value->value = image;
       BKE_ntree_update_tag_socket_property(&node_tree, image_socket);
     }
     else {
-      node->id = (ID *)image;
+      node->id = blender::id_cast<ID *>(image);
       blender::bke::node_tag_update_id(*node);
     }
     BKE_ntree_update_tag_node_property(&node_tree, node);
@@ -1400,16 +1402,16 @@ static wmOperatorStatus node_add_group_input_node_exec(bContext *C, wmOperator *
 
   if (single_socket) {
     /* Hide all other sockets in the new node, to only display the selected one. */
-    LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node->outputs) {
-      if (!STREQ(socket->identifier, socket_identifier)) {
-        socket->flag |= SOCK_HIDDEN;
+    for (bNodeSocket &socket : group_input_node->outputs) {
+      if (!STREQ(socket.identifier, socket_identifier)) {
+        socket.flag |= SOCK_HIDDEN;
       }
     }
   }
   if (single_panel) {
     /* Initially hide all sockets. */
-    LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_node->outputs) {
-      socket->flag |= SOCK_HIDDEN;
+    for (bNodeSocket &socket : group_input_node->outputs) {
+      socket.flag |= SOCK_HIDDEN;
     }
     /* Show only sockets contained in the dragged panel. */
     for (bNodeTreeInterfaceSocket *iface_socket : ntree->interface_inputs()) {
@@ -1779,7 +1781,8 @@ static wmOperatorStatus duplicate_and_assign_node_tree(bContext *C, bNodeTree *s
     return OPERATOR_CANCELLED;
   }
 
-  bNodeTree *node_tree = bke::node_tree_copy_tree(bmain, *source_node_tree);
+  bNodeTree *node_tree = reinterpret_cast<bNodeTree *>(
+      BKE_id_copy_ex(bmain, &source_node_tree->id, nullptr, LIB_ID_COPY_ACTIONS));
   node_templateID_assign(C, node_tree);
 
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);

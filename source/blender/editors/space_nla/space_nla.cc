@@ -52,12 +52,12 @@ static SpaceLink *nla_create(const ScrArea *area, const Scene *scene)
   ARegion *region;
   SpaceNla *snla;
 
-  snla = MEM_callocN<SpaceNla>("initnla");
+  snla = MEM_new_for_free<SpaceNla>("initnla");
   snla->spacetype = SPACE_NLA;
 
   /* allocate DopeSheet data for NLA Editor */
-  snla->ads = MEM_callocN<bDopeSheet>("NlaEdit DopeSheet");
-  snla->ads->source = (ID *)(scene);
+  snla->ads = MEM_new_for_free<bDopeSheet>("NlaEdit DopeSheet");
+  snla->ads->source = blender::id_cast<ID *>(const_cast<Scene *>((scene)));
 
   /* set auto-snapping settings */
   snla->flag = SNLA_SHOW_MARKERS;
@@ -143,7 +143,7 @@ static void nla_init(wmWindowManager *wm, ScrArea *area)
 
   /* init dope-sheet data if non-existent (i.e. for old files). */
   if (snla->ads == nullptr) {
-    snla->ads = MEM_callocN<bDopeSheet>("NlaEdit DopeSheet");
+    snla->ads = MEM_new_for_free<bDopeSheet>("NlaEdit DopeSheet");
     wmWindow *win = WM_window_find_by_area(wm, area);
     snla->ads->source = win ? reinterpret_cast<ID *>(WM_window_get_active_scene(win)) : nullptr;
   }
@@ -196,7 +196,7 @@ static void nla_track_region_draw(const bContext *C, ARegion *region)
   /* clear and setup matrix */
   blender::ui::theme::frame_buffer_clear(TH_BACK);
 
-  ListBase anim_data = {nullptr, nullptr};
+  ListBaseT<bAnimListElem> anim_data = {nullptr, nullptr};
 
   SpaceNla *snla = reinterpret_cast<SpaceNla *>(ac.sl);
   View2D *v2d = &region->v2d;
@@ -648,9 +648,9 @@ static void nla_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
   SpaceNla *snla = reinterpret_cast<SpaceNla *>(sl);
 
-  BLO_write_struct(writer, SpaceNla, snla);
+  writer->write_struct_cast<SpaceNla>(snla);
   if (snla->ads) {
-    BLO_write_struct(writer, bDopeSheet, snla->ads);
+    writer->write_struct(snla->ads);
   }
 }
 

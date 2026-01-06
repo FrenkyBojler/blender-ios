@@ -71,13 +71,13 @@ static void node_update(bNodeTree *ntree, bNode *node)
 {
   NodeFunctionCompare *data = (NodeFunctionCompare *)node->storage;
 
-  bNodeSocket *sock_comp = (bNodeSocket *)BLI_findlink(&node->inputs, 10);
-  bNodeSocket *sock_angle = (bNodeSocket *)BLI_findlink(&node->inputs, 11);
-  bNodeSocket *sock_epsilon = (bNodeSocket *)BLI_findlink(&node->inputs, 12);
+  bNodeSocket *sock_comp = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 10));
+  bNodeSocket *sock_angle = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 11));
+  bNodeSocket *sock_epsilon = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 12));
 
-  LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
+  for (bNodeSocket &socket : node->inputs) {
     bke::node_set_socket_availability(
-        *ntree, *socket, socket->type == eNodeSocketDatatype(data->data_type));
+        *ntree, socket, socket.type == eNodeSocketDatatype(data->data_type));
   }
 
   bke::node_set_socket_availability(
@@ -99,7 +99,7 @@ static void node_update(bNodeTree *ntree, bNode *node)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeFunctionCompare *data = MEM_callocN<NodeFunctionCompare>(__func__);
+  NodeFunctionCompare *data = MEM_new_for_free<NodeFunctionCompare>(__func__);
   data->operation = NODE_COMPARE_GREATER_THAN;
   data->data_type = SOCK_FLOAT;
   data->mode = NODE_COMPARE_MODE_ELEMENT;

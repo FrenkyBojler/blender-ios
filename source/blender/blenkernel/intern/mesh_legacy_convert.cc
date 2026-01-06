@@ -247,8 +247,8 @@ void BKE_mesh_calc_edges_legacy(Mesh *mesh)
     return;
   }
 
-  edges = (MEdge *)CustomData_add_layer_with_data(
-      &mesh->edge_data, CD_MEDGE, edges, totedge, nullptr);
+  edges = static_cast<MEdge *>(const_cast<void *>(
+      CustomData_add_layer_with_data(&mesh->edge_data, CD_MEDGE, edges, totedge, nullptr)));
   mesh->edges_num = totedge;
 
   mesh->tag_topology_changed();
@@ -351,8 +351,8 @@ static void bm_corners_to_loops_ex(ID *id,
   MFace *mf = mface + findex;
 
   for (int i = 0; i < numTex; i++) {
-    const MTFace *texface = (const MTFace *)CustomData_get_n_for_write(
-        fdata_legacy, CD_MTFACE, findex, i, totface);
+    const MTFace *texface = static_cast<const MTFace *>(
+        CustomData_get_n_for_write(fdata_legacy, CD_MTFACE, findex, i, totface));
 
     blender::float2 *uv = static_cast<blender::float2 *>(
         CustomData_get_n_for_write(ldata, CD_PROP_FLOAT2, loopstart, i, totloop));
@@ -370,10 +370,10 @@ static void bm_corners_to_loops_ex(ID *id,
   }
 
   for (int i = 0; i < numCol; i++) {
-    MLoopCol *mloopcol = (MLoopCol *)CustomData_get_n_for_write(
-        ldata, CD_PROP_BYTE_COLOR, loopstart, i, totloop);
-    const MCol *mcol = (const MCol *)CustomData_get_n_for_write(
-        fdata_legacy, CD_MCOL, findex, i, totface);
+    MLoopCol *mloopcol = static_cast<MLoopCol *>(
+        CustomData_get_n_for_write(ldata, CD_PROP_BYTE_COLOR, loopstart, i, totloop));
+    const MCol *mcol = static_cast<const MCol *>(
+        CustomData_get_n_for_write(fdata_legacy, CD_MCOL, findex, i, totface));
 
     MESH_MLOOPCOL_FROM_MCOL(mloopcol, &mcol[0]);
     mloopcol++;
@@ -388,10 +388,10 @@ static void bm_corners_to_loops_ex(ID *id,
   }
 
   if (CustomData_has_layer(fdata_legacy, CD_TESSLOOPNORMAL)) {
-    float (*loop_normals)[3] = (float (*)[3])CustomData_get_for_write(
-        ldata, loopstart, CD_NORMAL, totloop);
-    const short (*tessloop_normals)[3] = (short (*)[3])CustomData_get_for_write(
-        fdata_legacy, findex, CD_TESSLOOPNORMAL, totface);
+    float (*loop_normals)[3] = static_cast<float (*)[3]>(
+        CustomData_get_for_write(ldata, loopstart, CD_NORMAL, totloop));
+    const short (*tessloop_normals)[3] = static_cast<short (*)[3]>(
+        CustomData_get_for_write(fdata_legacy, findex, CD_TESSLOOPNORMAL, totface));
     const int max = mf->v4 ? 4 : 3;
 
     for (int i = 0; i < max; i++, loop_normals++, tessloop_normals++) {
@@ -400,9 +400,10 @@ static void bm_corners_to_loops_ex(ID *id,
   }
 
   if (CustomData_has_layer(fdata_legacy, CD_MDISPS)) {
-    MDisps *ld = (MDisps *)CustomData_get_for_write(ldata, loopstart, CD_MDISPS, totloop);
-    const MDisps *fd = (const MDisps *)CustomData_get_for_write(
-        fdata_legacy, findex, CD_MDISPS, totface);
+    MDisps *ld = static_cast<MDisps *>(
+        CustomData_get_for_write(ldata, loopstart, CD_MDISPS, totloop));
+    const MDisps *fd = static_cast<const MDisps *>(
+        CustomData_get_for_write(fdata_legacy, findex, CD_MDISPS, totface));
     const float (*disps)[3] = fd->disps;
     int tot = mf->v4 ? 4 : 3;
     int corners;
@@ -491,7 +492,7 @@ static void convert_mfaces_to_mpolys(ID *id,
   CustomData_free(pdata);
 
   faces_num = totface_i;
-  mpoly = (MPoly *)CustomData_add_layer(pdata, CD_MPOLY, CD_SET_DEFAULT, faces_num);
+  mpoly = static_cast<MPoly *>(CustomData_add_layer(pdata, CD_MPOLY, CD_SET_DEFAULT, faces_num));
   int *material_indices = static_cast<int *>(
       CustomData_get_layer_named_for_write(pdata, CD_PROP_INT32, "material_index", faces_num));
   if (material_indices == nullptr) {
@@ -514,7 +515,7 @@ static void convert_mfaces_to_mpolys(ID *id,
     totloop += mf->v4 ? 4 : 3;
   }
 
-  mloop = (MLoop *)CustomData_add_layer(ldata, CD_MLOOP, CD_SET_DEFAULT, totloop);
+  mloop = static_cast<MLoop *>(CustomData_add_layer(ldata, CD_MLOOP, CD_SET_DEFAULT, totloop));
 
   CustomData_to_bmeshpoly(fdata_legacy, ldata, totloop);
 
@@ -532,7 +533,8 @@ static void convert_mfaces_to_mpolys(ID *id,
     eh.add(edges[i], i);
   }
 
-  polyindex = (int *)CustomData_get_layer(fdata_legacy, CD_ORIGINDEX);
+  polyindex = static_cast<int *>(
+      const_cast<void *>(CustomData_get_layer(fdata_legacy, CD_ORIGINDEX)));
 
   j = 0; /* current loop index */
   ml = mloop;
@@ -731,7 +733,8 @@ void BKE_mesh_convert_mfaces_to_mpolys(Mesh *mesh)
                            mesh->corners_num,
                            mesh->faces_num,
                            mesh->edges_for_write().data(),
-                           (MFace *)CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE),
+                           static_cast<MFace *>(const_cast<void *>(
+                               CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE))),
                            &mesh->corners_num,
                            &mesh->faces_num);
   BKE_mesh_legacy_convert_loops_to_corners(mesh);
@@ -779,7 +782,8 @@ void BKE_mesh_do_versions_convert_mfaces_to_mpolys(Mesh *mesh)
                            mesh->corners_num,
                            mesh->faces_num,
                            mesh->edges_for_write().data(),
-                           (MFace *)CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE),
+                           static_cast<MFace *>(const_cast<void *>(
+                               CustomData_get_layer(&mesh->fdata_legacy, CD_MFACE))),
                            &mesh->corners_num,
                            &mesh->faces_num);
   BKE_mesh_legacy_convert_loops_to_corners(mesh);
@@ -838,8 +842,8 @@ static void mesh_loops_to_tessdata(CustomData *fdata_legacy,
   uint(*lidx)[4];
 
   for (i = 0; i < numUV; i++) {
-    MTFace *texface = (MTFace *)CustomData_get_layer_n_for_write(
-        fdata_legacy, CD_MTFACE, i, num_faces);
+    MTFace *texface = static_cast<MTFace *>(
+        CustomData_get_layer_n_for_write(fdata_legacy, CD_MTFACE, i, num_faces));
     const blender::float2 *uv = static_cast<const blender::float2 *>(
         CustomData_get_layer_n(corner_data, CD_PROP_FLOAT2, i));
 
@@ -853,10 +857,10 @@ static void mesh_loops_to_tessdata(CustomData *fdata_legacy,
   }
 
   for (i = 0; i < numCol; i++) {
-    MCol(*mcol)[4] = (MCol(*)[4])CustomData_get_layer_n_for_write(
-        fdata_legacy, CD_MCOL, i, num_faces);
-    const MLoopCol *mloopcol = (const MLoopCol *)CustomData_get_layer_n(
-        corner_data, CD_PROP_BYTE_COLOR, i);
+    MCol(*mcol)[4] = static_cast<MCol(*)[4]>(
+        CustomData_get_layer_n_for_write(fdata_legacy, CD_MCOL, i, num_faces));
+    const MLoopCol *mloopcol = static_cast<const MLoopCol *>(
+        CustomData_get_layer_n(corner_data, CD_PROP_BYTE_COLOR, i));
 
     for (findex = 0, lidx = loopindices; findex < num_faces; lidx++, findex++, mcol++) {
       for (j = (mface ? mface[findex].v4 : (*lidx)[3]) ? 4 : 3; j--;) {
@@ -866,9 +870,10 @@ static void mesh_loops_to_tessdata(CustomData *fdata_legacy,
   }
 
   if (hasOrigSpace) {
-    OrigSpaceFace *of = (OrigSpaceFace *)CustomData_get_layer(fdata_legacy, CD_ORIGSPACE);
-    const OrigSpaceLoop *lof = (const OrigSpaceLoop *)CustomData_get_layer(corner_data,
-                                                                           CD_ORIGSPACE_MLOOP);
+    OrigSpaceFace *of = static_cast<OrigSpaceFace *>(
+        const_cast<void *>(CustomData_get_layer(fdata_legacy, CD_ORIGSPACE)));
+    const OrigSpaceLoop *lof = static_cast<const OrigSpaceLoop *>(
+        CustomData_get_layer(corner_data, CD_ORIGSPACE_MLOOP));
 
     for (findex = 0, lidx = loopindices; findex < num_faces; lidx++, findex++, of++) {
       for (j = (mface ? mface[findex].v4 : (*lidx)[3]) ? 4 : 3; j--;) {
@@ -878,10 +883,10 @@ static void mesh_loops_to_tessdata(CustomData *fdata_legacy,
   }
 
   if (hasLoopNormal) {
-    short (*face_normals)[4][3] = (short (*)[4][3])CustomData_get_layer(fdata_legacy,
-                                                                        CD_TESSLOOPNORMAL);
-    const float (*loop_normals)[3] = (const float (*)[3])CustomData_get_layer(corner_data,
-                                                                              CD_NORMAL);
+    short (*face_normals)[4][3] = static_cast<short (*)[4][3]>(
+        const_cast<void *>(CustomData_get_layer(fdata_legacy, CD_TESSLOOPNORMAL)));
+    const float (*loop_normals)[3] = static_cast<const float (*)[3]>(
+        CustomData_get_layer(corner_data, CD_NORMAL));
 
     for (findex = 0, lidx = loopindices; findex < num_faces; lidx++, findex++, face_normals++) {
       for (j = (mface ? mface[findex].v4 : (*lidx)[3]) ? 4 : 3; j--;) {
@@ -1086,8 +1091,10 @@ static int mesh_tessface_calc(Mesh &mesh,
         arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
       }
 
-      tris = (uint(*)[3])BLI_memarena_alloc(arena, sizeof(*tris) * size_t(totfilltri));
-      projverts = (float (*)[2])BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(mp_totloop));
+      tris = static_cast<uint(*)[3]>(
+          BLI_memarena_alloc(arena, sizeof(*tris) * size_t(totfilltri)));
+      projverts = static_cast<float (*)[2]>(
+          BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(mp_totloop)));
 
       zero_v3(normal);
 
@@ -1158,9 +1165,9 @@ static int mesh_tessface_calc(Mesh &mesh,
 
   /* Not essential but without this we store over-allocated memory in the #CustomData layers. */
   if (LIKELY(corner_tris_num != totface)) {
-    mface = (MFace *)MEM_reallocN(mface, sizeof(*mface) * size_t(totface));
-    mface_to_poly_map = (int *)MEM_reallocN(mface_to_poly_map,
-                                            sizeof(*mface_to_poly_map) * size_t(totface));
+    mface = static_cast<MFace *>(MEM_reallocN(mface, sizeof(*mface) * size_t(totface)));
+    mface_to_poly_map = static_cast<int *>(
+        MEM_reallocN(mface_to_poly_map, sizeof(*mface_to_poly_map) * size_t(totface)));
   }
 
   CustomData_add_layer_with_data(fdata_legacy, CD_MFACE, mface, totface, nullptr);
@@ -1356,20 +1363,20 @@ static void move_face_map_data_to_attributes(Mesh *mesh)
 
 void BKE_mesh_legacy_face_map_to_generic(Main *bmain)
 {
-  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
-    move_face_map_data_to_attributes(mesh);
+  for (Mesh &mesh : bmain->meshes) {
+    move_face_map_data_to_attributes(&mesh);
   }
 
-  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-    if (object->type != OB_MESH) {
+  for (Object &object : bmain->objects) {
+    if (object.type != OB_MESH) {
       continue;
     }
-    Mesh *mesh = static_cast<Mesh *>(object->data);
-    int i;
-    LISTBASE_FOREACH_INDEX (bFaceMap *, face_map, &object->fmaps, i) {
-      mesh->attributes_for_write().rename(".temp_face_map_" + std::to_string(i), face_map->name);
+    Mesh *mesh = blender::id_cast<Mesh *>(object.data);
+
+    for (const auto [i, face_map] : object.fmaps.enumerate()) {
+      mesh->attributes_for_write().rename(".temp_face_map_" + std::to_string(i), face_map.name);
     }
-    BLI_freelistN(&object->fmaps);
+    BLI_freelistN(&object.fmaps);
   }
 }
 
@@ -2048,7 +2055,7 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
   bNodeTree *group = node_tree_add_in_lib(
       &bmain, owner_library, DATA_("Auto Smooth"), "GeometryNodeTree");
   if (!group->geometry_node_asset_traits) {
-    group->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+    group->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
   }
   group->geometry_node_asset_traits->flag |= GEO_NODE_ASSET_MODIFIER;
 
@@ -2069,17 +2076,17 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
   bNode *group_input_angle = node_add_node(nullptr, *group, "NodeGroupInput");
   group_input_angle->location[0] = -420.0f;
   group_input_angle->location[1] = -300.0f;
-  LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_angle->outputs) {
-    if (!STREQ(socket->identifier, "Socket_2")) {
-      socket->flag |= SOCK_HIDDEN;
+  for (bNodeSocket &socket : group_input_angle->outputs) {
+    if (!STREQ(socket.identifier, "Socket_2")) {
+      socket.flag |= SOCK_HIDDEN;
     }
   }
   bNode *group_input_mesh = node_add_node(nullptr, *group, "NodeGroupInput");
   group_input_mesh->location[0] = -60.0f;
   group_input_mesh->location[1] = -100.0f;
-  LISTBASE_FOREACH (bNodeSocket *, socket, &group_input_mesh->outputs) {
-    if (!STREQ(socket->identifier, "Socket_1")) {
-      socket->flag |= SOCK_HIDDEN;
+  for (bNodeSocket &socket : group_input_mesh->outputs) {
+    if (!STREQ(socket.identifier, "Socket_1")) {
+      socket.flag |= SOCK_HIDDEN;
     }
   }
   bNode *shade_smooth_edge = node_add_node(nullptr, *group, "GeometryNodeSetShadeSmooth");
@@ -2155,8 +2162,8 @@ static bNodeTree *add_auto_smooth_node_tree(Main &bmain, Library *owner_library)
                 *shade_smooth_edge,
                 *node_find_socket(*shade_smooth_edge, SOCK_IN, "Shade Smooth"));
 
-  LISTBASE_FOREACH (bNode *, node, &group->nodes) {
-    node_set_selected(*node, false);
+  for (bNode &node : group->nodes) {
+    node_set_selected(node, false);
   }
 
   BKE_ntree_update_after_single_tree_change(bmain, *group);
@@ -2168,11 +2175,11 @@ static VectorSet<const bNodeSocket *> build_socket_indices(const Span<const bNod
 {
   VectorSet<const bNodeSocket *> result;
   for (const bNode *node : nodes) {
-    LISTBASE_FOREACH (const bNodeSocket *, socket, &node->inputs) {
-      result.add_new(socket);
+    for (const bNodeSocket &socket : node->inputs) {
+      result.add_new(&socket);
     }
-    LISTBASE_FOREACH (const bNodeSocket *, socket, &node->outputs) {
-      result.add_new(socket);
+    for (const bNodeSocket &socket : node->outputs) {
+      result.add_new(&socket);
     }
   }
   return result;
@@ -2235,12 +2242,12 @@ static bool is_auto_smooth_node_tree(const bNodeTree &group)
   const std::array<int, 9> link_from_socket_indices({16, 15, 3, 36, 19, 5, 18, 11, 22});
   const std::array<int, 9> link_to_socket_indices({23, 0, 24, 20, 21, 8, 9, 12, 10});
   const VectorSet<const bNodeSocket *> socket_indices = build_socket_indices(nodes);
-  int i;
-  LISTBASE_FOREACH_INDEX (const bNodeLink *, link, &group.links, i) {
-    if (socket_indices.index_of(link->fromsock) != link_from_socket_indices[i]) {
+
+  for (const auto [i, link] : group.links.enumerate()) {
+    if (socket_indices.index_of(link.fromsock) != link_from_socket_indices[i]) {
       return false;
     }
-    if (socket_indices.index_of(link->tosock) != link_to_socket_indices[i]) {
+    if (socket_indices.index_of(link.tosock) != link_to_socket_indices[i]) {
       return false;
     }
   }
@@ -2288,13 +2295,13 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
       return *group;
     }
     /* Try to find an existing group added by previous versioning to avoid adding duplicates. */
-    LISTBASE_FOREACH (bNodeTree *, existing_group, &bmain.nodetrees) {
-      if (existing_group->id.lib != owner_library) {
+    for (bNodeTree &existing_group : bmain.nodetrees) {
+      if (existing_group.id.lib != owner_library) {
         continue;
       }
-      if (is_auto_smooth_node_tree(*existing_group)) {
-        group_by_library.add_new(owner_library, existing_group);
-        return existing_group;
+      if (is_auto_smooth_node_tree(existing_group)) {
+        group_by_library.add_new(owner_library, &existing_group);
+        return &existing_group;
       }
     }
     bNodeTree *new_group = add_auto_smooth_node_tree(bmain, owner_library);
@@ -2304,11 +2311,11 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
     return new_group;
   };
 
-  LISTBASE_FOREACH (Object *, object, &bmain.objects) {
-    if (object->type != OB_MESH) {
+  for (Object &object : bmain.objects) {
+    if (object.type != OB_MESH) {
       continue;
     }
-    Mesh *mesh = static_cast<Mesh *>(object->data);
+    Mesh *mesh = blender::id_cast<Mesh *>(object.data);
     const float angle = mesh->smoothresh_legacy;
     if (!(mesh->flag & ME_AUTOSMOOTH_LEGACY)) {
       continue;
@@ -2327,25 +2334,25 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
     /* The "Weighted Normal" modifier has a "Keep Sharp" option that used to recalculate the sharp
      * edge tags based on the mesh's smoothing angle. To keep the same behavior, a new modifier has
      * to be added before that modifier when the option is on. */
-    LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-      if (ELEM(md->type, eModifierType_WeightedNormal, eModifierType_NormalEdit)) {
+    for (ModifierData &md : object.modifiers) {
+      if (ELEM(md.type, eModifierType_WeightedNormal, eModifierType_NormalEdit)) {
         has_custom_normals = true;
       }
-      if (md->type == eModifierType_Bevel) {
-        BevelModifierData *bmd = reinterpret_cast<BevelModifierData *>(md);
+      if (md.type == eModifierType_Bevel) {
+        BevelModifierData *bmd = reinterpret_cast<BevelModifierData *>(&md);
         if (bmd->flags & MOD_BEVEL_HARDEN_NORMALS) {
           has_custom_normals = true;
         }
       }
-      if (md->type == eModifierType_WeightedNormal) {
-        WeightedNormalModifierData *nmd = reinterpret_cast<WeightedNormalModifierData *>(md);
+      if (md.type == eModifierType_WeightedNormal) {
+        WeightedNormalModifierData *nmd = reinterpret_cast<WeightedNormalModifierData *>(&md);
         if ((nmd->flag & MOD_WEIGHTEDNORMAL_KEEP_SHARP) != 0) {
-          ModifierData *new_md = create_auto_smooth_modifier(*object, add_node_group, angle);
-          BLI_insertlinkbefore(&object->modifiers, object->modifiers.last, new_md);
+          ModifierData *new_md = create_auto_smooth_modifier(object, add_node_group, angle);
+          BLI_insertlinkbefore(&object.modifiers, object.modifiers.last, new_md);
         }
       }
-      if (md->type == eModifierType_Nodes) {
-        NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
+      if (md.type == eModifierType_Nodes) {
+        NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(&md);
         if (nmd->node_group && is_auto_smooth_node_tree(*nmd->node_group)) {
           /* This object has already been processed by versioning. If the mesh is linked from
            * another file its auto-smooth flag may not be cleared, so this check is necessary to
@@ -2363,23 +2370,23 @@ void BKE_main_mesh_legacy_convert_auto_smooth(Main &bmain)
       continue;
     }
 
-    ModifierData *last_md = static_cast<ModifierData *>(object->modifiers.last);
-    ModifierData *new_md = create_auto_smooth_modifier(*object, add_node_group, angle);
+    ModifierData *last_md = static_cast<ModifierData *>(object.modifiers.last);
+    ModifierData *new_md = create_auto_smooth_modifier(object, add_node_group, angle);
     if (last_md && last_md->type == eModifierType_Subsurf && has_custom_normals &&
         (reinterpret_cast<SubsurfModifierData *>(last_md)->flags &
          eSubsurfModifierFlag_UseCustomNormals) != 0)
     {
       /* Add the auto smooth node group before the last subdivision surface modifier if possible.
        * Subdivision surface modifiers have special handling for interpolating custom normals. */
-      BLI_insertlinkbefore(&object->modifiers, object->modifiers.last, new_md);
+      BLI_insertlinkbefore(&object.modifiers, object.modifiers.last, new_md);
     }
     else {
-      BLI_addtail(&object->modifiers, new_md);
+      BLI_addtail(&object.modifiers, new_md);
     }
   }
 
-  LISTBASE_FOREACH (Mesh *, mesh, &bmain.meshes) {
-    mesh->flag &= ~ME_AUTOSMOOTH_LEGACY;
+  for (Mesh &mesh : bmain.meshes) {
+    mesh.flag &= ~ME_AUTOSMOOTH_LEGACY;
   }
 }
 
@@ -2646,8 +2653,8 @@ void BKE_mesh_calc_edges_tessface(Mesh *mesh)
   const int nulegacy_faces = mesh->totface_legacy;
   blender::VectorSet<blender::OrderedEdge> eh;
   eh.reserve(nulegacy_faces);
-  MFace *legacy_faces = (MFace *)CustomData_get_layer_for_write(
-      &mesh->fdata_legacy, CD_MFACE, mesh->totface_legacy);
+  MFace *legacy_faces = static_cast<MFace *>(
+      CustomData_get_layer_for_write(&mesh->fdata_legacy, CD_MFACE, mesh->totface_legacy));
 
   MFace *mf = legacy_faces;
   for (int i = 0; i < nulegacy_faces; i++, mf++) {
@@ -2671,9 +2678,10 @@ void BKE_mesh_calc_edges_tessface(Mesh *mesh)
   CustomData_add_layer_named(&edgeData, CD_PROP_INT32_2D, CD_CONSTRUCT, numEdges, ".edge_verts");
   CustomData_add_layer(&edgeData, CD_ORIGINDEX, CD_SET_DEFAULT, numEdges);
 
-  blender::int2 *ege = (blender::int2 *)CustomData_get_layer_named_for_write(
-      &edgeData, CD_PROP_INT32_2D, ".edge_verts", mesh->edges_num);
-  int *index = (int *)CustomData_get_layer_for_write(&edgeData, CD_ORIGINDEX, mesh->edges_num);
+  blender::int2 *ege = static_cast<blender::int2 *>(CustomData_get_layer_named_for_write(
+      &edgeData, CD_PROP_INT32_2D, ".edge_verts", mesh->edges_num));
+  int *index = static_cast<int *>(
+      CustomData_get_layer_for_write(&edgeData, CD_ORIGINDEX, mesh->edges_num));
 
   memset(index, ORIGINDEX_NONE, sizeof(int) * numEdges);
   MutableSpan(ege, numEdges).copy_from(eh.as_span().cast<blender::int2>());

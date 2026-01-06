@@ -23,7 +23,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_init_tex_environment(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexEnvironment *tex = MEM_callocN<NodeTexEnvironment>("NodeTexEnvironment");
+  NodeTexEnvironment *tex = MEM_new_for_free<NodeTexEnvironment>("NodeTexEnvironment");
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   tex->projection = SHD_PROJ_EQUIRECTANGULAR;
@@ -38,13 +38,13 @@ static int node_shader_gpu_tex_environment(GPUMaterial *mat,
                                            GPUNodeStack *in,
                                            GPUNodeStack *out)
 {
-  Image *ima = (Image *)node->id;
-  NodeTexEnvironment *tex = (NodeTexEnvironment *)node->storage;
+  Image *ima = blender::id_cast<Image *>(node->id);
+  NodeTexEnvironment *tex = static_cast<NodeTexEnvironment *>(node->storage);
 
   /* We get the image user from the original node, since GPU image keeps
    * a pointer to it and the dependency refreshes the original. */
   bNode *node_original = node->runtime->original ? node->runtime->original : node;
-  NodeTexImage *tex_original = (NodeTexImage *)node_original->storage;
+  NodeTexImage *tex_original = static_cast<NodeTexImage *>(node_original->storage);
   ImageUser *iuser = &tex_original->iuser;
   GPUSamplerState sampler = {GPU_SAMPLER_FILTERING_LINEAR | GPU_SAMPLER_FILTERING_ANISOTROPIC,
                              GPU_SAMPLER_EXTEND_MODE_REPEAT,

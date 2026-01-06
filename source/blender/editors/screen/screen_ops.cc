@@ -23,8 +23,11 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_lattice_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_types.h"
@@ -276,7 +279,7 @@ bool ED_operator_objectmode_with_view3d_poll_msg(bContext *C)
 static bool ed_spacetype_test(bContext *C, int type)
 {
   if (ED_operator_areaactive(C)) {
-    SpaceLink *sl = (SpaceLink *)CTX_wm_space_data(C);
+    SpaceLink *sl = static_cast<SpaceLink *>(CTX_wm_space_data(C));
     return sl && (sl->spacetype == type);
   }
   return false;
@@ -313,7 +316,7 @@ bool ED_operator_region_gizmo_active(bContext *C)
 bool ED_operator_animview_active(bContext *C)
 {
   if (ED_operator_areaactive(C)) {
-    SpaceLink *sl = (SpaceLink *)CTX_wm_space_data(C);
+    SpaceLink *sl = static_cast<SpaceLink *>(CTX_wm_space_data(C));
     if (sl && ELEM(sl->spacetype, SPACE_SEQ, SPACE_ACTION, SPACE_NLA, SPACE_GRAPH)) {
       return true;
     }
@@ -473,7 +476,7 @@ bool ED_operator_object_active_editable_ex(bContext *C, const Object *ob)
     return false;
   }
 
-  if (!BKE_id_is_editable(CTX_data_main(C), (ID *)ob)) {
+  if (!BKE_id_is_editable(CTX_data_main(C), blender::id_cast<ID *>(const_cast<Object *>(ob)))) {
     CTX_wm_operator_poll_msg_set(C, "Cannot edit library linked or non-editable override object");
     return false;
   }
@@ -551,7 +554,7 @@ bool ED_operator_editarmature(bContext *C)
 {
   Object *obedit = CTX_data_edit_object(C);
   if (obedit && obedit->type == OB_ARMATURE) {
-    return nullptr != ((bArmature *)obedit->data)->edbo;
+    return nullptr != (blender::id_cast<bArmature *>(obedit->data))->edbo;
   }
   return false;
 }
@@ -632,7 +635,7 @@ bool ED_operator_posemode_local(bContext *C)
   if (ED_operator_posemode(C)) {
     Main *bmain = CTX_data_main(C);
     Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
-    bArmature *arm = static_cast<bArmature *>(ob->data);
+    bArmature *arm = blender::id_cast<bArmature *>(ob->data);
     return (BKE_id_is_editable(bmain, &ob->id) && BKE_id_is_editable(bmain, &arm->id));
   }
   return false;
@@ -672,7 +675,7 @@ bool ED_operator_editsurfcurve(bContext *C)
 {
   Object *obedit = CTX_data_edit_object(C);
   if (obedit && ELEM(obedit->type, OB_CURVES_LEGACY, OB_SURF)) {
-    return nullptr != ((Curve *)obedit->data)->editnurb;
+    return nullptr != (blender::id_cast<Curve *>(obedit->data))->editnurb;
   }
   return false;
 }
@@ -691,7 +694,7 @@ bool ED_operator_editcurve(bContext *C)
 {
   Object *obedit = CTX_data_edit_object(C);
   if (obedit && obedit->type == OB_CURVES_LEGACY) {
-    return nullptr != ((Curve *)obedit->data)->editnurb;
+    return nullptr != (blender::id_cast<Curve *>(obedit->data))->editnurb;
   }
   return false;
 }
@@ -700,7 +703,7 @@ bool ED_operator_editcurve_3d(bContext *C)
 {
   Object *obedit = CTX_data_edit_object(C);
   if (obedit && obedit->type == OB_CURVES_LEGACY) {
-    Curve *cu = (Curve *)obedit->data;
+    Curve *cu = blender::id_cast<Curve *>(obedit->data);
 
     return (cu->flag & CU_3D) && (nullptr != cu->editnurb);
   }
@@ -711,7 +714,7 @@ bool ED_operator_editsurf(bContext *C)
 {
   Object *obedit = CTX_data_edit_object(C);
   if (obedit && obedit->type == OB_SURF) {
-    return nullptr != ((Curve *)obedit->data)->editnurb;
+    return nullptr != (blender::id_cast<Curve *>(obedit->data))->editnurb;
   }
   return false;
 }
@@ -720,7 +723,7 @@ bool ED_operator_editfont(bContext *C)
 {
   Object *obedit = CTX_data_edit_object(C);
   if (obedit && obedit->type == OB_FONT) {
-    if (((Curve *)obedit->data)->editfont) {
+    if ((blender::id_cast<Curve *>(obedit->data))->editfont) {
       return true;
     }
   }
@@ -732,7 +735,7 @@ bool ED_operator_editlattice(bContext *C)
 {
   Object *obedit = CTX_data_edit_object(C);
   if (obedit && obedit->type == OB_LATTICE) {
-    return nullptr != ((Lattice *)obedit->data)->editlatt;
+    return nullptr != (blender::id_cast<Lattice *>(obedit->data))->editlatt;
   }
   return false;
 }
@@ -741,7 +744,7 @@ bool ED_operator_editmball(bContext *C)
 {
   Object *obedit = CTX_data_edit_object(C);
   if (obedit && obedit->type == OB_MBALL) {
-    return nullptr != ((MetaBall *)obedit->data)->editelems;
+    return nullptr != (blender::id_cast<MetaBall *>(obedit->data))->editelems;
   }
   return false;
 }
@@ -834,9 +837,9 @@ static bool actionzone_area_poll(bContext *C)
     if (screen) {
       const int *xy = &win->runtime->eventstate->xy[0];
 
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        LISTBASE_FOREACH (AZone *, az, &area->actionzones) {
-          if (BLI_rcti_isect_pt_v(&az->rect, xy)) {
+      for (ScrArea &area : screen->areabase) {
+        for (AZone &az : area.actionzones) {
+          if (BLI_rcti_isect_pt_v(&az.rect, xy)) {
             return true;
           }
         }
@@ -1094,8 +1097,8 @@ static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const b
 /* Finds an action-zone by position in entire screen so azones can overlap. */
 static AZone *screen_actionzone_find_xy(bScreen *screen, const int xy[2])
 {
-  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-    AZone *az = area_actionzone_refresh_xy(area, xy, true);
+  for (ScrArea &area : screen->areabase) {
+    AZone *az = area_actionzone_refresh_xy(&area, xy, true);
     if (az != nullptr) {
       return az;
     }
@@ -1106,10 +1109,10 @@ static AZone *screen_actionzone_find_xy(bScreen *screen, const int xy[2])
 /* Returns the area that the azone belongs to */
 static ScrArea *screen_actionzone_area(bScreen *screen, const AZone *az)
 {
-  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-    LISTBASE_FOREACH (AZone *, zone, &area->actionzones) {
-      if (zone == az) {
-        return area;
+  for (ScrArea &area : screen->areabase) {
+    for (AZone &zone : area.actionzones) {
+      if (&zone == az) {
+        return &area;
       }
     }
   }
@@ -1180,7 +1183,7 @@ static wmOperatorStatus actionzone_invoke(bContext *C, wmOperator *op, const wmE
 
   /* ok we do the action-zone */
   sActionzoneData *sad = static_cast<sActionzoneData *>(
-      op->customdata = MEM_callocN(sizeof(sActionzoneData), "sActionzoneData"));
+      op->customdata = MEM_callocN<sActionzoneData>("sActionzoneData"));
   sad->sa1 = screen_actionzone_area(screen, az);
   sad->az = az;
   sad->x = event->xy[0];
@@ -1589,7 +1592,7 @@ static bool area_dupli_open(bContext *C, ScrArea *area, const blender::int2 posi
                                     WIN_ALIGN_ABSOLUTE,
                                     /* Initialize area from callback. */
                                     area_dupli_fn,
-                                    (void *)area);
+                                    static_cast<void *>(area));
   return (newwin != nullptr);
 }
 
@@ -1693,8 +1696,8 @@ static bool area_close_poll(bContext *C)
   bScreen *screen = CTX_wm_screen(C);
 
   /* Can this area join with ANY other area? */
-  LISTBASE_FOREACH (ScrArea *, ar, &screen->areabase) {
-    if (area_getorientation(ar, area) != -1) {
+  for (ScrArea &ar : screen->areabase) {
+    if (area_getorientation(&ar, area) != -1) {
       return true;
     }
   }
@@ -1781,39 +1784,39 @@ static void area_move_set_limits(wmWindow *win,
 
   if (use_bigger_smaller_snap != nullptr) {
     *use_bigger_smaller_snap = false;
-    LISTBASE_FOREACH (ScrArea *, area, &win->global_areas.areabase) {
-      int size_min = ED_area_global_min_size_y(area) - 1;
-      int size_max = ED_area_global_max_size_y(area) - 1;
+    for (ScrArea &area : win->global_areas.areabase) {
+      int size_min = ED_area_global_min_size_y(&area) - 1;
+      int size_max = ED_area_global_max_size_y(&area) - 1;
 
       size_min = max_ii(size_min, 0);
       BLI_assert(size_min <= size_max);
 
       /* logic here is only tested for lower edge :) */
       /* left edge */
-      if (area->v1->editflag && area->v2->editflag) {
-        *smaller = area->v4->vec.x - size_max;
-        *bigger = area->v4->vec.x - size_min;
+      if (area.v1->editflag && area.v2->editflag) {
+        *smaller = area.v4->vec.x - size_max;
+        *bigger = area.v4->vec.x - size_min;
         *use_bigger_smaller_snap = true;
         return;
       }
       /* top edge */
-      if (area->v2->editflag && area->v3->editflag) {
-        *smaller = area->v1->vec.y + size_min;
-        *bigger = area->v1->vec.y + size_max;
+      if (area.v2->editflag && area.v3->editflag) {
+        *smaller = area.v1->vec.y + size_min;
+        *bigger = area.v1->vec.y + size_max;
         *use_bigger_smaller_snap = true;
         return;
       }
       /* right edge */
-      if (area->v3->editflag && area->v4->editflag) {
-        *smaller = area->v1->vec.x + size_min;
-        *bigger = area->v1->vec.x + size_max;
+      if (area.v3->editflag && area.v4->editflag) {
+        *smaller = area.v1->vec.x + size_min;
+        *bigger = area.v1->vec.x + size_max;
         *use_bigger_smaller_snap = true;
         return;
       }
       /* lower edge */
-      if (area->v4->editflag && area->v1->editflag) {
-        *smaller = area->v2->vec.y - size_max;
-        *bigger = area->v2->vec.y - size_min;
+      if (area.v4->editflag && area.v1->editflag) {
+        *smaller = area.v2->vec.y - size_max;
+        *bigger = area.v2->vec.y - size_min;
         *use_bigger_smaller_snap = true;
         return;
       }
@@ -1823,24 +1826,24 @@ static void area_move_set_limits(wmWindow *win,
   rcti window_rect;
   WM_window_rect_calc(win, &window_rect);
 
-  LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+  for (ScrArea &area : screen->areabase) {
     if (dir_axis == SCREEN_AXIS_H) {
-      const int y1 = area->winy - ED_area_headersize();
+      const int y1 = area.winy - ED_area_headersize();
       /* if top or down edge selected, test height */
-      if (area->v1->editflag && area->v4->editflag) {
+      if (area.v1->editflag && area.v4->editflag) {
         *bigger = min_ii(*bigger, y1);
       }
-      else if (area->v2->editflag && area->v3->editflag) {
+      else if (area.v2->editflag && area.v3->editflag) {
         *smaller = min_ii(*smaller, y1);
       }
     }
     else {
-      const int x1 = area->winx - int(AREAMINX * UI_SCALE_FAC) - 1;
+      const int x1 = area.winx - int(AREAMINX * UI_SCALE_FAC) - 1;
       /* if left or right edge selected, test width */
-      if (area->v1->editflag && area->v2->editflag) {
+      if (area.v1->editflag && area.v2->editflag) {
         *bigger = min_ii(*bigger, x1);
       }
-      else if (area->v3->editflag && area->v4->editflag) {
+      else if (area.v3->editflag && area.v4->editflag) {
         *smaller = min_ii(*smaller, x1);
       }
     }
@@ -2113,18 +2116,18 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
         }
       }
 
-      LISTBASE_FOREACH (const ScrVert *, v1, &md->screen->vertbase) {
-        if (!v1->editflag) {
+      for (const ScrVert &v1 : md->screen->vertbase) {
+        if (!v1.editflag) {
           continue;
         }
-        const int v_loc = (&v1->vec.x)[!axis];
+        const int v_loc = (&v1.vec.x)[!axis];
 
-        LISTBASE_FOREACH (const ScrVert *, v2, &md->screen->vertbase) {
-          if (v2->editflag) {
+        for (const ScrVert &v2 : md->screen->vertbase) {
+          if (v2.editflag) {
             continue;
           }
-          if (v_loc == (&v2->vec.x)[!axis]) {
-            const int v_loc2 = (&v2->vec.x)[axis];
+          if (v_loc == (&v2.vec.x)[!axis]) {
+            const int v_loc2 = (&v2.vec.x)[axis];
             /* Do not snap to the vertices at the ends. */
             if ((md->origval - md->smaller) < v_loc2 && v_loc2 < (md->origval + md->bigger)) {
               const int snap_dist_test = abs(m_cursor - v_loc2);
@@ -2540,7 +2543,7 @@ static bool area_split_apply(bContext *C, wmOperator *op)
 {
   const wmWindow *win = CTX_wm_window(C);
   bScreen *screen = CTX_wm_screen(C);
-  sAreaSplitData *sd = (sAreaSplitData *)op->customdata;
+  sAreaSplitData *sd = static_cast<sAreaSplitData *>(op->customdata);
 
   float fac = RNA_float_get(op->ptr, "factor");
   const eScreenAxis dir_axis = eScreenAxis(RNA_enum_get(op->ptr, "direction"));
@@ -2589,7 +2592,7 @@ static bool area_split_apply(bContext *C, wmOperator *op)
 static void area_split_exit(bContext *C, wmOperator *op)
 {
   if (op->customdata) {
-    sAreaSplitData *sd = (sAreaSplitData *)op->customdata;
+    sAreaSplitData *sd = static_cast<sAreaSplitData *>(op->customdata);
     if (sd->sarea) {
       ED_area_tag_redraw(sd->sarea);
     }
@@ -2618,7 +2621,7 @@ static void area_split_exit(bContext *C, wmOperator *op)
 
 static void area_split_preview_update_cursor(bContext *C, wmOperator *op)
 {
-  sAreaSplitData *sd = (sAreaSplitData *)op->customdata;
+  sAreaSplitData *sd = static_cast<sAreaSplitData *>(op->customdata);
   const eScreenAxis dir_axis = eScreenAxis(RNA_enum_get(op->ptr, "direction"));
   if (area_split_allowed(sd->sarea, dir_axis)) {
     WM_cursor_set(CTX_wm_window(C),
@@ -2741,7 +2744,7 @@ static wmOperatorStatus area_split_invoke(bContext *C, wmOperator *op, const wmE
     }
   }
 
-  sAreaSplitData *sd = (sAreaSplitData *)op->customdata;
+  sAreaSplitData *sd = static_cast<sAreaSplitData *>(op->customdata);
   sd->draw_callback = WM_draw_cb_activate(win, area_split_draw_cb, op);
   /* add temp handler for edge move or cancel */
   WM_event_add_modal_handler(C, op);
@@ -2808,18 +2811,18 @@ static int area_split_snap_calc_location(const bScreen *screen,
     }
   }
 
-  LISTBASE_FOREACH (const ScrVert *, v1, &screen->vertbase) {
-    if (!v1->editflag) {
+  for (const ScrVert &v1 : screen->vertbase) {
+    if (!v1.editflag) {
       continue;
     }
-    const int v_loc = (&v1->vec.x)[!axis];
+    const int v_loc = (&v1.vec.x)[!axis];
 
-    LISTBASE_FOREACH (const ScrVert *, v2, &screen->vertbase) {
-      if (v2->editflag) {
+    for (const ScrVert &v2 : screen->vertbase) {
+      if (v2.editflag) {
         continue;
       }
-      if (v_loc == (&v2->vec.x)[!axis]) {
-        const int v_loc2 = (&v2->vec.x)[axis];
+      if (v_loc == (&v2.vec.x)[!axis]) {
+        const int v_loc2 = (&v2.vec.x)[axis];
         /* Do not snap to the vertices at the ends. */
         if ((origval - smaller) < v_loc2 && v_loc2 < (origval + bigger)) {
           const int snap_dist_test = abs(m_cursor - v_loc2);
@@ -2839,7 +2842,7 @@ static int area_split_snap_calc_location(const bScreen *screen,
 
 static wmOperatorStatus area_split_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  sAreaSplitData *sd = (sAreaSplitData *)op->customdata;
+  sAreaSplitData *sd = static_cast<sAreaSplitData *>(op->customdata);
   PropertyRNA *prop_dir = RNA_struct_find_property(op->ptr, "direction");
   bool update_factor = false;
 
@@ -3282,6 +3285,15 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
           WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
         }
 
+        const float aspect = (rmd->region->v2d.flag & V2D_IS_INIT) ?
+                                 (BLI_rctf_size_x(&rmd->region->v2d.cur) /
+                                  (BLI_rcti_size_x(&rmd->region->v2d.mask) + 1)) :
+                                 1.0f;
+        if (float(rmd->region->sizex) * aspect > UI_PANEL_CATEGORY_MIN_WIDTH) {
+          /* Save this as new runtime preferred size. */
+          rmd->region->runtime->type->prefsizex = int(float(rmd->region->sizex) * aspect);
+        }
+
         region_scale_exit(op);
 
         return OPERATOR_FINISHED;
@@ -3360,9 +3372,9 @@ static wmOperatorStatus quadview_size_invoke(bContext *C, wmOperator *op, const 
     qsd->region = sad->az->region;
 
     BLI_rcti_init_minmax(&qsd->bounds);
-    LISTBASE_FOREACH (ARegion *, region, &sad->sa1->regionbase) {
-      if (region->alignment == RGN_ALIGN_QSPLIT) {
-        BLI_rcti_do_minmax_rcti(&qsd->bounds, &region->winrct);
+    for (ARegion &region : sad->sa1->regionbase) {
+      if (region.alignment == RGN_ALIGN_QSPLIT) {
+        BLI_rcti_do_minmax_rcti(&qsd->bounds, &region.winrct);
       }
     }
 
@@ -3481,37 +3493,37 @@ void ED_areas_do_frame_follow(bContext *C, bool center_view)
 
   const int current_frame = CTX_data_scene(C)->r.cfra;
   wmWindowManager *wm = CTX_wm_manager(C);
-  LISTBASE_FOREACH (wmWindow *, window, &wm->windows) {
-    const bScreen *screen = WM_window_get_active_screen(window);
+  for (wmWindow &window : wm->windows) {
+    const bScreen *screen = WM_window_get_active_screen(&window);
 
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    for (ScrArea &area : screen->areabase) {
+      for (ARegion &region : area.regionbase) {
         /* Only frame/center the current-frame indicator here if editor type supports it */
-        if (!screen_animation_region_supports_time_follow(eSpace_Type(area->spacetype),
-                                                          eRegion_Type(region->regiontype)))
+        if (!screen_animation_region_supports_time_follow(eSpace_Type(area.spacetype),
+                                                          eRegion_Type(region.regiontype)))
         {
           continue;
         }
 
-        if ((current_frame >= region->v2d.cur.xmin) && (current_frame <= region->v2d.cur.xmax)) {
+        if ((current_frame >= region.v2d.cur.xmin) && (current_frame <= region.v2d.cur.xmax)) {
           /* The current-frame indicator is already in view, do nothing. */
           continue;
         }
 
-        const float w = BLI_rctf_size_x(&region->v2d.cur);
+        const float w = BLI_rctf_size_x(&region.v2d.cur);
 
         if (center_view) {
-          region->v2d.cur.xmax = current_frame + (w / 2);
-          region->v2d.cur.xmin = current_frame - (w / 2);
+          region.v2d.cur.xmax = current_frame + (w / 2);
+          region.v2d.cur.xmin = current_frame - (w / 2);
           continue;
         }
-        if (current_frame < region->v2d.cur.xmin) {
-          region->v2d.cur.xmax = current_frame;
-          region->v2d.cur.xmin = region->v2d.cur.xmax - w;
+        if (current_frame < region.v2d.cur.xmin) {
+          region.v2d.cur.xmax = current_frame;
+          region.v2d.cur.xmin = region.v2d.cur.xmax - w;
         }
         else {
-          region->v2d.cur.xmin = current_frame;
-          region->v2d.cur.xmax = region->v2d.cur.xmin + w;
+          region.v2d.cur.xmin = current_frame;
+          region.v2d.cur.xmax = region.v2d.cur.xmin + w;
         }
       }
     }
@@ -3733,16 +3745,16 @@ static void keylist_from_graph_editor(bContext &C, AnimKeylist &keylist)
     return;
   }
 
-  ListBase anim_data = blender::ed::graph::get_editable_fcurves(ac);
+  ListBaseT<bAnimListElem> anim_data = blender::ed::graph::get_editable_fcurves(ac);
 
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    FCurve *fcu = static_cast<FCurve *>(ale->key_data);
+  for (bAnimListElem &ale : anim_data) {
+    FCurve *fcu = static_cast<FCurve *>(ale.key_data);
     if (!fcu->bezt) {
       continue;
     }
 
-    const bool use_nla_mapping = ANIM_nla_mapping_allowed(ale);
-    fcurve_to_keylist(ale->adt, fcu, &keylist, 0, {-FLT_MAX, FLT_MAX}, use_nla_mapping);
+    const bool use_nla_mapping = ANIM_nla_mapping_allowed(&ale);
+    fcurve_to_keylist(ale.adt, fcu, &keylist, 0, {-FLT_MAX, FLT_MAX}, use_nla_mapping);
   }
 
   ANIM_animdata_freelist(&anim_data);
@@ -3774,8 +3786,11 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, Scene *scene, AnimKe
 
     if (ob->type == OB_GREASE_PENCIL) {
       const bool active_layer_only = !(scene->flag & SCE_KEYS_NO_SELONLY);
-      grease_pencil_data_block_to_keylist(
-          nullptr, static_cast<const GreasePencil *>(ob->data), &keylist, 0, active_layer_only);
+      grease_pencil_data_block_to_keylist(nullptr,
+                                          blender::id_cast<const GreasePencil *>(ob->data),
+                                          &keylist,
+                                          0,
+                                          active_layer_only);
     }
   }
 
@@ -3911,16 +3926,16 @@ static wmOperatorStatus marker_jump_exec(bContext *C, wmOperator *op)
   bool found = false;
 
   /* find matching marker in the right direction */
-  LISTBASE_FOREACH (TimeMarker *, marker, &scene->markers) {
+  for (TimeMarker &marker : scene->markers) {
     if (next) {
-      if ((marker->frame > scene->r.cfra) && (!found || closest > marker->frame)) {
-        closest = marker->frame;
+      if ((marker.frame > scene->r.cfra) && (!found || closest > marker.frame)) {
+        closest = marker.frame;
         found = true;
       }
     }
     else {
-      if ((marker->frame < scene->r.cfra) && (!found || closest < marker->frame)) {
-        closest = marker->frame;
+      if ((marker.frame < scene->r.cfra) && (!found || closest < marker.frame)) {
+        closest = marker.frame;
         found = true;
       }
     }
@@ -4011,9 +4026,9 @@ static wmOperatorStatus screen_maximize_area_exec(bContext *C, wmOperator *op)
 
   /* search current screen for 'full-screen' areas */
   /* prevents restoring info header, when mouse is over it */
-  LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
-    if (area_iter->full) {
-      area = area_iter;
+  for (ScrArea &area_iter : screen->areabase) {
+    if (area_iter.full) {
+      area = &area_iter;
       break;
     }
   }
@@ -4146,7 +4161,7 @@ static void area_join_draw_cb(const wmWindow *win, void *userdata)
   if (sd->sa1 == sd->sa2 && sd->split_fac > 0.0f) {
     screen_draw_split_preview(sd->sa1, sd->split_dir, sd->split_fac);
   }
-  else if (sd->sa2 && sd->dir != SCREEN_DIR_NONE) {
+  else if (sd->sa2 && (sd->sa1 != sd->sa2)) {
     screen_draw_join_highlight(win, sd->sa1, sd->sa2, sd->dir, factor);
   }
 }
@@ -4232,7 +4247,7 @@ static bool area_join_init(bContext *C, wmOperator *op, ScrArea *sa1, ScrArea *s
 /* apply the join of the areas (space types) */
 static bool area_join_apply(bContext *C, wmOperator *op)
 {
-  sAreaJoinData *jd = (sAreaJoinData *)op->customdata;
+  sAreaJoinData *jd = static_cast<sAreaJoinData *>(op->customdata);
   if (!jd || (jd->dir == SCREEN_DIR_NONE)) {
     return false;
   }
@@ -4274,7 +4289,7 @@ static bool area_join_apply(bContext *C, wmOperator *op)
 /* finish operation */
 static void area_join_exit(bContext *C, wmOperator *op)
 {
-  sAreaJoinData *jd = (sAreaJoinData *)op->customdata;
+  sAreaJoinData *jd = static_cast<sAreaJoinData *>(op->customdata);
 
   if (jd) {
     if (jd->draw_callback) {
@@ -4304,7 +4319,7 @@ static wmOperatorStatus area_join_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  sAreaJoinData *jd = (sAreaJoinData *)op->customdata;
+  sAreaJoinData *jd = static_cast<sAreaJoinData *>(op->customdata);
 
   if (jd->sa2 == nullptr || area_getorientation(jd->sa1, jd->sa2) == SCREEN_DIR_NONE) {
     return OPERATOR_CANCELLED;
@@ -4336,7 +4351,7 @@ static wmOperatorStatus area_join_invoke(bContext *C, wmOperator *op, const wmEv
       return OPERATOR_CANCELLED;
     }
 
-    sAreaJoinData *jd = (sAreaJoinData *)op->customdata;
+    sAreaJoinData *jd = static_cast<sAreaJoinData *>(op->customdata);
     jd->start_x = sad->x;
     jd->start_y = sad->y;
     jd->draw_callback = WM_draw_cb_activate(CTX_wm_window(C), area_join_draw_cb, op);
@@ -4352,7 +4367,7 @@ static wmOperatorStatus area_join_invoke(bContext *C, wmOperator *op, const wmEv
       return OPERATOR_CANCELLED;
     }
   }
-  sAreaJoinData *jd = (sAreaJoinData *)op->customdata;
+  sAreaJoinData *jd = static_cast<sAreaJoinData *>(op->customdata);
   jd->sa2 = jd->sa1;
   jd->start_x = jd->sa1->totrct.xmin;
   jd->start_y = jd->sa1->totrct.ymax;
@@ -4370,7 +4385,7 @@ static wmOperatorStatus area_join_invoke(bContext *C, wmOperator *op, const wmEv
 /* Apply the docking of the area. */
 void static area_docking_apply(bContext *C, wmOperator *op)
 {
-  sAreaJoinData *jd = (sAreaJoinData *)op->customdata;
+  sAreaJoinData *jd = static_cast<sAreaJoinData *>(op->customdata);
 
   int offset1;
   int offset2;
@@ -4671,8 +4686,8 @@ static float area_split_factor(bContext *C, sAreaJoinData *jd, const wmEvent *ev
     const int axis = (jd->split_dir == SCREEN_AXIS_V) ? 0 : 1;
     int dist = INT_MAX;
     int loc = 0;
-    LISTBASE_FOREACH (const ScrVert *, v1, &CTX_wm_screen(C)->vertbase) {
-      const int v_loc = (&v1->vec.x)[axis];
+    for (const ScrVert &v1 : CTX_wm_screen(C)->vertbase) {
+      const int v_loc = (&v1.vec.x)[axis];
       const int v_dist = abs(v_loc - event->xy[axis]);
       if (v_dist < dist) {
         loc = v_loc;
@@ -4719,11 +4734,11 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
   area = ED_area_find_under_cursor(C, SPACE_TYPE_ANY, event->xy);
 #else
   int win_count = 0;
-  LISTBASE_FOREACH (wmWindow *, win, &CTX_wm_manager(C)->windows) {
+  for (wmWindow &win : CTX_wm_manager(C)->windows) {
     int cursor[2];
-    if (wm_cursor_position_get(win, &cursor[0], &cursor[1])) {
+    if (wm_cursor_position_get(&win, &cursor[0], &cursor[1])) {
       rcti rect;
-      WM_window_rect_calc(win, &rect);
+      WM_window_rect_calc(&win, &rect);
       if (BLI_rcti_isect_pt_v(&rect, cursor)) {
         win_count++;
       }
@@ -4864,7 +4879,7 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
       return OPERATOR_CANCELLED;
     }
   }
-  sAreaJoinData *jd = (sAreaJoinData *)op->customdata;
+  sAreaJoinData *jd = static_cast<sAreaJoinData *>(op->customdata);
   if (jd == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -5175,15 +5190,15 @@ static wmOperatorStatus spacedata_cleanup_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   int tot = 0;
 
-  LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
-    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-      if (area->spacedata.first != area->spacedata.last) {
-        SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
+  for (bScreen &screen : bmain->screens) {
+    for (ScrArea &area : screen.areabase) {
+      if (area.spacedata.first != area.spacedata.last) {
+        SpaceLink *sl = static_cast<SpaceLink *>(area.spacedata.first);
 
-        BLI_remlink(&area->spacedata, sl);
-        tot += BLI_listbase_count(&area->spacedata);
-        BKE_spacedata_freelist(&area->spacedata);
-        BLI_addtail(&area->spacedata, sl);
+        BLI_remlink(&area.spacedata, sl);
+        tot += BLI_listbase_count(&area.spacedata);
+        BKE_spacedata_freelist(&area.spacedata);
+        BLI_addtail(&area.spacedata, sl);
       }
     }
   }
@@ -5434,18 +5449,18 @@ static wmOperatorStatus region_quadview_exec(bContext *C, wmOperator *op)
       rv3d->rflag |= RV3D_GPULIGHT_UPDATE;
 
       /* Accumulate locks, in case they're mixed. */
-      LISTBASE_FOREACH (ARegion *, region_iter, &area->regionbase) {
-        if (region_iter->regiontype == RGN_TYPE_WINDOW) {
-          RegionView3D *rv3d_iter = static_cast<RegionView3D *>(region_iter->regiondata);
+      for (ARegion &region_iter : area->regionbase) {
+        if (region_iter.regiontype == RGN_TYPE_WINDOW) {
+          RegionView3D *rv3d_iter = static_cast<RegionView3D *>(region_iter.regiondata);
           rv3d->viewlock_quad |= rv3d_iter->viewlock;
         }
       }
     }
 
-    LISTBASE_FOREACH_MUTABLE (ARegion *, region_iter, &area->regionbase) {
-      if (region_iter->alignment == RGN_ALIGN_QSPLIT) {
-        ED_region_remove(C, area, region_iter);
-        if (region_iter == screen->active_region) {
+    for (ARegion &region_iter : area->regionbase.items_mutable()) {
+      if (region_iter.alignment == RGN_ALIGN_QSPLIT) {
+        ED_region_remove(C, area, &region_iter);
+        if (&region_iter == screen->active_region) {
           screen->active_region = nullptr;
         }
       }
@@ -5722,7 +5737,7 @@ void ED_screens_header_tools_menu_create(bContext *C, blender::ui::Layout *layou
   ScrArea *area = CTX_wm_area(C);
   {
     PointerRNA ptr = RNA_pointer_create_discrete(
-        (ID *)CTX_wm_screen(C), &RNA_Space, area->spacedata.first);
+        blender::id_cast<ID *>(CTX_wm_screen(C)), &RNA_Space, area->spacedata.first);
     if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
       layout->prop(&ptr, "show_region_header", UI_ITEM_NONE, IFACE_("Show Header"), ICON_NONE);
     }
@@ -5755,7 +5770,7 @@ void ED_screens_footer_tools_menu_create(bContext *C, blender::ui::Layout *layou
 
   {
     PointerRNA ptr = RNA_pointer_create_discrete(
-        (ID *)CTX_wm_screen(C), &RNA_Space, area->spacedata.first);
+        blender::id_cast<ID *>(CTX_wm_screen(C)), &RNA_Space, area->spacedata.first);
     layout->prop(&ptr, "show_region_footer", UI_ITEM_NONE, IFACE_("Show Footer"), ICON_NONE);
   }
 
@@ -5940,7 +5955,7 @@ static bool match_region_with_redraws(const ScrArea *area,
   else if (regiontype == RGN_TYPE_HEADER) {
     /* The Timeline mode of the Dope Sheet shows playback controls in the header. */
     if (spacetype == SPACE_ACTION) {
-      SpaceAction *saction = (SpaceAction *)area->spacedata.first;
+      SpaceAction *saction = static_cast<SpaceAction *>(area->spacedata.first);
       return saction->mode == SACTCONT_TIMELINE;
     }
   }
@@ -6206,17 +6221,17 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
     }
   }
 
-  LISTBASE_FOREACH (wmWindow *, window, &wm->windows) {
-    bScreen *win_screen = WM_window_get_active_screen(window);
+  for (wmWindow &window : wm->windows) {
+    bScreen *win_screen = WM_window_get_active_screen(&window);
 
-    LISTBASE_FOREACH (ScrArea *, area, &win_screen->areabase) {
-      LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    for (ScrArea &area : win_screen->areabase) {
+      for (ARegion &region : area.regionbase) {
         bool redraw = false;
-        if (region == sad->region) {
+        if (&region == sad->region) {
           redraw = true;
         }
-        else if (match_region_with_redraws(area,
-                                           eRegion_Type(region->regiontype),
+        else if (match_region_with_redraws(&area,
+                                           eRegion_Type(region.regiontype),
                                            eScreen_Redraws_Flag(sad->redraws),
                                            sad->from_anim_edit))
         {
@@ -6225,7 +6240,7 @@ static wmOperatorStatus screen_animation_step_invoke(bContext *C,
 
         if (redraw) {
           screen_animation_region_tag_redraw(
-              C, area, region, scene, eScreen_Redraws_Flag(sad->redraws));
+              C, &area, &region, scene, eScreen_Redraws_Flag(sad->redraws));
           /* Doesn't trigger a full redraw of the screen but makes sure at least overlay drawing
            * (#ARegionType.draw_overlay()) is triggered, which is how the current-frame is drawn.
            */
@@ -6310,8 +6325,8 @@ void ED_reset_audio_device(bContext *C)
 
 bScreen *ED_screen_animation_playing(const wmWindowManager *wm)
 {
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    bScreen *screen = WM_window_get_active_screen(win);
+  for (wmWindow &win : wm->windows) {
+    bScreen *screen = WM_window_get_active_screen(&win);
 
     if (screen->animtimer || screen->scrubbing) {
       return screen;
@@ -6323,8 +6338,8 @@ bScreen *ED_screen_animation_playing(const wmWindowManager *wm)
 
 bScreen *ED_screen_animation_no_scrub(const wmWindowManager *wm)
 {
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    bScreen *screen = WM_window_get_active_screen(win);
+  for (wmWindow &win : wm->windows) {
+    bScreen *screen = WM_window_get_active_screen(&win);
 
     if (screen->animtimer) {
       return screen;
@@ -6572,9 +6587,9 @@ static wmOperatorStatus fullscreen_back_exec(bContext *C, wmOperator *op)
   ScrArea *area = nullptr;
 
   /* search current screen for 'fullscreen' areas */
-  LISTBASE_FOREACH (ScrArea *, area_iter, &screen->areabase) {
-    if (area_iter->full) {
-      area = area_iter;
+  for (ScrArea &area_iter : screen->areabase) {
+    if (area_iter.full) {
+      area = &area_iter;
       break;
     }
   }
@@ -6999,7 +7014,8 @@ static wmOperatorStatus space_type_set_or_cycle_exec(bContext *C, wmOperator *op
   const int space_type = RNA_enum_get(op->ptr, "space_type");
 
   ScrArea *area = CTX_wm_area(C);
-  PointerRNA ptr = RNA_pointer_create_discrete((ID *)CTX_wm_screen(C), &RNA_Area, area);
+  PointerRNA ptr = RNA_pointer_create_discrete(
+      blender::id_cast<ID *>(CTX_wm_screen(C)), &RNA_Area, area);
   PropertyRNA *prop_type = RNA_struct_find_property(&ptr, "type");
   PropertyRNA *prop_ui_type = RNA_struct_find_property(&ptr, "ui_type");
 
@@ -7156,7 +7172,7 @@ static wmOperatorStatus space_workspace_cycle_invoke(bContext *C,
   const eScreenCycle direction = eScreenCycle(RNA_enum_get(op->ptr, "direction"));
   WorkSpace *workspace_src = WM_window_get_active_workspace(win);
 
-  Vector<ID *> ordered = BKE_id_ordered_list(&bmain->workspaces);
+  Vector<ID *> ordered = BKE_id_ordered_list(&bmain->workspaces.cast<ID>());
   if (ordered.size() == 1) {
     return OPERATOR_CANCELLED;
   }
@@ -7354,7 +7370,7 @@ void ED_keymap_screen(wmKeyConfig *keyconf)
   WM_keymap_ensure(keyconf, "Frames", SPACE_EMPTY, RGN_TYPE_WINDOW);
 
   /* dropbox for entire window */
-  ListBase *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_dropbox_add(
       lb, "WM_OT_drop_blend_file", blend_file_drop_poll, blend_file_drop_copy, nullptr, nullptr);
   WM_dropbox_add(lb,

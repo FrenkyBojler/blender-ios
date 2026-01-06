@@ -17,6 +17,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_layer_types.h"
 #include "DNA_object_types.h"
 
 #include "BKE_camera.h"
@@ -53,7 +54,7 @@
 
 /* Render Engine Types */
 
-ListBase R_engines = {nullptr, nullptr};
+ListBaseT<RenderEngineType> R_engines = {nullptr, nullptr};
 
 static CLG_LogRef LOG = {"render"};
 
@@ -193,7 +194,7 @@ static RenderResult *render_result_from_bake(
   }
 
   /* Create render result with specified size. */
-  RenderResult *rr = MEM_callocN<RenderResult>(__func__);
+  RenderResult *rr = MEM_new_for_free<RenderResult>(__func__);
 
   rr->rectx = w;
   rr->recty = h;
@@ -205,7 +206,7 @@ static RenderResult *render_result_from_bake(
   BKE_scene_ppm_get(&engine->re->r, rr->ppm);
 
   /* Add single baking render layer. */
-  RenderLayer *rl = MEM_callocN<RenderLayer>("bake render layer");
+  RenderLayer *rl = MEM_new_for_free<RenderLayer>("bake render layer");
   STRNCPY(rl->name, layername);
   rl->rectx = w;
   rl->recty = h;
@@ -536,10 +537,10 @@ void RE_engine_report(RenderEngine *engine, int type, const char *msg)
   Render *re = engine->re;
 
   if (re) {
-    BKE_report(engine->re->reports, (eReportType)type, msg);
+    BKE_report(engine->re->reports, eReportType(type), msg);
   }
   else if (engine->reports) {
-    BKE_report(engine->reports, (eReportType)type, msg);
+    BKE_report(engine->reports, eReportType(type), msg);
   }
 }
 
@@ -612,10 +613,12 @@ void RE_engine_get_camera_model_matrix(RenderEngine *engine,
    * leaving stereo to be handled by the engine. */
   Render *re = engine->re;
   if (use_spherical_stereo || re == nullptr) {
-    BKE_camera_multiview_model_matrix(nullptr, camera, nullptr, (float (*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(
+        nullptr, camera, nullptr, reinterpret_cast<float (*)[4]>(r_modelmat));
   }
   else {
-    BKE_camera_multiview_model_matrix(&re->r, camera, re->viewname, (float (*)[4])r_modelmat);
+    BKE_camera_multiview_model_matrix(
+        &re->r, camera, re->viewname, reinterpret_cast<float (*)[4]>(r_modelmat));
   }
 }
 
@@ -967,7 +970,7 @@ static void engine_render_add_result_pass_cb(void *user_data,
                                              const char *chanid,
                                              eNodeSocketDatatype /*type*/)
 {
-  RenderResult *rr = (RenderResult *)user_data;
+  RenderResult *rr = static_cast<RenderResult *>(user_data);
   RE_create_render_pass(rr, name, channels, chanid, view_layer->name, RR_ALL_VIEWS, false);
 }
 

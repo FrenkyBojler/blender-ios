@@ -8,7 +8,6 @@
 
 #include "BLI_math_matrix.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 
 #include "BKE_curves.hh"
@@ -39,10 +38,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   auto *mmd = reinterpret_cast<GreasePencilMirrorModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(mmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(mmd, DNA_struct_default_get(GreasePencilMirrorModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(mmd, modifier);
   modifier::greasepencil::init_influence_data(&mmd->influence, false);
 }
 
@@ -66,7 +62,7 @@ static void free_data(ModifierData *md)
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
   auto *mmd = reinterpret_cast<GreasePencilMirrorModifierData *>(md);
-  walk(user_data, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IDWALK_CB_NOP);
   modifier::greasepencil::foreach_influence_ID_link(&mmd->influence, ob, walk, user_data);
 }
 
@@ -235,7 +231,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *mmd = reinterpret_cast<const GreasePencilMirrorModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilMirrorModifierData, mmd);
+  writer->write_struct(mmd);
   modifier::greasepencil::write_influence_data(writer, &mmd->influence);
 }
 

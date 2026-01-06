@@ -9,7 +9,6 @@
 #include "BKE_attribute.hh"
 #include "BKE_material.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
@@ -49,10 +48,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   auto *smd = reinterpret_cast<GreasePencilShrinkwrapModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
-
-  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(GreasePencilShrinkwrapModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
   modifier::greasepencil::init_influence_data(&smd->influence, false);
 }
 
@@ -82,8 +78,8 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 {
   auto *smd = reinterpret_cast<GreasePencilShrinkwrapModifierData *>(md);
   modifier::greasepencil::foreach_influence_ID_link(&smd->influence, ob, walk, user_data);
-  walk(user_data, ob, (ID **)&smd->target, IDWALK_CB_NOP);
-  walk(user_data, ob, (ID **)&smd->aux_target, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&smd->target), IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&smd->aux_target), IDWALK_CB_NOP);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -313,7 +309,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *smd = reinterpret_cast<const GreasePencilShrinkwrapModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilShrinkwrapModifierData, smd);
+  writer->write_struct(smd);
   modifier::greasepencil::write_influence_data(writer, &smd->influence);
 }
 

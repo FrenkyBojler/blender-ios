@@ -19,6 +19,9 @@
 
 #ifdef RNA_RUNTIME
 
+#  include "BLI_string.h"
+#  include "BLI_string_utf8.h"
+
 #  include "BKE_action.hh"
 #  include "BKE_armature.hh"
 #  include "BKE_brush.hh"
@@ -31,6 +34,7 @@
 #  include "BKE_idtype.hh"
 #  include "BKE_image.hh"
 #  include "BKE_lattice.hh"
+#  include "BKE_lib_id.hh"
 #  include "BKE_lib_remap.hh"
 #  include "BKE_library.hh"
 #  include "BKE_light.h"
@@ -276,14 +280,14 @@ static Material *rna_Main_materials_new(Main *bmain, const char *name)
 static void rna_Main_materials_gpencil_data(Main * /*bmain*/, PointerRNA *id_ptr)
 {
   ID *id = static_cast<ID *>(id_ptr->data);
-  Material *ma = (Material *)id;
+  Material *ma = blender::id_cast<Material *>(id);
   BKE_gpencil_material_attr_init(ma);
 }
 
 static void rna_Main_materials_gpencil_remove(Main * /*bmain*/, PointerRNA *id_ptr)
 {
   ID *id = static_cast<ID *>(id_ptr->data);
-  Material *ma = (Material *)id;
+  Material *ma = blender::id_cast<Material *>(id);
   if (ma->gp_style) {
     MEM_SAFE_FREE(ma->gp_style);
   }
@@ -422,7 +426,7 @@ static Image *rna_Main_images_load(Main *bmain,
                 errno ? strerror(errno) : RPT_("unsupported image format"));
   }
 
-  id_us_min((ID *)ima);
+  id_us_min(blender::id_cast<ID *>(ima));
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
@@ -673,7 +677,7 @@ static Palette *rna_Main_palettes_new(Main *bmain, const char *name)
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
-  return (Palette *)palette;
+  return static_cast<Palette *>(palette);
 }
 
 static MovieClip *rna_Main_movieclip_load(Main *bmain,
@@ -703,7 +707,7 @@ static MovieClip *rna_Main_movieclip_load(Main *bmain,
                 errno ? strerror(errno) : RPT_("unable to load movie clip"));
   }
 
-  id_us_min((ID *)clip);
+  id_us_min(blender::id_cast<ID *>(clip));
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
 
@@ -821,7 +825,7 @@ static Volume *rna_Main_volumes_new(Main *bmain, const char *name)
 #  define RNA_MAIN_ID_TAG_FUNCS_DEF(_func_name, _listbase_name, _id_type) \
     static void rna_Main_##_func_name##_tag(Main *bmain, bool value) \
     { \
-      BKE_main_id_tag_listbase(&bmain->_listbase_name, ID_TAG_DOIT, value); \
+      BKE_main_id_tag_listbase(&bmain->_listbase_name.cast<ID>(), ID_TAG_DOIT, value); \
     }
 
 RNA_MAIN_ID_TAG_FUNCS_DEF(cameras, cameras, ID_CA)

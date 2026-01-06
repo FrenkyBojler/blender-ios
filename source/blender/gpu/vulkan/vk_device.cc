@@ -45,6 +45,7 @@ void VKExtensions::log() const
              " - [%c] extended dynamic state\n"
              " - [%c] external memory\n"
              " - [%c] graphics pipeline library\n"
+             " - [%c] host image copy\n"
              " - [%c] line rasterization\n"
              " - [%c] maintenance4\n"
              " - [%c] memory priority\n"
@@ -60,6 +61,7 @@ void VKExtensions::log() const
              extended_dynamic_state ? 'X' : ' ',
              external_memory ? 'X' : ' ',
              graphics_pipeline_library ? 'X' : ' ',
+             host_image_copy ? 'X' : ' ',
              line_rasterization ? 'X' : ' ',
              maintenance4 ? 'X' : ' ',
              memory_priority ? 'X' : ' ',
@@ -133,7 +135,7 @@ void VKDevice::init(void *ghost_context)
 {
   BLI_assert(!is_initialized());
   GHOST_VulkanHandles handles = {};
-  GHOST_GetVulkanHandles((GHOST_ContextHandle)ghost_context, &handles);
+  GHOST_GetVulkanHandles(static_cast<GHOST_ContextHandle>(ghost_context), &handles);
   vk_instance_ = handles.instance;
   vk_physical_device_ = handles.physical_device;
   vk_device_ = handles.device;
@@ -189,6 +191,12 @@ void VKDevice::init_functions()
   /* VK_EXT_vertex_input_dynamic_state */
   if (extensions_.vertex_input_dynamic_state) {
     functions.vkCmdSetVertexInput = LOAD_FUNCTION(vkCmdSetVertexInputEXT);
+  }
+
+  /* VK_EXT_host_image_copy */
+  if (extensions_.host_image_copy) {
+    functions.vkCopyMemoryToImage = LOAD_FUNCTION(vkCopyMemoryToImageEXT);
+    functions.vkTransitionImageLayout = LOAD_FUNCTION(vkTransitionImageLayoutEXT);
   }
 
   if (extensions_.external_memory) {

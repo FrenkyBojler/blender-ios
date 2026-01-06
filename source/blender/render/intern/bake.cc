@@ -100,7 +100,7 @@ struct TriTessFace {
 
 static void store_bake_pixel(void *handle, int x, int y, float u, float v)
 {
-  BakeDataZSpan *bd = (BakeDataZSpan *)handle;
+  BakeDataZSpan *bd = static_cast<BakeDataZSpan *>(handle);
   BakePixel *pixel;
 
   const int width = bd->bk_image->width;
@@ -460,8 +460,7 @@ static TriTessFace *mesh_calc_tri_tessface(Mesh *mesh, bool tangent, Mesh *mesh_
   const VArray<bool> sharp_faces =
       attributes.lookup_or_default<bool>("sharp_face", bke::AttrDomain::Face, false).varray;
 
-  blender::int3 *corner_tris = static_cast<blender::int3 *>(
-      MEM_mallocN(sizeof(*corner_tris) * tottri, __func__));
+  blender::int3 *corner_tris = MEM_malloc_arrayN<blender::int3>(tottri, __func__);
   triangles = MEM_calloc_arrayN<TriTessFace>(tottri, __func__);
 
   const bool calculate_normal = BKE_mesh_face_normals_are_dirty(mesh);
@@ -788,7 +787,7 @@ void RE_bake_pixels_populate(Mesh *mesh,
       bd.bk_image = bk_image;
       bake_differentials(&bd, vec[0], vec[1], vec[2]);
       zspan_scanconvert(
-          &bd.zspan[image_id], (void *)&bd, vec[0], vec[1], vec[2], store_bake_pixel);
+          &bd.zspan[image_id], static_cast<void *>(&bd), vec[0], vec[1], vec[2], store_bake_pixel);
     }
   }
 

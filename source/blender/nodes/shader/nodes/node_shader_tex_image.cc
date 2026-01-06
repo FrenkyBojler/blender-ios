@@ -25,7 +25,7 @@ static void sh_node_tex_image_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_init_tex_image(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeTexImage *tex = MEM_callocN<NodeTexImage>(__func__);
+  NodeTexImage *tex = MEM_new_for_free<NodeTexImage>(__func__);
   BKE_texture_mapping_default(&tex->base.tex_mapping, TEXMAP_TYPE_POINT);
   BKE_texture_colormapping_default(&tex->base.color_mapping);
   BKE_imageuser_default(&tex->iuser);
@@ -39,13 +39,13 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat,
                                      GPUNodeStack *in,
                                      GPUNodeStack *out)
 {
-  Image *ima = (Image *)node->id;
-  NodeTexImage *tex = (NodeTexImage *)node->storage;
+  Image *ima = blender::id_cast<Image *>(node->id);
+  NodeTexImage *tex = static_cast<NodeTexImage *>(node->storage);
 
   /* We get the image user from the original node, since GPU image keeps
    * a pointer to it and the dependency refreshes the original. */
   bNode *node_original = node->runtime->original ? node->runtime->original : node;
-  NodeTexImage *tex_original = (NodeTexImage *)node_original->storage;
+  NodeTexImage *tex_original = static_cast<NodeTexImage *>(node_original->storage);
   ImageUser *iuser = &tex_original->iuser;
 
   if (!ima) {

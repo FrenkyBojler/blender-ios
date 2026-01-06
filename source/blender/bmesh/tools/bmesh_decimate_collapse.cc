@@ -12,7 +12,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
+#include "BLI_array.hh"
 #include "BLI_enum_flags.hh"
 #include "BLI_heap.h"
 #include "BLI_linklist.h"
@@ -369,7 +369,7 @@ struct KD_Symmetry_Data {
 
 static bool bm_edge_symmetry_check_cb(void *user_data,
                                       int index,
-                                      const float /*co*/[3],
+                                      const blender::float3 & /*co*/,
                                       float /*dist_sq*/)
 {
   KD_Symmetry_Data *sym_data = static_cast<KD_Symmetry_Data *>(user_data);
@@ -484,8 +484,8 @@ static bool bm_face_triangulate(BMesh *bm,
   const int f_base_len = f_base->len;
   int faces_array_tot = f_base_len - 3;
   int edges_array_tot = f_base_len - 3;
-  BMFace **faces_array = BLI_array_alloca(faces_array, faces_array_tot);
-  BMEdge **edges_array = BLI_array_alloca(edges_array, edges_array_tot);
+  blender::Array<BMFace *, BM_DEFAULT_NGON_STACK_SIZE> faces_array(faces_array_tot);
+  blender::Array<BMEdge *, BM_DEFAULT_NGON_STACK_SIZE> edges_array(edges_array_tot);
   const int quad_method = 0, ngon_method = 0; /* beauty */
 
   bool has_cut = false;
@@ -494,9 +494,9 @@ static bool bm_face_triangulate(BMesh *bm,
 
   BM_face_triangulate(bm,
                       f_base,
-                      faces_array,
+                      faces_array.data(),
                       &faces_array_tot,
-                      edges_array,
+                      edges_array.data(),
                       &edges_array_tot,
                       r_faces_double,
                       quad_method,
@@ -607,8 +607,7 @@ static void bm_decim_triangulate_end(BMesh *bm, const int edges_tri_tot)
   BMEdge *e;
 
   /* we need to collect before merging for ngons since the loops indices will be lost */
-  BMEdge **edges_tri = static_cast<BMEdge **>(
-      MEM_mallocN(std::min(edges_tri_tot, bm->totedge) * sizeof(*edges_tri), __func__));
+  BMEdge **edges_tri = MEM_malloc_arrayN<BMEdge *>(std::min(edges_tri_tot, bm->totedge), __func__);
   STACK_DECLARE(edges_tri);
 
   STACK_INIT(edges_tri, std::min(edges_tri_tot, bm->totedge));

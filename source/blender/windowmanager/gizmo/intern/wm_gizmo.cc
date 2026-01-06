@@ -162,7 +162,7 @@ void WM_gizmo_free(wmGizmo *gz)
   MEM_freeN(static_cast<void *>(gz));
 }
 
-void WM_gizmo_unlink(ListBase *gizmolist, wmGizmoMap *gzmap, wmGizmo *gz, bContext *C)
+void WM_gizmo_unlink(ListBaseT<wmGizmo> *gizmolist, wmGizmoMap *gzmap, wmGizmo *gz, bContext *C)
 {
   if (gz->state & WM_GIZMO_STATE_HIGHLIGHT) {
     wm_gizmomap_highlight_set(gzmap, C, nullptr, 0);
@@ -596,7 +596,7 @@ void WM_gizmo_properties_create(PointerRNA *ptr, const StringRef gtstring)
   const wmGizmoType *gzt = WM_gizmotype_find(gtstring, false);
 
   if (gzt) {
-    WM_gizmo_properties_create_ptr(ptr, (wmGizmoType *)gzt);
+    WM_gizmo_properties_create_ptr(ptr, const_cast<wmGizmoType *>(gzt));
   }
   else {
     *ptr = RNA_pointer_create_discrete(nullptr, &RNA_GizmoProperties, nullptr);

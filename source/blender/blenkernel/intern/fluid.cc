@@ -21,7 +21,6 @@
 #include "BLI_utildefines.h"
 
 #include "DNA_colorband_types.h"
-#include "DNA_defaults.h"
 #include "DNA_fluid_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -567,16 +566,16 @@ static int get_light(Scene *scene, ViewLayer *view_layer, float *light)
 
   /* Try to find a lamp, preferably local. */
   BKE_view_layer_synced_ensure(scene, view_layer);
-  LISTBASE_FOREACH (Base *, base_tmp, BKE_view_layer_object_bases_get(view_layer)) {
-    if (base_tmp->object->type == OB_LAMP) {
-      Light *la = static_cast<Light *>(base_tmp->object->data);
+  for (Base &base_tmp : *BKE_view_layer_object_bases_get(view_layer)) {
+    if (base_tmp.object->type == OB_LAMP) {
+      Light *la = blender::id_cast<Light *>(base_tmp.object->data);
 
       if (la->type == LA_LOCAL) {
-        copy_v3_v3(light, base_tmp->object->object_to_world().location());
+        copy_v3_v3(light, base_tmp.object->object_to_world().location());
         return 1;
       }
       if (!found_light) {
-        copy_v3_v3(light, base_tmp->object->object_to_world().location());
+        copy_v3_v3(light, base_tmp.object->object_to_world().location());
         found_light = 1;
       }
     }
@@ -3063,7 +3062,7 @@ static void update_flowsfluids(Depsgraph *depsgraph,
 struct UpdateEffectorsData {
   Scene *scene;
   FluidDomainSettings *fds;
-  ListBase *effectors;
+  ListBaseT<EffectorCache> *effectors;
 
   float *density;
   float *fuel;
@@ -3148,7 +3147,7 @@ static void update_effectors_task_cb(void *__restrict userdata,
 static void update_effectors(
     Depsgraph *depsgraph, Scene *scene, Object *ob, FluidDomainSettings *fds, float /*dt*/)
 {
-  ListBase *effectors;
+  ListBaseT<EffectorCache> *effectors;
   /* make sure smoke flow influence is 0.0f */
   fds->effector_weights->weight[PFIELD_FLUIDFLOW] = 0.0f;
   effectors = BKE_effectors_create(depsgraph, ob, nullptr, fds->effector_weights, false);
@@ -4427,7 +4426,7 @@ void BKE_fluid_particle_system_create(Main *bmain,
 
   /* add particle system */
   part = BKE_particlesettings_add(bmain, pset_name);
-  psys = MEM_callocN<ParticleSystem>(__func__);
+  psys = MEM_new_for_free<ParticleSystem>(__func__);
 
   part->type = psys_type;
   part->totpart = 0;
@@ -4783,7 +4782,7 @@ void BKE_fluid_modifier_create_type_data(FluidModifierData *fmd)
       fluid_modifier_freeDomain(fmd);
     }
 
-    fmd->domain = DNA_struct_default_alloc(FluidDomainSettings);
+    fmd->domain = MEM_new_for_free<FluidDomainSettings>(__func__);
     fmd->domain->fmd = fmd;
 
     /* Turn off incompatible options. */
@@ -4815,7 +4814,7 @@ void BKE_fluid_modifier_create_type_data(FluidModifierData *fmd)
       fluid_modifier_freeFlow(fmd);
     }
 
-    fmd->flow = DNA_struct_default_alloc(FluidFlowSettings);
+    fmd->flow = MEM_new_for_free<FluidFlowSettings>(__func__);
     fmd->flow->fmd = fmd;
   }
   else if (fmd->type & MOD_FLUID_TYPE_EFFEC) {
@@ -4823,7 +4822,7 @@ void BKE_fluid_modifier_create_type_data(FluidModifierData *fmd)
       fluid_modifier_freeEffector(fmd);
     }
 
-    fmd->effector = DNA_struct_default_alloc(FluidEffectorSettings);
+    fmd->effector = MEM_new_for_free<FluidEffectorSettings>(__func__);
     fmd->effector->fmd = fmd;
   }
 }

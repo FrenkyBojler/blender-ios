@@ -119,7 +119,7 @@ struct SB_thread_context {
   float timenow;
   int ifirst;
   int ilast;
-  ListBase *effectors;
+  ListBaseT<EffectorCache> *effectors;
   int do_deflector;
   float fieldfactor;
   float windfactor;
@@ -277,7 +277,8 @@ static ccd_Mesh *ccd_mesh_make(Object *ob)
   float hull;
   int i;
 
-  cmd = (CollisionModifierData *)BKE_modifiers_findby_type(ob, eModifierType_Collision);
+  cmd = reinterpret_cast<CollisionModifierData *>(
+      BKE_modifiers_findby_type(ob, eModifierType_Collision));
 
   /* first some paranoia checks */
   if (!cmd) {
@@ -362,7 +363,8 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
   float hull;
   int i;
 
-  cmd = (CollisionModifierData *)BKE_modifiers_findby_type(ob, eModifierType_Collision);
+  cmd = reinterpret_cast<CollisionModifierData *>(
+      BKE_modifiers_findby_type(ob, eModifierType_Collision));
 
   /* first some paranoia checks */
   if (!cmd) {
@@ -576,7 +578,7 @@ static int count_mesh_quads(Mesh *mesh)
 
 static void add_mesh_quad_diag_springs(Object *ob)
 {
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
   // BodyPoint *bp; /* UNUSED */
   if (ob->soft) {
     int nofquads;
@@ -1383,8 +1385,12 @@ static int sb_detect_edge_collisionCached(const float edge_v1[3],
   return deflected;
 }
 
-static void _scan_for_ext_spring_forces(
-    Scene *scene, Object *ob, float timenow, int ifirst, int ilast, ListBase *effectors)
+static void _scan_for_ext_spring_forces(Scene *scene,
+                                        Object *ob,
+                                        float timenow,
+                                        int ifirst,
+                                        int ilast,
+                                        ListBaseT<EffectorCache> *effectors)
 {
   SoftBody *sb = ob->soft;
   int a;
@@ -1460,7 +1466,7 @@ static void _scan_for_ext_spring_forces(
 
 static void *exec_scan_for_ext_spring_forces(void *data)
 {
-  SB_thread_context *pctx = (SB_thread_context *)data;
+  SB_thread_context *pctx = static_cast<SB_thread_context *>(data);
   _scan_for_ext_spring_forces(
       pctx->scene, pctx->ob, pctx->timenow, pctx->ifirst, pctx->ilast, pctx->effectors);
   return nullptr;
@@ -1474,7 +1480,7 @@ static void sb_sfesf_threads_run(Depsgraph *depsgraph,
                                  int *ptr_to_break_func(void))
 {
   UNUSED_VARS(ptr_to_break_func);
-  ListBase threads;
+  ListBaseT<ThreadSlot> threads;
   SB_thread_context *sb_threads;
   int i, totthread, left, dec;
 
@@ -1482,7 +1488,7 @@ static void sb_sfesf_threads_run(Depsgraph *depsgraph,
    * or even be UI option sb->spawn_cf_threads_nopts */
   int lowsprings = 100;
 
-  ListBase *effectors = BKE_effectors_create(
+  ListBaseT<EffectorCache> *effectors = BKE_effectors_create(
       depsgraph, ob, nullptr, ob->soft->effector_weights, false);
 
   /* figure the number of threads while preventing pretty pointless threading overhead */
@@ -1900,7 +1906,7 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene,
                                                    int ifirst,
                                                    int ilast,
                                                    int *ptr_to_break_func(void),
-                                                   ListBase *effectors,
+                                                   ListBaseT<EffectorCache> *effectors,
                                                    int do_deflector,
                                                    float fieldfactor,
                                                    float windfactor)
@@ -2119,7 +2125,7 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene,
 
 static void *exec_softbody_calc_forces(void *data)
 {
-  SB_thread_context *pctx = (SB_thread_context *)data;
+  SB_thread_context *pctx = static_cast<SB_thread_context *>(data);
   _softbody_calc_forces_slice_in_a_thread(pctx->scene,
                                           pctx->ob,
                                           pctx->forcetime,
@@ -2140,13 +2146,13 @@ static void sb_cf_threads_run(Scene *scene,
                               float timenow,
                               int totpoint,
                               int *ptr_to_break_func(void),
-                              ListBase *effectors,
+                              ListBaseT<EffectorCache> *effectors,
                               int do_deflector,
                               float fieldfactor,
                               float windfactor)
 {
   UNUSED_VARS(ptr_to_break_func);
-  ListBase threads;
+  ListBaseT<ThreadSlot> threads;
   SB_thread_context *sb_threads;
   int i, totthread, left, dec;
 
@@ -2236,7 +2242,8 @@ static void softbody_calc_forces(
   }
 
   /* After spring scan because it uses effectors too. */
-  ListBase *effectors = BKE_effectors_create(depsgraph, ob, nullptr, sb->effector_weights, false);
+  ListBaseT<EffectorCache> *effectors = BKE_effectors_create(
+      depsgraph, ob, nullptr, sb->effector_weights, false);
 
   if (do_deflector) {
     float defforce[3];
@@ -2585,7 +2592,7 @@ static void interpolate_exciter(Object *ob, int timescale, int time)
 static void springs_from_mesh(Object *ob)
 {
   SoftBody *sb;
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
   BodyPoint *bp;
   int a;
   float scale = 1.0f;
@@ -2620,7 +2627,7 @@ static void springs_from_mesh(Object *ob)
 static void mesh_to_softbody(Object *ob)
 {
   SoftBody *sb;
-  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Mesh *mesh = blender::id_cast<Mesh *>(ob->data);
   const blender::Span<blender::int2> edges = mesh->edges();
   BodyPoint *bp;
   int a, totedge;
@@ -2706,7 +2713,7 @@ static void mesh_to_softbody(Object *ob)
 static void mesh_faces_to_scratch(Object *ob)
 {
   SoftBody *sb = ob->soft;
-  const Mesh *mesh = static_cast<const Mesh *>(ob->data);
+  const Mesh *mesh = blender::id_cast<const Mesh *>(ob->data);
   BodyFace *bodyface;
   int a;
   const blender::Span<int> corner_verts = mesh->corner_verts();
@@ -2848,7 +2855,7 @@ static void makelatticesprings(Lattice *lt, BodySpring *bs, int dostiff, Object 
 /* makes totally fresh start situation */
 static void lattice_to_softbody(Object *ob)
 {
-  Lattice *lt = static_cast<Lattice *>(ob->data);
+  Lattice *lt = blender::id_cast<Lattice *>(ob->data);
   SoftBody *sb;
   int totvert, totspring = 0, a;
   BodyPoint *bp;
@@ -2911,7 +2918,7 @@ static void lattice_to_softbody(Object *ob)
 /* makes totally fresh start situation */
 static void curve_surf_to_softbody(Object *ob)
 {
-  Curve *cu = static_cast<Curve *>(ob->data);
+  Curve *cu = blender::id_cast<Curve *>(ob->data);
   SoftBody *sb;
   BodyPoint *bp;
   BodySpring *bs;
@@ -2943,8 +2950,8 @@ static void curve_surf_to_softbody(Object *ob)
     setgoal = 1;
   }
 
-  LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
-    if (nu->bezt) {
+  for (Nurb &nu : cu->nurb) {
+    if (nu.bezt) {
       /* Bezier case; this is nicely said naive; who ever wrote this part,
        * it was not me (JOW) :).
        *
@@ -2954,7 +2961,7 @@ static void curve_surf_to_softbody(Object *ob)
        *
        * Not too hard to do, but needs some more code to care for;
        * some one may want look at it (JOW 2010/06/12). */
-      for (bezt = nu->bezt, a = 0; a < nu->pntsu; a++, bezt++, bp += 3, curindex += 3) {
+      for (bezt = nu.bezt, a = 0; a < nu.pntsu; a++, bezt++, bp += 3, curindex += 3) {
         if (setgoal) {
           bp->goal *= bezt->weight;
 
@@ -2989,7 +2996,7 @@ static void curve_surf_to_softbody(Object *ob)
       }
     }
     else {
-      for (bpnt = nu->bp, a = 0; a < nu->pntsu * nu->pntsv; a++, bpnt++, bp++, curindex++) {
+      for (bpnt = nu.bp, a = 0; a < nu.pntsu * nu.pntsv; a++, bpnt++, bp++, curindex++) {
         if (setgoal) {
           bp->goal *= bpnt->weight;
         }
@@ -3057,7 +3064,7 @@ SoftBody *sbNew()
 {
   SoftBody *sb;
 
-  sb = MEM_callocN<SoftBody>("softbody");
+  sb = MEM_new_for_free<SoftBody>("softbody");
 
   sb->mediafrict = 0.5f;
   sb->nodemass = 1.0f;
@@ -3093,7 +3100,7 @@ SoftBody *sbNew()
   sb->shearstiff = 1.0f;
   sb->solverflags |= SBSO_OLDERR;
 
-  sb->shared = MEM_callocN<SoftBody_Shared>("SoftBody_Shared");
+  sb->shared = MEM_new_for_free<SoftBody_Shared>("SoftBody_Shared");
   sb->shared->pointcache = BKE_ptcache_add(&sb->shared->ptcaches);
 
   if (!sb->effector_weights) {
@@ -3145,7 +3152,7 @@ void sbObjectToSoftbody(Object *ob)
 static bool object_has_edges(const Object *ob)
 {
   if (ob->type == OB_MESH) {
-    return ((Mesh *)ob->data)->edges_num;
+    return (blender::id_cast<Mesh *>(ob->data))->edges_num;
   }
   if (ob->type == OB_LATTICE) {
     return true;

@@ -67,8 +67,8 @@ static bool wm_check_screen_switch_supported(const bScreen *screen)
 
 static bool wm_check_window_exists(const Main *bmain, const wmWindow *win)
 {
-  LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
-    if (BLI_findindex(&wm->windows, win) != -1) {
+  for (wmWindowManager &wm : bmain->wm) {
+    if (BLI_findindex(&wm.windows, win) != -1) {
       return true;
     }
   }
@@ -272,12 +272,12 @@ static bool bpy_rna_context_temp_override_enter_ok_or_error(const BPyContextTemp
         return false;
       }
 
-      LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
-        LISTBASE_FOREACH (wmWindow *, win_iter, &wm->windows) {
-          if (win_iter == win) {
+      for (wmWindowManager &wm : bmain->wm) {
+        for (wmWindow &win_iter : wm.windows) {
+          if (&win_iter == win) {
             continue;
           }
-          if (screen == WM_window_get_active_screen(win_iter)) {
+          if (screen == WM_window_get_active_screen(&win_iter)) {
             PyErr_SetString(PyExc_TypeError, "Screen is used by another window");
             return false;
           }
@@ -535,7 +535,9 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
   bool enable = true;
 
   static const char *kwlist[] = {"", nullptr};
-  if (!PyArg_ParseTupleAndKeywords(args, kwds, "O&", (char **)kwlist, PyC_ParseBool, &enable)) {
+  if (!PyArg_ParseTupleAndKeywords(
+          args, kwds, "O&", const_cast<char **>(kwlist), PyC_ParseBool, &enable))
+  {
     return nullptr;
   }
 
@@ -557,10 +559,10 @@ static PyObject *bpy_rna_context_temp_override_logging_set(BPyContextTempOverrid
 #endif
 
 static PyMethodDef bpy_rna_context_temp_override_methods[] = {
-    {"__enter__", (PyCFunction)bpy_rna_context_temp_override_enter, METH_NOARGS},
-    {"__exit__", (PyCFunction)bpy_rna_context_temp_override_exit, METH_VARARGS},
+    {"__enter__", reinterpret_cast<PyCFunction>(bpy_rna_context_temp_override_enter), METH_NOARGS},
+    {"__exit__", reinterpret_cast<PyCFunction>(bpy_rna_context_temp_override_exit), METH_VARARGS},
     {"logging_set",
-     (PyCFunction)bpy_rna_context_temp_override_logging_set,
+     reinterpret_cast<PyCFunction>(bpy_rna_context_temp_override_logging_set),
      METH_VARARGS | METH_KEYWORDS},
     {nullptr},
 };
@@ -578,7 +580,7 @@ static PyTypeObject BPyContextTempOverride_Type = {
     /*tp_name*/ "ContextTempOverride",
     /*tp_basicsize*/ sizeof(BPyContextTempOverride),
     /*tp_itemsize*/ 0,
-    /*tp_dealloc*/ (destructor)bpy_rna_context_temp_override_dealloc,
+    /*tp_dealloc*/ reinterpret_cast<destructor>(bpy_rna_context_temp_override_dealloc),
     /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
@@ -595,8 +597,8 @@ static PyTypeObject BPyContextTempOverride_Type = {
     /*tp_as_buffer*/ nullptr,
     /*tp_flags*/ Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC,
     /*tp_doc*/ nullptr,
-    /*tp_traverse*/ (traverseproc)bpy_rna_context_temp_override_traverse,
-    /*tp_clear*/ (inquiry)bpy_rna_context_temp_override_clear,
+    /*tp_traverse*/ reinterpret_cast<traverseproc>(bpy_rna_context_temp_override_traverse),
+    /*tp_clear*/ reinterpret_cast<inquiry>(bpy_rna_context_temp_override_clear),
     /*tp_richcompare*/ nullptr,
     /*tp_weaklistoffset*/ 0,
     /*tp_iter*/ nullptr,
@@ -813,7 +815,7 @@ static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObj
 
   PyObject_GC_Track(ret);
 
-  return (PyObject *)ret;
+  return reinterpret_cast<PyObject *>(ret);
 }
 
 /** \} */
@@ -834,7 +836,7 @@ static PyObject *bpy_context_temp_override(PyObject *self, PyObject *args, PyObj
 
 PyMethodDef BPY_rna_context_temp_override_method_def = {
     "temp_override",
-    (PyCFunction)bpy_context_temp_override,
+    reinterpret_cast<PyCFunction>(bpy_context_temp_override),
     METH_VARARGS | METH_KEYWORDS,
     bpy_context_temp_override_doc,
 };

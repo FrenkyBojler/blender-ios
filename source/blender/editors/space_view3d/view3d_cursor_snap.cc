@@ -53,7 +53,7 @@ struct SnapStateIntern {
 
 struct SnapCursorDataIntern {
   V3DSnapCursorState state_default;
-  ListBase state_intern;
+  ListBaseT<SnapStateIntern> state_intern;
   V3DSnapCursorData snap_data;
 
   blender::ed::transform::SnapObjectContext *snap_context_v3d;
@@ -184,8 +184,7 @@ static void v3d_cursor_plane_draw_grid(const int resolution,
   immBindBuiltinProgram(GPU_SHADER_3D_SMOOTH_COLOR);
 
   const size_t coords_len = resolution * resolution;
-  float (*coords)[3] = static_cast<float (*)[3]>(
-      MEM_mallocN(sizeof(*coords) * coords_len, __func__));
+  float (*coords)[3] = MEM_malloc_arrayN<float[3]>(coords_len, __func__);
 
   const int axis_x = (plane_axis + 0) % 3;
   const int axis_y = (plane_axis + 1) % 3;
@@ -543,16 +542,16 @@ static bool v3d_cursor_is_snap_invert(SnapCursorDataIntern *data_intern, uint8_t
 
   const wmWindowManager *wm = static_cast<wmWindowManager *>(G.main->wm.first);
   wmKeyMap *keymap = WM_keymap_active(wm, data_intern->keymap);
-  LISTBASE_FOREACH (const wmKeyMapItem *, kmi, &keymap->items) {
-    if (kmi->flag & KMI_INACTIVE) {
+  for (const wmKeyMapItem &kmi : keymap->items) {
+    if (kmi.flag & KMI_INACTIVE) {
       continue;
     }
 
-    if (kmi->propvalue == snap_on) {
-      if ((ELEM(kmi->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) && (event_modifier & KM_CTRL)) ||
-          (ELEM(kmi->type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) && (event_modifier & KM_SHIFT)) ||
-          (ELEM(kmi->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event_modifier & KM_ALT)) ||
-          ((kmi->type == EVT_OSKEY) && (event_modifier & KM_OSKEY)))
+    if (kmi.propvalue == snap_on) {
+      if ((ELEM(kmi.type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) && (event_modifier & KM_CTRL)) ||
+          (ELEM(kmi.type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) && (event_modifier & KM_SHIFT)) ||
+          (ELEM(kmi.type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event_modifier & KM_ALT)) ||
+          ((kmi.type == EVT_OSKEY) && (event_modifier & KM_OSKEY)))
       {
         return true;
       }
@@ -598,8 +597,8 @@ static void v3d_cursor_snap_context_ensure(Scene *scene)
 static bool v3d_cursor_snap_calc_plane()
 {
   /* If any of the states require the plane, calculate the `plane_omat`. */
-  LISTBASE_FOREACH (SnapStateIntern *, state, &g_data_intern.state_intern) {
-    if (state->snap_state.draw_plane || state->snap_state.draw_box) {
+  for (SnapStateIntern &state : g_data_intern.state_intern) {
+    if (state.snap_state.draw_plane || state.snap_state.draw_box) {
       return true;
     }
   }
@@ -956,7 +955,7 @@ V3DSnapCursorState *ED_view3d_cursor_snap_state_active_get()
   if (BLI_listbase_is_empty(&data_intern->state_intern)) {
     return &g_data_intern.state_default;
   }
-  return &((SnapStateIntern *)data_intern->state_intern.last)->snap_state;
+  return &(static_cast<SnapStateIntern *>(data_intern->state_intern.last))->snap_state;
 }
 
 void ED_view3d_cursor_snap_state_active_set(V3DSnapCursorState *state)
@@ -967,7 +966,7 @@ void ED_view3d_cursor_snap_state_active_set(V3DSnapCursorState *state)
   }
 
   SnapStateIntern *state_intern = STATE_INTERN_GET(state);
-  if (state_intern == (SnapStateIntern *)g_data_intern.state_intern.last) {
+  if (state_intern == static_cast<SnapStateIntern *>(g_data_intern.state_intern.last)) {
     return;
   }
 
@@ -989,7 +988,8 @@ static void v3d_cursor_snap_activate()
        * TODO: ED_view3d_cursor_snap_init */
 
 #ifdef USE_SNAP_DETECT_FROM_KEYMAP_HACK
-      wmKeyConfig *keyconf = ((wmWindowManager *)G.main->wm.first)->runtime->defaultconf;
+      wmKeyConfig *keyconf =
+          (static_cast<wmWindowManager *>(G.main->wm.first))->runtime->defaultconf;
 
       data_intern->keymap = WM_modalkeymap_find(keyconf, "Generic Gizmo Tweak Modal Map");
       RNA_enum_value_from_id(
@@ -1042,8 +1042,7 @@ V3DSnapCursorState *ED_view3d_cursor_snap_state_create()
     v3d_cursor_snap_activate();
   }
 
-  SnapStateIntern *state_intern = static_cast<SnapStateIntern *>(
-      MEM_mallocN(sizeof(*state_intern), __func__));
+  SnapStateIntern *state_intern = MEM_mallocN<SnapStateIntern>(__func__);
   state_intern->snap_state = g_data_intern.state_default;
   BLI_addtail(&g_data_intern.state_intern, state_intern);
 

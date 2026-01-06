@@ -13,7 +13,6 @@
 
 #include "BLO_read_write.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -42,11 +41,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   auto *gpmd = reinterpret_cast<GreasePencilWeightProximityModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(gpmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(
-      gpmd, DNA_struct_default_get(GreasePencilWeightProximityModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
   modifier::greasepencil::init_influence_data(&gpmd->influence, false);
 }
 
@@ -80,7 +75,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
   modifier::greasepencil::foreach_influence_ID_link(&mmd->influence, ob, walk, user_data);
 
-  walk(user_data, ob, (ID **)&mmd->object, IDWALK_CB_NOP);
+  walk(user_data, ob, reinterpret_cast<ID **>(&mmd->object), IDWALK_CB_NOP);
 }
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
@@ -98,7 +93,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
   const GreasePencilWeightProximityModifierData *mmd =
       reinterpret_cast<const GreasePencilWeightProximityModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilWeightProximityModifierData, mmd);
+  writer->write_struct(mmd);
   modifier::greasepencil::write_influence_data(writer, &mmd->influence);
 }
 
@@ -142,7 +137,7 @@ static float get_distance_factor(float3 target_pos,
 }
 
 static bool target_vertex_group_available(const StringRefNull name,
-                                          const ListBase &vertex_group_names)
+                                          const ListBaseT<bDeformGroup> &vertex_group_names)
 {
   const int def_nr = BKE_defgroup_name_index(&vertex_group_names, name);
   if (def_nr < 0) {

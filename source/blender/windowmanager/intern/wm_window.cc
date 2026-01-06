@@ -263,22 +263,22 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
   BKE_screen_area_map_free(&win->global_areas);
 
   /* End running jobs, a job end also removes its timer. */
-  LISTBASE_FOREACH_MUTABLE (wmTimer *, wt, &wm->runtime->timers) {
-    if (wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
+  for (wmTimer &wt : wm->runtime->timers.items_mutable()) {
+    if (wt.flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
       continue;
     }
-    if (wt->win == win && wt->event_type == TIMERJOBS) {
-      wm_jobs_timer_end(wm, wt);
+    if (wt.win == win && wt.event_type == TIMERJOBS) {
+      wm_jobs_timer_end(wm, &wt);
     }
   }
 
   /* Timer removing, need to call this API function. */
-  LISTBASE_FOREACH_MUTABLE (wmTimer *, wt, &wm->runtime->timers) {
-    if (wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
+  for (wmTimer &wt : wm->runtime->timers.items_mutable()) {
+    if (wt.flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
       continue;
     }
-    if (wt->win == win) {
-      WM_event_timer_remove(wm, win, wt);
+    if (wt.win == win) {
+      WM_event_timer_remove(wm, win, &wt);
     }
   }
   wm_window_timers_delete_removed(wm);
@@ -314,9 +314,9 @@ static int find_free_winid(wmWindowManager *wm)
 {
   int id = 1;
 
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    if (id <= win->winid) {
-      id = win->winid + 1;
+  for (wmWindow &win : wm->windows) {
+    if (id <= win.winid) {
+      id = win.winid + 1;
     }
   }
   return id;
@@ -324,14 +324,14 @@ static int find_free_winid(wmWindowManager *wm)
 
 wmWindow *wm_window_new(const Main *bmain, wmWindowManager *wm, wmWindow *parent, bool dialog)
 {
-  wmWindow *win = MEM_callocN<wmWindow>("window");
+  wmWindow *win = MEM_new_for_free<wmWindow>("window");
 
   BLI_addtail(&wm->windows, win);
   win->winid = find_free_winid(wm);
 
   /* Dialogs may have a child window as parent. Otherwise, a child must not be a parent too. */
   win->parent = (!dialog && parent && parent->parent) ? parent->parent : parent;
-  win->stereo3d_format = MEM_callocN<Stereo3dFormat>("Stereo 3D Format (window)");
+  win->stereo3d_format = MEM_new_for_free<Stereo3dFormat>("Stereo 3D Format (window)");
   win->workspace_hook = BKE_workspace_instance_hook_create(bmain, win->winid);
   win->runtime = MEM_new<blender::bke::WindowRuntime>(__func__);
 
@@ -406,7 +406,7 @@ static void wm_save_file_on_quit_dialog_callback(bContext *C, void * /*user_data
  */
 static void wm_confirm_quit(bContext *C)
 {
-  wmGenericCallback *action = MEM_callocN<wmGenericCallback>(__func__);
+  wmGenericCallback *action = MEM_new_for_free<wmGenericCallback>(__func__);
   action->exec = wm_save_file_on_quit_dialog_callback;
   wm_close_file_dialog(C, action);
 }
@@ -506,9 +506,9 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
   }
 
   /* Close child windows. */
-  LISTBASE_FOREACH_MUTABLE (wmWindow *, iter_win, &wm->windows) {
-    if (iter_win->parent == win) {
-      wm_window_close(C, wm, iter_win);
+  for (wmWindow &iter_win : wm->windows.items_mutable()) {
+    if (iter_win.parent == win) {
+      wm_window_close(C, wm, &iter_win);
     }
   }
 
@@ -938,7 +938,7 @@ static void wm_window_ensure_eventstate(wmWindow *win)
     return;
   }
 
-  win->runtime->eventstate = MEM_callocN<wmEvent>("window event state");
+  win->runtime->eventstate = MEM_new_for_free<wmEvent>("window event state");
   wm_window_update_eventstate(win);
 }
 
@@ -993,7 +993,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
       posy,
       win->sizex,
       win->sizey,
-      (GHOST_TWindowState)win->windowstate,
+      GHOST_TWindowState(win->windowstate),
       is_dialog,
       gpu_settings);
 
@@ -1024,7 +1024,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
 #ifndef __APPLE__
     /* Set the state here, so minimized state comes up correct on windows. */
     if (wm_init_state.window_focus) {
-      GHOST_SetWindowState(ghostwin, (GHOST_TWindowState)win->windowstate);
+      GHOST_SetWindowState(ghostwin, GHOST_TWindowState(win->windowstate));
     }
 #endif
 
@@ -1128,7 +1128,7 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
 
   /* Add drop boxes. */
   {
-    ListBase *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
+    ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_dropbox_handler(&win->runtime->handlers, lb);
   }
 
@@ -1169,8 +1169,8 @@ void wm_window_ghostwindows_ensure(wmWindowManager *wm)
     wm_init_state.start = blender::int2(0);
   }
 
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    wm_window_ghostwindow_ensure(wm, win, false);
+  for (wmWindow &win : wm->windows) {
+    wm_window_ghostwindow_ensure(wm, &win, false);
   }
 }
 
@@ -1178,9 +1178,9 @@ void wm_window_ghostwindows_remove_invalid(bContext *C, wmWindowManager *wm)
 {
   BLI_assert(G.background == false);
 
-  LISTBASE_FOREACH_MUTABLE (wmWindow *, win, &wm->windows) {
-    if (win->runtime->ghostwin == nullptr) {
-      wm_window_close(C, wm, win);
+  for (wmWindow &win : wm->windows.items_mutable()) {
+    if (win.runtime->ghostwin == nullptr) {
+      wm_window_close(C, wm, &win);
     }
   }
 }
@@ -1275,12 +1275,12 @@ wmWindow *WM_window_open(bContext *C,
   /* Reuse temporary windows when they share the same single area. */
   wmWindow *win = nullptr;
   if (temp) {
-    LISTBASE_FOREACH (wmWindow *, win_iter, &wm->windows) {
-      const bScreen *screen = WM_window_get_active_screen(win_iter);
+    for (wmWindow &win_iter : wm->windows) {
+      const bScreen *screen = WM_window_get_active_screen(&win_iter);
       if (screen && screen->temp && BLI_listbase_is_single(&screen->areabase)) {
         ScrArea *area = static_cast<ScrArea *>(screen->areabase.first);
         if (space_type == (area->butspacetype ? area->butspacetype : area->spacetype)) {
-          win = win_iter;
+          win = &win_iter;
           break;
         }
       }
@@ -1992,13 +1992,15 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
 
         if (stra->count) {
           CLOG_INFO(WM_LOG_EVENTS, "Drop %d files:", stra->count);
-          for (const char *path : blender::Span((char **)stra->strings, stra->count)) {
+          for (const char *path :
+               blender::Span(reinterpret_cast<char **>(stra->strings), stra->count))
+          {
             CLOG_INFO(WM_LOG_EVENTS, "%s", path);
           }
           /* Try to get icon type from extension of the first path. */
-          int icon = ED_file_extension_icon((char *)stra->strings[0]);
+          int icon = ED_file_extension_icon(reinterpret_cast<char *>(stra->strings[0]));
           wmDragPath *path_data = WM_drag_create_path_data(
-              blender::Span((char **)stra->strings, stra->count));
+              blender::Span(reinterpret_cast<char **>(stra->strings), stra->count));
           WM_event_start_drag(C, icon, WM_DRAG_PATH, path_data, WM_DRAG_NOP);
           /* Void pointer should point to string, it makes a copy. */
         }
@@ -2075,51 +2077,51 @@ static bool wm_window_timers_process(const bContext *C, int *sleep_us_p)
   double ntime_min = DBL_MAX;
 
   /* Mutable in case the timer gets removed. */
-  LISTBASE_FOREACH_MUTABLE (wmTimer *, wt, &wm->runtime->timers) {
-    if (wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
+  for (wmTimer &wt : wm->runtime->timers.items_mutable()) {
+    if (wt.flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
       continue;
     }
-    if (wt->sleep == true) {
+    if (wt.sleep == true) {
       continue;
     }
 
     /* Future timer, update nearest time & skip. */
-    if (wt->time_next >= time) {
+    if (wt.time_next >= time) {
       if ((has_event == false) && (sleep_us != 0)) {
         /* The timer is not ready to run but may run shortly. */
-        ntime_min = std::min(wt->time_next, ntime_min);
+        ntime_min = std::min(wt.time_next, ntime_min);
       }
       continue;
     }
 
-    wt->time_delta = time - wt->time_last;
-    wt->time_duration += wt->time_delta;
-    wt->time_last = time;
+    wt.time_delta = time - wt.time_last;
+    wt.time_duration += wt.time_delta;
+    wt.time_last = time;
 
-    wt->time_next = wt->time_start;
-    if (wt->time_step != 0.0f) {
-      wt->time_next += wt->time_step * ceil(wt->time_duration / wt->time_step);
+    wt.time_next = wt.time_start;
+    if (wt.time_step != 0.0f) {
+      wt.time_next += wt.time_step * ceil(wt.time_duration / wt.time_step);
     }
 
-    if (wt->event_type == TIMERJOBS) {
-      wm_jobs_timer(wm, wt);
+    if (wt.event_type == TIMERJOBS) {
+      wm_jobs_timer(wm, &wt);
     }
-    else if (wt->event_type == TIMERAUTOSAVE) {
-      wm_autosave_timer(bmain, wm, wt);
+    else if (wt.event_type == TIMERAUTOSAVE) {
+      wm_autosave_timer(bmain, wm, &wt);
     }
-    else if (wt->event_type == TIMERNOTIFIER) {
-      WM_main_add_notifier(POINTER_AS_UINT(wt->customdata), nullptr);
+    else if (wt.event_type == TIMERNOTIFIER) {
+      WM_main_add_notifier(POINTER_AS_UINT(wt.customdata), nullptr);
     }
-    else if (wmWindow *win = wt->win) {
+    else if (wmWindow *win = wt.win) {
       wmEvent event;
       wm_event_init_from_window(win, &event);
 
-      event.type = wt->event_type;
+      event.type = wt.event_type;
       event.val = KM_NOTHING;
       event.keymodifier = EVENT_NONE;
       event.flag = eWM_EventFlag(0);
       event.custom = EVT_DATA_TIMER;
-      event.customdata = wt;
+      event.customdata = &wt;
       WM_event_add(win, &event);
 
       has_event = true;
@@ -2227,7 +2229,7 @@ void wm_ghost_init(bContext *C)
 
   consumer = GHOST_CreateEventConsumer(ghost_event_proc, C);
 
-  GHOST_SetBacktraceHandler((GHOST_TBacktraceFn)BLI_system_backtrace);
+  GHOST_SetBacktraceHandler(reinterpret_cast<GHOST_TBacktraceFn>(BLI_system_backtrace));
   GHOST_UseWindowFrame(wm_init_state.window_frame);
 
   g_system = GHOST_CreateSystem();
@@ -2278,7 +2280,7 @@ void wm_ghost_init_background()
     return;
   }
 
-  GHOST_SetBacktraceHandler((GHOST_TBacktraceFn)BLI_system_backtrace);
+  GHOST_SetBacktraceHandler(reinterpret_cast<GHOST_TBacktraceFn>(BLI_system_backtrace));
 
   g_system = GHOST_CreateSystemBackground();
   GPU_backend_ghost_system_set(g_system);
@@ -2510,14 +2512,14 @@ wmTimer *WM_event_timer_add_notifier(wmWindowManager *wm,
 
 void wm_window_timers_delete_removed(wmWindowManager *wm)
 {
-  LISTBASE_FOREACH_MUTABLE (wmTimer *, wt, &wm->runtime->timers) {
-    if ((wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) == 0) {
+  for (wmTimer &wt : wm->runtime->timers.items_mutable()) {
+    if ((wt.flags & WM_TIMER_TAGGED_FOR_REMOVAL) == 0) {
       continue;
     }
 
     /* Actual removal and freeing of the timer. */
-    BLI_remlink(&wm->runtime->timers, wt);
-    MEM_freeN(wt);
+    BLI_remlink(&wm->runtime->timers, &wt);
+    MEM_freeN(&wt);
   }
 }
 
@@ -2543,11 +2545,11 @@ void WM_event_timer_remove(wmWindowManager *wm, wmWindow * /*win*/, wmTimer *tim
     wm->runtime->reports.reporttimer = nullptr;
   }
   /* There might be events in queue with this timer as customdata. */
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    LISTBASE_FOREACH (wmEvent *, event, &win->runtime->event_queue) {
-      if (event->customdata == timer) {
-        event->customdata = nullptr;
-        event->type = EVENT_NONE; /* Timer users customdata, don't want `nullptr == nullptr`. */
+  for (wmWindow &win : wm->windows) {
+    for (wmEvent &event : win.runtime->event_queue) {
+      if (event.customdata == timer) {
+        event.customdata = nullptr;
+        event.type = EVENT_NONE; /* Timer users customdata, don't want `nullptr == nullptr`. */
       }
     }
   }
@@ -2756,7 +2758,7 @@ ImBuf *WM_clipboard_image_get()
 
   int width, height;
 
-  uint8_t *rgba = (uint8_t *)GHOST_getClipboardImage(&width, &height);
+  uint8_t *rgba = reinterpret_cast<uint8_t *>(GHOST_getClipboardImage(&width, &height));
   if (!rgba) {
     return nullptr;
   }
@@ -2776,7 +2778,8 @@ bool WM_clipboard_image_set_byte_buffer(ImBuf *ibuf)
     return false;
   }
 
-  bool success = bool(GHOST_putClipboardImage((uint *)ibuf->byte_buffer.data, ibuf->x, ibuf->y));
+  bool success = bool(
+      GHOST_putClipboardImage(reinterpret_cast<uint *>(ibuf->byte_buffer.data), ibuf->x, ibuf->y));
 
   return success;
 }
@@ -2905,10 +2908,10 @@ wmWindow *WM_window_find_under_cursor(wmWindow *win,
 
 wmWindow *WM_window_find_by_area(wmWindowManager *wm, const ScrArea *area)
 {
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    bScreen *sc = WM_window_get_active_screen(win);
+  for (wmWindow &win : wm->windows) {
+    bScreen *sc = WM_window_get_active_screen(&win);
     if (BLI_findindex(&sc->areabase, area) != -1) {
-      return win;
+      return &win;
     }
   }
   return nullptr;
@@ -3104,14 +3107,14 @@ void WM_window_screen_rect_calc(const wmWindow *win, rcti *r_rect)
   screen_rect = window_rect;
 
   /* Subtract global areas from screen rectangle. */
-  LISTBASE_FOREACH (ScrArea *, global_area, &win->global_areas.areabase) {
-    int height = ED_area_global_size_y(global_area) - 1;
+  for (ScrArea &global_area : win->global_areas.areabase) {
+    int height = ED_area_global_size_y(&global_area) - 1;
 
-    if (global_area->global->flag & GLOBAL_AREA_IS_HIDDEN) {
+    if (global_area.global->flag & GLOBAL_AREA_IS_HIDDEN) {
       continue;
     }
 
-    switch (global_area->global->align) {
+    switch (global_area.global->align) {
       case GLOBAL_AREA_ALIGN_TOP:
         screen_rect.ymax -= height;
         break;
@@ -3165,20 +3168,20 @@ bool WM_window_support_hdr_color(const wmWindow *win)
 /** \name Window Screen/Scene/WorkSpaceViewLayer API
  * \{ */
 
-void WM_windows_scene_data_sync(const ListBase *win_lb, Scene *scene)
+void WM_windows_scene_data_sync(const ListBaseT<wmWindow> *win_lb, Scene *scene)
 {
-  LISTBASE_FOREACH (wmWindow *, win, win_lb) {
-    if (WM_window_get_active_scene(win) == scene) {
-      ED_workspace_scene_data_sync(win->workspace_hook, scene);
+  for (wmWindow &win : *win_lb) {
+    if (WM_window_get_active_scene(&win) == scene) {
+      ED_workspace_scene_data_sync(win.workspace_hook, scene);
     }
   }
 }
 
 Scene *WM_windows_scene_get_from_screen(const wmWindowManager *wm, const bScreen *screen)
 {
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    if (WM_window_get_active_screen(win) == screen) {
-      return WM_window_get_active_scene(win);
+  for (wmWindow &win : wm->windows) {
+    if (WM_window_get_active_screen(&win) == screen) {
+      return WM_window_get_active_scene(&win);
     }
   }
 
@@ -3187,9 +3190,9 @@ Scene *WM_windows_scene_get_from_screen(const wmWindowManager *wm, const bScreen
 
 ViewLayer *WM_windows_view_layer_get_from_screen(const wmWindowManager *wm, const bScreen *screen)
 {
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    if (WM_window_get_active_screen(win) == screen) {
-      return WM_window_get_active_view_layer(win);
+  for (wmWindow &win : wm->windows) {
+    if (WM_window_get_active_screen(&win) == screen) {
+      return WM_window_get_active_view_layer(&win);
     }
   }
 
@@ -3198,9 +3201,9 @@ ViewLayer *WM_windows_view_layer_get_from_screen(const wmWindowManager *wm, cons
 
 WorkSpace *WM_windows_workspace_get_from_screen(const wmWindowManager *wm, const bScreen *screen)
 {
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    if (WM_window_get_active_screen(win) == screen) {
-      return WM_window_get_active_workspace(win);
+  for (wmWindow &win : wm->windows) {
+    if (WM_window_get_active_screen(&win) == screen) {
+      return WM_window_get_active_workspace(&win);
     }
   }
   return nullptr;
@@ -3223,9 +3226,9 @@ void WM_window_set_active_scene(Main *bmain, bContext *C, wmWindow *win, Scene *
     changed = true;
   }
 
-  LISTBASE_FOREACH (wmWindow *, win_child, &wm->windows) {
-    if (win_child->parent == win_parent && win_child->scene != scene) {
-      ED_screen_scene_change(C, win_child, scene, true);
+  for (wmWindow &win_child : wm->windows) {
+    if (win_child.parent == win_parent && win_child.scene != scene) {
+      ED_screen_scene_change(C, &win_child, scene, true);
       changed = true;
     }
   }
@@ -3254,7 +3257,7 @@ ViewLayer *WM_window_get_active_view_layer(const wmWindow *win)
 
   view_layer = BKE_view_layer_default_view(scene);
   if (view_layer) {
-    WM_window_set_active_view_layer((wmWindow *)win, view_layer);
+    WM_window_set_active_view_layer(const_cast<wmWindow *>(win), view_layer);
   }
 
   return view_layer;
@@ -3269,10 +3272,10 @@ void WM_window_set_active_view_layer(wmWindow *win, ViewLayer *view_layer)
   wmWindow *win_parent = (win->parent) ? win->parent : win;
 
   /* Set view layer in parent and child windows. */
-  LISTBASE_FOREACH (wmWindow *, win_iter, &wm->windows) {
-    if ((win_iter == win_parent) || (win_iter->parent == win_parent)) {
-      STRNCPY_UTF8(win_iter->view_layer_name, view_layer->name);
-      bScreen *screen = BKE_workspace_active_screen_get(win_iter->workspace_hook);
+  for (wmWindow &win_iter : wm->windows) {
+    if ((&win_iter == win_parent) || (win_iter.parent == win_parent)) {
+      STRNCPY_UTF8(win_iter.view_layer_name, view_layer->name);
+      bScreen *screen = BKE_workspace_active_screen_get(win_iter.workspace_hook);
       ED_render_view_layer_changed(bmain, screen);
     }
   }
@@ -3301,14 +3304,14 @@ void WM_window_set_active_workspace(bContext *C, wmWindow *win, WorkSpace *works
 
   ED_workspace_change(workspace, C, wm, win);
 
-  LISTBASE_FOREACH (wmWindow *, win_child, &wm->windows) {
-    if (win_child->parent == win_parent) {
-      bScreen *screen = WM_window_get_active_screen(win_child);
+  for (wmWindow &win_child : wm->windows) {
+    if (win_child.parent == win_parent) {
+      bScreen *screen = WM_window_get_active_screen(&win_child);
       /* Don't change temporary screens, they only serve a single purpose. */
       if (screen->temp) {
         continue;
       }
-      ED_workspace_change(workspace, C, wm, win_child);
+      ED_workspace_change(workspace, C, wm, &win_child);
     }
   }
 }
@@ -3426,19 +3429,19 @@ void *WM_system_gpu_context_create()
 void WM_system_gpu_context_dispose(void *context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  GHOST_DisposeGPUContext(g_system, (GHOST_ContextHandle)context);
+  GHOST_DisposeGPUContext(g_system, static_cast<GHOST_ContextHandle>(context));
 }
 
 void WM_system_gpu_context_activate(void *context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  GHOST_ActivateGPUContext((GHOST_ContextHandle)context);
+  GHOST_ActivateGPUContext(static_cast<GHOST_ContextHandle>(context));
 }
 
 void WM_system_gpu_context_release(void *context)
 {
   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
-  GHOST_ReleaseGPUContext((GHOST_ContextHandle)context);
+  GHOST_ReleaseGPUContext(static_cast<GHOST_ContextHandle>(context));
 }
 
 void WM_ghost_show_message_box(const char *title,

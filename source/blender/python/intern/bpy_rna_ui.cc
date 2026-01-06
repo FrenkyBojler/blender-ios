@@ -29,14 +29,13 @@ PyDoc_STRVAR(
     "   :rtype: list[dict[str, Any]]\n");
 static PyObject *bpy_rna_uilayout_introspect(PyObject *self)
 {
-  BPy_StructRNA *pyrna = (BPy_StructRNA *)self;
+  BPy_StructRNA *pyrna = reinterpret_cast<BPy_StructRNA *>(self);
   blender::ui::Layout *layout = pyrna->ptr->data_as<blender::ui::Layout>();
 
-  const char *expr = UI_layout_introspect(layout);
+  std::string expr = layout_introspect(layout);
   PyObject *main_mod = PyC_MainModule_Backup();
   PyObject *py_dict = PyC_DefaultNameSpace("<introspect>");
-  PyObject *result = PyRun_String(expr, Py_eval_input, py_dict, py_dict);
-  MEM_freeN(expr);
+  PyObject *result = PyRun_String(expr.c_str(), Py_eval_input, py_dict, py_dict);
   Py_DECREF(py_dict);
   PyC_MainModule_Restore(main_mod);
   return result;
@@ -54,7 +53,7 @@ static PyObject *bpy_rna_uilayout_introspect(PyObject *self)
 
 PyMethodDef BPY_rna_uilayout_introspect_method_def = {
     "introspect",
-    (PyCFunction)bpy_rna_uilayout_introspect,
+    reinterpret_cast<PyCFunction>(bpy_rna_uilayout_introspect),
     METH_NOARGS,
     bpy_rna_uilayout_introspect_doc,
 };

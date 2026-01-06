@@ -101,8 +101,8 @@ static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback f
 static void localize(bNodeTree *localtree, bNodeTree *ntree)
 {
 
-  bNode *node = (bNode *)ntree->nodes.first;
-  bNode *local_node = (bNode *)localtree->nodes.first;
+  bNode *node = static_cast<bNode *>(ntree->nodes.first);
+  bNode *local_node = static_cast<bNode *>(localtree->nodes.first);
   while (node != nullptr) {
 
     /* Ensure new user input gets handled ok. */
@@ -122,18 +122,18 @@ static void local_merge(Main * /*bmain*/, bNodeTree *localtree, bNodeTree *ntree
   /* move over the compbufs and previews */
   blender::bke::node_preview_merge_tree(ntree, localtree, true);
 
-  LISTBASE_FOREACH (bNode *, lnode, &localtree->nodes) {
-    if (bNode *orig_node = blender::bke::node_find_node_by_name(*ntree, lnode->name)) {
-      if (lnode->type_legacy == CMP_NODE_MOVIEDISTORTION) {
+  for (bNode &lnode : localtree->nodes) {
+    if (bNode *orig_node = blender::bke::node_find_node_by_name(*ntree, lnode.name)) {
+      if (lnode.type_legacy == CMP_NODE_MOVIEDISTORTION) {
         /* special case for distortion node: distortion context is allocating in exec function
          * and to achieve much better performance on further calls this context should be
          * copied back to original node */
-        if (lnode->storage) {
+        if (lnode.storage) {
           if (orig_node->storage) {
             BKE_tracking_distortion_free((MovieDistortion *)orig_node->storage);
           }
 
-          orig_node->storage = BKE_tracking_distortion_copy((MovieDistortion *)lnode->storage);
+          orig_node->storage = BKE_tracking_distortion_copy((MovieDistortion *)lnode.storage);
         }
       }
     }
@@ -223,8 +223,8 @@ void ntreeCompositTagRender(Scene *scene)
    * This is still rather weak though,
    * ideally render struct would store its own main AND original G_MAIN. */
 
-  for (Scene *sce_iter = (Scene *)G_MAIN->scenes.first; sce_iter;
-       sce_iter = (Scene *)sce_iter->id.next)
+  for (Scene *sce_iter = static_cast<Scene *>(G_MAIN->scenes.first); sce_iter;
+       sce_iter = static_cast<Scene *>(sce_iter->id.next))
   {
     if (sce_iter->compositing_node_group) {
       for (bNode *node : sce_iter->compositing_node_group->all_nodes()) {
@@ -248,7 +248,7 @@ void ntreeCompositClearTags(bNodeTree *ntree)
   for (bNode *node : ntree->all_nodes()) {
     node->runtime->need_exec = 0;
     if (node->is_group()) {
-      ntreeCompositClearTags((bNodeTree *)node->id);
+      ntreeCompositClearTags(blender::id_cast<bNodeTree *>(node->id));
     }
   }
 }

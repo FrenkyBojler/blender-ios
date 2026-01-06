@@ -64,7 +64,7 @@ static SpaceLink *buttons_create(const ScrArea * /*area*/, const Scene * /*scene
   ARegion *region;
   SpaceProperties *sbuts;
 
-  sbuts = MEM_callocN<SpaceProperties>("initbuts");
+  sbuts = MEM_new_for_free<SpaceProperties>("initbuts");
 
   sbuts->runtime = MEM_new<SpaceProperties_Runtime>(__func__);
   sbuts->runtime->search_string[0] = '\0';
@@ -102,13 +102,13 @@ static SpaceLink *buttons_create(const ScrArea * /*area*/, const Scene * /*scene
   BLI_addtail(&sbuts->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
 
-  return (SpaceLink *)sbuts;
+  return reinterpret_cast<SpaceLink *>(sbuts);
 }
 
 /* Doesn't free the space-link itself. */
 static void buttons_free(SpaceLink *sl)
 {
-  SpaceProperties *sbuts = (SpaceProperties *)sl;
+  SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(sl);
 
   if (sbuts->path) {
     MEM_delete(static_cast<ButsContextPath *>(sbuts->path));
@@ -116,8 +116,8 @@ static void buttons_free(SpaceLink *sl)
 
   if (sbuts->texuser) {
     ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
-    LISTBASE_FOREACH_MUTABLE (ButsTextureUser *, user, &ct->users) {
-      MEM_delete(user);
+    for (ButsTextureUser &user : ct->users.items_mutable()) {
+      MEM_delete(&user);
     }
     BLI_listbase_clear(&ct->users);
     MEM_freeN(ct);
@@ -132,7 +132,7 @@ static void buttons_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static SpaceLink *buttons_duplicate(SpaceLink *sl)
 {
-  SpaceProperties *sfile_old = (SpaceProperties *)sl;
+  SpaceProperties *sfile_old = reinterpret_cast<SpaceProperties *>(sl);
   SpaceProperties *sbutsn = static_cast<SpaceProperties *>(MEM_dupallocN(sl));
 
   /* clear or remove stuff from old */
@@ -142,7 +142,7 @@ static SpaceLink *buttons_duplicate(SpaceLink *sl)
   sbutsn->runtime->search_string[0] = '\0';
   sbutsn->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT, __func__);
 
-  return (SpaceLink *)sbutsn;
+  return reinterpret_cast<SpaceLink *>(sbutsn);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -410,8 +410,8 @@ static void property_search_all_tabs(const bContext *C,
   /* Set the region visible field. Otherwise some layout code thinks we're drawing in a popup.
    * This likely isn't necessary, but it's nice to emulate a "real" region where possible. */
   region_copy->runtime->visible = true;
-  CTX_wm_area_set((bContext *)C, &area_copy);
-  CTX_wm_region_set((bContext *)C, region_copy);
+  CTX_wm_area_set(const_cast<bContext *>(C), &area_copy);
+  CTX_wm_region_set(const_cast<bContext *>(C), region_copy);
 
   SpaceProperties sbuts_copy = blender::dna::shallow_copy(*sbuts);
   sbuts_copy.path = nullptr;
@@ -445,10 +445,10 @@ static void property_search_all_tabs(const bContext *C,
 
   BKE_area_region_free(area_copy.type, region_copy);
   MEM_freeN(region_copy);
-  buttons_free((SpaceLink *)&sbuts_copy);
+  buttons_free(reinterpret_cast<SpaceLink *>(&sbuts_copy));
 
-  CTX_wm_area_set((bContext *)C, area_original);
-  CTX_wm_region_set((bContext *)C, region_original);
+  CTX_wm_area_set(const_cast<bContext *>(C), area_original);
+  CTX_wm_region_set(const_cast<bContext *>(C), region_original);
 }
 
 /**
@@ -466,8 +466,8 @@ static void buttons_main_region_property_search(const bContext *C,
 
   /* Check whether the current tab has a search match. */
   bool current_tab_has_search_match = false;
-  LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-    if (blender::ui::panel_is_active(panel) && blender::ui::panel_matches_search_filter(panel)) {
+  for (Panel &panel : region->panels) {
+    if (blender::ui::panel_is_active(&panel) && blender::ui::panel_matches_search_filter(&panel)) {
       current_tab_has_search_match = true;
     }
   }
@@ -677,8 +677,8 @@ static void buttons_navigation_bar_region_draw(const bContext *C, ARegion *regio
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   buttons_context_compute(C, sbuts);
 
-  LISTBASE_FOREACH (PanelType *, pt, &region->runtime->type->paneltypes) {
-    pt->flag |= PANEL_TYPE_LAYOUT_VERT_BAR;
+  for (PanelType &pt : region->runtime->type->paneltypes) {
+    pt.flag |= PANEL_TYPE_LAYOUT_VERT_BAR;
   }
 
   ED_region_panels_layout(C, region);
@@ -949,7 +949,7 @@ static void buttons_id_remap(ScrArea * /*area*/,
                              SpaceLink *slink,
                              const blender::bke::id::IDRemapper &mappings)
 {
-  SpaceProperties *sbuts = (SpaceProperties *)slink;
+  SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(slink);
 
   if (mappings.apply(&sbuts->pinid, ID_REMAP_APPLY_DEFAULT) == ID_REMAP_RESULT_SOURCE_UNASSIGNED) {
     sbuts->flag &= ~SB_PIN_CONTEXT;
@@ -998,8 +998,8 @@ static void buttons_id_remap(ScrArea * /*area*/,
   if (sbuts->texuser) {
     ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
     mappings.apply(reinterpret_cast<ID **>(&ct->texture), ID_REMAP_APPLY_DEFAULT);
-    LISTBASE_FOREACH_MUTABLE (ButsTextureUser *, user, &ct->users) {
-      MEM_delete(user);
+    for (ButsTextureUser &user : ct->users.items_mutable()) {
+      MEM_delete(&user);
     }
     BLI_listbase_clear(&ct->users);
     ct->user = nullptr;
@@ -1030,8 +1030,8 @@ static void buttons_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, ct->texture, IDWALK_CB_DIRECT_WEAK_LINK);
 
     if (!is_readonly) {
-      LISTBASE_FOREACH_MUTABLE (ButsTextureUser *, user, &ct->users) {
-        MEM_delete(user);
+      for (ButsTextureUser &user : ct->users.items_mutable()) {
+        MEM_delete(&user);
       }
       BLI_listbase_clear(&ct->users);
       ct->user = nullptr;
@@ -1041,7 +1041,7 @@ static void buttons_foreach_id(SpaceLink *space_link, LibraryForeachIDData *data
 
 static void buttons_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)
 {
-  SpaceProperties *sbuts = (SpaceProperties *)sl;
+  SpaceProperties *sbuts = reinterpret_cast<SpaceProperties *>(sl);
   sbuts->runtime = MEM_new<SpaceProperties_Runtime>(__func__);
   sbuts->runtime->search_string[0] = '\0';
   sbuts->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT * 2, __func__);
@@ -1065,7 +1065,7 @@ static void buttons_space_blend_read_after_liblink(BlendLibReader * /*reader*/,
 
 static void buttons_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceProperties, sl);
+  writer->write_struct_cast<SpaceProperties>(sl);
 }
 
 /** \} */

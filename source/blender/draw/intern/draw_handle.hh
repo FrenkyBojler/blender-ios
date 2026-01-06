@@ -256,9 +256,9 @@ class ObjectRef {
     if (dupli_parent_ == nullptr) {
       /* TODO(fclem): this is rather costly to do at draw time. Maybe we can
        * put it in ob->runtime and make depsgraph ensure it is up to date. */
-      return BLI_hash_int_2d(BLI_hash_string(object->id.name + 2), 0) * (1.0f / (float)0xFFFFFFFF);
+      return BLI_hash_int_2d(BLI_hash_string(object->id.name + 2), 0) * (1.0f / float(0xFFFFFFFF));
     }
-    return dupli_object_->random_id * (1.0f / (float)0xFFFFFFFF);
+    return dupli_object_->random_id * (1.0f / float(0xFFFFFFFF));
   }
 
   bool find_rgba_attribute(const GPUUniformAttr &attr, float r_value[4]) const
@@ -287,7 +287,7 @@ class ObjectRef {
   int recalc_flags(uint64_t last_update) const
   {
     /* TODO: There should also be a way to get the min last_update for all objects in the range. */
-    auto get_flags = [&](const ObjectRuntimeHandle &runtime) {
+    auto get_flags = [&](const blender::bke::ObjectRuntime &runtime) {
       int flags = 0;
       SET_FLAG_FROM_TEST(flags, runtime.last_update_transform > last_update, ID_RECALC_TRANSFORM);
       SET_FLAG_FROM_TEST(flags, runtime.last_update_geometry > last_update, ID_RECALC_GEOMETRY);

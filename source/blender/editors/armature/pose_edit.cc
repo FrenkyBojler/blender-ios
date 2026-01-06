@@ -385,11 +385,11 @@ static void pose_clear_paths(Object *ob, bool only_selected)
   }
 
   /* free the motionpath blocks for all bones - This is easier for users to quickly clear all */
-  LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-    if (pchan->mpath) {
-      if ((only_selected == false) || (pchan->flag & POSE_SELECTED)) {
-        animviz_free_motionpath(pchan->mpath);
-        pchan->mpath = nullptr;
+  for (bPoseChannel &pchan : ob->pose->chanbase) {
+    if (pchan.mpath) {
+      if ((only_selected == false) || (pchan.flag & POSE_SELECTED)) {
+        animviz_free_motionpath(pchan.mpath);
+        pchan.mpath = nullptr;
       }
       else {
         skipped = true;
@@ -508,8 +508,8 @@ static wmOperatorStatus pose_flip_names_exec(bContext *C, wmOperator *op)
   const bool do_strip_numbers = RNA_boolean_get(op->ptr, "do_strip_numbers");
 
   FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob) {
-    bArmature *arm = static_cast<bArmature *>(ob->data);
-    ListBase bones_names = {nullptr};
+    bArmature *arm = blender::id_cast<bArmature *>(ob->data);
+    ListBaseT<LinkData> bones_names = {nullptr};
 
     FOREACH_PCHAN_SELECTED_IN_OBJECT_BEGIN (ob, pchan) {
       BLI_addtail(&bones_names, BLI_genericNodeN(pchan->name));
@@ -564,7 +564,7 @@ static wmOperatorStatus pose_autoside_names_exec(bContext *C, wmOperator *op)
 
   /* loop through selected bones, auto-naming them */
   CTX_DATA_BEGIN_WITH_ID (C, bPoseChannel *, pchan, selected_pose_bones, Object *, ob) {
-    bArmature *arm = static_cast<bArmature *>(ob->data);
+    bArmature *arm = blender::id_cast<bArmature *>(ob->data);
     STRNCPY_UTF8(newname, pchan->name);
     if (bone_autoside_name(newname, 1, axis, pchan->bone->head[axis], pchan->bone->tail[axis])) {
       ED_armature_bone_rename(bmain, arm, pchan->name, newname);
@@ -676,16 +676,16 @@ static wmOperatorStatus pose_hide_exec(bContext *C, wmOperator *op)
 
   for (Object *ob_iter : objects) {
     bool changed = false;
-    bArmature *arm = static_cast<bArmature *>(ob_iter->data);
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
-      if (!ANIM_bone_in_visible_collection(arm, pchan->bone)) {
+    bArmature *arm = blender::id_cast<bArmature *>(ob_iter->data);
+    for (bPoseChannel &pchan : ob_iter->pose->chanbase) {
+      if (!ANIM_bone_in_visible_collection(arm, pchan.bone)) {
         continue;
       }
-      if (((pchan->flag & POSE_SELECTED) != 0) != hide_select) {
+      if (((pchan.flag & POSE_SELECTED) != 0) != hide_select) {
         continue;
       }
-      pchan->drawflag |= PCHAN_DRAW_HIDDEN;
-      pchan->flag &= ~POSE_SELECTED_ALL;
+      pchan.drawflag |= PCHAN_DRAW_HIDDEN;
+      blender::animrig::bone_deselect(&pchan);
       changed = true;
     }
 
@@ -727,20 +727,20 @@ static wmOperatorStatus pose_reveal_exec(bContext *C, wmOperator *op)
   const bool select = RNA_boolean_get(op->ptr, "select");
 
   for (Object *ob_iter : objects) {
-    bArmature *arm = static_cast<bArmature *>(ob_iter->data);
+    bArmature *arm = blender::id_cast<bArmature *>(ob_iter->data);
 
     bool changed = false;
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
-      if (!ANIM_bone_in_visible_collection(arm, pchan->bone)) {
+    for (bPoseChannel &pchan : ob_iter->pose->chanbase) {
+      if (!ANIM_bone_in_visible_collection(arm, pchan.bone)) {
         continue;
       }
-      if ((pchan->drawflag & PCHAN_DRAW_HIDDEN) == 0) {
+      if ((pchan.drawflag & PCHAN_DRAW_HIDDEN) == 0) {
         continue;
       }
-      if (!(pchan->bone->flag & BONE_UNSELECTABLE)) {
-        SET_FLAG_FROM_TEST(pchan->flag, select, POSE_SELECTED);
+      if (!(pchan.bone->flag & BONE_UNSELECTABLE)) {
+        SET_FLAG_FROM_TEST(pchan.flag, select, POSE_SELECTED);
       }
-      pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;
+      pchan.drawflag &= ~PCHAN_DRAW_HIDDEN;
       changed = true;
     }
 

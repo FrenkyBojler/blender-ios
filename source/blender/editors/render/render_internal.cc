@@ -270,7 +270,7 @@ static void screen_render_single_layer_set(
     char scene_name[MAX_ID_NAME - 2];
 
     RNA_string_get(op->ptr, "scene", scene_name);
-    scn = (Scene *)BLI_findstring(&mainp->scenes, scene_name, offsetof(ID, name) + 2);
+    scn = static_cast<Scene *>(BLI_findstring(&mainp->scenes, scene_name, offsetof(ID, name) + 2));
 
     if (scn) {
       /* camera switch won't have updated */
@@ -286,7 +286,8 @@ static void screen_render_single_layer_set(
     char rl_name[RE_MAXNAME];
 
     RNA_string_get(op->ptr, "layer", rl_name);
-    rl = (ViewLayer *)BLI_findstring(&(*scene)->view_layers, rl_name, offsetof(ViewLayer, name));
+    rl = static_cast<ViewLayer *>(
+        BLI_findstring(&(*scene)->view_layers, rl_name, offsetof(ViewLayer, name)));
 
     if (rl) {
       *single_layer = rl;
@@ -629,16 +630,16 @@ static void render_image_update_pass_and_layer(RenderJob *rj, RenderResult *rr, 
     {
       const bScreen *screen = WM_window_get_active_screen(win);
 
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        if (area->spacetype == SPACE_IMAGE) {
-          SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+      for (ScrArea &area : screen->areabase) {
+        if (area.spacetype == SPACE_IMAGE) {
+          SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
           /* area->spacedata might be empty when toggling full-screen mode. */
           if (sima != nullptr && sima->image == rj->image) {
             if (first_area == nullptr) {
-              first_area = area;
+              first_area = &area;
             }
-            if (area == rj->area) {
-              matched_area = area;
+            if (&area == rj->area) {
+              matched_area = &area;
               break;
             }
           }
@@ -658,7 +659,7 @@ static void render_image_update_pass_and_layer(RenderJob *rj, RenderResult *rr, 
     /* TODO(sergey): is there faster way to get the layer index? */
     if (rr->renlay) {
       int layer = BLI_findstringindex(
-          &main_rr->layers, (char *)rr->renlay->name, offsetof(RenderLayer, name));
+          &main_rr->layers, static_cast<char *>(rr->renlay->name), offsetof(RenderLayer, name));
       sima->iuser.layer = layer;
       rj->last_layer = layer;
     }
@@ -787,14 +788,14 @@ static void render_image_restore_scene_and_layer(RenderJob *rj)
   /* image window, compo node users */
 
   /* Only ever 1 `wm`. */
-  LISTBASE_FOREACH (wmWindowManager *, wm, &rj->main->wm) {
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      const bScreen *screen = WM_window_get_active_screen(win);
+  for (wmWindowManager &wm : rj->main->wm) {
+    for (wmWindow &win : wm.windows) {
+      const bScreen *screen = WM_window_get_active_screen(&win);
 
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        if (area == rj->area) {
-          if (area->spacetype == SPACE_IMAGE) {
-            SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+      for (ScrArea &area : screen->areabase) {
+        if (&area == rj->area) {
+          if (area.spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
 
             /* Automatically show scene we just rendered. */
             SET_FLAG_FROM_TEST(
@@ -951,7 +952,7 @@ static void render_drawlock(void *rjv, bool lock)
 /** Catch escape key to cancel. */
 static wmOperatorStatus screen_render_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  Scene *scene = (Scene *)op->customdata;
+  Scene *scene = static_cast<Scene *>(op->customdata);
 
   /* no running blender, remove handler and pass through */
   if (0 == WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_RENDER)) {
@@ -965,7 +966,7 @@ static wmOperatorStatus screen_render_modal(bContext *C, wmOperator *op, const w
 static void screen_render_cancel(bContext *C, wmOperator *op)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  Scene *scene = (Scene *)op->customdata;
+  Scene *scene = static_cast<Scene *>(op->customdata);
 
   /* kill on cancel, because job is using op->reports */
   WM_jobs_kill_type(wm, scene, WM_JOB_TYPE_RENDER);
@@ -995,18 +996,18 @@ static void clean_viewport_memory(Main *bmain, Scene *scene)
   Base *base;
 
   /* Tag all the available objects. */
-  BKE_main_id_tag_listbase(&bmain->objects, ID_TAG_DOIT, true);
+  BKE_main_id_tag_listbase(&bmain->objects.cast<ID>(), ID_TAG_DOIT, true);
 
   /* Go over all the visible objects. */
 
   /* Only ever 1 `wm`. */
-  LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  for (wmWindowManager &wm : bmain->wm) {
+    for (wmWindow &win : wm.windows) {
+      ViewLayer *view_layer = WM_window_get_active_view_layer(&win);
       BKE_view_layer_synced_ensure(scene, view_layer);
 
-      LISTBASE_FOREACH (Base *, b, BKE_view_layer_object_bases_get(view_layer)) {
-        clean_viewport_memory_base(b);
+      for (Base &b : *BKE_view_layer_object_bases_get(view_layer)) {
+        clean_viewport_memory_base(&b);
       }
     }
   }

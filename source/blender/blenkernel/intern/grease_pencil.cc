@@ -66,7 +66,6 @@
 #include "DNA_ID.h"
 #include "DNA_ID_enums.h"
 #include "DNA_brush_types.h"
-#include "DNA_defaults.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
@@ -104,9 +103,7 @@ static void grease_pencil_init_data(ID *id)
   using namespace blender::bke;
 
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(id);
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(grease_pencil, id));
-
-  MEMCPY_STRUCT_AFTER(grease_pencil, DNA_struct_default_get(GreasePencil), id);
+  INIT_DEFAULT_STRUCT_AFTER(grease_pencil, id);
 
   grease_pencil->root_group_ptr = MEM_new<greasepencil::LayerGroup>(__func__);
   grease_pencil->set_active_node(nullptr);
@@ -1185,8 +1182,9 @@ Layer::Layer(const Layer &other) : Layer()
 {
   new (&this->base) TreeNode(other.base.wrap());
 
-  LISTBASE_FOREACH (GreasePencilLayerMask *, other_mask, &other.masks) {
-    LayerMask *new_mask = MEM_new<LayerMask>(__func__, *reinterpret_cast<LayerMask *>(other_mask));
+  for (GreasePencilLayerMask &other_mask : other.masks) {
+    LayerMask *new_mask = MEM_new<LayerMask>(__func__,
+                                             *reinterpret_cast<LayerMask *>(&other_mask));
     BLI_addtail(&this->masks, reinterpret_cast<GreasePencilLayerMask *>(new_mask));
   }
   this->active_mask_index = other.active_mask_index;
@@ -1220,8 +1218,8 @@ Layer::~Layer()
   MEM_SAFE_FREE(this->frames_storage.keys);
   MEM_SAFE_FREE(this->frames_storage.values);
 
-  LISTBASE_FOREACH_MUTABLE (GreasePencilLayerMask *, mask, &this->masks) {
-    MEM_delete(reinterpret_cast<LayerMask *>(mask));
+  for (GreasePencilLayerMask &mask : this->masks.items_mutable()) {
+    MEM_delete(reinterpret_cast<LayerMask *>(&mask));
   }
   BLI_listbase_clear(&this->masks);
 
@@ -1500,8 +1498,8 @@ void Layer::prepare_for_dna_write()
 
   const size_t frames_num = size_t(frames().size());
   frames_storage.num = int(frames_num);
-  frames_storage.keys = MEM_calloc_arrayN<int>(frames_num, __func__);
-  frames_storage.values = MEM_calloc_arrayN<GreasePencilFrame>(frames_num, __func__);
+  frames_storage.keys = MEM_new_array_for_free<int>(frames_num, __func__);
+  frames_storage.values = MEM_new_array_for_free<GreasePencilFrame>(frames_num, __func__);
   const Span<int> sorted_keys_data = sorted_keys();
   for (const int64_t i : sorted_keys_data.index_range()) {
     frames_storage.keys[i] = sorted_keys_data[i];
@@ -1631,16 +1629,16 @@ LayerGroup::LayerGroup(const LayerGroup &other) : LayerGroup()
 {
   new (&this->base) TreeNode(other.base.wrap());
 
-  LISTBASE_FOREACH (GreasePencilLayerTreeNode *, child, &other.children) {
-    switch (child->type) {
+  for (GreasePencilLayerTreeNode &child : other.children) {
+    switch (child.type) {
       case GP_LAYER_TREE_LEAF: {
-        GreasePencilLayer *layer = reinterpret_cast<GreasePencilLayer *>(child);
+        GreasePencilLayer *layer = reinterpret_cast<GreasePencilLayer *>(&child);
         Layer *dup_layer = MEM_new<Layer>(__func__, layer->wrap());
         this->add_node(dup_layer->as_node());
         break;
       }
       case GP_LAYER_TREE_GROUP: {
-        GreasePencilLayerTreeGroup *group = reinterpret_cast<GreasePencilLayerTreeGroup *>(child);
+        GreasePencilLayerTreeGroup *group = reinterpret_cast<GreasePencilLayerTreeGroup *>(&child);
         LayerGroup *dup_group = MEM_new<LayerGroup>(__func__, group->wrap());
         this->add_node(dup_group->as_node());
         break;
@@ -1655,15 +1653,15 @@ LayerGroup::~LayerGroup()
 {
   this->base.wrap().~TreeNode();
 
-  LISTBASE_FOREACH_MUTABLE (GreasePencilLayerTreeNode *, child, &this->children) {
-    switch (child->type) {
+  for (GreasePencilLayerTreeNode &child : this->children.items_mutable()) {
+    switch (child.type) {
       case GP_LAYER_TREE_LEAF: {
-        GreasePencilLayer *layer = reinterpret_cast<GreasePencilLayer *>(child);
+        GreasePencilLayer *layer = reinterpret_cast<GreasePencilLayer *>(&child);
         MEM_delete(&layer->wrap());
         break;
       }
       case GP_LAYER_TREE_GROUP: {
-        GreasePencilLayerTreeGroup *group = reinterpret_cast<GreasePencilLayerTreeGroup *>(child);
+        GreasePencilLayerTreeGroup *group = reinterpret_cast<GreasePencilLayerTreeGroup *>(&child);
         MEM_delete(&group->wrap());
         break;
       }
@@ -1756,14 +1754,14 @@ bool LayerGroup::unlink_node(TreeNode &link, const bool keep_children)
 
     /* Take ownership of the children of `link` by replacing the node with the listbase of its
      * children. */
-    ListBase link_children = link.as_group().children;
+    ListBaseT<GreasePencilLayerTreeNode> link_children = link.as_group().children;
     GreasePencilLayerTreeNode *first = static_cast<GreasePencilLayerTreeNode *>(
         link_children.first);
     GreasePencilLayerTreeNode *last = static_cast<GreasePencilLayerTreeNode *>(link_children.last);
 
     /* Rewrite the parent pointers. */
-    LISTBASE_FOREACH (GreasePencilLayerTreeNode *, child, &link_children) {
-      child->parent = this;
+    for (GreasePencilLayerTreeNode &child : link_children) {
+      child.parent = this;
     }
 
     /* Update previous and/or next link(s). */
@@ -1868,9 +1866,9 @@ void LayerGroup::set_expanded(const bool expanded)
 void LayerGroup::print_nodes(const StringRef header) const
 {
   std::cout << header << std::endl;
-  Stack<std::pair<int, TreeNode *>> next_node;
-  LISTBASE_FOREACH_BACKWARD (GreasePencilLayerTreeNode *, child_, &this->children) {
-    TreeNode *child = reinterpret_cast<TreeNode *>(child_);
+  Stack<std::pair<int, const TreeNode *>> next_node;
+  for (const GreasePencilLayerTreeNode &child_ : this->children.items_reversed()) {
+    const TreeNode *child = reinterpret_cast<const TreeNode *>(&child_);
     next_node.push(std::make_pair(1, child));
   }
   while (!next_node.is_empty()) {
@@ -1883,8 +1881,8 @@ void LayerGroup::print_nodes(const StringRef header) const
     }
     else if (node->is_group()) {
       std::cout << node->name() << ": ";
-      LISTBASE_FOREACH_BACKWARD (GreasePencilLayerTreeNode *, child_, &node->as_group().children) {
-        TreeNode *child = reinterpret_cast<TreeNode *>(child_);
+      for (const GreasePencilLayerTreeNode &child_ : node->as_group().children.items_reversed()) {
+        const TreeNode *child = reinterpret_cast<const TreeNode *>(&child_);
         next_node.push(std::make_pair(indent + 1, child));
       }
     }
@@ -1900,8 +1898,8 @@ void LayerGroup::ensure_nodes_cache() const
     this->runtime->layer_cache_.clear_and_shrink();
     this->runtime->layer_group_cache_.clear_and_shrink();
 
-    LISTBASE_FOREACH (GreasePencilLayerTreeNode *, child_, &this->children) {
-      TreeNode *node = reinterpret_cast<TreeNode *>(child_);
+    for (GreasePencilLayerTreeNode &child_ : this->children) {
+      TreeNode *node = reinterpret_cast<TreeNode *>(&child_);
       this->runtime->nodes_cache_.append(node);
       switch (node->type) {
         case GP_LAYER_TREE_LEAF: {
@@ -1936,14 +1934,15 @@ void LayerGroup::tag_nodes_cache_dirty() const
 
 void LayerGroup::prepare_for_dna_write()
 {
-  LISTBASE_FOREACH (TreeNode *, child, &children) {
-    switch (child->type) {
+  for (GreasePencilLayerTreeNode &child_ : children) {
+    TreeNode &child = child_.wrap();
+    switch (child.type) {
       case GP_LAYER_TREE_LEAF: {
-        child->as_layer().prepare_for_dna_write();
+        child.as_layer().prepare_for_dna_write();
         break;
       }
       case GP_LAYER_TREE_GROUP: {
-        child->as_group().prepare_for_dna_write();
+        child.as_group().prepare_for_dna_write();
         break;
       }
     }
@@ -1952,14 +1951,15 @@ void LayerGroup::prepare_for_dna_write()
 
 void LayerGroup::update_from_dna_read()
 {
-  LISTBASE_FOREACH (TreeNode *, child, &children) {
-    switch (child->type) {
+  for (GreasePencilLayerTreeNode &child_ : children) {
+    TreeNode &child = child_.wrap();
+    switch (child.type) {
       case GP_LAYER_TREE_LEAF: {
-        child->as_layer().update_from_dna_read();
+        child.as_layer().update_from_dna_read();
         break;
       }
       case GP_LAYER_TREE_GROUP: {
-        child->as_group().update_from_dna_read();
+        child.as_group().update_from_dna_read();
         break;
       }
     }
@@ -2066,8 +2066,8 @@ void BKE_grease_pencil_copy_layer_parameters(const blender::bke::greasepencil::L
   dst.blend_mode = src.blend_mode;
   dst.opacity = src.opacity;
 
-  LISTBASE_FOREACH (GreasePencilLayerMask *, src_mask, &src.masks) {
-    LayerMask *new_mask = MEM_new<LayerMask>(__func__, *reinterpret_cast<LayerMask *>(src_mask));
+  for (GreasePencilLayerMask &src_mask : src.masks) {
+    LayerMask *new_mask = MEM_new<LayerMask>(__func__, *reinterpret_cast<LayerMask *>(&src_mask));
     BLI_addtail(&dst.masks, reinterpret_cast<GreasePencilLayerMask *>(new_mask));
   }
   dst.active_mask_index = src.active_mask_index;
@@ -2143,13 +2143,13 @@ void BKE_grease_pencil_nomain_to_grease_pencil(GreasePencil *grease_pencil_src,
 void BKE_grease_pencil_vgroup_name_update(Object *ob, const char *old_name, const char *new_name)
 {
   using namespace blender::bke::greasepencil;
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(ob->data);
   for (GreasePencilDrawingBase *base : grease_pencil.drawings()) {
     Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(base)->wrap();
     CurvesGeometry &curves = drawing.strokes_for_write();
-    LISTBASE_FOREACH (bDeformGroup *, vgroup, &curves.vertex_group_names) {
-      if (STREQ(vgroup->name, old_name)) {
-        STRNCPY_UTF8(vgroup->name, new_name);
+    for (bDeformGroup &vgroup : curves.vertex_group_names) {
+      if (STREQ(vgroup.name, old_name)) {
+        STRNCPY_UTF8(vgroup.name, new_name);
       }
     }
   }
@@ -2325,7 +2325,7 @@ void BKE_object_eval_grease_pencil(Depsgraph *depsgraph, Scene *scene, Object *o
   /* Free any evaluated data and restore original data. */
   BKE_object_free_derived_caches(object);
 
-  GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
+  GreasePencil *grease_pencil = blender::id_cast<GreasePencil *>(object->data);
   GeometrySet geometry_set = GeometrySet::from_grease_pencil(grease_pencil,
                                                              GeometryOwnershipType::ReadOnly);
   /* The layer adjustments for tinting and radii offsets are applied before modifier evaluation.
@@ -2346,7 +2346,7 @@ void BKE_object_eval_grease_pencil(Depsgraph *depsgraph, Scene *scene, Object *o
     GeometryComponentEditData &edit_component =
         geometry_set.get_component_for_write<GeometryComponentEditData>();
     edit_component.grease_pencil_edit_hints_ = std::make_unique<GreasePencilEditHints>(
-        *static_cast<const GreasePencil *>(DEG_get_original(object)->data));
+        *blender::id_cast<const GreasePencil *>(DEG_get_original(object)->data));
   }
   grease_pencil_evaluate_modifiers(depsgraph, scene, object, geometry_set);
 
@@ -2376,7 +2376,7 @@ void BKE_grease_pencil_duplicate_drawing_array(const GreasePencil *grease_pencil
   using namespace blender;
   grease_pencil_dst->drawing_array_num = grease_pencil_src->drawing_array_num;
   if (grease_pencil_dst->drawing_array_num > 0) {
-    grease_pencil_dst->drawing_array = MEM_calloc_arrayN<GreasePencilDrawingBase *>(
+    grease_pencil_dst->drawing_array = MEM_new_array_for_free<GreasePencilDrawingBase *>(
         grease_pencil_src->drawing_array_num, __func__);
     bke::greasepencil::copy_drawing_array(grease_pencil_src->drawings(),
                                           grease_pencil_dst->drawings());
@@ -4161,32 +4161,32 @@ void GreasePencil::rename_node(Main &bmain,
     BKE_animdata_fix_paths_rename_all(&this->id, "layers", old_name.c_str(), node.name().c_str());
     /* Update names in layer masks. */
     for (bke::greasepencil::Layer *layer : this->layers_for_write()) {
-      LISTBASE_FOREACH (GreasePencilLayerMask *, mask, &layer->masks) {
-        if (STREQ(mask->layer_name, old_name.c_str())) {
-          mask->layer_name = BLI_strdup(node.name().c_str());
+      for (GreasePencilLayerMask &mask : layer->masks) {
+        if (STREQ(mask.layer_name, old_name.c_str())) {
+          mask.layer_name = BLI_strdup(node.name().c_str());
         }
       }
     }
   }
 
   /* Update name dependencies outside of the ID. */
-  LISTBASE_FOREACH (Object *, object, &bmain.objects) {
-    if (object->data != this) {
+  for (Object &object : bmain.objects) {
+    if (object.data != blender::id_cast<ID *>(this)) {
       continue;
     }
 
     /* Update the layer name of the influence data of the modifiers. */
-    LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
+    for (ModifierData &md : object.modifiers) {
       char *dst_layer_name = nullptr;
       size_t dst_layer_name_maxncpy = 0;
       /* LineArt doesn't use the `GreasePencilModifierInfluenceData` struct. */
-      if (md->type == eModifierType_GreasePencilLineart) {
-        auto *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(md);
+      if (md.type == eModifierType_GreasePencilLineart) {
+        auto *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(&md);
         dst_layer_name = lmd->target_layer;
         dst_layer_name_maxncpy = sizeof(lmd->target_layer);
       }
       else if (GreasePencilModifierInfluenceData *influence_data = influence_data_from_modifier(
-                   md))
+                   &md))
       {
         dst_layer_name = influence_data->layer_name;
         dst_layer_name_maxncpy = sizeof(influence_data->layer_name);
@@ -4299,14 +4299,15 @@ void GreasePencil::remove_group(blender::bke::greasepencil::LayerGroup &group,
 
   if (!keep_children) {
     /* Recursively remove groups and layers. */
-    LISTBASE_FOREACH_MUTABLE (GreasePencilLayerTreeNode *, child, &group.children) {
-      switch (child->type) {
+    for (GreasePencilLayerTreeNode &child : group.children.items_mutable()) {
+      switch (child.type) {
         case GP_LAYER_TREE_LEAF: {
-          this->remove_layer(reinterpret_cast<GreasePencilLayer *>(child)->wrap());
+          this->remove_layer(reinterpret_cast<GreasePencilLayer *>(&child)->wrap());
           break;
         }
         case GP_LAYER_TREE_GROUP: {
-          this->remove_group(reinterpret_cast<GreasePencilLayerTreeGroup *>(child)->wrap(), false);
+          this->remove_group(reinterpret_cast<GreasePencilLayerTreeGroup *>(&child)->wrap(),
+                             false);
           break;
         }
         default:
@@ -4426,7 +4427,7 @@ static void write_drawing_array(GreasePencil &grease_pencil,
       case GP_DRAWING_REFERENCE: {
         GreasePencilDrawingReference *drawing_reference =
             reinterpret_cast<GreasePencilDrawingReference *>(drawing_base);
-        BLO_write_struct(writer, GreasePencilDrawingReference, drawing_reference);
+        writer->write_struct(drawing_reference);
         break;
       }
     }
@@ -4460,8 +4461,8 @@ static void read_layer(BlendDataReader *reader,
 
   /* Read layer masks. */
   BLO_read_struct_list(reader, GreasePencilLayerMask, &node->masks);
-  LISTBASE_FOREACH (GreasePencilLayerMask *, mask, &node->masks) {
-    BLO_read_string(reader, &mask->layer_name);
+  for (GreasePencilLayerMask &mask : node->masks) {
+    BLO_read_string(reader, &mask.layer_name);
   }
 
   /* NOTE: Ideally this should be cleared on write, to reduce false 'changes' detection in memfile
@@ -4479,15 +4480,15 @@ static void read_layer_tree_group(BlendDataReader *reader,
   node->base.parent = parent;
   /* Read list of children. */
   BLO_read_struct_list(reader, GreasePencilLayerTreeNode, &node->children);
-  LISTBASE_FOREACH (GreasePencilLayerTreeNode *, child, &node->children) {
-    switch (child->type) {
+  for (GreasePencilLayerTreeNode &child : node->children) {
+    switch (child.type) {
       case GP_LAYER_TREE_LEAF: {
-        GreasePencilLayer *layer = reinterpret_cast<GreasePencilLayer *>(child);
+        GreasePencilLayer *layer = reinterpret_cast<GreasePencilLayer *>(&child);
         read_layer(reader, layer, node);
         break;
       }
       case GP_LAYER_TREE_GROUP: {
-        GreasePencilLayerTreeGroup *group = reinterpret_cast<GreasePencilLayerTreeGroup *>(child);
+        GreasePencilLayerTreeGroup *group = reinterpret_cast<GreasePencilLayerTreeGroup *>(&child);
         read_layer_tree_group(reader, group, node);
         break;
       }
@@ -4518,7 +4519,7 @@ static void read_layer_tree(GreasePencil &grease_pencil, BlendDataReader *reader
 
 static void write_layer(BlendWriter *writer, GreasePencilLayer *node)
 {
-  BLO_write_struct(writer, GreasePencilLayer, node);
+  writer->write_struct(node);
   BLO_write_string(writer, node->base.name);
   BLO_write_string(writer, node->parsubstr);
   BLO_write_string(writer, node->viewlayername);
@@ -4528,24 +4529,24 @@ static void write_layer(BlendWriter *writer, GreasePencilLayer *node)
       writer, GreasePencilFrame, node->frames_storage.num, node->frames_storage.values);
 
   BLO_write_struct_list(writer, GreasePencilLayerMask, &node->masks);
-  LISTBASE_FOREACH (GreasePencilLayerMask *, mask, &node->masks) {
-    BLO_write_string(writer, mask->layer_name);
+  for (GreasePencilLayerMask &mask : node->masks) {
+    BLO_write_string(writer, mask.layer_name);
   }
 }
 
 static void write_layer_tree_group(BlendWriter *writer, GreasePencilLayerTreeGroup *node)
 {
-  BLO_write_struct(writer, GreasePencilLayerTreeGroup, node);
+  writer->write_struct(node);
   BLO_write_string(writer, node->base.name);
-  LISTBASE_FOREACH (GreasePencilLayerTreeNode *, child, &node->children) {
-    switch (child->type) {
+  for (GreasePencilLayerTreeNode &child : node->children) {
+    switch (child.type) {
       case GP_LAYER_TREE_LEAF: {
-        GreasePencilLayer *layer = reinterpret_cast<GreasePencilLayer *>(child);
+        GreasePencilLayer *layer = reinterpret_cast<GreasePencilLayer *>(&child);
         write_layer(writer, layer);
         break;
       }
       case GP_LAYER_TREE_GROUP: {
-        GreasePencilLayerTreeGroup *group = reinterpret_cast<GreasePencilLayerTreeGroup *>(child);
+        GreasePencilLayerTreeGroup *group = reinterpret_cast<GreasePencilLayerTreeGroup *>(&child);
         write_layer_tree_group(writer, group);
         break;
       }

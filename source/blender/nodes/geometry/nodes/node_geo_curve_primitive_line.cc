@@ -62,7 +62,8 @@ static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurvePrimitiveLine *data = MEM_callocN<NodeGeometryCurvePrimitiveLine>(__func__);
+  NodeGeometryCurvePrimitiveLine *data = MEM_new_for_free<NodeGeometryCurvePrimitiveLine>(
+      __func__);
 
   data->mode = GEO_NODE_CURVE_PRIMITIVE_LINE_MODE_POINTS;
   node->storage = data;
@@ -95,7 +96,7 @@ static Curves *create_direction_line_curve(const float3 start,
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const NodeGeometryCurvePrimitiveLine &storage = node_storage(params.node());
-  const GeometryNodeCurvePrimitiveLineMode mode = (GeometryNodeCurvePrimitiveLineMode)storage.mode;
+  const GeometryNodeCurvePrimitiveLineMode mode = GeometryNodeCurvePrimitiveLineMode(storage.mode);
 
   Curves *curves = nullptr;
   if (mode == GEO_NODE_CURVE_PRIMITIVE_LINE_MODE_POINTS) {

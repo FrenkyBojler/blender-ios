@@ -14,9 +14,10 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 
-#include "BLI_alloca.h"
+#include "BLI_array.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector_types.hh"
 
 #include "BKE_attribute.h"
 #include "BKE_customdata.hh"
@@ -403,8 +404,8 @@ void bmo_smooth_vert_exec(BMesh * /*bm*/, BMOperator *op)
   BMIter iter;
   BMVert *v;
   BMEdge *e;
-  float (*cos)[3] = static_cast<float (*)[3]>(
-      MEM_mallocN(sizeof(*cos) * BMO_slot_buffer_len(op->slots_in, "verts"), __func__));
+  float (*cos)[3] = MEM_malloc_arrayN<float[3]>(BMO_slot_buffer_len(op->slots_in, "verts"),
+                                                __func__);
   float *co, *co2, clip_dist = BMO_slot_float_get(op->slots_in, "clip_dist");
   const float fac = BMO_slot_float_get(op->slots_in, "factor");
   int i, j, clipx, clipy, clipz;
@@ -547,7 +548,7 @@ static void bm_face_reverse_uvs(BMFace *f, const int cd_loop_uv_offset)
   BMLoop *l;
   int i;
 
-  float (*uvs)[2] = BLI_array_alloca(uvs, f->len);
+  blender::Array<blender::float2, BM_DEFAULT_NGON_STACK_SIZE> uvs(f->len);
 
   BM_ITER_ELEM_INDEX (l, &iter, f, BM_LOOPS_OF_FACE, i) {
     float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
@@ -686,7 +687,7 @@ static void bm_face_reverse_colors(BMFace *f,
   char *col = cols;
   BM_ITER_ELEM_INDEX (l, &iter, f, BM_LOOPS_OF_FACE, i) {
     void *lcol = BM_ELEM_CD_GET_VOID_P(l, cd_loop_color_offset);
-    memcpy((void *)col, lcol, size);
+    memcpy(static_cast<void *>(col), lcol, size);
     col += size;
   }
 
@@ -696,7 +697,7 @@ static void bm_face_reverse_colors(BMFace *f,
     void *lcol = BM_ELEM_CD_GET_VOID_P(l, cd_loop_color_offset);
 
     col = cols + (f->len - i - 1) * size;
-    memcpy(lcol, (void *)col, size);
+    memcpy(lcol, static_cast<void *>(col), size);
   }
 }
 
