@@ -873,7 +873,7 @@ static wmOperatorStatus select_shape_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(object->data);
   const bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(
       scene->toolsettings, object);
 
