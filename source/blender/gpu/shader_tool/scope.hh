@@ -48,7 +48,7 @@ enum class ScopeType : char {
 };
 
 struct Scope {
-#ifdef NDEBUG
+#ifndef NDEBUG
   /* String view for nicer debugging experience. Isn't actually used. */
   std::string_view token_view;
   std::string_view str_view;
@@ -59,7 +59,7 @@ struct Scope {
 
   static Scope from_position(const TokenStream *data, int64_t index)
   {
-#ifdef NDEBUG
+#ifndef NDEBUG
     IndexRange index_range = data->scope_ranges[index];
     int str_start = data->token_offsets[index_range.start].start;
     int str_end = data->token_offsets[index_range.last()].last();
@@ -74,7 +74,7 @@ struct Scope {
 
   static Scope invalid()
   {
-#ifdef NDEBUG
+#ifndef NDEBUG
     return {"", "", nullptr, 0};
 #else
     return {nullptr, 0};
