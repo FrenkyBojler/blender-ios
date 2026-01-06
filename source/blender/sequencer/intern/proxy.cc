@@ -520,6 +520,11 @@ void proxy_rebuild(IndexBuildContext *context,
                                 &worker_status->stop,
                                 &worker_status->do_update,
                                 set_progress_fn);
+      for (MovieReader *anim : context->strip->runtime->movie_readers) {
+        // TODO: is this thread safe?
+        MOV_close_proxies(anim);
+      }
+      MOV_proxy_builder_finish(context->proxy_builder, false);
     }
 
     return;
@@ -587,12 +592,7 @@ void proxy_rebuild(IndexBuildContext *context,
 
 void proxy_rebuild_finish(IndexBuildContext *context, bool stop)
 {
-  if (context->proxy_builder) {
-    for (MovieReader *anim : context->strip->runtime->movie_readers) {
-      MOV_close_proxies(anim);
-    }
-    MOV_proxy_builder_finish(context->proxy_builder, stop);
-  }
+  // TODO: support rollback
 
   seq_free_strip_recurse(nullptr, context->strip, true);
 
