@@ -12,8 +12,7 @@
 
 #include "RNA_types.hh"
 
-// FIXME(Treata):
-#include "DNA_object_types.h"
+namespace blender {
 
 struct bContext;
 struct ModifierData;
@@ -22,7 +21,7 @@ struct StructRNA;
 struct wmOperator;
 struct wmOperatorType;
 
-namespace blender::ed::object {
+namespace ed::object {
 
 /* add hook menu */
 enum eObject_Hook_Add_Mode {
@@ -395,4 +394,5 @@ void modifier_register_use_selected_objects_prop(wmOperatorType *ot);
 /* object_visual_geometry_to_objects.cc */
 void OBJECT_OT_visual_geometry_to_objects(wmOperatorType *ot);
 
-}  // namespace blender::ed::object
+}  // namespace ed::object
+}  // namespace blender

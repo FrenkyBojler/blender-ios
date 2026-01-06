@@ -14,6 +14,14 @@
 
 #include "DEG_depsgraph.hh"
 
+// using Object;
+// using Lod;
+
+namespace blender {
+
+struct Object;
+struct Lod;
+
 /* -------------------------------------------------------------------- */
 /** \name Add LOD
  * \{ */
@@ -113,3 +121,5 @@ int BKE_object_lod_index_of(Object *ob, const Lod *lod_find)
 }
 
 /** \} */
+
+} // namespace blender
