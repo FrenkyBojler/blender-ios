@@ -34,7 +34,7 @@ static int process_disabled_scope(parser::IntermediateForm &parser, Token start_
     /* elif/else */
     if (stack == 0 && directive_str.substr(0, 2) == "el") {
       /* Only erase the content and keep the preprocessor directives. */
-      parser.erase(start_tok.scope().back().next(), hash.prev());
+      parser.erase(start_tok.find_next(NewLine).next(), hash.prev());
       return hash.index;
     }
     if (directive_str == "endif") {
@@ -53,8 +53,10 @@ static int process_disabled_scope(parser::IntermediateForm &parser, Token start_
 static void process_directives(parser::IntermediateForm &parser,
                                Token t,
                                unordered_set<string_view> &defines,
-                               int &cursor)
+                               int &cursor,
+                               int &count)
 {
+  count += defines.find(t.str_view()) != defines.end();
   if (t.prev() != '#' || t.next() != Word) {
     return;
   }
@@ -92,6 +94,25 @@ struct FunctionGraph {
   /* Function call (from, to). */
   vector<pair<FnId, FnId>> edges;
 };
+
+static Token find_matching_pair(Token tok, TokenType open, TokenType close)
+{
+  int stack = 1;
+  tok = tok.next();
+  while (tok.is_valid()) {
+    if (tok == open) {
+      stack++;
+    }
+    else if (tok == close) {
+      stack--;
+    }
+    if (stack == 0) {
+      return tok;
+    }
+    tok = tok.next();
+  }
+  return tok; /* Not found, return Invalid. */
+}
 
 static void process_functions(parser::IntermediateForm & /*parser*/,
                               Token par_tok,
@@ -137,31 +158,33 @@ static void first_pass(parser::IntermediateForm &parser, FunctionGraph &function
 {
   unordered_set<string_view> defines;
 
-  int bracket_scope_depth = 0;
+  // int bracket_scope_depth = 0;
 
-  FunctionGraph::FnId current_function = -1;
-
+  // FunctionGraph::FnId current_function = -1;
+  int count = 0;
   const TokenStream &data = parser.data_get();
 
   for (int cursor = 0; cursor < data.token_types.size(); cursor++) {
     TokenType tok_type = TokenType(data.token_types[cursor]);
     if (tok_type == Word) {
       /* Disabled scopes will advance the cursor so we don't parse anything in them. */
-      process_directives(parser, Token::from_position(&data, cursor), defines, cursor);
+      process_directives(parser, Token::from_position(&data, cursor), defines, cursor, count);
     }
     else if (tok_type == ParOpen) {
-      process_functions(parser, Token::from_position(&data, cursor), functions, current_function);
+      // process_functions(parser, Token::from_position(&data, cursor), functions,
+      // current_function);
     }
-    else if (tok_type == BracketOpen) {
-      bracket_scope_depth++;
-    }
-    else if (tok_type == BracketClose) {
-      bracket_scope_depth--;
-      if (bracket_scope_depth == 0) {
-        current_function = -1;
-      }
-    }
+    // else if (tok_type == BracketOpen) {
+    //   bracket_scope_depth++;
+    // }
+    // else if (tok_type == BracketClose) {
+    //   bracket_scope_depth--;
+    //   if (bracket_scope_depth == 0) {
+    //     current_function = -1;
+    //   }
+    // }
   }
+  std::cout << "Macro hit " << count << std::endl;
 }
 using FnId = FunctionGraph::FnId;
 
@@ -315,12 +338,12 @@ int main(int argc, char **argv)
   {
     TimeIt time_it(time);
     for (int i = 0; i < iter; i++) {
-      parser::IntermediateForm parser(test, report_error);
+      parser::IntermediateForm parser(test, report_error, ParserStage::MergeTokens);
 
       {
         FunctionGraph functions;
         first_pass(parser, functions);
-        prune_functions(parser, functions);
+        // prune_functions(parser, functions);
       }
       result = parser.result_get();
     }
