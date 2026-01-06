@@ -58,7 +58,7 @@ _result = service.get_hash(Path(filepath), hash_algorithm)
 
   /* Run the script.*/
   std::optional<IDProperty *> idprop_optptr = BPY_run_string_exec_with_locals_return_idprop(
-      &C, SCRIPT, *locals);
+      &C, SCRIPT, *locals, "_result");
   BLI_assert(idprop_optptr.has_value());
   IDProperty *hash_idprop = *idprop_optptr;
 
@@ -125,7 +125,7 @@ _result = service.file_matches(Path(filepath), hash_algorithm, hexhash, size_in_
 
   /* Run the script.*/
   std::optional<IDProperty *> idprop_optptr = BPY_run_string_exec_with_locals_return_idprop(
-      &C, SCRIPT, *locals);
+      &C, SCRIPT, *locals, "_result");
   BLI_assert(idprop_optptr.has_value());
   IDProperty *is_match_idprop = *idprop_optptr;
 
