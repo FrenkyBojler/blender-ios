@@ -403,8 +403,7 @@ IDProperty *IDP_NewString(const blender::StringRef value,
                           const eIDPropertyFlag flags)
 {
   BLI_assert(value.size() >= 0);
-  /* value.size() is the number of characters, while the size_t value passed here includes the
-   * trailing zero byte, hence the +1. */
+  /* Adding one is needed for the null byte. */
   return IDP_NewStringMaxSize(value.data(), size_t(value.size()) + 1, name, flags);
 }
 
