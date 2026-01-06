@@ -200,7 +200,7 @@ static CurveRenderData *curve_render_data_create(Curve *cu,
                                                  CurveCache *ob_curve_cache,
                                                  const int types)
 {
-  CurveRenderData *rdata = static_cast<CurveRenderData *>(MEM_callocN(sizeof(*rdata), __func__));
+  CurveRenderData *rdata = MEM_callocN<CurveRenderData>(__func__);
   rdata->types = types;
   ListBaseT<Nurb> *nurbs;
 
@@ -361,7 +361,7 @@ static void curve_batch_cache_init(Curve *cu)
   CurveBatchCache *cache = static_cast<CurveBatchCache *>(cu->batch_cache);
 
   if (!cache) {
-    cache = static_cast<CurveBatchCache *>(MEM_callocN(sizeof(*cache), __func__));
+    cache = MEM_callocN<CurveBatchCache>(__func__);
     cu->batch_cache = cache;
   }
   else {

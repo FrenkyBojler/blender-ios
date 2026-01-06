@@ -11,7 +11,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
+#include "BLI_array.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -268,10 +268,10 @@ static void bmo_face_inset_individual(BMesh *bm,
   InterpFace *iface = nullptr;
 
   /* stores verts split away from the face (aligned with face verts) */
-  BMVert **verts = BLI_array_alloca(verts, f->len);
+  blender::Array<BMVert *, BM_DEFAULT_NGON_STACK_SIZE> verts(f->len);
   /* store edge normals (aligned with face-loop-edges) */
-  float (*edge_nors)[3] = BLI_array_alloca(edge_nors, f->len);
-  float (*coords)[3] = BLI_array_alloca(coords, f->len);
+  blender::Array<blender::float3, BM_DEFAULT_NGON_STACK_SIZE> edge_nors(f->len);
+  blender::Array<blender::float3, BM_DEFAULT_NGON_STACK_SIZE> coords(f->len);
 
   BMLoop *l_iter, *l_first;
   BMLoop *l_other;
@@ -569,8 +569,7 @@ static float bm_edge_info_average_length_fallback(BMVert *v_lookup,
 
   /* Only run this once, if needed. */
   if (UNLIKELY(vert_lengths == nullptr)) {
-    BMVert **vert_stack = static_cast<BMVert **>(
-        MEM_mallocN(sizeof(*vert_stack) * bm->totvert, __func__));
+    BMVert **vert_stack = MEM_malloc_arrayN<BMVert *>(bm->totvert, __func__);
     STACK_DECLARE(vert_stack);
     STACK_INIT(vert_stack, bm->totvert);
 
@@ -710,8 +709,7 @@ void bmo_inset_region_exec(BMesh *bm, BMOperator *op)
   if (use_interpolate) {
     interp_arena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, __func__);
     /* warning, we could be more clever here and not over alloc */
-    iface_array = static_cast<InterpFace **>(
-        MEM_callocN(sizeof(*iface_array) * bm->totface, __func__));
+    iface_array = MEM_calloc_arrayN<InterpFace *>(bm->totface, __func__);
     iface_array_len = bm->totface;
   }
 
