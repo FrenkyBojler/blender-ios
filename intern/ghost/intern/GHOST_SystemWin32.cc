@@ -1199,7 +1199,7 @@ std::unique_ptr<GHOST_EventCursor> GHOST_SystemWin32::processCursorEvent(
    * however due to vender WinTab driver issues, we don't have correct window pointer for
    * Huion/XP-Pen tablets, which means the active state is registered in whatever window the
    * driver event sends to, so we need to check each one of windows to make sure. */
-  if (wt->untrustedHwnd()) {
+  if (wt && wt->untrustedHwnd()) {
     std::vector<GHOST_IWindow *>::iterator iter;
     std::vector<GHOST_IWindow *> windows = system->getWindowManager()->getWindows();
     for (iter = windows.begin(); iter != windows.end(); iter++) {
