@@ -70,6 +70,7 @@ SourceProcessor::Result SourceProcessor::convert(vector<Symbol> symbols_set)
 
       /* Early out for certain files. */
       if (parser.str().find("\n#pragma no_processing") != string::npos) {
+        cleanup_whitespace(parser);
         return {line_directive_prefix(filename) + parser.result_get(), metadata_};
       }
 
