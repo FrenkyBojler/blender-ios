@@ -175,7 +175,7 @@ void Instance::begin_sync()
 
   const bool use_viewport_compositor = draw_ctx->is_viewport_compositor_enabled();
   const bool has_grease_pencil_pass =
-      bke::compositor::get_used_passes(*scene, view_layer).contains("GreasePencil");
+      bke::compositor::get_used_passes(*scene, view_layer).contains(RE_PASSNAME_GREASE_PENCIL);
   this->use_separate_pass = use_viewport_compositor ? has_grease_pencil_pass : false;
   this->use_signed_fb = !this->is_viewport;
 
@@ -301,8 +301,8 @@ bool Instance::is_used_as_layer_mask_in_viewlayer(const GreasePencil &grease_pen
       continue;
     }
 
-    LISTBASE_FOREACH (GreasePencilLayerMask *, mask, &layer->masks) {
-      if (STREQ(mask->layer_name, mask_layer.name().c_str())) {
+    for (GreasePencilLayerMask &mask : layer->masks) {
+      if (STREQ(mask.layer_name, mask_layer.name().c_str())) {
         return true;
       }
     }
@@ -710,7 +710,8 @@ void Instance::acquire_resources()
 
   if (this->use_separate_pass) {
     const int2 size = int2(draw_ctx->viewport_size_get());
-    draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get("GreasePencil");
+    draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get(
+        RE_PASSNAME_GREASE_PENCIL);
     output_pass_texture.acquire(size, gpu::TextureFormat::SFLOAT_16_16_16_16);
     this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(output_pass_texture));
   }
@@ -798,7 +799,7 @@ void Instance::draw_object(View &view, tObject *ob)
     GPU_framebuffer_multi_clear(fb_object, clear_cols);
   }
 
-  LISTBASE_FOREACH (tLayer *, layer, &ob->layers) {
+  for (tLayer *layer = ob->layers.first; layer; layer = layer->next) {
     if (layer->mask_bits) {
       draw_mask(view, ob, layer);
     }
@@ -819,7 +820,7 @@ void Instance::draw_object(View &view, tObject *ob)
     }
   }
 
-  LISTBASE_FOREACH (tVfx *, vfx, &ob->vfx) {
+  for (tVfx *vfx = ob->vfx.first; vfx; vfx = vfx->next) {
     GPU_framebuffer_bind(*(vfx->target_fb));
     manager->submit(*vfx->vfx_ps);
   }
@@ -884,7 +885,7 @@ void Instance::draw(Manager &manager)
 
   View &view = View::default_get();
 
-  LISTBASE_FOREACH (tObject *, ob, &this->tobjects) {
+  for (tObject *ob = this->tobjects.first; ob; ob = ob->next) {
     draw_object(view, ob);
   }
 

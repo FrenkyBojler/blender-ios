@@ -101,14 +101,14 @@ struct ShaderNodesPreviewJob {
 static void ensure_nodetree_previews(const bContext &C,
                                      NestedTreePreviews &tree_previews,
                                      Material &material,
-                                     ListBase &treepath);
+                                     ListBaseT<bNodeTreePath> &treepath);
 
 static std::optional<ComputeContextHash> get_compute_context_hash_for_node_editor(
     const SpaceNode &snode)
 {
   Vector<const bNodeTreePath *> treepath;
-  LISTBASE_FOREACH (const bNodeTreePath *, item, &snode.treepath) {
-    treepath.append(item);
+  for (const bNodeTreePath &item : snode.treepath) {
+    treepath.append(&item);
   }
 
   if (treepath.is_empty()) {
@@ -222,19 +222,19 @@ static Scene *preview_prepare_scene(const Main *bmain,
   ED_preview_set_visibility(pr_main, scene_preview, view_layer, preview_type, PR_BUTS_RENDER);
 
   BKE_view_layer_synced_ensure(scene_preview, view_layer);
-  LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
-    if (base->object->id.name[2] == 'p') {
-      if (OB_TYPE_SUPPORT_MATERIAL(base->object->type)) {
+  for (Base &base : *BKE_view_layer_object_bases_get(view_layer)) {
+    if (base.object->id.name[2] == 'p') {
+      if (OB_TYPE_SUPPORT_MATERIAL(base.object->type)) {
         /* Don't use BKE_object_material_assign, it changed mat->id.us, which shows in the UI. */
-        Material ***matar = BKE_object_material_array_p(base->object);
-        int actcol = max_ii(base->object->actcol - 1, 0);
+        Material ***matar = BKE_object_material_array_p(base.object);
+        int actcol = max_ii(base.object->actcol - 1, 0);
 
-        if (matar && actcol < base->object->totcol) {
+        if (matar && actcol < base.object->totcol) {
           (*matar)[actcol] = mat_copy;
         }
       }
-      else if (base->object->type == OB_LAMP) {
-        base->flag |= BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT;
+      else if (base.object->type == OB_LAMP) {
+        base.flag |= BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT;
       }
     }
   }
@@ -454,7 +454,7 @@ static void connect_nodes_to_aovs(const Span<bNodeTreePath *> treepath,
   }
   bNodeTree *main_nt = treepath.first()->nodetree;
   bNodeTree *active_nt = treepath.last()->nodetree;
-  for (NodeSocketPair nodesocket : nodesocket_span) {
+  for (const NodeSocketPair &nodesocket : nodesocket_span) {
     bNode *node_preview = nodesocket.first;
     bNodeSocket *socket_preview = nodesocket.second;
 
@@ -509,7 +509,7 @@ static bool prepare_viewlayer_update(void *pvl_data, ViewLayer *vl, Depsgraph *d
 {
   NodeSocketPair nodesocket = {nullptr, nullptr};
   ShaderNodesPreviewJob *job_data = static_cast<ShaderNodesPreviewJob *>(pvl_data);
-  for (NodeSocketPair nodesocket_iter : job_data->shader_nodes) {
+  for (const NodeSocketPair &nodesocket_iter : job_data->shader_nodes) {
     if (STREQ(vl->name, nodesocket_iter.first->name)) {
       nodesocket = nodesocket_iter;
       job_data->rendering_node = nodesocket_iter.first;
@@ -566,7 +566,7 @@ static void all_nodes_preview_update(void *npv, RenderResult *rr, rcti * /*rect*
     }
   }
   if (job_data->rendering_AOVs) {
-    for (NodeSocketPair nodesocket_iter : job_data->AOV_nodes) {
+    for (const NodeSocketPair &nodesocket_iter : job_data->AOV_nodes) {
       ImBuf *&image_cached = job_data->tree_previews->previews_map.lookup_or_add(
           nodesocket_iter.first->identifier, nullptr);
       ImBuf *image_latest = get_image_from_viewlayer_and_pass(
@@ -600,12 +600,12 @@ static void preview_render(ShaderNodesPreviewJob &job_data)
 
   /* Create the AOV passes for the viewlayer. */
   ViewLayer *AOV_layer = static_cast<ViewLayer *>(scene->view_layers.first);
-  for (NodeSocketPair nodesocket_iter : job_data.shader_nodes) {
+  for (const NodeSocketPair &nodesocket_iter : job_data.shader_nodes) {
     ViewLayer *vl = BKE_view_layer_add(
         scene, nodesocket_iter.first->name, AOV_layer, VIEWLAYER_ADD_COPY);
     STRNCPY_UTF8(vl->name, nodesocket_iter.first->name);
   }
-  for (NodeSocketPair nodesocket_iter : job_data.AOV_nodes) {
+  for (const NodeSocketPair &nodesocket_iter : job_data.AOV_nodes) {
     ViewLayerAOV *aov = BKE_view_layer_add_aov(AOV_layer);
     STRNCPY_UTF8(aov->name, nodesocket_iter.first->name);
   }
@@ -761,7 +761,7 @@ static void shader_preview_free(void *customdata)
 static void ensure_nodetree_previews(const bContext &C,
                                      NestedTreePreviews &tree_previews,
                                      Material &material,
-                                     ListBase &treepath)
+                                     ListBaseT<bNodeTreePath> &treepath)
 {
   Scene *scene = CTX_data_scene(&C);
   if (!ED_check_engine_supports_preview(scene)) {

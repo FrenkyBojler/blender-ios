@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'4e205b56c72f')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 09:32+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-11-18 20:05+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -9339,6 +9339,58 @@ msgid "Use Material Mask"
 msgstr "Använd materialmask"
 
 
+msgid "Show/Hide"
+msgstr "Visa/dölj"
+
+
+msgid "Names"
+msgstr "Namn"
+
+
+msgid "Math"
+msgstr "Matematik"
+
+
+msgid "Utilities"
+msgstr "Verktyg"
+
+
+msgid "Clean Up"
+msgstr "Städa upp"
+
+
+msgid "Pivot Point"
+msgstr "Fast punkt"
+
+
+msgid "Snap"
+msgstr "Snäpp"
+
+
+msgid "Read"
+msgstr "Läs"
+
+
+msgid "Write"
+msgstr "Skriv"
+
+
+msgid "Primitives"
+msgstr "Primitiver"
+
+
+msgid "Instances"
+msgstr "Instanser"
+
+
+msgid "Import"
+msgstr "Importera"
+
+
+msgid "Mirror"
+msgstr "Spegla"
+
+
 msgid "Local View"
 msgstr "Lokal vy"
 
@@ -9351,6 +9403,10 @@ msgid "Navigation"
 msgstr "Navigering"
 
 
+msgid "Deprecated"
+msgstr "Föråldrad"
+
+
 msgid "Align View"
 msgstr "Justera vy"
 
@@ -9361,6 +9417,10 @@ msgstr "Justera vy till aktiv"
 
 msgid "Select More/Less"
 msgstr "Markera mera/mindre"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Assign Material"
@@ -9377,10 +9437,6 @@ msgstr "Ljus"
 
 msgid "Light Probe"
 msgstr "Ljussond"
-
-
-msgid "Layout"
-msgstr "Layout"
 
 
 msgid "Add Image"
@@ -9403,20 +9459,8 @@ msgid "Track"
 msgstr "Spår"
 
 
-msgid "Adjust"
-msgstr "Justera"
-
-
 msgid "Quick Effects"
 msgstr "Snabbeffekter"
-
-
-msgid "Show/Hide"
-msgstr "Visa/dölj"
-
-
-msgid "Clean Up"
-msgstr "Städa upp"
 
 
 msgid "Asset"
@@ -9431,68 +9475,24 @@ msgid "Link/Transfer Data"
 msgstr "Länka/överför data"
 
 
-msgid "Utilities"
-msgstr "Verktyg"
-
-
-msgid "Math"
-msgstr "Matematik"
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Propagate"
 msgstr "Propagera"
 
 
-msgid "Names"
-msgstr "Namn"
+msgid "Adjust"
+msgstr "Justera"
 
 
 msgid "Merge"
 msgstr "Sammanfoga"
 
 
-msgid "Read"
-msgstr "Läs"
-
-
 msgid "Special Characters"
 msgstr "Specialtecken"
-
-
-msgid "Write"
-msgstr "Skriv"
-
-
-msgid "Primitives"
-msgstr "Primitiver"
-
-
-msgid "Instances"
-msgstr "Instanser"
-
-
-msgid "Import"
-msgstr "Importera"
-
-
-msgid "Pivot Point"
-msgstr "Fast punkt"
-
-
-msgid "Snap"
-msgstr "Snäpp"
-
-
-msgid "Deprecated"
-msgstr "Föråldrad"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Spegla"
 
 
 msgid "Animals"
@@ -21371,14 +21371,6 @@ msgid "Palette Color"
 msgstr "Palettfärg"
 
 
-msgid "Stroke Placement"
-msgstr "Streckplacering"
-
-
-msgid "VR"
-msgstr "VR"
-
-
 msgid "Active Tool"
 msgstr "Aktivt verktyg"
 
@@ -21401,6 +21393,14 @@ msgstr "Visningsnod"
 
 msgid "Measurement"
 msgstr "Mätning"
+
+
+msgid "Stroke Placement"
+msgstr "Streckplacering"
+
+
+msgid "VR"
+msgstr "VR"
 
 
 msgid "Import Settings"
