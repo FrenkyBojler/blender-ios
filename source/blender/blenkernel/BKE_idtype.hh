@@ -27,6 +27,7 @@ struct IDProperty;
 struct Library;
 struct LibraryForeachIDData;
 struct Main;
+struct StructRNA;
 
 /** IDTypeInfo.flags. */
 enum {
@@ -127,11 +128,41 @@ using IDTypeForeachColorFunction = void (*)(ID *id, const IDTypeForeachColorFunc
 struct IDTypeInfoIDPropertyCallbackParams {
   IDProperty **idproperty_p;
   enum class eFlags {
-    /** A 'user-defined' (a.k.a. custom properties) IDProperty. */
-    user_defined,
-    /** A 'system-defined' (a.k.a. runtima RNA backend storage) IDProperty. */
-    system_defined,
+    /**
+     * A 'user-defined' (a.k.a. custom properties) IDProperty.
+     * Mutually exclusive with #system_defined.
+     */
+    user_defined = 1 << 0,
+    /**
+     * A 'system-defined' (a.k.a. runtima RNA backend storage) IDProperty.
+     * Mutually exclusive with #user_defined.
+     */
+    system_defined = 1 << 1,
   } flags;
+
+  /** ID owning this IDProperties, either directly or via some sub-data. */
+  ID *id_owner;
+  /**
+   * Type of the real owner of the IDProperties, either the ID, or one of its sub-types (Bone,
+   * ViewLayer, etc.).
+   */
+  StructRNA *data_owner_rna_type;
+
+  /** Update all data stored by this parameter struct. */
+  void set_data(IDProperty **idproperty_p,
+                eFlags flags,
+                ID *id_owner,
+                StructRNA *data_owner_rna_type)
+  {
+    this->idproperty_p = idproperty_p;
+    this->flags = flags;
+    this->id_owner = id_owner;
+    this->data_owner_rna_type = data_owner_rna_type;
+  }
+  void set_data(IDProperty **idproperty_p, eFlags flags, StructRNA *data_owner_rna_type)
+  {
+    this->set_data(idproperty_p, flags, this->id_owner, data_owner_rna_type);
+  }
 };
 using IDTypeForeachIDPropertyContainerCallback =
     blender::FunctionRef<void(IDTypeInfoIDPropertyCallbackParams &params)>;

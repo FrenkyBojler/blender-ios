@@ -100,6 +100,7 @@
 #include "RE_engine.h"
 
 #include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
@@ -959,12 +960,14 @@ static void scene_foreach_idproperty_container(
     ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
 {
   IDTypeInfoIDPropertyCallbackParams params;
-  params.idproperty_p = &id.properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+
+  params.set_data(
+      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, &RNA_Scene);
   function_callback(params);
 
-  params.idproperty_p = &id.system_properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  params.set_data(&id.system_properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                  &RNA_Scene);
   function_callback(params);
 
   Scene &scene = blender::id_cast<Scene &>(id);
@@ -976,14 +979,15 @@ static void scene_foreach_idproperty_container(
                                                           function_callback);
   }
 
-  auto seq_strip_foreach_idproperty_container_func = [&function_callback](Strip *strip) -> bool {
-    IDTypeInfoIDPropertyCallbackParams params;
-    params.idproperty_p = &strip->prop;
-    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+  auto seq_strip_foreach_idproperty_container_func = [&params,
+                                                      &function_callback](Strip *strip) -> bool {
+    params.set_data(
+        &strip->prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &RNA_Strip);
     function_callback(params);
 
-    params.idproperty_p = &strip->system_properties;
-    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+    params.set_data(&strip->system_properties,
+                    IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                    &RNA_Strip);
     function_callback(params);
     return true;
   };
@@ -992,18 +996,21 @@ static void scene_foreach_idproperty_container(
   }
 
   for (ViewLayer &view_layer : scene.view_layers) {
-    params.idproperty_p = &view_layer.id_properties;
-    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+    params.set_data(&view_layer.id_properties,
+                    IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
+                    &RNA_ViewLayer);
     function_callback(params);
 
-    params.idproperty_p = &view_layer.system_properties;
-    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+    params.set_data(&view_layer.system_properties,
+                    IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                    &RNA_ViewLayer);
     function_callback(params);
   }
 
   for (TimeMarker &marker : scene.markers) {
-    params.idproperty_p = &marker.prop;
-    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+    params.set_data(&marker.prop,
+                    IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                    &RNA_TimelineMarker);
     function_callback(params);
   }
 }

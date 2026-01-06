@@ -44,6 +44,8 @@
 #include "BKE_node_tree_update.hh"
 #include "BKE_texture.h"
 
+#include "RNA_prototypes.hh"
+
 #include "BLO_read_write.hh"
 
 using blender::dna::sdna_struct_id_get;
@@ -180,12 +182,16 @@ static void linestyle_foreach_idproperty_container(
     ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
 {
   IDTypeInfoIDPropertyCallbackParams params;
-  params.idproperty_p = &id.properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+
+  params.set_data(&id.properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
+                  &id,
+                  &RNA_FreestyleLineStyle);
   function_callback(params);
 
-  params.idproperty_p = &id.system_properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  params.set_data(&id.system_properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                  &RNA_FreestyleLineStyle);
   function_callback(params);
 
   FreestyleLineStyle &linestyle = blender::id_cast<FreestyleLineStyle &>(id);

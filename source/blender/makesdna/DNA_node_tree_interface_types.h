@@ -470,8 +470,14 @@ struct bNodeTreeInterface {
   /** Callback for every ID pointer in the interface data. */
   void foreach_id(LibraryForeachIDData *cb);
 
-  /** Callback for every IDProperty container in the interface data. */
-  void foreach_idproperty_container(IDTypeForeachIDPropertyContainerCallback function_callback);
+  /**
+   * Callback for every IDProperty container in the interface data.
+   *
+   * \param params a pre-filled parameter data for the #function_callback, currently to pass around
+   * the owner ID pointer.
+   */
+  void foreach_idproperty_container(IDTypeInfoIDPropertyCallbackParams &params,
+                                    IDTypeForeachIDPropertyContainerCallback function_callback);
 
   /** True if the items cache is ready to use. */
   bool items_cache_is_available() const;

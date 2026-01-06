@@ -36,6 +36,8 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "RNA_prototypes.hh"
+
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_anim_visualization.h"
@@ -285,19 +287,20 @@ static void armature_foreach_id(ID *id, LibraryForeachIDData *data)
 }
 
 static void armature_foreach_idproperty_container_bone(
-    Bone &bone, IDTypeForeachIDPropertyContainerCallback function_callback)
+    IDTypeInfoIDPropertyCallbackParams &params,
+    Bone &bone,
+    IDTypeForeachIDPropertyContainerCallback function_callback)
 {
-  IDTypeInfoIDPropertyCallbackParams params;
-  params.idproperty_p = &bone.prop;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+  params.set_data(&bone.prop, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &RNA_Bone);
   function_callback(params);
 
-  params.idproperty_p = &bone.system_properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  params.set_data(&bone.system_properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                  &RNA_Bone);
   function_callback(params);
 
   for (Bone &curbone : bone.childbase) {
-    armature_foreach_idproperty_container_bone(curbone, function_callback);
+    armature_foreach_idproperty_container_bone(params, curbone, function_callback);
   }
 }
 
@@ -305,38 +308,46 @@ static void armature_foreach_idproperty_container(
     ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
 {
   IDTypeInfoIDPropertyCallbackParams params;
-  params.idproperty_p = &id.properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+
+  params.set_data(&id.properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
+                  &id,
+                  &RNA_Armature);
   function_callback(params);
 
-  params.idproperty_p = &id.system_properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  params.set_data(&id.system_properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                  &RNA_Armature);
   function_callback(params);
 
   bArmature &arm = id_cast<bArmature &>(id);
   for (Bone &bone : arm.bonebase) {
-    armature_foreach_idproperty_container_bone(bone, function_callback);
+    armature_foreach_idproperty_container_bone(params, bone, function_callback);
   }
 
   if (arm.edbo != nullptr) {
     for (EditBone &edit_bone : *arm.edbo) {
-      params.idproperty_p = &edit_bone.prop;
-      params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+      params.set_data(&edit_bone.prop,
+                      IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
+                      &RNA_EditBone);
       function_callback(params);
 
-      params.idproperty_p = &edit_bone.prop;
-      params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+      params.set_data(&edit_bone.system_properties,
+                      IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                      &RNA_EditBone);
       function_callback(params);
     }
   }
 
   for (BoneCollection *bcoll : arm.collections_span()) {
-    params.idproperty_p = &bcoll->prop;
-    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+    params.set_data(&bcoll->prop,
+                    IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
+                    &RNA_BoneCollection);
     function_callback(params);
 
-    params.idproperty_p = &bcoll->system_properties;
-    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+    params.set_data(&bcoll->system_properties,
+                    IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                    &RNA_BoneCollection);
     function_callback(params);
   }
 }

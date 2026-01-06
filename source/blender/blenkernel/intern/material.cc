@@ -73,6 +73,8 @@
 #include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph_query.hh"
 
+#include "RNA_prototypes.hh"
+
 #include "GPU_material.hh"
 
 #include "NOD_shader.h"
@@ -184,12 +186,16 @@ static void material_foreach_idproperty_container(
     ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
 {
   IDTypeInfoIDPropertyCallbackParams params;
-  params.idproperty_p = &id.properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+
+  params.set_data(&id.properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
+                  &id,
+                  &RNA_Material);
   function_callback(params);
 
-  params.idproperty_p = &id.system_properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  params.set_data(&id.system_properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                  &RNA_Material);
   function_callback(params);
 
   Material &material = blender::id_cast<Material &>(id);

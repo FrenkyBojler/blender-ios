@@ -32,6 +32,8 @@
 #include "BKE_node.hh"
 #include "BKE_preview_image.hh"
 
+#include "RNA_prototypes.hh"
+
 #include "BLT_translation.hh"
 
 #include "DEG_depsgraph.hh"
@@ -127,12 +129,14 @@ static void light_foreach_idproperty_container(
     ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
 {
   IDTypeInfoIDPropertyCallbackParams params;
-  params.idproperty_p = &id.properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+
+  params.set_data(
+      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, &RNA_Light);
   function_callback(params);
 
-  params.idproperty_p = &id.system_properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  params.set_data(&id.system_properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                  &RNA_Light);
   function_callback(params);
 
   Light &lamp = blender::id_cast<Light &>(id);

@@ -27,6 +27,8 @@
 #include "DNA_text_types.h"
 #include "DNA_vfont_types.h"
 
+#include "RNA_prototypes.hh"
+
 #include "NOD_node_declaration.hh"
 #include "NOD_socket_declarations.hh"
 
@@ -857,21 +859,33 @@ static void item_foreach_id(LibraryForeachIDData *data, bNodeTreeInterfaceItem &
 }
 
 static void item_foreach_idproperty_container(
-    bNodeTreeInterfaceItem &item, IDTypeForeachIDPropertyContainerCallback function_callback)
+    IDTypeInfoIDPropertyCallbackParams &params,
+    bNodeTreeInterfaceItem &item,
+    IDTypeForeachIDPropertyContainerCallback function_callback)
 {
   switch (eNodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
-      bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
-      IDTypeInfoIDPropertyCallbackParams params;
-      params.idproperty_p = &socket.properties;
-      params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+      bNodeTreeInterfaceSocket &socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
+          item);
+      StructRNA *data_owner_rna_type = &RNA_NodeTreeInterfaceSocket;
+      if (socket.socket_type) {
+        blender::bke::bNodeSocketType *socket_typeinfo = blender::bke::node_socket_type_find(
+            socket.socket_type);
+        if (socket_typeinfo && socket_typeinfo->ext_interface.srna) {
+          data_owner_rna_type = socket_typeinfo->ext_interface.srna;
+        }
+      }
+
+      params.set_data(&socket.properties,
+                      IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                      data_owner_rna_type);
       function_callback(params);
       break;
     }
     case NODE_INTERFACE_PANEL: {
-      bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
+      bNodeTreeInterfacePanel &panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(item);
       for (bNodeTreeInterfaceItem *item : panel.items()) {
-        item_foreach_idproperty_container(*item, function_callback);
+        item_foreach_idproperty_container(params, *item, function_callback);
       }
       break;
     }
@@ -1737,9 +1751,10 @@ void bNodeTreeInterface::foreach_id(LibraryForeachIDData *cb)
 }
 
 void bNodeTreeInterface::foreach_idproperty_container(
+    IDTypeInfoIDPropertyCallbackParams &params,
     IDTypeForeachIDPropertyContainerCallback function_callback)
 {
-  item_types::item_foreach_idproperty_container(root_panel.item, function_callback);
+  item_types::item_foreach_idproperty_container(params, root_panel.item, function_callback);
 }
 
 bool bNodeTreeInterface::items_cache_is_available() const

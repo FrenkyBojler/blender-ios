@@ -25,6 +25,8 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 
+#include "RNA_access.hh"
+
 #include "CLG_log.h"
 
 #include "MEM_guardedalloc.h"
@@ -1984,12 +1986,17 @@ void foreach_id_idproperty_container(ID &id,
   }
   else {
     IDTypeInfoIDPropertyCallbackParams params;
-    params.idproperty_p = &id.properties;
-    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+    StructRNA *data_owner_rna_type = ID_code_to_RNA_type(GS(id.name));
+
+    params.set_data(&id.properties,
+                    IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
+                    &id,
+                    data_owner_rna_type);
     function_callback(params);
 
-    params.idproperty_p = &id.system_properties;
-    params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+    params.set_data(&id.system_properties,
+                    IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                    data_owner_rna_type);
     function_callback(params);
   }
 }

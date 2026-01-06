@@ -74,6 +74,8 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
+#include "RNA_prototypes.hh"
+
 #include "MOD_modifiertypes.hh"
 
 #include "BLO_read_write.hh"
@@ -303,8 +305,11 @@ void BKE_modifiers_foreach_idproperty_container(
       NodesModifierData &nmd = reinterpret_cast<NodesModifierData &>(md);
 
       IDTypeInfoIDPropertyCallbackParams params;
-      params.idproperty_p = &nmd.settings.properties;
-      params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+
+      params.set_data(&nmd.settings.properties,
+                      IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined,
+                      &ob.id,
+                      &RNA_NodesModifier);
       function_callback(params);
     }
   }

@@ -12,6 +12,8 @@
 
 #include "DNA_armature_types.h"
 
+#include "RNA_prototypes.hh"
+
 #include "testing/testing.h"
 
 namespace blender::bke::tests {
@@ -208,6 +210,8 @@ TEST_F(IDPropContainerIteratorFixture, idproperties_container_iterator)
             this->created_user_properties.size() + this->created_system_properties.size());
   EXPECT_EQ(seen_properties_pointers, 8);
   for (SeenResult &result : seen_idproperties_containers) {
+    EXPECT_EQ(result.params.id_owner, &this->arm.id);
+    EXPECT_TRUE(ELEM(result.params.data_owner_rna_type, &RNA_Armature, &RNA_Bone));
     if (result.params.flags == IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined) {
       EXPECT_TRUE(this->created_user_properties.contains(result.idproperty));
     }

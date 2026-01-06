@@ -48,6 +48,8 @@
 #include "BKE_preview_image.hh"
 #include "BKE_texture.h"
 
+#include "RNA_prototypes.hh"
+
 #include "NOD_texture.h"
 
 #include "RE_texture.h"
@@ -146,12 +148,14 @@ static void texture_foreach_idproperty_container(
     ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
 {
   IDTypeInfoIDPropertyCallbackParams params;
-  params.idproperty_p = &id.properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined;
+
+  params.set_data(
+      &id.properties, IDTypeInfoIDPropertyCallbackParams::eFlags::user_defined, &id, &RNA_Texture);
   function_callback(params);
 
-  params.idproperty_p = &id.system_properties;
-  params.flags = IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined;
+  params.set_data(&id.system_properties,
+                  IDTypeInfoIDPropertyCallbackParams::eFlags::system_defined,
+                  &RNA_Texture);
   function_callback(params);
 
   Tex &texture = blender::id_cast<Tex &>(id);
