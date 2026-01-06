@@ -309,7 +309,7 @@ bool BPY_run_string_exec(bContext *C, const char *imports[], const char *expr)
  * case of a Python exception, this function returns `false` and the caller is responsible for
  * dealing with the exception.
  */
-static bool BPY_run_string_exec_with_locals_impl(const blender::StringRefNull script,
+static bool bpy_run_string_exec_with_locals_impl(const blender::StringRefNull script,
                                                  IDProperty &locals)
 {
   /* Set up locals & globals. */
@@ -348,7 +348,7 @@ bool BPY_run_string_exec_with_locals(bContext *C,
 
   PyObject *main_mod_backup = PyC_MainModule_Backup();
 
-  const bool ok = BPY_run_string_exec_with_locals_impl(script, locals);
+  const bool ok = bpy_run_string_exec_with_locals_impl(script, locals);
   if (!ok) {
     if (ReportList *wm_reports = C ? CTX_wm_reports(C) : nullptr) {
       BPy_errors_to_report(wm_reports);
