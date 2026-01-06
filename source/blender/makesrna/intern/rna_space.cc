@@ -975,7 +975,10 @@ static void rna_Space_show_region_ui_set(PointerRNA *ptr, bool value)
   if (value) {
     ScrArea *area = rna_area_from_space(ptr);
     ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_UI);
-    if (region->sizex >= UI_PANEL_CATEGORY_MIN_WIDTH) {
+    if (BKE_regiontype_uses_category_tabs(region->runtime->type) &&
+        region->sizex <= UI_PANEL_CATEGORY_MIN_WIDTH)
+    {
+      /* If the region is showing only tabs, increase to full width. */
       const int new_width = region->runtime->type->prefsizex ? region->runtime->type->prefsizex :
                                                                250.0f;
       region->sizex = new_width;

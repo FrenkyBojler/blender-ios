@@ -3287,6 +3287,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
                                   (BLI_rcti_size_x(&rmd->region->v2d.mask) + 1)) :
                                  1.0f;
         if (rmd->region->sizex * aspect > UI_PANEL_CATEGORY_MIN_WIDTH) {
+          /* Save this as new runtime preferred size. */
           rmd->region->runtime->type->prefsizex = rmd->region->sizex;
         }
 
