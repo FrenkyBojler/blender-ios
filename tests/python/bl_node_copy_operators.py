@@ -237,7 +237,6 @@ def execute_group_separate(type, test_case, test_tree, expected_tree=None):
     test_nodes = find_expected_nodes(test_tree, test_case)
 
     # Test nodes should be node groups
-    print(f"execute_group_separate nodes={[n.name for n in test_nodes]}")
     assert len(test_nodes) == 1
     group_node = test_nodes[0]
     assert isinstance(group_node, bpy.types.GeometryNodeGroup)
