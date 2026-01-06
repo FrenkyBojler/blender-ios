@@ -4996,7 +4996,7 @@ static wmOperatorStatus grease_pencil_join_shapes_exec(bContext *C, wmOperator *
 
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
-  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  GreasePencil &grease_pencil = *blender::id_cast<GreasePencil *>(object->data);
 
   Layer *active_layer = grease_pencil.get_active_layer();
   if (!active_layer) {
