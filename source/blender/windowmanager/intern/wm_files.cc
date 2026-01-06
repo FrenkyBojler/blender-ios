@@ -2326,16 +2326,13 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain)
 
   char filepath[FILE_MAX];
   wm_autosave_location(filepath);
+  CLOG_INFO(&LOG, "Creating autosave at '%s'", filepath);
   /* Save as regular blend file with recovery information and always compress them, see: !132685.
    */
   const int fileflags = G.fileflags | G_FILE_RECOVER_WRITE | G_FILE_COMPRESS;
 
   /* Error reporting into console. */
   BlendFileWriteParams params{};
-  /* Direclty using wm->runtime->reports prevents the report from being shown to the user. */
-  /* TODO: Maybe make an "autosave" report, since this function and the callers live at an odd
-   * abstraction level? */
-  WM_global_reportf(RPT_INFO, "Creating autosave at %s", filepath);
   BLO_write_file(bmain, filepath, fileflags, &params, nullptr);
 
   /* Restart auto-save timer. */
