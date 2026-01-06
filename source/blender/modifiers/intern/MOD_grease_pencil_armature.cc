@@ -6,7 +6,6 @@
  * \ingroup modifiers
  */
 
-#include "DNA_defaults.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
@@ -46,10 +45,7 @@ using bke::greasepencil::Drawing;
 static void init_data(ModifierData *md)
 {
   auto *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(amd, modifier));
-
-  MEMCPY_STRUCT_AFTER(amd, DNA_struct_default_get(GreasePencilArmatureModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(amd, modifier);
   modifier::greasepencil::init_influence_data(&amd->influence, false);
 }
 
@@ -137,6 +133,10 @@ static void modify_curves(ModifierData &md,
                            std::optional<MutableSpan<float3x3>> deform_mats,
                            Span<MDeformVert> dverts,
                            const OffsetIndices<int> points_by_curve) {
+    /* Deform verts attribute can be empty after converting Bezier curves (#152102). */
+    if (dverts.is_empty()) {
+      return;
+    }
     curves_mask.foreach_index(blender::GrainSize(128), [&](const int curve_i) {
       const IndexRange points = points_by_curve[curve_i];
       std::optional<Span<float3>> old_positions_for_curve;
@@ -267,19 +267,19 @@ static void modify_geometry_set(ModifierData *md,
 
 static void panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   modifier::greasepencil::draw_vertex_group_settings(C, layout, ptr);
 
-  uiLayout *col = &layout->column(true, IFACE_("Bind To"));
-  col->prop(ptr, "use_vertex_groups", UI_ITEM_NONE, IFACE_("Vertex Groups"), ICON_NONE);
-  col->prop(ptr, "use_bone_envelopes", UI_ITEM_NONE, IFACE_("Bone Envelopes"), ICON_NONE);
+  ui::Layout &col = layout.column(true, IFACE_("Bind To"));
+  col.prop(ptr, "use_vertex_groups", UI_ITEM_NONE, IFACE_("Vertex Groups"), ICON_NONE);
+  col.prop(ptr, "use_bone_envelopes", UI_ITEM_NONE, IFACE_("Bone Envelopes"), ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }
@@ -293,7 +293,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
 {
   const auto *amd = reinterpret_cast<const GreasePencilArmatureModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilArmatureModifierData, amd);
+  writer->write_struct(amd);
   modifier::greasepencil::write_influence_data(writer, &amd->influence);
 }
 

@@ -11,7 +11,6 @@
 #include "BLI_function_ref.hh"
 #include "MEM_guardedalloc.h"
 
-#include "DNA_defaults.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcloud_types.h"
@@ -60,9 +59,7 @@ constexpr StringRef ATTR_POSITION = "position";
 static void pointcloud_init_data(ID *id)
 {
   PointCloud *pointcloud = (PointCloud *)id;
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(pointcloud, id));
-
-  MEMCPY_STRUCT_AFTER(pointcloud, DNA_struct_default_get(PointCloud), id);
+  INIT_DEFAULT_STRUCT_AFTER(pointcloud, id);
 
   new (&pointcloud->attribute_storage.wrap()) blender::bke::AttributeStorage();
   pointcloud->runtime = new blender::bke::PointCloudRuntime();
@@ -198,8 +195,11 @@ IDTypeInfo IDType_ID_PT = {
 
 Span<float3> PointCloud::positions() const
 {
-  return *blender::bke::get_span_attribute<float3>(
-      this->attribute_storage.wrap(), blender::bke::AttrDomain::Point, "position", this->totpoint);
+  return blender::bke::get_span_attribute<float3>(this->attribute_storage.wrap(),
+                                                  blender::bke::AttrDomain::Point,
+                                                  "position",
+                                                  this->totpoint)
+      .value_or(Span<float3>());
 }
 MutableSpan<float3> PointCloud::positions_for_write()
 {

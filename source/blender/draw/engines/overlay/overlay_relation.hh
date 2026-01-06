@@ -64,6 +64,7 @@ class Relations : Overlay {
 
     Object *ob = ob_ref.object;
     const float4 &relation_color = res.theme.colors.wire;
+    /* TODO (not_mark): pick literally anything else that's sensible. */
     const float4 &constraint_color = res.theme.colors.grid_axis_z; /* ? */
 
     if (ob->parent && (DRW_object_visibility_in_active_context(ob->parent) & OB_VISIBLE_SELF)) {
@@ -143,7 +144,7 @@ class Relations : Overlay {
         }
         else {
           const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(constraint);
-          ListBase targets = {nullptr, nullptr};
+          ListBaseT<bConstraintTarget> targets = {nullptr, nullptr};
 
           if ((constraint->ui_expand_flag & (1 << 0)) &&
               BKE_constraint_targets_get(constraint, &targets))

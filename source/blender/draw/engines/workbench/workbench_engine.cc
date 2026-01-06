@@ -73,7 +73,7 @@ class Instance : public DrawEngine {
  public:
   const DRWContext *draw_ctx = nullptr;
 
-  blender::StringRefNull name_get() final
+  StringRefNull name_get() final
   {
     return "Workbench";
   }
@@ -215,11 +215,11 @@ class Instance : public DrawEngine {
     }
 
     if (ob->type == OB_MESH && ob->modifiers.first != nullptr) {
-      LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-        if (md->type != eModifierType_ParticleSystem) {
+      for (ModifierData &md : ob->modifiers) {
+        if (md.type != eModifierType_ParticleSystem) {
           continue;
         }
-        ParticleSystem *psys = ((ParticleSystemModifierData *)md)->psys;
+        ParticleSystem *psys = ((ParticleSystemModifierData *)&md)->psys;
         if (!DRW_object_is_visible_psys_in_active_context(ob, psys)) {
           continue;
         }
@@ -227,7 +227,7 @@ class Instance : public DrawEngine {
         const int draw_as = (part->draw_as == PART_DRAW_REND) ? part->ren_as : part->draw_as;
 
         if (draw_as == PART_DRAW_PATH) {
-          this->hair_sync(manager, ob_ref, emitter_handle, object_state, psys, md);
+          this->hair_sync(manager, ob_ref, emitter_handle, object_state, psys, &md);
         }
       }
     }
@@ -356,7 +356,7 @@ class Instance : public DrawEngine {
     if (object_state.use_per_material_batches) {
       for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, features)) {
         Material mat = this->get_material(ob_ref, object_state.color_type, batch.material_slot);
-        if (SCULPT_DEBUG_DRAW) {
+        if (scene_state_.show_paint_bvh_debug) {
           mat.base_color = batch.debug_color();
         }
 
@@ -372,7 +372,7 @@ class Instance : public DrawEngine {
     else {
       Material mat = this->get_material(ob_ref, object_state.color_type);
       for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, features)) {
-        if (SCULPT_DEBUG_DRAW) {
+        if (scene_state_.show_paint_bvh_debug) {
           mat.base_color = batch.debug_color();
         }
 

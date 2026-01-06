@@ -337,6 +337,14 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   const bool use_sequencer_scene = RNA_boolean_get(op->ptr, "use_sequencer_scene");
 
   Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+
+  if (scene == nullptr) {
+    BKE_report(op->reports,
+               RPT_ERROR,
+               use_sequencer_scene ? "No sequencer scene to render" : "No scene to render");
+    return OPERATOR_CANCELLED;
+  }
+
   ViewLayer *active_layer = use_sequencer_scene ? BKE_view_layer_default_render(scene) :
                                                   CTX_data_view_layer(C);
   RenderEngineType *re_type = RE_engines_find(scene->r.engine);
@@ -621,16 +629,16 @@ static void render_image_update_pass_and_layer(RenderJob *rj, RenderResult *rr, 
     {
       const bScreen *screen = WM_window_get_active_screen(win);
 
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        if (area->spacetype == SPACE_IMAGE) {
-          SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+      for (ScrArea &area : screen->areabase) {
+        if (area.spacetype == SPACE_IMAGE) {
+          SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
           /* area->spacedata might be empty when toggling full-screen mode. */
           if (sima != nullptr && sima->image == rj->image) {
             if (first_area == nullptr) {
-              first_area = area;
+              first_area = &area;
             }
-            if (area == rj->area) {
-              matched_area = area;
+            if (&area == rj->area) {
+              matched_area = &area;
               break;
             }
           }
@@ -779,14 +787,14 @@ static void render_image_restore_scene_and_layer(RenderJob *rj)
   /* image window, compo node users */
 
   /* Only ever 1 `wm`. */
-  LISTBASE_FOREACH (wmWindowManager *, wm, &rj->main->wm) {
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      const bScreen *screen = WM_window_get_active_screen(win);
+  for (wmWindowManager &wm : rj->main->wm) {
+    for (wmWindow &win : wm.windows) {
+      const bScreen *screen = WM_window_get_active_screen(&win);
 
-      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
-        if (area == rj->area) {
-          if (area->spacetype == SPACE_IMAGE) {
-            SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+      for (ScrArea &area : screen->areabase) {
+        if (&area == rj->area) {
+          if (area.spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = static_cast<SpaceImage *>(area.spacedata.first);
 
             /* Automatically show scene we just rendered. */
             SET_FLAG_FROM_TEST(
@@ -987,18 +995,18 @@ static void clean_viewport_memory(Main *bmain, Scene *scene)
   Base *base;
 
   /* Tag all the available objects. */
-  BKE_main_id_tag_listbase(&bmain->objects, ID_TAG_DOIT, true);
+  BKE_main_id_tag_listbase(&bmain->objects.cast<ID>(), ID_TAG_DOIT, true);
 
   /* Go over all the visible objects. */
 
   /* Only ever 1 `wm`. */
-  LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
-    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-      ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+  for (wmWindowManager &wm : bmain->wm) {
+    for (wmWindow &win : wm.windows) {
+      ViewLayer *view_layer = WM_window_get_active_view_layer(&win);
       BKE_view_layer_synced_ensure(scene, view_layer);
 
-      LISTBASE_FOREACH (Base *, b, BKE_view_layer_object_bases_get(view_layer)) {
-        clean_viewport_memory_base(b);
+      for (Base &b : *BKE_view_layer_object_bases_get(view_layer)) {
+        clean_viewport_memory_base(&b);
       }
     }
   }
@@ -1027,6 +1035,14 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   View3D *v3d = use_viewport ? CTX_wm_view3d(C) : nullptr;
   Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+
+  if (scene == nullptr) {
+    BKE_report(op->reports,
+               RPT_ERROR,
+               use_sequencer_scene ? "No sequencer scene to render" : "No scene to render");
+    return OPERATOR_CANCELLED;
+  }
+
   ViewLayer *active_layer = use_sequencer_scene ? BKE_view_layer_default_render(scene) :
                                                   CTX_data_view_layer(C);
   RenderEngineType *re_type = RE_engines_find(scene->r.engine);

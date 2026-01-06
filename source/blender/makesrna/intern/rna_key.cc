@@ -570,12 +570,12 @@ static void rna_ShapeKey_data_begin(CollectionPropertyIterator *iter, PointerRNA
     NurbInfo info = {nullptr};
 
     /* Check if all sub-curves have the same type. */
-    LISTBASE_FOREACH (Nurb *, nu, &cu->nurb) {
+    for (Nurb &nu : cu->nurb) {
       if (type == nullptr) {
-        type = rna_ShapeKey_curve_point_type(nu);
-        rna_ShapeKey_NurbInfo_init(&info, nu);
+        type = rna_ShapeKey_curve_point_type(&nu);
+        rna_ShapeKey_NurbInfo_init(&info, &nu);
       }
-      else if (type != rna_ShapeKey_curve_point_type(nu)) {
+      else if (type != rna_ShapeKey_curve_point_type(&nu)) {
         type = nullptr;
         break;
       }
@@ -842,6 +842,21 @@ static std::optional<std::string> rna_ShapeKeyPoint_path(const PointerRNA *ptr)
   return std::nullopt; /* XXX: there's really no way to resolve this... */
 }
 
+/* Using a custom lookup so the function does not have to create a PointerRNA on every search step
+ * which is a performance issue. */
+static bool rna_KeyBlock_lookup_string(PointerRNA *ptr, const char *name, PointerRNA *r_ptr)
+{
+  Key *key = rna_ShapeKey_find_key(ptr->owner_id);
+  for (KeyBlock &kb : key->block) {
+    if (!STREQ(kb.name, name)) {
+      continue;
+    }
+    *r_ptr = RNA_pointer_create_with_parent(*ptr, &RNA_ShapeKey, &kb);
+    return true;
+  }
+  return false;
+}
+
 #else
 
 static const float tilt_limit = DEG2RADF(21600.0f);
@@ -966,7 +981,7 @@ static void rna_def_keyblock(BlenderRNA *brna)
   prop = RNA_def_property(srna, "value", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "curval");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_float_default(prop, 0.0f);
   RNA_def_property_float_funcs(
       prop, nullptr, "rna_ShapeKey_value_set", "rna_ShapeKey_value_range");
   RNA_def_property_ui_range(prop, -10.0f, 10.0f, 10, 3);
@@ -1111,6 +1126,15 @@ static void rna_def_key(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_struct_type(prop, "ShapeKey");
   RNA_def_property_ui_text(prop, "Key Blocks", "Shape keys");
+  RNA_def_property_collection_funcs(prop,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    "rna_KeyBlock_lookup_string",
+                                    nullptr);
 
   rna_def_animdata_common(srna);
 

@@ -14,6 +14,8 @@
 #include <stdarg.h>
 #include <string>
 
+#include "DNA_listBase.h"
+
 #include "RNA_types.hh"
 
 #include "BLI_compiler_attrs.h"
@@ -26,14 +28,13 @@ struct IDOverrideLibrary;
 struct IDOverrideLibraryProperty;
 struct IDOverrideLibraryPropertyOperation;
 struct IDProperty;
-struct ListBase;
 struct Main;
 struct ReportList;
 struct Scene;
 struct bContext;
 
 /* Types */
-extern BlenderRNA BLENDER_RNA;
+BlenderRNA &RNA_blender_rna_get();
 
 /* Pointer
  *
@@ -156,7 +157,7 @@ bool RNA_struct_system_idprops_check(StructRNA *srna);
  * (e.g. by assigning an IDP_GROUP containing some IDP_ID pointers...).
  *
  * \note This is currently giving results for both user-defined and system-defined IDProperties,
- * there is no distinction for this between both storages.
+ * there is no distinction for this between both kinds of storage.
  */
 bool RNA_struct_idprops_contains_datablock(const StructRNA *type);
 /**
@@ -204,7 +205,7 @@ std::optional<AncestorPointerRNA> RNA_struct_search_closest_ancestor_by_type(
  * Low level direct access to type->properties,
  * note this ignores parent classes so should be used with care.
  */
-const ListBase *RNA_struct_type_properties(StructRNA *srna);
+const ListBaseT<PropertyRNA> *RNA_struct_type_properties(StructRNA *srna);
 PropertyRNA *RNA_struct_type_find_property_no_base(StructRNA *srna, const char *identifier);
 /**
  * \note #RNA_struct_find_property is a higher level alternative to this function
@@ -213,7 +214,7 @@ PropertyRNA *RNA_struct_type_find_property_no_base(StructRNA *srna, const char *
 PropertyRNA *RNA_struct_type_find_property(StructRNA *srna, const char *identifier);
 
 FunctionRNA *RNA_struct_find_function(StructRNA *srna, const char *identifier);
-const ListBase *RNA_struct_type_functions(StructRNA *srna);
+const ListBaseT<FunctionRNA> *RNA_struct_type_functions(StructRNA *srna);
 
 [[nodiscard]] char *RNA_struct_name_get_alloc_ex(
     PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len, PropertyRNA **r_nameprop);
@@ -284,8 +285,9 @@ bool RNA_property_string_is_utf8(PropertyRNA *prop);
 
 const char *RNA_property_ui_name(const PropertyRNA *prop, const PointerRNA *ptr = nullptr);
 const char *RNA_property_ui_name_raw(const PropertyRNA *prop, const PointerRNA *ptr = nullptr);
-const char *RNA_property_ui_description(const PropertyRNA *prop);
-const char *RNA_property_ui_description_raw(const PropertyRNA *prop);
+const char *RNA_property_ui_description(const PropertyRNA *prop, const PointerRNA *ptr = nullptr);
+const char *RNA_property_ui_description_raw(const PropertyRNA *prop,
+                                            const PointerRNA *ptr = nullptr);
 const char *RNA_property_translation_context(const PropertyRNA *prop);
 int RNA_property_ui_icon(const PropertyRNA *prop);
 
@@ -588,8 +590,9 @@ PointerRNA RNA_property_pointer_get(PointerRNA *ptr, PropertyRNA *prop) ATTR_NON
  * Same as above, but never creates an empty IDPGroup property for Pointer runtime properties that
  * are not set yet.
  *
- * Ideally this should never be done ever, as it is intrisically not threadsafe, but for the time
- * being at least provide a way to avoid this bad behavior. */
+ * Ideally this should never be done ever, as it is intrinsically not thread-safe,
+ * but for the time being at least provide a way to avoid this bad behavior.
+ */
 PointerRNA RNA_property_pointer_get_never_create(PointerRNA *ptr, PropertyRNA *prop)
     ATTR_NONNULL(1, 2);
 void RNA_property_pointer_set(PointerRNA *ptr,
@@ -866,7 +869,7 @@ PropertyRNA *RNA_function_get_parameter(PointerRNA *ptr, FunctionRNA *func, int 
 PropertyRNA *RNA_function_find_parameter(PointerRNA *ptr,
                                          FunctionRNA *func,
                                          const char *identifier);
-const ListBase *RNA_function_defined_parameters(FunctionRNA *func);
+const ListBaseT<PropertyRNA> *RNA_function_defined_parameters(FunctionRNA *func);
 
 /* Utility */
 

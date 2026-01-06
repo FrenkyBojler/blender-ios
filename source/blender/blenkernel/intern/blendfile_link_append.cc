@@ -395,10 +395,10 @@ struct LooseDataInstantiateContext {
 
 static bool object_in_any_scene(Main *bmain, Object *ob)
 {
-  LISTBASE_FOREACH (Scene *, sce, &bmain->scenes) {
+  for (Scene &sce : bmain->scenes) {
     /* #BKE_scene_has_object checks bases cache of the scenes' view-layer, not actual content of
      * their collections. */
-    if (BKE_collection_has_object_recursive(sce->master_collection, ob)) {
+    if (BKE_collection_has_object_recursive(sce.master_collection, ob)) {
       return true;
     }
   }
@@ -408,8 +408,8 @@ static bool object_in_any_scene(Main *bmain, Object *ob)
 
 static bool collection_instantiated_by_any_object(Main *bmain, Collection *collection)
 {
-  LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-    if (ob->type == OB_EMPTY && ob->instance_collection == collection) {
+  for (Object &ob : bmain->objects) {
+    if (ob.type == OB_EMPTY && ob.instance_collection == collection) {
       return true;
     }
   }
@@ -618,8 +618,8 @@ static void loose_data_instantiate_collection_process(
      * This avoids cluttering the view-layers, user can instantiate themselves specific collections
      * or objects easily from the Outliner if needed. */
     if (!do_add_collection && do_append && !collection_is_instantiated) {
-      LISTBASE_FOREACH (CollectionObject *, coll_ob, &collection->gobject) {
-        Object *ob = coll_ob->ob;
+      for (CollectionObject &coll_ob : collection->gobject) {
+        Object *ob = coll_ob.ob;
         if (!object_in_any_scene(bmain, ob)) {
           do_add_collection = true;
           break;
@@ -726,7 +726,7 @@ static blender::Set<Object *> loose_data_gather_instanciated_objects(
     instanciated_objects.add(ob_iter);
     if (ob_iter->instance_collection) {
       FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (ob_iter->instance_collection, ob_coll_iter) {
-        instanciated_objects.add(ob_iter);
+        instanciated_objects.add(ob_coll_iter);
       }
       FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
     }
@@ -1806,24 +1806,24 @@ static void blendfile_library_relocate_id_remap_prepare(
                old_id->us,
                new_id->us);
     remapper.add(old_id, new_id);
-  }
 
-  /* Usual special code for ShapeKeys snowflakes...
-   *
-   * NOTE: Unfortunately, actual reasons for why the old shapekeys needs to be removed from their
-   * old owner ID was not documented in the initial commit. Suspect it's related to the fact that
-   * the old ID should not end up using the new shapekeys? */
-  Key **old_key_p = BKE_key_from_id_p(old_id);
-  if (old_key_p == nullptr) {
-    return;
-  }
-  Key *old_key = *old_key_p;
-  Key *new_key = BKE_key_from_id(new_id);
-  if (old_key != nullptr) {
-    old_owner_id_to_shapekey.add(old_id, &old_key->id);
-    *old_key_p = nullptr;
-    id_us_min(&old_key->id);
-    remapper.add(&old_key->id, &new_key->id);
+    /* Usual special code for ShapeKeys snowflakes...
+     *
+     * NOTE: Unfortunately, actual reasons for why the old shapekeys needs to be removed from their
+     * old owner ID was not documented in the initial commit. Suspect it's related to the fact that
+     * the old ID should not end up using the new shapekeys? */
+    Key **old_key_p = BKE_key_from_id_p(old_id);
+    if (old_key_p == nullptr) {
+      return;
+    }
+    Key *old_key = *old_key_p;
+    Key *new_key = BKE_key_from_id(new_id);
+    if (old_key != nullptr) {
+      old_owner_id_to_shapekey.add(old_id, &old_key->id);
+      *old_key_p = nullptr;
+      id_us_min(&old_key->id);
+      remapper.add(&old_key->id, &new_key->id);
+    }
   }
 }
 
@@ -2034,9 +2034,9 @@ static void blendfile_relocate_postprocess_cleanup(BlendfileLinkAppendContext &l
   ids_to_delete.clear();
 
   /* Get rid of no more used libraries... */
-  ListBase *libraries = which_libbase(&bmain, ID_LI);
-  LISTBASE_FOREACH (ID *, id_iter, libraries) {
-    ids_to_delete.add(id_iter);
+  ListBaseT<ID> *libraries = which_libbase(&bmain, ID_LI);
+  for (ID &id_iter : *libraries) {
+    ids_to_delete.add(&id_iter);
   }
   FOREACH_MAIN_ID_BEGIN (&bmain, id_iter) {
     if (id_iter->lib) {

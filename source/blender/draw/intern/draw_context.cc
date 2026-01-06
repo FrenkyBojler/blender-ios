@@ -671,10 +671,10 @@ static bool supports_handle_ranges(DupliObject *dupli, Object *parent)
 
   if (ob_type == OB_MESH) {
     /* Hair drawing doesn't support handle ranges. */
-    LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
-      const int draw_as = (psys->part->draw_as == PART_DRAW_REND) ? psys->part->ren_as :
-                                                                    psys->part->draw_as;
-      if (draw_as == PART_DRAW_PATH && DRW_object_is_visible_psys_in_active_context(ob, psys)) {
+    for (ParticleSystem &psys : ob->particlesystem) {
+      const int draw_as = (psys.part->draw_as == PART_DRAW_REND) ? psys.part->ren_as :
+                                                                   psys.part->draw_as;
+      if (draw_as == PART_DRAW_PATH && DRW_object_is_visible_psys_in_active_context(ob, &psys)) {
         return false;
       }
     }
@@ -759,7 +759,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
   Map<InstancesKey, VectorList<DupliObject *>> dupli_map;
 
   Object tmp_object;
-  ObjectRuntimeHandle tmp_runtime;
+  bke::ObjectRuntime tmp_runtime;
 
   Depsgraph *depsgraph = draw_ctx.depsgraph;
   eEvaluationMode eval_mode = DEG_get_mode(depsgraph);
@@ -918,8 +918,8 @@ void DRW_cache_free_old_batches(Main *bmain)
   for (scene = static_cast<Scene *>(bmain->scenes.first); scene;
        scene = static_cast<Scene *>(scene->id.next))
   {
-    LISTBASE_FOREACH (ViewLayer *, view_layer, &scene->view_layers) {
-      Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
+    for (ViewLayer &view_layer : scene->view_layers) {
+      Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, &view_layer);
       if (depsgraph == nullptr) {
         continue;
       }
@@ -1159,14 +1159,6 @@ static bool gpencil_any_exists(Depsgraph *depsgraph)
 {
   return (DEG_id_type_any_exists(depsgraph, ID_GD_LEGACY) ||
           DEG_id_type_any_exists(depsgraph, ID_GP));
-}
-
-bool DRW_gpencil_engine_needed_viewport(Depsgraph *depsgraph, View3D *v3d)
-{
-  if (gpencil_object_is_excluded(v3d)) {
-    return false;
-  }
-  return gpencil_any_exists(depsgraph);
 }
 
 /* -------------------------------------------------------------------- */
@@ -1422,7 +1414,7 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   const bool internal_engine = (engine_type->flag & RE_INTERNAL) != 0;
   const bool draw_type_render = v3d->shading.type == OB_RENDER;
   const bool overlays_on = (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0;
-  const bool gpencil_engine_needed = DRW_gpencil_engine_needed_viewport(depsgraph, v3d);
+  const bool gpencil_engine_needed = DRW_render_check_grease_pencil(depsgraph, v3d);
   const bool do_populate_loop = internal_engine || overlays_on || !draw_type_render ||
                                 gpencil_engine_needed;
 
@@ -1601,25 +1593,40 @@ void DRW_draw_render_loop_offscreen(Depsgraph *depsgraph,
   }
 }
 
-bool DRW_render_check_grease_pencil(Depsgraph *depsgraph)
+static bool depsgraph_contains_visible_grease_pencil_geometry(Depsgraph *depsgraph)
 {
+  using namespace blender::bke;
+  bool found = false;
+  DEG_foreach_ID(depsgraph, [&](const ID *id) {
+    const ID *id_eval = DEG_get_evaluated_id(depsgraph, id);
+    if (found) {
+      return;
+    }
+    if (GS(id_eval->name) == ID_OB) {
+      const Object *ob = reinterpret_cast<const Object *>(id_eval);
+      const bool is_self_visible = BKE_object_visibility(ob, DAG_EVAL_RENDER) & OB_VISIBLE_SELF;
+      const bool contains_grease_pencil_geometry =
+          ob->runtime->contained_geometry_types &
+          uint16_t(1 << size_t(GeometryComponent::Type::GreasePencil));
+      if (is_self_visible && contains_grease_pencil_geometry) {
+        found = true;
+      }
+    }
+  });
+  return found;
+}
+
+bool DRW_render_check_grease_pencil(Depsgraph *depsgraph, View3D *v3d)
+{
+  if (v3d && gpencil_object_is_excluded(v3d)) {
+    return false;
+  }
+
   if (gpencil_any_exists(depsgraph)) {
     return true;
   }
 
-  DEGObjectIterSettings deg_iter_settings = {nullptr};
-  deg_iter_settings.depsgraph = depsgraph;
-  deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
-  DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-    if (ob->type == OB_GREASE_PENCIL) {
-      if (BKE_object_visibility(ob, DAG_EVAL_RENDER) & OB_VISIBLE_SELF) {
-        return true;
-      }
-    }
-  }
-  DEG_OBJECT_ITER_END;
-
-  return false;
+  return depsgraph_contains_visible_grease_pencil_geometry(depsgraph);
 }
 
 void DRW_render_gpencil(RenderEngine *engine, Depsgraph *depsgraph)
@@ -1926,7 +1933,7 @@ void DRW_draw_select_loop(Depsgraph *depsgraph,
   }
 
   bool use_gpencil = !use_obedit && !draw_surface &&
-                     DRW_gpencil_engine_needed_viewport(depsgraph, v3d);
+                     DRW_render_check_grease_pencil(depsgraph, v3d);
 
   DRWContext::Mode mode = do_material_sub_selection ? DRWContext::SELECT_OBJECT_MATERIAL :
                                                       DRWContext::SELECT_OBJECT;
@@ -2098,7 +2105,7 @@ void DRW_draw_select_id(Depsgraph *depsgraph, ARegion *region, View3D *v3d)
   using namespace blender::draw;
 
   /* Make sure select engine gets the correct vertex size. */
-  UI_SetTheme(SPACE_VIEW3D, RGN_TYPE_WINDOW);
+  blender::ui::theme::theme_set(SPACE_VIEW3D, RGN_TYPE_WINDOW);
 
   DRWContext draw_ctx(DRWContext::SELECT_EDIT_MESH, depsgraph, viewport, nullptr, region, v3d);
   draw_ctx.acquire_data();

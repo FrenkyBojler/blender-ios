@@ -119,8 +119,7 @@ static wmOperatorStatus wm_drop_import_file_exec(bContext *C, wmOperator *op)
   }
 
   wmOperatorType *ot = WM_operatortype_find(file_handlers[0]->import_operator, false);
-  PointerRNA file_props;
-  WM_operator_properties_create_ptr(&file_props, ot);
+  PointerRNA file_props = WM_operator_properties_create_ptr(ot);
   file_handler_import_operator_write_ptr(file_handlers[0], file_props, paths);
 
   WM_operator_name_call_ptr(
@@ -147,8 +146,8 @@ static wmOperatorStatus wm_drop_import_file_invoke(bContext *C,
    * Create a menu with all file handler import operators that can support any files in paths and
    * let user decide which to use.
    */
-  uiPopupMenu *pup = UI_popup_menu_begin(C, "", ICON_NONE);
-  blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(C, "", ICON_NONE);
+  blender::ui::Layout &layout = *popup_menu_layout(pup);
   layout.operator_context_set(blender::wm::OpCallContext::InvokeDefault);
 
   for (auto *file_handler : file_handlers) {
@@ -161,7 +160,7 @@ static wmOperatorStatus wm_drop_import_file_invoke(bContext *C,
     file_handler_import_operator_write_ptr(file_handler, file_props, paths);
   }
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
   return OPERATOR_INTERFACE;
 }
 
@@ -215,7 +214,7 @@ static std::string drop_import_file_tooltip(bContext *C,
 
 void ED_dropbox_drop_import_file()
 {
-  ListBase *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  ListBaseT<wmDropBox> *lb = WM_dropboxmap_find("Window", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_dropbox_add(lb,
                  "WM_OT_drop_import_file",
                  drop_import_file_poll,

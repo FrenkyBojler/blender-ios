@@ -15,14 +15,13 @@
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_screen.hh"
 #include "BKE_workspace.hh"
 
 #include "GPU_state.hh"
 
 #include "ED_clip.hh"
-#include "ED_gpencil_legacy.hh"
 #include "ED_image.hh"
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -320,7 +319,8 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
       v[0] = vec[0] / t->aspect[0];
       v[1] = vec[1] / t->aspect[1];
 
-      UI_view2d_view_to_region(static_cast<const View2D *>(t->view), v[0], v[1], &adr[0], &adr[1]);
+      blender::ui::view2d_view_to_region(
+          static_cast<const View2D *>(t->view), v[0], v[1], &adr[0], &adr[1]);
     }
   }
   else if (t->spacetype == SPACE_ACTION) {
@@ -331,12 +331,12 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
     if (sact->flag & SACTION_DRAWTIME) {
       // vec[0] = vec[0] / ((t->scene->r.frs_sec / t->scene->r.frs_sec_base));
       /* Same as below. */
-      UI_view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
+      blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
     }
     else
 #endif
     {
-      UI_view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
+      blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
     }
 
     adr[0] = out[0];
@@ -345,14 +345,14 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
   else if (ELEM(t->spacetype, SPACE_GRAPH, SPACE_NLA)) {
     int out[2] = {0, 0};
 
-    UI_view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
+    blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
     adr[0] = out[0];
     adr[1] = out[1];
   }
   else if (t->spacetype == SPACE_SEQ) { /* XXX not tested yet, but should work. */
     int out[2] = {0, 0};
 
-    UI_view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
+    blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &out[0], &out[1]);
     adr[0] = out[0];
     adr[1] = out[1];
   }
@@ -386,14 +386,15 @@ void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], const eV3DPr
       v[0] = vec[0] / t->aspect[0];
       v[1] = vec[1] / t->aspect[1];
 
-      UI_view2d_view_to_region(static_cast<const View2D *>(t->view), v[0], v[1], &adr[0], &adr[1]);
+      blender::ui::view2d_view_to_region(
+          static_cast<const View2D *>(t->view), v[0], v[1], &adr[0], &adr[1]);
     }
     else {
       BLI_assert(0);
     }
   }
   else if (t->spacetype == SPACE_NODE) {
-    UI_view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &adr[0], &adr[1]);
+    blender::ui::view2d_view_to_region((View2D *)t->view, vec[0], vec[1], &adr[0], &adr[1]);
   }
 }
 void projectIntView(TransInfo *t, const float vec[3], int adr[2])
@@ -1668,8 +1669,8 @@ static void drawAutoKeyWarning(TransInfo *t, ARegion *region)
     ED_view3d_text_colors_get(scene, v3d, text_color, shadow_color);
   }
   else {
-    UI_GetThemeColor4fv(TH_TEXT_HI, text_color);
-    UI_GetThemeColor4fv(TH_BACK, text_color);
+    ui::theme::get_color_4fv(TH_TEXT_HI, text_color);
+    ui::theme::get_color_4fv(TH_BACK, text_color);
   }
   BLF_color4fv(BLF_default(), text_color);
   BLF_shadow(BLF_default(), FontShadowType::Outline, shadow_color);
@@ -1681,7 +1682,7 @@ static void drawAutoKeyWarning(TransInfo *t, ARegion *region)
   xco -= U.widget_unit;
   yco -= int(printable_size[1]) / 2;
 
-  UI_icon_draw(xco, yco, ICON_REC);
+  blender::ui::icon_draw(xco, yco, ICON_REC);
 
   GPU_blend(GPU_BLEND_NONE);
 }
@@ -1762,8 +1763,8 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
           ts->proportional_mask = use_prop_edit;
         }
         else if (object_mode == OB_MODE_OBJECT) {
-          /* No active object means #TransConvertType_Object [see #convert_type_get()], so use
-           * toolsetting for *object*. */
+          /* No active object means #TransConvertType_Object [see #convert_type_get()],
+           * so use tool-setting for *object*. */
           ts->proportional_objects = use_prop_edit;
         }
         else {
@@ -2077,18 +2078,17 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
      * lead to keymap conflicts for other modes (see #31584)
      */
     if (ELEM(mode, TFM_TRANSLATION, TFM_ROTATION, TFM_RESIZE)) {
-      LISTBASE_FOREACH (const wmKeyMapItem *, kmi, &t->keymap->items) {
-        if (kmi->flag & KMI_INACTIVE) {
+      for (const wmKeyMapItem &kmi : t->keymap->items) {
+        if (kmi.flag & KMI_INACTIVE) {
           continue;
         }
 
-        if (kmi->propvalue == TFM_MODAL_SNAP_INV_ON && kmi->val == KM_PRESS) {
-          if ((ELEM(kmi->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) &&
-               (event->modifier & KM_CTRL)) ||
-              (ELEM(kmi->type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) &&
+        if (kmi.propvalue == TFM_MODAL_SNAP_INV_ON && kmi.val == KM_PRESS) {
+          if ((ELEM(kmi.type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) && (event->modifier & KM_CTRL)) ||
+              (ELEM(kmi.type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) &&
                (event->modifier & KM_SHIFT)) ||
-              (ELEM(kmi->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event->modifier & KM_ALT)) ||
-              ((kmi->type == EVT_OSKEY) && (event->modifier & KM_OSKEY)))
+              (ELEM(kmi.type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event->modifier & KM_ALT)) ||
+              ((kmi.type == EVT_OSKEY) && (event->modifier & KM_OSKEY)))
           {
             t->modifiers |= MOD_SNAP_INVERT;
           }
@@ -2100,19 +2100,18 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
       /* Set the initial auto-attach flag based on whether the chosen keymap key is pressed at the
        * start of the operator. */
       t->modifiers |= MOD_NODE_ATTACH;
-      LISTBASE_FOREACH (const wmKeyMapItem *, kmi, &t->keymap->items) {
-        if (kmi->flag & KMI_INACTIVE) {
+      for (const wmKeyMapItem &kmi : t->keymap->items) {
+        if (kmi.flag & KMI_INACTIVE) {
           continue;
         }
 
-        if (kmi->propvalue == TFM_MODAL_NODE_ATTACH_OFF && kmi->val == KM_PRESS) {
-          if ((ELEM(kmi->type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) &&
-               (event->modifier & KM_CTRL)) ||
-              (ELEM(kmi->type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) &&
+        if (kmi.propvalue == TFM_MODAL_NODE_ATTACH_OFF && kmi.val == KM_PRESS) {
+          if ((ELEM(kmi.type, EVT_LEFTCTRLKEY, EVT_RIGHTCTRLKEY) && (event->modifier & KM_CTRL)) ||
+              (ELEM(kmi.type, EVT_LEFTSHIFTKEY, EVT_RIGHTSHIFTKEY) &&
                (event->modifier & KM_SHIFT)) ||
-              (ELEM(kmi->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event->modifier & KM_ALT)) ||
-              ((kmi->type == EVT_OSKEY) && (event->modifier & KM_OSKEY)) ||
-              ((kmi->type == EVT_HYPER) && (event->modifier & KM_HYPER)))
+              (ELEM(kmi.type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY) && (event->modifier & KM_ALT)) ||
+              ((kmi.type == EVT_OSKEY) && (event->modifier & KM_OSKEY)) ||
+              ((kmi.type == EVT_HYPER) && (event->modifier & KM_HYPER)))
           {
             t->modifiers &= ~MOD_NODE_ATTACH;
           }

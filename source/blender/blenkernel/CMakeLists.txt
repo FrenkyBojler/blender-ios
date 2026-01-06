@@ -33,7 +33,6 @@ set(INC_SYS
 )
 
 set(SRC
-  ${CMAKE_SOURCE_DIR}/release/datafiles/userdef/userdef_default.c
   intern/action.cc
   intern/action_bones.cc
   intern/action_mirror.cc
@@ -447,7 +446,7 @@ set(SRC
   BKE_main_idmap.hh
   BKE_main_invariants.hh
   BKE_main_namemap.hh
-  BKE_mask.h
+  BKE_mask.hh
   BKE_material.hh
   BKE_mball.hh
   BKE_mball_tessellate.hh
@@ -467,7 +466,7 @@ set(SRC
   BKE_mesh_types.hh
   BKE_mesh_wrapper.hh
   BKE_modifier.hh
-  BKE_movieclip.h
+  BKE_movieclip.hh
   BKE_multires.hh
   BKE_nla.hh
   BKE_node.hh
@@ -520,7 +519,7 @@ set(SRC
   BKE_text.h
   BKE_text_suggestions.h
   BKE_texture.h
-  BKE_tracking.h
+  BKE_tracking.hh
   BKE_type_conversions.hh
   BKE_undo_system.hh
   BKE_unit.hh
@@ -545,7 +544,6 @@ set(SRC
 
   nla_private.h
   particle_private.h
-  tracking_private.h
 
   intern/attribute_access_intern.hh
   intern/attribute_storage_access.hh
@@ -560,6 +558,7 @@ set(SRC
   intern/pbvh_uv_islands.hh
   intern/subdiv_converter.hh
   intern/subdiv_inline.hh
+  intern/tracking_private.hh
 )
 
 set(LIB
@@ -789,6 +788,7 @@ add_dependencies(bf_blenkernel bf_rna)
 if(WITH_GTESTS)
   set(TEST_SRC
     intern/action_test.cc
+    intern/anim_data_test.cc
     intern/armature_deform_test.cc
     intern/armature_test.cc
     intern/asset_metadata_test.cc

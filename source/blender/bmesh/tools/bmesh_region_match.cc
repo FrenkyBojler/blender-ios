@@ -81,10 +81,13 @@ struct BMElemIndexEq {
 using BMFaceIndexSet =
     blender::Set<BMFace *, 4, blender::DefaultProbingStrategy, BMElemIndexHash, BMElemIndexEq>;
 
+struct UIDFaceStep;
+struct UIDFaceStepItem;
+
 struct UIDWalk {
 
   /* List of faces we can step onto (UIDFaceStep's) */
-  ListBase faces_step;
+  ListBaseT<UIDFaceStep> faces_step;
 
   /* Face & Vert UID's */
   GHash *verts_uid;
@@ -126,7 +129,7 @@ struct UIDFaceStep {
   LinkNode *faces;
 
   /* faces sorted into 'UIDFaceStepItem' */
-  ListBase items;
+  ListBaseT<UIDFaceStepItem> items;
 };
 
 /* store face-lists with same HID. */
@@ -839,8 +842,7 @@ static BMFace **bm_mesh_region_match_pair(
     const uint faces_result_len = BLI_ghash_len(w_dst->faces_uid);
     uint i;
 
-    faces_result = static_cast<BMFace **>(
-        MEM_mallocN(sizeof(*faces_result) * (faces_result_len + 1), __func__));
+    faces_result = MEM_malloc_arrayN<BMFace *>(faces_result_len + 1, __func__);
     GHASH_ITER_INDEX (gh_iter, w_dst->faces_uid, i) {
       BMFace *f = static_cast<BMFace *>(BLI_ghashIterator_getKey(&gh_iter));
       faces_result[i] = f;
@@ -1328,7 +1330,7 @@ static void bm_vert_fasthash_destroy(UIDFashMatch *fm)
 int BM_mesh_region_match(BMesh *bm,
                          BMFace **faces_region,
                          uint faces_region_len,
-                         ListBase *r_face_regions)
+                         ListBaseT<LinkData> *r_face_regions)
 {
   BMEdge *e_src;
   BMEdge *e_dst;

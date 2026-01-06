@@ -181,6 +181,8 @@ struct SceneState {
   /* When r == -1.0 the shader uses the vertex color */
   Material material_attribute_color = Material(float3(-1.0f));
 
+  bool show_paint_bvh_debug = false;
+
   void init(const DRWContext *context, bool scene_updated, Object *camera_ob = nullptr);
 };
 
@@ -456,6 +458,7 @@ class VolumePass {
 
   Texture dummy_shadow_tx_ = {"Volume.Dummy Shadow Tx"};
   Texture dummy_volume_tx_ = {"Volume.Dummy Volume Tx"};
+  Texture dummy_flag_tx_ = {"Volume.Dummy Flag Tx"};
   Texture dummy_coba_tx_ = {"Volume.Dummy Coba Tx"};
 
   gpu::Texture *stencil_tx_ = nullptr;

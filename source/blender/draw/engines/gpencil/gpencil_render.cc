@@ -84,8 +84,9 @@ static void render_init_buffers(const DRWContext *draw_ctx,
   float *pix_col = (rpass_col_src) ? rpass_col_src->ibuf->float_buffer.data : nullptr;
 
   if (!pix_z || !pix_col) {
-    RE_engine_set_error_message(
-        engine, "Warning: To render Grease Pencil, enable Combined and Depth passes.");
+    RE_engine_set_error_message(engine,
+                                "Warning: To correctly render occluded Grease Pencil objects, "
+                                "enable Combined and Depth passes.");
   }
 
   if (pix_z) {
@@ -94,15 +95,16 @@ static void render_init_buffers(const DRWContext *draw_ctx,
     remap_depth(view, {pix_z, rpass_z_src->rectx * rpass_z_src->recty});
   }
 
-  const bool do_region = (!use_separated_pass) && !(rect->xmin == 0 && rect->ymin == 0 &&
-                                                    rect->xmax == size.x && rect->ymax == size.y);
+  const bool has_full_rect = (rect->xmin == 0 && rect->ymin == 0 && rect->xmax == size.x &&
+                              rect->ymax == size.y);
+  const bool do_region = !use_separated_pass && !has_full_rect;
   const bool do_clear_z = !pix_z || do_region;
   const bool do_clear_col = use_separated_pass || (!pix_col) || do_region;
 
   /* FIXME(fclem): we have a precision loss in the depth buffer because of this re-upload.
    * Find where it comes from! */
   /* In multi view render the textures can be reused. */
-  if (inst.render_depth_tx.is_valid() && !do_clear_z) {
+  if (inst.render_depth_tx.is_valid() && !do_clear_z && has_full_rect) {
     GPU_texture_update(inst.render_depth_tx, GPU_DATA_FLOAT, pix_z);
   }
   else {
@@ -111,7 +113,7 @@ static void render_init_buffers(const DRWContext *draw_ctx,
     inst.render_depth_tx.ensure_2d(
         gpu::TextureFormat::SFLOAT_32_DEPTH, int2(size), usage, do_region ? nullptr : pix_z);
   }
-  if (inst.render_color_tx.is_valid() && !do_clear_col) {
+  if (inst.render_color_tx.is_valid() && !do_clear_col && has_full_rect) {
     GPU_texture_update(inst.render_color_tx, GPU_DATA_FLOAT, pix_col);
   }
   else {
