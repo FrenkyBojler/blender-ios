@@ -453,14 +453,14 @@ static void action_flip_pchan_rna_paths(bAction *act)
   }
 }
 
-void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects)
+void BKE_action_flip_with_pose(bAction *act, Span<Object *> objects)
 {
   animrig::Action &action = act->wrap();
   if (action.slot_array_num == 0) {
     /* Cannot flip an empty action. */
     return;
   }
-  blender::Set<animrig::Slot *> flipped_slots;
+  Set<animrig::Slot *> flipped_slots;
   for (Object *object : objects) {
     animrig::Slot *slot = animrig::generic_slot_for_autoassign(object->id, action, "");
     if (!slot) {
@@ -471,8 +471,8 @@ void BKE_action_flip_with_pose(bAction *act, blender::Span<Object *> objects)
     }
     Vector<FCurve *> fcurves = animrig::fcurves_for_action_slot(action, slot->handle);
     FCurvePathCache *fcache = BKE_fcurve_pathcache_create(fcurves);
-    LISTBASE_FOREACH (bPoseChannel *, pchan, &object->pose->chanbase) {
-      action_flip_pchan(object, pchan, fcache);
+    for (bPoseChannel &pchan : object->pose->chanbase) {
+      action_flip_pchan(object, &pchan, fcache);
     }
     BKE_fcurve_pathcache_destroy(fcache);
   }

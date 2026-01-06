@@ -88,6 +88,7 @@
 #include "RNA_enum_types.hh"
 
 #include "ANIM_action_legacy.hh"
+#include "ANIM_armature.hh"
 
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
@@ -622,18 +623,18 @@ static void outliner_do_libdata_operation_selection_set(bContext *C,
                                                         ReportList *reports,
                                                         Scene *scene,
                                                         SpaceOutliner *space_outliner,
-                                                        const ListBase &subtree,
+                                                        ListBaseT<TreeElement> &subtree,
                                                         const bool has_parent_selected,
                                                         outliner_operation_fn operation_fn,
                                                         eOutlinerLibOpSelectionSet selection_set)
 {
-  LISTBASE_FOREACH_MUTABLE (TreeElement *, element, &subtree) {
+  for (TreeElement &element : subtree.items_mutable()) {
     /* Get needed data out in case element gets freed. */
-    TreeStoreElem *tselem = TREESTORE(element);
-    const ListBase subtree = element->subtree;
+    TreeStoreElem *tselem = TREESTORE(&element);
+    ListBaseT<TreeElement> subtree = element.subtree;
 
     const bool is_selected = outliner_do_libdata_operation_selection_set_element(
-        C, reports, scene, element, tselem, has_parent_selected, operation_fn, selection_set);
+        C, reports, scene, &element, tselem, has_parent_selected, operation_fn, selection_set);
 
     /* Don't access element from now on, it may be freed. Note that the open/collapsed state may
      * also have been changed in the visitor callback. */
@@ -661,7 +662,7 @@ static void outliner_do_libdata_operation_selection_set(bContext *C,
                                                                   TSE_ACTIVE);
     if (active_element != nullptr) {
       TreeStoreElem *tselem = TREESTORE(active_element);
-      const ListBase subtree = active_element->subtree;
+      ListBaseT<TreeElement> subtree = active_element->subtree;
 
       const bool is_selected = outliner_do_libdata_operation_selection_set_element(
           C, reports, scene, active_element, tselem, false, operation_fn, selection_set);
@@ -787,31 +788,34 @@ struct MergedSearchData {
   TreeElement *select_element;
 };
 
-static void merged_element_search_fn_recursive(
-    const ListBase *tree, short tselem_type, short type, const char *str, uiSearchItems *items)
+static void merged_element_search_fn_recursive(const ListBaseT<TreeElement> *tree,
+                                               short tselem_type,
+                                               short type,
+                                               const char *str,
+                                               ui::SearchItems *items)
 {
   char name[64];
   int iconid;
 
-  LISTBASE_FOREACH (TreeElement *, te, tree) {
-    TreeStoreElem *tselem = TREESTORE(te);
+  for (TreeElement &te : *tree) {
+    TreeStoreElem *tselem = TREESTORE(&te);
 
-    if (tree_element_id_type_to_index(te) == type && tselem_type == tselem->type) {
-      if (BLI_strcasestr(te->name, str)) {
-        STRNCPY(name, te->name);
+    if (tree_element_id_type_to_index(&te) == type && tselem_type == tselem->type) {
+      if (BLI_strcasestr(te.name, str)) {
+        STRNCPY(name, te.name);
 
-        iconid = tree_element_get_icon(tselem, te).icon;
+        iconid = tree_element_get_icon(tselem, &te).icon;
 
         /* Don't allow duplicate named items */
-        if (UI_search_items_find_index(items, name) == -1) {
-          if (!UI_search_item_add(items, name, te, iconid, 0, 0)) {
+        if (search_items_find_index(items, name) == -1) {
+          if (!search_item_add(items, name, &te, iconid, 0, 0)) {
             break;
           }
         }
       }
     }
 
-    merged_element_search_fn_recursive(&te->subtree, tselem_type, type, str, items);
+    merged_element_search_fn_recursive(&te.subtree, tselem_type, type, str, items);
   }
 }
 
@@ -819,7 +823,7 @@ static void merged_element_search_fn_recursive(
 static void merged_element_search_update_fn(const bContext * /*C*/,
                                             void *data,
                                             const char *str,
-                                            uiSearchItems *items,
+                                            ui::SearchItems *items,
                                             const bool /*is_first*/)
 {
   MergedSearchData *search_data = (MergedSearchData *)data;
@@ -846,23 +850,23 @@ static void merged_element_search_exec_fn(bContext *C, void * /*arg1*/, void *el
  * Merged element search menu
  * Created on activation of a merged or aggregated icon-row icon.
  */
-static uiBlock *merged_element_search_menu(bContext *C, ARegion *region, void *data)
+static ui::Block *merged_element_search_menu(bContext *C, ARegion *region, void *data)
 {
   static char search[64] = "";
-  uiBlock *block;
-  uiBut *but;
+  ui::Block *block;
+  ui::Button *but;
 
   /* Clear search on each menu creation */
   *search = '\0';
 
-  block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
-  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
-  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+  block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
+  block_flag_enable(block, ui::BLOCK_LOOP | ui::BLOCK_MOVEMOUSE_QUIT | ui::BLOCK_SEARCH_MENU);
+  block_theme_style_set(block, ui::BLOCK_THEME_STYLE_POPUP);
 
   short menu_width = 10 * UI_UNIT_X;
   but = uiDefSearchBut(
       block, search, ICON_VIEWZOOM, sizeof(search), 0, 0, menu_width, UI_UNIT_Y, "");
-  UI_but_func_search_set(but,
+  button_func_search_set(but,
                          nullptr,
                          merged_element_search_update_fn,
                          data,
@@ -870,15 +874,25 @@ static uiBlock *merged_element_search_menu(bContext *C, ARegion *region, void *d
                          nullptr,
                          merged_element_search_exec_fn,
                          nullptr);
-  UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
+  button_flag_enable(but, ui::BUT_ACTIVATE_ON_INIT);
 
   /* Fake button to hold space for search items */
-  const int height = UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
-  uiDefBut(block, ButType::Label, "", 0, -height, menu_width, height, nullptr, 0, 0, std::nullopt);
+  const int height = ui::searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
+  uiDefBut(block,
+           ui::ButtonType::Label,
+           "",
+           0,
+           -height,
+           menu_width,
+           height,
+           nullptr,
+           0,
+           0,
+           std::nullopt);
 
   /* Center the menu on the cursor */
   const int offset[2] = {-(menu_width / 2), 0};
-  UI_block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, offset);
+  block_bounds_set_popup(block, UI_SEARCHBOX_BOUNDS, offset);
 
   return block;
 }
@@ -891,7 +905,7 @@ void merged_element_search_menu_invoke(bContext *C,
   select_data->parent_element = parent_te;
   select_data->select_element = activate_te;
 
-  UI_popup_block_invoke(C, merged_element_search_menu, select_data, MEM_freeN);
+  popup_block_invoke(C, merged_element_search_menu, select_data, MEM_freeN);
 }
 
 static void object_select_fn(bContext *C,
@@ -1689,31 +1703,31 @@ void outliner_do_object_operation_ex(bContext *C,
                                      ReportList *reports,
                                      Scene *scene_act,
                                      SpaceOutliner *space_outliner,
-                                     ListBase *lb,
+                                     ListBaseT<TreeElement> *lb,
                                      outliner_operation_fn operation_fn,
                                      bool recurse_selected)
 {
-  LISTBASE_FOREACH (TreeElement *, te, lb) {
-    TreeStoreElem *tselem = TREESTORE(te);
+  for (TreeElement &te : *lb) {
+    TreeStoreElem *tselem = TREESTORE(&te);
     bool select_handled = false;
     if (tselem->flag & TSE_SELECTED) {
-      if ((tselem->type == TSE_SOME_ID) && (te->idcode == ID_OB)) {
+      if ((tselem->type == TSE_SOME_ID) && (te.idcode == ID_OB)) {
         /* When objects selected in other scenes, don't know if that should be allowed. */
-        Scene *scene_owner = (Scene *)outliner_search_back(te, ID_SCE);
+        Scene *scene_owner = (Scene *)outliner_search_back(&te, ID_SCE);
         if (scene_owner && scene_act != scene_owner) {
           WM_window_set_active_scene(CTX_data_main(C), C, CTX_wm_window(C), scene_owner);
         }
         /* Important to use 'scene_owner' not scene_act else deleting objects can crash.
          * only use 'scene_act' when 'scene_owner' is nullptr, which can happen when the
          * outliner isn't showing scenes: Visible Layer draw mode for eg. */
-        operation_fn(C, reports, scene_owner ? scene_owner : scene_act, te, nullptr, tselem);
+        operation_fn(C, reports, scene_owner ? scene_owner : scene_act, &te, nullptr, tselem);
         select_handled = true;
       }
     }
     if (TSELEM_OPEN(tselem, space_outliner)) {
       if ((select_handled == false) || recurse_selected) {
         outliner_do_object_operation_ex(
-            C, reports, scene_act, space_outliner, &te->subtree, operation_fn, recurse_selected);
+            C, reports, scene_act, space_outliner, &te.subtree, operation_fn, recurse_selected);
       }
     }
   }
@@ -1723,7 +1737,7 @@ void outliner_do_object_operation(bContext *C,
                                   ReportList *reports,
                                   Scene *scene_act,
                                   SpaceOutliner *space_outliner,
-                                  ListBase *lb,
+                                  ListBaseT<TreeElement> *lb,
                                   outliner_operation_fn operation_fn)
 {
   outliner_do_object_operation_ex(C, reports, scene_act, space_outliner, lb, operation_fn, true);
@@ -1775,11 +1789,11 @@ static void refreshdrivers_animdata_fn(int /*event*/,
 
   /* Loop over drivers, performing refresh
    * (i.e. check `graph_buttons.cc` and `rna_fcurve.cc` for details). */
-  LISTBASE_FOREACH (FCurve *, fcu, &iat->adt->drivers) {
-    fcu->flag &= ~FCURVE_DISABLED;
+  for (FCurve &fcu : iat->adt->drivers) {
+    fcu.flag &= ~FCURVE_DISABLED;
 
-    if (fcu->driver) {
-      fcu->driver->flag &= ~DRIVER_FLAG_INVALID;
+    if (fcu.driver) {
+      fcu.driver->flag &= ~DRIVER_FLAG_INVALID;
     }
   }
 }
@@ -2106,14 +2120,14 @@ static void pchan_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
   bPoseChannel *pchan = (bPoseChannel *)te->directdata;
 
   if (event == OL_DOP_SELECT) {
-    pchan->flag |= POSE_SELECTED;
+    blender::animrig::bone_select(pchan);
   }
   else if (event == OL_DOP_DESELECT) {
-    pchan->flag &= ~POSE_SELECTED;
+    blender::animrig::bone_deselect(pchan);
   }
   else if (event == OL_DOP_HIDE) {
     pchan->drawflag |= PCHAN_DRAW_HIDDEN;
-    pchan->flag &= ~POSE_SELECTED;
+    blender::animrig::bone_deselect(pchan);
   }
   else if (event == OL_DOP_UNHIDE) {
     pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;
@@ -2267,7 +2281,7 @@ static void constraint_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/
     WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT, ob);
   }
   else if (event == OL_CONSTRAINTOP_DELETE) {
-    ListBase *lb = nullptr;
+    ListBaseT<bConstraint> *lb = nullptr;
 
     if (TREESTORE(te->parent->parent)->type == TSE_POSE_CHANNEL) {
       lb = &((bPoseChannel *)te->parent->parent->directdata)->constraints;
@@ -2452,19 +2466,19 @@ static void object_batch_delete_hierarchy_tag_fn(bContext *C,
 
 static void outliner_batch_delete_object_hierarchy(Main *bmain, Scene *scene)
 {
-  LISTBASE_FOREACH (Object *, ob_iter, &bmain->objects) {
-    if ((ob_iter->id.tag & ID_TAG_DOIT) == 0) {
+  for (Object &ob_iter : bmain->objects) {
+    if ((ob_iter.id.tag & ID_TAG_DOIT) == 0) {
       continue;
     }
 
-    BKE_scene_collections_object_remove(bmain, scene, ob_iter, false);
+    BKE_scene_collections_object_remove(bmain, scene, &ob_iter, false);
 
     /* Check on all objects tagged for deletion, these that are still in use (e.g. in collections
      * from another scene) should not be deleted. They also need to be tagged for depsgraph update.
      */
-    if (ob_iter->id.us != 0) {
-      ob_iter->id.tag &= ~ID_TAG_DOIT;
-      DEG_id_tag_update_ex(bmain, &ob_iter->id, ID_RECALC_BASE_FLAGS);
+    if (ob_iter.id.us != 0) {
+      ob_iter.id.tag &= ~ID_TAG_DOIT;
+      DEG_id_tag_update_ex(bmain, &ob_iter.id, ID_RECALC_BASE_FLAGS);
     }
   }
 
@@ -3212,16 +3226,6 @@ static wmOperatorStatus outliner_action_set_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "No valid action to add");
     return OPERATOR_CANCELLED;
   }
-  if (act->idroot == 0 && blender::animrig::legacy::action_treat_as_legacy(*act)) {
-    /* Hopefully in this case (i.e. library of userless actions),
-     * the user knows what they're doing. */
-    BKE_reportf(op->reports,
-                RPT_WARNING,
-                "Action '%s' does not specify what data-blocks it can be used on "
-                "(try setting the 'ID Root Type' setting from the data-blocks editor "
-                "for this action to avoid future problems)",
-                act->id.name + 2);
-  }
 
   /* perform action if valid channel */
   if (datalevel == TSE_ANIM_DATA) {
@@ -3635,8 +3639,9 @@ void OUTLINER_OT_data_operation(wmOperatorType *ot)
 static wmOperatorStatus outliner_operator_menu(bContext *C, const char *opname)
 {
   wmOperatorType *ot = WM_operatortype_find(opname, false);
-  uiPopupMenu *pup = UI_popup_menu_begin(C, WM_operatortype_name(ot, nullptr).c_str(), ICON_NONE);
-  ui::Layout &layout = *UI_popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(
+      C, WM_operatortype_name(ot, nullptr).c_str(), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
   /* Set this so the default execution context is the same as sub-menus. */
   layout.operator_context_set(wm::OpCallContext::InvokeRegionWin);
@@ -3649,7 +3654,7 @@ static wmOperatorStatus outliner_operator_menu(bContext *C, const char *opname)
 
   layout.menu_contents("OUTLINER_MT_context_menu");
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -3735,14 +3740,14 @@ static wmOperatorStatus outliner_operation_invoke(bContext *C,
 {
   ARegion *region = CTX_wm_region(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  uiBut *but = UI_context_active_but_get(C);
+  ui::Button *but = ui::context_active_but_get(C);
   float view_mval[2];
 
   if (but) {
-    UI_but_tooltip_timer_remove(C, but);
+    button_tooltip_timer_remove(C, but);
   }
 
-  UI_view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &view_mval[0], &view_mval[1]);
 
   TreeElement *hovered_te = outliner_find_item_at_y(

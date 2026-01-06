@@ -13,7 +13,6 @@
 
 #include "BLO_read_write.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_gpencil_modifier_types.h"
 #include "DNA_node_types.h" /* For `GeometryNodeCurveSampleMode` */
 #include "DNA_object_types.h"
@@ -42,10 +41,7 @@ namespace blender {
 static void init_data(ModifierData *md)
 {
   GreasePencilLengthModifierData *gpmd = reinterpret_cast<GreasePencilLengthModifierData *>(md);
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(gpmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(gpmd, DNA_struct_default_get(GreasePencilLengthModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
   modifier::greasepencil::init_influence_data(&gpmd->influence, false);
 }
 
@@ -77,7 +73,7 @@ static void blend_write(BlendWriter *writer, const ID * /*id_owner*/, const Modi
   const GreasePencilLengthModifierData *mmd =
       reinterpret_cast<const GreasePencilLengthModifierData *>(md);
 
-  BLO_write_struct(writer, GreasePencilLengthModifierData, mmd);
+  writer->write_struct(mmd);
   modifier::greasepencil::write_influence_data(writer, &mmd->influence);
 }
 
@@ -290,8 +286,8 @@ static void panel_draw(const bContext *C, Panel *panel)
     col.prop(ptr, "end_length", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
   }
 
-  layout.prop(ptr, "overshoot_factor", UI_ITEM_R_SLIDER, IFACE_("Used Length"), ICON_NONE);
-  PanelLayout random_panel_layout = layout.panel_prop_with_bool_header(
+  layout.prop(ptr, "overshoot_factor", ui::ITEM_R_SLIDER, IFACE_("Used Length"), ICON_NONE);
+  ui::PanelLayout random_panel_layout = layout.panel_prop_with_bool_header(
       C, ptr, "open_random_panel", ptr, "use_random", IFACE_("Randomize"));
   if (ui::Layout *random_layout = random_panel_layout.body) {
     ui::Layout &subcol = random_layout->column(false);
@@ -305,7 +301,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     subcol.prop(ptr, "random_offset", UI_ITEM_NONE, IFACE_("Noise Offset"), ICON_NONE);
     subcol.prop(ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  PanelLayout curvature_panel_layout = layout.panel_prop_with_bool_header(
+  ui::PanelLayout curvature_panel_layout = layout.panel_prop_with_bool_header(
       C, ptr, "open_curvature_panel", ptr, "use_curvature", IFACE_("Curvature"));
   if (ui::Layout *curvature_layout = curvature_panel_layout.body) {
     ui::Layout &subcol = curvature_layout->column(false);

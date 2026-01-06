@@ -70,12 +70,12 @@ static void WIDGETGROUP_forcefield_setup(const bContext * /*C*/, wmGizmoGroup *g
   ED_gizmo_arrow3d_set_ui_range(gz, -200.0f, 200.0f);
   ED_gizmo_arrow3d_set_range_fac(gz, 6.0f);
 
-  UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
-  UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+  blender::ui::theme::get_color_3fv(TH_GIZMO_PRIMARY, gz->color);
+  blender::ui::theme::get_color_3fv(TH_GIZMO_HI, gz->color_hi);
 
   /* All gizmos must perform undo. */
-  LISTBASE_FOREACH (wmGizmo *, gz_iter, &gzgroup->gizmos) {
-    WM_gizmo_set_flag(gz_iter, WM_GIZMO_NEEDS_UNDO, true);
+  for (wmGizmo &gz_iter : gzgroup->gizmos) {
+    WM_gizmo_set_flag(&gz_iter, WM_GIZMO_NEEDS_UNDO, true);
   }
 }
 

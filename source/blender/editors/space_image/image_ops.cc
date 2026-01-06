@@ -293,9 +293,9 @@ static void image_view_all(SpaceImage *sima, ARegion *region, wmOperator *op)
     }
     else {
       x_tiles = y_tiles = 1;
-      LISTBASE_FOREACH (ImageTile *, tile, &sima->image->tiles) {
-        int tile_x = (tile->tile_number - 1001) % 10;
-        int tile_y = (tile->tile_number - 1001) / 10;
+      for (ImageTile &tile : sima->image->tiles) {
+        int tile_x = (tile.tile_number - 1001) % 10;
+        int tile_y = (tile.tile_number - 1001) / 10;
         x_tiles = max_ii(x_tiles, tile_x + 1);
         y_tiles = max_ii(y_tiles, tile_y + 1);
       }
@@ -555,7 +555,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   vpd->zoom = sima->zoom;
   vpd->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
 
-  UI_view2d_region_to_view(
+  blender::ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &vpd->location[0], &vpd->location[1]);
 
   if (U.viewzoom == USER_ZOOM_CONTINUE) {
@@ -619,7 +619,7 @@ static wmOperatorStatus image_view_zoom_invoke(bContext *C, wmOperator *op, cons
     ARegion *region = CTX_wm_region(C);
     float delta, factor, location[2];
 
-    UI_view2d_region_to_view(
+    blender::ui::view2d_region_to_view(
         &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
 
     delta = event->prev_xy[0] - event->xy[0] + event->prev_xy[1] - event->xy[1];
@@ -652,7 +652,8 @@ static void image_zoom_apply(ViewZoomData *vpd,
                              const short viewzoom,
                              const short zoom_invert,
                              const bool zoom_to_pos,
-                             const bool snap)
+                             const bool snap,
+                             const bool precision)
 {
   float factor;
   float delta;
@@ -675,6 +676,10 @@ static void image_zoom_apply(ViewZoomData *vpd,
     delta = -delta;
   }
 
+  if (precision) {
+    delta /= 10.0f;
+  }
+
   if (viewzoom == USER_ZOOM_CONTINUE) {
     double time = BLI_time_now_seconds();
     float time_step = float(time - vpd->timer_lastdraw);
@@ -692,8 +697,14 @@ static void image_zoom_apply(ViewZoomData *vpd,
   if (snap) {
     zoom = round(zoom * 10.0f) / 10.0f;
   }
-  char str[5];
-  BLI_snprintf(str, sizeof(str), "%i%%", int(round(vpd->sima->zoom * 100.0f)));
+  char str[10];
+  if (precision) {
+    SNPRINTF(str, "%4.2f%%", vpd->sima->zoom * 100.0f);
+  }
+  else {
+    SNPRINTF(str, "%i%%", int(round(vpd->sima->zoom * 100.0f)));
+  }
+
   ED_area_status_text(vpd->area, str);
 
   RNA_float_set(op->ptr, "factor", factor);
@@ -709,6 +720,7 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
 
   WorkspaceStatus status(C);
   status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
+  status.item_bool(IFACE_("Precision"), event->modifier & KM_SHIFT, ICON_EVENT_SHIFT);
 
   /* Execute the events. */
   if (event->type == MOUSEMOVE) {
@@ -736,7 +748,8 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
                        U.viewzoom,
                        (U.uiflag & USER_ZOOM_INVERT) != 0,
                        (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)),
-                       event->modifier & KM_CTRL);
+                       event->modifier & KM_CTRL,
+                       event->modifier & KM_SHIFT);
       break;
     }
     case VIEW_CONFIRM: {
@@ -1069,7 +1082,7 @@ static wmOperatorStatus image_view_zoom_in_invoke(bContext *C,
   ARegion *region = CTX_wm_region(C);
   float location[2];
 
-  UI_view2d_region_to_view(
+  blender::ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
   RNA_float_set_array(op->ptr, "location", location);
 
@@ -1130,7 +1143,7 @@ static wmOperatorStatus image_view_zoom_out_invoke(bContext *C,
   ARegion *region = CTX_wm_region(C);
   float location[2];
 
-  UI_view2d_region_to_view(
+  blender::ui::view2d_region_to_view(
       &region->v2d, event->mval[0], event->mval[1], &location[0], &location[1]);
   RNA_float_set_array(op->ptr, "location", location);
 
@@ -1231,7 +1244,7 @@ static wmOperatorStatus image_view_zoom_border_exec(bContext *C, wmOperator *op)
 
   WM_operator_properties_border_to_rctf(op, &bounds);
 
-  UI_view2d_region_to_view_rctf(&region->v2d, &bounds, &bounds);
+  blender::ui::view2d_region_to_view_rctf(&region->v2d, &bounds, &bounds);
 
   struct {
     float xof;
@@ -1300,7 +1313,7 @@ static void image_open_init(bContext *C, wmOperator *op)
   op->customdata = iod = MEM_new<ImageOpenData>(__func__);
   iod->iuser = static_cast<ImageUser *>(
       CTX_data_pointer_get_type(C, "image_user", &RNA_ImageUser).data);
-  UI_context_active_but_prop_get_templateID(C, &iod->pprop.ptr, &iod->pprop.prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &iod->pprop.ptr, &iod->pprop.prop);
 }
 
 static void image_open_cancel(bContext * /*C*/, wmOperator *op)
@@ -1360,8 +1373,8 @@ static Image *image_open_single(Main *bmain,
       ima->source = IMA_SRC_TILED;
       ImageTile *first_tile = static_cast<ImageTile *>(ima->tiles.first);
       first_tile->tile_number = range->offset;
-      LISTBASE_FOREACH (LinkData *, node, &range->udim_tiles) {
-        BKE_image_add_tile(ima, POINTER_AS_INT(node->data), nullptr);
+      for (LinkData &node : range->udim_tiles) {
+        BKE_image_add_tile(ima, POINTER_AS_INT(node.data), nullptr);
       }
     }
     else if (range->length > 1) {
@@ -1396,19 +1409,20 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
   blender::StringRefNull root_path = owner_library ? owner_library->runtime->filepath_abs :
                                                      blendfile_path;
 
-  ListBase ranges = ED_image_filesel_detect_sequences(blendfile_path, root_path, op, use_udim);
-  LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
-    Image *ima_range = image_open_single(bmain, owner_library, op, range, use_multiview);
+  ListBaseT<ImageFrameRange> ranges = ED_image_filesel_detect_sequences(
+      blendfile_path, root_path, op, use_udim);
+  for (ImageFrameRange &range : ranges) {
+    Image *ima_range = image_open_single(bmain, owner_library, op, &range, use_multiview);
 
     /* take the first image */
     if ((ima == nullptr) && ima_range) {
       ima = ima_range;
-      frame_seq_len = range->length;
-      frame_ofs = range->offset;
+      frame_seq_len = range.length;
+      frame_ofs = range.offset;
     }
 
-    BLI_freelistN(&range->udim_tiles);
-    BLI_freelistN(&range->frames);
+    BLI_freelistN(&range.udim_tiles);
+    BLI_freelistN(&range.frames);
   }
   BLI_freelistN(&ranges);
 
@@ -1449,9 +1463,9 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
       Camera *cam = static_cast<Camera *>(
           CTX_data_pointer_get_type(C, "camera", &RNA_Camera).data);
       if (cam) {
-        LISTBASE_FOREACH (CameraBGImage *, bgpic, &cam->bg_images) {
-          if (bgpic->ima == ima) {
-            iuser = &bgpic->iuser;
+        for (CameraBGImage &bgpic : cam->bg_images) {
+          if (bgpic.ima == ima) {
+            iuser = &bgpic.iuser;
             break;
           }
         }
@@ -1510,7 +1524,7 @@ static wmOperatorStatus image_open_invoke(bContext *C, wmOperator *op, const wmE
     PropertyRNA *prop;
 
     /* hook into UI */
-    UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
+    blender::ui::context_active_but_prop_get_templateID(C, &ptr, &prop);
 
     if (prop) {
       PointerRNA oldptr;
@@ -1566,7 +1580,7 @@ static void image_open_draw(bContext * /*C*/, wmOperator *op)
                    image_open_draw_check_prop,
                    nullptr,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   blender::ui::BUT_LABEL_ALIGN_NONE,
                    false);
 
   /* image template */
@@ -1681,7 +1695,6 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
   /* Shift+Click to open the file, Alt+Click to browse a folder in the OS's browser. */
   if (event->modifier & (KM_SHIFT | KM_ALT)) {
     wmOperatorType *ot = WM_operatortype_find("WM_OT_path_open", true);
-    PointerRNA props_ptr;
 
     if (event->modifier & KM_ALT) {
       char *lslash = (char *)BLI_path_slash_rfind(filepath);
@@ -1694,7 +1707,7 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
       BKE_image_user_file_path(&iuser, ima, filepath);
     }
 
-    WM_operator_properties_create_ptr(&props_ptr, ot);
+    PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
     RNA_string_set(&props_ptr, "filepath", filepath);
     WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
@@ -1939,7 +1952,7 @@ static ImageSaveData *image_save_as_init(bContext *C, wmOperator *op)
   ImageUser *iuser = image_user_from_context(C);
   Scene *scene = CTX_data_scene(C);
 
-  ImageSaveData *isd = MEM_callocN<ImageSaveData>(__func__);
+  ImageSaveData *isd = MEM_new_for_free<ImageSaveData>(__func__);
   isd->image = image;
   isd->iuser = iuser;
 
@@ -2078,7 +2091,7 @@ static void image_save_as_draw(bContext *C, wmOperator *op)
                    image_save_as_draw_check_prop,
                    isd,
                    nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
+                   blender::ui::BUT_LABEL_ALIGN_NONE,
                    false);
 
   layout.separator();
@@ -2194,6 +2207,16 @@ static bool image_save_poll(bContext *C)
   /* Can't save if there are no pixels. */
   if (image_from_context_has_data_poll(C) == false) {
     return false;
+  }
+
+  if (G.is_rendering) {
+    /* no need to nullptr check here */
+    Image *ima = image_from_context(C);
+
+    if (ima->source == IMA_SRC_VIEWER) {
+      CTX_wm_operator_poll_msg_set(C, "Cannot save image while rendering");
+      return false;
+    }
   }
 
   /* Check if there is a valid file path and image format we can write
@@ -2599,7 +2622,7 @@ static ImageNewData *image_new_init(bContext *C, wmOperator *op)
   }
 
   ImageNewData *data = MEM_new<ImageNewData>(__func__);
-  UI_context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
   op->customdata = data;
   return data;
 }
@@ -2705,7 +2728,7 @@ static wmOperatorStatus image_new_invoke(bContext *C, wmOperator *op, const wmEv
   /* Get property in advance, it doesn't work after WM_operator_props_dialog_popup. */
   ImageNewData *data;
   op->customdata = data = MEM_new<ImageNewData>(__func__);
-  UI_context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
+  blender::ui::context_active_but_prop_get_templateID(C, &data->pprop.ptr, &data->pprop.prop);
 
   /* Better for user feedback. */
   RNA_string_set(op->ptr, "name", DATA_(IMA_DEF_NAME));
@@ -3308,8 +3331,8 @@ static wmOperatorStatus image_scale_exec(bContext *C, wmOperator *op)
   }
   else {
     /* Ensure that an image buffer can be acquired for all UDIM tiles. */
-    LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
-      iuser.tile = current_tile->tile_number;
+    for (ImageTile &current_tile : ima->tiles) {
+      iuser.tile = current_tile.tile_number;
 
       ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
 
@@ -3322,8 +3345,8 @@ static wmOperatorStatus image_scale_exec(bContext *C, wmOperator *op)
     }
 
     ED_image_undo_push_begin_with_image_all_udims(op->type->name, ima, &iuser);
-    LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
-      iuser.tile = current_tile->tile_number;
+    for (ImageTile &current_tile : ima->tiles) {
+      iuser.tile = current_tile.tile_number;
 
       ImBuf *ibuf = BKE_image_acquire_ibuf(ima, &iuser, nullptr);
 
@@ -3589,7 +3612,7 @@ bool ED_space_image_get_position(SpaceImage *sima,
     return false;
   }
 
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &r_fpos[0], &r_fpos[1]);
+  blender::ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &r_fpos[0], &r_fpos[1]);
 
   ED_space_image_release_buffer(sima, ibuf, lock);
   return true;
@@ -3605,7 +3628,7 @@ bool ED_space_image_color_sample(
     return false;
   }
   float uv[2];
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &uv[0], &uv[1]);
+  blender::ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &uv[0], &uv[1]);
   int tile = BKE_image_get_tile_from_pos(sima->image, uv, uv, nullptr);
 
   void *lock;
@@ -3687,8 +3710,8 @@ static wmOperatorStatus image_sample_line_exec(bContext *C, wmOperator *op)
   int y_end = RNA_int_get(op->ptr, "yend");
 
   float uv1[2], uv2[2], ofs[2];
-  UI_view2d_region_to_view(&region->v2d, x_start, y_start, &uv1[0], &uv1[1]);
-  UI_view2d_region_to_view(&region->v2d, x_end, y_end, &uv2[0], &uv2[1]);
+  blender::ui::view2d_region_to_view(&region->v2d, x_start, y_start, &uv1[0], &uv1[1]);
+  blender::ui::view2d_region_to_view(&region->v2d, x_end, y_end, &uv2[0], &uv2[1]);
 
   /* If the image has tiles, shift the positions accordingly. */
   int tile = BKE_image_get_tile_from_pos(ima, uv1, uv1, ofs);
@@ -4002,7 +4025,8 @@ static int frame_from_event(bContext *C, const wmEvent *event)
   else {
     float viewx, viewy;
 
-    UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
+    blender::ui::view2d_region_to_view(
+        &region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
 
     framenr = round_fl_to_int(viewx);
   }
@@ -4136,7 +4160,7 @@ static wmOperatorStatus render_border_exec(bContext *C, wmOperator *op)
   /* Get rectangle from the operator. */
   rctf border;
   WM_operator_properties_border_to_rctf(op, &border);
-  UI_view2d_region_to_view_rctf(&region->v2d, &border, &border);
+  blender::ui::view2d_region_to_view_rctf(&region->v2d, &border, &border);
 
   /* Adjust for cropping. */
   if ((rd->mode & (R_BORDER | R_CROP)) == (R_BORDER | R_CROP)) {
@@ -4369,9 +4393,9 @@ static wmOperatorStatus tile_add_invoke(bContext *C, wmOperator *op, const wmEve
   /* Find the first gap in tile numbers or the number after the last if
    * no gap exists. */
   int next_number = 0;
-  LISTBASE_FOREACH (ImageTile *, tile, &ima->tiles) {
-    next_number = tile->tile_number + 1;
-    if (tile->next == nullptr || tile->next->tile_number > next_number) {
+  for (ImageTile &tile : ima->tiles) {
+    next_number = tile.tile_number + 1;
+    if (tile.next == nullptr || tile.next->tile_number > next_number) {
       break;
     }
   }

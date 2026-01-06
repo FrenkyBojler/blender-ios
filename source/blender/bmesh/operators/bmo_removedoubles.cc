@@ -10,7 +10,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
+#include "BLI_array.hh"
 #include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -73,11 +73,14 @@ static BMFace *remdoubles_createface(BMesh *bm,
   BMEdge *e_new;
 
   /* New ordered edges. */
-  BMEdge **edges = BLI_array_alloca(edges, f->len);
+  blender::Array<BMEdge *, BM_DEFAULT_NGON_STACK_SIZE> edges_buf(f->len);
+  BMEdge **edges = edges_buf.data();
   /* New ordered verts. */
-  BMVert **verts = BLI_array_alloca(verts, f->len);
+  blender::Array<BMVert *, BM_DEFAULT_NGON_STACK_SIZE> verts_buf(f->len);
+  BMVert **verts = verts_buf.data();
   /* Original ordered loops to copy attributes into the new face. */
-  BMLoop **loops = BLI_array_alloca(loops, f->len);
+  blender::Array<BMLoop *, BM_DEFAULT_NGON_STACK_SIZE> loops_buf(f->len);
+  BMLoop **loops = loops_buf.data();
 
   STACK_DECLARE(edges);
   STACK_DECLARE(loops);
@@ -662,9 +665,9 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
   bool found_duplicates = false;
   bool has_self_index = false;
 
-  blender::KDTree_3d *tree = blender::BLI_kdtree_3d_new(verts_len);
+  blender::KDTree_3d *tree = blender::kdtree_3d_new(verts_len);
   for (int i = 0; i < verts_len; i++) {
-    blender::BLI_kdtree_3d_insert(tree, i, verts[i]->co);
+    blender::kdtree_3d_insert(tree, i, verts[i]->co);
     if (has_keep_vert && BMO_vert_flag_test(bm, verts[i], VERT_KEEP)) {
       duplicates[i] = i;
       has_self_index = true;
@@ -674,7 +677,7 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
     }
   }
 
-  blender::BLI_kdtree_3d_balance(tree);
+  blender::kdtree_3d_balance(tree);
 
   /* Given a cluster of duplicates, pick the index to keep. */
   auto deduplicate_target_calc_fn = [&verts](const int *cluster, const int cluster_num) -> int {
@@ -714,10 +717,10 @@ static int *bmesh_find_doubles_by_distance_impl(BMesh *bm,
     return i_best;
   };
 
-  found_duplicates = blender::BLI_kdtree_3d_calc_duplicates_cb_cpp(
+  found_duplicates = blender::kdtree_calc_duplicates_cb_cpp<blender::float3>(
                          tree, dist, duplicates, has_self_index, deduplicate_target_calc_fn) != 0;
 
-  blender::BLI_kdtree_3d_free(tree);
+  blender::kdtree_3d_free(tree);
 
   if (!found_duplicates) {
     MEM_freeN(duplicates);

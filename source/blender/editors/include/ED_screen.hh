@@ -32,7 +32,6 @@ struct WorkSpaceInstanceHook;
 struct bContext;
 struct bScreen;
 struct rcti;
-struct uiBlock;
 struct wmKeyConfig;
 struct wmMsgSubscribeKey;
 struct wmMsgSubscribeValue;
@@ -46,6 +45,8 @@ struct wmWindowManager;
 
 namespace blender::ui {
 struct Layout;
+struct Block;
+enum class ButtonSectionsAlign : int8_t;
 }  // namespace blender::ui
 
 /* regions */
@@ -58,7 +59,7 @@ void ED_region_do_draw(bContext *C, ARegion *region);
 void ED_region_exit(bContext *C, ARegion *region);
 /**
  * Utility to exit and free an area-region. Screen level regions (menus/popups) need to be treated
- * slightly differently, see #ui_region_temp_remove().
+ * slightly differently, see #ui::region_temp_remove().
  */
 void ED_region_remove(bContext *C, ScrArea *area, ARegion *region);
 void ED_region_pixelspace(const ARegion *region);
@@ -115,7 +116,7 @@ void ED_region_panels(const bContext *C, ARegion *region);
  */
 void ED_region_panels_layout_ex(const bContext *C,
                                 ARegion *region,
-                                ListBase *paneltypes,
+                                ListBaseT<PanelType> *paneltypes,
                                 blender::wm::OpCallContext op_context,
                                 const char *contexts[],
                                 const char *category_override);
@@ -125,7 +126,7 @@ void ED_region_panels_layout_ex(const bContext *C,
  */
 bool ED_region_property_search(const bContext *C,
                                ARegion *region,
-                               ListBase *paneltypes,
+                               ListBaseT<PanelType> *paneltypes,
                                const char *contexts[],
                                const char *category_override);
 
@@ -136,16 +137,15 @@ void ED_region_header_init(ARegion *region);
 void ED_region_header(const bContext *C, ARegion *region);
 void ED_region_header_layout(const bContext *C, ARegion *region);
 void ED_region_header_draw(const bContext *C, ARegion *region);
-/* Forward declare enum. */
-enum class uiButtonSectionsAlign : int8_t;
+
 /** Version of #ED_region_header() that draws with button sections. */
 void ED_region_header_with_button_sections(const bContext *C,
                                            ARegion *region,
-                                           uiButtonSectionsAlign align);
+                                           blender::ui::ButtonSectionsAlign align);
 /** Version of #ED_region_header_draw() that draws with button sections. */
 void ED_region_header_draw_with_button_sections(const bContext *C,
                                                 const ARegion *region,
-                                                uiButtonSectionsAlign align);
+                                                blender::ui::ButtonSectionsAlign align);
 
 void ED_region_cursor_set(wmWindow *win, ScrArea *area, ARegion *region);
 /**
@@ -218,7 +218,7 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf);
 /**
  * Returns offset for next button in header.
  */
-int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco);
+int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, int yco);
 
 /* areas */
 /**
@@ -666,31 +666,34 @@ bUserMenu *ED_screen_user_menu_ensure(bContext *C);
  * \param op_prop_enum: name of an operator property when the operator is called with an enum (to
  * be an empty string otherwise)
  */
-bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(ListBase *lb,
+bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(ListBaseT<bUserMenuItem> *lb,
                                                          const wmOperatorType *ot,
                                                          IDProperty *prop,
                                                          const char *op_prop_enum,
                                                          blender::wm::OpCallContext opcontext);
-bUserMenuItem_Menu *ED_screen_user_menu_item_find_menu(ListBase *lb, const MenuType *mt);
-bUserMenuItem_Prop *ED_screen_user_menu_item_find_prop(ListBase *lb,
+bUserMenuItem_Menu *ED_screen_user_menu_item_find_menu(ListBaseT<bUserMenuItem> *lb,
+                                                       const MenuType *mt);
+bUserMenuItem_Prop *ED_screen_user_menu_item_find_prop(ListBaseT<bUserMenuItem> *lb,
                                                        const char *context_data_path,
                                                        const char *prop_id,
                                                        int prop_index);
 
-void ED_screen_user_menu_item_add_operator(ListBase *lb,
+void ED_screen_user_menu_item_add_operator(ListBaseT<bUserMenuItem> *lb,
                                            const char *ui_name,
                                            const wmOperatorType *ot,
                                            const IDProperty *prop,
                                            const char *op_prop_enum,
                                            blender::wm::OpCallContext opcontext);
-void ED_screen_user_menu_item_add_menu(ListBase *lb, const char *ui_name, const MenuType *mt);
-void ED_screen_user_menu_item_add_prop(ListBase *lb,
+void ED_screen_user_menu_item_add_menu(ListBaseT<bUserMenuItem> *lb,
+                                       const char *ui_name,
+                                       const MenuType *mt);
+void ED_screen_user_menu_item_add_prop(ListBaseT<bUserMenuItem> *lb,
                                        const char *ui_name,
                                        const char *context_data_path,
                                        const char *prop_id,
                                        int prop_index);
 
-void ED_screen_user_menu_item_remove(ListBase *lb, bUserMenuItem *umi);
+void ED_screen_user_menu_item_remove(ListBaseT<bUserMenuItem> *lb, bUserMenuItem *umi);
 void ED_screen_user_menu_register();
 
 /* Cache display helpers */
@@ -744,6 +747,7 @@ ARegion *ED_area_find_region_xy_visual(const ScrArea *area, int regiontype, cons
 
 /* `interface_region_hud.cc` */
 
+namespace blender::ui {
 ARegionType *ED_area_type_hud(int space_type);
 void ED_area_type_hud_clear(wmWindowManager *wm, ScrArea *area_keep);
 void ED_area_type_hud_ensure(bContext *C, ScrArea *area);
@@ -753,6 +757,7 @@ void ED_area_type_hud_ensure(bContext *C, ScrArea *area);
  * same region type is present multiple times.
  */
 ARegion *ED_area_type_hud_redo_region_find(const ScrArea *area, const ARegion *hud_region);
+}  // namespace blender::ui
 
 /**
  * Default key-maps, bit-flags (matches order of evaluation).

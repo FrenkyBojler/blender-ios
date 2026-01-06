@@ -12,7 +12,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -35,10 +34,7 @@
 static void init_data(ModifierData *md)
 {
   WireframeModifierData *wmd = (WireframeModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(wmd, modifier));
-
-  MEMCPY_STRUCT_AFTER(wmd, DNA_struct_default_get(WireframeModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -122,7 +118,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   row.prop(ptr, "use_crease", UI_ITEM_NONE, "", ICON_NONE);
   blender::ui::Layout &sub = row.row(true);
   sub.active_set(RNA_boolean_get(ptr, "use_crease"));
-  sub.prop(ptr, "crease_weight", UI_ITEM_R_SLIDER, "", ICON_NONE);
+  sub.prop(ptr, "crease_weight", blender::ui::ITEM_R_SLIDER, "", ICON_NONE);
 
   layout.prop(ptr, "material_offset", UI_ITEM_NONE, IFACE_("Material Offset"), ICON_NONE);
 

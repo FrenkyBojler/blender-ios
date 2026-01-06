@@ -12,7 +12,6 @@
 
 #include "BLT_translation.hh"
 
-#include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -192,10 +191,7 @@ enum {
 static void init_data(ModifierData *md)
 {
   SurfaceDeformModifierData *smd = (SurfaceDeformModifierData *)md;
-
-  BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO(smd, modifier));
-
-  MEMCPY_STRUCT_AFTER(smd, DNA_struct_default_get(SurfaceDeformModifierData), modifier);
+  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -982,7 +978,7 @@ static void bindVert(void *__restrict userdata,
     return;
   }
 
-  sdvert->binds = MEM_calloc_arrayN<SDefBind>(bwdata->binds_num, "SDefVertBindData");
+  sdvert->binds = MEM_new_array_for_free<SDefBind>(bwdata->binds_num, "SDefVertBindData");
   if (sdvert->binds == nullptr) {
     data->success = MOD_SDEF_BIND_RESULT_MEM_ERR;
     sdvert->binds_num = 0;
@@ -1146,7 +1142,7 @@ static void compactSparseBinds(SurfaceDeformModifierData *smd)
     }
   }
 
-  SDefVert *new_verts = MEM_malloc_arrayN<SDefVert>(size_t(smd->bind_verts_num), __func__);
+  SDefVert *new_verts = MEM_new_array_for_free<SDefVert>(size_t(smd->bind_verts_num), __func__);
 
   /* Move data to new_verts. */
   BLI_assert(smd->verts_sharing_info->is_mutable());
@@ -1175,11 +1171,11 @@ static bool surfacedeformBind(Object *ob,
                               Mesh *mesh)
 {
   using namespace blender;
-  const blender::Span<blender::float3> positions = target->vert_positions();
-  const blender::Span<blender::int2> edges = target->edges();
-  const blender::OffsetIndices polys = target->faces();
-  const blender::Span<int> corner_verts = target->corner_verts();
-  const blender::Span<int> corner_edges = target->corner_edges();
+  const Span<blender::float3> positions = target->vert_positions();
+  const Span<blender::int2> edges = target->edges();
+  const OffsetIndices polys = target->faces();
+  const Span<int> corner_verts = target->corner_verts();
+  const Span<int> corner_edges = target->corner_edges();
   uint tedges_num = target->edges_num;
   int adj_result;
 
@@ -1211,7 +1207,7 @@ static bool surfacedeformBind(Object *ob,
     return false;
   }
 
-  smd_orig->verts = MEM_calloc_arrayN<SDefVert>(size_t(verts_num), "SDefBindVerts");
+  smd_orig->verts = MEM_new_array_for_free<SDefVert>(size_t(verts_num), "SDefBindVerts");
   if (smd_orig->verts == nullptr) {
     BKE_modifier_set_error(ob, (ModifierData *)smd_eval, "Out of memory");
     freeAdjacencyMap(vert_edges, adj_array, edge_polys);

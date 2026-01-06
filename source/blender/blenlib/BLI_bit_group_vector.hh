@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_bit_span_ops.hh"
 #include "BLI_bit_vector.hh"
 
 namespace blender::bits {
@@ -90,6 +91,7 @@ class BitGroupVector {
   /** Get all the bits at an index. */
   BoundedBitSpan operator[](const int64_t i) const
   {
+    BLI_assert(this->index_range().contains(i));
     const int64_t offset = aligned_group_size_ * i;
     return {data_.data() + (offset >> BitToIntIndexShift),
             IndexRange(offset & BitIndexMask, group_size_)};
@@ -98,6 +100,7 @@ class BitGroupVector {
   /** Get all the bits at an index. */
   MutableBoundedBitSpan operator[](const int64_t i)
   {
+    BLI_assert(this->index_range().contains(i));
     const int64_t offset = aligned_group_size_ * i;
     return {data_.data() + (offset >> BitToIntIndexShift),
             IndexRange(offset & BitIndexMask, group_size_)};
@@ -137,6 +140,20 @@ class BitGroupVector {
   MutableBoundedBitSpan all_bits()
   {
     return data_;
+  }
+
+  /**
+   * Updates each group by computing the bitwise-and with the given bits.
+   */
+  void foreach_and(const BoundedBitSpan bits)
+  {
+    /* This can still be optimized due to the additional knowledge we have how consecutive groups
+     * are laid out in memory. It is possible to updated multiple small groups at once. */
+    BLI_assert(bits.size() == group_size_);
+    for (const int64_t i : this->index_range()) {
+      MutableBoundedBitSpan group = (*this)[i];
+      group &= bits;
+    }
   }
 };
 
