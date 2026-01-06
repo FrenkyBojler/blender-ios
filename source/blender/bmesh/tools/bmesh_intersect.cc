@@ -19,15 +19,15 @@
  * - No support for holes (cutting a hole into a single face).
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
-#include "BLI_alloca.h"
 #include "BLI_linklist.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_memarena.h"
 #include "BLI_set.hh"
-#include "BLI_sort_utils.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
@@ -166,7 +166,7 @@ static void edge_verts_sort(const float co[3], LinkBase *v_ls_base)
 {
   /* not optimal but list will be typically < 5 */
   uint i;
-  VertSort *vert_sort = BLI_array_alloca(vert_sort, v_ls_base->list_len);
+  blender::Array<VertSort, BM_DEFAULT_TOPOLOGY_STACK_SIZE> vert_sort(v_ls_base->list_len);
   LinkNode *node;
 
   BLI_assert(v_ls_base->list_len > 1);
@@ -178,7 +178,9 @@ static void edge_verts_sort(const float co[3], LinkBase *v_ls_base)
     vert_sort[i].v = v;
   }
 
-  qsort(vert_sort, v_ls_base->list_len, sizeof(*vert_sort), BLI_sortutil_cmp_float);
+  std::sort(vert_sort.begin(), vert_sort.end(), [](const VertSort &a, const VertSort &b) {
+    return a.val < b.val;
+  });
 
   for (i = 0, node = v_ls_base->list; i < v_ls_base->list_len; i++, node = node->next) {
     node->link = vert_sort[i].v;
@@ -190,7 +192,7 @@ static void edge_verts_add(ISectState *s, BMEdge *e, BMVert *v, const bool use_t
 {
   BLI_assert(e->head.htype == BM_EDGE);
   BLI_assert(v->head.htype == BM_VERT);
-  ghash_insert_link(s->edge_verts, (void *)e, v, use_test, s->mem_arena);
+  ghash_insert_link(s->edge_verts, static_cast<void *>(e), v, use_test, s->mem_arena);
 }
 
 static void face_edges_add(ISectState *s, const int f_index, BMEdge *e, const bool use_test)
@@ -213,7 +215,9 @@ static void face_edges_split(BMesh *bm,
 {
   uint i;
   uint edge_arr_len = e_ls_base->list_len;
-  BMEdge **edge_arr = BLI_array_alloca(edge_arr, edge_arr_len);
+  /* NOTE: `edge_arr` pointer may be reassigned to arena memory below. */
+  blender::Array<BMEdge *, BM_DEFAULT_TOPOLOGY_STACK_SIZE> edge_arr_buf(edge_arr_len);
+  BMEdge **edge_arr = edge_arr_buf.data();
   LinkNode *node;
   BLI_assert(f->head.htype == BM_FACE);
 
@@ -305,7 +309,7 @@ static enum ISectType intersect_line_tri(const float p0[3],
             fac = line_point_factor_v3(ix_pair[0], p0, p1);
             if ((fac >= e->eps_margin) && (fac <= 1.0f - e->eps_margin)) {
               copy_v3_v3(r_ix, ix_pair[0]);
-              return ISectType(IX_EDGE_TRI_EDGE0 + (enum ISectType)i_t0);
+              return ISectType(IX_EDGE_TRI_EDGE0 + static_cast<enum ISectType>(i_t0));
             }
           }
         }
@@ -409,7 +413,7 @@ static BMVert *bm_isect_edge_tri(ISectState *s,
 #ifdef USE_DUMP
       printf("# cache hit (%d, %d, %d, %d)\n", UNPACK4(k_arr[i]));
 #endif
-      *r_side = (enum ISectType)i;
+      *r_side = static_cast<enum ISectType>(i);
       return iv;
     }
   }
@@ -1053,7 +1057,7 @@ bool BM_mesh_intersect(BMesh *bm,
             {UNPACK3(looptris[i][2]->v->co)},
         };
 
-        BLI_bvhtree_insert(tree_a, i, (const float *)t_cos, 3);
+        BLI_bvhtree_insert(tree_a, i, reinterpret_cast<const float *>(t_cos), 3);
       }
     }
     BLI_bvhtree_balance(tree_a);
@@ -1070,7 +1074,7 @@ bool BM_mesh_intersect(BMesh *bm,
             {UNPACK3(looptris[i][2]->v->co)},
         };
 
-        BLI_bvhtree_insert(tree_b, i, (const float *)t_cos, 3);
+        BLI_bvhtree_insert(tree_b, i, reinterpret_cast<const float *>(t_cos), 3);
       }
     }
     BLI_bvhtree_balance(tree_b);
