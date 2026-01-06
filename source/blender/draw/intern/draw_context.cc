@@ -496,8 +496,10 @@ void DRWContext::release_data()
 
   DRW_view_data_reset(this->view_data_active);
 
-  /* reset to avoid unbounded growth & stale hysteresis */
-  this->lod_state_map.clear(); // FIXME(Tri): lifetime
+ /* Reset per-draw LOD state.
+  * Persistent LOD across frames is intentionally out of scope.
+  */
+  this->lod_state_map.clear();
 
   if (this->data != nullptr && this->viewport == nullptr) {
     DRW_viewport_data_free(this->data);
@@ -771,7 +773,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
 
   /* EEVEE is not supported for now. */
   const bool engines_support_handle_ranges = (v3d && v3d->shading.type <= OB_SOLID) ||
-                                             BKE_scene_uses_blender_workbench(draw_ctx.scene);
+                                              BKE_scene_uses_blender_workbench(draw_ctx.scene);
 
   DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
@@ -790,9 +792,14 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
     int visibility = BKE_object_visibility(ob, eval_mode);
     bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
 
-    /* Fast-path: object has no LODs, fall back to regular behavior.
-    * NOTE: This block intentionally mirrors upstream behavior to preserve
-    * baseline performance for objects without LODs. */
+   /* Fast-path: object has no LODs, fall back to regular behavior.
+    * NOTE: This block intentionally uses original draw behavior to preserve
+    * baseline performance for objects without LODs.
+
+    NOTE: This fast-path bypasses LOD probing for ParticleSystem instances
+    * whose emitter has no LOD items. This is a known limitation and will be
+    * addressed separately to preserve baseline performance here.
+    */
     if (BLI_listbase_is_empty(&ob->lod_items)) {
 
       if (ob_visible && should_draw_object_cb(*ob)) {
@@ -815,7 +822,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
 
       duplilist.clear();
       object_duplilist(
-          draw_ctx.depsgraph, draw_ctx.scene, ob, deg_iter_settings.included_objects, duplilist);
+        draw_ctx.depsgraph, draw_ctx.scene, ob, deg_iter_settings.included_objects, duplilist);
 
       if (duplilist.is_empty()) {
         continue;
@@ -830,7 +837,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
 
         if (!engines_support_handle_ranges || !supports_handle_ranges(&dupli, ob)) {
           if (!evil::DEG_iterator_temp_object_from_dupli(
-                  ob, &dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
+              ob, &dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
               !should_draw_object_cb(tmp_object))
           {
             evil::DEG_iterator_temp_object_free_properties(&dupli, &tmp_object);
@@ -853,10 +860,10 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
         SET_FLAG_FROM_TEST(flags, is_negative_m4(dupli.mat), InstancesFlags::IsNegativeScale);
 
         InstancesKey key(dupli.ob,
-                        dupli.ob_data,
-                        flags,
-                        dupli.preview_base_geometry,
-                        dupli.preview_instance_index);
+                         dupli.ob_data,
+                         flags,
+                         dupli.preview_base_geometry,
+                         dupli.preview_instance_index);
 
         dupli_map.lookup_or_add_default(key).append(&dupli);
       }
@@ -864,7 +871,7 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       for (const auto &[key, instances] : dupli_map.items()) {
         DupliObject *first_dupli = instances.first();
         if (!evil::DEG_iterator_temp_object_from_dupli(
-                ob, first_dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
+            ob, first_dupli, eval_mode, false, &tmp_object, &tmp_runtime) ||
             !should_draw_object_cb(tmp_object))
         {
           evil::DEG_iterator_temp_object_free_properties(first_dupli, &tmp_object);
@@ -873,8 +880,8 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
 
         tmp_object.light_linking = ob->light_linking;
         SET_FLAG_FROM_TEST(tmp_object.transflag,
-                          flag_is_set(key.flags, InstancesFlags::IsNegativeScale),
-                          OB_NEG_SCALE);
+                           flag_is_set(key.flags, InstancesFlags::IsNegativeScale),
+                           OB_NEG_SCALE);
         tmp_object.runtime->object_to_world = float4x4();
         tmp_object.runtime->world_to_object = float4x4();
 
@@ -951,7 +958,9 @@ static void foreach_obref_in_scene(DRWContext &draw_ctx,
       continue;
     }
 
-    /* Allow LOD even if instances are not visible */
+   /* Skip dupli-list construction if no instances are visible
+    * and no LOD target is selected.
+    */
     if (!instances_visible && !lod_target) {
       continue;
     }
