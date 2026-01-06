@@ -3288,7 +3288,7 @@ static wmOperatorStatus region_scale_modal(bContext *C, wmOperator *op, const wm
                                  1.0f;
         if (float(rmd->region->sizex) * aspect > UI_PANEL_CATEGORY_MIN_WIDTH) {
           /* Save this as new runtime preferred size. */
-          rmd->region->runtime->type->prefsizex = rmd->region->sizex;
+          rmd->region->runtime->type->prefsizex = int(float(rmd->region->sizex) * aspect);
         }
 
         region_scale_exit(op);

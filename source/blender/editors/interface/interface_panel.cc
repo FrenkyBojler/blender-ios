@@ -2604,6 +2604,8 @@ int handler_panel_region(bContext *C,
         }
         else if (already_active) {
           /* Minimize region. */
+          region->runtime->type->prefsizex = int(float(BLI_rcti_size_x(&region->winrct) + 1) /
+                                                 UI_SCALE_FAC * aspect);
           ui_panel_region_width_set(region, aspect, UI_PANEL_CATEGORY_MIN_WIDTH);
           WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
         }
