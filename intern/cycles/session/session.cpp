@@ -393,8 +393,8 @@ RenderWork Session::run_update_for_next_iteration()
      * knows nothing about progressive or cropped rendering, it just gets the
      * image dimensions passed in. */
     const float resolution = render_work.resolution_divider;
-    const int width = max(1, static_cast<int>(buffer_params_.full_width / resolution));
-    const int height = max(1, static_cast<int>(buffer_params_.full_height / resolution));
+    const int width = max(1, int(buffer_params_.full_width / resolution));
+    const int height = max(1, int(buffer_params_.full_height / resolution));
 
     scene->update_camera_resolution(progress, width, height);
 

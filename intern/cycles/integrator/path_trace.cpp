@@ -324,19 +324,18 @@ static BufferParams scale_buffer_params(const BufferParams &params, const float 
 {
   BufferParams scaled_params = params;
 
-  scaled_params.width = max(1, static_cast<int>(params.width / resolution_divider));
-  scaled_params.height = max(1, static_cast<int>(params.height / resolution_divider));
+  scaled_params.width = max(1, int(params.width / resolution_divider));
+  scaled_params.height = max(1, int(params.height / resolution_divider));
 
-  scaled_params.window_x = static_cast<int>(params.window_x / resolution_divider);
-  scaled_params.window_y = static_cast<int>(params.window_y / resolution_divider);
-  scaled_params.window_width = max(1, static_cast<int>(params.window_width / resolution_divider));
-  scaled_params.window_height = max(1,
-                                    static_cast<int>(params.window_height / resolution_divider));
+  scaled_params.window_x = int(params.window_x / resolution_divider);
+  scaled_params.window_y = int(params.window_y / resolution_divider);
+  scaled_params.window_width = max(1, int(params.window_width / resolution_divider));
+  scaled_params.window_height = max(1, int(params.window_height / resolution_divider));
 
-  scaled_params.full_x = static_cast<int>(params.full_x / resolution_divider);
-  scaled_params.full_y = static_cast<int>(params.full_y / resolution_divider);
-  scaled_params.full_width = max(1, static_cast<int>(params.full_width / resolution_divider));
-  scaled_params.full_height = max(1, static_cast<int>(params.full_height / resolution_divider));
+  scaled_params.full_x = int(params.full_x / resolution_divider);
+  scaled_params.full_y = int(params.full_y / resolution_divider);
+  scaled_params.full_width = max(1, int(params.full_width / resolution_divider));
+  scaled_params.full_height = max(1, int(params.full_height / resolution_divider));
 
   scaled_params.update_offset_stride();
 
@@ -362,9 +361,7 @@ void PathTrace::update_effective_work_buffer_params(const RenderWork &render_wor
       overscan,
       [&](PathTraceWork *path_trace_work, const BufferParams params) {
         const BufferParams scaled_params = scale_buffer_params(
-            params,
-            static_cast<float>(denoised_big_tile_params.width) /
-                static_cast<float>(scaled_big_tile_params.width));
+            params, float(denoised_big_tile_params.width) / float(scaled_big_tile_params.width));
         path_trace_work->set_effective_buffer_params(
             scaled_big_tile_params, scaled_params, denoised_big_tile_params, params);
       });
