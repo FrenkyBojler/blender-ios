@@ -104,13 +104,18 @@ void TokenStream::lexical_analysis(ParserStage stop_after)
 
   TokenData data;
 
-  tokenize(data);
-  if (stop_after == Tokenize) {
+  if (stop_after == TokenizePreprocessor) {
+    tokenize(data, true);
+  }
+  else {
+    tokenize(data, false);
+  }
+  if (stop_after <= Tokenize) {
     goto end;
   }
 
   merge_tokens(data);
-  if (stop_after == MergeTokens) {
+  if (stop_after <= MergeTokens) {
     goto end;
   }
 
@@ -213,7 +218,7 @@ static always_inline bool always_split_token(const TokenType c)
   }
 }
 
-static const std::array<std::pair<TokenType, bool>, 256> token_table = [] {
+static const std::array<std::pair<TokenType, bool>, 256> token_table_full = [] {
   std::array<std::pair<TokenType, bool>, 256> t;
   for (int i = 0; i < 256; ++i) {
     TokenType type = to_type(i);
@@ -222,13 +227,17 @@ static const std::array<std::pair<TokenType, bool>, 256> token_table = [] {
   return t;
 }();
 
-/* Table lookup variant. Much faster than switch statement.  */
-static always_inline std::pair<TokenType, bool> to_type_table(const unsigned char c)
-{
-  return token_table[c];
-}
+/* Same thing but consider numbers as words to avoid second merging pass. */
+static const std::array<std::pair<TokenType, bool>, 256> token_table_preprocessor = [] {
+  std::array<std::pair<TokenType, bool>, 256> t;
+  for (int i = 0; i < 256; ++i) {
+    TokenType type = to_type(i);
+    t[i] = {type, always_split_token(type)};
+  }
+  return t;
+}();
 
-void TokenStream::tokenize(TokenData &tokens)
+void TokenStream::tokenize(TokenData &tokens, bool only_preprocessor_tokens)
 {
   /* Reserve space inside the data structures. Allocate 1 token per char as we do not want to
    * resize or check for size inside the hot loop. */
@@ -237,13 +246,17 @@ void TokenStream::tokenize(TokenData &tokens)
 
   TokenType type = TokenType::Invalid;
 
+  const std::array<std::pair<TokenType, bool>, 256> &token_table = only_preprocessor_tokens ?
+                                                                       token_table_preprocessor :
+                                                                       token_table_full;
+
   TokenType *types_raw = tokens.types.data();
   uint32_t *offsets_raw = tokens.offsets.offsets.data();
 
   int offset = 0, cursor = 0;
   for (const char c : str) {
     const TokenType prev = type;
-    auto [tok_type, always_split] = to_type_table(c);
+    auto [tok_type, always_split] = token_table[c];
     type = tok_type;
     /* Its faster to overwrite the previous value with the same value
      * than having a condition. */

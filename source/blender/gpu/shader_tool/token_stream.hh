@@ -16,6 +16,7 @@ namespace blender::gpu::shader::parser {
 /* Used to select at which stage to stop.
  *  */
 enum ParserStage {
+  TokenizePreprocessor,
   Tokenize,
   MergeTokens,
   IdentifyKeywords,
@@ -47,7 +48,7 @@ struct TokenStream {
 
  private:
   /* Create tokens based on character stream. */
-  void tokenize(struct TokenData &tokens);
+  void tokenize(struct TokenData &tokens, bool only_preprocessor_tokens);
   /* Merge tokens (ex: '2','.','e','-','3` into '2.e-3`). */
   void merge_tokens(struct TokenData &tokens);
 
