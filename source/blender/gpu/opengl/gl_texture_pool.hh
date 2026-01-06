@@ -20,16 +20,19 @@ class GLTexturePool : public TexturePool {
 
   struct AllocationHandle {
     GLTexture *texture = nullptr;
-    int counter = 0;
+    /* Counter to track the number of unused cycles before deallocation in `pool_`. */
+    int unused_cycles_count = 0;
   };
 
   struct TextureHandle {
-    GLTexture *texture = nullptr; /* Either created texture, or aliasing view over texture. */
-    GLTexture *texture_allocation = nullptr; /* Optional actual texture behind view. */
-    int counter = 1;
+    /* Either created texture, or aliasing view over texture. */
+    GLTexture *texture = nullptr;
+    /* Optional backing texture behind view. */
+    GLTexture *texture_allocation = nullptr; 
+    /* Counter to track texture acquire/retain mismatches in `acquire_`.  */
+    int users_count = 1;
 
-    /* We use the pointer as hash/comparator, as a TextureHandle cannot be acquired twice.
-     * This means we can find the handle without knowing the internal counter. */
+    /* We use the pointer as hash/comparator, as a texture cannot be acquired twice. */
     uint64_t hash() const
     {
       return get_default_hash(texture);
@@ -51,12 +54,16 @@ class GLTexturePool : public TexturePool {
 
  public:
   ~GLTexturePool();
+  
   Texture *acquire_texture(int2 extent,
                            TextureFormat format,
                            eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL) override;
+
   void release_texture(Texture *tex) override;
+
   void reset(bool force_free = false) override;
-  void offset_texture_counter(Texture *tex, int offset) override;
+
+  void offset_users_count(Texture *tex, int offset) override;
 };
 
 }  // namespace blender::gpu
