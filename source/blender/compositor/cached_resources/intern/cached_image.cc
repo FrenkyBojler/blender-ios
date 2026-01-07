@@ -8,6 +8,8 @@
 
 #include "BLI_hash.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 
@@ -63,7 +65,7 @@ bool operator==(const CachedImageKey &a, const CachedImageKey &b)
 static RenderLayer *get_render_layer(const RenderResult *render_result,
                                      const ImageUser &image_user)
 {
-  const ListBase *layers = &render_result->layers;
+  const ListBaseT<RenderLayer> *layers = &render_result->layers;
   return static_cast<RenderLayer *>(BLI_findlink(layers, image_user.layer));
 }
 
@@ -103,7 +105,7 @@ static int get_view_index(const Context &context,
     return 0;
   }
 
-  const ListBase *views = &render_result->views;
+  const ListBaseT<RenderView> *views = &render_result->views;
   /* There is only one view and its index is 0. */
   if (BLI_listbase_count_at_most(views, 2) < 2) {
     return 0;
@@ -316,7 +318,6 @@ CachedImage::CachedImage(Context &context,
 
   const bool use_half_float = linear_image_buffer->foptions.flag & OPENEXR_HALF;
   this->result.set_precision(use_half_float ? ResultPrecision::Half : ResultPrecision::Full);
-
   this->result.set_type(get_result_type(render_result, image_user_for_pass, linear_image_buffer));
 
   /* For GPU, we wrap the texture returned by IMB module and free it ourselves in destructor. For
@@ -359,6 +360,13 @@ CachedImage::CachedImage(Context &context,
             }
           });
     }
+  }
+
+  if (image_buffer->flags & IB_has_display_window) {
+    this->result.domain().display_size = int2(image_buffer->display_size);
+    this->result.domain().data_offset = int2(image_buffer->data_offset);
+    this->result.transform(
+        math::from_location<float3x3>(float2(int2(image_buffer->display_offset))));
   }
 
   IMB_freeImBuf(linear_image_buffer);
