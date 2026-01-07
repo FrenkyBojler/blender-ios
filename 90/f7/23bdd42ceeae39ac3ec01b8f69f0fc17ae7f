@@ -1,2 +1,3 @@
 Referenced by issue #149578, Operator (object.modifier_set_active) now fails context poll in 5.0
 Referenced by pull request #150748, Fix #150712: UI: Tree View: select state disappear
+Referenced by commit 6592218947017c3db062a12f638442a6c21ee604, Fix #150712: UI: Tree View: select state disappear
