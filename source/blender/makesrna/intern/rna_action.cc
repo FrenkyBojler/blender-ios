@@ -1106,7 +1106,7 @@ static FCurve *rna_Action_fcurve_ensure_for_datablock(bAction *_self,
  * Used to check if an action (value pointer)
  * is suitable to be assigned to the ID-block that is ptr.
  */
-bool rna_Action_id_poll(PointerRNA *ptr, PointerRNA value)
+bool rna_Action_id_poll(PointerRNA * /* ptr */, PointerRNA value)
 {
   bAction *dna_action = id_cast<bAction *>(value.owner_id);
 
@@ -1115,7 +1115,7 @@ bool rna_Action_id_poll(PointerRNA *ptr, PointerRNA value)
   }
 
   /* Layered Actions can always be assigned. */
-  BLI_assert(action.idroot == 0);
+  BLI_assert(dna_action->idroot == 0);
   return true;
 }
 
