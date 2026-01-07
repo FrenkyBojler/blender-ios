@@ -33,13 +33,6 @@ static void pitchmodifier_init_data(StripModifierData *smd)
   pmd->quality = ePitchQuality::PITCH_QUALITY_HIGH;
 }
 
-static void pitchmodifier_free(StripModifierData *smd)
-{
-  if (smd->runtime.last_pitch_modifier) {
-    MEM_delete(smd->runtime.last_pitch_modifier);
-  }
-}
-
 static void pitchmodifier_draw(const bContext * /*C*/, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
@@ -75,7 +68,7 @@ StripModifierTypeInfo seqModifierType_Pitch = {
     /*struct_name*/ "PitchModifierData",
     /*struct_size*/ sizeof(PitchModifierData),
     /*init_data*/ pitchmodifier_init_data,
-    /*free_data*/ pitchmodifier_free,
+    /*free_data*/ nullptr,
     /*copy_data*/ nullptr,
     /*apply*/ nullptr,
     /*panel_register*/ pitchmodifier_register,

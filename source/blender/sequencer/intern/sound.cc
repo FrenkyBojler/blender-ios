@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <xxhash.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -25,6 +26,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_sound.hh"
 
+#include "SEQ_modifier.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_sound.hh"
 
@@ -254,8 +256,9 @@ void sound_equalizermodifier_free(StripModifierData *smd)
     MEM_freeN(&eqcmd);
   }
   BLI_listbase_clear(&semd->graphics);
-  if (smd->runtime.last_buf) {
-    MEM_freeN(smd->runtime.last_buf);
+
+  if (smd->runtime->last_buf) {
+    MEM_freeN(smd->runtime->last_buf);
   }
 }
 
@@ -327,12 +330,12 @@ void *sound_equalizermodifier_recreator(Strip *strip,
   }
 
   /* Only make new sound when necessary. It is faster and it prevents audio glitches. */
-  if (!needs_update && smd->runtime.last_sound_in == sound_in &&
-      smd->runtime.last_buf != nullptr &&
-      std::memcmp(buf, smd->runtime.last_buf, SOUND_EQUALIZER_SIZE_DEFINITION) == 0)
+  if (!needs_update && smd->runtime->last_sound_in == sound_in &&
+      smd->runtime->last_buf != nullptr &&
+      std::memcmp(buf, smd->runtime->last_buf, SOUND_EQUALIZER_SIZE_DEFINITION) == 0)
   {
     MEM_freeN(buf);
-    return smd->runtime.last_sound_out;
+    return smd->runtime->last_sound_out;
   }
 
   AUD_Sound *sound_out = AUD_Sound_equalize(sound_in,
@@ -342,9 +345,9 @@ void *sound_equalizermodifier_recreator(Strip *strip,
                                             SOUND_EQUALIZER_SIZE_CONVERSION);
 
   needs_update = true;
-  smd->runtime.last_buf = buf;
-  smd->runtime.last_sound_in = sound_in;
-  smd->runtime.last_sound_out = sound_out;
+  smd->runtime->last_buf = buf;
+  smd->runtime->last_sound_in = sound_in;
+  smd->runtime->last_sound_out = sound_out;
 
   return sound_out;
 #else
@@ -353,19 +356,29 @@ void *sound_equalizermodifier_recreator(Strip *strip,
 #endif
 }
 
+static const uint64_t pitchmodifier_get_params_hash(PitchModifierData *pmd)
+{
+  XXH3_state_t *state = XXH3_createState();
+  XXH3_64bits_reset(state);
+
+  XXH3_64bits_update(state, &pmd->mode, sizeof(pmd->mode));
+  XXH3_64bits_update(state, &pmd->quality, sizeof(pmd->quality));
+  XXH3_64bits_update(state, &pmd->semitones, sizeof(pmd->semitones));
+  XXH3_64bits_update(state, &pmd->cents, sizeof(pmd->cents));
+  XXH3_64bits_update(state, &pmd->ratio, sizeof(pmd->ratio));
+  XXH3_64bits_update(state, &pmd->preserve_formant, sizeof(pmd->preserve_formant));
+
+  const uint64_t hash = XXH3_64bits_digest(state);
+  XXH3_freeState(state);
+  return hash;
+}
+
 static bool pitchmodifier_data_changed(StripModifierData *smd)
 {
   PitchModifierData *pmd = (PitchModifierData *)smd;
-  PitchModifierDataRuntime *pmd_runtime = smd->runtime.last_pitch_modifier;
+  uint64_t old_params_hash = smd->runtime->params_hash;
 
-  if (!pmd_runtime) {
-    return true;
-  }
-
-  if (pmd->mode == pmd_runtime->mode && pmd->quality == pmd_runtime->quality &&
-      pmd->semitones == pmd_runtime->semitones && pmd->cents == pmd_runtime->cents &&
-      pmd->ratio == pmd_runtime->ratio && pmd->preserve_formant == pmd_runtime->preserve_formant)
-  {
+  if (old_params_hash == pitchmodifier_get_params_hash(pmd)) {
     return false;
   }
   return true;
@@ -376,9 +389,9 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
                               void *sound_in,
                               bool &needs_update)
 {
-  if (!needs_update && smd->runtime.last_sound_in == sound_in && !pitchmodifier_data_changed(smd))
+  if (!needs_update && smd->runtime->last_sound_in == sound_in && !pitchmodifier_data_changed(smd))
   {
-    return smd->runtime.last_sound_out;
+    return smd->runtime->last_sound_out;
   }
 
 #if defined(WITH_AUDASPACE) && defined(WITH_RUBBERBAND)
@@ -413,24 +426,9 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
     }
   }
 
-  PitchModifierDataRuntime *pmd_runtime = smd->runtime.last_pitch_modifier;
-  if (pmd_runtime == nullptr) {
-    smd->runtime.last_pitch_modifier = MEM_new<PitchModifierDataRuntime>(
-        "PitchModifierDataRuntime");
-    pmd_runtime = smd->runtime.last_pitch_modifier;
-
-    /* Initialize Runtime Data. */
-    pmd_runtime->mode = pmd->mode;
-    pmd_runtime->quality = pmd->quality;
-    pmd_runtime->semitones = pmd->semitones;
-    pmd_runtime->cents = pmd->cents;
-    pmd_runtime->ratio = pmd->ratio;
-    pmd_runtime->preserve_formant = pmd->preserve_formant;
-  }
-
   if (pitch_scale == 0) {
-    if (smd->runtime.last_sound_in == sound_in) {
-      return smd->runtime.last_sound_out;
+    if (smd->runtime->last_sound_in == sound_in) {
+      return smd->runtime->last_sound_out;
     }
     else {
       return sound_in;
@@ -440,20 +438,14 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
   AUD_Sound *sound_out = AUD_Sound_timeStretchPitchScale(
       sound_in, 1, pitch_scale, (AUD_StretcherQuality)quality, pmd->preserve_formant);
   needs_update = true;
-  smd->runtime.last_sound_in = sound_in;
-  smd->runtime.last_sound_out = sound_out;
-  /* Update runtime data. */
-  pmd_runtime->mode = pmd->mode;
-  pmd_runtime->quality = pmd->quality;
-  pmd_runtime->semitones = pmd->semitones;
-  pmd_runtime->cents = pmd->cents;
-  pmd_runtime->ratio = pmd->ratio;
-  pmd_runtime->preserve_formant = pmd->preserve_formant;
+  smd->runtime->last_sound_in = sound_in;
+  smd->runtime->last_sound_out = sound_out;
+  smd->runtime->params_hash = pitchmodifier_get_params_hash(pmd);
 
   return sound_out;
 #else
-  if (smd->runtime.last_sound_in == sound_in) {
-    return smd->runtime.last_sound_out;
+  if (smd->runtime->last_sound_in == sound_in) {
+    return smd->runtime->last_sound_out;
   }
   else {
     return sound_in;
@@ -461,21 +453,28 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
 #endif
 }
 
+static const uint64_t echomodifier_get_params_hash(EchoModifierData *emd)
+{
+  XXH3_state_t *state = XXH3_createState();
+  XXH3_64bits_reset(state);
+
+  XXH3_64bits_update(state, &emd->delay, sizeof(emd->delay));
+  XXH3_64bits_update(state, &emd->feedback, sizeof(emd->feedback));
+  XXH3_64bits_update(state, &emd->mix, sizeof(emd->mix));
+
+  const uint64_t hash = XXH3_64bits_digest(state);
+  XXH3_freeState(state);
+  return hash;
+}
+
 static bool echomodifier_data_changed(StripModifierData *smd)
 {
   EchoModifierData *emd = (EchoModifierData *)smd;
-  EchoModifierDataRuntime *emd_runtime = smd->runtime.last_echo_modifier;
+  uint64_t old_params_hash = smd->runtime->params_hash;
 
-  if (!emd_runtime) {
-    return true;
-  }
-
-  if (emd->delay == emd_runtime->delay && emd->feedback == emd_runtime->feedback &&
-      emd->mix == emd_runtime->mix)
-  {
+  if (old_params_hash == echomodifier_get_params_hash(emd)) {
     return false;
   }
-
   return true;
 }
 
@@ -485,25 +484,17 @@ void *echomodifier_recreator(Strip * /*strip*/,
                              bool &needs_update)
 {
 #if defined(WITH_AUDASPACE)
-  if (!needs_update && smd->runtime.last_sound_in == sound_in && !echomodifier_data_changed(smd)) {
-    return smd->runtime.last_sound_out;
+  if (!needs_update && smd->runtime->last_sound_in == sound_in && !echomodifier_data_changed(smd))
+  {
+    return smd->runtime->last_sound_out;
   }
   EchoModifierData *emd = (EchoModifierData *)smd;
 
-  EchoModifierDataRuntime *emd_runtime = smd->runtime.last_echo_modifier;
-  if (emd_runtime == nullptr) {
-    smd->runtime.last_echo_modifier = MEM_new<EchoModifierDataRuntime>("EchoModifierDataRuntime");
-    emd_runtime = smd->runtime.last_echo_modifier;
-  }
-
   AUD_Sound *sound_out = AUD_Sound_Echo(sound_in, emd->delay, emd->feedback, emd->mix, true);
   needs_update = true;
-  smd->runtime.last_sound_in = sound_in;
-  smd->runtime.last_sound_out = sound_out;
-  /* Update runtime data/ */
-  emd_runtime->delay = emd->delay;
-  emd_runtime->feedback = emd->feedback;
-  emd_runtime->mix = emd->mix;
+  smd->runtime->last_sound_in = sound_in;
+  smd->runtime->last_sound_out = sound_out;
+  smd->runtime->params_hash = echomodifier_get_params_hash(emd);
   return sound_out;
 #else
   UNUSED_VARS(smd, sound_in, needs_update);
@@ -528,10 +519,10 @@ void *sound_modifier_recreator(Strip *strip,
 {
 
   /* Check if the modifier mute flag has changed. */
-  if ((smd->flag & STRIP_MODIFIER_FLAG_MUTE) != (smd->runtime.flag & STRIP_MODIFIER_FLAG_MUTE)) {
+  if ((smd->flag & STRIP_MODIFIER_FLAG_MUTE) != (smd->runtime->flag & STRIP_MODIFIER_FLAG_MUTE)) {
     /* Update the runtime mute flag and flag the sound handle for update. */
-    smd->runtime.flag &= ~(STRIP_MODIFIER_FLAG_MUTE);            /* Clear the bit. */
-    smd->runtime.flag |= (smd->flag & STRIP_MODIFIER_FLAG_MUTE); /* Set the bit. */
+    smd->runtime->flag &= ~(STRIP_MODIFIER_FLAG_MUTE);            /* Clear the bit. */
+    smd->runtime->flag |= (smd->flag & STRIP_MODIFIER_FLAG_MUTE); /* Set the bit. */
     needs_update = true;
   }
 

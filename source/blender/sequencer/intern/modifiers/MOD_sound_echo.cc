@@ -30,13 +30,6 @@ static void echomodifier_init_data(StripModifierData *smd)
   emd->mix = 0.5f;
 }
 
-static void echomodifier_free(StripModifierData *smd)
-{
-  if (smd->runtime.last_echo_modifier) {
-    MEM_delete(smd->runtime.last_echo_modifier);
-  }
-}
-
 static void echomodifier_draw(const bContext * /*C*/, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
@@ -62,7 +55,7 @@ StripModifierTypeInfo seqModifierType_Echo = {
     /*struct_name*/ "EchoModifierData",
     /*struct_size*/ sizeof(EchoModifierData),
     /*init_data*/ echomodifier_init_data,
-    /*free_data*/ echomodifier_free,
+    /*free_data*/ nullptr,
     /*copy_data*/ nullptr,
     /*apply*/ nullptr,
     /*panel_register*/ echomodifier_register,

@@ -65,6 +65,23 @@ struct StripModifierTypeInfo {
   void (*blend_read)(BlendDataReader *reader, StripModifierData *smd);
 };
 
+struct StripModifierDataRuntime {
+  /* Reference parameters for optimizing updates. Sound modifiers can store parameters, sound
+   * inputs and outputs. When all existing parameters do match new ones, the update can be skipped
+   * and old sound handle may be returned. This is to prevent audio glitches, see #141595 */
+
+  float *last_buf = nullptr; /* Equalizer frequency/volume curve buffer. */
+
+  /* Reference sound handles (may be used by any sound modifier). */
+  void *last_sound_in = nullptr;
+  void *last_sound_out = nullptr;
+
+  /* Hash to detect change in modifier state. */
+  uint64_t params_hash = 0;
+
+  int flag = 0; /* eStripModifierFlag */
+};
+
 void modifiers_init();
 
 const StripModifierTypeInfo *modifier_type_info_get(int type);

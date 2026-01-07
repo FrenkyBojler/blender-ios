@@ -10,6 +10,7 @@
 
 #include "DNA_sequence_types.h"
 
+#include "SEQ_modifier.hh"
 #include "SEQ_sequencer.hh"
 
 #include "BLI_listbase.h"
@@ -26,54 +27,52 @@ void StripModifierDataBackup::reset()
   sound_in = nullptr;
   sound_out = nullptr;
   last_buf = nullptr;
-  last_pitch_modifier = nullptr;
-  last_echo_modifier = nullptr;
   flag = 0;
+  params_hash = 0;
 }
 
 void StripModifierDataBackup::init_from_modifier(StripModifierData *smd)
 {
+  blender::seq::StripModifierDataRuntime *runtime = smd->runtime;
+
   if (ELEM(smd->type,
            eSeqModifierType_SoundEqualizer,
            eSeqModifierType_Pitch,
            eSeqModifierType_Echo))
   {
-    flag = smd->runtime.flag;
-    sound_in = smd->runtime.last_sound_in;
-    sound_out = smd->runtime.last_sound_out;
-    last_buf = smd->runtime.last_buf;
-    last_pitch_modifier = smd->runtime.last_pitch_modifier;
-    last_echo_modifier = smd->runtime.last_echo_modifier;
+    flag = runtime->flag;
+    sound_in = runtime->last_sound_in;
+    sound_out = runtime->last_sound_out;
+    last_buf = runtime->last_buf;
+    params_hash = runtime->params_hash;
 
-    smd->runtime.last_sound_in = nullptr;
-    smd->runtime.last_sound_out = nullptr;
-    smd->runtime.last_buf = nullptr;
-    smd->runtime.last_pitch_modifier = nullptr;
-    smd->runtime.last_echo_modifier = nullptr;
+    runtime->last_sound_in = nullptr;
+    runtime->last_sound_out = nullptr;
+    runtime->last_buf = nullptr;
   }
 }
 
 void StripModifierDataBackup::restore_to_modifier(StripModifierData *smd)
 {
+  blender::seq::StripModifierDataRuntime *runtime = smd->runtime;
+
   if (ELEM(smd->type,
            eSeqModifierType_SoundEqualizer,
            eSeqModifierType_Pitch,
            eSeqModifierType_Echo))
   {
-    smd->runtime.flag = flag;
-    smd->runtime.last_sound_in = sound_in;
-    smd->runtime.last_sound_out = sound_out;
-    smd->runtime.last_buf = last_buf;
-    smd->runtime.last_pitch_modifier = last_pitch_modifier;
-    smd->runtime.last_echo_modifier = last_echo_modifier;
+    runtime->flag = flag;
+    runtime->last_sound_in = sound_in;
+    runtime->last_sound_out = sound_out;
+    runtime->last_buf = last_buf;
+    runtime->params_hash = params_hash;
   }
   reset();
 }
 
 bool StripModifierDataBackup::isEmpty() const
 {
-  return sound_in == nullptr && sound_out == nullptr && last_buf == nullptr &&
-         last_pitch_modifier == nullptr && last_echo_modifier == nullptr;
+  return sound_in == nullptr && sound_out == nullptr && last_buf == nullptr;
 }
 
 StripBackup::StripBackup(const Depsgraph * /*depsgraph*/)

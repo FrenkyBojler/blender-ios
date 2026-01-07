@@ -35,6 +35,7 @@ struct PrefetchJob;
 struct SourceImageCache;
 struct StripLookup;
 struct StripRuntime;
+struct StripModifierDataRuntime;
 }  // namespace blender::seq
 
 /** #Strip.flag */
@@ -889,24 +890,6 @@ enum eModMaskTime {
   STRIP_MASK_TIME_ABSOLUTE = 1,
 };
 
-struct StripModifierDataRuntime {
-  /* Reference parameters for optimizing updates. Sound modifiers can store parameters, sound
-   * inputs and outputs. When all existing parameters do match new ones, the update can be skipped
-   * and old sound handle may be returned. This is to prevent audio glitches, see #141595 */
-
-  float *last_buf = nullptr; /* Equalizer frequency/volume curve buffer */
-
-  /* Reference sound handles (may be used by any sound modifier). */
-  void *last_sound_in = nullptr;
-  void *last_sound_out = nullptr;
-
-  struct PitchModifierDataRuntime *last_pitch_modifier = nullptr;
-  struct EchoModifierDataRuntime *last_echo_modifier = nullptr;
-
-  int flag = 0; /* eStripModifierFlag */
-  char _pad[4];
-};
-
 struct StripModifierData {
   struct StripModifierData *next = nullptr, *prev = nullptr;
   int type = 0; /* eStripModifierType */
@@ -927,7 +910,7 @@ struct StripModifierData {
   uint16_t layout_panel_open_flag = 0;
   uint16_t ui_expand_flag = 0;
 
-  StripModifierDataRuntime runtime;
+  blender::seq::StripModifierDataRuntime *runtime = nullptr;
 };
 
 struct ColorBalanceModifierData {
@@ -1007,25 +990,8 @@ struct PitchModifierData {
   int quality = 0; /*ePitchQuality*/
 };
 
-struct PitchModifierDataRuntime {
-  int mode = 0; /*ePitchMode*/
-  int semitones = 0;
-  int cents = 0;
-  float ratio = 0;
-  char preserve_formant = 0;
-  char _pad[3] = {};
-  int quality = 0; /*ePitchQuality*/
-};
-
 struct EchoModifierData {
   StripModifierData modifier;
-  float delay = 0;
-  float feedback = 0;
-  float mix = 0;
-  char _pad[4] = {};
-};
-
-struct EchoModifierDataRuntime {
   float delay = 0;
   float feedback = 0;
   float mix = 0;
