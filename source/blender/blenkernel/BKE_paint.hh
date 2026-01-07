@@ -497,14 +497,6 @@ struct SculptSession : NonCopyable, NonMovable {
   bool sticky_shading_color = false;
 
   /**
-   * Time when mask visibility warning was last shown (in seconds since some fixed point).
-   * Used to show warning again after a certain interval (e.g., 10 seconds) if user continues
-   * working with mask while display is disabled.
-   * Reset when entering Sculpt Mode.
-   */
-  float mask_warning_last_shown_time = 0.0f;
-
-  /**
    * Last used painting canvas key.
    */
   std::optional<std::string> last_paint_canvas_key = {};

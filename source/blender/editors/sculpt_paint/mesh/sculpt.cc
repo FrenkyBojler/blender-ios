@@ -5959,28 +5959,82 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
     MultiresModifierData *mmd = BKE_sculpt_multires_active(&scene, &ob);
     BKE_sculpt_mask_layers_ensure(CTX_data_depsgraph_pointer(C), CTX_data_main(C), &ob, mmd);
 
-    /* Warn user if sculpt mask display is disabled.
-     * Show warning immediately when starting a stroke, then again after 10 seconds
-     * if user continues painting in stroke mode. */
-    if (v3d && !(v3d->overlay.flag & V3D_OVERLAY_SCULPT_SHOW_MASK)) {
-      SculptSession &ss = *ob.sculpt;
-      const float current_time = float(BLI_time_now_seconds());
-      const float warning_interval = 10.0f; /* Show warning again after 10 seconds */
+    if (v3d) {
+      View3D *v3d_nonconst = CTX_wm_view3d(C);
+      /* Check if global overlays are hidden. */
+      if (v3d->flag2 & V3D_HIDE_OVERLAYS) {
+        const float current_time = float(BLI_time_now_seconds());
+        const float warning_interval = 10.0f; /* Show warning again after 10 seconds */
 
-      if (ss.mask_warning_last_shown_time == 0.0f ||
-          (current_time - ss.mask_warning_last_shown_time) >= warning_interval)
-      {
-        BKE_report(
-            op->reports,
-            RPT_WARNING,
-            RPT_("Sculpt mask display is disabled. Enable it in overlays to see the mask while "
-                 "painting"));
-        ss.mask_warning_last_shown_time = current_time;
+        if (sd.paint.runtime->warnings.overlay_warning_last_shown_time == 0.0f ||
+            (current_time - sd.paint.runtime->warnings.overlay_warning_last_shown_time) >=
+                warning_interval)
+        {
+          BKE_report(op->reports, RPT_WARNING, RPT_("Enable Show Overlays to see changes"));
+          sd.paint.runtime->warnings.overlay_warning_last_shown_time = current_time;
+        }
+      }
+      else {
+        /* Global overlays are enabled. */
+        /* Reset warning time when overlay is visible. */
+        sd.paint.runtime->warnings.overlay_warning_last_shown_time = 0.0f;
+
+        /* Auto-enable mask overlay if it's disabled. */
+        if (!(v3d->overlay.flag & V3D_OVERLAY_SCULPT_SHOW_MASK)) {
+          if (v3d_nonconst) {
+            v3d_nonconst->overlay.flag |= V3D_OVERLAY_SCULPT_SHOW_MASK;
+            WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+          }
+        }
+
+        /* Warn if opacity is set to 0 (only once per session). */
+        if (v3d->overlay.sculpt_mode_mask_opacity == 0.0f &&
+            !sd.paint.runtime->warnings.mask_opacity_warning_shown)
+        {
+          BKE_report(op->reports,
+                     RPT_WARNING,
+                     RPT_("Sculpt mask overlay opacity is set to 0. You won't see changes"));
+          sd.paint.runtime->warnings.mask_opacity_warning_shown = true;
+        }
       }
     }
-    else {
-      if (ob.sculpt) {
-        ob.sculpt->mask_warning_last_shown_time = 0.0f;
+  }
+  if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_DRAW_FACE_SETS) {
+    if (v3d) {
+      View3D *v3d_nonconst = CTX_wm_view3d(C);
+      /* Check if global overlays are hidden. */
+      if (v3d->flag2 & V3D_HIDE_OVERLAYS) {
+        const float current_time = float(BLI_time_now_seconds());
+        const float warning_interval = 10.0f; /* Show warning again after 10 seconds */
+
+        if (sd.paint.runtime->warnings.overlay_warning_last_shown_time == 0.0f ||
+            (current_time - sd.paint.runtime->warnings.overlay_warning_last_shown_time) >=
+                warning_interval)
+        {
+          BKE_report(op->reports, RPT_WARNING, RPT_("Enable Show Overlays to see changes"));
+          sd.paint.runtime->warnings.overlay_warning_last_shown_time = current_time;
+        }
+      }
+      else {
+        sd.paint.runtime->warnings.overlay_warning_last_shown_time = 0.0f;
+
+        /* Auto-enable Face Sets overlay if it's disabled. */
+        if (!(v3d->overlay.flag & V3D_OVERLAY_SCULPT_SHOW_FACE_SETS)) {
+          if (v3d_nonconst) {
+            v3d_nonconst->overlay.flag |= V3D_OVERLAY_SCULPT_SHOW_FACE_SETS;
+            WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+          }
+        }
+
+        /* Warn if opacity is set to 0 (only once per session). */
+        if (v3d->overlay.sculpt_mode_face_sets_opacity == 0.0f &&
+            !sd.paint.runtime->warnings.face_sets_opacity_warning_shown)
+        {
+          BKE_report(op->reports,
+                     RPT_WARNING,
+                     RPT_("Sculpt face sets overlay opacity is set to 0. You won't see changes"));
+          sd.paint.runtime->warnings.face_sets_opacity_warning_shown = true;
+        }
       }
     }
   }

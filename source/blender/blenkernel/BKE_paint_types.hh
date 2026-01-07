@@ -40,7 +40,21 @@ enum class PaintMode : int8_t {
   Invalid = 11,
 };
 
-namespace bke {
+namespace blender::bke {
+
+struct PaintWarningState {
+  /** Last time overlay visibility warning was shown. */
+  float overlay_warning_last_shown_time = 0.0f;
+
+  /** Mask opacity warning shown flag. */
+  bool mask_opacity_warning_shown = false;
+
+  /** Face sets opacity warning shown flag. */
+  bool face_sets_opacity_warning_shown = false;
+
+  /* TODO: Add warning state for other paint modes (Texture Paint, Vertex Paint, Weight Paint). */
+};
+
 struct PaintRuntime : NonCopyable, NonMovable {
   bool initialized = false;
   uint16_t ob_mode = 0;
@@ -110,6 +124,9 @@ struct PaintRuntime : NonCopyable, NonMovable {
 
   /** WM Paint cursor. */
   void *paint_cursor = nullptr;
+
+  /** Warning state management. */
+  PaintWarningState warnings;
 
   PaintRuntime();
   ~PaintRuntime();
