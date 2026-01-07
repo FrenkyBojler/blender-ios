@@ -1623,7 +1623,7 @@ static wmOperatorStatus area_dupli_invoke(bContext *C, wmOperator *op, const wmE
   return newwin ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-bool area_dupli_poll(bContext *C)
+static bool area_dupli_poll(bContext *C)
 {
   if (!ED_operator_areaactive(C)) {
     return false;
