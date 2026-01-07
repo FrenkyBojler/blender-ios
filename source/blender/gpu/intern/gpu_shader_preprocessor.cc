@@ -48,10 +48,7 @@ struct Preprocessor {
         /* Error or end of file. */
         return tok;
       }
-      tok = tok.next();
-      if (tok == '\\' && tok.next() == '\n') {
-        tok = tok.next().next();
-      }
+      tok = skip_directive_newlines(tok.next());
     }
     return tok.prev();
   }
@@ -60,6 +57,14 @@ struct Preprocessor {
   {
     while (tok == Space) {
       tok = tok.next();
+    }
+    return tok;
+  }
+
+  static Token skip_directive_newlines(Token tok)
+  {
+    while (tok == '\\' && tok.next() == '\n') {
+      tok = tok.next().next();
     }
     return tok;
   }
@@ -272,6 +277,56 @@ struct Preprocessor {
     return Token::invalid();
   }
 
+  bool evaluate_expression(const Token start, const Token end)
+  {
+    /* Expand expression into integer ops string. */
+    std::string expand;
+    expand.reserve(256);
+
+    Token tok = start;
+    while (true) {
+      StringRef tok_str = str(tok);
+
+      Token macro_tok = defines.lookup_default(tok_str, Token::invalid());
+      if (macro_tok.is_valid()) {
+        auto [replacement, macro_end] = expand_macro(tok, macro_tok);
+        expand += replacement;
+        tok = macro_end;
+      }
+      else if (tok_str == "defined") {
+        /* Parenthesis or space */
+        tok = tok.next();
+        const bool is_function = (tok == '(');
+        /* Token to search. */
+        tok = tok.next();
+        expand += (defines.contains(str(tok)) ? "1" : "0");
+        if (is_function) {
+          /* End parenthesis. */
+          tok = tok.next();
+        }
+      }
+      else {
+        expand += tok_str;
+      }
+      if (tok == end) {
+        break;
+      }
+      tok = skip_directive_newlines(tok.next());
+    }
+
+    /* Early out simple cases. */
+    if (expand == "0") {
+      return false;
+    }
+    if (expand == "1") {
+      return true;
+    }
+
+    std::cout << "\"" << parser.substr_range_inclusive_view(start, end) << "\" > \"" << expand
+              << "\"" << std::endl;
+    return true;
+  }
+
   bool evaluate_condition(Token type, Token start, Token end)
   {
     StringRef type_str = str(type);
@@ -285,8 +340,7 @@ struct Preprocessor {
       return !defines.contains(str(end));
     }
     if (ELEM(type_str, "if", "elif")) {
-      /* TODO(fclem): if and elif. */
-      return true;
+      return evaluate_expression(start, end);
     }
     BLI_assert_unreachable();
     return true;
