@@ -1749,7 +1749,7 @@ def extensions_panel_draw_impl(
             if section.panel_header_action is not None:
                 operator_label, operator = section.panel_header_action
                 row = layout_header.row()
-                row.scale_x = 1.14
+                row.scale_x = 1.13
                 row.active = not operation_in_progress
                 row.alignment = 'RIGHT'
                 row.operator(operator, text=operator_label)
