@@ -448,7 +448,9 @@ class USDImportTest(AbstractUSDTest):
         self.assertAlmostEqual(
             mat.node_tree.nodes["Principled BSDF"].inputs["Transmission Weight"].default_value, 0.842)
 
-        expected_nodes = ["Principled BSDF", "Image Texture", "UV Map", "Vector Math", "Separate Color", "Math", "Material Output"]
+        expected_nodes = [
+            "Principled BSDF", "Image Texture", "UV Map", "Vector Math",
+            "Separate Color", "Math", "Material Output"]
 
         mat = bpy.data.materials["MAT_transmission03"]
         self.assert_all_nodes_present(mat, expected_nodes)
