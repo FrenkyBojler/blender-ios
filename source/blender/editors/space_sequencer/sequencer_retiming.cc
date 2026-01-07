@@ -49,18 +49,18 @@ bool sequencer_retiming_mode_is_active(const bContext *C)
     return false;
   }
 
-  Map retiming_sel = seq::retiming_selection_get(ed);
-
-  if (seq::retiming_selection_get(ed).size() == 0) {
+  const Map retiming_sel = seq::retiming_selection_get(ed);
+  if (retiming_sel.is_empty()) {
     return false;
   }
 
-  bool any_strip_has_editable_retiming = false;
   for (const Strip *strip : retiming_sel.values()) {
-    any_strip_has_editable_retiming |= seq::retiming_data_is_editable(strip);
+    if (seq::retiming_data_is_editable(strip)) {
+      return true;
+    }
   }
 
-  return any_strip_has_editable_retiming;
+  return false;
 }
 
 /*-------------------------------------------------------------------- */
