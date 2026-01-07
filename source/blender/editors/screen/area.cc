@@ -1708,8 +1708,9 @@ static void region_rect_recursive(
       const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                            (BLI_rcti_size_y(&region->v2d.mask) + 1);
       const bool has_tabs = BKE_regiontype_uses_category_tabs(region->runtime->type);
-      const int min = UI_SCALE_FAC *
-                      (has_tabs ? UI_PANEL_CATEGORY_MIN_SNAP_WIDTH : UI_TOOLBAR_WIDTH) / aspect;
+      const int min = int(UI_SCALE_FAC *
+                          (has_tabs ? UI_PANEL_CATEGORY_MIN_SNAP_WIDTH : UI_TOOLBAR_WIDTH) /
+                          aspect);
       if (width > min) {
         /* Adjust width to fit. */
         region->winrct = *winrct;
@@ -1717,7 +1718,7 @@ static void region_rect_recursive(
       }
       else if (has_tabs) {
         /* Too narrow for content so show only the category tabs. */
-        const int cat_min = UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect;
+        const int cat_min = int(UI_PANEL_CATEGORY_MIN_WIDTH * UI_SCALE_FAC / aspect);
         region->winrct = *winrct;
         if (alignment == RGN_ALIGN_RIGHT) {
           region->winrct.xmin = region->winrct.xmax - cat_min + 1;
