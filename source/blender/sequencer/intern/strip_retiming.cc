@@ -273,7 +273,7 @@ static bool strip_retiming_transition_is_linear(const Strip *strip, const SeqRet
   const float prev_speed = retiming_key_speed_get(strip, key);
   const float next_speed = retiming_key_speed_get(strip, key + 2);
 
-  return abs(prev_speed - next_speed) < 0.01f;
+  return std::abs(prev_speed - next_speed) < 0.01f;
 }
 
 static float strip_retiming_evaluate_arc_segment(const SeqRetimingKey *key,
@@ -282,7 +282,7 @@ static float strip_retiming_evaluate_arc_segment(const SeqRetimingKey *key,
   double c[2], r;
   strip_retiming_line_segments_tangent_circle(key, c, &r);
   const int side = c[1] > key->retiming_factor ? -1 : 1;
-  const float y = c[1] + side * sqrt(pow(r, 2) - pow((frame_index - c[0]), 2));
+  const float y = c[1] + side * sqrt(r * r - (frame_index - c[0]) * (frame_index - c[0]));
   return y;
 }
 
@@ -389,9 +389,9 @@ void retiming_transition_key_frame_set(const Scene *scene,
   SeqRetimingKey *prev_segment_end = key_start - 1, *next_segment_start = key_end + 1;
   const float offset_max_left = midpoint - prev_segment_end->strip_frame_index - 1;
   const float offset_max_right = next_segment_start->strip_frame_index - midpoint - 1;
-  new_midpoint_offset = fabs(new_midpoint_offset);
-  new_midpoint_offset = min_fff(new_midpoint_offset, offset_max_left, offset_max_right);
-  new_midpoint_offset = max_ff(new_midpoint_offset, 1);
+  new_midpoint_offset = std::abs(new_midpoint_offset);
+  new_midpoint_offset = std::min({new_midpoint_offset, offset_max_left, offset_max_right});
+  new_midpoint_offset = std::max(new_midpoint_offset, 1.0f);
 
   key_start->strip_frame_index = midpoint - new_midpoint_offset;
   key_end->strip_frame_index = midpoint + new_midpoint_offset;
