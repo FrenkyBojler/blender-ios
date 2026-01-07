@@ -17,4 +17,9 @@ namespace blender::bke::greasepencil {
 std::optional<ShapeCache> shape_cache_from_shape_ids(const int num_curves,
                                                      const VArray<int> &shape_ids);
 
+IndexMask selected_mask_to_shapes(const IndexMask selected_mask,
+                                  const bke::CurvesGeometry &curves,
+                                  const bke::AttrDomain selection_domain,
+                                  IndexMaskMemory &memory);
+
 }  // namespace blender::bke::greasepencil
