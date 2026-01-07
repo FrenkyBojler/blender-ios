@@ -55,6 +55,8 @@
 
 #include "WM_api.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"undo.image"};
 
 /* -------------------------------------------------------------------- */
@@ -103,7 +105,7 @@ struct PaintTileKey {
 
   uint64_t hash() const
   {
-    return blender::get_default_hash(x_tile, y_tile, image, ibuf);
+    return get_default_hash(x_tile, y_tile, image, ibuf);
   }
   bool operator==(const PaintTileKey &other) const
   {
@@ -143,7 +145,7 @@ static void ptile_free(PaintTile *ptile)
 }
 
 struct PaintTileMap {
-  blender::Map<PaintTileKey, PaintTile *> map;
+  Map<PaintTileKey, PaintTile *> map;
 
   ~PaintTileMap()
   {
@@ -260,9 +262,14 @@ void *ED_image_paint_tile_push(PaintTileMap *paint_tile_map,
                                                         "PaintTile.mask");
   }
 
-  ptile->rect.pt = MEM_callocN((ibuf->float_buffer.data ? sizeof(float[4]) : sizeof(char[4])) *
-                                   square_i(ED_IMAGE_UNDO_TILE_SIZE),
-                               "PaintTile.rect");
+  if (ibuf->float_buffer.data) {
+    ptile->rect.pt = MEM_calloc_arrayN<float[4]>(square_i(ED_IMAGE_UNDO_TILE_SIZE),
+                                                 "PaintTile.rect");
+  }
+  else {
+    ptile->rect.pt = MEM_calloc_arrayN<char[4]>(square_i(ED_IMAGE_UNDO_TILE_SIZE),
+                                                "PaintTile.rect");
+  }
 
   ptile->use_float = has_float;
   ptile->valid = true;
@@ -382,15 +389,13 @@ struct UndoImageTile {
 
 static UndoImageTile *utile_alloc(bool has_float)
 {
-  UndoImageTile *utile = static_cast<UndoImageTile *>(
-      MEM_callocN(sizeof(*utile), "ImageUndoTile"));
+  UndoImageTile *utile = MEM_callocN<UndoImageTile>("ImageUndoTile");
   if (has_float) {
-    utile->rect.fp = static_cast<float *>(
-        MEM_mallocN(sizeof(float[4]) * square_i(ED_IMAGE_UNDO_TILE_SIZE), __func__));
+    utile->rect.fp = MEM_malloc_arrayN<float>(4 * square_i(ED_IMAGE_UNDO_TILE_SIZE), __func__);
   }
   else {
-    utile->rect.byte_ptr = static_cast<uint8_t *>(
-        MEM_mallocN(sizeof(uint32_t) * square_i(ED_IMAGE_UNDO_TILE_SIZE), __func__));
+    utile->rect.byte_ptr = MEM_malloc_arrayN<uint8_t>(4 * square_i(ED_IMAGE_UNDO_TILE_SIZE),
+                                                      __func__);
   }
   return utile;
 }
@@ -494,8 +499,7 @@ static UndoImageBuf *ubuf_from_image_no_tiles(Image *image, const ImBuf *ibuf)
   ubuf->tiles_dims[1] = ED_IMAGE_UNDO_TILE_NUMBER(ubuf->image_dims[1]);
 
   ubuf->tiles_len = ubuf->tiles_dims[0] * ubuf->tiles_dims[1];
-  ubuf->tiles = static_cast<UndoImageTile **>(
-      MEM_callocN(sizeof(*ubuf->tiles) * ubuf->tiles_len, __func__));
+  ubuf->tiles = MEM_calloc_arrayN<UndoImageTile *>(ubuf->tiles_len, __func__);
 
   STRNCPY(ubuf->ibuf_filepath, ibuf->filepath);
   ubuf->ibuf_fileframe = ibuf->fileframe;
@@ -541,8 +545,8 @@ static void ubuf_ensure_compat_ibuf(const UndoImageBuf *ubuf, ImBuf *ibuf)
   }
 
   if (ibuf->x == ubuf->image_dims[0] && ibuf->y == ubuf->image_dims[1] &&
-      (ubuf->image_state.use_float ? (void *)ibuf->float_buffer.data :
-                                     (void *)ibuf->byte_buffer.data))
+      (ubuf->image_state.use_float ? static_cast<void *>(ibuf->float_buffer.data) :
+                                     static_cast<void *>(ibuf->byte_buffer.data)))
   {
     return;
   }
@@ -827,8 +831,7 @@ static bool image_undosys_step_encode(bContext *C, Main * /*bmain*/, UndoStep *u
         UndoImageHandle *uh = uhandle_ensure(&us->handles, ptile->image, &ptile->iuser);
         UndoImageBuf *ubuf_pre = uhandle_ensure_ubuf(uh, ptile->image, ptile->ibuf);
 
-        UndoImageTile *utile = static_cast<UndoImageTile *>(
-            MEM_callocN(sizeof(*utile), "UndoImageTile"));
+        UndoImageTile *utile = MEM_callocN<UndoImageTile>("UndoImageTile");
         utile->users = 1;
         utile->rect.pt = ptile->rect.pt;
         ptile->rect.pt = nullptr;
@@ -964,7 +967,7 @@ static void image_undosys_step_decode_undo(ImageUndoStep *us, bool is_final)
     if (us_iter->step.next->is_applied == false) {
       break;
     }
-    us_iter = (ImageUndoStep *)us_iter->step.next;
+    us_iter = reinterpret_cast<ImageUndoStep *>(us_iter->step.next);
   }
   while (us_iter != us || (!is_final && us_iter == us)) {
     BLI_assert(us_iter->step.type == us->step.type); /* Previous loop ensures this. */
@@ -972,7 +975,7 @@ static void image_undosys_step_decode_undo(ImageUndoStep *us, bool is_final)
     if (us_iter == us) {
       break;
     }
-    us_iter = (ImageUndoStep *)us_iter->step.prev;
+    us_iter = reinterpret_cast<ImageUndoStep *>(us_iter->step.prev);
   }
 }
 
@@ -983,14 +986,14 @@ static void image_undosys_step_decode_redo(ImageUndoStep *us)
     if (us_iter->step.prev->is_applied == true) {
       break;
     }
-    us_iter = (ImageUndoStep *)us_iter->step.prev;
+    us_iter = reinterpret_cast<ImageUndoStep *>(us_iter->step.prev);
   }
   while (us_iter && (us_iter->step.is_applied == false)) {
     image_undosys_step_decode_redo_impl(us_iter);
     if (us_iter == us) {
       break;
     }
-    us_iter = (ImageUndoStep *)us_iter->step.next;
+    us_iter = reinterpret_cast<ImageUndoStep *>(us_iter->step.next);
   }
 }
 
@@ -1009,7 +1012,7 @@ static void image_undosys_step_decode(
   }
 
   if (us->paint_mode == PaintMode::Texture3D) {
-    blender::ed::object::mode_set_ex(C, OB_MODE_TEXTURE_PAINT, false, nullptr);
+    ed::object::mode_set_ex(C, OB_MODE_TEXTURE_PAINT, false, nullptr);
   }
 
   /* Ideally, we shouldn't have to tag the object as needing to be recalculated if using this paint
@@ -1029,7 +1032,7 @@ static void image_undosys_step_decode(
 
 static void image_undosys_step_free(UndoStep *us_p)
 {
-  ImageUndoStep *us = (ImageUndoStep *)us_p;
+  ImageUndoStep *us = reinterpret_cast<ImageUndoStep *>(us_p);
   uhandle_free_list(&us->handles);
 
   /* Typically this map will have been cleared. */
@@ -1043,7 +1046,7 @@ static void image_undosys_foreach_ID_ref(UndoStep *us_p,
 {
   ImageUndoStep *us = reinterpret_cast<ImageUndoStep *>(us_p);
   for (UndoImageHandle &uh : us->handles) {
-    foreach_ID_ref_fn(user_data, ((UndoRefID *)&uh.image_ref));
+    foreach_ID_ref_fn(user_data, (reinterpret_cast<UndoRefID *>(&uh.image_ref)));
   }
 }
 
@@ -1185,3 +1188,5 @@ void ED_image_undo_push_end()
 }
 
 /** \} */
+
+}  // namespace blender

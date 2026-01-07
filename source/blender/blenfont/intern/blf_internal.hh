@@ -16,6 +16,8 @@
 
 #include "DNA_listBase.h"
 
+namespace blender {
+
 struct FontBLF;
 struct GlyphBLF;
 struct GlyphCacheBLF;
@@ -104,21 +106,20 @@ void blf_draw_svg_icon(FontBLF *font,
                        const float color[4] = nullptr,
                        float outline_alpha = 1.0f,
                        bool multicolor = false,
-                       blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr);
+                       FunctionRef<void(std::string &)> edit_source_cb = nullptr);
 
-blender::Array<uchar> blf_svg_icon_bitmap(
-    FontBLF *font,
-    uint icon_id,
-    float size,
-    int *r_width,
-    int *r_height,
-    bool multicolor = false,
-    blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr);
+Array<uchar> blf_svg_icon_bitmap(FontBLF *font,
+                                 uint icon_id,
+                                 float size,
+                                 int *r_width,
+                                 int *r_height,
+                                 bool multicolor = false,
+                                 FunctionRef<void(std::string &)> edit_source_cb = nullptr);
 
-blender::Vector<blender::StringRef> blf_font_string_wrap(FontBLF *font,
-                                                         blender::StringRef str,
-                                                         int max_pixel_width,
-                                                         BLFWrapMode mode);
+Vector<StringRef> blf_font_string_wrap(FontBLF *font,
+                                       StringRef str,
+                                       int max_pixel_width,
+                                       BLFWrapMode mode);
 
 /**
  * Use fixed column width, but an UTF8 character may occupy multiple columns.
@@ -173,7 +174,7 @@ void blf_str_offset_to_glyph_bounds(FontBLF *font,
                                     size_t str_offset,
                                     rcti *r_glyph_bounds);
 
-blender::Vector<blender::Bounds<int>> blf_str_selection_boxes(
+Vector<Bounds<int>> blf_str_selection_boxes(
     FontBLF *font, const char *str, size_t str_len, size_t sel_start, size_t sel_length);
 
 int blf_str_offset_to_cursor(
@@ -195,11 +196,10 @@ FontBLF *blf_font_script_ensure(FontBLF *font, const uint charcode);
 
 GlyphBLF *blf_glyph_ensure_subpixel(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, int32_t pen_x);
 
-GlyphBLF *blf_glyph_ensure_icon(
-    GlyphCacheBLF *gc,
-    uint icon_id,
-    bool color = false,
-    blender::FunctionRef<void(std::string &)> edit_source_cb = nullptr);
+GlyphBLF *blf_glyph_ensure_icon(GlyphCacheBLF *gc,
+                                uint icon_id,
+                                bool color = false,
+                                FunctionRef<void(std::string &)> edit_source_cb = nullptr);
 
 /**
  * Convert a character's outlines into curves.
@@ -213,6 +213,8 @@ bool blf_character_to_curves(FontBLF *font,
                              float *r_advance);
 
 void blf_glyph_draw(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *g, int x, int y);
+
+}  // namespace blender
 
 #ifdef WIN32
 /* `blf_font_win32_compat.cc` */
