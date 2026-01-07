@@ -77,8 +77,8 @@ AbstractTreeView *block_add_view(Block &block,
 
 void block_free_views(Block *block)
 {
-  LISTBASE_FOREACH_MUTABLE (ViewLink *, link, &block->views) {
-    MEM_delete(link);
+  for (ViewLink &link : block->views.items_mutable()) {
+    MEM_delete(&link);
   }
 }
 
@@ -88,8 +88,8 @@ void ViewLink::views_bounds_calc(const Block &block)
 
   rcti minmax;
   BLI_rcti_init_minmax(&minmax);
-  LISTBASE_FOREACH (ViewLink *, link, &block.views) {
-    views_bounds.add(link->view.get(), minmax);
+  for (ViewLink &link : block.views) {
+    views_bounds.add(link.view.get(), minmax);
   }
 
   for (const std::unique_ptr<Button> &but : block.buttons) {
@@ -127,9 +127,9 @@ void block_view_persistent_state_restore(const ARegion &region,
                                          AbstractView &view)
 {
   StringRef idname = [&]() -> StringRef {
-    LISTBASE_FOREACH (ViewLink *, link, &block.views) {
-      if (link->view.get() == &view) {
-        return link->idname;
+    for (ViewLink &link : block.views) {
+      if (link.view.get() == &view) {
+        return link.idname;
       }
     }
     return "";
@@ -140,22 +140,22 @@ void block_view_persistent_state_restore(const ARegion &region,
     return;
   }
 
-  LISTBASE_FOREACH (uiViewStateLink *, stored_state, &region.view_states) {
-    if (stored_state->idname == idname) {
-      view.persistent_state_apply(stored_state->state);
+  for (uiViewStateLink &stored_state : region.view_states) {
+    if (stored_state.idname == idname) {
+      view.persistent_state_apply(stored_state.state);
     }
   }
 }
 
 static uiViewStateLink *ensure_view_state(ARegion &region, const ViewLink &link)
 {
-  LISTBASE_FOREACH (uiViewStateLink *, stored_state, &region.view_states) {
-    if (link.idname == stored_state->idname) {
-      return stored_state;
+  for (uiViewStateLink &stored_state : region.view_states) {
+    if (link.idname == stored_state.idname) {
+      return &stored_state;
     }
   }
 
-  uiViewStateLink *new_state = MEM_callocN<uiViewStateLink>(__func__);
+  uiViewStateLink *new_state = MEM_new_for_free<uiViewStateLink>(__func__);
   link.idname.copy(new_state->idname, sizeof(new_state->idname));
   BLI_addhead(&region.view_states, new_state);
   return new_state;
@@ -166,10 +166,10 @@ void block_views_end(ARegion *region, const Block *block)
   ViewLink::views_bounds_calc(*block);
 
   if (region && region->regiontype != RGN_TYPE_TEMPORARY) {
-    LISTBASE_FOREACH (const ViewLink *, link, &block->views) {
+    for (const ViewLink &link : block->views) {
       /* Ensure persistent view state storage for writing to files if needed. */
-      if (std::optional<uiViewState> temp_state = link->view->persistent_state()) {
-        uiViewStateLink *state_link = ensure_view_state(*region, *link);
+      if (std::optional<uiViewState> temp_state = link.view->persistent_state()) {
+        uiViewStateLink *state_link = ensure_view_state(*region, link);
         state_link->state = *temp_state;
       }
     }
@@ -180,8 +180,8 @@ void block_views_listen(const Block *block, const wmRegionListenerParams *listen
 {
   ARegion *region = listener_params->region;
 
-  LISTBASE_FOREACH (ViewLink *, view_link, &block->views) {
-    if (view_link->view->listen(*listener_params->notifier)) {
+  for (ViewLink &view_link : block->views) {
+    if (view_link.view->listen(*listener_params->notifier)) {
       ED_region_tag_redraw(region);
     }
   }
@@ -189,8 +189,8 @@ void block_views_listen(const Block *block, const wmRegionListenerParams *listen
 
 void block_views_draw_overlays(const ARegion *region, const Block *block)
 {
-  LISTBASE_FOREACH (ViewLink *, view_link, &block->views) {
-    view_link->view->draw_overlays(*region, *block);
+  for (ViewLink &view_link : block->views) {
+    view_link.view->draw_overlays(*region, *block);
   }
 }
 
@@ -204,12 +204,12 @@ AbstractView *region_view_find_at(const ARegion *region,
   if (!region_contains_point_px(region, xy)) {
     return nullptr;
   }
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
+  for (Block &block : region->runtime->uiblocks) {
     float mx = xy[0], my = xy[1];
-    window_to_block_fl(region, block, &mx, &my);
+    window_to_block_fl(region, &block, &mx, &my);
 
-    LISTBASE_FOREACH (ViewLink *, view_link, &block->views) {
-      std::optional<rcti> bounds = view_link->view->get_bounds();
+    for (ViewLink &view_link : block.views) {
+      std::optional<rcti> bounds = view_link.view->get_bounds();
       if (!bounds) {
         continue;
       }
@@ -220,9 +220,9 @@ AbstractView *region_view_find_at(const ARegion *region,
       }
       if (BLI_rcti_isect_pt(&padded_bounds, mx, my)) {
         if (r_block != nullptr) {
-          *r_block = block;
+          *r_block = &block;
         }
-        return view_link->view.get();
+        return view_link.view.get();
       }
     }
   }
@@ -260,7 +260,7 @@ void region_view_scroll_at_borders(ARegion *region, const int xy[2])
 
 AbstractViewItem *region_views_find_item_at(const ARegion &region, const int xy[2])
 {
-  auto *item_but = (ButtonViewItem *)view_item_find_mouse_over(&region, xy);
+  auto *item_but = static_cast<ButtonViewItem *>(view_item_find_mouse_over(&region, xy));
   if (!item_but) {
     return nullptr;
   }
@@ -270,7 +270,7 @@ AbstractViewItem *region_views_find_item_at(const ARegion &region, const int xy[
 
 AbstractViewItem *region_views_find_active_item(const ARegion *region)
 {
-  auto *item_but = (ButtonViewItem *)view_item_find_active(region);
+  auto *item_but = static_cast<ButtonViewItem *>(view_item_find_active(region));
   if (!item_but) {
     return nullptr;
   }
@@ -285,9 +285,9 @@ Button *region_views_find_active_item_but(const ARegion *region)
 
 void region_views_clear_search_highlight(const ARegion *region)
 {
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    LISTBASE_FOREACH (ViewLink *, view_link, &block->views) {
-      view_link->view->clear_search_highlight();
+  for (Block &block : region->runtime->uiblocks) {
+    for (ViewLink &view_link : block.views) {
+      view_link.view->clear_search_highlight();
     }
   }
 }
@@ -333,9 +333,9 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
 static StringRef block_view_find_idname(const Block &block, const AbstractView &view)
 {
   /* First get the `idname` of the view we're looking for. */
-  LISTBASE_FOREACH (ViewLink *, view_link, &block.views) {
-    if (view_link->view.get() == &view) {
-      return view_link->idname;
+  for (ViewLink &view_link : block.views) {
+    if (view_link.view.get() == &view) {
+      return view_link.idname;
     }
   }
 
@@ -355,9 +355,9 @@ static T *block_view_find_matching_in_old_block_impl(const Block &new_block, con
     return nullptr;
   }
 
-  LISTBASE_FOREACH (ViewLink *, old_view_link, &old_block->views) {
-    if (old_view_link->idname == idname) {
-      return dynamic_cast<T *>(old_view_link->view.get());
+  for (ViewLink &old_view_link : old_block->views) {
+    if (old_view_link.idname == idname) {
+      return dynamic_cast<T *>(old_view_link.view.get());
     }
   }
 
@@ -388,7 +388,7 @@ ButtonViewItem *block_view_find_matching_view_item_but_in_old_block(
     if (old_but->type != ButtonType::ViewItem) {
       continue;
     }
-    ButtonViewItem *old_item_but = (ButtonViewItem *)old_but.get();
+    ButtonViewItem *old_item_but = static_cast<ButtonViewItem *>(old_but.get());
     if (!old_item_but->view_item) {
       continue;
     }

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'9b232e97f2e1')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-08 10:32+0000\n"
+"POT-Creation-Date: 2026-01-05 11:52+0000\n"
 "PO-Revision-Date: 2025-12-02 20:06+0000\n"
 "Last-Translator: Bastitron <bastitronhd@gmail.com>\n"
 "Language-Team: German <https://translate.blender.org/projects/blender-ui/ui/de/>\n"
@@ -10691,6 +10691,22 @@ msgid "Collection"
 msgstr "Sammlung"
 
 
+msgid "Font"
+msgstr "Schrift"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Mask"
+msgstr "Maske"
+
+
+msgid "Sound"
+msgstr "Sound"
+
+
 msgid "A collection of objects based on which feature edges are selected"
 msgstr "Eine Sammlung von Objekten, auf deren Grundlage welche Feature-Kanten ausgewählt werden"
 
@@ -12607,10 +12623,6 @@ msgstr "Objektschriftart"
 
 msgid "Text on Curve"
 msgstr "Text auf Kurve"
-
-
-msgid "Font"
-msgstr "Schrift"
 
 
 msgid "Font Bold"
@@ -15546,10 +15558,6 @@ msgstr "Lautsprecher stumm schalten"
 msgctxt "Sound"
 msgid "Pitch"
 msgstr "Tonhöhe"
-
-
-msgid "Sound"
-msgstr "Sound"
 
 
 msgid "Sound data-block used by this speaker"
@@ -18690,10 +18698,6 @@ msgid "Self Overlap"
 msgstr "Selbstüberlagerung"
 
 
-msgid "Mask"
-msgstr "Maske"
-
-
 msgid "Material slot in an object"
 msgstr "Materialsteckplatz in einem Objekt"
 
@@ -18710,12 +18714,120 @@ msgid "Material slot name"
 msgstr "Materialsteckplatzname"
 
 
-msgid "Assign Material"
-msgstr "Material zuweisen"
+msgid "Show/Hide"
+msgstr "Zeigen/Verbergen"
+
+
+msgid "Names"
+msgstr "Namen"
+
+
+msgid "Math"
+msgstr "Mathematisch"
+
+
+msgid "Clean Up"
+msgstr "Aufräumen"
+
+
+msgid "Pivot Point"
+msgstr "Drehpunkt"
+
+
+msgid "Snap"
+msgstr "Einrasten"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proportionaler Bearbeitungsabfall"
+
+
+msgid "Mask Edit"
+msgstr "Maskenbearbeitung"
+
+
+msgid "Read"
+msgstr "Lesen"
+
+
+msgid "Sample"
+msgstr "Beispiel"
+
+
+msgid "Write"
+msgstr "Schreiben"
+
+
+msgid "Vertex Group Locks"
+msgstr "Punktgruppen sperren"
+
+
+msgid "Primitives"
+msgstr "Grundkörper"
+
+
+msgid "Instances"
+msgstr "Instanzen"
+
+
+msgid "Import"
+msgstr "Importieren"
+
+
+msgid "Mirror"
+msgstr "Spiegeln"
+
+
+msgid "Local View"
+msgstr "Lokale Ansicht"
+
+
+msgid "Viewpoint"
+msgstr "Ansicht"
+
+
+msgid "Navigation"
+msgstr "Navigation"
+
+
+msgid "Align View"
+msgstr "Ansicht ausrichten"
+
+
+msgid "Align View to Active"
+msgstr "Ansicht auf Aktiv ausrichten"
+
+
+msgid "View Regions"
+msgstr "Vierfenster Ansicht"
 
 
 msgid "Select More/Less"
 msgstr "Mehr/weniger anzeigen"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Select Similar"
+msgstr "Ähnliche auswählen"
+
+
+msgid "Select All by Trait"
+msgstr "Alles nach Merkmal auswählen"
+
+
+msgid "Select Linked"
+msgstr "Verknüpfte auswählen"
+
+
+msgid "Select Loops"
+msgstr "Schleifen auswählen"
+
+
+msgid "Assign Material"
+msgstr "Material zuweisen"
 
 
 msgid "Metaball"
@@ -18754,18 +18866,6 @@ msgid "Quick Effects"
 msgstr "Schnelle Effekte"
 
 
-msgid "Show/Hide"
-msgstr "Zeigen/Verbergen"
-
-
-msgid "Clean Up"
-msgstr "Aufräumen"
-
-
-msgid "Layout"
-msgstr "Layout"
-
-
 msgid "Asset"
 msgstr "Asset"
 
@@ -18782,20 +18882,12 @@ msgid "Hooks"
 msgstr "Haken"
 
 
-msgid "Vertex Group Locks"
-msgstr "Punktgruppen sperren"
-
-
-msgid "Keying"
-msgstr "Schlüsselbilder"
+msgid "Layout"
+msgstr "Layout"
 
 
 msgid "Random Mask"
 msgstr "Zufällige Maske"
-
-
-msgid "Tracking"
-msgstr "Verfolgen"
 
 
 msgid "Clear Transform"
@@ -18806,14 +18898,6 @@ msgid "In-Betweens"
 msgstr "Dazwischen"
 
 
-msgid "Math"
-msgstr "Mathematisch"
-
-
-msgid "Names"
-msgstr "Namen"
-
-
 msgid "Toggle Bone Options"
 msgstr "Knochen-Optionen umschalten"
 
@@ -18822,8 +18906,16 @@ msgid "Enable Bone Options"
 msgstr "Knochen-Optionen einschalten"
 
 
+msgid "Keying"
+msgstr "Schlüsselbilder"
+
+
 msgid "Disable Bone Options"
 msgstr "Knochen-Optionen ausschalten"
+
+
+msgid "Tracking"
+msgstr "Verfolgen"
 
 
 msgid "Mesh Select Mode"
@@ -18844,98 +18936,6 @@ msgstr "Sonderzeichen"
 
 msgid "Kerning"
 msgstr "Kerning"
-
-
-msgid "Text"
-msgstr "Text"
-
-
-msgid "Read"
-msgstr "Lesen"
-
-
-msgid "Sample"
-msgstr "Beispiel"
-
-
-msgid "Write"
-msgstr "Schreiben"
-
-
-msgid "Primitives"
-msgstr "Grundkörper"
-
-
-msgid "Pivot Point"
-msgstr "Drehpunkt"
-
-
-msgid "Snap"
-msgstr "Einrasten"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proportionaler Bearbeitungsabfall"
-
-
-msgid "Mask Edit"
-msgstr "Maskenbearbeitung"
-
-
-msgid "Instances"
-msgstr "Instanzen"
-
-
-msgid "Import"
-msgstr "Importieren"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Mirror"
-msgstr "Spiegeln"
-
-
-msgid "Local View"
-msgstr "Lokale Ansicht"
-
-
-msgid "Viewpoint"
-msgstr "Ansicht"
-
-
-msgid "Navigation"
-msgstr "Navigation"
-
-
-msgid "Align View"
-msgstr "Ansicht ausrichten"
-
-
-msgid "Align View to Active"
-msgstr "Ansicht auf Aktiv ausrichten"
-
-
-msgid "View Regions"
-msgstr "Vierfenster Ansicht"
-
-
-msgid "Select Similar"
-msgstr "Ähnliche auswählen"
-
-
-msgid "Select All by Trait"
-msgstr "Alles nach Merkmal auswählen"
-
-
-msgid "Select Linked"
-msgstr "Verknüpfte auswählen"
-
-
-msgid "Select Loops"
-msgstr "Schleifen auswählen"
 
 
 msgid "Assets"
@@ -23394,12 +23394,12 @@ msgid "Bake"
 msgstr "Backen"
 
 
-msgid "Collection Info"
-msgstr "Sammlungsinfo"
-
-
 msgid "Original"
 msgstr "Original"
+
+
+msgid "Collection Info"
+msgstr "Sammlungsinfo"
 
 
 msgid "Convex Hull"
@@ -35878,6 +35878,10 @@ msgid "Replace Selection"
 msgstr "Auswahl ersetzen"
 
 
+msgid "Ignore Selection"
+msgstr "Auswahl ignorrieren"
+
+
 msgctxt "Operator"
 msgid "Change Effect Type"
 msgstr "Selbe Typen"
@@ -36207,10 +36211,6 @@ msgstr "Cursorposition verwenden"
 msgctxt "Operator"
 msgid "Add Sound Strip"
 msgstr "Beschränkung hinzufügen"
-
-
-msgid "Ignore Selection"
-msgstr "Auswahl ignorrieren"
 
 
 msgid "Color 09"
@@ -38634,10 +38634,6 @@ msgid "Speed Interpolation 1"
 msgstr "Geschwindigkeitsinterpolation 1"
 
 
-msgid "Sample Count"
-msgstr "Beispielzähler"
-
-
 msgid "Selectable Only"
 msgstr "Nur auswählbares"
 
@@ -38907,26 +38903,6 @@ msgid "Active Palette Color"
 msgstr "Aktive Farbpalette"
 
 
-msgid "Quad View"
-msgstr "Vierfenster-Ansicht"
-
-
-msgid "Onion Skin"
-msgstr "Zwiebelhaut"
-
-
-msgid "Stereoscopy"
-msgstr "Stereoskopie"
-
-
-msgid "Auto-Masking"
-msgstr "Automatisches Maskieren"
-
-
-msgid "VR"
-msgstr "VR"
-
-
 msgid "Active Tool"
 msgstr "Aktives Werkzeug"
 
@@ -38985,6 +38961,26 @@ msgstr "Transformationsausrichtung"
 
 msgid "Drawing Plane"
 msgstr "Malfläche"
+
+
+msgid "Quad View"
+msgstr "Vierfenster-Ansicht"
+
+
+msgid "Onion Skin"
+msgstr "Zwiebelhaut"
+
+
+msgid "Stereoscopy"
+msgstr "Stereoskopie"
+
+
+msgid "Auto-Masking"
+msgstr "Automatisches Maskieren"
+
+
+msgid "VR"
+msgstr "VR"
 
 
 msgid "Chain Scaling"
@@ -42522,6 +42518,10 @@ msgstr "Indirekte Übertragung"
 
 msgid "Transmission Color"
 msgstr "Farbübertragung"
+
+
+msgid "Sample Count"
+msgstr "Beispielzähler"
 
 
 msgid "Show Active Pixels"
@@ -53737,6 +53737,14 @@ msgid "ParticleSettings"
 msgstr "Partikeleinstellungen"
 
 
+msgid "Mesh has no UV data"
+msgstr "Masche hat keine UV Daten"
+
+
+msgid "Mesh has no VCol data"
+msgstr "Masche hat keine VCol Daten"
+
+
 msgid "%i points found!"
 msgstr "%i Punkte gefunden!"
 
@@ -55980,10 +55988,6 @@ msgid "Videos"
 msgstr "Videos"
 
 
-msgid "Movies"
-msgstr "Filme"
-
-
 msgid "Cursor X"
 msgstr "Cursor X"
 
@@ -57076,14 +57080,6 @@ msgstr "Falscher Knotentindex in der Liste"
 
 msgid "Object %s not in view layer %s"
 msgstr "Objekt %s nicht in Der Ansichtsebene %s"
-
-
-msgid "Mesh has no UV data"
-msgstr "Masche hat keine UV Daten"
-
-
-msgid "Mesh has no VCol data"
-msgstr "Masche hat keine VCol Daten"
 
 
 msgid "Keying set could not be added"
