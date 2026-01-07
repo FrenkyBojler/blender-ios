@@ -873,7 +873,7 @@ class RetimingRange {
   {
     if (type == TRANSITION) {
       this->speed = 1.0f;
-      claculate_speed_table_from_seq(strip);
+      calculate_speed_table_from_seq(strip);
     }
   }
 
@@ -953,7 +953,7 @@ class RetimingRange {
     return new_range;
   }
 
-  void claculate_speed_table_from_seq(const Strip *strip)
+  void calculate_speed_table_from_seq(const Strip *strip)
   {
     for (int timeline_frame = start; timeline_frame <= end; timeline_frame++) {
       /* We need number actual number of frames here. */
