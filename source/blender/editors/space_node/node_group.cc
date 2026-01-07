@@ -1422,7 +1422,7 @@ static void node_group_make_insert_selected(const bContext &C,
 
   update_nested_node_refs_after_moving_nodes_into_group(
       ntree, group, *gnode, node_set_copy.node_identifier_map());
-  BKE_main_ensure_invariants(*bmain, Span<ID *>{&group.id});
+  BKE_main_ensure_invariants(bmain, Span<ID *>{&group.id});
 
   /* Connect the group node to external sockets. */
   node_set_io.connect_group_node(*gnode);
