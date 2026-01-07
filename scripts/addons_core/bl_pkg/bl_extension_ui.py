@@ -1369,7 +1369,7 @@ def extension_draw_item(
             row_right.label(text="Blocked   ")
         elif is_installed:
             if is_outdated:
-                row_right.label(text="{:s} → {:s}".format(item_local.version, item_remote.version))
+                row_right.label(text="{:s} \u2192 {:s}".format(item_local.version, item_remote.version))
                 props = row_right.operator("extensions.package_install", text="Update")
                 props.repo_index = repo_index
                 props.pkg_id = pkg_id
