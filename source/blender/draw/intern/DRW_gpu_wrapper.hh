@@ -1128,15 +1128,13 @@ class TextureFromPool : public Texture, NonMovable {
 
   /** Remove methods that are forbidden with this type of textures. */
   bool ensure_1d(int, int, blender::gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  bool ensure_1d_array(
-      int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  bool ensure_2d(int, int, int, gpu::TextureFormat, eGPUTextureUsage, float *) = delete;
-  bool ensure_2d_array(
-      int, int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  bool ensure_3d(
-      int, int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
-  bool ensure_cube(int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) =
+  bool ensure_1d_array(int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) =
       delete;
+  bool ensure_2d(int, int, int, gpu::TextureFormat, eGPUTextureUsage, float *) = delete;
+  bool ensure_2d_array(int, int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) =
+      delete;
+  bool ensure_3d(int, int, int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
+  bool ensure_cube(int, int, gpu::TextureFormat, eGPUTextureUsage, const float *) = delete;
   void filter_mode(bool) = delete;
   void free() = delete;
   gpu::Texture *mip_view(int) = delete;
