@@ -200,44 +200,22 @@ void SEQUENCER_OT_retiming_reset(wmOperatorType *ot)
 /** \name Retiming Add Key
  * \{ */
 
-static bool retiming_key_add_new_for_strip(bContext *C,
-                                           wmOperator *op,
-                                           Strip *strip,
-                                           const int timeline_frame)
-{
-  Scene *scene = CTX_data_sequencer_scene(C);
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
-  const float frame_index = (BKE_scene_frame_get(scene) - strip->content_start()) *
-                            strip->media_playback_rate_factor(scene_fps);
-  const SeqRetimingKey *key = seq::retiming_find_segment_start_key(strip, frame_index);
-
-  if (key != nullptr && seq::retiming_key_is_transition_start(key)) {
-    BKE_report(op->reports, RPT_WARNING, "Cannot create key inside of speed transition");
-    return false;
-  }
-
-  const float end_frame = strip->start + strip->length(scene);
-  if (strip->start > timeline_frame || end_frame < timeline_frame) {
-    return false;
-  }
-
-  seq::ensure_left_and_right_keys(scene, strip);
-  seq::retiming_add_key(scene, strip, timeline_frame);
-  return true;
-}
 
 static wmOperatorStatus retiming_key_add_from_selection(bContext *C,
                                                         wmOperator *op,
                                                         Span<Strip *> strips,
                                                         const int timeline_frame)
 {
+  Scene *scene = CTX_data_sequencer_scene(C);
   bool inserted = false;
 
   for (Strip *strip : strips) {
     if (!seq::retiming_is_allowed(strip)) {
       continue;
     }
-    inserted |= retiming_key_add_new_for_strip(C, op, strip, timeline_frame);
+    if (seq::retiming_key_add_new_for_strip(scene, op->reports, strip, timeline_frame) != nullptr) {
+      inserted = true;
+    }
   }
 
   return inserted ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
@@ -257,7 +235,9 @@ static wmOperatorStatus retiming_key_add_to_editable_strips(bContext *C,
   }
 
   for (Strip *strip : selection.values()) {
-    inserted |= retiming_key_add_new_for_strip(C, op, strip, timeline_frame);
+    if (seq::retiming_key_add_new_for_strip(scene, op->reports, strip, timeline_frame) != nullptr) {
+      inserted = true;
+    }
   }
 
   return inserted ? OPERATOR_FINISHED : OPERATOR_CANCELLED;

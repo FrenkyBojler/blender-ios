@@ -22,6 +22,8 @@
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_sound.hh"
 
 #include "SEQ_iterator.hh"
@@ -140,6 +142,30 @@ SeqRetimingKey *ensure_left_and_right_keys(const Scene *scene, Strip *strip)
   retiming_data_ensure(strip);
   retiming_add_key(scene, strip, left_fake_key_frame_get(scene, strip));
   return retiming_add_key(scene, strip, right_fake_key_frame_get(scene, strip));
+}
+
+SeqRetimingKey *retiming_key_add_new_for_strip(Scene *scene,
+                                               ReportList *reports,
+                                               Strip *strip,
+                                               const int timeline_frame)
+{
+  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+  const float frame_index = (BKE_scene_frame_get(scene) - strip->content_start()) *
+  strip->media_playback_rate_factor(scene_fps);
+  const SeqRetimingKey *key = seq::retiming_find_segment_start_key(strip, frame_index);
+
+  if (key != nullptr && seq::retiming_key_is_transition_start(key)) {
+    BKE_report(reports, RPT_WARNING, "Cannot create key inside of speed transition");
+    return nullptr;
+  }
+
+  const float end_frame = strip->start + strip->length(scene);
+  if (strip->start > timeline_frame || end_frame < timeline_frame) {
+    return nullptr;
+  }
+
+  seq::ensure_left_and_right_keys(scene, strip);
+  return seq::retiming_add_key(scene, strip, timeline_frame);
 }
 
 void retiming_data_clear(Strip *strip)

@@ -15,6 +15,7 @@ struct Editing;
 struct Scene;
 struct Strip;
 struct SeqRetimingKey;
+struct ReportList;
 
 namespace blender::seq {
 
@@ -27,6 +28,10 @@ void retiming_data_clear(Strip *strip);
 int left_fake_key_frame_get(const Scene *scene, const Strip *strip);
 int right_fake_key_frame_get(const Scene *scene, const Strip *strip);
 SeqRetimingKey *ensure_left_and_right_keys(const Scene *scene, Strip *strip);
+SeqRetimingKey *retiming_key_add_new_for_strip(Scene *scene,
+                                               ReportList *reports,
+                                               Strip *strip,
+                                               const int timeline_frame);
 void retiming_reset(Scene *scene, Strip *strip);
 bool retiming_is_allowed(const Strip *strip);
 /**
