@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <iostream>
 #include <xxhash.h>
 
 #include "MEM_guardedalloc.h"
@@ -256,10 +257,6 @@ void sound_equalizermodifier_free(StripModifierData *smd)
     MEM_freeN(&eqcmd);
   }
   BLI_listbase_clear(&semd->graphics);
-
-  if (smd->runtime->last_buf) {
-    MEM_freeN(smd->runtime->last_buf);
-  }
 }
 
 void sound_equalizermodifier_copy_data(StripModifierData *target, StripModifierData *smd)
@@ -277,6 +274,28 @@ void sound_equalizermodifier_copy_data(StripModifierData *target, StripModifierD
     eqcmd_n->next = eqcmd_n->prev = nullptr;
     BLI_addtail(&semd_target->graphics, eqcmd_n);
   }
+}
+
+static const uint64_t sound_equalizermodifier_get_params_hash(float *buf)
+{
+  XXH3_state_t *state = XXH3_createState();
+  XXH3_64bits_reset(state);
+
+  XXH3_64bits_update(state, buf, sizeof(float) * SOUND_EQUALIZER_SIZE_DEFINITION);
+
+  const uint64_t hash = XXH3_64bits_digest(state);
+  XXH3_freeState(state);
+  return hash;
+}
+
+static bool sound_equalizermodifier_data_changed(StripModifierData *smd, float *buf)
+{
+  uint64_t old_params_hash = smd->runtime->params_hash;
+
+  if (old_params_hash == sound_equalizermodifier_get_params_hash(buf)) {
+    return false;
+  }
+  return true;
 }
 
 void *sound_equalizermodifier_recreator(Strip *strip,
@@ -331,8 +350,7 @@ void *sound_equalizermodifier_recreator(Strip *strip,
 
   /* Only make new sound when necessary. It is faster and it prevents audio glitches. */
   if (!needs_update && smd->runtime->last_sound_in == sound_in &&
-      smd->runtime->last_buf != nullptr &&
-      std::memcmp(buf, smd->runtime->last_buf, SOUND_EQUALIZER_SIZE_DEFINITION) == 0)
+      !sound_equalizermodifier_data_changed(smd, buf))
   {
     MEM_freeN(buf);
     return smd->runtime->last_sound_out;
@@ -345,9 +363,10 @@ void *sound_equalizermodifier_recreator(Strip *strip,
                                             SOUND_EQUALIZER_SIZE_CONVERSION);
 
   needs_update = true;
-  smd->runtime->last_buf = buf;
   smd->runtime->last_sound_in = sound_in;
   smd->runtime->last_sound_out = sound_out;
+  smd->runtime->params_hash = sound_equalizermodifier_get_params_hash(buf);
+  MEM_freeN(buf);
 
   return sound_out;
 #else

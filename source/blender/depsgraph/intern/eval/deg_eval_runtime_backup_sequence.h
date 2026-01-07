@@ -32,13 +32,11 @@ class StripModifierDataBackup {
 
   bool isEmpty() const;
 
-  /* For all Sound Modifiers. */
+  /* For Sound Modifiers. */
   void *sound_in;
   void *sound_out;
   int flag;
   uint64_t params_hash;
-  /* For Equalizer Modifier. */
-  float *last_buf;
 };
 
 /* Backup of a single strip. */

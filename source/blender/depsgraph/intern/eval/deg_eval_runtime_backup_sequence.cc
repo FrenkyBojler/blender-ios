@@ -26,7 +26,6 @@ void StripModifierDataBackup::reset()
 {
   sound_in = nullptr;
   sound_out = nullptr;
-  last_buf = nullptr;
   flag = 0;
   params_hash = 0;
 }
@@ -43,12 +42,10 @@ void StripModifierDataBackup::init_from_modifier(StripModifierData *smd)
     flag = runtime->flag;
     sound_in = runtime->last_sound_in;
     sound_out = runtime->last_sound_out;
-    last_buf = runtime->last_buf;
     params_hash = runtime->params_hash;
 
     runtime->last_sound_in = nullptr;
     runtime->last_sound_out = nullptr;
-    runtime->last_buf = nullptr;
   }
 }
 
@@ -64,7 +61,6 @@ void StripModifierDataBackup::restore_to_modifier(StripModifierData *smd)
     runtime->flag = flag;
     runtime->last_sound_in = sound_in;
     runtime->last_sound_out = sound_out;
-    runtime->last_buf = last_buf;
     runtime->params_hash = params_hash;
   }
   reset();
@@ -72,7 +68,7 @@ void StripModifierDataBackup::restore_to_modifier(StripModifierData *smd)
 
 bool StripModifierDataBackup::isEmpty() const
 {
-  return sound_in == nullptr && sound_out == nullptr && last_buf == nullptr;
+  return sound_in == nullptr && sound_out == nullptr;
 }
 
 StripBackup::StripBackup(const Depsgraph * /*depsgraph*/)
