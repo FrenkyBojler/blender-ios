@@ -2843,7 +2843,7 @@ static void ui_but_paste_menu(bContext *C, Button *but, const StringRef value)
       C, &but->rnapoin, prop, std::string(value_identifier).c_str(), &item_index);
   if (!found) {
     WM_global_reportf(RPT_ERROR,
-                      "Paste of \"%s\": cannot assign to value to property",
+                      "Paste of \"%s\": cannot assign value to property",
                       std::string(value_identifier).c_str());
     return;
   }
