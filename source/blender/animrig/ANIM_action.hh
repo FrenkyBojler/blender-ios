@@ -78,7 +78,7 @@ class Slot;
  *
  * \note This wrapper class for the `bAction` DNA struct only has functionality
  * for the layered animation data. The legacy F-Curves (in `bAction::curves`)
- * and their groups (in `bAction::groups`) are not managed here.
+ * and their groups (in `bAction::groups`) are not managed here. See animrig::versioning.
  *
  * \see #AnimData::action
  * \see #AnimData::slot_handle
