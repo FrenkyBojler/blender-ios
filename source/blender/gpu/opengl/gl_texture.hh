@@ -381,4 +381,14 @@ inline GLenum channel_len_to_gl(int channel_len)
   }
 }
 
+BLI_INLINE GLTexture *unwrap(Texture *tex)
+{
+  return static_cast<GLTexture *>(tex);
+}
+
+BLI_INLINE Texture *wrap(GLTexture *texture)
+{
+  return static_cast<Texture *>(texture);
+}
+
 }  // namespace blender::gpu
