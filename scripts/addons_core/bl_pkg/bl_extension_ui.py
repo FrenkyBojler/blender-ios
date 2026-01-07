@@ -1851,7 +1851,8 @@ class USERPREF_MT_extensions_settings(Menu):
 
         layout.separator()
 
-        layout.operator("extensions.package_install_files", text="Install from Disk...", icon='IMPORT')
+        layout.operator("extensions.package_upgrade_all", text="Install Available Updates", icon='IMPORT')
+        layout.operator("extensions.package_install_files", text="Install from Disk...")
 
         if prefs.experimental.use_extensions_debug:
 
