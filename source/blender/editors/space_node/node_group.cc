@@ -890,6 +890,7 @@ static Vector<const bNodeLink *> find_internal_links(
 /* Sockets in this map should be added to the tree interface.
  * External links should be created for each source link, otherwise the socket should be exposed
  * without creating external links. */
+// TODO a map isn't really needed here, can just be a flat list.
 static Map<NodeSocketPair, Vector<MutableNodeSocketPair>> find_exposed_sockets(
     const bNodeTree &tree,
     const Span<const bNode *> nodes,
@@ -954,8 +955,8 @@ static Map<NodeSocketPair, Vector<MutableNodeSocketPair>> find_exposed_sockets(
 class NodeSetInterface {
  public:
   struct InterfaceSocketData {
-    NodeSocketPair origin;
-    Vector<MutableNodeSocketPair> links;
+    VectorSet<NodeSocketPair> internal_sockets;
+    VectorSet<MutableNodeSocketPair> external_sockets;
     bool hidden = false;
     bool collapsed = false;
   };
@@ -983,25 +984,38 @@ class NodeSetInterface {
                                      const bool expose_visible,
                                      NodeFilterFn link_filter = default_link_filter)
   {
-    NodeSetInterface result;
     const Map<NodeSocketPair, Vector<MutableNodeSocketPair>> exposed_sockets =
         find_exposed_sockets(tree, nodes, expose_visible, link_filter);
+
+    NodeSetInterface result;
+    /* Multiple internal or external sockets may be mapped to the same interface item. */
+    Map<const bNodeSocket *, InterfaceSocketData *> data_by_socket;
+    auto add_unique_interface = [&](const bNodeSocket &socket) -> InterfaceSocketData & {
+      return *data_by_socket.lookup_or_add_cb(&socket, [&]() {
+        const bNodeTreeInterfaceSocket *interface = add_interface_from_socket(
+            tree, dst_tree, socket);
+        return &result.socket_data_.lookup_or_add(interface, {});
+      });
+    };
+
     for (const auto &item : exposed_sockets.items()) {
       if (item.key.socket.is_input()) {
-        /* Inputs generate one item, based on the source socket. */
-        const bNodeTreeInterfaceSocket *interface = add_interface_from_socket(
-            tree, dst_tree, item.key.socket);
-        result.socket_data_.add(interface, {item.key, item.value});
+        /* Inputs generate an interface socket for each unique input link. */
+        for (const MutableNodeSocketPair &src_link : item.value) {
+          InterfaceSocketData &socket_data = add_unique_interface(src_link.socket);
+          socket_data.internal_sockets.add(item.key);
+          socket_data.external_sockets.add(src_link);
+        }
       }
       else {
-        /* Output sockets generate an item for each link, based on the target socket. */
+        /* Outputs generate an interface socket for each unique output link. */
         /* XXX This generates redundant sockets all based on the same internal socket.
          * It would make more sense to just create a single group socket just like the input case.
          */
         for (const MutableNodeSocketPair &src_link : item.value) {
-          const bNodeTreeInterfaceSocket *interface = add_interface_from_socket(
-              tree, dst_tree, src_link.socket);
-          result.socket_data_.add(interface, {item.key, {src_link}});
+          InterfaceSocketData &socket_data = add_unique_interface(src_link.socket);
+          socket_data.internal_sockets.add(item.key);
+          socket_data.external_sockets.add(src_link);
         }
       }
     }
@@ -1021,34 +1035,38 @@ class NodeSetInterface {
     return result;
   }
 
+  /* Connect the group node to external sockets. */
   void connect_group_node(bNode &group_node) const
   {
     bNodeTree &tree = group_node.owner_tree();
 
-    for (const auto &item : socket_data_.items()) {
-      const bNodeSocket &socket = item.value.origin.socket;
-
-      /* Connect the group node to external sockets. */
+    for (bNodeSocket *group_node_input : group_node.input_sockets()) {
+      const bNodeTreeInterfaceSocket *interface = bke::node_find_interface_input_by_identifier(
+          tree, group_node_input->identifier);
+      const InterfaceSocketData *data = socket_data_.lookup_ptr(interface);
+      if (!data) {
+        continue;
+      }
+      for (const MutableNodeSocketPair &link : data->external_sockets) {
+        bke::node_add_link(tree, link.node, link.socket, group_node, *group_node_input);
+      }
       /* Keep old socket visibility. */
-      const Span<MutableNodeSocketPair> linked_sockets = item.value.links;
-      if (socket.is_input()) {
-        bNodeSocket *group_node_input = node_group_find_input_socket(&group_node,
-                                                                     item.key->identifier);
-        for (const MutableNodeSocketPair &link : linked_sockets) {
-          bke::node_add_link(tree, link.node, link.socket, group_node, *group_node_input);
-        }
-        SET_FLAG_FROM_TEST(group_node_input->flag, item.value.hidden, SOCK_HIDDEN);
-        SET_FLAG_FROM_TEST(group_node_input->flag, item.value.collapsed, SOCK_COLLAPSED);
+      SET_FLAG_FROM_TEST(group_node_input->flag, data->hidden, SOCK_HIDDEN);
+      SET_FLAG_FROM_TEST(group_node_input->flag, data->collapsed, SOCK_COLLAPSED);
+    }
+    for (bNodeSocket *group_node_output : group_node.output_sockets()) {
+      const bNodeTreeInterfaceSocket *interface = bke::node_find_interface_input_by_identifier(
+          tree, group_node_output->identifier);
+      const InterfaceSocketData *data = socket_data_.lookup_ptr(interface);
+      if (!data) {
+        continue;
       }
-      else {
-        bNodeSocket *group_node_output = node_group_find_output_socket(&group_node,
-                                                                       item.key->identifier);
-        for (const MutableNodeSocketPair &link : linked_sockets) {
-          bke::node_add_link(tree, group_node, *group_node_output, link.node, link.socket);
-        }
-        SET_FLAG_FROM_TEST(group_node_output->flag, item.value.hidden, SOCK_HIDDEN);
-        SET_FLAG_FROM_TEST(group_node_output->flag, item.value.collapsed, SOCK_COLLAPSED);
+      for (const MutableNodeSocketPair &link : data->external_sockets) {
+        bke::node_add_link(tree, group_node, *group_node_output, link.node, link.socket);
       }
+      /* Keep old socket visibility. */
+      SET_FLAG_FROM_TEST(group_node_output->flag, data->hidden, SOCK_HIDDEN);
+      SET_FLAG_FROM_TEST(group_node_output->flag, data->collapsed, SOCK_COLLAPSED);
     }
 
     /* Keep old panel collapse status. */
