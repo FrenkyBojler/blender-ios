@@ -146,6 +146,7 @@ IndexMask selected_mask_to_shapes(const IndexMask selected_mask,
                                   IndexMaskMemory &memory)
 {
   const bke::AttributeAccessor attributes = curves.attributes();
+  const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int> shape_ids = *attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
 
   /* If the attribute does not exist then each curves is its own shape. */
@@ -155,15 +156,14 @@ IndexMask selected_mask_to_shapes(const IndexMask selected_mask,
     }
     BLI_assert(domain == AttrDomain::Point);
 
-    Array<bool> selected(curves.points_num());
-    selected_mask.to_bools(selected);
+    Array<bool> selected_points(curves.points_num());
+    selected_mask.to_bools(selected_points);
 
-    const OffsetIndices points_by_curve = curves.points_by_curve();
     const IndexMask selected_curves = IndexMask::from_predicate(
         curves.curves_range(), GrainSize(512), memory, [&](const int curve_i) {
           const IndexRange points = points_by_curve[curve_i];
           for (const int point_i : points) {
-            if (selected[point_i]) {
+            if (selected_points[point_i]) {
               return true;
             }
           }
@@ -174,15 +174,40 @@ IndexMask selected_mask_to_shapes(const IndexMask selected_mask,
   }
 
   VectorSet<int> selected_shape_ids;
-  selected_mask.foreach_index([&](const int64_t curve_i) {
-    const int shape_id = shape_ids[curve_i];
-    if (shape_id != 0) {
-      selected_shape_ids.add(shape_id);
-    }
-  });
-
   Array<bool> src_selected_curves(curves.curves_num());
-  selected_mask.to_bools(src_selected_curves);
+
+  if (domain == AttrDomain::Point) {
+    Array<bool> selected_points(curves.points_num());
+    selected_mask.to_bools(selected_points);
+
+    const IndexMask selected_curves = IndexMask::from_predicate(
+        curves.curves_range(), GrainSize(512), memory, [&](const int curve_i) {
+          const IndexRange points = points_by_curve[curve_i];
+          for (const int point_i : points) {
+            if (selected_points[point_i]) {
+              return true;
+            }
+          }
+          return false;
+        });
+
+    selected_curves.foreach_index([&](const int64_t curve_i) {
+      const int shape_id = shape_ids[curve_i];
+      if (shape_id != 0) {
+        selected_shape_ids.add(shape_id);
+      }
+    });
+    selected_curves.to_bools(src_selected_curves);
+  }
+  else {
+    selected_mask.foreach_index([&](const int64_t curve_i) {
+      const int shape_id = shape_ids[curve_i];
+      if (shape_id != 0) {
+        selected_shape_ids.add(shape_id);
+      }
+    });
+    selected_mask.to_bools(src_selected_curves);
+  }
 
   const IndexMask selected_curves = IndexMask::from_predicate(
       curves.curves_range(), GrainSize(4096), memory, [&](const int64_t curve_i) {
