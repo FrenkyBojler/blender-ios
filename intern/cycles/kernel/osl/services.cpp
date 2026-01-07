@@ -1153,8 +1153,10 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
         const float3 direction = make_float3(dtdx, dsdy, dtdy);
         const float max_distance = options.sblur;
         const bool local_only = (int)options.tblur;
-        result[0] = svm_raycast(
+        RaycastResult raycast_result = svm_raycast(
             kernel_globals, state, sd, position, direction, max_distance, local_only);
+        result[0] = raycast_result.distance;
+        // TODO: How do we pack the normal?
         status = true;
       }
 #endif
