@@ -326,7 +326,7 @@ static void seq_proxy_build_frame(const RenderData *context,
  */
 struct MultiViewPrefixVars {
   char prefix[FILE_MAX];
-  const char *ext;
+  char ext[FILE_MAXFILE];
 };
 
 /**
@@ -352,13 +352,17 @@ static bool seq_proxy_multiview_context_invalid(Strip *strip,
     if (view_id == 0) {
       /* Clear on first use. */
       prefix_vars->prefix[0] = '\0';
-      prefix_vars->ext = nullptr;
+      prefix_vars->ext[0] = '\0';
 
       char filepath[FILE_MAX];
       BLI_path_join(
           filepath, sizeof(filepath), strip->data->dirpath, strip->data->stripdata->filename);
       BLI_path_abs(filepath, ID_BLEND_PATH_FROM_GLOBAL(&scene->id));
-      BKE_scene_multiview_view_prefix_get(scene, filepath, prefix_vars->prefix, &prefix_vars->ext);
+      const char *ext_ptr = nullptr;
+      BKE_scene_multiview_view_prefix_get(scene, filepath, prefix_vars->prefix, &ext_ptr);
+      if (ext_ptr != nullptr) {
+        STRNCPY(prefix_vars->ext, ext_ptr);
+      }
     }
 
     if (prefix_vars->prefix[0] == '\0') {
