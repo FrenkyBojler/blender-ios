@@ -795,8 +795,6 @@ void animsys_evaluate_action_group(PointerRNA *ptr,
                                    bActionGroup *agrp,
                                    const AnimationEvalContext *anim_eval_context)
 {
-  FCurve *fcu;
-
   /* check if mapper is appropriate for use here (we set to nullptr if it's inappropriate) */
   if (ELEM(nullptr, act, agrp)) {
     return;

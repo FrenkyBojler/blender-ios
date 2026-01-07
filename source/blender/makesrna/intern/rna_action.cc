@@ -987,13 +987,13 @@ static bool rna_Action_is_empty_get(PointerRNA *ptr)
   animrig::Action &action = rna_action(ptr);
   return action.is_empty();
 }
-static bool rna_Action_is_action_legacy_get(PointerRNA *ptr)
+static bool rna_Action_is_action_legacy_get(PointerRNA * /* ptr */)
 {
   /* All actions are versioned so legacy actions no longer exist. This RNA function should be
    * removed at the next opportunity. */
   return false;
 }
-static bool rna_Action_is_action_layered_get(PointerRNA *ptr)
+static bool rna_Action_is_action_layered_get(PointerRNA * /* ptr */)
 {
   /* See above, all actions are layered through versioning. */
   return true;
@@ -1108,14 +1108,12 @@ static FCurve *rna_Action_fcurve_ensure_for_datablock(bAction *_self,
  */
 bool rna_Action_id_poll(PointerRNA *ptr, PointerRNA value)
 {
-  ID *srcId = ptr->owner_id;
   bAction *dna_action = id_cast<bAction *>(value.owner_id);
 
   if (!dna_action) {
     return false;
   }
 
-  animrig::Action &action = dna_action->wrap();
   /* Layered Actions can always be assigned. */
   BLI_assert(action.idroot == 0);
   return true;
