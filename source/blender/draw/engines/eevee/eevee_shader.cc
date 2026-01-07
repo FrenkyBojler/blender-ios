@@ -852,7 +852,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
       info.additional_info("eevee_object_id_out");
     }
     else if (ELEM(pipeline_type, MAT_PIPE_DEFERRED, MAT_PIPE_FORWARD)) {
-      info.additional_info("eevee_object_id");
+      info.additional_info("eevee_raycast");
     }
   }
 

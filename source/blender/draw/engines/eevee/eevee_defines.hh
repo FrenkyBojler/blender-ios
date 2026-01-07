@@ -221,6 +221,10 @@
 #  endif
 #endif
 
+#define PREPASS_FRAG_OUT_NORMAL 0
+#define PREPASS_FRAG_OUT_VELOCITY 1
+#define PREPASS_FRAG_OUT_OB_ID 2
+
 /* Resource bindings. */
 
 /* Textures. */
@@ -238,6 +242,7 @@
 #define HIZ_PREVIOUS_LAYER_TEX_SLOT 10
 #define RADIANCE_PREVIOUS_LAYER_TEX_SLOT 11
 #define OBJECT_ID_TEX_SLOT 12
+#define PREPASS_NORMAL_TEX_SLOT 13
 /* Currently only used by ray-tracing, but might become used by forward too. */
 #define PLANAR_PROBE_DEPTH_TEX_SLOT 13
 #define PLANAR_PROBE_RADIANCE_TEX_SLOT 14

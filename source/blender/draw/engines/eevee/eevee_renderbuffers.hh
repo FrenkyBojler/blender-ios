@@ -26,7 +26,7 @@ class RenderBuffers {
 
   static constexpr gpu::TextureFormat color_format = gpu::TextureFormat::SFLOAT_16_16_16_16;
   static constexpr gpu::TextureFormat float_format = gpu::TextureFormat::SFLOAT_16;
-  static constexpr gpu::TextureFormat object_id_format = gpu::TextureFormat::UINT_16;
+  ;
 
   Texture depth_tx;
   TextureFromPool combined_tx;
@@ -34,6 +34,7 @@ class RenderBuffers {
   // TextureFromPool mist_tx; /* Derived from depth_tx during accumulation. */
   TextureFromPool vector_tx;
   TextureFromPool object_id_tx;
+  TextureFromPool prepass_normal_tx;
   TextureFromPool cryptomatte_tx;
   /* TODO(fclem): Use texture from pool once they support texture array. */
   Texture rp_color_tx;

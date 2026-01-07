@@ -12,11 +12,11 @@
 
 GPU_SHADER_CREATE_INFO(eevee_object_id_out)
 DEFINE("MAT_OBJECT_ID")
-/* Output 0 is for velocity. */
-FRAGMENT_OUT(1, uint, out_object_id)
+FRAGMENT_OUT(PREPASS_FRAG_OUT_OB_ID, uint, out_object_id)
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(eevee_object_id)
-DEFINE("OBJECT_ID_TEX")
+GPU_SHADER_CREATE_INFO(eevee_raycast)
+DEFINE("MAT_RAYCAST")
 SAMPLER(OBJECT_ID_TEX_SLOT, usampler2D, object_id_tx)
+SAMPLER(PREPASS_NORMAL_TEX_SLOT, sampler2D, prepass_normal_tx)
 GPU_SHADER_CREATE_END()

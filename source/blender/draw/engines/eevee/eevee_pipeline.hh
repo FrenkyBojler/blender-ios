@@ -786,6 +786,8 @@ class PipelineModule {
   UtilityTexture utility_tx;
   PipelineInfoData &data;
 
+  bool has_raycast = false;
+
   PipelineModule(Instance &inst, PipelineInfoData &data)
       : background(inst),
         world(inst),
@@ -809,6 +811,8 @@ class PipelineModule {
     shadow.sync();
     volume.sync();
     capture.sync();
+
+    has_raycast = false;
   }
 
   void end_sync()
@@ -825,6 +829,10 @@ class PipelineModule {
                               eMaterialPipeline pipeline_type,
                               eMaterialProbe probe_capture)
   {
+    if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST)) {
+      has_raycast = true;
+    }
+
     if (probe_capture == MAT_PROBE_REFLECTION) {
       switch (pipeline_type) {
         case MAT_PIPE_PREPASS_DEFERRED:

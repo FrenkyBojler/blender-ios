@@ -275,7 +275,8 @@ float raytrace_screen_2(float3 vs_origin,
                         int max_steps,
                         float jitter,
                         usampler2D ob_id_tx,
-                        uint object_id)
+                        uint object_id,
+                        float2 &r_hit_uv)
 {
   /* Convert ray start and end into NDC for correct interpolation. */
   float4 start, end;
@@ -336,6 +337,7 @@ float raytrace_screen_2(float3 vs_origin,
     previous_step_z = forward ? step.w : step.z;
 
     if (max_z >= hit_max_z && min_z <= hit_min_z) {
+      r_hit_uv = step.xy;
       /* We have a hit. Compute the distance. */
       float3 vs_hit_point = drw_point_screen_to_view(float3(step.xy, hit_depth_point));
       /* Hit point projection along the ray. */

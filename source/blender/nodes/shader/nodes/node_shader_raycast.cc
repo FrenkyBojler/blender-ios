@@ -20,7 +20,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Hit Distance");
   b.add_output<decl::Vector>("Hit Position");
   b.add_output<decl::Vector>("Hit Normal");
-  b.add_output<decl::Vector>("Hit True Normal");
 }
 
 static void node_shader_init(bNodeTree * /*ntree*/, bNode *node)

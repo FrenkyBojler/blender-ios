@@ -5,7 +5,7 @@
 #pragma once
 
 #include "infos/eevee_common_infos.hh"
-#include "infos/eevee_object_id_infos.hh"
+#include "infos/eevee_raycast_infos.hh"
 #include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
@@ -15,7 +15,6 @@ SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
 #include "draw_view_lib.glsl"
-#include "draw_view_reconstruction_lib.glsl"
 #ifdef DRW_VIEW_CULLING_INFO
 #  include "draw_intersect_lib.glsl"
 #endif
@@ -300,18 +299,16 @@ void raycast_eval(float3 position,
                   bool &is_hit,
                   float &hit_distance,
                   float3 &hit_position,
-                  float3 &hit_normal,
-                  float3 &hit_true_normal)
+                  float3 &hit_normal)
 {
   is_hit = false;
   hit_distance = max_distance;
   hit_position = float3(0.0f);
   hit_normal = float3(0.0f);
-  hit_true_normal = float3(0.0f);
 
   direction = normalize(direction);
 
-#if defined(GPU_FRAGMENT_SHADER) && defined(OBJECT_ID_TEX)
+#if defined(MAT_RAYCAST)
   float3 ws_start = position;
   float3 ws_end = position + direction * max_distance;
   if (!clip_ray(
@@ -327,6 +324,8 @@ void raycast_eval(float3 position,
       interleaved_gradient_noise(gl_FragCoord.xy, 1.0f, thickness_noise_offset) * 0.5f + 0.5f;
   float thickness = uniform_buf.raytrace.thickness * thickness_jitter;
 
+  float2 hit_uv = float2(0.0f);
+
   float result = raytrace_screen_2(drw_point_world_to_view(ws_start),
                                    drw_point_world_to_view(ws_end),
                                    drw_normal_world_to_view(direction),
@@ -335,18 +334,13 @@ void raycast_eval(float3 position,
                                    64,
                                    jitter,
                                    object_id_tx,
-                                   self_only ? drw_resource_id() & 0xFFFF : 0);
+                                   self_only ? drw_resource_id() & 0xFFFF : 0,
+                                   hit_uv);
   if (result >= 0.0f) {
     is_hit = true;
     hit_distance = result;
     hit_position = ws_start + direction * hit_distance;
-    hit_true_normal = drw_normal_view_to_world(
-        view_reconstruct_from_depth(
-            hiz_tx,
-            uniform_buf.film.render_extent,
-            int2(drw_point_world_to_screen(hit_position).xy * uniform_buf.film.render_extent))
-            .vNg);
-    hit_normal = hit_true_normal;
+    hit_normal = normalize(texture(prepass_normal_tx, hit_uv).xyz * 2.0f - 1.0f);
   }
 #endif
 }

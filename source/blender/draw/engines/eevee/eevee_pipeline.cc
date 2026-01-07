@@ -298,7 +298,8 @@ void Prepass::setup_subpasses(DRWState common_state)
         subpass = &this->sub(double_sided_name + moving_name + write_id_name);
         subpass->state_set(common_state | double_sided_state | moving_state | write_id_state);
         subpass->subpass_transition(GPU_ATTACHMENT_WRITE,
-                                    {moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
+                                    {GPU_ATTACHMENT_WRITE, /* normal */
+                                     moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
                                      write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
       }
     }
@@ -351,6 +352,7 @@ void ForwardPipeline::sync()
       opaque_ps_.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
       opaque_ps_.bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
       opaque_ps_.bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
+      opaque_ps_.bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);
 
       opaque_ps_.bind_resources(inst_.uniform_data);
       opaque_ps_.bind_resources(inst_.lights);
@@ -382,6 +384,7 @@ void ForwardPipeline::sync()
     sub.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
     sub.bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
     sub.bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
+    sub.bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst_.render_buffers.prepass_normal_tx);
 
     sub.bind_resources(inst_.uniform_data);
     sub.bind_resources(inst_.lights);
@@ -628,6 +631,7 @@ void DeferredLayerBase::gbuffer_pass_sync(Instance &inst)
   gbuffer_ps_.bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst.hiz_buffer.back.ref_tx_);
   gbuffer_ps_.bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &radiance_behind_tx_);
   gbuffer_ps_.bind_texture(OBJECT_ID_TEX_SLOT, &inst.render_buffers.object_id_tx);
+  gbuffer_ps_.bind_texture(PREPASS_NORMAL_TEX_SLOT, &inst.render_buffers.prepass_normal_tx);
 
   /* Bind light resources for the NPR materials that gets rendered first.
    * Non-NPR shaders will override these resource bindings. */

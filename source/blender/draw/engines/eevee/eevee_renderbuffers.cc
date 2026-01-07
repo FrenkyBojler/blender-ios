@@ -79,8 +79,10 @@ void RenderBuffers::acquire(int2 extent)
 
   /* TODO(fclem): Make vector pass allocation optional if no TAA or motion blur is needed. */
   vector_tx.acquire(extent, vector_tx_format(), usage_attachment_read_write);
-  /* TODO: Make allocation optional if raycasts (or SSS?) are used. */
-  object_id_tx.acquire(extent, object_id_format, usage_attachment_read);
+  if (inst_.pipelines.has_raycast) {
+    object_id_tx.acquire(extent, gpu::TextureFormat::UINT_16, usage_attachment_read);
+    prepass_normal_tx.acquire(extent, gpu::TextureFormat::UFLOAT_11_11_10, usage_attachment_read);
+  }
 
   const bool do_motion_vectors_swizzle = vector_tx_format() == gpu::TextureFormat::SFLOAT_16_16;
   if (do_motion_vectors_swizzle) {
@@ -122,6 +124,7 @@ void RenderBuffers::release()
   }
   vector_tx.release();
   object_id_tx.release();
+  prepass_normal_tx.release();
 
   cryptomatte_tx.release();
 }
