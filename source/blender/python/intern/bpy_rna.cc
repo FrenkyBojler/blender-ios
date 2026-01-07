@@ -75,6 +75,8 @@
 #include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
+namespace blender {
+
 #define USE_PEDANTIC_WRITE
 #define USE_MATHUTILS
 #define USE_STRING_COERCE
@@ -501,8 +503,12 @@ static int pyrna_py_to_prop(
     PointerRNA *ptr, PropertyRNA *prop, void *data, PyObject *value, const char *error_prefix);
 static int deferred_register_prop(StructRNA *srna, PyObject *key, PyObject *item);
 
+}  // namespace blender
+
 #ifdef USE_MATHUTILS
 #  include "../mathutils/mathutils.hh" /* So we can have mathutils callbacks. */
+
+namespace blender {
 
 static PyObject *pyrna_prop_array_subscript_slice(BPy_PropertyArrayRNA *self,
                                                   PointerRNA *ptr,
@@ -4392,9 +4398,9 @@ static PyObject *pyrna_struct_bl_rna_get_subclass(PyObject *cls, PyObject *args)
 
   if (srna_base == &RNA_Node) {
     /* If the given idname is an alias, translate it to the proper idname. */
-    id = blender::bke::node_type_find_alias(id).c_str();
+    id = bke::node_type_find_alias(id).c_str();
 
-    blender::bke::bNodeType *nt = blender::bke::node_type_find(id);
+    bke::bNodeType *nt = bke::node_type_find(id);
     if (nt) {
       PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_Struct, nt->rna_ext.srna);
       return pyrna_struct_CreatePyObject(&ptr);
@@ -4712,10 +4718,10 @@ static PyObject *pyrna_struct_getattro(BPy_StructRNA *self, PyObject *pyname)
     }
     else {
       PointerRNA newptr;
-      blender::Vector<PointerRNA> newlb;
+      Vector<PointerRNA> newlb;
       PropertyRNA *newprop;
       int newindex;
-      blender::StringRef newstr;
+      StringRef newstr;
       std::optional<int64_t> newint;
       ContextDataType newtype;
 
@@ -4998,10 +5004,10 @@ static int pyrna_struct_setattro(BPy_StructRNA *self, PyObject *pyname, PyObject
     }
 
     PointerRNA newptr;
-    blender::Vector<PointerRNA> newlb;
+    Vector<PointerRNA> newlb;
     PropertyRNA *newprop;
     int newindex;
-    blender::StringRef newstr;
+    StringRef newstr;
     std::optional<int64_t> newint;
     ContextDataType newtype;
 
@@ -5295,7 +5301,7 @@ static PyObject *pyrna_struct_get_id_data(BPy_DummyPointerRNA *self, void * /*cl
 {
   /* Used for struct and pointer since both have a ptr. */
   if (self->ptr->owner_id) {
-    PointerRNA id_ptr = RNA_id_pointer_create(blender::id_cast<ID *>(self->ptr->owner_id));
+    PointerRNA id_ptr = RNA_id_pointer_create(id_cast<ID *>(self->ptr->owner_id));
     return pyrna_struct_CreatePyObject(&id_ptr);
   }
 
@@ -9499,7 +9505,7 @@ static int bpy_class_validate_recursive(PointerRNA *dummy_ptr,
     func_arg_count = rna_function_register_arg_count(func, &func_arg_min_count);
 
     if (func_arg_count >= 0) { /* -1 if we don't care. */
-      arg_count = (reinterpret_cast<PyCodeObject *> PyFunction_GET_CODE(item))->co_argcount;
+      arg_count = (reinterpret_cast<PyCodeObject *>(PyFunction_GET_CODE(item))->co_argcount);
 
       /* NOTE: the number of args we check for and the number of args we give to
        * `@staticmethods` are different (quirk of Python),
@@ -9791,13 +9797,13 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
        * #rna_function_register_arg_count so there is no need to inspect the RNA function. */
 
       if (is_staticmethod) {
-        arg_count = (reinterpret_cast<PyCodeObject *> PyFunction_GET_CODE(
-                         ((PyMethodObject *)item)->im_func))
+        arg_count = (reinterpret_cast<PyCodeObject *>(
+                         PyFunction_GET_CODE(((PyMethodObject *)item)->im_func)))
                         ->co_argcount -
                     1;
       }
       else {
-        arg_count = (reinterpret_cast<PyCodeObject *> PyFunction_GET_CODE(item))->co_argcount;
+        arg_count = (reinterpret_cast<PyCodeObject *>(PyFunction_GET_CODE(item)))->co_argcount;
       }
       args = PyTuple_New(arg_count); /* First arg is included in 'item'. */
 
@@ -10699,3 +10705,5 @@ PyMethodDef meth_bpy_owner_id_set = {
 #endif
 
 /** \} */
+
+}  // namespace blender

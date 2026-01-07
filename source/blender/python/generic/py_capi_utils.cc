@@ -35,6 +35,8 @@
 #  define PyLong_AsInt _PyLong_AsInt
 #endif
 
+namespace blender {
+
 /* -------------------------------------------------------------------- */
 /** \name Fast Python to C Array Conversion for Primitive Types
  * \{ */
@@ -833,7 +835,7 @@ PyObject *PyC_Err_SetString_Prefix(PyObject *exception_type_prefix, const char *
 void PyC_Err_PrintWithFunc(PyObject *py_func)
 {
   /* since we return to C code we can't leave the error */
-  PyCodeObject *f_code = reinterpret_cast<PyCodeObject *> PyFunction_GET_CODE(py_func);
+  PyCodeObject *f_code = reinterpret_cast<PyCodeObject *>(PyFunction_GET_CODE(py_func));
   PyErr_Print();
 
   /* use py style error */
@@ -1949,3 +1951,5 @@ bool PyC_StructFmt_type_is_bool(char format)
 }
 
 /** \} */
+
+}  // namespace blender

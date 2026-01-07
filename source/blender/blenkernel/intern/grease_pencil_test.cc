@@ -13,9 +13,11 @@
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 
+namespace blender {
+
 using namespace blender::bke::greasepencil;
 
-namespace blender::bke::greasepencil::tests {
+namespace bke::greasepencil::tests {
 
 /* --------------------------------------------------------------------------------------------- */
 /* Grease Pencil ID Tests. */
@@ -123,13 +125,13 @@ TEST(greasepencil, remove_drawings_last_unused)
 /* --------------------------------------------------------------------------------------------- */
 /* Layer Tree Tests. */
 
-struct GreasePencilHelper : public ::GreasePencil {
+struct GreasePencilHelper : public blender::GreasePencil {
   GreasePencilHelper()
   {
     this->root_group_ptr = MEM_new<greasepencil::LayerGroup>(__func__);
     this->active_node = nullptr;
 
-    new (&this->attribute_storage.wrap()) blender::bke::AttributeStorage();
+    new (&this->attribute_storage.wrap()) bke::AttributeStorage();
 
     this->drawing_array = nullptr;
     this->drawing_array_num = 0;
@@ -630,4 +632,5 @@ TEST(greasepencil, shape_cache)
   }
 }
 
-}  // namespace blender::bke::greasepencil::tests
+}  // namespace bke::greasepencil::tests
+}  // namespace blender
