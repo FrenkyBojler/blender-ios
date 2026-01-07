@@ -1,0 +1,1 @@
+Referenced by commit 03aa14db7f9f5d37f0b483eb1306091fc34267f9, Fix: Potential out-of-bounds read and UTF8 truncating of view-item name
