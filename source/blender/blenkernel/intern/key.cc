@@ -750,14 +750,16 @@ static void key_evaluate_absolute(const int vertex_count,
   const float step_k3 = shapekeys[2]->totelem / float(vertex_count);
   const float step_k4 = shapekeys[3]->totelem / float(vertex_count);
 
-  for (int i = 0; i < vertex_count; i++) {
-    flerp(&k1[int(i * step_k1) * 3],
-          &k2[int(i * step_k2) * 3],
-          &k3[int(i * step_k3) * 3],
-          &k4[int(i * step_k4) * 3],
-          weights,
-          &r_target[i * 3]);
-  }
+  threading::parallel_for(IndexRange(vertex_count), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      flerp(&k1[int(i * step_k1) * 3],
+            &k2[int(i * step_k2) * 3],
+            &k3[int(i * step_k3) * 3],
+            &k4[int(i * step_k4) * 3],
+            weights,
+            &r_target[i * 3]);
+    }
+  });
 
   if (freek1) {
     MEM_freeN(freek1);
