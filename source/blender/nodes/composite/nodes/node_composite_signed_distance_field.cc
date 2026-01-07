@@ -11,13 +11,13 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_signed_distance_field_cc {
+namespace blender::nodes::node_composite_mask_to_sdf_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Bool>("Mask").hide_value().structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Float>("Signed Distance Field")
+  b.add_output<decl::Float>("SDF")
       .structure_type(StructureType::Dynamic)
       .description(
           "The distance in pixel to the nearest pixel at the boundary of the mask. The distance "
@@ -30,14 +30,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 using namespace blender::compositor;
 
-class SignedDistanceFieldOperation : public NodeOperation {
+class MaskToSDFOperation : public NodeOperation {
  public:
   using NodeOperation::NodeOperation;
 
   void execute() override
   {
     const Result &input_mask = this->get_input("Mask");
-    Result &distance_output = this->get_result("Signed Distance Field");
+    Result &distance_output = this->get_result("SDF");
 
     Result &nearest_pixel_output = this->get_result("Nearest Pixel");
     nearest_pixel_output.set_type(ResultType::Int2);
@@ -89,8 +89,8 @@ class SignedDistanceFieldOperation : public NodeOperation {
 
   Result compute_boundary_gpu()
   {
-    gpu::Shader *shader = this->context().get_shader(
-        "compositor_signed_distance_field_compute_boundary", ResultPrecision::Half);
+    gpu::Shader *shader = this->context().get_shader("compositor_mask_to_sdf_compute_boundary",
+                                                     ResultPrecision::Half);
     GPU_shader_bind(shader);
 
     const Result &mask = this->get_input("Mask");
@@ -118,10 +118,10 @@ class SignedDistanceFieldOperation : public NodeOperation {
     const Domain domain = mask.domain();
     boundary.allocate_texture(domain);
 
-    /* The signed distance field operation uses a jump flood algorithm to flood the region to be
-     * distance transformed with the pixels at its boundary. The algorithms expects an input image
-     * whose values are those returned by the initialize_jump_flooding_value function, given the
-     * texel location and a boolean specifying if the pixel is a boundary one.
+    /* The mask to SDF operation uses a jump flood algorithm to flood the region to be distance
+     * transformed with the pixels at its boundary. The algorithms expects an input image whose
+     * values are those returned by the initialize_jump_flooding_value function, given the texel
+     * location and a boolean specifying if the pixel is a boundary one.
      *
      * Technically, we needn't restrict the output to just the boundary pixels, since the algorithm
      * can still operate if the interior of the region was also included. However, the algorithm
@@ -170,8 +170,7 @@ class SignedDistanceFieldOperation : public NodeOperation {
 
   void compute_signed_distance_gpu(const Result &flooded_boundary)
   {
-    gpu::Shader *shader = this->context().get_shader(
-        "compositor_signed_distance_field_compute_distance");
+    gpu::Shader *shader = this->context().get_shader("compositor_mask_to_sdf_compute_distance");
     GPU_shader_bind(shader);
 
     const Result &mask = this->get_input("Mask");
@@ -180,7 +179,7 @@ class SignedDistanceFieldOperation : public NodeOperation {
     flooded_boundary.bind_as_texture(shader, "flooded_boundary_tx");
 
     const Domain domain = mask.domain();
-    Result &distance_output = this->get_result("Signed Distance Field");
+    Result &distance_output = this->get_result("SDF");
     distance_output.allocate_texture(domain);
     distance_output.bind_as_image(shader, "distance_img");
 
@@ -197,7 +196,7 @@ class SignedDistanceFieldOperation : public NodeOperation {
     const Result &mask = this->get_input("Mask");
 
     const Domain domain = mask.domain();
-    Result &distance_output = this->get_result("Signed Distance Field");
+    Result &distance_output = this->get_result("SDF");
     distance_output.allocate_texture(domain);
 
     parallel_for(domain.data_size, [&](const int2 texel) {
@@ -214,15 +213,15 @@ class SignedDistanceFieldOperation : public NodeOperation {
 
 static NodeOperation *get_compositor_operation(Context &context, DNode node)
 {
-  return new SignedDistanceFieldOperation(context, node);
+  return new MaskToSDFOperation(context, node);
 }
 
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, "CompositorNodeSignedDistanceField");
-  ntype.ui_name = "Signed Distance Field";
+  cmp_node_type_base(&ntype, "CompositorNodeMaskToSDF");
+  ntype.ui_name = "Mask To SDF";
   ntype.ui_description = "Computes a signed distance field from the given mask";
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = node_declare;
@@ -232,4 +231,4 @@ static void node_register()
 }
 NOD_REGISTER_NODE(node_register)
 
-}  // namespace blender::nodes::node_composite_signed_distance_field_cc
+}  // namespace blender::nodes::node_composite_mask_to_sdf_cc

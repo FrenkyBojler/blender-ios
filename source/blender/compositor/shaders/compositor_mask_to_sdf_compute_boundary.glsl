@@ -2,14 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/* The signed distance field operation uses a jump flood algorithm to flood the region to be
- * distance transformed with the pixels at its boundary. The algorithms expects an input image
- * whose values are those returned by the initialize_jump_flooding_value function, given the texel
- * location and a boolean specifying if the pixel is a boundary one.
+/* The mask to SDF operation uses a jump flood algorithm to flood the region to be distance
+ * transformed with the pixels at its boundary. The algorithms expects an input image whose values
+ * are those returned by the initialize_jump_flooding_value function, given the texel location and
+ * a boolean specifying if the pixel is a boundary one.
  *
  * Technically, we needn't restrict the output to just the boundary pixels, since the algorithm can
  * still operate if the interior of the region was also included. However, the algorithm operates
  * more accurately when the number of pixels to be flooded is minimum. */
+
+#include "infos/compositor_mask_to_sdf_infos.hh"
+
+COMPUTE_SHADER_CREATE_INFO(compositor_mask_to_sdf_compute_boundary)
 
 #include "gpu_shader_compositor_jump_flooding_lib.glsl"
 #include "gpu_shader_compositor_texture_utilities.glsl"

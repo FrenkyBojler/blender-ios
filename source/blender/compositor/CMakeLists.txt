@@ -200,6 +200,7 @@ set(GLSL_SRC
   shaders/infos/compositor_kuwahara_infos.hh
   shaders/infos/compositor_lens_distortion_infos.hh
   shaders/infos/compositor_map_uv_infos.hh
+  shaders/infos/compositor_mask_to_sdf_infos.hh
   shaders/infos/compositor_morphological_blur_infos.hh
   shaders/infos/compositor_morphological_distance_feather_infos.hh
   shaders/infos/compositor_morphological_distance_infos.hh
@@ -220,7 +221,6 @@ set(GLSL_SRC
   shaders/infos/compositor_relative_to_pixel_infos.hh
   shaders/infos/compositor_sample_pixel_infos.hh
   shaders/infos/compositor_scale_variable_infos.hh
-  shaders/infos/compositor_signed_distance_field_infos.hh
   shaders/infos/compositor_smaa_infos.hh
   shaders/infos/compositor_split_infos.hh
   shaders/infos/compositor_summed_area_table_infos.hh
@@ -299,6 +299,8 @@ set(GLSL_SRC
   shaders/compositor_kuwahara_classic.glsl
   shaders/compositor_map_uv.glsl
   shaders/compositor_map_uv_anisotropic.glsl
+  shaders/compositor_mask_to_sdf_compute_boundary.glsl
+  shaders/compositor_mask_to_sdf_compute_distance.glsl
   shaders/compositor_morphological_blur.glsl
   shaders/compositor_morphological_distance.glsl
   shaders/compositor_morphological_distance_feather.glsl
@@ -325,8 +327,6 @@ set(GLSL_SRC
   shaders/compositor_relative_to_pixel_vector.glsl
   shaders/compositor_sample_pixel.glsl
   shaders/compositor_scale_variable.glsl
-  shaders/compositor_signed_distance_field_compute_boundary.glsl
-  shaders/compositor_signed_distance_field_compute_distance.glsl
   shaders/compositor_smaa_blending_weight_calculation.glsl
   shaders/compositor_smaa_edge_detection.glsl
   shaders/compositor_smaa_neighborhood_blending.glsl
