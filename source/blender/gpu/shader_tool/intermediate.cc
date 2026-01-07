@@ -458,6 +458,22 @@ void TokenStream::merge_tokens(TokenData &tokens)
         }
         break;
 
+      case '&':
+        /* Detect logical and. */
+        if (prev == '&') {
+          types_raw[cursor - 1] = LogicalAnd;
+          continue;
+        }
+        break;
+
+      case '|':
+        /* Detect logical or. */
+        if (prev == '|') {
+          types_raw[cursor - 1] = LogicalOr;
+          continue;
+        }
+        break;
+
       case '+':
         /* Detect increment. */
         if (prev == '+') {

@@ -82,6 +82,17 @@ enum TokenType : char {
   Public = 'V',
   Inline = 'l',
   Union = 'o',
+  LogicalAnd = 'a',
+  LogicalOr = 'g',
+  /* Aliases. */
+  Multiply = Star,
+  And = Ampersand,
+  Or = Pipe,
+  Xor = Caret,
+  GThan = AngleClose,
+  LThan = AngleOpen,
+  BitwiseNot = Tilde,
+  Modulo = Percent,
 };
 
 struct Token {
