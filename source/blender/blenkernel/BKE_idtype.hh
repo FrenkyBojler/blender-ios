@@ -17,6 +17,8 @@
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_sys_types.h"
 
+namespace blender {
+
 struct AssetTypeInfo;
 struct BPathForeachPathData;
 struct BlendDataReader;
@@ -118,9 +120,8 @@ using IDTypeForeachPathFunction = void (*)(ID *id, BPathForeachPathData *bpath_d
 /* Foreach scene linear color can do either a single color, or an implicitly shared array
  * for geometry attributes. */
 struct IDTypeForeachColorFunctionCallback {
-  const blender::FunctionRef<void(float rgb[3])> single;
-  const blender::FunctionRef<void(
-      blender::ImplicitSharingPtr<> &sharing_info, blender::ColorGeometry4f *&data, size_t size)>
+  const FunctionRef<void(float rgb[3])> single;
+  const FunctionRef<void(ImplicitSharingPtr<> &sharing_info, ColorGeometry4f *&data, size_t size)>
       implicit_sharing_array;
 };
 using IDTypeForeachColorFunction = void (*)(ID *id, const IDTypeForeachColorFunctionCallback &cb);
@@ -165,7 +166,7 @@ struct IDTypeInfoIDPropertyCallbackParams {
   }
 };
 using IDTypeForeachIDPropertyContainerCallback =
-    blender::FunctionRef<void(IDTypeInfoIDPropertyCallbackParams &params)>;
+    FunctionRef<void(IDTypeInfoIDPropertyCallbackParams &params)>;
 using IDTypeForeachIDPropertyContainer =
     void (*)(ID &id, IDTypeForeachIDPropertyContainerCallback function_callback);
 
@@ -504,3 +505,5 @@ short BKE_idtype_idcode_iter_step(int *idtype_index);
 void BKE_idtype_id_foreach_cache(ID *id,
                                  IDTypeForeachCacheFunctionCallback function_callback,
                                  void *user_data);
+
+}  // namespace blender
