@@ -14,6 +14,7 @@
 #include "testing/testing.h"
 
 #include "MEM_guardedalloc.h"
+namespace blender {
 
 class ShapekeyTest : public testing::Test {
  public:
@@ -31,12 +32,12 @@ class ShapekeyTest : public testing::Test {
     bmain = BKE_main_new();
     ob = BKE_object_add_only_object(bmain, OB_MESH, "Object");
     mesh = BKE_mesh_add(bmain, "Test Mesh");
-    ob->data = mesh;
+    ob->data = &mesh->id;
 
     mesh->verts_num = 4;
-    blender::bke::mesh_ensure_required_data_layers(*mesh);
+    bke::mesh_ensure_required_data_layers(*mesh);
     /* Shapekeys don't affect edges and faces so they can be ignored here. */
-    blender::Vector<blender::float3> verts = {
+    Vector<blender::float3> verts = {
         {0, 0, 0},
         {1, 0, 0},
         {1, 1, 0},
@@ -51,20 +52,21 @@ class ShapekeyTest : public testing::Test {
   }
 };
 
-namespace blender::bke::tests {
+namespace bke::tests {
 
+/* Test that creating a shapekey from a mesh has the correct data. */
 TEST_F(ShapekeyTest, mesh_key_creation)
 {
   Key *key = BKE_key_add(bmain, &mesh->id);
-  EXPECT_EQ(key->from, &mesh->id);
+  ASSERT_EQ(key->from, &mesh->id);
   /* Assignment to the mesh does not happen automatically by adding it. */
   mesh->key = key;
   EXPECT_EQ(BKE_key_from_object(ob), key);
   KeyBlock *base = BKE_keyblock_add(key, "base");
   /* This should be set automatically after adding the first key. */
-  EXPECT_EQ(key->refkey, base);
+  ASSERT_EQ(key->refkey, base);
   /* The elemsize stores how many bytes one element has (vertex in this case). */
-  EXPECT_EQ(key->elemsize, 12);
+  ASSERT_EQ(key->elemsize, sizeof(float[3]));
   /* Adding the keyblock does not actually allocate any data for it. */
   EXPECT_EQ(base->data, nullptr);
   BKE_keyblock_convert_from_mesh(mesh, key, base);
@@ -223,7 +225,8 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute)
 
 /* For historical reasons, keyblocks can end up having an element count that does not match the
  * element count of the source data (unequal vertex count in the case of meshes). This is not
- * supported in relative evaluation though. */
+ * supported in relative evaluation, so that should ignore the shape key, regardless of its weight.
+ */
 TEST_F(ShapekeyTest, mesh_key_evaluation_relative_uneqal_element_count)
 {
   Key *key = BKE_key_add(bmain, &mesh->id);
@@ -234,12 +237,13 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_relative_uneqal_element_count)
 
   KeyBlock *key1 = BKE_keyblock_add(key, "one");
   ASSERT_EQ(mesh->verts_num, 4);
-  ASSERT_EQ(key->elemsize, 12);
+  ASSERT_EQ(key->elemsize, sizeof(float[3]));
   /* The mesh has 4 vertices, but this shapekey will only have 3. */
+  constexpr int SHAPEKEY_VERTEX_COUNT = 3;
   float3 *key1_data = reinterpret_cast<float3 *>(
-      MEM_malloc_arrayN(size_t(3), size_t(key->elemsize), __func__));
+      MEM_malloc_arrayN(size_t(SHAPEKEY_VERTEX_COUNT), size_t(key->elemsize), __func__));
   key1->data = key1_data;
-  key1->totelem = 3;
+  key1->totelem = SHAPEKEY_VERTEX_COUNT;
   key1_data[1] = {5, 5, 5};
 
   key1->curval = 1.0;
@@ -257,8 +261,8 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_relative_uneqal_element_count)
   MEM_freeN(ob_eval);
 }
 
-/* Same as mesh_key_evaluation_relative_uneqal_element_count but with absolute shapekeys this is
- * somewhat supported. */
+/* Same as mesh_key_evaluation_relative_uneqal_element_count but with absolute shapekeys. This is
+ * somewhat supported but there is no known way to get Blender into such a state. */
 TEST_F(ShapekeyTest, mesh_key_evaluation_absolute_uneqal_element_count)
 {
   Key *key = BKE_key_add(bmain, &mesh->id);
@@ -358,4 +362,5 @@ TEST_F(ShapekeyTest, mesh_key_evaluation_absolute_uneqal_element_count)
   MEM_freeN(ob_eval);
 }
 
-}  // namespace blender::bke::tests
+}  // namespace bke::tests
+}  // namespace blender

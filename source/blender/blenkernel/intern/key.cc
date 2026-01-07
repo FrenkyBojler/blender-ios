@@ -636,7 +636,7 @@ static void copy_key_float3(
     memcpy(r_target, keyblock_data, vertex_count * 3 * sizeof(float));
   }
   else {
-    /* In case of KeyBlocks that have a different amount of elements than the original data.
+    /* In case of KeyBlocks that have a different number of elements than the original data.
      * Maintained for backwards compatibility even though this state should not be reachable
      * through normal interactions with Blender. */
     const float step_rate = source->totelem / float(vertex_count);
