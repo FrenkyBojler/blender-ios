@@ -158,7 +158,7 @@ static void remap_pairing(bNodeTree &dst_tree,
       }
       output_node_id = identifier_map.lookup_default(output_node_id, 0);
       if (output_node_id == 0) {
-        blender::nodes::update_node_declaration_and_sockets(dst_tree, *dst_node);
+        nodes::update_node_declaration_and_sockets(dst_tree, *dst_node);
       }
     }
   }
@@ -189,7 +189,7 @@ static wmOperatorStatus node_group_edit_exec(bContext *C, wmOperator *op)
   bNode *gnode = node_group_get_active(C, node_idname);
 
   if (gnode && !exit) {
-    bNodeTree *ngroup = (bNodeTree *)gnode->id;
+    bNodeTree *ngroup = id_cast<bNodeTree *>(gnode->id);
 
     if (ngroup) {
       ED_node_tree_push(region, snode, ngroup, gnode);
@@ -357,7 +357,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
   }
   wgroup->runtime->nodes_by_id.clear();
 
-  bNodeLink *glinks_first = (bNodeLink *)ntree->links.last;
+  bNodeLink *glinks_first = static_cast<bNodeLink *>(ntree->links.last);
 
   /* Add internal links to the ntree */
   for (bNodeLink &link : wgroup->links.items_mutable()) {
@@ -366,7 +366,7 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
     BKE_ntree_update_tag_link_added(ntree, &link);
   }
 
-  bNodeLink *glinks_last = (bNodeLink *)ntree->links.last;
+  bNodeLink *glinks_last = static_cast<bNodeLink *>(ntree->links.last);
 
   BKE_animdata_copy_by_basepath(*bmain, wgroup->id, ntree->id, anim_basepaths);
 
@@ -385,7 +385,8 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
         int num_external_links = 0;
 
         /* find external links to this input */
-        for (bNodeLink *tlink = (bNodeLink *)ntree->links.first; tlink != glinks_first->next;
+        for (bNodeLink *tlink = static_cast<bNodeLink *>(ntree->links.first);
+             tlink != glinks_first->next;
              tlink = tlink->next)
         {
           if (tlink->tonode == gnode && STREQ(tlink->tosock->identifier, identifier)) {
@@ -411,10 +412,11 @@ static void node_group_ungroup(Main *bmain, bNodeTree *ntree, bNode *gnode)
     }
 
     /* Also iterate over new links to cover passthrough links. */
-    glinks_last = (bNodeLink *)ntree->links.last;
+    glinks_last = static_cast<bNodeLink *>(ntree->links.last);
 
     /* output links */
-    for (bNodeLink *link = (bNodeLink *)ntree->links.first; link != glinks_first->next;
+    for (bNodeLink *link = static_cast<bNodeLink *>(ntree->links.first);
+         link != glinks_first->next;
          link = link->next)
     {
       if (link->fromnode == gnode) {
@@ -1447,7 +1449,7 @@ static bNode *node_group_make_from_nodes(const bContext &C,
 
   /* make group node */
   bNode *gnode = bke::node_add_node(&C, ntree, ntype);
-  gnode->id = (ID *)ngroup;
+  gnode->id = id_cast<ID *>(ngroup);
 
   if (const std::optional<Bounds<float2>> bounds = node_location_bounds(nodes_to_group)) {
     gnode->location[0] = bounds->center()[0];
@@ -1744,7 +1746,7 @@ static wmOperatorStatus node_group_make_exec(bContext *C, wmOperator *op)
   }
 
   if (gnode) {
-    bNodeTree *ngroup = (bNodeTree *)gnode->id;
+    bNodeTree *ngroup = id_cast<bNodeTree *>(gnode->id);
 
     bke::node_set_active(ntree, *gnode);
     if (ngroup) {
