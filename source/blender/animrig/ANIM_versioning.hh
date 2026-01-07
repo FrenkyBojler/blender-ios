@@ -90,15 +90,5 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports);
  */
 void action_groups_reconstruct(bAction *act);
 
-/**
- * Reconstruct channel pointers.
- * Assumes that the groups referred to by the FCurves are already in act->groups.
- * Reorders the main channel list to match group order.
- *
- * Only used in versioning code since this only works with legacy actions which
- * no longer exist in new files.
- */
-void action_groups_reconstruct(bAction *act);
-
 }  // namespace animrig::versioning
 }  // namespace blender
