@@ -9,17 +9,19 @@
  * in the versioning_xxx.cc files, but some is broken out and placed here.
  */
 
+namespace blender {
+
 struct bAction;
 struct BlendFileReadReport;
 struct ID;
 struct Main;
 struct ReportList;
 
-namespace blender::animrig {
+namespace animrig {
 class Action;
 }
 
-namespace blender::animrig::versioning {
+namespace animrig::versioning {
 
 /**
  * Return whether an action is layered (as opposed to legacy).
@@ -88,4 +90,15 @@ void convert_legacy_action_assignments(Main &bmain, ReportList *reports);
  */
 void action_groups_reconstruct(bAction *act);
 
-}  // namespace blender::animrig::versioning
+/**
+ * Reconstruct channel pointers.
+ * Assumes that the groups referred to by the FCurves are already in act->groups.
+ * Reorders the main channel list to match group order.
+ *
+ * Only used in versioning code since this only works with legacy actions which
+ * no longer exist in new files.
+ */
+void action_groups_reconstruct(bAction *act);
+
+}  // namespace animrig::versioning
+}  // namespace blender
