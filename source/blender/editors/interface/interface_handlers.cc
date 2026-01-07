@@ -564,10 +564,10 @@ static ButtonMultiState *ui_multibut_lookup(HandleButtonData *data, const Button
 #endif
 
 /* buttons clipboard */
-static ColorBand but_copypaste_coba = {};
-static CurveMapping but_copypaste_curve = {};
+static ColorBand but_copypaste_coba;
+static CurveMapping but_copypaste_curve;
 static bool but_copypaste_curve_alive = false;
-static CurveProfile but_copypaste_profile = {};
+static CurveProfile but_copypaste_profile;
 static bool but_copypaste_profile_alive = false;
 
 /** \} */
@@ -776,7 +776,7 @@ static bool ui_rna_is_userdef(PointerRNA *ptr, PropertyRNA *prop)
 bool button_is_userdef(const Button *but)
 {
   /* This is read-only, RNA API isn't using const when it could. */
-  return ui_rna_is_userdef((PointerRNA *)&but->rnapoin, but->rnaprop);
+  return ui_rna_is_userdef(const_cast<PointerRNA *>(&but->rnapoin), but->rnaprop);
 }
 
 static void ui_rna_update_preferences_dirty(PointerRNA *ptr, PropertyRNA *prop)
@@ -834,7 +834,7 @@ static void ui_color_snap_hue(const enum eSnapType snap, float *r_hue)
 /** \name Button Apply/Revert
  * \{ */
 
-static ListBase UIAfterFuncs = {nullptr, nullptr};
+static ListBaseT<AfterFunc> UIAfterFuncs = {nullptr, nullptr};
 
 static AfterFunc *ui_afterfunc_new()
 {
@@ -965,7 +965,7 @@ static void ui_apply_but_func(bContext *C, Button *but)
   after->rnaprop = but->rnaprop;
 
   if (but->type == ButtonType::SearchMenu) {
-    ButtonSearch *search_but = (ButtonSearch *)but;
+    ButtonSearch *search_but = static_cast<ButtonSearch *>(but);
     after->search_arg_free_fn = search_but->arg_free_fn;
     after->search_arg = search_but->arg;
     search_but->arg_free_fn = nullptr;
@@ -1105,13 +1105,13 @@ static void ui_apply_but_autokey(bContext *C, Button *but)
 static void ui_apply_but_funcs_after(bContext *C)
 {
   /* Copy to avoid recursive calls. */
-  ListBase funcs = UIAfterFuncs;
+  ListBaseT<AfterFunc> funcs = UIAfterFuncs;
   BLI_listbase_clear(&UIAfterFuncs);
 
-  LISTBASE_FOREACH_MUTABLE (AfterFunc *, afterf, &funcs) {
-    AfterFunc after = *afterf; /* Copy to avoid memory leak on exit(). */
-    BLI_remlink(&funcs, afterf);
-    MEM_delete(afterf);
+  for (AfterFunc &afterf : funcs.items_mutable()) {
+    AfterFunc after = afterf; /* Copy to avoid memory leak on exit(). */
+    BLI_remlink(&funcs, &afterf);
+    MEM_delete(&afterf);
 
     if (after.context) {
       CTX_store_set(C, &after.context.value());
@@ -1314,7 +1314,7 @@ static void ui_apply_but_TEX(bContext *C, Button *but, HandleButtonData *data)
 
   /* If arg2 isn't in use already, pass the active search item through it. */
   if ((but->func_arg2 == nullptr) && (but->type == ButtonType::SearchMenu)) {
-    ButtonSearch *search_but = (ButtonSearch *)but;
+    ButtonSearch *search_but = static_cast<ButtonSearch *>(but);
     but->func_arg2 = search_but->item_active;
     if ((U.flag & USER_FLAG_RECENT_SEARCHES_DISABLE) == 0) {
       string_search::add_recent_search(search_but->item_active_str);
@@ -1714,14 +1714,14 @@ static bool ui_drag_toggle_set_xy_xy(
   const bool do_check = (region->regiontype == RGN_TYPE_TEMPORARY);
   bool changed = false;
 
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
+  for (Block &block : region->runtime->uiblocks) {
     float xy_a_block[2] = {float(xy_src[0]), float(xy_src[1])};
     float xy_b_block[2] = {float(xy_dst[0]), float(xy_dst[1])};
 
-    window_to_block_fl(region, block, &xy_a_block[0], &xy_a_block[1]);
-    window_to_block_fl(region, block, &xy_b_block[0], &xy_b_block[1]);
+    window_to_block_fl(region, &block, &xy_a_block[0], &xy_a_block[1]);
+    window_to_block_fl(region, &block, &xy_b_block[0], &xy_b_block[1]);
 
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       /* NOTE: ctrl is always true here because (at least for now)
        * we always want to consider text control in this case, even when not embossed. */
 
@@ -2217,7 +2217,7 @@ static bool ui_but_drag_init(bContext *C,
       }
       else if (ELEM(but->pointype, ButPointerType::Float, ButPointerType::Char)) {
         button_v4_get(but, drag_info->color);
-        copy_v4_v4(drag_info->color, (float *)but->poin);
+        copy_v4_v4(drag_info->color, reinterpret_cast<float *>(but->poin));
         drag_info->gamma_corrected = false;
         valid = true;
       }
@@ -2231,7 +2231,7 @@ static bool ui_but_drag_init(bContext *C,
       }
     }
     else if (but->type == ButtonType::ViewItem) {
-      const auto *view_item_but = (ButtonViewItem *)but;
+      const auto *view_item_but = static_cast<ButtonViewItem *>(but);
       if (view_item_but->view_item) {
         return view_item_drag_start(*C, *view_item_but->view_item);
       }
@@ -2350,30 +2350,30 @@ static void ui_apply_but(
   CurveMapping *editcumap;
   CurveProfile *editprofile;
   if (but_type == ButtonType::ColorBand) {
-    ButtonColorBand *but_coba = (ButtonColorBand *)but;
+    ButtonColorBand *but_coba = static_cast<ButtonColorBand *>(but);
     editcoba = but_coba->edit_coba;
   }
   else if (but_type == ButtonType::Curve) {
-    ButtonCurveMapping *but_cumap = (ButtonCurveMapping *)but;
+    ButtonCurveMapping *but_cumap = static_cast<ButtonCurveMapping *>(but);
     editcumap = but_cumap->edit_cumap;
   }
   else if (but_type == ButtonType::CurveProfile) {
-    ButtonCurveProfile *but_profile = (ButtonCurveProfile *)but;
+    ButtonCurveProfile *but_profile = static_cast<ButtonCurveProfile *>(but);
     editprofile = but_profile->edit_profile;
   }
   but->editstr = nullptr;
   but->editval = nullptr;
   but->editvec = nullptr;
   if (but_type == ButtonType::ColorBand) {
-    ButtonColorBand *but_coba = (ButtonColorBand *)but;
+    ButtonColorBand *but_coba = static_cast<ButtonColorBand *>(but);
     but_coba->edit_coba = nullptr;
   }
   else if (but_type == ButtonType::Curve) {
-    ButtonCurveMapping *but_cumap = (ButtonCurveMapping *)but;
+    ButtonCurveMapping *but_cumap = static_cast<ButtonCurveMapping *>(but);
     but_cumap->edit_cumap = nullptr;
   }
   else if (but_type == ButtonType::CurveProfile) {
-    ButtonCurveProfile *but_profile = (ButtonCurveProfile *)but;
+    ButtonCurveProfile *but_profile = static_cast<ButtonCurveProfile *>(but);
     but_profile->edit_profile = nullptr;
   }
 
@@ -2491,15 +2491,15 @@ static void ui_apply_but(
   but->editval = editval;
   but->editvec = editvec;
   if (but_type == ButtonType::ColorBand) {
-    ButtonColorBand *but_coba = (ButtonColorBand *)but;
+    ButtonColorBand *but_coba = static_cast<ButtonColorBand *>(but);
     but_coba->edit_coba = editcoba;
   }
   else if (but_type == ButtonType::Curve) {
-    ButtonCurveMapping *but_cumap = (ButtonCurveMapping *)but;
+    ButtonCurveMapping *but_cumap = static_cast<ButtonCurveMapping *>(but);
     but_cumap->edit_cumap = editcumap;
   }
   else if (but_type == ButtonType::CurveProfile) {
-    ButtonCurveProfile *but_profile = (ButtonCurveProfile *)but;
+    ButtonCurveProfile *but_profile = static_cast<ButtonCurveProfile *>(but);
     but_profile->edit_profile = editprofile;
   }
 
@@ -2733,7 +2733,7 @@ static void ui_but_copy_curvemapping(Button *but)
   if (but->poin != nullptr) {
     but_copypaste_curve_alive = true;
     BKE_curvemapping_free_data(&but_copypaste_curve);
-    BKE_curvemapping_copy_data(&but_copypaste_curve, (CurveMapping *)but->poin);
+    BKE_curvemapping_copy_data(&but_copypaste_curve, reinterpret_cast<CurveMapping *>(but->poin));
   }
 }
 
@@ -2741,8 +2741,8 @@ static void ui_but_paste_curvemapping(bContext *C, Button *but)
 {
   if (but_copypaste_curve_alive && but->poin != nullptr) {
     button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
-    BKE_curvemapping_free_data((CurveMapping *)but->poin);
-    BKE_curvemapping_copy_data((CurveMapping *)but->poin, &but_copypaste_curve);
+    BKE_curvemapping_free_data(reinterpret_cast<CurveMapping *>(but->poin));
+    BKE_curvemapping_copy_data(reinterpret_cast<CurveMapping *>(but->poin), &but_copypaste_curve);
     button_activate_state(C, but, BUTTON_STATE_EXIT);
   }
 }
@@ -2752,7 +2752,8 @@ static void ui_but_copy_CurveProfile(Button *but)
   if (but->poin != nullptr) {
     but_copypaste_profile_alive = true;
     BKE_curveprofile_free_data(&but_copypaste_profile);
-    BKE_curveprofile_copy_data(&but_copypaste_profile, (CurveProfile *)but->poin);
+    BKE_curveprofile_copy_data(&but_copypaste_profile,
+                               reinterpret_cast<CurveProfile *>(but->poin));
   }
 }
 
@@ -2760,8 +2761,9 @@ static void ui_but_paste_CurveProfile(bContext *C, Button *but)
 {
   if (but_copypaste_profile_alive && but->poin != nullptr) {
     button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
-    BKE_curveprofile_free_data((CurveProfile *)but->poin);
-    BKE_curveprofile_copy_data((CurveProfile *)but->poin, &but_copypaste_profile);
+    BKE_curveprofile_free_data(reinterpret_cast<CurveProfile *>(but->poin));
+    BKE_curveprofile_copy_data(reinterpret_cast<CurveProfile *>(but->poin),
+                               &but_copypaste_profile);
     button_activate_state(C, but, BUTTON_STATE_EXIT);
   }
 }
@@ -3580,7 +3582,7 @@ static void ui_textedit_begin(bContext *C, Button *but, HandleButtonData *data)
 
   /* optional searchbox */
   if (but->type == ButtonType::SearchMenu) {
-    ButtonSearch *search_but = (ButtonSearch *)but;
+    ButtonSearch *search_but = static_cast<ButtonSearch *>(but);
 
     data->searchbox = search_but->popup_create_fn(C, data->region, search_but);
     searchbox_update(C, data->searchbox, but, true); /* true = reset */
@@ -3642,7 +3644,7 @@ static void ui_textedit_end(bContext *C, Button *but, HandleButtonData *data)
     if (data->searchbox) {
       if (data->cancel == false) {
         BLI_assert(but->type == ButtonType::SearchMenu);
-        ButtonSearch *but_search = (ButtonSearch *)but;
+        ButtonSearch *but_search = static_cast<ButtonSearch *>(but);
 
         if ((searchbox_apply(but, data->searchbox) == false) &&
             (searchbox_find_index(data->searchbox, but->editstr) == -1) &&
@@ -4235,16 +4237,16 @@ static void ui_numedit_begin_set_values(Button *but, HandleButtonData *data)
 static void ui_numedit_begin(Button *but, HandleButtonData *data)
 {
   if (but->type == ButtonType::Curve) {
-    ButtonCurveMapping *but_cumap = (ButtonCurveMapping *)but;
-    but_cumap->edit_cumap = (CurveMapping *)but->poin;
+    ButtonCurveMapping *but_cumap = static_cast<ButtonCurveMapping *>(but);
+    but_cumap->edit_cumap = reinterpret_cast<CurveMapping *>(but->poin);
   }
   else if (but->type == ButtonType::CurveProfile) {
-    ButtonCurveProfile *but_profile = (ButtonCurveProfile *)but;
-    but_profile->edit_profile = (CurveProfile *)but->poin;
+    ButtonCurveProfile *but_profile = static_cast<ButtonCurveProfile *>(but);
+    but_profile->edit_profile = reinterpret_cast<CurveProfile *>(but->poin);
   }
   else if (but->type == ButtonType::ColorBand) {
-    ButtonColorBand *but_coba = (ButtonColorBand *)but;
-    data->coba = (ColorBand *)but->poin;
+    ButtonColorBand *but_coba = static_cast<ButtonColorBand *>(but);
+    data->coba = reinterpret_cast<ColorBand *>(but->poin);
     but_coba->edit_coba = data->coba;
   }
   else if (ELEM(but->type,
@@ -4269,7 +4271,7 @@ static void ui_numedit_begin(Button *but, HandleButtonData *data)
     float log_min = (scale_type == PROP_SCALE_LOG) ? max_ff(softmin, UI_PROP_SCALE_LOG_MIN) : 0.0f;
 
     if ((but->type == ButtonType::Num) && (button_is_cursor_warp(but) == false)) {
-      ButtonNumber *number_but = (ButtonNumber *)but;
+      ButtonNumber *number_but = static_cast<ButtonNumber *>(but);
 
       if (scale_type == PROP_SCALE_LOG) {
         log_min = max_ff(log_min, powf(10, -number_but->precision) * 0.5f);
@@ -4362,15 +4364,15 @@ static void ui_numedit_end(Button *but, HandleButtonData *data)
   but->editval = nullptr;
   but->editvec = nullptr;
   if (but->type == ButtonType::ColorBand) {
-    ButtonColorBand *but_coba = (ButtonColorBand *)but;
+    ButtonColorBand *but_coba = static_cast<ButtonColorBand *>(but);
     but_coba->edit_coba = nullptr;
   }
   else if (but->type == ButtonType::Curve) {
-    ButtonCurveMapping *but_cumap = (ButtonCurveMapping *)but;
+    ButtonCurveMapping *but_cumap = static_cast<ButtonCurveMapping *>(but);
     but_cumap->edit_cumap = nullptr;
   }
   else if (but->type == ButtonType::CurveProfile) {
-    ButtonCurveProfile *but_profile = (ButtonCurveProfile *)but;
+    ButtonCurveProfile *but_profile = static_cast<ButtonCurveProfile *>(but);
     but_profile->edit_profile = nullptr;
   }
   data->dragstartx = 0;
@@ -4618,9 +4620,9 @@ static ButtonExtraOpIcon *ui_but_extra_operator_icon_mouse_over_get(Button *but,
   }
 
   /* Inverse order, from right to left. */
-  LISTBASE_FOREACH_BACKWARD (ButtonExtraOpIcon *, op_icon, &but->extra_op_icons) {
+  for (ButtonExtraOpIcon &op_icon : but->extra_op_icons.items_reversed()) {
     if ((x > (xmax - icon_size)) && x <= xmax) {
-      return op_icon;
+      return &op_icon;
     }
     xmax -= icon_size;
   }
@@ -4644,6 +4646,13 @@ static bool ui_do_but_extra_operator_icon(bContext *C,
     /* Still swallow events on the icon. */
     return true;
   }
+  if (event->type == event->prev_press_type) {
+    /* Release should be close to the press. #151371. */
+    const float icon_size = 0.8f * BLI_rctf_size_y(&but->rect);
+    if (abs(event->prev_press_xy[0] - event->xy[0]) > icon_size) {
+      return true;
+    }
+  }
 
   ED_region_tag_redraw(data->region);
   button_tooltip_timer_reset(C, but);
@@ -4661,11 +4670,11 @@ static void ui_do_but_extra_operator_icons_mousemove(Button *but,
   ButtonExtraOpIcon *old_highlighted = nullptr;
 
   /* Unset highlighting of all first. */
-  LISTBASE_FOREACH (ButtonExtraOpIcon *, op_icon, &but->extra_op_icons) {
-    if (op_icon->highlighted) {
-      old_highlighted = op_icon;
+  for (ButtonExtraOpIcon &op_icon : but->extra_op_icons) {
+    if (op_icon.highlighted) {
+      old_highlighted = &op_icon;
     }
-    op_icon->highlighted = false;
+    op_icon.highlighted = false;
   }
 
   ButtonExtraOpIcon *hovered = ui_but_extra_operator_icon_mouse_over_get(but, data->region, event);
@@ -4752,7 +4761,7 @@ static int ui_do_but_HOTKEYEVT(bContext *C,
                                HandleButtonData *data,
                                const wmEvent *event)
 {
-  ButtonHotkeyEvent *hotkey_but = (ButtonHotkeyEvent *)but;
+  ButtonHotkeyEvent *hotkey_but = static_cast<ButtonHotkeyEvent *>(but);
   BLI_assert(but->type == ButtonType::HotkeyEvent);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
@@ -5148,7 +5157,7 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
                                HandleButtonData *data,
                                const wmEvent *event)
 {
-  ButtonViewItem *view_item_but = (ButtonViewItem *)but;
+  ButtonViewItem *view_item_but = static_cast<ButtonViewItem *>(but);
   BLI_assert(view_item_but->type == ButtonType::ViewItem);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
@@ -5676,7 +5685,7 @@ static void ui_numedit_set_active(Button *but)
 static int ui_do_but_NUM(
     bContext *C, Block *block, Button *but, HandleButtonData *data, const wmEvent *event)
 {
-  ButtonNumber *number_but = (ButtonNumber *)but;
+  ButtonNumber *number_but = static_cast<ButtonNumber *>(but);
   int click = 0;
   int retval = WM_UI_HANDLER_CONTINUE;
 
@@ -6590,7 +6599,7 @@ static bool ui_numedit_but_UNITVEC(
 static void ui_palette_set_active(ButtonColor *color_but)
 {
   if (color_but->is_pallete_color) {
-    Palette *palette = (Palette *)color_but->rnapoin.owner_id;
+    Palette *palette = id_cast<Palette *>(color_but->rnapoin.owner_id);
     const PaletteColor *color = static_cast<const PaletteColor *>(color_but->rnapoin.data);
     palette->active_color = BLI_findindex(&palette->colors, color);
   }
@@ -6599,7 +6608,7 @@ static void ui_palette_set_active(ButtonColor *color_but)
 static int ui_do_but_COLOR(bContext *C, Button *but, HandleButtonData *data, const wmEvent *event)
 {
   BLI_assert(but->type == ButtonType::Color);
-  ButtonColor *color_but = (ButtonColor *)but;
+  ButtonColor *color_but = static_cast<ButtonColor *>(but);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     /* First handle click on icon-drag type button. */
@@ -6655,7 +6664,7 @@ static int ui_do_but_COLOR(bContext *C, Button *but, HandleButtonData *data, con
       return WM_UI_HANDLER_BREAK;
     }
     if (color_but->is_pallete_color && (event->type == EVT_DELKEY) && (event->val == KM_PRESS)) {
-      Palette *palette = (Palette *)but->rnapoin.owner_id;
+      Palette *palette = id_cast<Palette *>(but->rnapoin.owner_id);
       PaletteColor *color = static_cast<PaletteColor *>(but->rnapoin.data);
 
       BKE_palette_color_remove(palette, color);
@@ -6856,7 +6865,7 @@ static bool ui_numedit_but_HSVCUBE(Button *but,
                                    const enum eSnapType snap,
                                    const bool shift)
 {
-  const ButtonHSVCube *hsv_but = (ButtonHSVCube *)but;
+  const ButtonHSVCube *hsv_but = static_cast<ButtonHSVCube *>(but);
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
   float *hsv = cpicker->hsv_perceptual;
   float rgb[3];
@@ -7041,7 +7050,7 @@ static void ui_ndofedit_but_HSVCUBE(ButtonHSVCube *hsv_but,
 static int ui_do_but_HSVCUBE(
     bContext *C, Block *block, Button *but, HandleButtonData *data, const wmEvent *event)
 {
-  ButtonHSVCube *hsv_but = (ButtonHSVCube *)but;
+  ButtonHSVCube *hsv_but = static_cast<ButtonHSVCube *>(but);
   int mx = event->xy[0];
   int my = event->xy[1];
   window_to_block(data->region, block, &mx, &my);
@@ -7453,7 +7462,7 @@ static int ui_do_but_COLORBAND(
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-      ColorBand *coba = (ColorBand *)but->poin;
+      ColorBand *coba = reinterpret_cast<ColorBand *>(but->poin);
 
       if (event->modifier & KM_CTRL) {
         /* insert new key on mouse location */
@@ -7528,7 +7537,7 @@ static bool ui_numedit_but_CURVE(Block *block,
                                  bool snap,
                                  const bool shift)
 {
-  CurveMapping *cumap = (CurveMapping *)but->poin;
+  CurveMapping *cumap = reinterpret_cast<CurveMapping *>(but->poin);
   CurveMap *cuma = cumap->cm + cumap->cur;
   CurveMapPoint *cmp = cuma->curve;
   bool changed = false;
@@ -7649,7 +7658,7 @@ static int ui_do_but_CURVE(
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
-      CurveMapping *cumap = (CurveMapping *)but->poin;
+      CurveMapping *cumap = reinterpret_cast<CurveMapping *>(but->poin);
       CurveMap *cuma = cumap->cm + cumap->cur;
       const float m_xy[2] = {float(mx), float(my)};
       float dist_min_sq = square_f(UI_SCALE_FAC * 14.0f); /* 14 pixels radius */
@@ -7763,7 +7772,7 @@ static int ui_do_but_CURVE(
     }
     else if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
       if (data->dragsel != -1) {
-        CurveMapping *cumap = (CurveMapping *)but->poin;
+        CurveMapping *cumap = reinterpret_cast<CurveMapping *>(but->poin);
         CurveMap *cuma = cumap->cm + cumap->cur;
         CurveMapPoint *cmp = cuma->curve;
 
@@ -7803,7 +7812,7 @@ static bool ui_numedit_but_CURVEPROFILE(Block *block,
                                         bool snap,
                                         const bool shift)
 {
-  CurveProfile *profile = (CurveProfile *)but->poin;
+  CurveProfile *profile = reinterpret_cast<CurveProfile *>(but->poin);
   CurveProfilePoint *pts = profile->path;
   bool changed = false;
 
@@ -7928,7 +7937,7 @@ static bool point_draw_handles(CurveProfilePoint *point)
 static int ui_do_but_CURVEPROFILE(
     bContext *C, Block *block, Button *but, HandleButtonData *data, const wmEvent *event)
 {
-  CurveProfile *profile = (CurveProfile *)but->poin;
+  CurveProfile *profile = reinterpret_cast<CurveProfile *>(but->poin);
   int mx = event->xy[0];
   int my = event->xy[1];
 
@@ -8094,7 +8103,7 @@ static int ui_do_but_CURVEPROFILE(
 
 static bool ui_numedit_but_HISTOGRAM(Button *but, HandleButtonData *data, int mx, int my)
 {
-  Histogram *hist = (Histogram *)but->poin;
+  Histogram *hist = reinterpret_cast<Histogram *>(but->poin);
   const bool changed = true;
   const float dy = my - data->draglasty;
 
@@ -8135,7 +8144,7 @@ static int ui_do_but_HISTOGRAM(
     }
     /* XXX hardcoded keymap check.... */
     if (event->type == EVT_BACKSPACEKEY && event->val == KM_PRESS) {
-      Histogram *hist = (Histogram *)but->poin;
+      Histogram *hist = reinterpret_cast<Histogram *>(but->poin);
       hist->ymax = 1.0f;
 
       button_activate_state(C, but, BUTTON_STATE_EXIT);
@@ -8168,7 +8177,7 @@ static int ui_do_but_HISTOGRAM(
 
 static bool ui_numedit_but_WAVEFORM(Button *but, HandleButtonData *data, int mx, int my)
 {
-  Scopes *scopes = (Scopes *)but->poin;
+  Scopes *scopes = reinterpret_cast<Scopes *>(but->poin);
   const bool changed = true;
 
   const float dy = my - data->draglasty;
@@ -8208,7 +8217,7 @@ static int ui_do_but_WAVEFORM(
     }
     /* XXX hardcoded keymap check.... */
     if (event->type == EVT_BACKSPACEKEY && event->val == KM_PRESS) {
-      Scopes *scopes = (Scopes *)but->poin;
+      Scopes *scopes = reinterpret_cast<Scopes *>(but->poin);
       scopes->wavefrm_yfac = 1.0f;
 
       button_activate_state(C, but, BUTTON_STATE_EXIT);
@@ -8242,7 +8251,7 @@ static int ui_do_but_WAVEFORM(
 static bool ui_numedit_but_TRACKPREVIEW(
     bContext *C, Button *but, HandleButtonData *data, int mx, int my, const bool shift)
 {
-  MovieClipScopes *scopes = (MovieClipScopes *)but->poin;
+  MovieClipScopes *scopes = reinterpret_cast<MovieClipScopes *>(but->poin);
   const bool changed = true;
 
   float dx = mx - data->draglastx;
@@ -8625,8 +8634,8 @@ static void ui_blocks_set_tooltips(ARegion *region, const bool enable)
   }
 
   /* We disabled buttons when they were already shown, and re-enable them on mouse move. */
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    block->tooltipdisabled = !enable;
+  for (Block &block : region->runtime->uiblocks) {
+    block.tooltipdisabled = !enable;
   }
 }
 
@@ -9101,12 +9110,12 @@ static void button_activate_exit(
   }
 
   /* Disable tool-tips until mouse-move + last active flag. */
-  LISTBASE_FOREACH (Block *, block_iter, &data->region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &bt : block_iter->buttons) {
+  for (Block &block_iter : data->region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &bt : block_iter.buttons) {
       bt->flag &= ~BUT_LAST_ACTIVE;
     }
 
-    block_iter->tooltipdisabled = true;
+    block_iter.tooltipdisabled = true;
   }
 
   ui_blocks_set_tooltips(data->region, false);
@@ -9173,7 +9182,7 @@ void button_active_free(const bContext *C, Button *but)
   if (but->active) {
     HandleButtonData *data = but->active;
     data->cancel = true;
-    button_activate_exit((bContext *)C, but, data, false, true);
+    button_activate_exit(const_cast<bContext *>(C), but, data, false, true);
   }
 }
 
@@ -9206,8 +9215,8 @@ static Button *ui_context_button_active(const ARegion *region,
     Button *active_but_last = nullptr;
 
     /* find active button */
-    LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-      for (const std::unique_ptr<Button> &but : block->buttons) {
+    for (Block &block : region->runtime->uiblocks) {
+      for (const std::unique_ptr<Button> &but : block.buttons) {
         if (but->flag & BUT_ACTIVE_OVERRIDE) {
           active_but_override = but.get();
         }
@@ -9351,9 +9360,9 @@ wmOperator *context_active_operator_get(const bContext *C)
   }
 
   /* scan active regions ui */
-  LISTBASE_FOREACH (Block *, block, &region_ctx->runtime->uiblocks) {
-    if (block->ui_operator) {
-      return block->ui_operator;
+  for (Block &block : region_ctx->runtime->uiblocks) {
+    if (block.ui_operator) {
+      return block.ui_operator;
     }
   }
 
@@ -9361,13 +9370,13 @@ wmOperator *context_active_operator_get(const bContext *C)
   {
     bScreen *screen = CTX_wm_screen(C);
 
-    LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
-      if (region == region_ctx) {
+    for (ARegion &region : screen->regionbase) {
+      if (&region == region_ctx) {
         continue;
       }
-      LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-        if (block->ui_operator) {
-          return block->ui_operator;
+      for (Block &block : region.runtime->uiblocks) {
+        if (block.ui_operator) {
+          return block.ui_operator;
         }
       }
     }
@@ -9394,12 +9403,12 @@ void context_update_anim_flag(const bContext *C)
     /* find active button */
     Button *activebut = nullptr;
 
-    LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-      for (const std::unique_ptr<Button> &but : block->buttons) {
+    for (Block &block : region->runtime->uiblocks) {
+      for (const std::unique_ptr<Button> &but : block.buttons) {
         button_anim_flag(but.get(), &anim_eval_context);
         button_override_flag(CTX_data_main(C), but.get());
         if (button_is_decorator(but)) {
-          button_anim_decorate_update_from_flag((ButtonDecorator *)but.get());
+          button_anim_decorate_update_from_flag(static_cast<ButtonDecorator *>(but.get()));
         }
 
         ED_region_tag_redraw(region);
@@ -9454,8 +9463,8 @@ void button_update_view_for_active(const bContext *C, const Block *block)
 
 static Button *ui_but_find_open_event(ARegion *region, const wmEvent *event)
 {
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if (but.get() == event->customdata) {
         return but.get();
       }
@@ -9641,8 +9650,8 @@ static void foreach_semi_modal_but_as_active(bContext *C,
   /* Might want to have some way to define which order these should be handled in - if there's
    * every actually a use-case for multiple semi-active buttons at the same time. */
 
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if ((but->flag2 & BUT2_FORCE_SEMI_MODAL_ACTIVE) || but->semi_modal_state) {
         with_but_active_as_semi_modal(C, region, but.get(), [&]() { fn(but.get()); });
       }
@@ -10134,8 +10143,8 @@ static int ui_handle_viewlist_items_hover(const wmEvent *event, ARegion *region)
 {
   const bool has_list = !BLI_listbase_is_empty(&region->ui_lists);
   const bool has_view = [&]() {
-    LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-      if (!BLI_listbase_is_empty(&block->views)) {
+    for (Block &block : region->runtime->uiblocks) {
+      if (!BLI_listbase_is_empty(&block.views)) {
         return true;
       }
     }
@@ -10168,8 +10177,8 @@ static int ui_handle_viewlist_items_hover(const wmEvent *event, ARegion *region)
     changed = true;
   }
 
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if (but.get() == highlight_row_but) {
         continue;
       }
@@ -10576,8 +10585,8 @@ static bool ui_menu_scroll_step(ARegion *region, Block *block, const int scroll_
 
 static void region_auto_open_clear(ARegion *region)
 {
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    block->auto_open = false;
+  for (Block &block : region->runtime->uiblocks) {
+    block.auto_open = false;
   }
 }
 
@@ -11846,15 +11855,15 @@ static int ui_handle_menus_recursive(bContext *C,
     }
   }
   else if (!but && event->val == KM_PRESS && event->type == LEFTMOUSE) {
-    LISTBASE_FOREACH (Block *, block, &menu->region->runtime->uiblocks) {
-      if (block->panel) {
+    for (Block &block : menu->region->runtime->uiblocks) {
+      if (block.panel) {
         int mx = event->xy[0];
         int my = event->xy[1];
-        window_to_block(menu->region, block, &mx, &my);
-        if (!IN_RANGE(float(mx), block->rect.xmin, block->rect.xmax)) {
+        window_to_block(menu->region, &block, &mx, &my);
+        if (!IN_RANGE(float(mx), block.rect.xmin, block.rect.xmax)) {
           break;
         }
-        LayoutPanelHeader *header = layout_panel_header_under_mouse(*block->panel, my);
+        LayoutPanelHeader *header = layout_panel_header_under_mouse(*block.panel, my);
         if (header) {
           ED_region_tag_redraw(menu->region);
           ED_region_tag_refresh_ui(menu->region);
@@ -12325,30 +12334,34 @@ static void ui_popup_handler_remove(bContext *C, void *userdata)
   ui_apply_but_funcs_after(C);
 }
 
-void region_handlers_add(ListBase *handlers)
+void region_handlers_add(ListBaseT<wmEventHandler> *handlers)
 {
   WM_event_remove_ui_handler(handlers, region_handler, region_handler_remove, nullptr, false);
   WM_event_add_ui_handler(
       nullptr, handlers, region_handler, region_handler_remove, nullptr, eWM_EventHandlerFlag(0));
 }
 
-void popup_handlers_add(bContext *C, ListBase *handlers, PopupBlockHandle *popup, const char flag)
+void popup_handlers_add(bContext *C,
+                        ListBaseT<wmEventHandler> *handlers,
+                        PopupBlockHandle *popup,
+                        const char flag)
 {
   WM_event_add_ui_handler(
       C, handlers, ui_popup_handler, ui_popup_handler_remove, popup, eWM_EventHandlerFlag(flag));
 }
 
-void popup_handlers_remove(ListBase *handlers, PopupBlockHandle *popup)
+void popup_handlers_remove(ListBaseT<wmEventHandler> *handlers, PopupBlockHandle *popup)
 {
-  LISTBASE_FOREACH (wmEventHandler *, handler_base, handlers) {
-    if (handler_base->type == WM_HANDLER_TYPE_UI) {
-      wmEventHandler_UI *handler = (wmEventHandler_UI *)handler_base;
+  for (wmEventHandler &handler_base : *handlers) {
+    if (handler_base.type == WM_HANDLER_TYPE_UI) {
+      wmEventHandler_UI *handler = reinterpret_cast<wmEventHandler_UI *>(&handler_base);
 
       if (handler->handle_fn == ui_popup_handler &&
           handler->remove_fn == ui_popup_handler_remove && handler->user_data == popup)
       {
         /* tag refresh parent popup */
-        wmEventHandler_UI *handler_next = (wmEventHandler_UI *)handler->head.next;
+        wmEventHandler_UI *handler_next = reinterpret_cast<wmEventHandler_UI *>(
+            handler->head.next);
         if (handler_next && handler_next->head.type == WM_HANDLER_TYPE_UI &&
             handler_next->handle_fn == ui_popup_handler &&
             handler_next->remove_fn == ui_popup_handler_remove)
@@ -12365,7 +12378,7 @@ void popup_handlers_remove(ListBase *handlers, PopupBlockHandle *popup)
   WM_event_remove_ui_handler(handlers, ui_popup_handler, ui_popup_handler_remove, popup, false);
 }
 
-void popup_handlers_remove_all(bContext *C, ListBase *handlers)
+void popup_handlers_remove_all(bContext *C, ListBaseT<wmEventHandler> *handlers)
 {
   WM_event_free_ui_handler_all(C, handlers, ui_popup_handler, ui_popup_handler_remove);
 }
@@ -12378,12 +12391,12 @@ bool textbutton_activate_rna(const bContext *C,
   Block *block_text = nullptr;
   Button *but_text = nullptr;
 
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if (but->type == ButtonType::Text) {
         if (but->rnaprop && but->rnapoin.data == rna_poin_data) {
           if (STREQ(RNA_property_identifier(but->rnaprop), rna_prop_id)) {
-            block_text = block;
+            block_text = &block;
             but_text = but.get();
             break;
           }
@@ -12413,10 +12426,10 @@ bool textbutton_activate_but(const bContext *C, Button *actbut)
   Block *block_text = nullptr;
   Button *but_text = nullptr;
 
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if (but.get() == actbut && but->type == ButtonType::Text) {
-        block_text = block;
+        block_text = &block;
         but_text = but.get();
         break;
       }
@@ -12442,8 +12455,8 @@ bool textbutton_activate_but(const bContext *C, Button *actbut)
 
 void UI_region_free_active_but_all(bContext *C, ARegion *region)
 {
-  LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
-    for (const std::unique_ptr<Button> &but : block->buttons) {
+  for (Block &block : region->runtime->uiblocks) {
+    for (const std::unique_ptr<Button> &but : block.buttons) {
       if (but->active == nullptr) {
         continue;
       }
@@ -12457,8 +12470,8 @@ void UI_screen_free_active_but_highlight(const bContext *C, bScreen *screen)
   wmWindow *win = CTX_wm_window(C);
 
   ED_screen_areas_iter (win, screen, area) {
-    LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      Button *but = region_find_active_but(region);
+    for (ARegion &region : area->regionbase) {
+      Button *but = region_find_active_but(&region);
       if (but) {
         HandleButtonData *data = but->active;
 
