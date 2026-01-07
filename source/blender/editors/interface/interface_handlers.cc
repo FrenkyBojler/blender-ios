@@ -2776,14 +2776,79 @@ static void ui_but_copy_operator(bContext *C, Button *but, char *output, int out
   BLI_strncpy_utf8(output, str.c_str(), output_maxncpy);
 }
 
-static bool ui_but_copy_menu(Button *but, char *output, int output_maxncpy)
+static bool ui_but_copy_menu(bContext *C, Button *but, char *output, int output_maxncpy)
 {
   MenuType *mt = button_menutype_get(but);
   if (mt) {
     BLI_snprintf_utf8(output, output_maxncpy, "bpy.ops.wm.call_menu(name=\"%s\")", mt->idname);
     return true;
   }
-  return false;
+
+  PropertyRNA *prop = but->rnaprop;
+  if (prop == nullptr) {
+    return false;
+  }
+
+  const int type = RNA_property_type(prop);
+  if (type != PROP_ENUM) {
+    return false;
+  }
+
+  const int active_item = RNA_property_enum_get(&but->rnapoin, prop);
+  EnumPropertyItem item;
+  const bool found = RNA_property_enum_item_from_value(C, &but->rnapoin, prop, active_item, &item);
+  if (!found) {
+    return false;
+  }
+
+  if (item.identifier == nullptr) {
+    return false;
+  }
+
+  if (item.identifier == StringRef("")) {
+    return false;
+  }
+
+  BLI_snprintf_utf8(output, output_maxncpy, "\"%s\"", item.identifier);
+  return true;
+}
+
+static void ui_but_paste_menu(bContext *C, Button *but, const StringRef value)
+{
+  if (button_menutype_get(but) != nullptr) {
+    return;
+  }
+
+  if (!(value.startswith("\"") && value.endswith("\""))) {
+    return;
+  }
+
+  const StringRef value_identifier = value.drop_back("\"").drop_front("\"");
+  if (value_identifier.is_empty()) {
+    return;
+  }
+
+  PropertyRNA *prop = but->rnaprop;
+  if (prop == nullptr) {
+    return;
+  }
+
+  const int type = RNA_property_type(prop);
+  if (type != PROP_ENUM) {
+    return;
+  }
+
+  int item_index;
+  const bool found = RNA_property_enum_value(
+      C, &but->rnapoin, prop, std::string(value_identifier).c_str(), &item_index);
+  if (!found) {
+    WM_global_reportf(RPT_ERROR,
+                      "Paste of \"%s\": cannot assign to value to property",
+                      std::string(value_identifier).c_str());
+    return;
+  }
+  RNA_property_enum_set(&but->rnapoin, prop, item_index);
+  RNA_property_update(C, &but->rnapoin, prop);
 }
 
 static bool ui_but_copy_popover(Button *but, char *output, int output_maxncpy)
@@ -2874,7 +2939,7 @@ static bool ui_but_copy(bContext *C, Button *but, const bool copy_array)
 
     case ButtonType::Menu:
     case ButtonType::Pulldown:
-      if (ui_but_copy_menu(but, buf, buf_maxncpy)) {
+      if (ui_but_copy_menu(C, but, buf, buf_maxncpy)) {
         is_buf_set = true;
       }
       break;
@@ -2957,6 +3022,11 @@ static void ui_but_paste(bContext *C, Button *but, HandleButtonData *data, const
     case ButtonType::CurveProfile:
       ui_but_paste_CurveProfile(C, but);
       break;
+
+    case ButtonType::Menu:
+      ui_but_paste_menu(C, but, buf_paste);
+      break;
+
     case ButtonType::ViewItem: {
       ButtonViewItem *viewitem_but = static_cast<ButtonViewItem *>(but);
       viewitem_but->view_item->rename(*C, buf_paste);
