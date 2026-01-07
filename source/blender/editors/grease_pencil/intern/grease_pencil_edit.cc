@@ -5215,7 +5215,7 @@ static void GREASE_PENCIL_OT_separate_shapes(wmOperatorType *ot)
 
 /** \} */
 
-}  // namespace blender::ed::greasepencil
+}  // namespace ed::greasepencil
 
 void ED_operatortypes_grease_pencil_edit()
 {
