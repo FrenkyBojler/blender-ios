@@ -293,6 +293,11 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id)
     }
   }
 
+  if (srna == &RNA_IDPropertyUIDataFloat) {
+    layout->prop(&propui_ptr, "precision", UI_ITEM_NONE, "Precision", ICON_NONE);
+    layout->prop(&propui_ptr, "subtype", UI_ITEM_NONE, "Sub Type", ICON_NONE);
+  }
+
   if (srna == &RNA_IDPropertyUIDataID) {
     layout->prop(&propui_ptr, "id_type", UI_ITEM_NONE, "ID type", ICON_NONE);
   }
