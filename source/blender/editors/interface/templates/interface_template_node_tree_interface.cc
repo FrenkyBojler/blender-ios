@@ -192,7 +192,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
  private:
   bNodeTree &nodetree_;
   bNodeTreeInterfacePanel &panel_;
-  const bNodeTreeInterfaceSocket *toggle_ = nullptr;
+  bNodeTreeInterfaceSocket *toggle_ = nullptr;
 
  public:
   NodePanelViewItem(bNodeTree &nodetree,
