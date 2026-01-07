@@ -192,7 +192,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
  private:
   bNodeTree &nodetree_;
   bNodeTreeInterfacePanel &panel_;
-  bNodeTreeInterfaceSocket *toggle_ = nullptr;
+  const bNodeTreeInterfaceSocket *toggle_ = nullptr;
 
  public:
   NodePanelViewItem(bNodeTree &nodetree,
@@ -288,9 +288,6 @@ class NodePanelViewItem : public BasicTreeViewItem {
   void delete_item(bContext *C) override
   {
     Main *bmain = CTX_data_main(C);
-    if (toggle_) {
-      nodetree_.tree_interface.remove_item(toggle_->item);
-    }
     nodetree_.tree_interface.remove_item(panel_.item);
     BKE_main_ensure_invariants(*bmain, nodetree_.id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
