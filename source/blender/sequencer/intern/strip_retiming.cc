@@ -1102,8 +1102,7 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
 
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
 
-  for (int i = 0; i < retiming_data.ranges.size(); i++) {
-    const RetimingRange &range = retiming_data.ranges[i];
+  for (const RetimingRange &range : retiming_data.ranges) {
     if (range.type == TRANSITION) {
       const int range_length = range.end - range.start;
       for (int i = 0; i <= range_length; i++) {
