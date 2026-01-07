@@ -32,6 +32,13 @@ struct Preprocessor {
     return t.str_view_with_whitespace();
   }
 
+  std::string new_lines(Token start, Token end)
+  {
+    std::string_view dir_str = parser.substr_range_inclusive_view(start, end);
+    int line_count = std::count(dir_str.begin(), dir_str.end(), '\n');
+    return std::string(line_count, '\n');
+  }
+
   static Token end_of_directive(Token dir_tok)
   {
     Token tok = dir_tok;
@@ -290,7 +297,7 @@ struct Preprocessor {
 
     if (condition_result == false) {
       /* Erase the content and jump to next condition. */
-      parser.erase(hash_tok, next_dir.prev());
+      parser.replace(hash_tok, next_dir.prev(), new_lines(hash_tok, next_dir.prev()));
       return next_dir.prev().index;
     }
     /* If condition is true. */
@@ -303,7 +310,7 @@ struct Preprocessor {
       }
       /* Erase condition and continue parsing content.
        * The #endif will just be erased later. */
-      parser.erase(hash_tok, dir_end);
+      parser.replace(hash_tok, dir_end, new_lines(hash_tok, dir_end));
       return dir_end.index;
     }
   }
@@ -338,7 +345,7 @@ struct Preprocessor {
         return; /* TODO(fclem): Error. */
       }
       defines.add_overwrite(str(macro_name), macro_name);
-      parser.erase(hash_tok, dir_end);
+      parser.replace(hash_tok, dir_end, new_lines(hash_tok, dir_end));
     }
     else if (dir_str == "undef") {
       /* Macro undefine. */
@@ -351,7 +358,7 @@ struct Preprocessor {
         return; /* TODO(fclem): Error. */
       }
       defines.remove(str(macro_name));
-      parser.erase(hash_tok, dir_end);
+      parser.replace(hash_tok, dir_end, "");
     }
     else if (ELEM(dir_str, "if", "ifdef", "ifndef", "elif", "else")) {
       /* Conditional. */
@@ -365,7 +372,7 @@ struct Preprocessor {
         }
         Token endif_end = end_of_directive(endif_hash);
         cursor = endif_end.index;
-        parser.erase(hash_tok, endif_end);
+        parser.replace(hash_tok, endif_end, new_lines(hash_tok, endif_end));
         return;
       }
 
@@ -373,10 +380,10 @@ struct Preprocessor {
       return;
     }
     else if (dir_str == "line") {
-      parser.erase(hash_tok, dir_end);
+      parser.replace(hash_tok, dir_end, "");
     }
     else if (dir_str == "endif") {
-      parser.erase(hash_tok, dir_end);
+      parser.replace(hash_tok, dir_end, "");
     }
     cursor = dir_end.index;
   }
