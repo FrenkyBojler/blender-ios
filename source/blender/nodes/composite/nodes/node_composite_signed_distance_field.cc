@@ -101,7 +101,7 @@ class SignedDistanceFieldOperation : public NodeOperation {
     boundary.allocate_texture(domain);
     boundary.bind_as_image(shader, "boundary_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     mask.unbind_as_texture();
     boundary.unbind_as_image();
@@ -126,7 +126,7 @@ class SignedDistanceFieldOperation : public NodeOperation {
      * Technically, we needn't restrict the output to just the boundary pixels, since the algorithm
      * can still operate if the interior of the region was also included. However, the algorithm
      * operates more accurately when the number of pixels to be flooded is minimum. */
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       /* Identify if any of the 8 neighbors around the center pixel are unmasked. */
       bool has_unmasked_neighbors = false;
       for (int j = -1; j <= 1; j++) {
@@ -184,7 +184,7 @@ class SignedDistanceFieldOperation : public NodeOperation {
     distance_output.allocate_texture(domain);
     distance_output.bind_as_image(shader, "distance_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     mask.unbind_as_texture();
     flooded_boundary.unbind_as_texture();
@@ -200,7 +200,7 @@ class SignedDistanceFieldOperation : public NodeOperation {
     Result &distance_output = this->get_result("Signed Distance Field");
     distance_output.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       const bool is_inside_mask = mask.load_pixel<bool>(texel);
       const int2 closest_boundary_texel = flooded_boundary.load_pixel<int2>(texel);
       const float distance_to_boundary = math::distance(float2(texel),
