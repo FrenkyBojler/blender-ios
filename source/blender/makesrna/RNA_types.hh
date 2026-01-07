@@ -294,7 +294,7 @@ enum PropertySubType {
   PROP_FREQUENCY = 46 | PROP_UNIT_FREQUENCY,
   PROP_PIXEL_DIAMETER = 47,
   PROP_DISTANCE_DIAMETER = 48 | PROP_UNIT_LENGTH,
-  /** Mass in kilograms. */
+  /** Mass based on scene defined units. */
   PROP_MASS = 49 | PROP_UNIT_MASS,
 };
 
