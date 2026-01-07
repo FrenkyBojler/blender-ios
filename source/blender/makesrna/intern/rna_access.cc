@@ -1220,6 +1220,42 @@ bool RNA_struct_bl_idname_ok_or_report(ReportList *reports,
   return true;
 }
 
+static bool struct_filter_match(StructRNA *srna, RNAStructsFilterParams &params)
+{
+  if (params.include_all_flags &&
+      (srna->flag & *params.include_all_flags) != *params.include_all_flags)
+  {
+    return false;
+  }
+  if (params.include_any_flags && (srna->flag & *params.include_any_flags) == 0) {
+    return false;
+  }
+  if (params.exclude_all_flags &&
+      (srna->flag & *params.exclude_all_flags) == *params.exclude_all_flags)
+  {
+    return false;
+  }
+  if (params.exclude_any_flags && (srna->flag & *params.exclude_any_flags) != 0) {
+    return false;
+  }
+  return true;
+}
+
+blender::Set<StructRNA *> RNA_structs_filter_get(RNAStructsFilterParams &params)
+{
+  BlenderRNA &brna = RNA_blender_rna_get();
+
+  blender::Set<StructRNA *> result;
+
+  for (StructRNA *srna : brna.structs) {
+    if (struct_filter_match(srna, params)) {
+      result.add_new(srna);
+    }
+  }
+
+  return result;
+}
+
 /* Property Information */
 
 const char *RNA_property_identifier(const PropertyRNA *prop)

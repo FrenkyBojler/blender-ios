@@ -21,6 +21,7 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
+#include "BLI_set.hh"
 #include "BLI_string_ref.hh"
 
 namespace blender {
@@ -232,6 +233,30 @@ bool RNA_struct_available_or_report(ReportList *reports, const char *identifier)
 bool RNA_struct_bl_idname_ok_or_report(ReportList *reports,
                                        const char *identifier,
                                        const char *sep);
+
+/** Parameter to filter some RNA types.
+ *
+ * If more that one of the flag-based options are defined, their results are combined using an
+ * 'AND' logical operation.
+ *
+ * \note Currently only filters based on #StructFlag values of the StructRNA, but in the future
+ * could use more filtering options.
+ */
+struct RNAStructsFilterParams {
+  /** Matching StructRNA must have _all_ of these flags set. */
+  std::optional<StructFlag> include_all_flags = std::nullopt;
+  /** Matching StructRNA must have at least one of these flags set. */
+  std::optional<StructFlag> include_any_flags = std::nullopt;
+  /** Matching StructRNA must not have _any_ of these flags set. */
+  std::optional<StructFlag> exclude_all_flags = std::nullopt;
+  /** Matching StructRNA must not have at least one of these flags set. */
+  std::optional<StructFlag> exclude_any_flags = std::nullopt;
+};
+
+/**
+ * Return a set containing all RNA structs definitions matching the given filtering parameters.
+ */
+blender::Set<StructRNA *> RNA_structs_filter_get(RNAStructsFilterParams &params);
 
 /* Properties
  *

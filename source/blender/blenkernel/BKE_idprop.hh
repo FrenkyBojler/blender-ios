@@ -17,6 +17,7 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_function_ref.hh"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
@@ -30,6 +31,7 @@ struct ID;
 struct IDProperty;
 struct IDPropertyUIData;
 struct IDPropertyUIDataEnumItem;
+struct StructRNA;
 namespace io::serialize {
 class ArrayValue;
 class Value;
@@ -565,6 +567,38 @@ void foreach_id_idproperty_container(ID &id,
  */
 void foreach_main_idproperty_container(Main &bmain,
                                        IDTypeForeachIDPropertyContainerCallback function_callback);
+
+/**
+ * Gather information regarding IDProperties deleted by calls to the `id_property_cleanup` API.
+ */
+struct IDPropertyCleanupReport {
+  int num_deleted_idproperties = 0;
+};
+
+/**
+ * Delete all IDproperties contained in given `idproperty` container that do not match a (runtime)
+ * StructRNA property.
+ *
+ * \note #idproperty_p itself may be deleted in case it becomes empty.
+ *
+ * \warning In case some runtime RNA struct uses custom accessors and non-standard storage in
+ * IDProperties, these may get deleted, as there is no way for the code to track these usages.
+ *
+ * \param idproperty Root IDproperty container (should alwasy be an #IDP_GROUP one).
+ * \param owner_data_rna_type The StructRNA of the owner of the given #idproperty container (e.g.
+ * an ID type, Bone, ViewLayer, etc.).
+ * \param known_rna_types All known runtime RNA struct definitions. Typically a list of all known
+ * runtime RNA structs as returned e.g. by #RNA_structs_filter_get, unless #do_invert is `true`.
+ * \param do_invert Invert the set of removed properties, remove all ones matching a _known_ RNA
+ * type definition (used e.g. to clean user properties after versioning from pre-5.0 blendfile, or
+ * to cleanup some specific extension's data).
+ * \param reports If given, data gathering imformation about removed properties.
+ */
+void id_property_cleanup_from_known_rna_types(IDProperty **idproperty_p,
+                                              StructRNA &owner_data_rna_type,
+                                              Set<StructRNA *> known_rna_types,
+                                              const bool do_invert = false,
+                                              IDPropertyCleanupReport *reports = nullptr);
 
 }  // namespace bke::idprop
 }  // namespace blender

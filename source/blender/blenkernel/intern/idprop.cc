@@ -16,6 +16,7 @@
 #include <fmt/format.h>
 
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_math_base.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
@@ -24,6 +25,8 @@
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+
+#include "RNA_types.hh"
 
 #include "RNA_access.hh"
 
@@ -2025,6 +2028,54 @@ void foreach_main_idproperty_container(Main &bmain,
     foreach_id_idproperty_container(*id_iter, function_callback);
   }
   FOREACH_MAIN_ID_END;
+}
+
+void id_property_cleanup_from_known_rna_types(IDProperty **idproperty_p,
+                                              StructRNA &owner_data_rna_type,
+                                              Set<StructRNA *> known_rna_types,
+                                              const bool do_invert,
+                                              IDPropertyCleanupReport *reports)
+{
+  BLI_assert(idproperty_p && *idproperty_p);
+  IDProperty *idproperty = *idproperty_p;
+  BLI_assert(idproperty->type == IDP_GROUP);
+
+  Map<blender::StringRefNull, PropertyRNA *> known_properties;
+
+  PointerRNA ptr_dummy = RNA_pointer_create_discrete(nullptr, &owner_data_rna_type, nullptr);
+  RNA_STRUCT_BEGIN (&ptr_dummy, prop_it) {
+    known_properties.add(RNA_property_identifier(prop_it), prop_it);
+  }
+  RNA_STRUCT_END;
+
+  for (IDProperty &idp_iter : idproperty->data.group) {
+    PropertyRNA *idp_rna_prop = known_properties.lookup_default(idp_iter.name, nullptr);
+    bool is_matching(idp_rna_prop);
+
+    if (is_matching && (RNA_property_flag(idp_rna_prop) & int(PROP_IDPROPERTY)) == 0) {
+      is_matching = false;
+    }
+
+    if (!is_matching && idp_iter.type == IDP_GROUP) {
+      if (RNA_property_type(idp_rna_prop) != PROP_POINTER) {
+        is_matching = false;
+      }
+      if (is_matching) {
+        StructRNA *sub_data_rna_type = RNA_property_pointer_type(nullptr, idp_rna_prop);
+        is_matching = known_rna_types.contains(sub_data_rna_type);
+        if (is_matching) {
+          IDProperty *idp = &idp_iter;
+          id_property_cleanup_from_known_rna_types(
+              &idp, *sub_data_rna_type, known_rna_types, do_invert, reports);
+        }
+      }
+    }
+
+    if (!is_matching) {
+      CLOG_WARN(
+          &LOG, "IDProp %s is detected as not matching any existing RNA property", idp_iter.name);
+    }
+  }
 }
 
 }  // namespace bke::idprop
