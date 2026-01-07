@@ -75,8 +75,7 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
                                            IntegratorState state,
                                            ccl_private Ray &ccl_restrict ray,
                                            ccl_private Intersection &ccl_restrict isect,
-                                           ccl_private ShaderData *emission_sd,
-                                           ccl_private Spectrum &ccl_restrict bsdf_spectrum,
+                                           ccl_private float &ccl_restrict light_weight,
                                            ccl_private float &mis_weight,
                                            ccl_private int &ccl_restrict light_group)
 {
@@ -90,11 +89,6 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
     return false;
   }
 
-  const Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray.time);
-  if (is_zero(light_eval)) {
-    return false;
-  }
-
   if (!is_light_shader_visible_to_path(ls.shader, path_flag)) {
     return false;
   }
@@ -102,8 +96,8 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
   /* MIS weighting. */
   mis_weight = shadow_linking_light_sample_mis_weight(kg, state, path_flag, &ls, ray.P);
 
-  bsdf_spectrum = light_eval * mis_weight *
-                  INTEGRATOR_STATE(state, shadow_link, dedicated_light_weight);
+  light_weight = ls.eval_fac * mis_weight *
+                 INTEGRATOR_STATE(state, shadow_link, dedicated_light_weight);
   light_group = ls.group;
 
   return true;
@@ -112,9 +106,7 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
 ccl_device bool shadow_linking_shade_surface_emission(KernelGlobals kg,
                                                       IntegratorState state,
                                                       ccl_private ShaderData *emission_sd,
-                                                      ccl_global float *ccl_restrict render_buffer,
-                                                      ccl_private Spectrum &ccl_restrict
-                                                          bsdf_spectrum,
+                                                      ccl_private float &ccl_restrict light_weight,
                                                       ccl_private float &mis_weight,
                                                       ccl_private int &ccl_restrict light_group)
 {
@@ -128,26 +120,15 @@ ccl_device bool shadow_linking_shade_surface_emission(KernelGlobals kg,
   }
 #  endif
 
-  surface_shader_eval<KERNEL_FEATURE_NODE_MASK_SURFACE_LIGHT>(
-      kg, state, emission_sd, render_buffer, path_flag | PATH_RAY_EMISSION);
-
-  if ((emission_sd->flag & SD_EMISSION) == 0) {
-    return false;
-  }
-
-  const Spectrum L = surface_shader_emission(emission_sd);
-
   mis_weight = light_sample_mis_weight_forward_surface(kg, state, path_flag, emission_sd);
 
-  bsdf_spectrum = L * mis_weight * INTEGRATOR_STATE(state, shadow_link, dedicated_light_weight);
+  light_weight = mis_weight * INTEGRATOR_STATE(state, shadow_link, dedicated_light_weight);
   light_group = object_lightgroup(kg, emission_sd->object);
 
   return true;
 }
 
-ccl_device void shadow_linking_shade(KernelGlobals kg,
-                                     IntegratorState state,
-                                     ccl_global float *ccl_restrict render_buffer)
+ccl_device void shadow_linking_shade(KernelGlobals kg, IntegratorState state)
 {
   /* Read intersection from integrator state into local memory. */
   Intersection isect ccl_optional_struct_init;
@@ -157,29 +138,27 @@ ccl_device void shadow_linking_shade(KernelGlobals kg,
   Ray ray ccl_optional_struct_init;
   integrator_state_read_ray(state, &ray);
 
-  ShaderDataTinyStorage emission_sd_storage;
-  ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
-
-  Spectrum bsdf_spectrum;
+  float light_weight;
   float mis_weight = 1.0f;
   int light_group = LIGHTGROUP_NONE;
 
   if (isect.type == PRIMITIVE_LAMP) {
-    if (!shadow_linking_shade_light(
-            kg, state, ray, isect, emission_sd, bsdf_spectrum, mis_weight, light_group))
+    if (!shadow_linking_shade_light(kg, state, ray, isect, light_weight, mis_weight, light_group))
     {
       return;
     }
   }
   else {
+    ShaderDataTinyStorage emission_sd_storage;
+    ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
     if (!shadow_linking_shade_surface_emission(
-            kg, state, emission_sd, render_buffer, bsdf_spectrum, mis_weight, light_group))
+            kg, state, emission_sd, light_weight, mis_weight, light_group))
     {
       return;
     }
   }
 
-  if (is_zero(bsdf_spectrum)) {
+  if (light_weight == 0.0f) {
     return;
   }
 
@@ -187,7 +166,7 @@ ccl_device void shadow_linking_shade(KernelGlobals kg,
 
   /* Branch off shadow kernel. */
   IntegratorShadowState shadow_state = integrate_direct_light_shadow_init_common(
-      kg, state, &ray, bsdf_spectrum, light_group, 0);
+      kg, state, &ray, make_spectrum(light_weight), light_group, 0);
 
   /* The light is accumulated from the shade_surface kernel, which will make the clamping decision
    * based on the actual value of the bounce. For the dedicated shadow ray we want to follow the
@@ -223,12 +202,12 @@ ccl_device void shadow_linking_shade(KernelGlobals kg,
 
 ccl_device void integrator_shade_dedicated_light(KernelGlobals kg,
                                                  IntegratorState state,
-                                                 ccl_global float *ccl_restrict render_buffer)
+                                                 ccl_global float *ccl_restrict /*render_buffer*/)
 {
   PROFILING_INIT(kg, PROFILING_SHADE_DEDICATED_LIGHT);
 
 #ifdef __SHADOW_LINKING__
-  shadow_linking_shade(kg, state, render_buffer);
+  shadow_linking_shade(kg, state);
 
   /* Restore self-intersection check primitives in the main state before returning to the
    * intersect_closest() state. */

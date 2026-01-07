@@ -28,39 +28,29 @@ light_sample_shader_eval(KernelGlobals kg,
                          ccl_private LightSample *ccl_restrict ls,
                          const float time)
 {
+  kernel_assert(ls->type != LIGHT_BACKGROUND && ls->type != LIGHT_TRIANGLE);
+
   /* setup shading at emitter */
   Spectrum eval = zero_spectrum();
 
-  if (surface_shader_constant_emission(kg, ls->shader, &eval)) {
-    if ((ls->prim != PRIM_NONE) && dot(ls->Ng, ls->D) > 0.0f) {
-      ls->Ng = -ls->Ng;
-    }
-  }
-  else {
+  if (!surface_shader_constant_emission(kg, ls->shader, &eval)) {
     /* Setup shader data and call surface_shader_eval once, better
      * for GPU coherence and compile times. */
     PROFILING_INIT_FOR_SHADER(kg, PROFILING_SHADE_LIGHT_SETUP);
-    if (ls->type == LIGHT_BACKGROUND) {
-      shader_setup_from_background(kg, emission_sd, ls->P, ls->D, time);
-    }
-    else {
-      shader_setup_from_sample(kg,
-                               emission_sd,
-                               ls->P,
-                               ls->Ng,
-                               -ls->D,
-                               ls->shader,
-                               ls->object,
-                               ls->prim,
-                               ls->u,
-                               ls->v,
-                               ls->t,
-                               time,
-                               false,
-                               ls->type != LIGHT_TRIANGLE);
-
-      ls->Ng = emission_sd->Ng;
-    }
+    shader_setup_from_sample(kg,
+                             emission_sd,
+                             ls->P,
+                             ls->Ng,
+                             -ls->D,
+                             ls->shader,
+                             ls->object,
+                             ls->prim,
+                             ls->u,
+                             ls->v,
+                             ls->t,
+                             time,
+                             false,
+                             true);
 
     PROFILING_SHADER(emission_sd->object, emission_sd->shader);
     PROFILING_EVENT(PROFILING_SHADE_LIGHT_EVAL);
@@ -71,46 +61,16 @@ light_sample_shader_eval(KernelGlobals kg,
         kg, state, emission_sd, nullptr, PATH_RAY_EMISSION);
 
     /* Evaluate closures. */
-    if (ls->type == LIGHT_BACKGROUND) {
-      eval = surface_shader_background(emission_sd);
-    }
-    else {
-      eval = surface_shader_emission(emission_sd);
-    }
+    eval = surface_shader_emission(emission_sd);
   }
 
   eval *= ls->eval_fac;
 
-  if (ls->type != LIGHT_TRIANGLE) {
-    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
-    eval *= rgb_to_spectrum(
-        make_float3(klight->strength[0], klight->strength[1], klight->strength[2]));
-  }
+  const ccl_global KernelLight *klight = &kernel_data_fetch(lights, ls->prim);
+  eval *= rgb_to_spectrum(
+      make_float3(klight->strength[0], klight->strength[1], klight->strength[2]));
 
   return eval;
-}
-
-/* Early path termination of shadow rays. */
-ccl_device_inline bool light_sample_terminate(KernelGlobals kg,
-                                              ccl_private BsdfEval *ccl_restrict eval,
-                                              const float rand_terminate)
-{
-  if (bsdf_eval_is_zero(eval)) {
-    return true;
-  }
-
-  if (kernel_data.integrator.light_inv_rr_threshold > 0.0f) {
-    const float probability = reduce_max(fabs(bsdf_eval_sum(eval))) *
-                              kernel_data.integrator.light_inv_rr_threshold;
-    if (probability < 1.0f) {
-      if (rand_terminate >= probability) {
-        return true;
-      }
-      bsdf_eval_mul(eval, 1.0f / probability);
-    }
-  }
-
-  return false;
 }
 
 /* This function should be used to compute a modified ray start position for

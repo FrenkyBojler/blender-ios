@@ -554,15 +554,6 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         default='USE',
     )
 
-    light_sampling_threshold: FloatProperty(
-        name="Light Sampling Threshold",
-        description="Probabilistically terminate light samples when the light contribution is below this threshold (more noise but faster rendering). "
-        "Zero disables the test and never ignores lights",
-        min=0.0,
-        max=1.0,
-        default=0.01,
-    )
-
     use_adaptive_sampling: BoolProperty(
         name="Use Adaptive Sampling",
         description="Automatically reduce the number of samples per pixel based on estimated noise level",

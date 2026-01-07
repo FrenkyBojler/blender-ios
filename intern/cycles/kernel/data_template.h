@@ -167,7 +167,6 @@ KERNEL_STRUCT_MEMBER(integrator, int, portal_offset)
 KERNEL_STRUCT_MEMBER(integrator, int, num_distribution)
 KERNEL_STRUCT_MEMBER(integrator, float, distribution_pdf_triangles)
 KERNEL_STRUCT_MEMBER(integrator, float, distribution_pdf_lights)
-KERNEL_STRUCT_MEMBER(integrator, float, light_inv_rr_threshold)
 /* Bounces. */
 KERNEL_STRUCT_MEMBER(integrator, int, min_bounce)
 KERNEL_STRUCT_MEMBER(integrator, int, max_bounce)

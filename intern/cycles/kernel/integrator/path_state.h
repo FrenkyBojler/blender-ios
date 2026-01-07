@@ -410,16 +410,4 @@ ccl_device_inline float3 path_branched_rng_3D(KernelGlobals kg,
                      rng_state->rng_offset + dimension);
 }
 
-/* Utility functions to get light termination value,
- * since it might not be needed in many cases.
- */
-ccl_device_inline float path_state_rng_light_termination(KernelGlobals kg,
-                                                         const ccl_private RNGState *state)
-{
-  if (kernel_data.integrator.light_inv_rr_threshold > 0.0f) {
-    return path_state_rng_1D(kg, state, PRNG_LIGHT_TERMINATE);
-  }
-  return 0.0f;
-}
-
 CCL_NAMESPACE_END

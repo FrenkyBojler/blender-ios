@@ -336,4 +336,16 @@ ccl_device_forceinline bool triangle_light_tree_parameters(
   return front_facing && shape_above_surface;
 }
 
+ccl_device float2 triangle_light_uv(KernelGlobals kg,
+                                    const int object,
+                                    const int prim,
+                                    const float time,
+                                    const float3 ray_P,
+                                    const float3 ray_D)
+{
+  float3 V[3];
+  triangle_world_space_vertices(kg, object, prim, time, V);
+  return ray_triangle_uv(ray_P, ray_D, V[0], V[1], V[2]);
+}
+
 CCL_NAMESPACE_END

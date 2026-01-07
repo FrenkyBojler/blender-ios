@@ -15,6 +15,7 @@
 #include "kernel/light/sample.h"
 
 #include "kernel/geom/shader_data.h"
+#include "kernel/types.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -129,7 +130,9 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
   const float ray_time = INTEGRATOR_STATE(state, ray, time);
   LightSample ls ccl_optional_struct_init;
   for (int lamp = 0; lamp < kernel_data.integrator.num_lights; lamp++) {
-    if (distant_light_sample_from_intersection(kg, ray_D, lamp, &ls)) {
+    if ((kernel_data_fetch(lights, lamp).shader_id & SHADER_USE_MIS) &&
+        distant_light_sample_from_intersection(kg, ray_D, lamp, &ls))
+    {
       /* Use visibility flag to skip lights. */
 #ifdef __PASSES__
       const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);

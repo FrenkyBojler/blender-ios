@@ -30,17 +30,13 @@ ccl_device float spot_light_attenuation(const ccl_global KernelSpotLight *spot, 
   return smoothstepf((ray.z - spot->cos_half_spot_angle) * spot->spot_smooth);
 }
 
-ccl_device void spot_light_uv(const float3 ray,
-                              const float half_cot_half_spot_angle,
-                              ccl_private float *u,
-                              ccl_private float *v)
+ccl_device float2 spot_light_uv(const float3 ray, const float half_cot_half_spot_angle)
 {
   /* Ensures that the spot light projects the full image regardless of the spot angle. */
   const float factor = half_cot_half_spot_angle / ray.z;
 
   /* NOTE: Return barycentric coordinates in the same notation as Embree and OptiX. */
-  *u = ray.y * factor + 0.5f;
-  *v = -(ray.x + ray.y) * factor;
+  return make_float2(ray.y * factor + 0.5f, -(ray.x + ray.y) * factor);
 }
 
 template<bool in_volume_segment>
@@ -124,7 +120,9 @@ ccl_device_inline bool spot_light_sample(KernelGlobals kg,
     ls->P = ls->Ng * klight->spot.radius + klight->co;
 
     /* Texture coordinates. */
-    spot_light_uv(local_ray, klight->spot.half_cot_half_spot_angle, &ls->u, &ls->v);
+    const float2 uv = spot_light_uv(local_ray, klight->spot.half_cot_half_spot_angle);
+    ls->u = uv.x;
+    ls->v = uv.y;
   }
   else {
     /* Point light with ad-hoc radius based on oriented disk. */
@@ -148,7 +146,9 @@ ccl_device_inline bool spot_light_sample(KernelGlobals kg,
     ls->pdf = invarea * light_pdf_area_to_solid_angle(lightN, -ls->D, ls->t);
 
     /* Texture coordinates. */
-    spot_light_uv(local_ray, klight->spot.half_cot_half_spot_angle, &ls->u, &ls->v);
+    const float2 uv = spot_light_uv(local_ray, klight->spot.half_cot_half_spot_angle);
+    ls->u = uv.x;
+    ls->v = uv.y;
   }
 
   return true;
@@ -213,7 +213,9 @@ ccl_device_forceinline void spot_light_mnee_sample_update(KernelGlobals kg,
   }
 
   /* Texture coordinates. */
-  spot_light_uv(local_ray, klight->spot.half_cot_half_spot_angle, &ls->u, &ls->v);
+  const float2 uv = spot_light_uv(local_ray, klight->spot.half_cot_half_spot_angle);
+  ls->u = uv.x;
+  ls->v = uv.y;
 }
 
 ccl_device_inline bool spot_light_intersect(const ccl_global KernelLight *klight,
@@ -268,7 +270,9 @@ ccl_device_inline bool spot_light_sample_from_intersection(KernelGlobals kg,
   }
 
   /* Texture coordinates. */
-  spot_light_uv(local_ray, klight->spot.half_cot_half_spot_angle, &ls->u, &ls->v);
+  const float2 uv = spot_light_uv(local_ray, klight->spot.half_cot_half_spot_angle);
+  ls->u = uv.x;
+  ls->v = uv.y;
 
   return true;
 }

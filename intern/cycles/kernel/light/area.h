@@ -431,6 +431,21 @@ ccl_device_inline bool area_light_intersect(const ccl_global KernelLight *klight
                             is_ellipse);
 }
 
+ccl_device_inline float2 area_light_uv(const ccl_global KernelLight *klight, const float3 P)
+{
+  /* Compute uv when we already know there is an intersection, to avoid the need
+   * of storing this in the integrate state. */
+  const float3 inv_extent_u = klight->area.axis_u / klight->area.len_u;
+  const float3 inv_extent_v = klight->area.axis_v / klight->area.len_v;
+  const float3 light_P = klight->co;
+
+  const float3 inplane = P - light_P;
+  const float u = clamp(dot(inplane, inv_extent_u), -0.5f, 0.5f);
+  const float v = clamp(dot(inplane, inv_extent_v), -0.5f, 0.5f);
+
+  return make_float2(v + 0.5f, -u - v);
+}
+
 ccl_device_inline bool area_light_sample_from_intersection(
     const ccl_global KernelLight *klight,
     const ccl_private Intersection *ccl_restrict isect,

@@ -10,6 +10,7 @@
 #include "kernel/integrator/volume_stack.h"
 
 #include "kernel/geom/shader_data.h"
+#include "kernel/light/light.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -161,6 +162,106 @@ ccl_device_inline bool integrate_transparent_shadow(KernelGlobals kg,
 }
 #endif /* __TRANSPARENT_SHADOWS__ */
 
+ccl_device bool integrator_shade_direct_light(KernelGlobals kg, IntegratorShadowState state)
+{
+  /* Read intersection and ray. */
+  Ray ray ccl_optional_struct_init;
+  integrator_state_read_shadow_ray(state, &ray);
+  integrator_state_read_shadow_ray_self(state, &ray);
+
+  Intersection isect = {};
+  isect.object = ray.self.light_object;
+  isect.prim = ray.self.light_prim;
+  isect.type = kernel_data_fetch(objects, isect.object).primitive_type;
+  isect.t = ray.tmax;
+
+  const int shader = (isect.type == PRIMITIVE_LAMP) ?
+                         kernel_data_fetch(lights, isect.prim).shader_id :
+                         intersection_get_shader(kg, &isect);
+
+  float3 eval = zero_spectrum();
+  if (!surface_shader_constant_emission(kg, shader, &eval)) {
+    bool is_background = false;
+
+    /* Setup shader data */
+    ShaderDataCausticsStorage emission_sd_storage;
+    ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
+
+    PROFILING_INIT_FOR_SHADER(kg, PROFILING_SHADE_LIGHT_SETUP);
+    if (isect.type == PRIMITIVE_LAMP) {
+      /* Lights. */
+      const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect.prim);
+      const LightType light_type = LightType(klight->type);
+
+      if (light_type == LIGHT_BACKGROUND) {
+        /* Backround light. */
+        shader_setup_from_background(kg, emission_sd, ray.P, ray.D, ray.time);
+        is_background = true;
+      }
+      else {
+        /* Other light types.
+         * Compute Ng and UV on demand so we don't have to store it in integrator state. */
+        const float3 P = ray.P + ray.tmax * ray.D;
+        float3 Ng = zero_float3();
+        float2 uv = zero_float2();
+        light_normal_uv_from_position(kg, klight, P, ray.D, Ng, uv);
+
+        shader_setup_from_sample(kg,
+                                 emission_sd,
+                                 ray.P + ray.tmax * ray.D,
+                                 Ng,
+                                 -ray.D,
+                                 klight->shader_id,
+                                 isect.object,
+                                 isect.prim,
+                                 uv.x,
+                                 uv.y,
+                                 ray.tmax,
+                                 ray.time,
+                                 false,
+                                 true);
+      }
+    }
+    else {
+      /* Triangles.
+       * Compute UV on demand so we don't have to store it in integrator state. */
+      const float2 uv = triangle_light_uv(kg, isect.object, isect.prim, ray.time, ray.P, ray.D);
+      isect.u = uv.x;
+      isect.v = uv.y;
+
+      shader_setup_from_ray(kg, emission_sd, &ray, &isect);
+    }
+
+    /* Evaluate shader. */
+    PROFILING_SHADER(emission_sd->object, emission_sd->shader);
+    PROFILING_EVENT(PROFILING_SHADE_LIGHT_EVAL);
+
+    /* No proper path flag, we're evaluating this for all closures. that's
+     * weak but we'd have to do multiple evaluations otherwise. */
+    surface_shader_eval<KERNEL_FEATURE_NODE_MASK_SURFACE_LIGHT>(
+        kg, state, emission_sd, nullptr, PATH_RAY_EMISSION);
+
+    /* Evaluate emission closures. */
+    eval = (is_background) ? surface_shader_background(emission_sd) :
+                             surface_shader_emission(emission_sd);
+  }
+
+  /* Multiply in fixed light strength. */
+  if (isect.type == PRIMITIVE_LAMP) {
+    const ccl_global KernelLight *klight = &kernel_data_fetch(lights, isect.prim);
+    eval *= rgb_to_spectrum(
+        make_float3(klight->strength[0], klight->strength[1], klight->strength[2]));
+  }
+
+  /* Update throughput. */
+  INTEGRATOR_STATE(state, shadow_path, throughput) *= eval;
+  if (kernel_data.kernel_features & KERNEL_FEATURE_PATH_GUIDING) {
+    INTEGRATOR_STATE(state, shadow_path, unlit_throughput) *= eval;
+  }
+
+  return true;
+}
+
 ccl_device void integrator_shade_shadow(KernelGlobals kg,
                                         IntegratorShadowState state,
                                         ccl_global float *ccl_restrict render_buffer)
@@ -184,8 +285,18 @@ ccl_device void integrator_shade_shadow(KernelGlobals kg,
     return;
   }
 
-  guiding_record_direct_light(kg, state);
-  film_write_direct_light(kg, state, render_buffer);
+  const uint32_t path_flag = INTEGRATOR_STATE(state, shadow_path, flag);
+  bool have_light = true;
+  if (!(path_flag & PATH_RAY_SHADOW_FOR_AO)) {
+    have_light = integrator_shade_direct_light(kg, state);
+    if (have_light) {
+      guiding_record_direct_light(kg, state);
+    }
+  }
+
+  if (have_light) {
+    film_write_direct_light(kg, state, render_buffer);
+  }
   integrator_shadow_path_terminate(state, DEVICE_KERNEL_INTEGRATOR_SHADE_SHADOW);
 }
 

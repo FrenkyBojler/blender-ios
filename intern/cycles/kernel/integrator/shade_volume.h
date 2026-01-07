@@ -13,6 +13,7 @@
 #include "kernel/integrator/intersect_closest.h"
 #include "kernel/integrator/path_state.h"
 #include "kernel/integrator/shadow_linking.h"
+#include "kernel/integrator/state.h"
 #include "kernel/integrator/volume_shader.h"
 #include "kernel/integrator/volume_stack.h"
 
@@ -2421,29 +2422,14 @@ ccl_device_forceinline void integrate_volume_direct_light(
     return;
   }
 
-  /* Evaluate light shader.
-   *
-   * TODO: can we reuse sd memory? In theory we can move this after
-   * integrate_surface_bounce, evaluate the BSDF, and only then evaluate
-   * the light shader. This could also move to its own kernel, for
-   * non-constant light sources. */
-  ShaderDataTinyStorage emission_sd_storage;
-  ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
-  const Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, sd->time);
-  if (is_zero(light_eval)) {
-    return;
-  }
-
   /* Evaluate BSDF. */
   BsdfEval phase_eval ccl_optional_struct_init;
   const float phase_pdf = volume_shader_phase_eval(
       kg, state, sd, phases, ls.D, &phase_eval, ls.shader);
   const float mis_weight = light_sample_mis_weight_nee(kg, ls.pdf, phase_pdf);
-  bsdf_eval_mul(&phase_eval, light_eval / ls.pdf * mis_weight);
+  bsdf_eval_mul(&phase_eval, ls.eval_fac / ls.pdf * mis_weight);
 
-  /* Path termination. */
-  const float terminate = path_state_rng_light_termination(kg, rng_state);
-  if (light_sample_terminate(kg, &phase_eval, terminate)) {
+  if (bsdf_eval_is_zero(&phase_eval)) {
     return;
   }
 

@@ -16,6 +16,7 @@
 #include "kernel/light/spot.h"
 #include "kernel/light/triangle.h"
 #include "kernel/sample/lcg.h"
+#include "kernel/types.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -494,6 +495,38 @@ ccl_device bool light_sample_from_intersection(KernelGlobals kg,
   }
 
   return true;
+}
+
+/* Get light coordinates from position on light. */
+ccl_device void light_normal_uv_from_position(KernelGlobals kg,
+                                              const ccl_global KernelLight *klight,
+                                              const float3 P,
+                                              const float3 D,
+                                              ccl_private float3 &Ng,
+                                              ccl_private float2 &uv)
+{
+  const LightType type = (LightType)klight->type;
+
+  if (type == LIGHT_SPOT) {
+    Ng = (klight->spot.is_sphere) ? normalize(P - klight->co) : -D;
+    const float3 local_ray = spot_light_to_local(kg, klight, -D);
+    uv = spot_light_uv(local_ray, klight->spot.half_cot_half_spot_angle);
+  }
+  else if (type == LIGHT_POINT) {
+    Ng = (klight->spot.is_sphere) ? normalize(P - klight->co) : -D;
+    uv = point_light_uv(kg, klight, Ng);
+  }
+  else if (type == LIGHT_AREA) {
+    Ng = klight->area.dir;
+    uv = area_light_uv(klight, P);
+  }
+  else if (type == LIGHT_DISTANT) {
+    Ng = -D;
+    uv = distant_light_uv(kg, klight, D);
+  }
+  else {
+    kernel_assert(0);
+  }
 }
 
 CCL_NAMESPACE_END

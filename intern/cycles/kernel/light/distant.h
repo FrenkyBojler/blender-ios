@@ -12,11 +12,9 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline void distant_light_uv(KernelGlobals kg,
-                                        const ccl_global KernelLight *klight,
-                                        const float3 D,
-                                        ccl_private float *u,
-                                        ccl_private float *v)
+ccl_device_inline float2 distant_light_uv(KernelGlobals kg,
+                                          const ccl_global KernelLight *klight,
+                                          const float3 D)
 {
   /* Map direction (x, y, z) to disk [-0.5, 0.5]^2:
    * r^2 = (1 - z) / (1 - cos(klight->distant.angle))
@@ -30,8 +28,7 @@ ccl_device_inline void distant_light_uv(KernelGlobals kg,
   const float v_ = dot(D, make_float3(itfm.y)) * fac;
 
   /* NOTE: Return barycentric coordinates in the same notation as Embree and OptiX. */
-  *u = v_ + 0.5f;
-  *v = -u_ - v_;
+  return make_float2(v_ + 0.5f, -u_ - v_);
 }
 
 ccl_device_inline bool distant_light_sample(KernelGlobals kg,
@@ -49,7 +46,9 @@ ccl_device_inline bool distant_light_sample(KernelGlobals kg,
 
   ls->eval_fac = klight->distant.eval_fac;
 
-  distant_light_uv(kg, klight, ls->D, &ls->u, &ls->v);
+  const float2 uv = distant_light_uv(kg, klight, ls->D);
+  ls->u = uv.x;
+  ls->v = uv.y;
 
   return true;
 }
@@ -89,13 +88,9 @@ ccl_device bool distant_light_sample_from_intersection(KernelGlobals kg,
                                                        ccl_private LightSample *ccl_restrict ls)
 {
   const ccl_global KernelLight *klight = &kernel_data_fetch(lights, lamp);
-  const int shader = klight->shader_id;
   const LightType type = (LightType)klight->type;
 
   if (type != LIGHT_DISTANT) {
-    return false;
-  }
-  if (!(shader & SHADER_USE_MIS)) {
     return false;
   }
   if (klight->distant.angle == 0.0f) {
@@ -127,7 +122,9 @@ ccl_device bool distant_light_sample_from_intersection(KernelGlobals kg,
   ls->pdf = klight->distant.pdf;
   ls->eval_fac = klight->distant.eval_fac;
 
-  distant_light_uv(kg, klight, ray_D, &ls->u, &ls->v);
+  const float2 uv = distant_light_uv(kg, klight, ls->D);
+  ls->u = uv.x;
+  ls->v = uv.y;
 
   return true;
 }

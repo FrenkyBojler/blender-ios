@@ -341,15 +341,6 @@ ccl_device
     }
   }
 
-  /* Evaluate light shader.
-   *
-   * TODO: can we reuse sd memory? In theory we can move this after
-   * integrate_surface_bounce, evaluate the BSDF, and only then evaluate
-   * the light shader. This could also move to its own kernel, for
-   * non-constant light sources. */
-  ShaderDataCausticsStorage emission_sd_storage;
-  ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
-
   Ray ray ccl_optional_struct_init;
   BsdfEval bsdf_eval ccl_optional_struct_init;
 
@@ -368,34 +359,32 @@ ccl_device
 
         /* Are we on a caustic receiver? */
         if (!is_transmission && (sd->object_flag & SD_OBJECT_CAUSTICS_RECEIVER)) {
+          ShaderDataCausticsStorage emission_sd_storage;
+          ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
+
           mnee_vertex_count = kernel_path_mnee_sample(
               kg, state, sd, emission_sd, rng_state, &ls, &bsdf_eval);
+
+          if (mnee_vertex_count > 0) {
+            /* Create shadow ray after successful manifold walk:
+             * emission_sd contains the last interface intersection and
+             * the light sample ls has been updated */
+            light_sample_to_surface_shadow_ray(kg, emission_sd, &ls, &ray);
+          }
         }
       }
     }
   }
-  if (mnee_vertex_count > 0) {
-    /* Create shadow ray after successful manifold walk:
-     * emission_sd contains the last interface intersection and
-     * the light sample ls has been updated */
-    light_sample_to_surface_shadow_ray(kg, emission_sd, &ls, &ray);
-  }
-  else
+
+  if (mnee_vertex_count == 0)
 #endif /* __MNEE__ */
   {
-    const Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, sd->time);
-    if (is_zero(light_eval)) {
-      return;
-    }
-
     /* Evaluate BSDF. */
     const float bsdf_pdf = surface_shader_bsdf_eval(kg, state, sd, ls.D, &bsdf_eval, ls.shader);
     const float mis_weight = light_sample_mis_weight_nee(kg, ls.pdf, bsdf_pdf);
-    bsdf_eval_mul(&bsdf_eval, light_eval / ls.pdf * mis_weight);
+    bsdf_eval_mul(&bsdf_eval, ls.eval_fac / ls.pdf * mis_weight);
 
-    /* Path termination. */
-    const float terminate = path_state_rng_light_termination(kg, rng_state);
-    if (light_sample_terminate(kg, &bsdf_eval, terminate)) {
+    if (bsdf_eval_is_zero(&bsdf_eval)) {
       return;
     }
 

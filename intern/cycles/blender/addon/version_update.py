@@ -176,8 +176,8 @@ def do_versions(self):
 
             if version <= (2, 78, 2):
                 cscene = scene.cycles
-                if not cscene.is_property_set("light_sampling_threshold"):
-                    cscene.light_sampling_threshold = 0.0
+                if "light_sampling_threshold" not in cscene:
+                    cscene["light_sampling_threshold"] = 0.0
 
             if version <= (2, 79, 0):
                 cscene = scene.cycles

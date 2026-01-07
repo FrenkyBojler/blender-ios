@@ -118,7 +118,6 @@ NODE_DEFINE(Integrator)
   SOCKET_INT(adaptive_min_samples, "Adaptive Min Samples", 0);
 
   SOCKET_BOOLEAN(use_light_tree, "Use light tree to optimize many light sampling", true);
-  SOCKET_FLOAT(light_sampling_threshold, "Light Sampling Threshold", 0.0f);
 
   static NodeEnum sampling_pattern_enum;
   sampling_pattern_enum.insert("sobol_burley", SAMPLING_PATTERN_SOBOL_BURLEY);
@@ -309,16 +308,6 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
   }
   else {
     kintegrator->seed = seed;
-  }
-
-  /* NOTE: The kintegrator->use_light_tree is assigned to the efficient value in the light manager,
-   * and the synchronization code is expected to tag the light manager for update when the
-   * `use_light_tree` is changed. */
-  if (light_sampling_threshold > 0.0f && !kintegrator->use_light_tree) {
-    kintegrator->light_inv_rr_threshold = scene->film->get_exposure() / light_sampling_threshold;
-  }
-  else {
-    kintegrator->light_inv_rr_threshold = 0.0f;
   }
 
   /* Build pre-tabulated Sobol samples if needed. */
