@@ -357,11 +357,10 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     const OffsetIndices points_by_curve = curves.points_by_curve();
     threading::parallel_for(curves.curves_range(), 256, [&](const IndexRange curves_range) {
       for (const int curve_i : curves_range) {
-        const IndexRange points = points_by_curve[curve_i];
-        Span<bool> range = selection_attribute.get_internal_span().slice(points);
-        const int selected_points = std::count(range.begin(), range.end(), true);
+        const int selected_points = array_utils::count_booleans(
+            selection_attribute, points_by_curve[curve_i]);
         stats->totpointsel += selected_points;
-        stats->totcurvesel += (selected_points == range.size());
+        stats->totcurvesel += (selected_points > 0);
       }
     });
 
