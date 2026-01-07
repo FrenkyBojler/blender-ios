@@ -14,7 +14,6 @@
 #include <cfloat>
 #include <chrono>
 #include <cstdarg>
-#include <cstddef>
 #include <cstdlib>
 #include <cstring>
 
@@ -143,24 +142,17 @@ void BKE_modifier_panel_expand(ModifierData *md)
 static ModifierData *modifier_allocate_and_init(ModifierType type)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(type);
-  ModifierData *md = static_cast<ModifierData *>(
-      MEM_new_zeroed(mti->struct_size, mti->struct_name));
+  ModifierData *md = mti->new_data();
 
   /* NOTE: this name must be made unique later. */
   STRNCPY_UTF8(md->name, DATA_(mti->name));
 
   md->type = type;
-  md->mode = eModifierMode_Realtime | eModifierMode_Render;
-  md->flag = eModifierFlag_OverrideLibrary_Local;
   /* Only open the main panel at the beginning, not the sub-panels. */
-  md->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT;
+  md->ui_expand_flag |= UI_PANEL_DATA_EXPAND_ROOT;
 
   if (mti->flags & eModifierTypeFlag_EnableInEditmode) {
     md->mode |= eModifierMode_Editmode;
-  }
-
-  if (mti->init_data) {
-    mti->init_data(md);
   }
 
   return md;
@@ -193,9 +185,8 @@ void BKE_modifier_free_ex(ModifierData *md, const int flag)
     }
   }
 
-  if (mti->free_data) {
-    mti->free_data(md);
-  }
+  mti->free_data(md);
+
   if (md->error) {
     MEM_delete(md->error);
   }
@@ -317,32 +308,10 @@ ModifierData *BKE_modifier_copy_ex(const ModifierData *md, int flag)
 {
   ModifierData *md_dst = modifier_allocate_and_init(ModifierType(md->type));
 
-  STRNCPY_UTF8(md_dst->name, md->name);
   BKE_modifier_copydata_ex(md, md_dst, flag);
+  STRNCPY_UTF8(md_dst->name, md->name);
 
   return md_dst;
-}
-
-void BKE_modifier_copydata_generic(const ModifierData *md_src,
-                                   ModifierData *md_dst,
-                                   const int /*flag*/)
-{
-  const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md_src->type));
-
-  /* `md_dst` may have already be fully initialized with some extra allocated data,
-   * we need to free it now to avoid a memory leak. */
-  if (mti->free_data) {
-    mti->free_data(md_dst);
-  }
-
-  const size_t data_size = sizeof(ModifierData);
-  const char *md_src_data = (reinterpret_cast<const char *>(md_src)) + data_size;
-  char *md_dst_data = (reinterpret_cast<char *>(md_dst)) + data_size;
-  BLI_assert(data_size <= size_t(mti->struct_size));
-  memcpy(md_dst_data, md_src_data, size_t(mti->struct_size) - data_size);
-
-  /* Runtime fields are never to be preserved. */
-  md_dst->runtime = nullptr;
 }
 
 static void modifier_copy_data_id_us_cb(void * /*user_data*/,
@@ -360,14 +329,19 @@ void BKE_modifier_copydata_ex(const ModifierData *md, ModifierData *target, cons
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
-  target->mode = md->mode;
-  target->flag = md->flag;
-  target->ui_expand_flag = md->ui_expand_flag;
-  target->persistent_uid = md->persistent_uid;
+  /* Currently this copies over already initialized modifier, ideally we'd avoid
+   * this and alloc the modifier here. */
+  mti->free_data(target);
 
-  if (mti->copy_data) {
-    mti->copy_data(md, target, flag);
-  }
+  /* Preserve next and prev. */
+  ModifierData *next = target->next;
+  ModifierData *prev = target->prev;
+
+  mti->copy_data(md, target, flag);
+
+  target->next = next;
+  target->prev = prev;
+  target->runtime = nullptr;
 
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
     if (mti->foreach_ID_link) {

@@ -35,11 +35,11 @@ using bke::greasepencil::Drawing;
 using bke::greasepencil::FramesMapKeyT;
 using bke::greasepencil::Layer;
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  auto *lmd = reinterpret_cast<GreasePencilLatticeModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(lmd, modifier);
+  auto *lmd = MEM_new<GreasePencilLatticeModifierData>("GreasePencilLatticeModifierData");
   modifier::greasepencil::init_influence_data(&lmd->influence, false);
+  return &lmd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -47,9 +47,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   const auto *lmd = reinterpret_cast<const GreasePencilLatticeModifierData *>(md);
   auto *tlmd = reinterpret_cast<GreasePencilLatticeModifierData *>(target);
 
-  modifier::greasepencil::free_influence_data(&tlmd->influence);
-
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<GreasePencilLatticeModifierData>(md, target, flag);
   modifier::greasepencil::copy_influence_data(&lmd->influence, &tlmd->influence, flag);
 }
 
@@ -57,6 +55,7 @@ static void free_data(ModifierData *md)
 {
   auto *lmd = reinterpret_cast<GreasePencilLatticeModifierData *>(md);
   modifier::greasepencil::free_influence_data(&lmd->influence);
+  modifier_free_data<GreasePencilLatticeModifierData>(md);
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -212,7 +211,7 @@ ModifierTypeInfo modifierType_GreasePencilLattice = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

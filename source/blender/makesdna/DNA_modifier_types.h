@@ -171,11 +171,11 @@ struct ModifierData {
   /** #ModifierType. */
   int type = 0;
   /** #ModifierMode. */
-  int mode = 0;
+  int mode = eModifierMode_Realtime | eModifierMode_Render;
   /** Time in seconds that the modifier took to evaluate. This is only set on evaluated objects. */
   float execution_time = 0;
   /** #ModifierFlag. */
-  short flag = 0;
+  short flag = eModifierFlag_OverrideLibrary_Local;
   /** An "expand" bit for each of the modifier's (sub)panels (#uiPanelDataExpansion). */
   short ui_expand_flag = 0;
   /**
@@ -645,7 +645,7 @@ struct FluidModifierData {
   struct FluidFlowSettings *flow = nullptr;
   /** Effector objects (collision, guiding). */
   struct FluidEffectorSettings *effector = nullptr;
-  float time = 0;
+  float time = -1;
   /** #FluidModifierType. Domain, inflow, outflow, .... */
   int type = 0;
   void *_pad1 = nullptr;
@@ -2249,11 +2249,17 @@ struct DataTransferModifierData {
   char _pad1[4] = {};
 
   /** See DT_FROMLAYERS_ enum in ED_object.hh. */
-  int layers_select_src[/*DT_MULTILAYER_INDEX_MAX*/ 5] = {
-      DT_LAYERS_ALL_SRC, DT_LAYERS_ALL_SRC, DT_LAYERS_ALL_SRC, DT_LAYERS_ALL_SRC};
+  int layers_select_src[/*DT_MULTILAYER_INDEX_MAX*/ 5] = {DT_LAYERS_ALL_SRC,
+                                                          DT_LAYERS_ALL_SRC,
+                                                          DT_LAYERS_ALL_SRC,
+                                                          DT_LAYERS_ALL_SRC,
+                                                          DT_LAYERS_ALL_SRC};
   /** See DT_TOLAYERS_ enum in ED_object.hh. */
-  int layers_select_dst[/*DT_MULTILAYER_INDEX_MAX*/ 5] = {
-      DT_LAYERS_NAME_DST, DT_LAYERS_NAME_DST, DT_LAYERS_NAME_DST, DT_LAYERS_NAME_DST};
+  int layers_select_dst[/*DT_MULTILAYER_INDEX_MAX*/ 5] = {DT_LAYERS_NAME_DST,
+                                                          DT_LAYERS_NAME_DST,
+                                                          DT_LAYERS_NAME_DST,
+                                                          DT_LAYERS_NAME_DST,
+                                                          DT_LAYERS_NAME_DST};
 
   /** See CDT_MIX_ enum in BKE_customdata.hh. */
   int mix_mode = CDT_MIX_TRANSFER;
@@ -2333,9 +2339,7 @@ struct MeshSeqCacheModifierData {
   char object_path[/*FILE_MAX*/ 1024] = "";
 
   /** #MeshSeqCacheModifierReadFlag. */
-  char read_flag = MOD_MESHSEQ_READ_VERT | MOD_MESHSEQ_READ_POLY | MOD_MESHSEQ_READ_UV |
-                   MOD_MESHSEQ_READ_COLOR | MOD_MESHSEQ_INTERPOLATE_VERTICES |
-                   MOD_MESHSEQ_READ_ATTRIBUTES;
+  char read_flag = MOD_MESHSEQ_READ_ALL | MOD_MESHSEQ_INTERPOLATE_VERTICES;
   char _pad[3] = {};
 
   float velocity_scale = 1.0f;
@@ -2608,16 +2612,16 @@ struct MeshToVolumeModifierData {
   struct Object *object = nullptr;
 
   /** MeshToVolumeModifierResolutionMode */
-  int resolution_mode = 0;
+  int resolution_mode = MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT;
   /** Size of a voxel in object space. */
-  float voxel_size = 0;
+  float voxel_size = 0.1f;
   /** The desired amount of voxels along one axis. The actual amount of voxels might be slightly
    * different. */
-  int voxel_amount = 0;
+  int voxel_amount = 32;
 
-  float interior_band_width = 0;
+  float interior_band_width = 0.2f;
 
-  float density = 0;
+  float density = 1.00;
   char _pad2[4] = {};
   void *_pad3 = nullptr;
 };
@@ -2635,11 +2639,11 @@ struct VolumeDisplaceModifierData {
   struct Tex *texture = nullptr;
   struct Object *texture_map_object = nullptr;
   /** #VolumeDisplaceModifierTextureMapMode. */
-  int texture_map_mode = 0;
+  int texture_map_mode = MOD_VOLUME_DISPLACE_MAP_LOCAL;
 
-  float strength = 0;
-  float texture_mid_level[3] = {};
-  float texture_sample_radius = 0;
+  float strength = 0.5f;
+  float texture_mid_level[3] = {0.5f, 0.5f, 0.5f};
+  float texture_sample_radius = 1.0f;
 };
 
 /** VolumeToMeshModifierData->resolution_mode */
@@ -2660,18 +2664,18 @@ struct VolumeToMeshModifierData {
   /** This is the volume object that is supposed to be converted to a mesh. */
   struct Object *object = nullptr;
 
-  float threshold = 0;
-  float adaptivity = 0;
+  float threshold = 0.1f;
+  float adaptivity = 0.0f;
 
   /** VolumeToMeshFlag */
   uint32_t flag = 0;
 
   /** VolumeToMeshResolutionMode */
-  int resolution_mode = 0;
-  float voxel_size = 0;
-  int voxel_amount = 0;
+  int resolution_mode = VOLUME_TO_MESH_RESOLUTION_MODE_GRID;
+  float voxel_size = 0.1f;
+  int voxel_amount = 32;
 
-  char grid_name[/*MAX_NAME*/ 64] = "";
+  char grid_name[/*MAX_NAME*/ 64] = "density";
   void *_pad1 = nullptr;
 };
 

@@ -108,11 +108,6 @@ Mesh *doEdgeSplit(const Mesh *mesh, EdgeSplitModifierData *emd)
   return result;
 }
 
-static void init_data(ModifierData *md)
-{
-  EdgeSplitModifierData *emd = reinterpret_cast<EdgeSplitModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(emd, modifier);
-}
 
 static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
 {
@@ -164,7 +159,7 @@ ModifierTypeInfo modifierType_EdgeSplit = {
         eModifierTypeFlag_EnableInEditmode,
     /*icon*/ ICON_MOD_EDGESPLIT,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<EdgeSplitModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -173,9 +168,9 @@ ModifierTypeInfo modifierType_EdgeSplit = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<EdgeSplitModifierData>,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<EdgeSplitModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

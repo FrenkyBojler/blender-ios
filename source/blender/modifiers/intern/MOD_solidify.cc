@@ -31,11 +31,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  SolidifyModifierData *smd = reinterpret_cast<SolidifyModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
-}
 
 #ifdef __GNUC__
 #  pragma GCC diagnostic error "-Wsign-conversion"
@@ -247,7 +242,7 @@ ModifierTypeInfo modifierType_Solidify = {
         eModifierTypeFlag_EnableInEditmode,
     /*icon*/ ICON_MOD_SOLIDIFY,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<SolidifyModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -256,9 +251,9 @@ ModifierTypeInfo modifierType_Solidify = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<SolidifyModifierData>,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<SolidifyModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

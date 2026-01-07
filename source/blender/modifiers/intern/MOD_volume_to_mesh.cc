@@ -40,18 +40,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  VolumeToMeshModifierData *vmmd = reinterpret_cast<VolumeToMeshModifierData *>(md);
-  vmmd->object = nullptr;
-  vmmd->threshold = 0.1f;
-  STRNCPY(vmmd->grid_name, "density");
-  vmmd->adaptivity = 0.0f;
-  vmmd->resolution_mode = VOLUME_TO_MESH_RESOLUTION_MODE_GRID;
-  vmmd->voxel_amount = 32;
-  vmmd->voxel_size = 0.1f;
-  vmmd->flag = 0;
-}
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
@@ -198,7 +186,7 @@ ModifierTypeInfo modifierType_VolumeToMesh = {
     /*flags*/ eModifierTypeFlag_AcceptsMesh,
     /*icon*/ ICON_VOLUME_DATA, /* TODO: Use correct icon. */
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<VolumeToMeshModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -207,9 +195,9 @@ ModifierTypeInfo modifierType_VolumeToMesh = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<VolumeToMeshModifierData>,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<VolumeToMeshModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

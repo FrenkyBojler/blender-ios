@@ -36,16 +36,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  MeshToVolumeModifierData *mvmd = reinterpret_cast<MeshToVolumeModifierData *>(md);
-  mvmd->object = nullptr;
-  mvmd->resolution_mode = MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT;
-  mvmd->voxel_size = 0.1f;
-  mvmd->voxel_amount = 32;
-  mvmd->interior_band_width = 0.2f;
-  mvmd->density = 1.0f;
-}
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
@@ -194,7 +184,7 @@ ModifierTypeInfo modifierType_MeshToVolume = {
     /*flags*/ static_cast<ModifierTypeFlag>(0),
     /*icon*/ ICON_VOLUME_DATA, /* TODO: Use correct icon. */
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<MeshToVolumeModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -203,9 +193,9 @@ ModifierTypeInfo modifierType_MeshToVolume = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<MeshToVolumeModifierData>,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<MeshToVolumeModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

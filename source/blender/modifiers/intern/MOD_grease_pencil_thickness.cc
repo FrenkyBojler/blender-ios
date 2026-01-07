@@ -33,11 +33,11 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  GreasePencilThickModifierData *gpmd = reinterpret_cast<GreasePencilThickModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
+  auto *gpmd = MEM_new<GreasePencilThickModifierData>("GreasePencilThickModifierData");
   modifier::greasepencil::init_influence_data(&gpmd->influence, true);
+  return &gpmd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -46,7 +46,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
       reinterpret_cast<const GreasePencilThickModifierData *>(md);
   GreasePencilThickModifierData *tgmd = reinterpret_cast<GreasePencilThickModifierData *>(target);
 
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<GreasePencilThickModifierData>(md, target, flag);
   modifier::greasepencil::copy_influence_data(&gmd->influence, &tgmd->influence, flag);
 }
 
@@ -55,6 +55,7 @@ static void free_data(ModifierData *md)
   GreasePencilThickModifierData *mmd = reinterpret_cast<GreasePencilThickModifierData *>(md);
 
   modifier::greasepencil::free_influence_data(&mmd->influence);
+  modifier_free_data<GreasePencilThickModifierData>(md);
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -230,7 +231,7 @@ ModifierTypeInfo modifierType_GreasePencilThickness = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

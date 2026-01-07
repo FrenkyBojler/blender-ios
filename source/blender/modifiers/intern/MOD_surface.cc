@@ -36,17 +36,12 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  SurfaceModifierData *surmd = reinterpret_cast<SurfaceModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(surmd, modifier);
-}
 
 static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const int flag)
 {
   SurfaceModifierData *surmd_dst = reinterpret_cast<SurfaceModifierData *>(md_dst);
 
-  BKE_modifier_copydata_generic(md_src, md_dst, flag);
+  modifier_copy_data<SurfaceModifierData>(md_src, md_dst, flag);
 
   surmd_dst->runtime = SurfaceModifierData_Runtime{};
 }
@@ -67,6 +62,7 @@ static void free_data(ModifierData *md)
 
     MEM_SAFE_DELETE(surmd->runtime.vert_velocities);
   }
+  modifier_free_data<SurfaceModifierData>(md);
 }
 
 static bool depends_on_time(Scene * /*scene*/, ModifierData * /*md*/)
@@ -198,7 +194,7 @@ ModifierTypeInfo modifierType_Surface = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<SurfaceModifierData>,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

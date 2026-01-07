@@ -118,11 +118,6 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, 
   return *result;
 }
 
-static void init_data(ModifierData *md)
-{
-  WeldModifierData *wmd = reinterpret_cast<WeldModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
-}
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
@@ -172,7 +167,7 @@ ModifierTypeInfo modifierType_Weld = {
      eModifierTypeFlag_AcceptsCVs),
     /*icon*/ ICON_AUTOMERGE_OFF, /* TODO: Use correct icon. */
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<WeldModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -181,9 +176,9 @@ ModifierTypeInfo modifierType_Weld = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<WeldModifierData>,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<WeldModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

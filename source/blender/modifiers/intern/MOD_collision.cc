@@ -36,35 +36,54 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
-  CollisionModifierData *collmd = reinterpret_cast<CollisionModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(collmd, modifier);
+  modifier_copy_data<CollisionModifierData>(md, target, flag);
+
+  CollisionModifierData *collmd = reinterpret_cast<CollisionModifierData *>(target);
+
+  /* Everything is runtime data and needs to be cleared. */
+  collmd->bvhtree = nullptr;
+  collmd->x = nullptr;
+  collmd->xnew = nullptr;
+  collmd->current_x = nullptr;
+  collmd->current_xnew = nullptr;
+  collmd->current_v = nullptr;
+  collmd->vert_tris = nullptr;
+  collmd->time_x = collmd->time_xnew = -1000;
+  collmd->mvert_num = 0;
+  collmd->tri_num = 0;
+  collmd->is_static = false;
+}
+
+/* Free runtime data and reset to initial state. Safe to call while the modifier is still in use,
+ * unlike #free_data which also destroys the modifier. */
+static void free_runtime_data(CollisionModifierData *collmd)
+{
+  if (collmd->bvhtree) {
+    BLI_bvhtree_free(collmd->bvhtree);
+    collmd->bvhtree = nullptr;
+  }
+
+  MEM_SAFE_DELETE(collmd->x);
+  MEM_SAFE_DELETE(collmd->xnew);
+  MEM_SAFE_DELETE(collmd->current_x);
+  MEM_SAFE_DELETE(collmd->current_xnew);
+  MEM_SAFE_DELETE(collmd->current_v);
+
+  MEM_SAFE_DELETE(collmd->vert_tris);
+
+  collmd->time_x = collmd->time_xnew = -1000;
+  collmd->mvert_num = 0;
+  collmd->tri_num = 0;
+  collmd->is_static = false;
 }
 
 static void free_data(ModifierData *md)
 {
   CollisionModifierData *collmd = reinterpret_cast<CollisionModifierData *>(md);
-
-  if (collmd) { /* Seriously? */
-    if (collmd->bvhtree) {
-      BLI_bvhtree_free(collmd->bvhtree);
-      collmd->bvhtree = nullptr;
-    }
-
-    MEM_SAFE_DELETE(collmd->x);
-    MEM_SAFE_DELETE(collmd->xnew);
-    MEM_SAFE_DELETE(collmd->current_x);
-    MEM_SAFE_DELETE(collmd->current_xnew);
-    MEM_SAFE_DELETE(collmd->current_v);
-
-    MEM_SAFE_DELETE(collmd->vert_tris);
-
-    collmd->time_x = collmd->time_xnew = -1000;
-    collmd->mvert_num = 0;
-    collmd->tri_num = 0;
-    collmd->is_static = false;
-  }
+  free_runtime_data(collmd);
+  modifier_free_data<CollisionModifierData>(md);
 }
 
 static bool depends_on_time(Scene * /*scene*/, ModifierData * /*md*/)
@@ -86,7 +105,7 @@ static void deform_verts(ModifierData *md,
       printf("CollisionModifier: collision settings are missing!\n");
     }
 
-    free_data(md);
+    free_runtime_data(collmd);
     return;
   }
 
@@ -106,17 +125,17 @@ static void deform_verts(ModifierData *md,
     mvert_num = mesh->verts_num;
 
     if (current_time < collmd->time_xnew) {
-      free_data(reinterpret_cast<ModifierData *>(collmd));
+      free_runtime_data(collmd);
     }
     else if (current_time == collmd->time_xnew) {
       if (mvert_num != collmd->mvert_num) {
-        free_data(reinterpret_cast<ModifierData *>(collmd));
+        free_runtime_data(collmd);
       }
     }
 
     /* check if mesh has changed */
     if (collmd->x && (mvert_num != collmd->mvert_num)) {
-      free_data(reinterpret_cast<ModifierData *>(collmd));
+      free_runtime_data(collmd);
     }
 
     if (collmd->time_xnew == -1000) { /* first time */
@@ -214,7 +233,7 @@ static void deform_verts(ModifierData *md,
       collmd->time_xnew = current_time;
     }
     else if (mvert_num != collmd->mvert_num) {
-      free_data(reinterpret_cast<ModifierData *>(collmd));
+      free_runtime_data(collmd);
     }
   }
 }
@@ -278,7 +297,7 @@ ModifierTypeInfo modifierType_Collision = {
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_Single,
     /*icon*/ ICON_MOD_PHYSICS,
 
-    /*copy_data*/ nullptr,
+    /*copy_data*/ copy_data,
 
     /*deform_verts*/ deform_verts,
     /*deform_matrices*/ nullptr,
@@ -287,7 +306,7 @@ ModifierTypeInfo modifierType_Collision = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<CollisionModifierData>,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

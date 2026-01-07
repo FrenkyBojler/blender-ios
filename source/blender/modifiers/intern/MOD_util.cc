@@ -203,7 +203,12 @@ void MOD_depsgraph_update_object_bone_relation(DepsNodeHandle *node,
 
 void modifier_type_init(ModifierTypeInfo *types[])
 {
-#define INIT_TYPE(typeName) (types[eModifierType_##typeName] = &modifierType_##typeName)
+#define INIT_TYPE(typeName) \
+  do { \
+    types[eModifierType_##typeName] = &modifierType_##typeName; \
+    BLI_assert(modifierType_##typeName.copy_data != nullptr); \
+    BLI_assert(modifierType_##typeName.free_data != nullptr); \
+  } while (false)
   INIT_TYPE(None);
   INIT_TYPE(Curve);
   INIT_TYPE(Lattice);

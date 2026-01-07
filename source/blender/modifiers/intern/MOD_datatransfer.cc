@@ -41,32 +41,11 @@ namespace blender {
 /**************************************
  * Modifiers functions.               *
  **************************************/
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  DataTransferModifierData *dtmd = reinterpret_cast<DataTransferModifierData *>(md);
-  int i;
-
-  dtmd->ob_source = nullptr;
-  dtmd->data_types = 0;
-
-  dtmd->vmap_mode = MREMAP_MODE_VERT_NEAREST;
-  dtmd->emap_mode = MREMAP_MODE_EDGE_NEAREST;
-  dtmd->lmap_mode = MREMAP_MODE_LOOP_NEAREST_POLYNOR;
-  dtmd->pmap_mode = MREMAP_MODE_POLY_NEAREST;
-
-  dtmd->map_max_distance = 1.0f;
-  dtmd->map_ray_radius = 0.0f;
-
-  for (i = 0; i < DT_MULTILAYER_INDEX_MAX; i++) {
-    dtmd->layers_select_src[i] = DT_LAYERS_ALL_SRC;
-    dtmd->layers_select_dst[i] = DT_LAYERS_NAME_DST;
-  }
-
-  dtmd->mix_mode = CDT_MIX_TRANSFER;
+  auto *dtmd = MEM_new<DataTransferModifierData>("DataTransferModifierData");
   dtmd->mix_factor = 1.0f;
-  dtmd->defgrp_name[0] = '\0';
-
-  dtmd->flags = MOD_DATATRANSFER_OBSRC_TRANSFORM;
+  return &dtmd->modifier;
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -462,7 +441,7 @@ ModifierTypeInfo modifierType_DataTransfer = {
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_DATA_TRANSFER,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<DataTransferModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -471,9 +450,9 @@ ModifierTypeInfo modifierType_DataTransfer = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<DataTransferModifierData>,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

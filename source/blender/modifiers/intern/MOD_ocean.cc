@@ -65,21 +65,20 @@ static void simulate_ocean_modifier(OceanModifierData *omd)
 
 /* Modifier Code */
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-#ifdef WITH_OCEANSIM
-  OceanModifierData *omd = (OceanModifierData *)md;
-  INIT_DEFAULT_STRUCT_AFTER(omd, modifier);
+  auto *omd = MEM_new<OceanModifierData>("OceanModifierData");
 
+#ifdef WITH_OCEANSIM
   BKE_modifier_path_init(omd->cachepath, sizeof(omd->cachepath), "cache_ocean");
 
   omd->ocean = BKE_ocean_add();
   if (BKE_ocean_init_from_modifier(omd->ocean, omd, omd->viewport_resolution)) {
     simulate_ocean_modifier(omd);
   }
-#else  /* WITH_OCEANSIM */
-  UNUSED_VARS(md);
 #endif /* WITH_OCEANSIM */
+
+  return &omd->modifier;
 }
 
 static void free_data(ModifierData *md)
@@ -95,6 +94,7 @@ static void free_data(ModifierData *md)
   /* unused */
   (void)md;
 #endif /* WITH_OCEANSIM */
+  modifier_free_data<OceanModifierData>(md);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -105,7 +105,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 #  endif
   OceanModifierData *tomd = (OceanModifierData *)target;
 
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<OceanModifierData>(md, target, flag);
 
   /* The oceancache object will be recreated for this copy
    * automatically when cached=true */
@@ -693,7 +693,7 @@ ModifierTypeInfo modifierType_Ocean = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

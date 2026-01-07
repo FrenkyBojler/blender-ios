@@ -48,16 +48,12 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  ExplodeModifierData *emd = reinterpret_cast<ExplodeModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(emd, modifier);
-}
 static void free_data(ModifierData *md)
 {
   ExplodeModifierData *emd = reinterpret_cast<ExplodeModifierData *>(md);
 
   MEM_SAFE_DELETE(emd->facepa);
+  modifier_free_data<ExplodeModifierData>(md);
 }
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
@@ -66,7 +62,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
 #endif
   ExplodeModifierData *temd = reinterpret_cast<ExplodeModifierData *>(target);
 
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<ExplodeModifierData>(md, target, flag);
 
   temd->facepa = nullptr;
 }
@@ -1224,7 +1220,7 @@ ModifierTypeInfo modifierType_Explode = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<ExplodeModifierData>,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

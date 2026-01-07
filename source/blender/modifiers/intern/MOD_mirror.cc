@@ -34,11 +34,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  MirrorModifierData *mmd = reinterpret_cast<MirrorModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(mmd, modifier);
-}
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
 {
@@ -234,7 +229,7 @@ ModifierTypeInfo modifierType_Mirror = {
         eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_MIRROR,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<MirrorModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -243,9 +238,9 @@ ModifierTypeInfo modifierType_Mirror = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<MirrorModifierData>,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<MirrorModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

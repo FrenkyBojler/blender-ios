@@ -56,11 +56,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  BooleanModifierData *bmd = reinterpret_cast<BooleanModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(bmd, modifier);
-}
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
@@ -696,7 +691,7 @@ ModifierTypeInfo modifierType_Boolean = {
     (eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode),
     /*icon*/ ICON_MOD_BOOLEAN,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<BooleanModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -705,9 +700,9 @@ ModifierTypeInfo modifierType_Boolean = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<BooleanModifierData>,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<BooleanModifierData>,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

@@ -49,7 +49,6 @@ static void init_data(ModifierData *md)
 {
   ClothModifierData *clmd = reinterpret_cast<ClothModifierData *>(md);
 
-  INIT_DEFAULT_STRUCT_AFTER(clmd, modifier);
   clmd->sim_parms = MEM_new<ClothSimSettings>(__func__);
   clmd->coll_parms = MEM_new<ClothCollSettings>(__func__);
 
@@ -67,6 +66,13 @@ static void init_data(ModifierData *md)
   if (clmd->point_cache) {
     clmd->point_cache->step = 1;
   }
+}
+
+static ModifierData *new_data()
+{
+  auto *clmd = MEM_new<ClothModifierData>("ClothModifierData");
+  init_data(&clmd->modifier);
+  return &clmd->modifier;
 }
 
 static void deform_verts(ModifierData *md,
@@ -154,18 +160,8 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   const ClothModifierData *clmd = reinterpret_cast<const ClothModifierData *>(md);
   ClothModifierData *tclmd = reinterpret_cast<ClothModifierData *>(target);
 
-  if (tclmd->sim_parms) {
-    if (tclmd->sim_parms->effector_weights) {
-      MEM_delete(tclmd->sim_parms->effector_weights);
-    }
-    MEM_delete(tclmd->sim_parms);
-  }
+  modifier_copy_data<ClothModifierData>(md, target, flag);
 
-  if (tclmd->coll_parms) {
-    MEM_delete(tclmd->coll_parms);
-  }
-
-  BKE_ptcache_free_list(&tclmd->ptcaches);
   if (flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) {
     /* Share the cache with the original object's modifier. */
     tclmd->modifier.flag |= eModifierFlag_SharedCaches;
@@ -174,6 +170,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   }
   else {
     const int clmd_point_cache_index = BLI_findindex(&clmd->ptcaches, clmd->point_cache);
+    BLI_listbase_clear(&tclmd->ptcaches);
     BKE_ptcache_copy_list(&tclmd->ptcaches, &clmd->ptcaches, flag);
     tclmd->point_cache = static_cast<PointCache *>(
         BLI_findlink(&tclmd->ptcaches, clmd_point_cache_index));
@@ -232,6 +229,7 @@ static void free_data(ModifierData *md)
       MEM_delete(clmd->solver_result);
     }
   }
+  modifier_free_data<ClothModifierData>(md);
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -286,7 +284,7 @@ ModifierTypeInfo modifierType_Cloth = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

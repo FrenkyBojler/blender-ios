@@ -44,20 +44,20 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  WarpModifierData *wmd = reinterpret_cast<WarpModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
+  auto *wmd = MEM_new<WarpModifierData>("WarpModifierData");
 
   wmd->curfalloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+  return &wmd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
+  modifier_copy_data<WarpModifierData>(md, target, flag);
+
   const WarpModifierData *wmd = reinterpret_cast<const WarpModifierData *>(md);
   WarpModifierData *twmd = reinterpret_cast<WarpModifierData *>(target);
-
-  BKE_modifier_copydata_generic(md, target, flag);
 
   twmd->curfalloff = BKE_curvemapping_copy(wmd->curfalloff);
 }
@@ -108,6 +108,7 @@ static void free_data(ModifierData *md)
 {
   WarpModifierData *wmd = reinterpret_cast<WarpModifierData *>(md);
   BKE_curvemapping_free(wmd->curfalloff);
+  modifier_free_data<WarpModifierData>(md);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -480,7 +481,7 @@ ModifierTypeInfo modifierType_Warp = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

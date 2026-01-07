@@ -44,20 +44,21 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  BevelModifierData *bmd = reinterpret_cast<BevelModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(bmd, modifier);
+  auto *bmd = MEM_new<BevelModifierData>("BevelModifierData");
 
   bmd->custom_profile = BKE_curveprofile_add(PROF_PRESET_LINE);
+  return &bmd->modifier;
 }
 
 static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const int flag)
 {
+  modifier_copy_data<BevelModifierData>(md_src, md_dst, flag);
+
   const BevelModifierData *bmd_src = reinterpret_cast<const BevelModifierData *>(md_src);
   BevelModifierData *bmd_dst = reinterpret_cast<BevelModifierData *>(md_dst);
 
-  BKE_modifier_copydata_generic(md_src, md_dst, flag);
   bmd_dst->custom_profile = BKE_curveprofile_copy(bmd_src->custom_profile);
 }
 
@@ -270,6 +271,7 @@ static void free_data(ModifierData *md)
 {
   BevelModifierData *bmd = reinterpret_cast<BevelModifierData *>(md);
   BKE_curveprofile_free(bmd->custom_profile);
+  modifier_free_data<BevelModifierData>(md);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -461,7 +463,7 @@ ModifierTypeInfo modifierType_Bevel = {
     /*deform_matrices_EM*/ nullptr,
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

@@ -38,11 +38,12 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  auto *gpmd = reinterpret_cast<GreasePencilWeightProximityModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
+  auto *gpmd = MEM_new<GreasePencilWeightProximityModifierData>(
+      "GreasePencilWeightProximityModifierData");
   modifier::greasepencil::init_influence_data(&gpmd->influence, false);
+  return &gpmd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -50,7 +51,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   const auto *gmd = reinterpret_cast<const GreasePencilWeightProximityModifierData *>(md);
   auto *tgmd = reinterpret_cast<GreasePencilWeightProximityModifierData *>(target);
 
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<GreasePencilWeightProximityModifierData>(md, target, flag);
   modifier::greasepencil::copy_influence_data(&gmd->influence, &tgmd->influence, flag);
 }
 
@@ -59,6 +60,7 @@ static void free_data(ModifierData *md)
   auto *mmd = reinterpret_cast<GreasePencilWeightProximityModifierData *>(md);
 
   modifier::greasepencil::free_influence_data(&mmd->influence);
+  modifier_free_data<GreasePencilWeightProximityModifierData>(md);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -301,7 +303,7 @@ ModifierTypeInfo modifierType_GreasePencilWeightProximity = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

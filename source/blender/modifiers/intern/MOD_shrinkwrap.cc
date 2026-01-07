@@ -32,11 +32,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  ShrinkwrapModifierData *smd = reinterpret_cast<ShrinkwrapModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
-}
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
@@ -189,7 +184,7 @@ ModifierTypeInfo modifierType_Shrinkwrap = {
         eModifierTypeFlag_EnableInEditmode,
     /*icon*/ ICON_MOD_SHRINKWRAP,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<ShrinkwrapModifierData>,
 
     /*deform_verts*/ deform_verts,
     /*deform_matrices*/ nullptr,
@@ -198,9 +193,9 @@ ModifierTypeInfo modifierType_Shrinkwrap = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<ShrinkwrapModifierData>,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<ShrinkwrapModifierData>,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

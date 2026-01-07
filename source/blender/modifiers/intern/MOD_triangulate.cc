@@ -78,13 +78,14 @@ static Mesh *triangulate_mesh(Mesh *mesh,
   return result;
 }
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  TriangulateModifierData *tmd = reinterpret_cast<TriangulateModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(tmd, modifier);
+  auto *tmd = MEM_new<TriangulateModifierData>("TriangulateModifierData");
 
   /* Enable in editmode by default */
-  md->mode |= eModifierMode_Editmode;
+  tmd->modifier.mode |= eModifierMode_Editmode;
+
+  return &tmd->modifier;
 }
 
 static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext * /*ctx*/, Mesh *mesh)
@@ -129,7 +130,7 @@ ModifierTypeInfo modifierType_Triangulate = {
         eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_TRIANGULATE,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<TriangulateModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -138,9 +139,9 @@ ModifierTypeInfo modifierType_Triangulate = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,  // required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<TriangulateModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

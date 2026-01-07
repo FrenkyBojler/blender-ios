@@ -724,11 +724,6 @@ static void LaplacianDeformModifier_do(
   }
 }
 
-static void init_data(ModifierData *md)
-{
-  LaplacianDeformModifierData *lmd = reinterpret_cast<LaplacianDeformModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(lmd, modifier);
-}
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
@@ -736,7 +731,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
       md);
   LaplacianDeformModifierData *tlmd = reinterpret_cast<LaplacianDeformModifierData *>(target);
 
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<LaplacianDeformModifierData>(md, target, flag);
 
   implicit_sharing::copy_shared_pointer(
       lmd->vertexco, lmd->vertexco_sharing_info, &tlmd->vertexco, &tlmd->vertexco_sharing_info);
@@ -782,6 +777,7 @@ static void free_data(ModifierData *md)
   }
   implicit_sharing::free_shared_data(&lmd->vertexco, &lmd->vertexco_sharing_info);
   lmd->verts_num = 0;
+  modifier_free_data<LaplacianDeformModifierData>(md);
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
@@ -872,7 +868,7 @@ ModifierTypeInfo modifierType_LaplacianDeform = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<LaplacianDeformModifierData>,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

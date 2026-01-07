@@ -34,11 +34,11 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  GreasePencilSmoothModifierData *gpmd = reinterpret_cast<GreasePencilSmoothModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
+  auto *gpmd = MEM_new<GreasePencilSmoothModifierData>("GreasePencilSmoothModifierData");
   modifier::greasepencil::init_influence_data(&gpmd->influence, false);
+  return &gpmd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -48,7 +48,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   GreasePencilSmoothModifierData *tgmd = reinterpret_cast<GreasePencilSmoothModifierData *>(
       target);
 
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<GreasePencilSmoothModifierData>(md, target, flag);
   modifier::greasepencil::copy_influence_data(&gmd->influence, &tgmd->influence, flag);
 }
 
@@ -57,6 +57,7 @@ static void free_data(ModifierData *md)
   GreasePencilSmoothModifierData *mmd = reinterpret_cast<GreasePencilSmoothModifierData *>(md);
 
   modifier::greasepencil::free_influence_data(&mmd->influence);
+  modifier_free_data<GreasePencilSmoothModifierData>(md);
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -286,7 +287,7 @@ ModifierTypeInfo modifierType_GreasePencilSmooth = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

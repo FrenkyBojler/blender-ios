@@ -51,11 +51,6 @@ static void uv_warp_from_mat4_pair(float uv_dst[2],
   copy_v2_v2(uv_dst, tuv);
 }
 
-static void init_data(ModifierData *md)
-{
-  UVWarpModifierData *umd = reinterpret_cast<UVWarpModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(umd, modifier);
-}
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
@@ -313,7 +308,7 @@ ModifierTypeInfo modifierType_UVWarp = {
         eModifierTypeFlag_EnableInEditmode,
     /*icon*/ ICON_MOD_UVPROJECT, /* TODO: Use correct icon. */
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<UVWarpModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -322,9 +317,9 @@ ModifierTypeInfo modifierType_UVWarp = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<UVWarpModifierData>,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<UVWarpModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

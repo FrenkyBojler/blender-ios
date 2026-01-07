@@ -43,11 +43,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  RemeshModifierData *rmd = reinterpret_cast<RemeshModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(rmd, modifier);
-}
 
 #ifdef WITH_MOD_REMESH
 
@@ -271,7 +266,7 @@ ModifierTypeInfo modifierType_Remesh = {
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_REMESH,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<RemeshModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -280,9 +275,9 @@ ModifierTypeInfo modifierType_Remesh = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<RemeshModifierData>,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<RemeshModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

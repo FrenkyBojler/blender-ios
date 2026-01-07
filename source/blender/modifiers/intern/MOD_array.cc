@@ -51,14 +51,15 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  ArrayModifierData *amd = reinterpret_cast<ArrayModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(amd, modifier);
+  auto *amd = MEM_new<ArrayModifierData>("ArrayModifierData");
 
   /* Open the first sub-panel by default,
    * it corresponds to Relative offset which is enabled too. */
-  md->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT | UI_SUBPANEL_DATA_EXPAND_1;
+  amd->modifier.ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT | UI_SUBPANEL_DATA_EXPAND_1;
+
+  return &amd->modifier;
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -1074,7 +1075,7 @@ ModifierTypeInfo modifierType_Array = {
         eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_ARRAY,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<ArrayModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -1083,9 +1084,9 @@ ModifierTypeInfo modifierType_Array = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<ArrayModifierData>,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

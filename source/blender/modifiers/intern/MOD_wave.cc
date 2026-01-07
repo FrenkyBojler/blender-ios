@@ -42,11 +42,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  WaveModifierData *wmd = reinterpret_cast<WaveModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
-}
 
 static bool depends_on_time(Scene * /*scene*/, ModifierData * /*md*/)
 {
@@ -412,7 +407,7 @@ ModifierTypeInfo modifierType_Wave = {
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_WAVE,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<WaveModifierData>,
 
     /*deform_verts*/ deform_verts,
     /*deform_matrices*/ nullptr,
@@ -421,9 +416,9 @@ ModifierTypeInfo modifierType_Wave = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<WaveModifierData>,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<WaveModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ depends_on_time,

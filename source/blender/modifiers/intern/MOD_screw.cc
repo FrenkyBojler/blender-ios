@@ -51,11 +51,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  ScrewModifierData *ltmd = reinterpret_cast<ScrewModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(ltmd, modifier);
-}
 
 /** Used for gathering edge connectivity. */
 struct ScrewVertConnect {
@@ -1124,7 +1119,7 @@ ModifierTypeInfo modifierType_Screw = {
         eModifierTypeFlag_SupportsEditmode | eModifierTypeFlag_EnableInEditmode,
     /*icon*/ ICON_MOD_SCREW,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<ScrewModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -1133,9 +1128,9 @@ ModifierTypeInfo modifierType_Screw = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<ScrewModifierData>,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<ScrewModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

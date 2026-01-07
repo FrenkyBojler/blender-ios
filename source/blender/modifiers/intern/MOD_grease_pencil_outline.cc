@@ -51,11 +51,11 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  auto *omd = reinterpret_cast<GreasePencilOutlineModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(omd, modifier);
+  auto *omd = MEM_new<GreasePencilOutlineModifierData>("GreasePencilOutlineModifierData");
   modifier::greasepencil::init_influence_data(&omd->influence, false);
+  return &omd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -63,9 +63,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   const auto *omd = reinterpret_cast<const GreasePencilOutlineModifierData *>(md);
   auto *tmmd = reinterpret_cast<GreasePencilOutlineModifierData *>(target);
 
-  modifier::greasepencil::free_influence_data(&tmmd->influence);
-
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<GreasePencilOutlineModifierData>(md, target, flag);
   modifier::greasepencil::copy_influence_data(&omd->influence, &tmmd->influence, flag);
 }
 
@@ -73,6 +71,7 @@ static void free_data(ModifierData *md)
 {
   auto *omd = reinterpret_cast<GreasePencilOutlineModifierData *>(md);
   modifier::greasepencil::free_influence_data(&omd->influence);
+  modifier_free_data<GreasePencilOutlineModifierData>(md);
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -334,7 +333,7 @@ ModifierTypeInfo modifierType_GreasePencilOutline = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

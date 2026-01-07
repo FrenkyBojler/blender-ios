@@ -4837,6 +4837,10 @@ void BKE_fluid_modifier_copy(const FluidModifierData *fmd, FluidModifierData *tf
   tfmd->type = fmd->type;
   tfmd->time = fmd->time;
 
+  tfmd->domain = nullptr;
+  tfmd->flow = nullptr;
+  tfmd->effector = nullptr;
+
   BKE_fluid_modifier_create_type_data(tfmd);
 
   if (tfmd->domain) {

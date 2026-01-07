@@ -42,11 +42,11 @@ namespace blender {
 
 using bke::greasepencil::Drawing;
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  auto *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(amd, modifier);
+  auto *amd = MEM_new<GreasePencilArmatureModifierData>("GreasePencilArmatureModifierData");
   modifier::greasepencil::init_influence_data(&amd->influence, false);
+  return &amd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -54,9 +54,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   const auto *amd = reinterpret_cast<const GreasePencilArmatureModifierData *>(md);
   auto *tamd = reinterpret_cast<GreasePencilArmatureModifierData *>(target);
 
-  modifier::greasepencil::free_influence_data(&tamd->influence);
-
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<GreasePencilArmatureModifierData>(md, target, flag);
   modifier::greasepencil::copy_influence_data(&amd->influence, &tamd->influence, flag);
 }
 
@@ -64,6 +62,7 @@ static void free_data(ModifierData *md)
 {
   auto *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(md);
   modifier::greasepencil::free_influence_data(&amd->influence);
+  modifier_free_data<GreasePencilArmatureModifierData>(md);
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -326,7 +325,7 @@ ModifierTypeInfo modifierType_GreasePencilArmature = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

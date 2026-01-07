@@ -300,19 +300,21 @@ static void do_map(Object *ob,
 /**************************************
  * Modifiers functions.               *
  **************************************/
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  WeightVGProximityModifierData *wmd = reinterpret_cast<WeightVGProximityModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
+  auto *wmd = MEM_new<WeightVGProximityModifierData>("WeightVGProximityModifierData");
 
   wmd->cmap_curve = BKE_curvemapping_add(1, 0.0, 0.0, 1.0, 1.0);
   BKE_curvemapping_init(wmd->cmap_curve);
+
+  return &wmd->modifier;
 }
 
 static void free_data(ModifierData *md)
 {
   WeightVGProximityModifierData *wmd = reinterpret_cast<WeightVGProximityModifierData *>(md);
   BKE_curvemapping_free(wmd->cmap_curve);
+  modifier_free_data<WeightVGProximityModifierData>(md);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -321,7 +323,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
       reinterpret_cast<const WeightVGProximityModifierData *>(md);
   WeightVGProximityModifierData *twmd = reinterpret_cast<WeightVGProximityModifierData *>(target);
 
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<WeightVGProximityModifierData>(md, target, flag);
 
   twmd->cmap_curve = BKE_curvemapping_copy(wmd->cmap_curve);
 }
@@ -737,7 +739,7 @@ ModifierTypeInfo modifierType_WeightVGProximity = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

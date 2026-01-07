@@ -466,11 +466,6 @@ static void laplaciansmoothModifier_do(
   delete_laplacian_system(sys);
 }
 
-static void init_data(ModifierData *md)
-{
-  LaplacianSmoothModifierData *smd = reinterpret_cast<LaplacianSmoothModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
-}
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
@@ -556,7 +551,7 @@ ModifierTypeInfo modifierType_LaplacianSmooth = {
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_SMOOTH,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<LaplacianSmoothModifierData>,
 
     /*deform_verts*/ deform_verts,
     /*deform_matrices*/ nullptr,
@@ -565,9 +560,9 @@ ModifierTypeInfo modifierType_LaplacianSmooth = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<LaplacianSmoothModifierData>,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<LaplacianSmoothModifierData>,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

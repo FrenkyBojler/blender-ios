@@ -49,10 +49,9 @@ namespace blender {
 
 using bke::greasepencil::Drawing;
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  auto *tmd = reinterpret_cast<GreasePencilTintModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(tmd, modifier);
+  auto *tmd = MEM_new<GreasePencilTintModifierData>("GreasePencilTintModifierData");
   modifier::greasepencil::init_influence_data(&tmd->influence, true);
 
   /* Add default color ramp. */
@@ -68,6 +67,8 @@ static void init_data(ModifierData *md)
 
     tmd->color_ramp->tot = 2;
   }
+
+  return &tmd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -75,10 +76,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   const auto *tmd = reinterpret_cast<const GreasePencilTintModifierData *>(md);
   auto *ttmd = reinterpret_cast<GreasePencilTintModifierData *>(target);
 
-  modifier::greasepencil::free_influence_data(&ttmd->influence);
-  MEM_SAFE_DELETE(ttmd->color_ramp);
-
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<GreasePencilTintModifierData>(md, target, flag);
   modifier::greasepencil::copy_influence_data(&tmd->influence, &ttmd->influence, flag);
 
   if (tmd->color_ramp) {
@@ -92,6 +90,7 @@ static void free_data(ModifierData *md)
   modifier::greasepencil::free_influence_data(&tmd->influence);
 
   MEM_SAFE_DELETE(tmd->color_ramp);
+  modifier_free_data<GreasePencilTintModifierData>(md);
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -521,7 +520,7 @@ ModifierTypeInfo modifierType_GreasePencilTint = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

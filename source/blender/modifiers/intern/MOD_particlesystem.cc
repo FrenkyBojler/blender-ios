@@ -37,11 +37,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(psmd, modifier);
-}
 static void free_data(ModifierData *md)
 {
   ParticleSystemModifierData *psmd = reinterpret_cast<ParticleSystemModifierData *>(md);
@@ -61,16 +56,15 @@ static void free_data(ModifierData *md)
   if (psmd->psys) {
     psmd->psys->flag |= PSYS_DELETE;
   }
+
+  modifier_free_data<ParticleSystemModifierData>(md);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
-#if 0
-  const ParticleSystemModifierData *psmd = (const ParticleSystemModifierData *)md;
-#endif
-  ParticleSystemModifierData *tpsmd = reinterpret_cast<ParticleSystemModifierData *>(target);
+  modifier_copy_data<ParticleSystemModifierData>(md, target, flag);
 
-  BKE_modifier_copydata_generic(md, target, flag);
+  ParticleSystemModifierData *tpsmd = reinterpret_cast<ParticleSystemModifierData *>(target);
 
   /* NOTE: `psys` pointer here is just copied over from `md` to `target`. This is dangerous, as it
    * will generate invalid data in case we are copying between different objects. Extra external
@@ -276,7 +270,7 @@ ModifierTypeInfo modifierType_ParticleSystem = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<ParticleSystemModifierData>,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

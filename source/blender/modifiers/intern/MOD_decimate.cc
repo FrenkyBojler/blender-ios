@@ -46,11 +46,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  DecimateModifierData *dmd = reinterpret_cast<DecimateModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(dmd, modifier);
-}
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
@@ -281,7 +276,7 @@ ModifierTypeInfo modifierType_Decimate = {
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_DECIM,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<DecimateModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -290,9 +285,9 @@ ModifierTypeInfo modifierType_Decimate = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<DecimateModifierData>,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<DecimateModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

@@ -31,11 +31,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  SmoothModifierData *smd = reinterpret_cast<SmoothModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
-}
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
 {
@@ -213,7 +208,7 @@ ModifierTypeInfo modifierType_Smooth = {
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_SMOOTH,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<SmoothModifierData>,
 
     /*deform_verts*/ deform_verts,
     /*deform_matrices*/ nullptr,
@@ -222,9 +217,9 @@ ModifierTypeInfo modifierType_Smooth = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<SmoothModifierData>,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<SmoothModifierData>,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

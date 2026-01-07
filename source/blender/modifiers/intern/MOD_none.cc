@@ -6,6 +6,8 @@
  * \ingroup modifiers
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "MOD_modifiertypes.hh"
 
 #include "UI_resources.hh"
@@ -17,6 +19,11 @@ namespace blender {
 /* We only need to define is_disabled; because it always returns 1,
  * no other functions will be called
  */
+
+static ModifierData *new_data()
+{
+  return MEM_new<ModifierData>("ModifierData");
+}
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData * /*md*/, bool /*use_render_params*/)
 {
@@ -33,7 +40,7 @@ ModifierTypeInfo modifierType_None = {
     /*flags*/ eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_NONE,
 
-    /*copy_data*/ nullptr,
+    /*copy_data*/ modifier_copy_data<ModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -42,9 +49,9 @@ ModifierTypeInfo modifierType_None = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ nullptr,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<ModifierData>,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

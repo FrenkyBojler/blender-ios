@@ -1228,6 +1228,8 @@ void dynamicPaint_Modifier_copy(const DynamicPaintModifierData *pmd,
 {
   /* Init modifier */
   tpmd->type = pmd->type;
+  tpmd->canvas = nullptr;
+  tpmd->brush = nullptr;
   if (pmd->canvas) {
     dynamicPaint_createType(tpmd, MOD_DYNAMICPAINT_TYPE_CANVAS, nullptr);
   }

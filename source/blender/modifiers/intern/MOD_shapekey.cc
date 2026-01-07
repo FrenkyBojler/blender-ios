@@ -6,6 +6,8 @@
  * \ingroup modifiers
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_math_matrix.h"
 
 #include "BLT_translation.hh"
@@ -102,6 +104,7 @@ static void deform_matrices_EM(ModifierData * /*md*/,
   }
 }
 
+
 ModifierTypeInfo modifierType_ShapeKey = {
     /*idname*/ "ShapeKey",
     /*name*/ N_("ShapeKey"),
@@ -113,7 +116,7 @@ ModifierTypeInfo modifierType_ShapeKey = {
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_DOT,
 
-    /*copy_data*/ nullptr,
+    /*copy_data*/ modifier_copy_data<ShapeKeyModifierData>,
 
     /*deform_verts*/ deform_verts,
     /*deform_matrices*/ deform_matrices,
@@ -122,9 +125,9 @@ ModifierTypeInfo modifierType_ShapeKey = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ nullptr,
+    /*new_data*/ modifier_new_data<ShapeKeyModifierData>,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<ShapeKeyModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,

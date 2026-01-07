@@ -52,13 +52,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  CorrectiveSmoothModifierData *csmd = reinterpret_cast<CorrectiveSmoothModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(csmd, modifier);
-
-  csmd->delta_cache.deltas = nullptr;
-}
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
@@ -66,7 +59,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
       reinterpret_cast<const CorrectiveSmoothModifierData *>(md);
   CorrectiveSmoothModifierData *tcsmd = reinterpret_cast<CorrectiveSmoothModifierData *>(target);
 
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<CorrectiveSmoothModifierData>(md, target, flag);
 
   implicit_sharing::copy_shared_pointer(csmd->bind_coords,
                                         csmd->bind_coords_sharing_info,
@@ -89,6 +82,7 @@ static void free_data(ModifierData *md)
 {
   CorrectiveSmoothModifierData *csmd = reinterpret_cast<CorrectiveSmoothModifierData *>(md);
   freeBind(csmd);
+  modifier_free_data<CorrectiveSmoothModifierData>(md);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -844,7 +838,7 @@ ModifierTypeInfo modifierType_CorrectiveSmooth = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<CorrectiveSmoothModifierData>,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

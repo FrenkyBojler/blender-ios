@@ -36,12 +36,11 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  GreasePencilWeightAngleModifierData *gpmd =
-      reinterpret_cast<GreasePencilWeightAngleModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
+  auto *gpmd = MEM_new<GreasePencilWeightAngleModifierData>("GreasePencilWeightAngleModifierData");
   modifier::greasepencil::init_influence_data(&gpmd->influence, false);
+  return &gpmd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -51,7 +50,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   GreasePencilWeightAngleModifierData *tgmd =
       reinterpret_cast<GreasePencilWeightAngleModifierData *>(target);
 
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<GreasePencilWeightAngleModifierData>(md, target, flag);
   modifier::greasepencil::copy_influence_data(&gmd->influence, &tgmd->influence, flag);
 }
 
@@ -61,6 +60,7 @@ static void free_data(ModifierData *md)
       reinterpret_cast<GreasePencilWeightAngleModifierData *>(md);
 
   modifier::greasepencil::free_influence_data(&mmd->influence);
+  modifier_free_data<GreasePencilWeightAngleModifierData>(md);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -281,7 +281,7 @@ ModifierTypeInfo modifierType_GreasePencilWeightAngle = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

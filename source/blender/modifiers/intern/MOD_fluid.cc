@@ -37,23 +37,14 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
-
-  fmd->domain = nullptr;
-  fmd->flow = nullptr;
-  fmd->effector = nullptr;
-  fmd->type = 0;
-  fmd->time = -1;
-}
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
   const FluidModifierData *fmd = reinterpret_cast<const FluidModifierData *>(md);
   FluidModifierData *tfmd = reinterpret_cast<FluidModifierData *>(target);
 
-  BKE_fluid_modifier_free(tfmd);
+  modifier_copy_data<FluidModifierData>(md, target, flag);
+
   BKE_fluid_modifier_copy(fmd, tfmd, flag);
 }
 
@@ -62,6 +53,7 @@ static void free_data(ModifierData *md)
   FluidModifierData *fmd = reinterpret_cast<FluidModifierData *>(md);
 
   BKE_fluid_modifier_free(fmd);
+  modifier_free_data<FluidModifierData>(md);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -258,7 +250,7 @@ ModifierTypeInfo modifierType_Fluid = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<FluidModifierData>,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

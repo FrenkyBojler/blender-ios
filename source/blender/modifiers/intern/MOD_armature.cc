@@ -38,20 +38,12 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(amd, modifier);
-}
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
-#if 0
-  const ArmatureModifierData *amd = (const ArmatureModifierData *)md;
-#endif
-  ArmatureModifierData *tamd = reinterpret_cast<ArmatureModifierData *>(target);
+  modifier_copy_data<ArmatureModifierData>(md, target, flag);
 
-  BKE_modifier_copydata_generic(md, target, flag);
+  ArmatureModifierData *tamd = reinterpret_cast<ArmatureModifierData *>(target);
   tamd->vert_coords_prev = nullptr;
 }
 
@@ -262,9 +254,9 @@ ModifierTypeInfo modifierType_Armature = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<ArmatureModifierData>,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<ArmatureModifierData>,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,

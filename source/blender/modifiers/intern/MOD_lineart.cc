@@ -76,15 +76,10 @@ static bool is_last_line_art(const GreasePencilLineartModifierData &md, const bo
   return true;
 }
 
-static void init_data(ModifierData *md)
-{
-  GreasePencilLineartModifierData *gpmd = reinterpret_cast<GreasePencilLineartModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(gpmd, modifier);
-}
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<GreasePencilLineartModifierData>(md, target, flag);
 
   const GreasePencilLineartModifierData *source_lmd =
       reinterpret_cast<const GreasePencilLineartModifierData *>(md);
@@ -107,6 +102,7 @@ static void free_data(ModifierData *md)
     MEM_delete(runtime);
     lmd->runtime = nullptr;
   }
+  modifier_free_data<GreasePencilLineartModifierData>(md);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -897,7 +893,7 @@ ModifierTypeInfo modifierType_GreasePencilLineart = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<GreasePencilLineartModifierData>,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

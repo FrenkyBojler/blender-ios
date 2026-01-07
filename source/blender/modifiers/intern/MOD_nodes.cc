@@ -99,14 +99,15 @@ namespace blender {
 namespace lf = fn::lazy_function;
 namespace bake = bke::bake;
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
+  auto *nmd = MEM_new<NodesModifierData>("NodesModifierData");
 
-  INIT_DEFAULT_STRUCT_AFTER(nmd, modifier);
   nmd->modifier.layout_panel_open_flag |= 1 << NODES_MODIFIER_PANEL_WARNINGS;
   nmd->runtime = MEM_new<NodesModifierRuntime>(__func__);
   nmd->runtime->cache = std::make_shared<bake::ModifierCache>();
+
+  return &nmd->modifier;
 }
 
 static void find_dependencies_from_settings(const NodesModifierData &nmd,
@@ -2087,10 +2088,10 @@ static void blend_read(BlendDataReader *reader, ModifierData *md)
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
+  modifier_copy_data<NodesModifierData>(md, target, flag);
+
   const NodesModifierData *nmd = reinterpret_cast<const NodesModifierData *>(md);
   NodesModifierData *tnmd = reinterpret_cast<NodesModifierData *>(target);
-
-  BKE_modifier_copydata_generic(md, target, flag);
 
   if (nmd->bakes) {
     tnmd->bakes = MEM_dupalloc(nmd->bakes);
@@ -2194,6 +2195,8 @@ static void free_data(ModifierData *md)
 
   MEM_SAFE_DELETE(nmd->bake_directory);
   MEM_delete(nmd->runtime);
+
+  modifier_free_data<NodesModifierData>(md);
 }
 
 static void required_data_mask(ModifierData * /*md*/, CustomData_MeshMasks *r_cddata_masks)
@@ -2226,7 +2229,7 @@ ModifierTypeInfo modifierType_Nodes = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

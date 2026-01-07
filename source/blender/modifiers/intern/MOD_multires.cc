@@ -49,18 +49,19 @@ struct MultiresRuntimeData {
   bke::subdiv::Subdiv *subdiv;
 };
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(mmd, modifier);
+  auto *mmd = MEM_new<MultiresModifierData>("MultiresModifierData");
 
   /* Open subdivision panels by default. */
-  md->ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT | UI_SUBPANEL_DATA_EXPAND_1;
+  mmd->modifier.ui_expand_flag = UI_PANEL_DATA_EXPAND_ROOT | UI_SUBPANEL_DATA_EXPAND_1;
+
+  return &mmd->modifier;
 }
 
 static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const int flag)
 {
-  BKE_modifier_copydata_generic(md_src, md_dst, flag);
+  modifier_copy_data<MultiresModifierData>(md_src, md_dst, flag);
 }
 
 static void free_runtime_data(void *runtime_data_v)
@@ -79,6 +80,7 @@ static void free_data(ModifierData *md)
 {
   MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
   free_runtime_data(mmd->modifier.runtime);
+  modifier_free_data<MultiresModifierData>(md);
 }
 
 static MultiresRuntimeData *multires_ensure_runtime(MultiresModifierData *mmd)
@@ -462,7 +464,7 @@ ModifierTypeInfo modifierType_Multires = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

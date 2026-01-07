@@ -42,11 +42,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  MeshDeformModifierData *mmd = reinterpret_cast<MeshDeformModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(mmd, modifier);
-}
 
 static void free_data(ModifierData *md)
 {
@@ -64,14 +59,16 @@ static void free_data(ModifierData *md)
   if (mmd->bindcos) {
     MEM_delete(mmd->bindcos); /* deprecated */
   }
+
+  modifier_free_data<MeshDeformModifierData>(md);
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
+  modifier_copy_data<MeshDeformModifierData>(md, target, flag);
+
   const MeshDeformModifierData *mmd = reinterpret_cast<const MeshDeformModifierData *>(md);
   MeshDeformModifierData *tmmd = reinterpret_cast<MeshDeformModifierData *>(target);
-
-  BKE_modifier_copydata_generic(md, target, flag);
 
   implicit_sharing::copy_shared_pointer(mmd->bindinfluences,
                                         mmd->bindinfluences_sharing_info,
@@ -678,7 +675,7 @@ ModifierTypeInfo modifierType_MeshDeform = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<MeshDeformModifierData>,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

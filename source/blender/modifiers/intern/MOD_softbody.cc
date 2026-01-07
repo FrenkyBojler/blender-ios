@@ -80,6 +80,7 @@ static void panel_register(ARegionType *region_type)
   modifier_panel_register(region_type, eModifierType_Softbody, panel_draw);
 }
 
+
 ModifierTypeInfo modifierType_Softbody = {
     /*idname*/ "Softbody",
     /*name*/ N_("Softbody"),
@@ -92,7 +93,7 @@ ModifierTypeInfo modifierType_Softbody = {
         eModifierTypeFlag_UsesPointCache,
     /*icon*/ ICON_MOD_SOFT,
 
-    /*copy_data*/ nullptr,
+    /*copy_data*/ modifier_copy_data<SoftbodyModifierData>,
 
     /*deform_verts*/ deform_verts,
     /*deform_matrices*/ nullptr,
@@ -101,9 +102,9 @@ ModifierTypeInfo modifierType_Softbody = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ nullptr,
+    /*new_data*/ modifier_new_data<SoftbodyModifierData>,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<SoftbodyModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ depends_on_time,

@@ -45,11 +45,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  MeshCacheModifierData *mcmd = reinterpret_cast<MeshCacheModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(mcmd, modifier);
-}
 
 static bool depends_on_time(Scene * /*scene*/, ModifierData *md)
 {
@@ -382,7 +377,7 @@ ModifierTypeInfo modifierType_MeshCache = {
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_MESHDEFORM, /* TODO: Use correct icon. */
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<MeshCacheModifierData>,
 
     /*deform_verts*/ deform_verts,
     /*deform_matrices*/ nullptr,
@@ -391,9 +386,9 @@ ModifierTypeInfo modifierType_MeshCache = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<MeshCacheModifierData>,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<MeshCacheModifierData>,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ depends_on_time,

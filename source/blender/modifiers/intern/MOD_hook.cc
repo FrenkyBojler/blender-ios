@@ -45,12 +45,11 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  HookModifierData *hmd = reinterpret_cast<HookModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(hmd, modifier);
-
+  auto *hmd = MEM_new<HookModifierData>("HookModifierData");
   hmd->curfalloff = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+  return &hmd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -58,7 +57,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   const HookModifierData *hmd = reinterpret_cast<const HookModifierData *>(md);
   HookModifierData *thmd = reinterpret_cast<HookModifierData *>(target);
 
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<HookModifierData>(md, target, flag);
 
   thmd->curfalloff = BKE_curvemapping_copy(hmd->curfalloff);
 
@@ -88,6 +87,7 @@ static void free_data(ModifierData *md)
   BKE_curvemapping_free(hmd->curfalloff);
 
   MEM_SAFE_DELETE(hmd->indexar);
+  modifier_free_data<HookModifierData>(md);
 }
 
 static bool is_disabled(const Scene * /*scene*/, ModifierData *md, bool /*use_render_params*/)
@@ -553,7 +553,7 @@ ModifierTypeInfo modifierType_Hook = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

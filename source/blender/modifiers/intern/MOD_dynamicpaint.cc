@@ -37,16 +37,12 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  DynamicPaintModifierData *pmd = reinterpret_cast<DynamicPaintModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(pmd, modifier);
-}
-
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
 {
   const DynamicPaintModifierData *pmd = reinterpret_cast<const DynamicPaintModifierData *>(md);
   DynamicPaintModifierData *tpmd = reinterpret_cast<DynamicPaintModifierData *>(target);
+
+  modifier_copy_data<DynamicPaintModifierData>(md, target, flag);
 
   dynamicPaint_Modifier_copy(pmd, tpmd, flag);
 }
@@ -64,6 +60,7 @@ static void free_data(ModifierData *md)
 {
   DynamicPaintModifierData *pmd = reinterpret_cast<DynamicPaintModifierData *>(md);
   dynamicPaint_Modifier_free(pmd);
+  modifier_free_data<DynamicPaintModifierData>(md);
 }
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
@@ -203,7 +200,7 @@ ModifierTypeInfo modifierType_DynamicPaint = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<DynamicPaintModifierData>,
     /*required_data_mask*/ required_data_mask,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

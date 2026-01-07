@@ -37,11 +37,11 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  auto *emd = reinterpret_cast<GreasePencilEnvelopeModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(emd, modifier);
+  auto *emd = MEM_new<GreasePencilEnvelopeModifierData>("GreasePencilEnvelopeModifierData");
   modifier::greasepencil::init_influence_data(&emd->influence, false);
+  return &emd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -49,9 +49,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   const auto *emd = reinterpret_cast<const GreasePencilEnvelopeModifierData *>(md);
   auto *temd = reinterpret_cast<GreasePencilEnvelopeModifierData *>(target);
 
-  modifier::greasepencil::free_influence_data(&temd->influence);
-
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<GreasePencilEnvelopeModifierData>(md, target, flag);
   modifier::greasepencil::copy_influence_data(&emd->influence, &temd->influence, flag);
 }
 
@@ -59,6 +57,7 @@ static void free_data(ModifierData *md)
 {
   auto *emd = reinterpret_cast<GreasePencilEnvelopeModifierData *>(md);
   modifier::greasepencil::free_influence_data(&emd->influence);
+  modifier_free_data<GreasePencilEnvelopeModifierData>(md);
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -747,7 +746,7 @@ ModifierTypeInfo modifierType_GreasePencilEnvelope = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,

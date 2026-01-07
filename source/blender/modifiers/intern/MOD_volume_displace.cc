@@ -47,14 +47,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  VolumeDisplaceModifierData *vdmd = reinterpret_cast<VolumeDisplaceModifierData *>(md);
-  vdmd->texture = nullptr;
-  vdmd->strength = 0.5f;
-  copy_v3_fl(vdmd->texture_mid_level, 0.5f);
-  vdmd->texture_sample_radius = 1.0f;
-}
 
 static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphContext *ctx)
 {
@@ -320,7 +312,7 @@ ModifierTypeInfo modifierType_VolumeDisplace = {
     /*flags*/ static_cast<ModifierTypeFlag>(0),
     /*icon*/ ICON_VOLUME_DATA, /* TODO: Use correct icon. */
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<VolumeDisplaceModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -329,9 +321,9 @@ ModifierTypeInfo modifierType_VolumeDisplace = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<VolumeDisplaceModifierData>,
     /*required_data_mask*/ nullptr,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<VolumeDisplaceModifierData>,
     /*is_disabled*/ nullptr,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ depends_on_time,

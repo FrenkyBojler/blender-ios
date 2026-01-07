@@ -6,6 +6,11 @@
 /** \file
  * \ingroup bke
  */
+
+#include <type_traits>
+
+#include "MEM_guardedalloc.h"
+
 #include "BLI_compiler_attrs.h"
 #include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
@@ -291,12 +296,9 @@ struct ModifierTypeInfo {
   /********************* Optional functions *********************/
 
   /**
-   * Initialize new instance data for this modifier type, this function
-   * should set modifier variables to their default values.
-   *
-   * This function is optional.
+   * Allocate and default initialize new modifier data.
    */
-  void (*init_data)(ModifierData *md);
+  ModifierData *(*new_data)();
 
   /**
    * Should add to passed \a r_cddata_masks the data types that this
@@ -425,6 +427,33 @@ struct ModifierTypeInfo {
                                       const IDTypeForeachColorFunctionCallback &fn);
 };
 
+/* Templates for ModifierTypeInfo methods. */
+
+template<typename T> ModifierData *modifier_new_data()
+{
+  return &MEM_new<T>(typeid(T).name())->modifier;
+}
+
+template<typename T>
+void modifier_copy_data(const ModifierData *src, ModifierData *dst, int /*flag*/)
+{
+  const T &src_t = *reinterpret_cast<const T *>(src);
+  T &dst_t = *reinterpret_cast<T *>(dst);
+
+  /* For modifiers with DNA_DEFINE_CXX_METHODS, we can only shallow copy. */
+  if constexpr (std::is_constructible_v<T, dna::internal::ShallowDataConstRef<T>>) {
+    new (&dst_t) T(dna::shallow_copy(src_t));
+  }
+  else {
+    new (&dst_t) T(src_t);
+  }
+}
+
+template<typename T> void modifier_free_data(ModifierData *md)
+{
+  reinterpret_cast<T *>(md)->~T();
+}
+
 /** Used to set a modifier's panel type. */
 #define MODIFIER_TYPE_PANEL_PREFIX "MOD_PT_"
 
@@ -458,10 +487,6 @@ void BKE_modifier_unique_name(ListBaseT<ModifierData> *modifiers, ModifierData *
 
 ModifierData *BKE_modifier_copy_ex(const ModifierData *md, int flag);
 
-/**
- * Callback's can use this to avoid copying every member.
- */
-void BKE_modifier_copydata_generic(const ModifierData *md, ModifierData *md_dst, int flag);
 void BKE_modifier_copydata(const ModifierData *md, ModifierData *target);
 void BKE_modifier_copydata_ex(const ModifierData *md, ModifierData *target, int flag);
 bool BKE_modifier_depends_ontime(Scene *scene, ModifierData *md);

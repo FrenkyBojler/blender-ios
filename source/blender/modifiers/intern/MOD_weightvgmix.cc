@@ -121,11 +121,6 @@ static float mix_weight(float weight, float weight2, char mix_mode)
 /**************************************
  * Modifiers functions.               *
  **************************************/
-static void init_data(ModifierData *md)
-{
-  WeightVGMixModifierData *wmd = reinterpret_cast<WeightVGMixModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(wmd, modifier);
-}
 
 static void required_data_mask(ModifierData *md, CustomData_MeshMasks *r_cddata_masks)
 {
@@ -495,7 +490,7 @@ ModifierTypeInfo modifierType_WeightVGMix = {
         eModifierTypeFlag_SupportsEditmode,
     /*icon*/ ICON_MOD_VERTEX_WEIGHT,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<WeightVGMixModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ nullptr,
@@ -504,9 +499,9 @@ ModifierTypeInfo modifierType_WeightVGMix = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<WeightVGMixModifierData>,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ modifier_free_data<WeightVGMixModifierData>,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ depends_on_time,

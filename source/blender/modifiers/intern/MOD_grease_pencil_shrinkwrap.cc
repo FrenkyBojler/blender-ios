@@ -45,11 +45,11 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  auto *smd = reinterpret_cast<GreasePencilShrinkwrapModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
+  auto *smd = MEM_new<GreasePencilShrinkwrapModifierData>("GreasePencilShrinkwrapModifierData");
   modifier::greasepencil::init_influence_data(&smd->influence, false);
+  return &smd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -57,9 +57,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   const auto *smd = reinterpret_cast<const GreasePencilShrinkwrapModifierData *>(md);
   auto *tsmd = reinterpret_cast<GreasePencilShrinkwrapModifierData *>(target);
 
-  modifier::greasepencil::free_influence_data(&tsmd->influence);
-
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<GreasePencilShrinkwrapModifierData>(md, target, flag);
   modifier::greasepencil::copy_influence_data(&smd->influence, &tsmd->influence, flag);
 }
 
@@ -72,6 +70,7 @@ static void free_data(ModifierData *md)
     BKE_shrinkwrap_free_tree(smd->cache_data);
     MEM_delete(smd->cache_data);
   }
+  modifier_free_data<GreasePencilShrinkwrapModifierData>(md);
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -340,7 +339,7 @@ ModifierTypeInfo modifierType_GreasePencilShrinkwrap = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

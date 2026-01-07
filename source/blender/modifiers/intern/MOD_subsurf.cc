@@ -52,11 +52,6 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
-{
-  SubsurfModifierData *smd = reinterpret_cast<SubsurfModifierData *>(md);
-  INIT_DEFAULT_STRUCT_AFTER(smd, modifier);
-}
 
 static void free_runtime_data(void *runtime_data_v)
 {
@@ -76,8 +71,8 @@ static void free_runtime_data(void *runtime_data_v)
 static void free_data(ModifierData *md)
 {
   SubsurfModifierData *smd = reinterpret_cast<SubsurfModifierData *>(md);
-
   free_runtime_data(smd->modifier.runtime);
+  modifier_free_data<SubsurfModifierData>(md);
 }
 
 static bool is_disabled(const Scene *scene, ModifierData *md, bool use_render_params)
@@ -455,7 +450,7 @@ ModifierTypeInfo modifierType_Subsurf = {
         eModifierTypeFlag_AcceptsCVs,
     /*icon*/ ICON_MOD_SUBSURF,
 
-    /*copy_data*/ BKE_modifier_copydata_generic,
+    /*copy_data*/ modifier_copy_data<SubsurfModifierData>,
 
     /*deform_verts*/ nullptr,
     /*deform_matrices*/ deform_matrices,
@@ -464,7 +459,7 @@ ModifierTypeInfo modifierType_Subsurf = {
     /*modify_mesh*/ modify_mesh,
     /*modify_geometry_set*/ nullptr,
 
-    /*init_data*/ init_data,
+    /*new_data*/ modifier_new_data<SubsurfModifierData>,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,

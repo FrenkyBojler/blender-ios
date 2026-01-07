@@ -43,17 +43,18 @@
 
 namespace blender {
 
-static void init_data(ModifierData *md)
+static ModifierData *new_data()
 {
-  auto *tmd = reinterpret_cast<GreasePencilTimeModifierData *>(md);
+  auto *tmd = MEM_new<GreasePencilTimeModifierData>("GreasePencilTimeModifierData");
 
-  INIT_DEFAULT_STRUCT_AFTER(tmd, modifier);
   modifier::greasepencil::init_influence_data(&tmd->influence, false);
 
   GreasePencilTimeModifierSegment *segment = MEM_new<GreasePencilTimeModifierSegment>(__func__);
   STRNCPY_UTF8(segment->name, DATA_("Segment"));
   tmd->segments_array = segment;
   tmd->segments_num = 1;
+
+  return &tmd->modifier;
 }
 
 static void copy_data(const ModifierData *md, ModifierData *target, const int flag)
@@ -61,9 +62,7 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   const auto *tmd = reinterpret_cast<const GreasePencilTimeModifierData *>(md);
   auto *tmmd = reinterpret_cast<GreasePencilTimeModifierData *>(target);
 
-  modifier::greasepencil::free_influence_data(&tmmd->influence);
-
-  BKE_modifier_copydata_generic(md, target, flag);
+  modifier_copy_data<GreasePencilTimeModifierData>(md, target, flag);
   modifier::greasepencil::copy_influence_data(&tmd->influence, &tmmd->influence, flag);
 
   tmmd->segments_array = static_cast<GreasePencilTimeModifierSegment *>(
@@ -76,6 +75,7 @@ static void free_data(ModifierData *md)
   modifier::greasepencil::free_influence_data(&tmd->influence);
 
   MEM_SAFE_DELETE(tmd->segments_array);
+  modifier_free_data<GreasePencilTimeModifierData>(md);
 }
 
 static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void *user_data)
@@ -676,7 +676,7 @@ ModifierTypeInfo modifierType_GreasePencilTime = {
     /*modify_mesh*/ nullptr,
     /*modify_geometry_set*/ modify_geometry_set,
 
-    /*init_data*/ init_data,
+    /*new_data*/ new_data,
     /*required_data_mask*/ nullptr,
     /*free_data*/ free_data,
     /*is_disabled*/ nullptr,
