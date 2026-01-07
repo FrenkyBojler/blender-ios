@@ -962,14 +962,14 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                   "");
 
     if (*tree_view.show_display_options_) {
-      col->row(true);
-      UI_block_emboss_set(block, EmbossType::Emboss);
+      col.row(true);
+      block_emboss_set(block, EmbossType::Emboss);
       Button *but = uiDefBut(block,
                              ButtonType::Text,
                              "",
                              0,
                              0,
-                             UI_TREEVIEW_INDENT,
+                             UI_UNIT_X * 10,
                              UI_UNIT_Y,
                              tree_view.search_string_.get(),
                              0,
