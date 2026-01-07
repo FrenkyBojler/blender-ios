@@ -8,6 +8,8 @@
 
 #include "BLI_string_ref.hh"
 
+#include "DNA_color_types.h"
+
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
@@ -32,7 +34,7 @@ void template_histogram(Layout *layout, PointerRNA *ptr, const StringRefNull pro
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Histogram)) {
     return;
   }
-  Histogram *hist = (Histogram *)cptr.data;
+  Histogram *hist = static_cast<Histogram *>(cptr.data);
 
   if (hist->height < UI_UNIT_Y) {
     hist->height = UI_UNIT_Y;
@@ -78,7 +80,7 @@ void template_waveform(Layout *layout, PointerRNA *ptr, const StringRefNull prop
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Scopes)) {
     return;
   }
-  Scopes *scopes = (Scopes *)cptr.data;
+  Scopes *scopes = static_cast<Scopes *>(cptr.data);
 
   Layout &col = layout->column(true);
   Block *block = col.block();
@@ -134,7 +136,7 @@ void template_vectorscope(Layout *layout, PointerRNA *ptr, const StringRefNull p
   if (!cptr.data || !RNA_struct_is_a(cptr.type, &RNA_Scopes)) {
     return;
   }
-  Scopes *scopes = (Scopes *)cptr.data;
+  Scopes *scopes = static_cast<Scopes *>(cptr.data);
 
   if (scopes->vecscope_height < UI_UNIT_Y) {
     scopes->vecscope_height = UI_UNIT_Y;

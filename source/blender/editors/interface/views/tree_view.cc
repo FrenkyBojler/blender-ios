@@ -979,13 +979,13 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 
     if (*tree_view.show_display_options_) {
       block_layout_set_current(block, &col);
-      Layout &filter_layout = col->row(false);
+      Layout &filter_layout = col.row(false);
       Button *but = uiDefBut(block,
                              ButtonType::Text,
                              "",
                              0,
                              0,
-                             UI_TREEVIEW_INDENT,
+                             UI_UNIT_X * 10,
                              UI_UNIT_Y,
                              tree_view.search_string_.get(),
                              0,
@@ -1009,7 +1009,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
           break;
       }
 
-      Layout &sortbut = filter_layout.colgumn(false);
+      Layout &sortbut = filter_layout.column(false);
       sortbut.alignment_set(blender::ui::LayoutAlign::Right);
       but = uiDefIconBut(
           block, ButtonType::IconToggle, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
