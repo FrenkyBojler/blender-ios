@@ -1182,14 +1182,14 @@ class ExtensionUI_Section:
         # Label & panel property or None not to define a header,
         # in this case the previous panel is used.
         "panel_header",
-        "ui_ext_sort_fn",
         "panel_header_action",
+        "ui_ext_sort_fn",
 
         "enabled",
         "extension_ui_list",
     )
 
-    def __init__(self, *, panel_header, ui_ext_sort_fn, panel_header_action=None):
+    def __init__(self, *, panel_header, panel_header_action, ui_ext_sort_fn):
         self.panel_header = panel_header
         self.ui_ext_sort_fn = ui_ext_sort_fn
         self.panel_header_action = panel_header_action
@@ -1592,30 +1592,34 @@ def extensions_panel_draw_impl(
         # Installed (upgrade, enabled).
         ExtensionUI_Section(
             panel_header=(iface_("Installed"), "extension_show_panel_installed"),
-            ui_ext_sort_fn=ExtensionUI_Section.sort_by_blocked_and_name_fn,
             panel_header_action=(
                 ((iface_("Update All"), "extensions.package_upgrade_all")) if wm.extensions_updates > 0 else None
             ),
+            ui_ext_sort_fn=ExtensionUI_Section.sort_by_blocked_and_name_fn,
         ),
         # Installed (upgrade, disabled). Use the previous panel.
         ExtensionUI_Section(
             panel_header=None,
+            panel_header_action=None,
             ui_ext_sort_fn=ExtensionUI_Section.sort_by_name_fn,
         ),
         # Installed (up-to-date, enabled). Use the previous panel.
         ExtensionUI_Section(
             panel_header=None,
+            panel_header_action=None,
             ui_ext_sort_fn=ExtensionUI_Section.sort_by_name_fn,
         ),
         # Installed (up-to-date, disabled).
         ExtensionUI_Section(
             panel_header=None,
+            panel_header_action=None,
             ui_ext_sort_fn=ExtensionUI_Section.sort_by_name_fn,
         ),
         # Available (remaining).
         # NOTE: don't use A-Z here to prevent name manipulation to bring an extension up on the ranks.
         ExtensionUI_Section(
             panel_header=(iface_("Available"), "extension_show_panel_available"),
+            panel_header_action=None,
             ui_ext_sort_fn=None,
         ),
     )
