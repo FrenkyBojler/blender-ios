@@ -306,12 +306,12 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
   bool sound_loaded = BKE_sound_info_get(bmain, sound, &info);
 
   if (!sound_loaded && !load_data->allow_invalid_file) {
-    BKE_id_free(bmain, sound);
+    BKE_id_free_us(bmain, sound);
     return nullptr;
   }
 
   if (info.specs.channels == SOUND_CHANNELS_INVALID && !load_data->allow_invalid_file) {
-    BKE_id_free(bmain, sound);
+    BKE_id_free_us(bmain, sound);
     return nullptr;
   }
 
