@@ -2,3 +2,4 @@ Referenced by commit 9f78c333283001bcca6d304ce7833d95b77e46ef, Fix: Make first c
 Referenced by pull request #151438, Mesh: Store clone and stencil UV map status as strings
 Referenced by commit 442463239b7769fbb6f17a72b0d26fceb516db77, Mesh: Store clone and stencil UV map status as strings
 Referenced by pull request #152387, Fix: Use unique name for active UV map set in ED_mesh_uv_add function
+Referenced by issue #152517, FBX import Blender 5.1 UV maps are not active
