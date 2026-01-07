@@ -2335,7 +2335,7 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
      * reconstruct all the action groups & ensure that the FCurves of a group are continuously
      * stored (i.e. not mixed with other groups) to be sure. See #89435. */
     for (bAction &act : bmain->actions) {
-      blender::animrig::versioning::action_groups_reconstruct(&act);
+      animrig::versioning::action_groups_reconstruct(&act);
     }
 
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
