@@ -74,7 +74,7 @@ void convert_legacy_animato_actions(Main &bmain)
 void convert_legacy_animato_action(bAction &dna_action)
 {
   Action &action = dna_action.wrap();
-  BLI_assert(action.is_action_legacy());
+  BLI_assert(!action_is_layered(dna_action));
 
   /* Store this ahead of time, because adding the slot sets the action's idroot
    * to 0. We also set the action's idroot to 0 manually, just to be defensive
@@ -268,7 +268,7 @@ void action_groups_reconstruct(bAction *act)
   if (!act) {
     return;
   }
-  BLI_assert(act->wrap().is_action_legacy());
+  BLI_assert(!action_is_layered(*act));
   /* Clear out all group channels. Channels that are actually in use are
    * reconstructed below; this step is necessary to clear out unused groups. */
   for (bActionGroup &group : act->groups) {

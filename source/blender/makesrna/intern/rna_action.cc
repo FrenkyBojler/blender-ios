@@ -199,14 +199,6 @@ static ActionSlot *rna_Action_slots_new(
 {
   animrig::Action &action = dna_action->wrap();
 
-  if (!action.is_action_layered()) {
-    BKE_reportf(reports,
-                RPT_ERROR,
-                "Cannot add slots to a legacy Action '%s'. Convert it to a layered Action first.",
-                action.id.name + 2);
-    return nullptr;
-  }
-
   if (name[0] == 0) {
     BKE_reportf(reports, RPT_ERROR, "Invalid slot name '%s': name must not be empty.", name);
     return nullptr;
@@ -254,14 +246,6 @@ static ActionLayer *rna_Action_layers_new(bAction *dna_action,
                                           const char *name)
 {
   animrig::Action &action = dna_action->wrap();
-
-  if (!action.is_action_layered()) {
-    BKE_reportf(reports,
-                RPT_ERROR,
-                "Cannot add layers to a legacy Action '%s'. Convert it to a layered Action first.",
-                action.id.name + 2);
-    return nullptr;
-  }
 
   if (action.layers().size() >= 1) {
     /* Not allowed to have more than one layer, for now. This limitation is in
@@ -861,20 +845,6 @@ static void rna_ActionGroup_channels_begin(CollectionPropertyIterator *iter, Poi
 
   iter->internal.custom = custom_iter;
 
-  /* We handle both the listbase (legacy action) and array (layered action)
-   * cases below. The code for each is based on the code in
-   * `rna_iterator_listbase_begin()` and `rna_iterator_array_begin()`,
-   * respectively. */
-
-  /* Group from a legacy action. */
-  if (group->wrap().is_legacy()) {
-    custom_iter->tag = ActionGroupChannelsIterator::LISTBASE;
-    custom_iter->listbase.link = static_cast<Link *>(group->channels.first);
-
-    iter->valid = custom_iter->listbase.link != nullptr;
-    return;
-  }
-
   /* Group from a layered action. */
   animrig::Channelbag &cbag = group->channelbag->wrap();
 
@@ -1019,11 +989,14 @@ static bool rna_Action_is_empty_get(PointerRNA *ptr)
 }
 static bool rna_Action_is_action_legacy_get(PointerRNA *ptr)
 {
-  return rna_action(ptr).is_action_legacy();
+  /* All actions are versioned so legacy actions no longer exist. This RNA function should be
+   * removed at the next opportunity. */
+  return false;
 }
 static bool rna_Action_is_action_layered_get(PointerRNA *ptr)
 {
-  return rna_action(ptr).is_action_layered();
+  /* See above, all actions are layered through versioning. */
+  return true;
 }
 
 static void rna_Action_frame_range_get(PointerRNA *ptr, float *r_values)
@@ -1143,19 +1116,6 @@ bool rna_Action_id_poll(PointerRNA *ptr, PointerRNA value)
   }
 
   animrig::Action &action = dna_action->wrap();
-  if (animrig::legacy::action_treat_as_legacy(action)) {
-    /* there can still be actions that will have undefined id-root
-     * (i.e. floating "action-library" members) which we will not
-     * be able to resolve an idroot for automatically, so let these through
-     */
-    if (action.idroot == 0) {
-      return true;
-    }
-    if (srcId) {
-      return GS(srcId->name) == action.idroot;
-    }
-  }
-
   /* Layered Actions can always be assigned. */
   BLI_assert(action.idroot == 0);
   return true;
@@ -2444,13 +2404,11 @@ static void rna_def_action(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "is_action_legacy", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(
-      prop,
-      "Is Legacy Action",
-      "Return whether this is a legacy Action. Legacy Actions have no layers or slots. An "
-      "empty Action is considered as both a 'legacy' and a 'layered' Action. Since Blender 4.4 "
-      "actions are automatically updated to layered actions, and thus this will only return True "
-      "when the action is empty");
+  RNA_def_property_ui_text(prop,
+                           "Is Legacy Action",
+                           "Return whether this is a legacy Action. Legacy Actions have no layers "
+                           "or slots. Since Blender 4.4 actions are automatically updated to "
+                           "layered actions, and thus this will always return false");
   RNA_def_property_boolean_funcs(prop, "rna_Action_is_action_legacy_get", nullptr);
 
   prop = RNA_def_property(srna, "is_action_layered", PROP_BOOLEAN, PROP_NONE);
@@ -2458,8 +2416,8 @@ static void rna_def_action(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Is Layered Action",
-      "Return whether this is a layered Action. An empty Action is considered "
-      "as both a 'legacy' and a 'layered' Action.");
+      "Return whether this is a layered Action. At this point all actions "
+      "are layered through versioning and this function will always return true");
   RNA_def_property_boolean_funcs(prop, "rna_Action_is_action_layered_get", nullptr);
 
   /* Collection properties. */

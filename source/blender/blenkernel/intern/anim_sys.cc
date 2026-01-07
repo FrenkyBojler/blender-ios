@@ -819,16 +819,6 @@ void animsys_evaluate_action_group(PointerRNA *ptr,
   };
 
   animrig::ChannelGroup channel_group = agrp->wrap();
-  if (channel_group.is_legacy()) {
-    /* calculate then execute each curve */
-    for (fcu = static_cast<FCurve *>(agrp->channels.first); (fcu) && (fcu->grp == agrp);
-         fcu = fcu->next)
-    {
-      visit_fcurve(fcu);
-    }
-    return;
-  }
-
   for (FCurve *fcurve : channel_group.fcurves()) {
     visit_fcurve(fcurve);
   }
