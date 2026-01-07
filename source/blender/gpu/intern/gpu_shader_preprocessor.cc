@@ -130,6 +130,14 @@ struct Preprocessor {
       while (tok != ')') {
         /* Continue to the next name. */
         tok = skip_whitespace(tok.next());
+        if (tok == ')') {
+          /* Function with no arguments. */
+          param = get_end_of_parameter(param);
+          if (param != ')') {
+            /* Error. There are parameters inside the function call. */
+          }
+          break;
+        }
 
         Token param_start = param;
         Token param_end = get_end_of_parameter(param_start);
