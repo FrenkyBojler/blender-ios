@@ -442,7 +442,7 @@ IDPropertyUIData *IDP_ui_data_copy(const IDProperty *prop);
  * Convert UI data like default arrays from the old type to the new type as possible.
  * Takes ownership of the input data; it can return it directly if the types match.
  */
-IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
+IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
                                        eIDPropertyUIDataType src_type,
                                        eIDPropertyUIDataType dst_type);
 

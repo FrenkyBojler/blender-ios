@@ -1764,6 +1764,38 @@ static void rna_idproperty_ui_default_array_float_set(PointerRNA *ptr, const flo
   }
 }
 
+static void rna_idproperty_ui_default_array_int_get(PointerRNA *ptr, int *values)
+{
+  IDPropertyUIDataInt *ui_data = static_cast<IDPropertyUIDataInt *>(ptr->data);
+  for (int i = 0; i < ui_data->default_array_len; i++) {
+    values[i] = ui_data->default_array[i];
+  }
+}
+
+static void rna_idproperty_ui_default_array_int_set(PointerRNA *ptr, const int *values)
+{
+  IDPropertyUIDataInt *ui_data = static_cast<IDPropertyUIDataInt *>(ptr->data);
+  for (int i = 0; i < ui_data->default_array_len; i++) {
+    ui_data->default_array[i] = values[i];
+  }
+}
+
+static void rna_idproperty_ui_default_array_bool_get(PointerRNA *ptr, bool *values)
+{
+  IDPropertyUIDataBool *ui_data = static_cast<IDPropertyUIDataBool *>(ptr->data);
+  for (int i = 0; i < ui_data->default_array_len; i++) {
+    values[i] = ui_data->default_array[i] != 0;
+  }
+}
+
+static void rna_idproperty_ui_default_array_bool_set(PointerRNA *ptr, const bool *values)
+{
+  IDPropertyUIDataBool *ui_data = static_cast<IDPropertyUIDataBool *>(ptr->data);
+  for (int i = 0; i < ui_data->default_array_len; i++) {
+    ui_data->default_array[i] = (int8_t)values[i];
+  }
+}
+
 static void rna_IDPropertyUIDataID_id_type_set(PointerRNA *ptr, int value)
 {
   IDPropertyUIDataID *ui_data = static_cast<IDPropertyUIDataID *>(ptr->data);
@@ -1781,6 +1813,8 @@ static void rna_IDProperty_length_set(PointerRNA *ptr, int value)
   IDProperty *prop = static_cast<IDProperty *>(ptr->data);
   if (prop->type == IDP_ARRAY) {
     IDP_ResizeArray(prop, value);
+    eIDPropertyUIDataType type = IDP_ui_data_type(prop);
+    prop->ui_data = IDP_TryConvertUIData(prop, type, type);
   }
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
 }
@@ -3064,11 +3098,28 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
   RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, PROP_INT, RNA_def_property_int_sdna);
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_INT, RNA_def_property_int_sdna);
+  prop = RNA_def_property(srna, "default_array", PROP_INT, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_DYNAMIC);
+  RNA_def_property_multi_array(prop, 1, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_dynamic_array_funcs(prop, "rna_idproperty_ui_default_array_length");
+  RNA_def_property_int_funcs(prop,
+                             "rna_idproperty_ui_default_array_int_get",
+                             "rna_idproperty_ui_default_array_int_set",
+                             nullptr);
 
   srna = RNA_def_struct(brna, "IDPropertyUIDataBool", nullptr);
   RNA_def_struct_ui_text(srna, "bool IDProperty UI", "UI data for a bool ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_INT, RNA_def_property_int_sdna);
+  prop = RNA_def_property(srna, "default_array", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_DYNAMIC);
+  RNA_def_property_multi_array(prop, 1, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_dynamic_array_funcs(prop, "rna_idproperty_ui_default_array_length");
+  RNA_def_property_boolean_funcs(prop,
+                             "rna_idproperty_ui_default_array_bool_get",
+                             "rna_idproperty_ui_default_array_bool_set");
 
   srna = RNA_def_struct(brna, "IDPropertyUIDataString", nullptr);
   RNA_def_struct_ui_text(srna, "string IDProperty UI", "UI data for a string ID property");

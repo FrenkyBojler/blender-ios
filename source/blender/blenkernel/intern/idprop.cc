@@ -1723,10 +1723,10 @@ static IDPropertyUIData *ui_data_alloc(const eIDPropertyUIDataType type)
     }
     case IDP_UI_DATA_TYPE_INT: {
       IDPropertyUIDataInt *ui_data = MEM_new_for_free<IDPropertyUIDataInt>(__func__);
-      ui_data->min = INT_MIN;
-      ui_data->max = INT_MAX;
-      ui_data->soft_min = INT_MIN;
-      ui_data->soft_max = INT_MAX;
+      ui_data->min = 0;
+      ui_data->max = 1;
+      ui_data->soft_min = 0;
+      ui_data->soft_max = 1;
       ui_data->step = 1;
       return &ui_data->base;
     }
@@ -1736,10 +1736,10 @@ static IDPropertyUIData *ui_data_alloc(const eIDPropertyUIDataType type)
     }
     case IDP_UI_DATA_TYPE_FLOAT: {
       IDPropertyUIDataFloat *ui_data = MEM_new_for_free<IDPropertyUIDataFloat>(__func__);
-      ui_data->min = -FLT_MAX;
-      ui_data->max = FLT_MAX;
-      ui_data->soft_min = -FLT_MAX;
-      ui_data->soft_max = FLT_MAX;
+      ui_data->min = 0.0f;
+      ui_data->max = 1.0f;
+      ui_data->soft_min = 0.0f;
+      ui_data->soft_max = 1.0f;
       ui_data->step = 1.0f;
       ui_data->precision = 3;
       return &ui_data->base;
@@ -1771,10 +1771,13 @@ static IDPropertyUIData *convert_base_ui_data(IDPropertyUIData *src,
   return dst;
 }
 
-IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
+IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
                                        const eIDPropertyUIDataType src_type,
                                        const eIDPropertyUIDataType dst_type)
 {
+  IDPropertyUIData *src = src_prop->ui_data;
+  const bool is_array = src_prop->type == IDP_ARRAY;
+  const int default_array_len = is_array ? src_prop->len : 3;
   switch (src_type) {
     case IDP_UI_DATA_TYPE_STRING: {
       switch (dst_type) {
@@ -1783,24 +1786,37 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
         case IDP_UI_DATA_TYPE_INT: {
           IDPropertyUIDataInt *dst = reinterpret_cast<IDPropertyUIDataInt *>(
               convert_base_ui_data(src, dst_type));
-          dst->min = 0;
-          dst->max = 1;
-          dst->soft_min = 0;
-          dst->soft_max = 1;
+
+          if (is_array) {
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<int>(size_t(dst->default_array_len), __func__);
+          }
           ui_data_free(src, src_type);
           return &dst->base;
         }
         case IDP_UI_DATA_TYPE_FLOAT: {
           IDPropertyUIDataFloat *dst = reinterpret_cast<IDPropertyUIDataFloat *>(
               convert_base_ui_data(src, dst_type));
-          dst->min = 0.0;
-          dst->max = 1.0;
-          dst->soft_min = 0.0;
-          dst->soft_max = 1.0;
+
+          if (is_array) {
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<double>(size_t(dst->default_array_len),
+                                                           __func__);
+          }
           ui_data_free(src, src_type);
           return &dst->base;
         }
-        case IDP_UI_DATA_TYPE_BOOLEAN:
+        case IDP_UI_DATA_TYPE_BOOLEAN: {
+          IDPropertyUIDataBool *dst = reinterpret_cast<IDPropertyUIDataBool *>(
+              convert_base_ui_data(src, dst_type));
+          if (is_array) {
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<int8_t>(size_t(dst->default_array_len),
+                                                           __func__);
+          }
+          ui_data_free(src, src_type);
+          return &dst->base;
+        }
         case IDP_UI_DATA_TYPE_ID: {
           IDPropertyUIData *dst = convert_base_ui_data(src, dst_type);
           ui_data_free(src, src_type);
@@ -1818,25 +1834,39 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
         case IDP_UI_DATA_TYPE_INT: {
           IDPropertyUIDataInt *dst = reinterpret_cast<IDPropertyUIDataInt *>(
               convert_base_ui_data(src, dst_type));
-          dst->min = 0;
-          dst->max = 1;
-          dst->soft_min = 0;
-          dst->soft_max = 1;
+
+          if (is_array) {
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<int>(size_t(dst->default_array_len), __func__);
+          }
           ui_data_free(src, src_type);
           return &dst->base;
         }
         case IDP_UI_DATA_TYPE_FLOAT: {
           IDPropertyUIDataFloat *dst = reinterpret_cast<IDPropertyUIDataFloat *>(
               convert_base_ui_data(src, dst_type));
-          dst->min = 0.0;
-          dst->max = 1.0;
-          dst->soft_min = 0.0;
-          dst->soft_max = 1.0;
+
+          if (is_array) {
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<double>(size_t(dst->default_array_len),
+                                                           __func__);
+          }
           ui_data_free(src, src_type);
           return &dst->base;
         }
-        case IDP_UI_DATA_TYPE_STRING:
+
         case IDP_UI_DATA_TYPE_BOOLEAN: {
+          IDPropertyUIDataBool *dst = reinterpret_cast<IDPropertyUIDataBool *>(
+              convert_base_ui_data(src, dst_type));
+          if (is_array) {
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<int8_t>(size_t(dst->default_array_len),
+                                                           __func__);
+          }
+          ui_data_free(src, src_type);
+          return &dst->base;
+        }
+        case IDP_UI_DATA_TYPE_STRING: {
           IDPropertyUIData *dst = convert_base_ui_data(src, dst_type);
           ui_data_free(src, src_type);
           return dst;
@@ -1850,6 +1880,18 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
       IDPropertyUIDataInt *src_int = reinterpret_cast<IDPropertyUIDataInt *>(src);
       switch (dst_type) {
         case IDP_UI_DATA_TYPE_INT:
+          if (is_array) {
+            src_int->default_array_len = default_array_len;
+            src_int->default_array = MEM_calloc_arrayN<int>(size_t(src_int->default_array_len),
+                                                            __func__);
+            for (int i = 0; i < src_int->default_array_len; i++) {
+              src_int->default_array[i] = src_int->default_value;
+            }
+          }
+          else {
+            src_int->default_array_len = 0;
+            MEM_SAFE_FREE(src_int->default_array);
+          }
           return src;
         case IDP_UI_DATA_TYPE_ID:
         case IDP_UI_DATA_TYPE_STRING: {
@@ -1861,11 +1903,15 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
           IDPropertyUIDataBool *dst = reinterpret_cast<IDPropertyUIDataBool *>(
               convert_base_ui_data(src, dst_type));
           dst->default_value = src_int->default_value != 0;
-          if (src_int->default_array) {
-            dst->default_array = MEM_malloc_arrayN<int8_t>(size_t(src_int->default_array_len),
-                                                           __func__);
+
+          if (is_array) {
+            const bool is_src_array = src_int->default_array != nullptr;
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<int8_t>(size_t(default_array_len), __func__);
             for (int i = 0; i < src_int->default_array_len; i++) {
-              dst->default_array[i] = src_int->default_array[i] != 0;
+              const bool default_value = is_src_array ? src_int->default_array[i] != 0 :
+                                                        dst->default_value;
+              dst->default_array[i] = default_value;
             }
           }
           ui_data_free(src, src_type);
@@ -1880,11 +1926,14 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
           dst->soft_max = double(src_int->soft_max);
           dst->step = float(src_int->step);
           dst->default_value = double(src_int->default_value);
-          if (src_int->default_array) {
-            dst->default_array = MEM_malloc_arrayN<double>(size_t(src_int->default_array_len),
-                                                           __func__);
+          if (is_array) {
+            const bool is_src_array = src_int->default_array != nullptr;
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<double>(size_t(default_array_len), __func__);
             for (int i = 0; i < src_int->default_array_len; i++) {
-              dst->default_array[i] = double(src_int->default_array[i]);
+              const double default_value = is_src_array ? double(src_int->default_array[i]) :
+                                                          dst->default_value;
+              dst->default_array[i] = default_value;
             }
           }
           ui_data_free(src, src_type);
@@ -1899,6 +1948,18 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
       IDPropertyUIDataBool *src_bool = reinterpret_cast<IDPropertyUIDataBool *>(src);
       switch (dst_type) {
         case IDP_UI_DATA_TYPE_BOOLEAN:
+          if (is_array) {
+            src_bool->default_array_len = default_array_len;
+            src_bool->default_array = MEM_calloc_arrayN<int8_t>(size_t(default_array_len),
+                                                                __func__);
+            for (int i = 0; i < src_bool->default_array_len; i++) {
+              src_bool->default_array[i] = src_bool->default_value;
+            }
+          }
+          else {
+            src_bool->default_array_len = 0;
+            MEM_SAFE_FREE(src_bool->default_array);
+          }
           return src;
         case IDP_UI_DATA_TYPE_ID:
         case IDP_UI_DATA_TYPE_STRING: {
@@ -1909,17 +1970,15 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
         case IDP_UI_DATA_TYPE_INT: {
           IDPropertyUIDataInt *dst = reinterpret_cast<IDPropertyUIDataInt *>(
               convert_base_ui_data(src, dst_type));
-          dst->min = 0;
-          dst->max = 1;
-          dst->soft_min = 0;
-          dst->soft_max = 1;
-          dst->step = 1;
           dst->default_value = int(src_bool->default_value);
-          if (src_bool->default_array) {
-            dst->default_array = MEM_malloc_arrayN<int>(size_t(src_bool->default_array_len),
-                                                        __func__);
+          if (is_array) {
+            const bool is_src_array = src_bool->default_array != nullptr;
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<int>(size_t(default_array_len), __func__);
             for (int i = 0; i < src_bool->default_array_len; i++) {
-              dst->default_array[i] = int(src_bool->default_array[i]);
+              const int default_value = is_src_array ? int(src_bool->default_array[i]) :
+                                                       dst->default_value;
+              dst->default_array[i] = default_value;
             }
           }
           ui_data_free(src, src_type);
@@ -1928,16 +1987,14 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
         case IDP_UI_DATA_TYPE_FLOAT: {
           IDPropertyUIDataFloat *dst = reinterpret_cast<IDPropertyUIDataFloat *>(
               convert_base_ui_data(src, dst_type));
-          dst->min = 0.0;
-          dst->max = 1.0;
-          dst->soft_min = 0.0;
-          dst->soft_max = 1.0;
-          dst->step = 1.0;
-          if (src_bool->default_array) {
-            dst->default_array = MEM_malloc_arrayN<double>(size_t(src_bool->default_array_len),
-                                                           __func__);
+          if (is_array) {
+            const bool is_src_array = src_bool->default_array != nullptr;
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<double>(size_t(default_array_len), __func__);
             for (int i = 0; i < src_bool->default_array_len; i++) {
-              dst->default_array[i] = src_bool->default_array[i] == 0 ? 0.0 : 1.0;
+              const double default_value = is_src_array ? double(src_bool->default_array[i]) :
+                                                          dst->default_value;
+              dst->default_array[i] = default_value;
             }
           }
           ui_data_free(src, src_type);
@@ -1952,6 +2009,18 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
       IDPropertyUIDataFloat *src_float = reinterpret_cast<IDPropertyUIDataFloat *>(src);
       switch (dst_type) {
         case IDP_UI_DATA_TYPE_FLOAT:
+          if (is_array) {
+            src_float->default_array_len = default_array_len;
+            src_float->default_array = MEM_calloc_arrayN<double>(
+                size_t(src_float->default_array_len), __func__);
+            for (int i = 0; i < src_float->default_array_len; i++) {
+              src_float->default_array[i] = src_float->default_value;
+            }
+          }
+          else {
+            src_float->default_array_len = 0;
+            MEM_SAFE_FREE(src_float->default_array);
+          }
           return src;
         case IDP_UI_DATA_TYPE_ID:
         case IDP_UI_DATA_TYPE_STRING: {
@@ -1971,11 +2040,15 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
           dst->soft_max = clamp_double_to_int(src_float->soft_max);
           dst->step = std::max(1, clamp_double_to_int(src_float->step));
           dst->default_value = clamp_double_to_int(src_float->default_value);
-          if (src_float->default_array) {
-            dst->default_array = MEM_malloc_arrayN<int>(size_t(src_float->default_array_len),
-                                                        __func__);
+          if (is_array) {
+            const bool is_src_array = src_float->default_array != nullptr;
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<int>(size_t(default_array_len), __func__);
             for (int i = 0; i < src_float->default_array_len; i++) {
-              dst->default_array[i] = clamp_double_to_int(src_float->default_array[i]);
+              const int default_value = is_src_array ?
+                                            clamp_double_to_int(src_float->default_array[i]) :
+                                            dst->default_value;
+              dst->default_array[i] = default_value;
             }
           }
           ui_data_free(src, src_type);
@@ -1985,11 +2058,14 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
           IDPropertyUIDataBool *dst = reinterpret_cast<IDPropertyUIDataBool *>(
               convert_base_ui_data(src, dst_type));
           dst->default_value = src_float->default_value > 0.0f;
-          if (src_float->default_array) {
-            dst->default_array = MEM_malloc_arrayN<int8_t>(size_t(src_float->default_array_len),
-                                                           __func__);
+          if (is_array) {
+            const bool is_src_array = src_float->default_array != nullptr;
+            dst->default_array_len = default_array_len;
+            dst->default_array = MEM_calloc_arrayN<int8_t>(size_t(default_array_len), __func__);
             for (int i = 0; i < src_float->default_array_len; i++) {
-              dst->default_array[i] = src_float->default_array[i] > 0.0f;
+              const bool default_value = is_src_array ? (src_float->default_array[i] > 0.0f) :
+                                                        dst->default_value;
+              dst->default_array[i] = default_value;
             }
           }
           ui_data_free(src, src_type);
@@ -2095,7 +2171,7 @@ void IDP_TryConvertProperty(IDProperty *src,
       break;
   }
 
-  src->ui_data = IDP_TryConvertUIData(src->ui_data, src_type, dst_type);
+  src->ui_data = IDP_TryConvertUIData(src, src_type, dst_type);
 }
 
 /** \} */

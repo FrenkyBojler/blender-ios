@@ -1118,7 +1118,7 @@ bool BPy_IDProperty_Map_ValidateAndCreate(PyObject *key, IDProperty *group, PyOb
     IDPropertyUIData *ui_data = prop_exist->ui_data;
     prop_exist->ui_data = nullptr;
 
-    new_prop->ui_data = IDP_TryConvertUIData(ui_data, src_type, IDP_ui_data_type(new_prop));
+    new_prop->ui_data = IDP_TryConvertUIData(prop_exist, src_type, IDP_ui_data_type(new_prop));
   }
   /* Copy over the 'overridable' flag from existing property. */
   new_prop->flag |= (prop_exist->flag & IDP_FLAG_OVERRIDABLE_LIBRARY);
