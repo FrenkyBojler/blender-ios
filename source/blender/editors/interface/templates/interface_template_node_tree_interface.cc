@@ -400,9 +400,9 @@ std::optional<eWM_DragDataType> NodeTreeInterfaceDragController::get_drag_type()
   return WM_DRAG_NODE_TREE_INTERFACE;
 }
 
-static void gather_moved_items_recursive(bNodeTreeInterfacePanel &panel,
-                                         Vector<bNodeTreeInterfaceItem *> &r_items,
-                                         const bool parent_selected)
+void gather_moved_items_recursive(bNodeTreeInterfacePanel &panel,
+                                  Vector<bNodeTreeInterfaceItem *> &r_items,
+                                  const bool parent_selected)
 {
   for (bNodeTreeInterfaceItem *item : panel.items()) {
     /* If the parent is selected, the children will be moved implicitly. */

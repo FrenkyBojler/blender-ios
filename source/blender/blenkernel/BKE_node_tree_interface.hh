@@ -407,6 +407,8 @@ inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree
  */
 struct bNodeTreeInterfaceItemReference {
   bNodeTree *tree;
+  /* The item under the cursor when dragging started. Used to create Group Input node in the node
+   * editor. */
   bNodeTreeInterfaceItem *item;
   bNodeTreeInterfaceItem **items;
   int items_count;
