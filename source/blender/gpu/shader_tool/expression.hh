@@ -40,7 +40,7 @@ class ExpressionParser {
     /* Parse unary operator, evaluate parenthesis, evaluate constant. */
     int64_t left = nud(consume());
     /* While left binding power is greater than the right, continue consuming binary operations. */
-    while (binding_power(peek().type()) > right_binding_power) {
+    while (left_binding_power(peek().type()) > right_binding_power) {
       left = led(left, consume());
     }
     return left;
@@ -50,6 +50,11 @@ class ExpressionParser {
    * Also known as Null-Denotation or NUD. */
   int64_t nud(const Token &t)
   {
+    /* Unary operators must have the highest precedence. */
+    static constexpr int unary_binding_power = 1000;
+    /* Let parenthesis evaluate everything until a closing parenthesis. */
+    static constexpr int parenthesis_binding_power = 0;
+
     switch (t.type()) {
       case Number:
         return std::stol(t.str());
@@ -63,7 +68,7 @@ class ExpressionParser {
         return ~expr(unary_binding_power);
       case ParOpen: {
         /* Parse the whole parenthesis expression. */
-        int64_t v = expr(binding_power(ParOpen));
+        int64_t v = expr(parenthesis_binding_power);
         /* Consume the closing parenthesis. */
         if (consume() != ParClose) {
           throw std::runtime_error("Expected ')'");
@@ -81,15 +86,15 @@ class ExpressionParser {
   {
     switch (t.type()) {
       case Multiply:
-        return left * expr(binding_power(Multiply));
+        return left * expr(left_binding_power(Multiply));
       case Divide:
-        return left / expr(binding_power(Divide));
+        return left / expr(left_binding_power(Divide));
       case Modulo:
-        return left % expr(binding_power(Modulo));
+        return left % expr(left_binding_power(Modulo));
       case Plus:
-        return left + expr(binding_power(Plus));
+        return left + expr(left_binding_power(Plus));
       case Minus:
-        return left - expr(binding_power(Minus));
+        return left - expr(left_binding_power(Minus));
 #if 0 /* Not implemented yet. */
       case LShift:
         return left << expression(binding_power(LShift));
@@ -97,33 +102,42 @@ class ExpressionParser {
         return left >> expression(binding_power(RShift));
 #endif
       case LThan:
-        return left < expr(binding_power(LThan));
+        return left < expr(left_binding_power(LThan));
       case LEqual:
-        return left <= expr(binding_power(LEqual));
+        return left <= expr(left_binding_power(LEqual));
       case GThan:
-        return left > expr(binding_power(GThan));
+        return left > expr(left_binding_power(GThan));
       case GEqual:
-        return left >= expr(binding_power(GEqual));
+        return left >= expr(left_binding_power(GEqual));
       case Equal:
-        return left == expr(binding_power(Equal));
+        return left == expr(left_binding_power(Equal));
       case NotEqual:
-        return left != expr(binding_power(NotEqual));
+        return left != expr(left_binding_power(NotEqual));
       case And:
-        return left & expr(binding_power(And));
+        return left & expr(left_binding_power(And));
       case Xor:
-        return left ^ expr(binding_power(Xor));
+        return left ^ expr(left_binding_power(Xor));
       case Or:
-        return left | expr(binding_power(Or));
-      case LogicalAnd:
-        return left && expr(binding_power(LogicalAnd));
-      case LogicalOr:
-        return left || expr(binding_power(LogicalOr));
+        return left | expr(left_binding_power(Or));
+      case LogicalAnd: {
+        /* Avoid short circuit. */
+        int right = expr(left_binding_power(LogicalAnd));
+        return left && right;
+      }
+      case LogicalOr: {
+        /* Avoid short circuit. */
+        int right = expr(left_binding_power(LogicalOr));
+        return left || right;
+      }
       case Question: {
-        int64_t tval = expr(binding_power(Question));
+        /* The middle expression can be almost anything.
+         * We use 0 so it only stops at the ':' (since Colon has a precedence of 0). */
+        int64_t tval = expr(0);
         if (consume().type() != Colon) {
           throw std::runtime_error("Expected ':'");
         }
-        int64_t fval = expr(binding_power(Colon));
+        /* Use (Precedence - 1) to handle right-associativity. */
+        int64_t fval = expr(left_binding_power(Question) - 1);
         return left ? tval : fval;
       }
       default:
@@ -131,15 +145,9 @@ class ExpressionParser {
     }
   }
 
-  /* Unary operators must have the highest precedence. */
-  static constexpr int unary_binding_power = 1000;
-
-  int binding_power(TokenType k)
+  int left_binding_power(TokenType type)
   {
-    switch (k) {
-      case Not:
-      case BitwiseNot:
-        return unary_binding_power;
+    switch (type) {
       case Multiply:
       case Divide:
       case Modulo:
@@ -174,6 +182,11 @@ class ExpressionParser {
         return 10;
       case Colon:
       case ParOpen:
+      case ParClose:
+        return 0;
+      case Not:
+      case BitwiseNot:
+        /* Prefix operators don't bind to the left! */
         return 0;
       case Invalid: /* EndOfFile */
         return -1;

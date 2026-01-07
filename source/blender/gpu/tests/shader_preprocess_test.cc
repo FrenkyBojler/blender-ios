@@ -2787,7 +2787,8 @@ static void test_preprocess_expression_parser()
   EXPECT_EQ(test_expression("1+2+3"), 6);
   EXPECT_EQ(test_expression("1*2+3"), 5);
   EXPECT_EQ(test_expression("1+2*3"), 7);
-  EXPECT_EQ(test_expression("10-3-2"), 5); /* left associative */
+  EXPECT_EQ(test_expression("10-3-2"), 5);
+  EXPECT_EQ(test_expression("10-(3-2)"), 9);
   EXPECT_EQ(test_expression("20/5/2"), 2);
 
   /* --- Parenthesis --- */
@@ -2831,11 +2832,12 @@ static void test_preprocess_expression_parser()
   /* --- Ternary operator --- */
   EXPECT_EQ(test_expression("1 ? 2 : 3"), 2);
   EXPECT_EQ(test_expression("0 ? 2 : 3"), 3);
-  EXPECT_EQ(test_expression("1 ? 0 ? 2 : 3 : 4"), 3); /* right associative */
+  EXPECT_EQ(test_expression("1 ? 0 ? 2 : 3 : 4"), 3);
+  EXPECT_EQ(test_expression("0 ? 1 : 2 ? 3 : 4"), 3);
 
   /* --- Mixed complex expressions --- */
   EXPECT_EQ(test_expression("(1+2*3) == 7 && (4|1) == 5"), 1);
-  EXPECT_EQ(test_expression("!((3<1) == 6)"), 0);
+  EXPECT_EQ(test_expression("!((3<1) == 0)"), 0);
   EXPECT_EQ(test_expression("!0 && !0"), 1);
   EXPECT_EQ(test_expression("!1 && !0"), 0);
   EXPECT_EQ(test_expression("!!1 && !0"), 1);
