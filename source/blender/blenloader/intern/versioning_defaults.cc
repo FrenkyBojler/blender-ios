@@ -75,6 +75,7 @@ namespace blender {
 /* Make preferences read-only, use `versioning_userdef.cc`. */
 #define U (*((const UserDef *)&U))
 
-void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template) {}
+void BLO_update_defaults_workspace(WorkSpace * /*workspace*/, const char * /*app_template*/) {}
+void BLO_update_defaults_startup_blend(Main * /*bmain*/, const char * /*app_template*/) {}
 
 }  // namespace blender
