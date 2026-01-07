@@ -743,10 +743,10 @@ static void key_evaluate_absolute(const int vertex_count,
 
   /* The step rate will be 1 in normal cases. We have to account for shapekeys with different
    * element counts though since that case used to be supported. */
-  const float step_k1 = vertex_count / shapekeys[0]->totelem;
-  const float step_k2 = vertex_count / shapekeys[1]->totelem;
-  const float step_k3 = vertex_count / shapekeys[2]->totelem;
-  const float step_k4 = vertex_count / shapekeys[3]->totelem;
+  const float step_k1 = shapekeys[0]->totelem / float(vertex_count);
+  const float step_k2 = shapekeys[1]->totelem / float(vertex_count);
+  const float step_k3 = shapekeys[2]->totelem / float(vertex_count);
+  const float step_k4 = shapekeys[3]->totelem / float(vertex_count);
 
   for (int i = 0; i < vertex_count; i++) {
     flerp(&k1[int(i * step_k1) * 3],
