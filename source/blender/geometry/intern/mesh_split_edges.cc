@@ -41,7 +41,7 @@ static void propagate_vert_attributes(Mesh &mesh, const Span<int> new_to_old_ver
     if (!attribute) {
       continue;
     }
-    bke::attribute_math::gather(attribute.span,
+    bke::attribute_math::gather(attribute.span.drop_back(new_to_old_verts_map.size()),
                                 new_to_old_verts_map,
                                 attribute.span.take_back(new_to_old_verts_map.size()));
     attribute.finish();
@@ -85,8 +85,10 @@ static void propagate_edge_attributes(Mesh &mesh, const Span<int> new_to_old_edg
     if (!attribute) {
       continue;
     }
-    bke::attribute_math::gather(
-        attribute.span, new_to_old_edge_map, attribute.span.take_back(new_to_old_edge_map.size()));
+
+    bke::attribute_math::gather(attribute.span.drop_back(new_to_old_edge_map.size()),
+                                new_to_old_edge_map,
+                                attribute.span.take_back(new_to_old_edge_map.size()));
     attribute.finish();
   }
 

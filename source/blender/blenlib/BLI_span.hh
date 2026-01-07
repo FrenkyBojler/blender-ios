@@ -434,6 +434,17 @@ template<typename T> class Span {
   {
     return !(a == b);
   }
+
+  template<typename OtherT> constexpr bool contains_share_addresses(const Span<OtherT> other) const
+  {
+    if (static_cast<const void *>(this->end()) <= static_cast<const void *>(other.begin())) {
+      return false;
+    }
+    if (static_cast<const void *>(other.end()) <= static_cast<const void *>(this->begin())) {
+      return false;
+    }
+    return !this->is_empty();
+  }
 };
 
 /**

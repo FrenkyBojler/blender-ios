@@ -104,6 +104,8 @@ inline void scatter(const Span<T> src,
                     const int64_t grain_size = 4096)
 {
   BLI_assert(indices.size() == src.size());
+  BLI_assert(!src.contains_share_addresses(dst.as_span()));
+
   threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
     for (const int64_t i : range) {
       dst[indices[i]] = src[i];
@@ -119,6 +121,7 @@ inline void scatter(const Span<T> src,
 {
   BLI_assert(indices.size() == src.size());
   BLI_assert(indices.min_array_size() <= dst.size());
+  BLI_assert(!src.contains_share_addresses(dst.as_span()));
   indices.foreach_index_optimized<int64_t>(
       GrainSize(grain_size),
       [&](const int64_t index, const int64_t pos) { dst[index] = src[pos]; });
@@ -161,6 +164,7 @@ inline void gather(const Span<T> src,
                    MutableSpan<T> dst,
                    const int64_t grain_size = 4096)
 {
+  BLI_assert(!src.contains_share_addresses(dst.as_span()));
   BLI_assert(indices.size() == dst.size());
   indices.foreach_segment(GrainSize(grain_size),
                           [&](const IndexMaskSegment segment, const int64_t segment_pos) {
@@ -180,6 +184,7 @@ inline void gather(const Span<T> src,
                    const int64_t grain_size = 4096)
 {
   BLI_assert(indices.size() == dst.size());
+  BLI_assert(!src.contains_share_addresses(dst.as_span()));
   threading::parallel_for(indices.index_range(), grain_size, [&](const IndexRange range) {
     for (const int64_t i : range) {
       dst[i] = src[indices[i]];
@@ -213,6 +218,7 @@ inline void gather_group_to_group(const OffsetIndices<int> src_offsets,
                                   const Span<T> src,
                                   MutableSpan<T> dst)
 {
+  BLI_assert(!src.contains_share_addresses(dst.as_span()));
   selection.foreach_index(GrainSize(512), [&](const int64_t src_i, const int64_t dst_i) {
     dst.slice(dst_offsets[dst_i]).copy_from(src.slice(src_offsets[src_i]));
   });
@@ -236,6 +242,7 @@ inline void gather_to_groups(const OffsetIndices<int> dst_offsets,
                              const Span<T> src,
                              MutableSpan<T> dst)
 {
+  BLI_assert(!src.contains_share_addresses(dst.as_span()));
   src_selection.foreach_index(GrainSize(1024), [&](const int src_i, const int dst_i) {
     dst.slice(dst_offsets[dst_i]).fill(src[src_i]);
   });

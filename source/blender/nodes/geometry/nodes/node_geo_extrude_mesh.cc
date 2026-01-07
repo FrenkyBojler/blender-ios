@@ -303,7 +303,9 @@ static void gather_attributes(MutableAttributeAccessor attributes,
 {
   for (const StringRef id : ids) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-    bke::attribute_math::gather(attribute.span, indices, attribute.span.slice(new_range));
+    BLI_assert(IndexRange(attribute.span.size()).one_after_last() == new_range.one_after_last());
+    bke::attribute_math::gather(
+        attribute.span.take_front(new_range.start()), indices, attribute.span.slice(new_range));
     attribute.finish();
   }
 }
@@ -315,7 +317,9 @@ static void gather_attributes(MutableAttributeAccessor attributes,
 {
   for (const StringRef id : ids) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-    array_utils::gather(attribute.span, indices, attribute.span.slice(new_range));
+    BLI_assert(IndexRange(attribute.span.size()).one_after_last() == new_range.one_after_last());
+    array_utils::gather(
+        attribute.span.take_front(new_range.start()), indices, attribute.span.slice(new_range));
     attribute.finish();
   }
 }
@@ -339,7 +343,9 @@ static void gather_vert_attributes(Mesh &mesh,
   for (const StringRef id : ids) {
     if (!vertex_group_names.contains(id)) {
       GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-      bke::attribute_math::gather(attribute.span, indices, attribute.span.slice(new_range));
+      BLI_assert(IndexRange(attribute.span.size()).one_after_last() == new_range.one_after_last());
+      bke::attribute_math::gather(
+          attribute.span.take_front(new_range.start()), indices, attribute.span.slice(new_range));
       attribute.finish();
     }
   }
@@ -1091,8 +1097,12 @@ static void extrude_mesh_face_regions(Mesh &mesh,
       array_utils::gather(attribute.span, boundary_edge_mask, boundary_data);
 
       /* Edges inside of face regions also just duplicate their source data. */
+      BLI_assert(new_inner_edge_range.one_after_last() ==
+                 IndexRange(attribute.span.size()).one_after_last());
       GMutableSpan new_inner_data = attribute.span.slice(new_inner_edge_range);
-      bke::attribute_math::gather(attribute.span, new_inner_edge_indices, new_inner_data);
+      bke::attribute_math::gather(attribute.span.drop_back(new_inner_edge_range.size()),
+                                  new_inner_edge_indices,
+                                  new_inner_data);
 
       /* Edges connected to original vertices mix values of selected connected edges. */
       copy_with_mixing(attribute.span,
@@ -1177,20 +1187,26 @@ static void extrude_mesh_face_regions(Mesh &mesh,
   }
 
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Point)) {
-    array_utils::gather(
-        indices->as_span(), new_vert_indices.as_span(), indices->slice(new_vert_range));
+    BLI_assert(new_vert_range.one_after_last() == indices->index_range().one_after_last());
+    array_utils::gather(indices->as_span().drop_back(new_vert_range.size()),
+                        new_vert_indices.as_span(),
+                        indices->slice(new_vert_range));
   }
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Edge)) {
+    BLI_assert(new_inner_edge_range.one_after_last() == indices->index_range().one_after_last());
     indices->slice(connect_edge_range).fill(ORIGINDEX_NONE);
-    array_utils::gather(indices->as_span(),
+    array_utils::gather(indices->as_span().drop_back(new_inner_edge_range.size()),
                         new_inner_edge_indices.as_span(),
                         indices->slice(new_inner_edge_range));
-    array_utils::gather(
-        indices->as_span(), boundary_edge_indices.as_span(), indices->slice(boundary_edge_range));
+    array_utils::gather(indices->as_span().drop_back(boundary_edge_range.size()),
+                        boundary_edge_indices.as_span(),
+                        indices->slice(boundary_edge_range));
   }
   if (std::optional<MutableSpan<int>> indices = get_orig_index_layer(mesh, AttrDomain::Face)) {
-    array_utils::gather(
-        indices->as_span(), edge_extruded_face_indices.as_span(), indices->slice(side_face_range));
+    BLI_assert(side_face_range.one_after_last() == indices->index_range().one_after_last());
+    array_utils::gather(indices->as_span().drop_back(side_face_range.size()),
+                        edge_extruded_face_indices.as_span(),
+                        indices->slice(side_face_range));
   }
 
   if (attribute_outputs.top_id) {
@@ -1383,8 +1399,12 @@ static void extrude_individual_mesh_faces(Mesh &mesh,
   /* Each side face gets the values from the corresponding new face. */
   for (const StringRef id : ids_by_domain[int(AttrDomain::Face)]) {
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(id);
-    bke::attribute_math::gather_to_groups(
-        group_per_face, face_selection, attribute.span, attribute.span.slice(side_face_range));
+    BLI_assert(IndexRange(attribute.span.size()).one_after_last() ==
+               side_face_range.one_after_last());
+    bke::attribute_math::gather_to_groups(group_per_face,
+                                          face_selection,
+                                          attribute.span.drop_back(side_face_range.size()),
+                                          attribute.span.slice(side_face_range));
     attribute.finish();
   }
 
