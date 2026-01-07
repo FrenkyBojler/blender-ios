@@ -14,7 +14,6 @@
 #include "DNA_sequence_types.h"
 
 #include "BLI_fileops.h"
-#include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
@@ -53,7 +52,7 @@
 namespace blender::seq {
 
 struct IndexBuildContext {
-  MovieProxyBuilder *proxy_builder = nullptr;
+  MovieProxyBuilder *movie_proxy_builder = nullptr;
 
   int tc_flags = 0;
   int size_flags = 0;
@@ -98,7 +97,7 @@ float rendersize_to_scale_factor(eSpaceSeq_Proxy_RenderSize render_size)
   }
 }
 
-bool seq_proxy_get_custom_file_filepath(Strip *strip, char *filepath, const int view_id)
+bool seq_proxy_get_custom_file_filepath(const Strip *strip, char *filepath, const int view_id)
 {
   /* Ideally this would be #PROXY_MAXFILE however BLI_path_abs clamps to #FILE_MAX. */
   char filepath_temp[FILE_MAX];
@@ -430,8 +429,8 @@ bool proxy_rebuild_context(Main *bmain,
                            Scene *scene,
                            Strip *strip,
                            Set<std::string> *processed_paths,
-                           ListBaseT<LinkData> *queue,
-                           bool build_only_on_bad_performance)
+                           bool build_only_on_bad_performance,
+                           Vector<IndexBuildContext *> &r_queue)
 {
   if (!strip->data || !strip->data->proxy) {
     return true;
@@ -483,22 +482,22 @@ bool proxy_rebuild_context(Main *bmain,
       strip_open_anim_file(scene, strip_new, true);
       anim = strip_new->runtime->movie_reader_get(i);
       if (anim) {
-        context->proxy_builder = MOV_proxy_builder_start(anim,
-                                                         IMB_Timecode_Type(context->tc_flags),
-                                                         context->size_flags,
-                                                         context->quality,
-                                                         context->overwrite,
-                                                         processed_paths,
-                                                         build_only_on_bad_performance);
+        context->movie_proxy_builder = MOV_proxy_builder_start(
+            anim,
+            IMB_Timecode_Type(context->tc_flags),
+            context->size_flags,
+            context->quality,
+            context->overwrite,
+            processed_paths,
+            build_only_on_bad_performance);
       }
-      if (!context->proxy_builder) {
+      if (!context->movie_proxy_builder) {
         MEM_freeN(context);
         return false;
       }
     }
 
-    LinkData *link = BLI_genericNodeN(context);
-    BLI_addtail(queue, link);
+    r_queue.append(context);
   }
 
   return true;
@@ -515,8 +514,8 @@ void proxy_rebuild(IndexBuildContext *context,
   Main *bmain = context->bmain;
 
   if (strip->type == STRIP_TYPE_MOVIE) {
-    if (context->proxy_builder) {
-      MOV_proxy_builder_process(context->proxy_builder,
+    if (context->movie_proxy_builder) {
+      MOV_proxy_builder_process(context->movie_proxy_builder,
                                 &worker_status->stop,
                                 &worker_status->do_update,
                                 set_progress_fn);
@@ -587,11 +586,11 @@ void proxy_rebuild(IndexBuildContext *context,
 
 void proxy_rebuild_finish(IndexBuildContext *context, bool stop)
 {
-  if (context->proxy_builder) {
+  if (context->movie_proxy_builder) {
     for (MovieReader *anim : context->strip->runtime->movie_readers) {
       MOV_close_proxies(anim);
     }
-    MOV_proxy_builder_finish(context->proxy_builder, stop);
+    MOV_proxy_builder_finish(context->movie_proxy_builder, stop);
   }
 
   seq_free_strip_recurse(nullptr, context->strip, true);

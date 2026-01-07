@@ -2518,7 +2518,7 @@ static void seq_build_proxy(bContext *C, PointerRNA *ptr)
 
     /* Build proxy. */
     seq::proxy_rebuild_context(
-        pj->main, pj->depsgraph, pj->scene, &strip, &processed_paths, &pj->queue, true);
+        pj->main, pj->depsgraph, pj->scene, &strip, &processed_paths, true, pj->queue);
   }
 
   if (!WM_jobs_is_running(wm_job)) {
