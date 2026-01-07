@@ -642,8 +642,8 @@ static void copy_key_float3(
     const float step_rate = source->totelem / float(vertex_count);
     for (int i = 0; i < vertex_count; i++) {
       /* Rounding down to avoid exceeding the bounds. */
-      const int target_index = int(step_rate * i);
-      memcpy(&r_target[i * 3], &keyblock_data[target_index * 3], 3 * sizeof(float));
+      const int source_index = int(step_rate * i);
+      memcpy(&r_target[i * 3], &keyblock_data[source_index * 3], 3 * sizeof(float));
     }
   }
 
