@@ -1450,7 +1450,7 @@ void common_pressure_curves_init(const Brush &brush)
   BKE_curvemapping_init(brush.curve_jitter);
   BKE_curvemapping_init(brush.curve_distance_falloff);
 }
-}
+}  // namespace bke::brush
 
 void BKE_brush_calc_curve_factors(const eBrushCurvePreset preset,
                                   const CurveMapping *cumap,
