@@ -10,16 +10,19 @@
 
 #include <optional>
 
+namespace blender {
+
 struct ID;
 struct Main;
+struct ReportList;
 struct Scene;
 struct View3D;
 struct ViewLayer;
-namespace blender::asset_system {
+namespace asset_system {
 class AssetRepresentation;
 }
 
-namespace blender::ed::asset {
+namespace ed::asset {
 
 struct ImportInstantiateContext {
   Scene *scene;
@@ -42,6 +45,8 @@ ID *asset_local_id_ensure_imported(
     const asset_system::AssetRepresentation &asset,
     int flags = 0, /* #eFileSel_Params_Flag + #eBLOLibLinkFlags */
     const std::optional<eAssetImportMethod> import_method = std::nullopt,
-    const std::optional<ImportInstantiateContext> instantiate_context = std::nullopt);
+    const std::optional<ImportInstantiateContext> instantiate_context = std::nullopt,
+    ReportList *reports = nullptr);
 
-}  // namespace blender::ed::asset
+}  // namespace ed::asset
+}  // namespace blender
