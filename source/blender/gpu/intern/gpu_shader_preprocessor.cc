@@ -18,10 +18,14 @@ using namespace shader::parser;
 struct Preprocessor {
   IntermediateForm &parser;
 
+  struct TokenRange {
+    Token start, end;
+  };
+
   Vector<Token, 8> jump_stack;
   Map<StringRef, Token> defines;
   Set<StringRef> visited_macros;
-  Map<StringRef, StringRef> macro_parameters;
+  Map<StringRef, TokenRange> macro_parameters;
   /* Token cursor. */
   int cursor;
 
@@ -30,6 +34,15 @@ struct Preprocessor {
     /* Note: Whitespaces where not merged (because of TokenizePreprocessor), so using
      * str_view_with_whitespace will be faster.  */
     return t.str_view_with_whitespace();
+  }
+
+  static StringRef str(TokenRange range)
+  {
+    /* Note: Whitespaces where not merged (because of TokenizePreprocessor), so using
+     * str_view_with_whitespace will be faster.  */
+    StringRef start = range.start.str_view_with_whitespace();
+    StringRef end = range.end.str_view_with_whitespace();
+    return {start.data(), end.data() - start.data() + end.size()};
   }
 
   std::string new_lines(Token start, Token end)
@@ -148,9 +161,7 @@ struct Preprocessor {
         Token param_end = get_end_of_parameter(param_start);
 
         Token argument_name = tok;
-        macro_parameters.add(
-            str(argument_name),
-            parser.substr_range_inclusive_view(param_start.next(), param_end.prev()));
+        macro_parameters.add(str(argument_name), {param_start.next(), param_end.prev()});
 
         /* Continue to the next separator. */
         tok = skip_whitespace(tok.next());
@@ -198,17 +209,28 @@ struct Preprocessor {
 
         if (is_function) {
           /* Lookup macro arguments. */
-          StringRef *macro_str = macro_parameters.lookup_ptr(str(tok));
-          if (macro_str) {
-            expanded += *macro_str;
+          TokenRange *macro_value_ptr = macro_parameters.lookup_ptr(str(tok));
+          if (macro_value_ptr) {
+            TokenRange &macro_value = *macro_value_ptr;
+            /* Expand argument. */
+            /* FIXME(fclem): For correctness, we should re-parse and expand the result of the
+             * expansion and not the input. Moreover, this only expand the first token in the
+             * case there are many tokens for a parameter. But this is simple enough to get it
+             * working with our codebase. */
+            Token macro_tok = defines.lookup_default(str(macro_value.start), Token::invalid());
+            if (macro_tok.is_valid()) {
+              expanded += expand_macro(macro_value.start, macro_tok).str;
+            }
+            else {
+              expanded += str(macro_value);
+            }
             replaced = true;
           }
         }
 
         if (!replaced) {
           /* Try recursive expansion. */
-          Token macro_tok = Token::invalid();
-          macro_tok = defines.lookup_default(str(tok), Token::invalid());
+          Token macro_tok = defines.lookup_default(str(tok), Token::invalid());
           if (macro_tok.is_valid()) {
             auto [str, end_of_expand] = expand_macro(tok, macro_tok);
             tok = end_of_expand;
