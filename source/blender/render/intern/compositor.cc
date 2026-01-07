@@ -39,7 +39,9 @@
 
 #include "render_types.h"
 
-namespace blender::render {
+namespace blender {
+
+namespace render {
 
 /**
  * Render Context Data
@@ -85,7 +87,7 @@ class Context : public compositor::Context {
   /* Cached GPU and CPU passes that the compositor took ownership of. Those had their reference
    * count incremented when accessed and need to be freed/have their reference count decremented
    * when destroying the context. */
-  Vector<blender::gpu::Texture *> cached_gpu_passes_;
+  Vector<gpu::Texture *> cached_gpu_passes_;
   Vector<ImBuf *> cached_cpu_passes_;
 
  public:
@@ -96,7 +98,7 @@ class Context : public compositor::Context {
 
   virtual ~Context()
   {
-    for (blender::gpu::Texture *pass : cached_gpu_passes_) {
+    for (gpu::Texture *pass : cached_gpu_passes_) {
       GPU_texture_free(pass);
     }
     for (ImBuf *pass : cached_cpu_passes_) {
@@ -306,7 +308,7 @@ class Context : public compositor::Context {
         *this, this->result_type_from_pass(render_pass), compositor::ResultPrecision::Full);
 
     if (this->use_gpu()) {
-      blender::gpu::Texture *pass_texture = RE_pass_ensure_gpu_texture_cache(render, render_pass);
+      gpu::Texture *pass_texture = RE_pass_ensure_gpu_texture_cache(render, render_pass);
       /* Don't assume render will keep pass data stored, add our own reference. */
       GPU_texture_ref(pass_texture);
       pass.wrap_external(pass_texture);
@@ -509,7 +511,7 @@ class Compositor {
       }
     }
 
-    cache_manager_.reset();
+    cache_manager_.free();
 
     /* See comment above on context enabling. */
     if (last_evaluation_used_gpu_) {
@@ -549,12 +551,21 @@ class Compositor {
     {
       compositor::Evaluator evaluator(context);
       evaluator.evaluate();
+
+      /* Reset the cache, but only if the evaluation did not get canceled, because in that case, we
+       * wouldn't want to invalidate the cache because not all operations that use cached resources
+       * got the chance to mark their used resources as still in use. So we wait until a full
+       * evaluation happen before we decide that some resources are no longer needed. */
+      if (!context.is_canceled()) {
+        context.cache_manager().reset();
+      }
+
       last_evaluation_used_gpu_ = context.use_gpu();
       last_evaluation_precision_ = context.get_precision();
     }
 
     if (context.use_gpu()) {
-      blender::gpu::TexturePool::get().reset();
+      gpu::TexturePool::get().reset();
 
       void *re_system_gpu_context = RE_system_gpu_context_get(&render_);
       if (BLI_thread_is_main() || re_system_gpu_context == nullptr) {
@@ -583,19 +594,19 @@ class Compositor {
   }
 };
 
-}  // namespace blender::render
+}  // namespace render
 
 void Render::compositor_execute(const Scene &scene,
                                 const RenderData &render_data,
                                 const bNodeTree &node_tree,
                                 const char *view_name,
-                                blender::compositor::RenderContext *render_context,
-                                blender::compositor::Profiler *profiler,
-                                blender::compositor::OutputTypes needed_outputs)
+                                compositor::RenderContext *render_context,
+                                compositor::Profiler *profiler,
+                                compositor::OutputTypes needed_outputs)
 {
   std::unique_lock lock(this->compositor_mutex);
 
-  blender::render::ContextInputData input_data(
+  render::ContextInputData input_data(
       scene, render_data, node_tree, view_name, render_context, profiler, needed_outputs);
 
   if (this->compositor && this->compositor->needs_to_be_recreated(input_data)) {
@@ -605,7 +616,7 @@ void Render::compositor_execute(const Scene &scene,
   }
 
   if (!this->compositor) {
-    this->compositor = new blender::render::Compositor(*this);
+    this->compositor = new render::Compositor(*this);
   }
 
   this->compositor->execute(input_data);
@@ -626,9 +637,9 @@ void RE_compositor_execute(Render &render,
                            const RenderData &render_data,
                            const bNodeTree &node_tree,
                            const char *view_name,
-                           blender::compositor::RenderContext *render_context,
-                           blender::compositor::Profiler *profiler,
-                           blender::compositor::OutputTypes needed_outputs)
+                           compositor::RenderContext *render_context,
+                           compositor::Profiler *profiler,
+                           compositor::OutputTypes needed_outputs)
 {
   render.compositor_execute(
       scene, render_data, node_tree, view_name, render_context, profiler, needed_outputs);
@@ -638,3 +649,5 @@ void RE_compositor_free(Render &render)
 {
   render.compositor_free();
 }
+
+}  // namespace blender

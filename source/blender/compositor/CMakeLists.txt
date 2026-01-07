@@ -43,6 +43,7 @@ set(SRC
   COM_shader_operation.hh
   COM_simple_operation.hh
   COM_static_cache_manager.hh
+  COM_undefined_node_operation.hh
   COM_utilities.hh
 
   intern/COM_compositor.cc
@@ -67,6 +68,7 @@ set(SRC
   intern/shader_operation.cc
   intern/simple_operation.cc
   intern/static_cache_manager.cc
+  intern/undefined_node_operation.cc
   intern/utilities.cc
 
   algorithms/intern/compute_preview.cc
@@ -384,9 +386,20 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_type_conversion.glsl
 )
 
+set(GLSL_INC
+  ../gpu
+  ../gpu/intern
+  ../gpu/shaders
+  ../gpu/shaders/common
+
+  shaders
+  shaders/library
+  shaders/infos
+)
+
 set(GLSL_C)
 foreach(GLSL_FILE ${GLSL_SRC})
-  glsl_to_c(${GLSL_FILE} GLSL_C)
+  glsl_to_c(${GLSL_FILE} GLSL_C GLSL_INC)
 endforeach()
 
 blender_add_lib(bf_compositor_shaders "${GLSL_C}" "" "" "")
