@@ -5475,6 +5475,10 @@ static wmEventType wm_event_type_from_ghost_key(GHOST_TKey key)
 
     case GHOST_kKeyGrLess:
       return EVT_GRLESSKEY;
+    case GHOST_kKeyCircumflex:
+      return EVT_CIRCUMFLEXKEY;
+    case GHOST_kKeySection:
+      return EVT_SECTIONKEY;
 
     case GHOST_kKeyMediaPlay:
       return EVT_MEDIAPLAY;

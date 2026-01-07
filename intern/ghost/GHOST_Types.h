@@ -532,8 +532,10 @@ typedef enum {
   GHOST_kKeyRightHyper,
 #define _GHOST_KEY_MODIFIER_MAX GHOST_kKeyRightHyper
 
-  GHOST_kKeyGrLess, /* German PC only! */
-  GHOST_kKeyApp,    /* Also known as menu key. */
+  GHOST_kKeyGrLess,     /* German keyboard and others. */
+  GHOST_kKeyCircumflex, /* German keyboard and others. */
+  GHOST_kKeySection,    /* Swedish keyboard and others. */
+  GHOST_kKeyApp,        /* Also known as menu key. */
 
   GHOST_kKeyCapsLock,
   GHOST_kKeyNumLock,

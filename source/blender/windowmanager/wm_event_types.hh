@@ -186,6 +186,10 @@ enum wmEventType : int16_t {
   /** Additional modifier, see: #KM_HYPER for details. */
   EVT_HYPER = 0x00b3, /* 179 */
 
+  /** Only on some keyboards. */
+  EVT_CIRCUMFLEXKEY = 0x00b4, /* 180 */
+  EVT_SECTIONKEY = 0x00b5,    /* 181 */
+
   EVT_PADPERIOD = 0x00c7, /* 199 */
 
   EVT_CAPSLOCKKEY = 0x00d3, /* 211 */

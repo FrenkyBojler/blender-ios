@@ -53,41 +53,6 @@
 #  include "GHOST_NDOFManagerWin32.hh"
 #endif
 
-/* Key code values not found in `winuser.h`. */
-#ifndef VK_MINUS
-#  define VK_MINUS 0xBD
-#endif /* VK_MINUS */
-#ifndef VK_SEMICOLON
-#  define VK_SEMICOLON 0xBA
-#endif /* VK_SEMICOLON */
-#ifndef VK_PERIOD
-#  define VK_PERIOD 0xBE
-#endif /* VK_PERIOD */
-#ifndef VK_COMMA
-#  define VK_COMMA 0xBC
-#endif /* VK_COMMA */
-#ifndef VK_BACK_QUOTE
-#  define VK_BACK_QUOTE 0xC0
-#endif /* VK_BACK_QUOTE */
-#ifndef VK_SLASH
-#  define VK_SLASH 0xBF
-#endif /* VK_SLASH */
-#ifndef VK_BACK_SLASH
-#  define VK_BACK_SLASH 0xDC
-#endif /* VK_BACK_SLASH */
-#ifndef VK_EQUALS
-#  define VK_EQUALS 0xBB
-#endif /* VK_EQUALS */
-#ifndef VK_OPEN_BRACKET
-#  define VK_OPEN_BRACKET 0xDB
-#endif /* VK_OPEN_BRACKET */
-#ifndef VK_CLOSE_BRACKET
-#  define VK_CLOSE_BRACKET 0xDD
-#endif /* VK_CLOSE_BRACKET */
-#ifndef VK_GR_LESS
-#  define VK_GR_LESS 0xE2
-#endif /* VK_GR_LESS */
-
 /**
  * Workaround for some laptop touch-pads, some of which seems to
  * have driver issues which makes it so window function receives
@@ -692,7 +657,7 @@ GHOST_TKey GHOST_SystemWin32::hardKey(RAWINPUT const &raw, bool *r_key_down)
  * This function was added in response to bug #25715.
  * This is going to be a long list #42426.
  */
-GHOST_TKey GHOST_SystemWin32::processSpecialKey(short vKey, short /*scanCode*/) const
+GHOST_TKey GHOST_SystemWin32::processSpecialKey(short vKey, short scanCode) const
 {
   GHOST_TKey key = GHOST_kKeyUnknown;
   if (vKey == 0xFF) {
@@ -704,24 +669,81 @@ GHOST_TKey GHOST_SystemWin32::processSpecialKey(short vKey, short /*scanCode*/) 
   switch (ch) {
     case u'\"':
     case u'\'':
+      /* VK_OEM_7 on US Keyboard. */
       key = GHOST_kKeyQuote;
       break;
     case u'.':
       key = GHOST_kKeyNumpadPeriod;
       break;
+    case u';':
+      /* VK_OEM_1 on US Keyboard. */
+      key = GHOST_kKeySemicolon;
+      break;
     case u'/':
+      /* VK_OEM_2 on US Keyboard. */
       key = GHOST_kKeySlash;
+      break;
+    case u'\\':
+      /* VK_OEM_5 on US Keyboard. */
+      key = GHOST_kKeyBackslash;
+      break;
+    case u'^':
+      /* VK_OEM_5 on German Keyboard. */
+      key = GHOST_kKeyCircumflex;
       break;
     case u'`':
     case u'²':
+      /* VK_OEM_3 on US keyboard. */
       key = GHOST_kKeyAccentGrave;
+      break;
+    case u'[':
+      /* VK_OEM_4 on US keyboard. */
+      key = GHOST_kKeyLeftBracket;
+      break;
+    case u']':
+      /* VK_OEM_6 on US keyboard. */
+      key = GHOST_kKeyRightBracket;
+      break;
+    case u'<':
+      /* VK_OEM_102 on German keyboard. */
+      key = GHOST_kKeyGrLess;
       break;
     case u'i':
       /* `i` key on Turkish keyboard. */
       key = GHOST_kKeyI;
       break;
     default:
-      if (vKey == VK_OEM_7) {
+      if (vKey == VK_OEM_1) {
+        key = GHOST_kKeySemicolon;
+      }
+      else if (vKey == VK_OEM_2) {
+        key = GHOST_kKeySlash;
+      }
+      else if (vKey == VK_OEM_3) {
+        key = GHOST_kKeyAccentGrave;
+      }
+      else if (vKey == VK_OEM_4) {
+        key = GHOST_kKeyLeftBracket;
+      }
+      else if (vKey == VK_OEM_5) {
+        if (ch == 0 && scanCode == 0x29) {
+          /* `§` key on Swedish keyboard. */
+          key = GHOST_kKeySection;
+        }
+        else {
+          key = GHOST_kKeyBackslash;
+        }
+      }
+      else if (vKey == VK_OEM_6) {
+        key = GHOST_kKeyRightBracket;
+      }
+      else if (vKey == VK_OEM_7) {
+        key = GHOST_kKeyQuote;
+      }
+      else if (vKey == VK_OEM_8) {
+        key = GHOST_kKeyQuote;
+      }
+      else if (vKey == VK_OEM_7) {
         key = GHOST_kKeyQuote;
       }
       else if (vKey == VK_OEM_8) {
@@ -729,6 +751,9 @@ GHOST_TKey GHOST_SystemWin32::processSpecialKey(short vKey, short /*scanCode*/) 
           /* OEM key; used purely for shortcuts. */
           key = GHOST_kKeyF13;
         }
+      }
+      else if (vKey == VK_OEM_102) {
+        key = GHOST_kKeyBackslash;
       }
       break;
   }
@@ -833,41 +858,6 @@ GHOST_TKey GHOST_SystemWin32::convertKey(short vKey, short scanCode, short exten
       case VK_ADD:
         key = GHOST_kKeyNumpadPlus;
         break;
-
-      case VK_SEMICOLON:
-        key = GHOST_kKeySemicolon;
-        break;
-      case VK_EQUALS:
-        key = GHOST_kKeyEqual;
-        break;
-      case VK_COMMA:
-        key = GHOST_kKeyComma;
-        break;
-      case VK_MINUS:
-        key = GHOST_kKeyMinus;
-        break;
-      case VK_PERIOD:
-        key = GHOST_kKeyPeriod;
-        break;
-      case VK_SLASH:
-        key = GHOST_kKeySlash;
-        break;
-      case VK_BACK_QUOTE:
-        key = GHOST_kKeyAccentGrave;
-        break;
-      case VK_OPEN_BRACKET:
-        key = GHOST_kKeyLeftBracket;
-        break;
-      case VK_BACK_SLASH:
-        key = GHOST_kKeyBackslash;
-        break;
-      case VK_CLOSE_BRACKET:
-        key = GHOST_kKeyRightBracket;
-        break;
-      case VK_GR_LESS:
-        key = GHOST_kKeyGrLess;
-        break;
-
       case VK_SHIFT:
         /* Check single shift presses */
         if (scanCode == 0x36) {
@@ -919,8 +909,27 @@ GHOST_TKey GHOST_SystemWin32::convertKey(short vKey, short scanCode, short exten
       case VK_MEDIA_NEXT_TRACK:
         key = GHOST_kKeyMediaLast;
         break;
+      case VK_OEM_PLUS:
+        key = GHOST_kKeyEqual;
+        break;
+      case VK_OEM_COMMA:
+        key = GHOST_kKeyComma;
+        break;
+      case VK_OEM_MINUS:
+        key = GHOST_kKeyMinus;
+        break;
+      case VK_OEM_PERIOD:
+        key = GHOST_kKeyPeriod;
+        break;
+      case VK_OEM_1:
+      case VK_OEM_2:
+      case VK_OEM_3:
+      case VK_OEM_4:
+      case VK_OEM_5:
+      case VK_OEM_6:
       case VK_OEM_7:
       case VK_OEM_8:
+      case VK_OEM_102:
       default:
         key = ((GHOST_SystemWin32 *)getSystem())->processSpecialKey(vKey, scanCode);
         break;

@@ -17,6 +17,8 @@
  *   `-Wc++20-compat` & `-Wc99-compat` warnings under CLANG.
  */
 
+/** u00A7: `§`. */
+#define BLI_STR_UTF8_SECTION_SIGN "\xc2\xa7"
 /** u00B0: `°`. */
 #define BLI_STR_UTF8_DEGREE_SIGN "\xc2\xb0"
 /** u00B2: `²` */
