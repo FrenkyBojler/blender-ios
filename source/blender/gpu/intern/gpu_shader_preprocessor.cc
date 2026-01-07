@@ -269,7 +269,6 @@ struct Preprocessor {
     if (type_str == "ifndef") {
       return !defines.contains(str(end));
     }
-
     if (ELEM(type_str, "if", "elif")) {
       /* TODO(fclem): if and elif. */
       return true;
@@ -304,7 +303,7 @@ struct Preprocessor {
       }
       /* Erase condition and continue parsing content.
        * The #endif will just be erased later. */
-      parser.erase(hash_tok, dir_end.prev());
+      parser.erase(hash_tok, dir_end);
       return dir_end.index;
     }
   }
@@ -355,8 +354,10 @@ struct Preprocessor {
       parser.erase(hash_tok, dir_end);
     }
     else if (ELEM(dir_str, "if", "ifdef", "ifndef", "elif", "else")) {
+      /* Conditional. */
+
       /* If this is part of an already evaluated statement. */
-      if (dir_tok == jump_stack.last()) {
+      if (!jump_stack.is_empty() && dir_tok == jump_stack.last()) {
         jump_stack.pop_last();
         Token endif_hash = hash_tok;
         while (str(endif_hash) != "endif") {
@@ -367,19 +368,14 @@ struct Preprocessor {
         parser.erase(hash_tok, endif_end);
         return;
       }
-      /* Macro undefine. */
-      Token space = dir_tok.next();
-      if (space != Space) {
-        return; /* TODO(fclem): Error. */
-      }
-      Token macro_name = space.next();
-      if (macro_name != Word) {
-        return; /* TODO(fclem): Error. */
-      }
+
       cursor = process_conditional(hash_tok, dir_end);
       return;
     }
     else if (dir_str == "line") {
+      parser.erase(hash_tok, dir_end);
+    }
+    else if (dir_str == "endif") {
       parser.erase(hash_tok, dir_end);
     }
     cursor = dir_end.index;
