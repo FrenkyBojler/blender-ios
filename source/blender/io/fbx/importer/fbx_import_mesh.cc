@@ -483,7 +483,7 @@ void import_meshes(Main &bmain,
     /* Add vertex groups to the object. */
     VectorSet<std::string> bone_set = get_skin_bone_name_set(mapping, fmesh);
     for (const std::string &name : bone_set) {
-      bDeformGroup *defgroup = MEM_callocN<bDeformGroup>("bDeformGroup");
+      bDeformGroup *defgroup = MEM_new_for_free<bDeformGroup>("bDeformGroup");
       StringRef(name).copy_utf8_truncated(defgroup->name);
       BLI_addtail(&mesh->vertex_group_names, defgroup);
     }
@@ -542,7 +542,7 @@ void import_meshes(Main &bmain,
         name = get_fbx_name(node->name);
       }
       Object *obj = BKE_object_add_only_object(&bmain, OB_MESH, name.c_str());
-      obj->data = mesh_main;
+      obj->data = id_cast<ID *>(mesh_main);
       if (!node->visible) {
         obj->visibility_flag |= OB_HIDE_VIEWPORT;
       }

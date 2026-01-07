@@ -71,6 +71,8 @@
 #include "../gpu/gpu_py_api.hh"
 #include "../mathutils/mathutils.hh"
 
+namespace blender {
+
 /* Logging types to use anywhere in the Python modules. */
 
 CLG_LOGREF_DECLARE_GLOBAL(BPY_LOG_INTERFACE, "bpy.interface");
@@ -267,7 +269,7 @@ bContext *BPY_context_get()
 
 void BPY_context_set(bContext *C)
 {
-  bpy_context_module->ptr->data = (void *)C;
+  bpy_context_module->ptr->data = static_cast<void *>(C);
 }
 
 #ifdef WITH_FLUID
@@ -454,7 +456,7 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
 
     /* While `sys.argv` is set, we don't want Python to interpret it. */
     config.parse_argv = 0;
-    status = PyConfig_SetBytesArgv(&config, argc, (char *const *)argv);
+    status = PyConfig_SetBytesArgv(&config, argc, const_cast<char *const *>(argv));
     pystatus_exit_on_error(status);
 
     /* Needed for Python's initialization for portable Python installations.
@@ -702,13 +704,20 @@ void BPY_python_backtrace(FILE *fp)
   if (frame == nullptr) {
     return;
   }
+  /* The reference is borrowed, increase since #PyFrame_GetBack is *not* borrowed,
+   * and this simplifies handling reference counts in the loop. */
+  Py_INCREF(frame);
   do {
     PyCodeObject *code = PyFrame_GetCode(frame);
     const int line = PyFrame_GetLineNumber(frame);
     const char *filepath = PyUnicode_AsUTF8(code->co_filename);
     const char *funcname = PyUnicode_AsUTF8(code->co_name);
     fprintf(fp, "  File \"%s\", line %d in %s\n", filepath, line, funcname);
-  } while ((frame = PyFrame_GetBack(frame)));
+    Py_DECREF(code);
+    PyFrameObject *frame_next = PyFrame_GetBack(frame);
+    Py_DECREF(frame);
+    frame = frame_next;
+  } while (frame);
 }
 
 void BPY_DECREF(void *pyob_ptr)
@@ -810,7 +819,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
   PointerRNA *ptr = nullptr;
   bool done = false;
 
-  pyctx = (PyObject *)CTX_py_dict_get(C);
+  pyctx = static_cast<PyObject *>(CTX_py_dict_get(C));
   item = PyDict_GetItemString(pyctx, member);
 
   if (item == nullptr) {
@@ -1169,3 +1178,5 @@ int text_check_identifier_nodigit_unicode(const uint ch)
 }
 
 /** \} */
+
+}  // namespace blender

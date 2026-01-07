@@ -22,7 +22,9 @@
 
 #include "node_composite_util.hh"
 
-namespace blender::nodes::node_composite_tonemap_cc {
+namespace blender {
+
+namespace nodes::node_composite_tonemap_cc {
 
 static const EnumPropertyItem type_items[] = {
     {CMP_NODE_TONE_MAP_PHOTORECEPTOR,
@@ -112,7 +114,7 @@ static void cmp_node_tonemap_declare(NodeDeclarationBuilder &b)
 static void node_composit_init_tonemap(bNodeTree * /*ntree*/, bNode *node)
 {
   /* Unused, but still allocated for forward compatibility. */
-  NodeTonemap *ntm = MEM_callocN<NodeTonemap>(__func__);
+  NodeTonemap *ntm = MEM_new_for_free<NodeTonemap>(__func__);
   node->storage = ntm;
 }
 
@@ -469,13 +471,13 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
   return new ToneMapOperation(context, node);
 }
 
-}  // namespace blender::nodes::node_composite_tonemap_cc
+}  // namespace nodes::node_composite_tonemap_cc
 
 static void register_node_type_cmp_tonemap()
 {
-  namespace file_ns = blender::nodes::node_composite_tonemap_cc;
+  namespace file_ns = nodes::node_composite_tonemap_cc;
 
-  static blender::bke::bNodeType ntype;
+  static bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeTonemap", CMP_NODE_TONEMAP);
   ntype.ui_name = "Tonemap";
@@ -486,10 +488,12 @@ static void register_node_type_cmp_tonemap()
   ntype.nclass = NODE_CLASS_OP_COLOR;
   ntype.declare = file_ns::cmp_node_tonemap_declare;
   ntype.initfunc = file_ns::node_composit_init_tonemap;
-  blender::bke::node_type_storage(
+  bke::node_type_storage(
       ntype, "NodeTonemap", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(ntype);
+  bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_tonemap)
+
+}  // namespace blender
