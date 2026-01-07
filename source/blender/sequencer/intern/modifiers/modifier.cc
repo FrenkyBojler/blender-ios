@@ -372,6 +372,10 @@ StripModifierData *modifier_new(Strip *strip, const char *name, int type)
 
   BLI_addtail(&strip->modifiers, smd);
 
+  if (ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SOUND_HD)) {
+    strip->runtime->sound_modifiers_count++;
+  }
+
   modifier_unique_name(strip, smd);
 
   if (smti->init_data) {
