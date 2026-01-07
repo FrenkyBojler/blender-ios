@@ -8,6 +8,10 @@
  * \ingroup sequencer
  */
 
+#include <type_traits>
+
+#include "MEM_guardedalloc.h"
+
 #include "BKE_sound_types.hh"
 
 #include "BLI_function_ref.hh"
@@ -43,8 +47,9 @@ struct StripModifierTypeInfo {
   /* size of modifier data structure, used by allocation */
   int struct_size;
 
-  /* data initialization */
-  void (*init_data)(StripModifierData *smd);
+  /* ALlocate and default initialize new strip.
+   */
+  StripModifierData *(*new_data)();
 
   /* free data used by modifier,
    * only modifier-specific data should be freed, modifier descriptor would
@@ -53,7 +58,7 @@ struct StripModifierTypeInfo {
   void (*free_data)(StripModifierData *smd);
 
   /* copy data from one modifier to another */
-  void (*copy_data)(StripModifierData *smd, StripModifierData *target);
+  void (*copy_data)(StripModifierData *dst, const StripModifierData *src);
 
   /* Apply modifier on an image buffer. */
   void (*apply)(ModifierApplyContext &context, StripModifierData *smd);
@@ -67,6 +72,34 @@ struct StripModifierTypeInfo {
   /* Callback to write custom strip modifier data. */
   void (*blend_read)(BlendDataReader *reader, StripModifierData *smd);
 };
+
+/* Templates for StripModifierTypeInfo methods. */
+
+template<typename T> StripModifierData *strip_modifier_new_data()
+{
+  return &MEM_new<T>(typeid(T).name())->modifier;
+}
+
+template<typename T>
+void strip_modifier_copy_data(StripModifierData *dst, const StripModifierData *src)
+{
+  const T &src_t = *reinterpret_cast<const T *>(src);
+  T &dst_t = *reinterpret_cast<T *>(dst);
+
+  if constexpr (std::is_constructible_v<T, dna::internal::ShallowDataConstRef<T>>) {
+    new (&dst_t) T(dna::shallow_copy(src_t));
+  }
+  else {
+    new (&dst_t) T(src_t);
+  }
+}
+
+template<typename T> void strip_modifier_free_data(StripModifierData *smd)
+{
+  reinterpret_cast<T *>(smd)->~T();
+}
+
+/* Runtime strip modifier data. */
 
 struct StripModifierDataRuntime {
   /* Reference parameters for optimizing updates. Sound modifiers can store parameters, sound

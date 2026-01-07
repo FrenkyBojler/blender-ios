@@ -6,6 +6,8 @@
  * \ingroup sequencer
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_math_color.h"
 
 #include "BKE_colortools.hh"
@@ -26,9 +28,9 @@
 
 namespace blender::seq {
 
-static void hue_correct_init_data(StripModifierData *smd)
+static StripModifierData *new_data()
 {
-  HueCorrectModifierData *hcmd = reinterpret_cast<HueCorrectModifierData *>(smd);
+  auto *hcmd = MEM_new<HueCorrectModifierData>("HueCorrectModifierData");
   int c;
 
   BKE_curvemapping_set_defaults(&hcmd->curve_mapping, 1, 0.0f, 0.0f, 1.0f, 1.0f, HD_AUTO);
@@ -43,6 +45,8 @@ static void hue_correct_init_data(StripModifierData *smd)
   hcmd->curve_mapping.flag |= CUMA_USE_WRAPPING;
   /* default to showing Saturation */
   hcmd->curve_mapping.cur = 1;
+
+  return &hcmd->modifier;
 }
 
 static void hue_correct_free_data(StripModifierData *smd)
@@ -50,13 +54,15 @@ static void hue_correct_free_data(StripModifierData *smd)
   HueCorrectModifierData *hcmd = reinterpret_cast<HueCorrectModifierData *>(smd);
 
   BKE_curvemapping_free_data(&hcmd->curve_mapping);
+  strip_modifier_free_data<HueCorrectModifierData>(smd);
 }
 
-static void hue_correct_copy_data(StripModifierData *target, StripModifierData *smd)
+static void hue_correct_copy_data(StripModifierData *target, const StripModifierData *smd)
 {
-  HueCorrectModifierData *hcmd = reinterpret_cast<HueCorrectModifierData *>(smd);
+  const HueCorrectModifierData *hcmd = reinterpret_cast<const HueCorrectModifierData *>(smd);
   HueCorrectModifierData *hcmd_target = reinterpret_cast<HueCorrectModifierData *>(target);
 
+  strip_modifier_copy_data<HueCorrectModifierData>(target, smd);
   BKE_curvemapping_copy_data(&hcmd_target->curve_mapping, &hcmd->curve_mapping);
 }
 
@@ -159,7 +165,7 @@ StripModifierTypeInfo seqModifierType_HueCorrect = {
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Hue Correct"),
     /*struct_name*/ "HueCorrectModifierData",
     /*struct_size*/ sizeof(HueCorrectModifierData),
-    /*init_data*/ hue_correct_init_data,
+    /*new_data*/ new_data,
     /*free_data*/ hue_correct_free_data,
     /*copy_data*/ hue_correct_copy_data,
     /*apply*/ hue_correct_apply,

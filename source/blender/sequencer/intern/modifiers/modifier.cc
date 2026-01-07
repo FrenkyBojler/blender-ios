@@ -6,6 +6,8 @@
  * \ingroup bke
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_array.hh"
 #include "BLI_hash.hh"
 #include "BLI_listbase.h"
@@ -383,7 +385,12 @@ static StripModifierTypeInfo *modifiersTypes[NUM_STRIP_MODIFIER_TYPES] = {nullpt
 
 static void modifier_types_init(StripModifierTypeInfo *types[])
 {
-#define INIT_TYPE(typeName) (types[eSeqModifierType_##typeName] = &seqModifierType_##typeName)
+#define INIT_TYPE(typeName) \
+  do { \
+    types[eSeqModifierType_##typeName] = &seqModifierType_##typeName; \
+    BLI_assert(seqModifierType_##typeName.copy_data != nullptr); \
+    BLI_assert(seqModifierType_##typeName.free_data != nullptr); \
+  } while (false)
   INIT_TYPE(None);
   INIT_TYPE(BrightContrast);
   INIT_TYPE(ColorBalance);
@@ -414,10 +421,8 @@ const StripModifierTypeInfo *modifier_type_info_get(eStripModifierType type)
 
 StripModifierData *modifier_new(Strip *strip, const char *name, eStripModifierType type)
 {
-  StripModifierData *smd;
   const StripModifierTypeInfo *smti = modifier_type_info_get(type);
-
-  smd = static_cast<StripModifierData *>(MEM_new_zeroed(smti->struct_size, "sequence modifier"));
+  StripModifierData *smd = smti->new_data();
 
   smd->type = type;
   smd->flag |= STRIP_MODIFIER_FLAG_EXPANDED;
@@ -438,10 +443,6 @@ StripModifierData *modifier_new(Strip *strip, const char *name, eStripModifierTy
   }
 
   modifier_unique_name(strip, smd);
-
-  if (smti->init_data) {
-    smti->init_data(smd);
-  }
 
   modifier_set_active(strip, smd);
 
@@ -476,7 +477,7 @@ void modifier_free(StripModifierData *smd)
 {
   const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
 
-  if (smti && smti->free_data) {
+  if (smti) {
     smti->free_data(smd);
   }
 
@@ -552,18 +553,28 @@ void modifier_apply_stack(ModifierApplyContext &context)
 StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src, const int flag)
 {
   const StripModifierTypeInfo *smti = modifier_type_info_get(mod_src->type);
-  StripModifierData *mod_new = MEM_dupalloc(mod_src);
+  StripModifierData *mod_new = static_cast<StripModifierData *>(
+      MEM_new_zeroed(smti->struct_size, __func__));
+
+  /* Preserve next and prev. */
+  StripModifierData *next = mod_new->next;
+  StripModifierData *prev = mod_new->prev;
+
+  if (smti) {
+    smti->copy_data(mod_new, mod_src);
+  }
+
+  mod_new->next = next;
+  mod_new->prev = prev;
+  mod_new->runtime = MEM_new<StripModifierDataRuntime>(__func__);
 
   mod_new->system_properties = nullptr;
   if (mod_src->system_properties) {
     mod_new->system_properties = IDP_CopyProperty_ex(mod_src->system_properties, flag);
   }
 
-  mod_new->runtime = MEM_new<StripModifierDataRuntime>(__func__);
-
-  if (smti && smti->copy_data) {
-    smti->copy_data(mod_new, mod_src);
-  }
+  /* Ensure at most one active modifier at a time. */
+  mod_new->flag &= ~STRIP_MODIFIER_FLAG_ACTIVE;
 
   BLI_addtail(&strip_dst.modifiers, mod_new);
   BLI_uniquename(&strip_dst.modifiers,

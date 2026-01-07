@@ -261,18 +261,20 @@ void sound_equalizermodifier_free(StripModifierData *smd)
     MEM_delete(&eqcmd);
   }
   BLI_listbase_clear(&semd->graphics);
+  strip_modifier_free_data<SoundEqualizerModifierData>(smd);
 }
 
-void sound_equalizermodifier_copy_data(StripModifierData *target, StripModifierData *smd)
+void sound_equalizermodifier_copy_data(StripModifierData *target, const StripModifierData *smd)
 {
-  SoundEqualizerModifierData *semd = reinterpret_cast<SoundEqualizerModifierData *>(smd);
+  const SoundEqualizerModifierData *semd = reinterpret_cast<const SoundEqualizerModifierData *>(
+      smd);
   SoundEqualizerModifierData *semd_target = reinterpret_cast<SoundEqualizerModifierData *>(target);
-  EQCurveMappingData *eqcmd_n;
 
+  strip_modifier_copy_data<SoundEqualizerModifierData>(target, smd);
   BLI_listbase_clear(&semd_target->graphics);
 
   for (EQCurveMappingData &eqcmd : semd->graphics) {
-    eqcmd_n = MEM_dupalloc(&eqcmd);
+    EQCurveMappingData *eqcmd_n = MEM_dupalloc(&eqcmd);
     BKE_curvemapping_copy_data(&eqcmd_n->curve_mapping, &eqcmd.curve_mapping);
 
     eqcmd_n->next = eqcmd_n->prev = nullptr;

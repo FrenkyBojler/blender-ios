@@ -283,12 +283,12 @@ struct StripTransform {
 
 struct StripColorBalance {
   eModColorBalanceMethod method = SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN;
-  float lift[3] = {};
-  float gamma[3] = {};
-  float gain[3] = {};
-  float slope[3] = {};
-  float offset[3] = {};
-  float power[3] = {};
+  float lift[3] = {1.0f, 1.0f, 1.0f};
+  float gamma[3] = {1.0f, 1.0f, 1.0f};
+  float gain[3] = {1.0f, 1.0f, 1.0f};
+  float slope[3] = {1.0f, 1.0f, 1.0f};
+  float offset[3] = {1.0f, 1.0f, 1.0f};
+  float power[3] = {1.0f, 1.0f, 1.0f};
   eModColorBalanceInverseFlag flag = SEQ_COLOR_BALANCE_INVERSE_NONE;
   char _pad[4] = {};
 };
@@ -443,7 +443,7 @@ struct Strip {
   StripBlendMode blend_mode = STRIP_BLEND_REPLACE;
   float blend_opacity = 0;
 
-  StripColorTag color_tag = STRIP_COLOR_NONE;
+  StripColorTag color_tag = STRIP_COLOR_01;
 
   eStripAlphaMode alpha_mode = SEQ_ALPHA_STRAIGHT;
   char _pad2[2] = {};
@@ -930,16 +930,20 @@ struct ColorBalanceModifierData {
   StripModifierData modifier;
 
   StripColorBalance color_balance;
-  float color_multiply = 0;
+  float color_multiply = 1.0f;
 };
 
 struct CurvesModifierData {
+  DNA_DEFINE_CXX_METHODS(CurvesModifierData)
+
   StripModifierData modifier;
 
   struct CurveMapping curve_mapping;
 };
 
 struct HueCorrectModifierData {
+  DNA_DEFINE_CXX_METHODS(HueCorrectModifierData)
+
   StripModifierData modifier;
 
   struct CurveMapping curve_mapping;
@@ -959,16 +963,16 @@ struct SequencerMaskModifierData {
 struct WhiteBalanceModifierData {
   StripModifierData modifier;
 
-  float white_value[3] = {};
+  float white_value[3] = {1.0f, 1.0f, 1.0f};
   char _pad[4] = {};
 };
 
 struct SequencerTonemapModifierData {
   StripModifierData modifier;
 
-  float key = 0, offset = 0, gamma = 0;
-  float intensity = 0, contrast = 0, adaptation = 0, correction = 0;
-  eModTonemapType type = SEQ_TONEMAP_RH_SIMPLE;
+  float key = 0.18f, offset = 1.0f, gamma = 1.0f;
+  float intensity = 0, contrast = 0, adaptation = 1.0f, correction = 0;
+  eModTonemapType type = SEQ_TONEMAP_RD_PHOTORECEPTOR;
 };
 
 struct SequencerCompositorModifierData {
@@ -1001,7 +1005,7 @@ struct PitchModifierData {
   ePitchMode mode = PITCH_MODE_SEMITONES;
   int semitones = 0;
   int cents = 0;
-  float ratio = 0;
+  float ratio = 1.0f;
   char preserve_formant = 0;
   char _pad[3] = {};
   ePitchQuality quality = PITCH_QUALITY_HIGH;
@@ -1009,9 +1013,9 @@ struct PitchModifierData {
 
 struct EchoModifierData {
   StripModifierData modifier;
-  float delay = 0;
-  float feedback = 0;
-  float mix = 0;
+  float delay = 1.0f;
+  float feedback = 0.5f;
+  float mix = 0.5f;
   char _pad[4] = {};
 };
 

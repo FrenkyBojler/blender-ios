@@ -6,6 +6,8 @@
  * \ingroup sequencer
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_math_base.h"
 
 #include "BLT_translation.hh"
@@ -238,23 +240,6 @@ struct ColorBalanceApplyOp {
   }
 };
 
-static void colorBalance_init_data(StripModifierData *smd)
-{
-  ColorBalanceModifierData *cbmd = reinterpret_cast<ColorBalanceModifierData *>(smd);
-
-  cbmd->color_multiply = 1.0f;
-  cbmd->color_balance.method = SEQ_COLOR_BALANCE_METHOD_LIFTGAMMAGAIN;
-
-  for (int c = 0; c < 3; c++) {
-    cbmd->color_balance.lift[c] = 1.0f;
-    cbmd->color_balance.gamma[c] = 1.0f;
-    cbmd->color_balance.gain[c] = 1.0f;
-    cbmd->color_balance.slope[c] = 1.0f;
-    cbmd->color_balance.offset[c] = 1.0f;
-    cbmd->color_balance.power[c] = 1.0f;
-  }
-}
-
 static void colorBalance_apply(ModifierApplyContext &context, StripModifierData *smd)
 {
   ensure_ibuf_is_sequencer_space(context.render_data.scene, context.image, false);
@@ -381,9 +366,9 @@ StripModifierTypeInfo seqModifierType_ColorBalance = {
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Color Balance"),
     /*struct_name*/ "ColorBalanceModifierData",
     /*struct_size*/ sizeof(ColorBalanceModifierData),
-    /*init_data*/ colorBalance_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
+    /*new_data*/ strip_modifier_new_data<ColorBalanceModifierData>,
+    /*free_data*/ strip_modifier_free_data<ColorBalanceModifierData>,
+    /*copy_data*/ strip_modifier_copy_data<ColorBalanceModifierData>,
     /*apply*/ colorBalance_apply,
     /*panel_register*/ colorBalance_register,
     /*blend_write*/ nullptr,

@@ -6,6 +6,8 @@
  * \ingroup sequencer
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_math_base.h"
 #include "BLI_math_matrix.hh"
 
@@ -89,9 +91,9 @@ StripModifierTypeInfo seqModifierType_Mask = {
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Mask"),
     /*struct_name*/ "SequencerMaskModifierData",
     /*struct_size*/ sizeof(SequencerMaskModifierData),
-    /*init_data*/ nullptr,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
+    /*new_data*/ strip_modifier_new_data<SequencerMaskModifierData>,
+    /*free_data*/ strip_modifier_free_data<SequencerMaskModifierData>,
+    /*copy_data*/ strip_modifier_copy_data<SequencerMaskModifierData>,
     /*apply*/ maskmodifier_apply,
     /*panel_register*/ maskmodifier_register,
     /*blend_write*/ nullptr,

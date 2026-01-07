@@ -4233,7 +4233,6 @@ static void rna_def_colorbalance_modifier(BlenderRNA *brna)
   prop = RNA_def_property(srna, "color_multiply", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_float_sdna(prop, nullptr, "color_multiply");
   RNA_def_property_range(prop, 0.0f, 20.0f);
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_text(prop, "Multiply Colors", "Multiply the intensity of each pixel");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
 

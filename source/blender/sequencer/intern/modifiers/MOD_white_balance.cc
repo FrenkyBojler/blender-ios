@@ -23,12 +23,6 @@
 
 namespace blender::seq {
 
-static void whiteBalance_init_data(StripModifierData *smd)
-{
-  WhiteBalanceModifierData *cbmd = reinterpret_cast<WhiteBalanceModifierData *>(smd);
-  copy_v3_fl(cbmd->white_value, 1.0f);
-}
-
 struct WhiteBalanceApplyOp {
   float multiplier[3];
 
@@ -107,9 +101,9 @@ StripModifierTypeInfo seqModifierType_WhiteBalance = {
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "White Balance"),
     /*struct_name*/ "WhiteBalanceModifierData",
     /*struct_size*/ sizeof(WhiteBalanceModifierData),
-    /*init_data*/ whiteBalance_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
+    /*new_data*/ strip_modifier_new_data<WhiteBalanceModifierData>,
+    /*free_data*/ strip_modifier_free_data<WhiteBalanceModifierData>,
+    /*copy_data*/ strip_modifier_copy_data<WhiteBalanceModifierData>,
     /*apply*/ whiteBalance_apply,
     /*panel_register*/ whiteBalance_register,
     /*blend_write*/ nullptr,

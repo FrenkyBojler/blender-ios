@@ -21,15 +21,6 @@
 
 namespace blender::seq {
 
-static void echomodifier_init_data(StripModifierData *smd)
-{
-  EchoModifierData *emd = reinterpret_cast<EchoModifierData *>(smd);
-
-  emd->delay = 1.0f;
-  emd->feedback = 0.5f;
-  emd->mix = 0.5f;
-}
-
 static void echomodifier_draw(const bContext * /*C*/, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
@@ -54,9 +45,9 @@ StripModifierTypeInfo seqModifierType_Echo = {
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Echo"),
     /*struct_name*/ "EchoModifierData",
     /*struct_size*/ sizeof(EchoModifierData),
-    /*init_data*/ echomodifier_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
+    /*new_data*/ strip_modifier_new_data<EchoModifierData>,
+    /*free_data*/ strip_modifier_free_data<EchoModifierData>,
+    /*copy_data*/ strip_modifier_copy_data<EchoModifierData>,
     /*apply*/ nullptr,
     /*panel_register*/ echomodifier_register,
     /*blend_write*/ nullptr,

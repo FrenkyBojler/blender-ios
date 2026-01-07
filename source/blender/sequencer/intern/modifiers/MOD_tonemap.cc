@@ -36,20 +36,6 @@ struct AvgLogLum {
   float igm;
 };
 
-static void tonemapmodifier_init_data(StripModifierData *smd)
-{
-  SequencerTonemapModifierData *tmmd = reinterpret_cast<SequencerTonemapModifierData *>(smd);
-  /* Same as tone-map compositor node. */
-  tmmd->type = SEQ_TONEMAP_RD_PHOTORECEPTOR;
-  tmmd->key = 0.18f;
-  tmmd->offset = 1.0f;
-  tmmd->gamma = 1.0f;
-  tmmd->intensity = 0.0f;
-  tmmd->contrast = 0.0f;
-  tmmd->adaptation = 1.0f;
-  tmmd->correction = 0.0f;
-}
-
 /* Convert chunk of float image pixels to scene linear space, in-place. */
 static void pixels_to_scene_linear_float(const ColorSpace *colorspace,
                                          float4 *pixels,
@@ -362,9 +348,9 @@ StripModifierTypeInfo seqModifierType_Tonemap = {
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Tonemap"),
     /*struct_name*/ "SequencerTonemapModifierData",
     /*struct_size*/ sizeof(SequencerTonemapModifierData),
-    /*init_data*/ tonemapmodifier_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
+    /*new_data*/ strip_modifier_new_data<SequencerTonemapModifierData>,
+    /*free_data*/ strip_modifier_free_data<SequencerTonemapModifierData>,
+    /*copy_data*/ strip_modifier_copy_data<SequencerTonemapModifierData>,
     /*apply*/ tonemapmodifier_apply,
     /*panel_register*/ tonemapmodifier_register,
     /*blend_write*/ nullptr,

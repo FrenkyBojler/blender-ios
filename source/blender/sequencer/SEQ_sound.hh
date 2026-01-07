@@ -56,7 +56,7 @@ AUD_Sound sound_modifier_recreator(Strip *strip,
 
 void sound_equalizermodifier_init_data(StripModifierData *smd);
 void sound_equalizermodifier_free(StripModifierData *smd);
-void sound_equalizermodifier_copy_data(StripModifierData *target, StripModifierData *smd);
+void sound_equalizermodifier_copy_data(StripModifierData *target, const StripModifierData *smd);
 AUD_Sound sound_equalizermodifier_recreator(Strip *strip,
                                             StripModifierData *smd,
                                             AUD_Sound sound,

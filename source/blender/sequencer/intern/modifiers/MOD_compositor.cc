@@ -34,6 +34,8 @@
 #include "NOD_compositor_nodes_srna.hh"
 
 #include "SEQ_modifier.hh"
+#include "SEQ_modifiertypes.hh"
+#include "SEQ_render.hh"
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_transform.hh"
@@ -431,11 +433,10 @@ class CompositorModifierContext : public CompositorContext {
   }
 };
 
-static void compositor_modifier_init_data(StripModifierData *strip_modifier_data)
+static bool is_linear_float_buffer(ImBuf *image_buffer)
 {
-  SequencerCompositorModifierData *modifier_data =
-      reinterpret_cast<SequencerCompositorModifierData *>(strip_modifier_data);
-  modifier_data->node_group = nullptr;
+  return image_buffer->float_buffer.data &&
+         IMB_colormanagement_space_is_scene_linear(image_buffer->float_buffer.colorspace);
 }
 
 static void compositor_modifier_apply(ModifierApplyContext &context,
@@ -493,9 +494,9 @@ StripModifierTypeInfo seqModifierType_Compositor = {
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Compositor"),
     /*struct_name*/ "SequencerCompositorModifierData",
     /*struct_size*/ sizeof(SequencerCompositorModifierData),
-    /*init_data*/ compositor_modifier_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
+    /*new_data*/ strip_modifier_new_data<SequencerCompositorModifierData>,
+    /*free_data*/ strip_modifier_free_data<SequencerCompositorModifierData>,
+    /*copy_data*/ strip_modifier_copy_data<SequencerCompositorModifierData>,
     /*apply*/ compositor_modifier_apply,
     /*panel_register*/ compositor_modifier_register,
     /*blend_write*/ nullptr,

@@ -84,7 +84,7 @@ StripModifierTypeInfo seqModifierType_SoundEqualizer = {
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Equalizer"),
     /*struct_name*/ "SoundEqualizerModifierData",
     /*struct_size*/ sizeof(SoundEqualizerModifierData),
-    /*init_data*/ sound_equalizermodifier_init_data,
+    /*new_data*/ strip_modifier_new_data<SoundEqualizerModifierData>,
     /*free_data*/ sound_equalizermodifier_free,
     /*copy_data*/ sound_equalizermodifier_copy_data,
     /*apply*/ nullptr,

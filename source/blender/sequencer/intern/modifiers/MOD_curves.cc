@@ -6,6 +6,8 @@
  * \ingroup sequencer
  */
 
+#include "MEM_guardedalloc.h"
+
 #include "BKE_colortools.hh"
 
 #include "BLT_translation.hh"
@@ -25,11 +27,13 @@
 
 namespace blender::seq {
 
-static void curves_init_data(StripModifierData *smd)
+static StripModifierData *new_data()
 {
-  CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(smd);
+  auto *cmd = MEM_new<CurvesModifierData>("CurvesModifierData");
 
   BKE_curvemapping_set_defaults(&cmd->curve_mapping, 4, 0.0f, 0.0f, 1.0f, 1.0f, HD_AUTO);
+
+  return &cmd->modifier;
 }
 
 static void curves_free_data(StripModifierData *smd)
@@ -37,13 +41,15 @@ static void curves_free_data(StripModifierData *smd)
   CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(smd);
 
   BKE_curvemapping_free_data(&cmd->curve_mapping);
+  strip_modifier_free_data<CurvesModifierData>(smd);
 }
 
-static void curves_copy_data(StripModifierData *target, StripModifierData *smd)
+static void curves_copy_data(StripModifierData *target, const StripModifierData *smd)
 {
-  CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(smd);
+  const CurvesModifierData *cmd = reinterpret_cast<const CurvesModifierData *>(smd);
   CurvesModifierData *cmd_target = reinterpret_cast<CurvesModifierData *>(target);
 
+  strip_modifier_copy_data<CurvesModifierData>(target, smd);
   BKE_curvemapping_copy_data(&cmd_target->curve_mapping, &cmd->curve_mapping);
 }
 
@@ -132,7 +138,7 @@ StripModifierTypeInfo seqModifierType_Curves = {
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Curves"),
     /*struct_name*/ "CurvesModifierData",
     /*struct_size*/ sizeof(CurvesModifierData),
-    /*init_data*/ curves_init_data,
+    /*new_data*/ new_data,
     /*free_data*/ curves_free_data,
     /*copy_data*/ curves_copy_data,
     /*apply*/ curves_apply,

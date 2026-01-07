@@ -6,6 +6,8 @@
  * \ingroup sequencer
  */
 
+#include "MEM_guardedalloc.h"
+
 #include <cfloat>
 
 #include "BLI_math_base.h"
@@ -113,9 +115,9 @@ StripModifierTypeInfo seqModifierType_BrightContrast = {
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Brightness/Contrast"),
     /*struct_name*/ "BrightContrastModifierData",
     /*struct_size*/ sizeof(BrightContrastModifierData),
-    /*init_data*/ nullptr,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
+    /*new_data*/ strip_modifier_new_data<BrightContrastModifierData>,
+    /*free_data*/ strip_modifier_free_data<BrightContrastModifierData>,
+    /*copy_data*/ strip_modifier_copy_data<BrightContrastModifierData>,
     /*apply*/ brightcontrast_apply,
     /*panel_register*/ brightcontrast_register,
     /*blend_write*/ nullptr,

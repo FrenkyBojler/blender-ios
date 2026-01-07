@@ -22,17 +22,6 @@
 
 namespace blender::seq {
 
-static void pitchmodifier_init_data(StripModifierData *smd)
-{
-  PitchModifierData *pmd = reinterpret_cast<PitchModifierData *>(smd);
-  pmd->mode = ePitchMode::PITCH_MODE_SEMITONES;
-  pmd->semitones = 0;
-  pmd->cents = 0;
-  pmd->ratio = 1;
-  pmd->preserve_formant = false;
-  pmd->quality = ePitchQuality::PITCH_QUALITY_HIGH;
-}
-
 static void pitchmodifier_draw(const bContext * /*C*/, Panel *panel)
 {
   ui::Layout &layout = *panel->layout;
@@ -67,9 +56,9 @@ StripModifierTypeInfo seqModifierType_Pitch = {
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "Pitch"),
     /*struct_name*/ "PitchModifierData",
     /*struct_size*/ sizeof(PitchModifierData),
-    /*init_data*/ pitchmodifier_init_data,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
+    /*new_data*/ strip_modifier_new_data<PitchModifierData>,
+    /*free_data*/ strip_modifier_free_data<PitchModifierData>,
+    /*copy_data*/ strip_modifier_copy_data<PitchModifierData>,
     /*apply*/ nullptr,
     /*panel_register*/ pitchmodifier_register,
     /*blend_write*/ nullptr,

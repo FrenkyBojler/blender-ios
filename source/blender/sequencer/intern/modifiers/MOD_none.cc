@@ -14,14 +14,19 @@
 
 namespace blender::seq {
 
+static StripModifierData *new_data()
+{
+  return MEM_new<StripModifierData>("StripModifierData");
+}
+
 StripModifierTypeInfo seqModifierType_None = {
     /*idname*/ "None",
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_SEQUENCE, "None"),
     /*struct_name*/ "StripModifierData",
     /*struct_size*/ sizeof(StripModifierData),
-    /*init_data*/ nullptr,
-    /*free_data*/ nullptr,
-    /*copy_data*/ nullptr,
+    /*new_data*/ new_data,
+    /*free_data*/ strip_modifier_free_data<StripModifierData>,
+    /*copy_data*/ strip_modifier_copy_data<StripModifierData>,
     /*apply*/ nullptr,
     /*panel_register*/ nullptr,
     /*blend_write*/ nullptr,
