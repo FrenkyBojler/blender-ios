@@ -9,6 +9,7 @@
 #include "BLI_color_types.hh"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_memory_counter.hh"
+#include "BLI_memory_utils.h"
 #include "BLI_resource_scope.hh"
 #include "BLI_string_utils.hh"
 #include "BLI_vector_set.hh"

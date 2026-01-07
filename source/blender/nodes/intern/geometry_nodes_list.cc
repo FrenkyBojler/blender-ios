@@ -7,6 +7,8 @@
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_list.hh"
 
+#include "BLI_memory_utils.h"
+
 namespace blender::nodes {
 
 class ArrayImplicitSharingData : public ImplicitSharingInfo {

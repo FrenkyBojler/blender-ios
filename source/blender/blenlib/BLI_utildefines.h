@@ -394,22 +394,7 @@ constexpr bool memory_is_zero(const void *data, const size_t size)
 
   return (arr_byte == arr_end);
 }
-
-#  define MEMCMP_STRUCT_AFTER_IS_ZERO_OR_EQUAL(struct_dst, struct_src, member) \
-    (memory_is_zero((const char *)(struct_dst) + OFFSETOF_STRUCT_AFTER(struct_dst, member), \
-                    sizeof(*(struct_dst)) - OFFSETOF_STRUCT_AFTER(struct_dst, member)) || \
-     (memcmp((const char *)(struct_dst) + OFFSETOF_STRUCT_AFTER(struct_dst, member), \
-             (const char *)(struct_src) + OFFSETOF_STRUCT_AFTER(struct_src, member), \
-             sizeof(*(struct_dst)) - OFFSETOF_STRUCT_AFTER(struct_dst, member)) == 0))
-
 #endif
-
-#define INIT_DEFAULT_STRUCT_AFTER(struct_dst, member) \
-  { \
-    const typename std::remove_reference<decltype(*(struct_dst))>::type struct_src; \
-    BLI_assert(MEMCMP_STRUCT_AFTER_IS_ZERO_OR_EQUAL(struct_dst, &struct_src, member)); \
-    MEMCPY_STRUCT_AFTER(struct_dst, &struct_src, member); \
-  }
 
 /** \} */
 
