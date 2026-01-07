@@ -1443,7 +1443,7 @@ void BKE_brush_randomize_texture_coords(Paint *paint, bool mask)
 }
 
 namespace bke::brush {
-void common_pressure_curves_init(const Brush &brush)
+void common_pressure_curves_init(Brush &brush)
 {
   BKE_curvemapping_init(brush.curve_size);
   BKE_curvemapping_init(brush.curve_strength);
