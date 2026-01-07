@@ -74,6 +74,14 @@ struct Preprocessor {
     return tok;
   }
 
+  static Token skip_whitespace_backward(Token tok)
+  {
+    while (tok == Space) {
+      tok = tok.prev();
+    }
+    return tok;
+  }
+
   static Token skip_directive_newlines(Token tok)
   {
     while (tok == '\\' && tok.next() == '\n') {
@@ -161,7 +169,8 @@ struct Preprocessor {
         Token param_end = get_end_of_parameter(param_start);
 
         Token argument_name = tok;
-        macro_parameters.add(str(argument_name), {param_start.next(), param_end.prev()});
+        macro_parameters.add(str(argument_name),
+                             {param_start.next(), skip_whitespace_backward(param_end.prev())});
 
         /* Continue to the next separator. */
         tok = skip_whitespace(tok.next());
@@ -217,7 +226,7 @@ struct Preprocessor {
              * expansion and not the input. Moreover, this only expand the first token in the
              * case there are many tokens for a parameter. But this is simple enough to get it
              * working with our codebase. */
-            Token macro_tok = defines.lookup_default(str(macro_value.start), Token::invalid());
+            Token macro_tok = defines.lookup_default(str(macro_value), Token::invalid());
             if (macro_tok.is_valid()) {
               expanded += expand_macro(macro_value.start, macro_tok).str;
             }
