@@ -449,7 +449,9 @@ IDPropertyUIData *IDP_ui_data_copy(const IDProperty *prop);
 IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
                                        eIDPropertyUIDataType src_type,
                                        eIDPropertyUIDataType dst_type);
-
+/**
+ * Convert property to the new type.
+ */
 void IDP_TryConvertProperty(IDProperty *prop,
                             const eIDPropertyUIDataType src_type,
                             const eIDPropertyUIDataType dst_type,

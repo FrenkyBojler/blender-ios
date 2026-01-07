@@ -204,6 +204,7 @@ const IDFilterEnumPropertyItem rna_enum_id_type_filter_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+/* UI data types of IDproperty. */
 enum idpropertyui_types {
   IDP_UI_DATA_FLOAT = 0,
   IDP_UI_DATA_FLOAT_ARRAY,
@@ -237,19 +238,22 @@ const EnumPropertyItem rna_enum_idproperty_types_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-  const EnumPropertyItem rna_enum_idproperty_float_sutypes_items[] = {
+const EnumPropertyItem rna_enum_idproperty_float_sutypes_items[] = {
     {PROP_NONE, "NONE", 0, "None", "No subtype"},
     {PROP_PIXEL, "PIXEL", 0, "Pixel", "A distance on screen"},
     {PROP_PERCENTAGE, "PERCENTAGE", 0, "Percentage", "A percentage between 0 and 100"},
     {PROP_FACTOR, "FACTOR", 0, "Factor", "A factor between 0.0 and 1.0"},
     {PROP_ANGLE, "ANGLE", 0, "Angle", "A rotational value specified in radians"},
-    {PROP_TIME, "TIME", 0, "Time (Scene Relative)",
-   "Time specified in frames, converted to seconds based on scene frame rate"},
+    {PROP_TIME,
+     "TIME",
+     0,
+     "Time (Scene Relative)",
+     "Time specified in frames, converted to seconds based on scene frame rate"},
     {PROP_DISTANCE, "DISTANCE", 0, "Distance", "A distance between two points"},
     {PROP_POWER, "POWER", 0, "Power", ""},
     {PROP_TEMPERATURE, "TEMPERATURE", 0, "Temperature", ""},
     {0, nullptr, 0, nullptr, nullptr},
-  };
+};
 }  // namespace blender
 
 #ifdef RNA_RUNTIME
@@ -1819,9 +1823,11 @@ static void rna_IDPropertyUIDataID_id_type_set(PointerRNA *ptr, int value)
 {
   IDPropertyUIDataID *ui_data = static_cast<IDPropertyUIDataID *>(ptr->data);
   ID *id = ptr->owner_id;
+
   IDProperty *active_prop = static_cast<IDProperty *>(
       BLI_findlink(&id->properties->data.group, id->idprop_active_index));
   if (ui_data->id_type != value) {
+    /* Clear ID that being set when changing the IDtype. */
     active_prop->data.pointer = nullptr;
   }
   ui_data->id_type = value;
@@ -1833,6 +1839,7 @@ static void rna_IDProperty_length_set(PointerRNA *ptr, int value)
   if (prop->type == IDP_ARRAY) {
     IDP_ResizeArray(prop, value);
     eIDPropertyUIDataType type = IDP_ui_data_type(prop);
+    /* To resize the `default_array`. */
     prop->ui_data = IDP_TryConvertUIData(prop, type, type);
   }
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, nullptr);
@@ -3095,6 +3102,7 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
   RNA_def_property_range(prop, 1, INT_MAX);
   RNA_def_property_int_funcs(prop, nullptr, "rna_IDProperty_length_set", nullptr);
 
+  /* Float UI Data. */
   srna = RNA_def_struct(brna, "IDPropertyUIDataFloat", nullptr);
   RNA_def_struct_ui_text(srna, "float IDProperty UI", "UI data for a float ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
@@ -3123,11 +3131,13 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
                                "rna_idproperty_ui_default_array_float_set",
                                nullptr);
 
+  /* Int UIData. */
   srna = RNA_def_struct(brna, "IDPropertyUIDataInt", nullptr);
   RNA_def_struct_ui_text(srna, "int IDProperty UI", "UI data for an int ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
   RNA_DEF_IDPROP_UI_DATA_MINMAX(srna, PROP_INT, RNA_def_property_int_sdna);
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_INT, RNA_def_property_int_sdna);
+
   prop = RNA_def_property(srna, "default_array", PROP_INT, PROP_NONE);
   RNA_def_property_flag(prop, PROP_DYNAMIC);
   RNA_def_property_multi_array(prop, 1, nullptr);
@@ -3138,24 +3148,28 @@ static void rna_def_idproperty_ui(BlenderRNA *brna)
                              "rna_idproperty_ui_default_array_int_set",
                              nullptr);
 
+  /* Bool UI Data. */
   srna = RNA_def_struct(brna, "IDPropertyUIDataBool", nullptr);
   RNA_def_struct_ui_text(srna, "bool IDProperty UI", "UI data for a bool ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_INT, RNA_def_property_int_sdna);
+
   prop = RNA_def_property(srna, "default_array", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_flag(prop, PROP_DYNAMIC);
   RNA_def_property_multi_array(prop, 1, nullptr);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_dynamic_array_funcs(prop, "rna_idproperty_ui_default_array_length");
   RNA_def_property_boolean_funcs(prop,
-                             "rna_idproperty_ui_default_array_bool_get",
-                             "rna_idproperty_ui_default_array_bool_set");
+                                 "rna_idproperty_ui_default_array_bool_get",
+                                 "rna_idproperty_ui_default_array_bool_set");
 
+  /* String UI Data. */
   srna = RNA_def_struct(brna, "IDPropertyUIDataString", nullptr);
   RNA_def_struct_ui_text(srna, "string IDProperty UI", "UI data for a string ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);
   RNA_DEF_IDPROP_UI_DATA_COMMON(srna, PROP_STRING, RNA_def_property_string_sdna);
 
+  /* ID UI Data. */
   srna = RNA_def_struct(brna, "IDPropertyUIDataID", nullptr);
   RNA_def_struct_ui_text(srna, "ID IDProperty UI", "UI data for an ID ID property");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES);

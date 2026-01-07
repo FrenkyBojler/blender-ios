@@ -276,7 +276,9 @@ void draw_id_properties_value(ui::Layout *layout, bContext * /*C*/, ID *id)
 
   PointerRNA propui_ptr = RNA_pointer_create_discrete(id, srna, active_prop->ui_data);
 
-  if (ELEM(srna, &RNA_IDPropertyUIDataInt, &RNA_IDPropertyUIDataFloat, &RNA_IDPropertyUIDataBool)) {
+  /* Draw `ui_data` of active IDProperty. */
+  if (ELEM(srna, &RNA_IDPropertyUIDataInt, &RNA_IDPropertyUIDataFloat, &RNA_IDPropertyUIDataBool))
+  {
     if (active_prop->type == IDP_ARRAY) {
       layout->prop(&prop_ptr, "length", UI_ITEM_NONE, "Length", ICON_NONE);
       layout->prop(&propui_ptr, "default_array", ui::ITEM_R_EXPAND, IFACE_("Default"), ICON_NONE);

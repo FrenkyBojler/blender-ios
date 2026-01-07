@@ -1792,6 +1792,8 @@ IDPropertyUIData *IDP_TryConvertUIData(IDProperty *src_prop,
                                        const eIDPropertyUIDataType dst_type)
 {
   IDPropertyUIData *src = src_prop->ui_data;
+  /* When property converted to array type, use this boolean to correctly resize and assign values
+   * to default_array. */
   const bool is_array = src_prop->type == IDP_ARRAY;
   const int default_array_len = is_array ? src_prop->len : 3;
   switch (src_type) {
