@@ -25,9 +25,11 @@
 
 #include "BLI_math_matrix_types.hh"
 
+namespace blender {
+
 static CLG_LogRef LOG = {"gpu.vulkan"};
 
-namespace blender::gpu {
+namespace gpu {
 
 void VKExtensions::log() const
 {
@@ -630,4 +632,5 @@ void VKDevice::debug_print()
 
 /** \} */
 
-}  // namespace blender::gpu
+}  // namespace gpu
+}  // namespace blender

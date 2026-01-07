@@ -51,11 +51,13 @@
 
 #include <mutex>
 
+namespace blender {
+
 using namespace blender::gpu;
 
 static thread_local Context *active_ctx = nullptr;
 
-static blender::Mutex backend_users_mutex;
+static Mutex backend_users_mutex;
 static int num_backend_users = 0;
 
 static void gpu_backend_create();
@@ -65,7 +67,7 @@ static void gpu_backend_discard();
 /** \name gpu::Context methods
  * \{ */
 
-namespace blender::gpu {
+namespace gpu {
 
 int Context::context_counter = 0;
 Context::Context()
@@ -182,7 +184,7 @@ Batch *Context::procedural_triangle_strips_batch_get()
   return procedural_triangle_strips_batch;
 }
 
-}  // namespace blender::gpu
+}  // namespace gpu
 
 /** \} */
 
@@ -203,7 +205,7 @@ GPUContext *GPU_context_create(GHOST_IWindow *ghost_window, GHOST_IContext *ghos
 
   GPU_context_active_set(wrap(ctx));
 
-  blender::draw::DebugDraw::get().acquire();
+  draw::DebugDraw::get().acquire();
 
   return wrap(ctx);
 }
@@ -213,7 +215,7 @@ void GPU_context_discard(GPUContext *ctx_)
   Context *ctx = unwrap(ctx_);
   BLI_assert(active_ctx == ctx);
 
-  blender::draw::DebugDraw::get().release();
+  draw::DebugDraw::get().release();
 
   GPUBackend *backend = GPUBackend::get();
   /* Flush any remaining printf while making sure we are inside render boundaries. */
@@ -265,7 +267,7 @@ GPUContext *GPU_context_active_get()
 
 void GPU_context_begin_frame(GPUContext *ctx)
 {
-  blender::gpu::Context *_ctx = unwrap(ctx);
+  gpu::Context *_ctx = unwrap(ctx);
   if (_ctx) {
     _ctx->begin_frame();
   }
@@ -273,7 +275,7 @@ void GPU_context_begin_frame(GPUContext *ctx)
 
 void GPU_context_end_frame(GPUContext *ctx)
 {
-  blender::gpu::Context *_ctx = unwrap(ctx);
+  gpu::Context *_ctx = unwrap(ctx);
   if (_ctx) {
     _ctx->end_frame();
   }
@@ -281,7 +283,7 @@ void GPU_context_end_frame(GPUContext *ctx)
 
 void GPU_context_debug_pipeline_creation(GPUContext *ctx, bool enable)
 {
-  blender::gpu::Context *_ctx = unwrap(ctx);
+  gpu::Context *_ctx = unwrap(ctx);
   if (_ctx) {
     _ctx->debug_pipeline_creation = enable;
   }
@@ -293,7 +295,7 @@ void GPU_context_debug_pipeline_creation(GPUContext *ctx, bool enable)
  * Used to avoid crash on some old drivers.
  * \{ */
 
-static blender::Mutex main_context_mutex;
+static Mutex main_context_mutex;
 
 void GPU_context_main_lock()
 {
@@ -408,7 +410,7 @@ bool GPU_backend_type_selection_is_overridden()
 
 bool GPU_backend_type_selection_detect()
 {
-  blender::VectorSet<GPUBackendType> backends_to_check;
+  VectorSet<GPUBackendType> backends_to_check;
   if (g_backend_type_override.has_value()) {
     backends_to_check.add(*g_backend_type_override);
   }
@@ -662,3 +664,5 @@ void GPUSecondaryContext::activate()
 }
 
 /** \} */
+
+}  // namespace blender

@@ -45,6 +45,8 @@
 #include "wm_cursors.hh"
 #include "wm_window.hh"
 
+namespace blender {
+
 /**
  * Currently using the WIN32 limit of 255 for RGBA cursors,
  * Wayland has a similar limit.
@@ -69,7 +71,7 @@ struct BCursor {
   /**
    * A factor (0-1) from the top-left corner of the image (not of the document size).
    */
-  blender::float2 hotspot;
+  float2 hotspot;
   /**
    * By default cursors are "light", allow dark themes to invert.
    */
@@ -300,7 +302,7 @@ static bool window_set_custom_cursor_generator(wmWindow *win, const BCursor &cur
                                      int r_bitmap_size[2],
                                      int r_hot_spot[2],
                                      bool *r_can_invert_color) -> uint8_t * {
-    const BCursor &cursor = *(const BCursor *)(cursor_generator->user_data);
+    const BCursor &cursor = *static_cast<const BCursor *>(cursor_generator->user_data);
     /* Currently SVG uses the `cursor_size` as the maximum. */
     UNUSED_VARS(cursor_size_max);
 
@@ -323,7 +325,7 @@ static bool window_set_custom_cursor_generator(wmWindow *win, const BCursor &cur
     return bitmap_rgba;
   };
 
-  cursor_generator->user_data = (void *)&cursor;
+  cursor_generator->user_data = const_cast<void *>(static_cast<const void *>(&cursor));
   cursor_generator->free_fn = [](GHOST_CursorGenerator *cursor_generator) {
     MEM_freeN(cursor_generator);
   };
@@ -723,7 +725,11 @@ static void wm_cursor_time_small(wmWindow *win, uint32_t nr)
   const int size[2] = {16, 16};
   const int hot_spot[2] = {7, 7};
   GHOST_IWindow *ghost_window = static_cast<GHOST_IWindow *>(win->runtime->ghostwin);
-  ghost_window->setCustomCursorShape((uint8_t *)bitmap, (uint8_t *)mask, size, hot_spot, false);
+  ghost_window->setCustomCursorShape(reinterpret_cast<uint8_t *>(bitmap),
+                                     reinterpret_cast<uint8_t *>(mask),
+                                     size,
+                                     hot_spot,
+                                     false);
 }
 
 /**
@@ -824,7 +830,8 @@ static bool wm_cursor_text_generator(wmWindow *win, const char *text, int font_i
                                      int r_bitmap_size[2],
                                      int r_hot_spot[2],
                                      bool *r_can_invert_color) -> uint8_t * {
-    const WMCursorText &cursor_text = *(const WMCursorText *)(cursor_generator->user_data);
+    const WMCursorText &cursor_text = *static_cast<const WMCursorText *>(
+        cursor_generator->user_data);
 
     int bitmap_size[2];
     uint8_t *bitmap_rgba = cursor_bitmap_from_text(cursor_text.text,
@@ -854,9 +861,9 @@ static bool wm_cursor_text_generator(wmWindow *win, const char *text, int font_i
   STRNCPY_UTF8(cursor_text->text, text);
   cursor_text->font_id = font_id;
 
-  cursor_generator->user_data = (void *)cursor_text;
+  cursor_generator->user_data = static_cast<void *>(cursor_text);
   cursor_generator->free_fn = [](GHOST_CursorGenerator *cursor_generator) {
-    const WMCursorText *cursor_text = (WMCursorText *)(cursor_generator->user_data);
+    const WMCursorText *cursor_text = static_cast<WMCursorText *>(cursor_generator->user_data);
     MEM_delete(cursor_text);
     MEM_freeN(cursor_generator);
   };
@@ -961,7 +968,7 @@ void WM_cursor_progress(wmWindow *win, float progress_factor)
 #ifndef WITH_HEADLESS
 static void wm_add_cursor(WMCursorType cursor,
                           const char *svg_source,
-                          const blender::float2 &hotspot,
+                          const float2 &hotspot,
                           bool can_invert = true)
 {
   g_cursors[cursor].svg_source = svg_source;
@@ -1018,3 +1025,5 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_SLIP, datatoc_cursor_slip_svg, {0.5f, 0.5f});
 #endif /* !WITH_HEADLESS */
 }
+
+}  // namespace blender

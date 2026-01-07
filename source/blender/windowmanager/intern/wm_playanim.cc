@@ -76,6 +76,8 @@
 
 #include "WM_api.hh" /* Only for #WM_main_playanim. */
 
+namespace blender {
+
 #ifdef WITH_AUDASPACE
 #  include <AUD_Device.h>
 #  include <AUD_Handle.h>
@@ -207,7 +209,7 @@ struct PlayDisplayContext {
   /** Scale calculated from the DPI. */
   float ui_scale;
   /** Window & viewport size in pixels. */
-  blender::int2 size;
+  int2 size;
 
 #ifdef WITH_GHOST_CSD
   bool use_window_csd;
@@ -272,7 +274,7 @@ struct PlayState {
   struct PlayAnimPict *picture;
 
   /** Image size in pixels, set once at the start. */
-  blender::int2 ibuf_size;
+  int2 ibuf_size;
   /** Mono-space font ID. */
   int font_id;
   int font_size;
@@ -306,13 +308,13 @@ static void print_ps(const PlayState &ps)
 }
 #endif
 
-static blender::int2 playanim_window_size_get(GHOST_IWindow *ghost_window)
+static int2 playanim_window_size_get(GHOST_IWindow *ghost_window)
 {
   GHOST_Rect bounds;
   ghost_window->getClientBounds(bounds);
 
   const float native_pixel_size = ghost_window->getNativePixelSize();
-  const blender::int2 window_size = {
+  const int2 window_size = {
       int(bounds.getWidth() * native_pixel_size),
       int(bounds.getHeight() * native_pixel_size),
   };
@@ -325,7 +327,7 @@ static bool playanim_window_contains_point(GHOST_IWindow *ghost_window,
                                            const int32_t cx,
                                            const int32_t cy)
 {
-  const blender::int2 window_size = playanim_window_size_get(ghost_window);
+  const int2 window_size = playanim_window_size_get(ghost_window);
   if (cx >= 0 && cx < window_size[0] && cy >= 0 && cy <= window_size[1]) {
 #ifdef WITH_GHOST_CSD
     if (use_window_csd) {
@@ -592,7 +594,7 @@ static int pupdate_time()
 static void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
                                  ImBuf *ibuf,
                                  bool *r_glsl_used,
-                                 blender::gpu::TextureFormat *r_format,
+                                 gpu::TextureFormat *r_format,
                                  eGPUDataFormat *r_data,
                                  void **r_buffer_cache_handle)
 {
@@ -603,7 +605,7 @@ static void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
   force_fallback |= (ibuf->dither != 0.0f);
 
   /* Default. */
-  *r_format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
+  *r_format = gpu::TextureFormat::UNORM_8_8_8_8;
   *r_data = GPU_DATA_UBYTE;
 
   /* Fallback to CPU based color space conversion. */
@@ -616,11 +618,11 @@ static void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
 
     *r_data = GPU_DATA_FLOAT;
     if (ibuf->channels == 4) {
-      *r_format = blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
+      *r_format = gpu::TextureFormat::SFLOAT_16_16_16_16;
     }
     else if (ibuf->channels == 3) {
       /* Alpha is implicitly 1. */
-      *r_format = blender::gpu::TextureFormat::SFLOAT_16_16_16;
+      *r_format = gpu::TextureFormat::SFLOAT_16_16_16;
     }
 
     if (ibuf->float_buffer.colorspace) {
@@ -654,7 +656,7 @@ static void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
   if ((ibuf->byte_buffer.data || ibuf->float_buffer.data) && !*r_glsl_used) {
     display_buffer = IMB_display_buffer_acquire(
         ibuf, &display_ctx.view_settings, &display_ctx.display_settings, r_buffer_cache_handle);
-    *r_format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
+    *r_format = gpu::TextureFormat::UNORM_8_8_8_8;
     *r_data = GPU_DATA_UBYTE;
   }
 
@@ -668,13 +670,12 @@ static void draw_display_buffer(const PlayDisplayContext &display_ctx,
 {
   /* Format needs to be created prior to any #immBindShader call.
    * Do it here because OCIO binds its own shader. */
-  blender::gpu::TextureFormat format;
+  gpu::TextureFormat format;
   eGPUDataFormat data;
   bool glsl_used = false;
   GPUVertFormat *imm_format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(imm_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  uint texCoord = GPU_vertformat_attr_add(
-      imm_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(imm_format, "pos", gpu::VertAttrType::SFLOAT_32_32);
+  uint texCoord = GPU_vertformat_attr_add(imm_format, "texCoord", gpu::VertAttrType::SFLOAT_32_32);
 
   void *buffer_cache_handle = nullptr;
   void *display_buffer = ocio_transform_ibuf(
@@ -682,7 +683,7 @@ static void draw_display_buffer(const PlayDisplayContext &display_ctx,
 
   /* NOTE: This may fail, especially for large images that exceed the GPU's texture size limit.
    * Large images could be supported although this isn't so common for animation playback. */
-  blender::gpu::Texture *texture = GPU_texture_create_2d(
+  gpu::Texture *texture = GPU_texture_create_2d(
       "display_buf", ibuf->x, ibuf->y, 1, format, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
 
   if (texture) {
@@ -792,8 +793,8 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
                                  offs_y,
                                  offs_x + span_x,
                                  offs_y + span_y,
-                                 blender::float4{0.15, 0.15, 0.15, 1.0},
-                                 blender::float4{0.20, 0.20, 0.20, 1.0},
+                                 float4{0.15, 0.15, 0.15, 1.0},
+                                 float4{0.20, 0.20, 0.20, 1.0},
                                  8);
     }
     rctf canvas;
@@ -820,7 +821,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
                picture->error_message ? picture->error_message : "<unknown error>");
     }
 
-    const blender::int2 window_size = playanim_window_size_get(ghost_data.window);
+    const int2 window_size = playanim_window_size_get(ghost_data.window);
     fsizex_inv = 1.0f / window_size[0];
     fsizey_inv = 1.0f / window_size[1];
 
@@ -852,8 +853,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
     GPU_matrix_push();
     GPU_matrix_identity_set();
 
-    uint pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor3ub(0, 255, 0);
@@ -879,7 +879,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
 
       const GHOST_CSD_Layout *csd_layout = &ghost_data.system->getWindowCSD_Layout();
       const uint16_t dpi = ghost_data.window->getDPIHint();
-      const blender::int2 window_size = playanim_window_size_get(ghost_data.window);
+      const int2 window_size = playanim_window_size_get(ghost_data.window);
       const bool is_active = true; /* Alpha is zero when inactive. */
       const int font_size = 11;    /* Un-scaled (same as default panel point size). */
 
@@ -1198,7 +1198,7 @@ static void playanim_change_frame(PlayState &ps)
     return;
   }
 
-  const blender::int2 window_size = playanim_window_size_get(ps.ghost_data.window);
+  const int2 window_size = playanim_window_size_get(ps.ghost_data.window);
   const int i_last = static_cast<PlayAnimPict *>(ps.picsbase.last)->frame;
   /* Without this the frame-indicator location isn't closest to the cursor. */
   const int correct_rounding = (window_size[0] / (i_last + 1)) / 2;
@@ -1634,7 +1634,7 @@ static bool ghost_event_proc(const GHOST_IEvent *ghost_event, GHOST_TUserDataPtr
       if (ps.display_ctx.use_window_csd) {
         const GHOST_TEventCursorData *cd = static_cast<const GHOST_TEventCursorData *>(data);
         float &alpha = ps.display_ctx.ui_window_csd_alpha;
-        const blender::int2 window_size = playanim_window_size_get(ghost_window);
+        const int2 window_size = playanim_window_size_get(ghost_window);
 
         /* The vertical range to highlight the title (when the cursor is near). */
         const int upper_y = window_size.y / 6;
@@ -1807,8 +1807,8 @@ static GHOST_IWindow *playanim_window_open(
 
 static void playanim_window_zoom(PlayState &ps, const float zoom_offset)
 {
-  blender::int2 size;
-  // blender::int2 ofs; /* UNUSED. */
+  int2 size;
+  // int2 ofs; /* UNUSED. */
 
   if (ps.zoom + zoom_offset > 0.0f) {
     ps.zoom += zoom_offset;
@@ -1852,7 +1852,7 @@ static bool playanim_window_font_scale_from_dpi(PlayState &ps)
 static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_next)
 {
   ImBuf *ibuf = nullptr;
-  blender::int2 window_pos = {0, 0};
+  int2 window_pos = {0, 0};
   int frame_start = -1;
   int frame_end = -1;
 
@@ -2090,7 +2090,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
   GPU_clear_color(0.1f, 0.1f, 0.1f, 0.0f);
 
   {
-    const blender::int2 window_size = playanim_window_size_get(ps.ghost_data.window);
+    const int2 window_size = playanim_window_size_get(ps.ghost_data.window);
     GPU_viewport(0, 0, window_size[0], window_size[1]);
     GPU_scissor(0, 0, window_size[0], window_size[1]);
     playanim_gpu_matrix();
@@ -2424,3 +2424,5 @@ int WM_main_playanim(int argc, const char **argv)
 
   return exit_code.value();
 }
+
+}  // namespace blender

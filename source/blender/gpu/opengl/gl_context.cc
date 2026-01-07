@@ -24,7 +24,8 @@
 #include "gl_backend.hh" /* TODO: remove. */
 #include "gl_context.hh"
 
-using namespace blender;
+namespace blender {
+
 using namespace blender::gpu;
 
 /* -------------------------------------------------------------------- */
@@ -370,3 +371,5 @@ void GLContext::memory_statistics_get(int *r_total_mem, int *r_free_mem)
 }
 
 /** \} */
+
+}  // namespace blender

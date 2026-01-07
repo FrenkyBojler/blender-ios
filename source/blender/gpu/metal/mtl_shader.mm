@@ -40,7 +40,6 @@
 #include "mtl_texture.hh"
 #include "mtl_vertex_buffer.hh"
 
-using namespace blender;
 using namespace blender::gpu;
 using namespace blender::gpu::shader;
 
