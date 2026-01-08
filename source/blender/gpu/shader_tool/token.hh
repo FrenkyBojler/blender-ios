@@ -229,6 +229,9 @@ struct Token {
 
   std::string_view str_view_with_whitespace() const
   {
+    if (is_invalid()) {
+      return "";
+    }
     return std::string_view(data->str).substr(index_range().start, index_range().size);
   }
 
@@ -239,9 +242,6 @@ struct Token {
 
   std::string_view str_view() const
   {
-    if (is_invalid()) {
-      return "";
-    }
     std::string_view str = this->str_view_with_whitespace();
     return str.substr(0, str.find_last_not_of(" \n") + 1);
   }
