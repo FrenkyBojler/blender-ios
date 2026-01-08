@@ -63,6 +63,48 @@ namespace blender {
 
 static CLG_LogRef LOG = {"geom.gpencil"};
 
+static void greasepencil_init_data(ID *id)
+{
+  bGPdata *gpd = id_cast<bGPdata *>(id);
+
+  /* initial settings */
+  gpd->flag = (GP_DATA_DISPINFO | GP_DATA_EXPAND);
+
+  /* general flags */
+  gpd->flag |= GP_DATA_VIEWALIGN;
+  /* always enable object onion skin switch */
+  gpd->flag |= GP_DATA_SHOW_ONIONSKINS;
+  /* GP object specific settings */
+  ARRAY_SET_ITEMS(gpd->line_color, 0.6f, 0.6f, 0.6f, 0.5f);
+
+  gpd->pixfactor = GP_DEFAULT_PIX_FACTOR;
+
+  gpd->curve_edit_resolution = GP_DEFAULT_CURVE_RESOLUTION;
+  gpd->curve_edit_threshold = GP_DEFAULT_CURVE_ERROR;
+  gpd->curve_edit_corner_angle = GP_DEFAULT_CURVE_EDIT_CORNER_ANGLE;
+
+  /* use adaptive curve resolution by default */
+  gpd->flag |= GP_DATA_CURVE_ADAPTIVE_RESOLUTION;
+
+  gpd->zdepth_offset = 0.150f;
+
+  /* grid settings */
+  ARRAY_SET_ITEMS(gpd->grid.color, 0.5f, 0.5f, 0.5f); /* Color */
+  ARRAY_SET_ITEMS(gpd->grid.scale, 1.0f, 1.0f);       /* Scale */
+  gpd->grid.lines = GP_DEFAULT_GRID_LINES;            /* Number of lines */
+
+  /* Onion-skinning settings (data-block level) */
+  gpd->onion_keytype = -1; /* All by default. */
+  gpd->onion_flag |= (GP_ONION_GHOST_PREVCOL | GP_ONION_GHOST_NEXTCOL);
+  gpd->onion_flag |= GP_ONION_FADE;
+  gpd->onion_mode = GP_ONION_MODE_RELATIVE;
+  gpd->onion_factor = 0.5f;
+  ARRAY_SET_ITEMS(gpd->gcolor_prev, 0.145098f, 0.419608f, 0.137255f); /* green */
+  ARRAY_SET_ITEMS(gpd->gcolor_next, 0.125490f, 0.082353f, 0.529412f); /* blue */
+  gpd->gstep = 1;
+  gpd->gstep_next = 1;
+}
+
 static void greasepencil_copy_data(Main * /*bmain*/,
                                    std::optional<Library *> /*owner_library*/,
                                    ID *id_dst,
@@ -276,7 +318,7 @@ IDTypeInfo IDType_ID_GD_LEGACY = {
     .flags = IDTYPE_FLAGS_APPEND_IS_REUSABLE,
     .asset_type_info = nullptr,
 
-    .init_data = nullptr,
+    .init_data = greasepencil_init_data,
     .copy_data = greasepencil_copy_data,
     .free_data = greasepencil_free_data,
     .make_local = nullptr,
@@ -652,43 +694,6 @@ bGPdata *BKE_gpencil_data_addnew(Main *bmain, const char name[])
 
   /* allocate memory for a new block */
   gpd = static_cast<bGPdata *>(BKE_libblock_alloc(bmain, ID_GD_LEGACY, name, 0));
-
-  /* initial settings */
-  gpd->flag = (GP_DATA_DISPINFO | GP_DATA_EXPAND);
-
-  /* general flags */
-  gpd->flag |= GP_DATA_VIEWALIGN;
-  /* always enable object onion skin switch */
-  gpd->flag |= GP_DATA_SHOW_ONIONSKINS;
-  /* GP object specific settings */
-  ARRAY_SET_ITEMS(gpd->line_color, 0.6f, 0.6f, 0.6f, 0.5f);
-
-  gpd->pixfactor = GP_DEFAULT_PIX_FACTOR;
-
-  gpd->curve_edit_resolution = GP_DEFAULT_CURVE_RESOLUTION;
-  gpd->curve_edit_threshold = GP_DEFAULT_CURVE_ERROR;
-  gpd->curve_edit_corner_angle = GP_DEFAULT_CURVE_EDIT_CORNER_ANGLE;
-
-  /* use adaptive curve resolution by default */
-  gpd->flag |= GP_DATA_CURVE_ADAPTIVE_RESOLUTION;
-
-  gpd->zdepth_offset = 0.150f;
-
-  /* grid settings */
-  ARRAY_SET_ITEMS(gpd->grid.color, 0.5f, 0.5f, 0.5f); /* Color */
-  ARRAY_SET_ITEMS(gpd->grid.scale, 1.0f, 1.0f);       /* Scale */
-  gpd->grid.lines = GP_DEFAULT_GRID_LINES;            /* Number of lines */
-
-  /* Onion-skinning settings (data-block level) */
-  gpd->onion_keytype = -1; /* All by default. */
-  gpd->onion_flag |= (GP_ONION_GHOST_PREVCOL | GP_ONION_GHOST_NEXTCOL);
-  gpd->onion_flag |= GP_ONION_FADE;
-  gpd->onion_mode = GP_ONION_MODE_RELATIVE;
-  gpd->onion_factor = 0.5f;
-  ARRAY_SET_ITEMS(gpd->gcolor_prev, 0.145098f, 0.419608f, 0.137255f); /* green */
-  ARRAY_SET_ITEMS(gpd->gcolor_next, 0.125490f, 0.082353f, 0.529412f); /* blue */
-  gpd->gstep = 1;
-  gpd->gstep_next = 1;
 
   return gpd;
 }

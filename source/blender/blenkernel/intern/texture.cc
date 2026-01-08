@@ -352,11 +352,6 @@ void BKE_texture_colormapping_default(ColorMapping *colormap)
 
 /* ------------------------------------------------------------------------- */
 
-void BKE_texture_default(Tex *tex)
-{
-  texture_init_data(&tex->id);
-}
-
 void BKE_texture_type_set(Tex *tex, int type)
 {
   tex->type = type;

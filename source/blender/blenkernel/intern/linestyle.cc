@@ -731,18 +731,12 @@ static const char *modifier_name[LS_MODIFIER_NUM] = {
     "Noise",         "Crease Angle",    "Simplification",       "Curvature 3D",
 };
 
-void BKE_linestyle_init(FreestyleLineStyle *linestyle)
-{
-  linestyle_init_data(&linestyle->id);
-}
-
 FreestyleLineStyle *BKE_linestyle_new(Main *bmain, const char *name)
 {
   FreestyleLineStyle *linestyle;
 
   linestyle = static_cast<FreestyleLineStyle *>(BKE_libblock_alloc(bmain, ID_LS, name, 0));
-
-  BKE_linestyle_init(linestyle);
+  BKE_libblock_init_empty(&linestyle->id);
 
   return linestyle;
 }

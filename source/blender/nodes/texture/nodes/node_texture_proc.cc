@@ -6,6 +6,7 @@
  * \ingroup texnodes
  */
 
+#include "BKE_image.hh"
 #include "BKE_material.hh"
 #include "BKE_texture.h"
 #include "BLI_listbase.h"
@@ -236,7 +237,7 @@ static void init(bNodeTree * /*ntree*/, bNode *node)
   Tex *tex = MEM_new<Tex>("Tex");
   node->storage = tex;
 
-  BKE_texture_default(tex);
+  BKE_imageuser_default(&tex->iuser);
   tex->type = node->type_legacy - TEX_NODE_PROC;
 
   if (tex->type == TEX_WOOD) {

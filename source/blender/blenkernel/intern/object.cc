@@ -2148,10 +2148,8 @@ static const char *get_obdata_defname(int type)
   }
 }
 
-static void object_init(Object *ob, const short ob_type)
+static void object_init_type(Object *ob, const short ob_type)
 {
-  object_init_data(&ob->id);
-
   ob->type = ob_type;
 
   if (ob->type != OB_EMPTY) {
@@ -2263,12 +2261,13 @@ Object *BKE_object_add_only_object(Main *bmain, int type, const char *name)
   /* We cannot use #BKE_id_new here as we need some custom initialization code. */
   Object *ob = static_cast<Object *>(
       BKE_libblock_alloc(bmain, ID_OB, name, bmain ? 0 : LIB_ID_CREATE_NO_MAIN));
+  BKE_libblock_init_empty(&ob->id);
 
   /* We increase object user count when linking to Collections. */
   id_us_min(&ob->id);
 
-  /* default object vars */
-  object_init(ob, type);
+  /* default object vars for this type */
+  object_init_type(ob, type);
 
   return ob;
 }

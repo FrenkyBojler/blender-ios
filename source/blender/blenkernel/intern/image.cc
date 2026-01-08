@@ -119,7 +119,8 @@ namespace blender {
 
 static CLG_LogRef LOG = {"image"};
 
-static void image_init(Image *ima, short source, short type);
+static ImageTile *imagetile_alloc(int tile_number);
+static void image_init_source_type(Image *ima, short source, short type);
 static void image_free_packedfiles(Image *ima);
 static void copy_image_packedfiles(ListBaseT<ImagePackedFile> *lb_dst,
                                    const ListBaseT<ImagePackedFile> *lb_src);
@@ -140,10 +141,17 @@ static void image_runtime_free_data(Image *image)
 static void image_init_data(ID *id)
 {
   Image *image = id_cast<Image *>(id);
+  INIT_DEFAULT_STRUCT_AFTER(image, id);
 
-  if (image != nullptr) {
-    image_init(image, IMA_SRC_GENERATED, IMA_TYPE_UV_TEST);
-  }
+  ImageTile *tile = imagetile_alloc(1001);
+  BLI_addtail(&image->tiles, tile);
+
+  image->runtime = MEM_new<bke::ImageRuntime>(__func__);
+
+  BKE_color_managed_colorspace_settings_init(&image->colorspace_settings);
+  image->stereo3d_format = MEM_new<Stereo3dFormat>("Image Stereo Format");
+
+  image_init_source_type(image, IMA_SRC_GENERATED, IMA_TYPE_UV_TEST);
 }
 
 static void image_copy_data(Main * /*bmain*/,
@@ -637,11 +645,9 @@ static ImageTile *imagetile_alloc(int tile_number)
   return tile;
 }
 
-/* only image block itself */
-static void image_init(Image *ima, short source, short type)
+/* Only source and type specific initialization. */
+static void image_init_source_type(Image *ima, short source, short type)
 {
-  INIT_DEFAULT_STRUCT_AFTER(ima, id);
-
   ima->source = source;
   ima->type = type;
 
@@ -649,19 +655,11 @@ static void image_init(Image *ima, short source, short type)
     ima->flag |= IMA_VIEW_AS_RENDER;
   }
 
-  ImageTile *tile = imagetile_alloc(1001);
-  BLI_addtail(&ima->tiles, tile);
-
   if (type == IMA_TYPE_R_RESULT) {
     for (int i = 0; i < 8; i++) {
       BKE_image_add_renderslot(ima, nullptr);
     }
   }
-
-  ima->runtime = MEM_new<bke::ImageRuntime>(__func__);
-
-  BKE_color_managed_colorspace_settings_init(&ima->colorspace_settings);
-  ima->stereo3d_format = MEM_new<Stereo3dFormat>("Image Stereo Format");
 }
 
 static Image *image_alloc(Main *bmain,
@@ -674,7 +672,8 @@ static Image *image_alloc(Main *bmain,
 
   ima = static_cast<Image *>(BKE_libblock_alloc_in_lib(bmain, owner_library, ID_IM, name, 0));
   if (ima) {
-    image_init(ima, source, type);
+    BKE_libblock_init_empty(&ima->id);
+    image_init_source_type(ima, source, type);
   }
 
   return ima;

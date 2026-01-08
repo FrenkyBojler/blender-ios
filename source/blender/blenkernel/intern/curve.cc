@@ -361,10 +361,8 @@ void BKE_curve_editNurb_free(Curve *cu)
   }
 }
 
-void BKE_curve_init(Curve *cu, const short curve_type)
+static void curve_init_type(Curve *cu, const short curve_type)
 {
-  curve_init_data(&cu->id);
-
   cu->ob_type = curve_type;
 
   if (cu->ob_type == OB_FONT) {
@@ -408,8 +406,8 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
 
   /* We cannot use #BKE_id_new here as we need some custom initialization code. */
   cu = static_cast<Curve *>(BKE_libblock_alloc(bmain, ID_CU_LEGACY, name, 0));
-
-  BKE_curve_init(cu, type);
+  BKE_libblock_init_empty(&cu->id);
+  curve_init_type(cu, type);
 
   return cu;
 }

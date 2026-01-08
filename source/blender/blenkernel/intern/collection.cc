@@ -1045,13 +1045,13 @@ Collection *BKE_collection_master_add(Scene *scene)
   /* Not an actual datablock, but owned by scene. */
   Collection *master_collection = static_cast<Collection *>(BKE_libblock_alloc_in_lib(
       nullptr, scene->id.lib, ID_GR, BKE_SCENE_COLLECTION_NAME, LIB_ID_CREATE_NO_MAIN));
+  BKE_libblock_init_empty(&master_collection->id);
   master_collection->id.flag |= ID_FLAG_EMBEDDED_DATA;
   master_collection->owner_id = &scene->id;
   master_collection->flag |= COLLECTION_IS_MASTER;
   master_collection->color_tag = COLLECTION_COLOR_NONE;
 
   BLI_assert(scene->id.lib == master_collection->id.lib);
-  master_collection->runtime = MEM_new<bke::CollectionRuntime>(__func__);
 
   return master_collection;
 }
