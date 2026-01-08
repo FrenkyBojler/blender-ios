@@ -2672,17 +2672,9 @@ static ID *create_placeholder(Main *mainvar,
                               const int tag,
                               const bool was_liboverride)
 {
-  ListBaseT<ID> *lb = which_libbase(mainvar, idcode);
-  ID *ph_id = BKE_libblock_alloc_notest(idcode);
-  BKE_libblock_runtime_ensure(*ph_id);
+  ID *ph_id = BKE_libblock_new_placeholder(mainvar, idcode, idname);
 
-  *(reinterpret_cast<short *>(ph_id->name)) = idcode;
-  BLI_strncpy(ph_id->name + 2, idname, sizeof(ph_id->name) - 2);
-  BKE_libblock_init_empty(ph_id);
-  ph_id->lib = mainvar->curlib;
-  ph_id->tag = tag | ID_TAG_MISSING;
-  ph_id->us = ID_FAKE_USERS(ph_id);
-  ph_id->icon_id = 0;
+  ph_id->tag |= tag;
 
   if (was_liboverride) {
     /* 'Abuse' `ID_TAG_LIBOVERRIDE_NEED_RESYNC` to mark that placeholder missing linked ID as
@@ -2691,9 +2683,6 @@ static ID *create_placeholder(Main *mainvar,
      * This will be used by the liboverride resync process, see #lib_override_library_resync. */
     ph_id->tag |= ID_TAG_LIBOVERRIDE_NEED_RESYNC;
   }
-
-  BLI_addtail(lb, ph_id);
-  id_sort_by_name(lb, ph_id, nullptr);
 
   if (mainvar->id_map != nullptr) {
     BKE_main_idmap_insert_id(mainvar->id_map, ph_id);

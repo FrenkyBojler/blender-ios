@@ -670,9 +670,8 @@ static Image *image_alloc(Main *bmain,
 {
   Image *ima;
 
-  ima = static_cast<Image *>(BKE_libblock_alloc_in_lib(bmain, owner_library, ID_IM, name, 0));
+  ima = static_cast<Image *>(BKE_libblock_new_in_lib(bmain, owner_library, ID_IM, name, 0));
   if (ima) {
-    BKE_libblock_init_empty(&ima->id);
     image_init_source_type(ima, source, type);
   }
 

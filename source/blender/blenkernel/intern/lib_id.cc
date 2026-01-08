@@ -1323,7 +1323,7 @@ void BKE_main_lib_objects_recalc_all(Main *bmain)
  * BKE_libblock_free(ListBaseT<ID> *lb, ID *id )
  * provide a list-basis and data-block, but only ID is read
  *
- * void *BKE_libblock_alloc(ListBaseT<ID> *lb, type, name)
+ * void *BKE_libblock_new(ListBaseT<ID> *lb, type, name)
  * inserts in list and returns a new ID
  *
  * **************************** */
@@ -1352,127 +1352,146 @@ size_t BKE_libblock_get_alloc_info(short type, const char **r_name)
   return id_type->struct_size;
 }
 
-ID *BKE_libblock_alloc_notest(short type)
+/* Creates a new ID of the specified type, but does not initialize ID part yet. */
+static ID *libblock_new(short type)
 {
-  const char *name;
-  size_t size = BKE_libblock_get_alloc_info(type, &name);
-  if (size != 0) {
-    ID *id = static_cast<ID *>(MEM_new_zeroed(size, name));
-    return id;
+  const IDTypeInfo *type_info = BKE_idtype_get_info_from_idcode(type);
+  if (type_info == nullptr) {
+    BLI_assert_msg(0, "Request to allocate unknown data type");
+    return nullptr;
   }
-  BLI_assert_msg(0, "Request to allocate unknown data type");
-  return nullptr;
+
+  ID *id = static_cast<ID *>(MEM_new_zeroed(type_info->struct_size, type_info->name));
+  if (id) {
+    BKE_libblock_runtime_ensure(*id);
+    if (type_info->init_data) {
+      type_info->init_data(id);
+    }
+  }
+  return id;
 }
 
-void *BKE_libblock_alloc_in_lib(Main *bmain,
-                                std::optional<Library *> owner_library,
-                                short type,
-                                const char *name,
-                                const int flag)
+/* Initialize the ID part of a datablock. */
+static void libblock_init_id(Main *bmain,
+                             std::optional<Library *> owner_library,
+                             short type,
+                             const char *name,
+                             const int flag,
+                             ID *id)
 {
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || bmain != nullptr);
   BLI_assert((flag & LIB_ID_CREATE_NO_MAIN) != 0 || (flag & LIB_ID_CREATE_LOCAL) == 0);
 
-  ID *id = BKE_libblock_alloc_notest(type);
-  BKE_libblock_runtime_ensure(*id);
+  if ((flag & LIB_ID_CREATE_NO_MAIN) != 0) {
+    id->tag |= ID_TAG_NO_MAIN;
+  }
+  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) != 0) {
+    id->tag |= ID_TAG_NO_USER_REFCOUNT;
+  }
+  if (flag & LIB_ID_CREATE_LOCAL) {
+    id->tag |= ID_TAG_LOCALIZED;
+  }
 
-  if (id) {
-    if ((flag & LIB_ID_CREATE_NO_MAIN) != 0) {
-      id->tag |= ID_TAG_NO_MAIN;
-    }
-    if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) != 0) {
-      id->tag |= ID_TAG_NO_USER_REFCOUNT;
-    }
-    if (flag & LIB_ID_CREATE_LOCAL) {
-      id->tag |= ID_TAG_LOCALIZED;
-    }
+  id->icon_id = 0;
+  *(reinterpret_cast<short *>(id->name)) = type;
+  if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+    id->us++;
+  }
+  if ((flag & LIB_ID_CREATE_NO_MAIN) == 0) {
+    /* Note that 2.8x versioning has tested not to cause conflicts. Node trees are
+     * skipped in this check to allow adding a geometry node tree for versioning. */
+    BLI_assert(bmain->is_locked_for_linking == false || ELEM(type, ID_WS, ID_GR, ID_NT));
+    ListBaseT<ID> *lb = which_libbase(bmain, type);
 
-    id->icon_id = 0;
-    *(reinterpret_cast<short *>(id->name)) = type;
-    if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
-      id->us = 1;
-    }
-    if ((flag & LIB_ID_CREATE_NO_MAIN) == 0) {
-      /* Note that 2.8x versioning has tested not to cause conflicts. Node trees are
-       * skipped in this check to allow adding a geometry node tree for versioning. */
-      BLI_assert(bmain->is_locked_for_linking == false || ELEM(type, ID_WS, ID_GR, ID_NT));
-      ListBaseT<ID> *lb = which_libbase(bmain, type);
-
-      /* This is important in "read-file do-version after lib-link" context mainly, but is a good
-       * behavior for consistency in general: ID created for a Main should get that main's current
-       * library pointer.
-       *
-       * NOTE: A bit convoluted.
-       *   - When Main has a defined `curlib`, it is assumed to be a split main containing only IDs
-       *     from that library. In that case, the library can be set later, and it avoids
-       *     synchronization issues in the namemap between the one of that temp 'library' Main and
-       *     the library ID runtime namemap itself. In a way, the ID can be assumed local to the
-       *     current Main, for its assignment to this Main.
-       *   - In all other cases, the Main is assumed 'complete', i.e. containing all local and
-       *     linked IDs, In that case, it is critical that the ID gets the correct library assigned
-       *     now, to ensure that the call to #BKE_id_new_name_validate gives a fully valid result
-       *     once it has been assigned to the current Main.
-       */
-      if (bmain->curlib) {
-        id->lib = nullptr;
-      }
-      else {
-        id->lib = owner_library ? *owner_library : nullptr;
-      }
-
-      BKE_main_lock(bmain);
-      BLI_addtail(lb, id);
-      BKE_id_new_name_validate(*bmain, *lb, *id, name, IDNewNameMode::RenameExistingNever, true);
-      bmain->is_memfile_undo_written = false;
-      /* alphabetic insertion: is in new_id */
-      BKE_main_unlock(bmain);
-
-      /* Split Main case, now the ID should get the Main's #curlib. */
-      if (bmain->curlib) {
-        BLI_assert(!owner_library || *owner_library == bmain->curlib);
-        id->lib = bmain->curlib;
-      }
-
-      /* This assert avoids having to keep name_map consistency when changing the library of an ID,
-       * if this check is not true anymore it will have to be done here too. */
-      BLI_assert(bmain->curlib == nullptr || bmain->curlib->runtime->name_map == nullptr);
-
-      /* TODO: to be removed from here! */
-      if ((flag & LIB_ID_CREATE_NO_DEG_TAG) == 0) {
-        DEG_id_type_tag(bmain, type);
-      }
+    /* This is important in "read-file do-version after lib-link" context mainly, but is a good
+     * behavior for consistency in general: ID created for a Main should get that main's current
+     * library pointer.
+     *
+     * NOTE: A bit convoluted.
+     *   - When Main has a defined `curlib`, it is assumed to be a split main containing only IDs
+     *     from that library. In that case, the library can be set later, and it avoids
+     *     synchronization issues in the namemap between the one of that temp 'library' Main and
+     *     the library ID runtime namemap itself. In a way, the ID can be assumed local to the
+     *     current Main, for its assignment to this Main.
+     *   - In all other cases, the Main is assumed 'complete', i.e. containing all local and
+     *     linked IDs, In that case, it is critical that the ID gets the correct library assigned
+     *     now, to ensure that the call to #BKE_id_new_name_validate gives a fully valid result
+     *     once it has been assigned to the current Main.
+     */
+    if (bmain->curlib) {
+      id->lib = nullptr;
     }
     else {
-      BLI_strncpy(id->name + 2, name, sizeof(id->name) - 2);
       id->lib = owner_library ? *owner_library : nullptr;
     }
 
-    /* We also need to ensure a valid `session_uid` for some non-main data (like embedded IDs).
-     * IDs not allocated however should not need those (this would e.g. avoid generating session
-     * UIDs for depsgraph evaluated IDs, if it was using this function). */
-    BKE_lib_libblock_session_uid_ensure(id);
+    BKE_main_lock(bmain);
+    BLI_addtail(lb, id);
+    BKE_id_new_name_validate(*bmain, *lb, *id, name, IDNewNameMode::RenameExistingNever, true);
+    bmain->is_memfile_undo_written = false;
+    /* alphabetic insertion: is in new_id */
+    BKE_main_unlock(bmain);
+
+    /* Split Main case, now the ID should get the Main's #curlib. */
+    if (bmain->curlib) {
+      BLI_assert(!owner_library || *owner_library == bmain->curlib);
+      id->lib = bmain->curlib;
+    }
+
+    /* This assert avoids having to keep name_map consistency when changing the library of an ID,
+     * if this check is not true anymore it will have to be done here too. */
+    BLI_assert(bmain->curlib == nullptr || bmain->curlib->runtime->name_map == nullptr);
+
+    /* TODO: to be removed from here! */
+    if ((flag & LIB_ID_CREATE_NO_DEG_TAG) == 0) {
+      DEG_id_type_tag(bmain, type);
+    }
+  }
+  else {
+    BLI_strncpy(id->name + 2, name, sizeof(id->name) - 2);
+    id->lib = owner_library ? *owner_library : nullptr;
   }
 
+  /* We also need to ensure a valid `session_uid` for some non-main data (like embedded IDs).
+   * IDs not allocated however should not need those (this would e.g. avoid generating session
+   * UIDs for depsgraph evaluated IDs, if it was using this function). */
+  BKE_lib_libblock_session_uid_ensure(id);
+}
+
+void *BKE_libblock_new_in_lib(Main *bmain,
+                              std::optional<Library *> owner_library,
+                              short type,
+                              const char *name,
+                              const int flag)
+{
+  ID *id = libblock_new(type);
+  if (id) {
+    libblock_init_id(bmain, owner_library, type, name, flag, id);
+  }
   return id;
 }
 
-void *BKE_libblock_alloc(Main *bmain, short type, const char *name, const int flag)
+void *BKE_libblock_new(Main *bmain, short type, const char *name, const int flag)
 {
-  return BKE_libblock_alloc_in_lib(bmain, std::nullopt, type, name, flag);
+  return BKE_libblock_new_in_lib(bmain, std::nullopt, type, name, flag);
 }
 
-void BKE_libblock_init_empty(ID *id)
+ID *BKE_libblock_new_placeholder(Main *bmain, short type, const char *name)
 {
-  const IDTypeInfo *idtype_info = BKE_idtype_get_info_from_id(id);
+  ListBaseT<ID> *lb = which_libbase(bmain, type);
+  ID *id = libblock_new(type);
 
-  if (idtype_info != nullptr) {
-    if (idtype_info->init_data != nullptr) {
-      idtype_info->init_data(id);
-    }
-    return;
-  }
+  *(reinterpret_cast<short *>(id->name)) = type;
+  BLI_strncpy(id->name + 2, name, sizeof(id->name) - 2);
+  id->lib = bmain->curlib;
+  id->tag = ID_TAG_MISSING;
+  id->us = ID_FAKE_USERS(id);
+  id->icon_id = 0;
 
-  BLI_assert_msg(0, "IDType Missing IDTypeInfo");
+  BLI_addtail(lb, id);
+  id_sort_by_name(lb, id, nullptr);
+
+  return id;
 }
 
 void BKE_libblock_runtime_reset_remapping_status(ID *id)
@@ -1517,8 +1536,7 @@ void *BKE_id_new_in_lib(Main *bmain,
     name = DATA_(BKE_idtype_idcode_to_name(type));
   }
 
-  ID *id = static_cast<ID *>(BKE_libblock_alloc_in_lib(bmain, owner_library, type, name, 0));
-  BKE_libblock_init_empty(id);
+  ID *id = static_cast<ID *>(BKE_libblock_new_in_lib(bmain, owner_library, type, name, 0));
 
   return id;
 }
@@ -1534,12 +1552,11 @@ void *BKE_id_new_nomain(const short type, const char *name)
     name = DATA_(BKE_idtype_idcode_to_name(type));
   }
 
-  ID *id = static_cast<ID *>(BKE_libblock_alloc(
+  ID *id = static_cast<ID *>(BKE_libblock_new(
       nullptr,
       type,
       name,
       LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT | LIB_ID_CREATE_NO_DEG_TAG));
-  BKE_libblock_init_empty(id);
 
   return id;
 }
@@ -1579,22 +1596,25 @@ void BKE_libblock_copy_in_lib(Main *bmain,
        */
       ((owner_library && *owner_library) ? (ID_TAG_EXTERN | ID_TAG_INDIRECT) : 0);
 
+  const char *alloc_name;
+  const size_t alloc_size = BKE_libblock_get_alloc_info(GS(id->name), &alloc_name);
+
   if ((flag & LIB_ID_COPY_NO_ALLOCATE) != 0) {
     /* `new_id_p` already contains pointer to allocated memory.
-     * Clear and initialize it similar to BKE_libblock_alloc_in_lib. */
-    const size_t size = BKE_libblock_get_alloc_info(GS(id->name), nullptr);
-    memset(static_cast<void *>(new_id), 0, size);
+     * Clear and initialize it similar to BKE_libblock_new_in_lib. */
+    memset(static_cast<void *>(new_id), 0, alloc_size);
     BKE_libblock_runtime_ensure(*new_id);
     STRNCPY(new_id->name, id->name);
     new_id->us = 0;
     new_id->tag |= ID_TAG_NOT_ALLOCATED | ID_TAG_NO_MAIN | ID_TAG_NO_USER_REFCOUNT;
     new_id->lib = owner_library ? *owner_library : id->lib;
-    /* TODO: Is this entirely consistent with BKE_libblock_alloc_in_lib, and can we
+    /* TODO: Is this entirely consistent with libblock_init_id, and can we
      * deduplicate the initialization code? */
   }
   else {
-    new_id = static_cast<ID *>(
-        BKE_libblock_alloc_in_lib(bmain, owner_library, GS(id->name), BKE_id_name(*id), flag));
+    new_id = static_cast<ID *>(MEM_new_zeroed(alloc_size, alloc_name));
+    BKE_libblock_runtime_ensure(*new_id);
+    libblock_init_id(bmain, owner_library, GS(id->name), BKE_id_name(*id), flag, new_id);
   }
   BLI_assert(new_id != nullptr);
 
@@ -1605,13 +1625,12 @@ void BKE_libblock_copy_in_lib(Main *bmain,
     new_id->tag &= ~ID_TAG_COPIED_ON_EVAL;
   }
 
-  const size_t id_len = BKE_libblock_get_alloc_info(GS(new_id->name), nullptr);
   const size_t id_offset = sizeof(ID);
-  if (int(id_len) - int(id_offset) > 0) { /* signed to allow neg result */ /* XXX ????? */
+  if (int(alloc_size) - int(id_offset) > 0) { /* signed to allow neg result */ /* XXX ????? */
     const char *cp = reinterpret_cast<const char *>(id);
     char *cpn = reinterpret_cast<char *>(new_id);
 
-    memcpy(cpn + id_offset, cp + id_offset, id_len - id_offset);
+    memcpy(cpn + id_offset, cp + id_offset, alloc_size - id_offset);
   }
 
   new_id->flag = (new_id->flag & ~copy_idflag_mask) | (id->flag & copy_idflag_mask);

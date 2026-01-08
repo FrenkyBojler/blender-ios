@@ -91,7 +91,7 @@ static wmOperatorStatus cachefile_open_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
 
   CacheFile *cache_file = static_cast<CacheFile *>(
-      BKE_libblock_alloc(bmain, ID_CF, BLI_path_basename(filepath), 0));
+      BKE_libblock_new(bmain, ID_CF, BLI_path_basename(filepath), 0));
   STRNCPY(cache_file->filepath, filepath);
   DEG_id_tag_update(&cache_file->id, ID_RECALC_SYNC_TO_EVAL);
 

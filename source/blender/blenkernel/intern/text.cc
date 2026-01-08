@@ -471,7 +471,7 @@ Text *BKE_text_load_ex(Main *bmain,
     return nullptr;
   }
 
-  ta = static_cast<Text *>(BKE_libblock_alloc(bmain, ID_TXT, BLI_path_basename(filepath_abs), 0));
+  ta = static_cast<Text *>(BKE_libblock_new(bmain, ID_TXT, BLI_path_basename(filepath_abs), 0));
   id_us_min(&ta->id);
   id_fake_user_set(&ta->id);
 

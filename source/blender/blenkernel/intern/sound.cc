@@ -313,7 +313,7 @@ bSound *BKE_sound_new_file(Main *bmain, const char *filepath)
   STRNCPY(filepath_abs, filepath);
   BLI_path_abs(filepath_abs, blendfile_path);
 
-  sound = static_cast<bSound *>(BKE_libblock_alloc(bmain, ID_SO, BLI_path_basename(filepath), 0));
+  sound = static_cast<bSound *>(BKE_libblock_new(bmain, ID_SO, BLI_path_basename(filepath), 0));
   STRNCPY(sound->filepath, filepath);
   sound_init_runtime(sound);
 

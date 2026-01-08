@@ -80,7 +80,11 @@ void IDNode::init_copy_on_write(ID *id_cow_hint)
     }
   }
   else if (deg_eval_copy_is_needed(id_orig)) {
-    id_cow = BKE_libblock_alloc_notest(GS(id_orig->name));
+    /* Only allocates memory, #BKE_libblock_copy_in_lib will copy into this
+     * when #deg_expand_eval_copy_datablock is executed.. */
+    const char *alloc_name;
+    const size_t size = BKE_libblock_get_alloc_info(GS(id_orig->name), &alloc_name);
+    id_cow = static_cast<ID *>(MEM_new_zeroed(size, alloc_name));
     /* No need to call #BKE_libblock_runtime_ensure here, this will be done by
      * #BKE_libblock_copy_in_lib when #deg_expand_eval_copy_datablock is executed. */
     DEG_COW_PRINT(

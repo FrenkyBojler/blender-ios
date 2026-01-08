@@ -971,7 +971,7 @@ enum {
    */
   ID_TAG_NO_USER_REFCOUNT = 1 << 25,
   /**
-   * ID was not allocated by standard system (BKE_libblock_alloc), do not free its memory
+   * ID was not allocated by standard system (BKE_libblock_new), do not free its memory
    * (usual type-specific freeing is called though).
    *
    * RESET_NEVER

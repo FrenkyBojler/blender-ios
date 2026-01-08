@@ -529,7 +529,7 @@ void wm_clear_default_size(bContext *C)
 void wm_add_default(Main *bmain, bContext *C)
 {
   wmWindowManager *wm = static_cast<wmWindowManager *>(
-      BKE_libblock_alloc(bmain, ID_WM, "WinMan", 0));
+      BKE_libblock_new(bmain, ID_WM, "WinMan", 0));
   wmWindow *win;
   bScreen *screen = CTX_wm_screen(C); /* XXX: from file read hrmf. */
   WorkSpace *workspace;

@@ -733,11 +733,8 @@ static const char *modifier_name[LS_MODIFIER_NUM] = {
 
 FreestyleLineStyle *BKE_linestyle_new(Main *bmain, const char *name)
 {
-  FreestyleLineStyle *linestyle;
-
-  linestyle = static_cast<FreestyleLineStyle *>(BKE_libblock_alloc(bmain, ID_LS, name, 0));
-  BKE_libblock_init_empty(&linestyle->id);
-
+  FreestyleLineStyle *linestyle = static_cast<FreestyleLineStyle *>(
+      BKE_libblock_new(bmain, ID_LS, name, 0));
   return linestyle;
 }
 

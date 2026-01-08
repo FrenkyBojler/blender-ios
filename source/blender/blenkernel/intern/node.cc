@@ -4693,8 +4693,7 @@ static bNodeTree *node_tree_add_tree_do(Main *bmain,
   BLI_assert_msg(!owner_library || !owner_id,
                  "Embedded NTrees should never have a defined owner library here");
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(
-      BKE_libblock_alloc_in_lib(bmain, owner_library, ID_NT, std::string(name).c_str(), flag));
-  BKE_libblock_init_empty(&ntree->id);
+      BKE_libblock_new_in_lib(bmain, owner_library, ID_NT, std::string(name).c_str(), flag));
   if (is_embedded) {
     BLI_assert(owner_id != nullptr);
     ntree->id.flag |= ID_FLAG_EMBEDDED_DATA;

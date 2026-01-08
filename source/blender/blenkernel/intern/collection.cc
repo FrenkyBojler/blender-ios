@@ -1043,9 +1043,8 @@ Collection *BKE_collection_master_add(Scene *scene)
   BLI_assert(scene != nullptr && scene->master_collection == nullptr);
 
   /* Not an actual datablock, but owned by scene. */
-  Collection *master_collection = static_cast<Collection *>(BKE_libblock_alloc_in_lib(
+  Collection *master_collection = static_cast<Collection *>(BKE_libblock_new_in_lib(
       nullptr, scene->id.lib, ID_GR, BKE_SCENE_COLLECTION_NAME, LIB_ID_CREATE_NO_MAIN));
-  BKE_libblock_init_empty(&master_collection->id);
   master_collection->id.flag |= ID_FLAG_EMBEDDED_DATA;
   master_collection->owner_id = &scene->id;
   master_collection->flag |= COLLECTION_IS_MASTER;

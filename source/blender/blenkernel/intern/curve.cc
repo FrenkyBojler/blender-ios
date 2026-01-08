@@ -405,8 +405,7 @@ Curve *BKE_curve_add(Main *bmain, const char *name, int type)
   Curve *cu;
 
   /* We cannot use #BKE_id_new here as we need some custom initialization code. */
-  cu = static_cast<Curve *>(BKE_libblock_alloc(bmain, ID_CU_LEGACY, name, 0));
-  BKE_libblock_init_empty(&cu->id);
+  cu = static_cast<Curve *>(BKE_libblock_new(bmain, ID_CU_LEGACY, name, 0));
   curve_init_type(cu, type);
 
   return cu;

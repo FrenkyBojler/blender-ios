@@ -100,44 +100,36 @@ struct ID_Runtime {
  */
 size_t BKE_libblock_get_alloc_info(short type, const char **r_name);
 /**
- * Allocates and returns memory of the right size for the specified block type,
- * initialized to zero.
+ * Creates an ID block of the specified type, with the specified name (adjusted as
+ * necessary to ensure uniqueness), and appended to the specified list. The user count
+ * is set to 1.
  *
- * \note: Typically, caller also needs to immediately call #BKE_libblock_runtime_ensure on the
- * allocated ID data.
- */
-ID *BKE_libblock_alloc_notest(short type) ATTR_WARN_UNUSED_RESULT;
-/**
- * Allocates and returns an ID block of the specified type, with the specified name
- * (adjusted as necessary to ensure uniqueness), and appended to the specified list.
- * The user count is set to 1, all other content (apart from name and links) being
- * initialized to zero.
+ * The contents will be default initialized.
  *
  * \note By default, IDs allocated in a Main database will get the current library of the Main,
  * i.e. usually (besides in readfile case), they will have a `nullptr` `lib` pointer and be local
  * data. IDs allocated outside of a Main database will always get a `nullptr` `lib` pointer.
  */
-void *BKE_libblock_alloc(Main *bmain, short type, const char *name, int flag)
+void *BKE_libblock_new(Main *bmain, short type, const char *name, int flag)
     ATTR_WARN_UNUSED_RESULT;
 /**
- * Same as for #BKE_libblock_alloc, but allows creating a data-block for a given owner library.
+ * Same as for #BKE_libblock_new, but allows creating a data-block for a given owner library.
  *
  * \param owner_library: the Library to 'assign' the newly created ID to. Use `nullptr` to make ID
  * not use any library (i.e. become a local ID). Use `std::nullopt` for default behavior (i.e.
- * behavior of the #BKE_libblock_alloc function).
+ * behavior of the #BKE_libblock_new function).
  */
-void *BKE_libblock_alloc_in_lib(Main *bmain,
-                                std::optional<Library *> owner_library,
-                                short type,
-                                const char *name,
-                                int flag) ATTR_WARN_UNUSED_RESULT;
+void *BKE_libblock_new_in_lib(Main *bmain,
+                              std::optional<Library *> owner_library,
+                              short type,
+                              const char *name,
+                              int flag) ATTR_WARN_UNUSED_RESULT;
 /**
- * Initialize an ID of given type, such that it has valid 'empty' data.
- * ID is assumed to be just calloc'ed.
- *
- * \params bmain The Main data-base containing the \a id to initialize. May be null.
+ * Creates a placeholder ID block, for missing datablocks in linked libraries.
  */
-void BKE_libblock_init_empty(ID *id) ATTR_NONNULL(1);
+ID *BKE_libblock_new_placeholder(Main *bmain,
+                                 short type,
+                                 const char *name) ATTR_WARN_UNUSED_RESULT;
 
 /**
  * Ensure that the given ID does have a valid runtime data.
@@ -346,10 +338,9 @@ void BKE_libblock_copy_in_lib(Main *bmain,
  * Used everywhere in blenkernel.
  *
  * \note Typically, the newly copied ID will be a local data (its `lib` pointer will be `nullptr`).
- * In practice, ID copying follows the same behavior as ID creation (see #BKE_libblock_alloc
+ * In practice, ID copying follows the same behavior as ID creation (see #BKE_libblock_new
  * documentation), with one special case: when the special flag #LIB_ID_COPY_NO_ALLOCATE is
  * specified, the copied ID will have the same library as the source ID.
- *
  */
 void *BKE_libblock_copy(Main *bmain, const ID *id) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
@@ -770,7 +761,7 @@ bool BKE_id_copy_is_allowed(const ID *id);
  * \note User-count of new copy is always set to 1.
  *
  * \note Typically, the newly copied ID will be a local data (its `lib` pointer will be `nullptr`).
- * In practice, ID copying follows the same behavior as ID creation (see #BKE_libblock_alloc
+ * In practice, ID copying follows the same behavior as ID creation (see #BKE_libblock_new
  * documentation), with one special case: when the special flag #LIB_ID_COPY_NO_ALLOCATE is
  * specified, the copied ID will have the same library as the source ID.
  *

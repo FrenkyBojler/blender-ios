@@ -309,7 +309,7 @@ VFont *BKE_vfont_load(Main *bmain, const char *filepath)
     if (vfd) {
       /* If there's a font name, use it for the ID name. */
       vfont = static_cast<VFont *>(
-          BKE_libblock_alloc(bmain, ID_VF, vfd->name[0] ? vfd->name : filename, 0));
+          BKE_libblock_new(bmain, ID_VF, vfd->name[0] ? vfd->name : filename, 0));
       vfont->data = vfd;
       STRNCPY(vfont->filepath, filepath);
 

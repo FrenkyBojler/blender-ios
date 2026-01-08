@@ -983,7 +983,7 @@ void BKE_mask_point_select_set_handle(MaskSplinePoint *point,
 /* only mask block itself */
 static Mask *mask_alloc(Main *bmain, const char *name)
 {
-  Mask *mask = static_cast<Mask *>(BKE_libblock_alloc(bmain, ID_MSK, name, 0));
+  Mask *mask = static_cast<Mask *>(BKE_libblock_new(bmain, ID_MSK, name, 0));
 
   id_fake_user_set(&mask->id);
 

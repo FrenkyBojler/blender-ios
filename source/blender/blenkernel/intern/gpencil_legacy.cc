@@ -693,7 +693,7 @@ bGPdata *BKE_gpencil_data_addnew(Main *bmain, const char name[])
   bGPdata *gpd;
 
   /* allocate memory for a new block */
-  gpd = static_cast<bGPdata *>(BKE_libblock_alloc(bmain, ID_GD_LEGACY, name, 0));
+  gpd = static_cast<bGPdata *>(BKE_libblock_new(bmain, ID_GD_LEGACY, name, 0));
 
   return gpd;
 }

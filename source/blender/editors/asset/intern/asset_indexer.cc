@@ -147,7 +147,7 @@ class BlendFile : public AbstractFile {
 static void add_id_name(DictionaryValue &result, const short idcode, const StringRefNull name)
 {
   char idcode_prefix[2];
-  /* Similar to `BKE_libblock_alloc`. */
+  /* Similar to `BKE_libblock_new`. */
   *(reinterpret_cast<short *>(idcode_prefix)) = idcode;
   std::string name_with_idcode = std::string(idcode_prefix, sizeof(idcode_prefix)) + name;
 

@@ -221,10 +221,8 @@ PointCloud *BKE_pointcloud_add(Main *bmain, const char *name)
 
 PointCloud *BKE_pointcloud_new_nomain(const int totpoint)
 {
-  PointCloud *pointcloud = static_cast<PointCloud *>(BKE_libblock_alloc(
-      nullptr, ID_PT, BKE_idtype_idcode_to_name(ID_PT), LIB_ID_CREATE_LOCALIZE));
-
-  BKE_libblock_init_empty(&pointcloud->id);
+  PointCloud *pointcloud = static_cast<PointCloud *>(
+      BKE_libblock_new(nullptr, ID_PT, BKE_idtype_idcode_to_name(ID_PT), LIB_ID_CREATE_LOCALIZE));
 
   pointcloud->totpoint = totpoint;
 
