@@ -693,6 +693,90 @@ A
     std::string result = blender::gpu::Shader::run_preprocessor(input);
     EXPECT_EQ(expect, result);
   }
+  {
+    /* Infinite recursion. */
+    std::string input = R"(
+#define X (X + 1)
+X
+)";
+    std::string expect = R"(
+
+(X + 1)
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    /* Arguments must be expanded before substitution. */
+    std::string input = R"(
+#define ESCAPE(x) x
+#define STR(x) x
+#define NAME shader_func
+STR(ESCAPE(NAME))
+)";
+    /* STR(ESCAPE(NAME)) -> STR(shader_func) -> "shader_func" */
+    std::string expect = R"(
+
+
+
+shader_func
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    /* Commas inside parentheses should not split macro arguments. */
+    std::string input = R"(
+#define GLSL_FUNC(a, b) a = b;
+GLSL_FUNC(vec3(0.0, 1.0, 0.0), color)
+)";
+    std::string expect = R"(
+
+vec3(0.0, 1.0, 0.0) = color;
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    /* PITFALL: Pasting an empty argument. */
+    std::string input = R"(
+#define CONCAT(a, b) a##b
+CONCAT(prefix_, )
+CONCAT(, _suffix)
+)";
+    std::string expect = R"(
+
+prefix_ 
+_suffix
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
+  {
+    /* PITFALL: Evaluation of complex logical expressions and nested #if. */
+    std::string input = R"(
+#define VERSION 2
+#if (VERSION == 1 + 1) && (UNDEFINED_VAR == 0)
+  #if 0
+    Inside nested false
+  #else
+    Success
+  #endif
+#endif
+)";
+    std::string expect = R"(
+
+
+  
+
+
+    Success
+  
+
+)";
+    std::string result = blender::gpu::Shader::run_preprocessor(input);
+    EXPECT_EQ(expect, result);
+  }
 }
 GPU_TEST(shader_preprocessor)
 
