@@ -4026,6 +4026,7 @@ static void wm_event_handle_xrevent(bContext *C,
    * NOTE: This is a stripped-down XR specific version of #wm_handlers_do_intern. Changes made
    *       in that function might also need to be reproduced here. */
   eHandlerActionFlag action = WM_HANDLER_CONTINUE;
+  wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
   for (wmEventHandler &handler_base : *modalhandlers) {
     if (handler_base.type == WM_HANDLER_TYPE_OP) {
       BLI_assert((handler_base.flag & WM_HANDLER_DO_FREE) == 0);
@@ -4035,7 +4036,7 @@ static void wm_event_handle_xrevent(bContext *C,
       }
 
       wmEventHandler_Op *op_handler = (wmEventHandler_Op *)&handler_base;
-      if (op_handler->is_xr) {
+      if (op_handler->is_xr && op_handler->op && op_handler->op->type == actiondata->ot) {
         action = wm_handler_operator_call(
             C, modalhandlers, &handler_base, event, nullptr, nullptr);
         break;
